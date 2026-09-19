@@ -447,6 +447,8 @@ final class QueryAttention extends GqlNodeBase {
       'attentionThreadKey': receipt.attentionThreadKey,
       'settlementKind': receipt.settlementKind?.wireName,
       'settledAt': receipt.settledAt?.toUtc().toIso8601String(),
+      'clearedAt': receipt.clearedAt?.toUtc().toIso8601String(),
+      'clearReason': receipt.clearReason,
       'surface': receipt.surface.name,
       'itemKind': receipt.itemKind.name,
       'forwardOutcome': receipt.forwardOutcome,

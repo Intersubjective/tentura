@@ -403,6 +403,13 @@ abstract class AttentionReceipt with _$AttentionReceipt {
     DateTime? settledAt,
     String? settledByUserId,
     String? settledByOccurrenceId,
+
+    /// U06b debt, paid in U10b: when the optional axis was cleared, and why.
+    ///
+    /// `null` means still active. The pair is written together (m0178 CHECK),
+    /// so a non-null [clearedAt] always carries a [clearReason].
+    DateTime? clearedAt,
+    String? clearReason,
     required AttentionSurface surface,
     @Default(AttentionItemKind.receipt) AttentionItemKind itemKind,
     String? forwardOutcome,
@@ -421,8 +428,18 @@ abstract class AttentionReceipt with _$AttentionReceipt {
 
   const AttentionReceipt._();
 
+  /// The read axis (D02). Kept for History; no indicator reads it since U10b.
   bool get isUnread => seenAt == null;
+
+  /// The optional axis (D02) — the Dart half of
+  /// `AttentionDismissibleSql.activeOptional`.
+  bool get isActiveOptional => !requiresAction && clearedAt == null;
+
   bool get isLiveObligation => requiresAction && settlementKind == null;
+
+  /// What an indicator describes (D09, §6): uncleared optional or live
+  /// obligation. Mirrors `AttentionDismissibleSql.activeAttention`.
+  bool get isActiveAttention => isActiveOptional || isLiveObligation;
 }
 
 @freezed
