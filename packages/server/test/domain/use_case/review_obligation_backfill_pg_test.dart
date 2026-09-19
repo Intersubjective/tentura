@@ -14,6 +14,8 @@ import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/attention_dispatch_repository.dart';
+import 'package:tentura_server/data/repository/attention_reconciliation_repository.dart';
+import 'package:tentura_server/data/repository/attention_repository.dart';
 import 'package:tentura_server/data/repository/attention_system_settlement_repository.dart';
 import 'package:tentura_server/data/repository/beacon_access_repository.dart';
 import 'package:tentura_server/data/repository/beacon_room_notification_context_repository.dart';
@@ -21,11 +23,13 @@ import 'package:tentura_server/data/repository/beacon_room_repository.dart';
 import 'package:tentura_server/data/repository/commitment_repository.dart';
 import 'package:tentura_server/data/repository/help_offer_repository.dart';
 import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repository_mock.dart';
+import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
 import 'package:tentura_server/domain/port/trust_evidence_repository_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
-import 'package:tentura_server/domain/use_case/review_obligation_backfill_case.dart';
+import 'package:tentura_server/domain/use_case/obligation_reconciliation_case.dart';
+import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 import 'package:tentura_server/env.dart';
 
 import '../../support/fake_user_block_repository.dart';
@@ -42,77 +46,85 @@ Future<void> main() async {
       ? false
       : 'Postgres admin database not reachable for disposable test target';
 
-  test('backfill settles pre-closed windows and second run is a no-op', () async {
-    await target.recreate();
-    final writer = await Connection.open(
-      target.databaseEnv.pgEndpoint,
-      settings: target.databaseEnv.pgEndpointSettings,
-    );
-    final database = TenturaDb(target.databaseEnv);
-    final logger = Logger('ReviewObligationBackfillPgTest');
-    try {
-      await writer.execute('SET check_function_bodies = false');
-      await migrateDbSchema(writer);
-      await _seedClosedWindowFixture(writer);
-
-      final dispatch = AttentionDispatchRepository(database, logger);
-      final room = BeaconRoomRepository(database);
-      final helpOffers = HelpOfferRepository(database);
-      final commitments = CommitmentRepository(database);
-      final intents = AttentionIntentCase(
-        BeaconRoomNotificationContextRepository(
-          room,
-          database,
-          helpOffers,
-          commitments,
-        ),
-        UserRepository(
-          target.databaseEnv,
-          database,
-          _NoopTrustEvidenceRepository(),
-          _NoopInviteGenealogyRepository(),
-          InviteSeedPromptRepositoryMock(),
-        ),
-        BeaconAccessRepository(database),
-        FakeUserBlockRepository(),
+  test(
+    'backfill settles pre-closed windows and second run is a no-op',
+    () async {
+      await target.recreate();
+      final writer = await Connection.open(
+        target.databaseEnv.pgEndpoint,
+        settings: target.databaseEnv.pgEndpointSettings,
       );
-      await dispatch.record(
-        await intents.reviewOpened(
-          beaconId: _beaconId,
-          beaconTitle: 'Backfill fixture',
-          recipientUserIds: {_reviewer1, _reviewer2},
-          actorUserId: _authorId,
-          sourceEventKey: 'review_opened:Broblffixture',
-        ),
-      );
+      final database = TenturaDb(target.databaseEnv);
+      final logger = Logger('ReviewObligationBackfillPgTest');
+      try {
+        await writer.execute('SET check_function_bodies = false');
+        await migrateDbSchema(writer);
+        await _seedClosedWindowFixture(writer);
 
-      final systemSettlement = AttentionSystemSettlementRepository(database);
-      final backfill = ReviewObligationBackfillCase(
-        systemSettlement,
-        env: target.databaseEnv,
-        logger: logger,
-      );
+        final dispatch = AttentionDispatchRepository(database, logger);
+        final room = BeaconRoomRepository(database);
+        final helpOffers = HelpOfferRepository(database);
+        final commitments = CommitmentRepository(database);
+        final intents = AttentionIntentCase(
+          BeaconRoomNotificationContextRepository(
+            room,
+            database,
+            helpOffers,
+            commitments,
+          ),
+          UserRepository(
+            target.databaseEnv,
+            database,
+            _NoopTrustEvidenceRepository(),
+            _NoopInviteGenealogyRepository(),
+            InviteSeedPromptRepositoryMock(),
+          ),
+          BeaconAccessRepository(database),
+          FakeUserBlockRepository(),
+        );
+        await dispatch.record(
+          await intents.reviewOpened(
+            beaconId: _beaconId,
+            beaconTitle: 'Backfill fixture',
+            recipientUserIds: {_reviewer1, _reviewer2},
+            actorUserId: _authorId,
+            sourceEventKey: 'review_opened:Broblffixture',
+          ),
+        );
 
-      final firstPass = await backfill.run();
-      expect(firstPass, 2);
+        final systemSettlement = AttentionSystemSettlementRepository(database);
+        final backfill = ObligationReconciliationCase(
+          systemSettlement,
+          AttentionReconciliationRepository(database),
+          AttentionRepository(database),
+          TransactionalAttentionCase(MutatingUnitOfWork(database), dispatch),
+          intents,
+          env: target.databaseEnv,
+          logger: logger,
+        );
 
-      final kinds = await writer.execute('''
+        final firstPass = await backfill.run();
+        expect(firstPass, 2);
+
+        final kinds = await writer.execute('''
 SELECT settlement_kind
 FROM public.notification_outbox
 WHERE beacon_id = '$_beaconId'
   AND requires_action
 ORDER BY account_id
 ''');
-      expect(kinds.map((r) => r[0]), ['expired', 'expired']);
+        expect(kinds.map((r) => r[0]), ['expired', 'expired']);
 
-      final secondPass = await backfill.run();
-      expect(secondPass, 0);
-    } finally {
-      await database.close();
-      await writer.close();
-      await target.drop();
-    }
-  }, skip: skipReason);
+        final secondPass = await backfill.run();
+        expect(secondPass, 0);
+      } finally {
+        await database.close();
+        await writer.close();
+        await target.drop();
+      }
+    },
+    skip: skipReason,
+  );
 }
 
 Future<void> _seedClosedWindowFixture(Connection writer) async {
