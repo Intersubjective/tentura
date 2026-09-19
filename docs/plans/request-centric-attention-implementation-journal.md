@@ -10104,3 +10104,13 @@ note-less forwards fold into «ещё N переслали» with `CompactForwar
 
 Two assertions were true for a reason other than the one they claimed, exactly the failure shape the previous
 group was judged on. Both are recorded above rather than quietly fixed.
+
+### Verification
+
+| gate | result |
+| --- | --- |
+| `flutter test test/features/inbox/` (`-j 4`) | **+175, 0 skipped, 0 failed** |
+| full client suite (`-j 4`) | **+3852, ~29 skipped** — the 29 baseline exactly, no skip moved |
+| `./scripts/check-custom-lints.sh packages/client` | `total: 30 (baseline: 30)` — OK, baseline re-read before the run |
+
+All runs wrapped in `scripts/run_with_test_cleanup.sh`, serially — never two at once.
