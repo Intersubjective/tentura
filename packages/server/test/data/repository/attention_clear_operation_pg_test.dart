@@ -118,6 +118,31 @@ UPDATE public.notification_outbox
         );
       },
     );
+    test(
+      'the cleared_by_operation_id comment documents what the code does',
+      () async {
+        // m0178's COMMENT predates D12's idempotency requirement and said the
+        // column is NULL for explicit and request_open clears. U08 sets it on
+        // every clear it performs — the operation row is what makes a replay
+        // idempotent and U09's undo possible at all — so the comment said the
+        // opposite of the truth until m0182 corrected it.
+        final comment = await writer.execute('''
+SELECT col_description('public.notification_outbox'::regclass, attnum)
+  FROM pg_attribute
+ WHERE attrelid = 'public.notification_outbox'::regclass
+   AND attname = 'cleared_by_operation_id'
+''');
+
+        expect(
+          comment.first.first,
+          allOf(
+            contains('operation-backed'),
+            contains('legacy_seen'),
+            isNot(contains('NULL for explicit')),
+          ),
+        );
+      },
+    );
   }, skip: skipReason);
 
   group('attentionClear', () {
