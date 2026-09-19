@@ -5643,3 +5643,171 @@ corrected its inner, and here the remediation corrected the verifier. No layer i
 the value is that each claim passes through someone with no stake in defending it.
 
 ---
+
+---
+
+## UNIT U10b — The axis move · INNER (2026-09-19)
+
+**Layer:** inner (implementer), tagged hard. **UNIT_BASE:** `8545d580a`.
+Scope: indicators, counts, summaries and grouping eligibility move from `seen_at` to *active attention*;
+`clearedAt` / `clearReason` exposed; M1. Ordering, cursors and `effectiveActivityAt` deliberately untouched.
+
+### What was actually invisible
+
+U08 wrote `cleared_at`, U09 swept, U09c unwound — and **no read path looked at any of it**. Every dot, count and
+default list in the read projection asked `seen_at IS NULL`. A user who cleared a Request watched nothing happen;
+a swept For-you card kept its dot. The whole of U08 and U09 was write-only until this commit.
+
+### Addition 1 — the definition moved in U10a's single source
+
+`AttentionDismissibleSql` gained three **functions** (not constants) — `activeOptional`, `liveObligation`,
+`activeAttention` — taking the caller's alias. Functions because that is what M1 asks for: the indicator's rule
+and its list's rule are the same rule called twice, not two strings that happen to agree today. No CTE was
+forked; `visibleWithSurface` / `eligiblePinned` are still the single copies U10a left. Three constants became
+getters (`dismissibleReceipts`, `cte`, `AttentionSweepRepository.captureSql`) because interpolating a function
+is not a constant expression — mechanical, no behaviour.
+
+Callers moved onto them, including two the brief did not name: `AttentionClearRepository._eligibleReceipts` and
+its apply re-check each spelled out "not an obligation, not yet cleared" in their own words. *What a clear may
+touch* and *what a dot counts* are now literally one predicate. A dot the viewer has no way to extinguish is the
+M1 failure seen from the other side, and it was one edit away.
+
+### Addition 2 — the `// CHANGES IN U10:` assertions
+
+**None were touched, and that is the finding.** All four markers in `attention_activity_stream_pg_test.dart`
+(L539, L574, L767, L792) are *ordering* assertions — forward `createdAt` anchoring and pinned-zone position under
+`effectiveActivityAt`. They belong to **U10c**, not U10b, and all four still pass unchanged. The scout's table
+predicted L574 (`forward.isUnread` via the coalesced `seen_at` hack) would move; it did not have to — the
+synthetic dot now derives from `activeOptional` instead of `seen_at`, and the assertion's *value* is the same on
+this fixture, so the expectation stands while its cause changed.
+
+Two other expectations did change. Both are behaviour, both are justified in place:
+
+| File / test | Asserted before | Asserts now | Why this is the intended behaviour |
+|---|---|---|---|
+| `my_work_attention_pg_test.dart` · *aggregates news and obligations…* | `unseenCount == 5` — three optional receipts **plus** two obligations, all unseen | `unseenCount == 3` | The field summed two axes D09 keeps independent: the **dot** is optional, the **number** is obligations. Nothing is lost — the same two obligations are still counted by `liveObligations`, asserted two lines below. A field that summed both could only ever drive one indicator correctly. |
+| `attention_repository_pg_test.dart` · *markSeen and markAllSeen…* | after `markAllSeen`, unread feed `unreadTotal == 0`, page empty | `unreadTotal == 2`, page is exactly `{Nvisible, Nvisible2}`, and `unreadTotal == page.length` | D02: reading is not clearing. `markAllSeen` moves the **read** axis; the default list and its total now read active attention. This is precisely the behaviour U10b exists to produce — and the assertion was strengthened rather than relaxed, because the M1 equality (number == list) is now stated explicitly where it previously held by accident. |
+
+### Addition 3 — the three silent failures, and proof each test can fail
+
+Each was loosened or tightened in a throwaway copy of `attention_repository.dart` (reverted; nothing committed):
+
+| Failure | Test | Throwaway mutation | Result |
+|---|---|---|---|
+| A Request **silently disappears** | *clearing the optional children does not unpin the forward* | `activityOffers` ranked CTE gains `WHERE COALESCE(stats.event_total,0) > 0` — eligibility narrowed one clause too far | `Expected: ['Baxisforeign'] Actual: []` — the unanswered forward vanishes when its noise is cleared. Owner decision A breached by an eligibility edit. |
+| A **count disagrees with its list** | *M1 — an Activity dot implies a non-empty Activity default list* | `surfaceSummary`'s activity filter reverted to `v.seen_at IS NULL` while the page kept the new axis | `Expected: <0> Actual: <1>` — the tab lights, the list is empty. |
+| The **pinned zone reorders** | *an optional event does not reorder the pinned zone* | `beacon_activity_stats.max_created_at` given the same active-attention FILTER as the counts | `Expected: ['Baxisother','Baxisforeign'] Actual: ['Baxisforeign','Baxisother']` — *clearing* an event reshuffles the zone. |
+
+The third probe is the design decision worth naming: `max_created_at` is an **ordering input** and U10c owns
+ordering, so the eligibility narrowing was applied to the counts and to group emission but deliberately **not**
+to the aggregate that feeds `effective_activity_at`. Filtering it looks natural and is wrong.
+
+### Addition 4 — ordering not touched, and one live defect reported not fixed
+
+No change to `effective_activity_at`, cursor codecs, `ORDER BY` keys or head reconciliation. No ordering test
+failed as a result of the eligibility change.
+
+**Reported, not fixed:** an optional event *arriving* on a pinned Request still moves it up the For-you zone,
+because the sort key is still `GREATEST(latest_forward_at, max child created_at)`. §6 says an optional update
+never changes a position. The test *an optional event does not reorder the pinned zone* pins the live (wrong)
+order explicitly with that reasoning written into the `reason:`, so U10c has to change that expectation on
+purpose rather than inherit it. What U10b owed — that its own narrowing of what counts as an event does not
+move the zone — is the assertion next to it, and it holds.
+
+### Addition 5 — the round trip, end to end
+
+*a real clear moves the feed and the summary together*: two optional receipts on an owned Request →
+`surfaceSummary.myWorkUnreadTotal == 2` and the unread feed has 2 items → real `AttentionClearRepository`
+`captureEligible` + `apply` (not a hand-written `UPDATE`) → summary `0`, feed empty, feed's own summary `0`,
+`myWorkAttention` emits nothing. Plus *History still reaches a cleared receipt*: retired from the surface, still
+in the record — §6's "whatever is counted must be reachable", and its converse.
+
+### M1, asserted four ways
+
+1. **Behavioural identity** — the My Desk number equals the My Desk default list, and the feed's own summary
+   equals its page.
+2. **Biconditional on the grouped surface** — the Activity list groups, so cardinality cannot match; what is
+   asserted instead is the property that matters: dot > 0 ⟺ list non-empty, before and after a clear.
+3. **Divergence probe** — loosening `activeOptional` in a throwaway copy moves the count and the list ids in
+   lockstep, so they cannot be separately maintained.
+4. **Structural guard** — `attention_repository.dart` and `attention_clear_repository.dart` must not contain the
+   string `cleared_at IS NULL`. It caught the clear command's apply re-check, which reading had missed.
+
+### Deliberately not done
+
+Ordering keys, `first_entry_at`, cursor versioning, head reconciliation, `Needs you` ordering (**U10c**). Card
+provenance (separate, gates U14/U16). Client `lib/` (U14/U15/U16) — read-only this unit.
+
+### Commits
+
+| Hash | Subject |
+|---|---|
+| `fb8b024ea` | `test(server): pin the active-attention axis, M1 and the three failure modes` |
+| `03bbc40be` | `refactor(server): the active-attention axis becomes one function` |
+| `ed555669b` | `feat(server): expose clearedAt and clearReason on the receipt projection` |
+| `8ea9a95f1` | `feat(server): dots, counts and grouping eligibility read active attention` |
+| `5d6530f68` | `test(server): rewrite the two expectations the axis move invalidates` |
+| `c19baf990` | `test(server): make the requestActivity retirement fixture reachable` |
+
+### Test evidence
+
+**RED** — the new suite before any production change (`fb8b024ea`), a compile failure naming exactly the
+symbols the unit owes:
+
+```
+$ dart test --tags pg -j 1 test/data/repository/attention_active_attention_axis_pg_test.dart
+Error: The getter 'activeOptional' isn't defined for the class 'AttentionDismissibleSql'
+Error: The getter 'clearedAt' isn't defined for the type 'AttentionReceipt'
+Error: The getter 'clearReason' isn't defined for the type 'AttentionReceipt'
+Error: The getter 'isActiveOptional' isn't defined for the type 'AttentionReceipt'
+00:00 +0 -1: Some tests failed.
+```
+
+**RED, behavioural** — after the predicate and projection commits, before the axis move landed in the
+repository, and after it while the old expectations stood:
+
+```
+00:03 +15 -3: Some tests failed.
+  … M1 — an Activity dot implies a non-empty Activity default list
+  … clearing every child retires the synthetic requestActivity row
+  … the repository never spells the axis out by hand
+
+00:34 +133 -4: Some tests failed.       # scout PG list, before expectation updates
+  attention_dismiss_sweep_pg_test.dart: loading …            (const evaluation)
+  attention_undo_pg_test.dart: loading …                     (const evaluation)
+  attention_repository_pg_test.dart: markSeen and markAllSeen …   Expected: <0> Actual: <2>
+  my_work_attention_pg_test.dart: aggregates news and obligations …  Expected: <5> Actual: <3>
+```
+
+**GREEN** — the scout's PG list plus the new axis suite (baseline at `8545d580a` was `+182`; `+200` here is
+those 182 plus the 18 new tests, none lost):
+
+```
+$ ./scripts/run_with_test_cleanup.sh --timeout 30m -- bash -c 'cd packages/server && dart test --tags pg -j 1 \
+    attention_activity_stream / surface / repository / my_work / request_history / clear_operation /
+    dismiss_sweep / undo / dismissible_predicate / outcome_dismissible / live_obligations / retention /
+    predicate_unification / mark_seen_for_beacon / active_attention_axis'
+00:46 +200: All tests passed!
+
+$ … dart test -j 1 test/api/controllers/graphql/attention_graphql_test.dart \
+      test/api/controllers/graphql/query_attention_payload_test.dart
+00:00 +35: All tests passed!
+
+$ ./scripts/run_with_test_cleanup.sh --timeout 10m -- ./scripts/check-custom-lints.sh packages/server
+total: 0 (baseline: 0)
+check-custom-lints: packages/server OK
+```
+
+**Client suites named by the scout** — `test/features/inbox`, `test/features/my_work`, `test/domain/attention`,
+`work_activity_nav_indicators_test.dart`, `my_work_navbar_item_test.dart`:
+
+```
+$ … flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env …
+00:12 +340: All tests passed!
+```
+
+**No client expectation needed updating.** Client `lib/` was not touched and the client suites drive their own
+fixtures rather than the server projection, so the axis move is invisible to them until U14/U15 consume the new
+fields. Named here because the brief asked for the list, and the list is empty.
+
+STATUS: complete
