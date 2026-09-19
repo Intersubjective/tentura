@@ -239,8 +239,15 @@ ORDER BY id
       skip: skipReason,
     );
 
+    // U05a/U05b rewrite. This test used to assert that a second identical NOW
+    // edit left **one** outbox receipt, which was the receipt-grain collapse
+    // upsert U05a retired: each occurrence now keeps its own immutable
+    // receipt. The property worth pinning is that collapsing moved rather
+    // than vanished — the two receipts still share a collapse family, and the
+    // channel layer coalesces that family into a single pending notification
+    // (U05b), which is where a duplicate push would have shown up.
     test(
-      'second identical NOW edit collapses outbox receipts by dedup key',
+      'a second identical NOW edit keeps two receipts but one notification',
       () async {
         const line = 'Same NOW twice';
         await roomCase.updateRoomNowLine(
@@ -273,7 +280,41 @@ WHERE beacon_id = @beaconId
             'kind': NotificationKind.coordinationChanged.name,
           },
         );
-        expect(outboxRows.single.first, 1);
+        expect(outboxRows.single.first, 2);
+
+        final dedupKeys = await writer.execute(
+          Sql.named('''
+SELECT count(DISTINCT dedup_key)::int AS c
+FROM public.notification_outbox
+WHERE beacon_id = @beaconId
+  AND account_id = @memberId
+  AND kind = @kind
+'''),
+          parameters: {
+            'beaconId': beaconId,
+            'memberId': memberId,
+            'kind': NotificationKind.coordinationChanged.name,
+          },
+        );
+        expect(
+          dedupKeys.single.first,
+          1,
+          reason: 'both receipts stay in one collapse family',
+        );
+
+        final pendingDeliveries = await writer.execute(
+          Sql.named('''
+SELECT count(*)::int AS c
+FROM public.attention_channel_delivery
+WHERE account_id = @memberId AND status = 'pending'
+'''),
+          parameters: {'memberId': memberId},
+        );
+        expect(
+          pendingDeliveries.single.first,
+          1,
+          reason: 'the collapse family is one push/email, not two',
+        );
       },
       skip: skipReason,
     );
