@@ -7591,3 +7591,82 @@ moves, and `test/architecture/single_attention_owner_test.dart` — which `Activ
 STATUS: complete
 
 ---
+
+## UNIT U13b — Repository and case · VERIFY (2026-09-19)
+
+**Layer:** verify (read-only). **UNIT_BASE:** `bb4fb417c`. **Range:** `49774a523` · `874dbb061` · `ed12c8f4e` · `57ac803b9`.
+
+**Race properties (execution):**
+1. **Partial merge** — throwaway: `_clears.commit(operationId, members)` instead of `applied` → `attention_clear_case_test.dart` *a partial clear commits only the applied members* **+0 -1** (expected `{'r-1'}`, overlay kept skipped/denied). Restored via `git checkout`.
+2. **Mutation serial** — throwaway: removed `_requestHeadRefresh` `mutationSerial` guard → *a page fetch started before a clear cannot overwrite its result* **+0 -1** (`unreadTotal` 3 vs 0; surface summary assertion also fails). Restored via `git checkout`.
+3. **Two devices** — green test *a second session clearing the same rows converges, never resurrects* (two `AttentionCase` / one `_ClearRepository`; skip withdraws overlay; refetch with server `clearedAt`).
+
+**Judgement calls:** `isKnownStale` narrower than `!isCurrent` — **accepted** (v1 decodable → proactive reset; undecodable → still sent; server refusal → `isStaleCursorError` + `_resetStaleCursor`; `page-two` placeholder pagination preserved). Undo not optimistic — **accepted** (*expired undo* asserts `isRefused`, cleared rows stay). `requestHistory` → `AttentionFeedPage` — **fits** (repository test maps `nextCursor` + items + nested preview).
+
+**Tests run:**
+
+```
+cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 45m -- flutter test \
+  --dart-define=ENV=test --dart-define-from-file=env/test.env \
+  test/domain/attention test/features/inbox test/features/my_work test/architecture
+→ 00:22 +373: All tests passed!
+
+./scripts/run_with_test_cleanup.sh --timeout 10m -- ./scripts/check-custom-lints.sh packages/client
+→ total: 30 (baseline: 30) — OK
+```
+
+**Diff:** 10 paths, all client domain/data/tests; **0** server; **0** UI; no `single_attention_owner` test (U13c); `ActivityOffersCubit` untouched.
+
+STATUS: pass
+
+TEST_OUTPUT: see block above — **+373**; lints **30/30**
+
+ACCEPTANCE:
+- Partial does not commit skipped — **met** — `_applyClearOptimistically` commits `applied` only; withdrawn members roll back overlay; test + throwaway red.
+- Mutation serial blocks stale totals — **met** — `_mutationSerial` on head refresh + tail fetch + summary; test asserts unread + surface; throwaway red.
+- Two devices converge — **met** — dual-session test + `AttentionClearStore` never strips server `clearedAt`.
+- `isKnownStale` line — **met** (judgement: sound) — documented dual path (proactive v1 + reactive server error).
+- Undo refusal not no-op — **met** — no pre-restore optimism; test asserts refusal + rows stay cleared.
+- `requestHistory` / `AttentionFeedPage` — **met** — port return type + mapper; no orphan fields forced.
+- v1 cursor reset — **met** — `_resetStaleCursor`: bump `requestGeneration`, null cursors, `_requestHeadRefresh` only; tests assert no tail retry.
+- Reconcile refetch — **met** — `reconcile()` adopts summary + `finally` head refresh; test `fetchCalls` increased.
+- U13a enums consumed — **met** — `_parseStatus` / `fromWire` in repository; no parallel vocabulary.
+- No second owner / offers cubit — **met** — case owns clears; U13c deferred; offers cubit not in diff.
+- Scope / untouchables — **met** — four commits; pre-existing dirty paths outside range.
+
+GAPS: none (U13c deferrals are intentional, not defects)
+
+---
+
+### Manager verdict — U13b · **ACCEPTED** (hard; inner Opus-low ✓ / verify pass, no finisher)
+
+Overseer's gate: **full client suite 3688 passed / 29 pre-existing skips**; lints **30 (baseline 30) OK**.
+Commits `49774a523` ports/repository · `874dbb061` optimistic clearing + rollback · `ed12c8f4e` stale-cursor
+reset · `57ac803b9` journal.
+
+**Both defects this unit produced were tests that could not fail — not broken code.** That is the signature of
+the client layer so far, and it is worth naming: U13a and U13b produce nothing a user can see, so "it works" is
+unobservable and only falsifiability distinguishes a real guard from a decorative one.
+
+- **The first stale-fetch test was vacuous**, self-caught: deleting the mutation-serial guard left it green,
+  because the optimistic clear overlay re-stamped the stale rows and `isCleared` therefore proved nothing. The
+  damage only shows in the **totals**, so the test now asserts the unread total and the surface summary, and
+  fails with the guard removed. The verifier re-ran that mutation independently.
+- **The first cursor check was too broad** and caused a *false* failure: refusing any cursor not provably v2
+  silently stopped pagination on the existing suite's placeholder `page-two`. `isKnownStale` is now deliberately
+  narrower than `!isCurrent` — **undecodable ≠ old** — with the server's `invalid attention cursor` refusal
+  covering the remainder.
+
+**Three judgement calls I endorse:**
+1. **Undo is deliberately not optimistic.** It can be refused outright, so restoring rows before the server
+   agrees would render `expired` as a flicker of false success. A refusal surfaces as a refusal.
+2. **Rollback lifts the optimistic overlay and never touches `clearedAt`** — which is precisely what makes two
+   devices converge instead of fight. Asserted with two case instances over one transport.
+3. **`requestHistory` reuses `AttentionFeedPage`** rather than inventing a second page model.
+
+**Carried into U13c, unchanged and deliberately not deepened:** `ActivityOffersCubit` still keeps a shadow
+cache beside `AttentionCase`, violating §0.3's single-owner rule. Leaving it visible matters — while it exists,
+any mismatch between what a screen shows and what the server holds will be blamed on it, which makes a genuine
+projection bug harder to find. U13c removes it and adds the architecture test that keeps it removed.
+
+---
