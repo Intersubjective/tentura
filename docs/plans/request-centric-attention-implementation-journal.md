@@ -7912,3 +7912,261 @@ inert rather than silently dropping something visible.
 what was missing was any assertion of it, and of the vanish direction. Both now exist.
 
 ---
+
+## UNIT U14 — Shared event block and indicators · SCOUT (2026-09-19)
+
+**Layer:** scout (read-only). **UNIT_BASE:** `61f8f36c8`. **Scope:** shared UI + nav indicators only — not U15 My Desk feed wiring, not U16 `RequestAttentionCard` / stream chrome.
+
+### Widget inventory (live → target)
+
+| Symbol | File | Visibility | Role today | U14 target |
+|---|---|---|---|---|
+| `ActivityEventSubcardBlock` | `features/inbox/ui/widget/activity_event_subcard_block.dart` | **public** | Grouped For You child previews; `visibleCap` 1/3; «ещё N» calls `_expand()` (one-shot fetch `limit: eventTotal.clamp(1, 100)`); `onMarkSeen` on body tap; **no ×**, no collapse | Generalize → surface-neutral **active-event block** (D10): obligations-first collapsed preview, expand **and** collapse, cursor `activityAttention` pagination, `eventTotal` from server, per-kind CTA hooks, `clearReceipt` for optional rows |
+| `_EventSubcard` | same file | **private** | Single-line `Text.rich` in `TenturaTechCardStatic`; avatar or glyph; tap = mark seen | **Promote** → public `AttentionMiniCard` in `features/inbox/ui/widget/attention_mini_card.dart` (§5): add `forward` kind (note + `ForwardCapabilityChips`), quoted left-aligned body (§7), trailing × |
+| `_ActivityEventSubcardBlockState` | same | private | `_expanded` one-way; no collapse | Expand/collapse + paging state + E32 removal placeholders |
+| `MyWorkObligationBlock` | `features/my_work/ui/widget/my_work_obligation_block.dart` | public | Groups via `groupMyWorkObligations`; `_ObligationSubCard` with Respond/Review/Done; in-place «more» expand (3 cap) | **Not deleted in U14** — U15 replaces usage; U14 supplies shared mini-card + block API obligation rows can adopt |
+| `_ObligationSubCard`, `_ObligationAvatar` | same | private | Dense obligation UI; no × | Fold into `AttentionMiniCard` kinds + block obligation section or shared row builder |
+| `MyWorkWhatsNewRow` | `features/my_work/ui/widget/my_work_whats_new_row.dart` | public + `_WhatsNewEmphasis` private | Legacy unseen headline; not mini-card shape | U15 retires in favour of block; U14 does not need to edit unless tests import it |
+| `MyWorkNavbarItem` / `InboxNavbarItem` | `features/home/ui/widget/*_navbar_item.dart` | public | Read `HomeAttentionState` redesign getters | Wire to M1 predicate outputs (after state fix) |
+| `HomeAttentionState` / `HomeAttentionCubit` | `features/home/ui/bloc/` | public | **Suppressions:** `hasInboxDot` / `hasMyWorkDot` hide on active tab (50–54); `showRedesignMyWorkUnreadDot` requires `surfaceNeedsYouTotal == 0` (67–71); Activity dot uses `activityUnreadTotal` + active-tab gate (57–60) | Remove gates per D09/§6; independent dot vs count; indicators visible on selected tab; one shared predicate with list eligibility (domain helper + test) |
+| `UpdatesFeedTile` + `_UpdatesFeedRowInteraction` | `features/updates/ui/widget/updates_feed_tile.dart` | public / private | **Reference** for hover toolbar, secondary tap, long-press opens menu (not sole path), `kMinInteractiveDimension` on mark controls — **read axis**, not clear | Reuse interaction **patterns** for mini-card × (§11); clearing calls `AttentionCase.clearReceipt`, not `markSeen` |
+| `ForwardCapabilityChips` | `features/capability/ui/widget/forward_capability_chips.dart` | public | `RawChip` + raw `spacing: 4`, `size: 14` in feature tree | Stays for forward mini-cards; new **`TenturaRelationChip`** in DS for «Помогаю»/«Слежу» (§6.1) — not capability tags |
+
+**Consumers (U15/U16 — do not integrate in U14):** `activity_stream_view.dart`, `activity_offer_card.dart`, `activity_forward_row.dart` import `ActivityEventSubcardBlock` today with **`markSeen`**, not `clearReceipt`.
+
+### Design system vs gaps
+
+**Already exported** (`design_system/tentura_design_system.dart`): `TenturaAvatar`, `TenturaTechCardStatic`, `TenturaTextAction`, `TenturaPresenceDot`, `TenturaCountBadge`, `TenturaHairlineDivider`, `TenturaVerticalHairline` (2px rule candidate), tokens via `context.tt`, radii `TenturaRadii.*`.
+
+**Missing (§5):** `TenturaRelationChip` — no generic chip primitive; `ForwardCapabilityChips` uses `RawChip` directly (lint allows capability feature path but §5 mandates DS chip for relation labels).
+
+**Lint traps for new feature UI:** `no_raw_edge_insets`, `no_raw_border_radius`, `no_operational_raw_color`, `no_inline_font_size` under `features/**` / `ui/**`. `_EventSubcard` already uses `TenturaRadii.cardDense` and `tt.*`; obligation block uses `FilledButton` with `kMinInteractiveDimension`. Any new × row must use `tt.buttonHeight` / `kMinInteractiveDimension` (48) — not compact `IconButton` like updates hover toolbar unless wrapped to 48dp hit target.
+
+### Data layer ready (U13 — block wiring)
+
+- `AttentionCase.clearReceipt` / optimistic group reprojection via `projectAttentionGroup` (`attention_group_projection.dart`); children in `_childReceiptsById`.
+- `activityAttention(beaconId:, cursor:, limit:)` supports cursor pagination (default `limit: 20`); live block wrongly caps at 100 in one request.
+- `ActivityOfferBeaconMeta` / grouped rows: `eventTotal`, `eventsPreview`, `eventUnseenCount` kept in sync on child clear (U13c tests).
+- **`requestInvalidations`:** broadcast stream on `AttentionCase`; **no `listen` in `lib/`** except tests. U13c: My Desk has no feed destination — stale Request announced for **projection owners** to re-read. **U14 does not subscribe** (dumb widgets get data from parent cubit/case). **U15/U16** attach listeners when integrating feeds; optional U14 test-only hook not required.
+
+### Dismiss (×) — spec vs live
+
+| Requirement (§7, §11, E32/D32) | Live |
+|---|---|
+| ≥48dp ×, labelled («Убрать событие»), always visible on touch | **Absent** on event subcards; obligation block has text CTAs only |
+| Hold layout height until pointer-up; animate removal via placeholder | **Not implemented** anywhere in attention UI |
+| Secondary tap + desktop hover toolbar; never long-press alone | **`UpdatesFeedTile`** pattern exists for mark seen/unseen; subcards have no × |
+| Clear axis = `clearReceipt` (§4) | Stream still **`markSeen`** on subcard body tap |
+
+**Build:** new mini-card trailing dismiss control + shared E32 wrapper (likely DS-local widget co-located with mini-card or `design_system/components/tentura_dismiss_placeholder.dart` if reused). Long-press on mini-card must not be the only dismiss path.
+
+### «ещё N» tension (D10 vs D-171-5b)
+
+- **Card footer (U16):** «ещё N» → Timeline only; never expands card height (§6.2, D-171-5b).
+- **Plan U14 / D10:** expanded list + **cursor pagination** past 100 (expand/collapse **inside** block when surface allows).
+- Live `ActivityEventSubcardBlock` conflates «ещé N» with `_expand()` — **wrong for card**; shared block needs **`OverflowPolicy`**: e.g. `timeline` vs `paginateInBlock` so My Desk / expanded card body can paginate while For You card footer stays Timeline-only.
+
+### Indicators (D09 + M1)
+
+**Contract** (`docs/features/request-attention.md` §6): independent dot/count; dots **do not hide** on active tab; For You **never** count; My Desk dot = any owned request with uncleared optional/outcome; count = obligation sum.
+
+**Live contradictions** (`home_attention_state.dart`):
+
+```50:71:packages/client/lib/features/home/ui/bloc/home_attention_state.dart
+  bool get hasInboxDot =>
+      activeHomeTab != HomeTab.inbox && inboxMarkerIds.isNotEmpty;
+  ...
+  bool get showRedesignMyWorkUnreadDot =>
+      surfaceSummaryLoaded &&
+      surfaceNeedsYouTotal == 0 &&
+      myWorkUnreadTotal > 0 &&
+      activeHomeTab != HomeTab.work;
+```
+
+- Activity redesign path uses `surfaceSummary.activityUnreadTotal` with active-tab suppression — parallel to legacy `inboxMarkerIds` / `unreadForBeacons` intersection (still updated in cubit).
+- **M1 not implemented:** no single domain `bool requestShowsDot(...)` / `bool requestInDefaultList(...)` shared by nav and feed filters; `work_activity_nav_indicators_test.dart` **encodes current suppressions** (e.g. `activityDot: false` on active inbox) — tests must flip with product contract.
+
+**Server totals:** nav counts already use `surfaceSummary.needsYouTotal` / `activityUnreadTotal`; per-request dots still partly `unreadBeaconIds` ∩ loaded snapshots — U14 should align dot predicate with `clearedAt` axis (U10b), not `seen_at`-only acks where contract says uncleared optional.
+
+### Goldens organisation and U14 blast radius
+
+**Convention:** `test/features/<area>/*_golden_test.dart` → `goldens/*.png`; common widths **360** and **390**; EN/RU via `Locale`; dark/light via `TenturaTheme`; text scale **1.3** in obligation and offer-card suites (`TextScaler.linear(1.3)`).
+
+**Existing tied to this unit:**
+
+| Suite | PNGs / risk |
+|---|---|
+| `activity_event_subcard_actor_golden_test.dart` | `event_subcard_with_actor_light_en_360.png` — **will be replaced or superseded** by `AttentionMiniCard` goldens (layout adds ×, quoted body, chips) |
+| `my_work_obligation_block_golden_test.dart` | Multiple `my_work_obligation_block_*_360*.png` — drift if obligation UI moves to shared mini-card (likely U15; U14 may add parallel mini-card goldens first) |
+| `activity_offer_card_golden_test.dart` | Height-bound goldens — **unchanged in U14** if offer card not wired (U16); risk if block API changes imports |
+| `work_activity_nav_indicators_test.dart` | Widget tests only today — may add golden for nav badges |
+
+**U0C audit method (normative for this unit):** before `--update-goldens`, for each affected PNG compare `git show <parent>:path` vs candidate with **PIL RGBA per-pixel diff**; require `dim_mismatch: 0`; confine deltas to expected bands (text, ×, chip); manually spot-check 1.3× height-ceiling files. After update, assert **card height ceiling** (§9) in widget test (max height at `visibleCap` + 1.3× @ 360dp) — spec §12 item 6.
+
+### Accessibility / focus (§11)
+
+- Mini-card semantics: actor + event + age; × as named button.
+- **Row disappearance:** no `FocusNode` / `SemanticsService` handling today — E32 placeholder must preserve focus order and announce removal (risk for keyboard and TalkBack).
+
+### Subunit split recommendation
+
+**One manifest unit, three commit-sized tracks** (overseer may parallelize):
+
+1. **DS + mini-card** — `TenturaRelationChip`, `AttentionMiniCard` (+ forward kind), E32 dismiss shell, goldens EN/RU light/dark 360/390 + 1.3×.
+2. **Active-event block** — refactor `ActivityEventSubcardBlock` → paginated expand/collapse block; wire `clearReceipt`; overflow policy; widget tests for pagination and totals.
+3. **Indicators + M1** — domain predicate helper + test; fix `HomeAttentionState` getters; update `work_activity_nav_indicators_test.dart` / navbar semantics.
+
+Formal **U14a/b/c** split optional if inner scope slips; not required by manifest.
+
+### TEST_CMD (overseer gate)
+
+```bash
+./scripts/run_with_test_cleanup.sh --timeout 10m -- ./scripts/check-custom-lints.sh packages/client
+cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 45m -- flutter test \
+  --dart-define=ENV=test --dart-define-from-file=env/test.env \
+  test/features/inbox/activity_event_subcard_block_test.dart \
+  test/features/inbox/activity_event_subcard_actor_golden_test.dart \
+  test/features/home/work_activity_nav_indicators_test.dart \
+  test/features/home/home_attention_cubit_test.dart \
+  test/domain/attention/attention_group_projection_test.dart
+```
+
+After new suites land, extend with paths for `attention_mini_card_*`, active-event block goldens (360/390 × light/dark × EN/RU × 1.3×). Golden refresh (human-reviewed):
+
+```bash
+cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
+  flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env \
+  --update-goldens test/features/inbox/<new_or_updated>_golden_test.dart
+```
+
+Full client suite remains overseer responsibility per `AGENTS.md`.
+
+STATUS: complete
+
+---
+
+## UNIT U14a — primitives · INNER (2026-09-19)
+
+**Layer:** inner (implementer). **UNIT_BASE:** `c95ec646e`. **Scope:** steps 1–2 of the U14 scout brief —
+`TenturaRelationChip` in the design system and `AttentionMiniCard` promoted out of the private `_EventSubcard`
+with the `forward` kind and full E32 dismiss mechanics. No surface wiring (U15/U16), no block pagination or
+clearing (U14b), no indicators (U14c).
+
+### Step 1 — `TenturaRelationChip` (`acd77e79d`)
+
+RED — `flutter test test/design_system/tentura_relation_chip_test.dart`:
+
+```
+test/design_system/tentura_relation_chip_test.dart:69:27: Error: Undefined name 'TenturaRelationTone'.
+00:00 +0 -1: Some tests failed.
+```
+
+GREEN — same command: `00:00 +5: All tests passed!`
+
+`TenturaRelationTone.{helping,following}` derives both fill (`tt.good`/`tt.info` at 14 % alpha) and foreground
+from tokens, so a feature never needs a raw colour for the «Помогаю» / «Слежу» chip. The chip is read-only by
+design: the relation changes through named actions, never by tapping the chip (E17's logic, one level down).
+
+Copy: «Слежу» reuses `inboxWatching`, already renamed by U0C. The first-person **«Помогаю» / "Helping" did not
+exist** in either ARB — §10's register rule names it but no key carried it — so `attentionRelationHelping` was
+added to both ARBs with a description pointing at spec §6.1.
+
+### Step 2 — `AttentionMiniCard` (`2fbc0be5b`)
+
+RED — `flutter test test/features/inbox/attention_mini_card_test.dart`:
+
+```
+test/features/inbox/attention_mini_card_test.dart:378:47: Error: Undefined name 'AttentionMiniCard'.
+00:00 +0 -1: Some tests failed.
+```
+
+GREEN — same command: `00:00 +12: All tests passed!` (12 tests: forward kind, left-aligned quote, age tooltip,
+labelled ≥48 dp ×, no × without `onDismiss`, height held until pointer-up, animated placeholder, announcement,
+focus hand-off, secondary tap, long-press-never, height ceiling.)
+
+**`_EventSubcard` was left in place.** `ActivityEventSubcardBlock` still renders its private subcard; retiring it
+is U14b's job, together with `clearReceipt` and the «ещё N» → Timeline change that rewrite the same file. That
+choice is why the existing `event_subcard_with_actor_light_en_360.png` golden did not move.
+
+**E32 mechanics, as implemented.** The × is a `kMinInteractiveDimension` (48 dp) `IconButton` with a semantic
+label and tooltip «Убрать событие», always in the tree (so always visible on touch), emphasised on hover, and
+also reachable by **secondary tap** on mouse/trackpad/stylus. There is no long-press path at all. On press the
+mini-card does **not** call `onDismiss`; it reverses a 180 ms controller driving a `SizeTransition`, and only on
+completion hands focus to the next row, announces the removal and then tells the parent to remove the row. The
+row therefore keeps its full layout height while the pointer is still down, and the following × cannot slide
+under the thumb. Two tests fail if that ordering is lost: the pointer-up test asserts the row's height *and the
+next row's top offset* are unchanged both during the press and on the first frame after pointer-up, and the
+placeholder test asserts an intermediate height strictly between the full height and zero.
+
+**Accessibility.** The × node carries `label: "Dismiss update"`, `isButton`, `isEnabled`, and a tap action
+(asserted from the real semantics tree, not the widget tree). Removal is announced through
+`SemanticsService.announce` and captured in the test by mocking `SystemChannels.accessibility`. The focus test
+builds three rows, focuses the first ×, dismisses it and asserts `FocusManager.instance.primaryFocus` is the
+**second row's** ×: a tree-only assertion would pass while focus fell back to the top of the list.
+The mini-card's own text is spoken as one phrase, actor + event + age, with the age tooltip excluded from
+semantics so the age is not read twice.
+
+**Unexpected finding (fixed here).** At 1.3× text with long RU labels, `ForwardCapabilityChips` overflowed its
+chip `Row` by 19 px — a pre-existing defect, surfaced by the ceiling test because the mini-card is the first
+surface to put chips in a 304 dp column. The chip label is now `Flexible` and ellipsised. No existing golden
+moved as a result (see the audit below).
+
+### Step 3 — goldens (`730ee5236`)
+
+New suites: `test/design_system/tentura_relation_chip_golden_test.dart` and
+`test/features/inbox/attention_mini_card_golden_test.dart` — 360/390 × light/dark × EN/RU plus a 1.3× RU frame
+each, matching the repo convention.
+
+**Golden audit (U0C method).** *No existing golden was re-recorded.* The audit for this unit is therefore a
+negative one, and it is the stronger claim: every suite that could have drifted was run **without**
+`--update-goldens` after the chip-overflow fix and after the mini-card landed, and all matched byte-for-byte —
+`test/design_system`, `test/features/inbox` (including
+`activity_event_subcard_actor_golden_test.dart` and `activity_offer_card_golden_test.dart`),
+`test/domain/attention` → `00:12 +329: All tests passed!`; and the other `ForwardCapabilityChips` consumers
+`test/golden`, `test/features/updates`, `test/features/beacon_view`, `test/features/forward_candidate_context`,
+`test/features/evaluation` → `00:29 +691 ~18: All tests passed!`.
+
+The 18 new PNGs were checked for canvas size and read visually. RGBA, expected widths, heights:
+
+| Frame | Chip | Mini-card |
+|---|---|---|
+| light/dark EN 360 / 390 | 22 dp | 122 dp |
+| light/dark RU 360 / 390 | 22 dp | 154 dp |
+| light RU 360 @1.3× | 27 dp | 164 dp |
+
+RU is 32 dp taller than EN at the same width because the two capability chips («Транспорт», «Инструменты») wrap
+to two rows where the EN pair fits on one — expected, not a layout defect.
+
+One layout change came out of the visual read: the quote rule was a sibling `Container` sized only by its own
+`minHeight`, so it rendered as an 8 dp stub next to a two-line note. It is now a **left border on the quoted
+block**, which spans note plus chips exactly and needs no intrinsic-height pass. The mini-card goldens were
+recorded after that fix.
+
+### Height ceiling (spec §9, at 360 dp and 1.3× text)
+
+Worst case asserted by `attention_mini_card_test.dart`: forward kind, RU, avatar, two-line event line, a
+three-line quoted note **and** three capability chips, dismiss × present.
+
+- measured: **219.0 dp**
+- asserted ceiling `kMiniCardCeiling360Scale13`: **224 dp**
+
+The 5 dp of headroom is deliberate: the constant is tight enough that adding a line of chrome to the mini-card
+breaks the test rather than silently pushing the card past the §9 budget. For reference, the same frame at 1.0×
+is 154 dp, and the plain event kind at 1.0× is 122 dp.
+
+### Verification
+
+```
+cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 45m -- flutter test \
+  --dart-define=ENV=test --dart-define-from-file=env/test.env \
+  test/design_system test/features/inbox test/domain/attention
+00:12 +329: All tests passed!
+
+./scripts/run_with_test_cleanup.sh --timeout 10m -- ./scripts/check-custom-lints.sh packages/client
+     21 no_raw_edge_insets
+      9 no_raw_border_radius
+total: 30 (baseline: 30)
+check-custom-lints: packages/client OK
+```
+
+STATUS: complete
