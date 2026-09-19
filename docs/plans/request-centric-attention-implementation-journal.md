@@ -4137,3 +4137,44 @@ dart test test/api/controllers/graphql/attention_graphql_test.dart              
 Both through `scripts/run_with_test_cleanup.sh`. Full server suite not run — the overseer owns it.
 
 STATUS: complete
+
+### Manager verdict — U08 · **ACCEPTED** (hard; scout ✓ / inner Opus-low ✓ / verify pass / one remediation)
+
+Overseer's full server suite: **1676 non-PG**, **870 PG / 24 known skips**. Commits `05343478f` ·
+`4138cd77b` · `b6b39c949` · `3d3a8055e` (m0182) · `2f8162725` · `c06bbdb9d` (remediation).
+
+**All four races carry a stated-in-advance outcome and a test that proves it**: an event arriving between
+capture and apply survives; a replayed operation id — including concurrently — has exactly one effect; a Request
+that leaves scope mid-operation is *skipped and reported*, not cleared; and a lost authorization clears nothing
+without disclosing whether the row exists.
+
+**The verifier tried to break the unsigned snapshot token and could not.** The inner layer's argument was that
+forging a member list can only produce denials, because the token's account is checked against the JWT and every
+member is re-authorized at apply. Cross-account tokens deny with **zero** operation rows; a tampered obligation
+in the token is skipped, not cleared. The decision is recorded as reversible — signing is a one-line codec
+change if a later unit needs unforgeability rather than uselessness-to-forge.
+
+**Remediation closed a security-adjacent coverage gap.** Nothing proved that a replay cannot *widen* what it
+clears — an observer who learned an operation id could otherwise have cleared rows the original never captured.
+The new test passes on current code (coverage gap, not a hole) and was proven to bite: disabling `_replay`'s
+short-circuit leaves the added receipt with a non-null `cleared_at`. Reverted, `git diff packages/server/lib`
+empty. Honest nuance reported rather than smoothed: a widened replay is **not** byte-identical — applied and
+skipped reproduce exactly, but the extra id comes back in `deniedReceiptIds` and the status moves
+`complete → partial`, which is the caller being told, not a silent no-op.
+
+**Two judgement calls I endorse:** the snapshot field is `attentionClearSnapshot`, deliberately *not* the frozen
+`attentionRequest` that §0.2 reserves for U10's Request page — no frozen name was squatted; and denied ids are
+not stored (the member table's FK forbids it), so denials are recomputed on replay as requested-minus-stored.
+
+**A pre-existing test defect found in passing:** four settle tests selected their GraphQL field with
+`.all.last`, so adding a mutation silently retargeted them onto `attentionClear` — they had been passing for the
+wrong reason. They now name their field, with assertions unchanged.
+
+**Deliberate gap, pinned by a test so it cannot be misread:** clearing does not move `seen_at`, dots or counts
+yet. `attentionFeed` and `surfaceSummary` still read the read-axis; U10 moves them onto the optional axis.
+
+**Overseer decisions recorded:** the snapshot-issue query ships here (without it D05 is unimplementable and U13
+is blocked), and m0182 corrects m0178's `COMMENT`, which claimed `cleared_by_operation_id` is NULL for explicit
+and open clears — every clear is operation-backed, which is what makes replay idempotent and U09's undo possible.
+
+---
