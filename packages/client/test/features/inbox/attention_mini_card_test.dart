@@ -384,4 +384,56 @@ void main() {
     final height = tester.getSize(find.byType(AttentionMiniCard)).height;
     expect(height, lessThanOrEqualTo(kMiniCardCeiling360Scale13));
   });
+
+  testWidgets('a fourth capability chip is capped, not allowed to overflow '
+      'the §9 height ceiling', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(360, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      _host(
+        AttentionMiniCard(
+          receipt: _receipt(
+            title: 'Anna',
+            body: 'Пересылаю тебе этот запрос, потому что ты этим занимался',
+          ),
+          kind: AttentionMiniCardKind.forward,
+          actor: _anna,
+          quotedBody:
+              'Ты же с этим возился прошлой весной, глянь пожалуйста — '
+              'нужен прицеп и пара рук на выходных, иначе всё встанет.',
+          // Four of the longest RU labels there are: unclamped this measured
+          // 251 dp against a 224 dp ceiling (journal U14a).
+          capabilitySlugs: const [
+            'physical_help',
+            'medical_navigation',
+            'legal_navigation',
+            'emotional_support',
+          ],
+          onDismiss: () {},
+        ),
+        locale: const Locale('ru'),
+        textScaler: 1.3,
+        size: const Size(360, 800),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Positive first: the card and its quoted block are actually built, so the
+    // ceiling below cannot pass by rendering nothing.
+    expect(find.byType(AttentionMiniCard), findsOneWidget);
+    expect(find.byKey(AttentionMiniCard.quoteRuleKey), findsOneWidget);
+    expect(
+      find.text('Физическая помощь'),
+      findsOneWidget,
+      reason: 'the cap keeps the first chips, it does not drop the row',
+    );
+    // Capped to three, and the fourth is accounted for rather than vanished.
+    expect(find.byType(RawChip), findsNWidgets(kMiniCardCapabilityChipCap));
+    expect(find.text('Эмоциональная поддержка'), findsNothing);
+    expect(find.text('+1'), findsOneWidget);
+
+    final height = tester.getSize(find.byType(AttentionMiniCard)).height;
+    expect(height, lessThanOrEqualTo(kMiniCardCeiling360Scale13));
+  });
 }

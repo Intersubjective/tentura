@@ -16,6 +16,14 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/utils/relative_time.dart';
 
+/// How many capability chips a mini-card renders before it caps.
+///
+/// The §9 height ceiling (224 dp at 360 dp / 1.3x text) holds to three chips
+/// only: a fourth long RU label wraps to another chip run and measured 251 dp
+/// (journal U14a). The remainder is not dropped silently — it is counted in a
+/// `+N` marker next to the chips.
+const int kMiniCardCapabilityChipCap = 3;
+
 /// Which event a mini-card shows. Kinds differ by leading glyph/avatar and by
 /// body — never by layout (issue-171 card spec §7).
 enum AttentionMiniCardKind { event, forward }
@@ -58,7 +66,8 @@ class AttentionMiniCard extends StatefulWidget {
   final String? quotedBody;
 
   /// Capability tags the forwarder attached. Rendered under [quotedBody],
-  /// inside the mini-card — never in the card header.
+  /// inside the mini-card — never in the card header. Capped to
+  /// [kMiniCardCapabilityChipCap] on render.
   final List<String> capabilitySlugs;
 
   final VoidCallback? onTap;
@@ -323,10 +332,36 @@ class _QuotedBody extends StatelessWidget {
           if (capabilitySlugs.isNotEmpty)
             Padding(
               padding: EdgeInsets.only(top: tt.tightGap),
-              child: ForwardCapabilityChips(slugs: capabilitySlugs),
+              child: _CappedCapabilityChips(slugs: capabilitySlugs),
             ),
         ],
       ),
+    );
+  }
+}
+
+/// [ForwardCapabilityChips] under the card's height ceiling: the first
+/// [kMiniCardCapabilityChipCap] chips plus a `+N` for whatever is left, so the
+/// cap is visible rather than a silent truncation.
+class _CappedCapabilityChips extends StatelessWidget {
+  const _CappedCapabilityChips({required this.slugs});
+
+  final List<String> slugs;
+
+  @override
+  Widget build(BuildContext context) {
+    final tt = context.tt;
+    final shown = slugs.take(kMiniCardCapabilityChipCap).toList();
+    final hidden = slugs.length - shown.length;
+    final chips = ForwardCapabilityChips(slugs: shown);
+    if (hidden <= 0) return chips;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Flexible(child: chips),
+        SizedBox(width: tt.tightGap),
+        Text('+$hidden', style: TenturaText.labelSmall(tt.textFaint)),
+      ],
     );
   }
 }
