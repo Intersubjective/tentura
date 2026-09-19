@@ -83,6 +83,8 @@ final class MutationAttention extends GqlNodeBase {
               'activityUnreadTotal': result.summary.activityUnreadTotal,
               'myWorkUnreadTotal': result.summary.myWorkUnreadTotal,
               'needsYouTotal': result.summary.needsYouTotal,
+              'myDeskDot': result.summary.myDeskDot,
+              'forYouDot': result.summary.forYouDot,
             },
           };
         },

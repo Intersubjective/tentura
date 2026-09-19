@@ -177,6 +177,11 @@ final gqlTypeAttentionSurfaceSummary =
         field('activityUnreadTotal', graphQLInt.nonNullable()),
         field('myWorkUnreadTotal', graphQLInt.nonNullable()),
         field('needsYouTotal', graphQLInt.nonNullable()),
+        // §6 indicators. The three above are the legacy totals and retire in
+        // U18; these two are the rules §6 actually states. There is no
+        // `forYouCount` field because §6 says `for you.count = never`.
+        field('myDeskDot', graphQLBoolean.nonNullable()),
+        field('forYouDot', graphQLBoolean.nonNullable()),
       ]);
 
 final gqlTypeAttentionReconcileResult =
