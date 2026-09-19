@@ -9,7 +9,10 @@ import 'package:tentura_server/domain/entity/jwt_entity.dart';
 import 'package:tentura_server/domain/entity/notification_category.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/entity/notification_priority.dart';
+import 'package:tentura_server/domain/attention/attention_clear_models.dart';
 import 'package:tentura_server/domain/port/attention_ack_port.dart';
+import 'package:tentura_server/domain/port/attention_clear_port.dart';
+import 'package:tentura_server/domain/use_case/attention_clear_case.dart';
 import 'package:tentura_server/domain/port/attention_query_port.dart';
 import 'package:tentura_server/domain/port/attention_settlement_port.dart';
 import 'package:tentura_server/domain/use_case/attention_settlement_case.dart';
@@ -210,6 +213,58 @@ class _FakeAck implements AttentionAckPort {
   }) async => 0;
 }
 
+class _FakeClear implements AttentionClearPort {
+  String? capturedAccountId;
+  String? capturedBeaconId;
+  String? capturedReceiptId;
+
+  String? appliedAccountId;
+  String? appliedOperationId;
+  String? appliedBeaconId;
+  AttentionClearCaptureKind? appliedKind;
+  List<String>? appliedReceiptIds;
+
+  @override
+  Future<AttentionClearCapture> captureEligible({
+    required String accountId,
+    String? beaconId,
+    String? receiptId,
+    int limit = AttentionClearSnapshotToken.maxMembers,
+  }) async {
+    capturedAccountId = accountId;
+    capturedBeaconId = beaconId;
+    capturedReceiptId = receiptId;
+    return const AttentionClearCapture(
+      receiptIds: ['N1', 'N2'],
+      outcomeGeneration: 0,
+      decisionRevision: 0,
+    );
+  }
+
+  @override
+  Future<AttentionClearResult> apply({
+    required String accountId,
+    required String operationId,
+    required String? beaconId,
+    required AttentionClearCaptureKind kind,
+    required int outcomeGeneration,
+    required List<String> receiptIds,
+  }) async {
+    appliedAccountId = accountId;
+    appliedOperationId = operationId;
+    appliedBeaconId = beaconId;
+    appliedKind = kind;
+    appliedReceiptIds = receiptIds;
+    return AttentionClearResult(
+      operationId: operationId,
+      appliedReceiptIds: const ['N1'],
+      skippedReceiptIds: const ['N2'],
+      deniedReceiptIds: const [],
+      status: AttentionClearStatus.partial,
+    );
+  }
+}
+
 class _FakeSettlement implements AttentionSettlementPort {
   String? accountId;
   String? receiptId;
@@ -221,8 +276,7 @@ class _FakeSettlement implements AttentionSettlementPort {
   Future<String?> liveObligationEventType({
     required String accountId,
     required String receiptId,
-  }) async =>
-      liveEventType;
+  }) async => liveEventType;
 
   @override
   Future<int> settle({
@@ -472,7 +526,9 @@ void main() {
       throwsA(isA<ArgumentError>()),
     );
     expect(
-      () => field.resolve!(null, {'ids': ['N1']}),
+      () => field.resolve!(null, {
+        'ids': ['N1'],
+      }),
       throwsA(isA<UnauthorizedException>()),
     );
   });
@@ -482,7 +538,7 @@ void main() {
     final field = MutationAttention(
       ack: _FakeAck(),
       settlement: _settlementCase(settlement),
-    ).all.last;
+    ).all.singleWhere((field) => field.name == 'attentionSettle');
 
     expect(
       await field.resolve!(null, {
@@ -502,7 +558,7 @@ void main() {
     final field = MutationAttention(
       ack: _FakeAck(),
       settlement: _settlementCase(settlement),
-    ).all.last;
+    ).all.singleWhere((field) => field.name == 'attentionSettle');
 
     expect(
       () => field.resolve!(null, {
@@ -520,7 +576,7 @@ void main() {
     final field = MutationAttention(
       ack: _FakeAck(),
       settlement: _settlementCase(settlement),
-    ).all.last;
+    ).all.singleWhere((field) => field.name == 'attentionSettle');
 
     expect(
       () => field.resolve!(null, {
@@ -537,7 +593,7 @@ void main() {
     final field = MutationAttention(
       ack: _FakeAck(),
       settlement: _settlementCase(_FakeSettlement()),
-    ).all.last;
+    ).all.singleWhere((field) => field.name == 'attentionSettle');
 
     expect(
       () => field.resolve!(null, {
@@ -557,8 +613,149 @@ void main() {
     );
   });
 
+  test(
+    'attentionClearSnapshot issues a token bound to the caller and Request',
+    () async {
+      final port = _FakeClear();
+      final field = QueryAttention(
+        query: _FakeQuery(),
+        clear: AttentionClearCase(port),
+      ).all.singleWhere((field) => field.name == 'attentionClearSnapshot');
+
+      final result =
+          await field.resolve!(null, {
+                ...auth,
+                'beaconId': 'B1',
+                'kind': 'request_open',
+              })
+              as Map;
+
+      expect(port.capturedAccountId, 'U1');
+      expect(port.capturedBeaconId, 'B1');
+      expect(result['receiptIds'], ['N1', 'N2']);
+      expect(result['outcomeGeneration'], 0);
+      expect(result['decisionRevision'], 0);
+
+      // The token is opaque on the wire but must carry the caller, the scope
+      // and the exact membership — apply re-checks all three.
+      final token = AttentionClearSnapshotToken.decode(
+        result['snapshotToken']! as String,
+      );
+      expect(token.accountId, 'U1');
+      expect(token.beaconId, 'B1');
+      expect(token.kind, AttentionClearCaptureKind.requestOpen);
+      expect(token.receiptIds, ['N1', 'N2']);
+    },
+  );
+
+  test('attentionClearSnapshot rejects an unscoped or unknown capture', () {
+    final field = QueryAttention(
+      query: _FakeQuery(),
+      clear: AttentionClearCase(_FakeClear()),
+    ).all.singleWhere((field) => field.name == 'attentionClearSnapshot');
+
+    expect(
+      () => field.resolve!(null, {...auth, 'kind': 'explicit'}),
+      throwsA(isA<ArgumentError>()),
+    );
+    expect(
+      () => field.resolve!(null, {...auth, 'beaconId': 'B1', 'kind': 'sweep'}),
+      throwsA(isA<ArgumentError>()),
+    );
+  });
+
+  test('attentionClear applies the token under the caller account', () async {
+    final port = _FakeClear();
+    final field = MutationAttention(
+      ack: _FakeAck(),
+      clear: AttentionClearCase(port),
+    ).all.singleWhere((field) => field.name == 'attentionClear');
+
+    final token = const AttentionClearSnapshotToken(
+      accountId: 'U1',
+      beaconId: 'B1',
+      kind: AttentionClearCaptureKind.explicit,
+      outcomeGeneration: 0,
+      decisionRevision: 0,
+      receiptIds: ['N1', 'N2'],
+    ).encode();
+
+    final result =
+        await field.resolve!(null, {
+              ...auth,
+              'snapshotToken': token,
+              'operationId': 'OP1',
+            })
+            as Map;
+
+    expect(port.appliedAccountId, 'U1');
+    expect(port.appliedOperationId, 'OP1');
+    expect(port.appliedBeaconId, 'B1');
+    expect(port.appliedKind, AttentionClearCaptureKind.explicit);
+    expect(port.appliedReceiptIds, ['N1', 'N2']);
+    expect(result['appliedReceiptIds'], ['N1']);
+    expect(result['skippedReceiptIds'], ['N2']);
+    expect(result['deniedReceiptIds'], isEmpty);
+    expect(result['status'], 'partial');
+  });
+
+  test(
+    'attentionClear refuses another account token without reaching storage',
+    () async {
+      final port = _FakeClear();
+      final field = MutationAttention(
+        ack: _FakeAck(),
+        clear: AttentionClearCase(port),
+      ).all.singleWhere((field) => field.name == 'attentionClear');
+
+      final token = const AttentionClearSnapshotToken(
+        accountId: 'U2',
+        beaconId: 'B1',
+        kind: AttentionClearCaptureKind.explicit,
+        outcomeGeneration: 0,
+        decisionRevision: 0,
+        receiptIds: ['N9'],
+      ).encode();
+
+      final result =
+          await field.resolve!(null, {
+                ...auth,
+                'snapshotToken': token,
+                'operationId': 'OP2',
+              })
+              as Map;
+
+      expect(result['status'], 'denied');
+      expect(result['appliedReceiptIds'], isEmpty);
+      expect(result['deniedReceiptIds'], ['N9']);
+      expect(
+        port.appliedOperationId,
+        isNull,
+        reason: 'a denied token must not reach storage at all',
+      );
+    },
+  );
+
+  test('attentionClear rejects a malformed token', () {
+    final field = MutationAttention(
+      ack: _FakeAck(),
+      clear: AttentionClearCase(_FakeClear()),
+    ).all.singleWhere((field) => field.name == 'attentionClear');
+
+    expect(
+      () => field.resolve!(null, {
+        ...auth,
+        'snapshotToken': 'not-a-token',
+        'operationId': 'OP3',
+      }),
+      throwsA(isA<ArgumentError>()),
+    );
+  });
+
   test('attention operations require authentication', () {
-    final field = MutationAttention(ack: _FakeAck()).all.last;
+    final field = MutationAttention(
+      ack: _FakeAck(),
+    ).all.singleWhere((field) => field.name == 'attentionSettle');
     expect(
       () => field.resolve!(null, {}),
       throwsA(isA<UnauthorizedException>()),

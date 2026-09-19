@@ -167,6 +167,37 @@ final gqlTypeAttentionSurfaceSummary =
         field('needsYouTotal', graphQLInt.nonNullable()),
       ]);
 
+final gqlTypeAttentionClearSnapshot =
+    GraphQLObjectType('AttentionClearSnapshot', null)
+      ..fields.addAll([
+        field('snapshotToken', graphQLString.nonNullable()),
+        field(
+          'receiptIds',
+          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+        ),
+        field('outcomeGeneration', graphQLInt.nonNullable()),
+        field('decisionRevision', graphQLInt.nonNullable()),
+      ]);
+
+final gqlTypeAttentionClearResult =
+    GraphQLObjectType('AttentionClearResult', null)
+      ..fields.addAll([
+        field('operationId', graphQLString.nonNullable()),
+        field(
+          'appliedReceiptIds',
+          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+        ),
+        field(
+          'skippedReceiptIds',
+          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+        ),
+        field(
+          'deniedReceiptIds',
+          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+        ),
+        field('status', graphQLString.nonNullable()),
+      ]);
+
 final gqlTypeAttentionSummary = GraphQLObjectType('AttentionSummary', null)
   ..fields.addAll([
     field('unreadTotal', graphQLInt.nonNullable()),

@@ -1,5 +1,6 @@
 import 'package:tentura_server/domain/port/attention_ack_port.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
+import 'package:tentura_server/domain/use_case/attention_clear_case.dart';
 import 'package:tentura_server/domain/use_case/attention_settlement_case.dart';
 
 import '../custom_types.dart';
@@ -11,11 +12,17 @@ final class MutationAttention extends GqlNodeBase {
   MutationAttention({
     AttentionAckPort? ack,
     AttentionSettlementCase? settlement,
+    AttentionClearCase? clear,
   }) : _ack = ack ?? GetIt.I<AttentionAckPort>(),
-       _settlementOverride = settlement;
+       _settlementOverride = settlement,
+       _clearOverride = clear;
 
   final AttentionAckPort _ack;
   final AttentionSettlementCase? _settlementOverride;
+  final AttentionClearCase? _clearOverride;
+
+  AttentionClearCase get _clear =>
+      _clearOverride ?? GetIt.I<AttentionClearCase>();
 
   AttentionSettlementCase get _settlement =>
       _settlementOverride ?? GetIt.I<AttentionSettlementCase>();
@@ -26,7 +33,35 @@ final class MutationAttention extends GqlNodeBase {
     attentionMarkSeenForBeacon,
     attentionMarkUnseen,
     attentionSettle,
+    attentionClear,
   ];
+
+  /// Clears exactly the membership captured by `snapshotToken` — never more.
+  ///
+  /// Idempotent by `operationId`: a replay, concurrent or not, returns the
+  /// first apply's answer instead of clearing anything further. Obligations
+  /// and any receipt the caller may no longer read are skipped, and an id that
+  /// is not the caller's is denied without saying whether it exists.
+  GraphQLObjectField<dynamic, dynamic> get attentionClear => GraphQLObjectField(
+    'attentionClear',
+    gqlTypeAttentionClearResult.nonNullable(),
+    arguments: [_snapshotToken.field, _operationId.field],
+    resolve: (_, args) async {
+      final accountId = getCredentials(args).sub;
+      final result = await _clear.clear(
+        accountId: accountId,
+        operationId: _operationId.fromArgsNonNullable(args),
+        snapshotToken: _snapshotToken.fromArgsNonNullable(args),
+      );
+      return {
+        'operationId': result.operationId,
+        'appliedReceiptIds': result.appliedReceiptIds,
+        'skippedReceiptIds': result.skippedReceiptIds,
+        'deniedReceiptIds': result.deniedReceiptIds,
+        'status': result.status.name,
+      };
+    },
+  );
 
   GraphQLObjectField<dynamic, dynamic> get attentionMarkSeen =>
       GraphQLObjectField(
@@ -94,6 +129,8 @@ final class MutationAttention extends GqlNodeBase {
   static final _receiptId = InputFieldString(fieldName: 'receiptId');
   static final _settlementKind = InputFieldString(fieldName: 'kind');
   static final _surface = InputFieldString(fieldName: 'surface');
+  static final _snapshotToken = InputFieldString(fieldName: 'snapshotToken');
+  static final _operationId = InputFieldString(fieldName: 'operationId');
 
   GraphQLObjectField<dynamic, dynamic> get attentionSettle =>
       GraphQLObjectField(

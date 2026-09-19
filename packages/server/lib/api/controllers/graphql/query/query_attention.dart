@@ -1,18 +1,25 @@
 import 'dart:convert';
 
 import 'package:meta/meta.dart';
+import 'package:tentura_server/domain/attention/attention_clear_models.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/port/attention_query_port.dart';
+import 'package:tentura_server/domain/use_case/attention_clear_case.dart';
 
 import '../custom_types.dart';
 import '../gql_nodel_base.dart';
 import '../input/_input_types.dart';
 
 final class QueryAttention extends GqlNodeBase {
-  QueryAttention({AttentionQueryPort? query})
-    : _query = query ?? GetIt.I<AttentionQueryPort>();
+  QueryAttention({AttentionQueryPort? query, AttentionClearCase? clear})
+    : _query = query ?? GetIt.I<AttentionQueryPort>(),
+      _clearOverride = clear;
 
   final AttentionQueryPort _query;
+  final AttentionClearCase? _clearOverride;
+
+  AttentionClearCase get _clear =>
+      _clearOverride ?? GetIt.I<AttentionClearCase>();
 
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
     attentionFeed,
@@ -22,8 +29,49 @@ final class QueryAttention extends GqlNodeBase {
     activityOffers,
     activityAttention,
     attentionRequestHistory,
+    attentionClearSnapshot,
     liveObligationBeacons,
   ];
+
+  /// Issues the capture D05 needs: the client cannot clear anything without
+  /// first being handed the exact membership a clear may touch. The Request
+  /// *page* query (`attentionRequest`, manifest §0.2) is U10's; this field is
+  /// only the snapshot issue, so the two cannot collide.
+  GraphQLObjectField<dynamic, dynamic> get attentionClearSnapshot =>
+      GraphQLObjectField(
+        'attentionClearSnapshot',
+        gqlTypeAttentionClearSnapshot.nonNullable(),
+        arguments: [
+          _beaconId.fieldNullable,
+          _receiptId.fieldNullable,
+          _kind.field,
+        ],
+        resolve: (_, args) async {
+          final accountId = getCredentials(args).sub;
+          final snapshot = await _clear.captureSnapshot(
+            accountId: accountId,
+            beaconId: _boundedId(_beaconId.fromArgs(args), 'beaconId'),
+            receiptId: _boundedId(_receiptId.fromArgs(args), 'receiptId'),
+            kind: AttentionClearCaptureKind.fromWireName(
+              _kind.fromArgsNonNullable(args),
+            ),
+          );
+          return {
+            'snapshotToken': snapshot.token,
+            'receiptIds': snapshot.receiptIds,
+            'outcomeGeneration': snapshot.outcomeGeneration,
+            'decisionRevision': snapshot.decisionRevision,
+          };
+        },
+      );
+
+  static String? _boundedId(String? value, String name) {
+    if (value == null) return null;
+    if (value.isEmpty || value.length > 64) {
+      throw ArgumentError.value(value, name, 'must be 1..64 characters');
+    }
+    return value;
+  }
 
   GraphQLObjectField<dynamic, dynamic> get attentionSurfaceSummary =>
       GraphQLObjectField(
@@ -80,7 +128,9 @@ final class QueryAttention extends GqlNodeBase {
   GraphQLObjectField<dynamic, dynamic> get myWorkAttention =>
       GraphQLObjectField(
         'myWorkAttention',
-        GraphQLListType(gqlTypeMyWorkBeaconAttention.nonNullable()).nonNullable(),
+        GraphQLListType(
+          gqlTypeMyWorkBeaconAttention.nonNullable(),
+        ).nonNullable(),
         arguments: [_beaconIds.field],
         resolve: (_, args) async {
           final beaconIds = _beaconIds.fromArgsNonNullable(args).toSet();
@@ -112,41 +162,40 @@ final class QueryAttention extends GqlNodeBase {
         },
       );
 
-  GraphQLObjectField<dynamic, dynamic> get activityOffers =>
-      GraphQLObjectField(
-        'activityOffers',
-        gqlTypeActivityOfferPage.nonNullable(),
-        arguments: [_cursor.fieldNullable, _limit.fieldNullable],
-        resolve: (_, args) async {
-          final page = await _query.activityOffers(
-            accountId: getCredentials(args).sub,
-            cursor: _decodeCursor(_cursor.fromArgs(args)),
-            limit: _limit.fromArgs(args) ?? 20,
-          );
-          return {
-            'items': [
-              for (final item in page.items)
-                {
-                  'beaconId': item.beaconId,
-                  'effectiveActivityAt':
-                      item.effectiveActivityAt.toUtc().toIso8601String(),
-                  'latestForwardAt':
-                      item.latestForwardAt.toUtc().toIso8601String(),
-                  'unseen': item.unseen,
-                  'eventTotal': item.eventTotal,
-                  'eventUnseenCount': item.eventUnseenCount,
-                  'eventsPreview': [
-                    for (final event in item.eventsPreview) _mapReceipt(event),
-                  ],
-                },
-            ],
-            'totalCount': page.totalCount,
-            'nextCursor': page.nextCursor == null
-                ? null
-                : _encodeCursor(page.nextCursor!),
-          };
-        },
+  GraphQLObjectField<dynamic, dynamic> get activityOffers => GraphQLObjectField(
+    'activityOffers',
+    gqlTypeActivityOfferPage.nonNullable(),
+    arguments: [_cursor.fieldNullable, _limit.fieldNullable],
+    resolve: (_, args) async {
+      final page = await _query.activityOffers(
+        accountId: getCredentials(args).sub,
+        cursor: _decodeCursor(_cursor.fromArgs(args)),
+        limit: _limit.fromArgs(args) ?? 20,
       );
+      return {
+        'items': [
+          for (final item in page.items)
+            {
+              'beaconId': item.beaconId,
+              'effectiveActivityAt': item.effectiveActivityAt
+                  .toUtc()
+                  .toIso8601String(),
+              'latestForwardAt': item.latestForwardAt.toUtc().toIso8601String(),
+              'unseen': item.unseen,
+              'eventTotal': item.eventTotal,
+              'eventUnseenCount': item.eventUnseenCount,
+              'eventsPreview': [
+                for (final event in item.eventsPreview) _mapReceipt(event),
+              ],
+            },
+        ],
+        'totalCount': page.totalCount,
+        'nextCursor': page.nextCursor == null
+            ? null
+            : _encodeCursor(page.nextCursor!),
+      };
+    },
+  );
 
   GraphQLObjectField<dynamic, dynamic> get activityAttention =>
       GraphQLObjectField(
@@ -272,6 +321,8 @@ final class QueryAttention extends GqlNodeBase {
   static final _limit = InputFieldInt(fieldName: 'limit');
   static final _beaconIds = InputFieldStringList(fieldName: 'beaconIds');
   static final _beaconId = InputFieldString(fieldName: 'beaconId');
+  static final _receiptId = InputFieldString(fieldName: 'receiptId');
+  static final _kind = InputFieldString(fieldName: 'kind');
 
   static AttentionSurface? parseSurfaceArgument(String? value) =>
       _parseSurface(value);
