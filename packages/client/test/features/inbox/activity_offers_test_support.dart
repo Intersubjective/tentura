@@ -11,16 +11,17 @@ ActivityOfferSortRow activityOfferSortRow(
   int eventUnseenCount = 0,
   List<AttentionReceipt> eventsPreview = const [],
   bool unseen = false,
-}) =>
-    ActivityOfferSortRow(
-      beaconId: item.beaconId,
-      effectiveActivityAt: item.latestForwardAt,
-      latestForwardAt: item.latestForwardAt,
-      unseen: unseen,
-      eventTotal: eventTotal,
-      eventUnseenCount: eventUnseenCount,
-      eventsPreview: eventsPreview,
-    );
+  DateTime? listPositionAt,
+}) => ActivityOfferSortRow(
+  beaconId: item.beaconId,
+  listPositionAt: listPositionAt ?? item.latestForwardAt,
+  effectiveActivityAt: item.latestForwardAt,
+  latestForwardAt: item.latestForwardAt,
+  unseen: unseen,
+  eventTotal: eventTotal,
+  eventUnseenCount: eventUnseenCount,
+  eventsPreview: eventsPreview,
+);
 
 abstract class ConfigurableActivityOffersAttentionRepo
     extends AttentionRepositoryFake {

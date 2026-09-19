@@ -8,6 +8,9 @@ part 'activity_offer_sort_row.freezed.dart';
 abstract class ActivityOfferSortRow with _$ActivityOfferSortRow {
   const factory ActivityOfferSortRow({
     required String beaconId,
+    // U10c — the key the zone is ordered by. `effectiveActivityAt` below is
+    // the latest-event key: rendered, never ordered by.
+    required DateTime listPositionAt,
     required DateTime effectiveActivityAt,
     required DateTime latestForwardAt,
     required bool unseen,

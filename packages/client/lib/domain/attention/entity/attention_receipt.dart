@@ -1,5 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import 'attention_clear.dart';
 import 'attention_feed.dart';
 
 part 'attention_receipt.freezed.dart';
@@ -63,6 +64,20 @@ abstract class AttentionReceipt with _$AttentionReceipt {
     String? attentionThreadKey,
     String? settlementKind,
     DateTime? settledAt,
+    // The optional axis (D02). Distinct from [seenAt], which keeps meaning
+    // "read": a cleared receipt no longer asks for attention.
+    DateTime? clearedAt,
+    AttentionClearReason? clearReason,
+    // §0.1a — the verbatim `inbox_provenance_data` document on grouped
+    // `beacon:` rows. Parsed with `InboxProvenance.parse`; there is no second
+    // provenance model.
+    String? provenanceJson,
+    String? beaconAuthorId,
+    String? beaconAuthorName,
+    String? beaconAuthorImageId,
+    String? beaconImageId,
+    DateTime? beaconEndAt,
+    bool? allowsForward,
     int? eventTotal,
     int? eventUnseenCount,
     @Default([]) List<AttentionReceipt> eventsPreview,
@@ -71,6 +86,7 @@ abstract class AttentionReceipt with _$AttentionReceipt {
   const AttentionReceipt._();
 
   bool get isSeen => seenAt != null;
+  bool get isCleared => clearedAt != null;
   bool get isLiveObligation => requiresAction && settlementKind == null;
 
   /// Live obligations the user may clear with Done / Mark done.

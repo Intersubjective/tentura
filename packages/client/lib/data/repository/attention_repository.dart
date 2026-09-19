@@ -5,6 +5,7 @@ import 'package:tentura/data/service/remote_api_client/remote_request_client.dar
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/attention/entity/activity_beacon_attention.dart';
 import 'package:tentura/domain/attention/entity/activity_offer_sort_row.dart';
+import 'package:tentura/domain/attention/entity/attention_clear.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
@@ -110,6 +111,8 @@ final class AttentionRepository implements AttentionRepositoryPort {
     attentionThreadKey: item.attentionThreadKey,
     settlementKind: item.settlementKind,
     settledAt: item.settledAt,
+    clearedAt: item.clearedAt,
+    clearReason: item.clearReason,
     surface: item.surface,
     itemKind: item.itemKind,
     forwardOutcome: item.forwardOutcome,
@@ -117,6 +120,13 @@ final class AttentionRepository implements AttentionRepositoryPort {
     digestCount: item.digestCount,
     eventTotal: item.eventTotal,
     eventUnseenCount: item.eventUnseenCount,
+    provenanceJson: item.provenanceJson,
+    beaconAuthorId: item.beaconAuthorId,
+    beaconAuthorName: item.beaconAuthorName,
+    beaconAuthorImageId: item.beaconAuthorImageId,
+    beaconImageId: item.beaconImageId,
+    beaconEndAt: item.beaconEndAt,
+    allowsForward: item.allowsForward,
     eventsPreview: eventsPreview,
   );
 
@@ -146,6 +156,8 @@ final class AttentionRepository implements AttentionRepositoryPort {
     attentionThreadKey: item.attentionThreadKey,
     settlementKind: item.settlementKind,
     settledAt: item.settledAt,
+    clearedAt: item.clearedAt,
+    clearReason: item.clearReason,
     surface: item.surface,
     itemKind: item.itemKind,
     forwardOutcome: item.forwardOutcome,
@@ -179,6 +191,8 @@ final class AttentionRepository implements AttentionRepositoryPort {
     attentionThreadKey: item.attentionThreadKey,
     settlementKind: item.settlementKind,
     settledAt: item.settledAt,
+    clearedAt: item.clearedAt,
+    clearReason: item.clearReason,
     surface: item.surface,
     itemKind: item.itemKind,
     forwardOutcome: item.forwardOutcome,
@@ -215,13 +229,28 @@ final class AttentionRepository implements AttentionRepositoryPort {
     String? forwardOutcome,
     int? forwardCount,
     int? digestCount,
+    String? clearedAt,
+    String? clearReason,
     int? eventTotal,
     int? eventUnseenCount,
+    String? provenanceJson,
+    String? beaconAuthorId,
+    String? beaconAuthorName,
+    String? beaconAuthorImageId,
+    String? beaconImageId,
+    String? beaconEndAt,
+    bool? allowsForward,
     List<AttentionReceipt> eventsPreview = const [],
   }) {
     final parsedSurface = _parseSurface(surface);
     final parsedItemKind = _parseItemKind(itemKind);
-    final parsedForwardOutcome = AttentionForwardOutcome.fromWire(forwardOutcome);
+    final parsedForwardOutcome = AttentionForwardOutcome.fromWire(
+      forwardOutcome,
+    );
+    final parsedClearReason = AttentionClearReason.fromWire(clearReason);
+    if (parsedClearReason == AttentionClearReason.unknown) {
+      _log.warning('[$_label] unknown clearReason wire value: $clearReason');
+    }
     if (forwardOutcome != null && parsedForwardOutcome == null) {
       _log.warning(
         '[$_label] unknown forwardOutcome wire value: $forwardOutcome',
@@ -251,6 +280,8 @@ final class AttentionRepository implements AttentionRepositoryPort {
       attentionThreadKey: attentionThreadKey,
       settlementKind: settlementKind,
       settledAt: settledAt == null ? null : DateTime.tryParse(settledAt),
+      clearedAt: clearedAt == null ? null : DateTime.tryParse(clearedAt),
+      clearReason: parsedClearReason,
       surface: parsedSurface,
       itemKind: parsedItemKind,
       forwardOutcome: parsedForwardOutcome,
@@ -258,6 +289,13 @@ final class AttentionRepository implements AttentionRepositoryPort {
       digestCount: digestCount,
       eventTotal: eventTotal,
       eventUnseenCount: eventUnseenCount,
+      provenanceJson: provenanceJson,
+      beaconAuthorId: beaconAuthorId,
+      beaconAuthorName: beaconAuthorName,
+      beaconAuthorImageId: beaconAuthorImageId,
+      beaconImageId: beaconImageId,
+      beaconEndAt: beaconEndAt == null ? null : DateTime.tryParse(beaconEndAt),
+      allowsForward: allowsForward,
       eventsPreview: eventsPreview,
     );
   }
@@ -395,6 +433,12 @@ final class AttentionRepository implements AttentionRepositoryPort {
         MyWorkBeaconAttention(
           beaconId: row.beaconId,
           unseenCount: row.unseenCount,
+          needsYouAt: row.needsYouAt == null
+              ? null
+              : DateTime.tryParse(row.needsYouAt!),
+          firstEntryAt: row.firstEntryAt == null
+              ? null
+              : DateTime.tryParse(row.firstEntryAt!),
           latestUnseen: row.latestUnseen == null
               ? null
               : _mapMyWorkReceipt(row.latestUnseen!),
@@ -429,6 +473,7 @@ final class AttentionRepository implements AttentionRepositoryPort {
         for (final row in page.items)
           ActivityOfferSortRow(
             beaconId: row.beaconId,
+            listPositionAt: DateTime.parse(row.listPositionAt),
             effectiveActivityAt: DateTime.parse(row.effectiveActivityAt),
             latestForwardAt: DateTime.parse(row.latestForwardAt),
             unseen: row.unseen,
