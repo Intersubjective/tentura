@@ -170,7 +170,9 @@ void main() {
       home.setActiveHomeTab(HomeTab.work);
       await _settle();
 
-      expect(home.state.hasMyWorkDot, isFalse);
+      // U14c / §6: the My Work dot stays lit while My Work is the open tab —
+      // the Request is still marked, and the tab being open changed nothing.
+      expect(home.state.hasMyWorkDot, isTrue);
       expect(home.state.isMyWorkBeaconMarked(beaconId), isTrue);
 
       home.setActiveHomeTab(HomeTab.inbox);

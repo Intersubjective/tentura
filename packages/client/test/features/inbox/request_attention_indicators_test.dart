@@ -84,7 +84,9 @@ void main() {
     testWidgets('nothing renders when there is nothing to act on', (
       tester,
     ) async {
-      await tester.pumpWidget(_host(RequestAttentionIndicators(facts: _facts())));
+      await tester.pumpWidget(
+        _host(const RequestAttentionIndicators(facts: RequestAttentionFacts(requestId: 'R1'))),
+      );
       expect(_dot, findsNothing);
       expect(_count, findsNothing);
       expect(find.byType(SizedBox), findsWidgets);
@@ -93,8 +95,8 @@ void main() {
     testWidgets('an uncleared outcome alone is a dot', (tester) async {
       await tester.pumpWidget(
         _host(
-          RequestAttentionIndicators(
-            facts: const RequestAttentionFacts(
+          const RequestAttentionIndicators(
+            facts: RequestAttentionFacts(
               requestId: 'R1',
               unclearedOutcomes: 1,
             ),
@@ -110,7 +112,7 @@ void main() {
     ) async {
       final facts = _facts(optional: 1, obligations: 5);
       await tester.pumpWidget(_host(RequestAttentionIndicators(facts: facts)));
-      expect((_dot.evaluate().isNotEmpty), requestHasDot(facts));
+      expect(_dot.evaluate().isNotEmpty, requestHasDot(facts));
       expect(
         _count.evaluate().isNotEmpty,
         requestCount(facts) > 0,

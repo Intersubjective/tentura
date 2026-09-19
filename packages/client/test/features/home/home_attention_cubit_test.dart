@@ -122,7 +122,7 @@ void main() {
   });
 
   test(
-    'projects unread ids with My Work precedence and hides active-tab dots',
+    'projects unread ids with My Work precedence, on every tab',
     () async {
       repository.unread = {'inbox', 'work', 'shared'};
       accounts.emit('U1');
@@ -142,11 +142,13 @@ void main() {
 
       expect(home.state.inboxMarkerIds, {'inbox'});
       expect(home.state.myWorkMarkerIds, {'work', 'shared'});
+      // U14c / §6: a dot reports marked Requests on its surface. Opening the
+      // tab is not clearing them, so neither dot depends on the active tab.
       expect(home.state.hasInboxDot, isTrue);
-      expect(home.state.hasMyWorkDot, isFalse);
+      expect(home.state.hasMyWorkDot, isTrue);
 
       home.setActiveHomeTab(HomeTab.inbox);
-      expect(home.state.hasInboxDot, isFalse);
+      expect(home.state.hasInboxDot, isTrue);
       expect(home.state.hasMyWorkDot, isTrue);
     },
   );

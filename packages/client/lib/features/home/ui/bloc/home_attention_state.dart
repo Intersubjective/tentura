@@ -1,6 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'package:tentura/app/router/home_tab_branches.dart';
+import 'package:tentura/domain/attention/request_attention_predicate.dart';
 
 part 'home_attention_state.freezed.dart';
 
@@ -47,26 +48,23 @@ abstract class HomeAttentionState with _$HomeAttentionState {
   bool isMyWorkBeaconMarked(String beaconId) =>
       myWorkMarkerIds.contains(beaconId);
 
-  bool get hasInboxDot =>
-      activeHomeTab != HomeTab.inbox && inboxMarkerIds.isNotEmpty;
+  /// Contract §6: indicators do not hide because the tab is currently open,
+  /// and the dot is never gated on the number. Both suppressions lived here
+  /// until U14c; [activeHomeTab] is no longer an input to any indicator.
+  bool get hasInboxDot => inboxMarkerIds.isNotEmpty;
 
-  bool get hasMyWorkDot =>
-      activeHomeTab != HomeTab.work && myWorkMarkerIds.isNotEmpty;
+  bool get hasMyWorkDot => myWorkMarkerIds.isNotEmpty;
 
-  /// Activity nav is a dot only, hidden on the active tab.
+  /// Activity nav is a dot only — For You never carries a count (§6).
   bool get showRedesignActivityUnreadDot =>
-      surfaceSummaryLoaded &&
-      activityUnreadTotal > 0 &&
-      activeHomeTab != HomeTab.inbox;
+      surfaceSummaryLoaded && surfaceDotFromTotal(activityUnreadTotal);
 
-  /// Live obligation receipts on My Work; visible on active tab.
+  /// Live obligation receipts on My Work (§6 `my desk.count`).
   bool get showRedesignMyWorkObligationBadge =>
-      surfaceSummaryLoaded && surfaceNeedsYouTotal > 0;
+      surfaceSummaryLoaded && surfaceCountFromTotal(surfaceNeedsYouTotal) > 0;
 
-  /// Unseen My Work receipts when no live obligations remain.
+  /// Active optional attention on My Work (§6 `my desk.dot`). Independent of
+  /// the number beside it: a Request with both contributes to both.
   bool get showRedesignMyWorkUnreadDot =>
-      surfaceSummaryLoaded &&
-      surfaceNeedsYouTotal == 0 &&
-      myWorkUnreadTotal > 0 &&
-      activeHomeTab != HomeTab.work;
+      surfaceSummaryLoaded && surfaceDotFromTotal(myWorkUnreadTotal);
 }

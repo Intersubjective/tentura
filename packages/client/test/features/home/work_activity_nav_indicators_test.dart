@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
@@ -16,9 +17,12 @@ import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
+import 'package:tentura/domain/attention/request_attention_predicate.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
+import 'package:tentura/features/home/ui/widget/inbox_navbar_item.dart';
+import 'package:tentura/features/home/ui/widget/my_work_navbar_item.dart';
 import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -208,6 +212,10 @@ class _TestHomeShell extends StatelessWidget {
 
 void main() {
   group('HomeAttentionState redesign indicator getters', () {
+    // U14c: every expectation below is a function of the totals alone. No case
+    // names the active tab as a reason, because §6 gives it no say: "Indicators
+    // do not hide because the tab is currently open", and dot and number are
+    // independent rather than one gating the other.
     const cases = <({
       String name,
       int activity,
@@ -219,24 +227,24 @@ void main() {
       bool myWorkDot,
     })>[
       (
-        name: 'obligations on inactive activity tab',
+        name: 'obligations and optional updates show a number and a dot',
         activity: 2,
         myWorkUnread: 1,
         needsYou: 3,
         tab: HomeTab.work,
         activityDot: true,
         myWorkNumber: true,
-        myWorkDot: false,
+        myWorkDot: true,
       ),
       (
-        name: 'obligations hide activity dot on active inbox',
+        name: 'the activity dot survives its own tab being open',
         activity: 2,
         myWorkUnread: 1,
         needsYou: 3,
         tab: HomeTab.inbox,
-        activityDot: false,
+        activityDot: true,
         myWorkNumber: true,
-        myWorkDot: false,
+        myWorkDot: true,
       ),
       (
         name: 'activity unread only',
@@ -259,24 +267,24 @@ void main() {
         myWorkDot: true,
       ),
       (
-        name: 'my work unread hidden on active work tab',
+        name: 'the my work dot survives its own tab being open',
         activity: 0,
         myWorkUnread: 2,
         needsYou: 0,
         tab: HomeTab.work,
         activityDot: false,
         myWorkNumber: false,
-        myWorkDot: false,
+        myWorkDot: true,
       ),
       (
-        name: 'obligations beat my work unread dot',
+        name: 'obligations do not extinguish the my work dot',
         activity: 0,
         myWorkUnread: 4,
         needsYou: 2,
         tab: HomeTab.inbox,
         activityDot: false,
         myWorkNumber: true,
-        myWorkDot: false,
+        myWorkDot: true,
       ),
       (
         name: 'all clear',
@@ -304,6 +312,82 @@ void main() {
       });
     }
 
+    test('no indicator changes when the active tab does', () {
+      for (final c in cases) {
+        final readings = <({bool activity, bool number, bool dot})>{
+          for (final tab in HomeTab.values)
+            () {
+              final state = _redesignState(
+                activityUnread: c.activity,
+                myWorkUnread: c.myWorkUnread,
+                needsYou: c.needsYou,
+                activeTab: tab,
+              );
+              return (
+                activity: state.showRedesignActivityUnreadDot,
+                number: state.showRedesignMyWorkObligationBadge,
+                dot: state.showRedesignMyWorkUnreadDot,
+              );
+            }(),
+        }.toSet();
+        expect(
+          readings,
+          hasLength(1),
+          reason: 'the active tab changed an indicator for "${c.name}"',
+        );
+      }
+    });
+
+    test('the getters read the shared predicate, not a local copy', () {
+      for (final total in [0, 1, 5]) {
+        final state = _redesignState(
+          activityUnread: total,
+          myWorkUnread: total,
+          needsYou: total,
+        );
+        expect(
+          state.showRedesignActivityUnreadDot,
+          surfaceDotFromTotal(total),
+        );
+        expect(state.showRedesignMyWorkUnreadDot, surfaceDotFromTotal(total));
+        expect(
+          state.showRedesignMyWorkObligationBadge,
+          surfaceCountFromTotal(total) > 0,
+        );
+      }
+    });
+
+    test('M1 — a lit surface indicator implies a non-empty default list', () {
+      // The totals are server counts of the authorized default list (U10b), so
+      // "lit" and "the list has rows" are the same statement. Asserted here so
+      // a future getter cannot light on something the list does not return.
+      for (final activity in [0, 2]) {
+        for (final myWorkUnread in [0, 2]) {
+          for (final needsYou in [0, 3]) {
+            final state = _redesignState(
+              activityUnread: activity,
+              myWorkUnread: myWorkUnread,
+              needsYou: needsYou,
+            );
+            expect(state.showRedesignActivityUnreadDot, activity > 0);
+            expect(state.showRedesignMyWorkUnreadDot, myWorkUnread > 0);
+            expect(state.showRedesignMyWorkObligationBadge, needsYou > 0);
+          }
+        }
+      }
+    });
+
+    test('the unloaded summary lights nothing', () {
+      final state = _redesignState(
+        activityUnread: 3,
+        myWorkUnread: 3,
+        needsYou: 3,
+        loaded: false,
+      );
+      expect(state.showRedesignActivityUnreadDot, isFalse);
+      expect(state.showRedesignMyWorkObligationBadge, isFalse);
+      expect(state.showRedesignMyWorkUnreadDot, isFalse);
+    });
   });
 
   group('HomeAttentionCubit surface summary', () {
@@ -361,11 +445,123 @@ void main() {
         accounts: accounts,
         repository: repository,
       );
-      boot.home.setActiveHomeTab(HomeTab.inbox);
       expect(boot.home.state.showRedesignActivityUnreadDot, isFalse);
       expect(boot.home.state.showRedesignMyWorkUnreadDot, isTrue);
       expect(boot.home.state.showRedesignMyWorkObligationBadge, isFalse);
       await _disposeBoot(boot);
+    });
+  });
+
+  group('tab icons — one badge slot, count first (§6)', () {
+    late _Accounts accounts;
+    late _SurfaceRepository repository;
+
+    setUp(() {
+      accounts = _Accounts();
+      repository = _SurfaceRepository();
+    });
+
+    tearDown(() async {
+      await accounts.close();
+    });
+
+    Future<HomeAttentionCubit> pumpNav(
+      WidgetTester tester, {
+      required HomeTab activeTab,
+    }) async {
+      // A tree must exist before `tester.pump()` can drive the cubit's boot.
+      await tester.pumpWidget(const SizedBox.shrink());
+      final boot = await _bootCubitWithSurface(
+        accounts: accounts,
+        repository: repository,
+        tester: tester,
+      );
+      addTearDown(() => _disposeBoot(boot));
+      boot.home.setActiveHomeTab(activeTab);
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          home: BlocProvider<HomeAttentionCubit>.value(
+            value: boot.home,
+            child: const Scaffold(
+              body: Row(
+                children: [
+                  MyWorkNavbarItem(selected: true),
+                  InboxNavbarItem(),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      return boot.home;
+    }
+
+    testWidgets('the count takes the slot while obligations are live', (
+      tester,
+    ) async {
+      repository.surfaceSummaryValue = const AttentionSurfaceSummary(
+        activityUnreadTotal: 1,
+        myWorkUnreadTotal: 2,
+        needsYouTotal: 3,
+      );
+      final home = await pumpNav(tester, activeTab: HomeTab.work);
+
+      expect(find.text('3'), findsOneWidget);
+      expect(
+        find.bySemanticsLabel(
+          lookupL10n(const Locale('en')).myWorkNavBadgeObligations(3),
+        ),
+        findsOneWidget,
+      );
+      // The Request-level dot is not lost — the state still reports it, which
+      // is what the card indicators render (D09). The tab has one slot.
+      expect(home.state.showRedesignMyWorkUnreadDot, isTrue);
+    });
+
+    testWidgets('the dot returns when the count drops to zero', (tester) async {
+      repository.surfaceSummaryValue = const AttentionSurfaceSummary(
+        activityUnreadTotal: 0,
+        myWorkUnreadTotal: 2,
+        needsYouTotal: 0,
+      );
+      final home = await pumpNav(tester, activeTab: HomeTab.work);
+
+      expect(find.text('0'), findsNothing);
+      expect(home.state.showRedesignMyWorkObligationBadge, isFalse);
+      expect(home.state.showRedesignMyWorkUnreadDot, isTrue);
+      // My Work carries the dot; Activity is clear, so exactly one Badge.
+      expect(find.byType(Badge), findsOneWidget);
+    });
+
+    testWidgets('the Activity dot shows while Activity is the open tab', (
+      tester,
+    ) async {
+      repository.surfaceSummaryValue = const AttentionSurfaceSummary(
+        activityUnreadTotal: 4,
+        myWorkUnreadTotal: 0,
+        needsYouTotal: 0,
+      );
+      final home = await pumpNav(tester, activeTab: HomeTab.inbox);
+
+      expect(home.state.showRedesignActivityUnreadDot, isTrue);
+      // For You never carries a count, however many events it holds.
+      expect(find.text('4'), findsNothing);
+      expect(find.byType(Badge), findsOneWidget);
+    });
+
+    testWidgets('the My Work number shows while My Work is the open tab', (
+      tester,
+    ) async {
+      repository.surfaceSummaryValue = const AttentionSurfaceSummary(
+        activityUnreadTotal: 0,
+        myWorkUnreadTotal: 2,
+        needsYouTotal: 5,
+      );
+      await pumpNav(tester, activeTab: HomeTab.work);
+      expect(find.text('5'), findsOneWidget);
     });
   });
 
