@@ -19,6 +19,7 @@ import 'attention_ack_store.dart';
 import 'attention_clear_store.dart';
 import 'attention_group_projection.dart';
 import 'entity/activity_beacon_attention.dart';
+import 'entity/activity_offer_beacon_meta.dart';
 import 'entity/attention_clear.dart';
 import 'entity/attention_cursor.dart';
 import 'entity/activity_offer_sort_row.dart';
@@ -73,6 +74,7 @@ final class AttentionCase {
   final AttentionAckStore _acks = AttentionAckStore();
   final AttentionClearStore _clears = AttentionClearStore();
   static const _uuid = Uuid();
+  static const _maxIdsPerQuery = 500;
   final _snapshot = BehaviorSubject<AttentionFeedSnapshot>.seeded(
     const AttentionFeedSnapshot(),
   );
@@ -91,6 +93,15 @@ final class AttentionCase {
   /// attention state; it does not own those screens' rows, so a move or an
   /// outcome is announced here rather than guessed at by each screen.
   final _requestInvalidations = StreamController<String>.broadcast();
+
+  /// The Activity pinned zone's per-Request events, owned here. The raw
+  /// server rows are kept so the projection can be re-derived whenever a
+  /// child is dismissed or read; the zone itself holds no second copy (§0.3).
+  final Map<String, ActivityOfferSortRow> _offerRowsByBeaconId = {};
+  final _offerGroups =
+      BehaviorSubject<Map<String, ActivityOfferBeaconMeta>>.seeded(
+        const <String, ActivityOfferBeaconMeta>{},
+      );
 
   /// Children carried inside a grouped row's `eventsPreview`. They are kept
   /// apart from [_receiptsById] on purpose: a child is addressable (a × can
@@ -135,6 +146,12 @@ final class AttentionCase {
   Stream<AttentionFeedSnapshot> get feedPages => _snapshot.stream;
 
   Stream<String> get requestInvalidations => _requestInvalidations.stream;
+
+  Stream<Map<String, ActivityOfferBeaconMeta>> get activityOfferGroups =>
+      _offerGroups.stream;
+
+  Map<String, ActivityOfferBeaconMeta> get activityOfferGroupsSnapshot =>
+      _offerGroups.value;
 
   AttentionSurfaceSummary get surfaceSummarySnapshot =>
       _surfaceSummarySubject.value;
@@ -191,6 +208,8 @@ final class AttentionCase {
         _invalidateRequest(change.aggregateId);
         unawaited(_requestSurfaceSummaryRefresh());
         _requestHeadRefreshForAttachedActivityStream();
+      // The remaining subscribed kind is `notification`; a `default` keeps
+      // this exhaustive if the subscription set ever widens.
       // ignore: no_default_cases
       default:
         // Clear state and outcome generation arrive as notification hints;
@@ -285,6 +304,10 @@ final class AttentionCase {
     _headRefreshInFlight.clear();
     _receiptsById.clear();
     _childReceiptsById.clear();
+    _offerRowsByBeaconId.clear();
+    if (!_offerGroups.isClosed) {
+      _offerGroups.add(const <String, ActivityOfferBeaconMeta>{});
+    }
     _ackChains.clear();
     _markAllSeenChain = Future.value();
     _acks.resetForAccount(accountId);
@@ -362,8 +385,75 @@ final class AttentionCase {
   Future<ActivityOfferPage> activityOffers({
     String? cursor,
     int limit = 20,
-  }) =>
-      _repository.activityOffers(cursor: cursor, limit: limit);
+  }) async {
+    final page = await _repository.activityOffers(cursor: cursor, limit: limit);
+    // A head load replaces the zone; a tail load extends it.
+    if (cursor == null || cursor.isEmpty) _offerRowsByBeaconId.clear();
+    for (final row in page.items) {
+      _offerRowsByBeaconId[row.beaconId] = row;
+    }
+    _indexChildren([for (final row in page.items) ...row.eventsPreview]);
+    _publishOfferGroups();
+    return page;
+  }
+
+  /// The zone's total, without disturbing the loaded rows.
+  Future<int> activityOffersCount() async =>
+      (await _repository.activityOffers(limit: 1)).totalCount;
+
+  /// Drops one Request from the zone — it is no longer an open forward.
+  void forgetOfferGroup(String beaconId) {
+    if (_offerRowsByBeaconId.remove(beaconId) == null) return;
+    _publishOfferGroups();
+  }
+
+  /// Unseen Requests, answered from the owned projections first and only
+  /// then from the server, for ids the zone has never seen.
+  Future<Set<String>> unseenForBeacons(Set<String> beaconIds) async {
+    if (beaconIds.isEmpty) return const {};
+    final groups = _offerGroups.value;
+    final unseen = <String>{
+      for (final id in beaconIds)
+        if (groups[id]?.unseen ?? false) id,
+    };
+    final unknown = <String>[
+      for (final id in beaconIds)
+        if (!groups.containsKey(id)) id,
+    ];
+    if (unknown.isEmpty) return unseen;
+    for (var offset = 0; offset < unknown.length; offset += _maxIdsPerQuery) {
+      final next = offset + _maxIdsPerQuery;
+      final end = next < unknown.length ? next : unknown.length;
+      unseen.addAll(
+        await _repository.unreadForBeacons(unknown.sublist(offset, end).toSet()),
+      );
+    }
+    return unseen;
+  }
+
+  void _publishOfferGroups() {
+    if (_offerGroups.isClosed) return;
+    _offerGroups.add({
+      for (final entry in _offerRowsByBeaconId.entries)
+        entry.key: _projectOfferRow(entry.value),
+    });
+  }
+
+  ActivityOfferBeaconMeta _projectOfferRow(ActivityOfferSortRow row) {
+    final projected = projectAttentionGroup(
+      eventTotal: row.eventTotal,
+      eventUnseenCount: row.eventUnseenCount,
+      eventsPreview: row.eventsPreview,
+      unseen: row.unseen,
+      overlay: (child) => _overlay(_childReceiptsById[child.id] ?? child),
+    );
+    return ActivityOfferBeaconMeta(
+      eventTotal: projected.eventTotal,
+      eventUnseenCount: projected.eventUnseenCount,
+      eventsPreview: projected.eventsPreview,
+      unseen: projected.unseen,
+    );
+  }
 
   Future<ActivityBeaconAttention> activityAttention({
     required String beaconId,
@@ -1187,6 +1277,7 @@ final class AttentionCase {
       };
       _feedSessions.update(destinationId, session.copyWith(pages: pages));
     }
+    _publishOfferGroups();
     final unread = math.max(
       0,
       unreadTotal ?? snapshot.summary.unreadTotal + unreadDelta,
@@ -1273,6 +1364,7 @@ final class AttentionCase {
     await _blockSub?.cancel();
     await _qaLatencySamples?.close();
     await _requestInvalidations.close();
+    await _offerGroups.close();
     await _snapshot.close();
     await _surfaceSummarySubject.close();
   }

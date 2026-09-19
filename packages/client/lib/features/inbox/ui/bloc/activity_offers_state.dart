@@ -1,23 +1,14 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:tentura/domain/attention/entity/attention_receipt.dart';
+import 'package:tentura/domain/attention/entity/activity_offer_beacon_meta.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
 import '../../domain/entity/inbox_item.dart';
 
+export 'package:tentura/domain/attention/entity/activity_offer_beacon_meta.dart';
 export 'package:tentura/ui/bloc/state_base.dart';
 
 part 'activity_offers_state.freezed.dart';
-
-@freezed
-abstract class ActivityOfferBeaconMeta with _$ActivityOfferBeaconMeta {
-  const factory ActivityOfferBeaconMeta({
-    required int eventTotal,
-    @Default(0) int eventUnseenCount,
-    @Default(<AttentionReceipt>[]) List<AttentionReceipt> eventsPreview,
-    @Default(false) bool unseen,
-  }) = _ActivityOfferBeaconMeta;
-}
 
 @freezed
 abstract class ActivityOffersState extends StateBase with _$ActivityOffersState {

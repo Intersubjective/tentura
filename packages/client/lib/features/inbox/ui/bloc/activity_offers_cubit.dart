@@ -5,6 +5,7 @@ import 'package:get_it/get_it.dart';
 import 'package:tentura/domain/attention/attention_actor_ids.dart';
 import 'package:tentura/domain/attention/attention_actor_profiles_case.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
+import 'package:tentura/domain/attention/entity/activity_offer_beacon_meta.dart';
 import 'package:tentura/domain/attention/entity/activity_offer_sort_row.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -41,10 +42,18 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
       (event) => _scheduleBeaconRefresh(event.beaconId),
       cancelOnError: false,
     );
+    // The zone renders what the attention owner holds; it keeps no copy of
+    // its own to drift out of step with it (§0.3).
+    _offerGroups = _attention.activityOfferGroups.listen(
+      (groups) {
+        if (isClosed) return;
+        emit(state.copyWith(eventsByBeacon: groups));
+      },
+      cancelOnError: false,
+    );
   }
 
   static const _deskRelevantDebounce = Duration(milliseconds: 50);
-  static const _maxIdsPerRequest = 500;
 
   final int _pageSize;
 
@@ -64,6 +73,8 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
 
   late final StreamSubscription<String> _deskRelevantChanges;
   late final StreamSubscription<HelpOfferEvent> _helpOfferChanges;
+  late final StreamSubscription<Map<String, ActivityOfferBeaconMeta>>
+      _offerGroups;
 
   /// Emits when an open forward leaves the pinned zone (UNIT 17 motion).
   Stream<String> get demotedBeaconIds => _demotedController.stream;
@@ -100,9 +111,7 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
     final hasMore = !pageFailed &&
         nextCursor != null &&
         nextCursor.isNotEmpty;
-    final eventsByBeacon = pageFailed
-        ? state.eventsByBeacon
-        : _metaFromSortRows(resolvedPage?.items ?? const []);
+    final eventsByBeacon = _attention.activityOfferGroupsSnapshot;
     emit(
       state.copyWith(
         items: pageFailed ? state.items : page,
@@ -145,10 +154,7 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
           if (!existingIds.contains(item.beaconId)) item,
       ];
       final nextCursor = offerPage.nextCursor;
-      final eventsByBeacon = {
-        ...state.eventsByBeacon,
-        ..._metaFromSortRows(offerPage.items),
-      };
+      final eventsByBeacon = _attention.activityOfferGroupsSnapshot;
       emit(
         state.copyWith(
           items: merged,
@@ -202,11 +208,11 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
 
   Future<void> _refreshOpenForwardsCount() async {
     try {
-      final page = await _attention.activityOffers(limit: 1);
+      final totalCount = await _attention.activityOffersCount();
       if (isClosed) return;
       emit(
         state.copyWith(
-          totalCount: page.totalCount,
+          totalCount: totalCount,
           countLoadFailed: false,
         ),
       );
@@ -284,9 +290,8 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
         state.heldBackIds.contains(beaconId);
     _heldBackItems.remove(beaconId);
     _heldBackOrder.remove(beaconId);
-    final eventsByBeacon = Map<String, ActivityOfferBeaconMeta>.from(
-      state.eventsByBeacon,
-    )..remove(beaconId);
+    _attention.forgetOfferGroup(beaconId);
+    final eventsByBeacon = _attention.activityOfferGroupsSnapshot;
     emit(
       state.copyWith(
         items: [
@@ -314,30 +319,8 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
       );
       return;
     }
-    final fromMeta = {
-      for (final id in beaconIds)
-        if (state.eventsByBeacon[id]?.unseen == true) id,
-    };
-    if (fromMeta.length == beaconIds.length) {
-      emit(
-        state.copyWith(
-          unseenBeaconIds: fromMeta,
-          unseenQueryComplete: true,
-        ),
-      );
-      return;
-    }
     try {
-      final unread = <String>{...fromMeta};
-      for (var offset = 0; offset < beaconIds.length; offset += _maxIdsPerRequest) {
-        final nextOffset = offset + _maxIdsPerRequest;
-        final end = nextOffset < beaconIds.length ? nextOffset : beaconIds.length;
-        unread.addAll(
-          await _attention.unreadForBeacons(
-            beaconIds.sublist(offset, end).toSet(),
-          ),
-        );
-      }
+      final unread = await _attention.unseenForBeacons(beaconIds.toSet());
       if (isClosed || generation != _unseenGeneration) return;
       emit(
         state.copyWith(
@@ -366,18 +349,6 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
         if (byId.containsKey(id)) byId[id]!,
     ];
   }
-
-  Map<String, ActivityOfferBeaconMeta> _metaFromSortRows(
-    List<ActivityOfferSortRow> rows,
-  ) => {
-    for (final row in rows)
-      row.beaconId: ActivityOfferBeaconMeta(
-        eventTotal: row.eventTotal,
-        eventUnseenCount: row.eventUnseenCount,
-        eventsPreview: row.eventsPreview,
-        unseen: row.unseen,
-      ),
-  };
 
   Future<void> _hydrateActors(
     Map<String, ActivityOfferBeaconMeta> eventsByBeacon,
@@ -415,6 +386,7 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
     _deskRelevantTimers.clear();
     await _deskRelevantChanges.cancel();
     await _helpOfferChanges.cancel();
+    await _offerGroups.cancel();
     await _demotedController.close();
     return super.close();
   }
