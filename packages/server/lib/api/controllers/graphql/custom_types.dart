@@ -158,6 +158,16 @@ final GraphQLObjectType gqlTypeAttentionReceipt = () {
       'eventsPreview',
       GraphQLListType(type.nonNullable()).nonNullable(),
     ),
+    // U10d (§0.1a) — grouped `beacon:` rows only. `provenanceJson` is the
+    // verbatim `inbox_provenance_data` document, so the client parses it with
+    // the `InboxProvenance` it already has rather than a second DTO.
+    field('provenanceJson', graphQLString),
+    field('beaconAuthorId', graphQLString),
+    field('beaconAuthorName', graphQLString),
+    field('beaconAuthorImageId', graphQLString),
+    field('beaconImageId', graphQLString),
+    field('beaconEndAt', graphQLString),
+    field('allowsForward', graphQLBoolean),
   ]);
   return type;
 }();

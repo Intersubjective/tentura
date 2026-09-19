@@ -424,6 +424,36 @@ abstract class AttentionReceipt with _$AttentionReceipt {
 
     /// Newest-first preview of child events (cap [kActivityEventPreviewCap]).
     @Default(<AttentionReceipt>[]) List<AttentionReceipt> eventsPreview,
+
+    /// U10d — forward provenance for a grouped `beacon:` row (§0.1a).
+    ///
+    /// The **verbatim** `inbox_provenance_data` JSON document: `senders[]` of
+    /// `{id, displayName, imageId, notePreview, reasonSlugs[], mr}`,
+    /// `totalDistinctSenders` and `strongestNotePreview`. Carried as text and
+    /// not re-modelled on purpose — the card spec forbids a second provenance
+    /// DTO, so `InboxProvenance.parse` keeps working unchanged.
+    ///
+    /// `null` on anything that is not a grouped row, and on a grouped row the
+    /// viewer may not read the content of. Senders the viewer is blocked from
+    /// are absent from the list *and* from the count.
+    String? provenanceJson,
+
+    /// U10d — the header's Request identity (§0.1a `beacon.{…}`).
+    ///
+    /// All four are gated on the same content wall as [title]: `null` when the
+    /// row is rendered as a tombstone.
+    String? beaconAuthorId,
+    String? beaconAuthorName,
+    String? beaconAuthorImageId,
+    String? beaconImageId,
+    DateTime? beaconEndAt,
+
+    /// U10d — whether the action row may offer «Переслать» (§4, §6.3).
+    ///
+    /// The live gate, not a constant: `BeaconStatus.allowsForward` (the
+    /// open family) AND the viewer being allowed to read the Request at all.
+    /// `null` on non-grouped rows.
+    bool? allowsForward,
   }) = _AttentionReceipt;
 
   const AttentionReceipt._();

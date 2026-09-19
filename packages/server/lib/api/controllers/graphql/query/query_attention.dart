@@ -474,6 +474,13 @@ final class QueryAttention extends GqlNodeBase {
       'eventsPreview': [
         for (final event in receipt.eventsPreview) _mapReceipt(event),
       ],
+      'provenanceJson': receipt.provenanceJson,
+      'beaconAuthorId': receipt.beaconAuthorId,
+      'beaconAuthorName': receipt.beaconAuthorName,
+      'beaconAuthorImageId': receipt.beaconAuthorImageId,
+      'beaconImageId': receipt.beaconImageId,
+      'beaconEndAt': receipt.beaconEndAt?.toUtc().toIso8601String(),
+      'allowsForward': receipt.allowsForward,
     };
   }
 }

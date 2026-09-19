@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:drift_postgres/drift_postgres.dart' show PgDateTime;
 import 'package:injectable/injectable.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/coordination/filter_beacon_notifications.dart';
@@ -738,6 +739,10 @@ ORDER BY page.created_at DESC NULLS LAST, page.id DESC NULLS LAST
         accountId: accountId,
         items: items,
       );
+      items = await _attachGroupedProvenance(
+        accountId: accountId,
+        items: items,
+      );
     }
     final nextCursor = hasMore && items.isNotEmpty
         ? AttentionCursor(
@@ -860,6 +865,144 @@ ORDER BY page.created_at DESC NULLS LAST, page.id DESC NULLS LAST
           item,
     ];
   }
+
+  /// U10d — §0.1a provenance for the grouped `beacon:` rows on this page.
+  ///
+  /// Attached after paging rather than projected inside `page_stream`, for the
+  /// same reason [_attachActivityEventPreviews] is: the provenance body walks
+  /// the forward edges and the MR scores per Request, and doing that for every
+  /// eligible Request before the `LIMIT` would pay for rows nobody asked for.
+  ///
+  /// **Authorization.** Everything here hangs off one call to the existing
+  /// content wall, `beacon_can_read_content` — the same predicate the
+  /// projection already uses to decide [AttentionReceipt.title] and the
+  /// tombstone copy. A Request the viewer cannot read yields no senders, no
+  /// count, no header identity and no forward affordance. Blocked forwarders
+  /// are dropped a level deeper, inside `attention_provenance_data`, so they
+  /// leave the count as well as the list — a number that reveals a hidden
+  /// person is still a leak.
+  Future<List<AttentionReceipt>> _attachGroupedProvenance({
+    required String accountId,
+    required List<AttentionReceipt> items,
+  }) async {
+    final beaconIds = <String>{
+      for (final item in items)
+        if (item.beaconId != null &&
+            (item.itemKind == AttentionItemKind.forward ||
+                item.itemKind == AttentionItemKind.requestActivity))
+          item.beaconId!,
+    };
+    if (beaconIds.isEmpty) {
+      return items;
+    }
+    final ids = beaconIds.toList(growable: false);
+    final placeholders = List.generate(
+      ids.length,
+      (index) => '\$${index + 2}',
+    ).join(',');
+    final rows = await _database.customSelect(
+      '''
+WITH readable AS (
+  SELECT
+    b.id AS beacon_id,
+    b.user_id AS author_id,
+    b.title AS beacon_title,
+    b.end_at AS beacon_end_at,
+    b.status AS beacon_status,
+    ii.context AS inbox_context,
+    public.beacon_can_read_content(b.id, \$1) AS can_read_content
+  FROM public.beacon b
+  LEFT JOIN public.inbox_item ii
+    ON ii.beacon_id = b.id AND ii.user_id = \$1
+  WHERE b.id IN ($placeholders)
+)
+SELECT
+  readable.beacon_id,
+  CASE
+    WHEN readable.can_read_content
+    THEN public.attention_provenance_data(
+      readable.beacon_id,
+      \$1,
+      \$1,
+      readable.inbox_context,
+      true
+    )::text
+  END AS provenance_json,
+  CASE WHEN readable.can_read_content THEN readable.author_id END
+    AS beacon_author_id,
+  CASE
+    WHEN readable.can_read_content
+    THEN coalesce(nullif(trim(author.display_name), ''), '')
+  END AS beacon_author_name,
+  CASE WHEN readable.can_read_content THEN author.image_id::text END
+    AS beacon_author_image_id,
+  CASE
+    WHEN readable.can_read_content
+    THEN coalesce(
+      b.cover_image_id,
+      (
+        SELECT bi.image_id
+        FROM public.beacon_image bi
+        WHERE bi.beacon_id = readable.beacon_id
+        ORDER BY bi.position ASC, bi.image_id ASC
+        LIMIT 1
+      )
+    )::text
+  END AS beacon_image_id,
+  CASE WHEN readable.can_read_content THEN readable.beacon_end_at END
+    AS beacon_end_at,
+  (
+    readable.can_read_content
+    AND readable.beacon_status IN ($_openFamilyStatusList)
+  ) AS allows_forward
+FROM readable
+JOIN public.beacon b ON b.id = readable.beacon_id
+JOIN public."user" author ON author.id = readable.author_id
+''',
+      variables: [
+        Variable<String>(accountId),
+        ...ids.map(Variable<String>.new),
+      ],
+    ).get();
+
+    final byBeacon = {
+      for (final row in rows)
+        row.read<String>('beacon_id'): (
+          provenanceJson: row.readNullable<String>('provenance_json'),
+          beaconAuthorId: row.readNullable<String>('beacon_author_id'),
+          beaconAuthorName: row.readNullable<String>('beacon_author_name'),
+          beaconAuthorImageId: row.readNullable<String>(
+            'beacon_author_image_id',
+          ),
+          beaconImageId: row.readNullable<String>('beacon_image_id'),
+          beaconEndAt: _readTimestamp(row, 'beacon_end_at'),
+          allowsForward: row.read<bool>('allows_forward'),
+        ),
+    };
+
+    return [
+      for (final item in items)
+        if (byBeacon[item.beaconId] case final provenance?
+            when item.itemKind == AttentionItemKind.forward ||
+                item.itemKind == AttentionItemKind.requestActivity)
+          item.copyWith(
+            provenanceJson: provenance.provenanceJson,
+            beaconAuthorId: provenance.beaconAuthorId,
+            beaconAuthorName: provenance.beaconAuthorName,
+            beaconAuthorImageId: provenance.beaconAuthorImageId,
+            beaconImageId: provenance.beaconImageId,
+            beaconEndAt: provenance.beaconEndAt,
+            allowsForward: provenance.allowsForward,
+          )
+        else
+          item,
+    ];
+  }
+
+  /// `BeaconStatus.allowsForward` as SQL — composed from the enum, so the
+  /// action row cannot drift from the gate `forward_case.dart` enforces.
+  static final String _openFamilyStatusList =
+      (BeaconStatus.openFamilyValues.toList()..sort()).join(', ');
 
   Future<Map<String, List<AttentionReceipt>>> _loadActivityChildReceipts({
     required String accountId,

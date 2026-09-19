@@ -54,7 +54,13 @@ Future<void> main() async {
     late AttentionSweepRepository sweep;
 
     setUpAll(() async {
-      session = await setUpDisposablePgWriter(target: target);
+      // U10d: the grouped rows now carry §0.1a provenance, whose MR ranking
+      // is `mr_mutual_scores` from pgmer2 — the same function the Inbox
+      // computed field has always called.
+      session = await setUpDisposablePgWriter(
+        target: target,
+        createPgmer2Extension: true,
+      );
       writer = session.writer;
       database = openDisposablePgDatabase(target);
       query = AttentionRepository(database);
