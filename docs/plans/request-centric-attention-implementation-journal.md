@@ -8925,3 +8925,49 @@ surfaces or neither.
 keeping it would have double-rendered each event.
 
 ---
+
+## Astra interim review — 9 defects on the seams, and a blind spot in this process
+
+Full text: [`request-centric-attention-astra-interim-review.md`](request-centric-attention-astra-interim-review.md).
+Read-only source review at `982194be6`, independent model family, no tests executed.
+
+**Verdict: no P0. Owner decision C is substantially enforced; A has strong server protections but is *not*
+delivered end to end; B still conflicts with the accepted server projection.**
+
+Every finding is on a **seam between units that each passed verification in isolation** — which is exactly the
+class this process cannot see by construction, and exactly why the review was commissioned mid-flight rather
+than at the end.
+
+| # | Sev | Defect |
+|---|---|---|
+| R1 | P1 | Clearing an **outcome** vetoes the Request's live attention: the feed drops `requestActivity` whenever the Request is in `dismissed_tombstone`, while its uncleared optional receipts still feed the tab total — **a lit tab over a Request that is not in the list**. Also B-incomplete: non-helping outcomes still get event counts and previews, contrary to "no dot, no sub-cards" |
+| R2 | P1 | The client still **conflates reading with clearing** (`markSeen`/`markAllSeen` move primary-surface totals; the group projection subtracts *read* children from a count the server defines by *uncleared* attention), and optimistic `dismissAll` selects **every** cached uncleared top-level receipt without filtering surface, obligations or outcome kind — so owner decision A is violated **optimistically**, until the server's refusal corrects it |
+| R3 | P1 | **Explicit clears cannot be undone**: single clears never set `undo_deadline`, and undo reads a null deadline as `neverApplied`; `decisionRevision` is captured in the snapshot but never passed or persisted. U16's snackbar cannot repair a server gap |
+| R4 | P1 | **U10d's provenance cannot deliver D-171-5a.** The card needs the *latest note-bearing* forward first; m0188 returns three senders ranked by MeritRank, and `strongestNotePreview` takes the top-ranked sender without requiring a non-empty note. The DTO carries neither forward timestamp nor identity, so **U16 cannot recover it by sorting** |
+| R5 | P1 | **Cross-surface atomicity is partial** — only beacon invalidations use `_refreshAcrossSurfaces`; help-offer and Inbox paths refresh independently. Worse: U15's test claiming "never on two surfaces at once" **only ever observes My Desk**, never For You. The property I accepted is not established |
+| R6 | P1 | My Desk's clear path **discards `AttentionClearResult`**, so skipped and denied are indistinguishable from success, and removing the sole preview can darken a card while attention remains |
+| R7 | P2 | Tab dots contradict their declared semantics: the dot total counts `activeAttention` (obligations included), surface totals omit dismissible outcomes and pending forwards, and the navbar suppresses the dot whenever a count shows |
+| R8 | P2 | Clearing the last attention row **loses the ordering anchor** — `myWorkAttention` omits Requests with no active attention, so the client falls back to `beacon.createdAt` and the card moves |
+| R9 | P2 | Two concurrent single clears can **both report the same receipt as applied**: `applied` is computed before the guarded update and reported without checking what actually changed. The sweep already does this correctly |
+
+**Four compounding deferrals, each individually accepted, now named as gates:** legacy obligation identity *and*
+historical hierarchy placement both deferred to U18 while its manifest describes only seen→cleared conversion;
+#188's disposition (the Inbox still passes `p_exclude_blocked: false`) outlives U16 because U17 retains the
+Following/Rejected consumers; the missing `attentionRequest` endpoint compounds with My Desk's single preview
+and "Timeline" that only opens the Request; and the three-chip ceiling must be enforced in the assembled card.
+
+### The blind spot, and I accept it
+
+> "Mutation testing proves a test detects changes to **its** assumption; it does not prove the assumption
+> matches the other layer."
+
+I have demanded falsifiability relentlessly *within* a layer and never once demanded **cross-layer semantic
+agreement**. The clearest instance is an accepted claim of mine — "one card swept is one decrement" — while the
+server counts **receipts**. Both sides are internally consistent, both sides are mutation-proven, and they mean
+different things by the same number. The same shape appears in the single-owner guard, which matches strings
+while My Desk maintains attention projections in another shape entirely.
+
+**Rule adopted for the rest of the plan:** where a client assertion names a server-defined quantity, the test
+must be driven by an **actual server response** or an explicitly shared fixture — never by a hand-built value
+that merely looks right.
+
