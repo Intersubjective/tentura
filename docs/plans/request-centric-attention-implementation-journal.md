@@ -5609,3 +5609,37 @@ check-custom-lints: packages/server OK
 ```
 
 Unification file alone: **8 passed** (7 before, plus the reachability test).
+
+### Manager verdict — U10a · **ACCEPTED** (hard; inner Opus-low ✓ / verify pass / one remediation)
+
+Overseer's full suite: **1685 non-PG**, **964 PG / 24 known skips**. Commits `5e298b767` equivalence proof ·
+`078d0cc82` unification · `9b622af3d` journal · `f88db051d` remediation.
+
+**A pure refactor, and it stayed one: no existing test was edited.** That was the acceptance question, and the
+diff answers it.
+
+**There were four copies of the predicate, not two.** Besides the sweep's prelude and the repository CTE, a
+third lived inline in `markAllSeen` and a fourth duplicated `eligible_pinned` in the grouping CTEs — found by
+the new structural guard rather than by reading. The guard now fails if anyone reintroduces a copy, which is the
+only thing stopping U10b and U10c from re-forking the definition they are about to change.
+
+**Equivalence was proven before the merge, not assumed**: both texts frozen verbatim from `a46c6b536` and run
+over one fixture set, matching row for row. The only textual difference was a projected column, not a row
+filter. And loosening the merged definition breaks **both** consumers — the sweep gains a My Desk receipt *and*
+the feed's per-surface count collapses — so what was merged is logic, not a name.
+
+**The remediation corrected the verifier, and that is worth recording.** The verify pass reported the
+`eligible_pinned` comparison as vacuous — empty on both sides. It was not: m0014's
+`inbox_item_on_forward_insert` trigger materialises an `inbox_item` for every forward edge, so the fixture
+already had a pinned row. The real gap was narrower and still worth fixing — **nothing asserted non-emptiness**,
+and the edge rows were missing. The fixture now carries a dismissed tombstone, a restricted `access_policy`
+row, an account-scoped receipt and a Request-less obligation, every compared set asserts it has something to
+compare, and `eligible_pinned` resolves to exactly the one unanswered forward with the other three inbox rows
+each excluded by a **different clause**. That is a stronger proof than the original diagnosis would have
+produced.
+
+Three layers, three corrections, in three directions: the U05a inner corrected its scout, the U05c verifier
+corrected its inner, and here the remediation corrected the verifier. No layer in this plan has been infallible;
+the value is that each claim passes through someone with no stake in defending it.
+
+---
