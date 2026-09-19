@@ -15,6 +15,7 @@ import 'package:tentura_server/data/repository/attention_sweep_repository.dart';
 import 'package:tentura_server/domain/attention/attention_clear_models.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
 
+import '../../support/attention_axis_contract.dart';
 import '../../support/disposable_pg_target.dart';
 
 /// U10b — dots, counts, summaries and grouping eligibility read *active
@@ -36,6 +37,13 @@ import '../../support/disposable_pg_target.dart';
 ///    from a surface, a count disagreeing with its list, and the pinned zone
 ///    reordering because an optional event arrived.
 Future<void> main() async {
+  // U15R-d — the contract loop, closed from the server side. The numbers this
+  // file produces are the ones `docs/contracts/attention-active-attention-
+  // axis.json` records and the client drives its own expectations from. Until
+  // now only the client opened the file, so a change here could move a total
+  // and leave the contract describing the old one.
+  final contract = AttentionAxisContract.load();
+
   final target = DisposablePgTarget.fromNamedEnvironment(
     envVarName: 'TENTURA_ATTENTION_AXIS_TEST_DB',
     defaultNamePrefix: 'tentura_test_attn_axis',
@@ -125,11 +133,14 @@ VALUES
         surface: AttentionSurface.myWork,
       );
 
+      final recorded = contract.axisCase('seen but uncleared optional receipt');
       expect(
         summary.myWorkUnreadTotal,
-        1,
+        recorded.myWorkUnreadTotal,
         reason: 'reading is not clearing (D02): seen_at must not decide the dot',
       );
+      expect(summary.myDeskDot, recorded.myDeskDot);
+      expect(summary.forYouDot, recorded.forYouDot);
       expect(feed.page.items.map((item) => item.id), ['Naxis01']);
     });
 
@@ -144,7 +155,10 @@ VALUES
         surface: AttentionSurface.myWork,
       );
 
-      expect(summary.myWorkUnreadTotal, 0);
+      final recorded = contract.axisCase('unseen but cleared optional receipt');
+      expect(summary.myWorkUnreadTotal, recorded.myWorkUnreadTotal);
+      expect(summary.myDeskDot, recorded.myDeskDot);
+      expect(summary.forYouDot, recorded.forYouDot);
       expect(feed.page.items, isEmpty);
       expect(
         (await query.unreadForBeacons(
@@ -161,14 +175,23 @@ VALUES
       await _markSeen(writer, 'Naxis03');
 
       final summary = await query.surfaceSummary(accountId: _viewerId);
-      expect(summary.needsYouTotal, 1);
+      final recorded = contract.axisCase(
+        'a live obligation is active attention even when seen',
+      );
+      expect(summary.needsYouTotal, recorded.needsYouTotal);
       expect(
         summary.myWorkUnreadTotal,
-        1,
+        recorded.myWorkUnreadTotal,
         reason:
             'active attention = uncleared optional ∪ live obligation; a live '
-            'obligation must not fall out of the surface total',
+            'obligation must not fall out of the default list total',
       );
+      expect(
+        summary.myDeskDot,
+        recorded.myDeskDot,
+        reason: '§6 keeps the obligation out of the dot — it is the number',
+      );
+      expect(summary.forYouDot, recorded.forYouDot);
     });
 
     test('a settled obligation stops being active attention', () async {
@@ -183,8 +206,13 @@ WHERE id = 'Naxis04'
       );
 
       final summary = await query.surfaceSummary(accountId: _viewerId);
-      expect(summary.needsYouTotal, 0);
-      expect(summary.myWorkUnreadTotal, 0);
+      final recorded = contract.axisCase(
+        'a settled obligation stops being active attention',
+      );
+      expect(summary.needsYouTotal, recorded.needsYouTotal);
+      expect(summary.myWorkUnreadTotal, recorded.myWorkUnreadTotal);
+      expect(summary.myDeskDot, recorded.myDeskDot);
+      expect(summary.forYouDot, recorded.forYouDot);
     });
 
     test('myWorkAttention counts active optional, not unseen', () async {
@@ -920,6 +948,29 @@ WHERE id = 'Naxis04'
       );
     });
   }, skip: skipReason);
+
+  group('U15R-d — the contract is read from both ends', () {
+    test('the recorded predicates still match the server source', () {
+      // The client asserts this from its side already. Asserting it here too
+      // is the whole point of the unit: the file the client trusts is written
+      // from *this* package, so the package that can invalidate it has to be
+      // the one that checks.
+      AttentionAxisContract.load().assertMatchesServerSql();
+    });
+
+    test('every axis case records the §6 indicator fields', () {
+      for (final entry in AttentionAxisContract.load().axisCases) {
+        final axisCase = AttentionAxisCase(entry);
+        expect(
+          () => (axisCase.myDeskDot, axisCase.forYouDot),
+          returnsNormally,
+          reason:
+              'a case without the §6 dots is a case the PG tests cannot drive '
+              'from the contract, which is how the loop reopens',
+        );
+      }
+    });
+  });
 
   group('U10b — structurally one definition', () {
     // The guard is stated over the *directory*, not over a list of the files

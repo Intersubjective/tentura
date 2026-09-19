@@ -1,9 +1,11 @@
 {
-  "description": "The server's definition of the active-attention axis, shared by both layers. Transcribed from packages/server/lib/data/repository/attention_dismissible_sql.dart and from the totals packages/server/test/data/repository/attention_active_attention_axis_pg_test.dart asserts against a real Postgres projection. Client tests MUST drive their expected totals from this file instead of hand-building a number that looks right (U15R-c, overseer addition 1).",
+  "description": "The server's definition of the active-attention axis and of the §6 surface indicators, shared by both layers. Transcribed from packages/server/lib/data/repository/attention_dismissible_sql.dart and from the totals packages/server/test/data/repository/attention_active_attention_axis_pg_test.dart asserts against a real Postgres projection. Both layers read this file: client tests drive their expected totals from it instead of hand-building a number that looks right (U15R-c, overseer addition 1), and since U15R-d the server PG test that produces those numbers reads it too, so drift is caught from both ends.",
   "source": {
     "predicates": "packages/server/lib/data/repository/attention_dismissible_sql.dart",
     "summarySql": "packages/server/lib/data/repository/attention_repository.dart",
-    "serverTest": "packages/server/test/data/repository/attention_active_attention_axis_pg_test.dart"
+    "serverTest": "packages/server/test/data/repository/attention_active_attention_axis_pg_test.dart",
+    "clientLoader": "packages/client/test/support/attention_axis_contract.dart",
+    "serverLoader": "packages/server/test/support/attention_axis_contract.dart"
   },
   "predicates": {
     "activeOptional": "NOT {a}.requires_action AND {a}.cleared_at IS NULL",
@@ -24,7 +26,9 @@
       },
       "myWorkUnreadTotal": 1,
       "countsAsActiveAttention": true,
-      "note": "reading is not clearing (D02): seen_at must not decide the dot"
+      "note": "reading is not clearing (D02): seen_at must not decide the dot",
+      "myDeskDot": true,
+      "forYouDot": false
     },
     {
       "name": "unseen but cleared optional receipt no longer asks",
@@ -36,7 +40,9 @@
         "surface": "myWork"
       },
       "myWorkUnreadTotal": 0,
-      "countsAsActiveAttention": false
+      "countsAsActiveAttention": false,
+      "myDeskDot": false,
+      "forYouDot": false
     },
     {
       "name": "a live obligation is active attention even when seen",
@@ -49,7 +55,10 @@
       },
       "myWorkUnreadTotal": 1,
       "needsYouTotal": 1,
-      "countsAsActiveAttention": true
+      "countsAsActiveAttention": true,
+      "myDeskDot": false,
+      "forYouDot": false,
+      "note": "§6 splits what the legacy `myWorkUnreadTotal` fuses: the obligation is `my desk.count`, never `my desk.dot`. `myWorkUnreadTotal` still counts it and retires in U18."
     },
     {
       "name": "a settled obligation stops being active attention",
@@ -63,7 +72,9 @@
       },
       "myWorkUnreadTotal": 0,
       "needsYouTotal": 0,
-      "countsAsActiveAttention": false
+      "countsAsActiveAttention": false,
+      "myDeskDot": false,
+      "forYouDot": false
     }
   ],
   "groupEventUnseenCount": {
@@ -97,5 +108,14 @@
     "forward": "false — an outcome row is dismissible but never carries the dot (U15R-a/R1)",
     "watchingDigest": "true",
     "clientMirror": "packages/client/lib/domain/attention/attention_dismissible_membership.dart :: isInUnreadView"
+  },
+  "surfaceSummaryFields": {
+    "description": "What `AttentionRepository.surfaceSummary` returns, and which §6 rule each field is. §6 states four rules; before U15R-d the summary returned three fields and none of them was any of the four.",
+    "myDeskDot": "§6 `my desk.dot` — any owned Request has an uncleared optional event or uncleared outcome. Composed as activeOptional ∧ primaryPlacement on surface='myWork', OR a Set O row whose beacon is in `scope`. Live obligations are excluded: they are the number (D09).",
+    "forYouDot": "§6 `for you.dot` — Set R (dismissible optional receipts, wrapped in primaryPlacement) ∪ Set O (dismissible outcomes) ∪ eligible_pinned (the pending-forward zone) ∪ pending prompts.",
+    "pendingPrompts": "Written into the for-you dot as an explicit `OR FALSE` with a comment naming what it waits for. No classified prompt event has a row in any of the three sets yet (U09a); silent absence would be indistinguishable from a deleted predicate.",
+    "forYouCount": "Does not exist, at any layer. §6: `for you.count = never`. The absent field is what makes that structural rather than a convention a widget can break.",
+    "legacyTotals": "`activityUnreadTotal`, `myWorkUnreadTotal` and `needsYouTotal` keep their pre-U15R-d meaning (activeAttention per surface; every live obligation, unscoped) and retire in U18. U15R-d is additive by §0.2.",
+    "myDeskCountGap": "§6 `my desk.count` is 'live obligations on owned Requests', but scoping the total to surface='myWork' is NOT applied. A live obligation with no Request is storable — notification_outbox__beacon_policy_chk only requires a beacon_id for the beacon_content / beacon_tombstone access policies — and visibleWithSurface labels every beacon-less row 'activity', where §6 offers it neither a count nor a dot term. Today only the unscoped legacy `needsYouTotal` sees such a row. The production write path cannot emit one (AttentionPolicy.logicalTaskKey throws for an obligation without a Request), but that is a producer invariant, not a contract one. Reported as a contract gap; pinned by the PG test 'U15R-d contract gap — a beacon-less live obligation lands on Activity and §6 gives it no indicator'."
   }
 }
