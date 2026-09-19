@@ -140,6 +140,8 @@ class MyWorkObligationBlock extends StatelessWidget {
             actors: {
               for (final user in vm.beacon.helpOfferUsers) user.id: user,
             },
+            // §5: an obligation is not privately dismissible.
+            canDismiss: attentionRowIsDismissible,
             onClearEvent: onClearEvent,
             onOpenTimeline: onOpenTimeline,
             quotedBodyOf: (receipt) => _quotedBody(l10n, receipt),

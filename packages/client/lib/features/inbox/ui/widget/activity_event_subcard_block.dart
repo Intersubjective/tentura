@@ -24,10 +24,13 @@ enum AttentionBlockOverflowPolicy {
   paginate,
 }
 
-/// Default dismissibility: everything except a live obligation.
-///
+/// The default: whatever the owner passes `onClearEvent` for gets a ×. This is
+/// what the Activity consumers have always done; changing it here would change
+/// For You (U16), not this unit.
+bool attentionRowAlwaysDismissible(AttentionReceipt receipt) => true;
+
 /// §5 forbids dismissing an obligation privately — it would lie to whoever is
-/// waiting — so the × is an optional-event affordance only.
+/// waiting. Surfaces that render obligations beside optional events pass this.
 bool attentionRowIsDismissible(AttentionReceipt receipt) =>
     !receipt.isLiveObligation;
 
@@ -45,7 +48,7 @@ class ActivityEventSubcardBlock extends StatefulWidget {
     this.pageSize = 20,
     this.ctaBuilder,
     this.quotedBodyOf,
-    this.canDismiss = attentionRowIsDismissible,
+    this.canDismiss = attentionRowAlwaysDismissible,
     this.visibleCap,
     super.key,
   });
@@ -93,8 +96,8 @@ class ActivityEventSubcardBlock extends StatefulWidget {
   /// rows carry one; optional rows do not.
   final Widget? Function(AttentionReceipt receipt)? ctaBuilder;
 
-  /// Which rows own a × . An obligation never does: dismissing it privately
-  /// would lie to whoever is waiting (contract §5).
+  /// Which rows own a ×. Defaults to all of them; pass
+  /// [attentionRowIsDismissible] on a surface that also renders obligations.
   final bool Function(AttentionReceipt receipt) canDismiss;
 
   /// Overrides the responsive collapsed preview size. My Desk needs its
