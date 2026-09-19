@@ -42,7 +42,14 @@ class ForwardCapabilityChips extends StatelessWidget {
                     Icon(tag.icon, size: 14, color: fg),
                     const SizedBox(width: 4),
                   ],
-                  Text(label, style: labelStyle),
+                  Flexible(
+                    child: Text(
+                      label,
+                      style: labelStyle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                 ],
               ),
               backgroundColor: swatch.container,

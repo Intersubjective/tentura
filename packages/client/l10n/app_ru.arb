@@ -2190,6 +2190,9 @@
   "@inboxNeedsMe": {
     "context": "InboxScreen"
   },
+  "attentionMiniCardForwarded": "{name} переслал",
+  "attentionEventDismiss": "Убрать событие",
+  "attentionEventDismissed": "Событие убрано",
   "attentionRelationHelping": "Помогаю",
   "inboxWatching": "Слежу",
   "@inboxWatching": {

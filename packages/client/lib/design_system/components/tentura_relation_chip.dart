@@ -67,8 +67,11 @@ class TenturaRelationChip extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (iconData != null) ...[
-                Icon(iconData, size: TenturaText.bodySmall(foreground).fontSize,
-                    color: foreground),
+                Icon(
+                  iconData,
+                  size: TenturaText.bodySmall(foreground).fontSize,
+                  color: foreground,
+                ),
                 SizedBox(width: tt.tightGap),
               ],
               Text(label, style: TenturaText.labelSmall(foreground)),

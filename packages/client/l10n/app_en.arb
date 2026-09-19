@@ -2199,6 +2199,19 @@
   "@inboxNeedsMe": {
     "context": "InboxScreen"
   },
+  "attentionMiniCardForwarded": "{name} forwarded",
+  "@attentionMiniCardForwarded": {
+    "description": "Event line of a forward mini-card on a Request card (issue-171 spec 7.1).",
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "attentionEventDismiss": "Dismiss update",
+  "@attentionEventDismiss": {
+    "description": "Label of the x control that clears a single event from a Request card (spec 7, 11)."
+  },
+  "attentionEventDismissed": "Update dismissed",
+  "@attentionEventDismissed": {
+    "description": "Screen-reader announcement after a single event row is dismissed (E32)."
+  },
   "attentionRelationHelping": "Helping",
   "@attentionRelationHelping": {
     "description": "First-person relation chip on a Request card when the viewer offered help (issue #171 spec 6.1). The following counterpart is inboxWatching."
