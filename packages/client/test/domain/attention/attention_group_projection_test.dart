@@ -138,6 +138,37 @@ void main() {
     ]);
     expect(attention.knowsReceipt('e-1'), isTrue);
   });
+
+  /// U13c remediation — the two indexes are load-bearing, not decorative.
+  /// `dismissAll` sweeps **top-level rows only**: a grouped card and the
+  /// children indexed out of its preview share one surface, so folding
+  /// `_childReceiptsById` into the sweep's membership would decrement that
+  /// surface once per child on top of the parent row.
+  test('dismissAll decrements a grouped card\'s surface exactly once',
+      () async {
+    repository.activityUnreadTotal = 3;
+    await signIn([
+      group(children: [child('e-1'), child('e-2')]),
+    ]);
+    expect(
+      (await attention.surfaceSummary.first).activityUnreadTotal,
+      3,
+      reason: 'the server total the optimistic delta is applied to',
+    );
+
+    repository.holdDismissAll = true;
+    unawaited(attention.dismissAll());
+    await attentionCaseTestSettle();
+
+    expect(
+      (await attention.surfaceSummary.first).activityUnreadTotal,
+      2,
+      reason: 'one card swept is one decrement — not one per indexed child',
+    );
+
+    repository.releaseDismissAll();
+    await attentionCaseTestSettle();
+  });
 }
 
 final class _GroupRepository extends AttentionRepositoryFake {
@@ -146,6 +177,49 @@ final class _GroupRepository extends AttentionRepositoryFake {
   AttentionClearSnapshot snapshot = const AttentionClearSnapshot(
     snapshotToken: 'snap-1',
   );
+
+  int activityUnreadTotal = 0;
+  bool holdDismissAll = false;
+  final List<Completer<AttentionDismissAllResult>> _pendingSweeps = [];
+
+  void releaseDismissAll() {
+    final pending = List.of(_pendingSweeps);
+    _pendingSweeps.clear();
+    for (final completer in pending) {
+      completer.complete(
+        const AttentionDismissAllResult(
+          operationId: 'sweep-1',
+          status: AttentionOperationStatus.complete,
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<AttentionSurfaceSummary> surfaceSummary() async =>
+      AttentionSurfaceSummary(
+        activityUnreadTotal: activityUnreadTotal,
+        myWorkUnreadTotal: 0,
+        needsYouTotal: 0,
+      );
+
+  @override
+  Future<AttentionDismissAllResult> dismissAll({
+    required String operationId,
+    int? maxBatches,
+  }) {
+    if (!holdDismissAll) {
+      return Future.value(
+        AttentionDismissAllResult(
+          operationId: operationId,
+          status: AttentionOperationStatus.complete,
+        ),
+      );
+    }
+    final completer = Completer<AttentionDismissAllResult>();
+    _pendingSweeps.add(completer);
+    return completer.future;
+  }
 
   void completeFetches(List<AttentionReceipt> items) {
     final pending = List.of(_pendingFetches);

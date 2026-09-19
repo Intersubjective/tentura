@@ -7782,3 +7782,91 @@ surface-move UI are U15/U16. `requestInvalidations` has no subscriber yet — it
 will attach to when they are built.
 
 STATUS: complete
+
+---
+
+## UNIT U13c — Projections, realtime and single ownership · VERIFY (2026-09-19)
+
+**Layer:** verify (read-only). **UNIT_BASE:** `ee919f95a`. **Range:** `6c212a237` · `6cee8687d` · `0d901ddc5` · `86c48d356` · `6b83c2eb6`.
+
+**Throwaway reds (execution):**
+1. **Architecture guard** — `lib/features/_verify_throwaway/second_cache.dart` with `Map<String, AttentionReceipt>` → `single_attention_owner_test.dart` *no feature keeps its own cache* **+0 -1** (names file). Deleted after.
+2. **Page merge key** — `_uniqueByRequestIdentity` reverted to receipt-id key → `attention_page_merge_test.dart` **+0 -1** (`Expected: <4> Actual: <3>` on moving B1). `git checkout` restore.
+3. **Child counts follow preview** — `projectAttentionGroup` left server `eventTotal` while preview shrank → *dismissing one child* **+0 -1** (`Expected: <2> Actual: <3>`). Restore.
+4. **Surface-move transition** — beacon realtime routed through two-step `_requestSurfaceSummaryRefresh` + `_requestHeadRefreshForAllAttached` (not `_refreshAcrossSurfaces`) → *surface move never* **+0 -1** with `(activity: 0, myWork: 1, onForYou: true)`. Swapping summary/page commit order **inside** the atomic block stayed green — expected; bad state is two refreshes, not reorder within one block.
+5. **dismissAll + children** — throwaway unioned `_childReceiptsById` into `dismissAll` membership → `attention_clear_case_test.dart` + group projection suite still **green** (no grouped-child sweep scenario in suite).
+
+**Tests run:**
+
+```
+cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 45m -- flutter test \
+  --dart-define=ENV=test --dart-define-from-file=env/test.env \
+  test/domain/attention test/features/inbox test/features/my_work test/architecture
+→ 00:21 +388: All tests passed!
+
+./scripts/run_with_test_cleanup.sh --timeout 10m -- ./scripts/check-custom-lints.sh packages/client
+→ total: 30 (baseline: 30) — check-custom-lints: packages/client OK
+```
+
+**Diff hygiene:** 12 client paths (`ee919f95a..6b83c2eb6`); **0** `packages/server`; no `*.g.dart` / hand-edited generated; cubit wiring only (`activity_offers_cubit.dart` / state). U13b tests under `attention_clear_*` / `attention_cursor_reset_test.dart`: **0** lines in U13c range.
+
+**Judgement — My Desk / no feed destination:** **Accepted.** `AttentionFeedDestinationId` registers only `activity_stream` and `notification_history`; `surfaceForDestination` returns `null` for unknown ids. Surface moves use `_refreshAcrossSurfaces` (attached activity feed + `surfaceSummary()` in one commit) plus `requestInvalidations` for owners without a feed session. Nothing in lib subscribes to invalidations yet, so today's UI is unchanged; My Desk still uses its existing obligation/desk paths until U15/U16.
+
+STATUS: pass
+
+TEST_OUTPUT: flutter test (attention + inbox + my_work + architecture) — **+388**; `check-custom-lints.sh packages/client` — **30/30**
+
+ACCEPTANCE:
+- Architecture test rejects a *new* owner shape — **met** — directory scan on `Map<String, AttentionReceipt>`; throwaway file reddened.
+- Page-merge dedupe both directions — **met** — identity-set equality `{B1,B2,B3}` + no dupes; receipt-id throwaway reddened; Activity `loadMore` beaconId dedupe pre-existed at `ee919f95a` (`existingIds`); `activity_offers_page_merge_test.dart` asserts mirror.
+- Child dismissal updates preview and counts — **met** — projection test asserts preview, `eventTotal`, `eventUnseenCount`; totals-only throwaway reddened on `eventTotal`.
+- Surface-move interleaving — **met** — held completers; two-step handler throwaway reddens midway assertion; settled endpoints asserted after `releaseFetches`.
+- My Desk scoping / `requestInvalidations` boundary — **met** (judgement) — no invented feed dest; atomic page + counters in `_refreshAcrossSurfaces`; invalidation port for desk projections later.
+- Two indexes not one — **met** (code + comments) — `_childReceiptsById` separate; `dismissAll` uses `_receiptsById` top-level only; no automated double-decrement test (see GAPS).
+- U13b guarantees intact — **met** — `git diff ee919f95a..6b83c2eb6` zero on U13b clear/cursor tests; full **+388** green.
+- `requestInvalidations` no subscriber — **met** — grep lib: define/emit/close in `attention_case.dart` only; inert for production UI.
+- Scope / untouchables — **met** — five commits client-only; pre-existing dirty paths outside unit unchanged by verify.
+
+GAPS: no test exercises `dismissAll` on a grouped card with indexed children — throwaway widening membership stayed green; protection is structural (`dismissAll` comment + separate map) not regression-locked.
+
+---
+
+## UNIT U13c-R — `dismissAll` × indexed children · INNER (remediation) (2026-09-19)
+
+**Layer:** inner (remediation). **UNIT_BASE:** `6b83c2eb6`. **Scope:** test-only; one test added to
+`test/domain/attention/attention_group_projection_test.dart`. Zero production lines (`git diff packages/client/lib`
+empty after the throwaway was reverted).
+
+**The gap (U13c verify, GAPS):** the reason children live in `_childReceiptsById` rather than `_receiptsById` —
+that folding them in would widen `dismissAll`'s membership and double-decrement a surface — was structural only
+(a separate map plus a comment). Widening membership left the suite green.
+
+**Step 4 outcome: the double-decrement reproduced.** It is not redundant bookkeeping. The new test holds the
+sweep's repository call pending with a completer and samples the surface summary while only the optimistic
+delta has landed — after the sweep resolves, the `finally` refresh overwrites it with the server total, so the
+settled endpoints cannot see the bug. One grouped card (`beacon:B1`) with two unseen children on the Activity
+surface, server total 3.
+
+TEST_RED (throwaway: `dismissAll` membership = `[..._receiptsById.values, ..._childReceiptsById.values]`):
+
+```
+flutter test … test/domain/attention/attention_group_projection_test.dart
+→ 00:00 +3 -1: dismissAll decrements a grouped card's surface exactly once [E]
+  Expected: <2>
+    Actual: <0>
+  one card swept is one decrement — not one per indexed child
+```
+
+3 → 0 rather than 3 → 2: the parent row and both of its children each decremented the same Activity counter.
+Throwaway reverted; `git diff packages/client/lib` empty.
+
+TEST_GREEN:
+
+```
+cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 45m -- flutter test \
+  --dart-define=ENV=test --dart-define-from-file=env/test.env \
+  test/domain/attention test/features/inbox test/architecture
+→ 00:12 +227: All tests passed!   (group projection file: +3 → +4)
+```
+
+STATUS: complete
