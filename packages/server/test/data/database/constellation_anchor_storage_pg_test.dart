@@ -478,6 +478,11 @@ WHERE viewer_id = '$viewerA' AND person_id = '$personP'
           target: ConstellationAnchorTarget.beacon(extraBeacon),
           position: pos(2, 2),
         );
+        // Wait for the two upsert notifications to be delivered before
+        // clearing: clear() does not flush what Postgres has not yet sent, so
+        // under load a late upsert lands after the clear and fails the
+        // every(event == 'delete') assertion below.
+        await _waitUntil(() => anchorNotifications().length >= 2);
         notifications.clear();
         await writer.execute('''
 DELETE FROM public.constellation_anchor
