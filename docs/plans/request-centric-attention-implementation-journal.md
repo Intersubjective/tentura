@@ -5960,3 +5960,261 @@ and stubbed summaries, and do not exercise the server's `cleared_at` axis or the
 U14/U15 consume them.
 
 ---
+
+## UNIT U10c — Ordering · INNER (2026-09-19)
+
+**Layer:** inner (implementer), tagged hard. **UNIT_BASE:** `e91281d92`. Last of the three U10 sandwiches.
+Scope: the bumping key separates from the latest-event key; `Needs you` orders by latest live-obligation
+creation; cursors are versioned and head refresh reconciles by Request id; the pinned zone stops moving.
+
+### The defect, and what replaced it
+
+U08 and U09 built clearing; U10b made it visible. What neither could touch was the sentence §6 opens with — *an
+optional update changes a dot, a preview and an event list, never a position* — because every grouped row was
+ordered by `GREATEST(latest_forward_at, max child created_at)`. One key did two jobs, so every non-bumping
+receipt moved the Request it belonged to: a child event, a tombstone, a timeline-only row, and, in the pinned
+decision zone, the noise on a question the viewer had not yet answered.
+
+Two keys now:
+
+| Row shape | position key | latest-event key |
+|---|---|---|
+| pinned / forward (`inbox_item`-backed) | `attention_request_state.first_entry_at`, falling back to `latest_forward_at` | `effectiveActivityAt`, unchanged |
+| `requestActivity` (no inbox row) | `MIN(child.created_at)` — the child that put it on the surface | `MAX(child.created_at)` |
+| standalone receipt | its own `created_at`, immutable | same |
+| My Desk `Needs you` | latest live-obligation `created_at`, then first entry, then Request id | — |
+
+`effectiveActivityAt` was deliberately **kept**, not repurposed. A card still has to say how fresh its noise is;
+it just no longer decides where the card sits. The new `listPositionAt` on `ActivityOfferSortRow` is the key the
+zone is actually ordered by, and both are on the wire so the two ideas cannot be confused again by a reader.
+
+**Nothing promotes on the Activity surface, and that is not an omission.** A live obligation pulls its Request
+into the responsibility scope, which the shared surface split sends to `myWork`. So D08's one permitted
+promotion is structurally a My Desk event, and For You's ordering is pure first-entry. Stated here because a
+reviewer looking for obligation-promotion logic in `activityOffers` will not find any.
+
+### Addition 2 (in my own words) — what `first_entry_at` actually holds, per row shape
+
+The scout was right to flag it, and the answer was worse than "some rows are missing": **every** row held the
+wrong kind of time. U09a's trigger stamped `now()` — when the database noticed the Request, not when the
+Request arrived. For the live path those coincide. For anything that writes history they do not, and the anchor
+ends up ordering Requests by write order. The four existing fixtures that backdate a forward all exposed it.
+
+So `m0187` changes the stamp to `LEAST(now(), latest_forward_at)` — the earliest evidence we have that this
+Request entered the viewer's attention, and never in the future — and backfills the two holes rather than
+leaving the read path to paper over them:
+
+1. `inbox_item` rows with no state row at all (anything predating m0184).
+2. state rows carrying their write instant, repaired downwards from `latest_forward_at`.
+
+`ON CONFLICT DO NOTHING` on insert is what keeps it stable afterwards: a re-forward bumps `latest_forward_at`
+and never touches the anchor, which is D08's *a repeated forward does not reorder an existing pinned card*,
+asserted.
+
+Where it is still absent, and what is ordered by instead:
+
+- **`requestActivity` groups** have no `inbox_item` and therefore no anchor at all. Ordered by `MIN(created_at)`
+  over the group's children — which is stable for the two reasons that matter: a receipt's `created_at` never
+  changes, and clearing does not remove the row from `visible` (retention keeps it), so the minimum cannot walk
+  forward when the earliest child is dismissed. Asserted: *clearing a child moves neither the group nor the
+  zone*.
+- **My Desk Requests the viewer was never forwarded** (owned ones) have no inbox row either. Ordered by the
+  earliest receipt that put them on the desk — equally immutable, and only ever a tie-break behind
+  `needsYouAt`.
+- **A state row deleted underneath a pinned Request** falls back to `latest_forward_at`. Asserted directly (*a
+  Request whose anchor row is missing still sorts stably*), because that is the shape a partial backfill or a
+  future migration leaves behind.
+
+### Addition 1 (in my own words) — the pagination evidence
+
+The scout said the existing tests would not catch this and named the two shapes. Both are now asserted, and both
+were proven able to fail by putting the old keys back (below).
+
+- **Vanish** — *a promoted Request does not vanish between pages*: a reader takes page one, an optional event
+  lands on a group that is below the cursor, the reader asks for the tail. Under the old key the group's sort
+  key jumped above the cursor, into the stretch this reader can never look at again, and it disappeared from the
+  session entirely. Red under the mutation with `Actual: ['Nordvan5' … 'Nordvan0']` — the group simply not there.
+- **Duplicate** — *a Request gaining an optional event mid-pagination is not duplicated*: the same setup, with
+  the assertion on the union of both pages having no repeated id. Worth being precise about what the mutation
+  showed: under the old keys this test also fails by **vanishing** rather than by duplicating, because the
+  repository's head and tail are two independent queries and the jump happens between them. Duplication is the
+  symptom on the *client* side, where a held head page is merged with a fresh tail; what the server can assert
+  is that the union is duplicate-free and complete, and both halves are asserted.
+- **Head reconcile** — *head refresh and the tail page name the same Request identically*: a grouped row is
+  named after its Request (`inbox:<id>`, `activity-beacon:<id>`) and keeps that name and its position across a
+  head refetch and a tail page, so a client merging the two dedupes by Request id exactly. This is the mechanism
+  D08 asks for; it is a property of the row identity, not a new parameter.
+
+And the cursor is versioned (`kAttentionCursorVersion = 2`, encoded as `v`). A cursor minted under the old sort
+keys names a point on a line that no longer exists; resuming keyset pagination from it skips or repeats whole
+stretches silently. It is refused at the wire boundary — one head refetch, no correctness lost. Unversioned
+(pre-U10c) and unknown-future cursors are both refused, each asserted.
+
+### Addition 3 — the inherited expectation, named loudly
+
+**`attention_active_attention_axis_pg_test.dart` · *an optional event does not reorder the pinned zone***
+
+```
+was:  expect(afterArrival…, [_otherBeaconId, _foreignBeaconId])
+now:  expect(afterArrival…, [_foreignBeaconId, _otherBeaconId])
+```
+
+U10b wrote the old form deliberately, with a `reason:` that called it a live §6 violation and said U10c would
+have to change it on purpose. This is that change, and it is **the one expectation in this plan that flips
+because a defect was fixed rather than because behaviour was redefined** — every other rewrite since U02 moved
+because the contract moved. The new `reason:` carries that history so the next reader does not mistake it for a
+routine update. The test's second half — that U10b's narrowing of *what counts as an event* is invisible to the
+order — still holds, and now all three readings (before the arrival, after it, after the clear) are the same
+order.
+
+Three U02 `// CHANGES IN U10:` ordering tags are discharged with it, each renamed to say what it now pins:
+
+| Test | Was | Now |
+|---|---|---|
+| `watching produces one forward item at latest_forward_at` → `…at its entry` | `createdAt == latest_forward_at` (`2026-08-02T14:30Z`) | `createdAt == first_entry_at`. The fixture reaches the inbox twice — a shared forward edge creates it at `now()`, then `_upsertInbox` backdates `latest_forward_at` *under* it, which the live path cannot do — so the assertion is stated against the anchor the trigger recorded rather than a forward time preceding the Request's own arrival |
+| `status event merges into forward and bumps created_at` → `…without moving it` | `createdAt == 2026-08-12T14:00Z` (the status event) | `createdAt == first_entry_at`; the merge is unchanged, the bump is gone |
+| `two status events without inbox coalesce to requestActivity` | `createdAt == 12:00Z` (the latest child) | `createdAt == 10:00Z` (the first child) |
+| `activityOffers orders by effectiveActivityAt not latest_forward_at` → `…orders the pinned zone by entry, not by either` | `[foreign, closed]` — the status event lifted `foreign` | `[closed, foreign]` — entry order, exactly as the scout predicted; and the same row's `effectiveActivityAt` **is** asserted to have moved to `2026-08-15T20:00Z`, so the test now pins both keys and their difference |
+
+The **U09/U10 joint** tags (`active help offer produces helping forward outcome`, `helping forward has zero
+Activity event children`) are untouched. They are about presentation and eligibility, which U10b owns and which
+are accepted; overseer addition 5 says report rather than adjust, and there was nothing to report — no indicator
+or eligibility test failed as a result of the ordering change.
+
+### Addition 4 — the predicate was composed, never re-forked
+
+No new spelling of the axis. `AttentionDismissibleSql.activeOptional` / `liveObligation` / `activeAttention` are
+called where needed and `visibleWithSurface` / `eligiblePinned` are unchanged; the `request_entry` CTE and the
+`min_created_at` aggregate are new *ordering* inputs, not new predicates. The U10a directory guard passes
+unchanged, including over the new migration's neighbourhood.
+
+`max_created_at` and `min_created_at` both deliberately stay over **every** child rather than the active ones —
+they are ordering inputs, and U10b's third failure probe showed that narrowing `max_created_at` makes *clearing*
+reshuffle the zone. The same argument now protects `min_created_at`.
+
+### Tests actually run
+
+**RED — the old keys put back, as a throwaway mutation** (reverted; nothing committed). This is stronger
+evidence than a pre-implementation compile failure, because it isolates exactly the change under test: position
+keys reverted to `GREATEST(latest_forward_at, max child created_at)`, `min_created_at` back to `max_created_at`,
+and the `Needs you` sort removed.
+
+```
+$ dart test --tags pg -j 1 test/data/repository/attention_ordering_keys_pg_test.dart
+00:03 +3 -11: Some tests failed.
+  an optional event arriving does not move a pinned Request
+      Expected: ['Bordlate', 'Bordearly']   Actual: ['Bordearly', 'Bordlate']
+  the latest-event key still moves while the position key does not
+      Expected: 2026-08-10 09:00:00.000Z    Actual: 2026-08-12 14:00:00.000Z
+  a repeated forward does not move an existing pinned Request
+      Expected: ['Bordlate', 'Bordearly']   Actual: ['Bordearly', 'Bordlate']
+  a forward row sits at its entry, not at its newest child event
+      Expected: '2026-08-10T09:00:00.000Z'  Actual: '2026-08-12T14:00:00.000Z'
+  a requestActivity group sits at its first child, not its latest
+      Expected: ['Nord06', 'activity-beacon:Bordearly']
+        Actual: ['activity-beacon:Bordearly', 'Nord06']
+  Needs you orders by latest live-obligation creation
+      Expected: ['Bordownee', 'Bordowned']  Actual: ['Bordowned', 'Bordownee']
+  an optional event does not reorder Needs you        (same flip)
+  a Request with no obligation sorts below every Request with one
+  a Request gaining an optional event mid-pagination is not duplicated
+      Expected: contains 'inbox:Bordearly'  Actual: ['Nordpg5' … 'Nordpg0']
+  a promoted Request does not vanish between pages
+      Expected: contains 'activity-beacon:Bordearly'  Actual: ['Nordvan5' … 'Nordvan0']
+  head refresh and the tail page name the same Request identically
+      Bad state: No element
+```
+
+11 of the 14 stayed red. The three that did not: *clearing a child moves neither the group nor the zone*
+(`max` and `min` coincide on that fixture once the earliest child is the cleared one), *every inbox-backed
+Request has an entry anchor* (a migration property the mutation does not touch), and *a Request whose anchor row
+is missing still sorts stably* (the fallback and the old key agree when a Request has no children). Named rather
+than quietly counted.
+
+**RED — the cursor version check removed** (throwaway, reverted):
+
+```
+$ dart test -j 1 test/api/controllers/graphql/attention_graphql_test.dart
+00:00 +2 -2:
+  a cursor minted under the previous sort keys is refused
+  a cursor of an unknown future generation is refused too
+      Expected: throws <Instance of 'ArgumentError'>   Actual: a resolved feed page
+```
+
+**RED — the four inherited expectations, against the implementation**, before they were rewritten:
+
+```
+$ dart test --tags pg -j 1 …attention_activity_stream / …active_attention_axis
+00:03 +18 -5: Some tests failed.
+  an optional event does not reorder the pinned zone           (the inherited defect)
+  activityOffers orders by effectiveActivityAt not latest_forward_at
+  status event merges into forward and bumps created_at
+  two status events without inbox coalesce to requestActivity
+  watching produces one forward item at latest_forward_at
+```
+
+**GREEN — the attention PG set** (the axis suite's 21 + everything the scout named + the new 14):
+
+```
+$ ./scripts/run_with_test_cleanup.sh --timeout 30m -- bash -c 'cd packages/server && dart test --tags pg -j 1 \
+    activity_stream / surface / repository / my_work / request_history / clear_operation / dismiss_sweep /
+    undo / dismissible_predicate / outcome_dismissible / predicate_unification / active_attention_axis /
+    ordering_keys / request_state_writer / live_obligations / retention / mark_seen_for_beacon /
+    attention_additive_schema'
+00:59 +249: All tests passed!
+
+$ … dart test -j 1 test/api/controllers/graphql/attention_graphql_test.dart \
+      test/api/controllers/graphql/query_attention_payload_test.dart
+00:00 +38: All tests passed!          # 35 before, plus the three cursor tests
+
+$ ./scripts/run_with_test_cleanup.sh --timeout 10m -- ./scripts/check-custom-lints.sh packages/server
+total: 0 (baseline: 0)
+check-custom-lints: packages/server OK
+```
+
+**Client suites named by the scout** — unchanged and green; client `lib/` was not touched:
+
+```
+$ … flutter test … test/features/inbox test/features/my_work test/domain/attention
+00:11 +324: All tests passed!
+$ … flutter test … work_activity_nav_indicators_test.dart my_work_navbar_item_test.dart
+00:00 +16: All tests passed!
+```
+
+### Commits
+
+| Hash | Subject |
+|---|---|
+| `a7532a9fd` | `feat(server): the position key and the latest-event key become two keys` |
+| `70bf1ac3d` | `feat(server): My Desk Needs you orders by latest live-obligation creation` |
+| `e391fe825` | `feat(server): version the cursor, and name a grouped row after its Request` |
+| `c1cd2843f` | `test(server): rewrite the expectation U10b pinned as a defect, and three more` |
+
+**Disclosed deviation from the requested commit split:** the cursor-versioning *implementation*
+(`kAttentionCursorVersion`, the `v` field, the wire-boundary refusal) lives in `attention_models.dart` and
+`query_attention.dart`, both of which the first commit already had to touch for `listPositionAt`; it therefore
+landed in `a7532a9fd` and only its tests are in `e391fe825`. The new PG suite is one file and landed whole with
+the first commit, so the `Needs you` assertions in it are red at `a7532a9fd` and green at `70bf1ac3d`.
+
+### Findings
+
+- **`first_entry_at` was not merely incomplete, it was the wrong clock.** Addition 2 above. The scout expected
+  holes; the holes were real but secondary. This is the fact most worth carrying forward: any future column
+  described as "when X entered" and implemented as `now()` at write time will do the same thing.
+- **`watching-digest` still uses a latest-event key as its own `created_at`.** Deliberately untouched: it is a
+  single aggregate row about several watched Requests, not a Request position, so §6's sentence does not apply
+  to it. Named because a reader auditing "did U10c convert every `max_created_at`" will find this one.
+- **`Beacon.updatedAt` is still the client's desk sort.** The server now publishes the contract's keys
+  (`needsYouAt`, `firstEntryAt` on `MyWorkBeaconAttention`; `listPositionAt` on `ActivityOfferSortRow`) and
+  returns `myWorkAttention` already in D08 order, but `compareMyWorkCardsForSort` in client `lib/` is
+  untouchable this unit. The desk does not visibly reorder until U14/U15 consume these fields.
+- **The GraphQL additions are additive**, so no client query breaks; no schema field was renamed or removed.
+
+### Out of scope, confirmed untouched
+
+Eligibility and indicators (U10b, accepted — no indicator test failed as a result of ordering), the shared
+predicate (`AttentionDismissibleSql` unchanged), the sweep/undo/clear paths, card provenance, client `lib/`, the
+channel/email path, obligation identity, the contract JSON, and the ~37 untracked / 4 modified files belonging
+to others.
+
+STATUS: complete
