@@ -546,6 +546,20 @@ abstract class AttentionSurfaceSummary with _$AttentionSurfaceSummary {
     required int activityUnreadTotal,
     required int myWorkUnreadTotal,
     required int needsYouTotal,
+
+    /// §6 `my desk.dot` — any owned Request has at least one uncleared
+    /// optional event or uncleared outcome. A live obligation is deliberately
+    /// **not** a term: it is the number beside the dot, and D09 keeps the two
+    /// independent.
+    @Default(false) bool myDeskDot,
+
+    /// §6 `for you.dot` — any dismissible attention (Set R ∪ Set O), pending
+    /// forward (the `eligible_pinned` zone) or pending prompt.
+    ///
+    /// There is no `forYouCount`, and there must not be one: §6 says
+    /// `for you.count = never`, and a field nobody can read is how that stays
+    /// true structurally rather than by convention.
+    @Default(false) bool forYouDot,
   }) = _AttentionSurfaceSummary;
 }
 

@@ -274,6 +274,197 @@ WHERE id = 'Naxis04'
       );
     });
 
+    // ------------------------------------------------------- U15R-d (§6)
+
+    // The §6 indicator rules, as their own fields. The legacy three
+    // (`activityUnreadTotal`, `myWorkUnreadTotal`, `needsYouTotal`) are NOT
+    // any of them and are deliberately left computing what they always did
+    // until U18 retires them, so nothing below re-states their meaning.
+
+    test('U15R-d §6 my desk.dot — an obligation-only Request does not light '
+        'the optional dot', () async {
+      await _obligation(writer, id: 'Nd01', beaconId: _ownedBeaconId);
+
+      final summary = await query.surfaceSummary(accountId: _viewerId);
+      expect(
+        summary.myDeskDot,
+        isFalse,
+        reason:
+            '§6: request.dot = uncleared optional event or uncleared outcome. '
+            'An obligation is the *number*; dot and count are independent '
+            '(D09), so an obligation alone must not raise the dot.',
+      );
+      expect(
+        summary.myWorkUnreadTotal,
+        1,
+        reason:
+            'the legacy union field is unchanged by this unit and still '
+            'counts the obligation — it retires in U18',
+      );
+    });
+
+    test('U15R-d §6 my desk.dot — an uncleared optional event on an owned '
+        'Request lights it, clearing puts it out', () async {
+      await _optional(writer, id: 'Nd02', beaconId: _ownedBeaconId);
+      await _markSeen(writer, 'Nd02');
+
+      expect(
+        (await query.surfaceSummary(accountId: _viewerId)).myDeskDot,
+        isTrue,
+        reason: 'reading is not clearing (D02)',
+      );
+
+      await _clearReceipt(writer, 'Nd02');
+      expect(
+        (await query.surfaceSummary(accountId: _viewerId)).myDeskDot,
+        isFalse,
+      );
+    });
+
+    test('U15R-d §6 my desk.dot — an uncleared outcome on an owned Request '
+        'lights it', () async {
+      // A forward edge on the viewer's own Request materialises an
+      // `inbox_item` inside the responsibility scope: Set O membership with
+      // no optional receipt anywhere.
+      await _forwardEdge(writer, id: 'FEd01', beaconId: _ownedBeaconId);
+
+      final summary = await query.surfaceSummary(accountId: _viewerId);
+      expect(
+        summary.myDeskDot,
+        isTrue,
+        reason: '§6 request.dot counts an uncleared *outcome* too, not only '
+            'optional events',
+      );
+    });
+
+    test('U15R-d §6 for you.dot — a dismissible Activity receipt lights it, '
+        'a swept one does not', () async {
+      await _profile(writer, id: 'Nd03');
+
+      expect(
+        (await query.surfaceSummary(accountId: _viewerId)).forYouDot,
+        isTrue,
+      );
+
+      await _clearReceipt(writer, 'Nd03');
+      expect(
+        (await query.surfaceSummary(accountId: _viewerId)).forYouDot,
+        isFalse,
+        reason: 'the tab that lights with nothing to act on is the failure M1 '
+            'exists to prevent',
+      );
+    });
+
+    test('U15R-d §6 for you.dot — a pending forward lights it with no receipt '
+        'at all', () async {
+      await _forwardEdge(writer, id: 'FEd02', beaconId: _foreignBeaconId);
+
+      final summary = await query.surfaceSummary(accountId: _viewerId);
+      expect(
+        summary.forYouDot,
+        isTrue,
+        reason:
+            '§6 for you.dot = dismissible attention, pending forward or '
+            'pending prompt — the pinned zone is a term of its own',
+      );
+      expect(
+        summary.activityUnreadTotal,
+        0,
+        reason: 'the legacy field never saw the pinned zone; that omission is '
+            'exactly what the new field fixes',
+      );
+    });
+
+    test('U15R-d M1 — for you.dot equals the composed membership of Set R, '
+        'Set O and the pinned zone', () async {
+      await _forwardEdge(writer, id: 'FEd03', beaconId: _foreignBeaconId);
+      await _optional(writer, id: 'Nd04', beaconId: _foreignBeaconId);
+      await _profile(writer, id: 'Nd05');
+
+      // Never a hand-counted number and never a feed length: the indicator is
+      // compared to the *same* predicates the lists and the sweep compose.
+      expect(
+        (await query.surfaceSummary(accountId: _viewerId)).forYouDot,
+        await _composedForYouMembership(writer),
+      );
+
+      await _clearReceipt(writer, 'Nd04');
+      await _clearReceipt(writer, 'Nd05');
+      expect(
+        (await query.surfaceSummary(accountId: _viewerId)).forYouDot,
+        await _composedForYouMembership(writer),
+        reason: 'still one rule after a clear moves half of it',
+      );
+
+      // Emptying the pinned zone: the row is removed, not dismissed. A
+      // trigger refuses `tombstone_dismissed_at` on an unanswered forward —
+      // owner decision A enforced in the database, which is the point of the
+      // exclusion this dot composes.
+      await writer.execute(
+        Sql.named('DELETE FROM public.inbox_item WHERE user_id = @u'),
+        parameters: {'u': _viewerId},
+      );
+      expect(
+        (await query.surfaceSummary(accountId: _viewerId)).forYouDot,
+        await _composedForYouMembership(writer),
+        reason: 'and after the pinned zone empties',
+      );
+    });
+
+    test('U15R-d contract gap — a beacon-less live obligation lands on '
+        'Activity and §6 gives it no indicator', () async {
+      // Recorded, not repaired. U15R-d was asked to prove that scoping
+      // `my desk.count` to myWork drops nothing before applying it. It does
+      // not hold: `notification_outbox__beacon_policy_chk` only demands a
+      // `beacon_id` for the `beacon_content` / `beacon_tombstone` access
+      // policies, so a `requires_action` row on a profile-policy destination
+      // is storable — and `visibleWithSurface` labels every beacon-less row
+      // `activity`, because the scope UNION can only absorb rows that name a
+      // Request.
+      //
+      // §6 then has nowhere to put it: For You has no count, and its dot
+      // covers dismissible attention, pending forwards and pending prompts —
+      // a live obligation is in none of those three sets. So the count stays
+      // unscoped in this unit and the gap goes to the contract owner rather
+      // than being absorbed by widening a predicate.
+      //
+      // The production write path cannot emit one today:
+      // `AttentionPolicy.logicalTaskKey` throws for an obligation without a
+      // Request, and it is called on every dispatched receipt. That is a
+      // producer invariant, not a storage or contract one, which is precisely
+      // why it is pinned here.
+      await _beaconlessObligation(writer, id: 'Nd06');
+
+      final onActivity = await _idsWith(
+        writer,
+        AttentionDismissibleSql.visibleWithSurface,
+        "${AttentionDismissibleSql.liveObligation('v')} "
+        "AND v.surface = 'activity'",
+      );
+      expect(
+        onActivity,
+        ['Nd06'],
+        reason:
+            'the scope a myWork-scoped `my desk.count` would exclude is not '
+            'empty',
+      );
+
+      final summary = await query.surfaceSummary(accountId: _viewerId);
+      expect(
+        summary.needsYouTotal,
+        1,
+        reason: 'today the unscoped legacy count is the only thing that sees '
+            'it — scoping it to myWork would make it invisible everywhere',
+      );
+      expect(summary.myDeskDot, isFalse);
+      expect(
+        summary.forYouDot,
+        isFalse,
+        reason: 'not dismissible attention, not a pending forward, not a '
+            'pending prompt — §6 has no term that covers it',
+      );
+    });
+
     // -------------------------------------------------------------- M1
 
     test('M1 — the myWork number equals the myWork default list', () async {
@@ -962,6 +1153,59 @@ INSERT INTO public.notification_outbox (
         'dedupKey': 'dedup-$id',
         'createdAt': createdAt,
         'beaconId': beaconId,
+        'sourceEventKey': 'source-$id',
+        'threadKey': 'v1|needsMe|$id|$_viewerId',
+      },
+    );
+
+/// Set R ∪ Set O ∪ the pinned zone, composed from the same constants the
+/// lists and the sweep compose. The M1 comparison target for `forYouDot`.
+Future<bool> _composedForYouMembership(Connection writer) async {
+  final rows = await writer.execute(
+    Sql.named(
+      '''
+WITH ${AttentionDismissibleSql.cte}
+SELECT (
+  EXISTS (SELECT 1 FROM activity_optional_dismissible)
+  OR EXISTS (SELECT 1 FROM activity_outcome_dismissible)
+  OR EXISTS (SELECT 1 FROM eligible_pinned)
+) AS member
+'''
+          .replaceAll(r'$1', '@account'),
+    ),
+    parameters: {'account': _viewerId},
+  );
+  return rows.single[0]! as bool;
+}
+
+/// A live obligation with no Request — storable, and the subject of the
+/// U15R-d contract gap.
+Future<void> _beaconlessObligation(
+  Connection writer, {
+  required String id,
+}) =>
+    writer.execute(
+      Sql.named('''
+INSERT INTO public.notification_outbox (
+  id, account_id, category, kind, priority,
+  title, body, action_url, dedup_key, created_at,
+  beacon_id, source_event_key,
+  destination_kind, presentation_key, presentation_payload,
+  suppression_class, access_policy,
+  requires_action, attention_thread_key
+) VALUES (
+  @id, @accountId, 'asksOfMe', 'needsMe', 'normal',
+  'Obligation', 'Body', '/profile', @dedupKey, now(),
+  NULL, @sourceEventKey,
+  'profile', 'invite_accepted', '{"eventType":"fixture"}'::jsonb,
+  'standard', 'profile',
+  true, @threadKey
+)
+'''),
+      parameters: {
+        'id': id,
+        'accountId': _viewerId,
+        'dedupKey': 'dedup-$id',
         'sourceEventKey': 'source-$id',
         'threadKey': 'v1|needsMe|$id|$_viewerId',
       },

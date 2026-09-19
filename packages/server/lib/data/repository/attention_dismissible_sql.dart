@@ -96,14 +96,21 @@ eligible_pinned AS (
   static String liveObligation(String alias) =>
       '$alias.requires_action AND $alias.settlement_kind IS NULL';
 
-  /// Active attention — what a surface indicator describes.
+  /// Active attention — what the **default list** on a surface shows.
   ///
-  /// The union is deliberate. D09 keeps the dot (optional) and the number
-  /// (obligations) independent *for display*, but a surface total that
-  /// dropped live obligations would take rows off the default list that the
-  /// viewer still owes an answer to — the "silently disappears" failure. The
-  /// split back into dot and number is the client's, from this total and
-  /// `needsYouTotal`.
+  /// The union is deliberate: a default list that dropped live obligations
+  /// would take rows off it that the viewer still owes an answer to — the
+  /// "silently disappears" failure.
+  ///
+  /// It is **not** a §6 indicator, and since U15R-d nothing claims it is.
+  /// §6 gives each indicator its own rule — `my desk.dot` is optional events
+  /// and outcomes only, `my desk.count` is obligations only, `for you.dot`
+  /// is Set R ∪ Set O ∪ the pinned zone — and `surfaceSummary` composes those
+  /// as `my_desk_dot` / `for_you_dot`. The three legacy totals it still
+  /// returns (`activity_unread_total`, `my_work_unread_total`,
+  /// `needs_you_total`) are built from this union and from
+  /// [liveObligation]; they keep exactly their pre-U15R-d meaning and retire
+  /// in U18.
   static String activeAttention(String alias) =>
       '((${activeOptional(alias)}) OR (${liveObligation(alias)}))';
 

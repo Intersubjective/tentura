@@ -238,7 +238,7 @@ ORDER BY beacon_id, created_at DESC, id DESC
     final row = await _database
         .customSelect(
           '''
-WITH $_visibleWithSurfaceCte,
+WITH ${AttentionDismissibleSql.cte},
 summary AS (
   SELECT
     COUNT(*) FILTER (
@@ -256,8 +256,56 @@ summary AS (
         AND ${AttentionDismissibleSql.primaryPlacement('v')}
     )::int AS needs_you_total
   FROM visible v
+),
+-- §6 `my desk.dot` — "any owned Request has a dot", where
+-- `request.dot = has at least one uncleared optional event or uncleared
+-- outcome". Obligations are absent on purpose: they are the *number*, and
+-- D09 keeps dot and number independent. Owned = in the responsibility scope,
+-- which is what `surface = 'myWork'` means, and for the outcome axis is the
+-- `scope` membership Set O rows carry.
+my_desk_dot AS (
+  SELECT (
+    EXISTS (
+      SELECT 1
+      FROM visible v
+      WHERE v.surface = 'myWork'
+        AND ${AttentionDismissibleSql.activeOptional('v')}
+        AND ${AttentionDismissibleSql.primaryPlacement('v')}
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM activity_outcome_dismissible o
+      WHERE o.beacon_id IN (SELECT scope.beacon_id FROM scope)
+    )
+  ) AS value
+),
+-- §6 `for you.dot` — "any dismissible attention, pending forward or pending
+-- prompt". Each of the three is a term of its own, composed from the set the
+-- For-You lists and the sweep already compose (M1): Set R, Set O, and the
+-- `eligible_pinned` decision zone.
+for_you_dot AS (
+  SELECT (
+    EXISTS (
+      SELECT 1
+      FROM activity_optional_dismissible r
+      JOIN visible v ON v.id = r.receipt_id
+      WHERE ${AttentionDismissibleSql.primaryPlacement('v')}
+    )
+    OR EXISTS (SELECT 1 FROM activity_outcome_dismissible)
+    OR EXISTS (SELECT 1 FROM eligible_pinned)
+    -- Pending prompts: a written FALSE, not a missing term. No classified
+    -- prompt event has a row in any of the sets above yet (U09a, restated in
+    -- `AttentionDismissibleSql.dismissibleOutcomes`). When one gains a live
+    -- row this becomes its predicate; until then silence here would be
+    -- indistinguishable from a predicate somebody deleted.
+    OR FALSE
+  ) AS value
 )
-SELECT * FROM summary
+SELECT
+  summary.*,
+  my_desk_dot.value AS my_desk_dot,
+  for_you_dot.value AS for_you_dot
+FROM summary, my_desk_dot, for_you_dot
 ''',
           variables: [Variable<String>(accountId)],
         )
@@ -266,6 +314,8 @@ SELECT * FROM summary
       activityUnreadTotal: row.read<int>('activity_unread_total'),
       myWorkUnreadTotal: row.read<int>('my_work_unread_total'),
       needsYouTotal: row.read<int>('needs_you_total'),
+      myDeskDot: row.read<bool>('my_desk_dot'),
+      forYouDot: row.read<bool>('for_you_dot'),
     );
   }
 
