@@ -492,15 +492,17 @@ WHERE id = 'Naxis04'
       final afterArrival = await query.activityOffers(accountId: _viewerId);
       expect(
         afterArrival.items.map((row) => row.beaconId).toList(),
-        [_otherBeaconId, _foreignBeaconId],
+        [_foreignBeaconId, _otherBeaconId],
         reason:
-            'Pinned here as the live defect, not as the target. §6 says an '
-            'optional update never moves a position, but the pinned sort key '
-            'is still GREATEST(latest_forward_at, max child created_at) — and '
-            'the ordering key belongs to U10c. U10b records that the arrival '
-            'still reorders so U10c has to change this expectation on '
-            'purpose; what U10b owes is that its own narrowing of what counts '
-            'as an event does not move the zone (asserted next).',
+            'REWRITTEN IN U10c, and this is the one expectation in the plan '
+            'that flips because a defect was fixed rather than because '
+            'behaviour was redefined. U10b pinned the live (wrong) order '
+            '[other, foreign] with its reasoning written out: the pinned sort '
+            'key was still GREATEST(latest_forward_at, max child created_at), '
+            'so an optional arrival moved the zone, which §6 forbids. U10c '
+            'separated the position key from the latest-event key, so the '
+            'arrival now changes a dot, a preview and an event list and '
+            'nothing else — the order is the one from before it arrived.',
       );
       expect(beforeOrder, [_foreignBeaconId, _otherBeaconId]);
 
@@ -510,8 +512,9 @@ WHERE id = 'Naxis04'
         afterClear.items.map((row) => row.beaconId).toList(),
         afterArrival.items.map((row) => row.beaconId).toList(),
         reason:
-            'U10b narrowed what counts as an event; that narrowing must be '
-            'invisible to the pinned order, which U10c owns',
+            'U10b narrowed what counts as an event; that narrowing is '
+            'invisible to the pinned order — and since U10c the arrival is '
+            'too, so all three readings are the same order',
       );
       expect(afterClear.items.map((row) => row.beaconId).toSet(), {
         _foreignBeaconId,

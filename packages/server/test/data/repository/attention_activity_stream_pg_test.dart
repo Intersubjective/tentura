@@ -107,7 +107,14 @@ VALUES
       );
     });
 
-    test('watching produces one forward item at latest_forward_at', () async {
+    // REWRITTEN IN U10c: a forward row's position is its *entry*, not its
+    // latest forward. This fixture reaches the inbox twice — the shared
+    // forward edge created it at `now()`, and `_upsertInbox` then backdates
+    // `latest_forward_at` under it, which cannot happen in the live path —
+    // so the assertion is stated against the anchor the trigger recorded
+    // rather than against a forward time that precedes the Request's own
+    // arrival.
+    test('watching produces one forward item at its entry', () async {
       const at = '2026-08-02T14:30:00Z';
       await _upsertInbox(
         writer,
@@ -115,6 +122,7 @@ VALUES
         status: 1,
         latestForwardAt: at,
       );
+      final entryAt = await _firstEntryAt(writer, beaconId: _foreignBeaconId);
 
       final feed = await query.attentionFeed(
         accountId: _viewerId,
@@ -125,7 +133,7 @@ VALUES
       expect(forward.itemKind, AttentionItemKind.forward);
       expect(forward.id, 'inbox:$_foreignBeaconId');
       expect(forward.forwardOutcome, 'watching');
-      expect(forward.createdAt, DateTime.parse(at).toUtc());
+      expect(forward.createdAt.toUtc(), entryAt);
     });
 
     test('reject produces notInterested forward outcome', () async {
@@ -479,9 +487,12 @@ VALUES (@id, @authorId, @title, '', 0)
           .toList();
       expect(grouped, hasLength(1));
       expect(grouped.single.id, 'activity-beacon:$_foreignBeaconId');
+      // REWRITTEN IN U10c: a synthetic group sits at the child that put it on
+      // the surface (10:00), not at its newest one (12:00). It has no inbox
+      // row and therefore no `first_entry_at`; its first child is the entry.
       expect(
         grouped.single.createdAt.toUtc().toIso8601String(),
-        '2026-08-10T12:00:00.000Z',
+        '2026-08-10T10:00:00.000Z',
       );
       expect(grouped.single.eventTotal, 2);
       expect(grouped.single.eventsPreview, hasLength(2));
@@ -536,8 +547,11 @@ ON CONFLICT DO NOTHING
       });
     });
 
-    // CHANGES IN U10: optional status events must not bump forward ordering; only live obligations promote.
-    test('status event merges into forward and bumps created_at', () async {
+    // REWRITTEN IN U10c (was: `status event merges into forward and bumps
+    // created_at`). The merge is unchanged; the bump is gone. Section 6: an
+    // optional update changes a dot, a preview and an event list — never a
+    // position.
+    test('status event merges into forward without moving it', () async {
       await _upsertInbox(
         writer,
         beaconId: _foreignBeaconId,
@@ -562,6 +576,8 @@ ON CONFLICT DO NOTHING
         ),
       );
 
+      final entryAt = await _firstEntryAt(writer, beaconId: _foreignBeaconId);
+
       final feed = await query.attentionFeed(
         accountId: _viewerId,
         view: AttentionFeedView.all,
@@ -571,11 +587,10 @@ ON CONFLICT DO NOTHING
           .where((item) => item.id == 'inbox:$_foreignBeaconId')
           .single;
       expect(forward.itemKind, AttentionItemKind.forward);
-      // CHANGES IN U10: forward created_at stays anchored; optional child events update preview/dot only.
-      expect(
-        forward.createdAt.toUtc().toIso8601String(),
-        '2026-08-12T14:00:00.000Z',
-      );
+      // The status event is two days newer than anything else here. Before
+      // U10c it became the row's `created_at`; now the row stays at the
+      // Request's entry and only the dot, the count and the preview move.
+      expect(forward.createdAt.toUtc(), entryAt);
       expect(forward.isUnread, isTrue);
       expect(forward.eventTotal, 1);
       expect(
@@ -764,8 +779,11 @@ WHERE user_id = @userId AND beacon_id = @beaconId
       expect(offers.totalCount, 0);
     });
 
-    // CHANGES IN U10: optional events must not reorder pinned Requests via effectiveActivityAt.
-    test('activityOffers orders by effectiveActivityAt not latest_forward_at',
+    // REWRITTEN IN U10c (was: `activityOffers orders by effectiveActivityAt
+    // not latest_forward_at`). Neither key orders the zone any more: the
+    // position key does, and `effectiveActivityAt` survives only as the
+    // latest-event key the card renders.
+    test('activityOffers orders the pinned zone by entry, not by either',
         () async {
       await _ensureForwardPath(writer, beaconId: _foreignBeaconId);
       await _ensureForwardPath(writer, beaconId: _closedBeaconId);
@@ -789,13 +807,30 @@ WHERE user_id = @userId AND beacon_id = @beaconId
       );
 
       final page = await query.activityOffers(accountId: _viewerId, limit: 10);
-      // CHANGES IN U10: status-driven effectiveActivityAt must not move pinned order ahead of stable first-entry keys.
+      // Both Requests entered when `_ensureForwardPath` created their inbox
+      // rows, `_closedBeaconId` second, so it sits above — and the status
+      // event on `_foreignBeaconId`, newer than everything in the fixture,
+      // does not lift it. Under the old key it did.
       expect(page.items.map((e) => e.beaconId).toList(), [
-        _foreignBeaconId,
         _closedBeaconId,
+        _foreignBeaconId,
       ]);
-      expect(page.items.first.eventTotal, 1);
-      expect(page.items.first.eventsPreview, hasLength(1));
+      final foreign = page.items
+          .where((row) => row.beaconId == _foreignBeaconId)
+          .single;
+      expect(
+        foreign.eventTotal,
+        1,
+        reason: 'the event still attaches to its Request — it just does not '
+            'move it',
+      );
+      expect(foreign.eventsPreview, hasLength(1));
+      expect(
+        foreign.effectiveActivityAt.toUtc().toIso8601String(),
+        '2026-08-15T20:00:00.000Z',
+        reason: 'the latest-event key did move; it is simply not the key the '
+            'zone is ordered by',
+      );
     });
   }, skip: skipReason);
 }
@@ -817,6 +852,23 @@ const _foreignBeaconId = 'Bactstreamfor';
 const _foreignBeacon2Id = 'Bactstreamfo2';
 const _closedBeaconId = 'Bactstreamcls';
 const _deletedBeaconId = 'Bactstreamdel';
+
+/// The stable ordering anchor `attention_request_state` recorded when this
+/// Request entered the viewer's attention (U09a's trigger, U10c's `LEAST`).
+Future<DateTime> _firstEntryAt(
+  Connection writer, {
+  required String beaconId,
+}) async {
+  final rows = await writer.execute(
+    Sql.named('''
+SELECT first_entry_at
+FROM public.attention_request_state
+WHERE account_id = @u AND beacon_id = @b
+'''),
+    parameters: {'u': _viewerId, 'b': beaconId},
+  );
+  return (rows.single[0]! as DateTime).toUtc();
+}
 
 Future<void> _ensureForwardPath(
   Connection writer, {
