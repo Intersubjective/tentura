@@ -17,6 +17,7 @@ import 'package:tentura/features/block/domain/use_case/block_case.dart';
 
 import 'attention_ack_store.dart';
 import 'attention_clear_store.dart';
+import 'attention_group_projection.dart';
 import 'entity/activity_beacon_attention.dart';
 import 'entity/attention_clear.dart';
 import 'entity/attention_cursor.dart';
@@ -84,6 +85,13 @@ final class AttentionCase {
         ),
       );
   final Map<String, AttentionReceipt> _receiptsById = {};
+
+  /// Children carried inside a grouped row's `eventsPreview`. They are kept
+  /// apart from [_receiptsById] on purpose: a child is addressable (a × can
+  /// clear it, a delta can be attributed to its surface) but it is not a
+  /// top-level feed row, so it must never widen a sweep's membership or the
+  /// page-level unread arithmetic.
+  final Map<String, AttentionReceipt> _childReceiptsById = {};
 
   StreamSubscription<String>? _accountSub;
   StreamSubscription<RealtimeEntityChange>? _notificationSub;
@@ -172,6 +180,7 @@ final class AttentionCase {
     _headRefreshQueued.clear();
     _headRefreshInFlight.clear();
     _receiptsById.clear();
+    _childReceiptsById.clear();
     _ackChains.clear();
     _markAllSeenChain = Future.value();
     _acks.resetForAccount(accountId);
@@ -607,6 +616,8 @@ final class AttentionCase {
     final id = operationId ?? _uuid.v4();
     // The client can only be optimistic about rows it has actually loaded;
     // unloaded totals stay where they are (D14).
+    // Top-level rows only: a child inside a preview is not an independent
+    // sweep member, and counting it would decrement a surface twice.
     final loaded = _receiptsById.values
         .where((receipt) => !receipt.isCleared)
         .map((receipt) => receipt.id)
@@ -870,8 +881,9 @@ final class AttentionCase {
     for (final receipt in feed.page.items) {
       _receiptsById[receipt.id] = receipt;
     }
+    _indexChildren(feed.page.items);
     final incoming = _uniqueByReceiptId(
-      feed.page.items.map(_acks.apply).map(_clears.apply),
+      feed.page.items.map(_project),
     );
     final items = replaceHead
         ? incoming
@@ -927,10 +939,52 @@ final class AttentionCase {
     await op;
   }
 
+  /// Every receipt this client can address — top-level rows and the children
+  /// indexed out of grouped previews.
+  AttentionReceipt? _knownReceipt(String id) =>
+      _receiptsById[id] ?? _childReceiptsById[id];
+
+  @visibleForTesting
+  bool knowsReceipt(String id) => _knownReceipt(id) != null;
+
+  /// The local view of one receipt: the clear axis, then the read axis.
+  AttentionReceipt _overlay(AttentionReceipt receipt) =>
+      _clears.apply(_acks.apply(receipt));
+
+  /// [_overlay], plus the grouped row's own preview and counts re-derived
+  /// from its children.
+  AttentionReceipt _project(AttentionReceipt receipt) {
+    final overlaid = _overlay(receipt);
+    if (overlaid.eventsPreview.isEmpty) return overlaid;
+    final projected = projectAttentionGroup(
+      eventTotal: overlaid.eventTotal ?? overlaid.eventsPreview.length,
+      eventUnseenCount: overlaid.eventUnseenCount ?? 0,
+      eventsPreview: overlaid.eventsPreview,
+      unseen: false,
+      overlay: (child) => _overlay(_childReceiptsById[child.id] ?? child),
+    );
+    var next = overlaid.copyWith(eventsPreview: projected.eventsPreview);
+    if (overlaid.eventTotal != null) {
+      next = next.copyWith(eventTotal: projected.eventTotal);
+    }
+    if (overlaid.eventUnseenCount != null) {
+      next = next.copyWith(eventUnseenCount: projected.eventUnseenCount);
+    }
+    return next;
+  }
+
+  void _indexChildren(Iterable<AttentionReceipt> items) {
+    for (final receipt in items) {
+      for (final child in receipt.eventsPreview) {
+        _childReceiptsById[child.id] = child;
+      }
+    }
+  }
+
   bool _displaysSeen(String id) {
     if (_acks.isOptimisticallyUnseen(id)) return false;
     if (_acks.isOptimisticallySeen(id)) return true;
-    return _receiptsById[id]?.isSeen ?? false;
+    return _knownReceipt(id)?.isSeen ?? false;
   }
 
   int _displayedUnreadCount(Iterable<String> ids) {
@@ -959,7 +1013,7 @@ final class AttentionCase {
       final displaysSeen = _displaysSeen(id);
       if (seen && !displaysSeen) continue;
       if (!seen && displaysSeen) continue;
-      final receipt = _receiptsById[id];
+      final receipt = _knownReceipt(id);
       if (receipt == null) continue;
       switch (receipt.surface) {
         case AttentionSurface.activity:
@@ -1005,7 +1059,7 @@ final class AttentionCase {
           entry.key: entry.value.copyWith(
             items: [
               for (final receipt in entry.value.items)
-                _clears.apply(_acks.apply(_receiptsById[receipt.id] ?? receipt)),
+                _project(_receiptsById[receipt.id] ?? receipt),
             ].where((receipt) {
               if (entry.key != AttentionView.unread) return true;
               return !receipt.isSeen;
