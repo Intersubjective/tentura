@@ -5295,3 +5295,200 @@ of new.
 No migration was needed — m0186's fields already carried undo's needs.
 
 ---
+
+## UNIT U10 — Primary projections and ordering · SCOUT BRIEF (2026-09-19)
+
+**Layer:** scout (read-only). **Base:** `6586b056a`. **Tag:** hard (widest blast radius).
+
+### Live baseline — what projections do today
+
+| Area | Live behaviour | U10 target (D02/D08/D09/§6/M1) |
+|------|----------------|--------------------------------|
+| **Optional “active”** | `seen_at IS NULL` drives dot, `event_unseen_count`, feed `unread` view, `surfaceSummary` activity/myWork unread totals, forward synthetic `seen_at`, watching digest | `requires_action = false AND cleared_at IS NULL` for optional axis; obligations stay `requires_action && settlement_kind IS NULL` |
+| **`beacon_activity_stats`** | `MAX(created_at)`, counts all `activity_child_receipts` with unseen = `seen_at IS NULL` | Stats only over **active attention** children; dot/count = uncleared optional (+ outcome axis elsewhere) |
+| **Activity feed sort** | `page_stream.created_at` = `GREATEST(latest_forward_at, stats.max_created_at)` for forwards; `requestActivity` uses `stats.max_created_at` | **Bumping key** ≠ **latest-event key**: optionals/tombstones/timeline-only update preview/list only |
+| **`activityOffers`** | `effective_activity_at = GREATEST(latest_forward_at, stats.max_created_at)`; cursor on that timestamp + `beacon_id` | Pinned zone: stable `first_entry_at` (then tie-break); obligation creation promotes (separate key) |
+| **Grouping eligibility** | Any beacon with activity surface receipts → stats row; `requestActivity` if not in `eligible_representative` | Group only when **active attention** (uncleared optional ∪ live obligation ∪ pending forward/prompt per surface rules) |
+| **`myWorkAttention`** | Emits if `unseenCount > 0 \|\| liveObligations.isNotEmpty`; `unseenCount` = all receipts with `seen_at IS NULL`; `latestUnseen` = newest non-obligation unseen | Emit on active optional ∪ live obligations; counts/dot fields aligned with D09; Needs-you **order** input = latest live-obligation `created_at` (server list or documented sort key for U14) |
+| **`surfaceSummary`** | `seen_at IS NULL` per surface; `needs_you_total` = live obligation **receipt** count (already correct axis, wrong optional axis) | Same predicates as list/indicator (M1); activity dot semantics ≠ raw unread receipt count |
+| **Receipt projection** | `_mapRow` / GraphQL `_mapReceipt` omit `cleared_at`, `clear_reason` | Expose `clearedAt` / `clearReason` on `AttentionReceipt` + GraphQL (U06b verify debt) |
+| **Cursors** | `query_attention.dart` JSON `{createdAt, id}` only; no version | Version field when sort keys change; malformed/old cursors rejected; head refresh dedupes by Request id (D08) |
+| **U08/U09** | `cleared_at`, sweep, `tombstone_dismissed_at`, `AttentionDismissibleSql` | **Invisible in feed/summary until U10** reads cleared state |
+
+**Client consumers (read-only; U14/U15):** `derive_my_work_sections.dart` buckets by `liveObligations`; desk card order still `compareMyWorkCardsForSort` → tier then **`Beacon.updatedAt`** (D08 wants stable work-entry ordering). `home_attention_state.dart` uses `activityUnreadTotal`, `myWorkUnreadTotal`, `surfaceNeedsYouTotal`, and `unreadBeaconIds` from markers — all will skew until server summaries/markers use active attention.
+
+### `// CHANGES IN U10:` and U02 doomed assertions (server)
+
+**Pure U10 tags** (`attention_activity_stream_pg_test.dart`):
+
+| Location | Current expectation | New expectation (observable) |
+|----------|---------------------|------------------------------|
+| Test `status event merges into forward and bumps created_at` (comment L539) | Optional status **promotes** forward row: `createdAt ==` status time `2026-08-12T14:00:00Z` | Forward row **sort/display anchor** stays on forward generation (`latest_forward_at` / relay time ~`08:00Z`); status changes **preview/dot/count** only (`eventTotal` / `isUnread` or successor fields reflect **uncleared optional**, not `seen_at` alone) |
+| Same test (comment L574) | `forward.isUnread == true` via synthetic `seen_at` null when child unseen | Dot/indicator follows **uncleared optional** predicate (may still be true, but must not depend on coalesced `seen_at` hack) |
+| Same test | `eventTotal == 1`; no standalone receipt tiles for beacon | Still grouped; children counted only if **actively** attention-bearing |
+| Test `activityOffers orders by effectiveActivityAt not latest_forward_at` (L767) | Status on foreign beacon **reorders** pinned set to `[foreign, closed]` ahead of `closed` with only `latest_forward_at` ordering | Relative pinned order **unchanged by optional status**; sort key becomes **`first_entry_at` (+ tie-break)**, not `GREATEST(forward, max optional created_at)` — expect order as before status insert (fixture: **without** status bump, `closed` sorts above `foreign` on forward time alone → after U10 expect `[_closedBeaconId, _foreignBeaconId]` and previews on the leading row per active optional rules) |
+| Same test (L792) | `eventTotal` / `eventsPreview` on **first** pinned row after status-driven reorder | First row per **stable** order; optional preview attaches without reordering |
+
+**U09/U10 joint tags** (same file; U10 owns projection semantics, may coordinate with U09 outcome presentation):
+
+| Test | Current | After U10 (+ U09 where noted) |
+|------|---------|-------------------------------|
+| `active help offer produces helping forward outcome` | Activity shows `forwardOutcome == helping` while My Work holds obligation | D01/D08: **no duplicate live attention** — helping trace on Activity is dismiss-only tombstone or absent when responsibility is My Work-only |
+| `helping forward has zero Activity event children` | `eventTotal == 0`, empty preview | Active-only grouping may attach **uncleared optional** children under outcome row or suppress per eligibility |
+
+**Not tagged but will break or need extension:** `unread_total includes receipts represented by forwards`, `my_work_attention_pg_test` unseen counts, `attention_surface_pg_test` per-surface unread totals, `demoted row above cursor appears on head refetch` (behaviour may change when sort keys change — still required to pass with versioned cursors).
+
+### `first_entry_at` (U09a)
+
+- **Writer:** `inbox_item_maintain_attention_request_state` on first `inbox_item` INSERT (`first_entry_at = now()`, `ON CONFLICT DO NOTHING`).
+- **Not bumped** on `latest_forward_at`, decisions, or tombstone dismiss.
+- **Sufficient for:** pinned unanswered forwards that have an `inbox_item` row (For You pinned zone per D08).
+- **Gaps:** `requestActivity` groups without inbox representative; obligation-only My Work entry; legacy rows until next inbox write — U10 may need **COALESCE(first_entry_at, min_active_receipt_at)** or backfill policy for stable ordering. **Not sufficient alone** for My Desk **Needs you** ordering (D08 #1: **latest live-obligation creation** desc).
+
+### CTE coupling in `attention_repository.dart`
+
+| Fragment | Coupling |
+|----------|----------|
+| `_visibleWithSurfaceCte` (`visible_raw` / `scope` / `visible`) | **Moves with everything** — surface split + obligation union |
+| `_activityGroupingCtes` (`eligible_*`, `activity_child_receipts`, `beacon_activity_stats`) | **Single unit** — eligibility filters and stats must agree |
+| `_activityPageStreamCte` (`page_stream` unions) | **Must move with** `activityOffers` ranked query and `activityAttention` stats join |
+| `attentionFeed` summary CTE + `surfaceSummary` | **Must share one SQL/Dart predicate** with page `unread`/dot semantics (M1) — not independent |
+| `myWorkAttention` Dart aggregation | Same optional/obligation definitions as SQL; can land in separate commit only if extracted shared predicate first |
+| `_loadActivityChildReceipts` | Tied to stats/preview; filter must match active optional axis |
+| `AttentionDismissibleSql.prelude` | **Duplicate today** — U10 should unify **behind dismissible predicate name** or shared CTE module to avoid sweep vs feed drift |
+
+### Pagination / head-refresh risks
+
+| Risk | Mechanism |
+|------|-----------|
+| **Vanish** | Request sort key jumps **above** cursor position (new obligation promotes) → absent from tail page and maybe missing from head if client only appends |
+| **Duplicate** | Same Request on head refresh **and** tail page when keys change but cursor unversioned |
+| **Pinned zone shuffle** | Replacing `effective_activity_at` with `first_entry_at` reorders existing users’ pins |
+
+**Existing tests that help:** `cursor paging across receipts and forwards has no duplicates or gaps`; `demoted row above cursor appears on head refetch`; `attention_surface_pg_test` cursor under activity filter; `attention_repository_pg_test` composite cursor stability; `attention_request_history_pg_test` feed-aligned history cursors.
+
+**Gaps (plan-required):** explicit **“group moves above cursor must not vanish”** on **activityOffers** / activity grouped feed after sort-key change; **versioned cursor** rejection test; **M1** test that summary totals match filtered page cardinality for each surface/view.
+
+### Split recommendation
+
+**Yes — do not single-pass U10.** Suggested slices:
+
+1. **U10a — Shared active-attention predicate** (extract from repository + align `AttentionDismissibleSql.prelude`; unit test M1 hook).
+2. **U10b — Indicators & `beacon_activity_stats`** (`cleared_at`, outcome-aware dot where needed; `myWorkAttention` + `surfaceSummary`).
+3. **U10c — Activity ordering & grouping** (`page_stream`, `activityOffers`, bump vs latest-event split, `first_entry_at`).
+4. **U10d — Receipt projection & cursors** (`clearedAt`/`clearReason`, cursor version, pagination/head tests).
+5. **Card provenance** (implementation-plan § blocking) is **separate** from U10 steps but gates U14/U16 — do not fold into U10a–d.
+
+### Risks (explicit)
+
+- **Silent disappearance:** clearing optional without U10-aware stats removes last receipt from `beacon_activity_stats` while inbox forward remains → group vanishes or dot/list disagree.
+- **Count vs list:** `surfaceSummary` / feed `summary` still counting `seen_at` while page uses `cleared_at` → tab lights, default filter empty (M1 failure).
+- **My Work marker:** `unreadBeaconIds` vs `surfaceNeedsYouTotal` diverge if optional axis moves to cleared without client change (server must ship consistent summaries; client still untouchable this unit).
+- **Helping forward:** cross-surface duplicate until projection applies scope — wrong row on Activity after help offer.
+- **Seen-but-cleared optionals:** still in `visible_attention_receipts` (retention) — must not count as active without `cleared_at` filter.
+- **Predicate drift:** refactoring `_visibleWithSurfaceCte` without updating `AttentionDismissibleSql` breaks sweep eligibility vs feed (U09a warned).
+
+### Approach summary
+
+Introduce a **single authoritative active-attention predicate** (optional + obligation + surface-specific forward/prompt rules per §6/D09) used by stats, grouping, summaries, and feed views. Split **sort keys**: `latest_event_at` for previews/history expansion vs `list_position_at` (`first_entry_at`, obligation-promotion timestamp). Version cursors; on head refresh merge by `beacon_id`. Extend `AttentionReceipt` and GraphQL mapping with clear fields. Rewrite U02-tagged tests to pin new behaviour; add pagination promotion tests.
+
+STATUS: complete
+
+---
+
+## UNIT U10a — One predicate source · INNER (2026-09-19)
+
+**Layer:** inner (implementer), tagged hard. **Base:** `a46c6b536`. Scope: the U10 scout brief's step 7
+(CTE coupling — `AttentionDismissibleSql.prelude` is a duplicate), promoted to run first by the U10 split.
+
+### Addition 1 — were the two definitions already identical?
+
+**Yes, in membership.** Proven before unifying, not asserted after.
+`attention_predicate_unification_pg_test.dart` freezes both texts verbatim from `a46c6b536` and runs them over
+one fixture set (owned Request in the responsibility-scope base, forwarded Request in the pinned decision zone,
+a Request pulled into scope by a live obligation, a profile-scoped receipt), comparing `visible` + `surface`,
+`scope`, and `eligible_pinned` row by row. All six PG comparisons were green at base.
+
+The one textual difference was `authorized.tombstone_copy`, present only on the repository side. It is a
+**projected column, not a row filter** — `visible_raw.*` widens, membership does not — so it moved into the
+shared text and the sweep simply never reads it. No divergence to report, and therefore no pre-existing defect.
+
+### A third copy the brief did not name
+
+`markAllSeen` carried its own inline `visible_raw` / `scope` / `visible` CTE — same rows, projecting only
+`id`, `seen_at`, `surface`. It was found by the structural guard in the new test (`attention_repository.dart`
+must not spell `visible_raw AS (` out), not by reading, which is the argument for that guard existing. It now
+composes `AttentionDismissibleSql.visibleWithSurface` like everything else. Four copies → one.
+
+### Shape after the unification
+
+| Constant | Contents | Consumers |
+|----------|----------|-----------|
+| `AttentionDismissibleSql.visibleWithSurface` | `visible_raw` / `scope` / `visible` | repository `_visibleWithSurfaceCte`, `markAllSeen`, sweep |
+| `AttentionDismissibleSql.eligiblePinned` | the pinned decision zone | repository `_activityGroupingCtes`, sweep |
+| `AttentionDismissibleSql.prelude` | `'$visibleWithSurface,\n$eligiblePinned'` | sweep capture / apply / refusal reasons |
+
+`_visibleWithSurfaceCte` survives as an alias so U10b/U10c diffs stay legible; it is now one line pointing at
+the shared constant.
+
+### Addition 2 — load-bearing for **both** consumers
+
+Loosening the shared surface split (`THEN 'myWork'` → `THEN 'activity'`) in a throwaway copy, asserted in the
+same file:
+
+- **sweep** — `activity_optional_dismissible` gains the My Desk receipt `Nu10aunifown`; a Request the viewer is
+  responsible for becomes sweepable from For You. Test: *loosening it changes the sweep member set*.
+- **feed** — per-surface counts move, `myWork` drops to zero. Test: *loosening it changes the feed per-surface
+  counts*.
+
+Both notice. The name and the logic are shared, not just the name.
+
+### Deliberately not done (U10b/U10c)
+
+The predicate still reads `seen_at` for indicators — the axis move is U10b, and the whole point of the split is
+that it now lands on one definition. Ordering, cursors, `effectiveActivityAt` and `clearedAt`/`clearReason`
+exposure untouched.
+
+### Commits
+
+| Hash | Subject |
+|------|---------|
+| `5e298b767` | `test(server): prove the sweep prelude and the repository CTE already agree` |
+| `078d0cc82` | `refactor(server): one visible/surface predicate for the sweep and the feed` |
+
+### Test evidence
+
+Equivalence proof at base (`5e298b767`), before any production change — 6 green, 1 red by design (the
+structural guard, which the unification turns green):
+
+```
+$ dart test --tags pg -j 1 test/data/repository/attention_predicate_unification_pg_test.dart
+00:01 +6 -1: Some tests failed.
+Failing tests:
+  test/data/repository/attention_predicate_unification_pg_test.dart: one source, structurally
+  attention_repository.dart no longer spells the CTE out
+```
+
+After the unification, the scout's PG list plus `attention_mark_seen_for_beacon_pg_test.dart` (added because
+`markAllSeen`'s copy turned out to be in scope):
+
+```
+$ ../../scripts/run_with_test_cleanup.sh --timeout 30m -- dart test --tags pg -j 1 \
+    attention_activity_stream / clear_operation / dismiss_sweep / dismissible_predicate /
+    outcome_dismissible / predicate_unification / repository / request_history / surface / undo /
+    mark_seen_for_beacon / my_work + api/controllers/graphql/attention_graphql
+00:41 +170: All tests passed!
+
+$ ../../scripts/run_with_test_cleanup.sh --timeout 10m -- dart test -j 1 \
+    test/api/controllers/graphql/attention_graphql_test.dart \
+    test/api/controllers/graphql/query_attention_payload_test.dart
+00:00 +35: All tests passed!
+
+$ ./scripts/run_with_test_cleanup.sh --timeout 10m -- ./scripts/check-custom-lints.sh packages/server
+── tentura_lints: packages/server ──
+total: 0 (baseline: 0)
+check-custom-lints: packages/server OK
+```
+
+**No existing test was edited.** The refactor-with-no-behaviour-change contract held; nothing asserted the
+duplication itself, so there was no exception to claim.
