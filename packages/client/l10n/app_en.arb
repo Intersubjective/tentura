@@ -2199,6 +2199,10 @@
   "@inboxNeedsMe": {
     "context": "InboxScreen"
   },
+  "attentionRelationHelping": "Helping",
+  "@attentionRelationHelping": {
+    "description": "First-person relation chip on a Request card when the viewer offered help (issue #171 spec 6.1). The following counterpart is inboxWatching."
+  },
   "inboxWatching": "Following",
   "@inboxWatching": {
     "context": "InboxScreen"

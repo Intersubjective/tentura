@@ -2190,6 +2190,7 @@
   "@inboxNeedsMe": {
     "context": "InboxScreen"
   },
+  "attentionRelationHelping": "Помогаю",
   "inboxWatching": "Слежу",
   "@inboxWatching": {
     "context": "InboxScreen"
