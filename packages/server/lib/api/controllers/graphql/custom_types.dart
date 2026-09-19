@@ -239,6 +239,56 @@ final gqlTypeAttentionDismissAllResult =
         ),
         field('pendingCount', graphQLInt.nonNullable()),
         field('status', graphQLString.nonNullable()),
+        // The undo window this sweep opened, if it cleared anything. Both are
+        // null together: no token means no undo affordance to offer.
+        field('undoToken', graphQLString),
+        field('undoDeadline', graphQLString),
+      ]);
+
+/// One member an undo did not restore, and why. Same shape as the sweep's
+/// member, different vocabulary: a sweep refuses to clear, an undo refuses to
+/// put back, and the reasons are not interchangeable.
+final gqlTypeAttentionUndoMember =
+    GraphQLObjectType('AttentionUndoMember', null)
+      ..fields.addAll([
+        field('kind', graphQLString.nonNullable()),
+        field('id', graphQLString.nonNullable()),
+        field('reason', graphQLString),
+      ]);
+
+/// Result of `attentionUndo`.
+///
+/// `refusal` is set only when the whole operation was refused — an expired
+/// window, an operation that is not the caller's, one that never applied
+/// anything. It is a value rather than an error precisely because "the undo
+/// window has passed" is a thing a person is told, not a thing that fails.
+final gqlTypeAttentionUndoResult =
+    GraphQLObjectType('AttentionUndoResult', null)
+      ..fields.addAll([
+        field('operationId', graphQLString.nonNullable()),
+        field(
+          'restoredReceiptIds',
+          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+        ),
+        field(
+          'restoredOutcomeBeaconIds',
+          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+        ),
+        field('restoredCount', graphQLInt.nonNullable()),
+        field(
+          'skipped',
+          GraphQLListType(
+            gqlTypeAttentionUndoMember.nonNullable(),
+          ).nonNullable(),
+        ),
+        field(
+          'failed',
+          GraphQLListType(
+            gqlTypeAttentionUndoMember.nonNullable(),
+          ).nonNullable(),
+        ),
+        field('status', graphQLString.nonNullable()),
+        field('refusal', graphQLString),
       ]);
 
 final gqlTypeAttentionSummary = GraphQLObjectType('AttentionSummary', null)

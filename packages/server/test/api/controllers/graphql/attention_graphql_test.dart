@@ -277,8 +277,13 @@ class _FakeSweep implements AttentionSweepPort {
       failed: const [],
       pending: const [],
       status: AttentionClearStatus.partial,
+      undoDeadline: deadline,
+      undoToken: token,
     );
   }
+
+  static final deadline = DateTime.utc(2026, 9, 19, 12);
+  static const token = 'fake-undo-token';
 }
 
 class _FakeClear implements AttentionClearPort {
@@ -884,6 +889,106 @@ void main() {
 
     expect(
       () => field.resolve!(null, {'operationId': 'OPSWEEP'}),
+      throwsA(isA<UnauthorizedException>()),
+    );
+  });
+
+  test('attentionDismissAll hands back the undo window it opened', () async {
+    final port = _FakeSweep();
+    final field = MutationAttention(
+      ack: _FakeAck(),
+      sweep: AttentionSweepCase(port),
+    ).all.singleWhere((field) => field.name == 'attentionDismissAll');
+
+    final result =
+        await field.resolve!(null, {...auth, 'operationId': 'OPSWEEP'}) as Map;
+
+    expect(result['undoToken'], _FakeSweep.token);
+    expect(result['undoDeadline'], _FakeSweep.deadline.toIso8601String());
+  });
+
+  test('attentionUndo reverses under the caller account', () async {
+    final port = _FakeSweep();
+    final field = MutationAttention(
+      ack: _FakeAck(),
+      sweep: AttentionSweepCase(port),
+    ).all.singleWhere((field) => field.name == 'attentionUndo');
+
+    final result =
+        await field.resolve!(null, {
+              ...auth,
+              'operationId': 'OPSWEEP',
+              'undoToken': const AttentionUndoToken(
+                accountId: 'U1',
+                operationId: 'OPSWEEP',
+              ).encode(),
+            })
+            as Map;
+
+    expect(port.undoneAccountId, 'U1');
+    expect(port.undoneOperationId, 'OPSWEEP');
+    expect(result['restoredReceiptIds'], ['N1']);
+    expect(result['restoredOutcomeBeaconIds'], ['B1']);
+    expect(result['restoredCount'], 2);
+    expect(result['status'], 'partial');
+    expect(result['refusal'], isNull);
+    final skipped = (result['skipped']! as List).single as Map;
+    expect(skipped['kind'], 'outcome');
+    expect(skipped['id'], 'B2');
+    expect(skipped['reason'], 'decision_changed');
+  });
+
+  test('attentionUndo names the refusal instead of failing', () async {
+    // "Expired" is the one refusal a person actually sees. It must arrive as
+    // a value, not as an error the client has to guess at.
+    final field = MutationAttention(
+      ack: _FakeAck(),
+      sweep: AttentionSweepCase(_FakeSweep()),
+    ).all.singleWhere((field) => field.name == 'attentionUndo');
+
+    final result =
+        await field.resolve!(null, {
+              ...auth,
+              'operationId': 'OPSWEEP',
+              // A token bound to another operation never reaches the port.
+              'undoToken': const AttentionUndoToken(
+                accountId: 'U1',
+                operationId: 'OPELSEWHERE',
+              ).encode(),
+            })
+            as Map;
+
+    expect(result['refusal'], 'not_found');
+    expect(result['status'], 'denied');
+    expect(result['restoredCount'], 0);
+  });
+
+  test('attentionUndo takes the operation and its token, nothing else', () {
+    final field = MutationAttention(
+      ack: _FakeAck(),
+      sweep: AttentionSweepCase(_FakeSweep()),
+    ).all.singleWhere((field) => field.name == 'attentionUndo');
+
+    expect(
+      field.inputs.map((input) => input.name).toSet(),
+      {'operationId', 'undoToken'},
+      reason:
+          'a caller cannot name which members come back — undo reverses what '
+          'the operation did, or it refuses',
+    );
+  });
+
+  test('attentionUndo requires authentication', () {
+    final field = MutationAttention(
+      ack: _FakeAck(),
+      sweep: AttentionSweepCase(_FakeSweep()),
+    ).all.singleWhere((field) => field.name == 'attentionUndo');
+
+    expect(
+      () => field.resolve!(null, {
+        'operationId': 'OPSWEEP',
+        'undoToken': 'whatever',
+      }),
       throwsA(isA<UnauthorizedException>()),
     );
   });

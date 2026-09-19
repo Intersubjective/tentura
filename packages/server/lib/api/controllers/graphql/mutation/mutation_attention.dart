@@ -1,6 +1,7 @@
 import 'package:tentura_server/domain/port/attention_ack_port.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/attention/attention_sweep_models.dart';
+import 'package:tentura_server/domain/attention/attention_undo_models.dart';
 import 'package:tentura_server/domain/use_case/attention_clear_case.dart';
 import 'package:tentura_server/domain/use_case/attention_settlement_case.dart';
 import 'package:tentura_server/domain/use_case/attention_sweep_case.dart';
@@ -43,6 +44,7 @@ final class MutationAttention extends GqlNodeBase {
     attentionSettle,
     attentionClear,
     attentionDismissAll,
+    attentionUndo,
   ];
 
   /// *Dismiss all* — owner decision A, as an API.
@@ -84,9 +86,51 @@ final class MutationAttention extends GqlNodeBase {
             'failed': [for (final each in result.failed) member(each)],
             'pendingCount': result.pending.length,
             'status': result.status.name,
+            'undoToken': result.undoToken,
+            'undoDeadline': result.undoDeadline?.toUtc().toIso8601String(),
           };
         },
       );
+
+  /// Undo — bounded, conservative, and explicit about what it would not do.
+  ///
+  /// It takes the operation and the token the server issued for it, and
+  /// nothing else: a caller cannot name which members come back, because undo
+  /// reverses what that operation did or it refuses. The window is enforced
+  /// against the server's clock, and an expired one arrives as `refusal:
+  /// "expired"` rather than as an error — it is a thing a person is told.
+  ///
+  /// Members whose object moved since the sweep are refused individually and
+  /// reported with a reason: later intent wins, so undo never puts the old
+  /// state back on top of the new one.
+  GraphQLObjectField<dynamic, dynamic> get attentionUndo => GraphQLObjectField(
+    'attentionUndo',
+    gqlTypeAttentionUndoResult.nonNullable(),
+    arguments: [_operationId.field, _undoToken.field],
+    resolve: (_, args) async {
+      final accountId = getCredentials(args).sub;
+      final result = await _sweep.undo(
+        accountId: accountId,
+        operationId: _operationId.fromArgsNonNullable(args),
+        undoToken: _undoToken.fromArgsNonNullable(args),
+      );
+      Map<String, dynamic> member(AttentionUndoMember member) => {
+        'kind': member.kind,
+        'id': member.id,
+        'reason': member.reason?.wireName,
+      };
+      return {
+        'operationId': result.operationId,
+        'restoredReceiptIds': result.restoredReceiptIds,
+        'restoredOutcomeBeaconIds': result.restoredOutcomeBeaconIds,
+        'restoredCount': result.restoredCount,
+        'skipped': [for (final each in result.skipped) member(each)],
+        'failed': [for (final each in result.failed) member(each)],
+        'status': result.status.name,
+        'refusal': result.refusal?.wireName,
+      };
+    },
+  );
 
   /// Clears exactly the membership captured by `snapshotToken` — never more.
   ///
@@ -184,6 +228,7 @@ final class MutationAttention extends GqlNodeBase {
   static final _snapshotToken = InputFieldString(fieldName: 'snapshotToken');
   static final _operationId = InputFieldString(fieldName: 'operationId');
   static final _maxBatches = InputFieldInt(fieldName: 'maxBatches');
+  static final _undoToken = InputFieldString(fieldName: 'undoToken');
 
   GraphQLObjectField<dynamic, dynamic> get attentionSettle =>
       GraphQLObjectField(
