@@ -3630,3 +3630,28 @@ the port gained a method.
 The client Done control and every other client `lib/` file (U15), obligation identity, the channel/email path,
 `AttentionExpirySweepCase`'s per-beacon isolation semantics, and the U07a P2 gaps closed in U07b1.
 
+#### finisher · test doubles for `listExpiredReviewObligationAccountIds`
+
+Overseer full-suite verify: 11 failures, one root cause — `NoopAttentionSystemSettlement` (and every PG stack
+that wires `ReviewFinalizationCase` through it) still `extends Fake` without the U07b2 port method
+`listExpiredReviewObligationAccountIds`, so `closeAndFinalize` blew up at line 93 before lifecycle or trust
+assertions ran.
+
+**Fix:** implement on `NoopAttentionSystemSettlement` only — `listExpiredReviewObligationAccountIds` → `[]`
+(incidental no-op: finalization-shape tests do not assert expiry explanations; those live in
+`review_obligation_settlement_pg_test.dart`). Also stubbed the two help-offer supersede port methods the class
+had already been missing, so the fake fully implements the port.
+
+**Meaning tests after green:** `re-close is idempotent when forward episode already exists` and `manual and expiry
+finalization share the same hierarchy closed shape` still pass unchanged — **plumbing-only**; U07b2's new
+`recordEligibleSourceTransition` call does not alter re-close idempotency or the closed hierarchy shape those
+cases assert.
+
+```
+dart test review_finalization_case_test.dart forward_outcome_finalization_test.dart     00:00 +7: All passed!
+dart test --exclude-tags pg                                                             00:07 +1671: All passed!
+dart test --tags pg -j 1                                                                12:01 +855 ~24: All passed!
+```
+
+All through `scripts/run_with_test_cleanup.sh`. `~24` skips are `_skipHistoricalMigrationCoverage` only.
+

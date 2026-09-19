@@ -143,6 +143,26 @@ final class NoopAttentionSystemSettlement extends Fake
       0;
 
   @override
+  Future<int> supersedeAuthorHelpOfferSubmitted({
+    required String beaconId,
+    required String authorAccountId,
+    required String helpOffererUserId,
+  }) async =>
+      0;
+
+  @override
+  Future<int> supersedeAuthorHelpOfferObligationsOnBeaconClose(
+    String beaconId,
+  ) async =>
+      0;
+
+  @override
+  Future<List<String>> listExpiredReviewObligationAccountIds(
+    String beaconId,
+  ) async =>
+      [];
+
+  @override
   Future<List<String>> listBeaconIdsWithClosedReviewWindows() async => [];
 }
 
