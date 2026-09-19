@@ -11,6 +11,7 @@ import 'package:tentura_server/data/database/tentura_db.dart'
 import 'package:tentura_server/data/repository/attention_clear_repository.dart';
 import 'package:tentura_server/data/repository/attention_dismissible_sql.dart';
 import 'package:tentura_server/data/repository/attention_repository.dart';
+import 'package:tentura_server/data/repository/attention_sweep_repository.dart';
 import 'package:tentura_server/domain/attention/attention_clear_models.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
 
@@ -50,6 +51,7 @@ Future<void> main() async {
     late TenturaDb database;
     late AttentionRepository query;
     late AttentionClearRepository clear;
+    late AttentionSweepRepository sweep;
 
     setUpAll(() async {
       session = await setUpDisposablePgWriter(target: target);
@@ -57,6 +59,7 @@ Future<void> main() async {
       database = openDisposablePgDatabase(target);
       query = AttentionRepository(database);
       clear = AttentionClearRepository(database);
+      sweep = AttentionSweepRepository(database);
     });
 
     setUp(() async {
@@ -516,6 +519,142 @@ WHERE id = 'Naxis04'
       });
     });
 
+    // ------------------------------- round trip: the sweep and undo legs
+    //
+    // U10b asserted the *clear* leg against the projections. The circuit the
+    // last four units exist to close is U08 writes → U09 sweeps → U09c undoes
+    // → U10b projects, and two thirds of it was never asserted end to end: a
+    // sweep that wrote `cleared_at` and a feed that ignored it would have
+    // passed every test in this file. The three legs below run the real
+    // repositories, never a hand-written UPDATE, and check all three read
+    // shapes each time — the surface summary (the dot), the default unread
+    // feed (the list) and the Activity grouping (the cards).
+
+    test('a sweep empties the summary, the feed and the grouping together',
+        () async {
+      await _forwardEdge(writer, id: 'FEaxis05', beaconId: _foreignBeaconId);
+      await _optional(writer, id: 'Naxis18', beaconId: _foreignBeaconId);
+      await _profile(writer, id: 'Naxis19');
+      await _optional(writer, id: 'Naxis20', beaconId: _ownedBeaconId);
+
+      final before = await _activityShape(query);
+      expect(before.summaryTotal, 2, reason: 'two active optional rows on the '
+          'Activity surface; the My Desk row is a different surface');
+      expect(before.feedIds, isNotEmpty);
+      expect(before.offerUnseen[_foreignBeaconId], 1);
+
+      final result = await sweep.dismissAll(
+        accountId: _viewerId,
+        operationId: 'OPaxis18',
+      );
+      expect(
+        result.appliedReceiptIds.toSet(),
+        {'Naxis18', 'Naxis19'},
+        reason: 'the sweep clears the Activity optional rows and nothing else',
+      );
+
+      final after = await _activityShape(query);
+      expect(
+        after.summaryTotal,
+        0,
+        reason: 'U09 wrote cleared_at; the dot is supposed to read it',
+      );
+      expect(after.feedIds, isEmpty);
+      expect(
+        after.offerUnseen[_foreignBeaconId],
+        0,
+        reason: 'the grouping is the third read shape and moves with the '
+            'other two — a card still showing a swept count is M1 failing on '
+            'the grouped surface',
+      );
+      expect(
+        (await query.surfaceSummary(accountId: _viewerId)).myWorkUnreadTotal,
+        1,
+        reason: 'My Desk is not dismissible from For You (Set R)',
+      );
+    });
+
+    test('undo brings the summary, the feed and the grouping back', () async {
+      await _forwardEdge(writer, id: 'FEaxis06', beaconId: _foreignBeaconId);
+      await _optional(writer, id: 'Naxis21', beaconId: _foreignBeaconId);
+      await _profile(writer, id: 'Naxis22');
+
+      final before = await _activityShape(query);
+      final result = await sweep.dismissAll(
+        accountId: _viewerId,
+        operationId: 'OPaxis21',
+      );
+      expect(result.undoToken, isNotNull);
+      expect((await _activityShape(query)).summaryTotal, 0);
+
+      final undone = await sweep.undo(
+        accountId: _viewerId,
+        operationId: 'OPaxis21',
+        undoToken: result.undoToken!,
+      );
+      expect(undone.restoredReceiptIds.toSet(), {'Naxis21', 'Naxis22'});
+
+      final after = await _activityShape(query);
+      expect(
+        after.summaryTotal,
+        before.summaryTotal,
+        reason: 'undo un-writes cleared_at; every projection that fell to the '
+            'sweep has to come back, or the window is not an undo',
+      );
+      expect(after.feedIds, before.feedIds);
+      expect(after.offerUnseen, before.offerUnseen);
+    });
+
+    test('neither the sweep nor its undo touches the pinned zone', () async {
+      // Owner decision A: *Dismiss all* never clears anything awaiting a
+      // decision. An unanswered forward is awaiting one, so the pinned card
+      // must survive the sweep with its question intact — and survive the
+      // undo without being duplicated or reordered.
+      await _forwardEdge(
+        writer,
+        id: 'FEaxis07',
+        beaconId: _foreignBeaconId,
+        createdAt: '2026-08-10T10:00:00Z',
+      );
+      await _forwardEdge(
+        writer,
+        id: 'FEaxis08',
+        beaconId: _otherBeaconId,
+        createdAt: '2026-08-10T09:00:00Z',
+      );
+      await _optional(writer, id: 'Naxis23', beaconId: _foreignBeaconId);
+
+      final before = await query.activityOffers(accountId: _viewerId);
+      final beforeOrder = before.items.map((row) => row.beaconId).toList();
+      expect(beforeOrder, hasLength(2));
+
+      final result = await sweep.dismissAll(
+        accountId: _viewerId,
+        operationId: 'OPaxis23',
+      );
+      expect(
+        result.appliedOutcomeBeaconIds,
+        isEmpty,
+        reason: 'both Requests are unanswered forwards in the pinned zone; '
+            'the outcome axis must refuse every one of them (decision A)',
+      );
+
+      final afterSweep = await query.activityOffers(accountId: _viewerId);
+      expect(afterSweep.items.map((row) => row.beaconId).toList(), beforeOrder);
+      expect(afterSweep.totalCount, before.totalCount);
+
+      final undone = await sweep.undo(
+        accountId: _viewerId,
+        operationId: 'OPaxis23',
+        undoToken: result.undoToken!,
+      );
+      expect(undone.restoredOutcomeBeaconIds, isEmpty);
+
+      final afterUndo = await query.activityOffers(accountId: _viewerId);
+      expect(afterUndo.items.map((row) => row.beaconId).toList(), beforeOrder);
+      expect(afterUndo.totalCount, before.totalCount);
+    });
+
     // ------------------------------------------------- round trip (add. 5)
 
     test('a real clear moves the feed and the summary together', () async {
@@ -599,6 +738,31 @@ WHERE id = 'Naxis04'
       );
     });
   });
+}
+
+/// The three Activity read shapes, read together so a leg of the round trip
+/// cannot be asserted on one of them and silently skipped on the others.
+typedef _ActivityShape = ({
+  int summaryTotal,
+  List<String> feedIds,
+  Map<String, int> offerUnseen,
+});
+
+Future<_ActivityShape> _activityShape(AttentionRepository query) async {
+  final summary = await query.surfaceSummary(accountId: _viewerId);
+  final feed = await query.attentionFeed(
+    accountId: _viewerId,
+    view: AttentionFeedView.unread,
+    surface: AttentionSurface.activity,
+  );
+  final offers = await query.activityOffers(accountId: _viewerId);
+  return (
+    summaryTotal: summary.activityUnreadTotal,
+    feedIds: [for (final item in feed.page.items) item.id],
+    offerUnseen: {
+      for (final row in offers.items) row.beaconId: row.eventUnseenCount,
+    },
+  );
 }
 
 const _viewerId = 'Uaxis01';
