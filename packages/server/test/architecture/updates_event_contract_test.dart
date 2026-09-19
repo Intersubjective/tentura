@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:test/test.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
+import 'package:tentura_server/domain/attention/attention_policy.dart';
 
 const _topLevelKeys = {
   'schemaVersion',
@@ -345,6 +346,24 @@ void main() {
 
         _collectUnverified(variant, '$eventType', unverifiedGaps);
         _enforceClassificationRules(eventType, variant);
+
+        // U11 — the declaration and the column must be the same decision.
+        // `placement` stopped being documentation in U11: `AttentionPolicy`
+        // writes it onto every receipt and the read projection excludes
+        // `timeline_only` from dots, counts and ordering. If a contract edit
+        // could move `placement` without moving the policy, the contract
+        // would once again describe a behaviour nothing implements.
+        expect(
+          const AttentionPolicy()
+              .placement(
+                AttentionEventType.values.byName(eventType),
+              )
+              .wireName,
+          variant['placement'],
+          reason:
+              '$eventType: AttentionPolicy.placement disagrees with the '
+              'contract',
+        );
       }
     }
 
