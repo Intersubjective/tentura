@@ -8415,3 +8415,180 @@ elsewhere: the journal is the only carrier of knowledge between units, briefs ar
 will audit the implementation against exactly these records.
 
 ---
+
+---
+
+## UNIT U14c — indicators · INNER (2026-09-19)
+
+**Layer:** inner (implementer). **UNIT_BASE:** `9816c97e8`. **Scope:** the last of the U14 split — D09
+independence, M1 one shared predicate, and removal of the two suppressions in `home_attention_state.dart`.
+No surface wiring (U15/U16), no server file, no generated file, no golden re-recorded.
+
+### Commands
+
+```
+cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 45m -- flutter test \
+  --dart-define=ENV=test --dart-define-from-file=env/test.env \
+  test/features/home test/features/inbox test/features/my_work test/domain/attention
+→ baseline at 9816c97e8: 00:19 +487: All tests passed!
+→ at HEAD:               00:23 +519: All tests passed!   (+32 new)
+
+./scripts/run_with_test_cleanup.sh --timeout 10m -- ./scripts/check-custom-lints.sh packages/client
+→ 21 no_raw_edge_insets · 9 no_raw_border_radius · total: 30 (baseline: 30) — OK
+```
+
+`test/features/updates` is outside the unit's TEST_CMD paths but holds one of the rewritten expectations, so it
+was run alongside — the four unit paths plus `test/features/updates` at HEAD: `00:26 +617: All tests passed!`
+
+### Step 1 — the one rule (`81c89c376`)
+
+TEST_RED — `flutter test test/domain/attention/request_attention_predicate_test.dart`:
+
+```
+test/domain/attention/request_attention_predicate_test.dart:4:8: Error: Error when reading
+  'lib/domain/attention/request_attention_predicate.dart': No such file or directory
+... Error: Type 'RequestAttentionFacts' not found.  (×7 more)
+```
+
+TEST_GREEN — same command → `00:00 +16: All tests passed!`
+
+`lib/domain/attention/request_attention_predicate.dart` holds `requestHasDot`, `requestCount`,
+`myDeskAttentionMembers`, `forYouAttentionMembers`, `indicatorsFromMembers` and the surface-total helpers the
+`HomeAttentionState` getters now call.
+
+**The shape is the argument, not the name.** `indicatorsFromMembers` takes the *membership list* — the rows the
+surface renders — and nothing else. There is no input a caller could pass that the list did not already filter,
+so "lit tab over an empty list" is unrepresentable rather than merely untested. U10a's finding (six hand-written
+copies that all looked unified) is why the indicator does not take the facts and re-derive.
+
+### Step 2 — card independence (`644f23797`)
+
+TEST_RED — `flutter test test/features/inbox/request_attention_indicators_test.dart`:
+
+```
+test/features/inbox/request_attention_indicators_test.dart:6:8: Error: Error when reading
+  'lib/features/inbox/ui/widget/request_attention_indicators.dart': No such file or directory
+... Error: Method not found: 'RequestAttentionIndicators'.
+```
+
+TEST_GREEN — same command → `00:00 +8: All tests passed!`
+
+Two slots, neither conditional on the other. The card reuses `TenturaCountBadge`; the dot is an 8 dp
+`scheme.primary` circle matching the nav `Badge` dot, so the two read as one language. Semantics are distinct
+(`activityNavBadgeNewActivity` vs `myWorkNavBadgeObligations(n)`) — no new ARB key was needed.
+
+### Step 3 — the suppressions, and the expectations that encoded them (`cbfa975cc`)
+
+TEST_RED — the three files holding the rewritten expectations, before touching `home_attention_state.dart`:
+
+```
+$ flutter test test/features/home/work_activity_nav_indicators_test.dart \
+    test/features/home/home_attention_cubit_test.dart \
+    test/features/updates/updates_102_my_work_attention_test.dart
+00:00 +13 -10: Some tests failed.
+```
+
+TEST_GREEN — same command after the state change → `00:00 +23: All tests passed!`
+(then `+29` once the step-2 file and the new nav-icon widget tests joined the same run).
+
+### Addition 1 — the expectation-rewrite table
+
+Every expectation edited in this unit, what it asserted, and why the new reading is the one the contract
+requires. No expectation was relaxed to absorb a failure; each states a stronger fact than before.
+
+| File · test | Asserted before | Asserts now | Why this is the contract |
+|---|---|---|---|
+| `work_activity_nav_indicators_test.dart` · *obligations hide activity dot on active inbox* → renamed *the activity dot survives its own tab being open* | `activityDot: false` with `activity: 2` on `HomeTab.inbox` | `activityDot: true` | §6: "Indicators do not hide because the tab is currently open." The old name stated the suppression as the feature. Opening a tab is the **read** axis (D02); the dot is the **clear** axis (U10b). |
+| same file · *my work unread hidden on active work tab* → *the my work dot survives its own tab being open* | `myWorkDot: false` with `myWorkUnread: 2` on `HomeTab.work` | `myWorkDot: true` | Same clause, other surface. The Request is still uncleared while the user looks at the tab. |
+| same file · *obligations beat my work unread dot* → *obligations do not extinguish the my work dot* | `myWorkDot: false` with `needsYou: 2`, `myWorkUnread: 4` | `myWorkNumber: true` **and** `myWorkDot: true` | D09: "Dot and number are independent: a Request with both shows both." `surfaceNeedsYouTotal == 0` made the dot a fallback for the number, which is the one relationship the contract forbids. The tab still paints one badge slot (count first) — that is §6's icon rule, not a state-level suppression, and it stays. |
+| same file · *obligations on inactive activity tab* → *obligations and optional updates show a number and a dot* | `myWorkDot: false` (blocked by both gates at once) | `myWorkDot: true` | Both gates removed; the case now reads as a plain function of the totals. |
+| same file · *beacon-scoped my work unread lights My Work only* | needed `setActiveHomeTab(HomeTab.inbox)` before the dot would appear | the `setActiveHomeTab` call is **deleted**; the dot is asserted on the default tab | The call existed only to dodge the suppression. Leaving it would have hidden the change behind a green test. |
+| `home_attention_cubit_test.dart` · *projects unread ids with My Work precedence and hides active-tab dots* → *…, on every tab* | `hasInboxDot: true, hasMyWorkDot: false`, then after switching to inbox the pair flips | both `true`, and both still `true` after switching | The legacy marker dots carried the same active-tab gate. Marker **membership** (`inboxMarkerIds` / `myWorkMarkerIds`, asserted unchanged two lines above) is what the test was really about; the flip was the suppression. |
+| `updates_102_my_work_attention_test.dart` · *commitmentAccepted receipt drives Updates unread and My Work dot without navigation* | `hasMyWorkDot: false` while `HomeTab.work` was active, `true` after switching away | `true` in both positions | The test's own name says *without navigation*; the old expectation made the dot depend on exactly that. `isMyWorkBeaconMarked` was already `true` in both branches — the dot now agrees with it. |
+
+Four expectations **added** rather than rewritten, all in `work_activity_nav_indicators_test.dart`: *no
+indicator changes when the active tab does* (every case re-read under every `HomeTab`, asserting one distinct
+reading), *the getters read the shared predicate, not a local copy*, *M1 — a lit surface indicator implies a
+non-empty default list*, and *the unloaded summary lights nothing*.
+
+### Addition 2 — how M1 was proved, not asserted
+
+Three separate proofs, because a shared name is not a shared rule.
+
+**(a) Structural.** `indicatorsFromMembers(List<RequestAttentionFacts>)` cannot see anything the list rejected.
+Asserted directly in *indicators are computed from members, never from raw facts*.
+
+**(b) Grounded in the real list.** *everything My Desk counts is reachable through a real desk filter* runs the
+production `filterMyWorkCardsForDesk` — the actual My Work desk filter — over a 72-state enumeration (optional
+0/1/2 × outcome 0/1 × obligations 0/1/3 × archived × pending forward), through **exactly** the filters
+`myDeskExposedFilters` declares, and asserts `counted ⊆ reachable` for three different exposed-filter sets. The
+test binds the predicate's `MyDeskAttentionFilter` to the real `MyWorkFilter`, so a mapping that lies is a list
+that cannot show what the indicator counted.
+
+**(c) Forked in a throwaway, twice, and it reddened both times.** Two independent one-clause forks of the
+**production** predicate (reverted; nothing committed):
+
+| Fork | Mutation | Result |
+|---|---|---|
+| A — drop the reachability half | `myDeskAttentionMembers` stops consulting `exposedFilters` | `00:00 +13 -3` — *an archived Request is counted only because Archive exposes it*, *the invariant tests fail when the two rules are forked*, and *everything My Desk counts is reachable through a real desk filter* all fail |
+| B — lie about which filter exposes a Request | `myDeskFilterExposing` returns `active` for archived Requests | `00:00 +13 -3` — the same three |
+
+The D09 widget test was proved load-bearing the same way: forking
+`RequestAttentionIndicators` to `requestHasDot(facts) && requestCount(facts) == 0` (the suppression, moved onto
+the card) failed four tests, the first with `the count must not hide the dot`.
+
+### Addition 3 — the lit-tab-over-an-empty-list failure, asserted directly
+
+*a lit My Desk indicator always has a non-empty list behind it* and its For You twin assert
+`indicators.isLit == members.isNotEmpty` over the whole 72-state space — the equality, not just the implication,
+because the reverse direction (a list with rows and a dark tab) is the same defect seen from the other side.
+
+**The archived case** is asserted as the contract's disjunction, not as a preference: with the Archive filter
+offered, an archived Request's optional update lights the dot **and** `filterMyWorkCardsForDesk` under
+`MyWorkFilter.archived` really returns it; take `MyDeskAttentionFilter.archive` out of the exposed set and the
+same Request contributes to **neither** the dot nor the list. That is §6's "either it contributes to the dot and
+is reachable through the Archive filter, or it contributes to neither", stated both ways round.
+
+At the surface level the totals are the server's counts of the authorized default list (U10b), so
+*M1 — a lit surface indicator implies a non-empty default list* asserts each getter is exactly its total's
+`> 0` and nothing else can enter.
+
+### Addition 4 — dot and count coexisting
+
+Asserted on the card (*both are present at once — neither hides the other*: dot **and** count **and** the count
+reading `4` rather than the optional-event count `3`), in the rule (*a Request with both shows both*), and at
+the surface (the rewritten *obligations do not extinguish the my work dot*). The nav **icon** still paints one
+badge slot with the count first — §6's own rule for tab icons — and *the dot returns when the count drops to
+zero* pins that transition; the independence lives in the state and on the card, where §6 puts it.
+
+### Addition 5 — U14a/U14b not regressed
+
+No file from either unit was touched. `test/features/inbox` (mini-card E32 dismiss, focus hand-off, the 224 dp
+ceiling, the active-event block's clear-axis guard, pagination and overflow policy) and `test/features/my_work`
+ran green inside the `+519`. Nothing to report.
+
+### Addition 6 — goldens
+
+**None moved.** No golden file is in the diff and no golden test failed; `--update-goldens` was never run, so
+the U0C audit had nothing to audit. The new indicator widget is not yet mounted on any surface (that is
+U15/U16), and the nav-indicator suite had no goldens to begin with.
+
+### Findings
+
+- **The navbar items needed no change.** `MyWorkNavbarItem` already preferred the count and fell back to the
+  dot; both suppressions lived entirely in the state, so removing them lit the existing widgets correctly. What
+  the widgets lacked was a test — the four in *tab icons — one badge slot, count first (§6)* are new.
+- **`HomeAttentionCubit` is a `final class`**, so a stub cubit is impossible; the nav-icon tests drive the real
+  one. That boot deadlocks inside `testWidgets` unless a tree exists first — `tester.pump()` has nothing to
+  pump before the first `pumpWidget`, and the test hangs to the shell timeout with no error. A
+  `pumpWidget(SizedBox.shrink())` ahead of the boot is the fix, noted in the test.
+- **`activeHomeTab` stays on the state.** It is still read by `inbox_screen.dart` (leaving the tab) and
+  `home_bottom_nav_listener.dart` (reselect); it is simply no longer an input to any indicator.
+
+### Deliberately not done
+
+`RequestAttentionIndicators` is built and tested but not mounted on a card — surface integration is U15/U16, and
+mounting it here would have put U14c inside their blast radius. `requestInvalidations` still has no subscriber,
+as U13c left it.
+
+STATUS: complete
