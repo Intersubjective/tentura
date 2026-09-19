@@ -8971,3 +8971,154 @@ while My Desk maintains attention projections in another shape entirely.
 must be driven by an **actual server response** or an explicitly shared fixture — never by a hand-built value
 that merely looks right.
 
+
+## UNIT U15R-a — server correctness · INNER (remediation) (2026-09-19)
+
+Four defects from Astra's interim review (R1, R9, R3, R8), all in code this plan had already accepted. The
+reviewer executed nothing, so each one started as a reproduction attempt. **All four reproduced.** One commit
+per defect, each opened by a red test that states the *user-visible* consequence rather than the internal call.
+
+### R1 — clearing an outcome vetoed its Request's live attention (P1)
+
+**Reproduced.** Two new tests in `attention_activity_stream_pg_test.dart`:
+
+```
+$ cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
+    dart test --tags pg -j 4 test/data/repository/attention_activity_stream_pg_test.dart
+00:05 +16 -1: … an outcome-only dismissal leaves later optional attention reachable [E]
+  Expected: non-empty
+    Actual: []
+00:06 +16 -2: … a non-helping outcome row carries no dot and no sub-cards [E]
+  Expected: <0>
+    Actual: <1>
+00:06 +22 -2: Some tests failed.
+```
+
+The first is the M1 failure stated from both ends at once: `surfaceSummary` counted the uncleared optional
+receipt (1) while the feed held nothing for that Request. Both numbers come from the server; neither is a
+hand-built value.
+
+Fix: `eligible_representative` is the pinned decision zone alone; the `requestActivity` row is no longer gated
+on `tombstone_dismissed_at`; every outcome row projects `event_total = 0`, `event_unseen_count = 0`, no dot and
+no previews. The tombstone stays gone after dismissal (`eligible_forward` still excludes it) — only live
+attention the tab already counts becomes reachable, so m0183/m0185 territory is untouched.
+
+The preview attachment needed a second fix the reviewer did not name: it was keyed on `beaconId`, so the
+outcome row inherited the sub-cards of the Request's own row even after being excluded from the query.
+
+**Three accepted tests encoded the defect** and are rewritten in place with the reason: the dismissed-tombstone
+case asserted an empty *surface*; the merge case asserted the outcome row wearing the event's dot and count;
+the unread-view case counted the outcome row as unread membership. A fourth (`attention_ordering_keys`) used
+`.single` on rows-for-a-Request and is restated over all of them, which is strictly the stronger form of the
+D08 reconciliation property it was protecting.
+
+```
+00:06 +24: All tests passed!
+```
+
+### R9 — two concurrent single clears both claimed one receipt (P2)
+
+**Reproduced, deterministically.** The test does not hope for an interleaving: a third connection holds a row
+lock on the receipt, both applies run until their guarded UPDATE blocks on it (`_awaitLockWaiters` polls
+`pg_stat_activity`), and only then is the lock released.
+
+```
+$ dart test --tags pg -j 1 -n "two concurrent single clears" \
+    test/data/repository/attention_clear_operation_pg_test.dart
+00:01 +0 -1: … two concurrent single clears cannot both claim one receipt [E]
+  Expected: an object with length of <1>
+    Actual: ['OPu08raceA', 'OPu08raceB']
+```
+
+Fix: the write happens first and its effect is read back through `cleared_by_operation_id` — the sweep's own
+rule, now shared. Ownership is asserted from that column, not from either result. `_replay` semantics are
+unchanged: membership is still rebuilt from the stored member rows.
+
+```
+00:04 +16: All tests passed!   # test/data/repository/attention_clear_operation_pg_test.dart
+```
+
+### R3 — explicit clears could not be undone (P1)
+
+**Reproduced**, after adding the two nullable result fields so the test could compile and fail on behaviour
+rather than on syntax:
+
+```
+$ dart test --tags pg -j 1 -n "explicit clears are undoable" \
+    test/data/repository/attention_undo_pg_test.dart
+00:01 +0 -1: … a single clear issues a bounded undo window and honours it [E]   Expected: not null / Actual: <null>
+00:01 +0 -2: … a single clear captures the revision it was taken at [E]         Expected: <1>      / Actual: <null>
+00:02 +0 -3: Some tests failed.
+```
+
+The discriminating case for the per-member half is the *restore*, not the refusal: a Request already decided
+before the clear (revision > 0), untouched afterwards, must come back. With nothing stored, undo compared the
+live revision against a default `0` and refused it — an undo refusing exactly what it exists to restore.
+
+Fix: an apply that cleared something opens the same bounded window as a sweep and returns its deadline and undo
+token (a replay is told about the first apply's window and never buys a new one); `decisionRevision` is threaded
+through the port, the case and the member row; a receipt-scoped capture resolves the Request from the receipt
+instead of binding `0/0`. `AttentionClearResult` gained `undoToken`/`undoDeadline` on the wire, asserted in the
+GraphQL suite so U16's snackbar has something to call.
+
+```
+00:04 +25: All tests passed!   # test/data/repository/attention_undo_pg_test.dart
+00:02 +164: All tests passed!  # test/api/controllers/graphql/
+```
+
+### R8 — clearing the last row lost the ordering anchor (P2)
+
+**Reproduced.** The fixture uses deliberately different creation and entry times and clears through the real
+command, not by hand — a hand-written `UPDATE … SET cleared_at` is refused by
+`notification_outbox__clear_facts_chk`, which is the schema insisting the same thing this unit does.
+
+```
+$ dart test --tags pg -j 1 test/data/repository/my_work_attention_pg_test.dart
+00:01 +2 -1: … the ordering anchor survives losing every active attention row [E]
+  Expected: an object with length of <1>
+    Actual: []
+```
+
+Fix: the projection emits the Request *quiet* — zero count, no preview, no obligations, and the anchor it
+entered with, computed over every scoped receipt so it survives clearing. The two axis-suite assertions that
+read "…leaves My Work" are restated as the guarantee they actually protect: the cleared set stops counting and
+stops previewing. Quiet is not the same as gone.
+
+### Full evidence
+
+```
+$ cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 40m -- dart test --tags pg -j 4 \
+    test/data/repository/attention_activity_stream_pg_test.dart \
+    test/data/repository/attention_surface_pg_test.dart \
+    test/data/repository/attention_active_attention_axis_pg_test.dart \
+    test/data/repository/attention_ordering_keys_pg_test.dart \
+    test/data/repository/attention_clear_operation_pg_test.dart \
+    test/data/repository/attention_dismiss_sweep_pg_test.dart \
+    test/data/repository/attention_undo_pg_test.dart \
+    test/data/repository/attention_dismissible_predicate_pg_test.dart \
+    test/data/repository/attention_predicate_unification_pg_test.dart \
+    test/data/repository/attention_outcome_dismissible_pg_test.dart \
+    test/data/repository/my_work_attention_pg_test.dart \
+    test/data/repository/attention_request_history_pg_test.dart \
+    test/data/repository/attention_repository_pg_test.dart \
+    test/data/repository/attention_grouped_provenance_pg_test.dart
+00:31 +214: All tests passed!
+
+$ ../../scripts/run_with_test_cleanup.sh --timeout 15m -- dart test -j 4 test/api/controllers/graphql/
+00:02 +164: All tests passed!
+
+$ ./scripts/run_with_test_cleanup.sh --timeout 10m -- ./scripts/check-custom-lints.sh packages/server
+total: 0 (baseline: 0)
+```
+
+The sweep's owner-decision-A exclusions, the m0183–m0185 row guards, `_replay` and the active-attention axis all
+still pass unchanged; none of the four fixes needed them loosened.
+
+### One thing I did not fix, named rather than left
+
+An outcome row no longer carries a dot, so it is no longer a member of the **unread view** — while a
+`relay_received` receipt on that Request still feeds `activityUnreadTotal`. That total/membership mismatch is
+**R7** (surface totals enumerate receipts only, not dismissible outcome rows), assigned elsewhere. This unit
+neither created it nor repaired it; it made it visible in
+`attention_activity_stream_pg_test.dart`'s `unread_total` case, where the `all` view is now also asserted so the
+row's continued reachability and dismissibility are pinned.
