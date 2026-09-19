@@ -154,6 +154,29 @@ enum AttentionObligationEndReason {
 
 enum AttentionSuppressionClass { mandatory, standard, noisy }
 
+/// U11 / D16 — *where* a receipt is allowed to speak, as opposed to how loudly.
+///
+/// "Timeline-only is a placement policy, not a third actionable class": a
+/// `timelineOnly` receipt is still an ordinary optional receipt — it is
+/// visible, authorized and recoverable exactly like any other — but it is
+/// excluded from every **primary-surface** indicator: no dot, no count, and
+/// no effect on the position of the Request it belongs to.
+///
+/// This is the producer half of R7. Hierarchy lifecycle notices propagated to
+/// an ancestor Request exist so the ancestor's log stays complete; they must
+/// never make the ancestor *ask* for attention, because the thing that
+/// happened belongs to the child's own attention object.
+enum AttentionPlacement { primary, timelineOnly }
+
+extension AttentionPlacementWireName on AttentionPlacement {
+  /// The literal stored in `notification_outbox.placement` and declared as
+  /// `placement` in `docs/contracts/updates-event-contract.json`.
+  String get wireName => switch (this) {
+    AttentionPlacement.primary => 'primary',
+    AttentionPlacement.timelineOnly => 'timeline_only',
+  };
+}
+
 enum AttentionAccessPolicy {
   legacy,
   beaconContent,

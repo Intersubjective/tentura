@@ -183,7 +183,8 @@ INSERT INTO public.notification_outbox (
   presentation_key, presentation_payload,
   in_app_preference_class, suppression_class, access_policy,
   requires_action, attention_thread_key,
-  logical_task_key, lifecycle_generation
+  logical_task_key, lifecycle_generation,
+  placement
 ) VALUES (
   gen_random_uuid()::text, $1, $2, $3, $4,
   $5, $6, $7, $8,
@@ -192,7 +193,8 @@ INSERT INTO public.notification_outbox (
   $16, $17::jsonb,
   $18, $19, $20,
   $21, $22,
-  $23, $24
+  $23, $24,
+  $25
 )
 RETURNING id
 ''',
@@ -221,6 +223,10 @@ RETURNING id
               Variable<String>(projection.attentionThreadKey),
               Variable<String>(logicalTaskKey),
               Variable<int>(lifecycleGeneration),
+              // U11/D16: producer-time placement. `timeline_only` keeps the
+              // receipt in the destination Request's log while excluding it
+              // from that Request's dot, count and position.
+              Variable<String>(_policy.placement(intent.eventType).wireName),
             ],
           )
           .getSingle();

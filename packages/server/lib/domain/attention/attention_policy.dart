@@ -318,6 +318,32 @@ class AttentionPolicy {
     AttentionEventType.deadlineReminder => false,
   };
 
+  /// U11 / D16 — the placement of a receipt, decided by the producer.
+  ///
+  /// Kept beside [logicalTaskKey] rather than inside
+  /// [AttentionReceiptProjection] for the same reason that one is: it is a
+  /// single persisted scalar the dispatcher writes, not part of the
+  /// recipient-role projection, and every recipient of an event shares it.
+  ///
+  /// Exactly one event family is `timelineOnly` today, and it is the one R7
+  /// is about. `beaconHierarchyStatusChanged` is emitted at the *destination*
+  /// Request of a hierarchy lifecycle delivery — the parent of a child whose
+  /// status moved, or a descendant of an ancestor that moved. The notice has
+  /// to exist so the destination's log is complete, but the event belongs to
+  /// the Request it happened on: the destination must not gain a dot, a count
+  /// or a new position because of it.
+  ///
+  /// This mirrors `placement` in `docs/contracts/updates-event-contract.json`;
+  /// `updates_event_contract_test.dart` asserts the two agree for every
+  /// declared variant, so a contract edit cannot silently diverge from the
+  /// code that writes the column.
+  AttentionPlacement placement(AttentionEventType eventType) =>
+      switch (eventType) {
+        AttentionEventType.beaconHierarchyStatusChanged =>
+          AttentionPlacement.timelineOnly,
+        _ => AttentionPlacement.primary,
+      };
+
   /// The stable identity of the *task* an obligation is about, excluding the
   /// generation — D03: `event family + beaconId + subjectId + recipientId`.
   ///
