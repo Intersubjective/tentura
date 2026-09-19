@@ -53,6 +53,11 @@ const _helperLegacy = 'Urecnhelp005';
 const _helperHealthy = 'Urecnhelp006';
 const _helperUserSettled = 'Urecnhelp007';
 const _helperForeign = 'Urecnhelp008';
+const _helperMultiAudience = 'Urecnhelp009';
+const _helperRemoved = 'Urecnhelp010';
+const _helperDeclined = 'Urecnhelp011';
+const _stewardB = 'Urecnstew001';
+const _stewardC = 'Urecnstew002';
 
 const _bStale = 'Brecnstale01';
 const _bAnswered = 'Brecnanswr01';
@@ -65,6 +70,12 @@ const _bForeign = 'Brecnforgn01';
 const _bReviewClosed = 'Brecnrvcls01';
 const _bReviewOpen = 'Brecnrvopn01';
 const _bCleared = 'Brecnclear01';
+const _bMultiAudience = 'Brecnmult01';
+const _bMultiAudienceC = 'Brecnmult02';
+const _helperMultiAudienceC = 'Urecnhelp012';
+const _bRemoved = 'Brecnrmvd01';
+const _bDeclined = 'Brecndcln01';
+const _bInboxStance = 'Brecninbox01';
 
 Future<void> main() async {
   final target = _DisposablePgTarget.fromEnvironment();
@@ -140,6 +151,8 @@ Future<void> main() async {
       expect(await _settlement(writer, 'Nrecnanswr'), 'resolved');
       // live review receipt whose window closed without a package.
       expect(await _settlement(writer, 'Nrecnrvcls'), 'expired');
+      // removal without withdraw_reason — terminal commitment, not author answer.
+      expect(await _settlement(writer, 'Nrecnrmvd'), 'superseded');
       // open task with no receipt → a live obligation exists again.
       expect(
         await _liveObligationCount(
@@ -157,8 +170,32 @@ Future<void> main() async {
         ),
         1,
       );
-      expect(first.createdObligationCount, 2);
-      expect(first.settledObligationCount, 3);
+      expect(
+        await _liveObligationCount(
+          writer,
+          beaconId: _bMultiAudience,
+          accountId: _accountId,
+        ),
+        1,
+      );
+      expect(
+        await _outboxCountForAccountOnBeacon(
+          writer,
+          accountId: _stewardB,
+          beaconId: _bMultiAudience,
+        ),
+        0,
+      );
+      expect(
+        await _outboxCountForAccountOnBeacon(
+          writer,
+          accountId: _stewardC,
+          beaconId: _bMultiAudienceC,
+        ),
+        0,
+      );
+      expect(first.createdObligationCount, 4);
+      expect(first.settledObligationCount, 4);
 
       // --- what must not be touched --------------------------------------
       // A receipt settled with the wrong reason stays as it is: the source
@@ -181,6 +218,24 @@ Future<void> main() async {
 SELECT count(*)::int FROM public.inbox_item
 WHERE user_id = '$_accountId' AND tombstone_dismissed_at IS NOT NULL
 '''),
+        1,
+      );
+      // Author declined the offer (system resolved) — not a user-dismissed row.
+      expect(await _settlement(writer, 'Nrecndecl'), 'resolved');
+      expect(
+        await _cell(
+          writer,
+          "SELECT COALESCE(settled_by_user_id, '-') FROM public.notification_outbox WHERE id = 'Nrecndecl'",
+        ),
+        '-',
+        reason: 'decline settlement is system-owned, not user-dismissed',
+      );
+      // Inbox stance (status) is not derived obligation state.
+      expect(
+        await _scalar(
+          writer,
+          "SELECT status::int FROM public.inbox_item WHERE user_id = '$_accountId' AND beacon_id = '$_bInboxStance'",
+        ),
         1,
       );
       // An obligation this account settled itself is neither reopened nor
@@ -227,6 +282,206 @@ WHERE user_id = '$_accountId' AND tombstone_dismissed_at IS NOT NULL
       );
     }, skip: skipReason);
   });
+
+  group('obligation reconciliation — finisher guards', () {
+    late Connection writer;
+    late TenturaDb database;
+    late ObligationReconciliationCase reconciliation;
+
+    setUpAll(() async {
+      await target.recreate();
+      writer = await Connection.open(
+        target.databaseEnv.pgEndpoint,
+        settings: target.databaseEnv.pgEndpointSettings,
+      );
+      await writer.execute('SET check_function_bodies = false');
+      await migrateDbSchema(writer);
+      database = TenturaDb(target.databaseEnv);
+      final logger = Logger('AttentionReconciliationFinisherPgTest');
+      final dispatch = AttentionDispatchRepository(database, logger);
+      final helpOffers = HelpOfferRepository(database);
+      final intents = AttentionIntentCase(
+        BeaconRoomNotificationContextRepository(
+          BeaconRoomRepository(database),
+          database,
+          helpOffers,
+          CommitmentRepository(database),
+        ),
+        UserRepository(
+          target.databaseEnv,
+          database,
+          _NoopTrustEvidenceRepository(),
+          _NoopInviteGenealogyRepository(),
+          InviteSeedPromptRepositoryMock(),
+        ),
+        BeaconAccessRepository(database),
+        FakeUserBlockRepository(),
+      );
+      reconciliation = ObligationReconciliationCase(
+        AttentionSystemSettlementRepository(database),
+        AttentionReconciliationRepository(database),
+        AttentionRepository(database),
+        TransactionalAttentionCase(MutatingUnitOfWork(database), dispatch),
+        intents,
+        env: target.databaseEnv,
+        logger: logger,
+      );
+      await _seedFixture(writer);
+    });
+
+    tearDownAll(() async {
+      await database.close();
+      await writer.close();
+      await target.drop();
+    });
+
+    test('a second repair of the same open task is not deduped away', () async {
+      final first = await reconciliation.reconcileAccount(accountId: _accountId);
+      expect(
+        await _liveObligationCount(
+          writer,
+          beaconId: _bMissing,
+          accountId: _accountId,
+        ),
+        1,
+      );
+      final keyAfterFirst = await _cell(
+        writer,
+        '''
+SELECT occ.source_event_key
+FROM public.notification_outbox AS nb
+JOIN public.attention_occurrence AS occ ON occ.id = nb.occurrence_id
+WHERE nb.account_id = '$_accountId' AND nb.beacon_id = '$_bMissing'
+  AND nb.requires_action AND nb.settlement_kind IS NULL
+''',
+      );
+      expect(keyAfterFirst, contains(':g1'));
+
+      await writer.execute('''
+UPDATE public.notification_outbox
+SET settlement_kind = 'resolved', settled_at = now()
+WHERE account_id = '$_accountId' AND beacon_id = '$_bMissing'
+  AND requires_action AND settlement_kind IS NULL
+''');
+
+      final second = await reconciliation.reconcileAccount(
+        accountId: _accountId,
+      );
+      expect(second.createdObligationCount, 1);
+      expect(
+        await _liveObligationCount(
+          writer,
+          beaconId: _bMissing,
+          accountId: _accountId,
+        ),
+        1,
+      );
+      final keyAfterSecond = await _cell(
+        writer,
+        '''
+SELECT occ.source_event_key
+FROM public.notification_outbox AS nb
+JOIN public.attention_occurrence AS occ ON occ.id = nb.occurrence_id
+WHERE nb.account_id = '$_accountId' AND nb.beacon_id = '$_bMissing'
+  AND nb.requires_action AND nb.settlement_kind IS NULL
+''',
+      );
+      expect(keyAfterSecond, contains(':g2'));
+      expect(keyAfterSecond, isNot(keyAfterFirst));
+      expect(first.createdObligationCount, greaterThan(0));
+    }, skip: skipReason);
+
+    test(
+      'creation intent audience includes stewards but repair writes only '
+      'for the reconciled account',
+      () async {
+        expect(
+          await _outboxCountForAccountOnBeacon(
+            writer,
+            accountId: _stewardB,
+            beaconId: _bMultiAudience,
+          ),
+          0,
+        );
+        expect(
+          await _outboxCountForAccountOnBeacon(
+            writer,
+            accountId: _stewardC,
+            beaconId: _bMultiAudienceC,
+          ),
+          0,
+        );
+
+        await reconciliation.reconcileAccount(accountId: _accountId);
+
+        expect(
+          await _outboxCountForAccountOnBeacon(
+            writer,
+            accountId: _stewardB,
+            beaconId: _bMultiAudience,
+          ),
+          0,
+        );
+        expect(
+          await _outboxCountForAccountOnBeacon(
+            writer,
+            accountId: _stewardC,
+            beaconId: _bMultiAudienceC,
+          ),
+          0,
+        );
+        expect(
+          await _liveObligationCount(
+            writer,
+            beaconId: _bMultiAudience,
+            accountId: _accountId,
+          ),
+          1,
+        );
+        expect(
+          await _liveObligationCount(
+            writer,
+            beaconId: _bMultiAudienceC,
+            accountId: _accountId,
+          ),
+          1,
+        );
+      },
+      skip: skipReason,
+    );
+
+    test(
+      'removedFromChat without withdraw_reason settles superseded not resolved',
+      () async {
+        await reconciliation.reconcileAccount(accountId: _accountId);
+        expect(await _settlement(writer, 'Nrecnrmvd'), 'superseded');
+      },
+      skip: skipReason,
+    );
+
+    test('author-declined help-offer settlement survives repair', () async {
+      await reconciliation.reconcileAccount(accountId: _accountId);
+      expect(await _settlement(writer, 'Nrecndecl'), 'resolved');
+      expect(
+        await _cell(
+          writer,
+          "SELECT COALESCE(settled_by_user_id, '-') FROM public.notification_outbox WHERE id = 'Nrecndecl'",
+        ),
+        '-',
+      );
+    }, skip: skipReason);
+
+    test('inbox_item.status survives repair', () async {
+      await reconciliation.reconcileAccount(accountId: _accountId);
+      expect(
+        await _scalar(
+          writer,
+          "SELECT status::int FROM public.inbox_item WHERE user_id = '$_accountId' AND beacon_id = '$_bInboxStance'",
+        ),
+        1,
+      );
+    }, skip: skipReason);
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -245,6 +500,12 @@ Future<void> _seedFixture(Connection writer) async {
     _helperHealthy,
     _helperUserSettled,
     _helperForeign,
+    _helperMultiAudience,
+    _helperMultiAudienceC,
+    _helperRemoved,
+    _helperDeclined,
+    _stewardB,
+    _stewardC,
   ]) {
     await writer.execute('''
 INSERT INTO public."user" (id, display_name, public_key)
@@ -267,8 +528,19 @@ VALUES ('$id', '$authorId', 'Request $id', 'desc', ${status.smallintValue})
   await beacon(_bUserSettled, _accountId, BeaconStatus.open);
   await beacon(_bCleared, _accountId, BeaconStatus.open);
   await beacon(_bForeign, _otherAccountId, BeaconStatus.open);
+  await beacon(_bMultiAudience, _accountId, BeaconStatus.open);
+  await beacon(_bMultiAudienceC, _accountId, BeaconStatus.open);
+  await beacon(_bRemoved, _accountId, BeaconStatus.open);
+  await beacon(_bDeclined, _accountId, BeaconStatus.open);
+  await beacon(_bInboxStance, _accountId, BeaconStatus.open);
   await beacon(_bReviewClosed, _otherAccountId, BeaconStatus.closed);
   await beacon(_bReviewOpen, _otherAccountId, BeaconStatus.reviewOpen);
+
+  await writer.execute('''
+INSERT INTO public.beacon_steward (beacon_id, user_id) VALUES
+  ('$_bMultiAudience', '$_stewardB'),
+  ('$_bMultiAudienceC', '$_stewardC')
+''');
 
   Future<void> offer(
     String beaconId,
@@ -302,6 +574,9 @@ VALUES ('Crecnanswr01', '$_bAnswered', '$_helperAnswered', '$_accountId', 1)
 ''');
   // C3 — a live source task with no obligation receipt at all.
   await offer(_bMissing, _helperMissing);
+  // Multi-audience creation path — stewards B/C in intent, repair scoped to A.
+  await offer(_bMultiAudience, _helperMultiAudience);
+  await offer(_bMultiAudienceC, _helperMultiAudienceC);
   // C4 — settled with the wrong reason (the helper withdrew; the row says
   // the author answered).
   await offer(
@@ -328,6 +603,15 @@ VALUES ('Crecnanswr01', '$_bAnswered', '$_helperAnswered', '$_accountId', 1)
     status: 1,
     withdrawReason: 'changed mind',
   );
+  // Removal — status inactive, no withdraw_reason, terminal commitment event.
+  await offer(_bRemoved, _helperRemoved, status: 1);
+  await writer.execute('''
+INSERT INTO public.beacon_commitment_event
+  (id, beacon_id, user_id, actor_user_id, kind)
+VALUES ('Crecnrmvd01', '$_bRemoved', '$_helperRemoved', '$_accountId', 5)
+''');
+  // Author declined — system-resolved obligation must not be rewritten.
+  await offer(_bDeclined, _helperDeclined, status: 1);
 
   await _receipt(
     writer,
@@ -382,6 +666,21 @@ VALUES ('Crecnanswr01', '$_bAnswered', '$_helperAnswered', '$_accountId', 1)
     beaconId: _bForeign,
     targetEntityId: _helperForeign,
   );
+  await _receipt(
+    writer,
+    id: 'Nrecnrmvd',
+    accountId: _accountId,
+    beaconId: _bRemoved,
+    targetEntityId: _helperRemoved,
+  );
+  await _receipt(
+    writer,
+    id: 'Nrecndecl',
+    accountId: _accountId,
+    beaconId: _bDeclined,
+    targetEntityId: _helperDeclined,
+    settlementKind: 'resolved',
+  );
 
   // C6 — review window closed, obligation still live.
   await writer.execute('''
@@ -411,8 +710,10 @@ INSERT INTO public.beacon_review_window
 VALUES ('$_bReviewOpen', now() - interval '1 day', now() + interval '1 day', 0, 0)
 ''');
   await writer.execute('''
-INSERT INTO public.beacon_review_status (beacon_id, user_id, status)
-VALUES ('$_bReviewOpen', '$_accountId', 0)
+INSERT INTO public.beacon_review_status (beacon_id, user_id, status) VALUES
+  ('$_bReviewOpen', '$_accountId', 0),
+  ('$_bReviewOpen', '$_stewardB', 0),
+  ('$_bReviewOpen', '$_stewardC', 0)
 ''');
 
   // M1 — an optional receipt this account cleared.
@@ -436,6 +737,12 @@ VALUES ('$_accountId', '$_bCleared', 0)
   await writer.execute('''
 UPDATE public.inbox_item SET tombstone_dismissed_at = now()
 WHERE user_id = '$_accountId' AND beacon_id = '$_bCleared'
+''');
+
+  // Explicit inbox stance (watching) — not a tombstone dismiss.
+  await writer.execute('''
+INSERT INTO public.inbox_item (user_id, beacon_id, status)
+VALUES ('$_accountId', '$_bInboxStance', 1)
 ''');
 }
 
@@ -544,6 +851,20 @@ SELECT count(*)::int FROM public.notification_outbox
 WHERE beacon_id = '$beaconId' AND account_id = '$accountId'
   AND requires_action AND settlement_kind IS NULL
 ''');
+
+Future<int> _outboxCountForAccountOnBeacon(
+  Connection writer, {
+  required String accountId,
+  required String beaconId,
+}) => _scalar(writer, '''
+SELECT count(*)::int FROM public.notification_outbox
+WHERE account_id = '$accountId' AND beacon_id = '$beaconId'
+''');
+
+Future<String> _cell(Connection writer, String sql) async {
+  final rows = await writer.execute(sql);
+  return rows.single[0]! as String;
+}
 
 Future<int> _scalar(Connection writer, String sql) async {
   final rows = await writer.execute(sql);

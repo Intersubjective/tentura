@@ -7040,3 +7040,86 @@ gitignored).
 | Unit | Status |
 |---|---|
 | U12 reconciliation | **complete** (`d91b4478d`, `70b92195d`, `d207b9002`) |
+
+## UNIT U12 — Reconciliation ("Reset counters") · VERIFY (2026-09-19)
+
+**UNIT_BASE:** `0c46c63a3`. Judged against D15 / E21 (plan + product contract), U07a matrix, inner journal.
+
+**Commit order:** `d91b4478d` (endpoint + rename-only case stub, 30 lines) then `70b92195d` (full repair SQL +
+case) — ordering only; each commit is independently coherent.
+
+**Ephemeral regressions re-run (production restored after each):** drop `account_id` from settle CTE →
+`settledObligationCount` 3→4, red; drop `settled_by_user_id` guard on unbacked tasks → `createdObligationCount`
+2→3, red; remove `_record` recipient narrowing → `settledObligationCount` 3→4, red. **Swap terminal-before-
+`offer.status` CASE arms → suite still green** (no `removedFromChat` / removal-without-withdraw fixture in the
+committed suite).
+
+**TEST_OUTPUT (verify run):** attention PG bundle `-j 4` → 77 passed; evaluation PG (`evaluation_submit_ack`,
+`user_delete_attention`) `-j 1` → 4 passed; GraphQL attention (non-PG) → 39 passed;
+`attention_reconciliation_pg_test.dart` alone → 2 passed.
+
+**STATUS:** fail — over-reach and load-bearing ordering lack committed multi-audience / removal / generation
+proofs the acceptance checklist names explicitly (see GAPS in verify report).
+
+## UNIT U12 — Reconciliation · finisher (2026-09-19)
+
+**WHAT.** Close VERIFY GAPs 1–4 with fail-able PG tests only; production unchanged.
+
+**GAP 1 — cross-account narrowing.** Two open help-offer tasks on author `Urecnauth001`: steward
+`Urecnstew001` on `Brecnmult01`, steward `Urecnstew002` on `Brecnmult02`. Repair for A asserts **zero**
+`notification_outbox` rows for B/C on their respective beacons (optional steward receipts count), while A
+gets live obligations on both. **Mutation:** drop `_record` recipient narrowing (`transaction.record(intent)`)
+→ `creation intent audience…` **+0 -1** (`Expected: 0 Actual: 1` steward outbox row).
+
+**GAP 2 — CASE arm ordering.** `Brecnrmvd01`: offer `status=1`, no `withdraw_reason`, `removedFromChat`
+commitment (`kind=5`), live `Nrecnrmvd` → `superseded`. **Mutation:** swap terminal-before-`offer.status`
+arms in `settleObsoleteHelpOfferObligations` → `removedFromChat without withdraw_reason…` **+0 -1**
+(`Expected: superseded`).
+
+**GAP 3 — generation dedup.** After first repair of `Brecnmissg01`, corrupt with wrong system `resolved`
+settlement; second repair must emit `reconcile:help_offer:…:g2` (not deduped). **Mutation:** pin help-offer
+`source_event_key` to `…:g1` always → `a second repair…` **+0 -1** (`createdObligationCount` 0).
+
+**GAP 4 — checklist leftovers.** `Nrecndecl`: author-declined offer, system `resolved` (not user-dismissed);
+`Brecninbox01`: `inbox_item.status = 1` (watching) — both unchanged after repair (main + dedicated tests).
+
+**GAP 5:** untouched (`unrepairableObligationCount` behavior).
+
+**TESTS.**
+
+```bash
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 15m -- dart test --tags pg -j 1 \
+  test/domain/use_case/attention_reconciliation_pg_test.dart
+```
+→ **+7** (was +2).
+
+```bash
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 30m -- dart test --tags pg -j 4 \
+  test/data/repository/attention_live_obligations_pg_test.dart \
+  test/data/repository/my_work_attention_pg_test.dart \
+  test/data/repository/attention_surface_pg_test.dart \
+  test/data/repository/attention_active_attention_axis_pg_test.dart \
+  test/data/repository/attention_request_history_pg_test.dart \
+  test/domain/use_case/attention_reconciliation_pg_test.dart \
+  test/domain/use_case/review_obligation_backfill_pg_test.dart \
+  test/domain/use_case/review_obligation_settlement_pg_test.dart \
+  test/domain/use_case/help_offer_obligation_settlement_pg_test.dart
+```
+→ **+82** Exit 0.
+
+```bash
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 30m -- dart test --tags pg -j 4 \
+  test/domain/use_case/evaluation test/domain/use_case/evaluation_submit_ack_policy_pg_test.dart \
+  test/domain/use_case/user_delete_attention_pg_test.dart
+```
+→ **+4** Exit 0.
+
+```bash
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 15m -- dart test --exclude-tags pg \
+  test/api/controllers/graphql/attention_graphql_test.dart
+```
+→ **+35** Exit 0.
+
+| Unit | Status |
+|---|---|
+| U12 reconciliation | **complete** (finisher tests; commits `d91b4478d` … `c7bc9c952` + this) |
