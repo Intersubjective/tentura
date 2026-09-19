@@ -127,6 +127,21 @@ in_app_preference_class, suppression_class, access_policy
     return row.read<int>('c');
   }
 
+  /// Age-based retention over the read axis.
+  ///
+  /// D17: clearing is not deletion. The window may only remove what carries no
+  /// attention any more, so the predicate keeps
+  /// * live obligations (`requires_action` with no `settlement_kind`) — U06a,
+  /// * uncleared optionals (`requires_action = false AND cleared_at IS NULL`),
+  /// * anything ever cleared (`cleared_at IS NOT NULL`),
+  /// * every post-cutover receipt (`occurrence_id IS NOT NULL`) — the
+  ///   immutable dispatch identity from U05 marks attention-bearing history.
+  ///
+  /// What remains deletable is the pre-cutover slice only: legacy rows with no
+  /// `occurrence_id` whose obligation is already settled and which were never
+  /// cleared, once seen, emailed, older than [age] and free of a pending or
+  /// leased channel handoff. This table is therefore bounded by account
+  /// erasure (m0125 CASCADE) and by that shrinking legacy slice, not by [age].
   @override
   Future<int> deleteSettledOlderThan(Duration age) async {
     final before = DateTime.timestamp().subtract(age);
@@ -137,6 +152,9 @@ WHERE seen_at IS NOT NULL
   AND emailed_at IS NOT NULL
   AND created_at < $1::timestamptz
   AND NOT (requires_action = true AND settlement_kind IS NULL)
+  AND NOT (requires_action = false AND cleared_at IS NULL)
+  AND cleared_at IS NULL
+  AND occurrence_id IS NULL
   AND NOT EXISTS (
     SELECT 1 FROM public.attention_channel_delivery delivery
     WHERE delivery.receipt_id = notification_outbox.id

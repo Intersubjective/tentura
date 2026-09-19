@@ -56,7 +56,8 @@ VALUES ('Uattretactor', 'Retention actor', 'attention-retention-actor-key')
     });
 
     test(
-      'keeps pending and leased handoffs, then removes terminal and no-delivery receipts',
+      'keeps pending and leased handoffs, and after U06b keeps the terminal '
+      'and no-delivery receipts too',
       () async {
         final oldAt = DateTime.parse('2020-01-01T00:00:00Z');
 
@@ -190,7 +191,11 @@ WHERE receipt_id = @receiptId
         final deleted = await outbox.deleteSettledOlderThan(
           const Duration(days: 30),
         );
-        expect(deleted, 2);
+        // U06b (D17): this was 2 before this unit. `Nattretlegacy` is an
+        // uncleared optional (`requires_action = false AND cleared_at IS
+        // NULL`) and the terminal relay receipt carries an `occurrence_id`,
+        // so both are now retained history rather than retention fodder.
+        expect(deleted, 0);
 
         final remaining = await writer.execute(
           r'''
@@ -199,25 +204,27 @@ WHERE id IN ('Nattretlegacy', 'Nattretunemailed', $1, $2, $3)
 ''',
           parameters: [pendingId, leasedId, terminalId],
         );
-        expect(remaining.single.single, 3);
+        expect(remaining.single.single, 5);
         final remainingIds = await writer.execute(
           r'''
 SELECT id FROM public.notification_outbox
-WHERE id IN ('Nattretunemailed', $1, $2, $3)
+WHERE id IN ('Nattretlegacy', 'Nattretunemailed', $1, $2, $3)
 ORDER BY id
 ''',
           parameters: [pendingId, leasedId, terminalId],
         );
-        expect(
-          remainingIds.map((row) => row.single).toSet(),
-          {'Nattretunemailed', pendingId, leasedId},
-        );
+        expect(remainingIds.map((row) => row.single).toSet(), {
+          'Nattretlegacy',
+          'Nattretunemailed',
+          pendingId,
+          leasedId,
+          terminalId,
+        });
 
-        // The terminal delivery job cascades away with its receipt (m0125),
-        // while pending and leased handoffs remain available to workers.
+        // Nothing was deleted, so no delivery job cascaded away (m0125).
         expect(await deliveryCountFor(pendingId), 1);
         expect(await deliveryCountFor(leasedId), 1);
-        expect(await deliveryCountFor(terminalId), 0);
+        expect(await deliveryCountFor(terminalId), 1);
         final occurrence = await writer.execute('''
 SELECT count(*)::int FROM public.attention_occurrence
 WHERE source_event_key IN (
@@ -267,6 +274,160 @@ SELECT count(*)::int FROM public.notification_outbox
 WHERE id = 'Nattretliveobl'
 ''');
         expect(remaining.single.single, 1);
+      },
+    );
+
+    /// Seeds one legacy (`occurrence_id IS NULL`) receipt that is seen,
+    /// emailed and older than the window, with no delivery job at all.
+    Future<void> seedLegacy(
+      String id, {
+      required bool requiresAction,
+      String? settlementKind,
+      DateTime? clearedAt,
+      String? clearReason,
+    }) async {
+      final oldAt = DateTime.parse('2020-01-01T00:00:00Z');
+      await writer.execute(
+        Sql.named('''
+INSERT INTO public.notification_outbox (
+  id, account_id, category, kind, priority,
+  title, body, action_url, dedup_key, created_at, seen_at, emailed_at,
+  beacon_id, source_event_key,
+  destination_kind, presentation_key, presentation_payload,
+  suppression_class, access_policy,
+  requires_action, attention_thread_key,
+  settlement_kind, settled_at, cleared_at, clear_reason
+) VALUES (
+  @id, 'Uattretactor', 'asksOfMe', 'needsMe', 'normal',
+  @id, @id, '/legacy', @id, @oldAt, @oldAt, @oldAt,
+  'Battret', @id,
+  'beacon', 'request_status_changed', '{"eventType":"fixture"}'::jsonb,
+  'standard', 'beacon_content',
+  @requiresAction, @threadKey,
+  @settlementKind, @settledAt, @clearedAt, @clearReason
+)
+'''),
+        parameters: {
+          'id': id,
+          'oldAt': oldAt,
+          'requiresAction': requiresAction,
+          'threadKey': requiresAction ? 'v1|needsMe|$id|Uattretactor' : null,
+          'settlementKind': settlementKind,
+          'settledAt': settlementKind == null ? null : oldAt,
+          'clearedAt': clearedAt,
+          'clearReason': clearReason,
+        },
+      );
+    }
+
+    Future<bool> exists(String id) async {
+      final rows = await writer.execute(
+        Sql.named(
+          'SELECT count(*)::int FROM public.notification_outbox WHERE id = @id',
+        ),
+        parameters: {'id': id},
+      );
+      return (rows.single.single! as int) == 1;
+    }
+
+    test(
+      'still deletes a legacy settled obligation that is seen, emailed, old '
+      'and carries no pending delivery',
+      () async {
+        // Retention is NOT a no-op after U06b: this is the class that stays
+        // deletable — pre-cutover rows (`occurrence_id IS NULL`) whose
+        // obligation is already settled and which were never cleared. U18
+        // backfill does not replay these.
+        await seedLegacy(
+          'Nattretlegacysettled',
+          requiresAction: true,
+          settlementKind: 'resolved',
+        );
+        expect(await exists('Nattretlegacysettled'), isTrue);
+
+        final deleted = await outbox.deleteSettledOlderThan(
+          const Duration(days: 30),
+        );
+
+        expect(deleted, 1);
+        expect(await exists('Nattretlegacysettled'), isFalse);
+      },
+    );
+
+    test(
+      'retains an uncleared optional even when seen, emailed and old',
+      () async {
+        await seedLegacy('Nattretuncleared', requiresAction: false);
+
+        expect(
+          await outbox.deleteSettledOlderThan(const Duration(days: 30)),
+          0,
+        );
+        expect(await exists('Nattretuncleared'), isTrue);
+      },
+    );
+
+    test(
+      'retains a cleared receipt — clearing is not deletion (D17)',
+      () async {
+        await seedLegacy(
+          'Nattretcleared',
+          requiresAction: false,
+          clearedAt: DateTime.parse('2020-01-02T00:00:00Z'),
+          clearReason: 'explicit',
+        );
+
+        expect(
+          await outbox.deleteSettledOlderThan(const Duration(days: 30)),
+          0,
+        );
+        expect(await exists('Nattretcleared'), isTrue);
+      },
+    );
+
+    test(
+      'retains a post-cutover settled obligation (occurrence_id IS NOT NULL)',
+      () async {
+        final oldAt = DateTime.parse('2020-01-01T00:00:00Z');
+        await writer.execute(
+          Sql.named('''
+INSERT INTO public.attention_occurrence (
+  id, event_type, source_event_key, actor_user_id, immutable_payload,
+  occurred_at
+) VALUES (
+  'Oattretpostcut', 'relayReceived', 'attention-retention-postcutover',
+  'Uattretactor', '{"beaconId":"Battret"}'::jsonb, @oldAt
+)
+'''),
+          parameters: {'oldAt': oldAt},
+        );
+        await writer.execute(
+          Sql.named('''
+INSERT INTO public.notification_outbox (
+  id, account_id, category, kind, priority,
+  title, body, action_url, dedup_key, created_at, seen_at, emailed_at,
+  beacon_id, source_event_key, occurrence_id,
+  destination_kind, presentation_key, presentation_payload,
+  suppression_class, access_policy,
+  requires_action, attention_thread_key, settlement_kind, settled_at
+) VALUES (
+  'Nattretpostcut', 'Uattretactor', 'asksOfMe', 'needsMe', 'normal',
+  'Post cutover', 'Settled but retained', '/post-cutover',
+  'attention-retention-postcutover', @oldAt, @oldAt, @oldAt,
+  'Battret', 'attention-retention-postcutover', 'Oattretpostcut',
+  'beacon', 'request_status_changed', '{"eventType":"fixture"}'::jsonb,
+  'standard', 'beacon_content',
+  true, 'v1|needsMe|Nattretpostcut|Uattretactor', 'resolved', @oldAt
+)
+'''),
+          parameters: {'oldAt': oldAt},
+        );
+
+        expect(
+          await outbox.deleteSettledOlderThan(const Duration(days: 30)),
+          0,
+        );
+        expect(await exists('Nattretpostcut'), isTrue);
       },
     );
   }, skip: skipReason);
