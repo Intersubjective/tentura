@@ -24,6 +24,16 @@ import 'package:tentura/ui/utils/relative_time.dart';
 /// `+N` marker next to the chips.
 const int kMiniCardCapabilityChipCap = 3;
 
+/// The most of the event-line row the age may occupy before it ellipsises.
+///
+/// The age is supposed to be compact («2 ч», «40 м», §7), and while it is, it
+/// keeps its natural width and this share never binds. The RU day form is not
+/// compact at all — «92 дн. назад» measures 156 dp at 1x and 312 dp at 2x —
+/// and at 2x it overflowed this row inside a card. 0.7 is above the 1x and
+/// 1.3x widths of that string and below its 2x width, so the clamp engages
+/// exactly where the row would otherwise break.
+const double kMiniCardAgeWidthShare = 0.7;
+
 /// Which event a mini-card shows. Kinds differ by leading glyph/avatar and by
 /// body — never by layout (issue-171 card spec §7).
 enum AttentionMiniCardKind { event, forward }
@@ -182,45 +192,55 @@ class _AttentionMiniCardState extends State<AttentionMiniCard>
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      // Spoken as one phrase: actor + event + age.
-                      child: Semantics(
-                        label: _semanticsLabel(eventLine, age),
-                        excludeSemantics: true,
-                        child: Text(
-                          eventLine,
-                          style: TenturaText.bodySmall(tt.textMuted),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                LayoutBuilder(
+                  builder: (context, rowConstraints) => Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        // Spoken as one phrase: actor + event + age.
+                        child: Semantics(
+                          label: _semanticsLabel(eventLine, age),
+                          excludeSemantics: true,
+                          child: Text(
+                            eventLine,
+                            style: TenturaText.bodySmall(tt.textMuted),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ),
-                    ),
-                    SizedBox(width: tt.iconTextGap),
-                    Tooltip(
-                      key: AttentionMiniCard.ageTooltipKey,
-                      message: absoluteTime,
-                      excludeFromSemantics: true,
-                      child: Text(
-                        age,
-                        style: TenturaText.withTabular(
-                          TenturaText.bodySmall(tt.textFaint),
+                      SizedBox(width: tt.iconTextGap),
+                      ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth:
+                              rowConstraints.maxWidth * kMiniCardAgeWidthShare,
                         ),
-                        semanticsLabel: '',
+                        child: Tooltip(
+                          key: AttentionMiniCard.ageTooltipKey,
+                          message: absoluteTime,
+                          excludeFromSemantics: true,
+                          child: Text(
+                            age,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TenturaText.withTabular(
+                              TenturaText.bodySmall(tt.textFaint),
+                            ),
+                            semanticsLabel: '',
+                          ),
+                        ),
                       ),
-                    ),
-                    if (widget.onDismiss != null) ...[
-                      SizedBox(width: tt.tightGap),
-                      _DismissControl(
-                        focusNode: _dismissFocus,
-                        label: l10n.attentionEventDismiss,
-                        emphasised: _hovering,
-                        onPressed: _dismiss,
-                      ),
+                      if (widget.onDismiss != null) ...[
+                        SizedBox(width: tt.tightGap),
+                        _DismissControl(
+                          focusNode: _dismissFocus,
+                          label: l10n.attentionEventDismiss,
+                          emphasised: _hovering,
+                          onPressed: _dismiss,
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
                 if (quoted.isNotEmpty || widget.capabilitySlugs.isNotEmpty)
                   Padding(

@@ -6390,5 +6390,11 @@
     "context": "RequestAttentionCard",
     "description": "Event-count clause of a card's semantics label (spec 11).",
     "placeholders": { "count": { "type": "int" } }
+  },
+  "attentionCardMoreForwarded": "{count, plural, one{{count} more forwarded} other{{count} more forwarded}}",
+  "@attentionCardMoreForwarded": {
+    "context": "RequestAttentionCard",
+    "description": "Coalesced line for note-less forwards on a Request card (spec 7.3).",
+    "placeholders": { "count": { "type": "int" } }
   }
 }

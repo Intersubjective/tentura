@@ -6116,5 +6116,6 @@
   "attentionCardTitleByForwarder": "«{title}» · от {name}",
   "attentionCardClearAll": "Очистить всё",
   "attentionCardA11yRequest": "Запрос «{title}», от {author}",
-  "attentionCardA11yEvents": "{count, plural, one{{count} новое событие} few{{count} новых события} many{{count} новых событий} other{{count} новых событий}}"
+  "attentionCardA11yEvents": "{count, plural, one{{count} новое событие} few{{count} новых события} many{{count} новых событий} other{{count} новых событий}}",
+  "attentionCardMoreForwarded": "{count, plural, one{ещё {count} переслал} few{ещё {count} переслали} many{ещё {count} переслали} other{ещё {count} переслали}}"
 }
