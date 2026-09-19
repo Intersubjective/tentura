@@ -10,7 +10,7 @@ import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.d
 import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_obligation_block.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/test_ids.dart';
+import 'package:tentura/features/evaluation/domain/review_package_state.dart';
 
 import 'my_work_test_support.dart';
 
@@ -34,6 +34,23 @@ AttentionReceipt _offer({
   beaconId: 'beacon-1',
   requiresAction: true,
   targetEntityId: offererId,
+);
+
+AttentionReceipt _review({required String id}) => AttentionReceipt(
+  id: id,
+  category: 'coordination',
+  kind: 'reviewOpened',
+  priority: 'normal',
+  title: 'Review',
+  body: 'Contributions ready',
+  actionUrl: '/#/',
+  createdAt: DateTime.utc(2026, 9, 1),
+  collapsedCount: 1,
+  presentationKey: 'review_opened',
+  presentationPayloadJson: '{}',
+  surface: AttentionSurface.myWork,
+  beaconId: 'beacon-1',
+  requiresAction: true,
 );
 
 MyWorkCardViewModel _vm({
@@ -105,8 +122,13 @@ void main() {
     expect(find.text('Review'), findsOneWidget);
   });
 
-  // CHANGES IN U07b: generic Done settlement on help-offer obligations will be removed.
-  testWidgets('Respond and Done are independent hit targets', (tester) async {
+  // U15 (was: CHANGES IN U07b): Respond is the only control on a help-offer
+  // obligation. Generic Done is gone from the client because the server
+  // refuses it (U07b2) and because nothing here can be honestly resolved by
+  // acknowledgment (D04, owner decision C).
+  testWidgets('Respond is the whole control set on a help-offer obligation', (
+    tester,
+  ) async {
     var respondCount = 0;
     await _pumpBlock(
       tester,
@@ -117,13 +139,11 @@ void main() {
     expect(find.textContaining('I can sew'), findsOneWidget);
 
     final respond = find.widgetWithText(TenturaTextAction, 'Respond');
-    final done = find.bySemanticsIdentifier(TestIds.myWorkObligationDone('r1'));
     expect(respond, findsOneWidget);
-    // CHANGES IN U07b: Done control removed; obligations settle only via source actions/sheets.
-    expect(done, findsOneWidget);
+    expect(find.text('Done'), findsNothing);
+    expect(find.widgetWithText(TenturaTextAction, 'Done'), findsNothing);
 
     expect(tester.getSize(respond).height, greaterThanOrEqualTo(48));
-    expect(tester.getSize(done).height, greaterThanOrEqualTo(48));
 
     await tester.tap(respond);
     await tester.pump();
@@ -171,12 +191,14 @@ void main() {
       onReviewContributions: () => reviewCount++,
     );
 
-    await tester.tap(find.text('Review').first);
+    await tester.tap(find.widgetWithText(TenturaTextAction, 'Review'));
     await tester.pump();
     expect(reviewCount, 1);
   });
 
-  testWidgets('Review sub-card has Review CTA but no Done', (tester) async {
+  testWidgets('a review obligation has a Review CTA and no Done', (
+    tester,
+  ) async {
     await _pumpBlock(
       tester,
       obligations: [
@@ -201,10 +223,31 @@ void main() {
     );
 
     expect(find.text('Review'), findsWidgets);
-    expect(
-      find.bySemanticsIdentifier(TestIds.myWorkObligationDone('rev-1')),
-      findsNothing,
-    );
+    expect(find.text('Done'), findsNothing);
+  });
+
+  // D04 — opening a CTA and leaving an unsent draft resolves nothing. The
+  // obligation stays live and the CTA says where the viewer left off, which is
+  // the deep-link case: follow the link, start a package, come back here.
+  testWidgets('an opened review reads as in progress, not as resolved', (
+    tester,
+  ) async {
+    for (final probe in const [
+      (ReviewPackageState.inProgress, 'Draft review'),
+      (ReviewPackageState.readyToSend, 'Send reviews'),
+      (ReviewPackageState.changedNotSent, 'Send changes'),
+    ]) {
+      await _pumpBlock(
+        tester,
+        obligations: [_review(id: 'rev-1')],
+        vm: _vm().copyWith(reviewPackageState: probe.$1),
+        onReviewContributions: () {},
+      );
+
+      expect(find.text(probe.$2), findsOneWidget, reason: '${probe.$1}');
+      // Still an obligation: no acknowledgment route appeared beside it.
+      expect(find.text('Done'), findsNothing, reason: '${probe.$1}');
+    }
   });
 
   test('block visible when only showReviewCta and no live receipts', () {

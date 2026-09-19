@@ -169,9 +169,57 @@ void main() {
     await cubit.close();
   });
 
-  // CHANGES IN U07b: generic user settlement path removed; obligations resolve via source transitions only.
-  test('settleObligation removes receipt and calls settle', () async {
-    final obligation = _receipt(id: 'r-settle', beaconId: 'b1');
+  // U15 (was: CHANGES IN U07b). There is no generic settlement path left to
+  // test. What the desk can do to a Request from the card is clear one
+  // **optional** event; obligations end through their source transitions
+  // only (D04), and the server refuses the mutation that used to back Done
+  // (U07b2).
+  test('clearOptionalEvent writes the clear axis and never settles', () async {
+    final optional = _receipt(id: 'r-opt', beaconId: 'b1');
+    final obligation = _receipt(id: 'r-ob', beaconId: 'b1');
+    final attentionRepo = StubAttentionRepository()
+      ..myWorkAttentionResult = [
+        MyWorkBeaconAttention(
+          beaconId: 'b1',
+          unseenCount: 2,
+          latestUnseen: optional,
+          liveObligations: [obligation],
+        ),
+      ];
+    final repo = FakeMyWorkRepository()
+      ..initResult = (
+        authoredNonArchived: [Beacon.empty.copyWith(id: 'b1')],
+        helpOfferedNonArchived: const [],
+        obligationBeacons: const [],
+        archivedCountHint: 0,
+      );
+    final cubit = MyWorkCubit(
+      userId: 'user-1',
+      myWorkCase: buildTestMyWorkCase(
+        repo: repo,
+        attentionRepository: attentionRepo,
+      ),
+    );
+    await cubit.stream.firstWhere((s) => s.attentionLoaded);
+
+    await cubit.clearOptionalEvent('b1', 'r-opt');
+
+    final entry = cubit.state.attentionByBeacon['b1']!;
+    expect(entry.unseenCount, 1);
+    expect(entry.latestUnseen, isNull);
+    // The obligation is untouched: clearing an optional event says nothing
+    // about a responsibility.
+    expect(entry.liveObligations.map((r) => r.id), ['r-ob']);
+    expect(attentionRepo.clearSnapshotCalls, ['r-opt']);
+    expect(attentionRepo.clearCalls, hasLength(1));
+    expect(attentionRepo.settleCalls, isEmpty);
+    expect(attentionRepo.markSeenForBeaconCalls, isEmpty);
+
+    await cubit.close();
+  });
+
+  test('clearOptionalEvent refuses to touch a live obligation', () async {
+    final obligation = _receipt(id: 'r-ob', beaconId: 'b1');
     final attentionRepo = StubAttentionRepository()
       ..myWorkAttentionResult = [
         MyWorkBeaconAttention(
@@ -196,104 +244,14 @@ void main() {
     );
     await cubit.stream.firstWhere((s) => s.attentionLoaded);
 
-    await cubit.settleObligation('b1', 'r-settle');
-
-    expect(
-      cubit.state.attentionByBeacon['b1']!.liveObligations,
-      isEmpty,
-    );
-    // CHANGES IN U07b: settleCalls from generic Done must not remain the resolution path for help-offer obligations.
-    expect(attentionRepo.settleCalls, ['r-settle']);
-
-    await cubit.close();
-  });
-
-  test('settleObligations removes all grouped ids and settles each', () async {
-    final a = _receipt(id: 'r-a', beaconId: 'b1');
-    final b = _receipt(id: 'r-b', beaconId: 'b1');
-    final leftover = _receipt(id: 'r-c', beaconId: 'b1');
-    final attentionRepo = StubAttentionRepository()
-      ..myWorkAttentionResult = [
-        MyWorkBeaconAttention(
-          beaconId: 'b1',
-          unseenCount: 0,
-          liveObligations: [a, b, leftover],
-        ),
-      ];
-    final repo = FakeMyWorkRepository()
-      ..initResult = (
-        authoredNonArchived: [Beacon.empty.copyWith(id: 'b1')],
-        helpOfferedNonArchived: const [],
-        obligationBeacons: const [],
-        archivedCountHint: 0,
-      );
-    final cubit = MyWorkCubit(
-      userId: 'user-1',
-      myWorkCase: buildTestMyWorkCase(
-        repo: repo,
-        attentionRepository: attentionRepo,
-      ),
-    );
-    await cubit.stream.firstWhere((s) => s.attentionLoaded);
-
-    await cubit.settleObligations('b1', ['r-a', 'r-b']);
+    await cubit.clearOptionalEvent('b1', 'r-ob');
 
     expect(
       cubit.state.attentionByBeacon['b1']!.liveObligations.map((r) => r.id),
-      ['r-c'],
+      ['r-ob'],
     );
-    expect(attentionRepo.settleCalls, ['r-a', 'r-b']);
-
-    await cubit.close();
-  });
-
-  test('settleObligations does not drop review_opened receipts', () async {
-    final review = AttentionReceipt(
-      id: 'r-review',
-      category: 'unblocksMe',
-      kind: 'reviewOpened',
-      priority: 'normal',
-      title: 'Review',
-      body: 'Body',
-      actionUrl: '/#/',
-      createdAt: DateTime.utc(2026, 8, 5, 10),
-      collapsedCount: 1,
-      presentationKey: 'review_opened',
-      presentationPayloadJson: '{}',
-      surface: AttentionSurface.myWork,
-      beaconId: 'b1',
-      requiresAction: true,
-    );
-    final attentionRepo = StubAttentionRepository()
-      ..myWorkAttentionResult = [
-        MyWorkBeaconAttention(
-          beaconId: 'b1',
-          unseenCount: 0,
-          liveObligations: [review],
-        ),
-      ];
-    final repo = FakeMyWorkRepository()
-      ..initResult = (
-        authoredNonArchived: [Beacon.empty.copyWith(id: 'b1')],
-        helpOfferedNonArchived: const [],
-        obligationBeacons: const [],
-        archivedCountHint: 0,
-      );
-    final cubit = MyWorkCubit(
-      userId: 'user-1',
-      myWorkCase: buildTestMyWorkCase(
-        repo: repo,
-        attentionRepository: attentionRepo,
-      ),
-    );
-    await cubit.stream.firstWhere((s) => s.attentionLoaded);
-
-    await cubit.settleObligations('b1', ['r-review']);
-
-    expect(
-      cubit.state.attentionByBeacon['b1']!.liveObligations.map((r) => r.id),
-      ['r-review'],
-    );
+    expect(attentionRepo.clearSnapshotCalls, isEmpty);
+    expect(attentionRepo.clearCalls, isEmpty);
     expect(attentionRepo.settleCalls, isEmpty);
 
     await cubit.close();

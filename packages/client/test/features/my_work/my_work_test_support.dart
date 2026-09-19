@@ -24,6 +24,7 @@ import 'package:tentura/features/evaluation/data/repository/evaluation_repositor
 import 'package:tentura/features/evaluation/domain/entity/review_window_info.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
+import 'package:tentura/domain/attention/entity/attention_clear.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/my_work_beacon_attention.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
@@ -54,6 +55,37 @@ class StubAttentionRepository extends AttentionRepositoryFake {
   final markSeenForBeaconCalls = <String>[];
 
   final settleCalls = <String>[];
+
+  /// The clear axis (U10b). Recorded so a test can prove the × writes here and
+  /// nowhere else.
+  final clearSnapshotCalls = <String>[];
+  final clearCalls = <String>[];
+
+  @override
+  Future<AttentionClearSnapshot> clearSnapshot({
+    required AttentionClearCaptureKind kind,
+    String? beaconId,
+    String? receiptId,
+  }) async {
+    clearSnapshotCalls.add(receiptId ?? beaconId ?? '');
+    return AttentionClearSnapshot(
+      snapshotToken: 'token-${clearSnapshotCalls.length}',
+      receiptIds: [?receiptId],
+    );
+  }
+
+  @override
+  Future<AttentionClearResult> clear({
+    required String snapshotToken,
+    required String operationId,
+  }) async {
+    clearCalls.add(snapshotToken);
+    return AttentionClearResult(
+      operationId: operationId,
+      status: AttentionOperationStatus.complete,
+      appliedReceiptIds: const [],
+    );
+  }
 
   @override
   Future<List<MyWorkBeaconAttention>> myWorkAttention(

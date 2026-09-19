@@ -8,6 +8,7 @@ import 'package:tentura/features/evaluation/domain/review_package_state.dart';
 import 'package:tentura/features/inbox/ui/widget/activity_event_subcard_block.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/features/my_work/domain/group_my_work_obligations.dart';
+import 'package:tentura/features/updates/updates_receipt_display_copy.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
@@ -136,8 +137,12 @@ class MyWorkObligationBlock extends StatelessWidget {
             eventsPreview: rows,
             visibleCap: visibleCap,
             beaconId: vm.beaconId,
+            actors: {
+              for (final user in vm.beacon.helpOfferUsers) user.id: user,
+            },
             onClearEvent: onClearEvent,
             onOpenTimeline: onOpenTimeline,
+            quotedBodyOf: (receipt) => _quotedBody(l10n, receipt),
             ctaBuilder: (receipt) => _obligationCta(
               context,
               l10n: l10n,
@@ -166,6 +171,22 @@ class MyWorkObligationBlock extends StatelessWidget {
         ],
       ],
     );
+  }
+
+  /// The event line names the actor; the message itself belongs behind the
+  /// quote rule (§7). Returns null when the two would read the same.
+  String? _quotedBody(L10n l10n, AttentionReceipt receipt) {
+    final copy = resolveUpdatesFeedRowCopy(
+      title: receipt.title,
+      body: receipt.body,
+      presentationKey: receipt.presentationKey,
+      presentationPayloadJson: receipt.presentationPayloadJson,
+      l10n: l10n,
+    );
+    final headline = copy.headline.trim();
+    final body = copy.body.trim();
+    if (body.isEmpty || body == headline) return null;
+    return body;
   }
 
   /// The per-kind CTA under an obligation row. Every one of them opens a sheet

@@ -44,6 +44,7 @@ class ActivityEventSubcardBlock extends StatefulWidget {
     this.overflowPolicy = AttentionBlockOverflowPolicy.timeline,
     this.pageSize = 20,
     this.ctaBuilder,
+    this.quotedBodyOf,
     this.canDismiss = attentionRowIsDismissible,
     this.visibleCap,
     super.key,
@@ -81,6 +82,12 @@ class ActivityEventSubcardBlock extends StatefulWidget {
   /// Rows per cursor page. The old block asked for `min(eventTotal, 100)` in
   /// one request and could never reach the 101st child.
   final int pageSize;
+
+  /// The excerpt shown behind the mini-card's quote rule (§7). Without it a
+  /// receipt whose server title is just the actor's name renders as that name
+  /// and nothing else, because the mini-card only prefers the body when an
+  /// actor **profile** resolved.
+  final String? Function(AttentionReceipt receipt)? quotedBodyOf;
 
   /// Per-kind decision-capturing CTA rendered under a row (D04). Obligation
   /// rows carry one; optional rows do not.
@@ -209,6 +216,7 @@ class _ActivityEventSubcardBlockState extends State<ActivityEventSubcardBlock> {
     final card = AttentionMiniCard(
       receipt: receipt,
       actor: _actorFor(receipt),
+      quotedBody: widget.quotedBodyOf?.call(receipt),
       onTap: widget.onEventTap == null
           ? null
           : () => widget.onEventTap!(receipt),
