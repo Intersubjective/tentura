@@ -10547,3 +10547,178 @@ escalated, not closed quietly.
 - **Harness trap, worth remembering:** the client suite must run with `packages/client` as the working
   directory. From the repo root, 34 architecture/DI tests fail with `PathNotFoundException` and look exactly
   like a regression.
+
+---
+
+## scout — U16c · chrome and retirements · 2026-09-20
+
+**Layer:** scout (read-only). **Unit:** U16c — last slice of U16. **Acceptance anchor:** owner decision A
+(closed) + `docs/features/request-attention.md` §4 clearing / §6 indicators.
+
+### Half 1 — header Dismiss all
+
+**Live chrome (`inbox_screen.dart:261–283`).** `_ActivityMarkAllSeenButton` streams
+`AttentionCase.surfaceSummary`, enables on `activityUnreadTotal > 0`, calls
+`markAllSeen(surface: AttentionSurface.activity)` with `Icons.done_all` / `updatesMarkAllSeen` ("Read all").
+That is the **read** axis (D02); U16c must swap to **`AttentionCase.dismissAll`** (clear axis, exists at
+`attention_case.dart:830`, optimistic membership via `optimisticSweepMembers` / owner A).
+
+**Enablement signal (live code today vs required).**
+
+| Signal | Meaning | Valid for Dismiss-all enable? |
+| --- | --- | --- |
+| `activityUnreadTotal` | `activeAttention` on activity primary rows (read + uncleared optional + obligations) | **No** — what the button uses today; conflates axes |
+| `forYouDot` | Set R (primary) ∪ Set O ∪ `eligible_pinned` ∪ pending prompts (`forYouDotExpression`) | **No** — lights for unanswered forward alone; sweep must stay disabled (decision A) |
+| Sweep capture set | Set R ∪ Set O (`AttentionDismissibleSql`, same prelude as `dismissAll`) | **Yes** — server eligibility the plan names |
+
+**Gap:** `attentionSurfaceSummary` / `v2_AttentionSurfaceSummary` exposes only the six fields in
+`attention_surface_summary.graphql` — **no boolean for “any sweep member exists.”** Implementer must add a
+server-composed field (recommended name: `forYouSweepEligible`, SQL = first two disjuncts of `forYouDotExpression`
+without `eligible_pinned` / prompt stub) **or** explicitly document another server-backed signal; do **not**
+gate on loaded feed rows or invent a client count.
+
+**When nothing dismissible:** `onPressed: null` (disabled control). Tap must not call `markAllSeen`. If wrongly
+enabled, `dismissAll` still no-ops at server with `appliedCount == 0` — that is not acceptable UX.
+
+**Tests to rewrite:** `activity_chrome_test.dart` (3 widgets tests) — today assert `Icons.done_all` and
+`lastMarkAllSurface`; must assert dismiss-all label/icon, `dismissAll` invocation, enablement tied to sweep
+eligibility not unread. **Red meaningful:** yes — revert to `activityUnreadTotal` gate or leave `markAllSeen`
+hook.
+
+**Undo / failure:** `AttentionDismissAllResult.canUndo` + `undoDismissAll` exist; no For You header UI wires them
+yet. U09 acceptance mentions undo; scope minimally: honest failure when `status` denied/failed (no “all clear”
+copy); optional undo snackbar if a pattern exists elsewhere — not blocking retirement half.
+
+### Half 2 — retirements (live blockers)
+
+| Artifact | Stream (U16b) | Other live use | Scout verdict |
+| --- | --- | --- | --- |
+| `ActivityOfferCard` | `.forward` gone; `.prompt` at `activity_stream_view.dart:855` | golden + tests | **Delete file** after prompt pin calls `InviteAcceptedReceiptCard` directly (same props as `.prompt` branch `activity_offer_card.dart:98–110`) |
+| `ActivityOfferBoundedShell` | not in stream | `invite_accepted_receipt_card.dart:225` when `activityOfferBoundedShell: true` | **Do not delete file** — relocate/rename under `features/updates/` or keep path; plan “retire” means leave inbox offer stack, not delete shell while prompts use it |
+| `ActivityForwardRow` | replaced by `TombstoneRow` | `activity_forward_row_golden_test.dart` only | **Delete file** + goldens |
+| `inbox_forward_attribution_copy.dart` | unused in stream | only `activity_offer_card.dart` `_ForwardOfferCard` | **Delete file** with offer card |
+
+**Golden/test drop (evidence, not silent loss):** delete `activity_offer_card_golden_test.dart` (13 cases incl.
+1.3× height) + `activity_forward_row_golden_test.dart` (21 cases) + 34 PNGs under
+`test/features/inbox/goldens/activity_{offer,forward}*`. **Expected client count:** 3890 − 34 = **3856 passed**,
+29 skipped unchanged. Remove orphan imports in `work_activity_first_paint_test.dart`,
+`activity_live_motion_test.dart` (types already gone from asserts).
+
+**Positive asserts after prompt migration:** keep `TestIds.activityPromptPin` / stream ordering test in
+`activity_stream_view_test.dart` — must find prompt chrome without `ActivityOfferCard` type.
+
+### Contradictions / risks
+
+1. **Enablement field missing** on surface summary (see table) — plan says “server eligibility”; API not shipped.
+2. **`ActivityOfferBoundedShell` “retire” vs `InviteAcceptedReceiptCard`** — naive deletion breaks prompt pins.
+3. **`packages/client/pubspec.yaml` untouchable** in this unit — user-visible chrome/copy may still need version
+   bump elsewhere before ship.
+4. **No `inboxDismissAll` l10n** yet — add `app_en.arb` / `app_ru.arb` keys (generated `ui/l10n/*` untouchable;
+   run `flutter gen-l10n` after arb edit). Do not reuse `updatesMarkAllSeen` (wrong axis semantics).
+5. **#190 suppressed outcome ×** — out of U16c scope; do not regress tombstone tests.
+
+**STATUS:** complete (brief ready for implementer; enablement needs one server+client field or explicit owner
+waiver).
+
+---
+
+## implementer — U16c-1 · the clear-axis header action · 2026-09-20
+
+**Unit base:** `54e315bb8`. **Scope:** the first half only — the retirements
+(`activity_offer_card.dart`, `activity_forward_row.dart`,
+`inbox_forward_attribution_copy.dart`, their goldens, the prompt-pin migration) are
+U16c-2 and were not touched.
+
+### The eligibility signal
+
+The scout was right that no field on the surface summary is the sweep-eligibility
+question, so `forYouSweepEligible` was added along U15R-d's route: server model → SQL
+→ GraphQL type + both resolvers → client `schema.graphql` → query document → entity →
+repository mapping, with codegen run rather than hand-edited.
+
+It is composed as
+
+```sql
+EXISTS (SELECT 1 FROM activity_optional_dismissible)      -- Set R
+OR EXISTS (SELECT 1 FROM activity_outcome_dismissible)    -- Set O
+```
+
+which is **exactly** what `AttentionSweepRepository.captureSql` selects from. The
+agreement is a property test, not a comment: `attention_sweep_eligibility_pg_test.dart`
+runs the live capture statement over ten fixtures and asserts
+`forYouSweepEligible == (captured > 0)` after each one. A fixture where the sweep
+captures nothing and the flag is true — or the reverse — fails.
+
+**One deliberate divergence from the brief.** The brief said "Set R `dismissibleReceipts`
+**with primary placement**". That cannot hold together with the iff the same brief
+requires: the sweep's Set R leg carries **no** placement filter, so a non-primary
+dismissible receipt is captured by the sweep and would be invisible to a
+placement-filtered flag. Adding the filter makes the mandated agreement test fail by
+construction. Enablement follows the *action*, so it must not narrow what the action
+does — a disabled button beside rows the sweep would still clear is §7's surface that
+cannot reach zero. The Set R leg of `forYouDotExpression` keeps its placement filter for
+the opposite and correct reason: a **dot** must not light for a row no list shows. Both
+reasons are written at the two expressions. In practice the population is the same —
+the only non-primary rows are `timeline_only` hierarchy notices, which sit on the
+parent Request and are therefore on My Desk — so this changes which rule is stated, not
+who sees what.
+
+### The header control
+
+`_ActivityMarkAllSeenButton` → `_ActivityDismissAllButton`: `Icons.done_all` →
+`Icons.clear_all`, `updatesMarkAllSeen` → `inboxDismissAll`, `markAllSeen(activity)` →
+`dismissAll()`, `activityUnreadTotal > 0` → `forYouSweepEligible`. All four moved
+together; a relabelled read button would have left the surface unable to reach zero.
+
+The three rewritten assertions in `activity_chrome_test.dart` are the unit's own
+`// CHANGES IN U16c-1:` block. Two new enablement tests state the axes as a pair: one
+fixture has `forYouDot: true, sweepEligible: false` (an unanswered forward alone — the
+exact case that would light a dot-gated button and do nothing), the other has
+`activityUnread: 0, sweepEligible: true`. The finder is a **key**, not the icon: an
+action found by its glyph is how the read-axis control reached a clear-axis surface in
+the first place.
+
+### Undo landed — it did not need to be deferred
+
+§4's "an explicit dismissal can be undone for a short window" is wired. A completed
+sweep that returns a token offers **Undo**; one without a token offers none (an undo
+affordance with no token is a lie); a refused undo says so instead of flickering false
+success. `AttentionCase.undoDismissAll` already existed and is deliberately
+non-optimistic, so nothing new was needed on the domain side.
+
+### Partial sweeps
+
+`AttentionDismissAllResult.needsResume` is `pendingCount > 0`, and
+`AttentionSweepRepository` resumes only when handed the **same** operation id. So a
+partial answer shows "Cleared N. There is more to clear." with a **Continue** action
+that passes `result.operationId` back; a fresh id would make the server capture a second
+membership, and the test asserts two calls carrying one id. Denied/stale/unknown fails
+honestly. No branch reads as "all clear".
+
+### The three empty states
+
+For You had **no** empty state at all, so all three of §4's are new. Two pure rules
+carry them:
+
+- `forYouEmptyKind` picks the voice. The pinned zone discriminates *nothing here* from
+  *nothing new*, which is §4's own sentence ("a cleared For you can still show its
+  pinned zone"), and the cleared hint says so rather than claiming an empty screen.
+- `shouldShowForYouEmptyState` decides whether any may appear at all.
+
+The second one exists because of a **surviving mutation**. Written inline in the sliver
+list, the loading/error guard could be deleted and every test stayed green: the chrome
+harness resolves its feed instantly, so it never observes a loading stream, and
+stalling the fake did not reach the guard either. Extracted, its eight-row truth table
+is asserted exhaustively and both halves of the mutation now fail. This is the seventh
+time in this plan an assertion passed for a reason other than the one it claimed; it
+was caught by mutating rather than by reading.
+
+For You carries no filter control today. *noMatch* is wired through the same rule
+rather than dropped, so a future filter gains its copy by passing `true`; the state is
+tested at the rule and at the widget.
+
+### Scope notes for whoever takes U16c-2
+
+- `updatesMarkAllSeen` is now unused by For You but still used by the Updates screen —
+  it was not removed.
+- The stream still imports `ActivityOfferCard` for prompt pins. Untouched, as required.
