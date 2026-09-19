@@ -167,11 +167,16 @@ Future<void> main() async {
     });
 
     test('an obligation is never a member', () async {
+      // CHANGES IN U15R-e: a settled obligation on a readable Request, not
+      // a Request-less one (m0191 makes that shape unstorable). Settled is
+      // what keeps it on the Activity surface, so `NOT requires_action`
+      // remains the only clause excluding it.
       await _insertReceipt(
         writer,
         id: 'Nu09boblig',
-        beaconId: null,
+        beaconId: _forwardedBeaconIds.first,
         requiresAction: true,
+        settled: true,
       );
 
       await sweep.dismissAll(accountId: _viewerId, operationId: 'OPu09boblig');
@@ -349,11 +354,14 @@ VALUES ('OPu09bstranger', @account, 'activity', 'pending', 0, 0, 0)
     test(
       'an obligation is still uncleared after the surface is swept',
       () async {
+        // CHANGES IN U15R-e: settled, and on a Request — see the capture
+        // test above.
         await _insertReceipt(
           writer,
           id: 'Nu09bapplyoblig',
-          beaconId: null,
+          beaconId: _forwardedBeaconIds.first,
           requiresAction: true,
+          settled: true,
         );
         await _insertReceipt(
           writer,
@@ -1109,6 +1117,11 @@ Future<void> _insertReceipt(
   required String id,
   required String? beaconId,
   bool requiresAction = false,
+  // CHANGES IN U15R-e: `settled` exists so an obligation fixture can sit on
+  // the Activity surface. A *live* obligation puts its Request into `scope`,
+  // which makes it myWork; a settled one does not, and since m0191 there is
+  // no Request-less obligation to reach Activity with instead.
+  bool settled = false,
 }) => writer.execute(
   Sql.named('''
 INSERT INTO public.notification_outbox (
@@ -1117,14 +1130,18 @@ INSERT INTO public.notification_outbox (
   beacon_id, source_event_key,
   destination_kind, presentation_key, presentation_payload,
   suppression_class, access_policy,
-  requires_action, attention_thread_key
+  requires_action, attention_thread_key,
+  settlement_kind, settled_at, settled_by_user_id
 ) VALUES (
   @id, @accountId, 'coordination', 'coordinationChanged', 'normal',
   'Title', 'Body', '/attention', @dedupKey, now(),
   @beaconId, @sourceEventKey,
   @destinationKind, @presentationKey, '{"eventType":"fixture"}'::jsonb,
   'standard', @accessPolicy,
-  @requiresAction, @threadKey
+  @requiresAction, @threadKey,
+  @settlementKind,
+  CASE WHEN @settled THEN now() ELSE NULL END,
+  CASE WHEN @settled THEN @accountId ELSE NULL END
 )
 '''),
   parameters: {
@@ -1140,6 +1157,8 @@ INSERT INTO public.notification_outbox (
     'accessPolicy': beaconId == null ? 'profile' : 'beacon_content',
     'requiresAction': requiresAction,
     'threadKey': requiresAction ? 'v1|needsMe|$id|$_viewerId' : null,
+    'settled': settled,
+    'settlementKind': settled ? 'resolved' : null,
   },
 );
 

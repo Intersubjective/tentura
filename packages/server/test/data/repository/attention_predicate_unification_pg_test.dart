@@ -106,7 +106,7 @@ Future<void> main() async {
     /// and an inert fixture is how a comparison quietly goes back to being
     /// vacuous. Each edge row is named here once.
     test(
-      'the restricted tombstone and the Request-less obligation are visible',
+      'the restricted tombstone is visible',
       () async {
         final live = await _visibleRows(
           writer,
@@ -119,14 +119,9 @@ Future<void> main() async {
               'a receipt whose access_policy is beacon_tombstone, on a deleted '
               'Request the viewer may read only as a tombstone',
         );
-        expect(
-          live,
-          contains('Nu10aunifoblp|activity'),
-          reason:
-              'an obligation with no Request: scope excludes it on '
-              'beacon_id IS NOT NULL, the clause a Request-bearing obligation '
-              'cannot isolate because it is already in scope',
-        );
+        // CHANGES IN U15R-e: the Request-less obligation is no longer
+        // asserted here, because it is no longer storable. Asserting it
+        // would be asserting a row the database refuses to hold.
         expect(
           await _scopeRows(writer, AttentionDismissibleSql.prelude),
           isNot(contains(_deletedBeaconId)),
@@ -487,15 +482,15 @@ VALUES (@id, @beaconId, @senderId, @recipientId)
     beaconId: _deletedBeaconId,
     accessPolicy: 'beacon_tombstone',
   );
-  // An obligation with no Request at all. The scope CTE excludes it on
-  // `beacon_id IS NOT NULL` alone — the one clause a Request-bearing
-  // obligation cannot isolate, because that row is already in scope.
-  await _insertReceipt(
-    writer,
-    id: 'Nu10aunifoblp',
-    beaconId: null,
-    requiresAction: true,
-  );
+  // CHANGES IN U15R-e: the Request-less obligation fixture is gone. m0191
+  // (`notification_outbox__obligation_beacon_chk`) makes the shape unstorable
+  // — the producer already refused to emit it, and now the database does too
+  // — so this INSERT fails at setUpAll rather than reaching `visible`. The
+  // `beacon_id IS NOT NULL` clause in the `scope` CTE it used to isolate is
+  // consequently unreachable for any storable row; it stays in the SQL
+  // because `scope` is authorization-critical and should not depend on a
+  // constraint added elsewhere, and the constraint itself is pinned by name
+  // in attention_active_attention_axis_pg_test.dart.
 
   // Unanswered forward: readable, status 0, outside scope. The single row
   // `eligible_pinned` must contain, and the one the sweep must never touch.
