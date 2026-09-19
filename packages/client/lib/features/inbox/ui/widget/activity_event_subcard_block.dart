@@ -12,6 +12,18 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/inbox/ui/widget/attention_mini_card.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+/// What the overflow control does when more events exist than the preview
+/// shows.
+enum AttentionBlockOverflowPolicy {
+  /// «ещё N» opens the Request's Timeline and the block never grows
+  /// (D-171-5b) — this is what gives a card a hard maximum height.
+  timeline,
+
+  /// The block expands in place and pages through children with a cursor
+  /// (D10) — for surfaces that are not height-bound.
+  paginate,
+}
+
 /// Compact activity-event previews nested under an offer or stream row.
 class ActivityEventSubcardBlock extends StatefulWidget {
   const ActivityEventSubcardBlock({
@@ -20,8 +32,16 @@ class ActivityEventSubcardBlock extends StatefulWidget {
     required this.onMarkSeen,
     this.actors = const {},
     this.beaconId,
+    this.overflowPolicy = AttentionBlockOverflowPolicy.timeline,
+    this.pageSize = 20,
     super.key,
   });
+
+  /// Expands / loads the next page. Only present under
+  /// [AttentionBlockOverflowPolicy.paginate].
+  static const loadMoreKey = Key('attention-block-load-more');
+
+  static const collapseKey = Key('attention-block-collapse');
 
   final int eventTotal;
   final List<AttentionReceipt> eventsPreview;
@@ -30,8 +50,14 @@ class ActivityEventSubcardBlock extends StatefulWidget {
   /// Actor profiles keyed by user id (from owning cubit).
   final Map<String, Profile> actors;
 
-  /// When set, «ещё N» can load older children via [AttentionCase.activityAttention].
+  /// When set, older children load via [AttentionCase.activityAttention].
   final String? beaconId;
+
+  final AttentionBlockOverflowPolicy overflowPolicy;
+
+  /// Rows per cursor page. The old block asked for `min(eventTotal, 100)` in
+  /// one request and could never reach the 101st child.
+  final int pageSize;
 
   @override
   State<ActivityEventSubcardBlock> createState() =>
@@ -41,6 +67,8 @@ class ActivityEventSubcardBlock extends StatefulWidget {
 class _ActivityEventSubcardBlockState extends State<ActivityEventSubcardBlock> {
   bool _expanded = false;
   bool _loadingMore = false;
+  String? _nextCursor;
+  bool _exhausted = false;
   late List<AttentionReceipt> _events = List<AttentionReceipt>.of(
     widget.eventsPreview,
   );
@@ -108,6 +136,7 @@ class _ActivityEventSubcardBlockState extends State<ActivityEventSubcardBlock> {
                 children: [
                   if (moreCount > 0)
                     TenturaTextAction(
+                      key: ActivityEventSubcardBlock.loadMoreKey,
                       label: l10n.activityEventMore(moreCount),
                       onPressed: _loadingMore
                           ? null
@@ -115,6 +144,7 @@ class _ActivityEventSubcardBlockState extends State<ActivityEventSubcardBlock> {
                     ),
                   if (_expanded)
                     TenturaTextAction(
+                      key: ActivityEventSubcardBlock.collapseKey,
                       label: l10n.inboxProvenanceCollapse,
                       onPressed: _collapse,
                     ),
@@ -135,19 +165,28 @@ class _ActivityEventSubcardBlockState extends State<ActivityEventSubcardBlock> {
   void _collapse() => setState(() => _expanded = false);
 
   Future<void> _expand() async {
-    if (_expanded) {
-      return;
+    if (!_expanded) {
+      setState(() => _expanded = true);
+      // Everything already in hand: showing it is the whole step.
+      if (_events.length >= widget.eventTotal) return;
     }
-    setState(() => _expanded = true);
+    await _loadNextPage();
+  }
+
+  Future<void> _loadNextPage() async {
     final beaconId = widget.beaconId?.trim() ?? '';
-    if (beaconId.isEmpty || _events.length >= widget.eventTotal) {
+    if (beaconId.isEmpty ||
+        _loadingMore ||
+        _exhausted ||
+        _events.length >= widget.eventTotal) {
       return;
     }
     setState(() => _loadingMore = true);
     try {
       final page = await GetIt.I<AttentionCase>().activityAttention(
         beaconId: beaconId,
-        limit: widget.eventTotal.clamp(1, 100),
+        cursor: _nextCursor,
+        limit: widget.pageSize,
       );
       if (!mounted) return;
       final seen = {for (final event in _events) event.id};
@@ -156,17 +195,25 @@ class _ActivityEventSubcardBlockState extends State<ActivityEventSubcardBlock> {
         for (final event in page.events)
           if (!seen.contains(event.id)) event,
       ];
-      final missingIds = attentionActorIds(merged).difference(_actors.keys.toSet());
+      final missingIds = attentionActorIds(
+        merged,
+      ).difference(_actors.keys.toSet());
       var actors = _actors;
       if (missingIds.isNotEmpty) {
-        final resolved =
-            await GetIt.I<AttentionActorProfilesCase>().resolve(missingIds);
+        final resolved = await GetIt.I<AttentionActorProfilesCase>().resolve(
+          missingIds,
+        );
         if (!mounted) return;
         actors = {..._actors, ...resolved};
       }
+      final cursor = page.nextCursor?.trim() ?? '';
       setState(() {
         _events = merged;
         _actors = actors;
+        _nextCursor = cursor.isEmpty ? null : cursor;
+        // A page that ends without a cursor is the last one; without this the
+        // control would keep asking for a page that can never arrive.
+        _exhausted = cursor.isEmpty;
         _loadingMore = false;
       });
     } catch (_) {
