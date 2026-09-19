@@ -9122,3 +9122,33 @@ An outcome row no longer carries a dot, so it is no longer a member of the **unr
 neither created it nor repaired it; it made it visible in
 `attention_activity_stream_pg_test.dart`'s `unread_total` case, where the `all` view is now also asserted so the
 row's continued reachability and dismissibility are pinned.
+
+### Manager verdict — U15R-a · **ACCEPTED** (remediation; inner Opus-low ✓, overseer-verified)
+
+Overseer's gate: **1689 non-PG**, **1030 PG / 24 known skips**. Commits `ff3d373e1` R1 · `503958e69` R9 ·
+`2421eccd0` R3 · `cc7a36eb5` R8 · `e7f6191bd` journal.
+
+**All four of Astra's server findings reproduced as failing tests before any fix** — which matters, because the
+review was source-only and executed nothing. R9's race was reproduced **deterministically**: a third connection
+holds a row lock until both applies are blocked on their guarded `UPDATE`, rather than relying on scheduler
+luck.
+
+**Two defects the reviewer did not name, found while fixing:**
+- the event-preview attachment was keyed on `beaconId`, so an outcome row **inherited the Request row's
+  sub-cards** even after being excluded from the query — owner decision B breached by a different route than
+  the one reported;
+- a receipt-scoped clear capture bound `0/0` identity, which would have made R3's new undo **refuse any Request
+  that had ever been decided**. The fix for one finding would have shipped a fresh defect without it.
+
+**Five accepted tests encoded the defects** and were rewritten in place with the reason stated inline. None of
+the guarantees U08–U11 prove needed loosening: owner-decision-A sweep exclusions, `_replay`, the m0183–m0185
+row-level guards and the active-attention axis all still pass unmodified.
+
+**Scope discipline worth noting.** Having made outcome rows correctly dotless, the worker observed that a
+`relay_received` receipt still feeds `activityUnreadTotal` while **no row carries a dot for it** — and did not
+fix it, because that is R7, assigned to U15R-c. It asserted the row's reachability in the `all` view so nothing
+could hide there, and left the semantics alone. Fixing it in passing would have masked exactly the
+totals-versus-membership mismatch Astra named as this process's blind spot, and denied U15R-c the chance to
+settle it across both surfaces at once.
+
+---
