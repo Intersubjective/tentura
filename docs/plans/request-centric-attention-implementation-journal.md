@@ -3655,3 +3655,41 @@ dart test --tags pg -j 1                                                        
 
 All through `scripts/run_with_test_cleanup.sh`. `~24` skips are `_skipHistoricalMigrationCoverage` only.
 
+
+### Manager verdict — U07b2 · **ACCEPTED** (hard; no scout by design / inner Opus-low / verify FAIL → finisher ✓)
+
+Overseer's own full suite after the finisher: **1671 non-PG**, **855 PG / 24 known skips** (baselines 1665 / 851).
+Commits `f04d2ec56` refuse generic settlement · `30f99902a` expiry explanation · `caf76942d` contract
+reconciliation · `c36a752bc` journal · `5af413658` finisher.
+
+**This unit is why the overseer now owns the full sweep.** The inner layer was told *not* to run it (the previous
+worker died on exactly that), reported green on its named suites — correctly, within what it ran — and the
+**overseer's gate caught 11 failures**, all one root cause: `closeAndFinalize` gained a call to a port method
+that the `extends Fake` doubles do not implement, so they threw `noSuchMethod` before any assertion ran. The
+split of duties worked: work with the inner layer, completeness with the overseer.
+
+**The finisher was given the one question that mattered and answered it.** Two of the failures were about
+meaning, not plumbing — "re-close is idempotent when a forward episode already exists" and "manual and expiry
+finalization share the same hierarchy closed shape". Fixing the doubles could have left them green while hiding
+a genuine change in closed-shape behaviour. It reported **plumbing-only**, and both tests pass with their
+**original assertions** — so the new event does not alter re-close idempotency or the hierarchy closed shape.
+
+**Three honest negative results from the inner layer, all worth keeping:**
+1. **A producer was written, found unreachable, and deleted.** `EvaluationCase.closeNow` cannot strand a
+   reviewer — `_canCloseNow` refuses unless every participant is already finished — so an author-cancelled
+   explanation could never fire. The matrix's framing was true of the SQL in isolation, not of that path.
+   Shipping a dead producer plus a contract row claiming it fires would have been worse than shipping nothing.
+2. **Only one row actually needed a new explanation.** Author-cancel is already `reviewWindowCancelled`,
+   helper-withdraw is `promiseWithdrawn`, and the rest are the recipient's own act.
+3. **The blast radius I predicted did not exist**: no test settled a help-offer obligation through the generic
+   path, so zero tests were rewritten for item 1. I expected otherwise and was wrong.
+
+**Disclosed boundary touch, accepted:** `packages/client/test/architecture/updates_event_contract_test.dart` is a
+hand-mirrored copy of the server contract constants and cannot stay green through a contract change. No client
+`lib/` file was touched. `schemaVersion` 4 → 5 for the new event type, with both mirrors and the catalog moved.
+
+**Carried forward:** `attentionSettle` is now a mutation that always refuses — left in place because removing it
+is client-visible (U15/U08); and `obligation_ended` has no arm in the client's fallback display-copy maps
+(harmless while the server supplies title and body — U15).
+
+---
