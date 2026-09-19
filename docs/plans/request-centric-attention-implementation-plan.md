@@ -649,6 +649,32 @@ R4 blocks the card outright and R1/R2 mean owner decisions A and B are not yet d
     `docs/contracts/attention-active-attention-axis.json` and asserts the strings still appear in the server SQL,
     while the server PG test that produced those numbers never opens the file. Close the loop from the server side.
 
+- **U15R-e — close the Request-less obligation gap, then finish §6's fourth rule.** U15R-d implemented three of
+  §6's four indicator rules and stopped on the fourth exactly as its brief required: before scoping
+  `my desk.count` to the myWork surface, prove the scoping drops nothing. It does not hold.
+  `notification_outbox__beacon_policy_chk` (m0115) demands a `beacon_id` only for the `beacon_content` and
+  `beacon_tombstone` access policies, so a `requires_action` row on a **profile**-policy destination stores
+  cleanly with `beacon_id IS NULL`; `visibleWithSurface` then labels it `activity`, because the `scope` UNION can
+  only absorb rows that name a Request. §6 has nowhere to put such a row — For You has no count, and its dot
+  covers Set R, Set O and the pinned zone, none of which contains a live obligation.
+
+  **Overseer decision: make storage agree with the producer.** This is not a product question, so it is not
+  routed to the owner. `AttentionPolicy.logicalTaskKey` already throws `Live obligation requires a Request` and
+  runs on every dispatched receipt: the codebase's own rule is that an obligation belongs to a Request. The
+  alternative — giving §6 a term for a Request-less obligation — would invent a product concept that nothing in
+  the contract, the plan or the write path asks for. So the gap closes by **constraint**, not by widening a
+  predicate and not by extending §6:
+
+  1. A migration adding `CHECK (NOT requires_action OR beacon_id IS NOT NULL)` to `notification_outbox`. It must
+     **fail loudly** on a violating row rather than skip it — a silent repair here would hide precisely the
+     producer bug the constraint exists to catch. Any legacy remediation belongs to U18, which already owns the
+     unkeyed-obligation gate.
+  2. With the shape unstorable, scope `my desk.count` to `surface = 'myWork'` per §6, and the same for
+     `attentionFeed`'s own `needs_you_total` (`attention_repository.dart:709`), which is unscoped for the same
+     reason.
+  3. Rewrite the PG test that pinned the gap (`U15R-d contract gap — a beacon-less live obligation …`) into its
+     inverse: the shape is now rejected, **by name**, the way U04 taught us to assert a constraint.
+
 **R10 — found by the overseer while reviewing U15R-c, fixed directly.** `is_active_attention` is not one
 expression: the stream union gives each `item_kind` its own, and a synthetic `requestActivity` row's is
 `stats.event_unseen_count > 0`. U15R-c replaced a read-based filter with the **receipt** rule applied to all four

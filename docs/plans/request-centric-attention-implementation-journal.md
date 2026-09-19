@@ -9700,6 +9700,96 @@ Every flipped assertion carries `// CHANGES IN U15R-d:` and the §6 clause requi
 an *expectation* — §6 says the same thing about what should light — only the input the case states it over,
 because a total was never the dot's rule. Nothing was left in conflict.
 
+## verify — U15R-d — READ-ONLY pass
+
+**Range:** `4934f1ed7..0fe3c9917` (HEAD). **UNIT_BASE** `4934f1ed7`. No code/test edits in this pass.
+
+### Gates (serial; baseline re-read: client 30, server 0)
+
+| Command | Result |
+|---------|--------|
+| `packages/server` `dart test --exclude-tags pg` | **1690 passed, 0 skipped**, exit 0 (~12s) |
+| `packages/server` `dart test --tags pg -j 1` | **1050 passed, 24 skipped**, exit 0 (~12m54s) |
+| `packages/client` `flutter test -j 4` (ENV=test) | **3823 passed, 29 skipped**, exit 0 (~3m02s) |
+| `check-custom-lints.sh packages/server` | **total 0 (baseline 0) OK** |
+| `check-custom-lints.sh packages/client` | **total 30 (baseline 30) OK** |
+
+**Skip deltas vs U15R-c verify (client):** passed +5 (new tests), **skipped unchanged at 29**. **PG skipped 24** (environment skips when admin DB unreachable — same pattern as prior PG runs; no new `@Skip` in the U15R-d test diff).
+
+**Untouchables:** no diff on `pubspec.yaml`, `web/index.html`, keys, `.serena`, `force_directed_graphview`, `constellation-*`.
+
+### Four corrections (judge criteria)
+
+1. **Additive fields:** `myDeskDot` / `forYouDot` added in GraphQL, models, client `AttentionSurfaceSummary`, `surfaceSummary` SQL. Legacy three `FILTER` legs in `attention_repository.dart` unchanged in meaning (diff only wraps CTE + appends dot CTEs). PG tests explicitly assert obligation-only → `myDeskDot == false` while `myWorkUnreadTotal == 1`.
+2. **No release bump:** confirmed absent from range.
+3. **`my desk.count` deferred:** `needsYouTotal` still unscoped; `home_attention_state.dart` documents gap; PG test `U15R-d contract gap — a beacon-less live obligation…` pins facts; no `surface = 'myWork'` filter added to `needs_you_total` in summary SQL.
+4. **`CHANGES IN U15R-d:` tags:** present on all **client** flipped tests touched in range (12 in `work_activity_nav_indicators_test.dart`, plus case/surface/cross-surface/nav/repo tests). **Server** `attention_active_attention_axis_pg_test.dart` rewrites axis expectations via `AttentionAxisContract.axisCase` **without** per-line `CHANGES IN U15R-d:` tags — process gap vs journal claim "every flipped assertion" (see GAPS).
+
+### M1 / contract loop (code read)
+
+- Dots composed from `AttentionDismissibleSql.cte` + existing predicates; `OR FALSE` for pending prompts in `for_you_dot`.
+- Directory guard `no attention repository spells the axis out by hand` still in axis PG file (unchanged group).
+- M1 `forYouDot` test compares to `_composedForYouMembership` using same CTEs (not feed length). **Nuance:** helper omits `primaryPlacement` join on Set R that production `for_you_dot` applies — helper is slightly looser; fixtures today are all primary so green.
+- Contract loop: `packages/server/test/support/attention_axis_contract.dart` loads JSON; group `U15R-d — the contract is read from both ends` runs `assertMatchesServerSql()` and refuses axis cases missing dot fields; axis-case tests drive `myDeskDot`/`forYouDot` from JSON (would fail if JSON and `surfaceSummary` diverge).
+
+### Coalescing test (`attention_case_test.dart`)
+
+Counts **1→2** (in flight) and **2→3** (after rerun) documented in implementer journal: transition fetch is separate from initial head fetch; property "20 hints → one in-flight + one rerun" still pinned — **not** fitted to unrelated behavior.
+
+### Verdict
+
+**pass** — §6 dots delivered additively, legacy totals preserved, count scoping correctly stopped, gates green. Minor documentation/process gaps only.
+
 ### Not in this unit
 
 The pubspec version bump and the `web/index.html` cache-buster: U19 release work, untouched.
+
+## manager — U15R-d accepted, after fixing the M1 guard the verifier found
+
+**Verdict: accepted.** Verify returned `pass` on the scout's own chat. My independent gates match its numbers
+exactly: server non-PG **1690 / 0 skips**, server PG **1050 / 24 skips** (the recorded
+`_skipHistoricalMigrationCoverage` baseline, unmoved), client **3823 / 29 skips**, custom lints server 0/0 and
+client 30/30 against a freshly re-read baseline. The unit delivered three of §6's four indicator rules and
+stopped on the fourth exactly as its brief required.
+
+### The verifier's two findings resolved in opposite directions
+
+**GAP 1 — missing `// CHANGES IN U15R-d:` tags on the server axis rewrites: rejected as a false positive.**
+Correction 4 requires a tag on a *flipped* assertion. Nothing flipped. Every edit to
+`docs/contracts/attention-active-attention-axis.json` in this range is additive — new `myDeskDot`/`forYouDot`
+keys and new sections — and no existing number moved, so the test's literals were replaced by lookups returning
+the same values. Tagging them would have misdescribed the change. The structural worry the finding points at is
+real but already answered: an expectation driven from a shared JSON could be "fixed" by editing the JSON, except
+that **both layers now read it**, so moving a number to satisfy the server breaks the client. That mutual
+constraint is what closing the contract loop bought.
+
+**GAP 2 — the M1 helper: confirmed, and worse than "latent test precision".**
+
+`_composedForYouMembership` omitted the `primaryPlacement` filter that production's Set R leg applies. The guard
+whose entire purpose is proving indicator == list membership could not have caught them diverging. The root
+cause was not the missing filter but that the helper was a **hand-copy of production SQL at all** — the thing M1
+exists to forbid, reproduced inside M1's own test.
+
+Fixed by extraction: `AttentionDismissibleSql.myDeskDotExpression` and `.forYouDotExpression` are now the single
+definition, and `surfaceSummary` and the M1 test both read them, so drift is impossible by construction rather
+than merely unlikely.
+
+### The new guard failed its own falsifiability check — and that is the entry worth keeping
+
+Extraction makes the M1 test prove *wiring*, so the placement leg needed a behaviour test. I added one — a
+`timeline_only` row is in Set R and sweepable but must not light a tab it cannot be reached from — and then
+mutated production by deleting the placement filter to prove the test could fail.
+
+**It did not fail. All 31 passed with the filter gone.** The fixture was an `_optional` on `_foreignBeaconId`,
+and the viewer cannot read that beacon's content, so the row never reached `visible` at all: the assertion held
+for a reason that had nothing to do with placement. A vacuous test, written by the person who had just finished
+writing that vacuous tests are the recurring defect of this plan.
+
+Rebuilt on `_profile` — the fixture the sibling test proves does light the dot — with a control assertion that
+the same row on the primary surface still lights it, so the test isolates `placement` and nothing else. The
+mutation now fails it, and only it: `+30 -1`.
+
+**The lesson, stated so the next unit inherits it:** a green test proves nothing until you have seen it red for
+the right reason. "Mutate and watch it fail" is not a formality to perform after the fact — it is the only
+evidence that a fixture reaches the code path it names. Three defects in this group (R10, the M1 helper, this
+one) were all the same shape: an assertion that was true for a reason other than the one it claimed.
