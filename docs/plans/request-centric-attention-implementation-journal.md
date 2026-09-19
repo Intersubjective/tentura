@@ -2091,3 +2091,164 @@ the same U05 chat**, so the verifier still judges against a brief it wrote itsel
 matters in the sandwich, not the number of layers.
 
 ---
+
+## UNIT U05b — Channel split · INNER (2026-09-19)
+
+**UNIT_BASE:** `f583ac43c`. **Scope:** U05 scout steps 3 and 6. Steps 4–5 (`logical_task_key`,
+`lifecycle_generation`, supersede-on-renewal) untouched — U05c.
+
+### What changed
+
+1. **`AttentionDispatchRepository.record`** — the channel write is no longer an unconditional INSERT. A new job
+   coalesces into the account's existing **pending** `attention_channel_delivery` row for the same collapse
+   family, repointing it at the newest occurrence and receipt and replacing its frozen payload. Only `pending`
+   is collapsed into.
+2. **`m0180`** — `CREATE INDEX attention_occurrence_recipient__account_collapse (account_id, collapse_key)`.
+   Additive, non-unique, `IF NOT EXISTS`, plain `CREATE INDEX`, no data change.
+3. **`markEmailedByDedupKey` → `markEmailedByChannelCollapseKey({accountId, channelCollapseKey})`**, through the
+   port, the repository, `EmailNotificationService` (both send paths) and `BeaconNotificationService`.
+
+### No new collapse vocabulary, and no new column (overseer addition 3)
+
+The channel collapse key already exists twice over and neither copy was disturbed:
+
+- `attention_occurrence_recipient.collapse_key` (m0121), one row per `(occurrence_id, account_id)` — exactly the
+  grain a delivery job has, so the coalesce lookup joins that table instead of denormalising the key onto
+  `attention_channel_delivery`. m0180 exists only so that join is an index scan.
+- `notification_outbox.dedup_key` — `<accountId>|attention-v1|<collapseKey>`, the same key as persisted. U05a
+  deliberately left it carrying its collapse-derived value; the email path now matches it **as stored** rather
+  than recomposing it, so there remains exactly one place that builds the string (dispatch).
+
+§0.1 names no channel-collapse object, and nothing here needed one.
+
+The one genuine tightening: the marking predicate gained `AND account_id = $2`. It is per-account by definition
+and must not depend on the account id happening to be a prefix of the key.
+
+### Why the payload carries the newest receipt (overseer addition 2)
+
+The coalesced job is repointed at the **newest** receipt of the family — `receipt_id`, `occurrence_id` and the
+payload's `receiptId` all move together, so the row cannot disagree with its own payload.
+
+Newest, not first, for three reasons. The notification shows the newest event's copy (the payload is replaced
+wholesale), so any other id would open something the user did not just read about. The newest receipt was
+written microseconds ago in the same transaction, so it cannot have been cleared, settled or retention-deleted
+before the worker picks the job up; an older sibling can have been. And `deleteSettledOlderThan` protects a
+receipt only while a `pending`/`leased` delivery references it by `receipt_id` — pointing the FK at the newest
+receipt is what keeps the openable one alive. Asserted in
+`attention_channel_collapse_pg_test.dart` against a freshly queried newest id, not against whichever row came
+back first.
+
+### Why a leased or delivered job is never collapsed into
+
+A `leased` send is already in a worker's hands and a `delivered`/`dead` one has gone. Absorbing a later event
+into either would not aggregate a notification, it would delete one. Both cases have their own test.
+
+### Retention interaction (overseer addition 6)
+
+`attention_retention_pg_test.dart` passes unchanged, and the meaning of `emailed_at` did not shift: it still
+means "the digest owes nothing for this row". What did shift is which rows one send settles — one email now
+settles the whole family, because the family is now one notification. That is the marking following the
+delivery, not the other way round.
+
+Secondary effect, deliberate: an older receipt in a collapsed family no longer has a delivery row pointing at
+it, so once seen, emailed and past the window it becomes deletable slightly earlier than before. U06a's
+guarantee is untouched — a live obligation is held by `NOT (requires_action = true AND settlement_kind IS NULL)`,
+which has nothing to do with deliveries; the retention suite's *retains live obligations even when seen,
+emailed, and older than the retention window* case still passes.
+
+### Findings
+
+- **The duplicate-notification failure mode the overseer described is real, but it is not U05a's doing.**
+  `attention_channel_delivery` has UNIQUE `(occurrence_id, account_id)` and dispatch always inserted one job per
+  occurrence×recipient, so two occurrences in one collapse family produced **two** delivery jobs — and two
+  pushes — both before and after U05a. The pre-U05a receipt-grain upsert collapsed the in-app row, never the
+  delivery. U05b is therefore a *reduction* in push/email volume for a collapse family (2 → 1), not a
+  restoration of prior behaviour. It is the behaviour D03 asks for ("channel aggregation may retain its existing
+  collapse key; split it from in-app receipt identity") and the one overseer addition 1 specifies, so it is what
+  was built — but "push/email behaviour is unchanged end to end" is not literally true and should not be read as
+  a verified claim. Nothing else about delivery changed: throttle, lease, retry, dead-letter and the frozen
+  payload shape (`dedupKey` stays the payload's JSON key, so in-flight jobs written by the old code still
+  decode) are all as they were.
+- **`room_now_line_pg_test.dart` was already red at `f583ac43c`** — a U05a casualty its sweep missed, because
+  U05a's regression list covers `test/data/repository/` and this suite lives under `test/domain/use_case/`.
+  Verified by running the unmodified test in a throwaway `git worktree` at `f583ac43c` (generated files copied
+  in, since they are gitignored): same failure, `Expected: <1> Actual: <2>`. Rewritten here rather than left
+  red — see below.
+- **The email retarget could not be made red by behaviour alone on the family it targets**, because
+  `dedup_key` already *was* the channel collapse key; the first red was a compile error. The account-scoping
+  tightening gave it a real behavioural red (below), which is why it was added rather than left as a rename.
+- `m0143_capability_evidence_sql_test.dart` failed once in a whole-directory PG sweep and passed in isolation
+  and on a full re-run of the same directory (`+142 ~22`). Flake, unrelated.
+- **Worktree accident, disclosed:** a stray `git stash --keep-index` in one command stashed the three
+  pre-existing modified files that belong to other people (`.serena/project.yml`, two
+  `force_directed_graphview` files). Noticed immediately and `git stash pop`ed; `git status` matches the
+  starting snapshot exactly (3 modified, 10 untracked). Nothing was lost, and no other stash entry was touched.
+- `dart format` would reformat `email_notification_service_test.dart` (35/28) and `room_now_line_pg_test.dart`
+  wholesale — neither is formatter-clean at HEAD, same trap U05a hit. Edits applied by hand.
+
+### Characterization tests changed
+
+| File · test | Asserted before | Asserts now | Why intended |
+|---|---|---|---|
+| `attention_repository_pg_test.dart` · *claimDue with two pending jobs for one account* | Two dispatches sharing collapse key `relay\|<beaconId>` leave 2 pending jobs | Two dispatches in **different** collapse families leave 2 pending jobs | The test's subject is the throttle CTE's ON CONFLICT 21000 guard, which needs two pending jobs for one account. Since U05b that state only exists across families. The scout predicted this edit; the assertions are unchanged, only the fixture. |
+| `room_now_line_pg_test.dart` · *second identical NOW edit collapses outbox receipts by dedup key* → *…keeps two receipts but one notification* | 2 occurrences → **1** outbox receipt | 2 receipts sharing **1** dedup key → **1** pending delivery | The old number was the receipt-grain collapse U05a retired (already failing at UNIT_BASE). The rewrite pins where the collapsing went instead of deleting the coverage. |
+
+### Commands
+
+All from `packages/server` through `scripts/run_with_test_cleanup.sh`. No PG suite reported SKIPPED.
+
+```
+$ dart test --tags pg -j 1 test/data/repository/attention_channel_collapse_pg_test.dart   # before the change
+00:02 +4 -1: Some tests failed.
+  two receipts in one collapse family leave one pending delivery carrying the newest receipt
+    Expected: an object with length of <1>  Actual: [<two pending jobs>]  Which: has length of <2>
+
+$ dart test --tags pg -j 1 test/data/repository/attention_channel_collapse_pg_test.dart   # after
+00:02 +5: All tests passed!
+
+$ dart test --tags pg -j 1 test/data/repository/attention_email_marking_pg_test.dart   # before the rename
+00:00 +0 -1: Error: The method 'markEmailedByChannelCollapseKey' isn't defined
+
+$ dart test --tags pg -j 1 test/data/repository/attention_email_marking_pg_test.dart   # renamed, not yet account-scoped
+00:02 +2 -1: marks every receipt of the sent family and nothing outside it
+    Expected: <2>  Actual: <3>   (the foreign account's row was marked too)
+
+$ dart test --tags pg -j 1 test/data/repository/attention_email_marking_pg_test.dart   # after
+00:02 +3: All tests passed!
+
+$ dart test --tags pg -j 1 <the 12 attention PG suites incl. both new ones>
+00:33 +90: All tests passed!
+
+$ dart test --tags pg -j 1 test/data/repository/
+06:51 +567 ~2: All tests passed!
+
+$ dart test --tags pg -j 1 test/domain/
+00:48 +76: All tests passed!
+
+$ dart test --tags pg -j 1 test/data/database/
+03:39 +142 ~22: All tests passed!      # the ~22 are the pre-existing _skipHistoricalMigrationCoverage skips
+
+$ dart test test/data/repository/attention_dispatch_telemetry_test.dart \
+    test/data/service/beacon_notification_service_test.dart \
+    test/data/service/email_notification_service_test.dart \
+    test/domain/use_case/email_digest_case_test.dart
+00:00 +15: All tests passed!
+
+$ dart test --exclude-tags pg
+00:07 +1660: All tests passed!
+
+$ ./scripts/check-custom-lints.sh packages/server
+total: 0 (baseline: 0) — OK
+```
+
+### Commits
+
+| Hash | Subject |
+|---|---|
+| `cc1622368` | test(attention): pin channel-layer delivery collapse cardinality |
+| `cd2d8ed10` | feat(attention): collapse push/email at the delivery layer |
+| `200c57d37` | test(attention): pin which rows an immediate email marks |
+| `8f9f68d6d` | refactor(attention): mark emailed by the channel collapse key |
+| `af0315cf3` | test(attention): retire one more collapse characterization U05a invalidated |
+
+**STATUS:** complete
