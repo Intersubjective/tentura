@@ -445,18 +445,29 @@ VALUES (@id, @authorId, @title, '', 0)
         surface: AttentionSurface.activity,
       );
       expect(feed.summary.unreadTotal, 2);
-      // The represented relay_received receipt is deduped out of the page,
-      // but its own forward row (unseen, since the beacon has a visible
-      // unseen relay receipt) and the watching digest are both independent
-      // rows on the page alongside the unrelated profile receipt (§5.6).
-      expect(feed.page.items, hasLength(3));
+      // REWRITTEN IN U15R-a (was: three rows, the outcome row among them).
+      // An outcome row carries no dot (owner decision B), so it is not a
+      // member of the *unread* view any more — the digest and the unrelated
+      // profile receipt are. The row itself is untouched in the `all` view
+      // below: still present, still dismissible, still where it entered.
+      expect(feed.page.items, hasLength(2));
       expect(
         feed.page.items.map((item) => item.itemKind),
         containsAll(<AttentionItemKind>[
-          AttentionItemKind.forward,
           AttentionItemKind.watchingDigest,
           AttentionItemKind.receipt,
         ]),
+      );
+      final all = await query.attentionFeed(
+        accountId: _viewerId,
+        view: AttentionFeedView.all,
+        surface: AttentionSurface.activity,
+      );
+      expect(
+        all.page.items.where(
+          (item) => item.itemKind == AttentionItemKind.forward,
+        ),
+        hasLength(1),
       );
     });
 
@@ -597,8 +608,18 @@ ON CONFLICT DO NOTHING
       // U10c it became the row's `created_at`; now the row stays at the
       // Request's entry and only the dot, the count and the preview move.
       expect(forward.createdAt.toUtc(), entryAt);
-      expect(forward.isUnread, isTrue);
-      expect(forward.eventTotal, 1);
+      // REWRITTEN IN U15R-a (was: the outcome row took the dot and the count
+      // from the event). Decision B gives an outcome row neither; the event
+      // is carried by the Request's own row, which is where the person acts
+      // on it. Nothing is lost — it moved to the object it belongs to.
+      expect(forward.isUnread, isFalse);
+      expect(forward.eventTotal, 0);
+      final group = feed.page.items
+          .where((item) => item.itemKind == AttentionItemKind.requestActivity)
+          .single;
+      expect(group.beaconId, _foreignBeaconId);
+      expect(group.eventTotal, 1);
+      expect(group.eventUnseenCount, 1);
       expect(
         feed.page.items.where(
           (item) =>
@@ -632,7 +653,13 @@ ON CONFLICT DO NOTHING
       expect(forward.eventsPreview, isEmpty);
     });
 
-    test('dismissed tombstone does not resurrect as requestActivity', () async {
+    // REWRITTEN IN U15R-a. The property this protects is unchanged — a
+    // dismissed tombstone never comes back — but it used to be asserted by
+    // the whole surface going empty, which is how R1 hid: the Request's live
+    // optional event was vetoed along with the memory, while the tab kept
+    // counting it. The tombstone row stays gone; the event is reachable.
+    test('dismissed tombstone stays dismissed and does not veto its Request',
+        () async {
       await _ensureForwardPath(writer, beaconId: _closedBeaconId);
       await _upsertInbox(
         writer,
@@ -666,7 +693,123 @@ WHERE user_id = @userId AND beacon_id = @beaconId
         view: AttentionFeedView.all,
         surface: AttentionSurface.activity,
       );
-      expect(feed.page.items, isEmpty);
+      expect(
+        feed.page.items.any((item) => item.id == 'inbox:$_closedBeaconId'),
+        isFalse,
+        reason: 'the dismissed memory never returns',
+      );
+      final group = feed.page.items.single;
+      expect(group.itemKind, AttentionItemKind.requestActivity);
+      expect(group.beaconId, _closedBeaconId);
+      expect(group.eventUnseenCount, 1);
+    });
+
+    // U15R-a / R1 — the seam Astra found: an outcome dismissal is a memory
+    // being put away, never a veto on the Request's live attention. The tab
+    // total counts the uncleared optional receipt either way (summary), so a
+    // projection that drops the Request leaves the tab lit over a surface
+    // with nothing on it — the M1 failure stated from both sides at once.
+    //
+    // Both quantities here come from the server: the number from
+    // `surfaceSummary`, the list from `attentionFeed`. Neither is a
+    // hand-built value that merely looks right.
+    test(
+      'an outcome-only dismissal leaves later optional attention reachable',
+      () async {
+        await _upsertInbox(
+          writer,
+          beaconId: _foreignBeaconId,
+          status: 1,
+          latestForwardAt: '2026-08-20T08:00:00Z',
+        );
+        await writer.execute(
+          Sql.named('''
+UPDATE public.inbox_item
+SET tombstone_dismissed_at = now()
+WHERE user_id = @userId AND beacon_id = @beaconId
+'''),
+          parameters: {'userId': _viewerId, 'beaconId': _foreignBeaconId},
+        );
+        // …and only then does the next optional event arrive.
+        await _insertStatusReceipt(
+          writer,
+          id: 'NactR1a001',
+          beaconId: _foreignBeaconId,
+          createdAt: '2026-08-20T09:00:00Z',
+        );
+
+        final summary = await query.surfaceSummary(accountId: _viewerId);
+        final feed = await query.attentionFeed(
+          accountId: _viewerId,
+          view: AttentionFeedView.all,
+          surface: AttentionSurface.activity,
+        );
+
+        expect(
+          summary.activityUnreadTotal,
+          1,
+          reason: 'the uncleared optional receipt still feeds the tab total',
+        );
+        final forBeacon = feed.page.items
+            .where((item) => item.beaconId == _foreignBeaconId)
+            .toList();
+        expect(
+          forBeacon,
+          isNotEmpty,
+          reason: 'what the tab counts must be reachable on the surface',
+        );
+        final group = forBeacon.single;
+        expect(group.itemKind, AttentionItemKind.requestActivity);
+        expect(group.eventUnseenCount, 1);
+        expect(
+          feed.page.items.any((item) => item.id == 'inbox:$_foreignBeaconId'),
+          isFalse,
+          reason: 'the dismissed tombstone itself never comes back',
+        );
+      },
+    );
+
+    // U15R-a / R1, decision B's other half: an outcome row is a trace of the
+    // viewer's own past act — "no dot and no sub-cards" (contract §7). Its
+    // Request's live attention is not lost; it is reachable as its own row.
+    test('a non-helping outcome row carries no dot and no sub-cards', () async {
+      await _upsertInbox(
+        writer,
+        beaconId: _foreignBeaconId,
+        status: 1,
+        latestForwardAt: '2026-08-21T08:00:00Z',
+      );
+      await _insertStatusReceipt(
+        writer,
+        id: 'NactR1b001',
+        beaconId: _foreignBeaconId,
+        createdAt: '2026-08-21T09:00:00Z',
+      );
+
+      final feed = await query.attentionFeed(
+        accountId: _viewerId,
+        view: AttentionFeedView.all,
+        surface: AttentionSurface.activity,
+      );
+      final outcome = feed.page.items
+          .where((item) => item.id == 'inbox:$_foreignBeaconId')
+          .single;
+      expect(outcome.forwardOutcome, 'watching');
+      expect(outcome.eventTotal, 0);
+      expect(outcome.eventUnseenCount, 0);
+      expect(outcome.eventsPreview, isEmpty);
+      expect(
+        outcome.isUnread,
+        isFalse,
+        reason: 'an outcome row is never a second attention object',
+      );
+
+      final group = feed.page.items
+          .where((item) => item.itemKind == AttentionItemKind.requestActivity)
+          .single;
+      expect(group.beaconId, _foreignBeaconId);
+      expect(group.eventUnseenCount, 1);
+      expect(group.eventsPreview, hasLength(1));
     });
 
     test('beacon-less activity receipt stays a standalone receipt row', () async {

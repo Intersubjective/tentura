@@ -704,20 +704,27 @@ WHERE account_id = @u AND beacon_id = @b
         surface: AttentionSurface.activity,
         limit: 10,
       );
-      final tailRow = tail.page.items
-          .where((item) => item.beaconId == _earlyBeaconId)
-          .single;
-      final headRow = head.page.items
-          .where((item) => item.beaconId == _earlyBeaconId)
-          .single;
-      expect(
-        headRow.id,
-        tailRow.id,
-        reason:
-            'a grouped row is named after its Request, so merging a head '
-            'refresh into held pages reconciles by Request id exactly — D08',
-      );
-      expect(headRow.createdAt, tailRow.createdAt);
+      // REWRITTEN IN U15R-a: a Request answered by the viewer now has two
+      // rows — the dated outcome memory and, since R1, its own live-activity
+      // row. The property is unchanged and now stated over all of them: every
+      // row the tail page holds is named and positioned identically by a head
+      // refresh, so merging reconciles exactly (D08).
+      Map<String, DateTime> rowsFor(AttentionFeed feed) => {
+        for (final item in feed.page.items)
+          if (item.beaconId == _earlyBeaconId) item.id: item.createdAt,
+      };
+      final tailRows = rowsFor(tail);
+      final headRows = rowsFor(head);
+      expect(tailRows, isNotEmpty);
+      for (final entry in tailRows.entries) {
+        expect(
+          headRows,
+          containsPair(entry.key, entry.value),
+          reason:
+              'a grouped row is named after its Request, so merging a head '
+              'refresh into held pages reconciles by Request id exactly — D08',
+        );
+      }
     });
   }, skip: skipReason);
 }

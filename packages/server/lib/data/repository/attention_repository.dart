@@ -358,16 +358,16 @@ eligible_forward AS (
       )
     )
 ),
+-- U15R-a / R1 — *representative* now means "an attention object that owns
+-- this Request's children", and only the pinned zone is one. An outcome row
+-- is a dated memory of the viewer's own act (contract section 7, owner
+-- decision B): it carries no dot and no sub-cards, so it cannot be the thing
+-- a live optional event hangs from. Before this, being answered — or having
+-- the answer's trace dismissed — silently vetoed the Request's live
+-- attention while that attention kept feeding the tab total: a lit tab over
+-- a surface with nothing on it.
 eligible_representative AS (
   SELECT beacon_id FROM eligible_pinned
-  UNION
-  SELECT beacon_id FROM eligible_forward
-),
-dismissed_tombstone AS (
-  SELECT ii.beacon_id
-  FROM public.inbox_item ii
-  WHERE ii.user_id = \$1
-    AND ii.tombstone_dismissed_at IS NOT NULL
 ),
 activity_child_receipts AS (
   SELECT v.*
@@ -436,26 +436,10 @@ page_stream AS (
     ef.beacon_id,
     NULL::text AS coordination_item_id,
     NULL::text AS actor_user_id,
-    CASE
-      WHEN ef.beacon_id IN (SELECT scope.beacon_id FROM scope)
-      THEN GREATEST(
-        ef.latest_forward_at,
-        COALESCE(stats.max_created_at, ef.latest_forward_at)
-      )
-      WHEN EXISTS (
-        SELECT 1
-        FROM visible act
-        WHERE act.beacon_id = ef.beacon_id
-          AND act.surface = 'activity'
-          AND ${AttentionDismissibleSql.activeOptional('act')}
-          AND ${AttentionDismissibleSql.primaryPlacement('act')}
-      )
-      THEN NULL::timestamptz
-      ELSE GREATEST(
-        ef.latest_forward_at,
-        COALESCE(stats.max_created_at, ef.latest_forward_at)
-      )
-    END AS seen_at,
+    -- U15R-a / R1: never null. An outcome row has no unread axis of its own
+    -- (owner decision B, contract section 7 — "no dot"); its Request's live
+    -- attention lights the `requestActivity` row instead.
+    ef.latest_forward_at AS seen_at,
     NULL::text AS source_event_key,
     'beacon'::text AS destination_kind,
     ef.beacon_id AS target_entity_id,
@@ -480,22 +464,10 @@ page_stream AS (
     NULL::timestamptz AS cleared_at,
     NULL::text AS clear_reason,
     'activity'::text AS surface,
-    -- A grouped row has no optional axis of its own; its dot is whether any
-    -- child still asks. Same question as the synthetic `seen_at` above, named
-    -- on the axis the indicator now reads instead of coalesced read state.
-    CASE
-      WHEN ef.beacon_id NOT IN (SELECT scope.beacon_id FROM scope)
-       AND EXISTS (
-         SELECT 1
-         FROM visible act
-         WHERE act.beacon_id = ef.beacon_id
-           AND act.surface = 'activity'
-           AND ${AttentionDismissibleSql.activeOptional('act')}
-           AND ${AttentionDismissibleSql.primaryPlacement('act')}
-       )
-      THEN true
-      ELSE false
-    END AS is_active_attention,
+    -- U15R-a / R1: an outcome row is dismissible, but it is not a second
+    -- attention object and it never carries the dot — the children it used
+    -- to borrow one from now own their own row.
+    false AS is_active_attention,
     'forward'::text AS item_kind,
     CASE
       WHEN ef.beacon_id IN (SELECT scope.beacon_id FROM scope) THEN 'helping'
@@ -507,18 +479,11 @@ page_stream AS (
     END AS forward_outcome,
     ef.forward_count AS forward_count,
     NULL::int AS digest_count,
-    CASE
-      WHEN ef.beacon_id IN (SELECT scope.beacon_id FROM scope)
-      THEN 0
-      ELSE COALESCE(stats.event_total, 0)
-    END AS event_total,
-    CASE
-      WHEN ef.beacon_id IN (SELECT scope.beacon_id FROM scope)
-      THEN 0
-      ELSE COALESCE(stats.event_unseen_count, 0)
-    END AS event_unseen_count
+    -- U15R-a / R1: "no sub-cards" for every outcome, not only the helping
+    -- one. The counts stay reachable — on the Request's own row.
+    0 AS event_total,
+    0 AS event_unseen_count
   FROM eligible_forward ef
-  LEFT JOIN beacon_activity_stats stats ON stats.beacon_id = ef.beacon_id
 
   UNION ALL
 
@@ -576,7 +541,11 @@ page_stream AS (
   JOIN public.beacon b ON b.id = stats.beacon_id
   WHERE stats.event_total > 0
     AND stats.beacon_id NOT IN (SELECT beacon_id FROM eligible_representative)
-    AND stats.beacon_id NOT IN (SELECT beacon_id FROM dismissed_tombstone)
+    -- U15R-a / R1: deliberately *not* gated on `tombstone_dismissed_at`.
+    -- Putting the memory away is not a decision about what the Request does
+    -- next. The tombstone itself stays gone — `eligible_forward` still
+    -- excludes it — so nothing is resurrected here; only live attention that
+    -- the tab is already counting becomes reachable again.
     AND stats.beacon_id NOT IN (SELECT scope.beacon_id FROM scope)
 
   UNION ALL
@@ -865,10 +834,11 @@ ORDER BY page.created_at DESC NULLS LAST, page.id DESC NULLS LAST
   }) async {
     final beaconIds = <String>{
       for (final item in items)
+        // U15R-a / R1: only the Request's own row. An outcome row carries no
+        // sub-cards at all (owner decision B), helping or not, so it is not a
+        // preview destination — previously every non-helping outcome got one.
         if (item.beaconId != null &&
-            (item.itemKind == AttentionItemKind.forward ||
-                item.itemKind == AttentionItemKind.requestActivity) &&
-            item.forwardOutcome != 'helping' &&
+            item.itemKind == AttentionItemKind.requestActivity &&
             (item.eventTotal ?? 0) > 0)
           item.beaconId!,
     };
@@ -882,7 +852,12 @@ ORDER BY page.created_at DESC NULLS LAST, page.id DESC NULLS LAST
     );
     return [
       for (final item in items)
-        if (item.beaconId != null && byBeacon.containsKey(item.beaconId))
+        // U15R-a / R1: keyed on the *item*, not merely on its Request — an
+        // outcome row shares a `beaconId` with the Request's own row and must
+        // not inherit its sub-cards.
+        if (item.itemKind == AttentionItemKind.requestActivity &&
+            item.beaconId != null &&
+            byBeacon.containsKey(item.beaconId))
           item.copyWith(eventsPreview: byBeacon[item.beaconId]!)
         else
           item,
