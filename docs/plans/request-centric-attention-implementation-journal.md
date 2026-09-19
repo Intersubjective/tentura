@@ -2351,6 +2351,39 @@ modified; secrets remain untracked — **no evidence of loss** from the disclose
 
 ---
 
+## UNIT U05c — Obligation identity · VERIFY (2026-09-19)
+
+**UNIT_BASE:** `567eaee6b`. **Unit range:** `a1df38392`…`783458ef8` (excludes journal).
+
+### Verifier runs
+
+| Command | Result |
+|---|---|
+| `dart test --tags pg -j 1 test/data/repository/attention_obligation_identity_pg_test.dart` | **+10**, 0 skipped |
+| `dart test --exclude-tags pg` | **+1660** |
+| `dart test --tags pg -j 1` (sequential, after failed 5s artifact run) | **+835 ~24**, 0 skipped |
+| U05b smoke: channel collapse + `beacon_hierarchy_child_independence_pg_test` | **+7** |
+| `logicalTaskKey` missing subject (`/tmp/u05c_throw_test.dart`) | **+1** throws `ArgumentError` |
+
+### Call-site audit (supersede atomicity)
+
+Production `AttentionDispatchPort.record` outside `MutatingUnitOfWork.run`: **only**
+`user_block_case.dart:211` (`helpWithdrawn` — optional, `logicalTaskKey` NULL). All obligation
+dispatches go through `TransactionalAttentionCase` / `AttentionTransaction.record` inside
+`unitOfWork.run`. **Claim holds for obligations today**; not enforced structurally — U07b should
+guard if any bare `dispatch.record` ever emits `requires_action`.
+
+### Beacon hierarchy “casualty”
+
+No assertion rewrite in that file in U05c. Fix is **`m0181`** — extends
+`attention_anonymize_deleted_actor` to NULL `logical_task_key` / `lifecycle_generation` on
+erasure (production defect caught by teardown `23514` on `notification_outbox__logical_task_chk`).
+`beacon_hierarchy_child_independence_pg_test` **+2** at HEAD.
+
+**STATUS:** pass
+
+---
+
 ### Manager verdict — U05b · **ACCEPTED** (hard; inner Opus-low ✓ / verify pass, no scout by design, no finisher)
 
 Overseer's own run: **full server suite** — `dart test --exclude-tags pg` → **1660 passed**;
@@ -2565,5 +2598,41 @@ anything and no code changed between the two runs.
    a candidate for U07b, which is already editing this boundary.
 
 **STATUS:** complete
+
+---
+
+### Manager verdict — U05c · **ACCEPTED** (hard; inner Opus-low ✓ / verify pass, no finisher) — U05 complete
+
+Full server suite at HEAD, run by both the verifier and the overseer: **1660 non-PG**, **835 PG / 24 known
+skips**. Commits `a1df38392` red · `c30078d3d` writer · `783458ef8` supersede + m0181 · `39a14d571` journal.
+
+**The verifier refuted an inner-layer claim, which is exactly its job.** The inner layer stated that no caller
+reaches the supersede outside an ambient mutating transaction. The verifier grepped every call site and found
+one: `user_block_case.dart:211` calls `dispatch.record` bare. It is **benign today** — that path emits no
+obligations, so the supersede is never entered — but the claim as written was false, and the safety therefore
+rests on a coincidence rather than a guarantee. **U07b must add the structural guard**
+(`isInAmbientMutatingTransaction` or equivalent), since it already edits this boundary.
+
+**A pre-existing erasure defect was exposed and fixed (m0181).** `attention_anonymize_deleted_actor` dates from
+m0129: it demotes an erased actor's receipts to non-obligations by clearing `requires_action`, but it predates
+m0178's identity columns and left `logical_task_key` / `lifecycle_generation` populated — violating the new
+CHECK and failing a hierarchy suite's teardown with 23514. This is the **second** casualty in this plan found
+outside every named regression list, and the first one that was a genuine production bug rather than a stale
+test expectation.
+
+Verified by execution: renewal bumps the generation and leaves exactly one live row; a delivery retry leaves the
+generation unchanged; a second live obligation for one logical task is rejected by
+`notification_outbox__live_logical_task` by name; a failure injected after the supersede leaves the database
+unchanged.
+
+**Judgment I endorse — legacy keys wait for U18.** Backfilling `logical_task_key` now would require *inventing*
+generation numbers, because a legacy row records nothing about which offer cycle or review window it belonged
+to. The partial UNIQUE excludes NULL keys, so legacy rows neither block writes nor get superseded. The named
+consequence — a legacy live obligation and a new keyed one for the same task can coexist until U18 — is bounded
+to tasks first dispatched before this commit and is acceptable.
+
+**Coverage gaps recorded, none blocking:** no PG proof of the legacy-NULL/keyed coexistence (index semantics
+only); no test for "a new `requires_action` type missing from the `logicalTaskKey` switch" (it throws by
+construction); and the U05b receipt-at-handoff residual is unchanged.
 
 ---
