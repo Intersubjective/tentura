@@ -118,6 +118,29 @@ class _FakeQuery implements AttentionQueryPort {
     return const ActivityOfferPage(items: [], totalCount: 0);
   }
 
+  String? historyBeaconId;
+  int? historyLimit;
+
+  @override
+  Future<AttentionPage> attentionRequestHistory({
+    required String accountId,
+    required String beaconId,
+    AttentionCursor? cursor,
+    int limit = 50,
+  }) async {
+    this.accountId = accountId;
+    this.cursor = cursor;
+    historyBeaconId = beaconId;
+    historyLimit = limit;
+    return AttentionPage(
+      items: [receipt],
+      nextCursor: AttentionCursor(
+        createdAt: DateTime.utc(2026, 7, 15),
+        id: 'N0',
+      ),
+    );
+  }
+
   @override
   Future<ActivityBeaconAttention> activityAttention({
     required String accountId,
@@ -288,6 +311,53 @@ void main() {
       );
     },
   );
+
+  test(
+    'attentionRequestHistory scopes to the account and returns an opaque '
+    'cursor the feed can also decode',
+    () async {
+      final query = _FakeQuery();
+      final all = QueryAttention(query: query).all;
+      final field = all.singleWhere(
+        (field) => field.name == 'attentionRequestHistory',
+      );
+
+      final result =
+          await field.resolve!(null, {...auth, 'beaconId': 'B1'}) as Map;
+
+      expect(query.accountId, 'U1');
+      expect(query.historyBeaconId, 'B1');
+      expect(query.historyLimit, 50);
+      expect((result['items'] as List).single, isA<Map>());
+      final cursor = result['nextCursor'] as String;
+      expect(cursor, isNotEmpty);
+
+      // Cursor parity with the feed is a contract: the same opaque string must
+      // round-trip through the feed field.
+      final feed = all.singleWhere((field) => field.name == 'attentionFeed');
+      await feed.resolve!(null, {...auth, 'view': 'all', 'cursor': cursor});
+      expect(query.cursor?.id, 'N0');
+    },
+  );
+
+  test('attentionRequestHistory rejects bad beacon ids and cursors', () async {
+    final field = QueryAttention(
+      query: _FakeQuery(),
+    ).all.singleWhere((field) => field.name == 'attentionRequestHistory');
+
+    await expectLater(
+      field.resolve!(null, {...auth, 'beaconId': ''}),
+      throwsA(isA<ArgumentError>()),
+    );
+    await expectLater(
+      field.resolve!(null, {...auth, 'beaconId': 'x' * 65}),
+      throwsA(isA<ArgumentError>()),
+    );
+    await expectLater(
+      field.resolve!(null, {...auth, 'beaconId': 'B1', 'cursor': 'bad'}),
+      throwsA(isA<ArgumentError>()),
+    );
+  });
 
   test('liveObligationBeacons scopes to the authenticated account', () async {
     final query = _FakeQuery();

@@ -174,6 +174,14 @@ final class _FixtureQuery implements AttentionQueryPort {
   }) async => const ActivityOfferPage(items: [], totalCount: 0);
 
   @override
+  Future<AttentionPage> attentionRequestHistory({
+    required String accountId,
+    required String beaconId,
+    AttentionCursor? cursor,
+    int limit = 50,
+  }) async => const AttentionPage(items: []);
+
+  @override
   Future<ActivityBeaconAttention> activityAttention({
     required String accountId,
     required String beaconId,

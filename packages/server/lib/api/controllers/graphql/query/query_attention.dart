@@ -21,6 +21,7 @@ final class QueryAttention extends GqlNodeBase {
     myWorkAttention,
     activityOffers,
     activityAttention,
+    attentionRequestHistory,
     liveObligationBeacons,
   ];
 
@@ -177,6 +178,41 @@ final class QueryAttention extends GqlNodeBase {
             'unseenCount': page.unseenCount,
             'latestAt': page.latestAt.toUtc().toIso8601String(),
             'events': [for (final event in page.events) _mapReceipt(event)],
+            'nextCursor': page.nextCursor == null
+                ? null
+                : _encodeCursor(page.nextCursor!),
+          };
+        },
+      );
+
+  /// The viewer's own receipt history for one Request (D17) — cleared and
+  /// settled rows included. Same cursor codec as [attentionFeed].
+  GraphQLObjectField<dynamic, dynamic> get attentionRequestHistory =>
+      GraphQLObjectField(
+        'attentionRequestHistory',
+        gqlTypeAttentionPage.nonNullable(),
+        arguments: [
+          _beaconId.field,
+          _cursor.fieldNullable,
+          _limit.fieldNullable,
+        ],
+        resolve: (_, args) async {
+          final beaconId = _beaconId.fromArgsNonNullable(args);
+          if (beaconId.isEmpty || beaconId.length > 64) {
+            throw ArgumentError.value(
+              beaconId,
+              'beaconId',
+              'must be a non-empty id of at most 64 characters',
+            );
+          }
+          final page = await _query.attentionRequestHistory(
+            accountId: getCredentials(args).sub,
+            beaconId: beaconId,
+            cursor: _decodeCursor(_cursor.fromArgs(args)),
+            limit: _limit.fromArgs(args) ?? 50,
+          );
+          return {
+            'items': [for (final receipt in page.items) _mapReceipt(receipt)],
             'nextCursor': page.nextCursor == null
                 ? null
                 : _encodeCursor(page.nextCursor!),
