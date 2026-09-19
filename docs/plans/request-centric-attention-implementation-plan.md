@@ -622,6 +622,42 @@ R4 blocks the card outright and R1/R2 mean owner decisions A and B are not yet d
   R6 (honour `AttentionClearResult` instead of discarding it), R5 (one transition generation across **both**
   surfaces, with a test that actually observes For You), R7 (render dot **and** count together).
 
+- **U15R-d — the indicators the contract actually specifies** (server + the client edge that reads it). U15R-c
+  delivered R7's client half (dot and number render together) and stopped at the server, correctly: the numbers
+  behind them do not mean what §6 says. Today `surfaceSummary` returns three fields and §6 asks for different
+  ones:
+
+  | §6 says | today's server field | why it is wrong |
+  | --- | --- | --- |
+  | `my desk.dot` = any owned Request has an uncleared **optional event or outcome** | `my_work_unread_total` = `activeAttention` on `surface='myWork'` | includes live obligations, so an obligation-only Request lights the optional dot; omits uncleared outcome rows |
+  | `my desk.count` = sum of live obligations **on owned Requests** | `needs_you_total` = every live obligation, unscoped | not surface-scoped, so it can count what My Desk does not list |
+  | `for you.dot` = any **dismissible attention, pending forward or pending prompt** | `activity_unread_total` = `activeAttention` on `surface='activity'` | counts obligations that live on the Activity surface, and misses both Set O outcome rows and the pending-forward zone |
+  | `for you.count` = **never** | — | the client must be structurally unable to render one |
+
+  The predicates all exist already — Set R, Set O and `eligible_pinned` (`status = 0`, readable, outside scope)
+  are exactly "dismissible attention" and "pending forward". This unit **composes** them into per-surface totals;
+  it does not invent a fourth definition. M1 binds: the same CTEs behind the lists back the indicators.
+
+  **Pending prompts have no row at all yet** (the U09a note, restated in `dismissibleOutcomes`). They enter the
+  For-you dot as a *named zero* — an explicitly written `0` with the comment saying what it is waiting for — never
+  as silent absence, because silent absence is indistinguishable from a predicate someone deleted.
+
+  Also in scope, both recorded during U15R-c rather than changed silently:
+  - `RealtimeEntityKind.notification` still refreshes counters and pages in two uncoordinated steps — the R5
+    defect class, on the one kind R5's brief did not name.
+  - The axis contract is machine-checked **one way only**: the client test reads
+    `docs/contracts/attention-active-attention-axis.json` and asserts the strings still appear in the server SQL,
+    while the server PG test that produced those numbers never opens the file. Close the loop from the server side.
+
+**R10 — found by the overseer while reviewing U15R-c, fixed directly.** `is_active_attention` is not one
+expression: the stream union gives each `item_kind` its own, and a synthetic `requestActivity` row's is
+`stats.event_unseen_count > 0`. U15R-c replaced a read-based filter with the **receipt** rule applied to all four
+kinds, so a group card whose last optional child was cleared stayed on a list the server had already dropped it
+from, showing `0`. Reproduced with a throwaway probe before being believed, then fixed as `isInUnreadView` — a
+per-kind mirror with the server's table in its doc comment — and recorded in the shared contract under
+`unreadViewMembershipByItemKind`. Same lesson as U15R-c's own findings, one layer down: a predicate that is
+*correct for the common row* is still a cross-layer disagreement for every other row shape.
+
 **R7 is an orchestrator error, recorded as such.** `docs/features/request-attention.md` §6 and design-plan D09
 both say the dot and the number are independent and appear together. My U14c brief paraphrased §6 as "one badge
 slot, count takes precedence", and the implementation correctly followed my brief rather than the source. Fourth

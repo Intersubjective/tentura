@@ -9451,3 +9451,140 @@ flutter test test/domain/attention test/features/inbox test/features/my_work \
 Commits: `1361cda1e` R2 · `cbe21ceb1` R6 · `53fa132cc` R7 · `65a5240df` R5.
 
 ---
+
+## verify — U15R-c (R2, R5, R6, R7-client) — READ-ONLY pass
+
+**Range:** `26bd0d1de..ec26a287c` (+ worktree; HEAD `ec26a287c`). **UNIT_BASE** `26bd0d1de`.
+Verifier re-ran gates independently; no code/test edits in this pass.
+
+### Commands (repo root unless noted)
+
+| Command | Result |
+|---------|--------|
+| `cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 45m -- flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env` | **3818 passed, 29 skipped** (~2m32s) |
+| `./scripts/run_with_test_cleanup.sh --timeout 10m -- ./scripts/check-custom-lints.sh packages/client` | **tentura_lints total 30 (baseline 30) — OK** |
+
+Baseline re-read from `scripts/custom-lint-baseline.txt`: `packages/client 30` (down-only ratchet).
+
+### Diff audit (`26bd0d1de..ec26a287c`)
+
+- **20 files**, +1427/−172 lines; touches `packages/client` + `docs/contracts/attention-active-attention-axis.json` + journal only. **No** untouchable paths (`constellation-*`, `force_directed_graphview`, keys, `dart-defines`, `.serena`).
+- **No new `skip` / `@Skip`** in the test diff.
+- **Retired tests were replaced, not loosened:** e.g. `mark-seen adjusts surface totals by receipt surface` → `mark-seen leaves both surface totals where the server put them` (stricter on R2); `helpOffer refreshes activity stream head only` → `helpOffer commits every mounted surface in one move` (stricter on R5); `the count takes the slot while obligations are live` → `the dot and the number appear together` (stricter on R7-client). `dismissing a seen child leaves the unseen count alone` inverted to expect clear-axis behaviour — would **fail** on pre-fix projection, not pass through a weakened assertion.
+- **Worktree:** one untracked `packages/client/test/domain/attention/zz_probe_grouped_unread_test.dart` (not in commit range); full suite still green with it present.
+
+### R2 — read vs clear axis + dismiss-all optimism (owner decision A)
+
+**Pre-fix red tests (would fail at `26bd0d1de`, pass only if fix reverted):**
+
+| Test | Why pre-fix fails |
+|------|-------------------|
+| `attention_read_clear_axis_test.dart` — `markSeen leaves the surface totals where the server put them` | Pre-fix `markSeen` applied `_surfaceUnreadDeltasForIds(..., seen: false)` and decremented `myWorkUnreadTotal`. |
+| Same file — `markAllSeen does not zero a surface it only read` | Pre-fix `markAllSeen` zeroed activity/myWork surface totals optimistically. |
+| Same file — `the optimistic sweep never removes what awaits a decision (owner decision A)` | Pre-fix `dismissAll` took every `!isCleared` top-level row; optimistic `cleared` set would be all five ids, not `{sweepable}` only. |
+| Same file — `a child read optimistically still counts` | Pre-fix `projectAttentionGroup` subtracted read children from `eventUnseenCount`. |
+| `attention_surfaces_test.dart` — `mark-seen leaves both surface totals where the server put them` | Pre-fix expected activity total to drop after read. |
+| `attention_group_projection_test.dart` — `dismissing a seen child lowers the unseen count like any other` | Pre-fix kept count unchanged when child was only read. |
+
+**Intermediate-frame evidence (owner A):** `the optimistic sweep never removes…` holds `pendingDismissAll` with a `Completer`, settles after `dismissAll()`, asserts `cleared == {'sweepable'}` and surface totals **before** `held.complete(...)`. **Not a settled-state-only check.**
+
+**Contract:** `docs/contracts/attention-active-attention-axis.json` loaded via `AttentionAxisContract`; `the shared axis contract still matches the server SQL` reads `packages/server/.../attention_dismissible_sql.dart` and requires JSON predicate strings to still appear in source (**client → JSON → server source**, one-way; server PG test does not read the JSON file).
+
+### R5 — cross-surface atomicity
+
+**Pre-fix red test:** `my_work_cross_surface_transition_test.dart` — parameterized `a ${kind.name} transition never shows the Request on both surfaces` for `beacon`, `helpOffer`, `inboxItem`. Mounts Activity stream + `MyWorkCubit`, holds `movedHead`/`movedSummary`, samples `(forYou, myDesk)` on every desk stream tick and delayed pumps; expects **no** frame with both true.
+
+**Code claim verified:** at `26bd0d1de`, `RealtimeEntityKind.beacon` called `_invalidateRequest` then `_refreshAcrossSurfaces()`; help-offer/inbox used separate summary vs head refresh. At `ec26a287c`, all three kinds use `_transitionAcrossSurfaces`: `await _refreshAcrossSurfaces()` then `_invalidateRequest` (announcement last). Matches implementer note that beacon was already “coordinated” but still announced My Desk first.
+
+**Both surfaces observed:** boolean presence on For You feed items and My Desk card lists each frame — catches My Desk ahead of For You (the reported seven-frame `(true, true)` window).
+
+### R6 — My Desk honours `AttentionClearResult`
+
+**Pre-fix red tests:** `my_work_clear_result_test.dart` — `a denied clear puts the row back`, `a skipped clear is not a slow success`, `an applied clear adopts the server projection, next preview included`. Pre-fix cubit removed `latestUnseen` optimistically and only refetched on throw; `MyWorkCase.clearReceipt` discarded the repository result.
+
+**Fixture fix verified:** `StubAttentionRepository.clear` default now returns `appliedReceiptIds: [receipt]` and mutates `myWorkAttentionResult` on apply; supports `myWorkAttentionAfterClear` for multi-receipt preview.
+
+### R7 — client tab dot + number together
+
+**Pre-fix red tests:**
+
+- `my_work_navbar_item_test.dart` — `shows the dot and the number together` (`myWorkUnreadTotal: 5`, `needsYouTotal: 2` → both `countKey` and `dotKey`).
+- `work_activity_nav_indicators_test.dart` — `the dot and the number appear together`.
+
+Pre-fix `MyWorkNavbarItem` returned early when obligation badge shown, suppressing dot.
+
+**Server half (out of scope):** journal stopping point retained — `myWorkUnreadTotal` still `activeAttention` server-side; surface totals omit outcome/pending-forward dot membership. **Not scored against this unit.**
+
+### Fixture audit (step 6)
+
+| Issue | Status |
+|-------|--------|
+| `attention_group_projection_test.dart` `group()` built `eventUnseenCount` from `!event.isSeen` | **Fixed** — `children.where((e) => !e.isCleared).length` + contract comment |
+| `StubAttentionRepository.clear` returned `complete` with empty `appliedReceiptIds` and kept pre-clear row | **Fixed** — see R6 |
+| Other client tests deriving `event_unseen_count` from `seen_at` | **None found** (`rg` on `packages/client/test`; only comments/docs references) |
+| `activity_offers_test_support.dart` | Passes explicit `eventUnseenCount` param — not a false server derivation |
+
+### Verdict
+
+Remediation unit **meets** the brief for R2 (including intermediate dismiss-all frame), R5 (dual-surface sampling; beacon ordering root cause confirmed), R6, and R7-client. No evidence of test-only greenwashing via skips or loosened settled-state assertions in the audited diff.
+
+---
+
+## manager — U15R-c accepted, with one defect found in review (R10)
+
+**Verdict: accepted.** Verify returned `pass` on a fresh Composer chat carrying Astra's findings as the brief
+(there was no scout chat for the U15R group — the review *was* the brief). My own gate agrees with its numbers:
+client `3818 passed, 29 skipped, exit 0`; `check-custom-lints.sh packages/client` `total: 30 (baseline: 30)`.
+Worktree carries only the pre-existing unrelated changes.
+
+**Reviewed line by line** (hard unit — event ordering + cross-surface atomicity):
+
+- `isOptimisticallySweepable` is a faithful transcription of Set R, clause for clause: `surface = 'activity'`,
+  `activeOptional`, `presentation_key IS DISTINCT FROM 'relay_received'`. Set O is deliberately *not* mirrored,
+  so outcome tombstones wait for the server's answer — conservative in the safe direction for owner decision A.
+- `_transitionAcrossSurfaces` awaits the joint refresh and announces last. `_refreshAcrossSurfaces` fetches the
+  summary and every attached destination's page and commits them under one generation check, so routing
+  `helpOffer`/`inboxItem` through it is a strict superset of the head-refresh it replaced.
+- `projectAttentionGroup`'s new `eventUnseenCount - dismissed` is correct **because** clearing is restricted to
+  Set R; a cleared child that was an obligation or a settled obligation would over-decrement. Unreachable today
+  through either the sweep or the ×. Recorded as an assumption to assert in U19, not a live defect.
+
+### R10 — the same class of defect, one layer down, introduced by this unit
+
+`is_active_attention` is **not one expression.** The stream union gives each `item_kind` its own:
+
+| item kind | server expression |
+| --- | --- |
+| `receipt` | `activeAttention(v) AND primaryPlacement(v)` |
+| `requestActivity` | `stats.event_unseen_count > 0` |
+| `forward` | `false` (U15R-a/R1 — an outcome row never carries the dot) |
+| `watchingDigest` | `true` |
+
+The old client filter was `!receipt.isSeen`, which was **wrong for receipts and right for grouped rows** — the
+server derives a synthetic row's `seen_at` from `event_unseen_count = 0` at `attention_repository.dart:516`.
+R2's fix replaced it with the *receipt* rule for all four kinds, so it swapped which half was wrong.
+
+**Reproduced before being believed.** A throwaway probe (temporary test + temporary `clearSnapshot`/`clear`
+hooks, both reverted from backups afterwards) cleared the only child of a `requestActivity` card and printed:
+
+```
+ZZPROBE rows=[group-1] unseen=0 total=0
+```
+
+The card with zero remaining events survives on the list the server had already dropped it from.
+
+**Fixed directly** (small, local, unambiguous — skill §8 first branch) as `isInUnreadView`, a per-kind mirror
+carrying the server's table in its doc comment, plus `unreadViewMembershipByItemKind` in
+`docs/contracts/attention-active-attention-axis.json`.
+
+**Falsifiability, both directions:** with the one-line filter change reverted, the new test
+`a grouped row leaves the unread view when its last child is cleared` fails and **only** it fails
+(`+3 -1`, `+24 -1` for the file); restored, `test/domain/attention/` is `+129 All tests passed`.
+
+**What this says about the method.** Astra's blind-spot finding was that mutation testing proves a test detects
+changes to *its own* assumption, not that the assumption matches the other layer. R10 is that finding applied to
+a fix *written in response to that finding*: `isActiveOptional` was verified against the server's SQL, correctly,
+for the row shape the author had in mind. The check that would have caught it is not "is this predicate right?"
+but "**for which inputs** is this predicate the server's predicate?" — and the union had four answers.
+
+---
