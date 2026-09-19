@@ -568,22 +568,35 @@ WHERE id = 'Naxis04'
   }, skip: skipReason);
 
   group('U10b — structurally one definition', () {
-    test('the repository never spells the axis out by hand', () {
-      final source = File(
-        'lib/data/repository/attention_repository.dart',
-      ).readAsStringSync();
+    // The guard is stated over the *directory*, not over a list of the files
+    // already caught. U10a found copies three and four, U10b a fifth spelling
+    // in the clear command, and this remediation a sixth in the sweep's apply
+    // UPDATE. Every one of them was in a file no existing guard named. A guard
+    // that only covers what has already been fixed cannot prevent the next
+    // one, so the rule is: no attention repository spells the axis by hand,
+    // including files that do not exist yet.
+    test('no attention repository spells the axis out by hand', () {
+      const home = 'lib/data/repository/attention_dismissible_sql.dart';
+      final offenders = <String>[];
+      for (final entity
+          in Directory('lib/data/repository').listSync(recursive: true)) {
+        if (entity is! File) continue;
+        final path = entity.path.replaceAll(r'\', '/');
+        if (!path.contains('/attention_') || !path.endsWith('.dart')) continue;
+        if (path.endsWith(home)) continue;
+        if (entity.readAsStringSync().contains('cleared_at IS NULL')) {
+          offenders.add(path);
+        }
+      }
       expect(
-        source,
-        isNot(contains('cleared_at IS NULL')),
+        offenders,
+        isEmpty,
         reason:
-            'the active-attention predicate lives in AttentionDismissibleSql. '
-            'A second hand-written copy here is how the indicator and its list '
-            'drift apart (M1).',
+            'the active-attention predicate lives in AttentionDismissibleSql '
+            '($home) and is composed via activeOptional/activeAttention. '
+            'A hand-written copy is how the indicator, its list and the '
+            'operations that are supposed to empty them drift apart (M1).',
       );
-      final clearSource = File(
-        'lib/data/repository/attention_clear_repository.dart',
-      ).readAsStringSync();
-      expect(clearSource, isNot(contains('cleared_at IS NULL')));
     });
   });
 }

@@ -293,16 +293,19 @@ SELECT receipt_id, outcome_beacon_id, outcome_generation, decision_revision
         Variable<String>(operationId),
         for (final id in applicableReceipts) Variable<String>(id),
       ];
+      // The guard clauses are the shared predicate, not a paraphrase of it:
+      // the apply re-check decides, at the last moment before the write, the
+      // same question capture asked. Composed rather than spelled out so the
+      // structural guard in the axis suite can see there is one definition.
       await _database.customUpdate(
         '''
-UPDATE public.notification_outbox
+UPDATE public.notification_outbox AS receipt
    SET cleared_at = now(),
        clear_reason = 'sweep',
        cleared_by_operation_id = \$2
- WHERE account_id = \$1
-   AND cleared_at IS NULL
-   AND NOT requires_action
-   AND id IN ($placeholders)
+ WHERE receipt.account_id = \$1
+   AND ${AttentionDismissibleSql.activeOptional('receipt')}
+   AND receipt.id IN ($placeholders)
 ''',
         variables: variables,
         updateKind: UpdateKind.update,
