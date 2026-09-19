@@ -10207,3 +10207,224 @@ Filed as **issue #189** with three options, together with a measured copy proble
 «92 дн. назад» is 156 dp at 1×, 203 at 1.3× and **312 at 2×** against §7's request for a compact age, which is
 why the card clamps the age to 70% of its row. Scaling scope down is the owner's call, so it is tracked, not
 closed.
+
+---
+
+## scout — U16b · For You stream integration (read-only) · 2026-09-20
+
+**Layer:** scout. **Branch:** `feature/events_refac`. **UNIT_BASE:** journal tip `manager — U16a accepted`.
+**Scope:** wire `RequestAttentionCard` / `TombstoneRow` into `activity_stream_view.dart`; cubit touch only where
+dismiss/outcome/trace requires it — **no** U16c chrome, **no** widget file deletions, **no** new l10n keys unless
+«Очистить всё» wiring forces none (already landed U16a).
+
+### Live wiring today (`activity_stream_view.dart`)
+
+| Zone | Renders now | U16b target |
+| --- | --- | --- |
+| Pinned offers | `ActivityOfferCard.forward` + `ActivityEventSubcardBlock` **`paginate`** in offer footer | `RequestAttentionCard` **`pinned`**; events live **inside** card (`timeline` policy, D-171-5b) |
+| Stream `forward` | `ActivityForwardRow` — **no** private × on helping/watching; `markSeen` hide on 3/4 tombstones | `TombstoneRow` + × on **every** outcome (A1, request-attention §7) via `inbox_item.tombstone_dismissed_at` |
+| Stream `requestActivity` | `UpdatesFeedTile` + sibling `ActivityEventSubcardBlock` **`paginate`** (`:928`) | **One** `RequestAttentionCard` **`grouped`**; drop tile + external subcard |
+| Stream `watchingDigest` | `ActivityWatchingDigestRow` | **Do not render** in primary stream (plan U16b); Watching tab stays on `inbox_screen.dart` overflow (`value: 'watching'`) |
+| Stream `receipt` | `UpdatesFeedTile` | unchanged (non-grouped receipts) |
+| Prompts | `ActivityOfferCard.prompt` | unchanged until U16c retires offer shell |
+
+**Overflow policy verdict:** once the card owns event rows, **`AttentionBlockOverflowPolicy.timeline` only** on
+For You Request cards (issue-171 §6.2, D-171-5b, U16a constraint #1). The stream must **stop rendering** the
+standalone `ActivityEventSubcardBlock` with `paginate` for `requestActivity` and pinned offers; paginate may
+remain only where U16c still uses it inside legacy widgets not mounted by the stream after this unit.
+
+### `AttentionReceipt` grouped fields (DATA)
+
+Confirmed on `packages/client/lib/domain/attention/entity/attention_receipt.dart` and mapped in
+`attention_repository.dart` (`_mapReceiptFields` / `_mapReceiptWire`): `provenanceJson`, `beaconAuthorId`,
+`beaconAuthorName`, `beaconAuthorImageId`, `beaconImageId`, `beaconEndAt`, `allowsForward`, `eventTotal`,
+`eventUnseenCount`, `eventsPreview`. **Pinned zone** still hydrates `Beacon` + `InboxProvenance` from
+`InboxItem` (offers API), not from grouped receipt — mapper must handle **both** paths.
+
+### Cubit traps
+
+- **`InboxCubit.dismissTombstone`** (`:296–320`) gates on `InboxItem.isTombstoneVisible` (status 3/4 only).
+  Activity outcome traces (helping/watching/notInterested) need **`InboxCase.dismissTombstone`** (m0183+) without
+  that gate, plus feed invalidation — do not route through the Watching-tab-only guard.
+- **`onClearAll` / card ×:** wire to `AttentionCase` clear capture (`explicit` + `beaconId` or per-child
+  `clearReceipt`) per U08/U09; U16a left `onClearAll` as parent callback.
+- **One representative:** `AttentionCase._requestIdentity` dedupes merged pages per `itemKind`, but
+  `receipt:${id}` and `request:requestActivity:$beacon` can coexist — stream builder must not show a loose
+  `receipt` row for children already inside a grouped card (server should not emit; client filter if it does).
+
+### Tests named for inner
+
+- `activity_stream_view_test.dart` — dispatch, first-paint, scroll keys.
+- `activity_live_motion_test.dart` — demotion → outcome row (3 tests).
+- `work_activity_first_paint_test.dart` — `TestIds.activityOffer` + `ActivityOfferCard` type find.
+
+### Risks flagged for brief
+
+- `inbox_cubit` dismiss gate vs outcome × (live contradiction with Set O / m0183).
+- `watchingDigest` removal vs `isInUnreadView` (`watchingDigest => true`) — list only; confirm dot uses
+  `surfaceSummary`, not digest row presence.
+- E11 same-kind coalescing still absent on card (U16a scope cut #189) — stream must not expect «3 новых сообщения».
+- Demotion scroll uses `forwardRowKeyFor(beaconId)` — preserve on `TombstoneRow` wrapper +
+  `TestIds.activityForwardRow(beaconId)`.
+
+**STATUS:** ready for inner sandwich.
+
+## inner — U16b · For You stream integration · 2026-09-20
+
+**Layer:** inner. **UNIT_BASE:** `0db36b78a`. **Commits:** `4864aa919`, `b5bd2c599`, `b5bfe7bf3`,
+`1f706b5c3`.
+
+The card was built in U16a and mounted nowhere. This unit mounts it: the pinned zone becomes the
+`pinned` variant, a `requestActivity` row becomes one `grouped` card with its events inside it, and an
+outcome row becomes a `TombstoneRow`. `ActivityOfferCard`, `ActivityForwardRow` and
+`ActivityWatchingDigestRow` are no longer reachable from the stream; **they are not deleted** — that is
+U16c, and their own tests still exercise them directly.
+
+### Correction 1 — the Watching digest: **option (a)**
+
+The digest keeps its list membership and is not drawn in the primary stream.
+
+Option (b) was available on paper and is a server change: `isInUnreadView` returns `true` for
+`watchingDigest` because the server's stream union writes `true AS is_active_attention` on that branch,
+and moving one side alone is exactly the disagreement the mirror exists to prevent. The Watching
+collection in the For You overflow menu (`inbox_screen.dart`, `value: 'watching'`) already exists and
+already carries its own count, so the counted row stays reachable — not drawing it in the stream is a
+**placement** decision, not a drop.
+
+Both halves are pinned together in one group of `for_you_stream_entries_test.dart`: *is not drawn in the
+primary stream* and *but keeps its membership in the unread view, deliberately*. Removing either leaves
+the pair reading as an oversight, which is the failure the correction named.
+
+### Correction 2 — one representative per Request: **the server does not guarantee it**
+
+Read off `packages/server/lib/data/repository/attention_repository.dart`. Three of the four collisions
+are ruled out by a clause; the fourth is not:
+
+| pair | ruled out by |
+| --- | --- |
+| pinned + `requestActivity` | `stats.beacon_id NOT IN (SELECT beacon_id FROM eligible_representative)` |
+| pinned + `forward` | `eligible_pinned` is `status = 0` and not in scope; `eligible_forward` is `status <> 0` **or** in scope |
+| loose `receipt` + anything | the receipt branch is `WHERE v.surface = 'activity' AND v.beacon_id IS NULL` |
+| **`forward` + `requestActivity`** | **nothing** |
+
+A *watching* Request — `inbox_item.status = 1`, not in the helping scope, not pinned — satisfies
+`eligible_forward`, and neither of the two `NOT IN` guards on the `requestActivity` branch excludes it.
+The merge does not collapse it either: `AttentionCase._requestIdentity` keys the two
+`request:forward:<beacon>` and `request:requestActivity:<beacon>`.
+
+So it is filtered client-side, in `lib/domain/attention/for_you_stream_entries.dart`. The card wins over
+the tombstone, which wins over a loose tile; a group takes the position its first row took, so resolving
+a duplicate never moves the Request under the reader. The displaced outcome is **not** discarded — it
+returns as the card's relation chip, which is §9's state matrix («Помогаю» / «Слежу»). `notInterested`
+and the two before-response terminals carry no chip: a memory is not a standing relation.
+
+The widget-level test puts the same beacon in the stream twice *and* in the pinned zone, and asserts two
+cards, no tombstone and no offer shell.
+
+### Correction 3 — the × on every outcome kind
+
+`InboxCubit.dismissTombstone` gated on `isTombstoneVisible`, which is statuses 3 and 4 only, while m0183
+made the whole set dismissible server-side. Widened to `InboxItem.isDismissibleOutcome` — answered, and
+not already put away. `needsMe` stays excluded: an unanswered forward is a pinned decision with named
+outcome buttons (E17), never the quiet gesture.
+
+**The second half was not in the brief and is the one that mattered.** `helping` has no `InboxItemStatus`
+of its own — the server reads it off the help-offer scope, and `HelpOfferCreated` *removes* the row from
+this cubit's state. So the × on a helping tombstone landed on an `indexWhere` miss and returned silently,
+under any guard. The call now goes through whether or not the row is held locally; only the optimistic
+frame is conditional on having one. Five kinds, five separate tests, at both the cubit and the widget
+layer.
+
+### `AttentionCase.clearBeacon` — new, and why
+
+«Очистить всё» (§6.2, E25) had no client API: `clearRequestOpen` carries the `request_open` reason, which
+is a lie about a button press. `clearBeacon` is the same watermark capture with `explicit`, a shape the
+server's `attentionClearSnapshot` resolver and `AttentionClearCase.captureSnapshot` already accept
+(`beaconId` + kind, with only "neither id given" rejected). Four lines beside `clearRequestOpen`.
+
+### Changed assertions — five, each tagged `// CHANGES IN U16b:`
+
+Three are the widget swap (§5 "Retire"): the dispatch test, the first-paint test and two demotion-motion
+tests move from `ActivityOfferCard`/`ActivityForwardRow` to `RequestAttentionCard`/`TombstoneRow`. The
+semantics identifiers (`TestIds.activityOffer`, `TestIds.activityForwardRow`) and `forwardRowKeyFor` are
+deliberately preserved on the new wrappers, so what those tests measure did not move — the demotion
+motion addresses rows through all three, and a wrapper that dropped one would strand
+`_isForwardRowInViewport` in its 40-pass loop forever.
+
+**Two are consequences of the card simply being taller than the row it replaced, and both were latent
+weaknesses the change exposed:**
+
+- *stream pagination waits until offers hasMore is false* — twenty pinned cards no longer fit inside one
+  fling of a 400 dp viewport. The single fling became a bounded series that stops at `maxScrollExtent`.
+  Every assertion is unchanged; what is under test is the **order** the two sources page in.
+- *Показать on moved snackbar scrolls to demoted forward row* — the wait loop stopped the moment the row
+  was *found*, which can be mid-flight, because `ensureVisible` animates. The old row was short enough to
+  fit a 400 dp viewport part-way through; the tombstone is not (it landed at 419.3). The scroll is now
+  settled before it is measured, so the assertion is about where the scroll **lands** rather than where
+  it happened to be on one frame. This one was arguably always wrong and passing by luck.
+
+**The scout's CHANGED_TESTS table does not exist.** It is named in the brief but appears in no file in the
+repository; the journal's `scout` entry names three test files and no per-assertion clauses. The five
+above were derived from the spec directly.
+
+**The scout's fixture gap was real and is closed.** `_streamReceipt` carried no `provenanceJson` and no
+author fields, so every §12.1 / A7 note assertion would have been vacuous — the card would have had
+nothing to build a forward mini-card from and "no note rendered" would have passed for the wrong reason.
+The fixture now takes a note, a forwarder and the beacon author, and the 1.3× test asserts the note text
+is on screen **before** it asserts the card fits.
+
+### The two repo traps, handled
+
+- The 2× / 360 dp test asserts `RequestAttentionCard` twice, `headerKey` twice and one `TombstoneRow` are
+  **built** — keyed and counted finders — and only then that nothing threw. A `takeException` check alone
+  is satisfied by a list that built nothing.
+- The 1.3× ceiling test asserts the header, one `AttentionMiniCard` and the note's text are present
+  before measuring the card's rect.
+
+### Mutation evidence
+
+| mutation | tests that failed |
+| --- | --- |
+| duplicate suppression removed (every row appended) | 4 projection tests |
+| digest skip removed | *is not drawn in the primary stream* |
+| relation carry-over dropped on the loser | *the suppressed outcome survives as the relation chip* |
+| pinned-zone precedence removed | *the pinned zone wins over every stream row* |
+| dismiss guard back to `isTombstoneVisible` | watching + notInterested cubit tests |
+| `if (idx < 0) return;` restored | *dismisses the helping outcome* |
+| `needsMe` no longer excluded | *an unanswered forward is never dismissed* |
+| already-dismissed clause removed | *not dismissed twice* |
+| provenance never parsed in the mapper | *carries the note the card is the only home for* |
+| pinned variant given a relation | *is pinned, with no relation yet* |
+| dot from `eventTotal` not `eventUnseenCount` | *the dot comes from the uncleared count* |
+| `pendingForward` dropped | *an unanswered forward is pending* |
+| author image ignored | *rebuilds the Request the header needs* |
+| `pinnedBeaconIds` emptied in the view | *one representative per Request across the whole surface* |
+| the × no longer reaches the cubit | **all five** per-kind tombstone tests |
+| grouped rows fall back to a feed tile | dispatch, one-representative, 2× layout, relation |
+| the card's relation hard-coded to `none` | *the suppressed outcome returns as the relation* |
+| pinned zone back to `ActivityOfferCard` | 1.3× ceiling, one-representative, 2× layout |
+| tombstone loses its `activityForwardRow` identifier | **all five** per-kind tombstone tests |
+
+No mutation survived its test.
+
+### Verification
+
+| gate | result |
+| --- | --- |
+| `flutter test test/features/inbox/ test/features/home/work_activity_first_paint_test.dart` (`-j 4`) | **+207, 0 failed** |
+| full client suite (`-j 4`, from `packages/client`) | **3890 passed, 29 skipped** — baseline 3852/29, so +38 and **no skip moved** |
+| `./scripts/check-custom-lints.sh packages/client` | `total: 30 (baseline: 30)` — baseline re-read first |
+
+**Worth recording:** the full suite must run with `packages/client` as the working directory. Run as
+`flutter test packages/client/test` from the repo root, 34 architecture/DI tests fail with
+`PathNotFoundException: lib/app/router/root_router.dart` — they read source relative to CWD. That is a
+harness artefact, not a regression, and it looks exactly like one.
+
+### Not done here, deliberately
+
+- **U16c**: the header «Dismiss all», and deleting `ActivityOfferCard`, `ActivityOfferBoundedShell`,
+  `ActivityForwardRow`, `inbox_forward_attribution_copy.dart` with their goldens. The stream no longer
+  renders them; their own tests still do.
+- **E11 same-kind coalescing** («3 новых сообщения») — issue #189, untouched and untested here.
+- **«Очистить всё» has an API and is wired on the grouped card only.** The pinned card has no clearable
+  optional events by construction, so it passes no `onClearAll`.
