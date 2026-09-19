@@ -89,6 +89,8 @@ final class ReviewFinalizationCase extends UseCaseBase
 
           await _attentionSystemSettlement
               .settleReviewObligationsAfterWindowClose(beaconId);
+          final expiredReviewerAccountIds = await _attentionSystemSettlement
+              .listExpiredReviewObligationAccountIds(beaconId);
 
           await _lifecycleEffects.recordEligibleSourceTransition(
             sourceBeaconId: beaconId,
@@ -107,6 +109,7 @@ final class ReviewFinalizationCase extends UseCaseBase
             didClose: true,
             beaconTitle: snapshot.beaconTitle,
             pairs: _finalizedTrustPairs(snapshot),
+            expiredReviewerAccountIds: expiredReviewerAccountIds,
           );
         },
       );

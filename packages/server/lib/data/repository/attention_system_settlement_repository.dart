@@ -194,6 +194,29 @@ WHERE outbox.occurrence_id = occ.id
       );
 
   @override
+  Future<List<String>> listExpiredReviewObligationAccountIds(
+    String beaconId,
+  ) async {
+    final rows = await _database.customSelect(
+      r'''
+SELECT DISTINCT outbox.account_id AS account_id
+FROM public.notification_outbox AS outbox
+JOIN public.attention_occurrence AS occ ON occ.id = outbox.occurrence_id
+WHERE occ.event_type = $2
+  AND outbox.beacon_id = $1
+  AND outbox.requires_action
+  AND outbox.settlement_kind = 'expired'
+ORDER BY account_id
+''',
+      variables: [
+        Variable<String>(beaconId),
+        Variable<String>(_reviewOpenedEventType),
+      ],
+    ).get();
+    return rows.map((row) => row.read<String>('account_id')).toList();
+  }
+
+  @override
   Future<List<String>> listBeaconIdsWithClosedReviewWindows() async {
     final rows = await _database.customSelect(
       r'''

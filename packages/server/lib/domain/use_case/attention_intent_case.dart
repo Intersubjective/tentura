@@ -379,6 +379,51 @@ class AttentionIntentCase {
     resolveContext: false,
   );
 
+  /// §5 "nothing disappears unexplained": one explanation per Request per
+  /// reason, addressed to the reviewers whose obligation ended without them
+  /// acting. [sourceEventKey] must be derived from the Request and the reason
+  /// (not a fresh id), so a repeated sweep dedups at the occurrence grain.
+  Future<AttentionDispatchIntent> reviewObligationEnded({
+    required String beaconId,
+    required String beaconTitle,
+    required Set<String> recipientUserIds,
+    required AttentionObligationEndReason reason,
+    required String? actorUserId,
+    required String sourceEventKey,
+  }) async => AttentionDispatchIntent(
+    eventType: AttentionEventType.obligationEnded,
+    sourceEventKey: sourceEventKey,
+    actorUserId: actorUserId,
+    priority: NotificationPriority.normal,
+    kind: NotificationKind.reviewReady,
+    title: 'Review closed',
+    body: switch (reason) {
+      AttentionObligationEndReason.reviewWindowExpired =>
+        'The review window closed on "$beaconTitle" before your package was '
+            'sent, so it is no longer waiting on you.',
+    },
+    actionUrl: '/#$kPathBeaconView/${Uri.encodeQueryComponent(beaconId)}',
+    collapseKey: AttentionCollapseKey.family(
+      'obligation_ended',
+      [beaconId, reason.name],
+    ),
+    beaconId: beaconId,
+    recipients: [
+      for (final recipientId in recipientUserIds.toList()..sort())
+        AttentionRecipientSnapshot(
+          recipientId: recipientId,
+          reasons: const {AttentionRecipientReason.reviewParticipant},
+          role: AttentionRecipientRoleFacts(
+            beaconId: beaconId,
+            canReadBeaconContent: true,
+            beaconTitle: beaconTitle,
+            targetEntityId: beaconId,
+            actorUserId: actorUserId,
+          ),
+        ),
+    ],
+  );
+
   /// [NotificationKind.reviewReady] — legacy outbox/push plumbing only; Updates
   /// cards dispatch on [AttentionEventType] presentation keys.
   Future<AttentionDispatchIntent> trustGivenChanged({

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "pendingProducerEventTypes": [],
   "eventTypes": [
     {
@@ -89,6 +89,14 @@
       "destinationFamily": "beacon",
       "muteability": "standard",
       "coveringTest": "packages/server/test/domain/evaluation/evaluation_case_test.dart"
+    },
+    {
+      "eventType": "obligationEnded",
+      "producer": "AttentionExpirySweepCase.runDue",
+      "recipientCategory": "review_participant",
+      "destinationFamily": "beacon",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/review_obligation_settlement_pg_test.dart"
     },
     {
       "eventType": "mutualConnectionFormed",
@@ -810,6 +818,30 @@
           "coalescible": true,
           "producerTests": [
             "packages/server/test/domain/evaluation/evaluation_case_test.dart"
+          ],
+          "transitionTests": []
+        }
+      ]
+    },
+    {
+      "eventType": "obligationEnded",
+      "status": "supported",
+      "variants": [
+        {
+          "recipientPredicate": "reason:reviewParticipant",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "beacon_content",
+          "recoverableVia": "request_timeline",
+          "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "beacon",
+          "coalescible": false,
+          "producerTests": [
+            "packages/server/test/domain/use_case/review_obligation_settlement_pg_test.dart"
           ],
           "transitionTests": []
         }

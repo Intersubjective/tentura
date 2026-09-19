@@ -83,7 +83,8 @@ class AttentionPolicy {
     AttentionEventType.coordinationChanged => AttentionSuppressionClass.noisy,
     AttentionEventType.deadlineChanged ||
     AttentionEventType.reviewAllPackagesIn ||
-    AttentionEventType.reviewWindowCancelled =>
+    AttentionEventType.reviewWindowCancelled ||
+    AttentionEventType.obligationEnded =>
       AttentionSuppressionClass.standard,
     AttentionEventType.deadlineReminder => AttentionSuppressionClass.mandatory,
     AttentionEventType.relayReceived ||
@@ -125,6 +126,7 @@ class AttentionPolicy {
     AttentionEventType.reviewOpened ||
     AttentionEventType.reviewAllPackagesIn ||
     AttentionEventType.reviewWindowCancelled ||
+    AttentionEventType.obligationEnded ||
     AttentionEventType.blockerResolved => NotificationCategory.unblocksMe,
     AttentionEventType.commitmentAccepted ||
     AttentionEventType.commitmentResolved => NotificationCategory.unblocksMe,
@@ -167,6 +169,7 @@ class AttentionPolicy {
     AttentionEventType.reviewOpened ||
     AttentionEventType.reviewAllPackagesIn ||
     AttentionEventType.reviewWindowCancelled ||
+    AttentionEventType.obligationEnded ||
     AttentionEventType.needsMe ||
     AttentionEventType.blockerOpened ||
     AttentionEventType.blockerResolved ||
@@ -242,7 +245,8 @@ class AttentionPolicy {
         kind: AttentionDestinationKind.review,
         targetEntityId: role.beaconId,
       ),
-      AttentionEventType.reviewWindowCancelled => AttentionDestination(
+      AttentionEventType.reviewWindowCancelled ||
+      AttentionEventType.obligationEnded => AttentionDestination(
         kind: AttentionDestinationKind.beacon,
         targetEntityId: role.beaconId,
       ),
@@ -293,6 +297,7 @@ class AttentionPolicy {
     AttentionEventType.beaconHierarchyStatusChanged => false,
     AttentionEventType.reviewAllPackagesIn => false,
     AttentionEventType.reviewWindowCancelled => false,
+    AttentionEventType.obligationEnded => false,
     AttentionEventType.mutualConnectionFormed => false,
     AttentionEventType.inviteAccepted => false,
     AttentionEventType.needsMe => false,
@@ -400,6 +405,7 @@ class AttentionPolicy {
     AttentionEventType.reviewOpened => 'review_opened',
     AttentionEventType.reviewAllPackagesIn => 'review_all_packages_in',
     AttentionEventType.reviewWindowCancelled => 'review_window_cancelled',
+    AttentionEventType.obligationEnded => 'obligation_ended',
     AttentionEventType.mutualConnectionFormed => 'mutual_connection_formed',
     AttentionEventType.inviteAccepted => 'invite_accepted',
     AttentionEventType.needsMe => 'needs_me',

@@ -251,6 +251,10 @@ _fixtureFor(String eventName) => switch (eventName) {
     reasons: const {AttentionRecipientReason.reviewParticipant},
     role: _baseRole,
   ),
+  'obligationEnded' => (
+    reasons: const {AttentionRecipientReason.reviewParticipant},
+    role: _baseRole,
+  ),
   'mutualConnectionFormed' => (
     reasons: const {AttentionRecipientReason.reciprocalCounterpart},
     role: _baseRole.copyWith(beaconId: null),

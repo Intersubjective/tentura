@@ -15,6 +15,7 @@ import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/attention_dispatch_repository.dart';
+import 'package:tentura_server/data/repository/attention_expiry_repository.dart';
 import 'package:tentura_server/data/repository/attention_repository.dart';
 import 'package:tentura_server/data/repository/attention_system_settlement_repository.dart';
 import 'package:tentura_server/data/repository/beacon_access_repository.dart';
@@ -75,6 +76,7 @@ Future<void> main() async {
     late ReviewFinalizationCase finalizationCase;
     late EvaluationRepository evalRepo;
     late EvaluationCase evaluationCase;
+    late AttentionExpirySweepCase expirySweep;
 
     setUpAll(() async {
       await target.recreate();
@@ -124,6 +126,12 @@ Future<void> main() async {
         systemSettlement,
         env: target.databaseEnv,
         logger: logger,
+      );
+      expirySweep = AttentionExpirySweepCase(
+        AttentionExpiryRepository(database),
+        finalizationCase,
+        intents,
+        TransactionalAttentionCase(unitOfWork, dispatch),
       );
       evaluationCase = _buildEvaluationCase(
         database,
@@ -200,6 +208,69 @@ Future<void> main() async {
 
       expect(await _settlementKind(writer, _reviewer1), 'expired');
       expect(await _settlementKind(writer, _reviewer1), isNot('resolved'));
+    }, skip: skipReason);
+
+    test('an expired sweep explains the obligation it ended, exactly once',
+        () async {
+      await _dispatchReviewOpened(dispatch, intents);
+      // The window is already due: the sweeper, not a person, ends this.
+      await writer.execute('''
+UPDATE public.beacon_review_window
+SET closes_at = now() - interval '1 hour'
+WHERE beacon_id = '$_beaconId'
+''');
+
+      expect(await expirySweep.runDue(), 1);
+      // The sweeper can run more than once; the second pass must add nothing.
+      expect(await expirySweep.runDue(), 0);
+
+      expect(await _settlementKind(writer, _reviewer1), 'expired');
+      expect(await _settlementKind(writer, _reviewer2), 'expired');
+
+      // §5: the count fell without either reviewer acting, so each is owed
+      // exactly one explanation — and only one, however often we sweep.
+      expect(await _obligationEndedOccurrenceCount(writer), 1);
+      expect(await _obligationEndedReceiptCount(writer, _reviewer1), 1);
+      expect(await _obligationEndedReceiptCount(writer, _reviewer2), 1);
+      expect(
+        await _obligationEndedBody(writer),
+        contains('review window closed'),
+      );
+    }, skip: skipReason);
+
+    test('a reviewer who sent their package gets no expiry explanation',
+        () async {
+      await _dispatchReviewOpened(dispatch, intents);
+      await evalRepo.submitEvaluationAtomic(
+        beaconId: _beaconId,
+        evaluatorId: _reviewer1,
+        evaluatedUserId: _subjectId,
+        value: BeaconEvaluationValue.pos1,
+        reasonTags: const ['quality'],
+        note: 'sent',
+        ackTags: const [],
+      );
+      await evalRepo.setReviewUserStatus(
+        beaconId: _beaconId,
+        userId: _reviewer1,
+        status: 2,
+      );
+      await writer.execute('''
+UPDATE public.beacon_review_window
+SET closes_at = now() - interval '1 hour'
+WHERE beacon_id = '$_beaconId'
+''');
+
+      expect(await expirySweep.runDue(), 1);
+
+      expect(await _settlementKind(writer, _reviewer1), 'resolved');
+      expect(await _settlementKind(writer, _reviewer2), 'expired');
+      expect(
+        await _obligationEndedReceiptCount(writer, _reviewer1),
+        0,
+        reason: 'their obligation ended by their own act; nothing to explain',
+      );
+      expect(await _obligationEndedReceiptCount(writer, _reviewer2), 1);
     }, skip: skipReason);
 
     test('reopen from review supersedes reviewOpened obligations', () async {
@@ -611,6 +682,39 @@ Future<void> _dispatchReviewOpened(
   );
 }
 
+Future<int> _obligationEndedOccurrenceCount(Connection writer) async {
+  final rows = await writer.execute('''
+SELECT count(*) FROM public.attention_occurrence
+WHERE event_type = 'obligationEnded'
+''');
+  return (rows.single[0]! as int).toInt();
+}
+
+Future<int> _obligationEndedReceiptCount(
+  Connection writer,
+  String accountId,
+) async {
+  final rows = await writer.execute('''
+SELECT count(*)
+FROM public.notification_outbox AS outbox
+JOIN public.attention_occurrence AS occ ON occ.id = outbox.occurrence_id
+WHERE occ.event_type = 'obligationEnded'
+  AND outbox.account_id = '$accountId'
+''');
+  return (rows.single[0]! as int).toInt();
+}
+
+Future<String> _obligationEndedBody(Connection writer) async {
+  final rows = await writer.execute('''
+SELECT outbox.body
+FROM public.notification_outbox AS outbox
+JOIN public.attention_occurrence AS occ ON occ.id = outbox.occurrence_id
+WHERE occ.event_type = 'obligationEnded'
+LIMIT 1
+''');
+  return rows.single[0]! as String;
+}
+
 Future<String?> _settlementKind(Connection writer, String accountId) async {
   final rows = await writer.execute('''
 SELECT settlement_kind
@@ -738,6 +842,11 @@ final class _FailingPackageSendSettlement
   @override
   Future<int> supersedeReviewObligationsOnReopen(String beaconId) =>
       _delegate.supersedeReviewObligationsOnReopen(beaconId);
+
+  @override
+  Future<List<String>> listExpiredReviewObligationAccountIds(
+    String beaconId,
+  ) => _delegate.listExpiredReviewObligationAccountIds(beaconId);
 
   @override
   Future<int> settleAuthorHelpOfferSubmitted({

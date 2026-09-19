@@ -19,5 +19,9 @@ abstract class ReviewFinalizationResult with _$ReviewFinalizationResult {
     required bool didClose,
     String? beaconTitle,
     @Default([]) List<FinalizedTrustPair> pairs,
+    /// Reviewers whose obligation ended as `expired` in this close — the
+    /// window shut before their package arrived (§5: they are owed an
+    /// explanation for the count that fell).
+    @Default(<String>[]) List<String> expiredReviewerAccountIds,
   }) = _ReviewFinalizationResult;
 }

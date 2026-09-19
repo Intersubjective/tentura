@@ -24,7 +24,7 @@ AttentionEventCatalogStatus attentionEventCatalogStatusFromWireName(
 abstract final class AttentionEventTypeCatalog {
   AttentionEventTypeCatalog._();
 
-  static const int contractSchemaVersion = 4;
+  static const int contractSchemaVersion = 5;
 
   static void assertDeclared(AttentionEventType eventType) {
     switch (eventType) {
@@ -39,6 +39,7 @@ abstract final class AttentionEventTypeCatalog {
       case AttentionEventType.reviewOpened:
       case AttentionEventType.reviewAllPackagesIn:
       case AttentionEventType.reviewWindowCancelled:
+      case AttentionEventType.obligationEnded:
       case AttentionEventType.mutualConnectionFormed:
       case AttentionEventType.inviteAccepted:
       case AttentionEventType.needsMe:
@@ -74,6 +75,10 @@ enum AttentionEventType {
   reviewOpened,
   reviewAllPackagesIn,
   reviewWindowCancelled,
+
+  /// U07b2 / §5 "nothing disappears unexplained": an obligation that ended by
+  /// expiry or by someone else's cancellation, never by the person's own act.
+  obligationEnded,
   mutualConnectionFormed,
   inviteAccepted,
   needsMe,
@@ -130,6 +135,21 @@ extension AttentionRecipientReasonScope on AttentionRecipientReason {
     AttentionRecipientReason.inviter => false,
     _ => true,
   };
+}
+
+/// Why an obligation ended by something other than the person's own act
+/// (§5 "nothing disappears unexplained"). One value per explanation copy.
+enum AttentionObligationEndReason {
+  /// The review window's deadline passed and the window closed itself.
+  ///
+  /// The only value today, and deliberately so (U07b2):
+  /// * `EvaluationCase.closeNow` cannot leave an expired obligation behind —
+  ///   it refuses unless every author/committer participant has already sent
+  ///   (`_canCloseNow`), so there is nothing unexplained to explain.
+  /// * The author *cancelling* a window (`EvaluationCase.reopenFromReview`)
+  ///   supersedes the obligations and already emits `reviewWindowCancelled`
+  ///   to the same reviewers; a second explanation would be noise.
+  reviewWindowExpired,
 }
 
 enum AttentionSuppressionClass { mandatory, standard, noisy }

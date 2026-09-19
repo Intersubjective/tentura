@@ -160,6 +160,15 @@ const _expectedEventTypes = <Map<String, String>>[
         'packages/server/test/domain/evaluation/evaluation_case_test.dart',
   },
   {
+    'eventType': 'obligationEnded',
+    'producer': 'AttentionExpirySweepCase.runDue',
+    'recipientCategory': 'review_participant',
+    'destinationFamily': 'beacon',
+    'muteability': 'standard',
+    'coveringTest':
+        'packages/server/test/domain/use_case/review_obligation_settlement_pg_test.dart',
+  },
+  {
     'eventType': 'mutualConnectionFormed',
     'producer':
         'UserTrustEdgeCase.setUserVote|AuthCase.signUp(invite)|AuthCase.signUpWithInvite|CredentialAuthCase.resolveOrCreate(invite)|InvitationCase.accept|InvitationCase.acceptAsExisting(non-Beacon relationship-forming path)',
@@ -200,7 +209,7 @@ const _expectedEventTypes = <Map<String, String>>[
 ];
 
 void main() {
-  test('Updates contract has the exact revision 4 semantic coverage', () {
+  test('Updates contract has the exact revision 5 semantic coverage', () {
     final contractFile = _contractFile();
     final contract = Map<String, dynamic>.from(
       jsonDecode(contractFile.readAsStringSync()) as Map,

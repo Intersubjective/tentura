@@ -2,6 +2,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
+import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/port/attention_expiry_repository_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/port/review_finalization_port.dart';
@@ -47,6 +48,23 @@ class AttentionExpirySweepCase {
             if (result.didClose) {
               await transaction.record(intent);
               final beaconTitle = result.beaconTitle ?? '';
+              // §5: a count that falls on its own must say why. The key is
+              // derived from the Request and the reason, so a second sweep
+              // dedups at the occurrence grain instead of explaining twice.
+              if (result.expiredReviewerAccountIds.isNotEmpty) {
+                await transaction.record(
+                  await _intents.reviewObligationEnded(
+                    beaconId: beaconId,
+                    beaconTitle: beaconTitle,
+                    recipientUserIds:
+                        result.expiredReviewerAccountIds.toSet(),
+                    reason:
+                        AttentionObligationEndReason.reviewWindowExpired,
+                    actorUserId: null,
+                    sourceEventKey: 'obligation_ended:review_expired:$beaconId',
+                  ),
+                );
+              }
               for (final pair in result.pairs) {
                 if (pair.bin == TrustBin.noEffect) continue;
                 final given = await _intents.trustGivenChanged(

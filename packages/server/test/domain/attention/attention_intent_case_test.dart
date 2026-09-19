@@ -178,6 +178,19 @@ void main() {
           ),
         ),
         (
+          eventType: AttentionEventType.obligationEnded,
+          legacyKind: 'reviewReady',
+          recipient: target,
+          build: (intents) => intents.reviewObligationEnded(
+            beaconId: beacon,
+            beaconTitle: 'Request title',
+            recipientUserIds: const {target},
+            reason: AttentionObligationEndReason.reviewWindowExpired,
+            actorUserId: actor,
+            sourceEventKey: eventKey,
+          ),
+        ),
+        (
           eventType: AttentionEventType.mutualConnectionFormed,
           legacyKind: 'inviteAccepted',
           recipient: target,
@@ -302,6 +315,11 @@ void main() {
             ),
             AttentionEventType.trustReceivedChanged => startsWith(
               'v1|trust_received|',
+            ),
+            // One explanation per Request per reason — the family is the
+            // dedup unit, not the source event id.
+            AttentionEventType.obligationEnded => startsWith(
+              'v1|obligation_ended|',
             ),
             _ => startsWith('v1|none|'),
           },

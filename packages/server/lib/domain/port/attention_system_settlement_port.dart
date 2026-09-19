@@ -37,6 +37,12 @@ abstract class AttentionSystemSettlementPort {
   /// it can still be answered.
   Future<int> supersedeAuthorHelpOfferObligationsOnBeaconClose(String beaconId);
 
+  /// The accounts whose `reviewOpened` obligation on [beaconId] ended as
+  /// `expired` — i.e. the window closed before they sent their package, so the
+  /// obligation ended by something other than their own act. §5 requires each
+  /// of them to get an explanation for the count that just fell.
+  Future<List<String>> listExpiredReviewObligationAccountIds(String beaconId);
+
   /// Beacons whose review window row is closed ([beacon_review_window].status = 1).
   Future<List<String>> listBeaconIdsWithClosedReviewWindows();
 }
