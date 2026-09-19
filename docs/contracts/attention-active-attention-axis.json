@@ -89,5 +89,13 @@
       "relay_received forward shells",
       "unanswered forwards and pending prompts (eligible_pinned)"
     ]
+  },
+  "unreadViewMembershipByItemKind": {
+    "description": "`is_active_attention` is not one expression. The stream union in attention_repository.dart gives each item_kind its own, and the client's `isInUnreadView` mirrors this table. R10: U15R-c applied the `receipt` rule to all four kinds, so a requestActivity card whose last optional child was cleared stayed on a list the server had already dropped it from.",
+    "receipt": "activeAttention(v) AND primaryPlacement(v)",
+    "requestActivity": "stats.event_unseen_count > 0",
+    "forward": "false — an outcome row is dismissible but never carries the dot (U15R-a/R1)",
+    "watchingDigest": "true",
+    "clientMirror": "packages/client/lib/domain/attention/attention_dismissible_membership.dart :: isInUnreadView"
   }
 }

@@ -86,6 +86,22 @@ final class AttentionCaseTestRepository extends AttentionRepositoryFake {
     return pendingSurfaceSummaries.removeAt(0).future;
   }
 
+  final List<AttentionClearSnapshot> clearSnapshots = [];
+  final List<Completer<AttentionClearResult>> pendingClears = [];
+
+  @override
+  Future<AttentionClearSnapshot> clearSnapshot({
+    required AttentionClearCaptureKind kind,
+    String? beaconId,
+    String? receiptId,
+  }) async => clearSnapshots.removeAt(0);
+
+  @override
+  Future<AttentionClearResult> clear({
+    required String snapshotToken,
+    required String operationId,
+  }) => pendingClears.removeAt(0).future;
+
   @override
   Future<int> markSeenForBeacon(String beaconId) async {
     markSeenForBeaconCalls.add(beaconId);

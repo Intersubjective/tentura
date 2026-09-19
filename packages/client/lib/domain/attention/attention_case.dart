@@ -1241,9 +1241,11 @@ final class AttentionCase {
               // R2 — the `unread` view is the server's *active attention*
               // view (`$2 = 'unread' AND is_active_attention`), not a read
               // list. Reading a row must not take it off the list the server
-              // still returns; clearing it is what does.
+              // still returns; clearing it is what does. R10 — and
+              // `is_active_attention` is not one expression: each item kind
+              // has its own, so the mirror is keyed on the kind.
               if (entry.key != AttentionView.unread) return true;
-              return isActiveOptional(receipt) || receipt.isLiveObligation;
+              return isInUnreadView(receipt);
             }).toList(growable: false),
           ),
       };

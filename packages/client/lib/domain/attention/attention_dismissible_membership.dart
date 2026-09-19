@@ -29,6 +29,30 @@ bool isOptimisticallySweepable(AttentionReceipt receipt) {
   return true;
 }
 
+/// The server's `unread` view membership — `$2 = 'unread' AND
+/// is_active_attention`, which is a **different expression per branch** of the
+/// stream union in `attention_repository.dart`. One rule for all four kinds is
+/// what U15R-c shipped and what this replaces: a `requestActivity` card whose
+/// last optional child was cleared stayed on the list the server had already
+/// dropped it from, showing `0`.
+///
+/// | item kind         | server expression                                |
+/// | ----------------- | ------------------------------------------------ |
+/// | `receipt`         | `activeAttention(v) AND primaryPlacement(v)`      |
+/// | `requestActivity` | `stats.event_unseen_count > 0`                    |
+/// | `forward`         | `false` — an outcome row never carries the dot    |
+/// | `watchingDigest`  | `true`                                            |
+///
+/// `primaryPlacement` is deliberately absent: the client is never served a
+/// non-primary row, so mirroring it here would be a predicate with no input.
+bool isInUnreadView(AttentionReceipt receipt) => switch (receipt.itemKind) {
+  AttentionItemKind.receipt =>
+    isActiveOptional(receipt) || receipt.isLiveObligation,
+  AttentionItemKind.requestActivity => (receipt.eventUnseenCount ?? 0) > 0,
+  AttentionItemKind.forward => false,
+  AttentionItemKind.watchingDigest => true,
+};
+
 /// Active **optional** attention — `activeOptional` in the server's SQL. The
 /// clear axis, independent of `seenAt` (D02): what a clear delta is made of.
 bool isActiveOptional(AttentionReceipt receipt) =>

@@ -6,6 +6,7 @@ import 'package:logging/logging.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/attention_ack_store.dart';
+import 'package:tentura/domain/attention/entity/attention_clear.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
@@ -89,6 +90,68 @@ void main() {
       );
       attention.attachFeedSession(_feedDest);
     });
+
+
+    // R10 — `is_active_attention` is not one expression. The stream union
+    // gives each item kind its own, and a synthetic `requestActivity` row's
+    // is `stats.event_unseen_count > 0` — nothing to do with its own
+    // `requires_action`/`cleared_at`, which the server hardcodes to
+    // false/NULL. U15R-c replaced a read-based filter with the *receipt*
+    // rule applied to every kind, so a group card whose last optional child
+    // was cleared kept its place on a list the server had already dropped it
+    // from, displaying `0`.
+    test(
+      'a grouped row leaves the unread view when its last child is cleared',
+      () async {
+        final initial = Completer<AttentionFeed>();
+        final unreadPage = Completer<AttentionFeed>();
+        repository.pendingFetches.addAll([initial, unreadPage]);
+        accounts.emit('account-a');
+        await _settle();
+        final grouped = _receipt(id: 'group-1').copyWith(
+          itemKind: AttentionItemKind.requestActivity,
+          beaconId: 'beacon-1',
+          eventTotal: 1,
+          eventUnseenCount: 1,
+          eventsPreview: [_receipt(id: 'child-1')],
+        );
+        initial.complete(_feed(unread: 1, items: [grouped]));
+        await _settle();
+        attention.setActiveView(_feedDest, AttentionView.unread);
+        await _settle();
+        unreadPage.complete(_feed(unread: 1, items: [grouped]));
+        await _settle();
+
+        repository.clearSnapshots.add(
+          const AttentionClearSnapshot(
+            snapshotToken: 'tok',
+            receiptIds: ['child-1'],
+          ),
+        );
+        final cleared = Completer<AttentionClearResult>();
+        repository.pendingClears.add(cleared);
+        unawaited(attention.clearReceipt(receiptId: 'child-1'));
+        await _settle();
+        cleared.complete(
+          const AttentionClearResult(
+            operationId: 'op',
+            status: AttentionOperationStatus.complete,
+            appliedReceiptIds: ['child-1'],
+          ),
+        );
+        await _settle();
+
+        expect(
+          _feedSession(attention).pages[AttentionView.unread]!.items.map(
+            (receipt) => receipt.id,
+          ),
+          isNot(contains('group-1')),
+          reason: 'the server returns a requestActivity row only while '
+              'event_unseen_count > 0; with its one child cleared the client '
+              'must not keep showing a card the server has dropped',
+        );
+      },
+    );
 
     tearDown(() async {
       await attention.dispose();
