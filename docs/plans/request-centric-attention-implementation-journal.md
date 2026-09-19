@@ -6506,3 +6506,36 @@ U10b structural case lists `lib/data/repository/` by relative path and fails wit
 from the repo root. Pre-existing, unrelated to this remediation, not fixed here.
 
 ---
+
+### Overseer — PG gate parallelism raised to `-j 4` (3× faster), and what the ramp found
+
+The `-j 1` PG gate had grown to ~12.6 minutes and was the session's main cost. Measured ramp, on a tree kept
+green at `-j 1` first so any difference is attributable to parallelism alone:
+
+| level | wall | speedup | failures | skips |
+|---|---|---|---|---|
+| `-j 1` (baseline) | 757.5 s | 1.00× | 0 | 24 |
+| `-j 2` (before race fixes) | 392.9 s | 1.93× | **1** | 26 |
+| `-j 2` (after) | 389.5 s | 1.94× | 0 | 24 |
+| `-j 4` | **252.2 s** | **3.00×** | 0 | 24 |
+
+**Safe by construction, checked before trusting it:** disposable database names are
+`${prefix}_${pid}_${random}_${seq}`, so even the one prefix shared by two files cannot collide across processes.
+The machine has 16 cores and 64 GB; a `-j 4` run consumes ~12 GB and leaves ~34 GB, far above the 8 GB floor.
+`max_connections = 100` is the nearest real limit and is nowhere near reached at 4.
+
+**The cost is 147 full migration chains, not test logic** — which is why this parallelises almost linearly.
+
+**Stopping at 4 deliberately.** The next step would save roughly a minute per gate across the nine remaining
+units, against a four-minute measurement — but more importantly each level exposes the *next* layer of latent
+races, and destabilising the gate to save a minute is a bad trade this late. `-j 8` remains available.
+
+**The ramp's real value was diagnostic.** The single `-j 2` failure was not a cost of parallelism; it was
+parallelism *finding* a race that also existed at `-j 1` and simply won there. It turned out to be **four**
+racy tests in the constellation anchor suite, all the same shape as the one fixed earlier today:
+`notifications.clear()` does not flush what Postgres has not yet delivered. The remediation made the race
+deterministic (a 60 ms listener delay) instead of hoping to reproduce it, fixed all four, then removed the delay.
+
+Net effect on the remaining plan: the gate drops from ~12.6 to ~4.2 minutes, about **75 minutes** saved over the
+remaining units.
+
