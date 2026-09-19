@@ -13,6 +13,7 @@ import 'package:tentura_server/domain/port/attention_query_port.dart';
 import 'package:tentura_server/domain/port/attention_settlement_port.dart';
 
 import '../database/tentura_db.dart';
+import 'attention_dismissible_sql.dart';
 
 @Singleton(as: AttentionQueryPort)
 class AttentionRepository implements AttentionQueryPort {
@@ -144,33 +145,16 @@ ORDER BY beacon_id, created_at DESC, id DESC
     return results;
   }
 
-  static const _visibleWithSurfaceCte = '''
-visible_raw AS (
-  SELECT outbox.*, authorized.tombstone_copy
-  FROM public.visible_attention_receipts(\$1) authorized
-  JOIN public.notification_outbox outbox
-    ON outbox.id = authorized.receipt_id
-),
-scope AS (
-  SELECT beacon_id FROM public.responsibility_scope_base_beacons(\$1)
-  UNION
-  SELECT DISTINCT visible_raw.beacon_id
-  FROM visible_raw
-  WHERE visible_raw.requires_action
-    AND visible_raw.settlement_kind IS NULL
-    AND visible_raw.beacon_id IS NOT NULL
-),
-visible AS (
-  SELECT
-    visible_raw.*,
-    CASE
-      WHEN visible_raw.beacon_id IS NOT NULL
-       AND visible_raw.beacon_id IN (SELECT scope.beacon_id FROM scope)
-      THEN 'myWork'
-      ELSE 'activity'
-    END AS surface
-  FROM visible_raw
-)''';
+  /// U10a — one predicate source.
+  ///
+  /// This used to be a second, hand-maintained copy of
+  /// `AttentionDismissibleSql.visibleWithSurface`. The two agreed (proved in
+  /// `attention_predicate_unification_pg_test.dart`), but only by hand: U10b
+  /// moves this definition from `seen_at` to active attention, and a sweep
+  /// that kept the old meaning because the projection was edited alone is
+  /// exactly the drift the U09a note warned about. Change it there, once.
+  static const _visibleWithSurfaceCte =
+      AttentionDismissibleSql.visibleWithSurface;
 
   @override
   Future<AttentionSurfaceSummary> surfaceSummary({
@@ -242,16 +226,10 @@ SELECT * FROM summary
   /// Beacon-scoped Activity receipts coalesce onto a pinned For-you card, a
   /// stream forward row, or a synthetic `requestActivity` row — never as
   /// standalone feed tiles.
-  static const _activityGroupingCtes = '''
-eligible_pinned AS (
-  SELECT ii.beacon_id
-  FROM public.inbox_item ii
-  WHERE ii.user_id = \$1
-    AND ii.tombstone_dismissed_at IS NULL
-    AND ii.status = 0
-    AND public.beacon_can_read_content(ii.beacon_id, \$1)
-    AND ii.beacon_id NOT IN (SELECT scope.beacon_id FROM scope)
-),
+  /// The pinned zone is shared with the sweep — see [_visibleWithSurfaceCte].
+  static const _activityGroupingCtes =
+      '''
+${AttentionDismissibleSql.eligiblePinned},
 eligible_forward AS (
   SELECT
     ii.beacon_id,
@@ -1225,45 +1203,22 @@ WHERE outbox.account_id = \$1
   @override
   Future<int> markAllSeen(String accountId, {AttentionSurface? surface}) =>
       _database.customUpdate(
-        r'''
-WITH visible_raw AS (
-  SELECT outbox.*
-  FROM public.visible_attention_receipts($1) authorized
-  JOIN public.notification_outbox outbox
-    ON outbox.id = authorized.receipt_id
-),
-scope AS (
-  SELECT beacon_id FROM public.responsibility_scope_base_beacons($1)
-  UNION
-  SELECT DISTINCT visible_raw.beacon_id
-  FROM visible_raw
-  WHERE visible_raw.requires_action
-    AND visible_raw.settlement_kind IS NULL
-    AND visible_raw.beacon_id IS NOT NULL
-),
-visible AS (
-  SELECT
-    visible_raw.id,
-    visible_raw.seen_at,
-    CASE
-      WHEN visible_raw.beacon_id IS NOT NULL
-       AND visible_raw.beacon_id IN (SELECT scope.beacon_id FROM scope)
-      THEN 'myWork'
-      ELSE 'activity'
-    END AS surface
-  FROM visible_raw
-),
+        // U10a: this was a third copy of the visible/surface CTE — projecting
+        // fewer columns, but selecting the same rows. It composes the shared
+        // definition like every other consumer now.
+        '''
+WITH ${AttentionDismissibleSql.visibleWithSurface},
 targets AS (
   SELECT id
   FROM visible
   WHERE seen_at IS NULL
-    AND ($2::text IS NULL OR surface = $2)
+    AND (\$2::text IS NULL OR surface = \$2)
 )
 UPDATE public.notification_outbox outbox
 SET
   seen_at = COALESCE(outbox.seen_at, now())
 FROM targets
-WHERE outbox.account_id = $1
+WHERE outbox.account_id = \$1
   AND outbox.id = targets.id
 ''',
         variables: [

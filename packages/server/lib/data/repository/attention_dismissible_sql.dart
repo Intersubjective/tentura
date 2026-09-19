@@ -14,18 +14,23 @@
 ///
 /// Every fragment takes the viewer's account id as `$1`.
 abstract final class AttentionDismissibleSql {
-  /// Visibility, responsibility scope, surface, and the pinned decision zone.
+  /// Visibility, responsibility scope and surface — the one definition.
   ///
-  /// This mirrors `AttentionRepository`'s private `_visibleWithSurfaceCte` and
-  /// the `eligible_pinned` half of `_activityGroupingCtes`. The duplication is
-  /// deliberate and temporary: those members are private to a file U10 owns
-  /// and will rewrite, and a sweep that silently changed meaning because a
-  /// projection was refactored is exactly the failure this unit is guarding
-  /// against. When U10 settles that file, the two should be unified — behind
-  /// *this* name, since this one is the authorization-critical copy.
-  static const prelude = r'''
+  /// U09a kept a deliberate copy of this in `AttentionRepository`, on the
+  /// grounds that U10 owned and would rewrite that file. U10a is that
+  /// settlement: the copy is gone and the read projection composes this
+  /// constant, so U10b's move from `seen_at` to active attention changes one
+  /// definition rather than two that drift apart. It lives *here* because
+  /// this is the authorization-critical side — a sweep that silently changed
+  /// meaning because a projection was refactored answers somebody by not
+  /// answering them.
+  ///
+  /// `authorized.tombstone_copy` is projected for the read path; the sweep
+  /// never reads it. It is a column, not a row filter, so both consumers see
+  /// the same membership.
+  static const visibleWithSurface = r'''
 visible_raw AS (
-  SELECT outbox.*
+  SELECT outbox.*, authorized.tombstone_copy
   FROM public.visible_attention_receipts($1) authorized
   JOIN public.notification_outbox outbox
     ON outbox.id = authorized.receipt_id
@@ -49,7 +54,14 @@ visible AS (
       ELSE 'activity'
     END AS surface
   FROM visible_raw
-),
+)''';
+
+  /// The pinned decision zone — readable, unanswered forwards outside scope.
+  ///
+  /// Also the one definition, and for the same reason: the read path groups
+  /// its For-you pins by exactly the rows the sweep must refuse to touch.
+  /// Requires [visibleWithSurface] (it reads `scope`) to precede it.
+  static const eligiblePinned = r'''
 eligible_pinned AS (
   SELECT ii.beacon_id
   FROM public.inbox_item ii
@@ -59,6 +71,10 @@ eligible_pinned AS (
     AND public.beacon_can_read_content(ii.beacon_id, $1)
     AND ii.beacon_id NOT IN (SELECT scope.beacon_id FROM scope)
 )''';
+
+  /// What the sweep needs before either dismissible set: visibility, scope,
+  /// surface, and the pinned zone it must never sweep.
+  static const prelude = '$visibleWithSurface,\n$eligiblePinned';
 
   /// Set R — dismissible optional receipts, the `notification_outbox` axis.
   ///
