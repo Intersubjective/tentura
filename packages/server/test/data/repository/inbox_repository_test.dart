@@ -593,33 +593,68 @@ LIMIT 1
   ).get();
   if (index.isEmpty) return false;
 
-  final row = await db.customSelect(
-    r'''
-SELECT pg_get_functiondef(p.oid) AS def
-FROM pg_proc p
-JOIN pg_namespace n ON n.oid = p.pronamespace
-WHERE n.nspname = 'public'
-  AND p.proname = 'inbox_item_inbox_provenance_data'
-LIMIT 1
-''',
-  ).getSingleOrNull();
-  return (row?.read<String>('def') ?? '').contains('cancelled_at IS NULL');
+  final def = await _provenanceImplSource(db);
+  return def.contains('cancelled_at IS NULL');
 }
 
 Future<bool> _hasM0103Provenance(TenturaDb db) async {
-  final row = await db.customSelect(
-    r'''
+  final def = await _provenanceImplSource(db);
+  // Self-forward exclusion: m0103 spelled the recipient `inbox_row.user_id`;
+  // after m0188 moved the body behind `attention_provenance_data` it is the
+  // `p_recipient_id` argument. Match the predicate, not one spelling of it.
+  final excludesSelfForward = RegExp(
+    r'bfe\.sender_id\s*<>\s*[A-Za-z_][\w.]*',
+  ).hasMatch(def);
+  return excludesSelfForward &&
+      def.contains("nullif(trim(bfe.context), '') IS NULL");
+}
+
+/// Source of the provenance implementation **as actually reached at runtime**.
+///
+/// `inbox_item_inbox_provenance_data` is the Hasura computed field, but since
+/// m0188 (U10d) its body is a one-line delegation to the shared
+/// `attention_provenance_data`. Grepping the computed field's own definition
+/// therefore finds none of the predicates that define m0100/m0103 semantics,
+/// which is exactly how these probes silently went false and skipped the two
+/// live provenance cases. Follow the delegation: concatenate the entry point's
+/// definition with those of every `public.` function it transitively calls, so
+/// the probes see the SQL that really runs no matter how many hops it is moved
+/// behind.
+Future<String> _provenanceImplSource(TenturaDb db) async {
+  final seen = <String>{};
+  final buffer = StringBuffer();
+  final pending = <String>['inbox_item_inbox_provenance_data'];
+
+  while (pending.isNotEmpty) {
+    final name = pending.removeLast();
+    if (!seen.add(name)) continue;
+
+    final rows = await db
+        .customSelect(
+          r'''
 SELECT pg_get_functiondef(p.oid) AS def
 FROM pg_proc p
 JOIN pg_namespace n ON n.oid = p.pronamespace
 WHERE n.nspname = 'public'
-  AND p.proname = 'inbox_item_inbox_provenance_data'
-LIMIT 1
+  AND p.proname = $1
 ''',
-  ).getSingleOrNull();
-  final def = row?.read<String>('def') ?? '';
-  return def.contains('bfe.sender_id <> inbox_row.user_id') &&
-      def.contains("nullif(trim(bfe.context), '') IS NULL");
+          variables: [Variable<String>(name)],
+        )
+        .get();
+
+    for (final row in rows) {
+      final def = row.read<String>('def');
+      buffer.writeln(def);
+      for (final m in RegExp(r'public\.([a-z_][a-z0-9_]*)\s*\(').allMatches(
+        def,
+      )) {
+        final callee = m.group(1)!;
+        if (!seen.contains(callee)) pending.add(callee);
+      }
+    }
+  }
+
+  return buffer.toString();
 }
 
 Future<bool> _canConnectPostgres() async {
