@@ -5231,3 +5231,67 @@ readability question in the same words but does not edit that file. No migration
 uncalled. Pre-existing untracked and modified files belong to other people and were not staged.
 
 STATUS: complete
+
+---
+
+## UNIT U09c — undo · VERIFY (2026-09-19)
+
+**Layer:** verify (read-only). **Base:** `6bed2dfa8`. **Commits:** `a552926d6` · `bbd2ece07` ·
+`40793d8c1` · `eaf1c3892`.
+
+### Obligation guard removal — adjudication
+
+**Not P0.** On a single `notification_outbox` row, `requires_action = true` and any non-null clear metadata
+(`cleared_at`, `clear_reason`, `cleared_by_operation_id`) violate
+`notification_outbox__clear_optional_only_chk` (re-ran
+`attention_additive_schema_pg_test.dart` — *rejects clear metadata on an obligation*). A sweep cannot clear an
+obligation (`NOT requires_action` on apply); flipping `requires_action` after clear without nulling clear fields
+fails the CHECK. Undo only runs `UPDATE … SET cleared_* = NULL` on rows still matching
+`cleared_by_operation_id = operation` and visible — a live obligation is a different lifecycle (often a different
+receipt id after supersede). The absent SQL guard is documented in the inner refusal table with
+**`notification_outbox__clear_optional_only_chk`** named explicitly (journal § *The rule that is deliberately
+absent*).
+
+### Execution
+
+PG: undo (22) + sweep (27 incl. undo-window + outcome-only race) + clear (15) + predicate (12) + outcome (21) =
+**97**; GraphQL **31** (incl. 4 `attentionUndo`). All green (~27s).
+
+**Verifier verdict:** pass.
+
+---
+
+### Manager verdict — U09c · **ACCEPTED** (hard; inner Opus-low ✓ / verify pass, no finisher) — U09 complete
+
+Overseer's full suite: **1685 non-PG**, **956 PG / 24 known skips**. Commits `a552926d6` window ·
+`bbd2ece07` restore + refusals · `40793d8c1` GraphQL · `eaf1c3892` journal.
+
+**The inner layer removed a guard and asked to be argued with; the verifier argued and agreed.** The undo path
+had an obligation guard that could not be falsified: `notification_outbox__clear_optional_only_chk` makes "a
+cleared receipt that is an obligation" unrepresentable, so no test could fail without the guard. The verifier
+tried to construct that row through the sweep, direct SQL, and a flip-ordering path, and could not. The guard
+stays removed, and the load-bearing constraint's **name** is recorded in the journal's refusal table so the next
+reader knows what is actually protecting the invariant. Shipping an unfalsifiable check would have looked like
+safety and provided none.
+
+**Falsification was applied to the SQL itself this time.** The verifier loosened one named clause at a time in
+`undoReceiptSql` / `undoOutcomeSql` and confirmed each refusal test fails — stronger than the inner layer's Dart
+loosening, which layered SQL guards had silently absorbed. That difference is worth remembering: a guard proven
+only at the language level may be masked by a constraint underneath it.
+
+**A latent hole only undo could open:** `_summarize`'s `case _:` default meant "pending", so an unknown member
+state would have made a **resumed sweep promise work it never does**. Introducing the `undone` state exposed it;
+the verifier confirmed it is the only exhaustive switch on member state in this machinery.
+
+**Product semantics I endorse:** the undo window runs from the **last member actually cleared**, not the first
+call. A bounded `maxBatches` sweep is one user gesture spread over several calls, `GREATEST` keeps the deadline
+monotonic, and a call that cleared nothing cannot buy more time. Refusals are typed — `expired`,
+`decisionChanged`, `clearedByAnotherOperation`, `neverApplied`, `notFound` — never an untyped failure.
+
+**Later intent wins, pinned from both sides:** every scenario has a should-restore / must-refuse pair, so
+restoring a forward, re-pinning it, or answering it refuses that member instead of resurrecting old state on top
+of new.
+
+No migration was needed — m0186's fields already carried undo's needs.
+
+---
