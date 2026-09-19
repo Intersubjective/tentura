@@ -95,7 +95,13 @@ scoped_receipts AS (
   INNER JOIN scoped_beacons sb ON sb.beacon_id = v.beacon_id
   WHERE v.surface = 'myWork'
 )
-SELECT * FROM scoped_receipts
+SELECT
+  scoped_receipts.*,
+  state.first_entry_at AS first_entry_at
+FROM scoped_receipts
+LEFT JOIN public.attention_request_state state
+  ON state.account_id = \$1
+ AND state.beacon_id = scoped_receipts.beacon_id
 ORDER BY beacon_id, created_at DESC, id DESC
 ''',
           variables: [
@@ -106,6 +112,7 @@ ORDER BY beacon_id, created_at DESC, id DESC
         .get();
 
     final byBeacon = <String, List<AttentionReceipt>>{};
+    final anchorByBeacon = <String, DateTime>{};
     for (final row in rows) {
       final receipt = _mapRow(row);
       final beaconId = receipt.beaconId;
@@ -113,6 +120,10 @@ ORDER BY beacon_id, created_at DESC, id DESC
         continue;
       }
       byBeacon.putIfAbsent(beaconId, () => []).add(receipt);
+      final anchor = _readTimestamp(row, 'first_entry_at');
+      if (anchor != null) {
+        anchorByBeacon[beaconId] = anchor;
+      }
     }
 
     final results = <MyWorkBeaconAttention>[];
@@ -137,16 +148,65 @@ ORDER BY beacon_id, created_at DESC, id DESC
           break;
         }
       }
+      // U10c, D08 #1 — `Needs you` orders by latest live-obligation
+      // creation. An obligation receipt is immutable, so this key only moves
+      // when a *new* obligation arrives: the one promotion the contract
+      // allows.
+      DateTime? needsYouAt;
+      for (final obligation in liveObligations) {
+        if (needsYouAt == null || obligation.createdAt.isAfter(needsYouAt)) {
+          needsYouAt = obligation.createdAt;
+        }
+      }
+      // The stable anchor behind it. `attention_request_state` only has a row
+      // where an `inbox_item` does, and an owned Request the viewer was never
+      // forwarded has neither — so the documented fallback is the earliest
+      // receipt that put the Request on the desk, which is equally immutable.
+      final firstEntryAt =
+          anchorByBeacon[entry.key] ??
+          receipts
+              .map((receipt) => receipt.createdAt)
+              .reduce((a, b) => a.isBefore(b) ? a : b);
       results.add(
         MyWorkBeaconAttention(
           beaconId: entry.key,
           unseenCount: unseenCount,
           latestUnseen: latestUnseen,
           liveObligations: liveObligations,
+          needsYouAt: needsYouAt,
+          firstEntryAt: firstEntryAt,
         ),
       );
     }
+    results.sort(_compareMyWorkAttention);
     return results;
+  }
+
+  /// U10c — the `Needs you` sort key, stated once (D08 #1).
+  ///
+  /// Latest live obligation first; a Request with none sorts below every
+  /// Request that has one, however loud its optional events are. Ties fall
+  /// back to first entry and then to the Request id, so the order is total
+  /// and does not depend on the row order the database happened to return.
+  static int _compareMyWorkAttention(
+    MyWorkBeaconAttention a,
+    MyWorkBeaconAttention b,
+  ) {
+    final aNeeds = a.needsYouAt;
+    final bNeeds = b.needsYouAt;
+    if (aNeeds != null || bNeeds != null) {
+      if (aNeeds == null) return 1;
+      if (bNeeds == null) return -1;
+      final byObligation = bNeeds.compareTo(aNeeds);
+      if (byObligation != 0) return byObligation;
+    }
+    final aEntry = a.firstEntryAt;
+    final bEntry = b.firstEntryAt;
+    if (aEntry != null && bEntry != null) {
+      final byEntry = bEntry.compareTo(aEntry);
+      if (byEntry != 0) return byEntry;
+    }
+    return a.beaconId.compareTo(b.beaconId);
   }
 
   /// U10a — one predicate source.
