@@ -36,6 +36,7 @@ import 'package:tentura/features/inbox/ui/bloc/inbox_cubit.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_operational_cubit.dart';
 import 'package:tentura/features/inbox/ui/screen/inbox_screen.dart';
 import 'package:tentura/features/inbox/ui/widget/activity_offer_card.dart';
+import 'package:tentura/features/inbox/ui/widget/request_attention_card.dart';
 import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 import 'package:tentura/features/my_work/ui/screen/my_work_screen.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_cards.dart';
@@ -548,7 +549,11 @@ void main() {
     final rect = tester.getRect(offerFinder);
     expect(rect.top, greaterThanOrEqualTo(0));
     expect(rect.bottom, lessThanOrEqualTo(_viewport.height));
-    expect(find.byType(ActivityOfferCard), findsOneWidget);
+    // CHANGES IN U16b: spec §5 "Retire" — the pinned zone is the card's
+    // `pinned` variant (§9). The semantics identifier the rest of this test
+    // measures against is deliberately unchanged, so what first paint means
+    // here did not move.
+    expect(find.byType(RequestAttentionCard), findsOneWidget);
   });
 
   testWidgets('Activity shell: no in-scope myWork receipt rows (§9.1)',

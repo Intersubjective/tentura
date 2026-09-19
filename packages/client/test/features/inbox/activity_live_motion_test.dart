@@ -26,6 +26,8 @@ import 'package:tentura/features/inbox/ui/bloc/activity_offers_cubit.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_cubit.dart';
 import 'package:tentura/features/inbox/ui/widget/activity_forward_row.dart';
 import 'package:tentura/features/inbox/ui/widget/activity_offer_card.dart';
+import 'package:tentura/features/inbox/ui/widget/request_attention_card.dart';
+import 'package:tentura/features/inbox/ui/widget/tombstone_row.dart';
 import 'package:tentura/features/inbox/ui/widget/activity_stream_view.dart';
 import 'package:tentura/features/updates/ui/bloc/updates_feed_cubit.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
@@ -505,12 +507,16 @@ void main() {
       locale: const Locale('ru'),
     );
 
-    expect(find.byType(ActivityOfferCard), findsOneWidget);
+    // CHANGES IN U16b: spec §5 "Retire" — the pinned zone is the card's
+    // `pinned` variant (§9) and an outcome row is a `TombstoneRow` (§8).
+    // What is under test here is the demotion motion, which is unchanged;
+    // only the two widget types it moves between are.
+    expect(find.byType(RequestAttentionCard), findsOneWidget);
     await tester.tap(find.text('Следить'));
     await _pumpDeskDebounce(tester, frames: 20);
 
-    expect(find.byType(ActivityOfferCard), findsNothing);
-    expect(find.byType(ActivityForwardRow), findsOneWidget);
+    expect(find.byType(RequestAttentionCard), findsNothing);
+    expect(find.byType(TombstoneRow), findsOneWidget);
     expect(find.text('Вы начали следить'), findsOneWidget);
     expect(
       find.bySemanticsIdentifier(TestIds.activityForwardRow(beaconId)),
@@ -555,8 +561,12 @@ void main() {
     await tester.tap(find.text('Follow'));
     await _pumpDeskDebounce(tester, frames: 10);
 
-    expect(find.byType(ActivityOfferCard), findsNothing);
-    expect(find.byType(ActivityForwardRow), findsOneWidget);
+    // CHANGES IN U16b: spec §5 "Retire" — the pinned zone is the card's
+    // `pinned` variant (§9) and an outcome row is a `TombstoneRow` (§8).
+    // What is under test here is the demotion motion, which is unchanged;
+    // only the two widget types it moves between are.
+    expect(find.byType(RequestAttentionCard), findsNothing);
+    expect(find.byType(TombstoneRow), findsOneWidget);
   });
 
   testWidgets('Показать on moved snackbar scrolls to demoted forward row', (
@@ -661,6 +671,22 @@ void main() {
         300,
         scrollable: scrollable,
       );
+    }
+
+    // CHANGES IN U16b: the loop above stops the moment the row is *found*,
+    // which can be mid-flight — `ensureVisible` animates. The old
+    // `ActivityForwardRow` was short enough to fit the 400 dp viewport even
+    // part-way through; the `TombstoneRow` (§8: avatar, quoted title line,
+    // past-tense sentence) is not. So the scroll is settled before it is
+    // measured. The assertion — the row ends up fully on screen — is
+    // unchanged, and is now about where the scroll *lands* rather than where
+    // it happened to be on the frame the row first appeared.
+    var settled = tester.state<ScrollableState>(scrollable).position.pixels;
+    for (var i = 0; i < 80; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+      final now = tester.state<ScrollableState>(scrollable).position.pixels;
+      if ((now - settled).abs() < 0.5) break;
+      settled = now;
     }
 
     expect(forwardRow, findsOneWidget);

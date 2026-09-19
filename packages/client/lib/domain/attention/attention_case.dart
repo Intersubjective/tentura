@@ -763,6 +763,17 @@ final class AttentionCase {
     beaconId: beaconId,
   );
 
+  /// «Очистить всё» on one Request's card (§6.2, E25): the same watermark
+  /// capture as [clearRequestOpen], but with the `explicit` reason, because
+  /// the user pressed a button rather than opened the Request. Undoable under
+  /// its operation id like every other capture (E10, D13).
+  Future<AttentionClearResult> clearBeacon({
+    required String beaconId,
+  }) => _clear(
+    kind: AttentionClearCaptureKind.explicit,
+    beaconId: beaconId,
+  );
+
   /// Clears one event or card by hand.
   Future<AttentionClearResult> clearReceipt({
     required String receiptId,

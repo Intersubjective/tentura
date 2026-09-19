@@ -1,15 +1,19 @@
 import 'dart:async';
 
+import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/components/tentura_attention_summary_row.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
+import 'package:tentura/domain/attention/for_you_stream_entries.dart';
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_cubit.dart';
 import 'package:tentura/features/updates/domain/entity/prompt_projection.dart';
 import 'package:tentura/features/updates/ui/bloc/updates_feed_cubit.dart';
@@ -24,10 +28,13 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 
 import '../../domain/entity/inbox_item.dart';
 import '../bloc/activity_offers_cubit.dart';
-import 'activity_event_subcard_block.dart';
-import 'activity_forward_row.dart';
+import '../../domain/entity/inbox_provenance.dart';
 import 'activity_offer_card.dart';
-import 'activity_watching_digest_row.dart';
+import 'inbox_card_actions.dart';
+import 'rejection_dialog.dart';
+import 'request_attention_card.dart';
+import 'request_attention_card_mapper.dart';
+import 'tombstone_row.dart';
 
 /// Activity redesign body: pinned offers, then activity-surface stream (§5).
 class ActivityStreamView extends StatefulWidget {
@@ -467,8 +474,21 @@ class _ActivityStreamScrollBody extends StatelessWidget {
     final chronologicalItems = streamState.items
         .where((r) => !placement.liftedReceiptIds.contains(r.id))
         .toList(growable: false);
+    // One representative per Request (§6). The pinned zone is a Request's
+    // representative while it is in it — including while it is animating out,
+    // or a demoted Request would briefly wear two surfaces at once.
+    final entries = forYouStreamEntries(
+      receipts: chronologicalItems,
+      pinnedBeaconIds: {
+        for (final item in offersState.items) item.beaconId,
+        ...exitingOffers.keys,
+      },
+    );
+    final entryByReceiptId = {
+      for (final entry in entries) entry.receipt.id: entry,
+    };
     final streamCells = flattenUpdatesFeed(
-      items: chronologicalItems,
+      items: [for (final entry in entries) entry.receipt],
       hasNextPage: streamState.hasNextPage,
     );
 
@@ -529,7 +549,7 @@ class _ActivityStreamScrollBody extends StatelessWidget {
                   offersState.unseenBeaconIds.contains(item.beaconId);
               return KeyedSubtree(
                 key: ValueKey('offer-${item.beaconId}'),
-                child: ActivityOfferCard.forward(
+                child: _PinnedRequestCard(
                   item: item,
                   inboxCubit: inboxCubit,
                   showUnseenDot: showDot,
@@ -544,7 +564,7 @@ class _ActivityStreamScrollBody extends StatelessWidget {
             final item = exitEntry.value;
             final showDot = offersState.unseenQueryComplete &&
                 offersState.unseenBeaconIds.contains(beaconId);
-            final card = ActivityOfferCard.forward(
+            final card = _PinnedRequestCard(
               item: item,
               inboxCubit: inboxCubit,
               showUnseenDot: showDot,
@@ -579,6 +599,7 @@ class _ActivityStreamScrollBody extends StatelessWidget {
         itemBuilder: (context, index) {
           return _ActivityStreamCell(
             cell: streamCells[index],
+            entryByReceiptId: entryByReceiptId,
             streamCubit: streamCubit,
             inboxCubit: inboxCubit,
             enteringForwardBeacons: enteringForwardBeacons,
@@ -596,6 +617,77 @@ class _ActivityStreamScrollBody extends StatelessWidget {
         controller: scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: slivers,
+      ),
+    );
+  }
+}
+
+/// The pinned zone's Request, as the card's `pinned` variant (§9).
+///
+/// Its action row is the whole point — «Предложить помощь», «Переслать»,
+/// «Следить» — and it deliberately carries **no** × (E17): «Не могу помочь»
+/// is a social act, lives in the overflow menu and opens the rejection
+/// dialog, so it is never worn as the quiet private gesture.
+class _PinnedRequestCard extends StatelessWidget {
+  const _PinnedRequestCard({
+    required this.item,
+    required this.inboxCubit,
+    required this.showUnseenDot,
+    this.eventsMeta,
+    this.actors = const {},
+  });
+
+  final InboxItem item;
+  final InboxCubit inboxCubit;
+  final bool showUnseenDot;
+  final ActivityOfferBeaconMeta? eventsMeta;
+  final Map<String, Profile> actors;
+
+  @override
+  Widget build(BuildContext context) {
+    final model = requestCardFromInboxItem(item, meta: eventsMeta);
+    if (model == null) return const SizedBox.shrink();
+    final beaconId = item.beaconId;
+
+    Future<void> openBeacon() async {
+      await GetIt.I<AttentionCase>().markSeenForBeacon(beaconId);
+      if (!context.mounted) return;
+      await context.router.push(
+        BeaconViewRoute(id: beaconId, entry: kBeaconEntryInbox),
+      );
+    }
+
+    Future<void> cantHelp() async {
+      final message = await showInboxDismissDialog(context);
+      if (!context.mounted || message == null) return;
+      await inboxCubit.reject(beaconId, message: message);
+    }
+
+    return Semantics(
+      identifier: TestIds.activityOffer(beaconId),
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: context.tt.listRowPadding.left,
+          vertical: context.tt.tightGap,
+        ),
+        child: RequestAttentionCard(
+          beacon: model.beacon,
+          facts: model.facts,
+          variant: model.variant,
+          provenance: model.provenance,
+          eventTotal: model.eventTotal,
+          eventsPreview: model.eventsPreview,
+          actors: actors,
+          onOpenBeacon: () => unawaited(openBeacon()),
+          onOpenTimeline: () => unawaited(openBeacon()),
+          onOfferHelp: () =>
+              unawaited(inboxOfferHelp(context, model.beacon)),
+          onForward: model.allowsForward
+              ? () => unawaited(inboxForwardItem(context, item))
+              : null,
+          onFollow: () => unawaited(inboxCubit.setWatching(beaconId)),
+          onCantHelp: cantHelp,
+        ),
       ),
     );
   }
@@ -786,6 +878,7 @@ class _ActivityStreamPromptPin extends StatelessWidget {
 class _ActivityStreamCell extends StatelessWidget {
   const _ActivityStreamCell({
     required this.cell,
+    required this.entryByReceiptId,
     required this.streamCubit,
     required this.inboxCubit,
     required this.enteringForwardBeacons,
@@ -795,6 +888,7 @@ class _ActivityStreamCell extends StatelessWidget {
   });
 
   final UpdatesFeedCell cell;
+  final Map<String, ForYouStreamEntry> entryByReceiptId;
   final UpdatesFeedCubit streamCubit;
   final InboxCubit inboxCubit;
   final Set<String> enteringForwardBeacons;
@@ -849,27 +943,36 @@ class _ActivityStreamCell extends StatelessWidget {
       await GetIt.I<RootRouter>().openFromUpdate(receipt);
     }
 
-    switch (receipt.itemKind) {
-      case AttentionItemKind.forward:
-        final beaconId = receipt.beaconId ?? '';
-        final row = ActivityForwardRow(
-          key: ValueKey(receipt.id),
-          receipt: receipt,
-          actors: streamCubit.state.actors,
-          onOpenBeacon: () => unawaited(onOpenParent()),
-          onClearEvent: (id) => unawaited(
-            GetIt.I<AttentionCase>().clearReceipt(receiptId: id),
+    final entry = entryByReceiptId[receipt.id];
+    final beaconId = receipt.beaconId ?? '';
+
+    switch (entry?.kind ?? ForYouStreamEntryKind.tile) {
+      // §8 — a memory of an act, with the private ×. Every outcome kind has
+      // one (A1, m0183), not only the two before-response terminals.
+      case ForYouStreamEntryKind.tombstone:
+        final row = Semantics(
+          identifier: TestIds.activityForwardRow(beaconId),
+          // The demotion scroll addresses the row by this identifier and by
+          // `forwardRowKeyFor`; both survive the change of widget.
+          child: TombstoneRow(
+            key: ValueKey(receipt.id),
+            receipt: receipt,
+            forwarder: _forwarderOf(receipt),
+            onOpenBeacon: () => unawaited(onOpenParent()),
+            onDismiss: () {
+              // Durable on the server (`inbox_item.tombstone_dismissed_at`),
+              // and gone from the list this frame: the feed's optimistic ack
+              // drops an outcome row, whose unread-view membership is
+              // `false` for every kind.
+              unawaited(inboxCubit.dismissTombstone(beaconId));
+              unawaited(streamCubit.markSeen(receipt.id));
+            },
+            onRestore:
+                receipt.forwardOutcome ==
+                    AttentionForwardOutcome.notInterested
+                ? () => unawaited(inboxCubit.unreject(beaconId))
+                : null,
           ),
-          onRestore: receipt.forwardOutcome ==
-                  AttentionForwardOutcome.notInterested
-              ? () => unawaited(inboxCubit.unreject(beaconId))
-              : null,
-          onHide:
-              receipt.forwardOutcome == AttentionForwardOutcome.closedBeforeResponse ||
-                  receipt.forwardOutcome ==
-                      AttentionForwardOutcome.deletedBeforeResponse
-              ? () => unawaited(streamCubit.markSeen(receipt.id))
-              : null,
         );
         final keyed = KeyedSubtree(
           key: forwardRowKeyFor(beaconId),
@@ -883,73 +986,95 @@ class _ActivityStreamCell extends StatelessWidget {
           onComplete: () => onForwardRevealComplete(beaconId),
           child: keyed,
         );
-      case AttentionItemKind.watchingDigest:
-        return ActivityWatchingDigestRow(
-          key: ValueKey(receipt.id),
-          count: receipt.digestCount ?? 0,
+
+      // §6 — one card for the Request, its events as mini-cards inside it
+      // under the `timeline` policy (D-171-5b). No tile, no sibling block.
+      case ForYouStreamEntryKind.card:
+        final model = requestCardFromReceipt(
+          receipt,
+          relation: entry?.relation ?? ForYouStreamRelation.none,
         );
-      case AttentionItemKind.requestActivity:
-        final beaconId = receipt.beaconId ?? '';
-        Future<void> onOpenRequestActivity() async {
+        if (model == null) return _feedTile(context, receipt, onOpenParent);
+        Future<void> openTimeline() async {
           if (beaconId.isNotEmpty) {
             await GetIt.I<AttentionCase>().markSeenForBeacon(beaconId);
           }
           if (!context.mounted) return;
           await GetIt.I<RootRouter>().openFromUpdate(receipt);
         }
-        final actorId = receipt.actorUserId?.trim() ?? '';
-        final actor = actorId.isEmpty
-            ? null
-            : streamCubit.state.actors[actorId];
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            UpdatesFeedTile(
-              key: ValueKey(receipt.id),
-              receipt: receipt,
-              actor: actor,
-              onTap: () => unawaited(onOpenRequestActivity()),
-              onMarkSeen: () => streamCubit.markSeen(receipt.id),
-              onMarkUnseen: () => streamCubit.markUnseen(receipt.id),
-              onSettle: null,
+        final card = Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: context.tt.listRowPadding.left,
+            vertical: context.tt.tightGap,
+          ),
+          child: RequestAttentionCard(
+            key: ValueKey(receipt.id),
+            beacon: model.beacon,
+            facts: model.facts,
+            variant: model.variant,
+            relation: model.relation,
+            provenance: model.provenance,
+            representative: model.representative,
+            eventTotal: model.eventTotal,
+            eventsPreview: model.eventsPreview,
+            actors: streamCubit.state.actors,
+            onOpenBeacon: () => unawaited(onOpenParent()),
+            onOpenTimeline: () => unawaited(openTimeline()),
+            onClearEvent: (id) => unawaited(
+              GetIt.I<AttentionCase>().clearReceipt(receiptId: id),
             ),
-            if (receipt.eventsPreview.isNotEmpty)
-              Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: context.tt.listRowPadding.left,
-                ),
-                child: ActivityEventSubcardBlock(
-                  eventTotal:
-                      receipt.eventTotal ?? receipt.eventsPreview.length,
-                  eventsPreview: receipt.eventsPreview,
-                  beaconId: beaconId,
-                  actors: streamCubit.state.actors,
-                  overflowPolicy: AttentionBlockOverflowPolicy.paginate,
-                  onClearEvent: (id) => unawaited(
-                    GetIt.I<AttentionCase>().clearReceipt(receiptId: id),
+            onClearAll: beaconId.isEmpty
+                ? null
+                : () => unawaited(
+                    GetIt.I<AttentionCase>().clearBeacon(beaconId: beaconId),
                   ),
-                ),
-              ),
-          ],
+          ),
         );
-      case AttentionItemKind.receipt:
-        final actorId = receipt.actorUserId?.trim() ?? '';
-        final actor = actorId.isEmpty
-            ? null
-            : streamCubit.state.actors[actorId];
-        return UpdatesFeedTile(
-          key: ValueKey(receipt.id),
-          receipt: receipt,
-          actor: actor,
-          onTap: () => unawaited(onOpenParent()),
-          onMarkSeen: () => streamCubit.markSeen(receipt.id),
-          onMarkUnseen: () => streamCubit.markUnseen(receipt.id),
-          onSettle: receipt.isUserSettleable
-              ? () => streamCubit.settle(receipt.id)
-              : null,
-        );
+        return KeyedSubtree(key: forwardRowKeyFor(beaconId), child: card);
+
+      case ForYouStreamEntryKind.tile:
+        return _feedTile(context, receipt, onOpenParent);
     }
+  }
+
+  /// An ungrouped receipt — not about a Request, so not a card.
+  Widget _feedTile(
+    BuildContext context,
+    AttentionReceipt receipt,
+    Future<void> Function() onOpenParent,
+  ) {
+    final actorId = receipt.actorUserId?.trim() ?? '';
+    final actor = actorId.isEmpty ? null : streamCubit.state.actors[actorId];
+    return UpdatesFeedTile(
+      key: ValueKey(receipt.id),
+      receipt: receipt,
+      actor: actor,
+      onTap: () => unawaited(onOpenParent()),
+      onMarkSeen: () => streamCubit.markSeen(receipt.id),
+      onMarkUnseen: () => streamCubit.markUnseen(receipt.id),
+      onSettle: receipt.isUserSettleable
+          ? () => streamCubit.settle(receipt.id)
+          : null,
+    );
+  }
+
+  /// §8 — the last forwarder leads the row. The old paper-plane glyph is a
+  /// *send* affordance and misread as "I sent this". The server writes no
+  /// `actor_user_id` on an outcome row, so the forwarder comes from the
+  /// Request's provenance, resolved through the feed's actor profiles.
+  Profile? _forwarderOf(AttentionReceipt receipt) {
+    final provenance = InboxProvenance.parse(receipt.provenanceJson);
+    final senderId =
+        provenance.latestNoteForward?.senderId ??
+        (provenance.senders.isEmpty ? null : provenance.senders.first.id);
+    if (senderId == null || senderId.isEmpty) return null;
+    return streamCubit.state.actors[senderId] ??
+        Profile(
+          id: senderId,
+          displayName:
+              provenance.latestNoteForward?.displayName ??
+              provenance.senders.first.displayName,
+        );
   }
 
   Future<void> _openReceipt(

@@ -26,6 +26,7 @@ import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_item.dart';
+import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/features/inbox/ui/bloc/activity_offers_cubit.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_cubit.dart';
@@ -35,6 +36,9 @@ import 'package:tentura/features/inbox/ui/widget/activity_forward_row.dart';
 import 'package:tentura/features/inbox/ui/widget/activity_offer_card.dart';
 import 'package:tentura/features/inbox/ui/widget/activity_stream_view.dart';
 import 'package:tentura/features/inbox/ui/widget/activity_watching_digest_row.dart';
+import 'package:tentura/features/inbox/ui/widget/attention_mini_card.dart';
+import 'package:tentura/features/inbox/ui/widget/request_attention_card.dart';
+import 'package:tentura/features/inbox/ui/widget/tombstone_row.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/updates/domain/use_case/invite_accepted_setup_case.dart';
 import 'package:tentura/features/updates/ui/bloc/updates_feed_cubit.dart';
@@ -80,8 +84,11 @@ class _TestInboxCubit extends Cubit<InboxState> implements InboxCubit {
   @override
   Future<void> unreject(String beaconId) async {}
 
+  final dismissedTombstones = <String>[];
+
   @override
-  Future<void> dismissTombstone(String beaconId) async {}
+  Future<void> dismissTombstone(String beaconId) async =>
+      dismissedTombstones.add(beaconId);
 }
 
 class _TestProfileCubit extends Mock implements ProfileCubit {
@@ -219,12 +226,13 @@ class _FeedAttentionRepo extends ConfigurableActivityOffersAttentionRepo {
       0;
 }
 
-InboxItem _offerItem(String beaconId) {
+InboxItem _offerItem(String beaconId, {String? provenanceJson}) {
   final at = DateTime.utc(2026, 6, 20);
   return InboxItem(
     beaconId: beaconId,
     latestForwardAt: at,
     status: InboxItemStatus.needsMe,
+    provenance: InboxProvenance.parse(provenanceJson),
     beacon: Beacon(
       id: beaconId,
       title: 'Offer $beaconId',
@@ -235,13 +243,32 @@ InboxItem _offerItem(String beaconId) {
   );
 }
 
+/// The forward note, the forwarder and the Request's author — without these
+/// the card's §12.1 / A7 note assertions are vacuous, because the card has
+/// nothing to draw a mini-card from.
+String _provenanceJson({
+  String senderId = 'sender-1',
+  String senderName = 'Bai Yue',
+  String note = 'You used to tinker with these, take a look',
+}) =>
+    '{"senders":[{"id":"$senderId","displayName":"$senderName",'
+    '"notePreview":"$note","reasonSlugs":["repair"],"mr":0.4}],'
+    '"totalDistinctSenders":1,"strongestNotePreview":"$note",'
+    '"latestNoteForward":{"forwardId":"fw-$senderId","senderId":"$senderId",'
+    '"displayName":"$senderName","notePreview":"$note",'
+    '"forwardedAt":"2026-09-10T09:00:00Z","reasonSlugs":["repair"]}}';
+
 AttentionReceipt _streamReceipt({
   required String id,
   AttentionItemKind itemKind = AttentionItemKind.receipt,
   AttentionForwardOutcome? forwardOutcome,
   int? digestCount,
   int? eventTotal,
+  int? eventUnseenCount,
   List<AttentionReceipt> eventsPreview = const [],
+  String? beaconId,
+  String? provenanceJson,
+  String beaconAuthorName = 'Anna',
 }) => AttentionReceipt(
   id: id,
   category: 'requestProgress',
@@ -258,8 +285,12 @@ AttentionReceipt _streamReceipt({
   forwardOutcome: forwardOutcome,
   digestCount: digestCount,
   eventTotal: eventTotal,
+  eventUnseenCount: eventUnseenCount ?? (eventTotal == null ? null : 1),
   eventsPreview: eventsPreview,
-  beaconId: 'beacon-$id',
+  beaconId: beaconId ?? 'beacon-$id',
+  provenanceJson: provenanceJson,
+  beaconAuthorId: 'author-$id',
+  beaconAuthorName: beaconAuthorName,
 );
 
 AttentionReceipt _promptReceipt() => AttentionReceipt(
@@ -513,10 +544,26 @@ void main() {
     expect(boot.offers.state.hasMore, isTrue);
 
     final scrollable = find.byType(CustomScrollView);
-    await tester.fling(scrollable, const Offset(0, -800), 8000);
-    for (var i = 0; i < 5; i++) {
-      await tester.pump(const Duration(milliseconds: 100));
+    // CHANGES IN U16b: spec §5 "Retire" — the pinned zone is now a card
+    // (§6 anatomy), which is several times the height of the row the old
+    // `ActivityOfferBoundedShell` drew. Twenty of them no longer fit inside
+    // one fling of a 400 dp viewport, so reaching the end takes a bounded
+    // series. The assertions themselves are unchanged: what is under test is
+    // the *order* the two sources page in, not how far one gesture travels.
+    Future<void> scrollToEnd() async {
+      for (var i = 0; i < 40; i++) {
+        await tester.fling(scrollable, const Offset(0, -800), 8000);
+        for (var frame = 0; frame < 5; frame++) {
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+        final position = tester
+            .state<ScrollableState>(find.byType(Scrollable).first)
+            .position;
+        if (position.pixels >= position.maxScrollExtent) return;
+      }
     }
+
+    await scrollToEnd();
 
     expect(boot.attentionRepo.activityOffersCalls, greaterThanOrEqualTo(2));
     expect(boot.attentionRepo.fetchCalls, greaterThanOrEqualTo(1));
@@ -524,10 +571,7 @@ void main() {
     attentionRepo.offerRows = const [];
     attentionRepo.offersNextCursor = null;
 
-    await tester.fling(scrollable, const Offset(0, -800), 8000);
-    for (var i = 0; i < 5; i++) {
-      await tester.pump(const Duration(milliseconds: 100));
-    }
+    await scrollToEnd();
 
     expect(boot.attentionRepo.fetchCalls, greaterThan(1));
   });
@@ -571,10 +615,32 @@ void main() {
 
     await _pumpStreamView(tester, boot: boot);
 
-    expect(find.byType(UpdatesFeedTile), findsNWidgets(2));
-    expect(find.byType(ActivityForwardRow), findsOneWidget);
-    expect(find.byType(ActivityWatchingDigestRow), findsOneWidget);
+    // CHANGES IN U16b: spec §5 "Retire" — `ActivityForwardRow` is replaced by
+    // `TombstoneRow` (§8) and the `requestActivity` tile-plus-sibling-block
+    // pair by one `RequestAttentionCard` (§6). The four beacons here are
+    // distinct, so nothing is folded: what changed is what each row is drawn
+    // as, not how many there are.
+    expect(find.byType(UpdatesFeedTile), findsOneWidget);
+    expect(find.byType(ActivityForwardRow), findsNothing);
+    expect(find.byType(TombstoneRow), findsOneWidget);
+    expect(find.byType(RequestAttentionCard), findsOneWidget);
+    // CHANGES IN U16b: correction 1, option (a) — the digest keeps its
+    // `isInUnreadView` membership and its home in the overflow menu's
+    // Watching collection; the primary stream does not draw it. Pinned in
+    // `for_you_stream_entries_test.dart`, both halves together.
+    expect(find.byType(ActivityWatchingDigestRow), findsNothing);
+    // CHANGES IN U16b: D-171-5b / spec §6.2 — the event block now lives
+    // *inside* the card under `timeline`, never beside a tile under
+    // `paginate`. One block, and it is the card's.
     expect(find.byType(ActivityEventSubcardBlock), findsOneWidget);
+    expect(
+      tester
+          .widget<ActivityEventSubcardBlock>(
+            find.byType(ActivityEventSubcardBlock),
+          )
+          .overflowPolicy,
+      AttentionBlockOverflowPolicy.timeline,
+    );
   });
 
   testWidgets('360x640 at 1.3x: first offer card fully visible', (
@@ -584,7 +650,7 @@ void main() {
     final attentionRepo = _FeedAttentionRepo(
       firstPage: [_streamReceipt(id: 'below')],
     );
-    final offer = _offerItem('first');
+    final offer = _offerItem('first', provenanceJson: _provenanceJson());
     wireActivityOffersV2(
       inbox: inboxRepo,
       attention: attentionRepo,
@@ -613,11 +679,294 @@ void main() {
       textScale: 1.3,
     );
 
-    final cardFinder = find.byType(ActivityOfferCard);
+    // CHANGES IN U16b: spec §5 "Retire" — the pinned zone is the card's
+    // `pinned` variant (§9), not `ActivityOfferCard`.
+    final cardFinder = find.byType(RequestAttentionCard);
     expect(cardFinder, findsOneWidget);
+    expect(find.byType(ActivityOfferCard), findsNothing);
+    // The positive assertion first: a fixture that renders nothing satisfies
+    // any "fits on screen" claim. This card must be *built* and must carry
+    // the forward note, which is the whole regression #171 is about.
+    expect(find.byKey(RequestAttentionCard.headerKey), findsOneWidget);
+    expect(find.byType(AttentionMiniCard), findsOneWidget);
+    expect(
+      find.text('You used to tinker with these, take a look'),
+      findsOneWidget,
+    );
     final rect = tester.getRect(cardFinder);
     expect(rect.top, greaterThanOrEqualTo(0));
     expect(rect.bottom, lessThanOrEqualTo(640));
+  });
+
+  // Core acceptance, not an optional step: a Request showing an offer card
+  // *and* a grouped card *and* a forward row is the failure the unified card
+  // exists to end. The server rules out three of the four collisions and not
+  // this one — see `for_you_stream_entries.dart` for the clause behind each.
+  testWidgets('one representative per Request across the whole surface', (
+    tester,
+  ) async {
+    final inboxRepo = FakeInboxRepository();
+    final attentionRepo = _FeedAttentionRepo(
+      firstPage: [
+        // A watching Request: `eligible_forward` emits the outcome row and
+        // nothing on the `requestActivity` branch excludes it.
+        _streamReceipt(
+          id: 'dup-forward',
+          beaconId: 'beacon-dup',
+          itemKind: AttentionItemKind.forward,
+          forwardOutcome: AttentionForwardOutcome.watching,
+        ),
+        _streamReceipt(
+          id: 'dup-activity',
+          beaconId: 'beacon-dup',
+          itemKind: AttentionItemKind.requestActivity,
+          eventTotal: 2,
+          provenanceJson: _provenanceJson(),
+          eventsPreview: [_streamReceipt(id: 'dup-child')],
+        ),
+        // And the same Request pinned, which is the third surface.
+        _streamReceipt(
+          id: 'pinned-activity',
+          beaconId: 'offer-pinned',
+          itemKind: AttentionItemKind.requestActivity,
+          eventTotal: 1,
+        ),
+      ],
+    );
+    wireActivityOffersV2(
+      inbox: inboxRepo,
+      attention: attentionRepo,
+      items: [_offerItem('offer-pinned', provenanceJson: _provenanceJson())],
+      totalCount: 1,
+    );
+    final boot = await _boot(
+      inboxRepo: inboxRepo,
+      attentionRepo: attentionRepo,
+    );
+    addTearDown(boot.dispose);
+
+    await _pumpStreamView(
+      tester,
+      boot: boot,
+      logicalSize: const Size(360, 2400),
+    );
+
+    // Positive first: both Requests are on screen, as exactly one surface each.
+    expect(find.byType(RequestAttentionCard), findsNWidgets(2));
+    expect(find.byType(TombstoneRow), findsNothing);
+    expect(find.byType(ActivityOfferCard), findsNothing);
+    expect(find.textContaining('Title dup-activity'), findsOneWidget);
+    expect(find.textContaining('Offer offer-pinned'), findsOneWidget);
+  });
+
+  // Owner decision B: answered-forward outcomes stay in For You as
+  // dismissible tombstones. m0183 made every outcome kind dismissible, so
+  // every kind wears the ×. One assertion per kind — a × wired for the kind
+  // that happened to be tested is the defect shape this plan keeps hitting.
+  for (final outcome in const [
+    (value: AttentionForwardOutcome.helping, name: 'helping'),
+    (value: AttentionForwardOutcome.watching, name: 'watching'),
+    (value: AttentionForwardOutcome.notInterested, name: 'notInterested'),
+    (value: AttentionForwardOutcome.closedBeforeResponse, name: 'closed'),
+    (value: AttentionForwardOutcome.deletedBeforeResponse, name: 'deleted'),
+  ]) {
+    testWidgets('the ${outcome.name} tombstone has a × and it acts', (
+      tester,
+    ) async {
+      final inboxRepo = FakeInboxRepository();
+      final attentionRepo = _FeedAttentionRepo(
+        firstPage: [
+          _streamReceipt(
+            id: 'tomb',
+            itemKind: AttentionItemKind.forward,
+            forwardOutcome: outcome.value,
+            provenanceJson: _provenanceJson(),
+          ),
+        ],
+      );
+      wireActivityOffersV2(
+        inbox: inboxRepo,
+        attention: attentionRepo,
+        items: const [],
+        totalCount: 0,
+      );
+      final boot = await _boot(
+        inboxRepo: inboxRepo,
+        attentionRepo: attentionRepo,
+      );
+      addTearDown(boot.dispose);
+      final inbox = _TestInboxCubit(
+        const InboxState(status: StateIsSuccess(), projectionLoaded: true),
+      );
+
+      await _pumpStreamView(tester, boot: boot, inbox: inbox);
+
+      expect(find.byType(TombstoneRow), findsOneWidget);
+      expect(find.byKey(TombstoneRow.dismissKey), findsOneWidget);
+      // The demotion scroll addresses the row by this identifier; a wrapper
+      // that dropped it would strand `_isForwardRowInViewport` forever.
+      expect(
+        find.bySemanticsIdentifier(TestIds.activityForwardRow('beacon-tomb')),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.byKey(TombstoneRow.dismissKey));
+      await _pumpFrames(tester);
+
+      expect(inbox.dismissedTombstones, ['beacon-tomb']);
+    });
+  }
+
+  for (final outcome in const [
+    (value: AttentionForwardOutcome.notInterested, restores: true),
+    (value: AttentionForwardOutcome.helping, restores: false),
+    (value: AttentionForwardOutcome.watching, restores: false),
+    (value: AttentionForwardOutcome.closedBeforeResponse, restores: false),
+    (value: AttentionForwardOutcome.deletedBeforeResponse, restores: false),
+  ]) {
+    // §8 — «Вернуть» re-pins a *declined* forward. Nothing else is restorable:
+    // a helping or following Request was not turned away, and the two
+    // before-response terminals are the author's act, not the viewer's.
+    testWidgets('restore on ${outcome.value.name} is ${outcome.restores}', (
+      tester,
+    ) async {
+      final inboxRepo = FakeInboxRepository();
+      final attentionRepo = _FeedAttentionRepo(
+        firstPage: [
+          _streamReceipt(
+            id: 'tomb',
+            itemKind: AttentionItemKind.forward,
+            forwardOutcome: outcome.value,
+          ),
+        ],
+      );
+      wireActivityOffersV2(
+        inbox: inboxRepo,
+        attention: attentionRepo,
+        items: const [],
+        totalCount: 0,
+      );
+      final boot = await _boot(
+        inboxRepo: inboxRepo,
+        attentionRepo: attentionRepo,
+      );
+      addTearDown(boot.dispose);
+
+      await _pumpStreamView(tester, boot: boot);
+
+      expect(find.byType(TombstoneRow), findsOneWidget);
+      expect(
+        find.byKey(TombstoneRow.restoreKey),
+        outcome.restores ? findsOneWidget : findsNothing,
+      );
+    });
+  }
+
+  // §9 state matrix: the outcome a grouped card displaced comes back as the
+  // card's relation chip, so suppressing the duplicate loses nothing.
+  testWidgets('the suppressed outcome returns as the card\'s relation', (
+    tester,
+  ) async {
+    final inboxRepo = FakeInboxRepository();
+    final attentionRepo = _FeedAttentionRepo(
+      firstPage: [
+        _streamReceipt(
+          id: 'f',
+          beaconId: 'beacon-rel',
+          itemKind: AttentionItemKind.forward,
+          forwardOutcome: AttentionForwardOutcome.watching,
+        ),
+        _streamReceipt(
+          id: 'ra',
+          beaconId: 'beacon-rel',
+          itemKind: AttentionItemKind.requestActivity,
+          eventTotal: 1,
+        ),
+      ],
+    );
+    wireActivityOffersV2(
+      inbox: inboxRepo,
+      attention: attentionRepo,
+      items: const [],
+      totalCount: 0,
+    );
+    final boot = await _boot(
+      inboxRepo: inboxRepo,
+      attentionRepo: attentionRepo,
+    );
+    addTearDown(boot.dispose);
+
+    await _pumpStreamView(tester, boot: boot, logicalSize: const Size(360, 900));
+
+    expect(find.byType(RequestAttentionCard), findsOneWidget);
+    expect(
+      tester.widget<RequestAttentionCard>(find.byType(RequestAttentionCard))
+          .relation,
+      RequestAttentionRelation.following,
+    );
+  });
+
+  // The repo's own trap: a long intro/header at narrow width and 2x text
+  // silently stops a ListView building the items below it, with no overflow
+  // error. So the assertion is that the named widgets are *built*, not that
+  // nothing threw.
+  testWidgets('360dp at 2x text: the card and the tombstone below it build', (
+    tester,
+  ) async {
+    final inboxRepo = FakeInboxRepository();
+    final attentionRepo = _FeedAttentionRepo(
+      firstPage: [
+        _streamReceipt(
+          id: 'wide',
+          beaconId: 'beacon-wide',
+          itemKind: AttentionItemKind.requestActivity,
+          eventTotal: 4,
+          provenanceJson: _provenanceJson(
+            note: 'Ты же с этим возился когда-то, глянь пожалуйста, '
+                'там совсем немного работы осталось',
+          ),
+          eventsPreview: [
+            _streamReceipt(id: 'wide-c1'),
+            _streamReceipt(id: 'wide-c2'),
+          ],
+        ),
+        _streamReceipt(
+          id: 'after',
+          itemKind: AttentionItemKind.forward,
+          forwardOutcome: AttentionForwardOutcome.helping,
+        ),
+      ],
+    );
+    wireActivityOffersV2(
+      inbox: inboxRepo,
+      attention: attentionRepo,
+      items: [
+        _offerItem(
+          'worst',
+          provenanceJson: _provenanceJson(
+            note: 'Ты же с этим возился когда-то, глянь пожалуйста',
+          ),
+        ),
+      ],
+      totalCount: 1,
+    );
+    final boot = await _boot(
+      inboxRepo: inboxRepo,
+      attentionRepo: attentionRepo,
+    );
+    addTearDown(boot.dispose);
+
+    await _pumpStreamView(
+      tester,
+      boot: boot,
+      logicalSize: const Size(360, 4000),
+      textScale: 2,
+    );
+
+    expect(find.byType(RequestAttentionCard), findsNWidgets(2));
+    expect(find.byType(TombstoneRow), findsOneWidget);
+    expect(find.byKey(RequestAttentionCard.headerKey), findsNWidgets(2));
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('60 offers and 120 stream items scroll without duplicate keys', (
