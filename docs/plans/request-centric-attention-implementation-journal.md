@@ -7670,3 +7670,115 @@ any mismatch between what a screen shows and what the server holds will be blame
 projection bug harder to find. U13c removes it and adds the architecture test that keeps it removed.
 
 ---
+
+## UNIT U13c — Projections, realtime and single ownership · INNER (2026-09-19)
+
+**Layer:** inner (implementer), tagged **hard**. **UNIT_BASE:** `ee919f95a`. **Scope:** the last of the U13
+split — group/child projections, page-merge dedupe by Request id, realtime invalidation, and the single-owner
+architecture test. No server file, no widget, no generated file in the diff.
+
+### Commands
+
+```
+cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 45m -- flutter test \
+  --dart-define=ENV=test --dart-define-from-file=env/test.env \
+  test/domain/attention test/features/inbox test/features/my_work test/architecture
+→ 00:23 +388: All tests passed!   (U13b baseline: +373; +15 new)
+
+./scripts/run_with_test_cleanup.sh --timeout 10m -- ./scripts/check-custom-lints.sh packages/client
+→ total: 30 (baseline: 30) — check-custom-lints: packages/client OK
+```
+
+### Step 1 — group projections and child indexing (`6c212a237`)
+
+TEST_RED: `flutter test … test/domain/attention/attention_group_projection_test.dart` → `00:00 +0 -1`
+(compile: `knowsReceipt` not defined on `AttentionCase`). TEST_GREEN: same command → `00:00 +3`.
+
+Children are indexed into a map of their **own**, not into `_receiptsById`. A child is addressable — a × can
+clear it, a delta can be attributed to its surface — but it is not a top-level feed row, and folding it into
+`_receiptsById` would silently widen `dismissAll`'s membership and double-count a surface (the parent row and
+its child both decrementing the same total). That distinction is the whole reason the two maps exist.
+
+### Step 2 — page-merge dedupe by Request id (`6cee8687d`)
+
+TEST_RED: `attention_page_merge_test.dart` → `00:00 +0 -1` (`Expected: <4> Actual: <3>` — B1 present twice).
+TEST_GREEN: same command → `00:00 +3`. The Activity mirror
+(`test/features/inbox/activity_offers_page_merge_test.dart`) was **green on first run** — `loadMore` already
+deduped by `beaconId`; the property was simply asserted nowhere. Recorded as n/a rather than dressed up as a
+fix.
+
+### Step 3 — realtime invalidation (`0d901ddc5`)
+
+TEST_RED: `attention_realtime_invalidation_test.dart` → `00:00 +0 -1` (compile: `requestInvalidations`).
+TEST_GREEN: same command → `00:00 +3`.
+
+**The first version of the surface-move test was vacuous, and the throwaway is what found it.** It sampled
+both projections from stream listeners, which sounded right and proved nothing: broadcast events are delivered
+in a later microtask, so by the time a listener runs, the page *and* the summary have both already settled.
+Routing beacon changes back through the old two-step refresh left it green. The rewrite holds the two server
+answers apart with completers — counters first, page still pending — which is how the interleaving actually
+happens in the field. It now fails on the two-step path with
+`on For You and already counted on My Desk at once: (activity: 0, myWork: 1, onForYou: true)`.
+
+### Step 4 — single owner + architecture test (`86c48d356`)
+
+TEST_RED: n/a for the refactor itself (behaviour-preserving); the guard was proved red by construction — see
+addition 1 below. TEST_GREEN: `test/architecture/single_attention_owner_test.dart` → `00:00 +5`, full unit set
+`+388`.
+
+### The three overseer additions, in my own words
+
+**1 — a guard that only describes today is not a guard.** So this one checks the *shape* of a second owner,
+directory-wide, in four independent ways: a feature-local `Map<String, AttentionReceipt>`; group counts
+constructed anywhere outside `lib/domain/attention/`; a screen stamping `clearedAt`; a second holder of the ack
+or clear store. I then wrote the violation I was trying to prevent — a throwaway
+`lib/features/__throwaway/second_owner.dart` doing all four — and confirmed **all four reddened**
+(`+0 -4`, each naming the file), then deleted it. U10a's fourth spelling is the reason this is a scan and not a
+list: a list would have passed a class named `OfferAttentionIndex` without blinking.
+
+**2 — a dedupe test that only looks for repeats is half a test.** U10c established the server's failure shape
+is a **vanish**: head and tail are independent queries, so a group whose sort key moves between them disappears
+there, and the duplicate is the client-side face of the same jump. A test asserting "appears once" is satisfied
+by a merge that drops the row entirely, which is the other, worse failure. So both halves are asserted together
+— the identity set has no repeats **and** equals `{B1, B2, B3}` — and the tail-only row B3 is in that set
+precisely so the vanish direction cannot pass. The merge key is the Request, not the row id: the row id is the
+server's to re-mint when the group moves, which is exactly what made receipt-id dedupe insufficient. Ungrouped
+receipts keep their own rows even when they share a `beaconId`, because two events on one Request are two
+events, not two renderings of one card.
+
+**3 — the surface move is a transition, not two endpoints.** Asserting the before and the after would pass on
+an implementation that, in between, shows the Request on For You while already counting it on My Desk. What
+D14 forbids lives in that gap, so the gap is what is tested: two held server answers, sampled while only one
+has landed. The fix is structural rather than careful ordering — `FeedSessionRegistry.updateAll` puts every
+session in place before notifying any listener, and the counters are committed in the same synchronous block.
+There is no ordering of two separate refreshes that avoids the bad state; there is only refusing to do it in
+two steps.
+
+### Other decisions
+
+- **A preview and its counts are one projection.** The failure U10b described is a list that shortens while
+  the number beside it stays put, so `projectAttentionGroup` moves `eventsPreview`, `eventTotal` and
+  `eventUnseenCount` together or not at all. When nothing local applies it returns the server's numbers
+  verbatim — a preview is only the first few children, so recomputing totals from it would be a fresh lie.
+  Proved load-bearing: a throwaway that dropped the child from the preview but left the counts alone failed
+  both count assertions (`Expected: <2> Actual: <3>`, `Expected: <1> Actual: <2>`).
+- **`ActivityOfferBeaconMeta` moved into the domain.** The cheapest way to make "a screen may hold this but
+  not derive it" enforceable was to put the constructor where only the owner can reach it. `ActivityOffersCubit`
+  now subscribes to the owner's published map; `unseenForBeacons` and the zone total moved to the owner with it,
+  since both were places the cubit asked the server a question the owner had already answered.
+- **`AttentionCase` now listens to `beacon` changes.** A Request changing hands is a beacon-level fact, not a
+  receipt-level one; nothing was subscribed to it before.
+- **`requestInvalidations`.** My Desk has no feed destination — only `activity_stream` and
+  `notification_history` are registered — so its projections cannot be refreshed by a head refetch. Rather
+  than invent a destination (U15's work), the case announces which Request went stale and the projection
+  owners re-read it.
+- **U13b's guarantees were not touched.** The optimistic overlay, the rollback that never writes `clearedAt`,
+  the mutation serial and the narrow `isKnownStale` are all still green, unmodified, at `+388`.
+
+### Remaining for U14–U17
+
+The child × itself (the affordance) and the shared event block are U14; the My Desk feed destination and the
+surface-move UI are U15/U16. `requestInvalidations` has no subscriber yet — it is a port the projection owners
+will attach to when they are built.
+
+STATUS: complete
