@@ -469,58 +469,45 @@ WHERE id = 'Naxis04'
       );
     });
 
-    test('U15R-d contract gap — a beacon-less live obligation lands on '
-        'Activity and §6 gives it no indicator', () async {
-      // Recorded, not repaired. U15R-d was asked to prove that scoping
-      // `my desk.count` to myWork drops nothing before applying it. It does
-      // not hold: `notification_outbox__beacon_policy_chk` only demands a
-      // `beacon_id` for the `beacon_content` / `beacon_tombstone` access
-      // policies, so a `requires_action` row on a profile-policy destination
-      // is storable — and `visibleWithSurface` labels every beacon-less row
-      // `activity`, because the scope UNION can only absorb rows that name a
-      // Request.
+    test('U15R-e — a Request-less live obligation is rejected by '
+        'notification_outbox__obligation_beacon_chk', () async {
+      // The inverse of the U15R-d contract gap. U15R-d proved the shape was
+      // storable — `notification_outbox__beacon_policy_chk` demands a
+      // `beacon_id` only for the `beacon_content` / `beacon_tombstone`
+      // access policies — and that `visibleWithSurface` then labelled it
+      // `activity`, where §6 offers it neither a count nor a dot term. That
+      // is what stopped `my desk.count` from being scoped to myWork.
       //
-      // §6 then has nowhere to put it: For You has no count, and its dot
-      // covers dismissible attention, pending forwards and pending prompts —
-      // a live obligation is in none of those three sets. So the count stays
-      // unscoped in this unit and the gap goes to the contract owner rather
-      // than being absorbed by widening a predicate.
+      // m0191 closes it in storage rather than by widening a predicate or
+      // inventing a §6 term: `AttentionPolicy.logicalTaskKey` already throws
+      // `Live obligation requires a Request` on every dispatched receipt, so
+      // the constraint states the producer's own rule where nothing can route
+      // around it.
       //
-      // The production write path cannot emit one today:
-      // `AttentionPolicy.logicalTaskKey` throws for an obligation without a
-      // Request, and it is called on every dispatched receipt. That is a
-      // producer invariant, not a storage or contract one, which is precisely
-      // why it is pinned here.
-      await _beaconlessObligation(writer, id: 'Nd06');
+      // Asserted **by constraint name**, per U04: a test that only checks
+      // "the insert failed" passes when it fails for an unrelated reason —
+      // a typo in the fixture, a missing column, a dedup collision.
+      await expectLater(
+        _beaconlessObligation(writer, id: 'Ne06'),
+        throwsA(
+          isA<ServerException>().having(
+            (error) => error.constraintName,
+            'constraintName',
+            'notification_outbox__obligation_beacon_chk',
+          ),
+        ),
+      );
 
-      final onActivity = await _idsWith(
+      // The control: the same fixture *with* a Request stores, so the
+      // rejection above is about the missing `beacon_id` and not about any
+      // other column the fixture sets.
+      await _obligation(writer, id: 'Ne06ok', beaconId: _ownedBeaconId);
+      final stored = await _idsWith(
         writer,
         AttentionDismissibleSql.visibleWithSurface,
-        "${AttentionDismissibleSql.liveObligation('v')} "
-        "AND v.surface = 'activity'",
+        AttentionDismissibleSql.liveObligation('v'),
       );
-      expect(
-        onActivity,
-        ['Nd06'],
-        reason:
-            'the scope a myWork-scoped `my desk.count` would exclude is not '
-            'empty',
-      );
-
-      final summary = await query.surfaceSummary(accountId: _viewerId);
-      expect(
-        summary.needsYouTotal,
-        1,
-        reason: 'today the unscoped legacy count is the only thing that sees '
-            'it — scoping it to myWork would make it invisible everywhere',
-      );
-      expect(summary.myDeskDot, isFalse);
-      expect(
-        summary.forYouDot,
-        isFalse,
-        reason: 'not dismissible attention, not a pending forward, not a '
-            'pending prompt — §6 has no term that covers it',
-      );
+      expect(stored, ['Ne06ok']);
     });
 
     // -------------------------------------------------------------- M1
@@ -1282,8 +1269,10 @@ SELECT (${AttentionDismissibleSql.forYouDotExpression}) AS member
   return rows.single[0]! as bool;
 }
 
-/// A live obligation with no Request — storable, and the subject of the
-/// U15R-d contract gap.
+/// A live obligation with no Request — the shape m0191 makes unstorable.
+///
+/// Kept as a fixture precisely because it is rejected: the U15R-e test drives
+/// it at the database to assert the rejection by constraint name.
 Future<void> _beaconlessObligation(
   Connection writer, {
   required String id,
