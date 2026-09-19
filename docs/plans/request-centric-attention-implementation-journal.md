@@ -3456,3 +3456,177 @@ bites by deleting `supersedeAuthorHelpOfferSubmitted` from the branch, observing
 case, then reverting and confirming `git diff packages/server/lib` was empty. No production code changed.
 
 ---
+
+### U07b2 — lifecycle vocabulary · `inner`
+
+Base `1db2a9684`. Three items, three commits: `f04d2ec56` · `30f99902a` · `caf76942d`. No scout by design;
+brief was `request-centric-attention-obligation-transition-matrix.md`, which held up on every row I re-checked.
+
+#### 1 · Generic user settlement refuses every obligation kind (owner decision C)
+
+The matrix's P1: `attentionSettle` still resolved help-offer obligations while review was blocked at three
+layers. Rather than add `helpOfferSubmitted` to a deny-list, the use case now refuses on the *class*:
+`liveObligationEventType` only ever names a receipt that still `requires_action`, so a non-null answer is by
+definition a live obligation, whatever kind it is. The repository statement gained the second layer review
+already had (`event_type IS DISTINCT FROM 'helpOfferSubmitted'`).
+
+**Consequence, stated plainly:** `attentionSettle` can now settle nothing at all, because the only rows it was
+ever able to match were obligations. That is decision C, not an accident — "there is no bare Done". The mutation
+is left in place because removing it is a client-visible change and the client's Done control is U15.
+
+```
+dart test test/api/controllers/graphql/attention_graphql_test.dart
+RED   00:00 +15 -1   'attentionSettle rejects helpOfferSubmitted live obligations'
+                     (the case called through; settle returned 1)
+GREEN 00:00 +17      All tests passed!
+
+dart test --tags pg -j 1 test/domain/use_case/help_offer_obligation_settlement_pg_test.dart
+RED   00:02 +5 -1    'generic user settlement refuses a help-offer obligation'
+                     Expected: throws ArgumentError   Actual: emitted <1>
+GREEN 00:02 +6       All tests passed!
+```
+
+The PG case pins both layers on one live obligation: the use case throws, and the repository — called directly,
+past the use case — updates 0 rows and leaves `needsYouTotal` at 1.
+
+#### 2 · The expiry sweep explains the obligation it ended
+
+New event type `AttentionEventType.obligationEnded`, presentation key `obligation_ended`, optional, standard
+suppression, `unblocksMe`, beacon destination.
+
+**The guard was checked before the declaration, as required.** Adding the enum value with no classification row
+failed `updates_event_contract_test.dart` exactly as it should:
+
+```
+dart test test/architecture/updates_event_contract_test.dart
+00:00 +1 -1   'event classifications cover every AttentionEventType'
+              each runtime enum value must have exactly one classification row
+```
+
+Only then was the contract row written: all mandatory card-contract fields present, `coalescible: false`,
+`recoverableVia: request_timeline`. **`schemaVersion` 4 → 5, deliberately** — a new event type changes what a
+reader of the contract must handle, which is what the version is for. Both mirrors (`packages/server` and
+`packages/client` architecture tests) and `AttentionEventTypeCatalog.contractSchemaVersion` moved with it.
+
+**`coalescible: false`** is a judgement, not a copy of the neighbouring row: an explanation that merges into a
+count stops explaining. There can only ever be one per Request per reason anyway, so nothing is lost.
+
+**Idempotency is the occurrence grain, not a new dedup mechanism.** The source event key is derived
+(`obligation_ended:review_expired:<beaconId>`), never a fresh id, so a second sweep hits
+`ON CONFLICT (source_event_key) DO NOTHING` and returns before any receipt is written. The test sweeps twice and
+asserts one occurrence and one receipt per reviewer.
+
+```
+dart test --tags pg -j 1 test/domain/use_case/review_obligation_settlement_pg_test.dart
+RED   00:02 +0 -2    (producer mutated off: `if (false)`)
+                     'an expired sweep explains the obligation it ended, exactly once'   Expected: <1> Actual: <0>
+                     'a reviewer who sent their package gets no expiry explanation'      Expected: <1> Actual: <0>
+GREEN 00:03 +15      All tests passed!    (13 before this unit)
+```
+
+The mutation was reverted before the green run; `git diff` on the sweep case is the shipped version.
+
+**Per-row reasoning — which transitions owe an explanation (overseer addition 2).** Item 2 says "expiry *or*
+cancellation". I did not emit for every settlement that is not the person's own act; I asked per row whether the
+drop was already explained, and only one row was not:
+
+| Obligation ends by | Whose act | Already explained? | Decision |
+|---|---|---|---|
+| Review window expires (`AttentionExpirySweepCase.runDue`) | nobody's — a timer | **No.** `requestStatusChanged` says the Request closed; it does not say the reviewer's own task ended | **New `obligationEnded` producer** |
+| Author closes the window early (`EvaluationCase.closeNow`) | the author's | n/a — **unreachable**: `_canCloseNow` refuses unless every author/committer participant is already at status 2, so `closeAndFinalize` can leave no `expired` obligation behind | **No producer.** I wrote one, then deleted it rather than ship a producer that can never fire and a contract row that would have claimed it could |
+| Author cancels the window (`EvaluationCase.reopenFromReview`) | the author's | **Yes** — `reviewWindowCancelled`, high priority, to the same review participants | No new producer |
+| Helper withdraws their offer (`HelpOfferCase.withdraw`) | the helper's | **Yes** — `promiseWithdrawn` (`helpWithdrawn` intent) to the author | No new producer |
+| Author closes the Request (`EvaluationCase.beaconClose`) | the author's own | the author is the actor and the recipient | Nothing to explain |
+| Author removes/releases an offerer (`removeFromRoom`, `releaseCommitment`) | the author's own | same | Nothing to explain |
+
+Both "no producer" conclusions are recorded on `AttentionObligationEndReason` in code, so the next reader does
+not re-derive them: the enum has exactly one value and says why it has one.
+
+#### 3 · `resolutionTransitions` reconciled, per row
+
+The contract is the specification and the code is the evidence, so each disagreement got a verdict, not a
+find-and-replace:
+
+| Declared | Live | Verdict | Action |
+|---|---|---|---|
+| `HelpOfferCase.withdrawHelpOffer` | `HelpOfferCase.withdraw` | **Declaration wrong.** The transition is real, the method is real, and U07b1 made it settle — only the label was invented | Renamed |
+| `EvaluationCase.submitReviewPackage` | `EvaluationCase.evaluationFinalize` | **Declaration wrong**, same shape: package send settles via `settleReviewerObligationOnPackageSend` inside the transaction since U07b1 | Renamed |
+| — | `ReviewFinalizationCase.closeAndFinalize` | **Contract under-declares.** §5 names window close as one of the three ways a review ends; the code has always settled there | Added |
+| — | `EvaluationCase.reopenFromReview` | **Contract under-declares.** §5's "author cancelling"; supersedes | Added |
+| — | `ReviewObligationBackfillCase.run` | **Contract is right to omit it.** It re-runs the window-close transition as a repair job; it is not a way a review can end | Left out, deliberately |
+| — | `CoordinationCase.removeFromRoom`, `CoordinationCase.releaseCommitment`, `EvaluationCase.beaconClose` | **Contract under-declares** the terminal-invalidation paths U07b1 implemented | Added |
+| `attentionSettle` / My Desk Done | was a live settlement path | **Code was wrong** — fixed in item 1 | Never declared; now cannot settle |
+
+Nothing here was a U07b1-class defect: every declared transition existed in code and settled. The two failures
+were both naming, and the omissions were all in the contract's direction.
+
+New guard `test/architecture/obligation_resolution_transitions_test.dart` fails when a declared transition names
+a method that does not exist on the class it names — matching the *declaration* (two-space member indent), so a
+call site cannot vouch for a method nobody defined. It keeps the two U07a labels as a negative fixture, so the
+rule is proven to bite rather than asserted to.
+
+```
+dart test test/architecture/obligation_resolution_transitions_test.dart
+RED   00:00 +2 -1    ['HelpOfferCase.withdrawHelpOffer', 'EvaluationCase.submitReviewPackage']
+GREEN 00:00 +3       All tests passed!
+```
+
+#### Test changes, named (overseer addition 3)
+
+The item-1 blast radius the overseer predicted **did not exist**: I grepped every use of `AttentionSettlementCase`
+and `AttentionSettlementRepository.settle` in `test/` — three call sites, all already asserting refusal or using
+a null live-obligation fake. No test settled a help-offer obligation through the generic path for convenience, so
+no test was rewritten to accommodate item 1. Everything below is item 2's contract widening.
+
+| File | Before | Now | Why |
+|---|---|---|---|
+| `attention_graphql_test.dart` | 3 `attentionSettle` cases; `reviewOpened` refused | +1 case: `helpOfferSubmitted` refused, `settleCalls` stays 0 | New behaviour |
+| — same file, `'scopes a user-resolvable live obligation'` | **unchanged** | **unchanged** | Its fake reports *no* live obligation, so it still exercises the pass-through branch. Left alone deliberately: it is now the only case proving the refusal is scoped to live obligations and not blanket |
+| `help_offer_obligation_settlement_pg_test.dart` | 5 cases | +1 two-layer refusal case, +`_helpOfferReceiptId` helper | New behaviour |
+| `review_obligation_settlement_pg_test.dart` | 13 cases; `_FailingPackageSendSettlement` implemented 6 port methods | +2 expiry-explanation cases, +3 count helpers, +real `AttentionExpirySweepCase`; the fake delegates the 7th port method | New port method + new producer |
+| `attention_policy_test.dart` | fixture per contract `eventTypes` row | +`obligationEnded` fixture (`reviewParticipant`, base role) | Data-driven guard demanded it — it failed first, `No policy fixture for obligationEnded` |
+| `attention_intent_case_test.dart` | producer fixture per migrated type | +`obligationEnded` fixture; +`v1\|obligation_ended\|` collapse-key arm | Same guard; failed twice first (missing fixture, then `v1\|none\|` collapse assumption) |
+| `updates_event_contract_test.dart` (server **and** client) | rev 4 row list | +`obligationEnded` row, `schemaVersion` 5, title says rev 5 | Contract change |
+
+**One client file was touched**, against the untouchable list, and only this one:
+`packages/client/test/architecture/updates_event_contract_test.dart`. It is a hand-mirrored copy of the server's
+contract constants; a server-side contract change cannot leave it green. No client `lib/` file changed — the
+client renders server-supplied title/body and falls back generically on an unknown presentation key, so
+`obligation_ended` needs no client copy to display correctly. Adding it to `updates_receipt_display_copy.dart`'s
+fallback map is a real (small) follow-up, listed under REMAINING.
+
+#### Verification
+
+```
+dart test test/architecture/ test/domain/attention/ test/domain/evaluation/ \
+          attention_expiry_sweep_case_test.dart help_offer_case_test.dart \
+          attention_graphql_test.dart                                   00:01 +293: All tests passed!
+
+dart test --tags pg -j 1 review_obligation_settlement_pg_test.dart \
+          help_offer_obligation_settlement_pg_test.dart attention_live_obligations_pg_test.dart \
+          my_work_attention_pg_test.dart attention_surface_pg_test.dart \
+          attention_obligation_identity_pg_test.dart attention_dispatch_identity_pg_test.dart
+                                                                        00:19 +60: All tests passed!
+
+(client) flutter test test/architecture/                                00:11 +16: All tests passed!
+```
+
+All through `scripts/run_with_test_cleanup.sh`. Per the process change adopted at U07b1, the full server suite
+was **not** run here; the overseer runs it independently. `di.config.dart` regenerated via `build_runner` after
+the port gained a method.
+
+#### Findings
+
+- **`EvaluationCase.closeNow` cannot strand a reviewer.** This is the one place the matrix's framing was
+  incomplete — it lists close-now as a settlement path producing `expired`, which is true of
+  `settleReviewObligationsAfterWindowClose` in isolation but unreachable through `closeNow`'s own precondition.
+  Worth knowing before U15 writes copy for it.
+- `attentionSettle` is now a mutation that always refuses. Flagged for U08/U15 rather than removed here.
+- `AttentionSystemSettlementPort` gained `listExpiredReviewObligationAccountIds`; every test fake but one is
+  `extends Fake`, so only `_FailingPackageSendSettlement` (a real `implements`) needed the new member.
+
+#### Out of scope, confirmed untouched
+
+The client Done control and every other client `lib/` file (U15), obligation identity, the channel/email path,
+`AttentionExpirySweepCase`'s per-beacon isolation semantics, and the U07a P2 gaps closed in U07b1.
+
