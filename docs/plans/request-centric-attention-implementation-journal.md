@@ -7870,3 +7870,45 @@ cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 45m -- fl
 ```
 
 STATUS: complete
+
+### Manager verdict — U13c · **ACCEPTED** (hard; inner Opus-low ✓ / verify pass / one remediation) — U13 complete
+
+Overseer's gate: **full client suite 3704 passed / 29 pre-existing skips**; lints **30 (baseline 30) OK**.
+Commits `6c212a237` group projections · `6cee8687d` page merge by Request identity · `0d901ddc5` realtime ·
+`86c48d356` single owner + architecture test · `6b83c2eb6` journal · `09b716fa3` remediation.
+
+**§0.3 is now enforced rather than asserted.** `ActivityOffersCubit`'s shadow cache is gone,
+`ActivityOfferBeaconMeta` moved into the domain so "a screen may hold this but not derive it" is enforced by the
+constructor's location, and an architecture test rejects a *new* owner — verified by adding one in a throwaway
+copy and watching it redden.
+
+**The remediation proved a guard that was only a comment.** Two separate indexes exist so that `dismissAll`
+cannot count a card twice; nothing tested it. Widening membership to include `_childReceiptsById` drops the
+Activity counter from 3 to **0** on one grouped card with two children — parent row and both children each
+decrement. The two maps are load-bearing.
+
+**The defining property of this client layer, now seen three times: the bugs live in intermediate states.**
+- the double-decrement is **invisible at rest** — `dismissAll`'s `finally` refetches the summary and overwrites
+  the corrupted optimistic value, so the test must hold the repository call pending and sample mid-flight;
+- the surface-move race is invisible from stream listeners — broadcast delivery is a later microtask, so both
+  projections have settled by the time a listener runs; held completers were needed to make the interleaving
+  real;
+- the stale-fetch damage is invisible per row — the clear overlay re-stamps them, and only the **totals** show
+  it.
+
+On the server this class barely existed: a transaction is committed or it is not. **For U14–U17 this is the
+warning that matters** — a test shaped as "after the tap the list looks like this" will systematically miss the
+frame between the optimistic apply and the server's answer, which is exactly where a user sees a counter blink
+to zero or a card vanish from both tabs.
+
+**An honest scoping call I endorse:** My Desk has **no feed destination** registered (only `activity_stream` and
+`notification_history`), so a surface move cannot be modelled as two feed sessions and My Desk cannot be
+repaired by a head refetch. Rather than invent one — that is U15's work — the case announces the stale Request
+on `requestInvalidations`, and atomicity is asserted over the observable pair that exists today (page + surface
+counters). `requestInvalidations` has **no subscriber yet**; U15/U16 attach it, and the verifier confirmed it is
+inert rather than silently dropping something visible.
+
+**Reported as n/a rather than claimed as a fix:** the Activity-side page dedupe already worked before this unit;
+what was missing was any assertion of it, and of the vanish direction. Both now exist.
+
+---
