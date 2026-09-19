@@ -5811,3 +5811,107 @@ fixtures rather than the server projection, so the axis move is invisible to the
 fields. Named here because the brief asked for the list, and the list is empty.
 
 STATUS: complete
+
+---
+
+## UNIT U10b — The axis move · VERIFY (2026-09-19)
+
+**Layer:** verify (read-only). **Range:** `8545d580a..b6150cc3a`.
+
+Axis move verified: indicators/summaries/default `unread` lists use `AttentionDismissibleSql.activeAttention`;
+clear capture/apply uses `activeOptional`; `clearedAt`/`clearReason` on projection; two rewritten expectations
+forced by D02/D09 (not weakened). §6 pinned-zone defect documented in axis test for U10c. **Gaps:** sweep/undo
+not asserted against feed/summary; sweep apply `UPDATE` still inline optional predicate; failure-mode mutations
+1/3 not re-run to assertion in verify (mutation 2 reproduced). Client 407 tests green on fakes — not server-path
+evidence.
+
+**Verifier verdict:** pass (with gaps named above).
+
+---
+
+## UNIT U10b — Sweep/undo round trip & the fourth spelling · INNER (remediation) (2026-09-19)
+
+**Layer:** inner (remediation). **UNIT_BASE:** `b6150cc3a`. Two gaps from the U10b verify.
+
+### GAP 1 — the fourth spelling, and a guard that is no longer a list
+
+`attention_sweep_repository.dart`'s apply `UPDATE` hand-wrote `cleared_at IS NULL AND NOT requires_action`. It
+now composes `AttentionDismissibleSql.activeOptional('receipt')`; the statement gained an alias
+(`UPDATE public.notification_outbox AS receipt`) so the fragment has something to qualify.
+
+**Did unifying change behaviour? No.** The hand-written pair and `activeOptional` are the same two conjuncts in
+the other order — `NOT requires_action AND cleared_at IS NULL` — over the same row. No third clause was present
+in either, no surface or `relay_received` filter was implied, and the `AS receipt` alias does not change which
+rows the `account_id` / `id IN (…)` clauses select. The sweep, undo, clear and predicate suites all pass
+unchanged, including the six exclusion tests written specifically to loosen this apply path.
+
+The guard was the point of the gap, not the copy. It named two files; the copy lived in a third. It now scans
+`lib/data/repository/attention_*.dart` as a **directory**, excluding only the predicate's home, so a fifth
+spelling fails in a file that does not exist yet:
+
+```
+$ dart test -j 1 -N "no attention repository spells the axis out by hand" …axis_pg_test.dart
+  Expected: empty
+    Actual: ['lib/data/repository/attention_sweep_repository.dart']
+00:00 +0 -1: Some tests failed.
+```
+
+### GAP 2 — the other two thirds of the circuit
+
+Three tests in the axis suite, all driving the real `AttentionSweepRepository` (`dismissAll` / `undo`), each
+reading all three shapes together via one `_activityShape` helper — the surface summary (the dot), the default
+unread feed (the list) and `activityOffers` (the cards) — so a leg cannot be asserted on one shape and silently
+skipped on the others:
+
+| Test | Asserts |
+|---|---|
+| *a sweep empties the summary, the feed and the grouping together* | summary 2 → 0, feed non-empty → empty, pinned card's `eventUnseenCount` 1 → 0, and My Desk's row **untouched** at 1 (Set R excludes it) |
+| *undo brings the summary, the feed and the grouping back* | after `undo`, all three shapes equal their pre-sweep values, and `restoredReceiptIds` is exactly the swept set |
+| *neither the sweep nor its undo touches the pinned zone* | `appliedOutcomeBeaconIds` and `restoredOutcomeBeaconIds` both empty, and the two pinned cards keep their order and `totalCount` across both operations — owner decision A |
+
+### Each new assertion proven able to fail
+
+Four throwaway mutations, all reverted, nothing committed:
+
+| Mutation (throwaway) | Test that went red | Output |
+|---|---|---|
+| grouping `event_unseen_count` FILTER reverted to `child.seen_at IS NULL` | *a sweep empties…* | `Expected: <0> Actual: <1>` — the card keeps a swept count |
+| `activity_unread_total` FILTER reverted to `v.seen_at IS NULL` | *a sweep empties…* / *undo brings…* | `Expected: <0> Actual: <2>` — the tab lights after its own sweep |
+| `activityOffers` ranked CTE drops any pinned beacon that has a cleared receipt | *neither the sweep nor its undo…* | `Expected: ['Baxisforeign','Baxisother'] Actual: ['Baxisother']` — sweeping a pinned card's noise deletes the question |
+| `undoReceiptSql` re-stamps `cleared_at = now()` instead of `NULL` | *undo brings…* | `Expected: <2> Actual: <0>` — an undo window that does not undo |
+
+The two mutations that were *also* tried and rejected as probes are worth naming: removing
+`NOT IN eligible_pinned` from `dismissibleOutcomes`, and dropping `cleared_at = NULL` from the undo, both make
+the sweep machinery throw `25P01 ROLLBACK TO SAVEPOINT` before any assertion is reached. Red, but red for a
+mechanical reason — they prove nothing about the assertion, so they were replaced with the two above.
+
+### Commits
+
+| Hash | Subject |
+|---|---|
+| `d3c3db092` | `refactor(server): the sweep's apply composes the shared axis, and the guard covers the directory` |
+| `b4d3b484e` | `test(server): assert the sweep and undo legs of the round trip, and the pinned zone` |
+
+### Test evidence
+
+```
+$ ./scripts/run_with_test_cleanup.sh --timeout 30m -- bash -c 'cd packages/server && dart test --tags pg -j 1 \
+    active_attention_axis / dismiss_sweep / undo / clear_operation / dismissible_predicate /
+    predicate_unification / outcome_dismissible / surface / my_work / activity_stream'
+00:35 +165: All tests passed!          # axis suite is 21, was 18 before this remediation
+
+$ … dart test -j 1 test/api/controllers/graphql/attention_graphql_test.dart \
+      test/api/controllers/graphql/query_attention_payload_test.dart
+00:00 +35: All tests passed!
+
+$ ./scripts/run_with_test_cleanup.sh --timeout 10m -- ./scripts/check-custom-lints.sh packages/server
+total: 0 (baseline: 0)
+check-custom-lints: packages/server OK
+```
+
+### Not touched
+
+Ordering keys, `effectiveActivityAt`, `first_entry_at`, cursors, head reconciliation — **U10c**. The §6
+pinned-reorder defect stays documented and unfixed, and its expectation is unchanged.
+
+STATUS: complete
