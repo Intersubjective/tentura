@@ -145,9 +145,13 @@ ORDER BY beacon_id, created_at DESC, id DESC
         for (final receipt in receipts)
           if (receipt.isLiveObligation) receipt,
       ];
-      if (unseenCount == 0 && liveObligations.isEmpty) {
-        continue;
-      }
+      // U15R-a / R8 — a Request with nothing left to say still keeps its
+      // place. `firstEntryAt` is My Desk's stable ordering key; dropping the
+      // projection when active attention runs out made the client fall back
+      // to `Beacon.createdAt`, so clearing the last event moved the card and
+      // the next event moved it back — the bump section 6 forbids, caused by
+      // the gesture meant to quieten it. The row is emitted quiet: no count,
+      // no preview, no obligations, and the anchor it entered with.
       AttentionReceipt? latestUnseen;
       for (final receipt in receipts) {
         if (receipt.isActiveOptional) {

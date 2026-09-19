@@ -6,7 +6,10 @@ import 'package:test/test.dart';
 
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
+import 'package:tentura_server/data/repository/attention_clear_repository.dart';
 import 'package:tentura_server/data/repository/attention_repository.dart';
+import 'package:tentura_server/domain/attention/attention_clear_models.dart';
+import 'package:tentura_server/domain/use_case/attention_clear_case.dart';
 
 import '../../support/disposable_pg_target.dart';
 
@@ -25,12 +28,14 @@ Future<void> main() async {
     late Connection writer;
     late TenturaDb database;
     late AttentionRepository query;
+    late AttentionClearCase clear;
 
     setUpAll(() async {
       session = await setUpDisposablePgWriter(target: target);
       writer = session.writer;
       database = openDisposablePgDatabase(target);
       query = AttentionRepository(database);
+      clear = AttentionClearCase(AttentionClearRepository(database));
     });
 
     setUp(() async {
@@ -157,6 +162,80 @@ WHERE id = @id
       expect(result.single.latestUnseen, isNull);
       expect(result.single.liveObligations.single.id, 'Nmw02');
       expect(result.single.liveObligations.single.isLiveObligation, isTrue);
+    });
+
+    // U15R-a / R8 — clearing the last event must not move the card.
+    //
+    // `firstEntryAt` is the desk's stable ordering key; without it the client
+    // falls back to `beacon.createdAt`, which here is deliberately a
+    // different instant. So a card whose last optional event is cleared used
+    // to jump, and jump back again when the next event arrived — the exact
+    // "an optional update never changes a position" rule of section 6,
+    // broken by the gesture that is supposed to quieten the card.
+    test('the ordering anchor survives losing every active attention row',
+        () async {
+      await _insertBeaconReceipt(
+        writer,
+        id: 'NmwR8a',
+        beaconId: _ownedBeaconId,
+        createdAt: '2026-07-16T10:00:00Z',
+      );
+
+      final before = await query.myWorkAttention(
+        accountId: _viewerId,
+        beaconIds: {_ownedBeaconId},
+      );
+      final anchor = before.single.firstEntryAt;
+      expect(anchor, isNotNull);
+      final createdAt = await _beaconCreatedAt(writer, _ownedBeaconId);
+      expect(
+        anchor,
+        isNot(createdAt),
+        reason: 'the fallback and the anchor must differ, or this proves '
+            'nothing',
+      );
+
+      // Cleared through the real command, not by hand: the quantity under
+      // test is what the clear path actually leaves behind.
+      final snapshot = await clear.captureSnapshot(
+        accountId: _viewerId,
+        beaconId: _ownedBeaconId,
+        kind: AttentionClearCaptureKind.explicit,
+      );
+      final cleared = await clear.clear(
+        accountId: _viewerId,
+        operationId: 'OPmwR8',
+        snapshotToken: snapshot.token,
+      );
+      expect(cleared.appliedReceiptIds, ['NmwR8a']);
+
+      final after = await query.myWorkAttention(
+        accountId: _viewerId,
+        beaconIds: {_ownedBeaconId},
+      );
+      expect(after, hasLength(1));
+      expect(after.single.unseenCount, 0);
+      expect(after.single.latestUnseen, isNull);
+      expect(after.single.liveObligations, isEmpty);
+      expect(
+        after.single.firstEntryAt,
+        anchor,
+        reason: 'the card is quiet, not gone — it keeps its place',
+      );
+
+      // …and the next optional event does not re-establish a new place.
+      await _insertBeaconReceipt(
+        writer,
+        id: 'NmwR8b',
+        beaconId: _ownedBeaconId,
+        createdAt: '2026-08-20T10:00:00Z',
+      );
+      final again = await query.myWorkAttention(
+        accountId: _viewerId,
+        beaconIds: {_ownedBeaconId},
+      );
+      expect(again.single.unseenCount, 1);
+      expect(again.single.firstEntryAt, anchor);
     });
 
     test('omits beacons outside responsibility scope even when requested', () async {
@@ -314,3 +393,12 @@ INSERT INTO public.notification_outbox (
     'threadKey': 'v1|needsMe|$id|$_viewerId',
   },
 );
+
+
+Future<DateTime?> _beaconCreatedAt(Connection writer, String beaconId) async {
+  final rows = await writer.execute(
+    Sql.named('SELECT created_at FROM public.beacon WHERE id = @id'),
+    parameters: {'id': beaconId},
+  );
+  return rows.isEmpty ? null : (rows.first.first! as DateTime).toUtc();
+}

@@ -206,18 +206,26 @@ WHERE id = 'Naxis04'
       expect(rows.single.latestUnseen?.id, 'Naxis05a');
     });
 
-    test('a Request whose whole optional set is cleared leaves My Work',
+    // REWRITTEN IN U15R-a (was: "…leaves My Work", asserted as an empty
+    // projection). The axis guarantee is unchanged and is what is asserted
+    // here: a cleared optional set stops counting, stops previewing, and the
+    // Request has nothing to act on. What changed is that the row itself
+    // stays — emitting nothing also threw away the Request's ordering anchor,
+    // so the card jumped (R8). Quiet is not the same as gone.
+    test('a Request whose whole optional set is cleared goes quiet on My Work',
         () async {
       await _optional(writer, id: 'Naxis06', beaconId: _ownedBeaconId);
       await _clearReceipt(writer, 'Naxis06');
 
-      expect(
-        await query.myWorkAttention(
-          accountId: _viewerId,
-          beaconIds: {_ownedBeaconId},
-        ),
-        isEmpty,
+      final rows = await query.myWorkAttention(
+        accountId: _viewerId,
+        beaconIds: {_ownedBeaconId},
       );
+      expect(rows.single.unseenCount, 0);
+      expect(rows.single.latestUnseen, isNull);
+      expect(rows.single.liveObligations, isEmpty);
+      expect(rows.single.needsYouAt, isNull);
+      expect(rows.single.firstEntryAt, isNotNull);
     });
 
     // ------------------------------------------------- projection exposure
@@ -703,15 +711,21 @@ WHERE id = 'Naxis04'
       expect(after.myWorkUnreadTotal, 0);
       expect(afterFeed.page.items, isEmpty);
       expect(afterFeed.summary.unreadTotal, 0);
+      final projection = await query.myWorkAttention(
+        accountId: _viewerId,
+        beaconIds: {_ownedBeaconId},
+      );
       expect(
-        await query.myWorkAttention(
-          accountId: _viewerId,
-          beaconIds: {_ownedBeaconId},
-        ),
-        isEmpty,
+        projection.single.unseenCount,
+        0,
         reason:
             'U08 wrote cleared_at, U10b reads it: the clear command and the '
             'projections it is supposed to empty now agree end to end',
+      );
+      expect(
+        projection.single.latestUnseen,
+        isNull,
+        reason: 'nothing is left to preview',
       );
     });
   }, skip: skipReason);
