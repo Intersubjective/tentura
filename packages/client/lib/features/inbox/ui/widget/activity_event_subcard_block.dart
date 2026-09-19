@@ -29,7 +29,9 @@ class ActivityEventSubcardBlock extends StatefulWidget {
   const ActivityEventSubcardBlock({
     required this.eventTotal,
     required this.eventsPreview,
-    required this.onMarkSeen,
+    this.onClearEvent,
+    this.onEventTap,
+    this.onOpenTimeline,
     this.actors = const {},
     this.beaconId,
     this.overflowPolicy = AttentionBlockOverflowPolicy.timeline,
@@ -43,9 +45,20 @@ class ActivityEventSubcardBlock extends StatefulWidget {
 
   static const collapseKey = Key('attention-block-collapse');
 
+  /// «ещё N» under [AttentionBlockOverflowPolicy.timeline] — opens the
+  /// Timeline, never expands.
+  static const moreKey = Key('attention-block-more');
+
   final int eventTotal;
   final List<AttentionReceipt> eventsPreview;
-  final ValueChanged<String> onMarkSeen;
+  /// Clears one event (the clear axis, D02/U10b) — never `markSeen`.
+  final ValueChanged<String>? onClearEvent;
+
+  final ValueChanged<AttentionReceipt>? onEventTap;
+
+  /// Opens the Request's Timeline. Under the `timeline` policy this is what
+  /// «ещё N» does (D-171-5b).
+  final VoidCallback? onOpenTimeline;
 
   /// Actor profiles keyed by user id (from owning cubit).
   final Map<String, Profile> actors;
@@ -123,7 +136,12 @@ class _ActivityEventSubcardBlockState extends State<ActivityEventSubcardBlock> {
             child: AttentionMiniCard(
               receipt: receipt,
               actor: _actorFor(receipt),
-              onTap: () => widget.onMarkSeen(receipt.id),
+              onTap: widget.onEventTap == null
+                  ? null
+                  : () => widget.onEventTap!(receipt),
+              onDismiss: widget.onClearEvent == null
+                  ? null
+                  : () => _clear(receipt.id),
             ),
           ),
         if (moreCount > 0 || _expanded)
@@ -135,13 +153,25 @@ class _ActivityEventSubcardBlockState extends State<ActivityEventSubcardBlock> {
                 spacing: tt.rowGap,
                 children: [
                   if (moreCount > 0)
-                    TenturaTextAction(
-                      key: ActivityEventSubcardBlock.loadMoreKey,
-                      label: l10n.activityEventMore(moreCount),
-                      onPressed: _loadingMore
-                          ? null
-                          : () => unawaited(_expand()),
-                    ),
+                    switch (widget.overflowPolicy) {
+                      // D-171-5b: the card's hard maximum height is exactly
+                      // this — «ещё N» leaves for the Timeline instead of
+                      // growing the block.
+                      AttentionBlockOverflowPolicy.timeline =>
+                        TenturaTextAction(
+                          key: ActivityEventSubcardBlock.moreKey,
+                          label: l10n.activityEventMore(moreCount),
+                          onPressed: widget.onOpenTimeline,
+                        ),
+                      AttentionBlockOverflowPolicy.paginate =>
+                        TenturaTextAction(
+                          key: ActivityEventSubcardBlock.loadMoreKey,
+                          label: l10n.activityEventMore(moreCount),
+                          onPressed: _loadingMore
+                              ? null
+                              : () => unawaited(_expand()),
+                        ),
+                    },
                   if (_expanded)
                     TenturaTextAction(
                       key: ActivityEventSubcardBlock.collapseKey,
@@ -163,6 +193,13 @@ class _ActivityEventSubcardBlockState extends State<ActivityEventSubcardBlock> {
   }
 
   void _collapse() => setState(() => _expanded = false);
+
+  /// The mini-card has already finished its removal animation (E32), so the
+  /// row may leave the tree now.
+  void _clear(String receiptId) {
+    setState(() => _events.removeWhere((e) => e.id == receiptId));
+    widget.onClearEvent?.call(receiptId);
+  }
 
   Future<void> _expand() async {
     if (!_expanded) {

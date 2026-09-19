@@ -21,7 +21,7 @@ class ActivityForwardRow extends StatelessWidget {
     required this.onOpenBeacon,
     this.onRestore,
     this.onHide,
-    this.onMarkEventSeen,
+    this.onClearEvent,
     this.actors = const {},
     super.key,
   });
@@ -30,7 +30,7 @@ class ActivityForwardRow extends StatelessWidget {
   final VoidCallback onOpenBeacon;
   final VoidCallback? onRestore;
   final VoidCallback? onHide;
-  final ValueChanged<String>? onMarkEventSeen;
+  final ValueChanged<String>? onClearEvent;
   final Map<String, Profile> actors;
 
   @override
@@ -81,7 +81,8 @@ class ActivityForwardRow extends StatelessWidget {
               eventsPreview: receipt.eventsPreview,
               beaconId: beaconId,
               actors: actors,
-              onMarkSeen: onMarkEventSeen ?? (_) {},
+              overflowPolicy: AttentionBlockOverflowPolicy.paginate,
+              onClearEvent: onClearEvent,
             ),
           );
 

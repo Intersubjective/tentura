@@ -123,7 +123,6 @@ Future<void> _pump(
                 eventsPreview: preview,
                 beaconId: 'b1',
                 overflowPolicy: AttentionBlockOverflowPolicy.paginate,
-                onMarkSeen: (_) {},
               ),
             ),
           ),

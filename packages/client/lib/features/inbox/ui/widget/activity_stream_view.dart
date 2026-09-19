@@ -857,7 +857,9 @@ class _ActivityStreamCell extends StatelessWidget {
           receipt: receipt,
           actors: streamCubit.state.actors,
           onOpenBeacon: () => unawaited(onOpenParent()),
-          onMarkEventSeen: (id) => unawaited(streamCubit.markSeen(id)),
+          onClearEvent: (id) => unawaited(
+            GetIt.I<AttentionCase>().clearReceipt(receiptId: id),
+          ),
           onRestore: receipt.forwardOutcome ==
                   AttentionForwardOutcome.notInterested
               ? () => unawaited(inboxCubit.unreject(beaconId))
@@ -923,7 +925,10 @@ class _ActivityStreamCell extends StatelessWidget {
                   eventsPreview: receipt.eventsPreview,
                   beaconId: beaconId,
                   actors: streamCubit.state.actors,
-                  onMarkSeen: (id) => unawaited(streamCubit.markSeen(id)),
+                  overflowPolicy: AttentionBlockOverflowPolicy.paginate,
+                  onClearEvent: (id) => unawaited(
+                    GetIt.I<AttentionCase>().clearReceipt(receiptId: id),
+                  ),
                 ),
               ),
           ],

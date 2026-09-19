@@ -66,7 +66,6 @@ Future<void> _pumpGolden(
                     actors: actor == null
                         ? const {}
                         : {actor.id: actor},
-                    onMarkSeen: (_) {},
                   ),
                 ),
               ),
