@@ -332,12 +332,19 @@ final gqlTypeMyWorkBeaconAttention =
           'liveObligations',
           GraphQLListType(gqlTypeAttentionReceipt.nonNullable()).nonNullable(),
         ),
+        // U10c - the `Needs you` sort keys, exposed so the desk orders by the
+        // contract's key instead of `Beacon.updatedAt`.
+        field('needsYouAt', graphQLString),
+        field('firstEntryAt', graphQLString),
       ]);
 
 final gqlTypeActivityOfferSortRow =
     GraphQLObjectType('ActivityOfferSortRow', null)
       ..fields.addAll([
         field('beaconId', graphQLString.nonNullable()),
+        // U10c - the position key the zone is ordered by; the field below is
+        // the latest-event key, which is rendered and never ordered by.
+        field('listPositionAt', graphQLString.nonNullable()),
         field('effectiveActivityAt', graphQLString.nonNullable()),
         field('latestForwardAt', graphQLString.nonNullable()),
         field('unseen', graphQLBoolean.nonNullable()),

@@ -241,25 +241,36 @@ SELECT * FROM summary
   /// `event_total` and `event_unseen_count` count only rows that still ask for
   /// something, so a `requestActivity` group whose children have all been
   /// cleared retires (gated below on `event_total > 0`) instead of lingering
-  /// as an empty card. `max_created_at` deliberately stays over **every**
-  /// child: it is an ordering input, U10c owns ordering, and narrowing it here
-  /// would make clearing an optional event silently reshuffle the pinned
-  /// zone — one of the three ways this unit goes wrong quietly.
+  /// as an empty card.
+  ///
+  /// U10c — two keys, not one. `min_created_at` is the **position** key of a
+  /// synthetic group (when it entered the surface); `max_created_at` is its
+  /// **latest-event** key (what the preview is about). Both stay over *every*
+  /// child rather than over the active ones: they are ordering inputs, and
+  /// narrowing them would make clearing or receiving an optional event
+  /// silently reshuffle the zone — the defect this unit inherited.
   static String get _activityGroupingCtes =>
       '''
 ${AttentionDismissibleSql.eligiblePinned},
+request_entry AS (
+  SELECT state.beacon_id, state.first_entry_at
+  FROM public.attention_request_state state
+  WHERE state.account_id = \$1
+),
 eligible_forward AS (
   SELECT
     ii.beacon_id,
     ii.status,
     ii.forward_count,
     ii.latest_forward_at,
+    COALESCE(re.first_entry_at, ii.latest_forward_at) AS entry_at,
     ii.tombstone_dismissed_at,
     b.title AS beacon_title,
     public.beacon_can_read_content(ii.beacon_id, \$1) AS can_read_content,
     public.beacon_can_read_tombstone(ii.beacon_id, \$1) AS can_read_tombstone
   FROM public.inbox_item ii
   JOIN public.beacon b ON b.id = ii.beacon_id
+  LEFT JOIN request_entry re ON re.beacon_id = ii.beacon_id
   WHERE ii.user_id = \$1
     AND ii.tombstone_dismissed_at IS NULL
     AND (
@@ -296,6 +307,7 @@ beacon_activity_stats AS (
   SELECT
     beacon_id,
     MAX(created_at) AS max_created_at,
+    MIN(created_at) AS min_created_at,
     COUNT(*) FILTER (
       WHERE ${AttentionDismissibleSql.activeAttention('child')}
     )::int AS event_total,
@@ -335,10 +347,10 @@ page_stream AS (
     END AS title,
     ''::text AS body,
     ('/#/view?id=' || ef.beacon_id) AS action_url,
-    GREATEST(
-      ef.latest_forward_at,
-      COALESCE(stats.max_created_at, ef.latest_forward_at)
-    ) AS created_at,
+    -- U10c: the *position* key. A forward row sits where the Request
+    -- entered, not where its newest child event is (see the contract's
+    -- section 6). The latest-event key stays available via the stats.
+    ef.entry_at AS created_at,
     0 AS collapsed_count,
     ef.beacon_id,
     NULL::text AS coordination_item_id,
@@ -440,7 +452,10 @@ page_stream AS (
     END AS title,
     ''::text AS body,
     ('/#/view?id=' || stats.beacon_id) AS action_url,
-    stats.max_created_at AS created_at,
+    -- U10c: a synthetic group has no inbox row and therefore no
+    -- `first_entry_at`; its entry is the first child that put it on the
+    -- surface, which is immutable and does not move when a second arrives.
+    stats.min_created_at AS created_at,
     0 AS collapsed_count,
     stats.beacon_id,
     NULL::text AS coordination_item_id,
@@ -882,9 +897,9 @@ ORDER BY beacon_id, created_at DESC, id DESC
       cursorClause.write(
         '''
 AND (
-  ranked.effective_activity_at < \$2::timestamptz
+  ranked.list_position_at < \$2::timestamptz
   OR (
-    ranked.effective_activity_at = \$2::timestamptz
+    ranked.list_position_at = \$2::timestamptz
     AND ranked.beacon_id < \$3
   )
 )''',
@@ -902,6 +917,11 @@ ranked AS (
   SELECT
     ep.beacon_id,
     ii.latest_forward_at,
+    -- U10c: the pinned zone is ordered by the *position* key and never by
+    -- the latest-event key. `effective_activity_at` survives as the
+    -- latest-event key because a card still has to say how fresh its noise
+    -- is; it is no longer what decides where the card sits.
+    COALESCE(re.first_entry_at, ii.latest_forward_at) AS list_position_at,
     GREATEST(
       ii.latest_forward_at,
       COALESCE(stats.max_created_at, ii.latest_forward_at)
@@ -919,13 +939,14 @@ ranked AS (
   JOIN public.inbox_item ii
     ON ii.user_id = \$1
    AND ii.beacon_id = ep.beacon_id
+  LEFT JOIN request_entry re ON re.beacon_id = ep.beacon_id
   LEFT JOIN beacon_activity_stats stats ON stats.beacon_id = ep.beacon_id
 )
 SELECT *
 FROM ranked
 WHERE true
   $cursorClause
-ORDER BY ranked.effective_activity_at DESC, ranked.beacon_id DESC
+ORDER BY ranked.list_position_at DESC, ranked.beacon_id DESC
 LIMIT $limitParam
 ''',
           variables: variables,
@@ -949,6 +970,7 @@ FROM eligible_pinned
       for (final row in rows)
         ActivityOfferSortRow(
           beaconId: row.read<String>('beacon_id'),
+          listPositionAt: _readTimestamp(row, 'list_position_at')!,
           effectiveActivityAt: _readTimestamp(row, 'effective_activity_at')!,
           latestForwardAt: _readTimestamp(row, 'latest_forward_at')!,
           unseen: row.read<bool>('unseen'),
@@ -975,7 +997,7 @@ FROM eligible_pinned
     ];
     final nextCursor = hasMore
         ? AttentionCursor(
-            createdAt: items.last.effectiveActivityAt,
+            createdAt: items.last.listPositionAt,
             id: items.last.beaconId,
           )
         : null;

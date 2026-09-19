@@ -442,11 +442,24 @@ abstract class AttentionReceipt with _$AttentionReceipt {
   bool get isActiveAttention => isActiveOptional || isLiveObligation;
 }
 
+/// U10c — the current sort-key generation (D08: *version the cursor when
+/// changing sort keys*).
+///
+/// Bumped from 1 when the pinned zone and the grouped feed stopped ordering
+/// by `GREATEST(latest_forward_at, max child created_at)` and started
+/// ordering by the position key. A cursor minted under the old keys names a
+/// point on a line that no longer exists: keyset pagination resumed from it
+/// would skip or repeat whole stretches of the list, silently. It is rejected
+/// at the wire boundary instead, which costs the reader one head refetch and
+/// no correctness.
+const kAttentionCursorVersion = 2;
+
 @freezed
 abstract class AttentionCursor with _$AttentionCursor {
   const factory AttentionCursor({
     required DateTime createdAt,
     required String id,
+    @Default(kAttentionCursorVersion) int version,
   }) = _AttentionCursor;
 }
 
@@ -490,6 +503,16 @@ abstract class MyWorkBeaconAttention with _$MyWorkBeaconAttention {
     required int unseenCount,
     AttentionReceipt? latestUnseen,
     required List<AttentionReceipt> liveObligations,
+
+    /// U10c — `Needs you` ordering (D08 #1): the newest live obligation on
+    /// this Request. `null` when it has none, which sorts it below every
+    /// Request that does.
+    DateTime? needsYouAt,
+
+    /// U10c — the stable tie-break behind [needsYouAt]: when this Request
+    /// first entered the viewer's attention. Replaces the incidental
+    /// `Beacon.updatedAt` the desk used to fall back on.
+    DateTime? firstEntryAt,
   }) = _MyWorkBeaconAttention;
 }
 
@@ -519,6 +542,14 @@ abstract class ActivityOfferPage with _$ActivityOfferPage {
 abstract class ActivityOfferSortRow with _$ActivityOfferSortRow {
   const factory ActivityOfferSortRow({
     required String beaconId,
+
+    /// U10c — the **position** key: when this Request entered the pinned
+    /// zone. Only an explicit state change moves it (D08); an optional event
+    /// arriving, being cleared or being swept does not.
+    required DateTime listPositionAt,
+
+    /// U10c — the **latest-event** key: how fresh the card's noise is.
+    /// Rendered, never ordered by.
     required DateTime effectiveActivityAt,
     required DateTime latestForwardAt,
     required bool unseen,

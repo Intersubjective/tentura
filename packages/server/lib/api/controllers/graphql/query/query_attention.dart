@@ -157,6 +157,12 @@ final class QueryAttention extends GqlNodeBase {
                   for (final obligation in projection.liveObligations)
                     _mapReceipt(obligation),
                 ],
+                'needsYouAt': projection.needsYouAt
+                    ?.toUtc()
+                    .toIso8601String(),
+                'firstEntryAt': projection.firstEntryAt
+                    ?.toUtc()
+                    .toIso8601String(),
               },
           ];
         },
@@ -177,6 +183,7 @@ final class QueryAttention extends GqlNodeBase {
           for (final item in page.items)
             {
               'beaconId': item.beaconId,
+              'listPositionAt': item.listPositionAt.toUtc().toIso8601String(),
               'effectiveActivityAt': item.effectiveActivityAt
                   .toUtc()
                   .toIso8601String(),
@@ -364,6 +371,7 @@ final class QueryAttention extends GqlNodeBase {
       .encode(
         utf8.encode(
           jsonEncode({
+            'v': cursor.version,
             'createdAt': cursor.createdAt.toUtc().toIso8601String(),
             'id': cursor.id,
           }),
@@ -384,6 +392,13 @@ final class QueryAttention extends GqlNodeBase {
       );
       final id = decoded['id'] is String ? decoded['id'] as String : null;
       if (createdAt == null || id == null || id.isEmpty || id.length > 256) {
+        throw const FormatException();
+      }
+      // U10c — a cursor is only meaningful under the sort keys that minted
+      // it. An unversioned cursor is a pre-U10c one; either way, anything
+      // that is not the current generation is refused rather than resumed
+      // from, because resuming would drop or repeat rows without saying so.
+      if (decoded['v'] != kAttentionCursorVersion) {
         throw const FormatException();
       }
       return AttentionCursor(createdAt: createdAt.toUtc(), id: id);
