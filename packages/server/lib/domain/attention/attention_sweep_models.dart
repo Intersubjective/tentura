@@ -80,6 +80,11 @@ enum AttentionSweepSkipReason {
   /// reason, because the sweep must not disclose which.
   notAuthorized('not_authorized'),
 
+  /// U09c undid this member after the sweep applied it. Not a refusal by the
+  /// sweep — a later reversal of it, reported here so a resumed call cannot
+  /// mistake an undone member for one it still has to do.
+  undone('undone'),
+
   /// The write was refused by the database. The sweep's own predicate is the
   /// first line of defence and this should never be the reason; if it is,
   /// something above the database is out of step with it.

@@ -11,6 +11,7 @@ import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/entity/notification_priority.dart';
 import 'package:tentura_server/domain/attention/attention_clear_models.dart';
 import 'package:tentura_server/domain/attention/attention_sweep_models.dart';
+import 'package:tentura_server/domain/attention/attention_undo_models.dart';
 import 'package:tentura_server/domain/port/attention_sweep_port.dart';
 import 'package:tentura_server/domain/use_case/attention_sweep_case.dart';
 import 'package:tentura_server/domain/port/attention_ack_port.dart';
@@ -221,6 +222,35 @@ class _FakeSweep implements AttentionSweepPort {
   String? sweptOperationId;
   int? sweptBatchSize;
   int? sweptMaxBatches;
+
+  String? undoneAccountId;
+  String? undoneOperationId;
+  String? undoneToken;
+
+  @override
+  Future<AttentionUndoResult> undo({
+    required String accountId,
+    required String operationId,
+    required String undoToken,
+  }) async {
+    undoneAccountId = accountId;
+    undoneOperationId = operationId;
+    undoneToken = undoToken;
+    return AttentionUndoResult(
+      operationId: operationId,
+      restoredReceiptIds: const ['N1'],
+      restoredOutcomeBeaconIds: const ['B1'],
+      skipped: const [
+        AttentionUndoMember(
+          kind: 'outcome',
+          id: 'B2',
+          reason: AttentionUndoSkipReason.decisionChanged,
+        ),
+      ],
+      failed: const [],
+      status: AttentionUndoStatus.partial,
+    );
+  }
 
   @override
   Future<AttentionSweepResult> dismissAll({

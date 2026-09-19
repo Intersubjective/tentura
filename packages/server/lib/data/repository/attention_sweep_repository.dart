@@ -538,6 +538,415 @@ UPDATE public.inbox_item
     }
   }
 
+  // ---------------------------------------------------------------- U09c ---
+  //
+  // Undo. Every guard below is a separate named constant so a test can delete
+  // exactly that clause from the exact text this repository runs and watch the
+  // row come back. A refusal test that cannot fail is the defect that lets
+  // undo resurrect somebody else's decision.
+
+  /// "This operation is the one that cleared it." Without it, undo reverses
+  /// another device's sweep or a later explicit ×.
+  static const undoReceiptOperationGuard =
+      r'AND receipt.cleared_by_operation_id = $2';
+
+  /// "Nothing decided anything about this Request since the sweep." U09a's two
+  /// counters, compared against the snapshot taken at capture. Without it,
+  /// undo puts a dismissed receipt back on top of a decision the person made
+  /// afterwards — later intent loses, which is the one thing D13 forbids.
+  static const undoReceiptCountersGuard = r'''
+   AND (
+     SELECT COALESCE(max(ars.decision_revision), 0)
+       FROM public.attention_request_state ars
+      WHERE ars.account_id = $1 AND ars.beacon_id = receipt.beacon_id
+   ) = COALESCE(member.decision_revision, 0)
+   AND (
+     SELECT COALESCE(max(ars.outcome_generation), 0)
+       FROM public.attention_request_state ars
+      WHERE ars.account_id = $1 AND ars.beacon_id = receipt.beacon_id
+   ) = member.outcome_generation''';
+
+  /// "The sweep actually applied this member." Shared by both axes. Without
+  /// it, undo restores rows a bounded sweep never got to, which is undo
+  /// silently finishing an operation it was asked to reverse.
+  static const undoAppliedStateGuard = r"AND member.state = 'applied'";
+
+  /// The receipt half of undo, guards and all.
+  ///
+  /// `$1` account, `$2` operation, `$3` receipt id. It returns the id only
+  /// when it really restored the row, so "restored" is read back from the
+  /// database rather than assumed — the same rule the sweep applies to
+  /// "applied".
+  ///
+  /// There is deliberately **no** obligation guard here. A cleared receipt
+  /// cannot be an obligation: `notification_outbox__clear_optional_only_chk`
+  /// makes that state unrepresentable, so a member still carrying this
+  /// operation's clear is optional by construction. A guard nobody can make
+  /// fail is not protection, it is decoration.
+  static const undoReceiptSql =
+      '''
+UPDATE public.notification_outbox AS receipt
+   SET cleared_at = NULL,
+       clear_reason = NULL,
+       cleared_by_operation_id = NULL
+  FROM public.attention_clear_operation_member AS member
+ WHERE member.operation_id = \$2
+   AND member.receipt_id = receipt.id
+   AND receipt.account_id = \$1
+   AND receipt.id = \$3
+   $undoAppliedStateGuard
+   $undoReceiptOperationGuard
+   AND receipt.id IN (
+     SELECT receipt_id FROM public.visible_attention_receipts(\$1)
+   )
+$undoReceiptCountersGuard
+RETURNING receipt.id
+''';
+
+  /// The outcome half's counters guard — the same rule as the receipt half,
+  /// written against `inbox_item`. A Restore or a re-pin moves
+  /// `decision_revision`, a new forward generation or a terminal state moves
+  /// `outcome_generation`, and either one means the row in front of the
+  /// person is not the row the sweep hid.
+  static const undoOutcomeCountersGuard = r'''
+   AND (
+     SELECT COALESCE(max(ars.decision_revision), 0)
+       FROM public.attention_request_state ars
+      WHERE ars.account_id = $1 AND ars.beacon_id = ii.beacon_id
+   ) = COALESCE(member.decision_revision, 0)
+   AND (
+     SELECT COALESCE(max(ars.outcome_generation), 0)
+       FROM public.attention_request_state ars
+      WHERE ars.account_id = $1 AND ars.beacon_id = ii.beacon_id
+   ) = member.outcome_generation''';
+
+  /// Authorization, re-asked at undo time in the same words
+  /// `AttentionDismissibleSql.dismissibleOutcomes` asks it. Without it, undo
+  /// puts back a row the viewer may no longer read.
+  static const undoOutcomeReadabilityGuard = r'''
+   AND (
+     public.beacon_can_read_content(ii.beacon_id, $1)
+     OR (
+       ii.status IN (3, 4)
+       AND public.beacon_can_read_tombstone(ii.beacon_id, $1)
+     )
+   )''';
+
+  /// The outcome half of undo. `$1` account, `$2` operation, `$3` Request id.
+  static const undoOutcomeSql =
+      '''
+UPDATE public.inbox_item AS ii
+   SET tombstone_dismissed_at = NULL
+  FROM public.attention_clear_operation_member AS member
+ WHERE member.operation_id = \$2
+   AND member.outcome_beacon_id = ii.beacon_id
+   AND ii.user_id = \$1
+   AND ii.beacon_id = \$3
+   $undoAppliedStateGuard
+   AND ii.tombstone_dismissed_at IS NOT NULL
+$undoOutcomeCountersGuard
+$undoOutcomeReadabilityGuard
+RETURNING ii.beacon_id
+''';
+
+  @override
+  Future<AttentionUndoResult> undo({
+    required String accountId,
+    required String operationId,
+    required String undoToken,
+  }) => _database.transaction(() async {
+    // The window is a server column compared against the server's clock, and
+    // it is read inside the transaction that would restore — a deadline that
+    // expires mid-undo refuses rather than half-applying.
+    final header = await _database
+        .customSelect(
+          r'''
+SELECT account_id,
+       undo_deadline IS NULL AS never_applied,
+       undo_deadline < now() AS expired
+  FROM public.attention_clear_operation
+ WHERE id = $1
+ FOR UPDATE
+''',
+          variables: [Variable<String>(operationId)],
+        )
+        .getSingleOrNull();
+
+    AttentionUndoResult refused(AttentionUndoRefusal refusal) =>
+        AttentionUndoResult.refused(
+          operationId: operationId,
+          refusal: refusal,
+        );
+
+    // A missing operation and somebody else's operation answer identically:
+    // undo must not be a way to discover which ids exist.
+    if (header == null || header.read<String?>('account_id') != accountId) {
+      return refused(AttentionUndoRefusal.notFound);
+    }
+    if (header.read<bool>('never_applied')) {
+      return refused(AttentionUndoRefusal.neverApplied);
+    }
+    if (header.read<bool>('expired')) {
+      return refused(AttentionUndoRefusal.expired);
+    }
+
+    final members = await _database
+        .customSelect(
+          r'''
+SELECT receipt_id, outcome_beacon_id, state
+  FROM public.attention_clear_operation_member
+ WHERE operation_id = $1
+ ORDER BY receipt_id NULLS LAST, outcome_beacon_id NULLS LAST
+ FOR UPDATE
+''',
+          variables: [Variable<String>(operationId)],
+        )
+        .get();
+
+    final restoredReceipts = <String>[];
+    final restoredOutcomes = <String>[];
+    final skipped = <AttentionUndoMember>[];
+    final failed = <AttentionUndoMember>[];
+    final unrestoredReceipts = <String>[];
+    final unrestoredOutcomes = <String>[];
+
+    for (final row in members) {
+      final receiptId = row.read<String?>('receipt_id');
+      final isReceipt = receiptId != null;
+      final id = receiptId ?? row.read<String>('outcome_beacon_id');
+      final kind = isReceipt ? 'receipt' : 'outcome';
+      final state = row.read<String>('state');
+
+      // Never applied, never restored. A bounded sweep's pending members stay
+      // pending: undo reverses what happened, it does not finish what did not.
+      if (state != _stateApplied) {
+        skipped.add(
+          AttentionUndoMember(
+            kind: kind,
+            id: id,
+            reason: state == _stateUndone
+                ? AttentionUndoSkipReason.alreadyRestored
+                : AttentionUndoSkipReason.notApplied,
+          ),
+        );
+        continue;
+      }
+
+      final outcome = await _restoreMember(
+        accountId: accountId,
+        operationId: operationId,
+        memberId: id,
+        isReceipt: isReceipt,
+      );
+      switch (outcome) {
+        case _RestoreOutcome.restored:
+          (isReceipt ? restoredReceipts : restoredOutcomes).add(id);
+        case _RestoreOutcome.refusedByGuard:
+          (isReceipt ? unrestoredReceipts : unrestoredOutcomes).add(id);
+        case _RestoreOutcome.databaseRefused:
+          failed.add(
+            AttentionUndoMember(
+              kind: kind,
+              id: id,
+              reason: AttentionUndoSkipReason.refused,
+            ),
+          );
+      }
+    }
+
+    // A skip without a reason is not a report, so the guards that refused are
+    // asked, once, which one it was.
+    if (unrestoredReceipts.isNotEmpty || unrestoredOutcomes.isNotEmpty) {
+      final reasons = await _undoRefusalReasons(
+        accountId: accountId,
+        operationId: operationId,
+        receiptIds: unrestoredReceipts,
+        outcomeIds: unrestoredOutcomes,
+      );
+      for (final id in unrestoredReceipts) {
+        skipped.add(
+          AttentionUndoMember(
+            kind: 'receipt',
+            id: id,
+            reason: reasons[id] ?? AttentionUndoSkipReason.notAuthorized,
+          ),
+        );
+      }
+      for (final id in unrestoredOutcomes) {
+        skipped.add(
+          AttentionUndoMember(
+            kind: 'outcome',
+            id: id,
+            reason: reasons[id] ?? AttentionUndoSkipReason.notAuthorized,
+          ),
+        );
+      }
+    }
+
+    for (final id in [...restoredReceipts, ...restoredOutcomes]) {
+      await _database.customUpdate(
+        r'''
+UPDATE public.attention_clear_operation_member
+   SET state = 'undone'
+ WHERE operation_id = $1
+   AND (receipt_id = $2 OR outcome_beacon_id = $2)
+''',
+        variables: [Variable<String>(operationId), Variable<String>(id)],
+        updateKind: UpdateKind.update,
+      );
+    }
+
+    // The header records that the operation was undone only when nothing it
+    // applied is still applied. The sweep's counters are left alone on
+    // purpose: they say what the sweep did, which undo does not change.
+    await _database.customUpdate(
+      r'''
+UPDATE public.attention_clear_operation
+   SET status = CASE
+         WHEN NOT EXISTS (
+           SELECT 1 FROM public.attention_clear_operation_member member
+            WHERE member.operation_id = $1 AND member.state = 'applied'
+         ) AND EXISTS (
+           SELECT 1 FROM public.attention_clear_operation_member member
+            WHERE member.operation_id = $1 AND member.state = 'undone'
+         ) THEN 'undone'
+         ELSE status
+       END
+ WHERE id = $1
+''',
+      variables: [Variable<String>(operationId)],
+      updateKind: UpdateKind.update,
+    );
+
+    final restored = restoredReceipts.length + restoredOutcomes.length;
+    final refusedCount = skipped.length + failed.length;
+    return AttentionUndoResult(
+      operationId: operationId,
+      restoredReceiptIds: restoredReceipts,
+      restoredOutcomeBeaconIds: restoredOutcomes,
+      skipped: skipped,
+      failed: failed,
+      status: restored > 0
+          ? (refusedCount == 0
+                ? AttentionUndoStatus.complete
+                : AttentionUndoStatus.partial)
+          : (refusedCount > 0
+                ? AttentionUndoStatus.stale
+                : AttentionUndoStatus.complete),
+    );
+  });
+
+  /// One member, inside a savepoint: a row the database refuses is reported
+  /// `failed` rather than taking the whole undo down with it.
+  Future<_RestoreOutcome> _restoreMember({
+    required String accountId,
+    required String operationId,
+    required String memberId,
+    required bool isReceipt,
+  }) async {
+    await _database.customStatement('SAVEPOINT attention_undo_member');
+    try {
+      final rows = await _database
+          .customSelect(
+            isReceipt ? undoReceiptSql : undoOutcomeSql,
+            variables: [
+              Variable<String>(accountId),
+              Variable<String>(operationId),
+              Variable<String>(memberId),
+            ],
+          )
+          .get();
+      await _database.customStatement(
+        'RELEASE SAVEPOINT attention_undo_member',
+      );
+      return rows.isEmpty
+          ? _RestoreOutcome.refusedByGuard
+          : _RestoreOutcome.restored;
+    } on Object {
+      await _database.customStatement(
+        'ROLLBACK TO SAVEPOINT attention_undo_member',
+      );
+      return _RestoreOutcome.databaseRefused;
+    }
+  }
+
+  /// Which guard refused, per member.
+  ///
+  /// The order matters and mirrors the guards: "somebody already put it back"
+  /// is not "another device owns this clear now" is not "you decided something
+  /// since". Absence from the lookup is a vanished row or a lost
+  /// authorization, deliberately one answer.
+  Future<Map<String, AttentionUndoSkipReason>> _undoRefusalReasons({
+    required String accountId,
+    required String operationId,
+    required List<String> receiptIds,
+    required List<String> outcomeIds,
+  }) async {
+    final reasons = <String, AttentionUndoSkipReason>{};
+    if (receiptIds.isNotEmpty) {
+      final rows = await _database
+          .customSelect(
+            '''
+SELECT receipt.id AS member_id,
+       CASE
+         WHEN receipt.cleared_by_operation_id IS NULL THEN 'already_restored'
+         WHEN receipt.cleared_by_operation_id <> \$2
+           THEN 'cleared_by_another_operation'
+         WHEN receipt.id NOT IN (
+           SELECT receipt_id FROM public.visible_attention_receipts(\$1)
+         ) THEN 'not_authorized'
+         ELSE 'decision_changed'
+       END AS reason
+  FROM public.notification_outbox receipt
+ WHERE receipt.account_id = \$1
+   AND receipt.id IN (${_placeholders(receiptIds.length, from: 3)})
+''',
+            variables: [
+              Variable<String>(accountId),
+              Variable<String>(operationId),
+              for (final id in receiptIds) Variable<String>(id),
+            ],
+          )
+          .get();
+      for (final row in rows) {
+        reasons[row.read<String>('member_id')] =
+            AttentionUndoSkipReason.fromWireName(row.read<String>('reason'));
+      }
+    }
+    if (outcomeIds.isNotEmpty) {
+      final rows = await _database
+          .customSelect(
+            '''
+SELECT ii.beacon_id AS member_id,
+       CASE
+         WHEN ii.tombstone_dismissed_at IS NULL THEN 'already_restored'
+         WHEN NOT (
+           public.beacon_can_read_content(ii.beacon_id, \$1)
+           OR (
+             ii.status IN (3, 4)
+             AND public.beacon_can_read_tombstone(ii.beacon_id, \$1)
+           )
+         ) THEN 'not_authorized'
+         ELSE 'decision_changed'
+       END AS reason
+  FROM public.inbox_item ii
+ WHERE ii.user_id = \$1
+   AND ii.beacon_id IN (${_placeholders(outcomeIds.length, from: 2)})
+''',
+            variables: [
+              Variable<String>(accountId),
+              for (final id in outcomeIds) Variable<String>(id),
+            ],
+          )
+          .get();
+      for (final row in rows) {
+        reasons[row.read<String>('member_id')] =
+            AttentionUndoSkipReason.fromWireName(row.read<String>('reason'));
+      }
+    }
+    return reasons;
+  }
+
   static String _placeholders(int count, {required int from}) =>
       List.generate(count, (index) => '\$${index + from}').join(',');
 
@@ -654,6 +1063,17 @@ SELECT receipt_id, outcome_beacon_id, state, skip_reason
           skipped.add(member);
         case _stateFailed:
           failed.add(member);
+        case _stateUndone:
+          // U09c put it back. Reporting it as pending would make a later
+          // resume claim work it will never do; reporting it as applied would
+          // be a lie about the row's current state.
+          skipped.add(
+            AttentionSweepMember(
+              kind: kind,
+              id: id,
+              reason: AttentionSweepSkipReason.undone,
+            ),
+          );
         case _:
           pending.add(member);
       }
@@ -690,6 +1110,12 @@ SELECT receipt_id, outcome_beacon_id, state, skip_reason
   }
 
   static const _stateApplied = 'applied';
+  static const _stateUndone = 'undone';
   static const _stateSkipped = 'skipped';
   static const _stateFailed = 'failed';
 }
+
+/// What happened to one member's restore attempt. `refusedByGuard` and
+/// `databaseRefused` are kept apart on purpose: the first is this unit saying
+/// no, the second is the database saying no, and only the second is a bug.
+enum _RestoreOutcome { restored, refusedByGuard, databaseRefused }
