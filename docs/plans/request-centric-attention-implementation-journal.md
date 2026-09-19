@@ -4716,3 +4716,176 @@ inbox row as *skip*, not corruption. The two axes stay separate, with one operat
 brief and m0024's comment text say otherwise.
 
 ---
+
+## UNIT U09b — the sweep · INNER (2026-09-19)
+
+**Layer:** inner (implementer), tagged **hard** (concurrency + socially visible side effects).
+`UNIT_BASE` `1c25b1ade`. Server-side only. Undo is U09c; the client is U16.
+
+### What landed
+
+| Step | Commit | What |
+|---|---|---|
+| capture | `ef85003aa` | **m0186**; `attention_sweep_models.dart`, `attention_sweep_port.dart`, `attention_sweep_case.dart`, `attention_sweep_repository.dart` (capture half); new PG suite |
+| apply / resume | `8b1046d7d` | the batch loop, the per-member re-check, the three races |
+| GraphQL | `2b03205d9` | `attentionDismissAll` + `AttentionDismissAllResult` / `AttentionSweepMember` |
+| journal | this entry | |
+
+DI is generated (`lib/app/di.config.dart`, gitignored): `AttentionSweepPort` → `AttentionSweepRepository`
+(singleton), `AttentionSweepCase` (factory), both written by `build_runner`.
+
+### The difference from U08, which decides everything else
+
+U08 is handed a bounded membership a client could see. This one has no token and takes no list — the mutation's
+only arguments are the operation id and an optional batch bound. That is the guarantee, not an omission: a
+sweep whose membership came from the caller could only ever cover the pages that caller had loaded, and For You
+would never reach zero. `attentionDismissAll takes no membership from the caller` asserts the argument set
+itself, so nobody can add a convenience `receiptIds:` later without a test going red.
+
+Capture is one statement composing `AttentionDismissibleSql` — Set R ∪ Set O, both axes, whole surface. What it
+finds becomes `attention_clear_operation_member` rows in state `pending`, chunked.
+
+### Owner decision A (addition 1, in my own words)
+
+An unanswered forward is somebody asking me for help and waiting. Hiding it would *answer* them — with a
+refusal they never hear about and I never consciously made. No undo window repairs that, because the silence has
+already been delivered. So "Dismiss all" is not "clear the surface"; it is "clear the rows that are only a
+record of something already decided", and the unanswered forward is the exact row that is not one.
+
+It cannot happen here in four ways, each with a test:
+
+1. **It is never captured.** `NOT IN eligible_pinned` is inside the predicate the capture composes.
+2. **It is never captured on a resume either**, because a resume re-enters by operation id and never re-captures
+   — `a forward that arrives mid-sweep is not swept up` forwards a brand-new Request to the viewer between two
+   bounded calls and then asserts the membership is still exactly the two receipts.
+3. **A member that becomes a pinned forward mid-sweep is refused at apply.**
+   `a forward answered again mid-sweep is skipped and reported, never swept` captures a `notInterested` outcome,
+   presses Restore through a bare `UPDATE` (which is how the client really does it, through Hasura), resumes,
+   and gets `skipped` with reason `awaiting_decision` and `tombstone_dismissed_at` still NULL.
+4. **A replay cannot reach it**, because a replay answers from stored membership and applies nothing new.
+
+**And the predicate refuses it before the database has to.** That test asserts `failed` is empty — m0185 would
+have surfaced as a *failed* member, so an empty `failed` list is the evidence that nothing reached the trigger.
+The trigger is proved separately, by name, in the very next test, so both lines are known to hold and neither is
+standing in for the other. This matters because m0185 is the last line of defence; a system that only works
+because its last line holds has no margin left.
+
+### The three races, each with its outcome stated in advance (addition 2)
+
+| Race | Test | Outcome |
+|---|---|---|
+| Somebody answers a forward while the sweep runs | `a forward answered again mid-sweep…` | that member is **skipped**, reason `awaiting_decision`, never swept; status `partial` |
+| A resumed operation meets a member that went ineligible after capture | `a member that became ineligible after capture is skipped, not cleared`; `a Request that became My Desk work mid-sweep…`; `an outcome decided underneath the sweep is skipped` | **skipped** with `already_cleared` / `responsibility_gained` / `decision_changed`; not cleared; membership **not** extended; the earlier `explicit` clear is not re-stamped |
+| The same operation id replayed, concurrently | `a replayed operation id has exactly one effect`; `a concurrently replayed operation id has exactly one effect` (two `TenturaDb` connections, `Future.wait`, `batchSize: 1`) | one operation row, one member set, identical answers, `applied = 5` once; a receipt that arrived after the first run stays uncleared |
+
+**How concurrency is made to give one answer, reusing U08 rather than inventing a rule.** The header insert is
+still `ON CONFLICT (id) DO NOTHING`, so a twin blocks on the primary key and never captures its own membership.
+What is new is that a sweep is many transactions, so a twin can arrive *mid-flight*. Each batch takes
+`FOR UPDATE` on the members it is about to decide: the twin blocks, re-reads, and finds those rows no longer
+`pending`, so every member is decided exactly once however many callers are in the loop. Both callers then leave
+only when nothing is pending, and both build their answer from **stored membership** rather than from what they
+personally did — which is why the caller that did the work, the caller that resumed it and the twin that did
+nothing all report the same thing.
+
+### Reporting honestly (addition 3)
+
+**"Applied" means cleared.** Receipts are updated with a guard (`cleared_at IS NULL AND NOT requires_action`)
+and then *read back* by `cleared_by_operation_id`; only the rows that came back are reported applied. A row the
+sweep did not touch cannot be counted as swept — which is the failure mode that would be worse than failing.
+
+**"Skipped" carries a reason**, and the reasons are different facts: `awaiting_decision`,
+`responsibility_gained`, `decision_changed`, `already_cleared`, `obligation`, `not_authorized`, `refused`. Lost
+authorization and a vanished row deliberately share one reason, so the sweep does not disclose which. `failed`
+is a member the *database* refused — it should never happen, and it is separated from `skipped` precisely so it
+is visible when it does.
+
+**Complete vs partial**, U08's rule extended by one case: `complete` only when every member was cleared,
+`partial` the moment anything was refused **or is still pending**. A bounded call that has three members and
+cleared one says `partial` with `pendingCount: 2`, never `complete`.
+
+### Proving the exclusions can fail (addition 4)
+
+U09a's method, applied to *this* unit's SQL rather than a paraphrase of it: `AttentionSweepRepository.captureSql`
+is public so the tests can loosen the exact string the repository runs. Delete `NOT IN eligible_pinned` and the
+unanswered forward becomes a member; delete `NOT requires_action` and the obligation becomes a member. Both
+halves are asserted in the same test, because "the row is absent" passes just as happily when the set is empty
+for some unrelated reason — and an exclusion test that cannot fail is the one defect that lets this feature
+reject somebody's offer of help.
+
+### The feed is unchanged, deliberately (addition 6)
+
+No projection was touched. Every assertion is on database or API state — `cleared_at`, `clear_reason`,
+`cleared_by_operation_id`, `tombstone_dismissed_at`, member rows, header counters, the mutation's result — and
+**none** on "the surface went to zero". `one operation spans both axes` pins the gap explicitly: after a sweep,
+`seen_at` is still NULL. `attention_activity_stream_pg_test.dart` (26 tests) passes unchanged, which is the
+evidence the feed did not move.
+
+### Tests actually run
+
+```
+# RED — capture, with m0186 unregistered from the migration list
+dart test --tags pg -j 1 attention_dismiss_sweep_pg_test.dart   00:02 +1 -6: Some tests failed.
+  (column "decision_revision" of relation "attention_clear_operation_member" does not exist)
+
+# RED — apply, with the batch loop short-circuited (`while (false && …)`)
+dart test --tags pg -j 1 attention_dismiss_sweep_pg_test.dart   00:03 +9 -10: Some tests failed.
+  e.g. "one operation spans both axes" Expected: ['Nu09bboth'] Actual: []
+       "a concurrently replayed operation id…"  Expected: <5> Actual: <0>
+
+# RED — GraphQL, before the mutation existed
+dart test attention_graphql_test.dart                            00:00 +0 -1: compile — No named parameter 'sweep'
+
+# GREEN
+dart test --tags pg -j 1 attention_dismiss_sweep_pg_test.dart   00:03 +19: All tests passed!   (x3 runs, races stable)
+dart test attention_graphql_test.dart                            00:00 +26: All tests passed!  (was +22)
+
+# GREEN — the unit's TEST_CMD, everything coupled, in one run
+dart test --tags pg -j 1 attention_dismiss_sweep_pg_test.dart \
+  attention_clear_operation_pg_test.dart attention_dismissible_predicate_pg_test.dart \
+  attention_outcome_dismissible_pg_test.dart attention_request_state_writer_pg_test.dart \
+  attention_activity_stream_pg_test.dart ../database/attention_additive_schema_pg_test.dart
+                                                                 00:27 +120: All tests passed!
+dart test --tags pg -j 1 attention_repository_pg_test.dart attention_surface_pg_test.dart \
+  my_work_attention_pg_test.dart attention_live_obligations_pg_test.dart
+                                                                 00:11 +42: All tests passed!
+./scripts/check-custom-lints.sh packages/server                  total: 0 (baseline: 0) — OK
+```
+
+All through `scripts/run_with_test_cleanup.sh`, PG with `--tags pg -j 1`. The U08 clear suite ran in every
+round (addition 5) — m0183 coupled the two through the member table's partial indexes. Full server suite not
+run: the overseer owns it.
+
+### Findings
+
+- **`maxBatches` is a product feature, not a test hook.** I needed a way to interrupt a sweep to test resume,
+  and the honest version of that is the one a caller wants anyway: bound the work of one request and resume by
+  sending the same operation id. It is on the mutation, and `partial` + `pendingCount` is how a bounded call
+  says so. The alternative — a test-only seam — would have tested a code path no caller ever takes.
+- **A `UNION ALL` takes its column names from the first branch, and the bug only showed under a race.** The
+  re-check query aliases the receipt branch as `member_id`; the outcome branch did not, so a batch containing
+  *only* outcomes read a null column. Every happy-path test passed, because those batches always had a receipt
+  in them. It was the concurrent-replay and outcome-generation tests — the two where batching is one member at a
+  time — that caught it. Two of the three failures in my first green attempt were this one defect.
+- **The fixture is more adversarial than it looks.** Forwarding creates the inbox row
+  (`inbox_item_on_forward_insert`), so every forwarded Request in this suite starts life as an *unanswered
+  forward*. The pinned exclusion is therefore exercised by every test in the file, not only the one that names
+  it: the "whole surface" test captures exactly 9 members out of 10 candidate rows, and the tenth is the
+  unanswered forward nobody mentions.
+- **`undo_deadline` is deliberately still NULL.** The scout brief suggests setting it on first apply. Undo is
+  U09c's and so is the window's length; writing a 30-second deadline here would freeze that decision in a unit
+  that cannot test it. U09c sets it in the same place it adds the undo path.
+- **m0186 exists because a resumable sweep needs three facts m0178/m0183 have nowhere to put:** the `pending`
+  state (U08 decides every member inside its capture transaction and never writes one), the skip reason, and
+  `decision_revision` next to `outcome_generation` — a Restore moves the revision without necessarily moving
+  the generation, and U09c's undo is defined against both.
+
+### Out of scope, confirmed untouched
+
+No undo (U09c), no client code (U16), no channel/email path, no obligation identity, no contract JSON, no
+projection change in `attention_repository.dart` (U10), no change to `AttentionDismissibleSql` — this unit
+*consumes* the predicate and did not re-derive or edit it. The Hasura tombstone-dismiss path stays parallel
+until U16. Pre-existing untracked and modified files belong to other people and were not staged.
+
+STATUS: complete
+
+---
