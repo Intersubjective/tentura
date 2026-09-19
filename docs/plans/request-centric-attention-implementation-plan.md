@@ -403,6 +403,29 @@ and nothing else. No residual uncleared outcome is created by the sweep itself.
 
 ---
 
+**Split and amended by the overseer after the U09 scout (2026-09-19).** The scout returned eight steps — too
+many for one low-effort pass — and, more importantly, refuted two assumptions this plan carried:
+
+1. **Tombstone dismissal is broken at the database layer, not merely unwired.** The `tombstone_dismissed_at`
+   trigger admits only inbox statuses 3/4, so `helping`, `watching` and `notInterested` cannot be dismissed at
+   all today. Earlier notes in this plan (and in the design plan's E2/D01) said the mechanism existed and only
+   lacked a caller — that is true for `closed/deletedBeforeResponse` only. A migration is required.
+2. **§0.1 cannot represent an outcome sweep member.** `attention_clear_operation_member.receipt_id` carries an
+   FK to `notification_outbox`, and a tombstone is not a receipt. **§0.1 is hereby amended**: the member table
+   gains a nullable beacon reference, `receipt_id` becomes nullable, and a CHECK requires exactly one of the
+   two. Undo therefore stores both a receipt snapshot and an outcome snapshot per member.
+
+U09 runs as three sandwiches:
+
+- **U09a — dismissible foundations**: the trigger migration so every outcome kind can be dismissed; the shared
+  "rows that carry their own ×" SQL predicate; and the first writer of `attention_request_state`
+  (`outcome_generation`, `decision_revision`) — without which undo cannot detect a Restore or re-pin.
+- **U09b — the sweep**: `attentionDismissAll` over server-captured membership including unloaded pages,
+  resumable by id, reporting applied/skipped/failed, honouring owner decision A.
+- **U09c — undo**: `attentionUndo`, bounded and conservative, restoring `cleared_*` and
+  `tombstone_dismissed_at` — explicitly **not** reusing `markUnseen`, whose dedup-sibling refusal is the wrong
+  model now that receipts are immutable.
+
 ### U10 — Primary projections and ordering
 
 **Goal.** One representative per Request, active-only pages, ordering per D08.
