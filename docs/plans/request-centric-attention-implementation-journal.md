@@ -6601,3 +6601,161 @@ lost in a bulk or structural operation. Rule adopted: after splitting a unit, re
 themes, never rely on memory of what it contained.
 
 ---
+
+## UNIT U11 — Child propagation policy · INNER (2026-09-19)
+
+**WHAT.** A child Request is now its own attention object end to end. `placement` stopped being a word in the
+contract and became a persisted, producer-written column that the read projection honours. Base `284d26ad0`.
+
+**FILES.**
+- `packages/server/lib/domain/attention/attention_models.dart` (`AttentionPlacement` + wire names)
+- `packages/server/lib/domain/attention/attention_policy.dart` (`AttentionPolicy.placement`)
+- `packages/server/lib/data/database/migration/m0189.dart`, `_migrations.dart`
+- `packages/server/lib/data/repository/attention_dispatch_repository.dart`
+- `packages/server/lib/data/repository/attention_dismissible_sql.dart` (`primaryPlacement`)
+- `packages/server/lib/data/repository/attention_repository.dart`
+- `packages/server/test/data/repository/beacon_hierarchy_child_independence_pg_test.dart` (new)
+- `packages/server/test/architecture/updates_event_contract_test.dart`
+
+**COMMITS.** `6d06ad779` producer policy · `bb1f76d87` read-path placement · `bbc32114b` tests · this entry.
+
+### The four overseer additions, in my own words
+
+**1 — the producers already emit ancestor-scoped attention, so this is producer policy.** Confirmed, and with a
+correction to the shape of the problem. `beacon_hierarchy_delivery_case.dart:173` does record an
+`AttentionDispatchIntent` addressed at the *destination* Request, exactly as U07a found, and no grouping key
+could have prevented it. But the fan-out is narrower than the brief assumed: `insertTopologyDeliveryTargets`
+(`beacon_hierarchy_outbox_repository.dart:185–207`) is `WITH RECURSIVE` **only downwards** — the `ancestor` CTE
+is a single non-recursive join to `parent_beacon_id`. So a child moving reaches its **direct parent and no
+further**; a grandparent receives nothing today. The producer change R7 actually needs is therefore not
+"stop addressing ancestors" but "classify what you do address", which is what landed. The suite pins the
+one-hop fan-out too, so a future change that made it recursive fails here rather than silently lighting up a
+grandparent.
+
+**2 — recursion tested at depth.** The suite runs on the canonical `A → B → C` chain and moves **C**, the
+deepest Request. Both of C's ancestors are asserted: A gets no delivery row, no receipt and no room message; B
+gets exactly one notice, and its dot, count and position do not move. A two-level suite would have been
+satisfied by propagation merely delayed a hop, which is precisely what the real fan-out shape would have hidden.
+
+**3 — the exclusions were proved able to fail.** Twice, in throwaway edits, both reverted:
+- `AttentionPolicy.placement` forced to `primary` for `beaconHierarchyStatusChanged` → `+2 -2`
+  (`'timeline_only'` vs `'primary'`; bob's `myWorkUnreadTotal` 1→2). Re-run with the viewer order reversed to
+  confirm the For You leg is not shadowed by the My Desk one: alice's `activityUnreadTotal` 1→2.
+- The `primaryPlacement` filter removed from `activity_child_receipts` only (placement still correct) → alice's
+  pinned card moved on three axes at once:
+  `BhierB000001|…|2026-05-03…|true|1|1|1` → `BhierB000001|…|2026-09-19…|true|2|2|1`, i.e. freshness, count and
+  dot. **This one mattered**: the first version of the fingerprint captured only `id|isActiveAttention|
+  createdAt` and stayed green through that loosening — the grouped-row exclusion was untestable. The
+  fingerprint now carries `eventTotal`, `eventUnseenCount`, preview length, `listPositionAt` and
+  `effectiveActivityAt` for both the feed and the pinned-offers list.
+
+**4 — `timeline_only` is now honoured by the read path, not just declared.** It was not honoured before; that
+was this unit's work. Nothing in `packages/server/lib` mentioned `placement` at all — the only occurrence of
+the word was an unrelated comment. Every indicator in `attention_repository.dart` now composes
+`AttentionDismissibleSql.primaryPlacement`: both surface counts and `needsYouTotal`, `unreadForBeacons`, the My
+Desk count and its `latestUnseen` / `needsYouAt` / `firstEntryAt` keys, the standalone row's
+`is_active_attention`, all three grouped-row dot probes, the watching digest, and `activity_child_receipts`.
+`updates_event_contract_test` now asserts policy and contract agree per variant, so the two cannot drift apart
+again.
+
+### Decisions
+
+- **A column, not an `event_type` test in SQL.** Placement is an event-time producer decision like every other
+  projected field on `notification_outbox`; deriving it in the read path would have created a second copy of
+  the classification and would retroactively re-classify history whenever the policy changed. m0189 defaults to
+  `'primary'`, so no pre-U11 row changes behaviour.
+- **`primaryPlacement` is a separate predicate, deliberately not folded into `activeOptional`.** `activeOptional`
+  is what the sweep composes, and placement is not a sweep question: a `timeline_only` receipt is an ordinary
+  optional receipt that simply has nothing to show, so nothing about whether it can be cleared changes. Folding
+  it in would have altered the sweep, which this unit was told not to touch.
+- **`placement` lives beside `logicalTaskKey` on the policy, not inside `AttentionReceiptProjection`.** Same
+  reason that one does: it is a single persisted scalar shared by every recipient of an event, not part of the
+  per-recipient role projection. It also avoided regenerating freezed output for a scalar.
+- **The grouped-row event preview is filtered too.** The preview is the expansion of `event_total`; leaving it
+  unfiltered gave a card that says "2 events" over a list of three. The Request's actual log — History and the
+  Request timeline (`attentionRequestHistory`) — is a different query and keeps every notice, which is what
+  D16's "the ancestor log entry still exists" asks for.
+
+### Findings
+
+- **The fan-out is one hop upward, not recursive** (see addition 1). The plan's phrase "propagated to ancestors"
+  is true of *descendants* recursively and of exactly one ancestor.
+- **The copy was already unconditionally generic, and requirement 5 is therefore satisfied by construction, not
+  by a branch.** `BeaconHierarchyNoticeCopy` (`lib/domain/policy/beacon_hierarchy_notice_copy.dart`) builds
+  "A child request was closed on 2026-07-01" from direction, status and date only — it never receives the
+  source Request's title or id, so there is no readable/unreadable branch that could leak one. The test pins
+  this as a characterization: no `'Request C'`, no beacon id, no actor id, non-empty, and one body shared by all
+  recipients rather than a per-recipient one.
+- **`inbox_item` is not populated by a trigger on `beacon_forward_edge`.** The hierarchy fixture seeds a forward
+  edge to alice for B but leaves `inbox_item` empty, which is why alice was not an `inboxStanceHolder` and
+  received nothing. The first version of her half of this test was silently vacuous because of it; the suite now
+  inserts the inbox row explicitly and asserts `receipts … contains(viewer)` before comparing surfaces, so a
+  viewer who is not actually a recipient fails loudly instead of passing trivially.
+- **The hierarchy PG session does not install pgmer2**, so the U10d provenance path (`mr_mutual_scores`) throws
+  there. The new suite creates the extension itself. Same deployment dependency U10d recorded.
+- **The direct-parent child-creation notice is emitted as `roomMessagePosted`**
+  (`beacon_child_create_case.dart:436`), not as its own event type. That is compatible with §8 — creating a
+  child leaves *one optional notice* on the direct parent, and an optional notice legitimately carries a dot —
+  so it was left alone. Worth knowing that the contract has no row describing it as a child-creation event.
+
+**TESTS.**
+
+```bash
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- dart test --tags pg -j 1 \
+  test/data/repository/beacon_hierarchy_child_independence_pg_test.dart
+```
+→ RED before the read-path commit: `00:02 +3 -1` (`myWorkUnreadTotal` 1→2, My Desk group `|1|` → `|2|`).
+→ GREEN after: `00:02 +4: All tests passed!`
+
+```bash
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 30m -- dart test --tags pg -j 4 \
+  test/data/repository/attention_activity_stream_pg_test.dart \
+  test/data/repository/attention_surface_pg_test.dart \
+  test/data/repository/attention_active_attention_axis_pg_test.dart \
+  test/data/repository/attention_ordering_keys_pg_test.dart \
+  test/data/repository/my_work_attention_pg_test.dart \
+  test/data/repository/attention_repository_pg_test.dart \
+  test/data/repository/attention_predicate_unification_pg_test.dart \
+  test/data/repository/attention_dismissible_predicate_pg_test.dart \
+  test/data/repository/attention_outcome_dismissible_pg_test.dart \
+  test/data/repository/attention_live_obligations_pg_test.dart \
+  test/data/repository/attention_request_history_pg_test.dart
+```
+→ `00:19 +145: All tests passed!` Exit 0.
+
+```bash
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 30m -- dart test --tags pg -j 4 \
+  test/data/repository/beacon_hierarchy_*_pg_test.dart
+```
+→ `00:17 +56: All tests passed!` Exit 0 (8 files, including the new suite).
+
+```bash
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 15m -- dart test --exclude-tags pg \
+  test/architecture test/domain/attention \
+  test/api/controllers/graphql/attention_graphql_test.dart \
+  test/api/controllers/graphql/query_attention_payload_test.dart
+```
+→ `00:00 +134: All tests passed!` Exit 0.
+
+```bash
+./scripts/run_with_test_cleanup.sh --timeout 10m -- ./scripts/check-custom-lints.sh packages/server
+```
+→ `total: 0 (baseline: 0)` · `check-custom-lints: packages/server OK`. `dart analyze` on every changed file:
+no issues.
+
+**REMAINING.**
+- Legacy rows written before m0189 carry `placement = 'primary'` by default. That is the intended no-op, but if
+  historical `beaconHierarchyStatusChanged` receipts exist in a deployed database they keep lighting their
+  parent until backfilled. A one-line backfill was **not** written here: U18 owns cutover data, and guessing at
+  it inside a policy unit is how the other silent re-classifications in this plan started.
+- The event preview and `event_total` now agree, but `attentionRequestHistory` was only verified to still pass
+  its suite, not asserted to *contain* the timeline-only notice. A positive assertion that the log really is
+  complete belongs with U12's reconciliation work.
+- `beaconHierarchyStatusChanged.producerTests` in the contract is still `unverified` (×2 variants). This suite
+  is the producer test it was waiting for; naming it there is U19's job, per the soft gate.
+
+| Unit | Status |
+|---|---|
+| U11 child propagation policy | **complete** (`6d06ad779`, `bb1f76d87`, `bbc32114b`) |
+
+---
