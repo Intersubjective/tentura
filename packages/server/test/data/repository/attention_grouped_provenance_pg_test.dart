@@ -64,9 +64,20 @@ Future<void> main() async {
     expect(row.provenanceJson, isNotNull);
 
     final provenance = jsonDecode(row.provenanceJson!) as Map<String, Object?>;
+    // CHANGES IN U15R-b: `latestNoteForward` joins the document (R4,
+    // D-171-5a). The rule this case defends is unchanged — one shape, no
+    // second DTO — and the addition is additive precisely so that
+    // `InboxProvenance.parse` and `withoutViewer` keep working on both
+    // callers. What would still be a violation is a *different* document for
+    // the attention path, which is why the key set stays pinned exactly.
     expect(
       provenance.keys.toSet(),
-      {'senders', 'totalDistinctSenders', 'strongestNotePreview'},
+      {
+        'senders',
+        'totalDistinctSenders',
+        'strongestNotePreview',
+        'latestNoteForward',
+      },
       reason:
           'the shape is the one InboxProvenance.parse already consumes — '
           'a second provenance DTO is forbidden by the card spec',

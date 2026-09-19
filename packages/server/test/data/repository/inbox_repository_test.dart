@@ -29,6 +29,7 @@ Future<void> main() async {
   var skipReason = postgresReachable ? false : 'local Postgres not reachable';
   var tombstoneSkipReason = skipReason;
   var provenanceSkipReason = skipReason;
+  var latestNoteSkipReason = skipReason;
 
   if (postgresReachable) {
     final env = _testEnv();
@@ -38,6 +39,7 @@ Future<void> main() async {
         skipReason = 'inbox_item status / tombstone function missing';
         tombstoneSkipReason = skipReason;
         provenanceSkipReason = skipReason;
+        latestNoteSkipReason = skipReason;
       } else {
         if (!await _hasM0102TombstoneFunction(probe)) {
           tombstoneSkipReason =
@@ -49,6 +51,12 @@ Future<void> main() async {
         } else if (!await _hasM0103Provenance(probe)) {
           provenanceSkipReason =
               'm0103 provenance (self/context invite-forward) missing';
+        }
+        latestNoteSkipReason = provenanceSkipReason;
+        if (latestNoteSkipReason == false &&
+            !await _hasM0190LatestNoteForward(probe)) {
+          latestNoteSkipReason =
+              'm0190 provenance (latestNoteForward) missing';
         }
       }
     } finally {
@@ -522,6 +530,88 @@ WHERE ii.user_id = $2 AND ii.beacon_id = $3
     },
     skip: provenanceSkipReason,
   );
+
+  test(
+    'the Inbox delegate keeps its blocked-sender behaviour (issue #188)',
+    () async {
+      // U15R-b shares one body between the Inbox computed field and the
+      // attention read path, so this case is the guard on the *one* place
+      // they legitimately differ: the delegate passes `p_exclude_blocked =
+      // false`, and whether that is right is issue #188 — a product decision,
+      // not a thing to settle under cover of a contract extension. If a later
+      // change quietly turns the wall on here, the Inbox starts hiding
+      // forwarders it has always shown, and this goes red.
+      await seedUsers();
+      await seedBeacon();
+
+      await db.customStatement(
+        r'''
+INSERT INTO public.inbox_item (
+  user_id, beacon_id, status, forward_count, latest_forward_at, latest_note_preview, rejection_message
+) VALUES ($1, $2, 0, 2, '2026-01-02T00:00:00Z', '', '')
+ON CONFLICT (user_id, beacon_id) DO NOTHING
+''',
+        [_recipientId, _beaconId],
+      );
+      await db.customStatement(
+        r'''
+INSERT INTO public.beacon_forward_edge (
+  id, beacon_id, sender_id, recipient_id, note, created_at
+) VALUES
+  ('Finboxtest05', $1, $2, $3, 'visible note', '2026-01-01T00:00:00Z'),
+  ('Finboxtest06', $1, $4, $3, 'blocked note', '2026-01-02T00:00:00Z')
+ON CONFLICT (id) DO NOTHING
+''',
+        [_beaconId, _senderId, _recipientId, _sender2Id],
+      );
+      await db.customStatement(
+        r'''
+INSERT INTO public.user_block (blocker_id, blocked_id, origin_id)
+VALUES ($1, $2, $2)
+ON CONFLICT DO NOTHING
+''',
+        [_recipientId, _sender2Id],
+      );
+
+      final row = await db
+          .customSelect(
+            r'''
+SELECT public.inbox_item_inbox_provenance_data(ii, $1::json) AS data
+FROM public.inbox_item ii
+WHERE ii.user_id = $2 AND ii.beacon_id = $3
+''',
+            variables: [
+              Variable<String>(
+                jsonEncode({'x-hasura-user-id': _recipientId}),
+              ),
+              Variable<String>(_recipientId),
+              Variable<String>(_beaconId),
+            ],
+          )
+          .getSingle();
+
+      final parsed =
+          jsonDecode(row.read<String>('data')) as Map<String, dynamic>;
+      expect(
+        parsed['totalDistinctSenders'],
+        2,
+        reason: 'the Inbox has never applied the block filter here',
+      );
+      expect(
+        (parsed['senders'] as List<dynamic>).map((e) => e['id']),
+        containsAll([_senderId, _sender2Id]),
+      );
+      expect(
+        (parsed['latestNoteForward'] as Map<String, dynamic>)['senderId'],
+        _sender2Id,
+        reason:
+            'the new field reads from the same filtered edges as the list, '
+            'so it shows exactly what this caller already shows — no more, '
+            'and no less',
+      );
+    },
+    skip: latestNoteSkipReason,
+  );
 }
 
 Env _testEnv() => Env(
@@ -595,6 +685,12 @@ LIMIT 1
 
   final def = await _provenanceImplSource(db);
   return def.contains('cancelled_at IS NULL');
+}
+
+/// U15R-b — the delegate reaches the m0190 body (`latestNoteForward`).
+Future<bool> _hasM0190LatestNoteForward(TenturaDb db) async {
+  final def = await _provenanceImplSource(db);
+  return def.contains('latestNoteForward');
 }
 
 Future<bool> _hasM0103Provenance(TenturaDb db) async {
