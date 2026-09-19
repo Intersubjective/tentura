@@ -115,8 +115,369 @@ ON CONFLICT (id) DO NOTHING
       }
     }
 
-    return _summarize(operationId);
+    // Phase 2 — decide the still-pending members, a bounded batch at a time.
+    //
+    // Each batch is its own transaction and takes a row lock on the members it
+    // is about to decide, so a concurrent twin blocks, re-reads, and finds
+    // those rows no longer pending. Every member is therefore decided exactly
+    // once no matter how many callers are in the loop, and both callers leave
+    // only when nothing is pending — which is why they can both report the
+    // same answer.
+    var batches = 0;
+    while (maxBatches == null || batches < maxBatches) {
+      final decided = await _applyBatch(
+        accountId: accountId,
+        operationId: operationId,
+        batchSize: bounded,
+      );
+      if (decided == 0) break;
+      batches++;
+    }
+
+    final result = await _summarize(operationId);
+    await _database.customUpdate(
+      r'''
+UPDATE public.attention_clear_operation
+   SET status = $2, applied = $3, skipped = $4, failed = $5
+ WHERE id = $1
+''',
+      variables: [
+        Variable<String>(operationId),
+        Variable<String>(result.status.name),
+        Variable<int>(result.appliedCount),
+        Variable<int>(result.skipped.length),
+        Variable<int>(result.failed.length),
+      ],
+      updateKind: UpdateKind.update,
+    );
+    return result;
   }
+
+  /// One batch: re-ask the dismissible question per member, then write.
+  ///
+  /// Re-asking is the whole point of doing this here rather than trusting the
+  /// capture. A member that became ineligible in between — the forward was
+  /// restored, the viewer took responsibility, another gesture got there
+  /// first — is *skipped and reported*, never cleared, and never dropped
+  /// silently. Returns how many members this call decided.
+  Future<int> _applyBatch({
+    required String accountId,
+    required String operationId,
+    required int batchSize,
+  }) => _database.transaction(() async {
+    final pending = await _database
+        .customSelect(
+          r'''
+SELECT receipt_id, outcome_beacon_id, outcome_generation, decision_revision
+  FROM public.attention_clear_operation_member
+ WHERE operation_id = $1 AND state = 'pending'
+ ORDER BY receipt_id NULLS LAST, outcome_beacon_id NULLS LAST
+ LIMIT $2
+ FOR UPDATE
+''',
+          variables: [
+            Variable<String>(operationId),
+            Variable<int>(batchSize),
+          ],
+        )
+        .get();
+    if (pending.isEmpty) return 0;
+
+    final receiptIds = <String>[];
+    final outcomeIds = <String>[];
+    final capturedIdentity = <String, (int, int)>{};
+    for (final row in pending) {
+      final receiptId = row.read<String?>('receipt_id');
+      final id = receiptId ?? row.read<String>('outcome_beacon_id');
+      (receiptId == null ? outcomeIds : receiptIds).add(id);
+      capturedIdentity[id] = (
+        row.read<int>('outcome_generation'),
+        row.read<int?>('decision_revision') ?? 0,
+      );
+    }
+
+    final decisions = <String, (String, AttentionSweepSkipReason?)>{};
+
+    // 1. The same predicate as the capture, asked again — per member, now.
+    final eligible = await _eligibleNow(
+      accountId: accountId,
+      receiptIds: receiptIds,
+      outcomeIds: outcomeIds,
+    );
+
+    // 2. Outcomes whose Request was decided underneath the sweep are not the
+    // row the person saw. `tombstone_dismissed_at` bumps neither counter
+    // (U09a), so an unmoved outcome always matches its own snapshot.
+    final applicableOutcomes = <String>[];
+    for (final id in outcomeIds) {
+      final live = eligible[id];
+      if (live == null) continue;
+      if (live == capturedIdentity[id]) {
+        applicableOutcomes.add(id);
+      } else {
+        decisions[id] = (
+          _stateSkipped,
+          AttentionSweepSkipReason.decisionChanged,
+        );
+      }
+    }
+
+    // 3. Receipts: one guarded UPDATE, then read back which rows this
+    // operation actually cleared. "Applied" means cleared, and nothing that
+    // was not cleared is allowed to be reported as applied.
+    final applicableReceipts = [
+      for (final id in receiptIds)
+        if (eligible.containsKey(id)) id,
+    ];
+    if (applicableReceipts.isNotEmpty) {
+      final placeholders = _placeholders(applicableReceipts.length, from: 3);
+      final variables = [
+        Variable<String>(accountId),
+        Variable<String>(operationId),
+        for (final id in applicableReceipts) Variable<String>(id),
+      ];
+      await _database.customUpdate(
+        '''
+UPDATE public.notification_outbox
+   SET cleared_at = now(),
+       clear_reason = 'sweep',
+       cleared_by_operation_id = \$2
+ WHERE account_id = \$1
+   AND cleared_at IS NULL
+   AND NOT requires_action
+   AND id IN ($placeholders)
+''',
+        variables: variables,
+        updateKind: UpdateKind.update,
+      );
+      final clearedRows = await _database.customSelect(
+        '''
+SELECT id FROM public.notification_outbox
+ WHERE account_id = \$1
+   AND cleared_by_operation_id = \$2
+   AND id IN ($placeholders)
+''',
+        variables: variables,
+      ).get();
+      final cleared = {for (final row in clearedRows) row.read<String>('id')};
+      for (final id in applicableReceipts) {
+        decisions[id] = cleared.contains(id)
+            ? (_stateApplied, null)
+            : (_stateSkipped, AttentionSweepSkipReason.alreadyCleared);
+      }
+    }
+
+    // 4. Outcomes, one statement each inside a savepoint. The predicate is
+    // the first line of defence and m0185 is the second; if the database ever
+    // refuses a row this sweep thought it could dismiss, that member is
+    // reported `failed` rather than taking the whole batch down with it.
+    for (final id in applicableOutcomes) {
+      decisions[id] = await _dismissOutcome(
+        accountId: accountId,
+        beaconId: id,
+      );
+    }
+
+    // 5. Everything the predicate refused, with the reason it refused it.
+    final refused = [
+      for (final id in [...receiptIds, ...outcomeIds])
+        if (!decisions.containsKey(id)) id,
+    ];
+    if (refused.isNotEmpty) {
+      final reasons = await _refusalReasons(
+        accountId: accountId,
+        receiptIds: [
+          for (final id in receiptIds)
+            if (refused.contains(id)) id,
+        ],
+        outcomeIds: [
+          for (final id in outcomeIds)
+            if (refused.contains(id)) id,
+        ],
+      );
+      for (final id in refused) {
+        decisions[id] = (
+          _stateSkipped,
+          reasons[id] ?? AttentionSweepSkipReason.notAuthorized,
+        );
+      }
+    }
+
+    for (final entry in decisions.entries) {
+      await _database.customUpdate(
+        r'''
+UPDATE public.attention_clear_operation_member
+   SET state = $2, skip_reason = $3
+ WHERE operation_id = $1
+   AND (receipt_id = $4 OR outcome_beacon_id = $4)
+''',
+        variables: [
+          Variable<String>(operationId),
+          Variable<String>(entry.value.$1),
+          Variable<String>(entry.value.$2?.wireName),
+          Variable<String>(entry.key),
+        ],
+        updateKind: UpdateKind.update,
+      );
+    }
+
+    return decisions.length;
+  });
+
+  /// The dismissible question, asked again for exactly these members.
+  ///
+  /// Returns the live `(outcome_generation, decision_revision)` of every
+  /// member still eligible; absence means "not dismissible now", whatever the
+  /// reason, and the reason is asked for separately.
+  Future<Map<String, (int, int)>> _eligibleNow({
+    required String accountId,
+    required List<String> receiptIds,
+    required List<String> outcomeIds,
+  }) async {
+    if (receiptIds.isEmpty && outcomeIds.isEmpty) return const {};
+    final variables = [
+      Variable<String>(accountId),
+      for (final id in receiptIds) Variable<String>(id),
+      for (final id in outcomeIds) Variable<String>(id),
+    ];
+    final branches = <String>[
+      if (receiptIds.isNotEmpty)
+        '''
+SELECT receipt_id AS member_id, 0 AS outcome_generation, 0 AS decision_revision
+  FROM activity_optional_dismissible
+ WHERE receipt_id IN (${_placeholders(receiptIds.length, from: 2)})''',
+      if (outcomeIds.isNotEmpty)
+        '''
+SELECT beacon_id AS member_id, outcome_generation, decision_revision
+  FROM activity_outcome_dismissible
+ WHERE beacon_id IN (
+   ${_placeholders(outcomeIds.length, from: 2 + receiptIds.length)})''',
+    ];
+    final rows = await _database
+        .customSelect(
+          'WITH ${AttentionDismissibleSql.cte}\n${branches.join('\nUNION ALL\n')}',
+          variables: variables,
+        )
+        .get();
+    return {
+      for (final row in rows)
+        row.read<String>('member_id'): (
+          row.read<int>('outcome_generation'),
+          row.read<int>('decision_revision'),
+        ),
+    };
+  }
+
+  /// Why the predicate refused a member.
+  ///
+  /// A skip without a reason is not a report: "the forward is awaiting your
+  /// answer again" and "you may no longer read this" are different facts
+  /// about the world, and only one of them is a bug if it happens often.
+  /// Absence from both lookups means the row is gone or was never the
+  /// caller's, which is deliberately one answer — the sweep does not disclose
+  /// which.
+  Future<Map<String, AttentionSweepSkipReason>> _refusalReasons({
+    required String accountId,
+    required List<String> receiptIds,
+    required List<String> outcomeIds,
+  }) async {
+    final reasons = <String, AttentionSweepSkipReason>{};
+    if (receiptIds.isNotEmpty) {
+      final rows = await _database
+          .customSelect(
+            '''
+WITH ${AttentionDismissibleSql.prelude}
+SELECT receipt.id AS member_id,
+       CASE
+         WHEN receipt.cleared_at IS NOT NULL THEN 'already_cleared'
+         WHEN receipt.requires_action THEN 'obligation'
+         WHEN receipt.beacon_id IS NOT NULL
+          AND receipt.beacon_id IN (SELECT scope.beacon_id FROM scope)
+           THEN 'responsibility_gained'
+         ELSE 'not_authorized'
+       END AS reason
+  FROM public.notification_outbox receipt
+ WHERE receipt.account_id = \$1
+   AND receipt.id IN (${_placeholders(receiptIds.length, from: 2)})
+''',
+            variables: [
+              Variable<String>(accountId),
+              for (final id in receiptIds) Variable<String>(id),
+            ],
+          )
+          .get();
+      for (final row in rows) {
+        reasons[row.read<String>('member_id')] =
+            AttentionSweepSkipReason.fromWireName(row.read<String>('reason'));
+      }
+    }
+    if (outcomeIds.isNotEmpty) {
+      final rows = await _database
+          .customSelect(
+            '''
+WITH ${AttentionDismissibleSql.prelude}
+SELECT ii.beacon_id AS member_id,
+       CASE
+         WHEN ii.tombstone_dismissed_at IS NOT NULL THEN 'already_cleared'
+         WHEN ii.beacon_id IN (SELECT eligible_pinned.beacon_id
+                                 FROM eligible_pinned)
+           THEN 'awaiting_decision'
+         ELSE 'not_authorized'
+       END AS reason
+  FROM public.inbox_item ii
+ WHERE ii.user_id = \$1
+   AND ii.beacon_id IN (${_placeholders(outcomeIds.length, from: 2)})
+''',
+            variables: [
+              Variable<String>(accountId),
+              for (final id in outcomeIds) Variable<String>(id),
+            ],
+          )
+          .get();
+      for (final row in rows) {
+        reasons[row.read<String>('member_id')] =
+            AttentionSweepSkipReason.fromWireName(row.read<String>('reason'));
+      }
+    }
+    return reasons;
+  }
+
+  Future<(String, AttentionSweepSkipReason?)> _dismissOutcome({
+    required String accountId,
+    required String beaconId,
+  }) async {
+    await _database.customStatement('SAVEPOINT attention_sweep_member');
+    try {
+      final rows = await _database.customUpdate(
+        r'''
+UPDATE public.inbox_item
+   SET tombstone_dismissed_at = now()
+ WHERE user_id = $1
+   AND beacon_id = $2
+   AND tombstone_dismissed_at IS NULL
+''',
+        variables: [
+          Variable<String>(accountId),
+          Variable<String>(beaconId),
+        ],
+        updateKind: UpdateKind.update,
+      );
+      await _database.customStatement(
+        'RELEASE SAVEPOINT attention_sweep_member',
+      );
+      return rows > 0
+          ? (_stateApplied, null)
+          : (_stateSkipped, AttentionSweepSkipReason.alreadyCleared);
+    } on Object {
+      await _database.customStatement(
+        'ROLLBACK TO SAVEPOINT attention_sweep_member',
+      );
+      return (_stateFailed, AttentionSweepSkipReason.refused);
+    }
+  }
+
+  static String _placeholders(int count, {required int from}) =>
+      List.generate(count, (index) => '\$${index + from}').join(',');
 
   /// Membership, captured once and never extended.
   Future<void> _capture({

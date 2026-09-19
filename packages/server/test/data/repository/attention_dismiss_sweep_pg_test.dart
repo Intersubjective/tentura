@@ -8,6 +8,7 @@ import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/attention_sweep_repository.dart';
 import 'package:tentura_server/domain/attention/attention_clear_models.dart';
+import 'package:tentura_server/domain/attention/attention_sweep_models.dart';
 import 'package:tentura_server/domain/use_case/attention_sweep_case.dart';
 
 import '../../support/disposable_pg_target.dart';
@@ -86,8 +87,11 @@ Future<void> main() async {
           {_watchedBeaconId, _rejectedBeaconId},
         );
         final header = await writer.execute(
-          "SELECT surface, account_id FROM public.attention_clear_operation "
-          "WHERE id = 'OPu09bpages'",
+          Sql.named(
+            'SELECT surface, account_id '
+            'FROM public.attention_clear_operation WHERE id = @id',
+          ),
+          parameters: {'id': 'OPu09bpages'},
         );
         expect(header.first[0], AttentionSweepRepository.surface);
         expect(header.first[1], _viewerId);
@@ -239,6 +243,486 @@ VALUES ('OPu09bstranger', @account, 'activity', 'pending', 0, 0, 0)
         expect(result.appliedCount, 0);
         expect(await _memberIds(writer, 'OPu09bstranger'), isEmpty);
         expect(await _clearedAt(writer, 'Nu09bstranger'), isNull);
+      },
+    );
+  }, skip: skipReason);
+
+  group('apply', () {
+    test('one operation spans both axes', () async {
+      await _insertReceipt(
+        writer,
+        id: 'Nu09bboth',
+        beaconId: _forwardedBeaconIds.first,
+      );
+      await _insertInboxItem(writer, beaconId: _rejectedBeaconId, status: 2);
+
+      final result = await sweep.dismissAll(
+        accountId: _viewerId,
+        operationId: 'OPu09bboth',
+      );
+
+      expect(result.appliedReceiptIds, ['Nu09bboth']);
+      expect(result.appliedOutcomeBeaconIds, [_rejectedBeaconId]);
+      expect(result.status, AttentionClearStatus.complete);
+
+      final receipt = await writer.execute(
+        Sql.named(
+          'SELECT clear_reason, cleared_by_operation_id, cleared_at, seen_at '
+          'FROM public.notification_outbox WHERE id = @id',
+        ),
+        parameters: {'id': 'Nu09bboth'},
+      );
+      expect(receipt.first[0], 'sweep');
+      expect(receipt.first[1], 'OPu09bboth');
+      expect(receipt.first[2], isNotNull);
+      expect(
+        receipt.first[3],
+        isNull,
+        reason:
+            'U10 owns the indicators: a sweep clears the optional axis and '
+            'never the read axis, so nothing here may assert that the '
+            'surface went to zero',
+      );
+      expect(await _tombstoneDismissedAt(writer, _rejectedBeaconId), isNotNull);
+    });
+
+    test('sweeps every captured page, not just the first', () async {
+      for (var index = 0; index < 7; index++) {
+        await _insertReceipt(
+          writer,
+          id: 'Nu09bsweep$index',
+          beaconId: _forwardedBeaconIds[index % _forwardedBeaconIds.length],
+        );
+      }
+      await _insertInboxItem(writer, beaconId: _watchedBeaconId, status: 1);
+      await _insertInboxItem(writer, beaconId: _rejectedBeaconId, status: 2);
+
+      final result = await sweep.dismissAll(
+        accountId: _viewerId,
+        operationId: 'OPu09bmany',
+        batchSize: 3,
+      );
+
+      expect(result.appliedCount, 9, reason: 'three pages and a remainder');
+      expect(result.status, AttentionClearStatus.complete);
+      expect(result.pending, isEmpty);
+      final header = await _header(writer, 'OPu09bmany');
+      expect(header, ['complete', 9, 0, 0]);
+    });
+
+    test('a bounded call reports what is still pending', () async {
+      for (var index = 0; index < 3; index++) {
+        await _insertReceipt(
+          writer,
+          id: 'Nu09bbound$index',
+          beaconId: _forwardedBeaconIds.first,
+        );
+      }
+
+      final first = await sweep.dismissAll(
+        accountId: _viewerId,
+        operationId: 'OPu09bbound',
+        batchSize: 1,
+        maxBatches: 1,
+      );
+
+      expect(first.appliedCount, 1);
+      expect(first.pending, hasLength(2));
+      expect(
+        first.status,
+        AttentionClearStatus.partial,
+        reason: 'a sweep with work left is not complete and must not say so',
+      );
+
+      final second = await sweep.dismissAll(
+        accountId: _viewerId,
+        operationId: 'OPu09bbound',
+        batchSize: 1,
+      );
+
+      expect(second.appliedCount, 3);
+      expect(second.pending, isEmpty);
+      expect(second.status, AttentionClearStatus.complete);
+    });
+
+    test(
+      'an obligation is still uncleared after the surface is swept',
+      () async {
+        await _insertReceipt(
+          writer,
+          id: 'Nu09bapplyoblig',
+          beaconId: null,
+          requiresAction: true,
+        );
+        await _insertReceipt(
+          writer,
+          id: 'Nu09bapplyopt',
+          beaconId: _forwardedBeaconIds.first,
+        );
+
+        final result = await sweep.dismissAll(
+          accountId: _viewerId,
+          operationId: 'OPu09bapplyoblig',
+        );
+
+        expect(result.appliedReceiptIds, ['Nu09bapplyopt']);
+        expect(await _clearedAt(writer, 'Nu09bapplyoblig'), isNull);
+      },
+    );
+  }, skip: skipReason);
+
+  group('races, each with its outcome stated in advance', () {
+    test(
+      'a forward answered again mid-sweep is skipped and reported, never swept',
+      () async {
+        // Captured as a `notInterested` outcome — a dated trace of the
+        // viewer's own decision, carrying its own ×. Then they press Restore,
+        // and the Request is back in the pinned zone awaiting an answer.
+        // Sweeping it now would answer a person by not answering them.
+        await _insertReceipt(
+          writer,
+          id: 'Nu09brestore',
+          beaconId: _forwardedBeaconIds.first,
+        );
+        await _insertInboxItem(writer, beaconId: _rejectedBeaconId, status: 2);
+
+        final first = await sweep.dismissAll(
+          accountId: _viewerId,
+          operationId: 'OPu09brestore',
+          batchSize: 1,
+          maxBatches: 1,
+        );
+        expect(first.appliedReceiptIds, ['Nu09brestore']);
+        expect(first.pending.single.id, _rejectedBeaconId);
+
+        // Restore, exactly as the client does it: a bare UPDATE.
+        await writer.execute(
+          Sql.named(
+            'UPDATE public.inbox_item SET status = 0 '
+            'WHERE user_id = @userId AND beacon_id = @beaconId',
+          ),
+          parameters: {'userId': _viewerId, 'beaconId': _rejectedBeaconId},
+        );
+
+        final second = await sweep.dismissAll(
+          accountId: _viewerId,
+          operationId: 'OPu09brestore',
+        );
+
+        expect(second.appliedOutcomeBeaconIds, isEmpty);
+        expect(
+          second.skipped.single.reason,
+          AttentionSweepSkipReason.awaitingDecision,
+          reason:
+              "the sweep's own predicate refused it before the database had "
+              'to — the point of not relying on the last line of defence',
+        );
+        expect(
+          second.failed,
+          isEmpty,
+          reason:
+              'a refusal by m0185 would surface here as a failed member; '
+              'nothing reached the trigger',
+        );
+        expect(second.status, AttentionClearStatus.partial);
+        expect(await _tombstoneDismissedAt(writer, _rejectedBeaconId), isNull);
+      },
+    );
+
+    test(
+      'm0185 refuses the same row at the row level, so both lines hold',
+      () async {
+        // The predicate is the first line and this is the second, asserted by
+        // trigger name: a test that only observed "the write failed" would
+        // keep passing if the refusal moved somewhere unrelated.
+        await expectLater(
+          writer.execute(
+            Sql.named(
+              'UPDATE public.inbox_item SET tombstone_dismissed_at = now() '
+              'WHERE user_id = @userId AND beacon_id = @beaconId',
+            ),
+            parameters: {
+              'userId': _viewerId,
+              'beaconId': _forwardedBeaconIds.first,
+            },
+          ),
+          throwsA(
+            isA<ServerException>().having(
+              (error) => error.message,
+              'message',
+              contains('unanswered forward cannot be dismissed'),
+            ),
+          ),
+        );
+      },
+    );
+
+    test('a forward that arrives mid-sweep is not swept up', () async {
+      await _insertReceipt(
+        writer,
+        id: 'Nu09barrivea',
+        beaconId: _forwardedBeaconIds.first,
+      );
+      await _insertReceipt(
+        writer,
+        id: 'Nu09barriveb',
+        beaconId: _forwardedBeaconIds.first,
+      );
+
+      await sweep.dismissAll(
+        accountId: _viewerId,
+        operationId: 'OPu09barrive',
+        batchSize: 1,
+        maxBatches: 1,
+      );
+
+      // Somebody forwards a Request to the viewer while the sweep runs.
+      await _forwardNewRequest(
+        writer,
+        beaconId: 'Bu09blate',
+        forwardId: 'Fu09blate',
+      );
+      await _insertReceipt(writer, id: 'Nu09blate', beaconId: 'Bu09blate');
+
+      final result = await sweep.dismissAll(
+        accountId: _viewerId,
+        operationId: 'OPu09barrive',
+      );
+
+      expect(result.appliedReceiptIds, ['Nu09barrivea', 'Nu09barriveb']);
+      expect(await _clearedAt(writer, 'Nu09blate'), isNull);
+      expect(await _tombstoneDismissedAt(writer, 'Bu09blate'), isNull);
+      expect(
+        await _memberIds(writer, 'OPu09barrive'),
+        {'Nu09barrivea', 'Nu09barriveb'},
+        reason: 'a resumed operation never extends its membership',
+      );
+    });
+
+    test(
+      'a member that became ineligible after capture is skipped, not cleared',
+      () async {
+        await _insertReceipt(
+          writer,
+          id: 'Nu09bstalea',
+          beaconId: _forwardedBeaconIds.first,
+        );
+        await _insertReceipt(
+          writer,
+          id: 'Nu09bstaleb',
+          beaconId: _forwardedBeaconIds.first,
+        );
+
+        await sweep.dismissAll(
+          accountId: _viewerId,
+          operationId: 'OPu09bstale',
+          batchSize: 1,
+          maxBatches: 1,
+        );
+        // Another gesture got there first — an explicit × on another device.
+        await writer.execute(
+          Sql.named(
+            'UPDATE public.notification_outbox '
+            "SET cleared_at = now(), clear_reason = 'explicit' "
+            'WHERE id = @id',
+          ),
+          parameters: {'id': 'Nu09bstaleb'},
+        );
+
+        final result = await sweep.dismissAll(
+          accountId: _viewerId,
+          operationId: 'OPu09bstale',
+        );
+
+        expect(result.appliedReceiptIds, ['Nu09bstalea']);
+        expect(result.skipped.single.id, 'Nu09bstaleb');
+        expect(
+          result.skipped.single.reason,
+          AttentionSweepSkipReason.alreadyCleared,
+        );
+        expect(result.status, AttentionClearStatus.partial);
+        final reason = await writer.execute(
+          Sql.named(
+            'SELECT clear_reason FROM public.notification_outbox '
+            'WHERE id = @id',
+          ),
+          parameters: {'id': 'Nu09bstaleb'},
+        );
+        expect(
+          reason.first.first,
+          'explicit',
+          reason: 'the sweep did not re-stamp a receipt it did not clear',
+        );
+      },
+    );
+
+    test(
+      'a Request that became My Desk work mid-sweep is skipped and reported',
+      () async {
+        await _insertReceipt(
+          writer,
+          id: 'Nu09bdeska',
+          beaconId: _forwardedBeaconIds.first,
+        );
+        await _insertReceipt(
+          writer,
+          id: 'Nu09bdeskb',
+          beaconId: _forwardedBeaconIds[1],
+        );
+
+        await sweep.dismissAll(
+          accountId: _viewerId,
+          operationId: 'OPu09bdesk',
+          batchSize: 1,
+          maxBatches: 1,
+        );
+        // A live obligation on the second Request puts it in the
+        // responsibility scope: it is not dismissible from For You any more.
+        await _insertReceipt(
+          writer,
+          id: 'Nu09bdeskoblig',
+          beaconId: _forwardedBeaconIds[1],
+          requiresAction: true,
+        );
+
+        final result = await sweep.dismissAll(
+          accountId: _viewerId,
+          operationId: 'OPu09bdesk',
+        );
+
+        expect(result.appliedReceiptIds, ['Nu09bdeska']);
+        expect(
+          result.skipped.single.reason,
+          AttentionSweepSkipReason.responsibilityGained,
+        );
+        expect(await _clearedAt(writer, 'Nu09bdeskb'), isNull);
+      },
+    );
+
+    test('an outcome decided underneath the sweep is skipped', () async {
+      await _insertReceipt(
+        writer,
+        id: 'Nu09bgen',
+        beaconId: _forwardedBeaconIds.first,
+      );
+      await _insertInboxItem(writer, beaconId: _watchedBeaconId, status: 1);
+
+      await sweep.dismissAll(
+        accountId: _viewerId,
+        operationId: 'OPu09bgen',
+        batchSize: 1,
+        maxBatches: 1,
+      );
+      // The Request's identity moves underneath the operation, as a decision
+      // made elsewhere moves it. The outcome row the sweep captured is not
+      // the row in front of the person now.
+      await writer.execute(
+        Sql.named(
+          'UPDATE public.attention_request_state '
+          'SET decision_revision = decision_revision + 5 '
+          'WHERE account_id = @account AND beacon_id = @beaconId',
+        ),
+        parameters: {'account': _viewerId, 'beaconId': _watchedBeaconId},
+      );
+
+      final result = await sweep.dismissAll(
+        accountId: _viewerId,
+        operationId: 'OPu09bgen',
+      );
+
+      expect(result.appliedOutcomeBeaconIds, isEmpty);
+      expect(result.appliedReceiptIds, ['Nu09bgen']);
+      expect(
+        result.skipped.single.reason,
+        AttentionSweepSkipReason.decisionChanged,
+      );
+      expect(await _tombstoneDismissedAt(writer, _watchedBeaconId), isNull);
+    });
+
+    test('a replayed operation id has exactly one effect', () async {
+      await _insertReceipt(
+        writer,
+        id: 'Nu09breplay',
+        beaconId: _forwardedBeaconIds.first,
+      );
+      await _insertInboxItem(writer, beaconId: _rejectedBeaconId, status: 2);
+
+      final first = await sweep.dismissAll(
+        accountId: _viewerId,
+        operationId: 'OPu09breplay',
+      );
+      final clearedAt = await _clearedAt(writer, 'Nu09breplay');
+      final dismissedAt = await _tombstoneDismissedAt(
+        writer,
+        _rejectedBeaconId,
+      );
+      await _insertReceipt(
+        writer,
+        id: 'Nu09breplaylate',
+        beaconId: _forwardedBeaconIds.first,
+      );
+
+      final second = await sweep.dismissAll(
+        accountId: _viewerId,
+        operationId: 'OPu09breplay',
+      );
+
+      expect(second.appliedReceiptIds, first.appliedReceiptIds);
+      expect(second.appliedOutcomeBeaconIds, first.appliedOutcomeBeaconIds);
+      expect(second.status, first.status);
+      expect(await _clearedAt(writer, 'Nu09breplay'), clearedAt);
+      expect(
+        await _tombstoneDismissedAt(writer, _rejectedBeaconId),
+        dismissedAt,
+      );
+      expect(await _clearedAt(writer, 'Nu09breplaylate'), isNull);
+      expect(await _countOperations(writer, 'OPu09breplay'), 1);
+      expect(await _memberIds(writer, 'OPu09breplay'), hasLength(2));
+    });
+
+    test(
+      'a concurrently replayed operation id has exactly one effect',
+      () async {
+        for (var index = 0; index < 4; index++) {
+          await _insertReceipt(
+            writer,
+            id: 'Nu09bconc$index',
+            beaconId: _forwardedBeaconIds.first,
+          );
+        }
+        await _insertInboxItem(writer, beaconId: _rejectedBeaconId, status: 2);
+
+        // A second connection, so the two calls really do race in Postgres
+        // rather than being serialized by one drift executor.
+        final rival = openDisposablePgDatabase(target);
+        addTearDown(rival.close);
+        final rivalSweep = AttentionSweepCase(AttentionSweepRepository(rival));
+
+        final results = await Future.wait([
+          sweep.dismissAll(
+            accountId: _viewerId,
+            operationId: 'OPu09bconc',
+            batchSize: 1,
+          ),
+          rivalSweep.dismissAll(
+            accountId: _viewerId,
+            operationId: 'OPu09bconc',
+            batchSize: 1,
+          ),
+        ]);
+
+        expect(results.first.appliedCount, 5);
+        expect(
+          results.last.appliedReceiptIds,
+          results.first.appliedReceiptIds,
+          reason: 'both callers report the operation, not what they did',
+        );
+        expect(results.first.status, results.last.status);
+        expect(results.first.status, AttentionClearStatus.complete);
+        expect(await _countOperations(writer, 'OPu09bconc'), 1);
+        expect(await _memberIds(writer, 'OPu09bconc'), hasLength(5));
+        final header = await _header(writer, 'OPu09bconc');
+        expect(header, ['complete', 5, 0, 0]);
       },
     );
   }, skip: skipReason);
@@ -413,3 +897,66 @@ INSERT INTO public.notification_outbox (
     'threadKey': requiresAction ? 'v1|needsMe|$id|$_viewerId' : null,
   },
 );
+
+Future<Object?> _tombstoneDismissedAt(
+  Connection writer,
+  String beaconId,
+) async {
+  final rows = await writer.execute(
+    Sql.named(
+      'SELECT tombstone_dismissed_at FROM public.inbox_item '
+      'WHERE user_id = @userId AND beacon_id = @beaconId',
+    ),
+    parameters: {'userId': _viewerId, 'beaconId': beaconId},
+  );
+  return rows.isEmpty ? null : rows.first.first;
+}
+
+Future<List<Object?>> _header(Connection writer, String operationId) async {
+  final rows = await writer.execute(
+    Sql.named(
+      'SELECT status, applied, skipped, failed '
+      'FROM public.attention_clear_operation WHERE id = @id',
+    ),
+    parameters: {'id': operationId},
+  );
+  return rows.first.toList();
+}
+
+Future<int> _countOperations(Connection writer, String operationId) async {
+  final rows = await writer.execute(
+    Sql.named(
+      'SELECT count(*) FROM public.attention_clear_operation WHERE id = @id',
+    ),
+    parameters: {'id': operationId},
+  );
+  return rows.first.first! as int;
+}
+
+/// A Request forwarded to the viewer after the sweep captured its membership.
+Future<void> _forwardNewRequest(
+  Connection writer, {
+  required String beaconId,
+  required String forwardId,
+}) async {
+  await writer.execute(
+    Sql.named(
+      'INSERT INTO public.beacon (id, user_id, title, description, status) '
+      "VALUES (@id, @authorId, 'Late', 'Arrived mid-sweep', 0)",
+    ),
+    parameters: {'id': beaconId, 'authorId': _authorId},
+  );
+  await writer.execute(
+    Sql.named(
+      'INSERT INTO public.beacon_forward_edge '
+      '(id, beacon_id, sender_id, recipient_id) '
+      'VALUES (@id, @beaconId, @senderId, @recipientId)',
+    ),
+    parameters: {
+      'id': forwardId,
+      'beaconId': beaconId,
+      'senderId': _authorId,
+      'recipientId': _viewerId,
+    },
+  );
+}
