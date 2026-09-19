@@ -669,9 +669,12 @@ R4 blocks the card outright and R1/R2 mean owner decisions A and B are not yet d
      **fail loudly** on a violating row rather than skip it — a silent repair here would hide precisely the
      producer bug the constraint exists to catch. Any legacy remediation belongs to U18, which already owns the
      unkeyed-obligation gate.
-  2. With the shape unstorable, scope `my desk.count` to `surface = 'myWork'` per §6, and the same for
-     `attentionFeed`'s own `needs_you_total` (`attention_repository.dart:709`), which is unscoped for the same
-     reason.
+  2. With the shape unstorable, deliver §6's `my desk.count` as a **new** field (`myDeskCount`) scoped to
+     `surface = 'myWork'`. **Not** by re-scoping `needsYouTotal`: U15R-d established that the legacy three keep
+     their pre-U15R-d meaning until U18 retires them, and this unit does not get to make an exception for the
+     one whose name happens to be closest. `attentionFeed`'s own `needs_you_total`
+     (`attention_repository.dart:709`) is legacy for the same reason and stays as it is; if the feed needs the
+     §6 count it gains its own field too.
   3. Rewrite the PG test that pinned the gap (`U15R-d contract gap — a beacon-less live obligation …`) into its
      inverse: the shape is now rejected, **by name**, the way U04 taught us to assert a constraint.
 

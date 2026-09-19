@@ -9858,3 +9858,109 @@ It was 1 — the viewer cannot read a foreign beacon's content, so that receipt 
 control assertion (`expect(await composed(), 2)`) is what surfaced it; without it the test would have compared
 one number to the same number and proved nothing about the foreign row it named. Exactly the fixture-does-not-
 reach-the-path shape U15R-d ended on, caught this time by writing the control before the mutation.
+
+## verify — U15R-e — READ-ONLY pass
+
+**Layer:** verify (read-only). **UNIT_BASE:** `e25dd960b`. **Range:** `f453de1f3` · `e4137b0d5` · `e5dd1a7cc` · `b639d56de` (+ journal). Gates **not** re-run (identical to implementer and manager).
+
+### FIXTURES (re-based two; one deleted)
+
+Audited `AttentionDismissibleSql.visibleWithSurface` (`scope` absorbs only `requires_action ∧ settlement_kind IS NULL ∧ beacon_id IS NOT NULL`; surface = myWork iff beacon ∈ scope).
+
+| File | Claim | Verdict |
+|------|-------|---------|
+| `attention_dismissible_predicate_pg_test.dart` | Settled obligation on `_forwardedBeaconId` → Activity; `withoutObligationExclusion` flips membership | **Isolates** — forwarded Request is readable (forward edge + inbox) but outside `responsibility_scope_base_beacons`; settled row does not enter scope UNION; Set R still requires `surface = 'activity'`. Probe removes `AND NOT v.requires_action` from `dismissibleReceipts` (matches `activeOptional('v')` expansion). |
+| `attention_dismiss_sweep_pg_test.dart` | Same fixture shape for capture / sweep | **Isolates** — same reasoning; `_looseCapture` mutates `AttentionSweepRepository.captureSql` via the same `replaceAll` on `activity_optional_dismissible`. |
+| `attention_predicate_unification_pg_test.dart` | Request-less obligation removed | **N/A (deleted)** — justification sound; tombstone visibility assertion retained. |
+
+Using `_ownedBeaconId` for the settled-obligation fixture would have excluded via `surface = 'myWork'`, not `NOT requires_action` alone — forwarded beacon choice is load-bearing.
+
+### DELETION
+
+Removed `Nu10aunifoblp` insert + `visible` assertion: **sound** — m0191 rejects the shape at insert. `scope` still contains `AND visible_raw.beacon_id IS NOT NULL` (lines 43–45 of `attention_dismissible_sql.dart`); comments at setUp and test document unreachable-on-storable-DB status. Constraint pinned by name in `attention_active_attention_axis_pg_test.dart` (`U15R-e — a Request-less live obligation…` + control `Ne06ok`).
+
+### REDUNDANCY (`surfaceSummary` only)
+
+`needsYouTotal` = `liveObligation ∧ primaryPlacement` on all `visible` rows (no surface filter). `myDeskCount` adds `surface = 'myWork'`. For any **storable** row counting toward `needsYouTotal`, the row is a visible live obligation with a non-null `beacon_id` (m0191); that beacon is absorbed into `scope` in the same CTE, so surface is myWork — the surface leg drops nothing. Documented in m0191 comment, `myDeskCountExpression` doc, contract `surfaceSummaryFields.myDeskCount`, and U15R-e journal § “provably redundant”. **Not** claimed for `attentionFeed.summary.needsYouTotal` (unchanged, no `primaryPlacement`) — per brief.
+
+Client/widget tests deliberately diverge `needsYouTotal` and `myDeskCount` in fakes to prove wiring; that is intentional, not a DB counterexample.
+
+### ACCEPTANCE (three required items)
+
+| Item | Status | Evidence |
+|------|--------|----------|
+| m0191 loud CHECK | **met** | `m0191.dart`: `ADD CONSTRAINT … CHECK (NOT requires_action OR beacon_id IS NOT NULL)` with no `NOT VALID`; PG test asserts `notification_outbox__obligation_beacon_chk` by name + storing control |
+| `myDeskCount` new §6 field | **met** | `myDeskCountExpression`, GraphQL/custom_types/resolvers, client schema/entity/repo, `surfaceMyDeskCount` / navbar; `needsYouTotal` SQL unchanged in `surfaceSummary` and feed |
+| Invert gap test + contract | **met** | `myDeskCountGap` → `obligationsAlwaysNameARequest` in axis JSON; inverse PG test replaces U15R-d gap test |
+
+### Test honesty / scope
+
+- `CHANGES IN U15R-e` on changed client/home assertions and the two re-based server tests; additive contract keys only (no flipped axis numbers).
+- No edits in unit range to untouchables (`pubspec`, `web/index.html`, generated `*.g.dart`, force_directed_graphview, keys, etc.).
+- Deletion in unification test is documented, not silent weakening.
+
+### Mutation spot-check (read-only reasoning; two load-bearing)
+
+1. **Set R obligation exclusion** — `withoutObligationExclusion` targets the literal `AND NOT v.requires_action` present in expanded `dismissibleReceipts`; settled Activity obligation would become `['Nu09aproblig']` / capture member if removed — matches test expectations.
+2. **m0191** — `_beaconlessObligation` uses profile-policy live obligation with `beacon_id` NULL; control `_obligation(…, beaconId: _ownedBeaconId)` proves rejection is not fixture noise.
+
+Implementer journal lists mutation discipline but not a five-row table for U15R-e; not a code defect.
+
+**STATUS: pass**
+
+## manager — U15R-e accepted; §6's four indicator rules are complete
+
+**Verdict: accepted.** Verify returned `pass` on a read-only audit pass (deliberately scoped: the full gates had
+already been run twice, and the previous verify layer hit its hard timeout re-running them instead of auditing —
+which is where it had found the unit's only real defect). My independent gates: server non-PG **1690 / 0 skips**,
+server PG **1054 / 24 skips**, client **3826 / 29 skips**, lints server 0/0 and client 30/30 against a freshly
+re-read baseline.
+
+**§6's indicator block is now delivered in full**, each rule as its own field, none of them a legacy total
+wearing a new meaning:
+
+| §6 rule | field | unit |
+| --- | --- | --- |
+| `my desk.dot` | `myDeskDot` | U15R-d |
+| `my desk.count` | `myDeskCount` | U15R-e |
+| `for you.dot` | `forYouDot` | U15R-d |
+| `for you.count` | *no field at any layer* | U15R-d — the absence is the implementation |
+
+`activityUnreadTotal`, `myWorkUnreadTotal` and `needsYouTotal` keep their pre-U15R-d meaning and retire in U18.
+
+### Mutations, recorded here because the footer is not the journal
+
+The verify pass noted the journal described the discipline without listing the evidence. Transcribed from the
+inner's footer, each with the tests that failed under it:
+
+| mutation | failed |
+| --- | --- |
+| `m0191` removed from `_allMigrations` | `U15R-e — a Request-less live obligation is rejected …` and only it (+30 −1) |
+| `liveObligation('v')` → `activeAttention('v')` in `myDeskCountExpression` | the §6 count test, the M1 test, and the contract-driven `a seen but uncleared optional receipt still asks for attention` |
+| `primaryPlacement('v')` deleted from `myDeskCountExpression` | exactly `U15R-e §6 my desk.count — a timeline_only obligation is not counted` |
+| `'myDeskCount'` removed from the resolver map | `attentionSurfaceSummary exposes the §6 indicators beside the legacy totals` |
+| client `surfaceMyDeskCount` → `surfaceNeedsYouTotal` | 18 failures across the two navbar suites, plus `a legacy needsYouTotal alone does not raise the badge` |
+
+### Two corrections to the record
+
+**Two fixtures were re-based, one was deleted** — the commit message and my own interim summary both said
+"three re-based". `attention_predicate_unification_pg_test.dart`'s Request-less obligation was removed outright,
+because m0191 makes the shape unstorable and the assertion would have asserted a row the database refuses to
+hold. The `beacon_id IS NOT NULL` clause it covered survives in the `scope` CTE on purpose: `scope` is
+authorization-critical and must not silently depend on a constraint declared elsewhere.
+
+**The redundancy is real and was re-derived independently.** Once m0191 holds, every visible live obligation
+names a Request, that Request joins `scope`, and the row's surface is necessarily `myWork` — so `myDeskCount`
+and the legacy `needsYouTotal` return the same number on every storable database. `surface = 'myWork'` is
+written anyway because §6 states the rule that way and the legacy field retires with a *different* meaning.
+Recorded in `myDeskCountExpression`, m0191, the contract JSON and here, so that a future reader who rediscovers
+the equality does not "simplify" a rule into a coincidence.
+
+### The falsifiability requirement paid for itself twice in one group
+
+The brief for this unit required every test to be mutated and shown to fail. It caught the implementer's own
+first draft of the M1 test — a second obligation placed on a Request the viewer cannot read, claiming a composed
+target of 2 where the true value was 1. That is the same defect shape as R10, as U15R-d's M1 helper, and as my
+own vacuous placement test: **an assertion true for a reason other than the one it claims.** Four instances in
+one remediation group. The pattern that catches it is cheap and should be the default for the remaining units:
+assert the target's own value, not only its agreement with the thing under test.
