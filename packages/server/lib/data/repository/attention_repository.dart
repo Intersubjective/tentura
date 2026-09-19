@@ -40,7 +40,7 @@ JOIN public.notification_outbox receipt ON receipt.id = visible.receipt_id''';
         .customSelect(
           '''SELECT DISTINCT receipt.beacon_id
 $_authorizedReceiptJoin
-WHERE receipt.seen_at IS NULL
+WHERE ${AttentionDismissibleSql.activeAttention('receipt')}
   AND receipt.beacon_id IN ($placeholders)''',
           variables: [
             Variable<String>(accountId),
@@ -118,7 +118,11 @@ ORDER BY beacon_id, created_at DESC, id DESC
     final results = <MyWorkBeaconAttention>[];
     for (final entry in byBeacon.entries) {
       final receipts = entry.value;
-      final unseenCount = receipts.where((receipt) => receipt.isUnread).length;
+      // U10b: the count is active optional attention, not unread receipts.
+      // Reading a Request no longer empties My Desk (D02); clearing does.
+      final unseenCount = receipts
+          .where((receipt) => receipt.isActiveOptional)
+          .length;
       final liveObligations = [
         for (final receipt in receipts)
           if (receipt.isLiveObligation) receipt,
@@ -128,7 +132,7 @@ ORDER BY beacon_id, created_at DESC, id DESC
       }
       AttentionReceipt? latestUnseen;
       for (final receipt in receipts) {
-        if (receipt.isUnread && !receipt.isLiveObligation) {
+        if (receipt.isActiveOptional) {
           latestUnseen = receipt;
           break;
         }
@@ -167,15 +171,17 @@ WITH $_visibleWithSurfaceCte,
 summary AS (
   SELECT
     COUNT(*) FILTER (
-      WHERE seen_at IS NULL AND surface = 'activity'
+      WHERE ${AttentionDismissibleSql.activeAttention('v')}
+        AND v.surface = 'activity'
     )::int AS activity_unread_total,
     COUNT(*) FILTER (
-      WHERE seen_at IS NULL AND surface = 'myWork'
+      WHERE ${AttentionDismissibleSql.activeAttention('v')}
+        AND v.surface = 'myWork'
     )::int AS my_work_unread_total,
     COUNT(*) FILTER (
-      WHERE requires_action AND settlement_kind IS NULL
+      WHERE ${AttentionDismissibleSql.liveObligation('v')}
     )::int AS needs_you_total
-  FROM visible
+  FROM visible v
 )
 SELECT * FROM summary
 ''',
@@ -189,7 +195,7 @@ SELECT * FROM summary
     );
   }
 
-  static const _visibleStreamColumns = '''
+  static String get _visibleStreamColumns => '''
     v.id,
     v.account_id,
     v.category,
@@ -219,7 +225,10 @@ SELECT * FROM summary
     v.settled_by_user_id,
     v.settled_by_occurrence_id,
     v.tombstone_copy,
-    v.surface''';
+    v.cleared_at,
+    v.clear_reason,
+    v.surface,
+    (${AttentionDismissibleSql.activeAttention('v')}) AS is_active_attention''';
 
   /// Eligible inbox representatives + child Activity stats shared by the stream.
   ///
@@ -227,7 +236,16 @@ SELECT * FROM summary
   /// stream forward row, or a synthetic `requestActivity` row — never as
   /// standalone feed tiles.
   /// The pinned zone is shared with the sweep — see [_visibleWithSurfaceCte].
-  static const _activityGroupingCtes =
+  ///
+  /// U10b — grouping eligibility is *active attention*, not "any receipt".
+  /// `event_total` and `event_unseen_count` count only rows that still ask for
+  /// something, so a `requestActivity` group whose children have all been
+  /// cleared retires (gated below on `event_total > 0`) instead of lingering
+  /// as an empty card. `max_created_at` deliberately stays over **every**
+  /// child: it is an ordering input, U10c owns ordering, and narrowing it here
+  /// would make clearing an optional event silently reshuffle the pinned
+  /// zone — one of the three ways this unit goes wrong quietly.
+  static String get _activityGroupingCtes =>
       '''
 ${AttentionDismissibleSql.eligiblePinned},
 eligible_forward AS (
@@ -278,13 +296,17 @@ beacon_activity_stats AS (
   SELECT
     beacon_id,
     MAX(created_at) AS max_created_at,
-    COUNT(*)::int AS event_total,
-    COUNT(*) FILTER (WHERE seen_at IS NULL)::int AS event_unseen_count
-  FROM activity_child_receipts
+    COUNT(*) FILTER (
+      WHERE ${AttentionDismissibleSql.activeAttention('child')}
+    )::int AS event_total,
+    COUNT(*) FILTER (
+      WHERE ${AttentionDismissibleSql.activeOptional('child')}
+    )::int AS event_unseen_count
+  FROM activity_child_receipts child
   GROUP BY beacon_id
 )''';
 
-  static const _activityPageStreamCte = '''
+  static String get _activityPageStreamCte => '''
 $_activityGroupingCtes,
 page_stream AS (
   SELECT
@@ -332,7 +354,7 @@ page_stream AS (
         FROM visible act
         WHERE act.beacon_id = ef.beacon_id
           AND act.surface = 'activity'
-          AND act.seen_at IS NULL
+          AND ${AttentionDismissibleSql.activeOptional('act')}
       )
       THEN NULL::timestamptz
       ELSE GREATEST(
@@ -361,7 +383,24 @@ page_stream AS (
         AND ef.can_read_tombstone
       )
     ) AS tombstone_copy,
+    NULL::timestamptz AS cleared_at,
+    NULL::text AS clear_reason,
     'activity'::text AS surface,
+    -- A grouped row has no optional axis of its own; its dot is whether any
+    -- child still asks. Same question as the synthetic `seen_at` above, named
+    -- on the axis the indicator now reads instead of coalesced read state.
+    CASE
+      WHEN ef.beacon_id NOT IN (SELECT scope.beacon_id FROM scope)
+       AND EXISTS (
+         SELECT 1
+         FROM visible act
+         WHERE act.beacon_id = ef.beacon_id
+           AND act.surface = 'activity'
+           AND ${AttentionDismissibleSql.activeOptional('act')}
+       )
+      THEN true
+      ELSE false
+    END AS is_active_attention,
     'forward'::text AS item_kind,
     CASE
       WHEN ef.beacon_id IN (SELECT scope.beacon_id FROM scope) THEN 'helping'
@@ -425,7 +464,10 @@ page_stream AS (
     NULL::text AS settled_by_user_id,
     NULL::text AS settled_by_occurrence_id,
     NOT public.beacon_can_read_content(stats.beacon_id, \$1) AS tombstone_copy,
+    NULL::timestamptz AS cleared_at,
+    NULL::text AS clear_reason,
     'activity'::text AS surface,
+    (stats.event_unseen_count > 0) AS is_active_attention,
     'requestActivity'::text AS item_kind,
     NULL::text AS forward_outcome,
     NULL::int AS forward_count,
@@ -434,7 +476,8 @@ page_stream AS (
     stats.event_unseen_count
   FROM beacon_activity_stats stats
   JOIN public.beacon b ON b.id = stats.beacon_id
-  WHERE stats.beacon_id NOT IN (SELECT beacon_id FROM eligible_representative)
+  WHERE stats.event_total > 0
+    AND stats.beacon_id NOT IN (SELECT beacon_id FROM eligible_representative)
     AND stats.beacon_id NOT IN (SELECT beacon_id FROM dismissed_tombstone)
     AND stats.beacon_id NOT IN (SELECT scope.beacon_id FROM scope)
 
@@ -470,7 +513,10 @@ page_stream AS (
     NULL::text AS settled_by_user_id,
     NULL::text AS settled_by_occurrence_id,
     false AS tombstone_copy,
+    NULL::timestamptz AS cleared_at,
+    NULL::text AS clear_reason,
     'activity'::text AS surface,
+    true AS is_active_attention,
     'watchingDigest'::text AS item_kind,
     NULL::text AS forward_outcome,
     NULL::int AS forward_count,
@@ -484,7 +530,7 @@ page_stream AS (
     FROM public.inbox_item ii
     INNER JOIN visible v
       ON v.beacon_id = ii.beacon_id
-     AND v.seen_at IS NULL
+     AND ${AttentionDismissibleSql.activeOptional('v')}
      AND v.created_at > ii.latest_forward_at
     WHERE ii.user_id = \$1
       AND ii.status = 1
@@ -534,9 +580,8 @@ page AS (
   FROM page_stream stream
   WHERE (
     \$2 = 'all'
-    OR (\$2 = 'unread' AND stream.seen_at IS NULL)
-    OR (\$2 = 'needsYou' AND stream.requires_action
-        AND stream.settlement_kind IS NULL)
+    OR (\$2 = 'unread' AND stream.is_active_attention)
+    OR (\$2 = 'needsYou' AND ${AttentionDismissibleSql.liveObligation('stream')})
   )
   AND (
     \$3::text IS NULL
@@ -559,9 +604,8 @@ page AS (
   FROM visible
   WHERE (
     \$2 = 'all'
-    OR (\$2 = 'unread' AND visible.seen_at IS NULL)
-    OR (\$2 = 'needsYou' AND visible.requires_action
-        AND visible.settlement_kind IS NULL)
+    OR (\$2 = 'unread' AND ${AttentionDismissibleSql.activeAttention('visible')})
+    OR (\$2 = 'needsYou' AND ${AttentionDismissibleSql.liveObligation('visible')})
   )
   AND (
     \$3::text IS NULL
@@ -585,13 +629,13 @@ page AS (
 WITH $_visibleWithSurfaceCte,
 summary AS (
   SELECT COUNT(*) FILTER (
-    WHERE seen_at IS NULL
-      AND (\$4::text IS NULL OR surface = \$4)
+    WHERE ${AttentionDismissibleSql.activeAttention('v')}
+      AND (\$4::text IS NULL OR v.surface = \$4)
   )::int AS unread_total,
   COUNT(*) FILTER (
-    WHERE requires_action AND settlement_kind IS NULL
+    WHERE ${AttentionDismissibleSql.liveObligation('v')}
   )::int AS needs_you_total
-  FROM visible
+  FROM visible v
 ),
 $pageCte
 SELECT summary.unread_total, summary.needs_you_total, page.*
@@ -692,6 +736,10 @@ ORDER BY page.created_at DESC NULLS LAST, page.id DESC NULLS LAST
       settledByOccurrenceId: row.readNullable<String>(
         'settled_by_occurrence_id',
       ),
+      clearedAt: _readTimestamp(row, 'cleared_at'),
+      clearReason: row.data.containsKey('clear_reason')
+          ? row.readNullable<String>('clear_reason')
+          : null,
       surface: attentionSurfaceFromWireName(row.read<String>('surface')),
       itemKind: row.data['item_kind'] == null
           ? AttentionItemKind.receipt
@@ -794,6 +842,7 @@ ranked AS (
   WHERE v.surface = 'activity'
     AND v.beacon_id IN ($placeholders)
     AND v.presentation_key IS DISTINCT FROM 'relay_received'
+    AND ${AttentionDismissibleSql.activeAttention('v')}
     $cursorClause
 )
 SELECT *
@@ -864,7 +913,7 @@ ranked AS (
       FROM visible act
       WHERE act.beacon_id = ep.beacon_id
         AND act.surface = 'activity'
-        AND act.seen_at IS NULL
+        AND ${AttentionDismissibleSql.activeOptional('act')}
     ) AS unseen
   FROM eligible_pinned ep
   JOIN public.inbox_item ii
