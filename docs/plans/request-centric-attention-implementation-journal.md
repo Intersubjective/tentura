@@ -4985,3 +4985,38 @@ site).
 STATUS: complete
 
 ---
+
+### Manager verdict — U09b · **ACCEPTED** (hard; inner Opus-low ✓ / verify pass / one remediation)
+
+Overseer's full suite: **1680 non-PG**, **930 PG / 24 known skips** (up from 909). Commits `ef85003aa` capture ·
+`8b1046d7d` batched apply + m0186 · `2b03205d9` GraphQL · `f51adfbba` journal · `387293f14` remediation.
+
+**Owner decision A is now enforced in depth and proven by falsification.** An unanswered forward survives a
+plain sweep, a bounded-then-resumed sweep, a replayed operation id, and becoming answerable mid-sweep — and the
+sweep's **own** predicate refuses it before m0185's row-level guard has to, so the guarantee is not resting on
+its last line of defence. Both the inner layer and the verifier re-ran the exclusions against deliberately
+loosened copies of the predicate to prove those tests can fail.
+
+**The defect this unit caught is a good argument for race tests.** `UNION ALL` takes its column names from its
+first branch, and the apply re-check aliased `member_id` only on the receipt branch — so a batch containing
+**only outcomes** read a null column. Every happy-path test passed; only the one-member-per-batch race tests
+exposed it. The verifier then checked for the same first-branch-aliasing mistake elsewhere in the sweep SQL and
+found none.
+
+**The remediation answered a "safe because it cannot happen" claim with a mechanism.** The verify pass called
+the missing `ON CONFLICT` on the outcome capture branch safe "because capture runs once per operation". The real
+reason is narrower and nameable: capture shares the header insert's transaction, and Postgres' `ON CONFLICT DO
+NOTHING` uses **speculative insertion** — a twin with the same operation id *waits* on the uncommitted tuple,
+gets `inserted == 0`, and never reaches capture. The worker proved the asymmetry was otherwise real by mutating
+that gate, watching the outcome-only concurrency test fail with 23505 on
+`attention_clear_operation_member__outcome_once`, then adding the `ON CONFLICT` anyway because it costs nothing.
+
+**Reporting is honest:** `applied` is tied to actual `cleared_by_operation_id` / tombstone writes, every skip
+carries a typed reason (`awaitingDecision`, `alreadyCleared`, `responsibilityGained`, `decisionChanged`), and a
+bounded call returns `partial` with a real `pendingCount`.
+
+**Deliberate non-work:** `undo_deadline` is still NULL — its length is a product decision belonging to U09c,
+and writing it here would have been untestable. Pending prompts remain unmodeled because they have no feed row
+yet; the journal records that they will **not** fall out of the predicate by themselves.
+
+---
