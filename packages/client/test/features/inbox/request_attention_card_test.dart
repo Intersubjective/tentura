@@ -535,15 +535,28 @@ void main() {
           height: 1600,
           child: ListView(
             children: [
+              // The worst case the card can present, not the smallest: long RU
+              // title, a deadline, a pinned forward with a note, and events
+              // behind it. A minimal fixture passes this test whatever the
+              // header does, which is the failure mode the test exists for —
+              // U16a's verify pass caught it built that way.
               RequestAttentionCard(
-                beacon: _beacon,
+                beacon: _beacon.copyWith(
+                  title:
+                      'Нужен прицеп и пара рук на выходных, иначе всё встанет '
+                      'совсем — помогите пожалуйста кто может',
+                  endAt: DateTime.now().add(const Duration(hours: 6)),
+                ),
                 variant: RequestAttentionCardVariant.pinned,
                 facts: const RequestAttentionFacts(
                   requestId: 'b1',
                   pendingForward: true,
+                  unclearedOptionalEvents: 3,
                 ),
                 provenance: _provenance(pinned: _pinnedForward),
-                actors: {'u1': _bai},
+                eventTotal: 4,
+                eventsPreview: [_event(id: 'e1'), _event(id: 'e2')],
+                actors: {'u1': _bai, 'u3': _mila},
                 onOpenBeacon: () {},
                 onOpenTimeline: () {},
                 onOfferHelp: () {},
