@@ -115,6 +115,13 @@ void main() {
       await signInAndCompleteHead();
       final summary = Completer<AttentionSurfaceSummary>();
       repository.pendingSurfaceSummaries.add(summary);
+      // CHANGES IN U15R-d: the same U15R-c change, on the fourth kind. A
+      // notification hint is a transition too — clear state and outcome
+      // generation move a Request between surfaces — so the page and the
+      // totals are fetched together and committed once (R5, D14), and this
+      // path reads a page.
+      final page = Completer<AttentionFeed>();
+      repository.pendingFetches.add(page);
       realtimePort.emitChange(
         const RealtimeEntityChange(
           kind: RealtimeEntityKind.notification,
@@ -125,6 +132,7 @@ void main() {
       );
       await attentionCaseTestSettle();
       summary.complete(_surfaceSummary(myWork: 3));
+      page.complete(attentionCaseTestFeed());
       await attentionCaseTestSettle();
       expect(surfaceSummaries.last, _surfaceSummary(myWork: 3));
     });
@@ -258,7 +266,10 @@ void main() {
       final head = Completer<AttentionFeed>();
       final stale = Completer<AttentionSurfaceSummary>();
       final fresh = Completer<AttentionSurfaceSummary>();
-      repository.pendingFetches.add(head);
+      // CHANGES IN U15R-d: a notification hint now refetches the mounted page
+      // alongside the totals (R5), so the transition needs a second head.
+      final afterHint = Completer<AttentionFeed>();
+      repository.pendingFetches.addAll([head, afterHint]);
       repository.pendingSurfaceSummaries.addAll([stale, fresh]);
       accounts.emit('account-a');
       await attentionCaseTestSettle();
@@ -277,6 +288,7 @@ void main() {
 
       stale.complete(_surfaceSummary(activity: 99));
       fresh.complete(_surfaceSummary(activity: 1));
+      afterHint.complete(attentionCaseTestFeed());
       await attentionCaseTestSettle();
       expect(surfaceSummaries.last.activityUnreadTotal, 1);
     });

@@ -174,9 +174,16 @@ void main() {
     test(
       'coalesces notification hints to one in-flight refresh and one rerun',
       () async {
+        // CHANGES IN U15R-d: `notification` is routed through the coordinated
+        // cross-surface transition (R5, D14) instead of the debounced head
+        // refresher, so the burst costs one *transition* fetch rather than
+        // joining the one already in flight. The property the test is named
+        // for is unchanged and is what the counts below still pin: twenty
+        // hints produce one in-flight refresh and one rerun, never twenty.
         final first = Completer<AttentionFeed>();
-        final second = Completer<AttentionFeed>();
-        repository.pendingFetches.addAll([first, second]);
+        final transition = Completer<AttentionFeed>();
+        final rerun = Completer<AttentionFeed>();
+        repository.pendingFetches.addAll([first, transition, rerun]);
         accounts.emit('account-a');
         await _settle();
         expect(repository.fetchCalls, 1);
@@ -186,21 +193,31 @@ void main() {
             const RealtimeEntityChange(
               kind: RealtimeEntityKind.notification,
               aggregateId: 'account-a',
+              childId: 'beacon-1',
               operation: RealtimeOperation.insert,
               source: RealtimeChangeSource.serverInvalidation,
             ),
           );
         }
         await _settle();
-        expect(repository.fetchCalls, 1);
+        expect(
+          repository.fetchCalls,
+          2,
+          reason: 'twenty hints, one transition in flight',
+        );
 
         first.complete(_feed());
+        transition.complete(_feed());
         await _settle();
-        expect(repository.fetchCalls, 2);
+        expect(
+          repository.fetchCalls,
+          3,
+          reason: 'and exactly one rerun for everything that queued behind it',
+        );
 
-        second.complete(_feed());
+        rerun.complete(_feed());
         await _settle();
-        expect(repository.fetchCalls, 2);
+        expect(repository.fetchCalls, 3);
       },
     );
 

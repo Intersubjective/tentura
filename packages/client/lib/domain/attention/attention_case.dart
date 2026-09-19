@@ -211,10 +211,15 @@ final class AttentionCase {
       // ignore: no_default_cases
       default:
         // Clear state and outcome generation arrive as notification hints;
-        // the affected Request rides on the NOTIFY extras.
-        _invalidateRequest(change.childId);
-        unawaited(_requestSurfaceSummaryRefresh());
-        _requestHeadRefreshForAllAttached();
+        // the affected Request rides on the NOTIFY extras, which name it on
+        // `childId` rather than `aggregateId`.
+        //
+        // U15R-d: the same coordinated route as the other three. This one
+        // used to announce the Request and refresh the counters and the feed
+        // heads in three independent steps, so My Desk could pick it up while
+        // For You was still holding the old page — the state D14 forbids, on
+        // the one kind R5's brief did not name.
+        unawaited(_transitionAcrossSurfaces(change.childId));
     }
   }
 
@@ -227,12 +232,43 @@ final class AttentionCase {
   /// and exactly what the U15 test claimed to rule out while observing only
   /// My Desk's own two lists (R5).
   Future<void> _transitionAcrossSurfaces(String? beaconId) async {
-    await _refreshAcrossSurfaces();
-    // Announced whatever the refresh did — including when it declined to run
-    // because nothing is signed in or attached. A projection that never hears
-    // about the move is worse than one that hears late.
-    _invalidateRequest(beaconId);
+    // One in flight, one rerun — the same discipline the head refresher has
+    // always applied, and load-bearing since U15R-d put `notification` on
+    // this route: a burst of twenty NOTIFY hints must not become twenty
+    // coordinated refreshes. The rerun covers every Request named while the
+    // first was in flight, so coalescing never loses an announcement.
+    if (_transitionInFlight) {
+      _transitionQueued = true;
+      if (beaconId != null && beaconId.isNotEmpty) {
+        _transitionQueuedBeaconIds.add(beaconId);
+      }
+      return;
+    }
+    _transitionInFlight = true;
+    var beaconIds = <String>{
+      if (beaconId != null && beaconId.isNotEmpty) beaconId,
+    };
+    try {
+      do {
+        _transitionQueued = false;
+        await _refreshAcrossSurfaces();
+        // Announced whatever the refresh did — including when it declined to
+        // run because nothing is signed in or attached. A projection that
+        // never hears about the move is worse than one that hears late.
+        for (final id in beaconIds) {
+          _invalidateRequest(id);
+        }
+        beaconIds = {..._transitionQueuedBeaconIds};
+        _transitionQueuedBeaconIds.clear();
+      } while (_transitionQueued);
+    } finally {
+      _transitionInFlight = false;
+    }
   }
+
+  bool _transitionInFlight = false;
+  bool _transitionQueued = false;
+  final _transitionQueuedBeaconIds = <String>{};
 
   void _invalidateRequest(String? beaconId) {
     if (beaconId == null || beaconId.isEmpty) return;

@@ -29,6 +29,11 @@ void main() {
     RealtimeEntityKind.beacon,
     RealtimeEntityKind.helpOffer,
     RealtimeEntityKind.inboxItem,
+    // CHANGES IN U15R-d: `notification` joins the loop. R5's brief named the
+    // other three, so U15R-c routed those through the coordinated transition
+    // and recorded this one as still refreshing the counters and the pages in
+    // two uncoordinated steps. Same defect class, same route.
+    RealtimeEntityKind.notification,
   ]) {
     test(
       'a ${kind.name} transition never shows the Request on both surfaces',
@@ -70,6 +75,7 @@ void main() {
             activityUnreadTotal: 1,
             myWorkUnreadTotal: 0,
             needsYouTotal: 0,
+            forYouDot: true,
           ),
         );
         await attentionCaseTestSettle();
@@ -130,6 +136,10 @@ void main() {
             operation: RealtimeOperation.update,
             source: RealtimeChangeSource.serverInvalidation,
             aggregateId: 'moved',
+            // A notification hint names its Request on `childId`; the other
+            // three name it on `aggregateId`. Both are set so one loop can
+            // drive all four.
+            childId: 'moved',
           ),
         );
 
@@ -145,6 +155,7 @@ void main() {
             activityUnreadTotal: 0,
             myWorkUnreadTotal: 1,
             needsYouTotal: 0,
+            myDeskDot: true,
           ),
         );
         movedHead.complete(

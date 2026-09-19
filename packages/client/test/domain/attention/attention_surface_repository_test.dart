@@ -95,7 +95,12 @@ void main() {
     await expectLater(repository.surfaceSummary(), throwsA(isA<StateError>()));
   });
 
-  test('surfaceSummary returns totals when the query succeeds', () async {
+  test('surfaceSummary returns totals and the two §6 dots', () async {
+    // CHANGES IN U15R-d: §6 names four indicator rules and none of the three
+    // totals is any of them. `myDeskDot` and `forYouDot` are non-nullable on
+    // the wire, so the fixture has to carry them — which is the point: a
+    // client that silently defaulted them would be back to inferring a dot
+    // from a total.
     remote.surfaceSummaryData = GAttentionSurfaceSummaryData.fromJson({
       '__typename': 'query_root',
       'attentionSurfaceSummary': {
@@ -103,12 +108,20 @@ void main() {
         'activityUnreadTotal': 2,
         'myWorkUnreadTotal': 5,
         'needsYouTotal': 1,
+        'myDeskDot': false,
+        'forYouDot': true,
       },
     });
     final summary = await repository.surfaceSummary();
     expect(summary.activityUnreadTotal, 2);
     expect(summary.myWorkUnreadTotal, 5);
     expect(summary.needsYouTotal, 1);
+    expect(
+      summary.myDeskDot,
+      isFalse,
+      reason: 'a myWorkUnreadTotal of 5 does not make the §6 dot true',
+    );
+    expect(summary.forYouDot, isTrue);
   });
 }
 
