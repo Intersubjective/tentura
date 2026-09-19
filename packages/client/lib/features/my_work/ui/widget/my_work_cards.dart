@@ -194,16 +194,27 @@ Widget _myWorkWhatsNewSection(
   required String currentUserId,
 }) {
   final tt = context.tt;
-  return Semantics(
-    identifier: TestIds.myWorkWhatsNew(vm.beaconId),
-    child: Padding(
-      padding: EdgeInsets.only(top: tt.tightGap),
-      child: MyWorkLastEventBody(
-        beacon: vm.beacon,
-        viewModel: vm,
-        currentUserId: currentUserId,
-        muted: true,
-      ),
+  return Padding(
+    padding: EdgeInsets.only(top: tt.tightGap),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: Semantics(
+            identifier: TestIds.myWorkWhatsNew(vm.beaconId),
+            child: MyWorkLastEventBody(
+              beacon: vm.beacon,
+              viewModel: vm,
+              currentUserId: currentUserId,
+              muted: true,
+            ),
+          ),
+        ),
+        // Beside the preview, not in the header: the identity row's trailing
+        // slot is a fixed-width menu box (`kBeaconCardMenuSlotWidth`) and
+        // overflows the moment anything joins the menu in it.
+        MyWorkCardAttentionIndicators(vm: vm),
+      ],
     ),
   );
 }
@@ -335,13 +346,7 @@ Widget _myWorkSharedPreviewHeader(
   return BeaconRequestPreviewIdentity(
     data: data,
     currentUserId: currentUserId,
-    trailing: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        MyWorkCardAttentionIndicators(vm: vm),
-        menu,
-      ],
-    ),
+    trailing: menu,
     titleMaxLines: 1,
     statusSemanticsIdentifier: statusSemanticsIdentifier,
   );
