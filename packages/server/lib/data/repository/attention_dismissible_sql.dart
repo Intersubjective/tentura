@@ -76,6 +76,37 @@ eligible_pinned AS (
   /// surface, and the pinned zone it must never sweep.
   static const prelude = '$visibleWithSurface,\n$eligiblePinned';
 
+  /// U10b — the active-attention axis, as one function (D02, D09, §6 M1).
+  ///
+  /// Three axes, not one (D02): reading is `seen_at`, the optional axis is
+  /// `cleared_at`, the obligation axis is `settlement_kind`. Until U10b every
+  /// dot, count and summary asked the *reading* question, so U08's clear and
+  /// U09's sweep wrote state nothing displayed.
+  ///
+  /// These are functions rather than constants for one reason: M1. The rule
+  /// deciding what a list shows by default and the rule behind its indicator
+  /// must be the same rule, so both call this with their own alias instead of
+  /// spelling it out. `attention_active_attention_axis_pg_test.dart` asserts
+  /// structurally that no caller writes `cleared_at IS NULL` by hand, and
+  /// behaviourally that loosening this moves the number and the list together.
+  static String activeOptional(String alias) =>
+      'NOT $alias.requires_action AND $alias.cleared_at IS NULL';
+
+  /// An obligation still owed: `requires_action` and not yet settled (D02).
+  static String liveObligation(String alias) =>
+      '$alias.requires_action AND $alias.settlement_kind IS NULL';
+
+  /// Active attention — what a surface indicator describes.
+  ///
+  /// The union is deliberate. D09 keeps the dot (optional) and the number
+  /// (obligations) independent *for display*, but a surface total that
+  /// dropped live obligations would take rows off the default list that the
+  /// viewer still owes an answer to — the "silently disappears" failure. The
+  /// split back into dot and number is the client's, from this total and
+  /// `needsYouTotal`.
+  static String activeAttention(String alias) =>
+      '((${activeOptional(alias)}) OR (${liveObligation(alias)}))';
+
   /// Set R — dismissible optional receipts, the `notification_outbox` axis.
   ///
   /// The exclusions are the point:
@@ -88,13 +119,12 @@ eligible_pinned AS (
   ///   responsible for is not dismissible from For You.
   /// * `relay_received` rows are the synthetic forward shell, not real
   ///   receipts; the forward itself is decided, never dismissed.
-  static const dismissibleReceipts = '''
+  static String get dismissibleReceipts => '''
 activity_optional_dismissible AS (
   SELECT v.id AS receipt_id, v.beacon_id
   FROM visible v
   WHERE v.surface = 'activity'
-    AND NOT v.requires_action
-    AND v.cleared_at IS NULL
+    AND ${activeOptional('v')}
     AND v.presentation_key IS DISTINCT FROM 'relay_received'
 )''';
 
@@ -137,5 +167,6 @@ activity_outcome_dismissible AS (
 )''';
 
   /// Everything above, ready to follow a `WITH`.
-  static const cte = '$prelude,\n$dismissibleReceipts,\n$dismissibleOutcomes';
+  static String get cte =>
+      '$prelude,\n$dismissibleReceipts,\n$dismissibleOutcomes';
 }

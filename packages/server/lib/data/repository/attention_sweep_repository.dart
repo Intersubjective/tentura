@@ -39,7 +39,7 @@ class AttentionSweepRepository implements AttentionSweepPort {
   /// Exposed so that the exclusion tests can loosen *this* string rather than
   /// a paraphrase of it: an exclusion test that cannot fail is the one defect
   /// that lets the sweep reject somebody's offer of help.
-  static const captureSql =
+  static String get captureSql =>
       '''
 WITH ${AttentionDismissibleSql.cte}
 SELECT

@@ -4,6 +4,7 @@ import 'package:tentura_server/domain/attention/attention_clear_models.dart';
 import 'package:tentura_server/domain/port/attention_clear_port.dart';
 
 import '../database/tentura_db.dart';
+import 'attention_dismissible_sql.dart';
 
 /// U08 — storage for the clear command.
 ///
@@ -21,13 +22,18 @@ class AttentionClearRepository implements AttentionClearPort {
   /// `NOT requires_action`, so it cannot enter a capture; the m0178 CHECK
   /// `notification_outbox__clear_optional_only_chk` is the second line if this
   /// predicate ever regresses.
-  static const _eligibleReceipts = r'''
+  ///
+  /// U10b: this is the same `activeOptional` function the indicators call, so
+  /// what a clear may touch and what a dot counts cannot drift apart — a dot
+  /// the viewer has no way to extinguish is the M1 failure seen from the
+  /// other side.
+  static String get _eligibleReceipts =>
+      '''
 SELECT receipt.id, receipt.beacon_id
-  FROM public.visible_attention_receipts($1) visible
+  FROM public.visible_attention_receipts(\$1) visible
   JOIN public.notification_outbox receipt ON receipt.id = visible.receipt_id
- WHERE receipt.account_id = $1
-   AND NOT receipt.requires_action
-   AND receipt.cleared_at IS NULL''';
+ WHERE receipt.account_id = \$1
+   AND ${AttentionDismissibleSql.activeOptional('receipt')}''';
 
   @override
   Future<AttentionClearCapture> captureEligible({
@@ -220,14 +226,13 @@ ON CONFLICT (operation_id, receipt_id)
       ).join(',');
       await _database.customUpdate(
         '''
-UPDATE public.notification_outbox
+UPDATE public.notification_outbox outbox
    SET cleared_at = now(),
        clear_reason = \$2,
        cleared_by_operation_id = \$3
- WHERE account_id = \$1
-   AND cleared_at IS NULL
-   AND NOT requires_action
-   AND id IN ($placeholders)
+ WHERE outbox.account_id = \$1
+   AND ${AttentionDismissibleSql.activeOptional('outbox')}
+   AND outbox.id IN ($placeholders)
 ''',
         variables: [
           Variable<String>(accountId),
