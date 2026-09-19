@@ -31,11 +31,19 @@ final class AttentionSettlementCase extends UseCaseBase {
       accountId: accountId,
       receiptId: receiptId,
     );
-    if (eventType == AttentionEventType.reviewOpened.name) {
+    // D04 / §5, owner decision C (U07b2): nothing in the product can be
+    // honestly resolved by acknowledgment, so *no* obligation kind ends
+    // through this generic path — each one ends through its own domain
+    // transition (answer the offer, send the package, window close).
+    // `liveObligationEventType` only ever names a receipt that still
+    // `requires_action`, so a non-null answer here is by definition a live
+    // obligation, whatever kind it is.
+    if (eventType != null) {
       throw ArgumentError.value(
         receiptId,
         'receiptId',
-        'reviewOpened obligations are not user-settleable',
+        '$eventType obligations are not user-settleable; '
+            'they end through their own domain transition',
       );
     }
     return _settlements.settle(

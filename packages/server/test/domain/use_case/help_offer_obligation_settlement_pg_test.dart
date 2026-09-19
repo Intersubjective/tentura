@@ -38,7 +38,9 @@ import 'package:tentura_server/data/repository/vote_user_friendship_lookup.dart'
 import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
 import 'package:tentura_server/domain/port/trust_evidence_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
+import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/use_case/attention_expiry_sweep_case.dart';
+import 'package:tentura_server/domain/use_case/attention_settlement_case.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/beacon_lifecycle_effects_case.dart';
 import 'package:tentura_server/domain/use_case/capability_case.dart';
@@ -249,7 +251,66 @@ WHERE outbox.occurrence_id = occ.id
       );
       expect(await _helpOfferSettlementKind(writer, _helperId), 'superseded');
     }, skip: skipReason);
+
+    test('generic user settlement refuses a help-offer obligation', () async {
+      await harness.helpOfferCase.offerHelp(
+        beaconId: _beaconId,
+        userId: _helperId,
+      );
+      expect(await needsYou(_authorId), 1);
+
+      final receiptId = await _helpOfferReceiptId(writer, _helperId);
+      expect(receiptId, isNotNull);
+
+      final settlementCase = AttentionSettlementCase(
+        AttentionSettlementRepository(database),
+        env: target.databaseEnv,
+        logger: Logger('HelpOfferObligationSettlementPgTest'),
+      );
+
+      // Owner decision C: nothing in the product can be honestly resolved by
+      // acknowledgment, so the generic path must refuse at the use case.
+      await expectLater(
+        settlementCase.settle(
+          accountId: _authorId,
+          receiptId: receiptId!,
+          kind: AttentionSettlementKind.resolved,
+        ),
+        throwsA(isA<ArgumentError>()),
+      );
+      expect(await _helpOfferSettlementKind(writer, _helperId), isNull);
+
+      // Second layer: the repository statement refuses it even when reached
+      // directly, exactly as it already refuses `reviewOpened`.
+      final updated = await AttentionSettlementRepository(database).settle(
+        accountId: _authorId,
+        receiptId: receiptId,
+        kind: AttentionSettlementKind.resolved,
+      );
+      expect(updated, 0, reason: 'the settle statement must match no row');
+      expect(await _helpOfferSettlementKind(writer, _helperId), isNull);
+      expect(await needsYou(_authorId), 1);
+    }, skip: skipReason);
   }, skip: skipReason);
+}
+
+Future<String?> _helpOfferReceiptId(
+  Connection writer,
+  String offererId,
+) async {
+  final rows = await writer.execute('''
+SELECT outbox.id
+FROM public.notification_outbox AS outbox
+JOIN public.attention_occurrence AS occ ON occ.id = outbox.occurrence_id
+WHERE occ.event_type = 'helpOfferSubmitted'
+  AND outbox.beacon_id = '$_beaconId'
+  AND outbox.account_id = '$_authorId'
+  AND outbox.target_entity_id = '$offererId'
+ORDER BY outbox.created_at DESC
+LIMIT 1
+''');
+  if (rows.isEmpty) return null;
+  return rows.single[0] as String?;
 }
 
 Future<String?> _helpOfferSettlementKind(

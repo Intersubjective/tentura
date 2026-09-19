@@ -1334,6 +1334,7 @@ class AttentionSettlementRepository implements AttentionSettlementPort {
   final TenturaDb _database;
 
   static const _reviewOpenedEventType = 'reviewOpened';
+  static const _helpOfferSubmittedEventType = 'helpOfferSubmitted';
 
   @override
   Future<String?> liveObligationEventType({
@@ -1360,6 +1361,9 @@ WHERE outbox.id = $2
     return row?.read<String>('event_type');
   }
 
+  /// Second layer behind [AttentionSettlementCase] for owner decision C
+  /// (U07b2): the statement itself matches no obligation kind, so a caller
+  /// that reaches the repository directly still cannot acknowledge one away.
   @override
   Future<int> settle({
     required String accountId,
@@ -1385,12 +1389,14 @@ WHERE outbox.occurrence_id = occ.id
   )
   AND ($3 <> 'dismissed' OR outbox.suppression_class <> 'mandatory')
   AND occ.event_type IS DISTINCT FROM $4
+  AND occ.event_type IS DISTINCT FROM $5
 ''',
     variables: [
       Variable<String>(accountId),
       Variable<String>(receiptId),
       Variable<String>(kind.wireName),
       Variable<String>(_reviewOpenedEventType),
+      Variable<String>(_helpOfferSubmittedEventType),
     ],
     updateKind: UpdateKind.update,
   );
