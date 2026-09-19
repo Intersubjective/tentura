@@ -6111,5 +6111,10 @@
   "forwardCandidateSelect": "Выбрать",
   "forwardCandidateRemove": "Убрать",
   "forwardCandidateViewProfile": "Открыть полный профиль",
-  "forwardCandidateUnavailableMessage": "Этот человек больше недоступен."
+  "forwardCandidateUnavailableMessage": "Этот человек больше недоступен.",
+  "attentionCardQuotedTitle": "«{title}»",
+  "attentionCardTitleByForwarder": "«{title}» · от {name}",
+  "attentionCardClearAll": "Очистить всё",
+  "attentionCardA11yRequest": "Запрос «{title}», от {author}",
+  "attentionCardA11yEvents": "{count, plural, one{{count} новое событие} few{{count} новых события} many{{count} новых событий} other{{count} новых событий}}"
 }

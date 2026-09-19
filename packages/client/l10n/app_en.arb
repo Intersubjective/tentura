@@ -6361,5 +6361,34 @@
   "forwardCandidateSelect": "Select",
   "forwardCandidateRemove": "Remove",
   "forwardCandidateViewProfile": "View full profile",
-  "forwardCandidateUnavailableMessage": "This person is no longer available."
+  "forwardCandidateUnavailableMessage": "This person is no longer available.",
+  "attentionCardQuotedTitle": "“{title}”",
+  "@attentionCardQuotedTitle": {
+    "context": "RequestAttentionCard",
+    "description": "A Request title on a card headline, quoted per locale (issue-171 spec 6.1).",
+    "placeholders": { "title": { "type": "String" } }
+  },
+  "attentionCardTitleByForwarder": "“{title}” · from {name}",
+  "@attentionCardTitleByForwarder": {
+    "context": "RequestAttentionCard",
+    "description": "Tombstone header line: quoted title attributed to the last forwarder (spec 8).",
+    "placeholders": { "title": { "type": "String" }, "name": { "type": "String" } }
+  },
+  "attentionCardClearAll": "Clear all",
+  "@attentionCardClearAll": {
+    "context": "RequestAttentionCard",
+    "description": "Footer action clearing every optional event on a Request card (spec 6.2)."
+  },
+  "attentionCardA11yRequest": "Request “{title}”, by {author}",
+  "@attentionCardA11yRequest": {
+    "context": "RequestAttentionCard",
+    "description": "First clause of a card's whole-sentence semantics label (spec 11).",
+    "placeholders": { "title": { "type": "String" }, "author": { "type": "String" } }
+  },
+  "attentionCardA11yEvents": "{count, plural, one{{count} new event} other{{count} new events}}",
+  "@attentionCardA11yEvents": {
+    "context": "RequestAttentionCard",
+    "description": "Event-count clause of a card's semantics label (spec 11).",
+    "placeholders": { "count": { "type": "int" } }
+  }
 }
