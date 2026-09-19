@@ -1,22 +1,16 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 
-import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/attention_actor_ids.dart';
 import 'package:tentura/domain/attention/attention_actor_profiles_case.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
-import 'package:tentura/domain/contacts/contact_name_overlay.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/features/updates/updates_receipt_display_copy.dart';
-import 'package:tentura/features/updates/ui/widget/updates_feed_tile.dart';
-import 'package:tentura/ui/bloc/screen_cubit.dart';
+import 'package:tentura/features/inbox/ui/widget/attention_mini_card.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/relative_time.dart';
 
 /// Compact activity-event previews nested under an offer or stream row.
 class ActivityEventSubcardBlock extends StatefulWidget {
@@ -68,6 +62,13 @@ class _ActivityEventSubcardBlockState extends State<ActivityEventSubcardBlock> {
     }
   }
 
+  /// Obligations first, then the rest in the order the owner supplied (D10).
+  /// Stable within each group, so a preview never reshuffles on rebuild.
+  List<AttentionReceipt> get _ordered => [
+    ..._events.where((e) => e.isLiveObligation),
+    ..._events.where((e) => !e.isLiveObligation),
+  ];
+
   @override
   Widget build(BuildContext context) {
     if (_events.isEmpty || widget.eventTotal <= 0) {
@@ -76,41 +77,48 @@ class _ActivityEventSubcardBlockState extends State<ActivityEventSubcardBlock> {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
     final visibleCap = context.windowClass == WindowClass.compact ? 1 : 3;
+    final ordered = _ordered;
     final visible = _expanded
-        ? _events
-        : _events.take(visibleCap).toList(growable: false);
+        ? ordered
+        : ordered.take(visibleCap).toList(growable: false);
+    // Server total, never the loaded-row count: a page that has not arrived
+    // must not shrink the number the user reads.
     final moreCount = widget.eventTotal - visible.length;
-    final scheme = Theme.of(context).colorScheme;
-    final muted = scheme.onSurfaceVariant;
-    final bodyStyle = TenturaText.bodySmall(muted);
-    final ageStyle = TenturaText.withTabular(
-      TenturaText.bodySmall(tt.textFaint),
-    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (final receipt in visible) ...[
+        for (final receipt in visible)
           Padding(
+            key: ValueKey(receipt.id),
             padding: EdgeInsets.only(top: tt.tightGap),
-            child: _EventSubcard(
+            child: AttentionMiniCard(
               receipt: receipt,
               actor: _actorFor(receipt),
-              bodyStyle: bodyStyle,
-              ageStyle: ageStyle,
-              l10n: l10n,
-              onMarkSeen: () => widget.onMarkSeen(receipt.id),
+              onTap: () => widget.onMarkSeen(receipt.id),
             ),
           ),
-        ],
-        if (moreCount > 0)
+        if (moreCount > 0 || _expanded)
           Padding(
             padding: EdgeInsets.only(top: tt.tightGap, left: tt.cardGap),
             child: Align(
               alignment: Alignment.centerLeft,
-              child: TenturaTextAction(
-                label: l10n.activityEventMore(moreCount),
-                onPressed: _loadingMore ? null : () => unawaited(_expand()),
+              child: Wrap(
+                spacing: tt.rowGap,
+                children: [
+                  if (moreCount > 0)
+                    TenturaTextAction(
+                      label: l10n.activityEventMore(moreCount),
+                      onPressed: _loadingMore
+                          ? null
+                          : () => unawaited(_expand()),
+                    ),
+                  if (_expanded)
+                    TenturaTextAction(
+                      label: l10n.inboxProvenanceCollapse,
+                      onPressed: _collapse,
+                    ),
+                ],
               ),
             ),
           ),
@@ -123,6 +131,8 @@ class _ActivityEventSubcardBlockState extends State<ActivityEventSubcardBlock> {
     if (id.isEmpty) return null;
     return _actors[id];
   }
+
+  void _collapse() => setState(() => _expanded = false);
 
   Future<void> _expand() async {
     if (_expanded) {
@@ -164,109 +174,5 @@ class _ActivityEventSubcardBlockState extends State<ActivityEventSubcardBlock> {
         setState(() => _loadingMore = false);
       }
     }
-  }
-}
-
-class _EventSubcard extends StatelessWidget {
-  const _EventSubcard({
-    required this.receipt,
-    required this.bodyStyle,
-    required this.ageStyle,
-    required this.l10n,
-    required this.onMarkSeen,
-    this.actor,
-  });
-
-  final AttentionReceipt receipt;
-  final Profile? actor;
-  final TextStyle bodyStyle;
-  final TextStyle ageStyle;
-  final L10n l10n;
-  final VoidCallback onMarkSeen;
-
-  @override
-  Widget build(BuildContext context) {
-    final tt = context.tt;
-    final copy = resolveUpdatesFeedRowCopy(
-      title: receipt.title,
-      body: receipt.body,
-      presentationKey: receipt.presentationKey,
-      presentationPayloadJson: receipt.presentationPayloadJson,
-      l10n: l10n,
-    );
-    final glyph = updatesFeedGlyphFor(receipt, tt);
-    final age = compactRelativeTimeAgo(
-      when: receipt.createdAt,
-      now: DateTime.now(),
-      l10n: l10n,
-    );
-    final profile = actor == null ? null : profileWithContactOverlay(actor!);
-    final shownName = profile?.shownName.trim() ?? '';
-    final showName = shownName.isNotEmpty;
-    final headline = copy.headline.trim();
-    final body = copy.body.trim();
-    // When the headline is just the actor name (server title for help-offer
-    // receipts), prefer the body so the personal note / event excerpt shows.
-    final eventCopy = showName &&
-            headline.isNotEmpty &&
-            headline == shownName &&
-            body.isNotEmpty
-        ? body
-        : (headline.isNotEmpty ? headline : body);
-    final showEvent =
-        eventCopy.isNotEmpty && (!showName || eventCopy != shownName);
-
-    final leading = profile != null
-        ? TenturaAvatar.medium(
-            profile: profile,
-            onTap: () => context.read<ScreenCubit>().showProfile(profile.id),
-          )
-        : SizedBox.square(
-            dimension: tt.avatarSize,
-            child: Icon(
-              glyph.icon,
-              size: tt.iconSize,
-              color: glyph.color,
-            ),
-          );
-
-    return Material(
-      color: Colors.transparent,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          leading,
-          SizedBox(width: tt.avatarTextGap),
-          Expanded(
-            child: InkWell(
-              onTap: onMarkSeen,
-              borderRadius: BorderRadius.circular(TenturaRadii.cardDense),
-              child: TenturaTechCardStatic(
-                surfaceOverride: tt.bg,
-                borderOverride: tt.borderSubtle,
-                radius: TenturaRadii.cardDense,
-                padding: EdgeInsets.all(tt.cardGap),
-                child: Text.rich(
-                  TextSpan(
-                    style: bodyStyle,
-                    children: [
-                      if (showName) TextSpan(text: shownName),
-                      if (showName && showEvent)
-                        TextSpan(text: ' · ', style: ageStyle),
-                      if (showEvent) TextSpan(text: eventCopy),
-                      if (showName || showEvent)
-                        TextSpan(text: ' · ', style: ageStyle),
-                      TextSpan(text: age, style: ageStyle),
-                    ],
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
