@@ -6829,3 +6829,214 @@ itself.
 to positively *contain* a timeline-only notice, which belongs with U12.
 
 ---
+
+## UNIT U12 — Reconciliation ("Reset counters") · INNER (2026-09-19)
+
+**WHAT.** "Reset counters" is now a repair, not a broom. A per-account reconciliation settles live obligations
+whose source task is finished — with the reason the source actually gives — creates obligations for tasks that
+are genuinely still open and have no receipt, and returns the authoritative summary. It leaves every act a
+person performed exactly where it was. Base `0c46c63a3`.
+
+**FILES.**
+- `packages/server/lib/domain/attention/attention_reconciliation_models.dart` (new)
+- `packages/server/lib/domain/port/attention_reconciliation_port.dart` (new)
+- `packages/server/lib/data/repository/attention_reconciliation_repository.dart` (new)
+- `packages/server/lib/domain/use_case/obligation_reconciliation_case.dart` (renamed from
+  `review_obligation_backfill_case.dart`, generalised)
+- `packages/server/lib/api/controllers/graphql/mutation/mutation_attention.dart`,
+  `.../custom_types.dart` (`attentionReconcile`, `AttentionReconcileResult`)
+- `packages/server/test/domain/use_case/attention_reconciliation_pg_test.dart` (new)
+- `packages/server/test/domain/use_case/review_obligation_backfill_pg_test.dart`,
+  `test/api/controllers/graphql/attention_graphql_test.dart`,
+  `test/data/repository/attention_request_history_pg_test.dart`
+
+**COMMITS.** `d91b4478d` endpoint · `70b92195d` generalised repair case · `d207b9002` tests · this entry.
+The first two are in the wrong order: the repair-case `git add` aborted on the pre-rename path and the endpoint
+commit ran first, taking the (content-free) file rename with it. Disclosed in `70b92195d`'s body.
+
+### Addition 1 — the fixture, and what repair does to each corruption
+
+One account (`Urecnauth001`), one pass, one fingerprint over `notification_outbox` × `inbox_item` ×
+`beacon_help_offer`.
+
+| # | Corruption as seeded | Repair does | Why that and not something else |
+|---|---|---|---|
+| C1 | live `helpOfferSubmitted` receipt; offer withdrawn (`status=1`, `withdraw_reason` set) | settles **`superseded`** | the question went away unanswered; recording it `resolved` would be a lie about the author |
+| C2 | live receipt; offer accepted (`stake_state=2` + `acknowledged` commitment) | settles **`resolved`** | the author did answer; the settlement that was lost is the accept path's |
+| C3 | open offer (`status=0`), **no receipt at all** | **creates** one live obligation | the task is genuinely owed; this is the count being *too low*, which E21 must also fix |
+| C4 | receipt settled `resolved`, but the offer was in fact withdrawn | **untouched** | see addition 2b — the source no longer says which transition ended it |
+| C5 | live receipt with **NULL `logical_task_key`** (pre-U05c) | **untouched**, and counted in `unrepairableObligationCount` | U05c left these for U18; the task is unnameable, and a guess would collapse generations |
+| C6 | live `reviewOpened` receipt; window `status=1`, reviewer never sent a package | settles **`expired`** | exactly the window-close rule (`= 2 → resolved`, else `expired`), reused, not re-invented |
+| C7 | open window (`status=0`) + `beacon_review_status` row, no receipt | **creates** one live obligation | same as C3 on the review axis |
+| C8 | healthy live obligation on a genuinely open offer | **untouched, still live** | `needsYouTotal > 0` is asserted: a correct result is non-zero |
+| M1 | optional receipt the account **cleared** | `cleared_at` unchanged | not derived state |
+| M2 | Inbox row the account **dismissed** (`tombstone_dismissed_at`) | unchanged | not derived state |
+| M3 | obligation the account **settled itself** (`settled_by_user_id`), task still open | neither reopened nor re-created beside itself | the dangerous one: repair must not answer for a person twice |
+| M4 | another account's identical C1 | untouched | repair is account-scoped by construction |
+
+Second invocation: `created 0`, `settled 0`, and a byte-identical fingerprint.
+
+### Addition 2 — the guards, proved able to fail
+
+Three throwaway loosenings, each reverted, each run against the same suite:
+
+| Loosening | Result |
+|---|---|
+| drop `OR nb.settled_by_user_id IS NOT NULL` from the unbacked-task query | `+0 -1`, `created 2 → 3` — M3's own settled obligation resurrected |
+| drop `outbox.account_id = $1` from the help-offer settle CTE | `+0 -1`, `settled 3 → 4` — M4's foreign row repaired |
+| drop `logical_task_key IS NOT NULL` from the same CTE | `+0 -1`, `settled 3 → 4` — C5's legacy row settled on a guess |
+
+Honest note on the second and third: the first assertion to fire is the aggregate count, not the row-level
+`must-not` expectation further down. The suite is red either way and names the right number, but the row probe
+itself is not what caught it.
+
+The U11 assertion was checked for non-vacuity the same way: flipping the fixture receipt from `timeline_only`
+to `primary` turns `unreadForBeacons` from empty to `{Battnhistown}` and the test red.
+
+### Addition 2b — what reconciliation cannot repair, in my own words
+
+E21 exists because a wrong count is otherwise unfixable from the user's side. Three things stay out of reach,
+and the owner should know before the button is offered:
+
+1. **A settled obligation is final, whatever reason it carries** (C4). Nothing in the schema records *which*
+   transition settled a row — only the kind, the time and, for user settlements, who. Once a receipt says
+   `resolved`, the source state that would contradict it (a withdrawn offer) is also the state that a correct
+   `superseded` would have produced, so the two are indistinguishable after the fact. Re-writing a settlement
+   would also rewrite History, which D17 forbids. **Consequence for the count:** a receipt settled with the
+   wrong reason is not counted anywhere, so it does not make a number wrong — it makes a *story* wrong. Reset
+   cannot fix that story.
+2. **Pre-U05c rows with no `logical_task_key`** (C5) stay live and keep inflating the count. Reconciliation
+   cannot name their task, so it cannot decide whether the task is still open; it reports them as
+   `unrepairableObligationCount` instead. If a deployed database has any, a user can press Reset repeatedly and
+   the number will not move — U18's cutover backfill is what fixes them, not this button. This is the one case
+   where the promise "the counter is now right" is false, and the UI must be able to say so; the count is
+   returned for exactly that reason.
+3. **Anything whose source is itself wrong.** Repair asks the offer, the commitment log, the beacon status and
+   the review window what is true. If one of those is corrupt — a stake state that never advanced, a review
+   window left open on a closed Request — reconciliation will faithfully reproduce the wrong answer, and a
+   second pass will agree with the first. Idempotence is not correctness.
+
+Also deliberately **not** done: D15 step 5, "invalidate all sessions for that account". There is no such
+mechanism on the clear or sweep paths either (neither touches invalidation), so inventing one inside a repair
+unit would have been a second, untested subsystem. The authoritative snapshot is returned in the mutation
+result, which is what the client replaces its cached indicators with (D15 step 6). U13/U17 own the client side.
+
+### Decisions
+
+- **Generalised, not duplicated (addition 3).** `ReviewObligationBackfillCase` became
+  `ObligationReconciliationCase`. Its global sweep survives unchanged as `run()` — it is still the
+  deployment-time repair and still has its own test — and `reconcileAccount` is the new per-account entry.
+  The review outcome rule is literally the window-close statement's rule, restated once, scoped by account and
+  by "no open window".
+- **Creation goes through the production intents, with the recipient list narrowed to the account.**
+  `AttentionIntentCase.helpOfferSubmitted` resolves the production audience (author *and* stewards/moderators);
+  `reviewOpened` resolves every admitted reviewer. Recording those unfiltered would write receipts for people
+  who are not being repaired — an over-reach across accounts, and a duplicate optional notice for them. The
+  case filters `intent.recipients` to the account and refuses (with a log line) if the account is not in the
+  resolved audience at all.
+- **Deterministic source event keys carrying the next generation** (`reconcile:help_offer:<beacon>:<helper>:g<n>`).
+  The occurrence table dedups on `source_event_key`, so a fixed key would make a *later*, legitimate repair of
+  the same task a silent no-op. The generation is `MAX(lifecycle_generation)+1` over that task's whole history,
+  not over its live rows.
+- **The endpoint takes no arguments.** Authorization requirement 5 is structural: `getCredentials(args).sub` is
+  the only source of the account id, so a foreign id is inexpressible. The GraphQL test asserts
+  `field.inputs` is empty and that an `accountId` smuggled into the argument map is ignored.
+- **`ObligationReconciliationRunner`,** a one-member interface the mutation depends on, so the API test can
+  fake it without standing up the case graph. Same shape the other attention mutations use via their cases.
+
+### Findings
+
+- **Help-offer "still open" has no single column.** Accept does *not* deactivate the offer
+  (`coordination_case.dart:324–362` records an `acknowledged` commitment and leaves `status = 0`), while
+  decline does (`deactivate`, `status = 1`). So "the author still owes an answer" is
+  `status = 0 AND no answering/terminal commitment event AND the Request is not cancelled/deleted/closed`.
+  Repair reads the commitment log, not just the offer row.
+- **Decline and removal are not distinguishable from the offer row.** Both leave `status = 1` with no
+  `withdraw_reason`. Removal is distinguishable only by its `removedFromChat` commitment event, which is why
+  the terminal-kind probe comes first in the `CASE`; without it, a removal would settle as `resolved`.
+- **Fixture friction worth recording for the next unit that seeds receipts by hand.** Four schema constraints
+  reject a naive obligation row: `notification_outbox__thread_key_chk` (four-segment key, and NULL exactly when
+  `NOT requires_action`), `__clear_facts_chk` (`cleared_at` requires `clear_reason`), `__settlement_facts_chk`
+  (`settlement_kind` requires `settled_at`), and a trigger that refuses an `inbox_item` INSERT with a tombstone
+  status (seed `status = 0`, then UPDATE the tombstone column). Nullable bind parameters also need explicit
+  `CAST(@x AS text)` — Postgres cannot infer them and answers `42P08`.
+- **The plan's "invalidate sessions" step has no implementation to reuse** (see 2b).
+
+**TESTS.**
+
+```bash
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 10m -- dart test --tags pg -j 1 \
+  test/domain/use_case/attention_reconciliation_pg_test.dart
+```
+→ RED during construction, in the order the fixture was wrong: `42P08 could not determine data type of
+parameter $13`; `notification_outbox__thread_key_chk`; `notification_outbox__clear_facts_chk`;
+`P0001 inbox_item cannot insert tombstone status without beacon trigger` — each `00:01 +0 -1`.
+→ GREEN: `00:01 +2: All tests passed!`
+→ RED under each mandated loosening: `00:01 +0 -1` / `00:01 +0 -1` / `00:02 +0 -1` (table in addition 2).
+
+```bash
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 30m -- dart test --tags pg -j 4 \
+  test/data/repository/attention_live_obligations_pg_test.dart \
+  test/data/repository/my_work_attention_pg_test.dart \
+  test/data/repository/attention_surface_pg_test.dart \
+  test/data/repository/attention_active_attention_axis_pg_test.dart \
+  test/data/repository/attention_request_history_pg_test.dart \
+  test/domain/use_case/attention_reconciliation_pg_test.dart \
+  test/domain/use_case/review_obligation_backfill_pg_test.dart \
+  test/domain/use_case/review_obligation_settlement_pg_test.dart \
+  test/domain/use_case/help_offer_obligation_settlement_pg_test.dart
+```
+→ `00:14 +77: All tests passed!` Exit 0.
+
+```bash
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 30m -- dart test --tags pg -j 4 \
+  test/data/repository/attention_ordering_keys_pg_test.dart \
+  test/data/repository/attention_repository_pg_test.dart \
+  test/data/repository/attention_predicate_unification_pg_test.dart \
+  test/data/repository/attention_dismissible_predicate_pg_test.dart \
+  test/data/repository/attention_outcome_dismissible_pg_test.dart \
+  test/data/repository/attention_activity_stream_pg_test.dart \
+  test/data/repository/attention_obligation_identity_pg_test.dart \
+  test/data/repository/attention_clear_operation_pg_test.dart \
+  test/data/repository/attention_dismiss_sweep_pg_test.dart \
+  test/data/repository/attention_undo_pg_test.dart
+```
+→ `00:23 +165: All tests passed!` Exit 0.
+
+```bash
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 30m -- dart test --tags pg -j 4 \
+  test/domain/use_case/evaluation test/domain/use_case/evaluation_submit_ack_policy_pg_test.dart \
+  test/domain/use_case/user_delete_attention_pg_test.dart
+```
+→ `00:02 +4: All tests passed!` Exit 0.
+
+```bash
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 15m -- dart test --exclude-tags pg \
+  test/architecture test/domain/attention test/domain/use_case \
+  test/api/controllers/graphql/attention_graphql_test.dart \
+  test/api/controllers/graphql/query_attention_payload_test.dart
+```
+→ `00:03 +811: All tests passed!` Exit 0 (includes the new `attentionReconcile` case).
+
+```bash
+./scripts/run_with_test_cleanup.sh --timeout 10m -- ./scripts/check-custom-lints.sh packages/server
+```
+→ `total: 0 (baseline: 0)` · `check-custom-lints: packages/server OK`. `dart analyze packages/server/lib`:
+no new issues on any changed file (662 pre-existing infos elsewhere, unchanged). `build_runner build
+--delete-conflicting-outputs` re-ran for the two new `@Singleton` registrations (`di.config.dart` is
+gitignored).
+
+**REMAINING.**
+- No client surface: U17 owns the Settings control, U13 the data/domain integration. The mutation exists and is
+  unreferenced by the client.
+- `unrepairableObligationCount` is returned but nothing shows it. It is the only honest way to say "the counter
+  is still wrong and Reset cannot fix it" (2b, case 2), and U17 should use it rather than always reporting
+  success.
+- D15 step 5 (session invalidation) is not implemented, deliberately, and has no precedent on the clear/sweep
+  paths to copy.
+- `review_obligation_backfill_pg_test.dart` keeps its old name though the case it exercises was renamed; it
+  still tests the global backfill entry point specifically.
+
+| Unit | Status |
+|---|---|
+| U12 reconciliation | **complete** (`d91b4478d`, `70b92195d`, `d207b9002`) |
