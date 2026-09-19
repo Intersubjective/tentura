@@ -473,6 +473,12 @@ unification last; it runs **first**, so everything after has one source of truth
 The `// CHANGES IN U10:` assertions from U02 belong to **U10b and U10c** — each rewrite must be named in the
 journal with its old and new expectation, the standard this plan has held since U02.
 
+**U10d added by the overseer (2026-09-19) — a concern I dropped when splitting.** The manifest put a *blocking*
+card prerequisite inside U10 (§0.1a grouped-row provenance). Splitting U10 into U10a/b/c by theme — predicate,
+axis, ordering — silently lost the fourth theme, and a grep for `strongestNotePreview` / `totalDistinctSenders`
+confirms nothing implements it. U14 and U16 cannot build the For You card without it, so it runs as **U10d**,
+together with the one untested m0187 backfill path U10c's verify found.
+
 ### U11 — Child propagation policy
 
 **Goal.** R7 enforced at the producer.
