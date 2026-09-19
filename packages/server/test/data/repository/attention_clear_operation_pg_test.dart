@@ -304,6 +304,138 @@ SELECT col_description('public.notification_outbox'::regclass, attnum)
       expect(await _countMembers(writer, 'OPu08replay'), 1);
     });
 
+    // The security-adjacent half of the replay contract: an operation id is
+    // *not* a licence to clear whatever the caller sends next under it. An
+    // attacker who observed one operation id must not be able to widen its
+    // reach by replaying it with a token that has grown.
+    test(
+      'a replayed operation id cannot clear a receipt the first apply never '
+      'captured',
+      () async {
+        await _insertReceipt(writer, id: 'Nu08expanda', beaconId: _beaconId);
+        await _insertReceipt(writer, id: 'Nu08expandb', beaconId: _beaconId);
+
+        final snapshot = await clear.captureSnapshot(
+          accountId: _viewerId,
+          beaconId: _beaconId,
+          kind: AttentionClearCaptureKind.explicit,
+        );
+        expect(snapshot.receiptIds..sort(), ['Nu08expanda', 'Nu08expandb']);
+
+        final first = await clear.clear(
+          accountId: _viewerId,
+          operationId: 'OPu08expand',
+          snapshotToken: snapshot.token,
+        );
+        expect(first.appliedReceiptIds, ['Nu08expanda', 'Nu08expandb']);
+        final clearedAtA = await _clearedAt(writer, 'Nu08expanda');
+
+        // `Nu08expandc` is a receipt this very caller could legitimately clear
+        // in a *new* operation — that is what makes this the interesting case.
+        await _insertReceipt(writer, id: 'Nu08expandc', beaconId: _beaconId);
+
+        final widened = const AttentionClearSnapshotToken(
+          accountId: _viewerId,
+          beaconId: _beaconId,
+          kind: AttentionClearCaptureKind.explicit,
+          outcomeGeneration: 0,
+          decisionRevision: 0,
+          receiptIds: ['Nu08expanda', 'Nu08expandb', 'Nu08expandc'],
+        ).encode();
+
+        final second = await clear.clear(
+          accountId: _viewerId,
+          operationId: 'OPu08expand',
+          snapshotToken: widened,
+        );
+
+        expect(
+          await _clearedAt(writer, 'Nu08expandc'),
+          isNull,
+          reason: 'a replay must not clear an id the first apply never captured',
+        );
+        expect(second.appliedReceiptIds, first.appliedReceiptIds);
+        expect(second.skippedReceiptIds, first.skippedReceiptIds);
+        expect(
+          second.deniedReceiptIds,
+          ['Nu08expandc'],
+          reason:
+              'the added id is answered as denied — the first answer is '
+              'reproduced for everything the operation actually covers',
+        );
+        expect(
+          second.status,
+          AttentionClearStatus.partial,
+          reason:
+              'applied reproduced plus a denial: the widened request is not '
+              'reported as complete',
+        );
+        expect(
+          await _clearedAt(writer, 'Nu08expanda'),
+          clearedAtA,
+          reason: 'the replay must not re-stamp cleared_at either',
+        );
+        expect(await _countOperations(writer, 'OPu08expand'), 1);
+        expect(
+          await _countMembers(writer, 'OPu08expand'),
+          2,
+          reason: 'the stored membership is unchanged by the widened replay',
+        );
+        final members = await writer.execute(
+          'SELECT receipt_id FROM public.attention_clear_operation_member '
+          "WHERE operation_id = 'OPu08expand' ORDER BY receipt_id",
+        );
+        expect(
+          [for (final row in members) row.first],
+          ['Nu08expanda', 'Nu08expandb'],
+        );
+      },
+    );
+
+    // The mirror: a narrowed token cannot narrow the answer either. The
+    // operation's membership is the answer, in both directions.
+    test(
+      'a replayed operation id with a smaller membership still returns the '
+      'first answer',
+      () async {
+        await _insertReceipt(writer, id: 'Nu08shrinka', beaconId: _beaconId);
+        await _insertReceipt(writer, id: 'Nu08shrinkb', beaconId: _beaconId);
+
+        final snapshot = await clear.captureSnapshot(
+          accountId: _viewerId,
+          beaconId: _beaconId,
+          kind: AttentionClearCaptureKind.explicit,
+        );
+        final first = await clear.clear(
+          accountId: _viewerId,
+          operationId: 'OPu08shrink',
+          snapshotToken: snapshot.token,
+        );
+        expect(first.appliedReceiptIds, ['Nu08shrinka', 'Nu08shrinkb']);
+
+        final narrowed = const AttentionClearSnapshotToken(
+          accountId: _viewerId,
+          beaconId: _beaconId,
+          kind: AttentionClearCaptureKind.explicit,
+          outcomeGeneration: 0,
+          decisionRevision: 0,
+          receiptIds: ['Nu08shrinka'],
+        ).encode();
+
+        final second = await clear.clear(
+          accountId: _viewerId,
+          operationId: 'OPu08shrink',
+          snapshotToken: narrowed,
+        );
+
+        expect(second.appliedReceiptIds, first.appliedReceiptIds);
+        expect(second.skippedReceiptIds, first.skippedReceiptIds);
+        expect(second.deniedReceiptIds, first.deniedReceiptIds);
+        expect(second.status, first.status);
+        expect(await _countMembers(writer, 'OPu08shrink'), 2);
+      },
+    );
+
     test(
       'a concurrently replayed operation id has exactly one effect',
       () async {

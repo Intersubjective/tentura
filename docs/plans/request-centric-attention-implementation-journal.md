@@ -4021,3 +4021,119 @@ All through `scripts/run_with_test_cleanup.sh`, PG with `--tags pg -j 1`.
 No `attentionDismissAll`, no sweep, no undo, no outcome/tombstone clearing, no shared helper built for U09.
 No client code, no contract JSON, no channel/email path, no obligation identity, and no projection change in
 `attention_repository.dart` — U10 still owns every read.
+
+---
+
+## UNIT U08 — Clear command (single and open) · VERIFY (2026-09-19)
+
+**Layer:** verify (read-only). Audited commits `05343478f`…`2f8162725` on `UNIT_BASE` `f38913f8d`. Re-ran
+focused suites; did not run full server suite.
+
+### Four races — execution audit
+
+| Race | Test | Proves outcome | Fails without impl |
+|---|---|---|---|
+| Post-capture arrival survives | `an event committed after the capture survives the clear` | `Nu08raceb` uncleared; only `Nu08racea` in `appliedReceiptIds` | Yes — needs `AttentionClearCase` / repo (`05343478f` file had constraints only; apply group added `4138cd77b`) |
+| Replay idempotent (serial + concurrent) | `a replayed operation id…`, `a concurrently replayed operation id…` | Same result lists; one op/member row; `cleared_at` not re-stamped; post-replay insert not swept | Yes — same |
+| Scope lost → skipped | `a Request that left the viewer scope…` | `skippedReceiptIds`, `stale`, member `state=skipped`, `cleared_at` NULL | Yes — same |
+| Auth loss / foreign id non-disclosure | `a foreign receipt is denied…`, `a token issued for another account…`, scope test via `user_block` | Foreign + ghost both `denied`; cross-account `denied` with **0** operation rows; blocked forward skipped not cleared | Yes — same |
+
+Concurrent replay uses a second `TenturaDb` connection (expected drift warning).
+
+### Judgement calls
+
+| Call | Verdict | Evidence |
+|---|---|---|
+| Unsigned token OK | **Accept** | JWT binds `accountId` in case (`attention_clear_case.dart:65–74`); apply re-checks `visible_attention_receipts` + ownership (`attention_clear_repository.dart:133–181`). PG: tampered token with `Nu08theirs` + `Nu08ghost` → denied, not cleared; cross-account capture token under stranger JWT → `denied`, no storage. **No P0 break found.** |
+| Denied ids not stored; replay recomputes | **Accept** | Members only for applied/skipped (`:186–205`); `_replay` denied = `requestedIds − stored` (`:314–317`). Serial replay test matches first result exactly. **Gap (test debt only):** no PG case that replays with a **strictly larger** token membership; code review says extras land in `deniedReceiptIds` without `UPDATE`. |
+| `attentionClearSnapshot` not `attentionRequest` | **Accept** | Query field `attentionClearSnapshot` only; comment defers `attentionRequest` to U10 (`query_attention.dart:36–39`). No `attentionRequest` GraphQL field added. |
+
+### Other acceptance checks
+
+- **FK by name:** `notification_outbox__cleared_by_operation_fkey rejects an unknown operation id` — `ServerException.constraintName` assertion; row stays uncleared.
+- **Obligation CHECK by name:** `notification_outbox__clear_optional_only_chk` on forced obligation UPDATE.
+- **No wall-clock boundary:** capture is membership; apply `UPDATE` uses `id IN (...)` only; `now()` stamps `cleared_at`, not eligibility.
+- **U10 gap pinned:** `clearing does not change the read axis yet` asserts `seen_at` still NULL after clear.
+- **GraphQL `.all.last` fix:** four `attentionSettle` tests + auth test now `singleWhere(… == 'attentionSettle')`; resolve bodies/assertions unchanged vs `f38913f8d` (pre-U08 `.all.last` targeted settle because it was the last mutation).
+- **Scope:** `git diff f38913f8d..2f8162725` — 12 server files only; no client, contract, `attention_repository.dart`, dismiss/undo APIs.
+- **Untouchables:** four pre-existing modified paths unchanged by U08 diff; secrets not in commits.
+
+### Tests run (verifier)
+
+```
+dart test --tags pg -j 1 test/data/repository/attention_clear_operation_pg_test.dart   → +13
+dart test test/api/controllers/graphql/attention_graphql_test.dart                       → +22
+```
+
+Both via `scripts/run_with_test_cleanup.sh`.
+
+STATUS: pass
+
+TEST_OUTPUT: `dart test --tags pg -j 1 attention_clear_operation_pg_test.dart` — 13 passed; `dart test attention_graphql_test.dart` — 22 passed
+
+ACCEPTANCE: four races — met — PG tests above; FK/CHECK by name — met — constraint group; no wall-clock boundary — met — code + race test; U10 seen_at gap — met — `clearing does not change the read axis yet`; unsigned token — met — PG + case/repo; denied replay semantics — met — code + serial replay test (expanded-token replay untested); naming — met — `attentionClearSnapshot` only; no U09/client/contract/projection — met — diff; GraphQL retarget fix — met — diff review; focused commits — met — five commits; untouchables — met — worktree status
+
+GAPS: none (product). Optional test debt: PG case for replay with same `operationId` but token carrying **additional** receipt ids (behaviour asserted by `_replay` code, not executed in tests). No PG fixture for unanswered-forward / pending-prompt **capture exclusion** (product relies on visibility + optional predicate; inbox decision rows are U09 sweep concern).
+
+---
+
+## UNIT U08 — replay cannot widen its reach · INNER (remediation) (2026-09-19)
+
+**Layer:** inner (remediation). `UNIT_BASE` `2f8162725`. One gap, one test file touched, one commit.
+
+### The gap
+
+U08's verify accepted "denied ids are not stored; `_replay` recomputes them" on code reading alone, and flagged
+the one thing no PG case executed: a replay of a known `operationId` carrying a **larger** token membership than
+the original. That is security-adjacent — if a replay could expand what it clears, anyone who observed an
+operation id could clear rows the first call never captured.
+
+### Outcome: **coverage gap, not a hole**
+
+The behaviour was already correct on current code. Two cases added to
+`test/data/repository/attention_clear_operation_pg_test.dart` (13 → 15):
+
+- `a replayed operation id cannot clear a receipt the first apply never captured` — clear `{A, B}` under
+  `OPu08expand`, then replay the **same** id with a hand-built token `{A, B, C}` where `C` is a receipt the very
+  same caller could legitimately clear in a *new* operation. Asserts `C.cleared_at IS NULL`, applied/skipped
+  identical to the first answer, `A.cleared_at` not re-stamped, one operation row, and the stored membership
+  still exactly `{A, B}`.
+- `a replayed operation id with a smaller membership still returns the first answer` — replay with `{A}`;
+  the answer is the first answer, not a narrowed one, and membership is still 2.
+
+**One honest nuance, asserted rather than smoothed over:** the widened replay is not byte-identical to the first
+answer. Applied and skipped are reproduced exactly, but the added id comes back in `deniedReceiptIds` and the
+status therefore moves `complete` → `partial`. That is the caller being told their extra id was refused, which
+is the right answer; the test pins it with a reason so a future reader does not read the difference as drift.
+
+### Proving the tests bite
+
+Passed on arrival, so the mutation was the evidence. Temporarily disabled the short-circuit into `_replay`
+(`if (inserted == 0)` → guarded by a probe constant), which is exactly the defect class in question — a replay
+that re-applies from the token instead of from stored membership:
+
+```
+dart test --tags pg -j 1 attention_clear_operation_pg_test.dart   00:04 +11 -4: Some tests failed.
+  a replayed operation id cannot clear a receipt the first apply never captured [E]
+    Expected: null                       <- Nu08expandc.cleared_at
+      Actual: DateTime:<2026-09-19 04:37:25.032392Z>
+  a replayed operation id with a smaller membership still returns the first answer [E]
+    Expected: ['Nu08shrinka', 'Nu08shrinkb']
+      Actual: []
+```
+
+Both new cases fail on the mutation, and the expanded one fails on the security assertion itself — `C` really
+does get cleared when `_replay` is bypassed. The two pre-existing replay tests fail too, as expected.
+
+Mutation reverted; `git diff packages/server/lib` is empty (0 files).
+
+### Green
+
+```
+dart test --tags pg -j 1 test/data/repository/attention_clear_operation_pg_test.dart  00:04 +15: All tests passed!
+dart test test/api/controllers/graphql/attention_graphql_test.dart                     00:00 +22: All tests passed!
+```
+
+Both through `scripts/run_with_test_cleanup.sh`. Full server suite not run — the overseer owns it.
+
+STATUS: complete
