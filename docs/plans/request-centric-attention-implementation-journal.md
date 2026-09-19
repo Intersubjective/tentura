@@ -9293,3 +9293,30 @@ in the `senders` CTE is therefore dead defence against a state the schema preven
 unit's to remove.
 
 ---
+
+### Manager verdict — U15R-b · **ACCEPTED** (remediation; inner Opus-low ✓, overseer-verified)
+
+Overseer's gate: **1689 non-PG**, **1041 PG / 24 known skips**, **3803 client / 29 skips**. Commits
+`9dd87bdca` failing test · `594036260` m0190 + projection · `3eeadc894` client entity · `e528d39db` journal.
+
+**R4 reproduced exactly, and the consequence is starker than the report.** With four forwarders, the MR-top
+sender silent and the newest note on the fourth, the payload returned `strongestNotePreview` as an **empty
+string** — the silent top-ranked sender's absent note — while a recent, real note existed and was **absent from
+the document entirely**. The card's single most important line would have rendered blank with the note
+unreachable, and U16 could not have recovered it by sorting, because there was nothing to sort.
+
+**The authorization assertions are non-vacuous**: loosening `latest_note_edge` to read `beacon_forward_edge`
+directly turns the two blocked cases and the cancelled case red (`+7 -3`). The new selection path is not a way
+around the block wall.
+
+**The Inbox delegate is handled the right way** — its payload gains the key, because one body cannot fork its
+shape without breaking §0.1a, while its **behaviour** (who is visible, who is counted, `p_exclude_blocked:
+false`) is unchanged and now pinned by a test that names issue #188 explicitly. When the owner decides #188, one
+parameter and one test change; the semantics are not smeared across the codebase in the meantime.
+
+**A schema fact the plan had assumed away:** `bfe_active_unique` permits only one live forward per
+(beacon, sender, recipient), so "the same person forwards again later" is not a representable state, and the
+`DISTINCT ON (sender_id)` in the senders CTE defends against something that cannot happen. Harmless, left alone,
+recorded.
+
+---
