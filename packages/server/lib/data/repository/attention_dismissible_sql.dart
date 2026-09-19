@@ -107,6 +107,26 @@ eligible_pinned AS (
   static String activeAttention(String alias) =>
       '((${activeOptional(alias)}) OR (${liveObligation(alias)}))';
 
+  /// U11 / D16 — the *placement* filter: does this receipt speak on a primary
+  /// surface at all?
+  ///
+  /// Orthogonal to the three axes above, and deliberately a separate predicate
+  /// rather than a clause folded into [activeOptional]. `activeOptional` is
+  /// also what the sweep composes, and placement is not a sweep question: a
+  /// `timeline_only` receipt is an ordinary optional receipt that happens to
+  /// have nothing to show, so nothing changes about whether it can be cleared.
+  /// What changes is only what a dot, a count and a position may count.
+  ///
+  /// Every indicator in the read projection is wrapped in this. A grouped
+  /// row's `MIN`/`MAX(created_at)` are wrapped too — those are its position
+  /// and its freshness, and R7 says child activity moves neither.
+  ///
+  /// The column is written by the producer (`AttentionPolicy.placement`,
+  /// m0189) and defaults to `'primary'`, so this narrows nothing for any
+  /// receipt written before U11.
+  static String primaryPlacement(String alias) =>
+      "$alias.placement = 'primary'";
+
   /// Set R — dismissible optional receipts, the `notification_outbox` axis.
   ///
   /// The exclusions are the point:

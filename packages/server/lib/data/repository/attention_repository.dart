@@ -42,6 +42,7 @@ JOIN public.notification_outbox receipt ON receipt.id = visible.receipt_id''';
           '''SELECT DISTINCT receipt.beacon_id
 $_authorizedReceiptJoin
 WHERE ${AttentionDismissibleSql.activeAttention('receipt')}
+  AND ${AttentionDismissibleSql.primaryPlacement('receipt')}
   AND receipt.beacon_id IN ($placeholders)''',
           variables: [
             Variable<String>(accountId),
@@ -95,6 +96,11 @@ scoped_receipts AS (
   FROM visible v
   INNER JOIN scoped_beacons sb ON sb.beacon_id = v.beacon_id
   WHERE v.surface = 'myWork'
+    -- U11/D16: a propagated hierarchy notice is in the Request's log, not on
+    -- My Desk. Excluding it here removes it from the count, from
+    -- `latestUnseen`, from `needsYouAt` and from the `firstEntryAt` fallback
+    -- in one place — every My Desk key this projection produces.
+    AND ${AttentionDismissibleSql.primaryPlacement('v')}
 )
 SELECT
   scoped_receipts.*,
@@ -233,14 +239,17 @@ summary AS (
   SELECT
     COUNT(*) FILTER (
       WHERE ${AttentionDismissibleSql.activeAttention('v')}
+        AND ${AttentionDismissibleSql.primaryPlacement('v')}
         AND v.surface = 'activity'
     )::int AS activity_unread_total,
     COUNT(*) FILTER (
       WHERE ${AttentionDismissibleSql.activeAttention('v')}
+        AND ${AttentionDismissibleSql.primaryPlacement('v')}
         AND v.surface = 'myWork'
     )::int AS my_work_unread_total,
     COUNT(*) FILTER (
       WHERE ${AttentionDismissibleSql.liveObligation('v')}
+        AND ${AttentionDismissibleSql.primaryPlacement('v')}
     )::int AS needs_you_total
   FROM visible v
 )
@@ -289,7 +298,10 @@ SELECT * FROM summary
     v.cleared_at,
     v.clear_reason,
     v.surface,
-    (${AttentionDismissibleSql.activeAttention('v')}) AS is_active_attention''';
+    (
+      ${AttentionDismissibleSql.activeAttention('v')}
+      AND ${AttentionDismissibleSql.primaryPlacement('v')}
+    ) AS is_active_attention''';
 
   /// Eligible inbox representatives + child Activity stats shared by the stream.
   ///
@@ -363,6 +375,14 @@ activity_child_receipts AS (
   WHERE v.surface = 'activity'
     AND v.beacon_id IS NOT NULL
     AND v.presentation_key IS DISTINCT FROM 'relay_received'
+    -- U11/D16, the load-bearing one. Everything a grouped For You row says
+    -- about itself comes from here: `event_total` (the count),
+    -- `event_unseen_count` (the dot), `MIN(created_at)` (its position) and
+    -- `MAX(created_at)` (its freshness). A hierarchy notice propagated from a
+    -- child is in the parent's log and in none of those — and because
+    -- `event_total` is also the gate on the synthetic `requestActivity` row, a
+    -- Request whose only receipt is such a notice grows no card at all.
+    AND ${AttentionDismissibleSql.primaryPlacement('v')}
 ),
 beacon_activity_stats AS (
   SELECT
@@ -428,6 +448,7 @@ page_stream AS (
         WHERE act.beacon_id = ef.beacon_id
           AND act.surface = 'activity'
           AND ${AttentionDismissibleSql.activeOptional('act')}
+          AND ${AttentionDismissibleSql.primaryPlacement('act')}
       )
       THEN NULL::timestamptz
       ELSE GREATEST(
@@ -470,6 +491,7 @@ page_stream AS (
          WHERE act.beacon_id = ef.beacon_id
            AND act.surface = 'activity'
            AND ${AttentionDismissibleSql.activeOptional('act')}
+           AND ${AttentionDismissibleSql.primaryPlacement('act')}
        )
       THEN true
       ELSE false
@@ -607,6 +629,7 @@ page_stream AS (
     INNER JOIN visible v
       ON v.beacon_id = ii.beacon_id
      AND ${AttentionDismissibleSql.activeOptional('v')}
+     AND ${AttentionDismissibleSql.primaryPlacement('v')}
      AND v.created_at > ii.latest_forward_at
     WHERE ii.user_id = \$1
       AND ii.status = 1
@@ -1061,6 +1084,10 @@ ranked AS (
     AND v.beacon_id IN ($placeholders)
     AND v.presentation_key IS DISTINCT FROM 'relay_received'
     AND ${AttentionDismissibleSql.activeAttention('v')}
+    -- The preview is the expansion of `event_total`, so it is filtered by the
+    -- same rule that produced that number. The Request's own log — History and
+    -- the Request timeline — is a different query and keeps every notice.
+    AND ${AttentionDismissibleSql.primaryPlacement('v')}
     $cursorClause
 )
 SELECT *
@@ -1137,6 +1164,7 @@ ranked AS (
       WHERE act.beacon_id = ep.beacon_id
         AND act.surface = 'activity'
         AND ${AttentionDismissibleSql.activeOptional('act')}
+        AND ${AttentionDismissibleSql.primaryPlacement('act')}
     ) AS unseen
   FROM eligible_pinned ep
   JOIN public.inbox_item ii
