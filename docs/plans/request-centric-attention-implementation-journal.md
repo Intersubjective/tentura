@@ -8672,3 +8672,177 @@ subscriber** since U13c. Both are U15/U16 work, and both would present as an unr
 suite.
 
 ---
+
+---
+
+## UNIT U15 — My Desk integration · INNER (2026-09-19)
+
+**Layer:** inner (implementer). **UNIT_BASE:** `afe6c8a79`. **Scope:** mounting U14a/b/c's pieces on My Desk —
+active-event block on the card, obligation CTAs and the Done removal, indicators, ordering on the server's keys,
+a subscriber for `requestInvalidations`. No For You / `RequestAttentionCard` (U16), no Settings control (U17),
+no server file.
+
+### Commands
+
+```
+cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 45m -- flutter test \
+  --dart-define=ENV=test --dart-define-from-file=env/test.env \
+  test/features/my_work test/features/home test/domain/attention test/features/updates
+→ 00:19 +485: All tests passed!
+
+./scripts/run_with_test_cleanup.sh --timeout 10m -- ./scripts/check-custom-lints.sh packages/client
+→ 21 no_raw_edge_insets · 9 no_raw_border_radius · total: 30 (baseline: 30) — OK
+```
+
+`test/features/inbox` and `test/design_system` are outside the unit's TEST_CMD but hold U14a/b — run alongside:
+`00:19 +420: All tests passed!` They are also where the one real cross-surface regression showed up; see the
+last commit.
+
+### Steps
+
+| Step | RED | GREEN | Commit |
+|---|---|---|---|
+| Event block on the card | `my_work_active_event_block_test.dart` `00:00 +0 -1` (compile: `optionalEvents` undefined) | `00:00 +3` | `4148978b2` |
+| Obligation CTAs + Done removal | the two U07b-tagged files, `00:00 +4 -4` | `00:00 +6` / `00:00 +5` | `c6e5e218e` |
+| Indicators | `my_work_card_attention_view_test.dart` `00:00 +0 -1` (no such file) | `00:00 +4`, widget suite `00:00 +4` | `c25ccc030` |
+| — placement fix | `my_work_sectioned_body_test.dart` + `work_activity_first_paint_test.dart` `+0 -3` / RenderFlex overflow 16 px | `00:01 +6` | `b99265a34` |
+| Ordering | `my_work_desk_ordering_test.dart` `00:00 +0 -1` (no `attentionByBeacon`) | `00:00 +7` | `77080a47c` |
+| Invalidations | `my_work_request_invalidation_test.dart` `00:30 +1 -1` (TimeoutException — nothing refreshed) | `00:00 +2` | `746958628` |
+| Goldens | `my_work_obligation_block_golden_test.dart` 17 failures | `00:00 +18` | `3d67c0e3c` |
+| Shared-default fix | `activity_event_subcard_block_golden_test.dart` `+237 -9` | `00:19 +420` | `62b883f90` |
+
+### Addition 1 — the expectation-rewrite table
+
+| File · test | Asserted before | Asserts now | Why |
+|---|---|---|---|
+| `my_work_obligation_subcards_test.dart` · *Respond and Done are independent hit targets* → *Respond is the whole control set on a help-offer obligation* | `done` findsOneWidget, both ≥48 dp | `find.text('Done')` findsNothing; Respond alone is the ≥48 dp target | U07b2 made the server refuse generic settlement. The old expectation asserted a control that could only fail. D04/decision C: every obligation kind captures a choice or an input. |
+| same file · *Review sub-card has Review CTA but no Done* → *a review obligation has a Review CTA and no Done* | no `TestIds.myWorkObligationDone('rev-1')` | no `Done` text at all | The test id is gone with the control; the assertion now names the thing the user would see rather than a hook only the test knew. |
+| same file · *Review sub-card primary opens review callback* | `find.text('Review').first` | `find.widgetWithText(TenturaTextAction, 'Review')` | Mechanical, not semantic: the mini-card's event line can also read «Review» (it is the receipt title), so `.first` no longer picks the action. |
+| `my_work_attention_state_test.dart` · *settleObligation removes receipt and calls settle* + *settleObligations removes all grouped ids* + *…does not drop review_opened* → *clearOptionalEvent writes the clear axis and never settles* + *clearOptionalEvent refuses to touch a live obligation* | three tests on `settleCalls` | `clearSnapshotCalls` / `clearCalls` recorded, `settleCalls` **empty**, `markSeenForBeaconCalls` **empty**, obligations untouched | There is no generic settlement path left to characterize. The review-exemption test existed to prove Done skipped reviews; with Done gone the statement worth keeping is stronger — **no** obligation has a private exit, not just review ones. |
+| *added* · `my_work_obligation_subcards_test.dart` · *an opened review reads as in progress, not as resolved* | — | in-progress / ready-to-send / changed-not-sent each render their own label, and none of them adds a Done | D04's deep-link case: follow the link, start a package, come back. Opening a CTA and saving an unsent draft resolves nothing, so the obligation stays and says where the viewer left off. |
+
+No expectation was relaxed to absorb a failure.
+
+### Addition 2 — ordering is a behaviour change, and the second rule can fail
+
+`needsYouAt` is a **zone**, not a sort key: it is compared before the attention tier and before the user's
+sort, so a new obligation promotes under Recent, Oldest and Alphabetical alike, and resolution demotes the
+Request to wherever its entry order puts it. Below the zone, Recent reads `firstEntryAt ?? beacon.createdAt`.
+
+The hard half is D08's second rule — *an optional update changes a dot, a preview and an event list, never a
+position* — because it is an assertion that **nothing** happens, and those pass by accident. So the suite proves
+it can fail. *the optional-update rule can fail* sorts the same three Requests by `Beacon.updatedAt`, the key the
+desk used before this unit, and shows the noisy one jumping `a b c` → `c a b`; then it sorts the identical state
+through `visibleMyWorkCardsForDesk` and gets `a b c` back. The event is the same event. Only the key changed.
+
+`the desk no longer reads Beacon.updatedAt for Recent` states the same fact from the other direction: two
+Requests whose `updatedAt` order is the exact reverse of their `firstEntryAt` order come out in entry order.
+
+### Addition 3 — a lit-but-empty card, after mounting
+
+U14c made it unrepresentable in the predicate by having the indicator take the **membership list**. Mounting
+reopens the hole one level down: the card renders one optional row (`latestUnseen`) while the server sends a
+*total* (`unseenCount`), and a dot wired to the total lights over a card that can show nothing.
+
+`myWorkCardAttentionView` is the one derivation behind both: the rows the block renders and the facts the
+indicators read come out of the same call, and the optional count is **zero unless there is a renderable row**.
+`a lit card always has a row behind the light` asserts the equality — not the implication — over the
+enumeration the card can reach (server total 0/1/4 × latest present/absent × 0/1/3 obligations), and the widget
+suite states the defect by name: *a server total with no row to show lights nothing* (total of four, card dark
+and empty).
+
+Load-bearing, proved the U14c way — two one-clause forks of the production derivation, both reverted:
+
+| Fork | Mutation | Result |
+|---|---|---|
+| A | `optionalTotal = serverTotal` — the dot leaves the rows behind | `+5 -2`: *a lit card always has a row behind the light*, *a server total with no row to show lights nothing* |
+| B | `liveObligations: obligations.isEmpty ? 0 : 1` — count cards, not obligations | `+4 -2`: *the count is obligations, not the rows the card groups them into*, *dot and count are both present* |
+
+Fork B is the §6 failure the contract names outright — *counting Request cards where the contract counts
+obligations* — and it is easy to reach here, because the block groups two offers from one person into one row.
+
+### Addition 4 — the invalidation subscriber, tested on the transition
+
+`requestInvalidations` shipped in U13c with no `listen` anywhere in `lib/`. The RED is the plainest kind: emit a
+`beacon` entity change for a Request the desk holds and the test times out at 30 s, because nothing was
+listening and the desk went on showing work that had changed hands.
+
+The subscriber coalesces per Request — a surface move announces the Request once per hop — and re-reads the
+**whole desk**, not the one row it was told about: the card may be leaving, and a projection that dropped only
+the announced row would leave the archived list and the counters saying something else.
+
+The test watches every emitted state between the endpoints, which is U13c's lesson: for each one it asserts the
+id set has no duplicate (never on two surfaces at once) and that the Request never reappears after leaving
+(never announced gone and back). The endpoints alone would pass against a desk that flickered.
+
+A second test covers the case the debounce makes easy to get wrong: an invalidation for a Request this desk does
+not hold refreshes harmlessly and leaves the list and `loadError` alone.
+
+### Addition 5 — height and accessibility carried over
+
+The §9 ceiling now has an assertion at the surface, not only in the shared component. *the mounted block holds
+the height ceiling at 360 dp / 1.3x* drives the worst collapsed case the desk can reach — 40 obligations, one
+optional line, a server total of 4000 — and measures **262 dp** against a pinned 264. Four rows render: the
+obligation-group cap of three plus the one optional line. Nothing was relaxed; the measurement came out under
+the ceiling on its own.
+
+E32's held height and the dismiss focus hand-off are the mini-card's, untouched by this unit, and
+`test/features/inbox` runs green inside the `+420`. `clearing the last optional row puts the dot out` exercises
+the whole mounted path — × → animation → `clearOptionalEvent` → cubit → indicators — and asserts the obligation
+count survives it.
+
+### Addition 6 — goldens
+
+**All 17 `my_work_obligation_block_*` PNGs moved, every one by canvas height.** A dense `_ObligationSubCard`
+— its own `TenturaTechCardStatic` box, padding and a CTA row, ~110 dp — became a single `AttentionMiniCard`
+line, ~44 dp, and the block hugs its rows (U14b's `mainAxisSize.min`). A per-pixel RGBA diff is undefined across
+a dimension change, so this is cause-plus-visual-read per U0C:
+
+| Golden | Canvas | Read |
+|---|---|---|
+| `0_obligations_cta_*` | 360×120 → 360×48 (en) / ×56 (ru) | the tonal Review-offers CTA alone; no rows, so nothing but the button's own height remains |
+| `1_obligation_*` | 360×210 → 360×44 | one mini-card line |
+| `3_obligations_*` | 360×430 → 360×132 | three lines, 3×44 |
+| `5_obligations_collapsed_*` | 360×430 → 360×178 | three lines plus the «ещё 2» footer action |
+| `..._1p3` | 360×420 → 360×208 | the same at 1.3×, under the 224 dp component ceiling |
+
+**Nine deleted:** `my_work_whats_new_*` went with the widget (below). **Nine others were nearly re-recorded by
+accident** — see the finding.
+
+### Findings
+
+- **The shared block's dismiss default is For You's, not mine.** Making `canDismiss` default to «no × on a live
+  obligation» — which §5 requires *on My Desk* — silently took the × off the obligation row in the Activity
+  stream's collapsed preview. Nine U14b goldens caught it, and only because I ran `test/features/inbox`, which
+  is **outside this unit's TEST_CMD**. The rule is now an opt-in predicate that My Desk passes; For You keeps
+  what it had, and U16 decides. Worth noting for the manager: a unit that edits a shared widget cannot be gated
+  by its own paths.
+- **The card header had no room for the indicators.** `BeaconRequestPreviewIdentity`'s trailing slot is a fixed
+  `kBeaconCardMenuSlotWidth` box for the overflow menu; anything joining it overflows by 16 px. The dot and
+  count sit on the preview line instead, which every card kind renders.
+- **`MyWorkWhatsNewRow` is retired**, with its test and nine goldens. Its emphasis half («3 new · …») was the
+  optional-attention preview the active-event block now renders as rows with their own ×; its other half was
+  `MyWorkLastEventBody`, which stays as the preview D08 allows an optional update to change. Leaving the widget
+  in would have shown the same event twice.
+- **The mini-card loses the event body when no actor profile resolved.** `_eventLine` only prefers the receipt
+  body over its title when a `Profile` was supplied, and My Desk obligations key the offerer on
+  `targetEntityId`, which `_actorFor` does not read. The offer message («I can sew») vanished from the card
+  until the block gained `quotedBodyOf` and My Desk put the message behind the quote rule, where §7 puts it
+  anyway. The mini-card itself was not changed.
+- **`listPositionAt` is not a My Desk key.** It lives on `ActivityOfferSortRow` (For You). The desk's keys on
+  `MyWorkBeaconAttention` are `needsYouAt` and `firstEntryAt`, and those are what this unit sorts by; the brief
+  names all three.
+- **«ещё N» opens the Request, not a Timeline sheet.** `showBeaconActivitySheet` needs a `BeaconViewCubit`,
+  which the desk does not have. Opening the Request is where the Timeline lives today; centralizing the entry
+  lifecycle across routes is U17's step.
+- **No new ARB key.** The in-progress review labels reuse `evaluationBannerDraftReview` / `evaluationSubmitFinish`
+  / `evaluationSubmitChanges`. `myWorkObligationDone` is now unused in `lib/`; removing the key means
+  regenerating l10n, which U17 owns.
+
+### Deliberately not done
+
+`unrepairableObligationCount` (U12) is surfaced by U17, not here. For You, `RequestAttentionCard` and the
+stream chrome are U16 — `ActivityEventSubcardBlock`'s three Activity consumers were not rewired, and the shared
+block's defaults are byte-identical for them.
+
+STATUS: complete
