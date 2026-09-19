@@ -5020,3 +5020,214 @@ and writing it here would have been untestable. Pending prompts remain unmodeled
 yet; the journal records that they will **not** fall out of the predicate by themselves.
 
 ---
+
+## UNIT U09c — undo · INNER (2026-09-19)
+
+**Layer:** inner (implementer), tagged **hard**. `UNIT_BASE` `6bed2dfa8`. Server-side only; the client is U16.
+
+### What landed
+
+| Step | Commit | What |
+|---|---|---|
+| deadline on apply | `a552926d6` | the sweep opens the window it left NULL; `undoDeadline` / `undoToken` on the result |
+| undo | `bbd2ece07` | `AttentionSweepPort.undo`, `AttentionSweepCase.undo`, the two guarded restore statements, the refusal reasons, new PG suite |
+| GraphQL | `40793d8c1` | `attentionUndo` + `AttentionUndoResult` / `AttentionUndoMember`; `undoToken` / `undoDeadline` on `AttentionDismissAllResult` |
+| journal | this entry | |
+
+No migration. U09a's amended member shape and m0186's `state` / `decision_revision` / `skip_reason` already hold
+everything undo needs; the only new member state, `undone`, is a value in a free-text column m0186 documented as
+free text on purpose.
+
+### The window, and why it is 30 seconds (the deadline justification)
+
+U09b deliberately left `undo_deadline` NULL, on the grounds that the window's length is undo's decision. It is
+**30 seconds**, which is D13's number, and the reason to keep it is not that D13 said so:
+
+The undo window is the lifetime of the affordance that offers it. Undo here is a snackbar action, and a window
+longer than the snackbar is a promise the interface never makes — the person would have no way to reach it, and
+the only visible effect of the extra time would be that some *other* device could still reverse a sweep long
+after it looked settled. A window much shorter would expire while the snackbar was still on screen, which is
+worse: an offered action that refuses. Thirty seconds is also short enough that "nothing has happened yet" is
+usually true, which matters for a conservative undo — a long window would mean most undos refuse most of their
+members, and an undo that mostly refuses trains people not to trust it.
+
+**When it opens, and when it moves.** On the first apply that actually *clears* a member, and again on any later
+call that clears more. A bounded sweep is one gesture even when it takes four calls, so the window runs from the
+last thing the sweep really swept, not from the call that started it — otherwise `maxBatches` would silently
+shorten the undo window in proportion to how long the sweep took. `GREATEST` keeps it monotonic and a call that
+cleared nothing leaves it exactly where it was, so **a replay cannot buy undo time by asking again**. That last
+one has a test by name; without it, a client polling a finished operation would extend its own window forever.
+
+`_applyBatch` now returns `(decided, applied)` rather than a single count, because "this call did work" and
+"this call decided something" are different facts and only the first opens a window.
+
+### The refusal rules, each with the reason it exists (overseer addition 1)
+
+`markUnseen` is not reused and nothing here is modelled on it. Its refusal — it will not restore when an unseen
+sibling shares the dedup key — existed because receipts were rewritten in place; U05a made them immutable, so
+that rule now protects nothing, and in any case it reverses `seen_at`, the *read* axis, which is not the axis a
+sweep touched. An undo that silently refuses for an obsolete reason is worse than one that refuses loudly, so
+every rule below is stated with what it prevents.
+
+**Whole-operation refusals** (typed, `AttentionUndoRefusal`; nothing is examined, nothing is written):
+
+| Refusal | Rule | Why it exists |
+|---|---|---|
+| `expired` | server clock is past `undo_deadline` | The bound. Read inside the same transaction that would restore, so a deadline that passes mid-undo refuses rather than half-applying. Never an untyped failure: it is the one refusal a person actually sees. |
+| `not_found` | no such operation, **or** it is not the caller's | Authorization, and non-disclosure: the two cases answer identically so undo is not a way to discover which operation ids exist. |
+| `never_applied` | the operation exists and is the caller's but `undo_deadline IS NULL` | No window was ever opened because nothing was ever cleared. This is also what a U08 clear gets — U08 opens no window, so its operations are not undoable through this path at all. |
+
+**Per-member refusals** (typed, `AttentionUndoSkipReason`; the rest of the operation still proceeds):
+
+| Reason | Rule | Why it exists |
+|---|---|---|
+| `not_applied` | member state is `pending`, `skipped` or `failed` | Undo reverses what happened; it does not finish what did not. See the partial-sweep section. |
+| `already_restored` | member state is `undone`, or the row is already back | Idempotence, not an error: a second undo inside the window is a double tap, not a conflict. |
+| `cleared_by_another_operation` | `notification_outbox.cleared_by_operation_id <> operationId` | **Never reverse another actor's act.** Another device's sweep, or a later explicit × that re-cleared the row, owns that clear state now. |
+| `decision_changed` | live `decision_revision` / `outcome_generation` ≠ the member's snapshot | **Never reverse a domain transition, and never restore a member whose object changed since the sweep.** This is the whole purpose of U09a's two counters and the one rule with a *direction* — see below. |
+| `not_authorized` | the row is gone, or the viewer may no longer read it | Authorization re-checked at undo time, not trusted from capture. Vanished and forbidden share one answer so the result discloses neither. |
+| `refused` | the database refused the write | Never expected. Kept apart from `skipped` precisely so it is visible if it ever happens; each member restores inside its own savepoint so one refusal cannot take the undo down. |
+
+**The rule that is deliberately absent: there is no obligation guard.** A cleared receipt cannot be an
+obligation — `notification_outbox__clear_optional_only_chk` says an obligation carries no clear state at all, so
+"a member still carrying this operation's clear, which is now `requires_action`" is a state the database will not
+represent. I could not construct it to write a failing test for it, and a guard nobody can make fail is
+decoration rather than protection; the honest version is this paragraph. The equivalent guard *is* present on the
+outcome axis in the form of the readability clause, which is constructible and tested.
+
+### The direction: later intent wins (overseer addition 2)
+
+The conservative rule is not symmetric, and the tests are written as pairs so the boundary is pinned from both
+sides — the same scenario where undo must restore and where it must refuse:
+
+| Pair | Restores | Refuses |
+|---|---|---|
+| receipt, Request untouched vs decided | `restores a receipt whose Request nobody touched` | `refuses a receipt whose Request was decided after the sweep` — the viewer answered the forward afterwards; the dismissed receipt is not put back underneath that answer |
+| outcome, untouched vs re-pinned | `restores an outcome nobody touched` | `refuses an outcome the viewer re-pinned after the sweep` — Restore through a bare `UPDATE`, which is how the client really does it through Hasura. **The sweep stands and the re-pin stands; undo changes neither.** |
+| its own work vs another's | `restores only members of that operation` | `refuses a receipt another operation cleared in the meantime` |
+| inside vs outside the window | `just inside the window restores` | `just outside the window refuses, and says so by name` |
+
+The re-pin case is the one that matters most and the one `markUnseen` would have got wrong: resurrecting the
+tombstone would re-hide a forward the person had just deliberately put back in front of themselves.
+
+### Undo of a partially applied sweep (overseer addition 4)
+
+A bounded sweep returns `partial` with pending members, and undo of such an operation does three things and no
+others:
+
+1. **Restores the members it applied.** Nothing else is in scope.
+2. **Reports every pending member as `not_applied`** and leaves its state `pending`. Restoring a row the sweep
+   never cleared would not be an undo, it would be an invention; and *applying* it would be undo quietly
+   finishing the operation it was asked to reverse. Both are tested: after the undo, the pending receipts are
+   still uncleared and their member rows are still `pending`.
+3. **Does not close the operation.** The header keeps saying the operation is unfinished. A member the sweep
+   *skipped* is treated the same as a pending one — `a member the sweep skipped is never restored by undo`
+   sweeps one receipt, lets another gesture clear the second with `clear_reason = 'explicit'`, resumes (the
+   sweep skips it), then undoes: the explicit clear survives untouched.
+
+The header records `status = 'undone'` only when no member of the operation is still `applied`. The sweep's
+`applied` / `skipped` / `failed` counters are **not** decremented: they say what the sweep did, and undo does not
+change that. One coupling fell out of this — `_summarize` had to learn the `undone` state, because the
+`case _:` default would have reported undone members as *pending*, and a later resume would then have claimed
+work it was never going to do. They are reported as skipped with the new reason `undone`.
+
+### Proving the refusals can fail (overseer addition 3)
+
+Two layers, because the guards live in two places.
+
+**SQL guards** — each is a separate named constant (`undoReceiptOperationGuard`, `undoReceiptCountersGuard`,
+`undoOutcomeCountersGuard`, `undoOutcomeReadabilityGuard`, `undoAppliedStateGuard`) composed into
+`undoReceiptSql` / `undoOutcomeSql`, so a test deletes exactly that clause from the *exact text the repository
+runs* — U09a's method — and asserts the loosened statement restores the row the real one refused. Five tests,
+each naming what the deleted clause would let through. The helper asserts the clause is actually present in the
+SQL first, so a rename cannot turn the loosening into a no-op.
+
+**Dart guards** — the whole-operation refusals and the member-state check are not SQL. I loosened them in a
+throwaway copy (`false && expired`, `false && never_applied`, dropping the account comparison, `if (false)` on
+the member-state branch), ran the suite, and got exactly the five reds those guards protect:
+
+```
+00:04 +17 -5: Some tests failed.
+  a partially applied sweep a member the sweep skipped is never restored by undo
+  a partially applied sweep undo restores what was applied and never completes the rest
+  the window an operation that cleared nothing has no window
+  the window just outside the window refuses, and says so by name
+  the window somebody else's operation and a missing one answer identically
+```
+
+The copy was then discarded (`git diff` clean before the commit). Worth noting what *stayed green* under that
+loosening: the idempotence test and the counters tests, because the SQL guards caught those independently. That
+is the layering working, not a gap.
+
+### The feed is unchanged, deliberately (overseer addition 7)
+
+No projection was touched; U10 owns indicators. Every assertion in this unit is on database or API state —
+`cleared_at`, `clear_reason`, `cleared_by_operation_id`, `tombstone_dismissed_at`, member state, header status,
+`undo_deadline`, the mutation's result — and none on "the dot came back".
+`attention_activity_stream_pg_test.dart` passes unchanged, which is the evidence the feed did not move.
+
+### Tests actually run
+
+```
+# RED — step 1, before AttentionSweepResult carried a window
+dart test --tags pg -j 1 attention_dismiss_sweep_pg_test.dart   00:00 +0 -1
+  compile: The getter 'undoDeadline' isn't defined for the type 'AttentionSweepResult'
+
+# RED — step 2, before the undo SQL constants existed
+dart test --tags pg -j 1 attention_undo_pg_test.dart            00:00 +0 -1
+  compile: Member not found: 'undoOutcomeSql' / 'undoOutcomeReadabilityGuard' (…)
+
+# RED — step 2, addition 3: the four Dart guards loosened in a throwaway copy
+dart test --tags pg -j 1 attention_undo_pg_test.dart            00:04 +17 -5   (the five listed above)
+
+# RED — step 3, before the mutation existed
+dart test attention_graphql_test.dart                            00:00 +26 -5
+  attentionUndo reverses… / names the refusal… / takes the operation and its token… /
+  requires authentication / attentionDismissAll hands back the undo window it opened
+
+# GREEN
+dart test --tags pg -j 1 attention_undo_pg_test.dart            00:04 +22: All tests passed!
+dart test --tags pg -j 1 attention_dismiss_sweep_pg_test.dart   00:04 +25: All tests passed!  (was +21)
+dart test attention_graphql_test.dart                            00:00 +31: All tests passed!  (was +26)
+
+# GREEN — the unit's TEST_CMD, everything coupled, in one run
+dart test --tags pg -j 1 attention_undo_pg_test.dart attention_dismiss_sweep_pg_test.dart \
+  attention_clear_operation_pg_test.dart attention_dismissible_predicate_pg_test.dart \
+  attention_outcome_dismissible_pg_test.dart attention_request_state_writer_pg_test.dart \
+  attention_activity_stream_pg_test.dart ../database/attention_additive_schema_pg_test.dart
+                                                                 00:31 +148: All tests passed!
+./scripts/check-custom-lints.sh packages/server                  total: 0 (baseline: 0) — OK
+```
+
+All through `scripts/run_with_test_cleanup.sh`, PG with `--tags pg -j 1`. The U08 clear suite and the U09b sweep
+suite ran in every round (addition 6). Full server suite not run: the overseer owns it.
+
+### Findings
+
+- **Drift reads a `customSelect` `timestamptz` as unix seconds** and `int.parse`s the driver's
+  `DateTime.toString()`, so `read<DateTime>('undo_deadline')` throws. The repo already had
+  `readCustomSelectTimestamptz` for exactly this; the sweep repository now imports it. Every sweep test failed
+  on this at once, which is how it was found — it is not specific to undo and will bite the next timestamp
+  column someone selects.
+- **`_summarize` had a latent hole that only undo could open.** Its `switch` had `applied` / `skipped` /
+  `failed` and a default that meant "pending". A member state it did not know — and `undone` is the first one —
+  would have been reported as pending, making a resumed sweep promise work it would never do. Adding a state to
+  that column is not a local change, which is worth knowing before U10 or U18 adds another.
+- **The undo token carries no capability, and saying so is the design.** Authorization is the JWT against
+  `attention_clear_operation.account_id`; the window is a server column. What the token carries is *offer*: an
+  operation that cleared nothing has no token, so a client cannot show an undo affordance for a sweep that did
+  nothing. It is decoded in the use case, not the repository, so a malformed or mis-bound token never reaches
+  the database — and a token bound to another operation gets `not_found`, the same answer as a token for an
+  operation that does not exist.
+- **The obligation guard is unwritable, not forgotten.** See the refusal table. This is the one place I would
+  most want a reviewer to disagree with me: I removed a guard the scout brief implied, on the grounds that the
+  CHECK constraint makes its failure mode unrepresentable and I could not write a test that fails without it.
+
+### Out of scope, confirmed untouched
+
+No client code (U16), no channel/email path, no obligation identity, no contract JSON, no projection change in
+`attention_repository.dart` (U10), no change to `AttentionDismissibleSql` — undo re-asks the outcome
+readability question in the same words but does not edit that file. No migration. `markUnseen` untouched and
+uncalled. Pre-existing untracked and modified files belong to other people and were not staged.
+
+STATUS: complete
