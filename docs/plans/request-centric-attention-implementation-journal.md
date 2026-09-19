@@ -7161,3 +7161,247 @@ obligation identity, retention and history, lifecycle integrity, clear, sweep, u
 attention axis, ordering keys, card provenance, child policy and reconciliation. Migrations m0178–m0189.
 
 ---
+
+## UNIT U13 — Client data/domain integration · SCOUT (2026-09-19)
+
+**Layer:** scout (read-only). **UNIT_BASE:** `3a7a61a50`. **Depends:** U08–U12 server contract accepted;
+client `lib/` untouched since U02 characterization.
+
+### Ferry / codegen ritual (attention GraphQL)
+
+| Step | What |
+|---|---|
+| 1 | **Schema** — `packages/client/lib/data/gql/schema.graphql` is **hand-synced** with Tentura V2 attention types in `packages/server/lib/api/controllers/graphql/custom_types.dart` (D18). It is **stale today**: `AttentionReceipt` lacks `clearedAt`, `clearReason`, `provenanceJson`, beacon card fields; `v2_ActivityOfferSortRow` lacks `listPositionAt`; `MyWorkBeaconAttention` lacks `needsYouAt` / `firstEntryAt`; §0.2 mutations/queries (`attentionClear`, `attentionDismissAll`, `attentionUndo`, `attentionReconcile`, `attentionClearSnapshot`, `attentionRequestHistory`) are **absent** from the client schema. Optional: `docker compose run --rm schema_fetcher` after Hasura reload merges remote schema — still verify V2-only fields landed. |
+| 2 | **Documents** — add `packages/client/lib/features/attention/data/gql/*.graphql` (mutations + queries + extend `attention_receipt_fields.graphql` fragment). One operation per file matches existing layout (`attention_mark_seen.graphql`, `activity_offers_v2.graphql`, …). |
+| 3 | **Codegen** — `cd packages/client && dart run build_runner build -d`. Ferry (`build.yaml` → `ferry_generator|graphql_builder`, `output_dir: "_g"`) emits per document under `lib/features/attention/data/gql/_g/`: `*.req.gql.dart`, `*.var.gql.dart`, `*.data.gql.dart`, `*.ast.gql.dart`, plus `*.gql.g.dart` serializers. **Never edit `_g/`** — gitignored (`packages/client/.gitignore` `**_g/`). |
+| 4 | **V2 routing** — register each new **operation name** (PascalCase document name, e.g. `AttentionClear`) in `_tenturaDirectOperationNames` in `packages/client/lib/data/service/remote_api_client/build_client.dart` (existing attention ops already listed: `AttentionFeed`, `ActivityOffersV2`, `MyWorkAttention`, …). |
+| 5 | **Repository** — `packages/client/lib/data/repository/attention_repository.dart` imports `../features/attention/data/gql/_g/<op>.req.gql.dart`, maps Ferry → domain entities (`toEntity` / `_mapReceiptWire`). |
+| 6 | **Freezed** — new/changed fields on `lib/domain/attention/entity/*` → same `build_runner` pass (`*.freezed.dart` gitignored). |
+| 7 | **DI** — if new ports/types, `dart run build_runner` regenerates gitignored `di.config.dart`. |
+
+### Server operations: wire in U13 vs leave for UI units
+
+| Operation | Server | U13 (data/domain) | U14–U17 (consumers) |
+|---|---|---|---|
+| `attentionClearSnapshot` + `attentionClear` | ✓ | Repository + `AttentionCase` (request-open + explicit card/event clear); optimistic apply/rollback by `operationId` | U17 detail: post-mount open clear; U16/U14: × on event/card |
+| `attentionDismissAll` | ✓ | Repository + case; **no offline queue**; surface `partial` + `pendingCount` + resume same `operationId` | U16 For You header replaces `markAllSeen` |
+| `attentionUndo` | ✓ | Repository + case; bounded window; whole-op `refusal` vs per-member `skipped` | U14–U16 snackbar undo affordance |
+| `attentionReconcile` | ✓ | Repository + case method; returns `unrepairableObligationCount` + summary | U17 Settings **Reset counters** (must not claim success when unrepairable > 0) |
+| `attentionRequestHistory` | ✓ | Repository + case query | U17 History screen pagination |
+| `attentionRequest(beaconId, …)` | **✗ not on GraphQL** (manifest §0.2 name frozen; server comment defers to future unit) | **Do not** add a client document until the field exists — U14 event-block pagination can keep `activityAttention` / feed scoped fetches until then | U14 expanded sub-card pagination; U17 detail |
+| Extended reads | ✓ on wire | Extend fragments + entities: `clearedAt`/`clearReason`, `listPositionAt`, `needsYouAt`/`firstEntryAt`, `provenanceJson` (+ existing beacon author fields on receipt) | U16 `InboxProvenance.parse`; U15 desk sort uses `needsYouAt`/`firstEntryAt` (today `compareMyWorkCardsForSort` still uses `Beacon.updatedAt`) |
+| `attentionMarkAllSeen` / `markSeen` | ✓ legacy | Keep until U18; U13 adds clear path **alongside**, does not remove legacy in this unit unless manifest says so | U16 retires "Read all" UX |
+
+### How `AttentionCase` owns state today
+
+- **Single hub:** `@lazySingleton` `AttentionCase` holds `BehaviorSubject<AttentionFeedSnapshot>` (summary only — **not** full pages), `BehaviorSubject<AttentionSurfaceSummary>`, `Map<String, AttentionReceipt> _receiptsById`, `AttentionAckStore`, and delegates per-destination **pages** to `FeedSessionRegistry` (`pages`, `activeView`, `searchText`, `requestGeneration`).
+- **Read path:** realtime (`notification`, `helpOffer`, `inboxItem`) + catch-up → `_requestHeadRefresh` / `_requestSurfaceSummaryRefresh`; fetches via `AttentionRepositoryPort`; `_applyPage` merges pages and applies ack overlays.
+- **Write path (today):** `markSeen` / `markUnseen` / `markSeenForBeacon` / `markAllSeen` — tokenized optimistic acks, `_runAfterAckBarriers`, rollback on error; `settleReceipt` — **no** optimism.
+- **Serial guards:** `requestGeneration` drops stale head/page fetches; `_surfaceSummaryRequestSerial` drops stale summaries; **no** mutation-generation guard yet — required for D14 stale responses after clear/sweep.
+
+**Must change for clearing (D12–D14):**
+
+1. **`AttentionClearStore` (or extend ack store)** — separate from read acks: pending clear/sweep/undo by `operationId`, member ids (receipt + outcome beacon), snapshot generation; commit on matching server result; rollback **only** matching operation (D14).
+2. **Optimistic projection** — mark `clearedAt` / tombstone-dismissed on receipts and grouped rows; adjust `eventUnseenCount` / dot inputs without zeroing unloaded totals (D14).
+3. **`_receiptsById` indexing** — on `_applyPage`, register **nested** `eventsPreview` children so child ids participate in deltas (today only top-level `feed.page.items` are stored — lines 596–597).
+4. **Normalized group rows** — domain helper to update parent grouped receipt when a child clears (counts, preview list, provenance-derived fields) — ack `apply` only touches flat receipt ids; unknown child ids are skipped in `_surfaceUnreadDeltasForIds` when `receipt == null` (688–689).
+5. **Pagination merge** — `_applyPage` tail merge dedupes by **`receipt.id` only** (605–609); `ActivityOffersCubit.loadMore` dedupes by **`beaconId`** (141–146). U10c stable row ids + **client** must also dedupe by **Request identity** (`beaconId` or stable group id) when head is held and tail arrives — server tests union duplicate-free; **client test** must assert combined pages unique by `beaconId` after simulated mid-pagination optional arrival.
+6. **Cursor v2** — server refuses v1/unknown cursors (`kAttentionCursorVersion = 2`). Client must catch wire refusal, bump `requestGeneration`, clear `pages` cursors, head-refetch (do not retry tail with dead cursor).
+
+### §0.3 — no second attention cache (today)
+
+- **Honoured in spirit:** `UpdatesFeedCubit` projects `AttentionCase.feedPages` only (`cross_surface_subscription_test.dart`). Only `AttentionCase` + `FeedSessionRegistry` hold feed pages.
+- **Grey zones (not receipt maps, but parallel projections):** `ActivityOffersCubit` caches `InboxItem` + `eventsByBeacon` from `activityOffers()` + `InboxCase` hydration; `InboxCase` / desk repos hold forwards separate from attention feed. These are **presentation caches**, not a second `AttentionCase`, but **violations** would be: a feature-local `Map<String, AttentionReceipt>`, cubit-owned unread totals independent of `surfaceSummary`, or fetching attention feed in a repository bypassing `AttentionCase` for mutation state.
+- **U13 acceptance architecture test** (manifest): add e.g. `test/architecture/single_attention_owner_test.dart` — forbid `AttentionReceipt` maps under `lib/features/**` outside allow-list, or require attention mutations only on `AttentionCase`.
+
+### Realtime invalidation gaps (D14)
+
+| Event | Today | Add in U13 |
+|---|---|---|
+| `notification` | summary + all attached head refresh | unchanged; carries clear/settlement |
+| `helpOffer` / `inboxItem` | activity stream head only | also refresh **my_work** projections when responsibility can flip (help offer add/withdraw) |
+| `beacon` / surface move | not subscribed | refresh `activityOffers`, `myWorkAttention`, summaries for affected `beaconId` |
+| Outcome generation / `attention_request_state` | no dedicated kind | via `notification` + targeted refetch after clear/sweep |
+| `attentionReconcile` | N/A | case method: reset sessions + refetch summary (server does not push session invalidate — U12 journal) |
+
+### `attention_ack_store.dart` vs child-level dismissal (U10b verdict)
+
+- Store overlays **`seenAt`** only (`AttentionAckIntent.seen|unseen`); clear state is a **different axis** (§3 product contract).
+- `apply(receipt)` never walks `eventsPreview`; optimistic read acks re-render top-level page items only (`_applyOptimisticAcks` 729–738).
+- Child × dismissal requires **normalized group projection**: parent row's `eventsPreview`, `eventTotal`, `eventUnseenCount`, and indicator inputs updated in `_receiptsById` and session pages together — otherwise server refresh is the only fix and optimism lies.
+
+### Duplicate-page problem (U10c → U13)
+
+- **Where merge happens:** `AttentionCase._applyPage` (`replaceHead: false` tail path, 602–609) and `ActivityOffersCubit.loadMore` (141–146).
+- **Failure mode:** user holds page-1 head; optional event arrives; tail fetch can include the same Request again at a new offset — client merge must not show two cards for one `beaconId`.
+- **Test:** domain/fake-repo test — load head, inject optional, `fetchNextPage`, assert `items.map(beaconId).toSet().length == items.length` (and stable group `id` where applicable); mirror for `activityOffers` via case + cubit-level test in `test/features/inbox`.
+
+### RISKS (explicit)
+
+| Risk | Mitigation |
+|---|---|
+| In-flight optimistic clear; server returns `partial` | Commit only `applied*` members; revert optimism for `skipped`/`denied`; surface `pendingCount` for resume — never treat `partial` as full success (U08/U09 semantics). |
+| Two devices clear same rows | Idempotent `operationId` per device; server skips already-cleared; realtime + summary refresh converges; second device rollback only its own pending op. |
+| Stale page/summary after newer mutation | Introduce `_mutationEpoch` or per-op serial: responses from fetches started before mutation completion must not overwrite optimistic state or newer summary (extend `_surfaceSummaryRequestSerial` pattern). |
+| Client holds **v1 cursor** in session | Server `ArgumentError` at decode — client resets pages + head refetch; never infinite retry on tail. |
+| `attentionRequest` frozen but missing on server | U13 wires **history + clear/sweep**; do not block on nonexistent field. |
+| `markAllSeen` vs dismiss ritual | Parallel APIs until U18; UI switch is U16 — domain must expose both without double-clear. |
+| Offline sweep | D14: fail visible, **no** silent queue of destructive sweep. |
+
+### TEST_CMD (client suites to extend + repo invocation)
+
+```bash
+cd /home/vader/MY_SRC/tentura/packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 45m -- \
+  flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env \
+  test/domain/attention test/features/inbox test/features/my_work test/architecture
+```
+
+Focused during implementation:
+
+```bash
+cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
+  flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env test/domain/attention/attention_case_test.dart
+```
+
+Custom lints after edits:
+
+```bash
+./scripts/run_with_test_cleanup.sh --timeout 10m -- ./scripts/check-custom-lints.sh packages/client
+```
+
+Overseer runs full server + client gate independently.
+
+STATUS: complete
+
+BRIEF: **Acceptance (observable):** Two client sessions converge on clear/sweep/undo; offline destructive gestures error instead of queuing; child/event × updates grouped previews and counts optimistically; paginated Activity/feed lists stay duplicate-free when sort keys are stable; v1 cursors trigger reset+refetch; only `AttentionCase` owns attention mutation state (architecture test). **Approach:** Sync schema + Ferry docs; extend entities/fragment; repository ports; `AttentionClearStore` + mutation serial; extend `_applyPage` dedupe by Request id; realtime for ownership; expose all implemented §0.2 ops except `attentionRequest` until server ships it.
+
+STEPS:
+
+| # | Step | Files | Red meaningful |
+|---|---|---|---|
+| 1 | Hand-sync GraphQL schema types for attention + new ops | `packages/client/lib/data/gql/schema.graphql` | no |
+| 2 | GraphQL documents + `build_runner`; register V2 op names | `features/attention/data/gql/*.graphql`, `build_client.dart` | no |
+| 3 | Domain entities: `clearedAt`, `clearReason`, ordering/provenance fields; clear result DTOs | `domain/attention/entity/*` | yes — entity/parser tests |
+| 4 | Repository + port methods for clear/sweep/undo/reconcile/history/snapshot | `attention_repository.dart`, `attention_repository_port.dart` | yes — fake repo tests |
+| 5 | `AttentionClearStore` + case methods; optimistic/rollback; mutation serial | `attention_case.dart`, new store file | yes — `attention_case_test.dart` |
+| 6 | Group projection helper + child id indexing; page merge dedupe by `beaconId` | `attention_case.dart` | yes — duplicate-page test |
+| 7 | Realtime: beacon/help surface moves | `attention_case.dart` | yes — subscription test |
+| 8 | Architecture: single attention owner | `test/architecture/single_attention_owner_test.dart` (new) | yes |
+| 9 | Characterization updates in inbox/my_work fakes | `test/features/inbox/*`, `test/features/my_work/*` | yes where behaviour changes |
+
+TEST_CMD: see block above.
+
+UNTOUCHABLE: `key.fb`, `leo.key`, `out.key`, `dart-defines`, `.serena/project.yml`, `packages/force_directed_graphview/**`, `docs/plans/constellation-*`, all `packages/server/**`, generated `_g/` / `*.g.dart` / `*.freezed.dart`, widgets/UI (U14–U17).
+
+RISKS: Client `schema.graphql` materially behind server (fields exist server-side only); `attentionRequest` manifest name without resolver; `ActivityOffersCubit` parallel list cache must consume case refreshes not re-fetch alone; `markAllSeen` still semantic "read" not "clear"; no server session invalidate after reconcile — client must refetch; E21 in older plan doc (client-only reset) **superseded** by U12 `attentionReconcile` for Settings.
+
+---
+
+## UNIT U13a — Transport · INNER (2026-09-19)
+
+**Layer:** inner (implementer). **UNIT_BASE:** `2ad0c598b`. **Scope:** scout steps 1–3 only — schema sync,
+documents + codegen, domain entities. Steps 4–9 (repository methods, case logic, optimistic application,
+realtime wiring, the single-owner architecture test) are U13b/U13c and were **not** touched.
+
+### Codegen command
+
+```
+cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- dart run build_runner build -d
+```
+
+Run twice: once after the documents (`Built with build_runner/aot in 68s; wrote 7033 outputs.`), once after the
+entity changes (`Built with build_runner/aot in 37s; wrote 886 outputs.`). No generated file was hand-edited —
+`_g/`, `*.g.dart`, `*.freezed.dart` are all build outputs and all gitignored.
+
+### Step 1 — schema sync (`908355bb0`)
+
+Hand-synced `packages/client/lib/data/gql/schema.graphql` against
+`packages/server/lib/api/controllers/graphql/custom_types.dart` + `{query,mutation}_attention.dart`. Added:
+
+- `AttentionReceipt`: `clearedAt`, `clearReason`, `provenanceJson`, `beaconAuthorId`, `beaconAuthorName`,
+  `beaconAuthorImageId`, `beaconImageId`, `beaconEndAt`, `allowsForward`
+- `v2_ActivityOfferSortRow.listPositionAt: String!`; `v2_MyWorkBeaconAttention.needsYouAt` / `.firstEntryAt`
+- types `v2_AttentionClearSnapshot`, `v2_AttentionClearResult`, `v2_AttentionSweepMember`,
+  `v2_AttentionDismissAllResult`, `v2_AttentionUndoMember`, `v2_AttentionUndoResult`,
+  `v2_AttentionReconcileResult`
+- query root: `attentionClearSnapshot(beaconId: String, kind: String!, receiptId: String)`,
+  `attentionRequestHistory(beaconId: String!, cursor: String, limit: Int)`
+- mutation root: `attentionClear`, `attentionDismissAll`, `attentionUndo`, `attentionReconcile`
+
+Argument nullability was read off `InputFieldString.field` (non-null) vs `.fieldNullable`, not guessed.
+`attentionRequest` was **not** added — §0.2 reserves the name and the server has no resolver; `attentionClearSnapshot`
+keeps U08's deliberately different name.
+
+TEST_RED: n/a — schema text has no behaviour to fail. The document build in step 2 is its check: Ferry validates
+every document against this file, so a wrong field name or arity fails codegen.
+
+### Step 2 — documents + codegen (`776e63c85`)
+
+New documents under `packages/client/lib/features/attention/data/gql/`: `attention_clear_snapshot.graphql`,
+`attention_clear.graphql`, `attention_dismiss_all.graphql`, `attention_undo.graphql`,
+`attention_reconcile.graphql`, `attention_request_history.graphql`. The shared `AttentionReceiptFields` fragment
+gained the clear state and the U10d card/provenance fields; `activity_offers_v2.graphql` gained
+`listPositionAt`; `my_work_attention.graphql` gained `needsYouAt` / `firstEntryAt` and clear state on both
+receipt projections. All six new operation names registered in `_tenturaDirectOperationNames`.
+
+TEST_RED: n/a — generated output. TEST_GREEN: codegen emitted the expected 7 artefacts per document under `_g/`.
+
+### Step 3 — entities (`38c29b593`)
+
+TEST_RED: `flutter test … test/domain/attention/attention_clear_entity_test.dart` →
+`00:00 +0 -1: Some tests failed.` (compile errors: `AttentionClearReason` / `AttentionCursorContract` absent,
+`isCleared` and `provenanceJson` not defined on `AttentionReceipt`).
+
+TEST_GREEN: same command → `00:00 +14: All tests passed!`
+
+Scoped suites:
+```
+cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 45m -- flutter test \
+  --dart-define=ENV=test --dart-define-from-file=env/test.env \
+  test/domain/attention test/features/inbox test/features/my_work test/architecture
+→ 00:15 +354: All tests passed!
+
+./scripts/run_with_test_cleanup.sh --timeout 10m -- ./scripts/check-custom-lints.sh packages/client
+→ total: 30 (baseline: 30) — check-custom-lints: packages/client OK
+```
+
+### Findings
+
+1. **Sweep and undo refusals are two vocabularies, not one.** The overseer brief listed `awaitingDecision`,
+   `alreadyCleared`, `responsibilityGained`, `decisionChanged` as skip reasons and `expired`,
+   `decisionChanged`, `clearedByAnotherOperation`, `neverApplied`, `notFound` as undo refusals. On the server
+   these are **three** enums: `AttentionSweepSkipReason` (8 values), `AttentionUndoSkipReason` (7 values, the
+   per-member axis — this is where `clearedByAnotherOperation` and `decisionChanged` live) and
+   `AttentionUndoRefusal` (3 values: `expired`, `not_found`, `never_applied` — the whole-operation axis). The
+   client mirrors the server's split verbatim, since the contract is frozen.
+2. **`unknown` fallbacks, and one that matters more than the rest.** Every read-only enum has an `unknown`
+   member. `AttentionOperationStatus.unknown.isComplete` is `false`, so an unrecognised status cannot be
+   reported as a finished operation — asserted directly in the test.
+   `AttentionClearCaptureKind` deliberately has **no** `unknown`: it is client-authored, so there is no value
+   there the client did not choose itself.
+3. **No second provenance model.** `provenanceJson` is a plain `String?` on `AttentionReceipt`; the test parses
+   it with the existing `InboxProvenance.parse` and asserts senders/total/note survive. Nothing new was added.
+4. **`AttentionDismissAllResult.isComplete` also requires `pendingCount == 0`.** `status: complete` with
+   pending members would otherwise read as a finished sweep; `needsResume` is the resume signal, and `canUndo`
+   is false unless the server issued **both** `undoToken` and `undoDeadline` (they are null together).
+5. **Cursor v2 is carried, not yet acted on.** `AttentionCursorContract` (`lib/domain/attention/entity/attention_cursor.dart`)
+   holds `version = 2`, `versionOf` (decodes the opaque base64url payload's `v`), `isCurrent` (a null cursor is
+   a head fetch and always current) and `isStaleCursorError`, which matches the server's
+   `invalid attention cursor` `ArgumentError`. **What must happen to a client holding a v1 cursor** — documented
+   on the class and left for U13b to implement: bump the session's `requestGeneration`, drop every held page
+   cursor, re-fetch the head, and never retry the tail with the dead cursor.
+6. **`listPositionAt` is non-null on the wire, so it is required on the entity.** That forced exactly two
+   construction sites: the repository mapper and `test/features/inbox/activity_offers_test_support.dart`.
+7. **Scope call: new read fields are mapped, not just declared.** Carrying the new columns through the existing
+   `_mapReceiptWire` / `myWorkAttention` / `activityOffers` mappers is one-line-per-field work inside mappers
+   that already existed, and without it the fields would be dead. No new repository *method* was added — clear /
+   sweep / undo / reconcile / history have documents and entities but no repository or port surface yet; that is
+   U13b's step 4.
+
+### Remaining for U13b/U13c
+
+Repository + port methods and the `AttentionCase` work: optimistic apply/rollback per `operationId`, the
+mutation serial, child-id indexing and group projections, page-merge dedupe by Request id, realtime
+invalidation for surface moves, the v1-cursor reset, and `test/architecture/single_attention_owner_test.dart`.
+
+STATUS: complete
