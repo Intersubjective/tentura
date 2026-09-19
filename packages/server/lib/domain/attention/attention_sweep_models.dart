@@ -128,6 +128,8 @@ class AttentionSweepResult {
     required this.failed,
     required this.pending,
     required this.status,
+    this.undoDeadline,
+    this.undoToken,
   });
 
   final String operationId;
@@ -146,6 +148,19 @@ class AttentionSweepResult {
   /// pending, `stale` when nothing could be cleared at all, `denied` when the
   /// operation id belongs to somebody else.
   final AttentionClearStatus status;
+
+  /// When the undo window closes, server clock. Set once this operation has
+  /// actually cleared something, and moved forward again by a resumed call
+  /// that cleared more — a bounded sweep is one gesture, and the window runs
+  /// from the last thing it swept. Never moved by a call that cleared
+  /// nothing: a replay must not be able to buy more undo time by asking
+  /// again. NULL on an operation that cleared nothing, which is also how the
+  /// caller knows there is nothing to offer an undo for.
+  final DateTime? undoDeadline;
+
+  /// Present exactly when [undoDeadline] is. Opaque and bound to the account
+  /// and the operation; it carries no capability — see `AttentionUndoToken`.
+  final String? undoToken;
 
   int get appliedCount =>
       appliedReceiptIds.length + appliedOutcomeBeaconIds.length;

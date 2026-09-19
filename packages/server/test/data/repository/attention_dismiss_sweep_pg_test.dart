@@ -9,6 +9,7 @@ import 'package:tentura_server/data/database/tentura_db.dart'
 import 'package:tentura_server/data/repository/attention_sweep_repository.dart';
 import 'package:tentura_server/domain/attention/attention_clear_models.dart';
 import 'package:tentura_server/domain/attention/attention_sweep_models.dart';
+import 'package:tentura_server/domain/attention/attention_undo_models.dart';
 import 'package:tentura_server/domain/use_case/attention_sweep_case.dart';
 
 import '../../support/disposable_pg_target.dart';
@@ -835,6 +836,141 @@ VALUES ('OPu09bstranger', @account, 'activity', 'pending', 0, 0, 0)
       },
     );
   }, skip: skipReason);
+
+  /// U09c's half of the sweep: a sweep that cleared something opens the undo
+  /// window, and a sweep that cleared nothing does not. The window's *use* is
+  /// tested in `attention_undo_pg_test.dart`; what belongs here is when it is
+  /// opened, because that is a fact about applying, not about undoing.
+  group('undo window', () {
+    test('a sweep that cleared something opens a 30-second window', () async {
+      await _insertReceipt(
+        writer,
+        id: 'Nu09cwindow',
+        beaconId: _forwardedBeaconIds.first,
+      );
+
+      final result = await sweep.dismissAll(
+        accountId: _viewerId,
+        operationId: 'OPu09cwindow',
+      );
+
+      expect(result.appliedCount, 1);
+      expect(result.undoDeadline, isNotNull);
+      expect(result.undoToken, isNotNull);
+      final deadline = await _undoDeadline(writer, 'OPu09cwindow');
+      expect(
+        deadline,
+        isNotNull,
+        reason: 'the window is a server column, not a token lifetime',
+      );
+      final remaining = (deadline! as DateTime).difference(DateTime.now().toUtc());
+      expect(
+        remaining.inSeconds,
+        inInclusiveRange(20, 30),
+        reason: 'D13: 30 seconds, the lifetime of the snackbar that offers it',
+      );
+      expect(
+        AttentionUndoToken.decode(result.undoToken!).operationId,
+        'OPu09cwindow',
+      );
+      expect(
+        AttentionUndoToken.decode(result.undoToken!).accountId,
+        _viewerId,
+      );
+    });
+
+    test('a sweep that cleared nothing opens no window', () async {
+      final result = await sweep.dismissAll(
+        accountId: _viewerId,
+        operationId: 'OPu09cempty',
+      );
+
+      expect(result.appliedCount, 0);
+      expect(result.undoToken, isNull);
+      expect(
+        await _undoDeadline(writer, 'OPu09cempty'),
+        isNull,
+        reason: 'there is nothing to undo, so nothing offers an undo',
+      );
+    });
+
+    test('a replay that clears nothing does not extend the window', () async {
+      await _insertReceipt(
+        writer,
+        id: 'Nu09creplay',
+        beaconId: _forwardedBeaconIds.first,
+      );
+      await sweep.dismissAll(
+        accountId: _viewerId,
+        operationId: 'OPu09creplay',
+      );
+      final first = await _undoDeadline(writer, 'OPu09creplay');
+
+      await sweep.dismissAll(
+        accountId: _viewerId,
+        operationId: 'OPu09creplay',
+      );
+
+      expect(
+        await _undoDeadline(writer, 'OPu09creplay'),
+        first,
+        reason:
+            'a replay did no work; buying more undo time by asking again is '
+            'exactly the silent extension this must not allow',
+      );
+    });
+
+    test('a resumed sweep that clears more moves the window', () async {
+      for (var index = 0; index < 3; index++) {
+        await _insertReceipt(
+          writer,
+          id: 'Nu09cresume$index',
+          beaconId: _forwardedBeaconIds[index],
+        );
+      }
+
+      final bounded = await sweep.dismissAll(
+        accountId: _viewerId,
+        operationId: 'OPu09cresumewindow',
+        batchSize: 1,
+        maxBatches: 1,
+      );
+      expect(bounded.status, AttentionClearStatus.partial);
+      final first = await _undoDeadline(writer, 'OPu09cresumewindow') as DateTime;
+
+      final resumed = await sweep.dismissAll(
+        accountId: _viewerId,
+        operationId: 'OPu09cresumewindow',
+        batchSize: 1,
+      );
+      expect(resumed.appliedCount, 3);
+      final second =
+          await _undoDeadline(writer, 'OPu09cresumewindow') as DateTime;
+      expect(
+        second.isBefore(first),
+        isFalse,
+        reason: 'the window never moves backwards',
+      );
+      expect(
+        resumed.undoDeadline,
+        isNotNull,
+        reason:
+            'the window runs from the last thing the sweep actually cleared, '
+            'not from the first call — a bounded sweep is one gesture',
+      );
+    });
+  }, skip: skipReason);
+}
+
+Future<Object?> _undoDeadline(Connection writer, String operationId) async {
+  final rows = await writer.execute(
+    Sql.named(
+      'SELECT undo_deadline FROM public.attention_clear_operation '
+      'WHERE id = @id',
+    ),
+    parameters: {'id': operationId},
+  );
+  return rows.isEmpty ? null : rows.first.first;
 }
 
 const _viewerId = 'Uu09bsweep01';

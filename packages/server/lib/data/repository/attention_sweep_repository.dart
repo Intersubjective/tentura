@@ -2,10 +2,12 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/attention/attention_clear_models.dart';
 import 'package:tentura_server/domain/attention/attention_sweep_models.dart';
+import 'package:tentura_server/domain/attention/attention_undo_models.dart';
 import 'package:tentura_server/domain/port/attention_sweep_port.dart';
 
 import '../database/tentura_db.dart';
 import 'attention_dismissible_sql.dart';
+import 'constellation_field_repository.dart' show readCustomSelectTimestamptz;
 
 /// U09b — storage for *Dismiss all*.
 ///
@@ -124,33 +126,86 @@ ON CONFLICT (id) DO NOTHING
     // only when nothing is pending — which is why they can both report the
     // same answer.
     var batches = 0;
+    var clearedHere = 0;
     while (maxBatches == null || batches < maxBatches) {
-      final decided = await _applyBatch(
+      final batch = await _applyBatch(
         accountId: accountId,
         operationId: operationId,
         batchSize: bounded,
       );
-      if (decided == 0) break;
+      if (batch.decided == 0) break;
+      clearedHere += batch.applied;
       batches++;
     }
 
-    final result = await _summarize(operationId);
+    final summary = await _summarize(operationId);
+
+    // The undo window (U09c, D13) opens the first time this operation clears
+    // anything and moves forward again whenever a resumed call clears more:
+    // a bounded sweep is one gesture, and the window runs from the last thing
+    // it actually swept, not from the call that started it. `GREATEST` keeps
+    // it monotonic, and a call that cleared nothing — a replay, a concurrent
+    // twin, a resume that found everything already decided — leaves it exactly
+    // where it was. Otherwise replaying an id would buy unlimited undo time.
     await _database.customUpdate(
-      r'''
+      '''
 UPDATE public.attention_clear_operation
-   SET status = $2, applied = $3, skipped = $4, failed = $5
- WHERE id = $1
+   SET status = \$2, applied = \$3, skipped = \$4, failed = \$5,
+       undo_deadline = CASE
+         WHEN \$6 THEN GREATEST(
+           COALESCE(undo_deadline, now()),
+           now() + make_interval(secs => \$7)
+         )
+         ELSE undo_deadline
+       END
+ WHERE id = \$1
 ''',
       variables: [
         Variable<String>(operationId),
-        Variable<String>(result.status.name),
-        Variable<int>(result.appliedCount),
-        Variable<int>(result.skipped.length),
-        Variable<int>(result.failed.length),
+        Variable<String>(summary.status.name),
+        Variable<int>(summary.appliedCount),
+        Variable<int>(summary.skipped.length),
+        Variable<int>(summary.failed.length),
+        Variable<bool>(clearedHere > 0),
+        Variable<double>(
+          AttentionUndoLimits.window.inMilliseconds / Duration.millisecondsPerSecond,
+        ),
       ],
       updateKind: UpdateKind.update,
     );
-    return result;
+
+    final deadline = await _undoDeadline(operationId);
+    return AttentionSweepResult(
+      operationId: summary.operationId,
+      appliedReceiptIds: summary.appliedReceiptIds,
+      appliedOutcomeBeaconIds: summary.appliedOutcomeBeaconIds,
+      skipped: summary.skipped,
+      failed: summary.failed,
+      pending: summary.pending,
+      status: summary.status,
+      undoDeadline: deadline,
+      undoToken: deadline == null
+          ? null
+          : AttentionUndoToken(
+              accountId: accountId,
+              operationId: operationId,
+            ).encode(),
+    );
+  }
+
+  Future<DateTime?> _undoDeadline(String operationId) async {
+    final row = await _database
+        .customSelect(
+          r'''
+SELECT undo_deadline FROM public.attention_clear_operation WHERE id = $1
+''',
+          variables: [Variable<String>(operationId)],
+        )
+        .getSingleOrNull();
+    // Drift reads a customSelect `timestamptz` as unix seconds and
+    // `int.parse`s the driver's `DateTime.toString()`; this helper is the
+    // repo's existing way round that.
+    return readCustomSelectTimestamptz(row?.data['undo_deadline']);
   }
 
   /// One batch: re-ask the dismissible question per member, then write.
@@ -159,8 +214,10 @@ UPDATE public.attention_clear_operation
   /// capture. A member that became ineligible in between — the forward was
   /// restored, the viewer took responsibility, another gesture got there
   /// first — is *skipped and reported*, never cleared, and never dropped
-  /// silently. Returns how many members this call decided.
-  Future<int> _applyBatch({
+  /// silently. Returns how many members this call decided, and how many of
+  /// those it actually cleared — the second number is what opens and moves the
+  /// undo window, because a batch that only skipped did no work to undo.
+  Future<({int decided, int applied})> _applyBatch({
     required String accountId,
     required String operationId,
     required int batchSize,
@@ -181,7 +238,7 @@ SELECT receipt_id, outcome_beacon_id, outcome_generation, decision_revision
           ],
         )
         .get();
-    if (pending.isEmpty) return 0;
+    if (pending.isEmpty) return (decided: 0, applied: 0);
 
     final receiptIds = <String>[];
     final outcomeIds = <String>[];
@@ -321,7 +378,12 @@ UPDATE public.attention_clear_operation_member
       );
     }
 
-    return decisions.length;
+    return (
+      decided: decisions.length,
+      applied: decisions.values
+          .where((decision) => decision.$1 == _stateApplied)
+          .length,
+    );
   });
 
   /// The dismissible question, asked again for exactly these members.
