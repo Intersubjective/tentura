@@ -266,6 +266,31 @@ WHERE id = @id
       },
     );
 
+    test('erasing the actor demotes the obligation and drops its identity',
+        () async {
+      await _record(unitOfWork, dispatch, _helpOffer(sourceEventKey: 'offer-1'));
+
+      // m0129's erasure trigger keeps the shared history and strips the
+      // obligation from it. It predates these columns; m0181 teaches it to
+      // clear them too, or the whole account delete aborts on
+      // `notification_outbox__logical_task_chk`.
+      await writer.execute(
+        Sql.named('DELETE FROM public."user" WHERE id = @id'),
+        parameters: {'id': _helperId},
+      );
+
+      final rows = await writer.execute('''
+SELECT requires_action, logical_task_key, lifecycle_generation,
+       attention_thread_key
+FROM public.notification_outbox
+''');
+      expect(rows, hasLength(1), reason: 'the receipt is retained, not deleted');
+      expect(rows.single[0], false);
+      expect(rows.single[1], isNull);
+      expect(rows.single[2], isNull);
+      expect(rows.single[3], isNull);
+    });
+
     test('a failure after the supersede leaves the database unchanged',
         () async {
       await _record(unitOfWork, dispatch, _helpOffer(sourceEventKey: 'offer-1'));

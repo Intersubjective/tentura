@@ -127,7 +127,51 @@ WHERE source_event_key = $1 AND immutable_payload = $2::jsonb
         recipientReasons: recipient.reasons,
         role: role,
       );
-      final lifecycleGeneration = logicalTaskKey == null ? null : 1;
+      //
+      // A *semantic renewal* — the same unresolved task asked again — must
+      // supersede its predecessor here, in the caller's transaction, so the
+      // two generations never coexist as live obligations and a rollback of
+      // the source mutation takes the supersede with it. The database holds
+      // the line either way: m0178's partial UNIQUE
+      // `notification_outbox__live_logical_task` rejects a second live row
+      // for one task, so a writer that forgets to supersede fails loudly.
+      //
+      // A *delivery retry* reaches neither statement: a replayed
+      // `source_event_key` returns at the occurrence dedup above, and a
+      // channel retry only touches `attention_channel_delivery`. Neither
+      // bumps a generation.
+      //
+      // Legacy obligations written before U05c carry a NULL
+      // `logical_task_key`; the partial index ignores NULL keys, so they
+      // neither block nor get superseded by this. They gain keys at U18's
+      // cutover, not here — backfilling them now would have to guess which
+      // generation a row belonged to.
+      final int? lifecycleGeneration;
+      if (logicalTaskKey == null) {
+        lifecycleGeneration = null;
+      } else {
+        final superseded = await _database
+            .customSelect(
+              r'''
+UPDATE public.notification_outbox
+SET settlement_kind = 'superseded', settled_at = now()
+WHERE account_id = $1
+  AND logical_task_key = $2
+  AND requires_action
+  AND settlement_kind IS NULL
+RETURNING lifecycle_generation
+''',
+              variables: [
+                Variable<String>(recipient.recipientId),
+                Variable<String>(logicalTaskKey),
+              ],
+            )
+            .get();
+        final previous = superseded
+            .map((row) => row.readNullable<int>('lifecycle_generation') ?? 0)
+            .fold(0, (a, b) => a > b ? a : b);
+        lifecycleGeneration = previous + 1;
+      }
       final row = await _database
           .customSelect(
             r'''
