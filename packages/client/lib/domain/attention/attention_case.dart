@@ -882,18 +882,12 @@ final class AttentionCase {
       _receiptsById[receipt.id] = receipt;
     }
     _indexChildren(feed.page.items);
-    final incoming = _uniqueByReceiptId(
+    final incoming = _uniqueByRequestIdentity(
       feed.page.items.map(_project),
     );
     final items = replaceHead
         ? incoming
-        : <AttentionReceipt>[...?oldPage?.items, ...incoming]
-              .fold<Map<String, AttentionReceipt>>(
-                {},
-                (items, receipt) => items..[receipt.id] = receipt,
-              )
-              .values
-              .toList(growable: false);
+        : _uniqueByRequestIdentity([...?oldPage?.items, ...incoming]);
     final pages = Map<AttentionView, AttentionFeedPage>.from(session.pages)
       ..[view] = AttentionFeedPage(
         items: items,
@@ -1079,11 +1073,39 @@ final class AttentionCase {
     );
   }
 
-  List<AttentionReceipt> _uniqueByReceiptId(Iterable<AttentionReceipt> items) =>
+  /// The key a merged page is unique by.
+  ///
+  /// A **grouped** row is one card for one Request, so its identity is the
+  /// Request -- not the row id, which the server is free to re-mint when the
+  /// group's sort key moves. An ungrouped receipt is its own event: two of
+  /// them may share a `beaconId` and must keep separate rows.
+  static String _requestIdentity(AttentionReceipt receipt) {
+    final beaconId = receipt.beaconId;
+    if (beaconId == null || beaconId.isEmpty) return 'receipt:${receipt.id}';
+    return switch (receipt.itemKind) {
+      AttentionItemKind.forward ||
+      AttentionItemKind.watchingDigest ||
+      AttentionItemKind.requestActivity => 'request:'
+          '${receipt.itemKind.wireName}:$beaconId',
+      AttentionItemKind.receipt => 'receipt:${receipt.id}',
+    };
+  }
+
+  /// Merges keeping the **first** position and the **last** payload: a moved
+  /// group does not jump under the user, and the fresher copy wins.
+  ///
+  /// U10c proved the server's failure shape is a vanish -- head and tail are
+  /// independent queries -- so a client that only suppressed repeats would
+  /// still be wrong in the other direction. Nothing is dropped here that was
+  /// not already present under the same identity.
+  List<AttentionReceipt> _uniqueByRequestIdentity(
+    Iterable<AttentionReceipt> items,
+  ) =>
       items
           .fold<Map<String, AttentionReceipt>>(
             {},
-            (byId, receipt) => byId..[receipt.id] = receipt,
+            (byIdentity, receipt) =>
+                byIdentity..[_requestIdentity(receipt)] = receipt,
           )
           .values
           .toList(growable: false);
