@@ -3107,3 +3107,95 @@ attention suite outside the two touched files changed behaviour — including
 - **Fixture correction, not a code finding:** `settlement_kind` is constrained to
   `resolved|dismissed|superseded|legacy_archived|expired` (`m0118` + `m0166`). An initial fixture used
   `'system'` and was rejected by `notification_outbox__settlement_kind_chk`.
+
+---
+
+## UNIT U06b — Retention posture + personal Request history read · VERIFY (2026-09-19)
+
+**UNIT_BASE:** `40546dde8`. **Commits audited:** `3ae9c8c58`, `31543c4ec`, `0edeb92b3`, `ab95f16f8` (journal only).
+Verifier re-ran suites and U06b PG files; did not rely on inner-layer claims alone.
+
+### Inner claims audited by execution
+
+1. **Scheduled no-op once legacy drains** — **Mostly confirmed, one nuance for the owner.** Production
+   `deleteSettledOlderThan` is the only ongoing `DELETE FROM notification_outbox` in `packages/server/lib/` (grep
+   verified). When **no row matches** `occurrence_id IS NULL ∧ cleared_at IS NULL ∧ settled obligation ∧ seen ∧
+   emailed ∧ age ∧ no pending/leased handoff`, the sweep returns **0** — verified by test 1 expecting `deleted ==
+   0` while five protected rows remain. **Until that legacy settled slice is empty, the sweep is not a no-op**
+   (`still deletes a legacy settled obligation…` → `deleted == 1`). Post-cutover rows (`occurrence_id IS NOT
+   NULL`) never match the DELETE. **Other pruning:** account `ON DELETE CASCADE` (`m0125`); one-off / domain
+   teardown deletes in migrations (e.g. `m0158`, `m0126`) — not the 6-hour worker. Rows **never emailed**
+   (`emailed_at IS NULL`) were never age-deletable (pre-existing); that is a separate growth path, not introduced
+   here.
+2. **Both sides of retention pinned** — **Confirmed.** Re-ran `attention_retention_pg_test.dart`: **12 passed**
+   (6 tests), including keep-classes (live, uncleared optional, cleared, post-cutover, pending/leased) and
+   **delete** of `Nattretlegacysettled`.
+3. **Authorization** — **Confirmed by executing PG tests** (not code-reading only): `a foreign account reads
+   nothing…` and `a block hides history…` both **passed** in `attention_request_history_pg_test.dart`. Wall:
+   `visible_attention_receipts` via `_visibleWithSurfaceCte`; account scoping from `n.account_id = p_account_id`;
+   blocks via `beacon_can_read_content` → `block_hides` (`m0171:83`).
+4. **History returns cleared + settled** — **Confirmed.** `returns cleared and settled receipts for the Request,
+   newest first` **passed**; SQL filters `beacon_id` only (no feed `view`/unread/surface predicate on the page).
+
+### Also verified
+
+- **Cursor parity:** `AttentionPage` + existing `_encodeCursor`/`_decodeCursor`; graphql test decodes history
+  cursor through `attentionFeed`; PG pagination/stability tests **passed**.
+- **`deleted == 2` → `0`:** Required because `Nattretlegacy` (uncleared optional) and terminal dispatch receipt
+  (`occurrence_id`) are now protected — not a weakened assertion; legacy-delete class has its **own** test.
+- **`clearedAt`/`clearReason` absent from `_mapReceipt`:** Confirmed (`query_attention.dart:372–409`). No
+  `cleared_at` writes in server `lib/` outside migration comments/schema. No client `lib/` references to
+  `attentionRequestHistory` or `clearedAt`. Harmless today; U13 client will need fields when clearing UI lands.
+- **Scope:** `40546dde8..ab95f16f8` touches **9 server paths + journal**; **0** `packages/client` diff. **0** diff
+  on contract / dispatch / obligation-identity paths. Worktree: **4 modified + 37 untracked** (overseer dirt
+  unchanged; `request-centric-attention-implementation-plan.md` modified outside unit commits).
+
+### Full server suite (verifier)
+
+```
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 45m -- dart test --exclude-tags pg
+→ 00:07 +1662: All tests passed!  exit 0
+
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 45m -- dart test --tags pg -j 1
+→ 11:52 +845 ~24: All tests passed!  exit 0
+```
+
+`~24` skips: only `_skipHistoricalMigrationCoverage` in the three historical migration DB test files (message:
+"Disabled for the planned schema squash cutover…"). No unexpected skips.
+
+**Verdict:** **PASS** — accept U06b for merge on evidence; no code defects found. Owner messaging should not
+equate "no `occurrence_id IS NULL` rows" with "no-op" until the **legacy settled deletable** count (inner §2
+operator query) also hits zero.
+
+### Manager verdict — U06b · **ACCEPTED** (scout ✓ / inner Opus-low ✓ / verify pass, no finisher)
+
+Overseer's own full server suite: **1662 non-PG**, **845 PG / 24 known skips**, no `[E]`, no load failures.
+(First attempt was spoiled by my own `tail -2`, which cut the PG summary and left only dart's
+chain-stack-traces hint; re-run with a proper filter. A verification I mangled is not a verification.)
+Commits `3ae9c8c58` retention · `31543c4ec` history read · `0edeb92b3` GraphQL · `ab95f16f8` journal.
+
+**The disclosure this unit was commissioned for, corrected by the verifier.** The inner layer reported that
+retention becomes a scheduled no-op "once legacy rows drain". The verifier tightened it: uncleared legacy
+optionals with `occurrence_id IS NULL` are kept **forever**, so the sweep stops doing work when the *legacy
+settled deletable* count reaches zero — and there is a second, pre-existing growth path nobody had named:
+rows that were never emailed were never age-trimmed at all. The operator-facing statement is now accurate
+rather than reassuring, which was the point of asking for it in rows instead of adjectives.
+
+Verified by execution rather than by reading:
+- retention is pinned on **both** sides — live obligation, uncleared optional, cleared, post-cutover and
+  pending/leased rows survive; a legacy settled row (`occurrence_id IS NULL`, seen, emailed, aged) is still
+  deleted, so the sweep is not already a no-op;
+- authorization on the new history read — a stranger gets an empty page, and a page empties after a block;
+  path confirmed as `visible_attention_receipts` (m0117) plus `block_hides` in `beacon_can_read_content`
+  (m0171:83);
+- the history returns exactly what it exists for — live, settled **and** cleared receipts for the Request,
+  with no inherited feed filter silently removing them.
+
+**Design note worth keeping:** no new page type or cursor codec was introduced. History reuses `AttentionPage`
+and the feed's own encode/decode, so cursor parity is structural instead of a hand-maintained coincidence.
+
+**Debt, owned elsewhere:** `clearedAt` / `clearReason` are absent from the GraphQL receipt projection, so a
+client cannot yet distinguish a cleared row — harmless until something writes `cleared_at` (U08/U09), and owned
+by U09/U13.
+
+---

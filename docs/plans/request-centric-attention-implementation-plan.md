@@ -314,6 +314,14 @@ an explicit unverified mark. No code changes in this unit.
 
 ### U07b — Obligation lifecycle completion
 
+**Carried in from U05c's verify (overseer):** add the structural guard on the dispatch/supersede boundary. The
+inner layer asserted no caller reaches it outside an ambient mutating transaction; the verifier found
+`user_block_case.dart:211` calling `dispatch.record` bare. It is benign today only because that path emits no
+obligations — the safety is a coincidence, not a guarantee. This unit already edits that boundary (it must move
+`settleReviewerObligationOnPackageSend` inside the transaction, `evaluation_case.dart:1616`), so the guard
+belongs here.
+
+
 **Depends.** U03, U04, U05, **U07a**.
 
 **Owns.** `help_offer_case.dart`, `coordination_case.dart`, `evaluation_case.dart`,
