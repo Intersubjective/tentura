@@ -7405,3 +7405,77 @@ mutation serial, child-id indexing and group projections, page-merge dedupe by R
 invalidation for surface moves, the v1-cursor reset, and `test/architecture/single_attention_owner_test.dart`.
 
 STATUS: complete
+
+---
+
+## UNIT U13a — Transport · VERIFY (2026-09-19)
+
+**Layer:** verify (read-only). **UNIT_BASE:** `2ad0c598b`. **Range:** `908355bb0` · `776e63c85` · `38c29b593` · `dc3e0221c`.
+
+**Overseer brief correction:** The brief conflated sweep skip reasons with undo refusals. **Server source confirms three enums:** `AttentionSweepSkipReason` (8 wire values, `attention_sweep_models.dart:54–91`), `AttentionUndoSkipReason` (7 wire values including `cleared_by_another_operation` and `decision_changed`, `attention_undo_models.dart:72–107`), `AttentionUndoRefusal` (3 wire values: `expired`, `not_found`, `never_applied`, `attention_undo_models.dart:48–60`). Client `attention_clear.dart` mirrors wire names 1:1 with `unknown` fallbacks on read paths only; **no merge/split defect.**
+
+**Tests run (verify):**
+
+```
+cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 45m -- flutter test \
+  --dart-define=ENV=test --dart-define-from-file=env/test.env \
+  test/domain/attention test/features/inbox test/features/my_work test/architecture
+→ 00:13 +354: All tests passed!
+
+./scripts/run_with_test_cleanup.sh --timeout 10m -- ./scripts/check-custom-lints.sh packages/client
+→ total: 30 (baseline: 30) — OK
+```
+
+**Diff scope:** 20 paths, all `packages/client/**` + journal; **zero** `packages/server/**`. Untouchables and the four pre-existing dirty paths outside this range unchanged.
+
+STATUS: pass
+
+TEST_OUTPUT: `flutter test … test/domain/attention test/features/inbox test/features/my_work test/architecture` — **+354**; `check-custom-lints.sh packages/client` — **total 30 (baseline 30)**
+
+ACCEPTANCE:
+- Wire-shape fidelity — **met** — GraphQL documents field lists match `custom_types.dart` / `{query,mutation}_attention.dart`; schema nullability matches server `InputField*` usage; `AttentionOperationStatus` unifies the three commands' shared four-word status vocabulary (`AttentionClearStatus` / reuse on server).
+- Unknown values cannot read as success — **met** — `attention_clear_entity_test.dart` asserts `fromWire('teleported_away')` → `unknown` for skip/refusal/kind/reason enums; `AttentionOperationStatus.unknown.isComplete == false`.
+- `AttentionClearCaptureKind` has no `unknown` — **met / sound** — only appears as **client** `attentionClearSnapshot(kind: …)` input; GraphQL `v2_AttentionClearSnapshot` response has no `kind` field; invalid wire → `null` from `fromWire`.
+- No second provenance model — **met** — `provenanceJson: String?` on `AttentionReceipt`; test uses `InboxProvenance.parse`.
+- `attentionRequest` not squatted — **met** — no client document/schema field; only `attentionClearSnapshot` + `attentionRequestHistory`.
+- Generated output — **met** — `_g/*.req.gql.dart` bears `GENERATED CODE - DO NOT MODIFY`; journal names `dart run build_runner build -d` (twice).
+- Cursor v2 carried, not implemented — **met** — `AttentionCursorContract` only; `attention_case.dart` unchanged; no `isStaleCursorError` call sites.
+- Scope (transport only) — **met** — no port methods, no `AttentionCase` mutation logic, no `single_attention_owner` test; repository diff is mapper-only for new read fields.
+- Commits / untouchables — **met** — four focused commits; no server; secrets/untouchables not in diff.
+
+GAPS: none
+
+### Manager verdict — U13a · **ACCEPTED** (inner Opus-low ✓ / verify pass, no finisher)
+
+Overseer's gate: **full client suite 3669 passed / 29 pre-existing skips**; `check-custom-lints packages/client`
+**30 (baseline 30) OK**. No server file touched. Commits `908355bb0` schema sync · `776e63c85` documents ·
+`38c29b593` entities · `dc3e0221c` journal.
+
+**The brief was wrong and the implementer corrected it — the fifth time this session.** I described two typed
+reason enums; the server actually has **three**: `AttentionSweepSkipReason` (8), `AttentionUndoSkipReason` (7 —
+where `clearedByAnotherOperation` and `decisionChanged` actually live) and `AttentionUndoRefusal` (3). The
+contract is frozen, so the client mirrors the server's split verbatim rather than my summary of it. The verifier
+confirmed against the server source.
+
+The pattern is worth naming: I assemble briefs from the **journal**, i.e. from previous layers' prose, so each
+brief is only as accurate as the last retelling. Five corrections so far — the U05 scout on dedup, U05c's inner
+on callers, U11's inner on the inbox trigger, U10a's verifier on an "empty" set, and now me on enum shape. The
+one thing that keeps catching them is the standing requirement that every layer check live code and contradict
+its instructions when they disagree.
+
+**"Unknown must not read as success" was implemented more precisely than stated.** Every read-only enum carries
+an `unknown` fallback and `AttentionOperationStatus.unknown.isComplete == false` is asserted, so a wire value
+the client has never seen can neither crash it nor be mistaken for completion. `AttentionDismissAllResult`
+additionally requires `pendingCount == 0` for completeness, and `canUndo` requires both the token and the
+deadline, which the server returns together or not at all.
+
+**A deliberate asymmetry I endorse:** `AttentionClearCaptureKind` has **no** `unknown` value, because it is
+client-authored and never arrives from the wire — a fallback there would mask a programmer error rather than
+absorb a protocol change. Distinguishing "data from outside" from "data we wrote" is what separates a real guard
+from a ritual one.
+
+**Scope held:** no second provenance model (`provenanceJson` stays text parsed by the existing
+`InboxProvenance`), `attentionRequest` not squatted, cursor v2 carried but its v1-reset behaviour documented for
+U13b rather than implemented early, and no repository or case surface added.
+
+---
