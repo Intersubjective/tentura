@@ -604,6 +604,34 @@ capability chips**. A fourth long RU chip at 1.3× text measures **251 dp** agai
 Spec §7.1 puts capability chips inside the forward mini-card, so U16 must **cap or coalesce** them — a forwarder
 with four or more reason slugs otherwise breaks the §9 height ceiling the card's whole layout depends on.
 
+### U15R — interim-review remediation (inserted 2026-09-19)
+
+Astra's interim review found **nine defects on the seams between units that each passed verification in
+isolation** (full text: `request-centric-attention-astra-interim-review.md`). They are fixed before U16, because
+R4 blocks the card outright and R1/R2 mean owner decisions A and B are not yet delivered end to end.
+
+- **U15R-a — server correctness**: R1 (clearing an outcome must not veto the Request's live attention; non-helping
+  outcomes must lose their event counts and previews), R9 (derive `applied` from `UPDATE … RETURNING` so two
+  concurrent single clears cannot both claim the same receipt), R3 (explicit clears get the same bounded undo
+  metadata and per-member revision capture as sweeps), R8 (ordering anchors survive a Request losing all active
+  attention).
+- **U15R-b — provenance for the card**: R4 — the payload must carry an explicitly selected **latest note-bearing
+  forward** with its identity and timestamp, because D-171-5a cannot be satisfied by sorting MR-ranked senders.
+- **U15R-c — client correctness**: R2 (reading must stop moving clear-axis totals; optimistic `dismissAll` must
+  use dismissible membership, not every cached receipt — today it violates owner decision A optimistically),
+  R6 (honour `AttentionClearResult` instead of discarding it), R5 (one transition generation across **both**
+  surfaces, with a test that actually observes For You), R7 (render dot **and** count together).
+
+**R7 is an orchestrator error, recorded as such.** `docs/features/request-attention.md` §6 and design-plan D09
+both say the dot and the number are independent and appear together. My U14c brief paraphrased §6 as "one badge
+slot, count takes precedence", and the implementation correctly followed my brief rather than the source. Fourth
+orchestrator error of the session, same mechanism as the other three: a brief assembled from prose instead of
+from the authority it cites.
+
+**U18 gains two explicit gates** from the compounding deferrals: legacy obligation identity (unkeyed rows that
+reconciliation deliberately cannot repair) and historical hierarchy placement (pre-m0189 rows still counted as
+primary attention). Its manifest previously described only the seen→cleared conversion.
+
 **U16 also builds** `RequestAttentionCard` (spec §6, §9 state matrix) and `TombstoneRow` (spec §8, past-tense
 copy), and retires `ActivityOfferCard`, `ActivityOfferBoundedShell`, `ActivityForwardRow` and
 `inbox_forward_attribution_copy.dart` with their goldens. `InboxItemTile` / `InboxCardForwardsFold` retire in
