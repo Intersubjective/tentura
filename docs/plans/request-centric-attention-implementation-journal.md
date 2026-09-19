@@ -10008,6 +10008,45 @@ assert the target's own value, not only its agreement with the thing under test.
 
 U16b stream integration · U16c Dismiss all chrome + widget retirements · `pubspec.yaml` / `web/index.html` bump until user-visible ship (card unused until wired).
 
+---
+
+## verify — U16a · the card itself (read-only) · 2026-09-19
+
+**Layer:** verify (read-only). **UNIT_BASE:** `d84777c7c`. **Range:** `a23cf7285` · `d2b53a294` · `c894f004c` · `dfc4991e1` · `37b8551db` · `ac07829e9`. **Gates:** not re-run (identical to implementer: client **3852 / 29 skips**, lints **30/30**).
+
+### MIRROR
+
+`attention_event_classification_test.dart` loads `docs/contracts/updates-event-contract.json` via `_contractFile()` (same dual-path pattern as server contract tests). Three independent failure modes: key-set equality (`attentionEventClassifications.keys` ↔ declared `eventType`s), per-variant field agreement (34 variants), and the **eventType-only** legitimacy proof — each `eventType`'s variants must have `headlineTreatment` and `coalescible` sets of length 1. That third test is **not** vacuous: it would fail the moment the contract splits a type's variants on either field; it is a contract invariant, not a runtime receipt proof. Unknown types: `kUnknownAttentionEventClassification` + dedicated test (`coalescible: false`, `headlineTreatment: beacon`). **Verdict:** drift-catching mirror matches the server's `placement` arrangement; eventType-only key is **proven for the current contract file**, not assumed without evidence.
+
+### LOOSENED ListView test
+
+`request_attention_card_test.dart` «row below still builds» uses **360×1600** at 2× with a **minimal** pinned fixture (one forward mini-card). `tombstone_row_test.dart` keeps **360×640** at 2× and asserts the outcome line + next row — the shape that catches the silent-unbuild family. The card test still asserts `find.byKey('next')` and `AttentionMiniCard` (positive guards), but **does not** reproduce a tall card under a 640 dp viewport; widening to 1600 removes the lazy-ListView / viewport pressure the repo warning describes. **Partial:** tombstone covered; full card not stressed at 640.
+
+### VACUOUS (third)
+
+Read the corrected coalescing fixture (second note-bearing sender `u2` non-pinned) and `_pinnedCard(relation: helping)` default — both match journal mutations. No third assertion in-range found that is true for the wrong reason after those fixes. **Note:** `height ceiling holds (§9)` runs at **compact `visibleCap = 1`**, so it does not exercise the three-mini-card worst case the spec paragraph names (honest for what it measures, not a false pass).
+
+### CONSTRAINTS (live code)
+
+| # | Verdict | Evidence |
+| --- | --- | --- |
+| timeline | **met** | `request_attention_card.dart:168` `AttentionBlockOverflowPolicy.timeline`; D-171-5b test taps `moreKey`, height unchanged, `loadMoreKey` absent. `activity_stream_view.dart:928` still `paginate` — untouched in diff. |
+| latestNoteForward | **met** | `_forwardSlots` uses `provenance.latestNoteForward` (`:296`); no `senders.first` / `strongestNotePreview`. Test fixtures MR-order + newer note-less event. |
+| chip cap | **met** | `kMiniCardCapabilityChipCap = 3`, `_CappedCapabilityChips` (`attention_mini_card.dart:19–25`, `:363–386`); test asserts 3 `RawChip` + `+1`, height ≤ 224. |
+| _SenderNoteBlock port | **met** | Forward path via `AttentionMiniCard` + `_QuotedBody`; `inbox_card_forwards_fold.dart` `_SenderNoteBlock` still present for U17. |
+
+### SCOPE
+
+Diff touches only classification domain, `attention_mini_card`, `request_attention_card`, `tombstone_row`, inbox tests, l10n ARB. **No** `activity_stream_view` / offers or inbox cubits. Pinned: no `AttentionMiniCard.dismissKey` on pinned tests; decline via overflow. **No golden files** in range (consistent with journal).
+
+### GAPS (non-blocking for this unit as executed)
+
+- **E11 same-kind event coalescing** («3 новых сообщения») not implemented; mirror's `coalescible` drives headline only, not `ActivityEventSubcardBlock` folding — documented scope cut in inner journal.
+- **Card ListView regression** at 640 dp + 2× with a **tall** pinned fixture not present (1600 + minimal card).
+- **RU age strings** at 2× width clamped locally; copy debt flagged in inner journal.
+
+**STATUS: pass**
+
 ## U16a — the card itself · INNER (2026-09-19)
 
 **Layer:** inner. **Branch:** `feature/events_refac`. **UNIT_BASE:** `d84777c7c`. **Scope as executed:** the
@@ -10114,3 +10153,57 @@ group was judged on. Both are recorded above rather than quietly fixed.
 | `./scripts/check-custom-lints.sh packages/client` | `total: 30 (baseline: 30)` — OK, baseline re-read before the run |
 
 All runs wrapped in `scripts/run_with_test_cleanup.sh`, serially — never two at once.
+
+## manager — U16a accepted, with the ListView guard strengthened
+
+**Verdict: accepted.** Verify returned `pass` on the scout's chat, scoped to the audit (the gates had already
+been run twice; the U15R-d verify pass hit its hard timeout re-running them and nearly lost the audit, which is
+where its real defect was). My independent gate: client **3852 passed, 29 skipped** — baseline unmoved — and
+`check-custom-lints.sh packages/client` at **30 (baseline 30)**.
+
+**The contract mirror is the architectural result of this unit**, and it went in better than briefed.
+`headlineTreatment` and `coalescible` appear 68 times in `docs/contracts/updates-event-contract.json` and zero
+times in either package; the scout's brief would have parsed them from `presentationPayloadJson`, where the
+server never writes them, yielding the default for every row — a card built on a contract nothing implements.
+Instead the client mirrors the contract keyed by `eventType` (which `attention_policy.dart:471` does write),
+in the same arrangement the server already uses for `placement`. The mirror's test reads the real file and
+fails on an unknown type, a disagreeing variant, or an empty read — and a third test proves the `eventType`-only
+key is *legitimate* rather than assumed, by requiring every declared type to have exactly one distinct value of
+each field. That last test was not asked for; it makes the key's assumption falsifiable, which is the right
+instinct.
+
+### The verifier's two coverage findings, resolved differently
+
+**The wide-case height ceiling: not a defect.** The verifier noted the §9 ceiling test runs at `visibleCap = 1`
+rather than with three mini-cards. But spec §12.6 asks for the ceiling at `visibleCap` + 1.3× at **360 dp**, and
+at 360 dp `visibleCap` is 1 by design (§14 names it as one of the two guards). A three-mini-card card cannot
+occur at that width, so the test matches the spec exactly.
+
+**The 2× ListView guard: a real gap, now closed.** The test used the *smallest* pinned fixture — one mini-card,
+short title, no deadline — so it exercised the silent-unbuild failure mode with the least possible pressure on
+it. Rebuilt on the worst case the card can present: long RU title, deadline, pinned forward with a note, events
+behind it.
+
+**Measured, not asserted.** Mutating the compact guard (`visibleCap` forced to 3, the regression §14 exists to
+prevent):
+
+| fixture | result under the mutation |
+| --- | --- |
+| the original minimal one | **All tests passed** — the regression was invisible |
+| the worst-case one | **fails**, alongside the §9 ceiling test |
+
+So the test could not previously catch the regression it was written to catch. This is the seventh instance in
+this plan of an assertion that was true for a reason other than the one it claimed — and the second one found
+*by a verifier rather than by the author*, which is the argument for keeping the verify layer pointed at audit
+instead of re-running gates I have already run.
+
+### Scope cut, escalated rather than buried
+
+§7.3 same-kind coalescing for non-forward events (E11, «3 новых сообщения») is **not implemented**. The
+structural half is in place — `coalescible` read from the mirror, note-bearing forwards excluded from folding
+(K6) — and the forward half that §7.3 singles out *is* implemented. What is missing is per-kind plural copy for
+30 event types in EN and RU; a generic "N событий" line would remove the information the card exists to deliver.
+Filed as **issue #189** with three options, together with a measured copy problem found while fixing layout: RU
+«92 дн. назад» is 156 dp at 1×, 203 at 1.3× and **312 at 2×** against §7's request for a compact age, which is
+why the card clamps the age to 70% of its row. Scaling scope down is the owner's call, so it is tracked, not
+closed.
