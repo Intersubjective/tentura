@@ -257,49 +257,14 @@ summary AS (
     )::int AS needs_you_total
   FROM visible v
 ),
--- §6 `my desk.dot` — "any owned Request has a dot", where
--- `request.dot = has at least one uncleared optional event or uncleared
--- outcome". Obligations are absent on purpose: they are the *number*, and
--- D09 keeps dot and number independent. Owned = in the responsibility scope,
--- which is what `surface = 'myWork'` means, and for the outcome axis is the
--- `scope` membership Set O rows carry.
+-- §6 `my desk.dot` and `for you.dot`. Both expressions live in
+-- `AttentionDismissibleSql` so the M1 test composes the *same* rule instead
+-- of a hand-copy of it — U15R-d's verify pass caught exactly that drift.
 my_desk_dot AS (
-  SELECT (
-    EXISTS (
-      SELECT 1
-      FROM visible v
-      WHERE v.surface = 'myWork'
-        AND ${AttentionDismissibleSql.activeOptional('v')}
-        AND ${AttentionDismissibleSql.primaryPlacement('v')}
-    )
-    OR EXISTS (
-      SELECT 1
-      FROM activity_outcome_dismissible o
-      WHERE o.beacon_id IN (SELECT scope.beacon_id FROM scope)
-    )
-  ) AS value
+  SELECT (${AttentionDismissibleSql.myDeskDotExpression}) AS value
 ),
--- §6 `for you.dot` — "any dismissible attention, pending forward or pending
--- prompt". Each of the three is a term of its own, composed from the set the
--- For-You lists and the sweep already compose (M1): Set R, Set O, and the
--- `eligible_pinned` decision zone.
 for_you_dot AS (
-  SELECT (
-    EXISTS (
-      SELECT 1
-      FROM activity_optional_dismissible r
-      JOIN visible v ON v.id = r.receipt_id
-      WHERE ${AttentionDismissibleSql.primaryPlacement('v')}
-    )
-    OR EXISTS (SELECT 1 FROM activity_outcome_dismissible)
-    OR EXISTS (SELECT 1 FROM eligible_pinned)
-    -- Pending prompts: a written FALSE, not a missing term. No classified
-    -- prompt event has a row in any of the sets above yet (U09a, restated in
-    -- `AttentionDismissibleSql.dismissibleOutcomes`). When one gains a live
-    -- row this becomes its predicate; until then silence here would be
-    -- indistinguishable from a predicate somebody deleted.
-    OR FALSE
-  ) AS value
+  SELECT (${AttentionDismissibleSql.forYouDotExpression}) AS value
 )
 SELECT
   summary.*,

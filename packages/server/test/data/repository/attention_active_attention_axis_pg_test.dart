@@ -403,6 +403,31 @@ WHERE id = 'Naxis04'
       );
     });
 
+    test('U15R-d §6 for you.dot — a timeline_only dismissible does not light '
+        'the tab it cannot be reached from', () async {
+      // The placement leg of the Set R term, pinned by behaviour rather than
+      // by re-reading the SQL. `timeline_only` is in Set R — the sweep may
+      // dismiss it — but it is excluded from every primary-surface indicator
+      // (m0189/D16), so a dot lit by one would be §6's "tab that lights up
+      // and then shows nothing to act on".
+      await _timelineOnlySetRReceipt(writer, id: 'Nd07');
+
+      expect(
+        (await query.surfaceSummary(accountId: _viewerId)).forYouDot,
+        isFalse,
+        reason: 'whatever is counted must be reachable (§6, One predicate)',
+      );
+
+      // The control: the same fixture on the primary surface does light it,
+      // so the assertion above is about `placement` and nothing else.
+      await _profile(writer, id: 'Nd08');
+      expect(
+        (await query.surfaceSummary(accountId: _viewerId)).forYouDot,
+        isTrue,
+        reason: 'and the fixture is otherwise a Set R member that lights it',
+      );
+    });
+
     test('U15R-d M1 — for you.dot equals the composed membership of Set R, '
         'Set O and the pinned zone', () async {
       await _forwardEdge(writer, id: 'FEd03', beaconId: _foreignBeaconId);
@@ -410,7 +435,12 @@ WHERE id = 'Naxis04'
       await _profile(writer, id: 'Nd05');
 
       // Never a hand-counted number and never a feed length: the indicator is
-      // compared to the *same* predicates the lists and the sweep compose.
+      // compared to the *same* predicates the lists and the sweep compose —
+      // literally the same, since U15R-d's verify pass caught this helper
+      // composing its own copy of the rule with the Set R placement filter
+      // missing. A guard that spells the predicate slightly differently from
+      // production cannot catch production drifting; both now read
+      // `AttentionDismissibleSql.forYouDotExpression`.
       expect(
         (await query.surfaceSummary(accountId: _viewerId)).forYouDot,
         await _composedForYouMembership(writer),
@@ -1142,6 +1172,33 @@ INSERT INTO public.notification_outbox (
       },
     );
 
+/// A dismissible Set R receipt that is **not** on the primary surface.
+///
+/// Built on [_profile] deliberately: that is the fixture the sibling test
+/// proves lights `for you.dot`, so flipping only `placement` isolates the one
+/// variable. An `_optional` on a foreign Request looks like the natural
+/// fixture and is not — the viewer cannot read that beacon's content, so the
+/// row never reaches `visible` and the assertion passes for the wrong reason.
+/// (It did, until the mutation check caught it.)
+///
+/// `timeline_only` (m0189/D16) is visible and recoverable but excluded from
+/// every primary-surface indicator, so child activity never lights an ancestor
+/// Request. It is still a member of Set R — the sweep may dismiss it — which
+/// is exactly why the dot has to ask about placement separately.
+Future<void> _timelineOnlySetRReceipt(
+  Connection writer, {
+  required String id,
+}) async {
+  await _profile(writer, id: id);
+  await writer.execute(
+    Sql.named(
+      "UPDATE public.notification_outbox SET placement = 'timeline_only' "
+      'WHERE id = @id',
+    ),
+    parameters: {'id': id},
+  );
+}
+
 Future<void> _profile(
   Connection writer, {
   required String id,
@@ -1216,11 +1273,7 @@ Future<bool> _composedForYouMembership(Connection writer) async {
     Sql.named(
       '''
 WITH ${AttentionDismissibleSql.cte}
-SELECT (
-  EXISTS (SELECT 1 FROM activity_optional_dismissible)
-  OR EXISTS (SELECT 1 FROM activity_outcome_dismissible)
-  OR EXISTS (SELECT 1 FROM eligible_pinned)
-) AS member
+SELECT (${AttentionDismissibleSql.forYouDotExpression}) AS member
 '''
           .replaceAll(r'$1', '@account'),
     ),

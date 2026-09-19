@@ -155,6 +155,54 @@ activity_optional_dismissible AS (
     AND v.presentation_key IS DISTINCT FROM 'relay_received'
 )''';
 
+  /// §6 `my desk.dot` — "any owned Request has a dot", where
+  /// `request.dot = has at least one uncleared optional event or uncleared
+  /// outcome". Obligations are absent on purpose: they are the *number*, and
+  /// D09 keeps dot and number independent.
+  ///
+  /// A boolean expression over [cte]. It lives here, not inline in the
+  /// repository, because U15R-d's verify pass caught the M1 test composing
+  /// its own slightly looser copy — the Set R leg without the placement
+  /// filter — which is a guard that cannot catch the drift it exists for.
+  /// One definition, both callers.
+  static String get myDeskDotExpression => '''
+EXISTS (
+  SELECT 1
+  FROM visible v
+  WHERE v.surface = 'myWork'
+    AND ${activeOptional('v')}
+    AND ${primaryPlacement('v')}
+)
+OR EXISTS (
+  SELECT 1
+  FROM activity_outcome_dismissible o
+  WHERE o.beacon_id IN (SELECT scope.beacon_id FROM scope)
+)''';
+
+  /// §6 `for you.dot` — "any dismissible attention, pending forward or pending
+  /// prompt". Each of the three is a term of its own, composed from the sets
+  /// the For-You lists and the sweep already compose (M1).
+  ///
+  /// The Set R leg carries [primaryPlacement] deliberately: a non-primary
+  /// dismissible row is sweepable but is not on the list, and a tab that
+  /// lights with nothing to act on is the failure §6's "One predicate"
+  /// paragraph exists to prevent.
+  static String get forYouDotExpression => '''
+EXISTS (
+  SELECT 1
+  FROM activity_optional_dismissible r
+  JOIN visible v ON v.id = r.receipt_id
+  WHERE ${primaryPlacement('v')}
+)
+OR EXISTS (SELECT 1 FROM activity_outcome_dismissible)
+OR EXISTS (SELECT 1 FROM eligible_pinned)
+-- Pending prompts: a written FALSE, not a missing term. No classified prompt
+-- event has a row in any of the sets above yet (U09a, restated in
+-- [dismissibleOutcomes]). When one gains a live row this becomes its
+-- predicate; until then silence here would be indistinguishable from a
+-- predicate somebody deleted.
+OR FALSE''';
+
   /// Set O — dismissible outcome rows, the `inbox_item` axis.
   ///
   /// `NOT IN eligible_pinned` is the load-bearing exclusion and the entire
