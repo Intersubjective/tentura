@@ -109,6 +109,12 @@ class _FakeQuery implements AttentionQueryPort {
       myDeskCount: 3,
       myDeskDot: true,
       forYouDot: false,
+      // CHANGES IN U16c-1: the fake returns `true` while `forYouDot` is
+      // `false`, on purpose. The two are independent rules — the sweep flag
+      // excludes the pinned zone the dot includes — so a resolver that
+      // wired the header control to the dot would fail here rather than
+      // quietly ship a button that lights for an unanswered forward.
+      forYouSweepEligible: true,
     );
   }
 
@@ -599,6 +605,8 @@ void main() {
       'myDeskDot': true,
       'forYouDot': false,
       'myDeskCount': 3,
+      // CHANGES IN U16c-1: the *Dismiss all* enablement signal.
+      'forYouSweepEligible': true,
     });
     expect(query.accountId, 'U1');
   });
@@ -753,6 +761,9 @@ void main() {
           'myDeskDot': false,
           'forYouDot': false,
           'myDeskCount': 0,
+          // CHANGES IN U16c-1: the reconcile result carries the same summary
+          // object, so it gains the field too.
+          'forYouSweepEligible': false,
         },
       });
       expect(reconciliation.accountId, 'U1');

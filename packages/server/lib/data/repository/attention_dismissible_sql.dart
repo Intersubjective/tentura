@@ -232,6 +232,33 @@ OR EXISTS (SELECT 1 FROM eligible_pinned)
 -- predicate somebody deleted.
 OR FALSE''';
 
+  /// U16c-1 — "would *Dismiss all* actually clear anything?"
+  ///
+  /// The enablement rule for the For You header control, and deliberately the
+  /// **capture set itself** rather than a third spelling of the membership:
+  /// [AttentionSweepRepository.captureSql] selects from exactly these two
+  /// CTEs, so the flag is true precisely when that statement returns a row.
+  /// `attention_sweep_eligibility_pg_test.dart` asserts that iff against the
+  /// live capture SQL — U15R-d's verify pass caught a guard that carried its
+  /// own slightly looser copy of the predicate it existed to protect.
+  ///
+  /// It is **not** [forYouDotExpression]: that carries `eligible_pinned`, so
+  /// gating the button on it would light a control when only an unanswered
+  /// forward remains, and tapping it would do nothing. Owner decision A keeps
+  /// the pin out of the sweep; this keeps it out of the sweep's *affordance*
+  /// too, which is the same promise stated once more where the user can see
+  /// it.
+  ///
+  /// It is also **not** the Set R leg of [forYouDotExpression]: that leg
+  /// carries [primaryPlacement] because a dot must not light for a row no
+  /// list shows, whereas the sweep clears non-primary dismissible rows as
+  /// well. Enablement follows the *action*, so it must not narrow what the
+  /// action does — a disabled button beside rows the sweep would still clear
+  /// is a surface that cannot reach zero (§7).
+  static String get forYouSweepEligibleExpression => '''
+EXISTS (SELECT 1 FROM activity_optional_dismissible)
+OR EXISTS (SELECT 1 FROM activity_outcome_dismissible)''';
+
   /// Set O — dismissible outcome rows, the `inbox_item` axis.
   ///
   /// `NOT IN eligible_pinned` is the load-bearing exclusion and the entire

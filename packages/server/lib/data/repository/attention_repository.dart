@@ -271,13 +271,19 @@ for_you_dot AS (
 -- meaning until U18.
 my_desk_count AS (
   ${AttentionDismissibleSql.myDeskCountExpression}
+),
+-- U16c-1 — the *Dismiss all* enablement signal. The capture set of the sweep,
+-- composed rather than restated, so the control and the action cannot drift.
+for_you_sweep_eligible AS (
+  SELECT (${AttentionDismissibleSql.forYouSweepEligibleExpression}) AS value
 )
 SELECT
   summary.*,
   my_desk_dot.value AS my_desk_dot,
   for_you_dot.value AS for_you_dot,
-  my_desk_count.value AS my_desk_count
-FROM summary, my_desk_dot, for_you_dot, my_desk_count
+  my_desk_count.value AS my_desk_count,
+  for_you_sweep_eligible.value AS for_you_sweep_eligible
+FROM summary, my_desk_dot, for_you_dot, my_desk_count, for_you_sweep_eligible
 ''',
           variables: [Variable<String>(accountId)],
         )
@@ -289,6 +295,7 @@ FROM summary, my_desk_dot, for_you_dot, my_desk_count
       myDeskDot: row.read<bool>('my_desk_dot'),
       myDeskCount: row.read<int>('my_desk_count'),
       forYouDot: row.read<bool>('for_you_dot'),
+      forYouSweepEligible: row.read<bool>('for_you_sweep_eligible'),
     );
   }
 

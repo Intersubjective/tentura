@@ -183,6 +183,10 @@ final gqlTypeAttentionSurfaceSummary =
         field('myDeskDot', graphQLBoolean.nonNullable()),
         field('myDeskCount', graphQLInt.nonNullable()),
         field('forYouDot', graphQLBoolean.nonNullable()),
+        // U16c-1 — enablement for the For You *Dismiss all* control. Not
+        // `forYouDot`: that includes the pinned decision zone the sweep never
+        // touches.
+        field('forYouSweepEligible', graphQLBoolean.nonNullable()),
       ]);
 
 final gqlTypeAttentionReconcileResult =

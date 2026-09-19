@@ -88,6 +88,7 @@ final class QueryAttention extends GqlNodeBase {
             'myDeskDot': summary.myDeskDot,
             'myDeskCount': summary.myDeskCount,
             'forYouDot': summary.forYouDot,
+            'forYouSweepEligible': summary.forYouSweepEligible,
           };
         },
       );

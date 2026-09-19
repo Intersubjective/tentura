@@ -569,6 +569,15 @@ abstract class AttentionSurfaceSummary with _$AttentionSurfaceSummary {
     /// `for you.count = never`, and a field nobody can read is how that stays
     /// true structurally rather than by convention.
     @Default(false) bool forYouDot,
+
+    /// U16c-1 — is there anything for *Dismiss all* to clear?
+    ///
+    /// The enablement rule for the For You header control. Composed from the
+    /// two sets the sweep itself captures, so the button is enabled exactly
+    /// when tapping it would change something. Deliberately not [forYouDot]:
+    /// that includes the pinned decision zone, which owner decision A keeps
+    /// out of the sweep.
+    @Default(false) bool forYouSweepEligible,
   }) = _AttentionSurfaceSummary;
 }
 
