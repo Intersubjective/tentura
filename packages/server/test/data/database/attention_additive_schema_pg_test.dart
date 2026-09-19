@@ -285,6 +285,10 @@ WHERE logical_task_key = 'task|u04b'
       expect(rows.single[0], 2);
     });
 
+    // m0183 replaced the member primary key with two partial UNIQUE indexes
+    // — `receipt_id` had to become nullable so an outcome member, which has
+    // no receipt at all, is representable. The capture-once guarantee is
+    // unchanged; only the constraint that enforces it is renamed.
     test('captures sweep membership exactly once', () async {
       await _insertOptionalReceipt(writer, receiptId: 'Nu04mem1');
       await _insertClearOperation(writer, operationId: 'OPu04b');
@@ -299,7 +303,7 @@ INSERT INTO public.attention_clear_operation_member
   (operation_id, receipt_id, beacon_id, outcome_generation, state)
 VALUES ('OPu04b', 'Nu04mem1', 'Bu04', 1, 'skipped')
 '''),
-        'attention_clear_operation_member_pkey',
+        'attention_clear_operation_member__receipt_once',
       );
     });
 
