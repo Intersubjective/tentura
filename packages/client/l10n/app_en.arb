@@ -6396,5 +6396,68 @@
     "context": "RequestAttentionCard",
     "description": "Coalesced line for note-less forwards on a Request card (spec 7.3).",
     "placeholders": { "count": { "type": "int" } }
+  },
+  "inboxDismissAll": "Dismiss all",
+  "@inboxDismissAll": {
+    "description": "For You header control (U16c-1). The clear axis: it clears every row that carries its own \u00d7 and never an unanswered forward, a pending prompt or an obligation."
+  },
+  "inboxDismissAllCleared": "Cleared {count}",
+  "@inboxDismissAllCleared": {
+    "description": "Confirmation after Dismiss all. It states what was cleared and never that the surface is empty \u2014 the pinned decision zone may still be there.",
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "inboxDismissAllNothing": "Nothing to dismiss",
+  "@inboxDismissAllNothing": {
+    "description": "Dismiss all ran and cleared nothing."
+  },
+  "inboxDismissAllPartial": "Cleared {count}. There is more to clear.",
+  "@inboxDismissAllPartial": {
+    "description": "A bounded sweep did not finish. Deliberately not celebratory \u2014 \u00a74 forbids an all-clear message after a partial sweep.",
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "inboxDismissAllContinue": "Continue",
+  "@inboxDismissAllContinue": {
+    "description": "Resumes a partial Dismiss all with the same operation id."
+  },
+  "inboxDismissAllFailed": "Couldn\u2019t dismiss everything",
+  "@inboxDismissAllFailed": {
+    "description": "Dismiss all was refused or failed. Honest failure, never an all-clear message."
+  },
+  "inboxDismissAllUndo": "Undo",
+  "@inboxDismissAllUndo": {
+    "description": "\u00a74: an explicit dismissal can be undone for a short window."
+  },
+  "inboxDismissAllUndone": "Restored {count}",
+  "@inboxDismissAllUndone": {
+    "description": "Undo of Dismiss all succeeded.",
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "inboxDismissAllUndoFailed": "Couldn\u2019t undo",
+  "@inboxDismissAllUndoFailed": {
+    "description": "The undo window closed or the server refused it."
+  },
+  "forYouEmptyNothingHere": "Nothing here yet",
+  "@forYouEmptyNothingHere": {
+    "description": "\u00a74 empty state 1 of 3 \u2014 this surface has never had anything on it."
+  },
+  "forYouEmptyNothingHereHint": "Requests forwarded to you will appear here",
+  "@forYouEmptyNothingHereHint": {
+    "description": "Hint under the 'nothing here' empty state."
+  },
+  "forYouEmptyNothingNew": "Nothing new",
+  "@forYouEmptyNothingNew": {
+    "description": "\u00a74 empty state 2 of 3 \u2014 cleared. Distinct from 'nothing here' on purpose: the decision zone may still be on the surface, so it must not read as an empty screen."
+  },
+  "forYouEmptyNothingNewHint": "You\u2019ve cleared everything that could be cleared. Anything still waiting for your decision stays above.",
+  "@forYouEmptyNothingNewHint": {
+    "description": "Hint under the 'nothing new' empty state. \u00a74 forbids celebrating an empty surface while decisions are pending."
+  },
+  "forYouEmptyNoMatch": "Nothing matching this filter",
+  "@forYouEmptyNoMatch": {
+    "description": "\u00a74 empty state 3 of 3 \u2014 the surface has content, but not under the active filter."
+  },
+  "forYouEmptyNoMatchHint": "Try a different filter to see the rest.",
+  "@forYouEmptyNoMatchHint": {
+    "description": "Hint under the 'nothing matching this filter' empty state."
   }
 }

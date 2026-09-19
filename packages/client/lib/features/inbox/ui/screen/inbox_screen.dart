@@ -8,6 +8,7 @@ import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
+import 'package:tentura/domain/attention/entity/attention_clear.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -131,7 +132,7 @@ class _InboxScreenState extends State<InboxScreen> {
                         style: TenturaText.titleLarge(scheme.onPrimary),
                       ),
                       actions: const [
-                        _ActivityMarkAllSeenButton(),
+                        _ActivityDismissAllButton(),
                         _InboxOverflowMenu(showNotificationHistory: true),
                       ],
                     ),
@@ -258,8 +259,25 @@ Widget _inboxActivityFeedBody(
   );
 }
 
-class _ActivityMarkAllSeenButton extends StatelessWidget {
-  const _ActivityMarkAllSeenButton();
+/// U16c-1 — For You's header gesture, on the **clear** axis (D02).
+///
+/// It replaced a `markAllSeen` "Read all" button. Reading is not clearing
+/// (§3), so the control, its enablement signal and the call it makes all moved
+/// together — a relabelled read button would have left a surface that can
+/// never reach zero.
+///
+/// Enablement is `forYouSweepEligible`: the server's answer to "would the
+/// sweep capture anything", composed from the sweep's own membership. It is
+/// deliberately neither `activityUnreadTotal` (the read axis) nor `forYouDot`
+/// (which counts the pinned decision zone owner decision A keeps out of the
+/// sweep — a control gated on it would light for an unanswered forward and
+/// then do nothing).
+class _ActivityDismissAllButton extends StatelessWidget {
+  const _ActivityDismissAllButton();
+
+  /// Found by key, not by glyph: a header action found by its icon is a
+  /// finder that survives the action behind it changing.
+  static const buttonKey = Key('inbox-dismiss-all');
 
   @override
   Widget build(BuildContext context) {
@@ -274,19 +292,100 @@ class _ActivityMarkAllSeenButton extends StatelessWidget {
         needsYouTotal: 0,
       ),
       builder: (context, snapshot) {
-        final unread = snapshot.data?.activityUnreadTotal ?? 0;
+        final eligible = snapshot.data?.forYouSweepEligible ?? false;
         return IconButton(
-          icon: const Icon(Icons.done_all),
-          tooltip: l10n.updatesMarkAllSeen,
-          onPressed: unread > 0
-              ? () => unawaited(
-                    attention.markAllSeen(surface: AttentionSurface.activity),
-                  )
+          key: buttonKey,
+          icon: const Icon(Icons.clear_all),
+          tooltip: l10n.inboxDismissAll,
+          onPressed: eligible
+              ? () => unawaited(_runDismissAll(context, attention))
               : null,
         );
       },
     );
   }
+}
+
+/// Runs the sweep and reports what actually happened.
+///
+/// §4 forbids celebrating "all clear" after a partial sweep or a failure, and
+/// requires an explicit dismissal to be undoable for a short window. So there
+/// are four outcomes and four messages, and the only one that mentions a
+/// count it did not achieve is none of them.
+Future<void> _runDismissAll(
+  BuildContext context,
+  AttentionCase attention, {
+  String? operationId,
+}) async {
+  final l10n = L10n.of(context)!;
+  final result = await attention.dismissAll(operationId: operationId);
+  if (!context.mounted) return;
+
+  if (!result.status.isComplete && !result.needsResume) {
+    // Denied, stale or unknown: nothing to celebrate and nothing to resume.
+    showSnackBar(context, text: l10n.inboxDismissAllFailed, isError: true);
+    return;
+  }
+
+  if (result.needsResume) {
+    // A bounded sweep is one gesture: resuming reuses the **same** operation
+    // id, or the server captures a second membership.
+    showSnackBar(
+      context,
+      text: l10n.inboxDismissAllPartial(result.appliedCount),
+      action: SnackBarAction(
+        label: l10n.inboxDismissAllContinue,
+        onPressed: () => unawaited(
+          _runDismissAll(context, attention, operationId: result.operationId),
+        ),
+      ),
+    );
+    return;
+  }
+
+  if (result.appliedCount == 0) {
+    showSnackBar(context, text: l10n.inboxDismissAllNothing);
+    return;
+  }
+
+  // "Cleared N", never "all clear": the pinned decision zone may still be on
+  // the surface, and saying otherwise is the §4 _Avoid_ line.
+  showSnackBar(
+    context,
+    text: l10n.inboxDismissAllCleared(result.appliedCount),
+    action: result.canUndo
+        ? SnackBarAction(
+            label: l10n.inboxDismissAllUndo,
+            onPressed: () => unawaited(
+              _undoDismissAll(
+                context,
+                attention,
+                operationId: result.operationId,
+                undoToken: result.undoToken!,
+              ),
+            ),
+          )
+        : null,
+  );
+}
+
+Future<void> _undoDismissAll(
+  BuildContext context,
+  AttentionCase attention, {
+  required String operationId,
+  required String undoToken,
+}) async {
+  final l10n = L10n.of(context)!;
+  final result = await attention.undoDismissAll(
+    operationId: operationId,
+    undoToken: undoToken,
+  );
+  if (!context.mounted) return;
+  if (result.isRefused || !result.status.isComplete) {
+    showSnackBar(context, text: l10n.inboxDismissAllUndoFailed, isError: true);
+    return;
+  }
+  showSnackBar(context, text: l10n.inboxDismissAllUndone(result.restoredCount));
 }
 
 class _InboxOverflowMenu extends StatelessWidget {

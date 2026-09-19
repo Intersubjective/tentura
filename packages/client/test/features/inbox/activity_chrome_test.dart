@@ -10,6 +10,7 @@ import 'package:mockito/mockito.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
+import 'package:tentura/domain/attention/entity/attention_clear.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
@@ -137,10 +138,30 @@ final class _ForwardRepo implements ForwardRepository {
 }
 
 class _ChromeAttentionRepo extends AttentionRepositoryFake {
-  _ChromeAttentionRepo({this.activityUnread = 0});
+  _ChromeAttentionRepo({
+    this.activityUnread = 0,
+    this.sweepEligible = false,
+    this.forYouDot = false,
+    this.dismissAllResult,
+    this.undoResult,
+  });
 
   int activityUnread;
+
+  /// CHANGES IN U16c-1: the header control is the **clear** axis (D02), so it
+  /// is gated on this and not on [activityUnread] (the read axis) and not on
+  /// [forYouDot] (which counts the pinned decision zone the sweep refuses to
+  /// touch — owner decision A).
+  bool sweepEligible;
+  bool forYouDot;
+
+  AttentionDismissAllResult? dismissAllResult;
+  AttentionUndoResult? undoResult;
+
   AttentionSurface? lastMarkAllSurface;
+  final dismissAllOperationIds = <String>[];
+  String? lastUndoOperationId;
+  String? lastUndoToken;
 
   @override
   Future<AttentionSurfaceSummary> surfaceSummary() async =>
@@ -148,7 +169,41 @@ class _ChromeAttentionRepo extends AttentionRepositoryFake {
         activityUnreadTotal: activityUnread,
         myWorkUnreadTotal: 0,
         needsYouTotal: 0,
+        forYouDot: forYouDot,
+        forYouSweepEligible: sweepEligible,
       );
+
+  @override
+  Future<AttentionDismissAllResult> dismissAll({
+    required String operationId,
+    int? maxBatches,
+  }) async {
+    dismissAllOperationIds.add(operationId);
+    sweepEligible = false;
+    final canned = dismissAllResult;
+    return canned == null
+        ? AttentionDismissAllResult(
+            operationId: operationId,
+            status: AttentionOperationStatus.complete,
+            appliedCount: 2,
+          )
+        : canned.copyWith(operationId: operationId);
+  }
+
+  @override
+  Future<AttentionUndoResult> undo({
+    required String operationId,
+    required String undoToken,
+  }) async {
+    lastUndoOperationId = operationId;
+    lastUndoToken = undoToken;
+    return undoResult ??
+        AttentionUndoResult(
+          operationId: operationId,
+          status: AttentionOperationStatus.complete,
+          restoredReceiptIds: const ['r1', 'r2'],
+        );
+  }
 
   @override
   Future<AttentionFeed> fetch({
@@ -294,60 +349,258 @@ Future<void> _pumpInbox(
   }
 }
 
+/// Keyed, not found by icon: a header action found by its glyph is a finder
+/// that keeps passing when the action behind it changes, which is exactly how
+/// the read-axis control survived into a clear-axis surface.
+const _dismissAllKey = 'inbox-dismiss-all';
+
+Future<void> _settle(WidgetTester tester) async {
+  await tester.pump();
+  for (var i = 0; i < 12; i++) {
+    await tester.pump(const Duration(milliseconds: 50));
+  }
+}
+
+Future<void> _tapDismissAll(WidgetTester tester) async {
+  await tester.tap(find.byKey(const Key(_dismissAllKey)));
+  await _settle(tester);
+}
+
 void main() {
 
-  testWidgets('gate on: top bar uses Activity title and mark-all control', (
+  // CHANGES IN U16c-1: these three asserted the *read* axis — `Icons.done_all`,
+  // "Read all", `markAllSeen` and an `activityUnreadTotal` gate. D02 says For
+  // You's header gesture is the **clear** axis, so the control, the signal and
+  // the call all change together. Each rewritten assertion states the new
+  // expectation positively: the sweep icon is present, the sweep was called,
+  // and `markAllSeen` was **not**.
+
+  testWidgets(
+    'gate on: top bar uses Activity title and the Dismiss all control',
+    (tester) async {
+      final repo = _ChromeAttentionRepo(sweepEligible: true);
+      final router = _HarnessRouter();
+      await _pumpInbox(tester, attentionRepo: repo, router: router);
+
+      final l10n = L10nEn();
+      expect(find.text(l10n.inbox), findsOneWidget);
+      expect(find.text(l10n.updatesTitle), findsNothing);
+      expect(
+        find.byIcon(Icons.done_all),
+        findsNothing,
+        reason: 'the read-axis control is gone, not merely relabelled',
+      );
+
+      final dismissAll = tester.widget<IconButton>(
+        find.byKey(const Key(_dismissAllKey)),
+      );
+      expect(dismissAll.onPressed, isNotNull);
+      expect(dismissAll.tooltip, l10n.inboxDismissAll);
+
+      expect(find.byType(ActivityStreamView), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'gate on: Dismiss all is disabled when the sweep would clear nothing',
+    (tester) async {
+      await _pumpInbox(
+        tester,
+        // The exact trap `forYouDot` sets: the tab is lit by an unanswered
+        // forward, and the sweep would still capture nothing. A control gated
+        // on the dot would be enabled here and do nothing when tapped.
+        attentionRepo: _ChromeAttentionRepo(
+          activityUnread: 7,
+          forYouDot: true,
+          sweepEligible: false,
+        ),
+        router: _HarnessRouter(),
+      );
+
+      final dismissAll = tester.widget<IconButton>(
+        find.byKey(const Key(_dismissAllKey)),
+      );
+      expect(dismissAll.onPressed, isNull);
+    },
+  );
+
+  testWidgets(
+    'gate on: Dismiss all is enabled by sweep eligibility, not unread',
+    (tester) async {
+      // The mirror of the previous case: nothing unread on the read axis, but
+      // the sweep has members. Gating on `activityUnreadTotal` would leave a
+      // surface that can never reach zero.
+      await _pumpInbox(
+        tester,
+        attentionRepo: _ChromeAttentionRepo(
+          activityUnread: 0,
+          sweepEligible: true,
+        ),
+        router: _HarnessRouter(),
+      );
+
+      final dismissAll = tester.widget<IconButton>(
+        find.byKey(const Key(_dismissAllKey)),
+      );
+      expect(dismissAll.onPressed, isNotNull);
+    },
+  );
+
+  testWidgets('gate on: Dismiss all sweeps and never marks seen', (
     tester,
   ) async {
-    final repo = _ChromeAttentionRepo(activityUnread: 2);
-    final router = _HarnessRouter();
-    await _pumpInbox(tester, attentionRepo: repo, router: router);
+    final repo = _ChromeAttentionRepo(activityUnread: 3, sweepEligible: true);
+    await _pumpInbox(tester, attentionRepo: repo, router: _HarnessRouter());
+
+    await _tapDismissAll(tester);
+
+    expect(repo.dismissAllOperationIds, hasLength(1));
+    expect(
+      repo.lastMarkAllSurface,
+      isNull,
+      reason: 'clearing is not reading (§3) — the sweep must not mark seen',
+    );
+  });
+
+  testWidgets('gate on: a completed sweep offers undo within the window', (
+    tester,
+  ) async {
+    // §4: "an explicit dismissal can be undone for a short window."
+    final repo = _ChromeAttentionRepo(
+      sweepEligible: true,
+      dismissAllResult: AttentionDismissAllResult(
+        operationId: 'placeholder',
+        status: AttentionOperationStatus.complete,
+        appliedCount: 3,
+        appliedReceiptIds: const ['r1', 'r2', 'r3'],
+        undoToken: 'undo-token',
+        undoDeadline: DateTime.now().add(const Duration(seconds: 30)),
+      ),
+    );
+    await _pumpInbox(tester, attentionRepo: repo, router: _HarnessRouter());
+
+    await _tapDismissAll(tester);
 
     final l10n = L10nEn();
-    expect(find.text(l10n.inbox), findsOneWidget);
-    expect(find.text(l10n.updatesTitle), findsNothing);
-    expect(find.byIcon(Icons.done_all), findsOneWidget);
+    expect(find.text(l10n.inboxDismissAllCleared(3), findRichText: true), findsOneWidget);
+    expect(find.text(l10n.inboxDismissAllUndo), findsOneWidget);
 
-    final markAll = tester.widget<IconButton>(
-      find.widgetWithIcon(IconButton, Icons.done_all),
-    );
-    expect(markAll.onPressed, isNotNull);
+    await tester.tap(find.text(l10n.inboxDismissAllUndo));
+    await _settle(tester);
 
-    expect(find.byType(ActivityStreamView), findsOneWidget);
+    expect(repo.lastUndoOperationId, repo.dismissAllOperationIds.single);
+    expect(repo.lastUndoToken, 'undo-token');
+    expect(find.text(l10n.inboxDismissAllUndone(2), findRichText: true), findsOneWidget);
   });
 
-  testWidgets('gate on: mark-all is disabled when activity unread is zero', (
+  testWidgets('gate on: a sweep with no undo token offers no undo', (
     tester,
   ) async {
-    await _pumpInbox(
-      tester,
-      attentionRepo: _ChromeAttentionRepo(activityUnread: 0),
-      router: _HarnessRouter(),
+    final repo = _ChromeAttentionRepo(
+      sweepEligible: true,
+      dismissAllResult: const AttentionDismissAllResult(
+        operationId: 'placeholder',
+        status: AttentionOperationStatus.complete,
+        appliedCount: 1,
+      ),
     );
+    await _pumpInbox(tester, attentionRepo: repo, router: _HarnessRouter());
 
-    final markAll = tester.widget<IconButton>(
-      find.widgetWithIcon(IconButton, Icons.done_all),
+    await _tapDismissAll(tester);
+
+    final l10n = L10nEn();
+    expect(find.text(l10n.inboxDismissAllCleared(1), findRichText: true), findsOneWidget);
+    expect(
+      find.text(l10n.inboxDismissAllUndo),
+      findsNothing,
+      reason: 'an undo affordance with no token is a lie',
     );
-    expect(markAll.onPressed, isNull);
   });
 
-  testWidgets('gate on: mark-all calls activity-scoped markAllSeen', (
+  testWidgets('gate on: a partial sweep says so and offers to continue', (
     tester,
   ) async {
-    final repo = _ChromeAttentionRepo(activityUnread: 3);
-    await _pumpInbox(
-      tester,
-      attentionRepo: repo,
-      router: _HarnessRouter(),
+    // §4 _Avoid_: celebrating "all clear" after a partial sweep.
+    final repo = _ChromeAttentionRepo(
+      sweepEligible: true,
+      dismissAllResult: const AttentionDismissAllResult(
+        operationId: 'placeholder',
+        status: AttentionOperationStatus.partial,
+        appliedCount: 5,
+        pendingCount: 4,
+      ),
+    );
+    await _pumpInbox(tester, attentionRepo: repo, router: _HarnessRouter());
+
+    await _tapDismissAll(tester);
+
+    final l10n = L10nEn();
+    expect(find.text(l10n.inboxDismissAllPartial(5), findRichText: true), findsOneWidget);
+    expect(
+      find.text(l10n.inboxDismissAllCleared(5), findRichText: true),
+      findsNothing,
+      reason: 'a bounded sweep that did not finish must not read as done',
     );
 
-    await tester.tap(find.byIcon(Icons.done_all));
-    await tester.pump();
-    for (var i = 0; i < 8; i++) {
-      await tester.pump(const Duration(milliseconds: 50));
-    }
+    await tester.tap(find.text(l10n.inboxDismissAllContinue));
+    await _settle(tester);
 
-    expect(repo.lastMarkAllSurface, AttentionSurface.activity);
+    expect(
+      repo.dismissAllOperationIds,
+      hasLength(2),
+      reason: 'resume is a second call…',
+    );
+    expect(
+      repo.dismissAllOperationIds.toSet(),
+      hasLength(1),
+      reason: '…with the *same* operation id, or the server captures twice',
+    );
+  });
+
+  testWidgets('gate on: a denied sweep fails honestly', (tester) async {
+    final repo = _ChromeAttentionRepo(
+      sweepEligible: true,
+      dismissAllResult: const AttentionDismissAllResult(
+        operationId: 'placeholder',
+        status: AttentionOperationStatus.denied,
+      ),
+    );
+    await _pumpInbox(tester, attentionRepo: repo, router: _HarnessRouter());
+
+    await _tapDismissAll(tester);
+
+    final l10n = L10nEn();
+    expect(find.text(l10n.inboxDismissAllFailed, findRichText: true), findsOneWidget);
+    expect(find.text(l10n.inboxDismissAllCleared(0), findRichText: true), findsNothing);
+  });
+
+  testWidgets('gate on: a refused undo says so and restores nothing', (
+    tester,
+  ) async {
+    final repo = _ChromeAttentionRepo(
+      sweepEligible: true,
+      dismissAllResult: AttentionDismissAllResult(
+        operationId: 'placeholder',
+        status: AttentionOperationStatus.complete,
+        appliedCount: 2,
+        undoToken: 'undo-token',
+        undoDeadline: DateTime.now().add(const Duration(seconds: 30)),
+      ),
+      undoResult: const AttentionUndoResult(
+        operationId: 'placeholder',
+        status: AttentionOperationStatus.denied,
+        refusal: AttentionUndoRefusal.expired,
+      ),
+    );
+    await _pumpInbox(tester, attentionRepo: repo, router: _HarnessRouter());
+
+    await _tapDismissAll(tester);
+    final l10n = L10nEn();
+    await tester.tap(find.text(l10n.inboxDismissAllUndo));
+    await _settle(tester);
+
+    expect(find.text(l10n.inboxDismissAllUndoFailed, findRichText: true), findsOneWidget);
+    expect(find.text(l10n.inboxDismissAllUndone(0), findRichText: true), findsNothing);
   });
 
   testWidgets('gate on: overflow includes notification history entry', (
