@@ -8237,3 +8237,117 @@ way to do the same thing, not a protection. Recorded as a deliberate choice, not
 until U15/U16 consume these.
 
 ---
+
+---
+
+## UNIT U14b — the active-event block · INNER (2026-09-19)
+
+**Layer:** inner (implementer). **UNIT_BASE:** `792f3f424`. **Scope:** step 3 of the U14 scout brief — one
+surface-neutral active-event block. No indicators (U14c), no surface wiring (U15/U16).
+
+### Step 1 — mini-card, obligations first, collapse (`8ceaa3c3e`)
+
+RED — `flutter test test/features/inbox/activity_event_subcard_block_test.dart`: `00:00 +2 -4`
+(`AttentionMiniCard` not rendered; preview order ignored obligations; no collapse control).
+GREEN — same command: `00:00 +6: All tests passed!`
+
+`_EventSubcard` is gone; the block renders U14a's public `AttentionMiniCard`. The collapsed preview is ordered
+`isLiveObligation` first, stable within each group, so a preview never reshuffles on rebuild. Expansion was
+one-way; a `Collapse` action (`inboxProvenanceCollapse`, no new ARB key) now closes it again.
+
+### Step 2 — cursor pagination and server totals (`a784f81a9`)
+
+RED — `flutter test test/features/inbox/activity_event_subcard_block_pagination_test.dart`: `00:00 +0 -1`
+(compile: `AttentionBlockOverflowPolicy`, `loadMoreKey` undefined).
+GREEN — same command: `00:01 +2: All tests passed!`
+
+### Step 3 — clear axis and «ещё N» → Timeline (`d54c6b3e2`)
+
+RED — `flutter test test/features/inbox/activity_event_subcard_block_clear_test.dart`: `00:00 +0 -1`
+(compile: `onOpenTimeline`, `moreKey` undefined).
+GREEN — same command: `00:00 +2: All tests passed!`
+
+### Step 4 — goldens and the height ceiling (`28a07acef`)
+
+RED — `flutter test test/features/inbox/activity_event_subcard_block_golden_test.dart`: `00:01 +0 -10`
+(9 missing PNGs + the ceiling assertion at `800.0` where `≤ 224` was required).
+GREEN — same command after `--update-goldens`: `00:00 +11: All tests passed!`
+
+Scoped gate, whole unit:
+
+```
+flutter test test/features/inbox test/design_system test/domain/attention
+00:13 +344: All tests passed!
+
+./scripts/check-custom-lints.sh packages/client
+total: 30 (baseline: 30) — check-custom-lints: packages/client OK
+```
+
+### The overseer's four additions, in my words
+
+**1. The axis change is the substance.** `markSeen` writes «I have read this»; `clearReceipt` writes «this no
+longer asks anything of me». U08/U09 put the second one behind the ×, and a block still calling the first would
+leave every dismissal invisible to the counters while looking identical on screen. The guard is not a naming
+test: `_AxisRepository.markSeen` **throws**, and the widget is driven through a real `AttentionCase`, so any
+future route back to the read axis — direct or through the case — fails the suite rather than passing quietly.
+The test asserts the positive half too: `clearSnapshot` was called with the dismissed receipt id and `clear`
+committed it.
+
+**2. «ещё N» is a height guarantee.** Under the default `timeline` policy the control calls `onOpenTimeline` and
+nothing else; the test measures the block's host box before and after the tap and asserts equality *as well as*
+the callback firing. The separate ceiling test states the guarantee in the form that actually matters: at 360 dp
+and 1.3× text, a Request whose server total is **4000** renders at exactly the same height as one with 4, and
+holds one mini-card in both cases. A navigation-only assertion would have passed against the old in-place
+expansion.
+
+**3. Pagination has to prove it passes 100.** The old code fetched once with `limit: eventTotal.clamp(1, 100)`
+and returned immediately on any later expansion, so a 120-child test would have shown 100 rows and said nothing.
+The new test's fake serves 120 children strictly by cursor (the cursor is the offset of the next page, so a fake
+that ignored it would repeat the head and *fail* the dedupe assertion rather than pass), and asserts `e100` and
+`e119` are reachable, that the id set has no duplicate, that exactly 120 rows are present, and that the repository
+saw more than one call with cursors `null` then `20`.
+
+**4. Totals come from the server.** The `moreCount` the user reads is `widget.eventTotal - visible.length` —
+`eventTotal` being the server's number — never the loaded rows. The test holds two rows while the server says 42
+and asserts the footer reads «40 more updates». The failure mode it exists for is a card that says «3 new» while
+holding 2 because a page has not arrived.
+
+### Decisions and unexpected facts
+
+- **Both overflow behaviours are real, and named.** D-171-5b (card: «ещё N» → Timeline, never expand) and D10
+  (block: expand/collapse with cursor pagination past 100) are not the same surface. `AttentionBlockOverflowPolicy`
+  makes the choice explicit; `timeline` is the default, so the new card gets the height ceiling by construction.
+  The three existing Activity consumers (`activity_stream_view`, `activity_offer_card`, `activity_forward_row`)
+  ask for `paginate` explicitly, which preserves exactly what they do today. Wiring any of them to the Timeline
+  is U15/U16 and was not done here.
+- **A real defect surfaced by the ceiling test:** the block's `Column` was `mainAxisSize.max`, so under loose
+  constraints it consumed the entire viewport (800 dp in the host) rather than hugging its rows. Fixed; this is
+  also why the existing actor golden's canvas shrank.
+- **Call sites changed on the axis only.** `onMarkSeen` is gone from the widget API. The three consumers now pass
+  `onClearEvent` → `AttentionCase.clearReceipt`; `ActivityForwardRow.onMarkEventSeen` became `onClearEvent`. Row
+  *tap* no longer acknowledges anything: `onEventTap` is optional and left unset by every surface, because what a
+  tap should open is U15/U16's decision.
+- **Pre-existing analyzer warnings left alone:** `activity_stream_view.dart` `_openReceipt` unused and
+  `activity_forward_row.dart`'s unused `dart:async` import both exist at `792f3f424`; neither is this unit's.
+- **U14a was not regressed:** the E32 held height, focus hand-off, the 1.3× chip-overflow fix and the 224 dp
+  ceiling suites all pass unchanged inside the 344-test gate. No U14a expectation was edited.
+
+### Golden audit (U0C method)
+
+**One existing PNG moved:** `test/features/inbox/goldens/event_subcard_with_actor_light_en_360.png`, canvas
+**360×120 → 360×42**. A per-pixel RGBA diff is undefined across a dimension mismatch, so the audit is the two
+causes plus a visual read: (a) the mini-card replaces `_EventSubcard`'s `TenturaTechCardStatic` box and its
+padding, (b) the block now hugs its rows instead of filling the 120 dp host. The new file reads as avatar +
+`Anna · Offered help · <age>` on one line with **no** dismiss control — correct, since that golden host passes no
+`onClearEvent`. That confines the change to the `_EventSubcard` → `AttentionMiniCard` swap, as expected.
+
+**Nine new PNGs:** `activity_event_block_{light,dark}_{en,ru}_{360.0,390.0}.png` plus
+`activity_event_block_light_ru_360.0_s1_3.png`. Canvas widths 360/390 as declared; each read visually — one
+mini-card (both widths are `WindowClass.compact`, `visibleCap` 1), the dismiss ×, and the «ещё 11» footer action.
+
+**No other golden was re-recorded.** `test/design_system`, the rest of `test/features/inbox` (including
+`activity_offer_card_golden_test.dart`, `attention_mini_card_golden_test.dart`, `activity_forward_row` goldens)
+and `test/domain/attention` were run **without** `--update-goldens` afterwards and matched byte-for-byte:
+`00:13 +344: All tests passed!`
+
+STATUS: complete
