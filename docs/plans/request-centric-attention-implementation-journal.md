@@ -3693,3 +3693,331 @@ is client-visible (U15/U08); and `obligation_ended` has no arm in the client's f
 (harmless while the server supplies title and body — U15).
 
 ---
+
+## UNIT U08 — Clear command (single and open) · SCOUT BRIEF (2026-09-19)
+
+**Scout:** read-only at `UNIT_BASE` `f38913f8d` (`HEAD` matches). No production code, no tests, no commits
+beyond this journal entry.
+
+### Live baseline (verified)
+
+| Area | Fact |
+|---|---|
+| **Clear columns** | `notification_outbox.cleared_at`, `clear_reason`, `cleared_by_operation_id` exist (`m0178`); **no server writer** yet. |
+| **Operation tables** | `attention_clear_operation` (PK `id` = client `operationId`), `attention_clear_operation_member` (PK `(operation_id, receipt_id)`; `outcome_generation`, `state`, snapshot `beacon_id`). |
+| **FK (U04 carry)** | `notification_outbox__cleared_by_operation_fkey` → `attention_clear_operation(id) ON DELETE SET NULL`. U04 suite proves valid op id; **no test rejects unknown id** — U08 must. |
+| **Request state** | `attention_request_state` empty in prod until first writer; columns `outcome_generation`, `decision_revision` for outcome identity. |
+| **Feed / history reads** | All use `visible_attention_receipts($account)` + `visible` CTE (`attention_repository.dart:147–173`). **No `cleared_at` filter** in projections; unread still `seen_at IS NULL` (U10 will switch indicators to D02). |
+| **Pagination cursor** | `QueryAttention._encodeCursor` / `_decodeCursor`: base64url JSON `{"createdAt","id"}` only (`query_attention.dart:312–341`). **Not** a membership snapshot. |
+| **Ack today** | `attentionMarkSeen`, `attentionMarkSeenForBeacon`, etc. (`mutation_attention.dart`); `markSeenForBeacon` sets `seen_at` only (`attention_repository.dart:1277–1298`). **No server Request-open lifecycle** — D05's pre-nav ack is client-driven today. |
+| **Frozen mutation** | `attentionClear(snapshotToken, operationId)` in manifest §0.2; **not implemented**. `attentionDismissAll` = **U09**. |
+| **GraphQL receipt** | `_mapReceipt` omits `clearedAt` / `clearReason` (U06b verify) — fine for U08 server-only. |
+| **`attentionRequest` query** | §0.2 frozen name; **not on server** (only `attentionRequestHistory` from U06b). |
+
+### D02 optional axis (SQL)
+
+**Active optional (D02):** `requires_action = false AND cleared_at IS NULL`.
+
+**Eligible to capture/clear (authorized):**
+
+```sql
+receipt.id IN (SELECT receipt_id FROM public.visible_attention_receipts($account_id))
+AND receipt.account_id = $account_id
+AND NOT receipt.requires_action
+AND receipt.cleared_at IS NULL
+```
+
+Add `receipt.beacon_id = $beacon_id` for Request-scoped open/card captures; add `receipt.id = $receipt_id` for event `×`.
+
+**Must never be cleared (DB + product):**
+
+| Class | Why |
+|---|---|
+| Live obligations | `requires_action = true` → `notification_outbox__clear_optional_only_chk` / `__clear_facts_chk` reject writes. |
+| Settled obligations | Still `requires_action`; same CHECK. |
+| Owner decision A rows | Unanswered forwards (`inbox_item` pending decision — D07), pending invite/setup prompts — **exclude at capture** for open/single; U09 sweep skips at apply. U08 does not implement sweep-wide capture. |
+| Decision-bearing feed rows | Forward **outcome** rows are not normal optional receipts; do not put them in a single-event token. **Outcome tombstone** (`inbox_item.tombstone_dismissed_at`) extension is **U09** step 1 — U08 owns **outbox optional receipts** only unless manifest is amended. |
+
+`clear_reason` for U08: `explicit` (event/card explicit dismiss) and `request_open` (post-display open clear). `sweep` is **U09**.
+
+### Snapshot token — do **not** reuse the feed cursor
+
+The feed cursor is a **pagination key** `(created_at, id)` over a moving projection. After U05, receipts are **immutable per occurrence**; the boundary for clearing is a **finite member set** (+ outcome identity), not “older than cursor”.
+
+**Reuse:** only the **transport pattern** (base64url JSON) from `QueryAttention._encodeCursor`, with a **different schema version** and payload.
+
+**Token must bind (verify on apply):**
+
+1. **Account** — from JWT (`getCredentials(args).sub`); never trust client-supplied account id inside token without HMAC/signature keyed server-side.
+2. **Request** — `beaconId` for open/card paths; for single-event, beacon id in token must match receipt's `beacon_id` (or null non-beacon optional — single-receipt path still binds receipt id list).
+3. **Member set** — ordered-stable list of `receipt_id` captured at issue time (immutable after capture).
+4. **Outcome identity** — `outcome_generation` and `decision_revision` read from `attention_request_state` at capture (use `0`/`0` when no row); store on each `attention_clear_operation_member` row for undo/conflict detection (U09).
+5. **Capture kind** — `explicit` vs `request_open` (drives `clear_reason` on apply).
+6. **Schema version** — int constant so U10 cursor versioning does not collide.
+
+**Issue snapshot (server):** new port method e.g. `captureClearSnapshot(accountId, beaconId, {ClearCaptureKind kind, String? singleReceiptId})` runs authorize (`beacon_can_read_content` / visibility — same wall as history), evaluates eligible predicate above, returns opaque token + optional diagnostic counts for tests.
+
+**Manifest gap:** U08 **Owns** list names only `mutation_attention.dart` + clear case/repo — but D05 requires **issue-before-apply**. Implementer should either (a) amend manifest to add minimal **`attentionRequest`** (or `attentionRequestSnapshot`) on `query_attention.dart` returning `{ snapshotToken }`, or (b) expose capture only on the domain port for PG tests and add GraphQL in a tiny follow-up commit before U13. **Recommendation:** add frozen-name **`attentionRequest(beaconId)`** returning `{ snapshotToken }` in U08 (page/events wait for U10).
+
+### `attentionClear(snapshotToken, operationId)` — idempotency & tables
+
+**First apply (new `operationId`):**
+
+1. `INSERT INTO attention_clear_operation (id, account_id, surface, status, …)` — `id` = client `operationId`; `surface` free text (e.g. `request_open`, `explicit`, `beacon:<id>`).
+2. `INSERT` members from decoded token (fixed set); `ON CONFLICT DO NOTHING` on `(operation_id, receipt_id)`.
+3. Per member: re-check `visible_attention_receipts`, eligible optional predicate, beacon scope; `UPDATE notification_outbox SET cleared_at = now(), clear_reason = $reason, cleared_by_operation_id = $operationId` where eligible.
+4. Set `cleared_by_operation_id` **whenever** operation row exists (manifest idempotency + FK proof) — contradicts m0178 COMMENT suggesting NULL for explicit/open; **treat COMMENT as stale**; manifest + U04 verify win.
+
+**Replay same `operationId`:** header `INSERT` conflicts → load existing operation + members; **do not extend membership**; re-run apply only for members still uncleared; return **same authoritative applied set** as first success (counts/idempotent). No duplicate clears, no error.
+
+**Concurrent replay:** two requests same `operationId` — one wins `INSERT`, other reads; both return identical applied summary; partial apply + retry must not add receipts.
+
+**FK proof (carried U04):** PG test: `UPDATE notification_outbox SET cleared_by_operation_id = 'missing-op'` → FK violation `notification_outbox__cleared_by_operation_fkey`.
+
+**Foreign / invisible receipt in token:** deny apply for that member (or whole token if tampered) **without** confirming existence to unauthorized callers (D11) — mirror `markSeen` visibility subquery pattern.
+
+**Return shape (design plan §4.2):** typed result: `appliedReceiptIds`, `skippedReceiptIds`, `deniedReceiptIds`, `operationId`, `status` (`complete` / `partial` / `denied` / `stale`); GraphQL field on mutation.
+
+### U08 vs U09 boundary
+
+| | **U08 `attentionClear`** | **U09 `attentionDismissAll`** |
+|---|---|---|
+| **Trigger** | Deliberate single event, Request-open snapshot, explicit card optional set (multi-receipt token, still one Request). | Whole **surface** sweep (For You). |
+| **Capture** | Client holds **pre-issued** `snapshotToken` (finite list). | Server captures **all dismissible members** across unloaded pages at sweep start. |
+| **Scope** | One Request (or one receipt). | Entire `activity` surface. |
+| **Skips** | Members not in token; obligations never in token. | Unanswered forwards, prompts, obligations, Requests that gained My Desk responsibility since capture. |
+| **Progress** | Single transaction or small batch OK. | Batched apply, `applied/skipped/failed`, resumable, undo window — uses same tables but U09 owns orchestration. |
+| **Outcome tombstone** | Prefer **U09** unless card `×` is explicitly in U08 scope as multi-receipt `explicit` only. |
+
+Do **not** implement sweep eligibility scanning, surface-wide capture, undo, or `attentionDismissAll` in U08.
+
+### Request-open path (D05) — server contract for U13/U17
+
+**Today:** no server open hook; client calls `attentionMarkSeenForBeacon` before navigation (`mutation_attention.dart:81–89`).
+
+**Target contract:**
+
+1. **After authorize + load** (client has validated navigation target): call snapshot issue (`attentionRequest` / capture port) → receive `snapshotToken` bound to **current** optional receipt ids + outcome generation.
+2. **After Request detail successfully mounts** (client-only gate): call `attentionClear(snapshotToken, operationId)` with `clear_reason = request_open`.
+3. **Failed auth / forbidden / aborted navigation:** client must **not** call clear; server rejects tokens issued then invalidated if apply attempted without visibility.
+4. **Events committed after step 1** are **not** in member list → remain uncleared (acceptance).
+5. **Review deep link:** capture excludes live review obligation; optional updates only (product §4).
+
+Server does **not** infer “open” from beacon fetch or room watermark (`bridgeRoomWatermark` is read axis only).
+
+### Race / auth — correct observable outcomes (implement tests)
+
+| Scenario | Correct outcome |
+|---|---|
+| **Event arrives between snapshot and apply** | New receipt **uncleared**; dot/count unchanged for that event until explicit clear or later open. |
+| **Same `operationId` replayed (serial or concurrent)** | **No-op** on already-cleared members; response equals first successful apply; one operation row. |
+| **Request moves to My Desk / leaves Activity scope between capture and apply** | Members still clear if still visible + optional; if visibility lost, **skip/deny** those members without leaking; do not clear hidden receipts. |
+| **Authorization lost mid-apply** | Uncleared for lost-access receipts; no settlement; partial result reported; no existence leak for foreign ids. |
+| **Tampered token (extra foreign receipt id)** | **Denied** / dropped member; no cross-account effect. |
+| **Obligation receipt id in token** | Apply **fails** CHECK if forced; capture path must not include. |
+| **Unknown `cleared_by_operation_id`** | FK **rejects** (dedicated PG test). |
+
+### Suggested implementation layout
+
+| Layer | Files |
+|---|---|
+| Port | `packages/server/lib/domain/port/attention_clear_port.dart` — capture + apply |
+| Case | `packages/server/lib/domain/use_case/attention_clear_case.dart` |
+| Repo | `packages/server/lib/data/repository/attention_clear_repository.dart` (raw SQL; keep `attention_repository.dart` for U10) |
+| GraphQL | `mutation_attention.dart` — `attentionClear`; optional `query_attention.dart` — snapshot issue |
+| DI | `@Injectable` registration alongside other attention ports |
+
+Do **not** change client, contract JSON, obligation identity, or channel path.
+
+### TEST_CMD (implementer — affected suites only)
+
+```bash
+cd /home/vader/MY_SRC/tentura/packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
+  dart test --tags pg -j 1 test/data/repository/attention_clear_operation_pg_test.dart
+
+cd /home/vader/MY_SRC/tentura/packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 10m -- \
+  dart test test/api/controllers/graphql/attention_graphql_test.dart
+```
+
+Also extend **`attention_additive_schema_pg_test.dart`** OR clear suite for FK reject if not duplicated.
+
+Optional regression (no projection change expected yet): `attention_mark_seen_for_beacon_pg_test.dart`, `attention_request_history_pg_test.dart`.
+
+Overseer runs full server suite independently.
+
+---
+
+STATUS: complete
+
+BRIEF: Ship server `attentionClear(snapshotToken, operationId)` with HMAC-bound snapshot tokens (member receipt ids + beacon + outcome/decision generation + capture kind), using `attention_clear_operation` / `_member` for fixed membership and idempotent replay; capture via new clear port (+ minimal `attentionRequest` snapshot issue recommended); clear only authorized optionals (`NOT requires_action AND cleared_at IS NULL`); `explicit` and `request_open` reasons; prove FK on `cleared_by_operation_id`; leave sweep/undo/outcome tombstone/`attentionDismissAll` to U09 and indicator projection to U10.
+
+STEPS:
+1. Port + models for capture token codec and clear result — `attention_clear_port.dart`, extend `attention_models.dart` — red: PG test compile — **yes**
+2. Repository: capture SQL + apply with operation insert/members/updates — `attention_clear_repository.dart` — red: eligible predicate + FK reject tests — **yes**
+3. `AttentionClearCase` orchestration (authz, idempotent replay) — `attention_clear_case.dart` — red: replay + barrier concurrent arrival PG test — **yes**
+4. GraphQL `attentionClear` + snapshot issue field — `mutation_attention.dart`, `query_attention.dart` — red: `attention_graphql_test.dart` — **yes**
+5. Injectable wiring — generated `di.config` locally only — red: server unit tests compile — **yes**
+
+TEST_CMD:
+```bash
+cd /home/vader/MY_SRC/tentura/packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- dart test --tags pg -j 1 test/data/repository/attention_clear_operation_pg_test.dart
+cd /home/vader/MY_SRC/tentura/packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 10m -- dart test test/api/controllers/graphql/attention_graphql_test.dart
+```
+
+UNTOUCHABLE: `key.fb`, `leo.key`, `out.key`, `dart-defines`, `.serena/project.yml`, `packages/force_directed_graphview/**`, `docs/plans/constellation-*`, generated files, **all client code**, channel/email path, obligation identity / dispatch, `docs/contracts/updates-event-contract.json`, `attentionDismissAll`/sweep/undo (U09), broad projection changes in `attention_repository.dart` (U10).
+
+RISKS:
+- **Feed/summary ignore `cleared_at` until U10** — clearing will not yet change dots/counts in `attentionFeed` / `surfaceSummary` (still `seen_at`-based); tests should assert DB + clear API, not feed omission.
+- **Manifest owns vs snapshot issue** — D05 needs capture GraphQL or U13 blocked; amend owns or add query in U08.
+- **m0178 COMMENT** on `cleared_by_operation_id` says NULL for explicit/open — implementer should set FK for all operation-backed clears per manifest.
+- **`attention_request_state` empty** — capture uses `0/0` until U09/U10 writers; still bind in token.
+- **Card `×` outcome tombstone** — product D06 vs U09 owns; avoid half-building sweep outcome logic in U08.
+- **Do not use wall-clock** “clear older than tap” — membership-only boundary (collapse history).
+
+---
+
+## UNIT U08 — Clear command (single and open) · INNER (2026-09-19)
+
+**Layer:** inner (Claude Opus 5), tagged **hard** (races). Base `f38913f8d`. Five commits, journal last.
+Followed the scout's STEPS and TEST_CMD; the full server suite is the overseer's, and was not run here.
+
+### What landed
+
+| Layer | File |
+|---|---|
+| Models + token codec | `lib/domain/attention/attention_clear_models.dart` |
+| Port | `lib/domain/port/attention_clear_port.dart` |
+| Case | `lib/domain/use_case/attention_clear_case.dart` |
+| Repository | `lib/data/repository/attention_clear_repository.dart` |
+| GraphQL | `mutation_attention.dart` (`attentionClear`), `query_attention.dart` (`attentionClearSnapshot`), `custom_types.dart` |
+| Migration | `m0182` (comment only) |
+| Tests | `test/data/repository/attention_clear_operation_pg_test.dart` (new, 13 cases), `test/api/controllers/graphql/attention_graphql_test.dart` (+5) |
+
+DI is generated (`di.config.dart`, gitignored): `AttentionClearPort` → `AttentionClearRepository` (singleton),
+`AttentionClearCase` (factory), both written by `build_runner`.
+
+### The boundary
+
+**Membership, never wall-clock.** A capture is a finite, ordered list of receipt ids plus the Request's outcome
+identity; the apply re-authorizes exactly that list and nothing else. There is no `created_at` comparison
+anywhere in this unit, because collapse rewrites `created_at` and "everything older than my tap" is therefore
+not a boundary this system can express.
+
+**The token is opaque, not trusted.** Base64url JSON with its own `schemaVersion` (1), deliberately distinct
+from the feed cursor's shape so the two can never be fed to each other. It is *not* signed, and does not need
+to be: the account inside it is checked against the JWT, and every member is re-checked at apply against
+`visible_attention_receipts` plus `NOT requires_action AND cleared_at IS NULL`. Tampering with the member list
+can therefore only produce denials — it cannot clear anything the caller could not already clear. This is a
+deliberate choice against adding an HMAC secret to `Env` for no additional guarantee; if a later unit needs a
+token that is *unforgeable* rather than merely *unhelpful to forge*, that is a one-line change to the codec.
+
+**Idempotency is the primary key.** `INSERT INTO attention_clear_operation … ON CONFLICT (id) DO NOTHING`
+inside one transaction. A concurrent twin blocks on that key until the winner commits, then falls through to
+the replay path and rebuilds the answer from the stored membership — it never re-captures. The whole apply is
+one transaction, so there is no half-applied state for a retry to discover.
+
+**Three outcomes, and why two of them look alike from outside.** `applied` = cleared. `skipped` = a receipt the
+account owns but can no longer clear (visibility lost, already cleared, or an obligation). `denied` = an id
+that resolves to no receipt *of this account*. A receipt belonging to somebody else and a receipt that never
+existed both resolve to nothing, so they are reported identically — that is the non-disclosure property, and
+the test asserts the two ids come back in the same list.
+
+### The four races, each asserted with its outcome stated first
+
+| Race | Test | Outcome |
+|---|---|---|
+| Event arrives between capture and apply | `an event committed after the capture survives the clear` | the new receipt is not a member; `cleared_at IS NULL` |
+| Same `operationId` replayed | `a replayed operation id has exactly one effect` | same result, `cleared_at` not re-stamped, one op row, one member row; a receipt that arrived after the first apply is **not** swept up |
+| …replayed concurrently | `a concurrently replayed operation id has exactly one effect` (two `TenturaDb` connections, `Future.wait`) | identical results, one op row, `applied = 1` |
+| Request leaves the viewer's scope | `a Request that left the viewer scope … is skipped, not cleared` (author blocks viewer mid-operation) | `skipped`, member state `skipped`, status `stale`, nothing cleared |
+| Authorization lost / foreign id | `a foreign receipt is denied exactly as a receipt that does not exist`, `a token issued for another account clears nothing` | denied, no clear, and a cross-account token does not even leave an operation row |
+
+### Obligations
+
+Never captured (`NOT requires_action` is in the capture predicate) and never cleared even if forced into a
+token by hand (`an obligation forced into a token is skipped, never cleared`). The m0178 CHECK
+`notification_outbox__clear_optional_only_chk` is the second line, proven **by name** with a direct offending
+`UPDATE` — so if the predicate ever regresses, the database still refuses, and refuses via that constraint.
+
+### Carried-in obligation from U04's verify: discharged
+
+`notification_outbox__cleared_by_operation_fkey` now has a test that names it: an `UPDATE` setting
+`cleared_by_operation_id` to an operation id that does not exist is rejected by that FK, and the row is
+unchanged afterwards. U08 is the first writer of that column, so this was the first unit that could owe it.
+
+### The three overseer decisions, in my own words
+
+**2 — every clear is operation-backed.** I set `cleared_by_operation_id` on every clear, including explicit and
+request-open ones, and shipped `m0182` to correct m0178's comment rather than leave the schema documenting the
+opposite. The comment was not merely stale prose: it described a world in which a single-event dismiss has no
+operation row, and in that world there is nothing for a replayed `operationId` to find, so D12's idempotency
+and U09's undo are both impossible. `legacy_seen` stays the one operation-free reason (U18's backfill has no
+operation), which is why the column stays nullable and `notification_outbox__clear_facts_chk` is unchanged.
+
+**3 — `attention_request_state` has no writer yet.** Capture reads `outcome_generation` / `decision_revision`
+from that table and gets `0 / 0` for every Request today, because nothing writes it until U09/U10. Both values
+are bound into the token and stamped onto every `attention_clear_operation_member` row anyway. Once those
+writers exist, the captured generation is what lets U09 notice that the Request's outcome moved *underneath* an
+in-flight clear — a clear captured at generation 3 and applied after the outcome advanced to 4 is a different
+question from one that never moved — and it is the anchor undo needs to know what it is unwinding. Shipping the
+column full of honest zeroes now means the token shape does not change when the meaning arrives.
+
+**6 — the feed does not change yet, and that is not a bug.** `attentionFeed` and `surfaceSummary` still count
+`seen_at IS NULL`; `cleared_at` has no effect on any dot or count until U10 moves the indicators onto the
+optional axis. So a receipt cleared by this unit is still unread, still counted, still shown. Every test here
+asserts the database (`cleared_at`, `clear_reason`, `cleared_by_operation_id`, member rows) and the clear API's
+return value — **none** asserts feed omission, and one test (`clearing does not change the read axis yet`)
+pins the *absence* of a `seen_at` change explicitly so a later reader cannot mistake the gap for a defect.
+
+### Manifest deviation, disclosed
+
+Per overseer decision 1 I shipped the snapshot-issue query. I named it **`attentionClearSnapshot`**, not the
+frozen `attentionRequest` — §0.2 reserves `attentionRequest(beaconId, cursor, limit)` for U10's Request *page*,
+and taking that name for a field with a different shape would force U10 to rename or overload it. The frozen
+name is untouched and still available.
+
+Two other disclosed touches: `custom_types.dart` gained two result types (additive), and four settle tests in
+`attention_graphql_test.dart` selected their field with `.all.last` — adding a mutation silently retargeted
+them at `attentionClear`, so they now name the field they mean. No behaviour change.
+
+### Tests actually run
+
+```
+# RED — step 2, before the port/case/repository existed
+dart test --tags pg -j 1 attention_clear_operation_pg_test.dart   00:00 +0 -1  (compile: Undefined name 'AttentionClearCaptureKind')
+# RED — step 3, before the GraphQL fields existed
+dart test attention_graphql_test.dart                             00:00 +0 -1  (compile: No named parameter 'clear')
+# RED — step 4, before m0182
+dart test --tags pg -j 1 attention_clear_operation_pg_test.dart   00:04 +12 -1 (comment still said "NULL for explicit")
+
+# GREEN
+dart test --tags pg -j 1 attention_clear_operation_pg_test.dart   00:03 +13: All tests passed!
+dart test attention_graphql_test.dart                             00:00 +22: All tests passed!
+
+# Regression, no change expected and none seen
+dart test --tags pg -j 1 attention_additive_schema_pg_test.dart   00:05 +25: All tests passed!
+dart test --tags pg -j 1 attention_mark_seen_for_beacon_pg_test.dart \
+  attention_request_history_pg_test.dart attention_repository_pg_test.dart \
+  attention_surface_pg_test.dart                                  00:11 +41: All tests passed!
+```
+
+All through `scripts/run_with_test_cleanup.sh`, PG with `--tags pg -j 1`.
+
+### Findings
+
+- **The first commit was green on arrival, and that is the point.** The FK and obligation-CHECK tests needed no
+  production code — they prove constraints m0178 already shipped. U04 built them; nothing had ever made them
+  fire. A constraint that has never refused anything is a comment.
+- **Denied members cannot be recorded.** `attention_clear_operation_member.receipt_id` has an FK to
+  `notification_outbox`, so an id naming no receipt cannot be stored. Denials are therefore recomputed on
+  replay as *requested ids minus stored members* — which reproduces the first answer exactly for a genuine
+  replay, and correctly denies any id a tampered replay tries to add.
+- **drift warns about a second `TenturaDb`.** The concurrent-replay test opens a second connection on purpose,
+  so the two applies really race in Postgres instead of being serialized by one drift executor. The warning in
+  that test's output is expected.
+
+### Out of scope, confirmed untouched
+
+No `attentionDismissAll`, no sweep, no undo, no outcome/tombstone clearing, no shared helper built for U09.
+No client code, no contract JSON, no channel/email path, no obligation identity, and no projection change in
+`attention_repository.dart` — U10 still owns every read.
