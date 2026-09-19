@@ -4675,3 +4675,44 @@ All through `scripts/run_with_test_cleanup.sh`. Full server suite not run — th
 STATUS: complete
 
 ---
+
+### Manager verdict — U09a · **ACCEPTED** (hard; inner Opus-low ✓ / verify pass / one remediation)
+
+Overseer's full suite: **1676 non-PG**, **909 PG / 24 known skips** (up from 870 — 39 new tests).
+Commits `68b170d48` m0183 · `c3408619d` predicate · `83605cd56` m0184 · `6d622aa07` journal ·
+`27c2c14bc` m0185 remediation.
+
+**The remediation is the story.** m0183 correctly fixed a real DB defect — `helping`, `watching` and
+`notInterested` could not be dismissed at all — but in widening the trigger it also made dismissal legal at the
+**row level for an unanswered forward**. The sweep predicate excluded those rows correctly, so nothing would
+have gone wrong through `attentionDismissAll`; the protection simply lived only in a read predicate. Owner
+decision A says an unanswered forward must never be swept, because hiding one discards somebody's request for
+help without answering them — a guarantee that depends on every caller remembering is not a guarantee. m0185
+moves it into the database.
+
+**Why the hole existed, and this is the reusable lesson:** m0183's status-0 test asserted **two opposite
+meanings under one name** (`helping / unanswered forward (0)`) and was green for both readings. `status = 0` is
+two distinct rows under one number — `helping` inside the responsibility scope, an unanswered forward outside
+it. The remediation split the test, and had to mirror the predicate's full scope (base beacons **plus** live
+unsettled obligation receipts): a base-function-only guard would have falsely refused the obligation-scoped
+`helping` row, re-breaking exactly what m0183 repaired. The new trigger then immediately caught an over-broad
+fixture in U09a's own predicate suite.
+
+**Test methodology adopted without being asked:** exclusion tests are asserted against a **deliberately
+loosened copy** of the predicate, because "the row is absent" passes trivially when the set is empty for
+unrelated reasons. That technique found that an obligation *on a Request* is excluded twice over, forcing the
+load-bearing case onto a Request-less obligation. The verifier re-ran the method independently.
+
+**Architectural finding I endorse:** the `attention_request_state` writer is a **trigger**, not Dart, because
+`InboxRepository.setStatus` has no server-side caller — stance (including Restore) is written through Hasura and
+terminal statuses by a beacon trigger in pure SQL. A Dart writer would have missed the exact transition undo
+depends on.
+
+**Judgement calls accepted:** `outcome_beacon_id` is deliberately not a foreign key (CASCADE would delete audit
+members and skew the operation counters; SET NULL would violate the new CHECK) — U09b/U09c must treat a missing
+inbox row as *skip*, not corruption. The two axes stay separate, with one operation spanning both.
+
+**Correction to the record:** `beacon.state` does not exist — the column is `beacon.status`. Both the U09 scout
+brief and m0024's comment text say otherwise.
+
+---
