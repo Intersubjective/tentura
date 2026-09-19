@@ -6276,3 +6276,146 @@ So this plan did not break constellation; it **created the load under which cons
 losing reliably**. For the repository owner those are different statements.
 
 ---
+
+## UNIT U10d — Card provenance + the m0187 backfill hole · INNER (2026-09-19)
+
+UNIT_BASE `25c14e747`. Three commits: `ac7134e37` (m0187 backfill test), `eadb255fa` (provenance
+projection), `ba70e6f5f` (authorization tests).
+
+### What the existing provenance shape is, and why there is no second DTO
+
+I expected to find a data contract and did not. What exists is one **plpgsql function**,
+`public.inbox_item_inbox_provenance_data(inbox_item, json)`, registered in Hasura as the computed field
+`inbox_item.inbox_provenance_data`, returning a JSON **string**. Its current body is m0103's. It assembles,
+per `(recipient, beacon, context)`:
+
+- the distinct uncancelled, unrejected forward edges into that recipient, minus self-forwards;
+- an MR score per sender from `mr_mutual_scores(viewer, ctx)` (pgmer2);
+- `top3` by `mr DESC, sender_id ASC`, joined to `"user"` for `displayName` / `imageId` and to
+  `person_capability_event` for `reasonSlugs`;
+- `totalDistinctSenders` over **all** senders, not the top three;
+- `strongestNotePreview` = the note of the single highest-MR sender, truncated to 200 chars.
+
+So the plan's "already exists and is already MR-ranked server-side — plumbing, not new ranking" is exactly
+right, and the ranking I might have written already sits in `top3` / `best`. The client half is
+`InboxProvenance.parse`, which reads that JSON text.
+
+That is why a second DTO would have been the wrong shape *twice*: the contract is not a Dart class anybody
+could re-declare, it is a SQL body and a JSON document. Re-modelling it in Dart would have meant either a
+second SQL body producing a near-identical document (two things to keep in step, which is the drift U10a
+spent a whole unit undoing) or a Dart-side reassembly of rows the SQL already assembles — and either way
+`InboxProvenance.parse` and `withoutViewer` would have stopped being the single reader.
+
+So m0188 does the U10a move instead: it lifts the m0103 body out into
+`public.attention_provenance_data(p_beacon_id, p_recipient_id, p_viewer_id, p_inbox_context,
+p_exclude_blocked) RETURNS jsonb`, and leaves the computed field as a five-line delegation. One body, one
+document, two callers. `AttentionReceipt.provenanceJson` carries that document **verbatim** as text — it is
+deliberately not parsed on the server, because the moment the server parses it the server owns a second
+model of it.
+
+Two parameters exist only to make the delegation exact rather than approximate. `p_recipient_id` and
+`p_viewer_id` are separate because the computed field's recipient is `inbox_row.user_id` while its MR ego is
+the Hasura session — equal in practice, but making them one parameter would have been a silent behaviour
+change hidden inside a refactor. The attention path passes the account id for both.
+
+### The one deliberate difference, and a finding
+
+`p_exclude_blocked` is the only place the two callers diverge, and it is a **finding**: the Hasura computed
+field has never applied `block_hides` to forward provenance. A blocked person's name and note reach the
+Inbox today. I did not fix that here — quietly changing Inbox behaviour under cover of a refactor is the
+thing this parameter exists to avoid — so the delegation passes `false` and reproduces m0103 byte for byte
+(`inbox_repository_test.dart`'s two live provenance cases confirm it), while the attention read path passes
+`true`. **Whether Inbox should also exclude blocked forwarders is a product decision somebody should take.**
+
+### Authorization is the risk, and where it lives
+
+Everything the attach query returns — provenance, author, images, `endAt`, `allowsForward` — hangs off a
+single call to the existing wall, `public.beacon_can_read_content(beacon, viewer)`: the same predicate the
+projection already uses to decide `title` and `tombstone_copy`. Blocked senders are dropped one level
+deeper, inside the `senders` CTE, so they leave `totalDistinctSenders` as well as `senders[]`. That
+placement is the whole point — filtering them in the projection would have produced a shorter list beside
+an unchanged count, which tells the viewer precisely that somebody is hidden.
+
+Non-vacuity, in a throwaway copy each time:
+
+| loosening | red |
+|---|---|
+| `block_hides` clause deleted from `attention_provenance_data` | 3 of 5 (both list cases + the count case) |
+| `beacon_can_read_content(b.id, $1)` → `true` in the attach query | 1 of 5, on the leak itself |
+
+The second one is worth quoting, because it is the failure the suite exists for:
+
+```
+Expected: null
+  Actual: '{"senders": [{"id": "Uu10dprv03", "mr": 0, "imageId": null,
+           "displayName": "Sender One", "notePreview": "note on an unreadable Request",
+           "reasonSlugs": []}], "strongestNotePreview": "note on an unreadable Request",
+           "totalDistinctSenders": 1}'
+no senders, no notes and no count for a Request whose content the viewer may not read
+```
+
+### `allowsForward` is composed, not restated
+
+The live gate is `BeaconEntity.allowsForward` → `BeaconStatus.allowsForward` → `isOpenFamily` →
+`openFamilyValues = {0, 7, 8}`, and it is what `forward_case.dart:218` and `invitation_case.dart:75`
+enforce. The repository builds its SQL `IN` list from `BeaconStatus.openFamilyValues` rather than writing
+`(0, 7, 8)` — the repo's usual idiom, but here the card's affordance and the mutation's refusal must agree
+or the button lies. Status 5 (`reviewOpen`) is the case that proves it is not a synonym for "not terminal":
+coordination continues, forwarding does not.
+
+### Where the work sits, and why not in `page_stream`
+
+Attached after paging, in `_attachGroupedProvenance`, mirroring `_attachActivityEventPreviews`. Projecting
+it inside the `page_stream` UNION would have walked the forward edges and the MR scores for every eligible
+Request *before* the `LIMIT` — paying for rows nobody asked for. This is also why the attach is keyed on
+`itemKind` being `forward` or `requestActivity`: a plain receipt carries `null` for all seven fields, and a
+test asserts it.
+
+### Three existing suites now create pgmer2
+
+`attention_activity_stream`, `attention_active_attention_axis` and `attention_ordering_keys` failed with
+`42883: function mr_mutual_scores(text, text) does not exist` — their disposable targets never installed the
+extension, because until now nothing in the attention read path reached MR. Only the `setUpDisposablePgWriter`
+call changed; no assertion in those files was touched. This is a real new dependency of the read path, not
+a test workaround: the Inbox computed field has always called the same function.
+
+### m0187's second backfill path
+
+U10c's verify was right that nothing exercised
+`SET first_entry_at = LEAST(state.first_entry_at, ii.latest_forward_at)`. It only fires when the forward
+*predates* the row's write instant, which is the clock correction m0187 was written for, and which the live
+path never produces.
+
+`m0187_first_entry_backfill_pg_test.dart` stages the schema at `0186`, lets the pre-m0187 trigger stamp the
+anchor at `now()` over a forward backdated to 2025, then applies `m0187.statements` and reads the anchor
+back. Two more cases pin what the migration's own doc-comment claims: `LEAST` never walks an anchor forward
+(so a re-forward followed by a re-run leaves it alone), and hole 1 gives a state-less inbox row an anchor at
+its forward. Replacing the `LEAST` with `state.first_entry_at` in a throwaway copy turns both hole-2 cases
+red and leaves hole 1 green — which is right, they are different statements.
+
+### Test output
+
+```
+$ ./scripts/run_with_test_cleanup.sh --timeout 30m -- \
+    dart test <13 attention PG suites> \
+      attention_grouped_provenance_pg_test.dart \
+      attention_grouped_provenance_authorization_pg_test.dart \
+      m0187_first_entry_backfill_pg_test.dart --tags pg -j 1
+00:56 +214: All tests passed!
+
+$ dart test attention_graphql_test.dart query_attention_payload_test.dart \
+    inbox_repository_test.dart m0100_dedup_test.dart m0103_provenance_test.dart -j 1
+00:01 +50: All tests passed!
+
+$ ./scripts/check-custom-lints.sh packages/server
+total: 0 (baseline: 0)
+```
+
+### Deliberately not done
+
+Eligibility, indicators (U10b), ordering keys (U10c), the predicate source (U10a), client `lib/`, the
+contract JSON and the channel path are untouched. `activityOffers` and `attentionRequestHistory` do not
+carry provenance: the grouped read model U02 built and U14/U16 consume is `attentionFeed`, and widening the
+other two would be speculative.
+
+---
