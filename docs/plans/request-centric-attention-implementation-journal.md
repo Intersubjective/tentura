@@ -4566,3 +4566,112 @@ SQL helper, plus the one-line `ON CONFLICT` arbiter fix m0183 forced in `attenti
 
 STATUS: complete
 
+---
+
+## UNIT U09a — dismissible foundations · VERIFY (2026-09-19)
+
+**Layer:** verify (read-only). **Base:** `19fd71abd`. **Commits adjudicated:** `68b170d48` · `c3408619d` ·
+`83605cd56` · `6d622aa07`.
+
+### Execution
+
+Re-ran the coupled PG suites (U08 clear + U09a predicate/outcome/state + additive schema membership rename):
+**74 passed, 0 failed** (~22s). Independently confirmed `InboxRepository.setStatus` has **no** caller under
+`packages/server/lib/domain` or `lib/data` except its definition; stance/Restore paths are Hasura `UPDATE
+inbox_item` and SQL triggers, covered by `attention_request_state_writer_pg_test.dart`.
+
+### Adjudication notes
+
+1. **m0183 dismissibility vs safety:** DB now permits `tombstone_dismissed_at` on all five outcome statuses
+   (tests `attention_outcome_dismissible_pg_test.dart`). Guard still blocks forged stance transitions. **Sweep
+   safety** is not the trigger anymore — it is `AttentionDismissibleSql` (`eligible_pinned` exclusion). Residual:
+   Hasura can still set `tombstone_dismissed_at` on an unanswered `status=0` row if permissions allow; predicate
+   excludes it from Set O; U09b/U16 should route dismiss through server + predicate.
+2. **Loosened-predicate method:** Re-executed via `attention_dismissible_predicate_pg_test.dart` — obligation
+   (`withoutObligationExclusion`), unanswered forward (`withoutPinnedExclusion`), and defence-in-depth cases all
+   pass dual assertions.
+3. **ON CONFLICT:** Partial unique indexes require `WHERE receipt_id IS NOT NULL` / `outcome_beacon_id IS NOT
+   NULL`; U08 suite green; duplicate capture rejected by `__receipt_once` / `__outcome_once` (additive + outcome
+   tests).
+4. **`outcome_beacon_id` no FK:** Agree — CASCADE would delete audit members; SET NULL would violate
+   `member_target_chk`. Orphan `outcome_beacon_id` after beacon delete is an audit snapshot; U09b apply/U09c
+   undo should skip when inbox row or authorization is gone (not a counter lie).
+5. **Trigger writer:** m0184 `inbox_item_maintain_attention_request_state_trg`; Restore `2→0` bumps
+   `decision_revision` to 2; `tombstone_dismissed_at` does not bump generations.
+
+**Scope hygiene:** `git diff 19fd71abd..HEAD` touches only server migrations, `attention_dismissible_sql.dart`,
+`attention_clear_repository.dart` (ON CONFLICT line), and PG tests + journal — no client, contract, channel,
+`attention_repository.dart`. Pre-existing untouchable dirt unchanged.
+
+**Verifier verdict:** pass (see structured block below).
+
+---
+
+
+## UNIT U09a — remediation: unanswered forwards, enforced in the database · INNER (2026-09-19)
+
+**Layer:** inner (remediation). `UNIT_BASE` `6d622aa07`. One defect, one migration, one commit.
+
+**The defect (from U09a's verify, note 1).** m0183 dropped the `status IN (3, 4)` restriction on
+`tombstone_dismissed_at` — correctly; that was the original defect. But it also made dismissal legal at the row
+level for an **unanswered** forward. After m0183 owner decision A lived only in `AttentionDismissibleSql`'s
+`eligible_pinned` exclusion, a *read* predicate. A direct Hasura `update_inbox_item`, or any future caller
+composing its own SQL, could hide someone's unanswered request for help without answering it.
+
+**The fix — m0185**, `inbox_item_guard_unanswered_dismissal`, a `BEFORE INSERT OR UPDATE` trigger. It fires only
+when `tombstone_dismissed_at` is being *set* (un-dismissal, i.e. U09c undo, and every other write to an
+unanswered row are untouched), and refuses only `status = 0` rows outside the viewer's responsibility scope.
+
+`status = 0` is two rows wearing one number: `helping` when the Request is in scope, "still awaiting your
+answer" when it is not — exactly the `forward_outcome` CASE in `attention_repository.dart`. The trigger mirrors
+the same `scope` definition the predicate uses: `responsibility_scope_base_beacons` (authored, or an open help
+offer) **plus** any Request carrying a live unsettled obligation receipt. Using only the base function would
+have falsely refused the obligation-scoped `helping` row. m0183 is **not** narrowed: all five answered kinds
+stay dismissible, and the migration comment says why the rule is row-level so nobody relaxes it to "the sweep
+already filters that".
+
+**Both directions are proved**, because a fix that only proved the refusal could have re-broken m0183:
+`watching`, `notInterested`, `closedBeforeResponse`, `deletedBeforeResponse` each still dismissible; `helping`
+proved twice over (via help offer and via authorship, since the two legs of scope are different code paths);
+`answering the forward first makes it dismissible` shows the refusal is about the state, not the row.
+
+### Tests actually run
+
+```
+# RED (migration not yet written)
+dart test --tags pg -j 1 attention_outcome_dismissible_pg_test.dart            00:03 +18 -2: Some tests failed.
+  - a direct UPDATE on an unanswered forward is refused by inbox_item_guard_unanswered_dismissal
+  - an INSERT that arrives already dismissed is refused too
+  (both: "emitted []" — the write succeeded, which is the defect)
+
+# GREEN
+dart test --tags pg -j 1 attention_outcome_dismissible_pg_test.dart            00:03 +20: All tests passed!
+dart test --tags pg -j 1 attention_outcome_dismissible_pg_test.dart \
+  attention_clear_operation_pg_test.dart attention_dismissible_predicate_pg_test.dart \
+  attention_request_state_writer_pg_test.dart ../database/attention_additive_schema_pg_test.dart \
+  attention_activity_stream_pg_test.dart                                       00:22 +101: All tests passed!
+dart test --tags pg -j 1 attention_repository_pg_test.dart attention_surface_pg_test.dart \
+  attention_request_history_pg_test.dart attention_mark_seen_for_beacon_pg_test.dart \
+  my_work_attention_pg_test.dart attention_live_obligations_pg_test.dart \
+  attention_retention_pg_test.dart                                             00:17 +58: All tests passed!
+./scripts/check-custom-lints.sh packages/server                                total: 0 (baseline: 0) — OK
+```
+
+All through `scripts/run_with_test_cleanup.sh`. Full server suite not run — the overseer owns it.
+
+### Findings
+
+- **The new guard immediately caught an over-broad test fixture.** `attention_dismissible_predicate_pg_test`'s
+  "an already dismissed outcome is not swept twice" dismissed by `WHERE user_id = …` alone, which also swept
+  the fixture's unanswered forward. The database refused it. The UPDATE is now scoped to its beacon — that is
+  the guard doing its job on the first real caller it met, one written by this unit's own author.
+- **m0183's status-0 test was ambiguous and is now split.** It was named
+  `helping / unanswered forward (0)` and asserted both could be dismissed, with a fixture that was in fact the
+  *unanswered* case. One assertion covering two opposite meanings is how this defect stayed invisible.
+- The trigger runs two `EXISTS` probes per dismissal write, one of them through
+  `visible_attention_receipts`. Dismissal is low-frequency, and U09b's sweep writes per Request batch, so this
+  was not optimised; if it ever shows up, the scope set can be computed once per statement instead.
+
+STATUS: complete
+
+---

@@ -49,7 +49,6 @@ Future<void> main() async {
     // statuses 3 and 4, so three of the five outcome kinds could not be
     // dismissed at all. This is the whole point of the migration.
     for (final kind in const [
-      (status: 0, name: 'helping / unanswered forward (0)'),
       (status: 1, name: 'watching (1)'),
       (status: 2, name: 'notInterested (2)'),
       (status: 3, name: 'closedBeforeResponse (3)'),
@@ -69,6 +68,40 @@ UPDATE public.inbox_item SET tombstone_dismissed_at = now()
         expect(await _dismissedAt(writer), isNotNull);
       });
     }
+
+    // `helping` is status 0 *plus* responsibility scope — the projection reads
+    // the pair, not the status alone (`attention_repository.dart`'s
+    // `forward_outcome` CASE). So the answered half of status 0 needs a scope
+    // fixture, and it must stay dismissible: m0183's whole purpose was that
+    // every *answered* outcome kind carries its own x.
+    test('helping (0, in responsibility scope) can be dismissed', () async {
+      await _insertInboxItem(writer, status: 0);
+      await _insertHelpOffer(writer);
+
+      await writer.execute(
+        Sql.named('''
+UPDATE public.inbox_item SET tombstone_dismissed_at = now()
+ WHERE user_id = @userId AND beacon_id = @beaconId
+'''),
+        parameters: {'userId': _viewerId, 'beaconId': _beaconId},
+      );
+
+      expect(await _dismissedAt(writer), isNotNull);
+    });
+
+    test('helping via authorship of the Request can be dismissed', () async {
+      await writer.execute(
+        "UPDATE public.beacon SET user_id = '$_viewerId' WHERE id = '$_beaconId'",
+      );
+      await _insertInboxItem(writer, status: 0);
+
+      await writer.execute(
+        "UPDATE public.inbox_item SET tombstone_dismissed_at = now() "
+        "WHERE user_id = '$_viewerId' AND beacon_id = '$_beaconId'",
+      );
+
+      expect(await _dismissedAt(writer), isNotNull);
+    });
 
     test('a dismissal can be undone — U09c restores, it does not re-decide', () async {
       await _insertInboxItem(writer, status: 1);
@@ -166,6 +199,85 @@ INSERT INTO public.inbox_item (
           ),
         ),
       );
+    });
+  }, skip: skipReason);
+
+  group('an unanswered forward can never be dismissed', () {
+    // Owner decision A: the sweep clears only rows that carry their own x and
+    // never anything awaiting a decision. m0183 made dismissal legal for every
+    // status, which left that guarantee living only in `AttentionDismissibleSql`
+    // — a *read* predicate. m0185 puts it back in the database, so a direct
+    // Hasura update or a future caller that forgets cannot silently hide
+    // someone's unanswered request for help.
+    test('a direct UPDATE on an unanswered forward is refused by '
+        'inbox_item_guard_unanswered_dismissal', () async {
+      await _insertInboxItem(writer, status: 0);
+
+      await expectLater(
+        writer.execute(
+          "UPDATE public.inbox_item SET tombstone_dismissed_at = now() "
+          "WHERE user_id = '$_viewerId' AND beacon_id = '$_beaconId'",
+        ),
+        throwsA(
+          isA<ServerException>().having(
+            (error) => error.message,
+            'message',
+            contains('unanswered forward cannot be dismissed'),
+          ),
+        ),
+      );
+
+      expect(await _dismissedAt(writer), isNull);
+    });
+
+    test('an INSERT that arrives already dismissed is refused too', () async {
+      await expectLater(
+        writer.execute(
+          Sql.named('''
+INSERT INTO public.inbox_item (
+  user_id, beacon_id, status, forward_count, latest_forward_at,
+  latest_note_preview, rejection_message, tombstone_dismissed_at
+) VALUES (@userId, @beaconId, 0, 1, now(), '', '', now())
+'''),
+          parameters: {'userId': _viewerId, 'beaconId': _otherBeaconId},
+        ),
+        throwsA(
+          isA<ServerException>().having(
+            (error) => error.message,
+            'message',
+            contains('unanswered forward cannot be dismissed'),
+          ),
+        ),
+      );
+    });
+
+    test('answering the forward first makes it dismissible', () async {
+      await _insertInboxItem(writer, status: 0);
+      await writer.execute(
+        "UPDATE public.inbox_item SET status = 1 WHERE user_id = '$_viewerId'",
+      );
+
+      await writer.execute(
+        "UPDATE public.inbox_item SET tombstone_dismissed_at = now() "
+        "WHERE user_id = '$_viewerId' AND beacon_id = '$_beaconId'",
+      );
+
+      expect(await _dismissedAt(writer), isNotNull);
+    });
+
+    test('an unanswered row may still be written for anything else', () async {
+      await _insertInboxItem(writer, status: 0);
+
+      await writer.execute(
+        "UPDATE public.inbox_item SET forward_count = 2 "
+        "WHERE user_id = '$_viewerId' AND beacon_id = '$_beaconId'",
+      );
+
+      final rows = await writer.execute(
+        "SELECT forward_count FROM public.inbox_item "
+        "WHERE user_id = '$_viewerId' AND beacon_id = '$_beaconId'",
+      );
+      expect(rows.first.first, 2);
     });
   }, skip: skipReason);
 
@@ -305,6 +417,7 @@ Future<void> _resetFixtures(Connection writer) async {
   await writer.execute('''
 TRUNCATE TABLE
   public.inbox_item,
+  public.beacon_help_offer,
   public.attention_clear_operation,
   public.attention_request_state,
   public.notification_outbox,
@@ -350,6 +463,18 @@ INSERT INTO public.inbox_item (
   latest_note_preview, rejection_message
 ) VALUES ('$_viewerId', '$beaconId', $status, 1, now(), '', '')
 ''',
+);
+
+Future<void> _insertHelpOffer(
+  Connection writer, {
+  String beaconId = _beaconId,
+}) => writer.execute(
+  Sql.named('''
+INSERT INTO public.beacon_help_offer (
+  beacon_id, user_id, message, status, created_at, updated_at
+) VALUES (@beaconId, @userId, 'offer', 0, now(), now())
+'''),
+  parameters: {'beaconId': beaconId, 'userId': _viewerId},
 );
 
 Future<void> _withTombstoneTransitionAllowed(

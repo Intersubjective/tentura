@@ -200,8 +200,11 @@ Future<void> main() async {
     test('an already dismissed outcome is not swept twice', () async {
       await _insertInboxItem(writer, beaconId: _forwardedBeaconId, status: 1);
       await writer.execute(
+        // Scoped to the one row on purpose: since m0185 a blanket UPDATE
+        // would also try to dismiss the fixture's unanswered forward, and the
+        // database refuses that.
         'UPDATE public.inbox_item SET tombstone_dismissed_at = now() '
-        "WHERE user_id = '$_viewerId'",
+        "WHERE user_id = '$_viewerId' AND beacon_id = '$_forwardedBeaconId'",
       );
 
       expect(await _dismissibleOutcomes(writer), isEmpty);
