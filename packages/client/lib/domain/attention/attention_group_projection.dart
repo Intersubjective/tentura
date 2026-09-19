@@ -23,7 +23,13 @@ final class AttentionGroupProjection {
 /// dismissed child from the preview while leaving `eventTotal` where the
 /// server last put it is the failure U10b described: the list looks right and
 /// the number beside it lies. So every removal moves the preview *and* the
-/// totals, and a child read optimistically moves the unseen count with it.
+/// totals.
+///
+/// What does **not** move them is reading (R2/D02). The server defines
+/// `eventUnseenCount` as `COUNT(*) FILTER (WHERE NOT requires_action AND
+/// cleared_at IS NULL)` — despite the name, `seen_at` is not in it. Until
+/// U15R-c a child marked seen optimistically took one off the count, so the
+/// dot went out over children the server was still counting.
 ///
 /// [overlay] is the caller's local view of one child — clear overlay first,
 /// then read acks — so this function never needs to know the stores exist.
@@ -48,9 +54,7 @@ AttentionGroupProjection projectAttentionGroup({
       if (!child.isCleared) child,
   ];
   final dismissed = overlaid.length - kept.length;
-  final rawUnseen = eventsPreview.where((child) => !child.isSeen).length;
-  final keptUnseen = kept.where((child) => !child.isSeen).length;
-  if (dismissed == 0 && rawUnseen == keptUnseen) {
+  if (dismissed == 0) {
     // Nothing local applies; keep the server's numbers verbatim rather than
     // recomputing them from a preview that is only the first few children.
     return AttentionGroupProjection(
@@ -61,10 +65,9 @@ AttentionGroupProjection projectAttentionGroup({
     );
   }
   final total = math.max(0, eventTotal - dismissed);
-  final unseenCount = (eventUnseenCount - (rawUnseen - keptUnseen)).clamp(
-    0,
-    total,
-  );
+  // Only cleared children leave the count, and each one takes exactly one
+  // with it — the same arithmetic the server does over the same predicate.
+  final unseenCount = (eventUnseenCount - dismissed).clamp(0, total);
   return AttentionGroupProjection(
     eventTotal: total,
     eventUnseenCount: unseenCount,

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:tentura/domain/attention/attention_case.dart';
+import 'package:tentura/domain/attention/entity/attention_clear.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
@@ -33,6 +34,8 @@ final class AttentionCaseTestRepository extends AttentionRepositoryFake {
   final List<List<String>> markUnseenCalls = [];
   int markAllSeenCalls = 0;
   final List<Completer<int>> pendingSettles = [];
+  final List<Completer<AttentionDismissAllResult>> pendingDismissAll = [];
+  final List<({String operationId, int? maxBatches})> dismissAllCalls = [];
   final List<({String receiptId, String kind})> settles = [];
   final List<
     ({
@@ -114,6 +117,15 @@ final class AttentionCaseTestRepository extends AttentionRepositoryFake {
   Future<int> markUnseen(List<String> ids) {
     markUnseenCalls.add(List<String>.from(ids));
     return pendingMarkUnseen.removeAt(0).future;
+  }
+
+  @override
+  Future<AttentionDismissAllResult> dismissAll({
+    required String operationId,
+    int? maxBatches,
+  }) {
+    dismissAllCalls.add((operationId: operationId, maxBatches: maxBatches));
+    return pendingDismissAll.removeAt(0).future;
   }
 
   @override

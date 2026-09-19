@@ -1,0 +1,93 @@
+{
+  "description": "The server's definition of the active-attention axis, shared by both layers. Transcribed from packages/server/lib/data/repository/attention_dismissible_sql.dart and from the totals packages/server/test/data/repository/attention_active_attention_axis_pg_test.dart asserts against a real Postgres projection. Client tests MUST drive their expected totals from this file instead of hand-building a number that looks right (U15R-c, overseer addition 1).",
+  "source": {
+    "predicates": "packages/server/lib/data/repository/attention_dismissible_sql.dart",
+    "summarySql": "packages/server/lib/data/repository/attention_repository.dart",
+    "serverTest": "packages/server/test/data/repository/attention_active_attention_axis_pg_test.dart"
+  },
+  "predicates": {
+    "activeOptional": "NOT {a}.requires_action AND {a}.cleared_at IS NULL",
+    "liveObligation": "{a}.requires_action AND {a}.settlement_kind IS NULL",
+    "activeAttention": "((${activeOptional(alias)}) OR (${liveObligation(alias)}))",
+    "primaryPlacement": "{a}.placement = 'primary'",
+    "_activeAttentionMeaning": "activeOptional OR liveObligation — recorded as the composition the server source literally writes, so drift in either half is caught by its own entry"
+  },
+  "axisCases": [
+    {
+      "name": "seen but uncleared optional receipt still asks for attention",
+      "serverTestLine": 116,
+      "receipt": {
+        "requiresAction": false,
+        "seen": true,
+        "cleared": false,
+        "surface": "myWork"
+      },
+      "myWorkUnreadTotal": 1,
+      "countsAsActiveAttention": true,
+      "note": "reading is not clearing (D02): seen_at must not decide the dot"
+    },
+    {
+      "name": "unseen but cleared optional receipt no longer asks",
+      "serverTestLine": 136,
+      "receipt": {
+        "requiresAction": false,
+        "seen": false,
+        "cleared": true,
+        "surface": "myWork"
+      },
+      "myWorkUnreadTotal": 0,
+      "countsAsActiveAttention": false
+    },
+    {
+      "name": "a live obligation is active attention even when seen",
+      "serverTestLine": 159,
+      "receipt": {
+        "requiresAction": true,
+        "seen": true,
+        "cleared": false,
+        "surface": "myWork"
+      },
+      "myWorkUnreadTotal": 1,
+      "needsYouTotal": 1,
+      "countsAsActiveAttention": true
+    },
+    {
+      "name": "a settled obligation stops being active attention",
+      "serverTestLine": 174,
+      "receipt": {
+        "requiresAction": true,
+        "seen": false,
+        "cleared": false,
+        "settled": true,
+        "surface": "myWork"
+      },
+      "myWorkUnreadTotal": 0,
+      "needsYouTotal": 0,
+      "countsAsActiveAttention": false
+    }
+  ],
+  "groupEventUnseenCount": {
+    "definition": "COUNT(*) FILTER (WHERE activeOptional(child)) over primary-placement activity children",
+    "serverSqlAnchor": "beacon_activity_stats in attention_repository.dart",
+    "note": "eventUnseenCount is NOT a read count. A child that is seen but uncleared still counts; only cleared children drop out."
+  },
+  "sweepDismissibleMembership": {
+    "setR": {
+      "description": "dismissible optional receipts (notification_outbox axis)",
+      "surface": "activity",
+      "requiresAction": false,
+      "cleared": false,
+      "excludedPresentationKey": "relay_received"
+    },
+    "setO": {
+      "description": "dismissible outcome rows (inbox_item axis); excludes anything in eligible_pinned, i.e. an unanswered forward awaiting a decision (owner decision A)"
+    },
+    "excluded": [
+      "live or settled obligations (requiresAction)",
+      "already cleared rows",
+      "rows on the myWork surface",
+      "relay_received forward shells",
+      "unanswered forwards and pending prompts (eligible_pinned)"
+    ]
+  }
+}

@@ -134,7 +134,10 @@ void main() {
 
     expect(attention.snapshot.summary.unreadTotal, 1);
     await attention.markSeen([receiptId]);
-    expect(attention.snapshot.summary.unreadTotal, 0);
+    // CHANGES IN U15R-c: was `0`. `unreadTotal` counts active attention, and
+    // a read receipt is still uncleared (R2/D02). What this test is actually
+    // about — the read state surviving a refresh — is asserted below.
+    expect(attention.snapshot.summary.unreadTotal, 1);
 
     repository.feed = AttentionFeed(
       summary: const AttentionSummary(unreadTotal: 1),

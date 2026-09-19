@@ -16,6 +16,7 @@ import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/features/block/domain/use_case/block_case.dart';
 
 import 'attention_ack_store.dart';
+import 'attention_dismissible_membership.dart';
 import 'attention_clear_store.dart';
 import 'attention_group_projection.dart';
 import 'entity/activity_beacon_attention.dart';
@@ -540,14 +541,13 @@ final class AttentionCase {
     final pending = ids.toSet();
     if (pending.isEmpty) return;
     final generation = _accountGeneration;
-    final unreadDelta = _displayedUnreadCount(pending);
-    final surfaceDeltas = _surfaceUnreadDeltasForIds(pending, seen: false);
+    // R2/D02 — a read moves the **read** axis and nothing else. Every total
+    // below this line (`unreadTotal`, `activityUnreadTotal`,
+    // `myWorkUnreadTotal`) is defined by the server as *active attention*:
+    // `NOT requires_action AND cleared_at IS NULL`, union live obligations.
+    // `seen_at` is not in any of them, so a read must not move them.
     final token = _acks.markSeen(pending);
-    _applyOptimisticAcks(unreadDelta: -unreadDelta);
-    _applyOptimisticSurfaceSummary(
-      activityUnreadDelta: -surfaceDeltas.activity,
-      myWorkUnreadDelta: -surfaceDeltas.myWork,
-    );
+    _applyOptimisticAcks();
     try {
       await _runAfterAckBarriers(pending, generation, () async {
         final still = pending.where((id) => _acks.hasToken(id, token)).toSet();
@@ -559,11 +559,7 @@ final class AttentionCase {
     } catch (error, stackTrace) {
       if (generation == _accountGeneration) {
         _acks.discard(pending, token: token);
-        _applyOptimisticAcks(unreadDelta: unreadDelta);
-        _applyOptimisticSurfaceSummary(
-          activityUnreadDelta: surfaceDeltas.activity,
-          myWorkUnreadDelta: surfaceDeltas.myWork,
-        );
+        _applyOptimisticAcks();
       }
       _logger.warning('Attention mark-seen failed', error, stackTrace);
       rethrow;
@@ -578,14 +574,9 @@ final class AttentionCase {
     final pending = ids.toSet();
     if (pending.isEmpty) return;
     final generation = _accountGeneration;
-    final unreadDelta = _displayedSeenCount(pending);
-    final surfaceDeltas = _surfaceUnreadDeltasForIds(pending, seen: true);
+    // The read axis, both ways (R2/D02).
     final token = _acks.markUnseen(pending);
-    _applyOptimisticAcks(unreadDelta: unreadDelta);
-    _applyOptimisticSurfaceSummary(
-      activityUnreadDelta: surfaceDeltas.activity,
-      myWorkUnreadDelta: surfaceDeltas.myWork,
-    );
+    _applyOptimisticAcks();
     try {
       await _runAfterAckBarriers(pending, generation, () async {
         final still = pending.where((id) => _acks.hasToken(id, token)).toSet();
@@ -596,11 +587,7 @@ final class AttentionCase {
         if (generation != _accountGeneration) return;
         if (updated == 0) {
           _acks.discard(still, token: token);
-          _applyOptimisticAcks(unreadDelta: -unreadDelta);
-          _applyOptimisticSurfaceSummary(
-            activityUnreadDelta: -surfaceDeltas.activity,
-            myWorkUnreadDelta: -surfaceDeltas.myWork,
-          );
+          _applyOptimisticAcks();
           return;
         }
         _acks.markCommitted(still, token);
@@ -608,11 +595,7 @@ final class AttentionCase {
     } catch (error, stackTrace) {
       if (generation == _accountGeneration) {
         _acks.discard(pending, token: token);
-        _applyOptimisticAcks(unreadDelta: -unreadDelta);
-        _applyOptimisticSurfaceSummary(
-          activityUnreadDelta: -surfaceDeltas.activity,
-          myWorkUnreadDelta: -surfaceDeltas.myWork,
-        );
+        _applyOptimisticAcks();
       }
       _logger.warning('Attention mark-unseen failed', error, stackTrace);
       rethrow;
@@ -633,17 +616,12 @@ final class AttentionCase {
         .map((receipt) => receipt.id)
         .toSet();
     final generation = _accountGeneration;
-    final unreadDelta = _displayedUnreadCount(pending);
-    final surfaceDeltas = _surfaceUnreadDeltasForIds(pending, seen: false);
+    // Reaching the bottom of a discussion is reading, not clearing (§4).
     final token = pending.isEmpty
         ? null
         : _acks.markSeen(pending);
     if (token != null) {
-      _applyOptimisticAcks(unreadDelta: -unreadDelta);
-      _applyOptimisticSurfaceSummary(
-        activityUnreadDelta: -surfaceDeltas.activity,
-        myWorkUnreadDelta: -surfaceDeltas.myWork,
-      );
+      _applyOptimisticAcks();
     }
     try {
       await _runAfterAckBarriers(pending, generation, () async {
@@ -657,11 +635,7 @@ final class AttentionCase {
     } catch (error, stackTrace) {
       if (generation == _accountGeneration && token != null) {
         _acks.discard(pending, token: token);
-        _applyOptimisticAcks(unreadDelta: unreadDelta);
-        _applyOptimisticSurfaceSummary(
-          activityUnreadDelta: surfaceDeltas.activity,
-          myWorkUnreadDelta: surfaceDeltas.myWork,
-        );
+        _applyOptimisticAcks();
       }
       _logger.warning(
         'Attention mark-seen-for-beacon failed',
@@ -683,23 +657,12 @@ final class AttentionCase {
         .map((receipt) => receipt.id)
         .toSet();
     final generation = _accountGeneration;
-    final previousUnread = snapshot.summary.unreadTotal;
-    final previousSurface = _surfaceSummarySubject.value;
     final token = _acks.markAllSeen(ids);
-    final unreadDelta = _displayedUnreadCount(ids);
-    if (surface == null) {
-      _applyOptimisticAcks(unreadTotal: 0);
-    } else {
-      _applyOptimisticAcks(unreadDelta: -unreadDelta);
-    }
-    _applyOptimisticSurfaceSummary(
-      activityUnreadTotal: surface == null || surface == AttentionSurface.activity
-          ? 0
-          : null,
-      myWorkUnreadTotal: surface == null || surface == AttentionSurface.myWork
-          ? 0
-          : null,
-    );
+    // R2 — "Read all" used to zero the surface totals. It never cleared
+    // anything: the rows it touched still carry uncleared optional attention,
+    // and the server keeps counting them. Zeroing here announced a sweep the
+    // user did not ask for and did not get.
+    _applyOptimisticAcks();
     final previous = _markAllSeenChain;
     final op = previous.catchError((_) {}).then((_) async {
       await Future.wait([
@@ -713,8 +676,7 @@ final class AttentionCase {
       } catch (error, stackTrace) {
         if (generation == _accountGeneration) {
           _acks.discard(ids, token: token);
-          _applyOptimisticAcks(unreadTotal: previousUnread);
-          _surfaceSummarySubject.add(previousSurface);
+          _applyOptimisticAcks();
         }
         _logger.warning('Attention mark-all-seen failed', error, stackTrace);
         rethrow;
@@ -815,10 +777,11 @@ final class AttentionCase {
     // unloaded totals stay where they are (D14).
     // Top-level rows only: a child inside a preview is not an independent
     // sweep member, and counting it would decrement a surface twice.
-    final loaded = _receiptsById.values
-        .where((receipt) => !receipt.isCleared)
-        .map((receipt) => receipt.id)
-        .toSet();
+    //
+    // R2 — and only rows that are genuinely dismissible. Owner decision A is
+    // a guarantee about what the user *sees*, so it has to hold in the
+    // optimistic frame, not just once the server has refused.
+    final loaded = optimisticSweepMembers(_receiptsById.values.map(_overlay));
     _mutationSerial++;
     try {
       return await _applyClearOptimistically(
@@ -918,8 +881,12 @@ final class AttentionCase {
     required int generation,
   }) async {
     final members = memberIds.toSet();
-    final deltas = _surfaceUnreadDeltasForIds(members, seen: false);
-    final unreadDelta = _displayedUnreadCount(members);
+    // R2 — a clear delta is made of **active optional membership**, not of
+    // what happens to look unread. A receipt the user already read still
+    // counts on every server total until it is cleared, so clearing it is
+    // exactly the moment those totals move.
+    final deltas = _surfaceActiveOptionalDeltas(members);
+    final unreadDelta = _activeOptionalCount(members);
     if (members.isNotEmpty) {
       _clears.begin(operationId, members);
       _applyOptimisticAcks(unreadDelta: -unreadDelta);
@@ -938,14 +905,14 @@ final class AttentionCase {
       final withdrawn = members.difference(applied);
       _clears.commit(operationId, applied);
       if (withdrawn.isNotEmpty) {
-        final restored = _surfaceUnreadDeltasForIds(withdrawn, seen: false);
+        final restored = _surfaceActiveOptionalDeltas(withdrawn);
         _applyOptimisticSurfaceSummary(
           activityUnreadDelta: restored.activity,
           myWorkUnreadDelta: restored.myWork,
         );
       }
       _applyOptimisticAcks(
-        unreadDelta: withdrawn.isEmpty ? 0 : _displayedUnreadCount(withdrawn),
+        unreadDelta: withdrawn.isEmpty ? 0 : _activeOptionalCount(withdrawn),
       );
       return result;
     } catch (error, stackTrace) {
@@ -1196,34 +1163,28 @@ final class AttentionCase {
     return _knownReceipt(id)?.isSeen ?? false;
   }
 
-  int _displayedUnreadCount(Iterable<String> ids) {
+
+
+  /// Active optional attention among [ids] — the clear axis (`activeOptional`
+  /// in the server's SQL), deliberately blind to `seenAt`.
+  int _activeOptionalCount(Iterable<String> ids) {
     var n = 0;
     for (final id in ids) {
-      if (!_displaysSeen(id)) n++;
+      final receipt = _knownReceipt(id);
+      if (receipt != null && isActiveOptional(_overlay(receipt))) n++;
     }
     return n;
   }
 
-  int _displayedSeenCount(Iterable<String> ids) {
-    var n = 0;
-    for (final id in ids) {
-      if (_displaysSeen(id)) n++;
-    }
-    return n;
-  }
-
-  ({int activity, int myWork}) _surfaceUnreadDeltasForIds(
-    Iterable<String> ids, {
-    required bool seen,
-  }) {
+  ({int activity, int myWork}) _surfaceActiveOptionalDeltas(
+    Iterable<String> ids,
+  ) {
     var activity = 0;
     var myWork = 0;
     for (final id in ids) {
-      final displaysSeen = _displaysSeen(id);
-      if (seen && !displaysSeen) continue;
-      if (!seen && displaysSeen) continue;
       final receipt = _knownReceipt(id);
       if (receipt == null) continue;
+      if (!isActiveOptional(_overlay(receipt))) continue;
       switch (receipt.surface) {
         case AttentionSurface.activity:
           activity++;
@@ -1233,6 +1194,7 @@ final class AttentionCase {
     }
     return (activity: activity, myWork: myWork);
   }
+
 
   void _applyOptimisticSurfaceSummary({
     int activityUnreadDelta = 0,
@@ -1270,8 +1232,12 @@ final class AttentionCase {
               for (final receipt in entry.value.items)
                 _project(_receiptsById[receipt.id] ?? receipt),
             ].where((receipt) {
+              // R2 — the `unread` view is the server's *active attention*
+              // view (`$2 = 'unread' AND is_active_attention`), not a read
+              // list. Reading a row must not take it off the list the server
+              // still returns; clearing it is what does.
               if (entry.key != AttentionView.unread) return true;
-              return !receipt.isSeen;
+              return isActiveOptional(receipt) || receipt.isLiveObligation;
             }).toList(growable: false),
           ),
       };

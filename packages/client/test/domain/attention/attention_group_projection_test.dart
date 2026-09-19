@@ -40,8 +40,15 @@ void main() {
         beaconId: 'B1',
         itemKind: AttentionItemKind.requestActivity,
         eventTotal: eventTotal ?? children.length,
+        // CHANGES IN U15R-c: was `!event.isSeen`. The server defines
+        // `event_unseen_count` as active *optional* attention
+        // (`NOT requires_action AND cleared_at IS NULL`) — see
+        // docs/contracts/attention-active-attention-axis.json. Building the
+        // fixture from `seen_at` gave this whole file a server value that the
+        // server never produces, which is how the read-axis subtraction below
+        // looked correct (R2).
         eventUnseenCount: eventUnseenCount ??
-            children.where((event) => !event.isSeen).length,
+            children.where((event) => !event.isCleared).length,
         eventsPreview: children,
       );
 
@@ -93,7 +100,7 @@ void main() {
 
     expect(row('beacon:B1').eventsPreview, hasLength(3));
     expect(row('beacon:B1').eventTotal, 3);
-    expect(row('beacon:B1').eventUnseenCount, 2);
+    expect(row('beacon:B1').eventUnseenCount, 3);
 
     repository.snapshot = const AttentionClearSnapshot(
       snapshotToken: 'snap-1',
@@ -111,12 +118,18 @@ void main() {
     expect(projected.eventTotal, 2, reason: 'the total follows the preview');
     expect(
       projected.eventUnseenCount,
-      1,
-      reason: 'an unseen event was dismissed, so the unseen count drops too',
+      2,
+      reason: 'a cleared event leaves the count — one each, whether or not '
+          'it had been read',
     );
   });
 
-  test('dismissing a seen child leaves the unseen count alone', () async {
+  // CHANGES IN U15R-c (was: "dismissing a seen child leaves the unseen count
+  // alone"). It never should have: a seen-but-uncleared child is active
+  // optional attention the server is still counting, so clearing it is
+  // exactly what takes it off the count (R2/D02).
+  test('dismissing a seen child lowers the unseen count like any other',
+      () async {
     await signIn([
       group(children: [child('e-1'), child('e-2', seen: true)]),
     ]);
@@ -139,13 +152,17 @@ void main() {
     expect(attention.knowsReceipt('e-1'), isTrue);
   });
 
-  /// U13c remediation — the two indexes are load-bearing, not decorative.
-  /// `dismissAll` sweeps **top-level rows only**: a grouped card and the
-  /// children indexed out of its preview share one surface, so folding
-  /// `_childReceiptsById` into the sweep's membership would decrement that
-  /// surface once per child on top of the parent row.
-  test('dismissAll decrements a grouped card\'s surface exactly once',
-      () async {
+  /// CHANGES IN U15R-c (was: "dismissAll decrements a grouped card's surface
+  /// exactly once", expecting 2). The interim review named this assertion as
+  /// the clearest case of testing one layer against the other layer's
+  /// meaning: the client counted **cards**, the server counts **receipts**, so
+  /// "one card swept is one decrement" was never a fact about the server.
+  ///
+  /// A grouped card is not a receipt identity the sweep can report back, so
+  /// its membership is unknown and there is no optimism over it at all (R2).
+  /// U13c's original point survives intact: the indexed children must not be
+  /// swept either, which is what the unchanged total proves.
+  test('dismissAll is not optimistic about a grouped card', () async {
     repository.activityUnreadTotal = 3;
     await signIn([
       group(children: [child('e-1'), child('e-2')]),
@@ -162,8 +179,9 @@ void main() {
 
     expect(
       (await attention.surfaceSummary.first).activityUnreadTotal,
-      2,
-      reason: 'one card swept is one decrement — not one per indexed child',
+      3,
+      reason: 'membership unknown: neither the card nor its indexed children '
+          'move the total before the server answers',
     );
 
     repository.releaseDismissAll();

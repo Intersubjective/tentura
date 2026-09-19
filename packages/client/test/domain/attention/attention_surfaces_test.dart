@@ -427,7 +427,11 @@ void main() {
       },
     );
 
-    test('mark-seen adjusts surface totals by receipt surface', () async {
+    // CHANGES IN U15R-c (was: "mark-seen adjusts surface totals by receipt
+    // surface"). It must not adjust them at all: both surface totals are
+    // `active attention` server-side, and reading is not clearing (R2/D02).
+    test('mark-seen leaves both surface totals where the server put them',
+        () async {
       attention.attachFeedSession(AttentionFeedDestinationId.activityStream);
       final initial = Completer<AttentionFeed>();
       final initialSummary = Completer<AttentionSurfaceSummary>();
@@ -452,8 +456,8 @@ void main() {
       attention.markSeen(['a']);
       await attentionCaseTestSettle();
       expect(
-        summaries.last,
-        _surfaceSummary(activity: 1, myWork: 1),
+        attention.surfaceSummarySnapshot,
+        _surfaceSummary(activity: 2, myWork: 1),
       );
       await sub.cancel();
     });

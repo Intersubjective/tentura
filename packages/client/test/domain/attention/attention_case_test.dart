@@ -318,7 +318,10 @@ void main() {
           _feedSession(attention).pages[AttentionView.all]!.items.single.isSeen,
           isTrue,
         );
-        expect(attention.snapshot.summary.unreadTotal, 0);
+        // CHANGES IN U15R-c: was `0`. `unreadTotal` is the server's
+        // active-attention count, not a read count — a read leaves it alone
+        // (R2/D02).
+        expect(attention.snapshot.summary.unreadTotal, 1);
 
         mark.complete(1);
         await command;
@@ -332,8 +335,12 @@ void main() {
       },
     );
 
+    // CHANGES IN U15R-c (was: "optimistic mark-seen decrements server unread
+    // not cached length"). It decrements nothing: both the total and the
+    // `unread` view are defined server-side by active attention, so reading
+    // moves neither. What a read still does is flip the row's read state.
     test(
-      'optimistic mark-seen decrements server unread not cached length',
+      'optimistic mark-seen leaves the active-attention total and view alone',
       () async {
         final initial = Completer<AttentionFeed>();
         final unreadPage = Completer<AttentionFeed>();
@@ -355,12 +362,23 @@ void main() {
         unawaited(attention.markSeen(['r0']));
         await _settle();
 
-        expect(attention.snapshot.summary.unreadTotal, 99);
+        expect(attention.snapshot.summary.unreadTotal, 100);
         expect(
           _feedSession(attention).pages[AttentionView.unread]!.items.map(
             (receipt) => receipt.id,
           ),
-          isNot(contains('r0')),
+          contains('r0'),
+          reason: 'the `unread` view is `is_active_attention`; r0 is read but '
+              'uncleared, so the server still returns it',
+        );
+        expect(
+          _feedSession(attention)
+              .pages[AttentionView.unread]!
+              .items
+              .firstWhere((receipt) => receipt.id == 'r0')
+              .isSeen,
+          isTrue,
+          reason: 'the read axis did move',
         );
       },
     );
@@ -393,7 +411,9 @@ void main() {
           ),
           isTrue,
         );
-        expect(attention.snapshot.summary.unreadTotal, 0);
+        // CHANGES IN U15R-c: was `0`. "Read all" clears nothing, so it must
+        // not announce an empty surface (R2, §4).
+        expect(attention.snapshot.summary.unreadTotal, 2);
 
         rejected.completeError(StateError('offline'));
         await expectLater(command, throwsStateError);
@@ -423,7 +443,8 @@ void main() {
         _feedSession(attention).pages[AttentionView.all]!.items.single.isSeen,
         isFalse,
       );
-      expect(attention.snapshot.summary.unreadTotal, 1);
+      // CHANGES IN U15R-c: was `1`. Marking unread is the read axis too.
+      expect(attention.snapshot.summary.unreadTotal, 0);
 
       rejected.completeError(StateError('offline'));
       await expectLater(command, throwsStateError);
