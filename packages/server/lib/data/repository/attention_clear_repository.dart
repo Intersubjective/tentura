@@ -180,16 +180,23 @@ $_eligibleReceipts
         if (!owned.containsKey(id)) id,
     ]..sort();
 
-    // 3. Membership, captured once. Denied ids are deliberately absent: they
-    // are not this account's receipts, so there is nothing to record, and the
-    // member table's FK would refuse an id that names no receipt at all.
+    // 3. Membership, captured once. The `ON CONFLICT` target names the
+    // partial index predicate because m0183 replaced the member primary key
+    // with two partial UNIQUE indexes — `receipt_id` became nullable so that
+    // U09b can record an outcome member, which has no receipt at all. The
+    // guarantee is unchanged: one row per (operation, receipt).
+    //
+    // Denied ids remain deliberately absent: they are not this account's
+    // receipts, so there is nothing to record, and the member table's FK
+    // would refuse an id that names no receipt at all.
     for (final id in [...applied, ...skipped]) {
       await _database.customUpdate(
         r'''
 INSERT INTO public.attention_clear_operation_member
   (operation_id, receipt_id, beacon_id, outcome_generation, state)
 VALUES ($1, $2, $3, $4, $5)
-ON CONFLICT (operation_id, receipt_id) DO NOTHING
+ON CONFLICT (operation_id, receipt_id)
+  WHERE receipt_id IS NOT NULL DO NOTHING
 ''',
         variables: [
           Variable<String>(operationId),
