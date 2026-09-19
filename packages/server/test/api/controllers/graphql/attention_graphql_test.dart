@@ -22,8 +22,31 @@ import 'package:tentura_server/domain/use_case/attention_clear_case.dart';
 import 'package:tentura_server/domain/port/attention_query_port.dart';
 import 'package:tentura_server/domain/port/attention_settlement_port.dart';
 import 'package:tentura_server/domain/use_case/attention_settlement_case.dart';
+import 'package:tentura_server/domain/attention/attention_reconciliation_models.dart';
+import 'package:tentura_server/domain/use_case/obligation_reconciliation_case.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/env.dart';
+
+class _FakeReconciliation implements ObligationReconciliationRunner {
+  String? accountId;
+
+  @override
+  Future<AttentionReconciliationResult> reconcileAccount({
+    required String accountId,
+  }) async {
+    this.accountId = accountId;
+    return const AttentionReconciliationResult(
+      createdObligationCount: 1,
+      settledObligationCount: 2,
+      unrepairableObligationCount: 3,
+      summary: AttentionSurfaceSummary(
+        activityUnreadTotal: 4,
+        myWorkUnreadTotal: 5,
+        needsYouTotal: 6,
+      ),
+    );
+  }
+}
 
 class _FakeQuery implements AttentionQueryPort {
   String? accountId;
@@ -669,6 +692,42 @@ void main() {
       throwsA(isA<UnauthorizedException>()),
     );
   });
+
+  test(
+    'attentionReconcile runs as the caller and cannot name an account',
+    () async {
+      final reconciliation = _FakeReconciliation();
+      final field = MutationAttention(
+        ack: _FakeAck(),
+        reconciliation: reconciliation,
+      ).all.singleWhere((field) => field.name == 'attentionReconcile');
+
+      // Authorization is structural: there is no argument to put another
+      // account id in, so a foreign id is inexpressible rather than refused.
+      expect(field.inputs, isEmpty);
+
+      expect(await field.resolve!(null, auth), {
+        'createdObligationCount': 1,
+        'settledObligationCount': 2,
+        'unrepairableObligationCount': 3,
+        'summary': {
+          'activityUnreadTotal': 4,
+          'myWorkUnreadTotal': 5,
+          'needsYouTotal': 6,
+        },
+      });
+      expect(reconciliation.accountId, 'U1');
+
+      // A foreign id smuggled into the argument map is ignored, not honoured.
+      await field.resolve!(null, {...auth, 'accountId': 'U2'});
+      expect(reconciliation.accountId, 'U1');
+
+      expect(
+        () => field.resolve!(null, const <String, dynamic>{}),
+        throwsA(isA<UnauthorizedException>()),
+      );
+    },
+  );
 
   test('attentionSettle scopes a user-resolvable live obligation', () async {
     final settlement = _FakeSettlement();

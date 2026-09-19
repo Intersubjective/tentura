@@ -135,6 +135,39 @@ VALUES ('Fattnhist01', @beaconId, @senderId, @recipientId)
       },
     );
 
+    // U11's deferral, closed here (U12): U11 verified the history suite still
+    // passed after `timeline_only` landed, but never asserted the notice is
+    // actually *in* the log. D16's whole bargain is that a child's lifecycle
+    // notice keeps the parent's log complete while staying out of its dot,
+    // count and position — a silent exclusion that also dropped the row from
+    // History would be indistinguishable from the read path simply losing it.
+    test('contains a timeline-only notice that no indicator counts', () async {
+      await _insertReceipt(
+        writer,
+        id: 'Nattnhisttimeline',
+        beaconId: _ownedBeaconId,
+        createdAt: '2026-07-16T13:00:00Z',
+        placement: 'timeline_only',
+      );
+
+      final page = await query.attentionRequestHistory(
+        accountId: _viewerId,
+        beaconId: _ownedBeaconId,
+      );
+
+      expect(
+        page.items.map((receipt) => receipt.id),
+        contains('Nattnhisttimeline'),
+      );
+      expect(
+        await query.unreadForBeacons(
+          accountId: _viewerId,
+          beaconIds: {_ownedBeaconId},
+        ),
+        isEmpty,
+      );
+    });
+
     test('is scoped to one Request', () async {
       await _insertReceipt(
         writer,
@@ -159,22 +192,25 @@ VALUES ('Fattnhist01', @beaconId, @senderId, @recipientId)
       ]);
     });
 
-    test('a foreign account reads nothing of another account history', () async {
-      await _insertReceipt(
-        writer,
-        id: 'Nattnhistprivate',
-        beaconId: _ownedBeaconId,
-        createdAt: '2026-07-16T10:00:00Z',
-      );
+    test(
+      'a foreign account reads nothing of another account history',
+      () async {
+        await _insertReceipt(
+          writer,
+          id: 'Nattnhistprivate',
+          beaconId: _ownedBeaconId,
+          createdAt: '2026-07-16T10:00:00Z',
+        );
 
-      final page = await query.attentionRequestHistory(
-        accountId: _strangerId,
-        beaconId: _ownedBeaconId,
-      );
+        final page = await query.attentionRequestHistory(
+          accountId: _strangerId,
+          beaconId: _ownedBeaconId,
+        );
 
-      expect(page.items, isEmpty);
-      expect(page.nextCursor, isNull);
-    });
+        expect(page.items, isEmpty);
+        expect(page.nextCursor, isNull);
+      },
+    );
 
     test('a block hides history the viewer could otherwise read', () async {
       await _insertReceipt(
@@ -325,6 +361,7 @@ Future<void> _insertReceipt(
   String? settledAt,
   String? clearedAt,
   String? clearReason,
+  String placement = 'primary',
 }) => writer.execute(
   Sql.named('''
 INSERT INTO public.notification_outbox (
@@ -334,7 +371,7 @@ INSERT INTO public.notification_outbox (
   destination_kind, presentation_key, presentation_payload,
   suppression_class, access_policy,
   requires_action, attention_thread_key,
-  settlement_kind, settled_at, cleared_at, clear_reason
+  settlement_kind, settled_at, cleared_at, clear_reason, placement
 ) VALUES (
   @id, @accountId, 'coordination', 'coordinationChanged', 'normal',
   'Title', 'Body', '/attention', @dedupKey,
@@ -344,7 +381,7 @@ INSERT INTO public.notification_outbox (
   'standard', 'beacon_content',
   @requiresAction, @threadKey,
   @settlementKind, CAST(@settledAt AS timestamptz),
-  CAST(@clearedAt AS timestamptz), @clearReason
+  CAST(@clearedAt AS timestamptz), @clearReason, @placement
 )
 '''),
   parameters: {
@@ -360,5 +397,6 @@ INSERT INTO public.notification_outbox (
     'settledAt': settledAt,
     'clearedAt': clearedAt,
     'clearReason': clearReason,
+    'placement': placement,
   },
 );
