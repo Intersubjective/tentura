@@ -3775,11 +3775,15 @@ type mutation_root {
   RoomMessageReactionToggle(beaconId: String!, emoji: String!, messageId: String!): Boolean!
   RoomPollCreate(allowRevote: Boolean, beaconId: String!, isAnonymous: Boolean, pollType: String, question: String!, variants: [String!]): v2_RoomMessageRow!
   acceptHelpOffer(id: String!, offerUserId: String!): v2_BeaconStatusResult!
+  attentionClear(operationId: String!, snapshotToken: String!): v2_AttentionClearResult!
+  attentionDismissAll(maxBatches: Int, operationId: String!): v2_AttentionDismissAllResult!
   attentionMarkAllSeen(surface: String): Int!
   attentionMarkSeen(ids: [String!]): Int!
   attentionMarkSeenForBeacon(beaconId: String!): Int!
   attentionMarkUnseen(ids: [String!]): Int!
+  attentionReconcile: v2_AttentionReconcileResult!
   attentionSettle(kind: String!, receiptId: String!): Int!
+  attentionUndo(operationId: String!, undoToken: String!): v2_AttentionUndoResult!
   beaconAddImage(id: String!, image: v2_Upload = {}): v2_BeaconImageAdded!
   beaconCancel(id: String!): v2_BeaconCloseReviewResult!
   beaconChildCreate(addressLabel: String, clientCommandId: String!, context: String, coordinates: v2_Coordinates = {}, description: String, draft: Boolean, endAt: String, needs: String, parentBeaconId: String!, primaryNeedSlug: String, sourceMessageId: String, startAt: String, tags: String, title: String!): v2_BeaconChildCreateResult!
@@ -4670,8 +4674,10 @@ type query_root {
   RoomMessageList(beaconId: String!, beforeIso: String, threadItemId: String): [v2_RoomMessageRow!]
   activityAttention(beaconId: String!, cursor: String, limit: Int): v2_ActivityBeaconAttention!
   activityOffers(cursor: String, limit: Int): v2_ActivityOfferPage!
+  attentionClearSnapshot(beaconId: String, kind: String!, receiptId: String): v2_AttentionClearSnapshot!
   attentionFeed(cursor: String, limit: Int, search: String, surface: String, view: String!): v2_AttentionFeed!
   attentionMarkers(beaconIds: [String!]): v2_AttentionMarkers!
+  attentionRequestHistory(beaconId: String!, cursor: String, limit: Int): v2_AttentionPage!
   attentionSurfaceSummary: v2_AttentionSurfaceSummary!
 
   """
@@ -7345,10 +7351,18 @@ type v2_AttentionPage {
 type AttentionReceipt {
   actionUrl: String!
   actorUserId: String
+  allowsForward: Boolean
   attentionThreadKey: String
+  beaconAuthorId: String
+  beaconAuthorImageId: String
+  beaconAuthorName: String
+  beaconEndAt: String
   beaconId: String
+  beaconImageId: String
   body: String!
   category: String!
+  clearReason: String
+  clearedAt: String
   collapsedCount: Int!
   coordinationItemId: String
   createdAt: String!
@@ -7366,6 +7380,7 @@ type AttentionReceipt {
   presentationKey: String
   presentationPayloadJson: String!
   priority: String!
+  provenanceJson: String
   requiresAction: Boolean!
   seenAt: String
   settledAt: String
@@ -7398,12 +7413,71 @@ type v2_ActivityOfferSortRow {
   eventUnseenCount: Int!
   eventsPreview: [AttentionReceipt!]!
   latestForwardAt: String!
+  listPositionAt: String!
   unseen: Boolean!
 }
 
 type v2_AttentionSummary {
   needsYouTotal: Int!
   unreadTotal: Int!
+}
+
+type v2_AttentionClearSnapshot {
+  decisionRevision: Int!
+  outcomeGeneration: Int!
+  receiptIds: [String!]!
+  snapshotToken: String!
+}
+
+type v2_AttentionClearResult {
+  appliedReceiptIds: [String!]!
+  deniedReceiptIds: [String!]!
+  operationId: String!
+  skippedReceiptIds: [String!]!
+  status: String!
+}
+
+type v2_AttentionSweepMember {
+  id: String!
+  kind: String!
+  reason: String
+}
+
+type v2_AttentionDismissAllResult {
+  appliedCount: Int!
+  appliedOutcomeBeaconIds: [String!]!
+  appliedReceiptIds: [String!]!
+  failed: [v2_AttentionSweepMember!]!
+  operationId: String!
+  pendingCount: Int!
+  skipped: [v2_AttentionSweepMember!]!
+  status: String!
+  undoDeadline: String
+  undoToken: String
+}
+
+type v2_AttentionUndoMember {
+  id: String!
+  kind: String!
+  reason: String
+}
+
+type v2_AttentionUndoResult {
+  failed: [v2_AttentionUndoMember!]!
+  operationId: String!
+  refusal: String
+  restoredCount: Int!
+  restoredOutcomeBeaconIds: [String!]!
+  restoredReceiptIds: [String!]!
+  skipped: [v2_AttentionUndoMember!]!
+  status: String!
+}
+
+type v2_AttentionReconcileResult {
+  createdObligationCount: Int!
+  settledObligationCount: Int!
+  summary: v2_AttentionSurfaceSummary!
+  unrepairableObligationCount: Int!
 }
 
 type v2_AttentionSurfaceSummary {
@@ -7998,8 +8072,10 @@ type v2_MyForwardRecipient {
 
 type v2_MyWorkBeaconAttention {
   beaconId: String!
+  firstEntryAt: String
   latestUnseen: AttentionReceipt
   liveObligations: [AttentionReceipt!]!
+  needsYouAt: String
   unseenCount: Int!
 }
 
