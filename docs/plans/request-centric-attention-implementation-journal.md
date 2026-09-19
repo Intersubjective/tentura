@@ -2385,3 +2385,185 @@ still holds; no `ON CONFLICT (dedup_key)` returned to dispatch; no U05c work lea
 pre-existing modified files are byte-identical to the snapshot.
 
 ---
+
+## UNIT U05c — Obligation identity · INNER (2026-09-19)
+
+**Inner:** Claude Code Opus 5, low effort. `UNIT_BASE` `567eaee6b`. Scope: the U05 scout's steps 4 and 5 only.
+Three commits plus this entry.
+
+### What changed
+
+| Commit | What |
+|---|---|
+| `a1df38392` | `test/data/repository/attention_obligation_identity_pg_test.dart` — the red suite |
+| `c30078d3d` | `AttentionPolicy.logicalTaskKey` + dispatch writes both columns |
+| `783458ef8` | transactional supersede; `m0181` (erasure-trigger casualty) |
+
+### The distinction the unit exists for (overseer addition 2)
+
+A renewal and a retry look identical from the dispatch side and are not, so the suite asserts **both** directions
+rather than the happy path:
+
+- *renewal* — `a semantic renewal supersedes its predecessor and bumps to 2`: exactly one live row afterwards,
+  generation 2, predecessor `settlement_kind = 'superseded'` and still carrying generation 1.
+- *renewal, review flavour* — `a reopened review window is a new generation of one review task`.
+- *retry, replay flavour* — `replaying one source_event_key does not bump the generation`: three `record` calls,
+  one row, generation stays 1, `settlement_kind` stays NULL.
+- *retry, channel flavour* — `a channel delivery retry bumps and supersedes nothing`: a real
+  `claimDue` → `retryOrDeadLetter` cycle through the delivery repository, then the obligation row is compared
+  **verbatim** against its pre-retry snapshot. Not a spot-check of two columns: no column may move.
+
+The retry direction is the one that would have rotted silently. A suite proving only the renewal stays green
+while every retry inflates a counter.
+
+### Why the subject differs per variant
+
+U07a says there are exactly two obligation variants, and their generations mean different things, so one subject
+rule cannot serve both:
+
+| Variant | Subject in the key | Because a generation varies over… |
+|---|---|---|
+| `helpOfferSubmitted` (author) | the **helper** (`targetEntityId`) | withdraw / re-offer cycles. Keyed on the offer id instead, a re-offer would be a *second* obligation, not the next generation of the author's one standing task |
+| `reviewOpened` (reviewer) | the **Request** | review windows; reopen is the next generation |
+
+Both carry `beaconId` explicitly, which is what D03 asked for and what the legacy `attention_thread_key` cannot
+promise — hence `the same helper on two Requests holds two distinct live tasks`. Any other event type reaching
+the helper **throws**: a future obligation variant must declare what its generations vary over rather than
+silently inheriting the Request and collapsing unrelated tasks onto one key. `attention_thread_key` keeps its
+legacy meaning and value, untouched.
+
+### The constraint catches the mistake, proven by name (overseer addition 3)
+
+`a second live obligation for one logical task is rejected by notification_outbox__live_logical_task` builds two
+genuinely live obligations on two Requests, then repoints one at the other's key and asserts
+`ServerException.constraintName` is that index — the U04 discipline. It is the one test in the suite that was
+**red at the red commit and green after the writer landed**, because it needs real keys to exist before the index
+can bite.
+
+### Transactionality, forced rather than assumed (overseer addition 4)
+
+`a failure after the supersede leaves the database unchanged` runs `dispatch.record` for a renewal inside the
+caller's unit of work and then throws from that same closure. The supersede and the insert are not sequenced by
+hand — they ride the ambient transaction (`MutatingUnitOfWork` → `TenturaDb.withMutatingUser`) — and the test
+proves it by observation: afterwards the obligation table is byte-equal to its pre-renewal snapshot, and exactly
+one row is live. Neither two live rows nor none.
+
+### Backfill posture (overseer addition 6) — legacy rows keep NULL keys until U18
+
+Existing live obligations keep `logical_task_key IS NULL`. Reasoning:
+
+1. **The partial UNIQUE cannot fire on them.** `notification_outbox__live_logical_task` is
+   `WHERE requires_action AND settlement_kind IS NULL AND logical_task_key IS NOT NULL`, and `NULL = 'x'` is not
+   true anyway — so a legacy row neither blocks a new write nor gets superseded by one. Backfilling *now* would
+   be the risky option, not the safe one: it would make legacy rows eligible for an index they were never
+   written to satisfy, and two legacy siblings for one task would abort the migration.
+2. **The generation is not derivable today.** A legacy row carries no record of which withdraw/re-offer cycle or
+   review window it belonged to. Any backfill now would have to invent a number.
+3. **U18 is where it belongs.** The scout's own transition table says U18 expects a restartable backfill with a
+   fixed boundary and warns against rewriting old rows in U05.
+
+Consequence, stated plainly: between now and U18 a legacy live obligation and a new keyed one for the *same*
+logical task can coexist as two live rows. That is the pre-existing state, not a regression — before U05c every
+obligation was in that state — and it is bounded, because only renewals of tasks first dispatched after this
+commit are keyed.
+
+### A casualty the unit's own suite could not see — `m0181`
+
+The full PG sweep (not a named list of suites) failed two cases in
+`test/domain/use_case/beacon_hierarchy_child_independence_pg_test.dart`, from its **fixture teardown**:
+
+```
+Severity.error 23514: new row for relation "notification_outbox" violates check constraint
+"notification_outbox__logical_task_chk" ... requires_action = f ...
+logical_task_key = v1|reviewOpened|BhierC000001|BhierC000001|Uhiereve0001, lifecycle_generation = 1
+```
+
+m0129's `attention_anonymize_deleted_actor` demotes every receipt touching an erased actor to a non-obligation —
+it clears `requires_action`, `attention_thread_key` and the settlement facts — but predates m0178's columns, so
+it left obligation identity on a row that is no longer an obligation. Harmless while nothing wrote those columns;
+the moment dispatch does, **deleting a user who appears in a live obligation aborts**. That is a production
+defect, not a test artifact.
+
+`m0181` is m0129's function body verbatim (generated from it, not retyped) plus the two lines the original would
+have had, `CREATE OR REPLACE` so the trigger binding is untouched. The unit's suite now covers it directly
+(`erasing the actor demotes the obligation and drops its identity`), but it is worth recording that the unit's
+own tests did **not** find this and the full sweep did — the second time in this plan a named suite list would
+have shipped a casualty.
+
+### Adjacent, deliberately not fixed (overseer addition 5)
+
+`settleReviewerObligationOnPackageSend` still runs outside the attention transaction
+(`evaluation_case.dart:1616`). U07b's problem, untouched here. **It does not get worse, and it gets slightly
+easier:** that call settles an obligation, it never dispatches one, so it does not pass through the supersede
+path at all. When U07b moves it inside the transaction it will be joining a write path where the obligation
+supersede is *already* transactional, so there is no second boundary to reconcile.
+
+Also untouched, per the brief: the channel/email path (U05b), `_requiresAction` classification, U03/U03b
+contract data.
+
+### Commands
+
+Red, at `a1df38392` (before any writer):
+
+```
+$ dart test --tags pg -j 1 test/data/repository/attention_obligation_identity_pg_test.dart
+00:02 +3 -6: Some tests failed.
+```
+
+After the writer only (`c30078d3d`) — the three renewal/transaction cases still red, and the
+constraint-by-name case now green because real keys exist for the index to reject:
+
+```
+00:02 +6 -3: Some tests failed.
+```
+
+Green, at `783458ef8` (10 cases, the erasure regression added with the fix):
+
+```
+$ dart test --tags pg -j 1 test/data/repository/attention_obligation_identity_pg_test.dart
+00:02 +10: All tests passed!
+```
+
+Casualty suite, after `m0181`:
+
+```
+$ dart test --tags pg -j 1 test/domain/use_case/beacon_hierarchy_child_independence_pg_test.dart
+00:04 +2: All tests passed!
+```
+
+Full server suite, both halves, everything through `scripts/run_with_test_cleanup.sh`:
+
+```
+$ dart test --exclude-tags pg
+00:08 +1660: All tests passed!
+
+$ dart test --tags pg -j 1
+11:45 +835 ~24: All tests passed!
+```
+
+24 skips, all `_skipHistoricalMigrationCoverage`, as expected. No other skip.
+
+**One invalid run, disclosed:** an earlier full PG sweep reported 351 failures, every one of them a *load*
+failure with an empty error message, because I had started the non-PG suite in the foreground while it ran and
+the two races over the build output. Re-run alone, it is the `+835 ~24` above. The failing log is not evidence of
+anything and no code changed between the two runs.
+
+### Findings
+
+1. **m0181 above** — a real production defect (account erasure aborting) created by becoming the first writer of
+   m0178's columns, found only by the full sweep.
+2. **Generation is computed from the superseded rows, not from a counter.** `max(previous) + 1` over whatever the
+   supersede returned, so it stays correct if a legacy or repair path ever settles a predecessor by another
+   route; and it yields 1 when there is nothing to supersede.
+3. **The logical key is a policy concern, not a projection field.** It is a method on `AttentionPolicy` rather
+   than a new `AttentionReceiptProjection` field, which kept freezed codegen out of this unit entirely. If U07b
+   or U12 needs the key on the projection, that is a mechanical move.
+4. **`record` is only safe because every caller wraps it.** Atomicity here is inherited from the ambient
+   mutating transaction, not asserted by the repository. The transaction test proves the property for the real
+   call shape; a caller that invoked `record` outside a unit of work would get a supersede that commits on its
+   own. No such caller exists today. A guard (`isInAmbientMutatingTransaction`) would make it structural and is
+   a candidate for U07b, which is already editing this boundary.
+
+**STATUS:** complete
+
+---
