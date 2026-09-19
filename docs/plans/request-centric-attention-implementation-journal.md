@@ -6218,3 +6218,61 @@ channel/email path, obligation identity, the contract JSON, and the ~37 untracke
 to others.
 
 STATUS: complete
+
+---
+
+## UNIT U10c — Ordering · VERIFY (2026-09-19)
+
+**Layer:** verify (read-only). **UNIT_BASE:** `e91281d92`. **Range:** `a7532a9fd` · `70bf1ac3d` · `e391fe825` · `c1cd2843f` · `8f714af93` (**m0187**).
+
+Inherited §6 pinned defect flipped in `attention_active_attention_axis_pg_test.dart` (`[_foreign, _other]` stable after optional arrive/clear; `reason:` documents U10b's wrong order). Ordering suite + axis sweep/undo pinned tests cover clear/sweep paths. `first_entry_at`: m0187 insert `LEAST(now(), latest_forward_at)`; hole-1 read fallback asserted (DELETE state); re-forward anchor asserted; **hole-2 migration UPDATE not fixture-tested**. Pagination: union duplicate-free + contains id asserted; throwaway revert of forward `created_at` to bumping key failed `contains 'inbox:Bordearly'` (vanish). Activity obligation promotion: structural (`scope` + `surface` split) — D08 promotion is My Desk only; ordering tests cover optional vs obligation on desk, not foreign obligation on Activity feed. Cursor `v=2` refused (GraphQL tests). `watching-digest` keeps `digest.max_created_at` — aggregate row, sound. U10a guard green; `attention_dismissible_sql.dart` zero diff in unit; U09/U10 joint tags untouched; `packages/client/lib` zero diff. Four pre-existing dirty paths unchanged by unit commits.
+
+**Verifier verdict:** pass (gap: m0187 hole-2 backfill has no PG fixture).
+
+### Manager verdict — U10c · **ACCEPTED** (hard; inner Opus-low ✓ / verify pass) — plus an unrelated race fixed
+
+Overseer's gate: **1688 non-PG**, **999 PG / 24 known skips**. Commits `a7532a9fd` two keys · `70bf1ac3d`
+Needs you ordering · `e391fe825` cursor versioning · `c1cd2843f` expectation rewrites · `8f714af93` journal ·
+`78b696e87` (overseer, unrelated race — see below). New migration **m0187**.
+
+**The inherited §6 defect is fixed.** U10b had pinned, with an explicit `reason:`, that the pinned zone reorders
+when an optional event arrives. It now asserts the opposite, and the zone also stays put when an optional event
+is cleared or swept. This is the one place in the plan where an expectation flipped because a **defect was
+fixed**, not because behaviour was redefined.
+
+**`first_entry_at` was the wrong clock, not merely incomplete.** U09a stamped `now()` — when the row was
+written, not when the Request reached the user. m0187 stamps `LEAST(now(), latest_forward_at)` and backfills
+both hole shapes. Ordering by "when we happened to write the row" would have looked stable and been arbitrary.
+
+**Structural finding, adjudicated and confirmed:** nothing can promote on Activity at all. A live obligation
+pulls a Request into responsibility scope, and the surface split sends it to My Desk — so D08's one permitted
+promotion is a My Desk event and For You is pure first-entry. Worth recording, because the next reader hunting
+for promotion logic in `activityOffers` will correctly find none.
+
+**The pagination failure shape is a vanish, not a duplicate** — head and tail are independent queries, so a
+group whose key moves disappears server-side; duplication is the *client-side* symptom of the same jump.
+Both halves are asserted. **Consequence for U13:** the duplicate check must live where pages are merged, on the
+client. A server test cannot catch it, and assuming otherwise would leave the property untested on both sides.
+
+### Overseer fix — a pre-existing race in another feature's suite
+
+The full gate failed reproducibly (`+998 ~24 -1`) on
+`constellation_anchor_storage_pg_test.dart:491` — *"person and beacon anchors each emit one delete notification
+on row cascade"*. Not caused by this plan:
+
+- the test passes **in isolation** (18/18) at the same HEAD;
+- the assertion requires **every** received notification to be a `delete`, and `notifications.clear()` does not
+  flush what Postgres has not yet delivered, so under the load of a grown sweep a late `upsert` notification
+  lands after the clear;
+- every test in that file shares the pattern — only this one asserts strictly enough to notice.
+
+Fixed minimally by awaiting delivery before clearing. Two wrong turns avoided on the way, both worth recording:
+a comparison run in a fresh worktree returned `+0 -1`, which was a **load failure in an unprepared tree**, not
+evidence the test failed at the old commit; and "passes alone, so it is a flake" was wrong because the sweep is
+deterministic in order — a failure that reproduces at the same point twice is a condition being met reliably,
+not a coin landing twice.
+
+So this plan did not break constellation; it **created the load under which constellation's latent race began
+losing reliably**. For the repository owner those are different statements.
+
+---
