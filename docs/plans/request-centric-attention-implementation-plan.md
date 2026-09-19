@@ -704,6 +704,27 @@ U17 — but port `_SenderNoteBlock`'s content into the forward mini-card **befor
 place notes render today. The pinned card carries **no ×**; «Не могу помочь» lives in the overflow menu and opens
 the rejection dialog, because declining is a social act and must never wear the quiet private gesture.
 
+### U16 splits into three (inserted 2026-09-19, after U15R closed)
+
+U16 as written is the card, the stream, the chrome and four retirements — far past what one inner run does
+reliably. It runs as three sequential sandwiches, each its own unit:
+
+- **U16a — the card itself.** `RequestAttentionCard` (spec §6 anatomy, §9 state matrix) and `TombstoneRow`
+  (spec §8, past-tense copy), built against the design system, with no stream integration. Carries three
+  constraints that are easy to lose: the `timeline` overflow policy; consumption of U15R-b's `latestNoteForward`
+  provenance (D-171-5a cannot be satisfied by sorting MR-ranked senders); and the capability-chip **cap or
+  coalesce** — the §9 height ceiling holds only to three chips, since a fourth long RU chip at 1.3× measures
+  251 dp against a 224 dp ceiling at 360 dp. Also ports `_SenderNoteBlock`'s content into the forward mini-card
+  — it is the only place notes render today, and U17 deletes its current home.
+- **U16b — For You stream integration.** `activity_stream_view.dart`, `activity_offers_cubit.dart`,
+  `inbox_cubit.dart`: one representative per Request, × on every outcome, the Watching digest duplication out of
+  the primary stream while the Watching collection stays reachable from the overflow menu.
+- **U16c — chrome and retirements.** Header **Dismiss all** replacing today's `markAllSeen` "Read all"
+  (`inbox_screen.dart:261–283`), enabled by server eligibility; then retire `ActivityOfferCard`,
+  `ActivityOfferBoundedShell`, `ActivityForwardRow` and `inbox_forward_attribution_copy.dart` with their
+  goldens. The pinned card carries **no ×**; «Не могу помочь» lives in the overflow menu and opens the rejection
+  dialog, because declining is a social act and must never wear the quiet private gesture.
+
 **U16 owns** `activity_stream_view.dart`, `activity_offers_cubit.dart`, `inbox_cubit.dart`, chrome: one
 representative per Request; × on every outcome; header **Dismiss all** replacing today's `markAllSeen`
 "Read all" button (`inbox_screen.dart:261–283`), enabled by server eligibility; remove the Watching digest
