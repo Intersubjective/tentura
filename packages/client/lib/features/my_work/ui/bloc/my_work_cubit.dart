@@ -51,6 +51,13 @@ class MyWorkCubit extends Cubit<MyWorkState> {
       _onDeskRelevantInvalidation,
       cancelOnError: false,
     );
+    // U13c published these for projection owners and had none. My Desk is
+    // one: a Request that changes surface or gains state has to be re-read
+    // here, or the desk keeps showing work that is no longer the viewer's.
+    _requestInvalidations = _myWorkCase.requestInvalidations.listen(
+      _onRequestInvalidated,
+      cancelOnError: false,
+    );
     _bookkeepingRefresh = _myWorkCase.bookkeepingRefresh.listen(
       (_) => unawaited(fetch(showLoading: false)),
       cancelOnError: false,
@@ -101,6 +108,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
   Timer? _pendingRetryTimer;
   Timer? _catchUpTimer;
 
+  final _invalidationTimers = <String, Timer>{};
   final _deskRelevantTimers = <String, Timer>{};
   final _roomMessageHintRetryTimers = <String, Timer>{};
 
@@ -118,6 +126,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
 
   late final StreamSubscription<BeaconRoomInvalidation> _deskRelevantChanges;
 
+  late final StreamSubscription<String> _requestInvalidations;
   late final StreamSubscription<void> _bookkeepingRefresh;
   late final StreamSubscription<void> _catchUps;
   StreamSubscription<RealtimeEntityChange>? _obligationNotificationChanges;
@@ -135,12 +144,17 @@ class MyWorkCubit extends Cubit<MyWorkState> {
       timer.cancel();
     }
     _roomMessageHintRetryTimers.clear();
+    for (final timer in _invalidationTimers.values) {
+      timer.cancel();
+    }
+    _invalidationTimers.clear();
     await _beaconChanges.cancel();
     await _helpOfferChanges.cancel();
     await _reviewPackageChanges.cancel();
     await _forwardChanges.cancel();
     await _readWatermarkSub.cancel();
     await _deskRelevantChanges.cancel();
+    await _requestInvalidations.cancel();
     await _bookkeepingRefresh.cancel();
     await _catchUps.cancel();
     await _obligationNotificationChanges?.cancel();
@@ -153,6 +167,23 @@ class MyWorkCubit extends Cubit<MyWorkState> {
     _catchUpTimer?.cancel();
     _catchUpTimer = Timer(_catchUpDebounce, () {
       _catchUpTimer = null;
+      if (!isClosed) {
+        unawaited(fetch(showLoading: false));
+      }
+    });
+  }
+
+  /// One refresh per Request, coalesced: a surface move announces the Request
+  /// once per hop and the desk should re-read once, not once per announcement.
+  ///
+  /// The whole desk is re-read rather than the single Request: the card may be
+  /// leaving, and a projection that dropped only the row it was told about
+  /// would leave the archived list and the counters saying something else.
+  void _onRequestInvalidated(String beaconId) {
+    if (isClosed || beaconId.isEmpty) return;
+    _invalidationTimers.remove(beaconId)?.cancel();
+    _invalidationTimers[beaconId] = Timer(_deskRelevantDebounce, () {
+      _invalidationTimers.remove(beaconId);
       if (!isClosed) {
         unawaited(fetch(showLoading: false));
       }

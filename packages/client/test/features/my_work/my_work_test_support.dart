@@ -149,12 +149,13 @@ class _StubAttentionAccounts implements AttentionAccountPort {
 
 AttentionCase buildStubAttentionCase({
   StubAttentionRepository? repository,
+  RealtimeSyncCase? realtimeSyncCase,
 }) {
   final repo = repository ?? StubAttentionRepository();
   return AttentionCase(
     repo,
     _StubAttentionAccounts(),
-    buildTestRealtimeSync().case_,
+    realtimeSyncCase ?? buildTestRealtimeSync().case_,
     noopBlockCase(),
     FeedSessionRegistry(),
     Logger('my-work-test-attention'),
@@ -410,7 +411,10 @@ MyWorkCase buildTestMyWorkCase({
     realtime,
     bookkeepingRefreshSignal ?? BookkeepingRefreshSignal(),
     attentionCase ??
-        buildStubAttentionCase(repository: attentionRepository),
+        buildStubAttentionCase(
+          repository: attentionRepository,
+          realtimeSyncCase: realtime,
+        ),
     env: const Env(),
     logger: Logger('test'),
   );
