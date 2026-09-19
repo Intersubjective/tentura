@@ -517,7 +517,10 @@
           "resolutionTransitions": [
             "CoordinationCase.acceptHelpOffer",
             "CoordinationCase.declineHelpOffer",
-            "HelpOfferCase.withdrawHelpOffer"
+            "CoordinationCase.releaseCommitment",
+            "CoordinationCase.removeFromRoom",
+            "EvaluationCase.beaconClose",
+            "HelpOfferCase.withdraw"
           ]
         },
         {
@@ -770,7 +773,9 @@
           "actionDescriptor": "openReview",
           "logicalTaskKey": "v1|reviewOpened|{beaconId}|{recipientId}",
           "resolutionTransitions": [
-            "EvaluationCase.submitReviewPackage"
+            "EvaluationCase.evaluationFinalize",
+            "EvaluationCase.reopenFromReview",
+            "ReviewFinalizationCase.closeAndFinalize"
           ]
         }
       ]
