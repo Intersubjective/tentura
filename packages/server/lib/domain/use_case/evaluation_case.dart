@@ -201,6 +201,12 @@ final class EvaluationCase extends UseCaseBase {
             beaconId: beaconId,
             authorId: beacon.author.id,
           );
+          // D04 terminal invalidation: a closed Request cannot still owe an
+          // answer to an offer. Every live `helpOfferSubmitted` obligation on
+          // this beacon ends as `superseded` (never `resolved` — the author
+          // did not accept or decline), inside the closing transaction.
+          await _attentionSystemSettlement
+              ?.supersedeAuthorHelpOfferObligationsOnBeaconClose(beaconId);
 
           final targetStatus = requiresReviewWindow
               ? BeaconStatus.reviewOpen

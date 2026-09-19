@@ -436,7 +436,7 @@ final class CoordinationCase extends UseCaseBase {
     required String reason,
   }) async {
     final trimmedReason = _validateReason(reason);
-    await _prepareAdmissionAction(
+    final beacon = await _prepareAdmissionAction(
       beaconId: beaconId,
       offerUserId: offerUserId,
       actorUserId: actorUserId,
@@ -475,6 +475,15 @@ final class CoordinationCase extends UseCaseBase {
           reason: trimmedReason,
         );
         await transaction.record(intent);
+        // D04 terminal invalidation: the offer is gone, so any author
+        // `helpOfferSubmitted` obligation still pointing at this helper ends
+        // here. Normally already settled by accept; this closes the gap U07a
+        // found for offers that reach a terminal state another way.
+        await _attentionSystemSettlement?.supersedeAuthorHelpOfferSubmitted(
+          beaconId: beaconId,
+          authorAccountId: beacon.author.id,
+          helpOffererUserId: offerUserId,
+        );
         return _statusResult(beaconId, snap);
       },
     );
@@ -544,6 +553,11 @@ final class CoordinationCase extends UseCaseBase {
             reason: trimmedReason,
           );
           await transaction.record(removalIntent);
+          await _attentionSystemSettlement?.supersedeAuthorHelpOfferSubmitted(
+            beaconId: beaconId,
+            authorAccountId: beacon.author.id,
+            helpOffererUserId: offerUserId,
+          );
         }
         final intent = await _attentionIntents!.commitmentReleased(
           receiverId: offerUserId,

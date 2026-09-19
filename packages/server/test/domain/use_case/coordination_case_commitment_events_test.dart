@@ -50,6 +50,28 @@ class _RecordingAttentionSystemSettlement extends Fake
     return 1;
   }
 
+  final supersedeAuthorHelpOfferSubmittedCalls =
+      <({String beaconId, String authorAccountId, String helpOffererUserId})>[];
+
+  @override
+  Future<int> supersedeAuthorHelpOfferSubmitted({
+    required String beaconId,
+    required String authorAccountId,
+    required String helpOffererUserId,
+  }) async {
+    supersedeAuthorHelpOfferSubmittedCalls.add((
+      beaconId: beaconId,
+      authorAccountId: authorAccountId,
+      helpOffererUserId: helpOffererUserId,
+    ));
+    return 1;
+  }
+
+  @override
+  Future<int> supersedeAuthorHelpOfferObligationsOnBeaconClose(
+    String beaconId,
+  ) async => 0;
+
   @override
   Future<int> settleReviewObligationsAfterWindowClose(String beaconId) async =>
       0;
