@@ -112,6 +112,64 @@ WHERE outbox.occurrence_id = occ.id
       );
 
   @override
+  Future<int> supersedeAuthorHelpOfferSubmitted({
+    required String beaconId,
+    required String authorAccountId,
+    required String helpOffererUserId,
+  }) =>
+      _database.customUpdate(
+        r"""
+UPDATE public.notification_outbox AS outbox
+SET
+  settlement_kind = 'superseded',
+  settled_at = now(),
+  settled_by_user_id = NULL,
+  settled_by_occurrence_id = NULL
+FROM public.attention_occurrence AS occ
+WHERE outbox.occurrence_id = occ.id
+  AND occ.event_type = $4
+  AND outbox.beacon_id = $1
+  AND outbox.account_id = $2
+  AND outbox.target_entity_id = $3
+  AND outbox.requires_action
+  AND outbox.settlement_kind IS NULL
+""",
+        variables: [
+          Variable<String>(beaconId),
+          Variable<String>(authorAccountId),
+          Variable<String>(helpOffererUserId),
+          Variable<String>(_helpOfferSubmittedEventType),
+        ],
+        updateKind: UpdateKind.update,
+      );
+
+  @override
+  Future<int> supersedeAuthorHelpOfferObligationsOnBeaconClose(
+    String beaconId,
+  ) =>
+      _database.customUpdate(
+        r"""
+UPDATE public.notification_outbox AS outbox
+SET
+  settlement_kind = 'superseded',
+  settled_at = now(),
+  settled_by_user_id = NULL,
+  settled_by_occurrence_id = NULL
+FROM public.attention_occurrence AS occ
+WHERE outbox.occurrence_id = occ.id
+  AND occ.event_type = $2
+  AND outbox.beacon_id = $1
+  AND outbox.requires_action
+  AND outbox.settlement_kind IS NULL
+""",
+        variables: [
+          Variable<String>(beaconId),
+          Variable<String>(_helpOfferSubmittedEventType),
+        ],
+        updateKind: UpdateKind.update,
+      );
+
+  @override
   Future<int> supersedeReviewObligationsOnReopen(String beaconId) =>
       _database.customUpdate(
         r'''

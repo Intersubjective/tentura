@@ -11,6 +11,7 @@ import 'package:tentura_server/domain/coordination/help_type.dart';
 import 'package:tentura_server/domain/coordination/withdraw_reason.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
+import 'package:tentura_server/domain/port/attention_system_settlement_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 import 'package:tentura_server/utils/id.dart';
@@ -31,11 +32,13 @@ final class HelpOfferCase extends UseCaseBase {
     required BeaconRoomRepositoryPort roomRepository,
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
+    AttentionSystemSettlementPort? attentionSystemSettlement,
     required super.env,
     required super.logger,
   }) : _roomRepository = roomRepository,
        _attentionIntents = attentionIntents,
-       _attention = attention;
+       _attention = attention,
+       _attentionSystemSettlement = attentionSystemSettlement;
 
   final BeaconRoomRepositoryPort _roomRepository;
   final HelpOfferRepositoryPort _helpOfferRepository;
@@ -45,6 +48,7 @@ final class HelpOfferCase extends UseCaseBase {
   final CapabilityCase _capabilityCase;
   final AttentionIntentCase? _attentionIntents;
   final TransactionalAttentionCase? _attention;
+  final AttentionSystemSettlementPort? _attentionSystemSettlement;
   final BeaconAccessGuard _guard;
 
   Future<void> offerHelp({
@@ -303,6 +307,14 @@ final class HelpOfferCase extends UseCaseBase {
           beaconId: beaconId,
           offerUserId: userId,
           authorUserId: userId,
+        );
+        // D04: the offer is gone, so the author's `helpOfferSubmitted`
+        // obligation ends here — as `superseded`, never `resolved`: the author
+        // never answered it. Same transaction as the withdrawal itself.
+        await _attentionSystemSettlement?.supersedeAuthorHelpOfferSubmitted(
+          beaconId: beaconId,
+          authorAccountId: beacon.author.id,
+          helpOffererUserId: userId,
         );
         final beaconAfter = await _beaconRepository.getBeaconById(
           beaconId: beaconId,
