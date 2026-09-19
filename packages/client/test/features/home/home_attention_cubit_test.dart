@@ -217,7 +217,30 @@ void main() {
     },
   );
 
-  test('maps surface summary needsYouTotal into nav state', () async {
+  test('maps the surface summary totals and §6 count into nav state', () async {
+    // CHANGES IN U15R-e: the badge now follows §6 `my desk.count`
+    // (`surfaceMyDeskCount`), not the legacy unscoped `needsYouTotal`. Both
+    // are still relayed into the state — the legacy total retires in U18 —
+    // so they carry different values here and the badge assertion names
+    // which one it depends on.
+    repository.surfaceSummaryValue = const AttentionSurfaceSummary(
+      activityUnreadTotal: 0,
+      myWorkUnreadTotal: 0,
+      needsYouTotal: 3,
+      myDeskCount: 2,
+    );
+    accounts.emit('U1');
+    await _settle(20);
+
+    expect(home.state.surfaceSummaryLoaded, isTrue);
+    expect(home.state.surfaceNeedsYouTotal, 3);
+    expect(home.state.surfaceMyDeskCount, 2);
+    expect(home.state.showRedesignMyWorkObligationBadge, isTrue);
+  });
+
+  test('a legacy needsYouTotal alone does not raise the badge', () async {
+    // The other half of the flip: §6 `my desk.count` is zero, so the number
+    // is absent however many obligations the legacy total still counts.
     repository.surfaceSummaryValue = const AttentionSurfaceSummary(
       activityUnreadTotal: 0,
       myWorkUnreadTotal: 0,
@@ -227,8 +250,8 @@ void main() {
     await _settle(20);
 
     expect(home.state.surfaceSummaryLoaded, isTrue);
-    expect(home.state.surfaceNeedsYouTotal, 3);
-    expect(home.state.showRedesignMyWorkObligationBadge, isTrue);
+    expect(home.state.surfaceMyDeskCount, 0);
+    expect(home.state.showRedesignMyWorkObligationBadge, isFalse);
   });
 
   test('chunks the candidate union at the server request bound', () async {

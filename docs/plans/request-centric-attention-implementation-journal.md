@@ -9793,3 +9793,68 @@ mutation now fails it, and only it: `+30 -1`.
 the right reason. "Mutate and watch it fail" is not a formality to perform after the fact — it is the only
 evidence that a fixture reaches the code path it names. Three defects in this group (R10, the M1 helper, this
 one) were all the same shape: an assertion that was true for a reason other than the one it claimed.
+
+## U15R-e — the gap closed by constraint, and §6's fourth rule delivered
+
+**What the unit did.** Three steps, three commits, in the order the brief states.
+
+**Step 1 — m0191.** `notification_outbox__obligation_beacon_chk`,
+`CHECK (NOT requires_action OR beacon_id IS NOT NULL)`. It states in storage the rule
+`AttentionPolicy.logicalTaskKey` already enforces in the producer ("Live obligation requires a Request"), which is
+what makes it a correction rather than a new product concept. `ADD CONSTRAINT` without `NOT VALID` validates the
+existing table, so a legacy violating row aborts the migration loudly — U18 owns any remediation. The U15R-d gap
+test is inverted: the shape is rejected, asserted **by constraint name** (U04), with a control proving the same
+fixture stores once it names a Request.
+
+**Step 2 — `myDeskCount`.** A new field, composed in `AttentionDismissibleSql.myDeskCountExpression` beside the
+two dots, exposed through the server model, GraphQL type, both resolvers, the client schema, query, entity,
+repository, `HomeAttentionState.surfaceMyDeskCount` and `MyWorkNavbarItem`. `needsYouTotal` was **not** re-scoped
+at either layer; it and its two siblings keep their pre-U15R-d meaning until U18.
+
+**Step 3 — the contract.** `myDeskCountGap` is replaced by `obligationsAlwaysNameARequest`, `myDeskCount` is
+recorded in `surfaceSummaryFields`, and every `axisCases` entry now records a `myDeskCount` — so the four §6
+rules are all driven from the shared JSON from both ends, not three of them.
+
+### The finding worth keeping: the surface leg is now provably redundant, and is written anyway
+
+`scope` is a UNION that absorbs the `beacon_id` of **every** visible live obligation. So once m0191 guarantees a
+live obligation names a Request, `surface = 'myWork'` is implied by `liveObligation` for every row that reaches
+`visible` — `myDeskCount` and the legacy `needsYouTotal` now return the same number on every storable database.
+That is not an argument for dropping the leg or for reusing the legacy field: §6 states the rule as a scoped sum,
+the legacy total is scheduled to retire with a different meaning, and a predicate that is only accidentally equal
+to the one you meant is how U15R-d's defects happened. It is written because §6 writes it, and recorded here so
+nobody later "simplifies" it by discovering the equality on their own.
+
+### The constraint fired on a legacy fixture — loudly, which is the design
+
+The full PG suite failed at `attention_predicate_unification_pg_test.dart`'s `setUpAll`: its fixture deliberately
+inserted `Nu10aunifoblp`, an obligation with no Request, to isolate the `beacon_id IS NOT NULL` clause of the
+`scope` CTE. m0191 refuses it. That is the "fail loudly" requirement working on a *test* database rather than a
+production one, and it is the only place in the repository that built the forbidden shape on purpose.
+
+It fired on two more, in `attention_dismissible_predicate_pg_test.dart` and `attention_dismiss_sweep_pg_test.dart`.
+Those two are more interesting than the first: their Request-less obligation was not incidental, it was the only
+fixture that could prove `NOT requires_action` was load-bearing in Set R. A *live* obligation on a Request is
+excluded twice over — its Request joins `scope`, so the row is myWork — and an assertion excluded twice over
+cannot isolate either clause.
+
+The replacement is a **settled** obligation on a readable Request: `scope` absorbs only unsettled obligations, so
+a settled one is on the Activity surface with `requires_action` true and `cleared_at` null — excluded by
+`NOT requires_action` and by nothing else. The `withoutObligationExclusion` probes still flip, so the clause is
+still proved load-bearing.
+
+Resolved by deleting the first fixture and its assertion and re-basing the other two, each with a
+`CHANGES IN U15R-e` tag, and not by relaxing the constraint. The `beacon_id IS NOT NULL` clause it isolated stays in `scope` — that CTE is authorization-critical
+and should not silently depend on a constraint added in another file — but it is now unreachable for any
+storable row, which is recorded at both sites.
+
+### Every test was mutated, and the first draft of one was vacuous
+
+Per the U15R-d lesson, each new test was driven red by mutating the production code it guards. One mutation
+result is worth recording because it caught a live defect in the test rather than confirming it:
+
+The M1 test's first draft put its second obligation on `_foreignBeaconId` and claimed the composed target was 2.
+It was 1 — the viewer cannot read a foreign beacon's content, so that receipt never reaches `visible` at all. The
+control assertion (`expect(await composed(), 2)`) is what surfaced it; without it the test would have compared
+one number to the same number and proved nothing about the foreign row it named. Exactly the fixture-does-not-
+reach-the-path shape U15R-d ended on, caught this time by writing the control before the mutation.
