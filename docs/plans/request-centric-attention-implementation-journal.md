@@ -9588,3 +9588,118 @@ for the row shape the author had in mind. The check that would have caught it is
 but "**for which inputs** is this predicate the server's predicate?" — and the union had four answers.
 
 ---
+
+## scout — U15R-d (§6 surface summary totals + client edge + contract loop)
+
+**Read-only scout** for the implementer sandwich. Authority: `docs/features/request-attention.md` §6; plan U15R-d table + §0.2 `attentionSurfaceSummary`; journal U15R-c stopping point (R7 server half), manager accept, R10; contract `docs/contracts/attention-active-attention-axis.json`.
+
+**Live defect confirmed** at `AttentionRepository.surfaceSummary` (`packages/server/lib/data/repository/attention_repository.dart:235–269`): three `COUNT(*) FILTER` legs all compose `activeAttention` / unscoped `liveObligation` on `visible` — not §6 dot/count/for-you membership.
+
+**Structural guard (M1, directory-wide):** `packages/server/test/data/repository/attention_active_attention_axis_pg_test.dart` group `U10b — structurally one definition`, test `no attention repository spells the axis out by hand` — scans every `lib/data/repository/attention_*.dart` except `attention_dismissible_sql.dart` for hand-written `cleared_at IS NULL`. New §6 total SQL must be composed from `AttentionDismissibleSql` constants/functions (`prelude`, `dismissibleReceipts`, `dismissibleOutcomes`, `eligiblePinned`, `activeOptional`, `liveObligation`, …), not spelled inline in `attention_repository.dart`.
+
+**Client edge (already wired; semantics wrong until server fixes):**
+
+- Entity: `packages/client/lib/domain/attention/entity/attention_summary.dart` (`AttentionSurfaceSummary`).
+- GQL: `packages/client/lib/features/attention/data/gql/attention_surface_summary.graphql` → `packages/client/lib/data/repository/attention_repository.dart` `surfaceSummary()`.
+- Nav: `packages/client/lib/features/home/ui/bloc/home_attention_cubit.dart` → `home_attention_state.dart` (`showRedesignActivityUnreadDot` ← `activityUnreadTotal`, `showRedesignMyWorkUnreadDot` ← `myWorkUnreadTotal`, `showRedesignMyWorkObligationBadge` ← `needsYouTotal`); widgets `inbox_navbar_item.dart` (dot only — no summary count), `my_work_navbar_item.dart` (dot + count).
+- §6 request-level rules already in `packages/client/lib/domain/attention/request_attention_predicate.dart` (dot vs count independence); cards use `derive_my_work_card_attention.dart`.
+
+**Scope decisions (confirm against code):**
+
+- **(a) `RealtimeEntityKind.notification`:** Still `default` branch in `attention_case.dart` (`_invalidateRequest` + separate `_requestSurfaceSummaryRefresh` + `_requestHeadRefreshForAllAttached`) — **INCLUDE**: same R5 class as pre-U15R-c `helpOffer`/`inboxItem`; route through `_transitionAcrossSurfaces` (or equivalent single `_refreshAcrossSurfaces` commit) so summary and feed heads cannot diverge mid-frame.
+- **(b) Contract one-way:** Client `packages/client/test/support/attention_axis_contract.dart` + `attention_read_clear_axis_test.dart`; server PG test never reads JSON — **INCLUDE**: add server test helper (mirror client loader) in `packages/server/test/support/attention_axis_contract.dart`, drive `axisCases` expectations in `attention_active_attention_axis_pg_test.dart`, extend JSON with `surfaceSummarySemantics` + fix obligation-only case (`myWorkUnreadTotal` must be `0`, `needsYouTotal` `1` per §6).
+
+**Pending prompts:** No server rows yet — For-you dot SQL must add an explicit `0` contribution (e.g. `pending_prompt_dot AS (SELECT 0::int AS n)`) with comment naming U09a / future prompt classification; never rely on silent absence.
+
+**M1 fallout:** Existing PG tests equating `myWorkUnreadTotal` to `attentionFeed` `unread` list length and treating obligations as dot-bearing (`attention_active_attention_axis_pg_test.dart:159–171`) are **pre-§6** — rewrite to compare each summary field to the list/rule it actually denotes (dot vs default unread feed vs `myWorkAttention` obligation sum). `attentionFeed` summary `needs_you_total` at `attention_repository.dart:707–709` is also unscoped — align with §6 `my desk.count` or document why page summary stays broader.
+
+**Re-read baseline before verify:** `scripts/custom-lint-baseline.txt` → `packages/client 30`, `packages/server 0`.
+
+---
+
+## U15R-d — the indicators §6 actually specifies
+
+**UNIT_BASE:** `4934f1ed7`. Five commits, each green on its own.
+
+### What §6 asked for, and what was there
+
+§6 names four rules. `surfaceSummary` returned three fields and not one of them was any of the four —
+`my_work_unread_total` fused the dot and the number, `activity_unread_total` counted Activity-surface
+obligations and had never seen either the outcome rows or the pinned decision zone, `needs_you_total` was
+unscoped.
+
+**Additive, not resemanticized.** `myDeskDot` and `forYouDot` are new fields whose names state their §6 role;
+the three legacy totals still compute exactly what they computed at UNIT_BASE. A field called
+`myWorkUnreadTotal` that means "has a dot" is a name that lies, and a name that lies is the mechanism behind
+both R7 and R10. **The legacy three retire in U18** — that is now written into
+`docs/contracts/attention-active-attention-axis.json` under `surfaceSummaryFields.legacyTotals` as well as
+here.
+
+Both dots compose `AttentionDismissibleSql` (`activeOptional`, `liveObligation`, `primaryPlacement`, Set R,
+Set O, `eligible_pinned`); no fourth spelling of the axis, and the directory-wide structural guard still
+passes. The M1 test compares `forYouDot` to the **same composed membership**, queried through
+`AttentionDismissibleSql.cte`, never to a hand-counted number or a feed length. Pending prompts enter the
+for-you dot as a written `OR FALSE` with a comment naming what it waits for.
+
+**No `forYouCount` exists at any layer** — not in the domain model, not in the GraphQL type, not in
+`HomeAttentionState`. §6 says `for you.count = never`, and an absent field is the structural version of that.
+
+### The contract gap — `my desk.count` is NOT scoped, and here is why
+
+Correction 3 asked for proof that the myWork scope drops nothing before applying it. **It does not hold, so
+the scoping was not applied.**
+
+`notification_outbox__beacon_policy_chk` (m0115) only requires a `beacon_id` for the `beacon_content` and
+`beacon_tombstone` access policies. A `requires_action` row on a profile-policy destination with
+`beacon_id IS NULL` is therefore storable — verified against a real projection, not reasoned about — and
+`visibleWithSurface` labels it `activity`, because the `scope` UNION can only absorb rows that name a Request.
+Today the unscoped legacy `needsYouTotal` is the only thing that sees it. §6 has no term that would: For You
+has no count, and its dot covers dismissible attention, pending forwards and pending prompts — a live
+obligation is in none of the three sets.
+
+So: scoping `my desk.count` to `surface = 'myWork'` would make such a row invisible in every indicator §6
+defines. Reported, not repaired, and not absorbed by widening a predicate. Pinned by the PG test
+`U15R-d contract gap — a beacon-less live obligation lands on Activity and §6 gives it no indicator`, which
+asserts the current facts (the row is on Activity, `needsYouTotal` counts it, neither dot does) so the gap
+cannot change silently.
+
+The production **write path** cannot emit one: `AttentionPolicy.logicalTaskKey` throws
+`Live obligation requires a Request`, and the dispatch repository calls it on every receipt. That is a
+producer invariant, not a storage or contract one — which is exactly why the gap is worth reporting rather
+than closing by assertion. **Decision for the contract owner:** either §6 gains a term for a Request-less
+obligation, or the database gains a constraint making the shape unstorable. Until one of those lands,
+`showRedesignMyWorkObligationBadge` keeps reading the unscoped legacy total.
+
+### `RealtimeEntityKind.notification`, and the second half nobody had looked at
+
+Routed through `_transitionAcrossSurfaces` like the other three. The R5 cross-surface test, extended to the
+fourth kind, reproduced the defect first: the Request sat on **both** surfaces for the entire hold.
+
+Routing it exposed a second problem. `notification` is the high-volume kind, and the coordinated refresh had
+no coalescing of its own — it had been leaning on the head refresher's. Twenty NOTIFY hints would have become
+twenty coordinated refreshes. `_transitionAcrossSurfaces` now runs one at a time with a single rerun covering
+every Request named while the first was in flight, which is the property
+`coalesces notification hints to one in-flight refresh and one rerun` was always named for. Its counts moved
+(1→2 in flight, 2→3 after) because the transition fetch is its own; the property did not.
+
+### The contract loop, closed
+
+`packages/server/test/support/attention_axis_contract.dart` mirrors the client loader. The PG test drives its
+four axis cases from the JSON and asserts the recorded predicates still match `AttentionDismissibleSql`, so
+drift now fails from whichever side moved. `axisCases` gained `myDeskDot` / `forYouDot`, including the case
+where §6 and the legacy field disagree: a seen live obligation keeps `myWorkUnreadTotal == 1` and has **no**
+dot. A second test refuses an axis case that omits the §6 fields — a case the PG test cannot drive from the
+contract is how the loop reopens.
+
+`activeAttention`'s doc comment no longer claims the surface totals use the union; it now says what it is (the
+default-list rule) and what it is not (a §6 indicator).
+
+### Changed assertions
+
+Every flipped assertion carries `// CHANGES IN U15R-d:` and the §6 clause requiring it. None of them changed
+an *expectation* — §6 says the same thing about what should light — only the input the case states it over,
+because a total was never the dot's rule. Nothing was left in conflict.
+
+### Not in this unit
+
+The pubspec version bump and the `web/index.html` cache-buster: U19 release work, untouched.
