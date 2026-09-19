@@ -8170,3 +8170,70 @@ check-custom-lints: packages/client OK
 ```
 
 STATUS: complete
+
+---
+
+## UNIT U14a — primitives · VERIFY (2026-09-19)
+
+**Layer:** verify (read-only). **UNIT_BASE:** `c95ec646e`. **Range:** `acd77e79d` · `2fbc0be5b` · `730ee5236` · `354d754c7`.
+
+### Throwaway reds (execution)
+
+1. **E32 ordering** — call `onDismiss` at dismiss start (before animation) → `layout height is held until pointer-up (E32)` **+0 -1** (`Expected: [] Actual: ['a']` after pointer-up). Restored.
+2. **Focus hand-off** — remove `nextFocus()` → `focus moves to the next row, not to the top` **+0 -1**. Restored.
+3. **Chip overflow** — revert `Flexible` on chip label → `height ceiling … 1.3x` **+0 -1** (RenderFlex overflow 19 px). Restored.
+
+### Tests run
+
+```
+./scripts/check-custom-lints.sh packages/client → total: 30 (baseline: 30) OK
+flutter test … test/design_system test/features/inbox test/domain/attention → 00:13 +329: All tests passed!
+```
+
+### Golden negative claim
+
+`git diff c95ec646e..354d754c7 --diff-filter=M '**/goldens/*.png'` → **0 modified**, **18 added**. Visual spot-check: legacy `event_subcard_with_actor_light_en_360.png` unchanged; new 1.3× RU mini-card golden shows left border quote block (not 8 dp stub), wrapped chips, ×.
+
+**Verifier STATUS:** pass (gaps below)
+
+---
+
+### Manager verdict — U14a · **ACCEPTED** (inner Opus-low ✓ / verify pass, no finisher)
+
+Overseer's gate: **full client suite 3739 passed / 29 pre-existing skips**; lints **30 (baseline 30) OK**.
+Commits `acd77e79d` chip · `2fbc0be5b` mini-card + E32 dismiss · `730ee5236` goldens · `354d754c7` journal.
+
+**The interaction guarantees are backed by timing tests, not by pictures.** A golden captures one frame and can
+never prove that layout height is held until pointer-up. Three throwaway mutations each produced `+0 -1`:
+dismissing early, removing `nextFocus()`, and reverting the chip's `Flexible`. So the held height, the
+focus hand-off and the overflow fix are all real rather than asserted.
+
+**The golden discipline paid for itself immediately.** No pre-existing PNG was re-recorded — a *negative* claim
+the verifier confirmed independently — and the 18 new ones were **read** before being trusted. That read caught
+the quote rule rendering as an 8 dp stub instead of a border spanning note and chips; it was fixed **before**
+recording. Blind `--update-goldens` would have enshrined the stub as the reference forever.
+
+**Two pre-existing defects surfaced by building on top of them:**
+1. **«Помогаю» never existed as a key.** Spec §10 describes the register but no `.arb` carried a first-person
+   helping label; `attentionRelationHelping` was added, while «Слежу» reuses U0C's shipped key rather than
+   being re-translated.
+2. **`ForwardCapabilityChips` overflowed by 19 px** at 1.3× with long RU labels — found by the height-ceiling
+   test, not by inspection. This is the §14 risk of the card spec arriving two units early.
+
+**Measured, not estimated:** worst asserted frame is **219.0 dp** at 360 dp / 1.3× against a **224 dp** ceiling
+(154 dp at 1.0×).
+
+**Constraint carried to U16, and it is a correctness condition rather than polish:** the ceiling holds **up to
+three chips**. A fourth long RU chip at 1.3× measures **251 dp**. Since §7.1 places capability chips inside the
+forward mini-card, U16 must cap or coalesce them — recorded in the manifest.
+
+**Accepted deviation from §11's letter:** there is no separate hover toolbar. The requirement exists so a
+desktop user is not shown a permanently visible × on every row; this implementation shows the × **always**, on
+every platform, with hover only tinting it. A toolbar layered over an already-visible control would be a second
+way to do the same thing, not a protection. Recorded as a deliberate choice, not debt.
+
+**Scope held:** `_EventSubcard` deliberately remains — U14b rewrites that same file for `clearReceipt` and the
+«ещё N» → Timeline change — and no surface wiring leaked in. No version bump, because nothing is user-visible
+until U15/U16 consume these.
+
+---

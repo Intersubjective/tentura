@@ -599,6 +599,11 @@ height ceiling at 360 dp and 1.3× text.
 **U15 owns** `my_work_cubit.dart`, cards, section derivation: shared block replaces the obligation/what's-new
 split; source actions only; stable sorting; archived attention discoverable from the dot that counts it.
 
+**Constraint carried in from U14a's verify (overseer):** the mini-card height ceiling holds **up to three
+capability chips**. A fourth long RU chip at 1.3× text measures **251 dp** against a 224 dp ceiling at 360 dp.
+Spec §7.1 puts capability chips inside the forward mini-card, so U16 must **cap or coalesce** them — a forwarder
+with four or more reason slugs otherwise breaks the §9 height ceiling the card's whole layout depends on.
+
 **U16 also builds** `RequestAttentionCard` (spec §6, §9 state matrix) and `TombstoneRow` (spec §8, past-tense
 copy), and retires `ActivityOfferCard`, `ActivityOfferBoundedShell`, `ActivityForwardRow` and
 `inbox_forward_attribution_copy.dart` with their goldens. `InboxItemTile` / `InboxCardForwardsFold` retire in
