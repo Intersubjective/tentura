@@ -7123,3 +7123,41 @@ cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 15m -- da
 | Unit | Status |
 |---|---|
 | U12 reconciliation | **complete** (finisher tests; commits `d91b4478d` … `c7bc9c952` + this) |
+
+### Manager verdict — U12 · **ACCEPTED** (no scout by design / inner Opus-low / verify **FAIL** → finisher ✓) — server side complete
+
+Overseer's gate: **1689 non-PG**, **1023 PG / 24 known skips**. Commits `d91b4478d` endpoint · `70b92195d`
+generalised repair · `d207b9002` tests · `c7bc9c952` journal · `9fe7c0ee8` finisher.
+
+**The verify failure was not about broken code — it was about protections nothing would notice losing.** The
+production behaviour was correct throughout; three guards simply had no fixture that loaded them, so removing a
+guard left the suite green. The finisher closed all three with tests proven to fail:
+
+| guard | how its loss was proven visible |
+|---|---|
+| recipient narrowing on create | unfiltered `_record` → a **steward** receives a receipt (`Expected: 0 Actual: 1`) |
+| `CASE`-arm order | swapping terminal-kind and `offer.status` arms reddens the `removedFromChat` case |
+| generation in the source event key | pinning it to `:g1` makes a second genuine repair a no-op (`createdObligationCount 0`) |
+
+Each of those would have shipped as correct code with an unguarded invariant, and each fails in data rather than
+in tests: a removal recorded as a voluntary decline, a second repair silently skipped, obligations written to
+**other people's** accounts.
+
+**The cross-account risk was the most valuable find of the unit**, and it came from the inner layer, not the
+brief: production intents resolve the *full* audience — stewards, all reviewers — so repairing account A without
+narrowing `intent.recipients` would have created receipts for B and C. Over-reach here is worse than an
+unrepaired count, which is why the "must-not" tests carry the same fail-ability requirement as the "must" ones.
+
+**Honest limits recorded rather than papered over:**
+- `unrepairableObligationCount` is returned but unused. Pre-U05c rows with a NULL `logical_task_key` keep a
+  count wrong that Reset **cannot** fix (U18 owns them), so **U17 must surface this** rather than reporting
+  plain success — otherwise the button says "done" while the number stays wrong.
+- D15 step 5 ("invalidate all sessions") has **no** existing mechanism on the clear or sweep paths and was
+  deliberately not invented here. A client holding a stale projection after a repair will not be told.
+- U11's deferral is closed: `attentionRequestHistory` positively contains a `timeline_only` notice.
+
+**The server half of the attention model is now complete** — schema, immutable receipts, channel split,
+obligation identity, retention and history, lifecycle integrity, clear, sweep, undo, one predicate, the active
+attention axis, ordering keys, card provenance, child policy and reconciliation. Migrations m0178–m0189.
+
+---
