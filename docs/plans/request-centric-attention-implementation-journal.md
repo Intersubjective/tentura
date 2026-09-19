@@ -7479,3 +7479,115 @@ from a ritual one.
 U13b rather than implemented early, and no repository or case surface added.
 
 ---
+
+## UNIT U13b — Repository and case · INNER (2026-09-19)
+
+**Layer:** inner (implementer), tagged **hard**. **UNIT_BASE:** `bb4fb417c`. **Scope:** the U13 scout brief's
+steps 4–5 only — ports, repository methods, the clear store and the case logic that applies them. Projections,
+page-merge dedupe by Request id, realtime invalidation and the single-owner architecture test are **U13c** and
+were not touched; `ActivityOffersCubit` was not edited, neither to fix its shadow cache nor to deepen it.
+
+### Commands
+
+```
+cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 45m -- flutter test \
+  --dart-define=ENV=test --dart-define-from-file=env/test.env \
+  test/domain/attention test/features/inbox test/features/my_work test/architecture
+→ 00:19 +373: All tests passed!   (U13a baseline: +354; +19 new)
+
+./scripts/run_with_test_cleanup.sh --timeout 10m -- ./scripts/check-custom-lints.sh packages/client
+→ total: 30 (baseline: 30) — check-custom-lints: packages/client OK
+```
+
+### Step 4 — ports and repository (`49774a523`)
+
+TEST_RED: `flutter test … test/domain/attention/attention_clear_repository_test.dart` → `00:00 +0 -1`
+(compile: `clearSnapshot` / `clear` / `dismissAll` / `undo` / `reconcile` / `requestHistory` not defined on
+`AttentionRepository`). TEST_GREEN: same command → `00:00 +7: All tests passed!`
+
+Six port methods and their Ferry mappers. `requestHistory` returns the existing `AttentionFeedPage` rather than
+a new page type — the document's selection is `{nextCursor, items}`, which is that shape exactly, and a second
+page model would have been a second model of the same thing.
+
+Two facts worth recording. Ferry emits a **distinct class per selection set**, so `skipped` and `failed` on both
+the sweep and the undo result have no common supertype despite carrying identical fields; the mappers take the
+three values rather than the object. And the shared test fake (`attention_repository_fake_base.dart`) **throws**
+from every clear-axis method: a default that answered `complete` would let a test sweep attention without
+saying so, which is the one failure this unit exists to prevent.
+
+### Step 5 — clear store and case logic (`874dbb061`)
+
+TEST_RED: `flutter test … test/domain/attention/attention_clear_case_test.dart` → `00:00 +0 -1` (compile:
+`clearRequestOpen` / `clearReceipt` / `dismissAll` / `undoDismissAll` / `reconcile` not defined on
+`AttentionCase`). TEST_GREEN: same command → `00:00 +8: All tests passed!`
+
+`AttentionClearStore` is separate from `AttentionAckStore` because clearing is a different axis from reading.
+It keys membership by **operation id**, and it never writes a receipt's own `clearedAt` — it only overlays one.
+
+### Step 6 — the stale cursor (`ed12c8f4e`)
+
+TEST_RED: `flutter test … test/domain/attention/attention_cursor_reset_test.dart` → `00:00 +2 -2` (the v1
+cursor was sent and produced a page; the server's refusal propagated as an `ArgumentError`). TEST_GREEN: same
+command → `00:00 +4: All tests passed!`
+
+`AttentionCursorContract` gained `isKnownStale`, deliberately **narrower** than `!isCurrent`: a cursor whose
+payload this client cannot decode is not evidence of an older generation, and refusing to send it would break
+pagination against any future opaque format. This was not a taste call — the existing
+`attention_case_test.dart` pagination test uses the placeholder cursor `page-two`, and the first, broader
+implementation silently stopped paginating on it. That test caught a real false positive, not a fixture detail:
+the reactive path (the server's `invalid attention cursor` refusal) already covers the undecodable case.
+
+### The three overseer additions, in my own words
+
+**1 — a `partial` is not a slow `complete`.** The server answers with the members it *applied*; everything
+else in the captured membership — skipped, denied, or simply not reached because the sweep was bounded — is a
+member the client guessed wrong about. `_applyClearOptimistically` therefore commits `applied` and withdraws
+`members.difference(applied)` in one move, so the three cases need no separate handling and none can be
+forgotten. The red test is the one the brief asked for: three rows, one applied, one skipped with
+`awaiting_decision`, one left pending, and afterwards exactly one row shows cleared. `isComplete` on the sweep
+result additionally requires `pendingCount == 0`, so a bounded sweep cannot report itself finished.
+
+**2 — the mutation serial.** `requestGeneration` orders *reads against reads*, and
+`_surfaceSummaryRequestSerial` orders summaries against summaries; neither stops a read that left **before** a
+mutation from landing after it and restoring the totals that mutation removed. `_mutationSerial` is bumped on
+both entry to and exit from every mutation, so any read overlapping a mutation is discarded on arrival — the
+mutation's own refresh is already queued behind it, so nothing is lost. The test interleaves deliberately: a
+head fetch and a summary fetch are held open, a clear commits, then both stale responses land carrying the
+pre-clear world. **My first version of this test was vacuous** and I only found that by deleting the guard and
+watching the suite stay green: the clear overlay re-stamped the stale rows, so the assertion on `isCleared`
+proved nothing. The totals are where the damage actually shows, so the test now asserts on the unread total and
+the surface summary, and deleting the guard fails it.
+
+**6 — reconcile refetches because nothing invalidates it.** U12 shipped `attentionReconcile` without D15 step
+5; the server repairs obligations and answers, but pushes no session invalidation. So the case adopts the
+returned summary immediately *and* then refetches. Without the refetch, what would go stale is everything the
+repair moved that is not in that summary: obligation receipts created or settled during the repair would still
+be missing from, or still sitting in, the held feed pages; `needsYou` rows would keep the old
+`requires_action` state in `_receiptsById`; and My Desk projections built from those pages would disagree with
+the very counter the user just pressed *Reset counters* to fix. The counter would be right and the list under
+it wrong — the worst of the two, because the number is what the user would believe.
+
+### Other decisions
+
+- **Undo is not optimistic.** It is rare, bounded, and can be refused outright (`expired`, `not_found`,
+  `never_applied`). Restoring rows before the server agreed would render a refusal as a flicker of false
+  success. On a refusal the case logs and returns the typed result with nothing moved; on a partial it lifts
+  the overlay for `restoredReceiptIds` only, so a member skipped with `cleared_by_another_operation` stays
+  cleared. Two tests cover exactly those.
+- **A sweep's optimism covers loaded rows only.** The client cannot know the unloaded membership, and D14
+  forbids zeroing unloaded totals, so `dismissAll` is optimistic about `_receiptsById` and nothing else.
+- **Rollback lifts the overlay, never `clearedAt`.** This is what makes two devices converge instead of fight:
+  the second device's clear of an already-cleared row comes back as a skip, its optimism is withdrawn, and the
+  row stays cleared because the *server* said so. Asserted with two case instances over one transport.
+- **Failures are loud.** A failed clear rolls back its own operation and rethrows; nothing is queued. D14's
+  "offline gestures fail visibly" is a property of this layer, not of the widget that will call it.
+
+### Remaining for U13c
+
+Child-id indexing and normalized group projections (a child × still does not update its parent's preview or
+counts), page-merge dedupe by Request id, realtime invalidation for clear state / outcome generation / surface
+moves, and `test/architecture/single_attention_owner_test.dart` — which `ActivityOffersCubit` still violates.
+
+STATUS: complete
+
+---
