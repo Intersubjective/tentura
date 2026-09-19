@@ -6758,4 +6758,37 @@ no issues.
 |---|---|
 | U11 child propagation policy | **complete** (`6d06ad779`, `bb1f76d87`, `bbc32114b`) |
 
+## UNIT U11 — Child propagation policy · VERIFY (2026-09-19)
+
+**Base.** `284d26ad0`. Commits adjudicated: `6d06ad779`, `bb1f76d87`, `bbc32114b`, `330937630`.
+
+**Claim 1 (one-hop fan-out).** Confirmed in code: `insertTopologyDeliveryTargets` / `collectPublishedTopologyTargets` use `WITH RECURSIVE descendants` downward only; `ancestor` is a single join `source.parent_beacon_id → p.id` (`beacon_hierarchy_outbox_repository.dart:137–160`). Grandparent A receives no delivery row, receipt, or room message when C moves — pinned by `beacon_hierarchy_child_independence_pg_test.dart` delivery assertion + empty A receipts/notices.
+
+**Claim 2 (`placement` pre-U11).** At `284d26ad0`, `packages/server/lib` had no attention `placement` field (only unrelated “replacements” substring in `capability_evidence_repository.dart`). Contract declared `placement` since U03b; m0189 adds column `DEFAULT 'primary'`.
+
+**Claim 3 (`timeline_only` read path).** Green suite; throwaway probes (reverted): `AttentionPlacement.timelineOnly` → `primary` in policy → `+2 -2` on child-independence PG test (classification + surface). Removing `primaryPlacement` from `activity_child_receipts` only → surface test red on alice offers fingerprint (`|1|1|1` → `|2|2|1`).
+
+**Claim 4 (inbox trigger contradiction).** **U10a is right; U11 INNER Findings bullet “`inbox_item` is not populated by a trigger…” is wrong.** m0014 `inbox_item_on_forward_insert` fires on every `beacon_forward_edge` insert; hierarchy PG runs `migrateDbSchema`. Fixture `_seedForwardToAliceForB` already inserts that edge. Explicit `_inboxItem` in the surface test is belt-and-suspenders (and survives `_cleanupAttentionArtifacts` deletes); it does not prove absence of the trigger. **Correct:** U11 INNER § Findings inbox bullet (~L6689–6693).
+
+**Fingerprint.** Mandated loosening probe fails with current `_surfaceState` (eventTotal, eventUnseenCount, preview length, offers list, etc.).
+
+**Copy.** `BeaconHierarchyNoticeCopy` API has no source title/id parameters — generic copy by construction; suite pins no “Request C” / beacon id / dave id.
+
+**Scope.** Diff `284d26ad0..bbc32114b`: nine server files only; `activeOptional` body unchanged (only added `primaryPlacement`); no `packages/client` changes. Pre-existing dirty files (`.serena/project.yml`, constellation journal, `force_directed_graphview` lock/options) untouched by U11 commits.
+
+**VERIFY result:** pass (implementation); one journal factual error noted above.
+
 ---
+
+### Correction to the U11 inner entry — the inbox trigger claim is wrong
+
+U11's inner FINDINGS state that `inbox_item` is **not** trigger-populated from `beacon_forward_edge`. That is
+incorrect and contradicts U10a's remediation, which established the opposite. The U11 verify pass adjudicated it
+by execution: **U10a is right** — m0014's `inbox_item_on_forward_insert` fires on every forward insert, and the
+hierarchy PG suite runs a full `migrateDbSchema`, so the trigger is present there too. The explicit `_inboxItem`
+seed U11 added is **redundant** with the fixture's forward seed, not evidence that no trigger exists.
+
+The implementation needs no change; only this record does. Correcting it matters because the journal is what the
+remaining units read as established fact, and a wrong fact propagates into their briefs — which is precisely how
+the U05 scout's mis-attributed dedup risk reached an inner layer that had to disprove it.
+
