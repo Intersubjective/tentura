@@ -39,6 +39,17 @@ abstract final class AttentionCursorContract {
   static bool isCurrent(String? cursor) =>
       cursor == null || versionOf(cursor) == version;
 
+  /// A cursor that *decodes* to an older generation.
+  ///
+  /// Deliberately narrower than `!isCurrent`: a cursor whose payload this
+  /// client cannot read is not evidence of an older generation, and refusing
+  /// to send it would break pagination against any future opaque format. Let
+  /// the server judge that one — [isStaleCursorError] catches its answer.
+  static bool isKnownStale(String? cursor) {
+    final decoded = versionOf(cursor);
+    return decoded != null && decoded != version;
+  }
+
   /// Whether [error] is the server refusing a cursor from an older generation.
   static bool isStaleCursorError(Object? error) =>
       error != null && '$error'.contains(staleCursorMarker);

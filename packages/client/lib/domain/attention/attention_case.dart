@@ -19,6 +19,7 @@ import 'attention_ack_store.dart';
 import 'attention_clear_store.dart';
 import 'entity/activity_beacon_attention.dart';
 import 'entity/attention_clear.dart';
+import 'entity/attention_cursor.dart';
 import 'entity/activity_offer_sort_row.dart';
 import 'entity/attention_feed.dart';
 import 'entity/attention_receipt.dart';
@@ -272,15 +273,31 @@ final class AttentionCase {
     final current = session.pages[view];
     final cursor = current?.nextCursor;
     if (cursor == null || cursor.isEmpty) return;
+    // A cursor from an older generation was minted under different sort keys.
+    // Resuming from it would drop or repeat rows without saying so, so it is
+    // not sent at all — the session resets and re-reads the head.
+    if (AttentionCursorContract.isKnownStale(cursor)) {
+      await _resetStaleCursor(destinationId, reason: 'cursor generation');
+      return;
+    }
     final accountGeneration = _accountGeneration;
     final requestGeneration = session.requestGeneration;
     final mutationSerial = _mutationSerial;
-    final feed = await _repository.fetch(
-      view: view,
-      cursor: cursor,
-      search: search,
-      surface: surfaceForDestination(destinationId),
-    );
+    final AttentionFeed feed;
+    try {
+      feed = await _repository.fetch(
+        view: view,
+        cursor: cursor,
+        search: search,
+        surface: surfaceForDestination(destinationId),
+      );
+    } on Object catch (error) {
+      // The server refused the cursor at decode. Retrying the tail can only
+      // fail again; reset and re-read the head instead.
+      if (!AttentionCursorContract.isStaleCursorError(error)) rethrow;
+      await _resetStaleCursor(destinationId, reason: '$error');
+      return;
+    }
     if (accountGeneration != _accountGeneration) return;
     if (mutationSerial != _mutationSerial) return;
     final landed = _feedSessions.session(destinationId);
@@ -291,6 +308,29 @@ final class AttentionCase {
       view: view,
       replaceHead: false,
     );
+  }
+
+  /// Drops every held page cursor for [destinationId], bumps the session's
+  /// request generation so responses already in flight cannot land, and
+  /// re-reads the head. The tail is never retried.
+  Future<void> _resetStaleCursor(
+    String destinationId, {
+    required String reason,
+  }) async {
+    final session = _feedSessions.session(destinationId);
+    _logger.info('Attention cursor reset ($destinationId): $reason');
+    _feedSessions.update(
+      destinationId,
+      session.copyWith(
+        pages: {
+          for (final entry in session.pages.entries)
+            entry.key: entry.value.copyWith(nextCursor: null),
+        },
+        requestGeneration: session.requestGeneration + 1,
+        headRefreshError: null,
+      ),
+    );
+    await _requestHeadRefresh(destinationId);
   }
 
   Future<void> markSeen(Iterable<String> ids) async {
