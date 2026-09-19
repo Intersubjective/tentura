@@ -10,6 +10,9 @@ import 'package:tentura_server/domain/entity/notification_category.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/entity/notification_priority.dart';
 import 'package:tentura_server/domain/attention/attention_clear_models.dart';
+import 'package:tentura_server/domain/attention/attention_sweep_models.dart';
+import 'package:tentura_server/domain/port/attention_sweep_port.dart';
+import 'package:tentura_server/domain/use_case/attention_sweep_case.dart';
 import 'package:tentura_server/domain/port/attention_ack_port.dart';
 import 'package:tentura_server/domain/port/attention_clear_port.dart';
 import 'package:tentura_server/domain/use_case/attention_clear_case.dart';
@@ -211,6 +214,41 @@ class _FakeAck implements AttentionAckPort {
     required String? threadItemId,
     required DateTime lastSeenAt,
   }) async => 0;
+}
+
+class _FakeSweep implements AttentionSweepPort {
+  String? sweptAccountId;
+  String? sweptOperationId;
+  int? sweptBatchSize;
+  int? sweptMaxBatches;
+
+  @override
+  Future<AttentionSweepResult> dismissAll({
+    required String accountId,
+    required String operationId,
+    int batchSize = AttentionSweepLimits.batchSize,
+    int? maxBatches,
+  }) async {
+    sweptAccountId = accountId;
+    sweptOperationId = operationId;
+    sweptBatchSize = batchSize;
+    sweptMaxBatches = maxBatches;
+    return AttentionSweepResult(
+      operationId: operationId,
+      appliedReceiptIds: const ['N1'],
+      appliedOutcomeBeaconIds: const ['B1'],
+      skipped: const [
+        AttentionSweepMember(
+          kind: AttentionSweepMemberKind.outcome,
+          id: 'B2',
+          reason: AttentionSweepSkipReason.awaitingDecision,
+        ),
+      ],
+      failed: const [],
+      pending: const [],
+      status: AttentionClearStatus.partial,
+    );
+  }
 }
 
 class _FakeClear implements AttentionClearPort {
@@ -749,6 +787,74 @@ void main() {
         'operationId': 'OP3',
       }),
       throwsA(isA<ArgumentError>()),
+    );
+  });
+
+  test('attentionDismissAll sweeps under the caller account', () async {
+    final port = _FakeSweep();
+    final field = MutationAttention(
+      ack: _FakeAck(),
+      sweep: AttentionSweepCase(port),
+    ).all.singleWhere((field) => field.name == 'attentionDismissAll');
+
+    final result =
+        await field.resolve!(null, {...auth, 'operationId': 'OPSWEEP'}) as Map;
+
+    expect(port.sweptAccountId, 'U1');
+    expect(port.sweptOperationId, 'OPSWEEP');
+    expect(
+      port.sweptMaxBatches,
+      isNull,
+      reason: 'an unbounded call runs the operation to the end',
+    );
+    expect(result['appliedReceiptIds'], ['N1']);
+    expect(result['appliedOutcomeBeaconIds'], ['B1']);
+    expect(result['appliedCount'], 2);
+    expect(result['status'], 'partial');
+    // A skip without a reason is not a report.
+    final skipped = (result['skipped']! as List).single as Map;
+    expect(skipped['kind'], 'outcome');
+    expect(skipped['id'], 'B2');
+    expect(skipped['reason'], 'awaiting_decision');
+    expect(result['failed'], isEmpty);
+    expect(result['pendingCount'], 0);
+  });
+
+  test('attentionDismissAll takes no membership from the caller', () async {
+    // The whole point of a server-captured sweep: there is no argument that
+    // could narrow it to the pages a client happens to have loaded.
+    final field = MutationAttention(
+      ack: _FakeAck(),
+      sweep: AttentionSweepCase(_FakeSweep()),
+    ).all.singleWhere((field) => field.name == 'attentionDismissAll');
+
+    expect(
+      field.inputs.map((input) => input.name).toSet(),
+      {'operationId', 'maxBatches'},
+    );
+  });
+
+  test('attentionDismissAll rejects an unusable operation id', () {
+    final field = MutationAttention(
+      ack: _FakeAck(),
+      sweep: AttentionSweepCase(_FakeSweep()),
+    ).all.singleWhere((field) => field.name == 'attentionDismissAll');
+
+    expect(
+      () => field.resolve!(null, {...auth, 'operationId': ''}),
+      throwsA(isA<ArgumentError>()),
+    );
+  });
+
+  test('attentionDismissAll requires authentication', () {
+    final field = MutationAttention(
+      ack: _FakeAck(),
+      sweep: AttentionSweepCase(_FakeSweep()),
+    ).all.singleWhere((field) => field.name == 'attentionDismissAll');
+
+    expect(
+      () => field.resolve!(null, {'operationId': 'OPSWEEP'}),
+      throwsA(isA<UnauthorizedException>()),
     );
   });
 

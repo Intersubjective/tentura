@@ -1,7 +1,9 @@
 import 'package:tentura_server/domain/port/attention_ack_port.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
+import 'package:tentura_server/domain/attention/attention_sweep_models.dart';
 import 'package:tentura_server/domain/use_case/attention_clear_case.dart';
 import 'package:tentura_server/domain/use_case/attention_settlement_case.dart';
+import 'package:tentura_server/domain/use_case/attention_sweep_case.dart';
 
 import '../custom_types.dart';
 import '../gql_nodel_base.dart';
@@ -13,13 +15,19 @@ final class MutationAttention extends GqlNodeBase {
     AttentionAckPort? ack,
     AttentionSettlementCase? settlement,
     AttentionClearCase? clear,
+    AttentionSweepCase? sweep,
   }) : _ack = ack ?? GetIt.I<AttentionAckPort>(),
        _settlementOverride = settlement,
-       _clearOverride = clear;
+       _clearOverride = clear,
+       _sweepOverride = sweep;
 
   final AttentionAckPort _ack;
   final AttentionSettlementCase? _settlementOverride;
   final AttentionClearCase? _clearOverride;
+  final AttentionSweepCase? _sweepOverride;
+
+  AttentionSweepCase get _sweep =>
+      _sweepOverride ?? GetIt.I<AttentionSweepCase>();
 
   AttentionClearCase get _clear =>
       _clearOverride ?? GetIt.I<AttentionClearCase>();
@@ -34,7 +42,51 @@ final class MutationAttention extends GqlNodeBase {
     attentionMarkUnseen,
     attentionSettle,
     attentionClear,
+    attentionDismissAll,
   ];
+
+  /// *Dismiss all* — owner decision A, as an API.
+  ///
+  /// Takes no membership, deliberately: the surface is captured server-side,
+  /// including the pages the caller has never loaded, because a sweep that
+  /// only covered what was on screen would leave the dot on and the ritual
+  /// meaningless. It clears only the rows that carry their own ×, never an
+  /// obligation and never anything awaiting a decision — sweeping an
+  /// unanswered forward would answer a person by not answering them.
+  ///
+  /// Resumable and idempotent by `operationId`. `maxBatches` bounds one call;
+  /// the caller resumes by sending the same id again. The result says
+  /// `partial` — not `complete` — whenever anything was refused or is still
+  /// pending, and every refusal carries its reason.
+  GraphQLObjectField<dynamic, dynamic> get attentionDismissAll =>
+      GraphQLObjectField(
+        'attentionDismissAll',
+        gqlTypeAttentionDismissAllResult.nonNullable(),
+        arguments: [_operationId.field, _maxBatches.fieldNullable],
+        resolve: (_, args) async {
+          final accountId = getCredentials(args).sub;
+          final result = await _sweep.dismissAll(
+            accountId: accountId,
+            operationId: _operationId.fromArgsNonNullable(args),
+            maxBatches: _maxBatches.fromArgs(args),
+          );
+          Map<String, dynamic> member(AttentionSweepMember member) => {
+            'kind': member.kind.wireName,
+            'id': member.id,
+            'reason': member.reason?.wireName,
+          };
+          return {
+            'operationId': result.operationId,
+            'appliedReceiptIds': result.appliedReceiptIds,
+            'appliedOutcomeBeaconIds': result.appliedOutcomeBeaconIds,
+            'appliedCount': result.appliedCount,
+            'skipped': [for (final each in result.skipped) member(each)],
+            'failed': [for (final each in result.failed) member(each)],
+            'pendingCount': result.pending.length,
+            'status': result.status.name,
+          };
+        },
+      );
 
   /// Clears exactly the membership captured by `snapshotToken` — never more.
   ///
@@ -131,6 +183,7 @@ final class MutationAttention extends GqlNodeBase {
   static final _surface = InputFieldString(fieldName: 'surface');
   static final _snapshotToken = InputFieldString(fieldName: 'snapshotToken');
   static final _operationId = InputFieldString(fieldName: 'operationId');
+  static final _maxBatches = InputFieldInt(fieldName: 'maxBatches');
 
   GraphQLObjectField<dynamic, dynamic> get attentionSettle =>
       GraphQLObjectField(

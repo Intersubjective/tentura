@@ -198,6 +198,49 @@ final gqlTypeAttentionClearResult =
         field('status', graphQLString.nonNullable()),
       ]);
 
+/// One member a sweep refused, and why. A skip without a reason is not a
+/// report: "the forward is awaiting your answer again" and "you may no longer
+/// read this" are different facts about the world.
+final gqlTypeAttentionSweepMember =
+    GraphQLObjectType('AttentionSweepMember', null)
+      ..fields.addAll([
+        field('kind', graphQLString.nonNullable()),
+        field('id', graphQLString.nonNullable()),
+        field('reason', graphQLString),
+      ]);
+
+/// Result of `attentionDismissAll`. `appliedCount` counts both axes, because
+/// one sweep spans both: receipts on `cleared_at`, outcomes on
+/// `tombstone_dismissed_at`.
+final gqlTypeAttentionDismissAllResult =
+    GraphQLObjectType('AttentionDismissAllResult', null)
+      ..fields.addAll([
+        field('operationId', graphQLString.nonNullable()),
+        field(
+          'appliedReceiptIds',
+          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+        ),
+        field(
+          'appliedOutcomeBeaconIds',
+          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+        ),
+        field('appliedCount', graphQLInt.nonNullable()),
+        field(
+          'skipped',
+          GraphQLListType(
+            gqlTypeAttentionSweepMember.nonNullable(),
+          ).nonNullable(),
+        ),
+        field(
+          'failed',
+          GraphQLListType(
+            gqlTypeAttentionSweepMember.nonNullable(),
+          ).nonNullable(),
+        ),
+        field('pendingCount', graphQLInt.nonNullable()),
+        field('status', graphQLString.nonNullable()),
+      ]);
+
 final gqlTypeAttentionSummary = GraphQLObjectType('AttentionSummary', null)
   ..fields.addAll([
     field('unreadTotal', graphQLInt.nonNullable()),
