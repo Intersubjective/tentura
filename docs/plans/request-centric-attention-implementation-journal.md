@@ -8592,3 +8592,83 @@ mounting it here would have put U14c inside their blast radius. `requestInvalida
 as U13c left it.
 
 STATUS: complete
+
+---
+
+## UNIT U14c — indicators · VERIFY (2026-09-19)
+
+**Layer:** verify (read-only). **UNIT_BASE:** `9816c97e8`. **Range:** `81c89c376` · `644f23797` · `cbfa975cc` · `8396b693d`.
+
+### M1 fork re-runs (execution)
+
+| Fork | Mutation | Result |
+|---|---|---|
+| A — drop `exposedFilters` in `myDeskAttentionMembers` | archived counted when active-only filters | *everything My Desk counts is reachable…* **+0 -1**. Restored. |
+| B — `myDeskFilterExposing` always `active` | *an archived Request is counted only because Archive exposes it* **+0 -1**. Restored. |
+| D09 widget — `showDot = requestHasDot && count == 0` | *both are present at once* **+0 -1** (`dot` not found). Restored. |
+| Built-in `_forkedMembers` test in suite | documents fork vs real | **pass** on clean tree |
+
+### Tests run
+
+```
+./scripts/check-custom-lints.sh packages/client → total: 30 (baseline: 30) OK
+flutter test … test/features/home test/features/inbox test/features/my_work test/domain/attention → 00:26 +519: All tests passed!
+U14a/U14b spot-check (mini-card + clear + pagination) → +16
+request_attention_predicate_test + request_attention_indicators_test → +24
+```
+
+### Golden / scope
+
+`git diff 9816c97e8..8396b693d -- '**/goldens/**'` → **empty** (0 PNG changes). `RequestAttentionIndicators` only in its widget file + tests — **not mounted** in `lib/features/**` cards.
+
+**Verifier STATUS:** pass (nuance below)
+
+---
+
+### Manager verdict — U14c · **ACCEPTED** (inner Opus-low ✓ / verify pass, no finisher) — U14 complete
+
+Overseer's gate: **full client suite 3786 passed / 29 pre-existing skips**; lints **30 (baseline 30) OK**.
+Commits `81c89c376` shared predicate · `644f23797` dot/count independence · `cbfa975cc` suppression removal ·
+`8396b693d` journal.
+
+**M1 got the strongest evidence in the plan, because it was made unrepresentable rather than merely tested.**
+`indicatorsFromMembers` takes **only** the membership list, so "a lit indicator over an empty list" cannot be
+constructed. That structural claim was then grounded — a 72-state enumeration run through the production
+`filterMyWorkCardsForDesk` with the real filter set, so the archived trap is covered against actual filters
+rather than a convenient fixture — and falsified: forking the production predicate reddened three tests, and
+forking the D09 card widget reddened four. The verifier re-ran both forks and tried, unsuccessfully, to build an
+indicator from anything but the membership list.
+
+**An honest distinction the verifier drew, and it matters for U19:** M1 is **structural on the card** and
+**indirect on the tab**. Nav badges trust the server's surface totals rather than recomputing
+`indicatorsFromMembers` on every rebuild — correct per U10b, but it means "a tab never lights over an empty
+list" is an **end-to-end** guarantee spanning two layers (server M1 from U10b, client M1 here), not a single
+structural one. U19 should test the seam, since neither side alone proves it.
+
+**The suppressions were not where they appeared to be.** Both lived entirely in `HomeAttentionState`;
+`MyWorkNavbarItem` already implemented §6's one-badge-slot, count-first rule correctly. The missing piece was
+coverage, now four widget tests including "the dot returns when the count drops to zero". `activeHomeTab`
+survives for `inbox_screen.dart` and `home_bottom_nav_listener.dart` but no longer feeds any indicator.
+
+**A silent-hang trap worth remembering repo-wide:** `HomeAttentionCubit` is a `final class`, so no stub is
+possible, and booting it inside `testWidgets` **hangs to the shell timeout with SIGTERM and no error message**
+unless a widget tree exists first — `tester.pump()` has nothing to pump before the first `pumpWidget`. The fix
+is a `pumpWidget(SizedBox.shrink())` ahead of the boot. Documented in
+`work_activity_nav_indicators_test.dart`; the verifier notes other widget suites may be exposed to the same
+trap, which presents as "the tests are slow", not as a failure.
+
+**No golden moved** — a negative claim the verifier confirmed independently, with `--update-goldens` never run.
+
+**U14 is complete.** Three reusable pieces exist — the relation chip, the public mini-card with full E32
+dismiss mechanics, and the surface-neutral active-event block with its two overflow policies — plus indicators
+freed of their suppressions and bound to one predicate. **None of them is mounted on a screen yet**: that is
+U15 and U16. The deliberate separation has already paid, since each defect surfaced in the component where its
+cause was obvious rather than on an assembled screen where chip overflow, a broken height ceiling and a dark
+dot would all have looked like "the card is off".
+
+**Two loose ends carried forward, neither of which fails a test if forgotten:**
+`RequestAttentionIndicators` is built and tested but **not mounted**; and `requestInvalidations` still has **no
+subscriber** since U13c. Both are U15/U16 work, and both would present as an unreactive UI rather than a red
+suite.
+
+---
