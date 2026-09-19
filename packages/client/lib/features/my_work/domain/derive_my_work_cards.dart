@@ -1,3 +1,4 @@
+import 'package:tentura/domain/attention/entity/my_work_beacon_attention.dart';
 import 'package:tentura/domain/coordination/beacon_has_unreviewed_offers.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/domain/entity/beacon.dart';
@@ -53,25 +54,68 @@ bool myWorkReviewPackageNeedsAction(ReviewPackageState? state) =>
     state == ReviewPackageState.readyToSend ||
     state == ReviewPackageState.changedNotSent;
 
+/// The server's ordering keys for one Request (U10c).
+///
+/// `needsYouAt` is the latest live-obligation creation time — the Needs-you
+/// zone's key — and `firstEntryAt` is when the Request entered the surface,
+/// which is what establishes its place and never moves afterwards. Neither is
+/// touched by an optional event; `Beacon.updatedAt`, which the desk used to
+/// sort by, is (D08).
+typedef MyWorkOrderingKeys = ({DateTime? needsYouAt, DateTime? firstEntryAt});
+
+const MyWorkOrderingKeys kMyWorkNoOrderingKeys = (
+  needsYouAt: null,
+  firstEntryAt: null,
+);
+
+typedef MyWorkOrderingKeysLookup = MyWorkOrderingKeys Function(String beaconId);
+
+MyWorkOrderingKeysLookup myWorkOrderingKeysFrom(
+  Map<String, MyWorkBeaconAttention> attentionByBeacon,
+) => (beaconId) {
+  final row = attentionByBeacon[beaconId];
+  if (row == null) return kMyWorkNoOrderingKeys;
+  return (needsYouAt: row.needsYouAt, firstEntryAt: row.firstEntryAt);
+};
+
 int compareMyWorkCards(MyWorkCardViewModel a, MyWorkCardViewModel b) {
   return compareMyWorkCardsForSort(MyWorkSort.recent, a, b);
 }
 
-/// Applies [MyWorkSort] after the attention tier (same tier ordering as legacy list).
+/// Applies [MyWorkSort] after the Needs-you zone and the attention tier.
 int compareMyWorkCardsForSort(
   MyWorkSort sort,
   MyWorkCardViewModel a,
-  MyWorkCardViewModel b,
-) {
+  MyWorkCardViewModel b, {
+  MyWorkOrderingKeysLookup? orderingKeys,
+}) {
+  final ka = orderingKeys?.call(a.beaconId) ?? kMyWorkNoOrderingKeys;
+  final kb = orderingKeys?.call(b.beaconId) ?? kMyWorkNoOrderingKeys;
+
+  // Needs you first: a new obligation promotes, its resolution demotes. This
+  // is a zone, not a sort, so it holds under every user-selected sort.
+  final na = ka.needsYouAt;
+  final nb = kb.needsYouAt;
+  if ((na == null) != (nb == null)) return na != null ? -1 : 1;
+  if (na != null && nb != null) {
+    final c = nb.compareTo(na);
+    if (c != 0) return c;
+    return a.beaconId.compareTo(b.beaconId);
+  }
+
   final t = myWorkCardSortTier(b).compareTo(myWorkCardSortTier(a));
   if (t != 0) return t;
+  // Stable entry/creation order, never the mutable `Beacon.updatedAt` an
+  // optional event moves.
+  final ea = ka.firstEntryAt ?? a.beacon.createdAt;
+  final eb = kb.firstEntryAt ?? b.beacon.createdAt;
   switch (sort) {
     case MyWorkSort.recent:
-      final u = b.beacon.updatedAt.compareTo(a.beacon.updatedAt);
+      final u = eb.compareTo(ea);
       if (u != 0) return u;
       return a.beaconId.compareTo(b.beaconId);
     case MyWorkSort.oldest:
-      final u = a.beacon.updatedAt.compareTo(b.beacon.updatedAt);
+      final u = ea.compareTo(eb);
       if (u != 0) return u;
       return a.beaconId.compareTo(b.beaconId);
     case MyWorkSort.alphabetical:
@@ -342,14 +386,18 @@ List<MyWorkCardViewModel> visibleMyWorkCardsForDesk({
   required MyWorkSort sort,
   required List<MyWorkCardViewModel> nonArchivedCards,
   required List<MyWorkCardViewModel> archivedCards,
+  Map<String, MyWorkBeaconAttention> attentionByBeacon = const {},
 }) {
   final base = filterMyWorkCardsForDesk(
     filter: filter,
     nonArchivedCards: nonArchivedCards,
     archivedCards: archivedCards,
   );
+  final keys = myWorkOrderingKeysFrom(attentionByBeacon);
   final list = List<MyWorkCardViewModel>.from(base)
-    ..sort((a, b) => compareMyWorkCardsForSort(sort, a, b));
+    ..sort(
+      (a, b) => compareMyWorkCardsForSort(sort, a, b, orderingKeys: keys),
+    );
   return list;
 }
 

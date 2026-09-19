@@ -39,6 +39,7 @@ abstract class MyWorkState extends StateBase with _$MyWorkState {
     sort: sort,
     nonArchivedCards: nonArchivedCards,
     archivedCards: archivedCards,
+    attentionByBeacon: attentionByBeacon,
   );
 
   int get draftCount => countDraftMyWorkCards(nonArchivedCards);
