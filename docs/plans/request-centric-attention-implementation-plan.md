@@ -572,6 +572,28 @@ pinned to the latest note-bearing forward (D-171-5a), «ещё N» opens the Tim
 
 ---
 
+**Split by the overseer after the U14 scout (2026-09-19).** Six steps, and three live contradictions the scout
+surfaced: the event subcards still call **`markSeen`** (the read axis) rather than `clearReceipt`; «ещё N»
+**expands in place**, which D-171-5b forbids (it must open the Timeline, which is what gives the card a hard
+height ceiling); and `home_attention_state.dart`'s suppressions — My Desk dot gated on
+`surfaceNeedsYouTotal == 0`, both dots hidden on the active tab — are **encoded in existing tests**, so removing
+them is a deliberate expectation rewrite. U14 runs as three sandwiches:
+
+- **U14a — primitives**: `TenturaRelationChip` in the design system (no generic chip primitive exists; raw
+  visual constants in feature UI are lint-forbidden), and `AttentionMiniCard` promoted out of the private
+  `_EventSubcard` with the `forward` kind and full E32 dismiss mechanics (≥48 dp target, always-visible × on
+  touch, hover toolbar and secondary tap on pointer devices, never long-press alone, layout height held until
+  pointer-up, removal animated through a placeholder).
+- **U14b — the active-event block**: obligations first, **expand *and* collapse**, cursor pagination past the
+  one-shot 100 cap, server totals rather than loaded-row counts, `clearReceipt` replacing `markSeen`, and
+  «ещё N» opening the Timeline instead of expanding in place.
+- **U14c — indicators**: D09 independence (dot and count together), **M1** one shared predicate behind list and
+  indicator, and removal of the two suppressions — each expectation rewrite named in the journal.
+
+Goldens are audited inside whichever unit disturbs them, by the U0C method (RGBA pixel diff with bounding
+boxes, canvas size checked), not re-recorded on faith. Every unit that changes card layout must assert the §9
+height ceiling at 360 dp and 1.3× text.
+
 ### U15 — My Desk integration · U16 — For You integration
 
 **U15 owns** `my_work_cubit.dart`, cards, section derivation: shared block replaces the obligation/what's-new
