@@ -8351,3 +8351,67 @@ and `test/domain/attention` were run **without** `--update-goldens` afterwards a
 `00:13 +344: All tests passed!`
 
 STATUS: complete
+
+---
+
+## UNIT U14b — the active-event block · VERIFY (2026-09-19)
+
+**Layer:** verify (read-only). **UNIT_BASE:** `792f3f424`. **Range:** `8ceaa3c3e` · `a784f81a9` · `d54c6b3e2` · `28a07acef` · `294daf409`.
+
+### Spec reconciliation (D-171-5b vs D10)
+
+**Verdict: the split is right.** Height-bound **card** behaviour is `AttentionBlockOverflowPolicy.timeline` (default on the widget); D10 pagination is `paginate`, opt-in. New `activity_event_block_*` goldens and `activity_event_subcard_block_clear_test` use **default `timeline`** + `onOpenTimeline`. **`RequestAttentionCard` does not exist yet** — nothing in-tree can silently default a finished card to `paginate` except the three **explicit** Activity embed call sites. **Caveat (not U14b regression):** `activity_stream_view`, `activity_offer_card`, and `activity_forward_row` still pass **`paginate`**, preserving pre-U16 in-place expansion on those shells; U16 must wire the unified card with **`timeline`** (and drop explicit `paginate` there) or D-171-5b is still weakened on live Activity cards until then.
+
+### Throwaway reds (execution)
+
+1. **`mainAxisSize.min` removed** → `height does not depend on how many events the server has` **+0 -1**. Restored.
+2. **One-shot `limit: eventTotal.clamp(1, 100)`** in `_loadNextPage` → `paginates past the old one-shot 100 cap` **+0 -1**. Restored.
+
+### Tests run
+
+```
+./scripts/check-custom-lints.sh packages/client → total: 30 (baseline: 30) OK
+flutter test … test/design_system test/features/inbox test/domain/attention → 00:16 +344: All tests passed!
+flutter test … attention_mini_card_test.dart tentura_relation_chip_test.dart → +17 (U14a suites unmodified)
+```
+
+### Golden audit
+
+`git diff 792f3f424..294daf409 --diff-filter=M '**/goldens/*.png'` → **1 modified** (`event_subcard_with_actor_light_en_360.png` **360×120 → 360×42**), **9 added** (`activity_event_block_*`). No other PNG modified; full inbox/design-system/attention suites green **without** `--update-goldens`. Visual read: 360×42 golden is one compact mini-card line (no × without `onClearEvent`); new block goldens show «ещё N» footer under **timeline** default.
+
+**Verifier STATUS:** pass (gaps below)
+
+---
+
+### Manager verdict — U14b · **ACCEPTED** (inner Opus-low ✓ / verify pass, no finisher)
+
+Overseer's gate: **full client suite 3754 passed / 29 pre-existing skips**; lints **30 (baseline 30) OK**.
+Commits `8ceaa3c3e` · `a784f81a9` · `d54c6b3e2` · `28a07acef` · `294daf409`.
+
+**A genuine conflict between two closed decisions was reconciled rather than quietly resolved.** D-171-5b says
+«ещё N» **always** opens the Timeline and never expands in place — that is what gives the card its hard height
+ceiling. D10 asks the shared block for cursor pagination past the 100 cap. They describe **different surfaces**,
+so the block now carries an explicit `AttentionBlockOverflowPolicy` (`timeline` default, `paginate` opt-in), and
+today's Activity consumers ask for `paginate` **explicitly**. The verifier confirmed the important half: nothing
+silently defaults a card to `paginate`, so D-171-5b is deferred to U16, not weakened.
+
+**The axis guard is behavioural, not nominal.** `clearReceipt` replaced `markSeen`, and the test repository
+**throws** on `markSeen` while the widget runs through a real `AttentionCase` — so any route back to the read
+axis fails the suite rather than passing a name check.
+
+**The height-ceiling test found a real defect the moment it existed:** the block's `Column` was
+`mainAxisSize.max` and consumed the entire 800 dp viewport under loose constraints. That is also one cause of
+the actor golden shrinking **360×120 → 360×42**, where an RGBA diff is impossible because the dimensions
+differ — audited by cause plus a visual read instead, and confirmed to be the intended consequence of retiring
+`_EventSubcard`, not a clipped card. No other golden moved.
+
+**Correction to the inner layer's own record, caught by the verifier:** its "no surface wiring" claim is
+**overstated** — three Activity consumers were wired for `onClearEvent` / `clearReceipt` and an explicit
+`paginate`. Appropriate for an axis migration, but not zero touch.
+
+This is the third recent case where a verifier corrected a *description* rather than code — after the "empty
+set" in U10a and the "no trigger" in U11, with the code correct each time. That matters here more than it would
+elsewhere: the journal is the only carrier of knowledge between units, briefs are assembled from it, and U19
+will audit the implementation against exactly these records.
+
+---
