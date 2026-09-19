@@ -8846,3 +8846,82 @@ stream chrome are U16 — `ActivityEventSubcardBlock`'s three Activity consumers
 block's defaults are byte-identical for them.
 
 STATUS: complete
+
+---
+
+## UNIT U15 — My Desk integration · VERIFY (2026-09-19)
+
+**Layer:** verify (read-only). **UNIT_BASE:** `afe6c8a79`. **HEAD:** `5c7be9e05`. Judged against
+`docs/features/request-attention.md` §5.1/§6, plan D04/D08/D09, and the U15 inner entry.
+
+### Blast radius (`canDismiss`)
+
+- **For You byte-identical in git:** `git diff afe6c8a79..5c7be9e05` touches **zero** inbox golden PNGs and
+  **zero** lines under `packages/client/test/features/inbox/`; only shared lib change outside `my_work/` is
+  `activity_event_subcard_block.dart` (+ `test_ids.dart` Done id removal).
+- **Default is For You-safe:** `canDismiss` defaults to `attentionRowAlwaysDismissible` (always true). A consumer
+  that forgets the parameter keeps Activity/For You × behaviour. The footgun is the **opposite** direction: a
+  new surface that renders obligations beside optional rows must **opt in** to `attentionRowIsDismissible` or
+  obligations incorrectly gain a × (§5 violation). My Desk passes the opt-in (`my_work_obligation_block.dart:144`).
+- **Other shared-widget defaults this unit added:** `ctaBuilder` / `quotedBodyOf` default null (no behaviour change
+  for the three Activity embed sites); `visibleCap` still falls back to window-class 1/3 when unset (unchanged
+  for inbox consumers on `paginate`). No second silent blast radius found.
+
+### Execution
+
+```
+flutter test test/features/my_work test/features/home test/features/inbox test/domain/attention test/features/updates
+→ 00:27 +629: All tests passed!  (my_work 174 · home 91 · inbox 144 · attention 122 · updates 98)
+
+./scripts/check-custom-lints.sh packages/client → total 30 (baseline 30) OK
+```
+
+**STATUS: pass**
+
+### Manager verdict — U15 · **ACCEPTED** (no scout by design / inner Opus-low ✓ / verify pass, no finisher)
+
+Overseer's gate: **full client suite 3798 passed / 29 pre-existing skips**; lints **30 (baseline 30) OK**.
+Commits `4148978b2` · `c6e5e218e` · `c25ccc030` · `77080a47c` · `b99265a34` · `746958628` · `3d67c0e3c` ·
+`62b883f90` · `5c7be9e05`.
+
+**The most useful thing this unit produced is a defect in my own method.** The inner layer gave the shared
+block a sensible default — no × on an obligation, which §5 requires on My Desk — and thereby **silently removed
+the × from the Activity stream's obligation row**. Nine U14b goldens caught it, and **only because the worker
+ran `test/features/inbox`, which my TEST_CMD did not list.** A unit that edits a shared widget cannot be
+verified by its own paths: the blast radius of a shared component is the set of its consumers, not the folder
+it lives in. This is `room_now_line` from U05a repeating on the client side.
+
+**Rule adopted for U16–U19:** a unit touching a shared component runs the suites of **every consumer**, and the
+verify brief says so explicitly. U15's verify already did — 629 tests across my_work, home, **inbox**,
+attention and updates.
+
+**The fix inverted the failure mode, which is an improvement.** `attentionRowIsDismissible` is now opt-in, so a
+forgetful future consumer gets an × **on an obligation** — a loud D06 violation visible at a glance — rather
+than a missing × nobody notices. For You is byte-identical, verified by golden.
+
+**Owner decision C reached the UI.** The generic Done control is gone, matching the server's refusal from
+U07b2; the `// CHANGES IN U07b:` tags U02 planted for exactly this moment guided the expectation rewrites.
+`myWorkObligationDone` survives in the `.arb` unused — deleting it needs an l10n regen, which U17 owns.
+
+**Ordering moved to the server's keys** (`needsYouAt` / `firstEntryAt`; `listPositionAt` is For You's — my
+brief wrongly named all three), with D08 asserted directly: a new obligation promotes, an optional update never
+changes a position.
+
+**`requestInvalidations` finally has a subscriber** — its first since U13c — and the transition is tested, not
+just the endpoints: a Request changing surface refreshes the desk with no manual reload and is never on both
+surfaces or neither.
+
+**Three findings worth keeping:**
+- the card header's trailing slot is a fixed `kBeaconCardMenuSlotWidth`, so the dot and count sit on the
+  preview line rather than the header;
+- `AttentionMiniCard` drops a receipt body when no actor `Profile` resolves, and My Desk keys the offerer on
+  `targetEntityId` which `_actorFor` does not read — the offer message vanished until the block gained
+  `quotedBodyOf`; the mini-card itself was **not** changed, so no other consumer regressed;
+- «ещё N» opens the **Request** rather than a Timeline sheet, because `showBeaconActivitySheet` needs a
+  `BeaconViewCubit` the desk does not have. The height guarantee still holds through the `timeline` policy;
+  U17 centralizes the entry.
+
+**`MyWorkWhatsNewRow` retired** with its nine goldens — its content is now block rows carrying their own ×;
+keeping it would have double-rendered each event.
+
+---
