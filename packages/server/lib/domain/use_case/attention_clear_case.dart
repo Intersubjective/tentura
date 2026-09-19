@@ -79,6 +79,11 @@ class AttentionClearCase {
       beaconId: token.beaconId,
       kind: token.kind,
       outcomeGeneration: token.outcomeGeneration,
+      // U15R-a / R3: captured *and* carried. The snapshot has always read the
+      // Request's decision revision; apply never received it, so every
+      // single-clear member stored nothing and undo compared a live revision
+      // against a default of zero — refusing a Request nobody had touched.
+      decisionRevision: token.decisionRevision,
       receiptIds: token.receiptIds,
     );
   }

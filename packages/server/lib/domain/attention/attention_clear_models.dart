@@ -86,6 +86,8 @@ class AttentionClearResult {
     required this.skippedReceiptIds,
     required this.deniedReceiptIds,
     required this.status,
+    this.undoDeadline,
+    this.undoToken,
   });
 
   final String operationId;
@@ -98,6 +100,13 @@ class AttentionClearResult {
   final List<String> deniedReceiptIds;
 
   final AttentionClearStatus status;
+
+  /// U15R-a / R3 — the bounded undo window this operation opened, and the
+  /// token that reverses it (D13, contract §4: "an explicit dismissal can be
+  /// undone for a short window"). Both are null when the operation cleared
+  /// nothing, because there is nothing to offer back.
+  final DateTime? undoDeadline;
+  final String? undoToken;
 }
 
 /// The decoded snapshot token.

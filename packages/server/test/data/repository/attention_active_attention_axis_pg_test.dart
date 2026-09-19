@@ -689,6 +689,7 @@ WHERE id = 'Naxis04'
         beaconId: _ownedBeaconId,
         kind: AttentionClearCaptureKind.requestOpen,
         outcomeGeneration: capture.outcomeGeneration,
+        decisionRevision: capture.decisionRevision,
         receiptIds: capture.receiptIds,
       );
       expect(result.appliedReceiptIds.toSet(), {'Naxis17a', 'Naxis17b'});

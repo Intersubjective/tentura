@@ -6,9 +6,11 @@ import 'package:test/test.dart';
 
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
+import 'package:tentura_server/data/repository/attention_clear_repository.dart';
 import 'package:tentura_server/data/repository/attention_sweep_repository.dart';
 import 'package:tentura_server/domain/attention/attention_clear_models.dart';
 import 'package:tentura_server/domain/attention/attention_undo_models.dart';
+import 'package:tentura_server/domain/use_case/attention_clear_case.dart';
 import 'package:tentura_server/domain/use_case/attention_sweep_case.dart';
 
 import '../../support/disposable_pg_target.dart';
@@ -38,6 +40,7 @@ Future<void> main() async {
   late Connection writer;
   late TenturaDb database;
   late AttentionSweepCase sweep;
+  late AttentionClearCase clear;
 
   setUpAll(() async {
     if (skipReason != false) return;
@@ -45,6 +48,7 @@ Future<void> main() async {
     writer = session.writer;
     database = openDisposablePgDatabase(target);
     sweep = AttentionSweepCase(AttentionSweepRepository(database));
+    clear = AttentionClearCase(AttentionClearRepository(database));
   });
 
   tearDownAll(() async {
@@ -280,6 +284,112 @@ Future<void> main() async {
   // Each pair is the same scenario twice: once where nothing moved and undo
   // must restore, once where something moved and undo must refuse *that*
   // member rather than putting the old state on top of the new one.
+  // U15R-a / R3 — an explicit clear is an explicit dismissal, so §4 gives it
+  // the same bounded undo as *Dismiss all*: "an explicit dismissal can be
+  // undone for a short window". It had none. The single-clear path never set
+  // `undo_deadline`, so undo read the null as `neverApplied` and refused the
+  // very gesture it exists for, and the result carried no token to offer.
+  group('explicit clears are undoable too', () {
+    test('a single clear issues a bounded undo window and honours it',
+        () async {
+      await _insertReceipt(writer, id: 'Nu15Rundo', beaconId: _beaconA);
+      final snapshot = await clear.captureSnapshot(
+        accountId: _viewerId,
+        beaconId: _beaconA,
+        kind: AttentionClearCaptureKind.explicit,
+      );
+      final cleared = await clear.clear(
+        accountId: _viewerId,
+        operationId: 'OPu15Rundo',
+        snapshotToken: snapshot.token,
+      );
+      expect(cleared.appliedReceiptIds, ['Nu15Rundo']);
+      expect(cleared.undoDeadline, isNotNull);
+      expect(
+        cleared.undoToken,
+        isNotNull,
+        reason: 'the gesture cannot be offered back without its token',
+      );
+
+      final undone = await sweep.undo(
+        accountId: _viewerId,
+        operationId: 'OPu15Rundo',
+        undoToken: cleared.undoToken!,
+      );
+
+      expect(undone.refusal, isNull);
+      expect(undone.restoredReceiptIds, ['Nu15Rundo']);
+      expect(await _clearedBy(writer, 'Nu15Rundo'), isNull);
+    });
+
+    // The per-member half of R3. The snapshot read the Request's
+    // `decision_revision`, and then threw it away: apply was never handed it
+    // and the member row stored nothing, so undo compared a live revision
+    // against a stored `0` and refused a Request nobody had touched since.
+    test('a single clear captures the revision it was taken at', () async {
+      // The viewer had already decided this Request *before* the clear, so
+      // its revision is non-zero at capture time.
+      await _setStance(writer, beaconId: _beaconA, status: 1);
+      expect(await _decisionRevision(writer, _beaconA), greaterThan(0));
+      await _insertReceipt(writer, id: 'Nu15Rrev', beaconId: _beaconA);
+
+      final snapshot = await clear.captureSnapshot(
+        accountId: _viewerId,
+        beaconId: _beaconA,
+        kind: AttentionClearCaptureKind.explicit,
+      );
+      expect(snapshot.decisionRevision, greaterThan(0));
+      final cleared = await clear.clear(
+        accountId: _viewerId,
+        operationId: 'OPu15Rrev',
+        snapshotToken: snapshot.token,
+      );
+      expect(cleared.appliedReceiptIds, ['Nu15Rrev']);
+      expect(
+        await _memberDecisionRevision(writer, 'OPu15Rrev'),
+        snapshot.decisionRevision,
+      );
+
+      // Nothing decided anything in between, so undo restores.
+      final undone = await sweep.undo(
+        accountId: _viewerId,
+        operationId: 'OPu15Rrev',
+        undoToken: cleared.undoToken!,
+      );
+
+      expect(undone.skipped, isEmpty);
+      expect(undone.restoredReceiptIds, ['Nu15Rrev']);
+    });
+
+    test('a later decision still wins over an explicit clear', () async {
+      await _insertReceipt(writer, id: 'Nu15Rlater', beaconId: _beaconA);
+      final snapshot = await clear.captureSnapshot(
+        accountId: _viewerId,
+        beaconId: _beaconA,
+        kind: AttentionClearCaptureKind.explicit,
+      );
+      final cleared = await clear.clear(
+        accountId: _viewerId,
+        operationId: 'OPu15Rlater',
+        snapshotToken: snapshot.token,
+      );
+      await _setStance(writer, beaconId: _beaconA, status: 1);
+
+      final undone = await sweep.undo(
+        accountId: _viewerId,
+        operationId: 'OPu15Rlater',
+        undoToken: cleared.undoToken!,
+      );
+
+      expect(undone.restoredReceiptIds, isEmpty);
+      expect(
+        undone.skipped.single.reason,
+        AttentionUndoSkipReason.decisionChanged,
+      );
+      expect(await _clearedBy(writer, 'Nu15Rlater'), 'OPu15Rlater');
+    });
+  }, skip: skipReason);
+
   group('later intent wins', () {
     test('restores a receipt whose Request nobody touched', () async {
       await _insertReceipt(writer, id: 'Nu09cquiet', beaconId: _beaconA);
@@ -877,4 +987,30 @@ VALUES (@id, @beaconId, @senderId, @recipientId)
       },
     );
   }
+}
+
+
+Future<int> _decisionRevision(Connection writer, String beaconId) async {
+  final rows = await writer.execute(
+    Sql.named(
+      'SELECT decision_revision FROM public.attention_request_state '
+      'WHERE account_id = @a AND beacon_id = @b',
+    ),
+    parameters: {'a': _viewerId, 'b': beaconId},
+  );
+  return rows.isEmpty ? 0 : rows.first.first! as int;
+}
+
+Future<Object?> _memberDecisionRevision(
+  Connection writer,
+  String operationId,
+) async {
+  final rows = await writer.execute(
+    Sql.named(
+      'SELECT decision_revision FROM public.attention_clear_operation_member '
+      'WHERE operation_id = @id',
+    ),
+    parameters: {'id': operationId},
+  );
+  return rows.isEmpty ? null : rows.first.first;
 }

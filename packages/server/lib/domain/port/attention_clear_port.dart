@@ -27,6 +27,7 @@ abstract interface class AttentionClearPort {
     required String? beaconId,
     required AttentionClearCaptureKind kind,
     required int outcomeGeneration,
+    required int decisionRevision,
     required List<String> receiptIds,
   });
 }

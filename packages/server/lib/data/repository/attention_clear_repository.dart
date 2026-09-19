@@ -1,10 +1,12 @@
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/attention/attention_clear_models.dart';
+import 'package:tentura_server/domain/attention/attention_undo_models.dart';
 import 'package:tentura_server/domain/port/attention_clear_port.dart';
 
 import '../database/tentura_db.dart';
 import 'attention_dismissible_sql.dart';
+import 'constellation_field_repository.dart' show readCustomSelectTimestamptz;
 
 /// U08 — storage for the clear command.
 ///
@@ -68,7 +70,14 @@ $_eligibleReceipts
     // change when those writers land.
     var outcomeGeneration = 0;
     var decisionRevision = 0;
-    if (beaconId != null) {
+    // U15R-a / R3: a single-event × names a receipt, not a Request, and the
+    // identity still has to be the Request's — undo compares against live
+    // `attention_request_state`, so a capture that bound 0/0 here could only
+    // ever be refused once anything had ever been decided on that Request.
+    final scopeBeaconId =
+        beaconId ??
+        (rows.isEmpty ? null : rows.first.read<String?>('beacon_id'));
+    if (scopeBeaconId != null) {
       final state = await _database
           .customSelect(
             r'''
@@ -78,7 +87,7 @@ SELECT outcome_generation, decision_revision
 ''',
             variables: [
               Variable<String>(accountId),
-              Variable<String>(beaconId),
+              Variable<String>(scopeBeaconId),
             ],
           )
           .getSingleOrNull();
@@ -100,6 +109,7 @@ SELECT outcome_generation, decision_revision
     required String? beaconId,
     required AttentionClearCaptureKind kind,
     required int outcomeGeneration,
+    required int decisionRevision,
     required List<String> receiptIds,
   }) => _database.transaction(() async {
     final members = {...receiptIds};
@@ -217,8 +227,9 @@ $_eligibleReceipts
       await _database.customUpdate(
         r'''
 INSERT INTO public.attention_clear_operation_member
-  (operation_id, receipt_id, beacon_id, outcome_generation, state)
-VALUES ($1, $2, $3, $4, $5)
+  (operation_id, receipt_id, beacon_id, outcome_generation,
+   decision_revision, state)
+VALUES ($1, $2, $3, $4, $5, $6)
 ON CONFLICT (operation_id, receipt_id)
   WHERE receipt_id IS NOT NULL DO NOTHING
 ''',
@@ -227,6 +238,10 @@ ON CONFLICT (operation_id, receipt_id)
           Variable<String>(id),
           Variable<String>(owned[id]),
           Variable<int>(outcomeGeneration),
+          // U15R-a / R3: the Request's identity *at capture*, per member, the
+          // same pair the sweep records. Undo compares both against the live
+          // values, so a member that stored none could only ever be refused.
+          Variable<int>(decisionRevision),
           Variable<String>(
             appliedSet.contains(id) ? _stateApplied : _stateSkipped,
           ),
@@ -240,29 +255,65 @@ ON CONFLICT (operation_id, receipt_id)
       skipped: skipped,
       denied: denied,
     );
+    // U15R-a / R3 — the bounded undo window, on the same terms as the sweep's
+    // (D13, contract §4). It opens only when this operation actually cleared
+    // something: a replay, a stale membership or a lost race leaves the column
+    // null, so undo answers `neverApplied` for exactly the operations that
+    // have nothing to reverse, and a clear that did work can be offered back.
     await _database.customUpdate(
-      r'''
+      '''
 UPDATE public.attention_clear_operation
-   SET status = $2, applied = $3, skipped = $4, failed = 0
- WHERE id = $1
+   SET status = \$2, applied = \$3, skipped = \$4, failed = 0,
+       undo_deadline = CASE
+         WHEN \$5 THEN now() + make_interval(secs => \$6)
+         ELSE undo_deadline
+       END
+ WHERE id = \$1
 ''',
       variables: [
         Variable<String>(operationId),
         Variable<String>(status.name),
         Variable<int>(applied.length),
         Variable<int>(skipped.length),
+        Variable<bool>(applied.isNotEmpty),
+        Variable<double>(
+          AttentionUndoLimits.window.inMilliseconds /
+              Duration.millisecondsPerSecond,
+        ),
       ],
       updateKind: UpdateKind.update,
     );
 
+    final deadline = await _undoDeadline(operationId);
     return AttentionClearResult(
       operationId: operationId,
       appliedReceiptIds: applied,
       skippedReceiptIds: skipped,
       deniedReceiptIds: denied,
       status: status,
+      undoDeadline: deadline,
+      undoToken: deadline == null
+          ? null
+          : AttentionUndoToken(
+              accountId: accountId,
+              operationId: operationId,
+            ).encode(),
     );
   });
+
+  /// The window as the database holds it — read back rather than computed
+  /// here, so the answer is the same clock undo will enforce against.
+  Future<DateTime?> _undoDeadline(String operationId) async {
+    final row = await _database
+        .customSelect(
+          r'''
+SELECT undo_deadline FROM public.attention_clear_operation WHERE id = $1
+''',
+          variables: [Variable<String>(operationId)],
+        )
+        .getSingleOrNull();
+    return readCustomSelectTimestamptz(row?.data['undo_deadline']);
+  }
 
   /// The clear itself, and then the database's answer about it.
   ///
@@ -367,12 +418,22 @@ SELECT receipt_id, state FROM public.attention_clear_operation_member
         if (!applied.contains(id) && !skipped.contains(id)) id,
     ]..sort();
 
+    // The window belongs to the operation, not to the call: a replay is told
+    // about the window the first apply opened, and never buys a new one.
+    final deadline = await _undoDeadline(operationId);
     return AttentionClearResult(
       operationId: operationId,
       appliedReceiptIds: applied,
       skippedReceiptIds: skipped,
       deniedReceiptIds: denied,
       status: _statusOf(applied: applied, skipped: skipped, denied: denied),
+      undoDeadline: deadline,
+      undoToken: deadline == null
+          ? null
+          : AttentionUndoToken(
+              accountId: accountId,
+              operationId: operationId,
+            ).encode(),
     );
   }
 

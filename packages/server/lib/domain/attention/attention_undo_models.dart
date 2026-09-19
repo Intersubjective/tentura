@@ -54,9 +54,10 @@ enum AttentionUndoRefusal {
   notFound('not_found'),
 
   /// The operation exists and is the caller's, but nothing was ever applied
-  /// under it, so no window was ever opened. A sweep that cleared nothing has
-  /// nothing to undo — and a U08 clear, which never opens a window at all,
-  /// lands here too.
+  /// under it, so no window was ever opened. A sweep or an explicit clear
+  /// that cleared nothing has nothing to undo. Since U15R-a an explicit
+  /// clear that *did* clear something opens the same bounded window as a
+  /// sweep, so it no longer lands here by construction.
   neverApplied('never_applied');
 
   const AttentionUndoRefusal(this.wireName);
@@ -197,7 +198,7 @@ enum AttentionUndoStatus {
 /// `attention_clear_operation.account_id`, and the window is a server column —
 /// the token cannot widen either. What it does carry is *offer*: a client may
 /// only undo an operation the server handed it a token for, so an operation
-/// that never opened a window (a U08 clear, a sweep that cleared nothing) has
+/// that never opened a window (any clear or sweep that cleared nothing) has
 /// no token and no undo affordance, and a guessed operation id is refused the
 /// same way whether it exists or not.
 class AttentionUndoToken {

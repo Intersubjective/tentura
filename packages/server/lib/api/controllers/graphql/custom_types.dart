@@ -217,6 +217,11 @@ final gqlTypeAttentionClearResult =
           GraphQLListType(graphQLString.nonNullable()).nonNullable(),
         ),
         field('status', graphQLString.nonNullable()),
+        // U15R-a / R3: an explicit dismissal is undoable for a bounded window
+        // (contract §4, D13), so it carries the same offer a sweep does. Null
+        // when the operation cleared nothing — there is no affordance then.
+        field('undoToken', graphQLString),
+        field('undoDeadline', graphQLString),
       ]);
 
 /// One member a sweep refused, and why. A skip without a reason is not a

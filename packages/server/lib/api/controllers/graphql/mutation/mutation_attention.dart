@@ -196,6 +196,8 @@ final class MutationAttention extends GqlNodeBase {
         'skippedReceiptIds': result.skippedReceiptIds,
         'deniedReceiptIds': result.deniedReceiptIds,
         'status': result.status.name,
+        'undoToken': result.undoToken,
+        'undoDeadline': result.undoDeadline?.toUtc().toIso8601String(),
       };
     },
   );

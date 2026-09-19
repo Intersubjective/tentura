@@ -320,6 +320,7 @@ class _FakeClear implements AttentionClearPort {
   String? appliedOperationId;
   String? appliedBeaconId;
   AttentionClearCaptureKind? appliedKind;
+  int? appliedDecisionRevision;
   List<String>? appliedReceiptIds;
 
   @override
@@ -346,12 +347,14 @@ class _FakeClear implements AttentionClearPort {
     required String? beaconId,
     required AttentionClearCaptureKind kind,
     required int outcomeGeneration,
+    required int decisionRevision,
     required List<String> receiptIds,
   }) async {
     appliedAccountId = accountId;
     appliedOperationId = operationId;
     appliedBeaconId = beaconId;
     appliedKind = kind;
+    appliedDecisionRevision = decisionRevision;
     appliedReceiptIds = receiptIds;
     return AttentionClearResult(
       operationId: operationId,
@@ -359,6 +362,8 @@ class _FakeClear implements AttentionClearPort {
       skippedReceiptIds: const ['N2'],
       deniedReceiptIds: const [],
       status: AttentionClearStatus.partial,
+      undoDeadline: DateTime.utc(2026, 9, 19, 12, 0, 30),
+      undoToken: 'UNDO-TOKEN',
     );
   }
 }
@@ -872,7 +877,7 @@ void main() {
       beaconId: 'B1',
       kind: AttentionClearCaptureKind.explicit,
       outcomeGeneration: 0,
-      decisionRevision: 0,
+      decisionRevision: 7,
       receiptIds: ['N1', 'N2'],
     ).encode();
 
@@ -893,6 +898,12 @@ void main() {
     expect(result['skippedReceiptIds'], ['N2']);
     expect(result['deniedReceiptIds'], isEmpty);
     expect(result['status'], 'partial');
+    // U15R-a / R3: the token's revision reaches storage, and the operation's
+    // undo affordance reaches the wire. Without both, a snackbar in U16 has
+    // nothing to offer and nothing to call.
+    expect(port.appliedDecisionRevision, 7);
+    expect(result['undoToken'], 'UNDO-TOKEN');
+    expect(result['undoDeadline'], '2026-09-19T12:00:30.000Z');
   });
 
   test(
