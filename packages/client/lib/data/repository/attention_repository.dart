@@ -407,6 +407,7 @@ final class AttentionRepository implements AttentionRepositoryPort {
       myWorkUnreadTotal: summary.myWorkUnreadTotal,
       needsYouTotal: summary.needsYouTotal,
       myDeskDot: summary.myDeskDot,
+      myDeskCount: summary.myDeskCount,
       forYouDot: summary.forYouDot,
     );
   }

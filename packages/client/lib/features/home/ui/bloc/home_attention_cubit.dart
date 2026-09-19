@@ -113,6 +113,7 @@ final class HomeAttentionCubit extends Cubit<HomeAttentionState> {
         state.myWorkUnreadTotal == summary.myWorkUnreadTotal &&
         state.surfaceNeedsYouTotal == summary.needsYouTotal &&
         state.surfaceMyDeskDot == summary.myDeskDot &&
+        state.surfaceMyDeskCount == summary.myDeskCount &&
         state.surfaceForYouDot == summary.forYouDot &&
         state.surfaceSummaryLoaded) {
       return;
@@ -123,6 +124,7 @@ final class HomeAttentionCubit extends Cubit<HomeAttentionState> {
         myWorkUnreadTotal: summary.myWorkUnreadTotal,
         surfaceNeedsYouTotal: summary.needsYouTotal,
         surfaceMyDeskDot: summary.myDeskDot,
+        surfaceMyDeskCount: summary.myDeskCount,
         surfaceForYouDot: summary.forYouDot,
         surfaceSummaryLoaded: true,
       ),

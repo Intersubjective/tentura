@@ -22,6 +22,13 @@ abstract class AttentionSurfaceSummary with _$AttentionSurfaceSummary {
     /// lists compose (M1); never re-derived here from a total.
     @Default(false) bool myDeskDot,
 
+    /// §6 `my desk.count` — live obligations on owned Requests, summed by the
+    /// server from the same predicate its myWork list composes (M1).
+    ///
+    /// A field of its own, not [needsYouTotal] renamed: that total is the
+    /// legacy unscoped count and keeps its meaning until U18.
+    @Default(0) int myDeskCount,
+
     /// §6 `for you.dot` — dismissible attention, a pending forward or a
     /// pending prompt.
     ///

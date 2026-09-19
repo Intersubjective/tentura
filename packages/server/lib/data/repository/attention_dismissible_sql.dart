@@ -179,6 +179,35 @@ OR EXISTS (
   WHERE o.beacon_id IN (SELECT scope.beacon_id FROM scope)
 )''';
 
+  /// §6 `my desk.count` — "sum of request.count", where
+  /// `request.count = number of live obligations on it`.
+  ///
+  /// An integer expression over [cte], beside [myDeskDotExpression] for the
+  /// same reason: one definition, every caller. Uncleared optional events are
+  /// absent on purpose — they are the *dot*, and D09 keeps the two
+  /// independent, so neither may be derived from the other.
+  ///
+  /// The `surface = 'myWork'` leg is what U15R-d could not write. It was
+  /// blocked because a Request-less live obligation was storable and
+  /// [visibleWithSurface] labels every beacon-less row `activity`, so scoping
+  /// would have made such a row invisible on every §6 indicator. m0191
+  /// (`notification_outbox__obligation_beacon_chk`) makes that shape
+  /// unstorable, stating the rule `AttentionPolicy.logicalTaskKey` already
+  /// enforces. With it in place the leg drops nothing — a live obligation
+  /// always names a Request, and the `scope` UNION absorbs any Request a live
+  /// obligation names — so it is written because §6 states the rule that way,
+  /// not to change the population.
+  ///
+  /// This is a **new** field, not a re-scoping of `needsYouTotal`: the three
+  /// legacy totals keep their pre-U15R-d meaning until U18 retires them.
+  static String get myDeskCountExpression => '''
+SELECT COUNT(*) FILTER (
+  WHERE v.surface = 'myWork'
+    AND ${liveObligation('v')}
+    AND ${primaryPlacement('v')}
+)::int AS value
+FROM visible v''';
+
   /// §6 `for you.dot` — "any dismissible attention, pending forward or pending
   /// prompt". Each of the three is a term of its own, composed from the sets
   /// the For-You lists and the sweep already compose (M1).

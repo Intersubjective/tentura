@@ -7485,6 +7485,7 @@ type v2_AttentionSurfaceSummary {
   myWorkUnreadTotal: Int!
   needsYouTotal: Int!
   myDeskDot: Boolean!
+  myDeskCount: Int!
   forYouDot: Boolean!
 }
 

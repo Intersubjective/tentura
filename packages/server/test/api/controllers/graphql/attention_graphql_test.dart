@@ -106,6 +106,7 @@ class _FakeQuery implements AttentionQueryPort {
       activityUnreadTotal: 0,
       myWorkUnreadTotal: 1,
       needsYouTotal: 0,
+      myDeskCount: 3,
       myDeskDot: true,
       forYouDot: false,
     );
@@ -580,7 +581,8 @@ void main() {
     );
   });
 
-  test('attentionSurfaceSummary exposes the §6 dots beside the legacy totals',
+  test('attentionSurfaceSummary exposes the §6 indicators beside the legacy '
+      'totals',
       () async {
     final query = _FakeQuery();
     final field = QueryAttention(
@@ -591,10 +593,12 @@ void main() {
       'activityUnreadTotal': 0,
       'myWorkUnreadTotal': 1,
       'needsYouTotal': 0,
-      // §6 `my desk.dot` and `for you.dot`. There is no `forYouCount` key:
-      // §6 says `for you.count = never`, so the wire has nowhere to put one.
+      // §6 `my desk.dot`, `for you.dot` and — CHANGES IN U15R-e — the fourth
+      // rule, `my desk.count`. There is no `forYouCount` key: §6 says
+      // `for you.count = never`, so the wire has nowhere to put one.
       'myDeskDot': true,
       'forYouDot': false,
+      'myDeskCount': 3,
     });
     expect(query.accountId, 'U1');
   });
@@ -736,9 +740,10 @@ void main() {
         'createdObligationCount': 1,
         'settledObligationCount': 2,
         'unrepairableObligationCount': 3,
-        // CHANGES IN U15R-d: §6 gives `attentionSurfaceSummary` two more
-        // indicator fields (`my desk.dot`, `for you.dot`), and the reconcile
-        // result carries the same object, so its wire shape gains them too.
+        // CHANGES IN U15R-d/U15R-e: §6 gives `attentionSurfaceSummary` three
+        // more indicator fields (`my desk.dot`, `for you.dot`,
+        // `my desk.count`), and the reconcile result carries the same object,
+        // so its wire shape gains them too.
         // The three legacy totals keep their values: this unit adds, it does
         // not resemanticize.
         'summary': {
@@ -747,6 +752,7 @@ void main() {
           'needsYouTotal': 6,
           'myDeskDot': false,
           'forYouDot': false,
+          'myDeskCount': 0,
         },
       });
       expect(reconciliation.accountId, 'U1');

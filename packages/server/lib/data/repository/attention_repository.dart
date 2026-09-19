@@ -265,12 +265,19 @@ my_desk_dot AS (
 ),
 for_you_dot AS (
   SELECT (${AttentionDismissibleSql.forYouDotExpression}) AS value
+),
+-- §6 `my desk.count`. Also one definition — and deliberately not the legacy
+-- `needs_you_total` above with a filter added: that total keeps its own
+-- meaning until U18.
+my_desk_count AS (
+  ${AttentionDismissibleSql.myDeskCountExpression}
 )
 SELECT
   summary.*,
   my_desk_dot.value AS my_desk_dot,
-  for_you_dot.value AS for_you_dot
-FROM summary, my_desk_dot, for_you_dot
+  for_you_dot.value AS for_you_dot,
+  my_desk_count.value AS my_desk_count
+FROM summary, my_desk_dot, for_you_dot, my_desk_count
 ''',
           variables: [Variable<String>(accountId)],
         )
@@ -280,6 +287,7 @@ FROM summary, my_desk_dot, for_you_dot
       myWorkUnreadTotal: row.read<int>('my_work_unread_total'),
       needsYouTotal: row.read<int>('needs_you_total'),
       myDeskDot: row.read<bool>('my_desk_dot'),
+      myDeskCount: row.read<int>('my_desk_count'),
       forYouDot: row.read<bool>('for_you_dot'),
     );
   }

@@ -547,6 +547,15 @@ abstract class AttentionSurfaceSummary with _$AttentionSurfaceSummary {
     required int myWorkUnreadTotal,
     required int needsYouTotal,
 
+    /// §6 `my desk.count` — the sum of `request.count` over owned Requests:
+    /// live obligations on the myWork surface. A **new** field rather than a
+    /// re-scoped [needsYouTotal], which keeps its pre-U15R-d meaning (every
+    /// live obligation, unscoped) until U18 retires it.
+    ///
+    /// Independent of [myDeskDot] (D09): a Request with both contributes to
+    /// both, and neither is derived from the other.
+    @Default(0) int myDeskCount,
+
     /// §6 `my desk.dot` — any owned Request has at least one uncleared
     /// optional event or uncleared outcome. A live obligation is deliberately
     /// **not** a term: it is the number beside the dot, and D09 keeps the two

@@ -4,6 +4,7 @@ query AttentionSurfaceSummary {
     myWorkUnreadTotal
     needsYouTotal
     myDeskDot
+    myDeskCount
     forYouDot
   }
 }

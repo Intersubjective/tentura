@@ -154,7 +154,11 @@ void main() {
     repository.surfaceSummaryValue = const AttentionSurfaceSummary(
       activityUnreadTotal: 0,
       myWorkUnreadTotal: 0,
-      needsYouTotal: 4,
+      // CHANGES IN U15R-e: the number is §6 `my desk.count`, not the legacy
+      // unscoped `needsYouTotal`. The two are given different values on
+      // purpose — a widget still reading the old field renders '9'.
+      needsYouTotal: 9,
+      myDeskCount: 4,
     );
     final home = await _bootHome(
       accounts: accounts,
@@ -175,7 +179,8 @@ void main() {
     repository.surfaceSummaryValue = const AttentionSurfaceSummary(
       activityUnreadTotal: 0,
       myWorkUnreadTotal: 0,
-      needsYouTotal: 2,
+      needsYouTotal: 9,
+      myDeskCount: 2,
     );
     final home = await _bootHome(
       accounts: accounts,
@@ -197,10 +202,12 @@ void main() {
   testWidgets('shows the dot and the number together', (tester) async {
     // CHANGES IN U15R-d: §6 `my desk.dot` is its own field; the unread total
     // beside it includes obligations and never was the dot's rule.
+    // CHANGES IN U15R-e: and the number beside the dot is `my desk.count`.
     repository.surfaceSummaryValue = const AttentionSurfaceSummary(
       activityUnreadTotal: 0,
       myWorkUnreadTotal: 5,
-      needsYouTotal: 2,
+      needsYouTotal: 9,
+      myDeskCount: 2,
       myDeskDot: true,
     );
     final home = await _bootHome(
@@ -222,12 +229,72 @@ void main() {
     unawaited(home.close());
   });
 
+  /// U15R-e — §6 `my desk.count` is a field, not the legacy total renamed.
+  ///
+  /// `needsYouTotal` counts every live obligation unscoped and keeps that
+  /// meaning until U18, so a navbar reading it would show a number §6 never
+  /// asked for. The two are given opposite values here: only one of them can
+  /// be the source of the rendered badge.
+  testWidgets('the number is my desk.count, not the legacy needsYouTotal', (
+    tester,
+  ) async {
+    repository.surfaceSummaryValue = const AttentionSurfaceSummary(
+      activityUnreadTotal: 0,
+      myWorkUnreadTotal: 7,
+      needsYouTotal: 7,
+      myDeskCount: 0,
+    );
+    final home = await _bootHome(
+      accounts: accounts,
+      repository: repository,
+      tester: tester,
+    );
+    home.setActiveHomeTab(HomeTab.work);
+    await _pumpNavItem(tester, home);
+
+    expect(find.byKey(MyWorkNavbarItem.countKey), findsNothing);
+    expect(find.text('7'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    unawaited(home.close());
+  });
+
+  /// The other direction of the same flip, so neither assertion can hold by
+  /// the badge simply never rendering.
+  testWidgets('the count alone raises the number with no legacy total', (
+    tester,
+  ) async {
+    repository.surfaceSummaryValue = const AttentionSurfaceSummary(
+      activityUnreadTotal: 0,
+      myWorkUnreadTotal: 0,
+      needsYouTotal: 0,
+      myDeskCount: 7,
+    );
+    final home = await _bootHome(
+      accounts: accounts,
+      repository: repository,
+      tester: tester,
+    );
+    home.setActiveHomeTab(HomeTab.work);
+    await _pumpNavItem(tester, home);
+
+    expect(find.byKey(MyWorkNavbarItem.countKey), findsOneWidget);
+    expect(_badgeLabelText(tester), '7');
+    await tester.pumpWidget(const SizedBox.shrink());
+    unawaited(home.close());
+  });
+
   testWidgets('shows the dot alone when nothing is owed', (tester) async {
     // CHANGES IN U15R-d: §6 `my desk.dot` is its own field.
+    // CHANGES IN U15R-e: the number is `my desk.count`, which is zero here
+    // even though the legacy total is not.
     repository.surfaceSummaryValue = const AttentionSurfaceSummary(
       activityUnreadTotal: 0,
       myWorkUnreadTotal: 3,
-      needsYouTotal: 0,
+      // The legacy total still counts obligations the §6 count does not own;
+      // the badge must follow `myDeskCount`, so there is no number here.
+      needsYouTotal: 9,
+      myDeskCount: 0,
       myDeskDot: true,
     );
     final home = await _bootHome(

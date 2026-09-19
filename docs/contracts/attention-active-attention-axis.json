@@ -27,6 +27,7 @@
       "myWorkUnreadTotal": 1,
       "countsAsActiveAttention": true,
       "note": "reading is not clearing (D02): seen_at must not decide the dot",
+      "myDeskCount": 0,
       "myDeskDot": true,
       "forYouDot": false
     },
@@ -41,6 +42,7 @@
       },
       "myWorkUnreadTotal": 0,
       "countsAsActiveAttention": false,
+      "myDeskCount": 0,
       "myDeskDot": false,
       "forYouDot": false
     },
@@ -56,6 +58,7 @@
       "myWorkUnreadTotal": 1,
       "needsYouTotal": 1,
       "countsAsActiveAttention": true,
+      "myDeskCount": 1,
       "myDeskDot": false,
       "forYouDot": false,
       "note": "§6 splits what the legacy `myWorkUnreadTotal` fuses: the obligation is `my desk.count`, never `my desk.dot`. `myWorkUnreadTotal` still counts it and retires in U18."
@@ -73,6 +76,7 @@
       "myWorkUnreadTotal": 0,
       "needsYouTotal": 0,
       "countsAsActiveAttention": false,
+      "myDeskCount": 0,
       "myDeskDot": false,
       "forYouDot": false
     }
@@ -115,6 +119,7 @@
     "forYouDot": "§6 `for you.dot` — Set R (dismissible optional receipts, wrapped in primaryPlacement) ∪ Set O (dismissible outcomes) ∪ eligible_pinned (the pending-forward zone) ∪ pending prompts.",
     "pendingPrompts": "Written into the for-you dot as an explicit `OR FALSE` with a comment naming what it waits for. No classified prompt event has a row in any of the three sets yet (U09a); silent absence would be indistinguishable from a deleted predicate.",
     "forYouCount": "Does not exist, at any layer. §6: `for you.count = never`. The absent field is what makes that structural rather than a convention a widget can break.",
+    "myDeskCount": "§6 `my desk.count` — the sum of `request.count` over owned Requests, i.e. live obligations. Composed as liveObligation ∧ primaryPlacement on surface='myWork'. Uncleared optional events are excluded: they are the dot, and D09 keeps dot and number independent. It is a NEW field, not a re-scoping of `needsYouTotal` — the legacy three keep their pre-U15R-d meaning until U18. Since m0191 the surface leg drops nothing (a live obligation always names a Request, and any Request it names is in `scope`), so it is written because §6 states the rule that way, not to change the population.",
     "legacyTotals": "`activityUnreadTotal`, `myWorkUnreadTotal` and `needsYouTotal` keep their pre-U15R-d meaning (activeAttention per surface; every live obligation, unscoped) and retire in U18. U15R-d is additive by §0.2.",
     "obligationsAlwaysNameARequest": "m0191 (`notification_outbox__obligation_beacon_chk`, `CHECK (NOT requires_action OR beacon_id IS NOT NULL)`) makes a Request-less live obligation unstorable. Until U15R-e it was storable — m0115's `notification_outbox__beacon_policy_chk` demands a `beacon_id` only for the `beacon_content` / `beacon_tombstone` access policies — and `visibleWithSurface` labelled every beacon-less row `activity`, where §6 offers it neither a count nor a dot term. The constraint states the rule the producer already enforced (`AttentionPolicy.logicalTaskKey` throws `Live obligation requires a Request`) where nothing can route around it, and it validates on ADD so a legacy violating row aborts the migration rather than being skipped or repaired (legacy remediation is U18's). Pinned by the PG test 'U15R-e — a Request-less live obligation is rejected by notification_outbox__obligation_beacon_chk', asserted by constraint name."
   }

@@ -119,7 +119,7 @@ AttentionReceipt _updateReceipt({
 HomeAttentionState _redesignState({
   int activityUnread = 0,
   int myWorkUnread = 0,
-  int needsYou = 0,
+  int myDeskCount = 0,
   // CHANGES IN U15R-d: the two dots are server booleans now, not totals —
   // §6 states each as a membership question the server answers from the same
   // predicates its lists compose.
@@ -132,7 +132,7 @@ HomeAttentionState _redesignState({
       surfaceSummaryLoaded: loaded,
       activityUnreadTotal: activityUnread,
       myWorkUnreadTotal: myWorkUnread,
-      surfaceNeedsYouTotal: needsYou,
+      surfaceMyDeskCount: myDeskCount,
       surfaceMyDeskDot: myDeskDot,
       surfaceForYouDot: forYouDot,
       activeHomeTab: activeTab,
@@ -236,7 +236,7 @@ void main() {
       String name,
       int activity,
       int myWorkUnread,
-      int needsYou,
+      int myDeskCount,
       bool forYouDot,
       bool myDeskDot,
       HomeTab tab,
@@ -248,7 +248,7 @@ void main() {
         name: 'obligations and optional updates show a number and a dot',
         activity: 2,
         myWorkUnread: 1,
-        needsYou: 3,
+        myDeskCount: 3,
         forYouDot: true,
         myDeskDot: true,
         tab: HomeTab.work,
@@ -260,7 +260,7 @@ void main() {
         name: 'the activity dot survives its own tab being open',
         activity: 2,
         myWorkUnread: 1,
-        needsYou: 3,
+        myDeskCount: 3,
         forYouDot: true,
         myDeskDot: true,
         tab: HomeTab.inbox,
@@ -272,7 +272,7 @@ void main() {
         name: 'activity unread only',
         activity: 1,
         myWorkUnread: 0,
-        needsYou: 0,
+        myDeskCount: 0,
         forYouDot: true,
         myDeskDot: false,
         tab: HomeTab.work,
@@ -284,7 +284,7 @@ void main() {
         name: 'my work unread dot when no obligations',
         activity: 0,
         myWorkUnread: 2,
-        needsYou: 0,
+        myDeskCount: 0,
         forYouDot: false,
         myDeskDot: true,
         tab: HomeTab.inbox,
@@ -296,7 +296,7 @@ void main() {
         name: 'the my work dot survives its own tab being open',
         activity: 0,
         myWorkUnread: 2,
-        needsYou: 0,
+        myDeskCount: 0,
         forYouDot: false,
         myDeskDot: true,
         tab: HomeTab.work,
@@ -308,7 +308,7 @@ void main() {
         name: 'obligations do not extinguish the my work dot',
         activity: 0,
         myWorkUnread: 4,
-        needsYou: 2,
+        myDeskCount: 2,
         forYouDot: false,
         myDeskDot: true,
         tab: HomeTab.inbox,
@@ -320,7 +320,7 @@ void main() {
         name: 'all clear',
         activity: 0,
         myWorkUnread: 0,
-        needsYou: 0,
+        myDeskCount: 0,
         forYouDot: false,
         myDeskDot: false,
         tab: HomeTab.work,
@@ -335,7 +335,7 @@ void main() {
         final state = _redesignState(
           activityUnread: c.activity,
           myWorkUnread: c.myWorkUnread,
-          needsYou: c.needsYou,
+          myDeskCount: c.myDeskCount,
           forYouDot: c.forYouDot,
           myDeskDot: c.myDeskDot,
           activeTab: c.tab,
@@ -354,13 +354,15 @@ void main() {
     // sends each as a boolean and the cases below carry it as an input
     // instead of inferring it from `activityUnreadTotal` /
     // `myWorkUnreadTotal`. Those two totals stay in the table because the
-    // number beside the dot still reads `surfaceNeedsYouTotal` and the cases
-    // have to keep proving the two are independent (D09).
+    // number beside the dot has its own field too since U15R-e
+    // (`surfaceMyDeskCount`, §6 `my desk.count`), and the cases have to keep
+    // proving the dot and the number are independent (D09). The legacy
+    // `surfaceNeedsYouTotal` feeds no indicator any more; it retires in U18.
     test('U15R-d §6 — an obligation-only My Desk shows the number and no dot',
         () {
       final state = _redesignState(
         myWorkUnread: 3,
-        needsYou: 3,
+        myDeskCount: 3,
         myDeskDot: false,
       );
       expect(
@@ -412,7 +414,7 @@ void main() {
               final state = _redesignState(
                 activityUnread: c.activity,
                 myWorkUnread: c.myWorkUnread,
-                needsYou: c.needsYou,
+                myDeskCount: c.myDeskCount,
                 forYouDot: c.forYouDot,
                 myDeskDot: c.myDeskDot,
                 activeTab: tab,
@@ -445,7 +447,7 @@ void main() {
           final state = _redesignState(
             activityUnread: total,
             myWorkUnread: total,
-            needsYou: total,
+            myDeskCount: total,
             forYouDot: dot,
             myDeskDot: dot,
           );
@@ -467,17 +469,17 @@ void main() {
       // own list, so a total is no longer the thing that stands for it.
       for (final forYouDot in [false, true]) {
         for (final myDeskDot in [false, true]) {
-          for (final needsYou in [0, 3]) {
+          for (final myDeskCount in [0, 3]) {
             final state = _redesignState(
               activityUnread: forYouDot ? 2 : 0,
               myWorkUnread: myDeskDot ? 2 : 0,
-              needsYou: needsYou,
+              myDeskCount: myDeskCount,
               forYouDot: forYouDot,
               myDeskDot: myDeskDot,
             );
             expect(state.showRedesignActivityUnreadDot, forYouDot);
             expect(state.showRedesignMyWorkUnreadDot, myDeskDot);
-            expect(state.showRedesignMyWorkObligationBadge, needsYou > 0);
+            expect(state.showRedesignMyWorkObligationBadge, myDeskCount > 0);
           }
         }
       }
@@ -487,7 +489,7 @@ void main() {
       final state = _redesignState(
         activityUnread: 3,
         myWorkUnread: 3,
-        needsYou: 3,
+        myDeskCount: 3,
         forYouDot: true,
         myDeskDot: true,
         loaded: false,
@@ -518,7 +520,8 @@ void main() {
       repository.surfaceSummaryValue = const AttentionSurfaceSummary(
         activityUnreadTotal: 1,
         myWorkUnreadTotal: 0,
-        needsYouTotal: 0,
+        needsYouTotal: 9,
+        myDeskCount: 0,
         forYouDot: true,
       );
       final boot = await _bootCubitWithSurface(
@@ -536,7 +539,8 @@ void main() {
       repository.surfaceSummaryValue = const AttentionSurfaceSummary(
         activityUnreadTotal: 1,
         myWorkUnreadTotal: 0,
-        needsYouTotal: 0,
+        needsYouTotal: 9,
+        myDeskCount: 0,
         forYouDot: true,
       );
       final boot = await _bootCubitWithSurface(
@@ -554,7 +558,8 @@ void main() {
       repository.surfaceSummaryValue = const AttentionSurfaceSummary(
         activityUnreadTotal: 0,
         myWorkUnreadTotal: 1,
-        needsYouTotal: 0,
+        needsYouTotal: 9,
+        myDeskCount: 0,
         myDeskDot: true,
       );
       final boot = await _bootCubitWithSurface(
@@ -626,7 +631,8 @@ void main() {
       repository.surfaceSummaryValue = const AttentionSurfaceSummary(
         activityUnreadTotal: 1,
         myWorkUnreadTotal: 2,
-        needsYouTotal: 3,
+        needsYouTotal: 9,
+        myDeskCount: 3,
         myDeskDot: true,
         forYouDot: true,
       );
@@ -649,7 +655,8 @@ void main() {
       repository.surfaceSummaryValue = const AttentionSurfaceSummary(
         activityUnreadTotal: 0,
         myWorkUnreadTotal: 2,
-        needsYouTotal: 0,
+        needsYouTotal: 9,
+        myDeskCount: 0,
         myDeskDot: true,
       );
       final home = await pumpNav(tester, activeTab: HomeTab.work);
@@ -670,7 +677,8 @@ void main() {
       repository.surfaceSummaryValue = const AttentionSurfaceSummary(
         activityUnreadTotal: 4,
         myWorkUnreadTotal: 0,
-        needsYouTotal: 0,
+        needsYouTotal: 9,
+        myDeskCount: 0,
         forYouDot: true,
       );
       final home = await pumpNav(tester, activeTab: HomeTab.inbox);
@@ -688,7 +696,8 @@ void main() {
       repository.surfaceSummaryValue = const AttentionSurfaceSummary(
         activityUnreadTotal: 0,
         myWorkUnreadTotal: 2,
-        needsYouTotal: 5,
+        needsYouTotal: 9,
+        myDeskCount: 5,
         myDeskDot: true,
       );
       await pumpNav(tester, activeTab: HomeTab.work);

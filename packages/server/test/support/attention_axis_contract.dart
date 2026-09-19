@@ -114,6 +114,7 @@ extension type AttentionAxisCase(Map<String, dynamic> _case) {
 
   int get myWorkUnreadTotal => field('myWorkUnreadTotal')! as int;
   int get needsYouTotal => field('needsYouTotal')! as int;
+  int get myDeskCount => field('myDeskCount')! as int;
   bool get myDeskDot => field('myDeskDot')! as bool;
   bool get forYouDot => field('forYouDot')! as bool;
 }

@@ -28,6 +28,11 @@ abstract class HomeAttentionState with _$HomeAttentionState {
     /// purpose: §6 states a dot as a membership question, and a total is the
     /// answer to a different one.
     @Default(false) bool surfaceMyDeskDot,
+
+    /// §6 `my desk.count` — live obligations on owned Requests, as the server
+    /// scoped them. Distinct from [surfaceNeedsYouTotal], which is the legacy
+    /// unscoped total and retires in U18.
+    @Default(0) int surfaceMyDeskCount,
     @Default(false) bool surfaceForYouDot,
     @Default(false) bool surfaceSummaryLoaded,
   }) = _HomeAttentionState;
@@ -74,12 +79,12 @@ abstract class HomeAttentionState with _$HomeAttentionState {
 
   /// §6 `my desk.count` — live obligations on owned Requests.
   ///
-  /// Still the legacy unscoped total: U15R-d found that scoping it to the
-  /// myWork surface would drop beacon-less live obligations out of every
-  /// indicator §6 defines, and left the gap for the contract owner rather
-  /// than widening a predicate to absorb it.
+  /// U15R-e: the server-scoped field, not the legacy unscoped total. U15R-d
+  /// could not scope it because a Request-less live obligation was storable
+  /// and would have gone missing from every indicator §6 defines; m0191 makes
+  /// that shape unstorable, so the count says what §6 says.
   bool get showRedesignMyWorkObligationBadge =>
-      surfaceSummaryLoaded && surfaceCountFromTotal(surfaceNeedsYouTotal) > 0;
+      surfaceSummaryLoaded && surfaceCountFromTotal(surfaceMyDeskCount) > 0;
 
   /// §6 `my desk.dot` — an owned Request has an uncleared optional event or
   /// uncleared outcome. Independent of the number beside it: a Request with

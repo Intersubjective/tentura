@@ -140,6 +140,7 @@ VALUES
         reason: 'reading is not clearing (D02): seen_at must not decide the dot',
       );
       expect(summary.myDeskDot, recorded.myDeskDot);
+      expect(summary.myDeskCount, recorded.myDeskCount);
       expect(summary.forYouDot, recorded.forYouDot);
       expect(feed.page.items.map((item) => item.id), ['Naxis01']);
     });
@@ -158,6 +159,7 @@ VALUES
       final recorded = contract.axisCase('unseen but cleared optional receipt');
       expect(summary.myWorkUnreadTotal, recorded.myWorkUnreadTotal);
       expect(summary.myDeskDot, recorded.myDeskDot);
+      expect(summary.myDeskCount, recorded.myDeskCount);
       expect(summary.forYouDot, recorded.forYouDot);
       expect(feed.page.items, isEmpty);
       expect(
@@ -191,6 +193,11 @@ VALUES
         recorded.myDeskDot,
         reason: '§6 keeps the obligation out of the dot — it is the number',
       );
+      expect(
+        summary.myDeskCount,
+        recorded.myDeskCount,
+        reason: 'and puts it in the number',
+      );
       expect(summary.forYouDot, recorded.forYouDot);
     });
 
@@ -212,6 +219,7 @@ WHERE id = 'Naxis04'
       expect(summary.needsYouTotal, recorded.needsYouTotal);
       expect(summary.myWorkUnreadTotal, recorded.myWorkUnreadTotal);
       expect(summary.myDeskDot, recorded.myDeskDot);
+      expect(summary.myDeskCount, recorded.myDeskCount);
       expect(summary.forYouDot, recorded.forYouDot);
     });
 
@@ -508,6 +516,115 @@ WHERE id = 'Naxis04'
         AttentionDismissibleSql.liveObligation('v'),
       );
       expect(stored, ['Ne06ok']);
+    });
+
+    // ------------------------------------------------------- U15R-e (§6)
+
+    test('U15R-e §6 my desk.count — live obligations on owned Requests, and '
+        'nothing else', () async {
+      await _obligation(writer, id: 'Ne01', beaconId: _ownedBeaconId);
+      await _obligation(writer, id: 'Ne02', beaconId: _ownedBeaconId);
+      // An uncleared optional event is the *dot*, never the number (D09).
+      await _optional(writer, id: 'Ne03', beaconId: _ownedBeaconId);
+      // A settled obligation is no longer owed.
+      await _obligation(writer, id: 'Ne04', beaconId: _ownedBeaconId);
+      await writer.execute(
+        Sql.named('''
+UPDATE public.notification_outbox
+SET settlement_kind = 'resolved', settled_at = now(), settled_by_user_id = @u
+WHERE id = 'Ne04'
+'''),
+        parameters: {'u': _viewerId},
+      );
+
+      final summary = await query.surfaceSummary(accountId: _viewerId);
+      expect(
+        summary.myDeskCount,
+        2,
+        reason: '§6: my desk.count = sum of request.count = live obligations. '
+            'The optional event and the settled obligation are not members.',
+      );
+      expect(
+        summary.myDeskDot,
+        isTrue,
+        reason: 'and the dot is lit by the optional event alone — D09 keeps '
+            'the two independent, so one must not be derived from the other',
+      );
+    });
+
+    test('U15R-e §6 my desk.count — a timeline_only obligation is not '
+        'counted', () async {
+      // m0189/D16: a hierarchy notice propagated to an ancestor is visible
+      // and recoverable but must give it no dot, no count and no position.
+      await _obligation(writer, id: 'Ne05a', beaconId: _ownedBeaconId);
+      await writer.execute(
+        Sql.named(
+          "UPDATE public.notification_outbox SET placement = 'timeline_only' "
+          "WHERE id = 'Ne05a'",
+        ),
+      );
+      expect(
+        (await query.surfaceSummary(accountId: _viewerId)).myDeskCount,
+        0,
+        reason: 'whatever is counted must be reachable (§6, One predicate)',
+      );
+
+      // The control: the identical fixture on the primary surface is
+      // counted, so the assertion above isolates `placement` and nothing
+      // else about the row.
+      await _obligation(writer, id: 'Ne05b', beaconId: _ownedBeaconId);
+      expect(
+        (await query.surfaceSummary(accountId: _viewerId)).myDeskCount,
+        1,
+      );
+    });
+
+    test('U15R-e M1 — my desk.count equals the live obligations on the myWork '
+        'default list', () async {
+      await _obligation(writer, id: 'Ne07a', beaconId: _ownedBeaconId);
+      await _obligation(writer, id: 'Ne07b', beaconId: _ownedBeaconId);
+      // Not a foreign Request: an obligation fixture on `_foreignBeaconId`
+      // never reaches `visible` at all (the viewer cannot read that beacon's
+      // content), so it would make the comparison below vacuous rather than
+      // wider — the U15R-d lesson, met again on the first draft of this test.
+      await _optional(writer, id: 'Ne07c', beaconId: _ownedBeaconId);
+
+      // Never a hand-counted number: the comparison target is composed from
+      // the same constants production composes, over the same `visible` CTE.
+      Future<int> composed() async => (await _idsWith(
+        writer,
+        AttentionDismissibleSql.visibleWithSurface,
+        "v.surface = 'myWork' "
+        'AND ${AttentionDismissibleSql.liveObligation('v')} '
+        'AND ${AttentionDismissibleSql.primaryPlacement('v')}',
+      )).length;
+
+      expect(
+        (await query.surfaceSummary(accountId: _viewerId)).myDeskCount,
+        await composed(),
+      );
+      expect(
+        await composed(),
+        2,
+        reason:
+            'and the shared target is not vacuously zero: both obligations '
+            'are counted, and the optional event beside them is not',
+      );
+
+      await writer.execute(
+        Sql.named('''
+UPDATE public.notification_outbox
+SET settlement_kind = 'resolved', settled_at = now(), settled_by_user_id = @u
+WHERE id = 'Ne07a'
+'''),
+        parameters: {'u': _viewerId},
+      );
+      expect(
+        (await query.surfaceSummary(accountId: _viewerId)).myDeskCount,
+        await composed(),
+        reason: 'still one rule after settling half of it',
+      );
+      expect(await composed(), 1);
     });
 
     // -------------------------------------------------------------- M1
@@ -979,11 +1096,11 @@ WHERE id = 'Naxis04'
       for (final entry in AttentionAxisContract.load().axisCases) {
         final axisCase = AttentionAxisCase(entry);
         expect(
-          () => (axisCase.myDeskDot, axisCase.forYouDot),
+          () => (axisCase.myDeskDot, axisCase.forYouDot, axisCase.myDeskCount),
           returnsNormally,
           reason:
-              'a case without the §6 dots is a case the PG tests cannot drive '
-              'from the contract, which is how the loop reopens',
+              'a case without the §6 indicators is a case the PG tests cannot '
+              'drive from the contract, which is how the loop reopens',
         );
       }
     });

@@ -34,7 +34,7 @@ class MyWorkNavbarItem extends StatelessWidget {
     final l10n = L10n.of(context)!;
     return BlocSelector<HomeAttentionCubit, HomeAttentionState, _MyWorkNavBadgeView>(
       selector: (state) => (
-        obligationCount: state.surfaceNeedsYouTotal,
+        obligationCount: state.surfaceMyDeskCount,
         showObligationBadge: state.showRedesignMyWorkObligationBadge,
         showUnreadDot: state.showRedesignMyWorkUnreadDot,
       ),
