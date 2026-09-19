@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:logging/logging.dart';
 import 'package:test/test.dart';
 
@@ -406,6 +408,68 @@ void main() {
       }),
       throwsA(isA<ArgumentError>()),
     );
+  });
+
+  test('a cursor minted under the previous sort keys is refused', () async {
+    // U10c versioned the cursor because the pinned zone and the grouped feed
+    // stopped ordering by `GREATEST(latest_forward_at, max child created_at)`.
+    // A cursor from before that names a point on a line that no longer
+    // exists; resuming from it silently skips or repeats rows, so it is
+    // refused and the reader refetches the head.
+    final stale = base64Url
+        .encode(
+          utf8.encode(
+            jsonEncode({
+              'createdAt': '2026-08-10T09:00:00.000Z',
+              'id': 'N0',
+            }),
+          ),
+        )
+        .replaceAll('=', '');
+    final field = QueryAttention(
+      query: _FakeQuery(),
+    ).all.singleWhere((field) => field.name == 'attentionFeed');
+    await expectLater(
+      field.resolve!(null, {...auth, 'view': 'all', 'cursor': stale}),
+      throwsA(isA<ArgumentError>()),
+    );
+  });
+
+  test('a cursor of an unknown future generation is refused too', () async {
+    final future = base64Url
+        .encode(
+          utf8.encode(
+            jsonEncode({
+              'v': kAttentionCursorVersion + 1,
+              'createdAt': '2026-08-10T09:00:00.000Z',
+              'id': 'N0',
+            }),
+          ),
+        )
+        .replaceAll('=', '');
+    final field = QueryAttention(
+      query: _FakeQuery(),
+    ).all.singleWhere((field) => field.name == 'attentionFeed');
+    await expectLater(
+      field.resolve!(null, {...auth, 'view': 'all', 'cursor': future}),
+      throwsA(isA<ArgumentError>()),
+    );
+  });
+
+  test('a cursor the server minted itself round-trips', () async {
+    final query = _FakeQuery();
+    final all = QueryAttention(query: query).all;
+    final history = all.singleWhere(
+      (field) => field.name == 'attentionRequestHistory',
+    );
+    final result =
+        await history.resolve!(null, {...auth, 'beaconId': 'B1'}) as Map;
+    final cursor = result['nextCursor'] as String;
+
+    final feed = all.singleWhere((field) => field.name == 'attentionFeed');
+    await feed.resolve!(null, {...auth, 'view': 'all', 'cursor': cursor});
+    expect(query.cursor?.id, 'N0');
+    expect(query.cursor?.version, kAttentionCursorVersion);
   });
 
   test('attentionFeed rejects malformed cursors and unknown views', () async {
