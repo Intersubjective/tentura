@@ -9152,3 +9152,144 @@ totals-versus-membership mismatch Astra named as this process's blind spot, and 
 settle it across both surfaces at once.
 
 ---
+
+## U15R-b — provenance for the card (R4) · `inner (remediation)`
+
+**The defect reproduced exactly as described.** Base `c98999e69`. A fixture of four forwarders on one Request —
+the MeritRank-top one silent, the newest note on the sender outside the top three — and the payload
+`attention_provenance_data` returned was:
+
+```
+"senders": [Rank One (notePreview null), Rank Two, Rank Three]
+"strongestNotePreview": ""
+"totalDistinctSenders": 4
+```
+
+Rank Four's «Я знаю, кто это починит» appears nowhere in the document. `strongestNotePreview` is the silent
+top-ranked sender's absent note, so it is the empty string — the card's most important line, blank, while a
+recent note exists and is unreachable. D-171-5a is not a sort order U16 could have applied to this.
+
+That observation is itself a test (`the fourth-ranked sender really is outside the MR top three`), kept green
+rather than deleted, because every authorization case below would pass vacuously if the fixture ever ranked
+the note-bearing sender into the window.
+
+### Red
+
+```
+$ cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 15m -- \
+    dart test --tags pg -j 4 test/data/repository/attention_latest_note_forward_pg_test.dart
+00:03 +3 -7: Some tests failed.
+
+$ cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 10m -- \
+    flutter test test/features/inbox/inbox_provenance_latest_note_test.dart
+00:00 +0 -1: Some tests failed.
+  Error: The getter 'latestNoteForward' isn't defined for the type 'InboxProvenance'.
+```
+
+Three of the ten server cases pass on the old payload and are meant to: the two that state what the old
+contract does, and the tombstone case (the content wall already answered for the whole document).
+
+### The fix — additive on the one body
+
+m0190 replaces `attention_provenance_data` with the same function plus `latestNoteForward`, `null` when no
+forward carries a note. The key set is now four, not three; §0.1a's actual settlement — one shape, both
+callers, `InboxProvenance.parse` and `withoutViewer` unchanged — holds, because an unknown key is ignored by
+the parser and the three existing keys are byte-identical.
+
+The structural part is that the new selection reads from an `edges` CTE that the sender list and the count are
+now also built from. Blocked in either direction, cancelled, recipient-rejected, out-of-context and
+self-forwarded edges are excluded **once**, and the pinned forward inherits all of it. There is no second
+`WHERE` clause that a later change could forget to update — which was the specific risk in adding a second
+selection path to a query whose whole job is naming people.
+
+Ties break `created_at DESC, id DESC`. `bfe_active_unique` allows one live forward per (beacon, sender,
+recipient), so "the same sender speaks again" is not a state this table can hold; the case that a
+higher-ranked sender can still own the newest note is written as their own forward being later.
+
+### Proving the wall assertions are not vacuous
+
+`latest_note_edge` loosened in a throwaway copy to read `public.beacon_forward_edge` directly (keeping only
+beacon/recipient/self predicates):
+
+```
+00:03 +7 -3: Some tests failed.
+Failing tests:
+  a blocked sender never becomes the first slot, however recent the note
+  blocking is symmetric for the first slot too
+  the cancelled and rejected forwards the senders CTE drops stay dropped
+```
+
+Restored immediately; the committed migration is the tight one.
+
+### The Inbox delegate
+
+It still passes `p_exclude_blocked: false`. Issue #188 is a product decision and this unit does not touch it —
+but sharing one body means a later change could settle it silently, so `inbox_repository_test.dart` gains
+`the Inbox delegate keeps its blocked-sender behaviour (issue #188)`: a blocked forwarder is still listed,
+still counted, and is still the delegate's pinned forward. The case is probe-guarded on m0190 the way the
+m0100/m0103 cases are probe-guarded on theirs, following the delegation chain rather than the entry point's
+own definition.
+
+What the Inbox *returns* does gain the key, and that is deliberate: gating the field out for one caller would
+fork the shape, which is the one thing §0.1a forbids. The behaviour under the key — who is visible, who is
+counted — is unchanged for the Inbox.
+
+### Cross-layer meaning
+
+The reviewer's structural finding was that both layers can pass while testing different meanings of the same
+field. So the client assertion is not hand-built JSON. The PG case
+`the committed cross-layer fixture is this exact server response` captures the literal bytes
+`attention_provenance_data` returns for the four-sender fixture into
+`docs/contracts/attention-provenance-latest-note.json` — alongside the two contracts both layers already read
+— and fails if the committed file and the live response ever diverge. The client test parses that string and
+asserts the card's requirement against it: the pinned sender is one `senders[]` does not contain, and
+`strongestNotePreview` is empty. Regenerate with `TENTURA_REGENERATE_PROVENANCE_FIXTURE=1`, never by hand.
+
+### One accepted test changed, deliberately
+
+`attention_grouped_provenance_pg_test.dart`'s exact-key-set assertion now expects four keys. It is kept exact
+rather than relaxed to `containsAll`: what it defends is that the attention path does not grow a *different*
+document, and that property is unchanged.
+
+### Green
+
+```
+$ cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 40m -- dart test --tags pg -j 4 \
+    <13 attention PG suites> \
+    test/data/repository/attention_grouped_provenance_pg_test.dart \
+    test/data/repository/attention_grouped_provenance_authorization_pg_test.dart \
+    test/data/repository/attention_latest_note_forward_pg_test.dart
+00:37 +229: All tests passed!
+
+$ ../../scripts/run_with_test_cleanup.sh --timeout 15m -- dart test -j 4 \
+    test/data/repository/inbox_repository_test.dart \
+    test/data/database/m0103_provenance_test.dart test/data/database/m0100_dedup_test.dart
+00:01 +12: All tests passed!        # inbox_repository_test.dart alone: 00:01 +10
+
+$ ../../scripts/run_with_test_cleanup.sh --timeout 15m -- dart test -j 4 test/api/controllers/graphql/
+00:02 +164: All tests passed!
+
+$ cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 15m -- flutter test test/features/inbox/
+00:20 +149: All tests passed!
+
+$ ./scripts/check-custom-lints.sh packages/server
+total: 0 (baseline: 0)
+$ ./scripts/check-custom-lints.sh packages/client
+total: 30 (baseline: 30)
+```
+
+### Deliberately not done
+
+The card (U16) and the client clear/sweep work (U15R-c) are untouched; the client change is the entity carry
+and nothing else. `strongestNotePreview` is left in place rather than redefined — it is still the MR-strongest
+note and U17's Following/Rejected consumers still read it; the card simply stops being built on it. Nothing
+reads `latestNoteForward` yet, by design.
+
+### One thing the fixture exposed, named rather than fixed
+
+`senders[].notePreview` is the sender's **latest** forward note, but under `bfe_active_unique` a sender has at
+most one live forward, so "latest per sender" and "their forward" are the same row today. The `DISTINCT ON`
+in the `senders` CTE is therefore dead defence against a state the schema prevents. Harmless, and not this
+unit's to remove.
+
+---
