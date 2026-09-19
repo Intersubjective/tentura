@@ -179,6 +179,15 @@ final gqlTypeAttentionSurfaceSummary =
         field('needsYouTotal', graphQLInt.nonNullable()),
       ]);
 
+final gqlTypeAttentionReconcileResult =
+    GraphQLObjectType('AttentionReconcileResult', null)
+      ..fields.addAll([
+        field('createdObligationCount', graphQLInt.nonNullable()),
+        field('settledObligationCount', graphQLInt.nonNullable()),
+        field('unrepairableObligationCount', graphQLInt.nonNullable()),
+        field('summary', gqlTypeAttentionSurfaceSummary.nonNullable()),
+      ]);
+
 final gqlTypeAttentionClearSnapshot =
     GraphQLObjectType('AttentionClearSnapshot', null)
       ..fields.addAll([

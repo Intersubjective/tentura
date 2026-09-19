@@ -5,6 +5,7 @@ import 'package:tentura_server/domain/attention/attention_undo_models.dart';
 import 'package:tentura_server/domain/use_case/attention_clear_case.dart';
 import 'package:tentura_server/domain/use_case/attention_settlement_case.dart';
 import 'package:tentura_server/domain/use_case/attention_sweep_case.dart';
+import 'package:tentura_server/domain/use_case/obligation_reconciliation_case.dart';
 
 import '../custom_types.dart';
 import '../gql_nodel_base.dart';
@@ -17,15 +18,21 @@ final class MutationAttention extends GqlNodeBase {
     AttentionSettlementCase? settlement,
     AttentionClearCase? clear,
     AttentionSweepCase? sweep,
+    ObligationReconciliationRunner? reconciliation,
   }) : _ack = ack ?? GetIt.I<AttentionAckPort>(),
        _settlementOverride = settlement,
        _clearOverride = clear,
-       _sweepOverride = sweep;
+       _sweepOverride = sweep,
+       _reconciliationOverride = reconciliation;
 
   final AttentionAckPort _ack;
   final AttentionSettlementCase? _settlementOverride;
   final AttentionClearCase? _clearOverride;
   final AttentionSweepCase? _sweepOverride;
+  final ObligationReconciliationRunner? _reconciliationOverride;
+
+  ObligationReconciliationRunner get _reconciliation =>
+      _reconciliationOverride ?? GetIt.I<ObligationReconciliationCase>();
 
   AttentionSweepCase get _sweep =>
       _sweepOverride ?? GetIt.I<AttentionSweepCase>();
@@ -45,7 +52,41 @@ final class MutationAttention extends GqlNodeBase {
     attentionClear,
     attentionDismissAll,
     attentionUndo,
+    attentionReconcile,
   ];
+
+  /// *Reset counters* — E21 / D15, as an API.
+  ///
+  /// Invalidation and repair, never erasure. It recomputes obligation state
+  /// from the source of truth and returns the authoritative summary, which may
+  /// legitimately be non-zero: the answer is what the account actually owes,
+  /// not a promise of an empty desk.
+  ///
+  /// It takes **no arguments at all**, deliberately. The account is the `sub`
+  /// of the caller's credentials, so there is no place to put a foreign
+  /// account id — the request cannot express one, rather than being refused
+  /// after the fact.
+  GraphQLObjectField<dynamic, dynamic> get attentionReconcile =>
+      GraphQLObjectField(
+        'attentionReconcile',
+        gqlTypeAttentionReconcileResult.nonNullable(),
+        resolve: (_, args) async {
+          final accountId = getCredentials(args).sub;
+          final result = await _reconciliation.reconcileAccount(
+            accountId: accountId,
+          );
+          return {
+            'createdObligationCount': result.createdObligationCount,
+            'settledObligationCount': result.settledObligationCount,
+            'unrepairableObligationCount': result.unrepairableObligationCount,
+            'summary': {
+              'activityUnreadTotal': result.summary.activityUnreadTotal,
+              'myWorkUnreadTotal': result.summary.myWorkUnreadTotal,
+              'needsYouTotal': result.summary.needsYouTotal,
+            },
+          };
+        },
+      );
 
   /// *Dismiss all* — owner decision A, as an API.
   ///
