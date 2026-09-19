@@ -4889,3 +4889,99 @@ until U16. Pre-existing untracked and modified files belong to other people and 
 STATUS: complete
 
 ---
+
+## UNIT U09b — the sweep · VERIFY (2026-09-19)
+
+**Layer:** verify (read-only). **Base:** `1c25b1ade`. **Commits:** `ef85003aa` · `8b1046d7d` · `2b03205d9` ·
+`f51adfbba`.
+
+### Execution
+
+Ran sweep + coupled suites + GraphQL locally:
+
+- PG (`--tags pg -j 1`): `attention_dismiss_sweep_pg_test.dart` (19), `attention_clear_operation_pg_test.dart`
+  (15), `attention_dismissible_predicate_pg_test.dart` (12), `attention_outcome_dismissible_pg_test.dart` (21,
+  incl. m0185), `attention_request_state_writer_pg_test.dart` (7), `attention_activity_stream_pg_test.dart`
+  (22) → **95 passed**
+- GraphQL: `attention_graphql_test.dart` → **26 passed** (incl. 4 `attentionDismissAll` cases)
+
+Re-read `_eligibleNow` UNION branches: both alias `member_id`; `captureSql` already did. No other sweep SQL
+UNION re-check found with first-branch-only aliasing. `_capture` still uses receipt-only `ON CONFLICT` (outcome
+capture relies on single-pass insert + partial unique index — same as U09a tests).
+
+**Verifier verdict:** pass.
+
+---
+
+## UNIT U09b — remediation · INNER (2026-09-19)
+
+**Layer:** inner (remediation). `UNIT_BASE` `f51adfbba`. Two gaps from the U09b verify pass, tests first.
+
+### GAP 1 — the asymmetric capture insert: **not a real defect**, and now symmetric anyway
+
+**Observed outcome: it is already safe, by a transaction boundary I can name.** The header insert and `_capture`
+share **one** `_database.transaction`. Postgres' `ON CONFLICT DO NOTHING` is a speculative insertion: on a
+conflicting *uncommitted* tuple it waits on the inserting transaction's xid rather than returning immediately.
+So a twin carrying the same operation id blocks until the winner has committed header **and** membership, then
+sees the conflict, gets `inserted == 0`, and returns `false` — never reaching `_capture` at all. The verify
+pass's "safe today because capture runs once per operation" is right; what makes it true is that boundary, not
+luck.
+
+New test `two concurrent first calls over an outcome-only surface agree` is the sharpest probe available: an
+outcome-only surface (two decided inbox items, zero receipts), two `TenturaDb` connections, `Future.wait`, both
+first-calls. On real code it passes. To show it is not a test that cannot fail, the gate was mutated
+(`if (inserted == 0)` → `if (inserted == -1)`, so both callers capture):
+
+```
+# mutant, before the fix — the asymmetry is real if capture ever runs twice
+dart test --tags pg -j 1 attention_dismiss_sweep_pg_test.dart -n "outcome-only surface"
+  00:02 +0 -1: Some tests failed.
+  Severity.error 23505: duplicate key value violates unique constraint
+    "attention_clear_operation_member__outcome_once"
+    Key (operation_id, outcome_beacon_id)=(OPu09boutconc, Bu09bfwd1) already exists
+    at AttentionSweepRepository._capture (:502)
+
+# same mutant, after adding the outcome ON CONFLICT
+  00:02 +1: All tests passed!
+```
+
+So: the receipt branch absorbed a duplicate, the outcome branch threw, exactly as the brief predicted — under a
+condition the current code does not create. The `ON CONFLICT` was added anyway, because it costs nothing and an
+insert that is idempotent on one axis and throws on the other is a trap for whoever moves that transaction
+boundary. The conflict target is per-axis because m0186 gives each axis its own *partial* unique index; one
+clause cannot cover both.
+
+### GAP 2 — the coexistence assertion
+
+`an unanswered forward survives a bounded sweep and its resume` — three receipts plus a decided outcome, a
+`maxBatches: 1` call (asserted `partial`, pending non-empty), then a resume on the same operation id to
+`complete` (`applied = 4`). At **each** of before / bounded / resumed it asserts the unanswered forward
+`Bu09bfwd3` has `tombstone_dismissed_at` NULL, is still pinned (`inbox_item.status = 0`, not tombstoned), and is
+not in the operation's membership. The guarantee was previously inferred from "it is never captured"; it is now
+asserted along the one path — stop halfway, pick up later — that no other test walks.
+
+### Tests actually run
+
+```
+dart test --tags pg -j 1 attention_dismiss_sweep_pg_test.dart
+  00:04 +21: All tests passed!     (was +19; both new tests green on unmutated code)
+
+# TEST_CMD — sweep + U08 clear + U09a predicate/outcome
+dart test --tags pg -j 1 attention_dismiss_sweep_pg_test.dart \
+  attention_clear_operation_pg_test.dart attention_dismissible_predicate_pg_test.dart \
+  attention_outcome_dismissible_pg_test.dart
+  00:15 +68: All tests passed!
+./scripts/check-custom-lints.sh packages/server   total: 0 (baseline: 0) — OK
+```
+
+All through `scripts/run_with_test_cleanup.sh`. Full server suite not run: the overseer owns it.
+
+### Out of scope, confirmed untouched
+
+No undo, no `undo_deadline` (U09c). No client code, no contract JSON, no `attention_repository.dart`
+projection, no migration (m0186 already has both partial indexes — this only names the second one at the call
+site).
+
+STATUS: complete
+
+---

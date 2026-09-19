@@ -499,14 +499,24 @@ UPDATE public.inbox_item
             row.read<String>('kind') ==
             AttentionSweepMemberKind.receipt.wireName;
         final memberId = row.read<String>('member_id');
+        final conflictTarget = isReceipt
+            ? '(operation_id, receipt_id) WHERE receipt_id IS NOT NULL'
+            : '(operation_id, outcome_beacon_id) '
+                  'WHERE outcome_beacon_id IS NOT NULL';
+        // m0186 gives each axis its own partial unique index, so the
+        // conflict target has to name the axis this row is on. Both branches
+        // absorb a duplicate identically — capture cannot run twice today
+        // (the header insert and this loop share one transaction, so a twin's
+        // `ON CONFLICT DO NOTHING` waits on the winner and then captures
+        // nothing), but an insert that is idempotent on one axis and throws
+        // on the other is a trap for whoever moves that boundary.
         await _database.customUpdate(
-          r'''
+          '''
 INSERT INTO public.attention_clear_operation_member
   (operation_id, receipt_id, outcome_beacon_id, beacon_id,
    outcome_generation, decision_revision, state)
-VALUES ($1, $2, $3, $4, $5, $6, 'pending')
-ON CONFLICT (operation_id, receipt_id)
-  WHERE receipt_id IS NOT NULL DO NOTHING
+VALUES (\$1, \$2, \$3, \$4, \$5, \$6, 'pending')
+ON CONFLICT $conflictTarget DO NOTHING
 ''',
           variables: [
             Variable<String>(operationId),

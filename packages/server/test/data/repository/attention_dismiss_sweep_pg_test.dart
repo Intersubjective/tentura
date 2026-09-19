@@ -725,6 +725,115 @@ VALUES ('OPu09bstranger', @account, 'activity', 'pending', 0, 0, 0)
         expect(header, ['complete', 5, 0, 0]);
       },
     );
+
+    test(
+      'two concurrent first calls over an outcome-only surface agree',
+      () async {
+        // The sharpest probe of the capture insert's asymmetry: no receipt
+        // member exists, so the receipt branch's `ON CONFLICT` cannot absorb
+        // a duplicate on anyone's behalf. If both callers could capture, the
+        // second outcome insert would hit
+        // `attention_clear_operation_member__outcome_once` and error.
+        await _insertInboxItem(writer, beaconId: _watchedBeaconId, status: 1);
+        await _insertInboxItem(writer, beaconId: _rejectedBeaconId, status: 2);
+
+        final rival = openDisposablePgDatabase(target);
+        addTearDown(rival.close);
+        final rivalSweep = AttentionSweepCase(AttentionSweepRepository(rival));
+
+        final results = await Future.wait([
+          sweep.dismissAll(
+            accountId: _viewerId,
+            operationId: 'OPu09boutconc',
+            batchSize: 1,
+          ),
+          rivalSweep.dismissAll(
+            accountId: _viewerId,
+            operationId: 'OPu09boutconc',
+            batchSize: 1,
+          ),
+        ]);
+
+        expect(
+          results.first.appliedOutcomeBeaconIds,
+          [_watchedBeaconId, _rejectedBeaconId],
+        );
+        expect(
+          results.last.appliedOutcomeBeaconIds,
+          results.first.appliedOutcomeBeaconIds,
+        );
+        expect(results.first.appliedReceiptIds, isEmpty);
+        expect(results.first.failed, isEmpty);
+        expect(results.last.failed, isEmpty);
+        expect(results.first.status, AttentionClearStatus.complete);
+        expect(results.last.status, AttentionClearStatus.complete);
+        expect(await _countOperations(writer, 'OPu09boutconc'), 1);
+        expect(
+          await _memberIds(writer, 'OPu09boutconc'),
+          {_watchedBeaconId, _rejectedBeaconId},
+          reason: 'capture happens once however many callers arrive first',
+        );
+      },
+    );
+
+    test(
+      'an unanswered forward survives a bounded sweep and its resume',
+      () async {
+        // Owner decision A across the one path no other test walks: a sweep
+        // that stops halfway and is picked up later. The guarantee follows
+        // from the forward never being captured, but this plan asserts the
+        // guarantee rather than inferring it.
+        for (var index = 0; index < 3; index++) {
+          await _insertReceipt(
+            writer,
+            id: 'Nu09bresume$index',
+            beaconId: _forwardedBeaconIds.first,
+          );
+        }
+        await _insertInboxItem(writer, beaconId: _rejectedBeaconId, status: 2);
+
+        const pinnedBeaconId = 'Bu09bfwd3';
+        Future<void> expectPinnedUntouched(String stage) async {
+          expect(
+            await _tombstoneDismissedAt(writer, pinnedBeaconId),
+            isNull,
+            reason: 'the unanswered forward is still unanswered ($stage)',
+          );
+          expect(
+            await _isPinned(writer, pinnedBeaconId),
+            isTrue,
+            reason: 'the unanswered forward is still pinned ($stage)',
+          );
+          expect(
+            await _memberIds(writer, 'OPu09bresume'),
+            isNot(contains(pinnedBeaconId)),
+            reason: 'it was never a member ($stage)',
+          );
+        }
+
+        await expectPinnedUntouched('before');
+
+        final bounded = await sweep.dismissAll(
+          accountId: _viewerId,
+          operationId: 'OPu09bresume',
+          batchSize: 1,
+          maxBatches: 1,
+        );
+        expect(bounded.status, AttentionClearStatus.partial);
+        expect(bounded.pending, isNotEmpty);
+        await expectPinnedUntouched('bounded');
+
+        final resumed = await sweep.dismissAll(
+          accountId: _viewerId,
+          operationId: 'OPu09bresume',
+          batchSize: 1,
+        );
+        expect(resumed.status, AttentionClearStatus.complete);
+        expect(resumed.pending, isEmpty);
+        expect(resumed.appliedCount, 4);
+        await expectPinnedUntouched('resumed');
+      },
+    );
   }, skip: skipReason);
 }
 
@@ -897,6 +1006,20 @@ INSERT INTO public.notification_outbox (
     'threadKey': requiresAction ? 'v1|needsMe|$id|$_viewerId' : null,
   },
 );
+
+/// Still awaiting the viewer's answer, which is what keeps it pinned: an
+/// undecided forward the viewer may read.
+Future<bool> _isPinned(Connection writer, String beaconId) async {
+  final rows = await writer.execute(
+    Sql.named(
+      'SELECT status FROM public.inbox_item '
+      'WHERE user_id = @userId AND beacon_id = @beaconId '
+      '  AND tombstone_dismissed_at IS NULL',
+    ),
+    parameters: {'userId': _viewerId, 'beaconId': beaconId},
+  );
+  return rows.length == 1 && rows.first.first == 0;
+}
 
 Future<Object?> _tombstoneDismissedAt(
   Connection writer,
