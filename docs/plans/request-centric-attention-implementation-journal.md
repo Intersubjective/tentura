@@ -9964,3 +9964,143 @@ target of 2 where the true value was 1. That is the same defect shape as R10, as
 own vacuous placement test: **an assertion true for a reason other than the one it claims.** Four instances in
 one remediation group. The pattern that catches it is cheap and should be the default for the remaining units:
 assert the target's own value, not only its agreement with the thing under test.
+
+---
+
+## scout — U16a · the card itself (read-only) · 2026-09-19
+
+**Layer:** scout. **Branch:** `feature/events_refac`. **Scope:** `RequestAttentionCard` (issue-171 §6, §9) +
+`TombstoneRow` (§8) only — **no** `activity_stream_view.dart`, `activity_offers_cubit.dart`, `inbox_cubit.dart`,
+**no** retirement of `ActivityOfferCard` / `ActivityForwardRow` / goldens (U16c). **UNIT_BASE:** journal tip
+`manager — U15R-e accepted`.
+
+### Live inventory (pre-implement)
+
+| Artifact | Status |
+| --- | --- |
+| `request_attention_card.dart` | **missing** — greenfield |
+| `tombstone_row.dart` | **missing** — greenfield |
+| `AttentionMiniCard` + `AttentionMiniCardKind.forward` | **U14a** — forward line, left-aligned quote, chips under note |
+| `TenturaRelationChip` | **U14a** — `attentionRelationHelping`; following label reuses `inboxWatching` |
+| `InboxProvenance.latestNoteForward` | **U15R-b** — parsed; `withoutViewer` drops self from pinned slot |
+| `AttentionBlockOverflowPolicy.timeline` | **U14b** — `activity_event_subcard_block.dart:17–24`, default `timeline`; card must pass **`timeline`**, not `paginate` (stream today uses `paginate` at `activity_stream_view.dart:928` — **U16b** fixes wiring) |
+| Chip height ceiling | **U14a** — `attention_mini_card_test.dart` `kMiniCardCeiling360Scale13 = 224`; journal U14a measured **251 dp** with a **fourth** long RU chip — **cap/coalesce not implemented** in `ForwardCapabilityChips` yet |
+| `_SenderNoteBlock` | **only** in `inbox_card_forwards_fold.dart:260+` — right-aligned italic note; port into forward mini-card path in U16a; delete home U17 |
+| Tombstone copy | **l10n** `activityForwardOutcome*` already matches §8 table |
+| `ActivityOfferBoundedShell` × on pinned | **live** — U16a card must **not** reproduce; decline via ⋮ + `showInboxDismissDialog` / `rejection_dialog.dart` |
+
+### Constraints the implementer must not drop
+
+1. **timeline overflow** — grouped body uses `ActivityEventSubcardBlock(overflowPolicy: AttentionBlockOverflowPolicy.timeline, onOpenTimeline: …)`; «ещё N» must call `onOpenTimeline`, never expand (`moreKey`, clear_test in `activity_event_subcard_block_clear_test.dart`).
+2. **latestNoteForward** — first collapsed mini-card slot from `InboxProvenance.latestNoteForward` (identity + `forwardedAt` + `reasonSlugs` + `notePreview`), **not** `senders.first` / MR sort; fixture: `inbox_provenance_latest_note_test.dart` + server capture in that file.
+3. **Chip cap** — enforce before render (cap 3 slugs or coalesce); extend `attention_mini_card_test.dart` height test with 4 long-RU slugs; assert `find.byType(AttentionMiniCard)` height ≤ 224 **and** widget present.
+4. **_SenderNoteBlock port** — forward body = `AttentionMiniCardKind.forward` + `quotedBody` + capped `capabilitySlugs`; event line via `attentionMiniCardForwarded`; no header chips.
+
+### Spec vs live gaps (risks)
+
+- **`headlineTreatment` / `coalescible` / `selfAuthored`:** enforced in `updates_event_contract_test.dart` on the **contract YAML**, not yet on `AttentionReceipt` fields — slot ordering/coalescing must parse `presentationPayloadJson` (add small helper) or accept test doubles with explicit flags until server payloads land.
+- **«Очистить всё»:** no `.arb` key found — add l10n values (keys new), run `flutter gen-l10n`; footer wires `onClearAll` callback (E25 snapshot — parent supplies in U16b).
+- **Pinned body:** `ActivityOfferCard` still shows **no** `notePreview` — U16a must render provenance forwards in the card body even though stream still uses the old card until U16b/U16c.
+- **Tombstone ×:** `ActivityForwardRow` has **no** row-level dismiss × today — `TombstoneRow` is net-new behaviour per A1/A2.
+- **ListView / 2× text:** height tests must `find` the keyed card shell and count mini-cards, not only `pumpAndSettle` without overflow.
+
+### Out of scope (explicit)
+
+U16b stream integration · U16c Dismiss all chrome + widget retirements · `pubspec.yaml` / `web/index.html` bump until user-visible ship (card unused until wired).
+
+## U16a — the card itself · INNER (2026-09-19)
+
+**Layer:** inner. **Branch:** `feature/events_refac`. **UNIT_BASE:** `d84777c7c`. **Scope as executed:** the
+classification mirror, the chip cap, `TombstoneRow` and `RequestAttentionCard`. No stream integration, no
+chrome, no retirements — the stream still renders `ActivityOfferCard` / `ActivityForwardRow`, as expected.
+
+### Correction 1 — outcome, stated explicitly
+
+The manager was right and the scout's step 2 was not implementable. `headlineTreatment` and `coalescible`
+appear 68 times in `docs/contracts/updates-event-contract.json` and **zero times** in `packages/server/lib`;
+`AttentionPolicy._presentationPayload` writes `{'eventType': …}` plus ids and a title, and nothing else.
+Parsing the two flags out of `presentation_payload` would have yielded the default on every row.
+
+Built instead as a client mirror, the same arrangement the server has for `placement`:
+`packages/client/lib/domain/attention/attention_event_classification.dart` maps `eventType` →
+`(headlineTreatment, coalescible)` for all 30 declared types, and
+`test/features/inbox/attention_event_classification_test.dart` **reads the contract file** and asserts the two
+agree for **every declared variant** (34 across the 30 types), that the mirror invents nothing, and — the part
+that makes the key legitimate — that **no event type has variants that disagree** on either field. The lookup
+is keyed by `eventType` alone precisely because that holds today; the moment the contract splits one, the test
+fails rather than the mirror answering with one variant's values.
+
+Unknown / missing event type takes `kUnknownAttentionEventClassification`, written explicitly:
+`coalescible: false` (coalescing is the card's only lossy operation — refusing to fold an unidentified row
+costs a line, folding one that carries a note destroys the note) and `headlineTreatment: beacon` (For You
+groups by Request, so a row that reaches a card is under that Request's headline by construction).
+
+This turned out to be **small** — one file, 30 entries, one test — so it stayed inside U16a rather than
+becoming its own unit.
+
+### The four constraints
+
+1. **`timeline` overflow** — the card's event body passes `overflowPolicy: AttentionBlockOverflowPolicy.timeline`
+   and `onOpenTimeline`. Asserted by tapping `ActivityEventSubcardBlock.moreKey` and checking the card's height
+   is **unchanged**; `loadMoreKey` is asserted absent. `activity_stream_view.dart` untouched.
+2. **`latestNoteForward`** — the first slot is `provenance.latestNoteForward`, never `senders.first`. The test
+   fixture deliberately puts a *different* sender at the top of the MR-ranked window and a *newer* note-less
+   event in the preview; the mutation that switches to `senders.first` fails three tests.
+3. **Chip cap** — `kMiniCardCapabilityChipCap = 3` in the mini-card, with the remainder counted in a `+N`
+   rather than dropped. Measured: four long RU slugs uncapped = **251.0 dp** against
+   `kMiniCardCeiling360Scale13 = 224`, reproducing the U14a figure exactly; capped it fits.
+4. **`_SenderNoteBlock` port** — already landed in U14a's `AttentionMiniCard` (`_QuotedBody`: avatar, name in
+   the event line, left-aligned note behind the rule, chips under it). U16a consumes it and adds the cap.
+   `inbox_card_forwards_fold.dart` is untouched; U17 deletes it.
+
+### Two layout defects the tests found, both of the "silently unbuilt" family
+
+- **`TombstoneRow`** header row overflowed by **80 px** at 360 dp / 2× text, because
+  `compactRelativeTimeAgo`'s RU day form is not compact.
+- **`AttentionMiniCard`** event-line row overflowed by **32 px** at 360 dp / 2× text inside a card, same cause.
+
+Measured the culprit rather than guessed it: «92 дн. назад» is **156 dp at 1×**, 203 at 1.3×, **312 at 2×**.
+The age is clamped to `kMiniCardAgeWidthShare = 0.7` of its row — above the 1× and 1.3× widths, below the 2×
+width — so the clamp engages exactly where the row would break and **no golden moved**. The tombstone's
+footer meta equivalent («Хронология» + «Очистить всё» overflowed 360 dp by 44 px) became a `Wrap`.
+
+**Finding worth carrying forward:** the RU age copy is the real problem — §7 asks for «2 ч» / «40 м», and
+`relativeTimeDaysAgo` = «{days} дн. назад» is half the width of a mini-card line. Not changed here: the key is
+shared with other surfaces and their goldens. Flagged for the copy sweep.
+
+### Goldens
+
+**None changed.** The mini-card golden fixture carries two chips (under the cap of three) and an age that the
+0.7 clamp never binds, so both this unit's visual changes are invisible to it. Verified by running
+`attention_mini_card_golden_test.dart` under the un-capped and un-clamped mutations — it failed there, which is
+what makes "unchanged" evidence rather than an accident.
+
+### Scope cut, stated
+
+**Same-kind coalescing of non-forward events (E11, «3 новых сообщения») is not implemented.** The structural
+half is there — `coalescible` is read from the mirror and note-bearing forwards are excluded from folding —
+but the copy half needs a per-kind plural string for each of 30 event types, and a generic "N events" line
+would destroy more than it saves. The forward half of §7.3, which the spec singles out, **is** implemented:
+note-less forwards fold into «ещё N переслали» with `CompactForwarderAvatars`, note-bearing ones never do.
+
+### Mutation evidence
+
+| mutation | tests that failed |
+| --- | --- |
+| `relayReceived.coalescible` flipped to `true` in the mirror | contract agreement + payload classification |
+| `staleReminder` removed from the mirror | mirror coverage + variant agreement |
+| chip cap removed (`take(3)` → all) | chip count; with the count assertions removed, the height assertion alone failed at **251 vs 224** |
+| tombstone «Вернуть» rendered for every outcome | outcome-specific restore |
+| tombstone title unquoted | header |
+| tombstone × shrunk to 24 dp | ≥48 dp target |
+| tombstone age un-clamped | 2× list layout (80 px overflow) |
+| pinned slot ← `senders.first` | A7 note guard, chip placement, D-171-5a, 2× layout |
+| note-bearing forwards allowed to coalesce | K6 — **survived the first fixture**; the fixture's only note-bearing sender *was* the pinned one, so the assertion was true for the wrong reason. Fixture gained a second note-bearing, non-pinned sender; the mutation then failed |
+| `timeline` → `paginate` | D-171-5b |
+| relation chip on the pinned variant | **survived the first fixture** — the pinned card was built with `relation: none`, so "no chip" was vacuous. Fixture now passes `relation: helping`; the mutation then failed |
+| `Очистить всё` unconditional | empty-state footer |
+| headline treatment ignored | §12.10 user / system headlines |
+| forward mini-cards given an `onDismiss` | "the pinned card has no ×" |
+
+Two assertions were true for a reason other than the one they claimed, exactly the failure shape the previous
+group was judged on. Both are recorded above rather than quietly fixed.
