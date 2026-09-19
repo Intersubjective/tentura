@@ -2297,3 +2297,91 @@ the **whole server suite**, not against a named list of suites. A named list onl
 thought of.
 
 ---
+
+## UNIT U05b — Channel split · VERIFY (2026-09-19)
+
+**UNIT_BASE:** `f583ac43c`. **Unit range:** `cc1622368`…`af0315cf3` (excludes overseer journal/untrack commits).
+
+### Pre-existing push cardinality (overseer premise)
+
+**Confirmed.** At `f583ac43c`, dispatch used a plain
+`INSERT INTO attention_channel_delivery` per occurrence×recipient (no collapse SQL). With
+`UNIQUE (occurrence_id, account_id)` on the delivery table, two occurrences in one collapse family produced
+**two pending jobs** — verifier reproduced by checking out pre-U05b `attention_dispatch_repository.dart` only
+and running `attention_channel_collapse_pg_test.dart`: **Expected length 1, Actual 2**. U05a did not change that
+path. The 2→1 reduction is **new intended behaviour** (D03 channel aggregation), not preservation of prior
+end-to-end push volume.
+
+### Independent audit runs
+
+| Check | Result |
+|---|---|
+| Red test before `cd2d8ed10` | Channel collapse PG test fails with pre-U05b dispatch (2 jobs) — **right reason** |
+| `room_now_line` at UNIT_BASE assertion | Old test on **current** code: `Expected: 1 Actual: 2` outbox receipts — **U05a casualty**, not U05b regression |
+| U05b PG suites at HEAD | `attention_channel_collapse_pg_test.dart` + `attention_email_marking_pg_test.dart` → **+8**, 0 skipped |
+| Retention | `attention_retention_pg_test.dart` → **+2**, live-obligation case still passes |
+| `ON CONFLICT` on outbox in dispatch | **Absent** (comment only) |
+| `logical_task_key` / `lifecycle_generation` in U05b diff | **None** in production paths |
+
+### Payload / receipt survival
+
+While a job is `pending` or `leased`, `deleteSettledOlderThan` excludes rows referenced by
+`attention_channel_delivery.receipt_id` (FK `ON DELETE RESTRICT` on the delivery row). Coalesce repoints the
+job to the **newest** receipt before the worker runs; the newest row was just inserted and cannot yet be
+retention-eligible (`seen_at` still null). **No verifier-constructed state** where the worker's `receiptId` is
+missing at handoff time under normal dispatch. **Residual (documented, not new):** non-atomic coalesce can
+briefly leave two pending jobs for one family; `claimDue` throttle bounds user-visible duplicate push — same
+class as pre-U05b concurrency.
+
+### Email retarget
+
+`markEmailedByChannelCollapseKey(accountId, channelCollapseKey)` executed in PG:
+marks both receipts of family A, not family B / other recipient / foreign-account row with same dedup string
+(`attention_email_marking_pg_test.dart`). `dedup_key` on outbox remains collapse-derived
+(`recipient|attention-v1|collapseKey`).
+
+### Stash incident
+
+`git stash list` unchanged in structure (top entry still `wip-visibility-before-attention-convergence`, not
+the three-file incident). No stash reflog entry for a transient `keep-index` pop (expected if immediately
+popped). Worktree still shows **pre-existing** `.serena/project.yml` and `force_directed_graphview/**`
+modified; secrets remain untracked — **no evidence of loss** from the disclosed incident.
+
+**STATUS:** pass
+
+---
+
+### Manager verdict — U05b · **ACCEPTED** (hard; inner Opus-low ✓ / verify pass, no scout by design, no finisher)
+
+Overseer's own run: **full server suite** — `dart test --exclude-tags pg` → **1660 passed**;
+`dart test --tags pg -j 1` → **825 passed, 24 skipped** (all pre-existing `_skipHistoricalMigrationCoverage`).
+This is the widened discipline adopted after the `room_now_line` miss: a unit that changes a write path is
+verified against the whole suite, never a named list.
+
+Commits `cc1622368` · `cd2d8ed10` · `200c57d37` · `8f9f68d6d` · `af0315cf3` · `879738845`.
+
+**Both contested factual claims were settled by execution, not argument.**
+- Reverting dispatch to `f583ac43c` produced **two** delivery jobs for a two-occurrence collapse family,
+  confirming that two pushes were the behaviour *before* this unit — so the adjudication that 2→1 is an
+  intended improvement rests on a verified premise, not on the inner layer's say-so.
+- The old `room_now_line` assertion fails on current code with `Expected: 1, Actual: 2` receipts, confirming it
+  was already broken at UNIT_BASE and that the rewrite tracks intended U05a/U05b behaviour rather than hiding a
+  U05b regression.
+
+Also verified: the coalesced payload's receipt cannot be deleted at handoff (FK plus retention's
+`NOT EXISTS (pending|leased delivery)` guard), and the verifier could not construct a "gone receipt at worker
+fire" state; email marking hits exactly the intended family and account and no other; U06a's obligation guard
+still holds; no `ON CONFLICT (dedup_key)` returned to dispatch; no U05c work leaked in.
+
+**Two residuals carried forward, neither blocking:**
+1. **No test counts actual sends.** Cardinality is proven at the delivery-job and marking layers, not end to end
+   as "one email arrived". U19's acceptance journeys should close that, since it is exactly the kind of gap a
+   unit test cannot see.
+2. **Coalescing is not atomic** — concurrent dispatch can briefly create two pending jobs, bounded afterwards by
+   `claimDue`. Pre-existing concurrency class, documented in code. If a duplicate push is ever reported, start
+   here.
+
+**Stash incident closed:** the stack is intact, no entry belonging to anyone else was disturbed, and the three
+pre-existing modified files are byte-identical to the snapshot.
+
+---
