@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:get_it/get_it.dart';
 
+import 'package:tentura/domain/attention/entity/attention_clear.dart';
+import 'package:tentura/domain/attention/entity/my_work_beacon_attention.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
@@ -472,6 +474,9 @@ class MyWorkCubit extends Cubit<MyWorkState> {
         current.liveObligations.any((r) => r.id == receiptId)) {
       return;
     }
+    // R6 — kept so the removal stays reversible. Everything below has to be
+    // able to put this row back: a refusal is an answer, not a delay.
+    final previous = current;
     if (current != null) {
       emit(
         state.copyWith(
@@ -489,12 +494,63 @@ class MyWorkCubit extends Cubit<MyWorkState> {
         ),
       );
     }
+    final AttentionClearResult result;
     try {
-      await _myWorkCase.clearReceipt(receiptId);
+      result = await _myWorkCase.clearReceipt(receiptId);
     } catch (_) {
+      _restoreAttention(beaconId, previous);
       await fetch(showLoading: false);
       rethrow;
     }
+    if (isClosed) return;
+    if (!result.appliedReceiptIds.contains(receiptId)) {
+      // `skipped`, `denied`, `stale` — or simply a receipt the server did
+      // not touch. None of them is a clear.
+      _restoreAttention(beaconId, previous);
+      return;
+    }
+    // Applied. The client holds one preview, not the list, so it cannot know
+    // what the card shows next — only the server can say. Re-read this one
+    // Request and adopt the answer whole, rather than leaving a card that
+    // has a total and nothing to render (the derivation zeroes exactly that).
+    await _adoptServerAttention(beaconId, fallback: previous);
+  }
+
+  void _restoreAttention(String beaconId, MyWorkBeaconAttention? previous) {
+    if (isClosed || previous == null) return;
+    emit(
+      state.copyWith(
+        attentionByBeacon: {
+          ...state.attentionByBeacon,
+          beaconId: previous,
+        },
+      ),
+    );
+  }
+
+  Future<void> _adoptServerAttention(
+    String beaconId, {
+    required MyWorkBeaconAttention? fallback,
+  }) async {
+    final Map<String, MyWorkBeaconAttention> fresh;
+    try {
+      fresh = await _myWorkCase.loadMyWorkAttention({beaconId});
+    } catch (_) {
+      // The clear did land; only the re-read failed. Leave the optimistic
+      // projection in place and let the next refresh reconcile it.
+      return;
+    }
+    if (isClosed) return;
+    final row = fresh[beaconId];
+    if (row == null) return;
+    emit(
+      state.copyWith(
+        attentionByBeacon: {
+          ...state.attentionByBeacon,
+          beaconId: row,
+        },
+      ),
+    );
   }
 
   Future<void> openedBeacon(String beaconId) async {

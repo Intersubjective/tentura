@@ -4,6 +4,7 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/service/bookkeeping_refresh_signal.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
+import 'package:tentura/domain/attention/entity/attention_clear.dart';
 import 'package:tentura/domain/attention/entity/my_work_beacon_attention.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
@@ -211,7 +212,11 @@ final class MyWorkCase extends UseCaseBase {
   /// There is no settlement counterpart: generic obligation settlement was
   /// removed in U07b and the server refuses it. Obligations end only through
   /// their source transitions (D04).
-  Future<void> clearReceipt(String receiptId) =>
+  ///
+  /// R6 — the result is **returned**. Dropping it on the floor made a
+  /// `skipped` and a `denied` answer look exactly like success, so a refusal
+  /// left the row hidden and the card dark over live attention.
+  Future<AttentionClearResult> clearReceipt(String receiptId) =>
       _attentionCase.clearReceipt(receiptId: receiptId);
 
   /// A Request whose surface or state changed and has to be re-read (U13c).

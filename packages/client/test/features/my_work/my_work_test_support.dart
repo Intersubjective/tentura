@@ -61,6 +61,22 @@ class StubAttentionRepository extends AttentionRepositoryFake {
   final clearSnapshotCalls = <String>[];
   final clearCalls = <String>[];
 
+  /// What the server answers a clear with. The default is the honest one: a
+  /// `complete` that applied the receipt it was given. A test that wants a
+  /// refusal says so (U15R-c/R6).
+  AttentionClearResult Function(String operationId, String? receiptId)?
+      clearResultBuilder;
+
+  /// Fails the clear command outright.
+  Object? clearError;
+
+  /// The projection the server returns **after** a successful clear, when the
+  /// test needs to say what the card previews next. Left null, the stub
+  /// models the server itself: the cleared receipt leaves the projection.
+  List<MyWorkBeaconAttention>? myWorkAttentionAfterClear;
+
+  String? _lastClearReceiptId;
+
   @override
   Future<AttentionClearSnapshot> clearSnapshot({
     required AttentionClearCaptureKind kind,
@@ -68,6 +84,7 @@ class StubAttentionRepository extends AttentionRepositoryFake {
     String? receiptId,
   }) async {
     clearSnapshotCalls.add(receiptId ?? beaconId ?? '');
+    _lastClearReceiptId = receiptId;
     return AttentionClearSnapshot(
       snapshotToken: 'token-${clearSnapshotCalls.length}',
       receiptIds: [?receiptId],
@@ -80,11 +97,34 @@ class StubAttentionRepository extends AttentionRepositoryFake {
     required String operationId,
   }) async {
     clearCalls.add(snapshotToken);
-    return AttentionClearResult(
-      operationId: operationId,
-      status: AttentionOperationStatus.complete,
-      appliedReceiptIds: const [],
-    );
+    final error = clearError;
+    if (error != null) throw error;
+    final build = clearResultBuilder;
+    final result = build != null
+        ? build(operationId, _lastClearReceiptId)
+        : AttentionClearResult(
+            operationId: operationId,
+            status: AttentionOperationStatus.complete,
+            appliedReceiptIds: [?_lastClearReceiptId],
+          );
+    if (result.appliedReceiptIds.isNotEmpty) {
+      // The server's side of the clear axis, modelled: an applied receipt is
+      // gone from the next projection. A fake that kept answering with the
+      // pre-clear row would let a broken re-read look correct (U15R-c/R6).
+      final applied = result.appliedReceiptIds.toSet();
+      myWorkAttentionResult = myWorkAttentionAfterClear ??
+          [
+            for (final row in myWorkAttentionResult)
+              if (applied.contains(row.latestUnseen?.id))
+                row.copyWith(
+                  latestUnseen: null,
+                  unseenCount: row.unseenCount > 0 ? row.unseenCount - 1 : 0,
+                )
+              else
+                row,
+          ];
+    }
+    return result;
   }
 
   @override
