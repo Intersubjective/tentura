@@ -26,6 +26,8 @@ import 'package:tentura/features/beacon_view/ui/widget/beacon_hud_author_confirm
 import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_obligation_block.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_review_affordance.dart';
+import 'package:tentura/features/my_work/domain/derive_my_work_card_attention.dart';
+import 'package:tentura/features/my_work/ui/widget/my_work_card_attention_indicators.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_last_event_row.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
 import 'package:tentura/features/beacon/ui/util/beacon_delete_ui.dart';
@@ -215,12 +217,15 @@ Widget? _composeMyWorkFooter(
   bool suppressReviewHelpOffersFallback = false,
   bool suppressReviewFallback = false,
 }) {
-  final attention = context.select(
-    (MyWorkCubit c) => c.state.attentionByBeacon[vm.beaconId],
+  final view = myWorkCardAttentionView(
+    beaconId: vm.beaconId,
+    attention: context.select(
+      (MyWorkCubit c) => c.state.attentionByBeacon[vm.beaconId],
+    ),
+    viewerArchived: vm.viewerArchived,
   );
-  final obligations =
-      attention?.liveObligations ?? const <AttentionReceipt>[];
-  final optionalEvents = <AttentionReceipt>[?attention?.latestUnseen];
+  final obligations = view.obligations;
+  final optionalEvents = view.optionalEvents;
   final showObligations = myWorkObligationBlockVisible(
     vm: vm,
     obligations: obligations,
@@ -242,7 +247,7 @@ Widget? _composeMyWorkFooter(
           obligations: obligations,
           optionalEvents: optionalEvents,
           // The server's total, not the rows in hand (U14b addition 4).
-          optionalTotal: attention?.unseenCount ?? 0,
+          optionalTotal: view.optionalTotal,
           onClearEvent: (receiptId) => unawaited(
             context.read<MyWorkCubit>().clearOptionalEvent(
               vm.beaconId,
@@ -330,7 +335,13 @@ Widget _myWorkSharedPreviewHeader(
   return BeaconRequestPreviewIdentity(
     data: data,
     currentUserId: currentUserId,
-    trailing: menu,
+    trailing: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        MyWorkCardAttentionIndicators(vm: vm),
+        menu,
+      ],
+    ),
     titleMaxLines: 1,
     statusSemanticsIdentifier: statusSemanticsIdentifier,
   );
