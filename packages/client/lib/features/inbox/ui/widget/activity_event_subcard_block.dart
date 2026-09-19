@@ -24,6 +24,13 @@ enum AttentionBlockOverflowPolicy {
   paginate,
 }
 
+/// Default dismissibility: everything except a live obligation.
+///
+/// §5 forbids dismissing an obligation privately — it would lie to whoever is
+/// waiting — so the × is an optional-event affordance only.
+bool attentionRowIsDismissible(AttentionReceipt receipt) =>
+    !receipt.isLiveObligation;
+
 /// Compact activity-event previews nested under an offer or stream row.
 class ActivityEventSubcardBlock extends StatefulWidget {
   const ActivityEventSubcardBlock({
@@ -36,6 +43,9 @@ class ActivityEventSubcardBlock extends StatefulWidget {
     this.beaconId,
     this.overflowPolicy = AttentionBlockOverflowPolicy.timeline,
     this.pageSize = 20,
+    this.ctaBuilder,
+    this.canDismiss = attentionRowIsDismissible,
+    this.visibleCap,
     super.key,
   });
 
@@ -71,6 +81,19 @@ class ActivityEventSubcardBlock extends StatefulWidget {
   /// Rows per cursor page. The old block asked for `min(eventTotal, 100)` in
   /// one request and could never reach the 101st child.
   final int pageSize;
+
+  /// Per-kind decision-capturing CTA rendered under a row (D04). Obligation
+  /// rows carry one; optional rows do not.
+  final Widget? Function(AttentionReceipt receipt)? ctaBuilder;
+
+  /// Which rows own a × . An obligation never does: dismissing it privately
+  /// would lie to whoever is waiting (contract §5).
+  final bool Function(AttentionReceipt receipt) canDismiss;
+
+  /// Overrides the responsive collapsed preview size. My Desk needs its
+  /// obligations **and** one optional line reachable while collapsed, which a
+  /// single-row cap cannot express.
+  final int? visibleCap;
 
   @override
   State<ActivityEventSubcardBlock> createState() =>
@@ -117,7 +140,9 @@ class _ActivityEventSubcardBlockState extends State<ActivityEventSubcardBlock> {
     }
     final l10n = L10n.of(context)!;
     final tt = context.tt;
-    final visibleCap = context.windowClass == WindowClass.compact ? 1 : 3;
+    final visibleCap =
+        widget.visibleCap ??
+        (context.windowClass == WindowClass.compact ? 1 : 3);
     final ordered = _ordered;
     final visible = _expanded
         ? ordered
@@ -136,16 +161,7 @@ class _ActivityEventSubcardBlockState extends State<ActivityEventSubcardBlock> {
           Padding(
             key: ValueKey(receipt.id),
             padding: EdgeInsets.only(top: tt.tightGap),
-            child: AttentionMiniCard(
-              receipt: receipt,
-              actor: _actorFor(receipt),
-              onTap: widget.onEventTap == null
-                  ? null
-                  : () => widget.onEventTap!(receipt),
-              onDismiss: widget.onClearEvent == null
-                  ? null
-                  : () => _clear(receipt.id),
-            ),
+            child: _row(receipt),
           ),
         if (moreCount > 0 || _expanded)
           Padding(
@@ -186,6 +202,26 @@ class _ActivityEventSubcardBlockState extends State<ActivityEventSubcardBlock> {
             ),
           ),
       ],
+    );
+  }
+
+  Widget _row(AttentionReceipt receipt) {
+    final card = AttentionMiniCard(
+      receipt: receipt,
+      actor: _actorFor(receipt),
+      onTap: widget.onEventTap == null
+          ? null
+          : () => widget.onEventTap!(receipt),
+      onDismiss: widget.onClearEvent == null || !widget.canDismiss(receipt)
+          ? null
+          : () => _clear(receipt.id),
+    );
+    final cta = widget.ctaBuilder?.call(receipt);
+    if (cta == null) return card;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [card, cta],
     );
   }
 

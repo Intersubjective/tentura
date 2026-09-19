@@ -206,15 +206,16 @@ final class MyWorkCase extends UseCaseBase {
   Future<void> markSeenForBeacon(String beaconId) =>
       _attentionCase.markSeenForBeacon(beaconId);
 
-  Future<void> settleObligationReceipt(String receiptId) =>
-      _attentionCase.settleReceipt(receiptId);
+  /// Clears one optional event — the clear axis (D02/U10b), not `markSeen`.
+  ///
+  /// There is no settlement counterpart: generic obligation settlement was
+  /// removed in U07b and the server refuses it. Obligations end only through
+  /// their source transitions (D04).
+  Future<void> clearReceipt(String receiptId) =>
+      _attentionCase.clearReceipt(receiptId: receiptId);
 
-  Future<void> settleObligationReceipts(List<String> receiptIds) async {
-    for (final id in receiptIds) {
-      if (id.isEmpty) continue;
-      await _attentionCase.settleReceipt(id);
-    }
-  }
+  /// A Request whose surface or state changed and has to be re-read (U13c).
+  Stream<String> get requestInvalidations => _attentionCase.requestInvalidations;
 
   Future<MyWorkDeskArchivedLoad> loadDeskArchived({
     required String userId,

@@ -429,47 +429,37 @@ class MyWorkCubit extends Cubit<MyWorkState> {
   bool _shouldShowArchivedLoadError() =>
       state.filter == MyWorkFilter.archived && state.archivedCards.isEmpty;
 
-  Future<void> settleObligation(String beaconId, String receiptId) async {
-    await settleObligations(beaconId, [receiptId]);
-  }
-
-  /// Settles every [receiptIds] for [beaconId] (grouped sub-card Done).
-  Future<void> settleObligations(
-    String beaconId,
-    List<String> receiptIds,
-  ) async {
-    if (beaconId.isEmpty || receiptIds.isEmpty) return;
+  /// Clears one **optional** event off a Request (the × on a mini-card).
+  ///
+  /// An obligation has no such route: U07b removed generic settlement and the
+  /// server refuses it, so this drops the receipt from the optional projection
+  /// only and leaves every live obligation alone (D04, §5).
+  Future<void> clearOptionalEvent(String beaconId, String receiptId) async {
+    if (beaconId.isEmpty || receiptId.isEmpty) return;
     final current = state.attentionByBeacon[beaconId];
-    final ids = <String>{};
-    for (final id in receiptIds) {
-      if (id.isEmpty) continue;
-      if (current != null) {
-        final isReview = current.liveObligations.any(
-          (r) => r.id == id && r.presentationKey == 'review_opened',
-        );
-        // Review reminders stay until the package is sent / window ends.
-        if (isReview) continue;
-      }
-      ids.add(id);
+    if (current != null &&
+        current.liveObligations.any((r) => r.id == receiptId)) {
+      return;
     }
-    if (ids.isEmpty) return;
     if (current != null) {
       emit(
         state.copyWith(
           attentionByBeacon: {
             ...state.attentionByBeacon,
             beaconId: current.copyWith(
-              liveObligations: [
-                for (final r in current.liveObligations)
-                  if (!ids.contains(r.id)) r,
-              ],
+              unseenCount: current.unseenCount > 0
+                  ? current.unseenCount - 1
+                  : 0,
+              latestUnseen: current.latestUnseen?.id == receiptId
+                  ? null
+                  : current.latestUnseen,
             ),
           },
         ),
       );
     }
     try {
-      await _myWorkCase.settleObligationReceipts(ids.toList());
+      await _myWorkCase.clearReceipt(receiptId);
     } catch (_) {
       await fetch(showLoading: false);
       rethrow;

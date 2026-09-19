@@ -26,7 +26,7 @@ import 'package:tentura/features/beacon_view/ui/widget/beacon_hud_author_confirm
 import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_obligation_block.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_review_affordance.dart';
-import 'package:tentura/features/my_work/ui/widget/my_work_whats_new_row.dart';
+import 'package:tentura/features/my_work/ui/widget/my_work_last_event_row.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
 import 'package:tentura/features/beacon/ui/util/beacon_delete_ui.dart';
 import 'package:tentura/features/beacon/ui/util/beacon_lineage_overflow_actions.dart';
@@ -181,34 +181,28 @@ void _openBeaconOrSelect(
 
 Widget? _myWorkAttentionMarker({required bool attentionMarked}) => null;
 
-/// What's-new / last-event row — stays inside the card [InkWell] child.
+/// Last-event preview — stays inside the card [InkWell] child.
+///
+/// The what's-new emphasis line is gone: uncleared optional events are rows in
+/// the shared active-event block now, each with its own × (U15). What stays
+/// here is the preview D08 allows an optional update to change.
 Widget _myWorkWhatsNewSection(
   BuildContext context, {
   required MyWorkCardViewModel vm,
   required String currentUserId,
 }) {
-  return BlocSelector<
-    MyWorkCubit,
-    MyWorkState,
-    ({int unseenCount, AttentionReceipt? latestUnseen})?
-  >(
-    selector: (state) {
-      final attention = state.attentionByBeacon[vm.beaconId];
-      if (attention == null) return null;
-      return (
-        unseenCount: attention.unseenCount,
-        latestUnseen: attention.latestUnseen,
-      );
-    },
-    builder: (context, data) {
-      return MyWorkWhatsNewRow(
+  final tt = context.tt;
+  return Semantics(
+    identifier: TestIds.myWorkWhatsNew(vm.beaconId),
+    child: Padding(
+      padding: EdgeInsets.only(top: tt.tightGap),
+      child: MyWorkLastEventBody(
         beacon: vm.beacon,
         viewModel: vm,
         currentUserId: currentUserId,
-        unseenCount: data?.unseenCount ?? 0,
-        latestUnseen: data?.latestUnseen,
-      );
-    },
+        muted: true,
+      ),
+    ),
   );
 }
 
@@ -221,14 +215,16 @@ Widget? _composeMyWorkFooter(
   bool suppressReviewHelpOffersFallback = false,
   bool suppressReviewFallback = false,
 }) {
-  final obligations = context.select(
-    (MyWorkCubit c) =>
-        c.state.attentionByBeacon[vm.beaconId]?.liveObligations ??
-        const <AttentionReceipt>[],
+  final attention = context.select(
+    (MyWorkCubit c) => c.state.attentionByBeacon[vm.beaconId],
   );
+  final obligations =
+      attention?.liveObligations ?? const <AttentionReceipt>[];
+  final optionalEvents = <AttentionReceipt>[?attention?.latestUnseen];
   final showObligations = myWorkObligationBlockVisible(
     vm: vm,
     obligations: obligations,
+    optionalEvents: optionalEvents,
     suppressReviewHelpOffersFallback: suppressReviewHelpOffersFallback,
     suppressReviewFallback: suppressReviewFallback,
   );
@@ -244,6 +240,16 @@ Widget? _composeMyWorkFooter(
         MyWorkObligationBlock(
           vm: vm,
           obligations: obligations,
+          optionalEvents: optionalEvents,
+          // The server's total, not the rows in hand (U14b addition 4).
+          optionalTotal: attention?.unseenCount ?? 0,
+          onClearEvent: (receiptId) => unawaited(
+            context.read<MyWorkCubit>().clearOptionalEvent(
+              vm.beaconId,
+              receiptId,
+            ),
+          ),
+          onOpenTimeline: () => _openBeacon(context, vm.beaconId),
           suppressReviewHelpOffersFallback: suppressReviewHelpOffersFallback,
           suppressReviewFallback: suppressReviewFallback,
           onReviewHelpOffers: () => _openBeaconReviewHelpOffers(context, vm),
