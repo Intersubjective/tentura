@@ -35,6 +35,7 @@ import 'rejection_dialog.dart';
 import 'request_attention_card.dart';
 import 'request_attention_card_mapper.dart';
 import 'tombstone_row.dart';
+import 'for_you_empty_state.dart';
 
 /// Activity redesign body: pinned offers, then activity-surface stream (§5).
 class ActivityStreamView extends StatefulWidget {
@@ -592,6 +593,27 @@ class _ActivityStreamScrollBody extends StatelessWidget {
         SliverToBoxAdapter(
           child: UpdatesRefreshErrorBanner(
             onRetry: () => unawaited(streamCubit.refresh()),
+          ),
+        ),
+      // U16c-1 / §4 — the empty stream, in one of three voices. It is **not**
+      // rendered while the surface is still loading or has failed to refresh:
+      // §4's _Avoid_ line forbids celebrating a clear surface while loading or
+      // offline, and a spinner replaced by "nothing new" is exactly that.
+      if (shouldShowForYouEmptyState(
+        hasRows: streamCells.isNotEmpty,
+        isLoading: streamState.isLoading || offersState.isLoading,
+        hasError: streamState.hasRefreshError || offersState.pageLoadFailed,
+      ))
+        SliverToBoxAdapter(
+          child: ForYouEmptyState(
+            kind: forYouEmptyKind(
+              // For You carries no filter control today; the state exists
+              // because §4 names three, and it is wired here rather than
+              // inlined so a filter gains its copy by passing `true`.
+              hasActiveFilter: false,
+              hasPinnedZone: placement.pinnedReceipts.isNotEmpty ||
+                  offersState.items.isNotEmpty,
+            ),
           ),
         ),
       SliverList.builder(

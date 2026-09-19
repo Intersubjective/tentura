@@ -26,6 +26,7 @@ import 'package:tentura/features/inbox/domain/use_case/inbox_case.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_cubit.dart';
 import 'package:tentura/features/inbox/ui/screen/inbox_screen.dart';
 import 'package:tentura/features/inbox/ui/widget/activity_stream_view.dart';
+import 'package:tentura/features/inbox/ui/widget/for_you_empty_state.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/updates/domain/use_case/invite_accepted_setup_case.dart';
 import 'package:tentura/features/updates/ui/widget/updates_feed_pane.dart';
@@ -602,6 +603,31 @@ void main() {
     expect(find.text(l10n.inboxDismissAllUndoFailed, findRichText: true), findsOneWidget);
     expect(find.text(l10n.inboxDismissAllUndone(0), findRichText: true), findsNothing);
   });
+
+  testWidgets(
+    'gate on: an empty For You stream renders §4\'s empty state, once',
+    (tester) async {
+      // The positive assert: a fixture that renders nothing would satisfy any
+      // "did not overflow" check, so this pins the keyed title and the exact
+      // sentence — and pins that it is the *nothing here* voice, because this
+      // harness has no pinned decision zone.
+      await _pumpInbox(
+        tester,
+        attentionRepo: _ChromeAttentionRepo(),
+        router: _HarnessRouter(),
+      );
+
+      final l10n = L10nEn();
+      expect(find.byType(ForYouEmptyState), findsOneWidget);
+      expect(find.byKey(ForYouEmptyState.titleKey), findsOneWidget);
+      expect(find.text(l10n.forYouEmptyNothingHere), findsOneWidget);
+      expect(
+        find.text(l10n.forYouEmptyNothingNew),
+        findsNothing,
+        reason: 'nothing was cleared here, so nothing was "cleared"',
+      );
+    },
+  );
 
   testWidgets('gate on: overflow includes notification history entry', (
     tester,
