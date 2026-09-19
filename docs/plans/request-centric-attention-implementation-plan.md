@@ -719,6 +719,25 @@ reliably. It runs as three sequential sandwiches, each its own unit:
 - **U16b — For You stream integration.** `activity_stream_view.dart`, `activity_offers_cubit.dart`,
   `inbox_cubit.dart`: one representative per Request, × on every outcome, the Watching digest duplication out of
   the primary stream while the Watching collection stays reachable from the overflow menu.
+- **U16c splits in two** (inserted 2026-09-20, after the scout found the enablement gap):
+  - **U16c-1 — the clear-axis header action.** The surface summary has **no sweep-eligibility signal**
+    (`activityUnreadTotal`, `myWorkUnreadTotal`, `needsYouTotal`, `myDeskDot`, `myDeskCount`, `forYouDot` —
+    none of them is it). `forYouDot` is wrong: it includes `eligible_pinned`, so the button would enable when
+    only an unanswered forward remains and do nothing when tapped. `activityUnreadTotal` is the read axis.
+    So this unit adds the eligibility field, **composed from the same fragments the sweep captures** — not a
+    third spelling of the membership — and wires the header button to it. Contract §4 also binds two things the
+    first brief missed: the three empty states must read differently (*nothing here* / *nothing new, decision
+    zone may remain* / *nothing matching this filter*), and an explicit dismissal is **undoable for a short
+    window** (`undoDismissAll` already exists).
+  - **U16c-2 — the retirements.** Migrate the prompt pin off `ActivityOfferCard.prompt`
+    (`activity_stream_view.dart:855`), then delete `activity_offer_card.dart`, `activity_forward_row.dart`,
+    `inbox_forward_attribution_copy.dart` and their goldens (~34 PNG-backed tests, so the suite count
+    legitimately drops).
+
+  **Manifest amended by live code:** `ActivityOfferBoundedShell` is **kept**, not retired —
+  `InviteAcceptedReceiptCard` still uses it for Activity prompt pins. The original U16 line listing it among the
+  retirements predates that dependency.
+
 - **U16c — chrome and retirements.** Header **Dismiss all** replacing today's `markAllSeen` "Read all"
   (`inbox_screen.dart:261–283`), enabled by server eligibility; then retire `ActivityOfferCard`,
   `ActivityOfferBoundedShell`, `ActivityForwardRow` and `inbox_forward_attribution_copy.dart` with their
