@@ -6419,3 +6419,90 @@ carry provenance: the grouped read model U02 built and U14/U16 consume is `atten
 other two would be speculative.
 
 ---
+
+## U10d remediation — inner (remediation)
+
+Base `287447d62`. Two defects, two commits: `f2d92342b`, `3c79b56d1`.
+
+### Defect 1 — U10d disabled the tests that justified its own safety claim
+
+**Outcome: the tests pass.** Once the probe was fixed the two live provenance cases ran and went green, so
+U10d's byte-identical claim is now actually supported by the evidence it cited. It was only the probe that
+broke — Inbox behaviour did not change. This is the first of the two outcomes, not the P0.
+
+The mechanism, and a correction to the report: the probe that went false first is **`_hasM0100Provenance`**,
+not `_hasM0103Provenance`. Both grepped `pg_get_functiondef('inbox_item_inbox_provenance_data')`, and m0188
+emptied that body out into a one-line delegation to `attention_provenance_data`, so *every* predicate they
+looked for moved one hop away. m0100's `cancelled_at IS NULL` is checked first, so it is the one that reports.
+The skip message the runner actually printed was `m0100 provenance (cancelled_at filter) missing`.
+
+Fix: probe the implementation **as reached at runtime**. `_provenanceImplSource` starts at the computed field
+and walks `public.<fn>(` call sites transitively, concatenating each definition, so the probes see the SQL that
+really runs however many hops it is moved behind. The m0103 self-forward check also stopped pinning one
+spelling of the recipient — m0103 wrote `inbox_row.user_id`, m0188 writes `p_recipient_id` — and now matches
+the predicate `bfe.sender_id <> …` instead. A pure behavioural probe would need a synthetic `inbox_item` row
+and MeritRank fixtures inside a probe that runs before `setUpAll`; following the delegation is the honest
+version of a text probe and survives exactly the refactor that broke it.
+
+```
+before: 00:00 +7 ~2: All tests passed!   (both provenance cases skipped)
+after:  00:01 +9:    All tests passed!   (both run, both green)
+```
+
+Other probes in the file: **`_hasM0102TombstoneFunction` is text-based but not stale** — it greps
+`inbox_item_apply_tombstone_after_withdraw` for `b.status`/`b.state`, and that function is still a
+self-contained body (verified against the live catalog), so its assertion holds. It carries the same latent
+fragility and would go false the moment anyone moves its body behind a helper. `_hasInboxSchema` is pure
+catalog-existence checking (`information_schema.columns`, `pg_proc` by name) and cannot go stale this way.
+
+### Defect 2 — four notification races in the constellation anchor suite
+
+`notifications.clear()` drops only what Postgres has already delivered; it cannot flush what is still in
+flight. A setup upsert's notification therefore lands after the clear and breaks the test body's
+`isEmpty` / `length == 1` / `every(...)` assertions.
+
+The named P02 case was one of **four** sites with the same shape. Waiting for a fixed count is not sufficient
+on its own — an upsert can emit more than one anchor row event — so `clearAfterDelivery()` waits for the first
+notification and then for a quiet interval with no new arrivals before clearing. No assertion was weakened.
+
+The race would not reproduce on demand here (clean at `-j 2` single-file, at `-j 2` alongside three other pg
+suites, and across four concurrent suite runs), so it was made deterministic instead: a temporary 60ms delay
+in the listener's `entity_changes` handler.
+
+```
+delay injected, before fix:  00:05 +14 -4: Some tests failed.
+delay injected, after fix:   00:06 +18:    All tests passed!
+delay removed, after fix:    00:05 +18:    All tests passed!
+```
+
+The four failures under the injected delay were exactly the four sites identified by inspection —
+`aborted transaction emits no notification and rolls back cursor`,
+`delete existing row emits one lowercase delete notification`,
+`target beacon cascade removes anchor without double cursor bump`,
+`anchor row delete with cursor already removed emits no notification`. The test already fixed by the overseer
+passed under the same delay, confirming wait-before-clear is the right remedy.
+
+Two further clears audited and **left alone**, both benign: `upsert move preserves anchor id …` and
+`target person cascade …` clear after an upsert but assert nothing about notifications. One reported, not
+fixed: the suite-level `setUp` clears without waiting, so a straggler from the *previous* test can cross into
+the next one — `absent-key delete increments cursor once and emits one delete` asserts `length == 1` and has
+no setup notification of its own to wait for, so it is exposed to that cross-test path rather than to the
+within-test one fixed here. Closing it properly means quiescing in `setUp`, which is a broader change than
+this remediation.
+
+### Verify
+
+All through `scripts/run_with_test_cleanup.sh`. Full server suite deliberately not run.
+
+```
+inbox + constellation anchor, -j 1:  00:06 +27: All tests passed!
+inbox + constellation anchor, -j 2:  00:05 +27: All tests passed!
+U10d attention suites,        -j 1:  00:19 +66: All tests passed!
+U10d attention suites,        -j 2:  00:12 +66: All tests passed!
+```
+
+The attention suites must be run with cwd `packages/server`: `attention_active_attention_axis_pg_test.dart`'s
+U10b structural case lists `lib/data/repository/` by relative path and fails with `PathNotFoundException`
+from the repo root. Pre-existing, unrelated to this remediation, not fixed here.
+
+---
