@@ -9320,3 +9320,134 @@ parameter and one test change; the semantics are not smeared across the codebase
 recorded.
 
 ---
+
+## U15R-c — client correctness (R2, R5, R6, R7) — inner (remediation)
+
+Four defects in accepted client code, each reproduced as a failing test before it was fixed. All four
+reproduced; nothing here is a report I could not stand up. Base `26bd0d1de`.
+
+### Addition 1 — how the cross-layer meaning is actually held
+
+`docs/contracts/attention-active-attention-axis.json` is the shared artifact. It transcribes the server's
+axis predicates verbatim from `AttentionDismissibleSql` and records the totals
+`attention_active_attention_axis_pg_test.dart` asserts against real Postgres, each with its line.
+`test/support/attention_axis_contract.dart` loads it, and its first assertion **reads the server source** and
+fails if the transcription and `AttentionDismissibleSql` have stopped agreeing. So the client's expected
+quantities are not hand-built, and the link is machine-checked rather than promised. (What I could not do from
+here: make the server pg test *read* the same file — `packages/server/**` is untouchable in this unit. That
+edge is one-directional for now and is the obvious follow-up.)
+
+That check paid for itself immediately, on the fixture rather than on the code — see R2 below.
+
+### R2 — reproduced. Reading moved the clear axis; the sweep guessed.
+
+**RED** `flutter test test/domain/attention/attention_read_clear_axis_test.dart` → `+2 -4`.
+Four failures: `markSeen` drove `myWorkUnreadTotal` 1 → 0; `markAllSeen` drove `activityUnreadTotal` 2 → 0;
+the group projection dropped one from `eventUnseenCount` for a child read optimistically; and the optimistic
+sweep cleared **all five** cached rows — `{sweepable, obligation, desk-work, unanswered-forward, relay-shell}`
+— where owner decision A permits exactly `{sweepable}`.
+
+The sweep case is sampled at the **intermediate frame**, with the `dismissAll` response held. The settled
+state was never wrong; the frame the user sees was.
+
+**The fix, by axis.** Every total involved — `unreadTotal`, `activityUnreadTotal`, `myWorkUnreadTotal` — is
+`activeAttention` server-side. The names say unread; the SQL does not. Reads now move the read axis only,
+including the `unread` feed view, which is `is_active_attention` on the server rather than a read list. Clear
+deltas come from active optional membership, so clearing something already read moves the totals it was still
+counted in. Sweep membership mirrors Set R / Set O, and a grouped card — a row standing for children whose
+identities the client does not hold — is **not an optimistic member at all**.
+
+**What the contract check exposed.** `attention_group_projection_test.dart` built its fixture's
+`event_unseen_count` from `seen_at`. That is a server value the server never produces, and it is why the
+read-axis subtraction in `projectAttentionGroup` looked correct for three units. The fixture is now built
+from `cleared_at`, which is what the server counts.
+
+**Retired here:** the journal's "one card swept is one decrement" (`journal:7857`), which the interim review
+named as the clearest case of testing one layer against the other's meaning. The client counted cards; the
+server counts receipts. The test now asserts the total does **not** move optimistically, and U13c's original
+point — indexed children are not swept either — is what the unchanged total proves.
+
+Seven further `// CHANGES IN U15R-c:` assertions across `attention_case_test.dart`,
+`attention_surfaces_test.dart` and `inbox_receipts_fold_test.dart`, all of the same shape: they asserted that
+a read moves a clear-axis number.
+
+**GREEN** the full consumer set → `+763`.
+
+### R5 — reproduced, on all three kinds including the one thought covered.
+
+**RED** `flutter test test/features/my_work/my_work_cross_surface_transition_test.dart` → `+0 -3`.
+The new test mounts For You and My Desk off one `AttentionCase`, holds the server's answers and samples every
+frame. Against `cbe21ceb1` each of `beacon`, `helpOffer` and `inboxItem` reports a window of seven frames with
+`(forYou: true, myDesk: true)`.
+
+`beacon` failing is the part the report did not have: `_refreshAcrossSurfaces` was already on that path, but
+`_invalidateRequest` fired **first**, so My Desk's debounced re-read landed while For You still held the old
+page. Coordinating the two fetches was never enough on its own — the announcement had to become the last step
+of the transition rather than its first.
+
+All three kinds now take that one route. `notification` still refreshes in two steps; the interim review
+scoped R5 to help-offer and Inbox, and routing `notification` too would change what that path fetches. It is
+the same defect class and it is recorded here rather than quietly fixed or quietly ignored.
+
+**Retired:** `helpOffer refreshes activity stream head only`. A transition commits every mounted surface.
+
+**GREEN** `test/domain/attention test/features/my_work` → `+309`.
+
+### R6 — reproduced. My Desk discarded the server's answer.
+
+**RED** `flutter test test/features/my_work/my_work_clear_result_test.dart` → `+1 -3`. A `denied` answer, a
+`skipped` answer and an applied answer with a further receipt behind it all produced the same state:
+`latestUnseen == null`. The failure path already refetched, so that one case was green from the start — said
+here rather than counted as a reproduction.
+
+The result is returned and honoured: anything not applied puts the row back; anything applied is followed by a
+re-read of that one Request, because the client holds one preview and not the list.
+
+**What the fixtures exposed.** `StubAttentionRepository.clear` answered `complete` with an **empty**
+`appliedReceiptIds` and then kept returning the pre-clear row. Both halves were wrong in the direction that
+hid the defect. The stub now models the server's side of the clear axis, which is also what turned
+`my_work_card_indicators_test.dart`'s "clearing the last optional row puts the dot out" from accidentally
+green into meaningfully green.
+
+**GREEN** `test/features/my_work` → `+178`.
+
+### R7 — reproduced, client half only. The server half is named and stopped at.
+
+**RED** `flutter test test/features/home/my_work_navbar_item_test.dart
+test/features/home/work_activity_nav_indicators_test.dart` → `+15 -6` against the pre-fix widget.
+
+The navbar returned as soon as it had a count, so the dot never appeared beside a number.
+`RequestAttentionIndicators` already renders both one level down, which is the M1 failure in miniature: the
+tab disagreed with the cards under it. Number in the trailing corner, dot in the leading one, both keyed.
+
+**Retired:** the suite group literally named `tab icons — one badge slot, count first (§6)`, and the test
+`the count takes the slot while obligations are live`. Both encoded my U14c paraphrase rather than §6.
+
+**Stopping point, as instructed.** The rest of R7 is server-side and I did not touch it:
+
+- `myWorkUnreadTotal` is `activeAttention`, obligations included, so an obligation-only Request lights the My
+  Desk dot that §6 reserves for uncleared optional attention or outcomes.
+- Neither surface total counts dismissible outcome rows or pending-forward membership, so U15R-a's correctly
+  dotless outcome rows leave `activityUnreadTotal` counting something no row displays.
+
+A client-side subtraction (`myWorkUnreadTotal − needsYouTotal`) would look like it works, and it is exactly
+the kind of invented cross-layer arithmetic addition 1 forbids: `needsYouTotal` is **not** surface-scoped in
+the summary SQL, so the identity holds only while every obligation happens to live on My Desk. The correct fix
+is a dot-bearing total per surface, defined server-side. **Requires a server change; stopped.**
+
+**GREEN** `test/features/home` → `+93`.
+
+### Gate
+
+```
+flutter test test/domain/attention test/features/inbox test/features/my_work \
+  test/features/home test/features/updates test/architecture test/design_system
+→ +772: All tests passed!
+
+./scripts/check-custom-lints.sh packages/client
+→ total: 30 (baseline: 30) — check-custom-lints: packages/client OK
+```
+
+Commits: `1361cda1e` R2 · `cbe21ceb1` R6 · `53fa132cc` R7 · `65a5240df` R5.
+
+---
