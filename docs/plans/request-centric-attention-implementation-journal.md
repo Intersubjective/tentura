@@ -5492,3 +5492,120 @@ check-custom-lints: packages/server OK
 
 **No existing test was edited.** The refactor-with-no-behaviour-change contract held; nothing asserted the
 duplication itself, so there was no exception to claim.
+
+---
+
+## UNIT U10a — One predicate source · VERIFY (2026-09-19)
+
+**Layer:** verify (read-only). **Range:** `a46c6b536..9b622af3d` (`5e298b767` · `078d0cc82` · `9b622af3d`).
+
+### Refactor contract (existing tests edited?)
+
+`git diff a46c6b536..9b622af3d -- packages/server/test` touches **only** the new file
+`attention_predicate_unification_pg_test.dart` (+433). **No existing assertion was rewritten** to absorb a
+behaviour change.
+
+### Equivalence
+
+Re-ran `attention_predicate_unification_pg_test.dart` (7 PG tests): legacy sweep vs legacy repository on
+`visible`+`surface`, `scope`, `eligible_pinned`; live `AttentionDismissibleSql` matches both frozen texts.
+Pre-unification copy count at `a46c6b536`: **2** `visible_raw` in `attention_repository.dart` (inline CTE +
+`markAllSeen`) + **1** in `attention_dismissible_sql.dart` + duplicate `eligible_pinned` in grouping → **four
+copies**; at HEAD **one** definition in `attention_dismissible_sql.dart` only (`rg` on `lib/`).
+
+**Note:** committed fixture exercises owned / forwarded / obligation / profile receipts and forward edges; it
+does **not** insert `inbox_item`, so `eligible_pinned` equivalence is empty-set on both sides. Tombstone +
+unanswered-forward membership was not re-proven in a separate verifier script (disposable-PG one-off failed to
+resolve packages from `/tmp`); regression PG suites including dismissible/outcome predicates still green.
+
+### Structural guard
+
+`one source, structurally` asserts `attention_repository.dart` lacks `visible_raw AS (` and
+`eligible_pinned AS (` — passes at HEAD; would fail at `a46c6b536` (two inline `visible_raw` blocks present).
+
+### Load-bearing (both consumers)
+
+In-file loosening (`THEN 'myWork'` → `'activity'`) changes **both** `activity_optional_dismissible` membership
+and per-surface `visible` counts (tests *loosening it changes the sweep member set* / *feed per-surface counts*).
+Verifier did **not** mutate production `AttentionDismissibleSql` to force failures in
+`attention_dismiss_sweep_pg_test` / `attention_surface_pg_test` (read-only); those suites import the shared
+constant via `attention_sweep_repository` / `AttentionRepository`.
+
+### Axis / scope boundaries
+
+`git diff a46c6b536..9b622af3d` on `packages/server/lib`: no `cleared_at` indicator move; `markAllSeen` still
+filters `seen_at IS NULL`; no `effective_activity_at`, cursor codec, or `clearedAt` GraphQL exposure changes
+(`query_attention.dart` / `attention_models.dart` diff empty).
+
+### Regression counts
+
+- `attention_predicate_unification_pg_test.dart` — **7 passed**
+- Inner PG list (12 files, same paths as scout minus obligation_identity/channel/dispatch/additive) — **170 passed**
+- `attention_graphql_test.dart` + `query_attention_payload_test.dart` (no `@Tags(['pg'])`) — **35 passed**
+
+### Worktree
+
+Pre-existing modified/untracked paths unchanged by U10a commits; no secrets in diff.
+
+**Verifier verdict:** pass — pure refactor; equivalence + structural guard hold; no existing test nudged.
+
+---
+
+## UNIT U10a — Equivalence fixture non-vacuity · INNER (remediation) (2026-09-19)
+
+**Layer:** inner (remediation). **UNIT_BASE:** `9b622af3d`. Test-only; no production file touched.
+
+### TEST_RED — what the vacuous sets were
+
+The U10a verify flagged that `attention_predicate_unification_pg_test.dart` inserts no `inbox_item` and no
+tombstone `access_policy`, so the `eligible_pinned` comparison — owner decision A's guarantee that an
+**unanswered forward** stays out of the sweep — ran over empty sets on both sides.
+
+**The gap was real but not quite as described.** `eligible_pinned` was *not* empty: m0014's
+`inbox_item_on_forward_insert` trigger materialises an `inbox_item` row for every `beacon_forward_edge`, so
+the fixture's two forward edges already produced two rows and the pinned zone already held
+`Bu10auniffwd`. What was genuinely missing:
+
+- nothing in the file **asserted** that, so the set could have silently become empty at any time;
+- no dismissed tombstone, no restricted `access_policy`, no Request-less obligation — the edge rows;
+- no clause of `eligible_pinned` other than "scope" had a witness row.
+
+### What the fixture now holds
+
+| Row | Isolates |
+|-----|----------|
+| `inbox_item` on `Bu10auniffwd`, status 0, undismissed | the member — an unanswered forward |
+| `inbox_item` on `Bu10aunifobl` (live obligation receipt) | the `NOT IN scope` exclusion |
+| `inbox_item` on `Bu10aunifdel` (beacon status 2) | the `beacon_can_read_content` exclusion |
+| `inbox_item` on `Bu10aunifans`, status 4 + `tombstone_dismissed_at` | the status / dismissal exclusions — an answered forward whose outcome is a dismissible tombstone |
+| receipt `Nu10auniftmb`, `access_policy = 'beacon_tombstone'` | a tombstone-only-readable receipt reaching `visible` |
+| receipt `Nu10aunifoblp`, `requires_action`, `beacon_id IS NULL` | scope's `beacon_id IS NOT NULL` — the clause a Request-bearing obligation cannot isolate, since it is already in scope |
+
+Tombstone statuses are written through `tentura.allow_inbox_tombstone_transition` in one transaction, and every
+`inbox_item` write is an upsert over the forward trigger's row rather than a competing insert.
+
+### Non-vacuity guards
+
+`_expectNonVacuous` now runs inside **every** helper the file compares with — `_visibleRows`, `_scopeRows`,
+`_pinnedRows`, `_dismissibleReceipts`, `_surfaceCounts` — so a comparison cannot be added later without one.
+Two assertions beyond the guard: `eligible_pinned` is exactly `[Bu10auniffwd]` (membership named, not just
+agreement), and a new test *the restricted tombstone and the Request-less obligation are visible* proves the
+two new receipts actually reach `visible` instead of being inert fixture.
+
+### TEST_GREEN
+
+Membership **still matches** with the richer fixture — U10a did not collapse two definitions that differ on
+these rows.
+
+```
+$ ./scripts/run_with_test_cleanup.sh --timeout 30m -- dart test --tags pg -j 1 \
+    attention_predicate_unification / dismiss_sweep / dismissible_predicate /
+    outcome_dismissible / surface
+00:15 +79: All tests passed!
+
+$ ./scripts/run_with_test_cleanup.sh --timeout 10m -- ./scripts/check-custom-lints.sh packages/server
+total: 0 (baseline: 0)
+check-custom-lints: packages/server OK
+```
+
+Unification file alone: **8 passed** (7 before, plus the reachability test).
