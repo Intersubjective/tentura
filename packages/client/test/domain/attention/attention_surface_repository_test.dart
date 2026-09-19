@@ -115,6 +115,12 @@ void main() {
         'myDeskDot': false,
         'forYouDot': true,
         'myDeskCount': 4,
+        // CHANGES IN U16c-1: the *Dismiss all* enablement signal, carried
+        // **false** while `forYouDot` is true. That pairing is the whole
+        // fixture: the dot includes the pinned decision zone the sweep never
+        // touches, so a relay that wired the header control to the dot — or
+        // defaulted the new field — fails here.
+        'forYouSweepEligible': false,
       },
     });
     final summary = await repository.surfaceSummary();
@@ -131,6 +137,13 @@ void main() {
       summary.myDeskCount,
       4,
       reason: '§6 `my desk.count` is its own field, not `needsYouTotal` (1)',
+    );
+    expect(
+      summary.forYouSweepEligible,
+      isFalse,
+      reason:
+          'a lit `forYouDot` does not enable Dismiss all — an unanswered '
+          'forward lights the tab and is never swept (owner decision A)',
     );
   });
 }

@@ -6,5 +6,6 @@ query AttentionSurfaceSummary {
     myDeskDot
     myDeskCount
     forYouDot
+    forYouSweepEligible
   }
 }

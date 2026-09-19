@@ -409,6 +409,7 @@ final class AttentionRepository implements AttentionRepositoryPort {
       myDeskDot: summary.myDeskDot,
       myDeskCount: summary.myDeskCount,
       forYouDot: summary.forYouDot,
+      forYouSweepEligible: summary.forYouSweepEligible,
     );
   }
 
