@@ -408,7 +408,17 @@ WHERE id = 'Naxis04'
       // own: a `requestActivity` group exists *only* because of its children.
       // When they are all cleared it must go — that is U08 becoming visible,
       // not a Request disappearing, because the Request was never pinned.
+      await _forwardEdge(writer, id: 'FEaxis04', beaconId: _otherBeaconId);
       await _optional(writer, id: 'Naxis15', beaconId: _otherBeaconId);
+      // The forward edge is what makes the Request readable; deleting the
+      // inbox row it materialises removes the eligible representative, so the
+      // event has nothing to coalesce onto but `requestActivity`.
+      await writer.execute(
+        Sql.named(
+          'DELETE FROM public.inbox_item WHERE user_id = @u AND beacon_id = @b',
+        ),
+        parameters: {'u': _viewerId, 'b': _otherBeaconId},
+      );
 
       final before = await query.attentionFeed(
         accountId: _viewerId,
