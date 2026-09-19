@@ -2252,3 +2252,48 @@ total: 0 (baseline: 0) — OK
 | `af0315cf3` | test(attention): retire one more collapse characterization U05a invalidated |
 
 **STATUS:** complete
+
+### Overseer incident — I committed other people's work, and repaired it
+
+**What happened.** My U03b verdict command used `git add -A docs/plans/`. That swept **27 untracked plan
+documents belonging to unrelated work** (availability, nested-requests, request-threads, subjective-help-tag,
+graph-navigation, several issue-1xx plans, constellation-ui-remediation) and a **pending modification to
+`constellation-pin-badge-zoom-lod-implementation-journal.md`** into commit `d7a220a86`. Later verdicts repeated
+the same `git add -A`.
+
+**This was mine, not a worker's.** Every worker prompt forbids touching those paths, and every worker obeyed.
+The orchestrator broke its own rule.
+
+**Repair, forward-only, no history rewrite.** `git rm --cached` returned the 27 documents to untracked with
+their content untouched on disk; the constellation journal's committed content was reverted to its pre-session
+state and the owner's in-flight modification was written back into the working tree. Verified after: **37
+untracked, 4 modified — identical to the session-open snapshot**, secrets present and unmodified.
+
+**Rule adopted for the rest of this run:** never `git add -A` / `git add <dir>`. Every commit stages explicit
+file paths only.
+
+### Adjudication — my own instruction was wrong (U05b addition 1)
+
+I told the inner layer both "push/email behaviour is unchanged end to end" **and** "two receipts sharing a
+channel collapse key must produce one delivery". The inner layer found those contradict, and said so instead of
+silently picking one: `attention_channel_delivery` carries UNIQUE `(occurrence_id, account_id)` and dispatch
+always inserted one job per occurrence×recipient, so a two-occurrence collapse family produced **two** pushes
+both before *and* after U05a — U05a's removed upsert collapsed the in-app receipt, never the delivery.
+
+**Adjudicated: the volume reduction is correct and intended.** D03 puts aggregation at the channel layer; one
+notification per collapse family is the design. My "unchanged end to end" was a factually wrong description of
+the baseline, written to prevent regressions. The record is corrected here rather than left as a contradiction
+the next unit inherits.
+
+### Defect in my own review — a failing test I accepted
+
+`room_now_line_pg_test.dart` was **already failing at `f583ac43c`**, i.e. U05a broke it and I accepted U05a
+anyway. Cause: every regression list — the scout's, and therefore mine — enumerated suites under
+`test/data/repository/`, and this one lives under `test/domain/use_case/`. The inner layer found it, verified it
+in a throwaway worktree at `f583ac43c` before touching it, and rewrote it as part of U05b.
+
+**Correction to my verification discipline, effective now:** a unit that changes a write path is verified against
+the **whole server suite**, not against a named list of suites. A named list only proves the suites someone
+thought of.
+
+---
