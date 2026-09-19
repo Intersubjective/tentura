@@ -454,6 +454,25 @@ card. This is server work and it gates U14 and U16.
 
 ---
 
+**Split by the overseer after the U10 scout (2026-09-19).** Seven interlocking steps, and the scout named
+**predicate drift** as the risk underneath the rest: changing `_visibleWithSurfaceCte` without
+`AttentionDismissibleSql` makes the sweep and the feed disagree about what is dismissible. The scout put that
+unification last; it runs **first**, so everything after has one source of truth to change.
+
+- **U10a — one predicate source**: unify `AttentionDismissibleSql.prelude` with the repository's visible/surface
+  CTE. No behaviour change; the sweep and the read path stop being two definitions of the same idea.
+- **U10b — the axis move**: dots, counts, summaries and grouping eligibility move from `seen_at` to *active
+  attention* (uncleared optional + live obligation); `clearedAt` / `clearReason` are exposed in the receipt
+  projection (owed since U06b). This is what finally makes U08 and U09 visible. Includes **M1**: the
+  default-list predicate and the indicator predicate are one function, with a test that they cannot diverge.
+- **U10c — ordering**: separate the bumping key from the latest-event key so non-bumping receipts (child-created,
+  tombstones, timeline-only) stop moving groups; `Needs you` orders by latest live-obligation creation; stable
+  first-entry ordering replaces incidental `Beacon.updatedAt`; cursors are versioned and head refresh
+  reconciles by Request id.
+
+The `// CHANGES IN U10:` assertions from U02 belong to **U10b and U10c** — each rewrite must be named in the
+journal with its old and new expectation, the standard this plan has held since U02.
+
 ### U11 — Child propagation policy
 
 **Goal.** R7 enforced at the producer.
