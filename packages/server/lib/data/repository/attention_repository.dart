@@ -960,6 +960,71 @@ FROM eligible_pinned
   }
 
   @override
+  Future<AttentionPage> attentionRequestHistory({
+    required String accountId,
+    required String beaconId,
+    AttentionCursor? cursor,
+    int limit = 50,
+  }) async {
+    final boundedLimit = limit.clamp(1, 100);
+    final variables = <Variable>[
+      Variable<String>(accountId),
+      Variable<String>(beaconId),
+    ];
+    final cursorClause = StringBuffer();
+    if (cursor != null) {
+      variables
+        ..add(Variable<String>(cursor.createdAt.toUtc().toIso8601String()))
+        ..add(Variable<String>(cursor.id));
+      final createdAtParam = '\$${variables.length - 1}';
+      final idParam = '\$${variables.length}';
+      cursorClause.write(
+        '''
+AND (
+  v.created_at < $createdAtParam::timestamptz
+  OR (v.created_at = $createdAtParam::timestamptz AND v.id < $idParam)
+)''',
+      );
+    }
+    variables.add(Variable<int>(boundedLimit + 1));
+    final limitParam = '\$${variables.length}';
+
+    final rows = await _database
+        .customSelect(
+          '''
+WITH $_visibleWithSurfaceCte,
+page AS (
+  SELECT
+$_visibleStreamColumns
+  FROM visible v
+  WHERE v.beacon_id = \$2
+  $cursorClause
+  ORDER BY v.created_at DESC, v.id DESC
+  LIMIT $limitParam
+)
+SELECT * FROM page
+''',
+          variables: variables,
+        )
+        .get();
+
+    var items = [for (final row in rows) _mapRow(row)];
+    final hasMore = items.length > boundedLimit;
+    if (hasMore) {
+      items = items.sublist(0, boundedLimit);
+    }
+    return AttentionPage(
+      items: items,
+      nextCursor: hasMore && items.isNotEmpty
+          ? AttentionCursor(
+              createdAt: items.last.createdAt,
+              id: items.last.id,
+            )
+          : null,
+    );
+  }
+
+  @override
   Future<ActivityBeaconAttention> activityAttention({
     required String accountId,
     required String beaconId,

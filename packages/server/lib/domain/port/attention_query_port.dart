@@ -50,6 +50,20 @@ abstract interface class AttentionQueryPort {
     int limit = 20,
   });
 
+  /// The viewer's own authorized receipt history for one Request (D17).
+  ///
+  /// Unlike [activityAttention] this spans every surface and every lifecycle
+  /// state — cleared and settled receipts included, which is the point: they
+  /// are exactly the rows the live surfaces have stopped showing. Newest
+  /// first, behind the same authorization wall and the same `(createdAt, id)`
+  /// cursor as [attentionFeed].
+  Future<AttentionPage> attentionRequestHistory({
+    required String accountId,
+    required String beaconId,
+    AttentionCursor? cursor,
+    int limit = 50,
+  });
+
   /// Older Activity child events for one beacon (expand-more after the
   /// page-embedded preview). Cursor is `(createdAt, id)` on child receipts.
   Future<ActivityBeaconAttention> activityAttention({
