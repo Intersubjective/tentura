@@ -5915,3 +5915,48 @@ Ordering keys, `effectiveActivityAt`, `first_entry_at`, cursors, head reconcilia
 pinned-reorder defect stays documented and unfixed, and its expectation is unchanged.
 
 STATUS: complete
+
+### Manager verdict — U10b · **ACCEPTED** (hard; inner Opus-low ✓ / verify pass / one remediation)
+
+Overseer's gate: **1685 non-PG**, **985 PG / 24 known skips**, **423 client**. Commits `fb8b024ea` ·
+`03bbc40be` · `ed555669b` · `8ea9a95f1` · `5d6530f68` · `c19baf990` · `b6150cc3a` · `d3c3db092` · `b4d3b484e` ·
+`463d24752`.
+
+**Indicators now read active attention, so everything U08 and U09 built is finally visible.** The round trip is
+asserted for all three operations — clear, sweep and undo each reflected in the feed, the per-surface summary
+and the grouping, with the pinned zone proven invariant across sweep and undo. The sweep and undo legs were
+missing after the inner pass; the remediation added them.
+
+**The predicate-duplication count reached six, and is now stopped structurally rather than by repair.** U10a
+unified two known copies and discovered a third (`markAllSeen`, inline) and fourth (`eligible_pinned`,
+duplicated in grouping). U10b found a fifth in the clear command's capture and apply re-check. The verifier
+found a sixth in the sweep's apply. **Every one was found by the next layer, never the previous, and never by
+reading.** The remediation extended the structural guard to scan the whole repository directory, so a
+hand-written spelling fails the build even in a file nobody has touched yet — which matters because U10c and
+U13 are about to change this same definition. The sixth copy, incidentally, did not differ in meaning: the
+guard's blindness was the defect, not the copy.
+
+**All three silent-failure modes were proven able to fail** by mutation: narrowed pinned eligibility makes the
+unanswered forward vanish; a summary reverted to `seen_at` lights the tab over an empty list; a filtered
+`max_created_at` reshuffles the pinned zone on clear.
+
+**A methodological point worth keeping:** the remediation **discarded two of its own mutations as non-proofs** —
+removing `NOT IN eligible_pinned` and dropping `cleared_at = NULL` from undo both crash the sweep with
+`25P01 ROLLBACK TO SAVEPOINT` *before any assertion runs*. A mutation that kills the code before the assert
+proves nothing about the assert. Replaced with four that fail on the assertion itself.
+
+**Two rewritten expectations, both forced rather than weakened:** `my_work_attention_pg_test`'s `unseenCount`
+5 → 3 (optional-only; obligations still asserted separately), and `attention_repository_pg_test` after
+`markAllSeen` now expects 2 items with `unreadTotal == page.length` instead of 0 — which *strengthens* M1 and
+encodes D02's read ≠ clear.
+
+**Known product defect, deliberately carried to U10c:** the pinned zone **does** reorder when an optional event
+arrives — a live §6 violation. The test pins today's behaviour with an explicit `reason:` naming it a defect,
+because ordering is U10c's scope. **U10c must** replace `effective_activity_at` pinned ordering with stable
+keys and rewrite that expectation so optional arrival cannot change relative pin order.
+
+**Honest limit recorded:** the 423 green client tests are regression evidence only — they drive their own fakes
+and stubbed summaries, and do not exercise the server's `cleared_at` axis or the new GraphQL fields until
+U14/U15 consume them.
+
+---
