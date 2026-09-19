@@ -1,5 +1,7 @@
 import 'package:tentura/domain/attention/entity/activity_beacon_attention.dart';
 import 'package:tentura/domain/attention/entity/activity_offer_sort_row.dart';
+import 'package:tentura/domain/attention/entity/attention_clear.dart';
+import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/entity/my_work_beacon_attention.dart';
 import 'package:tentura/domain/attention/port/attention_repository_port.dart';
@@ -42,4 +44,48 @@ abstract class AttentionRepositoryFake implements AttentionRepositoryPort {
         unseenCount: 0,
         latestAt: DateTime.utc(1970),
       );
+
+  // The clear axis has no safe default: a fake that silently answered
+  // "complete" would let a test sweep attention without saying so. Override
+  // deliberately, or fail loudly.
+  @override
+  Future<AttentionClearSnapshot> clearSnapshot({
+    required AttentionClearCaptureKind kind,
+    String? beaconId,
+    String? receiptId,
+  }) async =>
+      throw UnimplementedError('clearSnapshot');
+
+  @override
+  Future<AttentionClearResult> clear({
+    required String snapshotToken,
+    required String operationId,
+  }) async =>
+      throw UnimplementedError('clear');
+
+  @override
+  Future<AttentionDismissAllResult> dismissAll({
+    required String operationId,
+    int? maxBatches,
+  }) async =>
+      throw UnimplementedError('dismissAll');
+
+  @override
+  Future<AttentionUndoResult> undo({
+    required String operationId,
+    required String undoToken,
+  }) async =>
+      throw UnimplementedError('undo');
+
+  @override
+  Future<AttentionReconcileResult> reconcile() async =>
+      throw UnimplementedError('reconcile');
+
+  @override
+  Future<AttentionFeedPage> requestHistory({
+    required String beaconId,
+    String? cursor,
+    int limit = 20,
+  }) async =>
+      throw UnimplementedError('requestHistory');
 }

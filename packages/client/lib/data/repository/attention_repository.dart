@@ -12,6 +12,13 @@ import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/entity/my_work_beacon_attention.dart';
 import 'package:tentura/domain/attention/port/attention_repository_port.dart';
 import 'package:tentura/features/attention/data/gql/_g/activity_attention.req.gql.dart';
+import 'package:tentura/features/attention/data/gql/_g/attention_clear.req.gql.dart';
+import 'package:tentura/features/attention/data/gql/_g/attention_clear_snapshot.req.gql.dart';
+import 'package:tentura/features/attention/data/gql/_g/attention_dismiss_all.req.gql.dart';
+import 'package:tentura/features/attention/data/gql/_g/attention_reconcile.req.gql.dart';
+import 'package:tentura/features/attention/data/gql/_g/attention_request_history.data.gql.dart';
+import 'package:tentura/features/attention/data/gql/_g/attention_request_history.req.gql.dart';
+import 'package:tentura/features/attention/data/gql/_g/attention_undo.req.gql.dart';
 import 'package:tentura/features/attention/data/gql/_g/activity_offers_v2.req.gql.dart';
 import 'package:tentura/features/attention/data/gql/_g/attention_feed.data.gql.dart';
 import 'package:tentura/features/attention/data/gql/_g/attention_feed.req.gql.dart';
@@ -534,5 +541,235 @@ final class AttentionRepository implements AttentionRepositoryPort {
         .firstWhere((response) => response.dataSource == DataSource.Link)
         .then((response) => response.dataOrThrow(label: _label));
     return data.attentionSettle;
+  }
+
+  @override
+  Future<AttentionClearSnapshot> clearSnapshot({
+    required AttentionClearCaptureKind kind,
+    String? beaconId,
+    String? receiptId,
+  }) async {
+    final data = await _remoteClient
+        .request(
+          GAttentionClearSnapshotReq(
+            (request) => request.vars
+              ..kind = kind.wireName
+              ..beaconId = beaconId
+              ..receiptId = receiptId,
+          ),
+        )
+        .firstWhere((response) => response.dataSource == DataSource.Link)
+        .then((response) => response.dataOrThrow(label: _label));
+    final snapshot = data.attentionClearSnapshot;
+    return AttentionClearSnapshot(
+      snapshotToken: snapshot.snapshotToken,
+      receiptIds: snapshot.receiptIds.toList(growable: false),
+      outcomeGeneration: snapshot.outcomeGeneration,
+      decisionRevision: snapshot.decisionRevision,
+    );
+  }
+
+  @override
+  Future<AttentionClearResult> clear({
+    required String snapshotToken,
+    required String operationId,
+  }) async {
+    final data = await _remoteClient
+        .request(
+          GAttentionClearReq(
+            (request) => request.vars
+              ..snapshotToken = snapshotToken
+              ..operationId = operationId,
+          ),
+        )
+        .firstWhere((response) => response.dataSource == DataSource.Link)
+        .then((response) => response.dataOrThrow(label: _label));
+    final result = data.attentionClear;
+    return AttentionClearResult(
+      operationId: result.operationId,
+      status: _parseStatus(result.status),
+      appliedReceiptIds: result.appliedReceiptIds.toList(growable: false),
+      skippedReceiptIds: result.skippedReceiptIds.toList(growable: false),
+      deniedReceiptIds: result.deniedReceiptIds.toList(growable: false),
+    );
+  }
+
+  @override
+  Future<AttentionDismissAllResult> dismissAll({
+    required String operationId,
+    int? maxBatches,
+  }) async {
+    final data = await _remoteClient
+        .request(
+          GAttentionDismissAllReq(
+            (request) => request.vars
+              ..operationId = operationId
+              ..maxBatches = maxBatches,
+          ),
+        )
+        .firstWhere((response) => response.dataSource == DataSource.Link)
+        .then((response) => response.dataOrThrow(label: _label));
+    final result = data.attentionDismissAll;
+    return AttentionDismissAllResult(
+      operationId: result.operationId,
+      status: _parseStatus(result.status),
+      appliedReceiptIds: result.appliedReceiptIds.toList(growable: false),
+      appliedOutcomeBeaconIds: result.appliedOutcomeBeaconIds.toList(
+        growable: false,
+      ),
+      appliedCount: result.appliedCount,
+      skipped: [
+        for (final member in result.skipped)
+          _mapSweepMember(member.kind, member.id, member.reason),
+      ],
+      failed: [
+        for (final member in result.failed)
+          _mapSweepMember(member.kind, member.id, member.reason),
+      ],
+      pendingCount: result.pendingCount,
+      undoToken: result.undoToken,
+      undoDeadline: result.undoDeadline == null
+          ? null
+          : DateTime.tryParse(result.undoDeadline!),
+    );
+  }
+
+  @override
+  Future<AttentionUndoResult> undo({
+    required String operationId,
+    required String undoToken,
+  }) async {
+    final data = await _remoteClient
+        .request(
+          GAttentionUndoReq(
+            (request) => request.vars
+              ..operationId = operationId
+              ..undoToken = undoToken,
+          ),
+        )
+        .firstWhere((response) => response.dataSource == DataSource.Link)
+        .then((response) => response.dataOrThrow(label: _label));
+    final result = data.attentionUndo;
+    final refusal = AttentionUndoRefusal.fromWire(result.refusal);
+    if (refusal == AttentionUndoRefusal.unknown) {
+      _log.warning('[$_label] unknown undo refusal wire value: ${result.refusal}');
+    }
+    return AttentionUndoResult(
+      operationId: result.operationId,
+      status: _parseStatus(result.status),
+      restoredReceiptIds: result.restoredReceiptIds.toList(growable: false),
+      restoredOutcomeBeaconIds: result.restoredOutcomeBeaconIds.toList(
+        growable: false,
+      ),
+      skipped: [
+        for (final member in result.skipped)
+          _mapUndoMember(member.kind, member.id, member.reason),
+      ],
+      failed: [
+        for (final member in result.failed)
+          _mapUndoMember(member.kind, member.id, member.reason),
+      ],
+      refusal: refusal,
+    );
+  }
+
+  @override
+  Future<AttentionReconcileResult> reconcile() async {
+    final data = await _remoteClient
+        .request(GAttentionReconcileReq())
+        .firstWhere((response) => response.dataSource == DataSource.Link)
+        .then((response) => response.dataOrThrow(label: _label));
+    final result = data.attentionReconcile;
+    return AttentionReconcileResult(
+      summary: AttentionSurfaceSummary(
+        activityUnreadTotal: result.summary.activityUnreadTotal,
+        myWorkUnreadTotal: result.summary.myWorkUnreadTotal,
+        needsYouTotal: result.summary.needsYouTotal,
+      ),
+      createdObligationCount: result.createdObligationCount,
+      settledObligationCount: result.settledObligationCount,
+      unrepairableObligationCount: result.unrepairableObligationCount,
+    );
+  }
+
+  @override
+  Future<AttentionFeedPage> requestHistory({
+    required String beaconId,
+    String? cursor,
+    int limit = 20,
+  }) async {
+    final data = await _remoteClient
+        .request(
+          GAttentionRequestHistoryReq(
+            (request) => request.vars
+              ..beaconId = beaconId
+              ..cursor = cursor
+              ..limit = limit,
+          ),
+        )
+        .firstWhere((response) => response.dataSource == DataSource.Link)
+        .then((response) => response.dataOrThrow(label: _label));
+    final page = data.attentionRequestHistory;
+    return AttentionFeedPage(
+      nextCursor: page.nextCursor,
+      items: _uniqueByReceiptId([
+        for (final item in page.items) _mapHistoryReceipt(item),
+      ]),
+    );
+  }
+
+  AttentionReceipt _mapHistoryReceipt(
+    GAttentionRequestHistoryData_attentionRequestHistory_items item,
+  ) => _mapReceiptFields(
+    item,
+    eventsPreview: [
+      for (final preview in item.eventsPreview) _mapReceiptFields(preview),
+    ],
+  );
+
+  // Ferry emits a distinct class per selection set, so `skipped` and `failed`
+  // have no common supertype even though they carry the same three fields.
+  AttentionSweepMember _mapSweepMember(String kind, String id, String? reason) {
+    final parsed = AttentionSweepSkipReason.fromWire(reason);
+    if (parsed == AttentionSweepSkipReason.unknown) {
+      _log.warning('[$_label] unknown sweep skip reason: $reason');
+    }
+    return AttentionSweepMember(
+      id: id,
+      kind: _parseMemberKind(kind),
+      reason: parsed,
+    );
+  }
+
+  AttentionUndoMember _mapUndoMember(String kind, String id, String? reason) {
+    final parsed = AttentionUndoSkipReason.fromWire(reason);
+    if (parsed == AttentionUndoSkipReason.unknown) {
+      _log.warning('[$_label] unknown undo skip reason: $reason');
+    }
+    return AttentionUndoMember(
+      id: id,
+      kind: _parseMemberKind(kind),
+      reason: parsed,
+    );
+  }
+
+  AttentionOperationStatus _parseStatus(String wire) {
+    final parsed =
+        AttentionOperationStatus.fromWire(wire) ??
+        AttentionOperationStatus.unknown;
+    if (parsed == AttentionOperationStatus.unknown) {
+      _log.warning('[$_label] unknown operation status wire value: $wire');
+    }
+    return parsed;
+  }
+
+  AttentionSweepMemberKind _parseMemberKind(String wire) {
+    final parsed =
+        AttentionSweepMemberKind.fromWire(wire) ??
+        AttentionSweepMemberKind.unknown;
+    if (parsed == AttentionSweepMemberKind.unknown) {
+      _log.warning('[$_label] unknown sweep member kind: $wire');
+    }
+    return parsed;
   }
 }
