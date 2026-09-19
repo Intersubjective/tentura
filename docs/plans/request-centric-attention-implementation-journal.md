@@ -3337,3 +3337,91 @@ confirmed injected.
 
 Generic user settlement (`attention_settlement_case.dart`, the client Done control), the expiry/cancellation
 explanation event, and every `resolutionTransitions` edit — all U07b2. The contract JSON was not opened.
+
+---
+
+### U07b1 — settlement integrity · `verify`
+
+Read-only audit against U07a matrix + U07b1 scoped items. Unit commits `82a96f293` · `d74b9e044` ·
+`3c65f7fbb` · `9ecdba245` on base `549aa0288`. Re-ran targeted suites locally; full-suite green cites
+overseer run at journal inner entry.
+
+**STATUS:** pass
+
+**TEST_OUTPUT:**
+- Overseer (green light): `dart test --exclude-tags pg` → 1665 passed; `dart test --tags pg -j 1` → 851 passed,
+  24 known skips (via `scripts/run_with_test_cleanup.sh`).
+- Verify: `dart test test/architecture/attention_dispatch_transaction_boundary_test.dart` → 3 passed;
+  `dart test --tags pg -j 1 test/domain/use_case/help_offer_obligation_settlement_pg_test.dart` → 4 passed;
+  `dart test --tags pg -j 1 test/domain/use_case/review_obligation_settlement_pg_test.dart` → 13 passed.
+
+**ACCEPTANCE:**
+- P0 withdrawal / user-visible count — **met** — `help_offer_obligation_settlement_pg_test.dart` asserts
+  `AttentionRepository.surfaceSummary(...).needsYouTotal` (not mock `verify` on settlement port); journal
+  RED/GREEN on all four PG cases.
+- P1 terminal paths — **met** (one coverage note) — `supersedeAuthorHelpOfferSubmitted` in
+  `removeFromRoom`, `releaseCommitment` admitted branch, and `supersedeAuthorHelpOfferObligationsOnBeaconClose`
+  in `beaconClose`; PG regressions with pre-fix RED for `needsYou` on withdraw, beacon close, and
+  `removeFromRoom` (SQL re-open belt). **`releaseCommitment` → `offerRemoved` has no dedicated PG test** —
+  same settlement call as `removeFromRoom`, verified by code only.
+- P2 transaction + idempotency — **met** — settlement inside `runAction` closure
+  (`evaluation_case.dart:1624–1627`); tests `package send and its settlement commit together` and
+  `a failing settlement rolls the package send back with it` (`_FailingPackageSendSettlement`); idempotency
+  from `settlement_kind IS NULL` SQL guards plus atomic rollback (not “nothing”).
+- Structural guard — **met** — architectural inventory test (not runtime throw); `user_block_case.dart:211`
+  remains bare `dispatch.record` inside `_unitOfWork.run`; declared holder set includes explicit exception;
+  synthetic bare-holder predicate test proves the rule bites; choice defensible per inner rationale.
+- Scope / no U07b2 leak — **met** — diff `549aa0288..9ecdba245`: 9 server files only; zero client,
+  zero `updates-event-contract.json`, zero `attention_settlement_case.dart`.
+- `di.config.dart` regeneration — **met** — `**.config.dart` gitignored; on-disk file is Injectable-generated
+  (`GENERATED CODE` header) and wires `attentionSystemSettlement` into `HelpOfferCase`; not in git (expected).
+- Tests / untouchables — **met** — no deleted or weakened tests in unit diff (only new PG `skipReason`
+  guards); pre-existing modified files and untracked noise unchanged by unit commits.
+
+**GAPS:** No PG regression for `CoordinationCase.releaseCommitment` when it emits `offerRemoved` and calls
+`supersedeAuthorHelpOfferSubmitted` (second `offerRemoved` producer); belt on `removeFromRoom` does not
+exercise that branch.
+
+### U07b1 gap — `releaseCommitment` settlement coverage · `inner (remediation)`
+
+Base `f5b0b9d50`. One defect, one test, no fix needed.
+
+The verify entry's GAP: `CoordinationCase.releaseCommitment`'s admitted branch (`coordination_case.dart:536–560`)
+emits `offerRemoved` and calls `supersedeAuthorHelpOfferSubmitted`, but was covered by code inspection only —
+`removeFromRoom`'s PG test does not reach this branch.
+
+New case in `help_offer_obligation_settlement_pg_test.dart`, shaped after the sibling `removeFromRoom` belt:
+`offerHelp` → `acceptHelpOffer` (admits + acknowledges) → SQL re-open of the `helpOfferSubmitted` receipt to
+model one that outlived admission → `releaseCommitment`. It asserts the user-visible consequence
+(`AttentionRepository.surfaceSummary(...).needsYouTotal` drops 1 → 0) plus `settlement_kind = 'superseded'`.
+
+**Outcome: it passed on the current code.** This was a coverage gap, not a live P1 defect — `releaseCommitment`
+already settles the author obligation. No production change was made.
+
+```
+dart test --tags pg -j 1 test/domain/use_case/help_offer_obligation_settlement_pg_test.dart
+00:02 +5: All tests passed!      (unchanged code — the new case is +5)
+```
+
+Because a test that has never been red proves nothing on its own, I mutation-checked it: temporarily deleting
+the `supersedeAuthorHelpOfferSubmitted` call from the `releaseCommitment` admitted branch turns it red on the
+exact assertion, and only that one.
+
+```
+00:03 +4 -1: Some tests failed.
+  releasing an admitted offerer drops a still-live author obligation
+  Expected: <0>  Actual: <1>
+  releasing the commitment ends the author obligation too
+```
+The mutation was reverted; `git diff packages/server/lib` is empty.
+
+**TEST_CMD (all through `scripts/run_with_test_cleanup.sh`):**
+```
+dart test --tags pg -j 1 help_offer_obligation_settlement_pg_test.dart
+                         attention_live_obligations_pg_test.dart
+                         my_work_attention_pg_test.dart            00:07 +16: All tests passed!
+dart test coordination_case_{release,commitment_events,revert}_test.dart
+          coordination_room_access_test.dart help_offer_case_test.dart  00:00 +91: All tests passed!
+```
+
+---

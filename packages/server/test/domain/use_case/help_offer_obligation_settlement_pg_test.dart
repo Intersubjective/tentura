@@ -209,6 +209,46 @@ WHERE outbox.occurrence_id = occ.id
       expect(await needsYou(_authorId), 0);
       expect(await _helpOfferSettlementKind(writer, _helperId), 'superseded');
     }, skip: skipReason);
+
+    test('releasing an admitted offerer drops a still-live author obligation',
+        () async {
+      await harness.helpOfferCase.offerHelp(
+        beaconId: _beaconId,
+        userId: _helperId,
+      );
+      await harness.coordinationCase.acceptHelpOffer(
+        beaconId: _beaconId,
+        offerUserId: _helperId,
+        actorUserId: _authorId,
+      );
+      // Same belt as the removeFromRoom case: model a receipt that outlived
+      // admission, so the terminal path under test is the one that must
+      // settle it. `releaseCommitment` is the second `offerRemoved` producer.
+      await writer.execute('''
+UPDATE public.notification_outbox AS outbox
+SET settlement_kind = NULL, settled_at = NULL
+FROM public.attention_occurrence AS occ
+WHERE outbox.occurrence_id = occ.id
+  AND occ.event_type = 'helpOfferSubmitted'
+  AND outbox.beacon_id = '$_beaconId'
+  AND outbox.account_id = '$_authorId'
+''');
+      expect(await needsYou(_authorId), 1);
+
+      await harness.coordinationCase.releaseCommitment(
+        beaconId: _beaconId,
+        offerUserId: _helperId,
+        authorUserId: _authorId,
+        reason: 'scope changed',
+      );
+
+      expect(
+        await needsYou(_authorId),
+        0,
+        reason: 'releasing the commitment ends the author obligation too',
+      );
+      expect(await _helpOfferSettlementKind(writer, _helperId), 'superseded');
+    }, skip: skipReason);
   }, skip: skipReason);
 }
 
