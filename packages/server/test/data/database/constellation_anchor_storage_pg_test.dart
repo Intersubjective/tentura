@@ -81,6 +81,26 @@ ON CONFLICT (id) DO NOTHING
         .where((m) => m['entity'] == 'constellation_anchor')
         .toList();
 
+    /// Drop setup notifications, but only once delivery has gone quiet.
+    ///
+    /// `notifications.clear()` discards what has already arrived; it cannot
+    /// flush what Postgres has not yet sent. A setup upsert whose notification
+    /// is still in flight therefore lands *after* the clear and pollutes the
+    /// test body's assertions. Wait for the first anchor notification, then
+    /// for a full quiet interval with no new arrivals — an upsert can emit
+    /// more than one row event — and only then clear.
+    Future<void> clearAfterDelivery() async {
+      await _waitUntil(() => anchorNotifications().isNotEmpty);
+      var seen = anchorNotifications().length;
+      while (true) {
+        await _settle();
+        final now = anchorNotifications().length;
+        if (now == seen) break;
+        seen = now;
+      }
+      notifications.clear();
+    }
+
     setUpAll(() async {
       if (skipReason != false) {
         return;
@@ -313,7 +333,7 @@ WHERE viewer_id = '$viewerA' AND person_id = '$personP'
         target: ConstellationAnchorTarget.person(personP),
         position: pos(1, 1),
       );
-      notifications.clear();
+      await clearAfterDelivery();
       await repository.deleteAnchor(
         viewerId: viewerA,
         target: ConstellationAnchorTarget.person(personP),
@@ -349,7 +369,7 @@ SELECT count(*)::int FROM public.constellation_anchor WHERE viewer_id = '$viewer
         target: ConstellationAnchorTarget.person(personP),
         position: pos(1, 1),
       );
-      notifications.clear();
+      await clearAfterDelivery();
       await expectLater(
         db.withMutatingUser(viewerA, () async {
           await db.customStatement('''
@@ -385,7 +405,7 @@ WHERE viewer_id = '$viewerA' AND person_id = '$personP'
         position: pos(1, 1),
       );
       final revBefore = await repository.readWatermark(viewerA);
-      notifications.clear();
+      await clearAfterDelivery();
       await writer.execute("DELETE FROM public.beacon WHERE id = '$beaconB'");
       await _settle();
       final remaining = await writer.execute('''
@@ -448,7 +468,7 @@ SELECT count(*)::int FROM public.constellation_anchor WHERE viewer_id = '$viewer
           target: ConstellationAnchorTarget.person(personP),
           position: pos(1, 1),
         );
-        notifications.clear();
+        await clearAfterDelivery();
         await writer.execute('''
 DELETE FROM public.constellation_anchor_cursor WHERE viewer_id = '$viewerA'
 ''');
