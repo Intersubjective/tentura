@@ -134,6 +134,10 @@ void main() {
       await signInAndCompleteHead();
       final summary = Completer<AttentionSurfaceSummary>();
       repository.pendingSurfaceSummaries.add(summary);
+      // CHANGES IN U15R-c: the page and the totals are now fetched together
+      // and committed once, so this path reads a page too (R5).
+      final page = Completer<AttentionFeed>();
+      repository.pendingFetches.add(page);
       realtimePort.emitChange(
         const RealtimeEntityChange(
           kind: RealtimeEntityKind.helpOffer,
@@ -144,6 +148,7 @@ void main() {
       );
       await attentionCaseTestSettle();
       summary.complete(_surfaceSummary(activity: 4));
+      page.complete(attentionCaseTestFeed());
       await attentionCaseTestSettle();
       expect(surfaceSummaries.last, _surfaceSummary(activity: 4));
     });
@@ -153,6 +158,10 @@ void main() {
       await signInAndCompleteHead();
       final summary = Completer<AttentionSurfaceSummary>();
       repository.pendingSurfaceSummaries.add(summary);
+      // CHANGES IN U15R-c: the page and the totals are now fetched together
+      // and committed once, so this path reads a page too (R5).
+      final page = Completer<AttentionFeed>();
+      repository.pendingFetches.add(page);
       realtimePort.emitChange(
         const RealtimeEntityChange(
           kind: RealtimeEntityKind.inboxItem,
@@ -163,6 +172,7 @@ void main() {
       );
       await attentionCaseTestSettle();
       summary.complete(_surfaceSummary(activity: 5));
+      page.complete(attentionCaseTestFeed());
       await attentionCaseTestSettle();
       expect(surfaceSummaries.last, _surfaceSummary(activity: 5));
     });
@@ -271,7 +281,12 @@ void main() {
       expect(surfaceSummaries.last.activityUnreadTotal, 1);
     });
 
-    test('helpOffer refreshes activity stream head only', () async {
+    // CHANGES IN U15R-c (was: "helpOffer refreshes activity stream head
+    // only"). A help-offer flips responsibility, so it is a transition, and
+    // R5 puts every mounted surface and the totals in one commit rather than
+    // refreshing the Activity page on its own. What survives unchanged is
+    // that the Activity page is still fetched *as* the activity surface.
+    test('helpOffer commits every mounted surface in one move', () async {
       await attention.dispose();
       const streamDest = AttentionFeedDestinationId.activityStream;
       const historyDest = AttentionFeedDestinationId.history;
@@ -299,6 +314,14 @@ void main() {
       signInSummary.complete(_surfaceSummary());
       await attentionCaseTestSettle();
       final fetchCallsBefore = repository.fetchCalls;
+      final transitionStreamHead = Completer<AttentionFeed>();
+      final transitionHistoryHead = Completer<AttentionFeed>();
+      final transitionSummary = Completer<AttentionSurfaceSummary>();
+      repository.pendingFetches.addAll([
+        transitionStreamHead,
+        transitionHistoryHead,
+      ]);
+      repository.pendingSurfaceSummaries.add(transitionSummary);
 
       realtimePort.emitChange(
         const RealtimeEntityChange(
@@ -309,12 +332,18 @@ void main() {
         ),
       );
       await attentionCaseTestSettle();
-      expect(repository.fetchCalls, fetchCallsBefore + 1);
-      expect(repository.fetches.last.surface, AttentionSurface.activity);
+      expect(repository.fetchCalls, fetchCallsBefore + 2);
+      final refreshed = repository.fetches.sublist(fetchCallsBefore);
       expect(
-        repository.fetches.last.view,
-        AttentionView.all,
+        refreshed.map((f) => f.surface),
+        containsAll(<AttentionSurface?>[AttentionSurface.activity, null]),
+        reason: 'the stream reads its own surface; History reads unscoped',
       );
+      expect(refreshed.every((f) => f.view == AttentionView.all), isTrue);
+      transitionStreamHead.complete(attentionCaseTestFeed());
+      transitionHistoryHead.complete(attentionCaseTestFeed());
+      transitionSummary.complete(_surfaceSummary());
+      await attentionCaseTestSettle();
     });
 
     test('activity stream fetch passes activity surface', () async {

@@ -198,17 +198,14 @@ final class AttentionCase {
   void _onRealtimeEntityChange(RealtimeEntityChange change) {
     switch (change.kind) {
       case RealtimeEntityKind.beacon:
-        // A surface move: the feed page and the surface counters have to
-        // change together, so they are fetched together and committed once.
-        _invalidateRequest(change.aggregateId);
-        unawaited(_refreshAcrossSurfaces());
       case RealtimeEntityKind.helpOffer:
       case RealtimeEntityKind.inboxItem:
-        // Responsibility can flip either way here, so My Desk owners are
-        // told even though only the Activity stream has a feed session.
-        _invalidateRequest(change.aggregateId);
-        unawaited(_requestSurfaceSummaryRefresh());
-        _requestHeadRefreshForAttachedActivityStream();
+        // R5 — one transition, one generation. Help-offer and Inbox changes
+        // used to refresh the counters and the Activity page independently,
+        // and even the beacon path announced the Request to My Desk *before*
+        // committing For You. Responsibility can flip either way on any of
+        // these three, so all three take the same coordinated route.
+        unawaited(_transitionAcrossSurfaces(change.aggregateId));
       // The remaining subscribed kind is `notification`; a `default` keeps
       // this exhaustive if the subscription set ever widens.
       // ignore: no_default_cases
@@ -219,6 +216,22 @@ final class AttentionCase {
         unawaited(_requestSurfaceSummaryRefresh());
         _requestHeadRefreshForAllAttached();
     }
+  }
+
+  /// One Request's move across surfaces, start to finish.
+  ///
+  /// The announcement is the **last** step, not the first. My Desk is a
+  /// separate projection with its own fetch, so telling it first let it
+  /// re-read while For You was still holding the old page — the Request
+  /// visible on two surfaces at once, which is exactly the state D14 forbids
+  /// and exactly what the U15 test claimed to rule out while observing only
+  /// My Desk's own two lists (R5).
+  Future<void> _transitionAcrossSurfaces(String? beaconId) async {
+    await _refreshAcrossSurfaces();
+    // Announced whatever the refresh did — including when it declined to run
+    // because nothing is signed in or attached. A projection that never hears
+    // about the move is worse than one that hears late.
+    _invalidateRequest(beaconId);
   }
 
   void _invalidateRequest(String? beaconId) {
@@ -930,13 +943,6 @@ final class AttentionCase {
     }
   }
 
-  void _requestHeadRefreshForAttachedActivityStream() {
-    for (final destinationId in _feedSessions.attachedDestinationIds) {
-      if (destinationId == AttentionFeedDestinationId.activityStream) {
-        unawaited(_requestHeadRefresh(destinationId));
-      }
-    }
-  }
 
   Future<void> _requestSurfaceSummaryRefresh() async {
     if (_accountId.isEmpty) return;
