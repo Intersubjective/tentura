@@ -1,0 +1,9 @@
+mutation AttentionClear($snapshotToken: String!, $operationId: String!) {
+  attentionClear(snapshotToken: $snapshotToken, operationId: $operationId) {
+    operationId
+    appliedReceiptIds
+    skippedReceiptIds
+    deniedReceiptIds
+    status
+  }
+}

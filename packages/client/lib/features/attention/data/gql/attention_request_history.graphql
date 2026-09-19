@@ -1,0 +1,13 @@
+#import 'attention_receipt_fields.graphql'
+
+query AttentionRequestHistory($beaconId: String!, $cursor: String, $limit: Int) {
+  attentionRequestHistory(beaconId: $beaconId, cursor: $cursor, limit: $limit) {
+    nextCursor
+    items {
+      ...AttentionReceiptFields
+      eventsPreview {
+        ...AttentionReceiptFields
+      }
+    }
+  }
+}

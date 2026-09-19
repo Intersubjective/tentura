@@ -1,0 +1,12 @@
+mutation AttentionReconcile {
+  attentionReconcile {
+    createdObligationCount
+    settledObligationCount
+    unrepairableObligationCount
+    summary {
+      activityUnreadTotal
+      myWorkUnreadTotal
+      needsYouTotal
+    }
+  }
+}

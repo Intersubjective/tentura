@@ -1,0 +1,12 @@
+mutation AttentionUndo($operationId: String!, $undoToken: String!) {
+  attentionUndo(operationId: $operationId, undoToken: $undoToken) {
+    operationId
+    restoredReceiptIds
+    restoredOutcomeBeaconIds
+    restoredCount
+    skipped { kind id reason }
+    failed { kind id reason }
+    status
+    refusal
+  }
+}

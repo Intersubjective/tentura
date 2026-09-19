@@ -6,6 +6,7 @@ query ActivityOffersV2($cursor: String, $limit: Int) {
     nextCursor
     items {
       beaconId
+      listPositionAt
       effectiveActivityAt
       latestForwardAt
       unseen

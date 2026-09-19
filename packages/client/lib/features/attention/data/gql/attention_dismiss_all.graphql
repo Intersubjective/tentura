@@ -1,0 +1,14 @@
+mutation AttentionDismissAll($operationId: String!, $maxBatches: Int) {
+  attentionDismissAll(operationId: $operationId, maxBatches: $maxBatches) {
+    operationId
+    appliedReceiptIds
+    appliedOutcomeBeaconIds
+    appliedCount
+    skipped { kind id reason }
+    failed { kind id reason }
+    pendingCount
+    status
+    undoToken
+    undoDeadline
+  }
+}

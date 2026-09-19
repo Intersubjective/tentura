@@ -1,0 +1,8 @@
+query AttentionClearSnapshot($kind: String!, $beaconId: String, $receiptId: String) {
+  attentionClearSnapshot(kind: $kind, beaconId: $beaconId, receiptId: $receiptId) {
+    snapshotToken
+    receiptIds
+    outcomeGeneration
+    decisionRevision
+  }
+}

@@ -4,6 +4,10 @@ fragment AttentionReceiptFields on AttentionReceipt {
   destinationKind targetEntityId presentationKey presentationPayloadJson
   inAppPreferenceClass
   requiresAction attentionThreadKey settlementKind settledAt
+  clearedAt clearReason
   surface itemKind forwardOutcome forwardCount digestCount
   eventTotal eventUnseenCount
+  provenanceJson
+  beaconAuthorId beaconAuthorName beaconAuthorImageId
+  beaconImageId beaconEndAt allowsForward
 }
