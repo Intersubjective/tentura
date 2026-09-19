@@ -2636,3 +2636,474 @@ only); no test for "a new `requires_action` type missing from the `logicalTaskKe
 construction); and the U05b receipt-at-handoff residual is unchanged.
 
 ---
+
+## UNIT U06b — Retention posture + personal Request history read · SCOUT BRIEF (2026-09-19)
+
+**UNIT_BASE:** `40546dde8`. **Mode:** read-only scout; no production edits in this layer.
+
+### Context loaded
+
+- Manifest **§0.2** frozen API name: `attentionRequestHistory(beaconId, cursor, limit)` (design plan §4.2 prose
+  says `requestAttentionHistory` — **manifest wins**).
+- **D17** / `docs/features/request-attention.md` §9: clearing ≠ deletion; History/timeline stay complete within
+  authorization; retention must not remove live obligations or uncleared updates; delivery-job cleanup may stay
+  separate.
+- **U06a** (`3df3d8eee`): live obligations excluded from retention.
+- **U04** (`m0178`): `cleared_at`, `clear_reason`, `cleared_by_operation_id` exist; CHECK ties `cleared_at` to
+  `requires_action = false`.
+- **U05a/b/c**: immutable `(occurrence_id, account_id)` on new dispatch; channel dedupe is on
+  `attention_channel_delivery`, not outbox upsert.
+- **U18 not run:** no cutover timestamp column; no `legacy_seen` backfill; `cleared_at` remains NULL on shipped
+  rows until later units write it.
+
+---
+
+### (a) Retention posture
+
+#### What `deleteSettledOlderThan` deletes today (post-U06a)
+
+**Caller:** `TaskWorkerCase` only — throttled to once per **6 hours**, age argument **`Duration(days: 30)`**
+(`task_worker_case.dart:267–276`). No other production caller.
+
+**Predicate** (`notification_outbox_repository.dart:131–147`):
+
+| Condition | Meaning |
+|---|---|
+| `seen_at IS NOT NULL` | Read on the read axis |
+| `emailed_at IS NOT NULL` | Digest/immediate email channel marked |
+| `created_at < now() - age` | Older than 30d window |
+| `NOT (requires_action = true AND settlement_kind IS NULL)` | **U06a:** keep live obligations |
+| `NOT EXISTS (… delivery.status IN ('pending','leased'))` | Keep receipts with in-flight channel jobs |
+
+**Effect:** Deletes **outbox rows**; **`m0125`** `ON DELETE CASCADE` removes **terminal** `attention_channel_delivery`
+rows tied to those receipts (see retention PG test comment). Does **not** delete orphaned delivery jobs for
+retained receipts.
+
+**Still deletable today:** Old, seen+emailed **optional** receipts (`requires_action = false`) with no pending/
+leased delivery — including rows that are merely “seen” on the read axis but **not cleared** (`cleared_at` ignored).
+**Settled** obligations (`settlement_kind IS NOT NULL`) are **not** covered by U06a and remain deletable when
+seen+emailed+old. **Unemailed** rows never match (`emailed_at IS NULL`). **Post-U05 dispatch** receipts with
+non-null `occurrence_id` are still deletable under the same rules if seen+emailed+old.
+
+#### Required predicate extensions (U06b)
+
+Align DELETE with journal U06a follow-up + manifest step + D17:
+
+1. **Uncleared optional (unconditional):** `NOT (requires_action = false AND cleared_at IS NULL)` — uses m0178;
+   matches U06a journal predicate; covers pre-U18 rows where `cleared_at` is always NULL (all optionals protected
+   until explicitly cleared).
+2. **Post-cutover / attention-bearing history (no date marker until U18):** express as **`occurrence_id IS NOT
+   NULL`** — manifest §0.1 defines post-cutover immutable identity as UNIQUE `(occurrence_id, account_id)`; U05
+   dispatch always writes `occurrence_id`. Do **not** invent a cutover `timestamptz` in U06b. Legacy rows with
+   `occurrence_id IS NULL` may still age-delete when seen+emailed+old (honest pre-cutover limitation; U18 backfill
+   does not replay deleted rows).
+3. **Optional tightening for cleared history (recommended same commit):** `NOT (cleared_at IS NOT NULL)` so
+   cleared receipts are never age-deleted even on legacy NULL-`occurrence_id` rows once clearing lands (U09+).
+
+**Do not change** the pending/leased delivery guard or the seen+emailed age gate for the **legacy deletable
+slice**; **do not** add a separate DELETE against `attention_channel_delivery` — “delivery cleanup stays separate”
+means channel workers (`AttentionChannelDeliveryRepository.claimDue` / mark delivered) continue independently; receipt
+retention only deletes jobs **via CASCADE** when a receipt row is actually removed.
+
+#### `task_worker_case.dart`
+
+Manifest lists it under **Owns**; expect **no schedule change** unless product asks for a different window — U06b
+is predicate-only. Worker test `throttles digest and retention sweeps` should stay green with mock outbox.
+
+#### Tests pinning retention (intentional edits expected)
+
+| File | Role |
+|---|---|
+| `test/data/repository/attention_retention_pg_test.dart` | **Primary.** Test 1 expects `deleted == 2` today (`Nattretlegacy` + terminal relay receipt); after predicate work expect **0** (legacy optional uncleared + dispatch `occurrence_id`). Test 2 (live obligation) should stay **unchanged**. Add explicit cases: uncleared optional retained; post-cutover seen+emailed+settled retained; pending/leased still retained. |
+| `test/data/repository/attention_email_marking_pg_test.dart` | **Comment-only contract** — wrong `markEmailedByChannelCollapseKey` + retention can “delete early”; no assertion on `deleteSettledOlderThan` counts unless marking tests start seeding deletable legacy rows. |
+| `test/domain/use_case/task_worker_case_test.dart` | Mock counts `deleteSettledOlderThan` invocations only. |
+
+No other file calls `deleteSettledOlderThan`.
+
+---
+
+### (b) `attentionRequestHistory(beaconId, cursor, limit)`
+
+#### Authorization path (“visibility wall”)
+
+Every attention read/subwrite intersects **`public.visible_attention_receipts(p_account_id)`** (installed **`m0117`**
+— `beacon_can_read_content` / `beacon_can_read_tombstone`, `access_policy`, preference mutes, `recipient_safe` /
+`profile` allowlists). Repository pattern:
+
+```23:25:packages/server/lib/data/repository/attention_repository.dart
+  static const _authorizedReceiptJoin = '''
+FROM public.visible_attention_receipts(\$1) visible
+JOIN public.notification_outbox receipt ON receipt.id = visible.receipt_id''';
+```
+
+Ack paths (`markSeen`, `markUnseen`, `markSeenForBeacon`, settlement) all use `receipt_id IN (SELECT … FROM
+visible_attention_receipts($1))`. **History must use the same wall** — never `notification_outbox WHERE account_id
+AND beacon_id` alone. Tombstone substitution stays in `_mapRow` via `tombstone_copy` from the join (same as feed).
+
+**Not the same query as Activity child expansion:** `activityAttention` loads only `visible.surface = 'activity'`,
+excludes `relay_received`, and excludes beacons in **My Work responsibility scope** (`activityAttention` stats query
+`WHERE $2 NOT IN (SELECT scope.beacon_id FROM scope)`). History is **all surfaces** for one `beaconId` — My Work
++ Activity receipts, settled obligations, future cleared rows — still gated by `visible_attention_receipts`.
+
+#### Pagination (match feed, do not invent)
+
+Reuse **`AttentionCursor`**: `(createdAt, id)` descending, strict tuple comparison — same as `attentionFeed` and
+`_loadActivityChildReceipts` / `activityAttention`:
+
+```536:545:packages/server/lib/data/repository/attention_repository.dart
+      cursorClause.write(
+        '''
+AND (
+  $streamAlias.created_at < \$5::timestamptz
+  OR ($streamAlias.created_at = \$5::timestamptz AND $streamAlias.id < \$6)
+)''',
+```
+
+GraphQL: reuse **`QueryAttention._encodeCursor` / `_decodeCursor`** (base64url JSON `createdAt` + `id`) — same
+opaque cursor as `attentionFeed` / `activityAttention`. Default/limit clamp **1..100** like feed (`limit.clamp(1,
+100)`); manifest does not override — match feed default **50** or activityAttention **20** only if manifest silent;
+**prefer 50 + same clamp as `attentionFeed`** for one cursor codec.
+
+Return shape: smallest additive type — e.g. `{ items: [AttentionReceipt], nextCursor }` (new Freezed page type in
+`attention_models.dart` + `gqlType…` in `custom_types.dart`). **Do not** reuse `ActivityBeaconAttention` stats
+(`eventTotal`, activity-only semantics). **`clearedAt` / `clearReason` not in GraphQL `_mapReceipt` yet** — OK for
+U06b if columns are NULL; U13 client integration will extend projection when clearing ships.
+
+#### GraphQL wiring (server-only slice)
+
+| Layer | Location |
+|---|---|
+| Port | `domain/port/attention_query_port.dart` — add `attentionRequestHistory` |
+| SQL | `data/repository/attention_repository.dart` |
+| GraphQL field | `api/controllers/graphql/query/query_attention.dart` — add to `all`, mirror `activityAttention` args (`beaconId`, `cursor`, `limit`) |
+| Types | `api/controllers/graphql/custom_types.dart` |
+| Tests | `test/api/controllers/graphql/attention_graphql_test.dart` (+ update `legacy_canonical_compat_fixture_test.dart` mock port) |
+| PG | New group in `attention_repository_pg_test.dart` or dedicated `attention_request_history_pg_test.dart` |
+
+**Client:** manifest **U13** owns `packages/client/lib/features/attention/data/gql/*.graphql`, Ferry codegen,
+`AttentionCase`. **U06b should not ship client documents or `_g/`** — smallest coherent land: **server port +
+repository + GraphQL resolver + PG + graphql unit tests**. That is testable without a consumer (existing pattern for
+`activityAttention`, which also has **no** dedicated PG test file today — add PG coverage here as the proof).
+
+#### Server-only worth landing now?
+
+**Yes.** History retention guarantees (D17) are server-side; U17 timeline/History UI depends on this read but U13
+can wire later. PG + `attention_graphql_test` are sufficient acceptance for this unit.
+
+---
+
+### RISKS (explicit)
+
+| Risk | Answer |
+|---|---|
+| **Unbounded growth** | Post-cutover rows (`occurrence_id IS NOT NULL`) + uncleared optionals + cleared rows (if `cleared_at` guard added) **stop age deletion** → outbox grows per account until **account erasure** (`m0125` CASCADE) or explicit privacy/source deletion paths. Product accepts this per D17 / §9. Legacy NULL-`occurrence_id` slice may still shrink. |
+| **Consumers depending on receipts disappearing** | **`attentionFeed` / markers / summaries** have **no time window** — they already assume retained rows (`notification-attention-convergence-plan.md`). Retention shrink mostly affected **old seen+emailed optionals** and **settled** rows removed from DB (not from feed logic). After U06b, **deleted receipts vanish from History read too** — only the **legacy deletable** subset. Tests in **`attention_retention_pg_test.dart`** are the main consumer of deletion counts. |
+| **History leak vs feed** | Same **`visible_attention_receipts`** wall → **no extra** blocked-user or deleted-Request content vs any other attention read; tombstone copy applies. History **shows more rows per Request** than Activity stream (My Work receipts, settled obligations, cleared future) — that is **intended**, not a leak. **Does not** expose other participants’ private receipts (still per-account outbox). **Request Timeline UI** (`activity_list.dart`) uses **domain timeline sources**, not receipts — merging personal receipts into timeline is **U17**, not U06b. |
+| **Live-code contradictions** | U06b manifest **Owns** `task_worker_case.dart` but only retention **scheduling** lives there — predicate change is in outbox repo. **`attentionRequest` (§0.2)** is **not** in U06b steps — do not implement. Design plan API table names differ (`requestAttention*`) — use manifest names only. |
+
+---
+
+STATUS: complete
+
+BRIEF: After this unit, (1) `deleteSettledOlderThan` no longer removes uncleared optionals (`cleared_at IS NULL`,
+`requires_action = false`), post-cutover receipts (`occurrence_id IS NOT NULL`), or live obligations; legacy
+NULL-`occurrence_id` rows may still age-delete when seen+emailed+old; channel worker behavior and pending/leased
+guards unchanged. (2) `attentionRequestHistory` returns an authorized, paginated, newest-first personal receipt
+list for one Request through `visible_attention_receipts`, cursor-compatible with `attentionFeed`, server-only.
+
+STEPS:
+1. **Retention predicate** — `notification_outbox_repository.dart` — extend DELETE `WHERE` (uncleared optional +
+   post-cutover + optional `cleared_at IS NOT NULL` guard) — **red:** extend `attention_retention_pg_test.dart`
+   first (new cases + update `deleted` expectations) — **yes**
+2. **Domain port + models** — `attention_query_port.dart`, `attention_models.dart` (history page type) — **red:** PG
+   test calling port — **yes**
+3. **Repository** — `attention_repository.dart` (`attentionRequestHistory` SQL + `_mapRow`) — **red:** same PG
+   tests — **yes**
+4. **GraphQL** — `custom_types.dart`, `query_attention.dart`; mocks in `attention_graphql_test.dart`,
+   `legacy_canonical_compat_fixture_test.dart` — **red:** graphql test for cursor/beacon bounds — **yes**
+5. **Journal verify entry** — command output only — **no** production code
+
+TEST_CMD:
+
+```bash
+# Focused (run red → green during development)
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- dart test --tags pg -j 1 \
+  test/data/repository/attention_retention_pg_test.dart
+
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- dart test --exclude-tags pg \
+  test/api/controllers/graphql/attention_graphql_test.dart
+
+# Unit acceptance + plan gate (never run PG and non-PG concurrently)
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- dart test --exclude-tags pg
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 45m -- dart test --tags pg -j 1
+```
+
+Named PG suites touched by attention work (non-exhaustive; **full `dart test --tags pg -j 1` required** — casualties
+have appeared outside lists, e.g. `room_now_line_pg_test.dart` after U05b):
+`attention_retention_pg_test.dart`, `attention_repository_pg_test.dart`, `attention_activity_stream_pg_test.dart`,
+`attention_surface_pg_test.dart`, `my_work_attention_pg_test.dart`, `attention_mark_seen_for_beacon_pg_test.dart`,
+`attention_dispatch_identity_pg_test.dart`, `attention_obligation_identity_pg_test.dart`,
+`realtime_notification_migration_test.dart` (attention sections).
+
+UNTOUCHABLE: `key.fb`, `leo.key`, `out.key`, `dart-defines`, `.serena/project.yml`,
+`packages/force_directed_graphview/**`, `docs/plans/constellation-*`, generated `*.g.dart` / client `_g/`; do not
+implement U13 client GraphQL/codegen in this unit.
+
+RISKS: Retention test 1 **`deleted == 2` → ~0** must be an intentional assertion update, not a silent drift.
+Settled **legacy** obligations with NULL `occurrence_id` remain deletable until U18 — document in test comments.
+Implementing History without `cleared_at` in GraphQL payload is fine until U09/U13. Do not widen
+`visible_attention_receipts` in U06b. Running PG and non-PG `dart test` **concurrently** has caused flakes — serialize.
+
+---
+
+## UNIT U06b — Retention posture + personal Request history read · INNER (2026-09-19)
+
+Base `40546dde8`. Server-only, as the brief required: no client documents, no Ferry codegen, no
+`_requiresAction` / contract-data / channel-email / obligation-identity edits.
+
+### Commits
+
+| Hash | Subject |
+|---|---|
+| `3ae9c8c58` | feat(attention): retain attention-bearing receipts from age deletion (U06b) |
+| `31543c4ec` | feat(attention): read personal Request history behind the shared wall (U06b) |
+| `0edeb92b3` | feat(attention): expose attentionRequestHistory over GraphQL (U06b) |
+
+The brief asked for `port+model` and `repository SQL` as two commits. They landed as one: adding
+`attentionRequestHistory` to `AttentionQueryPort` without the repository override does not compile, so a
+port-only commit would have been a broken tree. No new model type was needed either — see below.
+
+### (1) Retention is not a no-op — both sides pinned
+
+Predicate after the change (`notification_outbox_repository.dart:129–169`), three new conjuncts on top of the
+U06a guard:
+
+```sql
+AND NOT (requires_action = true AND settlement_kind IS NULL)   -- U06a: live obligations
+AND NOT (requires_action = false AND cleared_at IS NULL)       -- D17: uncleared updates
+AND cleared_at IS NULL                                         -- D17: clearing is not deletion
+AND occurrence_id IS NULL                                      -- U05: post-cutover history
+```
+
+Those four collapse to a single surviving deletable class, and it is a real one, not an empty set:
+
+> **legacy** (`occurrence_id IS NULL`) **∧ settled obligation** (`requires_action = true AND settlement_kind IS
+> NOT NULL`) **∧ never cleared ∧ seen ∧ emailed ∧ older than 30 days ∧ no pending/leased handoff.**
+
+Both sides are asserted in `attention_retention_pg_test.dart`:
+
+| Class | Test | Assertion |
+|---|---|---|
+| live obligation | `retains live obligations even when seen, emailed, and older…` (pre-existing, unchanged) | `deleted == 0`, row present |
+| uncleared optional | `retains an uncleared optional even when seen, emailed and old` | `deleted == 0`, row present |
+| cleared receipt | `retains a cleared receipt — clearing is not deletion (D17)` | `deleted == 0`, row present |
+| post-cutover receipt | `retains a post-cutover settled obligation (occurrence_id IS NOT NULL)` | `deleted == 0`, row present |
+| pending / leased handoff | test 1 (pre-existing guard) | rows present, delivery jobs intact |
+| **legacy settled obligation** | `still deletes a legacy settled obligation that is seen, emailed, old and carries no pending delivery` | **`deleted == 1`, row gone** |
+
+That last row is the proof the 6-hourly `TaskWorkerCase` sweep still does work. `task_worker_case.dart` was not
+touched: the window (30 days) and the throttle (6 hours) are unchanged, as the brief expected.
+
+### (2) Growth consequence, in rows
+
+What no longer bounds `notification_outbox`: **age**. Every receipt written by the U05 dispatch path carries an
+`occurrence_id`, so from cutover onward *every* receipt this system produces is permanent as far as retention is
+concerned. One occurrence with *N* eligible recipients writes *N* rows, and none of them will ever be removed by
+the 30-day sweep — not when read, not when cleared, not when the obligation settles, not when the Request closes.
+A busy Request that emits 40 occurrences to 10 recipients contributes 400 permanent rows.
+
+What still bounds it:
+
+1. **Account erasure** — `m0125` made the `notification_outbox` → `user` FK `ON DELETE CASCADE`, and
+   `attention_channel_delivery` cascades from the receipt. Deleting an account still removes its entire receipt
+   history. This is the only mechanism that removes a post-cutover row.
+2. **The legacy slice, once** — pre-cutover rows matching the class in §1 continue to age out. This is a finite,
+   monotonically shrinking pool that reaches zero and never refills; it is not ongoing capacity relief. U18's
+   backfill does not replay rows deleted this way, and that loss is already accepted in
+   `docs/features/request-attention.md` §9 ("events lost before this model existed … are not reconstructed").
+3. Nothing else. There is no per-account cap, no per-Request cap, and no size-based trim.
+
+Operator query for what the sweep can still reach, i.e. how much of bound 2 is left:
+
+```sql
+SELECT count(*) FROM public.notification_outbox
+WHERE occurrence_id IS NULL AND cleared_at IS NULL
+  AND requires_action AND settlement_kind IS NOT NULL
+  AND seen_at IS NOT NULL AND emailed_at IS NOT NULL;
+```
+
+When that reaches zero, `deleteSettledOlderThan` becomes a scheduled no-op in practice. D17 accepts this; the
+consequence is that any future capacity work has to be a deliberate archival/partitioning decision, not a tweak
+to the retention window.
+
+### (3) Authorization — verified in code, not assumed
+
+The scout's claim that the wall is shared with the feed is **correct**, and the enforcing function is
+`public.visible_attention_receipts(p_account_id)`, installed by `m0117` (`migration/m0117.dart:7–66`).
+`attentionRequestHistory` reaches it through the same `_visibleWithSurfaceCte` constant the feed,
+`surfaceSummary`, `myWorkAttention` and `activityAttention` all use — there is no second code path.
+
+Two properties matter and both come from that one function:
+
+- **Foreign accounts.** `WHERE n.account_id = p_account_id` in the candidate CTE. A different account's request
+  for this Request's history is structurally empty — it is not a filter applied after the fact. Pinned by
+  `a foreign account reads nothing of another account history`.
+- **Blocked relationships.** `access_policy = 'beacon_content'` routes through
+  `public.beacon_can_read_content`, whose first branch is `WHEN public.block_hides(b.user_id, p_viewer_id) THEN
+  false` (`m0171.dart:83`). Pinned by `a block hides history the viewer could otherwise read`, which reads the
+  row successfully through a forward edge, inserts a `user_block`, and reads again to get nothing.
+
+### (4) What the read actually returns
+
+`returns cleared and settled receipts for the Request, newest first` seeds three rows on one Request — one
+cleared (`cleared_at`/`clear_reason` set), one settled obligation (`settlement_kind = 'resolved'`), one live —
+and asserts all three come back in `created_at DESC, id DESC` order, with `settlementKind` mapped through and
+`isLiveObligation == false` on the settled one. A query that silently filtered the cleared or settled rows would
+fail this, which was the point of the requirement.
+
+Scope is one Request only (`is scoped to one Request`), across **all** surfaces — unlike `activityAttention`,
+which restricts to `surface = 'activity'` and excludes beacons in responsibility scope.
+
+### (5) Cursor parity
+
+No new codec. The repository emits the same `AttentionCursor(createdAt, id)` with the same strict tuple
+comparison as `attentionFeed`, and the resolver reuses `QueryAttention._encodeCursor` / `_decodeCursor`
+verbatim, so an `attentionRequestHistory` cursor is byte-identical in form to a feed cursor. Proven at both
+levels:
+
+- PG — `pages on the feed cursor without duplicates or gaps, and stays stable when a newer row arrives between
+  pages`: 5 rows over three `limit: 2` pages, with a **newer** row inserted after page 1 is served; the three
+  pages return exactly the original 5 ids in order, no duplicate, no gap, and the late arrival does not surface.
+- PG — `ties on created_at break by descending id, like the feed`: three rows sharing one `created_at` page
+  cleanly across the boundary.
+- Unit — `attentionRequestHistory scopes to the account and returns an opaque cursor the feed can also decode`
+  takes the cursor string this field emits and feeds it to the `attentionFeed` field, asserting it decodes to
+  the same `(createdAt, id)`. That is the parity contract, executable.
+
+### (6) Changed test expectations — named
+
+Exactly one pre-existing test changed its expectations.
+
+**`attention_retention_pg_test.dart`, test 1** — renamed from `keeps pending and leased handoffs, then removes
+terminal and no-delivery receipts` to `keeps pending and leased handoffs, and after U06b keeps the terminal and
+no-delivery receipts too`.
+
+| Assertion | Before | After | Why |
+|---|---|---|---|
+| `deleted` | `2` | `0` | Both former casualties are now protected |
+| rows surviving of the 5 seeded | `3` | `5` | — |
+| surviving id set | `{Nattretunemailed, pending, leased}` | `{Nattretlegacy, Nattretunemailed, pending, leased, terminal}` | — |
+| `deliveryCountFor(terminalId)` | `0` (cascaded away with its receipt) | `1` | Nothing was deleted, so m0125's CASCADE never fired |
+
+The two rows that changed class: `Nattretlegacy` is an uncleared optional (`requires_action` defaults to `false`
+per `m0118`, `cleared_at IS NULL`) and so is caught by the D17 uncleared-update guard; the terminal relay receipt
+is written by `AttentionDispatchRepository.record` and therefore carries an `occurrence_id`, so it is
+post-cutover history. Both are intentional, both are commented at the assertion.
+
+Test 2 (`retains live obligations…`) is untouched, as the brief expected. No other pre-existing assertion in the
+repository changed. `legacy_canonical_compat_fixture_test.dart` gained a mock-port stub only (the interface grew
+a member); it asserts nothing new.
+
+### Test evidence
+
+Step 1 — retention predicate, red:
+
+```
+$ cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
+    dart test --tags pg -j 1 test/data/repository/attention_retention_pg_test.dart
+00:01 +2 -4: Some tests failed.
+Failing tests:
+  … keeps pending and leased handoffs, and after U06b keeps the terminal and no-delivery receipts too
+  … retains a cleared receipt — clearing is not deletion (D17)
+  … retains a post-cutover settled obligation (occurrence_id IS NOT NULL)
+  … retains an uncleared optional even when seen, emailed and old
+```
+
+All four are assertion failures (`Expected: <0> Actual: <1>`, and `Expected: <0> Actual: <2>` on test 1), not
+load errors. The fifth new test — the one pinning that deletion still happens — was green from the start, which
+is correct: that class was deletable before and stays deletable.
+
+Green:
+
+```
+00:01 +6: AttentionRetentionRepository deleteSettledOlderThan (tearDownAll)
+00:01 +6: All tests passed!
+```
+
+Step 2/3 — history port + repository, red (compile-level, the method does not exist yet):
+
+```
+$ … dart test --tags pg -j 1 test/data/repository/attention_request_history_pg_test.dart
+test/data/repository/attention_request_history_pg_test.dart:297:34: Error: The method
+'attentionRequestHistory' isn't defined for the type 'AttentionRepository'.
+00:00 +0 -1: Some tests failed.
+```
+
+Green:
+
+```
+00:02 +6: attentionRequestHistory (tearDownAll)
+00:02 +6: All tests passed!
+```
+
+Step 4 — GraphQL, red:
+
+```
+$ … dart test --exclude-tags pg test/api/controllers/graphql/attention_graphql_test.dart
+00:00 +14 -2: Some tests failed.
+Failing tests:
+  attentionRequestHistory rejects bad beacon ids and cursors
+  attentionRequestHistory scopes to the account and returns an opaque cursor the feed can also decode
+```
+
+Green:
+
+```
+00:00 +16: All tests passed!
+```
+
+Full non-PG server suite:
+
+```
+$ cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- dart test --exclude-tags pg
+00:07 +1662: All tests passed!
+```
+
+First attempt at that suite was `+1660 -1`, a load failure in
+`test/domain/attention/legacy_canonical_compat_fixture_test.dart` — its fake `AttentionQueryPort` did not
+implement the new member. Fixed with a stub in the same commit as the resolver.
+
+Full PG sweep — `dart test --tags pg -j 1`, run strictly after the non-PG run, never concurrently:
+
+```
+$ cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 45m -- dart test --tags pg -j 1
+11:49 +845 ~24: All tests passed!
+
+[exited with code 0]
+```
+
+`~24` is exactly the expected `_skipHistoricalMigrationCoverage` count (`realtime_notification_migration_test`,
+`beacon_cover_migration_test`, `m0149_resolution_removal_migration_test`). No other skip appeared, and no
+attention suite outside the two touched files changed behaviour — including
+`attention_repository_pg_test.dart`, `attention_activity_stream_pg_test.dart`, `attention_surface_pg_test.dart`,
+`my_work_attention_pg_test.dart`, `attention_dispatch_identity_pg_test.dart`,
+`attention_obligation_identity_pg_test.dart` and `room_now_line_pg_test.dart`.
+
+### Findings
+
+- **No new page type was needed.** The scout suggested a new Freezed page + `gqlType…`. `AttentionPage`
+  (`{items, nextCursor}`) and `gqlTypeAttentionPage` already model exactly that and are already the feed's
+  return shape, so reusing them is both smaller and what makes the cursor-parity claim structural rather than
+  coincidental. `ActivityBeaconAttention` was correctly *not* reused — its `eventTotal`/`unseenCount` are
+  Activity-stream semantics that mean nothing for a full-surface history.
+- **`clearedAt` / `clearReason` are still absent from the GraphQL receipt projection.** The repository reads the
+  rows; `_mapReceipt` does not expose the fields, because `AttentionReceipt` has no such members yet. Harmless
+  now (nothing writes `cleared_at` until U08/U09) but it means a client cannot yet *distinguish* a cleared
+  receipt in the history payload. That belongs to U09/U13, per the brief.
+- **The retention predicate reduces to something simpler than it reads.** `NOT (requires_action = false AND
+  cleared_at IS NULL)` combined with `cleared_at IS NULL` means every optional is kept unconditionally; only
+  settled obligations survive the filter chain. The redundant-looking form is kept deliberately so each D17 rule
+  is legible as its own line and can be removed independently later.
+- **Fixture correction, not a code finding:** `settlement_kind` is constrained to
+  `resolved|dismissed|superseded|legacy_archived|expired` (`m0118` + `m0166`). An initial fixture used
+  `'system'` and was rejected by `notification_outbox__settlement_kind_chk`.
