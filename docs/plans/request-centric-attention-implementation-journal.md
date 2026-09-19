@@ -3425,3 +3425,34 @@ dart test coordination_case_{release,commitment_events,revert}_test.dart
 ```
 
 ---
+
+### Manager verdict — U07b1 · **ACCEPTED** (hard; no scout by design / inner Opus-low ✓ / verify pass / one remediation)
+
+Overseer's own full server suite at HEAD: **1665 non-PG**, **851 PG / 24 known skips** (up from 1662 / 845 —
+the new tests). Commits `82a96f293` P0 · `d74b9e044` P1 · `3c65f7fbb` P2 · `9ecdba245` guard ·
+`b6b271a58` remediation.
+
+**The runner killed the inner worker mid-verification**, not mid-work: its four commits and its journal entry
+were complete, but it was waiting on its own full PG sweep when the 3600s limit expired, so the entry never got
+committed. The overseer committed it with attribution. **Process change adopted:** inner workers on this plan no
+longer run the full server suite — the overseer runs it independently anyway, so the duplication was costing an
+hour of worker budget and, here, the journal commit.
+
+**The transaction move's real question got a real answer.** `settleReviewerObligationOnPackageSend` sat outside
+the attention transaction behind a comment citing retry idempotency; moving it inside could have silently traded
+that away. It did not: idempotency now rests on `settlement_kind IS NULL` in the settlement SQL plus
+single-transaction rollback, so a half-applied send+settle is unreachable and a successful re-entry is a no-op
+UPDATE. Both directions proven by execution — success commits both, an injected settlement failure rolls the
+package send back with it.
+
+**The structural guard is an architectural inventory test, not a runtime throw** — and the reasoning is sound:
+a runtime ambient-transaction check would have false-passed the very call site that prompted it
+(`user_block_case.dart:211`), and a throw on a live user path would be worse than the coincidence it replaces.
+
+**Remediation, and the right outcome honestly reported.** The verifier found the P1 path
+`releaseCommitment → offerRemoved` was covered by code inspection only. The remediation test **passed on current
+code** — a coverage gap, not a defect — and rather than leave that as an assertion, the worker proved the test
+bites by deleting `supersedeAuthorHelpOfferSubmitted` from the branch, observing the failure on exactly that
+case, then reverting and confirming `git diff packages/server/lib` was empty. No production code changed.
+
+---
