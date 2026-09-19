@@ -319,25 +319,3 @@ note that `nodeBuilder` does not rebuild on zoom still holds and informs the bod
   pre-existing found. Overlay label `_detail` still separate (out of scope).
 
 **STATUS:** complete
-
-### Verify (remediation — shared zoom-detail state) — 2026-09-17
-
-- Re-ran TEST_CMD: `constellation_body_test.dart` **12 passed**; `check-custom-lints.sh
-  packages/client` **total 30 (baseline 30) OK**; `test/features/constellation/`
-  **335 passed**.
-- Range `7529a71e5..HEAD`: commits `1f47c65e5`, `213b0b71a`, `ac8fb191c`; files
-  only `constellation_body.dart`, `constellation_body_test.dart`, this journal.
-  No `constellation_viewport_overlay.dart`, `force_directed_graphview`, pubspec,
-  or `web/index.html` in range. No deleted/skipped tests; pin LOD group +1 test,
-  refactored `inRequestNode` → `inNode` helper only.
-- Regression test uses real cubit filter API (`setFilterIncludeUnspecified(false)`
-  + `setFilterCapabilitySlugs({'tools'})`) to remove `req-in-2` from graph
-  (`graphNode` absent), `clearFilters` restores node while `inBand(scale)` still
-  true; asserts both pins hidden — would fail UNIT_BASE per-node seeding.
-- `_ConstellationMapNode` is `StatelessWidget` with `detail` param only; no
-  `graphController`/listener/history. `_ConstellationBodyState` single `_detail`
-  + one `cameraRevision` listener.
-- Unit-1 pin LOD test still covers default visible pin, overview hidden, status
-  at overview, re-zoom pin returns; avatar unchanged (child `GraphNodeWidget` not
-  gated).
-- **STATUS:** pass
