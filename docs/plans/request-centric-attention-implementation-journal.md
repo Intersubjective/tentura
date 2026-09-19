@@ -3199,3 +3199,141 @@ client cannot yet distinguish a cleared row — harmless until something writes 
 by U09/U13.
 
 ---
+
+### U07b1 — settlement integrity · `inner`
+
+Base `549aa0288`. Four commits, one per scope item, journal last.
+Brief was the U07a matrix (`request-centric-attention-obligation-transition-matrix.md`); no scout. Every row
+the matrix cites was re-checked against live code before acting, and every one held — the matrix is accurate,
+so nothing in it needed correcting here.
+
+**Commits.** `82a96f293` P0 withdrawal · `d74b9e044` P1 terminal paths · `3c65f7fbb` P2 transaction boundary ·
+`9ecdba245` U05c structural guard.
+
+#### The settlement kind is `superseded`, not `resolved`
+
+Every obligation this unit newly settles ends as **`superseded`**, never `resolved`. `resolved` is reserved for
+accept/decline and package-send — an actual answer. A withdrawn offer, a removed offerer and a closed Request
+all end the obligation without the author ever answering it; recording those as `resolved` would be the
+dishonest decrement D04 forbids. `superseded` also gives U07b2 a clean key to hang the "never silently
+decrement" explanation event off.
+
+New port methods: `supersedeAuthorHelpOfferSubmitted` (per offerer) and
+`supersedeAuthorHelpOfferObligationsOnBeaconClose` (whole beacon). Both are `settlement_kind IS NULL`-guarded,
+so they are idempotent, and both run inside the caller's existing attention transaction.
+
+#### 1 · P0 — `HelpOfferCase.withdraw`
+
+Confirmed exactly as the matrix described: `withdraw` recorded the commitment event, the repo withdrawal, room
+access revocation, Inbox state and an optional `helpWithdrawn` receipt, and left the author's obligation live.
+
+Per overseer addition 1, the red test asserts the **user-visible count**, not the call:
+`AttentionRepository.surfaceSummary(...).needsYouTotal` — the same `requires_action AND settlement_kind IS NULL`
+aggregate the desk badge reads. New suite
+`packages/server/test/domain/use_case/help_offer_obligation_settlement_pg_test.dart` drives the real
+`HelpOfferCase` / `CoordinationCase` / `EvaluationCase` against a disposable Postgres.
+
+```
+dart test --tags pg -j 1 test/domain/use_case/help_offer_obligation_settlement_pg_test.dart
+RED   00:02 +0 -4    (all four: expected 0/1, actual 1/2/2 — the count never moved)
+GREEN 00:02 +4       All tests passed!
+```
+
+#### 2 · P1 — `offerRemoved` and beacon close
+
+`offerRemoved` has two producers, both in `coordination_case.dart`: `removeFromRoom` and the removal branch
+inside `releaseCommitment`. Both now supersede the author obligation for that offerer.
+
+Beacon close settles per beacon, placed next to `_recordUnansweredAtCloseOffers` inside
+`runInBeaconStateTransaction`, so it covers **both** close branches (direct close and review-window open).
+
+Honesty note on the `removeFromRoom` test: `removeFromRoom` requires an *admitted* participant, and admission
+goes through `acceptHelpOffer`, which already settles. So in a healthy system the obligation is gone before
+`offerRemoved` fires. The test therefore re-opens the receipt with SQL to model a receipt that outlived
+admission, and asserts the count drops. That path is a belt, not the main strap — the beacon-close test is the
+real P1 coverage and is driven end to end by the use cases.
+
+#### 3 · P2 — settlement inside the transaction (overseer addition 2)
+
+`settleReviewerObligationOnPackageSend` now runs as the last statement inside `runAction`, still
+unconditionally (an already-`status = 2` re-entry must still settle a receipt left live by another path).
+
+**What guarantees idempotency now that the retry position is gone.** The old comment cited retries: the call sat
+outside the transaction so a failed settle could be re-driven by a later `evaluationFinalize`, after the send
+had already committed. That is exactly the split D04 forbids, and it was *only* needed because the two could
+commit separately. Idempotency is now carried by the SQL predicate itself — `outbox.settlement_kind IS NULL`
+means a second run updates zero rows — and the retry it was protecting cannot arise: if the settlement throws,
+the send rolls back with it, so there is no half-applied state to retry into. Re-entry after a *successful*
+finalize still works and is still a no-op.
+
+Both directions are pinned, as required:
+
+```
+dart test --tags pg -j 1 test/domain/use_case/review_obligation_settlement_pg_test.dart
+RED   00:02 +12 -1   'a failing settlement rolls the package send back with it'
+                     Expected: not <2>  Actual: <2>   (status committed, receipt live)
+GREEN 00:03 +13      All tests passed!
+```
+
+`_FailingPackageSendSettlement` delegates every other settlement to the real repository and throws only on the
+package-send call, so the failure is injected at the exact seam under test.
+
+#### 4 · U05c structural guard — why a lint test, not a throw (overseer addition 3)
+
+`test/architecture/attention_dispatch_transaction_boundary_test.dart`. It pins the set of `lib/` files that hold
+`AttentionDispatchPort` directly (port, repository, `TransactionalAttentionCase`, `UserBlockCase`) and requires
+every non-boundary holder to also hold a `MutatingUnitOfWorkPort`.
+
+Three reasons this beats a runtime assertion, in order of weight:
+
+1. **A runtime check cannot see this defect.** `user_block_case.dart:211` — the very call site U05c flagged —
+   *is* inside an ambient mutating transaction, entered by `block()`'s own `_unitOfWork.run`. `TenturaDb`
+   already exposes `isInAmbientMutatingTransaction`, and a check on it would pass there. The defect class is
+   structural: *who holds the port*, i.e. who can reach `record` without a boundary at all. Only a static rule
+   sees that.
+2. **`user_block_case.dart:211` must keep working, and cannot be converted.** Routing it through
+   `TransactionalAttentionCase.runAction` would nest a mutating transaction with a *different* actor — the
+   withdrawn offerer, not the blocker — and `TenturaDb.withMutatingUser` raises `StateError` on nested actor
+   mismatch. The exception is real, so the rule has to admit it explicitly rather than be enforced blindly.
+3. **Blast radius vs. production risk.** A throw in `AttentionDispatchRepository.record` would fire in ~15
+   existing PG test files that record fixtures bare, none of them this unit's to rewrite; and a throw on a real
+   user path in production would be a worse outcome than the coincidence it replaces. (An `assert` would avoid
+   production risk but keeps the whole test blast radius and still fails point 1.)
+
+The guard proves it bites rather than asserting a tautology: a third test feeds a synthetic bare holder to the
+same predicate and requires rejection. I additionally verified it end to end by dropping a violating
+`lib/domain/use_case/_rogue_dispatch_probe.dart` into the tree:
+
+```
+RED   00:00 +0 -2    'direct dispatch-port holders are a declared, reviewed set'
+                     'every direct holder owns a mutating transaction boundary'
+                     lib/domain/use_case/_rogue_dispatch_probe.dart records attention
+                     without holding a MutatingUnitOfWorkPort
+GREEN 00:00 +3       All tests passed!   (probe removed)
+```
+
+#### Verification
+
+```
+dart test --exclude-tags pg          00:10 +1665: All tests passed!
+dart test --tags pg -j 1             see manager note below
+```
+Both through `scripts/run_with_test_cleanup.sh`, one at a time.
+
+`di.config.dart` regenerated (`build_runner`) after `HelpOfferCase` gained `attentionSystemSettlement`;
+confirmed injected.
+
+#### Findings
+
+- The U07a matrix is accurate. Nothing in it was wrong, so nothing in it was edited.
+- `test/support/review_finalization_test_support.dart`'s `NoopAttentionSystemSettlement` and the other port
+  fakes are all `extends Fake`, so the two new port methods did not break them. Only
+  `coordination_case_commitment_events_test.dart`'s recording fake needed the new methods, because
+  `removeFromRoom` now calls one.
+- Pre-existing, untouched: `review_obligation_settlement_pg_test.dart:790` carries an
+  `override_on_non_overriding_member` warning on `_StubUserProfileBatchLookup`. Not this unit's.
+
+#### Out of scope, confirmed untouched
+
+Generic user settlement (`attention_settlement_case.dart`, the client Done control), the expiry/cancellation
+explanation event, and every `resolutionTransitions` edit — all U07b2. The contract JSON was not opened.

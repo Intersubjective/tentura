@@ -343,6 +343,18 @@ the expiry explanation.
 
 ---
 
+**Split by the overseer (2026-09-19).** U07a's matrix lists seven gaps plus U05c's structural guard — too many
+for one low-effort pass, so U07b runs as two sandwiches:
+
+- **U07b1 — settlement integrity**: close the P0/P1 *missing settlements* (withdrawal; the terminal paths
+  `offerRemoved` and beacon close), move `settleReviewerObligationOnPackageSend` **inside** the attention
+  transaction (`evaluation_case.dart:1616`), and add the structural guard on the dispatch/supersede boundary
+  that U05c's verify showed is missing (`user_block_case.dart:211` calls `dispatch.record` bare).
+- **U07b2 — lifecycle vocabulary**: reject generic user settlement for these kinds server-side (owner decision
+  C), emit the optional explanation when an obligation ends by expiry or cancellation (the "never silently
+  decrement" rule), and reconcile `resolutionTransitions` with what the code actually does — U07a found the
+  contract both over- and under-declares.
+
 ### U08 — Clear command (single and open)
 
 **Carried in from U04's verify (overseer):** this unit is the first writer of
