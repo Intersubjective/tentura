@@ -298,46 +298,39 @@ class _QuotedBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          key: AttentionMiniCard.quoteRuleKey,
-          width: TenturaSpacing.tight,
-          constraints: const BoxConstraints(minHeight: TenturaSpacing.row),
-          decoration: BoxDecoration(
-            color: tt.border,
-            borderRadius: BorderRadius.circular(TenturaRadii.accentBar),
-          ),
+    return Container(
+      key: AttentionMiniCard.quoteRuleKey,
+      // The rule is a left border, so it always spans the whole quoted
+      // block — note plus chips — without an intrinsic-height pass.
+      decoration: BoxDecoration(
+        border: Border(
+          left: BorderSide(color: tt.border, width: TenturaSpacing.tight),
         ),
-        SizedBox(width: tt.iconTextGap),
-        Expanded(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (body.isNotEmpty)
-                Text(
-                  body,
-                  textAlign: TextAlign.start,
-                  style: TenturaText.bodySmall(tt.textMuted),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              if (capabilitySlugs.isNotEmpty)
-                Padding(
-                  padding: EdgeInsets.only(top: tt.tightGap),
-                  child: ForwardCapabilityChips(slugs: capabilitySlugs),
-                ),
-            ],
-          ),
-        ),
-      ],
+      ),
+      padding: EdgeInsets.only(left: tt.iconTextGap),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (body.isNotEmpty)
+            Text(
+              body,
+              textAlign: TextAlign.start,
+              style: TenturaText.bodySmall(tt.textMuted),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
+          if (capabilitySlugs.isNotEmpty)
+            Padding(
+              padding: EdgeInsets.only(top: tt.tightGap),
+              child: ForwardCapabilityChips(slugs: capabilitySlugs),
+            ),
+        ],
+      ),
     );
   }
 }
 
-/// ≥48 dp dismiss target, always visible on touch, emphasised on hover.
 class _DismissControl extends StatelessWidget {
   const _DismissControl({
     required this.focusNode,

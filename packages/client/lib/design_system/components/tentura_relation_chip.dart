@@ -7,7 +7,7 @@ import '../tentura_tokens.dart';
 /// Relation the viewer has with a Request, as shown on a card header.
 ///
 /// Relation chips are first-person labels about *me* («Помогаю» / «Слежу»),
-/// never capability tags — those keep [ForwardCapabilityChips].
+/// never capability tags — those keep `ForwardCapabilityChips`.
 enum TenturaRelationTone {
   helping,
   following;

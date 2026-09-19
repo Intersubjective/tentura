@@ -144,11 +144,11 @@ void main() {
 
     final text = tester.widget<Text>(find.text('short'));
     expect(text.textAlign, anyOf(isNull, TextAlign.start, TextAlign.left));
+    // The note sits to the right of the 2 dp rule, at the block's left edge.
     final rule = tester.getRect(find.byKey(AttentionMiniCard.quoteRuleKey));
-    expect(
-      tester.getTopLeft(find.text('short')).dx,
-      greaterThan(rule.right - 1),
-    );
+    final noteLeft = tester.getTopLeft(find.text('short')).dx;
+    expect(noteLeft, greaterThanOrEqualTo(rule.left + TenturaSpacing.tight));
+    expect(noteLeft, lessThan(rule.left + TenturaSpacing.tight * 8));
   });
 
   testWidgets('age carries the absolute time in a tooltip', (tester) async {
