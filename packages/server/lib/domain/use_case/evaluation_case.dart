@@ -1615,13 +1615,17 @@ final class EvaluationCase extends UseCaseBase {
             ),
           );
         }
+        // D04: the package send and its settlement commit together. Run
+        // unconditionally, including an already-2 re-entry, so a receipt left
+        // live by any other path still settles. Idempotency now comes from the
+        // SQL itself (`settlement_kind IS NULL`) rather than from sitting
+        // outside the transaction and being retried: a failure here rolls the
+        // send back, so there is no half-applied state to retry into.
+        await _attentionSystemSettlement?.settleReviewerObligationOnPackageSend(
+          beaconId: beaconId,
+          reviewerAccountId: userId,
+        );
       },
-    );
-    // Always settle this reviewer's reviewOpened receipt (including already-2
-    // retries after a failed prior settle). Idempotent when already settled.
-    await _attentionSystemSettlement?.settleReviewerObligationOnPackageSend(
-      beaconId: beaconId,
-      reviewerAccountId: userId,
     );
     return true;
   }

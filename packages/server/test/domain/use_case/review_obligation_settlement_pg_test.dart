@@ -36,6 +36,7 @@ import 'package:tentura_server/domain/port/trust_evidence_repository_port.dart';
 import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/port/attention_expiry_repository_port.dart';
+import 'package:tentura_server/domain/port/attention_system_settlement_port.dart';
 import 'package:tentura_server/domain/use_case/attention_expiry_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/attention_settlement_case.dart';
@@ -260,6 +261,63 @@ Future<void> main() async {
 
       expect(await _settlementKind(writer, _reviewer1), 'resolved');
       expect(await _settlementKind(writer, _reviewer2), isNull);
+    }, skip: skipReason);
+
+    test('package send and its settlement commit together', () async {
+      await _dispatchReviewOpened(dispatch, intents);
+      await evalRepo.submitEvaluationAtomic(
+        beaconId: _beaconId,
+        evaluatorId: _reviewer1,
+        evaluatedUserId: _subjectId,
+        value: BeaconEvaluationValue.pos1,
+        reasonTags: const ['quality'],
+        note: 'r1',
+        ackTags: const [],
+      );
+
+      await evaluationCase.evaluationFinalize(
+        beaconId: _beaconId,
+        userId: _reviewer1,
+      );
+
+      expect(await evalRepo.getReviewUserStatus(_beaconId, _reviewer1), 2);
+      expect(await _settlementKind(writer, _reviewer1), 'resolved');
+    }, skip: skipReason);
+
+    test('a failing settlement rolls the package send back with it', () async {
+      await _dispatchReviewOpened(dispatch, intents);
+      await evalRepo.submitEvaluationAtomic(
+        beaconId: _beaconId,
+        evaluatorId: _reviewer1,
+        evaluatedUserId: _subjectId,
+        value: BeaconEvaluationValue.pos1,
+        reasonTags: const ['quality'],
+        note: 'r1',
+        ackTags: const [],
+      );
+      final failing = _buildEvaluationCase(
+        database,
+        target.databaseEnv,
+        Logger('ReviewObligationSettlementPgTest'),
+        evalRepo,
+        intents,
+        dispatch,
+        MutatingUnitOfWork(database),
+        finalizationCase,
+        _FailingPackageSendSettlement(systemSettlement),
+      );
+
+      await expectLater(
+        failing.evaluationFinalize(beaconId: _beaconId, userId: _reviewer1),
+        throwsA(isA<StateError>()),
+      );
+
+      expect(
+        await evalRepo.getReviewUserStatus(_beaconId, _reviewer1),
+        isNot(2),
+        reason: 'the package send must not survive a failed settlement',
+      );
+      expect(await _settlementKind(writer, _reviewer1), isNull);
     }, skip: skipReason);
 
     test('user settle of reviewOpened throws and leaves receipt live', () async {
@@ -496,7 +554,7 @@ EvaluationCase _buildEvaluationCase(
   AttentionDispatchRepository dispatch,
   MutatingUnitOfWork unitOfWork,
   ReviewFinalizationCase finalizationCase,
-  AttentionSystemSettlementRepository systemSettlement,
+  AttentionSystemSettlementPort systemSettlement,
 ) {
   final beacons = BeaconRepository(database);
   final transactional = TransactionalAttentionCase(unitOfWork, dispatch);
@@ -657,6 +715,60 @@ final class _NoopAttentionExpiryRepository extends Fake
   @override
   Future<List<String>> lockExpiredReviewWindowBeaconIds(DateTime now) async =>
       [];
+}
+
+/// Delegates every settlement but the package-send one, which fails: proves
+/// the source mutation and the settlement share one transaction boundary.
+final class _FailingPackageSendSettlement
+    implements AttentionSystemSettlementPort {
+  const _FailingPackageSendSettlement(this._delegate);
+
+  final AttentionSystemSettlementPort _delegate;
+
+  @override
+  Future<int> settleReviewerObligationOnPackageSend({
+    required String beaconId,
+    required String reviewerAccountId,
+  }) async => throw StateError('injected settlement failure');
+
+  @override
+  Future<int> settleReviewObligationsAfterWindowClose(String beaconId) =>
+      _delegate.settleReviewObligationsAfterWindowClose(beaconId);
+
+  @override
+  Future<int> supersedeReviewObligationsOnReopen(String beaconId) =>
+      _delegate.supersedeReviewObligationsOnReopen(beaconId);
+
+  @override
+  Future<int> settleAuthorHelpOfferSubmitted({
+    required String beaconId,
+    required String authorAccountId,
+    required String helpOffererUserId,
+  }) => _delegate.settleAuthorHelpOfferSubmitted(
+    beaconId: beaconId,
+    authorAccountId: authorAccountId,
+    helpOffererUserId: helpOffererUserId,
+  );
+
+  @override
+  Future<int> supersedeAuthorHelpOfferSubmitted({
+    required String beaconId,
+    required String authorAccountId,
+    required String helpOffererUserId,
+  }) => _delegate.supersedeAuthorHelpOfferSubmitted(
+    beaconId: beaconId,
+    authorAccountId: authorAccountId,
+    helpOffererUserId: helpOffererUserId,
+  );
+
+  @override
+  Future<int> supersedeAuthorHelpOfferObligationsOnBeaconClose(
+    String beaconId,
+  ) => _delegate.supersedeAuthorHelpOfferObligationsOnBeaconClose(beaconId);
+
+  @override
+  Future<List<String>> listBeaconIdsWithClosedReviewWindows() =>
+      _delegate.listBeaconIdsWithClosedReviewWindows();
 }
 
 final class _NoopTrustEvidenceRepository extends Fake
