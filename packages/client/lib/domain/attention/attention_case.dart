@@ -5,6 +5,7 @@ import 'package:injectable/injectable.dart';
 import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
 import 'package:rxdart/rxdart.dart';
+import 'package:uuid/uuid.dart';
 
 import 'package:tentura/consts.dart';
 
@@ -15,7 +16,9 @@ import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/features/block/domain/use_case/block_case.dart';
 
 import 'attention_ack_store.dart';
+import 'attention_clear_store.dart';
 import 'entity/activity_beacon_attention.dart';
+import 'entity/attention_clear.dart';
 import 'entity/activity_offer_sort_row.dart';
 import 'entity/attention_feed.dart';
 import 'entity/attention_receipt.dart';
@@ -66,6 +69,8 @@ final class AttentionCase {
   final Logger _logger;
   final bool _qaLatencyMeasurementEnabled;
   final AttentionAckStore _acks = AttentionAckStore();
+  final AttentionClearStore _clears = AttentionClearStore();
+  static const _uuid = Uuid();
   final _snapshot = BehaviorSubject<AttentionFeedSnapshot>.seeded(
     const AttentionFeedSnapshot(),
   );
@@ -86,6 +91,11 @@ final class AttentionCase {
   bool _surfaceSummaryRefreshInFlight = false;
   bool _surfaceSummaryRefreshQueued = false;
   int _surfaceSummaryRequestSerial = 0;
+
+  /// Bumped when a mutation starts and again when it settles, so that any
+  /// read overlapping it is discarded rather than allowed to overwrite the
+  /// answer that mutation produced (D14).
+  int _mutationSerial = 0;
   String _accountId = '';
   int _accountGeneration = 0;
   final Map<String, bool> _headRefreshInFlight = {};
@@ -164,6 +174,7 @@ final class AttentionCase {
     _ackChains.clear();
     _markAllSeenChain = Future.value();
     _acks.resetForAccount(accountId);
+    _clears.resetForAccount(accountId);
     _feedSessions.resetForAccount();
     _emit(const AttentionFeedSnapshot());
     _surfaceSummarySubject.add(
@@ -263,6 +274,7 @@ final class AttentionCase {
     if (cursor == null || cursor.isEmpty) return;
     final accountGeneration = _accountGeneration;
     final requestGeneration = session.requestGeneration;
+    final mutationSerial = _mutationSerial;
     final feed = await _repository.fetch(
       view: view,
       cursor: cursor,
@@ -270,6 +282,7 @@ final class AttentionCase {
       surface: surfaceForDestination(destinationId),
     );
     if (accountGeneration != _accountGeneration) return;
+    if (mutationSerial != _mutationSerial) return;
     final landed = _feedSessions.session(destinationId);
     if (landed.requestGeneration != requestGeneration) return;
     _applyPage(
@@ -487,6 +500,221 @@ final class AttentionCase {
     unawaited(_requestSurfaceSummaryRefresh());
   }
 
+  /// Clears the optional attention a Request accumulated, because it was
+  /// opened. Never touches an obligation: the capture is the server's.
+  Future<AttentionClearResult> clearRequestOpen({
+    required String beaconId,
+  }) => _clear(
+    kind: AttentionClearCaptureKind.requestOpen,
+    beaconId: beaconId,
+  );
+
+  /// Clears one event or card by hand.
+  Future<AttentionClearResult> clearReceipt({
+    required String receiptId,
+  }) => _clear(
+    kind: AttentionClearCaptureKind.explicit,
+    receiptId: receiptId,
+  );
+
+  Future<AttentionClearResult> _clear({
+    required AttentionClearCaptureKind kind,
+    String? beaconId,
+    String? receiptId,
+  }) async {
+    final generation = _accountGeneration;
+    final operationId = _uuid.v4();
+    _mutationSerial++;
+    try {
+      final snapshot = await _repository.clearSnapshot(
+        kind: kind,
+        beaconId: beaconId,
+        receiptId: receiptId,
+      );
+      if (generation != _accountGeneration) {
+        return AttentionClearResult(
+          operationId: operationId,
+          status: AttentionOperationStatus.stale,
+        );
+      }
+      return await _applyClearOptimistically(
+        operationId: operationId,
+        memberIds: snapshot.receiptIds,
+        run: () => _repository.clear(
+          snapshotToken: snapshot.snapshotToken,
+          operationId: operationId,
+        ),
+        appliedIdsOf: (result) => result.appliedReceiptIds,
+        generation: generation,
+      );
+    } finally {
+      _mutationSerial++;
+      if (generation == _accountGeneration) {
+        _requestHeadRefreshForAllAttached();
+        unawaited(_requestSurfaceSummaryRefresh());
+      }
+    }
+  }
+
+  /// Bounded sweep of everything currently dismissible. Resume a `partial`
+  /// answer by passing the **same** [operationId] back: a fresh id would make
+  /// the server capture a second membership.
+  Future<AttentionDismissAllResult> dismissAll({
+    String? operationId,
+    int? maxBatches,
+  }) async {
+    final generation = _accountGeneration;
+    final id = operationId ?? _uuid.v4();
+    // The client can only be optimistic about rows it has actually loaded;
+    // unloaded totals stay where they are (D14).
+    final loaded = _receiptsById.values
+        .where((receipt) => !receipt.isCleared)
+        .map((receipt) => receipt.id)
+        .toSet();
+    _mutationSerial++;
+    try {
+      return await _applyClearOptimistically(
+        operationId: id,
+        memberIds: loaded,
+        run: () => _repository.dismissAll(
+          operationId: id,
+          maxBatches: maxBatches,
+        ),
+        appliedIdsOf: (result) => result.appliedReceiptIds,
+        generation: generation,
+      );
+    } finally {
+      _mutationSerial++;
+      if (generation == _accountGeneration) {
+        _requestHeadRefreshForAllAttached();
+        unawaited(_requestSurfaceSummaryRefresh());
+      }
+    }
+  }
+
+  /// Restores what [operationId] applied, within the server's window.
+  ///
+  /// Undo is deliberately **not** optimistic. It is rare, it is bounded, and
+  /// it can be refused outright — showing rows back before the server agreed
+  /// would turn a refusal into a flicker of false success.
+  Future<AttentionUndoResult> undoDismissAll({
+    required String operationId,
+    required String undoToken,
+  }) async {
+    final generation = _accountGeneration;
+    _mutationSerial++;
+    try {
+      final result = await _repository.undo(
+        operationId: operationId,
+        undoToken: undoToken,
+      );
+      if (generation != _accountGeneration) return result;
+      if (result.isRefused) {
+        // Nothing moved. The rows stay cleared and the caller reports why.
+        _logger.info(
+          'Attention undo refused: ${result.refusal?.wireName} ($operationId)',
+        );
+        return result;
+      }
+      _clears.rollback(operationId, result.restoredReceiptIds);
+      _applyOptimisticAcks();
+      return result;
+    } finally {
+      _mutationSerial++;
+      if (generation == _accountGeneration) {
+        _requestHeadRefreshForAllAttached();
+        unawaited(_requestSurfaceSummaryRefresh());
+      }
+    }
+  }
+
+  /// Repairs obligations and adopts the returned authoritative summary.
+  ///
+  /// The server does **not** invalidate sessions after a repair, so the
+  /// client must refetch rather than assume its pages are current.
+  Future<AttentionReconcileResult> reconcile() async {
+    final generation = _accountGeneration;
+    _mutationSerial++;
+    try {
+      final result = await _repository.reconcile();
+      if (generation != _accountGeneration) return result;
+      if (!_surfaceSummarySubject.isClosed) {
+        _surfaceSummarySubject.add(result.summary);
+      }
+      return result;
+    } finally {
+      _mutationSerial++;
+      if (generation == _accountGeneration) {
+        _requestHeadRefreshForAllAttached();
+        unawaited(_requestSurfaceSummaryRefresh());
+      }
+    }
+  }
+
+  /// Cleared and active attention for one Request.
+  Future<AttentionFeedPage> requestHistory({
+    required String beaconId,
+    String? cursor,
+    int limit = 20,
+  }) => _repository.requestHistory(
+    beaconId: beaconId,
+    cursor: cursor,
+    limit: limit,
+  );
+
+  Future<T> _applyClearOptimistically<T>({
+    required String operationId,
+    required Iterable<String> memberIds,
+    required Future<T> Function() run,
+    required List<String> Function(T result) appliedIdsOf,
+    required int generation,
+  }) async {
+    final members = memberIds.toSet();
+    final deltas = _surfaceUnreadDeltasForIds(members, seen: false);
+    final unreadDelta = _displayedUnreadCount(members);
+    if (members.isNotEmpty) {
+      _clears.begin(operationId, members);
+      _applyOptimisticAcks(unreadDelta: -unreadDelta);
+      _applyOptimisticSurfaceSummary(
+        activityUnreadDelta: -deltas.activity,
+        myWorkUnreadDelta: -deltas.myWork,
+      );
+    }
+    try {
+      final result = await run();
+      if (generation != _accountGeneration) return result;
+      final applied = appliedIdsOf(result).toSet();
+      // Only the members the server says it applied survive. A skipped, a
+      // denied and an unanswered (still pending) member are all rolled back —
+      // `partial` is not a slow `complete`.
+      final withdrawn = members.difference(applied);
+      _clears.commit(operationId, applied);
+      if (withdrawn.isNotEmpty) {
+        final restored = _surfaceUnreadDeltasForIds(withdrawn, seen: false);
+        _applyOptimisticSurfaceSummary(
+          activityUnreadDelta: restored.activity,
+          myWorkUnreadDelta: restored.myWork,
+        );
+      }
+      _applyOptimisticAcks(
+        unreadDelta: withdrawn.isEmpty ? 0 : _displayedUnreadCount(withdrawn),
+      );
+      return result;
+    } catch (error, stackTrace) {
+      if (generation == _accountGeneration && members.isNotEmpty) {
+        _clears.discard(operationId);
+        _applyOptimisticAcks(unreadDelta: unreadDelta);
+        _applyOptimisticSurfaceSummary(
+          activityUnreadDelta: deltas.activity,
+          myWorkUnreadDelta: deltas.myWork,
+        );
+      }
+      // Destructive-looking gestures fail out loud; nothing is queued (D14).
+      _logger.warning('Attention clear failed', error, stackTrace);
+      rethrow;
+    }
+  }
+
   void _requestHeadRefreshForAttachedActivityStream() {
     for (final destinationId in _feedSessions.attachedDestinationIds) {
       if (destinationId == AttentionFeedDestinationId.activityStream) {
@@ -503,10 +731,12 @@ final class AttentionCase {
     }
     _surfaceSummaryRefreshInFlight = true;
     final accountGeneration = _accountGeneration;
+    final mutationSerial = _mutationSerial;
     final requestSerial = ++_surfaceSummaryRequestSerial;
     try {
       final summary = await _repository.surfaceSummary();
       if (accountGeneration != _accountGeneration) return;
+      if (mutationSerial != _mutationSerial) return;
       if (requestSerial != _surfaceSummaryRequestSerial) return;
       if (!_surfaceSummarySubject.isClosed) {
         _surfaceSummarySubject.add(summary);
@@ -548,6 +778,7 @@ final class AttentionCase {
     }
     _headRefreshInFlight[destinationId] = true;
     final accountGeneration = _accountGeneration;
+    final mutationSerial = _mutationSerial;
     final session = _feedSessions.session(destinationId);
     final requestGeneration = session.requestGeneration;
     final view = session.activeView;
@@ -559,6 +790,9 @@ final class AttentionCase {
         surface: surfaceForDestination(destinationId),
       );
       if (accountGeneration != _accountGeneration) return;
+      // A page that left before a mutation cannot describe the world after
+      // it; the mutation's own refresh is already queued behind this one.
+      if (mutationSerial != _mutationSerial) return;
       final landed = _feedSessions.session(destinationId);
       if (landed.requestGeneration != requestGeneration) return;
       _applyPage(
@@ -597,7 +831,7 @@ final class AttentionCase {
       _receiptsById[receipt.id] = receipt;
     }
     final incoming = _uniqueByReceiptId(
-      feed.page.items.map(_acks.apply),
+      feed.page.items.map(_acks.apply).map(_clears.apply),
     );
     final items = replaceHead
         ? incoming
@@ -731,7 +965,7 @@ final class AttentionCase {
           entry.key: entry.value.copyWith(
             items: [
               for (final receipt in entry.value.items)
-                _acks.apply(_receiptsById[receipt.id] ?? receipt),
+                _clears.apply(_acks.apply(_receiptsById[receipt.id] ?? receipt)),
             ].where((receipt) {
               if (entry.key != AttentionView.unread) return true;
               return !receipt.isSeen;
