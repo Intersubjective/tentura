@@ -173,13 +173,31 @@ $_eligibleReceipts
       }
     }
 
-    final applied = [
+    // U15R-a / R9 — "applied" is what this operation *cleared*, read back
+    // from the write, never what it hoped to clear.
+    //
+    // Eligibility is a read, and two concurrent single clears can both pass
+    // it over the same receipt: only one guarded UPDATE then changes the row,
+    // while the other reported success anyway. That corrupts per-operation
+    // counts and hands undo to an operation that cleared nothing. The sweep
+    // has always read its answer back from the database
+    // (`attention_sweep_repository.dart`); this now does the same.
+    final candidates = [
       for (final id in members)
         if (eligible.contains(id)) id,
     ]..sort();
+    final applied = candidates.isEmpty
+        ? <String>[]
+        : await _clearAndReadBack(
+            accountId: accountId,
+            operationId: operationId,
+            kind: kind,
+            candidates: candidates,
+          );
+    final appliedSet = applied.toSet();
     final skipped = [
       for (final id in members)
-        if (!eligible.contains(id) && owned.containsKey(id)) id,
+        if (!appliedSet.contains(id) && owned.containsKey(id)) id,
     ]..sort();
     final denied = [
       for (final id in members)
@@ -210,37 +228,10 @@ ON CONFLICT (operation_id, receipt_id)
           Variable<String>(owned[id]),
           Variable<int>(outcomeGeneration),
           Variable<String>(
-            eligible.contains(id) ? _stateApplied : _stateSkipped,
+            appliedSet.contains(id) ? _stateApplied : _stateSkipped,
           ),
         ],
         updateKind: UpdateKind.insert,
-      );
-    }
-
-    // 4. The clear itself. Every clear is operation-backed: the operation row
-    // is what makes this replayable and what U09's undo will unwind.
-    if (applied.isNotEmpty) {
-      final placeholders = List.generate(
-        applied.length,
-        (index) => '\$${index + 4}',
-      ).join(',');
-      await _database.customUpdate(
-        '''
-UPDATE public.notification_outbox outbox
-   SET cleared_at = now(),
-       clear_reason = \$2,
-       cleared_by_operation_id = \$3
- WHERE outbox.account_id = \$1
-   AND ${AttentionDismissibleSql.activeOptional('outbox')}
-   AND outbox.id IN ($placeholders)
-''',
-        variables: [
-          Variable<String>(accountId),
-          Variable<String>(kind.wireName),
-          Variable<String>(operationId),
-          for (final id in applied) Variable<String>(id),
-        ],
-        updateKind: UpdateKind.update,
       );
     }
 
@@ -272,6 +263,54 @@ UPDATE public.attention_clear_operation
       status: status,
     );
   });
+
+  /// The clear itself, and then the database's answer about it.
+  ///
+  /// Every clear is operation-backed: the operation row is what makes this
+  /// replayable and what undo unwinds. `cleared_by_operation_id` is what makes
+  /// the answer *this* operation's — a row another operation cleared a
+  /// microsecond earlier carries that operation's id, not ours, so it is
+  /// absent here and becomes a skip.
+  Future<List<String>> _clearAndReadBack({
+    required String accountId,
+    required String operationId,
+    required AttentionClearCaptureKind kind,
+    required List<String> candidates,
+  }) async {
+    final placeholders = List.generate(
+      candidates.length,
+      (index) => '\$${index + 4}',
+    ).join(',');
+    final variables = [
+      Variable<String>(accountId),
+      Variable<String>(kind.wireName),
+      Variable<String>(operationId),
+      for (final id in candidates) Variable<String>(id),
+    ];
+    await _database.customUpdate(
+      '''
+UPDATE public.notification_outbox outbox
+   SET cleared_at = now(),
+       clear_reason = \$2,
+       cleared_by_operation_id = \$3
+ WHERE outbox.account_id = \$1
+   AND ${AttentionDismissibleSql.activeOptional('outbox')}
+   AND outbox.id IN ($placeholders)
+''',
+      variables: variables,
+      updateKind: UpdateKind.update,
+    );
+    final rows = await _database.customSelect(
+      '''
+SELECT id FROM public.notification_outbox
+ WHERE account_id = \$1
+   AND cleared_by_operation_id = \$3
+   AND id IN ($placeholders)
+''',
+      variables: variables,
+    ).get();
+    return [for (final row in rows) row.read<String>('id')]..sort();
+  }
 
   /// The answer of an operation that has already been applied.
   ///

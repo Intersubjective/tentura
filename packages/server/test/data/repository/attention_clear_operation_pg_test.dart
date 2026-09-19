@@ -1,6 +1,8 @@
 @Tags(['pg'])
 library;
 
+import 'dart:async';
+
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
@@ -478,6 +480,113 @@ SELECT col_description('public.notification_outbox'::regclass, attnum)
       },
     );
 
+    // U15R-a / R9 — two *different* single clears over one receipt.
+    //
+    // The interleaving is not left to chance: a third connection holds a row
+    // lock on the receipt, both operations run until their guarded UPDATE
+    // blocks on it, and only then is the lock released. Both therefore
+    // decided their membership before either wrote — exactly the ordering
+    // Astra read out of the source.
+    //
+    // The user-visible consequence is per-operation truth: one receipt was
+    // cleared once, so exactly one operation may own it. Two operations both
+    // reporting it corrupt their counts and hand undo to an operation that
+    // never cleared anything. Ownership is read back from
+    // `cleared_by_operation_id`, which is the database's own answer, not a
+    // value this test decides.
+    test('two concurrent single clears cannot both claim one receipt',
+        () async {
+      await _insertReceipt(writer, id: 'Nu08race', beaconId: _beaconId);
+
+      final snapshot = await clear.captureSnapshot(
+        accountId: _viewerId,
+        beaconId: _beaconId,
+        kind: AttentionClearCaptureKind.explicit,
+      );
+      expect(snapshot.receiptIds, ['Nu08race']);
+
+      final rival = openDisposablePgDatabase(target);
+      addTearDown(rival.close);
+      final rivalClear = AttentionClearCase(AttentionClearRepository(rival));
+
+      final blocker = await Connection.open(
+        target.databaseEnv.pgEndpoint,
+        settings: target.databaseEnv.pgEndpointSettings,
+      );
+      addTearDown(blocker.close);
+      final release = Completer<void>();
+      final held = Completer<void>();
+      final blocking = blocker.runTx((tx) async {
+        await tx.execute(
+          "SELECT id FROM public.notification_outbox "
+          "WHERE id = 'Nu08race' FOR UPDATE",
+        );
+        held.complete();
+        await release.future;
+      });
+      await held.future;
+
+      final first = clear.clear(
+        accountId: _viewerId,
+        operationId: 'OPu08raceA',
+        snapshotToken: snapshot.token,
+      );
+      final second = rivalClear.clear(
+        accountId: _viewerId,
+        operationId: 'OPu08raceB',
+        snapshotToken: snapshot.token,
+      );
+      await _awaitLockWaiters(writer, count: 2);
+      release.complete();
+      await blocking;
+      final results = await Future.wait([first, second]);
+
+      final claimants = [
+        for (final result in results)
+          if (result.appliedReceiptIds.contains('Nu08race')) result.operationId,
+      ];
+      expect(
+        claimants,
+        hasLength(1),
+        reason: 'the receipt was cleared once, so one operation owns it',
+      );
+      final loser = results
+          .firstWhere((result) => result.operationId != claimants.single);
+      expect(loser.appliedReceiptIds, isEmpty);
+      expect(loser.skippedReceiptIds, ['Nu08race']);
+      expect(loser.status, AttentionClearStatus.stale);
+
+      final owner = await writer.execute(
+        "SELECT cleared_by_operation_id FROM public.notification_outbox "
+        "WHERE id = 'Nu08race'",
+      );
+      expect(owner.first.first, claimants.single);
+      for (final result in results) {
+        final counted = await writer.execute(
+          Sql.named(
+            'SELECT applied FROM public.attention_clear_operation '
+            'WHERE id = @id',
+          ),
+          parameters: {'id': result.operationId},
+        );
+        expect(
+          counted.first.first,
+          result.operationId == claimants.single ? 1 : 0,
+        );
+        final state = await writer.execute(
+          Sql.named(
+            'SELECT state FROM public.attention_clear_operation_member '
+            'WHERE operation_id = @id',
+          ),
+          parameters: {'id': result.operationId},
+        );
+        expect(
+          state.first.first,
+          result.operationId == claimants.single ? 'applied' : 'skipped',
+        );
+      }
+    });
+
     test(
       'a Request that left the viewer scope between capture and apply is '
       'skipped, not cleared',
@@ -783,3 +892,25 @@ INSERT INTO public.notification_outbox (
     'threadKey': requiresAction ? 'v1|needsMe|$id|$accountId' : null,
   },
 );
+
+/// Waits until [count] backends are blocked on a lock.
+///
+/// The barrier the R9 race depends on: both applies must be sitting on their
+/// guarded UPDATE before the held row lock is released, or the test would be
+/// asserting whatever the scheduler happened to do.
+Future<void> _awaitLockWaiters(
+  Connection writer, {
+  required int count,
+}) async {
+  final deadline = DateTime.now().add(const Duration(seconds: 20));
+  while (DateTime.now().isBefore(deadline)) {
+    final rows = await writer.execute(
+      "SELECT count(*) FROM pg_stat_activity "
+      "WHERE wait_event_type = 'Lock' AND state = 'active' "
+      "AND datname = current_database()",
+    );
+    if ((rows.first.first! as int) >= count) return;
+    await Future<void>.delayed(const Duration(milliseconds: 25));
+  }
+  throw StateError('timed out waiting for $count blocked backends');
+}
