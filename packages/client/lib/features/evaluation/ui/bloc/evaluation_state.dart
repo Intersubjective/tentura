@@ -15,6 +15,10 @@ abstract class EvaluationState extends StateBase with _$EvaluationState {
     @Default(true) bool beaconIsInReview,
     @Default(false) bool beaconIsClosed,
     @Default([]) List<EvaluationParticipant> participants,
+    /// True once a read succeeded and the screen can show the package's real
+    /// state. A failed or refused load leaves it false, so §4's open-clear
+    /// never fires on a screen that showed nothing.
+    @Default(false) bool reviewContentLoaded,
     @Default(null) ReviewWindowInfo? windowInfo,
     @Default(null) EvaluationSummary? summary,
     @Default(StateIsSuccess()) StateStatus status,

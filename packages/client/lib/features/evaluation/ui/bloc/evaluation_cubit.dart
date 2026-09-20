@@ -104,7 +104,7 @@ class EvaluationCubit extends Cubit<EvaluationState> {
           state,
           window,
           afterLifecycleError: true,
-        ).copyWith(status: StateStatus.isSuccess),
+        ).copyWith(reviewContentLoaded: true, status: StateStatus.isSuccess),
       );
     } catch (_) {
       // The classifying read failed: keep what we had and report normally.
@@ -164,6 +164,7 @@ class EvaluationCubit extends Cubit<EvaluationState> {
           state.copyWith(
             participants: data.participants,
             beaconTitle: data.window.beaconTitle,
+            reviewContentLoaded: true,
             status: StateStatus.isSuccess,
           ),
         );
@@ -183,6 +184,7 @@ class EvaluationCubit extends Cubit<EvaluationState> {
           window,
         ).copyWith(
           beaconTitle: window.beaconTitle,
+          reviewContentLoaded: true,
           status: StateStatus.isSuccess,
         ),
       );
@@ -250,6 +252,7 @@ class EvaluationCubit extends Cubit<EvaluationState> {
           window,
         ).copyWith(
           beaconTitle: window.beaconTitle,
+          reviewContentLoaded: true,
           status: StateStatus.isSuccess,
         ),
       );
@@ -351,6 +354,7 @@ class EvaluationCubit extends Cubit<EvaluationState> {
           window,
         ).copyWith(
           beaconTitle: window.beaconTitle,
+          reviewContentLoaded: true,
           status: StateStatus.isSuccess,
         ),
       );

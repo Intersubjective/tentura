@@ -17,6 +17,7 @@ import 'package:tentura/features/evaluation/ui/presenter/evaluation_participant_
 import 'package:tentura/features/evaluation/ui/presenter/evaluation_value_presenter.dart';
 import 'package:tentura/features/evaluation/ui/widget/evaluation_detail_sheet.dart';
 import 'package:tentura/features/evaluation/ui/widget/evaluation_privacy_info_row.dart';
+import 'package:tentura/features/evaluation/ui/widget/review_open_clear_listener.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
@@ -45,7 +46,7 @@ class ReviewContributionsScreen extends StatefulWidget
       unawaited(cubit.loadParticipantsOnly());
       return cubit;
     },
-    child: this,
+    child: ReviewOpenClearListener(beaconId: id, child: this),
   );
 
   @override
