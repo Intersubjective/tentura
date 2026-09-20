@@ -11222,3 +11222,89 @@ cleared-but-unread row stays in Unread and keeps counting. No route needs the re
 stronger outcome on the primary surfaces — but **History's semantics are U17b's to decide**: either its Unread
 view treats cleared as read, or opening reports both axes. `updates_feed_pane`'s own `markSeen` on tap is §3's
 read axis and was deliberately left alone.
+
+---
+
+## scout — U17b · timeline and History · 2026-09-20
+
+**UNIT:** U17b — timeline and History (read-only scout; journal append only).
+
+### Decision correction for U17a hand-off
+
+U17a's "cleared-but-unread stays in History Unread and keeps counting" assumed the History **Unread** tab and
+`unreadTotal` badge use the **read** axis (`seen_at`). **Live server (U10b) does not:** `attention_repository.dart`
+filters `AttentionView.unread` and counts `unread_total` with
+`AttentionDismissibleSql.activeAttention` (`cleared_at` / obligation axis), not `seen_at IS NULL`
+(`attention_repository_pg_test.dart` L526–537; contract case *unseen but cleared optional receipt no longer asks*
+in `docs/contracts/attention-active-attention-axis.json`).
+
+**DECISION (not Option B):** Do **not** reintroduce post-display `markSeenForBeacon` on primary open. Opening is
+§4 clear-only (`request-attention.md` §4; plan D02: "Opening a Request is an explicit clear boundary, **not
+merely a read operation**"). After U17a open-clear, cleared receipts **leave** History's Unread tab and badge
+without touching `seen_at`. **Read-axis chrome** in All tab (`UpdatesFeedTile` uses `!receipt.isSeen`) may still
+show bold until the user marks read or taps the History row — that is §3 axis independence, not a bug.
+
+**Clause:** §3 (three independent states; reading never clears; axes do not substitute) + §9 (History read/unread
+controls are the read axis only) + D02/contract active-attention definition (cleared optional is not "unread"
+for the feed's Unread filter).
+
+### Timeline entry points today (do not agree)
+
+| Site | File | Current `onOpenTimeline` / log behavior |
+| --- | --- | --- |
+| For You pinned card | `activity_stream_view.dart:704` | `push(BeaconViewRoute)` — same as open beacon |
+| For You stream card | `activity_stream_view.dart:1027–1047` | `openFromUpdate(receipt)` — navigates, not a sheet |
+| My Desk obligations | `my_work_cards.dart:268` | `_openBeacon` |
+| Card footer / overflow | `request_attention_card.dart:239,440` | caller callback |
+| Subcard «ещё N» | `activity_event_subcard_block.dart:193` | caller callback |
+| Beacon detail ⋮ | `beacon_view_screen.dart:1159–1208` | `showBeaconActivitySheet` — **room coordination log only** (`timeline: const []`) |
+| `viewTab=log` deep link | `beacon_view_screen.dart:557–558` | auto `_openActivitySheet()` |
+
+`AttentionCase.requestHistory` + GraphQL `attentionRequestHistory` are **wired in data/domain but have zero UI
+callers**. Centralize on one `showRequestAttentionTimelineSheet` (name TBD) that paginates `requestHistory` and
+use §8a event headlines; migrate all attention-surface `onOpenTimeline` sites. Beacon detail coordination log may
+stay separate or gain a tab — implementer chooses minimal merge vs two sheets, but attention-card Timeline must
+not keep divergent navigation (`openFromUpdate` vs `push`).
+
+### Resurrect (§3)
+
+"Mark unread in History never resurrects primary attention" means `markUnseen` only clears `seen_at`; it must not
+clear `cleared_at` or change inbox stance. A cleared optional stays off primary predicates (`activeOptional` false).
+**Gap:** no focused PG/client test that `markUnseen` on a **cleared** receipt leaves `for_you.dot` / stream
+membership false — add in U17b.
+
+### Retirements preview
+
+See implementer `RETIREMENTS` block. `inbox_item_tile_golden_test.dart` includes **3 live behaviour tests**
+(details row, forward fold expand) beyond goldens — port only if the replacement Watching/Rejected row still needs
+them; forward-note assertion already lives on `unified_forward_row` / mini-card path.
+
+**STATUS:** complete (scout).
+
+## manager — correction: U17a's History hand-off was false
+
+U17a handed U17b a decision that does not exist. Its words:
+
+> History shows an Unread view and an `unreadTotal` badge, so a cleared-but-unread row will stay in Unread and
+> keep counting.
+
+**It will not.** U17b's scout caught it and I verified both sides:
+
+- Server: the unread view is `$2 = 'unread' AND stream.is_active_attention`
+  (`attention_repository.dart:685`, and `activeAttention(visible)` at `:709`) — the **clear** axis.
+- Client: the mirror is `isActiveOptional(receipt) || receipt.isLiveObligation`
+  (`attention_dismissible_membership.dart:50`) — written by this overseer during **R10**, for exactly this
+  reason.
+
+So clearing a row removes it from History's Unread tab and from `unreadTotal` without touching `seen_at`.
+Nothing is left counting, and **no read-marking may be re-added to the open path** — doing so would undo U17a's
+own fix and re-create the "a forbidden open burns the badge" defect it removed.
+
+**What misled it was a name.** `unreadTotal` has not meant "unread" since U10b; it is the active-attention
+total. That is the same name-that-lies failure R7 and R10 both turned on, and the reason U15R-d added honestly
+named fields rather than resemanticizing the legacy three (which retire in U18). A field whose name contradicts
+its meaning will keep generating false findings until it is gone — this is the second unit it has cost.
+
+The tests that pin the axes are still worth writing, and U17b writes them: cleared-and-unseen is absent from
+Unread while still bold on All; `markUnseen` on a cleared row does not resurrect primary attention. Those guard
+the very confusion this entry corrects.
