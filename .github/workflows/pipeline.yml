@@ -31,7 +31,10 @@ jobs:
     name: test-${{ matrix.target }}
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: true
+      # A failing shard must not cancel the others: with six targets one red
+      # shard was hiding the verdict of the rest, and a run that reports one
+      # failure out of six tells you less than it looks like it does.
+      fail-fast: false
       matrix:
         target:
           - lints

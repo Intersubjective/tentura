@@ -17,4 +17,9 @@ RUN rm -rf "$FLUTTER_HOME" \
  && flutter config --no-analytics \
  && flutter precache --web
 
-RUN apt-get update -qq && apt-get install -y -qq libsqlite3-dev && rm -rf /var/lib/apt/lists/*
+# ripgrep is required, not optional: scripts/check-doc-drift.sh,
+# check-user-facing-terminology.sh and the pipeline's `! rg ... lib/domain`
+# architecture guards all invoke `rg`. Without it each one fails, the
+# failure is swallowed by `2>/dev/null` or inverted by `!`, and the gate
+# reports clean — which is what they had been doing here.
+RUN apt-get update -qq && apt-get install -y -qq libsqlite3-dev ripgrep && rm -rf /var/lib/apt/lists/*
