@@ -795,6 +795,39 @@ pass.
 
 ---
 
+### U18 splits into three (inserted 2026-09-20, after the scout sized it)
+
+As written U18 is a cutover migration, a restartable backfill runner, an interruption test, two deferred gates,
+a version bump and the retirement of three fields across both layers plus GraphQL and the shared contract — far
+past one inner run, and the only unit in this plan that **writes to existing rows**.
+
+- **U18a — the backfill.** `m0192` with an immutable `cutover_at` singleton written before any row mutation;
+  seen optional receipts become `cleared_at = seen_at` with `clear_reason = legacy_seen`; unseen stay active;
+  prior tombstone dismissals untouched. Restartable by cursor plus a NULL guard on every UPDATE, and the
+  acceptance test injects a **real** interruption (`batchSize = 1`, fail after the first batch), never two clean
+  runs.
+- **U18b — the two deferred gates.** Legacy obligation identity: keys are derivable only for
+  `helpOfferSubmitted` / `reviewOpened` with a known beacon, and **`lifecycle_generation` is not historically
+  derivable** — use `1` only where no other live row shares the key, and leave the rest counted in
+  `unrepairableObligationCount`, which U17d now shows the user. Historical `placement`: **partially decidable** —
+  rows provably `beaconHierarchyStatusChanged` become `timeline_only`; where the event type is not reliable the
+  row **stays `primary` and the residual ancestor-dot risk is documented**. A backfill that guesses is worse
+  than one that leaves them.
+- **U18c — activation and retirement.** The `kDefaultMinClientVersion` bump in `packages/server/lib/env.dart`
+  (U18's; `pubspec.yaml` and `web/index.html` are U19's), and retiring `activityUnreadTotal`,
+  `myWorkUnreadTotal` and `needsYouTotal` across server, GraphQL, client and
+  `docs/contracts/attention-active-attention-axis.json`. Their replacements all exist: `forYouDot` /
+  `forYouSweepEligible`, `myDeskDot` + `myDeskCount`, `myDeskCount`.
+
+  **Correction to the scout's brief:** it also proposed removing `attentionMarkAllSeen` as §0.2 end-of-life.
+  **Do not.** History's "Mark all read" (`updates_feed_pane.dart:123–146` → `UpdatesFeedCubit.markAllSeen`) is
+  the **read axis**, which §3 keeps alive; it is not the attention sweep U16c-1 replaced on For You. §0.2's
+  end-of-life covers the superseded attention operations, not reading.
+
+**Why the retirement is in scope at all:** the legacy three were kept "until U18" and their misleading names
+have since caused two defects — U17a's false History hand-off and U17b's live §3 violation, where a read-axis
+delta was folded into an active-attention total. Retiring them is a safety measure, not tidying.
+
 ### U18 — Backfill and activation
 
 **Owns.** restartable backfill tooling, version gate.
