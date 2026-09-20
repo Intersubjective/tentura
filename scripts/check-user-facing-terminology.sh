@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 # Fail when user-facing copy still uses internal product nouns (beacon / room).
 set -euo pipefail
+
+# Same hazard as check-doc-drift.sh: every check here is `rg ... 2>/dev/null`
+# inside a condition, so a missing binary silently reports a clean tree.
+if ! command -v rg >/dev/null 2>&1; then
+  echo "check-user-facing-terminology: ripgrep (rg) is required and not installed" >&2
+  exit 2
+fi
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 

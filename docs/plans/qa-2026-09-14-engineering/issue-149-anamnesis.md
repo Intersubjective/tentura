@@ -87,7 +87,7 @@ It does **not** run when:
 
 1. Align `BeaconViewCubit` `beaconChanges` handler with `MyWorkCubit`: on `RepositoryEventUpdate<Beacon>` for `state.beacon.id`, call `_requestFullRefreshFor` or merge `event.value` when complete.
 2. In `_fetchForEntityTypes`, when invalidation types imply lifecycle (`coordinationItem`, possibly `participant` / `activityEvent`), include `fetchBeaconById` in the targeted batch **or** escalate to `_requestFullRefreshFor`.
-3. Verify WS producer always emits `beacon` on `beacon.state` changes; client fix should still handle contract `request_detail` paths that arrive without beacon kind.
+3. Verify WS producer always emits `beacon` on `beacon.state` changes; client fix should still handle contract `request_detail` paths that arrive without beacon kind.  <!-- drift-ok: historical QA record, quoted as written at the time -->
 
 ## Out of scope for this TDD pass
 

@@ -4546,7 +4546,7 @@ overseer owns it.
   the statement repeats its predicate. Ten U08 tests went red on the first run after m0183 and were green again
   once the insert named `WHERE receipt_id IS NOT NULL`. This is a good argument for keeping the U08 suite in
   every U09 run.
-- **`beacon.state` does not exist; it is `beacon.status`** (renamed before m0097, and the tombstone trigger
+- **`beacon.state` does not exist; it is `beacon.status`** (renamed before m0097, and the tombstone trigger  <!-- drift-ok: the line exists to correct the term -->
   moved with it). The scout brief and m0024's original text both say `state`.
 - **A Request-less obligation needs the `profile` access policy** to be visible at all —
   `visible_attention_receipts` admits a beacon-less receipt only under `profile` with
@@ -4712,7 +4712,7 @@ depends on.
 members and skew the operation counters; SET NULL would violate the new CHECK) — U09b/U09c must treat a missing
 inbox row as *skip*, not corruption. The two axes stay separate, with one operation spanning both.
 
-**Correction to the record:** `beacon.state` does not exist — the column is `beacon.status`. Both the U09 scout
+**Correction to the record:** `beacon.state` does not exist — the column is `beacon.status`. Both the U09 scout  <!-- drift-ok: the line exists to correct the term -->
 brief and m0024's comment text say otherwise.
 
 ---
