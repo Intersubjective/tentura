@@ -12266,3 +12266,177 @@ that if it recurs, it is already known not to be U18a's.
 
 **Next: U18b** — the two deferred gates, where the honest answer to "is this decidable?" is already known to be
 "partially", and a backfill that guesses is worse than one that documents.
+
+## UNIT U18b — The two deferred gates · INNER (2026-09-20)
+
+**UNIT_BASE:** `40ee2af73`, branch `feature/events_refac`. **Scope:** U18b only — legacy obligation identity
+and historical `placement`. `kDefaultMinClientVersion` and the retirement of the three legacy totals are
+**U18c** and were not started; `packages/server/lib/env.dart` is untouched.
+
+### What was built
+
+| Piece | File |
+|---|---|
+| `m0193` — a cursor and a completion mark per gate | `data/database/migration/m0193.dart` |
+| Gate 1 — the derivable key, decided in Dart by the policy | `data/repository/attention_cutover_repository.dart` |
+| Gate 2 — the provable demotion, one statement | same |
+| Six port methods, three per gate | `domain/port/attention_cutover_port.dart` |
+| The phase loop, run once per gate | `domain/use_case/attention_cutover_case.dart` |
+
+**Three phases, three cursors.** m0192 deliberately carried only U18a's columns. m0193 adds
+`obligation_key_cursor` / `obligation_key_completed_at` and `placement_cursor` /
+`placement_completed_at`, on the *same* row, because both gates are progress against the **same boundary** —
+`cutover_at`, which m0192's trigger still refuses to move while they advance beside it. The case asks each
+phase separately: one "done" flag would let a crash *between* two phases read as a finished backfill.
+
+**Termination is `scanned`, never `converted`.** U18a's phase converted everything it named. These do not: a
+batch of fifty unprovable obligations converts nothing and has still made progress, so a loop that stopped at
+`converted == 0` would stop at the first row it could not prove.
+
+### Gate 1 — what a stored row can prove about its own identity
+
+The key is **`AttentionPolicy.logicalTaskKey`'s own output**, called from Dart over facts read from the row.
+A second spelling of the formula in SQL would agree with the write path exactly until one of them was edited,
+and a key that disagrees is worse than no key: it points reconciliation at a task that does not exist, and
+`unrepairableObligationCount` stops reporting a problem that is still there.
+
+**Derivable** requires, all of them:
+
+1. an occurrence exists **and** its `event_type` equals the row's own `presentation_payload->>'eventType'`.
+   One witness is not enough — the pre-U05a collapse path (`a005bf9b0`) repointed `occurrence_id` *and*
+   `presentation_payload` at the newest event, so a row can name an occurrence that is not the event it is
+   about, and a payload that is not either;
+2. `collapsed_count = 1`. A collapsed row stands for several events and the others need not be of this
+   family — `collapse_key` is caller-supplied, so a mixed family is not provably impossible;
+3. `beacon_id` present and confirmed by the payload — it is part of the key;
+4. the event-time reasons come from the stored audience snapshot
+   (`attention_occurrence_recipient.reasons`), never from a plausible set invented here. An unrecognised
+   reason name makes the whole set unusable rather than a smaller one: a dropped reason can flip
+   `requiresAction`, and a key derived from a partial audience is a guess wearing a formula;
+5. whatever the policy then accepts. An unknown family, or an obligation variant that declares no
+   logical-task subject (`blockerOpened`), throws `ArgumentError` — which is the answer, not an error to work
+   around.
+
+**`lifecycle_generation` is not historically derivable** (U05c, §2484–2494), so `1` is written **only** where
+no other live row bears the key. The `NOT EXISTS` is spelled over exactly the population of
+`notification_outbox__live_logical_task`, so a row that would collide is *left unkeyed* rather than raising;
+the unique index stays the backstop, not the plan. Two legacy rows deriving one key, and a legacy row
+deriving the key a live keyed obligation already holds, both stay unkeyed and stay counted.
+
+**Blast radius.** A wrongly assigned key makes reconciliation settle or supersede the *wrong* obligation and
+removes a real problem from `unrepairableObligationCount`, where U17d shows it to the user. That is why the
+population is intersection-of-witnesses rather than best-effort. The rows left behind are not failures: they
+are the honest number the user already sees, and the test asserts it falls by exactly two and keeps the rest.
+
+**Candidates are not filtered by derivability.** Undecidable rows are scanned, counted and walked past —
+nothing stored about them becomes derivable later, and the cursor is what makes the loop terminate at all.
+Dropping the cursor advance does not produce a wrong answer; it produces an **infinite loop**, because
+undecidable rows stay candidates forever. That is a stronger dependency than U18a's cursor had.
+
+### Gate 2 — partially decidable, and the residual risk stated
+
+Provable means the same two agreeing witnesses, `collapsed_count = 1`, before the cutover, and a family
+`AttentionPolicy.placement` calls `timelineOnly` — the family list is built by iterating
+`AttentionEventType.values` through the policy, so the backfill demotes exactly what the write path would
+have written. Unlike gate 1 the derivability conditions are **in the candidate list**, so an undecidable row
+is never even named; the loop terminates on the decidable subset running out.
+
+**Residual ancestor-dot risk, undiminished and stated.** Every pre-m0189 `beaconHierarchyStatusChanged`
+receipt that has no occurrence, names a repointed one, or stands for a collapsed group **keeps
+`placement = 'primary'`**. Those rows can still light an ancestor Request's dot and add it to a §6 primary
+indicator for activity that happened on a child — exactly the R7 failure m0189 exists to prevent — and this
+unit does not repair them. The alternative was demoting on a guess, and a wrongly demoted row is *worse*: it
+stays visible in History but disappears from every primary-surface indicator, and nothing on the surface says
+where it went. There is no user-facing counter for this population the way `unrepairableObligationCount`
+exists for gate 1; if one is wanted, it is new work, not a fix to this pass.
+
+**Blast radius.** One receipt demoted wrongly removes that receipt from dots, counts and ordering on the
+Request it names. It is never removed from History, never cleared, and never unrecoverable — but it is
+silent, which is why the candidate list carries the proof.
+
+### Mutations
+
+Gate 1 (`attention_cutover_obligation_keys_pg_test.dart`, 6 tests):
+
+| Mutation | Result |
+|---|---|
+| occurrence/payload `event_type` agreement dropped | **fails** 4 — the repointed-collapse row got a key |
+| `collapsed_count = 1` dropped | **fails** 4 |
+| fall back to the payload when there is no occurrence at all | **fails** 4 |
+| the `NOT EXISTS` duplicate guard dropped | **fails** 5 (unique-index violation) |
+| `created_at < cutover_at` dropped | **fails** 4 — a post-cutover row was keyed |
+| `lifecycle_generation = 1` → `2` | **fails** *keys the obligations whose identity is stored* |
+| `logical_task_key IS NULL` dropped from the **UPDATE** | **fails** *an obligation keyed mid-batch is not re-keyed* |
+| cursor advance removed | **fails** the interruption test — by timeout, which is the honest consequence |
+
+Gate 2 (`attention_cutover_placement_pg_test.dart`, 4 tests):
+
+| Mutation | Result |
+|---|---|
+| occurrence/payload agreement dropped | **fails** all 4 |
+| `collapsed_count = 1` dropped | **fails** all 4 |
+| `created_at < cutover_at` dropped | **fails** all 4 |
+| family list widened with `requestStatusChanged` | **fails** all 4 |
+| `AttentionPolicy.placement` filter replaced by `if (true)` | **fails** all 4 |
+| cursor advance made a self-assignment | **fails** the interruption test |
+| occurrence `JOIN` → `LEFT JOIN` | **SURVIVED** |
+| `placement = 'primary'` dropped from the **candidate list** | **SURVIVED** |
+| `placement = 'primary'` dropped from the **UPDATE** | **SURVIVED** |
+
+**The three survivors, analysed rather than excused.**
+
+* `LEFT JOIN` is **subsumed**: with no occurrence row, `ao.event_type` is NULL and both equality conditions
+  are NULL, so the row still fails the candidate list. The inner join states the requirement; the equalities
+  enforce it.
+* The candidate-list `primary` copy is **subsumed by the UPDATE's**, exactly as U18a's candidate guard was:
+  an already-demoted row may be *named* but the UPDATE refuses it, so only `scanned` moves, and `scanned`
+  drives termination rather than correctness.
+* The UPDATE's `primary` copy is **subsumed by the candidate list's** — and, unlike gate 1's analogous guard,
+  it has no concurrency case to catch. Gate 1's copy is load-bearing because another writer can key a row
+  mid-batch and a real generation must not be replaced by `1`; the test that proves it holds a `FOR UPDATE`
+  and a `pg_stat_activity` barrier, U18a's pattern. `placement` has **no** live write path that updates it —
+  it is written once by the producer and never moved — so the only concurrent write that could reach these
+  rows would set the same value this statement sets. The guard stays because the day something *does* update
+  `placement`, the repeated predicate is what keeps this statement from fighting it.
+
+### The fixture bug the mutations caught
+
+Four of gate 1's loosening mutations **survived the first run**, and the reason was in the fixtures, not the
+code: every helpOffer fixture named the same helper, so a wrongly derived key collided with an already-keyed
+row and the duplicate guard absorbed it. The case-2 tests were passing for a reason that had nothing to do
+with what they assert — the exact failure mode the "prove it by mutation" rule exists to expose. Each
+undecidable fixture now names its own helper, and all four mutations fail.
+
+The race test came from the same pass: dropping the UPDATE's key guard survived because nothing drove a
+concurrent writer. It does now.
+
+### Facts worth carrying forward
+
+1. **Two witnesses, because the collapse path rewrote both.** `a005bf9b0` shows the pre-U05a
+   `ON CONFLICT … DO UPDATE` setting `occurrence_id` *and* `presentation_payload` from `EXCLUDED` and
+   incrementing `collapsed_count`. So agreement between the two proves consistency, not correctness — which
+   is why `collapsed_count = 1` is a separate, load-bearing condition rather than a nicety.
+2. **`blockerOpened` is a live obligation with no logical-task subject.** It is `requires_action` for
+   `targetOfAsk`, and `logicalTaskKey`'s subject switch has no case for it, so it throws. Those rows are
+   permanently unkeyable by construction and stay in `unrepairableObligationCount`.
+3. **Gate 1's cursor is a termination requirement, not an optimisation.** U18a could lose its cursor and
+   still converge, because converted rows leave the candidate list. Undecidable obligations never leave it.
+4. **Drift bind parameters need explicit casts in these fixtures.** `@settlementKind` inside a `CASE` and the
+   nullable `@occurrenceId` / `@targetEntityId` produce `42P08: could not determine data type of parameter`
+   until wrapped in `CAST(… AS text)`.
+5. **The gate-2 statement composes `primaryPlacement` and gate 1 composes `liveObligation`**, so the U10b
+   directory guard — which also reads prose — stays satisfied, and both gates move if the axis does.
+
+### Gates
+
+| Gate | Result |
+|---|---|
+| `dart test --exclude-tags pg` | **1690 / 0 skips**, all passed — baseline exactly (every new file is `pg`-tagged) |
+| `dart test --tags pg -j 1` | see the footer of this entry |
+| `./scripts/check-custom-lints.sh packages/server` | see the footer |
+| client suite | **not run** — one migration, one repository, one port, one case, three server test files; nothing the client compiles against |
+
+### Not done here (U18c, deliberately)
+
+`kDefaultMinClientVersion` and retiring `activityUnreadTotal` / `myWorkUnreadTotal` / `needsYouTotal` are
+U18c. `packages/server/lib/env.dart` is untouched.
