@@ -87,6 +87,8 @@ final class AttentionCaseTestRepository extends AttentionRepositoryFake {
   }
 
   final List<AttentionClearSnapshot> clearSnapshots = [];
+  final List<({AttentionClearCaptureKind kind, String? beaconId})>
+      clearSnapshotCalls = [];
   final List<Completer<AttentionClearResult>> pendingClears = [];
 
   @override
@@ -94,7 +96,10 @@ final class AttentionCaseTestRepository extends AttentionRepositoryFake {
     required AttentionClearCaptureKind kind,
     String? beaconId,
     String? receiptId,
-  }) async => clearSnapshots.removeAt(0);
+  }) async {
+    clearSnapshotCalls.add((kind: kind, beaconId: beaconId));
+    return clearSnapshots.removeAt(0);
+  }
 
   @override
   Future<AttentionClearResult> clear({

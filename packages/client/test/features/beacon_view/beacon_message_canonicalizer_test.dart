@@ -20,6 +20,7 @@ import 'package:tentura/features/beacon_threads/ui/widget/thread_detail.dart';
 import 'package:tentura/features/beacon_view/domain/use_case/beacon_view_case.dart';
 import 'package:tentura/features/beacon_view/ui/screen/beacon_view_host_screen.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_room_navigation_scope.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_open_clear_listener.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
@@ -251,6 +252,33 @@ void main() {
       await getIt.unregister<UiEffectPort>();
     }
   });
+
+  testWidgets(
+    'the host wraps the detail in BeaconOpenClearListener for its own id',
+    (tester) async {
+      // §4's open-clear reaches every entry route only because it lives on the
+      // host every route mounts. Without this assertion, deleting the wrapper
+      // is free and all 31 routes silently stop clearing.
+      final router = _CanonicalizerRouter();
+      await _pumpCanonicalizerHost(
+        tester,
+        router: router,
+        repo: _MessageTargetRepository(userId: _kAuthorId),
+      );
+
+      final listener = tester.widget<BeaconOpenClearListener>(
+        find.byType(BeaconOpenClearListener),
+      );
+      expect(listener.beaconId, _kBeaconId);
+      expect(
+        find.descendant(
+          of: find.byType(BeaconOpenClearListener),
+          matching: find.byType(_TestableBeaconViewHostScreen),
+        ),
+        findsOneWidget,
+      );
+    },
+  );
 
   group('?message= host canonicalizer (T9 / F3)', () {
     testWidgets('slow resolve for older message does not override newer target', (

@@ -12,6 +12,7 @@ import 'package:tentura/features/beacon_threads/ui/bloc/beacon_hierarchy_cubit.d
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_open_clear_listener.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
@@ -98,13 +99,16 @@ class BeaconViewHostScreen extends StatelessWidget implements AutoRouteWrapper {
                     state.beacon.status,
                   );
                 },
-                child: _BeaconViewMessageCanonicalizer(
+                child: BeaconOpenClearListener(
                   beaconId: id,
-                  threadId: threadId,
-                  messageId: messageId,
-                  isDeepLink: isDeepLink,
-                  entry: entry,
-                  child: this,
+                  child: _BeaconViewMessageCanonicalizer(
+                    beaconId: id,
+                    threadId: threadId,
+                    messageId: messageId,
+                    isDeepLink: isDeepLink,
+                    entry: entry,
+                    child: this,
+                  ),
                 ),
               ),
             ),
