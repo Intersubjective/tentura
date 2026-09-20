@@ -130,7 +130,12 @@ void main() {
     await cubit.close();
   });
 
-  test('openedBeacon zeroes unseenCount and calls markSeenForBeacon', () async {
+  // U17a. Opening a Request is a **clear** gesture (§4), applied by the detail
+  // host after the Request displays. My Desk only zeroes the badge
+  // optimistically; marking read here was the read axis standing in for the
+  // clear axis (D02), and it fired before navigation, so even a forbidden
+  // open burned the badge.
+  test('openedBeacon zeroes unseenCount and marks nothing read', () async {
     final obligation = _receipt(id: 'r1', beaconId: 'b1');
     final latest = _receipt(id: 'r2', beaconId: 'b1');
     final attentionRepo = StubAttentionRepository()
@@ -164,7 +169,9 @@ void main() {
     expect(entry.unseenCount, 0);
     expect(entry.liveObligations, [obligation]);
     expect(entry.latestUnseen, latest);
-    expect(attentionRepo.markSeenForBeaconCalls, ['b1']);
+    expect(attentionRepo.markSeenForBeaconCalls, isEmpty);
+    // It is not a clear either: the desk never clears before navigation.
+    expect(attentionRepo.clearSnapshotCalls, isEmpty);
 
     await cubit.close();
   });

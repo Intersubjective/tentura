@@ -553,6 +553,12 @@ class MyWorkCubit extends Cubit<MyWorkState> {
     );
   }
 
+  /// Optimistically zeroes the card's unseen badge as the Request opens.
+  ///
+  /// It does **not** mark anything read: §4's open gesture is a *clear*, and
+  /// the detail host applies it once the Request has displayed. Marking read
+  /// here was the read axis standing in for the clear axis (D02), and it also
+  /// fired before navigation, so a forbidden open still burned the badge.
   Future<void> openedBeacon(String beaconId) async {
     if (beaconId.isEmpty) return;
     final current = state.attentionByBeacon[beaconId];
@@ -566,7 +572,6 @@ class MyWorkCubit extends Cubit<MyWorkState> {
         ),
       );
     }
-    await _myWorkCase.markSeenForBeacon(beaconId);
   }
 
   Future<void> _loadAttentionIfEnabled(int seq) async {

@@ -204,9 +204,6 @@ final class MyWorkCase extends UseCaseBase {
     return byBeacon;
   }
 
-  Future<void> markSeenForBeacon(String beaconId) =>
-      _attentionCase.markSeenForBeacon(beaconId);
-
   /// Clears one optional event — the clear axis (D02/U10b), not `markSeen`.
   ///
   /// There is no settlement counterpart: generic obligation settlement was

@@ -671,9 +671,9 @@ class _PinnedRequestCard extends StatelessWidget {
     if (model == null) return const SizedBox.shrink();
     final beaconId = item.beaconId;
 
+    // §4 — nothing clears before navigation. The detail host clears the
+    // snapshot once the Request has actually displayed.
     Future<void> openBeacon() async {
-      await GetIt.I<AttentionCase>().markSeenForBeacon(beaconId);
-      if (!context.mounted) return;
       await context.router.push(
         BeaconViewRoute(id: beaconId, entry: kBeaconEntryInbox),
       );
@@ -963,9 +963,9 @@ class _ActivityStreamCell extends StatelessWidget {
   Widget _streamRow(BuildContext context, AttentionReceipt receipt) {
     Future<void> onOpenParent() async {
       final beaconId = receipt.beaconId;
-      if (beaconId != null && beaconId.isNotEmpty) {
-        await GetIt.I<AttentionCase>().markSeenForBeacon(beaconId);
-      } else {
+      if (beaconId == null || beaconId.isEmpty) {
+        // No Request behind this row, so no detail host will clear it: the
+        // read axis is all there is (§3).
         unawaited(streamCubit.markSeen(receipt.id));
       }
       if (!context.mounted) return;
@@ -1025,10 +1025,6 @@ class _ActivityStreamCell extends StatelessWidget {
         );
         if (model == null) return _feedTile(context, receipt, onOpenParent);
         Future<void> openTimeline() async {
-          if (beaconId.isNotEmpty) {
-            await GetIt.I<AttentionCase>().markSeenForBeacon(beaconId);
-          }
-          if (!context.mounted) return;
           await GetIt.I<RootRouter>().openFromUpdate(receipt);
         }
         final card = Padding(
@@ -1111,9 +1107,7 @@ class _ActivityStreamCell extends StatelessWidget {
     AttentionReceipt receipt,
   ) async {
     final beaconId = receipt.beaconId;
-    if (beaconId != null && beaconId.isNotEmpty) {
-      await GetIt.I<AttentionCase>().markSeenForBeacon(beaconId);
-    } else {
+    if (beaconId == null || beaconId.isEmpty) {
       unawaited(streamCubit.markSeen(receipt.id));
     }
     if (!context.mounted) return;
