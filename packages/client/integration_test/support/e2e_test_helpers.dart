@@ -1052,18 +1052,26 @@ Future<void> triggerCloseNow(WidgetTester tester) async {
     isFalse,
     reason: 'Request closed without an explicit author close',
   );
+  // Both entries open the same shared close-now confirm sheet, and nothing is
+  // closed until it is confirmed: the card CTA routes through
+  // `myWorkConfirmCloseNow`, the HUD action through the status sheet. Tapping
+  // the entry alone left the request in review, and the wait for the Finished
+  // card below then timed out with the close CTA still on screen (#191).
   if (finderHasMatch(myWorkClose)) {
     await tapAndSettle(tester, myWorkClose.first);
   } else {
     await tapAndSettle(tester, hudCloseNow.first);
-    await pumpUntilVisible(
-      tester,
-      find.text('Close request now?'),
-      timeout: const Duration(seconds: 30),
-    );
-    // Sheet action shares the HUD label; prefer the last match (sheet button).
-    await tapAndSettle(tester, find.text('Close now').last);
   }
+  final closeNowConfirm = find.byKey(
+    TestIds.key(TestIds.beaconCloseNowConfirm),
+  );
+  await pumpUntilVisible(
+    tester,
+    closeNowConfirm,
+    timeout: const Duration(seconds: 30),
+    label: 'close-now confirm sheet',
+  );
+  await tapAndSettle(tester, closeNowConfirm.last);
   // Close may leave the author on embedded beacon detail; Archive is on the list.
   await showMyWorkList(tester);
   await _awaitMyWorkDeskAction(

@@ -90,6 +90,7 @@ Future<bool> showBeaconCloseNowConfirmSheet({
         l10n.beaconHudConfirmCloseNowBlockedBody,
     ],
     action: l10n.beaconHudConfirmCloseNowAction,
+    actionId: TestIds.beaconCloseNowConfirm,
     enabled: canCloseNow,
   );
 }
@@ -118,6 +119,7 @@ Future<bool> _showAuthorConfirmSheet({
   required String title,
   required List<String> body,
   required String action,
+  String? actionId,
   bool enabled = true,
 }) async {
   final l10n = L10n.of(context)!;
@@ -147,14 +149,18 @@ Future<bool> _showAuthorConfirmSheet({
                 Text(paragraph, style: bodyStyle),
               ],
               SizedBox(height: tt.sectionGap),
-              FilledButton(
-                onPressed: enabled
-                    ? () {
-                        confirmed = true;
-                        Navigator.of(ctx).pop();
-                      }
-                    : null,
-                child: Text(action),
+              Semantics(
+                identifier: actionId,
+                child: FilledButton(
+                  key: actionId == null ? null : TestIds.key(actionId),
+                  onPressed: enabled
+                      ? () {
+                          confirmed = true;
+                          Navigator.of(ctx).pop();
+                        }
+                      : null,
+                  child: Text(action),
+                ),
               ),
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(),

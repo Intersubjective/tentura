@@ -131,6 +131,10 @@ abstract final class TestIds {
   static const beaconOverflowActivity = 'beacon.overflow.activity';
   static const beaconCloseConfirm = 'beacon.close.confirm';
 
+  /// Confirm action of the shared close-now sheet, shown from every author
+  /// close-now entry (HUD, status sheet, My Work card CTA).
+  static const beaconCloseNowConfirm = 'beacon.close_now.confirm';
+
   /// Status bottom-sheet row, keyed by [BeaconStatusMenuRowId.name].
   static String beaconStatusRow(String rowId) => 'beacon.status_row.$rowId';
 
