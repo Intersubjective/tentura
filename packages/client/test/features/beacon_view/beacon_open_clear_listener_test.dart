@@ -181,6 +181,68 @@ void main() {
       expect(r.repo.fetchByIdCalls, greaterThan(before));
       expect(r.clears, ['Brefresh'], reason: 'a refresh is not an opening');
     });
+
+    // The listener guards on `beaconContentLoaded && !beaconUnavailable`, and
+    // the implementer flagged the second half as unreachable-as-false and so
+    // not independently proven. The overseer's own mutation check agreed:
+    // deleting the term passes every test, because `beacon_view_cubit.dart`
+    // emits `beaconUnavailable: true` only inside
+    // `if (!state.beaconContentLoaded)` — the two flags are mutually exclusive
+    // by construction.
+    //
+    // The term stays, because a listener must not depend silently on an
+    // invariant declared in another file. This test is what makes that
+    // dependency honest: it pins the invariant itself, so if the cubit ever
+    // reports a Request unavailable while its content is still displayed,
+    // this fails and someone re-reads the listener — instead of the guard
+    // quietly becoming load-bearing with nothing to say so.
+    testWidgets(
+      'the cubit never reports unavailable while content is displayed',
+      (tester) async {
+        final r = await mount(
+          tester,
+          beaconId: 'Binvariant',
+          fetch: (id) async => beaconOf(id),
+        );
+        expect(r.clears, ['Binvariant']);
+
+        // Access is revoked after the successful open: every later fetch
+        // fails the way a forbidden Request does.
+        r.repo.fetchByIdHandler = (id) async =>
+            throw const BeaconFetchException();
+        final before = r.repo.fetchByIdCalls;
+        r.realtime.port.emitChange(
+          const RealtimeEntityChange(
+            kind: RealtimeEntityKind.profile,
+            aggregateId: 'Uauthor',
+            operation: RealtimeOperation.update,
+            source: RealtimeChangeSource.serverInvalidation,
+          ),
+        );
+        await tester.pump(const Duration(milliseconds: 500));
+        await tester.pump();
+
+        final cubit = tester
+            .element(find.byType(BeaconOpenClearListener))
+            .read<BeaconViewCubit>();
+        expect(
+          r.repo.fetchByIdCalls,
+          greaterThan(before),
+          reason: 'the failing refresh has to actually run',
+        );
+        expect(
+          cubit.state.beaconContentLoaded,
+          isTrue,
+          reason: 'what was displayed stays displayed',
+        );
+        expect(
+          cubit.state.beaconUnavailable,
+          isFalse,
+          reason: 'the cubit refuses to report both at once — the invariant '
+              "the listener's second guard term rests on",
+        );
+      },
+    );
   });
 
   testWidgets(
