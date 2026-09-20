@@ -7,22 +7,33 @@ import 'package:tentura/domain/coordination/derive_beacon_coordination_phase.dar
 import 'package:tentura/features/beacon/ui/widget/beacon_overflow_menu.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_details_facts_access_row.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_details_sheet.dart';
-import 'package:tentura/features/home/ui/widget/attention_marker.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_room_card_hints.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/presenter/beacon_phase_input_builders.dart';
 import 'package:tentura/ui/presenter/beacon_phase_presenter.dart';
+import 'package:tentura/ui/utils/beacon_card_deadline.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 import 'package:tentura/ui/widget/beacon_requirements_bar.dart';
 
 import '../../domain/entity/inbox_item.dart';
 import '../../domain/enum.dart';
 import 'inbox_card_action_row.dart';
-import 'inbox_card_forwards_fold.dart';
 
-class InboxItemTile extends StatelessWidget {
-  const InboxItemTile({
+/// The Watching / Rejected list row.
+///
+/// Replaces `InboxItemTile`, retired in U17b. The tile carried a provenance
+/// fold (`InboxCardForwardsFold`) that neither of its two live callers ever
+/// showed — both passed `showProvenance: false` — and whose forward-note
+/// content U16a had already ported into the For You forward mini-card. What
+/// survived of the fold here is the calendar deadline line, which this row
+/// renders directly.
+///
+/// These lists are **not** attention surfaces: they are the viewer's own
+/// standing choices. So there is no attention marker and no clear control —
+/// the two things the tile carried for a caller that no longer exists.
+class InboxWatchlistRow extends StatelessWidget {
+  const InboxWatchlistRow({
     required this.item,
     required this.onOpenBeacon,
     this.onTap,
@@ -34,14 +45,14 @@ class InboxItemTile extends StatelessWidget {
     this.onOfferHelp,
     this.showCtaRow = true,
     this.showForwardCta = true,
-    this.showProvenance = true,
-    this.attentionMarked = false,
     this.isSelected = false,
     super.key,
   });
 
   final InboxItem item;
   final VoidCallback onOpenBeacon;
+
+  /// Forward this Request.
   final VoidCallback? onTap;
   final VoidCallback? onWatch;
   final VoidCallback? onStopWatching;
@@ -50,30 +61,22 @@ class InboxItemTile extends StatelessWidget {
   /// Card dismiss (X) — inbox-oriented dialog; falls back to [onCantHelp].
   final Future<void> Function()? onDismissFromInbox;
   final VoidCallback? onMoveToInbox;
-
-  /// Offer help for this beacon (same flow as beacon view); null hides the menu item.
   final Future<void> Function()? onOfferHelp;
 
-  /// When false, hide the footer offer-help / secondary (dismiss, stop
-  /// watching, ...) buttons; those actions remain in the overflow menu.
-  /// Forward visibility is controlled separately by [showForwardCta].
+  /// When false (Rejected), hide the footer offer-help / secondary cluster;
+  /// those actions remain in the overflow menu.
   final bool showCtaRow;
 
-  /// When false (Rejected tab), hide the footer Forward button regardless of
-  /// [onTap]; Forward remains reachable from the overflow menu. Independent
-  /// of [showCtaRow] so Watching can show Forward while still hiding the
-  /// offer-help / secondary cluster.
+  /// When false (Rejected), hide the footer Forward button regardless of
+  /// [onTap]. Independent of [showCtaRow] so Watching can show Forward while
+  /// still hiding the offer-help cluster.
   final bool showForwardCta;
 
-  /// When false (Watching / Rejected tabs), hide the whole forwarder block
-  /// (avatars, expand, quotes).
-  final bool showProvenance;
-
-  /// Whether unread semantic attention currently maps to this Inbox card.
-  final bool attentionMarked;
-
-  /// Master–detail selection chrome (Inbox expanded list).
+  /// Master–detail selection chrome (highlight-on-arrival).
   final bool isSelected;
+
+  bool get _hasDismissAction =>
+      onDismissFromInbox != null || onCantHelp != null;
 
   String? _secondaryLabel(L10n l10n) {
     // Icon-only tertiary button for dismiss (see _secondaryIcon()).
@@ -82,9 +85,6 @@ class InboxItemTile extends StatelessWidget {
     if (onMoveToInbox != null) return l10n.actionMoveToInbox;
     return null;
   }
-
-  bool get _hasDismissAction =>
-      onDismissFromInbox != null || onCantHelp != null;
 
   IconData? _secondaryIcon() {
     if (_hasDismissAction) return Icons.close;
@@ -121,14 +121,9 @@ class InboxItemTile extends StatelessWidget {
     final secondaryLabel = _secondaryLabel(l10n);
     final secondaryIcon = _secondaryIcon();
 
-    final hasProvenance = showProvenance && item.provenance.senders.isNotEmpty;
-    final showDeadlineOrForwardsRow = hasProvenance || beacon.endAt != null;
-
-    final phaseInput = beaconPhaseInputFromInbox(
-      beacon: beacon,
-      roomHints: item.roomHints,
+    final phaseResult = deriveBeaconCoordinationPhase(
+      beaconPhaseInputFromInbox(beacon: beacon, roomHints: item.roomHints),
     );
-    final phaseResult = deriveBeaconCoordinationPhase(phaseInput);
     final phaseStatus = formatBeaconPhaseStatus(
       l10n,
       phaseResult,
@@ -138,12 +133,12 @@ class InboxItemTile extends StatelessWidget {
     final showDetails = beaconViewHasDetailsContent(beacon);
     final showForwardInFooter = showForwardCta && onTap != null;
     final showFooter = showCtaRow || showForwardInFooter;
+    final deadline = _deadlineLine(context, l10n, beacon.endAt, beacon.startAt);
 
     return BeaconCardShell(
       onTap: onOpenBeacon,
       selected: isSelected,
       tapSemanticsLabel: beacon.title.isEmpty ? l10n.openBeacon : beacon.title,
-      marker: attentionMarked ? const AttentionMarker() : null,
       footer: showFooter
           ? InboxCardActionRow(
               onOfferHelp: showCtaRow ? onOfferHelp : null,
@@ -186,10 +181,7 @@ class InboxItemTile extends StatelessWidget {
             ),
           ),
           SizedBox(height: tt.rowGap),
-          BeaconCardMetadataLine(
-            beacon: beacon,
-            updatedLine: null,
-          ),
+          BeaconCardMetadataLine(beacon: beacon, updatedLine: null),
           if (showDetails) ...[
             SizedBox(height: tt.rowGap),
             BeaconDetailsFactsAccessRow(
@@ -210,13 +202,9 @@ class InboxItemTile extends StatelessWidget {
             SizedBox(height: tt.rowGap),
             ..._roomHintLines(context, l10n, item.roomHints!),
           ],
-          if (showDeadlineOrForwardsRow) ...[
+          if (deadline != null) ...[
             SizedBox(height: tt.rowGap),
-            InboxCardForwardsFold(
-              provenance: item.provenance,
-              deadlineEndAt: beacon.endAt,
-              deadlineStartAt: beacon.startAt,
-            ),
+            deadline,
             SizedBox(height: tt.sectionGap),
           ],
           if (item.status == InboxItemStatus.rejected &&
@@ -236,74 +224,78 @@ class InboxItemTile extends StatelessWidget {
     );
   }
 
+  /// The calendar-style due line the retired fold used to host.
+  Widget? _deadlineLine(
+    BuildContext context,
+    L10n l10n,
+    DateTime? endAt,
+    DateTime? startAt,
+  ) {
+    final meta = beaconCardCalendarDeadlineStatus(l10n, endAt, startAt: startAt);
+    if (meta == null) return null;
+    final theme = Theme.of(context);
+    if (meta.overdue) {
+      return TenturaStatusText(
+        meta.text,
+        tone: TenturaTone.danger,
+        maxLines: null,
+        overflow: TextOverflow.visible,
+      );
+    }
+    return Text(
+      meta.text,
+      softWrap: true,
+      style: theme.textTheme.bodySmall!.copyWith(
+        height: 1.15,
+        color: theme.colorScheme.onSurfaceVariant,
+        fontWeight: FontWeight.w500,
+      ),
+    );
+  }
+
   List<Widget> _roomHintLines(
     BuildContext context,
     L10n l10n,
     InboxRoomCardHints h,
   ) {
+    if (!h.isRoomMember) return const [];
     final theme = Theme.of(context);
     final tt = context.tt;
-    final out = <Widget>[];
-    if (h.isRoomMember) {
+    final out = <Widget>[
+      TenturaStatusText(
+        l10n.inboxCardRoomUnread(h.roomUnreadCount),
+        tone: TenturaTone.info,
+        maxLines: null,
+        overflow: TextOverflow.visible,
+      ),
+    ];
+    final blockerTitle = h.openBlocker?.title ?? h.openBlockerTitle;
+    if (blockerTitle.isNotEmpty) {
       out.add(
-        TenturaStatusText(
-          l10n.inboxCardRoomUnread(h.roomUnreadCount),
-          tone: TenturaTone.info,
-          maxLines: null,
-          overflow: TextOverflow.visible,
+        Padding(
+          padding: EdgeInsets.only(top: tt.tightGap),
+          child: TenturaStatusText(
+            l10n.inboxCardOpenBlocker(blockerTitle),
+            tone: TenturaTone.warn,
+            maxLines: null,
+            overflow: TextOverflow.visible,
+          ),
         ),
       );
-      if (h.openBlockerTitle.isNotEmpty ||
-          (h.openBlocker?.title.isNotEmpty ?? false)) {
-        final title = h.openBlocker?.title ?? h.openBlockerTitle;
-        out.add(
-          Padding(
-            padding: EdgeInsets.only(top: tt.tightGap),
-            child: TenturaStatusText(
-              l10n.inboxCardOpenBlocker(title),
-              tone: TenturaTone.warn,
-              maxLines: null,
-              overflow: TextOverflow.visible,
-            ),
-          ),
-        );
-      }
-      if (h.currentLineSnippet.isNotEmpty) {
-        out.add(
-          Padding(
-            padding: EdgeInsets.only(top: tt.tightGap),
-            child: Text(
-              l10n.inboxCardRoomCurrentLine(h.currentLineSnippet),
-              style: theme.textTheme.bodySmall,
-              softWrap: true,
-            ),
-          ),
-        );
-      }
-      if (h.myNextMove.isNotEmpty) {
-        out.add(
-          Padding(
-            padding: EdgeInsets.only(top: tt.tightGap),
-            child: Text(
-              l10n.inboxCardRoomNextMove(h.myNextMove),
-              style: theme.textTheme.bodySmall,
-              softWrap: true,
-            ),
-          ),
-        );
-      }
-      if (h.lastRoomMeaningfulChange.isNotEmpty) {
-        out.add(
-          Padding(
-            padding: EdgeInsets.only(top: tt.tightGap),
-            child: Text(
-              l10n.inboxCardRoomLastChange(h.lastRoomMeaningfulChange),
-              style: theme.textTheme.bodySmall,
-              softWrap: true,
-            ),
-          ),
-        );
-      }
+    }
+    for (final line in <String>[
+      if (h.currentLineSnippet.isNotEmpty)
+        l10n.inboxCardRoomCurrentLine(h.currentLineSnippet),
+      if (h.myNextMove.isNotEmpty) l10n.inboxCardRoomNextMove(h.myNextMove),
+      if (h.lastRoomMeaningfulChange.isNotEmpty)
+        l10n.inboxCardRoomLastChange(h.lastRoomMeaningfulChange),
+    ]) {
+      out.add(
+        Padding(
+          padding: EdgeInsets.only(top: tt.tightGap),
+          child: Text(line, style: theme.textTheme.bodySmall, softWrap: true),
+        ),
+      );
     }
     return out;
   }

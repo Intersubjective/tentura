@@ -11,7 +11,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../domain/entity/inbox_item.dart';
 import '../bloc/inbox_cubit.dart';
-import '../widget/inbox_item_tile.dart';
+import '../widget/inbox_watchlist_row.dart';
 import '../widget/inbox_card_actions.dart';
 import '../widget/rejection_dialog.dart';
 
@@ -140,11 +140,10 @@ class _InboxWatchingScreenState extends State<InboxWatchingScreen> {
                   separatorBuilder: (_, _) => SizedBox(height: tt.rowGap),
                   itemBuilder: (_, i) {
                     final item = items[i];
-                    return InboxItemTile(
+                    return InboxWatchlistRow(
                       key: _keyFor(item.beaconId),
                       item: item,
                       isSelected: highlightId == item.beaconId,
-                      showProvenance: false,
                       onOpenBeacon: () => context.router.push(
                         BeaconViewRoute(
                           id: item.beaconId,

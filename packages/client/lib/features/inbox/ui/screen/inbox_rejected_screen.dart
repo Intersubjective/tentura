@@ -9,7 +9,7 @@ import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../bloc/inbox_cubit.dart';
-import '../widget/inbox_item_tile.dart';
+import '../widget/inbox_watchlist_row.dart';
 
 @RoutePage()
 class InboxRejectedScreen extends StatelessWidget implements AutoRouteWrapper {
@@ -80,7 +80,7 @@ class InboxRejectedScreen extends StatelessWidget implements AutoRouteWrapper {
                   separatorBuilder: (_, _) => SizedBox(height: tt.rowGap),
                   itemBuilder: (_, i) {
                     final item = items[i];
-                    return InboxItemTile(
+                    return InboxWatchlistRow(
                       key: ValueKey(item.beaconId),
                       item: item,
                       onOpenBeacon: () => context.router.push(
@@ -97,7 +97,6 @@ class InboxRejectedScreen extends StatelessWidget implements AutoRouteWrapper {
                       onMoveToInbox: () => inboxCubit.unreject(item.beaconId),
                       showCtaRow: false,
                       showForwardCta: false,
-                      showProvenance: false,
                     );
                   },
                 ),

@@ -8,9 +8,10 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_item.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
-import 'package:tentura/features/inbox/ui/widget/inbox_item_tile.dart';
+import 'package:tentura/features/inbox/ui/widget/inbox_watchlist_row.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/beacon_card_deadline.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
 
@@ -24,12 +25,11 @@ class _GoldenProfileCubit extends Mock implements ProfileCubit {
   Stream<ProfileState> get stream => Stream<ProfileState>.value(state);
 }
 
-Future<void> _pumpTile(
+Future<void> _pumpRow(
   WidgetTester tester, {
   required InboxItem item,
   required Size logicalSize,
   bool isSelected = false,
-  bool attentionMarked = false,
   VoidCallback? onOpenBeacon,
 }) async {
   await tester.pumpWidget(
@@ -51,9 +51,8 @@ Future<void> _pumpTile(
                   key: const Key('golden'),
                   child: SizedBox(
                     width: logicalSize.width,
-                    child: InboxItemTile(
+                    child: InboxWatchlistRow(
                       item: item,
-                      attentionMarked: attentionMarked,
                       isSelected: isSelected,
                       onOpenBeacon: onOpenBeacon ?? () {},
                       onTap: () {},
@@ -74,7 +73,7 @@ void main() {
   const logicalSize = Size(360, 420);
   final at = DateTime.utc(2026, 6, 20, 12, 34);
 
-  testWidgets('InboxItemTile golden (compact)', (tester) async {
+  testWidgets('InboxWatchlistRow golden (compact)', (tester) async {
     final beacon = Beacon(
       id: 'b-inbox',
       title: 'Help needed: move a piano',
@@ -103,20 +102,19 @@ void main() {
       ),
     );
 
-    await _pumpTile(
+    await _pumpRow(
       tester,
       item: item,
       logicalSize: logicalSize,
-      attentionMarked: true,
     );
 
     await expectLater(
       find.byKey(const Key('golden')),
-      matchesGoldenFile('goldens/inbox_item_tile.png'),
+      matchesGoldenFile('goldens/inbox_watchlist_row.png'),
     );
   });
 
-  testWidgets('InboxItemTile golden selected', (tester) async {
+  testWidgets('InboxWatchlistRow golden selected', (tester) async {
     final beacon = Beacon(
       id: 'b-sel',
       title: 'Selected request',
@@ -131,7 +129,7 @@ void main() {
       beacon: beacon,
     );
 
-    await _pumpTile(
+    await _pumpRow(
       tester,
       item: item,
       logicalSize: const Size(360, 280),
@@ -140,7 +138,7 @@ void main() {
 
     await expectLater(
       find.byKey(const Key('golden')),
-      matchesGoldenFile('goldens/inbox_item_tile_selected.png'),
+      matchesGoldenFile('goldens/inbox_watchlist_row_selected.png'),
     );
   });
 
@@ -158,7 +156,7 @@ void main() {
       beacon: beacon,
     );
 
-    await _pumpTile(
+    await _pumpRow(
       tester,
       item: item,
       logicalSize: const Size(360, 240),
@@ -189,7 +187,7 @@ void main() {
     );
 
     var opened = 0;
-    await _pumpTile(
+    await _pumpRow(
       tester,
       item: item,
       logicalSize: const Size(360, 360),
@@ -209,45 +207,39 @@ void main() {
     expect(opened, 0);
   });
 
-  testWidgets('forward note is hidden until fold expands', (tester) async {
+  // The retired tile's forward fold is not replaced: neither Watching nor
+  // Rejected ever showed it (both passed `showProvenance: false`), and its
+  // note content lives on the For You forward mini-card — see
+  // `request_attention_card_test.dart`. What the fold did host and this row
+  // still needs is the calendar deadline line.
+  testWidgets('the deadline line survives the fold that hosted it', (
+    tester,
+  ) async {
     final beacon = Beacon(
-      id: 'b-note',
-      title: 'With note',
+      id: 'b-deadline',
+      title: 'With a deadline',
       author: const Profile(id: 'auth', displayName: 'Alex River'),
       createdAt: at,
       updatedAt: at,
+      endAt: at.add(const Duration(days: 3)),
     );
     final item = InboxItem(
       beaconId: beacon.id,
       latestForwardAt: at,
       beacon: beacon,
-      provenance: const InboxProvenance(
-        senders: [
-          InboxForwardSender(
-            id: 'fwd1',
-            displayName: 'Sam Forward',
-            mr: 1,
-            notePreview: 'Please check this week.',
-          ),
-        ],
-        totalDistinctSenders: 1,
-        strongestNotePreview: 'Please check this week.',
-      ),
     );
 
-    await _pumpTile(
-      tester,
-      item: item,
-      logicalSize: const Size(360, 320),
-    );
+    await _pumpRow(tester, item: item, logicalSize: const Size(360, 320));
 
     final l10n = await L10n.delegate.load(const Locale('en'));
-    expect(find.textContaining('Please check this week.'), findsNothing);
-    expect(find.text(l10n.inboxForwardedByLabel), findsOneWidget);
-
-    await tester.tap(find.text(l10n.inboxForwardedByLabel));
-    await tester.pumpAndSettle();
-
-    expect(find.textContaining('Please check this week.'), findsOneWidget);
+    final expected = beaconCardCalendarDeadlineStatus(
+      l10n,
+      beacon.endAt,
+      startAt: beacon.startAt,
+    );
+    expect(expected, isNotNull);
+    expect(find.text(expected!.text), findsOneWidget);
+    expect(find.text(l10n.inboxForwardedByLabel), findsNothing);
   });
+
 }

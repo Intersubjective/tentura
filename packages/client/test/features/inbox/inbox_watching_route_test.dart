@@ -27,7 +27,7 @@ import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_cubit.dart';
 import 'package:tentura/features/inbox/ui/screen/inbox_screen.dart';
 import 'package:tentura/features/inbox/ui/screen/inbox_watching_screen.dart';
-import 'package:tentura/features/inbox/ui/widget/inbox_item_tile.dart';
+import 'package:tentura/features/inbox/ui/widget/inbox_watchlist_row.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/updates/domain/use_case/invite_accepted_setup_case.dart';
 import 'package:tentura/features/updates/ui/widget/updates_feed_pane.dart';
@@ -405,7 +405,9 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
 
-    final tiles = tester.widgetList<InboxItemTile>(find.byType(InboxItemTile));
+    final tiles = tester.widgetList<InboxWatchlistRow>(
+      find.byType(InboxWatchlistRow),
+    );
     expect(tiles.where((t) => t.isSelected), hasLength(1));
     expect(tiles.firstWhere((t) => t.isSelected).item.beaconId, 'b-target');
   });
