@@ -11,6 +11,7 @@ import 'package:tentura/features/profile/ui/dialog/my_profile_delete.dart';
 
 import '../bloc/settings_cubit.dart';
 import '../widget/language_switch_button.dart';
+import '../widget/reset_counters_button.dart';
 import '../widget/theme_switch_button.dart';
 
 @RoutePage()
@@ -148,6 +149,7 @@ class _SettingsCommandList extends StatelessWidget {
               icon: const Icon(Icons.alt_route_outlined),
               onPressed: () => context.router.push(const RoutingMuteRoute()),
             ),
+            const ResetCountersButton(),
             TenturaCommandButton(
               label: l10n.settingsDebug,
               icon: const Icon(Icons.bug_report_outlined),

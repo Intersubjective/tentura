@@ -30,6 +30,7 @@ import 'entity/attention_summary.dart';
 import 'entity/my_work_beacon_attention.dart';
 import 'feed_session_registry.dart';
 import 'port/attention_account_port.dart';
+import 'port/attention_reconcile_port.dart';
 import 'port/attention_repository_port.dart';
 import 'qa_attention_latency_probe.dart';
 
@@ -48,7 +49,7 @@ final class AttentionHeadRefreshLatency {
 
 /// The sole owner that converts notification hints into attention feed refreshes.
 @lazySingleton
-final class AttentionCase {
+final class AttentionCase implements AttentionReconcilePort {
   AttentionCase(
     this._repository,
     this._account,
@@ -910,6 +911,7 @@ final class AttentionCase {
   ///
   /// The server does **not** invalidate sessions after a repair, so the
   /// client must refetch rather than assume its pages are current.
+  @override
   Future<AttentionReconcileResult> reconcile() async {
     final generation = _accountGeneration;
     _mutationSerial++;

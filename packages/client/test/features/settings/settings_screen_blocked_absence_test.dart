@@ -14,6 +14,8 @@ import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import 'settings_reset_counters_support.dart';
+
 class _FakeAuthCubit extends Fake implements AuthCubit {
   @override
   AuthState get state =>
@@ -51,6 +53,8 @@ void main() {
       registeredSettings = true;
     }
 
+    addTearDown(registerReconcilePortForScreenTest());
+
     final router = RootRouter(
       Logger('test'),
       authCubit,
@@ -86,6 +90,11 @@ void main() {
 
     expect(find.text(l10n.labelSettings), findsOneWidget);
     expect(find.text(l10n.blockedUsersTitle), findsNothing);
+    // U17c — the repair D15 asks for is reachable from Settings. Until now
+    // nothing under lib/features/** called `attentionReconcile` at all, so
+    // this presence assertion is what keeps it connected.
+    expect(find.text(l10n.attentionResetCounters), findsOneWidget);
+    expect(find.text(l10n.attentionResetCountersExplanation), findsOneWidget);
     expect(find.byIcon(Icons.block_outlined), findsNothing);
   });
 }

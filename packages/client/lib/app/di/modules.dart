@@ -8,6 +8,8 @@ import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/data/service/remote_api_client/auth_remote_client.dart';
 import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
+import 'package:tentura/domain/attention/attention_case.dart';
+import 'package:tentura/domain/attention/port/attention_reconcile_port.dart';
 import 'package:tentura/domain/port/beacon_image_port.dart';
 import 'package:tentura/domain/port/beacon_write_port.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
@@ -16,6 +18,13 @@ import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 abstract class RegisterModule {
   @singleton
   AuthRemoteClient authRemoteClient(RemoteApiService service) => service;
+
+  /// The narrow capability Settings **Reset counters** needs (D15). Same
+  /// instance as [AttentionCase] — §0.3's single attention owner is not
+  /// duplicated, only viewed through a smaller opening.
+  @singleton
+  AttentionReconcilePort attentionReconcilePort(AttentionCase attention) =>
+      attention;
 
   @singleton
   BeaconWritePort beaconWritePort(BeaconRepository repository) => repository;

@@ -16,6 +16,8 @@ import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import 'settings_reset_counters_support.dart';
+
 import '../../ui/effect/fake_ui_effect_port.dart';
 
 class _FakeAuthCubit extends Fake implements AuthCubit {
@@ -77,6 +79,8 @@ void main() {
       getIt.registerSingleton<UiEffectPort>(FakeUiEffectPort());
       registeredEffects = true;
     }
+
+    addTearDown(registerReconcilePortForScreenTest());
 
     final router = RootRouter(
       Logger('test'),

@@ -2164,6 +2164,31 @@
   "@routingMuteScreenDescription": {
     "description": "Explains that others may leave private tags and the user can hide them from third parties."
   },
+  "attentionResetCounters": "Reset counters",
+  "@attentionResetCounters": {
+    "context": "SettingsScreen",
+    "description": "SettingsScreen — user-facing name for the attention repair command (D15)."
+  },
+  "attentionResetCountersExplanation": "Recheck your updates and outstanding actions. Nothing is deleted: what you have cleared stays cleared, and your Requests and their history are untouched.",
+  "@attentionResetCountersExplanation": {
+    "context": "SettingsScreen",
+    "description": "SettingsScreen — what Reset counters does. D15: it must not suggest erasure."
+  },
+  "attentionResetCountersProgress": "Rechecking…",
+  "@attentionResetCountersProgress": {
+    "context": "SettingsScreen",
+    "description": "SettingsScreen — shown while the recheck is running."
+  },
+  "attentionResetCountersDone": "Counters refreshed",
+  "@attentionResetCountersDone": {
+    "context": "SettingsScreen",
+    "description": "SettingsScreen — D15's required success wording. It never claims the user has no work: a correct result may still show dots and counts."
+  },
+  "attentionResetCountersFailed": "Could not refresh your counters. Please try again.",
+  "@attentionResetCountersFailed": {
+    "context": "SettingsScreen",
+    "description": "SettingsScreen — honest failure when the recheck did not complete."
+  },
   "settingsRoutingMute": "Help types I cannot provide",
   "@settingsRoutingMute": {
     "description": "Settings menu entry for the routing-mute screen."

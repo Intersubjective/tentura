@@ -34,6 +34,9 @@ abstract final class TestIds {
 
   static const activityWatchingDigest = 'activity-watching-digest';
 
+  /// Manifest §0.4 — the Settings **Reset counters** command (D15).
+  static const attentionResetCounters = 'attention.reset_counters';
+
   static const inboxOfferHelp = 'inbox.offer_help';
   static const inboxForward = 'inbox.forward';
   static const inboxDismiss = 'inbox.dismiss';
