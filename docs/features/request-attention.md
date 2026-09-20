@@ -230,6 +230,22 @@ does not actually use (a "return to Needs me" action whose tab is called somethi
 
 _Avoid:_ promising "it's always in the log" without checking that the type actually has a durable home.
 
+## 9a. Reset counters
+
+Settings carries one repair: **Reset counters**. It is a *recheck*, not an erasure — it re-derives the
+viewer's obligations and updates from their source state, settles what is obsolete, creates what is missing,
+and recomputes the summaries. Optional clear state, Inbox stance, source actions and History all survive it.
+
+- A correct run may still leave dots and counts on the surfaces. That is the account's real work, so the
+  result is reported as **"Counters refreshed"** and never as "all caught up".
+- A repair that failed says so. Nothing reports success it did not have.
+- One run at a time, with progress while it runs.
+- It repairs the **invoking client**. Sessions on other devices are not invalidated and keep their own cached
+  indicators until they next refresh — see the plan journal's U17c entry for the open contract item.
+
+_Avoid:_ naming this in the user's view with the words the implementation uses for it, or letting "Reset"
+read as a promise to delete something.
+
 ## 10. What every new event type must declare
 
 Before a new event type ships, it declares — per recipient role, not per type:

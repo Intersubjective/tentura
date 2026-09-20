@@ -11507,3 +11507,152 @@ all, and the card has no slots for room hints, requirements or the rejection mes
   **clear-axis** delta, or it recreates this defect.
 - `requestHistory`'s U06b authorization and cursor semantics are user-visible for the first time.
 - `issue-171-card-spec.md` §5's Watching/Rejected row is stale — a doc edit for whoever owns the spec.
+
+---
+
+## scout — U17c · Settings / Reset counters · 2026-09-20
+
+**UNIT:** U17c — Settings / Reset counters (read-only scout; journal append only).
+
+**WHAT.** Brief for the implementer: wire production **Reset counters** on `SettingsScreen` to existing
+`AttentionCase.reconcile()` / `attentionReconcile`; fix incomplete reconcile summary adoption (GraphQL + mapper);
+do not conflate with debug `settingsRecalculateCounters` / `BookkeepingRefreshCase`.
+
+**FINDINGS (live code vs owner assumption).**
+- `attentionReconcile` **is** wired through `AttentionRepository.reconcile()` and `AttentionCase.reconcile()`
+  (`attention_case.dart:906–922`) since U13b; **zero** `lib/features/**` callers — only domain tests call
+  `.reconcile()`. Same shape as pre-U17b `requestHistory`, not “no client wiring whatsoever.”
+- `attention_reconcile.graphql` requests only three `summary` fields; `AttentionRepository.reconcile()` maps
+  those alone, so `myDeskDot` / `myDeskCount` / `forYouDot` / `forYouSweepEligible` default to false/0 on the
+  immediate `_surfaceSummarySubject.add(result.summary)` — a D15 step‑6 defect until fixed.
+- D15 step 5 (“invalidate all sessions”) was **deliberately not implemented** on the server (U12 journal addition
+  2b); client must refetch heads + `attentionSurfaceSummary` (already queued in `reconcile()`'s `finally`).
+- `TestIds.attentionResetCounters` (manifest §0.4) and all `attentionDismiss*` TestIds are **not** in
+  `lib/ui/test_ids.dart` yet.
+- Debug **Recalculate counters** (`debug_settings_cubit.dart:161–167`) calls `BookkeepingRefreshCase` — different
+  API, different copy (“Repaired … offer response(s) and … inbox row(s)”); must stay separate from production reset.
+
+**UNWIRED §0.2 (for U19).** `attentionReconcile`: domain-only, no UI. `attentionRequest`: manifest name; server
+ships `attentionFeed` / `myWorkAttention` / `activityOffers` — no GraphQL field `attentionRequest`. All other §0.2
+mutations/queries have feature-layer callers except reconcile.
+
+**REMAINING.** Implementer sandwich per scout brief below.
+
+---
+
+## inner — U17c · Settings / Reset counters · 2026-09-20
+
+**UNIT_BASE:** `8b0f8fffb`. Branch `feature/events_refac`. Three commits, each green on its own.
+
+| step | commit |
+| --- | --- |
+| reconcile relays all seven summary fields | `cdf43f313` |
+| D15 step 6 — adopt, never merge | `5193151f5` |
+| the Settings surface | `e41211f77` |
+
+### D15 step 5 is **not** met, and this unit does not meet it
+
+The contract's fifth step is "invalidate all sessions for that account". U12 deliberately did not implement
+it — no such mechanism exists on the server, and none exists on the clear or sweep paths either. The mutation
+returns the authoritative summary instead.
+
+What U17c wires is **client-side compensation, and only for the client that invoked it**: the returned summary
+is adopted, the attached feed heads are refetched, and the surface summary is re-read. A second device signed
+into the same account keeps its own cached indicators until it next refreshes on its own schedule.
+
+In practice the gap is narrow — the client is web-only, indicators refresh on realtime invalidation and on
+every surface visit, and a stale badge on a second tab self-corrects within one refresh. That is an argument
+about *impact*, not about *coverage*: **step 5 remains unmet as a contract item**, and U18/U19 inherit it.
+Nothing in this unit's acceptance may be read as session invalidation having happened.
+
+### Step 6 — what is replaced, what is dropped
+
+**Replaced:** `_surfaceSummarySubject` — the whole `AttentionSurfaceSummary`, all seven fields, emitted exactly
+as the server sent it. This is why the first commit exists: the document asked for three of the seven, so
+`myDeskDot` / `myDeskCount` / `forYouDot` / `forYouSweepEligible` were defaulting to false/0 on adoption. The
+repair meant to make the badges correct would have blanked a dot the account still owed.
+
+**Dropped:** both optimistic overlay stores, via new `discardAllPending()` on each —
+
+- `AttentionAckStore`: every pending read-axis ack, committed or not;
+- `AttentionClearStore`: every pending clear operation's membership.
+
+Then `_applyOptimisticAcks()` with a zero delta re-projects every attached page from `_receiptsById`, the
+server-truth mirror, with no overlay left to stamp on it. No total is adjusted there; only the projection is
+rebuilt.
+
+**Not dropped, deliberately:** `_receiptsById` / `_childReceiptsById` / `_offerRowsByBeaconId` hold what the
+server sent, unmodified — `_project` applies the overlay on read. Clearing them would blank the UI until the
+refetch landed, for no correctness gain. The feed-level `AttentionSummary` is likewise left to the head
+refresh queued in `reconcile()`'s `finally`: the reconcile result carries a *surface* summary, and deriving a
+feed total from it would be exactly the kind of invented number U17b deleted.
+
+**The stale-overlay hazard, closed:** an operation already in flight at adoption time still had a post-hoc
+compensating delta to post (`_applyClearOptimistically`'s withdrawn-member branch). Its overlay was gone, so
+that delta would have landed on the *server's* numbers instead of on its own. A new `_adoptionSerial`, bumped
+on each adoption and captured at operation start, makes both the success and the failure branch return early.
+The ack paths needed no such guard: their post-hoc work is `markCommitted`/`discard` on a token the store no
+longer holds, which is already a no-op.
+
+### Copy
+
+Five ARB keys, `attention*` prefix, en + ru, regenerated: `attentionResetCounters`,
+`attentionResetCountersExplanation`, `attentionResetCountersProgress`, `attentionResetCountersDone`,
+`attentionResetCountersFailed`. `check-user-facing-terminology.sh`: ok.
+
+- Success is **"Counters refreshed"** unconditionally. `unrepairableObligationCount` is *not* read here — that
+  is U17d's — and branching success on `isFullyRepaired` is one of the mutations below, killed by two tests.
+- The explanation says what the command does ("Recheck your updates and outstanding actions") and states the
+  non-erasure promise outright. No "reconcile", "generation", "projection", "snapshot" or "idempotent"
+  reaches the user.
+- **RU divergence, flagged:** the EN label is "Reset counters", D15's own word. The literal RU "Сбросить"
+  reads as *zero it out* — the one thing D15 says the command must not suggest — and "Пересчитать счётчики" is
+  already taken by the debug command. RU is therefore "Обновить счётчики". If the owner wants the two locales
+  to track literally, that is a copy decision, not a bug.
+
+### Mutations — nine applied, nine killed, none survived
+
+| mutation | tests that failed |
+| --- | --- |
+| mapper stops relaying the four §6 indicators | `reconcile maps repair counts and the authoritative summary` |
+| drop `_clears.discardAllPending()` | `an in-flight clear cannot survive a reconcile…` |
+| drop the re-projection `_applyOptimisticAcks()` | same |
+| drop the `_adoptionSerial` guard in the clear compensation | same (the late-answer assertion) |
+| drop the summary adoption | both adoption tests |
+| catch reports `refreshed` | cubit `a failed repair says so…` + widget `a failed run says so…` |
+| success branches on `isFullyRepaired` | cubit + widget "still carries work is a success" |
+| remove the cubit's in-flight guard | cubit `a second tap…` |
+| remove `listenWhen` on the outcome serial | widget `a run shows progress…` (an outcome announced mid-run) |
+| remove the progress block | widget `a run shows progress…` |
+| cap the explanation at one line | widget `both lines are still built at 320 dp and 2x` |
+| remove `ResetCountersButton` from the screen | `Settings does not expose blocked users action` (its new presence assertion) |
+
+Two of these were written *because* the first draft of a test would have survived them. The narrow-width test
+originally asserted only that both strings were found — which a one-line-clipped explanation satisfies, the
+"a fixture that renders nothing satisfies any does-not-overflow assertion" trap in its other form. It now
+asserts the rendered height. The progress test said nothing about snackbars, so dropping `listenWhen` was
+invisible; it now asserts that a run in progress has not yet announced a refresh.
+
+### Gates
+
+| gate | result |
+| --- | --- |
+| client (`-j 4`, CWD `packages/client`) | **3907 passed / 29 skipped** — predicted 3907, hit exactly; skips unmoved |
+| client lints | **30 (baseline 30)** |
+| terminology | **ok** |
+| server | not run — U12 is done and no server file was touched |
+
+Count arithmetic: 3895 baseline, +2 reconcile adoption, +5 reset-counters cubit, +5 reset-counters widget.
+The reconcile repository assertions went into the existing
+`attention_clear_repository_test.dart` test rather than a second file, so they add no count.
+
+### Two findings worth carrying
+
+- **The scout's audit held exactly.** `attentionReconcile` was the last §0.2 contract API with no
+  `lib/features/**` caller. Three consecutive units have now found contract behaviour fully built, fully
+  tested, and unreachable. U19's acceptance pass should treat "has a caller on a screen" as a distinct check
+  from "has a passing unit test".
+- **A narrow port beats a fake of the owner.** `AttentionCase` is `final`, so no test can fake it. Settings
+  needs one mutation out of it, so `AttentionReconcilePort` (one member, provided from the same lazy singleton
+  in `RegisterModule`) is what the cubit resolves. Two pre-existing full-screen Settings tests needed only a
+  three-line registration to keep passing. §0.3 is not weakened: there is still exactly one attention owner.
