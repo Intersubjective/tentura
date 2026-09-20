@@ -12505,3 +12505,100 @@ correctly called the honest consequence rather than dressing up as an assertion 
 
 **Next: U18c** — activation and retirement. The `kDefaultMinClientVersion` bump, and retiring the legacy three
 totals whose names have already cost this plan two defects.
+
+## U18c — activation and retirement
+
+**Scope.** The `kDefaultMinClientVersion` bump (D19) and retiring `activityUnreadTotal`, `myWorkUnreadTotal`
+and `needsYouTotal` from `AttentionSurfaceSummary` across server SQL, the GraphQL type, the client entity and
+its repository mapping, `docs/contracts/attention-active-attention-axis.json`, and every test that read them.
+
+### The floor is 7.19.0, and U19 must ship the client to match
+
+D19 is a coordinated cutover with no dual-behaviour window. The floor therefore has to exclude every client
+built before this plan's client-side contract — and all of that client work (U15R-*, U16*, U17*) landed under
+`packages/client/pubspec.yaml` version **7.18.0** without a floor bump. So 7.18.0 is a version a *pre*-cutover
+build carries, and a floor equal to it would admit exactly the clients the cutover exists to exclude. 7.19.0 is
+the lowest number no pre-plan build can have.
+
+The consequence is stated rather than softened: until U19 sets the client to 7.19.0 and moves the tracked
+`flutter_bootstrap.js?v=` cache-buster, **this floor rejects every client**. That is the shape of a one-release
+cutover, not a bug. `pubspec.yaml` and `web/index.html` are U19's and were not touched.
+
+The gate test (`test/min_client_version_gate_test.dart`) states the rule, not just the number: it compares the
+constant to `7.18.0` with its own three-component comparator, and that comparator has its own test so a
+`_compare` that returned 0 for everything could not make the gate pass vacuously.
+
+### Both `needsYouTotal`s are not the same field — only one retires
+
+There are two. `AttentionSurfaceSummary.needsYouTotal` (`liveObligation ∧ primaryPlacement`, unscoped by
+surface) is one of the legacy three and is gone. `AttentionSummary.needsYouTotal` on the **feed** summary
+(`liveObligation`, no placement leg) is the count behind the History `needsYou` view — the exact sibling of
+`unreadTotal`, which U17b made authoritative and which §3 keeps alive. `UpdatesFeedPane`'s badge for
+`AttentionView.needsYou` reads it, that view still exists, and retiring it would have taken the badge off a
+live tab to tidy a name. It stays, and `attention_graphql_test` now pins both types' field lists so neither
+drifts: one that the retired three are gone, one that the feed's two are not.
+
+### What each legacy field's callers now read
+
+| Was | Now |
+|---|---|
+| `surfaceSummary`'s three SQL totals | deleted; the `summary` CTE went with them, leaving §6's four rules |
+| `myWorkUnreadTotal` as "My Desk has something" | `myDeskDot` (optional/outcome) + `myDeskCount` (obligations) — the two rules it fused |
+| `activityUnreadTotal` as "For You has something" | `forYouDot`, or `forYouSweepEligible` where the pinned zone must be excluded |
+| `needsYouTotal` as "obligation count" | `myDeskCount` |
+| `HomeAttentionState`'s three mirrors | deleted; they fed no indicator after U15R-d |
+| `AttentionCase`'s optimistic surface-summary deltas | deleted — see below |
+
+### The optimism went with the fields, deliberately
+
+`_applyOptimisticSurfaceSummary` and `_surfaceActiveOptionalDeltas` existed only to move
+`activityUnreadTotal` / `myWorkUnreadTotal` while a clear was in flight. Nothing replaces them, and that is the
+decision, not an omission: §6's four indicators are composed server-side from predicates the client does not
+hold (`scope`, Set O, the pinned zone), so an optimistic frame for them would be a client guess at a server
+rule — the M1 drift this plan spent three units removing. The optimistic frame the user sees is the *list*,
+which `_applyOptimisticAcks` still moves; the indicators follow the refresh `_requestSurfaceSummaryRefresh`
+already queues.
+
+### A hole the retirement opened, and the guard added for it
+
+The first mutation run found one. Re-declaring `needsYouTotal` on `gqlTypeAttentionSurfaceSummary` — the field
+back on the schema, with no resolver — **passed every test**. The resolver map assertion catches a resolver
+that still emits a retired key; nothing looked at the type. A declared field is a field a client can still
+select, which is the whole of what the retirement had to remove, so both summary types now have their field
+lists pinned. Re-run under the same mutation: failed.
+
+### Deleted and rewritten tests
+
+One test deleted outright: `my_work_navbar_item_test`'s *'the number is my desk.count, not the legacy
+needsYouTotal'*. Its content was the contrast between the two fields; one of them no longer exists, so the
+confusion it guarded against is now a compile error, and what remained of the case is *'shows no badge when
+obligation count is zero'*. A **retirement**.
+
+Three assertions deleted with a named surviving sibling, each marked `RETIRED IN U18c` at the site:
+`attention_read_clear_axis`'s `activityUnreadTotal == 1` (said what the `unreadTotal` line above it says) and
+its two sweep totals, and `attention_reconcile_adoption`'s `activityUnreadTotal == 0` (asserted the optimistic
+delta this unit removed). Everything else was **ported**: `needsYouTotal counts obligation receipts not
+distinct beacons` → `myDeskCount`; the M1 pair; `markAllSeen does not zero a surface it only read` → the two
+dots plus the authoritative feed total; the hierarchy fingerprint → §6's four rules, a strictly finer read.
+
+### Gates
+
+| Gate | Predicted | Actual |
+|---|---|---|
+| server `--exclude-tags pg` | 1695 / 0 (1690 + 3 version + 2 schema-shape) | **1695 / 0** |
+| server `--tags pg -j 1` | 1083 / 24 (renames only) | **1083 / 24** |
+| client | 3948 / 29 (3949 − 1 deleted) | **3948 / 29** |
+| `check-custom-lints.sh packages/server` | 0 | **0** (baseline 0) |
+| `check-custom-lints.sh packages/client` | 30 | **30** (baseline 30) |
+
+Every predicted number came out exact. Nothing was added or removed on the PG side — the retirement renamed
+tests and moved assertions between fields within existing cases — so 1083 was the prediction and 1083 is the
+result, skips unmoved at 24. The non-PG delta is the five tests this unit adds: three for the version floor
+(including one for its own comparator) and two pinning the two summary types' field lists. The client delta is
+the single deleted navbar test.
+
+**Left for U19.** The client `pubspec.yaml` bump to 7.19.0 and the `flutter_bootstrap.js?v=` cache-buster.
+Until they land the floor rejects every client, which is what a one-release cutover means. U19 also still owes
+the decision U18b flagged: whether the rows gate 2 could not prove deserve a visible counter of their own.
+
+**U18 is complete.**
