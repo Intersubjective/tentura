@@ -766,6 +766,25 @@ stated in the journal.
 **Owns.** `beacon_view` entry lifecycle + timeline sheet, `updates_screen.dart`, `settings_screen.dart`, l10n,
 assets. Split into four commits: detail-entry · timeline/History · Settings · rewards.
 
+**U17 splits into four** (inserted 2026-09-20, one per surface — the manifest already names four commits):
+
+- **U17a — detail entry.** Centralize successful-open clearing across every entry route (My Desk, For You,
+  push, History, profile, graph, deep link). Today acknowledgment fires from individual call sites, sometimes
+  *before* navigation succeeds, so a forbidden or failed route clears nothing — §4: "Opening a Request clears a
+  **snapshot** taken when it opened, after it successfully displays".
+- **U17b — timeline and History.** Centralize the Timeline entry point; History keeps read/unread semantics
+  that never resurrect primary attention. Retires `InboxItemTile` / `InboxCardForwardsFold` — U16a already
+  ported `_SenderNoteBlock`'s content into the forward mini-card, so the original may now go.
+- **U17c — Settings.** **Reset counters** with progress, honest failure and no implementation jargon.
+- **U17d — rewards and remainders.** The rewarding zero state (light gamification, owner decision); surface
+  `unrepairableObligationCount`; delete the unused `myWorkObligationDone` ARB key (needs l10n regen).
+
+**Already delivered, do not rebuild:** U16c-1 shipped §4's three empty states as `forYouEmptyKind` +
+`ForYouEmptyState` + `shouldShowForYouEmptyState`. The M1 rule binds — any surface needing the same three voices
+**reuses that predicate**, and a second copy of the rule is a defect, not a port. The per-operation cleared
+count and the "cleared N today" line still belong to whichever unit surfaces them, under the same condition the
+manifest already states (timezone and undo accounting must pass first).
+
 **Steps.** Centralize successful-open clearing across **every** entry route (My Desk, For You, push, History,
 profile, graph, deep link) — today acknowledgment fires from individual call sites, sometimes before navigation
 succeeds; a forbidden or failed route clears nothing. History keeps read/unread semantics that never resurrect
