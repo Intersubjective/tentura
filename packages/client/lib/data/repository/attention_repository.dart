@@ -689,6 +689,14 @@ final class AttentionRepository implements AttentionRepositoryPort {
         activityUnreadTotal: result.summary.activityUnreadTotal,
         myWorkUnreadTotal: result.summary.myWorkUnreadTotal,
         needsYouTotal: result.summary.needsYouTotal,
+        // D15 step 6 — every §6 indicator the server recomputed, relayed as
+        // given. Asking for only the three legacy totals would let the four
+        // indicators default to false/0 here, and the adoption downstream
+        // would blank a dot the account still owes.
+        myDeskDot: result.summary.myDeskDot,
+        myDeskCount: result.summary.myDeskCount,
+        forYouDot: result.summary.forYouDot,
+        forYouSweepEligible: result.summary.forYouSweepEligible,
       ),
       createdObligationCount: result.createdObligationCount,
       settledObligationCount: result.settledObligationCount,
