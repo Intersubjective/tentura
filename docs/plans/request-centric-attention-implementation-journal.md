@@ -12208,3 +12208,61 @@ Legacy obligation keys and historical `placement` are **U18b**; `kDefaultMinClie
 `activityUnreadTotal` / `myWorkUnreadTotal` / `needsYouTotal` are **U18c**. `packages/server/lib/env.dart` is
 untouched. `m0192` already carries the progress columns U18a needs and no more — U18b will want its own, and
 adding phase columns it has not yet specified would have been guessing.
+
+## manager — U18a accepted; the interruption was real and a guard survived honestly
+
+**Verdict: accepted.** My independent gates: server non-PG **1690 / 0 skips**, server PG **1072 / 24 skips**
+(+7, skips unmoved), `check-custom-lints.sh packages/server` **0 (baseline 0)**. Worker confirmed dead before I
+touched the tree. Client suite not required and correctly not run — nothing it compiles against changed.
+
+### The acceptance criterion was proven, not approximated
+
+"Interrupted at an arbitrary point and re-run produces the same state" is the whole point of this unit, and the
+test earns it: `_FailAfterBatches` wraps the **real** repository and delegates, so one batch of one row runs the
+production statement against the production database and the next call throws. The partial state is asserted
+precisely — one row converted, cursor at that id, `legacy_seen_completed_at` still NULL, `cutover_at` already
+fixed — the resume reports **2** (it finishes, it does not redo), a third pass is `alreadyComplete` with a
+byte-equal snapshot, and the final state is compared against a fresh one-shot run over identical fixtures.
+
+Two clean runs would have proven nothing. This is the shape every "idempotent" claim in this plan should have
+had.
+
+### The irreversible direction is double-guarded
+
+Unseen rows are protected twice: the candidate filter requires `seen_at IS NOT NULL`, and the UPDATE re-checks
+it. `cleared_by_operation_id = NULL` keeps legacy rows out of sweep accounting and out of undo, which is right —
+they were never an explicit gesture.
+
+**The UPDATE's guard is observable, not merely defensive.** Under READ COMMITTED an UPDATE blocked on a row lock
+re-evaluates its `WHERE`, so a receipt cleared mid-statement must not be re-stamped. There is a test driving
+exactly that with a held `FOR UPDATE` and a `pg_stat_activity` barrier, and it is the only test that dies when
+just that guard is removed.
+
+### A surviving mutation, analysed correctly
+
+Dropping the not-yet-cleared guard from the **candidate list alone** survives. The implementer's reasoning,
+which I checked and accept: the UPDATE's copy subsumes it — an already-cleared row may be *named* a candidate
+but the UPDATE refuses it, so only `scanned` moves, and `scanned` drives loop termination, not correctness.
+Removing the load-bearing copy **is** caught, and removing both is caught. The candidate copy is an efficiency
+property, and this unit has no assertion that measures efficiency.
+
+Reporting that, instead of inventing a test to make the number read 10/10, is the behaviour the standard exists
+to produce. **Sixteenth mutation-related finding in this plan, and the first where the honest answer was "this
+one cannot fail, and here is why that is correct".**
+
+### U10b's guard caught a file that did not exist when it was written
+
+The directory-wide structural guard — added when six hand-written copies of the attention predicate had
+accumulated — fired on this unit's brand-new repository, and on its *prose*, forcing the explaining comment to
+stop quoting the predicate it composes. Composing `activeOptional` here is not hygiene: it asserts the backfill
+converts exactly what a surface would have called active-optional, so the rows that leave the surface are the
+rows it cleared.
+
+### Noted, not actioned
+
+A transient failure in `m0143_capability_evidence_sql_test.dart` appeared in one whole-suite run and passed in
+the two after it, including my own clean full run. Nothing in this unit touches capability evidence. Recorded so
+that if it recurs, it is already known not to be U18a's.
+
+**Next: U18b** — the two deferred gates, where the honest answer to "is this decidable?" is already known to be
+"partially", and a backfill that guesses is worse than one that documents.
