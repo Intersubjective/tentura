@@ -1,6 +1,8 @@
 @Tags(['pg'])
 library;
 
+import 'dart:async';
+
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
@@ -175,6 +177,65 @@ Future<void> main() async {
       );
     });
 
+    // Why the UPDATE repeats `logical_task_key IS NULL` instead of trusting
+    // the candidate list. The candidates are read from the batch's snapshot,
+    // so a row can be keyed by the dispatch path while the UPDATE waits on
+    // its lock; Postgres re-evaluates the UPDATE's own WHERE when the lock is
+    // released, and that is the only chance to lose this race honestly.
+    // Overwriting would replace a real generation with 1 and repoint
+    // reconciliation at a task the write path had already identified.
+    test('an obligation keyed mid-batch is not re-keyed', () async {
+      await _seed(writer);
+
+      final rival = await Connection.open(
+        target.databaseEnv.pgEndpoint,
+        settings: target.databaseEnv.pgEndpointSettings,
+      );
+      addTearDown(rival.close);
+      final release = Completer<void>();
+      final held = Completer<void>();
+      final racing = rival.runTx((tx) async {
+        await tx.execute(
+          'SELECT id FROM public.notification_outbox '
+          "WHERE id = '$_derivableOfferId' FOR UPDATE",
+        );
+        held.complete();
+        await release.future;
+        await tx.execute(
+          'UPDATE public.notification_outbox '
+          "SET logical_task_key = '$_rivalKey', lifecycle_generation = 7 "
+          "WHERE id = '$_derivableOfferId'",
+        );
+      });
+      await held.future;
+
+      final pass = backfill.cutoverBackfillIfNeeded();
+      await _awaitLockWaiters(writer, count: 1);
+      release.complete();
+      await racing;
+      final report = await pass;
+
+      expect(
+        report.keyedObligations,
+        2,
+        reason: 'the review obligation, and the second legacy offer — whose '
+            'collision disappeared when the rival claimed a different key',
+      );
+      expect(
+        (await _receipt(writer, _duplicateOfferId))['logical_task_key'],
+        'v1|helpOfferSubmitted|$_beaconId|$_helperId|$_viewerId',
+        reason: 'the duplicate guard asks the database, not a plan made '
+            'before the batch started',
+      );
+      final row = await _receipt(writer, _derivableOfferId);
+      expect(row['logical_task_key'], _rivalKey);
+      expect(
+        row['lifecycle_generation'],
+        7,
+        reason: 'a real generation is not replaced by this pass\'s 1',
+      );
+    });
+
     test('an interrupted key pass resumed produces the one-shot state',
         () async {
       await _seed(writer);
@@ -273,8 +334,25 @@ final class _InjectedInterruption implements Exception {
   const _InjectedInterruption();
 }
 
+/// The key the dispatch path wrote while the batch was waiting. Deliberately
+/// not the key this pass would have derived: what must survive is the other
+/// writer's answer, whatever it is.
+const _rivalKey = 'v1|helpOfferSubmitted|rival|rival|Uu18b0001';
+
 const _viewerId = 'Uu18b0001';
 const _helperId = 'Uu18b0002';
+
+// Every undecidable fixture names a **different** helper, so its derived key
+// would be unique. Sharing one helper would have let the duplicate guard
+// absorb a loosened derivability predicate, and the case-2 tests would have
+// passed for a reason that has nothing to do with what they assert.
+const _undecidableHelpers = {
+  _noOccurrenceId: 'Uu18b0003',
+  _mismatchedOccurrenceId: 'Uu18b0004',
+  _collapsedId: 'Uu18b0005',
+  _unkeyableFamilyId: 'Uu18b0006',
+  _postCutoverId: 'Uu18b0007',
+};
 const _beaconId = 'Bu18b00001';
 const _otherBeaconId = 'Bu18b00002';
 
@@ -311,7 +389,7 @@ TRUNCATE TABLE
   public."user"
 CASCADE
 ''');
-  for (final id in [_viewerId, _helperId]) {
+  for (final id in [_viewerId, _helperId, ..._undecidableHelpers.values]) {
     await writer.execute(
       Sql.named(
         'INSERT INTO public."user" (id, display_name, public_key) '
@@ -362,7 +440,7 @@ Future<void> _seed(Connection writer) async {
     id: _noOccurrenceId,
     eventType: 'helpOfferSubmitted',
     reasons: ['authorOfBeacon'],
-    targetEntityId: _helperId,
+    targetEntityId: _undecidableHelpers[_noOccurrenceId],
   );
   // The occurrence and the payload disagree — exactly the repointed-collapse
   // shape, and there is no way to tell which of the two is the row.
@@ -373,7 +451,7 @@ Future<void> _seed(Connection writer) async {
     occurrenceId: 'AOu18b04',
     eventType: 'requestStatusChanged',
     reasons: ['authorOfBeacon'],
-    targetEntityId: _helperId,
+    targetEntityId: _undecidableHelpers[_mismatchedOccurrenceId],
   );
   // Both witnesses agree, but the row stands for more than one event, and the
   // others are not this one.
@@ -384,7 +462,7 @@ Future<void> _seed(Connection writer) async {
     occurrenceId: 'AOu18b05',
     eventType: 'helpOfferSubmitted',
     reasons: ['authorOfBeacon'],
-    targetEntityId: _helperId,
+    targetEntityId: _undecidableHelpers[_collapsedId],
     collapsedCount: 3,
   );
   // An obligation family that declares no logical-task subject. The policy
@@ -396,7 +474,7 @@ Future<void> _seed(Connection writer) async {
     occurrenceId: 'AOu18b06',
     eventType: 'blockerOpened',
     reasons: ['targetOfAsk'],
-    targetEntityId: _helperId,
+    targetEntityId: _undecidableHelpers[_unkeyableFamilyId],
   );
   // Written after the cutover: never legacy, and none of this pass's business.
   await _occurrence(writer, id: 'AOu18b07', eventType: 'helpOfferSubmitted');
@@ -406,7 +484,7 @@ Future<void> _seed(Connection writer) async {
     occurrenceId: 'AOu18b07',
     eventType: 'helpOfferSubmitted',
     reasons: ['authorOfBeacon'],
-    targetEntityId: _helperId,
+    targetEntityId: _undecidableHelpers[_postCutoverId],
     createdAt: '2099-01-01T00:00:00Z',
   );
 
@@ -552,6 +630,25 @@ VALUES (@occurrenceId, @accountId, CAST(@reasons AS jsonb), '{}'::jsonb,
       },
     );
   }
+}
+
+/// Waits until [count] backends are blocked on a lock, so the race is a
+/// barrier rather than whatever the scheduler happened to do.
+Future<void> _awaitLockWaiters(
+  Connection writer, {
+  required int count,
+}) async {
+  final deadline = DateTime.now().add(const Duration(seconds: 20));
+  while (DateTime.now().isBefore(deadline)) {
+    final rows = await writer.execute(
+      'SELECT count(*) FROM pg_stat_activity '
+      "WHERE wait_event_type = 'Lock' AND state = 'active' "
+      'AND datname = current_database()',
+    );
+    if ((rows.first.first! as int) >= count) return;
+    await Future<void>.delayed(const Duration(milliseconds: 25));
+  }
+  throw StateError('timed out waiting for $count blocked backends');
 }
 
 Future<Map<String, Object?>> _receipt(Connection writer, String id) async {
