@@ -35,6 +35,7 @@ import 'package:tentura/features/inbox/ui/widget/activity_event_subcard_block.da
 import 'package:tentura/features/inbox/ui/widget/activity_offer_bounded_shell.dart';
 import 'package:tentura/features/inbox/ui/widget/activity_stream_view.dart';
 import 'package:tentura/features/inbox/ui/widget/activity_watching_digest_row.dart';
+import 'package:tentura/features/inbox/ui/widget/for_you_empty_state.dart';
 import 'package:tentura/features/inbox/ui/widget/attention_mini_card.dart';
 import 'package:tentura/features/attention/ui/widget/request_attention_timeline_sheet.dart';
 import 'package:tentura/features/inbox/ui/widget/request_attention_card.dart';
@@ -43,6 +44,8 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/updates/domain/use_case/invite_accepted_setup_case.dart';
 import 'package:tentura/features/updates/ui/bloc/updates_feed_cubit.dart';
 import 'package:tentura/features/updates/ui/widget/updates_feed_pane.dart';
+import 'package:tentura/ui/l10n/l10n_en.dart';
+import 'package:tentura/ui/widget/caught_up_panel.dart';
 import 'package:tentura/features/updates/ui/widget/updates_feed_tile.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
@@ -852,13 +855,7 @@ void main() {
   // dismissible tombstones. m0183 made every outcome kind dismissible, so
   // every kind wears the ×. One assertion per kind — a × wired for the kind
   // that happened to be tested is the defect shape this plan keeps hitting.
-  for (final outcome in const [
-    (value: AttentionForwardOutcome.helping, name: 'helping'),
-    (value: AttentionForwardOutcome.watching, name: 'watching'),
-    (value: AttentionForwardOutcome.notInterested, name: 'notInterested'),
-    (value: AttentionForwardOutcome.closedBeforeResponse, name: 'closed'),
-    (value: AttentionForwardOutcome.deletedBeforeResponse, name: 'deleted'),
-  ]) {
+  for (final outcome in _dismissibleOutcomeCases) {
     testWidgets('the ${outcome.name} tombstone has a × and it acts', (
       tester,
     ) async {
@@ -1118,7 +1115,90 @@ void main() {
     expect(seenOffers.length, lessThanOrEqualTo(60));
     expect(seenStream.length, 120);
   });
+
+  // U19 — release blocker 4, "every outcome kind dismissible", is proved by
+  // the loop above and by `attention_outcome_dismissible_pg_test`. Both loops
+  // are hand-written lists, so a sixth `AttentionForwardOutcome` would be
+  // dismissible-untested and silently so. The enum is the source of truth for
+  // how many kinds there are; this is the one assertion that says so.
+  test('the dismissible-per-kind loop covers the whole enum', () {
+    expect(
+      {for (final c in _dismissibleOutcomeCases) c.value},
+      AttentionForwardOutcome.values.toSet(),
+      reason:
+          'add the new outcome kind to the tombstone × loop here and to '
+          'attention_outcome_dismissible_pg_test, or it ships untested',
+    );
+  });
+
+  // U16c-1 deferred this and U19 delivers it.
+  //
+  // §4: "Because Dismiss all leaves decisions alone, a cleared For You can
+  // still show its pinned zone." Every existing test of that sentence asserts
+  // the predicate (`forYouEmptyKind`) or pumps `ForYouEmptyState` with a kind
+  // handed to it. Neither proves the **assembled** surface computes
+  // `hasPinnedZone: true` — and it cannot, because the pinned zone comes from
+  // `offersState.items`, which the attention feed does not drive. An empty
+  // attention page with a live pinned decision is precisely the combination a
+  // predicate test cannot reach.
+  testWidgets('nothing new, with the pinned decision still on screen', (
+    tester,
+  ) async {
+    final l10n = L10nEn();
+    final inboxRepo = FakeInboxRepository();
+    // No rows at all on the attention side: the stream is swept clean.
+    final attentionRepo = _FeedAttentionRepo(firstPage: const []);
+    wireActivityOffersV2(
+      inbox: inboxRepo,
+      attention: attentionRepo,
+      items: [_offerItem('offer-pinned', provenanceJson: _provenanceJson())],
+      totalCount: 1,
+    );
+    final boot = await _boot(
+      inboxRepo: inboxRepo,
+      attentionRepo: attentionRepo,
+    );
+    addTearDown(boot.dispose);
+
+    await _pumpStreamView(
+      tester,
+      boot: boot,
+      logicalSize: const Size(360, 1600),
+    );
+
+    // Positive first: the decision the sweep refused to answer is still here.
+    expect(find.byType(RequestAttentionCard), findsOneWidget);
+    expect(find.textContaining('Offer offer-pinned'), findsOneWidget);
+
+    // And the surface speaks in the cleared voice, not the empty one.
+    expect(find.byType(ForYouEmptyState), findsOneWidget);
+    expect(find.byKey(CaughtUpPanel.titleKey), findsOneWidget);
+    expect(find.text(l10n.forYouEmptyNothingNew), findsOneWidget);
+    expect(
+      find.text(l10n.forYouEmptyNothingHere),
+      findsNothing,
+      reason:
+          'a surface still holding a decision has not never-had-anything; '
+          'that is the sentence hasPinnedZone exists to prevent',
+    );
+    expect(
+      find.byKey(CaughtUpPanel.clearedKey),
+      findsNothing,
+      reason: 'no explicit sweep ran here, so there is no number to claim',
+    );
+  });
 }
+
+/// The cases the tombstone × loop runs. Hoisted so the exhaustiveness guard
+/// reads the same list the loop does, rather than a third copy of it.
+const _dismissibleOutcomeCases =
+    <({AttentionForwardOutcome value, String name})>[
+      (value: AttentionForwardOutcome.helping, name: 'helping'),
+      (value: AttentionForwardOutcome.watching, name: 'watching'),
+      (value: AttentionForwardOutcome.notInterested, name: 'notInterested'),
+      (value: AttentionForwardOutcome.closedBeforeResponse, name: 'closed'),
+      (value: AttentionForwardOutcome.deletedBeforeResponse, name: 'deleted'),
+    ];
 
 final class _Accounts implements AttentionAccountPort {
   final _changes = StreamController<String>.broadcast();
