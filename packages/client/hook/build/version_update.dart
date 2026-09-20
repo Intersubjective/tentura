@@ -5,18 +5,32 @@ import 'dart:convert';
 import 'package:pubspec_parse/pubspec_parse.dart';
 
 /// Writes [version] (defaults to the pubspec version) into the web app entry
-/// files in [webDir]: the PWA `manifest.json` `version` and the
-/// `flutter_bootstrap.js?v=` cache-busting query in `index.html`.
+/// files in [webDir]: the `flutter_bootstrap.js?v=` cache-busting query in
+/// `index.html`, and — when [includeManifest] is set — the PWA
+/// `manifest.json` `version`.
 ///
 /// Works on both the source `web/` dir (build hook) and the compiled
 /// `build/web/` dir (post-build tool), so the deployed bootstrap query always
 /// matches the service-worker cache version.
-void versionUpdate({String webDir = 'web', String? version}) {
+///
+/// [includeManifest] is false for the source tree on purpose. `web/manifest.json`
+/// is committed, and stamping a version into it made the file a third place the
+/// client version had to be kept in step — one that drifted twice in a single
+/// day, invisibly, because the file also carried a `skip-worktree` bit. The
+/// deployed `build/web/manifest.json` still gets the version, from the
+/// post-build tool, which is the only copy anything serves.
+void versionUpdate({
+  String webDir = 'web',
+  String? version,
+  bool includeManifest = true,
+}) {
   final resolved = version ??
       Pubspec.parse(File('pubspec.yaml').readAsStringSync()).version.toString();
   print('Web build version: $resolved');
 
-  _updateManifestVersion('$webDir/manifest.json', resolved);
+  if (includeManifest) {
+    _updateManifestVersion('$webDir/manifest.json', resolved);
+  }
   _updateIndexBootstrap('$webDir/index.html', resolved);
 }
 

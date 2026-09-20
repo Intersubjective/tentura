@@ -69,21 +69,36 @@ void main() {
       );
     });
 
-    /// The cache-buster and the manifest carry the version into the browser.
-    /// A `?v=` that disagrees with the pubspec serves a returning client a
-    /// stale bundle — of a build the floor then rejects, with no way for that
-    /// client to fetch the one that would be accepted.
+    /// The cache-buster carries the version into the browser. A `?v=` that
+    /// disagrees with the pubspec serves a returning client a stale bundle —
+    /// of a build the floor then rejects, with no way for that client to fetch
+    /// the one that would be accepted.
+    test('the checked-in cache-buster matches the pubspec', () {
+      expect(_bootstrapCacheBusterVersion(), _shippedClientVersion());
+    });
+
+    /// `web/manifest.json` used to carry the version too, which made it a third
+    /// place the number had to be kept in step. It drifted twice in one day and
+    /// silently: the file also carries a `skip-worktree` bit in some worktrees,
+    /// so the build hook's rewrite never reached `git status` and the committed
+    /// value sat two releases behind.
     ///
-    /// `web/manifest.json` carries a `skip-worktree` bit in some worktrees
-    /// (the build hook rewrites it, so local builds would otherwise dirty the
-    /// tree). That bit hid a tracked value stuck at `7.3.1` across a dozen
-    /// releases. This test reads the working copy, so it is green locally and
-    /// red on a fresh checkout until the tracked value is committed — which
-    /// is the drift it exists to surface.
-    test('every checked-in copy of the client version agrees', () {
-      final pubspec = _shippedClientVersion();
-      expect(_bootstrapCacheBusterVersion(), pubspec);
-      expect(_manifestVersion(), pubspec);
+    /// It is now generated. The build hook leaves the source file alone and the
+    /// post-build tool stamps the version into `build/web/manifest.json`, the
+    /// only copy anything serves. Asserting the key is *absent* is what keeps
+    /// it that way: a version reintroduced here is a third source of truth
+    /// again, whether or not it happens to agree today.
+    test('the committed manifest carries no version to drift', () {
+      final manifest =
+          jsonDecode(_clientFile('web/manifest.json').readAsStringSync())
+              as Map<String, dynamic>;
+      expect(
+        manifest.containsKey('version'),
+        isFalse,
+        reason:
+            'web/manifest.json must not pin a version; it is written into '
+            'build/web by hook/build/version_update.dart at build time.',
+      );
     });
 
     test('is the next minor, not a jump that skips a real release', () {
@@ -115,7 +130,3 @@ String _bootstrapCacheBusterVersion() {
   }
   return match.group(1)!;
 }
-
-String _manifestVersion() =>
-    (jsonDecode(_clientFile('web/manifest.json').readAsStringSync())
-        as Map<String, dynamic>)['version'] as String;

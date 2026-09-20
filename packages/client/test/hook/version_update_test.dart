@@ -33,6 +33,41 @@ void main() {
     }
   });
 
+  test('versionUpdate leaves the manifest alone when includeManifest is false',
+      () {
+    // The build hook runs against the source tree, where `web/manifest.json` is
+    // committed. Stamping a version there made it a third place the client
+    // version had to be kept in step, and it drifted silently twice because the
+    // file also carries a `skip-worktree` bit. The bootstrap query must still
+    // be rewritten — it is the cache-buster a returning browser relies on.
+    final dir = Directory.systemTemp.createTempSync('tentura_version_test');
+    try {
+      File('${dir.path}/index.html').writeAsStringSync(
+        '<script src="flutter_bootstrap.js?v=2.3.0" async=""></script>',
+      );
+      const sourceManifest = '{"name":"Tentura"}';
+      File('${dir.path}/manifest.json').writeAsStringSync(sourceManifest);
+
+      versionUpdate(
+        webDir: dir.path,
+        version: '9.9.9-abc123',
+        includeManifest: false,
+      );
+
+      expect(
+        File('${dir.path}/manifest.json').readAsStringSync(),
+        sourceManifest,
+        reason: 'the source manifest must be byte-identical afterwards',
+      );
+      expect(
+        File('${dir.path}/index.html').readAsStringSync(),
+        contains('flutter_bootstrap.js?v=9.9.9-abc123'),
+      );
+    } finally {
+      dir.deleteSync(recursive: true);
+    }
+  });
+
   test('versionUpdate tolerates a queryless bootstrap script', () {
     final dir = Directory.systemTemp.createTempSync('tentura_version_test');
     try {
