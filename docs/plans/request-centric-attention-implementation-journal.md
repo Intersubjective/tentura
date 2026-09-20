@@ -12999,3 +12999,26 @@ Verified: `for_you_empty_state_test.dart` + `activity_chrome_test.dart` **35 pas
 
 **This closes the last open item U19 raised about the contract document itself.** The §4/§9a additions made
 across U17c, U17d and U19 remain for the owner to read as a whole, but no known contradiction stands in them.
+
+## manager — the unresolved e2e failure is filed as #191
+
+U19 left one failure located but undiagnosed. It is now tracked as **issue #191**, with the contradiction stated
+in full rather than summarised:
+
+- the two journeys (`request_lifecycle_closed_to_archive`, `witness_admission_forward_band`) and the shared
+  helper `triggerCloseNow` at `e2e_test_helpers.dart:1036`;
+- the three verified facts that make it a contradiction — `Close request` is `l10n.beaconCloseNowCta`, it has
+  **exactly one** renderer in the client (`my_work_cards.dart:441`), and that button's key is the very
+  `ValueKey<String>` shape the finder tests (`test_ids.dart:232`);
+- the visibility chain from `showCloseNowCta` through `window.canCloseNow` to `_canCloseNow` in
+  `evaluation_case.dart:619`;
+- **four hypotheses, none confirmed**, recorded so the next person does not repeat the elimination — the one I
+  would test first is that `_forceMyWorkDesk` and `showMyWorkList` are two different surfaces and the CTA
+  renders on the one the helper is not watching;
+- that no baseline shows the step ever passing, so it is plausibly as old as the seams that were hiding it.
+
+The separate `request_lifecycle_beacon_cover` failure is described in the issue's "Not this issue" section and
+attributed to `27715182f` (#153), including why repairing its finder may expose a second, genuine product
+disagreement about which identity kind My Work shows.
+
+**Open issues from this plan: #188, #189, #190, #191.**
