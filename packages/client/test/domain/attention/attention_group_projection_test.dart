@@ -161,16 +161,22 @@ void main() {
   /// A grouped card is not a receipt identity the sweep can report back, so
   /// its membership is unknown and there is no optimism over it at all (R2).
   /// U13c's original point survives intact: the indexed children must not be
-  /// swept either, which is what the unchanged total proves.
+  /// swept either, which is what the unchanged summary proves.
+  ///
+  /// CHANGES IN U18c: the unchanged value was `activityUnreadTotal`, now
+  /// retired. `forYouSweepEligible` is the §6-era field a sweep is expected
+  /// to move, so it is the one whose *not* moving says the same thing — and
+  /// since U18c also removed the client's optimistic surface-summary write
+  /// entirely, "not optimistic" is now structural rather than a delta of 0.
   test('dismissAll is not optimistic about a grouped card', () async {
-    repository.activityUnreadTotal = 3;
+    repository.forYouSweepEligible = true;
     await signIn([
       group(children: [child('e-1'), child('e-2')]),
     ]);
     expect(
-      (await attention.surfaceSummary.first).activityUnreadTotal,
-      3,
-      reason: 'the server total the optimistic delta is applied to',
+      (await attention.surfaceSummary.first).forYouSweepEligible,
+      isTrue,
+      reason: 'the server value any optimism would be applied to',
     );
 
     repository.holdDismissAll = true;
@@ -178,10 +184,10 @@ void main() {
     await attentionCaseTestSettle();
 
     expect(
-      (await attention.surfaceSummary.first).activityUnreadTotal,
-      3,
+      (await attention.surfaceSummary.first).forYouSweepEligible,
+      isTrue,
       reason: 'membership unknown: neither the card nor its indexed children '
-          'move the total before the server answers',
+          'move the summary before the server answers',
     );
 
     repository.releaseDismissAll();
@@ -196,7 +202,7 @@ final class _GroupRepository extends AttentionRepositoryFake {
     snapshotToken: 'snap-1',
   );
 
-  int activityUnreadTotal = 0;
+  bool forYouSweepEligible = false;
   bool holdDismissAll = false;
   final List<Completer<AttentionDismissAllResult>> _pendingSweeps = [];
 
@@ -215,11 +221,7 @@ final class _GroupRepository extends AttentionRepositoryFake {
 
   @override
   Future<AttentionSurfaceSummary> surfaceSummary() async =>
-      AttentionSurfaceSummary(
-        activityUnreadTotal: activityUnreadTotal,
-        myWorkUnreadTotal: 0,
-        needsYouTotal: 0,
-      );
+      AttentionSurfaceSummary(forYouSweepEligible: forYouSweepEligible);
 
   @override
   Future<AttentionDismissAllResult> dismissAll({

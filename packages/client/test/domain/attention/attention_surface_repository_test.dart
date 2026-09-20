@@ -95,23 +95,20 @@ void main() {
     await expectLater(repository.surfaceSummary(), throwsA(isA<StateError>()));
   });
 
-  test('surfaceSummary returns the legacy totals and all four §6 indicators',
-      () async {
+  test('surfaceSummary returns all four §6 indicators', () async {
     // CHANGES IN U15R-d: §6 names four indicator rules and none of the three
-    // totals is any of them. `myDeskDot` and `forYouDot` are non-nullable on
-    // the wire, so the fixture has to carry them — which is the point: a
-    // client that silently defaulted them would be back to inferring a dot
-    // from a total.
-    // CHANGES IN U15R-e: `myDeskCount` completes the set, and carries a value
-    // different from `needsYouTotal` so a relay that mixed the two up here
-    // cannot pass.
+    // legacy totals was any of them. `myDeskDot` and `forYouDot` are
+    // non-nullable on the wire, so the fixture has to carry them — which is
+    // the point: a client that silently defaulted them would be back to
+    // inferring a dot from a total.
+    // CHANGES IN U18c: the three totals are retired and gone from the wire,
+    // so the fixture no longer offers them. `myDeskDot` stays **false** while
+    // `myDeskCount` is 4: the independence D09 states, which the retired
+    // `myWorkUnreadTotal` fused into one number.
     remote.surfaceSummaryData = GAttentionSurfaceSummaryData.fromJson({
       '__typename': 'query_root',
       'attentionSurfaceSummary': {
         '__typename': 'AttentionSurfaceSummary',
-        'activityUnreadTotal': 2,
-        'myWorkUnreadTotal': 5,
-        'needsYouTotal': 1,
         'myDeskDot': false,
         'forYouDot': true,
         'myDeskCount': 4,
@@ -124,19 +121,16 @@ void main() {
       },
     });
     final summary = await repository.surfaceSummary();
-    expect(summary.activityUnreadTotal, 2);
-    expect(summary.myWorkUnreadTotal, 5);
-    expect(summary.needsYouTotal, 1);
     expect(
       summary.myDeskDot,
       isFalse,
-      reason: 'a myWorkUnreadTotal of 5 does not make the §6 dot true',
+      reason: 'a my desk.count of 4 does not make the §6 dot true (D09)',
     );
     expect(summary.forYouDot, isTrue);
     expect(
       summary.myDeskCount,
       4,
-      reason: '§6 `my desk.count` is its own field, not `needsYouTotal` (1)',
+      reason: '§6 `my desk.count` is its own field, carried as given',
     );
     expect(
       summary.forYouSweepEligible,

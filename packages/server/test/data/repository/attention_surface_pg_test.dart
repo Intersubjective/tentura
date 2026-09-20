@@ -329,8 +329,11 @@ WHERE beacon_id = @beaconId AND user_id = @userId
       },
     );
 
+    // CHANGES IN U18c: `needsYouTotal` is retired; the multiplicity rule it
+    // asserted is a live rule of §6 `my desk.count`, so the assertion moves
+    // onto `myDeskCount` rather than being deleted with the field.
     test(
-      'needsYouTotal counts obligation receipts not distinct beacons',
+      'myDeskCount counts obligation receipts not distinct beacons',
       () async {
         await _insertLiveObligationReceipt(
           writer,
@@ -344,11 +347,12 @@ WHERE beacon_id = @beaconId AND user_id = @userId
         );
 
         final summary = await query.surfaceSummary(accountId: _viewerId);
-        expect(summary.needsYouTotal, 2);
+        expect(summary.myDeskCount, 2);
       },
     );
 
-    test('per-surface unread totals and needsYouTotal stays global', () async {
+    test('per-surface feed totals split while the §6 indicators do not',
+        () async {
       await _insertBeaconReceipt(
         writer,
         id: 'Nsurf08mw',
@@ -380,11 +384,17 @@ WHERE beacon_id = @beaconId AND user_id = @userId
       expect(myWorkFeed.summary.unreadTotal, 2);
       expect(activityFeed.summary.unreadTotal, 1);
       expect(allFeed.summary.unreadTotal, 3);
+      // The feed summary's `needsYouTotal` is unscoped by surface — it is the
+      // count behind the History `needsYou` view, not a surface indicator —
+      // so both surface-scoped feeds report the same 1.
       expect(myWorkFeed.summary.needsYouTotal, 1);
       expect(activityFeed.summary.needsYouTotal, 1);
-      expect(surfaceSummary.activityUnreadTotal, 1);
-      expect(surfaceSummary.myWorkUnreadTotal, 2);
-      expect(surfaceSummary.needsYouTotal, 1);
+      // CHANGES IN U18c: the surface summary's three legacy totals are gone.
+      // What they asserted here — an active optional on each surface and one
+      // live obligation — is §6's four rules, asserted on those.
+      expect(surfaceSummary.forYouDot, isTrue, reason: 'Nsurf08act');
+      expect(surfaceSummary.myDeskDot, isTrue, reason: 'Nsurf08mw');
+      expect(surfaceSummary.myDeskCount, 1, reason: 'Nsurf08obl');
     });
 
     test('markAllSeen(activity) leaves myWork receipts unseen', () async {

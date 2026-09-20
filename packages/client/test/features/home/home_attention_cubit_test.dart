@@ -32,9 +32,6 @@ final class _Repository extends AttentionRepositoryFake {
   Set<String> unread = const {};
   int needsYouTotal = 0;
   AttentionSurfaceSummary surfaceSummaryValue = const AttentionSurfaceSummary(
-    activityUnreadTotal: 0,
-    myWorkUnreadTotal: 0,
-    needsYouTotal: 0,
   );
   bool failMarkers = false;
   final markerQueries = <Set<String>>[];
@@ -217,34 +214,29 @@ void main() {
     },
   );
 
-  test('maps the surface summary totals and §6 count into nav state', () async {
-    // CHANGES IN U15R-e: the badge now follows §6 `my desk.count`
-    // (`surfaceMyDeskCount`), not the legacy unscoped `needsYouTotal`. Both
-    // are still relayed into the state — the legacy total retires in U18 —
-    // so they carry different values here and the badge assertion names
-    // which one it depends on.
+  test('maps the §6 count into nav state', () async {
+    // CHANGES IN U15R-e: the badge follows §6 `my desk.count`
+    // (`surfaceMyDeskCount`), not the legacy unscoped `needsYouTotal`.
+    // CHANGES IN U18c: that legacy total, and the `surfaceNeedsYouTotal`
+    // state field mirroring it, are retired — the badge cannot read them.
     repository.surfaceSummaryValue = const AttentionSurfaceSummary(
-      activityUnreadTotal: 0,
-      myWorkUnreadTotal: 0,
-      needsYouTotal: 3,
       myDeskCount: 2,
     );
     accounts.emit('U1');
     await _settle(20);
 
     expect(home.state.surfaceSummaryLoaded, isTrue);
-    expect(home.state.surfaceNeedsYouTotal, 3);
     expect(home.state.surfaceMyDeskCount, 2);
     expect(home.state.showRedesignMyWorkObligationBadge, isTrue);
   });
 
-  test('a legacy needsYouTotal alone does not raise the badge', () async {
-    // The other half of the flip: §6 `my desk.count` is zero, so the number
-    // is absent however many obligations the legacy total still counts.
+  // CHANGES IN U18c: this was 'a legacy needsYouTotal alone does not raise
+  // the badge'. The legacy total is retired, so the case it guarded against
+  // is unexpressible; what remains is the live half — a zero §6 count shows
+  // no number even with a loaded summary. A ported assertion, not a deletion.
+  test('a zero my desk.count does not raise the badge', () async {
     repository.surfaceSummaryValue = const AttentionSurfaceSummary(
-      activityUnreadTotal: 0,
-      myWorkUnreadTotal: 0,
-      needsYouTotal: 3,
+      myDeskDot: true,
     );
     accounts.emit('U1');
     await _settle(20);

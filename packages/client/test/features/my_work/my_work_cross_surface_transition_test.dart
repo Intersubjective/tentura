@@ -71,12 +71,7 @@ void main() {
           ),
         );
         summary.complete(
-          const AttentionSurfaceSummary(
-            activityUnreadTotal: 1,
-            myWorkUnreadTotal: 0,
-            needsYouTotal: 0,
-            forYouDot: true,
-          ),
+          const AttentionSurfaceSummary(forYouDot: true),
         );
         await attentionCaseTestSettle();
 
@@ -151,12 +146,7 @@ void main() {
         }
 
         movedSummary.complete(
-          const AttentionSurfaceSummary(
-            activityUnreadTotal: 0,
-            myWorkUnreadTotal: 1,
-            needsYouTotal: 0,
-            myDeskDot: true,
-          ),
+          const AttentionSurfaceSummary(myDeskDot: true),
         );
         movedHead.complete(
           const AttentionFeed(

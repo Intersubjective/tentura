@@ -19,10 +19,6 @@ abstract class HomeAttentionState with _$HomeAttentionState {
     @Default(false) bool myWorkLoaded,
     @Default(false) bool markerQueryComplete,
     @Default(HomeTab.work) HomeTab activeHomeTab,
-    @Default(0) int activityUnreadTotal,
-    @Default(0) int myWorkUnreadTotal,
-    @Default(0) int surfaceNeedsYouTotal,
-
     /// §6 `my desk.dot` / `for you.dot`, as the server computed them from the
     /// predicates behind the lists (M1). They are booleans and not totals on
     /// purpose: §6 states a dot as a membership question, and a total is the
@@ -30,8 +26,9 @@ abstract class HomeAttentionState with _$HomeAttentionState {
     @Default(false) bool surfaceMyDeskDot,
 
     /// §6 `my desk.count` — live obligations on owned Requests, as the server
-    /// scoped them. Distinct from [surfaceNeedsYouTotal], which is the legacy
-    /// unscoped total and retires in U18.
+    /// scoped them. U18c retired the three legacy totals this state used to
+    /// mirror beside it (`activityUnreadTotal`, `myWorkUnreadTotal`,
+    /// `surfaceNeedsYouTotal`); none of them fed an indicator after U15R-d.
     @Default(0) int surfaceMyDeskCount,
     @Default(false) bool surfaceForYouDot,
     @Default(false) bool surfaceSummaryLoaded,
@@ -71,9 +68,9 @@ abstract class HomeAttentionState with _$HomeAttentionState {
   /// prompt. Activity nav is a dot only; For You never carries a count (§6),
   /// and there is no state field one could be rendered from.
   ///
-  /// Until U15R-d this read `activityUnreadTotal`, which is neither: it
+  /// Until U15R-d this read `activityUnreadTotal`, which was neither: it
   /// counted Activity-surface obligations and saw neither the outcome rows
-  /// nor the pinned decision zone.
+  /// nor the pinned decision zone. U18c retired that total.
   bool get showRedesignActivityUnreadDot =>
       surfaceSummaryLoaded && surfaceForYouDot;
 
@@ -90,8 +87,9 @@ abstract class HomeAttentionState with _$HomeAttentionState {
   /// uncleared outcome. Independent of the number beside it: a Request with
   /// both contributes to both.
   ///
-  /// Until U15R-d this read `myWorkUnreadTotal`, which includes live
-  /// obligations — so an obligation-only Request lit the optional dot.
+  /// Until U15R-d this read `myWorkUnreadTotal`, which included live
+  /// obligations — so an obligation-only Request lit the optional dot. U18c
+  /// retired that total.
   bool get showRedesignMyWorkUnreadDot =>
       surfaceSummaryLoaded && surfaceMyDeskDot;
 }

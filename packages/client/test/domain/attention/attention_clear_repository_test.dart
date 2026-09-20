@@ -186,12 +186,10 @@ void main() {
         'unrepairableObligationCount': 3,
         'summary': {
           '__typename': 'AttentionSurfaceSummary',
-          'activityUnreadTotal': 4,
-          'myWorkUnreadTotal': 5,
-          'needsYouTotal': 6,
           // CHANGES IN U17c: D15 step 6 asks the client to *replace* its
           // cached indicators with what came back, and the document used to
-          // ask for three of the seven fields. The four §6 indicators would
+          // ask for three of the seven fields (the three U18c has since
+          // retired). The four §6 indicators would
           // have defaulted to false/0 on adoption, so the repair meant to
           // make the badges correct would have blanked a dot the account
           // still owes. Each value below is one no default can produce.
@@ -207,7 +205,7 @@ void main() {
     expect(result.settledObligationCount, 2);
     expect(result.unrepairableObligationCount, 3);
     expect(result.isFullyRepaired, isFalse);
-    expect(result.summary.needsYouTotal, 6);
+    expect(result.summary.myDeskCount, 7);
     expect(
       result.summary.myDeskDot,
       isTrue,

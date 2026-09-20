@@ -109,10 +109,7 @@ final class HomeAttentionCubit extends Cubit<HomeAttentionState> {
   }
 
   void _onSurfaceSummary(AttentionSurfaceSummary summary) {
-    if (state.activityUnreadTotal == summary.activityUnreadTotal &&
-        state.myWorkUnreadTotal == summary.myWorkUnreadTotal &&
-        state.surfaceNeedsYouTotal == summary.needsYouTotal &&
-        state.surfaceMyDeskDot == summary.myDeskDot &&
+    if (state.surfaceMyDeskDot == summary.myDeskDot &&
         state.surfaceMyDeskCount == summary.myDeskCount &&
         state.surfaceForYouDot == summary.forYouDot &&
         state.surfaceSummaryLoaded) {
@@ -120,9 +117,6 @@ final class HomeAttentionCubit extends Cubit<HomeAttentionState> {
     }
     emit(
       state.copyWith(
-        activityUnreadTotal: summary.activityUnreadTotal,
-        myWorkUnreadTotal: summary.myWorkUnreadTotal,
-        surfaceNeedsYouTotal: summary.needsYouTotal,
         surfaceMyDeskDot: summary.myDeskDot,
         surfaceMyDeskCount: summary.myDeskCount,
         surfaceForYouDot: summary.forYouDot,

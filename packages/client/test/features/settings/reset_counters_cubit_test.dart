@@ -58,7 +58,7 @@ void main() {
         _result(
           createdObligationCount: 3,
           unrepairableObligationCount: 2,
-          needsYouTotal: 5,
+          myDeskCount: 5,
           myDeskDot: true,
         ),
       );
@@ -201,13 +201,11 @@ void main() {
 AttentionReconcileResult _result({
   int createdObligationCount = 0,
   int unrepairableObligationCount = 0,
-  int needsYouTotal = 0,
+  int myDeskCount = 0,
   bool myDeskDot = false,
 }) => AttentionReconcileResult(
   summary: AttentionSurfaceSummary(
-    activityUnreadTotal: 0,
-    myWorkUnreadTotal: 0,
-    needsYouTotal: needsYouTotal,
+    myDeskCount: myDeskCount,
     myDeskDot: myDeskDot,
   ),
   createdObligationCount: createdObligationCount,

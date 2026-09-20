@@ -7481,9 +7481,6 @@ type v2_AttentionReconcileResult {
 }
 
 type v2_AttentionSurfaceSummary {
-  activityUnreadTotal: Int!
-  myWorkUnreadTotal: Int!
-  needsYouTotal: Int!
   myDeskDot: Boolean!
   myDeskCount: Int!
   forYouDot: Boolean!

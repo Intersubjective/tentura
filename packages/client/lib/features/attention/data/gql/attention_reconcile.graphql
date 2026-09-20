@@ -4,9 +4,6 @@ mutation AttentionReconcile {
     settledObligationCount
     unrepairableObligationCount
     summary {
-      activityUnreadTotal
-      myWorkUnreadTotal
-      needsYouTotal
       myDeskDot
       myDeskCount
       forYouDot

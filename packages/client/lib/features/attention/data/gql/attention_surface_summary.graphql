@@ -1,8 +1,5 @@
 query AttentionSurfaceSummary {
   attentionSurfaceSummary {
-    activityUnreadTotal
-    myWorkUnreadTotal
-    needsYouTotal
     myDeskDot
     myDeskCount
     forYouDot

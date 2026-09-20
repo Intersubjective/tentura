@@ -63,13 +63,7 @@ void main() {
         page: AttentionFeedPage(items: items),
       ),
     );
-    summary.complete(
-      const AttentionSurfaceSummary(
-        activityUnreadTotal: 2,
-        myWorkUnreadTotal: 0,
-        needsYouTotal: 0,
-      ),
-    );
+    summary.complete(const AttentionSurfaceSummary(forYouDot: true));
     await attentionCaseTestSettle();
     // Everything queued from here stays pending, so only the reconcile's own
     // adoption can move the numbers under test.
@@ -80,9 +74,6 @@ void main() {
   }
 
   const authoritative = AttentionSurfaceSummary(
-    activityUnreadTotal: 2,
-    myWorkUnreadTotal: 3,
-    needsYouTotal: 1,
     myDeskDot: true,
     myDeskCount: 4,
     forYouDot: true,
@@ -114,10 +105,9 @@ void main() {
     'an in-flight clear cannot survive a reconcile, nor re-corrupt its numbers',
     () async {
       // The stale-overlay hazard, end to end: a sweep is optimistically
-      // applied (row off the list, totals down), the repair lands, and only
-      // then does the sweep answer. A client that merged instead of adopting
-      // would show the swept row still gone and the adopted totals shifted by
-      // the sweep's own delta a second time.
+      // applied (row off the list), the repair lands, and only then does the
+      // sweep answer. A client that merged instead of adopting would show the
+      // swept row still gone and the adopted summary disturbed afterwards.
       await signIn([_optional(id: 'r-1'), _optional(id: 'r-2')]);
 
       final sweep = Completer<AttentionDismissAllResult>();
@@ -134,7 +124,13 @@ void main() {
         isTrue,
         reason: 'the optimistic sweep is the premise this test undoes',
       );
-      expect(attention.surfaceSummarySnapshot.activityUnreadTotal, 0);
+      // CHANGES IN U18c: an `activityUnreadTotal == 0` line stood here, and
+      // the behaviour it asserted — an optimistic surface-summary delta — is
+      // itself retired by this unit. Nothing replaces it: the optimistic
+      // frame the user sees is the list above, and §6's indicators are
+      // server-composed. The final assertion below still proves what this
+      // test is about, that a late sweep answer cannot disturb the adopted
+      // summary.
 
       final reconciled = Completer<AttentionReconcileResult>();
       repository.pendingReconciles.add(reconciled);
@@ -182,9 +178,6 @@ void main() {
 
 AttentionReconcileResult _result() => const AttentionReconcileResult(
   summary: AttentionSurfaceSummary(
-    activityUnreadTotal: 2,
-    myWorkUnreadTotal: 3,
-    needsYouTotal: 1,
     myDeskDot: true,
     myDeskCount: 4,
     forYouDot: true,

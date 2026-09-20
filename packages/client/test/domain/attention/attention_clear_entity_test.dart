@@ -171,11 +171,9 @@ void main() {
     test(
       'reconcile does not claim success while something is unrepairable',
       () {
-        const summary = AttentionSurfaceSummary(
-          activityUnreadTotal: 0,
-          myWorkUnreadTotal: 2,
-          needsYouTotal: 2,
-        );
+        // CHANGES IN U18c: the retired totals stood here only to make the
+        // summary non-empty; `myDeskCount` says the same thing in §6's terms.
+        const summary = AttentionSurfaceSummary(myDeskCount: 2);
         const repaired = AttentionReconcileResult(
           createdObligationCount: 1,
           settledObligationCount: 2,

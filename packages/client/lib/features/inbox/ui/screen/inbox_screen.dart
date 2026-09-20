@@ -268,7 +268,7 @@ Widget _inboxActivityFeedBody(
 ///
 /// Enablement is `forYouSweepEligible`: the server's answer to "would the
 /// sweep capture anything", composed from the sweep's own membership. It is
-/// deliberately neither `activityUnreadTotal` (the read axis) nor `forYouDot`
+/// deliberately neither the retired `activityUnreadTotal` nor `forYouDot`
 /// (which counts the pinned decision zone owner decision A keeps out of the
 /// sweep — a control gated on it would light for an unanswered forward and
 /// then do nothing).
@@ -286,11 +286,7 @@ class _ActivityDismissAllButton extends StatelessWidget {
 
     return StreamBuilder<AttentionSurfaceSummary>(
       stream: attention.surfaceSummary,
-      initialData: const AttentionSurfaceSummary(
-        activityUnreadTotal: 0,
-        myWorkUnreadTotal: 0,
-        needsYouTotal: 0,
-      ),
+      initialData: const AttentionSurfaceSummary(),
       builder: (context, snapshot) {
         final eligible = snapshot.data?.forYouSweepEligible ?? false;
         return IconButton(

@@ -168,9 +168,6 @@ class _ChromeAttentionRepo extends AttentionRepositoryFake {
   @override
   Future<AttentionSurfaceSummary> surfaceSummary() async =>
       AttentionSurfaceSummary(
-        activityUnreadTotal: activityUnread,
-        myWorkUnreadTotal: 0,
-        needsYouTotal: 0,
         forYouDot: forYouDot,
         forYouSweepEligible: sweepEligible,
       );

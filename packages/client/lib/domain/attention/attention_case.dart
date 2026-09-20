@@ -82,11 +82,7 @@ final class AttentionCase implements AttentionReconcilePort {
   );
   final _surfaceSummarySubject =
       BehaviorSubject<AttentionSurfaceSummary>.seeded(
-        const AttentionSurfaceSummary(
-          activityUnreadTotal: 0,
-          myWorkUnreadTotal: 0,
-          needsYouTotal: 0,
-        ),
+        const AttentionSurfaceSummary(),
       );
   /// D18 — the last explicit sweep of this session, or `null` when there is
   /// nothing to reward.
@@ -385,13 +381,7 @@ final class AttentionCase implements AttentionReconcilePort {
     _clears.resetForAccount(accountId);
     _feedSessions.resetForAccount();
     _emit(const AttentionFeedSnapshot());
-    _surfaceSummarySubject.add(
-      const AttentionSurfaceSummary(
-        activityUnreadTotal: 0,
-        myWorkUnreadTotal: 0,
-        needsYouTotal: 0,
-      ),
-    );
+    _surfaceSummarySubject.add(const AttentionSurfaceSummary());
     _surfaceSummaryRequestSerial = 0;
     _publishSweep(null);
     if (accountId.isNotEmpty) {
@@ -612,11 +602,12 @@ final class AttentionCase implements AttentionReconcilePort {
     final pending = ids.toSet();
     if (pending.isEmpty) return;
     final generation = _accountGeneration;
-    // R2/D02 — a read moves the **read** axis and nothing else. Every total
-    // below this line (`unreadTotal`, `activityUnreadTotal`,
-    // `myWorkUnreadTotal`) is defined by the server as *active attention*:
+    // R2/D02 — a read moves the **read** axis and nothing else. `unreadTotal`
+    // below this line is defined by the server as *active attention*:
     // `NOT requires_action AND cleared_at IS NULL`, union live obligations.
-    // `seen_at` is not in any of them, so a read must not move them.
+    // `seen_at` is not in it, so a read must not move it. (U18c retired the
+    // two surface totals this note also named; the §6 indicators the surface
+    // summary now carries are not client-derived at all.)
     final token = _acks.markSeen(pending);
     _applyOptimisticAcks();
     try {
@@ -998,15 +989,10 @@ final class AttentionCase implements AttentionReconcilePort {
     // what happens to look unread. A receipt the user already read still
     // counts on every server total until it is cleared, so clearing it is
     // exactly the moment those totals move.
-    final deltas = _surfaceActiveOptionalDeltas(members);
     final unreadDelta = _activeOptionalCount(members);
     if (members.isNotEmpty) {
       _clears.begin(operationId, members);
       _applyOptimisticAcks(unreadDelta: -unreadDelta);
-      _applyOptimisticSurfaceSummary(
-        activityUnreadDelta: -deltas.activity,
-        myWorkUnreadDelta: -deltas.myWork,
-      );
     }
     try {
       final result = await run();
@@ -1021,13 +1007,6 @@ final class AttentionCase implements AttentionReconcilePort {
       // `partial` is not a slow `complete`.
       final withdrawn = members.difference(applied);
       _clears.commit(operationId, applied);
-      if (withdrawn.isNotEmpty) {
-        final restored = _surfaceActiveOptionalDeltas(withdrawn);
-        _applyOptimisticSurfaceSummary(
-          activityUnreadDelta: restored.activity,
-          myWorkUnreadDelta: restored.myWork,
-        );
-      }
       _applyOptimisticAcks(
         unreadDelta: withdrawn.isEmpty ? 0 : _activeOptionalCount(withdrawn),
       );
@@ -1038,10 +1017,6 @@ final class AttentionCase implements AttentionReconcilePort {
           members.isNotEmpty) {
         _clears.discard(operationId);
         _applyOptimisticAcks(unreadDelta: unreadDelta);
-        _applyOptimisticSurfaceSummary(
-          activityUnreadDelta: deltas.activity,
-          myWorkUnreadDelta: deltas.myWork,
-        );
       }
       // Destructive-looking gestures fail out loud; nothing is queued (D14).
       _logger.warning('Attention clear failed', error, stackTrace);
@@ -1285,48 +1260,16 @@ final class AttentionCase implements AttentionReconcilePort {
     return n;
   }
 
-  ({int activity, int myWork}) _surfaceActiveOptionalDeltas(
-    Iterable<String> ids,
-  ) {
-    var activity = 0;
-    var myWork = 0;
-    for (final id in ids) {
-      final receipt = _knownReceipt(id);
-      if (receipt == null) continue;
-      if (!isActiveOptional(_overlay(receipt))) continue;
-      switch (receipt.surface) {
-        case AttentionSurface.activity:
-          activity++;
-        case AttentionSurface.myWork:
-          myWork++;
-      }
-    }
-    return (activity: activity, myWork: myWork);
-  }
-
-
-  void _applyOptimisticSurfaceSummary({
-    int activityUnreadDelta = 0,
-    int myWorkUnreadDelta = 0,
-    int? activityUnreadTotal,
-    int? myWorkUnreadTotal,
-    int? needsYouTotal,
-  }) {
-    final current = _surfaceSummarySubject.value;
-    if (!_surfaceSummarySubject.isClosed) {
-      _surfaceSummarySubject.add(
-        current.copyWith(
-          activityUnreadTotal:
-              activityUnreadTotal ??
-              math.max(0, current.activityUnreadTotal + activityUnreadDelta),
-          myWorkUnreadTotal:
-              myWorkUnreadTotal ??
-              math.max(0, current.myWorkUnreadTotal + myWorkUnreadDelta),
-          needsYouTotal: needsYouTotal ?? current.needsYouTotal,
-        ),
-      );
-    }
-  }
+  // U18c removed `_surfaceActiveOptionalDeltas` and
+  // `_applyOptimisticSurfaceSummary`. They existed only to move
+  // `activityUnreadTotal` / `myWorkUnreadTotal` optimistically while a clear
+  // was in flight, and those totals are retired. Nothing replaces them: §6's
+  // four indicators are server-composed from predicates the client does not
+  // hold (`scope`, Set O, the pinned zone), so an optimistic frame for them
+  // would be a client guess at a server rule — the M1 drift this plan spent
+  // three units removing. The optimistic frame the user sees is the *list*,
+  // which `_applyOptimisticAcks` still moves; the indicators follow on the
+  // refresh `_requestSurfaceSummaryRefresh` already queues.
 
   void _applyOptimisticAcks({
     int unreadDelta = 0,

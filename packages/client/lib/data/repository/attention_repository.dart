@@ -403,9 +403,6 @@ final class AttentionRepository implements AttentionRepositoryPort {
         .then((response) => response.dataOrThrow(label: _label));
     final summary = data.attentionSurfaceSummary;
     return AttentionSurfaceSummary(
-      activityUnreadTotal: summary.activityUnreadTotal,
-      myWorkUnreadTotal: summary.myWorkUnreadTotal,
-      needsYouTotal: summary.needsYouTotal,
       myDeskDot: summary.myDeskDot,
       myDeskCount: summary.myDeskCount,
       forYouDot: summary.forYouDot,
@@ -686,13 +683,9 @@ final class AttentionRepository implements AttentionRepositoryPort {
     final result = data.attentionReconcile;
     return AttentionReconcileResult(
       summary: AttentionSurfaceSummary(
-        activityUnreadTotal: result.summary.activityUnreadTotal,
-        myWorkUnreadTotal: result.summary.myWorkUnreadTotal,
-        needsYouTotal: result.summary.needsYouTotal,
         // D15 step 6 — every §6 indicator the server recomputed, relayed as
-        // given. Asking for only the three legacy totals would let the four
-        // indicators default to false/0 here, and the adoption downstream
-        // would blank a dot the account still owes.
+        // given. A field left unread here defaults to false/0, and the
+        // adoption downstream would blank a dot the account still owes.
         myDeskDot: result.summary.myDeskDot,
         myDeskCount: result.summary.myDeskCount,
         forYouDot: result.summary.forYouDot,

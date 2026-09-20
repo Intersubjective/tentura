@@ -99,9 +99,12 @@ Future<void> main() async {
       await tearDownDisposablePgWriter(session: session, drift: database);
     });
 
+    // CHANGES IN U18c: `needsYouTotal` is retired. `myDeskCount` is §6's
+    // `my desk.count` — live obligations on owned Requests — which is what
+    // every caller of this helper actually means by "obligation count".
     Future<int> needsYou(String accountId) async =>
         (await attentionQuery.surfaceSummary(accountId: accountId))
-            .needsYouTotal;
+            .myDeskCount;
 
     test('helper withdrawal drops the author obligation count', () async {
       await harness.helpOfferCase.offerHelp(

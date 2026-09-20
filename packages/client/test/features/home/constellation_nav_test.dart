@@ -87,9 +87,8 @@ final class _Accounts implements AttentionAccountPort {
 final class _Repository extends AttentionRepositoryFake {
   Set<String> unread = const {};
   AttentionSurfaceSummary surfaceSummaryValue = const AttentionSurfaceSummary(
-    activityUnreadTotal: 1,
-    myWorkUnreadTotal: 1,
-    needsYouTotal: 0,
+    forYouDot: true,
+    myDeskDot: true,
   );
 
   @override

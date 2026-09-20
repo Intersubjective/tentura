@@ -143,11 +143,7 @@ final class _FixtureQuery implements AttentionQueryPort {
   @override
   Future<AttentionSurfaceSummary> surfaceSummary({
     required String accountId,
-  }) async => const AttentionSurfaceSummary(
-    activityUnreadTotal: 0,
-    myWorkUnreadTotal: 0,
-    needsYouTotal: 0,
-  );
+  }) async => const AttentionSurfaceSummary();
 
   @override
   Future<Set<String>> unreadForBeacons({

@@ -11,9 +11,6 @@ abstract class AttentionRepositoryFake implements AttentionRepositoryPort {
   @override
   Future<AttentionSurfaceSummary> surfaceSummary() async =>
       const AttentionSurfaceSummary(
-        activityUnreadTotal: 0,
-        myWorkUnreadTotal: 0,
-        needsYouTotal: 0,
       );
 
   @override

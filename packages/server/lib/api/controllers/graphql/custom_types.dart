@@ -174,12 +174,10 @@ final GraphQLObjectType gqlTypeAttentionReceipt = () {
 final gqlTypeAttentionSurfaceSummary =
     GraphQLObjectType('AttentionSurfaceSummary', null)
       ..fields.addAll([
-        field('activityUnreadTotal', graphQLInt.nonNullable()),
-        field('myWorkUnreadTotal', graphQLInt.nonNullable()),
-        field('needsYouTotal', graphQLInt.nonNullable()),
-        // §6 indicators. The three above are the legacy totals and retire in
-        // U18; these three are the rules §6 actually states. There is no
-        // `forYouCount` field because §6 says `for you.count = never`.
+        // §6 indicators, and since U18c the only fields on this type: the
+        // three legacy totals (`activityUnreadTotal`, `myWorkUnreadTotal`,
+        // `needsYouTotal`) are retired. There is no `forYouCount` field
+        // because §6 says `for you.count = never`.
         field('myDeskDot', graphQLBoolean.nonNullable()),
         field('myDeskCount', graphQLInt.nonNullable()),
         field('forYouDot', graphQLBoolean.nonNullable()),

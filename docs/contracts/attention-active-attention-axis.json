@@ -1,5 +1,5 @@
 {
-  "description": "The server's definition of the active-attention axis and of the §6 surface indicators, shared by both layers. Transcribed from packages/server/lib/data/repository/attention_dismissible_sql.dart and from the totals packages/server/test/data/repository/attention_active_attention_axis_pg_test.dart asserts against a real Postgres projection. Both layers read this file: client tests drive their expected totals from it instead of hand-building a number that looks right (U15R-c, overseer addition 1), and since U15R-d the server PG test that produces those numbers reads it too, so drift is caught from both ends.",
+  "description": "The server's definition of the active-attention axis and of the §6 surface indicators, shared by both layers. Transcribed from packages/server/lib/data/repository/attention_dismissible_sql.dart and from the totals packages/server/test/data/repository/attention_active_attention_axis_pg_test.dart asserts against a real Postgres projection. Both layers read this file: client tests drive their expected totals from it instead of hand-building a number that looks right (U15R-c, overseer addition 1), and since U15R-d the server PG test that produces those numbers reads it too, so drift is caught from both ends. Since U18c the recorded per-case fields are §6's rules only; the three legacy totals are retired.",
   "source": {
     "predicates": "packages/server/lib/data/repository/attention_dismissible_sql.dart",
     "summarySql": "packages/server/lib/data/repository/attention_repository.dart",
@@ -17,14 +17,13 @@
   "axisCases": [
     {
       "name": "seen but uncleared optional receipt still asks for attention",
-      "serverTestLine": 116,
+      "serverTestLine": 124,
       "receipt": {
         "requiresAction": false,
         "seen": true,
         "cleared": false,
         "surface": "myWork"
       },
-      "myWorkUnreadTotal": 1,
       "countsAsActiveAttention": true,
       "note": "reading is not clearing (D02): seen_at must not decide the dot",
       "myDeskCount": 0,
@@ -33,14 +32,13 @@
     },
     {
       "name": "unseen but cleared optional receipt no longer asks",
-      "serverTestLine": 136,
+      "serverTestLine": 147,
       "receipt": {
         "requiresAction": false,
         "seen": false,
         "cleared": true,
         "surface": "myWork"
       },
-      "myWorkUnreadTotal": 0,
       "countsAsActiveAttention": false,
       "myDeskCount": 0,
       "myDeskDot": false,
@@ -48,24 +46,22 @@
     },
     {
       "name": "a live obligation is active attention even when seen",
-      "serverTestLine": 159,
+      "serverTestLine": 173,
       "receipt": {
         "requiresAction": true,
         "seen": true,
         "cleared": false,
         "surface": "myWork"
       },
-      "myWorkUnreadTotal": 1,
-      "needsYouTotal": 1,
       "countsAsActiveAttention": true,
       "myDeskCount": 1,
       "myDeskDot": false,
       "forYouDot": false,
-      "note": "§6 splits what the legacy `myWorkUnreadTotal` fuses: the obligation is `my desk.count`, never `my desk.dot`. `myWorkUnreadTotal` still counts it and retires in U18."
+      "note": "§6 splits what the retired `myWorkUnreadTotal` fused: the obligation is `my desk.count`, never `my desk.dot`. U18c retired that total; the two rules it fused are the two fields recorded here."
     },
     {
       "name": "a settled obligation stops being active attention",
-      "serverTestLine": 174,
+      "serverTestLine": 194,
       "receipt": {
         "requiresAction": true,
         "seen": false,
@@ -73,8 +69,6 @@
         "settled": true,
         "surface": "myWork"
       },
-      "myWorkUnreadTotal": 0,
-      "needsYouTotal": 0,
       "countsAsActiveAttention": false,
       "myDeskCount": 0,
       "myDeskDot": false,
@@ -119,8 +113,8 @@
     "forYouDot": "§6 `for you.dot` — Set R (dismissible optional receipts, wrapped in primaryPlacement) ∪ Set O (dismissible outcomes) ∪ eligible_pinned (the pending-forward zone) ∪ pending prompts.",
     "pendingPrompts": "Written into the for-you dot as an explicit `OR FALSE` with a comment naming what it waits for. No classified prompt event has a row in any of the three sets yet (U09a); silent absence would be indistinguishable from a deleted predicate.",
     "forYouCount": "Does not exist, at any layer. §6: `for you.count = never`. The absent field is what makes that structural rather than a convention a widget can break.",
-    "myDeskCount": "§6 `my desk.count` — the sum of `request.count` over owned Requests, i.e. live obligations. Composed as liveObligation ∧ primaryPlacement on surface='myWork'. Uncleared optional events are excluded: they are the dot, and D09 keeps dot and number independent. It is a NEW field, not a re-scoping of `needsYouTotal` — the legacy three keep their pre-U15R-d meaning until U18. Since m0191 the surface leg drops nothing (a live obligation always names a Request, and any Request it names is in `scope`), so it is written because §6 states the rule that way, not to change the population.",
-    "legacyTotals": "`activityUnreadTotal`, `myWorkUnreadTotal` and `needsYouTotal` keep their pre-U15R-d meaning (activeAttention per surface; every live obligation, unscoped) and retire in U18. U15R-d is additive by §0.2.",
-    "obligationsAlwaysNameARequest": "m0191 (`notification_outbox__obligation_beacon_chk`, `CHECK (NOT requires_action OR beacon_id IS NOT NULL)`) makes a Request-less live obligation unstorable. Until U15R-e it was storable — m0115's `notification_outbox__beacon_policy_chk` demands a `beacon_id` only for the `beacon_content` / `beacon_tombstone` access policies — and `visibleWithSurface` labelled every beacon-less row `activity`, where §6 offers it neither a count nor a dot term. The constraint states the rule the producer already enforced (`AttentionPolicy.logicalTaskKey` throws `Live obligation requires a Request`) where nothing can route around it, and it validates on ADD so a legacy violating row aborts the migration rather than being skipped or repaired (legacy remediation is U18's). Pinned by the PG test 'U15R-e — a Request-less live obligation is rejected by notification_outbox__obligation_beacon_chk', asserted by constraint name."
+    "myDeskCount": "§6 `my desk.count` — the sum of `request.count` over owned Requests, i.e. live obligations. Composed as liveObligation ∧ primaryPlacement on surface='myWork'. Uncleared optional events are excluded: they are the dot, and D09 keeps dot and number independent. It was introduced as a NEW field rather than a re-scoping of the legacy `needsYouTotal`, which U18c has since retired. Since m0191 the surface leg drops nothing (a live obligation always names a Request, and any Request it names is in `scope`), so it is written because §6 states the rule that way, not to change the population.",
+    "obligationsAlwaysNameARequest": "m0191 (`notification_outbox__obligation_beacon_chk`, `CHECK (NOT requires_action OR beacon_id IS NOT NULL)`) makes a Request-less live obligation unstorable. Until U15R-e it was storable — m0115's `notification_outbox__beacon_policy_chk` demands a `beacon_id` only for the `beacon_content` / `beacon_tombstone` access policies — and `visibleWithSurface` labelled every beacon-less row `activity`, where §6 offers it neither a count nor a dot term. The constraint states the rule the producer already enforced (`AttentionPolicy.logicalTaskKey` throws `Live obligation requires a Request`) where nothing can route around it, and it validates on ADD so a legacy violating row aborts the migration rather than being skipped or repaired (legacy remediation is U18's). Pinned by the PG test 'U15R-e — a Request-less live obligation is rejected by notification_outbox__obligation_beacon_chk', asserted by constraint name.",
+    "retiredTotals": "U18c retired `activityUnreadTotal`, `myWorkUnreadTotal` and `needsYouTotal` from `AttentionSurfaceSummary` — server model, SQL, the GraphQL `AttentionSurfaceSummary` type, the client entity and its repository mapping. They kept their pre-U15R-d meaning (activeAttention per surface; every live obligation, unscoped) and their names said `unread`, which is the read axis §3 keeps separate; that contradiction produced two defects (U17a read one as History unread, U17b found a read-axis delta folded into another). The four §6 rules above are what the surfaces read and now all this summary returns. NOT retired, and not to be confused with these: `AttentionSummary.unreadTotal` and `AttentionSummary.needsYouTotal` on the *feed* summary, which are the counts behind the History `unread` and `needsYou` views — a read-axis surface §3 keeps alive."
   }
 }

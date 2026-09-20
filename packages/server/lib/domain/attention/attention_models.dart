@@ -543,14 +543,14 @@ abstract class AttentionFeed with _$AttentionFeed {
 @freezed
 abstract class AttentionSurfaceSummary with _$AttentionSurfaceSummary {
   const factory AttentionSurfaceSummary({
-    required int activityUnreadTotal,
-    required int myWorkUnreadTotal,
-    required int needsYouTotal,
-
     /// §6 `my desk.count` — the sum of `request.count` over owned Requests:
-    /// live obligations on the myWork surface. A **new** field rather than a
-    /// re-scoped [needsYouTotal], which keeps its pre-U15R-d meaning (every
-    /// live obligation, unscoped) until U18 retires it.
+    /// live obligations on the myWork surface.
+    ///
+    /// U18c retired `activityUnreadTotal`, `myWorkUnreadTotal` and
+    /// `needsYouTotal`, which fused the dot and the number into one total and
+    /// carried a name ("unread") that named the read axis while meaning
+    /// active attention. Two defects came out of that name; §6's four rules
+    /// are now the only fields this summary has.
     ///
     /// Independent of [myDeskDot] (D09): a Request with both contributes to
     /// both, and neither is derived from the other.

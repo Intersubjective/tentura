@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:logging/logging.dart';
 import 'package:test/test.dart';
 
+import 'package:tentura_server/api/controllers/graphql/custom_types.dart';
 import 'package:tentura_server/api/controllers/graphql/input/_input_types.dart';
 import 'package:tentura_server/api/controllers/graphql/mutation/mutation_attention.dart';
 import 'package:tentura_server/api/controllers/graphql/query/query_attention.dart';
@@ -39,10 +40,15 @@ class _FakeReconciliation implements ObligationReconciliationRunner {
       createdObligationCount: 1,
       settledObligationCount: 2,
       unrepairableObligationCount: 3,
+      // U18c: the three legacy totals are retired, so the reconcile result
+      // carries only §6's rules. Every one is set away from its default, so a
+      // resolver that emitted the constructor defaults instead of copying
+      // this object fails here rather than passing on coincidence.
       summary: AttentionSurfaceSummary(
-        activityUnreadTotal: 4,
-        myWorkUnreadTotal: 5,
-        needsYouTotal: 6,
+        myDeskCount: 6,
+        myDeskDot: true,
+        forYouDot: true,
+        forYouSweepEligible: true,
       ),
     );
   }
@@ -103,9 +109,6 @@ class _FakeQuery implements AttentionQueryPort {
   }) async {
     this.accountId = accountId;
     return const AttentionSurfaceSummary(
-      activityUnreadTotal: 0,
-      myWorkUnreadTotal: 1,
-      needsYouTotal: 0,
       myDeskCount: 3,
       myDeskDot: true,
       forYouDot: false,
@@ -587,18 +590,18 @@ void main() {
     );
   });
 
-  test('attentionSurfaceSummary exposes the §6 indicators beside the legacy '
-      'totals',
+  test('attentionSurfaceSummary exposes the §6 indicators and nothing else',
       () async {
     final query = _FakeQuery();
     final field = QueryAttention(
       query: query,
     ).all.singleWhere((field) => field.name == 'attentionSurfaceSummary');
 
+    // An exact map, so this is also the assertion that the retired totals
+    // are gone from the wire: CHANGES IN U18c — `activityUnreadTotal`,
+    // `myWorkUnreadTotal` and `needsYouTotal` used to head this map, and a
+    // resolver that still emitted any of them fails here.
     expect(await field.resolve!(null, auth), {
-      'activityUnreadTotal': 0,
-      'myWorkUnreadTotal': 1,
-      'needsYouTotal': 0,
       // §6 `my desk.dot`, `for you.dot` and — CHANGES IN U15R-e — the fourth
       // rule, `my desk.count`. There is no `forYouCount` key: §6 says
       // `for you.count = never`, so the wire has nowhere to put one.
@@ -609,6 +612,32 @@ void main() {
       'forYouSweepEligible': true,
     });
     expect(query.accountId, 'U1');
+  });
+
+  // U18c. The resolver map assertion above catches a resolver that still
+  // *emits* a retired total; it cannot catch the schema still *declaring*
+  // one, because a declared field with no resolver simply resolves to null
+  // and no test looks. A field left on the type is a field a client can
+  // still select, which is the whole of what the retirement had to remove.
+  test('the AttentionSurfaceSummary type declares §6 and nothing else', () {
+    expect(
+      gqlTypeAttentionSurfaceSummary.fields.map((f) => f.name).toList(),
+      ['myDeskDot', 'myDeskCount', 'forYouDot', 'forYouSweepEligible'],
+      reason:
+          'CHANGES IN U18c: `activityUnreadTotal`, `myWorkUnreadTotal` and '
+          '`needsYouTotal` are retired from this type. There is no '
+          '`forYouCount` either — §6: `for you.count = never`.',
+    );
+  });
+
+  // The *feed* summary is a different type and keeps both of its totals: they
+  // are the counts behind the History `unread` and `needsYou` views, which §3
+  // keeps alive. Retiring them here would have taken the badge off a live tab.
+  test('the AttentionSummary feed type keeps its view totals', () {
+    expect(
+      gqlTypeAttentionSummary.fields.map((f) => f.name).toList(),
+      ['unreadTotal', 'needsYouTotal'],
+    );
   });
 
   test('liveObligationBeacons scopes to the authenticated account', () async {
@@ -748,22 +777,18 @@ void main() {
         'createdObligationCount': 1,
         'settledObligationCount': 2,
         'unrepairableObligationCount': 3,
-        // CHANGES IN U15R-d/U15R-e: §6 gives `attentionSurfaceSummary` three
-        // more indicator fields (`my desk.dot`, `for you.dot`,
-        // `my desk.count`), and the reconcile result carries the same object,
-        // so its wire shape gains them too.
-        // The three legacy totals keep their values: this unit adds, it does
-        // not resemanticize.
+        // CHANGES IN U15R-d/U15R-e: §6 gives `attentionSurfaceSummary` the
+        // indicator fields (`my desk.dot`, `for you.dot`, `my desk.count`),
+        // and the reconcile result carries the same object, so its wire shape
+        // gains them too.
+        // CHANGES IN U18c: the three legacy totals are gone from this map.
         'summary': {
-          'activityUnreadTotal': 4,
-          'myWorkUnreadTotal': 5,
-          'needsYouTotal': 6,
-          'myDeskDot': false,
-          'forYouDot': false,
-          'myDeskCount': 0,
+          'myDeskDot': true,
+          'forYouDot': true,
+          'myDeskCount': 6,
           // CHANGES IN U16c-1: the reconcile result carries the same summary
           // object, so it gains the field too.
-          'forYouSweepEligible': false,
+          'forYouSweepEligible': true,
         },
       });
       expect(reconciliation.accountId, 'U1');

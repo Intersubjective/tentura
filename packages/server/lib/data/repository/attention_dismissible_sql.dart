@@ -106,11 +106,11 @@ eligible_pinned AS (
   /// §6 gives each indicator its own rule — `my desk.dot` is optional events
   /// and outcomes only, `my desk.count` is obligations only, `for you.dot`
   /// is Set R ∪ Set O ∪ the pinned zone — and `surfaceSummary` composes those
-  /// as `my_desk_dot` / `for_you_dot`. The three legacy totals it still
-  /// returns (`activity_unread_total`, `my_work_unread_total`,
-  /// `needs_you_total`) are built from this union and from
-  /// [liveObligation]; they keep exactly their pre-U15R-d meaning and retire
-  /// in U18.
+  /// as `my_desk_dot` / `for_you_dot`. Until U18c the summary also returned
+  /// three legacy totals built from this union (`activity_unread_total`,
+  /// `my_work_unread_total`, `needs_you_total`); they are retired, and this
+  /// predicate now reaches the surface summary only through those §6 rules.
+  /// It still spells the `unread` view of the History feed, which §3 keeps.
   static String activeAttention(String alias) =>
       '((${activeOptional(alias)}) OR (${liveObligation(alias)}))';
 
@@ -198,8 +198,8 @@ OR EXISTS (
   /// obligation names — so it is written because §6 states the rule that way,
   /// not to change the population.
   ///
-  /// This is a **new** field, not a re-scoping of `needsYouTotal`: the three
-  /// legacy totals keep their pre-U15R-d meaning until U18 retires them.
+  /// U18c retired the three legacy totals this was deliberately not a
+  /// re-scoping of; §6's rule is now the only one the summary states.
   static String get myDeskCountExpression => '''
 SELECT COUNT(*) FILTER (
   WHERE v.surface = 'myWork'

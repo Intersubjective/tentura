@@ -17,19 +17,24 @@ import '../../support/test_realtime_sync.dart';
 import 'attention_case_test_support.dart';
 
 const _surfaceSummaryZero = AttentionSurfaceSummary(
-  activityUnreadTotal: 0,
-  myWorkUnreadTotal: 0,
-  needsYouTotal: 0,
 );
 
+/// A distinguishable §6 surface summary.
+///
+/// CHANGES IN U18c: every test below uses a summary only to tell one
+/// published value from another, and the three legacy totals they varied are
+/// retired. §6 leaves one integer on this object (`my desk.count`) and three
+/// booleans, so `deskCount` is the discriminator and the dots ride along —
+/// which also means a published summary that differed only in a dot still
+/// differs here.
 AttentionSurfaceSummary _surfaceSummary({
-  int activity = 0,
-  int myWork = 0,
-  int needsYou = 0,
+  int deskCount = 0,
+  bool myDeskDot = false,
+  bool forYouDot = false,
 }) => AttentionSurfaceSummary(
-  activityUnreadTotal: activity,
-  myWorkUnreadTotal: myWork,
-  needsYouTotal: needsYou,
+  myDeskCount: deskCount,
+  myDeskDot: myDeskDot,
+  forYouDot: forYouDot,
 );
 
 void main() {
@@ -92,7 +97,7 @@ void main() {
       accounts.emit('account-a');
       await attentionCaseTestSettle();
       head.complete(attentionCaseTestFeed());
-      summary.complete(_surfaceSummary(activity: 1));
+      summary.complete(_surfaceSummary(deskCount: 1, forYouDot: true));
       await attentionCaseTestSettle();
       surfaceSummaries.clear();
     }
@@ -104,10 +109,10 @@ void main() {
       repository.pendingSurfaceSummaries.add(summary);
       accounts.emit('account-a');
       await attentionCaseTestSettle();
-      summary.complete(_surfaceSummary(activity: 2));
+      summary.complete(_surfaceSummary(deskCount: 2, forYouDot: true));
       head.complete(attentionCaseTestFeed());
       await attentionCaseTestSettle();
-      expect(surfaceSummaries, contains(_surfaceSummary(activity: 2)));
+      expect(surfaceSummaries, contains(_surfaceSummary(deskCount: 2, forYouDot: true)));
     });
 
     test('refreshes on notification events', () async {
@@ -131,10 +136,10 @@ void main() {
         ),
       );
       await attentionCaseTestSettle();
-      summary.complete(_surfaceSummary(myWork: 3));
+      summary.complete(_surfaceSummary(deskCount: 3, myDeskDot: true));
       page.complete(attentionCaseTestFeed());
       await attentionCaseTestSettle();
-      expect(surfaceSummaries.last, _surfaceSummary(myWork: 3));
+      expect(surfaceSummaries.last, _surfaceSummary(deskCount: 3, myDeskDot: true));
     });
 
     test('refreshes on helpOffer events', () async {
@@ -155,10 +160,10 @@ void main() {
         ),
       );
       await attentionCaseTestSettle();
-      summary.complete(_surfaceSummary(activity: 4));
+      summary.complete(_surfaceSummary(deskCount: 4, forYouDot: true));
       page.complete(attentionCaseTestFeed());
       await attentionCaseTestSettle();
-      expect(surfaceSummaries.last, _surfaceSummary(activity: 4));
+      expect(surfaceSummaries.last, _surfaceSummary(deskCount: 4, forYouDot: true));
     });
 
     test('refreshes on inboxItem events', () async {
@@ -179,10 +184,10 @@ void main() {
         ),
       );
       await attentionCaseTestSettle();
-      summary.complete(_surfaceSummary(activity: 5));
+      summary.complete(_surfaceSummary(deskCount: 5, forYouDot: true));
       page.complete(attentionCaseTestFeed());
       await attentionCaseTestSettle();
-      expect(surfaceSummaries.last, _surfaceSummary(activity: 5));
+      expect(surfaceSummaries.last, _surfaceSummary(deskCount: 5, forYouDot: true));
     });
 
     test('refreshes on catch-up', () async {
@@ -192,9 +197,9 @@ void main() {
       repository.pendingSurfaceSummaries.add(summary);
       realtimePort.emitCatchUp();
       await attentionCaseTestSettle();
-      summary.complete(_surfaceSummary(needsYou: 2));
+      summary.complete(_surfaceSummary(deskCount: 2));
       await attentionCaseTestSettle();
-      expect(surfaceSummaries.last, _surfaceSummary(needsYou: 2));
+      expect(surfaceSummaries.last, _surfaceSummary(deskCount: 2));
     });
 
     test('refreshes on block changes', () async {
@@ -228,9 +233,9 @@ void main() {
       repository.pendingSurfaceSummaries.add(afterBlock);
       blockCase.emitBlock();
       await attentionCaseTestSettle();
-      afterBlock.complete(_surfaceSummary(activity: 7));
+      afterBlock.complete(_surfaceSummary(deskCount: 7, forYouDot: true));
       await attentionCaseTestSettle();
-      expect(blockSummaries.last, _surfaceSummary(activity: 7));
+      expect(blockSummaries.last, _surfaceSummary(deskCount: 7, forYouDot: true));
     });
 
     test('refreshes after mark-seen ack', () async {
@@ -244,7 +249,7 @@ void main() {
       accounts.emit('account-a');
       await attentionCaseTestSettle();
       initial.complete(attentionCaseTestFeed());
-      initialSummary.complete(_surfaceSummary(activity: 1));
+      initialSummary.complete(_surfaceSummary(deskCount: 1, forYouDot: true));
       await attentionCaseTestSettle();
 
       final markSeen = Completer<int>();
@@ -286,11 +291,11 @@ void main() {
       );
       await attentionCaseTestSettle();
 
-      stale.complete(_surfaceSummary(activity: 99));
-      fresh.complete(_surfaceSummary(activity: 1));
+      stale.complete(_surfaceSummary(deskCount: 99, forYouDot: true));
+      fresh.complete(_surfaceSummary(deskCount: 1, forYouDot: true));
       afterHint.complete(attentionCaseTestFeed());
       await attentionCaseTestSettle();
-      expect(surfaceSummaries.last.activityUnreadTotal, 1);
+      expect(surfaceSummaries.last.myDeskCount, 1);
     });
 
     // CHANGES IN U15R-c (was: "helpOffer refreshes activity stream head
@@ -489,7 +494,7 @@ void main() {
           ],
         ),
       );
-      initialSummary.complete(_surfaceSummary(activity: 2, myWork: 1));
+      initialSummary.complete(_surfaceSummary(deskCount: 2, myDeskDot: true, forYouDot: true));
       await attentionCaseTestSettle();
 
       final summaries = <AttentionSurfaceSummary>[];
@@ -498,7 +503,7 @@ void main() {
       await attentionCaseTestSettle();
       expect(
         attention.surfaceSummarySnapshot,
-        _surfaceSummary(activity: 2, myWork: 1),
+        _surfaceSummary(deskCount: 2, myDeskDot: true, forYouDot: true),
       );
       await sub.cancel();
     });

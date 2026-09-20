@@ -155,12 +155,11 @@ void main() {
     // The stale page and the stale summary land now, both describing the
     // world as it was before the clear. Neither may win.
     repository.completeFirstFetch(_threeReceipts, unread: 3);
+    // CHANGES IN U18c: the stale summary used to carry
+    // `activityUnreadTotal: 3`. It carries a lit `forYouDot` instead — a
+    // §6 field, and still a value the post-clear world does not have.
     repository.completeFirstSummary(
-      const AttentionSurfaceSummary(
-        activityUnreadTotal: 3,
-        myWorkUnreadTotal: 0,
-        needsYouTotal: 0,
-      ),
+      const AttentionSurfaceSummary(forYouDot: true),
     );
     await attentionCaseTestSettle();
 
@@ -171,8 +170,8 @@ void main() {
     );
     final surface = await attention.surfaceSummary.first;
     expect(
-      surface.activityUnreadTotal,
-      0,
+      surface.forYouDot,
+      isFalse,
       reason: 'nor can a summary fetched before the clear',
     );
     expect(clearedIds(attention), {'r-1', 'r-2', 'r-3'});
@@ -433,11 +432,7 @@ void main() {
     await signIn(attention);
     final fetchesBefore = repository.fetchCalls;
     repository.reconcileResult = const AttentionReconcileResult(
-      summary: AttentionSurfaceSummary(
-        activityUnreadTotal: 2,
-        myWorkUnreadTotal: 1,
-        needsYouTotal: 3,
-      ),
+      summary: AttentionSurfaceSummary(myDeskCount: 3),
       unrepairableObligationCount: 1,
     );
     final summaries = <AttentionSurfaceSummary>[];
@@ -448,7 +443,7 @@ void main() {
 
     expect(result.isFullyRepaired, isFalse);
     expect(
-      summaries.any((summary) => summary.needsYouTotal == 3),
+      summaries.any((summary) => summary.myDeskCount == 3),
       isTrue,
       reason: 'the returned summary is adopted immediately',
     );
@@ -611,9 +606,6 @@ final class _ClearRepository extends AttentionRepositoryFake {
       reconcileResult ??
       const AttentionReconcileResult(
         summary: AttentionSurfaceSummary(
-          activityUnreadTotal: 0,
-          myWorkUnreadTotal: 0,
-          needsYouTotal: 0,
         ),
       );
 }

@@ -135,11 +135,10 @@ VALUES
 
       final recorded = contract.axisCase('seen but uncleared optional receipt');
       expect(
-        summary.myWorkUnreadTotal,
-        recorded.myWorkUnreadTotal,
+        summary.myDeskDot,
+        recorded.myDeskDot,
         reason: 'reading is not clearing (D02): seen_at must not decide the dot',
       );
-      expect(summary.myDeskDot, recorded.myDeskDot);
       expect(summary.myDeskCount, recorded.myDeskCount);
       expect(summary.forYouDot, recorded.forYouDot);
       expect(feed.page.items.map((item) => item.id), ['Naxis01']);
@@ -157,7 +156,6 @@ VALUES
       );
 
       final recorded = contract.axisCase('unseen but cleared optional receipt');
-      expect(summary.myWorkUnreadTotal, recorded.myWorkUnreadTotal);
       expect(summary.myDeskDot, recorded.myDeskDot);
       expect(summary.myDeskCount, recorded.myDeskCount);
       expect(summary.forYouDot, recorded.forYouDot);
@@ -179,14 +177,6 @@ VALUES
       final summary = await query.surfaceSummary(accountId: _viewerId);
       final recorded = contract.axisCase(
         'a live obligation is active attention even when seen',
-      );
-      expect(summary.needsYouTotal, recorded.needsYouTotal);
-      expect(
-        summary.myWorkUnreadTotal,
-        recorded.myWorkUnreadTotal,
-        reason:
-            'active attention = uncleared optional ∪ live obligation; a live '
-            'obligation must not fall out of the default list total',
       );
       expect(
         summary.myDeskDot,
@@ -216,8 +206,6 @@ WHERE id = 'Naxis04'
       final recorded = contract.axisCase(
         'a settled obligation stops being active attention',
       );
-      expect(summary.needsYouTotal, recorded.needsYouTotal);
-      expect(summary.myWorkUnreadTotal, recorded.myWorkUnreadTotal);
       expect(summary.myDeskDot, recorded.myDeskDot);
       expect(summary.myDeskCount, recorded.myDeskCount);
       expect(summary.forYouDot, recorded.forYouDot);
@@ -312,10 +300,10 @@ WHERE id = 'Naxis04'
 
     // ------------------------------------------------------- U15R-d (§6)
 
-    // The §6 indicator rules, as their own fields. The legacy three
-    // (`activityUnreadTotal`, `myWorkUnreadTotal`, `needsYouTotal`) are NOT
-    // any of them and are deliberately left computing what they always did
-    // until U18 retires them, so nothing below re-states their meaning.
+    // The §6 indicator rules, as their own fields. CHANGES IN U18c: the
+    // legacy three (`activityUnreadTotal`, `myWorkUnreadTotal`,
+    // `needsYouTotal`) were never any of them and are now retired, so these
+    // four rules are the whole of what the surface summary says.
 
     test('U15R-d §6 my desk.dot — an obligation-only Request does not light '
         'the optional dot', () async {
@@ -331,11 +319,12 @@ WHERE id = 'Naxis04'
             '(D09), so an obligation alone must not raise the dot.',
       );
       expect(
-        summary.myWorkUnreadTotal,
+        summary.myDeskCount,
         1,
         reason:
-            'the legacy union field is unchanged by this unit and still '
-            'counts the obligation — it retires in U18',
+            'and the obligation is not lost by staying out of the dot — it is '
+            'the number beside it. CHANGES IN U18c: this used to read the '
+            'legacy `myWorkUnreadTotal`, which fused the two.',
       );
     });
 
@@ -404,10 +393,14 @@ WHERE id = 'Naxis04'
             'pending prompt — the pinned zone is a term of its own',
       );
       expect(
-        summary.activityUnreadTotal,
-        0,
-        reason: 'the legacy field never saw the pinned zone; that omission is '
-            'exactly what the new field fixes',
+        summary.forYouSweepEligible,
+        isFalse,
+        reason:
+            'and lighting it is all the pinned zone does: owner decision A '
+            'keeps an unanswered forward out of *Dismiss all*. CHANGES IN '
+            'U18c — this line used to read the legacy `activityUnreadTotal`, '
+            'whose 0 here meant only that the legacy field never saw the '
+            'pinned zone; the two new fields say the two things separately.',
       );
     });
 
@@ -474,7 +467,6 @@ WHERE id = 'Naxis04'
         isFalse,
         reason: 'un-reading is not un-clearing (§3): the dot stays dark',
       );
-      expect(summary.activityUnreadTotal, 0);
       expect(
         feed.page.items,
         isEmpty,
@@ -675,7 +667,8 @@ WHERE id = 'Ne07a'
 
     // -------------------------------------------------------------- M1
 
-    test('M1 — the myWork number equals the myWork default list', () async {
+    test('M1 — the My Desk indicators light exactly with the myWork default '
+        'list', () async {
       await _optional(writer, id: 'Naxis10a', beaconId: _ownedBeaconId);
       await _optional(writer, id: 'Naxis10b', beaconId: _ownedBeaconId);
       await _obligation(writer, id: 'Naxis10c', beaconId: _ownedBeaconId);
@@ -688,9 +681,22 @@ WHERE id = 'Ne07a'
         view: AttentionFeedView.unread,
         surface: AttentionSurface.myWork,
       );
-      expect(summary.myWorkUnreadTotal, feed.page.items.length);
+      // CHANGES IN U18c: M1 used to be stated here as
+      // `myWorkUnreadTotal == feed.page.items.length`. That single fused
+      // total is retired, so M1 is stated on the pair §6 actually defines:
+      // the surface shows *something* exactly when its default list has
+      // something, and the number counts the obligations on that list.
       expect(feed.summary.unreadTotal, feed.page.items.length);
-      expect(summary.myWorkUnreadTotal, 2);
+      expect(feed.page.items, hasLength(2));
+      expect(
+        summary.myDeskDot || summary.myDeskCount > 0,
+        feed.page.items.isNotEmpty,
+        reason:
+            'a surface that lights with nothing on its list, or shows a full '
+            'list with no indicator, is the M1 failure',
+      );
+      expect(summary.myDeskDot, isTrue, reason: 'Naxis10a is uncleared');
+      expect(summary.myDeskCount, 1, reason: 'Naxis10c is the obligation');
     });
 
     test('M1 — an Activity dot implies a non-empty Activity default list',
@@ -705,7 +711,7 @@ WHERE id = 'Ne07a'
         view: AttentionFeedView.unread,
         surface: AttentionSurface.activity,
       );
-      expect(summary.activityUnreadTotal, greaterThan(0));
+      expect(summary.forYouDot, isTrue);
       expect(feed.page.items, isNotEmpty);
 
       await _clearReceipt(writer, 'Naxis11a');
@@ -718,8 +724,8 @@ WHERE id = 'Ne07a'
         surface: AttentionSurface.activity,
       );
       expect(
-        summary.activityUnreadTotal,
-        0,
+        summary.forYouDot,
+        isFalse,
         reason:
             'the tab that lights with nothing to act on is exactly the failure '
             'M1 exists to prevent',
@@ -954,7 +960,14 @@ WHERE id = 'Ne07a'
       await _optional(writer, id: 'Naxis20', beaconId: _ownedBeaconId);
 
       final before = await _activityShape(query);
-      expect(before.summaryTotal, 2, reason: 'two active optional rows on the '
+      // CHANGES IN U18c: `activityUnreadTotal` is retired. The summary shape
+      // this round trip checks becomes `forYouSweepEligible`, not `forYouDot`
+      // — the sweep deliberately leaves the pinned zone (FEaxis05) standing,
+      // so the dot stays lit afterwards and only the sweep flag can say the
+      // sweep worked. The count the legacy total gave is still asserted, by
+      // `feedIds` and by `appliedReceiptIds` below.
+      expect(before.summarySweepEligible, isTrue,
+          reason: 'two active optional rows on the '
           'Activity surface; the My Desk row is a different surface');
       expect(before.feedIds, isNotEmpty);
       expect(before.offerUnseen[_foreignBeaconId], 1);
@@ -971,9 +984,9 @@ WHERE id = 'Ne07a'
 
       final after = await _activityShape(query);
       expect(
-        after.summaryTotal,
-        0,
-        reason: 'U09 wrote cleared_at; the dot is supposed to read it',
+        after.summarySweepEligible,
+        isFalse,
+        reason: 'U09 wrote cleared_at; the summary is supposed to read it',
       );
       expect(after.feedIds, isEmpty);
       expect(
@@ -984,8 +997,8 @@ WHERE id = 'Ne07a'
             'the grouped surface',
       );
       expect(
-        (await query.surfaceSummary(accountId: _viewerId)).myWorkUnreadTotal,
-        1,
+        (await query.surfaceSummary(accountId: _viewerId)).myDeskDot,
+        isTrue,
         reason: 'My Desk is not dismissible from For You (Set R)',
       );
     });
@@ -1001,7 +1014,7 @@ WHERE id = 'Ne07a'
         operationId: 'OPaxis21',
       );
       expect(result.undoToken, isNotNull);
-      expect((await _activityShape(query)).summaryTotal, 0);
+      expect((await _activityShape(query)).summarySweepEligible, isFalse);
 
       final undone = await sweep.undo(
         accountId: _viewerId,
@@ -1012,8 +1025,8 @@ WHERE id = 'Ne07a'
 
       final after = await _activityShape(query);
       expect(
-        after.summaryTotal,
-        before.summaryTotal,
+        after.summarySweepEligible,
+        before.summarySweepEligible,
         reason: 'undo un-writes cleared_at; every projection that fell to the '
             'sweep has to come back, or the window is not an undo',
       );
@@ -1083,7 +1096,7 @@ WHERE id = 'Ne07a'
         view: AttentionFeedView.unread,
         surface: AttentionSurface.myWork,
       );
-      expect(before.myWorkUnreadTotal, 2);
+      expect(before.myDeskDot, isTrue);
       expect(beforeFeed.page.items, hasLength(2));
 
       final capture = await clear.captureEligible(
@@ -1107,7 +1120,7 @@ WHERE id = 'Ne07a'
         view: AttentionFeedView.unread,
         surface: AttentionSurface.myWork,
       );
-      expect(after.myWorkUnreadTotal, 0);
+      expect(after.myDeskDot, isFalse);
       expect(afterFeed.page.items, isEmpty);
       expect(afterFeed.summary.unreadTotal, 0);
       final projection = await query.myWorkAttention(
@@ -1189,7 +1202,7 @@ WHERE id = 'Ne07a'
 /// The three Activity read shapes, read together so a leg of the round trip
 /// cannot be asserted on one of them and silently skipped on the others.
 typedef _ActivityShape = ({
-  int summaryTotal,
+  bool summarySweepEligible,
   List<String> feedIds,
   Map<String, int> offerUnseen,
 });
@@ -1203,7 +1216,7 @@ Future<_ActivityShape> _activityShape(AttentionRepository query) async {
   );
   final offers = await query.activityOffers(accountId: _viewerId);
   return (
-    summaryTotal: summary.activityUnreadTotal,
+    summarySweepEligible: summary.forYouSweepEligible,
     feedIds: [for (final item in feed.page.items) item.id],
     offerUnseen: {
       for (final row in offers.items) row.beaconId: row.eventUnseenCount,

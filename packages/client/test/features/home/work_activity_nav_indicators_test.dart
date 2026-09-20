@@ -43,9 +43,6 @@ final class _Accounts implements AttentionAccountPort {
 
 final class _SurfaceRepository extends AttentionRepositoryFake {
   AttentionSurfaceSummary surfaceSummaryValue = const AttentionSurfaceSummary(
-    activityUnreadTotal: 0,
-    myWorkUnreadTotal: 0,
-    needsYouTotal: 0,
   );
 
   @override
@@ -117,8 +114,11 @@ AttentionReceipt _updateReceipt({
     );
 
 HomeAttentionState _redesignState({
-  int activityUnread = 0,
-  int myWorkUnread = 0,
+  // CHANGES IN U18c: `activityUnread` / `myWorkUnread` knobs are gone with the
+  // state fields they set (`activityUnreadTotal`, `myWorkUnreadTotal`). They
+  // fed no indicator after U15R-d, and D09's independence is proved by the
+  // three §6 inputs below carrying opposite values, not by a fourth number
+  // sitting inert beside them.
   int myDeskCount = 0,
   // CHANGES IN U15R-d: the two dots are server booleans now, not totals —
   // §6 states each as a membership question the server answers from the same
@@ -130,8 +130,6 @@ HomeAttentionState _redesignState({
 }) =>
     HomeAttentionState(
       surfaceSummaryLoaded: loaded,
-      activityUnreadTotal: activityUnread,
-      myWorkUnreadTotal: myWorkUnread,
       surfaceMyDeskCount: myDeskCount,
       surfaceMyDeskDot: myDeskDot,
       surfaceForYouDot: forYouDot,
@@ -225,17 +223,16 @@ void main() {
     // number are independent rather than one gating the other.
     //
     // CHANGES IN U15R-d: the two dot *inputs* are `myDeskDot` / `forYouDot`
-    // rather than the two unread totals. Not one expectation moves — §6 says
+    // rather than the two unread totals. Not one expectation moved — §6 says
     // the same thing about what should light — but the totals were never the
-    // §6 rules (`myWorkUnreadTotal` includes obligations, `activityUnreadTotal`
-    // misses outcomes and the pinned zone), so a case that inferred a dot from
-    // one was asserting the right answer over the wrong input. The totals stay
-    // in the table because the cases must keep proving dot and number are
-    // independent (D09).
+    // §6 rules (`myWorkUnreadTotal` included obligations, `activityUnreadTotal`
+    // missed outcomes and the pinned zone), so a case that inferred a dot from
+    // one was asserting the right answer over the wrong input.
+    // CHANGES IN U18c: those two totals are retired and their columns are
+    // gone. D09's independence is still proved here, by `myDeskCount` and
+    // `myDeskDot` carrying opposite values across the cases.
     const cases = <({
       String name,
-      int activity,
-      int myWorkUnread,
       int myDeskCount,
       bool forYouDot,
       bool myDeskDot,
@@ -246,8 +243,6 @@ void main() {
     })>[
       (
         name: 'obligations and optional updates show a number and a dot',
-        activity: 2,
-        myWorkUnread: 1,
         myDeskCount: 3,
         forYouDot: true,
         myDeskDot: true,
@@ -258,8 +253,6 @@ void main() {
       ),
       (
         name: 'the activity dot survives its own tab being open',
-        activity: 2,
-        myWorkUnread: 1,
         myDeskCount: 3,
         forYouDot: true,
         myDeskDot: true,
@@ -270,8 +263,6 @@ void main() {
       ),
       (
         name: 'activity unread only',
-        activity: 1,
-        myWorkUnread: 0,
         myDeskCount: 0,
         forYouDot: true,
         myDeskDot: false,
@@ -282,8 +273,6 @@ void main() {
       ),
       (
         name: 'my work unread dot when no obligations',
-        activity: 0,
-        myWorkUnread: 2,
         myDeskCount: 0,
         forYouDot: false,
         myDeskDot: true,
@@ -294,8 +283,6 @@ void main() {
       ),
       (
         name: 'the my work dot survives its own tab being open',
-        activity: 0,
-        myWorkUnread: 2,
         myDeskCount: 0,
         forYouDot: false,
         myDeskDot: true,
@@ -306,8 +293,6 @@ void main() {
       ),
       (
         name: 'obligations do not extinguish the my work dot',
-        activity: 0,
-        myWorkUnread: 4,
         myDeskCount: 2,
         forYouDot: false,
         myDeskDot: true,
@@ -318,8 +303,6 @@ void main() {
       ),
       (
         name: 'all clear',
-        activity: 0,
-        myWorkUnread: 0,
         myDeskCount: 0,
         forYouDot: false,
         myDeskDot: false,
@@ -333,8 +316,6 @@ void main() {
     for (final c in cases) {
       test(c.name, () {
         final state = _redesignState(
-          activityUnread: c.activity,
-          myWorkUnread: c.myWorkUnread,
           myDeskCount: c.myDeskCount,
           forYouDot: c.forYouDot,
           myDeskDot: c.myDeskDot,
@@ -352,16 +333,15 @@ void main() {
     // `for you.dot = any dismissible attention, pending forward or pending
     // prompt`. Neither is "a total is greater than zero", so the server now
     // sends each as a boolean and the cases below carry it as an input
-    // instead of inferring it from `activityUnreadTotal` /
-    // `myWorkUnreadTotal`. Those two totals stay in the table because the
-    // number beside the dot has its own field too since U15R-e
-    // (`surfaceMyDeskCount`, §6 `my desk.count`), and the cases have to keep
-    // proving the dot and the number are independent (D09). The legacy
-    // `surfaceNeedsYouTotal` feeds no indicator any more; it retires in U18.
+    // instead of inferring it from the legacy totals. The number beside the
+    // dot has its own field too since U15R-e (`surfaceMyDeskCount`, §6
+    // `my desk.count`), and the cases keep proving the dot and the number are
+    // independent (D09). CHANGES IN U18c: `activityUnreadTotal`,
+    // `myWorkUnreadTotal` and `surfaceNeedsYouTotal` fed no indicator and are
+    // retired — no state field one could be inferred from survives.
     test('U15R-d §6 — an obligation-only My Desk shows the number and no dot',
         () {
       final state = _redesignState(
-        myWorkUnread: 3,
         myDeskCount: 3,
         myDeskDot: false,
       );
@@ -376,8 +356,8 @@ void main() {
         reason:
             '§6 `request.dot` is optional events and outcomes only — an '
             'obligation is the number, never the dot. The legacy '
-            '`myWorkUnreadTotal` of 3 counts the obligation and must not be '
-            'what the dot reads.',
+            '`myWorkUnreadTotal` counted the obligation here and must not be '
+            'what the dot reads; U18c retired it outright.',
       );
     });
 
@@ -412,8 +392,6 @@ void main() {
           for (final tab in HomeTab.values)
             () {
               final state = _redesignState(
-                activityUnread: c.activity,
-                myWorkUnread: c.myWorkUnread,
                 myDeskCount: c.myDeskCount,
                 forYouDot: c.forYouDot,
                 myDeskDot: c.myDeskDot,
@@ -445,8 +423,6 @@ void main() {
       for (final dot in [false, true]) {
         for (final total in [0, 1, 5]) {
           final state = _redesignState(
-            activityUnread: total,
-            myWorkUnread: total,
             myDeskCount: total,
             forYouDot: dot,
             myDeskDot: dot,
@@ -471,8 +447,6 @@ void main() {
         for (final myDeskDot in [false, true]) {
           for (final myDeskCount in [0, 3]) {
             final state = _redesignState(
-              activityUnread: forYouDot ? 2 : 0,
-              myWorkUnread: myDeskDot ? 2 : 0,
               myDeskCount: myDeskCount,
               forYouDot: forYouDot,
               myDeskDot: myDeskDot,
@@ -487,8 +461,6 @@ void main() {
 
     test('the unloaded summary lights nothing', () {
       final state = _redesignState(
-        activityUnread: 3,
-        myWorkUnread: 3,
         myDeskCount: 3,
         forYouDot: true,
         myDeskDot: true,
@@ -516,11 +488,8 @@ void main() {
     test('maps AttentionCase.surfaceSummary into state', () async {
       // CHANGES IN U15R-d: §6 `for you.dot` is its own field. A fixture that
       // only set `activityUnreadTotal` was asserting the dot over a total
-      // that does not answer §6's question.
+      // that does not answer §6's question. CHANGES IN U18c: retired.
       repository.surfaceSummaryValue = const AttentionSurfaceSummary(
-        activityUnreadTotal: 1,
-        myWorkUnreadTotal: 0,
-        needsYouTotal: 9,
         myDeskCount: 0,
         forYouDot: true,
       );
@@ -529,7 +498,7 @@ void main() {
         repository: repository,
       );
       expect(boot.home.state.surfaceSummaryLoaded, isTrue);
-      expect(boot.home.state.activityUnreadTotal, 1);
+      expect(boot.home.state.surfaceForYouDot, isTrue);
       expect(boot.home.state.showRedesignActivityUnreadDot, isTrue);
       await _disposeBoot(boot);
     });
@@ -537,9 +506,6 @@ void main() {
     test('invite_accepted activity surface lights Activity dot only', () async {
       // CHANGES IN U15R-d: §6 `for you.dot`, as its own field.
       repository.surfaceSummaryValue = const AttentionSurfaceSummary(
-        activityUnreadTotal: 1,
-        myWorkUnreadTotal: 0,
-        needsYouTotal: 9,
         myDeskCount: 0,
         forYouDot: true,
       );
@@ -556,9 +522,6 @@ void main() {
     test('beacon-scoped my work unread lights My Work only', () async {
       // CHANGES IN U15R-d: §6 `my desk.dot`, as its own field.
       repository.surfaceSummaryValue = const AttentionSurfaceSummary(
-        activityUnreadTotal: 0,
-        myWorkUnreadTotal: 1,
-        needsYouTotal: 9,
         myDeskCount: 0,
         myDeskDot: true,
       );
@@ -629,9 +592,6 @@ void main() {
     ) async {
       // CHANGES IN U15R-d: both dots are §6 fields now.
       repository.surfaceSummaryValue = const AttentionSurfaceSummary(
-        activityUnreadTotal: 1,
-        myWorkUnreadTotal: 2,
-        needsYouTotal: 9,
         myDeskCount: 3,
         myDeskDot: true,
         forYouDot: true,
@@ -653,9 +613,6 @@ void main() {
     testWidgets('the dot returns when the count drops to zero', (tester) async {
       // CHANGES IN U15R-d: the dot is §6 `my desk.dot`, its own field.
       repository.surfaceSummaryValue = const AttentionSurfaceSummary(
-        activityUnreadTotal: 0,
-        myWorkUnreadTotal: 2,
-        needsYouTotal: 9,
         myDeskCount: 0,
         myDeskDot: true,
       );
@@ -675,9 +632,6 @@ void main() {
     ) async {
       // CHANGES IN U15R-d: the dot is §6 `for you.dot`, its own field.
       repository.surfaceSummaryValue = const AttentionSurfaceSummary(
-        activityUnreadTotal: 4,
-        myWorkUnreadTotal: 0,
-        needsYouTotal: 9,
         myDeskCount: 0,
         forYouDot: true,
       );
@@ -694,9 +648,6 @@ void main() {
     ) async {
       // CHANGES IN U15R-d: the dot is §6 `my desk.dot`, its own field.
       repository.surfaceSummaryValue = const AttentionSurfaceSummary(
-        activityUnreadTotal: 0,
-        myWorkUnreadTotal: 2,
-        needsYouTotal: 9,
         myDeskCount: 5,
         myDeskDot: true,
       );

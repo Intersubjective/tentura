@@ -15,7 +15,7 @@ import '../../support/disposable_pg_target.dart';
 /// makes it honest.
 ///
 /// The header control is the clear axis (D02). Before this unit the surface
-/// summary carried no field for it: `activityUnreadTotal` is the *read* axis,
+/// summary carried no field for it: the retired `activityUnreadTotal` was the
 /// and `forYouDot` includes `eligible_pinned`, so gating on it would light the
 /// button when only an unanswered forward remains — a control that enables and
 /// then does nothing, which is §6's "One predicate" failure wearing a button.

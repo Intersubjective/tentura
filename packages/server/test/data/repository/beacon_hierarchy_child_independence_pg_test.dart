@@ -410,9 +410,13 @@ Future<Map<String, Object?>> _surfaceState(
     beaconIds: beaconIds,
   );
   return {
-    'activityUnreadTotal': summary.activityUnreadTotal,
-    'myWorkUnreadTotal': summary.myWorkUnreadTotal,
-    'needsYouTotal': summary.needsYouTotal,
+    // CHANGES IN U18c: the three legacy totals are retired; the fingerprint
+    // carries §6's four rules, which is a strictly finer read of the same
+    // summary — a dot and a count that used to be fused into one number.
+    'myDeskDot': summary.myDeskDot,
+    'myDeskCount': summary.myDeskCount,
+    'forYouDot': summary.forYouDot,
+    'forYouSweepEligible': summary.forYouSweepEligible,
     // Order is part of the value: this list is the position assertion.
     'myWork': [
       for (final group in myWork)

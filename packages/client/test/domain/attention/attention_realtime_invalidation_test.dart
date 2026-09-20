@@ -62,16 +62,16 @@ void main() {
       () async {
     // For You holds B1; the account summary counts it there.
     repository.feedRows = [row('B1')];
-    repository.summary = const AttentionSurfaceSummary(
-      activityUnreadTotal: 1,
-      myWorkUnreadTotal: 0,
-      needsYouTotal: 0,
-    );
+    repository.summary = const AttentionSurfaceSummary(forYouDot: true);
     attention.attachFeedSession(attentionCaseTestFeedDest);
     accounts.emit('account-1');
     await attentionCaseTestSettle();
 
-    ({bool onForYou, int activity, int myWork}) sample() {
+    // CHANGES IN U18c: the two legacy totals this record sampled are retired.
+    // §6's dots say the same thing the two counts said here — "the account
+    // summary places B1 on this surface" — and are what the nav actually
+    // reads.
+    ({bool onForYou, bool forYouDot, bool deskDot}) sample() {
       final items = attention
               .feedSession(attentionCaseTestFeedDest)
               .pages[AttentionView.all]
@@ -79,12 +79,12 @@ void main() {
           const <AttentionReceipt>[];
       return (
         onForYou: items.any((item) => item.beaconId == 'B1'),
-        activity: attention.surfaceSummarySnapshot.activityUnreadTotal,
-        myWork: attention.surfaceSummarySnapshot.myWorkUnreadTotal,
+        forYouDot: attention.surfaceSummarySnapshot.forYouDot,
+        deskDot: attention.surfaceSummarySnapshot.myDeskDot,
       );
     }
 
-    expect(sample(), (onForYou: true, activity: 1, myWork: 0));
+    expect(sample(), (onForYou: true, forYouDot: true, deskDot: false));
 
     // Responsibility changed: the server now answers For You without B1 and
     // counts it on My Desk instead. The two answers are held apart on
@@ -92,9 +92,8 @@ void main() {
     // in-between state, and it is the transition this test is about.
     repository.feedRows = const [];
     repository.summary = const AttentionSurfaceSummary(
-      activityUnreadTotal: 0,
-      myWorkUnreadTotal: 1,
-      needsYouTotal: 1,
+      myDeskDot: true,
+      myDeskCount: 1,
     );
     repository.hold = true;
     realtimePort.emitChange(
@@ -112,12 +111,12 @@ void main() {
     await attentionCaseTestSettle();
     final midway = sample();
     expect(
-      midway.onForYou && midway.myWork > 0,
+      midway.onForYou && midway.deskDot,
       isFalse,
       reason: 'on For You and already counted on My Desk at once: $midway',
     );
     expect(
-      !midway.onForYou && midway.activity > 0,
+      !midway.onForYou && midway.forYouDot,
       isFalse,
       reason: 'dropped from For You while still counted there: $midway',
     );
@@ -128,8 +127,8 @@ void main() {
 
     final settled = sample();
     expect(settled.onForYou, isFalse);
-    expect(settled.myWork, 1);
-    expect(settled.activity, 0);
+    expect(settled.deskDot, isTrue);
+    expect(settled.forYouDot, isFalse);
   });
 
   test('a surface move invalidates the Request for projection owners',
@@ -197,9 +196,6 @@ void main() {
 final class _RealtimeRepository extends AttentionRepositoryFake {
   List<AttentionReceipt> feedRows = const [];
   AttentionSurfaceSummary summary = const AttentionSurfaceSummary(
-    activityUnreadTotal: 0,
-    myWorkUnreadTotal: 0,
-    needsYouTotal: 0,
   );
   AttentionClearSnapshot snapshot = const AttentionClearSnapshot(
     snapshotToken: 'snap-1',

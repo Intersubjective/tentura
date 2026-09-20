@@ -65,6 +65,11 @@ void main() {
     /// Signs in with [items] on the activity stream and the server's
     /// authoritative surface totals, then stops the clock: every later
     /// summary read is held so a test can sample the intermediate frame.
+    /// CHANGES IN U18c: the three legacy totals are retired from
+    /// `AttentionSurfaceSummary`. The two knobs stay because they still set
+    /// the *feed* `unreadTotal`, which U17b made authoritative and §3 keeps;
+    /// the surface summary they also filled now carries §6's dots, derived
+    /// from the same premise ("this surface has active attention on it").
     Future<void> signIn({
       required List<AttentionReceipt> items,
       required int activityTotal,
@@ -89,9 +94,10 @@ void main() {
       );
       summary.complete(
         AttentionSurfaceSummary(
-          activityUnreadTotal: activityTotal,
-          myWorkUnreadTotal: myWorkTotal,
-          needsYouTotal: needsYouTotal,
+          forYouDot: activityTotal > 0,
+          forYouSweepEligible: activityTotal > 0,
+          myDeskDot: myWorkTotal > 0,
+          myDeskCount: needsYouTotal,
         ),
       );
       await attentionCaseTestSettle();
@@ -109,12 +115,14 @@ void main() {
       final axisCase =
           contract.axisCase('seen but uncleared optional receipt still asks '
               'for attention');
-      final expected = axisCase['myWorkUnreadTotal']! as int;
+      // CHANGES IN U18c: the contract no longer records `myWorkUnreadTotal`.
+      // The same case records `myDeskDot`, which is what the surface shows.
+      final expectedDot = axisCase['myDeskDot']! as bool;
 
       await signIn(
         items: [_optional(id: 'r-1', surface: AttentionSurface.myWork)],
         activityTotal: 0,
-        myWorkTotal: expected,
+        myWorkTotal: 1,
       );
 
       final commit = Completer<int>();
@@ -123,14 +131,14 @@ void main() {
       await attentionCaseTestSettle();
 
       expect(
-        attention.surfaceSummarySnapshot.myWorkUnreadTotal,
-        expected,
+        attention.surfaceSummarySnapshot.myDeskDot,
+        expectedDot,
         reason: axisCase['note'] as String? ??
             'reading is not clearing (D02)',
       );
       expect(
         attention.snapshot.summary.unreadTotal,
-        expected,
+        1,
         reason: 'unreadTotal is an active-attention count on the server too',
       );
       commit.complete(1);
@@ -152,12 +160,20 @@ void main() {
       unawaited(attention.markAllSeen().catchError((_) {}));
       await attentionCaseTestSettle();
 
+      // CHANGES IN U18c: the two surface totals this asserted are retired.
+      // The claim is ported onto the two live things a read must not move —
+      // §6's dots, and the authoritative feed total U17b fixed.
       expect(
-        attention.surfaceSummarySnapshot.activityUnreadTotal,
-        2,
+        attention.surfaceSummarySnapshot.forYouDot,
+        isTrue,
         reason: 'markAllSeen is a read; it clears nothing (§3, D02)',
       );
-      expect(attention.surfaceSummarySnapshot.myWorkUnreadTotal, 3);
+      expect(attention.surfaceSummarySnapshot.myDeskDot, isTrue);
+      expect(
+        attention.snapshot.summary.unreadTotal,
+        5,
+        reason: 'and the active-attention total stays where the server put it',
+      );
       commit.complete(2);
       await attentionCaseTestSettle();
     });
@@ -262,7 +278,10 @@ void main() {
           reason: 'unreadTotal is active attention, not a count of unread '
               'rows — un-reading must not raise it back',
         );
-        expect(attention.surfaceSummarySnapshot.activityUnreadTotal, 1);
+        // RETIRED IN U18c: `activityUnreadTotal == 1` stood here. It said
+        // exactly what the `unreadTotal` assertion directly above says, in a
+        // field that no longer exists. A retirement, not an assertion
+        // removed.
 
         // And it survives the server's next word, which is where a pending
         // ack would otherwise be folded back into the total.
@@ -323,16 +342,13 @@ void main() {
               'not a relay_received shell — and Set O excludes anything in '
               'eligible_pinned, i.e. an unanswered forward',
         );
-        expect(
-          attention.surfaceSummarySnapshot.activityUnreadTotal,
-          3,
-          reason: 'exactly one dismissible row left the activity total',
-        );
-        expect(
-          attention.surfaceSummarySnapshot.myWorkUnreadTotal,
-          1,
-          reason: 'a sweep of For You never touches My Desk',
-        );
+        // RETIRED IN U18c: two assertions on `activityUnreadTotal` (3) and
+        // `myWorkUnreadTotal` (1) stood here. Both read the optimistic
+        // surface-summary delta this unit also removed — §6's indicators are
+        // server-composed, so the client no longer guesses at them mid-flight.
+        // What they proved is proved above and unchanged: `cleared` is exactly
+        // {'sweepable'}, so the obligation, the My Desk row, the unanswered
+        // forward and the relay shell all survived the sweep.
 
         held.complete(
           const AttentionDismissAllResult(

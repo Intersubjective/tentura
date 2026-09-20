@@ -239,24 +239,6 @@ ORDER BY beacon_id, created_at DESC, id DESC
         .customSelect(
           '''
 WITH ${AttentionDismissibleSql.cte},
-summary AS (
-  SELECT
-    COUNT(*) FILTER (
-      WHERE ${AttentionDismissibleSql.activeAttention('v')}
-        AND ${AttentionDismissibleSql.primaryPlacement('v')}
-        AND v.surface = 'activity'
-    )::int AS activity_unread_total,
-    COUNT(*) FILTER (
-      WHERE ${AttentionDismissibleSql.activeAttention('v')}
-        AND ${AttentionDismissibleSql.primaryPlacement('v')}
-        AND v.surface = 'myWork'
-    )::int AS my_work_unread_total,
-    COUNT(*) FILTER (
-      WHERE ${AttentionDismissibleSql.liveObligation('v')}
-        AND ${AttentionDismissibleSql.primaryPlacement('v')}
-    )::int AS needs_you_total
-  FROM visible v
-),
 -- §6 `my desk.dot` and `for you.dot`. Both expressions live in
 -- `AttentionDismissibleSql` so the M1 test composes the *same* rule instead
 -- of a hand-copy of it — U15R-d's verify pass caught exactly that drift.
@@ -266,9 +248,8 @@ my_desk_dot AS (
 for_you_dot AS (
   SELECT (${AttentionDismissibleSql.forYouDotExpression}) AS value
 ),
--- §6 `my desk.count`. Also one definition — and deliberately not the legacy
--- `needs_you_total` above with a filter added: that total keeps its own
--- meaning until U18.
+-- §6 `my desk.count`. Also one definition. U18c retired the three legacy
+-- totals this used to sit beside; §6's four rules are all that is left.
 my_desk_count AS (
   ${AttentionDismissibleSql.myDeskCountExpression}
 ),
@@ -278,20 +259,16 @@ for_you_sweep_eligible AS (
   SELECT (${AttentionDismissibleSql.forYouSweepEligibleExpression}) AS value
 )
 SELECT
-  summary.*,
   my_desk_dot.value AS my_desk_dot,
   for_you_dot.value AS for_you_dot,
   my_desk_count.value AS my_desk_count,
   for_you_sweep_eligible.value AS for_you_sweep_eligible
-FROM summary, my_desk_dot, for_you_dot, my_desk_count, for_you_sweep_eligible
+FROM my_desk_dot, for_you_dot, my_desk_count, for_you_sweep_eligible
 ''',
           variables: [Variable<String>(accountId)],
         )
         .getSingle();
     return AttentionSurfaceSummary(
-      activityUnreadTotal: row.read<int>('activity_unread_total'),
-      myWorkUnreadTotal: row.read<int>('my_work_unread_total'),
-      needsYouTotal: row.read<int>('needs_you_total'),
       myDeskDot: row.read<bool>('my_desk_dot'),
       myDeskCount: row.read<int>('my_desk_count'),
       forYouDot: row.read<bool>('for_you_dot'),

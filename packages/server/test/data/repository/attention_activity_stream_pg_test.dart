@@ -746,9 +746,12 @@ WHERE user_id = @userId AND beacon_id = @beaconId
         );
 
         expect(
-          summary.activityUnreadTotal,
-          1,
-          reason: 'the uncleared optional receipt still feeds the tab total',
+          summary.forYouDot,
+          isTrue,
+          reason: 'the uncleared optional receipt still lights the tab. '
+              'CHANGES IN U18c — this read the legacy `activityUnreadTotal`; '
+              '§6 says `for you.count = never`, so the dot is the whole of '
+              'what For You says.',
         );
         final forBeacon = feed.page.items
             .where((item) => item.beaconId == _foreignBeaconId)

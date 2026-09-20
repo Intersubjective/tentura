@@ -209,7 +209,7 @@ Future<void> main() async {
       // A live obligation whose task is genuinely open stays live — a correct
       // result is non-zero.
       expect(await _settlement(writer, 'Nrecnhealt'), isNull);
-      expect(first.summary.needsYouTotal, greaterThan(0));
+      expect(first.summary.myDeskCount, greaterThan(0));
       // The account's own clear survives.
       expect(await _clearedAt(writer, 'Nrecnclear'), isNotNull);
       // The account's own dismissed tombstone survives.
@@ -259,11 +259,14 @@ WHERE user_id = '$_accountId' AND tombstone_dismissed_at IS NOT NULL
       expect(second.createdObligationCount, 0);
       expect(second.settledObligationCount, 0);
       expect(second.unrepairableObligationCount, 1);
-      expect(second.summary.needsYouTotal, first.summary.needsYouTotal);
-      expect(second.summary.myWorkUnreadTotal, first.summary.myWorkUnreadTotal);
+      // CHANGES IN U18c: the three legacy totals are retired, so idempotence
+      // is stated on §6's four rules instead — the same claim, read finer.
+      expect(second.summary.myDeskCount, first.summary.myDeskCount);
+      expect(second.summary.myDeskDot, first.summary.myDeskDot);
+      expect(second.summary.forYouDot, first.summary.forYouDot);
       expect(
-        second.summary.activityUnreadTotal,
-        first.summary.activityUnreadTotal,
+        second.summary.forYouSweepEligible,
+        first.summary.forYouSweepEligible,
       );
 
       final afterFirst = await _fingerprint(writer);

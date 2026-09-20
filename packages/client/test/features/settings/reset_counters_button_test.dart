@@ -141,7 +141,7 @@ void main() {
       await tester.tap(find.byKey(const Key(TestIds.attentionResetCounters)));
       await tester.pump();
       attention.pending.first.complete(
-        _result(needsYouTotal: 4, unrepairableObligationCount: 2),
+        _result(myDeskCount: 4, unrepairableObligationCount: 2),
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
@@ -189,7 +189,7 @@ void main() {
     final attention = await pumpButton(tester);
     await tester.tap(find.byKey(const Key(TestIds.attentionResetCounters)));
     await tester.pump();
-    attention.pending.first.complete(_result(needsYouTotal: 4));
+    attention.pending.first.complete(_result(myDeskCount: 4));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
 
@@ -277,14 +277,14 @@ void main() {
   });
 }
 
+// CHANGES IN U18c: `needsYouTotal` is retired; `myDeskCount` is §6's
+// `my desk.count`, which is what this knob always meant.
 AttentionReconcileResult _result({
-  int needsYouTotal = 0,
+  int myDeskCount = 0,
   int unrepairableObligationCount = 0,
 }) => AttentionReconcileResult(
   summary: AttentionSurfaceSummary(
-    activityUnreadTotal: 0,
-    myWorkUnreadTotal: 0,
-    needsYouTotal: needsYouTotal,
+    myDeskCount: myDeskCount,
   ),
   unrepairableObligationCount: unrepairableObligationCount,
 );

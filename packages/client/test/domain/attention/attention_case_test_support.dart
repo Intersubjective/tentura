@@ -77,9 +77,6 @@ final class AttentionCaseTestRepository extends AttentionRepositoryFake {
     if (pendingSurfaceSummaries.isEmpty) {
       return Future.value(
         const AttentionSurfaceSummary(
-          activityUnreadTotal: 0,
-          myWorkUnreadTotal: 0,
-          needsYouTotal: 0,
         ),
       );
     }
