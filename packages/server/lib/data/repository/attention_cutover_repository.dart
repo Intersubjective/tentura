@@ -5,6 +5,7 @@ import 'package:tentura_server/domain/attention/attention_cutover_models.dart';
 import 'package:tentura_server/domain/port/attention_cutover_port.dart';
 
 import '../database/tentura_db.dart';
+import 'attention_dismissible_sql.dart';
 
 @LazySingleton(as: AttentionCutoverPort)
 class AttentionCutoverRepository implements AttentionCutoverPort {
@@ -66,13 +67,21 @@ SELECT legacy_seen_completed_at IS NOT NULL AS done
     // work that did not happen.
     //
     // The `WHERE` on the UPDATE repeats the candidate predicate rather than
-    // trusting the join. That repetition is the point: `cleared_at IS NULL` is
-    // what makes a second pass over the same ids change nothing, and what
-    // stops a row another writer cleared in between from having its
-    // `cleared_at` rewritten to `seen_at`.
+    // trusting the join. That repetition is the point: the not-yet-cleared
+    // half of `activeOptional` is what makes a second pass over the same ids
+    // change nothing, and what stops a row another writer cleared in between
+    // from having its clear instant rewritten to `seen_at`.
+    //
+    // Both copies compose `activeOptional` rather than spelling the axis out
+    // (M1, and `attention_active_attention_axis_pg_test.dart` enforces it over
+    // the whole directory — in prose as well as in SQL). That is not only
+    // hygiene here: it says the
+    // backfill converts exactly what a surface would have called active and
+    // optional, so the rows that leave the surface are the rows it cleared.
+    final active = AttentionDismissibleSql.activeOptional('o');
     final row = await _database
         .customSelect(
-          r'''
+          '''
 WITH boundary AS (
   SELECT cutover_at, legacy_seen_cursor
     FROM public.attention_cutover
@@ -81,14 +90,13 @@ WITH boundary AS (
 candidates AS (
   SELECT o.id
     FROM public.notification_outbox o, boundary b
-   WHERE NOT o.requires_action
+   WHERE $active
      AND o.seen_at IS NOT NULL
-     AND o.cleared_at IS NULL
      AND o.occurrence_id IS NULL
      AND o.created_at < b.cutover_at
      AND (b.legacy_seen_cursor IS NULL OR o.id > b.legacy_seen_cursor)
    ORDER BY o.id
-   LIMIT $1
+   LIMIT \$1
 ),
 converted AS (
   UPDATE public.notification_outbox o
@@ -97,8 +105,7 @@ converted AS (
          cleared_by_operation_id = NULL
     FROM candidates c
    WHERE o.id = c.id
-     AND o.cleared_at IS NULL
-     AND NOT o.requires_action
+     AND $active
      AND o.seen_at IS NOT NULL
   RETURNING o.id
 ),

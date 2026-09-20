@@ -5,6 +5,7 @@ import 'package:postgres/postgres.dart';
 
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/data/database/migration/_migrations.dart';
+import 'package:tentura_server/domain/use_case/attention_cutover_case.dart';
 import 'package:tentura_server/domain/use_case/user_trust_edge_case.dart';
 
 import 'di.dart';
@@ -28,6 +29,10 @@ class App {
     final getIt = await configureDependencies(env);
     await getIt.allReady();
     await getIt<UserTrustEdgeCase>().cutoverBackfillIfNeeded();
+    // U18a — D19's cutover, on the same boot hook as the trust backfill and
+    // for the same reason: it is restartable, so an interrupted boot simply
+    // resumes on the next one.
+    await getIt<AttentionCutoverCase>().cutoverBackfillIfNeeded();
     await getIt.reset();
     await _uploadGraph(connection);
     await connection.close();

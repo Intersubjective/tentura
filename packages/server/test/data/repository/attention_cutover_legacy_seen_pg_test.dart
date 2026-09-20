@@ -228,8 +228,10 @@ Future<void> main() async {
         expect(progress['cutover_at'], isNotNull);
 
         final fixedInstant = progress['cutover_at']! as DateTime;
-        final firstClearedAt =
-            (await _receipt(writer, _convertible.first))['cleared_at'];
+        final firstClearedAt = (await _receipt(
+          writer,
+          _convertible.first,
+        ))['cleared_at'];
 
         final resumed = await backfill.cutoverBackfillIfNeeded(batchSize: 1);
         expect(
@@ -249,7 +251,10 @@ Future<void> main() async {
           firstClearedAt,
           reason: 'the second pass does not re-stamp what the first cleared',
         );
-        expect((await _progress(writer))['legacy_seen_completed_at'], isNotNull);
+        expect(
+          (await _progress(writer))['legacy_seen_completed_at'],
+          isNotNull,
+        );
 
         // A third entry, with the phase complete, must be a pure no-op.
         final again = await backfill.cutoverBackfillIfNeeded(batchSize: 1);

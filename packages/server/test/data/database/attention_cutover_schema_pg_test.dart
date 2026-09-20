@@ -123,7 +123,10 @@ Future<void> main() async {
         'SELECT cutover_at, legacy_seen_cursor, legacy_seen_completed_at '
         'FROM public.attention_cutover',
       );
-      expect((rows.first[0]! as DateTime).toUtc(), DateTime.utc(2026, 9, 20, 12));
+      expect(
+        (rows.first[0]! as DateTime).toUtc(),
+        DateTime.utc(2026, 9, 20, 12),
+      );
       expect(rows.first[1], 'Nu18a007');
       expect(rows.first[2], isNotNull);
     });

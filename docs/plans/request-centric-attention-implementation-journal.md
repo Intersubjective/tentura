@@ -11900,3 +11900,311 @@ file belongs to the owner and the accumulated change should be reviewed as a who
 
 **Next: U18** — backfill and activation, carrying its two added gates (legacy obligation identity; historical
 hierarchy `placement`), and the legacy three totals whose misleading names have now cost two units.
+
+---
+
+## UNIT U18 — Backfill and activation · SCOUT (2026-09-20)
+
+**Mode:** read-only scout (`scout`). **UNIT_BASE:** branch `feature/events_refac` at journal HEAD (post-U17d).
+**Authority loaded:** manifest U18 + line ~696 gates paragraph; design D19; `request-attention.md` §3–§4;
+`docs/contracts/attention-active-attention-axis.json`; U12 reconciliation limits (C5, 2b); U04/U05c/U06b/U11 journal
+entries on cutover.
+
+### Cutover boundary (live gap)
+
+There is **no** attention cutover marker in production code today (U06b journal: “no cutover timestamp column until
+U18”). Registry ends at **`m0191`** (`_migrations.dart:397`); next id **`m0192`**.
+
+**Recommended boundary (matches D19 + retention proxy already in code):**
+
+| Concept | Definition |
+|---|---|
+| **Cutover instant** | `attention_cutover.cutover_at timestamptz` written **once** on first backfill entry (before any row mutation). Immutable after set. |
+| **Legacy slice** | Rows that existed before activation semantics: typically `occurrence_id IS NULL` **OR** `created_at < cutover_at` (use both: NULL-occurrence legacy is the risky slice called out in U05/U06b journals). |
+| **Post-cutover slice** | `occurrence_id IS NOT NULL` rows from U05+ dispatch — **never** receive `legacy_seen`; already governed by `cleared_at` / clear ops. |
+| **Re-run recognition** | Each phase uses strict idempotency predicates (`cleared_at IS NULL`, `logical_task_key IS NULL`, `placement = 'primary'` only where event type provably hierarchy). Progress columns on the same singleton row (`legacy_seen_completed_at`, `obligation_keys_completed_at`, `placement_completed_at`) or a per-phase `(last_account_id, last_receipt_id)` cursor — re-entry continues from cursor, completed phases no-op. |
+
+**Activation hook:** mirror `UserTrustEdgeRepository.cutoverBackfillIfNeeded()` (`app.dart:30`) — batched runner on
+server boot (or `TaskWorkerCase` if batches must not block startup — product choice; tests must not depend on boot
+order alone).
+
+**Version gate (U18 owns, U19 does not):** bump **`kDefaultMinClientVersion`** in `packages/server/lib/env.dart:67`
+(current **`7.16.0`**) to the client semver that ships with this cutover. **Do not** touch `packages/client/pubspec.yaml`
+or `web/index.html` here (U19).
+
+### Conversion rules (observable transitions)
+
+| Rule | Before → After | Must NOT change | Blast radius if backwards |
+|---|---|---|---|
+| **legacy_seen (manifest core)** | Optional receipt (`requires_action = false`), `seen_at IS NOT NULL`, `cleared_at IS NULL` → `cleared_at = seen_at`, `clear_reason = 'legacy_seen'`, `cleared_by_operation_id NULL` | `seen_at` (read axis); obligations; rows already cleared | **Forward error:** seen-but-active optional stays on surface → user asked to clear again. **Backward error:** clearing unseen optionals → **attention loss** (irrecoverable). |
+| **Unseen optional** | `seen_at IS NULL`, `cleared_at IS NULL` → unchanged | — | Treating as seen/cleared → **silent attention loss**. |
+| **Prior tombstone dismissals** | `inbox_item.tombstone_dismissed_at IS NOT NULL` → unchanged (U12 M2) | Outcome dismiss state | Rewriting dismissals → false “still pinned” or undo breakage. |
+| **Inbox stance / History read** | `markSeen*` only touches `seen_at` (`attention_repository.dart:1451–1565`) | Never writes `cleared_at` | N/A if predicate guarded; if backfill hits wrong rows, see legacy_seen row. |
+| **Gate 1 — obligation keys** | Live obligation, `logical_task_key IS NULL` → key (+ generation) **only when derivable and unique** | Settled rows; user-settled (`settled_by_user_id = account`) | Wrong key/generation → duplicate counts or `live_logical_task` violation; **collapsing two live tasks** → wrong badge + wrong repair. |
+| **Gate 2 — hierarchy placement** | Provably `beaconHierarchyStatusChanged` with `placement = 'primary'` (default from m0189) → `'timeline_only'` | Rows whose event type cannot be proven | **False timeline_only** → hides real primary attention; **false primary** → ancestor false dots (current bug). |
+
+**Out of manifest but in D19:** “In-scope helping outcomes migrate to My Desk ownership” — **not** listed in manifest
+U18 steps; live surface is **derived** (`AttentionDismissibleSql.visibleWithSurface`). Do not invent a migration
+unless a scout finds rows still violating §1; treat as **verify-only** in U18.
+
+**Notifications:** backfill must **not** insert channel jobs or replay email/push (D19).
+
+### Restartability + interruption test (headline acceptance)
+
+**Idempotency:** every UPDATE includes phase-specific NULL guards (U04 journal predicate at ~1307–1308). Second pass
+**must change zero rows**; mutation that breaks this: remove `AND cleared_at IS NULL` or re-stamp `cleared_at`.
+
+**Real interruption (not “call twice cleanly”):**
+
+1. Seed ≥3 accounts or receipts across two batch boundaries.
+2. Run backfill with **`batchSize = 1`** (or inject `throw` after first batch commit via test double on repository).
+3. Assert **partial** state (some rows `legacy_seen`, some not).
+4. Re-run full backfill; assert **byte-equal** to single uninterrupted run (counts, `clear_reason`, keys, placement,
+   `unrepairableObligationCount`).
+
+**Red test name sketch:** `legacy_seen backfill interrupted mid-batch matches one-shot final state`. **Mutation:** on
+re-run, add `cleared_at = cleared_at + interval '1 second'` for already-cleared rows → test fails on timestamp or
+row count.
+
+### Gate 1 — legacy obligation identity
+
+**What “unkeyed” means (live):** `requires_action AND settlement_kind IS NULL AND logical_task_key IS NULL`
+(`attention_reconciliation_repository.dart:276–285`). U12 C5 fixture `Nrecnlegcy` is a live help-offer obligation
+with NULL key (`attention_reconciliation_pg_test.dart:638–645`). Reconciliation **skips** these (`logical_task_key IS
+NOT NULL` in settle CTEs) and reports **`unrepairableObligationCount`**.
+
+**Shapes:** pre-U05c live obligations only; new dispatch always writes keys (`attention_dispatch_repository.dart:124–148`).
+
+**Can U18 key them?** **Partially, not magically:**
+
+- **Key derivable** when event type ∈ `{helpOfferSubmitted, reviewOpened}` and `beacon_id` present — same formula as
+  `AttentionPolicy.logicalTaskKey` (`attention_policy.dart:366–396`), reading event type from
+  `attention_occurrence.event_type` when `occurrence_id` set, else `presentation_payload->>'eventType'` when trustworthy.
+- **Generation not historically derivable** (U05c overseer §2484–2494): safe policy — assign `lifecycle_generation = 1`
+  **only if** no other live row already bears the computed key; if **multiple** live unkeyed rows map to the same key,
+  **preflight abort** or leave extras unkeyed and keep counting in `unrepairableObligationCount` (honest UI from U17d).
+- **Unrepairable by construction:** missing/unknown event type, missing beacon (pre-m0191 legacy), duplicate live tasks
+  that would violate `notification_outbox__live_logical_task`.
+
+**Not “reconciliation fixes them”** — U12 explicitly deferred to U18; Settings copy already says user can do nothing.
+
+### Gate 2 — historical hierarchy `placement`
+
+**Bug:** m0189 added `placement NOT NULL DEFAULT 'primary'` (`m0189.dart:22`) — all pre-m0189 rows including
+`beaconHierarchyStatusChanged` **appear primary** in dots/counts (`primaryPlacement` in contract JSON).
+
+**Decidable subset:** rows where event type is provably `beaconHierarchyStatusChanged` (occurrence join or
+presentation payload + policy agreement in `updates_event_contract_test.dart`) → set `timeline_only` to match
+`AttentionPolicy.placement` (`attention_policy.dart:340–345`).
+
+**Not decidable, because…** legacy collapsed receipts may have **`occurrence_id IS NULL` or wrong occurrence** (U05
+journal); without reliable event type, **do not guess** — leave `primary`, document residual ancestor-dot risk. U11
+journal explicitly deferred this backfill to U18.
+
+### Legacy totals retirement (third scope item)
+
+| Field | Server writers | Server readers | Client production readers | Replace with |
+|---|---|---|---|---|
+| `activityUnreadTotal` | `surfaceSummary` FILTER activeAttention∧primary∧activity (`attention_repository.dart:244–248`) | GraphQL query/mutations | **Not** nav dots (U15R-d); still in `HomeAttentionCubit` state + `AttentionCase` optimistic paths | Nothing for UI; remove field. Tests/docs only held misleading “read axis” name. |
+| `myWorkUnreadTotal` | same for myWork surface (249–253) | same | same | `myDeskDot` + `myDeskCount` already §6 |
+| `needsYouTotal` (surface) | liveObligation∧primary, **unscoped** (254–257) | same | `HomeAttentionState.surfaceNeedsYouTotal` **stored but badge uses `surfaceMyDeskCount`** | `myDeskCount` |
+| `needsYouTotal` (feed) | `attentionFeed` summary COUNT liveObligation **unscoped** (737–739) | GraphQL feed | `UpdatesFeedPane` badge when `AttentionView.needsYou` (405); default views omit Needs you (39–42) | Scope feed badge to **`myDeskCount`** or drop badge; feed filter already uses `liveObligation` in page SQL |
+
+**Retirement safe in U18?** **Yes**, provided: (1) backfill + gates land first so indicators stable; (2) remove GraphQL
+fields + `AttentionSurfaceSummary` legacy ints + contract JSON `legacyTotals`; (3) trim `HomeAttentionCubit` equality
+fields; (4) fix `attention_active_attention_axis_pg_test.dart` + client contract loader; (5) keep **`markSeen` /
+`markUnseen` / `markSeenForBeacon`** — read axis for History (U17a); **remove or hard-deprecate `attentionMarkAllSeen`**
+from GraphQL per §0.2 “stay until U18” (Updates feed still calls it — migrate to read-only batch or remove button).
+
+### Ordered steps (commit-sized)
+
+| # | Step | Files | Red meaningful? | Mutation that must fail test |
+|---|---|---|---|---|
+| 1 | **`m0192`**: singleton `attention_cutover` (+ comments); no row data | `migration/m0192.dart`, `_migrations.dart` | no until runner | — |
+| 2 | Backfill port/case + batched SQL for `legacy_seen` | `domain/port/attention_cutover_port.dart`, `data/repository/attention_cutover_repository.dart`, `domain/use_case/attention_cutover_case.dart`, wire `app.dart` | **yes** | Drop `cleared_at IS NULL` guard → interrupted re-run changes counts |
+| 3 | PG: interruption + idempotency for `legacy_seen` | `test/.../attention_cutover_legacy_seen_pg_test.dart` | **yes** | Re-stamp cleared rows on 2nd run |
+| 4 | Gate 1: key backfill + preflight duplicate-live | same repository + `attention_policy.dart` helper | **yes** | Assign same key to two live rows → UNIQUE violation or wrong count |
+| 5 | Gate 2: hierarchy `placement` backfill + “unknown stays primary” test | repository + PG test | **yes** | Set `timeline_only` on non-hierarchy fixture → dot test fails |
+| 6 | **`kDefaultMinClientVersion` bump** | `packages/server/lib/env.dart` only | no | — |
+| 7 | Retire legacy three from `surfaceSummary` + GraphQL + feed summary | `attention_repository.dart`, `query_attention.dart`, `mutation_attention.dart`, `custom_types.dart`, client `attention_surface_summary.graphql`, entities, `attention_case.dart`, contract JSON | **yes** | Re-expose `activityUnreadTotal` in GraphQL without updating client → contract test fails |
+| 8 | Remove/deprecate `attentionMarkAllSeen` + Updates caller | `mutation_attention.dart`, `updates_feed_cubit.dart`, `.graphql` | **yes** | Restore client `markAllSeen` wiring after removal → grep/test |
+| 9 | Journal inner with real `./scripts/run_with_test_cleanup.sh` outputs | this file | n/a | — |
+
+### TEST_CMD
+
+```bash
+# New U18 PG tests (strict -j 1)
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
+  dart test --tags pg -j 1 test/data/repository/attention_cutover_legacy_seen_pg_test.dart
+
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
+  dart test --tags pg -j 1 test/data/repository/attention_cutover_obligation_keys_pg_test.dart
+
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
+  dart test --tags pg -j 1 test/data/repository/attention_cutover_placement_pg_test.dart
+
+# Any migration/summary/surfaceSummary change → whole server PG suite (not just test/data/repository/)
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 45m -- \
+  dart test --tags pg -j 1
+
+# Server non-PG regression
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
+  dart test --exclude-tags pg
+
+# Client contract + axis tests after legacy field removal
+cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
+  flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env \
+  test/domain/attention/attention_read_clear_axis_test.dart \
+  test/domain/attention/attention_surface_repository_test.dart \
+  test/features/home/work_activity_nav_indicators_test.dart
+
+# Lints (re-read scripts/custom-lint-baseline.txt)
+./scripts/run_with_test_cleanup.sh --timeout 10m -- ./scripts/check-custom-lints.sh packages/server
+./scripts/run_with_test_cleanup.sh --timeout 10m -- ./scripts/check-custom-lints.sh packages/client
+```
+
+Baselines at scout time: server non-PG **1690 / 0 skips**, PG **1065 / 24 skips**, client **3949 / 29 skips**; lints
+server **0**, client **30**.
+
+### Risks / plan vs live
+
+| Item | Detail |
+|---|---|
+| Manifest omits D19 “helping ownership migrate” | Verify only unless SQL proves violation |
+| `occurrence_id` untrustworthy on legacy rows | Placement + key backfill must not require occurrence join only |
+| Duplicate live obligations | Key backfill preflight mandatory (U05c) |
+| Realtime storm | Batch updates trigger `notify_notification_outbox_update` — acceptable dev; note for ops |
+| Client semver without pubspec bump in U18 | Gate may reference version not yet in pubspec until U19 — coordinate message in commit |
+| U17d `unrepairableObligationCount` | After key backfill, count should drop; test that reconciliation + Settings still honest when >0 |
+
+**scout STATUS:** complete
+
+---
+
+## UNIT U18a — The backfill · INNER (2026-09-20)
+
+**UNIT_BASE:** `b4001c50e`, branch `feature/events_refac`. **Scope:** U18a only — the cutover singleton, the
+`legacy_seen` conversion, restartability and its interruption test. **U18b** (obligation keys, historical
+placement) and **U18c** (`kDefaultMinClientVersion`, retiring the legacy three) were not started, and
+`packages/server/lib/env.dart` is untouched.
+
+### What was built
+
+| Piece | File |
+|---|---|
+| `m0192` — the singleton, the immutability trigger, the progress columns | `data/database/migration/m0192.dart` |
+| Batch + report values | `domain/attention/attention_cutover_models.dart` |
+| Port (one batch per call — the loop is not here) | `domain/port/attention_cutover_port.dart` |
+| Batch statement, cursor, guards | `data/repository/attention_cutover_repository.dart` |
+| The loop, the once-only instant, the completion mark | `domain/use_case/attention_cutover_case.dart` |
+| Boot activation, next to the trust backfill | `app/app.dart:31–35` |
+
+**The boundary is stored, not computed.** D19 asks for a backfill that is both *fixed* and *restartable*, which
+rules out `now()` per pass: the second pass would draw a different line and convert receipts the first one
+deliberately left alone. `attention_cutover` holds one row (`id boolean PRIMARY KEY CHECK (id)`, so
+`ON CONFLICT (id) DO NOTHING` is the whole of "write it once", with no read-then-write window between two
+booting isolates), and `cutover_at` is made immutable by a trigger rather than a comment — the same row carries
+the mutable cursor, so every restart issues an `UPDATE` against it, and nothing but a trigger stops a future
+`SET` list from picking up `cutover_at = now()`.
+
+**The conversion.** `NOT requires_action AND seen_at IS NOT NULL AND cleared_at IS NULL AND occurrence_id IS
+NULL AND created_at < cutover_at` → `cleared_at = seen_at`, `clear_reason = 'legacy_seen'`,
+`cleared_by_operation_id = NULL`. No operation id is not an omission: it is what keeps these clears out of
+undo and out of any sweep's accounting, which `m0178`/`m0182`'s comments already promised.
+
+**One statement per batch.** Candidates, the guarded UPDATE and the cursor advance are three CTEs of one
+statement, so they commit together. An interruption can therefore only land on a batch boundary, and the cursor
+never describes work that did not happen.
+
+### The interruption is real
+
+`_FailAfterBatches` wraps the **real** repository and delegates: one batch of one row runs the production
+statement against the production database, and the next call throws. So the state the resume finds is the state
+a crashed backfill would really have left. The partial state is asserted, not assumed — exactly one receipt
+converted (`Nu18a01`, the lowest id), `legacy_seen_cursor = 'Nu18a01'`, `legacy_seen_completed_at` still NULL,
+`cutover_at` already fixed. The resume then reports **2** conversions (not 3 — it finishes, it does not redo),
+`Nu18a01`'s `cleared_at` is unchanged, `cutover_at` is unchanged, and the full receipt snapshot is compared
+against a fresh one-shot pass over identically seeded fixtures. A third entry is a pure no-op
+(`alreadyComplete`, 0 conversions, byte-equal snapshot).
+
+### Mutations run (`dart test --tags pg -j 1` on the U18a files)
+
+| Mutation | Result |
+|---|---|
+| m0192's immutability trigger condition → `IF FALSE` | **fails** `refuses to move cutover_at` (only that one — the guard is narrow, and the progress columns still move) |
+| m0192 unregistered from `_migrations.dart` | fails all 3 schema tests |
+| whole batch statement replaced by `scanned: 0, converted: 0` | fails all 3 backfill tests then present |
+| `occurrence_id IS NULL` dropped | **fails** the conversion test and the interruption test — a post-cutover receipt got `legacy_seen` |
+| `seen_at IS NOT NULL` dropped + `cleared_at = coalesce(seen_at, now())` | **fails** `an unseen optional receipt stays active` (and 2 more) |
+| `cleared_at IS NULL` dropped from the **UPDATE** | **fails** `a receipt cleared mid-statement is not re-stamped` |
+| `cleared_at IS NULL` dropped from **both** UPDATE and candidates | **fails** 3 tests — the explicitly cleared receipt was re-stamped to `legacy_seen` and lost its operation id |
+| `ON CONFLICT DO NOTHING` → `DO UPDATE SET cutover_at = now()` | **fails** the interruption test (m0192's trigger raises on the resume) |
+| cursor advance disabled (`WHERE false`) | **fails** the interruption test on the partial-state cursor assertion |
+| `cleared_at IS NULL` dropped from **candidates only** | **SURVIVED** |
+
+**The survivor, explained rather than excused.** The candidate guard is subsumed by the UPDATE's: an
+already-cleared row can still be *named* as a candidate, but the UPDATE refuses it, so nothing observable
+changes — only the batch's `scanned` count, which the loop uses for termination and not for correctness. The
+load-bearing guard is the one on the UPDATE, and removing *that* alone is caught (row 6). Both together are
+caught (row 7). The candidate copy stays because it is what keeps batches from filling with rows that can never
+convert; it is an efficiency property, and this unit has no assertion that measures efficiency.
+
+### The whole-suite run caught a real one
+
+`attention_active_attention_axis_pg_test.dart`'s U10b guard is stated over the **directory**, not over a list of
+known files — "including files that do not exist yet" — and this unit is one of those files. The first version
+of the batch statement spelled `NOT o.requires_action AND o.cleared_at IS NULL` by hand and the guard failed it,
+correctly. It now composes `AttentionDismissibleSql.activeOptional('o')` in both the candidate list and the
+UPDATE.
+
+That is not bookkeeping. Composing the axis is the statement that **the backfill converts exactly what a surface
+would have called active and optional** — so the rows that leave the surface are the rows it cleared, and a
+future change to `activeOptional` cannot move the surface without moving the backfill with it. The guard also
+scans prose, so the explaining comment had to stop quoting the predicate too; the mutations were re-run against
+the composed form and both guard mutations still fail their tests (rows 6 and 7 below).
+
+### Facts worth carrying forward
+
+1. **`row.read<PgDateTime>` does not work through `openDisposablePgDatabase`** — drift answers
+   `Could not find a matching SQL type for PgDateTime` even though `beacon_repository.dart:895` uses exactly
+   that idiom. `cutover_at` is therefore selected as `::text` and parsed. It is only ever *reported*; every
+   comparison that decides anything is `created_at < b.cutover_at` inside the batch statement, where the value
+   never leaves Postgres.
+2. **`inbox_item` cannot be seeded with a dismissal at `status = 0`** — m0185's trigger raises *"unanswered
+   forward cannot be dismissed"*. The untouched-dismissal fixture is `status = 1` (watching).
+3. **Nothing in the outbox write path inserts a channel job.** The only triggers on `notification_outbox` are
+   m0116's statement-level `pg_notify` pair, so "no delivery replay" is structural; the test still asserts
+   `attention_channel_delivery` is empty afterwards, because structural is not the same as asserted.
+4. The UPDATE's own NULL guard is **observable**, not merely defensive: under READ COMMITTED an UPDATE that
+   blocks on a row lock re-evaluates its `WHERE` when the lock is released. `a receipt cleared mid-statement is
+   not re-stamped` drives that with a held `FOR UPDATE` and a barrier on `pg_stat_activity`.
+5. **§3 says reading never clears; this backfill is the one sanctioned exception.** D19 authorises it as a
+   *one-time* reinterpretation at the boundary, which is exactly why the boundary has to be stored and
+   immutable: the exception has to be finite. Nothing in the live write path gains the ability to clear by
+   reading, and `legacy_seen` carries no operation id, so §4's undo window never offers to reverse it.
+
+6. **The cursor may skip a row the batch did not convert, and that is correct.** `legacy_seen_cursor` advances
+   to `max(id)` over the *candidates*, not over the conversions. The only way those differ in production is a
+   concurrent clear — and a receipt somebody else cleared needs no conversion, so skipping it is the right
+   answer rather than a lost row. Every other exclusion (unseen, obligation, post-cutover) never enters the
+   candidate list at all, so the cursor never passes over one.
+
+### Gates
+
+| Gate | Result |
+|---|---|
+| `dart test --exclude-tags pg` | **1690 / 0 skips**, all passed — baseline exactly (both new files are `pg`-tagged) |
+| `dart test --tags pg -j 1` | **1072 / 24 skips**, all passed — baseline 1065/24, **+7** = 3 schema + 4 backfill, skips unmoved |
+| `./scripts/check-custom-lints.sh packages/server` | total **0** (baseline 0) |
+| client suite | **not run** — this unit changes no file the client compiles against: one migration, one repository, one port, one case, one boot line, two server test files |
+
+The first whole-suite run also reported `m0143_capability_evidence_sql_test.dart` failing once; it passed on the
+next two runs, including the clean full suite, and nothing in this unit touches capability evidence. Recorded as
+observed, not explained.
+
+### Not done here (U18b / U18c, deliberately)
+
+Legacy obligation keys and historical `placement` are **U18b**; `kDefaultMinClientVersion` and retiring
+`activityUnreadTotal` / `myWorkUnreadTotal` / `needsYouTotal` are **U18c**. `packages/server/lib/env.dart` is
+untouched. `m0192` already carries the progress columns U18a needs and no more — U18b will want its own, and
+adding phase columns it has not yet specified would have been guessing.
