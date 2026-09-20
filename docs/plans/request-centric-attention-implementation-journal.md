@@ -12602,3 +12602,66 @@ Until they land the floor rejects every client, which is what a one-release cuto
 the decision U18b flagged: whether the rows gate 2 could not prove deserve a visible counter of their own.
 
 **U18 is complete.**
+
+## manager — U18c accepted; U18 is complete
+
+**Verdict: accepted.** All four gates, run independently: server non-PG **1695 / 0**, server PG **1083 / 24**
+(skips unmoved), client **3948 / 29**, lints server **0 (baseline 0)** and client **30 (baseline 30)**. Every
+predicted count hit exactly. Worker confirmed dead before I touched the tree.
+
+### The best mutation result of this plan
+
+Re-declaring `needsYouTotal` on the GraphQL **type** passed every test. The resolver assertion catches a
+resolver that still emits a retired key — but **a declared field with no resolver resolves to null, and nothing
+looked.** A declared field is a field a client can still select, which is the whole of what the retirement had
+to remove.
+
+So the retirement could have shipped incomplete and invisible. The implementer analysed the survivor as a
+**real gap** rather than a subsumed one, added a type-shape test, and killed it on re-run. That is the
+distinction U18a established — subsumed / untestable / real gap — being used to find something rather than to
+excuse something.
+
+### The inventory was verified by compile error, not trusted
+
+Removing the fields from the two entities produced **42 server and 142 client errors**, naming every caller —
+and the scout's inventory had missed six files. A retirement verified by "I searched and found these" would
+have left them.
+
+### The two `needsYouTotal`s are different fields, and only one retired
+
+The surface summary's is gone. The **feed** summary's has no `primaryPlacement` leg, backs History's
+`needsYou` view badge, and that view still exists — retiring it would have taken a badge off a live tab. Both
+summary types now have their field lists pinned by tests so neither drifts. `AttentionSummary.unreadTotal`,
+one letter away and made authoritative by U17b, was correctly left alone.
+
+### A rule this plan arrived at three separate times
+
+The client's optimistic surface-summary machinery existed **only** to move the retired totals — nothing had
+read them since U15R-d. It was deleted, with the right reason: §6's indicators are composed server-side from
+predicates the client does not hold, so an optimistic frame for them is a client guessing at a server rule.
+
+That is the same principle as U17b's §3 violation (a read-axis delta folded into an active-attention total) and
+U17c's step-6 adoption (replace, never merge). **The client may be optimistic about the list, never about a
+number the server composes.** It is now structural: the fields those methods moved do not exist.
+
+### The cutover is live and the client is currently locked out
+
+`kDefaultMinClientVersion` is **7.19.0**; `packages/client/pubspec.yaml` is **7.18.0**, because every client
+change in this plan landed under 7.18.0 without a bump. **The server therefore rejects every client until U19
+lands the matching version and the `flutter_bootstrap.js?v=` cache-buster.** That is D19's one-release cutover
+working as specified, not a defect — and it is U19's first obligation. Stated in `env.dart`, the commit message
+and here.
+
+### U18 is complete
+
+| unit | what it delivered |
+| --- | --- |
+| **U18a** | `m0192`'s immutable cutover instant; the `legacy_seen` conversion; restartability proven under a real mid-run interruption |
+| **U18b** | Obligation keys derived from the write path's own function; placement demoted only where provable, residual risk stated |
+| **U18c** | The 7.19.0 floor; the legacy three retired across both layers, GraphQL and the shared contract |
+
+**U19 inherits, concretely:** the client version bump + cache-buster (blocking); the six release blockers; the
+full gate matrix **including `run_client_integration_web_local.sh`, which this session has never run**; the
+assembled-surface test deferred from U16c-1; U18b's open question about a counter for un-demotable hierarchy
+rows; the stale `issue-171-card-spec.md` §5 line; and the accumulated §4/§9a edits to the owner's contract doc,
+for review as a whole. Open issues: **#189**, **#190**, and D15 step 5 (session invalidation, unmet).
