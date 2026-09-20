@@ -10722,3 +10722,134 @@ tested at the rule and at the widget.
 - `updatesMarkAllSeen` is now unused by For You but still used by the Updates screen —
   it was not removed.
 - The stream still imports `ActivityOfferCard` for prompt pins. Untouched, as required.
+
+---
+
+## verify — U16c-1 · the clear-axis header action · 2026-09-20
+
+**Layer:** verify (read-only). **Range:** `54e315bb8..e19c6fdc8` (5 commits). **Gates:** not
+re-run — implementer and manager both reported server non-PG **1690/0**, PG **1064/24**
+(+10 eligibility suite, baseline skips unmoved), client **3908/29**, lints **30/30** client,
+**0/0** server.
+
+### ELIGIBILITY — scout correction accepted
+
+The brief's "Set R with primary placement" was **wrong** for enablement. Live code:
+
+- `forYouSweepEligibleExpression` = `EXISTS activity_optional_dismissible OR EXISTS
+  activity_outcome_dismissible` (`attention_dismissible_sql.dart:258–260`) — **no**
+  `primaryPlacement` on Set R.
+- `AttentionSweepRepository.captureSql` unions from those same two CTEs after the shared
+  `AttentionDismissibleSql.cte` prelude (`attention_sweep_repository.dart:42–62`) — also **no**
+  placement filter on Set R.
+
+**Both directions:** `attention_sweep_eligibility_pg_test.dart` `expectAgreement()` asserts
+`summary.forYouSweepEligible == (captured > 0)` after every fixture; `_captureCount` runs
+`AttentionSweepRepository.captureSql` **verbatim** (lines 208–215), not a paraphrase. Fixture
+`a Request-less optional receipt makes it eligible too` locks the placement divergence from
+`forYouDot`'s Set R leg. Pin + dismissible receipt case asserts flag off after last sweepable
+cleared while `forYouDot` stays on.
+
+### CONTRACT §4
+
+- **Three voices:** `forYouEmptyKind` + `ForYouEmptyState`; discriminator `hasPinnedZone` for
+  *nothing new* vs *nothing here*; `hasActiveFilter` for *no match* (wired with `false` until a
+  filter exists). `for_you_empty_state_test.dart` asserts distinct titles/hints, unit rule
+  tests, and widget copy per kind; `activity_chrome_test.dart` integration asserts
+  `forYouEmptyNothingHere` on empty harness (no pin).
+- **§4 _Avoid_ (loading):** `shouldShowForYouEmptyState` pure predicate; exhaustive 8-row truth
+  table in `for_you_empty_state_test.dart`; `activity_stream_view.dart:602–606` calls the same
+  function with `streamState.isLoading || offersState.isLoading` — condition not relocated.
+- **Snackbar copy:** `inboxDismissAllCleared(count)` — not "all clear"; partial uses
+  `inboxDismissAllPartial` + Continue with **same** `operationId` (`inbox_screen.dart:330–340`;
+  chrome test asserts two `dismissAll` calls, one distinct id). Denied → `inboxDismissAllFailed`,
+  no cleared message. Undo: complete + token → Undo action → `undoDismissAll` with matching
+  ids; refused undo → `inboxDismissAllUndoFailed`.
+
+### DECISION A
+
+PG: `an unanswered forward alone is NOT eligible, though for you.dot is on`
+(`attention_sweep_eligibility_pg_test.dart:105–114`). Client relay:
+`attention_surface_repository_test.dart` pairs `forYouDot: true` with
+`forYouSweepEligible: false`. Chrome: `forYouDot: true, sweepEligible: false,
+activityUnread: 7` → disabled button.
+
+### M9 (loading guard)
+
+Implementer report confirmed: predicate extracted; exhaustive truth table is the guard;
+widget consults it. No widget-level "stream still loading → no `ForYouEmptyState`" test (chrome
+harness resolves instantly), but deleting `shouldShowForYouEmptyState` or inlining without loading
+would break the unit truth-table test.
+
+### VACUOUS
+
+None identified in rewritten `activity_chrome_test.dart` or `for_you_empty_state_test.dart` —
+assertions are positive (key, tooltip, named l10n strings, undo/continue actions, absence of
+wrong-axis icon/copy).
+
+### GAPS (non-blocking)
+
+- `inboxDismissAllNothing` (`appliedCount == 0` while enabled) has no dedicated widget test.
+- `nothingNew` / `noMatch` not exercised in full `ActivityStreamView` integration (only unit +
+  isolated widget tests); pin-discriminator logic in stream is `offersState.items.isNotEmpty` —
+  reasonable but not chrome-tested with a pinned offer fixture.
+
+**STATUS:** pass
+
+## manager — U16c-1 accepted
+
+**Verdict: accepted.** Verify returned `pass`. My independent gates, all five: server non-PG **1690 / 0 skips**,
+server PG **1064 / 24 skips** (+10, the new eligibility suite; skip baseline unmoved), client **3908 / 29
+skips**, lints client **30 (baseline 30)** and server **0 (baseline 0)**.
+
+### The implementer corrected the scout's brief, and was right
+
+The scout specified enablement as Set R **with primary placement** ∪ Set O. That is wrong, and the reason is
+worth keeping: the placement filter belongs to `forYouDotExpression` because a **dot** must not light for a row
+no list shows — but `AttentionSweepRepository.captureSql` clears non-primary dismissible rows too. Gating the
+control on the dot's narrower membership would leave a **disabled button beside rows the sweep would clear**: a
+surface that cannot reach zero. Enablement follows the *action*, so it must not narrow what the action does.
+
+I verified `captureSql` has no placement filter before accepting the argument, and verify confirmed the
+expression matches in both directions.
+
+**The iff test is the strongest guard in this plan so far.** `attention_sweep_eligibility_pg_test.dart` runs
+`AttentionSweepRepository.captureSql` **verbatim** against the live database and asserts
+`forYouSweepEligible == (captured > 0)` after every fixture — including the decisive one, a lone unanswered
+forward where `forYouDot` is true and eligibility is false (owner decision A, stated where the user can see it).
+No paraphrase of the membership exists anywhere in it, which is exactly the defect U15R-d's verify pass caught.
+
+### Contract §4, both halves
+
+- **Three empty states**, distinguished by a pure predicate so the copy and the condition cannot be chosen in
+  two places. The pinned zone is the discriminator between *nothing here* and *nothing new* — §4's own wording.
+  `shouldShowForYouEmptyState` refuses to render any of them while loading or after a refresh failure, which is
+  the _Avoid_ line's "celebrating 'all clear' … while loading, offline".
+- **Undo**, with the token, plus an honest failure message; and the partial case resumes with the **same
+  `operationId`**, because a fresh one would capture a second membership instead of finishing the first. Four
+  outcomes, four messages, none claiming a count it did not achieve.
+
+### A mutation that survived, and was fixed rather than filed
+
+The implementer reports M9 — the loading-state guard — initially **survived** its mutation, because no test
+covered it. It converted the guard into a pure predicate and tested it exhaustively (an 8-combination table;
+only `[false,false,false]` shows an empty state). Verify confirmed the call site consults that same function
+rather than a duplicated inline condition. Reporting a surviving mutation instead of quietly moving on is the
+behaviour the standard is meant to produce.
+
+### One gap left open deliberately
+
+Verify noted two minor follow-ups: no widget test for `inboxDismissAllNothing` (`appliedCount == 0`), and
+*nothing new* **with a pinned offer** never exercised in the assembled `ActivityStreamView` — only in the
+predicate table and the per-kind widget tests.
+
+I started writing that assembled test, because "the assembled screen disagrees with the unit's assumption" is
+this plan's recurring defect shape and §4's headline claim is exactly that conjunction. It needs two stubs
+aligned — the attention feed must carry a pinned receipt **and** `FakeInboxRepository` must hydrate it through
+`fetchInboxItemsForBeacons`, since `offersState.items` is not driven by `fetchResult` alone. That is genuine
+fixture engineering for incremental coverage: the assembled pinned zone is already covered by U16b's stream
+tests, and the three-voice rule is covered exhaustively at predicate and widget level. What is uncovered is only
+their conjunction in one screen.
+
+**So I reverted the half-finished test rather than ship a weaker one wearing the strong one's name**, and
+recorded the gap here. It belongs with U19's acceptance pass, which owns the assembled-surface matrix.
