@@ -12973,3 +12973,29 @@ deserves one read. U19 also found a **real contract/code disagreement** there: �
 opening Requests is still caught up; it simply states no number", while `forYouEmptyKind` returns `nothingHere`
 for exactly that state, because `wasClearedHere` tracks only explicit sweeps. Reported, not silently changed —
 it is a product rule, not a bug to patch inside a release gate.
+
+## owner — the "cleared by opening" rule is withdrawn; U19's disagreement is closed
+
+U19 reported a contract/code disagreement: `docs/features/request-attention.md` §4 said
+
+> A surface cleared by opening Requests is still caught up; it simply states no number, because none was
+> achieved by a gesture that counted one.
+
+while `forYouEmptyKind` returns `nothingHere` for that state, because `wasClearedHere` tracks only explicit
+sweeps.
+
+**The owner resolved it against the sentence, not the code.** Opening a Request clears *that Request's optional
+events*; it does not clear the Request, so "a surface cleared by opening Requests" is not a state this product
+has. The sentence was removed (`2041bf82a`).
+
+**Consequence: the code was already correct and needs no change.** The caught-up voice belongs to an explicit
+sweep, or to a stream emptied while the pinned decision zone remains — which is the `hasPinnedZone` leg
+`forYouEmptyKind` already carries. `forYouCaughtUpReward`'s doc comment had cited the withdrawn rule to explain
+why a reward can carry no number; the mechanism is unchanged (a null `lastSweep` still occurs), so it now names
+the surviving case instead.
+
+Verified: `for_you_empty_state_test.dart` + `activity_chrome_test.dart` **35 passed**,
+`check-user-facing-terminology.sh` ok. No other file in `packages/` or `docs/features/` referenced the rule.
+
+**This closes the last open item U19 raised about the contract document itself.** The §4/§9a additions made
+across U17c, U17d and U19 remain for the owner to read as a whole, but no known contradiction stands in them.
