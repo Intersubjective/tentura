@@ -64,7 +64,19 @@ Duration? _parseEnvDuration(String? raw) {
 /// private anchor invalidations, and the map/text controls ship as one
 /// coordinated contract. The release deliberately does not support an older
 /// client against the new anchor surface.
-const kDefaultMinClientVersion = '7.16.0';
+/// Raised to 7.19.0 for request-centric attention (plan
+/// docs/plans/request-centric-attention-plan.md, D19/U18c). The cutover is
+/// coordinated with **no dual-behaviour window**: the backfill reinterprets
+/// existing receipts, the surface summary drops `activityUnreadTotal`,
+/// `myWorkUnreadTotal` and `needsYouTotal`, and the surfaces read
+/// `forYouDot` / `forYouSweepEligible` / `myDeskDot` / `myDeskCount` instead.
+/// The client work of this plan all landed under version 7.18.0 without a
+/// bump, so 7.18.0 is a version a *pre*-cutover build carries and the floor
+/// must sit strictly above it. U19 ships the matching 7.19.0 in
+/// `packages/client/pubspec.yaml` and its `web/index.html` cache-buster;
+/// until it does, this floor rejects every client, which is the intended
+/// shape of a one-release cutover and not a bug to soften.
+const kDefaultMinClientVersion = '7.19.0';
 
 class Env {
   Env({
