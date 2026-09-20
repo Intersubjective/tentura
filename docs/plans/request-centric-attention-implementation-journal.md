@@ -10853,3 +10853,68 @@ their conjunction in one screen.
 
 **So I reverted the half-finished test rather than ship a weaker one wearing the strong one's name**, and
 recorded the gap here. It belongs with U19's acceptance pass, which owns the assembled-surface matrix.
+
+---
+
+## implementer — U16c-2 · the retirements · 2026-09-20
+
+**UNIT_BASE:** `cb8f244c9`. **Commits:** `e8a9afbb5` (prompt pin off the wrapper),
+`5ac219267` (retirements + hygiene). Client-only; no server file touched.
+
+### The prompt pin
+
+`ActivityOfferCard.prompt` was a `KeyedSubtree(key: activityPromptPin)` around
+`InviteAcceptedReceiptCard(activityOfferBoundedShell: true)` — nothing else.
+`activity_stream_view.dart` builds both directly now. Key and flag unchanged, so the
+ordering assertion means what it meant. **Mutation:** dropping the pin key fails
+`render order: header, prompt, offer, then stream`.
+
+### The finding: four goldens were not about a retired widget
+
+`activity_offer_card_golden_test.dart` had 13 cases. Nine were `ActivityOfferCard`'s
+own forward rendering — gone widget, gone assertion. **Four were the `prompt` cases**,
+and what they assert is the prompt pin inside `ActivityOfferBoundedShell` — a widget
+the amended manifest **keeps**, still used by `InviteAcceptedReceiptCard`. Deleting
+them would have retired a live surface's only pixel assertion under cover of a
+retirement.
+
+They were ported to `test/features/inbox/activity_prompt_pin_golden_test.dart`,
+building the card directly, over the **same PNG bytes** renamed
+`activity_offer_card_prompt_*` → `activity_prompt_pin_*`. They passed byte-identical
+on the first run: proof the wrapper removal changed no pixel. **Mutation:** making
+`invite_accepted_receipt_card.dart` ignore `activityOfferBoundedShell` fails all four.
+
+### The gap that finding exposed, closed
+
+Before this unit, flipping `activityOfferBoundedShell` to `false` at the stream's
+prompt-pin call site **failed nothing** across `test/features/inbox/` +
+`test/features/updates/` (320 tests): the pin *key* was asserted, the card it wrapped
+was not. The ordering test now asserts an `ActivityOfferBoundedShell` descendant of
+the pin key. Under that mutation it fails.
+
+### Retirements, and why each assertion was safe to drop
+
+| deleted | its assertion |
+| --- | --- |
+| `activity_offer_card.dart` | no callers after `e8a9afbb5` |
+| `activity_forward_row.dart` + 21 goldens | gone widget; `TombstoneRow` replaced it in U16b and carries per-outcome assertions in `activity_stream_view_test.dart` (one per `AttentionForwardOutcome`) |
+| `inbox_forward_attribution_copy.dart` | only consumer was `_ForwardOfferCard` inside the offer card |
+| 9 offer-card goldens | gone widget; the forward surface is `RequestAttentionCard` (U16a goldens + U16b stream tests) |
+| `expect(find.byType(ActivityOfferCard/ActivityForwardRow), findsNothing)` ×3 | named types that no longer exist; the positive `RequestAttentionCard` / `TombstoneRow` / `AttentionMiniCard` claims beside them say the same thing affirmatively |
+
+`activity_offer_bounded_shell.dart` **kept**, per the amended manifest.
+
+### Gates
+
+Client **3878 passed / 29 skipped** — predicted 3878 before the run
+(3908 − 21 forward-row − 13 offer-card + 4 ported), hit exactly; skips unmoved.
+Lints client **30 (baseline 30)**. `dart analyze` clean of errors; the warnings on
+`packages/client/lib/features/inbox` (`_openReceipt` unused, `inbox_screen.dart`
+unused import) predate `cb8f244c9` and were left alone.
+
+The scout's estimate was 3856 (−34). The difference is exactly the four ported
+goldens, which the scout counted as deletions.
+
+**STATUS:** complete.
+
+---
