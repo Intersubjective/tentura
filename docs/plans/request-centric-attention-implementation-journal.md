@@ -11308,3 +11308,142 @@ its meaning will keep generating false findings until it is gone — this is the
 The tests that pin the axes are still worth writing, and U17b writes them: cleared-and-unseen is absent from
 Unread while still bold on All; `markUnseen` on a cleared row does not resurrect primary attention. Those guard
 the very confusion this entry corrects.
+
+---
+
+## implementer — U17b · timeline and History · 2026-09-20
+
+**UNIT_BASE:** `87f6beab3`. The scout was right on the decisive point and the manager's correction
+stands: **nothing about the axes changed, and no read was added to any open path.**
+
+### The axis tests found a live §3 violation
+
+They were commissioned as regression pins for a confusion. They turned out to pin a defect.
+
+`AttentionCase._emitFeedSummary` folded `AttentionAckStore.pendingUnreadDelta` — a **read-axis**
+delta — into `unreadTotal`, which U10b redefined as the server's active-attention total. So marking
+a cleared row unread in History put it straight back into the badge. That is §3's last boundary
+("marking something unread in History never resurrects attention on a primary surface") failing in
+production, produced by exactly the name the manager's correction names: `unreadTotal` has not meant
+"unread" since U10b, and the code was still treating it as if it did. **Third unit this name has
+cost.**
+
+The server was never wrong. The server's `markUnseen` writes `seen_at = NULL` and nothing else, and
+the PG test now proves the whole chain stays dark afterwards. The resurrection was entirely a client
+overlay.
+
+The fix is a deletion: the server's number is emitted as given, and `pendingUnreadDelta` is gone
+with its only caller.
+
+### Two stale expectations, both saying the same thing
+
+Removing the fold turned two tests red, and neither was a regression:
+
+| test | asserted | why it was stale |
+| --- | --- | --- |
+| `attention_case_test` · *refresh during queued unsee keeps overlay unread total* | total held at `1` against a server saying `0` | fixture predates U10b; an **uncleared** optional receipt could not be reported as `0` today. Rewritten as *…keeps the overlay, not the total* — the overlay is what the test is about, and it still holds. |
+| `inbox_receipts_fold_test` · *read-state survives fold* | total `0` against a server saying `1` | the number came only from the read delta — and its **own comment fifteen lines above**, corrected in U15R-c, already says a read-but-uncleared receipt still counts `1`. The file half-corrected itself and left this behind. |
+
+That second one is the **tenth** instance in this plan of an assertion true for a reason other than
+the one it claimed, and the first where the file contained its own refutation.
+
+### The timeline entry: three surfaces, three different answers
+
+| site | before | after |
+| --- | --- | --- |
+| For You pinned card | `push(BeaconViewRoute)` | `showRequestAttentionTimelineSheet` |
+| For You stream card | `RootRouter.openFromUpdate(receipt)` | same |
+| My Desk obligations | `_openBeacon` | same |
+
+They did not agree, and the stream card was the worst of the three: `openFromUpdate` goes through
+`destination_map.dart`, which can route a receipt to a profile or `ReviewContributionsRoute`
+entirely. Meanwhile `AttentionCase.requestHistory` — the §9 read that *is* the timeline, wired
+through data and domain since U06b — had **zero UI callers**. Same shape as U17a's finding: the
+capability existed and the behaviour had never shipped.
+
+**§8a, and the fixture that got it backwards.** The timeline is a chronological receipt log, so it
+speaks History's voice: event headline, Request title on the second line — the opposite of For You's
+card. My first fixture put the event in `body` and the Request title in `title`, and the mutation
+that swapped headline for body **survived** it, because `find.text` cannot tell a headline from a
+body line. The wire shape is `title` = the event, `beaconTitle` = the presentation payload. Fixed
+fixture, assertion now names the headline widget, mutation fails.
+
+**Not merged:** the beacon detail's ⋮ log. That is the shared **room coordination** log, not an
+attention surface's `onOpenTimeline`, and §9 is explicit that personal receipts are never published
+into shared room activity. Two sheets, deliberately.
+
+### The mutation that survived, and the rewrite it forced
+
+The first draft of *marking a cleared row unread does not resurrect it* had the fake hand back a
+server page that already excluded the cleared row. Disabling the client's entire unread-view filter
+(`return isInUnreadView(receipt)` → `return true`) changed nothing: the row was never on the page,
+so the mirror was never asked the question and the **fixture** was doing the filtering.
+
+Rewritten so the row starts *on* the Unread page, is swept off it, and is only then un-read. A live
+obligation rides along as the control — Set R excludes it from the sweep, so its `isSeen` going
+false is what proves the un-read actually reached the projected frame. The mutation now fails.
+
+Same treatment for the History widget test: its Unread list is derived from `isInUnreadView` rather
+than hardcoded, so loosening `isActiveOptional` puts the row back and fails the widget assertion.
+A fixture that restates the rule is a fixture that cannot drift from it.
+
+### Retirements
+
+Both of the tile's only live callers passed `showProvenance: false`, so `InboxCardForwardsFold` was
+already dead code on every surface that rendered it — U16a had ported `_SenderNoteBlock` into the
+forward mini-card and nobody closed the loop. `InboxWatchlistRow` keeps what the fold genuinely
+hosted (the calendar deadline line) and drops `attentionMarked` with it: Watching and Rejected are
+the viewer's own standing choices, not attention surfaces.
+
+| deleted | verdict |
+| --- | --- |
+| `InboxItemTile` golden ×2 | **ported** — widget gone, visual contract not; regenerated for the replacement |
+| *empty details content omits Details row* | **ported** unchanged |
+| *description is replaced by Details and opens the sheet* | **ported** unchanged |
+| *forward note is hidden until fold expands* | **retirement** — gesture gone with the fold; the note content it stood for is held in `request_attention_card_test.dart` (mini-card, U16a) |
+| `inbox_card_forwards_fold_layout_test` | **retirement** — see below |
+| `inbox_watching_route_test` highlight case | **ported** (type rename only) |
+
+**The one I could not port, said plainly.** The fold layout test asserted only that a **31dp-wide**
+fold did not throw. I tried to port it as a real "the parts are built" test on the row and it
+failed: at 31dp the row overflows by 381px. That is true of the retired tile too and was never
+covered — the fold was tested in isolation because a fold sat in a split pane, and the row never
+does. Watching and Rejected are full-width lists, so this is a width neither row ever occupies. I
+dropped the test rather than pin a width that cannot happen or fix a layout outside this unit.
+Recorded here so it is a decision, not a silent deletion.
+
+### Mutations
+
+| # | mutation | failing tests |
+| --- | --- | --- |
+| M1 | server `markUnseen` also sets `cleared_at = NULL` | PG *marking a cleared receipt unread does not resurrect it*, and only it |
+| M2 | `isActiveOptional` drops `!receipt.isCleared` | *a cleared, unseen receipt is absent from Unread but still bold on All* |
+| M3 | `UpdatesFeedTile._isUnread` gains `&& !isCleared` | same (`w600` → `w500`) |
+| M4 | unread-view filter returns `true` | *marking a cleared row unread does not resurrect it* — **survived the first draft**; see above |
+| M5 | restore the `pendingUnreadDelta` fold | the same test, and *refresh during queued unsee keeps the overlay* |
+| M6 | stream card reverts to `onOpenParent` | *every surface routes onOpenTimeline to the one sheet*, *both For You cards open the same Request timeline* |
+| M7 | `cursor: null` in the sheet's fetch | *paginates with the cursor the server returned* |
+| M8 | headline ← body | *renders the event headline, not the Request headline* — **survived the first draft**; see §8a above |
+| M9 | `showDetails = false` | both goldens, *description is replaced by Details* |
+| M10 | the deadline line returns null | *the deadline line survives the fold that hosted it* |
+| M11 | Watching screen `isSelected: false` | *highlightBeaconId selects the named row once* |
+
+### Gates
+
+| gate | result |
+| --- | --- |
+| client (`-j 4`, CWD `packages/client`) | **3895 passed / 29 skipped** — predicted 3895 before the run, skips unmoved |
+| client lints | **30 (baseline 30)** |
+| server non-PG | **1690 / 0** |
+| server PG (`-j 1`) | **1065 passed / 24 skipped** (baseline 1064/24; +1 = the new axis test, skips unmoved) |
+| terminology | **ok** |
+
+Count arithmetic: 3889 baseline +1 History axis widget, +1 resurrect, +4 timeline sheet, +1 both-cards,
+−1 fold layout retirement; the tile file's five tests became the row file's five.
+
+### For whoever takes U17c/U17d
+
+- `unreadTotal` is now emitted exactly as the server sends it. Any future optimistic adjustment to it
+  must be a **clear-axis** delta or it will re-create this defect.
+- `AttentionCase.requestHistory` finally has a caller. Its authorization and cursor semantics (U06b)
+  are now user-visible.
