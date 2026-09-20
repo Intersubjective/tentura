@@ -16,6 +16,7 @@ import 'package:tentura_server/data/repository/user_availability_repository.dart
 import 'package:tentura_server/domain/entity/forward_batch_create_result.dart';
 import 'package:tentura_server/env.dart';
 
+import '../../support/pg_wait.dart';
 import '../../support/pg_test_public_keys.dart';
 
 Future<void> main() async {
@@ -152,7 +153,7 @@ WHERE beacon_id = @beaconId
           await _waitUntil(
             () async =>
                 await _ungrantedAvailabilityLockCount(writer, recipientId) >= 1,
-            timeout: const Duration(seconds: 5),
+            timeout: kStableStateWait,
           );
 
           unawaited(
@@ -177,7 +178,7 @@ WHERE beacon_id = @beaconId
           await _waitUntil(
             () async =>
                 await _ungrantedAvailabilityLockCount(writer, recipientId) == 2,
-            timeout: const Duration(seconds: 5),
+            timeout: kStableStateWait,
           );
           expect(
             await _ungrantedAvailabilityLockCount(writer, recipientId),
@@ -185,8 +186,8 @@ WHERE beacon_id = @beaconId
           );
 
           releaseBlocker.complete();
-          await pauseDone.future.timeout(const Duration(seconds: 5));
-          await forwardDone.future.timeout(const Duration(seconds: 5));
+          await pauseDone.future.timeout(kCompletionWait);
+          await forwardDone.future.timeout(kCompletionWait);
 
           expect(pauseError, isNull);
           expect(forwardError, isNull);
@@ -275,7 +276,7 @@ WHERE user_id = @userId
           await _waitUntil(
             () async =>
                 await _ungrantedAvailabilityLockCount(writer, recipientId) >= 1,
-            timeout: const Duration(seconds: 5),
+            timeout: kStableStateWait,
           );
 
           unawaited(
@@ -291,7 +292,7 @@ WHERE user_id = @userId
           await _waitUntil(
             () async =>
                 await _ungrantedAvailabilityLockCount(writer, recipientId) == 2,
-            timeout: const Duration(seconds: 5),
+            timeout: kStableStateWait,
           );
           expect(
             await _ungrantedAvailabilityLockCount(writer, recipientId),
@@ -299,7 +300,7 @@ WHERE user_id = @userId
           );
 
           releaseBlocker.complete();
-          await forwardDone.future.timeout(const Duration(seconds: 5));
+          await forwardDone.future.timeout(kCompletionWait);
 
           expect(forwardError, isNull);
           expect(forwardResult!.createdEdges, hasLength(1));
@@ -309,7 +310,7 @@ WHERE user_id = @userId
             1,
           );
 
-          await pauseDone.future.timeout(const Duration(seconds: 5));
+          await pauseDone.future.timeout(kCompletionWait);
           expect(pauseError, isNull);
 
           final pauseRows = await writer.execute(
@@ -534,6 +535,7 @@ CROSS JOIN lock_key k
 WHERE l.locktype = 'advisory'
   AND l.granted = false
   AND ((l.classid::bigint << 32) | (l.objid::bigint & 4294967295)) = k.key
+  AND l.database = (SELECT oid FROM pg_database WHERE datname = current_database())
 '''),
     parameters: {'userId': userId},
   );

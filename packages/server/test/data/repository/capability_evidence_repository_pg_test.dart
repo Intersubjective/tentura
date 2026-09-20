@@ -17,6 +17,8 @@ import 'package:tentura_server/domain/capability/capability_consts.dart';
 import 'package:tentura_server/domain/capability/capability_evidence_models.dart';
 import 'package:tentura_server/env.dart';
 
+import '../../support/pg_wait.dart';
+
 const _obs1 = 'Ucapb2aobs01';
 const _obs2 = 'Ucapb2aobs02';
 const _sub = 'Ucapb2asub01';
@@ -442,7 +444,7 @@ WHERE observer_user_id = 'Ucapb2aobs01'
               );
               return rows.isNotEmpty;
             },
-            timeout: const Duration(seconds: 5),
+            timeout: kStableStateWait,
           );
 
           unawaited(
@@ -471,12 +473,12 @@ WHERE observer_user_id = 'Ucapb2aobs01'
                 await writer.execute('ROLLBACK');
               }
             },
-            timeout: const Duration(seconds: 5),
+            timeout: kStableStateWait,
           );
 
           releaseBlocker.complete();
-          await upsert1Done.future.timeout(const Duration(seconds: 5));
-          await upsert2Done.future.timeout(const Duration(seconds: 5));
+          await upsert1Done.future.timeout(kCompletionWait);
+          await upsert2Done.future.timeout(kCompletionWait);
 
           final ledger = await _activeSeedSlugs(writer);
           expect(ledger, [petsTag]);
@@ -555,7 +557,7 @@ WHERE observer_user_id = 'Ucapb2aobs01'
               );
               return rows.isNotEmpty;
             },
-            timeout: const Duration(seconds: 5),
+            timeout: kStableStateWait,
           );
 
           await writer.execute('BEGIN');
@@ -571,7 +573,7 @@ WHERE observer_user_id = 'Ucapb2aobs01'
           }
 
           releaseBlocker.complete();
-          await batchDone.future.timeout(const Duration(seconds: 5));
+          await batchDone.future.timeout(kCompletionWait);
 
           expect(await _activeOutcomeCount(writer), 2);
         } finally {

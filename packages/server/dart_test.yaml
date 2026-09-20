@@ -1,3 +1,10 @@
 tags:
   pg:
     description: Requires a live Postgres instance (local dev / compose).
+  mr:
+    description: >-
+      Also reaches the MeritRank service, which is a single shared container:
+      every disposable database's pgmer2 talks to the same instance, so these
+      tests can see each other's graph state. Run them with `-j 1`, separately
+      from the rest of the pg suite. Some reach it indirectly — `public.graph`,
+      `person_visibility_peers` and friends call `mr_*` internally.

@@ -494,10 +494,21 @@ INSERT INTO public.beacon_forward_edge (
         final row = await fixture.db.customSelect(
           r'''
 SELECT EXISTS (
-  SELECT 1 FROM pg_locks
-  WHERE locktype = 'advisory'
-    AND mode = 'ExclusiveLock'
-    AND granted = true
+  SELECT 1
+  FROM pg_locks l
+  CROSS JOIN (
+    SELECT hashtextextended('tentura.beacon_hierarchy.v1', 0) AS key
+  ) k
+  WHERE l.locktype = 'advisory'
+    AND l.mode = 'ExclusiveLock'
+    AND l.granted = true
+    -- Match this repository's own key, in this database. `pg_locks` reports
+    -- the whole cluster and `migrateDbSchema` holds an advisory ExclusiveLock
+    -- for the length of a schema build, so the unqualified form was satisfied
+    -- by any other disposable database that happened to be migrating.
+    AND ((l.classid::bigint << 32) | (l.objid::bigint & 4294967295)) = k.key
+    AND l.database =
+        (SELECT oid FROM pg_database WHERE datname = current_database())
 ) AS held
 ''',
         ).getSingle();

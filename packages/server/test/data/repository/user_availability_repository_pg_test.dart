@@ -14,6 +14,7 @@ import 'package:tentura_server/data/database/tentura_db.dart'
 import 'package:tentura_server/data/repository/user_availability_repository.dart';
 import 'package:tentura_server/env.dart';
 
+import '../../support/pg_wait.dart';
 import '../../support/pg_test_public_keys.dart';
 
 Future<void> main() async {
@@ -192,7 +193,7 @@ WHERE user_id = @userId
           await _waitUntil(
             () async =>
                 await _ungrantedAvailabilityLockCount(writer, userId) >= 1,
-            timeout: const Duration(seconds: 5),
+            timeout: kStableStateWait,
           );
 
           unawaited(
@@ -208,7 +209,7 @@ WHERE user_id = @userId
           await _waitUntil(
             () async =>
                 await _ungrantedAvailabilityLockCount(writer, userId) == 2,
-            timeout: const Duration(seconds: 5),
+            timeout: kStableStateWait,
           );
           expect(
             await _ungrantedAvailabilityLockCount(writer, userId),
@@ -216,8 +217,8 @@ WHERE user_id = @userId
           );
 
           releaseBlocker.complete();
-          await limitedDone.future.timeout(const Duration(seconds: 5));
-          await pauseDone.future.timeout(const Duration(seconds: 5));
+          await limitedDone.future.timeout(kCompletionWait);
+          await pauseDone.future.timeout(kCompletionWait);
 
           expect(limitedError, isNull);
           expect(pauseError, isNull);
@@ -342,6 +343,7 @@ CROSS JOIN lock_key k
 WHERE l.locktype = 'advisory'
   AND l.granted = false
   AND ((l.classid::bigint << 32) | (l.objid::bigint & 4294967295)) = k.key
+  AND l.database = (SELECT oid FROM pg_database WHERE datname = current_database())
 '''),
     parameters: {'userId': userId},
   );

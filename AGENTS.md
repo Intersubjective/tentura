@@ -58,7 +58,27 @@ cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
   flutter test --update-goldens <path>   # regenerate a golden intentionally
 cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
   dart test --exclude-tags pg
+# Postgres tests run in two steps. The `mr` ones also reach the MeritRank
+# service, which is a single shared container every disposable database talks
+# to, so they must not run in parallel with each other.
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 30m -- \
+  dart test --tags pg --exclude-tags mr
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 30m -- \
+  dart test --tags mr -j 1
 ```
+
+> Disposable pg databases are cloned from a prebuilt template
+> (`tentura_test_tpl_<registry-hash>`, see `test/support/disposable_pg_target.dart`)
+> rather than migrated one by one — `migrateDbSchema` holds a **cluster-wide**
+> advisory lock, and 95 test files serializing on it for a full schema build was
+> the main source of load-dependent failures. The template rebuilds itself when
+> the migration registry changes. Stale `tentura_test_*` databases accumulate and
+> slow every `CREATE DATABASE`; drop them if a suite run looks unusually slow.
+>
+> Never query `pg_locks` or `pg_stat_activity` from a test without scoping to
+> `current_database()` (or `datname = <own database>`): they report the whole
+> cluster, and another database's schema upgrade will satisfy an unqualified
+> predicate. See `test/support/pg_wait.dart` for the wait-budget rule.
 
 Never start a bare `flutter test` / `dart test` / `dart analyze` in the
 background. Default suite timeout is 45m (`--timeout`); override shorter
