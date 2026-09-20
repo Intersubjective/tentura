@@ -155,6 +155,113 @@ void main() {
     },
   );
 
+  testWidgets(
+    'rows the repair cannot fix are told plainly, and not as failure',
+    (tester) async {
+      final attention = await pumpButton(tester);
+      await tester.tap(find.byKey(const Key(TestIds.attentionResetCounters)));
+      await tester.pump();
+      attention.pending.first.complete(
+        _result(unrepairableObligationCount: 2),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(
+        find.text(l10n.attentionResetCountersUnrepairable(2)),
+        findsOneWidget,
+      );
+      expect(
+        find.text(l10n.attentionResetCountersDone, findRichText: true),
+        findsOneWidget,
+        reason: 'the run did work; what it could not fix is a separate fact',
+      );
+      expect(
+        find.text(l10n.attentionResetCountersFailed, findRichText: true),
+        findsNothing,
+      );
+    },
+  );
+
+  testWidgets('a clean repair says nothing about unrepairable rows', (
+    tester,
+  ) async {
+    final attention = await pumpButton(tester);
+    await tester.tap(find.byKey(const Key(TestIds.attentionResetCounters)));
+    await tester.pump();
+    attention.pending.first.complete(_result(needsYouTotal: 4));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    // Positive first: this really is a finished, successful run.
+    expect(
+      find.text(l10n.attentionResetCountersDone, findRichText: true),
+      findsOneWidget,
+    );
+    expect(find.byKey(ResetCountersButton.unrepairableKey), findsNothing);
+    expect(
+      find.text(l10n.attentionResetCountersUnrepairable(0)),
+      findsNothing,
+      reason: 'work the account owes is not something the repair failed at',
+    );
+  });
+
+  testWidgets('a failed run does not leave the earlier number standing', (
+    tester,
+  ) async {
+    final attention = await pumpButton(tester);
+    await tester.tap(find.byKey(const Key(TestIds.attentionResetCounters)));
+    await tester.pump();
+    attention.pending.removeAt(0).complete(
+      _result(unrepairableObligationCount: 3),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.byKey(ResetCountersButton.unrepairableKey), findsOneWidget);
+    // Let the first run's snack bar expire, or the second one only queues.
+    await tester.pumpAndSettle(const Duration(seconds: 10));
+
+    await tester.tap(find.byKey(const Key(TestIds.attentionResetCounters)));
+    await tester.pump();
+    expect(attention.calls, 2, reason: 'the second run really started');
+    attention.pending.removeAt(0).completeError(StateError('offline'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 750));
+
+    expect(
+      find.text(l10n.attentionResetCountersFailed, findRichText: true),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(ResetCountersButton.unrepairableKey),
+      findsNothing,
+      reason: 'a run that never answered knows nothing about those rows',
+    );
+  });
+
+  testWidgets('the unrepairable sentence is whole at 320 dp and 2x', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    final attention = await pumpButton(tester, textScale: 2, width: 320);
+    await tester.tap(find.byKey(const Key(TestIds.attentionResetCounters)));
+    await tester.pump();
+    attention.pending.first.complete(_result(unrepairableObligationCount: 2));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    final note = find.byKey(ResetCountersButton.unrepairableKey);
+    expect(note, findsOneWidget);
+    expect(
+      tester.getSize(note).height,
+      greaterThan(120),
+      reason: 'clipped to a line, this reads as an unexplained accusation',
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('a failed run says so, and does not say refreshed', (
     tester,
   ) async {

@@ -2169,6 +2169,15 @@
     "context": "SettingsScreen",
     "description": "SettingsScreen — user-facing name for the attention repair command (D15)."
   },
+  "attentionResetCountersUnrepairable": "{count, plural, =1{One outstanding action could not be rechecked.} other{{count} outstanding actions could not be rechecked.}} They stay on your list exactly as they are \u2014 there is nothing here for you to fix. Running this again later is safe.",
+  "@attentionResetCountersUnrepairable": {
+    "context": "SettingsScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "attentionResetCountersExplanation": "Recheck your updates and outstanding actions. Nothing is deleted: what you have cleared stays cleared, and your Requests and their history are untouched.",
   "@attentionResetCountersExplanation": {
     "context": "SettingsScreen",

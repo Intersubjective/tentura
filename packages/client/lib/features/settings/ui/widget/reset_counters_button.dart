@@ -18,6 +18,9 @@ import '../bloc/reset_counters_cubit.dart';
 class ResetCountersButton extends StatefulWidget {
   const ResetCountersButton({super.key, this.cubit});
 
+  /// U17d — the note about rows the repair could not fix.
+  static const unrepairableKey = Key('attention-reset-counters-unrepairable');
+
   /// Injected by tests; production builds the cubit from the attention owner.
   final ResetCountersCubit? cubit;
 
@@ -78,6 +81,19 @@ class _ResetCountersButtonState extends State<ResetCountersButton> {
             maxLines: 6,
             overflow: TextOverflow.visible,
           ),
+          // U17d — `unrepairableObligationCount`. A correct run can still
+          // come back with rows reconciliation cannot fix from their source,
+          // and the person is owed that plainly: it is not a failure, it is
+          // not work they owe, and there is no action here that would help.
+          // Saying so beats inventing a button. It is shown only after a run
+          // that answered — a failed run reports zero, so nothing lingers.
+          if (state.unrepairableCount > 0)
+            TenturaMetaText(
+              key: ResetCountersButton.unrepairableKey,
+              l10n.attentionResetCountersUnrepairable(state.unrepairableCount),
+              maxLines: 6,
+              overflow: TextOverflow.visible,
+            ),
         ],
       ),
     );

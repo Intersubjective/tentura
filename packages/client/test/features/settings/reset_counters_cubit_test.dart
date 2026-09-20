@@ -72,6 +72,73 @@ void main() {
     },
   );
 
+  test('a repair reports how much it could not fix', () async {
+    // U17d — `unrepairableObligationCount` is the server saying these rows
+    // cannot be reconciled at all. It is not failure and it is not work the
+    // user owes, so it rides beside the outcome rather than replacing it.
+    final attention = _FakeReconcile();
+    final cubit = ResetCountersCubit(attention: attention);
+    addTearDown(cubit.close);
+
+    final run = cubit.resetCounters();
+    await Future<void>.delayed(Duration.zero);
+    attention.pending.first.complete(_result(unrepairableObligationCount: 2));
+    await run;
+
+    expect(cubit.state.outcome, ResetCountersOutcome.refreshed);
+    expect(cubit.state.unrepairableCount, 2);
+  });
+
+  test('a repair that fixed everything reports nothing unrepairable', () async {
+    final attention = _FakeReconcile();
+    final cubit = ResetCountersCubit(attention: attention);
+    addTearDown(cubit.close);
+
+    final first = cubit.resetCounters();
+    await Future<void>.delayed(Duration.zero);
+    attention.pending.removeAt(0).complete(
+      _result(unrepairableObligationCount: 3),
+    );
+    await first;
+    expect(cubit.state.unrepairableCount, 3);
+
+    final second = cubit.resetCounters();
+    await Future<void>.delayed(Duration.zero);
+    attention.pending.removeAt(0).complete(_result());
+    await second;
+
+    expect(
+      cubit.state.unrepairableCount,
+      0,
+      reason: 'the second run fixed them; the first run\'s number is stale',
+    );
+  });
+
+  test('a failed repair claims to know nothing about what is broken', () async {
+    final attention = _FakeReconcile();
+    final cubit = ResetCountersCubit(attention: attention);
+    addTearDown(cubit.close);
+
+    final first = cubit.resetCounters();
+    await Future<void>.delayed(Duration.zero);
+    attention.pending.removeAt(0).complete(
+      _result(unrepairableObligationCount: 4),
+    );
+    await first;
+
+    final second = cubit.resetCounters();
+    await Future<void>.delayed(Duration.zero);
+    attention.pending.removeAt(0).completeError(StateError('offline'));
+    await second;
+
+    expect(cubit.state.outcome, ResetCountersOutcome.failed);
+    expect(
+      cubit.state.unrepairableCount,
+      0,
+      reason: 'a run that never answered cannot report a count of anything',
+    );
+  });
+
   test('a failed repair says so instead of reporting success', () async {
     final attention = _FakeReconcile();
     final cubit = ResetCountersCubit(attention: attention);

@@ -35,8 +35,11 @@ class ResetCountersCubit extends Cubit<ResetCountersState> {
     if (state.isRunning) return;
     emit(state.copyWith(isRunning: true));
     try {
-      await _attention.reconcile();
-      _finish(ResetCountersOutcome.refreshed);
+      final result = await _attention.reconcile();
+      _finish(
+        ResetCountersOutcome.refreshed,
+        unrepairableCount: result.unrepairableObligationCount,
+      );
     } catch (error, stackTrace) {
       // Honest failure: the counters were not refreshed, so nothing pretends
       // they were.
@@ -45,12 +48,15 @@ class ResetCountersCubit extends Cubit<ResetCountersState> {
     }
   }
 
-  void _finish(ResetCountersOutcome outcome) {
+  void _finish(ResetCountersOutcome outcome, {int unrepairableCount = 0}) {
     if (isClosed) return;
     emit(
       state.copyWith(
         isRunning: false,
         outcome: outcome,
+        // Always replaced, never merged: the previous run's number describes
+        // a repair that has since been re-run.
+        unrepairableCount: unrepairableCount,
         outcomeSerial: state.outcomeSerial + 1,
       ),
     );
