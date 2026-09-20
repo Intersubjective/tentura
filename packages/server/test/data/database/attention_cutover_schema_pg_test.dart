@@ -130,5 +130,45 @@ Future<void> main() async {
       expect(rows.first[1], 'Nu18a007');
       expect(rows.first[2], isNotNull);
     });
+
+    // U18b — m0193. Each deferred gate advances on its own, because either can
+    // be interrupted while the other has not started, and neither may drag the
+    // boundary with it.
+    test('carries an independent cursor for each deferred gate', () async {
+      await writer.execute(
+        "INSERT INTO public.attention_cutover (cutover_at) "
+        "VALUES ('2026-09-20T12:00:00Z')",
+      );
+
+      await writer.execute(
+        "UPDATE public.attention_cutover "
+        "SET obligation_key_cursor = 'Nu18b007', "
+        "    obligation_key_completed_at = '2026-09-20T12:06:00Z'",
+      );
+      await writer.execute(
+        "UPDATE public.attention_cutover "
+        "SET placement_cursor = 'Nu18b009'",
+      );
+
+      final rows = await writer.execute(
+        'SELECT cutover_at, obligation_key_cursor, '
+        '       obligation_key_completed_at, placement_cursor, '
+        '       placement_completed_at '
+        'FROM public.attention_cutover',
+      );
+      expect(
+        (rows.first[0]! as DateTime).toUtc(),
+        DateTime.utc(2026, 9, 20, 12),
+        reason: 'the gates advance against the boundary, never move it',
+      );
+      expect(rows.first[1], 'Nu18b007');
+      expect(rows.first[2], isNotNull);
+      expect(rows.first[3], 'Nu18b009');
+      expect(
+        rows.first[4],
+        isNull,
+        reason: 'one gate finishing says nothing about the other',
+      );
+    });
   }, skip: skipReason);
 }
