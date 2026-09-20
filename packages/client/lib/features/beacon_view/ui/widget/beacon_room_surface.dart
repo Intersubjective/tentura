@@ -13,7 +13,6 @@ import 'package:tentura/features/beacon_threads/ui/bloc/threads_state.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/thread_detail.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_room_lease.dart';
-import 'package:tentura/features/beacon_view/ui/widget/closed_request_banner.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
@@ -176,26 +175,11 @@ class _BeaconRoomSurfaceState extends State<BeaconRoomSurface> {
                   );
                 }
 
-                final beacon = beaconState.beacon;
-                final windowClass = context.windowClass;
-                final showClosedBanner =
-                    windowClass == WindowClass.compact ||
-                    windowClass == WindowClass.regular;
-
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    if (showClosedBanner && beacon.id.isNotEmpty)
-                      ClosedRequestBanner(beacon: beacon),
-                    Expanded(
-                      child: ThreadDetail(
-                        thread: _generalThread!,
-                        beaconAuthorId: beacon.author.id,
-                        onCoordinationSaved: widget.onCoordinationSaved,
-                        onOpenCoordinationItem: widget.onOpenCoordinationItem,
-                      ),
-                    ),
-                  ],
+                return ThreadDetail(
+                  thread: _generalThread!,
+                  beaconAuthorId: beaconState.beacon.author.id,
+                  onCoordinationSaved: widget.onCoordinationSaved,
+                  onOpenCoordinationItem: widget.onOpenCoordinationItem,
                 );
               },
             );

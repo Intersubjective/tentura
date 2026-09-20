@@ -7,6 +7,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:mockito/mockito.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/data/repository/clipboard_image_repository.dart';
 import 'package:tentura/data/repository/image_repository.dart';
@@ -26,6 +27,7 @@ import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_room_lease.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_room_surface.dart';
+import 'package:tentura/features/beacon_view/ui/widget/closed_request_banner.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
@@ -139,7 +141,9 @@ RequestThread _generalThread() => RequestThread(
   lastSeenAt: _kSeenAt,
 );
 
-BeaconViewState _beaconState() => BeaconViewState(
+BeaconViewState _beaconState({
+  BeaconStatus beaconStatus = BeaconStatus.open,
+}) => BeaconViewState(
   myProfile: const Profile(id: _kMyId, displayName: 'Viewer'),
   beacon: Beacon(
     id: _kBeaconId,
@@ -147,6 +151,7 @@ BeaconViewState _beaconState() => BeaconViewState(
     createdAt: DateTime.utc(2026, 1, 1),
     updatedAt: DateTime.utc(2026, 1, 2),
     author: const Profile(id: 'author', displayName: 'Author'),
+    status: beaconStatus,
   ),
   status: const StateIsSuccess(),
 );
@@ -445,6 +450,31 @@ void main() {
         find.byKey(TestIds.key(TestIds.roomMessageInput)),
         findsOneWidget,
       );
+    });
+
+    testWidgets('closed request banner is not shown on chat', (tester) async {
+      final recorder = RoomCubitFactoryRecorder();
+      final host = _host(recorder: recorder);
+      final lease = BeaconRoomLease(host: host);
+      final threadsState = ThreadsState(
+        threads: [_generalThread()],
+        myUserId: _kMyId,
+        status: const StateIsSuccess(),
+      );
+      final router = _PopTrackingStackRouter();
+
+      await _pumpBeaconRoomSurface(
+        tester,
+        host: host,
+        lease: lease,
+        threadsState: threadsState,
+        beaconState: _beaconState(beaconStatus: BeaconStatus.closed),
+        router: router,
+      );
+
+      expect(find.byType(ThreadDetail), findsOneWidget);
+      expect(find.byType(ClosedRequestBanner), findsNothing);
+      expect(find.text('This request is closed'), findsNothing);
     });
 
     testWidgets('lease release awaits host clear before room teardown', (
