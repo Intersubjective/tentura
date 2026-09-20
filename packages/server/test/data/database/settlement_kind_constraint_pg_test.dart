@@ -18,7 +18,11 @@ Future<void> main() async {
       : 'Postgres admin database not reachable for disposable test target';
 
   group('notification_outbox__settlement_kind_chk expired admission', () {
-    test('rejects expired at migration tip 0165', () async {
+    // The pre-0166 half of this group tested that `expired` was rejected
+    // before the constraint was widened. That schema is inside the squashed
+    // baseline and is no longer reachable; what still has to hold is that the
+    // constraint admits `expired` at head.
+    test('settling an obligation as expired is accepted', () async {
       await target.recreate();
       final writer = await Connection.open(
         target.databaseEnv.pgEndpoint,
@@ -26,40 +30,9 @@ Future<void> main() async {
       );
       try {
         await writer.execute('SET check_function_bodies = false');
-        await migrateDbSchemaThrough(writer, '0165');
-        await _seedUser(writer);
-
-        await _insertUnsettledObligation(writer, receiptId: 'Nexp0165');
-
-        await expectLater(
-          writer.execute('''
-UPDATE public.notification_outbox
-SET
-  settlement_kind = 'expired',
-  settled_at = '2026-07-18T12:00:00Z'::timestamptz
-WHERE id = 'Nexp0165'
-'''),
-          throwsA(isA<ServerException>()),
-        );
-      } finally {
-        await writer.close();
-        await target.drop();
-      }
-    }, skip: skipReason);
-
-    test('accepts expired after upgrading from 0165 through 0166', () async {
-      await target.recreate();
-      final writer = await Connection.open(
-        target.databaseEnv.pgEndpoint,
-        settings: target.databaseEnv.pgEndpointSettings,
-      );
-      try {
-        await writer.execute('SET check_function_bodies = false');
-        await migrateDbSchemaThrough(writer, '0165');
+        await migrateDbSchema(writer);
         await _seedUser(writer);
         await _insertUnsettledObligation(writer, receiptId: 'Nexp0166');
-
-        await migrateDbSchemaThrough(writer, '0166');
 
         await writer.execute('''
 UPDATE public.notification_outbox
@@ -77,7 +50,7 @@ WHERE id = 'Nexp0166'
         expect(rows.single[0], 'expired');
         expect(rows.single[1], isTrue);
 
-        final checkRows = await writer.execute(r'''
+        final checkRows = await writer.execute('''
 SELECT pg_get_constraintdef(oid)
 FROM pg_constraint
 WHERE conrelid = 'public.notification_outbox'::regclass

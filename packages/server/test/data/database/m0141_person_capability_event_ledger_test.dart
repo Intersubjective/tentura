@@ -87,113 +87,6 @@ ORDER BY indexname
       skip: skipReason,
     );
 
-    test(
-      'upgrade from m0140 applies constraints and enforces ledger rules',
-      () async {
-        await migrateDbSchema(writer);
-        await _rollBackM0141ForTest(writer);
-
-        await _seedFixture(writer);
-
-        await writer.execute(r'''
-INSERT INTO public.person_capability_event (
-  id, subject_user_id, observer_user_id, tag_slug, source_type
-) VALUES (
-  'Pcem0141seed1', 'Upcem0141sub1', 'Upcem0141obs1', 'transport', 4
-)
-''');
-
-        for (final statement in m0141.statements) {
-          await writer.execute(statement);
-        }
-        await writer.execute(
-          "INSERT INTO public.schema_version (version, applied_at) "
-          "VALUES ('0141', now()) "
-          'ON CONFLICT DO NOTHING',
-        );
-
-        final hasCheck = await writer.execute(r'''
-SELECT count(*)::int
-FROM pg_constraint
-WHERE conname = 'pce_source_type_ck'
-''');
-        expect(hasCheck.single.single, 1);
-
-        await expectLater(
-          writer.execute(r'''
-INSERT INTO public.person_capability_event (
-  id, subject_user_id, observer_user_id, tag_slug, source_type
-) VALUES (
-  'Pcem0141bad1', 'Upcem0141sub1', 'Upcem0141obs1', 'food', 5
-)
-'''),
-          throwsA(isA<Exception>()),
-        );
-
-        await expectLater(
-          writer.execute(r'''
-INSERT INTO public.person_capability_event (
-  id, subject_user_id, observer_user_id, tag_slug, source_type
-) VALUES (
-  'Pcem0141dup1', 'Upcem0141sub1', 'Upcem0141obs1', 'transport', 4
-)
-'''),
-          throwsA(isA<Exception>()),
-        );
-
-        await writer.execute(r'''
-INSERT INTO public.person_capability_event (
-  id, subject_user_id, observer_user_id, tag_slug, source_type,
-  forward_edge_id
-) VALUES (
-  'Pcem0141fwd1', 'Upcem0141sub1', 'Upcem0141obs1', 'transport', 1,
-  'Fpcem0141edge1'
-)
-''');
-        await expectLater(
-          writer.execute(r'''
-INSERT INTO public.person_capability_event (
-  id, subject_user_id, observer_user_id, tag_slug, source_type,
-  forward_edge_id
-) VALUES (
-  'Pcem0141fwd2', 'Upcem0141sub1', 'Upcem0141obs1', 'transport', 1,
-  'Fpcem0141edge1'
-)
-'''),
-          throwsA(isA<Exception>()),
-        );
-
-        await writer.execute(r'''
-DELETE FROM public.beacon_forward_edge WHERE id = 'Fpcem0141edge1'
-''');
-        final afterEdgeDelete = await writer.execute(r'''
-SELECT count(*)::int
-FROM public.person_capability_event
-WHERE id = 'Pcem0141fwd1'
-''');
-        expect(afterEdgeDelete.single.single, 0);
-
-        await writer.execute(r'''
-INSERT INTO public.person_capability_event (
-  id, subject_user_id, observer_user_id, tag_slug, source_type,
-  invitation_id
-) VALUES (
-  'Pcem0141inv1', 'Upcem0141sub1', 'Upcem0141obs1', 'pets', 4,
-  'Ipcem0141inv1'
-)
-''');
-        await writer.execute(
-          "DELETE FROM public.invitation WHERE id = 'Ipcem0141inv1'",
-        );
-        final invitationNull = await writer.execute(r'''
-SELECT invitation_id
-FROM public.person_capability_event
-WHERE id = 'Pcem0141inv1'
-''');
-        expect(invitationNull.single.single, isNull);
-      },
-      skip: skipReason,
-    );
   });
 }
 
@@ -227,24 +120,6 @@ INSERT INTO public.invitation (id, user_id, created_at, updated_at)
 VALUES ('Ipcem0141inv1', 'Upcem0141obs1', now(), now())
 ON CONFLICT DO NOTHING
 ''');
-}
-
-Future<void> _rollBackM0141ForTest(Connection connection) async {
-  for (final statement in const [
-    'DROP INDEX IF EXISTS public.pce_aggregation_idx',
-    'DROP INDEX IF EXISTS public.pce_close_ack_uq',
-    'DROP INDEX IF EXISTS public.pce_forward_reason_uq',
-    'DROP INDEX IF EXISTS public.pce_seed_attestation_uq',
-    'ALTER TABLE public.person_capability_event '
-        'DROP CONSTRAINT IF EXISTS pce_source_type_ck',
-    'ALTER TABLE public.person_capability_event '
-        'DROP COLUMN IF EXISTS invitation_id',
-    'ALTER TABLE public.person_capability_event '
-        'DROP COLUMN IF EXISTS forward_edge_id',
-    "DELETE FROM public.schema_version WHERE version = '0141'",
-  ]) {
-    await connection.execute(statement);
-  }
 }
 
 Future<bool> _canConnect(Env env) async {

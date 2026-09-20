@@ -274,42 +274,6 @@ FROM samples
       skip: skipReason,
     );
 
-    test(
-      'upgrade from m0147 applies user_availability schema',
-      () async {
-        await migrateLocked(writer);
-        await _rollBackM0148ForTest(writer);
-
-        await writer.execute(r'''
-INSERT INTO public."user" (id, display_name, public_key)
-VALUES ('Um0148upg', 'Upgrade', 'pk-upg')
-ON CONFLICT DO NOTHING
-''');
-
-        for (final statement in m0148.statements) {
-          await writer.execute(statement);
-        }
-        await writer.execute(
-          "INSERT INTO public.schema_version (version, applied_at) "
-          "VALUES ('0148', now()) "
-          'ON CONFLICT DO NOTHING',
-        );
-
-        await _expectM0148Schema(writer);
-
-        await writer.execute(r'''
-INSERT INTO public.user_availability (user_id, resume_on)
-VALUES ('Um0148upg', CURRENT_DATE + 3)
-''');
-        final row = await writer.execute(
-          '''SELECT is_limited, resume_on IS NOT NULL '''
-          '''FROM public.user_availability WHERE user_id = 'Um0148upg' ''',
-        );
-        expect(row.single[0], false);
-        expect(row.single[1], true);
-      },
-      skip: skipReason,
-    );
 
     test(
       'Hasura metadata exposes only public columns and omits updated_at',
@@ -450,13 +414,3 @@ String _isoDate(DateTime value) =>
     '${value.month.toString().padLeft(2, '0')}-'
     '${value.day.toString().padLeft(2, '0')}';
 
-Future<void> _rollBackM0148ForTest(Connection connection) async {
-  for (final statement in const [
-    'DROP FUNCTION IF EXISTS public.user_availability_hidden_for_viewer(public.user_availability, json)',
-    'DROP INDEX IF EXISTS public.user_availability_resume_on_idx',
-    'DROP TABLE IF EXISTS public.user_availability',
-    "DELETE FROM public.schema_version WHERE version = '0148'",
-  ]) {
-    await connection.execute(statement);
-  }
-}

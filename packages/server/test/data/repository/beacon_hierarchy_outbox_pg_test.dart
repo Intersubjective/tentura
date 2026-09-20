@@ -247,48 +247,5 @@ WHERE event_id = @eventId AND target_beacon_id = @target
       expect(terminal.single.first, BeaconHierarchyDeliveryStateWire.delivered);
     }, skip: skipReason);
 
-    test('m0154 upgrades from m0153 and backfills published_at', () async {
-      final upgradeTarget = BeaconHierarchyDisposablePgTarget.fromEnvironment(
-        databaseNameOverride:
-            'tentura_test_bhier_upg_${DateTime.timestamp().microsecondsSinceEpoch}',
-      );
-      await upgradeTarget.recreate();
-      final upgradeWriter = await Connection.open(
-        upgradeTarget.databaseEnv.pgEndpoint,
-        settings: upgradeTarget.databaseEnv.pgEndpointSettings,
-      );
-      try {
-        await upgradeWriter.execute('SET check_function_bodies = false');
-        await migrateDbSchemaThrough(upgradeWriter, '0153');
-        await upgradeWriter.execute(
-          r'''
-INSERT INTO public."user" (id, display_name, public_key, created_at, updated_at)
-VALUES ('Uupgrade0002', 'Uupgrade0002', 'upgrade-key-2', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
-''',
-        );
-        await upgradeWriter.execute(
-          r'''
-INSERT INTO public.beacon (
-  id, user_id, title, description, status, created_at, updated_at
-) VALUES (
-  'Bupgrade0002', 'Uupgrade0002', 'Pre-m0154 published', '', 0,
-  '2026-03-01T08:00:00Z', '2026-03-01T08:00:00Z'
-)
-''',
-        );
-        await migrateDbSchemaThrough(upgradeWriter, '0154');
-        final row = await upgradeWriter.execute(
-          r'''
-SELECT published_at, created_at
-FROM public.beacon WHERE id = 'Bupgrade0002'
-''',
-        );
-        expect(row.single[0], DateTime.utc(2026, 3, 1, 8));
-        expect(row.single[1], DateTime.utc(2026, 3, 1, 8));
-      } finally {
-        await upgradeWriter.close();
-        await upgradeTarget.drop();
-      }
-    }, skip: skipReason);
   });
 }

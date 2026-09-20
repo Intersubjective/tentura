@@ -11,21 +11,14 @@ void main() {
         .map((entry) => Map<String, dynamic>.from(entry as Map))
         .toList(growable: false);
     final repoRoot = contractFile.parent.parent.parent;
-    final publisherMigrations = [
-      for (final name in const [
-        'm0114.dart',
-        'm0116.dart',
-        'm0133.dart',
-        'm0159.dart',
-        'm0165.dart',
-        'm0167.dart',
-      ])
-        File.fromUri(
-          repoRoot.uri.resolve(
-            'packages/server/lib/data/database/migration/$name',
-          ),
-        ).readAsStringSync(),
-    ].join('\n');
+    // The six migrations this used to read are inside the squashed baseline,
+    // which now carries every trigger argument and publisher function the
+    // manifest can name.
+    final publisherMigrations = File.fromUri(
+      repoRoot.uri.resolve(
+        'packages/server/lib/data/database/migration/m0193.dart',
+      ),
+    ).readAsStringSync();
 
     final triggerArgs = <String>{};
     final specializedPublishers = <String>{};

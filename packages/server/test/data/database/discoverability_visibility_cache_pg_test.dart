@@ -1,7 +1,6 @@
 @Tags(['pg'])
 library;
 
-import 'dart:io';
 
 import 'package:drift/drift.dart' show Variable;
 import 'package:postgres/postgres.dart';
@@ -293,12 +292,13 @@ END;
   }
 
   test(
-    'm0163a migration body never references block_hides',
-    () {
-      final migrationSource = File(
-        'lib/data/database/migration/m0163a.dart',
-      ).readAsStringSync();
-      expect(migrationSource.contains('block_hides'), isFalse);
+    'the cached-visibility function never references block_hides',
+    () async {
+      final definition = await session.writer.execute('''
+SELECT pg_get_functiondef(
+  'public.person_are_mutually_visible_cached(text,text,text)'::regprocedure)
+''');
+      expect(definition.single.single, isNot(contains('block_hides')));
     },
     skip: skipReason,
   );

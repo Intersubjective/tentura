@@ -207,7 +207,16 @@ docker compose -f compose.prod.yaml logs -f
 
 Wait until Postgres logs `database system is ready to accept connections` and Tentura logs `Worker #0 web server listen`.
 
-The Tentura server runs all 104 SQL migrations on startup. This creates the full schema, all triggers, and all functions. **Do not apply `sql/triggers.sql` manually** — everything in it is already inside the migrations.
+The Tentura server applies pending SQL migrations on startup. The history was squashed on 2026-09-20: `m0193` is a generated schema baseline that creates the full schema, all triggers and all functions in one migration, and anything added since follows it. **Do not apply `sql/triggers.sql` manually** — everything in it is already inside the migrations.
+
+> **Before deploying a squash.** migrant picks the next migration by comparing against `MAX(schema_version.version)`, so a database at or past the baseline's version skips it entirely — but a database *below* it would be handed the baseline and would create objects over live ones. Check the target first:
+>
+> ```bash
+> docker compose -f compose.prod.yaml exec postgres \
+>   psql -U postgres -tAc 'SELECT max(version) FROM public.schema_version'
+> ```
+>
+> It must be at or above the baseline version (`0193`). Regenerate a baseline with `dart run tool/squash_baseline.dart` in `packages/server`; see `docs/plans/migration-squash-plan.md`.
 
 ---
 

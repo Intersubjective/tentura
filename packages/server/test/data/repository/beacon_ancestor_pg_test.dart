@@ -124,30 +124,4 @@ INSERT INTO public.beacon (
     }, skip: skipReason);
   });
 
-  test('m0171 backfills closure for a tree that predates it', () async {
-    final target = BeaconHierarchyDisposablePgTarget.fromEnvironment(
-      databaseNameOverride:
-          'tentura_test_bhier_anc_${DateTime.timestamp().microsecondsSinceEpoch}',
-    );
-    await target.recreate();
-    final writer = await Connection.open(
-      target.databaseEnv.pgEndpoint,
-      settings: target.databaseEnv.pgEndpointSettings,
-    );
-    final db = TenturaDb(target.databaseEnv);
-    try {
-      await writer.execute('SET check_function_bodies = false');
-      await migrateDbSchemaThrough(writer, '0170');
-      final fixture = BeaconHierarchyFixture(writer: writer, db: db);
-      await fixture.seedFullTopology();
-      await seedPublishedHierarchyTree(writer);
-
-      await migrateDbSchema(writer);
-      expect(await _ancestorRows(writer), _treeRows);
-    } finally {
-      await db.close();
-      await writer.close();
-      await target.drop();
-    }
-  }, skip: skipReason);
 }

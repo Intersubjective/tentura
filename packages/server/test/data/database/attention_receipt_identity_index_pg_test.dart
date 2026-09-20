@@ -92,16 +92,11 @@ WHERE dedup_key = '$_dedupKey' AND seen_at IS NULL
       },
     );
 
-    test('re-applying every m0179 statement is a no-op', () async {
-      final statements = migrationsForTesting
-          .firstWhere((migration) => migration.version == '0179')
-          .statements;
-      for (var pass = 0; pass < 2; pass++) {
-        for (final statement in statements) {
-          await writer.execute(statement);
-        }
-      }
-
+    // This replaced a test that replayed every m0179 statement twice to prove
+    // restart safety. Those statements are inside the squashed baseline now,
+    // which migrant applies once and which `pg_dump` did not emit idempotently.
+    // The index shape it was really guarding is asserted directly.
+    test('keeps exactly one non-unique dedup index', () async {
       final rows = await writer.execute('''
 SELECT count(*)::int, bool_or(i.indisunique)
 FROM pg_index i
@@ -113,58 +108,6 @@ WHERE i.indrelid = 'public.notification_outbox'::regclass
     });
   }, skip: skipReason);
 
-  group('m0179 upgrade path from 0178', () {
-    late DisposablePgWriterSession session;
-    late Connection writer;
-
-    setUpAll(() async {
-      if (skipReason != false) return;
-      session = await setUpDisposablePgWriter(
-        target: upgradeTarget,
-        lastInclusiveVersion: '0178',
-      );
-      writer = session.writer;
-    });
-
-    tearDownAll(() async {
-      if (skipReason != false) return;
-      await tearDownDisposablePgWriter(session: session);
-    });
-
-    test('the pre-U05a schema rejects the second unseen receipt', () async {
-      await _resetFixtures(writer);
-      await _insertReceipt(writer, id: 'Nu05aold1', occurrenceId: 'Ou05aold1');
-      await expectLater(
-        _insertReceipt(writer, id: 'Nu05aold2', occurrenceId: 'Ou05aold2'),
-        throwsA(
-          isA<ServerException>().having(
-            (error) => '${error.code} ${error.message}',
-            'unique violation naming the collapse index',
-            allOf(
-              contains('23505'),
-              contains('notification_outbox__dedup'),
-            ),
-          ),
-        ),
-        reason:
-            'this is the gate U05a removes; if it stops failing here, m0179 '
-            'is being applied too early and the test proves nothing',
-      );
-    });
-
-    test('applying m0179 lets the same pair of writes through', () async {
-      await migrateDbSchemaThrough(writer, '0179');
-      await _resetFixtures(writer);
-      await _insertReceipt(writer, id: 'Nu05anew1', occurrenceId: 'Ou05anew1');
-      await _insertReceipt(writer, id: 'Nu05anew2', occurrenceId: 'Ou05anew2');
-
-      final rows = await writer.execute('''
-SELECT count(*)::int FROM public.notification_outbox
-WHERE dedup_key = '$_dedupKey'
-''');
-      expect(rows.single.single, 2);
-    });
-  }, skip: skipReason);
 }
 
 const _accountId = 'Uu05aindex';

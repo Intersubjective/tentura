@@ -121,6 +121,18 @@ ORDER BY src, dst, tier
     ];
   }
 
+  Future<String> functionDefinition() async {
+    final row = await db
+        .customSelect(
+          r'''
+SELECT pg_get_functiondef(
+  'public.constellation_trust_edges(text,text,text[])'::regprocedure) AS def
+''',
+        )
+        .getSingle();
+    return row.read<String>('def');
+  }
+
   Future<List<String>> functionReturnColumns() async {
     final row = await db
         .customSelect(
@@ -192,24 +204,24 @@ LIMIT 1
   }
 
   test(
-    'm0163 function returns only src, dst, tier — no weight or score columns',
+    'the function returns only src, dst, tier — no weight or score columns',
     () async {
       expect(await functionReturnColumns(), ['src', 'dst', 'tier']);
-      final migrationSource = File(
-        'lib/data/database/migration/m0163.dart',
-      ).readAsStringSync();
+      // Read the installed definition rather than a migration file: the
+      // migration that introduced this is inside the squashed baseline.
+      final definition = await functionDefinition();
       expect(
-        migrationSource,
-        contains('RETURNS TABLE (src text, dst text, tier smallint)'),
+        definition,
+        contains('RETURNS TABLE(src text, dst text, tier smallint)'),
       );
       expect(
         RegExp(r'SELECT\s+t1\.src,\s+t1\.dst,\s+1::smallint', multiLine: true)
-            .hasMatch(migrationSource),
+            .hasMatch(definition),
         isTrue,
       );
       expect(
         RegExp(r'SELECT\s+t2\.src,\s+t2\.dst,\s+2::smallint', multiLine: true)
-            .hasMatch(migrationSource),
+            .hasMatch(definition),
         isTrue,
       );
     },

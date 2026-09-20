@@ -553,60 +553,6 @@ SELECT count(*)::int FROM public.constellation_anchor_cursor WHERE viewer_id = '
       expect(rows.single.single, 0);
     });
 
-    test('fresh migration through 0167 and upgrade from 0166 pre-feature', () async {
-      final upgradeName = '${target.databaseName}_upgrade';
-      final upgradeTarget = DisposablePgTarget.fromNamedEnvironment(
-        envVarName: 'TENTURA_CONSTELLATION_ANCHOR_TEST_DB',
-        defaultNamePrefix: 'tentura_test_ca_anchor',
-        databaseNameOverride: upgradeName,
-      );
-      await withDisposablePgLifecycleLock(upgradeTarget.adminEnv, () async {
-        final adminConnection = await Connection.open(
-          upgradeTarget.adminEnv.pgEndpoint,
-          settings: upgradeTarget.adminEnv.pgEndpointSettings,
-        );
-        try {
-          await adminConnection.execute(
-            'DROP DATABASE IF EXISTS "$upgradeName" WITH (FORCE)',
-          );
-          await adminConnection.execute('CREATE DATABASE "$upgradeName"');
-        } finally {
-          await adminConnection.close();
-        }
-
-        final upWriter = await Connection.open(
-          upgradeTarget.databaseEnv.pgEndpoint,
-          settings: upgradeTarget.databaseEnv.pgEndpointSettings,
-        );
-        try {
-          await upWriter.execute('SET check_function_bodies = false');
-          await migrateDbSchemaThrough(upWriter, '0166');
-          final tables0166 = await upWriter.execute('''
-SELECT to_regclass('public.constellation_anchor')
-''');
-          expect(tables0166.single.single, isNull);
-
-          await migrateDbSchemaThrough(upWriter, '0167');
-          final tables0167 = await upWriter.execute('''
-SELECT to_regclass('public.constellation_anchor')
-''');
-          expect(tables0167.single.single, isNotNull);
-        } finally {
-          await upWriter.close();
-          final dropConnection = await Connection.open(
-            upgradeTarget.adminEnv.pgEndpoint,
-            settings: upgradeTarget.adminEnv.pgEndpointSettings,
-          );
-          try {
-            await dropConnection.execute(
-              'DROP DATABASE IF EXISTS "$upgradeName" WITH (FORCE)',
-            );
-          } finally {
-            await dropConnection.close();
-          }
-        }
-      });
-    });
 
     test(
       'readonly visibility cache miss does not write cache rows',

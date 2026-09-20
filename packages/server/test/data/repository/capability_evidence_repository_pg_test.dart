@@ -425,9 +425,20 @@ WHERE observer_user_id = 'Ucapb2aobs01'
 
           await _waitUntil(
             () async {
+              // Scoped to this database on purpose. `pg_locks` reports the
+              // whole cluster, and `migrateDbSchema` takes a blocking advisory
+              // lock (`tentura_schema_upgrade`), so an unscoped query is
+              // satisfied by any *other* disposable database waiting to
+              // migrate. This test would then stop waiting before its own
+              // blocker was in place, let repo2 finish early, and time out in
+              // the next poll — which is exactly what it did whenever one more
+              // pg test file ran alongside it.
               final rows = await writer.execute(
                 "SELECT 1 FROM pg_locks "
-                "WHERE locktype = 'advisory' AND granted = false",
+                "WHERE locktype = 'advisory' AND granted = false "
+                'AND database = ('
+                'SELECT oid FROM pg_database WHERE datname = current_database()'
+                ')',
               );
               return rows.isNotEmpty;
             },

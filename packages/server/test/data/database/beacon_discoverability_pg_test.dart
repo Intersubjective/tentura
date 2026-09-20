@@ -140,53 +140,6 @@ VALUES (@id, @user, 't', 'd', 0, now(), now())
       expect(await readDiscoverable(beaconId), isTrue);
     }, skip: skipReason);
 
-    test('m0160 backfills pre-existing parent and child rows to true', () async {
-      final backfillTarget = BeaconHierarchyDisposablePgTarget.fromEnvironment(
-        databaseNameOverride:
-            'tentura_test_disc_bf_${DateTime.timestamp().microsecondsSinceEpoch}',
-      );
-      await backfillTarget.recreate();
-      final backfillWriter = await Connection.open(
-        backfillTarget.databaseEnv.pgEndpoint,
-        settings: backfillTarget.databaseEnv.pgEndpointSettings,
-      );
-      try {
-        await backfillWriter.execute('SET check_function_bodies = false');
-        await migrateDbSchemaThrough(backfillWriter, '0159');
-        await _seedUser(backfillWriter, authorId, slot: 1);
-
-        const parentId = 'Bdiscbfpar01';
-        const childId = 'Bdiscbfchi01';
-        await backfillWriter.execute(
-          Sql.named(r'''
-INSERT INTO public.beacon
-  (id, user_id, title, description, status, created_at, updated_at, published_at)
-VALUES (@id, @user, 'parent', 'd', 0, now(), now(), now())
-'''),
-          parameters: {'id': parentId, 'user': authorId},
-        );
-        await backfillWriter.execute(
-          Sql.named(r'''
-INSERT INTO public.beacon
-  (id, user_id, parent_beacon_id, title, description, status, created_at, updated_at, published_at)
-VALUES (@id, @user, @parent, 'child', 'd', 0, now(), now(), now())
-'''),
-          parameters: {
-            'id': childId,
-            'user': authorId,
-            'parent': parentId,
-          },
-        );
-
-        await migrateDbSchemaThrough(backfillWriter, '0160');
-
-        expect(await _readDiscoverableOn(backfillWriter, parentId), isTrue);
-        expect(await _readDiscoverableOn(backfillWriter, childId), isTrue);
-      } finally {
-        await backfillWriter.close();
-        await backfillTarget.drop();
-      }
-    }, skip: skipReason);
 
     test('create and update round-trip true and false', () async {
       final created = await beaconRepo.createBeacon(
