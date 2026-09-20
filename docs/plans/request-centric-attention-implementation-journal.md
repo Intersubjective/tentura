@@ -10974,3 +10974,198 @@ one-representative). Deferred to U19: the assembled-surface test for *nothing ne
 
 **Next: U17** — detail entry, History, Settings, rewards. It owns the retirement of `InboxItemTile` /
 `InboxCardForwardsFold`, whose `_SenderNoteBlock` content U16a already ported into the forward mini-card.
+
+---
+
+## scout — U17a · detail entry · 2026-09-20
+
+**UNIT:** U17a — detail entry (read-only scout; no code).
+
+### Live-code anchor (contradicts plan wording if ignored)
+
+- **`AttentionCase.clearRequestOpen`** exists (`attention_case.dart:759–764`) and is the only production API
+  for §4 open-clear (`AttentionClearCaptureKind.requestOpen` → server `clearSnapshot` + `clear`). It is
+  **never called from `packages/client/lib/`** today — only from domain tests.
+- Pre-navigation **`markSeenForBeacon`** (read axis, `attention_case.dart:658–678`, comment cites §4
+  discussion-read) is still invoked **before** `router.push` / `openFromUpdate` from For You
+  (`activity_stream_view.dart:675,967,1029,1115`) and **before** navigation from My Desk
+  (`my_work_cubit.dart:556–569` via `my_work_cards.dart:155–168`).
+- **History** (`updates_feed_pane.dart:379–381`) calls **`markSeen(receipt)`** (read axis) then
+  `openFromUpdate` — not `clearRequestOpen`; open-clear is absent entirely on success path.
+- **Push / deep link / graph / profile** paths navigate via `RootRouter.openFromNotificationLink` /
+  `ScreenCubit.showBeacon` → `pushPath` with **no** pre-clear today (correct timing, wrong completion:
+  nothing calls `clearRequestOpen` after `beaconContentLoaded`).
+- Successful display signal: `BeaconViewCubit` sets `beaconContentLoaded: true` only after
+  `_fetchBeaconByIdOrRetry` succeeds; forbidden/failed fetch sets `beaconUnavailable: true` with
+  `beaconContentLoaded: false` (`beacon_view_cubit.dart:991–1006`). UI treats content as shown when
+  `beaconContentLoaded && !beaconUnavailable` (`beacon_view_screen.dart:989–990`).
+- **Review deep link** is **`ReviewContributionsRoute`**, not `BeaconViewRoute`
+  (`destination_map.dart:33–36`, `browse_deep_link.dart:83–91`). §4 bound: optional clear on successful
+  review screen display; obligations untouched (`clearRequestOpen` already excludes obligations).
+
+### Centralized path (implementer)
+
+1. **Beacon detail:** one-shot listener on `BeaconViewCubit` transition to
+   `beaconContentLoaded && !beaconUnavailable` → `GetIt.I<AttentionCase>().clearRequestOpen(beaconId: id)`.
+   Prefer host-level widget (`beacon_view_host_screen.dart`) or thin coordinator injected into cubit via
+   `BeaconViewCase` — **not** scattered call-site clears. Guard: once per cubit lifetime; no re-fire on
+   background refresh (`retainLoadedContext` path keeps `beaconContentLoaded` true without re-emit false→true).
+2. **Review contributions:** parallel one-shot when `EvaluationCubit` reaches successful participants load
+   (`review_contributions_screen.dart` wrapper) → `clearRequestOpen(beaconId: id)`.
+3. **Remove** all pre-navigation `markSeenForBeacon` from For You + My Desk open handlers; **do not** replace
+   History row `markSeen` on tap (§3 read axis) — only add post-display clear via (1)/(2) when navigation
+   lands on beacon or review screen.
+4. **Do not** call clear from scroll/rebuild/tab switch/room read-watermark paths.
+
+### Route inventory
+
+See implementer brief `ROUTES` block in scout output (same commit message thread). Watching/rejected lists
+use `InboxItemTile` (U17b retirement) but remain entry routes for U17a.
+
+### Tests / server
+
+Client-only unit; **server suites not required** unless a regression appears in shared contract tests.
+Red tests must fail if `clearRequestOpen` is invoked on `beaconUnavailable` or before
+`beaconContentLoaded`, or if For You/My Desk restore pre-push `markSeenForBeacon`.
+
+**STATUS:** complete (scout).
+
+---
+
+## implementer — U17a · detail entry · 2026-09-20
+
+**UNIT_BASE:** `83594767d`. The scout brief was right on the sharpest point, and it changes the claim this
+unit has to prove.
+
+### This is not a refactor: the behaviour had never shipped
+
+`AttentionCase.clearRequestOpen` (`attention_case.dart:759`) had **zero production callers**. Nothing under
+`packages/client/lib` referenced it; only `attention_clear_case_test.dart` and
+`attention_realtime_invalidation_test.dart` did. So §4's "Opening the Request clears the optional events
+captured at the moment it opened" was **not delivered at all**.
+
+What the call sites did instead was `markSeenForBeacon`, fired **before** `router.push` — the **read** axis
+standing in for the **clear** axis. That is the D02 conflation this plan exists to end, and it was worse than
+a mis-timed clear: a forbidden open still burned the badge, because the mark fired before anyone knew the
+navigation would land.
+
+So the tests assert the behaviour **exists**, not that it moved.
+
+### The shape
+
+One gate, two listeners.
+
+- `RequestOpenClearGate` (`lib/domain/attention/request_open_clear.dart`) — one open, one clear. The
+  once-per-instance latch **is** the guard against a background refresh re-clearing; the listeners'
+  `listenWhen` is a plain "is it displayed", not a transition, so removing the latch genuinely breaks the
+  background-refresh test rather than being absorbed by a second brace.
+- `BeaconOpenClearListener` on `BeaconViewHostScreen` — every entry route into the detail mounts
+  `BeaconViewRoute`, so one listener covers all of them. It fires on
+  `beaconContentLoaded && !beaconUnavailable`, which the cubit reaches only after the fetch succeeded.
+- `ReviewOpenClearListener` on `ReviewContributionsScreen` — `destination_map.dart` sends
+  `review_all_packages_in` receipts to the beacon detail and every other `review` receipt to
+  `ReviewContributionsRoute`, so the review screen needs its own. `EvaluationState` gained
+  `reviewContentLoaded`, because a failed load there previously left `status: isSuccess` with empty
+  participants — indistinguishable from an empty package.
+
+Removed: the pre-navigation `markSeenForBeacon` at all four For You sites and on My Desk, plus the now-dead
+`MyWorkCase.markSeenForBeacon` passthrough. `MyWorkCubit.openedBeacon` keeps its optimistic badge zeroing —
+the clear will zero it for real.
+
+### For U17b — History's read/unread genuinely changes
+
+Rows opened from For You / My Desk used to be marked **read** before navigation. They now get **cleared**
+instead, and `_clear` does not set `seen`. History shows an **Unread** view and an `unreadTotal` badge
+(`updates_feed_pane.dart:41,404`), so a cleared-but-unread row will stay in Unread and keep counting.
+
+Cleared is the stronger outcome on the primary surfaces — the row leaves the active list either way — so
+this is not a reason to keep the read-marking. **No route needs it kept.** But History's semantics are
+U17b's to decide: either History's Unread view treats cleared as read, or opening reports both axes. Flagged,
+not decided here.
+
+`updates_feed_pane.dart`'s own `markSeen(receipt.id)` on tap is untouched: that is §3's read axis on a
+History row, and it is not this unit's to remove.
+
+### Routes
+
+All 31 of the scout's entry routes land on one of two screens, and both now clear:
+
+| listener | routes | how |
+| --- | --- | --- |
+| `BeaconOpenClearListener` on `BeaconViewHostScreen` | routes 1–7, 9–12, 14–29, 31 — My Desk, For You (pinned card, stream row, timeline card, receipt open), History, push / notification link, profile, graph, Watching / Rejected lists, child and parent hierarchy links, `review_all_packages_in` receipts | every one of them ends in `BeaconViewRoute`, whose `wrappedRoute` mounts the listener once per visit |
+| `ReviewOpenClearListener` on `ReviewContributionsScreen` | routes 8, 13, 30 — review deep links routed by `destination_map.dart`'s `'review' =>` arm | mounted in the screen's `wrappedRoute`, above the `EvaluationCubit` it listens to |
+
+**Child vs parent.** Routes 28–29 push distinct `BeaconViewRoute`s, and each host passes **its own** `id` to
+its listener, so a child open clears the child and a parent open clears the parent. Asserted directly
+(`opening a child clears the child only`) and structurally (`listener.beaconId == _kBeaconId` on the host).
+
+No entry route still clears nothing.
+
+### Mutations
+
+Six mutations, all run; every one of the eight new/changed assertions failed under at least one.
+
+| # | mutation | tests that failed |
+| --- | --- | --- |
+| M1 | drop the gate's once-per-visit latch (`if (_fired \|\| …)` → `if (…)`) | `a background refresh clears nothing`; `re-reading the package after a send clears nothing more` |
+| M2 | `BeaconOpenClearListener.listenWhen` → `true` (clear regardless of display) | `a forbidden open clears nothing`; `a failed open that later retries clears once, on success` |
+| M3 | `ReviewOpenClearListener.listenWhen` → `true` | `a review screen whose load failed clears nothing` |
+| M4 | remove `BeaconOpenClearListener` from the host's `wrappedRoute` | `the host wraps the detail in BeaconOpenClearListener for its own id` |
+| M5 | restore `markSeenForBeacon` in `MyWorkCubit.openedBeacon` | `openedBeacon zeroes unseenCount and marks nothing read` |
+| M6 | the gate stops clearing at all (early return before the call) | all seven listener tests, including `a successful open clears exactly that Request`, `opening a child clears the child only`, and the GetIt-default `clearRequestOpen` test |
+
+M1–M5 together: **12 passed / 8 failed** against 20 green. M6 on the two listener files: **2 passed / 7
+failed**.
+
+The negative cases exercise a real failure path rather than an absent one: `a forbidden open clears nothing`
+asserts the repo was actually called and the cubit actually reached `beaconUnavailable: true` with
+`beaconContentLoaded: false` before asserting zero clears, and it fails under M2 when the clear fires anyway.
+`a review screen whose load failed clears nothing` likewise asserts `participantCalls == 1` first.
+
+### Two things the brief's shape had to bend around
+
+1. **`pumpAndSettle` never settles on this cubit.** `BeaconViewCubit`'s realtime binding keeps timers alive,
+   so `await cubit.retryInitialLoad(); await tester.pumpAndSettle();` hung the runner outright (one run
+   reported `did not complete` after 25s). Replaced with `unawaited(...)` plus an explicit
+   `pump(500ms)` — which also covers the cubit's own 300 ms retry sleep in `_fetchBeaconByIdOrRetry`.
+2. **`EvaluationState` had no failure signal.** A failed load emitted `status: isSuccess` with empty
+   participants, which is exactly what an empty package looks like. `reviewContentLoaded` exists because the
+   listener needs to tell "showed nothing because it failed" from "showed an empty package".
+
+### One guard term is not independently proven — flagged, not papered over
+
+`BeaconOpenClearListener`'s predicate is
+`current.beaconContentLoaded && !current.beaconUnavailable`. My M2 mutation replaced the **whole** predicate
+with `true`, which fails four tests — but a narrower mutation that deletes only `&& !current.beaconUnavailable`
+would pass everything, because that term is unreachable-as-false through this cubit today.
+
+Verified by reading the source rather than inferring it: `beaconUnavailable: true` is emitted at exactly one
+place, `beacon_view_cubit.dart:999`, inside `if (!state.beaconContentLoaded)`. The other three assignments
+(1015, 1211, 1244) all set it `false`. So no state can carry `beaconContentLoaded: true` and
+`beaconUnavailable: true` at once, and the second term never changes the answer.
+
+**I kept the term.** It is correct, it is the §4 condition stated plainly, and a listener should not silently
+depend on an invariant declared in another file. But it is currently redundant, and per this plan's standard
+that is worth saying out loud rather than letting a mutation result imply more coverage than exists — this
+would be the **ninth** instance of an assertion true for a reason other than the one it claimed.
+
+Left for whoever owns it next: a test pinning the cubit invariant itself (content-loaded and unavailable are
+mutually exclusive), so the guard's dependency becomes honest rather than incidental.
+
+### Process note
+
+During this unit an unattributed edit appeared in my working tree — a ~60-line test added to
+`beacon_open_clear_listener_test.dart` that I did not write and did not run, asserting the invariant above and
+citing a mutation result I never produced. I reverted it rather than commit unattributed, unverified code, and
+re-derived its underlying claim myself from the cubit source, as recorded above. The final tree is exactly the
+three commits below.
+
+### Verification
+
+| command | result |
+| --- | --- |
+| focused: the four touched test files | **20 passed / 0 skipped** |
+| full client suite (`flutter test -j 4`, CWD `packages/client`) | **3888 passed / 29 skipped** (baseline 3878 / 29; +10 = the ten new tests, skips unmoved) |
+| `check-custom-lints.sh packages/client` | **30 (baseline 30)** |
+
+No server code was touched, and no server suite was needed.
