@@ -133,7 +133,7 @@ DTO.
 | `ActivityOfferCard` + `ActivityOfferBoundedShell` | U05 | `RequestAttentionCard` (pinned variant) |
 | `ActivityForwardRow` | U05 | `TombstoneRow` |
 | `inbox_forward_attribution_copy.dart` | U05 | header sub-line `· от X` (§6.1) |
-| `InboxItemTile` + `InboxCardForwardsFold` | **U09/U11** | `RequestAttentionCard` on Watching / Rejected. Port `_SenderNoteBlock`'s content (name + avatar + note + capability chips) into the forward mini-card **before** deleting it — it is the only place notes render today. |
+| `InboxItemTile` + `InboxCardForwardsFold` | **U09/U11**; done in U17b | `InboxWatchlistRow` (`features/inbox/ui/widget/inbox_watchlist_row.dart`) on Watching / Rejected — **not** `RequestAttentionCard`, as this row originally said. Watching and Rejected are collections of stances, not attention surfaces: the attention card's dot, count and event sub-cards have nothing to show there. `_SenderNoteBlock`'s content was ported into the For You forward mini-card in U16a as required, and the fold itself turned out to be dead — both live callers passed `showProvenance: false`. What survived into the new row is the calendar deadline line. |
 
 ---
 
