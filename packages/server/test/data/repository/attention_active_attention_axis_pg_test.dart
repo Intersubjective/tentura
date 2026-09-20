@@ -436,6 +436,52 @@ WHERE id = 'Naxis04'
       );
     });
 
+    test('U17b §3 — marking a cleared receipt unread does not resurrect it',
+        () async {
+      // §3's last boundary: "marking something unread in History never
+      // resurrects attention on a primary surface". The read axis moves both
+      // ways; the clear axis does not move with it.
+      await _profile(writer, id: 'Nres01');
+      await _markSeen(writer, 'Nres01');
+      await _clearReceipt(writer, 'Nres01');
+
+      // The negative is only real if the read axis actually moved, so the
+      // mutation is observed before the assertion that nothing followed it.
+      final unseenRows = await AttentionAckRepository(database).markUnseen(
+        accountId: _viewerId,
+        ids: const ['Nres01'],
+      );
+      expect(
+        unseenRows,
+        1,
+        reason: 'History could mark it unread — a cleared row is still there',
+      );
+      final seenAt = await writer.execute(
+        Sql.named('SELECT seen_at FROM public.notification_outbox '
+            'WHERE id = @id'),
+        parameters: {'id': 'Nres01'},
+      );
+      expect(seenAt.single.first, isNull, reason: 'the read axis did move');
+
+      final summary = await query.surfaceSummary(accountId: _viewerId);
+      final feed = await query.attentionFeed(
+        accountId: _viewerId,
+        view: AttentionFeedView.unread,
+        surface: AttentionSurface.activity,
+      );
+      expect(
+        summary.forYouDot,
+        isFalse,
+        reason: 'un-reading is not un-clearing (§3): the dot stays dark',
+      );
+      expect(summary.activityUnreadTotal, 0);
+      expect(
+        feed.page.items,
+        isEmpty,
+        reason: 'the unread view is the clear axis, so it stays empty',
+      );
+    });
+
     test('U15R-d M1 — for you.dot equals the composed membership of Set R, '
         'Set O and the pinned zone', () async {
       await _forwardEdge(writer, id: 'FEd03', beaconId: _foreignBeaconId);
