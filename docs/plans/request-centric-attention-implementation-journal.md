@@ -12899,3 +12899,77 @@ control; CHAT deep-link routing; browser Back out of a Request to My Desk in one
 
 **Gate verdict: 10 / 13, not green.** One failure predates the plan (#153), two share a single unresolved
 close-now blocker. Stated as a blocker on the release rather than waved through.
+
+## manager — U19 accepted with a stated blocker; the plan's implementation is complete
+
+**Verdict: accepted, and the release is NOT declared green.** U19's job was to verify, and it did — including
+finding what the unit tests could not.
+
+My independent gates: server non-PG **1697 / 0**, server PG **1083 / 24 skips**, client **3950 / 29**, lints
+server **0 (baseline 0)** and client **30 (baseline 30)**, terminology **ok**. Web e2e **10 / 13 — not green**,
+stated as a release blocker rather than waved through.
+
+### The cutover closed, and a third version nobody was watching
+
+The floor (7.19.0) and the client build now move together. The brief named two files; there was a **third** —
+`web/manifest.json`, stuck at **7.3.1** for about a dozen releases, invisible because the file carries a
+`skip-worktree` bit: the build hook rewrites it locally, so somebody turned off git's interest, and with git's
+interest went everybody's. The bit was cleared to commit and set again, so the worktree is as found.
+
+**What was missing was the assertion on the relation.** The floor had three tests; the client version had none;
+the two could disagree in silence, and when U18c raised the floor they did — every client locked out. A test
+now reads the sibling package's files by path and pins the relation. Two things each verified alone with
+nothing verifying the seam is Astra's original blind-spot finding, turning up one last time in the release
+metadata.
+
+### The web e2e gate earned its keep, and found the inverse defect
+
+Every earlier finding in this plan was behaviour **built and unreachable**. This gate found **shipped behaviour
+the harness could no longer see** — broken since the card redesign landed, unnoticed because the gate had never
+been run. First pass 3/13; after two seam fixes, 10/13.
+
+| cause | journeys | origin |
+| --- | --- | --- |
+| `find.text(title)` vs `“title”` — §8a's object headline | 8 | this plan |
+| `RequestAttentionCard` dropped `TestIds.inboxOfferHelp` when it replaced `CardTriageActionRow` | ≥1 | this plan |
+| review CTA had no id at all | 2 | this plan |
+| `BeaconCardHeaderRow` finder vs `_PreviewIdentityTile` | 1 | **#153, predates this plan** |
+
+The dropped TestId is the one that matters: plan §7.3 **requires** these journeys to drive real controls through
+stable TestIds, and the redesign silently removed the only one For You's action row had. Fixed in the card, not
+the harness — the TestId is part of the contract, not a test detail.
+
+### The unresolved failure, and why I stopped diagnosing it
+
+Two journeys fail at `triggerCloseNow`. I took the diagnosis further than the implementer: the helper waits on
+a control gated by `showCloseNowCta`, which is true only when `window.canCloseNow` returns true from the
+server's `evaluation_case.dart`.
+
+That is the review/evaluation subsystem, and this plan's own **§4 risk 3** says a unit that finds itself
+changing review eligibility **has left this plan**. It is not one of the six release blockers, and **no baseline
+shows this step ever passing** — both journeys failed earlier in passes 1 and 2, so it may have been broken
+behind the earlier blockers for as long as they were. Located, reproducible, and deliberately not fixed here.
+
+### The six release blockers
+
+**Every one already had a test**; none had to be written, two were strengthened. No deletion path reaching a
+live obligation · no primary-surface use of `seen_at` as cleared · no generic obligation dismissal route · every
+outcome kind dismissible · Dismiss all never applies a decision · indicator and list predicates are one
+function.
+
+### The plan is implemented. What remains is not implementation.
+
+**Release blockers:** the e2e gate at 10/13 — two journeys on the `canCloseNow` question (outside this plan's
+boundary), one on #153 (predates it).
+
+**Owner decisions, escalated not closed:** **#189** (§7.3 per-kind coalescing copy, with the measured RU
+compact-age problem), **#190** (decision B vs one-representative — a watched-and-active Request's outcome has no
+dismiss), **D15 step 5** (session invalidation, unmet and recorded in three places), the RU copy divergence for
+"Reset counters", and U18b's no-counter decision for un-demotable hierarchy rows.
+
+**For review:** `docs/features/request-attention.md` gained §4 and §9a text across four units. Each edit
+describes delivered behaviour in the document's voice, but the file is the owner's and the accumulated change
+deserves one read. U19 also found a **real contract/code disagreement** there: §4 says "a surface cleared by
+opening Requests is still caught up; it simply states no number", while `forYouEmptyKind` returns `nothingHere`
+for exactly that state, because `wasClearedHere` tracks only explicit sweeps. Reported, not silently changed —
+it is a product rule, not a bug to patch inside a release gate.
