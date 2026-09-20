@@ -3,7 +3,7 @@
   "channel": "entity_changes",
   "contractTests": [
     "packages/server/test/architecture/realtime_entity_contract_test.dart",
-    "packages/server/test/data/database/realtime_notification_migration_test.dart",
+    "packages/server/test/data/service/pg_notification_service_test.dart",
     "packages/server/test/data/repository/room_message_snapshot_lookup_test.dart",
     "packages/client/test/architecture/realtime_entity_contract_test.dart",
     "packages/client/test/architecture/realtime_entity_contract_impacts_test.dart",
