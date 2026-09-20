@@ -108,8 +108,7 @@ still be there), and *nothing matching this filter*.
 The cleared state is **rewarded**: a light illustration, "You're caught up", and — after an explicit sweep —
 the number that sweep actually cleared. The reward belongs to the cleared voice only, and it is withdrawn
 whenever the celebration would be untrue: a sweep that did not finish, one with members the server could not
-clear, a sweep that was undone, a loading or failed surface. A surface cleared by opening Requests is still
-caught up; it simply states no number, because none was achieved by a gesture that counted one.
+clear, a sweep that was undone, a loading or failed surface.
 
 My Desk carries the same idea as one quiet line above work that is still listed — *nothing is waiting on a
 response* — and never over an empty desk, where "caught up" would be a reward for having nothing.

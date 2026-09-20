@@ -95,9 +95,10 @@ bool shouldShowForYouEmptyState({
 /// filter* is a hidden surface, not a cleared one.
 ///
 /// [lastSweep] is the last explicit *Dismiss all* of this session, or `null`
-/// if the person never ran one — a surface cleared by opening Requests is
-/// still caught up, it just has no number, and inventing one is the
-/// fabricated success D18 forbids.
+/// if the person never ran one. The reward can still be right with no sweep
+/// behind it — a stream emptied while the pinned decision zone remains is
+/// [ForYouEmptyKind.nothingNew] on its own — and then it simply carries no
+/// number, because inventing one is the fabricated success D18 forbids.
 ///
 /// A sweep that did not finish — bounded and resumable, or with members the
 /// server failed to clear — withdraws the reward entirely. "Never celebrate
