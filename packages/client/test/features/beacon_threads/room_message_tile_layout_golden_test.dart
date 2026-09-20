@@ -312,7 +312,9 @@ void main() {
         find.byKey(const Key('golden')),
         matchesGoldenFile('goldens/room_message_reply_quote_mine_dark.png'),
       );
-    });
+    },
+      tags: 'golden',
+    );
 
     testWidgets('reply_quote_other_dark', (tester) async {
       final profileCubit = _GoldenProfileCubit();
@@ -366,7 +368,9 @@ void main() {
         find.byKey(const Key('golden')),
         matchesGoldenFile('goldens/room_message_reply_quote_other_dark.png'),
       );
-    });
+    },
+      tags: 'golden',
+    );
   }, skip: 'Goldens disabled');
 
   group('room message layout', () {

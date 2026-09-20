@@ -12,22 +12,26 @@ import 'package:tentura/features/beacon/ui/widget/beacon_discoverability_control
 import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
 import 'package:tentura/features/beacon_create/ui/widget/info_tab.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/l10n/l10n_en.dart';
 import 'package:tentura/ui/test_ids.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'fake_beacon_ports.dart';
 
-const _reachStatement =
-    'Discoverable by people you and your network can both see';
+final _l10n = L10nEn();
 
-Widget _infoTabHarness(BeaconCreateCubit cubit) {
+Widget _infoTabHarness(
+  BeaconCreateCubit cubit, {
+  Size size = const Size(800, 1200),
+  TextScaler textScaler = TextScaler.noScaling,
+}) {
   return MaterialApp(
     locale: const Locale('en'),
     localizationsDelegates: L10n.localizationsDelegates,
     supportedLocales: L10n.supportedLocales,
     theme: TenturaTheme.light(),
     home: MediaQuery(
-      data: const MediaQueryData(size: Size(800, 1200)),
+      data: MediaQueryData(size: size, textScaler: textScaler),
       child: Scaffold(
         body: BlocProvider<BeaconCreateCubit>.value(
           value: cubit,
@@ -69,6 +73,11 @@ Widget _controlHarness({
   );
 }
 
+void _expectBothExplanationsVisible(WidgetTester tester) {
+  expect(find.text(_l10n.requestDiscoverableOn), findsOneWidget);
+  expect(find.text(_l10n.requestDiscoverableOff), findsOneWidget);
+}
+
 void main() {
   setUp(() {
     GetIt.I.registerSingleton<Env>(
@@ -99,7 +108,15 @@ void main() {
     final toggle = find.byKey(TestIds.key(TestIds.requestDiscoverableToggle));
     expect(toggle, findsOneWidget);
     expect(tester.widget<SwitchListTile>(toggle).value, isTrue);
-    expect(find.text(_reachStatement), findsOneWidget);
+    _expectBothExplanationsVisible(tester);
+    expect(
+      tester.widget<SwitchListTile>(toggle).subtitle,
+      isA<Text>().having(
+        (t) => t.data,
+        'subtitle',
+        _l10n.requestDiscoverableOn,
+      ),
+    );
   });
 
   testWidgets('toggling off round-trips through beaconUpdate on saveEdit', (
@@ -131,6 +148,19 @@ void main() {
     await tester.tap(find.byKey(TestIds.key(TestIds.requestDiscoverableToggle)));
     await tester.pumpAndSettle();
     expect(cubit.state.isDiscoverable, isFalse);
+    _expectBothExplanationsVisible(tester);
+    expect(
+      tester
+          .widget<SwitchListTile>(
+            find.byKey(TestIds.key(TestIds.requestDiscoverableToggle)),
+          )
+          .subtitle,
+      isA<Text>().having(
+        (t) => t.data,
+        'subtitle',
+        _l10n.requestDiscoverableOff,
+      ),
+    );
 
     await cubit.saveEdit(context: 'c', navigateBack: false);
 
@@ -138,7 +168,7 @@ void main() {
     expect(write.updatedFields.single.isDiscoverable, isFalse);
   });
 
-  testWidgets('reach statement is present whenever the toggle is', (
+  testWidgets('both explanations are present whenever the toggle is', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -146,7 +176,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text(_reachStatement), findsOneWidget);
+    _expectBothExplanationsVisible(tester);
     expect(
       find.byKey(TestIds.key(TestIds.requestDiscoverableToggle)),
       findsOneWidget,
@@ -159,10 +189,39 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text(_reachStatement), findsNothing);
+    expect(find.text(_l10n.requestDiscoverableOn), findsNothing);
+    expect(find.text(_l10n.requestDiscoverableOff), findsNothing);
     expect(
       find.byKey(TestIds.key(TestIds.requestDiscoverableToggle)),
       findsNothing,
     );
   });
+
+  testWidgets(
+    'compact + large text scale still reaches toggle and both explanations',
+    (tester) async {
+      final write = FakeBeaconWritePort();
+      final cubit = BeaconCreateCubit(
+        beaconCreateCase: fakeBeaconCreateCase(write: write),
+        effects: FakeUiEffectPort(),
+      );
+      addTearDown(cubit.close);
+
+      await tester.pumpWidget(
+        _infoTabHarness(
+          cubit,
+          size: const Size(360, 760),
+          textScaler: const TextScaler.linear(2),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await _scrollToDiscoverabilityToggle(tester);
+
+      expect(
+        find.byKey(TestIds.key(TestIds.requestDiscoverableToggle)),
+        findsOneWidget,
+      );
+      _expectBothExplanationsVisible(tester);
+    },
+  );
 }

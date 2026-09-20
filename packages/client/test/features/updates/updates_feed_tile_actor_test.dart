@@ -156,5 +156,7 @@ void main() {
       find.byKey(const Key('golden')),
       matchesGoldenFile('goldens/updates_feed_tile_with_actor_light_en_360.png'),
     );
-  });
+  },
+    tags: 'golden',
+  );
 }

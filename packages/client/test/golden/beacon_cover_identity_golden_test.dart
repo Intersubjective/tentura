@@ -238,7 +238,9 @@ void main() {
           child: BeaconIdentityTile(beacon: _thumbBeacon, size: 40),
         ),
       );
-    });
+    },
+      tags: 'golden',
+    );
 
     for (final brightness in Brightness.values) {
       for (final size in <double>[32, 40, 56]) {
@@ -263,6 +265,7 @@ void main() {
               ),
             );
           },
+          tags: 'golden',
         );
       }
     }
@@ -297,7 +300,9 @@ void main() {
             ),
           ),
         );
-      });
+      },
+        tags: 'golden',
+      );
     }
   });
 
@@ -325,7 +330,9 @@ void main() {
             ],
           ),
         );
-      });
+      },
+        tags: 'golden',
+      );
     }
   }, skip: 'Goldens disabled');
 
@@ -349,6 +356,8 @@ void main() {
           ],
         ),
       );
-    });
+    },
+      tags: 'golden',
+    );
   }, skip: 'Goldens disabled');
 }

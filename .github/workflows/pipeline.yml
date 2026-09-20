@@ -37,10 +37,50 @@ jobs:
           - lints
           - server
           - client
+          - pg
     steps:
       - uses: actions/checkout@v6
         with:
           token: ${{ github.token }}
+
+      # Only the `pg` shard needs a database, and it runs on its own runner, so
+      # starting these here costs the other shards nothing.
+      #
+      # MeritRank is not optional even though the `mr`-tagged tests are
+      # excluded: `public.graph`, `person_visibility_peers` and friends call
+      # `mr_*` inside their bodies, so tests that never mention MeritRank still
+      # reach it. Verified by stopping the service locally — 34 untagged tests
+      # fail without it. The images and wiring mirror `compose.dev.yaml`.
+      - name: Start Postgres and MeritRank for the pg shard
+        if: matrix.target == 'pg'
+        run: |
+          set -euo pipefail
+          docker network create tentura-ci
+          docker run -d --name meritrank --network tentura-ci \
+            --hostname meritrank \
+            -e MERITRANK_SERVER_ADDRESS=0.0.0.0 \
+            -e MERITRANK_SERVER_PORT=8080 \
+            -e MERITRANK_NUM_WALKS=1000 \
+            -e MERITRANK_ZERO_OPINION_FACTOR=0.02 \
+            -e MERITRANK_ALPHA=0.85 \
+            -e MERITRANK_WALKS_CACHE_SIZE=200 \
+            vbulavintsev/meritrank-service:v0.9.0
+          docker run -d --name tentura-pg --network tentura-ci \
+            -e POSTGRES_PASSWORD=password \
+            -e MERITRANK_SERVICE_URL=tcp://meritrank:8080 \
+            -e MERITRANK_RECV_TIMEOUT_MSEC=60000 \
+            -p 5432:5432 \
+            vbulavintsev/postgres-tentura:v0.8.0
+          for _ in $(seq 1 60); do
+            if docker exec tentura-pg pg_isready -U postgres >/dev/null 2>&1; then
+              echo "postgres ready"; exit 0
+            fi
+            sleep 2
+          done
+          echo "postgres did not become ready" >&2
+          docker logs tentura-pg >&2 || true
+          docker logs meritrank >&2 || true
+          exit 1
 
       - name: Cache pub dependencies
         uses: actions/cache@v5
@@ -56,7 +96,13 @@ jobs:
           if [ "$target" = "client" ]; then
             bash scripts/test_resolve_deploy_web_config.sh
           fi
-          docker run --rm \
+          network_args=()
+          if [ "$target" = "pg" ]; then
+            # share the runner's network so 127.0.0.1:5432 reaches the Postgres
+            # container started above
+            network_args+=(--network host)
+          fi
+          docker run --rm "${network_args[@]}" \
             -v "${{ github.workspace }}":/app -w /app \
             -v "${{ github.workspace }}/.pub-cache":/root/.pub-cache \
             --env TEST_TARGET="$target" \
@@ -81,6 +127,15 @@ jobs:
                   ! rg "package:tentura_server/data/repository" lib/domain
                   ! rg "package:tentura_server/data/(service|storage)/" lib/domain/use_case
                   ! rg "package:tentura_server/data/" lib/domain
+                  ;;
+                pg)
+                  # The MeritRank-touching tests are excluded: that service is a
+                  # single shared instance, so they must run serially (`-j 1`,
+                  # 8m) and belong in a nightly, not on every push.
+                  dart pub get
+                  cd packages/server
+                  dart run build_runner build -d
+                  dart test --tags pg --exclude-tags mr
                   ;;
                 client)
                   python3 scripts/test_check_arb_duplicates.py

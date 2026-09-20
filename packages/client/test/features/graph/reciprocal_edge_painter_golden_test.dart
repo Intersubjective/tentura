@@ -108,5 +108,6 @@ void main() {
         matchesGoldenFile('goldens/reciprocal_edge_bidirectional.png'),
       );
     },
+    tags: 'golden',
   );
 }

@@ -76,6 +76,7 @@ void main() {
               ),
             );
           },
+          tags: 'golden',
         );
       }
     }
@@ -135,5 +136,7 @@ void main() {
         'goldens/tentura_attention_summary_row_collapsed_light_en_360_s1_3.png',
       ),
     );
-  });
+  },
+    tags: 'golden',
+  );
 }

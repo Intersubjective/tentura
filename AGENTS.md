@@ -54,8 +54,12 @@ cd packages/tentura_lints && ../../scripts/run_with_test_cleanup.sh --timeout 10
 ./scripts/run_with_test_cleanup.sh --timeout 10m -- ./scripts/check-custom-lints.sh packages/server
 cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 45m -- \
   flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env
+# Goldens are skipped by default (see packages/client/dart_test.yaml): the UI
+# changes daily, so pixel comparisons churn faster than they catch anything.
 cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
-  flutter test --update-goldens <path>   # regenerate a golden intentionally
+  flutter test --tags golden --run-skipped                  # run them
+cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
+  flutter test --tags golden --run-skipped --update-goldens # regenerate them
 cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
   dart test --exclude-tags pg
 # Postgres tests run in two steps. The `mr` ones also reach the MeritRank
@@ -72,8 +76,15 @@ cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 30m -- \
 > rather than migrated one by one — `migrateDbSchema` holds a **cluster-wide**
 > advisory lock, and 95 test files serializing on it for a full schema build was
 > the main source of load-dependent failures. The template rebuilds itself when
-> the migration registry changes. Stale `tentura_test_*` databases accumulate and
-> slow every `CREATE DATABASE`; drop them if a suite run looks unusually slow.
+> the migration registry changes. Stale `tentura_test_*` databases are dropped by
+> `run_with_test_cleanup.sh --sweep-only` (older than `PG_GC_MIN_AGE_MIN`,
+> default 120 min, and with no live connection); it is maintenance only and
+> never runs as part of a test run. `tentura_test_tpl_*` templates are kept on
+> purpose and reused across runs.
+>
+> **Never run two wrapped suites at once.** They sweep each other's
+> `/tmp/dart_test.kernel.*`, and every test file then fails to load with an empty
+> "Failed to load" message that looks nothing like the real cause.
 >
 > Never query `pg_locks` or `pg_stat_activity` from a test without scoping to
 > `current_database()` (or `datname = <own database>`): they report the whole

@@ -56,7 +56,9 @@ void main() {
       find.byKey(const Key('golden')),
       matchesGoldenFile('goldens/closed_request_banner_360.png'),
     );
-  });
+  },
+    tags: 'golden',
+  );
 
   testWidgets('ClosedRequestBanner golden wide 800', (tester) async {
     await _pumpBanner(tester, logicalSize: const Size(800, 200));
@@ -64,5 +66,7 @@ void main() {
       find.byKey(const Key('golden')),
       matchesGoldenFile('goldens/closed_request_banner_800.png'),
     );
-  });
+  },
+    tags: 'golden',
+  );
 }

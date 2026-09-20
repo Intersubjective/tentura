@@ -189,6 +189,20 @@ final class DisposablePgTarget {
     }
   }
 
+  /// Recreates this database from the template, under the lifecycle lock.
+  ///
+  /// The entry point for tests that manage their own connection and call
+  /// `migrateDbSchema` themselves: the clone already carries the head schema,
+  /// so that call finds nothing pending and returns immediately.
+  Future<void> recreate() => withDisposablePgLifecycleLock(adminEnv, () async {
+    await _ensureTemplateUnlocked(adminEnv, templateEnv);
+    await _recreateFromTemplateUnlocked();
+  });
+
+  /// Drops this database, under the lifecycle lock.
+  Future<void> drop() =>
+      withDisposablePgLifecycleLock(adminEnv, _dropUnlocked);
+
   /// Clones the prebuilt template instead of running the schema build.
   ///
   /// `CREATE DATABASE … TEMPLATE` is a file copy: no migration, and crucially

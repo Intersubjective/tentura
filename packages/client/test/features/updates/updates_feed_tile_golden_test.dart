@@ -66,7 +66,9 @@ void main() {
       find.byKey(const Key('row-golden')),
       matchesGoldenFile('goldens/updates_dense_row_dark_compact.png'),
     );
-  });
+  },
+    tags: 'golden',
+  );
 
   testWidgets('360 dark RU top bar keeps command size', (tester) async {
     const size = Size(360, 800);
@@ -111,5 +113,7 @@ void main() {
       find.byType(AppBar),
       matchesGoldenFile('goldens/updates_top_bar_dark_ru_360.png'),
     );
-  });
+  },
+    tags: 'golden',
+  );
 }

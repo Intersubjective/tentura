@@ -47,7 +47,9 @@ void main() {
       find.byKey(const ValueKey('evaluation-impact-golden-boundary')),
       matchesGoldenFile('goldens/evaluation_impact_control_light_320.png'),
     );
-  });
+  },
+    tags: 'golden',
+  );
 
   testWidgets('impact control dark 320px selected state', (tester) async {
     _setActualSurface(tester);
@@ -58,5 +60,7 @@ void main() {
       find.byKey(const ValueKey('evaluation-impact-golden-boundary')),
       matchesGoldenFile('goldens/evaluation_impact_control_dark_320.png'),
     );
-  });
+  },
+    tags: 'golden',
+  );
 }

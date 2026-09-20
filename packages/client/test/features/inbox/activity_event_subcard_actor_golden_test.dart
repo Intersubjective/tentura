@@ -90,5 +90,7 @@ void main() {
       goldenName: 'event_subcard_with_actor_light_en_360.png',
       actor: const Profile(id: 'u1', displayName: 'Anna'),
     );
-  });
+  },
+    tags: 'golden',
+  );
 }

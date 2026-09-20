@@ -112,7 +112,9 @@ void main() {
       find.byKey(const Key('golden')),
       matchesGoldenFile('goldens/inbox_watchlist_row.png'),
     );
-  });
+  },
+    tags: 'golden',
+  );
 
   testWidgets('InboxWatchlistRow golden selected', (tester) async {
     final beacon = Beacon(
@@ -140,7 +142,9 @@ void main() {
       find.byKey(const Key('golden')),
       matchesGoldenFile('goldens/inbox_watchlist_row_selected.png'),
     );
-  });
+  },
+    tags: 'golden',
+  );
 
   testWidgets('empty details content omits Details row', (tester) async {
     final beacon = Beacon(

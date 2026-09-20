@@ -129,7 +129,9 @@ void main() {
           );
         }
       }
-    });
+    },
+      tags: 'golden',
+    );
 
     testWidgets('my work-style card', (tester) async {
       for (final s in sizes) {
@@ -143,7 +145,9 @@ void main() {
           );
         }
       }
-    });
+    },
+      tags: 'golden',
+    );
 
     testWidgets('beacon view header', (tester) async {
       for (final s in sizes) {
@@ -157,7 +161,9 @@ void main() {
           );
         }
       }
-    });
+    },
+      tags: 'golden',
+    );
 
     testWidgets('forward composer', (tester) async {
       final controller = TextEditingController(
@@ -182,7 +188,9 @@ void main() {
           );
         }
       }
-    });
+    },
+      tags: 'golden',
+    );
 
     testWidgets('forward composer collapsed', (tester) async {
       final controller = TextEditingController();
@@ -205,7 +213,9 @@ void main() {
           );
         }
       }
-    });
+    },
+      tags: 'golden',
+    );
 
     testWidgets('forward recipient row', (tester) async {
       for (final s in sizes) {
@@ -219,7 +229,9 @@ void main() {
           );
         }
       }
-    });
+    },
+      tags: 'golden',
+    );
 
     testWidgets('bottom navigation bar', (tester) async {
       for (final s in sizes) {
@@ -233,7 +245,9 @@ void main() {
           );
         }
       }
-    });
+    },
+      tags: 'golden',
+    );
   }, skip: 'Goldens disabled');
 }
 

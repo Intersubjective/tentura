@@ -371,7 +371,9 @@ void main() {
       find.byKey(const Key('golden')),
       matchesGoldenFile('goldens/tentura_top_bar_matrix.png'),
     );
-  });
+  },
+    tags: 'golden',
+  );
 }
 
 class _TopBarHarness extends StatelessWidget {

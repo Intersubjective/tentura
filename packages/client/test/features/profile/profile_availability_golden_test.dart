@@ -118,7 +118,9 @@ void main() {
             'goldens/profile_availability_${testCase.id}_compact.png',
           ),
         );
-      });
+      },
+        tags: 'golden',
+      );
 
       testWidgets('${testCase.id} expanded', (tester) async {
         await pumpGolden(
@@ -134,7 +136,9 @@ void main() {
             'goldens/profile_availability_${testCase.id}_expanded.png',
           ),
         );
-      });
+      },
+        tags: 'golden',
+      );
 
       testWidgets('${testCase.id} compact text scale 1.3', (tester) async {
         await pumpGolden(
@@ -150,7 +154,9 @@ void main() {
             'goldens/profile_availability_${testCase.id}_compact_s1_3.png',
           ),
         );
-      });
+      },
+        tags: 'golden',
+      );
     }
 
     testWidgets('sanity: primary lines match localization helpers', (tester) async {

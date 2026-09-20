@@ -155,6 +155,7 @@ void main() {
                   'my_work_obligation_block_${suffix}_${brightness.name}_${locale.languageCode}_360.png',
             );
           },
+          tags: 'golden',
         );
       }
     }
@@ -171,7 +172,9 @@ void main() {
       textScaler: TextScaler.linear(1.3),
       goldenName: 'my_work_obligation_block_5_obligations_collapsed_light_en_360_1p3.png',
     );
-  });
+  },
+    tags: 'golden',
+  );
 
   // §9 — the card's active-event block has a ceiling, and mounting it on My
   // Desk must not lift it. The worst case the desk can reach while collapsed

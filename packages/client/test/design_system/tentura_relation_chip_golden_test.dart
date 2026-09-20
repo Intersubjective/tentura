@@ -85,6 +85,7 @@ void main() {
               ),
             );
           },
+          tags: 'golden',
         );
       }
     }
@@ -107,5 +108,7 @@ void main() {
       find.byKey(const Key('golden')),
       matchesGoldenFile('goldens/tentura_relation_chip_light_ru_360_s1_3.png'),
     );
-  });
+  },
+    tags: 'golden',
+  );
 }

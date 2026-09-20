@@ -9,7 +9,8 @@
 # Why a detached reaper: Cursor/Claude/Codex often SIGKILL the wrapper
 # bash. EXIT traps do not run on SIGKILL. The reaper lives in its own
 # session, watches the wrapper PID, then kills tagged descendants and
-# drops unreferenced /tmp/flutter_tools.* and /tmp/dart_test.kernel.*
+# drops unreferenced /tmp/flutter_tools.* and /tmp/dart_test.kernel.*,
+# and stale disposable `tentura_test_*` Postgres databases
 # (those sit on the 31GiB tmpfs and count as RAM).
 #
 # Preserves: `flutter run` web compilers (`--target=dartdevc`),
@@ -198,6 +199,60 @@ if removed:
 PY
 }
 
+# Drops disposable Postgres databases left behind by killed test runs.
+#
+# Each pg test creates `tentura_test_*` and drops it in teardown; a SIGKILLed
+# run leaves it. They accumulate — 113 were found on 2026-09-20 — and every
+# `CREATE DATABASE` the suite issues gets slower, because the catalog and the
+# template copy both grow. One run with that backlog took 4:35 against a usual
+# 3:30 and failed five unrelated tests on 30-second timeouts.
+#
+# Runs only under `--sweep-only`, never as part of a test run. Only databases
+# with no active connection and older than PG_GC_MIN_AGE_MIN minutes are
+# dropped, so a concurrent run's databases are never touched either.
+# `tentura_test_tpl_*` are schema templates, deliberately long-lived and
+# reused across runs; they are dropped only when superseded, which needs
+# `datistemplate` cleared first.
+PG_GC_MIN_AGE_MIN="${PG_GC_MIN_AGE_MIN:-120}"
+
+sweep_pg_databases() {
+  command -v docker >/dev/null 2>&1 || return 0
+  docker ps --format '{{.Names}}' 2>/dev/null | grep -qx postgres || return 0
+
+  local keep_tpl
+  keep_tpl="$(pg_gc_psql "SELECT datname FROM pg_database
+                          WHERE datname LIKE 'tentura_test_tpl_%'" || true)"
+
+  local victims
+  victims="$(pg_gc_psql "
+    SELECT d.datname
+      FROM pg_database d
+     WHERE d.datname LIKE 'tentura_test_%'
+       AND d.datname NOT LIKE 'tentura_test_tpl_%'
+       AND NOT EXISTS (
+             SELECT 1 FROM pg_stat_activity a WHERE a.datname = d.datname)
+       AND COALESCE(
+             (pg_stat_file('base/' || d.oid::text, true)).modification,
+             now() - interval '1 day')
+           < now() - interval '${PG_GC_MIN_AGE_MIN} minutes'
+  " || true)"
+
+  local dropped=0 db
+  while IFS= read -r db; do
+    [[ -z "$db" ]] && continue
+    pg_gc_psql "DROP DATABASE IF EXISTS \"$db\" WITH (FORCE)" >/dev/null 2>&1 \
+      && dropped=$((dropped + 1))
+  done <<<"$victims"
+
+  [[ "$dropped" -gt 0 ]] && log "dropped $dropped stale tentura_test_* database(s)"
+  [[ -n "${keep_tpl:-}" ]] && log "kept schema template(s): $(echo "$keep_tpl" | tr '\n' ' ')"
+  return 0
+}
+
+pg_gc_psql() {
+  docker exec postgres psql -U postgres -d postgres -tAc "$1" 2>/dev/null
+}
+
 sweep_run() {
   local run_id="$1"
   kill_tagged_tree "$run_id"
@@ -294,6 +349,10 @@ main() {
 
   if [[ "$sweep_only" -eq 1 ]]; then
     sweep_run "sweep-only-$$"
+    # Database GC is maintenance, not part of a test run: a few non-pg-tagged
+    # tests still open Postgres connections, and there is no reason to let
+    # housekeeping touch the database while any suite might be using it.
+    sweep_pg_databases || true
     exit 0
   fi
 

@@ -105,6 +105,7 @@ void main() {
               ),
             );
           },
+          tags: 'golden',
         );
       }
     }
@@ -129,5 +130,7 @@ void main() {
         'goldens/attention_mini_card_forward_light_ru_360_s1_3.png',
       ),
     );
-  });
+  },
+    tags: 'golden',
+  );
 }

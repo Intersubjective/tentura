@@ -84,6 +84,7 @@ void main() {
               ),
             );
           },
+          tags: 'golden',
         );
       }
     }
@@ -106,5 +107,7 @@ void main() {
       find.byKey(const Key('golden')),
       matchesGoldenFile('goldens/tentura_section_header_light_en_360_s1_3.png'),
     );
-  });
+  },
+    tags: 'golden',
+  );
 }

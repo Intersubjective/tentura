@@ -24,6 +24,8 @@ import 'package:tentura_server/env.dart';
 
 import '../../support/fake_beacon_hierarchy_repository.dart';
 import '../../support/beacon_lifecycle_effects_test_support.dart';
+
+import '../../support/disposable_pg_target.dart';
 import '../../support/review_finalization_test_support.dart'
     show
         FakeAttribution,
@@ -42,8 +44,11 @@ const _subject = 'Ucapc2subj001';
 const _kOut = kCapKOut;
 
 Future<void> main() async {
-  final target = _DisposablePgTarget.fromEnvironment();
-  final reachable = await _canConnect(target.adminEnv);
+  final target = DisposablePgTarget.fromNamedEnvironment(
+    envVarName: 'TENTURA_REVIEW_OUTCOME_TEST_DB',
+    defaultNamePrefix: 'tentura_test_review_outcome',
+  );
+  final reachable = await canReachPostgresAdmin(target);
   final skipReason = reachable
       ? false
       : 'Postgres admin database not reachable for disposable test target';
@@ -551,98 +556,3 @@ Future<double> _effectiveOutStrength(
   return (row.single.single as num).toDouble();
 }
 
-Future<bool> _canConnect(Env env) async {
-  try {
-    final connection = await Connection.open(
-      env.pgEndpoint,
-      settings: env.pgEndpointSettings,
-    );
-    await connection.close();
-    return true;
-  } on Object {
-    return false;
-  }
-}
-
-class _DisposablePgTarget {
-  const _DisposablePgTarget({
-    required this.adminEnv,
-    required this.databaseEnv,
-    required this.databaseName,
-  });
-
-  factory _DisposablePgTarget.fromEnvironment() {
-    final host = Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1';
-    final port =
-        int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432;
-    final username = Platform.environment['POSTGRES_USERNAME'] ?? 'postgres';
-    final password = Platform.environment['POSTGRES_PASSWORD'] ?? 'password';
-    final adminDatabase =
-        Platform.environment['POSTGRES_ADMIN_DBNAME'] ?? 'postgres';
-    final databaseName =
-        Platform.environment['TENTURA_REVIEW_OUTCOME_TEST_DB'] ??
-        'tentura_test_review_outcome_${pid}_${DateTime.timestamp().microsecondsSinceEpoch}';
-    if (!RegExp(r'^tentura_test_[a-z0-9_]+$').hasMatch(databaseName) ||
-        databaseName.length > 63) {
-      throw ArgumentError.value(
-        databaseName,
-        'TENTURA_REVIEW_OUTCOME_TEST_DB',
-        'must match tentura_test_[a-z0-9_]+ and be at most 63 characters',
-      );
-    }
-
-    Env envFor(String database) => Env(
-      environment: Environment.test,
-      pgHost: host,
-      pgPort: port,
-      pgDatabase: database,
-      pgUsername: username,
-      pgPassword: password,
-      printEnv: false,
-      isDebugModeOn: false,
-    );
-
-    return _DisposablePgTarget(
-      adminEnv: envFor(adminDatabase),
-      databaseEnv: envFor(databaseName),
-      databaseName: databaseName,
-    );
-  }
-
-  final Env adminEnv;
-  final Env databaseEnv;
-  final String databaseName;
-
-  Future<void> recreate() async {
-    final admin = await Connection.open(
-      adminEnv.pgEndpoint,
-      settings: adminEnv.pgEndpointSettings,
-    );
-    try {
-      await admin.execute(
-        'SELECT pg_terminate_backend(pid) FROM pg_stat_activity '
-        "WHERE datname = '$databaseName' AND pid <> pg_backend_pid()",
-      );
-      await admin.execute('DROP DATABASE IF EXISTS "$databaseName"');
-      await admin.execute('CREATE DATABASE "$databaseName"');
-    } finally {
-      await admin.close();
-    }
-  }
-
-  Future<void> drop() async {
-    final admin = await Connection.open(
-      adminEnv.pgEndpoint,
-      settings: adminEnv.pgEndpointSettings,
-    );
-    try {
-      await admin.execute(
-        'SELECT pg_terminate_backend(pid) FROM pg_stat_activity '
-        "WHERE datname = '$databaseName' AND pid <> pg_backend_pid()",
-      );
-      await admin.execute('DROP DATABASE IF EXISTS "$databaseName"');
-    } finally {
-      await admin.close();
-    }
-  }
-}

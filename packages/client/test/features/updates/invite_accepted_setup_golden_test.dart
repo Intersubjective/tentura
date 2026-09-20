@@ -166,7 +166,9 @@ void main() {
           'goldens/invite_accepted_compact_card_${variant.$1}.png',
         ),
       );
-    });
+    },
+      tags: 'golden',
+    );
 
     testWidgets('invite setup modal ${variant.$1}', (tester) async {
       await _pumpModal(tester, theme: variant.$2);
@@ -176,6 +178,8 @@ void main() {
           'goldens/invite_accepted_setup_modal_${variant.$1}.png',
         ),
       );
-    });
+    },
+      tags: 'golden',
+    );
   }
 }

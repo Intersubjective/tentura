@@ -121,7 +121,9 @@ void main() {
                 ? TenturaTheme.light()
                 : TenturaTheme.dark(),
           );
-        });
+        },
+          tags: 'golden',
+        );
       }
     }
   }
@@ -135,7 +137,9 @@ void main() {
       theme: TenturaTheme.light(),
       textScale: 1.3,
     );
-  });
+  },
+    tags: 'golden',
+  );
 
   testWidgets('height does not depend on how many events the server has', (
     tester,

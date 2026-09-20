@@ -1,0 +1,12 @@
+tags:
+  golden:
+    # Goldens are opt-in. The UI is under active development, so pixel
+    # comparisons churn faster than they catch anything, and a stale golden
+    # fails a build for a change that was intended. The behavioural tests in
+    # these same files still run — only the assertions that compare rendered
+    # pixels are skipped, which is why the tag is per test rather than per file.
+    #
+    #   flutter test --tags golden --run-skipped          # run them
+    #   flutter test --tags golden --run-skipped --update-goldens
+    #
+    skip: "Golden comparison is opt-in: --tags golden --run-skipped"

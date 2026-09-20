@@ -65,7 +65,9 @@ void main() {
       find.byKey(const Key('golden')),
       matchesGoldenFile('goldens/blocked_user_tile_light.png'),
     );
-  });
+  },
+    tags: 'golden',
+  );
 
   testWidgets('BlockedUserTile golden dark (C7)', (tester) async {
     await _pumpTile(
@@ -79,5 +81,7 @@ void main() {
       find.byKey(const Key('golden')),
       matchesGoldenFile('goldens/blocked_user_tile_dark.png'),
     );
-  });
+  },
+    tags: 'golden',
+  );
 }

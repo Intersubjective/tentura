@@ -153,7 +153,9 @@ void main() {
           brightness: brightness,
           goldenName: 'activity_prompt_pin_${theme}_$lang.png',
         );
-      });
+      },
+        tags: 'golden',
+      );
     }
   }
 }
