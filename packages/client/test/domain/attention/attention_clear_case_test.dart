@@ -222,6 +222,142 @@ void main() {
     await second.dispose();
   });
 
+  group('the sweep reward channel (D18)', () {
+    // The reward the cleared state may show is a *presentation* of the last
+    // explicit sweep, so the case publishes the sweep's own result and
+    // decides nothing about copy. What it does decide is when the reward is
+    // no longer about anything: a sweep that threw, an undo that put the rows
+    // back, and an account that is no longer this one.
+    AttentionDismissAllResult complete(String operationId) =>
+        AttentionDismissAllResult(
+          operationId: operationId,
+          status: AttentionOperationStatus.complete,
+          appliedReceiptIds: const ['r-1'],
+          appliedCount: 1,
+          undoToken: 'undo-1',
+          undoDeadline: DateTime.utc(2026, 9, 19, 10),
+        );
+
+    test('a complete sweep publishes what it achieved', () async {
+      await signIn(attention);
+      repository.dismissAllResult = complete;
+
+      final seen = <AttentionDismissAllResult?>[];
+      final sub = attention.lastSweepOutcome.listen(seen.add);
+      addTearDown(sub.cancel);
+      await attentionCaseTestSettle();
+      expect(seen, [null], reason: 'no sweep yet is no reward');
+
+      await attention.dismissAll();
+      await attentionCaseTestSettle();
+
+      expect(seen.last?.appliedCount, 1);
+      expect(seen.last?.isComplete, isTrue);
+    });
+
+    test('a partial sweep is published as partial, not hidden', () async {
+      // The presentation withdraws the celebration; the case must not lie
+      // about the sweep to make that happen, or a resumed sweep would have
+      // nothing to report either.
+      await signIn(attention);
+      repository.dismissAllResult = (operationId) => AttentionDismissAllResult(
+        operationId: operationId,
+        status: AttentionOperationStatus.partial,
+        appliedReceiptIds: const ['r-1'],
+        appliedCount: 1,
+        pendingCount: 2,
+      );
+
+      await attention.dismissAll();
+      await attentionCaseTestSettle();
+
+      final published = await attention.lastSweepOutcome.first;
+      expect(published?.needsResume, isTrue);
+      expect(published?.appliedCount, 1);
+    });
+
+    test('a sweep that threw leaves no reward behind', () async {
+      await signIn(attention);
+      repository.dismissAllResult = complete;
+      await attention.dismissAll();
+      await attentionCaseTestSettle();
+      expect(await attention.lastSweepOutcome.first, isNotNull);
+
+      repository.dismissAllError = StateError('offline');
+      await expectLater(attention.dismissAll(), throwsA(isA<StateError>()));
+      await attentionCaseTestSettle();
+
+      expect(
+        await attention.lastSweepOutcome.first,
+        isNull,
+        reason: 'a failed sweep may not leave the previous count on screen',
+      );
+    });
+
+    test('an undo takes the reward back with the rows', () async {
+      await signIn(attention);
+      repository.dismissAllResult = complete;
+      repository.undoResult = (operationId) => AttentionUndoResult(
+        operationId: operationId,
+        status: AttentionOperationStatus.complete,
+        restoredReceiptIds: const ['r-1'],
+      );
+
+      final sweep = await attention.dismissAll();
+      await attentionCaseTestSettle();
+      expect(await attention.lastSweepOutcome.first, isNotNull);
+
+      await attention.undoDismissAll(
+        operationId: sweep.operationId,
+        undoToken: sweep.undoToken!,
+      );
+      await attentionCaseTestSettle();
+
+      expect(
+        await attention.lastSweepOutcome.first,
+        isNull,
+        reason: 'undoing the sweep un-clears what the number counted',
+      );
+    });
+
+    test('a refused undo leaves the reward standing', () async {
+      await signIn(attention);
+      repository.dismissAllResult = complete;
+      repository.undoResult = (operationId) => AttentionUndoResult(
+        operationId: operationId,
+        status: AttentionOperationStatus.denied,
+        refusal: AttentionUndoRefusal.expired,
+      );
+
+      final sweep = await attention.dismissAll();
+      await attentionCaseTestSettle();
+      await attention.undoDismissAll(
+        operationId: sweep.operationId,
+        undoToken: sweep.undoToken!,
+      );
+      await attentionCaseTestSettle();
+
+      expect(
+        (await attention.lastSweepOutcome.first)?.appliedCount,
+        1,
+        reason: 'nothing moved, so the rows are still cleared',
+      );
+    });
+
+    test('another account inherits no reward', () async {
+      await signIn(attention);
+      repository.dismissAllResult = complete;
+      await attention.dismissAll();
+      await attentionCaseTestSettle();
+      expect(await attention.lastSweepOutcome.first, isNotNull);
+
+      accounts.emit('account-2');
+      await attentionCaseTestSettle();
+
+      expect(await attention.lastSweepOutcome.first, isNull);
+    });
+  });
+
   test('an expired undo surfaces as a refusal and restores nothing', () async {
     await signIn(attention);
     repository.undoResult = (operationId) => AttentionUndoResult(
@@ -346,6 +482,7 @@ final class _ClearRepository extends AttentionRepositoryFake {
     snapshotToken: 'snap-1',
   );
   Object? clearError;
+  Object? dismissAllError;
   AttentionClearResult Function(String operationId)? clearResult;
   AttentionDismissAllResult Function(String operationId)? dismissAllResult;
   AttentionUndoResult Function(String operationId)? undoResult;
@@ -448,12 +585,15 @@ final class _ClearRepository extends AttentionRepositoryFake {
   Future<AttentionDismissAllResult> dismissAll({
     required String operationId,
     int? maxBatches,
-  }) async =>
-      dismissAllResult?.call(operationId) ??
-      AttentionDismissAllResult(
-        operationId: operationId,
-        status: AttentionOperationStatus.complete,
-      );
+  }) async {
+    final error = dismissAllError;
+    if (error != null) throw error;
+    return dismissAllResult?.call(operationId) ??
+        AttentionDismissAllResult(
+          operationId: operationId,
+          status: AttentionOperationStatus.complete,
+        );
+  }
 
   @override
   Future<AttentionUndoResult> undo({

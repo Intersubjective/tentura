@@ -10,6 +10,7 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/components/tentura_attention_summary_row.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
+import 'package:tentura/domain/attention/entity/attention_clear.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/for_you_stream_entries.dart';
@@ -606,14 +607,23 @@ class _ActivityStreamScrollBody extends StatelessWidget {
         hasError: streamState.hasRefreshError || offersState.pageLoadFailed,
       ))
         SliverToBoxAdapter(
-          child: ForYouEmptyState(
-            kind: forYouEmptyKind(
-              // For You carries no filter control today; the state exists
-              // because §4 names three, and it is wired here rather than
-              // inlined so a filter gains its copy by passing `true`.
-              hasActiveFilter: false,
-              hasPinnedZone: placement.pinnedReceipts.isNotEmpty ||
-                  offersState.items.isNotEmpty,
+          // D18 — the cleared state rewards the completion, and after an
+          // explicit sweep it states the number that sweep actually cleared.
+          // The sweep runs from the app bar, outside this subtree, so the
+          // attention owner is what carries its result here.
+          child: StreamBuilder<AttentionDismissAllResult?>(
+            stream: GetIt.I<AttentionCase>().lastSweepOutcome,
+            builder: (context, snapshot) => ForYouEmptyState(
+              kind: forYouEmptyKind(
+                // For You carries no filter control today; the state exists
+                // because §4 names three, and it is wired here rather than
+                // inlined so a filter gains its copy by passing `true`.
+                hasActiveFilter: false,
+                hasPinnedZone: placement.pinnedReceipts.isNotEmpty ||
+                    offersState.items.isNotEmpty,
+                wasClearedHere: forYouSweptHere(snapshot.data),
+              ),
+              lastSweep: snapshot.data,
             ),
           ),
         ),

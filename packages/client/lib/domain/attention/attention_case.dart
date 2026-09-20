@@ -88,6 +88,16 @@ final class AttentionCase implements AttentionReconcilePort {
           needsYouTotal: 0,
         ),
       );
+  /// D18 — the last explicit sweep of this session, or `null` when there is
+  /// nothing to reward.
+  ///
+  /// The case publishes the sweep's own result and judges no copy: which of
+  /// those results may celebrate, and with what number, is
+  /// `forYouCaughtUpReward`'s to decide. What is decided here is when the
+  /// last sweep stopped being about anything — it threw, it was undone, or
+  /// the account changed.
+  final _lastSweep = BehaviorSubject<AttentionDismissAllResult?>.seeded(null);
+
   final Map<String, AttentionReceipt> _receiptsById = {};
 
   /// Requests whose projections a **projection owner** outside this case (My
@@ -151,6 +161,9 @@ final class AttentionCase implements AttentionReconcilePort {
 
   Stream<AttentionSurfaceSummary> get surfaceSummary =>
       _surfaceSummarySubject.stream.distinct();
+
+  /// D18 — see [_lastSweep].
+  Stream<AttentionDismissAllResult?> get lastSweepOutcome => _lastSweep.stream;
 
   Stream<AttentionFeedSnapshot> get feedPages => _snapshot.stream;
 
@@ -380,6 +393,7 @@ final class AttentionCase implements AttentionReconcilePort {
       ),
     );
     _surfaceSummaryRequestSerial = 0;
+    _publishSweep(null);
     if (accountId.isNotEmpty) {
       _requestHeadRefreshForAllAttached();
       unawaited(_requestSurfaceSummaryRefresh());
@@ -852,7 +866,7 @@ final class AttentionCase implements AttentionReconcilePort {
     final loaded = optimisticSweepMembers(_receiptsById.values.map(_overlay));
     _mutationSerial++;
     try {
-      return await _applyClearOptimistically(
+      final result = await _applyClearOptimistically(
         operationId: id,
         memberIds: loaded,
         run: () => _repository.dismissAll(
@@ -862,6 +876,13 @@ final class AttentionCase implements AttentionReconcilePort {
         appliedIdsOf: (result) => result.appliedReceiptIds,
         generation: generation,
       );
+      if (generation == _accountGeneration) _publishSweep(result);
+      return result;
+    } catch (_) {
+      // A sweep that failed is not a sweep that cleared anything, and the
+      // previous run's number must not stay on the screen as if it were.
+      if (generation == _accountGeneration) _publishSweep(null);
+      rethrow;
     } finally {
       _mutationSerial++;
       if (generation == _accountGeneration) {
@@ -897,6 +918,9 @@ final class AttentionCase implements AttentionReconcilePort {
       }
       _clears.rollback(operationId, result.restoredReceiptIds);
       _applyOptimisticAcks();
+      // The rows are back, so the count that celebrated their absence is not
+      // true any more.
+      _publishSweep(null);
       return result;
     } finally {
       _mutationSerial++;
@@ -1409,6 +1433,10 @@ final class AttentionCase implements AttentionReconcilePort {
     );
   }
 
+  void _publishSweep(AttentionDismissAllResult? result) {
+    if (!_lastSweep.isClosed) _lastSweep.add(result);
+  }
+
   @disposeMethod
   Future<void> dispose() async {
     await _accountSub?.cancel();
@@ -1420,5 +1448,6 @@ final class AttentionCase implements AttentionReconcilePort {
     await _offerGroups.close();
     await _snapshot.close();
     await _surfaceSummarySubject.close();
+    await _lastSweep.close();
   }
 }

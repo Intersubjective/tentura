@@ -27,6 +27,7 @@ import 'package:tentura/features/inbox/ui/bloc/inbox_cubit.dart';
 import 'package:tentura/features/inbox/ui/screen/inbox_screen.dart';
 import 'package:tentura/features/inbox/ui/widget/activity_stream_view.dart';
 import 'package:tentura/features/inbox/ui/widget/for_you_empty_state.dart';
+import 'package:tentura/ui/widget/caught_up_panel.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/updates/domain/use_case/invite_accepted_setup_case.dart';
 import 'package:tentura/features/updates/ui/widget/updates_feed_pane.dart';
@@ -483,7 +484,16 @@ void main() {
     await _tapDismissAll(tester);
 
     final l10n = L10nEn();
-    expect(find.text(l10n.inboxDismissAllCleared(3), findRichText: true), findsOneWidget);
+    // The count is now stated twice on purpose — once in the transient snack
+    // bar that carries Undo, once on the cleared state D18 rewards — so this
+    // pins the snack bar's copy specifically.
+    expect(
+      find.descendant(
+        of: find.byType(SnackBar),
+        matching: find.text(l10n.inboxDismissAllCleared(3), findRichText: true),
+      ),
+      findsOneWidget,
+    );
     expect(find.text(l10n.inboxDismissAllUndo), findsOneWidget);
 
     await tester.tap(find.text(l10n.inboxDismissAllUndo));
@@ -510,7 +520,13 @@ void main() {
     await _tapDismissAll(tester);
 
     final l10n = L10nEn();
-    expect(find.text(l10n.inboxDismissAllCleared(1), findRichText: true), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(SnackBar),
+        matching: find.text(l10n.inboxDismissAllCleared(1), findRichText: true),
+      ),
+      findsOneWidget,
+    );
     expect(
       find.text(l10n.inboxDismissAllUndo),
       findsNothing,
@@ -626,6 +642,76 @@ void main() {
         findsNothing,
         reason: 'nothing was cleared here, so nothing was "cleared"',
       );
+    },
+  );
+
+  testWidgets(
+    'gate on: a completed sweep leaves the reward, with the real number',
+    (tester) async {
+      // D18 — "after an explicit sweep, show the actual number cleared". The
+      // sweep runs from the app bar and the empty state is in the body, so
+      // this is also the proof the two are actually connected.
+      final repo = _ChromeAttentionRepo(
+        sweepEligible: true,
+        dismissAllResult: const AttentionDismissAllResult(
+          operationId: 'placeholder',
+          status: AttentionOperationStatus.complete,
+          appliedCount: 5,
+        ),
+      );
+      await _pumpInbox(tester, attentionRepo: repo, router: _HarnessRouter());
+
+      final l10n = L10nEn();
+      expect(
+        find.text(l10n.forYouEmptyNothingHere),
+        findsOneWidget,
+        reason: 'before the sweep this surface has never had anything',
+      );
+
+      await _tapDismissAll(tester);
+
+      expect(find.byType(ForYouEmptyState), findsOneWidget);
+      expect(find.byKey(CaughtUpPanel.illustrationKey), findsOneWidget);
+      expect(find.text(l10n.forYouEmptyNothingNew), findsOneWidget);
+      expect(find.text(l10n.forYouEmptyNothingNewHint), findsOneWidget);
+      expect(
+        find.text(l10n.inboxDismissAllCleared(5)),
+        findsWidgets,
+        reason: 'the number on the panel is the number the sweep applied',
+      );
+      expect(
+        find.text(l10n.forYouEmptyNothingHere),
+        findsNothing,
+        reason: 'somebody who just cleared five rows was not told they never '
+            'had any',
+      );
+    },
+  );
+
+  testWidgets(
+    'gate on: a partial sweep reads as cleared but never celebrates',
+    (tester) async {
+      final repo = _ChromeAttentionRepo(
+        sweepEligible: true,
+        dismissAllResult: const AttentionDismissAllResult(
+          operationId: 'placeholder',
+          status: AttentionOperationStatus.partial,
+          appliedCount: 5,
+          pendingCount: 4,
+        ),
+      );
+      await _pumpInbox(tester, attentionRepo: repo, router: _HarnessRouter());
+
+      await _tapDismissAll(tester);
+
+      final l10n = L10nEn();
+      // The positive first: a screen that rendered nothing satisfies every
+      // absence below on its own.
+      expect(find.byType(ForYouEmptyState), findsOneWidget);
+      expect(find.byKey(ForYouEmptyState.titleKey), findsOneWidget);
+      expect(find.text(l10n.forYouEmptyNothingNew), findsOneWidget);
+      expect(find.byKey(CaughtUpPanel.illustrationKey), findsNothing);
+      expect(find.byKey(CaughtUpPanel.clearedKey), findsNothing);
     },
   );
 

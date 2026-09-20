@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/attention/entity/attention_clear.dart';
 import 'package:tentura/features/inbox/ui/widget/for_you_empty_state.dart';
+import 'package:tentura/ui/widget/caught_up_panel.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/l10n/l10n_en.dart';
 
@@ -21,6 +23,7 @@ Future<void> _pump(
   ForYouEmptyKind kind, {
   double textScale = 1,
   double width = 800,
+  AttentionDismissAllResult? lastSweep,
 }) async {
   tester.view.physicalSize = Size(width, 800);
   tester.view.devicePixelRatio = 1;
@@ -42,7 +45,9 @@ Future<void> _pump(
           child: Scaffold(
             body: CustomScrollView(
               slivers: [
-                SliverToBoxAdapter(child: ForYouEmptyState(kind: kind)),
+                SliverToBoxAdapter(
+                  child: ForYouEmptyState(kind: kind, lastSweep: lastSweep),
+                ),
               ],
             ),
           ),
@@ -74,6 +79,56 @@ void main() {
       expect(
         forYouEmptyKind(hasActiveFilter: false, hasPinnedZone: true),
         ForYouEmptyKind.nothingNew,
+      );
+    });
+
+    test('a sweep that cleared rows means *cleared*, with no pinned zone', () {
+      // U17d: the sweep that empties the decision zone too would otherwise
+      // land on "Nothing here yet" — never-had-anything, said to somebody who
+      // just cleared the surface themselves.
+      expect(
+        forYouEmptyKind(
+          hasActiveFilter: false,
+          hasPinnedZone: false,
+          wasClearedHere: true,
+        ),
+        ForYouEmptyKind.nothingNew,
+      );
+      expect(
+        forYouEmptyKind(
+          hasActiveFilter: true,
+          hasPinnedZone: false,
+          wasClearedHere: true,
+        ),
+        ForYouEmptyKind.noMatch,
+        reason: 'a filter still wins: the rows are hidden, not gone',
+      );
+    });
+
+    test('a partial sweep still counts as having cleared this surface', () {
+      expect(
+        forYouSweptHere(
+          const AttentionDismissAllResult(
+            operationId: 'op-1',
+            status: AttentionOperationStatus.partial,
+            appliedCount: 2,
+            pendingCount: 3,
+          ),
+        ),
+        isTrue,
+      );
+    });
+
+    test('a sweep that cleared nothing did not clear this surface', () {
+      expect(forYouSweptHere(null), isFalse);
+      expect(
+        forYouSweptHere(
+          const AttentionDismissAllResult(
+            operationId: 'op-1',
+            status: AttentionOperationStatus.complete,
+          ),
+        ),
+        isFalse,
       );
     });
 
@@ -144,9 +199,14 @@ void main() {
       tester,
     ) async {
       await _pump(tester, ForYouEmptyKind.nothingNew);
-      expect(find.byKey(ForYouEmptyState.titleKey), findsOneWidget);
+      expect(find.byKey(CaughtUpPanel.titleKey), findsOneWidget);
       expect(find.text(l10n.forYouEmptyNothingNew), findsOneWidget);
       expect(find.text(l10n.forYouEmptyNothingNewHint), findsOneWidget);
+      expect(
+        find.byKey(CaughtUpPanel.clearedKey),
+        findsNothing,
+        reason: 'no explicit sweep happened, so there is no number to state',
+      );
       expect(
         find.text(l10n.forYouEmptyNothingHere),
         findsNothing,
@@ -189,12 +249,12 @@ void main() {
         width: 320,
         textScale: 2,
       );
-      expect(find.byKey(ForYouEmptyState.titleKey), findsOneWidget);
-      expect(find.byKey(ForYouEmptyState.hintKey), findsOneWidget);
+      expect(find.byKey(CaughtUpPanel.titleKey), findsOneWidget);
+      expect(find.byKey(CaughtUpPanel.detailKey), findsOneWidget);
       expect(find.text(l10n.forYouEmptyNothingNewHint), findsOneWidget);
       expect(tester.takeException(), isNull);
 
-      final hint = tester.widget<Text>(find.byKey(ForYouEmptyState.hintKey));
+      final hint = tester.widget<Text>(find.byKey(CaughtUpPanel.detailKey));
       expect(
         hint.overflow,
         isNot(TextOverflow.ellipsis),
@@ -203,9 +263,136 @@ void main() {
             'must not be the part that gets truncated',
       );
       expect(
-        tester.getSize(find.byKey(ForYouEmptyState.hintKey)).height,
-        greaterThan(0),
+        tester.getSize(find.byKey(CaughtUpPanel.detailKey)).height,
+        greaterThan(100),
+        reason:
+            'a one-line clip is what this trap looks like: at 320dp and 2x '
+            'this sentence is many lines tall, and the height is the proof',
       );
     },
   );
+
+  group('the reward, and what withdraws it (D18)', () {
+    AttentionDismissAllResult sweep({
+      int appliedCount = 4,
+      int pendingCount = 0,
+      AttentionOperationStatus status = AttentionOperationStatus.complete,
+      List<AttentionSweepMember> failed = const [],
+    }) => AttentionDismissAllResult(
+      operationId: 'op-1',
+      status: status,
+      appliedCount: appliedCount,
+      pendingCount: pendingCount,
+      failed: failed,
+    );
+
+    test('only the cleared voice is a reward', () {
+      for (final kind in [
+        ForYouEmptyKind.nothingHere,
+        ForYouEmptyKind.noMatch,
+      ]) {
+        expect(
+          forYouCaughtUpReward(kind: kind, lastSweep: sweep()),
+          isNull,
+          reason: '$kind has no completed attention to celebrate',
+        );
+      }
+      expect(
+        forYouCaughtUpReward(
+          kind: ForYouEmptyKind.nothingNew,
+          lastSweep: sweep(),
+        )?.clearedCount,
+        4,
+      );
+    });
+
+    test('a cleared surface with no sweep behind it states no number', () {
+      final reward = forYouCaughtUpReward(kind: ForYouEmptyKind.nothingNew);
+      expect(reward, isNotNull);
+      expect(
+        reward!.clearedCount,
+        isNull,
+        reason: 'opening Requests clears too, and invents no count',
+      );
+    });
+
+    test('a partial sweep withdraws the reward entirely', () {
+      expect(
+        forYouCaughtUpReward(
+          kind: ForYouEmptyKind.nothingNew,
+          lastSweep: sweep(appliedCount: 2, pendingCount: 5),
+        ),
+        isNull,
+      );
+    });
+
+    test('a sweep the server did not complete withdraws it', () {
+      expect(
+        forYouCaughtUpReward(
+          kind: ForYouEmptyKind.nothingNew,
+          lastSweep: sweep(status: AttentionOperationStatus.denied),
+        ),
+        isNull,
+      );
+    });
+
+    test('members the sweep failed on withdraw it', () {
+      expect(
+        forYouCaughtUpReward(
+          kind: ForYouEmptyKind.nothingNew,
+          lastSweep: sweep(
+            failed: const [
+              AttentionSweepMember(
+                id: 'r-1',
+                kind: AttentionSweepMemberKind.receipt,
+              ),
+            ],
+          ),
+        ),
+        isNull,
+      );
+    });
+
+    test('a sweep that cleared nothing is caught up without a number', () {
+      expect(
+        forYouCaughtUpReward(
+          kind: ForYouEmptyKind.nothingNew,
+          lastSweep: sweep(appliedCount: 0),
+        )?.clearedCount,
+        isNull,
+      );
+    });
+
+    testWidgets('after a complete sweep the number cleared is on the panel', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        ForYouEmptyKind.nothingNew,
+        lastSweep: sweep(appliedCount: 7),
+      );
+
+      expect(find.byKey(CaughtUpPanel.illustrationKey), findsOneWidget);
+      expect(find.text(l10n.forYouEmptyNothingNew), findsOneWidget);
+      expect(find.text(l10n.inboxDismissAllCleared(7)), findsOneWidget);
+    });
+
+    testWidgets('after a partial sweep nothing celebrates, but it still reads',
+        (tester) async {
+      await _pump(
+        tester,
+        ForYouEmptyKind.nothingNew,
+        lastSweep: sweep(appliedCount: 2, pendingCount: 3),
+      );
+
+      // The positive first: a screen that rendered nothing would satisfy the
+      // absences below on its own.
+      expect(find.byKey(ForYouEmptyState.titleKey), findsOneWidget);
+      expect(find.text(l10n.forYouEmptyNothingNew), findsOneWidget);
+      expect(find.text(l10n.forYouEmptyNothingNewHint), findsOneWidget);
+      expect(find.byKey(CaughtUpPanel.illustrationKey), findsNothing);
+      expect(find.byKey(CaughtUpPanel.clearedKey), findsNothing);
+      expect(find.text(l10n.inboxDismissAllCleared(2)), findsNothing);
+    });
+  });
 }

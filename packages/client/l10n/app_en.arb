@@ -6465,7 +6465,7 @@
   "@forYouEmptyNothingHereHint": {
     "description": "Hint under the 'nothing here' empty state."
   },
-  "forYouEmptyNothingNew": "Nothing new",
+  "forYouEmptyNothingNew": "You\u2019re caught up",
   "@forYouEmptyNothingNew": {
     "description": "\u00a74 empty state 2 of 3 \u2014 cleared. Distinct from 'nothing here' on purpose: the decision zone may still be on the surface, so it must not read as an empty screen."
   },
