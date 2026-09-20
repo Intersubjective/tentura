@@ -1215,13 +1215,17 @@
   "@network": {
     "context": "HomeScreen"
   },
-  "requestDiscoverableLabel": "Discoverable",
+  "requestDiscoverableLabel": "Let people find this request",
   "@requestDiscoverableLabel": {
-    "description": "Short label for the author discoverability toggle on a request."
+    "description": "Action label for the author discoverability toggle on a request."
   },
-  "requestDiscoverableHint": "Discoverable by people you and your network can both see",
-  "@requestDiscoverableHint": {
-    "description": "Plain reach statement beside the author discoverability toggle."
+  "requestDiscoverableOn": "On — people who can see you can find this request in Field. Opening it does not add them to the discussion.",
+  "@requestDiscoverableOn": {
+    "description": "Explains discoverability when the toggle is on (used as subtitle when on, or as the sibling alternative when off)."
+  },
+  "requestDiscoverableOff": "Off — no one can find it in Field. Only people you forward it to, and anyone already involved, can open it.",
+  "@requestDiscoverableOff": {
+    "description": "Explains discoverability when the toggle is off (used as subtitle when off, or as the sibling alternative when on)."
   },
   "constellationTitle": "Field",
   "@constellationTitle": {

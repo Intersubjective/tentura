@@ -36,7 +36,7 @@ Constellation occupies the slot formerly used by **Updates** (D17). Updates hist
 
 ## Discoverability (author control)
 
-Active, published requests are **discoverable by default** to everyone mutually visible with the author. The author may opt out per request via **Discoverable in Constellation** on create/edit (**Info** tab → Details card). Authors change discoverability on published requests through **edit mode** today — there is no inline toggle on the published request view screen yet (see Limitations).
+Active, published requests are **discoverable by default** to everyone mutually visible with the author. The author may opt out per request via **Let people find this request** on create/edit (**Info** tab → Details card). Authors change discoverability on published requests through **edit mode** today — there is no inline toggle on the published request view screen yet (see Limitations).
 
 Discoverability widens the shared content read wall (`beacon_can_read_content`, m0162). Discovery grants the same content reads and operation eligibility as a forward recipient, but **does not** grant involvement visibility or discussion admission.
 

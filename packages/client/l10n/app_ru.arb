@@ -1215,13 +1215,17 @@
   "@network": {
     "context": "HomeScreen"
   },
-  "requestDiscoverableLabel": "Обнаружение",
+  "requestDiscoverableLabel": "Разрешить находить этот запрос",
   "@requestDiscoverableLabel": {
-    "description": "Short label for the author discoverability toggle on a request."
+    "description": "Action label for the author discoverability toggle on a request."
   },
-  "requestDiscoverableHint": "Видно людям, которых видите вы и ваша сеть",
-  "@requestDiscoverableHint": {
-    "description": "Plain reach statement beside the author discoverability toggle."
+  "requestDiscoverableOn": "Включено — этот запрос могут найти в Поле те, кто видит вас. Открыв его, они не попадают в обсуждение.",
+  "@requestDiscoverableOn": {
+    "description": "Explains discoverability when the toggle is on (used as subtitle when on, or as the sibling alternative when off)."
+  },
+  "requestDiscoverableOff": "Выключено — в Поле его не найти. Открыть смогут только те, кому вы его переслали, и те, кто уже участвует.",
+  "@requestDiscoverableOff": {
+    "description": "Explains discoverability when the toggle is off (used as subtitle when off, or as the sibling alternative when on)."
   },
   "constellationTitle": "Поле",
   "@constellationTitle": {
