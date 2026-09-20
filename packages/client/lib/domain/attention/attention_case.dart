@@ -1138,16 +1138,13 @@ final class AttentionCase {
   }
 
   void _emitFeedSummary(AttentionSummary summary) {
-    _emit(
-      snapshot.copyWith(
-        summary: summary.copyWith(
-          unreadTotal: math.max(
-            0,
-            summary.unreadTotal + _acks.pendingUnreadDelta(_receiptsById),
-          ),
-        ),
-      ),
-    );
+    // U17b/§3 — `unreadTotal` is the server's **active attention** total
+    // (`NOT requires_action AND cleared_at IS NULL`, union live obligations),
+    // not a count of unread rows. A pending read-axis ack is therefore not a
+    // delta on it: folding one in made History's own "mark unread" raise the
+    // badge for a row that had already been cleared, which is exactly the
+    // resurrection §3 forbids. The server's number is emitted as given.
+    _emit(snapshot.copyWith(summary: summary));
   }
 
   Future<void> _runAfterAckBarriers(

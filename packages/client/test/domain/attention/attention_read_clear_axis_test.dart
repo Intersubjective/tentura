@@ -163,6 +163,131 @@ void main() {
     });
 
     test(
+      'U17b §3 — marking a cleared row unread does not resurrect it',
+      () async {
+        // §3's last boundary: "marking something unread in History never
+        // resurrects attention on a primary surface".
+        //
+        // The row must be **on** the Unread page when it is un-read, or the
+        // client mirror is never asked the question and the fixture answers
+        // it instead. So `r-1` starts uncleared and seen on the Unread view,
+        // is cleared by a sweep, and is only then un-read.
+        //
+        // `r-2` is a live obligation: Set R excludes it from the sweep and
+        // `isInUnreadView` keeps it, so it is the control that proves the
+        // un-read really reached the projected frame.
+        final swept = _optional(id: 'r-1')
+            .copyWith(seenAt: DateTime.utc(2026, 9, 18));
+        final obligation = _obligation(id: 'r-2')
+            .copyWith(seenAt: DateTime.utc(2026, 9, 18));
+        await signIn(
+          items: [swept, obligation],
+          activityTotal: 2,
+          myWorkTotal: 0,
+        );
+
+        // History's Unread tab — the surface §3's boundary is about.
+        final unreadHead = repository.pendingFetches.first;
+        attention.setActiveView(
+          AttentionFeedDestinationId.activityStream,
+          AttentionView.unread,
+        );
+        await attentionCaseTestSettle();
+        unreadHead.complete(
+          AttentionFeed(
+            summary: const AttentionSummary(unreadTotal: 2),
+            page: AttentionFeedPage(items: [swept, obligation]),
+          ),
+        );
+        await attentionCaseTestSettle();
+
+        final sweepHeld = Completer<AttentionDismissAllResult>();
+        repository.pendingDismissAll.add(sweepHeld);
+        unawaited(attention.dismissAll().catchError((_) {}));
+        await attentionCaseTestSettle();
+        sweepHeld.complete(
+          const AttentionDismissAllResult(
+            operationId: 'op',
+            status: AttentionOperationStatus.complete,
+            appliedReceiptIds: ['r-1'],
+            appliedCount: 1,
+          ),
+        );
+        await attentionCaseTestSettle();
+
+        final afterSweep = attention.feedSession(
+          AttentionFeedDestinationId.activityStream,
+        );
+        expect(
+          afterSweep.pages[afterSweep.activeView]!.items.map((r) => r.id),
+          ['r-2'],
+          reason: 'the clear is what takes it off Unread — the premise this '
+              'test then tries to undo',
+        );
+
+        final commit = Completer<int>();
+        repository.pendingMarkUnseen.add(commit);
+        unawaited(
+          attention.markUnseen(const ['r-1', 'r-2']).catchError((_) {}),
+        );
+        await attentionCaseTestSettle();
+
+        expect(
+          repository.markUnseenCalls.single.toSet(),
+          {'r-1', 'r-2'},
+          reason: 'History really did un-read both',
+        );
+
+        final session = attention.feedSession(
+          AttentionFeedDestinationId.activityStream,
+        );
+        final items = {
+          for (final r in session.pages[session.activeView]!.items) r.id: r,
+        };
+        expect(
+          items['r-2']?.isSeen,
+          isFalse,
+          reason: 'the read axis moved — the control is un-read in the frame '
+              'the user sees',
+        );
+        expect(
+          items.keys,
+          isNot(contains('r-1')),
+          reason: 'the Unread view is the clear axis; un-reading a cleared '
+              'row does not put it back on the list',
+        );
+        expect(
+          attention.snapshot.summary.unreadTotal,
+          1,
+          reason: 'unreadTotal is active attention, not a count of unread '
+              'rows — un-reading must not raise it back',
+        );
+        expect(attention.surfaceSummarySnapshot.activityUnreadTotal, 1);
+
+        // And it survives the server's next word, which is where a pending
+        // ack would otherwise be folded back into the total.
+        commit.complete(2);
+        final refreshed = Completer<AttentionFeed>();
+        repository.pendingFetches.add(refreshed);
+        await attentionCaseTestSettle();
+        refreshed.complete(
+          AttentionFeed(
+            summary: const AttentionSummary(unreadTotal: 1),
+            page: AttentionFeedPage(
+              items: [obligation.copyWith(seenAt: null)],
+            ),
+          ),
+        );
+        await attentionCaseTestSettle();
+        expect(
+          attention.snapshot.summary.unreadTotal,
+          1,
+          reason: 'the refreshed frame agrees: nothing was resurrected',
+        );
+      },
+    );
+
+    test(
       'the optimistic sweep never removes what awaits a decision (owner '
       'decision A)',
       () async {

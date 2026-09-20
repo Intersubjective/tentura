@@ -601,8 +601,16 @@ void main() {
       expect(attention.snapshot.summary.unreadTotal, 0);
     });
 
+    // U17b — the *overlay* is the read axis and survives a mid-flight
+    // refresh; `unreadTotal` is not part of it. Before U10b redefined that
+    // field as active attention, this test asserted the queued unsee held the
+    // total at 1 against a server saying 0. Post-U10b the server's number is
+    // the only source for it (and an uncleared optional receipt would never
+    // be reported as 0 in the first place), so what is pinned here now is the
+    // overlay: `isSeen` stays false across every refresh, and the total is
+    // whatever the server last said.
     test(
-      'refresh during queued unsee keeps overlay unread total',
+      'refresh during queued unsee keeps the overlay, not the total',
       () async {
         final initial = Completer<AttentionFeed>();
         final midRefresh = Completer<AttentionFeed>();
@@ -644,7 +652,12 @@ void main() {
         await _settle();
         midRefresh.complete(_feed(unread: 0, items: [_seenReceipt()]));
         await _settle();
-        expect(attention.snapshot.summary.unreadTotal, 1);
+        expect(
+          attention.snapshot.summary.unreadTotal,
+          0,
+          reason: 'the total is the server\'s active-attention count, and a '
+              'queued read-axis ack is not a delta on it (§3)',
+        );
         expect(
           _feedSession(attention).pages[AttentionView.all]!.items.single.isSeen,
           isFalse,
@@ -656,7 +669,11 @@ void main() {
         unsee.complete(1);
         afterUnsee.complete(_feed());
         await _settle();
-        expect(attention.snapshot.summary.unreadTotal, 1);
+        expect(
+          attention.snapshot.summary.unreadTotal,
+          1,
+          reason: 'and it follows the server back up when the server says so',
+        );
         expect(
           _feedSession(attention).pages[AttentionView.all]!.items.single.isSeen,
           isFalse,

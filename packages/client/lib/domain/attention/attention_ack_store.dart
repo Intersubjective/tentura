@@ -66,18 +66,6 @@ final class AttentionAckStore {
     };
   }
 
-  int pendingUnreadDelta(Map<String, AttentionReceipt> receiptsById) {
-    var n = 0;
-    for (final entry in _pending.entries) {
-      final raw = receiptsById[entry.key];
-      if (raw == null) continue;
-      final wantSeen = entry.value.intent == AttentionAckIntent.seen;
-      if (wantSeen && !raw.isSeen) n--;
-      if (!wantSeen && raw.isSeen) n++;
-    }
-    return n;
-  }
-
   bool isOptimisticallySeen(String id) =>
       _pending[id]?.intent == AttentionAckIntent.seen;
 
