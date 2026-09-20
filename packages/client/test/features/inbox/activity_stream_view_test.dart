@@ -36,6 +36,7 @@ import 'package:tentura/features/inbox/ui/widget/activity_offer_bounded_shell.da
 import 'package:tentura/features/inbox/ui/widget/activity_stream_view.dart';
 import 'package:tentura/features/inbox/ui/widget/activity_watching_digest_row.dart';
 import 'package:tentura/features/inbox/ui/widget/attention_mini_card.dart';
+import 'package:tentura/features/attention/ui/widget/request_attention_timeline_sheet.dart';
 import 'package:tentura/features/inbox/ui/widget/request_attention_card.dart';
 import 'package:tentura/features/inbox/ui/widget/tombstone_row.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -183,6 +184,17 @@ class _FeedAttentionRepo extends ConfigurableActivityOffersAttentionRepo {
   final String? nextCursor;
   final List<AttentionReceipt> secondPage;
   int fetchCalls = 0;
+  final List<String> historyCalls = [];
+
+  @override
+  Future<AttentionFeedPage> requestHistory({
+    required String beaconId,
+    String? cursor,
+    int limit = 20,
+  }) async {
+    historyCalls.add(beaconId);
+    return const AttentionFeedPage();
+  }
 
   @override
   Future<AttentionFeed> fetch({
@@ -460,6 +472,74 @@ double _top(Finder finder, WidgetTester tester) {
 }
 
 void main() {
+  // U17b — the Timeline entry is one API. Both For You cards used to answer
+  // "show me what happened here" differently: the pinned card pushed the
+  // Request detail, and the stream card went through `openFromUpdate`, whose
+  // destination map can route a receipt to a profile or the review screen.
+  testWidgets('both For You cards open the same Request timeline', (
+    tester,
+  ) async {
+    final inboxRepo = FakeInboxRepository();
+    final attentionRepo = _FeedAttentionRepo(
+      firstPage: [
+        _streamReceipt(
+          id: 'stream-1',
+          beaconId: 'beacon-stream',
+          itemKind: AttentionItemKind.requestActivity,
+          eventTotal: 2,
+          eventsPreview: [_streamReceipt(id: 'stream-c1')],
+        ),
+      ],
+    );
+    wireActivityOffersV2(
+      inbox: inboxRepo,
+      attention: attentionRepo,
+      items: [_offerItem('beacon-pinned')],
+      totalCount: 1,
+    );
+    final boot = await _boot(
+      inboxRepo: inboxRepo,
+      attentionRepo: attentionRepo,
+    );
+    addTearDown(boot.dispose);
+
+    await _pumpStreamView(
+      tester,
+      boot: boot,
+      logicalSize: const Size(400, 2000),
+    );
+
+    final cards = tester
+        .widgetList<RequestAttentionCard>(find.byType(RequestAttentionCard))
+        .toList();
+    expect(cards.length, 2, reason: 'the pinned card and the stream card');
+
+    for (final card in cards) {
+      card.onOpenTimeline();
+      await tester.pumpAndSettle();
+      expect(
+        find.byType(RequestAttentionTimelineSheet),
+        findsOneWidget,
+        reason: 'every attention surface reaches §9\'s timeline, not a route '
+            'of its own',
+      );
+      final sheet = tester.widget<RequestAttentionTimelineSheet>(
+        find.byType(RequestAttentionTimelineSheet),
+      );
+      expect(sheet.beaconId, card.beacon.id);
+      Navigator.of(
+        tester.element(find.byType(RequestAttentionTimelineSheet)),
+      ).pop();
+      await tester.pumpAndSettle();
+    }
+
+    expect(
+      attentionRepo.historyCalls,
+      ['beacon-pinned', 'beacon-stream'],
+      reason: 'and each one asks for its own Request\'s history',
+    );
+  });
+
   testWidgets('render order: header, prompt, offer, then stream', (
     tester,
   ) async {

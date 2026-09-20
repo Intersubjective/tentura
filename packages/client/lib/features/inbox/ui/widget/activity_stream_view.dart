@@ -23,6 +23,7 @@ import 'package:tentura/features/updates/ui/widget/updates_day_groups.dart';
 import 'package:tentura/features/updates/ui/widget/updates_feed_pane.dart';
 import 'package:tentura/features/updates/ui/widget/updates_feed_tile.dart';
 import 'package:tentura/features/updates/ui/widget/updates_refresh_error_banner.dart';
+import 'package:tentura/features/attention/ui/widget/request_attention_timeline_sheet.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -701,7 +702,9 @@ class _PinnedRequestCard extends StatelessWidget {
           eventsPreview: model.eventsPreview,
           actors: actors,
           onOpenBeacon: () => unawaited(openBeacon()),
-          onOpenTimeline: () => unawaited(openBeacon()),
+          onOpenTimeline: () => unawaited(
+            showRequestAttentionTimelineSheet(context, beaconId: beaconId),
+          ),
           onOfferHelp: () =>
               unawaited(inboxOfferHelp(context, model.beacon)),
           onForward: model.allowsForward
@@ -1024,9 +1027,6 @@ class _ActivityStreamCell extends StatelessWidget {
           relation: entry?.relation ?? ForYouStreamRelation.none,
         );
         if (model == null) return _feedTile(context, receipt, onOpenParent);
-        Future<void> openTimeline() async {
-          await GetIt.I<RootRouter>().openFromUpdate(receipt);
-        }
         final card = Padding(
           padding: EdgeInsets.symmetric(
             horizontal: context.tt.listRowPadding.left,
@@ -1044,7 +1044,9 @@ class _ActivityStreamCell extends StatelessWidget {
             eventsPreview: model.eventsPreview,
             actors: streamCubit.state.actors,
             onOpenBeacon: () => unawaited(onOpenParent()),
-            onOpenTimeline: () => unawaited(openTimeline()),
+            onOpenTimeline: () => unawaited(
+              showRequestAttentionTimelineSheet(context, beaconId: beaconId),
+            ),
             onClearEvent: (id) => unawaited(
               GetIt.I<AttentionCase>().clearReceipt(receiptId: id),
             ),

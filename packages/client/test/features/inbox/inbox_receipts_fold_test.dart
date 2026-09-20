@@ -148,7 +148,12 @@ void main() {
     await attention.refresh();
     await Future<void>.delayed(Duration.zero);
 
-    expect(attention.snapshot.summary.unreadTotal, 0);
+    // CHANGES IN U17b: was `0`, and only ever was because a pending read-axis
+    // ack was folded into this total — which is what let History's "mark
+    // unread" raise the badge for an already-cleared row (§3). It now reports
+    // what the server reported, which is the same `1` the comment fifteen
+    // lines above already states for a read-but-uncleared receipt.
+    expect(attention.snapshot.summary.unreadTotal, 1);
     expect(
       attention
           .feedSession(AttentionFeedDestinationId.activityStream)

@@ -8,6 +8,7 @@ import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
+import 'package:tentura/features/attention/ui/widget/request_attention_timeline_sheet.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_card_metadata_row.dart';
@@ -265,7 +266,9 @@ Widget? _composeMyWorkFooter(
               receiptId,
             ),
           ),
-          onOpenTimeline: () => _openBeacon(context, vm.beaconId),
+          onOpenTimeline: () => unawaited(
+            showRequestAttentionTimelineSheet(context, beaconId: vm.beaconId),
+          ),
           suppressReviewHelpOffersFallback: suppressReviewHelpOffersFallback,
           suppressReviewFallback: suppressReviewFallback,
           onReviewHelpOffers: () => _openBeaconReviewHelpOffers(context, vm),
