@@ -12440,3 +12440,68 @@ concurrent writer. It does now.
 
 `kDefaultMinClientVersion` and retiring `activityUnreadTotal` / `myWorkUnreadTotal` / `needsYouTotal` are
 U18c. `packages/server/lib/env.dart` is untouched.
+
+## manager — U18b accepted; both gates prove what they convert
+
+**Verdict: accepted.** My independent gates: server non-PG **1690 / 0 skips**, server PG **1083 / 24 skips**
+(+11, skips unmoved), `check-custom-lints.sh packages/server` **0 (baseline 0)**. Worker confirmed dead before
+I touched the tree — the rule adopted after U17a, applied without incident this time. The runner again ended
+while waiting on PG, so its journal entry was uncommitted; committed as `a5a4527a9` unchanged.
+
+### Gate 1 derives the key from the write path's own function
+
+It calls `AttentionPolicy.logicalTaskKey` from Dart over facts read from the row, rather than re-spelling the
+formula in SQL, on the stated grounds that **two spellings agree exactly until one of them is edited**. That is
+the M1 lesson applied unprompted, and it is the right call: a key that disagrees with the write path points
+reconciliation at a task that does not exist, and `unrepairableObligationCount` — which U17d just made visible —
+would stop reporting a problem that is still there.
+
+Its five derivability conditions each defend against a specific historical fact, not a hypothetical:
+
+1. the occurrence's `event_type` must agree with the row's own `presentation_payload->>'eventType'`, because
+   the pre-U05a collapse path repointed **both** at the newest event, so a row can name an occurrence that is
+   not the event it is about;
+2. `collapsed_count = 1`, because a collapsed row stands for several events and `collapse_key` is
+   caller-supplied, so a mixed family is not provably impossible;
+3. `beacon_id` present and payload-confirmed, since it is part of the key;
+4. recipient reasons from the stored audience snapshot, never an invented set — "a key derived from a partial
+   audience is a guess wearing a formula";
+5. whatever the policy then accepts; an `ArgumentError` is **the answer**, not an error to work around.
+
+`lifecycle_generation = 1` is written only where no other live row bears the key, with the `NOT EXISTS` spelled
+over exactly the population of `notification_outbox__live_logical_task`, so a colliding row is **left unkeyed**
+rather than raising. The unique index stays the backstop, not the plan.
+
+### A trap it avoided that I had not flagged
+
+**Termination counts `scanned`, never `converted`.** U18a's phase converted everything it named; these gates
+convert only a provable subset, so a batch of fifty unprovable obligations converts nothing and has still made
+progress. A loop stopping at `converted == 0` would halt at the first row it could not prove. Three phases get
+three cursors on the same row for the same reason: one "done" flag would let a crash *between* phases read as a
+finished backfill.
+
+### Gate 2 states its residual risk undiminished
+
+Provable demotion requires the same two agreeing witnesses, `collapsed_count = 1`, before the cutover, and a
+family the policy itself calls `timelineOnly` — the family list built by iterating `AttentionEventType.values`
+through `AttentionPolicy.placement`, so the backfill demotes exactly what the write path would have written.
+
+Everything else **keeps `placement = 'primary'`**, and those rows can still light an ancestor Request's dot for
+activity that happened on a child — the R7 failure m0189 exists to prevent. The unit does not repair them, and
+says so: demoting on a guess is worse, because a wrongly demoted row stays in History but disappears from every
+primary-surface indicator with nothing on the surface saying where it went.
+
+**There is no user-facing counter for that population** the way `unrepairableObligationCount` exists for gate 1.
+The implementer flagged that as new work rather than implying the gate closed it. **U19 should decide whether
+that counter is wanted** — it is the one place in this plan where a known-imperfect repair leaves no visible
+trace.
+
+### Mutations
+
+Gate 1: eight applied, eight killed — including the two agreement witnesses, the collapse guard, the duplicate
+`NOT EXISTS`, the cutover boundary, the generation value, and the UPDATE's own `logical_task_key IS NULL`
+re-check. The cursor-advance mutation fails the interruption test **by timeout**, which the implementer
+correctly called the honest consequence rather than dressing up as an assertion failure.
+
+**Next: U18c** — activation and retirement. The `kDefaultMinClientVersion` bump, and retiring the legacy three
+totals whose names have already cost this plan two defects.
