@@ -12817,3 +12817,85 @@ behaviour at the release gate. Recorded here as the one open contract/code disag
 | `check-user-facing-terminology.sh` | ok | **ok** |
 
 Every delta is accounted for by a named test. The four tests this unit added are the whole of the movement.
+
+### The web e2e gate — run for the first time, and what it cost
+
+`run_client_integration_web_local.sh` drives 13 files in headless Chrome against the real stack (compose
+infra, a freshly started `tentura-server`, Flutter's dev server proxying the API). The server started under
+the new floor and the client built at 7.19.0, so **the cutover itself was exercised end to end**: every
+journey that logged in at all proves the 7.19.0 client is accepted by the 7.19.0 floor.
+
+| pass | result |
+| --- | --- |
+| 1 — as inherited | **3 / 13** |
+| 2 — after the two seam fixes | **10 / 13** |
+| 3 — two remaining, after the review-CTA fix | both advance several steps, both still red at one shared later point |
+
+**Nothing found was environmental and nothing found was wrong product behaviour.** Every failure was the
+harness unable to reach a control that was on screen — the exact inverse of the three units before this one,
+which found behaviour that was built, unit-tested and unreachable. Here the behaviour is reachable by a person
+and unreachable by the acceptance suite, which is the same defect wearing the other face: plan §7.3 requires
+these journeys to drive real controls through **stable `TestIds`**, and the card rework quietly removed the
+ids while renaming the labels.
+
+**Cause 1 — the quoted headline (8 of the 10 failures, one line).** §8a heads a For You card with the object
+being asked for, and `RequestAttentionCard` renders it through `l10n.attentionCardQuotedTitle` — `“{title}”`
+in EN, `«{title}»` in RU. `offerHelpFromInbox` matched the bare title exactly, so every journey that offers
+help from triage timed out on a card whose Offer Help button was in the same screen dump.
+`findRequestTitle()` matches by containment and spans both treatments.
+
+**Cause 2 — the lost `TestIds.inboxOfferHelp`.** The retired `CardTriageActionRow` carried it as both key and
+semantics identifier. `RequestAttentionCard` replaced the row with a card-private
+`Key('request-attention-card-offer-help')` and no identifier. The card takes the stable id back —
+`offerHelpKey` **is** `TestIds.key(TestIds.inboxOfferHelp)` — so both the widget tests and the journeys
+address the same control.
+
+**Cause 3 — the review CTA had no id at all.** Two journeys looked for the literal text `Review`; no label has
+equalled that string since the obligation CTA was named `Review contributions` (or `Submit changes` after an
+edit). Neither the `ReviewBanner` button nor the My Desk affordance carried a key. Both now carry
+`TestIds.reviewOpen`.
+
+**Cause 4 — not ours.** `request_lifecycle_beacon_cover`'s *'the resolved request identity is the same on
+every surface'* looks for `BeaconCardHeaderRow` → `BeaconIdentityTile` on My Work. That card composes identity
+through `BeaconRequestPreviewIdentity` → `_PreviewIdentityTile`, and has since **`27715182f`, "feat(beacon):
+enrich child request cards with helpers and cover (#153)", 2026-09-17 — outside this plan's range.** The glyph
+is on screen. Left alone deliberately: the test also asserts the identity resolves to `'symbol'`, so repairing
+the finder may expose a second, genuine disagreement about which identity kind My Work should show, and that is
+a product call in someone else's feature.
+
+#### The one unresolved failure, stated precisely
+
+After cause 3 was fixed, `request_lifecycle_closed_to_archive` and `witness_admission_forward_band` both
+advanced past review submission and now fail at the **same** later step — `triggerCloseNow`'s
+`_awaitMyWorkDeskAction`, waiting for either the `my_work.close_now.<beaconId>` key or the `closeNow` HUD
+action. Both screen dumps are the same shape:
+
+```
+url=/home/work hud=[] … IN PROGRESS | <title> | … | Request closed — close the loop |
+Just now | <title> | Close request | Your reviews are sent | Edit | Active | Recent
+```
+
+The card is `IN PROGRESS`, and the literal string **`Close request`** is on screen. That string is
+`l10n.beaconCloseNowCta`, and grep finds exactly **one** renderer of it in the whole client:
+`my_work_cards.dart:441`, inside `if (showCloseNowCta)`, on a `TenturaCommandButton` keyed
+`TestIds.key(TestIds.myWorkCloseNow(b.id))`. `TestIds.key` returns a `ValueKey<String>`, which is precisely
+what the finder's predicate tests for. So the label that only the keyed button can draw is painted, and the
+key is not found — the two statements cannot both be true of one settled tree, and resolving which one is
+lying needs interactive debugging of the closure/evaluation surface rather than more static reading.
+
+It is recorded rather than guessed at because it sits in the closure feature, not in the attention contract
+U19 exists to verify, and because **no baseline shows this step ever passing**: both journeys failed earlier
+than this in passes 1 and 2, so `triggerCloseNow` may have been broken behind the earlier blockers for as long
+as they have been. That is the honest status — a located, reproducible, unexplained failure, not a diagnosed
+one.
+
+#### What the browser did prove
+
+Ten journeys drive real controls end to end, including every one that touches this plan's surfaces:
+create → publish → forward → For You triage → Offer Help → admit → chat; close → review package → trust
+control; CHAT deep-link routing; browser Back out of a Request to My Desk in one press; and
+`tab_attention_forced_background`, the forced-background QA seam that asserts an unread receipt appears and
+**clears on visible** — §3's read/clear axes, driven by a real browser rather than a fake.
+
+**Gate verdict: 10 / 13, not green.** One failure predates the plan (#153), two share a single unresolved
+close-now blocker. Stated as a blocker on the release rather than waved through.
