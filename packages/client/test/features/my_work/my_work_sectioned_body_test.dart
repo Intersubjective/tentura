@@ -36,6 +36,8 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/updates/domain/use_case/invite_accepted_setup_case.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/l10n/l10n_en.dart';
+import 'package:tentura/ui/widget/caught_up_panel.dart';
 import 'package:tentura/ui/test_ids.dart';
 
 import '../../support/attention_repository_fake_base.dart';
@@ -371,6 +373,106 @@ void main() {
 
     expect(find.textContaining('NEEDS YOU'), findsNothing);
     expect(find.textContaining('IN PROGRESS'), findsOneWidget);
+
+    unawaited(cubit.close());
+    unawaited(homeAttention.close());
+    unawaited(boot.accounts.close());
+  });
+
+  testWidgets(
+    'D18: a desk with work and no attention on it says so, once',
+    (tester) async {
+      // "My Desk can be attention-clear while authored / active-help Requests
+      // remain" — so the line and the cards must both be there.
+      final attentionRepo = StubAttentionRepository()
+        ..myWorkAttentionResult = const [];
+
+      final myWorkRepo = FakeMyWorkRepository()
+        ..initResult = (
+          authoredNonArchived: [_beacon(_beaconActive, 'Still my work')],
+          helpOfferedNonArchived: const [],
+          obligationBeacons: const [],
+          archivedCountHint: 0,
+        );
+
+      final boot = await _bootAttention(attentionRepo);
+      final cubit = MyWorkCubit(
+        userId: _accountId,
+        myWorkCase: buildTestMyWorkCase(
+          repo: myWorkRepo,
+          attentionCase: boot.attention,
+        ),
+      );
+      final homeAttention = HomeAttentionCubit(
+        boot.attention,
+        boot.accounts,
+        Logger('desk-caught-up'),
+      );
+
+      await _pumpMyWork(tester, cubit: cubit, homeAttention: homeAttention);
+
+      final l10n = L10nEn();
+      expect(find.text(l10n.myWorkCaughtUp), findsOneWidget);
+      expect(
+        find.text('Still my work'),
+        findsOneWidget,
+        reason: 'caught up is not the same claim as an empty desk',
+      );
+      expect(
+        find.byKey(CaughtUpPanel.illustrationKey),
+        findsNothing,
+        reason: 'a line above live work is a note, not a celebration',
+      );
+
+      unawaited(cubit.close());
+      unawaited(homeAttention.close());
+      unawaited(boot.accounts.close());
+    },
+  );
+
+  testWidgets('D18: a desk with a live obligation says nothing reassuring', (
+    tester,
+  ) async {
+    final attentionRepo = StubAttentionRepository()
+      ..myWorkAttentionResult = [
+        MyWorkBeaconAttention(
+          beaconId: _beaconNeedsYou,
+          unseenCount: 0,
+          liveObligations: [_obligation('o1', _beaconNeedsYou)],
+        ),
+      ];
+
+    final myWorkRepo = FakeMyWorkRepository()
+      ..initResult = (
+        authoredNonArchived: [
+          _beacon(_beaconActive, 'Active request'),
+          _beacon(_beaconNeedsYou, 'Needs you request'),
+        ],
+        helpOfferedNonArchived: const [],
+        obligationBeacons: const [],
+        archivedCountHint: 0,
+      );
+
+    final boot = await _bootAttention(attentionRepo);
+    final cubit = MyWorkCubit(
+      userId: _accountId,
+      myWorkCase: buildTestMyWorkCase(
+        repo: myWorkRepo,
+        attentionCase: boot.attention,
+      ),
+    );
+    final homeAttention = HomeAttentionCubit(
+      boot.attention,
+      boot.accounts,
+      Logger('desk-not-caught-up'),
+    );
+
+    await _pumpMyWork(tester, cubit: cubit, homeAttention: homeAttention);
+
+    final l10n = L10nEn();
+    // The positive first: this screen really did render.
+    expect(find.textContaining('NEEDS YOU · 1'), findsOneWidget);
+    expect(find.text(l10n.myWorkCaughtUp), findsNothing);
 
     unawaited(cubit.close());
     unawaited(homeAttention.close());

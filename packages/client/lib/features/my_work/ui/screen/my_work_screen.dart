@@ -20,6 +20,8 @@ import 'package:tentura/features/inbox/ui/bloc/inbox_operational_cubit.dart';
 
 import 'package:tentura/features/my_work/domain/derive_my_work_sections.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
+import 'package:tentura/features/my_work/domain/my_desk_caught_up.dart';
+import 'package:tentura/ui/widget/caught_up_panel.dart';
 import '../bloc/my_work_cubit.dart';
 import '../widget/my_work_cards.dart';
 import '../widget/my_work_empty_body.dart';
@@ -499,6 +501,20 @@ List<Widget> _myWorkRedesignSlivers({
       padding: EdgeInsets.only(top: tt.rowGap),
       sliver: const SliverToBoxAdapter(child: SizedBox.shrink()),
     ),
+    // D18 — "My Desk can be attention-clear while authored / active-help
+    // Requests remain." One quiet line, above work that is still listed: it
+    // says nothing is *waiting on a response*, and deliberately nothing about
+    // the list below being empty or finished.
+    if (myDeskIsCaughtUp(
+      filter: state.filter,
+      cards: cards,
+      attentionByBeacon: state.attentionByBeacon,
+      attentionLoaded: state.attentionLoaded,
+      hasError: state.hasError,
+    ))
+      SliverToBoxAdapter(
+        child: CaughtUpPanel(title: l10n.myWorkCaughtUp, compact: true),
+      ),
   ];
   for (final group in sections) {
     if (group.section != MyWorkDeskSection.unlabeled) {

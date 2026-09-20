@@ -3485,6 +3485,10 @@
   "@myWorkReviewCta": {
     "context": "MyWorkScreen"
   },
+  "myWorkCaughtUp": "Nothing needs you right now",
+  "@myWorkCaughtUp": {
+    "context": "MyWorkScreen"
+  },
   "myWorkObligationRespond": "Respond",
   "@myWorkObligationRespond": {
     "context": "MyWorkScreen"

@@ -3443,6 +3443,10 @@
   "@myWorkReviewCta": {
     "context": "MyWorkScreen"
   },
+  "myWorkCaughtUp": "Сейчас от вас ничего не ждут",
+  "@myWorkCaughtUp": {
+    "context": "MyWorkScreen"
+  },
   "myWorkObligationRespond": "Ответить",
   "@myWorkObligationRespond": {
     "context": "MyWorkScreen"
