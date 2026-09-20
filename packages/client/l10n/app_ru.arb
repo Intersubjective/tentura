@@ -3443,10 +3443,6 @@
   "@myWorkReviewCta": {
     "context": "MyWorkScreen"
   },
-  "myWorkObligationDone": "Готово",
-  "@myWorkObligationDone": {
-    "context": "MyWorkScreen"
-  },
   "myWorkObligationRespond": "Ответить",
   "@myWorkObligationRespond": {
     "context": "MyWorkScreen"

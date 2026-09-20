@@ -3485,10 +3485,6 @@
   "@myWorkReviewCta": {
     "context": "MyWorkScreen"
   },
-  "myWorkObligationDone": "Done",
-  "@myWorkObligationDone": {
-    "context": "MyWorkScreen"
-  },
   "myWorkObligationRespond": "Respond",
   "@myWorkObligationRespond": {
     "context": "MyWorkScreen"
