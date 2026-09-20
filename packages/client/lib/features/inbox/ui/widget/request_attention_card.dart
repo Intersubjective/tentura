@@ -10,6 +10,7 @@ import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_overflow_menu.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/beacon_card_deadline.dart';
 import 'package:tentura/ui/utils/beacon_schedule_presenter.dart';
 import 'package:tentura/ui/widget/beacon_identity_tile.dart';
@@ -71,7 +72,18 @@ class RequestAttentionCard extends StatelessWidget {
   static const overflowKey = Key('request-attention-card-overflow');
   static const timelineKey = Key('request-attention-card-timeline');
   static const clearAllKey = Key('request-attention-card-clear-all');
-  static const offerHelpKey = Key('request-attention-card-offer-help');
+
+  /// The Offer Help control's key **is** the stable `TestIds.inboxOfferHelp`
+  /// key, not a card-private one.
+  ///
+  /// The retired `CardTriageActionRow` carried `TestIds.inboxOfferHelp` as
+  /// both its key and its semantics identifier, and the browser acceptance
+  /// journeys drive For You through it (plan §7.3: "use real UI entry points
+  /// and stable `TestIds`"). When this card replaced that row the identifier
+  /// went with it, and every journey that offers help from triage began
+  /// timing out on a button that was on screen — found in U19, the first time
+  /// the web e2e gate was run after the redesign. Keep these equal.
+  static final offerHelpKey = TestIds.key(TestIds.inboxOfferHelp);
   static const forwardKey = Key('request-attention-card-forward');
   static const followKey = Key('request-attention-card-follow');
 
@@ -306,29 +318,33 @@ class RequestAttentionCard extends StatelessWidget {
     return slots.take(visibleCap).toList(growable: false);
   }
 
-  Widget _pinnedForwardCard(InboxLatestNoteForward forward) => AttentionMiniCard(
-    key: ValueKey('forward:${forward.forwardId}'),
-    kind: AttentionMiniCardKind.forward,
-    receipt: _forwardReceipt(
-      id: 'forward:${forward.forwardId}',
-      senderId: forward.senderId,
-      at: forward.forwardedAt,
-    ),
-    actor: _profileOf(
-      forward.senderId,
-      forward.displayName,
-      forward.imageId,
-    ),
-    quotedBody: forward.notePreview,
-    capabilitySlugs: forward.reasonSlugs,
-    onTap: onOpenBeacon,
-  );
+  Widget _pinnedForwardCard(InboxLatestNoteForward forward) =>
+      AttentionMiniCard(
+        key: ValueKey('forward:${forward.forwardId}'),
+        kind: AttentionMiniCardKind.forward,
+        receipt: _forwardReceipt(
+          id: 'forward:${forward.forwardId}',
+          senderId: forward.senderId,
+          at: forward.forwardedAt,
+        ),
+        actor: _profileOf(
+          forward.senderId,
+          forward.displayName,
+          forward.imageId,
+        ),
+        quotedBody: forward.notePreview,
+        capabilitySlugs: forward.reasonSlugs,
+        onTap: onOpenBeacon,
+      );
 
   Widget _senderForwardCard(InboxForwardSender sender) => AttentionMiniCard(
     key: ValueKey('forward-sender:${sender.id}'),
     kind: AttentionMiniCardKind.forward,
-    receipt: _forwardReceipt(id: 'forward-sender:${sender.id}',
-        senderId: sender.id, at: null),
+    receipt: _forwardReceipt(
+      id: 'forward-sender:${sender.id}',
+      senderId: sender.id,
+      at: null,
+    ),
     actor: _profileOf(sender.id, sender.displayName, sender.imageId),
     quotedBody: sender.notePreview,
     capabilitySlugs: sender.reasonSlugs,
@@ -363,8 +379,7 @@ class RequestAttentionCard extends StatelessWidget {
   Profile _profileOf(String id, String displayName, String? imageId) {
     final resolved = actors[id];
     if (resolved != null) return resolved;
-    final hasImage =
-        imageId != null && imageId.isNotEmpty && imageId != 'null';
+    final hasImage = imageId != null && imageId.isNotEmpty && imageId != 'null';
     return Profile(
       id: id,
       displayName: displayName,
@@ -470,18 +485,22 @@ class RequestAttentionCard extends StatelessWidget {
 
   List<Widget> _actions(L10n l10n, TenturaTokens tt) => [
     if (onOfferHelp != null)
-      FilledButton.tonal(
-        key: offerHelpKey,
-        onPressed: onOfferHelp,
-        style: FilledButton.styleFrom(
-          minimumSize: Size(0, tt.buttonHeight),
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          padding: EdgeInsets.symmetric(
-            horizontal: tt.rowGap,
-            vertical: tt.tightGap,
+      Semantics(
+        identifier: TestIds.inboxOfferHelp,
+        button: true,
+        child: FilledButton.tonal(
+          key: offerHelpKey,
+          onPressed: onOfferHelp,
+          style: FilledButton.styleFrom(
+            minimumSize: Size(0, tt.buttonHeight),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            padding: EdgeInsets.symmetric(
+              horizontal: tt.rowGap,
+              vertical: tt.tightGap,
+            ),
           ),
+          child: Text(l10n.labelOfferHelp, textAlign: TextAlign.center),
         ),
-        child: Text(l10n.labelOfferHelp, textAlign: TextAlign.center),
       ),
     if (onForward != null && beacon.allowsForward)
       TenturaTextAction(

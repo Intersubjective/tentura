@@ -698,6 +698,20 @@ Future<void> goToInboxTriage(
   }
 }
 
+/// A Request title as it is rendered on **any** surface.
+///
+/// For You heads its cards with the object being asked for, and wraps it in
+/// typographic quotes — `l10n.attentionCardQuotedTitle`, `“{title}”` in EN and
+/// `«{title}»` in RU (`docs/features/request-attention.md` §8a, issue-171 card
+/// spec §6.1). My Work, the detail screen and History show the title bare.
+///
+/// An exact `find.text(title)` therefore matches everywhere **except** the
+/// triage surface the offer/forward helpers drive, which is how eight browser
+/// journeys came to fail on a card that was on screen with its Offer Help
+/// button beside it. Match by containment so one finder spans both treatments;
+/// run-stamped titles (`uniqueRequestTitle`) keep it unambiguous.
+Finder findRequestTitle(String title) => find.textContaining(title);
+
 Future<void> offerHelpFromInbox(
   WidgetTester tester, {
   required IntegrationFixture fixture,
@@ -706,7 +720,7 @@ Future<void> offerHelpFromInbox(
 }) async {
   await loginAs(tester, fixture.helperEmail);
   await goToInboxTriage(tester);
-  await pumpUntilVisible(tester, find.text(requestTitle));
+  await pumpUntilVisible(tester, findRequestTitle(requestTitle));
   await tapAndSettle(
     tester,
     find.byKey(TestIds.key(TestIds.inboxOfferHelp)).first,
@@ -748,7 +762,7 @@ Future<void> openRequestFromInbox(
   required String requestTitle,
 }) async {
   await goToInboxTriage(tester);
-  await tapAndSettle(tester, find.text(requestTitle).first);
+  await tapAndSettle(tester, findRequestTitle(requestTitle).first);
 }
 
 Future<bool> tryPumpUntilVisible(
