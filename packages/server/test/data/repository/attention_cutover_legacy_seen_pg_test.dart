@@ -306,6 +306,31 @@ final class _FailAfterBatches implements AttentionCutoverPort {
 
   @override
   Future<void> markLegacySeenComplete() => _inner.markLegacySeenComplete();
+
+  // U18b's gates run after this phase, so an interruption injected here never
+  // reaches them; they delegate so the resumed pass is the real thing.
+  @override
+  Future<bool> isObligationKeyComplete() => _inner.isObligationKeyComplete();
+
+  @override
+  Future<AttentionCutoverBatch> keyLegacyObligationBatch({
+    required int batchSize,
+  }) => _inner.keyLegacyObligationBatch(batchSize: batchSize);
+
+  @override
+  Future<void> markObligationKeyComplete() =>
+      _inner.markObligationKeyComplete();
+
+  @override
+  Future<bool> isPlacementComplete() => _inner.isPlacementComplete();
+
+  @override
+  Future<AttentionCutoverBatch> demoteLegacyPlacementBatch({
+    required int batchSize,
+  }) => _inner.demoteLegacyPlacementBatch(batchSize: batchSize);
+
+  @override
+  Future<void> markPlacementComplete() => _inner.markPlacementComplete();
 }
 
 final class _InjectedInterruption implements Exception {

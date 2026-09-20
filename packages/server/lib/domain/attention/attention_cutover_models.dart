@@ -25,10 +25,22 @@ final class AttentionCutoverReport {
   const AttentionCutoverReport({
     required this.cutoverAt,
     required this.convertedReceipts,
+    required this.keyedObligations,
+    required this.demotedPlacements,
     required this.alreadyComplete,
   });
 
   final DateTime? cutoverAt;
   final int convertedReceipts;
+
+  /// U18b gate 1 — live obligations that gained a `logical_task_key`.
+  ///
+  /// Deliberately not "obligations repaired": the rows this pass leaves alone
+  /// are not failures, they are rows whose identity is not provable, and they
+  /// stay counted in `unrepairableObligationCount` where the user sees them.
+  final int keyedObligations;
+
+  /// U18b gate 2 — pre-m0189 receipts demoted to `timeline_only`.
+  final int demotedPlacements;
   final bool alreadyComplete;
 }

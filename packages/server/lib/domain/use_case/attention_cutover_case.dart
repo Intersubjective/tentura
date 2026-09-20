@@ -31,10 +31,19 @@ class AttentionCutoverCase {
       throw ArgumentError.value(batchSize, 'batchSize', 'must be at least 1');
     }
 
-    if (await _repository.isLegacySeenComplete()) {
+    // Each phase is asked separately, because each can be interrupted while
+    // the others have not started (m0193 gives each its own cursor). A single
+    // "done" flag would let a crash between two phases look like a finished
+    // backfill.
+    final legacySeenDone = await _repository.isLegacySeenComplete();
+    final obligationKeysDone = await _repository.isObligationKeyComplete();
+    final placementDone = await _repository.isPlacementComplete();
+    if (legacySeenDone && obligationKeysDone && placementDone) {
       return AttentionCutoverReport(
         cutoverAt: await _repository.readCutoverInstant(),
         convertedReceipts: 0,
+        keyedObligations: 0,
+        demotedPlacements: 0,
         alreadyComplete: true,
       );
     }
@@ -43,20 +52,56 @@ class AttentionCutoverCase {
     // instant the interrupted one fixed instead of drawing a new line.
     final cutoverAt = await _repository.fixCutoverInstant();
 
-    var converted = 0;
-    while (true) {
-      final batch = await _repository.convertLegacySeenBatch(
-        batchSize: batchSize,
-      );
-      converted += batch.converted;
-      if (batch.scanned < batchSize) break;
-    }
-    await _repository.markLegacySeenComplete();
+    final converted = legacySeenDone
+        ? 0
+        : await _runPhase(
+            batchSize: batchSize,
+            runBatch: _repository.convertLegacySeenBatch,
+            markComplete: _repository.markLegacySeenComplete,
+          );
+    final keyed = obligationKeysDone
+        ? 0
+        : await _runPhase(
+            batchSize: batchSize,
+            runBatch: _repository.keyLegacyObligationBatch,
+            markComplete: _repository.markObligationKeyComplete,
+          );
+    final demoted = placementDone
+        ? 0
+        : await _runPhase(
+            batchSize: batchSize,
+            runBatch: _repository.demoteLegacyPlacementBatch,
+            markComplete: _repository.markPlacementComplete,
+          );
 
     return AttentionCutoverReport(
       cutoverAt: cutoverAt,
       convertedReceipts: converted,
+      keyedObligations: keyed,
+      demotedPlacements: demoted,
       alreadyComplete: false,
     );
+  }
+
+  /// One phase: batches until a short one, then the completion mark.
+  ///
+  /// Termination is `scanned`, never `converted`. U18b's gates leave rows
+  /// alone on purpose — a batch of fifty undecidable obligations converts
+  /// nothing and has still made progress — so a loop that stopped on a
+  /// converted count of zero would stop at the first row it could not prove.
+  Future<int> _runPhase({
+    required int batchSize,
+    required Future<AttentionCutoverBatch> Function({required int batchSize})
+    runBatch,
+    required Future<void> Function() markComplete,
+  }) async {
+    var converted = 0;
+    while (true) {
+      final batch = await runBatch(batchSize: batchSize);
+      converted += batch.converted;
+      if (batch.scanned < batchSize) break;
+    }
+    await markComplete();
+    return converted;
   }
 }
