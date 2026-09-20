@@ -474,6 +474,29 @@ void _enforceClassificationRules(
       'timeline_only',
       reason: '$eventType is hierarchy-propagated',
     );
+    // U19 decided against a user-facing counter for the pre-m0189 hierarchy
+    // receipts U18b's gate 2 could not prove, and could therefore not demote
+    // out of `placement = 'primary'`. The decision rests on one property: a
+    // residual row is an **optional** update, so the person clears it with
+    // its own × or by opening the Request, and it is gone for good. Gate 1's
+    // residuals need `unrepairableObligationCount` precisely because an
+    // obligation has no × (`clearPolicy: forbidden`) and no gesture removes
+    // it. If a hierarchy variant ever becomes an obligation, the asymmetry
+    // that justified the silence is gone and the counter must be revisited.
+    expect(
+      attentionClass,
+      'optional',
+      reason:
+          '$eventType must stay optional — U19 declined a counter for its '
+          'un-demotable pre-m0189 rows because a person can clear them',
+    );
+    expect(
+      variant['clearPolicy'],
+      isNot('forbidden'),
+      reason:
+          '$eventType must stay clearable for the same reason; see the U19 '
+          'journal entry on gate 2\'s residual population',
+    );
   }
 
   if (recoverableVia == 'none') {
