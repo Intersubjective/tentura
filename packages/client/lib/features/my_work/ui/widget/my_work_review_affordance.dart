@@ -4,6 +4,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/evaluation/domain/review_package_state.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 
 enum MyWorkReviewAffordanceKind { none, primary, sent }
 
@@ -44,6 +45,7 @@ class MyWorkReviewAffordance extends StatelessWidget {
         return Align(
           alignment: Alignment.centerRight,
           child: TenturaCommandButton(
+            key: TestIds.key(TestIds.reviewOpen),
             label: package == ReviewPackageState.changedNotSent
                 ? l10n.evaluationSubmitChanges
                 : l10n.beaconHudActReviewContributions,

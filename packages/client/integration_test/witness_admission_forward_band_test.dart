@@ -65,7 +65,7 @@ void main() {
       await logout(tester);
       await loginAs(tester, fixture.carolEmail);
       await goToPath(tester, kPathMyWork);
-      final reviewCta = find.text('Review');
+      final reviewCta = find.byKey(TestIds.key(TestIds.reviewOpen));
       await pumpUntilVisible(
         tester,
         reviewCta,

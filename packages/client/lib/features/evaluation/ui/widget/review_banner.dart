@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 
 /// Inline banner: draft phase (open beacon) or review window after closure.
 class ReviewBanner extends StatelessWidget {
@@ -35,6 +36,7 @@ class ReviewBanner extends StatelessWidget {
           width: double.infinity,
           height: 40,
           child: FilledButton(
+            key: TestIds.key(TestIds.reviewOpen),
             onPressed: onPrimary,
             style: FilledButton.styleFrom(
               shape: RoundedRectangleBorder(
@@ -54,6 +56,7 @@ class ReviewBanner extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             FilledButton(
+              key: TestIds.key(TestIds.reviewOpen),
               onPressed: onPrimary,
               child: Text(l10n.beaconHudActReviewContributions),
             ),

@@ -23,8 +23,11 @@ Future<void> openReviewContributionsIfNeeded(WidgetTester tester) async {
     await tapAndSettle(tester, reviewHud);
     return;
   }
-  await pumpUntilVisible(tester, find.widgetWithText(FilledButton, 'Review'));
-  await tapAndSettle(tester, find.widgetWithText(FilledButton, 'Review').first);
+  // The CTA is labelled «Review contributions» / «Submit changes», never the
+  // bare 'Review' this used to match, so it goes through the stable id.
+  final reviewOpen = find.byKey(TestIds.key(TestIds.reviewOpen));
+  await pumpUntilVisible(tester, reviewOpen);
+  await tapAndSettle(tester, reviewOpen.first);
 }
 
 void main() {
@@ -126,7 +129,11 @@ void main() {
       find.byKey(TestIds.key(TestIds.beaconOverflowMenu)).first,
     );
     final deleteItem = find.text('Delete Request');
-    await pumpUntilVisible(tester, deleteItem, label: 'Delete Request overflow');
+    await pumpUntilVisible(
+      tester,
+      deleteItem,
+      label: 'Delete Request overflow',
+    );
     await tapAndSettle(tester, deleteItem.first);
 
     expect(find.text('Cannot delete'), findsOneWidget);

@@ -49,7 +49,8 @@ abstract final class TestIds {
   static String myWorkObligation(String receiptId) =>
       'my_work.obligation.$receiptId';
 
-  static String myWorkWhatsNew(String beaconId) => 'my_work.whats_new.$beaconId';
+  static String myWorkWhatsNew(String beaconId) =>
+      'my_work.whats_new.$beaconId';
 
   /// Stable Updates feed row identity for integration and WebDriver proofs.
   static String updatesReceipt(String receiptId) =>
@@ -141,6 +142,16 @@ abstract final class TestIds {
   static const beaconHudMarkEnoughHelpConfirm =
       'beacon.hud.mark_enough_help.confirm';
 
+  /// The control that opens the review package, wherever it is offered — the
+  /// My Desk card affordance and the Request's review banner.
+  ///
+  /// Its label is not stable (`Review contributions` / `Submit changes`), and
+  /// the browser journeys used to match the literal text `Review`, which no
+  /// label has equalled since the obligation CTA was named. Plan §7.3 asks
+  /// acceptance journeys to drive real controls through stable TestIds; this
+  /// is that id.
+  static const reviewOpen = 'review.open';
+
   static String evaluationParticipant(String userId) =>
       'evaluation.participant.$userId';
   static const evaluationSave = 'evaluation.save';
@@ -198,7 +209,8 @@ abstract final class TestIds {
       'constellation.text.request.$requestId';
   static const constellationPinTarget = 'constellation.pin_target';
   static const constellationUnpinTarget = 'constellation.unpin_target';
-  static const constellationFilterShowClosed = 'constellation.filter.show_closed';
+  static const constellationFilterShowClosed =
+      'constellation.filter.show_closed';
   static const constellationFilterParticipatedOnly =
       'constellation.filter.participated_only';
   static const constellationHiddenPinsCount = 'constellation.hidden_pins_count';
