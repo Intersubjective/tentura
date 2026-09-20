@@ -126,6 +126,19 @@ Future<void> main() async {
   );
 
   test(
+    'm0195 drops the one-shot cleanup helper a 0193 database still carries',
+    () {
+      expect(
+        before.cleanupHelperPresent,
+        isTrue,
+        reason: 'a database at 0193 has it — m0193 carries the definition',
+      );
+      expect(after.cleanupHelperPresent, isFalse);
+    },
+    skip: skipReason,
+  );
+
+  test(
     'leaves an account that opted out of the digest opted out',
     () => expect(digestAfterForOptedOutAccount, 'off'),
     skip: skipReason,
@@ -176,6 +189,7 @@ class _Readings {
     required this.usersWithoutPresence,
     required this.digestDefault,
     required this.categoriesDefault,
+    required this.cleanupHelperPresent,
   });
 
   final int overloads;
@@ -183,6 +197,7 @@ class _Readings {
   final int usersWithoutPresence;
   final String digestDefault;
   final String categoriesDefault;
+  final bool cleanupHelperPresent;
 }
 
 Future<_Readings> _read(Connection writer) async {
@@ -203,7 +218,9 @@ SELECT
       AND column_name = 'email_digest'),
   (SELECT column_default FROM information_schema.columns
     WHERE table_schema = 'public' AND table_name = 'notification_preference'
-      AND column_name = 'email_categories')
+      AND column_name = 'email_categories'),
+  (SELECT to_regprocedure(
+     'public.nested_requests_apply_legacy_cleanup()') IS NOT NULL)
 ''');
   final values = row.single;
   return _Readings(
@@ -212,5 +229,6 @@ SELECT
     usersWithoutPresence: values[2]! as int,
     digestDefault: values[3]! as String,
     categoriesDefault: values[4]! as String,
+    cleanupHelperPresent: values[5]! as bool,
   );
 }

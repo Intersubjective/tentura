@@ -412,8 +412,22 @@ fresh database has no legacy rows to clean, so the invocation would be a no-op.
 Nothing else references it, and the only test that did was deleted with the rest
 of the `m0158` coverage. It was kept rather than stripped because dropping a
 schema object is a different change from a squash and would have made G1's
-"identical" claim conditional. Removing it is a one-line follow-up: add it to
-`_strip`'s drop list and regenerate.
+"identical" claim conditional.
+
+**Dropped by `m0195` (2026-09-20).** Not by stripping it from `m0193` and
+regenerating, which is what this section first suggested — that advice was wrong
+once `m0193` shipped, for the same reason §10.2 documents: editing a migration
+that has shipped reaches only the databases that have not yet applied it, and
+both deployments already had the function. `m0195` is a plain
+`DROP FUNCTION IF EXISTS`, a no-op wherever it is already absent. A later
+regeneration of the baseline will not contain the function anyway, because the
+database it dumps will have run `m0195`.
+
+Verified before dropping: no Dart, SQL or Hasura reference; no other function
+body mentions it; `pg_depend` reports no dependents on either deployment.
+`schema_baseline_pg_test` asserts a fresh database ends up without it, and
+`m0194_drift_reconciliation_pg_test` asserts a database at `0193` has it and no
+longer does after the registry runs.
 
 **Unexplained, and not caused by the squash.** The local dev database has `0158`
 stamped (2026-09-06 17:39) but does *not* have the function, while a chain-built

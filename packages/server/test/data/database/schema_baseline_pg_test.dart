@@ -82,6 +82,20 @@ WHERE tgname = 'vote_user_bump_direct_trust_version'
   );
 
   test(
+    'the one-shot m0158 cleanup helper is gone',
+    () async {
+      // m0193 carries the definition, because it is a dump of the schema the
+      // chain built; m0195 drops it. A fresh database must end up without it.
+      final present = await session.writer.execute(
+        "SELECT to_regprocedure('public.nested_requests_apply_legacy_cleanup()')"
+        ' IS NOT NULL',
+      );
+      expect(present.single.single, isFalse);
+    },
+    skip: skipReason,
+  );
+
+  test(
     'the baseline seeds the rows the replaced chain seeded',
     () async {
       final connection = session.writer;
