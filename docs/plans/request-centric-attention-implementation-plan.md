@@ -731,8 +731,15 @@ reliably. It runs as three sequential sandwiches, each its own unit:
     window** (`undoDismissAll` already exists).
   - **U16c-2 — the retirements.** Migrate the prompt pin off `ActivityOfferCard.prompt`
     (`activity_stream_view.dart:855`), then delete `activity_offer_card.dart`, `activity_forward_row.dart`,
-    `inbox_forward_attribution_copy.dart` and their goldens (~34 PNG-backed tests, so the suite count
-    legitimately drops).
+    `inbox_forward_attribution_copy.dart` and their goldens.
+
+    **Retirement table corrected during execution:** `activity_offer_card_golden_test.dart` is **not** a whole
+    retirement. Of its 13 cases, 9 are the gone forward surface — now covered by `RequestAttentionCard` — and
+    **4 are prompt cases asserting `ActivityOfferBoundedShell` + `InviteAcceptedReceiptCard`, both of which
+    survive.** Deleting the file wholesale would have dropped four live assertions. They were ported to
+    `activity_prompt_pin_golden_test.dart` over the same PNG bytes (verified as 100%-similarity git renames, so
+    the wrapper removal provably changed no pixel). Net client count **3908 → 3878**, predicted before the run
+    and matched exactly; skips unmoved at 29.
 
   **Manifest amended by live code:** `ActivityOfferBoundedShell` is **kept**, not retired —
   `InviteAcceptedReceiptCard` still uses it for Activity prompt pins. The original U16 line listing it among the

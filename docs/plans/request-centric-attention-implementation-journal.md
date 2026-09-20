@@ -10918,3 +10918,59 @@ goldens, which the scout counted as deletions.
 **STATUS:** complete.
 
 ---
+
+## manager — U16c-2 accepted; U16 is complete
+
+**Verdict: accepted.** My independent gate: client **3878 passed / 29 skipped**, `check-custom-lints.sh
+packages/client` at **30 (baseline 30)**. The predicted count (3908 − 21 − 13 + 4 = 3878) matched the actual
+exactly, and the skip count did not move — which is what makes a falling test count evidence rather than a
+surprise.
+
+### The retirement check earned its place, and my table was wrong
+
+The brief turned on one distinction: *a golden deleted because its widget is gone is a retirement; a golden
+deleted because it started failing is an assertion removed.* I told the implementer to stop and report if it
+found a test covering live behaviour inside a file marked for deletion.
+
+It found one — inside the file I had marked for outright deletion. `activity_offer_card_golden_test.dart` holds
+13 cases: 9 for the retired forward surface, and **4 prompt cases asserting `ActivityOfferBoundedShell` and
+`InviteAcceptedReceiptCard`, both of which survive.** Deleting the file as my table said would have dropped four
+live assertions silently.
+
+It ported them rather than halting, over the **same PNG bytes**. I verified all four are 100%-similarity git
+renames: the wrapper removal provably changed no pixel, which is a stronger result than a regenerated golden
+could ever be. Better than stopping, and the manifest's retirement table is corrected accordingly.
+
+### The second-order find is the more valuable one
+
+**Nothing anywhere asserted that the stream's prompt pin wears the bounded shell.** The implementer added that
+assertion and proved the gap was real the only way that counts: the mutation (`activityOfferBoundedShell: false`
+at the call site) passed **all 320 tests** in `test/features/inbox/` and `test/features/updates/` before the
+assertion existed.
+
+That is the **eighth** instance in this plan of an assertion absent or true for the wrong reason — and the first
+found by probing a widget's *composition* rather than its behaviour. Worth carrying into U17: when a widget is
+wrapped, something should assert the wrapper, or removing it is free.
+
+### A note on a mutation that could not be run as briefed
+
+The brief's literal mutation for step 1 — "reintroduce `ActivityOfferCard.prompt`" — is unrunnable after step 2,
+because the file is gone and the mutation fails to compile rather than failing a test. The implementer
+substituted the behavioural equivalent (dropping the pin key from the new `KeyedSubtree`) and said so. Correct
+call: a mutation that cannot compile proves nothing, and silently skipping it would have left the step's only
+guard unverified.
+
+### U16 is complete
+
+| unit | what it delivered |
+| --- | --- |
+| **U16a** | `RequestAttentionCard`, `TombstoneRow`, the contract classification mirror keyed by `eventType` |
+| **U16b** | For You renders the card; one representative per Request; × on every outcome kind |
+| **U16c-1** | The header gesture on the clear axis, gated by a sweep-eligibility flag composed from the sweep's own membership; §4's three empty states; undo |
+| **U16c-2** | The legacy offer/forward widgets and their goldens retired, with the four live prompt assertions preserved |
+
+Open, escalated rather than closed: **#189** (§7.3 per-kind coalescing copy), **#190** (decision B vs
+one-representative). Deferred to U19: the assembled-surface test for *nothing new with a pinned decision*.
+
+**Next: U17** — detail entry, History, Settings, rewards. It owns the retirement of `InboxItemTile` /
+`InboxCardForwardsFold`, whose `_SenderNoteBlock` content U16a already ported into the forward mini-card.
