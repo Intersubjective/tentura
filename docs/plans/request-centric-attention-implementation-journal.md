@@ -11836,3 +11836,67 @@ Arithmetic: 3907 + 7 panel + 11 For you + 2 chrome + 6 attention case + 7 My Des
 `docs/features/request-attention.md` changed again: §4 gained the reward's boundaries and §9a the unrepairable
 sentence. Both describe what shipped rather than deciding anything new, but that file is the owner's and should
 not be discovered by accident.
+
+## manager — U17d accepted; U17 is complete
+
+**Verdict: accepted.** My independent gates: client **3949 passed / 29 skipped** — the predicted number,
+exactly — lints **30 (baseline 30)**, terminology **ok**. Worker confirmed dead before I touched the tree.
+**23 mutations applied, 23 killed, none survived.**
+
+### Building the reward exposed a rule that was already wrong
+
+`forYouEmptyKind` — shipped in U16c-1, verified then, accepted by me — used the pinned zone as its **only**
+discriminator. So a sweep that empties For You *and* its decision zone produced **"Nothing here yet"**, said to
+the person who had just cleared the surface. Nothing caught it because no test had ever cleared both at once;
+the reward is the first feature that cares about the difference.
+
+Fixed the right way: **one rule with a second true case** (`hasPinnedZone || wasClearedHere`), not a second
+rule. M1 holds.
+
+### It corrected my own record, and it was right to
+
+My U17c verdict said the narrow/2× test "now asserts rendered height", implying the clipped-text trap was
+closed. The assertion was `height > 0` — which a one-line clip satisfies. It is now `> 60` and `> 120`, real
+multi-line heights.
+
+The entry was true in letter and misleading in effect: I reported a fix by its description instead of checking
+what it asserted. That is the same failure mode as the defects this plan keeps finding, one level up in the
+review. **Fifteenth instance, and the second by the overseer.**
+
+### "Cleared N today" declined, correctly
+
+D18 permits it only if the count is distinct currently-cleared items per viewer calendar day, unaffected by
+opening, repair, retries and undo. Undo restores rows without telling the client which day's tally to
+decrement; reconciliation can re-create an obligation a past sweep cleared; a viewer-day boundary needs a
+durable per-day ledger that neither the client nor the server has. Any daily number would be wrong the first
+time somebody undid a sweep or crossed midnight.
+
+**The mandatory per-operation count ships and is exact.** That is what D18 requires; the daily line was always
+the optional half, and declining it is a better answer than a counter that quietly overcounts.
+
+### `unrepairableObligationCount`, told honestly
+
+A plain sentence **beside** "Counters refreshed", never instead of it — the run did work. The copy says the
+rows stay as they are, nothing on that screen fixes them, and re-running later is safe. **No action is offered,
+because none would do anything.** Zeroed on a failed run so no stale number lingers. When the honest answer is
+"you can do nothing", saying so beats inventing a button.
+
+### U17 is complete
+
+| unit | what it delivered |
+| --- | --- |
+| **U17a** | §4's open-clear, which had never shipped — one gate, two listeners, all 31 entry routes |
+| **U17b** | One Timeline entry; the axis tests, which found a live §3 violation in shipped client code; `InboxItemTile` / `InboxCardForwardsFold` retired |
+| **U17c** | Settings reaches the repair; D15 step 6 adoption; the reconcile document that was blanking four §6 indicators |
+| **U17d** | The cleared-state reward, `unrepairableObligationCount`, the dead ARB key |
+
+Open and escalated, not closed: **#189** (§7.3 per-kind coalescing copy), **#190** (decision B vs
+one-representative), **D15 step 5** (session invalidation, unmet, recorded in three places), the stale
+`issue-171-card-spec.md` §5 line, and the assembled-surface test deferred to U19.
+
+**The owner's contract file `docs/features/request-attention.md` has now been edited by three units** (§4, §9a).
+Every edit describes delivered behaviour in the document's own voice rather than deciding anything new, but the
+file belongs to the owner and the accumulated change should be reviewed as a whole.
+
+**Next: U18** — backfill and activation, carrying its two added gates (legacy obligation identity; historical
+hierarchy `placement`), and the legacy three totals whose misleading names have now cost two units.
