@@ -12665,3 +12665,155 @@ full gate matrix **including `run_client_integration_web_local.sh`, which this s
 assembled-surface test deferred from U16c-1; U18b's open question about a counter for un-demotable hierarchy
 rows; the stale `issue-171-card-spec.md` §5 line; and the accumulated §4/§9a edits to the owner's contract doc,
 for review as a whole. Open issues: **#189**, **#190**, and D15 step 5 (session invalidation, unmet).
+
+## U19 — acceptance and release
+
+The last unit. Nothing here is new product: it is the cutover the plan deferred, the six release blockers
+checked against named tests rather than against the code reading right, the full gate matrix, and the four
+items U18 handed forward.
+
+### The cutover, and a third file nobody was watching
+
+U18c raised `kDefaultMinClientVersion` to 7.19.0 while `packages/client/pubspec.yaml` stayed at 7.18.0, so the
+server rejected every client. D19 is one release: the floor and the build that satisfies it move together.
+
+The brief named two files. There is a **third**: `packages/client/web/manifest.json`. All three are rewritten
+at build time by `hook/build/version_update.dart` from the pubspec, so the tracked values only matter for a
+build without `WEB_BUILD_ID` — but they *are* tracked, and the manifest's had been stuck at **7.3.1** for a
+dozen releases. It was invisible because the file carries a `skip-worktree` bit in this worktree: the build
+hook rewrites it on every local build, so somebody turned off git's interest in it, and with git's interest
+went anybody's. The bit was cleared to commit 7.19.0 and set again afterwards, so the worktree is as found.
+
+Nothing asserted the relation that matters. The floor had its own three tests; the client version had none, and
+the two could disagree in silence — which is exactly what they were doing. Two tests added to
+`min_client_version_gate_test.dart`, which reads the sibling package's files by path:
+
+| test | mutation | result |
+| --- | --- | --- |
+| the shipped client version satisfies the floor | pubspec → 7.18.0 | **fails** |
+| every checked-in copy of the client version agrees | `?v=` → 7.18.0 | **fails** |
+| " | manifest → 7.18.0 | **fails** |
+
+Note what the second test does **not** guard against, and says so at the site: it reads the *working copy*, so
+on a machine where the manifest's skip-worktree bit hides a stale tracked value it is green locally and red on
+a fresh checkout. That asymmetry is the drift it exists to surface, not a flaw in it.
+
+### The six release blockers, each with the test that proves it
+
+Every one already had a test. None had to be written; two were strengthened.
+
+| # | blocker | proved by |
+| --- | --- | --- |
+| 1 | no deletion path reaches a live obligation | `attention_retention_pg_test` — *'retains live obligations even when seen, emailed, and older than the retention window'*, *'retains an uncleared optional …'*, *'retains a cleared receipt — clearing is not deletion (D17)'*, *'retains a post-cutover settled obligation'* |
+| 2 | no primary-surface use of `seen_at` as cleared | `attention_active_attention_axis_pg_test` — *'a seen but uncleared optional receipt still asks for attention'*, *'an unseen but cleared optional receipt no longer asks'*, *'myWorkAttention counts active optional, not unseen'*, *'U17b §3 — marking a cleared receipt unread does not resurrect it'*; client side `attention_read_clear_axis_test` — *'markAllSeen does not zero a surface it only read'* and the *'group projection counts the clear axis, not the read axis'* group |
+| 3 | no generic obligation dismissal route | `updates_event_contract_test` — every `attentionClass: obligation` variant must declare `clearPolicy: 'forbidden'` **and** a non-empty `actionDescriptor`, `logicalTaskKey` and resolution set, so a bare Done cannot be declared; enforced at runtime by `attention_dismiss_sweep_pg_test` — *'an obligation is never a member'*, with its own load-bearing mutation (*'drop `NOT requires_action` and the obligation becomes a member'*) |
+| 4 | every outcome kind dismissible | `attention_outcome_dismissible_pg_test` group *'every outcome kind is dismissible'* (all five, plus `helping`'s two routes) at the storage layer; `activity_stream_view_test`'s *'the ⟨kind⟩ tombstone has a × and it acts'* loop drives the real × on the real `ActivityStreamView` and asserts the cubit call, for all five |
+| 5 | Dismiss all never applies a decision | `attention_dismiss_sweep_pg_test` — *'an unanswered forward is never a member'* with its load-bearing mutation, and `attention_sweep_eligibility_pg_test` — *'an unanswered forward alone is NOT eligible, though for you.dot is on'* |
+| 6 | indicator and list predicates are one function | `request_attention_predicate_test` group *'M1 — one predicate, not two'* (including *'the invariant tests fail when the two rules are forked'*); `attention_active_attention_axis_pg_test`'s five `M1 —` cases, one of which is *'one function: loosening it moves the number and the list together'*; `work_activity_nav_indicators_test` — *'the getters read the shared predicate, not a local copy'* |
+
+**The one gap, and it is in the proofs rather than the product.** Blocker 4's two exhaustive loops are both
+hand-written lists of five. `AttentionForwardOutcome.values` appears in no test at all, so a sixth outcome kind
+would be dismissible-untested, in both layers, silently. The client loop's list is now hoisted and compared
+against the enum. Mutation: drop one case — **fails**, naming the missing kind and both loops.
+
+### Carried item — the assembled cleared surface (deferred from U16c-1)
+
+§4: *"Because Dismiss all leaves decisions alone, a cleared For you can still show its pinned zone."* Six tests
+asserted that sentence and every one of them asserted `forYouEmptyKind` directly or pumped `ForYouEmptyState`
+with a kind handed to it. None proved the **assembled** surface computes `hasPinnedZone: true`, and none could:
+the pinned zone comes from `offersState.items`, which the attention feed does not drive at all. The test needs
+`_FeedAttentionRepo(firstPage: const [])` **and** `wireActivityOffersV2` hydrating `FakeInboxRepository`
+separately — the combination is unreachable from either half.
+
+It now lives in `activity_stream_view_test` as *'nothing new, with the pinned decision still on screen'*.
+Mutation: drop the `|| offersState.items.isNotEmpty` leg of `hasPinnedZone` in `activity_stream_view.dart` —
+**fails**.
+
+### Carried item — U18b's open question: no counter, and why
+
+Gate 2 left every unprovable pre-m0189 `beaconHierarchyStatusChanged` receipt at `placement = 'primary'`, where
+it can still light an ancestor's dot for activity on a child. Gate 1's leftovers are visible through
+`unrepairableObligationCount`; these have nothing. U18b asked U19 to decide.
+
+**Decision: no counter.** The two populations look symmetric and are not.
+
+A gate-1 residual is an **obligation**: `clearPolicy: forbidden`, no ×, and no gesture in the product removes
+it. If the repair cannot settle it, nothing can, and the person is owed the number — which is exactly what
+§9a's "outstanding actions it cannot repair" bullet describes.
+
+A gate-2 residual is an **optional update**. Every `beaconHierarchyStatusChanged` variant in the contract is
+`attentionClass: optional` with `clearPolicy: explicit_or_request_open`, so the row carries its own × and also
+clears by opening the Request. It is removed by the ordinary ritual, once, for good. The population empties
+itself through use.
+
+And a counter for it would not be information. It names no row, offers no action, and cannot say *which* dots
+are suspect — so it reads as "some unknown number of your dots may be lying to you", spending trust in every
+dot to report a population that is already draining. §6's rule that a lit indicator must have something
+reachable behind it argues the same way from the other side.
+
+The decision rests on one property, so that property is now a test rather than a paragraph: in
+`updates_event_contract_test`, every hierarchy-propagated variant must stay `optional` and must not declare
+`clearPolicy: forbidden`. If one ever becomes an obligation, the asymmetry that justified the silence is gone
+and the counter is back on the table.
+
+| mutation | result |
+| --- | --- |
+| a hierarchy variant's `clearPolicy` → `forbidden` | **fails**, on the new assertion by name |
+| a hierarchy variant's `attentionClass` → `obligation` | **fails** — but on the pre-existing obligation rules (`actionDescriptor`), so the class assertion is **subsumed**. It is kept for what it documents, not for what it catches. |
+
+### Carried item — `issue-171-card-spec.md` §5
+
+The retirement table still pointed `InboxItemTile` at `RequestAttentionCard`. U17b built `InboxWatchlistRow`,
+and the reason belongs in the spec: Watching and Rejected are collections of stances, not attention surfaces,
+so the attention card's dot, count and event sub-cards have nothing to show there. The `_SenderNoteBlock` port
+the row demanded did happen, in U16a; the fold it lived in turned out to be dead — both live callers passed
+`showProvenance: false`. Line corrected, with all of that on it.
+
+### Carried item — §4 and §9a read as a whole, and one disagreement
+
+Read together, the U17c/U17d additions are internally consistent, and one apparent conflict is not one:
+
+- §4's table says Dismiss all clears *"every row on the surface that carries its own ×"*, and its boundaries say
+  it *"skips unanswered forwards, pending prompts"*. These are the same rule from two ends, not two rules —
+  **verified in the code**: `_ActivityStreamPromptPin` renders an `InviteAcceptedReceiptCard` with `onMarkSeen`
+  / `onMarkUnseen` and **no dismiss control** at all. A pending prompt carries no ×, so the table rule already
+  excludes it.
+- §9a's "never as 'all caught up'" constrains the *Reset counters result report*; §4's "You're caught up"
+  is the *surface's* empty state. Different objects, both can be on screen truthfully at once.
+- §4 withdraws the reward entirely after a partial sweep, while §9a reports an unrepairable remainder *beside*
+  the refreshed result. Different treatments of the same shape, but not contradictory, and the client matches
+  both: `forYouSweptHere` is deliberately true for a partial sweep (so the voice is *nothing new*) while
+  `forYouCaughtUpReward` separately withholds the celebration.
+
+**One sentence does not describe what shipped.** §4, added in U17d:
+
+> A surface cleared by opening Requests is still caught up; it simply states no number, because none was
+> achieved by a gesture that counted one.
+
+`forYouEmptyKind` returns `nothingNew` only when `hasPinnedZone || wasClearedHere`, and `wasClearedHere` is
+`forYouSweptHere` — true only for an **explicit sweep** that applied at least one row. There is no signal
+anywhere for "this session cleared rows by opening Requests". So a person who empties For You the way §4
+describes, with no forward pinned, lands on **`nothingHere`** — *"Nothing here yet"*, the never-had-anything
+voice — and `for_you_empty_state_test`'s *'a surface with nothing at all reports nothing here'* asserts that it
+does.
+
+This is the §4 failure mode in the direction nobody guarded: the three states must read differently, and this
+one reads as the wrong one of the three. It is **not** a release blocker and not a defect introduced by any
+unit in this plan — U17d wrote the sentence describing an intent the code never had. Per the contract doc's own
+preamble, the code is the defect. Fixing it needs a new session-scoped signal (did opening a Request clear
+anything here?) threaded from the detail host's clear-on-open to the For You empty state — new plumbing and a
+product call about how long "this session" lasts, which is why U19 reports it rather than quietly changing
+behaviour at the release gate. Recorded here as the one open contract/code disagreement at release.
+
+### Gates
+
+| gate | baseline | actual |
+| --- | --- | --- |
+| server `dart test --exclude-tags pg` | 1695 / 0 | **1697 / 0** (+2: the version-cutover tests) |
+| server `dart test --tags pg -j 1` | 1083 / 24 | **1083 / 24** — skips unmoved, nothing added on the PG side |
+| client `flutter test` | 3948 / 29 | **3950 / 29** (+2: the assembled-surface test and the enum guard) |
+| `check-custom-lints.sh packages/client` | 30 | **30** |
+| `check-custom-lints.sh packages/server` | 0 | **0** |
+| `check-user-facing-terminology.sh` | ok | **ok** |
+
+Every delta is accounted for by a named test. The four tests this unit added are the whole of the movement.
