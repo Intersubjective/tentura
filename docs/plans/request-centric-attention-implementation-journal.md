@@ -11713,3 +11713,126 @@ item. **Nothing in this unit's acceptance may be read as session invalidation ha
 - **RU copy diverges from EN deliberately.** Literal "Сбросить счётчики" reads as *zero it out*, exactly what
   D15 forbids, and "Пересчитать счётчики" belongs to the debug command — so RU is "Обновить счётчики" against
   EN's "Reset counters". A copy decision if literal parity is wanted.
+
+## U17d — rewards and remainders
+
+**Scope.** The rewarding cleared state (D18), `unrepairableObligationCount` surfaced, and the dead
+`myWorkObligationDone` key deleted. Four commits on `feature/events_refac` from `74860f880`.
+
+### The reward is a presentation — and the rule was missing an input
+
+`CaughtUpPanel` (`C/ui/widget/caught_up_panel.dart`) is copy-agnostic: every sentence is passed in, so For you
+and My Desk share one widget without either surface's rules leaking into it. The *decision* stays in
+U16c-1's functions. M1 held — no second copy of the three voices was written.
+
+Wiring it exposed a real defect in the shipped rule. `forYouEmptyKind` discriminated *nothing here* from
+*nothing new* on the pinned zone alone, so the sweep that empties For you **and** its decision zone landed on
+"Nothing here yet" — the never-had-anything sentence, said to somebody who had just cleared five rows
+themselves. The rule gained a second true case (`wasClearedHere`) rather than a second rule. The same shape as
+U17c's finding: the code was correct against the case its author had in front of them.
+
+Two gates on the reward, deliberately separate:
+
+- `forYouSweptHere` — did the sweep clear anything? True for a **partial** sweep as well: it did clear rows, so
+  the surface is "nothing new", not "nothing here".
+- `forYouCaughtUpReward` — may this state *celebrate*, and with what number? False for a partial sweep, for a
+  sweep with failed members, for a non-complete status, and for the two non-cleared voices. "Never celebrate
+  after a partial sweep" is a rule about the celebration, not only about the count.
+
+`AttentionCase` gained `lastSweepOutcome` (the sweep runs from the app bar, the empty state is in the body). It
+publishes the sweep's own result and judges no copy; it withdraws the reward when the sweep throws, when an
+undo restores the rows, and when the account changes. A **refused** undo leaves it standing — nothing moved.
+
+**My Desk** gets D18's other sentence as a compact line above work that is still listed, gated on
+`myDeskIsCaughtUp`: false for an empty desk (the empty body already speaks, and "caught up" over nothing is
+fabricated success), false for drafts and the archive, false while `attentionLoaded` is false — the flag is an
+input rather than an inference, because an empty attention map is exactly the shape of not-fetched-yet.
+
+### "Cleared N today" — not shipped, and why
+
+The manifest gates it on timezone and undo accounting passing. Neither can pass on this client:
+
+- **Undo.** The count must be of items *currently* cleared. Undo restores rows without telling the client which
+  day's tally to decrement, and a repair can re-create an obligation that a past sweep cleared. Nothing
+  client-side reconciles a stored number with those reversals.
+- **Timezone.** A viewer-calendar-day boundary needs a durable per-day ledger keyed to the viewer's zone. The
+  client holds one session's sweep results and no ledger; the server exposes no per-day cleared count.
+
+A daily number built on this session's memory would be wrong the first time somebody undid a sweep, reopened
+the app, or crossed midnight. The per-operation count — which D18 makes mandatory — ships, and is exact,
+because it is the number one operation reported.
+
+### `unrepairableObligationCount`
+
+Surfaced in Settings beside the refreshed result, never instead of it: the run did work, and rows the server
+cannot rebuild from their source are neither failure nor work the account owes. **What the user can do about it
+is nothing**, and the copy says so rather than inventing an action — they stay on the list as they are, and
+running the command again later is safe (the only thing that could ever change the number, if the source state
+moves). Always replaced, never merged: a failed run reports zero, so no earlier number lingers as if this run
+had found it.
+
+This does not reopen U17c's rule. Success is still "Counters refreshed" unconditionally; U17c's test that a
+result carrying work is a success passes unchanged, with `unrepairableObligationCount: 2` in its fixture.
+
+### Copy
+
+Added: `myWorkCaughtUp`, `attentionResetCountersUnrepairable` (plural, en + ru). Changed:
+`forYouEmptyNothingNew` "Nothing new" → "You're caught up" (key kept). Reused rather than added:
+`inboxDismissAllCleared` for the number on the panel. Removed: `myWorkObligationDone`, verified unreferenced in
+`lib/` and `test/` first. `check-user-facing-terminology.sh`: ok.
+
+The sweep's count is now stated twice — the transient snack bar that carries Undo, and the cleared state that
+persists. Two existing chrome tests asserted `findsOneWidget` on it; they now pin the snack bar's copy
+specifically with a `descendant` finder rather than being relaxed to `findsWidgets`.
+
+### Mutations — twenty-three applied, twenty-three killed, none survived
+
+| mutation | tests that failed |
+| --- | --- |
+| illustration ignores reduced motion | `with animations disabled the illustration is there at once` |
+| panel detail capped to one line | `every line survives 320dp at 2x text scale, unclipped` |
+| semantics label drops the cleared count | `the whole panel is one semantics container with its copy` |
+| compact note renders the illustration | `the compact note is one line with no illustration` |
+| partial/failed sweeps still celebrate | 3 reward tests incl. the widget negative |
+| every empty kind becomes a reward | `nothing here`, `nothing matching this filter`, `only the cleared voice is a reward` |
+| a zero-applied sweep states "Cleared 0" | `a sweep that cleared nothing is caught up without a number` |
+| the panel never states the count | `after a complete sweep the number cleared is on the panel` |
+| undo does not withdraw the reward | `an undo takes the reward back with the rows` |
+| a thrown sweep keeps the old number | `a sweep that threw leaves no reward behind` |
+| account switch inherits the reward | `another account inherits no reward` |
+| a refused undo also withdraws it | `a refused undo leaves the reward standing` |
+| the view stops reporting the sweep to the rule | both chrome sweep tests |
+| the view stops passing the sweep result | both chrome sweep tests |
+| obligations no longer block My Desk's line | rule test + `a desk with a live obligation says nothing reassuring` |
+| unloaded attention celebrates | `attention that has not arrived yet never reads as clear` |
+| an empty desk celebrates | `an empty desk is not caught up` |
+| the desk line is never built | `a desk with work and no attention on it says so, once` |
+| the unrepairable note is never shown | 3 Settings tests |
+| the note shows after any finished run | `a clean repair says nothing about unrepairable rows`, the stale-number test |
+| a failed run keeps the previous count | 2 cubit tests + the widget stale-number test |
+| the count is never read from the result | 4 tests across cubit and widget |
+| the note clipped to one line | `the unrepairable sentence is whole at 320 dp and 2x` |
+
+Two first drafts would have survived, both of the trap this plan keeps hitting. The panel's narrow/2× test
+asserted `height greaterThan(0)` — which a one-line clip satisfies — and now asserts a multi-line height; the
+same fix was applied to the pre-existing For you hint assertion, which had shipped with `greaterThan(0)` in
+U17c. Both "does not celebrate" widget tests assert the positive first, because a fixture that renders nothing
+satisfies every absence on its own.
+
+### Gates
+
+| gate | result |
+| --- | --- |
+| client (`-j 4`, CWD `packages/client`) | **3949 passed / 29 skipped** — predicted 3949, hit exactly; skips unmoved |
+| client lints | **30 (baseline 30)** |
+| terminology | ok |
+| server | not run — no server file touched |
+
+Arithmetic: 3907 + 7 panel + 11 For you + 2 chrome + 6 attention case + 7 My Desk rule + 2 desk body
++ 3 reset cubit + 4 reset button = 3949.
+
+### One thing for the owner
+
+`docs/features/request-attention.md` changed again: §4 gained the reward's boundaries and §9a the unrepairable
+sentence. Both describe what shipped rather than deciding anything new, but that file is the owner's and should
+not be discovered by accident.

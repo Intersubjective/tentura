@@ -105,6 +105,15 @@ _Avoid:_ using "seen" as the storage for "cleared"; inferring settlement from a 
 pinned zone. Three states must read differently: *nothing here*, *nothing new* (cleared — the decision zone may
 still be there), and *nothing matching this filter*.
 
+The cleared state is **rewarded**: a light illustration, "You're caught up", and — after an explicit sweep —
+the number that sweep actually cleared. The reward belongs to the cleared voice only, and it is withdrawn
+whenever the celebration would be untrue: a sweep that did not finish, one with members the server could not
+clear, a sweep that was undone, a loading or failed surface. A surface cleared by opening Requests is still
+caught up; it simply states no number, because none was achieved by a gesture that counted one.
+
+My Desk carries the same idea as one quiet line above work that is still listed — *nothing is waiting on a
+response* — and never over an empty desk, where "caught up" would be a reward for having nothing.
+
 _Avoid:_ a sweep that silently rejects forwards or skips prompts; celebrating "all clear" while decisions are
 pending, while loading, offline, or after a partial sweep; clearing that only covers the rows currently loaded on
 screen.
@@ -239,6 +248,10 @@ and recomputes the summaries. Optional clear state, Inbox stance, source actions
 - A correct run may still leave dots and counts on the surfaces. That is the account's real work, so the
   result is reported as **"Counters refreshed"** and never as "all caught up".
 - A repair that failed says so. Nothing reports success it did not have.
+- A run may come back with outstanding actions it **cannot** repair from their source. Those are reported
+  plainly, beside the refreshed result rather than instead of it: they stay on the list as they are, there is
+  nothing on that screen that fixes them, and running the command again later is safe. No action is offered,
+  because none would do anything.
 - One run at a time, with progress while it runs.
 - It repairs the **invoking client**. Sessions on other devices are not invalidated and keep their own cached
   indicators until they next refresh — see the plan journal's U17c entry for the open contract item.
