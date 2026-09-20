@@ -555,6 +555,11 @@ class BeaconPeopleTabBody extends StatelessWidget {
                   '${l10n.helpOffersBackupGroupTitle} (${backupOffers.length})',
                   style: sectionHeaderStyle,
                 ),
+                SizedBox(height: tt.tightGap),
+                Text(
+                  l10n.helpOffersBackupGroupHint,
+                  style: TenturaText.bodySmall(tt.textMuted),
+                ),
                 const SizedBox(height: 8),
                 for (var k = 0; k < backupOffers.length; k++) ...[
                   if (k != 0) const SizedBox(height: 12),
@@ -567,6 +572,7 @@ class BeaconPeopleTabBody extends StatelessWidget {
                       beaconAuthorId: beacon.author.id,
                       isMine: backupOffers[k].user.id == state.myProfile.id,
                       isAuthorView: state.isAuthorOrSteward,
+                      showBackupHint: false,
                       onEditRole:
                           !backupOffers[k].isWithdrawn &&
                               (backupOffers[k].user.id ==

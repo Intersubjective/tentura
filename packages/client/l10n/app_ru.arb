@@ -4938,9 +4938,33 @@
   "@helpOffersBackupGroupTitle": {
     "description": "Заголовок секции запасных предложений помощи на вкладке Люди"
   },
-  "helpOfferBackupBadge": "Доступен как запасной",
+  "helpOfferBackupBadge": "На подхвате",
   "@helpOfferBackupBadge": {
-    "description": "Бейдж на строке запасного предложения помощи на вкладке Люди"
+    "description": "Бейдж на строке запасного предложения помощи на вкладке Люди или в карточке помощника"
+  },
+  "helpOfferBackupHint": "На подхвате: подключится, если понадобится больше помощи. Доступа к обсуждению нет.",
+  "@helpOfferBackupHint": {
+    "description": "Пояснение под бейджем запасного, когда помощник не допущен в обсуждение"
+  },
+  "helpOfferBackupHintMine": "Вы на подхвате: подключитесь, если понадобится больше помощи. Доступа к обсуждению пока нет.",
+  "@helpOfferBackupHintMine": {
+    "description": "Пояснение запасного для себя, когда зритель не допущен"
+  },
+  "helpOfferBackupHintAdmitted": "На подхвате — на случай, если понадобится больше помощи.",
+  "@helpOfferBackupHintAdmitted": {
+    "description": "Пояснение запасного, когда помощник уже допущен"
+  },
+  "helpOfferBackupHintAdmittedMine": "Вы на подхвате — на случай, если понадобится больше помощи.",
+  "@helpOfferBackupHintAdmittedMine": {
+    "description": "Пояснение запасного для себя, когда зритель уже допущен"
+  },
+  "helpOfferBackupAuthorNote": "Запасных с этой карточки в обсуждение не принимают.",
+  "@helpOfferBackupAuthorNote": {
+    "description": "Пометка автору на карточке запасного без действия Принять"
+  },
+  "helpOffersBackupGroupHint": "На подхвате: подключатся, если понадобится больше помощи. Доступа к обсуждению нет.",
+  "@helpOffersBackupGroupHint": {
+    "description": "Один раз под заголовком группы На подхвате на вкладке Люди"
   },
   "helpOfferDeclineDialogTitle": "Отклонить предложение",
   "helpOfferDeclineDialogHint": "Напишите причину. Это обязательно",

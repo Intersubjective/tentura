@@ -653,4 +653,50 @@ void main() {
     );
     expect(field.controller?.text, firstText);
   });
+
+  testWidgets(
+    'backup group shows header hint once and not on each tile',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(800, 1600));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final l10n = lookupL10n(const Locale('en'));
+      const helper1 = Profile(id: 'h1', displayName: 'Helper One');
+      const helper2 = Profile(id: 'h2', displayName: 'Helper Two');
+      _state = _peopleState(
+        helpOffers: [
+          TimelineHelpOffer(
+            user: helper1,
+            message: 'Backup one',
+            createdAt: _t,
+            updatedAt: _t,
+            offerKind: 1,
+          ),
+          TimelineHelpOffer(
+            user: helper2,
+            message: 'Backup two',
+            createdAt: _t,
+            updatedAt: _t,
+            offerKind: 1,
+          ),
+        ],
+        forwardsLoaded: true,
+      );
+      await tester.pumpWidget(
+        _wrapPeople(
+          BeaconPeopleTabBody(
+            state: _state,
+            beaconViewCubit: _MockBeaconViewCubit(),
+            l10n: l10n,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Backup offers (2)'), findsOneWidget);
+      expect(find.text(l10n.helpOffersBackupGroupHint), findsOneWidget);
+      expect(find.text(l10n.helpOfferBackupBadge), findsNWidgets(2));
+      expect(find.text(l10n.helpOfferBackupHint), findsNothing);
+      expect(find.text(l10n.helpOffersTabNoAuthorLabelYet), findsNothing);
+    },
+  );
 }

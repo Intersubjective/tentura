@@ -42,6 +42,7 @@ class HelpOfferTile extends StatelessWidget {
     this.onReleaseCommitment,
     this.participant,
     this.showAuthorStar = false,
+    this.showBackupHint = true,
     super.key,
   });
 
@@ -59,6 +60,10 @@ class HelpOfferTile extends StatelessWidget {
   final VoidCallback? onReleaseCommitment;
   final BeaconParticipant? participant;
   final bool showAuthorStar;
+
+  /// When false, the People "Backup offers" group shows the explainer once
+  /// under the header instead of repeating it on every tile.
+  final bool showBackupHint;
 
   static const double _contentGap = 10;
   static const double _rowGap = 12;
@@ -253,9 +258,27 @@ class HelpOfferTile extends StatelessWidget {
             const SizedBox(height: _rowGap),
             _DirectForwardChip(label: l10n.helpOfferDirectForwardChip),
           ],
-          if (helpOffer.offerKind == 1) ...[
+          if (helpOffer.offerKind == 1 && !isWithdrawn) ...[
             const SizedBox(height: _rowGap),
-            _DirectForwardChip(label: l10n.helpOfferBackupBadge),
+            TenturaStatusText(l10n.helpOfferBackupBadge),
+            if (showBackupHint) ...[
+              SizedBox(height: tt.tightGap),
+              Text(
+                _backupHintText(
+                  l10n: l10n,
+                  isMine: isMine,
+                  isAdmitted: isAdmitted,
+                ),
+                style: TenturaText.bodySmall(tt.textMuted),
+              ),
+            ],
+            if (isAuthorView && onAccept == null && !isAdmitted) ...[
+              SizedBox(height: tt.tightGap),
+              Text(
+                l10n.helpOfferBackupAuthorNote,
+                style: TenturaText.bodySmall(tt.textMuted),
+              ),
+            ],
           ],
           if (helpOffer.message.isNotEmpty) ...[
             if (!showHelpTypeChips) const SizedBox(height: _rowGap),
@@ -281,7 +304,9 @@ class HelpOfferTile extends StatelessWidget {
               style: TenturaText.status(theme.colorScheme.onSurfaceVariant),
             ),
           ],
-          if (!isWithdrawn && !showAuthorStar) ...[
+          if (!isWithdrawn &&
+              !showAuthorStar &&
+              !(helpOffer.offerKind == 1 && !isAdmitted)) ...[
             const SizedBox(height: _rowGap),
             const TenturaHairlineDivider(subtle: false),
             const SizedBox(height: 8),
@@ -333,6 +358,19 @@ class HelpOfferTile extends StatelessWidget {
       ),
     );
   }
+}
+
+String _backupHintText({
+  required L10n l10n,
+  required bool isMine,
+  required bool isAdmitted,
+}) {
+  if (isAdmitted) {
+    return isMine
+        ? l10n.helpOfferBackupHintAdmittedMine
+        : l10n.helpOfferBackupHintAdmitted;
+  }
+  return isMine ? l10n.helpOfferBackupHintMine : l10n.helpOfferBackupHint;
 }
 
 class _DirectForwardChip extends StatelessWidget {

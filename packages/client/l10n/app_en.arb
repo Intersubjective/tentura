@@ -5009,7 +5009,31 @@
   },
   "helpOfferBackupBadge": "Available as backup",
   "@helpOfferBackupBadge": {
-    "description": "Badge on a backup help offer row in People tab"
+    "description": "Badge on a backup help offer row in People tab or helper detail"
+  },
+  "helpOfferBackupHint": "On standby: offered to step in if more help is needed. Not in the discussion.",
+  "@helpOfferBackupHint": {
+    "description": "Inline explanation under backup badge when the helper is not admitted"
+  },
+  "helpOfferBackupHintMine": "You're on standby: you'll step in if more help is needed. You're not in the discussion.",
+  "@helpOfferBackupHintMine": {
+    "description": "Self-view backup hint when the viewer is not admitted"
+  },
+  "helpOfferBackupHintAdmitted": "On standby, in case more help is needed.",
+  "@helpOfferBackupHintAdmitted": {
+    "description": "Inline backup explanation when the helper is already admitted"
+  },
+  "helpOfferBackupHintAdmittedMine": "You're on standby, in case more help is needed.",
+  "@helpOfferBackupHintAdmittedMine": {
+    "description": "Self-view backup hint when the viewer is already admitted"
+  },
+  "helpOfferBackupAuthorNote": "Standby help isn't added to the discussion from this card.",
+  "@helpOfferBackupAuthorNote": {
+    "description": "Author note on a backup card with no Admit action"
+  },
+  "helpOffersBackupGroupHint": "On standby: they offered to step in if more help is needed. Not in the discussion.",
+  "@helpOffersBackupGroupHint": {
+    "description": "Once under the People tab Backup offers group header"
   },
   "helpOfferDeclineDialogTitle": "Decline this offer",
   "helpOfferDeclineDialogHint": "Let them know why. This is required",

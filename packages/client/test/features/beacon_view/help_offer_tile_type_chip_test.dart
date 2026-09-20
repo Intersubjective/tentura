@@ -7,6 +7,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/help_offer_admission_action.dart';
+import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/port/platform_repository_port.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
@@ -75,6 +76,7 @@ TimelineHelpOffer _helpOffer({
   HelpOfferAdmissionAction? admissionAction,
   String? lastDeclineReason,
   String? lastRemoveReason,
+  int offerKind = 0,
 }) {
   final t = DateTime.utc(2025);
   return TimelineHelpOffer(
@@ -90,6 +92,7 @@ TimelineHelpOffer _helpOffer({
     admissionAction: admissionAction,
     lastDeclineReason: lastDeclineReason,
     lastRemoveReason: lastRemoveReason,
+    offerKind: offerKind,
   );
 }
 
@@ -441,5 +444,149 @@ void main() {
 
     expect(find.text('was driver'), findsOneWidget);
     expect(find.text('edit role'), findsNothing);
+  });
+
+  testWidgets('primary offer shows no backup badge or hint', (tester) async {
+    final l10n = lookupL10n(const Locale('en'));
+    await tester.pumpWidget(
+      _wrap(
+        HelpOfferTile(
+          helpOffer: _helpOffer(userId: 'c1', offerKind: 0),
+          beaconId: 'B1',
+          beaconAuthor: const Profile(id: 'auth', displayName: 'Author'),
+          beaconAuthorId: 'auth',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text(l10n.helpOfferBackupBadge), findsNothing);
+    expect(find.text(l10n.helpOfferBackupHint), findsNothing);
+  });
+
+  testWidgets('backup offer shows badge and non-admitted hint', (tester) async {
+    final l10n = lookupL10n(const Locale('en'));
+    await tester.pumpWidget(
+      _wrap(
+        HelpOfferTile(
+          helpOffer: _helpOffer(userId: 'c1', offerKind: 1),
+          beaconId: 'B1',
+          beaconAuthor: const Profile(id: 'auth', displayName: 'Author'),
+          beaconAuthorId: 'auth',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text(l10n.helpOfferBackupBadge), findsOneWidget);
+    expect(find.text(l10n.helpOfferBackupHint), findsOneWidget);
+    expect(find.text(l10n.helpOffersTabNoAuthorLabelYet), findsNothing);
+  });
+
+  testWidgets('backup isMine uses self hint and hides author-review footer', (
+    tester,
+  ) async {
+    final l10n = lookupL10n(const Locale('en'));
+    await tester.pumpWidget(
+      _wrap(
+        HelpOfferTile(
+          helpOffer: _helpOffer(userId: 'me', offerKind: 1),
+          beaconId: 'B1',
+          beaconAuthor: const Profile(id: 'auth', displayName: 'Author'),
+          beaconAuthorId: 'auth',
+          isMine: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text(l10n.helpOfferBackupHintMine), findsOneWidget);
+    expect(find.text(l10n.helpOfferBackupHint), findsNothing);
+    expect(find.text(l10n.helpOffersTabNoAuthorLabelYet), findsNothing);
+  });
+
+  testWidgets('admitted backup shows short hint and discussion access', (
+    tester,
+  ) async {
+    final l10n = lookupL10n(const Locale('en'));
+    await tester.pumpWidget(
+      _wrap(
+        HelpOfferTile(
+          helpOffer: _helpOffer(
+            userId: 'c1',
+            offerKind: 1,
+            roomAccess: RoomAccessBits.admitted,
+            admissionAction: HelpOfferAdmissionAction.accept,
+          ),
+          beaconId: 'B1',
+          beaconAuthor: const Profile(id: 'auth', displayName: 'Author'),
+          beaconAuthorId: 'auth',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text(l10n.helpOfferBackupHintAdmitted), findsOneWidget);
+    expect(find.text(l10n.helpOfferBackupHint), findsNothing);
+    expect(find.text(l10n.helpOfferCanReadChat), findsOneWidget);
+  });
+
+  testWidgets('withdrawn backup hides badge and hint', (tester) async {
+    final l10n = lookupL10n(const Locale('en'));
+    await tester.pumpWidget(
+      _wrap(
+        HelpOfferTile(
+          helpOffer: _helpOffer(
+            userId: 'c1',
+            offerKind: 1,
+            isWithdrawn: true,
+          ),
+          beaconId: 'B1',
+          beaconAuthor: const Profile(id: 'auth', displayName: 'Author'),
+          beaconAuthorId: 'auth',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text(l10n.helpOfferBackupBadge), findsNothing);
+    expect(find.text(l10n.helpOfferBackupHint), findsNothing);
+  });
+
+  testWidgets('author backup without Accept shows author note', (tester) async {
+    final l10n = lookupL10n(const Locale('en'));
+    await tester.pumpWidget(
+      _wrap(
+        HelpOfferTile(
+          helpOffer: _helpOffer(userId: 'c1', offerKind: 1),
+          beaconId: 'B1',
+          beaconAuthor: const Profile(id: 'auth', displayName: 'Author'),
+          beaconAuthorId: 'auth',
+          isAuthorView: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text(l10n.helpOfferBackupAuthorNote), findsOneWidget);
+  });
+
+  testWidgets('showBackupHint false suppresses per-card hint', (tester) async {
+    final l10n = lookupL10n(const Locale('en'));
+    await tester.pumpWidget(
+      _wrap(
+        HelpOfferTile(
+          helpOffer: _helpOffer(userId: 'c1', offerKind: 1),
+          beaconId: 'B1',
+          beaconAuthor: const Profile(id: 'auth', displayName: 'Author'),
+          beaconAuthorId: 'auth',
+          showBackupHint: false,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text(l10n.helpOfferBackupBadge), findsOneWidget);
+    expect(find.text(l10n.helpOfferBackupHint), findsNothing);
   });
 }
