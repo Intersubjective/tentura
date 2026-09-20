@@ -11447,3 +11447,63 @@ Count arithmetic: 3889 baseline +1 History axis widget, +1 resurrect, +4 timelin
   must be a **clear-axis** delta or it will re-create this defect.
 - `AttentionCase.requestHistory` finally has a caller. Its authorization and cursor semantics (U06b)
   are now user-visible.
+
+## manager — U17b accepted; the axis tests earned their keep immediately
+
+**Verdict: accepted.** My independent gates: client **3895 passed / 29 skipped** — the predicted number, hit
+exactly — server PG green, `check-custom-lints.sh packages/client` at **30 (baseline 30)**, worktree clean apart
+from the four untouchable pre-existing files. Worker confirmed dead before I touched the tree (the rule adopted
+after U17a).
+
+### The tests found a live §3 violation, in shipped client code
+
+I required two axis regression tests because the false hand-off showed the axes were being confused. One of
+them failed on first run — not a fixture problem, a real defect:
+
+`_emitFeedSummary` folded `_acks.pendingUnreadDelta` — a **read-axis** value — into `unreadTotal`, which U10b
+redefined as **active attention**. So History's own "mark unread" on a cleared row put it straight back into the
+badge: the resurrection §3's last boundary forbids. The server was never wrong; the whole defect was a client
+overlay, and the fix is a deletion.
+
+**Same root cause as the false hand-off.** One misleading field name produced two separate defects inside one
+unit — a product question that did not exist, and a real bug. `unreadTotal` has not meant "unread" since U10b.
+That is now a concrete argument for U18's retirement of the legacy three, not a stylistic preference.
+
+### Two mutations survived their first drafts, and were reported
+
+- The resurrect test: the fake returned a page that **already excluded** the cleared row, so the client mirror
+  was never consulted — the fixture was doing the filtering. Rewritten so the row starts *on* the Unread page,
+  is swept off, and is only then un-read, with a live obligation as a control.
+- The headline test: the fixture put the event in `body` and the Request title in `title`, and `find.text`
+  cannot tell a headline from a body line. Fixture corrected, assertion now names the headline widget.
+
+Both were fixed until the mutation failed. Eleventh and twelfth instances of this plan's recurring shape — and
+the first two caught **by the author, before review**.
+
+### `requestHistory` had zero UI callers — the same shape as U17a
+
+§9's timeline read was wired through data and domain since U06b and had never reached a screen. Two consecutive
+units have found contract behaviour fully built and never connected. U19's acceptance pass should look for more
+of this specifically: a feature can pass every unit test it has and still not exist.
+
+### A retirement that could not be ported, correctly
+
+`inbox_card_forwards_fold_layout_test.dart` asserted only `takeException() == null` at 31 dp — the vacuous
+shape. The implementer tried to port it into a real "the parts are built" assertion and found the row overflows
+by 381 px at that width, which was equally true of the retired tile and never covered; Watching and Rejected are
+full-width lists, so it is a width neither occupies. Dropped **because the port proved the assertion was empty**,
+not because it failed. That is the distinction U16c-2 established, applied without being asked.
+
+### Deliberate divergence from the card spec, flagged not hidden
+
+`issue-171-card-spec.md` §5 names `RequestAttentionCard` as the Watching/Rejected replacement. It does not fit:
+those lists render `InboxItem`s from the inbox projection, a watched Request with no events has no receipt at
+all, and the card has no slots for room hints, requirements or the rejection message. A purpose-made
+`inbox_watchlist_row` was built instead and the spec line called stale. **The spec doc still needs that edit.**
+
+### Carried forward
+
+- `unreadTotal` is now emitted exactly as the server sends it. Any future optimistic adjustment to it must be a
+  **clear-axis** delta, or it recreates this defect.
+- `requestHistory`'s U06b authorization and cursor semantics are user-visible for the first time.
+- `issue-171-card-spec.md` §5's Watching/Rejected row is stale — a doc edit for whoever owns the spec.
