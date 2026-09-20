@@ -11169,3 +11169,56 @@ three commits below.
 | `check-custom-lints.sh packages/client` | **30 (baseline 30)** |
 
 No server code was touched, and no server suite was needed.
+
+## manager — U17a accepted, and a process error of my own
+
+**Verdict: accepted.** The unit delivered §4's open-clear, which had never shipped: `clearRequestOpen` had
+**zero production callers**, and what the call sites did instead was `markSeenForBeacon` fired *before*
+`router.push` — the read axis standing in for the clear axis, early enough that a forbidden open still burned
+the badge. One gate and two listeners now cover all 31 entry routes, because every one of them mounts
+`BeaconViewRoute`.
+
+### My error: I edited a tree a live worker still owned
+
+The runner reported exit 144 and I read that as the worker being dead. **It was not.** It kept running, finished
+its work, committed four coherent commits, and overwrote an invariant test I had added in the meantime. My
+gates at 3888 were therefore run against a tree that was still moving underneath me — worthless as evidence for
+either version.
+
+The check that would have caught it is one command (`ps` for the worker process), and the skill's rule —
+"inspect the diff and commits; do not re-run it on the same tree blind" — assumes the tree has *stopped*.
+**Rule adopted: confirm the worker process is gone before touching its worktree, not just that its runner
+reported failure.** Fifth process error of the session, and the first of this kind.
+
+No work was lost: the worker's commits are complete and coherent, and the test it overwrote is re-applied on top
+of them as `7cd409d96`.
+
+### Where the worker and I agreed independently
+
+Its final commit flags "the one guard term that is currently unreachable-as-false and so is not independently
+proven". My own mutation check found the same thing: deleting `!beaconUnavailable` from the listener's
+`listenWhen` passes every test, because `beacon_view_cubit.dart` emits that flag **only** inside
+`if (!state.beaconContentLoaded)` — the two are mutually exclusive by construction.
+
+It flagged the gap; I closed it. The term stays, because a listener must not depend silently on an invariant
+declared in another file, and a test now pins **the invariant itself**: after a successful open, a refresh that
+fails the way a forbidden Request does must leave content displayed and `beaconUnavailable` false. Mutating the
+cubit's branch fails it, and only it (`+6 -1`). Same judgement as U16c-2's kept `scope` clause and U15R-e's
+redundant surface leg: keep the rule §-correct, and pin whatever makes the redundancy safe.
+
+### A correction to my own reporting
+
+I told the user mid-unit that the host-composition mutation had **survived**. It had not. When I confirmed the
+mutation was actually applied (`grep -c` = 0) and ran the test in isolation, it failed `+0 -1`. The earlier
+reading came from a run where I never verified the mutation was in place at test time — a conclusion true for
+the wrong reason, which is the exact defect class I have been auditing all session. Recorded because the
+session's own standard applies to the overseer.
+
+### For U17b
+
+Rows opened from For You and My Desk used to be marked **read** before navigation; they are now **cleared**
+instead, and clearing does not set `seen`. History shows an Unread view and an `unreadTotal` badge, so a
+cleared-but-unread row stays in Unread and keeps counting. No route needs the read-marking kept — cleared is the
+stronger outcome on the primary surfaces — but **History's semantics are U17b's to decide**: either its Unread
+view treats cleared as read, or opening reports both axes. `updates_feed_pane`'s own `markSeen` on tap is §3's
+read axis and was deliberately left alone.
