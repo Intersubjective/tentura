@@ -11656,3 +11656,60 @@ The reconcile repository assertions went into the existing
   needs one mutation out of it, so `AttentionReconcilePort` (one member, provided from the same lazy singleton
   in `RegisterModule`) is what the cubit resolves. Two pre-existing full-screen Settings tests needed only a
   three-line registration to keep passing. §0.3 is not weakened: there is still exactly one attention owner.
+
+## manager — U17c accepted; the repair was corrupting the indicators it repairs
+
+**Verdict: accepted.** My independent gates: client **3907 passed / 29 skipped** — the predicted number,
+exactly — `check-custom-lints.sh packages/client` **30 (baseline 30)**, `check-user-facing-terminology.sh` ok.
+Worker confirmed dead before I touched the tree. **Twelve mutations applied, twelve killed, none survived** —
+the strongest evidence record of this plan so far.
+
+### Wiring the dead API exposed a defect that had been rotting in it
+
+`attention_reconcile.graphql` requested **three of seven** summary fields. The four §6 indicators added later by
+U15R-d (`myDeskDot`, `myDeskCount`, `forYouDot`) and U16c-1 (`forYouSweepEligible`) were never added to it, so
+D15 step 6's "replace cached indicators with the authoritative snapshot" would have written `false`/`0` over
+them: blanking a dot the account still owed and disabling the Dismiss-all button. **The repair would have
+corrupted the indicators it exists to repair.**
+
+Nothing caught it because the mutation had no caller. The lesson is sharper than "unwired code does not
+deliver": **unwired code silently rots as the contract around it moves**, and wiring it is what surfaces the
+damage. `attentionReconcile` was the last §0.2 API without a client caller (the scout's audit, confirmed), so
+that family is closed — but U19 should treat "reachable from a screen" as a check distinct from "has a passing
+unit test". Three consecutive units found fully built, fully tested, unreachable behaviour.
+
+### Step 6 was done properly, including the hazard I flagged
+
+Replaced: the whole `AttentionSurfaceSummary`, all seven fields as the server sent them. Dropped: both
+optimistic overlay stores via a new `discardAllPending()` — every pending read ack and every pending clear
+membership — then a zero-delta re-projection rebuilds each attached page from the server-truth mirror.
+Deliberately kept: `_receiptsById` and friends, which hold unmodified server payloads with overlay applied on
+read.
+
+The stale-overlay hazard I named is closed by `_adoptionSerial`, captured at operation start: a clear in flight
+at adoption time would otherwise have posted its compensating delta onto the server's fresh numbers. That is the
+U17b defect's shape, anticipated rather than repeated.
+
+### Two more first drafts that would have survived
+
+The narrow/2× test asserted only that both strings were **found** — which a one-line-clipped explanation
+satisfies. It now asserts rendered height. The progress test said nothing about snackbars, making `listenWhen`
+invisible; it now asserts that a run in progress has not yet announced a refresh. Thirteenth and fourteenth
+instances of this plan's recurring shape, both caught by the author before review.
+
+### D15 step 5 remains unmet, and is now visible in three places
+
+The server has no session-invalidation mechanism and U12 deliberately did not build one. What this unit wires is
+client-side compensation **for the invoking client only** — another device keeps its cached indicators until it
+next refreshes. Recorded in the journal, and as a user-facing limitation in `docs/features/request-attention.md`
+§9a. The implementer separated impact from coverage correctly: narrow in practice, still unmet as a contract
+item. **Nothing in this unit's acceptance may be read as session invalidation having happened.**
+
+### Two things for the owner
+
+- **The product contract gained §9a.** That document is the owner's. The section describes D15's existing rules
+  and the session-invalidation limitation in the doc's own voice — it documents what was built rather than
+  deciding anything new — so I kept it, but the owner should know the file changed rather than discover it.
+- **RU copy diverges from EN deliberately.** Literal "Сбросить счётчики" reads as *zero it out*, exactly what
+  D15 forbids, and "Пересчитать счётчики" belongs to the debug command — so RU is "Обновить счётчики" against
+  EN's "Reset counters". A copy decision if literal parity is wanted.
