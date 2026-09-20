@@ -15,6 +15,10 @@ rag_env/
 migrate_working_dir/
 
 
+packages/image_cropper_for_web/build/
+
+dart_defines
+
 # IntelliJ related
 *.iml
 *.ipr
