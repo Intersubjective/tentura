@@ -135,6 +135,15 @@ jobs:
                   dart pub get
                   cd packages/server
                   dart run build_runner build -d
+                  # Most pg tests build their own disposable database, but some
+                  # connect to the default one and expect it already migrated —
+                  # true on a dev machine running the stack, false on a fresh
+                  # runner, where it produced 55 `42P01 relation does not exist`
+                  # failures. This works on an empty database only since the
+                  # squash: the baseline sets `check_function_bodies = false`
+                  # itself, so the `mr_*` references in function bodies no
+                  # longer need the extension present at migrate time.
+                  dart run bin/utils/run_migrations_once.dart
                   dart test --tags pg --exclude-tags mr
                   ;;
                 client)
