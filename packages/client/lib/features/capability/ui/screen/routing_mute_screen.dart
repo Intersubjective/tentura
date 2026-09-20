@@ -46,33 +46,40 @@ class RoutingMuteScreen extends StatelessWidget implements AutoRouteWrapper {
           }
           final cubit = context.read<RoutingMuteCubit>();
           final isCompact = context.windowClass == WindowClass.compact;
+          final tt = context.tt;
+          final tilePadding = EdgeInsets.symmetric(horizontal: tt.screenHPadding);
           return TenturaContentColumn(
             child: ListView(
               children: [
                 Padding(
                   padding: EdgeInsets.fromLTRB(
-                    context.tt.screenHPadding,
-                    context.tt.sectionGap,
-                    context.tt.screenHPadding,
-                    context.tt.tightGap,
+                    tt.screenHPadding,
+                    tt.sectionGap,
+                    tt.screenHPadding,
+                    tt.tightGap,
                   ),
                   child: Text(
                     l10n.routingMuteScreenDescription,
-                    style: TenturaText.bodySmall(context.tt.textMuted),
+                    style: TenturaText.bodySmall(tt.textMuted),
                   ),
                 ),
-                AccordionExpansionGroup(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      for (final group in CapabilityGroup.values)
-                        _GroupSection(
-                          group: group,
-                          mutedSlugs: state.mutedSlugs,
-                          initiallyExpanded: !isCompact,
-                          onToggle: cubit.toggleMute,
-                        ),
-                    ],
+                ExpansionTileTheme(
+                  data: ExpansionTileTheme.of(context).copyWith(
+                    tilePadding: tilePadding,
+                  ),
+                  child: AccordionExpansionGroup(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        for (final group in CapabilityGroup.values)
+                          _GroupSection(
+                            group: group,
+                            mutedSlugs: state.mutedSlugs,
+                            initiallyExpanded: !isCompact,
+                            onToggle: cubit.toggleMute,
+                          ),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -131,6 +138,9 @@ class _GroupSection extends StatelessWidget {
       children: [
         for (final tag in tags)
           SwitchListTile(
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: context.tt.screenHPadding,
+            ),
             title: Text(tag.labelOf(l10n)),
             value: !mutedSlugs.contains(tag.slug),
             onChanged: (enabled) => unawaited(

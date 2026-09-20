@@ -76,6 +76,7 @@ class _FakeCapabilityRepository implements CapabilityRepositoryPort {
 Future<_FakeCapabilityRepository> _pumpRoutingMuteScreen(
   WidgetTester tester, {
   List<String> mutedSlugs = const [],
+  Size surfaceSize = const Size(900, 1200),
 }) async {
   final getIt = GetIt.I;
   final authCubit = _FakeAuthCubit();
@@ -125,7 +126,7 @@ Future<_FakeCapabilityRepository> _pumpRoutingMuteScreen(
     }
   });
 
-  await tester.binding.setSurfaceSize(const Size(900, 1200));
+  await tester.binding.setSurfaceSize(surfaceSize);
   addTearDown(() => tester.binding.setSurfaceSize(null));
 
   await tester.pumpWidget(
@@ -191,4 +192,48 @@ void main() {
       isFalse,
     );
   });
+
+  for (final surface in const [
+    Size(390, 844),
+    Size(900, 1200),
+  ]) {
+    testWidgets(
+      'description left edge matches block text at ${surface.width.toInt()}px (issue #139)',
+      (tester) async {
+        await _pumpRoutingMuteScreen(tester, surfaceSize: surface);
+
+        final descDx = tester
+            .getTopLeft(find.text(l10n.routingMuteScreenDescription))
+            .dx;
+        final groupDx = tester
+            .getTopLeft(find.text(l10n.capabilityGroupLogistics))
+            .dx;
+        final tileDx = tester.getTopLeft(find.byType(ExpansionTile).first).dx;
+        final tt = tester
+            .element(find.text(l10n.routingMuteScreenDescription))
+            .tt;
+        final switchFinder = find.text(l10n.capabilityTagTransport);
+        final switchDx = switchFinder.evaluate().isEmpty
+            ? null
+            : tester.getTopLeft(switchFinder).dx;
+
+        expect(
+          descDx,
+          moreOrLessEquals(groupDx, epsilon: 1),
+          reason:
+              'w=${surface.width} desc=$descDx group=$groupDx switch=$switchDx '
+              'tile=$tileDx screenH=${tt.screenHPadding}',
+        );
+        if (switchDx != null) {
+          expect(
+            descDx,
+            moreOrLessEquals(switchDx, epsilon: 1),
+            reason:
+                'w=${surface.width} desc=$descDx group=$groupDx switch=$switchDx '
+                'tile=$tileDx screenH=${tt.screenHPadding}',
+          );
+        }
+      },
+    );
+  }
 }
