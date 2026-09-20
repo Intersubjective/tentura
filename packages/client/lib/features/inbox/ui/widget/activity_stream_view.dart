@@ -17,6 +17,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_cubit.dart';
 import 'package:tentura/features/updates/domain/entity/prompt_projection.dart';
 import 'package:tentura/features/updates/ui/bloc/updates_feed_cubit.dart';
+import 'package:tentura/features/updates/ui/widget/invite_accepted_receipt_card.dart';
 import 'package:tentura/features/updates/ui/widget/prompt_batch_sheet.dart';
 import 'package:tentura/features/updates/ui/widget/updates_day_groups.dart';
 import 'package:tentura/features/updates/ui/widget/updates_feed_pane.dart';
@@ -29,7 +30,6 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 import '../../domain/entity/inbox_item.dart';
 import '../bloc/activity_offers_cubit.dart';
 import '../../domain/entity/inbox_provenance.dart';
-import 'activity_offer_card.dart';
 import 'inbox_card_actions.dart';
 import 'rejection_dialog.dart';
 import 'request_attention_card.dart';
@@ -874,14 +874,21 @@ class _ActivityStreamPromptPin extends StatelessWidget {
           ? const PromptProjection.unknown()
           : state.promptProjectionFor(subjectId),
       builder: (context, projection) {
-        return ActivityOfferCard.prompt(
-          receipt: receipt,
-          promptProjection: projection,
-          onRetryPromptFetch: streamCubit.retryPromptFetch,
-          onPromptSettled: streamCubit.applyKnownPrompt,
-          onTap: () => unawaited(_open(context, receipt, streamCubit)),
-          onMarkSeen: () => streamCubit.markSeen(receipt.id),
-          onMarkUnseen: () => streamCubit.markUnseen(receipt.id),
+        // CHANGES IN U16c-2: `ActivityOfferCard.prompt` was a thin wrapper
+        // over this card inside the bounded offer shell; the wrapper is gone,
+        // the pin key and the shell flag stay exactly where they were.
+        return KeyedSubtree(
+          key: TestIds.key(TestIds.activityPromptPin(receipt.id)),
+          child: InviteAcceptedReceiptCard(
+            receipt: receipt,
+            promptProjection: projection,
+            onRetryPromptFetch: streamCubit.retryPromptFetch,
+            onPromptSettled: streamCubit.applyKnownPrompt,
+            onTap: () => unawaited(_open(context, receipt, streamCubit)),
+            onMarkSeen: () => streamCubit.markSeen(receipt.id),
+            onMarkUnseen: () => streamCubit.markUnseen(receipt.id),
+            activityOfferBoundedShell: true,
+          ),
         );
       },
     );
