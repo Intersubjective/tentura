@@ -149,6 +149,15 @@ final class AttentionCaseTestRepository extends AttentionRepositoryFake {
     return pendingDismissAll.removeAt(0).future;
   }
 
+  final List<Completer<AttentionReconcileResult>> pendingReconciles = [];
+  int reconcileCalls = 0;
+
+  @override
+  Future<AttentionReconcileResult> reconcile() {
+    reconcileCalls++;
+    return pendingReconciles.removeAt(0).future;
+  }
+
   @override
   Future<int> settle({required String receiptId, required String kind}) {
     settles.add((receiptId: receiptId, kind: kind));

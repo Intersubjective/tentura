@@ -15,6 +15,13 @@ final class AttentionAckStore {
     _pending.clear();
   }
 
+  /// Drops every pending overlay without touching the account identity.
+  ///
+  /// D15 step 6 — a reconcile *replaces* the client's indicators with the
+  /// server's. Merging the two is what would re-corrupt the adopted snapshot,
+  /// so the local intent is withdrawn rather than reconciled against it.
+  void discardAllPending() => _pending.clear();
+
   int markSeen(Iterable<String> ids) => _set(ids, AttentionAckIntent.seen);
 
   int markUnseen(Iterable<String> ids) => _set(ids, AttentionAckIntent.unseen);

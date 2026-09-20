@@ -189,6 +189,16 @@ void main() {
           'activityUnreadTotal': 4,
           'myWorkUnreadTotal': 5,
           'needsYouTotal': 6,
+          // CHANGES IN U17c: D15 step 6 asks the client to *replace* its
+          // cached indicators with what came back, and the document used to
+          // ask for three of the seven fields. The four §6 indicators would
+          // have defaulted to false/0 on adoption, so the repair meant to
+          // make the badges correct would have blanked a dot the account
+          // still owes. Each value below is one no default can produce.
+          'myDeskDot': true,
+          'myDeskCount': 7,
+          'forYouDot': true,
+          'forYouSweepEligible': true,
         },
       },
     })!;
@@ -198,6 +208,18 @@ void main() {
     expect(result.unrepairableObligationCount, 3);
     expect(result.isFullyRepaired, isFalse);
     expect(result.summary.needsYouTotal, 6);
+    expect(
+      result.summary.myDeskDot,
+      isTrue,
+      reason: 'a defaulted myDeskDot would blank a dot the account owes',
+    );
+    expect(
+      result.summary.myDeskCount,
+      7,
+      reason: '§6 my desk.count is its own field, not needsYouTotal (6)',
+    );
+    expect(result.summary.forYouDot, isTrue);
+    expect(result.summary.forYouSweepEligible, isTrue);
   });
 
   test('requestHistory maps cleared receipts and the next cursor', () async {

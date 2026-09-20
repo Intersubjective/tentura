@@ -25,6 +25,13 @@ final class AttentionClearStore {
     _byOperation.clear();
   }
 
+  /// Drops every pending operation's overlay without touching the account
+  /// identity — D15 step 6, the same reason the ack store has one.
+  ///
+  /// An operation still in flight is safe to forget: [commit] and [rollback]
+  /// are both no-ops for an operation this store no longer knows.
+  void discardAllPending() => _byOperation.clear();
+
   /// Registers the membership [receiptIds] optimism covers for [operationId].
   void begin(String operationId, Iterable<String> receiptIds) {
     _byOperation[operationId] = _PendingClear(

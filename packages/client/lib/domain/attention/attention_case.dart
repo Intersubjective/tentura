@@ -125,6 +125,13 @@ final class AttentionCase {
   int _mutationSerial = 0;
   String _accountId = '';
   int _accountGeneration = 0;
+
+  /// Bumped every time a reconcile adopts an authoritative summary.
+  ///
+  /// An optimistic operation that started before the adoption may not post
+  /// its compensating totals afterwards: its overlay is already gone, so the
+  /// delta would land on the server's numbers instead of on its own.
+  int _adoptionSerial = 0;
   final Map<String, bool> _headRefreshInFlight = {};
   final Map<String, bool> _headRefreshQueued = {};
   Future<void> _markAllSeenChain = Future.value();
@@ -909,6 +916,25 @@ final class AttentionCase {
     try {
       final result = await _repository.reconcile();
       if (generation != _accountGeneration) return result;
+      // D15 step 6 — *replace* the cached indicators, do not merge them.
+      //
+      // Everything the client holds that the server did not say is withdrawn
+      // first: the read-axis acks and the clear-axis operation overlays. A
+      // surviving overlay would re-hide a row the repair says is live, and an
+      // operation still in flight would post its compensating delta onto the
+      // adopted totals afterwards — which is why [_adoptionSerial] moves here
+      // and `_applyClearOptimistically` checks it before compensating.
+      //
+      // What is *not* replaced: nothing local is erased. Optional clear
+      // state, Inbox stance, source actions and History all live on the
+      // server and come back in the summary and the refetched heads.
+      _acks.discardAllPending();
+      _clears.discardAllPending();
+      _adoptionSerial++;
+      // Re-projects every attached page from the server-truth mirror with no
+      // overlay left to stamp on it. The zero delta is the point: no total is
+      // adjusted here, only the projection is rebuilt.
+      _applyOptimisticAcks();
       if (!_surfaceSummarySubject.isClosed) {
         _surfaceSummarySubject.add(result.summary);
       }
@@ -941,6 +967,7 @@ final class AttentionCase {
     required int generation,
   }) async {
     final members = memberIds.toSet();
+    final adoption = _adoptionSerial;
     // R2 — a clear delta is made of **active optional membership**, not of
     // what happens to look unread. A receipt the user already read still
     // counts on every server total until it is cleared, so clearing it is
@@ -958,6 +985,10 @@ final class AttentionCase {
     try {
       final result = await run();
       if (generation != _accountGeneration) return result;
+      // A reconcile has since replaced the indicators this operation was
+      // optimistic about (D15 step 6). Its overlay is gone and its deltas are
+      // no longer relative to anything the client holds.
+      if (adoption != _adoptionSerial) return result;
       final applied = appliedIdsOf(result).toSet();
       // Only the members the server says it applied survive. A skipped, a
       // denied and an unanswered (still pending) member are all rolled back —
@@ -976,7 +1007,9 @@ final class AttentionCase {
       );
       return result;
     } catch (error, stackTrace) {
-      if (generation == _accountGeneration && members.isNotEmpty) {
+      if (generation == _accountGeneration &&
+          adoption == _adoptionSerial &&
+          members.isNotEmpty) {
         _clears.discard(operationId);
         _applyOptimisticAcks(unreadDelta: unreadDelta);
         _applyOptimisticSurfaceSummary(
