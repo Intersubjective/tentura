@@ -32,8 +32,7 @@ import 'package:tentura/features/inbox/ui/bloc/activity_offers_cubit.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_cubit.dart';
 import 'package:tentura/features/inbox/ui/screen/inbox_screen.dart';
 import 'package:tentura/features/inbox/ui/widget/activity_event_subcard_block.dart';
-import 'package:tentura/features/inbox/ui/widget/activity_forward_row.dart';
-import 'package:tentura/features/inbox/ui/widget/activity_offer_card.dart';
+import 'package:tentura/features/inbox/ui/widget/activity_offer_bounded_shell.dart';
 import 'package:tentura/features/inbox/ui/widget/activity_stream_view.dart';
 import 'package:tentura/features/inbox/ui/widget/activity_watching_digest_row.dart';
 import 'package:tentura/features/inbox/ui/widget/attention_mini_card.dart';
@@ -507,6 +506,18 @@ void main() {
     expect(headerTop, lessThan(promptTop));
     expect(promptTop, lessThan(offerTop));
     expect(offerTop, lessThan(streamTop));
+
+    // CHANGES IN U16c-2: the pin key alone survived the retirement of
+    // `ActivityOfferCard.prompt` without anything asserting the *card* it
+    // wrapped, so flipping `activityOfferBoundedShell` off broke no test.
+    // The pin is a bounded offer-shell card; say so where the stream builds it.
+    expect(
+      find.descendant(
+        of: find.byKey(TestIds.key(TestIds.activityPromptPin('prompt-1'))),
+        matching: find.byType(ActivityOfferBoundedShell),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('stream pagination waits until offers hasMore is false', (
@@ -621,7 +632,6 @@ void main() {
     // distinct, so nothing is folded: what changed is what each row is drawn
     // as, not how many there are.
     expect(find.byType(UpdatesFeedTile), findsOneWidget);
-    expect(find.byType(ActivityForwardRow), findsNothing);
     expect(find.byType(TombstoneRow), findsOneWidget);
     expect(find.byType(RequestAttentionCard), findsOneWidget);
     // CHANGES IN U16b: correction 1, option (a) — the digest keeps its
@@ -679,11 +689,11 @@ void main() {
       textScale: 1.3,
     );
 
-    // CHANGES IN U16b: spec §5 "Retire" — the pinned zone is the card's
-    // `pinned` variant (§9), not `ActivityOfferCard`.
+    // CHANGES IN U16b/U16c-2: spec §5 "Retire" — the pinned zone is the
+    // card's `pinned` variant (§9). The `ActivityOfferCard` absence assertion
+    // retired with the widget in U16c-2; the positive claims below carry it.
     final cardFinder = find.byType(RequestAttentionCard);
     expect(cardFinder, findsOneWidget);
-    expect(find.byType(ActivityOfferCard), findsNothing);
     // The positive assertion first: a fixture that renders nothing satisfies
     // any "fits on screen" claim. This card must be *built* and must carry
     // the forward note, which is the whole regression #171 is about.
@@ -754,7 +764,6 @@ void main() {
     // Positive first: both Requests are on screen, as exactly one surface each.
     expect(find.byType(RequestAttentionCard), findsNWidgets(2));
     expect(find.byType(TombstoneRow), findsNothing);
-    expect(find.byType(ActivityOfferCard), findsNothing);
     expect(find.textContaining('Title dup-activity'), findsOneWidget);
     expect(find.textContaining('Offer offer-pinned'), findsOneWidget);
   });

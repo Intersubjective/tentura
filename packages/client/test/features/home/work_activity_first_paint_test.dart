@@ -35,7 +35,6 @@ import 'package:tentura/features/inbox/domain/use_case/inbox_case.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_cubit.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_operational_cubit.dart';
 import 'package:tentura/features/inbox/ui/screen/inbox_screen.dart';
-import 'package:tentura/features/inbox/ui/widget/activity_offer_card.dart';
 import 'package:tentura/features/inbox/ui/widget/request_attention_card.dart';
 import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 import 'package:tentura/features/my_work/ui/screen/my_work_screen.dart';

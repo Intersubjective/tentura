@@ -24,8 +24,6 @@ import 'package:tentura/features/inbox/domain/entity/inbox_item.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/features/inbox/ui/bloc/activity_offers_cubit.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_cubit.dart';
-import 'package:tentura/features/inbox/ui/widget/activity_forward_row.dart';
-import 'package:tentura/features/inbox/ui/widget/activity_offer_card.dart';
 import 'package:tentura/features/inbox/ui/widget/request_attention_card.dart';
 import 'package:tentura/features/inbox/ui/widget/tombstone_row.dart';
 import 'package:tentura/features/inbox/ui/widget/activity_stream_view.dart';
