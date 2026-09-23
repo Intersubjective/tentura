@@ -94,6 +94,8 @@ final class RoomMessageSnapshotLookup implements RoomMessageSnapshotLookupPort {
       bool hasAttachments,
     })?
   >
+  // DORMANT(item-threads): thread-scoped parent reply resolution filter.
+  // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
   _resolveScopedParentReply({
     required String parentMessageId,
     required String beaconId,

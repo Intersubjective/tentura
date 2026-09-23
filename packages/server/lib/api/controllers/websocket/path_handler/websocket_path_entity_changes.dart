@@ -95,6 +95,8 @@ base mixin WebsocketPathEntityChanges on WebsocketSessionHandlerBase {
     );
   }
 
+  // DORMANT(item-threads): threadItemId in realtime paint; always null in production (General is thread_item_id IS NULL).
+  // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
   static Map<String, dynamic> _serializePaint(RoomMessageSnapshot snapshot) => {
     'id': snapshot.id,
     'beaconId': snapshot.beaconId,

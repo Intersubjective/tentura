@@ -59,6 +59,8 @@ abstract class CoordinationItemRepositoryPort {
     bool rootOnly = false,
   });
 
+  // DORMANT(item-threads): itemParticipantsOnly filters item-thread list for non-room viewers.
+  // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
   Future<List<BeaconThreadRecord>> listThreads({
     required String beaconId,
     required String viewerUserId,

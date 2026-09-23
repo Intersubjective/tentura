@@ -610,6 +610,8 @@ class AttentionIntentCase {
     bodyPrefixedWithActor: true,
   );
 
+  // DORMANT(item-threads): threadItemId scopes attention deep links; always null in production (General is thread_item_id IS NULL).
+  // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
   Future<AttentionDispatchIntent> _directedRoomMessage({
     required String beaconId,
     required String messageId,

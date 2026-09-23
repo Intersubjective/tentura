@@ -1541,6 +1541,8 @@ WHERE outbox.account_id = \$1
         updateKind: UpdateKind.update,
       );
 
+  // DORMANT(item-threads): bridges attention read state to per-item-thread seen watermarks.
+  // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
   @override
   Future<int> bridgeRoomWatermark({
     required String accountId,

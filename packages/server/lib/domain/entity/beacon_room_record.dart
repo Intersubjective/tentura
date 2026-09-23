@@ -21,6 +21,8 @@ final class BeaconRoomMessageRecord {
   final String? authorId;
   final String body;
   final String? replyToMessageId;
+  // DORMANT(item-threads): always null in production; General is thread_item_id IS NULL.
+  // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
   final String? threadItemId;
   final String? linkedPollingId;
   final int? semanticMarker;

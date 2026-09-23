@@ -12,6 +12,8 @@ class BeaconRoomSeen extends Table {
   late final beaconId =
       text().references(Beacons, #id, onDelete: KeyAction.cascade)();
 
+  // DORMANT(item-threads): nullable column for per-item-thread seen watermarks.
+  // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
   /// NULL = main room, non-null = item thread.
   late final threadItemId = text()
       .nullable()

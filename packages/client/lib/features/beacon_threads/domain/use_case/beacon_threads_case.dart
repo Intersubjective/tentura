@@ -135,6 +135,8 @@ final class BeaconThreadsCase extends UseCaseBase {
   Future<List<RequestThread>> listThreads(String beaconId) =>
       _room.fetchThreads(beaconId);
 
+  // DORMANT(item-threads): threadItemId filters item-thread messages; always null in production.
+  // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
   Future<List<RoomMessage>> fetchMessages({
     required String beaconId,
     String? beforeIso,
@@ -154,6 +156,8 @@ final class BeaconThreadsCase extends UseCaseBase {
   Future<List<BeaconParticipant>> fetchParticipants(String beaconId) =>
       _room.fetchParticipants(beaconId);
 
+  // DORMANT(item-threads): threadItemId targets item-thread scope; always null in production.
+  // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
   Future<String?> createMessage({
     required String beaconId,
     required String body,
@@ -354,6 +358,8 @@ final class BeaconThreadsCase extends UseCaseBase {
     visibility: visibility,
   );
 
+  // DORMANT(item-threads): non-null threadItemId marks item-thread seen watermarks.
+  // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
   Future<RoomSeenOutcome> markRoomSeenIfAllowed({
     required String beaconId,
     required DateTime readThroughAt,

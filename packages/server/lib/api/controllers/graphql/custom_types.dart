@@ -462,6 +462,8 @@ final gqlTypeRoomMessageRow = GraphQLObjectType('RoomMessageRow', null)
       'mentions',
       GraphQLListType(graphQLString.nonNullable()),
     ),
+    // DORMANT(item-threads): always null in production; General is thread_item_id IS NULL.
+    // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
     field('threadItemId', graphQLString),
     field('replyToMessageId', graphQLString),
     field('replyToAuthorId', graphQLString),
@@ -570,6 +572,8 @@ final gqlTypeBeaconRoomSeenResult =
     GraphQLObjectType('BeaconRoomSeenResult', null)
       ..fields.addAll([
         field('beaconId', graphQLString.nonNullable()),
+        // DORMANT(item-threads): item-thread id in seen result; always null in production.
+        // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
         field('threadItemId', graphQLString),
         field('seenAt', graphQLString.nonNullable()),
       ]);

@@ -1,3 +1,5 @@
+# DORMANT(item-threads): threadItemId response field; always null in production (General is thread_item_id IS NULL).
+# Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
 query RoomMessageTarget($beaconId: String!, $messageId: String!) {
   roomMessageTarget(beaconId: $beaconId, messageId: $messageId) {
     id beaconId authorId body createdAt editedAt semanticMarker systemMessageKind linkedBlockerId

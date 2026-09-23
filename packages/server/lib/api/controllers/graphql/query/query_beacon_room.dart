@@ -17,6 +17,8 @@ final class QueryBeaconRoom extends GqlNodeBase {
 
   final _beforeIso = InputFieldString(fieldName: 'beforeIso');
 
+  // DORMANT(item-threads): GraphQL threadItemId filter arg; always null in production (General is thread_item_id IS NULL).
+  // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
   final _threadItemId = InputFieldString(fieldName: 'threadItemId');
 
   List<GraphQLObjectField<dynamic, dynamic>> get all => [

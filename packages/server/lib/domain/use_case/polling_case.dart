@@ -59,6 +59,8 @@ final class PollingCase extends UseCaseBase {
     return true;
   }
 
+  // DORMANT(item-threads): rejects poll mutations on item-thread-scoped room messages.
+  // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
   Future<void> _guardRoomBackedPollMutation(String pollingId) async {
     final message = await _roomRepository.getRoomMessageByLinkedPollingId(
       pollingId,

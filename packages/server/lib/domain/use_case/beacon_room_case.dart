@@ -137,6 +137,8 @@ final class BeaconRoomCase extends UseCaseBase {
     return p?.roomAccess == RoomAccessBits.admitted;
   }
 
+  // DORMANT(item-threads): item-thread participant access helper.
+  // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
   bool _isItemParticipant(CoordinationItemRecord item, String userId) =>
       item.creatorId == userId ||
       item.targetPersonId == userId ||
@@ -151,6 +153,8 @@ final class BeaconRoomCase extends UseCaseBase {
     }
   }
 
+  // DORMANT(item-threads): item-thread access gate (non-room members).
+  // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
   Future<bool> _canAccessThread({
     required String beaconId,
     required String userId,
@@ -291,6 +295,8 @@ final class BeaconRoomCase extends UseCaseBase {
     );
   }
 
+  // DORMANT(item-threads): optional threadItemId; item-thread branch never taken in production (always null; General is thread_item_id IS NULL).
+  // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
   Future<Map<String, Object?>> createMessage({
     required String beaconId,
     required String userId,
@@ -462,6 +468,8 @@ final class BeaconRoomCase extends UseCaseBase {
     );
   }
 
+  // DORMANT(item-threads): itemParticipantsOnly path for non-room item-thread viewers.
+  // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
   Future<List<BeaconThreadRecord>> listThreads({
     required String beaconId,
     required String userId,
@@ -485,6 +493,8 @@ final class BeaconRoomCase extends UseCaseBase {
     return rows;
   }
 
+  // DORMANT(item-threads): optional threadItemId; item-thread branch never taken in production (always null; General is thread_item_id IS NULL).
+  // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
   Future<List<Map<String, Object?>>> listMessages({
     required String beaconId,
     required String userId,
@@ -790,6 +800,8 @@ final class BeaconRoomCase extends UseCaseBase {
     return true;
   }
 
+  // DORMANT(item-threads): optional threadItemId; item-thread seen watermark never used in production.
+  // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
   Future<Map<String, Object?>> markBeaconRoomSeen({
     required String beaconId,
     required String userId,

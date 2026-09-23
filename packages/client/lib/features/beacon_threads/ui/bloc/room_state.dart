@@ -15,6 +15,8 @@ abstract class RoomState extends StateBase with _$RoomState {
   const factory RoomState({
     @Default('') String beaconId,
 
+    // DORMANT(item-threads): non-null selects item-thread UI mode; always null in production.
+    // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
     /// Non-null when viewing a coordination item thread (not main room).
     String? threadItemId,
 

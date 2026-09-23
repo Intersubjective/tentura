@@ -848,6 +848,8 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
       return const [];
     }
 
+    // DORMANT(item-threads): per-item thread message/unread counts for listByBeacon.
+    // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
     final countRows = await _db.customSelect(
       r'''
       SELECT ci.id AS item_id,
@@ -901,6 +903,8 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
     ];
   }
 
+  // DORMANT(item-threads): SQL thread list including item-thread previews and unread.
+  // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
   @override
   Future<List<BeaconThreadRecord>> listThreads({
     required String beaconId,
@@ -1386,6 +1390,8 @@ ORDER BY ci.kind, ci.created_at DESC
     final order = {for (var i = 0; i < ids.length; i++) ids[i]: i};
     items.sort((a, b) => order[a.id]!.compareTo(order[b.id]!));
 
+    // DORMANT(item-threads): per-item thread message/unread counts for myResponsibilityItemsByBeacon.
+    // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
     final countRows = await _db.customSelect(
       r'''
       SELECT ci.id AS item_id,

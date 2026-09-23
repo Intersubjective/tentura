@@ -27,6 +27,8 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
 
   final TenturaDb _db;
 
+  // DORMANT(item-threads): thread_item_id message filter (non-null selects item thread).
+  // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
   Future<List<BeaconRoomMessage>> listMessages({
     required String beaconId,
     String? threadItemId,
@@ -178,6 +180,8 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
   /// Uses drift `listMessages` for ordering/filter (same SQL path as before beacon
   /// room enrichment). Raw SQL with `ORDER BY`/`LIMIT` + drift placeholders hit a
   /// Postgres parser issue (`syntax error at or near "ORDER"`).
+  // DORMANT(item-threads): thread-scoped reply-parent lookup filter; always null in production (General is thread_item_id IS NULL).
+  // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
   Future<List<Map<String, Object?>>> listMessagesEnriched({
     required String beaconId,
     required String viewerUserId,
@@ -1165,6 +1169,8 @@ SELECT public.emit_realtime_entity_change(
               .getSingleOrNull())
           ?.toRecord();
 
+  // DORMANT(item-threads): item-thread seen upsert branch when threadItemId is non-null.
+  // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
   @override
   Future<DateTime> markBeaconRoomSeen({
     required String userId,

@@ -14,6 +14,8 @@ abstract class RoomMessageSnapshot with _$RoomMessageSnapshot {
     DateTime? editedAt,
     @Default(<String>[]) List<String> mentions,
     @Default(<Map<String, Object?>>[]) List<Map<String, Object?>> mentionSpans,
+    // DORMANT(item-threads): always null in production; General is thread_item_id IS NULL.
+    // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
     String? threadItemId,
     String? replyToMessageId,
     String? replyToAuthorId,
