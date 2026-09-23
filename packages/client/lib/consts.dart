@@ -4,7 +4,6 @@ export 'package:tentura_root/consts.dart';
 
 // Numbers
 const kMaxLines = 3;
-const kCommentsShown = 3;
 const kFetchWindowSize = 5;
 const kSnackBarDuration = 5;
 const kFetchListOffset = 0.9;
@@ -12,9 +11,7 @@ const kImageMaxDimension = 600;
 
 // Strings
 //   Routes
-const kPathBack = '/back';
 const kPathHome = '/home';
-const kPathFriends = '/home/friends';
 const kPathProfile = '/home/profile';
 const kPathGraph = '/graph';
 const kPathInviteGenealogy = '/invite-genealogy';
@@ -46,7 +43,6 @@ const kPathUpdates = '/home/updates';
 const kPathNotifications = '/notifications';
 const kPathNotificationSettings = '/settings/notifications';
 const kPathRoutingMute = '/settings/routing-mute';
-const kPathBlockedUsers = '/home/network/blocked';
 const kPathDebugSettings = '/settings/debug';
 const kPathMyWork = '/home/work';
 const kPathConstellation = '/home/constellation';
@@ -61,7 +57,6 @@ const kPathForwardBeacon = '/forward';
 const kPathForwardPerson = '/forward-person';
 const kPathProfileEdit = '/profile/edit';
 const kPathProfileView = '/profile/view';
-const kPathInvitations = '/invitations';
 const kQueryHomeTab = 'tab';
 const kHomeTabInvitations = 'invitations';
 
@@ -186,9 +181,5 @@ const kBeaconPlaceholderUrl =
     '$kImageServer/$kImagesPath/placeholder/beacon.$kImageExt';
 
 // Others
-
-const kFastAnimationDuration = Duration(milliseconds: 250);
-
-final kZeroAge = DateTime.fromMillisecondsSinceEpoch(0);
 
 final kInvitationCodeRegExp = RegExp('I[a-f0-9]{0,12}');

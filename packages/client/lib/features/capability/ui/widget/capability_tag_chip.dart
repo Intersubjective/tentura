@@ -7,9 +7,6 @@ import 'package:tentura/ui/utils/capability_tag_presenter.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
-/// Whether `wire` should show a capability chip row (non-empty after trim).
-bool capabilitySlugHasDisplay(String? wire) => wire?.trim().isNotEmpty ?? false;
-
 /// FilterChip for one CapabilityTag, matching CapabilityChipSet per-tag styling.
 class CapabilityTagFilterChip extends StatelessWidget {
   const CapabilityTagFilterChip({

@@ -256,10 +256,6 @@ MyWorkCardViewModel _deriveHelpOffered({
   );
 }
 
-/// Non-archived authored desk card from a [Beacon] (same rules as init fetch).
-MyWorkCardViewModel deriveAuthoredMyWorkCard({required Beacon beacon}) =>
-    _deriveAuthored(beacon: beacon);
-
 /// Inserts or replaces an authored card for [beacon] in [cards].
 List<MyWorkCardViewModel> upsertAuthoredMyWorkCard(
   List<MyWorkCardViewModel> cards,
@@ -405,8 +401,6 @@ int countDraftMyWorkCards(List<MyWorkCardViewModel> nonArchivedCards) =>
     nonArchivedCards
         .where((c) => c.kind == MyWorkCardKind.authoredDraft)
         .length;
-
-int archivedCountHintFromInit(int archivedCountHint) => archivedCountHint;
 
 /// Revokes authored / help-offered membership after the viewer archives.
 ///

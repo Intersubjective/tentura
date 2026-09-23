@@ -182,18 +182,3 @@ class DebugErrorPanel extends StatelessWidget {
     );
   }
 }
-
-Future<void> runAppWithDebugErrors(Widget app) async {
-  WidgetsFlutterBinding.ensureInitialized();
-
-  if (kDebugMode) {
-    installDebugErrorHandlers();
-  }
-
-  runZonedGuarded(
-    () => runApp(
-      kDebugMode ? DebugErrorOverlay(child: app) : app,
-    ),
-    DebugErrorStore.instance.report,
-  );
-}

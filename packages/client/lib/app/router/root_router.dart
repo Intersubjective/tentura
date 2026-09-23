@@ -30,23 +30,6 @@ export 'package:auto_route/auto_route.dart';
 export 'home_tab_branches.dart';
 export 'root_router.gr.dart';
 
-PageRouteInfo beaconViewOperationalChildFromQuery(Parameters qp) =>
-    beaconViewOperationalFromNormalized(
-      normalizeBeaconViewRouteQueryFromParameters(qp),
-    );
-
-List<PageRouteInfo> beaconViewChildRoutesFromQuery(
-  Parameters qp, {
-  String? matchedThreadId,
-}) => [
-  beaconViewOperationalFromNormalized(
-    normalizeBeaconViewRouteQueryFromParameters(
-      qp,
-      pathThreadId: matchedThreadId,
-    ),
-  ),
-];
-
 Uri normalizeBeaconViewThreadDeepLink(Uri uri) {
   final match = RegExp(
     '^${RegExp.escape(kPathBeaconView)}/([^/]+)/thread/([^/]+)\$',

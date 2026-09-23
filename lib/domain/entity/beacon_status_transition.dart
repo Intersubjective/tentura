@@ -63,8 +63,6 @@ const _allowedTransitions = <(BeaconStatus, BeaconStatus)>{
   (BeaconStatus.reviewOpen, BeaconStatus.deleted),
 };
 
-bool isBeaconOpenFamilyStatus(BeaconStatus status) => status.isOpenFamily;
-
 /// Returns whether [value] is a legal persisted smallint for `beacon.status`.
 bool isAllowedBeaconStatusSmallint(int value) => switch (value) {
       0 || 1 || 2 || 3 || 5 || 6 || 7 || 8 => true,

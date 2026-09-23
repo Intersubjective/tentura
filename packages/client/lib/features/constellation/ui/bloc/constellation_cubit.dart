@@ -60,12 +60,6 @@ const kOfferKindChangedCoordinationCode = 1516;
 const kConstellationGraphLayoutFailureMessage =
     'Could not refresh the map layout. Try again or keep the current view.';
 
-enum ConstellationRequestPreflightOutcome {
-  ready,
-  authorizationDenied,
-  requestUnavailable,
-}
-
 sealed class ConstellationRequestPreflight {
   const ConstellationRequestPreflight();
 

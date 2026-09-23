@@ -59,14 +59,6 @@ Color coordinationResponseInkColor(TenturaTokens tt, CoordinationResponseType r)
       CoordinationResponseType.notSuitable => tt.textMuted,
     };
 
-TenturaTone coordinationResponseTone(CoordinationResponseType r) => switch (r) {
-      CoordinationResponseType.useful => TenturaTone.good,
-      CoordinationResponseType.overlapping => TenturaTone.info,
-      CoordinationResponseType.needCoordination => TenturaTone.warn,
-      CoordinationResponseType.needDifferentSkill => TenturaTone.warn,
-      CoordinationResponseType.notSuitable => TenturaTone.neutral,
-    };
-
 Color coordinationStatusOnSurfaceColor(
   ColorScheme scheme,
   BeaconStatus s,
@@ -77,22 +69,6 @@ Color coordinationStatusOnSurfaceColor(
       BeaconStatus.enoughHelp => scheme.tertiary,
       _ => scheme.onSurfaceVariant,
     };
-
-/// Dominant per-help-offer response takes precedence; otherwise [beaconStatus].
-Color coordinationContextOnSurfaceColor(
-  ColorScheme scheme, {
-  required BeaconStatus beaconStatus,
-  CoordinationResponseType? dominantResponse,
-  TenturaTokens? tokens,
-}) {
-  if (dominantResponse != null) {
-    if (tokens != null) {
-      return coordinationResponseInkColor(tokens, dominantResponse);
-    }
-    return coordinationResponseOnSurfaceColor(scheme, dominantResponse);
-  }
-  return coordinationStatusOnSurfaceColor(scheme, beaconStatus);
-}
 
 Color coordinationResponseOnSurfaceColor(
   ColorScheme scheme,

@@ -14,12 +14,6 @@ enum AttentionEventCatalogStatus {
   retired,
 }
 
-AttentionEventCatalogStatus attentionEventCatalogStatusFromWireName(
-  String value,
-) => AttentionEventCatalogStatus.values.firstWhere(
-  (status) => status.name == value,
-);
-
 /// Runtime guard paired with exhaustive switches in [AttentionPolicy].
 abstract final class AttentionEventTypeCatalog {
   AttentionEventTypeCatalog._();
@@ -209,11 +203,6 @@ extension AttentionPreferenceClassWireName on AttentionPreferenceClass {
   };
 }
 
-AttentionPreferenceClass attentionPreferenceClassFromWireName(String value) =>
-    AttentionPreferenceClass.values.firstWhere(
-      (preference) => preference.wireName == value,
-    );
-
 enum AttentionDestinationKind {
   beacon,
   beaconPeopleOffer,
@@ -237,11 +226,6 @@ extension AttentionDestinationKindWireName on AttentionDestinationKind {
     AttentionDestinationKind.safeTerminal => 'safe_terminal',
   };
 }
-
-AttentionDestinationKind attentionDestinationKindFromWireName(String value) =>
-    AttentionDestinationKind.values.firstWhere(
-      (destination) => destination.wireName == value,
-    );
 
 enum AttentionFeedView { all, unread, needsYou }
 

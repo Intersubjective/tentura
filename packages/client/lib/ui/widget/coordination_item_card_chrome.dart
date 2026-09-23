@@ -26,22 +26,6 @@ Widget coordinationItemCardAvatarTrail({
   );
 }
 
-/// Like [coordinationItemCardAvatarTrail] but resolves the signed-in viewer profile.
-Widget coordinationItemCardAvatarTrailWithViewer({
-  BeaconParticipant? source,
-  BeaconParticipant? target,
-  double? avatarSize,
-}) =>
-    BlocBuilder<ProfileCubit, ProfileState>(
-      buildWhen: (p, c) => p.profile.id != c.profile.id,
-      builder: (context, state) => coordinationItemCardAvatarTrail(
-        source: source,
-        target: target,
-        avatarSize: avatarSize,
-        viewerProfile: state.profile,
-      ),
-    );
-
 /// Profile-based directed trail for room footers and timeline bars.
 Widget coordinationItemProfileAvatarTrail({
   Profile? source,

@@ -42,14 +42,6 @@ BeaconPhaseStatusPresentation myWorkHeaderPhaseStatus(
   );
 }
 
-/// Assembles `slot1 [· slot2]` for compact header / app bar subtitles.
-String myWorkStatusDisplayLine(
-  MyWorkStatusLineData data, {
-  String? roomSubtitle,
-}) => myWorkHeaderPhaseStatus(data, roomSubtitle: roomSubtitle).statusLine;
-
-TenturaTone myWorkStatusTone(MyWorkStatusLineData data) => data.tone;
-
 /// Derives shared phase status for My Work card headers.
 MyWorkStatusLineData myWorkStatusLine({
   required L10n l10n,

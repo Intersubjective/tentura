@@ -70,15 +70,10 @@ const int kInvitationDefaultTTL = 24 * 7;
 //
 const kAppTitle = 'Tentura';
 
-const kPathIcons = '/icons';
-
 /// Cache-busted PWA / apple-touch / notification icons at the site root.
 /// Kept out of `/app-assets/<version>/` so landing, FCM SW, and install UI
 /// share one URL. Rename the files (and these consts) when the artwork changes.
 const kPathWebAppIcon192 = '/tentura-icon-192.png';
-const kPathWebAppIcon512 = '/tentura-icon-512.png';
-const kPathWebAppIconMaskable192 = '/tentura-icon-maskable-192.png';
-const kPathWebAppIconMaskable512 = '/tentura-icon-maskable-512.png';
 
 /// Beacon detail screen (client Auto Route).
 const kPathBeaconView = '/beacon/view';
@@ -96,7 +91,6 @@ const kPathFirebaseSwJs = '/firebase-messaging-sw.js';
 const String kUserAgent = kAppTitle;
 
 const kContentTypeHtml = 'text/html';
-const kContentTextPlain = 'text/plain';
 const kContentTypeJpeg = 'image/jpeg';
 const kContentApplicationJson = 'application/json';
 const kContentApplicationJavaScript = 'application/javascript';
@@ -115,10 +109,6 @@ const kImagesPath = 'images';
 
 /// Private attachment blobs (served only via [kPathRoomAttachmentDownload]).
 const kRoomAttachmentsPath = 'room_attachments';
-
-const kAvatarPlaceholderBlurhash =
-    ':QPjJjoL?bxu~qRjD%xuM{j[%MayIUj[t7j[~qa{xuWBD%of%MWBRjj[j[ayxuj[M{ay?bj[IT'
-    'WBayofayWBxuayRjofofWBWBj[Rjj[t7ayRjayRjofs:fQfQfRWBj[ofay';
 
 //
 // Feature UI gates (compile-time; flip to re-enable)

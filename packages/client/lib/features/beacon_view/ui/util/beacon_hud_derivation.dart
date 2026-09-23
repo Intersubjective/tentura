@@ -286,35 +286,3 @@ String? _myNextMoveText(BeaconViewState state) {
   }
   return null;
 }
-
-/// Expanded NOW body for the Status lens (includes plan vs blocker vs cue).
-String beaconHudNowExpandedBody(L10n l10n, BeaconViewState state) {
-  final beacon = state.beacon;
-  final cue = state.beaconRoomCue;
-  final lines = <String>[];
-
-  if (beacon.status == BeaconStatus.deleted) {
-    return l10n.beaconHudBeaconUnavailable;
-  }
-
-  final blockerTitle = cue?.openBlockerTitle?.trim();
-  if (blockerTitle != null && blockerTitle.isNotEmpty) {
-    lines.add(l10n.beaconHudNowBlocked(blockerTitle));
-  }
-
-  final currentLine = cue?.currentLine.trim() ?? '';
-  if (currentLine.isNotEmpty) {
-    lines.add(currentLine);
-  }
-
-  final roomCue = cue?.lastRoomMeaningfulChange?.trim();
-  if (roomCue != null && roomCue.isNotEmpty) {
-    lines.add(roomCue);
-  }
-
-  if (lines.isEmpty) {
-    return beaconHudNowLine(l10n, state);
-  }
-
-  return lines.toSet().join('\n\n');
-}

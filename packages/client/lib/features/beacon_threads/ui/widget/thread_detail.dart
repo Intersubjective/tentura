@@ -16,23 +16,6 @@ import 'package:tentura/ui/widget/beacon_involved_people_face_pile.dart';
 import 'package:tentura/ui/widget/coordination_item_presenter.dart';
 import 'package:tentura/ui/widget/coordination_item_card_chrome.dart';
 
-/// User-facing title when a semantic thread row has no item title yet.
-String threadTitleFallback(L10n l10n, RequestThread thread) {
-  if (thread.isGeneral) {
-    return l10n.threadGeneralTitle;
-  }
-  final item = thread.item;
-  if (item != null && item.title.trim().isNotEmpty) {
-    return item.title.trim();
-  }
-  return switch (thread.kind) {
-    RequestThreadKind.ask => l10n.coordinationAskCardLabel,
-    RequestThreadKind.promise => l10n.coordinationPromiseCardLabel,
-    RequestThreadKind.blocker => l10n.coordinationBlockerCardLabel,
-    RequestThreadKind.general => l10n.threadGeneralTitle,
-  };
-}
-
 String threadGeneralAppBarTitle(L10n l10n, Beacon beacon) =>
     beacon.title.isEmpty ? l10n.beaconViewTitle : beacon.title;
 
