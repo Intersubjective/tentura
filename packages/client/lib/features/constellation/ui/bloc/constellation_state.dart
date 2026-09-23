@@ -1,4 +1,3 @@
-import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
 import '../../domain/constellation_anchor_composition.dart';

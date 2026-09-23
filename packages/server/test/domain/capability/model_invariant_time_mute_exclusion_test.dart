@@ -4,7 +4,6 @@ import 'package:tentura_server/domain/capability/capability_consts.dart';
 import 'package:tentura_server/domain/capability/capability_evidence_models.dart';
 
 import 'model_world.dart';
-import 'projection_standing.dart';
 
 void main() {
   group('T — Time', () {

@@ -2,7 +2,6 @@ import 'package:flutter/widgets.dart';
 
 import 'package:tentura/domain/attention/request_open_clear.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
-import 'package:tentura/ui/bloc/state_base.dart';
 
 /// §4 — "Opening a Request clears a **snapshot** taken when it opened, after
 /// it successfully displays".

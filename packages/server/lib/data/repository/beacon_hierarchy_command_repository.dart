@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:drift/drift.dart';
 import 'package:injectable/injectable.dart';
 import 'package:postgres/postgres.dart' show Severity, Type, TypedValue;
 import 'package:tentura_root/domain/entity/beacon_child_command_outcome.dart';

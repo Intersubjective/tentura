@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 
-import 'package:tentura/data/service/remote_api_client/realtime_socket.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/graph/data/repository/graph_repository.dart';

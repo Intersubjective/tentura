@@ -3,7 +3,6 @@ import 'dart:async' show unawaited;
 import 'package:get_it/get_it.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/ui/message/action_message_base.dart';
-import 'package:tentura_root/domain/entity/localizable.dart';
 
 final class InviteNoLongerValidMessage extends LocalizableMessage {
   const InviteNoLongerValidMessage();

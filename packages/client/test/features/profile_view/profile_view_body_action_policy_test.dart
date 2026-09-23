@@ -1,11 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 
-import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/capability/person_capability_cues.dart';
 import 'package:tentura/domain/capability/tag_projection.dart';
@@ -18,7 +16,6 @@ import 'package:tentura/domain/port/capability_repository_port.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
-import 'package:tentura/features/block/domain/use_case/block_case.dart';
 import 'package:tentura/features/contacts/domain/use_case/contacts_case.dart';
 import 'package:tentura/features/like/data/repository/like_remote_repository.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 
@@ -10,7 +9,6 @@ import 'package:tentura/domain/contacts/contact_name_store.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/port/capability_repository_port.dart';
 import 'package:tentura/env.dart';
-import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 import 'package:tentura/features/contacts/domain/use_case/contacts_case.dart';
 import 'package:tentura/features/like/data/repository/like_remote_repository.dart';
 import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';

@@ -3,9 +3,7 @@ library;
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
-import 'package:injectable/injectable.dart' show Environment;
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
@@ -14,7 +12,6 @@ import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/data/database/tentura_db.dart' hide ConstellationAnchor;
 import 'package:tentura_server/data/repository/constellation_anchor_repository.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
-import 'package:tentura_server/env.dart';
 
 import '../database/constellation_anchor_pg_retry_probe.dart';
 

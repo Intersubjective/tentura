@@ -11,7 +11,6 @@ import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/user_block_repository.dart';
 import 'package:tentura_server/domain/invite_genealogy/invite_genealogy_node_key.dart';
-import 'package:tentura_server/domain/port/user_block_repository_port.dart';
 import 'package:tentura_server/domain/use_case/block_cascade_case.dart';
 import 'package:tentura_server/domain/use_case/block_release_sweep_case.dart';
 import 'package:tentura_server/env.dart';

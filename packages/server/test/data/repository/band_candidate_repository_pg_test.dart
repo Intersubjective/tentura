@@ -1,9 +1,7 @@
 @Tags(['pg', 'mr'])
 library;
 
-import 'dart:io';
 
-import 'package:injectable/injectable.dart' show Environment;
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
@@ -15,7 +13,6 @@ import 'package:tentura_server/data/repository/forward_edge_repository.dart';
 import 'package:tentura_server/data/repository/help_offer_repository.dart';
 import 'package:tentura_server/data/repository/inbox_repository.dart';
 import 'package:tentura_server/data/repository/meritrank_repository.dart';
-import 'package:tentura_server/env.dart';
 
 import '../../support/disposable_pg_target.dart';
 

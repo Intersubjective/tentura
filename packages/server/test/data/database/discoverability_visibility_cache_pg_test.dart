@@ -2,13 +2,11 @@
 library;
 
 
-import 'package:drift/drift.dart' show Variable;
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
-import 'package:tentura_server/env.dart';
 
 import '../../support/disposable_pg_target.dart';
 

@@ -10,7 +10,6 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/domain/port/beacon_write_port.dart';
 import 'package:tentura/domain/use_case/beacon_create_case.dart';
-import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
 import 'package:tentura/features/beacon/domain/beacon_hierarchy_exception.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/beacon_hierarchy_cubit.dart';
 import 'package:tentura/ui/bloc/state_base.dart';

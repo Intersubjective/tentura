@@ -1,9 +1,7 @@
 import 'package:meta/meta.dart';
 import 'package:sentry/sentry.dart';
-import 'package:shelf/shelf.dart' show HijackException;
 import 'package:shelf_plus/shelf_plus.dart';
 
-import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/env.dart';
 
 import 'sentry_benign_filter.dart';

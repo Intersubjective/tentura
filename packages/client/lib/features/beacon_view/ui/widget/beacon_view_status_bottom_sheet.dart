@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon/ui/sheet/beacon_close_confirm_sheet.dart';
 import 'package:tentura/features/beacon_create/ui/dialog/beacon_publish_dialog.dart';
 import 'package:tentura/features/beacon_view/domain/beacon_status_menu.dart';

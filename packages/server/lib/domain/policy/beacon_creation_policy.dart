@@ -1,7 +1,6 @@
 import 'package:tentura_root/consts.dart';
 import 'package:tentura_server/domain/capability/capability_tag.dart';
 import 'package:tentura_server/domain/exception.dart';
-import 'package:tentura_server/domain/exception_codes.dart';
 
 /// Shared normalization and media-independent validation for beacon creation.
 abstract final class BeaconCreationPolicy {

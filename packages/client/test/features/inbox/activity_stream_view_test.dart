@@ -1,10 +1,7 @@
 import 'dart:async';
 
-import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 
@@ -20,17 +17,13 @@ import 'package:tentura/domain/capability/invite_seed_prompt_state.dart';
 import 'package:tentura/domain/capability/prompt_state_value.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
-import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart';
-import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_item.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/features/inbox/ui/bloc/activity_offers_cubit.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_cubit.dart';
-import 'package:tentura/features/inbox/ui/screen/inbox_screen.dart';
 import 'package:tentura/features/inbox/ui/widget/activity_event_subcard_block.dart';
 import 'package:tentura/features/inbox/ui/widget/activity_offer_bounded_shell.dart';
 import 'package:tentura/features/inbox/ui/widget/activity_stream_view.dart';
@@ -43,12 +36,9 @@ import 'package:tentura/features/inbox/ui/widget/tombstone_row.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/updates/domain/use_case/invite_accepted_setup_case.dart';
 import 'package:tentura/features/updates/ui/bloc/updates_feed_cubit.dart';
-import 'package:tentura/features/updates/ui/widget/updates_feed_pane.dart';
 import 'package:tentura/ui/l10n/l10n_en.dart';
 import 'package:tentura/ui/widget/caught_up_panel.dart';
 import 'package:tentura/features/updates/ui/widget/updates_feed_tile.dart';
-import 'package:tentura/ui/bloc/screen_cubit.dart';
-import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 

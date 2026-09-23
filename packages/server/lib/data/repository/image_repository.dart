@@ -1,5 +1,4 @@
 
-import 'package:drift/drift.dart' show QueryRow;
 import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
 import 'package:logging/logging.dart';

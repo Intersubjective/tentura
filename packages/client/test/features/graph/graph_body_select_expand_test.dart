@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:mockito/mockito.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/graph/data/repository/graph_source_repository.dart';
-import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/edge_directed.dart';
 import 'package:tentura/features/graph/domain/entity/graph_edge_colors.dart';
 import 'package:tentura/features/graph/domain/entity/graph_mode.dart';

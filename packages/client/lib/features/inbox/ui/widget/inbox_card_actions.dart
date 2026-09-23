@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
-import 'package:auto_route/auto_route.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/help_offer_message_dialog.dart';

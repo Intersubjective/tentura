@@ -1,5 +1,4 @@
 import 'package:test/test.dart';
-import 'package:tentura_root/domain/capability/capability_slugs.dart';
 import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:tentura_server/domain/capability/capability_tag.dart';
 

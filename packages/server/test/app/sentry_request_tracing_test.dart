@@ -1,10 +1,8 @@
 import 'package:sentry/sentry.dart';
-import 'package:shelf/shelf.dart' show HijackException;
 import 'package:shelf_plus/shelf_plus.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/app/sentry/sentry_request_tracing.dart';
-import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/env.dart';
 
 void main() {

@@ -16,7 +16,6 @@ import 'package:tentura/features/beacon_view/ui/dialog/help_offer_role_label_dia
 import 'package:tentura/features/beacon_view/ui/util/beacon_accordion_sections.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_app_bar_overflow.dart';
 import 'package:tentura/features/beacon_view/ui/widget/help_offer_tile.dart';
-import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/widget/unified_forward_row.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';

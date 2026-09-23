@@ -1,9 +1,7 @@
 import 'dart:async';
 
-import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 
@@ -14,7 +12,6 @@ import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
-import 'package:tentura/domain/attention/port/attention_repository_port.dart';
 import '../../support/attention_repository_fake_base.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -30,7 +27,6 @@ import 'package:tentura/features/inbox/ui/screen/inbox_watching_screen.dart';
 import 'package:tentura/features/inbox/ui/widget/inbox_watchlist_row.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/updates/domain/use_case/invite_accepted_setup_case.dart';
-import 'package:tentura/features/updates/ui/widget/updates_feed_pane.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 

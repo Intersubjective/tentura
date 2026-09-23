@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 
@@ -12,7 +11,6 @@ import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
-import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card_repository.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_room_hints_repository.dart';
@@ -24,7 +22,6 @@ import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_c
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_cubit.dart';
 import 'package:tentura/features/polling/data/repository/polling_repository.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
-import 'package:tentura/ui/bloc/state_base.dart';
 
 import '../../support/test_realtime_sync.dart';
 

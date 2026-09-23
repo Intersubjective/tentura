@@ -1,9 +1,7 @@
 @Tags(['pg'])
 library;
 
-import 'dart:io';
 
-import 'package:injectable/injectable.dart' show Environment;
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
@@ -11,7 +9,6 @@ import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/attention_repository.dart';
-import 'package:tentura_server/env.dart';
 
 import '../../support/disposable_pg_target.dart';
 

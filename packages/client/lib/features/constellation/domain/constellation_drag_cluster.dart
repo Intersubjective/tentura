@@ -1,6 +1,5 @@
 import 'package:meta/meta.dart';
 
-import 'constellation_consts.dart';
 import 'constellation_layout.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'entity/constellation_field.dart';

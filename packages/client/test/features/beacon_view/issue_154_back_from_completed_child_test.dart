@@ -5,8 +5,6 @@ import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/consts.dart';
-import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 
 import 'beacon_view_screen_harness.dart';

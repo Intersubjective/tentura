@@ -10,7 +10,6 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import '../../support/beacon_hierarchy_fixture.dart';
 import 'beacon_hierarchy_pg_helpers.dart';
-import 'beacon_hierarchy_visibility_pg_support.dart';
 
 Future<void> main() async {
   final reachable = await canConnectBeaconHierarchyPostgres();

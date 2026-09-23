@@ -7,7 +7,6 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
-import 'package:tentura/features/beacon_threads/ui/bloc/room_state.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
 
 const _kBeaconId = 'b-host-test';

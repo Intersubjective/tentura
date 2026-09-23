@@ -4,8 +4,6 @@ library;
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
-import 'package:tentura_server/data/database/tentura_db.dart'
-    hide isNotNull, isNull;
 
 import '../../support/disposable_pg_target.dart';
 

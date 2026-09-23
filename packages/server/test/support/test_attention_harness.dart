@@ -2,7 +2,6 @@ import 'package:mockito/mockito.dart';
 
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_context.dart';
-import 'package:tentura_server/domain/entity/beacon_notification_intent.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/port/attention_dispatch_port.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';

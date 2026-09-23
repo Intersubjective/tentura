@@ -1,4 +1,3 @@
-import 'package:ferry_exec/ferry_exec.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/service/remote_api_service.dart';

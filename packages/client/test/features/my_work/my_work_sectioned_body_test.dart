@@ -1,9 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
@@ -38,7 +36,6 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/l10n/l10n_en.dart';
 import 'package:tentura/ui/widget/caught_up_panel.dart';
-import 'package:tentura/ui/test_ids.dart';
 
 import '../../support/attention_repository_fake_base.dart';
 import '../../support/test_realtime_sync.dart';

@@ -1,22 +1,16 @@
 import 'dart:async';
-import 'dart:ui' show Offset, Rect, Size;
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:get_it/get_it.dart';
-import 'package:meta/meta.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/features/beacon/domain/exception.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 
 import '../../domain/constellation_anchor_composition.dart';
 import '../../domain/constellation_density.dart';
 import '../../domain/constellation_filters.dart';
 import '../../domain/constellation_layout.dart';
-import '../../domain/constellation_consts.dart';
 import '../../domain/constellation_drag_cluster.dart';
 import 'package:tentura_root/domain/constellation/constellation_path_resolution.dart';
 import '../../domain/constellation_pin_position.dart';

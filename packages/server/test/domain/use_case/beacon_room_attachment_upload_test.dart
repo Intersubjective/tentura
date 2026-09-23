@@ -8,7 +8,6 @@ import 'package:test/test.dart';
 
 import '../../support/fake_beacon_hierarchy_repository.dart';
 
-import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/domain/entity/beacon_room_record.dart';
 import 'package:tentura_server/domain/entity/task_entity.dart';
 import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';

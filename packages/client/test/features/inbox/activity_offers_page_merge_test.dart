@@ -14,7 +14,6 @@ import 'package:tentura/features/inbox/domain/entity/inbox_item.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/features/inbox/ui/bloc/activity_offers_cubit.dart';
 
-import '../../support/attention_repository_fake_base.dart';
 import '../../support/noop_attention_actor_profiles.dart';
 import '../../support/test_realtime_sync.dart';
 import '../block/support/controllable_block_case.dart';

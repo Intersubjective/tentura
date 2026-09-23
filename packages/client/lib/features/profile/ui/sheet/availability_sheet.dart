@@ -1,10 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:meta/meta.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/domain/entity/availability.dart';
 import 'package:tentura/domain/util/availability_presets.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/availability_line.dart';

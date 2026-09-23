@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
-import 'package:mockito/mockito.dart';
 
 import 'package:tentura/domain/exception/credential_exception.dart';
 import 'package:tentura/domain/exception/server_exception.dart';

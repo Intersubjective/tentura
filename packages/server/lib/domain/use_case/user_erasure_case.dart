@@ -1,5 +1,4 @@
 import 'package:injectable/injectable.dart';
-import 'package:logging/logging.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/domain/entity/beacon_status_transition.dart';
 
@@ -11,7 +10,6 @@ import 'package:tentura_server/domain/port/user_erasure_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/use_case/beacon_lifecycle_effects_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
-import 'package:tentura_server/env.dart';
 
 import '_use_case_base.dart';
 

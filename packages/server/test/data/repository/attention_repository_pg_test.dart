@@ -1,9 +1,7 @@
 @Tags(['pg'])
 library;
 
-import 'dart:io';
 
-import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
@@ -18,12 +16,10 @@ import 'package:tentura_server/data/repository/beacon_room_repository.dart';
 import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/coordination/filter_beacon_notifications.dart';
-import 'package:tentura_server/domain/entity/beacon_notification_intent.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/entity/notification_priority.dart';
 import 'package:tentura_server/domain/port/beacon_notification_port.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
-import 'package:tentura_server/env.dart';
 
 import '../../support/disposable_pg_target.dart';
 

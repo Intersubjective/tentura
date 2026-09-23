@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:get_it/get_it.dart';
-import 'package:meta/meta.dart';
 
 import 'package:tentura/domain/util/availability_presets.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';

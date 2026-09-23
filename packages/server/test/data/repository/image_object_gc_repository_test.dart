@@ -2,10 +2,7 @@
 library;
 
 import 'dart:async';
-import 'dart:io';
-import 'dart:typed_data';
 
-import 'package:injectable/injectable.dart' show Environment;
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
@@ -14,7 +11,6 @@ import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/image_object_gc_repository.dart';
 import 'package:tentura_server/domain/port/remote_storage_port.dart';
-import 'package:tentura_server/env.dart';
 
 import '../../support/disposable_pg_target.dart';
 

@@ -1,4 +1,3 @@
-import 'package:drift/drift.dart' show Variable;
 import 'package:injectable/injectable.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura_server/domain/exception.dart';

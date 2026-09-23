@@ -13,10 +13,8 @@ import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
-import 'package:tentura_server/domain/port/capability_evidence_port.dart';
 import 'package:tentura_server/domain/use_case/forward_case.dart';
 
-import 'package:tentura_server/domain/port/forward_attribution_repository_port.dart';
 
 import 'forward_case_mocks.mocks.dart';
 import '../../support/fake_beacon_access_guard.dart';

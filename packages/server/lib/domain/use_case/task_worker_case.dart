@@ -21,7 +21,6 @@ import 'package:tentura_server/domain/use_case/block_cascade_case.dart';
 import 'package:tentura_server/domain/use_case/block_release_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/capability_cell_expiry_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/capability_telemetry_case.dart';
-import 'package:tentura_server/domain/use_case/trust_maintenance_case.dart';
 import 'package:tentura_server/domain/use_case/user_availability_case.dart';
 import 'package:tentura_server/domain/use_case/deadline_reminder_sweep_case.dart';
 import 'package:tentura_server/domain/port/trust_maintenance_port.dart';

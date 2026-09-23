@@ -1,4 +1,3 @@
-import 'package:drift/drift.dart' show Variable;
 import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
 

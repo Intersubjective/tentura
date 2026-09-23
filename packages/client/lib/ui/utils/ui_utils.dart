@@ -5,7 +5,6 @@ import 'dart:async';
 
 import 'package:intl/intl.dart';
 import 'package:logging/logging.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/app/sentry/report_user_facing_error.dart';

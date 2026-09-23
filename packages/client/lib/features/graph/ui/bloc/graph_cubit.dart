@@ -5,7 +5,6 @@ import 'dart:async';
 import 'dart:developer' as developer;
 import 'dart:ui' show Offset;
 import 'package:get_it/get_it.dart';
-import 'package:force_directed_graphview/force_directed_graphview.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/profile.dart';

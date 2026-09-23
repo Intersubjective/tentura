@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -10,7 +9,6 @@ import 'package:tentura/features/home/domain/port/home_orientation_preferences_p
 import 'package:tentura/features/home/ui/bloc/home_activation_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_operational_cubit.dart';
-import 'package:tentura/features/my_work/domain/entity/my_work_filter.dart';
 import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 import 'package:tentura/features/my_work/ui/screen/my_work_screen.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';

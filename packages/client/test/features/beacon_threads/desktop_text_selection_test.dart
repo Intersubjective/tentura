@@ -5,7 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_reply_quote.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_text_body.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_trailing_meta_layout.dart';

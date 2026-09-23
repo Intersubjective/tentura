@@ -1,7 +1,6 @@
 @Tags(['pg'])
 library;
 
-import 'dart:io';
 
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';

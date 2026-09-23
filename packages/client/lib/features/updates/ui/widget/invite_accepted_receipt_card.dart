@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -12,7 +11,6 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/updates/domain/entity/prompt_projection.dart';
 import 'package:tentura/features/updates/domain/use_case/invite_accepted_setup_case.dart';
 import 'package:tentura/features/updates/ui/widget/invite_accepted_setup_sheet.dart';
-import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/features/inbox/ui/widget/activity_offer_bounded_shell.dart';
 import 'package:tentura/features/updates/ui/widget/updates_feed_tile.dart';
 import 'package:tentura/features/updates/updates_receipt_display_copy.dart';

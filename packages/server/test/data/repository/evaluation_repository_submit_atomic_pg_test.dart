@@ -12,7 +12,6 @@ import 'package:tentura_server/data/repository/evaluation_repository.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_row_status.dart';
 import 'package:tentura_server/domain/entity/evaluation/beacon_evaluation_record.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
-import 'package:tentura_server/env.dart';
 
 import '../../support/disposable_pg_target.dart';
 

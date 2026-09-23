@@ -29,7 +29,6 @@ import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_activity_event_repository.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card_repository.dart';
-import 'package:tentura/features/beacon_threads/domain/entity/room_unread_snapshot.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
 

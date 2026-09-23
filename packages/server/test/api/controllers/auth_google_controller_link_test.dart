@@ -18,7 +18,6 @@ import 'package:tentura_server/domain/port/oidc_provider_port.dart';
 import 'package:tentura_server/domain/port/session_repository_port.dart';
 import 'package:tentura_server/domain/use_case/auth_case.dart';
 import 'package:tentura_server/domain/use_case/credential_auth_case.dart';
-import 'package:tentura_server/domain/use_case/invitation_case.dart';
 import 'package:tentura_server/domain/use_case/oidc_case.dart';
 import 'package:tentura_server/domain/use_case/session_case.dart';
 import 'package:tentura_server/env.dart';

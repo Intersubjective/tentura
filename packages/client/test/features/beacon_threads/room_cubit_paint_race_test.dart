@@ -7,7 +7,6 @@ import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/realtime/realtime_room_message_paint.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
-import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 
 import '../../support/test_realtime_sync.dart';
 import 'room_cubit_fakes.dart';

@@ -3,7 +3,6 @@ import 'package:test/test.dart';
 import 'package:tentura_server/domain/capability/capability_evidence_models.dart';
 
 import 'model_world.dart';
-import 'projection_standing.dart';
 
 void main() {
   group('W — Witness weighting and monotonicity', () {

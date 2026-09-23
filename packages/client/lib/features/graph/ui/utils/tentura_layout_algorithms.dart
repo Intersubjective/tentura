@@ -4,7 +4,6 @@ import 'dart:ui' show Offset, Size;
 import 'package:collection/collection.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 
-import '../../domain/entity/node_details.dart';
 import '../../domain/layout/layered_dag_positions.dart';
 import '../../domain/layout/radial_hop_positions.dart';
 import 'graph_scene_ids.dart';

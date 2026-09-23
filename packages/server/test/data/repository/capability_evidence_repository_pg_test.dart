@@ -2,9 +2,7 @@
 library;
 
 import 'dart:async';
-import 'dart:io';
 
-import 'package:injectable/injectable.dart' show Environment;
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
@@ -15,7 +13,6 @@ import 'package:tentura_server/data/repository/capability_evidence_repository.da
 import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
 import 'package:tentura_server/domain/capability/capability_consts.dart';
 import 'package:tentura_server/domain/capability/capability_evidence_models.dart';
-import 'package:tentura_server/env.dart';
 
 import '../../support/pg_wait.dart';
 

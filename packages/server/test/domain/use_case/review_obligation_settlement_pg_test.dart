@@ -1,9 +1,7 @@
 @Tags(['pg'])
 library;
 
-import 'dart:io';
 
-import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:postgres/postgres.dart';
@@ -31,7 +29,6 @@ import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_value.dart';
 import 'package:tentura_server/domain/evaluation/evaluation_participant_role.dart';
-import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
 import 'package:tentura_server/domain/port/trust_evidence_repository_port.dart';
 import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';

@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura/domain/capability/person_capability_cues.dart';
@@ -22,7 +21,6 @@ import 'package:tentura/features/graph/domain/entity/graph_edge_colors.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_cubit.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
-import 'package:tentura/features/invite_genealogy/data/repository/invite_genealogy_repository.dart';
 import 'package:tentura/features/like/data/repository/like_remote_repository.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 import 'package:tentura/features/profile_view/domain/use_case/profile_view_case.dart';

@@ -1,7 +1,6 @@
 @Tags(['pg'])
 library;
 
-import 'dart:io';
 
 import 'package:graphql_schema2/graphql_schema2.dart';
 import 'package:graphql_server2/graphql_server2.dart';

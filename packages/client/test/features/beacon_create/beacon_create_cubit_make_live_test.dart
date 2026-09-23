@@ -8,7 +8,6 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
 import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
-import 'package:tentura/features/forward/ui/bloc/forward_state.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';

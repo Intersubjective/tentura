@@ -7,12 +7,9 @@ import 'package:tentura/app/router/home_tab_branches.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
-import 'package:tentura/domain/attention/feed_session_registry.dart';
-import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
-import 'package:tentura/domain/attention/port/attention_repository_port.dart';
 import '../../support/attention_repository_fake_base.dart';
 import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart';
 

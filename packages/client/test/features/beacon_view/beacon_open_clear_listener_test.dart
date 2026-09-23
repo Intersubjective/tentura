@@ -15,8 +15,6 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon/domain/exception.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_open_clear_listener.dart';
-import 'package:tentura/ui/bloc/state_base.dart';
-import 'package:tentura/ui/effect/ui_effect.dart';
 
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 

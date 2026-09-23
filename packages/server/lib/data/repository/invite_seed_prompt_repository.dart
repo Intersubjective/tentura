@@ -1,4 +1,3 @@
-import 'package:drift/drift.dart';
 import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
 

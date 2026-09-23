@@ -1,4 +1,3 @@
-import 'dart:ui' show Size;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,7 +14,6 @@ import 'package:tentura/features/constellation/domain/use_case/constellation_fie
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_filter_bar.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_overflow_group.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 const _ego = Profile(id: 'ego', displayName: 'Ego');

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui' show Offset;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -22,12 +21,8 @@ import 'package:tentura/features/forward/data/repository/forward_repository.dart
 import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
-import 'package:tentura/features/graph/ui/utils/graph_scene_ids.dart';
-import 'package:tentura/features/graph/ui/utils/tentura_layout_algorithms.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/test_ids.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';

@@ -1,8 +1,6 @@
 import 'dart:async' show unawaited;
 
-import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/material.dart';
-import 'package:auto_route/auto_route.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/app/router/root_router.dart';

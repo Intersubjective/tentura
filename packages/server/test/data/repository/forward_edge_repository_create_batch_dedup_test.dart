@@ -13,7 +13,6 @@ import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/forward_edge_repository.dart';
 import 'package:tentura_server/domain/entity/forward_batch_create_result.dart';
-import 'package:tentura_server/domain/entity/forward_edge_created.dart';
 import 'package:tentura_server/env.dart';
 
 import '../../support/pg_test_public_keys.dart';

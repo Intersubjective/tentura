@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:get_it/get_it.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/profile.dart';

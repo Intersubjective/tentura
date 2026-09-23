@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import 'package:auto_route/auto_route.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/components/tentura_attention_summary_row.dart';
 import 'package:tentura/ui/l10n/l10n.dart';

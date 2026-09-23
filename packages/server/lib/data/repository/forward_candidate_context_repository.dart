@@ -1,4 +1,3 @@
-import 'package:drift/drift.dart';
 import 'package:injectable/injectable.dart';
 import 'package:tentura_server/domain/entity/forward_candidate_graph_snapshot.dart';
 import 'package:tentura_server/domain/entity/gql_public/image_public_record.dart';

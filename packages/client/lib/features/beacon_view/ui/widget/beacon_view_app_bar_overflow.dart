@@ -26,7 +26,6 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import 'beacon_hud_author_confirm_sheets.dart';
-import 'beacon_view_status_bottom_sheet.dart';
 import 'package:tentura/features/beacon/ui/sheet/beacon_close_confirm_sheet.dart'
     show showBeaconCloseConfirmSheet;
 

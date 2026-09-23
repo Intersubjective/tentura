@@ -1,11 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/app/router/home_tab_branches.dart';
-import 'package:tentura/design_system/components/tentura_command_button.dart';
-import 'package:tentura/design_system/components/tentura_text_action.dart';
-import 'package:tentura/design_system/components/tentura_tech_card.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/design_system/tentura_window_class.dart';
 import 'package:tentura/features/home/ui/widget/how_tentura_works_content.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';

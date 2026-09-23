@@ -1,5 +1,4 @@
 import 'package:tentura_server/domain/entity/beacon_room_record.dart';
-import 'package:tentura_server/domain/entity/coordination_item_record.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_record.dart';
 
 abstract class BeaconRoomRepositoryPort {

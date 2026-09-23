@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/contacts/contact_name_overlay.dart';
@@ -7,7 +6,6 @@ import 'package:tentura/domain/util/availability_presets.dart';
 import 'package:tentura/features/capability/ui/widget/forward_capability_chips.dart';
 import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
-import 'package:tentura/features/forward/ui/bloc/forward_state.dart';
 import 'package:tentura/features/forward/ui/widget/lineage_forward_section.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/availability_line.dart';

@@ -3,7 +3,6 @@ import 'package:logging/logging.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/data/service/email/email_link_builder.dart';
-import 'package:tentura_server/domain/entity/account_deletion_request_email_payload.dart';
 import 'package:tentura_server/domain/entity/email_notification_content.dart';
 import 'package:tentura_server/domain/entity/notification_preferences_entity.dart';
 import 'package:tentura_server/domain/port/email_sender_port.dart';
