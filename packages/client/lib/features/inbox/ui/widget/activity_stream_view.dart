@@ -1111,17 +1111,6 @@ class _ActivityStreamCell extends StatelessWidget {
         );
   }
 
-  Future<void> _openReceipt(
-    BuildContext context,
-    AttentionReceipt receipt,
-  ) async {
-    final beaconId = receipt.beaconId;
-    if (beaconId == null || beaconId.isEmpty) {
-      unawaited(streamCubit.markSeen(receipt.id));
-    }
-    if (!context.mounted) return;
-    await GetIt.I<RootRouter>().openFromUpdate(receipt);
-  }
 }
 
 class _ActivityCollapsedInvitePromptRow extends StatelessWidget {

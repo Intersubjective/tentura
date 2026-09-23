@@ -232,16 +232,6 @@ VALUES (@id, @user, 'parent', 'd', 0, now(), now(), now())
   });
 }
 
-Future<bool> _readDiscoverableOn(Connection connection, String beaconId) async {
-  final rows = await connection.execute(
-    Sql.named(
-      'SELECT is_discoverable FROM public.beacon WHERE id = @id',
-    ),
-    parameters: {'id': beaconId},
-  );
-  return rows.single.first! as bool;
-}
-
 Future<void> _seedUser(
   Connection writer,
   String userId, {

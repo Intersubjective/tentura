@@ -40,10 +40,10 @@ Future<void> _selectTransportChip(WidgetTester tester) async {
 }
 
 final class _FakeCapabilityRepository implements CapabilityRepositoryPort {
-  _FakeCapabilityRepository({required this.promptState, this.throwOnFetch = false});
+  _FakeCapabilityRepository({required this.promptState});
 
   InviteSeedPromptState promptState;
-  bool throwOnFetch;
+  bool throwOnFetch = false;
 
   String? lastSeedSubjectId;
   List<String>? lastSeedSlugs;

@@ -23,13 +23,8 @@ import 'package:tentura/features/beacon_threads/ui/widget/room_unread_divider.da
 import 'package:tentura/ui/widget/basic_chat_body.dart';
 
 class _FakeImageRepository extends Fake implements ImageRepository {
-  _FakeImageRepository({this.picks});
-
-  final List<ImagePicked>? picks;
-
   @override
-  Future<List<ImagePicked>> pickMultipleImages() async => picks ??
-      [
+  Future<List<ImagePicked>> pickMultipleImages() async => [
         ImagePicked(
           bytes: Uint8List.fromList([1, 2, 3]),
           fileName: 'test.png',
@@ -41,23 +36,19 @@ class _FakeClipboardImageRepository extends Fake
     implements ClipboardImageRepository {
   final FutureOr<ClipboardImageReadResult> Function()? _resultFactory;
   final ClipboardImageReadResult? _result;
-  final void Function()? onRead;
 
   _FakeClipboardImageRepository.result(
-    ClipboardImageReadResult result, {
-    this.onRead,
-  })  : _result = result,
+    ClipboardImageReadResult result,
+  )   : _result = result,
         _resultFactory = null;
 
   _FakeClipboardImageRepository.factory(
-    FutureOr<ClipboardImageReadResult> Function() resultFactory, {
-    this.onRead,
-  })  : _result = null,
+    FutureOr<ClipboardImageReadResult> Function() resultFactory,
+  )   : _result = null,
         _resultFactory = resultFactory;
 
   @override
   Future<ClipboardImageReadResult> readImage() async {
-    onRead?.call();
     final result = _resultFactory != null ? await _resultFactory!() : _result!;
     return result;
   }

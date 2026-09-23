@@ -27,7 +27,6 @@ import 'package:tentura/features/evaluation/domain/entity/review_window_info.dar
 import '../derive_my_work_cards.dart';
 import '../entity/my_work_card_view_model.dart';
 import '../entity/my_work_desk_load_types.dart';
-import '../port/my_work_desk_preferences_port.dart';
 
 @singleton
 final class MyWorkCase extends UseCaseBase {
@@ -40,7 +39,6 @@ final class MyWorkCase extends UseCaseBase {
     this._beaconRepository,
     this._beaconRoomCase,
     this._roomHints,
-    this._deskPreferences,
     this._displayRepository,
     this._evaluationRepository,
     this._realtimeSyncCase,
@@ -62,7 +60,6 @@ final class MyWorkCase extends UseCaseBase {
 
   final BeaconRoomHintsRepository _roomHints;
 
-  final MyWorkDeskPreferencesPort _deskPreferences;
   final BeaconDisplayRepository _displayRepository;
   final EvaluationRepository _evaluationRepository;
   final RealtimeSyncCase _realtimeSyncCase;

@@ -393,7 +393,6 @@ class _AuthoredActiveCard extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final b = vm.beacon;
 
-    final repo = GetIt.I<BeaconRepository>();
     final evaluationRepo = GetIt.I<EvaluationRepository>();
     final statusLine = myWorkStatusLine(l10n: l10n, vm: vm);
     final headerStatus = _myWorkCardHeaderStatus(
@@ -822,7 +821,6 @@ class _FinishedAuthoredCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final b = vm.beacon;
-    final repo = GetIt.I<BeaconRepository>();
     final evaluationRepo = GetIt.I<EvaluationRepository>();
     final statusLine = myWorkStatusLine(l10n: l10n, vm: vm);
     final headerStatus = _myWorkCardHeaderStatus(

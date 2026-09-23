@@ -20,7 +20,6 @@ const _beacon2 = 'Bcapc1abcn02';
 const _eval1 = 'Ucapc1aeval01';
 const _eval2 = 'Ucapc1aeval02';
 const _subject = 'Ucapc1asubj01';
-const _author = 'Ucapc1aauth01';
 
 Future<void> main() async {
   final target = DisposablePgTarget.fromNamedEnvironment(

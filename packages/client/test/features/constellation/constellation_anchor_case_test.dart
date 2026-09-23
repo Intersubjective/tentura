@@ -20,7 +20,6 @@ ConstellationAnchor _anchor({
   required String personId,
   required BigInt revision,
   double x = 1,
-  double y = 2,
 }) =>
     ConstellationAnchor(
       target: ConstellationAnchorTarget.person(personId),

@@ -110,7 +110,6 @@ void main() {
   late _ForwardRepo forwardRepo;
   late InboxCase inboxCase;
   late _AttentionRepo attentionRepo;
-  late AttentionCase attention;
   late ActivityOffersCubit cubit;
 
   ActivityOffersCubit buildCubit({

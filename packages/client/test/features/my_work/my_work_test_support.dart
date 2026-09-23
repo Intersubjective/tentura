@@ -19,7 +19,6 @@ import 'package:tentura/features/inbox/domain/entity/inbox_room_card_hints.dart'
 import 'package:tentura/features/my_work/data/repository/archive_repository.dart';
 import 'package:tentura/features/my_work/data/repository/my_work_repository.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_last_event.dart';
-import 'package:tentura/features/my_work/domain/port/my_work_desk_preferences_port.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/entity/attention_clear.dart';
@@ -397,22 +396,8 @@ BeaconThreadsCase buildTestBeaconThreadsCase(
   );
 }
 
-class FakeMyWorkDeskPreferencesPort implements MyWorkDeskPreferencesPort {
-  final dismissedByUserId = <String, bool>{};
-
-  @override
-  Future<bool> isFinishedArchiveHintDismissed({required String userId}) async =>
-      dismissedByUserId[userId] ?? false;
-
-  @override
-  Future<void> setFinishedArchiveHintDismissed({required String userId}) async {
-    dismissedByUserId[userId] = true;
-  }
-}
-
 MyWorkCase buildTestMyWorkCase({
   FakeMyWorkRepository? repo,
-  FakeMyWorkDeskPreferencesPort? deskPreferences,
   FakeBeaconRepository? beaconRepo,
   FakeForwardRepository? forwardRepo,
   FakeRoomHints? roomHints,
@@ -426,7 +411,6 @@ MyWorkCase buildTestMyWorkCase({
   StubAttentionRepository? attentionRepository,
 }) {
   final hints = roomHints ?? FakeRoomHints();
-  final prefs = deskPreferences ?? FakeMyWorkDeskPreferencesPort();
   final beacon = beaconRepo ?? FakeBeaconRepository();
   final forward = forwardRepo ?? FakeForwardRepository();
   final watermark = watermarkStore ?? RoomReadWatermarkStore.testing();
@@ -442,7 +426,6 @@ MyWorkCase buildTestMyWorkCase({
       roomRepo: roomRepo,
     ),
     hints,
-    prefs,
     displayRepo ?? FakeBeaconDisplayRepository(),
     evaluationRepo ?? FakeEvaluationRepository(),
     realtime,

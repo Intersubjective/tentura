@@ -67,10 +67,8 @@ final class _Repository extends AttentionRepositoryFake {
 }
 
 final class _FakeSetupPort implements InviteAcceptedSetupPort {
-  _FakeSetupPort({this.batchResult = const {}, this.throwOnBatch = false});
-
-  Map<String, InviteSeedPromptState> batchResult;
-  bool throwOnBatch;
+  Map<String, InviteSeedPromptState> batchResult = const {};
+  bool throwOnBatch = false;
   int batchCalls = 0;
   final Set<String> lastBatchIds = {};
 

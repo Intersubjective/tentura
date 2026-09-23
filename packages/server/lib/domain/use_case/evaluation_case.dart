@@ -310,7 +310,6 @@ final class EvaluationCase extends UseCaseBase {
             );
           }
 
-          final participantIds = participants.map((e) => e.userId).toSet();
           final reviewerIds = {
             for (final p in participants)
               if (p.role != EvaluationParticipantRole.forwarder) p.userId,

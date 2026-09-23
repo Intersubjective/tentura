@@ -11,26 +11,19 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/consts/beacon_hierarchy_consts.dart';
 import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/data/repository/attention_dispatch_repository.dart';
-import 'package:tentura_server/data/repository/beacon_access_repository.dart';
 import 'package:tentura_server/data/repository/beacon_hierarchy_outbox_repository.dart';
 import 'package:tentura_server/data/repository/beacon_hierarchy_repository.dart';
-import 'package:tentura_server/data/repository/beacon_room_notification_context_repository.dart';
-import 'package:tentura_server/data/repository/beacon_room_repository.dart';
-import 'package:tentura_server/data/repository/commitment_repository.dart';
-import 'package:tentura_server/data/repository/help_offer_repository.dart';
 import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
 import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repository_mock.dart';
 import 'package:tentura_server/data/repository/user_erasure_repository.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
 import 'package:tentura_server/domain/port/trust_evidence_repository_port.dart';
-import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/beacon_lifecycle_effects_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 import 'package:tentura_server/env.dart';
 
 import '../../support/beacon_hierarchy_fixture.dart';
-import '../../support/fake_user_block_repository.dart';
 import '../../support/user_erasure_test_stack.dart';
 import '../../data/repository/beacon_hierarchy_pg_helpers.dart';
 
@@ -107,9 +100,6 @@ Future<void> main() async {
         _NoopInviteGenealogyRepository(),
         InviteSeedPromptRepositoryMock(),
       );
-      final room = BeaconRoomRepository(session.db);
-      final helpOffers = HelpOfferRepository(session.db);
-      final commitments = CommitmentRepository(session.db);
       final outbox = BeaconHierarchyOutboxRepository(session.db);
       final lifecycleEffects = BeaconLifecycleEffectsCase(
         outbox,
@@ -119,17 +109,6 @@ Future<void> main() async {
       final dispatch = AttentionDispatchRepository(
         session.db,
         Logger('HierarchyErasurePgTest'),
-      );
-      final attentionIntents = AttentionIntentCase(
-        BeaconRoomNotificationContextRepository(
-          room,
-          session.db,
-          helpOffers,
-          commitments,
-        ),
-        users,
-        BeaconAccessRepository(session.db),
-        FakeUserBlockRepository(),
       );
       final attention = TransactionalAttentionCase(
         MutatingUnitOfWork(session.db),

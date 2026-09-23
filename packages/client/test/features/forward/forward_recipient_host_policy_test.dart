@@ -742,8 +742,6 @@ void main() {
   });
 
   group('ForwardCase band exclusion', () {
-    late ContactNameStore store;
-
     tearDown(() async {
       if (GetIt.I.isRegistered<ContactNameStore>()) {
         await GetIt.I.unregister<ContactNameStore>();
@@ -790,7 +788,6 @@ void main() {
         band: band,
         candidates: candidates,
       );
-      store = harness.store;
 
       final load = await harness.forwardCase.loadForwardCandidates(
         beaconId: 'beacon-1',

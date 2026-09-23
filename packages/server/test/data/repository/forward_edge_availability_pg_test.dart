@@ -35,7 +35,6 @@ Future<void> main() async {
     late UserAvailabilityRepository availabilityRepo;
 
     const beaconId = 'Bfwdaavail01';
-    const authorId = 'Ufwdaauth01';
     const senderId = 'Ufwdasend01';
     const recipientId = 'Ufwdarecip01';
     final todayUtc = DateTime.now().toUtc();

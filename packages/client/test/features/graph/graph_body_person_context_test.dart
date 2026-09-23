@@ -119,7 +119,7 @@ ProfileViewCase _profileViewCase() {
   );
   return ProfileViewCase(
     profiles,
-    _ControllableLikeRepository(profiles),
+    _ControllableLikeRepository(),
     _FakeCapabilityRepository(),
     contactsCase,
     realtime.case_,
@@ -130,9 +130,6 @@ ProfileViewCase _profileViewCase() {
 }
 
 final class _ControllableLikeRepository implements LikeRemoteRepository {
-  _ControllableLikeRepository(this._profiles);
-
-  final _FakeProfileRepository _profiles;
   final _changes = StreamController<RepositoryEvent<Likable>>.broadcast();
 
   @override
@@ -462,7 +459,7 @@ void main() {
     testWidgets('intentional same-node tap reopens dismissed panel', (
       tester,
     ) async {
-      final harness = await _pumpTrustGraphBody(
+      await _pumpTrustGraphBody(
         tester,
         size: const Size(900, 600),
         legendExpanded: false,

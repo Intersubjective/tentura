@@ -14,9 +14,6 @@ import '../../features/block/support/controllable_block_case.dart';
 import '../../support/test_realtime_sync.dart';
 import 'attention_case_test_support.dart';
 
-const _surfaceSummaryZero = AttentionSurfaceSummary(
-);
-
 /// A distinguishable §6 surface summary.
 ///
 /// CHANGES IN U18c: every test below uses a summary only to tell one

@@ -98,14 +98,6 @@ bool hideOfferHelpWithdrawFromOverflow(BeaconViewState state) {
   return false;
 }
 
-bool _authorLifecycleToggleEnabled(BeaconViewState state) {
-  final b = state.beacon;
-  if (b.status == BeaconStatus.open && b.isListed) {
-    return state.closureActionPriority != ClosureActionPriority.hidden;
-  }
-  return true;
-}
-
 Future<void> beaconViewRunAuthorCloseSheet({
   required BuildContext context,
   required BeaconViewCubit cubit,

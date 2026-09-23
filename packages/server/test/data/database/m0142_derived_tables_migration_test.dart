@@ -115,14 +115,4 @@ ORDER BY id
   expect(epochRows.single[1], 0);
 }
 
-Future<void> _seedFixture(Connection writer) async {
-  await writer.execute(r'''
-INSERT INTO public."user" (id, display_name, public_key)
-VALUES
-  ('Um0142obs1', 'Observer', 'pk-obs'),
-  ('Um0142sub1', 'Subject', 'pk-sub'),
-  ('Um0142user1', 'Self', 'pk-self')
-ON CONFLICT DO NOTHING
-''');
-}
 

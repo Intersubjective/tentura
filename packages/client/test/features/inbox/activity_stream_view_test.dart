@@ -42,7 +42,6 @@ import 'package:tentura/features/updates/ui/widget/updates_feed_tile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
-import '../../support/attention_repository_fake_base.dart';
 import '../../support/test_realtime_sync.dart';
 import '../block/support/controllable_block_case.dart';
 import '../updates/support/noop_invite_setup_port.dart';
@@ -82,22 +81,6 @@ class _TestInboxCubit extends Cubit<InboxState> implements InboxCubit {
   @override
   Future<void> dismissTombstone(String beaconId) async =>
       dismissedTombstones.add(beaconId);
-}
-
-class _TestProfileCubit extends Mock implements ProfileCubit {
-  @override
-  ProfileState get state => const ProfileState(
-    profile: Profile(id: 'viewer', displayName: 'Viewer'),
-  );
-
-  @override
-  Stream<ProfileState> get stream => Stream<ProfileState>.value(state);
-
-  @override
-  bool get isClosed => false;
-
-  @override
-  Future<void> close() async {}
 }
 
 final class _ForwardRepo implements ForwardRepository {
@@ -170,12 +153,11 @@ class _FeedAttentionRepo extends ConfigurableActivityOffersAttentionRepo {
   _FeedAttentionRepo({
     required this.firstPage,
     this.nextCursor,
-    this.secondPage = const [],
   });
 
   final List<AttentionReceipt> firstPage;
   final String? nextCursor;
-  final List<AttentionReceipt> secondPage;
+  final List<AttentionReceipt> secondPage = const [];
   int fetchCalls = 0;
   final List<String> historyCalls = [];
 
@@ -1199,37 +1181,4 @@ final class _Accounts implements AttentionAccountPort {
   void emit(String accountId) => _changes.add(accountId);
 
   Future<void> close() => _changes.close();
-}
-
-class _EmptyFeedRepo extends AttentionRepositoryFake {
-  @override
-  Future<AttentionFeed> fetch({
-    required AttentionView view,
-    String? cursor,
-    String? search,
-    int limit = 50,
-    AttentionSurface? surface,
-  }) async => const AttentionFeed(
-    summary: AttentionSummary(),
-    page: AttentionFeedPage(),
-  );
-
-  @override
-  Future<Set<String>> unreadForBeacons(Set<String> beaconIds) async => {};
-
-  @override
-  Future<Set<String>> liveObligationBeacons() async => const {};
-
-  @override
-  Future<int> markAllSeen({AttentionSurface? surface}) async => 0;
-
-  @override
-  Future<int> markSeen(List<String> ids) async => 0;
-
-  @override
-  Future<int> markUnseen(List<String> ids) async => 0;
-
-  @override
-  Future<int> settle({required String receiptId, required String kind}) async =>
-      0;
 }

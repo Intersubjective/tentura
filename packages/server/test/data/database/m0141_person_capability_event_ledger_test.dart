@@ -92,35 +92,4 @@ ORDER BY indexname
   });
 }
 
-Future<void> _seedFixture(Connection writer) async {
-  await writer.execute(r'''
-INSERT INTO public."user" (id, display_name, public_key)
-VALUES
-  ('Upcem0141obs1', 'Observer', 'pk-obs'),
-  ('Upcem0141sub1', 'Subject', 'pk-sub'),
-  ('Upcem0141auth1', 'Author', 'pk-auth')
-ON CONFLICT DO NOTHING
-''');
-
-  await writer.execute(r'''
-INSERT INTO public.beacon (id, user_id, title, description)
-VALUES ('Bpcem0141bcn1', 'Upcem0141auth1', 'Beacon', 'd')
-ON CONFLICT DO NOTHING
-''');
-
-  await writer.execute(r'''
-INSERT INTO public.beacon_forward_edge (
-  id, beacon_id, sender_id, recipient_id, created_at
-) VALUES (
-  'Fpcem0141edge1', 'Bpcem0141bcn1', 'Upcem0141obs1', 'Upcem0141sub1', now()
-)
-ON CONFLICT DO NOTHING
-''');
-
-  await writer.execute(r'''
-INSERT INTO public.invitation (id, user_id, created_at, updated_at)
-VALUES ('Ipcem0141inv1', 'Upcem0141obs1', now(), now())
-ON CONFLICT DO NOTHING
-''');
-}
 

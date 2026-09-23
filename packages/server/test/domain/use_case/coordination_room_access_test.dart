@@ -14,12 +14,11 @@ const _userId = 'Uuser00000001';
 
 class _StubRoom extends Fake implements BeaconRoomRepositoryPort {
   _StubRoom({
-    this.authorIds = const {},
     this.stewardIds = const {},
     this.participants = const {},
   });
 
-  final Set<String> authorIds;
+  final Set<String> authorIds = const {};
   final Set<String> stewardIds;
   final Map<String, int> participants;
 

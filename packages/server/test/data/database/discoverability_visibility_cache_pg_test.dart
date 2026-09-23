@@ -22,7 +22,6 @@ Future<void> main() async {
       : 'Postgres admin database not reachable for disposable test target';
 
   late DisposablePgWriterSession session;
-  late Connection writer;
   late TenturaDb db;
 
   const viewerId = 'Udiscvcache01';
@@ -272,7 +271,6 @@ END;
         target: target,
         createPgmer2Extension: true,
       );
-      writer = session.writer;
       db = openDisposablePgDatabase(target);
       await installPamvCallCounter();
     });

@@ -265,22 +265,6 @@ void _requestLayoutHandoff(
   );
 }
 
-final class _TerminalAtAlgorithm implements SceneLayoutAlgorithm {
-  _TerminalAtAlgorithm(this.positions);
-
-  final Map<GraphNodeId, ScenePoint> positions;
-
-  @override
-  Stream<GraphLayoutFrame> layout(GraphLayoutRequest request) async* {
-    yield GraphLayoutFrame(
-      ticket: request.ticket,
-      sequence: 0,
-      positions: positions,
-      isTerminal: true,
-    );
-  }
-}
-
 final class _MalformedThenTerminalAlgorithm implements SceneLayoutAlgorithm {
   @override
   Stream<GraphLayoutFrame> layout(GraphLayoutRequest request) async* {
@@ -464,7 +448,6 @@ void main() {
         ConstellationAnchorTarget.person('p1'),
       );
       final controller = cubit.graphController;
-      final node = controller.nodePayloadForId(graphId)!;
       const dragCentre = Offset(2400, 2500);
       final token = controller.beginNodePresentationDragForId(graphId, dragCentre);
 

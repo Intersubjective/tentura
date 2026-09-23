@@ -141,12 +141,7 @@ void main() {
     Size size = const Size(390, 844),
     bool settle = true,
   }) async {
-    var retryCalls = 0;
-    final retry =
-        onRetryPromptFetch ??
-        ((_) async {
-          retryCalls++;
-        });
+    final retry = onRetryPromptFetch ?? ((_) async {});
     await tester.binding.setSurfaceSize(size);
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(

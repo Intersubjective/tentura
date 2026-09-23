@@ -18,7 +18,6 @@ import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/coordination/filter_beacon_notifications.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/entity/notification_priority.dart';
-import 'package:tentura_server/domain/port/beacon_notification_port.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 
 import '../../support/disposable_pg_target.dart';
@@ -1189,25 +1188,6 @@ Future<int> _deliveryCount(Connection writer) async {
     'SELECT count(*)::int FROM public.attention_channel_delivery',
   );
   return rows.single.single! as int;
-}
-
-class _TestChannels implements BeaconNotificationPort {
-  _TestChannels({this.onHandOff, this.throwOnHandOff = false});
-
-  final Future<void> Function(List<AttentionChannelDecision>)? onHandOff;
-  final bool throwOnHandOff;
-  int handOffCalls = 0;
-
-  @override
-  Future<void> handOffChannels(
-    List<AttentionChannelDecision> decisions,
-  ) async {
-    handOffCalls += 1;
-    await onHandOff?.call(decisions);
-    if (throwOnHandOff) {
-      throw StateError('channel failed');
-    }
-  }
 }
 
 Future<void> _insertReceipt(

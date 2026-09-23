@@ -217,7 +217,6 @@ Future<void> _pumpConstellationMap(
 }
 
 Future<ConstellationCubit> _loadedCubit(WidgetTester tester) async {
-  final field = _field();
   final sync = buildTestRealtimeSync();
   final cubit = ConstellationCubit(
     case_: ConstellationFieldCase(

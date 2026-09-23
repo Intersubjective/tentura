@@ -307,7 +307,6 @@ bool _closeBlocked(BeaconStatusMenuInput input) =>
 
 BeaconStatusMenuRow _wrappingUpRow(BeaconStatusMenuInput input) {
   final lifecycle = input.beacon.status;
-  final selected = lifecycle == BeaconStatus.reviewOpen;
   final review = input.reviewWindow;
 
   if (lifecycle == BeaconStatus.draft) {

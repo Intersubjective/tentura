@@ -101,7 +101,6 @@ final class ConstellationAnchorCase extends UseCaseBase {
 
   String _viewerAccountId = '';
   int _loadGeneration = 0;
-  bool _screenActive = false;
   bool _syncPending = false;
 
   ConstellationAnchorProjection _confirmed =
@@ -160,7 +159,6 @@ final class ConstellationAnchorCase extends UseCaseBase {
     }
     _detachSubscriptions();
     _viewerAccountId = viewerAccountId;
-    _screenActive = true;
     _attachSubscriptions();
     return _loadGeneration;
   }
@@ -169,7 +167,6 @@ final class ConstellationAnchorCase extends UseCaseBase {
     if (token != null && token != _loadGeneration) {
       return;
     }
-    _screenActive = false;
     _detachSubscriptions();
   }
 

@@ -34,7 +34,6 @@ import '../../support/fake_user_block_repository.dart';
 import '../../support/disposable_pg_target.dart';
 
 const _beaconId = 'Bcapc3bcn001';
-const _authorId = 'Ucapc3auth01';
 const _senderId = 'Ucapc3send01';
 const _recipientId = 'Ucapc3recip1';
 

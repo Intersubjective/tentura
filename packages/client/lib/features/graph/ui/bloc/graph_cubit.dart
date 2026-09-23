@@ -1100,7 +1100,6 @@ class GraphCubit extends Cubit<GraphState> {
 
   void _jumpToNodeByStableId(NodeDetails node, {bool resetScale = false}) {
     final graphId = tenturaGraphNodeId(node);
-    final onGraph = graphController.nodePayloadForId(graphId) ?? node;
     if (!graphController.canLayout) {
       return;
     }

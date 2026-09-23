@@ -171,7 +171,6 @@ Future<void> main() async {
     late GraphQL graphQL;
 
     const beaconId = 'Bfwdrgql00001';
-    const authorId = 'Ufwdrgauth001';
     const senderId = 'Ufwdrgsend001';
     const openRecipient = 'Ufwdrgopen001';
     const pausedRecipient1 = 'Ufwdrgpauz001';
