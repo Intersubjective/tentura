@@ -1,5 +1,6 @@
 import 'package:tentura_server/domain/entity/beacon_activity_event_record.dart';
 import 'package:tentura_server/domain/entity/beacon_thread_record.dart';
+import 'package:tentura_server/domain/entity/room_read_watermark_record.dart';
 import 'package:tentura_server/domain/use_case/beacon_room_case.dart';
 
 import '../custom_types.dart';
@@ -138,6 +139,21 @@ final class QueryBeaconRoom extends GqlNodeBase {
           return rows.map(beaconThreadRecordToMap).toList();
         },
       );
+}
+
+Map<String, Object?> roomReadWatermarkRecordToMap(
+  RoomReadWatermarkRecord row,
+) {
+  return {
+    'userId': row.userId,
+    'lastSeenAt': row.lastSeenAt.toUtc().toIso8601String(),
+    'userTitle': row.userTitle,
+    'userHasPicture': row.userHasPicture,
+    'userImageId': row.userImageId,
+    'userBlurHash': row.userBlurHash,
+    'userPicHeight': row.userPicHeight,
+    'userPicWidth': row.userPicWidth,
+  };
 }
 
 Map<String, Object?> beaconThreadRecordToMap(BeaconThreadRecord row) {

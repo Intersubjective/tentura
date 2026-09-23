@@ -1,5 +1,6 @@
 import 'package:tentura_server/domain/entity/beacon_room_record.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_record.dart';
+import 'package:tentura_server/domain/entity/room_read_watermark_record.dart';
 
 abstract class BeaconRoomRepositoryPort {
   Future<void> admitParticipant({
@@ -173,6 +174,8 @@ abstract class BeaconRoomRepositoryPort {
     required String beaconId,
     required List<String> userIds,
   });
+
+  Future<List<RoomReadWatermarkRecord>> mainRoomReadWatermarks(String beaconId);
 
   Future<DateTime> markBeaconRoomSeen({
     required String userId,

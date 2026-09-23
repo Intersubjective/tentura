@@ -12,6 +12,7 @@ import 'package:tentura_server/domain/entity/beacon_activity_event_record.dart';
 import 'package:tentura_server/utils/room_mention_utils.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_room_record.dart';
+import 'package:tentura_server/domain/entity/room_read_watermark_record.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/util/room_reply_excerpt.dart';
 import 'package:tentura_server/utils/id.dart';
@@ -1271,6 +1272,46 @@ RETURNING last_seen_at
     return {
       for (final row in rows) row.userId: row.lastSeenAt.dateTime,
     };
+  }
+
+  @override
+  Future<List<RoomReadWatermarkRecord>> mainRoomReadWatermarks(
+    String beaconId,
+  ) async {
+    final rows =
+        await (_db.select(_db.beaconRoomSeen)
+              ..where(
+                (s) =>
+                    s.beaconId.equals(beaconId) & s.threadItemId.isNull(),
+              )
+              ..orderBy([
+                (s) => OrderingTerm(
+                  expression: s.lastSeenAt,
+                  mode: OrderingMode.desc,
+                ),
+              ]))
+            .get();
+    if (rows.isEmpty) {
+      return const [];
+    }
+
+    final userIds = rows.map((row) => row.userId).toList();
+    final titlesByUserId = await userTitlesByIds(userIds);
+    final picMetaByUserId = await userPicMetaByIds(userIds);
+
+    return [
+      for (final row in rows)
+        RoomReadWatermarkRecord(
+          userId: row.userId,
+          lastSeenAt: row.lastSeenAt.dateTime.toUtc(),
+          userTitle: titlesByUserId[row.userId] ?? '',
+          userHasPicture: picMetaByUserId[row.userId]?.hasPicture ?? false,
+          userPicHeight: picMetaByUserId[row.userId]?.picHeight ?? 0,
+          userPicWidth: picMetaByUserId[row.userId]?.picWidth ?? 0,
+          userBlurHash: picMetaByUserId[row.userId]?.blurHash ?? '',
+          userImageId: picMetaByUserId[row.userId]?.imageId ?? '',
+        ),
+    ];
   }
 
   Future<void> markParticipantRoomSeen({
