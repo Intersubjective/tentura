@@ -1,7 +1,4 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
-import 'package:get_it/get_it.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_summary.dart';
 
 import 'package:tentura/app/router/root_router.dart';
@@ -9,8 +6,9 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_message_hierarchy_payload.dart';
-import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+
+import 'child_beacon_preview_loader.dart';
 
 /// Hierarchy lifecycle/creation notices in parent Chat.
 ///
@@ -100,100 +98,10 @@ class _ChildCreatedCenteredNotice extends StatefulWidget {
 }
 
 class _ChildCreatedCenteredNoticeState
-    extends State<_ChildCreatedCenteredNotice> {
-  static const _reloadDebounce = Duration(milliseconds: 150);
-
-  String? _title;
-  var _loadInFlight = false;
-  var _reloadQueued = false;
-  int _generation = 0;
-  Timer? _reloadTimer;
-  StreamSubscription<Object?>? _hierarchySub;
-  StreamSubscription<void>? _catchUpSub;
-  StreamSubscription<void>? _localSub;
-
+    extends State<_ChildCreatedCenteredNotice>
+    with ChildBeaconPreviewLoader {
   @override
-  void initState() {
-    super.initState();
-    unawaited(_load());
-    _subscribe();
-  }
-
-  @override
-  void didUpdateWidget(covariant _ChildCreatedCenteredNotice oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.childBeaconId != widget.childBeaconId) {
-      _hierarchySub?.cancel();
-      _localSub?.cancel();
-      _reloadTimer?.cancel();
-      _title = null;
-      _subscribe();
-      unawaited(_load());
-    }
-  }
-
-  @override
-  void dispose() {
-    _reloadTimer?.cancel();
-    _hierarchySub?.cancel();
-    _catchUpSub?.cancel();
-    _localSub?.cancel();
-    super.dispose();
-  }
-
-  void _subscribe() {
-    final hierarchy = GetIt.I<BeaconHierarchyCase>();
-    _hierarchySub = hierarchy
-        .hierarchyChangesFor(widget.childBeaconId)
-        .listen((_) => _scheduleReload());
-    _localSub = hierarchy
-        .localHierarchyChangesFor(widget.childBeaconId)
-        .listen((_) => _scheduleReload());
-    _catchUpSub ??= hierarchy.catchUps.listen((_) => _scheduleReload());
-  }
-
-  void _scheduleReload() {
-    if (!mounted) return;
-    _reloadTimer?.cancel();
-    _reloadTimer = Timer(_reloadDebounce, () {
-      if (mounted) unawaited(_load());
-    });
-  }
-
-  Future<void> _load() async {
-    if (_loadInFlight) {
-      _reloadQueued = true;
-      return;
-    }
-    _loadInFlight = true;
-    _reloadQueued = false;
-    final gen = ++_generation;
-    final childId = widget.childBeaconId;
-    try {
-      final summary = await GetIt.I<BeaconHierarchyCase>().fetchChildPreview(
-        beaconId: childId,
-      );
-      if (!mounted || gen != _generation || childId != widget.childBeaconId) {
-        return;
-      }
-      setState(() {
-        _title = _titleFromSummary(summary);
-      });
-    } catch (_) {
-      if (!mounted || gen != _generation || childId != widget.childBeaconId) {
-        return;
-      }
-      setState(() {
-        _title = null;
-      });
-    } finally {
-      _loadInFlight = false;
-      if (_reloadQueued && mounted) {
-        _reloadQueued = false;
-        _scheduleReload();
-      }
-    }
-  }
+  String get childBeaconId => widget.childBeaconId;
 
   String? _titleFromSummary(BeaconHierarchySummary? summary) {
     if (summary == null || summary.isTombstone) return null;
@@ -209,7 +117,7 @@ class _ChildCreatedCenteredNoticeState
     final scheme = theme.colorScheme;
     final tt = context.tt;
     final line = l10n.beaconHierarchyNoticeChildCreated;
-    final title = _title;
+    final title = _titleFromSummary(childPreview);
     final label = title == null ? line : '$line. $title';
 
     return Padding(

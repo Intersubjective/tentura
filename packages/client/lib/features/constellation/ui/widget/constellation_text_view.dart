@@ -6,7 +6,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
-import '../../domain/entity/constellation_anchor.dart';
+import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../../domain/entity/constellation_field.dart';
 import '../bloc/constellation_cubit.dart';
 import 'constellation_anchor_controls.dart';

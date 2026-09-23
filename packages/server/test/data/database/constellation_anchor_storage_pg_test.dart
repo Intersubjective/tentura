@@ -14,7 +14,7 @@ import 'package:tentura_server/data/database/tentura_db.dart'
     hide ConstellationAnchor, isNotNull, isNull;
 import 'package:tentura_server/data/repository/constellation_anchor_repository.dart';
 import 'package:tentura_server/data/repository/read_snapshot_unit_of_work.dart';
-import 'package:tentura_server/domain/entity/constellation_anchor.dart';
+import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura_server/env.dart';
 
 import '../../support/disposable_pg_target.dart';

@@ -1,4 +1,4 @@
-import 'constellation_path_resolution.dart';
+import 'package:tentura_root/domain/constellation/constellation_path_resolution.dart';
 
 typedef ConstellationResolvedField = ({
   ConstellationPathResolution paths,

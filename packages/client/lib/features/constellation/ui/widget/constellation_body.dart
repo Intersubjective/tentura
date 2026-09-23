@@ -25,7 +25,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 
-import '../../domain/entity/constellation_anchor.dart';
+import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../../domain/entity/constellation_field.dart';
 import '../bloc/constellation_cubit.dart';
 import '../utils/constellation_edge_style.dart';

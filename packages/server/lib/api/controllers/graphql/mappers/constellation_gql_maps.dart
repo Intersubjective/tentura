@@ -1,4 +1,4 @@
-import 'package:tentura_server/domain/entity/constellation_anchor.dart';
+import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura_server/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura_server/domain/entity/constellation_field.dart';
 import 'package:tentura_server/domain/port/constellation_anchor_repository_port.dart';

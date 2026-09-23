@@ -4,6 +4,7 @@ import 'package:tentura_server/domain/entity/gql_public/mutual_score_record.dart
 import 'package:tentura_server/domain/port/merit_score_lookup_port.dart';
 
 import '../database/tentura_db.dart';
+import 'mappers/mr_score_value.dart';
 
 /// Batch MeritRank reciprocal-positive scores for one viewer, shared by any
 /// feature that needs to attach `Profile.score`/`Profile.rScore` to a list of
@@ -46,20 +47,10 @@ WHERE (ms.src = $1 OR ms.dst = $1)
     for (final row in scoreRows) {
       final peerId = row.data['peer_id']! as String;
       out[peerId] = MutualScoreRecord(
-        dstScore: _asDouble(row.data['fwd_alice']),
-        srcScore: _asDouble(row.data['rev_alice']),
+        dstScore: mrScoreAsDouble(row.data['fwd_alice']),
+        srcScore: mrScoreAsDouble(row.data['rev_alice']),
       );
     }
     return out;
-  }
-
-  static double _asDouble(Object? value) {
-    if (value == null) {
-      return 0;
-    }
-    if (value is num) {
-      return value.toDouble();
-    }
-    throw StateError('Expected num, got ${value.runtimeType}');
   }
 }

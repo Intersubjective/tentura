@@ -4,8 +4,8 @@ import 'constellation_cap_policy.dart';
 import 'constellation_consts.dart';
 import 'constellation_density.dart';
 import 'constellation_filters.dart';
-import 'constellation_path_resolution.dart';
-import 'entity/constellation_anchor.dart';
+import 'package:tentura_root/domain/constellation/constellation_path_resolution.dart';
+import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'entity/constellation_anchor_projection.dart';
 import 'entity/constellation_field.dart';
 

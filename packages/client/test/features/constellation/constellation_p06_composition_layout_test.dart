@@ -7,9 +7,9 @@ import 'package:tentura/features/constellation/domain/constellation_consts.dart'
 import 'package:tentura/features/constellation/domain/constellation_density.dart';
 import 'package:tentura/features/constellation/domain/constellation_filters.dart';
 import 'package:tentura/features/constellation/domain/constellation_layout.dart';
-import 'package:tentura/features/constellation/domain/constellation_path_resolution.dart';
+import 'package:tentura_root/domain/constellation/constellation_path_resolution.dart';
 import 'package:tentura/features/constellation/domain/constellation_pin_position.dart';
-import 'package:tentura/features/constellation/domain/entity/constellation_anchor.dart';
+import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 

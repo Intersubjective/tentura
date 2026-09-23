@@ -1,13 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/features/evaluation/domain/entity/evaluation_value.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluations_written_about_viewer.dart';
-import 'package:tentura/features/evaluation/ui/presenter/evaluation_capability_presenter.dart';
-import 'package:tentura/features/evaluation/ui/presenter/evaluation_legacy_reason_presenter.dart';
-import 'package:tentura/features/evaluation/ui/presenter/evaluation_value_presenter.dart';
+import 'package:tentura/features/evaluation/ui/widget/received_review_body.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/relative_time.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 import '../bloc/profile_reviews_about_me_cubit.dart';
@@ -79,18 +75,7 @@ class _ProfileReviewRow extends StatelessWidget {
   final bool showDivider;
   @override
   Widget build(BuildContext context) {
-    final l10n = L10n.of(context)!;
     final tt = context.tt;
-    // Unknown persisted values use the safe, non-positive presenter fallback.
-    final value =
-        EvaluationValue.fromWire(row.value) ?? EvaluationValue.noBasis;
-    final age = compactRelativeTimeAgo(
-      when: row.occurredAt,
-      now: DateTime.now(),
-      l10n: l10n,
-    );
-    final positive =
-        value == EvaluationValue.pos1 || value == EvaluationValue.pos2;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -113,69 +98,17 @@ class _ProfileReviewRow extends StatelessWidget {
                       context.read<ScreenCubit>().showBeacon(row.beaconId),
                 ),
               SizedBox(height: tt.tightGap),
-              _ImpactLine(value: value, l10n: l10n),
-              if (positive && row.acknowledgedHelpTags.isNotEmpty) ...[
-                SizedBox(height: tt.tightGap),
-                Text(
-                  presentAcknowledgedCapabilities(
-                    row.acknowledgedHelpTags,
-                    l10n,
-                  ),
-                  style: TenturaText.status(tt.textMuted),
-                ),
-              ],
-              if (row.note.trim().isNotEmpty) ...[
-                SizedBox(height: tt.rowGap),
-                Text(
-                  row.note,
-                  style: TenturaText.body(
-                    Theme.of(context).colorScheme.onSurface,
-                  ),
-                ),
-              ],
-              if (row.reasonTags.isNotEmpty) ...[
-                SizedBox(height: tt.rowGap),
-                Wrap(
-                  spacing: tt.tightGap,
-                  runSpacing: tt.tightGap,
-                  children: [
-                    for (final reason in row.reasonTags)
-                      Text(
-                        presentLegacyEvaluationReason(reason, l10n),
-                        style: TenturaText.status(tt.textMuted),
-                      ),
-                  ],
-                ),
-              ],
-              SizedBox(height: tt.rowGap),
-              TenturaMetaText(age),
+              ReceivedReviewBody(
+                wireValue: row.value,
+                acknowledgedHelpTags: row.acknowledgedHelpTags,
+                note: row.note,
+                reasonTags: row.reasonTags,
+                occurredAt: row.occurredAt,
+              ),
             ],
           ),
         ),
         if (showDivider) const TenturaHairlineDivider(),
-      ],
-    );
-  }
-}
-
-class _ImpactLine extends StatelessWidget {
-  const _ImpactLine({required this.value, required this.l10n});
-  final EvaluationValue value;
-  final L10n l10n;
-  @override
-  Widget build(BuildContext context) {
-    final p = presentEvaluationValue(value, l10n);
-    final colors = Theme.of(context).colorScheme;
-    return Row(
-      children: [
-        Text(
-          p.emoji,
-          style: TextStyle(fontSize: context.tt.iconSize, height: 1),
-        ),
-        SizedBox(width: context.tt.iconTextGap),
-        Expanded(
-          child: Text(p.label, style: TenturaText.status(colors.onSurface)),
-        ),
       ],
     );
   }

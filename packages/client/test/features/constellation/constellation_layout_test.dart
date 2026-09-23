@@ -4,11 +4,11 @@ import 'dart:ui' show Offset;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/features/constellation/domain/constellation_anchor_composition.dart';
-import 'package:tentura/features/constellation/domain/entity/constellation_anchor.dart';
+import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura/features/constellation/domain/constellation_cap_policy.dart';
 import 'package:tentura/features/constellation/domain/constellation_consts.dart';
 import 'package:tentura/features/constellation/domain/constellation_layout.dart';
-import 'package:tentura/features/constellation/domain/constellation_path_resolution.dart';
+import 'package:tentura_root/domain/constellation/constellation_path_resolution.dart';
 
 const _ego = 'ego';
 const _ringGap = kConstellationRingUnitPixels;

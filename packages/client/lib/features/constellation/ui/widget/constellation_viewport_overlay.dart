@@ -7,7 +7,7 @@ import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/utils/graph_scene_ids.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
-import '../../domain/entity/constellation_anchor.dart';
+import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../bloc/constellation_cubit.dart';
 import '../bloc/constellation_state.dart';
 import '../utils/constellation_presentation_frame.dart';

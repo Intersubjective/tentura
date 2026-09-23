@@ -2,7 +2,7 @@ import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:tentura/data/gql/_g/schema.schema.gql.dart';
 import 'package:tentura/data/model/image_model_v2.dart';
 
-import '../../domain/entity/constellation_anchor.dart';
+import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../../domain/entity/constellation_anchor_projection.dart';
 import '../../domain/entity/constellation_field.dart';
 import '../gql/_g/constellation_anchors_fetch.data.gql.dart';

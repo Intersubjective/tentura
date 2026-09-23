@@ -1,6 +1,6 @@
 import 'package:test/test.dart';
 
-import 'package:tentura_server/domain/constellation/constellation_path_resolution.dart';
+import 'package:tentura_root/domain/constellation/constellation_path_resolution.dart';
 
 const _ego = 'ego';
 

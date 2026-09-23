@@ -4,7 +4,7 @@ import 'package:tentura/domain/use_case/use_case_base.dart';
 import '../constellation_anchor_composition.dart';
 import '../constellation_density.dart';
 import '../constellation_filters.dart';
-import '../constellation_path_resolution.dart';
+import 'package:tentura_root/domain/constellation/constellation_path_resolution.dart';
 import '../entity/constellation_anchor_projection.dart';
 import '../entity/constellation_field.dart';
 import '../port/constellation_repository_port.dart';

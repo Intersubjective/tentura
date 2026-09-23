@@ -19,7 +19,7 @@ import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
-import 'package:tentura/features/constellation/domain/entity/constellation_anchor.dart';
+import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura/features/constellation/ui/utils/constellation_presentation_frame.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';

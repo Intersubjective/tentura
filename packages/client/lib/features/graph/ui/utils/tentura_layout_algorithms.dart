@@ -10,8 +10,8 @@ import '../../domain/layout/radial_hop_positions.dart';
 import 'graph_scene_ids.dart';
 import 'package:tentura/features/constellation/domain/constellation_anchor_composition.dart';
 import 'package:tentura/features/constellation/domain/constellation_layout.dart';
-import 'package:tentura/features/constellation/domain/constellation_path_resolution.dart';
-import 'package:tentura/features/constellation/domain/entity/constellation_anchor.dart';
+import 'package:tentura_root/domain/constellation/constellation_path_resolution.dart';
+import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
 final class RadialHopLayoutAlgorithm implements SceneLayoutAlgorithm {
   const RadialHopLayoutAlgorithm({

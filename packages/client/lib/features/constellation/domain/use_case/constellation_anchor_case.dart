@@ -8,7 +8,7 @@ import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
 
 import '../constellation_drag_cluster.dart';
-import '../entity/constellation_anchor.dart';
+import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../entity/constellation_anchor_projection.dart';
 import '../exception.dart';
 import '../port/constellation_anchor_repository_port.dart';

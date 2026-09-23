@@ -11,7 +11,7 @@ import 'constellation_anchor_controls.dart';
 import 'constellation_request_label.dart';
 import 'constellation_request_status_marker.dart';
 
-import '../../domain/entity/constellation_anchor.dart';
+import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../bloc/constellation_cubit.dart';
 
 /// Primary action label for the preview action matrix (held state × coverage).

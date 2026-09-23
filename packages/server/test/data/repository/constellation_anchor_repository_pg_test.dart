@@ -13,7 +13,7 @@ import 'package:tentura_server/consts/constellation_consts.dart';
 import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/data/database/tentura_db.dart' hide ConstellationAnchor;
 import 'package:tentura_server/data/repository/constellation_anchor_repository.dart';
-import 'package:tentura_server/domain/entity/constellation_anchor.dart';
+import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura_server/env.dart';
 
 import '../database/constellation_anchor_pg_retry_probe.dart';

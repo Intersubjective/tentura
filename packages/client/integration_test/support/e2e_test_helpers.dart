@@ -33,7 +33,7 @@ import 'package:tentura/features/graph/ui/bloc/graph_cubit.dart';
 import 'package:tentura/features/graph/ui/widget/graph_body.dart';
 import 'package:tentura/features/graph/ui/widget/graph_node_widget.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/features/constellation/domain/entity/constellation_anchor.dart';
+import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_state.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';

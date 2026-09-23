@@ -3,7 +3,7 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/service/remote_api_service.dart';
 
-import '../../domain/entity/constellation_anchor.dart';
+import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../../domain/port/constellation_anchor_repository_port.dart';
 import '../gql/_g/constellation_anchor_delete.data.gql.dart';
 import '../gql/_g/constellation_anchor_delete.req.gql.dart';

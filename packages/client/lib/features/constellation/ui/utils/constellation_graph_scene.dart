@@ -3,7 +3,7 @@ import 'package:force_directed_graphview/force_directed_graphview.dart';
 import '../../../graph/domain/entity/edge_details.dart';
 import '../../../graph/domain/entity/node_details.dart';
 import '../../../graph/ui/utils/graph_scene_ids.dart';
-import '../../domain/entity/constellation_anchor.dart';
+import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
 /// Stable scene edge id including semantic [kindName] (parallel edges differ).
 GraphEdgeId constellationSceneEdgeId({

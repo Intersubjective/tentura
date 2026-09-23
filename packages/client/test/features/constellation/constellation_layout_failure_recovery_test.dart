@@ -8,7 +8,7 @@ import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:logging/logging.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/env.dart';
-import 'package:tentura/features/constellation/domain/entity/constellation_anchor.dart';
+import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_anchor_repository_port.dart';

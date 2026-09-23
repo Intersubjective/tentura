@@ -1,4 +1,4 @@
-import 'package:tentura_server/domain/entity/constellation_anchor.dart';
+import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
 /// Account watermark after an anchor mutation (C3).
 class ConstellationAnchorWatermark {
