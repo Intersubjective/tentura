@@ -57,6 +57,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeRoomMessageRow,
   gqlTypeBeaconRoomStateRow,
   gqlTypeBeaconParticipantRow,
+  gqlTypeRoomReadWatermark,
   gqlTypeBeaconFactCardRow,
   gqlTypeBeaconActivityEventRow,
   gqlTypeInboxRoomContextRow,
@@ -511,6 +512,20 @@ final gqlTypeBeaconParticipantRow =
         field('roleLabel', graphQLString),
         field('createdAt', graphQLString.nonNullable()),
         field('updatedAt', graphQLString.nonNullable()),
+      ]);
+
+/// Peer read watermark for BeaconRoomReadWatermarks (V2 only).
+final gqlTypeRoomReadWatermark =
+    GraphQLObjectType('v2_RoomReadWatermark', null)
+      ..fields.addAll([
+        field('userId', graphQLString.nonNullable()),
+        field('lastSeenAt', graphQLString.nonNullable()),
+        field('userTitle', graphQLString.nonNullable()),
+        field('userHasPicture', graphQLBoolean.nonNullable()),
+        field('userImageId', graphQLString.nonNullable()),
+        field('userBlurHash', graphQLString.nonNullable()),
+        field('userPicHeight', graphQLInt.nonNullable()),
+        field('userPicWidth', graphQLInt.nonNullable()),
       ]);
 
 /// `beacon_fact_card` projection for BeaconFactCardList (V2 only).

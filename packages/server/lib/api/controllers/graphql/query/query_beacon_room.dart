@@ -30,6 +30,7 @@ final class QueryBeaconRoom extends GqlNodeBase {
     inboxRoomContextBatch,
     myWorkLastActivityEvent,
     beaconThreads,
+    beaconRoomReadWatermarks,
   ];
 
   GraphQLObjectField<dynamic, dynamic> get roomMessageList =>
@@ -137,6 +138,22 @@ final class QueryBeaconRoom extends GqlNodeBase {
             userId: getCredentials(args).sub,
           );
           return rows.map(beaconThreadRecordToMap).toList();
+        },
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get beaconRoomReadWatermarks =>
+      GraphQLObjectField(
+        'BeaconRoomReadWatermarks',
+        GraphQLListType(gqlTypeRoomReadWatermark.nonNullable()),
+        arguments: [
+          _beaconIdStr.field,
+        ],
+        resolve: (_, args) async {
+          final rows = await _case.listMainRoomReadWatermarks(
+            beaconId: _beaconIdStr.fromArgsNonNullable(args),
+            userId: getCredentials(args).sub,
+          );
+          return rows.map(roomReadWatermarkRecordToMap).toList();
         },
       );
 }

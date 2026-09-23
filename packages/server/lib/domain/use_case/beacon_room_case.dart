@@ -20,6 +20,7 @@ import 'package:tentura_server/domain/port/polling_repository_port.dart';
 import 'package:tentura_server/domain/port/remote_storage_port.dart';
 import 'package:tentura_server/domain/port/upload_quota_repository_port.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_record.dart';
+import 'package:tentura_server/domain/entity/room_read_watermark_record.dart';
 import 'package:tentura_server/domain/entity/task_entity.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
@@ -956,6 +957,21 @@ final class BeaconRoomCase extends UseCaseBase {
           },
         )
         .toList();
+  }
+
+  /// Peer read watermarks for the General discussion room (same access as
+  /// [listParticipants]).
+  Future<List<RoomReadWatermarkRecord>> listMainRoomReadWatermarks({
+    required String beaconId,
+    required String userId,
+  }) async {
+    final allowed = await _canUseRoom(beaconId: beaconId, userId: userId);
+    if (!allowed) {
+      throw const UnauthorizedException(
+        description: 'Room access required',
+      );
+    }
+    return _room.mainRoomReadWatermarks(beaconId);
   }
 
   Future<void> offerHelp({
