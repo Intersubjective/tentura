@@ -94,6 +94,10 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
   final double iconSize;
   final double buttonHeight;
   final double metadataAvatarSize;
+
+  /// Small avatar diameter (facepiles, metadata rows). Alias for [metadataAvatarSize].
+  double get avatarSizeSmall => metadataAvatarSize;
+
   final double avatarTinySize;
   final double appBarHeight;
   final double bottomNavHeight;
