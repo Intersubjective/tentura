@@ -1,7 +1,6 @@
 @Tags(['pg', 'mr'])
 library;
 
-import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:postgres/postgres.dart';

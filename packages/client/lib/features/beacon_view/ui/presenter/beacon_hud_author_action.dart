@@ -6,7 +6,6 @@ import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.da
 import 'package:tentura/features/evaluation/domain/entity/review_window_info.dart';
 import 'package:tentura/features/evaluation/domain/review_package_state.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/presenter/beacon_phase_input_builders.dart';
 
 /// Author-only HUD actions on the beacon detail operational header.
 enum BeaconHudAuthorAction {
@@ -78,14 +77,6 @@ bool authorHudActGate(BeaconViewState state) {
     return false;
   }
   return true;
-}
-
-bool authorPersonallyOwnsBlocker(BeaconViewState state) {
-  final input = beaconPhaseInputFromViewState(state);
-  return viewerIsPersonallyResponsibleForBlocker(
-    openBlocker: input.openBlocker,
-    viewerUserId: state.myProfile.id,
-  );
 }
 
 bool authorHasOpenBlocker(BeaconViewState state) =>

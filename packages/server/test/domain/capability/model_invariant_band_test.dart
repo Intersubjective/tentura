@@ -1,7 +1,6 @@
 import 'package:test/test.dart';
 
 import 'package:tentura_server/domain/capability/capability_consts.dart';
-import 'package:tentura_server/domain/capability/capability_evidence_models.dart';
 import 'package:tentura_server/domain/capability/fnv1a64.dart';
 
 import 'model_world.dart';

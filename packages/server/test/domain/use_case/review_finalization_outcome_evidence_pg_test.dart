@@ -1,9 +1,7 @@
 @Tags(['pg'])
 library;
 
-import 'dart:io';
 
-import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
@@ -20,7 +18,6 @@ import 'package:tentura_server/domain/evaluation/beacon_evaluation_value.dart';
 import 'package:tentura_server/domain/evaluation/evaluation_participant_role.dart';
 import 'package:tentura_server/domain/entity/review_finalization_result.dart';
 import 'package:tentura_server/domain/use_case/evaluation/review_finalization_case.dart';
-import 'package:tentura_server/env.dart';
 
 import '../../support/fake_beacon_hierarchy_repository.dart';
 import '../../support/beacon_lifecycle_effects_test_support.dart';

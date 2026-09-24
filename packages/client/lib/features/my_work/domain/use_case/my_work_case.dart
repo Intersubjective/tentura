@@ -24,12 +24,9 @@ import '../../data/repository/my_work_repository.dart';
 import 'package:tentura/features/beacon_view/data/repository/beacon_display_repository.dart';
 import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';
 import 'package:tentura/features/evaluation/domain/entity/review_window_info.dart';
-import 'package:tentura/domain/entity/beacon_display_status_dto.dart';
 import '../derive_my_work_cards.dart';
 import '../entity/my_work_card_view_model.dart';
 import '../entity/my_work_desk_load_types.dart';
-import '../entity/my_work_fetch_types.dart';
-import '../port/my_work_desk_preferences_port.dart';
 
 @singleton
 final class MyWorkCase extends UseCaseBase {
@@ -42,7 +39,6 @@ final class MyWorkCase extends UseCaseBase {
     this._beaconRepository,
     this._beaconRoomCase,
     this._roomHints,
-    this._deskPreferences,
     this._displayRepository,
     this._evaluationRepository,
     this._realtimeSyncCase,
@@ -64,7 +60,6 @@ final class MyWorkCase extends UseCaseBase {
 
   final BeaconRoomHintsRepository _roomHints;
 
-  final MyWorkDeskPreferencesPort _deskPreferences;
   final BeaconDisplayRepository _displayRepository;
   final EvaluationRepository _evaluationRepository;
   final RealtimeSyncCase _realtimeSyncCase;

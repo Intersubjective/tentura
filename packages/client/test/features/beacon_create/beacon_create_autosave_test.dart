@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
-import 'package:tentura/ui/bloc/state_base.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'fake_beacon_ports.dart';

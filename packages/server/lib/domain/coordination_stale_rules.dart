@@ -114,22 +114,3 @@ DateTime? computeStaleAtAfterAccept({
   final days = staleAfterDays ?? kCoordinationItemDefaultStaleDays;
   return computeStaleAt(nowUtc, days);
 }
-
-CoordinationStaleItemView staleViewFromRow({
-  required int kind,
-  required int status,
-  required String creatorId,
-  String? targetPersonId,
-  String? acceptedById,
-  DateTime? staleAt,
-  int? staleAfterDays,
-}) =>
-    CoordinationStaleItemView(
-      kind: kind,
-      status: status,
-      creatorId: creatorId,
-      targetPersonId: targetPersonId,
-      acceptedById: acceptedById,
-      staleAt: staleAt,
-      staleAfterDays: staleAfterDays,
-    );

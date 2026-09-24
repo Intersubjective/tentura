@@ -1,4 +1,3 @@
-import 'package:drift/drift.dart';
 import 'package:drift_postgres/drift_postgres.dart' show UuidValue;
 import 'package:injectable/injectable.dart';
 import 'package:postgres/postgres.dart' show Type, TypedValue;

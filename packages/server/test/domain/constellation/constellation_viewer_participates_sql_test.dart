@@ -3,7 +3,6 @@ library;
 
 import 'dart:io';
 
-import 'package:drift/drift.dart';
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';

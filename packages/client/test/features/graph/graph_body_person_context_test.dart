@@ -1,18 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:mockito/mockito.dart';
 
-import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/graph/data/repository/graph_source_repository.dart';
-import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/edge_directed.dart';
 import 'package:tentura/features/graph/domain/entity/graph_edge_colors.dart';
 import 'package:tentura/features/graph/domain/entity/graph_mode.dart';
@@ -29,14 +25,11 @@ import 'package:tentura/features/profile/domain/port/profile_repository_port.dar
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:logging/logging.dart';
 
-import 'package:tentura/domain/capability/person_capability_cues.dart';
 import 'package:tentura/domain/contacts/contact_name_store.dart';
 import 'package:tentura/domain/entity/likable.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/domain/port/capability_repository_port.dart';
-import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/env.dart';
-import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 import 'package:tentura/features/contacts/domain/use_case/contacts_case.dart';
 import 'package:tentura/features/like/data/repository/like_remote_repository.dart';
 import 'package:tentura/features/profile_view/domain/use_case/profile_view_case.dart';
@@ -46,7 +39,6 @@ import '../../support/test_realtime_sync.dart';
 import '../auth/auth_test_helpers.dart';
 import '../contacts/contacts_case_test.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
-import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
@@ -127,7 +119,7 @@ ProfileViewCase _profileViewCase() {
   );
   return ProfileViewCase(
     profiles,
-    _ControllableLikeRepository(profiles),
+    _ControllableLikeRepository(),
     _FakeCapabilityRepository(),
     contactsCase,
     realtime.case_,
@@ -138,9 +130,6 @@ ProfileViewCase _profileViewCase() {
 }
 
 final class _ControllableLikeRepository implements LikeRemoteRepository {
-  _ControllableLikeRepository(this._profiles);
-
-  final _FakeProfileRepository _profiles;
   final _changes = StreamController<RepositoryEvent<Likable>>.broadcast();
 
   @override
@@ -470,7 +459,7 @@ void main() {
     testWidgets('intentional same-node tap reopens dismissed panel', (
       tester,
     ) async {
-      final harness = await _pumpTrustGraphBody(
+      await _pumpTrustGraphBody(
         tester,
         size: const Size(900, 600),
         legendExpanded: false,

@@ -14,7 +14,6 @@
 /// Extend those files when adding roles — do not duplicate the matrix here.
 library;
 
-import 'package:drift/drift.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 

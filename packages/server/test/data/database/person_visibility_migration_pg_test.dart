@@ -823,27 +823,6 @@ FROM public.person_visible_peers_symmetric($1, $2)
   return {for (final row in rows) row.read<String>('peer_id')};
 }
 
-Future<Set<String>> _mvuIds(
-  TenturaDb db, {
-  required String viewerId,
-  String context = '',
-}) async {
-  final session = _sessionJson(viewerId);
-  final rows = await db
-      .customSelect(
-        r'''
-SELECT u.id
-FROM public.mutually_visible_users($1, $2::json) u
-''',
-        variables: [
-          Variable<String>(context),
-          Variable<String>(session),
-        ],
-      )
-      .get();
-  return {for (final row in rows) row.read<String>('id')};
-}
-
 double _asDouble(Object? value) {
   if (value == null) {
     return 0;

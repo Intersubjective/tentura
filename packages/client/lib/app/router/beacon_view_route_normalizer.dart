@@ -100,12 +100,6 @@ NormalizedBeaconViewQuery normalizeBeaconViewRouteQueryFromParameters(
       incomingQuery: _incomingQueryFromParameters(qp),
     );
 
-String beaconViewPathWithQuery(String beaconId, NormalizedBeaconViewQuery q) {
-  final params = q.queryParameters;
-  if (params.isEmpty) return '$kPathBeaconView/$beaconId';
-  return '$kPathBeaconView/$beaconId?${Uri(queryParameters: params).query}';
-}
-
 BeaconViewOperationalRoute beaconViewOperationalFromNormalized(
   NormalizedBeaconViewQuery normalized,
 ) {

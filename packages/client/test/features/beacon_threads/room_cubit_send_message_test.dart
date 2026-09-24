@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/domain/entity/room_message.dart';
-import 'package:tentura/ui/bloc/state_base.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'room_cubit_fakes.dart';

@@ -1,7 +1,6 @@
-import 'package:drift/drift.dart' show Variable;
 
 import 'package:tentura_server/domain/constellation/constellation_field_selection.dart';
-import 'package:tentura_server/domain/entity/constellation_anchor.dart';
+import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
 import '../database/tentura_db.dart';
 

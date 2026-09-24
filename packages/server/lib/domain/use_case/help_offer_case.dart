@@ -1,5 +1,4 @@
 import 'package:injectable/injectable.dart';
-import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';

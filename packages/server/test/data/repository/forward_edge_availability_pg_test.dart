@@ -2,9 +2,7 @@
 library;
 
 import 'dart:async';
-import 'dart:io';
 
-import 'package:injectable/injectable.dart' show Environment;
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
@@ -14,7 +12,6 @@ import 'package:tentura_server/data/database/tentura_db.dart'
 import 'package:tentura_server/data/repository/forward_edge_repository.dart';
 import 'package:tentura_server/data/repository/user_availability_repository.dart';
 import 'package:tentura_server/domain/entity/forward_batch_create_result.dart';
-import 'package:tentura_server/env.dart';
 
 import '../../support/pg_wait.dart';
 import '../../support/pg_test_public_keys.dart';
@@ -38,7 +35,6 @@ Future<void> main() async {
     late UserAvailabilityRepository availabilityRepo;
 
     const beaconId = 'Bfwdaavail01';
-    const authorId = 'Ufwdaauth01';
     const senderId = 'Ufwdasend01';
     const recipientId = 'Ufwdarecip01';
     final todayUtc = DateTime.now().toUtc();

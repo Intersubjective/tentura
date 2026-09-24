@@ -1,6 +1,5 @@
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
-import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 /// Admitted (+ candidate/offered for author/steward) participants for ask/blocker targets.
@@ -90,25 +89,4 @@ String coordinationTargetLabel({
     return match.displayLabel(l10n.unknownPerson);
   }
   return l10n.unknownPerson;
-}
-
-String coordinationTargetPickerLabel(L10n l10n, CoordinationItemKind kind) {
-  return switch (kind) {
-    CoordinationItemKind.ask => l10n.beaconRoomNeedInfoPickTarget,
-    CoordinationItemKind.promise => l10n.coordinationPromiseTargetPickerLabel,
-    CoordinationItemKind.blocker => l10n.beaconRoomNeedInfoPickTarget,
-    _ => l10n.beaconRoomNeedInfoPickTarget,
-  };
-}
-
-String coordinationComposerSheetTitle(L10n l10n, CoordinationItemKind kind, bool isEdit) {
-  if (isEdit) {
-    return l10n.myWorkEditDraft;
-  }
-  return switch (kind) {
-    CoordinationItemKind.ask => l10n.coordinationMarkAskTitle,
-    CoordinationItemKind.promise => l10n.coordinationCreatePromiseAction,
-    CoordinationItemKind.blocker => l10n.coordinationMarkBlockerTitle,
-    _ => l10n.myWorkEditDraft,
-  };
 }

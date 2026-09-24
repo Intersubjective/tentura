@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui' show Offset;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -8,7 +7,7 @@ import 'package:logging/logging.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/env.dart';
-import 'package:tentura/features/constellation/domain/entity/constellation_anchor.dart';
+import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_anchor_repository_port.dart';
@@ -22,12 +21,8 @@ import 'package:tentura/features/forward/data/repository/forward_repository.dart
 import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
-import 'package:tentura/features/graph/ui/utils/graph_scene_ids.dart';
-import 'package:tentura/features/graph/ui/utils/tentura_layout_algorithms.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/test_ids.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
@@ -270,22 +265,6 @@ void _requestLayoutHandoff(
   );
 }
 
-final class _TerminalAtAlgorithm implements SceneLayoutAlgorithm {
-  _TerminalAtAlgorithm(this.positions);
-
-  final Map<GraphNodeId, ScenePoint> positions;
-
-  @override
-  Stream<GraphLayoutFrame> layout(GraphLayoutRequest request) async* {
-    yield GraphLayoutFrame(
-      ticket: request.ticket,
-      sequence: 0,
-      positions: positions,
-      isTerminal: true,
-    );
-  }
-}
-
 final class _MalformedThenTerminalAlgorithm implements SceneLayoutAlgorithm {
   @override
   Stream<GraphLayoutFrame> layout(GraphLayoutRequest request) async* {
@@ -469,7 +448,6 @@ void main() {
         ConstellationAnchorTarget.person('p1'),
       );
       final controller = cubit.graphController;
-      final node = controller.nodePayloadForId(graphId)!;
       const dragCentre = Offset(2400, 2500);
       final token = controller.beginNodePresentationDragForId(graphId, dragCentre);
 

@@ -7,7 +7,6 @@ import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/presenter/beacon_hud_author_action.dart';
-import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
@@ -285,36 +284,4 @@ String? _myNextMoveText(BeaconViewState state) {
     }
   }
   return null;
-}
-
-/// Expanded NOW body for the Status lens (includes plan vs blocker vs cue).
-String beaconHudNowExpandedBody(L10n l10n, BeaconViewState state) {
-  final beacon = state.beacon;
-  final cue = state.beaconRoomCue;
-  final lines = <String>[];
-
-  if (beacon.status == BeaconStatus.deleted) {
-    return l10n.beaconHudBeaconUnavailable;
-  }
-
-  final blockerTitle = cue?.openBlockerTitle?.trim();
-  if (blockerTitle != null && blockerTitle.isNotEmpty) {
-    lines.add(l10n.beaconHudNowBlocked(blockerTitle));
-  }
-
-  final currentLine = cue?.currentLine.trim() ?? '';
-  if (currentLine.isNotEmpty) {
-    lines.add(currentLine);
-  }
-
-  final roomCue = cue?.lastRoomMeaningfulChange?.trim();
-  if (roomCue != null && roomCue.isNotEmpty) {
-    lines.add(roomCue);
-  }
-
-  if (lines.isEmpty) {
-    return beaconHudNowLine(l10n, state);
-  }
-
-  return lines.toSet().join('\n\n');
 }

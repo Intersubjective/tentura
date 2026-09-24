@@ -6,7 +6,6 @@ import 'package:shelf_plus/shelf_plus.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/api/controllers/session_controller.dart';
-import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/domain/entity/account_session_entity.dart';
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
 import 'package:tentura_server/domain/port/session_repository_port.dart';

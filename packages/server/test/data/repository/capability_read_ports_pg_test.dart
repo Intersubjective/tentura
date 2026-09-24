@@ -3,7 +3,6 @@ library;
 
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
-import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/data/database/tentura_db.dart'
@@ -58,7 +57,6 @@ Future<void> main() async {
       : 'Postgres admin database not reachable for disposable test target';
 
   late DisposablePgWriterSession session;
-  late Connection writer;
   late TenturaDb database;
   late CapabilityOwnEvidenceRepository ownEvidenceRepo;
   late RoutingMuteRepository muteRepo;
@@ -73,7 +71,6 @@ Future<void> main() async {
         target: target,
         createPgmer2Extension: true,
       );
-      writer = session.writer;
       testEnv = target.databaseEnv;
       database = openDisposablePgDatabase(target);
       ownEvidenceRepo = CapabilityOwnEvidenceRepository(database);

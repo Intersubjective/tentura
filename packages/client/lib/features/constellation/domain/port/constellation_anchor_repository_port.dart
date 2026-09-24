@@ -1,4 +1,4 @@
-import '../entity/constellation_anchor.dart';
+import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
 class ConstellationAnchorUpsertResult {
   const ConstellationAnchorUpsertResult({

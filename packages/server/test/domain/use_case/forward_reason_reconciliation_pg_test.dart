@@ -1,9 +1,7 @@
 @Tags(['pg'])
 library;
 
-import 'dart:io';
 
-import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:postgres/postgres.dart';
@@ -29,7 +27,6 @@ import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/forward_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
-import 'package:tentura_server/env.dart';
 
 import '../../support/fake_beacon_access_guard.dart';
 import '../../support/fake_user_block_repository.dart';
@@ -37,7 +34,6 @@ import '../../support/fake_user_block_repository.dart';
 import '../../support/disposable_pg_target.dart';
 
 const _beaconId = 'Bcapc3bcn001';
-const _authorId = 'Ucapc3auth01';
 const _senderId = 'Ucapc3send01';
 const _recipientId = 'Ucapc3recip1';
 

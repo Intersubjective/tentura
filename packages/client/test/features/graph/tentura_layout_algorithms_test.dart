@@ -1,4 +1,3 @@
-import 'dart:ui' show Offset, Size;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -13,8 +12,6 @@ import 'package:tentura/features/graph/ui/utils/tentura_layout_algorithms.dart';
 import 'scene_layout_test_support.dart';
 
 void main() {
-  const canvasSize = Size(500, 500);
-
   final nodeA = UserNode(user: Profile(id: 'a'));
   final nodeB = UserNode(user: Profile(id: 'b'));
   final nodeC = UserNode(user: Profile(id: 'c'));
@@ -138,7 +135,6 @@ void main() {
 
     test('relayout parks new children along the pinned branch direction', () async {
       const algorithm = RadialHopLayoutAlgorithm(rootId: 'a', ringGap: 170);
-      final nodes = {nodeA, nodeB};
       const parentPos = Offset(250, 100);
       const childPos = Offset(250, 200);
       final previous = sceneLayoutFromPositions({

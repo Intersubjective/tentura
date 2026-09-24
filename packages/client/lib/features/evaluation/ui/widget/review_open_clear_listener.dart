@@ -2,7 +2,6 @@ import 'package:flutter/widgets.dart';
 
 import 'package:tentura/domain/attention/request_open_clear.dart';
 import 'package:tentura/features/evaluation/ui/bloc/evaluation_cubit.dart';
-import 'package:tentura/ui/bloc/state_base.dart';
 
 /// §4 — "Opening a review deep link clears that Request's optional updates and
 /// leaves the review obligation live."

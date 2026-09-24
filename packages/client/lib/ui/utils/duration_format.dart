@@ -41,7 +41,6 @@ String formatBeaconLifecycleEndedAt({
   required String localeName,
 }) {
   final local = endedAt.toLocal();
-  final nowLocal = now.toLocal();
   final time = DateFormat.Hm(localeName).format(local);
   if (_sameCalendarDayLocal(endedAt, now)) {
     return time;

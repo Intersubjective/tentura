@@ -62,13 +62,6 @@ TextStyle beaconCardUpdatedLineTextStyle(ThemeData theme) {
   );
 }
 
-/// My Work / inbox operational status line (`help offered · …`).
-TextStyle beaconCardStatusLineTextStyle(ThemeData theme) {
-  final tt = theme.extension<TenturaTokens>();
-  final muted = tt?.textMuted ?? theme.colorScheme.onSurfaceVariant;
-  return TenturaText.status(muted);
-}
-
 /// Middot gap between strip segments (`slot1 · slot2` style).
 Widget beaconCardMetadataStripSeparator(ThemeData theme) {
   return Text(' · ', style: beaconCardMetadataStripTextStyle(theme));

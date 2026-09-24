@@ -1,5 +1,4 @@
 import 'package:tentura_server/domain/exception.dart';
-import 'package:tentura_server/domain/exception_codes.dart';
 
 /// ExceptionBase codes that indicate an internal/unexpected server fault.
 const _internalFaultCodeNumbers = {

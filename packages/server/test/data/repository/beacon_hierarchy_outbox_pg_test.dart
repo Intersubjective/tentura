@@ -8,8 +8,6 @@ import 'package:tentura_root/domain/entity/beacon_hierarchy_event.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/consts/beacon_hierarchy_consts.dart';
-import 'package:tentura_server/consts/beacon_room_consts.dart';
-import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/data/repository/beacon_hierarchy_outbox_repository.dart';
 
 import '../../support/beacon_hierarchy_fixture.dart';

@@ -1,9 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
@@ -13,7 +11,6 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
-import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/entity/my_work_beacon_attention.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
@@ -38,9 +35,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/l10n/l10n_en.dart';
 import 'package:tentura/ui/widget/caught_up_panel.dart';
-import 'package:tentura/ui/test_ids.dart';
 
-import '../../support/attention_repository_fake_base.dart';
 import '../../support/test_realtime_sync.dart';
 import '../block/support/controllable_block_case.dart';
 import '../updates/support/noop_invite_setup_port.dart';
@@ -208,52 +203,6 @@ Future<void> _pumpMyWork(
   for (var i = 0; i < 16; i++) {
     await tester.pump(const Duration(milliseconds: 50));
   }
-}
-
-final class _ObligationsFeedRepository extends AttentionRepositoryFake {
-  _ObligationsFeedRepository({required this.liveReceipts});
-
-  List<AttentionReceipt> liveReceipts;
-
-  @override
-  Future<AttentionFeed> fetch({
-    required AttentionView view,
-    String? cursor,
-    String? search,
-    int limit = 50,
-    AttentionSurface? surface,
-  }) async {
-    if (view != AttentionView.needsYou) {
-      return const AttentionFeed(
-        summary: AttentionSummary(),
-        page: AttentionFeedPage(),
-      );
-    }
-    return AttentionFeed(
-      summary: AttentionSummary(needsYouTotal: liveReceipts.length),
-      page: AttentionFeedPage(items: liveReceipts),
-    );
-  }
-
-  @override
-  Future<Set<String>> liveObligationBeacons() async => {_beaconNeedsYou};
-
-  @override
-  Future<Set<String>> unreadForBeacons(Set<String> beaconIds) async =>
-      const {};
-
-  @override
-  Future<int> markAllSeen({AttentionSurface? surface}) async => 0;
-
-  @override
-  Future<int> markSeen(List<String> ids) async => 0;
-
-  @override
-  Future<int> markUnseen(List<String> ids) async => 0;
-
-  @override
-  Future<int> settle({required String receiptId, required String kind}) async =>
-      0;
 }
 
 void main() {

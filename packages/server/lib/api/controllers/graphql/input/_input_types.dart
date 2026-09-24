@@ -7,14 +7,12 @@ import 'package:tentura_server/consts.dart';
 
 part 'input_field_coordinates.dart';
 part 'input_field_beacon_ids.dart';
-part 'input_field_beacon_display_tier.dart';
 part 'input_field_description.dart';
 part 'input_field_drop_image.dart';
 part 'input_field_context.dart';
 part 'input_field_image_ids.dart';
 part 'input_field_beacon_media.dart';
 part 'input_field_upload.dart';
-part 'input_field_title.dart';
 part 'input_field_display_name.dart';
 part 'input_field_beacon_title.dart';
 part 'input_field_id.dart';
@@ -28,8 +26,6 @@ part 'input_field_int_list.dart';
 const kGlobalInputQueryContext = 'queryContext';
 const kGlobalInputQueryFile = 'queryFile';
 const kGlobalInputQueryJwt = kContextJwtKey;
-
-final fieldId = InputFieldString(fieldName: 'id');
 
 class InputFieldBool {
   InputFieldBool({required String fieldName})

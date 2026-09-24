@@ -61,11 +61,10 @@ final class _StubConstellationRepository implements ConstellationRepositoryPort 
 class _FakeForwardRepository implements ForwardRepository {
   _FakeForwardRepository({
     this.offerHelpError,
-    this.offerHelpResult = true,
   });
 
   final Object? offerHelpError;
-  final bool offerHelpResult;
+  final bool offerHelpResult = true;
 
   int? lastExpectedOfferKind;
 

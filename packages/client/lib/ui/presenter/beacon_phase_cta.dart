@@ -1,8 +1,5 @@
 import 'package:tentura/domain/coordination/derive_beacon_coordination_phase.dart';
-import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/domain/entity/beacon_coordination_phase.dart';
-import 'package:tentura/domain/entity/open_blocker_cue.dart';
-import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/evaluation/domain/review_package_state.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -34,40 +31,6 @@ String? myWorkPhasePrimaryCtaLabel({
     canNavigateRoom: true,
   );
   return formatBeaconPhasePrimaryCtaLabel(l10n, action, isAuthor: isAuthor);
-}
-
-/// Resolves gated primary CTA label for beacon detail HUD.
-String? beaconHudPhasePrimaryCtaLabel({
-  required L10n l10n,
-  required BeaconViewState state,
-  required String viewerUserId,
-}) {
-  final input = beaconPhaseInputFromViewState(state);
-  final result = deriveBeaconCoordinationPhase(input);
-  final action = resolveEffectivePrimaryAction(
-    suggested: result.suggestedAction,
-    isAuthor: state.isBeaconMine,
-    isAuthorOrSteward: state.isAuthorOrSteward,
-    canCoordinateInRoom: state.canCoordinateInBeaconRoom,
-    isPersonallyResponsibleForBlocker: viewerIsPersonallyResponsibleForBlocker(
-      openBlocker: input.openBlocker,
-      viewerUserId: viewerUserId,
-    ),
-    canOfferHelp: _canOfferHelp(state),
-    canNavigateRoom: state.canNavigateBeaconRoom,
-  );
-  return formatBeaconPhasePrimaryCtaLabel(
-    l10n,
-    action,
-    isAuthor: state.isBeaconMine,
-  );
-}
-
-bool _canOfferHelp(BeaconViewState state) {
-  final b = state.beacon;
-  return b.status == BeaconStatus.open &&
-      !state.isHelpOffered &&
-      b.allowsNewHelpOfferAsNonAuthor;
 }
 
 BeaconPhasePrimaryAction myWorkEffectivePrimaryAction({
@@ -105,6 +68,3 @@ bool myWorkOfferReviewContributions(MyWorkCardViewModel vm) {
       state == ReviewPackageState.readyToSend ||
       state == ReviewPackageState.changedNotSent;
 }
-
-OpenBlockerCue? openBlockerFromViewState(BeaconViewState state) =>
-    beaconPhaseInputFromViewState(state).openBlocker;

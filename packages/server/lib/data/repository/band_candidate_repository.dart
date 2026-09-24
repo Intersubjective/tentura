@@ -1,4 +1,3 @@
-import 'package:drift/drift.dart' show Variable;
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/capability/capability_evidence_models.dart';

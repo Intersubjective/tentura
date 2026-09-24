@@ -2,13 +2,11 @@
 library;
 
 
-import 'package:drift/drift.dart' show Variable;
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
-import 'package:tentura_server/env.dart';
 
 import '../../support/disposable_pg_target.dart';
 
@@ -24,7 +22,6 @@ Future<void> main() async {
       : 'Postgres admin database not reachable for disposable test target';
 
   late DisposablePgWriterSession session;
-  late Connection writer;
   late TenturaDb db;
 
   const viewerId = 'Udiscvcache01';
@@ -274,7 +271,6 @@ END;
         target: target,
         createPgmer2Extension: true,
       );
-      writer = session.writer;
       db = openDisposablePgDatabase(target);
       await installPamvCallCounter();
     });

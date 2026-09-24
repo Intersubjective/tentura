@@ -11,7 +11,7 @@ import 'package:tentura/env.dart';
 import 'package:tentura/features/constellation/data/gql/_g/constellation_anchors_fetch.req.gql.dart';
 import 'package:tentura/features/constellation/data/gql/_g/constellation_field_fetch.req.gql.dart';
 import 'package:tentura/features/constellation/data/model/constellation_field_mapper.dart';
-import 'package:tentura/features/constellation/domain/entity/constellation_anchor.dart';
+import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';

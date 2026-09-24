@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 /// Whether [ThemeData.platform] is a desktop coordinator target (mouse select).

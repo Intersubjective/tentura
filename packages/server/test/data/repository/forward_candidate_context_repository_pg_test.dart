@@ -1,7 +1,6 @@
 @Tags(['pg', 'mr'])
 library;
 
-import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
@@ -26,7 +25,6 @@ Future<void> main() async {
       : 'Postgres admin database not reachable for disposable test target';
 
   DisposablePgWriterSession? session;
-  late Connection writer;
   late TenturaDb database;
   late ForwardCandidateContextRepository repository;
   late MeritrankRepository meritRank;
@@ -38,7 +36,6 @@ Future<void> main() async {
         target: target,
         createPgmer2Extension: true,
       );
-      writer = session!.writer;
       database = openDisposablePgDatabase(target);
       repository = ForwardCandidateContextRepository(database);
       meritRank = MeritrankRepository(database);

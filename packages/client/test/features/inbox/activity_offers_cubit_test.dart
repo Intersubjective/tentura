@@ -15,7 +15,6 @@ import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/features/inbox/domain/use_case/inbox_case.dart';
 import 'package:tentura/features/inbox/ui/bloc/activity_offers_cubit.dart';
 
-import '../../support/attention_repository_fake_base.dart';
 import '../../support/test_realtime_sync.dart';
 import '../block/support/controllable_block_case.dart';
 import 'activity_offers_test_support.dart';
@@ -111,7 +110,6 @@ void main() {
   late _ForwardRepo forwardRepo;
   late InboxCase inboxCase;
   late _AttentionRepo attentionRepo;
-  late AttentionCase attention;
   late ActivityOffersCubit cubit;
 
   ActivityOffersCubit buildCubit({

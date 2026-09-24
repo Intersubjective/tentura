@@ -1,4 +1,3 @@
-import 'package:graphql_schema2/graphql_schema2.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/api/controllers/graphql/custom_types.dart';

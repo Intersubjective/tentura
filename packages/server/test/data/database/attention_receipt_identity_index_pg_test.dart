@@ -4,7 +4,6 @@ library;
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
-import 'package:tentura_server/data/database/migration/_migrations.dart';
 
 import '../../support/disposable_pg_target.dart';
 
@@ -18,7 +17,7 @@ Future<void> main() async {
     envVarName: 'TENTURA_U05A_INDEX_TEST_DB',
     defaultNamePrefix: 'tentura_test_u05a_index',
   );
-  final upgradeTarget = DisposablePgTarget.fromNamedEnvironment(
+  DisposablePgTarget.fromNamedEnvironment(
     envVarName: 'TENTURA_U05A_INDEX_UPGRADE_TEST_DB',
     defaultNamePrefix: 'tentura_test_u05a_index_upgrade',
   );

@@ -49,22 +49,6 @@ List<BeaconParticipant> beaconParticipantsVisibleForViewer({
   return list;
 }
 
-/// Best-effort display name: author, then [userIdToKnownTitle] (e.g. helpOffers), else id.
-String participantDisplayTitle({
-  required BeaconParticipant participant,
-  required Beacon beacon,
-  required Map<String, String> userIdToKnownTitle,
-}) {
-  if (participant.userId == beacon.author.id) {
-    return beacon.author.displayName;
-  }
-  final t = userIdToKnownTitle[participant.userId];
-  if (t != null && t.trim().isNotEmpty) return t.trim();
-  return participant.userId.length <= 10
-      ? participant.userId
-      : '${participant.userId.substring(0, 8)}…';
-}
-
 /// Active-helpers fold from the admitted-helper Hasura projection.
 ///
 /// Author first (starred), then roster profiles (non-author). Optional

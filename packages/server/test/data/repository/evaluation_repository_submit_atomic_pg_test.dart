@@ -12,7 +12,6 @@ import 'package:tentura_server/data/repository/evaluation_repository.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_row_status.dart';
 import 'package:tentura_server/domain/entity/evaluation/beacon_evaluation_record.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
-import 'package:tentura_server/env.dart';
 
 import '../../support/disposable_pg_target.dart';
 
@@ -21,7 +20,6 @@ const _beacon2 = 'Bcapc1abcn02';
 const _eval1 = 'Ucapc1aeval01';
 const _eval2 = 'Ucapc1aeval02';
 const _subject = 'Ucapc1asubj01';
-const _author = 'Ucapc1aauth01';
 
 Future<void> main() async {
   final target = DisposablePgTarget.fromNamedEnvironment(

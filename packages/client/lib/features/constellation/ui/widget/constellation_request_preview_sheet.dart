@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/consts.dart';
@@ -11,7 +10,7 @@ import 'constellation_anchor_controls.dart';
 import 'constellation_request_label.dart';
 import 'constellation_request_status_marker.dart';
 
-import '../../domain/entity/constellation_anchor.dart';
+import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../bloc/constellation_cubit.dart';
 
 /// Primary action label for the preview action matrix (held state × coverage).

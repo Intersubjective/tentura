@@ -2,7 +2,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/commitment_stake_state.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_room_card_hints.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 

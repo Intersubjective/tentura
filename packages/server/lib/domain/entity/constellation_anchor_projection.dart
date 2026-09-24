@@ -1,6 +1,6 @@
 import 'package:meta/meta.dart';
 
-import 'constellation_anchor.dart';
+import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'constellation_field.dart';
 
 enum ConstellationProjection {

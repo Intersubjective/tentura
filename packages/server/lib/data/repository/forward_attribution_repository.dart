@@ -1,5 +1,3 @@
-import 'package:drift/drift.dart';
-import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/entity/forward_attribution_entity.dart';

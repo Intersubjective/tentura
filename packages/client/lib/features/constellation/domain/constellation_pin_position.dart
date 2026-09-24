@@ -1,7 +1,7 @@
 import 'constellation_anchor_composition.dart';
 import 'constellation_layout.dart';
-import 'constellation_path_resolution.dart';
-import 'entity/constellation_anchor.dart';
+import 'package:tentura_root/domain/constellation/constellation_path_resolution.dart';
+import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
 ConstellationAnchorPosition? computeConstellationPinPosition({
   required ConstellationAnchorTarget target,

@@ -3,7 +3,6 @@ library;
 
 import 'dart:io';
 
-import 'package:drift/drift.dart' show Variable;
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:test/test.dart';
 
@@ -76,35 +75,6 @@ ON CONFLICT (id) DO NOTHING
         )
         .getSingle();
     return row.read<double>('w');
-  }
-
-  Future<Map<String, double>> sourceBins(
-    String context,
-    String subject,
-    String object,
-  ) async {
-    final row = await db
-        .customSelect(
-          r'''
-SELECT s_very_bad, s_bad, s_no_effect, s_good, s_very_good
-FROM public.user_trust_source_edge
-WHERE trust_context = $1 AND subject = $2 AND object = $3
-''',
-          variables: [
-            Variable<String>(context),
-            Variable<String>(subject),
-            Variable<String>(object),
-          ],
-        )
-        .getSingleOrNull();
-    if (row == null) return {};
-    return {
-      'very_bad': row.read<double>('s_very_bad'),
-      'bad': row.read<double>('s_bad'),
-      'no_effect': row.read<double>('s_no_effect'),
-      'good': row.read<double>('s_good'),
-      'very_good': row.read<double>('s_very_good'),
-    };
   }
 
   Future<int> sourceRowCount(String subject, String object) async {

@@ -11,7 +11,6 @@ import 'package:tentura/domain/entity/beacon_people_optimistic.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/commitment_stake_state.dart';
-import 'package:tentura/domain/entity/coordination_responsibility.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/help_offer_admission_action.dart';
 import 'package:tentura/domain/entity/beacon_display_status_dto.dart';
@@ -28,7 +27,6 @@ import 'package:tentura/features/beacon/ui/util/beacon_delete_ui.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 
-import 'package:tentura/features/beacon_threads/domain/entity/room_unread_snapshot.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 

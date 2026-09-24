@@ -1,7 +1,6 @@
 @Tags(['pg'])
 library;
 
-import 'dart:io';
 
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
@@ -19,16 +18,9 @@ import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/entity/notification_priority.dart';
-import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
-import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/port/trust_evidence_repository_port.dart';
 import 'package:tentura_server/data/repository/beacon_hierarchy_outbox_repository.dart';
-import 'package:tentura_server/data/repository/beacon_hierarchy_repository.dart';
-import 'package:tentura_server/data/repository/beacon_room_notification_context_repository.dart';
-import 'package:tentura_server/data/repository/beacon_room_repository.dart';
-import 'package:tentura_server/data/repository/commitment_repository.dart';
-import 'package:tentura_server/data/repository/help_offer_repository.dart';
 import 'package:tentura_server/domain/use_case/beacon_lifecycle_effects_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 import '../../support/user_erasure_test_stack.dart';
@@ -81,9 +73,6 @@ Future<void> main() async {
         _NoopInviteGenealogyRepository(),
         InviteSeedPromptRepositoryMock(),
       );
-      final room = BeaconRoomRepository(database);
-      final helpOffers = HelpOfferRepository(database);
-      final commitments = CommitmentRepository(database);
       final outbox = BeaconHierarchyOutboxRepository(database);
       final lifecycleEffects = BeaconLifecycleEffectsCase(
         outbox,
@@ -388,19 +377,6 @@ WHERE account_id = @targetId
       },
     );
   }, skip: skipReason);
-}
-
-class _NoopImageRepository implements ImageRepositoryPort {
-  @override
-  Future<void> deleteAllOf({required String userId}) async {}
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
-}
-
-class _NoopTaskRepository implements TaskRepositoryPort {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
 }
 
 class _NoopTrustEvidenceRepository implements TrustEvidenceRepositoryPort {

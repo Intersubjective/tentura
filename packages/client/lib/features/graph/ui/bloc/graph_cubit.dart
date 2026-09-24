@@ -5,7 +5,6 @@ import 'dart:async';
 import 'dart:developer' as developer;
 import 'dart:ui' show Offset;
 import 'package:get_it/get_it.dart';
-import 'package:force_directed_graphview/force_directed_graphview.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -1101,7 +1100,6 @@ class GraphCubit extends Cubit<GraphState> {
 
   void _jumpToNodeByStableId(NodeDetails node, {bool resetScale = false}) {
     final graphId = tenturaGraphNodeId(node);
-    final onGraph = graphController.nodePayloadForId(graphId) ?? node;
     if (!graphController.canLayout) {
       return;
     }

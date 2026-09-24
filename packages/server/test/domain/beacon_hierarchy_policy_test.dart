@@ -9,7 +9,6 @@ import 'package:tentura_server/domain/beacon_visibility.dart';
 import 'package:tentura_server/domain/policy/beacon_hierarchy_policy.dart';
 import 'package:tentura_server/domain/policy/discussion_product_policy.dart';
 
-import '../support/beacon_hierarchy_fixture.dart';
 
 BeaconEffectiveAdmissionFacts _admission({
   bool isAuthor = false,

@@ -1,6 +1,5 @@
 import 'package:test/test.dart';
 
-import 'package:tentura_server/domain/trust/forward/forward_mass_propagator.dart';
 import 'package:tentura_server/domain/trust/forward/forward_outcome_policy.dart';
 import 'package:tentura_server/domain/trust/forward/forward_request_consolidator.dart';
 import 'package:tentura_server/domain/trust/trust_bin.dart';

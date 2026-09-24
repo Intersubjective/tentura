@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
@@ -21,7 +20,6 @@ import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/domain/entity/beacon_coordination_phase.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_close_confirm_dialog.dart';
 import 'package:tentura/features/beacon/ui/util/beacon_lifecycle_ui.dart';
-import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/features/beacon_view/ui/sheet/help_offer_tile_sheet.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_hud_author_confirm_sheets.dart';
 import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
@@ -395,7 +393,6 @@ class _AuthoredActiveCard extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final b = vm.beacon;
 
-    final repo = GetIt.I<BeaconRepository>();
     final evaluationRepo = GetIt.I<EvaluationRepository>();
     final statusLine = myWorkStatusLine(l10n: l10n, vm: vm);
     final headerStatus = _myWorkCardHeaderStatus(
@@ -824,7 +821,6 @@ class _FinishedAuthoredCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final b = vm.beacon;
-    final repo = GetIt.I<BeaconRepository>();
     final evaluationRepo = GetIt.I<EvaluationRepository>();
     final statusLine = myWorkStatusLine(l10n: l10n, vm: vm);
     final headerStatus = _myWorkCardHeaderStatus(

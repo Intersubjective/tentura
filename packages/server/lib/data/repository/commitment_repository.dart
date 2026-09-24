@@ -1,4 +1,3 @@
-import 'package:drift/drift.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/commitment/commitment_event.dart';

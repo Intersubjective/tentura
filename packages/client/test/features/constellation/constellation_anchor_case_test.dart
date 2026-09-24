@@ -5,7 +5,7 @@ import 'package:logging/logging.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/env.dart';
-import 'package:tentura/features/constellation/domain/entity/constellation_anchor.dart';
+import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_anchor_repository_port.dart';
@@ -20,7 +20,6 @@ ConstellationAnchor _anchor({
   required String personId,
   required BigInt revision,
   double x = 1,
-  double y = 2,
 }) =>
     ConstellationAnchor(
       target: ConstellationAnchorTarget.person(personId),

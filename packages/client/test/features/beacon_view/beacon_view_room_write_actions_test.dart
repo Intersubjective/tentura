@@ -6,7 +6,6 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
-import 'package:tentura/features/beacon_threads/ui/bloc/room_state.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_app_bar_overflow.dart';
 
 class _FakeRoomCubit extends Mock implements RoomCubit {

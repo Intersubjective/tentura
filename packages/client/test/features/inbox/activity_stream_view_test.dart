@@ -1,10 +1,7 @@
 import 'dart:async';
 
-import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 
@@ -20,17 +17,13 @@ import 'package:tentura/domain/capability/invite_seed_prompt_state.dart';
 import 'package:tentura/domain/capability/prompt_state_value.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
-import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart';
-import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_item.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/features/inbox/ui/bloc/activity_offers_cubit.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_cubit.dart';
-import 'package:tentura/features/inbox/ui/screen/inbox_screen.dart';
 import 'package:tentura/features/inbox/ui/widget/activity_event_subcard_block.dart';
 import 'package:tentura/features/inbox/ui/widget/activity_offer_bounded_shell.dart';
 import 'package:tentura/features/inbox/ui/widget/activity_stream_view.dart';
@@ -43,16 +36,12 @@ import 'package:tentura/features/inbox/ui/widget/tombstone_row.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/updates/domain/use_case/invite_accepted_setup_case.dart';
 import 'package:tentura/features/updates/ui/bloc/updates_feed_cubit.dart';
-import 'package:tentura/features/updates/ui/widget/updates_feed_pane.dart';
 import 'package:tentura/ui/l10n/l10n_en.dart';
 import 'package:tentura/ui/widget/caught_up_panel.dart';
 import 'package:tentura/features/updates/ui/widget/updates_feed_tile.dart';
-import 'package:tentura/ui/bloc/screen_cubit.dart';
-import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
-import '../../support/attention_repository_fake_base.dart';
 import '../../support/test_realtime_sync.dart';
 import '../block/support/controllable_block_case.dart';
 import '../updates/support/noop_invite_setup_port.dart';
@@ -92,22 +81,6 @@ class _TestInboxCubit extends Cubit<InboxState> implements InboxCubit {
   @override
   Future<void> dismissTombstone(String beaconId) async =>
       dismissedTombstones.add(beaconId);
-}
-
-class _TestProfileCubit extends Mock implements ProfileCubit {
-  @override
-  ProfileState get state => const ProfileState(
-    profile: Profile(id: 'viewer', displayName: 'Viewer'),
-  );
-
-  @override
-  Stream<ProfileState> get stream => Stream<ProfileState>.value(state);
-
-  @override
-  bool get isClosed => false;
-
-  @override
-  Future<void> close() async {}
 }
 
 final class _ForwardRepo implements ForwardRepository {
@@ -180,12 +153,11 @@ class _FeedAttentionRepo extends ConfigurableActivityOffersAttentionRepo {
   _FeedAttentionRepo({
     required this.firstPage,
     this.nextCursor,
-    this.secondPage = const [],
   });
 
   final List<AttentionReceipt> firstPage;
   final String? nextCursor;
-  final List<AttentionReceipt> secondPage;
+  final List<AttentionReceipt> secondPage = const [];
   int fetchCalls = 0;
   final List<String> historyCalls = [];
 
@@ -1209,37 +1181,4 @@ final class _Accounts implements AttentionAccountPort {
   void emit(String accountId) => _changes.add(accountId);
 
   Future<void> close() => _changes.close();
-}
-
-class _EmptyFeedRepo extends AttentionRepositoryFake {
-  @override
-  Future<AttentionFeed> fetch({
-    required AttentionView view,
-    String? cursor,
-    String? search,
-    int limit = 50,
-    AttentionSurface? surface,
-  }) async => const AttentionFeed(
-    summary: AttentionSummary(),
-    page: AttentionFeedPage(),
-  );
-
-  @override
-  Future<Set<String>> unreadForBeacons(Set<String> beaconIds) async => {};
-
-  @override
-  Future<Set<String>> liveObligationBeacons() async => const {};
-
-  @override
-  Future<int> markAllSeen({AttentionSurface? surface}) async => 0;
-
-  @override
-  Future<int> markSeen(List<String> ids) async => 0;
-
-  @override
-  Future<int> markUnseen(List<String> ids) async => 0;
-
-  @override
-  Future<int> settle({required String receiptId, required String kind}) async =>
-      0;
 }

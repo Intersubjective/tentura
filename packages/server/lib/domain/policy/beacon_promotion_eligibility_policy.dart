@@ -1,4 +1,3 @@
-import 'package:tentura_server/consts/beacon_room_consts.dart';
 
 /// Facts about a candidate promotion source message.
 ///

@@ -6,8 +6,6 @@ import 'package:test/test.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_context.dart';
 import 'package:tentura_server/domain/entity/invite_accepted_notification_intent.dart';
-import 'package:tentura_server/domain/entity/notification_kind.dart';
-import 'package:tentura_server/domain/entity/notification_priority.dart';
 import 'package:tentura_server/domain/trust/trust_bin.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 

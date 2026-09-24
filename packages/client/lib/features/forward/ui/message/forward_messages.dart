@@ -1,10 +1,8 @@
 import 'dart:async' show unawaited;
 
 import 'package:get_it/get_it.dart';
-import 'package:tentura/app/router/home_tab_branches.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/ui/message/action_message_base.dart';
-import 'package:tentura_root/domain/entity/localizable.dart';
 
 String _forwardLocationPauseSuffixEn({
   String? skippedName,

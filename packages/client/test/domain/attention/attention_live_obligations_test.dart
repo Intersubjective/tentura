@@ -5,9 +5,7 @@ import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
-import 'package:tentura/domain/attention/port/attention_repository_port.dart';
 import '../../support/attention_repository_fake_base.dart';
-import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 
 import '../../features/block/support/controllable_block_case.dart'
     show noopBlockCase;

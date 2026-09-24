@@ -1,13 +1,10 @@
 import 'dart:async';
 
-import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
-import 'package:tentura/design_system/components/tentura_attention_summary_row.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/attention_clear.dart';
@@ -1114,17 +1111,6 @@ class _ActivityStreamCell extends StatelessWidget {
         );
   }
 
-  Future<void> _openReceipt(
-    BuildContext context,
-    AttentionReceipt receipt,
-  ) async {
-    final beaconId = receipt.beaconId;
-    if (beaconId == null || beaconId.isEmpty) {
-      unawaited(streamCubit.markSeen(receipt.id));
-    }
-    if (!context.mounted) return;
-    await GetIt.I<RootRouter>().openFromUpdate(receipt);
-  }
 }
 
 class _ActivityCollapsedInvitePromptRow extends StatelessWidget {

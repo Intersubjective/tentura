@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/domain/capability/person_capability_cues.dart';

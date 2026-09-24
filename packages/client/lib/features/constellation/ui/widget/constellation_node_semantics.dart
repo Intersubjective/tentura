@@ -1,5 +1,5 @@
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/features/constellation/domain/entity/constellation_anchor.dart';
+import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/ui/l10n/l10n.dart';

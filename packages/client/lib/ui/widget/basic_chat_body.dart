@@ -18,7 +18,6 @@ import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/domain/entity/room_message_hierarchy_payload.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
-import 'package:tentura/features/beacon_threads/domain/entity/committed_mention.dart';
 import 'package:tentura/features/beacon_threads/ui/util/room_reply_excerpt.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/mention_suggestions_overlay.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/mention_text_controller.dart';

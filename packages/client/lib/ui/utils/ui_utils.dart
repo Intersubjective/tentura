@@ -5,7 +5,6 @@ import 'dart:async';
 
 import 'package:intl/intl.dart';
 import 'package:logging/logging.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/app/sentry/report_user_facing_error.dart';
@@ -36,24 +35,14 @@ const kSpacingLarge = 24.0;
 
 const kPaddingAll = EdgeInsets.all(kSpacingMedium);
 const kPaddingAllS = EdgeInsets.all(kSpacingSmall);
-const kPaddingAllL = EdgeInsets.all(kSpacingLarge);
 
 const kPaddingH = EdgeInsets.symmetric(horizontal: kSpacingMedium);
 const kPaddingT = EdgeInsets.only(top: kSpacingMedium);
 const kPaddingV = EdgeInsets.symmetric(vertical: kSpacingMedium);
 
-const kPaddingLargeT = EdgeInsets.only(top: kSpacingLarge);
-const kPaddingLargeV = EdgeInsets.symmetric(vertical: kSpacingLarge);
-
 const kPaddingSmallT = EdgeInsets.only(top: kSpacingSmall);
 const kPaddingSmallH = EdgeInsets.symmetric(horizontal: kSpacingSmall);
 const kPaddingSmallV = EdgeInsets.symmetric(vertical: kSpacingSmall);
-
-const kPaddingBottomTextInput = EdgeInsets.only(
-  bottom: 80,
-  left: kSpacingMedium,
-  right: kSpacingMedium,
-);
 
 const kBorderRadius = 8.0;
 

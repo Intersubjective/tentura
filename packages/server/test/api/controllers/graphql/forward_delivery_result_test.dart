@@ -1,7 +1,6 @@
 @Tags(['pg'])
 library;
 
-import 'dart:io';
 
 import 'package:graphql_schema2/graphql_schema2.dart';
 import 'package:graphql_server2/graphql_server2.dart';
@@ -172,7 +171,6 @@ Future<void> main() async {
     late GraphQL graphQL;
 
     const beaconId = 'Bfwdrgql00001';
-    const authorId = 'Ufwdrgauth001';
     const senderId = 'Ufwdrgsend001';
     const openRecipient = 'Ufwdrgopen001';
     const pausedRecipient1 = 'Ufwdrgpauz001';

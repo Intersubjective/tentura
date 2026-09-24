@@ -6,7 +6,6 @@ import 'package:logging/logging.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/attention_cursor.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
-import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 

@@ -1,6 +1,5 @@
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
-import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import 'beacon_status_menu.dart';

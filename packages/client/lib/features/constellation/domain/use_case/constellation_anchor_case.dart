@@ -8,7 +8,7 @@ import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
 
 import '../constellation_drag_cluster.dart';
-import '../entity/constellation_anchor.dart';
+import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../entity/constellation_anchor_projection.dart';
 import '../exception.dart';
 import '../port/constellation_anchor_repository_port.dart';
@@ -101,7 +101,6 @@ final class ConstellationAnchorCase extends UseCaseBase {
 
   String _viewerAccountId = '';
   int _loadGeneration = 0;
-  bool _screenActive = false;
   bool _syncPending = false;
 
   ConstellationAnchorProjection _confirmed =
@@ -160,7 +159,6 @@ final class ConstellationAnchorCase extends UseCaseBase {
     }
     _detachSubscriptions();
     _viewerAccountId = viewerAccountId;
-    _screenActive = true;
     _attachSubscriptions();
     return _loadGeneration;
   }
@@ -169,7 +167,6 @@ final class ConstellationAnchorCase extends UseCaseBase {
     if (token != null && token != _loadGeneration) {
       return;
     }
-    _screenActive = false;
     _detachSubscriptions();
   }
 

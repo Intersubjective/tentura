@@ -1,5 +1,4 @@
 import 'package:mockito/mockito.dart';
-import 'package:test/test.dart';
 
 import 'package:tentura_server/domain/commitment/commitment_event.dart';
 import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';

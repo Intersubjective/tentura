@@ -4,7 +4,6 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:drift/drift.dart' show Variable;
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:test/test.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';

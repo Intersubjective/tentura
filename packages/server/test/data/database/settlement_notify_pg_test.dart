@@ -3,12 +3,10 @@ library;
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
-import 'package:tentura_server/env.dart';
 
 import '../../support/disposable_pg_target.dart';
 

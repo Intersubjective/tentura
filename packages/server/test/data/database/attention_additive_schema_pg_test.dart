@@ -2,12 +2,10 @@
 library;
 
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
-import 'package:tentura_server/data/database/migration/_migrations.dart';
 
 import '../../support/disposable_pg_target.dart';
 
@@ -21,7 +19,7 @@ Future<void> main() async {
     envVarName: 'TENTURA_U04_SCHEMA_TEST_DB',
     defaultNamePrefix: 'tentura_test_u04_fresh',
   );
-  final upgradeTarget = DisposablePgTarget.fromNamedEnvironment(
+  DisposablePgTarget.fromNamedEnvironment(
     envVarName: 'TENTURA_U04_UPGRADE_TEST_DB',
     defaultNamePrefix: 'tentura_test_u04_upgrade',
   );
@@ -471,27 +469,3 @@ INSERT INTO public.notification_outbox (
 )
 ''');
 
-List<Map<String, dynamic>> _notificationUpdates(
-  List<Map<String, dynamic>> notifications,
-) => notifications
-    .where(
-      (message) =>
-          message['entity'] == 'notification' && message['event'] == 'update',
-    )
-    .toList();
-
-Future<void> _waitUntil(
-  bool Function() condition, {
-  Duration timeout = const Duration(seconds: 3),
-}) async {
-  final deadline = DateTime.timestamp().add(timeout);
-  while (!condition()) {
-    if (DateTime.timestamp().isAfter(deadline)) {
-      fail('Condition was not met within $timeout');
-    }
-    await Future<void>.delayed(const Duration(milliseconds: 5));
-  }
-}
-
-Future<void> _settle() =>
-    Future<void>.delayed(const Duration(milliseconds: 100));

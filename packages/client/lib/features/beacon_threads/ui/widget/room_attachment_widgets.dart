@@ -10,9 +10,6 @@ import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
-/// Default inline album height for [WindowClass.regular] (layout estimates).
-const double kRoomMessageInlineImageAlbumHeight = 220;
-
 /// Inline PageView height for multi-image room messages, keyed to window class.
 double roomMessageInlineImageAlbumHeight(BuildContext context) =>
     switch (context.windowClass) {

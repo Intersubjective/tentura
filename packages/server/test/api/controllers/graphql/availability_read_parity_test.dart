@@ -10,7 +10,6 @@ import 'package:test/test.dart';
 import 'package:tentura_server/api/controllers/graphql/mappers/gql_public_user_maps.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
-import 'package:tentura_server/data/mapper/user_availability_mapper.dart';
 import 'package:tentura_server/data/repository/user_availability_repository.dart';
 
 import '../../../support/disposable_pg_target.dart';

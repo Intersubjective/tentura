@@ -1,15 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/domain/capability/forward_band_row.dart';
 import 'package:tentura/domain/capability/projection_tier.dart';
 import 'package:tentura/domain/contacts/contact_name_store.dart';
@@ -745,8 +742,6 @@ void main() {
   });
 
   group('ForwardCase band exclusion', () {
-    late ContactNameStore store;
-
     tearDown(() async {
       if (GetIt.I.isRegistered<ContactNameStore>()) {
         await GetIt.I.unregister<ContactNameStore>();
@@ -793,7 +788,6 @@ void main() {
         band: band,
         candidates: candidates,
       );
-      store = harness.store;
 
       final load = await harness.forwardCase.loadForwardCandidates(
         beaconId: 'beacon-1',

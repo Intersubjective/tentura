@@ -12,7 +12,6 @@ class ConstellationNavbarItem extends StatelessWidget {
   const ConstellationNavbarItem({super.key, this.selected = false});
 
   /// API parity with sibling navbar items; unused — one glyph only.
-  // ignore: unused_field
   final bool selected;
 
   @override

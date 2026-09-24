@@ -6,8 +6,8 @@ import 'package:tentura/features/graph/domain/layout/radial_hop_positions.dart';
 
 import 'constellation_anchor_composition.dart';
 import 'constellation_consts.dart';
-import 'constellation_path_resolution.dart';
-import 'entity/constellation_anchor.dart';
+import 'package:tentura_root/domain/constellation/constellation_path_resolution.dart';
+import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
 typedef ConstellationPoint = ({double x, double y});
 typedef ConstellationSize = ({double width, double height});

@@ -7,9 +7,7 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/features/auth/domain/port/auth_local_repository_port.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
-import 'package:tentura/features/beacon/domain/enum.dart';
 import 'package:tentura/features/beacon/ui/bloc/beacon_cubit.dart';
-import 'package:tentura/ui/effect/ui_effect_port.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
 

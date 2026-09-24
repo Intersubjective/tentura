@@ -1,4 +1,3 @@
-import 'package:drift/drift.dart' hide Column;
 import 'package:postgres/postgres.dart' show Type, TypedValue;
 import 'package:injectable/injectable.dart';
 

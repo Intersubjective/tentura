@@ -5,19 +5,14 @@ import 'package:logging/logging.dart';
 
 import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
-import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
-import 'package:tentura/domain/attention/port/attention_account_port.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 
 import '../../features/block/support/controllable_block_case.dart';
 import '../../support/test_realtime_sync.dart';
 import 'attention_case_test_support.dart';
-
-const _surfaceSummaryZero = AttentionSurfaceSummary(
-);
 
 /// A distinguishable §6 surface summary.
 ///

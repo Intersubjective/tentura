@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/app/router/root_router.dart';
-import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
 import 'package:tentura/features/beacon/ui/util/beacon_delete_ui.dart';
@@ -15,7 +14,6 @@ import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_room_body.dart'
     show showBeaconRoomUpdatePlanSheet;
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_room_poll_sheet.dart';
-import 'package:tentura/features/beacon_view/ui/widget/coordination_target_candidates.dart';
 import 'package:tentura/features/beacon_view/ui/presenter/beacon_hud_author_action.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/help_offer_message_dialog.dart';
@@ -25,11 +23,9 @@ import 'package:tentura/features/beacon_view/ui/widget/beacon_view_forward_overf
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/features/inbox/ui/widget/rejection_dialog.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
-import 'package:tentura/ui/presenter/beacon_phase_presenter.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import 'beacon_hud_author_confirm_sheets.dart';
-import 'beacon_view_status_bottom_sheet.dart';
 import 'package:tentura/features/beacon/ui/sheet/beacon_close_confirm_sheet.dart'
     show showBeaconCloseConfirmSheet;
 
@@ -100,42 +96,6 @@ bool hideOfferHelpWithdrawFromOverflow(BeaconViewState state) {
     return true;
   }
   return false;
-}
-
-bool _authorLifecycleToggleEnabled(BeaconViewState state) {
-  final b = state.beacon;
-  if (b.status == BeaconStatus.open && b.isListed) {
-    return state.closureActionPriority != ClosureActionPriority.hidden;
-  }
-  return true;
-}
-
-BeaconPhaseStatusPresentation beaconViewRoomAppBarPhaseStatus(
-  L10n l10n, {
-  required int memberCount,
-}) {
-  if (memberCount <= 0) {
-    return const BeaconPhaseStatusPresentation(
-      slot1: '',
-      slot1Tone: TenturaTone.neutral,
-    );
-  }
-  return BeaconPhaseStatusPresentation(
-    slot1: l10n.beaconRoomMemberCount(memberCount),
-    slot1Tone: TenturaTone.neutral,
-  );
-}
-
-String beaconViewRoomAppBarTooltip(BeaconViewState state, L10n l10n) {
-  if (state.canNavigateBeaconRoom) {
-    return l10n.beaconRoomOpen;
-  }
-  if (state.isRoomAdmissionBlocked) {
-    return state.coordinationDeniesRoomAdmission
-        ? l10n.beaconRoomNoAdmission
-        : l10n.beaconRoomWaitingForApproval;
-  }
-  return l10n.beaconViewRoomAccessUnavailableBanner;
 }
 
 Future<void> beaconViewRunAuthorCloseSheet({
@@ -259,17 +219,6 @@ bool beaconViewShowsRequestStatusOverflow(BeaconViewState state) {
   return lifecycle == BeaconStatus.draft ||
       lifecycle.isOpenFamily ||
       lifecycle == BeaconStatus.reviewOpen;
-}
-
-bool canShowCreatePromise(BeaconViewState state) {
-  final b = state.beacon;
-  if (b.status != BeaconStatus.open) return false;
-  if (!state.isAuthorOrSteward && !state.hasRoomAdmission) return false;
-  return hasPublishedPromiseTargets(
-    participants: state.roomParticipants,
-    myUserId: state.myProfile.id,
-    isAuthorOrSteward: state.isAuthorOrSteward,
-  );
 }
 
 VoidCallback? beaconViewRoomCreatePromiseAction({

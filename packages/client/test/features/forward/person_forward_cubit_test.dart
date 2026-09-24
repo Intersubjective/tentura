@@ -428,7 +428,6 @@ void main() {
     });
 
     test('paused person disables canSend without changing row blocks', () async {
-      final todayUtc = DateTime.utc(2026, 8, 14);
       final harness = await _buildHarness(
         person: Profile(
           id: 'U-target',

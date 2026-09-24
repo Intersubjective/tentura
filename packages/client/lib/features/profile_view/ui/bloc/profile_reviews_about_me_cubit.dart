@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';

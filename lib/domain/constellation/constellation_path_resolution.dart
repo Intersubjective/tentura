@@ -21,6 +21,7 @@ ConstellationPathResolution resolveConstellationPaths({
 }) {
   final allowed = {egoId, ...visiblePeerIds};
 
+  // [ALG-DEDUP] — tier 1 wins when both tiers share the same ordered pair.
   final deduped = <String, ConstellationEdgeRef>{};
   for (final edge in edges) {
     if (!allowed.contains(edge.src) || !allowed.contains(edge.dst)) {
@@ -43,6 +44,7 @@ ConstellationPathResolution resolveConstellationPaths({
     }
   }
 
+  // [ALG-STAGE1] — tier-1 BFS within the hop cap.
   final depth1 = <String, int>{egoId: 0};
   final tier1Adj = _buildAdjacency(tier1Edges);
   final queue = <String>[egoId];
@@ -93,6 +95,7 @@ ConstellationPathResolution resolveConstellationPaths({
     parentTier[peer] = 1;
   }
 
+  // [ALG-STAGE2] — layered d2[p][h] table over both tiers.
   final nodes = {...allowed};
   final d2 = <String, List<int>>{};
   for (final node in nodes) {
@@ -145,6 +148,7 @@ ConstellationPathResolution resolveConstellationPaths({
     depth[peer] = bestH;
     derived[peer] = d2[peer]![bestH];
 
+    // [ALG-PARENT] — guarded (tier, id) predecessor at depth(p) - 1.
     final targetDepth = bestH;
     final targetDerived = derived[peer]!;
     String? bestParent;
@@ -191,6 +195,7 @@ ConstellationPathResolution resolveConstellationPaths({
 
   final reached = depth.keys.toSet();
 
+  // [ALG-PRUNE] — reached holders vs Steiner keep set.
   final attributed = holderIds.intersection(reached).difference({egoId});
   final keep = <String>{...attributed};
   for (final holder in attributed) {
@@ -205,6 +210,7 @@ ConstellationPathResolution resolveConstellationPaths({
     }
   }
 
+  // [ALG-EGO] — residual ring excludes ego.
   final ring = holderIds.difference(reached).difference({egoId});
 
   return (

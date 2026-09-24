@@ -1,6 +1,6 @@
 import 'package:meta/meta.dart';
 
-import '../constellation_consts.dart';
+import 'constellation_geometry.dart';
 
 /// Wire / GraphQL target kind for constellation anchors (C1).
 enum ConstellationAnchorTargetKind {

@@ -21,8 +21,3 @@ Map<String, dynamic> beaconDisplayStatusToGqlMap(BeaconDisplayStatus dto) => {
   'canDelete': dto.canDelete,
   'everAcknowledgedCommitterCount': dto.everAcknowledgedCommitterCount,
 };
-
-/// Legacy alias for mutation map name.
-Map<String, dynamic> coordinationStatusResultToGqlMap(
-  BeaconStatusResult dto,
-) => beaconStatusResultToGqlMap(dto);

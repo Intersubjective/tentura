@@ -5,7 +5,6 @@ import 'package:get_it/get_it.dart';
 import 'package:tentura/domain/attention/attention_actor_ids.dart';
 import 'package:tentura/domain/attention/attention_actor_profiles_case.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
-import 'package:tentura/domain/attention/entity/activity_offer_beacon_meta.dart';
 import 'package:tentura/domain/attention/entity/activity_offer_sort_row.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/entity/profile.dart';

@@ -6,7 +6,6 @@ import 'package:tentura/domain/util/availability_presets.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 
-import '../../domain/entity/forward_delivery_result.dart';
 import '../../domain/entity/forward_inbound_source.dart';
 import '../../domain/forward_draft_policy.dart';
 import '../../domain/use_case/forward_case.dart';

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:graphql_schema2/graphql_schema2.dart';
 import 'package:injectable/injectable.dart' show Environment;

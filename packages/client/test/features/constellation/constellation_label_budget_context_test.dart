@@ -1,8 +1,7 @@
 import 'dart:ui' show Size;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tentura/features/constellation/domain/entity/constellation_anchor.dart';
-import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
+import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
 import 'fixtures/constellation_reference_fixture.dart';
 

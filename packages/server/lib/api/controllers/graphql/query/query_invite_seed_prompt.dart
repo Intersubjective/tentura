@@ -1,4 +1,3 @@
-import 'package:tentura_server/domain/capability/capability_evidence_models.dart';
 import 'package:tentura_server/domain/use_case/invite_seed_attestation_case.dart';
 
 import '../custom_types.dart';

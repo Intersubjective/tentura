@@ -2,9 +2,7 @@
 library;
 
 import 'dart:async';
-import 'dart:io';
 
-import 'package:injectable/injectable.dart' show Environment;
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
@@ -15,7 +13,6 @@ import 'package:tentura_server/data/repository/capability_cell_repository.dart';
 import 'package:tentura_server/data/repository/witness_window_repository.dart';
 import 'package:tentura_server/domain/capability/capability_evidence_models.dart';
 import 'package:tentura_server/domain/use_case/capability_cell_expiry_sweep_case.dart';
-import 'package:tentura_server/env.dart';
 import 'package:logging/logging.dart';
 
 import '../../support/disposable_pg_target.dart';

@@ -8,8 +8,6 @@ import 'package:tentura/features/evaluation/domain/entity/review_window_info.dar
 import 'package:tentura/features/evaluation/domain/use_case/evaluation_case.dart';
 import 'package:tentura/features/evaluation/ui/bloc/evaluation_cubit.dart';
 import 'package:tentura/features/evaluation/ui/widget/review_open_clear_listener.dart';
-import 'package:tentura/ui/bloc/state_base.dart';
-import 'package:tentura/ui/effect/ui_effect.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'evaluation_case_test.dart' show FakeEvaluationRepository;

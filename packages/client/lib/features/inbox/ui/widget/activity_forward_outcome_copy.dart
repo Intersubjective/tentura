@@ -17,10 +17,3 @@ String? activityForwardOutcomeLabel(
     null => null,
   };
 }
-
-String activityForwardRowHeadline(AttentionReceipt receipt, L10n l10n) {
-  final title = receipt.title;
-  final sender = receipt.body.trim();
-  if (sender.isEmpty) return title;
-  return '$title — ${l10n.inboxFromForwarder(sender)}';
-}

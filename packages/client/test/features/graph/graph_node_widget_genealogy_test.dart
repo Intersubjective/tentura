@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -36,17 +35,9 @@ class _BadgeTestGraphCubit extends Cubit<GraphState> implements GraphCubit {
 
 /// Mirrors [GraphBody]'s call-site wiring for hidden-neighbour counts.
 class _GraphNodeWithHiddenCount extends StatelessWidget {
-  const _GraphNodeWithHiddenCount({
-    required this.nodeDetails,
-    this.withRating = false,
-    this.isSelf = false,
-    this.isFocused = false,
-  });
+  const _GraphNodeWithHiddenCount({required this.nodeDetails});
 
   final NodeDetails nodeDetails;
-  final bool withRating;
-  final bool isSelf;
-  final bool isFocused;
 
   @override
   Widget build(BuildContext context) {
@@ -55,9 +46,6 @@ class _GraphNodeWithHiddenCount extends StatelessWidget {
     );
     return GraphNodeWidget(
       nodeDetails: nodeDetails,
-      withRating: withRating,
-      isSelf: isSelf,
-      isFocused: isFocused,
       hiddenNeighborCount: count,
     );
   }

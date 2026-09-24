@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/features/home/ui/sheet/how_tentura_works_sheet.dart';
 import 'package:tentura/features/home/ui/widget/how_tentura_works_content.dart';
 import 'package:tentura/ui/l10n/l10n.dart';

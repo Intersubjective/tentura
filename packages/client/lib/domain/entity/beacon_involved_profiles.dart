@@ -16,17 +16,6 @@ List<Profile> orderBeaconInvolvedProfiles(
   return ordered;
 }
 
-/// Circular `+N` overflow when total involved exceeds [visibleCount].
-int beaconInvolvedOverflow({
-  required int helpOfferCount,
-  required int visibleCount,
-  int maxVisible = kBeaconInvolvedPeopleMaxVisible,
-}) {
-  final total = helpOfferCount + 1;
-  if (total <= maxVisible) return 0;
-  return total - visibleCount;
-}
-
 int _overflowFromTotal({
   required int totalCount,
   required int visibleCount,

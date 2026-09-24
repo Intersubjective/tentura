@@ -231,7 +231,6 @@ Future<void> _waitReady(ForwardCubit cubit) async {
 }
 
 void main() {
-  final todayUtc = DateTime.utc(2026, 8, 14);
   final pausedUntil = DateTime.utc(2026, 8, 20);
   DateTime clockNow = DateTime.utc(2026, 8, 14, 12);
 

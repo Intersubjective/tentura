@@ -75,29 +75,3 @@ String personForwardPausedBanner(
       name,
       availabilityWhenLabel(l10n, resumeOn, todayUtc),
     );
-
-/// Partial forward delivery when exactly one person was skipped for availability.
-String availabilityDeliveredPartialLine(
-  L10n l10n, {
-  required int deliveredCount,
-  required int requestedCount,
-  required String skippedName,
-}) =>
-    l10n.availabilityDeliveredPartial(
-      deliveredCount,
-      requestedCount,
-      skippedName,
-    );
-
-/// Partial forward delivery when two or more people were skipped for availability.
-String availabilityDeliveredPartialManyLine(
-  L10n l10n, {
-  required int deliveredCount,
-  required int requestedCount,
-  required int skippedCount,
-}) =>
-    l10n.availabilityDeliveredPartialMany(
-      deliveredCount,
-      requestedCount,
-      skippedCount,
-    );

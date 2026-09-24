@@ -40,16 +40,3 @@ extension BeaconViewEntrySourceWire on BeaconViewEntrySource {
     }
   }
 }
-
-/// If [isDeepLink] is truthy, ignore spoofed `entry` query (external URLs).
-BeaconViewEntrySource normalizeBeaconViewEntry({
-  required String? isDeepLink,
-  required BeaconViewEntrySource rawFromQuery,
-}) {
-  final dl = isDeepLink?.trim().toLowerCase();
-  final deep = dl == '1' ||
-      dl == 'true' ||
-      dl == 'yes';
-  if (deep) return BeaconViewEntrySource.deepLink;
-  return rawFromQuery;
-}
