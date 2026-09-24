@@ -457,6 +457,145 @@ void main() {
       expect(payload['message_id'], 'Rpaint0004');
       expect(payload.containsKey('message'), isFalse);
     });
+
+    group('room_seen_peer fan-out extras', () {
+      const beaconId = 'Bseenpeer0001';
+      const seenUserId = 'Ugggggggggggg';
+      const lastSeenAt = '2026-06-15T12:00:00.000Z';
+
+      Map<String, dynamic> roomSeenPeerNotification({
+        String? lastSeenAtValue = lastSeenAt,
+        bool includeLastSeenAt = true,
+        bool includeSeenUserId = true,
+        List<String> userIds = const [_affectedId],
+      }) {
+        return {
+          'entity': 'room_seen_peer',
+          'id': beaconId,
+          'event': 'update',
+          'actor_user_id': _actorId,
+          'user_ids': userIds,
+          if (includeSeenUserId) 'seen_user_id': seenUserId,
+          if (includeLastSeenAt) 'last_seen_at': lastSeenAtValue,
+        };
+      }
+
+      test('forwards seen_user_id and last_seen_at extras', () async {
+        final dependencies = _Dependencies();
+        final handler = _EntityChangeHarness(Env(), dependencies);
+        final session = _RecordingSession();
+        await dependencies.authenticate(handler, session, _affectedId);
+        session.sent.clear();
+
+        await handler.fanOutEntityChange(roomSeenPeerNotification());
+
+        expect(session.sent, hasLength(1));
+        final payload =
+            (jsonDecode(session.sent.single! as String) as Map)['payload']
+                as Map;
+        expect(payload['seen_user_id'], seenUserId);
+        expect(payload['last_seen_at'], lastSeenAt);
+      });
+
+      test('drops frame and logs when last_seen_at is missing', () async {
+        final records = <LogRecord>[];
+        Logger('EntityChangeHarness').onRecord.listen(records.add);
+        final dependencies = _Dependencies();
+        final handler = _EntityChangeHarness(Env(), dependencies);
+        final session = _RecordingSession();
+        await dependencies.authenticate(handler, session, _affectedId);
+        session.sent.clear();
+
+        await handler.fanOutEntityChange(
+          roomSeenPeerNotification(includeLastSeenAt: false),
+        );
+
+        expect(session.sent, isEmpty);
+        expect(
+          records.where(
+            (record) =>
+                record.message.contains('realtime_event=malformed_payload') &&
+                record.message.contains('reason=room_seen_peer'),
+          ),
+          hasLength(1),
+        );
+      });
+
+      test('drops frame and logs when last_seen_at is unparsable', () async {
+        final records = <LogRecord>[];
+        Logger('EntityChangeHarness').onRecord.listen(records.add);
+        final dependencies = _Dependencies();
+        final handler = _EntityChangeHarness(Env(), dependencies);
+        final session = _RecordingSession();
+        await dependencies.authenticate(handler, session, _affectedId);
+        session.sent.clear();
+
+        await handler.fanOutEntityChange(
+          roomSeenPeerNotification(lastSeenAtValue: 'not-a-timestamp'),
+        );
+
+        expect(session.sent, isEmpty);
+        expect(
+          records.where(
+            (record) =>
+                record.message.contains('realtime_event=malformed_payload') &&
+                record.message.contains('reason=room_seen_peer'),
+          ),
+          hasLength(1),
+        );
+      });
+
+      test(
+        'skips actor echo when disabled but delivers extras to peer recipient',
+        () async {
+          final dependencies = _Dependencies();
+          final handler = _EntityChangeHarness(
+            Env(realtimeActorEchoEnabled: false),
+            dependencies,
+          );
+          final actor = _RecordingSession();
+          final peer = _RecordingSession();
+          await dependencies.authenticate(handler, actor, _actorId);
+          await dependencies.authenticate(handler, peer, _affectedId);
+          actor.sent.clear();
+          peer.sent.clear();
+
+          await handler.fanOutEntityChange(
+            roomSeenPeerNotification(userIds: [_actorId, _affectedId]),
+          );
+
+          expect(actor.sent, isEmpty);
+          expect(peer.sent, hasLength(1));
+          final payload =
+              (jsonDecode(peer.sent.single! as String) as Map)['payload'] as Map;
+          expect(payload['seen_user_id'], seenUserId);
+          expect(payload['last_seen_at'], lastSeenAt);
+        },
+      );
+
+      test('room_message does not forward seen_user_id extra', () async {
+        final dependencies = _Dependencies();
+        final handler = _EntityChangeHarness(Env(), dependencies);
+        final session = _RecordingSession();
+        await dependencies.authenticate(handler, session, _affectedId);
+        session.sent.clear();
+
+        await handler.fanOutEntityChange({
+          'entity': 'room_message',
+          'id': 'Bpaint0005',
+          'event': 'update',
+          'message_id': 'Rpaint0005',
+          'seen_user_id': seenUserId,
+          'user_ids': [_affectedId],
+        });
+
+        expect(session.sent, hasLength(1));
+        final payload =
+            (jsonDecode(session.sent.single! as String) as Map)['payload']
+                as Map;
+        expect(payload.containsKey('seen_user_id'), isFalse);
+      });
+    });
   });
 }
 

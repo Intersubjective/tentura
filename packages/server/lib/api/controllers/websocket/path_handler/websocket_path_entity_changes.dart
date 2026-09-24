@@ -6,6 +6,10 @@ import 'package:tentura_server/domain/entity/room_message_snapshot.dart';
 
 /// Fans out validated Postgres invalidation hints to isolate-local sessions.
 base mixin WebsocketPathEntityChanges on WebsocketSessionHandlerBase {
+  static const _forwardedExtrasByKind = <String, Set<String>>{
+    'room_seen_peer': {'seen_user_id', 'last_seen_at'},
+  };
+
   Future<void> fanOutEntityChange(Map<String, dynamic> data) async {
     final userIds = data['user_ids'];
     final entity = data['entity'];
@@ -25,6 +29,21 @@ base mixin WebsocketPathEntityChanges on WebsocketSessionHandlerBase {
         '[RealtimeFanout] realtime_event=malformed_payload reason=envelope',
       );
       return;
+    }
+
+    final forwardedExtras = _forwardedExtrasByKind[entity];
+    if (forwardedExtras != null) {
+      final seenUserId = data['seen_user_id'];
+      final lastSeenAt = data['last_seen_at'];
+      if (seenUserId is! String ||
+          seenUserId.isEmpty ||
+          lastSeenAt is! String ||
+          DateTime.tryParse(lastSeenAt) == null) {
+        logger.warning(
+          '[RealtimeFanout] realtime_event=malformed_payload reason=room_seen_peer',
+        );
+        return;
+      }
     }
 
     final childId = rawMessageId is String && rawMessageId.isNotEmpty
@@ -74,6 +93,11 @@ base mixin WebsocketPathEntityChanges on WebsocketSessionHandlerBase {
     }
     if (snapshot != null) {
       payload['message'] = _serializePaint(snapshot);
+    }
+    if (forwardedExtras != null) {
+      for (final key in forwardedExtras) {
+        payload[key] = data[key];
+      }
     }
 
     final message = jsonEncode({
