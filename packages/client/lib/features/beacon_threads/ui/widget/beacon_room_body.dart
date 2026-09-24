@@ -10,11 +10,13 @@ import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_read_watermark.dart';
+import 'package:tentura/design_system/components/tentura_avatar_stack.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/basic_chat_body.dart';
+import 'package:tentura/ui/widget/coordination_participant_lookup.dart';
 
 import 'package:tentura/ui/bloc/state_base.dart';
 
@@ -30,6 +32,7 @@ import '../bloc/room_cubit.dart';
 import '../coordination_room_navigation.dart';
 import 'fact_actions_sheet.dart';
 import 'room_file_attachment_open.dart';
+import 'room_readers_sheet.dart';
 
 /// Body-only room UI (message list + composer); expects [RoomCubit] above.
 class BeaconRoomBody extends StatefulWidget {
@@ -337,6 +340,126 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     await _showPinFactChoices(context, cubit, l10n, message, text);
   }
 
+  RoomReceiptIndex _receiptIndexFor(RoomState state) => RoomReceiptIndex(
+        myUserId: state.myUserId,
+        watermarks: {
+          for (final e in state.readWatermarks.entries)
+            e.key: e.value.lastSeenAt,
+        },
+        pendingLocalIds: const {},
+      );
+
+  String _readBySubtitle(
+    L10n l10n,
+    List<BeaconParticipant> participants,
+    List<String> readerIds,
+    Profile viewer,
+  ) {
+    const maxNames = 3;
+    final names = readerIds
+        .take(maxNames)
+        .map(
+          (id) => participantDisplayLabel(
+            participants,
+            id,
+            l10n.unknownPerson,
+            viewerProfile: viewer,
+          ),
+        )
+        .toList(growable: false);
+    final joined = names.join(', ');
+    final extra = readerIds.length - maxNames;
+    if (extra > 0) {
+      return '$joined, ${l10n.beaconRoomReadByMore(extra)}';
+    }
+    return joined;
+  }
+
+  List<Widget> _messageActionsReadByRows({
+    required BuildContext sheetContext,
+    required BuildContext hostContext,
+    required RoomCubit cubit,
+    required L10n l10n,
+    required Profile viewer,
+    required RoomMessage message,
+  }) {
+    final receipt =
+        _receiptIndexFor(cubit.state).receiptFor(message);
+    if (receipt == null ||
+        receipt.state == RoomMessageReceiptState.pending) {
+      return const [];
+    }
+
+    final theme = Theme.of(sheetContext);
+    final tt = sheetContext.tt;
+    final participants = cubit.state.participants;
+    final receiptIndex = _receiptIndexFor(cubit.state);
+
+    if (receipt.state == RoomMessageReceiptState.sent) {
+      return [
+        ListTile(
+          title: Text(l10n.beaconRoomReadByTitle),
+          subtitle: Text(
+            l10n.beaconRoomReadByNobodyYet,
+            style: theme.textTheme.bodyMedium?.copyWith(color: tt.textMuted),
+          ),
+        ),
+      ];
+    }
+
+    final readerIds = receipt.readerIds;
+    final stackProfiles = readerIds
+        .take(3)
+        .map(
+          (id) => profileForParticipant(
+            participants,
+            id,
+            viewerProfile: viewer,
+          ),
+        )
+        .toList(growable: false);
+
+    return [
+      ListTile(
+        leading: Icon(Icons.done_all, color: tt.info),
+        title: Text(l10n.beaconRoomReadByTitle),
+        subtitle: Text(
+          _readBySubtitle(l10n, participants, readerIds, viewer),
+        ),
+        trailing: TenturaAvatarStack(profiles: stackProfiles),
+        onTap: () {
+          final readers = readerIds
+              .map((id) {
+                final readAt = receiptIndex.readerLastSeenAt(
+                  id,
+                  message.createdAt,
+                );
+                if (readAt == null) {
+                  return null;
+                }
+                return RoomReaderEntry(
+                  profile: profileForParticipant(
+                    participants,
+                    id,
+                    viewerProfile: viewer,
+                  ),
+                  readAt: readAt,
+                );
+              })
+              .whereType<RoomReaderEntry>()
+              .toList(growable: false);
+          Navigator.pop(sheetContext);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!hostContext.mounted) {
+              return;
+            }
+            unawaited(showRoomReadersSheet(hostContext, readers: readers));
+          });
+        },
+      ),
+    ];
+  }
+
   static Set<String> _viewerReactionEmojis(RoomMessage m) {
     final raw = m.myReaction;
     if (raw == null || raw.trim().isEmpty) return {};
@@ -459,6 +582,15 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                                 ),
                             ],
                           ),
+                        ),
+                      if (isOwnMessage)
+                        ..._messageActionsReadByRows(
+                          sheetContext: ctx,
+                          hostContext: context,
+                          cubit: cubit,
+                          l10n: l10n,
+                          viewer: viewer,
+                          message: message,
                         ),
                       if (canWrite && RoomCubit.canReplyTo(message))
                         ListTile(

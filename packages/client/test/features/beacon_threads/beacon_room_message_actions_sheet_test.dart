@@ -7,8 +7,12 @@ import 'package:tentura_root/domain/enums.dart';
 import 'package:tentura/data/repository/clipboard_image_repository.dart';
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/entity/beacon_participant.dart';
+import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
+import 'package:tentura/domain/entity/room_read_watermark.dart';
+import 'package:tentura/design_system/components/tentura_avatar_stack.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_room_body.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_text_body.dart';
@@ -67,6 +71,32 @@ void main() {
   const viewer = Profile(id: 'me', displayName: 'Me');
   const author = Profile(id: 'other', displayName: 'Alex');
 
+  final messageCreatedAt = DateTime.utc(2026, 6, 30, 12);
+
+  BeaconParticipant roomParticipant({
+    required String userId,
+    required String displayName,
+  }) =>
+      BeaconParticipant(
+        id: 'p-$userId',
+        beaconId: 'b1',
+        userId: userId,
+        role: BeaconParticipantRoleBits.helper,
+        status: 0,
+        roomAccess: RoomAccessBits.admitted,
+        createdAt: DateTime.utc(2026),
+        updatedAt: DateTime.utc(2026),
+        userTitle: displayName,
+      );
+
+  RoomReadWatermark readWatermark(String userId, DateTime lastSeenAt) =>
+      RoomReadWatermark(userId: userId, lastSeenAt: lastSeenAt);
+
+  Finder avatarStackInMessageActionsSheet() => find.descendant(
+        of: find.byType(BottomSheet),
+        matching: find.byType(TenturaAvatarStack),
+      );
+
   setUp(() async {
     await getIt.reset();
   });
@@ -79,6 +109,10 @@ void main() {
     WidgetTester tester, {
     required double width,
     List<RoomMessage>? messages,
+    Map<String, RoomReadWatermark> readWatermarks = const {},
+    bool readWatermarksLoaded = false,
+    List<BeaconParticipant> participants = const [],
+    bool participantsLoaded = false,
   }) async {
     final profileCubit = _MockProfileCubit(viewer);
     final presenceCubit = _MockPresenceCubit();
@@ -86,6 +120,10 @@ void main() {
       beaconId: 'b1',
       myUserId: viewer.id,
       beaconStatus: BeaconStatus.open,
+      readWatermarks: readWatermarks,
+      readWatermarksLoaded: readWatermarksLoaded,
+      participants: participants,
+      participantsLoaded: participantsLoaded,
       messages:
           messages ??
           [
@@ -95,7 +133,7 @@ void main() {
               authorId: author.id,
               author: author,
               body: 'Hello room',
-              createdAt: DateTime.utc(2026, 6, 30, 12),
+              createdAt: messageCreatedAt,
             ),
           ],
     );
@@ -249,4 +287,179 @@ void main() {
       expect(roomCubit.lastUpdatePlanLine, 'Hello room');
     },
   );
+
+  group('message actions Read by row', () {
+    const ownBody = 'Own message for read-by actions';
+
+    RoomMessage ownMessage({String id = 'own-read-actions'}) => RoomMessage(
+          id: id,
+          beaconId: 'b1',
+          authorId: viewer.id,
+          author: viewer,
+          body: ownBody,
+          createdAt: messageCreatedAt,
+        );
+
+    Future<void> openMessageActions(WidgetTester tester) async {
+      await longPressMessageBody(tester, find.byType(RoomMessageTextBody));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets(
+      'own read message with four readers shows Read by row, three names, +1, avatars',
+      (tester) async {
+        final l10n = lookupL10n(const Locale('en'));
+        const r1 = 'reader-1';
+        const r2 = 'reader-2';
+        const r3 = 'reader-3';
+        const r4 = 'reader-4';
+        final participants = [
+          roomParticipant(userId: r1, displayName: 'Reader One'),
+          roomParticipant(userId: r2, displayName: 'Reader Two'),
+          roomParticipant(userId: r3, displayName: 'Reader Three'),
+          roomParticipant(userId: r4, displayName: 'Reader Four'),
+        ];
+        final watermarks = {
+          r1: readWatermark(r1, messageCreatedAt),
+          r2: readWatermark(r2, messageCreatedAt.add(const Duration(minutes: 1))),
+          r3: readWatermark(r3, messageCreatedAt.add(const Duration(minutes: 2))),
+          r4: readWatermark(r4, messageCreatedAt.add(const Duration(minutes: 3))),
+        };
+
+        await pumpRoom(
+          tester,
+          width: 700,
+          messages: [ownMessage()],
+          readWatermarks: watermarks,
+          readWatermarksLoaded: true,
+          participants: participants,
+          participantsLoaded: true,
+        );
+
+        await openMessageActions(tester);
+
+        expect(find.text(l10n.beaconRoomReadByTitle), findsOneWidget);
+        expect(
+          find.text(
+            'Reader Four, Reader Three, Reader Two, ${l10n.beaconRoomReadByMore(1)}',
+          ),
+          findsOneWidget,
+        );
+        expect(avatarStackInMessageActionsSheet(), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'own sent message with no readers shows nobody-yet copy and no avatar stack',
+      (tester) async {
+        final l10n = lookupL10n(const Locale('en'));
+
+        await pumpRoom(
+          tester,
+          width: 700,
+          messages: [ownMessage()],
+          readWatermarks: {
+            viewer.id: readWatermark(viewer.id, messageCreatedAt),
+          },
+          readWatermarksLoaded: true,
+        );
+
+        await openMessageActions(tester);
+
+        expect(find.text(l10n.beaconRoomReadByTitle), findsOneWidget);
+        expect(find.text(l10n.beaconRoomReadByNobodyYet), findsOneWidget);
+        expect(avatarStackInMessageActionsSheet(), findsNothing);
+      },
+    );
+
+    testWidgets('own pending message omits Read by row', (tester) async {
+      final l10n = lookupL10n(const Locale('en'));
+
+      await pumpRoom(
+        tester,
+        width: 700,
+        messages: [ownMessage(id: 'local:pending-read-by')],
+        readWatermarks: {
+          author.id: readWatermark(author.id, messageCreatedAt),
+        },
+        readWatermarksLoaded: true,
+      );
+
+      await openMessageActions(tester);
+
+      expect(find.text(l10n.beaconRoomReadByTitle), findsNothing);
+      expect(find.text(l10n.beaconRoomReadByNobodyYet), findsNothing);
+    });
+
+    testWidgets('peer message omits Read by row', (tester) async {
+      final l10n = lookupL10n(const Locale('en'));
+
+      await pumpRoom(
+        tester,
+        width: 700,
+        messages: [
+          RoomMessage(
+            id: 'peer-msg',
+            beaconId: 'b1',
+            authorId: author.id,
+            author: author,
+            body: 'Peer body',
+            createdAt: messageCreatedAt,
+          ),
+        ],
+        readWatermarks: {
+          viewer.id: readWatermark(viewer.id, messageCreatedAt),
+        },
+        readWatermarksLoaded: true,
+      );
+
+      await longPressMessageBody(tester, find.byType(RoomMessageTextBody));
+      await tester.pumpAndSettle();
+
+      expect(find.text(l10n.beaconRoomReadByTitle), findsNothing);
+    });
+
+    testWidgets(
+      'tapping Read by row opens reader sheet listing all four readers',
+      (tester) async {
+        final l10n = lookupL10n(const Locale('en'));
+        const r1 = 'reader-1';
+        const r2 = 'reader-2';
+        const r3 = 'reader-3';
+        const r4 = 'reader-4';
+        final participants = [
+          roomParticipant(userId: r1, displayName: 'Reader One'),
+          roomParticipant(userId: r2, displayName: 'Reader Two'),
+          roomParticipant(userId: r3, displayName: 'Reader Three'),
+          roomParticipant(userId: r4, displayName: 'Reader Four'),
+        ];
+        final watermarks = {
+          r1: readWatermark(r1, messageCreatedAt),
+          r2: readWatermark(r2, messageCreatedAt.add(const Duration(minutes: 1))),
+          r3: readWatermark(r3, messageCreatedAt.add(const Duration(minutes: 2))),
+          r4: readWatermark(r4, messageCreatedAt.add(const Duration(minutes: 3))),
+        };
+
+        await pumpRoom(
+          tester,
+          width: 700,
+          messages: [ownMessage()],
+          readWatermarks: watermarks,
+          readWatermarksLoaded: true,
+          participants: participants,
+          participantsLoaded: true,
+        );
+
+        await openMessageActions(tester);
+
+        await tester.tap(find.text(l10n.beaconRoomReadByTitle));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Reader One'), findsOneWidget);
+        expect(find.text('Reader Two'), findsOneWidget);
+        expect(find.text('Reader Three'), findsOneWidget);
+        expect(find.text('Reader Four'), findsOneWidget);
+      },
+    );
+  });
 }

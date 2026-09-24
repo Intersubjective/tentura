@@ -59,4 +59,13 @@ final class RoomReceiptIndex {
       readerIds: sortedReaderIds,
     );
   }
+
+  /// Last-seen time for [userId] if it covers [messageCreatedAt], else null.
+  DateTime? readerLastSeenAt(String userId, DateTime messageCreatedAt) {
+    final lastSeenAt = watermarks[userId];
+    if (lastSeenAt == null || lastSeenAt.isBefore(messageCreatedAt)) {
+      return null;
+    }
+    return lastSeenAt;
+  }
 }
