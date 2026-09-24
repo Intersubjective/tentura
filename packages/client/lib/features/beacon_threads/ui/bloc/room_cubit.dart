@@ -211,6 +211,14 @@ class RoomCubit extends Cubit<RoomState> {
       return;
     }
 
+    if (invalidation.entityType == BeaconRoomEntityType.roomSeenPeer) {
+      final seenPeer = invalidation.seenPeer;
+      if (seenPeer != null) {
+        _applyPeerWatermark(seenPeer.userId, seenPeer.lastSeenAt);
+      }
+      return;
+    }
+
     final scope = switch (invalidation.entityType) {
       BeaconRoomEntityType.roomMessage ||
       BeaconRoomEntityType.roomReaction ||
@@ -835,6 +843,21 @@ class RoomCubit extends Cubit<RoomState> {
         _showSnackError(e);
       }
     }
+  }
+
+  /// Presence-only patch: writes max(existing, incoming) into a new map;
+  /// emits only when the watermark advances.
+  void _applyPeerWatermark(String userId, DateTime lastSeenAt) {
+    if (isClosed) return;
+    final existing = state.readWatermarks[userId];
+    if (existing != null && !lastSeenAt.isAfter(existing.lastSeenAt)) {
+      return;
+    }
+    final updated = Map<String, RoomReadWatermark>.of(state.readWatermarks);
+    updated[userId] = existing == null
+        ? RoomReadWatermark(userId: userId, lastSeenAt: lastSeenAt)
+        : existing.copyWith(lastSeenAt: lastSeenAt);
+    emit(state.copyWith(readWatermarks: updated));
   }
 
   /// Per-user max(fetched, existing) merge; null when [fetched] is null

@@ -9,6 +9,7 @@ import 'package:tentura/data/service/user_presence_service.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/realtime/realtime_room_message_paint.dart';
+import 'package:tentura/domain/entity/realtime/realtime_seen_peer.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -48,6 +49,7 @@ class FakeBeaconThreadsRepository extends Fake
   int createMessageCalls = 0;
   int addAttachmentCalls = 0;
   int fetchMessagesCallCount = 0;
+  int fetchParticipantsCallCount = 0;
   String? lastReplyToMessageId;
 
   /// Blocks [createMessage] until completed (stale reply-target race tests).
@@ -81,6 +83,7 @@ class FakeBeaconThreadsRepository extends Fake
     RealtimeOperation? operation,
     String? messageId,
     RealtimeRoomMessagePaint? paint,
+    RealtimeSeenPeer? seenPeer,
   }) {
     _roomInvalidations.add(
       BeaconRoomInvalidation(
@@ -89,6 +92,7 @@ class FakeBeaconThreadsRepository extends Fake
         operation: operation,
         messageId: messageId,
         paint: paint,
+        seenPeer: seenPeer,
       ),
     );
   }
@@ -132,6 +136,7 @@ class FakeBeaconThreadsRepository extends Fake
 
   @override
   Future<List<BeaconParticipant>> fetchParticipants(String beaconId) async {
+    fetchParticipantsCallCount++;
     final gate = fetchParticipantsCompleter;
     if (gate != null) {
       fetchParticipantsCompleter = null;
