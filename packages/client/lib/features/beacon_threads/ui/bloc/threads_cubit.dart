@@ -27,6 +27,7 @@ class ThreadsCubit extends Cubit<ThreadsState> {
         .where(
           (e) =>
               e.beaconId == beaconId &&
+              // roomSeenPeer is presence-only; excluded beside roomSeen (unread).
               (e.entityType == BeaconRoomEntityType.roomMessage ||
                   e.entityType == BeaconRoomEntityType.participant ||
                   e.entityType == BeaconRoomEntityType.factCard ||

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
@@ -381,6 +382,38 @@ void main() {
         repo.listThreadsCallCount,
         2,
         reason: 'cancelled debounce must not schedule a second fetch',
+      );
+    });
+
+    test('roomSeenPeer invalidation does not refetch threads', () async {
+      final repo = _FakeBeaconThreadsRepository()..threads = [_generalThread()];
+      final cubit = _cubit(repo: repo);
+      addTearDown(cubit.close);
+
+      await cubit.fetch();
+      expect(repo.listThreadsCallCount, 1);
+
+      repo.emitInvalidation(BeaconRoomEntityType.roomSeenPeer);
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+
+      expect(
+        repo.listThreadsCallCount,
+        1,
+        reason: 'peer read-presence must stay out of the threads refetch allow-list',
+      );
+    });
+
+    test('invalidation filter documents roomSeenPeer exclusion', () {
+      final source = File(
+        'lib/features/beacon_threads/ui/bloc/threads_cubit.dart',
+      ).readAsStringSync();
+
+      expect(
+        source,
+        contains('roomSeenPeer'),
+        reason:
+            'threads refetch allow-list must call out roomSeenPeer as '
+            'presence-only and excluded beside roomSeen',
       );
     });
   });

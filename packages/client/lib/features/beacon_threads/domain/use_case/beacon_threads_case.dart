@@ -50,6 +50,7 @@ final class BeaconThreadsCase extends UseCaseBase {
 
   final RealtimeSyncCase _realtimeSyncCase;
 
+  // roomSeenPeer is presence-only; omitted unlike roomSeen (unread convergence).
   static const _deskRelevantEntityTypes = {
     BeaconRoomEntityType.roomMessage,
     BeaconRoomEntityType.roomReaction,

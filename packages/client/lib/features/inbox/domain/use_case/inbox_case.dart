@@ -56,6 +56,7 @@ final class InboxCase extends UseCaseBase {
     _beaconRoomCase.deskRelevantChanges,
     _forwardRepository.forwardChanges,
     _forwardRepository.helpOfferChanges.map((event) => event.beaconId),
+    // roomSeenPeer is presence-only; omitted from desk refetch ids (see BeaconThreadsCase).
     _realtimeSyncCase
         .changesFor(const {
           RealtimeEntityKind.inboxItem,
