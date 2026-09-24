@@ -5096,6 +5096,34 @@
       }
     }
   },
+  "beaconRoomReceiptPending": "Отправляется…",
+  "beaconRoomReceiptSent": "Отправлено",
+  "beaconRoomReceiptRead": "{count, plural, one{Прочитал 1 человек} few{Прочитали {count} человека} many{Прочитали {count} человек} other{Прочитали {count} человека}}",
+  "@beaconRoomReceiptRead": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconRoomReadByTitle": "Прочитали",
+  "beaconRoomReadByNobodyYet": "Пока никто не прочитал",
+  "beaconRoomReadByMore": "+{count}",
+  "@beaconRoomReadByMore": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconRoomReadAtRelative": "прочитано {when}",
+  "@beaconRoomReadAtRelative": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
   "beaconRoomParticipantJoinedAutoAdmit": "{joinedName} вступил(а) в обсуждение, потому что автор переслал этот запрос напрямую",
   "@beaconRoomParticipantJoinedAutoAdmit": {
     "placeholders": {

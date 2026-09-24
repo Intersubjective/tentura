@@ -5165,6 +5165,34 @@
       }
     }
   },
+  "beaconRoomReceiptPending": "Sending…",
+  "beaconRoomReceiptSent": "Sent",
+  "beaconRoomReceiptRead": "{count, plural, one{Read by 1 person} other{Read by {count} people}}",
+  "@beaconRoomReceiptRead": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconRoomReadByTitle": "Read by",
+  "beaconRoomReadByNobodyYet": "Nobody has read this yet",
+  "beaconRoomReadByMore": "+{count}",
+  "@beaconRoomReadByMore": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconRoomReadAtRelative": "read {when}",
+  "@beaconRoomReadAtRelative": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
   "beaconRoomParticipantJoinedAutoAdmit": "{joinedName} joined the discussion because the author forwarded this request to them",
   "@beaconRoomParticipantJoinedAutoAdmit": {
     "placeholders": {
