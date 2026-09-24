@@ -177,6 +177,7 @@ class _BeaconRoomSurfaceState extends State<BeaconRoomSurface> {
                 return ThreadDetail(
                   thread: _generalThread!,
                   beaconAuthorId: beaconState.beacon.author.id,
+                  beaconAuthor: beaconState.beacon.author,
                   onCoordinationSaved: widget.onCoordinationSaved,
                   onOpenCoordinationItem: widget.onOpenCoordinationItem,
                 );

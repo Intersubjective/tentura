@@ -35,6 +35,7 @@ class ThreadDetail extends StatelessWidget {
     this.onOpenCoordinationItem,
     this.onCoordinationSaved,
     this.beaconAuthorId = '',
+    this.beaconAuthor,
     super.key,
   });
 
@@ -42,6 +43,7 @@ class ThreadDetail extends StatelessWidget {
   final ValueChanged<CoordinationItem>? onOpenCoordinationItem;
   final VoidCallback? onCoordinationSaved;
   final String beaconAuthorId;
+  final Profile? beaconAuthor;
 
   @override
   Widget build(BuildContext context) {
@@ -54,6 +56,7 @@ class ThreadDetail extends StatelessWidget {
             Expanded(
               child: BeaconRoomBody(
                 beaconAuthorId: beaconAuthorId,
+                beaconAuthor: beaconAuthor,
                 onCoordinationSaved: onCoordinationSaved,
                 onOpenCoordinationItem: onOpenCoordinationItem,
               ),

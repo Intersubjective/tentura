@@ -24,6 +24,7 @@ import 'package:tentura/features/beacon_threads/ui/widget/mention_text_controlle
 import 'package:tentura/features/beacon_threads/ui/widget/participants_matching_mention_query.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_date_separator.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
+import 'package:tentura/features/beacon_threads/domain/room_message_receipt.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_tile.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_pinned_fact_visibility_mark.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_unread_divider.dart';
@@ -80,6 +81,7 @@ class BasicChatBody extends StatefulWidget {
     this.hideCoordinationLifecycleFooter = false,
     this.pinnedFactForMessage,
     this.pendingJumpMessageId,
+    this.receiptIndex,
     super.key,
   });
 
@@ -173,6 +175,9 @@ class BasicChatBody extends StatefulWidget {
   /// When non-null, suppresses pruning of that message's [GlobalKey] during
   /// an in-flight jump scroll.
   final String? pendingJumpMessageId;
+
+  /// Per-emission sender receipt lookup for own messages (discussion read watermarks).
+  final RoomReceiptIndex? receiptIndex;
 
   @override
   State<BasicChatBody> createState() => BasicChatBodyState();
@@ -593,6 +598,7 @@ class BasicChatBodyState extends State<BasicChatBody> {
                                 ? pinnedFact
                                 : null,
                             highlightedMessageId: _highlightedMessageId,
+                            receipt: widget.receiptIndex?.receiptFor(m),
                           );
 
                           return Column(

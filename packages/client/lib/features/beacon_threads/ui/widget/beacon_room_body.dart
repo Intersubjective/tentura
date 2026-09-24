@@ -9,6 +9,7 @@ import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
 import 'package:tentura/domain/entity/room_message.dart';
+import 'package:tentura/domain/entity/room_read_watermark.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -23,6 +24,8 @@ import 'package:tentura/ui/widget/hud_labeled_multiline.dart';
 import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 import 'package:tentura/app/router/root_router.dart';
 
+import 'package:tentura/features/beacon_threads/domain/room_message_receipt.dart';
+
 import '../bloc/room_cubit.dart';
 import '../coordination_room_navigation.dart';
 import 'fact_actions_sheet.dart';
@@ -34,6 +37,7 @@ class BeaconRoomBody extends StatefulWidget {
     super.key,
     this.enableComposer = true,
     this.beaconAuthorId = '',
+    this.beaconAuthor,
     this.onCoordinationSaved,
     this.onOpenCoordinationItem,
   });
@@ -43,6 +47,9 @@ class BeaconRoomBody extends StatefulWidget {
   /// Beacon author id for coordination target lists (from beacon view shell).
   final String beaconAuthorId;
 
+  /// Beacon author profile for reader display resolution (from beacon view shell).
+  final Profile? beaconAuthor;
+
   /// Called after a coordination item is created from the room (e.g. refresh Items tab).
   final VoidCallback? onCoordinationSaved;
 
@@ -51,6 +58,14 @@ class BeaconRoomBody extends StatefulWidget {
 
   @override
   State<BeaconRoomBody> createState() => _BeaconRoomBodyState();
+}
+
+String _readWatermarksFingerprint(Map<String, RoomReadWatermark> watermarks) {
+  return watermarks.entries
+      .map(
+        (e) => '${e.key}|${e.value.lastSeenAt.toIso8601String()}',
+      )
+      .join(',');
 }
 
 class _BeaconRoomBodyState extends State<BeaconRoomBody> {
@@ -179,7 +194,11 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
             p.status != c.status ||
             p.hasError != c.hasError ||
             p.replyTarget?.id != c.replyTarget?.id ||
-            p.beaconStatus != c.beaconStatus,
+            p.beaconStatus != c.beaconStatus ||
+            p.myUserId != c.myUserId ||
+            p.readWatermarksLoaded != c.readWatermarksLoaded ||
+            _readWatermarksFingerprint(p.readWatermarks) !=
+                _readWatermarksFingerprint(c.readWatermarks),
         builder: (context, state) {
           final cubit = context.read<RoomCubit>();
           final isThreadMode = state.threadItemId != null;
@@ -191,8 +210,17 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                 roomState: state.roomState,
                 openBlocker: state.openCoordinationBlocker,
               );
+          final receiptIndex = RoomReceiptIndex(
+            myUserId: state.myUserId,
+            watermarks: {
+              for (final e in state.readWatermarks.entries)
+                e.key: e.value.lastSeenAt,
+            },
+            pendingLocalIds: const {},
+          );
           return BasicChatBody(
             key: _basicChatKey,
+            receiptIndex: receiptIndex,
             header: showPinnedNow
                 ? _PinnedNowRow(
                     state: state,
