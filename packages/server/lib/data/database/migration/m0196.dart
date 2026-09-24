@@ -71,4 +71,18 @@ CREATE TRIGGER room_seen_peer_notify
   FOR EACH ROW WHEN (NEW.thread_item_id IS NULL)
   EXECUTE FUNCTION public.notify_room_seen_peer_change();
 ''',
+
+  // Plan §P1.6 (measure, then decide): EXPLAIN of the
+  // `bridge_attention_room_seen` UPDATE under `SET enable_seqscan = off`
+  // showed both an obligation-heavy author and an optional-only helper
+  // (~200 outbox rows each) falling back to `notification_outbox__feed`
+  // (account_id only) and filtering beacon_id/destination_kind/seen_at
+  // post-scan. No existing partial index matches
+  // destination_kind='beacon_room_message' with seen_at IS NULL, so this
+  // narrow partial index backs the per-watermark-advance UPDATE.
+  '''
+CREATE INDEX notification_outbox__room_message_unseen
+  ON public.notification_outbox USING btree (account_id, beacon_id)
+  WHERE destination_kind = 'beacon_room_message' AND seen_at IS NULL;
+''',
 ]);
