@@ -93,6 +93,11 @@ final class BeaconThreadsCase extends UseCaseBase {
     String threadId = RequestThread.generalId,
   }) => _watermark.readThrough(beaconId, threadId: threadId);
 
+  DateTime? syncedAt(
+    String beaconId, {
+    String threadId = RequestThread.generalId,
+  }) => _watermark.syncedAt(beaconId, threadId: threadId);
+
   bool observeReadThrough(
     String beaconId,
     DateTime at, {

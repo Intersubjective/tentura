@@ -163,7 +163,12 @@ class RoomCubit extends Cubit<RoomState> {
 
   final _pinnedOffWindowMessages = <String, RoomMessage>{};
 
-  bool _markSeenEmittedThisVisit = false;
+  /// Wall-clock time of the last bottom-of-list callback (`markReadToBottom`).
+  DateTime? _atBottomSince;
+
+  /// Wall-clock time when the newest peer-authored message was first observed.
+  DateTime? _lastInboundAt;
+
   bool _initialLoadDone = false;
   bool _refreshInProgress = false;
   _RoomRefreshScope? _queuedRefreshScope;
@@ -215,6 +220,9 @@ class RoomCubit extends Cubit<RoomState> {
 
   void _mergePaintedMessage(RoomMessage message) {
     if (isClosed) return;
+    if (message.authorId != state.myUserId) {
+      _lastInboundAt = DateTime.now().toUtc();
+    }
     emit(
       state.copyWith(
         messages: _sortMessages(
@@ -533,24 +541,59 @@ class RoomCubit extends Cubit<RoomState> {
     );
   }
 
+  /// Records when peer-authored messages first appear locally, so [close]
+  /// can tell whether the reader reached the bottom after the last inbound
+  /// message arrived.
+  void _noteInboundMessages(
+    List<RoomMessage> previous,
+    List<RoomMessage> next,
+  ) {
+    final previousIds = {for (final message in previous) message.id};
+    for (final message in next) {
+      if (!previousIds.contains(message.id) &&
+          message.authorId != state.myUserId) {
+        _lastInboundAt = DateTime.now().toUtc();
+        return;
+      }
+    }
+  }
+
   /// Advances the read watermark to the newest loaded message and flushes seen
   /// to the server. Called when the user reaches the bottom of the list.
   Future<void> markReadToBottom() async {
     if (state.messages.isEmpty) return;
 
+    _atBottomSince = DateTime.now().toUtc();
     _advanceReadAnchorToLatestLoaded();
     await markSeenNowIfNeeded();
   }
 
-  Future<void> markSeenNowIfNeeded() async {
-    if (_markSeenEmittedThisVisit) {
-      return;
-    }
+  /// Flushes the read watermark to the server when the newest loaded message
+  /// is newer than the last server-confirmed watermark (idle readers keep
+  /// advancing it). With [force] the watermark check is skipped — used by
+  /// [close] after it has decided the reader was at the bottom.
+  Future<void> markSeenNowIfNeeded({bool force = false}) async {
     if (!_initialLoadDone) {
       return;
     }
+    final newestLoaded =
+        state.messages.isEmpty ? null : state.messages.last.createdAt;
+    if (!force) {
+      final syncedAt = _case.syncedAt(
+        state.beaconId,
+        threadId: state.threadItemId ?? RequestThread.generalId,
+      );
+      if (newestLoaded == null ||
+          (syncedAt != null && !newestLoaded.isAfter(syncedAt))) {
+        return;
+      }
+    }
+    _advanceReadAnchorToLatestLoaded();
+    final readThrough = state.unreadAnchorAt ?? newestLoaded;
+    if (readThrough == null) {
+      return;
+    }
     try {
-      final readThrough = state.unreadAnchorAt ?? state.messages.last.createdAt;
       final outcome = await _case.markRoomSeenIfAllowed(
         beaconId: state.beaconId,
         threadItemId: state.threadItemId,
@@ -558,9 +601,7 @@ class RoomCubit extends Cubit<RoomState> {
       );
       switch (outcome) {
         case RoomSeenSucceeded():
-          _markSeenEmittedThisVisit = true;
           if (!isClosed) {
-            _advanceReadAnchorToLatestLoaded();
             emit(state.copyWith(pendingMarkSeen: false));
           }
         case RoomSeenDenied():
@@ -654,6 +695,11 @@ class RoomCubit extends Cubit<RoomState> {
 
       if (!isClosed) {
         _initialLoadDone = true;
+        _noteInboundMessages(state.messages, messages);
+        final syncedAt = _case.syncedAt(
+          state.beaconId,
+          threadId: state.threadItemId ?? RequestThread.generalId,
+        );
         emit(
           state.copyWith(
             messages: messages,
@@ -665,7 +711,9 @@ class RoomCubit extends Cubit<RoomState> {
             currentCoordinationPlan: currentCoordinationPlan,
             unreadAnchorAt: anchor,
             myUserId: GetIt.I<ProfileCubit>().state.profile.id,
-            pendingMarkSeen: !_markSeenEmittedThisVisit,
+            pendingMarkSeen: messages.isNotEmpty &&
+                (syncedAt == null ||
+                    messages.last.createdAt.isAfter(syncedAt)),
             loadError: null,
             status: const StateIsSuccess(),
           ),
@@ -727,12 +775,14 @@ class RoomCubit extends Cubit<RoomState> {
             message,
       ];
       if (!isClosed) {
+        final merged = _mergeMessages(
+          serverRows: refreshed,
+          overlay: overlay,
+        );
+        _noteInboundMessages(state.messages, merged);
         emit(
           state.copyWith(
-            messages: _mergeMessages(
-              serverRows: refreshed,
-              overlay: overlay,
-            ),
+            messages: merged,
             loadError: null,
           ),
         );
@@ -995,7 +1045,6 @@ class RoomCubit extends Cubit<RoomState> {
         ),
       );
       _flushDeferredOwnPaints();
-      _markSeenEmittedThisVisit = false;
       await markSeenNowIfNeeded();
       if (uploads.isNotEmpty) {
         _requestRefresh(scope: _RoomRefreshScope.messages);
@@ -1196,7 +1245,6 @@ class RoomCubit extends Cubit<RoomState> {
         isAnonymous: isAnonymous,
         allowRevote: allowRevote,
       );
-      _markSeenEmittedThisVisit = false;
       await markSeenNowIfNeeded();
       if (!isClosed) emit(state.copyWith(unreadAnchorAt: null));
       await load();
@@ -1223,7 +1271,14 @@ class RoomCubit extends Cubit<RoomState> {
     await _refreshSub.cancel();
     await _catchUpsSub.cancel();
     await _itemSyncSub?.cancel();
-    await markSeenNowIfNeeded();
+    // close() is not a read: flush only when the last bottom-of-list callback
+    // happened after the last inbound message arrived.
+    final atBottomSince = _atBottomSince;
+    final lastInbound = _lastInboundAt;
+    if (atBottomSince != null &&
+        (lastInbound == null || !lastInbound.isAfter(atBottomSince))) {
+      await markSeenNowIfNeeded(force: true);
+    }
     return super.close();
   }
 }

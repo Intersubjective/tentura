@@ -45,6 +45,8 @@ class _FakeBeaconThreadsRepository extends Fake
 
   DateTime? participantLastSeenRoomAt;
   bool markThreadSeenCalled = false;
+  int markThreadSeenCallCount = 0;
+  DateTime? lastReadThroughAt;
   String? lastMarkThreadId;
   List<RoomMessage> messages = [];
   List<BeaconParticipant>? participants;
@@ -121,7 +123,9 @@ class _FakeBeaconThreadsRepository extends Fake
     required DateTime readThroughAt,
   }) async {
     markThreadSeenCalled = true;
+    markThreadSeenCallCount++;
     lastMarkThreadId = threadId;
+    lastReadThroughAt = readThroughAt;
     participantLastSeenRoomAt = readThroughAt;
     return readThroughAt;
   }
@@ -273,6 +277,20 @@ Future<void> _awaitCondition(bool Function() condition) async {
     await Future<void>.delayed(const Duration(milliseconds: 10));
   }
   fail('Timed out waiting for room convergence.');
+}
+
+Future<void> _simulateInboundMessage(
+  _FakeBeaconThreadsRepository room,
+  RoomCubit cubit,
+  RoomMessage message,
+) async {
+  room.messages = [...room.messages, message];
+  final expectedFetch = room.fetchMessagesCallCount + 1;
+  room.emitInvalidation(BeaconRoomEntityType.roomMessage);
+  await _awaitFetchCount(room, expectedFetch);
+  await _awaitCondition(
+    () => cubit.state.messages.any((m) => m.id == message.id),
+  );
 }
 
 class _TrackingPresenceRepository extends Fake implements PresenceRepository {
@@ -828,6 +846,131 @@ void main() {
       expect(state.messages, hasLength(1));
       expect(state.messages.single.body, 'latest server value');
     });
+  });
+
+  group('RoomCubit watermark flush gating (tentura-d8o)', () {
+    test(
+      'bottom callback after newer inbound message re-flushes markThreadSeen',
+      () async {
+        _registerProfileCubit(_kMyUserId);
+
+        final firstMsgTime = _kAnchorTime.add(const Duration(hours: 1));
+        final secondMsgTime = firstMsgTime.add(const Duration(minutes: 5));
+        final fakeRoom = _FakeBeaconThreadsRepository(userId: _kMyUserId)
+          ..participantLastSeenRoomAt = _kAnchorTime
+          ..messages = [
+            _msg('m1', firstMsgTime),
+          ];
+        addTearDown(fakeRoom.dispose);
+        final cubit = _roomCubit(fakeRoom);
+
+        await _awaitLoad(cubit);
+        await cubit.markReadToBottom();
+
+        expect(fakeRoom.markThreadSeenCallCount, 1);
+        expect(fakeRoom.lastReadThroughAt, firstMsgTime);
+
+        await _simulateInboundMessage(
+          fakeRoom,
+          cubit,
+          _msg('m2', secondMsgTime),
+        );
+        expect(cubit.state.unreadCount, 1);
+
+        fakeRoom.markThreadSeenCalled = false;
+        await cubit.markReadToBottom();
+
+        expect(fakeRoom.markThreadSeenCalled, isTrue);
+        expect(fakeRoom.markThreadSeenCallCount, 2);
+        expect(fakeRoom.lastReadThroughAt, secondMsgTime);
+
+        await cubit.close();
+      },
+    );
+
+    test(
+      'duplicate bottom callback without newer inbound skips markThreadSeen',
+      () async {
+        _registerProfileCubit(_kMyUserId);
+
+        final msgTime = _kAnchorTime.add(const Duration(hours: 1));
+        final fakeRoom = _FakeBeaconThreadsRepository(userId: _kMyUserId)
+          ..participantLastSeenRoomAt = _kAnchorTime
+          ..messages = [
+            _msg('m1', msgTime),
+          ];
+        addTearDown(fakeRoom.dispose);
+        final cubit = _roomCubit(fakeRoom);
+
+        await _awaitLoad(cubit);
+        await cubit.markReadToBottom();
+        expect(fakeRoom.markThreadSeenCallCount, 1);
+
+        fakeRoom.markThreadSeenCalled = false;
+        await cubit.markReadToBottom();
+
+        expect(fakeRoom.markThreadSeenCalled, isFalse);
+        expect(fakeRoom.markThreadSeenCallCount, 1);
+
+        await cubit.close();
+      },
+    );
+
+    test(
+      'close() without bottom callback since last inbound skips markThreadSeen',
+      () async {
+        _registerProfileCubit(_kMyUserId);
+
+        final inboundTime = _kAnchorTime.add(const Duration(hours: 1));
+        final fakeRoom = _FakeBeaconThreadsRepository(userId: _kMyUserId)
+          ..participantLastSeenRoomAt = _kAnchorTime
+          ..messages = [
+            _msg('old', _kAnchorTime.subtract(const Duration(hours: 1))),
+            _msg('new', inboundTime),
+          ];
+        addTearDown(fakeRoom.dispose);
+        final cubit = _roomCubit(fakeRoom);
+
+        await _awaitLoad(cubit);
+        expect(cubit.state.unreadCount, 1);
+        fakeRoom.markThreadSeenCalled = false;
+        fakeRoom.markThreadSeenCallCount = 0;
+
+        await cubit.close();
+
+        expect(fakeRoom.markThreadSeenCalled, isFalse);
+        expect(fakeRoom.markThreadSeenCallCount, 0);
+      },
+    );
+
+    test(
+      'close() after bottom callback flushes markThreadSeen',
+      () async {
+        _registerProfileCubit(_kMyUserId);
+
+        final msgTime = _kAnchorTime.add(const Duration(hours: 1));
+        final fakeRoom = _FakeBeaconThreadsRepository(userId: _kMyUserId)
+          ..participantLastSeenRoomAt = _kAnchorTime
+          ..messages = [
+            _msg('m1', msgTime),
+          ];
+        addTearDown(fakeRoom.dispose);
+        final cubit = _roomCubit(fakeRoom);
+
+        await _awaitLoad(cubit);
+        await cubit.markReadToBottom();
+        expect(fakeRoom.markThreadSeenCallCount, 1);
+
+        fakeRoom.markThreadSeenCalled = false;
+        fakeRoom.markThreadSeenCallCount = 0;
+
+        await cubit.close();
+
+        expect(fakeRoom.markThreadSeenCalled, isTrue);
+        expect(fakeRoom.markThreadSeenCallCount, 1);
+        expect(fakeRoom.lastReadThroughAt, msgTime);
+      },
+    );
   });
 
   group('RoomCubit thread-keyed watermark', () {

@@ -788,3 +788,25 @@ and a lint-baseline lock-in the UNIT 09 worker missed.
 None of the above are Request-Threads-feature defects; the feature itself — server contract, client
 data/state layers, concurrency-safe navigation, full production activation, and terminology — is
 complete, tested, and verified working.
+
+---
+
+## Post-plan behaviour change: tentura-d8o (2026-09-24)
+
+Room read-watermark flushing no longer uses the once-per-visit
+`_markSeenEmittedThisVisit` flag in `RoomCubit`:
+
+1. `markSeenNowIfNeeded` now proceeds iff the initial load is done and the
+   newest loaded message is newer than the session watermark's last
+   server-confirmed `syncedAt` (`RoomReadWatermarkStore` via a thin
+   `BeaconThreadsCase.syncedAt` wrapper) — idle readers keep advancing the
+   watermark on every bottom-of-list callback after newer inbound messages.
+2. `close()` is not a read: it flushes only when the last bottom-of-list
+   callback (`_atBottomSince`) happened after the last inbound (peer-authored)
+   message was observed (`_lastInboundAt`, tracked across realtime paints and
+   message/full snapshot merges); otherwise it leaves the watermark alone.
+
+`pendingMarkSeen` on load is now derived from the same watermark comparison
+instead of the removed flag. Covered by the `RoomCubit watermark flush gating
+(tentura-d8o)` group in `room_cubit_unread_test.dart`. Client version bumped
+to 7.19.7 with the `web/index.html` cache-buster synced.
