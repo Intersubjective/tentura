@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura/domain/entity/room_pending_upload.dart';
+import 'package:tentura/domain/entity/room_read_watermark.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card_repository.dart';
@@ -48,6 +49,30 @@ void main() {
   tearDown(() async {
     await watermark.dispose();
     await realtimePort.dispose();
+  });
+
+  group('fetchMainRoomReadWatermarks', () {
+    test('passthrough delegates to BeaconThreadsRepository', () async {
+      final expected = [
+        RoomReadWatermark(
+          userId: 'Uuseraaaaaaaa01',
+          lastSeenAt: DateTime.utc(2026, 8, 14, 10),
+          userTitle: 'Alice',
+          userHasPicture: true,
+          userImageId: 'img-a',
+          userBlurHash: 'hash-a',
+          userPicHeight: 100,
+          userPicWidth: 200,
+        ),
+      ];
+      room.fetchMainRoomReadWatermarksResult = expected;
+
+      final rows = await case_.fetchMainRoomReadWatermarks(beaconId);
+
+      expect(room.fetchMainRoomReadWatermarksCalls, 1);
+      expect(room.lastFetchMainRoomReadWatermarksBeaconId, beaconId);
+      expect(rows, expected);
+    });
   });
 
   group('createMessage', () {
@@ -273,9 +298,21 @@ class FakeBeaconThreadsRepository extends Fake
   Object? markThreadSeenError;
   int markThreadSeenCalls = 0;
   String? lastMarkThreadId;
+  int fetchMainRoomReadWatermarksCalls = 0;
+  String? lastFetchMainRoomReadWatermarksBeaconId;
+  List<RoomReadWatermark> fetchMainRoomReadWatermarksResult = const [];
 
   @override
   Stream<String> get beaconRoomRefresh => const Stream.empty();
+
+  @override
+  Future<List<RoomReadWatermark>> fetchMainRoomReadWatermarks(
+    String beaconId,
+  ) async {
+    fetchMainRoomReadWatermarksCalls++;
+    lastFetchMainRoomReadWatermarksBeaconId = beaconId;
+    return fetchMainRoomReadWatermarksResult;
+  }
 
   @override
   Future<String> createMessage({

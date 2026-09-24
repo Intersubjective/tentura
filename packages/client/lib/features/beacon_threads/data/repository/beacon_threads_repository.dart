@@ -11,18 +11,22 @@ import 'package:tentura/data/gql/tentura_v2_upload.dart';
 import 'package:tentura/domain/contacts/contact_name_overlay.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
-import 'package:tentura/data/service/remote_api_service.dart';
+import 'package:tentura/data/service/remote_api_client/remote_api_client_web.dart';
+import 'package:tentura/data/service/remote_api_service.dart'
+    show DataSource, ErrorHandler;
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
+import 'package:tentura/domain/entity/room_read_watermark.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/domain/entity/room_message_mention_span.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/domain/port/realtime_sync_port.dart';
 
 import '../gql/_g/beacon_participant_list.req.gql.dart';
+import '../gql/_g/beacon_room_read_watermarks.req.gql.dart';
 import '../gql/_g/beacon_threads_list.req.gql.dart';
 import '../gql/_g/mark_thread_seen.req.gql.dart';
 import '../gql/_g/room_message_mark_semantic_done.req.gql.dart';
@@ -58,7 +62,7 @@ class BeaconThreadsRepository {
 
   static const _label = 'BeaconRoom';
 
-  final RemoteApiService _remoteApiService;
+  final RemoteApiClient _remoteApiService;
 
   late final StreamSubscription<BeaconRoomInvalidation> _roomInvSub;
 
@@ -515,6 +519,33 @@ class BeaconThreadsRepository {
     final rows =
         r.dataOrThrow(label: _label).beaconThreads?.toList() ?? const [];
     return rows.map((row) => RequestThreadRowModel(row).toEntity()).toList();
+  }
+
+  Future<List<RoomReadWatermark>> fetchMainRoomReadWatermarks(
+    String beaconId,
+  ) async {
+    final r = await _remoteApiService
+        .request(
+          GBeaconRoomReadWatermarksReq((b) => b.vars.beaconId = beaconId),
+        )
+        .firstWhere((e) => e.dataSource == DataSource.Link);
+    final rows =
+        r.dataOrThrow(label: _label).BeaconRoomReadWatermarks?.toList() ??
+        const [];
+    return rows
+        .map(
+          (row) => RoomReadWatermark(
+            userId: row.userId,
+            lastSeenAt: DateTime.parse(row.lastSeenAt).toUtc(),
+            userTitle: row.userTitle,
+            userHasPicture: row.userHasPicture,
+            userImageId: row.userImageId,
+            userBlurHash: row.userBlurHash,
+            userPicHeight: row.userPicHeight,
+            userPicWidth: row.userPicWidth,
+          ),
+        )
+        .toList();
   }
 
   Future<List<BeaconParticipant>> fetchParticipants(String beaconId) async {

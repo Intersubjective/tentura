@@ -26,7 +26,7 @@ abstract class BeaconParticipant with _$BeaconParticipant {
     int? nextMoveSource,
     String? linkedMessageId,
 
-    /// When this user last read the beacon room (`beacon_participant.last_seen_room_at`).
+    /// When this user last read the beacon room (`beacon_room_seen`).
     DateTime? lastSeenRoomAt,
 
     /// Active help-offer capability wire (`beacon_help_offers.help_type`), when any.

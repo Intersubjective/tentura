@@ -60,5 +60,9 @@ void main() {
       expect(isTenturaDirectOperation('ActivityOffersV2'), isTrue);
       expect(isTenturaDirectOperation('ActivityAttention'), isTrue);
     });
+
+    test('BeaconRoomReadWatermarks routes to Tentura V2', () {
+      expect(isTenturaDirectOperation('BeaconRoomReadWatermarks'), isTrue);
+    });
   });
 }

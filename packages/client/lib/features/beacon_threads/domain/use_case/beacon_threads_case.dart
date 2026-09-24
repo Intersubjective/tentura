@@ -10,6 +10,7 @@ import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/realtime/realtime_room_message_paint.dart';
 import 'package:tentura/domain/entity/room_message.dart';
+import 'package:tentura/domain/entity/room_read_watermark.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
@@ -160,6 +161,9 @@ final class BeaconThreadsCase extends UseCaseBase {
 
   Future<List<BeaconParticipant>> fetchParticipants(String beaconId) =>
       _room.fetchParticipants(beaconId);
+
+  Future<List<RoomReadWatermark>> fetchMainRoomReadWatermarks(String beaconId) =>
+      _room.fetchMainRoomReadWatermarks(beaconId);
 
   // DORMANT(item-threads): threadItemId targets item-thread scope; always null in production.
   // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.

@@ -307,6 +307,7 @@ class _V2RoutingLink extends Link {
     'trustForceRefreshStar',
     'RoomMessageList',
     'BeaconParticipantList',
+    'BeaconRoomReadWatermarks',
     'RoomMessageCreate',
     'RoomMessageAttachmentAdd',
     'BeaconParticipantOfferHelp',

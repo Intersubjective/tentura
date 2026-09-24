@@ -1,0 +1,12 @@
+query BeaconRoomReadWatermarks($beaconId: String!) {
+  BeaconRoomReadWatermarks(beaconId: $beaconId) {
+    userId
+    lastSeenAt
+    userTitle
+    userHasPicture
+    userImageId
+    userBlurHash
+    userPicHeight
+    userPicWidth
+  }
+}
