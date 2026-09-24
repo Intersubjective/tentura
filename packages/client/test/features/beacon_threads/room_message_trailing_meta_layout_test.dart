@@ -158,6 +158,57 @@ void main() {
       );
       expect(edited.reserveWidth, greaterThan(bare.reserveWidth));
     });
+
+    test('trailingGlyphWidth zero leaves reserve width unchanged', () {
+      const glyphGap = 2.0;
+      final withoutGlyph = computeTrailingMetaMetrics(
+        dateLine: '12:34',
+        metaStyle: metaStyle,
+        trailingGapH: 12,
+        trailingGapV: 4,
+        textDirection: textDirection,
+        textScaler: textScaler,
+      );
+      final withZeroGlyph = computeTrailingMetaMetrics(
+        dateLine: '12:34',
+        metaStyle: metaStyle,
+        trailingGapH: 12,
+        trailingGapV: 4,
+        textDirection: textDirection,
+        textScaler: textScaler,
+        trailingGlyphWidth: 0,
+        glyphGap: glyphGap,
+      );
+      expect(withZeroGlyph.reserveWidth, withoutGlyph.reserveWidth);
+    });
+
+    test('trailingGlyphWidth 12 widens reserve by glyphGap plus glyph width',
+        () {
+      const glyphGap = 2.0;
+      const trailingGlyphWidth = 12.0;
+      final withoutGlyph = computeTrailingMetaMetrics(
+        dateLine: '12:34',
+        metaStyle: metaStyle,
+        trailingGapH: 12,
+        trailingGapV: 4,
+        textDirection: textDirection,
+        textScaler: textScaler,
+      );
+      final withGlyph = computeTrailingMetaMetrics(
+        dateLine: '12:34',
+        metaStyle: metaStyle,
+        trailingGapH: 12,
+        trailingGapV: 4,
+        textDirection: textDirection,
+        textScaler: textScaler,
+        trailingGlyphWidth: trailingGlyphWidth,
+        glyphGap: glyphGap,
+      );
+      expect(
+        withGlyph.reserveWidth,
+        withoutGlyph.reserveWidth + glyphGap + trailingGlyphWidth,
+      );
+    });
   });
 
   group('buildTrailingMetaWidgetSpan', () {

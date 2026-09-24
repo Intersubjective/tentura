@@ -99,6 +99,8 @@ double measureReactionTimeRowMinWidth({
   required double trailingGapH,
   required TextDirection textDirection,
   required TextScaler textScaler,
+  double trailingGlyphWidth = 0,
+  double glyphGap = 0,
 }) {
   var width = 0.0;
   for (var i = 0; i < reactionEntries.length; i++) {
@@ -125,6 +127,9 @@ double measureReactionTimeRowMinWidth({
       maxLines: 1,
     )..layout();
     width += trailingGapH + timePainter.width;
+    if (trailingGlyphWidth > 0) {
+      width += glyphGap + trailingGlyphWidth;
+    }
   }
 
   return width;
@@ -147,6 +152,8 @@ double ensureHugWidthFitsReactionFooter({
   required double trailingGapH,
   required TextDirection textDirection,
   required TextScaler textScaler,
+  double trailingGlyphWidth = 0,
+  double glyphGap = 0,
 }) {
   if (reactionEntries.isEmpty) {
     return contentWidth.ceilToDouble();
@@ -163,6 +170,8 @@ double ensureHugWidthFitsReactionFooter({
     trailingGapH: trailingGapH,
     textDirection: textDirection,
     textScaler: textScaler,
+    trailingGlyphWidth: trailingGlyphWidth,
+    glyphGap: glyphGap,
   );
 
   var width = contentWidth > footerRowWidth ? contentWidth : footerRowWidth;
@@ -177,7 +186,9 @@ double ensureHugWidthFitsReactionFooter({
     textScaler: textScaler,
     maxLines: 1,
   )..layout();
-  final timeBand = (trailingGapH + timePainter.width).ceilToDouble();
+  final glyphBand = trailingGlyphWidth > 0 ? glyphGap + trailingGlyphWidth : 0.0;
+  final timeBand =
+      (trailingGapH + timePainter.width + glyphBand).ceilToDouble();
 
   var chipsWidth = 0.0;
   for (var i = 0; i < reactionEntries.length; i++) {

@@ -47,6 +47,8 @@ TrailingMetaMetrics computeTrailingMetaMetrics({
   required double trailingGapV,
   required TextDirection textDirection,
   required TextScaler textScaler,
+  double trailingGlyphWidth = 0,
+  double glyphGap = 0,
 }) {
   final metaPainter = TextPainter(
     text: TextSpan(text: dateLine, style: metaStyle),
@@ -56,7 +58,10 @@ TrailingMetaMetrics computeTrailingMetaMetrics({
   )..layout();
 
   final metadataStripWidth = metaPainter.width.ceilToDouble();
-  final reserveWidth = trailingGapH + metadataStripWidth;
+  final glyphReserve = trailingGlyphWidth > 0
+      ? glyphGap + trailingGlyphWidth
+      : 0.0;
+  final reserveWidth = trailingGapH + metadataStripWidth + glyphReserve;
 
   return TrailingMetaMetrics(
     reserveWidth: reserveWidth,

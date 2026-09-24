@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:readmore/readmore.dart';
 
-import 'package:tentura/features/beacon_threads/ui/widget/room_message_trailing_meta_layout.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/room_message_mention_span.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/room_message_trailing_meta_layout.dart';
 import 'package:tentura/ui/widget/tentura_selection_area.dart';
 
 /// Message body with trailing inline metadata (timestamp) on the last line.
@@ -19,6 +20,7 @@ class RoomMessageTextBody extends StatelessWidget {
     this.explicitSpans = const [],
     this.explicitMentionStyle,
     this.textAlign = TextAlign.start,
+    this.trailingGlyph,
     super.key,
   });
 
@@ -31,6 +33,7 @@ class RoomMessageTextBody extends StatelessWidget {
   final List<RoomMessageMentionSpan> explicitSpans;
   final TextStyle? Function(String userId)? explicitMentionStyle;
   final TextAlign textAlign;
+  final Widget? trailingGlyph;
 
   @override
   Widget build(BuildContext context) {
@@ -74,13 +77,29 @@ class RoomMessageTextBody extends StatelessWidget {
           PositionedDirectional(
             end: 0,
             bottom: 0,
-            child: Text(
-              dateLine,
-              style: metaStyle,
-              textDirection: textDirection,
-              textScaler: textScaler,
-              locale: locale,
-            ),
+            child: trailingGlyph == null
+                ? Text(
+                    dateLine,
+                    style: metaStyle,
+                    textDirection: textDirection,
+                    textScaler: textScaler,
+                    locale: locale,
+                  )
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        dateLine,
+                        style: metaStyle,
+                        textDirection: textDirection,
+                        textScaler: textScaler,
+                        locale: locale,
+                      ),
+                      SizedBox(width: context.tt.tightGap),
+                      trailingGlyph!,
+                    ],
+                  ),
           ),
         ],
       ),

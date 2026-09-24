@@ -19,6 +19,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/domain/entity/room_poll_data.dart';
+import 'package:tentura/features/beacon_threads/domain/room_message_receipt.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/coordination_room_navigation.dart';
 import 'package:tentura/features/beacon_threads/ui/sheet/author_commitment_sheet.dart';
@@ -27,6 +28,7 @@ import 'package:tentura/features/beacon_threads/ui/widget/beacon_hierarchy_notic
 import 'package:tentura/features/beacon_threads/ui/widget/reaction_senders_sheet.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_attachment_widgets.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_bubble_measure.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/room_message_receipt_glyph.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_reply_quote.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_text_body.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_trailing_meta_layout.dart';
@@ -86,10 +88,14 @@ class RoomMessageTile extends StatelessWidget {
     this.pinnedFact,
     this.highlightedMessageId,
     this.promotedChildBeaconId,
+    this.receipt,
     super.key,
   });
 
   final RoomMessage message;
+
+  /// Sender read/delivery state for the viewer's own messages; ignored for others.
+  final RoomMessageReceipt? receipt;
 
   /// Set by the caller when this message is a promotion source with a
   /// published child (derived from sibling `childCreated` notice rows'
@@ -703,6 +709,7 @@ class RoomMessageTile extends StatelessWidget {
     final trailingGapV = tt.iconTextGap / 2;
     final textDirection = Directionality.of(context);
     final textScaler = MediaQuery.textScalerOf(context);
+    final ownReceipt = isMine ? receipt : null;
     final trailingMetrics = useInlineMeta
         ? computeTrailingMetaMetrics(
             dateLine: dateLine,
@@ -711,7 +718,13 @@ class RoomMessageTile extends StatelessWidget {
             trailingGapV: trailingGapV,
             textDirection: textDirection,
             textScaler: textScaler,
+            trailingGlyphWidth:
+                ownReceipt != null ? kLifecycleFooterIconSize : 0,
+            glyphGap: ownReceipt != null ? tt.tightGap : 0,
           )
+        : null;
+    final inlineReceiptGlyph = ownReceipt != null
+        ? RoomMessageReceiptGlyph(receipt: ownReceipt)
         : null;
 
     Widget reactionsAndTime() => _MessageLifecycleFooter(
@@ -732,6 +745,7 @@ class RoomMessageTile extends StatelessWidget {
           : _coordinationItemTap(context, linkedCoord),
       editedSuffix: editedSuffix,
       hideTimestamp: useInlineMeta,
+      receipt: ownReceipt,
     );
 
     Widget coreColumn({required bool showNameHeader}) => Column(
@@ -823,6 +837,7 @@ class RoomMessageTile extends StatelessWidget {
                     mentionAnnotations: mentionAnnotations,
                     explicitSpans: explicitMentionSpans,
                     explicitMentionStyle: explicitMentionStyle,
+                    trailingGlyph: inlineReceiptGlyph,
                   )
                 : explicitMentionSpans.isNotEmpty
                 ? TenturaSelectionArea(
@@ -1280,6 +1295,9 @@ class RoomMessageTile extends StatelessWidget {
               trailingGapH: trailingGapH,
               textDirection: textDirection,
               textScaler: textScaler,
+              trailingGlyphWidth:
+                  ownReceipt != null ? kLifecycleFooterIconSize : 0,
+              glyphGap: ownReceipt != null ? tt.iconTextGap / 2 : 0,
             );
           }
         }
@@ -1529,6 +1547,7 @@ class _MessageLifecycleFooter extends StatelessWidget {
     required this.onOpenItem,
     required this.editedSuffix,
     this.hideTimestamp = false,
+    this.receipt,
   });
 
   final RoomMessage message;
@@ -1546,6 +1565,7 @@ class _MessageLifecycleFooter extends StatelessWidget {
   final VoidCallback? onOpenItem;
   final String? editedSuffix;
   final bool hideTimestamp;
+  final RoomMessageReceipt? receipt;
 
   static const double _avatarSize = 16;
   static const double _iconSize = 12;
@@ -1856,10 +1876,23 @@ class _MessageLifecycleFooter extends StatelessWidget {
                 if (dateLine != null)
                   Padding(
                     padding: EdgeInsets.only(left: tokens.iconTextGap / 2),
-                    child: Text(
-                      dateLine,
-                      style: textTheme.labelSmall,
-                    ),
+                    child: receipt == null
+                        ? Text(
+                            dateLine,
+                            style: textTheme.labelSmall,
+                          )
+                        : Row(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                dateLine,
+                                style: textTheme.labelSmall,
+                              ),
+                              SizedBox(width: tokens.iconTextGap / 2),
+                              RoomMessageReceiptGlyph(receipt: receipt!),
+                            ],
+                          ),
                   ),
               ],
             ),

@@ -10,6 +10,7 @@ import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_attachment_widgets.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_reply_quote.dart';
+import 'package:tentura/features/beacon_threads/domain/room_message_receipt.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_tile.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/presence_cubit.dart';
@@ -47,6 +48,8 @@ void main() {
     required Profile myProfile,
     RoomMessage? previousMessage,
     RoomMessage? nextMessage,
+    RoomMessageReceipt? receipt,
+    Size viewportSize = logicalSize,
   }) async {
     final profileCubit = _GoldenProfileCubit();
     final presenceCubit = _GoldenPresenceCubit();
@@ -63,18 +66,19 @@ void main() {
           localizationsDelegates: L10n.localizationsDelegates,
           supportedLocales: L10n.supportedLocales,
           home: MediaQuery(
-            data: const MediaQueryData(size: logicalSize),
+            data: MediaQueryData(size: viewportSize),
             child: TenturaResponsiveScope(
               child: Scaffold(
                 body: RepaintBoundary(
                   key: const Key('golden'),
                   child: SizedBox(
-                    width: logicalSize.width,
+                    width: viewportSize.width,
                     child: RoomMessageTile(
                       message: message,
                       myProfile: myProfile,
                       previousMessage: previousMessage,
                       nextMessage: nextMessage,
+                      receipt: receipt,
                       onToggleReaction: (_, _) async {},
                     ),
                   ),
@@ -373,6 +377,118 @@ void main() {
     );
   }, skip: 'Goldens disabled');
 
+  group('room message receipt layout goldens', () {
+    const viewport320 = Size(320, 200);
+    const viewport900 = Size(900, 200);
+
+    RoomMessage ownShortText() => textMessage(
+      id: 'm-receipt-own',
+      authorId: 'me',
+      author: me,
+      body: 'Hey there!',
+    );
+
+    testWidgets('own_text_receipt_pending_w320', (tester) async {
+      await pumpRoomMessageGolden(
+        tester,
+        goldenName: 'own_text_receipt_pending_w320',
+        message: ownShortText(),
+        myProfile: me,
+        receipt: const RoomMessageReceipt(
+          state: RoomMessageReceiptState.pending,
+        ),
+        viewportSize: viewport320,
+      );
+    });
+
+    testWidgets('own_text_receipt_sent_w320', (tester) async {
+      await pumpRoomMessageGolden(
+        tester,
+        goldenName: 'own_text_receipt_sent_w320',
+        message: ownShortText(),
+        myProfile: me,
+        receipt: const RoomMessageReceipt(
+          state: RoomMessageReceiptState.sent,
+        ),
+        viewportSize: viewport320,
+      );
+    });
+
+    testWidgets('own_text_receipt_read_w320', (tester) async {
+      await pumpRoomMessageGolden(
+        tester,
+        goldenName: 'own_text_receipt_read_w320',
+        message: ownShortText(),
+        myProfile: me,
+        receipt: const RoomMessageReceipt(
+          state: RoomMessageReceiptState.read,
+          readerIds: ['reader-a', 'reader-b'],
+        ),
+        viewportSize: viewport320,
+      );
+    });
+
+    testWidgets('own_text_receipt_pending_w900', (tester) async {
+      await pumpRoomMessageGolden(
+        tester,
+        goldenName: 'own_text_receipt_pending_w900',
+        message: ownShortText(),
+        myProfile: me,
+        receipt: const RoomMessageReceipt(
+          state: RoomMessageReceiptState.pending,
+        ),
+        viewportSize: viewport900,
+      );
+    });
+
+    testWidgets('own_text_receipt_sent_w900', (tester) async {
+      await pumpRoomMessageGolden(
+        tester,
+        goldenName: 'own_text_receipt_sent_w900',
+        message: ownShortText(),
+        myProfile: me,
+        receipt: const RoomMessageReceipt(
+          state: RoomMessageReceiptState.sent,
+        ),
+        viewportSize: viewport900,
+      );
+    });
+
+    testWidgets('own_text_receipt_read_w900', (tester) async {
+      await pumpRoomMessageGolden(
+        tester,
+        goldenName: 'own_text_receipt_read_w900',
+        message: ownShortText(),
+        myProfile: me,
+        receipt: const RoomMessageReceipt(
+          state: RoomMessageReceiptState.read,
+          readerIds: ['reader-a', 'reader-b'],
+        ),
+        viewportSize: viewport900,
+      );
+    });
+
+    testWidgets('own_text_receipt_read_with_reactions_w320', (tester) async {
+      await pumpRoomMessageGolden(
+        tester,
+        goldenName: 'own_text_receipt_read_with_reactions_w320',
+        message: textMessage(
+          id: 'm-receipt-reactions',
+          authorId: 'me',
+          author: me,
+          body: 'Thanks!',
+          reactionCounts: const {'👍': 1},
+        ),
+        myProfile: me,
+        receipt: const RoomMessageReceipt(
+          state: RoomMessageReceiptState.read,
+          readerIds: ['reader-a'],
+        ),
+        viewportSize: viewport320,
+      );
+    });
+  });
+
   group('room message layout', () {
     testWidgets('mine bubble hugs the right edge on compact width', (
       tester,
@@ -621,6 +737,103 @@ void main() {
       final rect = tester.getRect(bubble);
       const farGutter = TenturaSpacing.screenH;
       expect(compactSize.width - rect.right, closeTo(farGutter, 0.5));
+    });
+
+    testWidgets('own message without receipt shows no receipt icons', (
+      tester,
+    ) async {
+      final profileCubit = _GoldenProfileCubit();
+      final presenceCubit = _GoldenPresenceCubit();
+
+      await tester.pumpWidget(
+        MultiBlocProvider(
+          providers: [
+            BlocProvider<ProfileCubit>.value(value: profileCubit),
+            BlocProvider<PresenceCubit>.value(value: presenceCubit),
+          ],
+          child: MaterialApp(
+            debugShowCheckedModeBanner: false,
+            locale: const Locale('en'),
+            theme: TenturaTheme.light(),
+            localizationsDelegates: L10n.localizationsDelegates,
+            supportedLocales: L10n.supportedLocales,
+            home: MediaQuery(
+              data: const MediaQueryData(size: logicalSize),
+              child: TenturaResponsiveScope(
+                child: Scaffold(
+                  body: SizedBox(
+                    width: logicalSize.width,
+                    child: RoomMessageTile(
+                      message: textMessage(
+                        id: 'm-no-receipt',
+                        authorId: 'me',
+                        author: me,
+                        body: 'Hey there!',
+                      ),
+                      myProfile: me,
+                      onToggleReaction: (_, _) async {},
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.schedule), findsNothing);
+      expect(find.byIcon(Icons.done), findsNothing);
+      expect(find.byIcon(Icons.done_all), findsNothing);
+    });
+
+    testWidgets('own message with sent receipt shows done icon', (
+      tester,
+    ) async {
+      final profileCubit = _GoldenProfileCubit();
+      final presenceCubit = _GoldenPresenceCubit();
+
+      await tester.pumpWidget(
+        MultiBlocProvider(
+          providers: [
+            BlocProvider<ProfileCubit>.value(value: profileCubit),
+            BlocProvider<PresenceCubit>.value(value: presenceCubit),
+          ],
+          child: MaterialApp(
+            debugShowCheckedModeBanner: false,
+            locale: const Locale('en'),
+            theme: TenturaTheme.light(),
+            localizationsDelegates: L10n.localizationsDelegates,
+            supportedLocales: L10n.supportedLocales,
+            home: MediaQuery(
+              data: const MediaQueryData(size: logicalSize),
+              child: TenturaResponsiveScope(
+                child: Scaffold(
+                  body: SizedBox(
+                    width: logicalSize.width,
+                    child: RoomMessageTile(
+                      message: textMessage(
+                        id: 'm-sent-receipt',
+                        authorId: 'me',
+                        author: me,
+                        body: 'Hey there!',
+                      ),
+                      myProfile: me,
+                      receipt: const RoomMessageReceipt(
+                        state: RoomMessageReceiptState.sent,
+                      ),
+                      onToggleReaction: (_, _) async {},
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.done), findsOneWidget);
     });
 
     testWidgets('other reply quote fits compact width without clipping', (
