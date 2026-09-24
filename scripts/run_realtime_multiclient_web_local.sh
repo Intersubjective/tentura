@@ -35,8 +35,9 @@ grep -qE '^QA_SIMPLE_LOGIN_MODE=true' "$ROOT/.env" || die ".env needs QA_SIMPLE_
 [[ "$NEGATIVE_PROOFS" == true || "$NEGATIVE_PROOFS" == false ]] \
   || die "REALTIME_MULTICLIENT_NEGATIVE_PROOFS must be true or false"
 [[ "$DRIVER" == realtime_multiclient_web_test.dart \
-  || "$DRIVER" == constellation_pinning_multiclient_web_test.dart ]] \
-  || die "REALTIME_MULTICLIENT_DRIVER must be realtime_multiclient_web_test.dart or constellation_pinning_multiclient_web_test.dart"
+  || "$DRIVER" == constellation_pinning_multiclient_web_test.dart \
+  || "$DRIVER" == chat_read_receipt_multiclient_web_test.dart ]] \
+  || die "REALTIME_MULTICLIENT_DRIVER must be realtime_multiclient_web_test.dart, constellation_pinning_multiclient_web_test.dart or chat_read_receipt_multiclient_web_test.dart"
 [[ "$ACTOR_ECHO_ENABLED" == true || "$ACTOR_ECHO_ENABLED" == false ]] \
   || die "REALTIME_MULTICLIENT_ACTOR_ECHO_ENABLED must be true or false"
 mkdir -p "$ARTIFACT_ROOT"
