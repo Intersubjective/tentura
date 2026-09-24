@@ -14,6 +14,7 @@ import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
+import 'package:tentura/domain/entity/room_read_watermark.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card_repository.dart';
@@ -63,6 +64,10 @@ class FakeBeaconThreadsRepository extends Fake
   Completer<void>? fetchParticipantsCompleter;
 
   List<BeaconParticipant>? participants;
+
+  List<RoomReadWatermark> mainRoomReadWatermarks = const [];
+  Object? fetchMainRoomReadWatermarksError;
+  int fetchMainRoomReadWatermarksCallCount = 0;
 
   int deleteMessageCalls = 0;
   Object? deleteMessageError;
@@ -169,6 +174,20 @@ class FakeBeaconThreadsRepository extends Fake
   }
 
   @override
+  Future<List<RoomReadWatermark>> fetchMainRoomReadWatermarks(
+    String beaconId,
+  ) async {
+    fetchMainRoomReadWatermarksCallCount++;
+    final error = fetchMainRoomReadWatermarksError;
+    if (error != null) {
+      if (error is Exception) throw error;
+      if (error is Error) throw error;
+      throw StateError(error.toString());
+    }
+    return mainRoomReadWatermarks;
+  }
+
+  @override
   Future<BeaconRoomState> fetchBeaconRoomState(String beaconId) async =>
       BeaconRoomState(beaconId: beaconId, updatedAt: DateTime.utc(2026));
 
@@ -257,12 +276,13 @@ PresenceRepository roomCubitFakePresenceRepository() => PresenceRepository(
 BeaconThreadsCase roomCubitMakeCase(
   FakeBeaconThreadsRepository fakeRoom, {
   RealtimeSyncCase? realtimeSyncCase,
+  RoomReadWatermarkStore? watermarkStore,
 }) => BeaconThreadsCase(
   fakeRoom,
   FakeBeaconFactCardRepository(),
   FakePollingRepository(),
   FakeBeaconRoomHintsRepository(),
-  RoomReadWatermarkStore.testing(),
+  watermarkStore ?? RoomReadWatermarkStore.testing(),
   realtimeSyncCase ?? buildTestRealtimeSync().case_,
   env: const Env(),
   logger: Logger('test'),
@@ -290,12 +310,17 @@ RoomCubit roomCubitForTest(
   FakeBeaconThreadsRepository fakeRoom, {
   UiEffectPort? effects,
   RealtimeSyncCase? realtimeSyncCase,
+  RoomReadWatermarkStore? watermarkStore,
+  BeaconThreadsCase? beaconRoomCase,
 }) => RoomCubit(
   beaconId: kRoomCubitFakeBeaconId,
-  beaconRoomCase: roomCubitMakeCase(
-    fakeRoom,
-    realtimeSyncCase: realtimeSyncCase,
-  ),
+  beaconRoomCase:
+      beaconRoomCase ??
+      roomCubitMakeCase(
+        fakeRoom,
+        realtimeSyncCase: realtimeSyncCase,
+        watermarkStore: watermarkStore,
+      ),
   coordinationItemRoomSync: CoordinationItemRoomSync(),
   presenceRepository: roomCubitFakePresenceRepository(),
   effects: effects ?? FakeUiEffectPort(),

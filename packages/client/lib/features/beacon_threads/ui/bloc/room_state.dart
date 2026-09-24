@@ -6,6 +6,7 @@ import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/room_message.dart';
+import 'package:tentura/domain/entity/room_read_watermark.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
 part 'room_state.freezed.dart';
@@ -27,6 +28,14 @@ abstract class RoomState extends StateBase with _$RoomState {
 
     /// True after [participants] has been populated at least once this session.
     @Default(false) bool participantsLoaded,
+
+    /// Peer (and own) room read watermarks keyed by userId; merged per-user
+    /// with max(fetched, existing) so a refresh never regresses a newer value.
+    @Default(<String, RoomReadWatermark>{})
+    Map<String, RoomReadWatermark> readWatermarks,
+
+    /// True after [readWatermarks] has been fetched successfully at least once.
+    @Default(false) bool readWatermarksLoaded,
     @Default(<BeaconFactCard>[]) List<BeaconFactCard> factCards,
     BeaconRoomState? roomState,
     CoordinationItem? openCoordinationBlocker,

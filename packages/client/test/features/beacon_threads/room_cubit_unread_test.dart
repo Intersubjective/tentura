@@ -12,6 +12,7 @@ import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
+import 'package:tentura/domain/entity/room_read_watermark.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/env.dart';
@@ -115,6 +116,12 @@ class _FakeBeaconThreadsRepository extends Fake
   @override
   Future<BeaconRoomState> fetchBeaconRoomState(String beaconId) async =>
       BeaconRoomState(beaconId: beaconId, updatedAt: DateTime.utc(2026));
+
+  @override
+  Future<List<RoomReadWatermark>> fetchMainRoomReadWatermarks(
+    String beaconId,
+  ) async =>
+      const [];
 
   @override
   Future<DateTime> markThreadSeen({

@@ -7,12 +7,14 @@ import 'package:tentura_root/domain/entity/localizable.dart';
 import 'package:tentura/data/repository/presence_repository.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
+import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_message_mention_span.dart';
 import 'package:tentura/domain/entity/room_poll_data.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
+import 'package:tentura/domain/entity/room_read_watermark.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
@@ -635,24 +637,54 @@ class RoomCubit extends Cubit<RoomState> {
               beaconId: state.beaconId,
               messageId: pendingMessageId,
             );
-      final participants = await _case.fetchParticipants(state.beaconId);
-      final roomState = inThread
-          ? null
-          : await _case.fetchBeaconRoomState(state.beaconId);
-      final factCards = inThread
-          ? const <BeaconFactCard>[]
-          : await _case.fetchFactCards(state.beaconId);
-      final openCoordinationBlocker = inThread
-          ? null
-          : await _case.fetchOpenCoordinationBlocker(state.beaconId);
-      final currentCoordinationPlan = inThread
-          ? null
-          : await _case.fetchCurrentCoordinationPlan(state.beaconId);
+      final participantsF = _case.fetchParticipants(state.beaconId);
+      final roomStateF = inThread
+          ? Future<BeaconRoomState?>.value()
+          : _case.fetchBeaconRoomState(state.beaconId);
+      final factCardsF = inThread
+          ? Future.value(const <BeaconFactCard>[])
+          : _case.fetchFactCards(state.beaconId);
+      final openCoordinationBlockerF = inThread
+          ? Future<CoordinationItem?>.value()
+          : _case.fetchOpenCoordinationBlocker(state.beaconId);
+      final currentCoordinationPlanF = inThread
+          ? Future<CoordinationItem?>.value()
+          : _case.fetchCurrentCoordinationPlan(state.beaconId);
       // Join thread reply counts (messageCount/unreadCount) onto messages by
       // linkedItemId — these are not in the gql message snapshot.
-      final coordinationItems = inThread
-          ? const <CoordinationItem>[]
-          : await _case.fetchCoordinationItems(state.beaconId);
+      final coordinationItemsF = inThread
+          ? Future.value(const <CoordinationItem>[])
+          : _case.fetchCoordinationItems(state.beaconId);
+      // Non-fatal: a watermark failure must not fail the room load.
+      final watermarksF = inThread
+          ? Future<List<RoomReadWatermark>?>.value()
+          : _case
+                .fetchMainRoomReadWatermarks(state.beaconId)
+                .then<List<RoomReadWatermark>?>(
+                  (value) => value,
+                  onError: (Object _) => null,
+                );
+      final (
+        participants,
+        roomState,
+        factCards,
+        openCoordinationBlocker,
+        currentCoordinationPlan,
+        coordinationItems,
+        fetchedWatermarks,
+      ) = await (
+        participantsF,
+        roomStateF,
+        factCardsF,
+        openCoordinationBlockerF,
+        currentCoordinationPlanF,
+        coordinationItemsF,
+        watermarksF,
+      ).wait;
+      final readWatermarks = _mergeReadWatermarks(
+        state.readWatermarks,
+        fetchedWatermarks,
+      );
       final serverRows = _joinCoordinationCounts(
         [
           ...rawMessages,
@@ -683,6 +715,14 @@ class RoomCubit extends Cubit<RoomState> {
             break;
           }
         }
+        // Authors without a participant row still get an anchor from their
+        // own read watermark.
+        final watermarkSeen =
+            (readWatermarks ?? state.readWatermarks)[myId]?.lastSeenAt;
+        if (watermarkSeen != null &&
+            (serverSeen == null || watermarkSeen.isAfter(serverSeen))) {
+          serverSeen = watermarkSeen;
+        }
         if (serverSeen != null) {
           _case.observeServerReadThrough(state.beaconId, serverSeen);
         }
@@ -705,6 +745,9 @@ class RoomCubit extends Cubit<RoomState> {
             messages: messages,
             participants: participants,
             participantsLoaded: true,
+            readWatermarks: readWatermarks ?? state.readWatermarks,
+            readWatermarksLoaded:
+                state.readWatermarksLoaded || readWatermarks != null,
             factCards: factCards,
             roomState: roomState,
             openCoordinationBlocker: openCoordinationBlocker,
@@ -792,6 +835,24 @@ class RoomCubit extends Cubit<RoomState> {
         _showSnackError(e);
       }
     }
+  }
+
+  /// Per-user max(fetched, existing) merge; null when [fetched] is null
+  /// (watermark fetch failed or item-thread scope) so state stays untouched.
+  static Map<String, RoomReadWatermark>? _mergeReadWatermarks(
+    Map<String, RoomReadWatermark> existing,
+    List<RoomReadWatermark>? fetched,
+  ) {
+    if (fetched == null) return null;
+    final merged = Map<String, RoomReadWatermark>.of(existing);
+    for (final watermark in fetched) {
+      final current = merged[watermark.userId];
+      if (current == null ||
+          watermark.lastSeenAt.isAfter(current.lastSeenAt)) {
+        merged[watermark.userId] = watermark;
+      }
+    }
+    return merged;
   }
 
   static List<RoomMessage> _dedupeMessages(List<RoomMessage> messages) {
