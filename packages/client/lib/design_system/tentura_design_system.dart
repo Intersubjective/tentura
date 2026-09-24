@@ -2,6 +2,7 @@
 library;
 
 export 'components/tentura_avatar.dart';
+export 'components/tentura_avatar_stack.dart';
 export 'components/tentura_adaptive_sheet.dart';
 export 'components/tentura_attention_summary_row.dart';
 export 'components/tentura_modal_bottom_sheet_route.dart';
