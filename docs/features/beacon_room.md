@@ -132,6 +132,24 @@ Child beacons use standard beacon routes, not thread ids.
 
 Unread counts for **General** appear on the **Chat** tab badge (`threadsTabUnreadCount`). Closed-thread unread may be stored but is excluded from the badge. Child request state does not inherit parent read watermarks; viewing a parent does not mark a child's General seen. Own messages do not count as unread. Read-to-bottom suppresses row unread optimistically until sync completes.
 
+## Read receipts
+
+**Sender read receipts** on **General** show delivery/read state on **the viewer's own** messages only (pending, sent, read glyphs). They are separate from **Activity** / attention unread receipts and from the viewer's own **General** unread badge (`room_seen` / read-to-bottom).
+
+| State | Meaning |
+|-------|---------|
+| **Pending** | Optimistic local send (`local:` id or still uploading) |
+| **Sent** | On server; no peer watermark yet covers the message time (the viewer's own last-seen does not count) |
+| **Read** | At least one **other discussion member** has a peer read watermark at or after the message time |
+
+Peer read positions load from `beacon_room_seen` (General-only) via `BeaconRoomReadWatermarks`. Live updates use the realtime wire kind **`room_seen_peer`** (`seen_user_id`, `last_seen_at`); the client patches peer watermarks without refetching the message list.
+
+Derivation uses per-user `last_seen_at` watermarks (excluding the viewer when computing **read**). System/hierarchy rows and peer-authored bubbles never show sender receipts.
+
+**Leaving General:** disposing the discussion surface no longer unconditionally flushes the viewer's read position. `RoomCubit.close()` calls `markSeenNowIfNeeded(force: true)` only when the user was at the bottom of the list and no new inbound message arrived after that bottom snapshot.
+
+Rollout is **server-first** (peer fan-out depends on migration `m0196` and the `room_seen_peer` publisher).
+
 ### General detail
 
 General hosts the shared message composer and history: replies (same thread scope), @mentions, polls, attachments, facts, and plan interactions. **Hierarchy notices** (ancestor/child lifecycle, child created) render as centered system rows with typed payloads. Terminal parent/child statuses make General **read-only** for ordinary user writes; system notices still materialize from the delivery worker.
