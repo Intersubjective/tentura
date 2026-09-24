@@ -50,7 +50,9 @@ void main() {
     RoomMessage? nextMessage,
     RoomMessageReceipt? receipt,
     Size viewportSize = logicalSize,
+    ThemeData? theme,
   }) async {
+    final resolvedTheme = theme ?? TenturaTheme.light();
     final profileCubit = _GoldenProfileCubit();
     final presenceCubit = _GoldenPresenceCubit();
     await tester.pumpWidget(
@@ -62,7 +64,7 @@ void main() {
         child: MaterialApp(
           debugShowCheckedModeBanner: false,
           locale: const Locale('en'),
-          theme: TenturaTheme.light(),
+          theme: resolvedTheme,
           localizationsDelegates: L10n.localizationsDelegates,
           supportedLocales: L10n.supportedLocales,
           home: MediaQuery(
@@ -265,117 +267,165 @@ void main() {
     });
 
     testWidgets('reply_quote_mine_dark', (tester) async {
-      final profileCubit = _GoldenProfileCubit();
-      final presenceCubit = _GoldenPresenceCubit();
-      await tester.pumpWidget(
-        MultiBlocProvider(
-          providers: [
-            BlocProvider<ProfileCubit>.value(value: profileCubit),
-            BlocProvider<PresenceCubit>.value(value: presenceCubit),
-          ],
-          child: MaterialApp(
-            debugShowCheckedModeBanner: false,
-            locale: const Locale('en'),
-            theme: TenturaTheme.dark(),
-            localizationsDelegates: L10n.localizationsDelegates,
-            supportedLocales: L10n.supportedLocales,
-            home: MediaQuery(
-              data: const MediaQueryData(size: logicalSize),
-              child: TenturaResponsiveScope(
-                child: Scaffold(
-                  body: RepaintBoundary(
-                    key: const Key('golden'),
-                    child: SizedBox(
-                      width: logicalSize.width,
-                      child: RoomMessageTile(
-                        message: textMessage(
-                          id: 'm-reply-mine-dark',
-                          authorId: 'me',
-                          author: me,
-                          body: 'Sure, tomorrow works',
-                          replyToMessageId: 'parent-1',
-                          replyToAuthorId: 'other',
-                          replyToAuthorTitle: 'Alex River',
-                          replyToBodyExcerpt:
-                              'can you bring the ladder tomorrow morning',
-                        ),
-                        myProfile: me,
-                        onToggleReaction: (_, _) async {},
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
+      await pumpRoomMessageGolden(
+        tester,
+        goldenName: 'reply_quote_mine_dark',
+        theme: TenturaTheme.dark(),
+        message: textMessage(
+          id: 'm-reply-mine-dark',
+          authorId: 'me',
+          author: me,
+          body: 'Sure, tomorrow works',
+          replyToMessageId: 'parent-1',
+          replyToAuthorId: 'other',
+          replyToAuthorTitle: 'Alex River',
+          replyToBodyExcerpt: 'can you bring the ladder tomorrow morning',
         ),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
-      await expectLater(
-        find.byKey(const Key('golden')),
-        matchesGoldenFile('goldens/room_message_reply_quote_mine_dark.png'),
+        myProfile: me,
       );
     },
       tags: 'golden',
     );
 
     testWidgets('reply_quote_other_dark', (tester) async {
-      final profileCubit = _GoldenProfileCubit();
-      final presenceCubit = _GoldenPresenceCubit();
-      await tester.pumpWidget(
-        MultiBlocProvider(
-          providers: [
-            BlocProvider<ProfileCubit>.value(value: profileCubit),
-            BlocProvider<PresenceCubit>.value(value: presenceCubit),
-          ],
-          child: MaterialApp(
-            debugShowCheckedModeBanner: false,
-            locale: const Locale('en'),
-            theme: TenturaTheme.dark(),
-            localizationsDelegates: L10n.localizationsDelegates,
-            supportedLocales: L10n.supportedLocales,
-            home: MediaQuery(
-              data: const MediaQueryData(size: logicalSize),
-              child: TenturaResponsiveScope(
-                child: Scaffold(
-                  body: RepaintBoundary(
-                    key: const Key('golden'),
-                    child: SizedBox(
-                      width: logicalSize.width,
-                      child: RoomMessageTile(
-                        message: textMessage(
-                          id: 'm-reply-other-dark',
-                          authorId: 'other',
-                          author: other,
-                          body: 'Reply body text',
-                          replyToMessageId: 'parent-2',
-                          replyToAuthorId: 'me',
-                          replyToAuthorTitle: 'Me',
-                          replyToBodyExcerpt:
-                              'Original message excerpt for golden capture',
-                        ),
-                        myProfile: me,
-                        onToggleReaction: (_, _) async {},
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
+      await pumpRoomMessageGolden(
+        tester,
+        goldenName: 'reply_quote_other_dark',
+        theme: TenturaTheme.dark(),
+        message: textMessage(
+          id: 'm-reply-other-dark',
+          authorId: 'other',
+          author: other,
+          body: 'Reply body text',
+          replyToMessageId: 'parent-2',
+          replyToAuthorId: 'me',
+          replyToAuthorTitle: 'Me',
+          replyToBodyExcerpt: 'Original message excerpt for golden capture',
         ),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
-      await expectLater(
-        find.byKey(const Key('golden')),
-        matchesGoldenFile('goldens/room_message_reply_quote_other_dark.png'),
+        myProfile: me,
       );
     },
       tags: 'golden',
     );
   }, skip: 'Goldens disabled');
+
+  group('room message reply quote landing goldens', () {
+    testWidgets('reply_quote_mine_light matches committed golden', (
+      tester,
+    ) async {
+      await pumpRoomMessageGolden(
+        tester,
+        goldenName: 'reply_quote_mine_light',
+        message: textMessage(
+          id: 'm-reply-mine-landing',
+          authorId: 'me',
+          author: me,
+          body: 'Sure, tomorrow works',
+          replyToMessageId: 'parent-1',
+          replyToAuthorId: 'other',
+          replyToAuthorTitle: 'Alex River',
+          replyToBodyExcerpt: 'can you bring the ladder tomorrow morning',
+        ),
+        myProfile: me,
+      );
+    },
+      tags: 'golden',
+    );
+
+    testWidgets('reply_quote_other_light matches committed golden', (
+      tester,
+    ) async {
+      await pumpRoomMessageGolden(
+        tester,
+        goldenName: 'reply_quote_other_light',
+        message: textMessage(
+          id: 'm-reply-other-landing',
+          authorId: 'other',
+          author: other,
+          body: 'Reply body text',
+          replyToMessageId: 'parent-2',
+          replyToAuthorId: 'me',
+          replyToAuthorTitle: 'Me',
+          replyToBodyExcerpt: 'Original message excerpt for golden capture',
+        ),
+        myProfile: me,
+      );
+    },
+      tags: 'golden',
+    );
+
+    testWidgets('reply_quote_mine_dark matches committed golden', (
+      tester,
+    ) async {
+      await pumpRoomMessageGolden(
+        tester,
+        goldenName: 'reply_quote_mine_dark',
+        theme: TenturaTheme.dark(),
+        message: textMessage(
+          id: 'm-reply-mine-dark-landing',
+          authorId: 'me',
+          author: me,
+          body: 'Sure, tomorrow works',
+          replyToMessageId: 'parent-1',
+          replyToAuthorId: 'other',
+          replyToAuthorTitle: 'Alex River',
+          replyToBodyExcerpt: 'can you bring the ladder tomorrow morning',
+        ),
+        myProfile: me,
+      );
+    },
+      tags: 'golden',
+    );
+
+    testWidgets('reply_quote_other_dark matches committed golden', (
+      tester,
+    ) async {
+      await pumpRoomMessageGolden(
+        tester,
+        goldenName: 'reply_quote_other_dark',
+        theme: TenturaTheme.dark(),
+        message: textMessage(
+          id: 'm-reply-other-dark-landing',
+          authorId: 'other',
+          author: other,
+          body: 'Reply body text',
+          replyToMessageId: 'parent-2',
+          replyToAuthorId: 'me',
+          replyToAuthorTitle: 'Me',
+          replyToBodyExcerpt: 'Original message excerpt for golden capture',
+        ),
+        myProfile: me,
+      );
+    },
+      tags: 'golden',
+    );
+
+    testWidgets(
+      'reply_quote_mine_dark_with_sent_receipt matches committed golden',
+      (tester) async {
+        await pumpRoomMessageGolden(
+          tester,
+          goldenName: 'reply_quote_mine_dark_sent_receipt',
+          theme: TenturaTheme.dark(),
+          message: textMessage(
+            id: 'm-reply-mine-dark-receipt',
+            authorId: 'me',
+            author: me,
+            body: 'Sure, tomorrow works',
+            replyToMessageId: 'parent-1',
+            replyToAuthorId: 'other',
+            replyToAuthorTitle: 'Alex River',
+            replyToBodyExcerpt: 'can you bring the ladder tomorrow morning',
+          ),
+          myProfile: me,
+          receipt: const RoomMessageReceipt(
+            state: RoomMessageReceiptState.sent,
+          ),
+        );
+      },
+      tags: 'golden',
+    );
+  });
 
   group('room message receipt layout goldens', () {
     const viewport320 = Size(320, 200);
