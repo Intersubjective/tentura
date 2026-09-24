@@ -146,6 +146,18 @@
       "tests": ["packages/client/test/features/beacon_threads/beacon_threads_case_test.dart"]
     },
     {
+      "wireKind": "room_seen_peer",
+      "acceptedWireKinds": ["room_seen_peer"],
+      "clientKind": "roomSeenPeer",
+      "genericTriggerArgs": [],
+      "specializedPublishers": ["notify_room_seen_peer_change"],
+      "impacts": ["presence"],
+      "tests": [
+        "packages/client/test/data/service/invalidation_service_room_seen_peer_test.dart",
+        "packages/client/test/features/beacon_threads/beacon_room_invalidation_test.dart"
+      ]
+    },
+    {
       "wireKind": "relationship",
       "acceptedWireKinds": ["relationship"],
       "clientKind": "relationship",

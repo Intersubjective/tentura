@@ -2,6 +2,7 @@ import 'package:meta/meta.dart';
 
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/realtime/realtime_room_message_paint.dart';
+import 'package:tentura/domain/entity/realtime/realtime_seen_peer.dart';
 
 /// PG NOTIFY `entity` values for beacon room–related tables, mapped for client
 /// invalidation routing over the V2 `entity_changes` WebSocket path.
@@ -14,6 +15,7 @@ enum BeaconRoomEntityType {
   factCard,
   coordinationItem,
   roomSeen,
+  roomSeenPeer,
   helpOffer,
 }
 
@@ -31,6 +33,7 @@ final class BeaconRoomInvalidation {
     this.operation,
     this.messageId,
     this.paint,
+    this.seenPeer,
   });
 
   final String beaconId;
@@ -38,6 +41,7 @@ final class BeaconRoomInvalidation {
   final RealtimeOperation? operation;
   final String? messageId;
   final RealtimeRoomMessagePaint? paint;
+  final RealtimeSeenPeer? seenPeer;
 
   /// Adapts the shared realtime boundary to the room projection contract.
   static BeaconRoomInvalidation? fromRealtimeChange(
@@ -53,6 +57,7 @@ final class BeaconRoomInvalidation {
       RealtimeEntityKind.coordinationItem =>
         BeaconRoomEntityType.coordinationItem,
       RealtimeEntityKind.roomSeen => BeaconRoomEntityType.roomSeen,
+      RealtimeEntityKind.roomSeenPeer => BeaconRoomEntityType.roomSeenPeer,
       RealtimeEntityKind.helpOffer => BeaconRoomEntityType.helpOffer,
       _ => null,
     };
@@ -64,6 +69,7 @@ final class BeaconRoomInvalidation {
             operation: change.operation,
             messageId: change.childId,
             paint: change.roomMessagePaint,
+            seenPeer: change.seenPeer,
           );
   }
 
@@ -74,7 +80,8 @@ final class BeaconRoomInvalidation {
       entityType == other.entityType &&
       operation == other.operation &&
       messageId == other.messageId &&
-      paint == other.paint;
+      paint == other.paint &&
+      seenPeer == other.seenPeer;
 
   @override
   int get hashCode => Object.hash(
@@ -83,5 +90,6 @@ final class BeaconRoomInvalidation {
     operation,
     messageId,
     paint,
+    seenPeer,
   );
 }

@@ -1,6 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'realtime_room_message_paint.dart';
+import 'realtime_seen_peer.dart';
 
 part 'realtime_entity_change.freezed.dart';
 
@@ -20,6 +21,7 @@ enum RealtimeEntityKind {
   capability,
   contact,
   roomSeen,
+  roomSeenPeer,
   relationship,
   profile,
   notification,
@@ -44,6 +46,7 @@ enum RealtimeEntityKind {
     'capability' || 'person_capability_event' => RealtimeEntityKind.capability,
     'contact' => RealtimeEntityKind.contact,
     'room_seen' => RealtimeEntityKind.roomSeen,
+    'room_seen_peer' => RealtimeEntityKind.roomSeenPeer,
     'relationship' => RealtimeEntityKind.relationship,
     'profile' => RealtimeEntityKind.profile,
     'notification' => RealtimeEntityKind.notification,
@@ -71,5 +74,7 @@ abstract class RealtimeEntityChange with _$RealtimeEntityChange {
     String? childId,
   /// Validated plain-text insert paint from WS `payload.message`.
     RealtimeRoomMessagePaint? roomMessagePaint,
+  /// Peer read cursor from WS `seen_user_id` / `last_seen_at` extras.
+    RealtimeSeenPeer? seenPeer,
   }) = _RealtimeEntityChange;
 }

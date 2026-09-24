@@ -10,6 +10,7 @@ import 'package:tentura/domain/entity/realtime/realtime_catch_up.dart';
 import 'package:tentura/domain/entity/realtime/realtime_connection_status.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/realtime/realtime_room_message_paint.dart';
+import 'package:tentura/domain/entity/realtime/realtime_seen_peer.dart';
 import 'package:tentura/domain/entity/room_message_mention_span.dart';
 import 'package:tentura/domain/port/realtime_sync_port.dart';
 
@@ -167,6 +168,14 @@ class InvalidationService implements RealtimeSyncPort {
       childId: childId,
       rawMessage: payload['message'],
     );
+    final seenPeer = _parseSeenPeer(
+      kind: kind,
+      seenUserId: payload['seen_user_id'],
+      lastSeenAtRaw: payload['last_seen_at'],
+    );
+    if (kind == RealtimeEntityKind.roomSeenPeer && seenPeer == null) {
+      return;
+    }
 
     _entityChangeController.add(
       RealtimeEntityChange(
@@ -177,6 +186,7 @@ class InvalidationService implements RealtimeSyncPort {
         actorUserId: actorUserId as String?,
         childId: childId,
         roomMessagePaint: paint,
+        seenPeer: seenPeer,
       ),
     );
   }
@@ -254,12 +264,13 @@ class InvalidationService implements RealtimeSyncPort {
     List<RealtimeEntityChange> batch,
   ) {
     final latestByProjectionKey =
-        <(RealtimeEntityKind, String, String?), RealtimeEntityChange>{};
+        <(RealtimeEntityKind, String, String?, String?), RealtimeEntityChange>{};
     for (final change in batch) {
       latestByProjectionKey[(
             change.kind,
             change.aggregateId,
             change.roomMessagePaint?.id,
+            change.seenPeer?.userId,
           )] =
           change;
     }
@@ -268,6 +279,27 @@ class InvalidationService implements RealtimeSyncPort {
 
   static String? _parseChildId(Object? raw) =>
       raw is String && raw.isNotEmpty ? raw : null;
+
+  static RealtimeSeenPeer? _parseSeenPeer({
+    required RealtimeEntityKind kind,
+    required Object? seenUserId,
+    required Object? lastSeenAtRaw,
+  }) {
+    if (kind != RealtimeEntityKind.roomSeenPeer) {
+      return null;
+    }
+    if (seenUserId is! String || seenUserId.isEmpty) {
+      return null;
+    }
+    if (lastSeenAtRaw is! String) {
+      return null;
+    }
+    final lastSeenAt = DateTime.tryParse(lastSeenAtRaw);
+    if (lastSeenAt == null) {
+      return null;
+    }
+    return RealtimeSeenPeer(userId: seenUserId, lastSeenAt: lastSeenAt);
+  }
 
   static RealtimeRoomMessagePaint? _parseRoomMessagePaint({
     required RealtimeEntityKind? kind,
