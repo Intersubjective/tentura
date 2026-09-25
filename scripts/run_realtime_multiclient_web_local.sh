@@ -64,7 +64,9 @@ fi
 
 if ! curl -sf -m 3 http://127.0.0.1:8080/healthz >/dev/null 2>&1; then
   log "starting docker compose infrastructure"
-  (cd "$ROOT" && docker compose up -d)
+  # Fixed container_name values mean worktrees must join the shared stack
+  # rather than create a second compose project named after the checkout dir.
+  (cd "$ROOT" && COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-tentura}" docker compose up -d)
   for _ in $(seq 1 60); do
     curl -sf -m 2 http://127.0.0.1:8080/healthz >/dev/null 2>&1 && break
     sleep 2
@@ -146,6 +148,9 @@ if ss -tln 2>/dev/null | grep -qE "[.:]$WEB_PORT "; then
   die "port $WEB_PORT is busy; stop the existing Flutter web server"
 fi
 log "starting one Flutter web dev server"
+# env/local-web.env is gitignored, so fresh worktrees must generate it.
+bash "$ROOT/scripts/sync-client-local-config.sh"
+bash "$ROOT/scripts/resolve_local_web_config.sh" --check-only
 (
   cd "$CLIENT_DIR"
   flutter run -d web-server \
