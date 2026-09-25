@@ -15,6 +15,7 @@ import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 import 'package:tentura_server/domain/use_case/commitment_query_case.dart';
+import 'package:tentura_server/domain/use_case/beacon_involvement_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_case.dart';
 import 'package:tentura_server/env.dart';
 
@@ -204,6 +205,40 @@ Future<void> main() async {
     );
 
     test(
+      'BeaconInvolvementCase.asMap admits a beacon_steward-only steward',
+      () async {
+        final sut = _buildBeaconInvolvementCase(
+          access: access,
+          beaconId: _stewardOnlyBeacon,
+        );
+        final result = await sut.asMap(
+          beaconId: _stewardOnlyBeacon,
+          currentUserId: _steward,
+        );
+        expect(result.forwardedToIds, isEmpty);
+        expect(result.helpOfferedIds, isEmpty);
+
+        await expectLater(
+          _buildBeaconInvolvementCase(
+            access: access,
+            beaconId: _stewardOnlyBeacon,
+          ).asMap(
+            beaconId: _stewardOnlyBeacon,
+            currentUserId: _stranger,
+          ),
+          throwsA(
+            isA<UnauthorizedException>().having(
+              (e) => e.description,
+              'description',
+              'Viewer cannot read request involvement',
+            ),
+          ),
+        );
+      },
+      skip: skipReason,
+    );
+
+    test(
       'setBeaconSteward on a user without a participant row grants involvement',
       () async {
         final before = await writer.execute(
@@ -254,6 +289,32 @@ final _logger = Logger('beacon_steward_involvement_pg_test');
 
 /// Real [BeaconAccessRepository] guard; downstream ports stubbed so a call
 /// that passes the guard completes without touching the database.
+BeaconInvolvementCase _buildBeaconInvolvementCase({
+  required BeaconAccessRepository access,
+  required String beaconId,
+}) {
+  final forward = help_mocks.MockForwardEdgeRepositoryPort();
+  when(forward.fetchByBeaconId(beaconId)).thenAnswer((_) async => []);
+  when(forward.fetchDistinctSenderIdsByBeaconId(beaconId))
+      .thenAnswer((_) async => []);
+  when(forward.markAsRead(any, any)).thenAnswer((_) async {});
+  final help = help_mocks.MockHelpOfferRepositoryPort();
+  when(help.fetchAllByBeaconId(beaconId)).thenAnswer((_) async => []);
+  final inbox = help_mocks.MockInboxRepositoryPort();
+  when(inbox.fetchRejectedUserIdsByBeacon(beaconId))
+      .thenAnswer((_) async => []);
+  when(inbox.fetchWatchingUserIdsByBeacon(beaconId))
+      .thenAnswer((_) async => []);
+  return BeaconInvolvementCase(
+    forward,
+    help,
+    inbox,
+    access,
+    env: _env,
+    logger: _logger,
+  );
+}
+
 CoordinationCase _buildCoordinationCase({
   required BeaconAccessRepository access,
   required String beaconId,
