@@ -5383,6 +5383,8 @@
   "beaconRoomAttachMenuTooltip": "Вложение",
   "beaconRoomAttachPickImages": "Фото",
   "beaconRoomAttachPickFiles": "Файлы",
+  "beaconRoomAttachPickFact": "Факт",
+  "beaconRoomQuotedFactFrom": "Факт от {name}",
   "beaconRoomAttachPasteImage": "Вставить изображение",
   "beaconRoomAttachPasteImageNotFound": "В буфере обмена нет изображения",
   "beaconRoomAttachPasteImageUnsupported": "Доступ к буферу обмена недоступен",

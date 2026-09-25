@@ -65,6 +65,9 @@ class BasicChatBody extends StatefulWidget {
     this.onJumpToReply,
     this.replyTarget,
     this.onCancelReply,
+    this.onPickFact,
+    this.pendingQuotedFact,
+    this.onCancelQuotedFact,
     this.onToggleReaction,
     this.onOpenFileAttachment,
     this.onVotePoll,
@@ -119,6 +122,15 @@ class BasicChatBody extends StatefulWidget {
   final RoomMessage? replyTarget;
 
   final VoidCallback? onCancelReply;
+
+  /// Invoked when the composer's attach-menu "Fact" item is tapped; hidden
+  /// from the menu when null.
+  final VoidCallback? onPickFact;
+
+  /// Fact quoted into the composer, pending send.
+  final BeaconFactCard? pendingQuotedFact;
+
+  final VoidCallback? onCancelQuotedFact;
 
   final Future<void> Function(String messageId, String emoji)? onToggleReaction;
 
@@ -677,6 +689,9 @@ class BasicChatBodyState extends State<BasicChatBody> {
                         readOnlyHint: widget.composerReadOnlyHint,
                         replyTarget: widget.replyTarget,
                         onCancelReply: widget.onCancelReply,
+                        onPickFact: widget.onPickFact,
+                        pendingQuotedFact: widget.pendingQuotedFact,
+                        onCancelQuotedFact: widget.onCancelQuotedFact,
                       )
                     : const SizedBox.shrink(),
               ),
@@ -702,6 +717,9 @@ class BeaconRoomComposer extends StatefulWidget {
     this.readOnlyHint,
     this.replyTarget,
     this.onCancelReply,
+    this.onPickFact,
+    this.pendingQuotedFact,
+    this.onCancelQuotedFact,
     super.key,
   });
 
@@ -733,6 +751,15 @@ class BeaconRoomComposer extends StatefulWidget {
   final RoomMessage? replyTarget;
 
   final VoidCallback? onCancelReply;
+
+  /// Invoked when the attach-menu "Fact" item is tapped; hidden from the
+  /// menu when null.
+  final VoidCallback? onPickFact;
+
+  /// Fact quoted into the composer, pending send.
+  final BeaconFactCard? pendingQuotedFact;
+
+  final VoidCallback? onCancelQuotedFact;
 
   @override
   State<BeaconRoomComposer> createState() => _BeaconRoomComposerState();
@@ -1183,7 +1210,9 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
     }
     final body = _text.text;
     final uploads = List<RoomPendingUpload>.from(_pending);
-    if (body.trim().isEmpty && uploads.isEmpty) {
+    if (body.trim().isEmpty &&
+        uploads.isEmpty &&
+        widget.pendingQuotedFact == null) {
       return;
     }
     setState(() => _submitting = true);
@@ -1306,10 +1335,12 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
 
   Widget _attachMenuButton(L10n l10n, ThemeData theme, bool busy) {
     final readOnly = widget.readOnlyHint != null;
+    final onPickFact = widget.onPickFact;
+    final hasSlots = _remainingSlots > 0;
     return PopupMenuButton<String>(
       key: const ValueKey('attach'),
       tooltip: l10n.beaconRoomAttachMenuTooltip,
-      enabled: !busy && !readOnly && _remainingSlots > 0,
+      enabled: !busy && !readOnly,
       onSelected: (v) async {
         if (busy || readOnly) {
           return;
@@ -1318,17 +1349,26 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
           await _pickImages();
         } else if (v == 'file') {
           await _pickFiles();
+        } else if (v == 'fact') {
+          onPickFact?.call();
         }
       },
       itemBuilder: (ctx) => [
         PopupMenuItem(
           value: 'img',
+          enabled: hasSlots,
           child: Text(l10n.beaconRoomAttachPickImages),
         ),
         PopupMenuItem(
           value: 'file',
+          enabled: hasSlots,
           child: Text(l10n.beaconRoomAttachPickFiles),
         ),
+        if (onPickFact != null)
+          PopupMenuItem(
+            value: 'fact',
+            child: Text(l10n.beaconRoomAttachPickFact),
+          ),
       ],
       icon: Icon(
         Icons.attach_file_rounded,
@@ -1430,6 +1470,11 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
           _ComposerReplyBanner(
             target: widget.replyTarget!,
             onCancelReply: widget.onCancelReply,
+          ),
+        if (widget.pendingQuotedFact != null)
+          _ComposerQuotedFactBanner(
+            fact: widget.pendingQuotedFact!,
+            onCancelQuotedFact: widget.onCancelQuotedFact,
           ),
         if (widget.enableAttachments && !readOnly && _pending.isNotEmpty)
           Padding(
@@ -1597,6 +1642,78 @@ class _ComposerReplyBanner extends StatelessWidget {
                 icon: const Icon(Icons.close),
                 tooltip: MaterialLocalizations.of(context).cancelButtonLabel,
                 onPressed: onCancelReply,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ComposerQuotedFactBanner extends StatelessWidget {
+  const _ComposerQuotedFactBanner({
+    required this.fact,
+    this.onCancelQuotedFact,
+  });
+
+  final BeaconFactCard fact;
+
+  final VoidCallback? onCancelQuotedFact;
+
+  static const _accentWidth = 3.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final tt = context.tt;
+
+    return Padding(
+      key: const ValueKey('quoted-fact-banner'),
+      padding: const EdgeInsets.only(bottom: kSpacingSmall),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: scheme.tertiary,
+                borderRadius: BorderRadius.circular(TenturaRadii.accentBar),
+              ),
+              child: const SizedBox(width: _accentWidth),
+            ),
+            SizedBox(width: tt.iconTextGap),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    l10n.beaconRoomQuotedFactFrom(fact.pinnedByTitle),
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: scheme.tertiary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    fact.factText,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            if (onCancelQuotedFact != null)
+              IconButton(
+                key: const ValueKey('quoted-fact-close'),
+                icon: const Icon(Icons.close),
+                tooltip: MaterialLocalizations.of(context).cancelButtonLabel,
+                onPressed: onCancelQuotedFact,
               ),
           ],
         ),

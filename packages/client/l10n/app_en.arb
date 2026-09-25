@@ -5515,6 +5515,16 @@
   "beaconRoomAttachMenuTooltip": "Attach",
   "beaconRoomAttachPickImages": "Photos",
   "beaconRoomAttachPickFiles": "Files",
+  "beaconRoomAttachPickFact": "Fact",
+  "beaconRoomQuotedFactFrom": "Fact from {name}",
+  "@beaconRoomQuotedFactFrom": {
+    "description": "Composer banner label when quoting a fact",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "beaconRoomAttachPasteImage": "Paste image",
   "beaconRoomAttachPasteImageNotFound": "No image on clipboard",
   "beaconRoomAttachPasteImageUnsupported": "Clipboard access isn't available",
