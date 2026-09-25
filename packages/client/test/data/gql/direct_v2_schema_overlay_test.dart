@@ -67,4 +67,25 @@ void main() {
       ),
     );
   });
+
+  test('fetched schema exposes MarkBeaconPeopleSeen and authorSeenAt', () {
+    final schema = File('lib/data/gql/schema.graphql').readAsStringSync();
+
+    expect(
+      schema,
+      contains(
+        'MarkBeaconPeopleSeen(beaconId: String!, readThroughAt: String): '
+        'v2_BeaconPeopleSeenResult!',
+      ),
+    );
+    expect(schema, contains('type v2_BeaconPeopleSeenResult {'));
+
+    final rowStart = schema.indexOf('type v2_HelpOfferWithCoordinationRow {');
+    expect(rowStart, isNonNegative);
+    final rowEnd = schema.indexOf('\n}', rowStart);
+    expect(
+      schema.substring(rowStart, rowEnd),
+      contains('authorSeenAt: String'),
+    );
+  });
 }
