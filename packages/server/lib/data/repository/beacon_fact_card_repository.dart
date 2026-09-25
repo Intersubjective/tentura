@@ -127,6 +127,16 @@ class BeaconFactCardRepository implements BeaconFactCardRepositoryPort {
                 (u) => u(linkedFactCardId: Value(row.id)),
               );
         }
+        await _db.managers.beaconFactCardRevisions.create(
+          (o) => o(
+            id: generateId('FR'),
+            factCardId: row.id,
+            seq: 1,
+            factText: trimmed,
+            actorId: Value(pinnedBy),
+            kind: BeaconFactCardRevisionKindBits.created,
+          ),
+        );
         final roomMsg = await _room.insertRoomMessage(
           beaconId: beaconId,
           authorId: pinnedBy,
