@@ -129,6 +129,8 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
 
   late final StreamSubscription<RealtimeEntityChange> _peopleSeenChangesSub;
 
+  bool _peopleSeenInFlight = false;
+
   bool _fetchInProgress = false;
   bool _fetchPending = false;
 
@@ -191,6 +193,45 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       _showSnackError(error);
     }
   }
+
+  /// The People surface was viewed: marks offers seen as author/steward.
+  /// At most one call in flight; stamps `authorSeenAt` locally on success,
+  /// re-arms once for offers created after the returned `seenAt`, and
+  /// swallows errors silently.
+  Future<void> reportPeopleSurfaceViewed() => _reportPeopleSeen(rearm: true);
+
+  Future<void> _reportPeopleSeen({required bool rearm}) async {
+    if (isClosed || !state.isAuthorOrSteward || _peopleSeenInFlight) return;
+    if (!state.helpOffers.any(_isUnseenOffer)) return;
+    _peopleSeenInFlight = true;
+    DateTime seenAt;
+    try {
+      seenAt = await _case.markPeopleSeen(state.beacon.id);
+    } catch (_) {
+      return;
+    } finally {
+      _peopleSeenInFlight = false;
+    }
+    if (isClosed) return;
+    emit(
+      state.copyWith(
+        helpOffers: state.helpOffers
+            .map(
+              (offer) =>
+                  offer.authorSeenAt == null && !offer.createdAt.isAfter(seenAt)
+                  ? offer.copyWith(authorSeenAt: seenAt)
+                  : offer,
+            )
+            .toList(),
+      ),
+    );
+    if (rearm && state.helpOffers.any(_isUnseenOffer)) {
+      scheduleMicrotask(() => unawaited(_reportPeopleSeen(rearm: false)));
+    }
+  }
+
+  static bool _isUnseenOffer(TimelineHelpOffer offer) =>
+      offer.authorSeenAt == null && !offer.isWithdrawn;
 
   Future<void> moveToWatching() async {
     if (state.inboxStatus != InboxItemStatus.needsMe) return;
