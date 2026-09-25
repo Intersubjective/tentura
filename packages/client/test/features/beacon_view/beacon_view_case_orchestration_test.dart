@@ -58,6 +58,39 @@ void main() {
       expect(events, hasLength(1));
     });
 
+    test('peopleSeenChanges forwards only people_seen', () async {
+      final realtime = buildTestRealtimeSync();
+      addTearDown(realtime.port.dispose);
+      final case_ = buildTestBeaconViewCase(realtimeSyncCase: realtime.case_);
+      final changes = <RealtimeEntityChange>[];
+      final sub = case_.peopleSeenChanges.listen(changes.add);
+      addTearDown(sub.cancel);
+
+      for (final kind in const [
+        RealtimeEntityKind.roomMessage,
+        RealtimeEntityKind.relationship,
+        RealtimeEntityKind.beacon,
+        RealtimeEntityKind.peopleSeen,
+      ]) {
+        realtime.port.emitChange(
+          RealtimeEntityChange(
+            kind: kind,
+            aggregateId: 'B-beacon',
+            operation: RealtimeOperation.update,
+            source: RealtimeChangeSource.serverInvalidation,
+            peopleSeenAt: kind == RealtimeEntityKind.peopleSeen
+                ? DateTime.utc(2026, 6, 15, 12, 5)
+                : null,
+          ),
+        );
+      }
+      await Future<void>.delayed(Duration.zero);
+
+      expect(changes.map((change) => change.kind), [
+        RealtimeEntityKind.peopleSeen,
+      ]);
+    });
+
     test(
       'peopleChanges forwards only relationship and profile signals',
       () async {

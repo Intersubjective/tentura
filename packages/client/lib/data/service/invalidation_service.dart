@@ -179,7 +179,7 @@ class InvalidationService implements RealtimeSyncPort {
     final lastSeenAtRaw = payload['last_seen_at'];
     final peopleSeenAt =
         kind == RealtimeEntityKind.peopleSeen && lastSeenAtRaw is String
-        ? DateTime.tryParse(lastSeenAtRaw)
+        ? DateTime.tryParse(lastSeenAtRaw)?.toUtc()
         : null;
     if (kind == RealtimeEntityKind.peopleSeen && peopleSeenAt == null) {
       return;
@@ -273,13 +273,17 @@ class InvalidationService implements RealtimeSyncPort {
     List<RealtimeEntityChange> batch,
   ) {
     final latestByProjectionKey =
-        <(RealtimeEntityKind, String, String?, String?), RealtimeEntityChange>{};
+        <
+          (RealtimeEntityKind, String, String?, String?, DateTime?),
+          RealtimeEntityChange
+        >{};
     for (final change in batch) {
       latestByProjectionKey[(
             change.kind,
             change.aggregateId,
             change.roomMessagePaint?.id,
             change.seenPeer?.userId,
+            change.peopleSeenAt,
           )] =
           change;
     }
