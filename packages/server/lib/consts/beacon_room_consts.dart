@@ -36,6 +36,12 @@ abstract final class BeaconRoomSemanticMarker {
 
   /// Participant admitted to the shared chat (`systemPayload` carries reason).
   static const participantJoined = 9;
+
+  /// Fact card text edited (system line).
+  static const factEdited = 10;
+
+  /// Fact card unpinned / removed (system line).
+  static const factUnpinned = 11;
 }
 
 /// `beacon_participant.next_move_status` (sparse UX enum).

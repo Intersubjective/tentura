@@ -9,3 +9,11 @@ abstract final class BeaconFactCardStatusBits {
   static const corrected = 1;
   static const removed = 2;
 }
+
+/// Mirrors server `BeaconFactCardRevisionKindBits`.
+abstract final class BeaconFactCardRevisionKindBits {
+  static const created = 0;
+  static const edited = 1;
+  static const restored = 2;
+  static const imported = 3;
+}

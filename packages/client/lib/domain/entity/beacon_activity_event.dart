@@ -25,21 +25,7 @@ abstract class BeaconActivityEvent with _$BeaconActivityEvent {
   /// Meaningful coordination-log event (Log tab / My Work last-event row).
   ///
   /// Mirrors server [`isCoordinationLogEventType`].
-  bool get isCoordinationLogEvent {
-    if (type >= 100 && type < 500) return true;
-    return switch (type) {
-      BeaconActivityEventTypeBits.planUpdated => true,
-      BeaconActivityEventTypeBits.factPinned => true,
-      BeaconActivityEventTypeBits.blockerOpened => true,
-      BeaconActivityEventTypeBits.blockerResolved => true,
-      BeaconActivityEventTypeBits.needInfoOpened => true,
-      BeaconActivityEventTypeBits.doneMarked => true,
-      BeaconActivityEventTypeBits.factVisibilityChanged => true,
-      BeaconActivityEventTypeBits.beaconPublished => true,
-      BeaconActivityEventTypeBits.beaconLifecycleChanged => true,
-      _ => false,
-    };
-  }
+  bool get isCoordinationLogEvent => isCoordinationLogEventType(type);
 
   /// Coordination-item kind for events encoded as `kind * 100 + eventKind`
   /// (see [BeaconActivityEventTypeBits]); `null` for non-coordination events
@@ -57,4 +43,26 @@ abstract class BeaconActivityEvent with _$BeaconActivityEvent {
       coordinationKind == null
           ? null
           : CoordinationItemEventKind.fromInt(type % 100);
+}
+
+/// Mirrors server `isCoordinationLogEventType`.
+bool isCoordinationLogEventType(int type) {
+  if (type >= BeaconActivityEventTypeBits.coordinationTypeMin &&
+      type < BeaconActivityEventTypeBits.coordinationTypeMax) {
+    return true;
+  }
+  return switch (type) {
+    BeaconActivityEventTypeBits.planUpdated => true,
+    BeaconActivityEventTypeBits.factPinned => true,
+    BeaconActivityEventTypeBits.blockerOpened => true,
+    BeaconActivityEventTypeBits.blockerResolved => true,
+    BeaconActivityEventTypeBits.needInfoOpened => true,
+    BeaconActivityEventTypeBits.doneMarked => true,
+    BeaconActivityEventTypeBits.factVisibilityChanged => true,
+    BeaconActivityEventTypeBits.beaconPublished => true,
+    BeaconActivityEventTypeBits.beaconLifecycleChanged => true,
+    BeaconActivityEventTypeBits.factEdited => true,
+    BeaconActivityEventTypeBits.factRemoved => true,
+    _ => false,
+  };
 }

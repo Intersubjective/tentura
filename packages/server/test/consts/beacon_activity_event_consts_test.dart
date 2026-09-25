@@ -32,4 +32,13 @@ void main() {
       expect(isCoordinationLogEventType(500), isFalse);
     });
   });
+
+  group('fact edit/remove activity types', () {
+    test('have stable ids and are coordination-log events', () {
+      expect(BeaconActivityEventTypeBits.factEdited, 19);
+      expect(BeaconActivityEventTypeBits.factRemoved, 20);
+      expect(isCoordinationLogEventType(19), isTrue);
+      expect(isCoordinationLogEventType(20), isTrue);
+    });
+  });
 }

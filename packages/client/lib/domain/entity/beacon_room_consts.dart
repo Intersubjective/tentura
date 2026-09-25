@@ -49,6 +49,12 @@ abstract final class BeaconRoomSemanticMarker {
 
   /// Participant admitted to the shared chat.
   static const participantJoined = 9;
+
+  /// Fact card text edited (system line).
+  static const factEdited = 10;
+
+  /// Fact card unpinned / removed (system line).
+  static const factUnpinned = 11;
 }
 
 /// Mirrors server [BeaconRoomSystemMessageKind].

@@ -17,6 +17,8 @@ abstract final class BeaconActivityEventTypeBits {
   static const beaconLifecycleChanged = 16;
   static const participantRemoved = 17;
   static const participantJoined = 18;
+  static const factEdited = 19;
+  static const factRemoved = 20;
 }
 
 /// [`beacon_activity_event.diff.reason`] for type [BeaconActivityEventTypeBits.beaconLifecycleChanged].
@@ -46,6 +48,8 @@ bool isCoordinationLogEventType(int type) {
     BeaconActivityEventTypeBits.factVisibilityChanged => true,
     BeaconActivityEventTypeBits.beaconPublished => true,
     BeaconActivityEventTypeBits.beaconLifecycleChanged => true,
+    BeaconActivityEventTypeBits.factEdited => true,
+    BeaconActivityEventTypeBits.factRemoved => true,
     _ => false,
   };
 }
