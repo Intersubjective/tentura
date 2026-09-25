@@ -9,7 +9,7 @@ import 'package:test/test.dart';
 
 import '../../support/disposable_pg_target.dart';
 
-/// m0197: `beacon_people_seen` watermark, `bridge_attention_people_seen`, and
+/// m0198: `beacon_people_seen` watermark, `bridge_attention_people_seen`, and
 /// the `people_seen` realtime fan-out (issue #178 plan P1.1).
 Future<void> main() async {
   final target = DisposablePgTarget.fromNamedEnvironment(
@@ -509,7 +509,7 @@ WHERE id = 'Npseen_cleared'
     );
 
     test(
-      'm0197 schema: composite PK, cascading FKs, beacon_id index, comment, '
+      'm0198 schema: composite PK, cascading FKs, beacon_id index, comment, '
       'trigger',
       () async {
         final pk = await writer.execute('''

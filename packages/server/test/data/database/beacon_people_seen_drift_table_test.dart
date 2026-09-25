@@ -5,7 +5,7 @@ import 'package:test/test.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 
-/// m0197: the Drift schema must know `beacon_people_seen` (mirrors
+/// m0198: the Drift schema must know `beacon_people_seen` (mirrors
 /// `beacon_items_seen`). The pool is never opened — only metadata is read.
 void main() {
   late TenturaDb db;

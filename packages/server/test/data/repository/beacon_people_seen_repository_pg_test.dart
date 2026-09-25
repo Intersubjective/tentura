@@ -13,7 +13,7 @@ import 'package:tentura_server/domain/port/beacon_people_seen_repository_port.da
 import '../../support/disposable_pg_target.dart';
 
 /// Issue #178 plan P1.2: [BeaconPeopleSeenRepositoryPort] monotonic upsert
-/// and batch lookup over `beacon_people_seen` (m0197).
+/// and batch lookup over `beacon_people_seen` (m0198).
 Future<void> main() async {
   final target = DisposablePgTarget.fromNamedEnvironment(
     envVarName: 'TENTURA_BEACON_PEOPLE_SEEN_REPO_TEST_DB',

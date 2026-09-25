@@ -67,6 +67,7 @@ void main() {
         'notify_notification_outbox_update',
         'notify_relationship_change',
         'notify_room_message_attachment_change',
+        'notify_people_seen_change',
         'notify_room_seen_peer_change',
       },
     );

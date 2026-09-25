@@ -597,7 +597,7 @@ void main() {
       });
     });
 
-    // Issue #178 part 2: m0197 fans `people_seen` out to active offerers with
+    // Issue #178 part 2: m0198 fans `people_seen` out to active offerers with
     // the author/steward People watermark in `last_seen_at` (no
     // `seen_user_id`). The client needs it to flip "not seen" to "seen" in
     // place, so the relay must forward it.
