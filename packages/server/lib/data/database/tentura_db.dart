@@ -40,6 +40,7 @@ import 'table/beacon_evaluation_visibility.dart';
 import 'table/beacon_evaluation_ack_tags.dart';
 import 'table/beacon_evaluations.dart';
 import 'table/beacon_activity_events.dart';
+import 'table/beacon_fact_card_revisions.dart';
 import 'table/beacon_fact_cards.dart';
 import 'table/beacon_forward_edges.dart';
 import 'table/beacon_images.dart';
@@ -109,6 +110,7 @@ part 'tentura_db.g.dart';
     BeaconEvaluations,
     BeaconActivityEvents,
     BeaconFactCards,
+    BeaconFactCardRevisions,
     BeaconForwardEdges,
     BeaconImages,
     BeaconImageStages,

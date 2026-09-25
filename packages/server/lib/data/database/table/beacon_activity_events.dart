@@ -3,6 +3,7 @@ import 'package:drift_postgres/drift_postgres.dart';
 
 import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
 
+import 'beacon_fact_cards.dart';
 import 'beacons.dart';
 import 'users.dart';
 
@@ -24,6 +25,12 @@ class BeaconActivityEvents extends Table {
   late final sourceMessageId = text().nullable()();
 
   late final coordinationItemId = text().nullable()();
+
+  late final factCardId = text().nullable().references(
+    BeaconFactCards,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
 
   late final diff = customType(PgTypes.jsonb).nullable()();
 

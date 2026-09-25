@@ -22,6 +22,12 @@ class BeaconRoomMessages extends Table {
 
   late final linkedFactCardId = text().nullable()();
 
+  /// Quoted fact revision: `(quotedFactCardId, quotedFactRevisionSeq)` is one
+  /// composite FK onto `beacon_fact_card_revision` (see `m0199`).
+  late final quotedFactCardId = text().nullable()();
+
+  late final quotedFactRevisionSeq = integer().nullable()();
+
   late final linkedPollingId = text().nullable().references(Pollings, #id)();
 
   late final linkedItemId = text().nullable().references(
