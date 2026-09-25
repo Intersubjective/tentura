@@ -240,6 +240,8 @@ class FakeBeaconViewCoordinationRepository implements CoordinationRepository {
   final removeFromRoomCalls =
       <({String beaconId, String offerUserId, String reason})>[];
 
+  final peopleSeenBeaconIds = <String>[];
+
   @override
   Future<List<FakeHelpOfferCoordinationRow>> fetchHelpOffersWithCoordination({
     required String beaconId,
@@ -313,8 +315,16 @@ class FakeBeaconViewCoordinationRepository implements CoordinationRepository {
     return (status: BeaconStatus.open, updatedAt: DateTime.utc(2026));
   }
 
+  // Default markBeaconPeopleSeen via noSuchMethod (not a concrete override)
+  // so subclasses can still intercept the raw Invocation.
   @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+  dynamic noSuchMethod(Invocation invocation) {
+    if (invocation.memberName != #markBeaconPeopleSeen) {
+      return super.noSuchMethod(invocation);
+    }
+    peopleSeenBeaconIds.add(invocation.positionalArguments.single as String);
+    return Future<DateTime>.value(DateTime.utc(2026, 9, 1));
+  }
 }
 
 class FakeBeaconViewInboxRepository implements InboxRepository {

@@ -71,6 +71,11 @@ class HelpOfferTileSheetCubit extends Cubit<HelpOfferTileSheetState> {
           loadError: null,
         ),
       );
+      if (state.isAuthorOrSteward) {
+        try {
+          await _case.markPeopleSeen(state.beaconId);
+        } catch (_) {}
+      }
     } catch (e) {
       if (isClosed) return;
       emit(
