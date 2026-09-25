@@ -50,7 +50,6 @@ class HelpOfferMessageDialog extends StatefulWidget {
     bool requireWithdrawReason = false,
   }) => showTenturaAdaptiveSheet<HelpOfferDialogOutcome>(
     context: context,
-    isScrollControlled: true,
     useRootNavigator: true,
     enableDrag: false,
     builder: (_) => HelpOfferMessageDialog(

@@ -51,7 +51,7 @@ class CoordinationRepository {
         int stakeState,
         int offerKind,
         bool isDirectAuthorForward,
-        DateTime? authorSeenAt,
+        String? authorSeenAt,
       })
     >
   >
@@ -92,9 +92,7 @@ class CoordinationRepository {
                 stakeState: e.stakeState,
                 offerKind: e.offerKind,
                 isDirectAuthorForward: e.isDirectAuthorForward,
-                authorSeenAt: e.authorSeenAt == null
-                    ? null
-                    : DateTime.parse(e.authorSeenAt!).toUtc(),
+                authorSeenAt: e.authorSeenAt,
               ),
             )
             .toList();

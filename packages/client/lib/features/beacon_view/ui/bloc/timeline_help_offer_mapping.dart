@@ -26,7 +26,7 @@ typedef HelpOfferWithCoordinationRow = ({
   int stakeState,
   int offerKind,
   bool isDirectAuthorForward,
-  DateTime? authorSeenAt,
+  String? authorSeenAt,
 });
 
 List<TimelineHelpOffer> timelineHelpOffersFromRemote(
@@ -50,6 +50,8 @@ List<TimelineHelpOffer> timelineHelpOffersFromRemote(
       stakeState: CommitmentStakeState.fromInt(c.stakeState),
       offerKind: c.offerKind,
       isDirectAuthorForward: c.isDirectAuthorForward,
-      authorSeenAt: c.authorSeenAt,
+      authorSeenAt: c.authorSeenAt == null
+          ? null
+          : DateTime.tryParse(c.authorSeenAt!)?.toUtc(),
     ),
 ];

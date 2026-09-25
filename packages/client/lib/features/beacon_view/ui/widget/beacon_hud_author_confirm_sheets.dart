@@ -12,8 +12,6 @@ Future<bool> showBeaconHudMarkEnoughHelpConfirmSheet({
   var confirmed = false;
   await showTenturaAdaptiveSheet<void>(
     context: context,
-    showDragHandle: true,
-    isScrollControlled: true,
     builder: (ctx) {
       final tt = ctx.tt;
       return SafeArea(
@@ -126,8 +124,6 @@ Future<bool> _showAuthorConfirmSheet({
   var confirmed = false;
   await showTenturaAdaptiveSheet<void>(
     context: context,
-    showDragHandle: true,
-    isScrollControlled: true,
     builder: (ctx) {
       final tt = ctx.tt;
       final bodyStyle = TenturaText.body(Theme.of(ctx).colorScheme.onSurface);

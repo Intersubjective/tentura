@@ -38,7 +38,6 @@ class ClosedRequestBanner extends StatelessWidget {
               children: [
                 TenturaStatusText(
                   l10n.requestClosedBannerTitle,
-                  tone: TenturaTone.neutral,
                   maxLines: 2,
                 ),
                 SizedBox(height: tt.tightGap),

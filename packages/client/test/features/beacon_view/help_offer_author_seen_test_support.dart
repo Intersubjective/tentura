@@ -142,7 +142,7 @@ FakeHelpOfferCoordinationRow offerRow({
   stakeState: 0,
   offerKind: offerKind,
   isDirectAuthorForward: false,
-  authorSeenAt: authorSeenAt,
+  authorSeenAt: authorSeenAt?.toUtc().toIso8601String(),
 );
 
 Map<String, dynamic> peopleSeenFrame({

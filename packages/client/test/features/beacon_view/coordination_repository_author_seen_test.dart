@@ -143,14 +143,36 @@ void main() {
         expect(rows, hasLength(2));
         final seen = rows.firstWhere((r) => r.userId == 'Uofferer00001');
         final unseen = rows.firstWhere((r) => r.userId == 'Uofferer00002');
-        expect(seen.authorSeenAt, DateTime.utc(2026, 6, 15, 12, 5));
-        expect(seen.authorSeenAt!.isUtc, isTrue);
+        // Parsing is the mapping layer's job: the raw ISO string is passed on.
+        expect(seen.authorSeenAt, '2026-06-15T12:05:00.000Z');
         expect(unseen.authorSeenAt, isNull);
       },
     );
 
     expect(sent.single.operationName, 'HelpOffersWithCoordination');
     expect(sent.single.query, contains(RegExp(r'\bauthorSeenAt\b')));
+  });
+
+  test('fetchHelpOffersWithCoordination passes an unparsable authorSeenAt '
+      'through as the raw string instead of throwing', () async {
+    await _withRemote(
+      {
+        'HelpOffersWithCoordination': {
+          '__typename': 'query_root',
+          'helpOffersWithCoordination': [
+            _offerJson(userId: 'Uofferer00001', authorSeenAt: 'not-a-date'),
+          ],
+        },
+      },
+      <_SentOperation>[],
+      (remote) async {
+        final rows = await CoordinationRepository(
+          remote,
+        ).fetchHelpOffersWithCoordination(beaconId: _beaconId);
+
+        expect(rows.single.authorSeenAt, 'not-a-date');
+      },
+    );
   });
 
   test(

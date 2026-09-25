@@ -24,7 +24,7 @@ class BeaconOpenClearListener extends StatefulWidget {
 
   final String beaconId;
 
-  /// Test seam; production resolves [AttentionCase] from the locator.
+  /// Test seam; production resolves `AttentionCase` from the locator.
   final RequestOpenClear? clear;
 
   final Widget child;

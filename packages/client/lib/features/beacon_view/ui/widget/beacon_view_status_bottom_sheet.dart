@@ -34,6 +34,8 @@ Future<void> showBeaconViewUpdateStatusSheet(
     hasCommitters: beaconStateHasCommitters(state),
     canManageLifecycle: state.isBeaconMine,
     canSetCoordination: state.isAuthorOrSteward,
+    // Explicit: follows the build-time knob even while it equals the default.
+    // ignore: avoid_redundant_argument_values
     allowForceCloseWhenBlocked: kBeaconAllowForceCloseWhenBlocked,
     reviewWindow: review == null
         ? null
@@ -51,8 +53,6 @@ Future<void> showBeaconViewUpdateStatusSheet(
 
   await showTenturaAdaptiveSheet<void>(
     context: context,
-    showDragHandle: true,
-    isScrollControlled: true,
     builder: (ctx) {
       final tt = ctx.tt;
       final scheme = Theme.of(ctx).colorScheme;
@@ -148,6 +148,7 @@ class BeaconStatusMenuRowTile extends StatelessWidget {
     required this.isLoading,
     required this.onTap,
     this.onSecondaryTap,
+    super.key,
   });
 
   final BeaconStatusMenuRow row;

@@ -21,8 +21,6 @@ Future<void> showBeaconCurrentLineSheet(
   final threadsCase = GetIt.I<BeaconThreadsCase>();
   final savedLine = await showTenturaAdaptiveSheet<String>(
     context: context,
-    showDragHandle: true,
-    isScrollControlled: true,
     useRootNavigator: true,
     enableDrag: false,
     builder: (ctx) => _BeaconCurrentLineSheetBody(

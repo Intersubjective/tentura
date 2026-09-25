@@ -67,7 +67,6 @@ Future<void> _runOfferHelpAfterForwardNudge(
         ? l10n.dialogOfferHelpAnywayTitle
         : l10n.dialogOfferHelpTitle,
     hintText: l10n.hintOfferHelpMessage,
-    allowEmptyMessage: false,
     showHelpTypeChips: true,
     automaticSlugs: cubit.state.beacon.needs,
   );

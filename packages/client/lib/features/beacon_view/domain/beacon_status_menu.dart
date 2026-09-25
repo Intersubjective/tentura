@@ -29,7 +29,7 @@ enum BeaconStatusMenuAction {
   cancel,
 }
 
-/// Keys mapped to l10n in [beaconStatusMenuDisabledReasonLabel].
+/// Keys mapped to l10n in `beaconStatusMenuDisabledReasonLabel`.
 enum BeaconStatusMenuDisabledReason {
   none,
   publishFirst,
@@ -285,7 +285,7 @@ BeaconStatusMenuRow _moreHelpRow(BeaconStatusMenuInput input) =>
 
 BeaconStatusMenuRow _enoughHelpRow(BeaconStatusMenuInput input) {
   if (input.beacon.status == BeaconStatus.reviewOpen) {
-    return BeaconStatusMenuRow(
+    return const BeaconStatusMenuRow(
       id: BeaconStatusMenuRowId.enoughHelp,
       action: BeaconStatusMenuAction.setCoordinationEnoughHelp,
       isSelected: false,
@@ -310,7 +310,7 @@ BeaconStatusMenuRow _wrappingUpRow(BeaconStatusMenuInput input) {
   final review = input.reviewWindow;
 
   if (lifecycle == BeaconStatus.draft) {
-    return BeaconStatusMenuRow(
+    return const BeaconStatusMenuRow(
       id: BeaconStatusMenuRowId.wrappingUp,
       action: BeaconStatusMenuAction.startWrappingUp,
       isSelected: false,
@@ -332,7 +332,7 @@ BeaconStatusMenuRow _wrappingUpRow(BeaconStatusMenuInput input) {
   }
 
   if (!input.canManageLifecycle) {
-    return BeaconStatusMenuRow(
+    return const BeaconStatusMenuRow(
       id: BeaconStatusMenuRowId.wrappingUp,
       action: BeaconStatusMenuAction.startWrappingUp,
       isSelected: false,
@@ -342,7 +342,7 @@ BeaconStatusMenuRow _wrappingUpRow(BeaconStatusMenuInput input) {
   }
 
   if (_closeBlocked(input)) {
-    return BeaconStatusMenuRow(
+    return const BeaconStatusMenuRow(
       id: BeaconStatusMenuRowId.wrappingUp,
       action: BeaconStatusMenuAction.startWrappingUp,
       isSelected: false,
@@ -352,7 +352,7 @@ BeaconStatusMenuRow _wrappingUpRow(BeaconStatusMenuInput input) {
   }
 
   if (!input.hasCommitters) {
-    return BeaconStatusMenuRow(
+    return const BeaconStatusMenuRow(
       id: BeaconStatusMenuRowId.wrappingUp,
       action: BeaconStatusMenuAction.startWrappingUp,
       isSelected: false,
@@ -361,7 +361,7 @@ BeaconStatusMenuRow _wrappingUpRow(BeaconStatusMenuInput input) {
     );
   }
 
-  return BeaconStatusMenuRow(
+  return const BeaconStatusMenuRow(
     id: BeaconStatusMenuRowId.wrappingUp,
     action: BeaconStatusMenuAction.startWrappingUp,
     isSelected: false,
@@ -374,7 +374,7 @@ BeaconStatusMenuRow _closedRow(BeaconStatusMenuInput input) {
   final review = input.reviewWindow;
 
   if (lifecycle == BeaconStatus.draft) {
-    return BeaconStatusMenuRow(
+    return const BeaconStatusMenuRow(
       id: BeaconStatusMenuRowId.closed,
       action: BeaconStatusMenuAction.closeDirect,
       isSelected: false,
@@ -399,7 +399,7 @@ BeaconStatusMenuRow _closedRow(BeaconStatusMenuInput input) {
   }
 
   if (!input.canManageLifecycle) {
-    return BeaconStatusMenuRow(
+    return const BeaconStatusMenuRow(
       id: BeaconStatusMenuRowId.closed,
       action: BeaconStatusMenuAction.closeDirect,
       isSelected: false,
@@ -409,7 +409,7 @@ BeaconStatusMenuRow _closedRow(BeaconStatusMenuInput input) {
   }
 
   if (_closeBlocked(input)) {
-    return BeaconStatusMenuRow(
+    return const BeaconStatusMenuRow(
       id: BeaconStatusMenuRowId.closed,
       action: BeaconStatusMenuAction.closeDirect,
       isSelected: false,
@@ -419,7 +419,7 @@ BeaconStatusMenuRow _closedRow(BeaconStatusMenuInput input) {
   }
 
   if (input.hasCommitters) {
-    return BeaconStatusMenuRow(
+    return const BeaconStatusMenuRow(
       id: BeaconStatusMenuRowId.closed,
       action: BeaconStatusMenuAction.closeDirect,
       isSelected: false,
@@ -429,7 +429,7 @@ BeaconStatusMenuRow _closedRow(BeaconStatusMenuInput input) {
   }
 
   if (input.closureReadiness == BeaconClosureReadiness.premature) {
-    return BeaconStatusMenuRow(
+    return const BeaconStatusMenuRow(
       id: BeaconStatusMenuRowId.closed,
       action: BeaconStatusMenuAction.closeDirect,
       isSelected: false,
@@ -438,7 +438,7 @@ BeaconStatusMenuRow _closedRow(BeaconStatusMenuInput input) {
     );
   }
 
-  return BeaconStatusMenuRow(
+  return const BeaconStatusMenuRow(
     id: BeaconStatusMenuRowId.closed,
     action: BeaconStatusMenuAction.closeDirect,
     isSelected: false,
@@ -450,7 +450,7 @@ BeaconStatusMenuRow _cancelledRow(BeaconStatusMenuInput input) {
   final lifecycle = input.beacon.status;
 
   if (lifecycle == BeaconStatus.reviewOpen) {
-    return BeaconStatusMenuRow(
+    return const BeaconStatusMenuRow(
       id: BeaconStatusMenuRowId.cancelled,
       action: BeaconStatusMenuAction.cancel,
       isSelected: false,
@@ -460,7 +460,7 @@ BeaconStatusMenuRow _cancelledRow(BeaconStatusMenuInput input) {
   }
 
   if (lifecycle == BeaconStatus.draft) {
-    return BeaconStatusMenuRow(
+    return const BeaconStatusMenuRow(
       id: BeaconStatusMenuRowId.cancelled,
       action: BeaconStatusMenuAction.cancel,
       isSelected: false,
@@ -470,7 +470,7 @@ BeaconStatusMenuRow _cancelledRow(BeaconStatusMenuInput input) {
   }
 
   if (!input.canManageLifecycle) {
-    return BeaconStatusMenuRow(
+    return const BeaconStatusMenuRow(
       id: BeaconStatusMenuRowId.cancelled,
       action: BeaconStatusMenuAction.cancel,
       isSelected: false,
@@ -480,7 +480,7 @@ BeaconStatusMenuRow _cancelledRow(BeaconStatusMenuInput input) {
   }
 
   if (input.serverCanCancel == false) {
-    return BeaconStatusMenuRow(
+    return const BeaconStatusMenuRow(
       id: BeaconStatusMenuRowId.cancelled,
       action: BeaconStatusMenuAction.cancel,
       isSelected: false,
@@ -490,7 +490,7 @@ BeaconStatusMenuRow _cancelledRow(BeaconStatusMenuInput input) {
   }
 
   if (input.serverCanCancel == true) {
-    return BeaconStatusMenuRow(
+    return const BeaconStatusMenuRow(
       id: BeaconStatusMenuRowId.cancelled,
       action: BeaconStatusMenuAction.cancel,
       isSelected: false,
@@ -499,7 +499,7 @@ BeaconStatusMenuRow _cancelledRow(BeaconStatusMenuInput input) {
   }
 
   if (input.hasCommitters) {
-    return BeaconStatusMenuRow(
+    return const BeaconStatusMenuRow(
       id: BeaconStatusMenuRowId.cancelled,
       action: BeaconStatusMenuAction.cancel,
       isSelected: false,
@@ -508,7 +508,7 @@ BeaconStatusMenuRow _cancelledRow(BeaconStatusMenuInput input) {
     );
   }
 
-  return BeaconStatusMenuRow(
+  return const BeaconStatusMenuRow(
     id: BeaconStatusMenuRowId.cancelled,
     action: BeaconStatusMenuAction.cancel,
     isSelected: false,

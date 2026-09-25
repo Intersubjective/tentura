@@ -448,28 +448,29 @@ class BeaconPeopleTabBody extends StatelessWidget {
       } else {
         final feedRows = <Widget>[
           for (final e in edges)
-            e.sender.id == viewerId
-                ? UnifiedForwardRow.outgoing(
-                    showSender: false,
-                    edge: e,
-                    viewerUserId: viewerId,
-                    helpOffered: state.involvementHelpOfferedIds,
-                    watching: state.involvementWatchingIds,
-                    onward: state.involvementOnwardForwarderIds,
-                    reasonSlugs:
-                        state
-                            .forwardReasonSlugs['${e.sender.id}__${e.recipient.id}'] ??
-                        const [],
-                  )
-                : UnifiedForwardRow.inbound(
-                    sender: e.sender,
-                    note: e.note,
-                    viewerUserId: viewerId,
-                    reasonSlugs:
-                        state
-                            .forwardReasonSlugs['${e.sender.id}__${e.recipient.id}'] ??
-                        const [],
-                  ),
+            if (e.sender.id == viewerId)
+              UnifiedForwardRow.outgoing(
+                showSender: false,
+                edge: e,
+                viewerUserId: viewerId,
+                helpOffered: state.involvementHelpOfferedIds,
+                watching: state.involvementWatchingIds,
+                onward: state.involvementOnwardForwarderIds,
+                reasonSlugs:
+                    state
+                        .forwardReasonSlugs['${e.sender.id}__${e.recipient.id}'] ??
+                    const [],
+              )
+            else
+              UnifiedForwardRow.inbound(
+                sender: e.sender,
+                note: e.note,
+                viewerUserId: viewerId,
+                reasonSlugs:
+                    state
+                        .forwardReasonSlugs['${e.sender.id}__${e.recipient.id}'] ??
+                    const [],
+              ),
         ];
         forwardsChildren = [
           for (var i = 0; i < feedRows.length; i++) ...[
@@ -489,7 +490,6 @@ class BeaconPeopleTabBody extends StatelessWidget {
           accordionMode: false,
           child: AccordionExpansionTile(
             id: _forwardsFoldId,
-            initiallyExpanded: false,
             title: Text(
               forwardsTitle,
               style: theme.textTheme.titleSmall,

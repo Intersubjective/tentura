@@ -345,7 +345,6 @@ final class BeaconViewCase extends UseCaseBase {
     final messageId = await _beaconRoomCase.createMessage(
       beaconId: beaconId,
       body: messageBody,
-      threadItemId: null,
       uploads: uploads,
     );
     if (messageId == null) {
@@ -454,7 +453,7 @@ final class BeaconViewCase extends UseCaseBase {
         int stakeState,
         int offerKind,
         bool isDirectAuthorForward,
-        DateTime? authorSeenAt,
+        String? authorSeenAt,
       })
     >
   >

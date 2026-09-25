@@ -141,7 +141,7 @@ class _HelpOfferTileSheetBody extends StatelessWidget {
   }
 }
 
-/// Convenience for My Desk: resolves [myProfile] from [ProfileCubit] when present.
+/// Convenience for My Desk: resolves `myProfile` from `ProfileCubit` when present.
 Future<void> showHelpOfferTileSheetFromDesk({
   required BuildContext context,
   required String beaconId,

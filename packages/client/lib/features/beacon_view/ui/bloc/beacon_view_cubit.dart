@@ -857,7 +857,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
         int stakeState,
         int offerKind,
         bool isDirectAuthorForward,
-        DateTime? authorSeenAt,
+        String? authorSeenAt,
       })
     >
     helpOffers,
@@ -1083,7 +1083,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
                 int stakeState,
                 int offerKind,
                 bool isDirectAuthorForward,
-                DateTime? authorSeenAt,
+                String? authorSeenAt,
               })
             >[],
           )
@@ -1136,7 +1136,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
                   int stakeState,
                   int offerKind,
                   bool isDirectAuthorForward,
-                  DateTime? authorSeenAt,
+                  String? authorSeenAt,
                 })
               >;
       final inboxCtx =
@@ -1223,7 +1223,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           showDraftEvaluationCta: showDraftEvaluationCta,
           reviewWindowInfo: reviewWindowInfo,
           displayStatus: displayStatus,
-          forwardsLoaded: clearForwards ? false : wasForwardsLoaded,
+          forwardsLoaded: !clearForwards && wasForwardsLoaded,
           myForwards: clearForwards ? const [] : state.myForwards,
           viewerForwardEdges: clearForwards
               ? const []
@@ -1417,7 +1417,7 @@ List<TimelineEntry> helpOfferRowsToTimelineEntries({
     int stakeState,
     int offerKind,
     bool isDirectAuthorForward,
-    DateTime? authorSeenAt,
+    String? authorSeenAt,
   })
   row,
 }) {

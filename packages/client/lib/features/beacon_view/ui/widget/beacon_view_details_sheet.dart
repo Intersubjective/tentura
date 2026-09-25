@@ -29,8 +29,6 @@ Future<void> showBeaconViewDetailsSheet(
 
   return showTenturaAdaptiveSheet<void>(
     context: context,
-    showDragHandle: true,
-    isScrollControlled: true,
     builder: (ctx) {
       final sheetTt = ctx.tt;
       final muted = sheetTt.textMuted;
@@ -52,63 +50,69 @@ Future<void> showBeaconViewDetailsSheet(
       if (beacon.hasScheduleDates) {
         final scheduleText =
             '${dateFormatYMD(beacon.startAt)} - ${dateFormatYMD(beacon.endAt)}';
-        children.add(
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: sheetTt.screenHPadding),
-            child: BeaconHudIconRow(
-              leadIcon: BeaconHudRowIcons.schedule,
-              semanticsLabel: scheduleText,
-              body: HudLabeledMultiline(
-                leadingIcon: BeaconHudRowIcons.schedule,
+        children
+          ..add(
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: sheetTt.screenHPadding),
+              child: BeaconHudIconRow(
+                leadIcon: BeaconHudRowIcons.schedule,
                 semanticsLabel: scheduleText,
-                text: scheduleText,
-                mutedColor: muted,
-                includeLead: false,
-                primaryMaxLines: 10,
-                showTruncationHint: false,
+                body: HudLabeledMultiline(
+                  leadingIcon: BeaconHudRowIcons.schedule,
+                  semanticsLabel: scheduleText,
+                  text: scheduleText,
+                  mutedColor: muted,
+                  includeLead: false,
+                  primaryMaxLines: 10,
+                  showTruncationHint: false,
+                ),
               ),
             ),
-          ),
-        );
-        children.add(SizedBox(height: sheetTt.rowGap));
+          )
+          ..add(SizedBox(height: sheetTt.rowGap));
       }
 
       if (beacon.coordinates?.isNotEmpty ?? false) {
         final locationText = beaconHudLocationDisplayLabel(beacon, l10n);
-        children.add(
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: sheetTt.screenHPadding),
-            child: Material(
-              color: Colors.transparent,
-              child: Semantics(
-                button: true,
-                label: l10n.beaconCardLocationSemantics(locationText),
-                child: ExcludeSemantics(
-                  child: InkWell(
-                    onTap: () => showBeaconLocationActions(ctx, beacon),
-                    borderRadius: BorderRadius.circular(TenturaRadii.cardDense),
-                    child: BeaconHudIconRow(
-                      leadIcon: BeaconHudRowIcons.location,
-                      semanticsLabel:
-                          l10n.beaconCardLocationSemantics(locationText),
-                      body: HudLabeledMultiline(
-                        leadingIcon: BeaconHudRowIcons.location,
-                        semanticsLabel:
-                            l10n.beaconCardLocationSemantics(locationText),
-                        text: locationText,
-                        mutedColor: muted,
-                        includeLead: false,
-                        primaryMaxLines: 10,
-                        showTruncationHint: false,
+        children
+          ..add(
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: sheetTt.screenHPadding),
+              child: Material(
+                color: Colors.transparent,
+                child: Semantics(
+                  button: true,
+                  label: l10n.beaconCardLocationSemantics(locationText),
+                  child: ExcludeSemantics(
+                    child: InkWell(
+                      onTap: () => showBeaconLocationActions(ctx, beacon),
+                      borderRadius: BorderRadius.circular(
+                        TenturaRadii.cardDense,
+                      ),
+                      child: BeaconHudIconRow(
+                        leadIcon: BeaconHudRowIcons.location,
+                        semanticsLabel: l10n.beaconCardLocationSemantics(
+                          locationText,
+                        ),
+                        body: HudLabeledMultiline(
+                          leadingIcon: BeaconHudRowIcons.location,
+                          semanticsLabel: l10n.beaconCardLocationSemantics(
+                            locationText,
+                          ),
+                          text: locationText,
+                          mutedColor: muted,
+                          includeLead: false,
+                          primaryMaxLines: 10,
+                          showTruncationHint: false,
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
-        );
-        children.add(SizedBox(height: sheetTt.rowGap));
+          )
+          ..add(SizedBox(height: sheetTt.rowGap));
       }
 
       children.add(

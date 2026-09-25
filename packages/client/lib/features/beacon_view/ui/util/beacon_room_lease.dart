@@ -9,7 +9,7 @@ import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
 /// split <-> tab handover both are briefly registered, so the count never
 /// reaches zero and the room is reparented rather than torn down.
 class BeaconRoomLease {
-  BeaconRoomLease({required ThreadHostCubit host}) : _host = host;
+  BeaconRoomLease({required this._host});
 
   final ThreadHostCubit _host;
   final Set<Object> _holders = {};
@@ -17,7 +17,7 @@ class BeaconRoomLease {
 
   /// The open in flight, so every acquirer — not only the one that triggered
   /// the open — can await room readiness. Callers that hand a scroll target to
-  /// [RoomCubit.prepareThreadScroll] must await [acquire] first (plan §4.6).
+  /// `RoomCubit.prepareThreadScroll` must await [acquire] first (plan §4.6).
   Future<void>? _openInFlight;
 
   /// Whether the room is open and settled, with at least one holder.
@@ -71,12 +71,14 @@ class BeaconRoomLease {
     if (_holders.isNotEmpty) return;
 
     final generation = ++_dropGeneration;
-    Future.microtask(() {
-      if (_host.isClosed) return;
-      if (generation != _dropGeneration) return;
-      if (_holders.isNotEmpty) return;
-      unawaited(_host.clear());
-    });
+    unawaited(
+      Future.microtask(() {
+        if (_host.isClosed) return;
+        if (generation != _dropGeneration) return;
+        if (_holders.isNotEmpty) return;
+        unawaited(_host.clear());
+      }),
+    );
   }
 
   /// Cancels any pending deferred drop without releasing current holders.

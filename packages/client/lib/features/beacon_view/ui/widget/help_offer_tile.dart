@@ -435,8 +435,7 @@ class _AdmissionFooter extends StatelessWidget {
     required this.isMine,
     required this.onAccept,
     required this.onDecline,
-    this.onReleaseCommitment,
-    required this.offerUserId,
+    required this.offerUserId, this.onReleaseCommitment,
   });
 
   final L10n l10n;
@@ -504,8 +503,7 @@ class _AuthorAdmissionFooter extends StatelessWidget {
     required this.reason,
     required this.onAccept,
     required this.onDecline,
-    this.onReleaseCommitment,
-    required this.offerUserId,
+    required this.offerUserId, this.onReleaseCommitment,
   });
 
   final L10n l10n;

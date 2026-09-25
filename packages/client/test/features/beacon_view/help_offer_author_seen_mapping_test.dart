@@ -9,10 +9,11 @@ const _firstOfferer = Profile(id: 'Uofferer00001', displayName: 'First');
 const _secondOfferer = Profile(id: 'Uofferer00002', displayName: 'Second');
 final _createdAt = DateTime.utc(2026, 6, 15, 12);
 final _seenAt = _createdAt.add(const Duration(minutes: 5));
+final _seenAtIso = _seenAt.toIso8601String();
 
 HelpOfferWithCoordinationRow _row({
   required Profile offerer,
-  DateTime? authorSeenAt,
+  String? authorSeenAt,
 }) => (
   beaconId: 'Bauthorseen01',
   userId: offerer.id,
@@ -37,32 +38,28 @@ HelpOfferWithCoordinationRow _row({
   authorSeenAt: authorSeenAt,
 );
 
-// Keep the test compilable while TimelineHelpOffer has no authorSeenAt field.
-DateTime? _authorSeenAt(Object offer) =>
-    (offer as dynamic).authorSeenAt as DateTime?;
-
 void main() {
   test('initial query maps authorSeenAt onto only its matching offer', () {
     final offers = timelineHelpOffersFromRemote([
-      _row(offerer: _firstOfferer, authorSeenAt: _seenAt),
+      _row(offerer: _firstOfferer, authorSeenAt: _seenAtIso),
       _row(offerer: _secondOfferer),
     ]);
 
     expect(offers, hasLength(2));
     expect(offers[0].user.id, _firstOfferer.id);
     expect(offers[1].user.id, _secondOfferer.id);
-    expect(_authorSeenAt(offers[0]), _seenAt);
-    expect(_authorSeenAt(offers[1]), isNull);
+    expect(offers[0].authorSeenAt, _seenAt);
+    expect(offers[1].authorSeenAt, isNull);
   });
 
   test('updating an offer preserves its authorSeenAt watermark', () {
     final offer = timelineHelpOffersFromRemote([
-      _row(offerer: _firstOfferer, authorSeenAt: _seenAt),
+      _row(offerer: _firstOfferer, authorSeenAt: _seenAtIso),
     ]).single;
 
     final updated = offer.copyWith(message: 'I can help after lunch');
 
     expect(updated.message, 'I can help after lunch');
-    expect(_authorSeenAt(updated), _seenAt);
+    expect(updated.authorSeenAt, _seenAt);
   });
 }

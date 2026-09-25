@@ -68,7 +68,7 @@ double beaconViewRoomSplitPaneWidth(
     return ideal.clamp(minChat, math.max(minChat, tt.chatColumnMaxWidth));
   }
 
-  final maxForChat = math.max(0.0, availableWidth - minOps);
+  final maxForChat = math.max<double>(0, availableWidth - minOps);
   final defaultWidth = math.min(tt.chatColumnMaxWidth, availableWidth * 0.42);
   final ideal = preferredWidth ?? defaultWidth;
   // When both floors cannot fit, lower == maxForChat and ops keeps minOps.
@@ -531,9 +531,9 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       if (previous == isSplit) return;
 
       if (isSplit && _selectedSurface == BeaconSurface.room) {
-        _switchToSurface(BeaconSurface.now, syncQuery: true);
+        _switchToSurface(BeaconSurface.now);
       } else if (!isSplit && previous) {
-        _switchToSurface(BeaconSurface.room, syncQuery: true);
+        _switchToSurface(BeaconSurface.room);
       }
     }
 
@@ -1097,11 +1097,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                           selectedSurface: _selectedSurface,
                         ),
                         roomLease: roomLease,
-                        openGeneralAnchor: ({messageId, coordinationItemId}) =>
-                            _openGeneralThread(
-                              messageId: messageId,
-                              coordinationItemId: coordinationItemId,
-                            ),
+                        openGeneralAnchor: _openGeneralThread,
                         child: PopScope(
                         canPop: _selectedSurface == BeaconSurface.now,
                         onPopInvokedWithResult: (didPop, result) {

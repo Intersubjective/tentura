@@ -3,6 +3,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/beacon_display_status_dto.dart';
 
+import '../gql/_g/beacon_display_statuses.data.gql.dart';
 import '../gql/_g/beacon_display_statuses.req.gql.dart';
 
 @lazySingleton
@@ -26,7 +27,7 @@ class BeaconDisplayRepository {
           (r) =>
               r.dataOrThrow(label: 'BeaconDisplayStatuses').beaconDisplayStatuses
                   ?.toList() ??
-              const [],
+              const <GBeaconDisplayStatusesData_beaconDisplayStatuses>[],
         );
     return [
       for (final row in rows)

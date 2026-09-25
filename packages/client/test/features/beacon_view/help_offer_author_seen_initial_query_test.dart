@@ -4,7 +4,7 @@
 //
 // Needs the help-offer row record (`CoordinationRepository`
 // `fetchHelpOffersWithCoordination` and the test typedef
-// `FakeHelpOfferCoordinationRow`) to carry `DateTime? authorSeenAt`.
+// `FakeHelpOfferCoordinationRow`) to carry `String? authorSeenAt`.
 
 import 'package:flutter_test/flutter_test.dart';
 
@@ -31,7 +31,7 @@ FakeHelpOfferCoordinationRow _seenOfferRow(DateTime authorSeenAt) => (
   stakeState: 0,
   offerKind: 0,
   isDirectAuthorForward: false,
-  authorSeenAt: authorSeenAt,
+  authorSeenAt: authorSeenAt.toUtc().toIso8601String(),
 );
 
 void main() {

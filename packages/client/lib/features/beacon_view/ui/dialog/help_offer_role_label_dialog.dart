@@ -6,7 +6,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
-/// Single-line editor for [TimelineHelpOffer.roleLabel] / chat role under avatar.
+/// Single-line editor for `TimelineHelpOffer.roleLabel` / chat role under avatar.
 class HelpOfferRoleLabelDialog extends StatefulWidget {
   const HelpOfferRoleLabelDialog({
     this.initialText = '',
@@ -18,7 +18,6 @@ class HelpOfferRoleLabelDialog extends StatefulWidget {
     String initialText = '',
   }) => showTenturaAdaptiveSheet<String>(
     context: context,
-    isScrollControlled: true,
     useRootNavigator: true,
     enableDrag: false,
     builder: (_) => HelpOfferRoleLabelDialog(initialText: initialText),
@@ -96,7 +95,6 @@ class _HelpOfferRoleLabelDialogState extends State<HelpOfferRoleLabelDialog> {
               key: TestIds.key(TestIds.helpOfferRoleLabelInput),
               autofocus: true,
               controller: _controller,
-              maxLines: 1,
               maxLength: kMaxHelpOfferRoleLabelLength,
               inputFormatters: [
                 FilteringTextInputFormatter.deny(RegExp(r'[\r\n]')),

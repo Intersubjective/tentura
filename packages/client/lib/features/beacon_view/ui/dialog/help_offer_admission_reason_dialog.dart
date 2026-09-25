@@ -19,7 +19,6 @@ class HelpOfferAdmissionReasonDialog extends StatefulWidget {
     String? explanatoryNote,
   }) => showTenturaAdaptiveSheet<String>(
     context: context,
-    isScrollControlled: true,
     useRootNavigator: true,
     enableDrag: false,
     builder: (_) => HelpOfferAdmissionReasonDialog(

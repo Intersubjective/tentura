@@ -45,7 +45,6 @@ Future<void> beaconViewRunInitialHelpOfferDialog(
         ? l10n.dialogOfferHelpAnywayTitle
         : l10n.dialogOfferHelpTitle,
     hintText: l10n.hintOfferHelpMessage,
-    allowEmptyMessage: false,
     showHelpTypeChips: true,
     automaticSlugs: cubit.state.beacon.needs,
   );
@@ -71,7 +70,6 @@ Future<void> beaconViewRunEditHelpOfferDialog(
     title: l10n.beaconHeaderUpdateHelpOffer,
     hintText: l10n.hintOfferHelpMessage,
     initialText: offer.message,
-    allowEmptyMessage: false,
     showHelpTypeChips: true,
     initialHelpTypeSlugs: helpOfferStoredHelpTypeSlugs(offer.helpType),
     automaticSlugs: cubit.state.beacon.needs,
@@ -96,6 +94,34 @@ bool hideOfferHelpWithdrawFromOverflow(BeaconViewState state) {
     return true;
   }
   return false;
+}
+
+BeaconPhaseStatusPresentation beaconViewRoomAppBarPhaseStatus(
+  L10n l10n, {
+  required int memberCount,
+}) {
+  if (memberCount <= 0) {
+    return const BeaconPhaseStatusPresentation(
+      slot1: '',
+      slot1Tone: TenturaTone.neutral,
+    );
+  }
+  return BeaconPhaseStatusPresentation(
+    slot1: l10n.beaconRoomMemberCount(memberCount),
+    slot1Tone: TenturaTone.neutral,
+  );
+}
+
+String beaconViewRoomAppBarTooltip(BeaconViewState state, L10n l10n) {
+  if (state.canNavigateBeaconRoom) {
+    return l10n.beaconRoomOpen;
+  }
+  if (state.isRoomAdmissionBlocked) {
+    return state.coordinationDeniesRoomAdmission
+        ? l10n.beaconRoomNoAdmission
+        : l10n.beaconRoomWaitingForApproval;
+  }
+  return l10n.beaconViewRoomAccessUnavailableBanner;
 }
 
 Future<void> beaconViewRunAuthorCloseSheet({
