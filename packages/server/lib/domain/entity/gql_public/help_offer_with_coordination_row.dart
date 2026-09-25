@@ -26,6 +26,7 @@ class HelpOfferWithCoordinationRow {
     this.stakeState = 0,
     this.offerKind = 0,
     this.isDirectAuthorForward = false,
+    this.authorSeenAt,
   });
 
   final String beaconId;
@@ -49,6 +50,10 @@ class HelpOfferWithCoordinationRow {
   final int stakeState;
   final int offerKind;
   final bool isDirectAuthorForward;
+
+  /// Latest author/steward People-surface watermark at or after [createdAt]
+  /// (issue #178 D2/D5); null when not seen yet or hidden from the viewer (D6).
+  final DateTime? authorSeenAt;
   final UserPublicRecord user;
 
   HelpOfferWithCoordinationRow copyWith({
@@ -87,5 +92,6 @@ class HelpOfferWithCoordinationRow {
     offerKind: offerKind ?? this.offerKind,
     isDirectAuthorForward:
         isDirectAuthorForward ?? this.isDirectAuthorForward,
+    authorSeenAt: clearAdmissionFields ? null : authorSeenAt,
   );
 }

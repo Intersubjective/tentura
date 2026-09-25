@@ -9,6 +9,7 @@ import 'package:tentura_server/domain/port/room_message_snapshot_lookup_port.dar
 import 'package:tentura_server/domain/port/beacon_people_seen_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_candidate_context_repository_port.dart';
+import 'package:tentura_server/domain/use_case/beacon_people_seen_case.dart';
 import 'package:tentura_server/domain/use_case/beacon_room_case.dart';
 import 'package:tentura_server/domain/use_case/forward_candidate_context_case.dart';
 
@@ -35,6 +36,7 @@ void main() {
       await getIt.allReady(ignorePendingAsyncCreation: true);
 
       expect(getIt.isRegistered<BeaconRoomCase>(), isTrue);
+      expect(getIt.isRegistered<BeaconPeopleSeenCase>(), isTrue);
       expect(getIt.isRegistered<RootRouter>(), isTrue);
       expect(getIt.isRegistered<BeaconRoomRepositoryPort>(), isTrue);
       expect(getIt.isRegistered<BeaconPeopleSeenRepositoryPort>(), isTrue);
