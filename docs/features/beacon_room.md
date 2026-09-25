@@ -154,6 +154,12 @@ Rollout is **server-first** (peer fan-out depends on migration `m0196` and the `
 
 General hosts the shared message composer and history: replies (same thread scope), @mentions, polls, attachments, facts, and plan interactions. **Hierarchy notices** (ancestor/child lifecycle, child created) render as centered system rows with typed payloads. Terminal parent/child statuses make General **read-only** for ordinary user writes; system notices still materialize from the delivery worker.
 
+## Author has seen your offer
+
+When the Request author or a steward opens People or an offer sheet, that moderator writes a per-moderator watermark in `beacon_people_seen`. An offer owner sees "Seen by author" when the latest author or steward watermark reaches the time their offer was created. This also covers earlier offers: the watermark tracks People viewing, not a separate read of each offer. Realtime wire event `people_seen` updates the offer state, and `bridge_attention_people_seen` marks the related Activity receipt seen.
+
+Under D6, other helpers cannot see another offerer's seen state. This is not a General sender read receipt (`room_seen_peer`), and it is not an admission or fit decision. Rollout is server first: deploy migration `m0198` and the server publisher before the client.
+
 ## Discussion admission and membership
 
 **Admission** to the **discussion** is always **explicit** — offering help or receiving a direct forward does not automatically grant access. When the author **directly forwarded** the request to someone and they offer help, the offer is marked and sorted upward in People, but the author must still **Accept** explicitly before admission.
