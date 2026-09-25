@@ -1,4 +1,6 @@
+import 'package:tentura_server/consts/beacon_fact_card_consts.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_card_entity.dart';
+import 'package:tentura_server/domain/entity/beacon_fact_history_entry_entity.dart';
 
 abstract class BeaconFactCardRepositoryPort {
   Future<BeaconFactCardEntity?> findNonRemovedBySourceMessage({
@@ -36,5 +38,13 @@ abstract class BeaconFactCardRepositoryPort {
     required String factCardId,
     required String beaconId,
     required String actorUserId,
+  });
+
+  /// Fact timeline, newest first by `(createdAt, entryKey)`; [before] is the
+  /// exclusive keyset cursor. Returns up to `limit + 1` rows (look-ahead).
+  Future<List<BeaconFactHistoryEntry>> history({
+    required String factCardId,
+    ({DateTime createdAt, String entryKey})? before,
+    int limit = kFactHistoryPageSize,
   });
 }

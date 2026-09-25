@@ -5,6 +5,7 @@ import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/consts/beacon_fact_card_consts.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_card_entity.dart';
+import 'package:tentura_server/domain/entity/beacon_fact_history_entry_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/utils/id.dart';
 
@@ -253,4 +254,109 @@ class BeaconFactCardRepository implements BeaconFactCardRepositoryPort {
               ),
             );
       });
+
+  /// Plan §8.4 / §14.3: one keyset read over the fact's revisions and its
+  /// fact events (types 2, 14, 20). `entry_key` breaks `created_at` ties:
+  /// `'r' || lpad(seq, 10)` for revisions, `'e' || id` for events.
+  @override
+  Future<List<BeaconFactHistoryEntry>> history({
+    required String factCardId,
+    ({DateTime createdAt, String entryKey})? before,
+    int limit = kFactHistoryPageSize,
+  }) async {
+    final variables = <Variable>[
+      Variable<String>(factCardId),
+      Variable<int>(limit + 1),
+    ];
+    var cursorSql = '';
+    if (before != null) {
+      cursorSql = r'''
+WHERE (h.created_at, h.entry_key) < ($3::timestamptz, $4::text)
+''';
+      variables.addAll([
+        Variable(
+          PgDateTime(before.createdAt.toUtc()),
+          PgTypes.timestampWithTimezone,
+        ),
+        Variable<String>(before.entryKey),
+      ]);
+    }
+    final rows = await _db.customSelect(
+      r'''
+SELECT h.*, u.display_name AS actor_title
+FROM (
+  SELECT
+    'r' || lpad(r.seq::text, 10, '0') AS entry_key,
+    r.created_at,
+    r.actor_id,
+    r.seq,
+    r.kind::integer AS kind,
+    r.fact_text,
+    r.restored_from_seq,
+    NULL::integer AS type,
+    NULL::integer AS visibility_from,
+    NULL::integer AS visibility_to
+  FROM public.beacon_fact_card_revision r
+  WHERE r.fact_card_id = $1::text
+  UNION ALL
+  SELECT
+    'e' || e.id AS entry_key,
+    e.created_at,
+    e.actor_id,
+    NULL::integer,
+    NULL::integer,
+    NULL::text,
+    NULL::integer,
+    e.type::integer,
+    (e.diff ->> 'previousVisibility')::integer,
+    (e.diff ->> 'visibility')::integer
+  FROM public.beacon_activity_event e
+  WHERE e.fact_card_id = $1::text
+    AND e.fact_card_id IS NOT NULL
+    AND e.type IN (2, 14, 20)
+) h
+LEFT JOIN public."user" u ON u.id = h.actor_id
+''' +
+          cursorSql +
+          r'''
+ORDER BY h.created_at DESC, h.entry_key DESC
+LIMIT $2::integer
+''',
+      variables: variables,
+    ).get();
+    return [for (final row in rows) _toHistoryEntry(row)];
+  }
+
+  static BeaconFactHistoryEntry _toHistoryEntry(QueryRow row) {
+    final createdAt = _readTimestamp(row, 'created_at');
+    final actorTitle = row.readNullable<String>('actor_title') ?? '';
+    final actorId = row.readNullable<String>('actor_id');
+    final seq = row.readNullable<int>('seq');
+    if (seq != null) {
+      return BeaconFactHistoryEntry.revision(
+        seq: seq,
+        kind: row.read<int>('kind'),
+        factText: row.read<String>('fact_text'),
+        actorTitle: actorTitle,
+        createdAt: createdAt,
+        restoredFromSeq: row.readNullable<int>('restored_from_seq'),
+        actorId: actorId,
+      );
+    }
+    return BeaconFactHistoryEntry.event(
+      type: row.read<int>('type'),
+      actorTitle: actorTitle,
+      createdAt: createdAt,
+      visibilityFrom: row.readNullable<int>('visibility_from'),
+      visibilityTo: row.readNullable<int>('visibility_to'),
+      actorId: actorId,
+    );
+  }
+
+  static DateTime _readTimestamp(QueryRow row, String column) {
+    final value = row.data[column];
+    if (value is DateTime) return value.toUtc();
+    if (value is PgDateTime) return value.dateTime.toUtc();
+    return DateTime.parse(value.toString()).toUtc();
+  }
 }
