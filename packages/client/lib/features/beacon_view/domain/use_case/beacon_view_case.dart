@@ -89,12 +89,12 @@ final class BeaconViewCase extends UseCaseBase {
 
   Stream<RealtimeEntityChange> get peopleChanges =>
       _realtimeSyncCase.changesFor(
-        const {
-          RealtimeEntityKind.relationship,
-          RealtimeEntityKind.profile,
-          RealtimeEntityKind.peopleSeen,
-        },
+        const {RealtimeEntityKind.relationship, RealtimeEntityKind.profile},
       );
+
+  /// Author/steward People-tab watermarks (`people_seen` frames).
+  Stream<RealtimeEntityChange> get peopleSeenChanges =>
+      _realtimeSyncCase.changesFor(const {RealtimeEntityKind.peopleSeen});
 
   Stream<String> get forwardChanges => _forwardRepository.forwardChanges;
 

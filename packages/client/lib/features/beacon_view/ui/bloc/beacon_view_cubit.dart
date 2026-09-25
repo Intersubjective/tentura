@@ -88,6 +88,10 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       _onPeopleChanged,
       cancelOnError: false,
     );
+    _peopleSeenChangesSub = _case.peopleSeenChanges.listen(
+      _onPeopleChanged,
+      cancelOnError: false,
+    );
     unawaited(_runFetchWithGate(background: false));
     if (state.loadError != null) {
       _effects.emit(ShowError(state.loadError!));
@@ -123,6 +127,8 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
 
   late final StreamSubscription<RealtimeEntityChange> _peopleChangesSub;
 
+  late final StreamSubscription<RealtimeEntityChange> _peopleSeenChangesSub;
+
   bool _fetchInProgress = false;
   bool _fetchPending = false;
 
@@ -136,6 +142,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     await _beaconRoomRefreshSub.cancel();
     await _catchUpsSub.cancel();
     await _peopleChangesSub.cancel();
+    await _peopleSeenChangesSub.cancel();
     return super.close();
   }
 

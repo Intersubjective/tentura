@@ -182,6 +182,19 @@
       ]
     },
     {
+      "wireKind": "people_seen",
+      "acceptedWireKinds": ["people_seen"],
+      "clientKind": "peopleSeen",
+      "genericTriggerArgs": [],
+      "specializedPublishers": ["notify_people_seen_change"],
+      "impacts": ["request_people"],
+      "tests": [
+        "packages/client/test/data/service/invalidation_service_people_seen_test.dart",
+        "packages/client/test/features/beacon_view/help_offer_author_seen_test.dart",
+        "packages/server/test/data/repository/beacon_people_seen_notify_pg_test.dart"
+      ]
+    },
+    {
       "wireKind": "relationship",
       "acceptedWireKinds": ["relationship"],
       "clientKind": "relationship",
