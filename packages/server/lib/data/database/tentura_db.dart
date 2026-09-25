@@ -179,7 +179,7 @@ class TenturaDb extends _$TenturaDb {
         ),
       );
 
-  TenturaDb.forTest({required PgDatabase database}) : super(database);
+  TenturaDb.forTest({required QueryExecutor database}) : super(database);
 
   @override
   int get schemaVersion => 1;
