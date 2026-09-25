@@ -630,6 +630,67 @@ void main() {
         expect(payload['last_seen_at'], lastSeenAt);
         expect(payload.containsKey('seen_user_id'), isFalse);
       });
+
+      test('does not forward a stray seen_user_id', () async {
+        final dependencies = _Dependencies();
+        final handler = _EntityChangeHarness(Env(), dependencies);
+        final session = _RecordingSession();
+        await dependencies.authenticate(handler, session, _affectedId);
+        session.sent.clear();
+
+        await handler.fanOutEntityChange({
+          'entity': 'people_seen',
+          'id': beaconId,
+          'event': 'update',
+          'actor_user_id': _actorId,
+          'user_ids': [_affectedId],
+          'seen_user_id': 'Ugggggggggggg',
+          'last_seen_at': lastSeenAt,
+        });
+
+        expect(session.sent, hasLength(1));
+        final payload =
+            (jsonDecode(session.sent.single! as String) as Map)['payload']
+                as Map;
+        expect(payload['last_seen_at'], lastSeenAt);
+        expect(payload.containsKey('seen_user_id'), isFalse);
+      });
+
+      for (final entry in <String, Map<String, dynamic>>{
+        'missing': {},
+        'unparsable': {'last_seen_at': 'not-a-timestamp'},
+        'non-string': {'last_seen_at': 12345},
+      }.entries) {
+        test('drops frame and logs when last_seen_at is ${entry.key}',
+            () async {
+          final records = <LogRecord>[];
+          Logger('EntityChangeHarness').onRecord.listen(records.add);
+          final dependencies = _Dependencies();
+          final handler = _EntityChangeHarness(Env(), dependencies);
+          final session = _RecordingSession();
+          await dependencies.authenticate(handler, session, _affectedId);
+          session.sent.clear();
+
+          await handler.fanOutEntityChange({
+            'entity': 'people_seen',
+            'id': beaconId,
+            'event': 'update',
+            'actor_user_id': _actorId,
+            'user_ids': [_affectedId],
+            ...entry.value,
+          });
+
+          expect(session.sent, isEmpty);
+          expect(
+            records.where(
+              (record) =>
+                  record.message.contains('realtime_event=malformed_payload') &&
+                  record.message.contains('reason=people_seen'),
+            ),
+            hasLength(1),
+          );
+        });
+      }
     });
   });
 }
