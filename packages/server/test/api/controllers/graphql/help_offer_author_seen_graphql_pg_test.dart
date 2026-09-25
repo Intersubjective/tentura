@@ -104,6 +104,7 @@ Future<void> main() async {
 TRUNCATE TABLE
   public.beacon_people_seen,
   public.beacon_steward,
+  public.beacon_participant,
   public.beacon_help_offer,
   public.beacon,
   public."user"
@@ -130,6 +131,20 @@ VALUES (@b, @author, 'Request', 'Needs help', 0)
           'INSERT INTO public.beacon_steward (beacon_id, user_id) '
           'VALUES (@b, @s)',
         ),
+        parameters: {'b': _beaconId, 's': _stewardId},
+      );
+      // Mirrors BeaconRoomRepository.setBeaconSteward: the steward also holds
+      // a participant row carrying the steward role (role = 1), which the
+      // involvement predicate requires.
+      await writer.execute(
+        Sql.named('''
+INSERT INTO public.beacon_participant (
+  id, beacon_id, user_id, role, status, room_access, created_at, updated_at
+) VALUES (
+  'Pauthorseen01', @b, @s, 1, 0, 0,
+  '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'
+)
+'''),
         parameters: {'b': _beaconId, 's': _stewardId},
       );
       await writer.execute(

@@ -62,6 +62,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeBeaconActivityEventRow,
   gqlTypeInboxRoomContextRow,
   gqlTypeBeaconRoomSeenResult,
+  gqlTypeBeaconPeopleSeenResult,
   gqlTypeTagCount,
   gqlTypeTagBeaconRef,
   gqlTypeCapabilityForViewer,
@@ -590,6 +591,14 @@ final gqlTypeBeaconRoomSeenResult =
         // DORMANT(item-threads): item-thread id in seen result; always null in production.
         // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
         field('threadItemId', graphQLString),
+        field('seenAt', graphQLString.nonNullable()),
+      ]);
+
+/// Result of marking the beacon People tab as seen (author/steward watermark).
+final gqlTypeBeaconPeopleSeenResult =
+    GraphQLObjectType('BeaconPeopleSeenResult', null)
+      ..fields.addAll([
+        field('beaconId', graphQLString.nonNullable()),
         field('seenAt', graphQLString.nonNullable()),
       ]);
 
@@ -1336,6 +1345,7 @@ final gqlTypeHelpOfferWithCoordinationRow =
         field('admissionAction', graphQLInt),
         field('lastDeclineReason', graphQLString),
         field('lastRemoveReason', graphQLString),
+        field('authorSeenAt', graphQLString),
         field('stakeState', graphQLInt.nonNullable()),
         field('offerKind', graphQLInt.nonNullable()),
         field('isDirectAuthorForward', graphQLBoolean.nonNullable()),

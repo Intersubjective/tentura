@@ -334,6 +334,8 @@ ORDER BY beacon_id, offer_user_id, seq DESC
       for (final p in participantRows) p.userId: p.roomAccess,
     };
 
+    final authorSeenAt = await _latestAuthorOrStewardPeopleSeenAt(beaconId);
+
     final usersById = await _userProfileBatchLookup.userPublicRecordsByIds(
       ids: userIds,
       reciprocalPeerIds: reciprocal,
@@ -377,10 +379,39 @@ ORDER BY beacon_id, offer_user_id, seq DESC
           isDirectAuthorForward: directAuthorForwardRecipientIds.contains(
             row.userId,
           ),
+          authorSeenAt:
+              authorSeenAt == null ||
+                  authorSeenAt.isBefore(row.createdAt.dateTime)
+              ? null
+              : authorSeenAt,
         ),
       );
     }
     return out;
+  }
+
+  /// Latest People-surface watermark of the beacon author or any steward
+  /// (issue #178 D2); an offer counts as seen when it is `>=` its createdAt.
+  Future<DateTime?> _latestAuthorOrStewardPeopleSeenAt(String beaconId) async {
+    final row = await _database
+        .customSelect(
+          r'''
+SELECT max(s.last_seen_at)::text AS seen_at
+FROM beacon_people_seen s
+WHERE s.beacon_id = $1
+  AND (
+    EXISTS (SELECT 1 FROM beacon b WHERE b.id = $1 AND b.user_id = s.user_id)
+    OR EXISTS (
+      SELECT 1 FROM beacon_steward bs
+      WHERE bs.beacon_id = $1 AND bs.user_id = s.user_id
+    )
+  )
+''',
+          variables: [Variable<String>(beaconId)],
+        )
+        .getSingle();
+    final raw = row.readNullable<String>('seen_at');
+    return raw == null ? null : DateTime.parse(raw).toUtc();
   }
 
   @override
