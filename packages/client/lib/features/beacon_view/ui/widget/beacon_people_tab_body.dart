@@ -166,9 +166,24 @@ class BeaconPeopleTabBody extends StatelessWidget {
         beacon: beacon,
         admittedHelpers: state.admittedHelperRoster,
       );
+      // A pending offerer is an observer; it still sees its own offer and
+      // the author-seen footer on it.
+      final myOffer = state.helpOffers
+          .where((c) => !c.isWithdrawn && c.user.id == state.myProfile.id)
+          .firstOrNull;
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (myOffer != null) ...[
+            HelpOfferTile(
+              helpOffer: myOffer,
+              beaconId: beacon.id,
+              beaconAuthor: beacon.author,
+              beaconAuthorId: beacon.author.id,
+              isMine: true,
+            ),
+            const SizedBox(height: 12),
+          ],
           AccordionExpansionGroup(
             accordionMode: false,
             child: AccordionExpansionTile(
