@@ -14,6 +14,12 @@ void main() {
     expect(migrations.first.version, '0193');
   });
 
+  test('m0198 (beacon_people_seen) is registered after m0197', () {
+    final versions = migrations.map((migration) => migration.version).toList();
+    expect(versions, contains('0198'));
+    expect(versions.indexOf('0198'), versions.indexOf('0197') + 1);
+  });
+
   test('migrant visits every registered migration in list order', () async {
     final source = InMemory(migrations);
     expect(await source.getInitial(), same(migrations.first));

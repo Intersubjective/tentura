@@ -54,6 +54,7 @@ import 'table/coordination_items.dart';
 import 'table/ego_witness_windows.dart';
 import 'table/beacon_room_messages.dart';
 import 'table/beacon_items_seen.dart';
+import 'table/beacon_people_seen.dart';
 import 'table/beacon_room_seen.dart';
 import 'table/beacon_room_states.dart';
 import 'table/beacon_stewards.dart';
@@ -122,6 +123,7 @@ part 'tentura_db.g.dart';
     BeaconRoomMessages,
     BeaconRoomSeen,
     BeaconItemsSeen,
+    BeaconPeopleSeen,
     BeaconRoomStates,
     BeaconStewards,
     Beacons,
