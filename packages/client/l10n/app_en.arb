@@ -4992,8 +4992,16 @@
   },
   "beaconNoActivityYetShort": "No activity yet",
   "helpOffersTabNoAuthorLabelYet": "author review required",
-  "helpOfferAuthorNotSeenPendingLabel": "Sent · not seen by the author yet",
-  "helpOfferAuthorSeenPendingLabel": "Seen by the author · awaiting decision",
+  "helpOfferAuthorNotSeenYet": "Sent · not seen by the author yet",
+  "helpOfferAuthorSeen": "Seen by the author · awaiting decision",
+  "helpOfferAuthorSeenAtTooltip": "Seen {when}",
+  "@helpOfferAuthorSeenAtTooltip": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
   "helpOfferAdmissionAccept": "Accept",
   "helpOfferAdmissionDecline": "Decline",
   "helpOfferAdmissionRemove": "Remove from the discussion",

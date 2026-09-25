@@ -79,7 +79,12 @@ class HelpOfferTile extends StatelessWidget {
     final dateShown = isWithdrawn ? helpOffer.updatedAt : helpOffer.createdAt;
     final roomAccess = helpOffer.roomAccess ?? participant?.roomAccess;
     final isAdmitted = roomAccess == RoomAccessBits.admitted;
-    final showPendingAuthorSeen =
+    final authorSeenAt =
+        helpOffer.authorSeenAt != null &&
+            !helpOffer.authorSeenAt!.isBefore(helpOffer.createdAt)
+        ? helpOffer.authorSeenAt
+        : null;
+    final showBackupAuthorSeen =
         hasHelpOffer &&
         isMine &&
         !showAuthorStar &&
@@ -281,6 +286,10 @@ class HelpOfferTile extends StatelessWidget {
                 style: TenturaText.bodySmall(tt.textMuted),
               ),
             ],
+            if (showBackupAuthorSeen) ...[
+              SizedBox(height: tt.tightGap),
+              _AuthorSeenRow(authorSeenAt: authorSeenAt),
+            ],
             if (isAuthorView && onAccept == null && !isAdmitted) ...[
               SizedBox(height: tt.tightGap),
               Text(
@@ -288,16 +297,6 @@ class HelpOfferTile extends StatelessWidget {
                 style: TenturaText.bodySmall(tt.textMuted),
               ),
             ],
-          ],
-          if (showPendingAuthorSeen) ...[
-            SizedBox(height: tt.tightGap),
-            Text(
-              helpOffer.authorSeenAt != null &&
-                      !helpOffer.authorSeenAt!.isBefore(helpOffer.createdAt)
-                  ? l10n.helpOfferAuthorSeenPendingLabel
-                  : l10n.helpOfferAuthorNotSeenPendingLabel,
-              style: TenturaText.bodySmall(tt.textMuted),
-            ),
           ],
           if (helpOffer.message.isNotEmpty) ...[
             if (!showHelpTypeChips) const SizedBox(height: _rowGap),
@@ -325,8 +324,9 @@ class HelpOfferTile extends StatelessWidget {
           ],
           if (!isWithdrawn &&
               !showAuthorStar &&
-              !showPendingAuthorSeen &&
-              !(helpOffer.offerKind == 1 && !isAdmitted)) ...[
+              !(helpOffer.offerKind == 1 &&
+                  !isAdmitted &&
+                  !(isMine && helpOffer.admissionAction != null))) ...[
             const SizedBox(height: _rowGap),
             const TenturaHairlineDivider(subtle: false),
             const SizedBox(height: 8),
@@ -343,6 +343,7 @@ class HelpOfferTile extends StatelessWidget {
               onDecline: onDecline,
               onReleaseCommitment: onReleaseCommitment,
               offerUserId: helpOffer.user.id,
+              authorSeenAt: authorSeenAt,
             ),
           ],
           if (isMine && !isWithdrawn && (onEdit != null || onWithdraw != null))
@@ -423,6 +424,47 @@ class _DirectForwardChip extends StatelessWidget {
   }
 }
 
+class _AuthorSeenRow extends StatelessWidget {
+  const _AuthorSeenRow({required this.authorSeenAt});
+
+  final DateTime? authorSeenAt;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final tt = context.tt;
+    final seenAt = authorSeenAt?.toLocal();
+    final label = seenAt == null
+        ? l10n.helpOfferAuthorNotSeenYet
+        : l10n.helpOfferAuthorSeen;
+    final row = Semantics(
+      label: label,
+      excludeSemantics: true,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            seenAt == null ? Icons.done : Icons.done_all,
+            size: 12,
+            color: seenAt == null ? tt.textMuted : tt.info,
+          ),
+          SizedBox(width: tt.tightGap),
+          Flexible(
+            child: Text(label, style: TenturaText.bodySmall(tt.textMuted)),
+          ),
+        ],
+      ),
+    );
+    if (seenAt == null) return row;
+    return Tooltip(
+      message: l10n.helpOfferAuthorSeenAtTooltip(
+        '${dateFormatYMD(seenAt)} · ${timeFormatHm(seenAt)}',
+      ),
+      child: row,
+    );
+  }
+}
+
 class _AdmissionFooter extends StatelessWidget {
   const _AdmissionFooter({
     required this.l10n,
@@ -435,13 +477,16 @@ class _AdmissionFooter extends StatelessWidget {
     required this.isMine,
     required this.onAccept,
     required this.onDecline,
-    required this.offerUserId, this.onReleaseCommitment,
+    required this.offerUserId,
+    this.authorSeenAt,
+    this.onReleaseCommitment,
   });
 
   final L10n l10n;
   final TenturaTokens tt;
   final bool isAdmitted;
   final HelpOfferAdmissionAction? admissionAction;
+  final DateTime? authorSeenAt;
   final String? lastDeclineReason;
   final String? lastRemoveReason;
   final bool isAuthorView;
@@ -480,6 +525,7 @@ class _AdmissionFooter extends StatelessWidget {
         isAdmitted: isAdmitted,
         admissionAction: admissionAction,
         reason: reason,
+        authorSeenAt: authorSeenAt,
       );
     }
 
@@ -672,6 +718,7 @@ class _CommitterAdmissionFooter extends StatelessWidget {
     required this.isAdmitted,
     required this.admissionAction,
     required this.reason,
+    this.authorSeenAt,
   });
 
   final L10n l10n;
@@ -679,9 +726,13 @@ class _CommitterAdmissionFooter extends StatelessWidget {
   final bool isAdmitted;
   final HelpOfferAdmissionAction? admissionAction;
   final String? reason;
+  final DateTime? authorSeenAt;
 
   @override
   Widget build(BuildContext context) {
+    if (!isAdmitted && admissionAction == null) {
+      return _AuthorSeenRow(authorSeenAt: authorSeenAt);
+    }
     final text = switch (admissionAction) {
       HelpOfferAdmissionAction.decline
           when reason != null && reason!.isNotEmpty =>

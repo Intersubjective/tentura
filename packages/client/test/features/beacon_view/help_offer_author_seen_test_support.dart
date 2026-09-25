@@ -291,6 +291,11 @@ Future<void> pumpPeople(
   Locale locale = const Locale('en'),
 }) async {
   final cubit = FrozenBeaconViewCubit(state);
+  // The offerer footer row makes two stacked offers taller than the default
+  // 800x600 surface.
+  tester.view.physicalSize = const Size(800, 1200);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
   await tester.pumpWidget(
     MaterialApp(
       theme: TenturaTheme.light(),
