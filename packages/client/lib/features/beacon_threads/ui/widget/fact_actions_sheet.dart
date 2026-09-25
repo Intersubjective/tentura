@@ -7,6 +7,7 @@ import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/message/beacon_room_fact_messages.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/fact_provenance_line.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/copy_text_to_clipboard.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -48,6 +49,8 @@ Future<void> showFactActionsHostSheet(
   })
   onSetVisibility,
   void Function(String messageId)? onJumpToSource,
+  void Function(BeaconFactCard fact)? onEditHistory,
+  void Function(BeaconFactCard fact)? onQuoteInChat,
   bool canMutate = true,
 }) {
   final l10n = L10n.of(context)!;
@@ -73,6 +76,15 @@ Future<void> showFactActionsHostSheet(
                 l10n.beaconRoomFactManageSheetTitle,
                 style: Theme.of(ctx).textTheme.titleMedium,
               ),
+            ),
+            Padding(
+              padding: EdgeInsets.only(
+                left: ctx.tt.screenHPadding,
+                right: ctx.tt.screenHPadding,
+                top: ctx.tt.rowGap / 2,
+                bottom: ctx.tt.rowGap,
+              ),
+              child: FactProvenanceLine(fact: fact),
             ),
             if (canMutate) ...[
               ListTile(
@@ -112,6 +124,25 @@ Future<void> showFactActionsHostSheet(
                   },
                 ),
             ],
+            // Every reader may browse history once the fact has been edited.
+            if (onEditHistory != null && fact.revisionSeq > 1)
+              ListTile(
+                leading: const Icon(Icons.history),
+                title: Text(l10n.beaconRoomFactCardActionEditHistory),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  onEditHistory(fact);
+                },
+              ),
+            if (onQuoteInChat != null)
+              ListTile(
+                leading: const Icon(Icons.format_quote_outlined),
+                title: Text(l10n.beaconRoomFactCardActionQuoteInChat),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  onQuoteInChat(fact);
+                },
+              ),
             ListTile(
               leading: const Icon(Icons.message_outlined),
               title: Text(l10n.beaconRoomFactCardActionJumpToSource),

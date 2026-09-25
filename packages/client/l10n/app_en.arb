@@ -5249,6 +5249,28 @@
     }
   },
   "beaconFactsOpenTooltip": "Pinned facts",
+  "beaconRoomFactProvenanceEdited": "edited",
+  "beaconRoomFactProvenanceEditedBy": "edited by {name}",
+  "@beaconRoomFactProvenanceEditedBy": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconRoomFactProvenanceEditorPlus": "{name} +{count}",
+  "@beaconRoomFactProvenanceEditorPlus": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconRoomFactCardActionEditHistory": "Edit history",
+  "beaconRoomFactCardActionQuoteInChat": "Quote in chat",
   "beaconRoomFactManageSheetTitle": "Manage fact",
   "beaconRoomFactManageTooltip": "Manage pinned fact",
   "beaconRoomFactOverflowTooltip": "Manage this fact",

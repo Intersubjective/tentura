@@ -5173,6 +5173,28 @@
     }
   },
   "beaconFactsOpenTooltip": "Закреплённые факты",
+  "beaconRoomFactProvenanceEdited": "изменён",
+  "beaconRoomFactProvenanceEditedBy": "изменил(а) {name}",
+  "@beaconRoomFactProvenanceEditedBy": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconRoomFactProvenanceEditorPlus": "{name} +{count}",
+  "@beaconRoomFactProvenanceEditorPlus": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconRoomFactCardActionEditHistory": "История изменений",
+  "beaconRoomFactCardActionQuoteInChat": "Цитировать в обсуждении",
   "beaconRoomFactManageSheetTitle": "Управление фактом",
   "beaconRoomFactManageTooltip": "Управлять закреплённым фактом",
   "beaconRoomFactOverflowTooltip": "Действия с фактом",

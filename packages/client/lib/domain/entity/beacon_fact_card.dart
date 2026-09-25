@@ -17,6 +17,19 @@ abstract class BeaconFactCard with _$BeaconFactCard {
     String? sourceMessageId,
     DateTime? updatedAt,
     @Default('') String pinnedByTitle,
+
+    /// Current text revision; 1 means never edited.
+    @Default(1) int revisionSeq,
+    String? lastEditedBy,
+    @Default('') String lastEditedByTitle,
+    DateTime? lastEditedAt,
+
+    /// Distinct editors other than the pinner.
+    @Default(0) int otherEditorCount,
+
+    /// Older revisions were pruned; the fact was edited even if
+    /// [lastEditedAt] is unknown.
+    @Default(false) bool historyTruncated,
     @Default(<RoomMessageAttachment>[])
     List<RoomMessageAttachment> attachments,
   }) = _BeaconFactCard;

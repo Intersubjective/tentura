@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
-import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/fact_provenance_line.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_attachment_widgets.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_file_attachment_open.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_pinned_fact_visibility_mark.dart';
@@ -51,7 +51,6 @@ class _BeaconPinnedFactCardState extends State<BeaconPinnedFactCard> {
     final images = _imageAttachments(fact);
     final files = _fileAttachments(fact);
     final hasText = fact.factText.trim().isNotEmpty;
-    final corrected = fact.status == BeaconFactCardStatusBits.corrected;
     final desktopSelection = tenturaDesktopSelectionEnabledFor(
       Theme.of(context),
     );
@@ -108,9 +107,7 @@ class _BeaconPinnedFactCardState extends State<BeaconPinnedFactCard> {
                     SizedBox(height: tt.rowGap / 2),
                     if (images.isNotEmpty)
                       _FactCardImageZone(images: images),
-                    if (images.isNotEmpty &&
-                        (hasText || files.isNotEmpty || corrected))
-                      SizedBox(height: tt.rowGap),
+                    if (images.isNotEmpty) SizedBox(height: tt.rowGap),
                     if (hasText)
                       TenturaSelectionArea(
                         child: Text.rich(
@@ -125,21 +122,13 @@ class _BeaconPinnedFactCardState extends State<BeaconPinnedFactCard> {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                    if (hasText && (files.isNotEmpty || corrected))
-                      SizedBox(height: tt.rowGap),
+                    if (hasText) SizedBox(height: tt.rowGap),
                     for (var i = 0; i < files.length; i++) ...[
                       if (i > 0) SizedBox(height: tt.rowGap / 2),
                       _FactCardFileRow(attachment: files[i], l10n: l10n),
                     ],
-                    if (files.isNotEmpty && corrected)
-                      SizedBox(height: tt.rowGap),
-                    if (corrected)
-                      Text(
-                        l10n.beaconRoomFactCardCorrectedBadge,
-                        style: TenturaText.status(scheme.tertiary),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                    if (files.isNotEmpty) SizedBox(height: tt.rowGap),
+                    FactProvenanceLine(fact: fact),
                   ],
                 ),
               ),
