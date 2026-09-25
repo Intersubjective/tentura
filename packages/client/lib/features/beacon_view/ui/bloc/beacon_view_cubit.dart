@@ -89,7 +89,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       cancelOnError: false,
     );
     _peopleSeenChangesSub = _case.peopleSeenChanges.listen(
-      _onPeopleChanged,
+      _onPeopleSeen,
       cancelOnError: false,
     );
     unawaited(_runFetchWithGate(background: false));
@@ -162,23 +162,49 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     unawaited(_runFetchWithGate());
   }
 
-  void _onPeopleChanged(RealtimeEntityChange change) {
-    if (change.kind == RealtimeEntityKind.peopleSeen) {
-      final seenAt = change.peopleSeenAt;
-      if (change.aggregateId != state.beacon.id || seenAt == null) return;
-      var changed = false;
-      final offers = state.helpOffers.map((offer) {
-        final previous = offer.authorSeenAt;
-        if (seenAt.isBefore(offer.createdAt) ||
-            (previous != null && !seenAt.isAfter(previous))) {
-          return offer;
-        }
-        changed = true;
-        return offer.copyWith(authorSeenAt: seenAt);
-      }).toList();
-      if (changed) emit(state.copyWith(helpOffers: offers));
+  /// A `people_seen` frame: the author or a steward opened the People
+  /// surface. Stamps only the viewer's own unseen offer; never refetches.
+  void _onPeopleSeen(RealtimeEntityChange change) {
+    final seenAt = change.peopleSeenAt;
+    if (isClosed || change.aggregateId != state.beacon.id || seenAt == null) {
       return;
     }
+    final myId = state.myProfile.id;
+    var changed = false;
+    final offers = state.helpOffers.map((offer) {
+      if (offer.user.id != myId ||
+          offer.authorSeenAt != null ||
+          seenAt.isBefore(offer.createdAt)) {
+        return offer;
+      }
+      changed = true;
+      return offer.copyWith(authorSeenAt: seenAt);
+    }).toList();
+    if (changed) emit(state.copyWith(helpOffers: offers));
+  }
+
+  /// Merges refetched offers with local ones by offer user id, keeping the
+  /// later non-null `authorSeenAt`; a null server value never clears a local
+  /// stamp.
+  List<TimelineHelpOffer> _mergeLocalAuthorSeen(
+    List<TimelineHelpOffer> fetched,
+  ) {
+    final local = {
+      for (final offer in state.helpOffers)
+        if (offer.authorSeenAt != null) offer.user.id: offer.authorSeenAt!,
+    };
+    return fetched.map((offer) {
+      final localSeen = local[offer.user.id];
+      final serverSeen = offer.authorSeenAt;
+      if (localSeen == null ||
+          (serverSeen != null && !localSeen.isAfter(serverSeen))) {
+        return offer;
+      }
+      return offer.copyWith(authorSeenAt: localSeen);
+    }).toList();
+  }
+
+  void _onPeopleChanged(RealtimeEntityChange change) {
     if (change.kind == RealtimeEntityKind.relationship ||
         _visiblePeopleIds().contains(change.aggregateId)) {
       _requestFullRefresh();
@@ -866,7 +892,9 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     if (!isClosed && beaconId == state.beacon.id) {
       emit(
         state.copyWith(
-          helpOffers: _timelineHelpOffersFromRemote(helpOffers),
+          helpOffers: _mergeLocalAuthorSeen(
+            _timelineHelpOffersFromRemote(helpOffers),
+          ),
         ),
       );
     }
@@ -1244,7 +1272,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
         state.copyWith(
           beacon: beacon,
           timeline: timeline,
-          helpOffers: helpOffersList,
+          helpOffers: _mergeLocalAuthorSeen(helpOffersList),
           isHelpOffered: isHelpOffered,
           inboxStatus: inboxCtx.status,
           forwardProvenance: inboxCtx.provenance,
