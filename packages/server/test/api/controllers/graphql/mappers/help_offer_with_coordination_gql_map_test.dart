@@ -71,6 +71,48 @@ void main() {
     expect(m['roomAccess'], RoomAccessBits.admitted);
   });
 
+  test('helpOfferWithCoordinationToGqlMap emits authorSeenAt as ISO UTC Z', () {
+    const user = UserPublicRecord(
+      id: 'U1',
+      displayName: 't',
+      description: '',
+      userAvailability: null,
+    );
+    final seen = DateTime.utc(2026, 3, 4, 5, 6, 7);
+    final row = HelpOfferWithCoordinationRow(
+      beaconId: 'B1',
+      userId: 'U1',
+      message: 'm',
+      status: 0,
+      createdAt: DateTime.utc(2025),
+      updatedAt: DateTime.utc(2025),
+      user: user,
+      authorSeenAt: seen,
+    );
+    final m = helpOfferWithCoordinationToGqlMap(row);
+    expect(m['authorSeenAt'], '2026-03-04T05:06:07.000Z');
+  });
+
+  test('helpOfferWithCoordinationToGqlMap emits null authorSeenAt', () {
+    const user = UserPublicRecord(
+      id: 'U1',
+      displayName: 't',
+      description: '',
+      userAvailability: null,
+    );
+    final row = HelpOfferWithCoordinationRow(
+      beaconId: 'B1',
+      userId: 'U1',
+      message: 'm',
+      status: 0,
+      createdAt: DateTime.utc(2025),
+      updatedAt: DateTime.utc(2025),
+      user: user,
+    );
+    final m = helpOfferWithCoordinationToGqlMap(row);
+    expect(m['authorSeenAt'], isNull);
+  });
+
   test('helpOfferWithCoordinationToGqlMap omits roomAccess when null', () {
     const user = UserPublicRecord(
       id: 'U1',
