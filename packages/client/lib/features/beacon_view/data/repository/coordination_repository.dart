@@ -98,16 +98,11 @@ class CoordinationRepository {
             .toList();
       });
 
-  Future<DateTime> markBeaconPeopleSeen({
-    required String beaconId,
-    required DateTime readThroughAt,
-  }) async {
+  Future<DateTime> markBeaconPeopleSeen(String beaconId) async {
     final row = await _remoteApiService
         .request(
           GMarkBeaconPeopleSeenReq(
-            (b) => b.vars
-              ..beaconId = beaconId
-              ..readThroughAt = readThroughAt.toUtc().toIso8601String(),
+            (b) => b.vars.beaconId = beaconId,
           ),
         )
         .firstWhere((e) => e.dataSource == DataSource.Link)

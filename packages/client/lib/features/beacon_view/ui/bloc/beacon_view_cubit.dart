@@ -186,10 +186,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
   Future<void> markPeopleSeen() async {
     if (!state.beaconContextLoaded || !state.isAuthorOrSteward) return;
     try {
-      await _case.markBeaconPeopleSeen(
-        beaconId: state.beacon.id,
-        readThroughAt: DateTime.now().toUtc(),
-      );
+      await _case.markPeopleSeen(state.beacon.id);
     } catch (error) {
       _showSnackError(error);
     }

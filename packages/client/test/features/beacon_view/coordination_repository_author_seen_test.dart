@@ -176,8 +176,8 @@ void main() {
   });
 
   test(
-    'markBeaconPeopleSeen sends MarkBeaconPeopleSeen to V2 with beaconId and '
-    'readThroughAt, and returns the server seenAt',
+    'markBeaconPeopleSeen sends MarkBeaconPeopleSeen to V2 with beaconId only '
+    '(server defaults the watermark), and returns the server seenAt',
     () async {
       final sent = <_SentOperation>[];
       late DateTime seenAt;
@@ -194,10 +194,7 @@ void main() {
         },
         sent,
         (remote) async {
-          seenAt = await CoordinationRepository(remote).markBeaconPeopleSeen(
-            beaconId: _beaconId,
-            readThroughAt: DateTime.utc(2026, 6, 15, 12, 9),
-          );
+          seenAt = await CoordinationRepository(remote).markBeaconPeopleSeen(_beaconId);
         },
       );
 
@@ -206,10 +203,7 @@ void main() {
       expect(op.operationName, 'MarkBeaconPeopleSeen');
       expect(op.url.path, '/api/v2/graphql');
       expect(op.variables['beaconId'], _beaconId);
-      expect(
-        DateTime.parse(op.variables['readThroughAt'] as String),
-        DateTime.utc(2026, 6, 15, 12, 9),
-      );
+      expect(op.variables.containsKey('readThroughAt'), isFalse);
       expect(seenAt, DateTime.utc(2026, 6, 15, 12, 10));
       expect(seenAt.isUtc, isTrue);
     },

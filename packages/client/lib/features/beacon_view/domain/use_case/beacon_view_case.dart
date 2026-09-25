@@ -463,13 +463,8 @@ final class BeaconViewCase extends UseCaseBase {
     beaconId: beaconId,
   );
 
-  Future<DateTime> markBeaconPeopleSeen({
-    required String beaconId,
-    required DateTime readThroughAt,
-  }) => _coordinationRepository.markBeaconPeopleSeen(
-    beaconId: beaconId,
-    readThroughAt: readThroughAt,
-  );
+  Future<DateTime> markPeopleSeen(String beaconId) =>
+      _coordinationRepository.markBeaconPeopleSeen(beaconId);
 
   Future<BeaconDisplayStatusDto?> fetchDisplayStatus(String beaconId) async {
     final rows = await _displayRepository.fetchDisplayStatuses([beaconId]);

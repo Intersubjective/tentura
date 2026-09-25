@@ -85,11 +85,8 @@ class CountingCoordinationRepository
   }
 
   @override
-  Future<DateTime> markBeaconPeopleSeen({
-    required String beaconId,
-    DateTime? readThroughAt,
-  }) async {
-    markPeopleSeenCalls.add((beaconId: beaconId, readThroughAt: readThroughAt));
+  Future<DateTime> markBeaconPeopleSeen(String beaconId) async {
+    markPeopleSeenCalls.add((beaconId: beaconId, readThroughAt: null));
     return DateTime.utc(2026, 6, 15, 12, 10);
   }
 }

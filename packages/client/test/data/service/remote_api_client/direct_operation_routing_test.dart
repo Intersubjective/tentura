@@ -68,5 +68,9 @@ void main() {
     test('BeaconRoomReadWatermarks routes to Tentura V2', () {
       expect(isTenturaDirectOperation('BeaconRoomReadWatermarks'), isTrue);
     });
+
+    test('MarkBeaconPeopleSeen routes to Tentura V2', () {
+      expect(isTenturaDirectOperation('MarkBeaconPeopleSeen'), isTrue);
+    });
   });
 }
