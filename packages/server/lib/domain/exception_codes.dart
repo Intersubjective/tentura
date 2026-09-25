@@ -90,6 +90,9 @@ enum BeaconExceptionCode {
   discussionScopeDisabled, // 1315
   coordinationKindDisabled, // 1316
   beaconHierarchyCursorInvalid, // 1317
+  beaconFactCardEditConflict, // 1318
+  beaconFactCardRemoved, // 1319
+  beaconFactCardRateLimited, // 1320
 }
 
 class BeaconExceptionCodes extends ExceptionCodes {

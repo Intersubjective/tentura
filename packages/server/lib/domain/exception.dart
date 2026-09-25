@@ -459,6 +459,53 @@ final class BeaconHierarchyCursorInvalidException extends ExceptionBase {
       );
 }
 
+/// Fact edit/restore base seq is stale; [currentSeq] is the head revision.
+final class BeaconFactCardEditConflictException extends ExceptionBase {
+  const BeaconFactCardEditConflictException({
+    required this.currentSeq,
+    String? description,
+  }) : super(
+         code: const BeaconExceptionCodes(
+           BeaconExceptionCode.beaconFactCardEditConflict,
+         ),
+         description: description ?? 'Fact card was edited concurrently',
+       );
+
+  final int currentSeq;
+
+  Map<String, Object> get extensions => {
+    'code': '${code.codeNumber}',
+    'path': path,
+    'currentSeq': currentSeq,
+  };
+
+  @override
+  Map<String, Object> get toMap => {
+    'message': description,
+    'extensions': extensions,
+  };
+}
+
+final class BeaconFactCardRemovedException extends ExceptionBase {
+  const BeaconFactCardRemovedException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(
+          BeaconExceptionCode.beaconFactCardRemoved,
+        ),
+        description: description ?? 'Fact card was removed',
+      );
+}
+
+final class BeaconFactCardRateLimitedException extends ExceptionBase {
+  const BeaconFactCardRateLimitedException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(
+          BeaconExceptionCode.beaconFactCardRateLimited,
+        ),
+        description: description ?? 'Too many fact card edits',
+      );
+}
+
 final class EvaluationException extends ExceptionBase {
   EvaluationException({
     required EvaluationExceptionCode evaluationCode,

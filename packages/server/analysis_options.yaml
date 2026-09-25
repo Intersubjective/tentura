@@ -30,6 +30,9 @@ analyzer:
   errors:
     specify_nonobvious_property_types: ignore
     sort_constructors_first: ignore
+    # The `plugins:` block above is intentional (see comment); silence the
+    # workspace-root advisory so plain `dart analyze` stays warning-free.
+    plugins_in_inner_options: ignore
   exclude:
     - "**/_g/**"
     - "**/*.gql.dart"

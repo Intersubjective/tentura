@@ -18,5 +18,14 @@ abstract class BeaconFactCardEntity with _$BeaconFactCardEntity {
     String? sourceMessageId,
     @Default(0) int status,
     DateTime? updatedAt,
+    @Default(1) int revisionSeq,
+    String? lastEditedBy,
+    String? lastEditedByTitle,
+    DateTime? lastEditedAt,
+    @Default(0) int otherEditorCount,
+    @Default(false) bool historyTruncated,
+
+    /// Denormalized display metadata (not a DB column).
+    @Default('') String pinnedByTitle,
   }) = _BeaconFactCardEntity;
 }
