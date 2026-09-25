@@ -30,6 +30,7 @@ void main() {
         myUserId: myUserId,
         watermarks: watermarks,
         pendingLocalIds: pendingLocalIds,
+        hasOtherAdmittedDiscussionMember: true,
       );
 
   group('RoomReceiptIndex.receiptFor', () {

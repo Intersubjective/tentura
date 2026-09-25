@@ -2,6 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/data/service/remote_api_client/build_client.dart';
 
+// tentura-n59 landing gate acceptance (chat read receipts)
+
 void main() {
   group('direct V2 operation routing', () {
     test('BeaconStageImage and BeaconSetMedia are routed to Tentura V2', () {

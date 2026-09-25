@@ -316,6 +316,8 @@ class _TrackingPresenceRepository extends Fake implements PresenceRepository {
 // Tests
 // ---------------------------------------------------------------------------
 
+// tentura-n59 landing gate acceptance (chat read receipts)
+
 void main() {
   group('RoomCubit unread anchor', () {
     test('load() derives anchor from participant lastSeenRoomAt', () async {

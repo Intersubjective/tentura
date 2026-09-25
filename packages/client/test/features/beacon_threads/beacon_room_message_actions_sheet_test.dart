@@ -65,6 +65,8 @@ class _MockPresenceCubit extends Mock implements PresenceCubit {
       Stream<Map<String, UserPresenceStatus>>.empty();
 }
 
+// tentura-n59 landing gate acceptance (chat read receipts)
+
 void main() {
   final getIt = GetIt.I;
 
@@ -362,6 +364,10 @@ void main() {
             viewer.id: readWatermark(viewer.id, messageCreatedAt),
           },
           readWatermarksLoaded: true,
+          participants: [
+            roomParticipant(userId: author.id, displayName: author.displayName),
+          ],
+          participantsLoaded: true,
         );
 
         await openMessageActions(tester);

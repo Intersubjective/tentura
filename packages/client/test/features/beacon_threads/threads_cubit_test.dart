@@ -233,6 +233,8 @@ Future<void> _awaitListThreadsCount(
   );
 }
 
+// tentura-n59 landing gate acceptance (chat read receipts)
+
 void main() {
   setUp(() => _registerProfileCubit(_kMyUserId));
 

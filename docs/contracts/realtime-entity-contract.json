@@ -10,7 +10,12 @@
     "packages/client/test/architecture/cross_surface_subscription_test.dart",
     "packages/client/test/data/service/invalidation_service_test.dart",
     "packages/client/test/features/beacon_threads/beacon_threads_case_test.dart",
+    "packages/client/test/features/beacon_threads/beacon_room_message_actions_sheet_test.dart",
+    "packages/client/test/features/beacon_threads/chat_read_receipts_n59_landing_check_test.dart",
     "packages/client/test/features/beacon_threads/room_cubit_unread_test.dart",
+    "packages/client/test/features/beacon_threads/threads_cubit_test.dart",
+    "packages/client/test/data/service/remote_api_client/direct_operation_routing_test.dart",
+    "packages/client/test/features/inbox/inbox_case_desk_relevant_changes_test.dart",
     "packages/server/test/api/controllers/websocket/websocket_realtime_protocol_test.dart"
   ],
   "kinds": [
@@ -151,10 +156,12 @@
       "clientKind": "roomSeenPeer",
       "genericTriggerArgs": [],
       "specializedPublishers": ["notify_room_seen_peer_change"],
-      "impacts": ["presence"],
+      "impacts": ["presence", "chat_receipts"],
       "tests": [
         "packages/client/test/data/service/invalidation_service_room_seen_peer_test.dart",
-        "packages/client/test/features/beacon_threads/beacon_room_invalidation_test.dart"
+        "packages/client/test/features/beacon_threads/beacon_room_invalidation_test.dart",
+        "packages/client/test/features/beacon_threads/threads_cubit_test.dart",
+        "packages/client/test/features/inbox/inbox_case_desk_relevant_changes_test.dart"
       ]
     },
     {

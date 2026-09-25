@@ -220,6 +220,8 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                 e.key: e.value.lastSeenAt,
             },
             pendingLocalIds: const {},
+            hasOtherAdmittedDiscussionMember:
+                _hasOtherAdmittedDiscussionMember(state),
           );
           return BasicChatBody(
             key: _basicChatKey,
@@ -347,7 +349,20 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
             e.key: e.value.lastSeenAt,
         },
         pendingLocalIds: const {},
+        hasOtherAdmittedDiscussionMember:
+            _hasOtherAdmittedDiscussionMember(state),
       );
+
+  bool _hasOtherAdmittedDiscussionMember(RoomState state) {
+    if (!state.participantsLoaded) {
+      return false;
+    }
+    return state.participants.any(
+      (p) =>
+          p.userId != state.myUserId &&
+          p.roomAccess == RoomAccessBits.admitted,
+    );
+  }
 
   String _readBySubtitle(
     L10n l10n,

@@ -23,6 +23,8 @@ import 'package:tentura/features/polling/data/repository/polling_repository.dart
 import '../../support/test_realtime_sync.dart';
 import 'inbox_case_test.dart';
 
+// tentura-n59 landing gate acceptance (chat read receipts)
+
 void main() {
   late FakeInboxRepository repo;
   late _DeskRelevantRoomRepository roomRepo;

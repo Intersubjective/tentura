@@ -19,17 +19,24 @@ final class RoomReceiptIndex {
     required this.myUserId,
     required this.watermarks,
     required this.pendingLocalIds,
+    this.hasOtherAdmittedDiscussionMember = false,
   });
 
   final String myUserId;
   final Map<String, DateTime> watermarks;
   final Set<String> pendingLocalIds;
 
+  /// Sender receipts apply only when ≥1 other admitted discussion member exists.
+  final bool hasOtherAdmittedDiscussionMember;
+
   RoomMessageReceipt? receiptFor(RoomMessage message) {
     if (message.authorId != myUserId) {
       return null;
     }
     if (message.systemMessageKind != null) {
+      return null;
+    }
+    if (!hasOtherAdmittedDiscussionMember) {
       return null;
     }
     if (message.id.startsWith('local:') || pendingLocalIds.contains(message.id)) {

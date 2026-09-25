@@ -18,6 +18,9 @@ import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_c
 import 'package:tentura/features/polling/data/repository/polling_repository.dart';
 
 import '../../support/test_realtime_sync.dart';
+
+// tentura-n59 landing gate acceptance (chat read receipts)
+
 void main() {
   late FakeBeaconThreadsRepository room;
   late RoomReadWatermarkStore watermark;

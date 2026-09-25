@@ -25,6 +25,9 @@ const impactSubscribers = <String, List<String>>{
   'chat_reactions': [
     'packages/client/lib/features/beacon_threads/ui/bloc/room_cubit.dart',
   ],
+  'chat_receipts': [
+    'packages/client/lib/features/beacon_threads/ui/bloc/room_cubit.dart',
+  ],
   'chat_thread': [
     'packages/client/lib/features/beacon_threads/ui/bloc/room_cubit.dart',
   ],
