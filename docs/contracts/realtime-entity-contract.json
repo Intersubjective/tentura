@@ -27,6 +27,11 @@
     "packages/client/test/features/beacon_threads/threads_cubit_test.dart",
     "packages/client/test/data/service/remote_api_client/direct_operation_routing_test.dart",
     "packages/client/test/features/inbox/inbox_case_desk_relevant_changes_test.dart",
+    "packages/client/test/features/beacon_threads/tentura_rsm_landing_check_test.dart",
+    "packages/client/test/design_system/tentura_avatar_stack_test.dart",
+    "packages/client/test/design_system/tentura_tokens_avatar_size_small_test.dart",
+    "packages/client/test/features/beacon_threads/room_message_trailing_meta_layout_test.dart",
+    "packages/client/test/features/beacon_threads/room_message_reply_quote_landing_check_test.dart",
     "packages/server/test/api/controllers/websocket/websocket_realtime_protocol_test.dart"
   ],
   "kinds": [

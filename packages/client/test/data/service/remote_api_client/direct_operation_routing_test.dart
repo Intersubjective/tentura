@@ -1,3 +1,5 @@
+// tentura-9f0 landing gate acceptance (trial merge tentura-rsm)
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/data/service/remote_api_client/build_client.dart';
