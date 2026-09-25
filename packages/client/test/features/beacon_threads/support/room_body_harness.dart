@@ -9,8 +9,11 @@ import 'package:tentura_root/domain/enums.dart';
 import 'package:tentura/data/repository/clipboard_image_repository.dart';
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/entity/beacon_participant.dart';
+import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
+import 'package:tentura/domain/entity/room_read_watermark.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_room_body.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -211,5 +214,53 @@ RoomState roomBodyState({
     scrollToMessageId: scrollToMessageId,
     pinnedJumpMessageIds: pinnedJumpMessageIds,
     beaconStatus: beaconStatus,
+  );
+}
+
+BeaconParticipant roomBodyAdmittedParticipant({
+  required String beaconId,
+  required Profile profile,
+  int role = BeaconParticipantRoleBits.helper,
+}) {
+  return BeaconParticipant(
+    id: 'p-${profile.id}',
+    beaconId: beaconId,
+    userId: profile.id,
+    userTitle: profile.displayName,
+    role: role,
+    status: 0,
+    roomAccess: RoomAccessBits.admitted,
+    createdAt: DateTime.utc(2026),
+    updatedAt: DateTime.utc(2026),
+  );
+}
+
+/// Multi-member sender-receipt widget tests need admitted participants loaded
+/// before [BeaconRoomBody] builds [RoomReceiptIndex].
+RoomState roomBodyStateForSenderReceipts({
+  String beaconId = 'b1',
+  required String myUserId,
+  required Profile viewer,
+  required Profile admittedPeer,
+  List<RoomMessage> messages = const [],
+  Map<String, RoomReadWatermark> readWatermarks = const {},
+  bool readWatermarksLoaded = false,
+}) {
+  return roomBodyState(
+    beaconId: beaconId,
+    myUserId: myUserId,
+    messages: messages,
+  ).copyWith(
+    participants: [
+      roomBodyAdmittedParticipant(
+        beaconId: beaconId,
+        profile: viewer,
+        role: BeaconParticipantRoleBits.author,
+      ),
+      roomBodyAdmittedParticipant(beaconId: beaconId, profile: admittedPeer),
+    ],
+    participantsLoaded: true,
+    readWatermarks: readWatermarks,
+    readWatermarksLoaded: readWatermarksLoaded,
   );
 }

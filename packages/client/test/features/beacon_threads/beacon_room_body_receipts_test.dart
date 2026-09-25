@@ -9,6 +9,8 @@ import 'package:tentura/features/beacon_threads/ui/widget/room_message_tile.dart
 
 import 'support/room_body_harness.dart';
 
+// tentura-fpi landing gate acceptance (chat read receipts / room_seen_peer)
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -84,10 +86,11 @@ void main() {
           tester,
           viewer: viewer,
           enableComposer: false,
-          roomState: roomBodyState(
+          roomState: roomBodyStateForSenderReceipts(
             myUserId: viewer.id,
+            viewer: viewer,
+            admittedPeer: peer,
             messages: [message],
-          ).copyWith(
             readWatermarks: {
               peer.id: watermark(peer.id, message.createdAt),
             },
@@ -114,10 +117,11 @@ void main() {
           tester,
           viewer: viewer,
           enableComposer: false,
-          roomState: roomBodyState(
+          roomState: roomBodyStateForSenderReceipts(
             myUserId: viewer.id,
+            viewer: viewer,
+            admittedPeer: peer,
             messages: [message],
-          ).copyWith(
             readWatermarks: {
               peer.id: watermark(peer.id, message.createdAt),
             },
@@ -174,10 +178,11 @@ void main() {
         tester,
         viewer: viewer,
         enableComposer: false,
-        roomState: roomBodyState(
+        roomState: roomBodyStateForSenderReceipts(
           myUserId: viewer.id,
+          viewer: viewer,
+          admittedPeer: peer,
           messages: [message],
-        ).copyWith(
           readWatermarks: {
             peer.id: watermark(peer.id, message.createdAt),
           },

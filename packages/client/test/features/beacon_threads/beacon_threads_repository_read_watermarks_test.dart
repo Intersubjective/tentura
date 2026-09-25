@@ -1,3 +1,5 @@
+// tentura-fpi landing gate acceptance (chat read receipts / room_seen_peer)
+
 import 'package:ferry/ferry.dart'
     show
         Client,

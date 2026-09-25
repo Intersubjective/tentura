@@ -1,3 +1,5 @@
+// tentura-fpi landing gate acceptance (chat read receipts / room_seen_peer)
+
 import 'dart:async';
 
 import 'package:fake_async/fake_async.dart';

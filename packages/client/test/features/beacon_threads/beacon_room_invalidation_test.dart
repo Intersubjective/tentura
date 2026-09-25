@@ -1,3 +1,5 @@
+// tentura-fpi landing gate acceptance (chat read receipts / room_seen_peer)
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';

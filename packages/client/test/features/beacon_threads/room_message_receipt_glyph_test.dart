@@ -1,3 +1,5 @@
+// tentura-fpi landing gate acceptance (chat read receipts / room_seen_peer)
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
