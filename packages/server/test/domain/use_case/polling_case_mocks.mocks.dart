@@ -10,6 +10,8 @@ import 'package:mockito/src/dummies.dart' as _i6;
 import 'package:tentura_server/domain/entity/beacon_activity_event_record.dart'
     as _i8;
 import 'package:tentura_server/domain/entity/beacon_room_record.dart' as _i5;
+import 'package:tentura_server/domain/entity/room_read_watermark_record.dart'
+    as _i9;
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart'
     as _i7;
 import 'package:tentura_server/domain/port/polling_act_repository_port.dart'
@@ -634,6 +636,18 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
             ),
           )
           as _i3.Future<Map<String, DateTime>>);
+
+  @override
+  _i3.Future<List<_i9.RoomReadWatermarkRecord>> mainRoomReadWatermarks(
+    String? beaconId,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#mainRoomReadWatermarks, [beaconId]),
+            returnValue: _i3.Future<List<_i9.RoomReadWatermarkRecord>>.value(
+              <_i9.RoomReadWatermarkRecord>[],
+            ),
+          )
+          as _i3.Future<List<_i9.RoomReadWatermarkRecord>>);
 
   @override
   _i3.Future<DateTime> markBeaconRoomSeen({

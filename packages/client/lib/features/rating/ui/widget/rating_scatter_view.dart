@@ -11,12 +11,12 @@ import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 
 import '../bloc/rating_cubit.dart';
+import '../util/stable_scatter_jitter.dart';
 
 const _canvasWidth = 800.0;
 const _canvasHeight = 800.0;
 const _avatarSize = 32.0;
 const _plotMargin = 40.0; // margin so avatars at 0% or 100% are fully visible
-const _jitterRange = 8.0;
 const _minScale = 0.08;
 const _maxScale = 4.0;
 const _borderStretchExponent = 2.0;
@@ -122,7 +122,7 @@ class _RatingScatterViewState extends State<RatingScatterView> {
                             final scale = _scaleFromMatrix(
                                 _transformController.value);
                             if (scale > 1.0) return const SizedBox.shrink();
-                            return _buildAvatarStack(context);
+                            return _buildScatterPlotAvatars(context);
                           },
                         ),
                       ],
@@ -151,7 +151,9 @@ class _RatingScatterViewState extends State<RatingScatterView> {
     );
   }
 
-  Widget _buildAvatarStack(BuildContext context) {
+  /// Positions each profile avatar on the merit scatter plot by rScore/score
+  /// coordinates (with per-id jitter). Not a capped face pile.
+  Widget _buildScatterPlotAvatars(BuildContext context) {
     final l10n = L10n.of(context)!;
     final myId = context.watch<ProfileCubit>().state.profile.id;
     return Stack(
@@ -294,13 +296,7 @@ class _RatingScatterViewState extends State<RatingScatterView> {
     return (0.5 + 0.5 * v) * 100;
   }
 
-  static Offset _jitterFor(String id) {
-    final h = Object.hash(id, 0);
-    final h2 = Object.hash(id, 1);
-    final dx = ((h % 1000) / 1000.0 * 2 - 1) * _jitterRange;
-    final dy = ((h2 % 1000) / 1000.0 * 2 - 1) * _jitterRange;
-    return Offset(dx, dy);
-  }
+  static Offset _jitterFor(String id) => scatterPlotJitterOffsetForId(id);
 }
 
 class _QuadrantBackgroundPainter extends CustomPainter {

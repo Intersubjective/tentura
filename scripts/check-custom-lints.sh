@@ -40,6 +40,25 @@ trap 'rm -f "$out"' EXIT
 
 cd "$REPO_ROOT/$PKG"
 
+# Generated client sources are gitignored; CI runs codegen before this script.
+# Local/agent runs often invoke only this script — bootstrap when outputs are absent.
+if [[ "$PKG" == "packages/client" ]]; then
+  need_codegen=
+  [[ -f lib/ui/l10n/l10n.dart ]] || need_codegen=1
+  [[ -f lib/app/router/root_router.gr.dart ]] || need_codegen=1
+  if [[ -n "$need_codegen" ]]; then
+    echo "check-custom-lints: bootstrapping packages/client codegen..."
+    flutter gen-l10n
+    dart run build_runner build -d
+  fi
+elif [[ "$PKG" == "packages/server" ]]; then
+  if [[ ! -f lib/domain/entity/jwt_entity.freezed.dart \
+     || ! -f lib/data/database/tentura_db.g.dart ]]; then
+    echo "check-custom-lints: bootstrapping packages/server codegen..."
+    dart run build_runner build -d
+  fi
+fi
+
 # No target argument on purpose: see note (2) above.
 set +e
 dart analyze --no-fatal-warnings >"$out" 2>&1

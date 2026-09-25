@@ -23,6 +23,8 @@ import 'package:tentura_server/domain/entity/help_offer_admission_event.dart'
     as _i16;
 import 'package:tentura_server/domain/entity/help_offer_entity.dart' as _i12;
 import 'package:tentura_server/domain/entity/inbox_item_entity.dart' as _i20;
+import 'package:tentura_server/domain/entity/room_read_watermark_record.dart'
+    as _i24;
 import 'package:tentura_server/domain/port/beacon_repository_port.dart' as _i7;
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart'
     as _i21;
@@ -2180,6 +2182,18 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
             ),
           )
           as _i3.Future<Map<String, DateTime>>);
+
+  @override
+  _i3.Future<List<_i24.RoomReadWatermarkRecord>> mainRoomReadWatermarks(
+    String? beaconId,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#mainRoomReadWatermarks, [beaconId]),
+            returnValue: _i3.Future<List<_i24.RoomReadWatermarkRecord>>.value(
+              <_i24.RoomReadWatermarkRecord>[],
+            ),
+          )
+          as _i3.Future<List<_i24.RoomReadWatermarkRecord>>);
 
   @override
   _i3.Future<DateTime> markBeaconRoomSeen({
