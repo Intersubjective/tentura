@@ -6,6 +6,7 @@ import 'package:test/test.dart';
 import 'package:tentura_server/consts/beacon_fact_card_consts.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_card_entity.dart';
+import 'package:tentura_server/domain/entity/beacon_fact_room_access.dart';
 import 'package:tentura_server/domain/entity/beacon_room_record.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
@@ -31,6 +32,7 @@ BeaconFactCardEntity testFact({
   String? sourceMessageId,
   String pinnedBy = _userId,
   String factText = 'fact',
+  String pinnedByTitle = '',
 }) =>
     BeaconFactCardEntity(
       id: id,
@@ -40,9 +42,14 @@ BeaconFactCardEntity testFact({
       pinnedBy: pinnedBy,
       sourceMessageId: sourceMessageId,
       createdAt: _now,
+      pinnedByTitle: pinnedByTitle,
     );
 
 class _StubFacts extends Fake implements BeaconFactCardRepositoryPort {
+  _StubFacts(this.room, this.guard);
+
+  final _StubRoom room;
+  final FakeBeaconAccessGuard guard;
   List<BeaconFactCardEntity> rows = const [];
   BeaconFactCardEntity? dupBySource;
   String? lastPinnedText;
@@ -61,9 +68,30 @@ class _StubFacts extends Fake implements BeaconFactCardRepositoryPort {
       dupBySource;
 
   @override
-  Future<List<BeaconFactCardEntity>> listForBeacon(String beaconId) async {
+  Future<BeaconFactRoomAccess> loadRoomAccess({
+    required String beaconId,
+    required String userId,
+  }) async =>
+      BeaconFactRoomAccess(
+        beaconStatus: 0,
+        canUseRoom: room.isAuthor ||
+            room.isSteward ||
+            room.participant?.roomAccess == RoomAccessBits.admitted,
+        canReadContent: guard.contentAllowed,
+        exists: true,
+      );
+
+  @override
+  Future<List<BeaconFactCardEntity>> listForBeacon({
+    required String beaconId,
+    required bool includeRoomOnly,
+  }) async {
     listForBeaconCalls++;
-    return rows;
+    return [
+      for (final e in rows)
+        if (includeRoomOnly || e.visibility != BeaconFactCardVisibilityBits.room)
+          e,
+    ];
   }
 
   int listForBeaconCalls = 0;
@@ -202,10 +230,10 @@ void main() {
   }
 
   setUp(() {
-    facts = _StubFacts();
     room = _StubRoom();
-    hierarchy = _StubHierarchy();
     guard = FakeBeaconAccessGuard();
+    facts = _StubFacts(room, guard);
+    hierarchy = _StubHierarchy();
     case_ = BeaconFactCardCase(
       facts,
       room,
@@ -514,15 +542,15 @@ void main() {
       expect(rows.single['attachmentsJson'], '[{"id":"A1"}]');
     });
 
-    test('enriches pinnedByTitle from room user titles', () async {
+    test('maps the joined pinnedByTitle from the list row', () async {
       grantAdmittedAccess();
       facts.rows = [
         testFact(
           id: 'F1',
           pinnedBy: _otherUserId,
+          pinnedByTitle: 'Helper Name',
         ),
       ];
-      room.titlesByUserId = {_otherUserId: 'Helper Name'};
 
       final rows = await case_.list(beaconId: _beaconId, userId: _userId);
 

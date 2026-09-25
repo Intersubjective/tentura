@@ -1,6 +1,7 @@
 import 'package:tentura_server/consts/beacon_fact_card_consts.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_card_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_history_entry_entity.dart';
+import 'package:tentura_server/domain/entity/beacon_fact_room_access.dart';
 
 abstract class BeaconFactCardRepositoryPort {
   Future<BeaconFactCardEntity?> findNonRemovedBySourceMessage({
@@ -8,7 +9,19 @@ abstract class BeaconFactCardRepositoryPort {
     required String sourceMessageId,
   });
 
-  Future<List<BeaconFactCardEntity>> listForBeacon(String beaconId);
+  /// One SELECT: beacon status, room use (author, steward or admitted) and
+  /// `beacon_can_read_content`. `exists` is false for an unknown beacon.
+  Future<BeaconFactRoomAccess> loadRoomAccess({
+    required String beaconId,
+    required String userId,
+  });
+
+  /// Non-removed facts with pinner / last editor titles joined; room-only
+  /// facts only when [includeRoomOnly].
+  Future<List<BeaconFactCardEntity>> listForBeacon({
+    required String beaconId,
+    required bool includeRoomOnly,
+  });
 
   Future<String?> latestPublicFactSnippet(String beaconId);
 

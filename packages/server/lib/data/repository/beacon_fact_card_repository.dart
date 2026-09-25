@@ -6,6 +6,7 @@ import 'package:tentura_server/consts/beacon_fact_card_consts.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_card_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_history_entry_entity.dart';
+import 'package:tentura_server/domain/entity/beacon_fact_room_access.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/utils/id.dart';
 
@@ -50,13 +51,97 @@ class BeaconFactCardRepository implements BeaconFactCardRepositoryPort {
         updatedAt: row.updatedAt.dateTime,
       );
 
-  Future<List<BeaconFactCardEntity>> listForBeacon(String beaconId) async {
-    final rows = await _db.managers.beaconFactCards
-        .filter((r) => r.beaconId.id(beaconId))
-        .get();
+  /// Plan §8.2 / §14.3: one SELECT for status, room use and content read.
+  @override
+  Future<BeaconFactRoomAccess> loadRoomAccess({
+    required String beaconId,
+    required String userId,
+  }) async {
+    final row = await _db.customSelect(
+      '''
+SELECT
+  b.status::integer AS beacon_status,
+  (
+    b.user_id = \$2::text
+    OR EXISTS (
+      SELECT 1 FROM public.beacon_steward s
+      WHERE s.beacon_id = b.id AND s.user_id = \$2::text
+    )
+    OR EXISTS (
+      SELECT 1 FROM public.beacon_participant p
+      WHERE p.beacon_id = b.id
+        AND p.user_id = \$2::text
+        AND p.room_access = ${RoomAccessBits.admitted}
+    )
+  ) AS can_use_room,
+  public.beacon_can_read_content(b.id, \$2::text) AS can_read_content
+FROM public.beacon b
+WHERE b.id = \$1::text
+''',
+      variables: [Variable<String>(beaconId), Variable<String>(userId)],
+    ).getSingleOrNull();
+    if (row == null) {
+      return const BeaconFactRoomAccess(
+        beaconStatus: 0,
+        canUseRoom: false,
+        canReadContent: false,
+        exists: false,
+      );
+    }
+    return BeaconFactRoomAccess(
+      beaconStatus: row.read<int>('beacon_status'),
+      canUseRoom: row.read<bool>('can_use_room'),
+      canReadContent: row.read<bool>('can_read_content'),
+      exists: true,
+    );
+  }
+
+  /// Plan §8.4 "Fact list": non-removed facts with pinner and last editor
+  /// titles joined; room-only facts only when [includeRoomOnly]. No LIMIT.
+  @override
+  Future<List<BeaconFactCardEntity>> listForBeacon({
+    required String beaconId,
+    required bool includeRoomOnly,
+  }) async {
+    final rows = await _db.customSelect(
+      '''
+SELECT
+  f.id, f.beacon_id, f.fact_text, f.visibility::integer AS visibility,
+  f.pinned_by, f.source_message_id, f.status::integer AS status,
+  f.created_at, f.updated_at, f.revision_seq, f.last_edited_by,
+  f.last_edited_at, f.other_editor_count, f.history_truncated,
+  pu.display_name AS pinned_by_title,
+  eu.display_name AS last_edited_by_title
+FROM public.beacon_fact_card f
+LEFT JOIN public."user" pu ON pu.id = f.pinned_by
+LEFT JOIN public."user" eu ON eu.id = f.last_edited_by
+WHERE f.beacon_id = \$1::text
+  AND f.status <> ${BeaconFactCardStatusBits.removed}
+  AND (\$2::boolean OR f.visibility <> ${BeaconFactCardVisibilityBits.room})
+ORDER BY f.created_at, f.id
+''',
+      variables: [Variable<String>(beaconId), Variable<bool>(includeRoomOnly)],
+    ).get();
     return [
       for (final row in rows)
-        if (row.status != BeaconFactCardStatusBits.removed) _toEntity(row),
+        BeaconFactCardEntity(
+          id: row.read<String>('id'),
+          beaconId: row.read<String>('beacon_id'),
+          factText: row.read<String>('fact_text'),
+          visibility: row.read<int>('visibility'),
+          pinnedBy: row.read<String>('pinned_by'),
+          createdAt: _readTimestamp(row, 'created_at'),
+          sourceMessageId: row.readNullable<String>('source_message_id'),
+          status: row.read<int>('status'),
+          updatedAt: _readNullableTimestamp(row, 'updated_at'),
+          revisionSeq: row.read<int>('revision_seq'),
+          lastEditedBy: row.readNullable<String>('last_edited_by'),
+          lastEditedByTitle: row.readNullable<String>('last_edited_by_title'),
+          lastEditedAt: _readNullableTimestamp(row, 'last_edited_at'),
+          otherEditorCount: row.read<int>('other_editor_count'),
+          historyTruncated: row.read<bool>('history_truncated'),
+          pinnedByTitle: row.readNullable<String>('pinned_by_title') ?? '',
+        ),
     ];
   }
 
@@ -369,4 +454,7 @@ LIMIT $2::integer
     if (value is PgDateTime) return value.dateTime.toUtc();
     return DateTime.parse(value.toString()).toUtc();
   }
+
+  static DateTime? _readNullableTimestamp(QueryRow row, String column) =>
+      row.data[column] == null ? null : _readTimestamp(row, column);
 }

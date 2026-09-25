@@ -543,6 +543,12 @@ final gqlTypeBeaconFactCardRow = GraphQLObjectType('BeaconFactCardRow', null)
     field('createdAt', graphQLString.nonNullable()),
     field('updatedAt', graphQLString),
     field('attachmentsJson', graphQLString.nonNullable()),
+    field('revisionSeq', graphQLInt.nonNullable()),
+    field('lastEditedBy', graphQLString),
+    field('lastEditedByTitle', graphQLString),
+    field('lastEditedAt', graphQLString),
+    field('otherEditorCount', graphQLInt.nonNullable()),
+    field('historyTruncated', graphQLBoolean.nonNullable()),
   ]);
 
 /// `beacon_activity_event` projection for BeaconActivityEventList (V2).

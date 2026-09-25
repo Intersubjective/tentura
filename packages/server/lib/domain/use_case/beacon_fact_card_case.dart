@@ -4,7 +4,6 @@ import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
-import 'package:tentura_server/consts/beacon_fact_card_consts.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/policy/beacon_room_lifecycle_write_policy.dart';
@@ -17,7 +16,9 @@ final class BeaconFactCardCase extends UseCaseBase {
     this._facts,
     this._room,
     this._hierarchyRepository,
-    this._guard, {
+    // Kept for DI; list reads through the fused loadRoomAccess preflight.
+    // ignore: avoid_unused_constructor_parameters
+    BeaconAccessGuard guard, {
     required super.env,
     required super.logger,
   });
@@ -27,8 +28,6 @@ final class BeaconFactCardCase extends UseCaseBase {
   final BeaconRoomRepositoryPort _room;
 
   final BeaconHierarchyRepositoryPort _hierarchyRepository;
-
-  final BeaconAccessGuard _guard;
 
   Future<bool> _canUseRoom({
     required String beaconId,
@@ -150,53 +149,53 @@ final class BeaconFactCardCase extends UseCaseBase {
     required String beaconId,
     required String userId,
   }) async {
-    if (!await _guard.canReadContent(beaconId: beaconId, viewerId: userId)) {
+    final access = await _facts.loadRoomAccess(
+      beaconId: beaconId,
+      userId: userId,
+    );
+    if (!access.canReadContent) {
       throw const UnauthorizedException(
         description: 'Viewer cannot read request content',
       );
     }
-    final admitted = await _canUseRoom(beaconId: beaconId, userId: userId);
-    final rows = await _facts.listForBeacon(beaconId);
+    final rows = await _facts.listForBeacon(
+      beaconId: beaconId,
+      includeRoomOnly: access.canUseRoom,
+    );
     final sourceIdsForAttachments = <String>[
       for (final e in rows)
         if (e.sourceMessageId != null && e.sourceMessageId!.isNotEmpty)
-          if (!(e.visibility == BeaconFactCardVisibilityBits.room && !admitted))
-            e.sourceMessageId!,
+          e.sourceMessageId!,
     ];
     final attachmentsBySourceId =
         sourceIdsForAttachments.isEmpty
             ? <String, String>{}
             : await _room.attachmentsJsonByMessageIds(sourceIdsForAttachments);
-    final pinnerIds = <String>{
+    return [
       for (final e in rows)
-        if (e.pinnedBy.isNotEmpty) e.pinnedBy,
-    };
-    final pinnedByTitles = pinnerIds.isEmpty
-        ? <String, String>{}
-        : await _room.userTitlesByIds(pinnerIds);
-    final out = <Map<String, Object?>>[];
-    for (final e in rows) {
-      if (e.visibility == BeaconFactCardVisibilityBits.room && !admitted) {
-        continue;
-      }
-      final smid = e.sourceMessageId;
-      final attachmentsJson = smid != null && smid.isNotEmpty
-          ? attachmentsBySourceId[smid] ?? '[]'
-          : '[]';
-      out.add(<String, Object?>{
-        'id': e.id,
-        'beaconId': e.beaconId,
-        'factText': e.factText,
-        'visibility': e.visibility,
-        'pinnedBy': e.pinnedBy,
-        'pinnedByTitle': pinnedByTitles[e.pinnedBy] ?? '',
-        'sourceMessageId': e.sourceMessageId,
-        'status': e.status,
-        'createdAt': e.createdAt.toIso8601String(),
-        'updatedAt': e.updatedAt?.toIso8601String(),
-        'attachmentsJson': attachmentsJson,
-      });
-    }
-    return out;
+        <String, Object?>{
+          'id': e.id,
+          'beaconId': e.beaconId,
+          'factText': e.factText,
+          'visibility': e.visibility,
+          'pinnedBy': e.pinnedBy,
+          'pinnedByTitle': e.pinnedByTitle,
+          'sourceMessageId': e.sourceMessageId,
+          'status': e.status,
+          'createdAt': e.createdAt.toIso8601String(),
+          'updatedAt': e.updatedAt?.toIso8601String(),
+          'attachmentsJson': switch (e.sourceMessageId) {
+            final smid? when smid.isNotEmpty =>
+              attachmentsBySourceId[smid] ?? '[]',
+            _ => '[]',
+          },
+          'revisionSeq': e.revisionSeq,
+          'lastEditedBy': e.lastEditedBy,
+          'lastEditedByTitle': e.lastEditedByTitle,
+          'lastEditedAt': e.lastEditedAt?.toIso8601String(),
+          'otherEditorCount': e.otherEditorCount,
+          'historyTruncated': e.historyTruncated,
+        },
+    ];
   }
 }
