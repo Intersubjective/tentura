@@ -13,6 +13,7 @@ void main() {
         'lib/domain/entity/beacon_fact_history_entry.dart',
         'lib/domain/entity/quoted_fact.dart',
         'lib/features/beacon_threads/domain/exception/beacon_fact_card_exceptions.dart',
+        'lib/features/beacon_threads/domain/util/word_diff.dart',
       ];
 
       for (final path in newDomainFiles) {
