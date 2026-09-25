@@ -31,6 +31,7 @@ plugin). See `DEVELOPMENT.md` and `DEV_GUIDELINES.md`.
 - **Search ladder:** known path → Read; semantic → Serena MCP; then Grep/Glob.
 - **Terminology alias:** user-facing **Request** / **discussion** (workspace), **Activity** / «Активность» (home nav branch; `Activity (internally: inbox)` in docs), **thread** / **General** (one conversation); internal **Beacon** (`Request (internally: Beacon)` in docs). Never introduce a `Request` domain entity. See `.cursor/rules/terminology.mdc` and `bash scripts/check-user-facing-terminology.sh`.
 - **Client versioning + gate:** user-visible client changes require a semver bump in `packages/client/pubspec.yaml`; when a release forces clients to update, raise `kDefaultMinClientVersion` in `packages/server/lib/env.dart` (see `.cursor/rules/versioning.mdc` and `DEV_GUIDELINES.md` § Client version gate).
+- **No golden tests.** Golden/pixel-comparison tests are disabled project-wide — never write, update or restore them, even if a bead's acceptance criteria ask; use structural widget tests instead. See `.cursor/rules/no-golden-tests.mdc`.
 - **Rooms are General-only — there are no item threads.** Code mentioning `thread_item_id` / `threadItemId` / `_canAccessThread` / item participants is dormant machinery kept on purpose (marked `DORMANT(item-threads)`); the DB guard `beacon_room_message_general_only_guard` rejects non-General rows. Never design features, access rules or reviews around item threads. See #192.
 - **Web cache-buster must ship with every client version bump:** `packages/client/web/index.html`'s `flutter_bootstrap.js?v=<version>` query is a real, git-tracked source file (unlike `web/manifest.json`, which is deliberately `skip-worktree` and never needs committing) — it only gets rewritten to match `pubspec.yaml` when you actually run/build the app locally (`flutter run`/`flutter build web`; the `hook/build.dart` build hook does it, not `build_runner`). Before committing a version bump, run the app once and check `git status` for a resulting `web/index.html` diff, or hand-verify the `?v=` matches. A missed bump here means browsers keep serving a cached pre-fix JS bundle after a real fix ships — this has happened before (`git log -- packages/client/web/index.html` shows recurring catch-up `chore: sync web cache-buster` commits) and once made a landed bug fix look like it "didn't work."
 
@@ -55,12 +56,6 @@ cd packages/tentura_lints && ../../scripts/run_with_test_cleanup.sh --timeout 10
 ./scripts/run_with_test_cleanup.sh --timeout 10m -- ./scripts/check-custom-lints.sh packages/server
 cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 45m -- \
   flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env
-# Goldens are skipped by default (see packages/client/dart_test.yaml): the UI
-# changes daily, so pixel comparisons churn faster than they catch anything.
-cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
-  flutter test --tags golden --run-skipped                  # run them
-cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
-  flutter test --tags golden --run-skipped --update-goldens # regenerate them
 cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
   dart test --exclude-tags pg
 # Postgres tests run in two steps. The `mr` ones also reach the MeritRank
@@ -140,3 +135,21 @@ Standard dev setup is in `DEVELOPMENT.md` and the `local-debug` skill; only the 
 - Validate YAML syntax with `python3 -c "import yaml; yaml.safe_load(open('.github/workflows/pipeline.yml'))"`, and lint semantics with `docker run --rm -v "$PWD":/repo -w /repo rhysd/actionlint:latest .github/workflows/pipeline.yml`.
 
 <!-- headroom:learn:end -->
+
+<!-- alloy:memory:begin -->
+reviewed: 2026-09-24
+review due: 2026-10-01
+
+### alloy:lesson:domain_boundary_rg_guard_inverted
+Acceptance check `rg "package:tentura_server/data/repository" packages/server/lib/domain` exits 1 when there are no matches, which is the passing case. A judge or runner that treats a non-zero exit as failure will fail it (attempt #1 was marked "repair" for this). Run it inverted, as `! rg ...` (CI uses that form), and treat exit 0 of the inverted form as a pass. Also, for pg watermark and index tests, EXPLAIN checks need `SET enable_seqscan = off`. Mockito mocks of BeaconRoomRepositoryPort tolerate a new port method, so consumers (polling_case, help_offer_case) needed no regeneration.
+
+
+### alloy:lesson:user_visible_client_change_needs_version_bump_upfront
+For any user-visible client change in Tentura, including realtime and read-receipt behaviour that alters what users see, bump the packages/client/pubspec.yaml patch version and set the web/index.html `flutter_bootstrap.js?v=` cache-buster to the same value in the first attempt. Bead text often omits this requirement. In tentura-s54, judge retries on attempts #1 and #2 were caused by the missing bump, and a human had to ask for it. Attempt #2 also failed a custom version-sync check. The check is: `grep "^version:"` in pubspec.yaml matches the `?v=` in index.html, and both files show in the git diff. The RoomCubit `roomSeenPeer` handler also has a pattern worth reusing. Add an early branch in `_onRoomInvalidation` before the scope switch, then return. Patch `readWatermarks` in place with max(existing, incoming) into a cloned map, and emit only when the value advances. Extend the fake repository with a `seenPeer` parameter and a `fetchParticipantsCallCount` counter so tests assert no refetch. Do not use Mockito `verifyNever`. Keep doc comments attached to the method they describe.
+
+### tentura-layout-pub-workspace-packages-client-flutter-run
+Tentura layout: pub workspace; packages/client (Flutter, run flutter test from there with --dart-define=ENV=test --dart-define-from-file=env/test.env), packages/server (Dart), packages/tentura_lints. Read AGENTS.md invariants; never edit generated *.g.dart/*.freezed.dart/*.config.dart, run build_runner. Client UI must use design-system tokens (no raw Color/TextStyle/EdgeInsets).
+
+### tentura-tests-always-wrap-flutter-test-dart-test
+Tentura tests: always wrap flutter test / dart test / scripts/check-custom-lints.sh with ./scripts/run_with_test_cleanup.sh --timeout 10m -- <cmd> (see AGENTS.md Verify). Never wrap flutter run. Run wrapped tests serially, never two at once.
+<!-- alloy:memory:end -->
