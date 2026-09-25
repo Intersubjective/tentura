@@ -50,7 +50,7 @@ class _FakeBeaconViewCubit extends Mock implements BeaconViewCubit {
   Future<void> loadForwards() async {}
 
   @override
-  Future<void> markPeopleSeen() async {}
+  Future<void> reportPeopleSurfaceViewed() async {}
 }
 
 class _TrackingThreadsCubit extends Cubit<ThreadsState> implements ThreadsCubit {

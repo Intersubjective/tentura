@@ -31,27 +31,28 @@ class BeaconPeopleSurface extends StatefulWidget {
 }
 
 class _BeaconPeopleSurfaceState extends State<BeaconPeopleSurface> {
-  String? _markedBeaconId;
-
+  // Mount equals visible: BeaconViewScreen._buildSelectedSurface mounts only
+  // the active tab's surface, so initState runs when People becomes visible.
+  // The cubit itself gates on author/steward and unseen offers.
   @override
   void initState() {
     super.initState();
-    _markIfEligible();
+    _report();
   }
 
   @override
   void didUpdateWidget(BeaconPeopleSurface oldWidget) {
     super.didUpdateWidget(oldWidget);
-    _markIfEligible();
+    final old = oldWidget.beaconState;
+    final state = widget.beaconState;
+    if (old.helpOffers != state.helpOffers ||
+        (!old.isAuthorOrSteward && state.isAuthorOrSteward)) {
+      _report();
+    }
   }
 
-  void _markIfEligible() {
-    final state = widget.beaconState;
-    if (!state.beaconContextLoaded || !state.isAuthorOrSteward) return;
-    if (_markedBeaconId == state.beacon.id) return;
-    _markedBeaconId = state.beacon.id;
-    unawaited(widget.beaconViewCubit.markPeopleSeen());
-  }
+  void _report() =>
+      unawaited(widget.beaconViewCubit.reportPeopleSurfaceViewed());
 
   @override
   Widget build(BuildContext context) {

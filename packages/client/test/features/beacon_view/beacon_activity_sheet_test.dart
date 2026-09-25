@@ -74,6 +74,9 @@ class _HarnessBeaconViewCubit extends Mock implements BeaconViewCubit {
   Stream<BeaconViewState> get stream => _controller.stream;
 
   @override
+  Future<void> reportPeopleSurfaceViewed() async {}
+
+  @override
   Future<void> close() async {
     await _controller.close();
   }
