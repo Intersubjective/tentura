@@ -1,0 +1,12 @@
+---
+description: No golden (pixel-comparison) tests — never write, update, or restore them
+alwaysApply: true
+---
+
+# No golden tests
+
+Golden tests are **disabled project-wide**. The UI changes daily, fonts render differently per host, and stale PNGs fail builds for intended changes.
+
+- Never use `matchesGoldenFile`, `matchesReferenceImage`, `--update-goldens`, `--tags golden`, or commit `*.png` baselines under `test/`.
+- If a bead or acceptance criterion asks for a golden/pixel test, **do not implement it**. Cover the same behaviour with a widget test asserting structure (finders, sizes via `tester.getSize`, `Theme`/token colours, semantics) and note in your summary that the golden AC was replaced.
+- `packages/client/test/architecture/no_golden_tests_test.dart` fails if any golden API or baseline directory appears.

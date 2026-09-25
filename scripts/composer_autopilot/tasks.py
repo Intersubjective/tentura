@@ -85,7 +85,7 @@ def build_task_queue(repo: Path) -> list[AutopilotTask]:
                 ],
                 constraints=[
                     "Only touch paths under test/ (client or server).",
-                    "Do not modify golden PNG files unless fixing an existing broken golden.",
+                    "Never write or touch golden tests or PNG baselines (banned project-wide).",
                 ],
                 success_criteria=[
                     "New or extended tests pass",
@@ -146,7 +146,7 @@ def build_task_queue(repo: Path) -> list[AutopilotTask]:
                 ],
                 success_criteria=[
                     "flutter analyze --no-fatal-warnings --no-fatal-infos passes",
-                    "Existing golden tests pass unchanged",
+                    "Widget tests pass (golden tests are banned)",
                 ],
             ),
             packages=["client"],

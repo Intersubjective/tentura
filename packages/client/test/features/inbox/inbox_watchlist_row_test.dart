@@ -14,7 +14,7 @@ import 'package:tentura/ui/utils/beacon_card_deadline.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
 
-class _GoldenProfileCubit extends Mock implements ProfileCubit {
+class _FakeProfileCubit extends Mock implements ProfileCubit {
   @override
   ProfileState get state => const ProfileState(
     profile: Profile(id: 'viewer', displayName: 'Viewer'),
@@ -33,7 +33,7 @@ Future<void> _pumpRow(
 }) async {
   await tester.pumpWidget(
     BlocProvider<ProfileCubit>.value(
-      value: _GoldenProfileCubit(),
+      value: _FakeProfileCubit(),
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         locale: const Locale('en'),
@@ -47,7 +47,7 @@ Future<void> _pumpRow(
               body: Align(
                 alignment: Alignment.topCenter,
                 child: RepaintBoundary(
-                  key: const Key('golden'),
+                  key: const Key("row"),
                   child: SizedBox(
                     width: logicalSize.width,
                     child: InboxWatchlistRow(
@@ -71,79 +71,6 @@ Future<void> _pumpRow(
 void main() {
   const logicalSize = Size(360, 420);
   final at = DateTime.utc(2026, 6, 20, 12, 34);
-
-  testWidgets('InboxWatchlistRow golden (compact)', (tester) async {
-    final beacon = Beacon(
-      id: 'b-inbox',
-      title: 'Help needed: move a piano',
-      description:
-          'Need two people tomorrow morning to help carry a piano '
-          'up three flights. Tools provided.',
-      author: const Profile(id: 'auth', displayName: 'Alex River'),
-      createdAt: at,
-      updatedAt: at,
-    );
-    final item = InboxItem(
-      beaconId: beacon.id,
-      latestForwardAt: at,
-      beacon: beacon,
-      provenance: const InboxProvenance(
-        senders: [
-          InboxForwardSender(
-            id: 'fwd1',
-            displayName: 'Sam Forward',
-            mr: 1.2,
-            notePreview: 'They live near you and are reliable.',
-          ),
-        ],
-        totalDistinctSenders: 1,
-        strongestNotePreview: 'They live near you and are reliable.',
-      ),
-    );
-
-    await _pumpRow(
-      tester,
-      item: item,
-      logicalSize: logicalSize,
-    );
-
-    await expectLater(
-      find.byKey(const Key('golden')),
-      matchesGoldenFile('goldens/inbox_watchlist_row.png'),
-    );
-  },
-    tags: 'golden',
-  );
-
-  testWidgets('InboxWatchlistRow golden selected', (tester) async {
-    final beacon = Beacon(
-      id: 'b-sel',
-      title: 'Selected request',
-      description: 'Short body for selection chrome.',
-      author: const Profile(id: 'auth', displayName: 'Alex River'),
-      createdAt: at,
-      updatedAt: at,
-    );
-    final item = InboxItem(
-      beaconId: beacon.id,
-      latestForwardAt: at,
-      beacon: beacon,
-    );
-
-    await _pumpRow(
-      tester,
-      item: item,
-      logicalSize: const Size(360, 280),
-      isSelected: true,
-    );
-
-    await expectLater(
-      find.byKey(const Key('golden')),
-      matchesGoldenFile('goldens/inbox_watchlist_row_selected.png'),
-    );
-  },
-    tags: 'golden',
-  );
 
   testWidgets('empty details content omits Details row', (tester) async {
     final beacon = Beacon(
