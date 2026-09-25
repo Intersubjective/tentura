@@ -3,6 +3,7 @@
   "channel": "entity_changes",
   "contractTests": [
     "packages/server/test/architecture/realtime_entity_contract_test.dart",
+    "packages/server/test/architecture/tentura_1ev_landing_check_test.dart",
     "packages/server/test/data/service/pg_notification_service_test.dart",
     "packages/server/test/data/repository/room_message_snapshot_lookup_test.dart",
     "packages/client/test/architecture/realtime_entity_contract_test.dart",

@@ -11,14 +11,9 @@ void main() {
         .map((entry) => Map<String, dynamic>.from(entry as Map))
         .toList(growable: false);
     final repoRoot = contractFile.parent.parent.parent;
-    // The six migrations this used to read are inside the squashed baseline,
-    // which now carries every trigger argument and publisher function the
-    // manifest can name.
-    final publisherMigrations = File.fromUri(
-      repoRoot.uri.resolve(
-        'packages/server/lib/data/database/migration/m0193.dart',
-      ),
-    ).readAsStringSync();
+    // Squashed baseline (m0193.dart) plus post-baseline parts from
+    // _migrations.dart (m0194.dart, m0195.dart, m0196.dart, m0197.dart, …).
+    final publisherMigrations = _readPublisherMigrationBodies(repoRoot);
 
     final triggerArgs = <String>{};
     final specializedPublishers = <String>{};
@@ -72,6 +67,7 @@ void main() {
         'notify_notification_outbox_update',
         'notify_relationship_change',
         'notify_room_message_attachment_change',
+        'notify_room_seen_peer_change',
       },
     );
 
@@ -94,4 +90,25 @@ File _contractFile() {
     if (file.existsSync()) return file.absolute;
   }
   throw StateError('Realtime entity contract manifest not found');
+}
+
+String _readPublisherMigrationBodies(Directory repoRoot) {
+  final migrationDir = repoRoot.uri.resolve(
+    'packages/server/lib/data/database/migration/',
+  );
+  final buffer = StringBuffer();
+  buffer.write(
+    File.fromUri(migrationDir.resolve('m0193.dart')).readAsStringSync(),
+  );
+  final registry = File.fromUri(
+    migrationDir.resolve('_migrations.dart'),
+  ).readAsStringSync();
+  for (final match in RegExp(r"part '(m\d+\.dart)'").allMatches(registry)) {
+    final name = match.group(1)!;
+    final version = int.parse(name.substring(1, 5));
+    if (version > 193) {
+      buffer.write(File.fromUri(migrationDir.resolve(name)).readAsStringSync());
+    }
+  }
+  return buffer.toString();
 }
