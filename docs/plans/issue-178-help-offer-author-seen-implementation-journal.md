@@ -3,6 +3,14 @@
 Implementation journal for issue #178 (help offer "seen by the author").
 Entries cite the plan's bead units by id.
 
+## P1.6 — bridge_attention_people_seen UPDATE plan
+
+The focused PostgreSQL test seeds 200 outbox rows for each account, including 20 matching receipts, runs `ANALYZE`, and explains the bridge UPDATE with `enable_seqscan = off` for the author obligation and steward optional shapes. The UPDATE requires `seen_at IS NULL` and filters by `account_id` and `created_at`, so the existing partial `notification_outbox__unread` index is eligible for both shapes. The obligation and optional indexes require predicates absent from this UPDATE.
+
+**Decision: no index added.**
+
+**Rationale:** Both author and steward have an eligible Index Scan through `notification_outbox__unread`; the PostgreSQL test checks the actual plans for an outbox index scan and rejects a sequential scan. Verified against the local docker PostgreSQL: both EXPLAIN cases ran (not skipped) and passed.
+
 ## P6 — two-account check: author opens People, offerer's footer flips
 
 `run_client_integration_web_local.sh` cannot drive two accounts (one headless
