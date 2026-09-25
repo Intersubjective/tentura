@@ -1,0 +1,6 @@
+mutation MarkBeaconPeopleSeen($beaconId: String!, $readThroughAt: String) {
+  MarkBeaconPeopleSeen(beaconId: $beaconId, readThroughAt: $readThroughAt) {
+    beaconId
+    seenAt
+  }
+}

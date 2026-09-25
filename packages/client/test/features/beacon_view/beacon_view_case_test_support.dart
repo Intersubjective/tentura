@@ -58,6 +58,7 @@ typedef FakeHelpOfferCoordinationRow = ({
   int stakeState,
   int offerKind,
   bool isDirectAuthorForward,
+  DateTime? authorSeenAt,
 });
 
 Never _throwTestError(Object error) {

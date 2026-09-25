@@ -16,6 +16,7 @@ import '../gql/_g/beacon_help_offer_remove.req.gql.dart';
 import '../gql/_g/beacon_help_offer_role_label_set.req.gql.dart';
 import '../gql/_g/beacon_release_commitment.req.gql.dart';
 import '../gql/_g/help_offers_with_coordination.req.gql.dart';
+import '../gql/_g/mark_beacon_people_seen.req.gql.dart';
 import '../gql/_g/set_beacon_status.req.gql.dart';
 import '../gql/_g/set_coordination_response.req.gql.dart';
 
@@ -50,6 +51,7 @@ class CoordinationRepository {
         int stakeState,
         int offerKind,
         bool isDirectAuthorForward,
+        DateTime? authorSeenAt,
       })
     >
   >
@@ -90,10 +92,30 @@ class CoordinationRepository {
                 stakeState: e.stakeState,
                 offerKind: e.offerKind,
                 isDirectAuthorForward: e.isDirectAuthorForward,
+                authorSeenAt: e.authorSeenAt == null
+                    ? null
+                    : DateTime.parse(e.authorSeenAt!).toUtc(),
               ),
             )
             .toList();
       });
+
+  Future<DateTime> markBeaconPeopleSeen({
+    required String beaconId,
+    required DateTime readThroughAt,
+  }) async {
+    final row = await _remoteApiService
+        .request(
+          GMarkBeaconPeopleSeenReq(
+            (b) => b.vars
+              ..beaconId = beaconId
+              ..readThroughAt = readThroughAt.toUtc().toIso8601String(),
+          ),
+        )
+        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .then((r) => r.dataOrThrow(label: _label).MarkBeaconPeopleSeen);
+    return DateTime.parse(row.seenAt).toUtc();
+  }
 
   Future<({BeaconStatus status, DateTime? updatedAt})> acceptHelpOffer({
     required String beaconId,

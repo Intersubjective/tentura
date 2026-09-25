@@ -89,7 +89,11 @@ final class BeaconViewCase extends UseCaseBase {
 
   Stream<RealtimeEntityChange> get peopleChanges =>
       _realtimeSyncCase.changesFor(
-        const {RealtimeEntityKind.relationship, RealtimeEntityKind.profile},
+        const {
+          RealtimeEntityKind.relationship,
+          RealtimeEntityKind.profile,
+          RealtimeEntityKind.peopleSeen,
+        },
       );
 
   Stream<String> get forwardChanges => _forwardRepository.forwardChanges;
@@ -450,6 +454,7 @@ final class BeaconViewCase extends UseCaseBase {
         int stakeState,
         int offerKind,
         bool isDirectAuthorForward,
+        DateTime? authorSeenAt,
       })
     >
   >
@@ -457,6 +462,14 @@ final class BeaconViewCase extends UseCaseBase {
     required String beaconId,
   }) => _coordinationRepository.fetchHelpOffersWithCoordination(
     beaconId: beaconId,
+  );
+
+  Future<DateTime> markBeaconPeopleSeen({
+    required String beaconId,
+    required DateTime readThroughAt,
+  }) => _coordinationRepository.markBeaconPeopleSeen(
+    beaconId: beaconId,
+    readThroughAt: readThroughAt,
   );
 
   Future<BeaconDisplayStatusDto?> fetchDisplayStatus(String beaconId) async {

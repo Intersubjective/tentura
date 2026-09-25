@@ -74,7 +74,7 @@ class CountingCoordinationRepository
   CountingCoordinationRepository({super.rows});
 
   int fetchCalls = 0;
-  final markPeopleSeenCalls = <String>[];
+  final markPeopleSeenCalls = <({String beaconId, DateTime? readThroughAt})>[];
 
   @override
   Future<List<FakeHelpOfferCoordinationRow>> fetchHelpOffersWithCoordination({
@@ -89,7 +89,7 @@ class CountingCoordinationRepository
     required String beaconId,
     DateTime? readThroughAt,
   }) async {
-    markPeopleSeenCalls.add(beaconId);
+    markPeopleSeenCalls.add((beaconId: beaconId, readThroughAt: readThroughAt));
     return DateTime.utc(2026, 6, 15, 12, 10);
   }
 }
@@ -101,6 +101,26 @@ FakeHelpOfferCoordinationRow pendingOfferRow({
   int offerKind = 0,
   Profile offerer = kOfferer,
   DateTime? createdAt,
+  DateTime? authorSeenAt,
+}) => offerRow(
+  offerKind: offerKind,
+  offerer: offerer,
+  createdAt: createdAt,
+  authorSeenAt: authorSeenAt,
+);
+
+/// Any help-offer row; defaults describe a pending offer. Non-pending
+/// variants: withdrawn (`status: 1`), or decided by the author
+/// (`admissionAction` accept/decline).
+FakeHelpOfferCoordinationRow offerRow({
+  int offerKind = 0,
+  Profile offerer = kOfferer,
+  DateTime? createdAt,
+  int status = 0,
+  int? roomAccess,
+  int? admissionAction,
+  String? lastDeclineReason,
+  DateTime? authorSeenAt,
 }) => (
   beaconId: kAuthorSeenBeaconId,
   userId: offerer.id,
@@ -108,20 +128,21 @@ FakeHelpOfferCoordinationRow pendingOfferRow({
   message: 'I can help',
   helpType: null,
   roleLabel: null,
-  status: 0,
+  status: status,
   withdrawReason: null,
   createdAt: createdAt ?? kOfferCreatedAt,
   updatedAt: createdAt ?? kOfferCreatedAt,
   responseType: null,
   responseUpdatedAt: null,
   responseAuthorUserId: null,
-  roomAccess: null,
-  admissionAction: null,
-  lastDeclineReason: null,
+  roomAccess: roomAccess,
+  admissionAction: admissionAction,
+  lastDeclineReason: lastDeclineReason,
   lastRemoveReason: null,
   stakeState: 0,
   offerKind: offerKind,
   isDirectAuthorForward: false,
+  authorSeenAt: authorSeenAt,
 );
 
 Map<String, dynamic> peopleSeenFrame({
@@ -225,7 +246,9 @@ BeaconParticipant stewardParticipant() => BeaconParticipant(
 );
 
 /// Opens the People surface (what the screen mounts for the People tab)
-/// against the harness's real [BeaconViewCubit].
+/// against the harness's real [BeaconViewCubit], rebuilt from the cubit's
+/// state stream the way `BeaconViewScreen` does, so later state changes
+/// (e.g. a realtime patch) update the already-visible surface.
 Future<void> openPeopleSurface(WidgetTester tester, AuthorSeenHarness h) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -243,11 +266,14 @@ Future<void> openPeopleSurface(WidgetTester tester, AuthorSeenHarness h) async {
         ],
         child: TenturaResponsiveScope(
           child: Scaffold(
-            body: BeaconPeopleSurface(
-              beaconViewCubit: h.cubit,
-              beaconState: h.cubit.state,
-              focusUserId: null,
-              peopleTabAttentionActive: false,
+            body: BlocBuilder<BeaconViewCubit, BeaconViewState>(
+              bloc: h.cubit,
+              builder: (context, state) => BeaconPeopleSurface(
+                beaconViewCubit: h.cubit,
+                beaconState: state,
+                focusUserId: null,
+                peopleTabAttentionActive: false,
+              ),
             ),
           ),
         ),
@@ -265,6 +291,7 @@ Future<void> pumpPeople(
   WidgetTester tester,
   BeaconViewState state, {
   Profile viewer = kOfferer,
+  Locale locale = const Locale('en'),
 }) async {
   final cubit = FrozenBeaconViewCubit(state);
   await tester.pumpWidget(
@@ -272,7 +299,7 @@ Future<void> pumpPeople(
       theme: TenturaTheme.light(),
       localizationsDelegates: L10n.localizationsDelegates,
       supportedLocales: L10n.supportedLocales,
-      locale: const Locale('en'),
+      locale: locale,
       home: MultiBlocProvider(
         providers: [
           BlocProvider<ProfileCubit>.value(
@@ -285,7 +312,7 @@ Future<void> pumpPeople(
           body: BeaconPeopleTabBody(
             state: state,
             beaconViewCubit: cubit,
-            l10n: lookupL10n(const Locale('en')),
+            l10n: lookupL10n(locale),
           ),
         ),
       ),

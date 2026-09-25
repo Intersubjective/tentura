@@ -72,10 +72,10 @@ void main() {
       expect(data, isNotNull);
       final rows = data!.toJson()['helpOffersWithCoordination'] as List;
       final seen = rows.first as Map<String, dynamic>;
-      final unseen = rows.last as Map<String, dynamic>;
       expect(seen['authorSeenAt'], '2026-06-15T12:05:00.000Z');
-      expect(unseen.containsKey('authorSeenAt'), isTrue);
-      expect(unseen['authorSeenAt'], isNull);
+      // Ferry serializers omit null-valued keys on toJson, so the null case
+      // is verified on the deserialized object instead of the JSON map.
+      expect(data.helpOffersWithCoordination!.last.authorSeenAt, isNull);
     });
   });
 

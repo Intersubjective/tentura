@@ -38,6 +38,7 @@ FakeHelpOfferCoordinationRow _row({
     stakeState: 0,
     offerKind: offerKind,
     isDirectAuthorForward: false,
+    authorSeenAt: null,
   );
 }
 

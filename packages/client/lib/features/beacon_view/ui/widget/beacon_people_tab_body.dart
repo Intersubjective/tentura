@@ -283,15 +283,16 @@ class BeaconPeopleTabBody extends StatelessWidget {
     HelpOfferTile peopleTile(BeaconPeopleRow row) {
       final c = helpOfferForRow(row);
       final isMine = row.userId == state.myProfile.id;
+      final hasHelpOffer = state.helpOffers.any(
+        (ho) => ho.user.id == row.userId && !ho.isWithdrawn,
+      );
       final canManageOffer =
           beacon.status.isOpenFamily &&
           !row.isAuthor &&
           !isMine &&
           state.isAuthorOrSteward &&
           !c.isWithdrawn &&
-          state.helpOffers.any(
-            (ho) => ho.user.id == row.userId && !ho.isWithdrawn,
-          );
+          hasHelpOffer;
       return HelpOfferTile(
         helpOffer: c,
         beaconId: beacon.id,
@@ -301,6 +302,7 @@ class BeaconPeopleTabBody extends StatelessWidget {
         isAuthorView: state.isAuthorOrSteward && !isMine,
         participant: row.participant,
         showAuthorStar: row.isAuthor,
+        hasHelpOffer: hasHelpOffer,
         onAccept: canManageOffer
             ? () => unawaited(
                 beaconViewCubit.acceptHelpOffer(offerUserId: row.userId),
@@ -574,8 +576,7 @@ class BeaconPeopleTabBody extends StatelessWidget {
                       showBackupHint: false,
                       onEditRole:
                           !backupOffers[k].isWithdrawn &&
-                              (backupOffers[k].user.id ==
-                                      state.myProfile.id ||
+                              (backupOffers[k].user.id == state.myProfile.id ||
                                   state.isAuthorOrSteward)
                           ? () async {
                               final offer = backupOffers[k];

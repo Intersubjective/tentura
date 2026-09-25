@@ -4923,6 +4923,8 @@
   },
   "beaconNoActivityYetShort": "Пока нет событий",
   "helpOffersTabNoAuthorLabelYet": "требуется оценка автора",
+  "helpOfferAuthorNotSeenPendingLabel": "Отправлено · автор ещё не видел",
+  "helpOfferAuthorSeenPendingLabel": "Автор увидел · ожидает решения",
   "helpOfferAdmissionAccept": "Принять",
   "helpOfferAdmissionDecline": "Отклонить",
   "helpOfferAdmissionRemove": "Убрать из обсуждения",

@@ -42,6 +42,7 @@ class HelpOfferTile extends StatelessWidget {
     this.onReleaseCommitment,
     this.participant,
     this.showAuthorStar = false,
+    this.hasHelpOffer = true,
     this.showBackupHint = true,
     super.key,
   });
@@ -60,6 +61,7 @@ class HelpOfferTile extends StatelessWidget {
   final VoidCallback? onReleaseCommitment;
   final BeaconParticipant? participant;
   final bool showAuthorStar;
+  final bool hasHelpOffer;
 
   /// When false, the People "Backup offers" group shows the explainer once
   /// under the header instead of repeating it on every tile.
@@ -77,6 +79,13 @@ class HelpOfferTile extends StatelessWidget {
     final dateShown = isWithdrawn ? helpOffer.updatedAt : helpOffer.createdAt;
     final roomAccess = helpOffer.roomAccess ?? participant?.roomAccess;
     final isAdmitted = roomAccess == RoomAccessBits.admitted;
+    final showPendingAuthorSeen =
+        hasHelpOffer &&
+        isMine &&
+        !showAuthorStar &&
+        !isWithdrawn &&
+        !isAdmitted &&
+        helpOffer.admissionAction == null;
     final helpTypeSlugs = helpOfferTypeSlugs(helpOffer.helpType);
     final showHelpTypeChips = helpTypeSlugs.isNotEmpty;
     final showForwardPathButton =
@@ -280,6 +289,16 @@ class HelpOfferTile extends StatelessWidget {
               ),
             ],
           ],
+          if (showPendingAuthorSeen) ...[
+            SizedBox(height: tt.tightGap),
+            Text(
+              helpOffer.authorSeenAt != null &&
+                      !helpOffer.authorSeenAt!.isBefore(helpOffer.createdAt)
+                  ? l10n.helpOfferAuthorSeenPendingLabel
+                  : l10n.helpOfferAuthorNotSeenPendingLabel,
+              style: TenturaText.bodySmall(tt.textMuted),
+            ),
+          ],
           if (helpOffer.message.isNotEmpty) ...[
             if (!showHelpTypeChips) const SizedBox(height: _rowGap),
             if (showHelpTypeChips) const SizedBox(height: 6),
@@ -306,6 +325,7 @@ class HelpOfferTile extends StatelessWidget {
           ],
           if (!isWithdrawn &&
               !showAuthorStar &&
+              !showPendingAuthorSeen &&
               !(helpOffer.offerKind == 1 && !isAdmitted)) ...[
             const SizedBox(height: _rowGap),
             const TenturaHairlineDivider(subtle: false),

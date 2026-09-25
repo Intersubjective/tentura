@@ -154,9 +154,37 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
   }
 
   void _onPeopleChanged(RealtimeEntityChange change) {
+    if (change.kind == RealtimeEntityKind.peopleSeen) {
+      final seenAt = change.peopleSeenAt;
+      if (change.aggregateId != state.beacon.id || seenAt == null) return;
+      var changed = false;
+      final offers = state.helpOffers.map((offer) {
+        final previous = offer.authorSeenAt;
+        if (seenAt.isBefore(offer.createdAt) ||
+            (previous != null && !seenAt.isAfter(previous))) {
+          return offer;
+        }
+        changed = true;
+        return offer.copyWith(authorSeenAt: seenAt);
+      }).toList();
+      if (changed) emit(state.copyWith(helpOffers: offers));
+      return;
+    }
     if (change.kind == RealtimeEntityKind.relationship ||
         _visiblePeopleIds().contains(change.aggregateId)) {
       _requestFullRefresh();
+    }
+  }
+
+  Future<void> markPeopleSeen() async {
+    if (!state.beaconContextLoaded || !state.isAuthorOrSteward) return;
+    try {
+      await _case.markBeaconPeopleSeen(
+        beaconId: state.beacon.id,
+        readThroughAt: DateTime.now().toUtc(),
+      );
+    } catch (error) {
+      _showSnackError(error);
     }
   }
 
@@ -490,10 +518,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     ];
     final optimisticParticipants = [
       for (final p in state.roomParticipants)
-        if (p.userId == offerUserId)
-          p.copyWith(roleLabel: roleLabel)
-        else
-          p,
+        if (p.userId == offerUserId) p.copyWith(roleLabel: roleLabel) else p,
     ];
     emit(
       state.copyWith(
@@ -825,6 +850,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
         int stakeState,
         int offerKind,
         bool isDirectAuthorForward,
+        DateTime? authorSeenAt,
       })
     >
     helpOffers,
@@ -1027,30 +1053,33 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       final canReadAdmittedHelpers = beacon.canReadAdmittedHelpers;
       final results = await Future.wait([
         if (skipInvolvement)
-          Future.value(const <
-                ({
-                  String beaconId,
-                  String userId,
-                  Profile user,
-                  String message,
-                  String? helpType,
-                  String? roleLabel,
-                  int status,
-                  String? withdrawReason,
-                  DateTime createdAt,
-                  DateTime updatedAt,
-                  int? responseType,
-                  DateTime? responseUpdatedAt,
-                  String? responseAuthorUserId,
-                  int? roomAccess,
-                  int? admissionAction,
-                  String? lastDeclineReason,
-                  String? lastRemoveReason,
-                  int stakeState,
-                  int offerKind,
-                  bool isDirectAuthorForward,
-                })
-              >[])
+          Future.value(
+            const <
+              ({
+                String beaconId,
+                String userId,
+                Profile user,
+                String message,
+                String? helpType,
+                String? roleLabel,
+                int status,
+                String? withdrawReason,
+                DateTime createdAt,
+                DateTime updatedAt,
+                int? responseType,
+                DateTime? responseUpdatedAt,
+                String? responseAuthorUserId,
+                int? roomAccess,
+                int? admissionAction,
+                String? lastDeclineReason,
+                String? lastRemoveReason,
+                int stakeState,
+                int offerKind,
+                bool isDirectAuthorForward,
+                DateTime? authorSeenAt,
+              })
+            >[],
+          )
         else
           _case.fetchHelpOffersWithCoordination(
             beaconId: beaconId,
@@ -1100,6 +1129,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
                   int stakeState,
                   int offerKind,
                   bool isDirectAuthorForward,
+                  DateTime? authorSeenAt,
                 })
               >;
       final inboxCtx =
@@ -1380,6 +1410,7 @@ List<TimelineEntry> helpOfferRowsToTimelineEntries({
     int stakeState,
     int offerKind,
     bool isDirectAuthorForward,
+    DateTime? authorSeenAt,
   })
   row,
 }) {

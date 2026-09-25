@@ -22,6 +22,7 @@ enum RealtimeEntityKind {
   contact,
   roomSeen,
   roomSeenPeer,
+  peopleSeen,
   relationship,
   profile,
   notification,
@@ -47,6 +48,7 @@ enum RealtimeEntityKind {
     'contact' => RealtimeEntityKind.contact,
     'room_seen' => RealtimeEntityKind.roomSeen,
     'room_seen_peer' => RealtimeEntityKind.roomSeenPeer,
+    'people_seen' => RealtimeEntityKind.peopleSeen,
     'relationship' => RealtimeEntityKind.relationship,
     'profile' => RealtimeEntityKind.profile,
     'notification' => RealtimeEntityKind.notification,
@@ -76,5 +78,7 @@ abstract class RealtimeEntityChange with _$RealtimeEntityChange {
     RealtimeRoomMessagePaint? roomMessagePaint,
   /// Peer read cursor from WS `seen_user_id` / `last_seen_at` extras.
     RealtimeSeenPeer? seenPeer,
+  /// Author/steward People-surface watermark from WS `people_seen` `last_seen_at`.
+    DateTime? peopleSeenAt,
   }) = _RealtimeEntityChange;
 }

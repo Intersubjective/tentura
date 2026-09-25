@@ -9,6 +9,7 @@ import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
 import 'package:tentura_server/domain/entity/gql_public/help_offer_with_coordination_row.dart';
 import 'package:tentura_server/domain/entity/help_offer_admission_event.dart';
 import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/port/beacon_people_seen_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_repository_port.dart';
 import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
@@ -27,8 +28,9 @@ class CoordinationRepository implements CoordinationRepositoryPort {
     this._database,
     this._userProfileBatchLookup,
     this._voteUserFriendshipLookup,
-    this._beaconRoomRepository,
-  );
+    this._beaconRoomRepository, [
+    this._beaconPeopleSeenRepository,
+  ]);
 
   final TenturaDb _database;
 
@@ -37,6 +39,8 @@ class CoordinationRepository implements CoordinationRepositoryPort {
   final VoteUserFriendshipLookupPort _voteUserFriendshipLookup;
 
   final BeaconRoomRepositoryPort _beaconRoomRepository;
+
+  final BeaconPeopleSeenRepositoryPort? _beaconPeopleSeenRepository;
 
   @override
   Future<void> upsertResponse({
@@ -312,6 +316,18 @@ ORDER BY beacon_id, offer_user_id, seq DESC
         .filter((e) => e.id.equals(beaconId))
         .getSingleOrNull();
     final authorId = beaconRow?.userId;
+    final moderatorIds = <String>{
+      ?authorId,
+      ...await _beaconRoomRepository.listStewardUserIds(beaconId),
+    }.toList();
+    final moderatorWatermarks = await _beaconPeopleSeenRepository!
+        .lastSeenByUserIds(beaconId: beaconId, userIds: moderatorIds);
+    DateTime? moderatorSeenAt;
+    for (final seenAt in moderatorWatermarks.values) {
+      if (moderatorSeenAt == null || seenAt.isAfter(moderatorSeenAt)) {
+        moderatorSeenAt = seenAt;
+      }
+    }
     final directAuthorForwardRecipientIds = <String>{};
     if (authorId != null) {
       final forwardEdges = await _database.managers.beaconForwardEdges
@@ -333,8 +349,6 @@ ORDER BY beacon_id, offer_user_id, seq DESC
     final roomAccessByUserId = <String, int>{
       for (final p in participantRows) p.userId: p.roomAccess,
     };
-
-    final authorSeenAt = await _latestAuthorOrStewardPeopleSeenAt(beaconId);
 
     final usersById = await _userProfileBatchLookup.userPublicRecordsByIds(
       ids: userIds,
@@ -380,38 +394,14 @@ ORDER BY beacon_id, offer_user_id, seq DESC
             row.userId,
           ),
           authorSeenAt:
-              authorSeenAt == null ||
-                  authorSeenAt.isBefore(row.createdAt.dateTime)
+              moderatorSeenAt == null ||
+                  moderatorSeenAt.isBefore(row.createdAt.dateTime)
               ? null
-              : authorSeenAt,
+              : moderatorSeenAt,
         ),
       );
     }
     return out;
-  }
-
-  /// Latest People-surface watermark of the beacon author or any steward
-  /// (issue #178 D2); an offer counts as seen when it is `>=` its createdAt.
-  Future<DateTime?> _latestAuthorOrStewardPeopleSeenAt(String beaconId) async {
-    final row = await _database
-        .customSelect(
-          r'''
-SELECT max(s.last_seen_at)::text AS seen_at
-FROM beacon_people_seen s
-WHERE s.beacon_id = $1
-  AND (
-    EXISTS (SELECT 1 FROM beacon b WHERE b.id = $1 AND b.user_id = s.user_id)
-    OR EXISTS (
-      SELECT 1 FROM beacon_steward bs
-      WHERE bs.beacon_id = $1 AND bs.user_id = s.user_id
-    )
-  )
-''',
-          variables: [Variable<String>(beaconId)],
-        )
-        .getSingle();
-    final raw = row.readNullable<String>('seen_at');
-    return raw == null ? null : DateTime.parse(raw).toUtc();
   }
 
   @override

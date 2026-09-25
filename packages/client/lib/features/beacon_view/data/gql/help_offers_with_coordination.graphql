@@ -21,6 +21,7 @@ query HelpOffersWithCoordination($beaconId: String!) {
     offerKind
     stakeState
     isDirectAuthorForward
+    authorSeenAt
     user {
       id
       displayName

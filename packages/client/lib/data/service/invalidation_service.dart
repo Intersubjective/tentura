@@ -176,6 +176,14 @@ class InvalidationService implements RealtimeSyncPort {
     if (kind == RealtimeEntityKind.roomSeenPeer && seenPeer == null) {
       return;
     }
+    final lastSeenAtRaw = payload['last_seen_at'];
+    final peopleSeenAt =
+        kind == RealtimeEntityKind.peopleSeen && lastSeenAtRaw is String
+        ? DateTime.tryParse(lastSeenAtRaw)
+        : null;
+    if (kind == RealtimeEntityKind.peopleSeen && peopleSeenAt == null) {
+      return;
+    }
 
     _entityChangeController.add(
       RealtimeEntityChange(
@@ -187,6 +195,7 @@ class InvalidationService implements RealtimeSyncPort {
         childId: childId,
         roomMessagePaint: paint,
         seenPeer: seenPeer,
+        peopleSeenAt: peopleSeenAt,
       ),
     );
   }

@@ -8,6 +8,7 @@ import 'package:tentura_server/domain/entity/room_message_snapshot.dart';
 base mixin WebsocketPathEntityChanges on WebsocketSessionHandlerBase {
   static const _forwardedExtrasByKind = <String, Set<String>>{
     'room_seen_peer': {'seen_user_id', 'last_seen_at'},
+    'people_seen': {'last_seen_at'},
   };
 
   Future<void> fanOutEntityChange(Map<String, dynamic> data) async {
@@ -35,12 +36,12 @@ base mixin WebsocketPathEntityChanges on WebsocketSessionHandlerBase {
     if (forwardedExtras != null) {
       final seenUserId = data['seen_user_id'];
       final lastSeenAt = data['last_seen_at'];
-      if (seenUserId is! String ||
-          seenUserId.isEmpty ||
+      if ((forwardedExtras.contains('seen_user_id') &&
+              (seenUserId is! String || seenUserId.isEmpty)) ||
           lastSeenAt is! String ||
           DateTime.tryParse(lastSeenAt) == null) {
         logger.warning(
-          '[RealtimeFanout] realtime_event=malformed_payload reason=room_seen_peer',
+          '[RealtimeFanout] realtime_event=malformed_payload reason=$entity',
         );
         return;
       }

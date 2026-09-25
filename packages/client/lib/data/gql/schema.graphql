@@ -3762,6 +3762,7 @@ type mutation_root {
   BeaconRoomAdmit(beaconId: String!, participantUserId: String!): Boolean!
   BeaconRoomNowLineUpdate(beaconId: String!, text: String!): v2_BeaconRoomStateRow!
   BeaconStewardPromote(beaconId: String!, stewardUserId: String!): Boolean!
+  MarkBeaconPeopleSeen(beaconId: String!, readThroughAt: String): v2_BeaconPeopleSeenResult!
   MarkThreadSeen(beaconId: String!, readThroughAt: String, threadId: String!): v2_BeaconRoomSeenResult!
   RoomMessageAttachmentAdd(beaconId: String!, file: v2_Upload = {}, messageId: String!): Boolean!
   RoomMessageCreate(beaconId: String!, body: String!, explicitMentionLengths: [Int!], explicitMentionOffsets: [Int!], explicitMentionUserIds: [String!], file: v2_Upload, replyToMessageId: String, threadItemId: String): v2_RoomMessageCreatePayload!
@@ -7728,6 +7729,11 @@ type v2_BeaconPromotionSource {
   textPreview: String!
 }
 
+type v2_BeaconPeopleSeenResult {
+  beaconId: String!
+  seenAt: String!
+}
+
 type v2_BeaconRoomSeenResult {
   beaconId: String!
   seenAt: String!
@@ -8016,6 +8022,7 @@ input v2_ForwardRecipientReasonInput {
 
 type v2_HelpOfferWithCoordinationRow {
   admissionAction: Int
+  authorSeenAt: String
   beaconId: String!
   createdAt: String!
   helpType: String

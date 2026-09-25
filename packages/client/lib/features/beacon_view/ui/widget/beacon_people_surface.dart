@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -6,7 +8,7 @@ import 'package:tentura/features/beacon_view/ui/widget/beacon_people_tab_body.da
 import 'package:tentura/ui/l10n/l10n.dart';
 
 /// PEOPLE surface: unchanged [BeaconPeopleTabBody] with today's padding.
-class BeaconPeopleSurface extends StatelessWidget {
+class BeaconPeopleSurface extends StatefulWidget {
   const BeaconPeopleSurface({
     required this.beaconViewCubit,
     required this.beaconState,
@@ -25,6 +27,33 @@ class BeaconPeopleSurface extends StatelessWidget {
   final int peopleFoldEpoch;
 
   @override
+  State<BeaconPeopleSurface> createState() => _BeaconPeopleSurfaceState();
+}
+
+class _BeaconPeopleSurfaceState extends State<BeaconPeopleSurface> {
+  String? _markedBeaconId;
+
+  @override
+  void initState() {
+    super.initState();
+    _markIfEligible();
+  }
+
+  @override
+  void didUpdateWidget(BeaconPeopleSurface oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _markIfEligible();
+  }
+
+  void _markIfEligible() {
+    final state = widget.beaconState;
+    if (!state.beaconContextLoaded || !state.isAuthorOrSteward) return;
+    if (_markedBeaconId == state.beacon.id) return;
+    _markedBeaconId = state.beacon.id;
+    unawaited(widget.beaconViewCubit.markPeopleSeen());
+  }
+
+  @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
@@ -33,7 +62,7 @@ class BeaconPeopleSurface extends StatelessWidget {
       physics: const ClampingScrollPhysics(),
       slivers: [
         SliverPadding(
-          key: ValueKey('people-$peopleFoldEpoch'),
+          key: ValueKey('people-${widget.peopleFoldEpoch}'),
           padding: EdgeInsets.fromLTRB(
             tt.screenHPadding,
             tt.cardPadding.top,
@@ -42,11 +71,11 @@ class BeaconPeopleSurface extends StatelessWidget {
           ),
           sliver: SliverToBoxAdapter(
             child: BeaconPeopleTabBody(
-              state: beaconState,
-              beaconViewCubit: beaconViewCubit,
+              state: widget.beaconState,
+              beaconViewCubit: widget.beaconViewCubit,
               l10n: l10n,
-              focusUserId: focusUserId,
-              peopleTabAttentionActive: peopleTabAttentionActive,
+              focusUserId: widget.focusUserId,
+              peopleTabAttentionActive: widget.peopleTabAttentionActive,
             ),
           ),
         ),

@@ -10,9 +10,27 @@
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:tentura/domain/entity/beacon_room_consts.dart';
+import 'package:tentura/domain/entity/help_offer_admission_action.dart';
 import 'package:tentura/domain/entity/profile.dart';
 
 import 'help_offer_author_seen_test_support.dart';
+
+void expectPeopleSurfaceMarkedCurrentOffersSeen(
+  CountingCoordinationRepository coordination,
+) {
+  final calls = coordination.markPeopleSeenCalls;
+  expect(calls, isNotEmpty);
+  expect(calls.map((call) => call.beaconId).toSet(), {kAuthorSeenBeaconId});
+  for (final call in calls) {
+    final readThroughAt = call.readThroughAt;
+    expect(
+      readThroughAt == null || !readThroughAt.isBefore(kOfferCreatedAt),
+      isTrue,
+      reason: 'a supplied watermark must cover the pending offer',
+    );
+  }
+}
 
 void main() {
   group('offerer author-seen label', () {
@@ -49,38 +67,79 @@ void main() {
     });
 
     testWidgets(
-      'people_seen frame flips the label to "seen" without reloading offers',
+      'people_seen frame flips the visible label to "seen" in place, '
+      'without reloading offers',
       (tester) async {
-        late AuthorSeenHarness h;
-        late int offersFetchesAfterLoad;
-        late int beaconFetchesAfterLoad;
-        await tester.runAsync(() async {
-          h = AuthorSeenHarness();
+        final h = (await tester.runAsync(() async {
+          final h = AuthorSeenHarness();
           await h.load();
-          offersFetchesAfterLoad = h.coordination.fetchCalls;
-          beaconFetchesAfterLoad = h.beaconRepo.fetchByIdCalls;
-          await h.send(
+          return h;
+        }))!;
+        // Mount the live People surface first: the offerer is looking at
+        // the "not seen" label when the author opens People.
+        await openPeopleSurface(tester, h);
+        expect(find.text(kNotSeenLabel), findsOneWidget);
+        expect(find.text(kSeenLabel), findsNothing);
+        final offersFetchesBefore = h.coordination.fetchCalls;
+        final beaconFetchesBefore = h.beaconRepo.fetchByIdCalls;
+
+        await tester.runAsync(
+          () => h.send(
             peopleSeenFrame(lastSeenAt: '2026-06-15T12:05:00.000Z'),
-          );
-        });
-        await pumpPeople(tester, h.cubit.state);
+          ),
+        );
+        await tester.pump();
 
         expect(find.text(kSeenLabel), findsOneWidget);
         expect(find.text(kNotSeenLabel), findsNothing);
         expect(
           h.coordination.fetchCalls,
-          offersFetchesAfterLoad,
+          offersFetchesBefore,
           reason: 'people_seen must patch in place, not refetch offers',
         );
         expect(
           h.beaconRepo.fetchByIdCalls,
-          beaconFetchesAfterLoad,
+          beaconFetchesBefore,
           reason: 'people_seen must not trigger a request-detail refresh',
         );
 
         await tester.runAsync(h.dispose);
       },
     );
+
+    testWidgets('older people_seen cannot undo a newer seen watermark', (
+      tester,
+    ) async {
+      final h = (await tester.runAsync(() async {
+        final h = AuthorSeenHarness();
+        await h.load();
+        return h;
+      }))!;
+      await openPeopleSurface(tester, h);
+      final offersFetchesBefore = h.coordination.fetchCalls;
+      final beaconFetchesBefore = h.beaconRepo.fetchByIdCalls;
+
+      await tester.runAsync(
+        () => h.send(
+          peopleSeenFrame(lastSeenAt: '2026-06-15T12:05:00.000Z'),
+        ),
+      );
+      await tester.pump();
+      expect(find.text(kSeenLabel), findsOneWidget);
+
+      await tester.runAsync(
+        () => h.send(
+          peopleSeenFrame(lastSeenAt: '2026-06-15T11:55:00.000Z'),
+        ),
+      );
+      await tester.pump();
+      expect(find.text(kSeenLabel), findsOneWidget);
+      expect(find.text(kNotSeenLabel), findsNothing);
+      expect(h.coordination.fetchCalls, offersFetchesBefore);
+      expect(h.beaconRepo.fetchByIdCalls, beaconFetchesBefore);
+
+      await tester.runAsync(h.dispose);
+    });
 
     testWidgets(
       'one people_seen watermark between two offers: earlier offer seen, '
@@ -123,6 +182,27 @@ void main() {
       },
     );
 
+    testWidgets(
+      'people_seen exactly at the offer createdAt counts as seen (>=)',
+      (tester) async {
+        late AuthorSeenHarness h;
+        await tester.runAsync(() async {
+          h = AuthorSeenHarness();
+          await h.load();
+          // kOfferCreatedAt is 2026-06-15T12:00:00Z.
+          await h.send(
+            peopleSeenFrame(lastSeenAt: '2026-06-15T12:00:00.000Z'),
+          );
+        });
+        await pumpPeople(tester, h.cubit.state);
+
+        expect(find.text(kSeenLabel), findsOneWidget);
+        expect(find.text(kNotSeenLabel), findsNothing);
+
+        await tester.runAsync(h.dispose);
+      },
+    );
+
     testWidgets('people_seen older than the offer keeps "not seen"', (
       tester,
     ) async {
@@ -139,6 +219,72 @@ void main() {
 
       await tester.runAsync(h.dispose);
     });
+
+    testWidgets(
+      'author-seen label shows only on a pending offer, not on withdrawn, '
+      'accepted or declined ones',
+      (tester) async {
+        // Non-pending offers must show neither label, whether the author has
+        // seen them or no watermark has been recorded.
+        final seenAt = kOfferCreatedAt.add(const Duration(minutes: 5));
+        final cases = <(String, FakeHelpOfferCoordinationRow, bool)>[
+          ('pending', offerRow(authorSeenAt: seenAt), true),
+          ('withdrawn', offerRow(status: 1, authorSeenAt: seenAt), false),
+          ('withdrawn without watermark', offerRow(status: 1), false),
+          (
+            'accepted',
+            offerRow(
+              roomAccess: RoomAccessBits.admitted,
+              admissionAction: HelpOfferAdmissionAction.accept.smallintValue,
+              authorSeenAt: seenAt,
+            ),
+            false,
+          ),
+          (
+            'accepted without watermark',
+            offerRow(
+              roomAccess: RoomAccessBits.admitted,
+              admissionAction: HelpOfferAdmissionAction.accept.smallintValue,
+            ),
+            false,
+          ),
+          (
+            'declined',
+            offerRow(
+              admissionAction: HelpOfferAdmissionAction.decline.smallintValue,
+              lastDeclineReason: 'Covered already',
+              authorSeenAt: seenAt,
+            ),
+            false,
+          ),
+          (
+            'declined without watermark',
+            offerRow(
+              admissionAction: HelpOfferAdmissionAction.decline.smallintValue,
+              lastDeclineReason: 'Covered already',
+            ),
+            false,
+          ),
+        ];
+        for (final (name, row, showsLabel) in cases) {
+          final h = (await tester.runAsync(() async {
+            final h = AuthorSeenHarness(rows: [row]);
+            await h.load();
+            return h;
+          }))!;
+          await pumpPeople(tester, h.cubit.state);
+
+          expect(
+            find.text(kSeenLabel),
+            showsLabel ? findsOneWidget : findsNothing,
+            reason: name,
+          );
+          expect(find.text(kNotSeenLabel), findsNothing, reason: name);
+
+          await tester.runAsync(h.dispose);
+        }
+      },
+    );
 
     testWidgets('people_seen for another request is ignored', (tester) async {
       late AuthorSeenHarness h;
@@ -174,8 +320,9 @@ void main() {
 
       await openPeopleSurface(tester, h);
 
-      expect(h.coordination.markPeopleSeenCalls, isNotEmpty);
-      expect(h.coordination.markPeopleSeenCalls.toSet(), {kAuthorSeenBeaconId});
+      expectPeopleSurfaceMarkedCurrentOffersSeen(h.coordination);
+      expect(find.text(kNotSeenLabel), findsNothing);
+      expect(find.text(kSeenLabel), findsNothing);
 
       await tester.runAsync(h.dispose);
     });
@@ -195,7 +342,9 @@ void main() {
 
       await openPeopleSurface(tester, h);
 
-      expect(h.coordination.markPeopleSeenCalls.toSet(), {kAuthorSeenBeaconId});
+      expectPeopleSurfaceMarkedCurrentOffersSeen(h.coordination);
+      expect(find.text(kNotSeenLabel), findsNothing);
+      expect(find.text(kSeenLabel), findsNothing);
 
       await tester.runAsync(h.dispose);
     });

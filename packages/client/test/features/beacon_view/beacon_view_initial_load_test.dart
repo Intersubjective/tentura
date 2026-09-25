@@ -172,6 +172,7 @@ void main() {
               stakeState: 0,
               offerKind: 0,
               isDirectAuthorForward: false,
+              authorSeenAt: null,
             ),
           ],
         ),

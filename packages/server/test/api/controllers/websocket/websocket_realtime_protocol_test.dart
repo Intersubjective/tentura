@@ -596,6 +596,41 @@ void main() {
         expect(payload.containsKey('seen_user_id'), isFalse);
       });
     });
+
+    // Issue #178 part 2: m0197 fans `people_seen` out to active offerers with
+    // the author/steward People watermark in `last_seen_at` (no
+    // `seen_user_id`). The client needs it to flip "not seen" to "seen" in
+    // place, so the relay must forward it.
+    group('people_seen fan-out extras', () {
+      const beaconId = 'Bpeopleseen01';
+      const lastSeenAt = '2026-06-15T12:05:00.000Z';
+
+      test('forwards last_seen_at without requiring seen_user_id', () async {
+        final dependencies = _Dependencies();
+        final handler = _EntityChangeHarness(Env(), dependencies);
+        final session = _RecordingSession();
+        await dependencies.authenticate(handler, session, _affectedId);
+        session.sent.clear();
+
+        await handler.fanOutEntityChange({
+          'entity': 'people_seen',
+          'id': beaconId,
+          'event': 'update',
+          'actor_user_id': _actorId,
+          'user_ids': [_affectedId],
+          'last_seen_at': lastSeenAt,
+        });
+
+        expect(session.sent, hasLength(1));
+        final payload =
+            (jsonDecode(session.sent.single! as String) as Map)['payload']
+                as Map;
+        expect(payload['entity'], 'people_seen');
+        expect(payload['id'], beaconId);
+        expect(payload['last_seen_at'], lastSeenAt);
+        expect(payload.containsKey('seen_user_id'), isFalse);
+      });
+    });
   });
 }
 

@@ -4992,6 +4992,8 @@
   },
   "beaconNoActivityYetShort": "No activity yet",
   "helpOffersTabNoAuthorLabelYet": "author review required",
+  "helpOfferAuthorNotSeenPendingLabel": "Sent · not seen by the author yet",
+  "helpOfferAuthorSeenPendingLabel": "Seen by the author · awaiting decision",
   "helpOfferAdmissionAccept": "Accept",
   "helpOfferAdmissionDecline": "Decline",
   "helpOfferAdmissionRemove": "Remove from the discussion",

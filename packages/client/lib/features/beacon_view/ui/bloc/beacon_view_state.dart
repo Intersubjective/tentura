@@ -48,6 +48,7 @@ class TimelineHelpOffer {
     this.stakeState = CommitmentStakeState.none,
     this.offerKind = 0,
     this.isDirectAuthorForward = false,
+    this.authorSeenAt,
   });
   final Profile user;
   final String message;
@@ -67,6 +68,7 @@ class TimelineHelpOffer {
   final CommitmentStakeState stakeState;
   final int offerKind;
   final bool isDirectAuthorForward;
+  final DateTime? authorSeenAt;
 
   bool get isEdited =>
       !isWithdrawn && updatedAt.difference(createdAt).inSeconds.abs() > 1;
@@ -88,6 +90,7 @@ class TimelineHelpOffer {
     CommitmentStakeState? stakeState,
     int? offerKind,
     bool? isDirectAuthorForward,
+    DateTime? authorSeenAt,
   }) => TimelineHelpOffer(
     user: user ?? this.user,
     message: message ?? this.message,
@@ -104,8 +107,8 @@ class TimelineHelpOffer {
     lastRemoveReason: lastRemoveReason ?? this.lastRemoveReason,
     stakeState: stakeState ?? this.stakeState,
     offerKind: offerKind ?? this.offerKind,
-    isDirectAuthorForward:
-        isDirectAuthorForward ?? this.isDirectAuthorForward,
+    isDirectAuthorForward: isDirectAuthorForward ?? this.isDirectAuthorForward,
+    authorSeenAt: authorSeenAt ?? this.authorSeenAt,
   );
 }
 
@@ -360,9 +363,9 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
 
   /// Active (non-withdrawn) help-offerers on the General face pile.
   List<Profile> get activeHelpOfferUsers => [
-        for (final offer in helpOffers)
-          if (!offer.isWithdrawn) offer.user,
-      ];
+    for (final offer in helpOffers)
+      if (!offer.isWithdrawn) offer.user,
+  ];
 
   /// Room access-unavailable banner applies unless the viewer is waiting on
   /// the author after offering help (Items tab shows waiting copy instead).
