@@ -19,6 +19,8 @@ packages/image_cropper_for_web/build/
 
 dart_defines
 
+.alloy
+
 
 *.key
 *.fb
