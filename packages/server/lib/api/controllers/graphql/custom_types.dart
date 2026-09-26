@@ -96,6 +96,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeFcmTestSendResult,
   gqlTypeEmailTestSendResult,
   gqlTypeUserRecalculateBookkeepingResult,
+  gqlTypeAttentionReceipt,
 ];
 
 /// Account notification preferences (channel × category matrix + controls).
