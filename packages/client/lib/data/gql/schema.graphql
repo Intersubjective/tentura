@@ -3754,9 +3754,10 @@ enum invitation_update_column {
 
 """mutation root"""
 type mutation_root {
-  BeaconFactCardCorrect(beaconId: String!, factCardId: String!, newText: String!): Boolean!
+  BeaconFactCardCorrect(baseRevisionSeq: Int!, beaconId: String!, factCardId: String!, newText: String!): Int!
   BeaconFactCardPin(beaconId: String!, factText: String!, sourceMessageId: String, visibility: Int!): Boolean!
   BeaconFactCardRemove(beaconId: String!, factCardId: String!): Boolean!
+  BeaconFactCardRestore(baseRevisionSeq: Int!, beaconId: String!, factCardId: String!, fromSeq: Int!): Int!
   BeaconFactCardSetVisibility(beaconId: String!, factCardId: String!, visibility: Int!): Boolean!
   BeaconParticipantOfferHelp(beaconId: String!, body: String!): Boolean!
   BeaconRoomAdmit(beaconId: String!, participantUserId: String!): Boolean!
@@ -4665,6 +4666,7 @@ input polling_variant_stream_cursor_value_input {
 type query_root {
   BeaconActivityEventList(beaconId: String!): [v2_BeaconActivityEventRow!]
   BeaconFactCardList(beaconId: String!): [v2_BeaconFactCardRow!]
+  BeaconFactCardRevisions(before: String, beaconId: String!, factCardId: String!): v2_BeaconFactCardRevisionsPage!
   BeaconParticipantList(beaconId: String!): [v2_BeaconParticipantRow!]
   BeaconRoomReadWatermarks(beaconId: String!): [v2_v2_RoomReadWatermark!]
   BeaconRoomStateGet(beaconId: String!): v2_BeaconRoomStateRow!
@@ -7605,18 +7607,43 @@ type v2_BeaconExtendReviewResult {
   id: String!
 }
 
+type v2_BeaconFactCardRevisionsPage {
+  entries: [v2_BeaconFactHistoryEntryRow!]!
+  nextCursor: String
+}
+
 type v2_BeaconFactCardRow {
   attachmentsJson: String!
   beaconId: String!
   createdAt: String!
   factText: String!
+  historyTruncated: Boolean!
   id: String!
+  lastEditedAt: String
+  lastEditedBy: String
+  lastEditedByTitle: String
+  otherEditorCount: Int!
   pinnedBy: String!
   pinnedByTitle: String!
+  revisionSeq: Int!
   sourceMessageId: String
   status: Int!
   updatedAt: String
   visibility: Int!
+}
+
+type v2_BeaconFactHistoryEntryRow {
+  actorId: String
+  actorTitle: String!
+  createdAt: String!
+  entry: String!
+  entryKey: String!
+  factText: String
+  kind: Int!
+  restoredFromSeq: Int
+  seq: Int
+  visibilityFrom: Int
+  visibilityTo: Int
 }
 
 type v2_BeaconHierarchyCapabilities {

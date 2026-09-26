@@ -1007,6 +1007,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
         beaconId: state.beacon.id,
         factCardId: factCardId,
         newText: newText,
+        baseRevisionSeq: _factRevisionSeq(factCardId),
       );
       await _refreshFactCards(state.beacon.id);
       _effects.emit(const ShowMessage(BeaconFactEditSuccessMessage()));
@@ -1014,6 +1015,14 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       _showSnackError(e);
     }
   }
+
+  /// Revision the user edited from; the server rejects a stale one.
+  int _factRevisionSeq(String factCardId) =>
+      state.factCards
+          .where((f) => f.id == factCardId)
+          .firstOrNull
+          ?.revisionSeq ??
+      1;
 
   Future<void> removeFact({required String factCardId}) async {
     if (_rejectIfDiscussionReadOnly()) return;

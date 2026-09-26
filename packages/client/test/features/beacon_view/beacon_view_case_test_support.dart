@@ -397,12 +397,14 @@ class FakeBeaconViewFactCardRepository implements BeaconFactCardRepository {
   }
 
   @override
-  Future<void> correct({
+  Future<int> correct({
     required String beaconId,
     required String factCardId,
     required String newText,
+    required int baseRevisionSeq,
   }) async {
     correctedIds.add(factCardId);
+    return baseRevisionSeq + 1;
   }
 
   @override

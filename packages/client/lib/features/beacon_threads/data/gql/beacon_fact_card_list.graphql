@@ -11,5 +11,11 @@ query BeaconFactCardList($beaconId: String!) {
     createdAt
     updatedAt
     attachmentsJson
+    revisionSeq
+    lastEditedBy
+    lastEditedByTitle
+    lastEditedAt
+    otherEditorCount
+    historyTruncated
   }
 }

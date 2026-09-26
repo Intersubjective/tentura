@@ -1,0 +1,26 @@
+query BeaconFactCardRevisions(
+  $beaconId: String!
+  $factCardId: String!
+  $before: String
+) {
+  BeaconFactCardRevisions(
+    beaconId: $beaconId
+    factCardId: $factCardId
+    before: $before
+  ) {
+    entries {
+      entry
+      entryKey
+      seq
+      kind
+      factText
+      restoredFromSeq
+      visibilityFrom
+      visibilityTo
+      actorId
+      actorTitle
+      createdAt
+    }
+    nextCursor
+  }
+}

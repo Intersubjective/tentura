@@ -991,6 +991,7 @@ class RoomCubit extends Cubit<RoomState> {
         beaconId: state.beaconId,
         factCardId: factCardId,
         newText: newText,
+        baseRevisionSeq: _factRevisionSeq(factCardId),
       );
       await load();
       _showMessage(const BeaconFactEditSuccessMessage());
@@ -998,6 +999,14 @@ class RoomCubit extends Cubit<RoomState> {
       _showSnackError(e);
     }
   }
+
+  /// Revision the user edited from; the server rejects a stale one.
+  int _factRevisionSeq(String factCardId) =>
+      state.factCards
+          .where((f) => f.id == factCardId)
+          .firstOrNull
+          ?.revisionSeq ??
+      1;
 
   Future<void> removeFact({required String factCardId}) async {
     if (_rejectIfDiscussionReadOnly()) return;

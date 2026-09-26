@@ -1,13 +1,13 @@
-mutation BeaconFactCardCorrect(
+mutation BeaconFactCardRestore(
   $beaconId: String!
   $factCardId: String!
-  $newText: String!
+  $fromSeq: Int!
   $baseRevisionSeq: Int!
 ) {
-  BeaconFactCardCorrect(
+  BeaconFactCardRestore(
     beaconId: $beaconId
     factCardId: $factCardId
-    newText: $newText
+    fromSeq: $fromSeq
     baseRevisionSeq: $baseRevisionSeq
   )
 }

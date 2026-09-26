@@ -2,6 +2,8 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
+import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
+import 'package:tentura/domain/entity/beacon_fact_history_entry.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
 
 import '../gql/_g/beacon_fact_card_correct.req.gql.dart';
@@ -9,6 +11,9 @@ import '../gql/_g/beacon_fact_card_list.data.gql.dart';
 import '../gql/_g/beacon_fact_card_list.req.gql.dart';
 import '../gql/_g/beacon_fact_card_pin.req.gql.dart';
 import '../gql/_g/beacon_fact_card_remove.req.gql.dart';
+import '../gql/_g/beacon_fact_card_restore.req.gql.dart';
+import '../gql/_g/beacon_fact_card_revisions.data.gql.dart';
+import '../gql/_g/beacon_fact_card_revisions.req.gql.dart';
 import '../gql/_g/beacon_fact_card_set_visibility.req.gql.dart';
 
 @lazySingleton
@@ -33,6 +38,14 @@ class BeaconFactCardRepository {
             ? DateTime.parse(row.updatedAt!)
             : null,
         pinnedByTitle: row.pinnedByTitle,
+        revisionSeq: row.revisionSeq,
+        lastEditedBy: row.lastEditedBy,
+        lastEditedByTitle: row.lastEditedByTitle ?? '',
+        lastEditedAt: row.lastEditedAt != null
+            ? DateTime.parse(row.lastEditedAt!)
+            : null,
+        otherEditorCount: row.otherEditorCount,
+        historyTruncated: row.historyTruncated,
         attachments: parseRoomMessageAttachmentsJson(row.attachmentsJson),
       );
 
@@ -65,22 +78,129 @@ class BeaconFactCardRepository {
         .then((r) => r.dataOrThrow(label: _label).BeaconFactCardPin);
   }
 
-  Future<void> correct({
+  /// Returns the new head revision seq.
+  Future<int> correct({
     required String beaconId,
     required String factCardId,
     required String newText,
+    required int baseRevisionSeq,
+  }) => _remoteApiService
+      .request(
+        GBeaconFactCardCorrectReq(
+          (b) => b.vars
+            ..beaconId = beaconId
+            ..factCardId = factCardId
+            ..newText = newText
+            ..baseRevisionSeq = baseRevisionSeq,
+        ),
+      )
+      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .then((r) => r.dataOrThrow(label: _label).BeaconFactCardCorrect);
+
+  /// Restores revision [fromSeq] as the new head; returns its seq.
+  Future<int> restore({
+    required String beaconId,
+    required String factCardId,
+    required int fromSeq,
+    required int baseRevisionSeq,
+  }) => _remoteApiService
+      .request(
+        GBeaconFactCardRestoreReq(
+          (b) => b.vars
+            ..beaconId = beaconId
+            ..factCardId = factCardId
+            ..fromSeq = fromSeq
+            ..baseRevisionSeq = baseRevisionSeq,
+        ),
+      )
+      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .then((r) => r.dataOrThrow(label: _label).BeaconFactCardRestore);
+
+  /// One page of the fact's history timeline; [before] is the opaque
+  /// `nextCursor` of the previous page.
+  Future<BeaconFactHistoryPage> revisions({
+    required String beaconId,
+    required String factCardId,
+    String? before,
   }) async {
-    await _remoteApiService
+    final r = await _remoteApiService
         .request(
-          GBeaconFactCardCorrectReq(
+          GBeaconFactCardRevisionsReq(
             (b) => b.vars
               ..beaconId = beaconId
               ..factCardId = factCardId
-              ..newText = newText,
+              ..before = before,
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
-        .then((r) => r.dataOrThrow(label: _label).BeaconFactCardCorrect);
+        .firstWhere((e) => e.dataSource == DataSource.Link);
+    final page = r.dataOrThrow(label: _label).BeaconFactCardRevisions;
+    return (
+      entries: page.entries
+          .map((e) => _mapHistoryRow(factCardId, e))
+          .toList(growable: false),
+      nextCursor: page.nextCursor,
+    );
+  }
+
+  static const _historyEntryEvent = 'event';
+
+  BeaconFactTimelineEntry _mapHistoryRow(
+    String factCardId,
+    GBeaconFactCardRevisionsData_BeaconFactCardRevisions_entries row,
+  ) {
+    final createdAt = DateTime.parse(row.createdAt).toUtc();
+    if (row.entry == _historyEntryEvent) {
+      return BeaconFactHistoryEvent(
+        id: row.entryKey,
+        type: row.kind,
+        visibilityFrom: row.visibilityFrom,
+        visibilityTo: row.visibilityTo,
+        actorId: row.actorId,
+        actorTitle: row.actorTitle,
+        createdAt: createdAt,
+      );
+    }
+    final seq = row.seq!;
+    final factText = row.factText ?? '';
+    return switch (row.kind) {
+      BeaconFactCardRevisionKindBits.edited => BeaconFactHistoryEdited(
+        id: row.entryKey,
+        factCardId: factCardId,
+        seq: seq,
+        factText: factText,
+        actorId: row.actorId,
+        actorTitle: row.actorTitle,
+        createdAt: createdAt,
+      ),
+      BeaconFactCardRevisionKindBits.restored => BeaconFactHistoryRestored(
+        id: row.entryKey,
+        factCardId: factCardId,
+        seq: seq,
+        factText: factText,
+        restoredFromSeq: row.restoredFromSeq!,
+        actorId: row.actorId,
+        actorTitle: row.actorTitle,
+        createdAt: createdAt,
+      ),
+      BeaconFactCardRevisionKindBits.imported => BeaconFactHistoryImported(
+        id: row.entryKey,
+        factCardId: factCardId,
+        seq: seq,
+        factText: factText,
+        actorId: row.actorId,
+        actorTitle: row.actorTitle,
+        createdAt: createdAt,
+      ),
+      _ => BeaconFactHistoryCreated(
+        id: row.entryKey,
+        factCardId: factCardId,
+        seq: seq,
+        factText: factText,
+        actorId: row.actorId,
+        actorTitle: row.actorTitle,
+        createdAt: createdAt,
+      ),
+    };
   }
 
   Future<void> remove({
