@@ -6,6 +6,7 @@ import 'package:test/test.dart';
 import 'package:tentura_server/consts/beacon_fact_card_consts.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_card_entity.dart';
+import 'package:tentura_server/domain/entity/beacon_fact_card_outcome.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_room_access.dart';
 import 'package:tentura_server/domain/entity/beacon_room_record.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -116,13 +117,18 @@ class _StubFacts extends Fake implements BeaconFactCardRepositoryPort {
   }
 
   @override
-  Future<void> correct({
+  Future<FactEditOutcome> editText({
     required String factCardId,
     required String beaconId,
     required String actorUserId,
     required String newText,
+    required int baseRevisionSeq,
+    required Duration rateWindow,
+    required int rateMax,
+    required Duration quietWindow,
   }) async {
     lastCorrectedText = newText;
+    return FactEditApplied(newSeq: baseRevisionSeq + 1);
   }
 
   @override

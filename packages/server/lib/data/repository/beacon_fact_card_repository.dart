@@ -6,6 +6,7 @@ import 'package:tentura_server/consts/beacon_fact_card_consts.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_card_entity.dart';
+import 'package:tentura_server/domain/entity/beacon_fact_card_outcome.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_history_entry_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_room_access.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -342,30 +343,198 @@ SELECT count(*)::integer AS updated FROM fact
         }
       });
 
-  Future<void> correct({
+  /// Plan §8.3 "Edit / restore" / §14.3: see [_runEdit].
+  @override
+  Future<FactEditOutcome> editText({
     required String factCardId,
     required String beaconId,
     required String actorUserId,
     required String newText,
+    required int baseRevisionSeq,
+    required Duration rateWindow,
+    required int rateMax,
+    required Duration quietWindow,
+  }) => _runEdit(
+    factCardId: factCardId,
+    beaconId: beaconId,
+    actorUserId: actorUserId,
+    newText: newText.trim(),
+    baseRevisionSeq: baseRevisionSeq,
+    rateWindow: rateWindow,
+    rateMax: rateMax,
+    quietWindow: quietWindow,
+    kind: BeaconFactCardRevisionKindBits.edited,
+    fromSeq: null,
+  );
+
+  /// Plan §8.3 "Edit / restore" / §14.3: see [_runEdit].
+  @override
+  Future<FactEditOutcome> restoreRevision({
+    required String factCardId,
+    required String beaconId,
+    required String actorUserId,
+    required int fromSeq,
+    required int baseRevisionSeq,
+    required Duration rateWindow,
+    required int rateMax,
+    required Duration quietWindow,
+  }) => _runEdit(
+    factCardId: factCardId,
+    beaconId: beaconId,
+    actorUserId: actorUserId,
+    newText: null,
+    baseRevisionSeq: baseRevisionSeq,
+    rateWindow: rateWindow,
+    rateMax: rateMax,
+    quietWindow: quietWindow,
+    kind: BeaconFactCardRevisionKindBits.restored,
+    fromSeq: fromSeq,
+  );
+
+  /// Plan §14.9: the canonical edit / restore statement. `locked` reads the
+  /// latest committed row `FOR UPDATE`; the CAS, rate limit, restore source
+  /// gate and quiet window all live in the one CTE, and the diagnostic
+  /// columns map to a [FactEditOutcome] in the order fixed by §8.3.
+  Future<FactEditOutcome> _runEdit({
+    required String factCardId,
+    required String beaconId,
+    required String actorUserId,
+    required String? newText,
+    required int baseRevisionSeq,
+    required Duration rateWindow,
+    required int rateMax,
+    required Duration quietWindow,
+    required int kind,
+    required int? fromSeq,
   }) =>
       _db.withMutatingUser(actorUserId, () async {
-        final t = newText.trim();
-        if (t.isEmpty) {
-          throw ArgumentError('newText');
+        final rows = await _db.customSelect(
+          r'''
+WITH locked AS (
+  SELECT f.id, f.revision_seq, f.status, f.fact_text, f.pinned_by,
+         f.created_at, f.visibility, f.source_message_id
+  FROM public.beacon_fact_card f
+  WHERE f.id = $1::text AND f.beacon_id = $2::text
+  FOR UPDATE
+),
+src AS (
+  SELECT r.fact_text
+  FROM public.beacon_fact_card_revision r
+  WHERE $13::int IS NOT NULL
+    AND r.fact_card_id = $1::text AND r.seq = $13::int
+),
+input AS (
+  SELECT COALESCE((SELECT s.fact_text FROM src s), $4::text) AS new_text,
+         ($13::int IS NULL OR EXISTS (SELECT 1 FROM src)) AS src_ok,
+         (SELECT count(*) FROM public.beacon_fact_card_revision r
+          WHERE r.actor_id = $3::text
+            AND r.created_at > now() - make_interval(secs => $6::int)
+         ) < $7::int AS rate_ok
+),
+upd AS (
+  UPDATE public.beacon_fact_card f
+  SET fact_text          = input.new_text,
+      status             = 1,
+      revision_seq       = f.revision_seq + 1,
+      last_edited_by     = $3::text,
+      last_edited_at     = now(),
+      updated_at         = now(),
+      other_editor_count = f.other_editor_count + CASE
+        WHEN $3::text IS DISTINCT FROM f.pinned_by
+         AND NOT EXISTS (SELECT 1 FROM public.beacon_fact_card_revision r
+                         WHERE r.fact_card_id = f.id AND r.actor_id = $3::text)
+        THEN 1 ELSE 0 END
+  FROM locked, input
+  WHERE f.id = locked.id
+    AND input.src_ok
+    AND input.rate_ok
+    AND input.new_text IS NOT NULL
+    AND locked.status <> 2
+    AND locked.revision_seq = $5::int
+    AND locked.fact_text IS DISTINCT FROM input.new_text
+  RETURNING f.id, f.revision_seq, f.visibility, f.pinned_by, f.created_at,
+            f.source_message_id
+),
+rev AS (
+  INSERT INTO public.beacon_fact_card_revision
+    (id, fact_card_id, seq, fact_text, actor_id, kind, restored_from_seq)
+  SELECT $9::text, upd.id, upd.revision_seq, input.new_text, $3::text,
+         $12::int, $13::int
+  FROM upd, input
+  RETURNING seq
+),
+quiet AS (
+  SELECT (COALESCE($3::text = upd.pinned_by, false)
+          AND upd.created_at > now() - make_interval(secs => $8::int)) AS q
+  FROM upd
+),
+line AS (
+  INSERT INTO public.beacon_room_message
+    (id, beacon_id, author_id, body, semantic_marker, system_payload)
+  SELECT $10::text, $2::text, $3::text, '', 10,
+         jsonb_build_object('factCardId', upd.id,
+                            'revisionSeq', upd.revision_seq,
+                            'pinnedBy', upd.pinned_by,
+                            'factText', left(input.new_text, 160))
+  FROM upd, quiet, input
+  WHERE NOT quiet.q
+  RETURNING id
+),
+evt AS (
+  INSERT INTO public.beacon_activity_event
+    (id, beacon_id, visibility, type, actor_id, source_message_id,
+     fact_card_id, diff)
+  SELECT $11::text, $2::text, upd.visibility, 19, $3::text,
+         COALESCE((SELECT l.id FROM line l), upd.source_message_id),
+         upd.id,
+         jsonb_build_object('factCardId', upd.id,
+                            'revisionSeq', upd.revision_seq,
+                            'kind', $12::int)
+  FROM upd, quiet
+  WHERE NOT quiet.q
+)
+SELECT (SELECT u.revision_seq FROM upd u)                    AS new_seq,
+       EXISTS (SELECT 1 FROM locked)                         AS found,
+       (SELECT l.status FROM locked l)                       AS current_status,
+       (SELECT l.revision_seq FROM locked l)                 AS current_seq,
+       ((SELECT l.fact_text FROM locked l)
+          IS NOT DISTINCT FROM (SELECT i.new_text FROM input i)) AS same_text,
+       (SELECT i.src_ok FROM input i)                        AS src_ok,
+       (SELECT i.rate_ok FROM input i)                       AS rate_ok;
+''',
+          variables: [
+            Variable<String>(factCardId),
+            Variable<String>(beaconId),
+            Variable<String>(actorUserId),
+            Variable<String>(newText),
+            Variable<int>(baseRevisionSeq),
+            Variable<int>(rateWindow.inSeconds),
+            Variable<int>(rateMax),
+            Variable<int>(quietWindow.inSeconds),
+            Variable<String>(generateId('FR')),
+            Variable<String>(generateId('R')),
+            Variable<String>(BeaconActivityEventEntity.newId),
+            Variable<int>(kind),
+            Variable<int>(fromSeq),
+          ],
+        ).get();
+        final row = rows.single;
+        final newSeq = row.readNullable<int>('new_seq');
+        final found = row.read<bool>('found');
+        final currentStatus = row.readNullable<int>('current_status');
+        final currentSeq = row.readNullable<int>('current_seq');
+        final sameText = row.readNullable<bool>('same_text');
+        final srcOk = row.read<bool>('src_ok');
+        final rateOk = row.read<bool>('rate_ok');
+        if (newSeq != null) return FactEditApplied(newSeq: newSeq);
+        if (!found) return const FactEditNotFound();
+        if (!srcOk) return const FactRestoreSourceMissing();
+        if (currentStatus == BeaconFactCardStatusBits.removed) {
+          return const FactEditRemoved();
         }
-        await _db.managers.beaconFactCards
-            .filter(
-              (e) =>
-                  e.id.equals(factCardId) &
-                  e.beaconId.id(beaconId),
-            )
-            .update(
-              (u) => u(
-                factText: Value(t),
-                status: const Value(BeaconFactCardStatusBits.corrected),
-                updatedAt: Value(PgDateTime(DateTime.timestamp())),
-              ),
-            );
+        if (sameText ?? false) return FactEditNoOp(currentSeq: currentSeq!);
+        if (!rateOk) return const FactEditRateLimited();
+        return FactEditConflict(currentSeq: currentSeq!);
       });
 
   Future<void> remove({

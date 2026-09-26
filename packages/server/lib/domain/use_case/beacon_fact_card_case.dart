@@ -5,6 +5,7 @@ import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
+import 'package:tentura_server/consts/beacon_fact_card_consts.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/policy/beacon_room_lifecycle_write_policy.dart';
@@ -120,11 +121,25 @@ final class BeaconFactCardCase extends UseCaseBase {
   }) async {
     await _ensureRoomAccess(beaconId: beaconId, userId: actorUserId);
     await _rejectOrdinaryUserWritesForLifecycle(beaconId);
-    await _facts.correct(
+    // The GraphQL mutation does not carry a base seq yet, so edit against
+    // the current one (last write wins, as before the rename).
+    final facts = await _facts.listForBeacon(
+      beaconId: beaconId,
+      includeRoomOnly: true,
+    );
+    final baseRevisionSeq = facts
+        .where((f) => f.id == factCardId)
+        .map((f) => f.revisionSeq)
+        .firstOrNull;
+    await _facts.editText(
       factCardId: factCardId,
       beaconId: beaconId,
       actorUserId: actorUserId,
-      newText: newText,
+      newText: newText.trim(),
+      baseRevisionSeq: baseRevisionSeq ?? 0,
+      rateWindow: const Duration(seconds: 60),
+      rateMax: 20,
+      quietWindow: kFactEditQuietWindow,
     );
     return true;
   }

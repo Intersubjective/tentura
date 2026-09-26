@@ -1,5 +1,6 @@
 import 'package:tentura_server/consts/beacon_fact_card_consts.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_card_entity.dart';
+import 'package:tentura_server/domain/entity/beacon_fact_card_outcome.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_history_entry_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_room_access.dart';
 
@@ -39,11 +40,31 @@ abstract class BeaconFactCardRepositoryPort {
     required int visibility,
   });
 
-  Future<void> correct({
+  /// Replaces the fact text with [newText] (trimmed by the caller) when
+  /// [baseRevisionSeq] is still current; one statement shared with
+  /// [restoreRevision].
+  Future<FactEditOutcome> editText({
     required String factCardId,
     required String beaconId,
     required String actorUserId,
     required String newText,
+    required int baseRevisionSeq,
+    required Duration rateWindow,
+    required int rateMax,
+    required Duration quietWindow,
+  });
+
+  /// Restores the text of revision [fromSeq] as a new revision; the text is
+  /// read inside the statement, never taken from the client.
+  Future<FactEditOutcome> restoreRevision({
+    required String factCardId,
+    required String beaconId,
+    required String actorUserId,
+    required int fromSeq,
+    required int baseRevisionSeq,
+    required Duration rateWindow,
+    required int rateMax,
+    required Duration quietWindow,
   });
 
   Future<void> remove({
