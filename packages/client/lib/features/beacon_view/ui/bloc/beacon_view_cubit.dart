@@ -793,7 +793,6 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     // lifecycle and its derived header context, not just the room slices.
     if (inv.entityType == BeaconRoomEntityType.coordinationItem ||
         inv.entityType == BeaconRoomEntityType.participant ||
-        inv.entityType == BeaconRoomEntityType.factCard ||
         inv.entityType == BeaconRoomEntityType.helpOffer) {
       _requestFullRefresh();
       return;
