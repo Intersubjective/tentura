@@ -560,7 +560,7 @@ ON CONFLICT DO NOTHING
     );
 
     test(
-      'preview kinds 0-9 and coordination lifecycle without marker',
+      'preview kinds 0-11 and coordination lifecycle without marker',
       () async {
         await seedBaseUsersAndBeacon();
         await insertItem(
@@ -744,6 +744,32 @@ ON CONFLICT DO NOTHING
             payload: null,
             withAttachment: false,
           ),
+          (
+            messageId: 'Rthpgprev11',
+            threadItemId: null,
+            expectedKind: ThreadMessagePreviewKind.factEdited,
+            body: '',
+            marker: BeaconRoomSemanticMarker.factEdited,
+            linkedItemId: null,
+            linkedEventKind: null,
+            pollId: null,
+            factId: null,
+            payload: {'factText': 'Edited fact text'},
+            withAttachment: false,
+          ),
+          (
+            messageId: 'Rthpgprev12',
+            threadItemId: null,
+            expectedKind: ThreadMessagePreviewKind.factUnpinned,
+            body: '',
+            marker: BeaconRoomSemanticMarker.factUnpinned,
+            linkedItemId: null,
+            linkedEventKind: null,
+            pollId: null,
+            factId: null,
+            payload: {'factText': 'Unpinned fact text'},
+            withAttachment: false,
+          ),
         ];
 
         for (final c in previewCases) {
@@ -806,7 +832,48 @@ ON CONFLICT (id) DO NOTHING
           if (c.expectedKind == ThreadMessagePreviewKind.factPinned) {
             expect(preview!.factTitle, 'Pinned fact');
           }
+          if (c.expectedKind == ThreadMessagePreviewKind.factEdited) {
+            expect(preview!.factTitle, 'Edited fact text');
+          }
+          if (c.expectedKind == ThreadMessagePreviewKind.factUnpinned) {
+            expect(preview!.factTitle, 'Unpinned fact text');
+          }
         }
+      },
+      skip: skipReason,
+    );
+
+    test(
+      'factEdited preview title prefers current fact_text over stale payload',
+      () async {
+        await seedBaseUsersAndBeacon();
+        await writer.execute('''
+INSERT INTO public.beacon_fact_card (
+  id, beacon_id, pinned_by, fact_text, visibility, created_at, updated_at
+) VALUES ('Fthpgfactedt1', '$beaconId', '$memberId', 'Current fact text', 1,
+  '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
+ON CONFLICT (id) DO NOTHING
+''');
+        await insertMessage(
+          id: 'Rthpgfactedt1',
+          authorId: memberId,
+          semanticMarker: BeaconRoomSemanticMarker.factEdited,
+          linkedFactCardId: 'Fthpgfactedt1',
+          systemPayload: {'factText': 'Stale payload text'},
+          createdAt: DateTime.utc(2026, 1, 5),
+        );
+
+        final rows = await items.listThreads(
+          beaconId: beaconId,
+          viewerUserId: memberId,
+          includeGeneral: true,
+          itemParticipantsOnly: false,
+          excerptCharacters: 140,
+        );
+
+        final preview = rowFor(rows, 'general')!.lastMessagePreview;
+        expect(preview?.kind, ThreadMessagePreviewKind.factEdited);
+        expect(preview?.factTitle, 'Current fact text');
       },
       skip: skipReason,
     );

@@ -954,7 +954,7 @@ SELECT
   linked_ci.kind AS lm_linked_item_kind,
   linked_ci.title AS lm_linked_item_title,
   pol.question AS lm_poll_title,
-  bfc.fact_text AS lm_fact_title,
+  COALESCE(bfc.fact_text, lm.system_payload->>'factText') AS lm_fact_title,
   bfc.visibility AS lm_fact_visibility,
   ci.id AS ci_id,
   ci.beacon_id AS ci_beacon_id,
@@ -1641,7 +1641,7 @@ ThreadMessagePreviewRecord _mapThreadMessagePreview({
       itemKind: _itemKindForPreview(kind, linkedItemKind),
       itemTitle: _itemTitleForPreview(kind, linkedItemTitle),
       pollTitle: kind == ThreadMessagePreviewKind.poll ? pollTitle : null,
-      factTitle: kind == ThreadMessagePreviewKind.factPinned ? factTitle : null,
+      factTitle: _isFactKind(kind) ? factTitle : null,
       factVisibility:
           kind == ThreadMessagePreviewKind.factPinned ? factVisibility : null,
     );
@@ -1688,8 +1688,16 @@ int _previewKindForSemanticMarker(int marker) => switch (marker) {
       BeaconRoomSemanticMarker.done => ThreadMessagePreviewKind.done,
       BeaconRoomSemanticMarker.poll => ThreadMessagePreviewKind.poll,
       BeaconRoomSemanticMarker.participantJoined => ThreadMessagePreviewKind.join,
+      BeaconRoomSemanticMarker.factEdited => ThreadMessagePreviewKind.factEdited,
+      BeaconRoomSemanticMarker.factUnpinned =>
+        ThreadMessagePreviewKind.factUnpinned,
       _ => throw StateError('Unknown semantic marker: $marker'),
     };
+
+bool _isFactKind(int kind) =>
+    kind == ThreadMessagePreviewKind.factPinned ||
+    kind == ThreadMessagePreviewKind.factEdited ||
+    kind == ThreadMessagePreviewKind.factUnpinned;
 
 int? _itemKindForPreview(int kind, int? linkedItemKind) =>
     kind == ThreadMessagePreviewKind.coordination ? linkedItemKind : null;

@@ -12,6 +12,8 @@ abstract final class ThreadMessagePreviewKind {
   static const done = 7;
   static const poll = 8;
   static const join = 9;
+  static const factEdited = 10;
+  static const factUnpinned = 11;
 }
 
 final class ThreadMessagePreviewRecord {
