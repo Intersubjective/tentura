@@ -5243,6 +5243,10 @@
       }
     }
   },
+  "beaconRoomFactQuoteOpen": "Открыть",
+  "beaconRoomFactQuoteChangedSinceQuoted": "Изменилось после цитаты",
+  "beaconRoomFactQuoteDiff": "Diff ›",
+  "beaconRoomFactQuoteUnpinned": "(откреплено)",
   "beaconRoomFactManageSheetTitle": "Управление фактом",
   "beaconRoomFactManageTooltip": "Управлять закреплённым фактом",
   "beaconRoomFactOverflowTooltip": "Действия с фактом",

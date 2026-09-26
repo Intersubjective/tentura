@@ -5360,6 +5360,10 @@
       }
     }
   },
+  "beaconRoomFactQuoteOpen": "Open",
+  "beaconRoomFactQuoteChangedSinceQuoted": "Changed since quoted",
+  "beaconRoomFactQuoteDiff": "Diff ›",
+  "beaconRoomFactQuoteUnpinned": "(unpinned)",
   "beaconRoomFactManageSheetTitle": "Manage fact",
   "beaconRoomFactManageTooltip": "Manage pinned fact",
   "beaconRoomFactOverflowTooltip": "Manage this fact",

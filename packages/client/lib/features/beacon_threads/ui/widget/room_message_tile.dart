@@ -25,10 +25,12 @@ import 'package:tentura/features/beacon_threads/ui/coordination_room_navigation.
 import 'package:tentura/features/beacon_threads/ui/sheet/author_commitment_sheet.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_child_promotion_footer.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_hierarchy_notice.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/fact_actions_sheet.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/fact_history_sheet.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/reaction_senders_sheet.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_attachment_widgets.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_bubble_measure.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/room_message_fact_quote.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_receipt_glyph.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_reply_quote.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_text_body.dart';
@@ -911,6 +913,46 @@ class RoomMessageTile extends StatelessWidget {
                   unavailable: fields.unavailable,
                   replyToMessageId: message.replyToMessageId,
                   onJumpToReply: onJumpToReply,
+                );
+              },
+            ),
+          ),
+        ],
+        if (message.quotedFact case final quoted?) ...[
+          Padding(
+            padding: EdgeInsets.only(
+              top:
+                  (showNameHeader || pinnedFact != null || message.isReply)
+                  ? tt.rowGap / 2
+                  : 0,
+            ),
+            child: Builder(
+              builder: (context) {
+                final cubit = context.read<RoomCubit?>();
+                final liveFact = cubit?.state.factCards
+                    .where((f) => f.id == quoted.factCardId)
+                    .firstOrNull;
+                return RoomMessageFactQuote(
+                  quotedFact: quoted,
+                  currentFact: liveFact,
+                  onOpen: liveFact == null
+                      ? null
+                      : () => unawaited(
+                          showFactActionsSheet(
+                            context,
+                            cubit: cubit!,
+                            fact: liveFact,
+                          ),
+                        ),
+                  onOpenHistory: () => unawaited(
+                    showFactHistorySheet(
+                      context,
+                      beaconId: message.beaconId,
+                      factCardId: quoted.factCardId,
+                      baseRevisionSeq: quoted.currentSeq,
+                      canMutate: cubit?.state.canWriteDiscussion ?? false,
+                    ),
+                  ),
                 );
               },
             ),
