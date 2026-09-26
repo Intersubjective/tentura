@@ -594,7 +594,7 @@ class Env {
   final String unsubscribeSigningSecret;
 
   /// HMAC secret for opaque invite-genealogy node keys. Falls back to
-  /// [unsubscribeSigningSecret] when unset (see [InviteGenealogyNodeKey]).
+  /// [unsubscribeSigningSecret] when unset (see `InviteGenealogyNodeKey`).
   final String genealogyNodeKeySecret;
 
   /// Minimum gap between immediate notification emails per recipient+category.
