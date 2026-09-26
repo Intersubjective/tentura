@@ -23,7 +23,11 @@ Future<void> showFactActionsSheet(
     fact: fact,
     canMutate: cubit.state.canWriteDiscussion,
     onCorrect: ({required factCardId, required newText}) =>
-        cubit.correctFact(factCardId: factCardId, newText: newText),
+        cubit.correctFact(
+          factCardId: factCardId,
+          newText: newText,
+          baseRevisionSeq: fact.revisionSeq,
+        ),
     onRemove: ({required factCardId}) => cubit.removeFact(factCardId: factCardId),
     onSetVisibility: ({required factCardId, required visibility}) =>
         cubit.setFactVisibility(

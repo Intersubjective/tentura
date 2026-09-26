@@ -54,6 +54,10 @@ abstract class RoomState extends StateBase with _$RoomState {
     String? scrollToMessageId,
     String? pendingFactsFocusFactId,
 
+    /// Current (refreshed) card after a correctFact revision conflict; null
+    /// when there is no unresolved conflict.
+    BeaconFactCard? factEditConflict,
+
     /// Snapshotted on first successful room load in this session; frozen across refresh.
     DateTime? unreadAnchorAt,
 

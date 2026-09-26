@@ -26,6 +26,7 @@ import '../../domain/entity/committed_mention.dart';
 import '../../domain/entity/request_thread.dart';
 import '../../domain/entity/room_seen_outcome.dart';
 import '../../domain/exception/beacon_fact_already_pinned_exception.dart';
+import '../../domain/exception/beacon_fact_card_exceptions.dart';
 import '../../domain/use_case/beacon_threads_case.dart';
 import '../message/beacon_room_fact_messages.dart';
 import '../message/discussion_read_only_message.dart';
@@ -37,7 +38,7 @@ export 'package:flutter_bloc/flutter_bloc.dart';
 
 export 'room_state.dart';
 
-enum _RoomRefreshScope { messages, full }
+enum _RoomRefreshScope { messages, facts, full }
 
 /// Observations that arrived after the active refresh began (and delete
 /// tombstones for that same refresh). Discarded when the refresh ends.
@@ -223,6 +224,7 @@ class RoomCubit extends Cubit<RoomState> {
       BeaconRoomEntityType.roomMessage ||
       BeaconRoomEntityType.roomReaction ||
       BeaconRoomEntityType.roomPoll => _RoomRefreshScope.messages,
+      BeaconRoomEntityType.factCard => _RoomRefreshScope.facts,
       _ => _RoomRefreshScope.full,
     };
     _requestRefresh(scope: scope);
@@ -291,11 +293,10 @@ class RoomCubit extends Cubit<RoomState> {
     if (isClosed) return;
     if (_refreshInProgress) {
       final alreadyQueued = _queuedRefreshScope != null;
-      _queuedRefreshScope =
-          scope == _RoomRefreshScope.full ||
-              _queuedRefreshScope == _RoomRefreshScope.full
-          ? _RoomRefreshScope.full
-          : _RoomRefreshScope.messages;
+      final queued = _queuedRefreshScope;
+      _queuedRefreshScope = queued == null || queued == scope
+          ? scope
+          : _RoomRefreshScope.full;
       _queuedRefreshSilent = alreadyQueued
           ? _queuedRefreshSilent && silent
           : silent;
@@ -312,10 +313,13 @@ class RoomCubit extends Cubit<RoomState> {
     final overlay = _MessageRefreshOverlay();
     _activeMessageRefreshOverlay = overlay;
     try {
-      if (scope == _RoomRefreshScope.full) {
-        await _fetchFullSnapshot(silent: silent, overlay: overlay);
-      } else {
-        await _fetchMessagesSnapshot(silent: silent, overlay: overlay);
+      switch (scope) {
+        case _RoomRefreshScope.full:
+          await _fetchFullSnapshot(silent: silent, overlay: overlay);
+        case _RoomRefreshScope.messages:
+          await _fetchMessagesSnapshot(silent: silent, overlay: overlay);
+        case _RoomRefreshScope.facts:
+          await _fetchFactCardsSnapshot(silent: silent);
       }
     } finally {
       if (identical(_activeMessageRefreshOverlay, overlay)) {
@@ -329,6 +333,18 @@ class RoomCubit extends Cubit<RoomState> {
         _queuedRefreshSilent = true;
         unawaited(_requestRefresh(scope: nextScope, silent: nextSilent));
       }
+    }
+  }
+
+  /// Fact-list-only refresh (factCard invalidation, fact edits); leaves
+  /// messages and participants untouched.
+  Future<void> _fetchFactCardsSnapshot({required bool silent}) async {
+    if (state.threadItemId != null) return;
+    try {
+      final factCards = await _case.fetchFactCards(state.beaconId);
+      if (!isClosed) emit(state.copyWith(factCards: factCards));
+    } on Object catch (e) {
+      if (!isClosed && !silent) _showSnackError(e);
     }
   }
 
@@ -980,33 +996,48 @@ class RoomCubit extends Cubit<RoomState> {
     }
   }
 
+  /// [baseRevisionSeq] is the revision of the card the edit sheet opened
+  /// with, never a re-fetched one (plan §14.6).
   Future<void> correctFact({
     required String factCardId,
     required String newText,
+    required int baseRevisionSeq,
   }) async {
     if (_rejectIfDiscussionReadOnly()) return;
-    emit(state.copyWith(status: const StateIsLoading()));
+    emit(
+      state.copyWith(status: const StateIsLoading(), factEditConflict: null),
+    );
     try {
       await _case.correctFact(
         beaconId: state.beaconId,
         factCardId: factCardId,
         newText: newText,
-        baseRevisionSeq: _factRevisionSeq(factCardId),
+        baseRevisionSeq: baseRevisionSeq,
       );
-      await load();
+      await _requestRefresh(scope: _RoomRefreshScope.facts, silent: false);
+      if (!isClosed) emit(state.copyWith(status: const StateIsSuccess()));
       _showMessage(const BeaconFactEditSuccessMessage());
+    } on BeaconFactEditConflictException {
+      await _requestRefresh(scope: _RoomRefreshScope.facts, silent: false);
+      if (isClosed) return;
+      emit(
+        state.copyWith(
+          status: const StateIsSuccess(),
+          factEditConflict: state.factCards
+              .where((f) => f.id == factCardId)
+              .firstOrNull,
+        ),
+      );
     } on Object catch (e) {
       _showSnackError(e);
     }
   }
 
-  /// Revision the user edited from; the server rejects a stale one.
-  int _factRevisionSeq(String factCardId) =>
-      state.factCards
-          .where((f) => f.id == factCardId)
-          .firstOrNull
-          ?.revisionSeq ??
-      1;
+  void clearFactEditConflict() {
+    if (state.factEditConflict != null) {
+      emit(state.copyWith(factEditConflict: null));
+    }
+  }
 
   Future<void> removeFact({required String factCardId}) async {
     if (_rejectIfDiscussionReadOnly()) return;
