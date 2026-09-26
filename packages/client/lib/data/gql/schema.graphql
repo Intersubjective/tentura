@@ -3766,7 +3766,7 @@ type mutation_root {
   MarkBeaconPeopleSeen(beaconId: String!, readThroughAt: String): v2_BeaconPeopleSeenResult!
   MarkThreadSeen(beaconId: String!, readThroughAt: String, threadId: String!): v2_BeaconRoomSeenResult!
   RoomMessageAttachmentAdd(beaconId: String!, file: v2_Upload = {}, messageId: String!): Boolean!
-  RoomMessageCreate(beaconId: String!, body: String!, explicitMentionLengths: [Int!], explicitMentionOffsets: [Int!], explicitMentionUserIds: [String!], file: v2_Upload, replyToMessageId: String, threadItemId: String): v2_RoomMessageCreatePayload!
+  RoomMessageCreate(beaconId: String!, body: String!, explicitMentionLengths: [Int!], explicitMentionOffsets: [Int!], explicitMentionUserIds: [String!], file: v2_Upload, quotedFactCardId: String, quotedFactRevisionSeq: Int, replyToMessageId: String, threadItemId: String): v2_RoomMessageCreatePayload!
   RoomMessageDelete(beaconId: String!, messageId: String!): Boolean!
   RoomMessageEdit(beaconId: String!, body: String!, explicitMentionLengths: [Int!], explicitMentionOffsets: [Int!], explicitMentionUserIds: [String!], explicitMentionsProvided: Boolean, messageId: String!): Boolean!
   RoomMessageMarkSemanticDone(beaconId: String!, messageId: String!): Boolean!
@@ -8225,6 +8225,18 @@ type v2_RoomMessageCreatePayload {
   id: String!
 }
 
+type v2_RoomMessageQuotedFact {
+  attachmentsJson: String!
+  currentSeq: Int!
+  factCardId: String!
+  pinnedById: String
+  pinnedByTitle: String!
+  seq: Int!
+  status: Int!
+  text: String!
+  visibility: Int!
+}
+
 type v2_RoomMessageRow {
   attachmentsJson: String!
   authorBlurHash: String!
@@ -8258,6 +8270,7 @@ type v2_RoomMessageRow {
   mentions: [String!]
   myReaction: String
   pollDataJson: String
+  quotedFact: v2_RoomMessageQuotedFact
   reactionsJson: String
   reactorsJson: String
   replyToAuthorId: String

@@ -329,6 +329,8 @@ class FakeBeaconThreadsRepository extends Fake
     List<String> explicitMentionUserIds = const [],
     List<int> explicitMentionOffsets = const [],
     List<int> explicitMentionLengths = const [],
+    String? quotedFactCardId,
+    int? quotedFactRevisionSeq,
   }) async {
     createMessageCalls++;
     lastCreateBeaconId = beaconId;

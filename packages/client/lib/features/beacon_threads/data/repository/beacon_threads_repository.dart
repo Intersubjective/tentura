@@ -18,6 +18,7 @@ import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/entity/quoted_fact.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_read_watermark.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
@@ -38,6 +39,7 @@ import '../gql/_g/room_message_attachment_add.req.gql.dart';
 import '../gql/_g/room_message_create.req.gql.dart';
 import '../gql/_g/room_message_delete.req.gql.dart';
 import '../gql/_g/room_message_edit.req.gql.dart';
+import '../gql/_g/room_message_list.data.gql.dart';
 import '../gql/_g/room_message_list.req.gql.dart';
 import '../gql/_g/room_message_reaction_toggle.req.gql.dart';
 import '../gql/_g/room_message_target.req.gql.dart';
@@ -235,9 +237,27 @@ class BeaconThreadsRepository {
             replyToAuthorTitle: m.replyToAuthorTitle,
             replyToBodyExcerpt: m.replyToBodyExcerpt,
             replyToHasAttachments: m.replyToHasAttachments,
+            quotedFact: _toQuotedFact(m.quotedFact),
           ),
         )
         .toList();
+  }
+
+  static QuotedFact? _toQuotedFact(
+    GRoomMessageListData_RoomMessageList_quotedFact? q,
+  ) {
+    if (q == null) return null;
+    return QuotedFact(
+      factCardId: q.factCardId,
+      seq: q.seq,
+      currentSeq: q.currentSeq,
+      status: q.status,
+      factText: q.text,
+      pinnedById: q.pinnedById,
+      pinnedByTitle: q.pinnedByTitle,
+      visibility: q.visibility,
+      attachments: parseRoomMessageAttachmentsJson(q.attachmentsJson),
+    );
   }
 
   /// This V2 query performs the server-side room/thread authorization check.
@@ -351,6 +371,7 @@ class BeaconThreadsRepository {
     String? replyToAuthorTitle,
     String? replyToBodyExcerpt,
     bool? replyToHasAttachments,
+    QuotedFact? quotedFact,
   }) {
     final reactionCounts = <String, int>{};
     final rawJson = reactionsJson;
@@ -425,6 +446,7 @@ class BeaconThreadsRepository {
       replyToAuthorTitle: replyToAuthorTitle,
       replyToBodyExcerpt: replyToBodyExcerpt,
       replyToHasAttachments: replyToHasAttachments ?? false,
+      quotedFact: quotedFact,
     );
   }
 
@@ -602,7 +624,13 @@ class BeaconThreadsRepository {
     List<String> explicitMentionUserIds = const [],
     List<int> explicitMentionOffsets = const [],
     List<int> explicitMentionLengths = const [],
+    String? quotedFactCardId,
+    int? quotedFactRevisionSeq,
   }) async {
+    assert(
+      (quotedFactCardId == null) == (quotedFactRevisionSeq == null),
+      'quotedFactCardId and quotedFactRevisionSeq go together',
+    );
     final multipart = firstAttachment == null
         ? null
         : TenturaV2Upload(
@@ -621,7 +649,9 @@ class BeaconThreadsRepository {
               ..file = multipart
               ..explicitMentionUserIds = ListBuilder(explicitMentionUserIds)
               ..explicitMentionOffsets = ListBuilder(explicitMentionOffsets)
-              ..explicitMentionLengths = ListBuilder(explicitMentionLengths),
+              ..explicitMentionLengths = ListBuilder(explicitMentionLengths)
+              ..quotedFactCardId = quotedFactCardId
+              ..quotedFactRevisionSeq = quotedFactRevisionSeq,
           ),
         )
         .firstWhere((e) => e.dataSource == DataSource.Link);

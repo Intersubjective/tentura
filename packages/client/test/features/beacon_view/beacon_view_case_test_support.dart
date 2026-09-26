@@ -518,6 +518,8 @@ class FakeBeaconViewRoomRepository implements BeaconThreadsRepository {
     List<String> explicitMentionUserIds = const [],
     List<int> explicitMentionOffsets = const [],
     List<int> explicitMentionLengths = const [],
+    String? quotedFactCardId,
+    int? quotedFactRevisionSeq,
   }) async {
     if (createError != null) _throwTestError(createError!);
     createdMessages.add((

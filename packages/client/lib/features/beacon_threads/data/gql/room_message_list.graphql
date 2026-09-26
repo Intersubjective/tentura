@@ -53,5 +53,16 @@ query RoomMessageList(
     replyToHasAttachments
     replyToMessageId
     threadItemId
+    quotedFact {
+      factCardId
+      seq
+      text
+      pinnedById
+      pinnedByTitle
+      visibility
+      status
+      currentSeq
+      attachmentsJson
+    }
   }
 }

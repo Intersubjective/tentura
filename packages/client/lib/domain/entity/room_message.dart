@@ -5,6 +5,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/entity/quoted_fact.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/domain/entity/room_message_hierarchy_payload.dart';
 import 'package:tentura/domain/entity/room_message_mention_span.dart';
@@ -57,6 +58,7 @@ abstract class RoomMessage with _$RoomMessage {
     String? replyToAuthorTitle,
     String? replyToBodyExcerpt,
     @Default(false) bool replyToHasAttachments,
+    QuotedFact? quotedFact,
   }) = _RoomMessage;
 
   const RoomMessage._();

@@ -220,4 +220,97 @@ void main() {
       typeDefinition(entries!.group(1)!);
     });
   });
+
+  // Issue #181 plan §8.11: RoomMessageList rows carry the quoted fact
+  // snapshot (server `gqlTypeRoomMessageQuotedFact`) and RoomMessageCreate
+  // takes the quote ids. Hasura sorts fields/arguments alphabetically and
+  // prefixes V2 object types with `v2_`.
+  group('room message quoted fact (issue #181)', () {
+    late String schema;
+
+    setUpAll(() {
+      schema = File('lib/data/gql/schema.graphql').readAsStringSync();
+    });
+
+    String typeDefinition(String name) {
+      final start = schema.indexOf('type $name {');
+      expect(start, isNonNegative, reason: 'type $name is missing');
+      expect(
+        schema.indexOf('type $name {', start + 1),
+        isNegative,
+        reason: 'type $name is defined twice',
+      );
+      final end = schema.indexOf('\n}', start);
+      return schema.substring(start, end + 2);
+    }
+
+    /// SDL for server `custom_types.dart` object type [dartName] as Hasura
+    /// stitches it: `v2_` prefix, fields sorted alphabetically.
+    String serverTypeAsStitchedSdl(String dartName) {
+      final source = File(
+        '../server/lib/api/controllers/graphql/custom_types.dart',
+      ).readAsStringSync();
+      final start = source.indexOf('final $dartName =');
+      expect(start, isNonNegative, reason: '$dartName is missing on server');
+      final end = source.indexOf(']);', start);
+      final body = source.substring(start, end);
+      final typeName = RegExp(
+        r"GraphQLObjectType\('(\w+)'",
+      ).firstMatch(body)!.group(1)!;
+      const scalars = {
+        'graphQLString': 'String',
+        'graphQLInt': 'Int',
+        'graphQLBoolean': 'Boolean',
+        'graphQLFloat': 'Float',
+      };
+      final fields = RegExp(
+        r"field\('(\w+)',\s*(\w+)(\.nonNullable\(\))?\)",
+      ).allMatches(body).map((m) {
+        final scalar = scalars[m.group(2)!];
+        expect(scalar, isNotNull, reason: 'unmapped type ${m.group(2)}');
+        return '  ${m.group(1)}: $scalar${m.group(3) == null ? '' : '!'}';
+      }).toList()..sort();
+      return 'type v2_$typeName {\n${fields.join('\n')}\n}';
+    }
+
+    test('v2_RoomMessageQuotedFact matches custom_types '
+        'gqlTypeRoomMessageQuotedFact exactly', () {
+      final expected = serverTypeAsStitchedSdl('gqlTypeRoomMessageQuotedFact');
+      // Guard the server-side parse itself against silently matching nothing.
+      expect(expected, contains('  factCardId: String!\n'));
+      expect(expected, contains('  pinnedById: String\n'));
+      expect(expected.split('\n'), hasLength(11));
+
+      expect(typeDefinition('v2_RoomMessageQuotedFact'), expected);
+    });
+
+    test('v2_RoomMessageRow exposes nullable quotedFact in sorted order', () {
+      final row = typeDefinition('v2_RoomMessageRow');
+      expect(
+        row,
+        contains(
+          '  pollDataJson: String\n'
+          '  quotedFact: v2_RoomMessageQuotedFact\n'
+          '  reactionsJson: String\n',
+        ),
+      );
+    });
+
+    test('RoomMessageCreate takes optional quotedFactCardId + '
+        'quotedFactRevisionSeq', () {
+      final fields = typeDefinition('mutation_root')
+          .split('\n')
+          .map((l) => l.trim())
+          .where((l) => l.startsWith('RoomMessageCreate('))
+          .toList();
+      expect(fields, [
+        'RoomMessageCreate(beaconId: String!, body: String!, '
+            'explicitMentionLengths: [Int!], explicitMentionOffsets: [Int!], '
+            'explicitMentionUserIds: [String!], file: v2_Upload, '
+            'quotedFactCardId: String, quotedFactRevisionSeq: Int, '
+            'replyToMessageId: String, threadItemId: String): '
+            'v2_RoomMessageCreatePayload!',
+      ]);
+    });
+  });
 }
