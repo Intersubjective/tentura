@@ -1,6 +1,7 @@
 import 'package:injectable/injectable.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import 'package:tentura_server/domain/entity/beacon_fact_card_outcome.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
@@ -113,36 +114,76 @@ final class BeaconFactCardCase extends UseCaseBase {
     return {'id': entity.id, 'beaconId': entity.beaconId};
   }
 
-  Future<bool> correct({
+  /// Edits the fact text against the caller's [baseRevisionSeq]; returns
+  /// the resulting head seq.
+  Future<int> correct({
     required String factCardId,
     required String beaconId,
     required String actorUserId,
     required String newText,
+    required int baseRevisionSeq,
   }) async {
-    await _ensureRoomAccess(beaconId: beaconId, userId: actorUserId);
-    await _rejectOrdinaryUserWritesForLifecycle(beaconId);
-    // The GraphQL mutation does not carry a base seq yet, so edit against
-    // the current one (last write wins, as before the rename).
-    final facts = await _facts.listForBeacon(
-      beaconId: beaconId,
-      includeRoomOnly: true,
-    );
-    final baseRevisionSeq = facts
-        .where((f) => f.id == factCardId)
-        .map((f) => f.revisionSeq)
-        .firstOrNull;
-    await _facts.editText(
+    final trimmed = newText.trim();
+    if (trimmed.isEmpty) {
+      throw const BeaconCreateException(description: 'Fact text is empty');
+    }
+    await _ensureWritableRoomAccess(beaconId: beaconId, userId: actorUserId);
+    return _seqOrThrow(
+      await _facts.editText(
+        factCardId: factCardId,
+        beaconId: beaconId,
+        actorUserId: actorUserId,
+        newText: trimmed,
+        baseRevisionSeq: baseRevisionSeq,
+        rateWindow: env.factEditRateWindow,
+        rateMax: env.factEditRateMax,
+        quietWindow: kFactEditQuietWindow,
+      ),
       factCardId: factCardId,
-      beaconId: beaconId,
-      actorUserId: actorUserId,
-      newText: newText.trim(),
-      baseRevisionSeq: baseRevisionSeq ?? 0,
-      rateWindow: const Duration(seconds: 60),
-      rateMax: 20,
-      quietWindow: kFactEditQuietWindow,
     );
-    return true;
   }
+
+  /// Restores the text of revision [fromSeq] as a new head revision; returns
+  /// the resulting head seq.
+  Future<int> restore({
+    required String factCardId,
+    required String beaconId,
+    required String actorUserId,
+    required int fromSeq,
+    required int baseRevisionSeq,
+  }) async {
+    await _ensureWritableRoomAccess(beaconId: beaconId, userId: actorUserId);
+    return _seqOrThrow(
+      await _facts.restoreRevision(
+        factCardId: factCardId,
+        beaconId: beaconId,
+        actorUserId: actorUserId,
+        fromSeq: fromSeq,
+        baseRevisionSeq: baseRevisionSeq,
+        rateWindow: env.factEditRateWindow,
+        rateMax: env.factEditRateMax,
+        quietWindow: kFactEditQuietWindow,
+      ),
+      factCardId: factCardId,
+    );
+  }
+
+  /// Plan §14.5 outcome → result/exception map.
+  int _seqOrThrow(FactEditOutcome outcome, {required String factCardId}) =>
+      switch (outcome) {
+        FactEditApplied(:final newSeq) => newSeq,
+        FactEditNoOp(:final currentSeq) => currentSeq,
+        FactEditNotFound() => throw IdNotFoundException(id: factCardId),
+        FactEditRemoved() => throw const BeaconFactCardRemovedException(),
+        FactEditRateLimited() =>
+          throw const BeaconFactCardRateLimitedException(),
+        FactEditConflict(:final currentSeq) =>
+          throw BeaconFactCardEditConflictException(currentSeq: currentSeq),
+        FactRestoreSourceMissing() => throw IdWrongException(
+          id: factCardId,
+          description: 'Fact card revision not found',
+        ),
+      };
 
   Future<bool> remove({
     required String factCardId,

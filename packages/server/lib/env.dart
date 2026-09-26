@@ -126,6 +126,8 @@ class Env {
     Duration? blockReleaseSweepInterval,
     Duration? roomMessageRateWindow,
     int? roomMessageMaxPerUser,
+    Duration? factEditRateWindow,
+    int? factEditRateMax,
     int? uploadDailyCapBytes,
 
     // Web server
@@ -317,6 +319,15 @@ class Env {
            roomMessageMaxPerUser ??
            int.tryParse(_env['ROOM_MESSAGE_MAX_PER_USER'] ?? '') ??
            30,
+       factEditRateWindow =
+           factEditRateWindow ??
+           Duration(
+             seconds: int.tryParse(_env['FACT_EDIT_RATE_WINDOW'] ?? '') ?? 60,
+           ),
+       factEditRateMax =
+           factEditRateMax ??
+           int.tryParse(_env['FACT_EDIT_RATE_MAX'] ?? '') ??
+           20,
        uploadDailyCapBytes =
            uploadDailyCapBytes ??
            (int.tryParse(_env['UPLOAD_DAILY_CAP_MB'] ?? '') ?? 200) *
@@ -628,6 +639,14 @@ class Env {
 
   /// Max room messages one author may post within [roomMessageRateWindow].
   final int roomMessageMaxPerUser;
+
+  /// Sliding window (seconds via `FACT_EDIT_RATE_WINDOW`) for fact-card
+  /// edit/restore rate limiting (per actor).
+  final Duration factEditRateWindow;
+
+  /// Max fact-card edits/restores one actor may make within
+  /// [factEditRateWindow] (`FACT_EDIT_RATE_MAX`).
+  final int factEditRateMax;
 
   /// Max total bytes (images + file attachments) one user may upload per UTC
   /// day. Configured in MB via `UPLOAD_DAILY_CAP_MB` (default 200MB).

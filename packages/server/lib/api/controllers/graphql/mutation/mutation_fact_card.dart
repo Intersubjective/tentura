@@ -20,12 +20,19 @@ final class MutationFactCard extends GqlNodeBase {
 
   final _newText = InputFieldString(fieldName: 'newText');
 
+  final GraphQLFieldInput<int, int> _baseRevisionSeq =
+      GraphQLFieldInput('baseRevisionSeq', graphQLInt.nonNullable());
+
+  final GraphQLFieldInput<int, int> _fromSeq =
+      GraphQLFieldInput('fromSeq', graphQLInt.nonNullable());
+
   final _sourceMessageId = InputFieldString(fieldName: 'sourceMessageId');
 
   List<GraphQLObjectField<dynamic, dynamic>> get all =>
       [
         beaconFactCardPin,
         beaconFactCardCorrect,
+        beaconFactCardRestore,
         beaconFactCardRemove,
         beaconFactCardSetVisibility,
       ];
@@ -75,17 +82,38 @@ final class MutationFactCard extends GqlNodeBase {
   GraphQLObjectField<dynamic, dynamic> get beaconFactCardCorrect =>
       GraphQLObjectField(
         'BeaconFactCardCorrect',
-        graphQLBoolean.nonNullable(),
+        graphQLInt.nonNullable(),
         arguments: [
           _beaconIdStr.field,
           _factCardId.field,
           _newText.field,
+          _baseRevisionSeq,
         ],
         resolve: (_, args) => _case.correct(
               factCardId: _factCardId.fromArgsNonNullable(args),
               beaconId: _beaconIdStr.fromArgsNonNullable(args),
               actorUserId: getCredentials(args).sub,
               newText: _newText.fromArgsNonNullable(args),
+              baseRevisionSeq: args[_baseRevisionSeq.name]! as int,
+            ),
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get beaconFactCardRestore =>
+      GraphQLObjectField(
+        'BeaconFactCardRestore',
+        graphQLInt.nonNullable(),
+        arguments: [
+          _beaconIdStr.field,
+          _factCardId.field,
+          _fromSeq,
+          _baseRevisionSeq,
+        ],
+        resolve: (_, args) => _case.restore(
+              factCardId: _factCardId.fromArgsNonNullable(args),
+              beaconId: _beaconIdStr.fromArgsNonNullable(args),
+              actorUserId: getCredentials(args).sub,
+              fromSeq: args[_fromSeq.name]! as int,
+              baseRevisionSeq: args[_baseRevisionSeq.name]! as int,
             ),
       );
 

@@ -324,6 +324,7 @@ void main() {
           beaconId: _beaconId,
           actorUserId: _userId,
           newText: 'edit',
+          baseRevisionSeq: 1,
         ),
         throwsA(isA<UnauthorizedException>()),
       );
@@ -401,14 +402,15 @@ void main() {
 
   group('BeaconFactCardCase mutations', () {
     test('correct delegates to repository when admitted', () async {
-      final ok = await case_.correct(
+      final seq = await case_.correct(
         factCardId: _factId,
         beaconId: _beaconId,
         actorUserId: _userId,
         newText: 'updated',
+        baseRevisionSeq: 1,
       );
 
-      expect(ok, isTrue);
+      expect(seq, 2);
       expect(facts.lastCorrectedText, 'updated');
     });
 
@@ -608,6 +610,7 @@ void main() {
           beaconId: _beaconId,
           actorUserId: _userId,
           newText: 'x',
+          baseRevisionSeq: 1,
         ),
         throwsA(isA<BeaconCreateException>()),
       );
