@@ -951,6 +951,7 @@ SELECT
   lm.linked_event_kind AS lm_linked_event_kind,
   lm.system_payload::text AS lm_system_payload_json,
   COALESCE(att.has_attachment, false) AS lm_has_attachment,
+  lm.quoted_fact_card_id AS lm_quoted_fact_card_id,
   linked_ci.kind AS lm_linked_item_kind,
   linked_ci.title AS lm_linked_item_title,
   pol.question AS lm_poll_title,
@@ -1533,6 +1534,7 @@ BeaconThreadRecord _mapBeaconThreadRow(
           linkedItemId: row.readNullable<String>('lm_linked_item_id'),
           linkedEventKind: row.readNullable<int>('lm_linked_event_kind'),
           hasAttachment: row.read<bool>('lm_has_attachment'),
+          hasQuotedFact: row.readNullable<String>('lm_quoted_fact_card_id') != null,
           systemPayloadJson: row.readNullable<String>('lm_system_payload_json'),
           linkedItemKind: row.readNullable<int>('lm_linked_item_kind'),
           linkedItemTitle: row.readNullable<String>('lm_linked_item_title'),
@@ -1598,6 +1600,7 @@ ThreadMessagePreviewRecord _mapThreadMessagePreview({
   required String? linkedItemId,
   required int? linkedEventKind,
   required bool hasAttachment,
+  required bool hasQuotedFact,
   required String? systemPayloadJson,
   required int? linkedItemKind,
   required String? linkedItemTitle,
@@ -1653,6 +1656,13 @@ ThreadMessagePreviewRecord _mapThreadMessagePreview({
       kind: ThreadMessagePreviewKind.text,
       excerpt: _truncateExcerpt(trimmedBody, excerptCharacters),
       hasAttachment: hasAttachment,
+    );
+  }
+
+  if (hasQuotedFact) {
+    return const ThreadMessagePreviewRecord(
+      kind: ThreadMessagePreviewKind.factQuoted,
+      hasAttachment: false,
     );
   }
 

@@ -187,6 +187,8 @@ ON CONFLICT (id) DO UPDATE SET
       String? linkedFactCardId,
       Map<String, Object?>? systemPayload,
       DateTime? createdAt,
+      String? quotedFactCardId,
+      int? quotedFactRevisionSeq,
     }) async {
       final at = (createdAt ?? DateTime.utc(2026, 1, 3)).toIso8601String();
       await writer.execute(
@@ -194,11 +196,12 @@ ON CONFLICT (id) DO UPDATE SET
 INSERT INTO public.beacon_room_message (
   id, beacon_id, author_id, body, thread_item_id, semantic_marker,
   linked_item_id, linked_event_kind, linked_polling_id, linked_fact_card_id,
-  system_payload, created_at
+  system_payload, created_at, quoted_fact_card_id, quoted_fact_revision_seq
 ) VALUES (
   @id, @beaconId, @authorId, @body, @threadItemId, @semanticMarker,
   @linkedItemId, @linkedEventKind, @linkedPollingId, @linkedFactCardId,
-  CAST(@systemPayload AS jsonb), @createdAt::timestamptz
+  CAST(@systemPayload AS jsonb), @createdAt::timestamptz,
+  @quotedFactCardId, @quotedFactRevisionSeq
 )
 ON CONFLICT (id) DO UPDATE SET
   body = EXCLUDED.body,
@@ -208,7 +211,9 @@ ON CONFLICT (id) DO UPDATE SET
   linked_polling_id = EXCLUDED.linked_polling_id,
   linked_fact_card_id = EXCLUDED.linked_fact_card_id,
   system_payload = EXCLUDED.system_payload,
-  created_at = EXCLUDED.created_at
+  created_at = EXCLUDED.created_at,
+  quoted_fact_card_id = EXCLUDED.quoted_fact_card_id,
+  quoted_fact_revision_seq = EXCLUDED.quoted_fact_revision_seq
 '''),
         parameters: {
           'id': id,
@@ -223,6 +228,42 @@ ON CONFLICT (id) DO UPDATE SET
           'linkedFactCardId': linkedFactCardId,
           'systemPayload': systemPayload == null ? null : _json(systemPayload),
           'createdAt': at,
+          'quotedFactCardId': quotedFactCardId,
+          'quotedFactRevisionSeq': quotedFactRevisionSeq,
+        },
+      );
+    }
+
+    Future<void> insertFactCardWithRevision({
+      required String factCardId,
+      required String factText,
+    }) async {
+      await writer.execute(
+        Sql.named(r'''
+INSERT INTO public.beacon_fact_card (
+  id, beacon_id, pinned_by, fact_text, visibility, created_at, updated_at
+) VALUES (@id, @beaconId, @pinnedBy, @factText, 1,
+  '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
+ON CONFLICT (id) DO NOTHING
+'''),
+        parameters: {
+          'id': factCardId,
+          'beaconId': beaconId,
+          'pinnedBy': memberId,
+          'factText': factText,
+        },
+      );
+      await writer.execute(
+        Sql.named(r'''
+INSERT INTO public.beacon_fact_card_revision (
+  fact_card_id, seq, fact_text, actor_id, kind, created_at
+) VALUES (@factCardId, 1, @factText, @actorId, 0, '2026-01-01T00:00:00Z')
+ON CONFLICT (fact_card_id, seq) DO NOTHING
+'''),
+        parameters: {
+          'factCardId': factCardId,
+          'factText': factText,
+          'actorId': memberId,
         },
       );
     }
@@ -874,6 +915,75 @@ ON CONFLICT (id) DO NOTHING
         final preview = rowFor(rows, 'general')!.lastMessagePreview;
         expect(preview?.kind, ThreadMessagePreviewKind.factEdited);
         expect(preview?.factTitle, 'Current fact text');
+      },
+      skip: skipReason,
+    );
+
+    test(
+      'quote-only last message previews as factQuoted (12); adding a body '
+      'keeps the existing text kind with the body as excerpt',
+      () async {
+        await seedBaseUsersAndBeacon();
+        await insertFactCardWithRevision(
+          factCardId: 'Fthpgquote01',
+          factText: 'Quoted fact text',
+        );
+
+        // Plan §8.8 bullet 2 / tentura-617.18: a quote-only body (no
+        // semantic marker, no linked item, no attachment) must not degrade
+        // to the generic empty-text fallback (kind 0) — it must map to the
+        // dedicated factQuoted preview kind (12), mirrored on the client at
+        // request_thread.dart's `ThreadMessagePreviewKind.factQuoted`.
+        // ThreadMessagePreviewKind has no `factQuoted` member yet on the
+        // server, so the expected kind is asserted as the literal 12.
+        const factQuotedKind = 12;
+
+        await insertMessage(
+          id: 'Rthpgquote01',
+          authorId: memberId,
+          body: '',
+          quotedFactCardId: 'Fthpgquote01',
+          quotedFactRevisionSeq: 1,
+          createdAt: DateTime.utc(2026, 1, 6, 1),
+        );
+
+        final quoteOnlyRows = await items.listThreads(
+          beaconId: beaconId,
+          viewerUserId: memberId,
+          includeGeneral: true,
+          itemParticipantsOnly: false,
+          excerptCharacters: 140,
+        );
+        final quoteOnlyPreview = rowFor(quoteOnlyRows, 'general')!
+            .lastMessagePreview;
+        expect(
+          quoteOnlyPreview?.kind,
+          factQuotedKind,
+          reason:
+              'quote-only empty body must preview as factQuoted (12), not '
+              'degrade to the empty-text fallback',
+        );
+
+        await insertMessage(
+          id: 'Rthpgquote02',
+          authorId: memberId,
+          body: 'quoted with words',
+          quotedFactCardId: 'Fthpgquote01',
+          quotedFactRevisionSeq: 1,
+          createdAt: DateTime.utc(2026, 1, 6, 2),
+        );
+
+        final quotedBodyRows = await items.listThreads(
+          beaconId: beaconId,
+          viewerUserId: memberId,
+          includeGeneral: true,
+          itemParticipantsOnly: false,
+          excerptCharacters: 140,
+        );
+        final quotedBodyPreview = rowFor(quotedBodyRows, 'general')!
+            .lastMessagePreview;
+        expect(quotedBodyPreview?.kind, ThreadMessagePreviewKind.text);
+        expect(quotedBodyPreview?.excerpt, 'quoted with words');
       },
       skip: skipReason,
     );
