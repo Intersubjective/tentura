@@ -51,6 +51,8 @@ class FakeBeaconThreadsRepository extends Fake
   int fetchMessagesCallCount = 0;
   int fetchParticipantsCallCount = 0;
   String? lastReplyToMessageId;
+  String? lastQuotedFactCardId;
+  int? lastQuotedFactRevisionSeq;
 
   /// Blocks [createMessage] until completed (stale reply-target race tests).
   Completer<void>? createMessageGate;
@@ -218,6 +220,8 @@ class FakeBeaconThreadsRepository extends Fake
   }) async {
     createMessageCalls++;
     lastReplyToMessageId = replyToMessageId;
+    lastQuotedFactCardId = quotedFactCardId;
+    lastQuotedFactRevisionSeq = quotedFactRevisionSeq;
     final gate = createMessageGate;
     if (gate != null) {
       await gate.future;

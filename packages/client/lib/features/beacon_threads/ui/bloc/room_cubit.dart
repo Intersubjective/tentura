@@ -9,6 +9,7 @@ import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
+import 'package:tentura/domain/entity/quoted_fact.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_message_mention_span.dart';
@@ -422,6 +423,30 @@ class RoomCubit extends Cubit<RoomState> {
   void cancelReply() {
     if (state.replyTarget != null) {
       emit(state.copyWith(replyTarget: null));
+    }
+  }
+
+  void setPendingQuotedFact(BeaconFactCard card) {
+    emit(
+      state.copyWith(
+        pendingQuotedFact: QuotedFact(
+          factCardId: card.id,
+          seq: card.revisionSeq,
+          currentSeq: card.revisionSeq,
+          status: card.status,
+          factText: card.factText,
+          pinnedById: card.pinnedBy,
+          pinnedByTitle: card.pinnedByTitle,
+          visibility: card.visibility,
+          attachments: card.attachments,
+        ),
+      ),
+    );
+  }
+
+  void clearPendingQuotedFact() {
+    if (state.pendingQuotedFact != null) {
+      emit(state.copyWith(pendingQuotedFact: null));
     }
   }
 
@@ -1080,7 +1105,8 @@ class RoomCubit extends Cubit<RoomState> {
   }) async {
     if (_rejectIfDiscussionReadOnly()) return false;
     final trimmed = body.trim();
-    if (trimmed.isEmpty && uploads.isEmpty) {
+    final quotedFact = state.pendingQuotedFact;
+    if (trimmed.isEmpty && uploads.isEmpty && quotedFact == null) {
       return false;
     }
     final leadingTrimmedUnits = body.length - body.trimLeft().length;
@@ -1144,6 +1170,8 @@ class RoomCubit extends Cubit<RoomState> {
         explicitMentionLengths: [
           for (final mention in normalizedMentions) mention.end - mention.start,
         ],
+        quotedFactCardId: quotedFact?.factCardId,
+        quotedFactRevisionSeq: quotedFact?.seq,
       );
       _pendingLocalMessageIds.remove(localId);
       final deferred = serverId != null
@@ -1158,6 +1186,9 @@ class RoomCubit extends Cubit<RoomState> {
           .where((message) => message.id != localId)
           .toList();
       final clearReply = state.replyTarget?.id == target?.id;
+      final clearQuote =
+          quotedFact != null &&
+          state.pendingQuotedFact?.factCardId == quotedFact.factCardId;
       emit(
         state.copyWith(
           messages: _sortMessages(
@@ -1166,6 +1197,7 @@ class RoomCubit extends Cubit<RoomState> {
             ),
           ),
           replyTarget: clearReply ? null : state.replyTarget,
+          pendingQuotedFact: clearQuote ? null : state.pendingQuotedFact,
         ),
       );
       _flushDeferredOwnPaints();

@@ -5,6 +5,7 @@ import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
+import 'package:tentura/domain/entity/quoted_fact.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_read_watermark.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
@@ -48,6 +49,10 @@ abstract class RoomState extends StateBase with _$RoomState {
 
     /// Message the composer is replying to; null when reply mode is off.
     RoomMessage? replyTarget,
+
+    /// Fact the composer is quoting; null when no quote is pending. Cleared
+    /// only after a successful send, like [replyTarget].
+    QuotedFact? pendingQuotedFact,
 
     /// Off-window jump targets merged into [messages]; excluded from unread.
     @Default(<String>[]) List<String> pinnedJumpMessageIds,

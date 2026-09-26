@@ -178,8 +178,10 @@ final class BeaconThreadsCase extends UseCaseBase {
     List<String> explicitMentionUserIds = const [],
     List<int> explicitMentionOffsets = const [],
     List<int> explicitMentionLengths = const [],
+    String? quotedFactCardId,
+    int? quotedFactRevisionSeq,
   }) async {
-    if (body.trim().isEmpty && uploads.isEmpty) {
+    if (body.trim().isEmpty && uploads.isEmpty && quotedFactCardId == null) {
       return null;
     }
     final first = uploads.isNotEmpty ? uploads.first : null;
@@ -195,6 +197,8 @@ final class BeaconThreadsCase extends UseCaseBase {
       explicitMentionUserIds: explicitMentionUserIds,
       explicitMentionOffsets: explicitMentionOffsets,
       explicitMentionLengths: explicitMentionLengths,
+      quotedFactCardId: quotedFactCardId,
+      quotedFactRevisionSeq: quotedFactRevisionSeq,
     );
     for (final u in extras) {
       await _room.addMessageAttachment(
