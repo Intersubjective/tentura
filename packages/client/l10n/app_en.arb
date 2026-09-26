@@ -5167,6 +5167,9 @@
   "beaconRoomSemanticPoll": "Poll",
   "beaconRoomSemanticSystem": "System",
   "beaconRoomSemanticParticipantJoined": "Joined the discussion",
+  "beaconRoomSemanticFactEdited": "Fact edited",
+  "beaconRoomSemanticFactUnpinned": "Fact unpinned",
+  "beaconRoomSemanticFactQuoted": "Fact",
   "beaconRoomMemberCount": "{count, plural, =1{1 person} other{{count} people}}",
   "@beaconRoomMemberCount": {
     "placeholders": {

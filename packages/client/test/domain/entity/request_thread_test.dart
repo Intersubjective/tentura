@@ -170,11 +170,40 @@ void main() {
       expect(
         () => mapThreadMessagePreview(
           GBeaconThreadsListData_beaconThreads_lastMessagePreview.fromJson(
-            preview(kind: 10),
+            preview(kind: ThreadMessagePreviewKind.factQuoted + 1),
           )!,
         ),
         throwsArgumentError,
       );
+    });
+
+    test('ThreadMessagePreviewKind.values includes the new fact kinds', () {
+      expect(
+        ThreadMessagePreviewKind.values,
+        containsAll(<int>[
+          ThreadMessagePreviewKind.factEdited,
+          ThreadMessagePreviewKind.factUnpinned,
+          ThreadMessagePreviewKind.factQuoted,
+        ]),
+      );
+    });
+
+    test('parses factEdited, factUnpinned and factQuoted wire kinds', () {
+      for (final code in <int>[
+        ThreadMessagePreviewKind.factEdited,
+        ThreadMessagePreviewKind.factUnpinned,
+        ThreadMessagePreviewKind.factQuoted,
+      ]) {
+        final thread = parseRow(
+          threadRow(
+            threadId: RequestThread.generalId,
+            threadKind: 'general',
+            preview: preview(kind: code, factTitle: 'Bring extra chairs'),
+          ),
+        );
+        expect(thread.lastMessagePreview?.kind, code);
+        expect(thread.lastMessagePreview?.factTitle, 'Bring extra chairs');
+      }
     });
   });
 

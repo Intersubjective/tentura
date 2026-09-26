@@ -5091,6 +5091,9 @@
   "beaconRoomSemanticPoll": "Опрос",
   "beaconRoomSemanticSystem": "Системное",
   "beaconRoomSemanticParticipantJoined": "Вступил(а) в обсуждение",
+  "beaconRoomSemanticFactEdited": "Факт изменён",
+  "beaconRoomSemanticFactUnpinned": "Факт откреплён",
+  "beaconRoomSemanticFactQuoted": "Факт",
   "beaconRoomMemberCount": "{count, plural, one{{count} участник} few{{count} участника} many{{count} участников} other{{count} участника}}",
   "@beaconRoomMemberCount": {
     "placeholders": {

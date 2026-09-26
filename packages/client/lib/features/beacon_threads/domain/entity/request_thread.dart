@@ -17,7 +17,10 @@ abstract final class ThreadMessagePreviewKind {
   static const done = 7;
   static const poll = 8;
   static const join = 9;
-  static const values = <int>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+  static const factEdited = 10;
+  static const factUnpinned = 11;
+  static const factQuoted = 12;
+  static const values = <int>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
 }
 
 @freezed
