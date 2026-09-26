@@ -1,4 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:tentura/domain/entity/quoted_fact.dart';
 import 'package:tentura/domain/entity/room_message_mention_span.dart';
 
 part 'realtime_room_message_paint.freezed.dart';
@@ -22,5 +23,8 @@ abstract class RealtimeRoomMessagePaint with _$RealtimeRoomMessagePaint {
     String? replyToAuthorTitle,
     String? replyToBodyExcerpt,
     @Default(false) bool replyToHasAttachments,
+    int? semanticMarker,
+    Map<String, dynamic>? systemPayload,
+    QuotedFact? quotedFact,
   }) = _RealtimeRoomMessagePaint;
 }

@@ -1,11 +1,16 @@
 // tentura-9f0 landing gate acceptance (trial merge tentura-rsm)
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 
+import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
+import 'package:tentura/domain/entity/beacon_room_consts.dart';
+import 'package:tentura/domain/entity/quoted_fact.dart';
+import 'package:tentura/domain/entity/realtime/realtime_room_message_paint.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/domain/entity/room_read_watermark.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
@@ -279,6 +284,89 @@ void main() {
       expect(case_.readThrough(beaconId), seenAt);
       expect(room.markThreadSeenCalls, 0);
     });
+  });
+
+  group('roomMessageFromPaint', () {
+    test(
+      'maps semanticMarker and systemPayload onto RoomMessage with empty body',
+      () {
+        final paint = RealtimeRoomMessagePaint(
+          id: 'msg-fact-edit',
+          beaconId: beaconId,
+          authorId: 'author-1',
+          body: '',
+          createdAt: DateTime.utc(2026, 8, 1),
+          semanticMarker: BeaconRoomSemanticMarker.factEdited,
+          systemPayload: const {'factCardId': 'fact-1', 'editorId': 'author-1'},
+        );
+
+        final message = case_.roomMessageFromPaint(
+          paint: paint,
+          currentMessages: const [],
+          participants: const [],
+        );
+
+        expect(message.semanticMarker, BeaconRoomSemanticMarker.factEdited);
+        expect(message.body, isEmpty);
+        expect(
+          message.systemPayloadJson,
+          jsonEncode({'factCardId': 'fact-1', 'editorId': 'author-1'}),
+        );
+      },
+    );
+
+    test('maps quotedFact onto RoomMessage.quotedFact with seq/currentSeq/status', () {
+      final paint = RealtimeRoomMessagePaint(
+        id: 'msg-quote',
+        beaconId: beaconId,
+        authorId: 'author-1',
+        body: 'per the fact:',
+        createdAt: DateTime.utc(2026, 8, 1),
+        quotedFact: const QuotedFact(
+          factCardId: 'fact-1',
+          seq: 2,
+          currentSeq: 3,
+          status: BeaconFactCardStatusBits.active,
+          factText: 'the sky is blue',
+        ),
+      );
+
+      final message = case_.roomMessageFromPaint(
+        paint: paint,
+        currentMessages: const [],
+        participants: const [],
+      );
+
+      expect(message.quotedFact?.factCardId, 'fact-1');
+      expect(message.quotedFact?.seq, 2);
+      expect(message.quotedFact?.currentSeq, 3);
+      expect(message.quotedFact?.status, BeaconFactCardStatusBits.active);
+      expect(message.quotedFact?.factText, 'the sky is blue');
+    });
+
+    test(
+      'paint without semanticMarker, systemPayload or quotedFact maps as today',
+      () {
+        final paint = RealtimeRoomMessagePaint(
+          id: 'msg-plain',
+          beaconId: beaconId,
+          authorId: 'author-1',
+          body: 'hello',
+          createdAt: DateTime.utc(2026, 8, 1),
+        );
+
+        final message = case_.roomMessageFromPaint(
+          paint: paint,
+          currentMessages: const [],
+          participants: const [],
+        );
+
+        expect(message.body, 'hello');
+        expect(message.semanticMarker, isNull);
+        expect(message.systemPayloadJson, isNull);
+        expect(message.quotedFact, isNull);
+      },
+    );
   });
 }
 

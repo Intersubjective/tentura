@@ -783,6 +783,147 @@ void main() {
       });
     });
 
+    test('parses room_message paint with semanticMarker and systemPayload', () {
+      fakeAsync((async) {
+        final wsMessages = StreamController<Map<String, dynamic>>.broadcast();
+        final service = InvalidationService.forTesting(wsMessages.stream);
+        addTearDown(() async {
+          await service.dispose();
+          await wsMessages.close();
+        });
+
+        final received = <RealtimeEntityChange>[];
+        final sub = service.entityChanges.listen(received.add);
+
+        wsMessages.add({
+          'type': 'subscription',
+          'path': 'entity_changes',
+          'payload': {
+            'entity': 'room_message',
+            'id': 'Bmarker',
+            'event': 'insert',
+            'message_id': 'Rmarker',
+            'message': {
+              'id': 'Rmarker',
+              'beaconId': 'Bmarker',
+              'authorId': 'Umarker',
+              'body': '',
+              'createdAt': '2026-07-27T17:00:00.000Z',
+              'semanticMarker': 10,
+              'systemPayload': {
+                'factCardId': 'fact-1',
+                'editorId': 'Umarker',
+              },
+            },
+          },
+        });
+        async.elapse(const Duration(milliseconds: 20));
+
+        final paint = received.single.roomMessagePaint;
+        expect(paint?.semanticMarker, 10);
+        expect(paint?.systemPayload, {
+          'factCardId': 'fact-1',
+          'editorId': 'Umarker',
+        });
+        unawaited(sub.cancel());
+      });
+    });
+
+    test('parses room_message paint with quotedFact snapshot fields', () {
+      fakeAsync((async) {
+        final wsMessages = StreamController<Map<String, dynamic>>.broadcast();
+        final service = InvalidationService.forTesting(wsMessages.stream);
+        addTearDown(() async {
+          await service.dispose();
+          await wsMessages.close();
+        });
+
+        final received = <RealtimeEntityChange>[];
+        final sub = service.entityChanges.listen(received.add);
+
+        wsMessages.add({
+          'type': 'subscription',
+          'path': 'entity_changes',
+          'payload': {
+            'entity': 'room_message',
+            'id': 'Bquote',
+            'event': 'insert',
+            'message_id': 'Rquote',
+            'message': {
+              'id': 'Rquote',
+              'beaconId': 'Bquote',
+              'authorId': 'Uquote',
+              'body': 'per the fact:',
+              'createdAt': '2026-07-27T17:00:00.000Z',
+              'quotedFact': {
+                'factCardId': 'fact-1',
+                'seq': 2,
+                'text': 'the sky is blue',
+                'pinnedById': 'Upin',
+                'pinnedByTitle': 'Pinner',
+                'visibility': 0,
+                'status': 0,
+                'currentSeq': 3,
+                'attachmentsJson': '[]',
+              },
+            },
+          },
+        });
+        async.elapse(const Duration(milliseconds: 20));
+
+        final quotedFact = received.single.roomMessagePaint?.quotedFact;
+        expect(quotedFact?.factCardId, 'fact-1');
+        expect(quotedFact?.seq, 2);
+        expect(quotedFact?.currentSeq, 3);
+        expect(quotedFact?.status, 0);
+        expect(quotedFact?.factText, 'the sky is blue');
+        unawaited(sub.cancel());
+      });
+    });
+
+    test(
+      'paint without semanticMarker, systemPayload or quotedFact maps as today',
+      () {
+        fakeAsync((async) {
+          final wsMessages = StreamController<Map<String, dynamic>>.broadcast();
+          final service = InvalidationService.forTesting(wsMessages.stream);
+          addTearDown(() async {
+            await service.dispose();
+            await wsMessages.close();
+          });
+
+          final received = <RealtimeEntityChange>[];
+          final sub = service.entityChanges.listen(received.add);
+
+          wsMessages.add({
+            'type': 'subscription',
+            'path': 'entity_changes',
+            'payload': {
+              'entity': 'room_message',
+              'id': 'Bbaseline',
+              'event': 'insert',
+              'message_id': 'Rbaseline',
+              'message': {
+                'id': 'Rbaseline',
+                'beaconId': 'Bbaseline',
+                'authorId': 'Ubaseline',
+                'body': 'plain text',
+                'createdAt': '2026-07-27T17:00:00.000Z',
+              },
+            },
+          });
+          async.elapse(const Duration(milliseconds: 20));
+
+          final paint = received.single.roomMessagePaint;
+          expect(paint?.body, 'plain text');
+          expect(paint?.semanticMarker, isNull);
+          expect(paint?.systemPayload, isNull);
+          expect(paint?.quotedFact, isNull);
+          unawaited(sub.cancel());
+        });
+      },
+    );
+
     test('mention spans are lenient when absent and strict when present', () {
       fakeAsync((async) {
         final wsMessages = StreamController<Map<String, dynamic>>.broadcast();

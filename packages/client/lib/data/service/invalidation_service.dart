@@ -6,11 +6,13 @@ import 'package:meta/meta.dart';
 import 'package:rxdart/rxdart.dart';
 
 import 'package:tentura/data/service/remote_api_client/realtime_transport_status.dart';
+import 'package:tentura/domain/entity/quoted_fact.dart';
 import 'package:tentura/domain/entity/realtime/realtime_catch_up.dart';
 import 'package:tentura/domain/entity/realtime/realtime_connection_status.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/realtime/realtime_room_message_paint.dart';
 import 'package:tentura/domain/entity/realtime/realtime_seen_peer.dart';
+import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/domain/entity/room_message_mention_span.dart';
 import 'package:tentura/domain/port/realtime_sync_port.dart';
 
@@ -425,6 +427,23 @@ class InvalidationService implements RealtimeSyncPort {
       if (replyToHasAttachmentsRaw is! bool) return null;
       replyToHasAttachments = replyToHasAttachmentsRaw;
     }
+    final semanticMarkerRaw = message['semanticMarker'];
+    if (semanticMarkerRaw != null && semanticMarkerRaw is! int) {
+      return null;
+    }
+    final systemPayloadRaw = message['systemPayload'];
+    if (systemPayloadRaw != null && systemPayloadRaw is! Map) {
+      return null;
+    }
+    final systemPayload = _normalizeJsonObject(systemPayloadRaw);
+    final quotedFactRaw = message['quotedFact'];
+    if (quotedFactRaw != null && quotedFactRaw is! Map) {
+      return null;
+    }
+    final quotedFact = _parseQuotedFact(quotedFactRaw);
+    if (quotedFactRaw != null && quotedFact == null) {
+      return null;
+    }
     return RealtimeRoomMessagePaint(
       id: id,
       beaconId: beaconId,
@@ -440,6 +459,56 @@ class InvalidationService implements RealtimeSyncPort {
       replyToAuthorTitle: replyToAuthorTitle,
       replyToBodyExcerpt: replyToBodyExcerpt,
       replyToHasAttachments: replyToHasAttachments,
+      semanticMarker: semanticMarkerRaw as int?,
+      systemPayload: systemPayload,
+      quotedFact: quotedFact,
+    );
+  }
+
+  static QuotedFact? _parseQuotedFact(Object? raw) {
+    final map = _normalizeJsonObject(raw);
+    if (map == null) return null;
+    final factCardId = map['factCardId'];
+    final seq = map['seq'];
+    final text = map['text'];
+    final status = map['status'];
+    final currentSeq = map['currentSeq'];
+    if (factCardId is! String ||
+        factCardId.isEmpty ||
+        seq is! int ||
+        text is! String ||
+        status is! int ||
+        currentSeq is! int) {
+      return null;
+    }
+    final pinnedById = map['pinnedById'];
+    if (pinnedById != null && pinnedById is! String) {
+      return null;
+    }
+    final pinnedByTitle = map['pinnedByTitle'];
+    if (pinnedByTitle != null && pinnedByTitle is! String) {
+      return null;
+    }
+    final visibility = map['visibility'];
+    if (visibility != null && visibility is! int) {
+      return null;
+    }
+    final attachmentsJson = map['attachmentsJson'];
+    if (attachmentsJson != null && attachmentsJson is! String) {
+      return null;
+    }
+    return QuotedFact(
+      factCardId: factCardId,
+      seq: seq,
+      currentSeq: currentSeq,
+      status: status,
+      factText: text,
+      pinnedById: pinnedById as String?,
+      pinnedByTitle: pinnedByTitle as String? ?? '',
+      visibility: visibility as int? ?? 0,
+      attachments: attachmentsJson is String
+          ? parseRoomMessageAttachmentsJson(attachmentsJson)
+          : const [],
     );
   }
 

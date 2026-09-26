@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:injectable/injectable.dart';
@@ -258,6 +259,11 @@ final class BeaconThreadsCase extends UseCaseBase {
       replyToAuthorTitle: paint.replyToAuthorTitle,
       replyToBodyExcerpt: paint.replyToBodyExcerpt,
       replyToHasAttachments: paint.replyToHasAttachments,
+      semanticMarker: paint.semanticMarker,
+      systemPayloadJson: paint.systemPayload == null
+          ? null
+          : jsonEncode(paint.systemPayload),
+      quotedFact: paint.quotedFact,
     );
   }
 
