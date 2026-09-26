@@ -5274,6 +5274,40 @@
   },
   "beaconRoomFactCardActionEditHistory": "Edit history",
   "beaconRoomFactCardActionQuoteInChat": "Quote in chat",
+  "beaconRoomFactHistorySheetTitle": "Fact history",
+  "beaconRoomFactHistoryImportedBaseline": "Earlier history was not recorded",
+  "beaconRoomFactHistoryRestoredFrom": "Restored from revision {seq}",
+  "@beaconRoomFactHistoryRestoredFrom": {
+    "placeholders": {
+      "seq": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconRoomFactHistoryShowFull": "Show full",
+  "beaconRoomFactHistoryRestoreAction": "Restore this version",
+  "beaconRoomFactHistoryUndo": "Undo",
+  "beaconRoomFactHistoryRestoredSnackbar": "Restored an earlier version",
+  "beaconRoomFactHistoryRestoreFailed": "Could not restore this version",
+  "beaconRoomFactHistoryEventVisibilityChanged": "{actor} changed visibility to {visibility}",
+  "@beaconRoomFactHistoryEventVisibilityChanged": {
+    "placeholders": {
+      "actor": {
+        "type": "String"
+      },
+      "visibility": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconRoomFactHistoryEventRemoved": "{actor} unpinned this fact",
+  "@beaconRoomFactHistoryEventRemoved": {
+    "placeholders": {
+      "actor": {
+        "type": "String"
+      }
+    }
+  },
   "beaconRoomFactManageSheetTitle": "Manage fact",
   "beaconRoomFactManageTooltip": "Manage pinned fact",
   "beaconRoomFactOverflowTooltip": "Manage this fact",

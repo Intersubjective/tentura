@@ -7,6 +7,7 @@ import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/message/beacon_room_fact_messages.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/fact_history_sheet.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/fact_provenance_line.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/copy_text_to_clipboard.dart';
@@ -35,6 +36,15 @@ Future<void> showFactActionsSheet(
           visibility: visibility,
         ),
     onJumpToSource: cubit.requestScrollToMessage,
+    onEditHistory: (f) => unawaited(
+      showFactHistorySheet(
+        context,
+        beaconId: cubit.state.beaconId,
+        factCardId: f.id,
+        baseRevisionSeq: f.revisionSeq,
+        canMutate: cubit.state.canWriteDiscussion,
+      ),
+    ),
   );
 }
 

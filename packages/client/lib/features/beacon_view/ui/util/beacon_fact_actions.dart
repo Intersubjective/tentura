@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/fact_actions_sheet.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/fact_history_sheet.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 
 /// Opens manage/edit/remove actions using the live [BeaconViewCubit].
@@ -25,5 +28,14 @@ Future<void> showBeaconFactActions(
           factCardId: factCardId,
           visibility: visibility,
         ),
+    onEditHistory: (f) => unawaited(
+      showFactHistorySheet(
+        pageContext,
+        beaconId: cubit.state.beacon.id,
+        factCardId: f.id,
+        baseRevisionSeq: f.revisionSeq,
+        canMutate: cubit.state.beacon.status.allowsDiscussionWrites,
+      ),
+    ),
   );
 }

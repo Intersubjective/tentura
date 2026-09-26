@@ -5198,6 +5198,40 @@
   },
   "beaconRoomFactCardActionEditHistory": "История изменений",
   "beaconRoomFactCardActionQuoteInChat": "Цитировать в обсуждении",
+  "beaconRoomFactHistorySheetTitle": "История факта",
+  "beaconRoomFactHistoryImportedBaseline": "Более ранняя история не сохранилась",
+  "beaconRoomFactHistoryRestoredFrom": "Восстановлено из версии {seq}",
+  "@beaconRoomFactHistoryRestoredFrom": {
+    "placeholders": {
+      "seq": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconRoomFactHistoryShowFull": "Показать полностью",
+  "beaconRoomFactHistoryRestoreAction": "Восстановить эту версию",
+  "beaconRoomFactHistoryUndo": "Отменить",
+  "beaconRoomFactHistoryRestoredSnackbar": "Предыдущая версия восстановлена",
+  "beaconRoomFactHistoryRestoreFailed": "Не удалось восстановить эту версию",
+  "beaconRoomFactHistoryEventVisibilityChanged": "{actor} изменил(а) видимость на «{visibility}»",
+  "@beaconRoomFactHistoryEventVisibilityChanged": {
+    "placeholders": {
+      "actor": {
+        "type": "String"
+      },
+      "visibility": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconRoomFactHistoryEventRemoved": "{actor} открепил(а) этот факт",
+  "@beaconRoomFactHistoryEventRemoved": {
+    "placeholders": {
+      "actor": {
+        "type": "String"
+      }
+    }
+  },
   "beaconRoomFactManageSheetTitle": "Управление фактом",
   "beaconRoomFactManageTooltip": "Управлять закреплённым фактом",
   "beaconRoomFactOverflowTooltip": "Действия с фактом",
