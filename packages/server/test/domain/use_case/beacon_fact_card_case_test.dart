@@ -46,10 +46,11 @@ BeaconFactCardEntity testFact({
     );
 
 class _StubFacts extends Fake implements BeaconFactCardRepositoryPort {
-  _StubFacts(this.room, this.guard);
+  _StubFacts(this.room, this.guard, this.hierarchy);
 
   final _StubRoom room;
   final FakeBeaconAccessGuard guard;
+  final _StubHierarchy hierarchy;
   List<BeaconFactCardEntity> rows = const [];
   BeaconFactCardEntity? dupBySource;
   String? lastPinnedText;
@@ -61,19 +62,12 @@ class _StubFacts extends Fake implements BeaconFactCardRepositoryPort {
   int? lastSetVisibility;
 
   @override
-  Future<BeaconFactCardEntity?> findNonRemovedBySourceMessage({
-    required String beaconId,
-    required String sourceMessageId,
-  }) async =>
-      dupBySource;
-
-  @override
   Future<BeaconFactRoomAccess> loadRoomAccess({
     required String beaconId,
     required String userId,
   }) async =>
       BeaconFactRoomAccess(
-        beaconStatus: 0,
+        beaconStatus: hierarchy.status?.smallintValue ?? 0,
         canUseRoom: room.isAuthor ||
             room.isSteward ||
             room.participant?.roomAccess == RoomAccessBits.admitted,
@@ -104,6 +98,10 @@ class _StubFacts extends Fake implements BeaconFactCardRepositoryPort {
     required String pinnedBy,
     String? sourceMessageId,
   }) async {
+    final dup = dupBySource;
+    if (dup != null) {
+      throw BeaconFactCardAlreadyPinnedException(existingFactCardId: dup.id);
+    }
     lastPinnedText = factText;
     lastPinnedVisibility = visibility;
     lastPinnedBy = pinnedBy;
@@ -232,8 +230,8 @@ void main() {
   setUp(() {
     room = _StubRoom();
     guard = FakeBeaconAccessGuard();
-    facts = _StubFacts(room, guard);
     hierarchy = _StubHierarchy();
+    facts = _StubFacts(room, guard, hierarchy);
     case_ = BeaconFactCardCase(
       facts,
       room,

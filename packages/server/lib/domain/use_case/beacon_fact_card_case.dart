@@ -1,4 +1,5 @@
 import 'package:injectable/injectable.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
@@ -73,22 +74,29 @@ final class BeaconFactCardCase extends UseCaseBase {
     required String userId,
     String? sourceMessageId,
   }) async {
-    await _ensureRoomAccess(beaconId: beaconId, userId: userId);
-    await _rejectOrdinaryUserWritesForLifecycle(beaconId);
-    if (sourceMessageId != null) {
-      final dup = await _facts.findNonRemovedBySourceMessage(
-        beaconId: beaconId,
-        sourceMessageId: sourceMessageId,
+    final trimmed = factText.trim();
+    if (trimmed.isEmpty) {
+      throw const BeaconCreateException(description: 'Fact text is empty');
+    }
+    final access = await _facts.loadRoomAccess(
+      beaconId: beaconId,
+      userId: userId,
+    );
+    if (!access.exists || !access.canUseRoom) {
+      throw const UnauthorizedException(
+        description: 'Room access required',
       );
-      if (dup != null) {
-        throw BeaconFactCardAlreadyPinnedException(
-          existingFactCardId: dup.id,
-        );
-      }
+    }
+    if (BeaconRoomLifecycleWritePolicy.blocksOrdinaryUserWrites(
+      BeaconStatus.fromSmallint(access.beaconStatus),
+    )) {
+      throw const BeaconCreateException(
+        description: 'Discussion is read-only for this request',
+      );
     }
     final entity = await _facts.pinFact(
       beaconId: beaconId,
-      factText: factText,
+      factText: trimmed,
       visibility: visibility,
       pinnedBy: userId,
       sourceMessageId: sourceMessageId,

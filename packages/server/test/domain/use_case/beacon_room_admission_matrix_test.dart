@@ -14,6 +14,7 @@ import 'package:tentura_server/domain/commitment/commitment_event.dart';
 import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
 import 'package:tentura_server/domain/coordination/coordination_response_type.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/beacon_fact_room_access.dart';
 import 'package:tentura_server/domain/entity/help_offer_admission_event.dart';
 import 'package:tentura_server/domain/entity/beacon_room_record.dart';
 import 'package:tentura_server/domain/entity/gql_public/help_offer_with_coordination_row.dart';
@@ -122,6 +123,35 @@ class _MinimalCoordinationItems extends Fake
     implements CoordinationItemRepositoryPort {}
 
 class _MinimalFactCards extends Fake implements BeaconFactCardRepositoryPort {}
+
+// Derives the fused room-access preflight from the room port's state.
+class _RoomBackedFactCards extends Fake
+    implements BeaconFactCardRepositoryPort {
+  _RoomBackedFactCards(this._room);
+
+  final BeaconRoomRepositoryPort _room;
+
+  @override
+  Future<BeaconFactRoomAccess> loadRoomAccess({
+    required String beaconId,
+    required String userId,
+  }) async {
+    final canUseRoom =
+        await _room.isBeaconAuthor(beaconId: beaconId, userId: userId) ||
+        await _room.isBeaconSteward(beaconId: beaconId, userId: userId) ||
+        (await _room.findParticipant(
+              beaconId: beaconId,
+              userId: userId,
+            ))?.roomAccess ==
+            RoomAccessBits.admitted;
+    return BeaconFactRoomAccess(
+      beaconStatus: BeaconStatus.open.smallintValue,
+      canUseRoom: canUseRoom,
+      canReadContent: canUseRoom,
+      exists: true,
+    );
+  }
+}
 
 class _MinimalImages extends Fake implements ImageRepositoryPort {}
 
@@ -369,7 +399,7 @@ void main() {
             throwsA(isA<UnauthorizedException>()),
           );
           final facts = BeaconFactCardCase(
-            _MinimalFactCards(), room, FakeBeaconHierarchyRepository(),
+            _RoomBackedFactCards(room), room, FakeBeaconHierarchyRepository(),
             FakeBeaconAccessGuard(),
             env: Env(environment: Environment.test), logger: Logger('ExitAccessTest'),
           );

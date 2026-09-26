@@ -4,6 +4,7 @@ import 'package:drift_postgres/drift_postgres.dart';
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/consts/beacon_fact_card_consts.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
+import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_card_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_history_entry_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_room_access.dart';
@@ -21,35 +22,6 @@ class BeaconFactCardRepository implements BeaconFactCardRepositoryPort {
   final TenturaDb _db;
 
   final BeaconRoomRepositoryPort _room;
-
-  /// Fact still shown in room (active or corrected).
-  Future<BeaconFactCardEntity?> findNonRemovedBySourceMessage({
-    required String beaconId,
-    required String sourceMessageId,
-  }) async {
-    final rows = await _db.managers.beaconFactCards.filter(
-      (r) =>
-          r.beaconId.id(beaconId) &
-          r.sourceMessageId.equals(sourceMessageId) &
-          (r.status.equals(BeaconFactCardStatusBits.active) |
-              r.status.equals(BeaconFactCardStatusBits.corrected)),
-    ).get();
-    if (rows.isEmpty) return null;
-    rows.sort((a, b) => b.createdAt.dateTime.compareTo(a.createdAt.dateTime));
-    return _toEntity(rows.first);
-  }
-
-  BeaconFactCardEntity _toEntity(BeaconFactCard row) => BeaconFactCardEntity(
-        id: row.id,
-        beaconId: row.beaconId,
-        factText: row.factText,
-        visibility: row.visibility,
-        pinnedBy: row.pinnedBy,
-        createdAt: row.createdAt.dateTime,
-        sourceMessageId: row.sourceMessageId,
-        status: row.status,
-        updatedAt: row.updatedAt.dateTime,
-      );
 
   /// Plan §8.2 / §14.3: one SELECT for status, room use and content read.
   @override
@@ -169,7 +141,11 @@ ORDER BY f.created_at, f.id
     return t;
   }
 
-  /// Inserts a fact, optionally links [sourceMessageId], emits a system room line.
+  /// Plan §8.3 "Pin" / §14.3: one `ON CONFLICT` CTE writes the fact, its
+  /// seq-1 revision, the source link, the pin line and the `factPinned`
+  /// event. Source ownership is an EXISTS inside the CTE. `DO NOTHING` on the
+  /// live-source unique index costs one extra read for the existing id.
+  @override
   Future<BeaconFactCardEntity> pinFact({
     required String beaconId,
     required String factText,
@@ -178,78 +154,124 @@ ORDER BY f.created_at, f.id
     String? sourceMessageId,
   }) =>
       _db.withMutatingUser(pinnedBy, () async {
-        final trimmed = factText.trim();
-        if (trimmed.isEmpty) {
-          throw ArgumentError('factText');
+        final isPublic = visibility == BeaconFactCardVisibilityBits.public;
+        final row = await _db.customSelect(
+          '''
+WITH src AS (
+  SELECT (
+    \$5::text IS NULL OR EXISTS (
+      SELECT 1 FROM public.beacon_room_message m
+      WHERE m.id = \$5::text AND m.beacon_id = \$1::text
+    )
+  ) AS ok
+),
+fact AS (
+  INSERT INTO public.beacon_fact_card
+    (id, beacon_id, fact_text, visibility, pinned_by, source_message_id,
+     status, updated_at)
+  SELECT \$6::text, \$1::text, \$2::text, \$3::smallint, \$4::text, \$5::text,
+         ${BeaconFactCardStatusBits.active}, now()
+  FROM src
+  WHERE src.ok
+  ON CONFLICT (source_message_id)
+    WHERE status IN (0, 1) AND source_message_id IS NOT NULL
+  DO NOTHING
+  RETURNING id, beacon_id, fact_text, visibility::integer AS visibility,
+            pinned_by, source_message_id, status::integer AS status,
+            created_at, updated_at
+),
+revision AS (
+  INSERT INTO public.beacon_fact_card_revision
+    (id, fact_card_id, seq, fact_text, actor_id, kind)
+  SELECT \$7::text, f.id, 1, f.fact_text, f.pinned_by,
+         ${BeaconFactCardRevisionKindBits.created}
+  FROM fact f
+),
+link AS (
+  UPDATE public.beacon_room_message m
+  SET linked_fact_card_id = f.id
+  FROM fact f
+  WHERE m.id = f.source_message_id
+),
+line AS (
+  INSERT INTO public.beacon_room_message
+    (id, beacon_id, author_id, body, semantic_marker, system_payload,
+     mention_spans)
+  SELECT \$8::text, f.beacon_id, f.pinned_by, '', \$10::smallint,
+         jsonb_strip_nulls(jsonb_build_object(
+           'factCardId', f.id,
+           'factText', f.fact_text,
+           'sourceMessageId', f.source_message_id
+         )),
+         '[]'::jsonb
+  FROM fact f
+  RETURNING id
+),
+event AS (
+  INSERT INTO public.beacon_activity_event
+    (id, beacon_id, visibility, type, actor_id, source_message_id, diff,
+     fact_card_id)
+  SELECT \$9::text, f.beacon_id, \$11::smallint,
+         ${BeaconActivityEventTypeBits.factPinned}, f.pinned_by,
+         COALESCE(f.source_message_id, l.id),
+         jsonb_build_object('factCardId', f.id, 'factText', f.fact_text),
+         f.id
+  FROM fact f CROSS JOIN line l
+)
+SELECT src.ok AS source_ok, f.*
+FROM src LEFT JOIN fact f ON true
+''',
+          variables: [
+            Variable<String>(beaconId),
+            Variable<String>(factText.trim()),
+            Variable<int>(visibility),
+            Variable<String>(pinnedBy),
+            Variable<String>(sourceMessageId),
+            Variable<String>(generateId('F')),
+            Variable<String>(generateId('FR')),
+            Variable<String>(generateId('R')),
+            Variable<String>(BeaconActivityEventEntity.newId),
+            Variable<int>(
+              isPublic
+                  ? BeaconRoomSemanticMarker.pinFactPublic
+                  : BeaconRoomSemanticMarker.pinFactPrivate,
+            ),
+            Variable<int>(
+              isPublic
+                  ? BeaconActivityEventVisibilityBits.public
+                  : BeaconActivityEventVisibilityBits.room,
+            ),
+          ],
+        ).getSingle();
+        if (!row.read<bool>('source_ok')) {
+          throw IdNotFoundException(
+            description: 'Source message [$sourceMessageId]',
+          );
         }
-        if (sourceMessageId != null) {
-          final smid = sourceMessageId;
-          final msg = await _db.managers.beaconRoomMessages
-              .filter((m) => m.id.equals(smid))
-              .getSingleOrNull();
-          if (msg == null || msg.beaconId != beaconId) {
-            throw ArgumentError('sourceMessageId');
-          }
+        final id = row.readNullable<String>('id');
+        if (id == null) {
+          final existing = await _db.customSelect(
+            r'''
+SELECT id FROM public.beacon_fact_card
+WHERE source_message_id = $1::text AND status IN (0, 1)
+''',
+            variables: [Variable<String>(sourceMessageId)],
+          ).getSingle();
+          throw BeaconFactCardAlreadyPinnedException(
+            existingFactCardId: existing.read<String>('id'),
+          );
         }
-        final id = generateId('F');
-        final row = await _db.managers.beaconFactCards.createReturning(
-          (o) => o(
-            id: Value(id),
-            beaconId: beaconId,
-            factText: trimmed,
-            visibility: visibility,
-            pinnedBy: pinnedBy,
-            sourceMessageId: Value(sourceMessageId),
-            status: const Value(BeaconFactCardStatusBits.active),
-            createdAt: const Value.absent(),
-            updatedAt: Value(PgDateTime(DateTime.timestamp())),
-          ),
+        return BeaconFactCardEntity(
+          id: id,
+          beaconId: row.read<String>('beacon_id'),
+          factText: row.read<String>('fact_text'),
+          visibility: row.read<int>('visibility'),
+          pinnedBy: row.read<String>('pinned_by'),
+          createdAt: _readTimestamp(row, 'created_at'),
+          sourceMessageId: row.readNullable<String>('source_message_id'),
+          status: row.read<int>('status'),
+          updatedAt: _readNullableTimestamp(row, 'updated_at'),
         );
-        if (sourceMessageId != null) {
-          await _db.managers.beaconRoomMessages
-              .filter((m) => m.id.equals(sourceMessageId))
-              .update(
-                (u) => u(linkedFactCardId: Value(row.id)),
-              );
-        }
-        await _db.managers.beaconFactCardRevisions.create(
-          (o) => o(
-            id: generateId('FR'),
-            factCardId: row.id,
-            seq: 1,
-            factText: trimmed,
-            actorId: Value(pinnedBy),
-            kind: BeaconFactCardRevisionKindBits.created,
-          ),
-        );
-        final roomMsg = await _room.insertRoomMessage(
-          beaconId: beaconId,
-          authorId: pinnedBy,
-          body: '',
-          semanticMarker:
-              visibility == BeaconFactCardVisibilityBits.public
-              ? BeaconRoomSemanticMarker.pinFactPublic
-              : BeaconRoomSemanticMarker.pinFactPrivate,
-          systemPayload: {
-            'factCardId': row.id,
-            'factText': trimmed,
-            'sourceMessageId': ?sourceMessageId,
-          },
-        );
-        await _room.insertActivityEvent(
-          beaconId: beaconId,
-          visibility: visibility == BeaconFactCardVisibilityBits.public
-              ? BeaconActivityEventVisibilityBits.public
-              : BeaconActivityEventVisibilityBits.room,
-          type: BeaconActivityEventTypeBits.factPinned,
-          actorId: pinnedBy,
-          sourceMessageId: sourceMessageId ?? roomMsg.id,
-          diff: <String, Object?>{
-            'factCardId': row.id,
-            'factText': trimmed,
-          },
-        );
-        return _toEntity(row);
       });
 
   Future<void> setVisibility({
