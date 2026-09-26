@@ -137,5 +137,21 @@ base mixin WebsocketPathEntityChanges on WebsocketSessionHandlerBase {
     'replyToAuthorTitle': snapshot.replyToAuthorTitle,
     'replyToBodyExcerpt': snapshot.replyToBodyExcerpt,
     'replyToHasAttachments': snapshot.replyToHasAttachments,
+    'semanticMarker': snapshot.semanticMarker,
+    'systemPayload': snapshot.systemPayload,
+    'quotedFact': switch (snapshot.quotedFact) {
+      null => null,
+      final q => {
+        'factCardId': q.factCardId,
+        'seq': q.seq,
+        'text': q.factText,
+        'pinnedById': q.pinnedById,
+        'pinnedByTitle': q.pinnedByTitle,
+        'visibility': q.visibility,
+        'status': q.status,
+        'currentSeq': q.currentSeq,
+        'attachmentsJson': q.attachmentsJson,
+      },
+    },
   };
 }

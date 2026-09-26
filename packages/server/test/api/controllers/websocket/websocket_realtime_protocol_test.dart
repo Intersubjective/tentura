@@ -17,6 +17,7 @@ import 'package:tentura_server/data/service/pg_notification_connection.dart';
 import 'package:tentura_server/data/service/pg_notification_service.dart';
 import 'package:tentura_server/domain/port/beacon_room_co_participant_lookup_port.dart';
 import 'package:tentura_server/domain/port/room_message_snapshot_lookup_port.dart';
+import 'package:tentura_server/domain/entity/quoted_fact_entity.dart';
 import 'package:tentura_server/domain/entity/room_message_snapshot.dart';
 import 'package:tentura_server/domain/port/invitation_repository_port.dart';
 import 'package:tentura_server/domain/port/user_presence_repository_port.dart';
@@ -386,6 +387,171 @@ void main() {
       expect((payload['message'] as Map)['body'], 'hello');
     });
 
+    test(
+      'paint frame carries semanticMarker, systemPayload and quotedFact',
+      () async {
+        final dependencies = _Dependencies();
+        final snapshot = RoomMessageSnapshot(
+          id: 'Rpaint0010',
+          beaconId: 'Bpaint0010',
+          authorId: _actorId,
+          body: '',
+          createdAt: DateTime.utc(2026, 7, 27, 17),
+          semanticMarker: 10,
+          systemPayload: const {
+            'factCardId': 'Fpaint0010',
+            'revisionSeq': 2,
+            'pinnedBy': _actorId,
+            'factText': 'Gate code is 4412',
+          },
+          quotedFact: const QuotedFactEntity(
+            factCardId: 'Fpaint0011',
+            seq: 1,
+            factText: 'Gate code is 1234',
+            pinnedById: _actorId,
+            pinnedByTitle: 'Pinner Person',
+            visibility: 1,
+            status: 1,
+            currentSeq: 2,
+            attachmentsJson: '[]',
+          ),
+        );
+        when(
+          dependencies.roomMessageSnapshotLookup.findEligibleInsert(
+            messageId: 'Rpaint0010',
+            beaconId: 'Bpaint0010',
+          ),
+        ).thenAnswer((_) async => snapshot);
+        final handler = _EntityChangeHarness(Env(), dependencies);
+        final session = _RecordingSession();
+        await dependencies.authenticate(handler, session, _affectedId);
+        session.sent.clear();
+
+        await handler.fanOutEntityChange({
+          'entity': 'room_message',
+          'id': 'Bpaint0010',
+          'event': 'insert',
+          'message_id': 'Rpaint0010',
+          'user_ids': [_affectedId],
+        });
+
+        final payload =
+            (jsonDecode(session.sent.single! as String) as Map)['payload']
+                as Map;
+        final paint = payload['message'] as Map;
+        expect(paint['body'], '');
+        expect(paint['semanticMarker'], 10);
+        expect(paint['systemPayload'], {
+          'factCardId': 'Fpaint0010',
+          'revisionSeq': 2,
+          'pinnedBy': _actorId,
+          'factText': 'Gate code is 4412',
+        });
+        expect(paint['quotedFact'], {
+          'factCardId': 'Fpaint0011',
+          'seq': 1,
+          'text': 'Gate code is 1234',
+          'pinnedById': _actorId,
+          'pinnedByTitle': 'Pinner Person',
+          'visibility': 1,
+          'status': 1,
+          'currentSeq': 2,
+          'attachmentsJson': '[]',
+        });
+      },
+    );
+
+    test(
+      'marker-11 unpin paint frame carries semanticMarker and systemPayload '
+      'with null quotedFact',
+      () async {
+        final dependencies = _Dependencies();
+        when(
+          dependencies.roomMessageSnapshotLookup.findEligibleInsert(
+            messageId: 'Rpaint0012',
+            beaconId: 'Bpaint0012',
+          ),
+        ).thenAnswer(
+          (_) async => RoomMessageSnapshot(
+            id: 'Rpaint0012',
+            beaconId: 'Bpaint0012',
+            authorId: _actorId,
+            body: '',
+            createdAt: DateTime.utc(2026, 7, 27, 17),
+            semanticMarker: 11,
+            systemPayload: const {
+              'factCardId': 'Fpaint0012',
+              'pinnedBy': _actorId,
+              'factText': 'Tap water is on',
+            },
+          ),
+        );
+        final handler = _EntityChangeHarness(Env(), dependencies);
+        final session = _RecordingSession();
+        await dependencies.authenticate(handler, session, _affectedId);
+        session.sent.clear();
+
+        await handler.fanOutEntityChange({
+          'entity': 'room_message',
+          'id': 'Bpaint0012',
+          'event': 'insert',
+          'message_id': 'Rpaint0012',
+          'user_ids': [_affectedId],
+        });
+
+        final payload =
+            (jsonDecode(session.sent.single! as String) as Map)['payload']
+                as Map;
+        final paint = payload['message'] as Map;
+        expect(paint['id'], 'Rpaint0012');
+        expect(paint['body'], '');
+        expect(paint['semanticMarker'], 11);
+        expect(paint['systemPayload'], {
+          'factCardId': 'Fpaint0012',
+          'pinnedBy': _actorId,
+          'factText': 'Tap water is on',
+        });
+        expect(paint, containsPair('quotedFact', null));
+      },
+    );
+
+    test('plain paint frame carries null fact keys', () async {
+      final dependencies = _Dependencies();
+      when(
+        dependencies.roomMessageSnapshotLookup.findEligibleInsert(
+          messageId: 'Rpaint0011',
+          beaconId: 'Bpaint0011',
+        ),
+      ).thenAnswer(
+        (_) async => RoomMessageSnapshot(
+          id: 'Rpaint0011',
+          beaconId: 'Bpaint0011',
+          authorId: _actorId,
+          body: 'hello',
+          createdAt: DateTime.utc(2026, 7, 27, 17),
+        ),
+      );
+      final handler = _EntityChangeHarness(Env(), dependencies);
+      final session = _RecordingSession();
+      await dependencies.authenticate(handler, session, _affectedId);
+      session.sent.clear();
+
+      await handler.fanOutEntityChange({
+        'entity': 'room_message',
+        'id': 'Bpaint0011',
+        'event': 'insert',
+        'message_id': 'Rpaint0011',
+        'user_ids': [_affectedId],
+      });
+
+      final payload =
+          (jsonDecode(session.sent.single! as String) as Map)['payload'] as Map;
+      final paint = payload['message'] as Map;
+      expect(paint, containsPair('semanticMarker', null));
+      expect(paint, containsPair('systemPayload', null));
+      expect(paint, containsPair('quotedFact', null));
+    });
+
     test('empty sessions skip snapshot lookup', () async {
       final dependencies = _Dependencies();
       final handler = _EntityChangeHarness(Env(), dependencies);
@@ -567,7 +733,8 @@ void main() {
           expect(actor.sent, isEmpty);
           expect(peer.sent, hasLength(1));
           final payload =
-              (jsonDecode(peer.sent.single! as String) as Map)['payload'] as Map;
+              (jsonDecode(peer.sent.single! as String) as Map)['payload']
+                  as Map;
           expect(payload['seen_user_id'], seenUserId);
           expect(payload['last_seen_at'], lastSeenAt);
         },
@@ -661,35 +828,39 @@ void main() {
         'unparsable': {'last_seen_at': 'not-a-timestamp'},
         'non-string': {'last_seen_at': 12345},
       }.entries) {
-        test('drops frame and logs when last_seen_at is ${entry.key}',
-            () async {
-          final records = <LogRecord>[];
-          Logger('EntityChangeHarness').onRecord.listen(records.add);
-          final dependencies = _Dependencies();
-          final handler = _EntityChangeHarness(Env(), dependencies);
-          final session = _RecordingSession();
-          await dependencies.authenticate(handler, session, _affectedId);
-          session.sent.clear();
+        test(
+          'drops frame and logs when last_seen_at is ${entry.key}',
+          () async {
+            final records = <LogRecord>[];
+            Logger('EntityChangeHarness').onRecord.listen(records.add);
+            final dependencies = _Dependencies();
+            final handler = _EntityChangeHarness(Env(), dependencies);
+            final session = _RecordingSession();
+            await dependencies.authenticate(handler, session, _affectedId);
+            session.sent.clear();
 
-          await handler.fanOutEntityChange({
-            'entity': 'people_seen',
-            'id': beaconId,
-            'event': 'update',
-            'actor_user_id': _actorId,
-            'user_ids': [_affectedId],
-            ...entry.value,
-          });
+            await handler.fanOutEntityChange({
+              'entity': 'people_seen',
+              'id': beaconId,
+              'event': 'update',
+              'actor_user_id': _actorId,
+              'user_ids': [_affectedId],
+              ...entry.value,
+            });
 
-          expect(session.sent, isEmpty);
-          expect(
-            records.where(
-              (record) =>
-                  record.message.contains('realtime_event=malformed_payload') &&
-                  record.message.contains('reason=people_seen'),
-            ),
-            hasLength(1),
-          );
-        });
+            expect(session.sent, isEmpty);
+            expect(
+              records.where(
+                (record) =>
+                    record.message.contains(
+                      'realtime_event=malformed_payload',
+                    ) &&
+                    record.message.contains('reason=people_seen'),
+              ),
+              hasLength(1),
+            );
+          },
+        );
       }
     });
   });

@@ -1,4 +1,9 @@
+import 'dart:convert';
+
 import 'package:injectable/injectable.dart';
+
+import 'package:tentura_server/consts/beacon_room_consts.dart';
+import 'package:tentura_server/domain/entity/quoted_fact_entity.dart';
 
 import 'package:tentura_server/domain/entity/room_message_snapshot.dart';
 import 'package:tentura_server/domain/port/room_message_snapshot_lookup_port.dart';
@@ -22,16 +27,34 @@ final class RoomMessageSnapshotLookup implements RoomMessageSnapshotLookupPort {
               (m) => m.id.equals(messageId) & m.beaconId.equals(beaconId),
             ))
             .getSingleOrNull();
-    if (row == null || row.body.trim().isEmpty) {
+    if (row == null) {
       return null;
     }
     if (row.linkedNextMoveId != null ||
         row.linkedFactCardId != null ||
         row.linkedPollingId != null ||
         row.linkedItemId != null ||
-        row.linkedEventKind != null ||
-        row.semanticMarker != null ||
-        row.systemPayload != null) {
+        row.linkedEventKind != null) {
+      return null;
+    }
+    // Only fact edit/unpin system lines paint; pin lines (2/3) and every
+    // other marker stay client refetch.
+    final marker = row.semanticMarker;
+    final isFactSystemLine =
+        marker == BeaconRoomSemanticMarker.factEdited ||
+        marker == BeaconRoomSemanticMarker.factUnpinned;
+    final systemPayload = _decodeSystemPayload(row.systemPayload);
+    if (isFactSystemLine) {
+      if (systemPayload == null) {
+        return null;
+      }
+    } else if (marker != null || row.systemPayload != null) {
+      return null;
+    }
+    final quotedFactCardId = row.quotedFactCardId;
+    final quotedFactRevisionSeq = row.quotedFactRevisionSeq;
+    final isQuote = quotedFactCardId != null && quotedFactRevisionSeq != null;
+    if (row.body.trim().isEmpty && !isFactSystemLine && !isQuote) {
       return null;
     }
 
@@ -40,6 +63,18 @@ final class RoomMessageSnapshotLookup implements RoomMessageSnapshotLookupPort {
     )..where((a) => a.messageId.equals(messageId))).get();
     if (attachmentRows.isNotEmpty) {
       return null;
+    }
+
+    QuotedFactEntity? quotedFact;
+    if (isQuote) {
+      quotedFact = await _resolveQuotedFact(
+        factCardId: quotedFactCardId,
+        seq: quotedFactRevisionSeq,
+        beaconId: row.beaconId,
+      );
+      if (quotedFact == null) {
+        return null;
+      }
     }
 
     String? replyToMessageId;
@@ -83,6 +118,63 @@ final class RoomMessageSnapshotLookup implements RoomMessageSnapshotLookupPort {
       replyToAuthorTitle: replyToAuthorTitle,
       replyToBodyExcerpt: replyToBodyExcerpt,
       replyToHasAttachments: replyToHasAttachments,
+      semanticMarker: isFactSystemLine ? marker : null,
+      systemPayload: isFactSystemLine ? systemPayload : null,
+      quotedFact: quotedFact,
+    );
+  }
+
+  static Map<String, Object?>? _decodeSystemPayload(Object? raw) {
+    final decoded = raw is String ? jsonDecode(raw) : raw;
+    return decoded is Map ? Map<String, Object?>.from(decoded) : null;
+  }
+
+  /// One-row quote snapshot mirroring `listMessagesEnriched` `quotedFact`.
+  /// Returns null (client refetch) when the revision is missing or the fact's
+  /// source message carries attachments, which paint does not serialize.
+  Future<QuotedFactEntity?> _resolveQuotedFact({
+    required String factCardId,
+    required int seq,
+    required String beaconId,
+  }) async {
+    final row = await _database
+        .customSelect(
+          r'''
+SELECT
+  r.fact_text, f.pinned_by, u.display_name AS pinned_by_title,
+  f.visibility::integer AS visibility, f.status::integer AS status,
+  f.revision_seq::integer AS current_seq,
+  EXISTS (
+    SELECT 1 FROM public.beacon_room_message_attachment a
+    WHERE a.message_id = f.source_message_id
+  ) AS source_has_attachments
+FROM public.beacon_fact_card_revision r
+JOIN public.beacon_fact_card f ON f.id = r.fact_card_id
+LEFT JOIN public."user" u ON u.id = f.pinned_by
+WHERE r.fact_card_id = $1::text AND r.seq = $2::integer
+  AND f.beacon_id = $3::text
+''',
+          variables: [
+            Variable<String>(factCardId),
+            Variable<int>(seq),
+            Variable<String>(beaconId),
+          ],
+        )
+        .getSingleOrNull();
+    if (row == null || row.read<bool>('source_has_attachments')) {
+      return null;
+    }
+    final pinnedById = row.readNullable<String>('pinned_by');
+    return QuotedFactEntity(
+      factCardId: factCardId,
+      seq: seq,
+      factText: row.read<String>('fact_text'),
+      pinnedById: pinnedById,
+      pinnedByTitle: row.readNullable<String>('pinned_by_title') ?? '',
+      visibility: row.read<int>('visibility'),
+      status: row.read<int>('status'),
+      currentSeq: row.read<int>('current_seq'),
+      attachmentsJson: '[]',
     );
   }
 

@@ -1,8 +1,11 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import 'quoted_fact_entity.dart';
+
 part 'room_message_snapshot.freezed.dart';
 
-/// Viewer-neutral plain-text room message fields for realtime WS paint.
+/// Viewer-neutral room message fields for realtime WS paint: plain text,
+/// fact system lines (markers 10/11) and quoted messages.
 @freezed
 abstract class RoomMessageSnapshot with _$RoomMessageSnapshot {
   const factory RoomMessageSnapshot({
@@ -22,5 +25,8 @@ abstract class RoomMessageSnapshot with _$RoomMessageSnapshot {
     String? replyToAuthorTitle,
     String? replyToBodyExcerpt,
     @Default(false) bool replyToHasAttachments,
+    int? semanticMarker,
+    Map<String, Object?>? systemPayload,
+    QuotedFactEntity? quotedFact,
   }) = _RoomMessageSnapshot;
 }
