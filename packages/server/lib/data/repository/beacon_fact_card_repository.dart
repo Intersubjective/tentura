@@ -17,11 +17,14 @@ import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 
 @LazySingleton(as: BeaconFactCardRepositoryPort)
 class BeaconFactCardRepository implements BeaconFactCardRepositoryPort {
-  BeaconFactCardRepository(this._db, this._room);
+  BeaconFactCardRepository(
+    this._db,
+    // Kept for DI; activity events are written inside the fact CTEs.
+    // ignore: avoid_unused_constructor_parameters
+    BeaconRoomRepositoryPort room,
+  );
 
   final TenturaDb _db;
-
-  final BeaconRoomRepositoryPort _room;
 
   /// Plan §8.2 / §14.3: one SELECT for status, room use and content read.
   @override
@@ -274,6 +277,10 @@ WHERE source_message_id = $1::text AND status IN (0, 1)
         );
       });
 
+  /// Plan §8.3 "Set visibility" / §14.3: one CTE updates the card and writes
+  /// the `factVisibilityChanged` event with `fact_card_id` set. A
+  /// visibility-only change does not advance `revision_seq`.
+  @override
   Future<void> setVisibility({
     required String factCardId,
     required String beaconId,
@@ -285,42 +292,54 @@ WHERE source_message_id = $1::text AND status IN (0, 1)
             visibility != BeaconFactCardVisibilityBits.room) {
           throw ArgumentError('visibility');
         }
-        final rows = await _db.managers.beaconFactCards.filter(
-          (e) =>
-              e.id.equals(factCardId) &
-              e.beaconId.id(beaconId),
-        ).get();
-        final row = rows.singleOrNull;
-        if (row == null) {
+        final row = await _db.customSelect(
+          '''
+WITH prev AS (
+  SELECT id, visibility AS previous_visibility
+  FROM public.beacon_fact_card
+  WHERE id = \$1::text AND beacon_id = \$2::text
+  FOR UPDATE
+),
+fact AS (
+  UPDATE public.beacon_fact_card f
+  SET visibility = \$3::smallint, updated_at = now()
+  FROM prev p
+  WHERE f.id = p.id
+  RETURNING f.id, f.beacon_id, f.source_message_id, p.previous_visibility
+),
+event AS (
+  INSERT INTO public.beacon_activity_event
+    (id, beacon_id, visibility, type, actor_id, source_message_id, diff,
+     fact_card_id)
+  SELECT \$5::text, f.beacon_id, \$6::smallint,
+         ${BeaconActivityEventTypeBits.factVisibilityChanged}, \$4::text,
+         f.source_message_id,
+         jsonb_build_object(
+           'factCardId', f.id,
+           'previousVisibility', f.previous_visibility,
+           'visibility', \$3::smallint
+         ),
+         f.id
+  FROM fact f
+)
+SELECT count(*)::integer AS updated FROM fact
+''',
+          variables: [
+            Variable<String>(factCardId),
+            Variable<String>(beaconId),
+            Variable<int>(visibility),
+            Variable<String>(actorUserId),
+            Variable<String>(BeaconActivityEventEntity.newId),
+            Variable<int>(
+              visibility == BeaconFactCardVisibilityBits.public
+                  ? BeaconActivityEventVisibilityBits.public
+                  : BeaconActivityEventVisibilityBits.room,
+            ),
+          ],
+        ).getSingle();
+        if (row.read<int>('updated') == 0) {
           throw IdNotFoundException(description: 'Fact card [$factCardId]');
         }
-        final prevVis = row.visibility;
-        await _db.managers.beaconFactCards
-            .filter(
-              (e) =>
-                  e.id.equals(factCardId) &
-                  e.beaconId.id(beaconId),
-            )
-            .update(
-              (u) => u(
-                    visibility: Value(visibility),
-                    updatedAt: Value(PgDateTime(DateTime.timestamp())),
-                  ),
-            );
-        await _room.insertActivityEvent(
-          beaconId: beaconId,
-          visibility: visibility == BeaconFactCardVisibilityBits.public
-              ? BeaconActivityEventVisibilityBits.public
-              : BeaconActivityEventVisibilityBits.room,
-          type: BeaconActivityEventTypeBits.factVisibilityChanged,
-          actorId: actorUserId,
-          sourceMessageId: row.sourceMessageId,
-          diff: <String, Object?>{
-            'factCardId': row.id,
-            'previousVisibility': prevVis,
-            'visibility': visibility,
-          },
-        );
       });
 
   Future<void> correct({

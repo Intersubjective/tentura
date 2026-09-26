@@ -67,17 +67,11 @@ final class BeaconFactCardCase extends UseCaseBase {
     }
   }
 
-  Future<Map<String, Object?>> pin({
+  /// Fused `loadRoomAccess` preflight: room use plus lifecycle write check.
+  Future<void> _ensureWritableRoomAccess({
     required String beaconId,
-    required String factText,
-    required int visibility,
     required String userId,
-    String? sourceMessageId,
   }) async {
-    final trimmed = factText.trim();
-    if (trimmed.isEmpty) {
-      throw const BeaconCreateException(description: 'Fact text is empty');
-    }
     final access = await _facts.loadRoomAccess(
       beaconId: beaconId,
       userId: userId,
@@ -94,6 +88,20 @@ final class BeaconFactCardCase extends UseCaseBase {
         description: 'Discussion is read-only for this request',
       );
     }
+  }
+
+  Future<Map<String, Object?>> pin({
+    required String beaconId,
+    required String factText,
+    required int visibility,
+    required String userId,
+    String? sourceMessageId,
+  }) async {
+    final trimmed = factText.trim();
+    if (trimmed.isEmpty) {
+      throw const BeaconCreateException(description: 'Fact text is empty');
+    }
+    await _ensureWritableRoomAccess(beaconId: beaconId, userId: userId);
     final entity = await _facts.pinFact(
       beaconId: beaconId,
       factText: trimmed,
@@ -142,8 +150,7 @@ final class BeaconFactCardCase extends UseCaseBase {
     required String actorUserId,
     required int visibility,
   }) async {
-    await _ensureRoomAccess(beaconId: beaconId, userId: actorUserId);
-    await _rejectOrdinaryUserWritesForLifecycle(beaconId);
+    await _ensureWritableRoomAccess(beaconId: beaconId, userId: actorUserId);
     await _facts.setVisibility(
       factCardId: factCardId,
       beaconId: beaconId,
