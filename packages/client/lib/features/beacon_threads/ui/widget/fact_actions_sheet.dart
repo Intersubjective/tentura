@@ -23,13 +23,23 @@ Future<void> showFactActionsSheet(
     context,
     fact: fact,
     canMutate: cubit.state.canWriteDiscussion,
-    onCorrect: ({required factCardId, required newText}) =>
-        cubit.correctFact(
-          factCardId: factCardId,
-          newText: newText,
-          baseRevisionSeq: fact.revisionSeq,
-        ),
-    onRemove: ({required factCardId}) => cubit.removeFact(factCardId: factCardId),
+    myUserId: cubit.state.myUserId,
+    // Base seq is the one the edit sheet opened with (plan §14.6); after a
+    // revision conflict, "Save mine" retries against the conflict's seq.
+    onCorrect: ({required factCardId, required newText}) {
+      final conflict = cubit.state.factEditConflict;
+      return cubit.correctFact(
+        factCardId: factCardId,
+        newText: newText,
+        baseRevisionSeq: conflict != null && conflict.id == factCardId
+            ? conflict.revisionSeq
+            : fact.revisionSeq,
+      );
+    },
+    readEditConflict: () => cubit.state.factEditConflict,
+    onClearEditConflict: cubit.clearFactEditConflict,
+    onRemove: ({required factCardId}) =>
+        cubit.removeFact(factCardId: factCardId),
     onSetVisibility: ({required factCardId, required visibility}) =>
         cubit.setFactVisibility(
           factCardId: factCardId,
@@ -66,6 +76,9 @@ Future<void> showFactActionsHostSheet(
   void Function(BeaconFactCard fact)? onEditHistory,
   void Function(BeaconFactCard fact)? onQuoteInChat,
   bool canMutate = true,
+  String? myUserId,
+  BeaconFactCard? Function()? readEditConflict,
+  VoidCallback? onClearEditConflict,
 }) {
   final l10n = L10n.of(context)!;
   final pageCtx = context;
@@ -106,7 +119,19 @@ Future<void> showFactActionsHostSheet(
                 title: Text(l10n.beaconRoomFactCardActionEdit),
                 onTap: () {
                   Navigator.pop(ctx);
-                  unawaited(_showEditFactSheet(pageCtx, fact, onCorrect));
+                  unawaited(
+                    _showEditFactSheet(
+                      pageCtx,
+                      fact,
+                      onCorrect,
+                      showPinnedBy:
+                          myUserId != null &&
+                          myUserId.isNotEmpty &&
+                          fact.pinnedBy != myUserId,
+                      readEditConflict: readEditConflict,
+                      onClearEditConflict: onClearEditConflict,
+                    ),
+                  );
                 },
               ),
               if (fact.visibility == BeaconFactCardVisibilityBits.room)
@@ -250,32 +275,150 @@ Future<void> _showEditFactSheet(
     required String factCardId,
     required String newText,
   })
-  onCorrect,
-) async {
+  onCorrect, {
+  bool showPinnedBy = false,
+  BeaconFactCard? Function()? readEditConflict,
+  VoidCallback? onClearEditConflict,
+}) async {
   final l10n = L10n.of(context)!;
-  final newText = await showTenturaAdaptiveSheet<String>(
-    context: context,
-    showDragHandle: true,
-    isScrollControlled: true,
-    useRootNavigator: true,
-    enableDrag: false,
-    builder: (ctx) => _EditFactSheet(
-      initialText: fact.factText,
-      l10n: l10n,
-    ),
-  );
-  if (newText == null || !context.mounted) return;
-  await onCorrect(factCardId: fact.id, newText: newText);
+  var draft = fact.factText;
+  var baseline = fact.factText;
+  var resumedFromConflict = false;
+  while (true) {
+    if (!context.mounted) return;
+    final newText = await showTenturaAdaptiveSheet<String>(
+      context: context,
+      useRootNavigator: true,
+      enableDrag: false,
+      builder: (ctx) => _EditFactSheet(
+        initialText: draft,
+        baselineText: baseline,
+        pinnedByLabel: showPinnedBy
+            ? l10n.beaconRoomFactCardPinnedByLabel(fact.pinnedByTitle)
+            : null,
+        l10n: l10n,
+      ),
+    );
+    if (newText == null || !context.mounted) {
+      if (resumedFromConflict) onClearEditConflict?.call();
+      return;
+    }
+    await onCorrect(factCardId: fact.id, newText: newText);
+
+    // Revision conflict: loop until saved, kept theirs, or dismissed.
+    while (true) {
+      final conflict = readEditConflict?.call();
+      if (conflict == null || conflict.id != fact.id || !context.mounted) {
+        return;
+      }
+      final choice = await showTenturaAdaptiveSheet<_FactEditConflictChoice>(
+        context: context,
+        useRootNavigator: true,
+        builder: (ctx) => _FactEditConflictSheet(
+          currentText: conflict.factText,
+          myText: newText,
+          l10n: l10n,
+        ),
+      );
+      if (!context.mounted) return;
+      switch (choice) {
+        case _FactEditConflictChoice.saveMine:
+          await onCorrect(factCardId: fact.id, newText: newText);
+          continue;
+        case _FactEditConflictChoice.keepEditing:
+          draft = newText;
+          baseline = conflict.factText;
+          resumedFromConflict = true;
+        case _FactEditConflictChoice.keepTheirs:
+        case null:
+          onClearEditConflict?.call();
+          return;
+      }
+      break;
+    }
+  }
+}
+
+enum _FactEditConflictChoice { saveMine, keepTheirs, keepEditing }
+
+class _FactEditConflictSheet extends StatelessWidget {
+  const _FactEditConflictSheet({
+    required this.currentText,
+    required this.myText,
+    required this.l10n,
+  });
+
+  final String currentText;
+  final String myText;
+  final L10n l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    final tt = context.tt;
+    final textTheme = Theme.of(context).textTheme;
+    void choose(_FactEditConflictChoice c) => Navigator.of(context).pop(c);
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: EdgeInsets.only(
+          left: tt.screenHPadding,
+          right: tt.screenHPadding,
+          top: tt.sectionGap,
+          bottom: tt.sectionGap,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              l10n.beaconRoomFactEditConflictTitle,
+              style: textTheme.titleMedium,
+            ),
+            SizedBox(height: tt.sectionGap),
+            TenturaMetaText(l10n.beaconRoomFactEditConflictCurrentLabel),
+            SizedBox(height: tt.rowGap / 2),
+            SelectableText(currentText, style: textTheme.bodyMedium),
+            SizedBox(height: tt.sectionGap),
+            TenturaMetaText(l10n.beaconRoomFactEditConflictMineLabel),
+            SizedBox(height: tt.rowGap / 2),
+            SelectableText(myText, style: textTheme.bodyMedium),
+            SizedBox(height: tt.sectionGap),
+            FilledButton(
+              onPressed: () => choose(_FactEditConflictChoice.saveMine),
+              child: Text(l10n.beaconRoomFactEditConflictSaveMine),
+            ),
+            SizedBox(height: tt.rowGap),
+            OutlinedButton(
+              onPressed: () => choose(_FactEditConflictChoice.keepTheirs),
+              child: Text(l10n.beaconRoomFactEditConflictKeepTheirs),
+            ),
+            SizedBox(height: tt.rowGap),
+            TextButton(
+              onPressed: () => choose(_FactEditConflictChoice.keepEditing),
+              child: Text(l10n.beaconRoomFactEditConflictKeepEditing),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 /// Keeps [TextEditingController] alive until the sheet route is torn down.
 class _EditFactSheet extends StatefulWidget {
   const _EditFactSheet({
     required this.initialText,
+    required this.baselineText,
     required this.l10n,
+    this.pinnedByLabel,
   });
 
   final String initialText;
+
+  /// Text the dirty guard compares against (server text).
+  final String baselineText;
+
+  /// "Pinned by …" banner, shown when the editor is not the pinner.
+  final String? pinnedByLabel;
   final L10n l10n;
 
   @override
@@ -297,8 +440,7 @@ class _EditFactSheetState extends State<_EditFactSheet> {
     super.dispose();
   }
 
-  bool get _isDirty =>
-      _controller.text.trim() != widget.initialText.trim();
+  bool get _isDirty => _controller.text.trim() != widget.baselineText.trim();
 
   void _save() {
     final t = _controller.text.trim();
@@ -314,39 +456,53 @@ class _EditFactSheetState extends State<_EditFactSheet> {
       isDirty: _isDirty,
       useRootNavigator: true,
       child: Padding(
-      padding: EdgeInsets.only(
-        left: tt.screenHPadding,
-        right: tt.screenHPadding,
-        top: tt.sectionGap,
-        bottom: bottom + tt.sectionGap,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            widget.l10n.beaconRoomFactCardEditTitle,
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          SizedBox(height: tt.sectionGap),
-          TextField(
-            controller: _controller,
-            minLines: 3,
-            maxLines: 10,
-            maxLength: 8000,
-            decoration: InputDecoration(
-              hintText: widget.l10n.beaconRoomFactCardEditHint,
+        padding: EdgeInsets.only(
+          left: tt.screenHPadding,
+          right: tt.screenHPadding,
+          top: tt.sectionGap,
+          bottom: bottom + tt.sectionGap,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              widget.l10n.beaconRoomFactCardEditTitle,
+              style: Theme.of(context).textTheme.titleMedium,
             ),
-            onChanged: (_) => setState(() {}),
-          ),
-          SizedBox(height: tt.sectionGap),
-          FilledButton(
-            onPressed: _save,
-            child: Text(MaterialLocalizations.of(context).saveButtonLabel),
-          ),
-        ],
+            if (widget.pinnedByLabel case final label?) ...[
+              SizedBox(height: tt.rowGap),
+              Row(
+                children: [
+                  Icon(
+                    Icons.push_pin_outlined,
+                    size: tt.iconSize,
+                    color: tt.textMuted,
+                  ),
+                  SizedBox(width: tt.rowGap / 2),
+                  Expanded(child: TenturaMetaText(label, maxLines: 2)),
+                ],
+              ),
+            ],
+            SizedBox(height: tt.sectionGap),
+            TextField(
+              controller: _controller,
+              minLines: 3,
+              maxLines: 10,
+              maxLength: 8000,
+              decoration: InputDecoration(
+                hintText: widget.l10n.beaconRoomFactCardEditHint,
+              ),
+              onChanged: (_) => setState(() {}),
+            ),
+            SizedBox(height: tt.sectionGap),
+            FilledButton(
+              onPressed: _save,
+              child: Text(MaterialLocalizations.of(context).saveButtonLabel),
+            ),
+          ],
+        ),
       ),
-    ),
     );
   }
 }
