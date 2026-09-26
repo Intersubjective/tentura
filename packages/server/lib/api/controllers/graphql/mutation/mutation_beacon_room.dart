@@ -59,6 +59,12 @@ final class MutationBeaconRoom extends GqlNodeBase {
 
   final _readThroughAt = InputFieldString(fieldName: 'readThroughAt');
 
+  final _quotedFactCardId = InputFieldString(fieldName: 'quotedFactCardId');
+
+  final _quotedFactRevisionSeq = InputFieldInt(
+    fieldName: 'quotedFactRevisionSeq',
+  );
+
   final _nowLineText = InputFieldString(fieldName: 'text');
 
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
@@ -89,6 +95,8 @@ final class MutationBeaconRoom extends GqlNodeBase {
           _explicitMentionOffsets.fieldNullable,
           _explicitMentionLengths.fieldNullable,
           InputFieldUpload.fieldNullable,
+          _quotedFactCardId.fieldNullable,
+          _quotedFactRevisionSeq.fieldNullable,
         ],
         resolve: (_, args) async {
           final uploadMeta = InputFieldUpload.uploadVariablesFromArgs(args);
@@ -116,6 +124,8 @@ final class MutationBeaconRoom extends GqlNodeBase {
                     rawType is String && rawType.trim().isNotEmpty
                     ? rawType
                     : null,
+                quotedFactCardId: _quotedFactCardId.fromArgs(args),
+                quotedFactRevisionSeq: _quotedFactRevisionSeq.fromArgs(args),
               )
               .then((m) => m);
         },
