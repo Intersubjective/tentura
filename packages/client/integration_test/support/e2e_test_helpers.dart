@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:js_interop';
 import 'dart:ui' show Offset, PlatformDispatcher, PointerDeviceKind;
 
+import 'package:ferry/ferry.dart' show OperationRequest, RequestSerializer;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -1538,6 +1539,49 @@ Future<Map<String, dynamic>> _postGraphQl(String query) async {
     includeCredentials: true,
     extraHeaders: {'Authorization': 'Bearer $token'},
   );
+}
+
+/// Runs one generated ferry [request] as [email] while the app stays signed in as
+/// [restoreEmail]: swaps the session cookie via test-login, mints an access
+/// token, posts, then swaps the cookie back. The app's in-memory session and
+/// realtime socket are untouched, so this simulates a second browser.
+Future<Map<String, dynamic>> postGraphQlAsUser({
+  required String email,
+  required String restoreEmail,
+  required OperationRequest<Object?, Object?> request,
+}) async {
+  await _postJson(
+    '/api/v2/auth/email/test-login',
+    {'email': email},
+    includeCredentials: true,
+  );
+  try {
+    final tokenResponse = await _postJson(
+      '/api/v2/session/access-token',
+      const <String, Object?>{},
+      includeCredentials: true,
+    );
+    final token = tokenResponse['access_token'] as String?;
+    if (token == null || token.isEmpty) {
+      throw StateError('access-token missing for $email: $tokenResponse');
+    }
+    final result = await _postJson(
+      '/api/v2/graphql',
+      const RequestSerializer().serializeRequest(request.execRequest),
+      includeCredentials: true,
+      extraHeaders: {'Authorization': 'Bearer $token'},
+    );
+    if (result['errors'] != null) {
+      throw StateError('GraphQL as $email failed: ${result['errors']}');
+    }
+    return result;
+  } finally {
+    await _postJson(
+      '/api/v2/auth/email/test-login',
+      {'email': restoreEmail},
+      includeCredentials: true,
+    );
+  }
 }
 
 Future<Map<String, dynamic>> _postJson(

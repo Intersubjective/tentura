@@ -52,6 +52,11 @@ class _RoomMessageFactQuoteState extends State<RoomMessageFactQuote> {
     final quoted = widget.quotedFact;
     final unpinned = quoted.isUnpinned;
     final showFull = _expanded || unpinned;
+    // The snapshot's currentSeq is only as fresh as the message fetch; a fact
+    // edit refreshes the room's fact list, not the messages.
+    final changedSinceQuoted =
+        quoted.isChangedSinceQuoted ||
+        (widget.currentFact?.revisionSeq ?? 0) > quoted.seq;
     final textColor = unpinned ? scheme.onSurfaceVariant : scheme.onSurface;
 
     return GestureDetector(
@@ -75,17 +80,18 @@ class _RoomMessageFactQuoteState extends State<RoomMessageFactQuote> {
                 style: TenturaText.status(scheme.onSurfaceVariant),
               ),
             ),
-          if (quoted.isChangedSinceQuoted)
+          if (changedSinceQuoted)
             Padding(
               padding: EdgeInsets.only(top: tt.tightGap),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
+              // Wraps in a narrow bubble instead of overflowing.
+              child: Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: tt.iconTextGap / 2,
                 children: [
                   Text(
                     l10n.beaconRoomFactQuoteChangedSinceQuoted,
                     style: TenturaText.status(scheme.onSurfaceVariant),
                   ),
-                  SizedBox(width: tt.iconTextGap / 2),
                   TextButton(
                     key: const ValueKey('room-fact-quote-diff'),
                     style: TextButton.styleFrom(

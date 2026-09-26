@@ -60,6 +60,8 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeBeaconParticipantRow,
   gqlTypeRoomReadWatermark,
   gqlTypeBeaconFactCardRow,
+  gqlTypeBeaconFactHistoryEntryRow,
+  gqlTypeBeaconFactCardRevisionsPage,
   gqlTypeBeaconActivityEventRow,
   gqlTypeInboxRoomContextRow,
   gqlTypeBeaconRoomSeenResult,
@@ -567,6 +569,34 @@ final gqlTypeBeaconFactCardRow = GraphQLObjectType('BeaconFactCardRow', null)
     field('otherEditorCount', graphQLInt.nonNullable()),
     field('historyTruncated', graphQLBoolean.nonNullable()),
   ]);
+
+final gqlTypeBeaconFactHistoryEntryRow =
+    GraphQLObjectType('v2_BeaconFactHistoryEntryRow', null)
+      ..fields.addAll([
+        field('entry', graphQLString.nonNullable()),
+        field('entryKey', graphQLString.nonNullable()),
+        field('seq', graphQLInt),
+        field('kind', graphQLInt.nonNullable()),
+        field('factText', graphQLString),
+        field('restoredFromSeq', graphQLInt),
+        field('visibilityFrom', graphQLInt),
+        field('visibilityTo', graphQLInt),
+        field('actorId', graphQLString),
+        field('actorTitle', graphQLString.nonNullable()),
+        field('createdAt', graphQLString.nonNullable()),
+      ]);
+
+final gqlTypeBeaconFactCardRevisionsPage =
+    GraphQLObjectType('v2_BeaconFactCardRevisionsPage', null)
+      ..fields.addAll([
+        field(
+          'entries',
+          GraphQLListType(
+            gqlTypeBeaconFactHistoryEntryRow.nonNullable(),
+          ).nonNullable(),
+        ),
+        field('nextCursor', graphQLString),
+      ]);
 
 /// `beacon_activity_event` projection for BeaconActivityEventList (V2).
 final gqlTypeBeaconActivityEventRow =
