@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart';
 import 'package:drift_postgres/drift_postgres.dart';
+import 'package:postgres/postgres.dart' show Type, TypedValue;
 
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/consts/beacon_fact_card_consts.dart';
@@ -121,28 +122,34 @@ ORDER BY f.created_at, f.id
     ];
   }
 
-  /// Latest active public fact line for inbox / forward strips.
-  Future<String?> latestPublicFactSnippet(String beaconId) async {
-    final rows = await _db.managers.beaconFactCards
-        .filter(
-          (r) =>
-              r.beaconId.id(beaconId) &
-              r.visibility.equals(BeaconFactCardVisibilityBits.public) &
-              r.status.equals(BeaconFactCardStatusBits.active),
-        )
-        .get();
-    if (rows.isEmpty) return null;
-    var best = rows.first;
-    for (final r in rows.skip(1)) {
-      if (r.createdAt.dateTime.isAfter(best.createdAt.dateTime)) {
-        best = r;
-      }
-    }
-    final t = best.factText.trim();
-    if (t.length > 160) {
-      return '${t.substring(0, 157)}…';
-    }
-    return t;
+  /// Plan §8.6: newest live public fact (active or corrected) per beacon in
+  /// one SELECT on `beacon_fact_card_public_live_idx`. Text is trimmed, then
+  /// cut to 157 chars + `…` when over 160.
+  @override
+  Future<Map<String, String>> publicFactSnippetsByBeaconIds(
+    List<String> beaconIds,
+  ) async {
+    if (beaconIds.isEmpty) return const {};
+    final rows = await _db.customSelect(
+      '''
+SELECT DISTINCT ON (f.beacon_id) f.beacon_id, f.fact_text
+FROM public.beacon_fact_card f
+WHERE f.beacon_id = ANY(\$1::text[])
+  AND f.visibility = ${BeaconFactCardVisibilityBits.public}
+  AND f.status IN (${BeaconFactCardStatusBits.active}, ${BeaconFactCardStatusBits.corrected})
+ORDER BY f.beacon_id, f.created_at DESC
+''',
+      variables: [Variable(TypedValue(Type.textArray, beaconIds))],
+    ).get();
+    return {
+      for (final row in rows)
+        row.read<String>('beacon_id'): _snippet(row.read<String>('fact_text')),
+    };
+  }
+
+  static String _snippet(String factText) {
+    final t = factText.trim();
+    return t.length > 160 ? '${t.substring(0, 157)}…' : t;
   }
 
   /// Plan §8.3 "Pin" / §14.3: one `ON CONFLICT` CTE writes the fact, its

@@ -681,10 +681,11 @@ final class BeaconRoomCase extends UseCaseBase {
       return [];
     }
     final slice = unique.length > 80 ? unique.sublist(0, 80) : unique;
+    final snippets = await _factCards.publicFactSnippetsByBeaconIds(slice);
     final out = <Map<String, Object?>>[];
     for (final bid in slice) {
       final allowed = await _canUseRoom(beaconId: bid, userId: userId);
-      final factSnippet = await _factCards.latestPublicFactSnippet(bid);
+      final factSnippet = snippets[bid];
       if (!allowed) {
         out.add({
           'beaconId': bid,

@@ -19,7 +19,11 @@ abstract class BeaconFactCardRepositoryPort {
     required bool includeRoomOnly,
   });
 
-  Future<String?> latestPublicFactSnippet(String beaconId);
+  /// Newest live (active or corrected) public fact per beacon, trimmed and
+  /// at most 160 chars. Beacons without one have no entry.
+  Future<Map<String, String>> publicFactSnippetsByBeaconIds(
+    List<String> beaconIds,
+  );
 
   /// Pins [factText] (trimmed) as a live fact in one statement. Throws
   /// `BeaconFactCardAlreadyPinnedException` when [sourceMessageId] already

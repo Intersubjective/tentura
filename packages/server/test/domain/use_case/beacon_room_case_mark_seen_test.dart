@@ -319,7 +319,10 @@ void main() {
 class FakeBeaconFactCardRepository extends Fake
     implements BeaconFactCardRepositoryPort {
   @override
-  Future<String> latestPublicFactSnippet(String beaconId) async => '';
+  Future<Map<String, String>> publicFactSnippetsByBeaconIds(
+    List<String> beaconIds,
+  ) async =>
+      const {};
 }
 
 class FakeImageRepositoryPort extends Fake implements ImageRepositoryPort {}
