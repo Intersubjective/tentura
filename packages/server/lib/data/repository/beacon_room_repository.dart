@@ -4,6 +4,7 @@ import 'package:injectable/injectable.dart';
 import 'package:drift_postgres/drift_postgres.dart';
 import 'package:postgres/postgres.dart' show Type, TypedValue;
 
+import 'package:tentura_server/app/sentry/sentry_db_span.dart';
 import 'package:tentura_server/consts/beacon_participant_status_bits.dart';
 import 'package:tentura_server/consts/beacon_fact_card_consts.dart';
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
@@ -213,8 +214,10 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
     ];
     final quoteRowByKey = <String, QueryRow>{};
     if (quotedMsgs.isNotEmpty) {
-      final quoteRows = await _db.customSelect(
-        r'''
+      final quoteRows = await sentryDbSpan(
+        'db.quote.batch',
+        (_) => _db.customSelect(
+          r'''
 SELECT
   q.fact_card_id, q.seq, r.fact_text,
   f.pinned_by, f.source_message_id,
@@ -225,19 +228,20 @@ JOIN public.beacon_fact_card f ON f.id = q.fact_card_id
 JOIN public.beacon_fact_card_revision r
   ON r.fact_card_id = q.fact_card_id AND r.seq = q.seq
 ''',
-        variables: [
-          Variable(
-            TypedValue(Type.textArray, [
-              for (final m in quotedMsgs) m.quotedFactCardId!,
-            ]),
-          ),
-          Variable(
-            TypedValue(Type.integerArray, [
-              for (final m in quotedMsgs) m.quotedFactRevisionSeq!,
-            ]),
-          ),
-        ],
-      ).get();
+          variables: [
+            Variable(
+              TypedValue(Type.textArray, [
+                for (final m in quotedMsgs) m.quotedFactCardId!,
+              ]),
+            ),
+            Variable(
+              TypedValue(Type.integerArray, [
+                for (final m in quotedMsgs) m.quotedFactRevisionSeq!,
+              ]),
+            ),
+          ],
+        ).get(),
+      );
       for (final row in quoteRows) {
         quoteRowByKey['${row.read<String>('fact_card_id')}#'
                 '${row.read<int>('seq')}'] =

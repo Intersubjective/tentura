@@ -5,6 +5,7 @@ import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
 import 'package:postgres/postgres.dart';
+import 'package:sentry/sentry.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/consts/beacon_fact_card_consts.dart';
@@ -412,6 +413,68 @@ Future<void> main() async {
           } finally {
             await executor.runCustom('RESET enable_seqscan');
           }
+        },
+        skip: skipReason,
+      );
+    });
+
+    group('listForBeacon Sentry span (tentura-617.20)', () {
+      SentryTransaction? capturedTransaction;
+
+      setUp(() async {
+        await Sentry.close();
+        capturedTransaction = null;
+        await Sentry.init((options) {
+          options
+            ..dsn = 'https://public@o123.ingest.sentry.io/1'
+            ..automatedTestMode = true
+            ..tracesSampleRate = 1.0
+            ..beforeSendTransaction = (transaction, hint) {
+              capturedTransaction = transaction;
+              return transaction;
+            };
+        });
+      });
+
+      tearDown(() async {
+        await Sentry.close();
+      });
+
+      test(
+        'records the actual returned row count on a db span',
+        () async {
+          final transaction = Sentry.startTransaction(
+            'test-tx',
+            'test',
+            bindToScope: true,
+          );
+
+          final rows = await repository.listForBeacon(
+            beaconId: _beaconId,
+            includeRoomOnly: true,
+          );
+
+          await transaction.finish();
+
+          expect(rows, hasLength(3));
+          expect(capturedTransaction, isNotNull);
+
+          final listSpans = capturedTransaction!.spans
+              .where((span) => span.context.operation == 'db.fact.list')
+              .toList();
+          expect(
+            listSpans,
+            hasLength(1),
+            reason:
+                'expected exactly one db.fact.list child span for '
+                'listForBeacon; captured spans: '
+                '${capturedTransaction!.spans.map((s) => s.context.operation).toList()}',
+          );
+          expect(
+            listSpans.single.data['db.rows'],
+            rows.length,
+            reason: 'the db.fact.list span must carry the actual row count',
+          );
         },
         skip: skipReason,
       );

@@ -2,6 +2,8 @@ import 'package:injectable/injectable.dart';
 import 'package:drift_postgres/drift_postgres.dart';
 import 'package:postgres/postgres.dart' show Type, TypedValue;
 
+import 'package:tentura_server/app/sentry/sentry_db_span.dart';
+
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/consts/beacon_fact_card_consts.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
@@ -80,8 +82,9 @@ WHERE b.id = \$1::text
     required String beaconId,
     required bool includeRoomOnly,
   }) async {
-    final rows = await _db.customSelect(
-      '''
+    final rows = await sentryDbSpan('db.fact.list', (span) async {
+      final rows = await _db.customSelect(
+        '''
 SELECT
   f.id, f.beacon_id, f.fact_text, f.visibility::integer AS visibility,
   f.pinned_by, f.source_message_id, f.status::integer AS status,
@@ -97,8 +100,14 @@ WHERE f.beacon_id = \$1::text
   AND (\$2::boolean OR f.visibility <> ${BeaconFactCardVisibilityBits.room})
 ORDER BY f.created_at, f.id
 ''',
-      variables: [Variable<String>(beaconId), Variable<bool>(includeRoomOnly)],
-    ).get();
+        variables: [
+          Variable<String>(beaconId),
+          Variable<bool>(includeRoomOnly),
+        ],
+      ).get();
+      span?.setData('db.rows', rows.length);
+      return rows;
+    });
     return [
       for (final row in rows)
         BeaconFactCardEntity(
@@ -164,7 +173,9 @@ ORDER BY f.beacon_id, f.created_at DESC
     required String pinnedBy,
     String? sourceMessageId,
   }) =>
-      _db.withMutatingUser(pinnedBy, () async {
+      _db.withMutatingUser(pinnedBy, () => sentryDbSpan('db.fact.pin', (
+        _,
+      ) async {
         final isPublic = visibility == BeaconFactCardVisibilityBits.public;
         final row = await _db.customSelect(
           '''
@@ -283,7 +294,7 @@ WHERE source_message_id = $1::text AND status IN (0, 1)
           status: row.read<int>('status'),
           updatedAt: _readNullableTimestamp(row, 'updated_at'),
         );
-      });
+      }));
 
   /// Plan §8.3 "Set visibility" / §14.3: one CTE updates the card and writes
   /// the `factVisibilityChanged` event with `fact_card_id` set. A
@@ -414,7 +425,9 @@ SELECT count(*)::integer AS updated FROM fact
     required int kind,
     required int? fromSeq,
   }) =>
-      _db.withMutatingUser(actorUserId, () async {
+      _db.withMutatingUser(actorUserId, () => sentryDbSpan('db.fact.edit', (
+        _,
+      ) async {
         final rows = await _db.customSelect(
           r'''
 WITH locked AS (
@@ -542,7 +555,7 @@ SELECT (SELECT u.revision_seq FROM upd u)                    AS new_seq,
         if (sameText ?? false) return FactEditNoOp(currentSeq: currentSeq!);
         if (!rateOk) return const FactEditRateLimited();
         return FactEditConflict(currentSeq: currentSeq!);
-      });
+      }));
 
   /// Plan §8.3 "Unpin" / §14.4 rule 12: one CTE locks the fact, marks it
   /// removed, unlinks the source message by primary key, writes the marker-11
@@ -554,7 +567,9 @@ SELECT (SELECT u.revision_seq FROM upd u)                    AS new_seq,
     required String beaconId,
     required String actorUserId,
   }) =>
-      _db.withMutatingUser(actorUserId, () async {
+      _db.withMutatingUser(actorUserId, () => sentryDbSpan('db.fact.remove', (
+        _,
+      ) async {
         final row = await _db.customSelect(
           '''
 WITH locked AS (
@@ -614,7 +629,7 @@ SELECT EXISTS (SELECT 1 FROM locked) AS found,
           throw IdNotFoundException(description: 'Fact card [$factCardId]');
         }
         return row.read<bool>('removed');
-      });
+      }));
 
   /// Plan §8.4 / §14.3: one keyset read over the fact's revisions and its
   /// fact events (types 2, 14, 20). `entry_key` breaks `created_at` ties:
@@ -642,8 +657,10 @@ WHERE (h.created_at, h.entry_key) < ($3::timestamptz, $4::text)
         Variable<String>(before.entryKey),
       ]);
     }
-    final rows = await _db.customSelect(
-      r'''
+    final rows = await sentryDbSpan(
+      'db.fact.history',
+      (_) => _db.customSelect(
+        r'''
 SELECT h.*, u.display_name AS actor_title
 FROM (
   SELECT
@@ -683,8 +700,9 @@ LEFT JOIN public."user" u ON u.id = h.actor_id
 ORDER BY h.created_at DESC, h.entry_key DESC
 LIMIT $2::integer
 ''',
-      variables: variables,
-    ).get();
+        variables: variables,
+      ).get(),
+    );
     return [for (final row in rows) _toHistoryEntry(row)];
   }
 
