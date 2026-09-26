@@ -102,9 +102,11 @@ void main() {
     });
 
     test('is the next minor, not a jump that skips a real release', () {
-      // The floor names a version U19 must actually ship. Anything further
-      // ahead locks out the release that carries the contract as well.
-      expect(kDefaultMinClientVersion, '7.19.0');
+      // The floor names a version its own release must actually ship.
+      // Anything further ahead locks out the release that carries the
+      // contract as well, so the floor must match the shipped client
+      // version exactly rather than merely satisfy it.
+      expect(kDefaultMinClientVersion, _shippedClientVersion());
     });
   });
 }
