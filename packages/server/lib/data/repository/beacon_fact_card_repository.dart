@@ -537,27 +537,76 @@ SELECT (SELECT u.revision_seq FROM upd u)                    AS new_seq,
         return FactEditConflict(currentSeq: currentSeq!);
       });
 
-  Future<void> remove({
+  /// Plan §8.3 "Unpin" / §14.4 rule 12: one CTE locks the fact, marks it
+  /// removed, unlinks the source message by primary key, writes the marker-11
+  /// line and the `factRemoved` event. Returns false when the fact was
+  /// already removed; throws when it does not exist.
+  @override
+  Future<bool> remove({
     required String factCardId,
     required String beaconId,
     required String actorUserId,
   }) =>
       _db.withMutatingUser(actorUserId, () async {
-        await _db.managers.beaconRoomMessages
-            .filter((m) => m.linkedFactCardId.equals(factCardId))
-            .update(
-              (u) => u(linkedFactCardId: const Value.absent()),
-            );
-        await _db.managers.beaconFactCards.filter(
-          (e) =>
-              e.id.equals(factCardId) &
-              e.beaconId.id(beaconId),
-        ).update(
-          (u) => u(
-                status: const Value(BeaconFactCardStatusBits.removed),
-                updatedAt: Value(PgDateTime(DateTime.timestamp())),
-              ),
-            );
+        final row = await _db.customSelect(
+          '''
+WITH locked AS (
+  SELECT f.id, f.status
+  FROM public.beacon_fact_card f
+  WHERE f.id = \$1::text AND f.beacon_id = \$2::text
+  FOR UPDATE
+),
+upd AS (
+  UPDATE public.beacon_fact_card f
+  SET status = ${BeaconFactCardStatusBits.removed}, updated_at = now()
+  FROM locked l
+  WHERE f.id = l.id AND l.status <> ${BeaconFactCardStatusBits.removed}
+  RETURNING f.id, f.beacon_id, f.visibility, f.pinned_by, f.fact_text,
+            f.source_message_id
+),
+unlink AS (
+  UPDATE public.beacon_room_message m
+  SET linked_fact_card_id = NULL
+  FROM upd u
+  WHERE m.id = u.source_message_id
+),
+line AS (
+  INSERT INTO public.beacon_room_message
+    (id, beacon_id, author_id, body, semantic_marker, system_payload)
+  SELECT \$4::text, u.beacon_id, \$3::text, '',
+         ${BeaconRoomSemanticMarker.factUnpinned},
+         jsonb_build_object('factCardId', u.id,
+                            'pinnedBy', u.pinned_by,
+                            'factText', left(u.fact_text, 160))
+  FROM upd u
+  RETURNING id
+),
+evt AS (
+  INSERT INTO public.beacon_activity_event
+    (id, beacon_id, visibility, type, actor_id, source_message_id,
+     fact_card_id, diff)
+  SELECT \$5::text, u.beacon_id, u.visibility,
+         ${BeaconActivityEventTypeBits.factRemoved}, \$3::text,
+         COALESCE((SELECT l.id FROM line l), u.source_message_id),
+         u.id,
+         jsonb_build_object('factCardId', u.id)
+  FROM upd u
+)
+SELECT EXISTS (SELECT 1 FROM locked) AS found,
+       EXISTS (SELECT 1 FROM upd) AS removed
+''',
+          variables: [
+            Variable<String>(factCardId),
+            Variable<String>(beaconId),
+            Variable<String>(actorUserId),
+            Variable<String>(generateId('R')),
+            Variable<String>(BeaconActivityEventEntity.newId),
+          ],
+        ).getSingle();
+        if (!row.read<bool>('found')) {
+          throw IdNotFoundException(description: 'Fact card [$factCardId]');
+        }
+        return row.read<bool>('removed');
       });
 
   /// Plan §8.4 / §14.3: one keyset read over the fact's revisions and its

@@ -7,7 +7,6 @@ import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart
 import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/consts/beacon_fact_card_consts.dart';
-import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/policy/beacon_room_lifecycle_write_policy.dart';
 
@@ -18,8 +17,11 @@ final class BeaconFactCardCase extends UseCaseBase {
   BeaconFactCardCase(
     this._facts,
     this._room,
-    this._hierarchyRepository,
-    // Kept for DI; list reads through the fused loadRoomAccess preflight.
+    // Kept for DI; writes and list go through the fused loadRoomAccess
+    // preflight.
+    // ignore: avoid_unused_constructor_parameters
+    BeaconHierarchyRepositoryPort hierarchyRepository,
+    // Kept for DI, same as the hierarchy port above.
     // ignore: avoid_unused_constructor_parameters
     BeaconAccessGuard guard, {
     required super.env,
@@ -29,45 +31,6 @@ final class BeaconFactCardCase extends UseCaseBase {
   final BeaconFactCardRepositoryPort _facts;
 
   final BeaconRoomRepositoryPort _room;
-
-  final BeaconHierarchyRepositoryPort _hierarchyRepository;
-
-  Future<bool> _canUseRoom({
-    required String beaconId,
-    required String userId,
-  }) async {
-    if (await _room.isBeaconAuthor(beaconId: beaconId, userId: userId)) {
-      return true;
-    }
-    if (await _room.isBeaconSteward(beaconId: beaconId, userId: userId)) {
-      return true;
-    }
-    final p =
-        await _room.findParticipant(beaconId: beaconId, userId: userId);
-    return p?.roomAccess == RoomAccessBits.admitted;
-  }
-
-  Future<void> _ensureRoomAccess({
-    required String beaconId,
-    required String userId,
-  }) async {
-    final ok = await _canUseRoom(beaconId: beaconId, userId: userId);
-    if (!ok) {
-      throw const UnauthorizedException(
-        description: 'Room access required',
-      );
-    }
-  }
-
-  Future<void> _rejectOrdinaryUserWritesForLifecycle(String beaconId) async {
-    final status = await _hierarchyRepository.loadBeaconStatus(beaconId);
-    if (status != null &&
-        BeaconRoomLifecycleWritePolicy.blocksOrdinaryUserWrites(status)) {
-      throw const BeaconCreateException(
-        description: 'Discussion is read-only for this request',
-      );
-    }
-  }
 
   /// Fused `loadRoomAccess` preflight: room use plus lifecycle write check.
   Future<void> _ensureWritableRoomAccess({
@@ -190,14 +153,12 @@ final class BeaconFactCardCase extends UseCaseBase {
     required String beaconId,
     required String actorUserId,
   }) async {
-    await _ensureRoomAccess(beaconId: beaconId, userId: actorUserId);
-    await _rejectOrdinaryUserWritesForLifecycle(beaconId);
-    await _facts.remove(
+    await _ensureWritableRoomAccess(beaconId: beaconId, userId: actorUserId);
+    return _facts.remove(
       factCardId: factCardId,
       beaconId: beaconId,
       actorUserId: actorUserId,
     );
-    return true;
   }
 
   Future<bool> setVisibility({

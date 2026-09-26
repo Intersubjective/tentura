@@ -67,7 +67,8 @@ abstract class BeaconFactCardRepositoryPort {
     required Duration quietWindow,
   });
 
-  Future<void> remove({
+  /// True only when this call unpinned the fact.
+  Future<bool> remove({
     required String factCardId,
     required String beaconId,
     required String actorUserId,

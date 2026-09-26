@@ -132,12 +132,13 @@ class _StubFacts extends Fake implements BeaconFactCardRepositoryPort {
   }
 
   @override
-  Future<void> remove({
+  Future<bool> remove({
     required String factCardId,
     required String beaconId,
     required String actorUserId,
   }) async {
     lastRemovedFactId = factCardId;
+    return true;
   }
 
   @override
