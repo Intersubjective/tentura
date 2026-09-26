@@ -5094,6 +5094,11 @@
   "beaconRoomSemanticFactEdited": "Факт изменён",
   "beaconRoomSemanticFactUnpinned": "Факт откреплён",
   "beaconRoomSemanticFactQuoted": "Факт",
+  "beaconRoomFactEditedOwnLine": "{actor} изменил(а) факт",
+  "beaconRoomFactEditedOtherLine": "{actor} изменил(а) факт {pinner}",
+  "beaconRoomFactUnpinnedOwnLine": "{actor} открепил(а) факт",
+  "beaconRoomFactUnpinnedOtherLine": "{actor} открепил(а) факт {pinner}",
+  "beaconRoomFactWhatChanged": "Что изменилось ›",
   "beaconRoomMemberCount": "{count, plural, one{{count} участник} few{{count} участника} many{{count} участников} other{{count} участника}}",
   "@beaconRoomMemberCount": {
     "placeholders": {
@@ -5285,6 +5290,8 @@
   "beaconActivityPlanUpdated": "План обновлён",
   "beaconActivityFactPinned": "Факт закреплён",
   "beaconActivityFactVisibilityChanged": "Изменена видимость факта",
+  "beaconActivityFactEdited": "Факт изменён",
+  "beaconActivityFactRemoved": "Факт удалён",
   "beaconActivityBlockerOpened": "Открыт блокер",
   "beaconActivityBlockerResolved": "Блокер снят",
   "beaconActivityNeedInfoOpened": "Запрос информации",

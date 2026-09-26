@@ -25,6 +25,7 @@ import 'package:tentura/features/beacon_threads/ui/coordination_room_navigation.
 import 'package:tentura/features/beacon_threads/ui/sheet/author_commitment_sheet.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_child_promotion_footer.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_hierarchy_notice.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/fact_history_sheet.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/reaction_senders_sheet.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_attachment_widgets.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_bubble_measure.dart';
@@ -186,6 +187,48 @@ class RoomMessageTile extends StatelessWidget {
       return null;
     }
   }
+
+  static bool isFactEditOrUnpinLine(RoomMessage m) =>
+      m.semanticMarker == BeaconRoomSemanticMarker.factEdited ||
+      m.semanticMarker == BeaconRoomSemanticMarker.factUnpinned;
+
+  /// Fact edit / unpin system payload (server contract): `factCardId`,
+  /// `pinnedBy`, `factText`, and `revisionSeq` on edits.
+  @visibleForTesting
+  static ({
+    String factCardId,
+    String pinnedBy,
+    String factText,
+    int? revisionSeq,
+  })?
+  factSystemPayload(RoomMessage m) {
+    final raw = m.systemPayloadJson;
+    if (raw == null || raw.trim().isEmpty) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) return null;
+      final factCardId = decoded['factCardId'];
+      if (factCardId is! String || factCardId.trim().isEmpty) return null;
+      final pinnedBy = decoded['pinnedBy'];
+      final factText = decoded['factText'];
+      final revisionSeq = decoded['revisionSeq'];
+      return (
+        factCardId: factCardId.trim(),
+        pinnedBy: pinnedBy is String ? pinnedBy.trim() : '',
+        factText: factText is String ? factText.trim() : '',
+        revisionSeq: revisionSeq is num ? revisionSeq.toInt() : null,
+      );
+    } on Object {
+      return null;
+    }
+  }
+
+  static const _factExcerptMaxChars = 140;
+
+  static String _factExcerpt(String text) =>
+      text.length <= _factExcerptMaxChars
+      ? text
+      : '${text.substring(0, _factExcerptMaxChars).trimRight()}…';
 
   static String _participantDisplayName({
     required List<BeaconParticipant> participants,
@@ -483,6 +526,66 @@ class RoomMessageTile extends StatelessWidget {
               ),
             ],
           ),
+        );
+      }
+    }
+
+    if (isFactEditOrUnpinLine(message)) {
+      final payload = factSystemPayload(message);
+      if (payload != null) {
+        final isEdit =
+            message.semanticMarker == BeaconRoomSemanticMarker.factEdited;
+        final actorName = SelfUserHighlight.displayName(
+          l10n,
+          message.author,
+          myProfile.id,
+        );
+        final ownFact =
+            payload.pinnedBy.isEmpty || payload.pinnedBy == message.authorId;
+        final pinnerName = ownFact
+            ? ''
+            : _participantDisplayName(
+                participants: participants,
+                userId: payload.pinnedBy,
+                viewer: myProfile,
+                l10n: l10n,
+              );
+        final line = switch ((isEdit, ownFact)) {
+          (true, true) => l10n.beaconRoomFactEditedOwnLine(actorName),
+          (true, false) => l10n.beaconRoomFactEditedOtherLine(
+            actorName,
+            pinnerName,
+          ),
+          (false, true) => l10n.beaconRoomFactUnpinnedOwnLine(actorName),
+          (false, false) => l10n.beaconRoomFactUnpinnedOtherLine(
+            actorName,
+            pinnerName,
+          ),
+        };
+        final revisionSeq = payload.revisionSeq;
+        return _FactSystemLine(
+          padding: EdgeInsets.fromLTRB(
+            tt.screenHPadding,
+            topPad / 2,
+            tt.screenHPadding,
+            bottomPad / 2,
+          ),
+          icon: isEdit ? Icons.edit_outlined : Icons.push_pin_outlined,
+          line: line,
+          excerpt: _factExcerpt(payload.factText),
+          onWhatChanged: isEdit && revisionSeq != null && revisionSeq > 1
+              ? (ctx) => unawaited(
+                  showFactHistorySheet(
+                    ctx,
+                    beaconId: message.beaconId,
+                    factCardId: payload.factCardId,
+                    baseRevisionSeq: revisionSeq,
+                    canMutate:
+                        ctx.read<RoomCubit?>()?.state.canWriteDiscussion ??
+                        false,
+                  ),
+                )
+              : null,
         );
       }
     }
@@ -1418,6 +1521,79 @@ class RoomMessageTile extends StatelessWidget {
                   ),
               ],
             ),
+    );
+  }
+}
+
+/// Centered fact edit / unpin line: headline, clamped fact excerpt and an
+/// optional 'What changed' link that opens the fact history sheet.
+class _FactSystemLine extends StatelessWidget {
+  const _FactSystemLine({
+    required this.padding,
+    required this.icon,
+    required this.line,
+    required this.excerpt,
+    required this.onWhatChanged,
+  });
+
+  final EdgeInsets padding;
+  final IconData icon;
+  final String line;
+  final String excerpt;
+  final void Function(BuildContext context)? onWhatChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final tt = context.tt;
+    final labelStyle = theme.textTheme.labelSmall?.copyWith(
+      color: scheme.onSurfaceVariant,
+      fontWeight: FontWeight.w500,
+      height: 1.15,
+    );
+    return Padding(
+      padding: padding,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 14, color: scheme.onSurfaceVariant),
+              SizedBox(width: tt.iconTextGap / 2),
+              Flexible(
+                child: Text(
+                  line,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: labelStyle,
+                ),
+              ),
+            ],
+          ),
+          if (excerpt.isNotEmpty) ...[
+            SizedBox(height: tt.tightGap),
+            Text(
+              excerpt,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+          if (onWhatChanged != null)
+            TextButton(
+              onPressed: () => onWhatChanged!(context),
+              child: Text(l10n.beaconRoomFactWhatChanged),
+            ),
+        ],
+      ),
     );
   }
 }

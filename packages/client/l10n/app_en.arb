@@ -5170,6 +5170,52 @@
   "beaconRoomSemanticFactEdited": "Fact edited",
   "beaconRoomSemanticFactUnpinned": "Fact unpinned",
   "beaconRoomSemanticFactQuoted": "Fact",
+  "beaconRoomFactEditedOwnLine": "{actor} edited a fact",
+  "@beaconRoomFactEditedOwnLine": {
+    "description": "Centered discussion line when someone edits a fact they pinned themselves.",
+    "placeholders": {
+      "actor": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconRoomFactEditedOtherLine": "{actor} edited {pinner}'s fact",
+  "@beaconRoomFactEditedOtherLine": {
+    "description": "Centered discussion line when someone edits a fact pinned by another person.",
+    "placeholders": {
+      "actor": {
+        "type": "String"
+      },
+      "pinner": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconRoomFactUnpinnedOwnLine": "{actor} unpinned a fact",
+  "@beaconRoomFactUnpinnedOwnLine": {
+    "description": "Centered discussion line when someone unpins a fact they pinned themselves.",
+    "placeholders": {
+      "actor": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconRoomFactUnpinnedOtherLine": "{actor} unpinned {pinner}'s fact",
+  "@beaconRoomFactUnpinnedOtherLine": {
+    "description": "Centered discussion line when someone unpins a fact pinned by another person.",
+    "placeholders": {
+      "actor": {
+        "type": "String"
+      },
+      "pinner": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconRoomFactWhatChanged": "What changed ›",
+  "@beaconRoomFactWhatChanged": {
+    "description": "Link under a fact-edited discussion line; opens the fact history sheet."
+  },
   "beaconRoomMemberCount": "{count, plural, =1{1 person} other{{count} people}}",
   "@beaconRoomMemberCount": {
     "placeholders": {
@@ -5367,6 +5413,8 @@
   "beaconActivityPlanUpdated": "Plan updated",
   "beaconActivityFactPinned": "Fact pinned",
   "beaconActivityFactVisibilityChanged": "Fact visibility changed",
+  "beaconActivityFactEdited": "Fact edited",
+  "beaconActivityFactRemoved": "Fact removed",
   "beaconActivityBlockerOpened": "Blocker opened",
   "beaconActivityBlockerResolved": "Blocker resolved",
   "beaconActivityNeedInfoOpened": "Need-info requested",

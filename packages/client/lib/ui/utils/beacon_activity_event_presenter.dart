@@ -85,6 +85,8 @@ IconData beaconActivityLogIcon(BeaconActivityEvent e) {
     BeaconActivityEventTypeBits.doneMarked => Icons.task_alt,
     BeaconActivityEventTypeBits.factVisibilityChanged =>
       Icons.visibility_outlined,
+    BeaconActivityEventTypeBits.factEdited => Icons.edit_outlined,
+    BeaconActivityEventTypeBits.factRemoved => Icons.delete_outline,
     BeaconActivityEventTypeBits.beaconPublished => Icons.campaign_outlined,
     BeaconActivityEventTypeBits.beaconLifecycleChanged =>
       _beaconLifecycleLogIcon(lifecycleChangeReasonFromEvent(e)),
@@ -264,6 +266,8 @@ String beaconActivityEventLabel(L10n l10n, BeaconActivityEvent e) {
     BeaconActivityEventTypeBits.factPinned => l10n.beaconActivityFactPinned,
     BeaconActivityEventTypeBits.factVisibilityChanged =>
       l10n.beaconActivityFactVisibilityChanged,
+    BeaconActivityEventTypeBits.factEdited => l10n.beaconActivityFactEdited,
+    BeaconActivityEventTypeBits.factRemoved => l10n.beaconActivityFactRemoved,
     BeaconActivityEventTypeBits.blockerOpened =>
       l10n.beaconActivityBlockerOpened,
     BeaconActivityEventTypeBits.blockerResolved =>

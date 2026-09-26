@@ -77,4 +77,38 @@ void main() {
     );
     expect(beaconLifecycleEventIsSystem(e), isFalse);
   });
+
+  // tentura-617.33 (plan §8.8): fact edited / removed events must render as
+  // real Log tab lines with their own meaning, not the generic coordination
+  // fallback. Copy mirrors the existing 'Fact pinned' / 'Fact visibility
+  // changed' entries.
+  group('fact edited / removed (types 19 / 20)', () {
+    test('factEdited (19) reads "Fact edited"', () {
+      final e = event(BeaconActivityEventTypeBits.factEdited);
+      expect(beaconActivityEventLabel(l10n, e), 'Fact edited');
+      expect(beaconActivityLogIcon(e), isNot(Icons.hub_outlined));
+    });
+
+    test('factRemoved (20) reads "Fact removed"', () {
+      final e = event(BeaconActivityEventTypeBits.factRemoved);
+      expect(beaconActivityEventLabel(l10n, e), 'Fact removed');
+      expect(beaconActivityLogIcon(e), isNot(Icons.hub_outlined));
+    });
+
+    test('edited and removed use distinct labels and icons', () {
+      final edited = event(BeaconActivityEventTypeBits.factEdited);
+      final removed = event(BeaconActivityEventTypeBits.factRemoved);
+      expect(
+        beaconActivityEventLabel(l10n, edited),
+        isNot(beaconActivityEventLabel(l10n, removed)),
+      );
+      expect(
+        beaconActivityLogIcon(edited),
+        isNot(beaconActivityLogIcon(removed)),
+      );
+      // Neither may reuse the pin icon: they are not pin events.
+      expect(beaconActivityLogIcon(edited), isNot(Icons.push_pin_outlined));
+      expect(beaconActivityLogIcon(removed), isNot(Icons.push_pin_outlined));
+    });
+  });
 }
