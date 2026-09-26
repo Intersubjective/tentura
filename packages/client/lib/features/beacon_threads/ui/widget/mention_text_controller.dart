@@ -101,16 +101,17 @@ final class MentionTextController extends TextEditingController {
         candidates.add((oldStart: caret, oldEnd: caret, newEnd: caret + delta));
       } else {
         final deleted = -delta;
-        candidates.add((
-          oldStart: caret - deleted,
-          oldEnd: caret,
-          newEnd: caret - deleted,
-        ));
-        candidates.add((
-          oldStart: caret,
-          oldEnd: caret + deleted,
-          newEnd: caret,
-        ));
+        candidates
+          ..add((
+            oldStart: caret - deleted,
+            oldEnd: caret,
+            newEnd: caret - deleted,
+          ))
+          ..add((
+            oldStart: caret,
+            oldEnd: caret + deleted,
+            newEnd: caret,
+          ));
       }
     }
     for (final candidate in candidates) {

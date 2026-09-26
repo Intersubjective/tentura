@@ -1,4 +1,6 @@
 import 'package:flutter/widgets.dart';
+import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart'
+    show BeaconViewCubit;
 
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
@@ -9,19 +11,19 @@ import 'thread_host_state.dart';
 
 export 'package:flutter_bloc/flutter_bloc.dart';
 
-typedef RoomCubitFactory = RoomCubit Function({
-  required String beaconId,
-  String? threadItemId,
-  DateTime? initialUnreadAnchorAt,
-});
+typedef RoomCubitFactory =
+    RoomCubit Function({
+      required String beaconId,
+      String? threadItemId,
+      DateTime? initialUnreadAnchorAt,
+    });
 
 /// Hosts the General discussion room only (plan §6.1).
 class ThreadHostCubit extends Cubit<ThreadHostState> {
   ThreadHostCubit({
-    required String beaconId,
+    required this._beaconId,
     RoomCubitFactory roomCubitFactory = RoomCubit.new,
-  }) : _beaconId = beaconId,
-       _factory = roomCubitFactory,
+  }) : _factory = roomCubitFactory,
        super(const ThreadHostState());
 
   final String _beaconId;
@@ -96,7 +98,7 @@ class ThreadHostCubit extends Cubit<ThreadHostState> {
     });
     _switchTail = operation.then<void>(
       (_) {},
-      onError: (Object _, StackTrace __) {},
+      onError: (Object _, StackTrace _) {},
     );
     return operation;
   }
@@ -115,7 +117,7 @@ class ThreadHostCubit extends Cubit<ThreadHostState> {
     });
     _switchTail = operation.then<void>(
       (_) {},
-      onError: (Object _, StackTrace __) {},
+      onError: (Object _, StackTrace _) {},
     );
     return operation;
   }

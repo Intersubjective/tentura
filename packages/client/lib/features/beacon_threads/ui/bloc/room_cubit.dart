@@ -1,5 +1,9 @@
 import 'dart:async';
 
+import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart'
+    show ThreadHostCubit;
+import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart'
+    show BeaconViewCubit;
 import 'package:uuid/uuid.dart';
 
 import 'package:tentura_root/domain/entity/beacon_status.dart';
@@ -110,7 +114,9 @@ class RoomCubit extends Cubit<RoomState> {
     if (isClosed) return;
     final wasWritable = state.canWriteDiscussion;
     final clearReply =
-        wasWritable && !status.allowsDiscussionWrites && state.replyTarget != null;
+        wasWritable &&
+        !status.allowsDiscussionWrites &&
+        state.replyTarget != null;
     emit(
       state.copyWith(
         beaconStatus: status,
@@ -187,7 +193,7 @@ class RoomCubit extends Cubit<RoomState> {
       if (id != null && id.isNotEmpty) {
         _applyConfirmedMessageDelete(id);
       }
-      _requestRefresh(scope: _RoomRefreshScope.messages);
+      unawaited(_requestRefresh(scope: _RoomRefreshScope.messages));
       return;
     }
 
@@ -228,7 +234,7 @@ class RoomCubit extends Cubit<RoomState> {
       BeaconRoomEntityType.factCard => _RoomRefreshScope.facts,
       _ => _RoomRefreshScope.full,
     };
-    _requestRefresh(scope: scope);
+    unawaited(_requestRefresh(scope: scope));
   }
 
   void _mergePaintedMessage(RoomMessage message) {
@@ -534,7 +540,7 @@ class RoomCubit extends Cubit<RoomState> {
       if (_pendingThreadMessageId != null &&
           !state.messages.any((m) => m.id == _pendingThreadMessageId)) {
         unawaited(
-          _requestRefresh(scope: _RoomRefreshScope.full, silent: true),
+          _requestRefresh(scope: _RoomRefreshScope.full),
         );
         return;
       }
@@ -627,8 +633,9 @@ class RoomCubit extends Cubit<RoomState> {
     if (!_initialLoadDone) {
       return;
     }
-    final newestLoaded =
-        state.messages.isEmpty ? null : state.messages.last.createdAt;
+    final newestLoaded = state.messages.isEmpty
+        ? null
+        : state.messages.last.createdAt;
     if (!force) {
       final syncedAt = _case.syncedAt(
         state.beaconId,
@@ -737,7 +744,7 @@ class RoomCubit extends Cubit<RoomState> {
       final serverRows = _joinCoordinationCounts(
         [
           ...rawMessages,
-          if (target != null) target,
+          ?target,
         ],
         coordinationItems,
       );
@@ -803,9 +810,9 @@ class RoomCubit extends Cubit<RoomState> {
             currentCoordinationPlan: currentCoordinationPlan,
             unreadAnchorAt: anchor,
             myUserId: GetIt.I<ProfileCubit>().state.profile.id,
-            pendingMarkSeen: messages.isNotEmpty &&
-                (syncedAt == null ||
-                    messages.last.createdAt.isAfter(syncedAt)),
+            pendingMarkSeen:
+                messages.isNotEmpty &&
+                (syncedAt == null || messages.last.createdAt.isAfter(syncedAt)),
             loadError: null,
             status: const StateIsSuccess(),
           ),
@@ -911,8 +918,7 @@ class RoomCubit extends Cubit<RoomState> {
     final merged = Map<String, RoomReadWatermark>.of(existing);
     for (final watermark in fetched) {
       final current = merged[watermark.userId];
-      if (current == null ||
-          watermark.lastSeenAt.isAfter(current.lastSeenAt)) {
+      if (current == null || watermark.lastSeenAt.isAfter(current.lastSeenAt)) {
         merged[watermark.userId] = watermark;
       }
     }
@@ -928,14 +934,14 @@ class RoomCubit extends Cubit<RoomState> {
   }
 
   static List<RoomMessage> _sortMessages(List<RoomMessage> messages) {
-    final sorted = List<RoomMessage>.from(messages);
-    sorted.sort((a, b) {
-      final byTime = a.createdAt.compareTo(b.createdAt);
-      if (byTime != 0) {
-        return byTime;
-      }
-      return a.id.compareTo(b.id);
-    });
+    final sorted = List<RoomMessage>.from(messages)
+      ..sort((a, b) {
+        final byTime = a.createdAt.compareTo(b.createdAt);
+        if (byTime != 0) {
+          return byTime;
+        }
+        return a.id.compareTo(b.id);
+      });
     return sorted;
   }
 
@@ -1203,7 +1209,7 @@ class RoomCubit extends Cubit<RoomState> {
       _flushDeferredOwnPaints();
       await markSeenNowIfNeeded();
       if (uploads.isNotEmpty) {
-        _requestRefresh(scope: _RoomRefreshScope.messages);
+        unawaited(_requestRefresh(scope: _RoomRefreshScope.messages));
       }
       return true;
     } on Object catch (e) {
@@ -1218,7 +1224,6 @@ class RoomCubit extends Cubit<RoomState> {
       _flushDeferredOwnPaints();
       await _requestRefresh(
         scope: _RoomRefreshScope.messages,
-        silent: true,
       );
       _showSnackError(e);
       return false;
@@ -1372,7 +1377,7 @@ class RoomCubit extends Cubit<RoomState> {
       // Silent refresh: an optimistic vote is already shown, so reconcile in
       // the background without flipping to StateIsLoading — that would disable
       // the composer and block the keyboard right after voting on a poll.
-      _requestRefresh(scope: _RoomRefreshScope.messages, silent: true);
+      unawaited(_requestRefresh(scope: _RoomRefreshScope.messages));
     } on Object catch (e) {
       emit(
         state.copyWith(

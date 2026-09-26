@@ -3,12 +3,13 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_radii.dart';
 import 'package:tentura/design_system/tentura_tokens.dart';
+import 'package:tentura/domain/entity/room_message.dart' show RoomMessage;
 import 'package:tentura/features/beacon_threads/ui/util/room_reply_excerpt.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/tentura_selection_area.dart';
 
 /// Accent bar width for reply quote blocks (composer banner uses the same value).
-const double kRoomReplyQuoteAccentWidth = 3.0;
+const double kRoomReplyQuoteAccentWidth = 3;
 
 /// Touch/stylus devices the quote jump tap listens on with eager acceptance.
 const Set<PointerDeviceKind> kRoomReplyQuoteEagerTapDevices = {
@@ -107,7 +108,9 @@ class RoomMessageReplyQuote extends StatelessWidget {
       overflow: TextOverflow.ellipsis,
     );
 
-    final desktopSelection = tenturaDesktopSelectionEnabledFor(Theme.of(context));
+    final desktopSelection = tenturaDesktopSelectionEnabledFor(
+      Theme.of(context),
+    );
 
     if (desktopSelection && onJump != null) {
       excerptText = MouseRegion(
@@ -143,9 +146,8 @@ class RoomMessageReplyQuote extends StatelessWidget {
 
     final id = replyToMessageId?.trim() ?? '';
     final onJump = onJumpToReply;
-    final jumpEnabled =
-        !unavailable && id.isNotEmpty && onJump != null;
-    final onJumpCallback = jumpEnabled ? () => onJump!(id) : null;
+    final jumpEnabled = !unavailable && id.isNotEmpty && onJump != null;
+    final onJumpCallback = jumpEnabled ? () => onJump(id) : null;
 
     final inset = DecoratedBox(
       decoration: BoxDecoration(
@@ -191,12 +193,12 @@ class RoomMessageReplyQuote extends StatelessWidget {
                 gestures: <Type, GestureRecognizerFactory>{
                   _EagerTapGestureRecognizer:
                       GestureRecognizerFactoryWithHandlers<
-                          _EagerTapGestureRecognizer>(
+                        _EagerTapGestureRecognizer
+                      >(
                         () => _EagerTapGestureRecognizer(
                           supportedDevices: kRoomReplyQuoteEagerTapDevices,
                         ),
-                        (recognizer) =>
-                            recognizer.onTap = onJumpCallback,
+                        (recognizer) => recognizer.onTap = onJumpCallback,
                       ),
                 },
               ),

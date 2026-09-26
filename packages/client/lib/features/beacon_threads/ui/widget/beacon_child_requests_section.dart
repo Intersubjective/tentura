@@ -59,7 +59,7 @@ class BeaconChildRequestsSection extends StatelessWidget {
             !hasAnyChild;
 
         final wide = context.windowClass != WindowClass.compact;
-        final onCreateChild = () => context.router.push(
+        Future<Object?> onCreateChild() => context.router.push(
           BeaconCreateRoute(parentBeaconId: beaconState.beacon.id),
         );
 
@@ -250,7 +250,6 @@ class _DeletedChildGroupSection extends StatelessWidget {
         requestedExpandedId: slice.expanded ? 'child_requests_deleted' : null,
         child: AccordionExpansionTile(
           id: 'child_requests_deleted',
-          initiallyExpanded: false,
           onExpansionChanged: cubit.setDeletedExpanded,
           title: Text(
             l10n.beaconChildRequestsDeletedTitle,

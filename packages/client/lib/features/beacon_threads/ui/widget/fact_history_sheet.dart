@@ -27,8 +27,6 @@ Future<void> showFactHistorySheet(
 }) {
   return showTenturaAdaptiveSheet<void>(
     context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
     useRootNavigator: true,
     builder: (_) => FactHistorySheet(
       beaconId: beaconId,
@@ -71,7 +69,8 @@ class _FactHistorySheetState extends State<FactHistorySheet> {
       factCardId: widget.factCardId,
       baseRevisionSeq: widget.baseRevisionSeq,
       repository: widget.repository,
-    )..load();
+    );
+    unawaited(_cubit.load());
   }
 
   @override
@@ -255,7 +254,8 @@ class _FactHistoryRow extends StatelessWidget {
   String _eventLabel(L10n l10n, BeaconFactHistoryEvent event) {
     switch (event.type) {
       case BeaconActivityEventTypeBits.factVisibilityChanged:
-        final visibility = event.visibilityTo == BeaconFactCardVisibilityBits.public
+        final visibility =
+            event.visibilityTo == BeaconFactCardVisibilityBits.public
             ? l10n.beaconRoomFactCardVisibilityPublic
             : l10n.beaconRoomFactCardVisibilityChat;
         return l10n.beaconRoomFactHistoryEventVisibilityChanged(
@@ -318,14 +318,16 @@ List<InlineSpan> _bodySpans({
   final removedStyle = TenturaText.body(scheme.onSurfaceVariant).copyWith(
     decoration: TextDecoration.lineThrough,
   );
-  return wordDiff(olderText, factText).map((segment) {
-    final style = switch (segment.kind) {
-      DiffKind.same => baseStyle,
-      DiffKind.added => addedStyle,
-      DiffKind.removed => removedStyle,
-    };
-    return TextSpan(text: segment.text, style: style);
-  }).toList(growable: false);
+  return wordDiff(olderText, factText)
+      .map((segment) {
+        final style = switch (segment.kind) {
+          DiffKind.same => baseStyle,
+          DiffKind.added => addedStyle,
+          DiffKind.removed => removedStyle,
+        };
+        return TextSpan(text: segment.text, style: style);
+      })
+      .toList(growable: false);
 }
 
 /// Collapses a diffed body past 6 lines behind a 'Show full' control.

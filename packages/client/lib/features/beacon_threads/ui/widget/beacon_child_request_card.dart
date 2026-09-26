@@ -56,7 +56,6 @@ class BeaconChildRequestCard extends StatelessWidget {
         data: data,
         currentUserId: currentUserId,
         showDescription: true,
-        titleMaxLines: 2,
       ),
     );
   }

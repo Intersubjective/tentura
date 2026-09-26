@@ -43,6 +43,7 @@ Future<void> openCoordinationItemFromRoom(
         coordinationItemId: coordinationItemId,
       );
     }
+    if (!context.mounted) return;
     await _reloadRoomMessages(context, roomCubit: roomCubit);
     return;
   }

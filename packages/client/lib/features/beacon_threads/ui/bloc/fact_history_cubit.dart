@@ -12,14 +12,11 @@ export 'package:flutter_bloc/flutter_bloc.dart';
 /// fact card's history timeline. Never calls RoomCubit.
 class FactHistoryCubit extends Cubit<FactHistoryState> {
   FactHistoryCubit({
-    required String beaconId,
-    required String factCardId,
-    required int baseRevisionSeq,
+    required this._beaconId,
+    required this._factCardId,
+    required this._baseRevisionSeq,
     BeaconFactCardRepository? repository,
-  }) : _beaconId = beaconId,
-       _factCardId = factCardId,
-       _baseRevisionSeq = baseRevisionSeq,
-       _repository = repository ?? GetIt.I<BeaconFactCardRepository>(),
+  }) : _repository = repository ?? GetIt.I<BeaconFactCardRepository>(),
        super(const FactHistoryState());
 
   final String _beaconId;
@@ -56,7 +53,10 @@ class FactHistoryCubit extends Cubit<FactHistoryState> {
     await _loadPage(before: null, append: false);
   }
 
-  Future<void> _loadPage({required String? before, required bool append}) async {
+  Future<void> _loadPage({
+    required String? before,
+    required bool append,
+  }) async {
     if (!append) {
       emit(state.copyWith(status: const StateIsLoading()));
     }

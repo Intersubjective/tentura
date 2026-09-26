@@ -41,9 +41,7 @@ Widget roomAttachmentAlbumThumbnail(
   return ColoredBox(
     color: bg,
     child: Center(
-      child: a.blurHash.isEmpty
-          ? img
-          : BlurHash(a.blurHash, child: img),
+      child: a.blurHash.isEmpty ? img : BlurHash(a.blurHash, child: img),
     ),
   );
 }
@@ -96,12 +94,10 @@ class _RoomMessageInlineImageAlbumState
   }
 
   void _goTo(int index) {
-    unawaited(
-      _pageController.animateToPage(
-        index,
-        duration: const Duration(milliseconds: 280),
-        curve: Curves.easeInOut,
-      ),
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeInOut,
     );
   }
 
@@ -137,7 +133,8 @@ class _RoomMessageInlineImageAlbumState
                         PageView.builder(
                           controller: _pageController,
                           itemCount: items.length,
-                          onPageChanged: (i) => setState(() => _currentPage = i),
+                          onPageChanged: (i) =>
+                              setState(() => _currentPage = i),
                           itemBuilder: (ctx, index) {
                             final a = items[index];
                             return GestureDetector(
@@ -159,8 +156,9 @@ class _RoomMessageInlineImageAlbumState
                           bottom: 0,
                           child: _RoomInlineImageNavButton(
                             icon: Icons.chevron_left,
-                            tooltip: MaterialLocalizations.of(context)
-                                .previousPageTooltip,
+                            tooltip: MaterialLocalizations.of(
+                              context,
+                            ).previousPageTooltip,
                             enabled: _currentPage > 0,
                             onPressed: () => _goTo(_currentPage - 1),
                             scheme: scheme,
@@ -172,8 +170,9 @@ class _RoomMessageInlineImageAlbumState
                           bottom: 0,
                           child: _RoomInlineImageNavButton(
                             icon: Icons.chevron_right,
-                            tooltip:
-                                MaterialLocalizations.of(context).nextPageTooltip,
+                            tooltip: MaterialLocalizations.of(
+                              context,
+                            ).nextPageTooltip,
                             enabled: _currentPage < items.length - 1,
                             onPressed: () => _goTo(_currentPage + 1),
                             scheme: scheme,
@@ -246,7 +245,6 @@ class _RoomInlineImageNavButton extends StatelessWidget {
     return Center(
       child: Material(
         color: scheme.surfaceContainerHighest.withValues(alpha: 0.88),
-        elevation: 0,
         shape: const CircleBorder(),
         clipBehavior: Clip.antiAlias,
         child: IconButton(
@@ -319,12 +317,10 @@ class _RoomAttachmentFullscreenGalleryState
   }
 
   void _goTo(int index) {
-    unawaited(
-      _controller.animateToPage(
-        index,
-        duration: const Duration(milliseconds: 280),
-        curve: Curves.easeInOut,
-      ),
+    _controller.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeInOut,
     );
   }
 
@@ -376,8 +372,9 @@ class _RoomAttachmentFullscreenGalleryState
                 minScale: 0.5,
                 maxScale: 4,
                 child: Center(
-                  child:
-                      a.blurHash.isEmpty ? img : BlurHash(a.blurHash, child: img),
+                  child: a.blurHash.isEmpty
+                      ? img
+                      : BlurHash(a.blurHash, child: img),
                 ),
               );
             },
@@ -411,8 +408,9 @@ class _RoomAttachmentFullscreenGalleryState
                     size: 40,
                   ),
                   tooltip: materialL10n.nextPageTooltip,
-                  onPressed:
-                      _index < items.length - 1 ? () => _goTo(_index + 1) : null,
+                  onPressed: _index < items.length - 1
+                      ? () => _goTo(_index + 1)
+                      : null,
                 ),
               ),
             ),
@@ -435,7 +433,7 @@ class RoomPinnedStyleAttachments extends StatelessWidget {
   final List<RoomMessageAttachment> attachments;
   final L10n l10n;
   final Future<void> Function(RoomMessageAttachment attachment)?
-      onOpenFileAttachment;
+  onOpenFileAttachment;
 
   @override
   Widget build(BuildContext context) {

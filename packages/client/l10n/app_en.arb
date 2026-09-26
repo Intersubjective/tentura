@@ -5607,6 +5607,7 @@
   "beaconRoomAttachPickImages": "Photos",
   "beaconRoomAttachPickFiles": "Files",
   "beaconRoomAttachPickFact": "Fact",
+  "beaconRoomFactPickerTitle": "Pick a fact to quote",
   "beaconRoomQuotedFactFrom": "Fact from {name}",
   "@beaconRoomQuotedFactFrom": {
     "description": "Composer banner label when quoting a fact",

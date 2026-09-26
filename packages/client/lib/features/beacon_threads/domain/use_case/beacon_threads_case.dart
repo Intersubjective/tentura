@@ -215,7 +215,7 @@ final class BeaconThreadsCase extends UseCaseBase {
     required List<RoomMessage> currentMessages,
     required List<BeaconParticipant> participants,
   }) {
-    Profile author = const Profile();
+    var author = const Profile();
     for (final message in currentMessages) {
       if (message.authorId == paint.authorId) {
         author = message.author;
@@ -245,7 +245,7 @@ final class BeaconThreadsCase extends UseCaseBase {
       }
     }
     if (author.id.isEmpty) {
-      author = Profile(id: paint.authorId, displayName: '');
+      author = Profile(id: paint.authorId);
     }
     return RoomMessage(
       id: paint.id,

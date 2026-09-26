@@ -15,10 +15,9 @@ export 'package:flutter_bloc/flutter_bloc.dart';
 
 class BeaconHierarchyCubit extends Cubit<BeaconHierarchyState> {
   BeaconHierarchyCubit({
-    required String beaconId,
+    required this._beaconId,
     BeaconHierarchyCase? hierarchyCase,
-  }) : _beaconId = beaconId,
-       _hierarchy = hierarchyCase ?? GetIt.I<BeaconHierarchyCase>(),
+  }) : _hierarchy = hierarchyCase ?? GetIt.I<BeaconHierarchyCase>(),
        super(const BeaconHierarchyState()) {
     _hierarchyChangesSub = _hierarchy
         .hierarchyChangesFor(_beaconId)
@@ -106,7 +105,7 @@ class BeaconHierarchyCubit extends Cubit<BeaconHierarchyState> {
             capabilities: capabilities,
             active: const BeaconHierarchyGroupSlice(),
             finished: const BeaconHierarchyGroupSlice(),
-            deleted: const BeaconHierarchyGroupSlice(expanded: false),
+            deleted: const BeaconHierarchyGroupSlice(),
             capabilitiesError: null,
             status: const StateIsSuccess(),
           ),
@@ -212,9 +211,7 @@ class BeaconHierarchyCubit extends Cubit<BeaconHierarchyState> {
 
   void evictHierarchyAccess() {
     emit(
-      const BeaconHierarchyState(
-        status: const StateIsSuccess(),
-      ),
+      const BeaconHierarchyState(),
     );
   }
 

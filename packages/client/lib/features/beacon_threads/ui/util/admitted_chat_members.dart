@@ -33,22 +33,22 @@ List<BeaconParticipant> _sortChatMembers(
   List<BeaconParticipant> members,
   String beaconAuthorId,
 ) {
-  final copy = List<BeaconParticipant>.from(members);
-  copy.sort((a, b) {
-    int rank(BeaconParticipant p) {
-      if (p.userId == beaconAuthorId ||
-          p.role == BeaconParticipantRoleBits.author) {
-        return 0;
+  final copy = List<BeaconParticipant>.from(members)
+    ..sort((a, b) {
+      int rank(BeaconParticipant p) {
+        if (p.userId == beaconAuthorId ||
+            p.role == BeaconParticipantRoleBits.author) {
+          return 0;
+        }
+        if (p.role == BeaconParticipantRoleBits.steward) {
+          return 1;
+        }
+        return 2;
       }
-      if (p.role == BeaconParticipantRoleBits.steward) {
-        return 1;
-      }
-      return 2;
-    }
 
-    final byRank = rank(a).compareTo(rank(b));
-    if (byRank != 0) return byRank;
-    return a.userTitle.toLowerCase().compareTo(b.userTitle.toLowerCase());
-  });
+      final byRank = rank(a).compareTo(rank(b));
+      if (byRank != 0) return byRank;
+      return a.userTitle.toLowerCase().compareTo(b.userTitle.toLowerCase());
+    });
   return copy;
 }

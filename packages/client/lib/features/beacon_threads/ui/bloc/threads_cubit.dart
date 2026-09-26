@@ -1,6 +1,5 @@
 import 'dart:async';
 
-
 import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/features/beacon_threads/domain/room_read_watermark_store.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';

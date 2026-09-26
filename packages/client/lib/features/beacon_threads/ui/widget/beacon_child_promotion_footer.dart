@@ -27,7 +27,7 @@ class _BeaconChildPromotionFooterState
   String get childBeaconId => widget.childBeaconId;
 
   void _openChild(String beaconId) {
-    context.router.push(BeaconViewRoute(id: beaconId));
+    unawaited(context.router.push(BeaconViewRoute(id: beaconId)));
   }
 
   @override
@@ -43,7 +43,6 @@ class _BeaconChildPromotionFooterState
         tone: TenturaTone.neutral,
         icon: const Icon(Icons.subdirectory_arrow_right_outlined),
         flushStart: true,
-        onPressed: null,
       );
     }
 
@@ -69,7 +68,6 @@ class _BeaconChildPromotionFooterState
 
     return TenturaTextAction(
       label: title,
-      tone: TenturaTone.info,
       icon: const Icon(Icons.subdirectory_arrow_right_outlined),
       flushStart: true,
       onPressed: () => _openChild(summary.beaconId),

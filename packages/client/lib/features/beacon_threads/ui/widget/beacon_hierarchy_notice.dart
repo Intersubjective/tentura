@@ -15,7 +15,7 @@ import 'child_beacon_preview_loader.dart';
 /// Standalone `childCreated` (no source bubble in this page, or source-less
 /// create) uses centered join-style chrome — not a request card. Lifecycle
 /// notices stay person-free one-liners. Callers that already show a
-/// source-message footer must skip the notice row (see [BasicChatBody]).
+/// source-message footer must skip the notice row (see `BasicChatBody`).
 class BeaconHierarchyNotice extends StatelessWidget {
   const BeaconHierarchyNotice({required this.message, super.key});
 

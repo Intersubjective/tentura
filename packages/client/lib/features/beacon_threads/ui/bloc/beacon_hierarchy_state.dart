@@ -24,14 +24,15 @@ abstract class BeaconHierarchyGroupSlice with _$BeaconHierarchyGroupSlice {
 }
 
 @freezed
-abstract class BeaconHierarchyState extends StateBase with _$BeaconHierarchyState {
+abstract class BeaconHierarchyState extends StateBase
+    with _$BeaconHierarchyState {
   const factory BeaconHierarchyState({
     BeaconHierarchyCapabilities? capabilities,
     BeaconParentReference? parentReference,
     @Default(BeaconHierarchyGroupSlice()) BeaconHierarchyGroupSlice active,
     @Default(BeaconHierarchyGroupSlice()) BeaconHierarchyGroupSlice finished,
     @Default(
-      BeaconHierarchyGroupSlice(expanded: false),
+      BeaconHierarchyGroupSlice(),
     )
     BeaconHierarchyGroupSlice deleted,
     @Default(StateIsSuccess()) StateStatus status,

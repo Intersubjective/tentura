@@ -225,8 +225,7 @@ class RoomMessageTile extends StatelessWidget {
 
   static const _factExcerptMaxChars = 140;
 
-  static String _factExcerpt(String text) =>
-      text.length <= _factExcerptMaxChars
+  static String _factExcerpt(String text) => text.length <= _factExcerptMaxChars
       ? text
       : '${text.substring(0, _factExcerptMaxChars).trimRight()}…';
 
@@ -801,14 +800,17 @@ class RoomMessageTile extends StatelessWidget {
     final bodyStyle = ShowMoreText.buildTextStyle(context).copyWith(
       height: theme.textTheme.bodyMedium?.height,
     );
-    final explicitMentionStyle = (String userId) => roomMessageMentionTextStyle(
-      textStyle: bodyStyle,
-      isSelfMention: userId == myProfile.id,
-      mentionColor: scheme.primary,
-      selfMentionBackground: scheme.tertiaryContainer.withValues(alpha: 0.8),
-    );
+    TextStyle? explicitMentionStyle(String userId) =>
+        roomMessageMentionTextStyle(
+          textStyle: bodyStyle,
+          isSelfMention: userId == myProfile.id,
+          mentionColor: scheme.primary,
+          selfMentionBackground: scheme.tertiaryContainer.withValues(
+            alpha: 0.8,
+          ),
+        );
     final metaStyle = theme.textTheme.labelSmall ?? const TextStyle();
-    final trailingGapH = 12.0;
+    const trailingGapH = 12.0;
     final trailingGapV = tt.iconTextGap / 2;
     final textDirection = Directionality.of(context);
     final textScaler = MediaQuery.textScalerOf(context);
@@ -821,8 +823,9 @@ class RoomMessageTile extends StatelessWidget {
             trailingGapV: trailingGapV,
             textDirection: textDirection,
             textScaler: textScaler,
-            trailingGlyphWidth:
-                ownReceipt != null ? kLifecycleFooterIconSize : 0,
+            trailingGlyphWidth: ownReceipt != null
+                ? kLifecycleFooterIconSize
+                : 0,
             glyphGap: ownReceipt != null ? tt.tightGap : 0,
           )
         : null;
@@ -1398,8 +1401,9 @@ class RoomMessageTile extends StatelessWidget {
               trailingGapH: trailingGapH,
               textDirection: textDirection,
               textScaler: textScaler,
-              trailingGlyphWidth:
-                  ownReceipt != null ? kLifecycleFooterIconSize : 0,
+              trailingGlyphWidth: ownReceipt != null
+                  ? kLifecycleFooterIconSize
+                  : 0,
               glyphGap: ownReceipt != null ? tt.iconTextGap / 2 : 0,
             );
           }
@@ -2267,7 +2271,7 @@ class _ReactorAvatarStrip extends StatelessWidget {
 
   static const double _step = _size - _overlap;
 
-  /// Stack height: room for [AvatarRated] plus up to 2px ring (self highlight).
+  /// Stack height: room for `AvatarRated` plus up to 2px ring (self highlight).
   static const double _stackCross = _size + 4;
 
   @override
@@ -2360,9 +2364,9 @@ class _MessageBubbleInteraction extends StatefulWidget {
     required this.child,
     required this.isMine,
     required this.onActions,
-    this.onReply,
     required this.onOpenItem,
     required this.onQuickReact,
+    this.onReply,
   });
 
   final Widget child;
@@ -2428,7 +2432,7 @@ class _MessageBubbleInteractionState extends State<_MessageBubbleInteraction>
   }
 
   /// Recognition point: confirm with haptic and let the bubble settle while the
-  /// sheet animates in. Actions stay on [onLongPress] so they fire exactly once.
+  /// sheet animates in. Actions stay on `onLongPress` so they fire exactly once.
   void _handlePressStart(LongPressStartDetails details) {
     unawaited(HapticFeedback.selectionClick());
     _settlePress();
@@ -2533,9 +2537,9 @@ class _MessageBubbleInteractionState extends State<_MessageBubbleInteraction>
 /// Desktop hover toolbar: quick-react + more, mirroring Slack/Discord chat rows.
 class _HoverActionToolbar extends StatelessWidget {
   const _HoverActionToolbar({
-    this.onReply,
     required this.onReact,
     required this.onMore,
+    this.onReply,
   });
 
   final VoidCallback? onReply;

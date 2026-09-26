@@ -49,7 +49,6 @@ extension type const RequestThreadRowModel(GBeaconThreadsListData_beaconThreads 
       lastMessageAuthorId: i.lastMessageAuthorId,
       lastMessagePreview:
           preview == null ? null : mapThreadMessagePreview(preview),
-      item: null,
     );
   }
 }

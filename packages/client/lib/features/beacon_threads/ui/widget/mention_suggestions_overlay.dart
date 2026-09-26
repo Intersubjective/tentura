@@ -41,7 +41,7 @@ final class MentionSuggestionsOverlay extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    final margin = TenturaSpacing.row;
+    const margin = TenturaSpacing.row;
     final max = list.length < 5 ? list.length : 5;
     final height = max * _kMentionSuggestionRowHeight;
     final highlighted = selectedIndex.clamp(0, max - 1);
@@ -52,12 +52,10 @@ final class MentionSuggestionsOverlay extends StatelessWidget {
           math.max(margin, viewport.width - margin),
         )
         .toDouble();
-    final width = math
-        .min(
-          _kMentionOverlayMaxWidth,
-          math.max(0.0, viewport.width - left - margin),
-        )
-        .toDouble();
+    final width = math.min(
+      _kMentionOverlayMaxWidth,
+      math.max<double>(0, viewport.width - left - margin),
+    );
     final top = math.max(margin, anchor.top - height - margin);
 
     if (width <= 0 || height <= 0) {
@@ -166,7 +164,7 @@ class _MentionSuggestionRow extends StatelessWidget {
                   : null,
             ),
             child: Padding(
-              padding: EdgeInsets.symmetric(
+              padding: const EdgeInsets.symmetric(
                 horizontal: TenturaSpacing.cardPadding,
                 vertical: TenturaSpacing.row,
               ),

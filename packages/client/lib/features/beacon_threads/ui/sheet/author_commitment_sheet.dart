@@ -23,7 +23,6 @@ Future<void> showAuthorCommitmentSheet(
     context: context,
     useRootNavigator: true,
     showDragHandle: false,
-    isScrollControlled: true,
     maxWidth: 360,
     maxHeightFraction: 0.5,
     builder: (sheetContext) {
@@ -50,11 +49,9 @@ class _AuthorCommitmentSheetBody extends StatelessWidget {
     final theme = Theme.of(context);
     final tt = context.tt;
     final scheme = theme.colorScheme;
-    final tags = helpOfferTypeSlugs(participant.helpType)
-        .take(4)
-        .map(CapabilityTag.fromSlug)
-        .whereType<CapabilityTag>()
-        .toList();
+    final tags = helpOfferTypeSlugs(
+      participant.helpType,
+    ).take(4).map(CapabilityTag.fromSlug).whereType<CapabilityTag>().toList();
     final offerNote = participant.offerNote.trim();
     final nextMove = participant.nextMoveText?.trim() ?? '';
     final statusLine =

@@ -42,7 +42,7 @@ abstract class RoomState extends StateBase with _$RoomState {
     CoordinationItem? openCoordinationBlocker,
     CoordinationItem? currentCoordinationPlan,
 
-    /// Synced from [BeaconViewCubit] via [ThreadHostCubit]; null until content
+    /// Synced from `BeaconViewCubit` via `ThreadHostCubit`; null until content
     /// has loaded. Unknown is locked for UI (see [canWriteDiscussion]).
     BeaconStatus? beaconStatus,
     @Default(StateIsSuccess()) StateStatus status,
@@ -93,7 +93,7 @@ abstract class RoomState extends StateBase with _$RoomState {
     return false;
   }
 
-  /// Plan / NOW-line updates. Unknown locked; uses [allowsCoordination].
+  /// Plan / NOW-line updates. Unknown locked; uses `allowsCoordination`.
   bool get canUpdatePlan =>
       (beaconStatus?.allowsCoordination ?? false) && isPlanEditor;
 

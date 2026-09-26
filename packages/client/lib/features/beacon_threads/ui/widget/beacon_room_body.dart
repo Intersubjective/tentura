@@ -10,7 +10,6 @@ import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_read_watermark.dart';
-import 'package:tentura/design_system/components/tentura_avatar_stack.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -31,6 +30,7 @@ import 'package:tentura/features/beacon_threads/domain/room_message_receipt.dart
 import '../bloc/room_cubit.dart';
 import '../coordination_room_navigation.dart';
 import 'fact_actions_sheet.dart';
+import 'fact_picker_sheet.dart';
 import 'room_file_attachment_open.dart';
 import 'room_readers_sheet.dart';
 
@@ -138,6 +138,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                 ctx,
                 cubit: cub,
                 fact: focused,
+                onQuoteInChat: (f) => _quoteFactInChat(cub, f),
               );
             }
           },
@@ -220,8 +221,9 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                 e.key: e.value.lastSeenAt,
             },
             pendingLocalIds: const {},
-            hasOtherAdmittedDiscussionMember:
-                _hasOtherAdmittedDiscussionMember(state),
+            hasOtherAdmittedDiscussionMember: _hasOtherAdmittedDiscussionMember(
+              state,
+            ),
           );
           return BasicChatBody(
             key: _basicChatKey,
@@ -270,13 +272,12 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
               a,
             ),
             onVotePoll: canWrite
-                ? (messageId, pollingId, variantIds, {score}) =>
-                      cubit.votePoll(
-                        messageId: messageId,
-                        pollingId: pollingId,
-                        variantIds: variantIds,
-                        score: score,
-                      )
+                ? (messageId, pollingId, variantIds, {score}) => cubit.votePoll(
+                    messageId: messageId,
+                    pollingId: pollingId,
+                    variantIds: variantIds,
+                    score: score,
+                  )
                 : null,
             onSend: widget.enableComposer
                 ? (body, uploads) => cubit.sendMessage(
@@ -291,8 +292,12 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                     explicitMentions: mentions,
                   )
                 : null,
-            composerReadOnlyHint:
-                canWrite ? null : l10n.beaconRoomMessageReadOnlyHint,
+            composerReadOnlyHint: canWrite
+                ? null
+                : l10n.beaconRoomMessageReadOnlyHint,
+            onPickFact: canWrite
+                ? () => unawaited(showFactPickerSheet(context, cubit: cubit))
+                : null,
             imageRepository: GetIt.I<ImageRepository>(),
             clipboardImageRepository: GetIt.I<ClipboardImageRepository>(),
             jumpFabHeroTag: 'beacon_room_jump_latest',
@@ -316,6 +321,11 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     );
   }
 
+  void _quoteFactInChat(RoomCubit cubit, BeaconFactCard fact) {
+    cubit.setPendingQuotedFact(fact);
+    _basicChatKey.currentState?.focusComposer();
+  }
+
   Future<void> _pinOrManageFactForMessage(
     BuildContext context,
     RoomCubit cubit,
@@ -328,6 +338,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
         context,
         cubit: cubit,
         fact: pf,
+        onQuoteInChat: (f) => _quoteFactInChat(cubit, f),
       );
       return;
     }
@@ -343,15 +354,13 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
   }
 
   RoomReceiptIndex _receiptIndexFor(RoomState state) => RoomReceiptIndex(
-        myUserId: state.myUserId,
-        watermarks: {
-          for (final e in state.readWatermarks.entries)
-            e.key: e.value.lastSeenAt,
-        },
-        pendingLocalIds: const {},
-        hasOtherAdmittedDiscussionMember:
-            _hasOtherAdmittedDiscussionMember(state),
-      );
+    myUserId: state.myUserId,
+    watermarks: {
+      for (final e in state.readWatermarks.entries) e.key: e.value.lastSeenAt,
+    },
+    pendingLocalIds: const {},
+    hasOtherAdmittedDiscussionMember: _hasOtherAdmittedDiscussionMember(state),
+  );
 
   bool _hasOtherAdmittedDiscussionMember(RoomState state) {
     if (!state.participantsLoaded) {
@@ -359,8 +368,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     }
     return state.participants.any(
       (p) =>
-          p.userId != state.myUserId &&
-          p.roomAccess == RoomAccessBits.admitted,
+          p.userId != state.myUserId && p.roomAccess == RoomAccessBits.admitted,
     );
   }
 
@@ -398,10 +406,8 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     required Profile viewer,
     required RoomMessage message,
   }) {
-    final receipt =
-        _receiptIndexFor(cubit.state).receiptFor(message);
-    if (receipt == null ||
-        receipt.state == RoomMessageReceiptState.pending) {
+    final receipt = _receiptIndexFor(cubit.state).receiptFor(message);
+    if (receipt == null || receipt.state == RoomMessageReceiptState.pending) {
       return const [];
     }
 
@@ -564,7 +570,8 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                             runSpacing: tt.rowGap,
                             children: [
                               for (final emoji
-                                  in BeaconRoomMessageReaction.quickPickerEmojis)
+                                  in BeaconRoomMessageReaction
+                                      .quickPickerEmojis)
                                 InkWell(
                                   customBorder: const CircleBorder(),
                                   onTap: () {
@@ -632,7 +639,9 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                           ),
                         ),
                         ListTile(
-                          leading: const Icon(Icons.subdirectory_arrow_right_outlined),
+                          leading: const Icon(
+                            Icons.subdirectory_arrow_right_outlined,
+                          ),
                           title: Text(l10n.beaconCreateChildRequest),
                           onTap: () {
                             Navigator.pop(ctx);
@@ -717,6 +726,8 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                                 context,
                                 cubit: cubit,
                                 fact: pf,
+                                onQuoteInChat: (f) =>
+                                    _quoteFactInChat(cubit, f),
                               ),
                             );
                           },
@@ -812,7 +823,6 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
   ) async {
     final ok = await showDialog<bool>(
       context: context,
-      useRootNavigator: true,
       builder: (ctx) => AlertDialog(
         title: Text(l10n.beaconRoomFactCardRemoveConfirmTitle),
         content: Text(l10n.beaconRoomFactCardRemoveConfirmBody),
@@ -844,7 +854,6 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
   ) async {
     final ok = await showDialog<bool>(
       context: context,
-      useRootNavigator: true,
       builder: (ctx) => AlertDialog(
         title: Text(l10n.beaconRoomDeleteMessageConfirmTitle),
         content: Text(l10n.beaconRoomDeleteMessageConfirmBody),
@@ -957,7 +966,6 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
       ),
     );
   }
-
 
   void _openChildRequestComposerFromMessage(
     BuildContext context,

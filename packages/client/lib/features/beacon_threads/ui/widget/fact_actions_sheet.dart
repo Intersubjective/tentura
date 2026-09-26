@@ -18,12 +18,14 @@ Future<void> showFactActionsSheet(
   BuildContext context, {
   required RoomCubit cubit,
   required BeaconFactCard fact,
+  void Function(BeaconFactCard fact)? onQuoteInChat,
 }) {
   return showFactActionsHostSheet(
     context,
     fact: fact,
     canMutate: cubit.state.canWriteDiscussion,
     myUserId: cubit.state.myUserId,
+    onQuoteInChat: onQuoteInChat,
     // Base seq is the one the edit sheet opened with (plan §14.6); after a
     // revision conflict, "Save mine" retries against the conflict's seq.
     onCorrect: ({required factCardId, required newText}) {
@@ -85,7 +87,6 @@ Future<void> showFactActionsHostSheet(
 
   return showTenturaAdaptiveSheet<void>(
     context: context,
-    showDragHandle: true,
     useRootNavigator: true,
     builder: (ctx) => SafeArea(
       child: SingleChildScrollView(
@@ -244,7 +245,6 @@ Future<void> _confirmRemoveFact(
 ) async {
   final ok = await showDialog<bool>(
     context: context,
-    useRootNavigator: true,
     builder: (ctx) => AlertDialog(
       title: Text(l10n.beaconRoomFactCardRemoveConfirmTitle),
       content: Text(l10n.beaconRoomFactCardRemoveConfirmBody),

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/ui/utils/ui_utils.dart';
 
-/// Avatar / icon sizes for lifecycle footer tap rows (see [_MessageLifecycleFooter]).
+/// Avatar / icon sizes for lifecycle footer tap rows (see `_MessageLifecycleFooter`).
 const double kLifecycleFooterAvatarSize = 16;
 const double kLifecycleFooterIconSize = 12;
 
@@ -24,7 +24,7 @@ const double kReactionChipEmojiGap = 4;
 /// Ring paint can extend past the stack width ([clipBehavior: Clip.none]).
 const double kReactorAvatarStripRingAllowance = 4;
 
-/// Reactor avatar strip layout (mirrors [_ReactorAvatarStrip]).
+/// Reactor avatar strip layout (mirrors `_ReactorAvatarStrip`).
 const double kReactorAvatarStripSize = 16;
 const double kReactorAvatarStripOverlap = 4;
 const double kReactorAvatarStripMaxVisible = 3;
@@ -186,9 +186,11 @@ double ensureHugWidthFitsReactionFooter({
     textScaler: textScaler,
     maxLines: 1,
   )..layout();
-  final glyphBand = trailingGlyphWidth > 0 ? glyphGap + trailingGlyphWidth : 0.0;
-  final timeBand =
-      (trailingGapH + timePainter.width + glyphBand).ceilToDouble();
+  final glyphBand = trailingGlyphWidth > 0
+      ? glyphGap + trailingGlyphWidth
+      : 0.0;
+  final timeBand = (trailingGapH + timePainter.width + glyphBand)
+      .ceilToDouble();
 
   var chipsWidth = 0.0;
   for (var i = 0; i < reactionEntries.length; i++) {
@@ -217,7 +219,7 @@ double ensureHugWidthFitsReactionFooter({
 /// Unread dot diameter shown on a thread-mark reply chip.
 const double kLifecycleUnreadDotSize = 6;
 
-/// Fixed width of a lifecycle tap row excluding [label] and [time] text.
+/// Fixed width of a lifecycle tap row excluding `label` and `time` text.
 double lifecycleTapRowChromeWidth({
   required double itemGap,
   required bool showChevron,
@@ -315,7 +317,7 @@ double measureMarkDoneRowMinWidth({
 class RoomMessageBubbleMeasureResult {
   const RoomMessageBubbleMeasureResult({required this.innerWidth});
 
-  /// Width for the bubble shell including horizontal [cardPaddingH].
+  /// Width for the bubble shell including horizontal `cardPaddingH`.
   final double innerWidth;
 }
 

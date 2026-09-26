@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 /// Rebuilds [child] when wall-clock relative-time labels may change — at each
-/// minute boundary (separate from [StaleDeadlineTicker]'s deadline cadence).
+/// minute boundary (separate from `StaleDeadlineTicker`'s deadline cadence).
 class RelativeTimestampTicker extends StatefulWidget {
   const RelativeTimestampTicker({
     required this.child,
@@ -36,7 +36,8 @@ class _RelativeTimestampTickerState extends State<RelativeTimestampTicker> {
       now.hour,
       now.minute,
     ).add(const Duration(minutes: 1));
-    final delay = nextMinute.difference(now) + const Duration(milliseconds: 200);
+    final delay =
+        nextMinute.difference(now) + const Duration(milliseconds: 200);
     _timer = Timer(
       delay.isNegative ? Duration.zero : delay,
       () {

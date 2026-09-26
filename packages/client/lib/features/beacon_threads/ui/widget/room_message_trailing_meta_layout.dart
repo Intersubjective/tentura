@@ -282,7 +282,6 @@ InlineSpan buildTrailingMetaWidgetSpan({
   required TrailingMetaMetrics metrics,
 }) {
   return WidgetSpan(
-    alignment: PlaceholderAlignment.bottom,
     child: ExcludeSemantics(
       child: IgnorePointer(
         child: SizedBox(

@@ -23,9 +23,10 @@ String _threadItemKindLabel(L10n l10n, CoordinationItem item) =>
       CoordinationItemKind.blocker => l10n.coordinationBlockerCardLabel,
       CoordinationItemKind.ask => l10n.coordinationAskCardLabel,
       CoordinationItemKind.promise => l10n.coordinationPromiseCardLabel,
-      CoordinationItemKind.plan => item.isPlanStep
-          ? l10n.coordinationPlanStepCardLabel
-          : l10n.coordinationPlanCardLabel,
+      CoordinationItemKind.plan =>
+        item.isPlanStep
+            ? l10n.coordinationPlanStepCardLabel
+            : l10n.coordinationPlanCardLabel,
     };
 
 /// Thread body (messages) without a [Scaffold].
@@ -194,8 +195,9 @@ class ThreadDetailGeneralTitle extends StatelessWidget {
   final String title;
   final Beacon beacon;
   final List<Profile> involvedProfiles;
+
   /// Total admitted helpers (excluding author). When set, overflow uses
-  /// author + helpers − visible instead of [involvedProfiles.length].
+  /// author + helpers − visible instead of `involvedProfiles.length`.
   final int? helperCount;
   final String currentUserId;
   final VoidCallback? onFacePileTap;

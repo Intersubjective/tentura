@@ -10,6 +10,7 @@ class StaleDeadlineTicker extends StatefulWidget {
   const StaleDeadlineTicker({
     required this.items,
     required this.child,
+    super.key,
   });
 
   final List<CoordinationItem> items;

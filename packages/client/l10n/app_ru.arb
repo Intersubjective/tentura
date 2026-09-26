@@ -5434,6 +5434,7 @@
   "beaconRoomAttachPickImages": "Фото",
   "beaconRoomAttachPickFiles": "Файлы",
   "beaconRoomAttachPickFact": "Факт",
+  "beaconRoomFactPickerTitle": "Выберите факт для цитаты",
   "beaconRoomQuotedFactFrom": "Факт от {name}",
   "beaconRoomAttachPasteImage": "Вставить изображение",
   "beaconRoomAttachPasteImageNotFound": "В буфере обмена нет изображения",
