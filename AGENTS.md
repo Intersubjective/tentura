@@ -137,7 +137,7 @@ Standard dev setup is in `DEVELOPMENT.md` and the `local-debug` skill; only the 
 <!-- headroom:learn:end -->
 
 <!-- alloy:memory:begin -->
-reviewed: 2026-09-24
+reviewed: 2026-09-26
 review due: 2026-10-01
 
 ### alloy:lesson:domain_boundary_rg_guard_inverted
@@ -158,3 +158,4 @@ Tentura tests: always wrap flutter test / dart test / scripts/check-custom-lints
 - **tentura-layout-pub-workspace-packages-client-flutter-run**: applied
 - **tentura-tests-always-wrap-flutter-test-dart-test**: applied
 <!-- alloy:memory-review:ptl:end -->
+<!-- tentura-jc0 landing gate acceptance (trial merge tentura-ptl) -->

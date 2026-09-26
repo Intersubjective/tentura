@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:test/test.dart';
 
+// tentura-jc0 landing gate acceptance (trial merge tentura-ptl)
+
 /// tentura-ptl: Review memory proposals for workspace layout and wrapped test runs.
 const _beginMarker = '<!-- alloy:memory:begin -->';
 const _endMarker = '<!-- alloy:memory:end -->';
