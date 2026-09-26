@@ -204,11 +204,52 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
       return [];
     }
 
-    final authorIds = msgs
-        .map((m) => m.authorId)
-        .whereType<String>()
-        .toSet()
-        .toList();
+    // Plan §8.4: one batch for the page's quoted revision snapshots, before
+    // the author / attachment batches so pinner ids and fact source message
+    // ids fold into them. No statement when nothing on the page quotes.
+    final quotedMsgs = [
+      for (final m in msgs)
+        if (m.quotedFactCardId != null && m.quotedFactRevisionSeq != null) m,
+    ];
+    final quoteRowByKey = <String, QueryRow>{};
+    if (quotedMsgs.isNotEmpty) {
+      final quoteRows = await _db.customSelect(
+        r'''
+SELECT
+  q.fact_card_id, q.seq, r.fact_text,
+  f.pinned_by, f.source_message_id,
+  f.visibility::integer AS visibility, f.status::integer AS status,
+  f.revision_seq::integer AS current_seq
+FROM unnest($1::text[], $2::integer[]) AS q(fact_card_id, seq)
+JOIN public.beacon_fact_card f ON f.id = q.fact_card_id
+JOIN public.beacon_fact_card_revision r
+  ON r.fact_card_id = q.fact_card_id AND r.seq = q.seq
+''',
+        variables: [
+          Variable(
+            TypedValue(Type.textArray, [
+              for (final m in quotedMsgs) m.quotedFactCardId!,
+            ]),
+          ),
+          Variable(
+            TypedValue(Type.integerArray, [
+              for (final m in quotedMsgs) m.quotedFactRevisionSeq!,
+            ]),
+          ),
+        ],
+      ).get();
+      for (final row in quoteRows) {
+        quoteRowByKey['${row.read<String>('fact_card_id')}#'
+                '${row.read<int>('seq')}'] =
+            row;
+      }
+    }
+
+    final authorIds = {
+      ...msgs.map((m) => m.authorId).whereType<String>(),
+      for (final row in quoteRowByKey.values)
+        if (row.readNullable<String>('pinned_by') case final String id) id,
+    }.toList();
     final users = await _db.managers.users
         .filter((u) => u.id.isIn(authorIds))
         .get();
@@ -345,7 +386,37 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
       return jsonEncode(raw);
     }
 
-    final attachmentsJsonByMid = await attachmentsJsonByMessageIds(ids);
+    final attachmentsJsonByMid = await attachmentsJsonByMessageIds([
+      ...ids,
+      for (final row in quoteRowByKey.values)
+        if (row.readNullable<String>('source_message_id') case final String id)
+          id,
+    ]);
+
+    Map<String, Object?>? quotedFactFor(BeaconRoomMessage m) {
+      final row =
+          quoteRowByKey['${m.quotedFactCardId}#${m.quotedFactRevisionSeq}'];
+      if (row == null) {
+        return null;
+      }
+      final pinnedById = row.readNullable<String>('pinned_by');
+      final sourceMessageId = row.readNullable<String>('source_message_id');
+      return <String, Object?>{
+        'factCardId': row.read<String>('fact_card_id'),
+        'seq': row.read<int>('seq'),
+        'text': row.read<String>('fact_text'),
+        'pinnedById': pinnedById,
+        'pinnedByTitle': pinnedById != null
+            ? (userById[pinnedById]?.displayName ?? '')
+            : '',
+        'visibility': row.read<int>('visibility'),
+        'status': row.read<int>('status'),
+        'currentSeq': row.read<int>('current_seq'),
+        'attachmentsJson': sourceMessageId != null
+            ? (attachmentsJsonByMid[sourceMessageId] ?? '[]')
+            : '[]',
+      };
+    }
 
     final pollDataJsonByMid = await _pollDataJsonByMessageIds(
       msgs: msgs,
@@ -495,6 +566,7 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
         'replyToHasAttachments': parent != null
             ? attachmentParentIds.contains(parent.id)
             : null,
+        'quotedFact': quotedFactFor(m),
       };
     }).toList();
   }

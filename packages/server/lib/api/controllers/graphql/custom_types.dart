@@ -54,6 +54,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeBeaconDisplayStatus,
   gqlTypeHelpOfferWithCoordinationRow,
   gqlTypeRoomMessageCreatePayload,
+  gqlTypeRoomMessageQuotedFact,
   gqlTypeRoomMessageRow,
   gqlTypeBeaconRoomStateRow,
   gqlTypeBeaconParticipantRow,
@@ -421,6 +422,21 @@ final gqlTypeRoomMessageCreatePayload =
         field('id', graphQLString.nonNullable()),
       ]);
 
+/// Quoted fact revision snapshot on a room message (issue #181 plan §8.11).
+final gqlTypeRoomMessageQuotedFact =
+    GraphQLObjectType('RoomMessageQuotedFact', null)
+      ..fields.addAll([
+        field('factCardId', graphQLString.nonNullable()),
+        field('seq', graphQLInt.nonNullable()),
+        field('text', graphQLString.nonNullable()),
+        field('pinnedById', graphQLString),
+        field('pinnedByTitle', graphQLString.nonNullable()),
+        field('visibility', graphQLInt.nonNullable()),
+        field('status', graphQLInt.nonNullable()),
+        field('currentSeq', graphQLInt.nonNullable()),
+        field('attachmentsJson', graphQLString.nonNullable()),
+      ]);
+
 /// V2 room chat message row (minimal projection).
 final gqlTypeRoomMessageRow = GraphQLObjectType('RoomMessageRow', null)
   ..fields.addAll([
@@ -472,6 +488,7 @@ final gqlTypeRoomMessageRow = GraphQLObjectType('RoomMessageRow', null)
     field('replyToAuthorTitle', graphQLString),
     field('replyToBodyExcerpt', graphQLString),
     field('replyToHasAttachments', graphQLBoolean),
+    field('quotedFact', gqlTypeRoomMessageQuotedFact),
   ]);
 
 /// `beacon_room_state` row — one per beacon.
