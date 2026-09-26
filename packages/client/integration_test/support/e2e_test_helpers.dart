@@ -37,6 +37,7 @@ import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/ui/test_ids.dart';
+import 'package:tentura/ui/widget/linear_pi_active.dart' show LinearPiActive;
 import 'package:tentura/ui/utils/capability_tag_presenter.dart';
 
 class IntegrationFixture {
@@ -316,7 +317,7 @@ String _screenDump() {
     final f = find.byKey(TestIds.key(TestIds.beaconHudAuthorAction(action)));
     if (finderHasMatch(f)) hudKeys.add(action);
   }
-  String url = '?';
+  var url = '?';
   try {
     url = GetIt.I<RootRouter>().currentUrl;
   } catch (_) {}
@@ -343,6 +344,8 @@ String _screenDump() {
 bool finderHasMatch(Finder finder) {
   try {
     return finder.evaluate().isNotEmpty;
+    // Empty `.first`-style finders throw StateError from evaluate().
+    // ignore: avoid_catching_errors
   } on StateError {
     return false;
   }
@@ -357,7 +360,7 @@ Future<void> pumpUntilVisible(
   tester,
   () => finderHasMatch(finder),
   timeout: timeout,
-  label: label ?? 'visible(${finder.description})',
+  label: label ?? 'visible(${finder.describeMatch(Plurality.one)})',
 );
 
 /// Bounded settle for web integration tests.
@@ -392,9 +395,9 @@ Future<void> pumpSettleBounded(
 }
 
 Future<void> tapAndSettle(WidgetTester tester, Finder finder) async {
-  // finder.description, not $finder: toString() evaluates the finder and
+  // describeMatch, not $finder: toString() evaluates the finder and
   // throws "Bad state: No element" for empty `.first`-style finders.
-  debugPrint('[e2e] tapAndSettle(${finder.description})');
+  debugPrint('[e2e] tapAndSettle(${finder.describeMatch(Plurality.one)})');
   await pumpUntilVisible(tester, finder);
   // Long scrollables (e.g. the evaluation sheet) can keep the target off
   // screen; ensureVisible is a no-op without a Scrollable ancestor.
@@ -404,7 +407,7 @@ Future<void> tapAndSettle(WidgetTester tester, Finder finder) async {
   await tester.tap(finder);
   await pumpSettleBounded(tester);
   drainTesterExceptions(tester);
-  debugPrint('[e2e] tapAndSettle(${finder.description}): done');
+  debugPrint('[e2e] tapAndSettle(${finder.describeMatch(Plurality.one)}): done');
 }
 
 /// English group-header text (this suite hardcodes English strings
@@ -436,8 +439,8 @@ Future<void> dismissOkDialogIfPresent(WidgetTester tester) async {
   }
 }
 
-/// Logs in as [authorEmail], fills title/description, optionally adds
-/// [needSlug] as a request "need" via the Requirements sheet, and lands on
+/// Logs in as `authorEmail`, fills title/description, optionally adds
+/// `needSlug` as a request "need" via the Requirements sheet, and lands on
 /// the Recipients tab (which requires an already-persisted beaconId — the
 /// create flow auto-saves a draft once the title/description are entered).
 /// Shared prefix for [createAndForwardRequest] and
@@ -449,10 +452,9 @@ void syncBeaconCreateDraftFields(
   required String title,
   required String description,
 }) {
-  final cubit = tester
+  tester
       .element(find.byKey(const Key('BeaconCreate.FormBody')))
-      .read<BeaconCreateCubit>();
-  cubit
+      .read<BeaconCreateCubit>()
     ..setTitle(title)
     ..setDescription(description);
 }
@@ -814,7 +816,7 @@ Future<void> acceptHelpOffer(
 
 /// Ends the acknowledged helper's participation through the current People UI.
 ///
-/// The retired discussion-removal control used [helpOfferRemove]. An admitted
+/// The retired discussion-removal control used `TestIds.helpOfferRemove`. An admitted
 /// committer now exposes only the distinct `End participation` action, which
 /// releases their current stake while retaining its history.
 Future<void> endHelperParticipation(
@@ -1431,10 +1433,9 @@ Future<void> selectGraphNode(WidgetTester tester, String userId) async {
     throw StateError('graph node $userId is not rendered');
   }
 
-  final cubit = readGraphCubit(tester);
   // Canvas transforms make widget geometry unsuitable for browser automation.
   // The integration still uses the running app's cubit and visible controls.
-  cubit.selectNode(node);
+  final cubit = readGraphCubit(tester)..selectNode(node);
   await pumpBounded(tester);
   debugPrint('[e2e] selectGraphNode($userId): focus=${cubit.state.focus}');
 }
@@ -1590,8 +1591,7 @@ Future<Map<String, dynamic>> _postJson(
   required bool includeCredentials,
   Map<String, String> extraHeaders = const {},
 }) async {
-  final headers = web.Headers();
-  headers
+  final headers = web.Headers()
     ..set('Content-Type', 'application/json')
     ..set('Accept', 'application/json');
   for (final entry in extraHeaders.entries) {
@@ -1685,10 +1685,10 @@ Finder _constellationGraphLayoutFinder() {
   );
 }
 
-/// Scene centre → global screen position for [NodeDragGesture] hit testing.
+/// Scene centre → global screen position for `NodeDragGesture` hit testing.
 ///
-/// [NodeDragGesture] receives [PointerDownEvent.localPosition] in
-/// [GraphLayoutView] scene space (inside [InteractiveViewer]'s child). Map scene
+/// `NodeDragGesture` receives [PointerDownEvent.localPosition] in
+/// `GraphLayoutView` scene space (inside [InteractiveViewer]'s child). Map scene
 /// points with [RenderBox.localToGlobal], not [GraphController.sceneToViewportLocal].
 Offset _globalForConstellationScene(WidgetTester tester, Offset scene) {
   final layoutFinder = _constellationGraphLayoutFinder();
@@ -1709,12 +1709,12 @@ Offset _globalForConstellationScene(WidgetTester tester, Offset scene) {
       );
     }
     return true;
-  }());
+  }(), 'constellation scene mapping diagnostics');
   return global;
 }
 
-/// Pointer tap at a scene point so [NodeDragGesture] hit-tests and fires
-/// [GraphView.onNodeTap] (CanvasKit / web integration safe).
+/// Pointer tap at a scene point so `NodeDragGesture` hit-tests and fires
+/// `GraphView.onNodeTap` (CanvasKit / web integration safe).
 Future<void> tapConstellationSceneCentre(
   WidgetTester tester,
   Offset scene,
@@ -1794,7 +1794,6 @@ Future<void> pinConstellationPersonFromMap(
       return button.onPressed != null;
     },
     label: 'constellation person pin enabled',
-    timeout: const Duration(seconds: 20),
   );
   final writesBefore = readConstellationCubit(tester).writeCount;
   await tapConstellationControl(tester, pinButton);
@@ -1808,7 +1807,6 @@ Future<void> pinConstellationPersonFromMap(
           cubit.state.placementFailureMessage != null;
     },
     label: 'person anchor write started or confirmed',
-    timeout: const Duration(seconds: 20),
   );
   final cubit = readConstellationCubit(tester);
   if (cubit.state.placementFailureMessage != null) {
@@ -1873,7 +1871,6 @@ Future<void> pinConstellationRequestFromText(
     tester,
     () => readConstellationCubit(tester).placementActionsEnabled,
     label: 'constellation placement actions enabled',
-    timeout: const Duration(seconds: 20),
   );
   await tapConstellationControl(tester, pinButton);
   final target = ConstellationAnchorTarget.beacon(requestId);
@@ -1922,9 +1919,8 @@ Future<void> unpinConstellationTarget(
     tester,
     () => readConstellationCubit(tester).placementActionsEnabled,
     label: 'placement actions enabled before unpin',
-    timeout: const Duration(seconds: 20),
   );
-  final Finder unpin = switch (target.kind) {
+  final unpin = switch (target.kind) {
     ConstellationAnchorTargetKind.person => find.descendant(
         of: find.byKey(TestIds.key(TestIds.graphPersonContextPanel)),
         matching: find.byKey(TestIds.key(TestIds.constellationUnpinTarget)),
@@ -1949,7 +1945,6 @@ Future<void> unpinConstellationTarget(
       return button.onPressed != null;
     },
     label: 'constellation unpin enabled',
-    timeout: const Duration(seconds: 20),
   );
   final writesBefore = readConstellationCubit(tester).writeCount;
   await tapConstellationControl(tester, unpin);
@@ -1963,7 +1958,6 @@ Future<void> unpinConstellationTarget(
           cubit.state.placementFailureMessage != null;
     },
     label: 'constellation unpin write started or confirmed',
-    timeout: const Duration(seconds: 20),
   );
   final cubit = readConstellationCubit(tester);
   if (cubit.state.placementFailureMessage != null) {
@@ -1986,8 +1980,7 @@ Future<void> selectConstellationPersonNode(
   WidgetTester tester,
   String personId,
 ) async {
-  final cubit = readConstellationCubit(tester);
-  cubit.selectPerson(personId);
+  readConstellationCubit(tester).selectPerson(personId);
   await pumpBounded(tester);
 }
 
@@ -2020,7 +2013,6 @@ Future<void> dragConstellationAnchorViaGraph({
         readConstellationCubit(tester).state.placementPhase ==
         ConstellationPlacementPhase.idle,
     label: 'constellation drag settled',
-    timeout: const Duration(seconds: 20),
   );
 }
 
@@ -2113,8 +2105,8 @@ Future<Map<String, dynamic>> upsertConstellationAnchor({
   required double yUnits,
   int coordinateSpaceVersion = 1,
 }) async {
-  final x = xUnits.toDouble().toStringAsFixed(4);
-  final y = yUnits.toDouble().toStringAsFixed(4);
+  final x = xUnits.toStringAsFixed(4);
+  final y = yUnits.toStringAsFixed(4);
   final response = await _postGraphQl(
     'mutation { constellationAnchorUpsert(targetKind: $targetKind, targetId: "$targetId", xUnits: $x, yUnits: $y, coordinateSpaceVersion: $coordinateSpaceVersion) { anchor { targetKind targetId xUnits yUnits coordinateSpaceVersion revision } } }',
   );

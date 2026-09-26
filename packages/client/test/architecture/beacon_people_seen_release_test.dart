@@ -161,21 +161,17 @@ void main() {
     expect(result.exitCode, 0, reason: '${result.stdout}\n${result.stderr}');
   });
 
-  test('client minor exceeds main and tracked web cache buster matches', () {
+  test('tracked web cache buster matches pubspec version', () {
+    // Alloy now runs in no-worktree mode: every bead commits directly onto
+    // main, so there is no separate branch to compare a version bump
+    // against (main and the working tree are the same ref) — the previous
+    // "client minor exceeds main" assertion was a worktree-era invariant
+    // that degenerated to comparing main against itself. Dropped; landing
+    // review is the gate for whether a release-facing change bumped the
+    // version at all. This test still guards a real defect class: the
+    // tracked web bootstrap cache buster silently drifting from pubspec.
     final branchVersion = _versionIn(
       _repoFile('packages/client/pubspec.yaml').readAsStringSync(),
-    );
-    final mainPubspec = Process.runSync(
-      'git',
-      ['show', 'main:packages/client/pubspec.yaml'],
-      workingDirectory: _repoRoot().path,
-    );
-    expect(mainPubspec.exitCode, 0, reason: '${mainPubspec.stderr}');
-    final mainVersion = _versionIn(mainPubspec.stdout as String);
-    expect(
-      int.parse(branchVersion.split('.')[1]),
-      greaterThan(int.parse(mainVersion.split('.')[1])),
-      reason: 'Client $branchVersion must exceed main $mainVersion in minor',
     );
     final index = _repoFile(
       'packages/client/web/index.html',
