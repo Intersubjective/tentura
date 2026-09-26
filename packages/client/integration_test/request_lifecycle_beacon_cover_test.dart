@@ -10,9 +10,9 @@ import 'package:tentura/main.dart' as app;
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/capability_tag_presenter.dart';
-import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 import 'package:tentura/ui/widget/beacon_identity_tile.dart';
 
+import 'support/beacon_cover_list_identity_finder.dart';
 import 'support/e2e_test_helpers.dart';
 
 /// Web coverage for the resolved request identity (plan §9.6).
@@ -81,7 +81,10 @@ void main() {
     // Choosing the symbol preference opens the sheet, which offers only the
     // capabilities this request asks for. Source actions are icon buttons
     // (tooltip only) — tap by key, not by visible "Symbol" label.
-    await tapAndSettle(tester, find.byKey(const Key('BeaconCover.SourceSymbol')));
+    await tapAndSettle(
+      tester,
+      find.byKey(const Key('BeaconCover.SourceSymbol')),
+    );
     await pumpUntilVisible(tester, _symbolOption('tools'));
     expect(_symbolOption('housing'), findsNothing);
     await tapAndSettle(tester, _symbolOption('tools'));
@@ -150,11 +153,14 @@ void main() {
     await logout(tester);
     await loginAs(tester, fixture.helperEmail);
     await goToPath(tester, kPathInbox);
-    await pumpUntilVisible(tester, find.text(title));
+    await pumpUntilVisible(tester, findRequestTitle(title));
 
     await openRequestFromInbox(tester, requestTitle: title);
     await pumpUntilVisible(tester, find.byType(BeaconIdentityTile));
-    expect(_identityOf(tester, find.byType(BeaconIdentityTile).first), 'symbol');
+    expect(
+      _identityOf(tester, find.byType(BeaconIdentityTile).first),
+      'symbol',
+    );
   });
 }
 
@@ -200,7 +206,10 @@ String _previewIdentity(WidgetTester tester) => _identityOf(
       .first,
 );
 
-Future<void> _expectListIdentitySymbol(WidgetTester tester, String title) async {
+Future<void> _expectListIdentitySymbol(
+  WidgetTester tester,
+  String title,
+) async {
   await pumpUntilVisible(tester, find.text(title));
   await pumpUntil(
     tester,
@@ -213,29 +222,7 @@ Future<void> _expectListIdentitySymbol(WidgetTester tester, String title) async 
 /// Identity glyph on the desk/triage card row that owns [title], not an offstage
 /// tab's first [BeaconIdentityTile] (which may omit chrome or lack paint).
 String? _listIdentityBesideTitle(WidgetTester tester, String title) {
-  final titleFinder = find.text(title);
-  if (!finderHasMatch(titleFinder)) {
-    return null;
-  }
-  final headerRow = find.ancestor(
-    of: titleFinder.first,
-    matching: find.byType(BeaconCardHeaderRow),
-  );
-  if (!finderHasMatch(headerRow)) {
-    return null;
-  }
-  final tile = find.descendant(
-    of: headerRow,
-    matching: find.byType(BeaconIdentityTile),
-  );
-  if (!finderHasMatch(tile)) {
-    return null;
-  }
-  try {
-    return _identityOf(tester, tile.first);
-  } on StateError {
-    return null;
-  }
+  return beaconCoverListIdentityBesideTitle(tester, title);
 }
 
 /// Toggles logistics capabilities in the requirements sheet. Groups are
@@ -248,7 +235,8 @@ Future<void> _toggleLogisticsRequirements(
   final l10n = _l10n(tester);
   await tapAndSettle(tester, find.text(l10n.beaconRequirementsTitle).first);
   final chips = [
-    for (final slug in slugs) find.byKey(TestIds.key(TestIds.capabilityChip(slug))),
+    for (final slug in slugs)
+      find.byKey(TestIds.key(TestIds.capabilityChip(slug))),
   ];
   if (!finderHasMatch(chips.first)) {
     await tapAndSettle(tester, find.text(l10n.capabilityGroupLogistics).first);
