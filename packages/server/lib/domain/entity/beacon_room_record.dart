@@ -14,6 +14,8 @@ final class BeaconRoomMessageRecord {
     this.editedAt,
     this.mentions = const [],
     this.mentionSpans = const [],
+    this.quotedFactCardId,
+    this.quotedFactRevisionSeq,
   });
 
   final String id;
@@ -31,6 +33,10 @@ final class BeaconRoomMessageRecord {
   final DateTime? editedAt;
   final List<String> mentions;
   final List<Map<String, Object?>> mentionSpans;
+
+  /// Quoted fact revision snapshot; both set or both null.
+  final String? quotedFactCardId;
+  final int? quotedFactRevisionSeq;
 }
 
 /// An admitted room participant's display identity for mention validation.

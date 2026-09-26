@@ -53,6 +53,8 @@ extension BeaconRoomMessageRowMapper on db.BeaconRoomMessage {
             for (final raw in mentionSpans! as List)
               if (raw is Map) Map<String, Object?>.from(raw),
           ],
+    quotedFactCardId: quotedFactCardId,
+    quotedFactRevisionSeq: quotedFactRevisionSeq,
   );
 }
 

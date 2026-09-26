@@ -5,6 +5,7 @@ import 'package:drift_postgres/drift_postgres.dart';
 import 'package:postgres/postgres.dart' show Type, TypedValue;
 
 import 'package:tentura_server/consts/beacon_participant_status_bits.dart';
+import 'package:tentura_server/consts/beacon_fact_card_consts.dart';
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
@@ -12,6 +13,7 @@ import 'package:tentura_server/domain/entity/beacon_activity_event_record.dart';
 import 'package:tentura_server/utils/room_mention_utils.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_room_record.dart';
+import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/entity/room_read_watermark_record.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/util/room_reply_excerpt.dart';
@@ -652,8 +654,60 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
     Map<String, Object?>? systemPayload,
     List<String> mentions = const [],
     List<Map<String, Object?>> mentionSpans = const [],
+    String? quotedFactCardId,
+    int? quotedFactRevisionSeq,
   }) => _db.withMutatingUser(authorId, () async {
     final id = generateId('R');
+    if (quotedFactCardId != null || quotedFactRevisionSeq != null) {
+      // Plan §8.5: one insert-select; yields a row only for a live fact of the
+      // same beacon with an existing revision seq, in the General scope.
+      final rows = await _db.customSelect(
+        '''
+INSERT INTO public.beacon_room_message
+  (id, beacon_id, author_id, body, reply_to_message_id, thread_item_id,
+   linked_next_move_id, linked_polling_id, semantic_marker, system_payload,
+   mentions, mention_spans, quoted_fact_card_id, quoted_fact_revision_seq,
+   created_at)
+SELECT \$1::text, \$2::text, \$3::text, \$4::text, \$5::text, \$6::text,
+       \$7::text, \$8::text, \$9::smallint, \$10::jsonb, \$11::text[],
+       \$12::jsonb, r.fact_card_id, r.seq, now()
+FROM public.beacon_fact_card f
+JOIN public.beacon_fact_card_revision r
+  ON r.fact_card_id = f.id AND r.seq = \$14::integer
+WHERE f.id = \$13::text
+  AND f.beacon_id = \$2::text
+  AND f.status <> ${BeaconFactCardStatusBits.removed}
+  AND \$6::text IS NULL
+RETURNING *
+''',
+        variables: [
+          Variable<String>(id),
+          Variable<String>(beaconId),
+          Variable<String>(authorId),
+          Variable<String>(body),
+          Variable<String>(replyToMessageId),
+          Variable<String>(threadItemId),
+          Variable<String>(linkedParticipantId),
+          Variable<String>(linkedPollingId),
+          Variable<int>(semanticMarker),
+          Variable<String>(
+            systemPayload == null ? null : jsonEncode(systemPayload),
+          ),
+          Variable(TypedValue(Type.textArray, mentions)),
+          Variable<String>(jsonEncode(mentionSpans)),
+          Variable<String>(quotedFactCardId),
+          Variable<int>(quotedFactRevisionSeq),
+        ],
+      ).get();
+      if (rows.isEmpty) {
+        throw IdWrongException(
+          description:
+              'Quoted fact [$quotedFactCardId] revision '
+              '[$quotedFactRevisionSeq]',
+        );
+      }
+      return _db.beaconRoomMessages.map(rows.single.data).toRecord();
+    }
     return (await _db.managers.beaconRoomMessages.createReturning(
       (o) => o(
         id: id,

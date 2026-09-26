@@ -99,6 +99,8 @@ abstract class BeaconRoomRepositoryPort {
     Map<String, Object?>? systemPayload,
     List<String> mentions = const [],
     List<Map<String, Object?>> mentionSpans = const [],
+    String? quotedFactCardId,
+    int? quotedFactRevisionSeq,
   });
 
   Future<void> insertRoomMessageAttachmentFile({

@@ -308,7 +308,15 @@ final class BeaconRoomCase extends UseCaseBase {
     List<String> explicitMentionUserIds = const [],
     List<int> explicitMentionOffsets = const [],
     List<int> explicitMentionLengths = const [],
+    String? quotedFactCardId,
+    int? quotedFactRevisionSeq,
   }) async {
+    if ((quotedFactCardId == null) != (quotedFactRevisionSeq == null)) {
+      throw const IdWrongException(
+        description:
+            'quotedFactCardId and quotedFactRevisionSeq must be set together',
+      );
+    }
     final tid = threadItemId?.trim();
     final inThread = tid != null && tid.isNotEmpty;
     _rejectDisabledDiscussionScope(inThread ? tid : null);
@@ -375,9 +383,9 @@ final class BeaconRoomCase extends UseCaseBase {
         payload = null;
       }
     }
-    if (trimmed.isEmpty && payload == null) {
+    if (trimmed.isEmpty && payload == null && quotedFactCardId == null) {
       throw const BeaconCreateException(
-        description: 'Message text or attachment required',
+        description: 'Message text, attachment or quoted fact required',
       );
     }
     final resolvedMentions = await _resolveMentions(
@@ -414,6 +422,8 @@ final class BeaconRoomCase extends UseCaseBase {
         threadItemId: inThread ? tid : null,
         mentions: mentionIds,
         mentionSpans: resolvedMentions.spans,
+        quotedFactCardId: quotedFactCardId,
+        quotedFactRevisionSeq: quotedFactRevisionSeq,
       );
       if (payload != null) {
         await _addAttachmentBytesToMessage(

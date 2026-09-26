@@ -86,6 +86,8 @@ class _StubRoom extends Fake implements BeaconRoomRepositoryPort {
     Map<String, Object?>? systemPayload,
     List<String> mentions = const [],
     List<Map<String, Object?>> mentionSpans = const [],
+    String? quotedFactCardId,
+    int? quotedFactRevisionSeq,
   }) async {
     insertedBody = body;
     return BeaconRoomMessageRecord(

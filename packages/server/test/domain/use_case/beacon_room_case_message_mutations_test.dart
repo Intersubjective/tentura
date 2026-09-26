@@ -125,6 +125,8 @@ class _StubRoom extends Fake implements BeaconRoomRepositoryPort {
     Map<String, Object?>? systemPayload,
     List<String> mentions = const [],
     List<Map<String, Object?>> mentionSpans = const [],
+    String? quotedFactCardId,
+    int? quotedFactRevisionSeq,
   }) async {
     insertedBody = body;
     insertedMentions = mentions;
@@ -493,7 +495,7 @@ void main() {
             isA<BeaconCreateException>().having(
               (e) => e.description,
               'description',
-              contains('text or attachment required'),
+              equals('Message text, attachment or quoted fact required'),
             ),
           ),
         );

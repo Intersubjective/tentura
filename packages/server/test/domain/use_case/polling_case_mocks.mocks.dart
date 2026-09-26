@@ -381,6 +381,8 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
     Map<String, Object?>? systemPayload,
     List<String>? mentions = const [],
     List<Map<String, Object?>>? mentionSpans = const [],
+    String? quotedFactCardId,
+    int? quotedFactRevisionSeq,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#insertRoomMessage, [], {
@@ -395,6 +397,8 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
               #systemPayload: systemPayload,
               #mentions: mentions,
               #mentionSpans: mentionSpans,
+              #quotedFactCardId: quotedFactCardId,
+              #quotedFactRevisionSeq: quotedFactRevisionSeq,
             }),
             returnValue: _i3.Future<_i5.BeaconRoomMessageRecord>.value(
               _i6.dummyValue<_i5.BeaconRoomMessageRecord>(
@@ -411,6 +415,8 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
                   #systemPayload: systemPayload,
                   #mentions: mentions,
                   #mentionSpans: mentionSpans,
+                  #quotedFactCardId: quotedFactCardId,
+                  #quotedFactRevisionSeq: quotedFactRevisionSeq,
                 }),
               ),
             ),
