@@ -4,6 +4,7 @@ import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_root/domain/entity/beacon_status.dart';
+import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/consts/beacon_fact_card_consts.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_history_entry_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_room_access.dart';
@@ -14,6 +15,7 @@ import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/use_case/beacon_fact_card_case.dart';
 import 'package:tentura_server/env.dart';
 
+import '../../support/beacon_fact_history_cursor_contract.dart';
 import '../../support/fake_beacon_access_guard.dart';
 
 /// tentura-617.14 (issue #181 plan §8.4, §8.11, D1): `BeaconFactCardCase`
@@ -48,6 +50,58 @@ List<BeaconFactHistoryEntry> _revisionsDesc(int count) => [
       createdAt: _at(seq),
     ),
 ];
+
+/// Persisted `beacon_activity_event.id` for the page-1 boundary event.
+const _boundaryActivityEventId = 'Evhist000001';
+
+/// Newest-first timeline where page 1's last kept row is a fact event and two
+/// older revisions remain (52 rows total).
+List<BeaconFactHistoryEntry> _eventBoundaryCatalog() {
+  final boundaryEvent = BeaconFactHistoryEntry.event(
+    activityEventId: _boundaryActivityEventId,
+    type: BeaconActivityEventTypeBits.factVisibilityChanged,
+    actorTitle: 'Actor',
+    createdAt: _at(2),
+  );
+  return [
+    for (var seq = 51; seq >= 3; seq--)
+      BeaconFactHistoryRevision(
+        seq: seq,
+        kind: BeaconFactCardRevisionKindBits.edited,
+        factText: 'v$seq',
+        actorTitle: 'Actor',
+        createdAt: _at(seq),
+      ),
+    boundaryEvent,
+    BeaconFactHistoryRevision(
+      seq: 2,
+      kind: BeaconFactCardRevisionKindBits.edited,
+      factText: 'v2',
+      actorTitle: 'Actor',
+      createdAt: _at(1),
+    ),
+    BeaconFactHistoryRevision(
+      seq: 1,
+      kind: BeaconFactCardRevisionKindBits.edited,
+      factText: 'v1',
+      actorTitle: 'Actor',
+      createdAt: _at(0),
+    ),
+  ];
+}
+
+({DateTime createdAt, String entryKey}) _parseOpaqueCursor(String cursor) {
+  final sep = cursor.indexOf('|');
+  return (
+    createdAt: DateTime.parse(cursor.substring(0, sep)).toUtc(),
+    entryKey: cursor.substring(sep + 1),
+  );
+}
+
+String _describeEntry(BeaconFactHistoryEntry entry) => switch (entry) {
+  BeaconFactHistoryRevision(:final seq) => 'revision:$seq',
+  BeaconFactHistoryEvent(:final type) => 'event:$type',
+};
 
 typedef _HistoryCall = ({
   String factCardId,
@@ -85,6 +139,31 @@ class _FakeFacts extends Fake implements BeaconFactCardRepositoryPort {
   }) async {
     historyCalls.add((factCardId: factCardId, before: before, limit: limit));
     return rows;
+  }
+}
+
+/// Keyset paging like the repository: rows are `(created_at, entry_key)` DESC
+/// and [before] is the exclusive cursor of the last entry already shown.
+class _KeysetPagingFakeFacts extends _FakeFacts {
+  List<BeaconFactHistoryEntry> catalog = const [];
+
+  @override
+  Future<List<BeaconFactHistoryEntry>> history({
+    required String factCardId,
+    ({DateTime createdAt, String entryKey})? before,
+    int limit = kFactHistoryPageSize,
+  }) async {
+    historyCalls.add((factCardId: factCardId, before: before, limit: limit));
+    final eligible = catalog.where((entry) {
+      if (before == null) return true;
+      final key = historySortKey(entry);
+      final cursor = (
+        createdAt: before.createdAt.toUtc(),
+        entryKey: before.entryKey,
+      );
+      return historyTupleCompare(key, cursor) < 0;
+    });
+    return eligible.take(limit + 1).toList();
   }
 }
 
@@ -198,6 +277,136 @@ void main() {
         },
       );
     }
+  });
+
+  group('BeaconFactCardCase.history — event page boundary (tentura-1z0)', () {
+    late _KeysetPagingFakeFacts pagingFacts;
+    late BeaconFactCardCase pagingCase;
+
+    setUp(() {
+      pagingFacts = _KeysetPagingFakeFacts();
+      pagingFacts.catalog = _eventBoundaryCatalog();
+      pagingCase = BeaconFactCardCase(
+        pagingFacts,
+        _UnusedRoom(),
+        _UnusedHierarchy(),
+        FakeBeaconAccessGuard(),
+        env: Env(environment: Environment.test),
+        logger: Logger('BeaconFactCardCaseHistoryEventBoundaryTest'),
+      );
+    });
+
+    Future<({List<BeaconFactHistoryEntry> entries, String? nextCursor})>
+    pagingHistory({String? before}) => pagingCase.history(
+      factCardId: _factId,
+      beaconId: _beaconId,
+      userId: _userId,
+      before: before,
+    );
+
+    test(
+      'event page boundary emits a cursor for that event and paging continues '
+      'without skipping or duplicating entries',
+      () async {
+        final catalog = _eventBoundaryCatalog();
+        final expectedDescriptions = catalog.map(_describeEntry);
+
+        final page1 = await pagingHistory();
+        expect(page1.entries, hasLength(kFactHistoryPageSize));
+        final boundary = page1.entries.last;
+        expect(boundary, isA<BeaconFactHistoryEvent>());
+        expect(page1.nextCursor, isNotNull);
+
+        final cursor = _parseOpaqueCursor(page1.nextCursor!);
+        expect(cursor.createdAt, boundary.createdAt.toUtc());
+        expect(cursor.entryKey, 'e$_boundaryActivityEventId');
+        expect(
+          historyEntryKeyFromEntityOnly(boundary),
+          cursor.entryKey,
+          reason: 'cursor must use e||id from the entity, not a test-only key',
+        );
+
+        final page2 = await pagingHistory(before: page1.nextCursor);
+        final seen = [
+          ...page1.entries.map(_describeEntry),
+          ...page2.entries.map(_describeEntry),
+        ];
+
+        expect(seen, expectedDescriptions);
+        expect(seen.toSet(), hasLength(seen.length), reason: 'no duplicates');
+        expect(
+          page2.entries.any((e) => identical(e, boundary)),
+          isFalse,
+          reason: 'boundary event must be excluded after its cursor',
+        );
+        for (final entry in page2.entries) {
+          expect(
+            historyTupleCompare(historySortKey(entry), historySortKey(boundary)),
+            lessThan(0),
+            reason: 'page 2 rows must sort strictly older than the boundary',
+          );
+        }
+        expect(
+          (page2.entries.first as BeaconFactHistoryRevision).seq,
+          2,
+          reason: 'page 2 must start immediately after the boundary event',
+        );
+        expect(page2.nextCursor, isNull);
+      },
+    );
+
+    test(
+      'nextCursor from an event page boundary round-trips to the same '
+      'timestamp and entry key and returns the correct following page',
+      () async {
+        final page1 = await pagingHistory();
+        final boundary = page1.entries.last;
+        pagingFacts.historyCalls.clear();
+
+        final page2 = await pagingHistory(before: page1.nextCursor);
+
+        final call = pagingFacts.historyCalls.single;
+        final parsed = _parseOpaqueCursor(page1.nextCursor!);
+        expect(call.before, isNotNull);
+        expect(call.before!.createdAt.toUtc(), parsed.createdAt);
+        expect(call.before!.entryKey, parsed.entryKey);
+        expect(parsed.createdAt, boundary.createdAt.toUtc());
+        expect(parsed.entryKey, 'e$_boundaryActivityEventId');
+        expect(historyEntryKeyFromEntityOnly(boundary), parsed.entryKey);
+
+        expect(page2.entries, hasLength(2));
+        expect(
+          page2.entries.map(_describeEntry).toList(),
+          ['revision:2', 'revision:1'],
+        );
+        expect(page2.nextCursor, isNull);
+      },
+    );
+
+    test(
+      'wrong event entry_key at the boundary timestamp does not return the '
+      'correct older tail',
+      () async {
+        final page1 = await pagingHistory();
+        final boundary = page1.entries.last as BeaconFactHistoryEvent;
+        final correctPage2 = await pagingHistory(before: page1.nextCursor);
+
+        final wrongCursor =
+            '${boundary.createdAt.toUtc().toIso8601String()}|eNOT$_boundaryActivityEventId';
+        final wrongPage = await pagingHistory(before: wrongCursor);
+
+        expect(
+          wrongPage.entries.map(_describeEntry).toList(),
+          isNot(correctPage2.entries.map(_describeEntry).toList()),
+          reason: 'an incorrect e||id cursor must not page past the boundary',
+        );
+        expect(
+          wrongPage.entries.any((e) => identical(e, boundary)),
+          isTrue,
+          reason: 'wrong key leaves the boundary event in the result set',
+        );
+      },
+    );
   });
 
   group('BeaconFactCardCase.history — D1 preflight', () {

@@ -18,7 +18,9 @@ sealed class BeaconFactHistoryEntry with _$BeaconFactHistoryEntry {
   }) = BeaconFactHistoryRevision;
 
   /// A visibility change or unpin event; [type] is the activity event type.
+  /// [activityEventId] is `beacon_activity_event.id` (history `entry_key` `e||id`).
   const factory BeaconFactHistoryEntry.event({
+    required String activityEventId,
     required int type,
     required String actorTitle,
     required DateTime createdAt,

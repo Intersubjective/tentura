@@ -722,7 +722,9 @@ LIMIT $2::integer
         actorId: actorId,
       );
     }
+    final entryKey = row.read<String>('entry_key');
     return BeaconFactHistoryEntry.event(
+      activityEventId: entryKey.substring(1),
       type: row.read<int>('type'),
       actorTitle: actorTitle,
       createdAt: createdAt,

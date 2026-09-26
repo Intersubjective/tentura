@@ -56,6 +56,7 @@ void main() {
 
   test('.event carries type, visibility transition and actor', () {
     final entry = BeaconFactHistoryEntry.event(
+      activityEventId: 'Eaaa00000001',
       type: 20,
       visibilityFrom: BeaconFactCardVisibilityBits.room,
       visibilityTo: BeaconFactCardVisibilityBits.public,
@@ -76,6 +77,7 @@ void main() {
 
   test('.event visibility fields are optional', () {
     final entry = BeaconFactHistoryEntry.event(
+      activityEventId: 'Eaaa00000002',
       type: 19,
       actorTitle: '',
       createdAt: createdAt,
@@ -99,6 +101,7 @@ void main() {
       rev(),
       isNot(
         BeaconFactHistoryEntry.event(
+          activityEventId: 'Eaaa00000003',
           type: 19,
           actorTitle: 'A',
           createdAt: createdAt,

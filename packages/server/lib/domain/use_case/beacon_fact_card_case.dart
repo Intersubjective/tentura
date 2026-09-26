@@ -290,15 +290,10 @@ final class BeaconFactCardCase extends UseCaseBase {
       '${entry.createdAt.toUtc().toIso8601String()}|${_historyEntryKey(entry)}';
 
   /// Mirrors the repository's `entry_key` convention (§14.3): `'r' ||
-  /// lpad(seq, 10)` for revisions, `'e' || id` for events. `BeaconFactHistoryEvent`
-  /// carries no persisted event id, so a page boundary landing on an event
-  /// row cannot yet be serialised into a round-trippable cursor.
+  /// lpad(seq, 10)` for revisions, `'e' || id` for events.
   String _historyEntryKey(BeaconFactHistoryEntry entry) => switch (entry) {
     BeaconFactHistoryRevision(:final seq) =>
       'r${seq.toString().padLeft(10, '0')}',
-    BeaconFactHistoryEvent() => throw UnimplementedError(
-      'nextCursor cannot be serialised for an event-row page boundary: '
-      'BeaconFactHistoryEvent does not carry a persisted event id',
-    ),
+    BeaconFactHistoryEvent(:final activityEventId) => 'e$activityEventId',
   };
 }
