@@ -80,7 +80,7 @@ services:
     restart: unless-stopped
     hostname: meritrank
     container_name: meritrank
-    image: vbulavintsev/meritrank-service:v0.9.0
+    image: vbulavintsev/meritrank-service:v0.11.0
     networks:
       - backend
     environment:
