@@ -342,7 +342,7 @@ void main() {
     // Positive first: a fixture that rendered nothing would satisfy a ceiling.
     expect(find.byType(RequestAttentionCard), findsOneWidget);
     expect(find.byType(AttentionMiniCard), findsWidgets);
-    expect(find.byKey(RequestAttentionCard.timelineKey), findsOneWidget);
+    expect(find.byKey(RequestAttentionCard.overflowKey), findsOneWidget);
     expect(tester.takeException(), isNull);
 
     final height = tester.getSize(find.byType(RequestAttentionCard)).height;
@@ -417,8 +417,7 @@ void main() {
     expect(find.text('Помогаю'), findsOneWidget);
     expect(find.byKey(RequestAttentionCard.offerHelpKey), findsNothing);
     expect(find.byKey(RequestAttentionCard.followKey), findsNothing);
-    // Footer meta: Хронология always, Очистить всё while events remain.
-    expect(find.byKey(RequestAttentionCard.timelineKey), findsOneWidget);
+    // Timeline lives in ⋮; footer only keeps Очистить всё while events remain.
     expect(find.byKey(RequestAttentionCard.clearAllKey), findsOneWidget);
     expect(find.byKey(RequestAttentionIndicators.dotKey), findsOneWidget);
   });
@@ -426,6 +425,7 @@ void main() {
   testWidgets('Очистить всё disappears when nothing is left to clear', (
     tester,
   ) async {
+    var timeline = 0;
     await tester.pumpWidget(
       _host(
         RequestAttentionCard(
@@ -433,7 +433,7 @@ void main() {
           relation: RequestAttentionRelation.following,
           facts: const RequestAttentionFacts(requestId: 'b1'),
           onOpenBeacon: () {},
-          onOpenTimeline: () {},
+          onOpenTimeline: () => timeline++,
           onClearAll: () {},
         ),
       ),
@@ -442,9 +442,14 @@ void main() {
 
     expect(find.byKey(RequestAttentionCard.clearAllKey), findsNothing);
     expect(find.byKey(RequestAttentionIndicators.dotKey), findsNothing);
-    // Хронология is the only Timeline entry then, and always rendered (E30).
-    expect(find.byKey(RequestAttentionCard.timelineKey), findsOneWidget);
+    expect(find.text('Хронология'), findsNothing);
     expect(find.text('Слежу'), findsOneWidget);
+
+    await tester.tap(find.byKey(RequestAttentionCard.overflowKey));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Журнал'));
+    await tester.pumpAndSettle();
+    expect(timeline, 1);
   });
 
   testWidgets('the header quotes the Request and attributes its author', (

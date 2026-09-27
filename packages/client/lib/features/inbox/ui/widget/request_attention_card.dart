@@ -70,7 +70,6 @@ class RequestAttentionCard extends StatelessWidget {
   static const semanticsKey = Key('request-attention-card');
   static const headerKey = Key('request-attention-card-header');
   static const overflowKey = Key('request-attention-card-overflow');
-  static const timelineKey = Key('request-attention-card-timeline');
   static const clearAllKey = Key('request-attention-card-clear-all');
 
   /// The Offer Help control's key **is** the stable `TestIds.inboxOfferHelp`
@@ -116,7 +115,7 @@ class RequestAttentionCard extends StatelessWidget {
 
   final VoidCallback onOpenBeacon;
 
-  /// «ещё N» and «Хронология» both land here (D-171-5b, E30).
+  /// «ещё N» and the ⋮ «Журнал» action both land here (D-171-5b).
   final VoidCallback onOpenTimeline;
 
   final ValueChanged<String>? onClearEvent;
@@ -183,8 +182,14 @@ class RequestAttentionCard extends StatelessWidget {
                     quotedBodyOf: _quotedBodyOf,
                   ),
                 _coalescedForwards(l10n, tt),
-                SizedBox(height: tt.tightGap),
-                _footerMeta(l10n, tt, hasClearable: hasClearable),
+                if (!_isPinned && hasClearable && onClearAll != null) ...[
+                  SizedBox(height: tt.tightGap),
+                  TenturaTextAction(
+                    key: clearAllKey,
+                    label: l10n.attentionCardClearAll,
+                    onPressed: onClearAll,
+                  ),
+                ],
                 if (_isPinned) ...[
                   TenturaHairlineDivider(),
                   SizedBox(height: tt.tightGap),
@@ -433,35 +438,6 @@ class RequestAttentionCard extends StatelessWidget {
       ),
     );
   }
-
-  // ---------------------------------------------------------------- footer
-
-  Widget _footerMeta(
-    L10n l10n,
-    TenturaTokens tt, {
-    required bool hasClearable,
-    // A Wrap, not a Row: at RU width «Хронология» and «Очистить всё» together
-    // overflow 360 dp, and a meta line is exactly the thing that may reflow.
-  }) => Wrap(
-    alignment: WrapAlignment.spaceBetween,
-    spacing: tt.rowGap,
-    runSpacing: tt.tightGap,
-    children: [
-      // E30 / A4: with «ещё N» gone to the Timeline, this is the entry point
-      // that must exist on every card, always.
-      TenturaTextAction(
-        key: timelineKey,
-        label: l10n.labelTimeline,
-        onPressed: onOpenTimeline,
-      ),
-      if (!_isPinned && hasClearable && onClearAll != null)
-        TenturaTextAction(
-          key: clearAllKey,
-          label: l10n.attentionCardClearAll,
-          onPressed: onClearAll,
-        ),
-    ],
-  );
 
   // ------------------------------------------------------------ action row
 
