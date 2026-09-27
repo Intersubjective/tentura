@@ -137,21 +137,8 @@ Standard dev setup is in `DEVELOPMENT.md` and the `local-debug` skill; only the 
 <!-- headroom:learn:end -->
 
 <!-- alloy:memory:begin -->
-reviewed: 2026-09-26
-review due: 2026-10-01
-
-### alloy:lesson:domain_boundary_rg_guard_inverted
-Acceptance check `rg "package:tentura_server/data/repository" packages/server/lib/domain` exits 1 when there are no matches, which is the passing case. A judge or runner that treats a non-zero exit as failure will fail it (attempt #1 was marked "repair" for this). Run it inverted, as `! rg ...` (CI uses that form), and treat exit 0 of the inverted form as a pass. Also, for pg watermark and index tests, EXPLAIN checks need `SET enable_seqscan = off`. Mockito mocks of BeaconRoomRepositoryPort tolerate a new port method, so consumers (polling_case, help_offer_case) needed no regeneration.
-
-
-### alloy:lesson:user_visible_client_change_needs_version_bump_upfront
-For any user-visible client change in Tentura, including realtime and read-receipt behaviour that alters what users see, bump the packages/client/pubspec.yaml patch version and set the web/index.html `flutter_bootstrap.js?v=` cache-buster to the same value in the first attempt. Bead text often omits this requirement. In tentura-s54, judge retries on attempts #1 and #2 were caused by the missing bump, and a human had to ask for it. Attempt #2 also failed a custom version-sync check. The check is: `grep "^version:"` in pubspec.yaml matches the `?v=` in index.html, and both files show in the git diff. The RoomCubit `roomSeenPeer` handler also has a pattern worth reusing. Add an early branch in `_onRoomInvalidation` before the scope switch, then return. Patch `readWatermarks` in place with max(existing, incoming) into a cloned map, and emit only when the value advances. Extend the fake repository with a `seenPeer` parameter and a `fetchParticipantsCallCount` counter so tests assert no refetch. Do not use Mockito `verifyNever`. Keep doc comments attached to the method they describe.
-
-### alloy:lesson:tentura-layout-pub-workspace-packages-client-flutter-run
-Tentura layout: pub workspace; packages/client (Flutter, run flutter test from there with --dart-define=ENV=test --dart-define-from-file=env/test.env), packages/server (Dart), packages/tentura_lints. Read AGENTS.md invariants; never edit generated *.g.dart/*.freezed.dart/*.config.dart, run build_runner. Client UI must use design-system tokens (no raw Color/TextStyle/EdgeInsets).
-
-### alloy:lesson:tentura-tests-always-wrap-flutter-test-dart-test
-Tentura tests: always wrap flutter test / dart test / scripts/check-custom-lints.sh with ./scripts/run_with_test_cleanup.sh --timeout 10m -- <cmd> (see AGENTS.md Verify). Never wrap flutter run. Run wrapped tests serially, never two at once.
+reviewed: 2026-09-27
+review due: 2026-10-04
 <!-- alloy:memory:end -->
 
 <!-- alloy:memory-review:ptl:begin -->
