@@ -109,6 +109,9 @@ class TenturaMenuTile extends StatelessWidget {
       ),
       horizontalTitleGap: tt.avatarTextGap,
       minLeadingWidth: tt.iconSize,
+      // Desktop density trims the title gap by 4 dp; the dividers and notes
+      // are drawn on [menuTextStart], so the gap must be the token itself.
+      visualDensity: VisualDensity.standard,
       leading: Icon(
         icon,
         size: tt.iconSize,

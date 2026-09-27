@@ -670,8 +670,11 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
     );
   }
 
+  // Inset to the rows' text keyline (after the icon column).
   Widget _detailsHairline(TenturaTokens tt) => Padding(
-        padding: EdgeInsets.symmetric(horizontal: tt.cardPadding.left),
+        padding: EdgeInsets.only(
+          left: tt.cardPadding.left + tt.iconSize + tt.avatarTextGap,
+        ),
         child: const TenturaHairlineDivider(subtle: true),
       );
 

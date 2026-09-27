@@ -35,8 +35,14 @@ class CreateDetailsRow extends StatelessWidget {
         onTap: onTap,
         child: ConstrainedBox(
           constraints: BoxConstraints(minHeight: tt.buttonHeight),
+          // Inside the card's own padding: icons sat on the card edge.
           child: Padding(
-            padding: EdgeInsets.symmetric(vertical: tt.cardPadding.top),
+            padding: EdgeInsets.fromLTRB(
+              tt.cardPadding.left,
+              tt.cardPadding.top,
+              tt.rowGap,
+              tt.cardPadding.bottom,
+            ),
             child: Row(
               children: [
                 Icon(icon, size: tt.iconSize, color: tt.textMuted),

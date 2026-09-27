@@ -761,6 +761,14 @@
   "@beaconCreateNextRecipients": {
     "context": "BeaconCreateScreen"
   },
+  "beaconCreateNextNeedsTitle": "Add a title to continue",
+  "@beaconCreateNextNeedsTitle": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCreateNextNeedsDescription": "Describe what you need to continue",
+  "@beaconCreateNextNeedsDescription": {
+    "context": "BeaconCreateScreen"
+  },
   "beaconCreateDraftAction": "Draft",
   "@beaconCreateDraftAction": {
     "context": "BeaconCreateScreen"

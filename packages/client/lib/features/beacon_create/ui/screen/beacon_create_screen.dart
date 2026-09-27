@@ -627,7 +627,20 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
                         ),
                       if (!state.isLive) ...[
                         SizedBox(height: tt.tightGap),
-                        if (state.isAutosaving)
+                        // The dimmed button still answers a tap with
+                        // validation; this says what it waits for first.
+                        if (state.publishBlocker != null)
+                          Text(
+                            switch (state.publishBlocker!) {
+                              BeaconPublishBlocker.title =>
+                                l10n.beaconCreateNextNeedsTitle,
+                              BeaconPublishBlocker.description =>
+                                l10n.beaconCreateNextNeedsDescription,
+                            },
+                            textAlign: TextAlign.center,
+                            style: TenturaText.bodySmall(tt.textMuted),
+                          )
+                        else if (state.isAutosaving)
                           Text(
                             l10n.beaconCreateAutosaving,
                             style: TenturaText.bodySmall(tt.textFaint),

@@ -761,6 +761,14 @@
   "@beaconCreateNextRecipients": {
     "context": "BeaconCreateScreen"
   },
+  "beaconCreateNextNeedsTitle": "Добавьте заголовок, чтобы продолжить",
+  "@beaconCreateNextNeedsTitle": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCreateNextNeedsDescription": "Опишите, что нужно, чтобы продолжить",
+  "@beaconCreateNextNeedsDescription": {
+    "context": "BeaconCreateScreen"
+  },
   "beaconCreateDraftAction": "Черновик",
   "@beaconCreateDraftAction": {
     "context": "BeaconCreateScreen"
