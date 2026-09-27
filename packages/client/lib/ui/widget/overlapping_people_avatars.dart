@@ -163,12 +163,14 @@ class _PeopleAvatarSlot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TenturaAvatar(
-      profile: profile,
-      sizeBucket: sizeBucket,
-      size: size,
-      showAuthorStar: showStar,
-      isSelf: isSelf,
+    return TenturaAvatarStackRing(
+      child: TenturaAvatar(
+        profile: profile,
+        sizeBucket: sizeBucket,
+        size: size,
+        showAuthorStar: showStar,
+        isSelf: isSelf,
+      ),
     );
   }
 }

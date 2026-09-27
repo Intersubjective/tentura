@@ -45,10 +45,12 @@ class TenturaAvatarStack extends StatelessWidget {
           for (var i = visible.length - 1; i >= 0; i--)
             Positioned(
               left: i * step,
-              child: TenturaAvatar(
-                profile: visible[i],
-                sizeBucket: sizeBucket,
-                size: size,
+              child: TenturaAvatarStackRing(
+                child: TenturaAvatar(
+                  profile: visible[i],
+                  sizeBucket: sizeBucket,
+                  size: size,
+                ),
               ),
             ),
         ],

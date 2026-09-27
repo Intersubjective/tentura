@@ -25,6 +25,12 @@ const int kAvatarRatingSector = 100 ~/ 4;
 /// Fixed diameter for [TenturaAvatarSize.big] (profile hero).
 const double kTenturaAvatarBigSize = 160;
 
+/// Largest avatar that still carries the MeritRank eye / mutual badge.
+const double kTenturaAvatarBadgeMaxSize = 64;
+
+/// Surface-coloured ring separating overlapped faces in a facepile.
+const double kTenturaAvatarStackRing = 1.5;
+
 /// Default list-row avatar diameter ([TenturaAvatarSize.medium] on compact).
 const double kTenturaAvatarDefaultMedium = kTenturaAvatarBigSize / 4;
 
@@ -157,7 +163,10 @@ class TenturaAvatar extends StatelessWidget {
     final cache = s.ceil();
     final meritOk = _allowsMeritDecorations(context, s);
     final paintRating = withRating && meritOk;
-    final paintContact = withContactBadge && meritOk;
+    // The glyph scales with the avatar; on a hero avatar it became the
+    // heaviest thing on the page while the screen already says it in words.
+    final paintContact =
+        withContactBadge && meritOk && s <= kTenturaAvatarBadgeMaxSize;
 
     final initials = initialsForProfile(profile);
     final avatarCore = profile.hasNoAvatar
@@ -320,15 +329,16 @@ class ProfileAvatarInitials extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tt = context.tt;
+    final scheme = Theme.of(context).colorScheme;
     final fontSize = size * 0.38;
+    // A paired container role: faint grey on grey read at ~2:1.
     return ColoredBox(
-      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      color: scheme.secondaryContainer,
       child: Center(
         child: Text(
           lettering,
           maxLines: 1,
-          style: TenturaText.bodySmall(tt.textFaint).copyWith(
+          style: TenturaText.bodySmall(scheme.onSecondaryContainer).copyWith(
             fontSize: fontSize,
             fontWeight: FontWeight.w600,
           ),
@@ -607,4 +617,33 @@ class _AvatarBadgePainter extends CustomPainter {
       oldDelegate.badgeFill != badgeFill ||
       oldDelegate.isMutuallyVisible != isMutuallyVisible ||
       oldDelegate.isMutualFriend != isMutualFriend;
+}
+
+/// Wraps a facepile slot in a ring of [ringColor], drawn outside the avatar
+/// so the stack keeps its geometry while overlapped faces stay separate.
+class TenturaAvatarStackRing extends StatelessWidget {
+  const TenturaAvatarStackRing({
+    required this.child,
+    this.ringColor,
+    super.key,
+  });
+
+  final Widget child;
+
+  /// Defaults to the card surface, which is where facepiles sit.
+  final Color? ringColor;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    position: DecorationPosition.foreground,
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      border: Border.all(
+        color: ringColor ?? context.tt.surface,
+        width: kTenturaAvatarStackRing,
+        strokeAlign: BorderSide.strokeAlignOutside,
+      ),
+    ),
+    child: child,
+  );
 }
