@@ -106,8 +106,15 @@ void main() {
   });
 
   test('mutationsAll (evaluated) contains MarkBeaconPeopleSeen', () async {
+    final env = smokeDevEnv();
+    if (!await smokePostgresReachable(env)) {
+      markTestSkipped(
+        'Postgres not reachable; mutationsAll DI smoke needs TaskWorker',
+      );
+      return;
+    }
     addTearDown(() async => getIt.reset());
-    await configureDependencies(smokeDevEnv());
+    await configureDependencies(env);
     await getIt.allReady(ignorePendingAsyncCreation: true);
 
     final matches = mutationsAll.where((f) => f.name == _kName).toList();
