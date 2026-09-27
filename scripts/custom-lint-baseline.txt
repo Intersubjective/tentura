@@ -16,5 +16,5 @@
 #   severity and 15 legacy use cases still return Map<String, dynamic>, so
 #   enabling it would fail `dart analyze` outright. Tracked there, not here.
 
-packages/client 27
+packages/client 26
 packages/server 0
