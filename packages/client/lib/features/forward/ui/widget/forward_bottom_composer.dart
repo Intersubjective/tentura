@@ -30,6 +30,7 @@ class ForwardBottomComposer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
+    final scheme = Theme.of(context).colorScheme;
     final l10n = L10n.of(context)!;
     final enabled = onForward != null;
 
@@ -99,16 +100,18 @@ class ForwardBottomComposer extends StatelessWidget {
                     padding: EdgeInsets.symmetric(
                       horizontal: tt.cardPadding.top,
                     ),
+                    // With people chosen this is the screen's one action:
+                    // filled, like Forward on the Request itself.
                     side: BorderSide(
-                      color: enabled ? tt.skyBorder : tt.border,
+                      color: enabled ? scheme.primary : tt.border,
                     ),
-                    foregroundColor: enabled ? tt.info : tt.textMuted,
+                    foregroundColor: enabled ? scheme.onPrimary : tt.textMuted,
                     disabledForegroundColor: tt.textMuted,
                     disabledBackgroundColor: tt.surface,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(tt.buttonRadius),
                     ),
-                    backgroundColor: tt.surface,
+                    backgroundColor: enabled ? scheme.primary : tt.surface,
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -117,7 +120,7 @@ class ForwardBottomComposer extends StatelessWidget {
                       Icon(
                         Icons.send,
                         size: tt.iconSize,
-                        color: enabled ? tt.info : tt.textMuted,
+                        color: enabled ? scheme.onPrimary : tt.textMuted,
                       ),
                       SizedBox(width: tt.rowGap),
                       Text(
@@ -125,7 +128,7 @@ class ForwardBottomComposer extends StatelessWidget {
                             ? l10n.forwardToCount(selectedIds.length)
                             : l10n.selectRecipients,
                         style: TenturaText.command(
-                          enabled ? tt.info : tt.textMuted,
+                          enabled ? scheme.onPrimary : tt.textMuted,
                         ),
                       ),
                     ],

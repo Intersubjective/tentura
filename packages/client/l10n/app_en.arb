@@ -2964,7 +2964,7 @@
   "@forwardOverlaySearchHint": {
     "context": "ForwardBeaconScreen full-screen search"
   },
-  "forwardInviteNewPerson": "invite new person",
+  "forwardInviteNewPerson": "Invite new person",
   "@forwardInviteNewPerson": {
     "context": "ForwardBeaconScreen"
   },

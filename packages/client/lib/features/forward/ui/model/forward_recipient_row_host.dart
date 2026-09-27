@@ -198,10 +198,15 @@ ForwardRecipientLine2 computeForwardRecipientLine2({
     );
   }
 
+  // Next to a presence line, a forwardable "Unseen" only repeats the
+  // "Not yet seen" tab the row sits in (and ran into it: "Online Unseen").
+  final redundantUnseen =
+      candidate.involvement == CandidateInvolvement.unseen &&
+      relationTone == TenturaTone.good;
   return ForwardRecipientLine2(
     presenceOrAvailabilityLine: presence,
     presenceOrAvailabilityTone: TenturaTone.neutral,
-    relationLabel: relationLabel,
+    relationLabel: redundantUnseen ? null : relationLabel,
     relationTone: relationTone,
     forwardedByMeWithNote: forwardedByMeWithNote,
   );
