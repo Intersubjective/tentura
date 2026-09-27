@@ -25,6 +25,13 @@ void main() {
       expect(q[kQueryBeaconViewTab], kBeaconViewTabThreads);
     });
 
+    test('legacy tab=room → ROOM (tab=threads)', () {
+      final q = normalizeBeaconViewRouteQuery(
+        incomingQuery: {kQueryBeaconViewTab: kBeaconViewTabRoomLegacy},
+      ).queryParameters;
+      expect(q[kQueryBeaconViewTab], kBeaconViewTabThreads);
+    });
+
     test('tab=threads&thread=general', () {
       final q = normalizeBeaconViewRouteQuery(
         incomingQuery: {

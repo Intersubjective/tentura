@@ -108,6 +108,9 @@ const kBeaconViewTabHelpOffers = 'help_offers';
 /// [kQueryBeaconViewTab] value — open the Chat surface (expanded split selection).
 const kBeaconViewTabThreads = 'threads';
 
+/// Pre-threads name of [kBeaconViewTabThreads]; accepted on input only.
+const kBeaconViewTabRoomLegacy = 'room';
+
 /// Expanded split / deep-link thread selection (`general` or item id).
 const kQueryThreadId = 'thread';
 

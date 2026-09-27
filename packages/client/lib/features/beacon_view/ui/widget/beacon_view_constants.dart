@@ -14,6 +14,7 @@ BeaconSurface beaconViewSurfaceForTab(String? viewTab) {
     case kBeaconViewTabHelpOffers:
       return BeaconSurface.people;
     case kBeaconViewTabThreads:
+    case kBeaconViewTabRoomLegacy:
       return BeaconSurface.room;
     default:
       return BeaconSurface.now;

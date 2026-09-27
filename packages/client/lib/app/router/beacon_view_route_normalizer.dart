@@ -23,7 +23,8 @@ Map<String, String> _incomingQueryFromParameters(Parameters qp) {
 /// 2. a resolved thread id implies `tab=threads`, overriding incoming `tab=`;
 /// 3. non-`general` thread id keeps `thread=` for legacy-unavailable ROOM (no `message=`);
 /// 4. `entry=` / `is_deep_link=` are always preserved;
-/// 5. unrecognized `tab` falls through to NOW (tab omitted).
+/// 5. legacy `tab=room` is read as `tab=threads`;
+/// 6. unrecognized `tab` falls through to NOW (tab omitted).
 NormalizedBeaconViewQuery normalizeBeaconViewRouteQuery({
   String? pathThreadId,
   Map<String, String> incomingQuery = const {},
@@ -63,7 +64,11 @@ NormalizedBeaconViewQuery normalizeBeaconViewRouteQuery({
   switch (incomingTab) {
     case kBeaconViewTabNow:
       result[kQueryBeaconViewTab] = kBeaconViewTabNow;
+    // `room` is the discussion tab's pre-threads name; links that still
+    // carry it (old notifications, bookmarks) open the discussion rather
+    // than falling through to NOW.
     case kBeaconViewTabThreads:
+    case kBeaconViewTabRoomLegacy:
       result[kQueryBeaconViewTab] = kBeaconViewTabThreads;
       if (message != null && message.isNotEmpty) {
         result[kQueryMessageId] = message;
