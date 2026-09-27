@@ -91,6 +91,9 @@ void main() {
         );
       },
       timeout: const Timeout(Duration(minutes: 46)),
+      skip: Platform.environment['GITHUB_ACTIONS'] == 'true'
+          ? 'do not nest run_with_test_cleanup.sh inside GitHub Actions dart test'
+          : false,
     );
 
     test('tentura-21x landing gate test file is present for trial merge', () {

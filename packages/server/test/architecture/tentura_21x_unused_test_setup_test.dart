@@ -23,6 +23,13 @@ List<String> get _allGuardedTestRelatives => [
   ..._relatedUnusedSetupRelatives,
 ];
 
+/// Nested `run_with_test_cleanup.sh` deletes sibling `/tmp/dart_test.kernel.*`
+/// of the unwrapped CI `dart test` process. PG files already run in `test-pg`.
+Object get _skipNestedCleanupOnGitHubActions =>
+    Platform.environment['GITHUB_ACTIONS'] == 'true'
+    ? 'do not nest run_with_test_cleanup.sh inside GitHub Actions dart test'
+    : false;
+
 void main() {
   group('tentura-21x unused test setup', () {
     group('does not suppress unused_* analyzer warnings', () {
@@ -217,17 +224,22 @@ void main() {
 
     group('bead-listed PG test files stay green', () {
       for (final relative in _allGuardedTestRelatives) {
-        test(relative, () {
-          final outcome = runGuardedPgTestFile(relative);
-          expect(
-            outcome.exitCode,
-            0,
-            reason:
-                '$relative must pass `dart test` after tentura-21x edits\n'
-                'stdout:\n${outcome.stdout}\n'
-                'stderr:\n${outcome.stderr}',
-          );
-        }, timeout: const Timeout(Duration(minutes: 12)));
+        test(
+          relative,
+          () {
+            final outcome = runGuardedPgTestFile(relative);
+            expect(
+              outcome.exitCode,
+              0,
+              reason:
+                  '$relative must pass `dart test` after tentura-21x edits\n'
+                  'stdout:\n${outcome.stdout}\n'
+                  'stderr:\n${outcome.stderr}',
+            );
+          },
+          timeout: const Timeout(Duration(minutes: 12)),
+          skip: _skipNestedCleanupOnGitHubActions,
+        );
       }
     });
   });

@@ -63,6 +63,9 @@ void main() {
         );
       },
       timeout: const Timeout(Duration(minutes: 12)),
+      skip: Platform.environment['GITHUB_ACTIONS'] == 'true'
+          ? 'do not nest run_with_test_cleanup.sh inside GitHub Actions dart test'
+          : false,
     );
 
     test(
