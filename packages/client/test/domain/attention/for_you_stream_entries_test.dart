@@ -41,7 +41,7 @@ void main() {
     // and a `requestActivity` grouped row for the same beacon. Merging does
     // not collapse them either: `AttentionCase._requestIdentity` keys them
     // `request:forward:<beacon>` and `request:requestActivity:<beacon>`.
-    test('a grouped card suppresses its own Request\'s tombstone row', () {
+    test("a grouped card suppresses its own Request's tombstone row", () {
       final entries = forYouStreamEntries(
         receipts: [
           _receipt(
@@ -65,7 +65,7 @@ void main() {
       expect(entries.single.receipt.id, 'ra1');
     });
 
-    test('the suppressed outcome survives as the card\'s relation chip', () {
+    test("the suppressed outcome survives as the card's relation chip", () {
       ForYouStreamEntry entryFor(AttentionForwardOutcome outcome) =>
           forYouStreamEntries(
             receipts: [
@@ -179,6 +179,35 @@ void main() {
 
       expect(entries.single.kind, ForYouStreamEntryKind.tombstone);
     });
+
+    test(
+      'an undecided forward is a card, not a tombstone, when the pinned '
+      'zone has not (yet) claimed its beacon (tentura-3dw)',
+      () {
+        // A freshly-forwarded Request the recipient has not yet answered
+        // carries no `forwardOutcome` — nothing has happened yet, so there
+        // is no act to memorialize. If the pinned zone (the separate offers
+        // query `activity_stream_view.dart` feeds into `pinnedBeaconIds`)
+        // has not claimed this beacon, the stream must still surface it as
+        // an actionable `RequestAttentionCard`, not silently downgrade it to
+        // a `TombstoneRow` — whose headline (`l10n.attentionCardQuotedTitle`)
+        // is exactly the "title only embedded inside a quoted
+        // activity-notification string, not as its own list card" symptom
+        // reported in tentura-3dw.
+        final entries = forYouStreamEntries(
+          receipts: [
+            _receipt(
+              id: 'f1',
+              beaconId: 'b1',
+              itemKind: AttentionItemKind.forward,
+            ),
+          ],
+          pinnedBeaconIds: const {},
+        );
+
+        expect(entries.single.kind, ForYouStreamEntryKind.card);
+      },
+    );
 
     test('a group takes the position of its first row', () {
       final entries = forYouStreamEntries(

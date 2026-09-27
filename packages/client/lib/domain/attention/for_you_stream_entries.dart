@@ -91,7 +91,12 @@ List<ForYouStreamEntry> forYouStreamEntries({
       receipt: receipt,
       kind: switch (receipt.itemKind) {
         AttentionItemKind.requestActivity => ForYouStreamEntryKind.card,
-        AttentionItemKind.forward => ForYouStreamEntryKind.tombstone,
+        // An undecided forward has no act to memorialize yet — it is still
+        // the actionable Request, not a tombstone of it.
+        AttentionItemKind.forward =>
+          receipt.forwardOutcome == null
+              ? ForYouStreamEntryKind.card
+              : ForYouStreamEntryKind.tombstone,
         AttentionItemKind.receipt ||
         AttentionItemKind.watchingDigest => ForYouStreamEntryKind.tile,
       },
