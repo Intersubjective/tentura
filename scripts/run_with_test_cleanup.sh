@@ -253,10 +253,31 @@ pg_gc_psql() {
   docker exec postgres psql -U postgres -d postgres -tAc "$1" 2>/dev/null
 }
 
+
+# Marker dirs of other wrapped runs still in flight (excludes our own).
+# The heuristic orphan/tmpfs sweeps below cannot tell "leftover from a dead
+# run" apart from "resource of a live concurrent run", so when another
+# wrapped invocation is still active we skip them entirely — same policy as
+# sweep_pg_databases never touching a concurrent run's databases.
+other_active_markers() {
+  local self_marker="$1" d name
+  [[ -d "$STATE_ROOT" ]] || return 0
+  for d in "$STATE_ROOT"/*/; do
+    [[ -d "$d" ]] || continue
+    name="$(basename "$d")"
+    [[ "$name" == "$self_marker" ]] && continue
+    printf '%s\n' "$name"
+  done
+}
+
 sweep_run() {
   local run_id="$1"
   kill_tagged_tree "$run_id"
   sleep 0.4
+  if [[ -n "$(other_active_markers "${run_id#pre-}")" ]]; then
+    log "skipping orphan/tmpfs sweep: another wrapped run is active"
+    return 0
+  fi
   local orphans
   orphans="$(kill_orphan_testers || true)"
   [[ -n "${orphans:-}" ]] && log "killed orphan test leftovers: $orphans"

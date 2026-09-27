@@ -1,0 +1,1250 @@
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// dart format width=80
+
+// **************************************************************************
+// InjectableConfigGenerator
+// **************************************************************************
+
+// ignore_for_file: type=lint
+// coverage:ignore-file
+
+// ignore_for_file: no_leading_underscores_for_library_prefixes
+import 'package:drift/drift.dart' as _i500;
+import 'package:get_it/get_it.dart' as _i174;
+import 'package:injectable/injectable.dart' as _i526;
+import 'package:logging/logging.dart' as _i831;
+import 'package:tentura/app/di/modules.dart' as _i619;
+import 'package:tentura/app/router/root_router.dart' as _i438;
+import 'package:tentura/data/database/database.dart' as _i159;
+import 'package:tentura/data/repository/app_update_repository.dart' as _i454;
+import 'package:tentura/data/repository/attention_repository.dart' as _i435;
+import 'package:tentura/data/repository/clipboard_image_repository.dart'
+    as _i715;
+import 'package:tentura/data/repository/image_repository.dart' as _i460;
+import 'package:tentura/data/repository/mock/client_repository_mocks.dart'
+    as _i844;
+import 'package:tentura/data/repository/platform_repository.dart' as _i472;
+import 'package:tentura/data/repository/presence_repository.dart' as _i190;
+import 'package:tentura/data/service/auth_platform_cleanup.dart' as _i678;
+import 'package:tentura/data/service/beacon_child_command_store.dart' as _i820;
+import 'package:tentura/data/service/bookkeeping_refresh_signal.dart' as _i938;
+import 'package:tentura/data/service/firebase_service.dart' as _i589;
+import 'package:tentura/data/service/invalidation_service.dart' as _i854;
+import 'package:tentura/data/service/local_secure_storage.dart' as _i957;
+import 'package:tentura/data/service/remote_api_client/auth_remote_client.dart'
+    as _i444;
+import 'package:tentura/data/service/remote_api_client/realtime_socket.dart'
+    as _i5;
+import 'package:tentura/data/service/remote_api_client/remote_api_client_web.dart'
+    as _i97;
+import 'package:tentura/data/service/remote_api_client/remote_request_client.dart'
+    as _i437;
+import 'package:tentura/data/service/remote_api_service.dart' as _i1060;
+import 'package:tentura/data/service/share_handler/share_handler_service.dart'
+    as _i967;
+import 'package:tentura/data/service/user_presence_service.dart' as _i632;
+import 'package:tentura/domain/attention/attention_actor_profiles_case.dart'
+    as _i868;
+import 'package:tentura/domain/attention/attention_case.dart' as _i158;
+import 'package:tentura/domain/attention/feed_session_registry.dart' as _i756;
+import 'package:tentura/domain/attention/port/attention_account_port.dart'
+    as _i386;
+import 'package:tentura/domain/attention/port/attention_reconcile_port.dart'
+    as _i501;
+import 'package:tentura/domain/attention/port/attention_repository_port.dart'
+    as _i633;
+import 'package:tentura/domain/contacts/contact_name_store.dart' as _i954;
+import 'package:tentura/domain/port/beacon_child_command_store_port.dart'
+    as _i436;
+import 'package:tentura/domain/port/beacon_image_port.dart' as _i423;
+import 'package:tentura/domain/port/beacon_write_port.dart' as _i281;
+import 'package:tentura/domain/port/capability_repository_port.dart' as _i795;
+import 'package:tentura/domain/port/device_push_port.dart' as _i949;
+import 'package:tentura/domain/port/platform_repository_port.dart' as _i620;
+import 'package:tentura/domain/port/realtime_sync_port.dart' as _i443;
+import 'package:tentura/domain/use_case/beacon_create_case.dart' as _i1029;
+import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart' as _i971;
+import 'package:tentura/domain/use_case/realtime_sync_case.dart' as _i663;
+import 'package:tentura/env.dart' as _i329;
+import 'package:tentura/features/auth/data/repository/auth_local_repository.dart'
+    as _i560;
+import 'package:tentura/features/auth/data/repository/auth_remote_repository.dart'
+    as _i940;
+import 'package:tentura/features/auth/domain/attention_account_adapter.dart'
+    as _i368;
+import 'package:tentura/features/auth/domain/port/auth_local_repository_port.dart'
+    as _i625;
+import 'package:tentura/features/auth/domain/port/auth_platform_cleanup_port.dart'
+    as _i340;
+import 'package:tentura/features/auth/domain/port/auth_remote_repository_port.dart'
+    as _i494;
+import 'package:tentura/features/auth/domain/use_case/account_case.dart'
+    as _i250;
+import 'package:tentura/features/auth/domain/use_case/auth_case.dart' as _i958;
+import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart' as _i898;
+import 'package:tentura/features/auth/ui/bloc/register_invite_cubit.dart'
+    as _i691;
+import 'package:tentura/features/beacon/data/repository/beacon_hierarchy_repository.dart'
+    as _i414;
+import 'package:tentura/features/beacon/data/repository/beacon_repository.dart'
+    as _i474;
+import 'package:tentura/features/beacon/domain/port/beacon_hierarchy_repository_port.dart'
+    as _i504;
+import 'package:tentura/features/beacon_threads/data/repository/beacon_activity_event_repository.dart'
+    as _i208;
+import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card_repository.dart'
+    as _i66;
+import 'package:tentura/features/beacon_threads/data/repository/beacon_room_hints_repository.dart'
+    as _i724;
+import 'package:tentura/features/beacon_threads/data/repository/beacon_threads_repository.dart'
+    as _i456;
+import 'package:tentura/features/beacon_threads/domain/coordination_item_room_sync.dart'
+    as _i320;
+import 'package:tentura/features/beacon_threads/domain/room_read_watermark_store.dart'
+    as _i936;
+import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart'
+    as _i714;
+import 'package:tentura/features/beacon_view/data/repository/beacon_display_repository.dart'
+    as _i370;
+import 'package:tentura/features/beacon_view/data/repository/coordination_repository.dart'
+    as _i754;
+import 'package:tentura/features/beacon_view/domain/use_case/beacon_view_case.dart'
+    as _i104;
+import 'package:tentura/features/block/data/repository/block_repository.dart'
+    as _i886;
+import 'package:tentura/features/block/domain/use_case/block_case.dart'
+    as _i142;
+import 'package:tentura/features/block/ui/bloc/blocked_users_cubit.dart'
+    as _i103;
+import 'package:tentura/features/capability/data/repository/capability_repository.dart'
+    as _i1069;
+import 'package:tentura/features/complaint/data/repository/complaint_repository.dart'
+    as _i939;
+import 'package:tentura/features/complaint/domain/use_case/complaint_case.dart'
+    as _i207;
+import 'package:tentura/features/constellation/data/repository/constellation_anchor_repository.dart'
+    as _i68;
+import 'package:tentura/features/constellation/data/repository/constellation_anchor_repository_mock.dart'
+    as _i617;
+import 'package:tentura/features/constellation/data/repository/constellation_repository.dart'
+    as _i797;
+import 'package:tentura/features/constellation/data/repository/constellation_repository_mock.dart'
+    as _i396;
+import 'package:tentura/features/constellation/domain/port/constellation_anchor_repository_port.dart'
+    as _i838;
+import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart'
+    as _i38;
+import 'package:tentura/features/constellation/domain/use_case/constellation_anchor_case.dart'
+    as _i239;
+import 'package:tentura/features/constellation/domain/use_case/constellation_field_case.dart'
+    as _i743;
+import 'package:tentura/features/contacts/data/repository/contacts_repository.dart'
+    as _i970;
+import 'package:tentura/features/contacts/domain/use_case/contacts_case.dart'
+    as _i28;
+import 'package:tentura/features/context/data/repository/context_repository.dart'
+    as _i688;
+import 'package:tentura/features/credentials/data/repository/credentials_repository.dart'
+    as _i468;
+import 'package:tentura/features/credentials/domain/use_case/credentials_case.dart'
+    as _i179;
+import 'package:tentura/features/credentials/ui/bloc/credentials_cubit.dart'
+    as _i35;
+import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart'
+    as _i55;
+import 'package:tentura/features/evaluation/domain/use_case/evaluation_case.dart'
+    as _i835;
+import 'package:tentura/features/favorites/data/repository/favorites_remote_repository.dart'
+    as _i551;
+import 'package:tentura/features/favorites/ui/bloc/favorites_cubit.dart'
+    as _i673;
+import 'package:tentura/features/forward/data/repository/forward_repository.dart'
+    as _i318;
+import 'package:tentura/features/forward/domain/use_case/forward_case.dart'
+    as _i439;
+import 'package:tentura/features/forward/domain/use_case/person_forward_case.dart'
+    as _i928;
+import 'package:tentura/features/forward/ui/bloc/lineage_suggestions_preview_cubit.dart'
+    as _i968;
+import 'package:tentura/features/forward_candidate_context/data/repository/forward_candidate_context_repository.dart'
+    as _i156;
+import 'package:tentura/features/forward_candidate_context/data/repository/forward_candidate_context_repository_mock.dart'
+    as _i978;
+import 'package:tentura/features/forward_candidate_context/domain/port/forward_candidate_context_repository_port.dart'
+    as _i1021;
+import 'package:tentura/features/forward_candidate_context/domain/use_case/load_forward_candidate_context_case.dart'
+    as _i459;
+import 'package:tentura/features/friends/data/repository/friends_remote_repository.dart'
+    as _i455;
+import 'package:tentura/features/friends/domain/use_case/friends_case.dart'
+    as _i811;
+import 'package:tentura/features/friends/ui/bloc/friends_cubit.dart' as _i953;
+import 'package:tentura/features/geo/data/repository/geo_repository.dart'
+    as _i226;
+import 'package:tentura/features/geo/data/service/google_geocoding_service.dart'
+    as _i849;
+import 'package:tentura/features/geo/data/service/google_places_service.dart'
+    as _i810;
+import 'package:tentura/features/graph/data/repository/forwards_graph_repository.dart'
+    as _i84;
+import 'package:tentura/features/graph/data/repository/graph_repository.dart'
+    as _i475;
+import 'package:tentura/features/home/data/repository/home_orientation_preferences_repository.dart'
+    as _i178;
+import 'package:tentura/features/home/data/service/post_join_beacon_handoff_impl.dart'
+    as _i303;
+import 'package:tentura/features/home/domain/port/home_orientation_preferences_port.dart'
+    as _i1073;
+import 'package:tentura/features/home/domain/port/post_join_beacon_handoff_port.dart'
+    as _i985;
+import 'package:tentura/features/home/ui/bloc/home_activation_cubit.dart'
+    as _i457;
+import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart'
+    as _i1026;
+import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart'
+    as _i960;
+import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart'
+    as _i489;
+import 'package:tentura/features/inbox/data/repository/inbox_repository.dart'
+    as _i45;
+import 'package:tentura/features/inbox/domain/use_case/inbox_case.dart'
+    as _i272;
+import 'package:tentura/features/inbox/ui/bloc/inbox_operational_cubit.dart'
+    as _i742;
+import 'package:tentura/features/invitation/data/repository/invitation_repository.dart'
+    as _i301;
+import 'package:tentura/features/invitation/ui/bloc/accept_invite_cubit.dart'
+    as _i81;
+import 'package:tentura/features/invite_genealogy/data/repository/invite_genealogy_repository.dart'
+    as _i216;
+import 'package:tentura/features/like/data/repository/like_remote_repository.dart'
+    as _i777;
+import 'package:tentura/features/like/ui/bloc/like_cubit.dart' as _i1042;
+import 'package:tentura/features/my_work/data/repository/archive_repository.dart'
+    as _i931;
+import 'package:tentura/features/my_work/data/repository/my_work_desk_preferences_repository.dart'
+    as _i553;
+import 'package:tentura/features/my_work/data/repository/my_work_repository.dart'
+    as _i992;
+import 'package:tentura/features/my_work/domain/port/my_work_desk_preferences_port.dart'
+    as _i110;
+import 'package:tentura/features/my_work/domain/use_case/my_work_case.dart'
+    as _i630;
+import 'package:tentura/features/notification/data/repository/fcm_local_repository.dart'
+    as _i67;
+import 'package:tentura/features/notification/data/repository/fcm_remote_repository.dart'
+    as _i426;
+import 'package:tentura/features/notification/data/service/device_push_adapter.dart'
+    as _i300;
+import 'package:tentura/features/notification/data/service/direct_notification_probe_adapter.dart'
+    as _i668;
+import 'package:tentura/features/notification/data/service/fcm_service.dart'
+    as _i105;
+import 'package:tentura/features/notification/domain/port/direct_notification_probe_port.dart'
+    as _i324;
+import 'package:tentura/features/notification/domain/port/fcm_local_repository_port.dart'
+    as _i189;
+import 'package:tentura/features/notification/domain/port/fcm_remote_repository_port.dart'
+    as _i246;
+import 'package:tentura/features/notification/domain/use_case/fcm_case.dart'
+    as _i350;
+import 'package:tentura/features/notification/ui/bloc/fcm_cubit.dart' as _i0;
+import 'package:tentura/features/notification_settings/data/repository/notification_settings_repository.dart'
+    as _i1071;
+import 'package:tentura/features/polling/data/repository/polling_repository.dart'
+    as _i129;
+import 'package:tentura/features/profile/data/repository/profile_repository.dart'
+    as _i682;
+import 'package:tentura/features/profile/domain/port/profile_repository_port.dart'
+    as _i607;
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart' as _i458;
+import 'package:tentura/features/profile_view/data/repository/mutual_friends_repository.dart'
+    as _i612;
+import 'package:tentura/features/profile_view/data/repository/person_shared_context_repository.dart'
+    as _i197;
+import 'package:tentura/features/profile_view/data/repository/person_shared_context_repository_mock.dart'
+    as _i606;
+import 'package:tentura/features/profile_view/data/repository/profile_shared_beacons_repository.dart'
+    as _i452;
+import 'package:tentura/features/profile_view/domain/port/person_shared_context_port.dart'
+    as _i751;
+import 'package:tentura/features/profile_view/domain/use_case/profile_shared_beacons_case.dart'
+    as _i629;
+import 'package:tentura/features/profile_view/domain/use_case/profile_view_case.dart'
+    as _i1023;
+import 'package:tentura/features/rating/data/repository/rating_repository.dart'
+    as _i789;
+import 'package:tentura/features/settings/data/repository/bookkeeping_refresh_repository.dart'
+    as _i471;
+import 'package:tentura/features/settings/data/repository/email_test_remote_repository.dart'
+    as _i856;
+import 'package:tentura/features/settings/data/repository/settings_repository.dart'
+    as _i215;
+import 'package:tentura/features/settings/domain/port/bookkeeping_refresh_repository_port.dart'
+    as _i18;
+import 'package:tentura/features/settings/domain/port/email_test_remote_repository_port.dart'
+    as _i530;
+import 'package:tentura/features/settings/domain/port/settings_repository_port.dart'
+    as _i1053;
+import 'package:tentura/features/settings/domain/use_case/bookkeeping_refresh_case.dart'
+    as _i943;
+import 'package:tentura/features/settings/ui/bloc/debug_settings_cubit.dart'
+    as _i242;
+import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart'
+    as _i1035;
+import 'package:tentura/features/updates/domain/use_case/invite_accepted_setup_case.dart'
+    as _i641;
+import 'package:tentura/ui/bloc/app_update_cubit.dart' as _i796;
+import 'package:tentura/ui/bloc/presence_cubit.dart' as _i299;
+import 'package:tentura/ui/bloc/realtime_status_cubit.dart' as _i912;
+import 'package:tentura/ui/bloc/screen_cubit.dart' as _i833;
+import 'package:tentura/ui/effect/ui_effect_bus.dart' as _i1022;
+import 'package:tentura/ui/effect/ui_effect_port.dart' as _i411;
+
+const String _dev = 'dev';
+const String _prod = 'prod';
+const String _test = 'test';
+
+extension GetItInjectableX on _i174.GetIt {
+  // initializes the registration of main-scope dependencies inside of GetIt
+  Future<_i174.GetIt> init({
+    String? environment,
+    _i526.EnvironmentFilter? environmentFilter,
+  }) async {
+    final gh = _i526.GetItHelper(this, environment, environmentFilter);
+    final registerModule = _$RegisterModule();
+    gh.singleton<_i831.Logger>(() => registerModule.logger);
+    gh.singleton<_i500.QueryExecutor>(() => registerModule.database);
+    gh.singleton<_i938.BookkeepingRefreshSignal>(
+      () => _i938.BookkeepingRefreshSignal(),
+      dispose: (i) => i.dispose(),
+    );
+    await gh.singletonAsync<_i957.LocalSecureStorage>(() {
+      final i = _i957.LocalSecureStorage();
+      return i.init().then((_) => i);
+    }, preResolve: true);
+    gh.singleton<_i329.Env>(() => const _i329.Env.fromEnvironment());
+    gh.singleton<_i960.HomeTabReselectCubit>(
+      () => _i960.HomeTabReselectCubit(),
+    );
+    gh.singleton<_i489.PostJoinNavigationCubit>(
+      () => _i489.PostJoinNavigationCubit(),
+    );
+    gh.singleton<_i742.InboxOperationalCubit>(
+      () => _i742.InboxOperationalCubit(),
+    );
+    gh.lazySingleton<_i756.FeedSessionRegistry>(
+      () => _i756.FeedSessionRegistry(),
+    );
+    gh.lazySingleton<_i954.ContactNameStore>(
+      () => _i954.ContactNameStore(),
+      dispose: (i) => i.dispose(),
+    );
+    gh.lazySingleton<_i320.CoordinationItemRoomSync>(
+      () => _i320.CoordinationItemRoomSync(),
+      dispose: (i) => i.dispose(),
+    );
+    gh.singleton<_i226.GeoRepository>(
+      () => _i226.GeoRepository(gh<_i831.Logger>())..init(),
+      registerFor: {_dev, _prod},
+    );
+    gh.singleton<_i5.RealtimeSocketFactory>(
+      () => const _i5.WebSocketClientRealtimeSocketFactory(),
+    );
+    gh.singleton<_i436.BeaconChildCommandStorePort>(
+      () => _i820.BeaconChildCommandStore(gh<_i957.LocalSecureStorage>()),
+      registerFor: {_dev, _prod},
+    );
+    await gh.singletonAsync<_i589.FirebaseService>(
+      () => _i589.FirebaseService.create(
+        env: gh<_i329.Env>(),
+        logger: gh<_i831.Logger>(),
+      ),
+      preResolve: true,
+    );
+    gh.singleton<_i105.FcmService>(
+      () => _i105.FcmService.create(
+        env: gh<_i329.Env>(),
+        logger: gh<_i831.Logger>(),
+      ),
+    );
+    gh.singleton<_i411.UiEffectPort>(() => _i1022.UiEffectBus());
+    gh.lazySingleton<_i324.DirectNotificationProbePort>(
+      () => _i668.DirectNotificationProbeAdapter(),
+    );
+    gh.singleton<_i985.PostJoinBeaconHandoffPort>(
+      () => _i303.PostJoinBeaconHandoff(),
+    );
+    gh.singleton<_i751.PersonSharedContextPort>(
+      () => _i606.PersonSharedContextRepositoryMock(),
+      registerFor: {_test},
+    );
+    gh.singleton<_i967.ShareHandlerService>(
+      () => _i967.ShareHandlerService(gh<_i831.Logger>()),
+      dispose: (i) => i.dispose(),
+    );
+    gh.singleton<_i340.AuthPlatformCleanupPort>(
+      () => _i678.AuthPlatformCleanup(),
+    );
+    gh.singleton<_i715.ClipboardImageRepository>(
+      () => _i715.ClipboardImageRepository(),
+      registerFor: {_dev, _prod},
+    );
+    gh.singleton<_i460.ImageRepository>(
+      () => _i460.ImageRepository(),
+      registerFor: {_dev, _prod},
+    );
+    gh.singleton<_i620.PlatformRepositoryPort>(
+      () => _i472.PlatformRepository(log: gh<_i831.Logger>()),
+      registerFor: {_dev, _prod},
+    );
+    gh.lazySingleton<_i849.GoogleGeocodingService>(
+      () => _i849.GoogleGeocodingService(gh<_i329.Env>()),
+    );
+    gh.lazySingleton<_i810.GooglePlacesService>(
+      () => _i810.GooglePlacesService(gh<_i329.Env>()),
+    );
+    gh.singleton<_i1060.RemoteApiService>(
+      () => _i1060.RemoteApiService(
+        gh<_i329.Env>(),
+        gh<_i1060.RealtimeSocketFactory>(),
+      ),
+      dispose: (i) => i.close(),
+    );
+    gh.singleton<_i159.Database>(
+      () => _i159.Database(
+        gh<_i329.Env>(),
+        gh<_i831.Logger>(),
+        gh<_i159.QueryExecutor>(),
+      ),
+      dispose: (i) => i.dispose(),
+    );
+    gh.singleton<_i18.BookkeepingRefreshRepositoryPort>(
+      () => _i471.BookkeepingRefreshRepository(
+        remoteApiService: gh<_i1060.RemoteApiService>(),
+        log: gh<_i831.Logger>(),
+      ),
+      registerFor: {_dev, _prod},
+    );
+    gh.lazySingleton<_i110.MyWorkDeskPreferencesPort>(
+      () => _i553.MyWorkDeskPreferencesRepository(gh<_i159.Database>()),
+      registerFor: {_dev, _prod},
+    );
+    gh.singleton<_i468.CredentialsRepository>(
+      () => _i468.CredentialsRepository(
+        remoteApiService: gh<_i1060.RemoteApiService>(),
+        log: gh<_i831.Logger>(),
+        env: gh<_i329.Env>(),
+      ),
+      registerFor: {_dev, _prod},
+    );
+    gh.lazySingleton<_i216.InviteGenealogyRepository>(
+      () => _i216.InviteGenealogyRepository(
+        remoteApiService: gh<_i1060.RemoteApiService>(),
+        log: gh<_i831.Logger>(),
+      ),
+    );
+    gh.singleton<_i454.AppUpdateRepository>(
+      () => _i454.AppUpdateRepository(gh<_i1060.RemoteApiService>()),
+      registerFor: {_dev, _prod},
+    );
+    gh.singleton<_i754.CoordinationRepository>(
+      () => _i754.CoordinationRepository(gh<_i1060.RemoteApiService>()),
+      registerFor: {_dev, _prod},
+    );
+    gh.singleton<_i688.ContextRepository>(
+      () => _i688.ContextRepository(gh<_i1060.RemoteApiService>()),
+      registerFor: {_dev, _prod},
+      dispose: (i) => i.dispose(),
+    );
+    gh.singleton<_i55.EvaluationRepository>(
+      () => _i55.EvaluationRepository(gh<_i1060.RemoteApiService>()),
+      registerFor: {_dev, _prod},
+    );
+    gh.singleton<_i301.InvitationRepository>(
+      () => _i301.InvitationRepository(gh<_i1060.RemoteApiService>()),
+      registerFor: {_dev, _prod},
+      dispose: (i) => i.dispose(),
+    );
+    gh.singleton<_i931.ArchiveRepository>(
+      () => _i931.ArchiveRepository(gh<_i1060.RemoteApiService>()),
+      registerFor: {_dev, _prod},
+    );
+    gh.singleton<_i992.MyWorkRepository>(
+      () => _i992.MyWorkRepository(gh<_i1060.RemoteApiService>()),
+      registerFor: {_dev, _prod},
+    );
+    gh.singleton<_i1071.NotificationSettingsRepository>(
+      () =>
+          _i1071.NotificationSettingsRepository(gh<_i1060.RemoteApiService>()),
+      registerFor: {_dev, _prod},
+    );
+    gh.singleton<_i129.PollingRepository>(
+      () => _i129.PollingRepository(gh<_i1060.RemoteApiService>()),
+      registerFor: {_dev, _prod},
+    );
+    gh.singleton<_i612.MutualFriendsRepository>(
+      () => _i612.MutualFriendsRepository(gh<_i1060.RemoteApiService>()),
+      registerFor: {_dev, _prod},
+    );
+    gh.singleton<_i452.ProfileSharedBeaconsRepository>(
+      () => _i452.ProfileSharedBeaconsRepository(gh<_i1060.RemoteApiService>()),
+      registerFor: {_dev, _prod},
+    );
+    gh.singleton<_i789.RatingRepository>(
+      () => _i789.RatingRepository(gh<_i1060.RemoteApiService>()),
+      registerFor: {_dev, _prod},
+    );
+    gh.singleton<_i833.ScreenCubit>(
+      () => _i833.ScreenCubit(gh<_i411.UiEffectPort>()),
+    );
+    gh.singleton<_i189.FcmLocalRepositoryPort>(
+      () => _i67.FcmLocalRepository(gh<_i105.FcmService>()),
+      registerFor: {_dev, _prod},
+    );
+    gh.singleton<_i443.RealtimeSyncPort>(
+      () => _i854.InvalidationService(gh<_i1060.RemoteApiService>()),
+      dispose: (i) => i.dispose(),
+    );
+    gh.singleton<_i751.PersonSharedContextPort>(
+      () => _i197.PersonSharedContextRepository(gh<_i1060.RemoteApiService>()),
+      registerFor: {_dev, _prod},
+    );
+    gh.singleton<_i607.ProfileRepositoryPort>(
+      () => _i682.ProfileRepository(gh<_i1060.RemoteApiService>()),
+      registerFor: {_dev, _prod},
+      dispose: (i) => i.dispose(),
+    );
+    gh.singleton<_i423.BeaconImagePort>(
+      () => registerModule.beaconImagePort(gh<_i460.ImageRepository>()),
+    );
+    gh.singleton<_i504.BeaconHierarchyRepositoryPort>(
+      () => _i414.BeaconHierarchyRepository(gh<_i1060.RemoteApiService>()),
+      registerFor: {_dev, _prod},
+    );
+    gh.singleton<_i632.UserPresenceService>(
+      () => _i632.UserPresenceService(gh<_i1060.RemoteApiService>()),
+      dispose: (i) => i.dispose(),
+    );
+    gh.singleton<_i663.RealtimeSyncCase>(
+      () => _i663.RealtimeSyncCase(gh<_i443.RealtimeSyncPort>()),
+    );
+    gh.singleton<_i474.BeaconRepository>(
+      () => _i474.BeaconRepository(
+        gh<_i1060.RemoteApiService>(),
+        gh<_i443.RealtimeSyncPort>(),
+      ),
+      registerFor: {_dev, _prod},
+      dispose: (i) => i.dispose(),
+    );
+    gh.singleton<_i444.AuthRemoteClient>(
+      () => registerModule.authRemoteClient(gh<_i1060.RemoteApiService>()),
+    );
+    gh.singleton<_i437.RemoteRequestClient>(
+      () => registerModule.remoteRequestClient(gh<_i1060.RemoteApiService>()),
+    );
+    gh.singleton<_i97.RemoteApiClient>(
+      () => registerModule.remoteApiClient(gh<_i1060.RemoteApiService>()),
+    );
+    gh.lazySingleton<_i66.BeaconFactCardRepository>(
+      () => _i66.BeaconFactCardRepository(gh<_i1060.RemoteApiService>()),
+    );
+    gh.lazySingleton<_i724.BeaconRoomHintsRepository>(
+      () => _i724.BeaconRoomHintsRepository(gh<_i1060.RemoteApiService>()),
+    );
+    gh.lazySingleton<_i370.BeaconDisplayRepository>(
+      () => _i370.BeaconDisplayRepository(gh<_i1060.RemoteApiService>()),
+    );
+    gh.lazySingleton<_i886.BlockRepository>(
+      () => _i886.BlockRepository(gh<_i1060.RemoteApiService>()),
+      dispose: (i) => i.dispose(),
+    );
+    gh.factory<_i629.ProfileSharedBeaconsCase>(
+      () => _i629.ProfileSharedBeaconsCase(
+        gh<_i452.ProfileSharedBeaconsRepository>(),
+        gh<_i663.RealtimeSyncCase>(),
+        env: gh<_i329.Env>(),
+        logger: gh<_i831.Logger>(),
+      ),
+    );
+    gh.factory<_i691.RegisterInviteCubit>(
+      () => _i691.RegisterInviteCubit(gh<_i301.InvitationRepository>()),
+    );
+    gh.singleton<_i970.ContactsRepository>(
+      () => _i970.ContactsRepository(
+        gh<_i1060.RemoteApiService>(),
+        gh<_i159.Database>(),
+      ),
+      registerFor: {_dev, _prod},
+    );
+    gh.singleton<_i246.FcmRemoteRepositoryPort>(
+      () => _i426.FcmRemoteRepository(
+        remoteApiService: gh<_i1060.RemoteApiService>(),
+        log: gh<_i831.Logger>(),
+      ),
+      registerFor: {_dev, _prod},
+    );
+    gh.singleton<_i456.BeaconThreadsRepository>(
+      () => _i456.BeaconThreadsRepository(
+        gh<_i97.RemoteApiClient>(),
+        gh<_i443.RealtimeSyncPort>(),
+      ),
+      registerFor: {_dev, _prod},
+      dispose: (i) => i.dispose(),
+    );
+    gh.singleton<_i939.ComplaintRepository>(
+      () => _i939.ComplaintRepository(
+        remoteApiService: gh<_i1060.RemoteApiService>(),
+        log: gh<_i831.Logger>(),
+      ),
+      registerFor: {_dev, _prod},
+    );
+    gh.singleton<_i551.FavoritesRemoteRepository>(
+      () => _i551.FavoritesRemoteRepository(
+        remoteApiService: gh<_i1060.RemoteApiService>(),
+        log: gh<_i831.Logger>(),
+      ),
+      registerFor: {_dev, _prod},
+      dispose: (i) => i.dispose(),
+    );
+    gh.singleton<_i455.FriendsRemoteRepository>(
+      () => _i455.FriendsRemoteRepository(
+        remoteApiService: gh<_i1060.RemoteApiService>(),
+        log: gh<_i831.Logger>(),
+      ),
+      registerFor: {_dev, _prod},
+    );
+    gh.singleton<_i475.GraphRepository>(
+      () => _i475.GraphRepository(
+        remoteApiService: gh<_i1060.RemoteApiService>(),
+        log: gh<_i831.Logger>(),
+      ),
+      registerFor: {_dev, _prod},
+    );
+    gh.singleton<_i777.LikeRemoteRepository>(
+      () => _i777.LikeRemoteRepository(
+        remoteApiService: gh<_i1060.RemoteApiService>(),
+        log: gh<_i831.Logger>(),
+      ),
+      registerFor: {_dev, _prod},
+      dispose: (i) => i.dispose(),
+    );
+    gh.singleton<_i1053.SettingsRepositoryPort>(
+      () => _i215.SettingsRepository(gh<_i159.Database>()),
+      registerFor: {_dev, _prod},
+    );
+    gh.lazySingleton<_i190.PresenceRepository>(
+      () => _i190.PresenceRepository(gh<_i632.UserPresenceService>()),
+    );
+    gh.singleton<_i625.AuthLocalRepositoryPort>(
+      () => _i560.AuthLocalRepository(
+        gh<_i831.Logger>(),
+        gh<_i159.Database>(),
+        gh<_i957.LocalSecureStorage>(),
+      ),
+      registerFor: {_dev, _prod},
+      dispose: (i) => i.dispose(),
+    );
+    gh.singleton<_i835.EvaluationCase>(
+      () => _i835.EvaluationCase(
+        gh<_i55.EvaluationRepository>(),
+        env: gh<_i329.Env>(),
+        logger: gh<_i831.Logger>(),
+      ),
+    );
+    gh.singleton<_i350.FcmCase>(
+      () => _i350.FcmCase(
+        gh<_i189.FcmLocalRepositoryPort>(),
+        gh<_i246.FcmRemoteRepositoryPort>(),
+        gh<_i1053.SettingsRepositoryPort>(),
+      ),
+    );
+    gh.singleton<_i530.EmailTestRemoteRepositoryPort>(
+      () => _i856.EmailTestRemoteRepository(
+        remoteApiService: gh<_i1060.RemoteApiService>(),
+        log: gh<_i831.Logger>(),
+      ),
+      registerFor: {_dev, _prod},
+    );
+    gh.lazySingleton<_i1073.HomeOrientationPreferencesPort>(
+      () => _i178.HomeOrientationPreferencesRepository(gh<_i159.Database>()),
+      registerFor: {_dev, _prod},
+    );
+    gh.singleton<_i45.InboxRepository>(
+      () => _i45.InboxRepository(
+        gh<_i1060.RemoteApiService>(),
+        gh<_i724.BeaconRoomHintsRepository>(),
+      ),
+      registerFor: {_dev, _prod},
+      dispose: (i) => i.dispose(),
+    );
+    gh.lazySingleton<_i633.AttentionRepositoryPort>(
+      () => _i435.AttentionRepository(gh<_i437.RemoteRequestClient>()),
+      registerFor: {_dev, _prod},
+    );
+    gh.factory<_i81.AcceptInviteCubit>(
+      () => _i81.AcceptInviteCubit(
+        gh<_i301.InvitationRepository>(),
+        gh<_i411.UiEffectPort>(),
+        gh<_i489.PostJoinNavigationCubit>(),
+      ),
+    );
+    gh.singleton<_i281.BeaconWritePort>(
+      () => registerModule.beaconWritePort(gh<_i474.BeaconRepository>()),
+    );
+    gh.singleton<_i796.AppUpdateCubit>(
+      () => _i796.AppUpdateCubit(
+        appUpdateRepository: gh<_i454.AppUpdateRepository>(),
+        platformRepository: gh<_i620.PlatformRepositoryPort>(),
+      ),
+      dispose: (i) => i.dispose(),
+    );
+    gh.singleton<_i457.HomeActivationCubit>(
+      () => _i457.HomeActivationCubit(
+        gh<_i1073.HomeOrientationPreferencesPort>(),
+      ),
+    );
+    gh.lazySingleton<_i795.CapabilityRepositoryPort>(
+      () => _i1069.CapabilityRepository(
+        gh<_i437.RemoteRequestClient>(),
+        gh<_i443.RealtimeSyncPort>(),
+      ),
+      registerFor: {_dev, _prod},
+      dispose: (i) => i.dispose(),
+    );
+    gh.factory<_i179.CredentialsCase>(
+      () => _i179.CredentialsCase(
+        gh<_i468.CredentialsRepository>(),
+        gh<_i625.AuthLocalRepositoryPort>(),
+        env: gh<_i329.Env>(),
+        logger: gh<_i831.Logger>(),
+      ),
+    );
+    gh.singleton<_i494.AuthRemoteRepositoryPort>(
+      () => _i940.AuthRemoteRepository(
+        remoteApiService: gh<_i444.AuthRemoteClient>(),
+        log: gh<_i831.Logger>(),
+      ),
+      registerFor: {_dev, _prod},
+    );
+    gh.singleton<_i142.BlockCase>(
+      () => _i142.BlockCase(gh<_i886.BlockRepository>()),
+    );
+    gh.singleton<_i912.RealtimeStatusCubit>(
+      () => _i912.RealtimeStatusCubit(gh<_i663.RealtimeSyncCase>()),
+      dispose: (i) => i.close(),
+    );
+    gh.lazySingleton<_i208.BeaconActivityEventRepository>(
+      () => _i208.BeaconActivityEventRepository(
+        gh<_i1060.RemoteApiService>(),
+        gh<_i443.RealtimeSyncPort>(),
+      ),
+      dispose: (i) => i.dispose(),
+    );
+    gh.singleton<_i1029.BeaconCreateCase>(
+      () => _i1029.BeaconCreateCase(
+        gh<_i281.BeaconWritePort>(),
+        gh<_i423.BeaconImagePort>(),
+      ),
+    );
+    gh.singleton<_i949.DevicePushPort>(
+      () => _i300.DevicePushAdapter(gh<_i350.FcmCase>()),
+      registerFor: {_dev, _prod},
+    );
+    gh.singleton<_i318.ForwardRepository>(
+      () => _i318.ForwardRepository(
+        gh<_i1060.RemoteApiService>(),
+        gh<_i474.BeaconRepository>(),
+        gh<_i443.RealtimeSyncPort>(),
+      ),
+      registerFor: {_dev, _prod},
+      dispose: (i) => i.dispose(),
+    );
+    gh.singleton<_i250.AccountCase>(
+      () => _i250.AccountCase(
+        gh<_i625.AuthLocalRepositoryPort>(),
+        gh<_i494.AuthRemoteRepositoryPort>(),
+        gh<_i620.PlatformRepositoryPort>(),
+        gh<_i607.ProfileRepositoryPort>(),
+        env: gh<_i329.Env>(),
+        logger: gh<_i831.Logger>(),
+      ),
+    );
+    gh.singleton<_i84.ForwardsGraphRepository>(
+      () => _i84.ForwardsGraphRepository(gh<_i318.ForwardRepository>()),
+      registerFor: {_dev, _prod},
+    );
+    gh.factory<_i207.ComplaintCase>(
+      () => _i207.ComplaintCase(
+        gh<_i939.ComplaintRepository>(),
+        gh<_i179.CredentialsCase>(),
+        env: gh<_i329.Env>(),
+        logger: gh<_i831.Logger>(),
+      ),
+    );
+    gh.singleton<_i299.PresenceCubit>(
+      () => _i299.PresenceCubit(gh<_i190.PresenceRepository>()),
+      dispose: (i) => i.close(),
+    );
+    gh.singleton<_i971.BeaconHierarchyCase>(
+      () => _i971.BeaconHierarchyCase(
+        gh<_i504.BeaconHierarchyRepositoryPort>(),
+        gh<_i1029.BeaconCreateCase>(),
+        gh<_i281.BeaconWritePort>(),
+        gh<_i436.BeaconChildCommandStorePort>(),
+        gh<_i663.RealtimeSyncCase>(),
+      ),
+    );
+    gh.factory<_i35.CredentialsCubit>(
+      () => _i35.CredentialsCubit(
+        gh<_i179.CredentialsCase>(),
+        gh<_i620.PlatformRepositoryPort>(),
+        gh<_i411.UiEffectPort>(),
+      ),
+    );
+    gh.factory<_i103.BlockedUsersCubit>(
+      () => _i103.BlockedUsersCubit(
+        gh<_i142.BlockCase>(),
+        gh<_i411.UiEffectPort>(),
+      ),
+    );
+    gh.singleton<_i958.AuthCase>(
+      () => _i958.AuthCase(
+        gh<_i625.AuthLocalRepositoryPort>(),
+        gh<_i494.AuthRemoteRepositoryPort>(),
+        gh<_i949.DevicePushPort>(),
+        gh<_i340.AuthPlatformCleanupPort>(),
+        gh<_i1053.SettingsRepositoryPort>(),
+        env: gh<_i329.Env>(),
+        logger: gh<_i831.Logger>(),
+      ),
+    );
+    gh.singleton<_i0.FcmCubit>(
+      () => _i0.FcmCubit(gh<_i350.FcmCase>(), gh<_i958.AuthCase>()),
+      dispose: (i) => i.close(),
+    );
+    await gh.singletonAsync<_i898.AuthCubit>(
+      () => _i898.AuthCubit.hydrated(
+        gh<_i329.Env>(),
+        gh<_i958.AuthCase>(),
+        gh<_i250.AccountCase>(),
+        gh<_i607.ProfileRepositoryPort>(),
+        gh<_i411.UiEffectPort>(),
+      ),
+      preResolve: true,
+      dispose: (i) => i.dispose(),
+    );
+    gh.lazySingleton<_i936.RoomReadWatermarkStore>(
+      () => _i936.RoomReadWatermarkStore(gh<_i958.AuthCase>()),
+      dispose: (i) => i.dispose(),
+    );
+    gh.lazySingleton<_i1042.LikeCubit>(
+      () => _i1042.LikeCubit(
+        gh<_i958.AuthCase>(),
+        gh<_i777.LikeRemoteRepository>(),
+        gh<_i411.UiEffectPort>(),
+      ),
+      dispose: (i) => i.close(),
+    );
+    gh.singleton<_i458.ProfileCubit>(
+      () => _i458.ProfileCubit(
+        accountCase: gh<_i250.AccountCase>(),
+        authCase: gh<_i958.AuthCase>(),
+        profileRepository: gh<_i607.ProfileRepositoryPort>(),
+        realtimeSyncCase: gh<_i663.RealtimeSyncCase>(),
+        effects: gh<_i411.UiEffectPort>(),
+      ),
+      dispose: (i) => i.dispose(),
+    );
+    await gh.singletonAsync<_i1035.SettingsCubit>(
+      () => _i1035.SettingsCubit.hydrated(
+        gh<_i329.Env>(),
+        gh<_i958.AuthCase>(),
+        gh<_i898.AuthCubit>(),
+        gh<_i250.AccountCase>(),
+        gh<_i620.PlatformRepositoryPort>(),
+        gh<_i1053.SettingsRepositoryPort>(),
+        gh<_i411.UiEffectPort>(),
+      ),
+      preResolve: true,
+      dispose: (i) => i.dispose(),
+    );
+    gh.lazySingleton<_i386.AttentionAccountPort>(
+      () => _i368.AttentionAccountAdapter(gh<_i958.AuthCase>()),
+    );
+    gh.singleton<_i943.BookkeepingRefreshCase>(
+      () => _i943.BookkeepingRefreshCase(
+        gh<_i18.BookkeepingRefreshRepositoryPort>(),
+        gh<_i958.AuthCase>(),
+        gh<_i474.BeaconRepository>(),
+        gh<_i938.BookkeepingRefreshSignal>(),
+        env: gh<_i329.Env>(),
+        logger: gh<_i831.Logger>(),
+      ),
+    );
+    gh.lazySingleton<_i158.AttentionCase>(
+      () => _i158.AttentionCase(
+        gh<_i633.AttentionRepositoryPort>(),
+        gh<_i386.AttentionAccountPort>(),
+        gh<_i663.RealtimeSyncCase>(),
+        gh<_i142.BlockCase>(),
+        gh<_i756.FeedSessionRegistry>(),
+        gh<_i831.Logger>(),
+      ),
+      dispose: (i) => i.dispose(),
+    );
+    gh.singleton<_i714.BeaconThreadsCase>(
+      () => _i714.BeaconThreadsCase(
+        gh<_i456.BeaconThreadsRepository>(),
+        gh<_i66.BeaconFactCardRepository>(),
+        gh<_i129.PollingRepository>(),
+        gh<_i724.BeaconRoomHintsRepository>(),
+        gh<_i936.RoomReadWatermarkStore>(),
+        gh<_i663.RealtimeSyncCase>(),
+        env: gh<_i329.Env>(),
+        logger: gh<_i831.Logger>(),
+      ),
+    );
+    gh.lazySingleton<_i673.FavoritesCubit>(
+      () => _i673.FavoritesCubit(
+        gh<_i958.AuthCase>(),
+        gh<_i551.FavoritesRemoteRepository>(),
+        gh<_i411.UiEffectPort>(),
+      ),
+      dispose: (i) => i.close(),
+    );
+    gh.singleton<_i28.ContactsCase>(
+      () => _i28.ContactsCase(
+        gh<_i970.ContactsRepository>(),
+        gh<_i958.AuthCase>(),
+        gh<_i954.ContactNameStore>(),
+        gh<_i663.RealtimeSyncCase>(),
+        env: gh<_i329.Env>(),
+        logger: gh<_i831.Logger>(),
+      ),
+      dispose: (i) => i.dispose(),
+    );
+    gh.singleton<_i1026.HomeAttentionCubit>(
+      () => _i1026.HomeAttentionCubit(
+        gh<_i158.AttentionCase>(),
+        gh<_i386.AttentionAccountPort>(),
+        gh<_i831.Logger>(),
+      ),
+      dispose: (i) => i.close(),
+    );
+    gh.singleton<_i501.AttentionReconcilePort>(
+      () => registerModule.attentionReconcilePort(gh<_i158.AttentionCase>()),
+    );
+    gh.lazySingleton<_i868.AttentionActorProfilesCase>(
+      () => _i868.AttentionActorProfilesCase(
+        gh<_i607.ProfileRepositoryPort>(),
+        gh<_i386.AttentionAccountPort>(),
+      ),
+      dispose: (i) => i.dispose(),
+    );
+    gh.singleton<_i104.BeaconViewCase>(
+      () => _i104.BeaconViewCase(
+        gh<_i474.BeaconRepository>(),
+        gh<_i318.ForwardRepository>(),
+        gh<_i55.EvaluationRepository>(),
+        gh<_i931.ArchiveRepository>(),
+        gh<_i754.CoordinationRepository>(),
+        gh<_i370.BeaconDisplayRepository>(),
+        gh<_i45.InboxRepository>(),
+        gh<_i66.BeaconFactCardRepository>(),
+        gh<_i714.BeaconThreadsCase>(),
+        gh<_i208.BeaconActivityEventRepository>(),
+        gh<_i663.RealtimeSyncCase>(),
+        env: gh<_i329.Env>(),
+        logger: gh<_i831.Logger>(),
+      ),
+    );
+    gh.singleton<_i811.FriendsCase>(
+      () => _i811.FriendsCase(
+        gh<_i795.CapabilityRepositoryPort>(),
+        gh<_i301.InvitationRepository>(),
+        gh<_i777.LikeRemoteRepository>(),
+        gh<_i455.FriendsRemoteRepository>(),
+        gh<_i190.PresenceRepository>(),
+        gh<_i28.ContactsCase>(),
+        gh<_i958.AuthCase>(),
+        gh<_i663.RealtimeSyncCase>(),
+        env: gh<_i329.Env>(),
+        logger: gh<_i831.Logger>(),
+      ),
+    );
+    gh.singleton<_i928.PersonForwardCase>(
+      () => _i928.PersonForwardCase(
+        gh<_i318.ForwardRepository>(),
+        gh<_i474.BeaconRepository>(),
+        gh<_i607.ProfileRepositoryPort>(),
+        gh<_i625.AuthLocalRepositoryPort>(),
+        gh<_i28.ContactsCase>(),
+        env: gh<_i329.Env>(),
+        logger: gh<_i831.Logger>(),
+      ),
+    );
+    gh.singleton<_i438.RootRouter>(
+      () => _i438.RootRouter(
+        gh<_i831.Logger>(),
+        gh<_i898.AuthCubit>(),
+        gh<_i1035.SettingsCubit>(),
+        gh<_i489.PostJoinNavigationCubit>(),
+      ),
+      dispose: (i) => i.dispose(),
+    );
+    gh.factory<_i1023.ProfileViewCase>(
+      () => _i1023.ProfileViewCase(
+        gh<_i607.ProfileRepositoryPort>(),
+        gh<_i777.LikeRemoteRepository>(),
+        gh<_i795.CapabilityRepositoryPort>(),
+        gh<_i28.ContactsCase>(),
+        gh<_i663.RealtimeSyncCase>(),
+        gh<_i751.PersonSharedContextPort>(),
+        env: gh<_i329.Env>(),
+        logger: gh<_i831.Logger>(),
+      ),
+    );
+    gh.singleton<_i272.InboxCase>(
+      () => _i272.InboxCase(
+        gh<_i45.InboxRepository>(),
+        gh<_i714.BeaconThreadsCase>(),
+        gh<_i318.ForwardRepository>(),
+        gh<_i663.RealtimeSyncCase>(),
+        gh<_i938.BookkeepingRefreshSignal>(),
+        gh<_i142.BlockCase>(),
+        env: gh<_i329.Env>(),
+        logger: gh<_i831.Logger>(),
+      ),
+    );
+    gh.factory<_i242.DebugSettingsCubit>(
+      () => _i242.DebugSettingsCubit(
+        gh<_i350.FcmCase>(),
+        gh<_i958.AuthCase>(),
+        gh<_i0.FcmCubit>(),
+        gh<_i530.EmailTestRemoteRepositoryPort>(),
+        gh<_i943.BookkeepingRefreshCase>(),
+        gh<_i324.DirectNotificationProbePort>(),
+        gh<_i411.UiEffectPort>(),
+      ),
+    );
+    gh.singleton<_i953.FriendsCubit>(
+      () =>
+          _i953.FriendsCubit(gh<_i811.FriendsCase>(), gh<_i411.UiEffectPort>()),
+      dispose: (i) => i.close(),
+    );
+    gh.singleton<_i439.ForwardCase>(
+      () => _i439.ForwardCase(
+        gh<_i318.ForwardRepository>(),
+        gh<_i625.AuthLocalRepositoryPort>(),
+        gh<_i66.BeaconFactCardRepository>(),
+        gh<_i607.ProfileRepositoryPort>(),
+        gh<_i28.ContactsCase>(),
+        gh<_i142.BlockCase>(),
+        env: gh<_i329.Env>(),
+        logger: gh<_i831.Logger>(),
+      ),
+    );
+    gh.singleton<_i630.MyWorkCase>(
+      () => _i630.MyWorkCase(
+        gh<_i992.MyWorkRepository>(),
+        gh<_i931.ArchiveRepository>(),
+        gh<_i318.ForwardRepository>(),
+        gh<_i474.BeaconRepository>(),
+        gh<_i714.BeaconThreadsCase>(),
+        gh<_i724.BeaconRoomHintsRepository>(),
+        gh<_i110.MyWorkDeskPreferencesPort>(),
+        gh<_i370.BeaconDisplayRepository>(),
+        gh<_i55.EvaluationRepository>(),
+        gh<_i663.RealtimeSyncCase>(),
+        gh<_i938.BookkeepingRefreshSignal>(),
+        gh<_i158.AttentionCase>(),
+        env: gh<_i329.Env>(),
+        logger: gh<_i831.Logger>(),
+      ),
+    );
+    gh.singleton<_i641.InviteAcceptedSetupPort>(
+      () => _i641.InviteAcceptedSetupCase(
+        gh<_i607.ProfileRepositoryPort>(),
+        gh<_i795.CapabilityRepositoryPort>(),
+        gh<_i28.ContactsCase>(),
+      ),
+    );
+    gh.factory<_i968.LineageSuggestionsPreviewCubit>(
+      () => _i968.LineageSuggestionsPreviewCubit(gh<_i439.ForwardCase>()),
+    );
+    gh.factory<_i494.AuthRemoteRepositoryPort>(
+      () => _i844.AuthRemoteRepositoryMock(),
+      registerFor: {_test},
+    );
+    gh.factory<_i318.ForwardRepository>(
+      () => _i844.ForwardRepositoryMock(),
+      registerFor: {_test},
+    );
+    gh.factory<_i789.RatingRepository>(
+      () => _i844.RatingRepositoryMock(),
+      registerFor: {_test},
+    );
+    gh.factory<_i551.FavoritesRemoteRepository>(
+      () => _i844.FavoritesRemoteRepositoryMock(),
+      registerFor: {_test},
+    );
+    gh.factory<_i454.AppUpdateRepository>(
+      () => _i844.AppUpdateRepositoryMock(),
+      registerFor: {_test},
+    );
+    gh.factory<_i246.FcmRemoteRepositoryPort>(
+      () => _i844.FcmRemoteRepositoryMock(),
+      registerFor: {_test},
+    );
+    gh.factory<_i129.PollingRepository>(
+      () => _i844.PollingRepositoryMock(),
+      registerFor: {_test},
+    );
+    gh.factory<_i838.ConstellationAnchorRepositoryPort>(
+      () => _i617.ConstellationAnchorRepositoryMock(),
+      registerFor: {_test},
+    );
+    gh.factory<_i189.FcmLocalRepositoryPort>(
+      () => _i844.FcmLocalRepositoryMock(),
+      registerFor: {_test},
+    );
+    gh.factory<_i1021.ForwardCandidateContextRepositoryPort>(
+      () => _i978.ForwardCandidateContextRepositoryMock(),
+      registerFor: {_test},
+    );
+    gh.factory<_i633.AttentionRepositoryPort>(
+      () => _i844.AttentionRepositoryMock(),
+      registerFor: {_test},
+    );
+    gh.factory<_i474.BeaconRepository>(
+      () => _i844.BeaconRepositoryMock(),
+      registerFor: {_test},
+    );
+    gh.factory<_i45.InboxRepository>(
+      () => _i844.InboxRepositoryMock(),
+      registerFor: {_test},
+    );
+    gh.factory<_i455.FriendsRemoteRepository>(
+      () => _i844.FriendsRemoteRepositoryMock(),
+      registerFor: {_test},
+    );
+    gh.factory<_i226.GeoRepository>(
+      () => _i844.GeoRepositoryMock(),
+      registerFor: {_test},
+    );
+    gh.factory<_i754.CoordinationRepository>(
+      () => _i844.CoordinationRepositoryMock(),
+      registerFor: {_test},
+    );
+    gh.factory<_i777.LikeRemoteRepository>(
+      () => _i844.LikeRemoteRepositoryMock(),
+      registerFor: {_test},
+    );
+    gh.factory<_i55.EvaluationRepository>(
+      () => _i844.EvaluationRepositoryMock(),
+      registerFor: {_test},
+    );
+    gh.factory<_i475.GraphRepository>(
+      () => _i844.GraphRepositoryMock(),
+      registerFor: {_test},
+    );
+    gh.factory<_i38.ConstellationRepositoryPort>(
+      () => _i396.ConstellationRepositoryMock(),
+      registerFor: {_test},
+    );
+    gh.factory<_i939.ComplaintRepository>(
+      () => _i844.ComplaintRepositoryMock(),
+      registerFor: {_test},
+    );
+    gh.factory<_i1053.SettingsRepositoryPort>(
+      () => _i844.SettingsRepositoryMock(),
+      registerFor: {_test},
+    );
+    gh.factory<_i715.ClipboardImageRepository>(
+      () => _i844.ClipboardImageRepositoryMock(),
+      registerFor: {_test},
+    );
+    gh.factory<_i301.InvitationRepository>(
+      () => _i844.InvitationRepositoryMock(),
+      registerFor: {_test},
+    );
+    gh.factory<_i84.ForwardsGraphRepository>(
+      () => _i844.ForwardsGraphRepositoryMock(),
+      registerFor: {_test},
+    );
+    gh.factory<_i612.MutualFriendsRepository>(
+      () => _i844.MutualFriendsRepositoryMock(),
+      registerFor: {_test},
+    );
+    gh.factory<_i625.AuthLocalRepositoryPort>(
+      () => _i844.AuthLocalRepositoryMock(),
+      registerFor: {_test},
+    );
+    gh.factory<_i992.MyWorkRepository>(
+      () => _i844.MyWorkRepositoryMock(),
+      registerFor: {_test},
+    );
+    gh.factory<_i460.ImageRepository>(
+      () => _i844.ImageRepositoryMock(),
+      registerFor: {_test},
+    );
+    gh.factory<_i607.ProfileRepositoryPort>(
+      () => _i844.ProfileRepositoryMock(),
+      registerFor: {_test},
+    );
+    gh.factory<_i688.ContextRepository>(
+      () => _i844.ContextRepositoryMock(),
+      registerFor: {_test},
+    );
+    gh.factory<_i530.EmailTestRemoteRepositoryPort>(
+      () => _i844.EmailTestRemoteRepositoryMock(),
+      registerFor: {_test},
+    );
+    gh.factory<_i620.PlatformRepositoryPort>(
+      () => _i844.PlatformRepositoryMock(),
+      registerFor: {_test},
+    );
+    gh.lazySingleton<_i1021.ForwardCandidateContextRepositoryPort>(
+      () => _i156.ForwardCandidateContextRepository(
+        gh<_i1060.RemoteApiService>(),
+      ),
+      registerFor: {_dev, _prod},
+    );
+    gh.lazySingleton<_i38.ConstellationRepositoryPort>(
+      () => _i797.ConstellationRepository(gh<_i1060.RemoteApiService>()),
+      registerFor: {_dev, _prod},
+    );
+    gh.lazySingleton<_i838.ConstellationAnchorRepositoryPort>(
+      () => _i68.ConstellationAnchorRepository(gh<_i1060.RemoteApiService>()),
+      registerFor: {_dev, _prod},
+    );
+    gh.singleton<_i743.ConstellationFieldCase>(
+      () => _i743.ConstellationFieldCase(
+        gh<_i38.ConstellationRepositoryPort>(),
+        env: gh<_i329.Env>(),
+        logger: gh<_i831.Logger>(),
+      ),
+    );
+    gh.singleton<_i239.ConstellationAnchorCase>(
+      () => _i239.ConstellationAnchorCase(
+        gh<_i38.ConstellationRepositoryPort>(),
+        gh<_i838.ConstellationAnchorRepositoryPort>(),
+        gh<_i663.RealtimeSyncCase>(),
+        env: gh<_i329.Env>(),
+        logger: gh<_i831.Logger>(),
+      ),
+      dispose: (i) => i.dispose(),
+    );
+    gh.singleton<_i459.LoadForwardCandidateContextCase>(
+      () => _i459.LoadForwardCandidateContextCase(
+        gh<_i1021.ForwardCandidateContextRepositoryPort>(),
+        env: gh<_i329.Env>(),
+        logger: gh<_i831.Logger>(),
+      ),
+    );
+    return this;
+  }
+}
+
+class _$RegisterModule extends _i619.RegisterModule {}
