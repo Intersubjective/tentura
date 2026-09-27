@@ -18,6 +18,7 @@ import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/coordination/filter_beacon_notifications.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/entity/notification_priority.dart';
+import 'package:tentura_server/domain/use_case/attention_channel_delivery_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 
 import '../../support/disposable_pg_target.dart';
@@ -786,6 +787,37 @@ ORDER BY phase
       expect(await _probeCount(writer), 0);
       expect(await _outboxCount(writer), 0);
     });
+
+    test(
+      'channel handoff failure does not roll back the committed receipt',
+      () async {
+        final useCase = TransactionalAttentionCase(unitOfWork, dispatch);
+        await useCase.run(
+          actorUserId: _viewerId,
+          intent: _dispatchIntent(),
+          mutation: () async {},
+        );
+        expect(await _outboxCount(writer), 1);
+        expect(await _deliveryCount(writer), 1);
+
+        final channels = _TestChannels(throwOnHandOff: true);
+        final channelDelivery = AttentionChannelDeliveryCase(
+          delivery,
+          channels,
+        );
+        await channelDelivery.runDue(
+          workerId: 'worker-channel-failure',
+          now: DateTime.timestamp().toUtc(),
+        );
+
+        expect(channels.handOffCalls, 1);
+        expect(await _outboxCount(writer), 1);
+        expect(await _deliveryCount(writer), 1);
+        // Receipt commit fires capture_attention_uow_receipt; handoff failure
+        // must not roll that back.
+        expect(await _probeCount(writer), 1);
+      },
+    );
 
     test(
       'delivery jobs are durable and a second occurrence adds a receipt',

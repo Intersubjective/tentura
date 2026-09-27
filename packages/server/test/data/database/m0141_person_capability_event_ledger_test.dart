@@ -89,6 +89,62 @@ ORDER BY indexname
       skip: skipReason,
     );
 
+    test(
+      'rejects invalid source_type and duplicate forward-reason rows',
+      () async {
+        await migrateDbSchema(writer);
+
+        await _seedFixture(writer);
+
+        await expectLater(
+          writer.execute(r'''
+INSERT INTO public.person_capability_event (
+  id, subject_user_id, observer_user_id, tag_slug, source_type, visibility
+) VALUES (
+  'Pcem0141bad', 'Upcem0141sub1', 'Upcem0141obs1', 'transport', 99, 0
+)
+'''),
+          throwsA(
+            isA<ServerException>().having(
+              (error) => error.constraintName,
+              'constraintName',
+              'pce_source_type_ck',
+            ),
+          ),
+        );
+
+        await writer.execute(r'''
+INSERT INTO public.person_capability_event (
+  id, subject_user_id, observer_user_id, tag_slug, source_type,
+  forward_edge_id, beacon_id, visibility, note
+) VALUES (
+  'Pcem0141fwd1', 'Upcem0141sub1', 'Upcem0141obs1', 'transport', 1,
+  'Fpcem0141edge1', 'Bpcem0141bcn1', 0, ''
+)
+''');
+
+        await expectLater(
+          writer.execute(r'''
+INSERT INTO public.person_capability_event (
+  id, subject_user_id, observer_user_id, tag_slug, source_type,
+  forward_edge_id, beacon_id, visibility, note
+) VALUES (
+  'Pcem0141fwd2', 'Upcem0141sub1', 'Upcem0141obs1', 'transport', 1,
+  'Fpcem0141edge1', 'Bpcem0141bcn1', 0, ''
+)
+'''),
+          throwsA(
+            isA<ServerException>().having(
+              (error) => error.constraintName,
+              'constraintName',
+              'pce_forward_reason_uq',
+            ),
+          ),
+        );
+      },
+      skip: skipReason,
+    );
+
   });
 }
 

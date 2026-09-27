@@ -1,8 +1,6 @@
 @Tags(['pg'])
 library;
 
-import 'dart:async';
-
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
@@ -18,10 +16,6 @@ Future<void> main() async {
   final freshTarget = DisposablePgTarget.fromNamedEnvironment(
     envVarName: 'TENTURA_U04_SCHEMA_TEST_DB',
     defaultNamePrefix: 'tentura_test_u04_fresh',
-  );
-  DisposablePgTarget.fromNamedEnvironment(
-    envVarName: 'TENTURA_U04_UPGRADE_TEST_DB',
-    defaultNamePrefix: 'tentura_test_u04_upgrade',
   );
   final reachable = await canReachPostgresAdmin(freshTarget);
   final skipReason = reachable
@@ -468,4 +462,3 @@ INSERT INTO public.notification_outbox (
   true, 'v1|needsMe|$receiptId|Uu04'${logicalTaskKey == null ? '' : ", '$logicalTaskKey'"}
 )
 ''');
-
