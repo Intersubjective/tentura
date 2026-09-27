@@ -109,6 +109,8 @@ jobs:
             -v "${{ github.workspace }}":/app -w /app \
             -v "${{ github.workspace }}/.pub-cache":/root/.pub-cache \
             --env TEST_TARGET="$target" \
+            --env CI \
+            --env GITHUB_ACTIONS \
             ${{ env.BUILDER_IMAGE }}:latest \
             bash -c '
               set -euo pipefail

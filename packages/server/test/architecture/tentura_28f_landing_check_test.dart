@@ -17,6 +17,16 @@ const _trialMergeMarker = 'trial merge tentura-21x';
 const _21xLandingTestRelative =
     'test/architecture/tentura_21x_unused_test_setup_test.dart';
 
+Object get _skipNestedCleanupInCiDartTest {
+  final env = Platform.environment;
+  if (env['GITHUB_ACTIONS'] == 'true' ||
+      env['CI'] == 'true' ||
+      env['TEST_TARGET'] == 'server') {
+    return 'do not nest run_with_test_cleanup.sh inside CI dart test';
+  }
+  return false;
+}
+
 void main() {
   group('tentura-28f landing check (trial merge tentura-21x)', () {
     test('28f acceptance test paths declare 28f landing gate markers', () {
@@ -91,9 +101,7 @@ void main() {
         );
       },
       timeout: const Timeout(Duration(minutes: 46)),
-      skip: Platform.environment['GITHUB_ACTIONS'] == 'true'
-          ? 'do not nest run_with_test_cleanup.sh inside GitHub Actions dart test'
-          : false,
+      skip: _skipNestedCleanupInCiDartTest,
     );
 
     test('tentura-21x landing gate test file is present for trial merge', () {

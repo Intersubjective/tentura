@@ -25,10 +25,17 @@ List<String> get _allGuardedTestRelatives => [
 
 /// Nested `run_with_test_cleanup.sh` deletes sibling `/tmp/dart_test.kernel.*`
 /// of the unwrapped CI `dart test` process. PG files already run in `test-pg`.
-Object get _skipNestedCleanupOnGitHubActions =>
-    Platform.environment['GITHUB_ACTIONS'] == 'true'
-    ? 'do not nest run_with_test_cleanup.sh inside GitHub Actions dart test'
-    : false;
+/// `GITHUB_ACTIONS` is not forwarded into the builder container unless the
+/// workflow does so; `TEST_TARGET=server` is.
+Object get _skipNestedCleanupOnGitHubActions {
+  final env = Platform.environment;
+  if (env['GITHUB_ACTIONS'] == 'true' ||
+      env['CI'] == 'true' ||
+      env['TEST_TARGET'] == 'server') {
+    return 'do not nest run_with_test_cleanup.sh inside CI dart test';
+  }
+  return false;
+}
 
 void main() {
   group('tentura-21x unused test setup', () {

@@ -18,6 +18,16 @@ const _trialMergeMarker = 'trial merge tentura-21x';
 const _agentsOlcLandingFixture =
     '../../test/fixtures/agents_alloy_memory_olc_landing_tail.txt';
 
+Object get _skipNestedCleanupInCiDartTest {
+  final env = Platform.environment;
+  if (env['GITHUB_ACTIONS'] == 'true' ||
+      env['CI'] == 'true' ||
+      env['TEST_TARGET'] == 'server') {
+    return 'do not nest run_with_test_cleanup.sh inside CI dart test';
+  }
+  return false;
+}
+
 void main() {
   group('tentura-olc landing check (trial merge tentura-21x)', () {
     test('olc acceptance test paths declare olc landing gate markers', () {
@@ -63,9 +73,7 @@ void main() {
         );
       },
       timeout: const Timeout(Duration(minutes: 12)),
-      skip: Platform.environment['GITHUB_ACTIONS'] == 'true'
-          ? 'do not nest run_with_test_cleanup.sh inside GitHub Actions dart test'
-          : false,
+      skip: _skipNestedCleanupInCiDartTest,
     );
 
     test(
