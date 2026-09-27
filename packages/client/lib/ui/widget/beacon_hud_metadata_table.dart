@@ -45,10 +45,21 @@ double beaconHudMetadataRowWidth(
 class BeaconHudMetadataTable extends StatelessWidget {
   const BeaconHudMetadataTable({
     required this.buildEntries,
+    this.leadWidth = kBeaconHudRowLeadWidth,
+    this.leadIconExtent,
     super.key,
   });
 
   final List<BeaconHudMetadataEntry> Function(double rowWidth) buildEntries;
+
+  /// Where the body text starts. A card that has its own content keyline
+  /// (tile + gap) passes it, so these rows share one text column with the
+  /// header and the event rows.
+  final double leadWidth;
+
+  /// Width the icon is centred in, at the start of [leadWidth] — the header
+  /// tile's width, so icons sit on the tile's axis. Defaults to [leadWidth].
+  final double? leadIconExtent;
 
   @override
   Widget build(BuildContext context) {
@@ -67,10 +78,14 @@ class BeaconHudMetadataTable extends StatelessWidget {
           if (i > 0) {
             rows.add(const SizedBox(height: kBeaconHudRowGap));
           }
-          rows.add(_MetadataTableRow(
-            entry: entries[i],
-            iconColor: scheme.onSurfaceVariant,
-          ));
+          rows.add(
+            _MetadataTableRow(
+              entry: entries[i],
+              iconColor: scheme.onSurfaceVariant,
+              leadWidth: leadWidth,
+              leadIconExtent: leadIconExtent ?? leadWidth,
+            ),
+          );
         }
 
         return ClipRect(
@@ -90,24 +105,34 @@ class _MetadataTableRow extends StatelessWidget {
   const _MetadataTableRow({
     required this.entry,
     required this.iconColor,
+    required this.leadWidth,
+    required this.leadIconExtent,
   });
 
   final BeaconHudMetadataEntry entry;
+  final double leadWidth;
+  final double leadIconExtent;
   final Color iconColor;
 
   @override
   Widget build(BuildContext context) {
     final iconColumn = SizedBox(
-      width: kBeaconHudRowLeadWidth,
-      child: Center(
-        child: ExcludeSemantics(
-          excluding: entry.onTap != null,
-          child: Semantics(
-            label: entry.semanticsLabel,
-            child: Icon(
-              entry.icon,
-              size: kBeaconHudRowIconSize,
-              color: iconColor,
+      width: leadWidth,
+      child: Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: SizedBox(
+          width: leadIconExtent,
+          child: Center(
+            child: ExcludeSemantics(
+              excluding: entry.onTap != null,
+              child: Semantics(
+                label: entry.semanticsLabel,
+                child: Icon(
+                  entry.icon,
+                  size: kBeaconHudRowIconSize,
+                  color: iconColor,
+                ),
+              ),
             ),
           ),
         ),

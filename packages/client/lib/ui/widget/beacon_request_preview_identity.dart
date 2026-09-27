@@ -294,7 +294,7 @@ class BeaconRequestPreviewIdentity extends StatelessWidget {
               identity: identity,
               size: identitySize,
             ),
-            SizedBox(width: tt.iconTextGap),
+            SizedBox(width: tt.avatarTextGap),
             Expanded(child: titleColumn),
             if (trailing != null) ...[
               SizedBox(width: tt.tightGap),
@@ -311,7 +311,7 @@ class BeaconRequestPreviewIdentity extends StatelessWidget {
           Padding(
             // Under the title column, not under the tile: the people line
             // belongs to the text it describes.
-            padding: EdgeInsets.only(left: identitySize + tt.iconTextGap),
+            padding: EdgeInsets.only(left: identitySize + tt.avatarTextGap),
             child: Row(
               children: [
                 if (authorName.isNotEmpty)

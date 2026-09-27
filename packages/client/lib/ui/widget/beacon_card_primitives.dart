@@ -88,6 +88,7 @@ class BeaconCardShell extends StatelessWidget {
 
     /// When null, uses [kPaddingAllS] (no footer) or tight top/sides padding (with footer).
     this.padding,
+    this.bodyMinHeight = kBeaconCardBodyMinHeight,
 
     /// Screen-reader label for the card body tap target.
     this.tapSemanticsLabel,
@@ -108,6 +109,11 @@ class BeaconCardShell extends StatelessWidget {
   final bool selected;
   final Color? color;
   final EdgeInsetsGeometry? padding;
+
+  /// Floor under the body. The default keeps list cards of one height; a card
+  /// whose content already sets its height passes 0, or the floor shows as
+  /// an empty band between the header and whatever follows it.
+  final double bodyMinHeight;
   final String? tapSemanticsLabel;
 
   @override
@@ -129,7 +135,7 @@ class BeaconCardShell extends StatelessWidget {
     final paddedMain = Padding(
       padding: mainPadding,
       child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: kBeaconCardBodyMinHeight),
+        constraints: BoxConstraints(minHeight: bodyMinHeight),
         child: child,
       ),
     );

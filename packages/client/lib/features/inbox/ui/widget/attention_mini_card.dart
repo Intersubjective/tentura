@@ -206,10 +206,20 @@ class _AttentionMiniCardState extends State<AttentionMiniCard>
             ),
           );
 
+    // A one-line row centres on its avatar and its CTA; a row with a quote
+    // under it hangs from the top, so the quote reads as the line's own.
+    final hasQuote = quoted.isNotEmpty || widget.capabilitySlugs.isNotEmpty;
+    // An obligation is what the card is asking of you: full-strength text.
+    // An optional update stays quiet next to it.
+    final eventStyle = widget.receipt.isLiveObligation
+        ? TenturaText.bodyMedium(tt.text)
+        : TenturaText.bodySmall(tt.textMuted);
     final content = Padding(
       padding: EdgeInsets.only(top: tt.tightGap, bottom: tt.tightGap),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: hasQuote
+            ? CrossAxisAlignment.start
+            : CrossAxisAlignment.center,
         children: [
           leading,
           SizedBox(width: tt.avatarTextGap),
@@ -220,42 +230,34 @@ class _AttentionMiniCardState extends State<AttentionMiniCard>
               children: [
                 LayoutBuilder(
                   builder: (context, rowConstraints) => Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Expanded(
-                        // Spoken as one phrase: actor + event + age.
-                        child: Semantics(
-                          label: _semanticsLabel(eventLine, age),
-                          excludeSemantics: true,
-                          child: Text(
-                            eventLine,
-                            style: TenturaText.bodySmall(tt.textMuted),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
+                        // With a CTA on the line the age moves under the
+                        // event: beside it, it took the width the event
+                        // needed and «Закройте цикл» broke over two lines.
+                        child: widget.trailing == null
+                            ? _eventText(eventLine, age, eventStyle)
+                            : Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _eventText(eventLine, age, eventStyle),
+                                  _ageText(tt, age, absoluteTime),
+                                ],
+                              ),
                       ),
-                      SizedBox(width: tt.iconTextGap),
-                      ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxWidth:
-                              rowConstraints.maxWidth * kMiniCardAgeWidthShare,
-                        ),
-                        child: Tooltip(
-                          key: AttentionMiniCard.ageTooltipKey,
-                          message: absoluteTime,
-                          excludeFromSemantics: true,
-                          child: Text(
-                            age,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TenturaText.withTabular(
-                              TenturaText.bodySmall(tt.textFaint),
-                            ),
-                            semanticsLabel: '',
+                      if (widget.trailing == null) ...[
+                        SizedBox(width: tt.iconTextGap),
+                        ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth:
+                                rowConstraints.maxWidth *
+                                kMiniCardAgeWidthShare,
                           ),
+                          child: _ageText(tt, age, absoluteTime),
                         ),
-                      ),
+                      ],
                       if (widget.trailing case final trailing?) ...[
                         SizedBox(width: tt.tightGap),
                         trailing,
@@ -322,6 +324,31 @@ class _AttentionMiniCardState extends State<AttentionMiniCard>
       ),
     );
   }
+
+  Widget _eventText(String eventLine, String age, TextStyle style) => Semantics(
+    // Spoken as one phrase: actor + event + age.
+    label: _semanticsLabel(eventLine, age),
+    excludeSemantics: true,
+    child: Text(
+      eventLine,
+      style: style,
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+    ),
+  );
+
+  Widget _ageText(TenturaTokens tt, String age, String absoluteTime) => Tooltip(
+    key: AttentionMiniCard.ageTooltipKey,
+    message: absoluteTime,
+    excludeFromSemantics: true,
+    child: Text(
+      age,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TenturaText.withTabular(TenturaText.bodySmall(tt.textFaint)),
+      semanticsLabel: '',
+    ),
+  );
 
   void _setHovering(bool value) {
     if (_hovering != value) setState(() => _hovering = value);

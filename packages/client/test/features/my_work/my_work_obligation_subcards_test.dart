@@ -192,7 +192,7 @@ void main() {
       onReviewContributions: () => reviewCount++,
     );
 
-    await tester.tap(find.widgetWithText(TenturaTextAction, 'Review'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Review'));
     await tester.pump();
     expect(reviewCount, 1);
   });

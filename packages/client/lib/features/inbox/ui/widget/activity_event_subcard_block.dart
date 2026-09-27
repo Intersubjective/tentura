@@ -68,6 +68,7 @@ class ActivityEventSubcardBlock extends StatefulWidget {
 
   final int eventTotal;
   final List<AttentionReceipt> eventsPreview;
+
   /// Clears one event (the clear axis, D02/U10b) — never `markSeen`.
   final ValueChanged<String>? onClearEvent;
 
@@ -189,7 +190,11 @@ class _ActivityEventSubcardBlockState extends State<ActivityEventSubcardBlock> {
           ),
         if (moreCount > 0 || _expanded)
           Padding(
-            padding: EdgeInsets.only(top: tt.tightGap, left: tt.cardGap),
+            // On the rows' text column, flush — not on a padding of its own.
+            padding: EdgeInsets.only(
+              top: tt.tightGap,
+              left: tt.avatarSize + tt.avatarTextGap,
+            ),
             child: Align(
               alignment: Alignment.centerLeft,
               child: Wrap(
@@ -204,12 +209,14 @@ class _ActivityEventSubcardBlockState extends State<ActivityEventSubcardBlock> {
                         TenturaTextAction(
                           key: ActivityEventSubcardBlock.moreKey,
                           label: l10n.activityEventMore(moreCount),
+                          flushStart: true,
                           onPressed: widget.onOpenTimeline,
                         ),
                       AttentionBlockOverflowPolicy.paginate =>
                         TenturaTextAction(
                           key: ActivityEventSubcardBlock.loadMoreKey,
                           label: l10n.activityEventMore(moreCount),
+                          flushStart: true,
                           onPressed: _loadingMore
                               ? null
                               : () => unawaited(_expand()),
@@ -219,6 +226,7 @@ class _ActivityEventSubcardBlockState extends State<ActivityEventSubcardBlock> {
                     TenturaTextAction(
                       key: ActivityEventSubcardBlock.collapseKey,
                       label: l10n.inboxProvenanceCollapse,
+                      flushStart: true,
                       onPressed: _collapse,
                     ),
                 ],

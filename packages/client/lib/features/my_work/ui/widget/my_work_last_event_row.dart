@@ -12,7 +12,7 @@ import 'package:tentura/ui/utils/beacon_activity_event_presenter.dart';
 import 'package:tentura/ui/utils/relative_time.dart';
 import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
-import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 
 const _kMyWorkLastEventAvatarSize = 18.0;
 
@@ -228,9 +228,10 @@ class _EventLineBody extends StatelessWidget {
       ),
     );
     if (!attributionOnly) return line;
-    // Aligned with the ⚑ row's text, whose lead column it sits under.
+    // Aligned with the ⚑ row's text: the card keyline its lead column uses.
+    final tt = context.tt;
     return Padding(
-      padding: const EdgeInsets.only(left: kBeaconHudRowLeadWidth),
+      padding: EdgeInsets.only(left: tt.avatarSize + tt.avatarTextGap),
       child: line,
     );
   }

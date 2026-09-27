@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
+
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/ui/widget/beacon_hud_metadata_composer.dart';
@@ -29,7 +31,12 @@ class MyWorkCardMetadataRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tt = context.tt;
     return BeaconHudMetadataTable(
+      // The card's keyline: icons on the header tile's axis, text in the
+      // same column as the title and the event rows.
+      leadWidth: tt.avatarSize + tt.avatarTextGap,
+      leadIconExtent: tt.avatarSize,
       buildEntries: (rowWidth) => buildMyWorkHudMetadataEntries(
         context,
         rowWidth: rowWidth,

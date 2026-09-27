@@ -454,7 +454,12 @@ class RequestAttentionCard extends StatelessWidget {
     }
     return Padding(
       key: moreForwardedKey,
-      padding: EdgeInsets.only(top: tt.tightGap),
+      // In the card's text column, like the event rows above it: the avatars
+      // are part of the line, not a second leading column.
+      padding: EdgeInsets.only(
+        top: tt.tightGap,
+        left: tt.avatarSize + tt.avatarTextGap,
+      ),
       child: Row(
         children: [
           CompactForwarderAvatars(

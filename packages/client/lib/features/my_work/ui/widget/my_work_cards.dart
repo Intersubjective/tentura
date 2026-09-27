@@ -373,6 +373,9 @@ Widget _myWorkSharedPreviewHeader(
   return BeaconRequestPreviewIdentity(
     data: data,
     currentUserId: currentUserId,
+    // Same tile as the event rows' avatars, so the whole card hangs off one
+    // keyline.
+    identitySize: context.tt.avatarSize,
     trailing: menu,
     titleMaxLines: 1,
     statusSemanticsIdentifier: statusSemanticsIdentifier,
@@ -547,6 +550,7 @@ class _AuthoredActiveCard extends StatelessWidget {
     }
 
     return BeaconCardShell(
+      bodyMinHeight: 0,
       onTap: () => _openBeaconOrSelect(context, vm),
       marker: _myWorkAttentionMarker(attentionMarked: attentionMarked),
       footer: _composeMyWorkFooter(
@@ -684,6 +688,7 @@ class _HelpOfferedActiveCard extends StatelessWidget {
         MyWorkReviewAffordanceKind.none;
 
     return BeaconCardShell(
+      bodyMinHeight: 0,
       onTap: () => _openBeaconOrSelect(context, vm),
       marker: _myWorkAttentionMarker(attentionMarked: attentionMarked),
       footer: _composeMyWorkFooter(
@@ -770,6 +775,7 @@ class _DraftAuthoredCard extends StatelessWidget {
     );
 
     return BeaconCardShell(
+      bodyMinHeight: 0,
       muted: true,
       onTap: () => _openEditDraft(context, b.id),
       marker: _myWorkAttentionMarker(attentionMarked: attentionMarked),
@@ -851,6 +857,7 @@ class _FinishedAuthoredCard extends StatelessWidget {
       roomSubtitle: vm.roomInboxSubtitle.isEmpty ? null : vm.roomInboxSubtitle,
     );
     return BeaconCardShell(
+      bodyMinHeight: 0,
       muted: true,
       onTap: () => _openBeaconOrSelect(context, vm),
       marker: _myWorkAttentionMarker(attentionMarked: attentionMarked),
@@ -981,6 +988,7 @@ class _FinishedHelpOfferedCard extends StatelessWidget {
       roomSubtitle: vm.roomInboxSubtitle.isEmpty ? null : vm.roomInboxSubtitle,
     );
     return BeaconCardShell(
+      bodyMinHeight: 0,
       muted: true,
       onTap: () => _openBeaconOrSelect(context, vm),
       marker: _myWorkAttentionMarker(attentionMarked: attentionMarked),

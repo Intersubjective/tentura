@@ -167,16 +167,13 @@ class MyWorkObligationBlock extends StatelessWidget {
             // The header names the event; each offer row is the person, the
             // age and «Ответить» on one line.
             nameOnlyOf: (receipt) => helpOfferIds.contains(receipt.id),
-            trailingBuilder: (receipt) => helpOfferIds.contains(receipt.id)
-                ? _respondCta(context, l10n, groupByReceiptId[receipt.id]!)
-                : null,
-            ctaBuilder: (receipt) => helpOfferIds.contains(receipt.id)
-                ? null
-                : _obligationCta(
-                    context,
-                    l10n: l10n,
-                    group: groupByReceiptId[receipt.id],
-                  ),
+            // Every obligation's CTA ends its own line — one row, one act —
+            // instead of a link floating under it on its own left edge.
+            trailingBuilder: (receipt) => _obligationCta(
+              context,
+              l10n: l10n,
+              group: groupByReceiptId[receipt.id],
+            ),
           ),
         if (primaryCtaLabel != null && primaryOnPressed != null) ...[
           if (rows.isNotEmpty) SizedBox(height: tt.tightGap),
@@ -218,9 +215,11 @@ class MyWorkObligationBlock extends StatelessWidget {
     return body;
   }
 
-  /// The per-kind CTA under an obligation row. Every one of them opens a sheet
-  /// or a flow that captures a choice or an input — that is what makes the row
-  /// an obligation rather than an optional update (D04).
+  /// The per-kind CTA at the end of an obligation row. Every one of them
+  /// opens a sheet or a flow that captures a choice or an input — that is what
+  /// makes the row an obligation rather than an optional update (D04).
+  ///
+  /// Tonal, because answering is what the card is asking of you.
   Widget? _obligationCta(
     BuildContext context, {
     required L10n l10n,
@@ -233,16 +232,14 @@ class MyWorkObligationBlock extends StatelessWidget {
     if (label == null || onPressed == null) return null;
     return Semantics(
       identifier: TestIds.myWorkObligation(group.primary.id),
-      child: Padding(
-        padding: EdgeInsets.only(left: tt.cardGap),
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: TenturaTextAction(
-            label: label,
-            minInteractive: true,
-            onPressed: onPressed,
-          ),
+      child: FilledButton.tonal(
+        onPressed: onPressed,
+        style: FilledButton.styleFrom(
+          minimumSize: Size(0, tt.buttonHeight),
+          tapTargetSize: MaterialTapTargetSize.padded,
+          padding: EdgeInsets.symmetric(horizontal: tt.rowGap),
         ),
+        child: Text(label),
       ),
     );
   }
@@ -252,28 +249,6 @@ class MyWorkObligationBlock extends StatelessWidget {
     final respond = onRespondHelpOffer;
     if (offererId == null || respond == null) return null;
     return () => respond(offererId);
-  }
-
-  /// «Ответить» at the end of a help-offer row — tonal, because answering is
-  /// what the card is asking of the author.
-  Widget _respondCta(
-    BuildContext context,
-    L10n l10n,
-    MyWorkObligationGroup group,
-  ) {
-    final tt = context.tt;
-    return Semantics(
-      identifier: TestIds.myWorkObligation(group.primary.id),
-      child: FilledButton.tonal(
-        onPressed: _respondCallback(group),
-        style: FilledButton.styleFrom(
-          minimumSize: Size(0, tt.buttonHeight),
-          tapTargetSize: MaterialTapTargetSize.padded,
-          padding: EdgeInsets.symmetric(horizontal: tt.rowGap),
-        ),
-        child: Text(l10n.myWorkObligationRespond),
-      ),
-    );
   }
 
   /// A review obligation the viewer has already opened by deep link and left
