@@ -177,8 +177,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
                                     onRemove: cubit.clearImage,
                                     onCrop: cropAvatar,
                                     onUpload: uploadAvatar,
-                                    uploadLabel: l10n.titleUploadProfilePhoto,
-                                    cropLabel: l10n.titleCropAvatar,
+                                    uploadLabel: l10n.profilePhotoUpload,
+                                    cropLabel: l10n.profilePhotoCrop,
                                     removeLabel: l10n.buttonRemove,
                                   ),
                                 ],
@@ -323,26 +323,33 @@ class _ProfileAvatarActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
+    // One row of equal-weight text actions with icons; three outlined
+    // buttons of three widths wrapped unevenly with 2 dp between them.
+    // Remove is destructive and says so in colour.
     final children = <Widget>[
-      OutlinedButton(
+      TextButton.icon(
         onPressed: isLoading ? null : onUpload,
-        child: Text(uploadLabel),
+        icon: const Icon(Icons.upload_outlined),
+        label: Text(uploadLabel),
       ),
       if (canCrop)
-        OutlinedButton(
+        TextButton.icon(
           onPressed: isLoading ? null : onCrop,
-          child: Text(cropLabel),
+          icon: const Icon(Icons.crop),
+          label: Text(cropLabel),
         ),
       if (canRemove)
-        OutlinedButton(
+        TextButton.icon(
           onPressed: isLoading ? null : onRemove,
-          child: Text(removeLabel),
+          style: TextButton.styleFrom(foregroundColor: tt.danger),
+          icon: const Icon(Icons.delete_outline),
+          label: Text(removeLabel),
         ),
     ];
 
     return Wrap(
       alignment: WrapAlignment.center,
-      spacing: tt.tightGap,
+      spacing: tt.rowGap,
       runSpacing: tt.tightGap,
       children: children,
     );

@@ -57,8 +57,12 @@ class OwnProfileAvailabilityControl extends StatelessWidget {
       todayUtc,
     );
 
+    // Centred: the Change action's 44 dp target sat on another baseline
+    // than the one-line status it changes.
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: secondaryLine == null
+          ? CrossAxisAlignment.center
+          : CrossAxisAlignment.start,
       children: [
         Expanded(
           child: Column(

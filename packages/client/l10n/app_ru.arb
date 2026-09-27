@@ -195,6 +195,14 @@
   "@titleCropAvatar": {
     "context": "Utils"
   },
+  "profilePhotoUpload": "Загрузить",
+  "@profilePhotoUpload": {
+    "context": "ProfileEditScreen"
+  },
+  "profilePhotoCrop": "Обрезать",
+  "@profilePhotoCrop": {
+    "context": "ProfileEditScreen"
+  },
   "titleUploadProfilePhoto": "Загрузить фото профиля",
   "@titleUploadProfilePhoto": {
     "context": "Utils"
