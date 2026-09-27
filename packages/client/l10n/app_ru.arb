@@ -335,7 +335,7 @@
   "@invitationScreenTitle": {
     "context": "InvitationScreen"
   },
-  "friendsTitle": "Друзья",
+  "friendsTitle": "Люди",
   "@friendsTitle": {
     "context": "FriendsScreen"
   },
@@ -1036,7 +1036,7 @@
   "@graphView": {
     "context": "GraphScreen"
   },
-  "forwardsGraphView": "Граф пересылок",
+  "forwardsGraphView": "Как расходился запрос",
   "@forwardsGraphView": {
     "context": "ForwardsGraphScreen"
   },
@@ -1247,15 +1247,15 @@
   "@requestDiscoverableLabel": {
     "description": "Action label for the author discoverability toggle on a request."
   },
-  "requestDiscoverableOn": "Включено — этот запрос могут найти в Поле те, кто видит вас. Открыв его, они не попадают в обсуждение.",
+  "requestDiscoverableOn": "Включено — этот запрос могут найти в «Моём поле» те, кто видит вас. Открыв его, они не попадают в обсуждение.",
   "@requestDiscoverableOn": {
     "description": "Explains discoverability when the toggle is on (used as subtitle when on, or as the sibling alternative when off)."
   },
-  "requestDiscoverableOff": "Выключено — в Поле его не найти. Открыть смогут только те, кому вы его переслали, и те, кто уже участвует.",
+  "requestDiscoverableOff": "Выключено — в «Моём поле» его не найти. Открыть смогут только те, кому вы его переслали, и те, кто уже участвует.",
   "@requestDiscoverableOff": {
     "description": "Explains discoverability when the toggle is off (used as subtitle when off, or as the sibling alternative when on)."
   },
-  "constellationTitle": "Поле",
+  "constellationTitle": "Моё поле",
   "@constellationTitle": {
     "description": "App bar title on the Field (Constellation) screen",
     "context": "ConstellationScreen"
@@ -1674,7 +1674,7 @@
   "@profileRemovalHint": {
     "context": "MyProfileDelete"
   },
-  "showConnections": "Показать связи",
+  "showConnections": "Связи",
   "@showConnections": {
     "context": "Profile"
   },
@@ -1682,7 +1682,7 @@
   "@profileSectionNetwork": {
     "context": "ProfileScreen"
   },
-  "showInviteGenealogy": "Генеалогия приглашений",
+  "showInviteGenealogy": "Дерево приглашений",
   "@showInviteGenealogy": {
     "context": "Profile"
   },
@@ -1694,7 +1694,7 @@
   "@inviteGenealogyBetweenTitle": {
     "context": "Profile"
   },
-  "showBeacons": "Показать запросы",
+  "showBeacons": "Запросы",
   "@showBeacons": {
     "context": "Profile"
   },
@@ -2269,7 +2269,7 @@
   "notificationCatCoordinationDesc": "Активность в обсуждениях запросов, где вы участвуете, включая @упоминания",
   "notificationCatConnections": "Связи",
   "notificationCatConnectionsDesc": "Приглашения и активность связей",
-  "notificationCatAmbient": "Фоновые",
+  "notificationCatAmbient": "Второстепенное",
   "notificationCatAmbientDesc": "Фоновая активность низкого приоритета",
   "notificationDigest": "Сводка по эл. почте",
   "notificationDigestOff": "Выкл.",
@@ -3623,7 +3623,7 @@
   "@activityShowInStream": {
     "context": "InboxScreen"
   },
-  "notificationHistoryTitle": "История уведомлений",
+  "notificationHistoryTitle": "Обновления",
   "@notificationHistoryTitle": {
     "context": "UpdatesScreen"
   },
@@ -5152,7 +5152,7 @@
     "context": "Disabled composer placeholder when the request discussion no longer accepts ordinary writes"
   },
   "beaconRoomOpen": "Общее",
-  "beaconRoomBackToChat": "К темам",
+  "beaconRoomBackToChat": "К чату",
   "@beaconRoomBackToChat": {
     "context": "BeaconViewScreen",
     "description": "Возврат из вложенного обсуждения элемента в основной чат."
@@ -6094,7 +6094,7 @@
   "notificationSettingsInApp": "В приложении",
   "notificationSettingsInAppMandatory": "Обновления о безопасности и обязательствах всегда остаются видимыми.",
   "notificationSettingsInAppCoordination": "Активность координации",
-  "notificationSettingsInAppCoordinationDesc": "Показывать обычные обновления тем и координации.",
+  "notificationSettingsInAppCoordinationDesc": "Показывать обычные обновления обсуждений и координации.",
   "notificationSettingsInAppRequestProgress": "Ход запроса",
   "notificationSettingsInAppRequestProgressDesc": "Показывать обычные обновления статуса запроса.",
   "blockUserTitle": "Заблокировать {name}?",

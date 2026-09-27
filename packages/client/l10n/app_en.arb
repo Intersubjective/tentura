@@ -335,7 +335,7 @@
   "@invitationScreenTitle": {
     "context": "InvitationScreen"
   },
-  "friendsTitle": "Friends",
+  "friendsTitle": "People",
   "@friendsTitle": {
     "context": "FriendsScreen"
   },
@@ -1036,7 +1036,7 @@
   "@graphView": {
     "context": "GraphScreen"
   },
-  "forwardsGraphView": "Forwards graph",
+  "forwardsGraphView": "How this Request spread",
   "@forwardsGraphView": {
     "context": "ForwardsGraphScreen"
   },
@@ -1243,19 +1243,19 @@
   "@network": {
     "context": "HomeScreen"
   },
-  "requestDiscoverableLabel": "Let people find this request",
+  "requestDiscoverableLabel": "Let people find this Request",
   "@requestDiscoverableLabel": {
     "description": "Action label for the author discoverability toggle on a request."
   },
-  "requestDiscoverableOn": "On — people who can see you can find this request in Field. Opening it does not add them to the discussion.",
+  "requestDiscoverableOn": "On — people who can see you can find this Request in My field. Opening it does not add them to the discussion.",
   "@requestDiscoverableOn": {
     "description": "Explains discoverability when the toggle is on (used as subtitle when on, or as the sibling alternative when off)."
   },
-  "requestDiscoverableOff": "Off — no one can find it in Field. Only people you forward it to, and anyone already involved, can open it.",
+  "requestDiscoverableOff": "Off — no one can find it in My field. Only people you forward it to, and anyone already involved, can open it.",
   "@requestDiscoverableOff": {
     "description": "Explains discoverability when the toggle is off (used as subtitle when off, or as the sibling alternative when on)."
   },
-  "constellationTitle": "Field",
+  "constellationTitle": "My field",
   "@constellationTitle": {
     "description": "App bar title on the Field (Constellation) screen",
     "context": "ConstellationScreen"
@@ -1674,7 +1674,7 @@
   "@profileRemovalHint": {
     "context": "MyProfileDelete"
   },
-  "showConnections": "Show Connections",
+  "showConnections": "Connections",
   "@showConnections": {
     "context": "Profile"
   },
@@ -1682,7 +1682,7 @@
   "@profileSectionNetwork": {
     "context": "ProfileScreen"
   },
-  "showInviteGenealogy": "Invite genealogy",
+  "showInviteGenealogy": "Invite tree",
   "@showInviteGenealogy": {
     "context": "Profile"
   },
@@ -1694,7 +1694,7 @@
   "@inviteGenealogyBetweenTitle": {
     "context": "Profile"
   },
-  "showBeacons": "Show Requests",
+  "showBeacons": "Requests",
   "@showBeacons": {
     "context": "Profile"
   },
@@ -1743,7 +1743,7 @@
   "@addToMyField": {
     "context": "ProfileViewBody"
   },
-  "profileSendRequestTo": "Send a request",
+  "profileSendRequestTo": "Send a Request",
   "@profileSendRequestTo": {
     "context": "ProfileViewBody — open person-forward screen for this user"
   },
@@ -2298,7 +2298,7 @@
   "notificationCatCoordinationDesc": "Activity in request discussions you're part of, including @mentions",
   "notificationCatConnections": "Connections",
   "notificationCatConnectionsDesc": "Invitations and connection activity",
-  "notificationCatAmbient": "Ambient",
+  "notificationCatAmbient": "Low-priority activity",
   "notificationCatAmbientDesc": "Low-priority background activity",
   "notificationDigest": "Email digest",
   "notificationDigestOff": "Off",
@@ -2339,7 +2339,7 @@
   "@inboxWatching": {
     "context": "InboxScreen"
   },
-  "inboxRejectedTitle": "Rejected",
+  "inboxRejectedTitle": "Declined",
   "@inboxRejectedTitle": {
     "context": "InboxScreen"
   },
@@ -2401,7 +2401,7 @@
   "@inboxForwardedByMe": {
     "context": "InboxScreen"
   },
-  "inboxTabRejected": "Rejected",
+  "inboxTabRejected": "Declined",
   "@inboxTabRejected": {
     "context": "InboxScreen"
   },
@@ -3665,7 +3665,7 @@
   "@activityShowInStream": {
     "context": "InboxScreen"
   },
-  "notificationHistoryTitle": "Notification history",
+  "notificationHistoryTitle": "Updates",
   "@notificationHistoryTitle": {
     "context": "UpdatesScreen"
   },
@@ -5228,7 +5228,7 @@
     "context": "Disabled composer placeholder when the request discussion no longer accepts ordinary writes"
   },
   "beaconRoomOpen": "General",
-  "beaconRoomBackToChat": "Back to Threads",
+  "beaconRoomBackToChat": "Back to Chat",
   "@beaconRoomBackToChat": {
     "context": "BeaconViewScreen",
     "description": "Returns from a nested item thread to the main room chat column."
@@ -6420,7 +6420,7 @@
   "notificationSettingsInApp": "In app",
   "notificationSettingsInAppMandatory": "Safety and obligation updates always remain visible.",
   "notificationSettingsInAppCoordination": "Coordination activity",
-  "notificationSettingsInAppCoordinationDesc": "Show routine Threads and coordination updates.",
+  "notificationSettingsInAppCoordinationDesc": "Show routine discussion and coordination updates.",
   "notificationSettingsInAppRequestProgress": "Request progress",
   "notificationSettingsInAppRequestProgressDesc": "Show routine Request status updates.",
   "blockUserTitle": "Block {name}?",
