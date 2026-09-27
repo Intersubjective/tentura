@@ -2,6 +2,7 @@
 library;
 
 
+import 'package:drift/drift.dart' show Variable;
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:postgres/postgres.dart';

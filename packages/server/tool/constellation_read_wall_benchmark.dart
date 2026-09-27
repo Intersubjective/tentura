@@ -18,18 +18,6 @@ const _peerCount = 200;
 const _warmupRuns = 2;
 const _timedRuns = 10;
 
-// Verbatim from docs/plans/constellation-implementation-plan.md §0.1
-const _m0160 = r'''
-ALTER TABLE public.beacon ADD COLUMN IF NOT EXISTS is_discoverable boolean;
-UPDATE public.beacon SET is_discoverable = true WHERE is_discoverable IS NULL;
-ALTER TABLE public.beacon ALTER COLUMN is_discoverable SET DEFAULT true;
-ALTER TABLE public.beacon ALTER COLUMN is_discoverable SET NOT NULL;
-
-CREATE INDEX IF NOT EXISTS beacon_discoverable_author_idx
-  ON public.beacon (user_id)
-  WHERE is_discoverable AND status IN (0, 7, 8) AND published_at IS NOT NULL;
-''';
-
 const _m0161Reciprocal = r'''
 CREATE OR REPLACE FUNCTION public.person_reciprocal_explicit_trust(
   a_id text, b_id text

@@ -289,16 +289,16 @@ final class TaskWorkerCase extends UseCaseBase {
       );
       for (final lease in leases) {
         try {
-          await _imageObjectGc!.removeObject(
+          await _imageObjectGc.removeObject(
             imageId: lease.imageId,
             authorId: lease.authorId,
           );
-          await _imageObjectGc!.complete(
+          await _imageObjectGc.complete(
             imageId: lease.imageId,
             leaseOwner: _gcLeaseOwner,
           );
         } catch (e) {
-          await _imageObjectGc!.fail(
+          await _imageObjectGc.fail(
             imageId: lease.imageId,
             leaseOwner: _gcLeaseOwner,
             retryAt: now.add(_gcRetryBackoff(lease.attempts)),

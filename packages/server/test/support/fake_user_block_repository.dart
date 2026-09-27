@@ -26,7 +26,4 @@ class FakeUserBlockRepository extends Fake implements UserBlockRepositoryPort {
     required Iterable<String> peerIds,
   }) async =>
       peerIds.where((p) => _isBlocked(viewerId, p)).toSet();
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

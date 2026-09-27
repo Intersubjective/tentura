@@ -383,7 +383,7 @@ void main() {
       final message = jsonDecode(session.sent.single! as String) as Map;
       final payload = message['payload'] as Map;
       expect(payload['message_id'], 'Rpaint0001');
-      expect(payload['message'], isA<Map>());
+      expect(payload['message'], isA<Map<dynamic, dynamic>>());
       expect((payload['message'] as Map)['body'], 'hello');
     });
 

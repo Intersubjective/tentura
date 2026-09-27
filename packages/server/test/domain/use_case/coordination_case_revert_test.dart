@@ -51,9 +51,6 @@ class _TrackingEvaluationRepository implements EvaluationRepositoryPort {
       reviewWindowResult;
 
   @override
-  Future<void> closeExpiredWindows() async {}
-
-  @override
   Future<BeaconEvaluationRecord?> getEvaluation({
     required String beaconId,
     required String evaluatorId,

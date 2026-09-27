@@ -558,7 +558,7 @@ void main() {
     test('returns non-null ForwardDeliveryResult with three list fields', () {
       final field = MutationForward(forwardCase: case_).forward;
       expect(field.name, 'beaconForward');
-      expect(field.type, isA<GraphQLNonNullableType>());
+      expect(field.type, isA<GraphQLNonNullableType<dynamic, dynamic>>());
       final resultType =
           (field.type as GraphQLNonNullableType).ofType as GraphQLObjectType;
       expect(resultType.name, 'ForwardDeliveryResult');
@@ -574,7 +574,7 @@ void main() {
         },
       );
       for (final graphField in resultType.fields) {
-        expect(graphField.type, isA<GraphQLNonNullableType>());
+        expect(graphField.type, isA<GraphQLNonNullableType<dynamic, dynamic>>());
       }
     });
   });

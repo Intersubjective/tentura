@@ -146,3 +146,4 @@ review due: 2026-10-04
 - **tentura-tests-always-wrap-flutter-test-dart-test**: applied
 <!-- alloy:memory-review:ptl:end -->
 <!-- tentura-jc0 landing gate acceptance (trial merge tentura-ptl) -->
+<!-- tentura-olc landing gate acceptance (trial merge tentura-21x) -->

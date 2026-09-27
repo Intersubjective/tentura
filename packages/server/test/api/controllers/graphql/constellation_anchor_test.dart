@@ -137,7 +137,11 @@ void main() {
       expect(fieldRepo.lastProjection, ConstellationProjection.full);
       expect(
         result['constellationField'],
-        isA<Map>().having((m) => m['context'], 'context', kConstellationContext),
+        isA<Map<dynamic, dynamic>>().having(
+          (m) => m['context'],
+          'context',
+          kConstellationContext,
+        ),
       );
     });
 

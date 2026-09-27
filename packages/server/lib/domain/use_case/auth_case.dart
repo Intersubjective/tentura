@@ -187,7 +187,7 @@ final class AuthCase extends UseCaseBase {
             ),
           );
           await transaction.record(
-            await _attentionIntents!.mutualConnectionFormed(
+            await _attentionIntents.mutualConnectionFormed(
               actorUserId: invitation.issuer.id,
               counterpartUserId: user.id,
               sourceEventKey: 'invitation:$invitationId:mutual',

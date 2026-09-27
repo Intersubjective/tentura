@@ -208,7 +208,7 @@ FROM public.beacon_hierarchy_deliveries
 WHERE event_id = @eventId
 ORDER BY target_beacon_id
 '''),
-          parameters: {'eventId': closedEvent!.eventId},
+          parameters: {'eventId': closedEvent.eventId},
         );
         expect(
           deliveries.map((r) => r[0]),

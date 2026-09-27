@@ -42,6 +42,8 @@ Future<void> initSentry({
       configureServerLogSink(sentryEnabled: true);
       await appRunner();
     },
+    // Deliberate: the SDK exposes no public zone-error hook.
+    // ignore: invalid_use_of_internal_member
     runZonedGuardedOnError: _onZoneError,
   );
 }

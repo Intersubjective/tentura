@@ -1,0 +1,11 @@
+<!-- alloy:memory:begin -->
+reviewed: 2026-09-27
+review due: 2026-10-04
+<!-- alloy:memory:end -->
+
+<!-- alloy:memory-review:ptl:begin -->
+- **tentura-layout-pub-workspace-packages-client-flutter-run**: applied
+- **tentura-tests-always-wrap-flutter-test-dart-test**: applied
+<!-- alloy:memory-review:ptl:end -->
+<!-- tentura-jc0 landing gate acceptance (trial merge tentura-ptl) -->
+<!-- tentura-olc landing gate acceptance (trial merge tentura-21x) -->

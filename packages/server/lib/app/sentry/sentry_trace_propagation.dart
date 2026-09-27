@@ -13,6 +13,9 @@ void applyIncomingTraceToHub(
   if (traceHeader == null) {
     return;
   }
+  // Deliberate: the SDK exposes no public API to seed the propagation
+  // context from inbound trace headers.
+  // ignore: invalid_use_of_internal_member
   final propagation = hub.scope.propagationContext;
   propagation.traceId = traceHeader.traceId;
   propagation.baggage = baggage;
@@ -39,6 +42,8 @@ SentryTransactionContext buildHttpServerTransactionContext({
     'http.server',
     traceHeader,
     baggage: baggage,
+    // Deliberate: binds to this request-scoped hub, not the current hub.
+    // ignore: invalid_use_of_internal_member
     options: hub.options,
   );
 }

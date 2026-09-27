@@ -154,7 +154,8 @@ void main() {
 
         final payload =
             jsonDecode(result.stdout as String) as Map<String, dynamic>;
-        final diagnostics = (payload['diagnostics'] as List).cast<Map>();
+        final diagnostics =
+            (payload['diagnostics'] as List).cast<Map<String, dynamic>>();
         final annotateOverrides = diagnostics
             .where((d) => d['code'] == 'annotate_overrides')
             .map((d) {

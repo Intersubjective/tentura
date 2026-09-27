@@ -313,7 +313,7 @@ void main() {
               predicate<TaskEntity>(
                 (task) =>
                     task.details is TaskCalculateImageHashDetails &&
-                    (task.details! as TaskCalculateImageHashDetails).imageId ==
+                    (task.details as TaskCalculateImageHashDetails).imageId ==
                         'Inew',
               ),
             ),

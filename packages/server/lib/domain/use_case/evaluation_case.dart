@@ -235,9 +235,7 @@ final class EvaluationCase extends UseCaseBase {
               reason: BeaconLifecycleChangeReason.directClose,
               actorId: userId,
             );
-            if (statusIntent != null) {
-              await transaction.record(statusIntent);
-            }
+            await transaction.record(statusIntent);
             return BeaconCloseReviewResult(
               id: beaconId,
               status: BeaconStatus.closed.smallintValue,
@@ -287,9 +285,7 @@ final class EvaluationCase extends UseCaseBase {
             reason: BeaconLifecycleChangeReason.reviewWindowOpened,
             actorId: userId,
           );
-          if (statusIntent != null) {
-            await transaction.record(statusIntent);
-          }
+          await transaction.record(statusIntent);
 
           await _evaluationRepository.insertReviewWindow(
             beaconId: beaconId,
@@ -332,7 +328,7 @@ final class EvaluationCase extends UseCaseBase {
           await _draftPurger.purgeDraftsOutsideVisibility(beaconId);
 
           await transaction.record(
-            await _attentionIntents!.reviewOpened(
+            await _attentionIntents.reviewOpened(
               beaconId: beaconId,
               beaconTitle: beacon.title,
               recipientUserIds: reviewerIds,
@@ -594,8 +590,8 @@ final class EvaluationCase extends UseCaseBase {
                 bin: pair.bin,
                 sourceEventKey: 'trust_given:${generateId('A')}',
               );
-              await transaction!.record(given);
-              final received = await _attentionIntents!.trustReceivedChanged(
+              await transaction.record(given);
+              final received = await _attentionIntents.trustReceivedChanged(
                 beaconId: beaconId,
                 beaconTitle: beaconTitle,
                 evaluatorId: pair.evaluatorId,
@@ -603,7 +599,7 @@ final class EvaluationCase extends UseCaseBase {
                 bin: pair.bin,
                 sourceEventKey: 'trust_received:${generateId('A')}',
               );
-              await transaction!.record(received);
+              await transaction.record(received);
             }
           }
           return BeaconCloseReviewResult(

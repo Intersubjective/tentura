@@ -118,7 +118,7 @@ class _FakeImageObjectGc extends Fake implements ImageObjectGcPort {}
 class _FakeTaskRepo extends Fake implements TaskRepositoryPort {}
 
 /// Unwraps `nonNullable()`/list wrappers to the innermost named type.
-String _baseTypeName(GraphQLType type) {
+String _baseTypeName(GraphQLType<dynamic, dynamic> type) {
   var t = type;
   while (true) {
     if (t is GraphQLNonNullableType) {
@@ -131,9 +131,10 @@ String _baseTypeName(GraphQLType type) {
   }
 }
 
-bool _isNonNullable(GraphQLType type) => type is GraphQLNonNullableType;
+bool _isNonNullable(GraphQLType<dynamic, dynamic> type) =>
+    type is GraphQLNonNullableType;
 
-bool _isListOf(GraphQLType type, String innerName) {
+bool _isListOf(GraphQLType<dynamic, dynamic> type, String innerName) {
   final unwrapped = type is GraphQLNonNullableType ? type.ofType : type;
   return unwrapped is GraphQLListType &&
       _baseTypeName(unwrapped.ofType) == innerName;

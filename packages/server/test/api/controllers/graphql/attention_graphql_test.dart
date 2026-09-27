@@ -559,7 +559,7 @@ void main() {
       expect(query.accountId, 'U1');
       expect(query.historyBeaconId, 'B1');
       expect(query.historyLimit, 50);
-      expect((result['items'] as List).single, isA<Map>());
+      expect((result['items'] as List).single, isA<Map<dynamic, dynamic>>());
       final cursor = result['nextCursor'] as String;
       expect(cursor, isNotEmpty);
 

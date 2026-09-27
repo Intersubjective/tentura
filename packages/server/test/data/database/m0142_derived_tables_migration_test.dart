@@ -114,5 +114,3 @@ ORDER BY id
   expect(epochRows.single[0], true);
   expect(epochRows.single[1], 0);
 }
-
-

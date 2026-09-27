@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:injectable/injectable.dart';
-import 'package:postgres/postgres.dart' show Severity, Type, TypedValue;
+import 'package:postgres/postgres.dart' show Type, TypedValue;
 import 'package:tentura_root/domain/entity/beacon_child_command_outcome.dart';
 import 'package:tentura_root/domain/entity/beacon_creation_context.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';

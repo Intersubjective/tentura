@@ -25,7 +25,7 @@ GraphQL get graphqlSchema => _NullSafeGraphQL(
 ///
 /// Exact match wins so intentionally prefixed server types
 /// (e.g. `v2_PersonTopCapabilities`) stay unchanged.
-GraphQLType? resolveStitchedV2Type(
+GraphQLType<dynamic, dynamic>? resolveStitchedV2Type(
   String name,
   Iterable<GraphQLType<dynamic, dynamic>> types,
 ) {
@@ -55,7 +55,7 @@ class _NullSafeGraphQL extends GraphQL {
   /// that fails for a Hasura-stitched `v2_*` name, fall back to the bare
   /// server type (`v2_Upload` → `Upload`).
   @override
-  GraphQLType convertType(
+  GraphQLType<dynamic, dynamic> convertType(
     TypeContext ctx, {
     bool usePolymorphicName = false,
     GraphQLObjectType? parent,

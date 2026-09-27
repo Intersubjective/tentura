@@ -13,7 +13,9 @@ void main() {
       await Sentry.init((options) {
         options
           ..dsn = 'https://public@o123.ingest.sentry.io/1'
-          ..automatedTestMode = true
+            // Deliberate: rethrow exceptions in user closures during tests.
+            // ignore: invalid_use_of_internal_member
+            ..automatedTestMode = true
           ..tracesSampleRate = 1.0
           ..beforeSendTransaction = (transaction, hint) {
             capturedTransaction = transaction;

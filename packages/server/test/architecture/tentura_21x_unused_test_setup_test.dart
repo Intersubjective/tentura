@@ -298,7 +298,8 @@ List<String> guardedUnusedSetupDiagnosticsFromPackageAnalyze() {
   );
 
   final payload = jsonDecode(stdout) as Map<String, dynamic>;
-  final diagnostics = (payload['diagnostics'] as List).cast<Map>();
+  final diagnostics =
+      (payload['diagnostics'] as List).cast<Map<String, dynamic>>();
   return diagnostics
       .where(
         (d) =>

@@ -39,16 +39,10 @@ import '../../support/fake_user_block_repository.dart';
 import '../../support/pg_test_public_keys.dart';
 
 final class _NoopTrustEvidenceRepository extends Fake
-    implements TrustEvidenceRepositoryPort {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
+    implements TrustEvidenceRepositoryPort {}
 
 final class _NoopInviteGenealogyRepository extends Fake
-    implements InviteGenealogyRepositoryPort {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
+    implements InviteGenealogyRepositoryPort {}
 
 Future<void> main() async {
   final target = _DisposablePgTarget.fromEnvironment();

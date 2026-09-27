@@ -91,7 +91,6 @@ void main() {
     final raw = response.headers['set-cookie'];
     if (raw == null) return '';
     return raw;
-    return raw;
   }
 
   test('logout without cookie still clears session cookie', () async {

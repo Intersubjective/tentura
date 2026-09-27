@@ -39,7 +39,7 @@ File _repoContractFile() {
 Set<String> _contractSpecializedPublishers() {
   final contract =
       jsonDecode(_repoContractFile().readAsStringSync()) as Map<String, dynamic>;
-  final kinds = (contract['kinds']! as List).cast<Map>();
+  final kinds = (contract['kinds']! as List).cast<Map<String, dynamic>>();
   final publishers = <String>{};
   for (final entry in kinds) {
     publishers.addAll(

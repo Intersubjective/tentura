@@ -99,7 +99,8 @@ WHERE id = $1 AND status = 'leased' AND lease_owner = $2''',
     [id, workerId, now.toUtc().toIso8601String(), error.toString()],
   );
 
-  AttentionChannelDecision _decision(Map value) => AttentionChannelDecision(
+  AttentionChannelDecision _decision(Map<dynamic, dynamic> value) =>
+      AttentionChannelDecision(
     receiptId: value['receiptId']! as String,
     recipientId: value['recipientId']! as String,
     kind: NotificationKind.values.byName(value['kind']! as String),

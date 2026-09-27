@@ -27,7 +27,8 @@ void main() {
         );
 
         final payload = jsonDecode(stdout) as Map<String, dynamic>;
-        final diagnostics = (payload['diagnostics'] as List).cast<Map>();
+        final diagnostics =
+            (payload['diagnostics'] as List).cast<Map<String, dynamic>>();
         final commentReferences = diagnostics
             .where((d) => d['code'] == 'comment_references')
             .map((d) {

@@ -55,9 +55,6 @@ class _LockingBeaconRepo extends Fake implements BeaconRepositoryPort {
     required Future<T> Function(BeaconEntity locked) fn,
   }) =>
       fn(_beacon);
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 void main() {

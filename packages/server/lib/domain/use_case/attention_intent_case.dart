@@ -741,7 +741,7 @@ class AttentionIntentCase {
 
     if (actorUserId != null) {
       final hiddenPeerIds = await _userBlocks.hiddenPeerIds(
-        viewerId: actorUserId!,
+        viewerId: actorUserId,
         peerIds: reasonsByRecipient.keys,
       );
       for (final hiddenId in hiddenPeerIds) {
@@ -851,7 +851,7 @@ class AttentionIntentCase {
 
     if (actorUserId != null) {
       final hiddenPeerIds = await _userBlocks.hiddenPeerIds(
-        viewerId: actorUserId!,
+        viewerId: actorUserId,
         peerIds: reasonsByRecipient.keys,
       );
       for (final hiddenId in hiddenPeerIds) {

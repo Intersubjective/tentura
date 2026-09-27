@@ -20,7 +20,7 @@ import 'package:tentura_server/domain/policy/discussion_product_policy.dart';
 import 'package:tentura_server/domain/use_case/beacon_room_case.dart';
 import 'package:tentura_server/env.dart';
 
-String _baseTypeName(GraphQLType type) {
+String _baseTypeName(GraphQLType<dynamic, dynamic> type) {
   var t = type;
   while (true) {
     if (t is GraphQLNonNullableType) {

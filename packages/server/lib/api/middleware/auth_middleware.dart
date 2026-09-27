@@ -33,7 +33,9 @@ class AuthMiddleware {
             final jwt = _authCase.parseAndVerifyJwt(
               token: _extractAuthTokenFromHeaders(request.headers),
             );
-            return innerHandler(request.change(context: {kContextJwtKey: jwt}));
+            return await innerHandler(
+              request.change(context: {kContextJwtKey: jwt}),
+            );
           } catch (e) {
             _log.warning('JWT verification failed', e);
             return Response.unauthorized(null);

@@ -896,9 +896,5 @@ final class _StubUserRepository extends Fake
 }
 
 final class _StubUserProfileBatchLookup extends Fake
-    implements UserProfileBatchLookup {
-  @override
-  Future<Map<String, String>> displayNamesForIds(Iterable<String> ids) async =>
-      {for (final id in ids) id: id};
-}
+    implements UserProfileBatchLookup {}
 

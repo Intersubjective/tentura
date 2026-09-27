@@ -19,7 +19,10 @@ InviteSeedAttestationCase buildInviteSeedCase({
   required MockMutatingUnitOfWorkPort unitOfWork,
 }) {
   when(
-    unitOfWork.run(
+    // T must match the case's inferred `run<Null>` (async action closures
+    // with no return infer Future<Null>): the generated mock casts the
+    // stubbed answer to Future<T>.
+    unitOfWork.run<Null>(
       action: anyNamed('action'),
       actorUserId: anyNamed('actorUserId'),
     ),

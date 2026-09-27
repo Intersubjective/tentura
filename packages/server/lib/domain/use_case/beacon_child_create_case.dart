@@ -90,7 +90,7 @@ final class BeaconChildCreateCase extends UseCaseBase
     final isPromotion =
         sourceMessageId != null && sourceMessageId.trim().isNotEmpty;
     final normalizedSourceMessageId =
-        isPromotion ? sourceMessageId!.trim() : null;
+        isPromotion ? sourceMessageId.trim() : null;
 
     var normalizedTitle = title.trim();
     var normalizedDescription = isPromotion

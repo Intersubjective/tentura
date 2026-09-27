@@ -15,7 +15,7 @@ import 'package:tentura_server/domain/use_case/user_availability_case.dart';
 import 'package:tentura_server/env.dart';
 
 /// Unwraps `nonNullable()`/list wrappers to the innermost named type.
-String _baseTypeName(GraphQLType type) {
+String _baseTypeName(GraphQLType<dynamic, dynamic> type) {
   var t = type;
   while (true) {
     if (t is GraphQLNonNullableType) {
@@ -28,7 +28,8 @@ String _baseTypeName(GraphQLType type) {
   }
 }
 
-bool _isNonNullable(GraphQLType type) => type is GraphQLNonNullableType;
+bool _isNonNullable(GraphQLType<dynamic, dynamic> type) =>
+    type is GraphQLNonNullableType;
 
 GraphQL _availabilityGraphQL(MutationAvailability mutation) => GraphQL(
   GraphQLSchema(
@@ -200,14 +201,14 @@ void main() {
       expect(_baseTypeName(setLimited.type), 'Boolean');
       expect(
         setLimited.inputs.singleWhere((i) => i.name == 'isLimited').type,
-        isA<GraphQLNonNullableType>(),
+        isA<GraphQLNonNullableType<dynamic, dynamic>>(),
       );
 
       expect(_isNonNullable(pause.type), isTrue);
       expect(_baseTypeName(pause.type), 'Boolean');
       expect(
         pause.inputs.singleWhere((i) => i.name == 'resumeOn').type,
-        isA<GraphQLNonNullableType>(),
+        isA<GraphQLNonNullableType<dynamic, dynamic>>(),
       );
 
       expect(_isNonNullable(resume.type), isTrue);

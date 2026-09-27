@@ -3,7 +3,6 @@ library;
 
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
-
 import '../../support/beacon_hierarchy_fixture.dart';
 import 'beacon_hierarchy_pg_helpers.dart';
 

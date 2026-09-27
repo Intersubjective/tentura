@@ -19,6 +19,8 @@ void main() {
       await Sentry.init((options) {
         options
           ..dsn = 'https://public@o123.ingest.sentry.io/1'
+          // Deliberate: rethrow exceptions in user closures during tests.
+          // ignore: invalid_use_of_internal_member
           ..automatedTestMode = true
           ..tracesSampleRate = 1.0;
       });

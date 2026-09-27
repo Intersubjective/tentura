@@ -36,7 +36,7 @@ import '../../../domain/use_case/forward_case_mocks.mocks.dart';
 
 import '../../../support/disposable_pg_target.dart';
 
-String _baseTypeName(GraphQLType type) {
+String _baseTypeName(GraphQLType<dynamic, dynamic> type) {
   var t = type;
   while (true) {
     if (t is GraphQLNonNullableType) {
@@ -49,7 +49,8 @@ String _baseTypeName(GraphQLType type) {
   }
 }
 
-bool _isNonNullable(GraphQLType type) => type is GraphQLNonNullableType;
+bool _isNonNullable(GraphQLType<dynamic, dynamic> type) =>
+    type is GraphQLNonNullableType;
 
 GraphQL _forwardGraphQL(MutationForward mutation) => GraphQL(
   GraphQLSchema(
@@ -126,7 +127,7 @@ Future<void> main() async {
     test('beaconForward is non-null ForwardDeliveryResult with three fields', () {
       final field = mutation.forward;
       expect(field.name, 'beaconForward');
-      expect(field.type, isA<GraphQLNonNullableType>());
+      expect(field.type, isA<GraphQLNonNullableType<dynamic, dynamic>>());
       final resultType =
           (field.type as GraphQLNonNullableType).ofType as GraphQLObjectType;
       expect(resultType.name, 'ForwardDeliveryResult');
@@ -142,14 +143,14 @@ Future<void> main() async {
         },
       );
       for (final graphField in resultType.fields) {
-        expect(graphField.type, isA<GraphQLNonNullableType>());
+        expect(graphField.type, isA<GraphQLNonNullableType<dynamic, dynamic>>());
         if (graphField.name == 'batchId') {
           expect(_baseTypeName(graphField.type), 'String');
         } else {
           expect(_baseTypeName(graphField.type), 'String');
           expect(
             (graphField.type as GraphQLNonNullableType).ofType,
-            isA<GraphQLListType>(),
+            isA<GraphQLListType<dynamic, dynamic>>(),
           );
           final listType =
               (graphField.type as GraphQLNonNullableType).ofType

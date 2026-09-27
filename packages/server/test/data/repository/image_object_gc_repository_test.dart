@@ -2,6 +2,7 @@
 library;
 
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';

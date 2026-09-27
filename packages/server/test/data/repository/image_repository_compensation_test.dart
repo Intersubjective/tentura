@@ -2,6 +2,7 @@
 library;
 
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';

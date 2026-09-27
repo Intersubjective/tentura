@@ -158,7 +158,6 @@ void main() {
     final raw = response.headers['set-cookie'];
     if (raw == null) return '';
     return raw;
-    return raw;
   }
 
   Future<String> readBody(Response response) => response.readAsString();
