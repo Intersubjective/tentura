@@ -1633,6 +1633,10 @@
   "@showConnections": {
     "context": "Profile"
   },
+  "profileSectionNetwork": "Сеть",
+  "@profileSectionNetwork": {
+    "context": "ProfileScreen"
+  },
   "showInviteGenealogy": "Генеалогия приглашений",
   "@showInviteGenealogy": {
     "context": "Profile"
@@ -1857,6 +1861,18 @@
   },
   "settingsDebug": "Отладка",
   "@settingsDebug": {
+    "context": "SettingsScreen"
+  },
+  "settingsSectionAccount": "Аккаунт",
+  "@settingsSectionAccount": {
+    "context": "SettingsScreen"
+  },
+  "settingsSectionApp": "Приложение",
+  "@settingsSectionApp": {
+    "context": "SettingsScreen"
+  },
+  "settingsSectionDanger": "Опасная зона",
+  "@settingsSectionDanger": {
     "context": "SettingsScreen"
   },
   "settingsDebugOrientationSection": "Панель первого запуска",

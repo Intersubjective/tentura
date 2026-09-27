@@ -29,6 +29,14 @@ class ResetCountersButton extends StatefulWidget {
 }
 
 class _ResetCountersButtonState extends State<ResetCountersButton> {
+  /// Notes under the row sit on the row's own text keyline.
+  static EdgeInsets _notePadding(TenturaTokens tt) => EdgeInsets.fromLTRB(
+    tt.menuTextStart,
+    tt.tightGap,
+    tt.rowGap,
+    tt.rowGap,
+  );
+
   late final ResetCountersCubit _cubit = widget.cubit ?? ResetCountersCubit();
 
   @override
@@ -59,28 +67,30 @@ class _ResetCountersButtonState extends State<ResetCountersButton> {
       },
       builder: (context, state) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        spacing: tt.rowGap,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          TenturaCommandButton(
+          TenturaMenuTile(
             key: const Key(TestIds.attentionResetCounters),
-            label: l10n.attentionResetCounters,
-            icon: const Icon(Icons.refresh_outlined),
+            icon: Icons.refresh_outlined,
+            title: l10n.attentionResetCounters,
+            // The explanation belongs to this row: it says the command is a
+            // recheck, before anybody runs it.
+            subtitle: l10n.attentionResetCountersExplanation,
+            opensPage: false,
             // The guard lives in the cubit too; disabling is what the user
             // sees of it.
-            onPressed: state.isRunning ? null : _cubit.resetCounters,
+            onTap: state.isRunning ? null : _cubit.resetCounters,
           ),
           if (state.isRunning) ...[
             const LinearProgressIndicator(),
-            TenturaMetaText(
-              l10n.attentionResetCountersProgress,
-              maxLines: 2,
+            Padding(
+              padding: _notePadding(tt),
+              child: TenturaMetaText(
+                l10n.attentionResetCountersProgress,
+                maxLines: 2,
+              ),
             ),
           ],
-          TenturaMetaText(
-            l10n.attentionResetCountersExplanation,
-            maxLines: 6,
-            overflow: TextOverflow.visible,
-          ),
           // U17d — `unrepairableObligationCount`. A correct run can still
           // come back with rows reconciliation cannot fix from their source,
           // and the person is owed that plainly: it is not a failure, it is
@@ -88,11 +98,16 @@ class _ResetCountersButtonState extends State<ResetCountersButton> {
           // Saying so beats inventing a button. It is shown only after a run
           // that answered — a failed run reports zero, so nothing lingers.
           if (state.unrepairableCount > 0)
-            TenturaMetaText(
-              key: ResetCountersButton.unrepairableKey,
-              l10n.attentionResetCountersUnrepairable(state.unrepairableCount),
-              maxLines: 6,
-              overflow: TextOverflow.visible,
+            Padding(
+              padding: _notePadding(tt),
+              child: TenturaMetaText(
+                key: ResetCountersButton.unrepairableKey,
+                l10n.attentionResetCountersUnrepairable(
+                  state.unrepairableCount,
+                ),
+                maxLines: 6,
+                overflow: TextOverflow.visible,
+              ),
             ),
         ],
       ),

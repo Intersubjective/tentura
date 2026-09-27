@@ -123,37 +123,34 @@ class ProfileViewBody extends StatelessWidget {
                 _EditSeedSuggestionSection(profile: profile),
                 _ProfileCapabilitySection(profile: profile),
                 Padding(
-                  padding: kPaddingSmallT,
-                  child: OutlinedButton.icon(
-                    onPressed: () =>
-                        context.read<ScreenCubit>().showGraphFor(profile.id),
-                    icon: const Icon(TenturaIcons.graph),
-                    label: Text(l10n.showConnections),
+                  padding: EdgeInsets.only(top: context.tt.sectionGap),
+                  child: TenturaMenuGroup(
+                    title: l10n.profileSectionNetwork,
+                    children: [
+                      TenturaMenuTile(
+                        icon: TenturaIcons.graph,
+                        title: l10n.showConnections,
+                        onTap: () => context.read<ScreenCubit>().showGraphFor(
+                          profile.id,
+                        ),
+                      ),
+                      TenturaMenuTile(
+                        icon: Icons.device_hub_outlined,
+                        title: l10n.showInviteGenealogy,
+                        onTap: () => context
+                            .read<ScreenCubit>()
+                            .showInviteGenealogyWith(profile.id),
+                      ),
+                      TenturaMenuTile(
+                        icon: Icons.campaign_outlined,
+                        title: l10n.showBeaconsInvolvedIn,
+                        onTap: () => context
+                            .read<ScreenCubit>()
+                            .showInvolvedBeaconsOf(profile.id),
+                      ),
+                      MutualFriendsButton(userId: profile.id),
+                    ],
                   ),
-                ),
-                Padding(
-                  padding: kPaddingSmallT,
-                  child: OutlinedButton.icon(
-                    onPressed: () => context
-                        .read<ScreenCubit>()
-                        .showInviteGenealogyWith(profile.id),
-                    icon: const Icon(Icons.device_hub_outlined),
-                    label: Text(l10n.showInviteGenealogy),
-                  ),
-                ),
-                Padding(
-                  padding: kPaddingSmallT,
-                  child: OutlinedButton.icon(
-                    onPressed: () => context
-                        .read<ScreenCubit>()
-                        .showInvolvedBeaconsOf(profile.id),
-                    icon: const Icon(Icons.open_in_full),
-                    label: Text(l10n.showBeaconsInvolvedIn),
-                  ),
-                ),
-                Padding(
-                  padding: kPaddingSmallT,
-                  child: MutualFriendsButton(userId: profile.id),
                 ),
               ],
             );

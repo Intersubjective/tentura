@@ -22,12 +22,11 @@ import '../sheet/availability_sheet.dart';
 TenturaTone _ownAvailabilityPrimaryTone(
   Availability availability,
   DateTime todayUtc,
-) =>
-    switch (availability.effectiveOn(todayUtc)) {
-      AvailabilityView.open => TenturaTone.neutral,
-      AvailabilityView.limited => TenturaTone.info,
-      AvailabilityView.paused => TenturaTone.warn,
-    };
+) => switch (availability.effectiveOn(todayUtc)) {
+  AvailabilityView.open => TenturaTone.neutral,
+  AvailabilityView.limited => TenturaTone.info,
+  AvailabilityView.paused => TenturaTone.warn,
+};
 
 /// Own-profile availability status and Change action (architecture §9.2).
 class OwnProfileAvailabilityControl extends StatelessWidget {
@@ -47,9 +46,16 @@ class OwnProfileAvailabilityControl extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
     final availability = profile.availability;
-    final primaryLine = ownAvailabilityPrimaryLine(l10n, availability, todayUtc);
-    final secondaryLine =
-        ownAvailabilitySecondaryLine(l10n, availability, todayUtc);
+    final primaryLine = ownAvailabilityPrimaryLine(
+      l10n,
+      availability,
+      todayUtc,
+    );
+    final secondaryLine = ownAvailabilitySecondaryLine(
+      l10n,
+      availability,
+      todayUtc,
+    );
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -114,8 +120,7 @@ class ProfileBody extends StatelessWidget {
           Center(
             child: profile.hasAvatar
                 ? GestureDetector(
-                    onTap: () =>
-                        openProfileAvatarFullscreen(context, profile),
+                    onTap: () => openProfileAvatarFullscreen(context, profile),
                     child: SelfAwareAvatar.big(
                       profile: profile,
                     ),
@@ -157,55 +162,51 @@ class ProfileBody extends StatelessWidget {
             ),
           ),
 
-          // Show Connections
           Padding(
             padding: sectionTop,
-            child: OutlinedButton.icon(
-              onPressed: () => screenCubit.showGraphFor(profile.id),
-              icon: const Icon(TenturaIcons.graph),
-              label: Text(l10n.showConnections),
-            ),
-          ),
-
-          Padding(
-            padding: sectionTop,
-            child: OutlinedButton.icon(
-              onPressed: screenCubit.showInviteGenealogy,
-              icon: const Icon(Icons.device_hub_outlined),
-              label: Text(l10n.showInviteGenealogy),
-            ),
-          ),
-
-          // Show Beacons
-          Padding(
-            padding: sectionTop,
-            child: OutlinedButton.icon(
-              onPressed: () => screenCubit.showBeaconsOf(profile.id),
-              icon: const Icon(Icons.open_in_full),
-              label: Text(l10n.showBeacons),
-            ),
-          ),
-
-          Padding(
-            padding: sectionTop,
-            child: OutlinedButton.icon(
-              onPressed: () => showHowTenturaWorksSheet(
-                context,
-                onOpenTab: (tab) => AutoTabsRouter.of(context).setActiveIndex(
-                  HomeTabSpec.forTab(tab).index,
+            child: TenturaMenuGroup(
+              title: l10n.profileSectionNetwork,
+              children: [
+                TenturaMenuTile(
+                  icon: TenturaIcons.graph,
+                  title: l10n.showConnections,
+                  onTap: () => screenCubit.showGraphFor(profile.id),
                 ),
-              ),
-              icon: const Icon(Icons.help_outline),
-              label: Text(l10n.orientationReopen),
+                TenturaMenuTile(
+                  icon: Icons.device_hub_outlined,
+                  title: l10n.showInviteGenealogy,
+                  onTap: screenCubit.showInviteGenealogy,
+                ),
+                TenturaMenuTile(
+                  icon: Icons.campaign_outlined,
+                  title: l10n.showBeacons,
+                  onTap: () => screenCubit.showBeaconsOf(profile.id),
+                ),
+              ],
             ),
           ),
-
           Padding(
             padding: sectionTop,
-            child: OutlinedButton.icon(
-              icon: const Icon(Icons.settings),
-              label: Text(l10n.labelSettings),
-              onPressed: screenCubit.showSettings,
+            child: TenturaMenuGroup(
+              title: l10n.settingsSectionApp,
+              children: [
+                TenturaMenuTile(
+                  icon: Icons.help_outline,
+                  title: l10n.orientationReopen,
+                  onTap: () => showHowTenturaWorksSheet(
+                    context,
+                    onOpenTab: (tab) =>
+                        AutoTabsRouter.of(context).setActiveIndex(
+                          HomeTabSpec.forTab(tab).index,
+                        ),
+                  ),
+                ),
+                TenturaMenuTile(
+                  icon: Icons.settings_outlined,
+                  title: l10n.labelSettings,
+                  onTap: screenCubit.showSettings,
+                ),
+              ],
             ),
           ),
         ],

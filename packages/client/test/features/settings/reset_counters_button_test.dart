@@ -113,11 +113,11 @@ void main() {
       findsNothing,
       reason: 'a run in progress has not refreshed anything yet',
     );
-    final button = tester.widget<TenturaCommandButton>(
+    final button = tester.widget<TenturaMenuTile>(
       find.byKey(const Key(TestIds.attentionResetCounters)),
     );
     expect(
-      button.onPressed,
+      button.onTap,
       isNull,
       reason: 'the control the user can still see must not fire a second run',
     );

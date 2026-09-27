@@ -12,6 +12,7 @@ export 'components/tentura_change_highlight.dart';
 export 'components/tentura_confirm_dialog.dart';
 export 'components/tentura_empty_state.dart';
 export 'components/tentura_identity_tile_frame.dart';
+export 'components/tentura_menu_group.dart';
 export 'components/tentura_section_header.dart';
 export 'components/tentura_sheet_dismiss_guard.dart';
 export 'components/tentura_count_badge.dart';

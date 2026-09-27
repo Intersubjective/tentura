@@ -113,70 +113,88 @@ class _SettingsCommandList extends StatelessWidget {
       builder: (context, isLoading) {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          spacing: tt.rowGap,
+          spacing: tt.sectionGap,
           children: [
-            FutureBuilder<String?>(
-              future: settingsCubit.tryGetCurrentAccountSeed(),
-              builder: (context, snapshot) {
-                final seed = snapshot.data;
-                if (seed == null || seed.isEmpty) {
-                  return const SizedBox.shrink();
-                }
-                return TenturaCommandButton(
-                  label: l10n.showSeed,
-                  icon: const Icon(Icons.remove_red_eye_outlined),
-                  onPressed: () async {
-                    if (context.mounted) {
-                      await ShowSeedDialog.show(context, seed: seed);
+            TenturaMenuGroup(
+              title: l10n.settingsSectionAccount,
+              children: [
+                FutureBuilder<String?>(
+                  future: settingsCubit.tryGetCurrentAccountSeed(),
+                  builder: (context, snapshot) {
+                    final seed = snapshot.data;
+                    if (seed == null || seed.isEmpty) {
+                      return const SizedBox.shrink();
                     }
+                    return TenturaMenuTile(
+                      icon: Icons.remove_red_eye_outlined,
+                      title: l10n.showSeed,
+                      onTap: () async {
+                        if (context.mounted) {
+                          await ShowSeedDialog.show(context, seed: seed);
+                        }
+                      },
+                    );
                   },
-                );
-              },
+                ),
+                TenturaMenuTile(
+                  icon: Icons.key_outlined,
+                  title: l10n.signInMethods,
+                  onTap: () => context.router.push(CredentialsRoute()),
+                ),
+                TenturaMenuTile(
+                  icon: Icons.notifications_outlined,
+                  title: l10n.notificationSettings,
+                  onTap: () =>
+                      context.router.push(const NotificationSettingsRoute()),
+                ),
+                TenturaMenuTile(
+                  icon: Icons.alt_route_outlined,
+                  title: l10n.settingsRoutingMute,
+                  onTap: () => context.router.push(const RoutingMuteRoute()),
+                ),
+              ],
             ),
-            TenturaCommandButton(
-              label: l10n.signInMethods,
-              icon: const Icon(Icons.key_outlined),
-              onPressed: () => context.router.push(CredentialsRoute()),
+            TenturaMenuGroup(
+              title: l10n.settingsSectionApp,
+              children: [
+                TenturaMenuTile(
+                  icon: Icons.help_outline,
+                  title: l10n.orientationReopen,
+                  onTap: () => showHowTenturaWorksSheet(context),
+                ),
+                if (!kIsWeb)
+                  TenturaMenuTile(
+                    icon: Icons.reset_tv,
+                    title: l10n.showIntroAgain,
+                    opensPage: false,
+                    onTap: () => settingsCubit.setIntroEnabled(true),
+                  ),
+                const ResetCountersButton(),
+                TenturaMenuTile(
+                  icon: Icons.bug_report_outlined,
+                  title: l10n.settingsDebug,
+                  onTap: () => context.router.push(const DebugSettingsRoute()),
+                ),
+              ],
             ),
-            TenturaCommandButton(
-              label: l10n.notificationSettings,
-              icon: const Icon(Icons.notifications_outlined),
-              onPressed: () =>
-                  context.router.push(const NotificationSettingsRoute()),
-            ),
-            TenturaCommandButton(
-              label: l10n.settingsRoutingMute,
-              icon: const Icon(Icons.alt_route_outlined),
-              onPressed: () => context.router.push(const RoutingMuteRoute()),
-            ),
-            const ResetCountersButton(),
-            TenturaCommandButton(
-              label: l10n.settingsDebug,
-              icon: const Icon(Icons.bug_report_outlined),
-              onPressed: () => context.router.push(const DebugSettingsRoute()),
-            ),
-            if (!kIsWeb)
-              TenturaCommandButton(
-                label: l10n.showIntroAgain,
-                icon: const Icon(Icons.reset_tv),
-                onPressed: () => settingsCubit.setIntroEnabled(true),
-              ),
-            TenturaCommandButton(
-              label: l10n.orientationReopen,
-              icon: const Icon(Icons.help_outline),
-              onPressed: () => showHowTenturaWorksSheet(context),
-            ),
-            TenturaCommandButton(
-              label: l10n.authRecoveryResetLocalTitle,
-              icon: const Icon(Icons.delete_forever_outlined),
-              onPressed: isLoading ? null : onConfirmResetLocal,
-            ),
-            TenturaCommandButton(
-              label: l10n.settingsRequestProfileDeletion,
-              icon: const Icon(Icons.person_off_outlined),
-              onPressed: isLoading
-                  ? null
-                  : () => MyProfileDeleteDialog.show(context),
+            TenturaMenuGroup(
+              title: l10n.settingsSectionDanger,
+              children: [
+                TenturaMenuTile(
+                  icon: Icons.delete_forever_outlined,
+                  title: l10n.authRecoveryResetLocalTitle,
+                  destructive: true,
+                  onTap: isLoading ? null : onConfirmResetLocal,
+                ),
+                TenturaMenuTile(
+                  icon: Icons.person_off_outlined,
+                  title: l10n.settingsRequestProfileDeletion,
+                  destructive: true,
+                  onTap: isLoading
+                      ? null
+                      : () => MyProfileDeleteDialog.show(context),
+                ),
+              ],
             ),
           ],
         );

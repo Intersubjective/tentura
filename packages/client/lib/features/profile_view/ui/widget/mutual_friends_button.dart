@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/my_work/ui/widget/compact_forwarder_avatars.dart';
 import 'package:tentura/features/profile_view/data/repository/mutual_friends_repository.dart';
@@ -58,57 +59,42 @@ class _MutualFriendsButtonState extends State<MutualFriendsButton> {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
 
-    if (_profiles != null) {
-      final profiles = _profiles!;
-      if (profiles.isEmpty) {
-        return Align(
-          alignment: Alignment.centerLeft,
-          child: Text(
-            l10n.noMutualFriends,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-        );
-      }
+    final tt = context.tt;
+    final profiles = _profiles;
+    if (profiles != null && profiles.isEmpty) {
+      return TenturaMenuTile(
+        icon: Icons.people_outline,
+        title: l10n.showMutualFriends,
+        subtitle: l10n.noMutualFriends,
+        opensPage: false,
+      );
+    }
+    if (profiles != null) {
       final shown = profiles.take(_maxAvatars).toList();
       final overflow = profiles.length > _maxAvatars
           ? profiles.length - _maxAvatars
           : 0;
-      return Align(
-        alignment: Alignment.centerLeft,
-        child: Material(
-          type: MaterialType.transparency,
-          child: InkWell(
-            onTap: () => showMutualFriendsSheet(context, profiles),
-            borderRadius: BorderRadius.circular(24),
-            child: CompactForwarderAvatars(
-              profiles: shown,
-              overflowCount: overflow,
-            ),
-          ),
+      return TenturaMenuTile(
+        icon: Icons.people_outline,
+        title: l10n.showMutualFriends,
+        onTap: () => showMutualFriendsSheet(context, profiles),
+        trailing: CompactForwarderAvatars(
+          profiles: shown,
+          overflowCount: overflow,
         ),
       );
     }
-
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: OutlinedButton.icon(
-        onPressed: _loading ? null : _load,
-        icon: _loading
-            ? SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator.adaptive(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-              )
-            : const Icon(Icons.people_outline),
-        label: Text(l10n.showMutualFriends),
-      ),
+    return TenturaMenuTile(
+      icon: Icons.people_outline,
+      title: l10n.showMutualFriends,
+      opensPage: false,
+      onTap: _loading ? null : _load,
+      trailing: _loading
+          ? SizedBox.square(
+              dimension: tt.iconSize,
+              child: const CircularProgressIndicator.adaptive(strokeWidth: 2),
+            )
+          : null,
     );
   }
 }
