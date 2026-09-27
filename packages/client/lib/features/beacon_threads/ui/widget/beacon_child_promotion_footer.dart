@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:tentura/app/router/root_router.dart';
@@ -9,7 +11,7 @@ import 'child_beacon_preview_loader.dart';
 /// Compact Chat link to a promoted child under its source bubble.
 ///
 /// Resolves via [ChildBeaconPreviewLoader] (not involvement).
-/// Full request cards stay on NOW ([BeaconChildRequestCard]).
+/// Full request cards stay on NOW (BeaconChildRequestCard).
 class BeaconChildPromotionFooter extends StatefulWidget {
   const BeaconChildPromotionFooter({required this.childBeaconId, super.key});
 
