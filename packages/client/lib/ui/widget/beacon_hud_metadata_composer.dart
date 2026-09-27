@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/coordination/derive_beacon_coordination_phase.dart';
@@ -176,6 +177,10 @@ List<BeaconHudMetadataEntry> buildBeaconViewHudMetadataEntries(
   final entries = <BeaconHudMetadataEntry>[];
   final beacon = state.beacon;
   final viewerId = state.myProfile.id;
+
+  // A closed Request shows ClosedRequestBanner; its NOW and YOU rows could
+  // only repeat "Closed" twice more under it.
+  if (beacon.status == BeaconStatus.closed) return entries;
 
   final nowDisplay = beaconHudNowDisplay(l10n, state);
 

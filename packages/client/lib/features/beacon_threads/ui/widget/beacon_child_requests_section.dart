@@ -58,6 +58,12 @@ class BeaconChildRequestsSection extends StatelessWidget {
             !hierarchyState.deleted.loading &&
             !hasAnyChild;
 
+        // A closed Request with no children has nothing to show here; the
+        // header and the closed banner already say it is closed.
+        if (allEmpty && !showCreate) {
+          return const SizedBox.shrink();
+        }
+
         final wide = context.windowClass != WindowClass.compact;
         Future<Object?> onCreateChild() => context.router.push(
           BeaconCreateRoute(parentBeaconId: beaconState.beacon.id),
@@ -96,24 +102,12 @@ class BeaconChildRequestsSection extends StatelessWidget {
                     ),
               ],
             ),
-            if (!showCreate && !beaconState.beacon.status.allowsCoordination)
-              Padding(
-                padding: EdgeInsets.only(top: tt.rowGap),
-                child: Text(
-                  l10n.beaconStatusRowOutcomeClosed,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-            if (allEmpty && showCreate)
+            if (allEmpty)
               Padding(
                 padding: EdgeInsets.only(top: tt.rowGap),
                 child: Text(
                   l10n.beaconChildRequestsEmpty,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
+                  style: TenturaText.bodySmall(tt.textMuted),
                 ),
               ),
             _ChildGroupSection(
