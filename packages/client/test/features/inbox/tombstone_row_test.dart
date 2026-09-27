@@ -76,7 +76,7 @@ Widget _host(
 );
 
 void main() {
-  testWidgets('header quotes the title and attributes the last forwarder', (
+  testWidgets('header is the bare title, attributed to the last forwarder', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -91,7 +91,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('«Наши требования» · от Bai Yue'), findsOneWidget);
+    expect(find.text('Наши требования'), findsOneWidget);
+    expect(find.text('От Bai Yue'), findsOneWidget);
+    expect(find.textContaining('«'), findsNothing);
     // The last forwarder's avatar, not a send glyph (spec §8).
     expect(find.byType(TenturaAvatar), findsOneWidget);
   });

@@ -24,6 +24,8 @@ class MyWorkCardAttentionIndicators extends StatelessWidget {
       ),
       viewerArchived: vm.viewerArchived,
     );
-    return RequestAttentionIndicators(facts: view.facts);
+    // The obligation block under the header lists every live obligation, so
+    // only the dot is left for this slot.
+    return RequestAttentionIndicators(facts: view.facts, showCount: false);
   }
 }

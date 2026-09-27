@@ -181,7 +181,7 @@ class RequestAttentionCard extends StatelessWidget {
                     onClearEvent: _isPinned ? null : onClearEvent,
                     quotedBodyOf: _quotedBodyOf,
                   ),
-                _coalescedForwards(l10n, tt),
+                _coalescedForwards(l10n, tt, hasNoteSlots: forwards.isNotEmpty),
                 if (!_isPinned && hasClearable && onClearAll != null) ...[
                   SizedBox(height: tt.tightGap),
                   TenturaTextAction(
@@ -205,13 +205,12 @@ class RequestAttentionCard extends StatelessWidget {
 
   // ---------------------------------------------------------------- header
 
+  /// Same order as a My Work card: title, status (here: the deadline, only
+  /// while it matters), then who it is from. The deadline's tone colours the
+  /// deadline alone — it used to paint the author's name red with it.
   Widget _header(BuildContext context, L10n l10n, TenturaTokens tt) {
     final deadline = _deadline(l10n);
     final author = beacon.author.shownName.trim();
-    final subLine = [
-      if (author.isNotEmpty) author,
-      if (deadline != null) deadline.text,
-    ].join(' · ');
 
     return Row(
       key: headerKey,
@@ -230,15 +229,23 @@ class RequestAttentionCard extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TenturaText.titleSmall(tt.text),
               ),
-              if (subLine.isNotEmpty)
-                deadline?.urgent ?? false
-                    ? TenturaStatusText(subLine, tone: TenturaTone.danger)
+              if (deadline != null)
+                deadline.urgent
+                    ? TenturaStatusText(deadline.text, tone: TenturaTone.danger)
                     : Text(
-                        subLine,
+                        deadline.text,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TenturaText.bodySmall(tt.textMuted),
                       ),
+              if (author.isNotEmpty &&
+                  _headlineTreatment != AttentionHeadlineTreatment.user)
+                Text(
+                  l10n.constellationPreviewAuthorLine(author),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TenturaText.bodySmall(tt.textMuted),
+                ),
             ],
           ),
         ),
@@ -262,15 +269,16 @@ class RequestAttentionCard extends StatelessWidget {
 
   /// §6.1 — how the title is written, taken from the contract classification
   /// mirror rather than re-decided here.
+  AttentionHeadlineTreatment get _headlineTreatment =>
+      classifyAttentionEventPayload(
+        representative?.presentationPayloadJson,
+      ).headlineTreatment;
+
   String _headline(L10n l10n) {
-    final treatment = classifyAttentionEventPayload(
-      representative?.presentationPayloadJson,
-    ).headlineTreatment;
-    return switch (treatment) {
-      // The Request is the subject: quoted, per locale.
-      AttentionHeadlineTreatment.beacon => l10n.attentionCardQuotedTitle(
-        beacon.title,
-      ),
+    return switch (_headlineTreatment) {
+      // The Request is the subject. Bare, like every other Request card —
+      // the quotes only set this surface apart from My Work.
+      AttentionHeadlineTreatment.beacon => beacon.title,
       // A person is the subject: their bare name.
       AttentionHeadlineTreatment.user => beacon.author.shownName,
       // The system is the subject: a bare label.
@@ -403,7 +411,15 @@ class RequestAttentionCard extends StatelessWidget {
   /// §7.3 — note-less forwards fold into one line with overlapping avatars.
   /// Forwards carrying a note never do: the note exists nowhere else on the
   /// card, so folding it destroys it (K6, `coalescible: false`).
-  Widget _coalescedForwards(L10n l10n, TenturaTokens tt) {
+  ///
+  /// With no note-bearing forward above it the line is not "more" of
+  /// anything: it names the forwarder, and says nothing at all when that is
+  /// the author the header already names.
+  Widget _coalescedForwards(
+    L10n l10n,
+    TenturaTokens tt, {
+    required bool hasNoteSlots,
+  }) {
     final pinned = provenance.latestNoteForward;
     final noteLess = provenance.senders
         .where((s) => s.notePreview.trim().isEmpty && s.id != pinned?.senderId)
@@ -413,6 +429,23 @@ class RequestAttentionCard extends StatelessWidget {
         provenance.totalDistinctSenders - provenance.senders.length;
     final count = noteLess.length + (unwindowed > 0 ? unwindowed : 0);
     if (count <= 0) return const SizedBox.shrink();
+    final String label;
+    if (hasNoteSlots || noteLess.isEmpty) {
+      label = l10n.attentionCardMoreForwarded(count);
+    } else {
+      final first = noteLess.first;
+      if (count == 1 && first.id == beacon.author.id) {
+        return const SizedBox.shrink();
+      }
+      final name = _profileOf(
+        first.id,
+        first.displayName,
+        first.imageId,
+      ).shownName;
+      label = count == 1
+          ? l10n.attentionCardForwardedBy(name)
+          : l10n.attentionCardForwardedByMany(name, count - 1);
+    }
     return Padding(
       key: moreForwardedKey,
       padding: EdgeInsets.only(top: tt.tightGap),
@@ -428,7 +461,7 @@ class RequestAttentionCard extends StatelessWidget {
           SizedBox(width: tt.iconTextGap),
           Flexible(
             child: Text(
-              l10n.attentionCardMoreForwarded(count),
+              label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TenturaText.bodySmall(tt.textFaint),
@@ -444,8 +477,10 @@ class RequestAttentionCard extends StatelessWidget {
   /// A `Wrap` hands its children unbounded width, so at 2x text «Предложить
   /// помощь» is wider than the card and overflows the run it sits in. Each
   /// action is capped to the row's own width instead, and wraps inside itself.
+  /// Right-aligned with the primary last, like the My Work footer.
   Widget _actionRow(L10n l10n, TenturaTokens tt) => LayoutBuilder(
     builder: (context, constraints) => Wrap(
+      alignment: WrapAlignment.end,
       spacing: tt.rowGap,
       runSpacing: tt.tightGap,
       crossAxisAlignment: WrapCrossAlignment.center,
@@ -460,6 +495,18 @@ class RequestAttentionCard extends StatelessWidget {
   );
 
   List<Widget> _actions(L10n l10n, TenturaTokens tt) => [
+    if (onForward != null && beacon.allowsForward)
+      TenturaTextAction(
+        key: forwardKey,
+        label: l10n.labelForward,
+        onPressed: onForward,
+      ),
+    if (onFollow != null)
+      TenturaTextAction(
+        key: followKey,
+        label: l10n.beaconHeaderWatch,
+        onPressed: onFollow,
+      ),
     if (onOfferHelp != null)
       Semantics(
         identifier: TestIds.inboxOfferHelp,
@@ -477,18 +524,6 @@ class RequestAttentionCard extends StatelessWidget {
           ),
           child: Text(l10n.labelOfferHelp, textAlign: TextAlign.center),
         ),
-      ),
-    if (onForward != null && beacon.allowsForward)
-      TenturaTextAction(
-        key: forwardKey,
-        label: l10n.labelForward,
-        onPressed: onForward,
-      ),
-    if (onFollow != null)
-      TenturaTextAction(
-        key: followKey,
-        label: l10n.beaconHeaderWatch,
-        onPressed: onFollow,
       ),
   ];
 

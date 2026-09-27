@@ -1,6 +1,9 @@
 import 'dart:convert';
 
+import 'package:tentura_root/domain/entity/beacon_status.dart';
+
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/beacon_view/domain/beacon_status_menu_presenter.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 /// Trust-change presentation keys emitted by the server (direction-encoded).
@@ -311,4 +314,36 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
   }
 
   return UpdatesFeedRowCopy(headline: headline, body: line2);
+}
+
+final _statusTransitionTail = RegExp(r'from (\w+) to (\w+)\s*$');
+
+/// The event line for a receipt whose server copy is canned English that only
+/// restates the event — «X offered help», «X moved the request from a to b».
+///
+/// Returns null when the copy carries something of its own (a help-offer
+/// note), so the caller keeps it. A non-null result replaces both lines: the
+/// canned body is never worth quoting under it.
+String? cannedAttentionEventLine({
+  required String title,
+  required String body,
+  required String? presentationKey,
+  required L10n l10n,
+}) {
+  final t = title.trim();
+  final b = body.trim();
+  switch (presentationKey) {
+    case 'help_offer_submitted':
+      final canned = b.isEmpty || b == '$t offered help' || b == t;
+      return canned ? l10n.updatesFallbackTitleHelpOfferSubmitted : null;
+    case 'request_status_changed':
+      final to = _statusTransitionTail.firstMatch(b)?.group(2);
+      final status = to == null ? null : BeaconStatus.values.asNameMap()[to];
+      return status == null
+          ? l10n.updatesFallbackTitleRequestStatusChanged
+          : l10n.attentionEventStatusChanged(
+              requestStatusActivityLabel(l10n, status),
+            );
+  }
+  return null;
 }

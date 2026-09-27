@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_activity_event_consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_last_event.dart';
@@ -11,8 +12,16 @@ import 'package:tentura/ui/utils/beacon_activity_event_presenter.dart';
 import 'package:tentura/ui/utils/relative_time.dart';
 import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
+import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 
 const _kMyWorkLastEventAvatarSize = 18.0;
+
+/// Events whose content the card's ⚑ «Сейчас» row already shows. For these the
+/// last-event line is only the attribution under that row — «вы · 17 мин» —
+/// never «Факт закреплён …» a second time.
+bool myWorkLastEventIsNowRowAttribution(int eventType) =>
+    eventType == BeaconActivityEventTypeBits.factPinned ||
+    eventType == BeaconActivityEventTypeBits.factEdited;
 
 /// Whether the last-event metadata row should be emitted.
 bool myWorkLastEventMetadataVisible({
@@ -150,6 +159,7 @@ class _EventLineBody extends StatelessWidget {
     final isYou = actor.id.isNotEmpty && actor.id == currentUserId;
     final isAuthor = actor.id.isNotEmpty && actor.id == beacon.author.id;
     final actorLabel = _actorShortName(l10n, actor, isYou: isYou);
+    final attributionOnly = myWorkLastEventIsNowRowAttribution(event.type);
     final semanticsLabel = l10n.myWorkLastEventSemantics(
       label,
       actorLabel,
@@ -173,19 +183,23 @@ class _EventLineBody extends StatelessWidget {
       fontWeight: FontWeight.w500,
     );
 
-    return Semantics(
+    final line = Semantics(
       label: semanticsLabel,
       child: Text.rich(
         TextSpan(
           style: bodyStyle,
+          // «label · actor · age» — a separator, not «от»: «от вы» is not
+          // Russian, and the dot reads the same in every locale.
           children: [
-            TextSpan(text: label),
-            TextSpan(
-              text: ' ${l10n.myWorkLastEventBy} ',
-              style: bodyStyle.copyWith(
-                color: scheme.onSurfaceVariant.withValues(alpha: 0.72),
+            if (!attributionOnly) ...[
+              TextSpan(text: label),
+              TextSpan(
+                text: ' · ',
+                style: bodyStyle.copyWith(
+                  color: scheme.onSurfaceVariant.withValues(alpha: 0.72),
+                ),
               ),
-            ),
+            ],
             if (!isYou)
               WidgetSpan(
                 alignment: PlaceholderAlignment.middle,
@@ -205,13 +219,19 @@ class _EventLineBody extends StatelessWidget {
               style: isYou ? youStyle : bodyStyle,
             ),
             TextSpan(
-              text: ', $ago',
+              text: ' · $ago',
               style: agoStyle,
             ),
           ],
         ),
         softWrap: true,
       ),
+    );
+    if (!attributionOnly) return line;
+    // Aligned with the ⚑ row's text, whose lead column it sits under.
+    return Padding(
+      padding: const EdgeInsets.only(left: kBeaconHudRowLeadWidth),
+      child: line,
     );
   }
 }

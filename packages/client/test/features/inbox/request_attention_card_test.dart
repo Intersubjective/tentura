@@ -261,6 +261,41 @@ void main() {
     expect(find.text('ещё 3 переслали'), findsOneWidget);
   });
 
+  testWidgets('with no note above it, the line names the forwarder', (
+    tester,
+  ) async {
+    Future<void> pump(List<InboxForwardSender> senders) => tester.pumpWidget(
+      _host(
+        RequestAttentionCard(
+          key: ValueKey(senders.map((s) => s.id).join()),
+          beacon: _beacon,
+          facts: const RequestAttentionFacts(requestId: 'b1'),
+          provenance: _provenance(senders: senders, total: senders.length),
+          onOpenBeacon: () {},
+          onOpenTimeline: () {},
+        ),
+      ),
+    );
+
+    await pump(const [InboxForwardSender(id: 'u3', displayName: 'Мила', mr: 2)]);
+    await tester.pumpAndSettle();
+    // Not «ещё 1» — there is nothing above it to be more than.
+    expect(find.text('Переслано: Мила'), findsOneWidget);
+
+    await pump(const [
+      InboxForwardSender(id: 'u3', displayName: 'Мила', mr: 2),
+      InboxForwardSender(id: 'u4', displayName: 'Пётр', mr: 1),
+    ]);
+    await tester.pumpAndSettle();
+    expect(find.text('Переслано: Мила и ещё 1'), findsOneWidget);
+
+    // The author forwarding their own Request is already «От Автор».
+    await pump(const [InboxForwardSender(id: 'a1', displayName: 'Автор', mr: 1)]);
+    await tester.pumpAndSettle();
+    expect(find.byKey(RequestAttentionCard.moreForwardedKey), findsNothing);
+    expect(find.text('От Автор'), findsOneWidget);
+  });
+
   testWidgets('«ещё N» opens the Timeline and never grows the card (D-171-5b)',
       (tester) async {
     var timeline = 0;
@@ -452,7 +487,7 @@ void main() {
     expect(timeline, 1);
   });
 
-  testWidgets('the header quotes the Request and attributes its author', (
+  testWidgets('the header names the Request bare and attributes its author', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -467,8 +502,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('«Наши требования»'), findsOneWidget);
-    expect(find.text('Автор'), findsOneWidget);
+    // Same order as a My Work card: bare title, then who it is from.
+    expect(find.text('Наши требования'), findsOneWidget);
+    expect(find.text('От Автор'), findsOneWidget);
+    expect(find.textContaining('«'), findsNothing);
     // §6.1: the header carries nothing else — no category, no "updated N ago".
     expect(find.textContaining('обновлен'), findsNothing);
   });

@@ -86,7 +86,17 @@ class MyWorkObligationBlock extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
-    final groups = groupMyWorkObligations(obligations);
+    // Help offers lead, so the one «Предложили помощь · N» header sits right
+    // above the rows it names; the rest keep their server order.
+    final grouped = groupMyWorkObligations(obligations);
+    final groups = [
+      ...grouped.where((g) => g.isHelpOffer),
+      ...grouped.where((g) => !g.isHelpOffer),
+    ];
+    final helpOfferIds = {
+      for (final g in groups)
+        if (g.isHelpOffer && _respondCallback(g) != null) g.primary.id,
+    };
     final hasReviewGroup = groups.any((g) => g.isReview);
     final groupByReceiptId = <String, MyWorkObligationGroup>{
       for (final group in groups) group.primary.id: group,
@@ -131,6 +141,14 @@ class MyWorkObligationBlock extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (helpOfferIds.isNotEmpty)
+          Padding(
+            padding: EdgeInsets.only(top: tt.tightGap),
+            child: Text(
+              l10n.myWorkHelpOffersHeader(helpOfferIds.length),
+              style: TenturaText.labelMedium(tt.textMuted),
+            ),
+          ),
         if (rows.isNotEmpty)
           ActivityEventSubcardBlock(
             eventTotal: groups.length + optionalTotal,
@@ -145,11 +163,19 @@ class MyWorkObligationBlock extends StatelessWidget {
             onClearEvent: onClearEvent,
             onOpenTimeline: onOpenTimeline,
             quotedBodyOf: (receipt) => _quotedBody(l10n, receipt),
-            ctaBuilder: (receipt) => _obligationCta(
-              context,
-              l10n: l10n,
-              group: groupByReceiptId[receipt.id],
-            ),
+            // The header names the event; each offer row is the person, the
+            // age and «Ответить» on one line.
+            nameOnlyOf: (receipt) => helpOfferIds.contains(receipt.id),
+            trailingBuilder: (receipt) => helpOfferIds.contains(receipt.id)
+                ? _respondCta(context, l10n, groupByReceiptId[receipt.id]!)
+                : null,
+            ctaBuilder: (receipt) => helpOfferIds.contains(receipt.id)
+                ? null
+                : _obligationCta(
+                    context,
+                    l10n: l10n,
+                    group: groupByReceiptId[receipt.id],
+                  ),
           ),
         if (primaryCtaLabel != null && primaryOnPressed != null) ...[
           if (rows.isNotEmpty) SizedBox(height: tt.tightGap),
@@ -220,6 +246,35 @@ class MyWorkObligationBlock extends StatelessWidget {
     );
   }
 
+  VoidCallback? _respondCallback(MyWorkObligationGroup group) {
+    final offererId = group.offererId;
+    final respond = onRespondHelpOffer;
+    if (offererId == null || respond == null) return null;
+    return () => respond(offererId);
+  }
+
+  /// «Ответить» at the end of a help-offer row — tonal, because answering is
+  /// what the card is asking of the author.
+  Widget _respondCta(
+    BuildContext context,
+    L10n l10n,
+    MyWorkObligationGroup group,
+  ) {
+    final tt = context.tt;
+    return Semantics(
+      identifier: TestIds.myWorkObligation(group.primary.id),
+      child: FilledButton.tonal(
+        onPressed: _respondCallback(group),
+        style: FilledButton.styleFrom(
+          minimumSize: Size(0, tt.buttonHeight),
+          tapTargetSize: MaterialTapTargetSize.padded,
+          padding: EdgeInsets.symmetric(horizontal: tt.rowGap),
+        ),
+        child: Text(l10n.myWorkObligationRespond),
+      ),
+    );
+  }
+
   /// A review obligation the viewer has already opened by deep link and left
   /// a draft behind reads as in progress — opening a CTA and saving an unsent
   /// draft resolves nothing, so the obligation stays and says so (D04).
@@ -242,12 +297,7 @@ class MyWorkObligationBlock extends StatelessWidget {
   }
 
   VoidCallback? _ctaCallback(MyWorkObligationGroup group) {
-    if (group.isHelpOffer) {
-      final offererId = group.offererId;
-      final respond = onRespondHelpOffer;
-      if (offererId == null || respond == null) return null;
-      return () => respond(offererId);
-    }
+    if (group.isHelpOffer) return _respondCallback(group);
     if (group.isReview) return onReviewContributions;
     return null;
   }

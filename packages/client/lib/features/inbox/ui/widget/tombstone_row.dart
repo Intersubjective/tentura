@@ -53,9 +53,10 @@ class TombstoneRow extends StatelessWidget {
     final tt = context.tt;
     final profile = forwarder;
     final name = profile?.shownName.trim() ?? '';
-    final headline = name.isEmpty
-        ? l10n.attentionCardQuotedTitle(receipt.title)
-        : l10n.attentionCardTitleByForwarder(receipt.title, name);
+    // Title, then who it came from, then what you did — the order of the
+    // Request cards around it, without the quotes they no longer wear.
+    final headline = receipt.title;
+    final from = name.isEmpty ? null : l10n.constellationPreviewAuthorLine(name);
     final sentence = activityForwardOutcomeLabel(l10n, receipt.forwardOutcome);
     final localCreatedAt = receipt.createdAt.toLocal();
     final age = compactRelativeTimeAgo(
@@ -69,7 +70,7 @@ class TombstoneRow extends StatelessWidget {
     return Semantics(
       // The whole sentence, so the outcome is never carried by chrome alone
       // (§11).
-      label: [headline, sentence].nonNulls.join(', '),
+      label: [headline, from, sentence].nonNulls.join(', '),
       excludeSemantics: false,
       child: Material(
         color: Colors.transparent,
@@ -132,6 +133,13 @@ class TombstoneRow extends StatelessWidget {
                           ),
                         ],
                       ),
+                      if (from != null)
+                        Text(
+                          from,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TenturaText.bodySmall(tt.textMuted),
+                        ),
                       if (sentence != null) ...[
                         SizedBox(height: tt.tightGap),
                         Row(

@@ -44,7 +44,7 @@ BeaconRequestPreviewData _data({
 );
 
 void main() {
-  testWidgets('names author and shows helper line when helpers exist', (
+  testWidgets('names the author once, helpers only in the face pile', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -65,7 +65,8 @@ void main() {
 
     expect(find.text('Need a ladder'), findsOneWidget);
     expect(find.text('By Alice'), findsOneWidget);
-    expect(find.text('With Bob'), findsOneWidget);
+    // The helper is in the face pile; a «With Bob» line would repeat it.
+    expect(find.textContaining('With '), findsNothing);
     expect(
       find.text('Two line description body that should appear'),
       findsOneWidget,
@@ -85,6 +86,23 @@ void main() {
 
     expect(find.text('By Alice'), findsOneWidget);
     expect(find.textContaining('With '), findsNothing);
+  });
+
+  testWidgets('the viewer\'s own Request does not name its author', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(
+        BeaconRequestPreviewIdentity(
+          data: _data(),
+          currentUserId: 'author-1',
+        ),
+      ),
+    );
+
+    // «By <you>» says nothing; the starred face pile still shows the author.
+    expect(find.textContaining('By '), findsNothing);
+    expect(find.byType(OverlappingPeopleAvatars), findsOneWidget);
   });
 
   testWidgets('desk and child share the same identity widget type', (

@@ -436,4 +436,84 @@ void main() {
     final height = tester.getSize(find.byType(AttentionMiniCard)).height;
     expect(height, lessThanOrEqualTo(kMiniCardCeiling360Scale13));
   });
+
+  group('one mention per fact', () {
+    testWidgets('a canned help-offer sentence names the actor once, unquoted', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(
+          AttentionMiniCard(
+            receipt: _receipt(title: 'Anna', body: 'Anna offered help'),
+            actor: _anna,
+            quotedBody: 'Anna offered help',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Anna · Help offered'), findsOneWidget);
+      expect(find.textContaining('offered help'), findsNothing);
+      expect(find.byKey(AttentionMiniCard.quoteRuleKey), findsNothing);
+    });
+
+    testWidgets('a help-offer note is kept behind the quote rule', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(
+          AttentionMiniCard(
+            receipt: _receipt(title: 'Anna', body: 'I can sew'),
+            actor: _anna,
+            quotedBody: 'I can sew',
+            nameOnly: true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Anna'), findsOneWidget);
+      expect(find.text('I can sew'), findsOneWidget);
+    });
+
+    testWidgets('a status change reads the new status, not the enum', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(
+          AttentionMiniCard(
+            receipt: _receipt(
+              title: 'Request status changed',
+              body: 'Anna moved the request from enoughHelp to reviewOpen',
+              presentationKey: 'request_status_changed',
+            ),
+            actor: _anna,
+            quotedBody: 'Anna moved the request from enoughHelp to reviewOpen',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Anna · Status: in review'), findsOneWidget);
+      expect(find.textContaining('reviewOpen'), findsNothing);
+    });
+
+    testWidgets('a trailing CTA shares the event line', (tester) async {
+      await tester.pumpWidget(
+        _host(
+          AttentionMiniCard(
+            receipt: _receipt(title: 'Anna', body: 'Anna offered help'),
+            actor: _anna,
+            nameOnly: true,
+            trailing: TextButton(onPressed: () {}, child: const Text('Go')),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final name = tester.getCenter(find.text('Anna'));
+      final cta = tester.getCenter(find.text('Go'));
+      expect((name.dy - cta.dy).abs(), lessThan(24));
+    });
+  });
 }

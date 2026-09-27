@@ -6687,5 +6687,44 @@
   "forYouEmptyNoMatchHint": "Try a different filter to see the rest.",
   "@forYouEmptyNoMatchHint": {
     "description": "Hint under the 'nothing matching this filter' empty state."
+  },
+  "myWorkHelpOffersHeader": "Offered help \u00b7 {count}",
+  "@myWorkHelpOffersHeader": {
+    "description": "Group header above help-offer obligation rows on a My Work card; the rows under it show only the person.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "attentionEventStatusChanged": "Status: {status}",
+  "@attentionEventStatusChanged": {
+    "description": "Event line for a request status change; status is the localized new status.",
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "attentionCardForwardedBy": "Forwarded by {name}",
+  "@attentionCardForwardedBy": {
+    "description": "For You card: the only forwarder, when no forward carried a note.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "attentionCardForwardedByMany": "{count, plural, one{Forwarded by {name} and 1 more} other{Forwarded by {name} and {count} more}}",
+  "@attentionCardForwardedByMany": {
+    "description": "For You card: several note-less forwarders; count is how many besides name.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }

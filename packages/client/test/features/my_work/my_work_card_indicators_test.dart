@@ -117,7 +117,7 @@ Future<MyWorkCubit> _pump(
 }
 
 void main() {
-  testWidgets('dot and count are both present, neither hiding the other', (
+  testWidgets('the dot shows beside obligations, which are rows not a count', (
     tester,
   ) async {
     await _pump(
@@ -138,9 +138,10 @@ void main() {
     );
 
     expect(find.byKey(RequestAttentionIndicators.dotKey), findsOneWidget);
-    expect(find.byKey(RequestAttentionIndicators.countKey), findsOneWidget);
-    // The number is the obligations, not the optional events.
-    expect(find.text('2'), findsOneWidget);
+    // My Work lists each obligation as a row right under the header, so a
+    // count badge would only repeat them.
+    expect(find.byKey(RequestAttentionIndicators.countKey), findsNothing);
+    expect(find.byType(AttentionMiniCard), findsWidgets);
   });
 
   testWidgets('a lit dot always has the row it counts on the card', (
@@ -200,7 +201,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(RequestAttentionIndicators.dotKey), findsNothing);
-    // The obligation survived it: the count is still there.
-    expect(find.byKey(RequestAttentionIndicators.countKey), findsOneWidget);
+    // The obligation survived it: its row is still there.
+    expect(find.byType(AttentionMiniCard), findsOneWidget);
   });
 }

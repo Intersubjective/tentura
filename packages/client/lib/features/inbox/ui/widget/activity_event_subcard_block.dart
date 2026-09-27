@@ -47,6 +47,8 @@ class ActivityEventSubcardBlock extends StatefulWidget {
     this.overflowPolicy = AttentionBlockOverflowPolicy.timeline,
     this.pageSize = 20,
     this.ctaBuilder,
+    this.trailingBuilder,
+    this.nameOnlyOf,
     this.quotedBodyOf,
     this.canDismiss = attentionRowAlwaysDismissible,
     this.visibleCap,
@@ -95,6 +97,14 @@ class ActivityEventSubcardBlock extends StatefulWidget {
   /// Per-kind decision-capturing CTA rendered under a row (D04). Obligation
   /// rows carry one; optional rows do not.
   final Widget? Function(AttentionReceipt receipt)? ctaBuilder;
+
+  /// A compact CTA placed at the end of the row's event line instead of
+  /// under it — for CTAs short enough to share the line.
+  final Widget? Function(AttentionReceipt receipt)? trailingBuilder;
+
+  /// Rows whose event a group header above the block already names; they
+  /// render the actor alone ([AttentionMiniCard.nameOnly]).
+  final bool Function(AttentionReceipt receipt)? nameOnlyOf;
 
   /// Which rows own a ×. Defaults to all of them; pass
   /// [attentionRowIsDismissible] on a surface that also renders obligations.
@@ -220,6 +230,8 @@ class _ActivityEventSubcardBlockState extends State<ActivityEventSubcardBlock> {
       receipt: receipt,
       actor: _actorFor(receipt),
       quotedBody: widget.quotedBodyOf?.call(receipt),
+      trailing: widget.trailingBuilder?.call(receipt),
+      nameOnly: widget.nameOnlyOf?.call(receipt) ?? false,
       onTap: widget.onEventTap == null
           ? null
           : () => widget.onEventTap!(receipt),

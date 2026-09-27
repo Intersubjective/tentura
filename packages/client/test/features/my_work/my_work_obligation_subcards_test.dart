@@ -137,7 +137,9 @@ void main() {
 
     expect(find.textContaining('I can sew'), findsOneWidget);
 
-    final respond = find.widgetWithText(TenturaTextAction, 'Respond');
+    // The group header names the event once; the row's CTA shares its line.
+    expect(find.text('Offered help · 1'), findsOneWidget);
+    final respond = find.widgetWithText(FilledButton, 'Respond');
     expect(respond, findsOneWidget);
     expect(find.text('Done'), findsNothing);
     expect(find.widgetWithText(TenturaTextAction, 'Done'), findsNothing);

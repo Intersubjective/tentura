@@ -52,6 +52,8 @@ class AttentionMiniCard extends StatefulWidget {
     this.capabilitySlugs = const [],
     this.onTap,
     this.onDismiss,
+    this.trailing,
+    this.nameOnly = false,
     this.dismissDuration = const Duration(milliseconds: 180),
     super.key,
   });
@@ -85,6 +87,16 @@ class AttentionMiniCard extends StatefulWidget {
   /// Called only after the removal animation completes, so the row keeps its
   /// layout height while the pointer is still down (E32).
   final VoidCallback? onDismiss;
+
+  /// A decision CTA sitting at the end of the event line, after the age
+  /// (My Desk's «Ответить»). Keeps the row one line tall instead of stacking
+  /// the CTA under it.
+  final Widget? trailing;
+
+  /// The event is already named by a group header above the row, so the line
+  /// is just the actor — saying «предложил помощь» again under «Предложили
+  /// помощь · 2» is the repetition this exists to remove.
+  final bool nameOnly;
 
   final Duration dismissDuration;
 
@@ -148,7 +160,15 @@ class _AttentionMiniCardState extends State<AttentionMiniCard>
         ? null
         : profileWithContactOverlay(widget.actor!);
     final shownName = profile?.shownName.trim() ?? '';
-    final eventLine = _eventLine(l10n, copy, shownName);
+    final canned = cannedAttentionEventLine(
+      title: widget.receipt.title,
+      body: widget.receipt.body,
+      presentationKey: widget.receipt.presentationKey,
+      l10n: l10n,
+    );
+    final eventLine = widget.nameOnly && shownName.isNotEmpty
+        ? shownName
+        : _eventLine(l10n, copy, shownName, canned: canned);
     final localCreatedAt = widget.receipt.createdAt.toLocal();
     final age = compactRelativeTimeAgo(
       when: widget.receipt.createdAt,
@@ -157,7 +177,11 @@ class _AttentionMiniCardState extends State<AttentionMiniCard>
     );
     final absoluteTime =
         '${dateFormatYMD(localCreatedAt)} ${timeFormatHm(localCreatedAt)}';
-    final quoted = widget.quotedBody?.trim() ?? '';
+    final quoted = _quoteWorthShowing(
+      widget.quotedBody?.trim() ?? '',
+      eventLine: eventLine,
+      canned: canned,
+    );
 
     final leading = profile != null
         ? TenturaAvatar.medium(
@@ -228,6 +252,10 @@ class _AttentionMiniCardState extends State<AttentionMiniCard>
                           ),
                         ),
                       ),
+                      if (widget.trailing case final trailing?) ...[
+                        SizedBox(width: tt.tightGap),
+                        trailing,
+                      ],
                       if (widget.onDismiss != null) ...[
                         SizedBox(width: tt.tightGap),
                         _DismissControl(
@@ -298,7 +326,12 @@ class _AttentionMiniCardState extends State<AttentionMiniCard>
   String _semanticsLabel(String eventLine, String age) =>
       [eventLine, age].where((p) => p.isNotEmpty).join(' · ');
 
-  String _eventLine(L10n l10n, UpdatesFeedRowCopy copy, String shownName) {
+  String _eventLine(
+    L10n l10n,
+    UpdatesFeedRowCopy copy,
+    String shownName, {
+    required String? canned,
+  }) {
     if (widget.kind == AttentionMiniCardKind.forward && shownName.isNotEmpty) {
       return l10n.attentionMiniCardForwarded(shownName);
     }
@@ -307,12 +340,33 @@ class _AttentionMiniCardState extends State<AttentionMiniCard>
     // When the headline is just the actor name (server title for help-offer
     // receipts), prefer the body so the event itself shows.
     final event =
-        shownName.isNotEmpty && headline == shownName && body.isNotEmpty
-        ? body
-        : (headline.isNotEmpty ? headline : body);
+        canned ??
+        (shownName.isNotEmpty && headline == shownName && body.isNotEmpty
+            ? body
+            : (headline.isNotEmpty ? headline : body));
     if (shownName.isEmpty) return event;
     if (event.isEmpty || event == shownName) return shownName;
+    // «alonso offered help» already names the actor; prefixing it again is
+    // how one name ended up on a row three times.
+    if (event.startsWith(shownName)) return event;
     return '$shownName · $event';
+  }
+
+  /// The quote is for words the event line does not already say — a note, a
+  /// message. A canned server sentence, or a restatement of the line above
+  /// it, is dropped rather than shown twice.
+  String _quoteWorthShowing(
+    String quoted, {
+    required String eventLine,
+    required String? canned,
+  }) {
+    if (quoted.isEmpty) return '';
+    final restates = eventLine == quoted || eventLine.endsWith(quoted);
+    final isCannedEcho =
+        canned != null &&
+        (quoted == widget.receipt.body.trim() ||
+            quoted == widget.receipt.title.trim());
+    return restates || isCannedEcho ? '' : quoted;
   }
 }
 

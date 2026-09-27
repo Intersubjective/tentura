@@ -502,9 +502,11 @@ class _AuthoredActiveCard extends StatelessWidget {
               ),
             )
           else if (needsForwardCta)
-            SizedBox(
-              width: double.infinity,
-              child: TenturaCommandButton(
+            // Secondary to whatever the card is asking (answering an offer):
+            // a quiet action at the end, not a full-width command.
+            Align(
+              alignment: Alignment.centerRight,
+              child: TenturaTextAction(
                 label: l10n.inboxCardOpenBeacon,
                 icon: const Icon(Icons.arrow_forward),
                 onPressed: () => unawaited(

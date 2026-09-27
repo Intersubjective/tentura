@@ -13,7 +13,11 @@ import 'package:tentura/ui/l10n/l10n.dart';
 /// indicator and the surface's default list ask (M1), so a card cannot
 /// disagree with the tab above it.
 class RequestAttentionIndicators extends StatelessWidget {
-  const RequestAttentionIndicators({required this.facts, super.key});
+  const RequestAttentionIndicators({
+    required this.facts,
+    this.showCount = true,
+    super.key,
+  });
 
   static const dotKey = ValueKey('request-attention-dot');
   static const countKey = ValueKey('request-attention-count');
@@ -23,13 +27,17 @@ class RequestAttentionIndicators extends StatelessWidget {
 
   final RequestAttentionFacts facts;
 
+  /// False where the card lists its obligations right below, one row each —
+  /// the number would only count rows the reader is already looking at.
+  final bool showCount;
+
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
     final scheme = Theme.of(context).colorScheme;
     final l10n = L10n.of(context)!;
     final showDot = requestHasDot(facts);
-    final count = requestCount(facts);
+    final count = showCount ? requestCount(facts) : 0;
 
     return Row(
       mainAxisSize: MainAxisSize.min,

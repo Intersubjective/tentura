@@ -238,7 +238,12 @@ class BeaconRequestPreviewIdentity extends StatelessWidget {
     final scheme = theme.colorScheme;
     final author = data.author;
     final helpers = data.admittedHelpers;
-    final firstHelper = helpers.isEmpty ? null : helpers.first;
+    // The face pile already shows who is involved, author starred. The name is
+    // spelled out only when it is someone else's Request — «От <you>» says
+    // nothing.
+    final authorName = author == null || author.id == currentUserId
+        ? ''
+        : author.displayName.trim();
 
     final titleStyle = theme.textTheme.titleSmall!.copyWith(
       color: scheme.onSurface,
@@ -301,35 +306,36 @@ class BeaconRequestPreviewIdentity extends StatelessWidget {
             ],
           ],
         ),
-        if (author != null) ...[
+        if (authorName.isNotEmpty || _hasFacePile) ...[
           SizedBox(height: tt.tightGap),
-          Text(
-            l10n.constellationPreviewAuthorLine(author.displayName),
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: scheme.onSurfaceVariant,
+          Padding(
+            // Under the title column, not under the tile: the people line
+            // belongs to the text it describes.
+            padding: EdgeInsets.only(left: identitySize + tt.iconTextGap),
+            child: Row(
+              children: [
+                if (authorName.isNotEmpty)
+                  Flexible(
+                    child: Text(
+                      l10n.constellationPreviewAuthorLine(authorName),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                if (authorName.isNotEmpty && _hasFacePile)
+                  SizedBox(width: tt.iconTextGap),
+                if (_hasFacePile)
+                  _PreviewFacePile(
+                    author: author,
+                    helpers: helpers,
+                    helperCount: data.admittedHelperCount,
+                    currentUserId: currentUserId,
+                  ),
+              ],
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-        if (firstHelper != null) ...[
-          SizedBox(height: tt.tightGap / 2),
-          Text(
-            l10n.beaconChildCardWithHelper(firstHelper.displayName),
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: scheme.onSurfaceVariant,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-        if (_hasFacePile) ...[
-          SizedBox(height: tt.rowGap),
-          _PreviewFacePile(
-            author: author,
-            helpers: helpers,
-            helperCount: data.admittedHelperCount,
-            currentUserId: currentUserId,
           ),
         ],
         if (showDescription && data.description != null) ...[
