@@ -67,8 +67,14 @@ class SettingsScreen extends StatelessWidget implements AutoRouteWrapper {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               spacing: tt.sectionGap,
               children: [
-                const LanguageSwitchButton(),
-                const ThemeSwitchButton(),
+                _LabelledControl(
+                  label: l10n.labelLanguage,
+                  child: const LanguageSwitchButton(),
+                ),
+                _LabelledControl(
+                  label: l10n.labelTheme,
+                  child: const ThemeSwitchButton(),
+                ),
                 _SettingsCommandList(
                   l10n: l10n,
                   authCubit: authCubit,
@@ -199,6 +205,30 @@ class _SettingsCommandList extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+/// A segmented setting under its own section label, on the menu keyline.
+class _LabelledControl extends StatelessWidget {
+  const _LabelledControl({required this.label, required this.child});
+
+  final String label;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final tt = context.tt;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: EdgeInsets.only(left: tt.menuIconStart),
+          child: TenturaSectionHeader(label: label),
+        ),
+        child,
+      ],
     );
   }
 }

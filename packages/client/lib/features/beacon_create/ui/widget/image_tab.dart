@@ -254,6 +254,7 @@ class _ImageCard extends StatelessWidget {
                   foregroundColor: scheme.onPrimary,
                 ),
                 icon: Icon(Icons.close, size: tt.iconSize),
+                tooltip: L10n.of(context)?.buttonRemove,
                 onPressed: onRemove,
               ),
             ),

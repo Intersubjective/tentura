@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/ui/l10n/l10n.dart';
 
 /// A single image entry for [TenturaFullscreenImageViewer].
 @immutable
@@ -204,6 +205,7 @@ class _TenturaFullscreenImageViewerState
                 bottom: 0,
                 child: Center(
                   child: IconButton(
+                    tooltip: L10n.of(context)?.tooltipPreviousImage,
                     icon: Icon(
                       Icons.chevron_left,
                       color: chromeMuted,
@@ -221,6 +223,7 @@ class _TenturaFullscreenImageViewerState
                 bottom: 0,
                 child: Center(
                   child: IconButton(
+                    tooltip: L10n.of(context)?.tooltipNextImage,
                     icon: Icon(
                       Icons.chevron_right,
                       color: chromeMuted,

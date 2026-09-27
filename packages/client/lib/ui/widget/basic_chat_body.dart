@@ -1564,6 +1564,7 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
                 child: IconButton(
                   key: TestIds.key(TestIds.roomMessageSend),
                   icon: const Icon(Icons.send_rounded),
+                  tooltip: L10n.of(context)?.tooltipSendMessage,
                   onPressed: locked ? null : () => unawaited(_submit()),
                 ),
               ),

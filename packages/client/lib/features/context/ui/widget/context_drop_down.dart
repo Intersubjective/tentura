@@ -52,6 +52,7 @@ class ContextDropDown extends StatelessWidget {
                           minHeight: kMinInteractiveDimension,
                         ),
                         icon: const Icon(Icons.delete_forever),
+                        tooltip: L10n.of(context)?.buttonDelete,
                         onPressed: () async {
                           final needDelete = await ContextRemoveDialog.show(
                             context,

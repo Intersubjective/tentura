@@ -39,6 +39,9 @@ class AutoLeadingWithFallback extends StatelessWidget {
           label: closeWhenCanPop ? l10n.closeButtonLabel : l10n.backButtonTooltip,
           child: IconButton(
             icon: Icon(closeWhenCanPop ? Icons.close : Icons.arrow_back),
+            tooltip: closeWhenCanPop
+                ? l10n.closeButtonLabel
+                : l10n.backButtonTooltip,
             onPressed: onPressed ?? () => unawaited(context.router.maybePop()),
           ),
         );

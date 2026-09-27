@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/consts.dart';
 
 import '../dialog/share_code_dialog.dart';
+import '../l10n/l10n.dart';
 
 class ShareCodeIconButton extends StatelessWidget {
   const ShareCodeIconButton({
@@ -36,6 +37,7 @@ class ShareCodeIconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) => IconButton(
     icon: Icon(icon),
+    tooltip: L10n.of(context)?.tooltipShareCode,
     onPressed: () => ShareCodeDialog.show(
       context,
       link: link,

@@ -28,6 +28,7 @@ class PollingVariantInput extends StatelessWidget {
       suffix: IconButton(
         color: Theme.of(context).colorScheme.error,
         icon: const Icon(Icons.remove_circle_outline),
+        tooltip: L10n.of(context)?.buttonRemove,
         onPressed: onRemove,
       ),
     ),

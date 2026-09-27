@@ -808,6 +808,7 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                                 'BeaconCreate.LocationClearButton',
                               ),
                               icon: const Icon(Icons.cancel_rounded),
+                              tooltip: _l10n.tooltipClearLocation,
                               onPressed: () {
                                 _locationController.clear();
                                 _cubit.setLocation(null, '');

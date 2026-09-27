@@ -307,6 +307,7 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
           leading: isRecipients
               ? IconButton(
                   icon: const Icon(Icons.arrow_back),
+                  tooltip: MaterialLocalizations.of(context).backButtonTooltip,
                   onPressed: () => setState(() => _step = _formStep),
                 )
               : AutoLeadingWithFallback(

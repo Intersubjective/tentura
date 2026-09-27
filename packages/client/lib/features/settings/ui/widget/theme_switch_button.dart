@@ -16,31 +16,35 @@ class ThemeSwitchButton extends StatelessWidget {
       child: BlocSelector<SettingsCubit, SettingsState, ThemeMode>(
         bloc: GetIt.I<SettingsCubit>(),
         selector: (state) => state.themeMode,
-        builder:
-            (_, themeMode) => SegmentedButton<ThemeMode>(
-              selected: <ThemeMode>{themeMode},
-              showSelectedIcon: false,
-              segments: [
-                ButtonSegment<ThemeMode>(
-                  icon: const Icon(Icons.brightness_7),
-                  tooltip: l10n.light,
-                  value: ThemeMode.light,
-                ),
-                ButtonSegment<ThemeMode>(
-                  icon: const Icon(Icons.brightness_auto_outlined),
-                  tooltip: l10n.system,
-                  value: ThemeMode.system,
-                ),
-                ButtonSegment<ThemeMode>(
-                  icon: const Icon(Icons.brightness_5),
-                  tooltip: l10n.dark,
-                  value: ThemeMode.dark,
-                ),
-              ],
-              onSelectionChanged:
-                  (selected) =>
-                      GetIt.I<SettingsCubit>().setThemeMode(selected.single),
+        // Same order and shape as the language control above it: System
+        // first, every segment labelled. Three near-identical sun glyphs
+        // (the dark one was a sun too) could not be told apart.
+        builder: (_, themeMode) => SegmentedButton<ThemeMode>(
+          selected: <ThemeMode>{themeMode},
+          showSelectedIcon: false,
+          segments: [
+            ButtonSegment<ThemeMode>(
+              icon: const Icon(Icons.brightness_auto_outlined),
+              label: Text(l10n.system),
+              tooltip: l10n.system,
+              value: ThemeMode.system,
             ),
+            ButtonSegment<ThemeMode>(
+              icon: const Icon(Icons.light_mode_outlined),
+              label: Text(l10n.light),
+              tooltip: l10n.light,
+              value: ThemeMode.light,
+            ),
+            ButtonSegment<ThemeMode>(
+              icon: const Icon(Icons.dark_mode_outlined),
+              label: Text(l10n.dark),
+              tooltip: l10n.dark,
+              value: ThemeMode.dark,
+            ),
+          ],
+          onSelectionChanged: (selected) =>
+              GetIt.I<SettingsCubit>().setThemeMode(selected.single),
+        ),
       ),
     );
   }

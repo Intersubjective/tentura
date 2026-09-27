@@ -138,6 +138,7 @@ class HudLabeledMultiline extends StatelessWidget {
                     minWidth: 36,
                     minHeight: 36,
                   ),
+                  tooltip: editSemanticLabel,
                   icon: Icon(
                     Icons.edit_outlined,
                     size: 20,
@@ -173,6 +174,7 @@ Widget hudNowRowEditButton({
           minWidth: 36,
           minHeight: 36,
         ),
+        tooltip: editSemanticLabel,
         icon: Icon(
           Icons.edit_outlined,
           size: 20,

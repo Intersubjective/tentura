@@ -1574,6 +1574,26 @@
   "@profileOverflowEdit": {
     "context": "ProfileAppBar"
   },
+  "tooltipShareCode": "Показать QR-код и ссылку",
+  "@tooltipShareCode": {
+    "context": "Tooltip"
+  },
+  "tooltipSendMessage": "Отправить",
+  "@tooltipSendMessage": {
+    "context": "Tooltip"
+  },
+  "tooltipPreviousImage": "Предыдущее изображение",
+  "@tooltipPreviousImage": {
+    "context": "Tooltip"
+  },
+  "tooltipNextImage": "Следующее изображение",
+  "@tooltipNextImage": {
+    "context": "Tooltip"
+  },
+  "tooltipClearLocation": "Очистить место",
+  "@tooltipClearLocation": {
+    "context": "Tooltip"
+  },
   "introPage1Title": "Решайте задачи через людей, которым доверяете",
   "@introPage1Title": {
     "context": "Intro"

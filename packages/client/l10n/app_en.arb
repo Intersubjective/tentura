@@ -1574,6 +1574,26 @@
   "@profileOverflowEdit": {
     "context": "ProfileAppBar"
   },
+  "tooltipShareCode": "Show QR code and link",
+  "@tooltipShareCode": {
+    "context": "Tooltip"
+  },
+  "tooltipSendMessage": "Send",
+  "@tooltipSendMessage": {
+    "context": "Tooltip"
+  },
+  "tooltipPreviousImage": "Previous image",
+  "@tooltipPreviousImage": {
+    "context": "Tooltip"
+  },
+  "tooltipNextImage": "Next image",
+  "@tooltipNextImage": {
+    "context": "Tooltip"
+  },
+  "tooltipClearLocation": "Clear location",
+  "@tooltipClearLocation": {
+    "context": "Tooltip"
+  },
   "introPage1Title": "Get things done through people you trust",
   "@introPage1Title": {
     "context": "Intro"

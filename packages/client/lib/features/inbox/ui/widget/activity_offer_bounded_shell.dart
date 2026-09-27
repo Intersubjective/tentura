@@ -67,6 +67,7 @@ class ActivityOfferBoundedShell extends StatelessWidget {
                     child: IconButton(
                       key: TestIds.key(TestIds.inboxDismiss),
                       onPressed: onDismiss,
+                      tooltip: l10n.inboxDismissTooltip,
                       icon: Icon(Icons.close, size: tt.iconSize),
                       style: IconButton.styleFrom(
                         visualDensity: VisualDensity.compact,
