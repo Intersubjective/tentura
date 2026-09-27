@@ -1318,6 +1318,15 @@
       }
     }
   },
+  "beaconViewAuthorLine": "Автор: {name}",
+  "@beaconViewAuthorLine": {
+    "context": "BeaconViewScreen",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "constellationLocationPinned": "Отмеченное место",
   "@constellationLocationPinned": {
     "context": "ConstellationRequestPreviewSheet"

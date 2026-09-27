@@ -1318,6 +1318,15 @@
       }
     }
   },
+  "beaconViewAuthorLine": "By {name}",
+  "@beaconViewAuthorLine": {
+    "context": "BeaconViewScreen",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "constellationLocationPinned": "Pinned location",
   "@constellationLocationPinned": {
     "context": "ConstellationRequestPreviewSheet"

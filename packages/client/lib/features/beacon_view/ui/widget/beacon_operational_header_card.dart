@@ -6,6 +6,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/domain/pinned_facts.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/presenter/beacon_hud_author_action.dart';
@@ -93,6 +94,16 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
         children: [
           ClosedRequestBanner(beacon: state.beacon),
           RequestAccessReasonBanner(beacon: state.beacon),
+          // Someone else's Request has to say whose it is; the author's own
+          // view already knows.
+          if (!state.isBeaconMine) ...[
+            _AuthorLine(
+              author: state.beacon.author,
+              label: l10n.beaconViewAuthorLine(state.beacon.author.shownName),
+              onTap: onAuthorTap,
+            ),
+            const SizedBox(height: kBeaconHudRowGap),
+          ],
           BeaconHudMetadataTable(
             buildEntries: (rowWidth) => buildBeaconViewHudMetadataEntries(
               context,
@@ -101,7 +112,8 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
               onEditNowLine: onEditNowLine,
               onReviewAuthorOffers: onAuthorHudAction == null
                   ? null
-                  : () => onAuthorHudAction!(BeaconHudAuthorAction.reviewOffers),
+                  : () =>
+                        onAuthorHudAction!(BeaconHudAuthorAction.reviewOffers),
             ),
           ),
           const SizedBox(height: kBeaconHudRowGap),
@@ -193,7 +205,8 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
       return _HelperHudActions(primary: primary);
     }
 
-    final canOfferHelp = openFamily &&
+    final canOfferHelp =
+        openFamily &&
         !state.isHelpOffered &&
         b.allowsNewHelpOfferAsNonAuthor &&
         onOfferHelp != null;
@@ -231,7 +244,8 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
       return _HelperHudActions(primary: out.take(3).toList());
     }
 
-    final canEditHelpOffer = openFamily &&
+    final canEditHelpOffer =
+        openFamily &&
         state.isRoomAdmissionBlocked &&
         !state.coordinationDeniesRoomAdmission &&
         onEditHelpOffer != null;
@@ -375,6 +389,61 @@ class BeaconCardPillReadOnly extends StatelessWidget {
         style: theme.textTheme.labelMedium?.copyWith(
           color: theme.colorScheme.onSurfaceVariant,
           fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+/// Avatar in the HUD lead column, "By <name>" on the HUD text keyline.
+class _AuthorLine extends StatelessWidget {
+  const _AuthorLine({
+    required this.author,
+    required this.label,
+    required this.onTap,
+  });
+
+  final Profile author;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final tt = context.tt;
+    return Semantics(
+      button: true,
+      label: label,
+      child: ExcludeSemantics(
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(tt.buttonRadius),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              minHeight: kMinInteractiveDimension,
+            ),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: kBeaconHudRowLeadWidth,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: TenturaAvatar(
+                      profile: author,
+                      size: kBeaconHudRowIconSize + tt.tightGap * 2,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TenturaText.bodySmall(tt.text),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
