@@ -83,8 +83,10 @@ class TombstoneRow extends StatelessWidget {
               children: [
                 // The frame is kept even without a resolved forwarder, so a
                 // list of tombstones keeps one text column.
+                // A neutral glyph rather than blank space: an empty 36-44 dp
+                // square read as a missing picture.
                 profile == null
-                    ? SizedBox.square(dimension: tt.avatarSize)
+                    ? _NoForwarderGlyph(size: tt.avatarSize)
                     : TenturaAvatar.medium(profile: profile),
                 SizedBox(width: tt.avatarTextGap),
                 Expanded(
@@ -111,7 +113,13 @@ class TombstoneRow extends StatelessWidget {
                             ),
                           ),
                           SizedBox(width: tt.iconTextGap),
-                          Flexible(
+                          // The age keeps its own width ("80d ago" was cut to
+                          // "80d …" while the title had room), capped so a
+                          // long absolute date at 2x text still fits 360 dp.
+                          ConstrainedBox(
+                            constraints: BoxConstraints(
+                              maxWidth: tt.avatarSize * 3,
+                            ),
                             child: Tooltip(
                               message: absoluteTime,
                               excludeFromSemantics: true,
@@ -120,16 +128,11 @@ class TombstoneRow extends StatelessWidget {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TenturaText.withTabular(
-                                  TenturaText.bodySmall(tt.textFaint),
+                                  TenturaText.bodySmall(tt.textMuted),
                                 ),
                                 semanticsLabel: '',
                               ),
                             ),
-                          ),
-                          SizedBox(width: tt.tightGap),
-                          _DismissControl(
-                            label: l10n.attentionEventDismiss,
-                            onPressed: onDismiss,
                           ),
                         ],
                       ),
@@ -165,9 +168,46 @@ class TombstoneRow extends StatelessWidget {
                     ],
                   ),
                 ),
+                // Beside the whole text block, not inside the title line: a
+                // 48 dp target in that line pushed the outcome sentence ~28 dp
+                // below its title.
+                SizedBox(width: tt.tightGap),
+                Transform.translate(
+                  offset: Offset(0, -tt.cardPadding.top / 2),
+                  child: _DismissControl(
+                    label: l10n.attentionEventDismiss,
+                    onPressed: onDismiss,
+                  ),
+                ),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NoForwarderGlyph extends StatelessWidget {
+  const _NoForwarderGlyph({required this.size});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final tt = context.tt;
+    return ExcludeSemantics(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        ),
+        child: Icon(
+          Icons.campaign_outlined,
+          size: tt.iconSize * 0.8,
+          color: tt.textMuted,
         ),
       ),
     );

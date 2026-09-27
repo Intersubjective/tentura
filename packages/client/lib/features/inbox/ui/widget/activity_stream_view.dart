@@ -498,7 +498,11 @@ class _ActivityStreamScrollBody extends StatelessWidget {
           padding: EdgeInsets.symmetric(horizontal: tt.listRowPadding.left),
           child: TenturaSectionHeader(
             label: l10n.activityForYouTitle,
-            count: offersState.countLoadFailed ? null : offersState.totalCount,
+            // Counts decisions waiting in the pinned zone. "· 0" above a
+            // stream of updates read as "this list is empty".
+            count: offersState.countLoadFailed || offersState.totalCount == 0
+                ? null
+                : offersState.totalCount,
             semanticsIdentifier: TestIds.activityForYouHeader,
           ),
         ),
