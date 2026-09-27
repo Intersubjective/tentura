@@ -552,12 +552,7 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
     return beaconDescriptionValidator(_l10n, _descriptionController.text);
   }
 
-  InputBorder _titleBorder(Color color) => UnderlineInputBorder(
-        borderSide: BorderSide(color: color),
-      );
-
   Widget _titleField(BuildContext context, TenturaTokens tt) {
-    final theme = Theme.of(context);
     return BlocBuilder<BeaconCreateCubit, BeaconCreateState>(
       bloc: _cubit,
       buildWhen: (p, c) => p.showValidationHints != c.showValidationHints,
@@ -574,7 +569,8 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                 key: TestIds.key(TestIds.requestTitle),
                 focusNode: _titleFocus,
                 controller: _titleController,
-                style: theme.textTheme.headlineMedium,
+                // The Request's own title scale (cards, detail header).
+                style: TenturaText.title(tt.text),
                 keyboardType: TextInputType.text,
                 maxLength: kBeaconTitleMaxLength,
                 onTapOutside: (_) => FocusScope.of(context).unfocus(),
@@ -583,25 +579,11 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                   setState(() {});
                 },
                 onSaved: (value) => _cubit.setTitle(value ?? ''),
-                decoration: InputDecoration(
-                  hintText: _l10n.beaconCreateTitleHint,
-                  hintStyle: TenturaText.bodySmall(tt.textMuted),
-                  counterText: '',
+                decoration: tenturaFormFieldDecoration(
+                  context,
+                  labelText: _l10n.beaconCreateTitleHint,
                   errorText: error,
-                  errorStyle: TenturaText.bodySmall(tt.danger),
-                  errorMaxLines: 2,
-                  contentPadding: EdgeInsets.symmetric(
-                    vertical: tt.tightGap * 3,
-                  ),
-                  enabledBorder: _titleBorder(
-                    error != null ? tt.danger : tt.border,
-                  ),
-                  focusedBorder: _titleBorder(
-                    error != null ? tt.danger : tt.info,
-                  ),
-                  errorBorder: _titleBorder(tt.danger),
-                  focusedErrorBorder: _titleBorder(tt.danger),
-                ),
+                ).copyWith(counterText: ''),
               ),
             ),
             ListenableBuilder(
@@ -616,7 +598,7 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                   child: Text(
                     '$n/$kBeaconTitleMaxLength',
                     style: TenturaText.withTabular(
-                      TenturaText.bodySmall(tt.textFaint),
+                      TenturaText.bodySmall(tt.textMuted),
                     ),
                   ),
                 );
@@ -629,7 +611,6 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
   }
 
   Widget _descriptionField(BuildContext context, TenturaTokens tt) {
-    final theme = Theme.of(context);
     return BlocBuilder<BeaconCreateCubit, BeaconCreateState>(
       bloc: _cubit,
       buildWhen: (p, c) => p.showValidationHints != c.showValidationHints,
@@ -646,7 +627,7 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                 key: TestIds.key(TestIds.requestDescription),
                 focusNode: _descriptionFocus,
                 controller: _descriptionController,
-                style: theme.textTheme.bodyLarge,
+                style: tenturaFormFieldTextStyle(context),
                 keyboardType: TextInputType.multiline,
                 minLines: 4,
                 maxLines: null,
@@ -657,19 +638,12 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                   setState(() {});
                 },
                 onSaved: (value) => _cubit.setDescription(value ?? ''),
-                decoration: InputDecoration(
-                  hintText: _l10n.beaconCreateDescriptionHint,
-                  hintStyle: TenturaText.bodySmall(tt.textMuted),
-                  counterText: '',
+                decoration: tenturaFormFieldDecoration(
+                  context,
+                  labelText: _l10n.beaconCreateDescriptionHint,
                   errorText: error,
-                  errorStyle: TenturaText.bodySmall(tt.danger),
-                  errorMaxLines: 3,
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  errorBorder: InputBorder.none,
-                  focusedErrorBorder: InputBorder.none,
-                ),
+                  alignLabelWithHint: true,
+                ).copyWith(counterText: ''),
               ),
             ),
             ListenableBuilder(
@@ -683,7 +657,7 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                           '$n/$kBeaconDescriptionMaxLength',
                           style: TenturaText.withTabular(
                             TenturaText.bodySmall(
-                              error != null ? tt.danger : tt.textFaint,
+                              error != null ? tt.danger : tt.textMuted,
                             ),
                           ),
                         )

@@ -59,7 +59,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
-    final textTheme = Theme.of(context).textTheme;
     final tt = context.tt;
     final fieldPadding = EdgeInsets.all(tt.screenHPadding);
     final cubit = context.read<ProfileEditCubit>();
@@ -180,13 +179,15 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
                         padding: fieldPadding,
                         child: TextFormField(
                           autovalidateMode: AutovalidateMode.onUnfocus,
-                          decoration: InputDecoration(
+                          decoration: tenturaFormFieldDecoration(
+                            context,
                             labelText: l10n.labelDisplayName,
                             hintText: l10n.pleaseFillDisplayName,
                           ),
                           initialValue: cubit.state.displayName,
                           maxLength: kTitleMaxLength,
-                          style: textTheme.headlineLarge,
+                          buildCounter: tenturaCounterNearLimit,
+                          style: tenturaFormFieldTextStyle(context),
                           onChanged: cubit.setDisplayName,
                           onTapOutside: (_) => FocusScope.of(context).unfocus(),
                           validator: (text) => displayNameValidator(l10n, text),
@@ -197,20 +198,23 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
                         padding: fieldPadding,
                         child: TextFormField(
                           autovalidateMode: AutovalidateMode.onUnfocus,
-                          decoration: InputDecoration(
+                          decoration: tenturaFormFieldDecoration(
+                            context,
                             labelText: l10n.labelUserHandle,
                             hintText: l10n.userHandleHint,
                             helperText: l10n.userHandleHelper,
+                            prefixText: '@',
                           ),
                           initialValue: cubit.state.handle,
                           maxLength: kUserHandleMaxLength,
+                          buildCounter: tenturaCounterNearLimit,
                           keyboardType: TextInputType.text,
                           inputFormatters: [
                             FilteringTextInputFormatter.allow(
                               RegExp('[a-z0-9_]'),
                             ),
                           ],
-                          style: textTheme.bodyLarge,
+                          style: tenturaFormFieldTextStyle(context),
                           onChanged: cubit.setHandle,
                           onTapOutside: (_) => FocusScope.of(context).unfocus(),
                           validator: (text) {
@@ -229,7 +233,9 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
                           padding: fieldPadding,
                           child: LayoutBuilder(
                             builder: (context, constraints) {
-                              final textStyle = textTheme.bodyMedium!;
+                              final textStyle = tenturaFormFieldTextStyle(
+                                context,
+                              );
                               final painter = TextPainter(
                                 text: TextSpan(text: 'A', style: textStyle),
                                 maxLines: 1,
@@ -245,10 +251,12 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
                                 keyboardType: TextInputType.multiline,
                                 initialValue: cubit.state.description,
                                 autovalidateMode: AutovalidateMode.onUnfocus,
-                                decoration: InputDecoration(
+                                buildCounter: tenturaCounterNearLimit,
+                                decoration: tenturaFormFieldDecoration(
+                                  context,
                                   labelText: l10n.labelDescription,
-                                  labelStyle: textTheme.bodyMedium,
                                   helperText: l10n.profileDescriptionHelper,
+                                  alignLabelWithHint: true,
                                 ),
                                 style: textStyle,
                                 onChanged: cubit.setDescription,

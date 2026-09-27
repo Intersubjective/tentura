@@ -42,3 +42,4 @@ export 'tentura_window_class.dart';
 export 'tentura_tone.dart';
 export 'tentura_icons.dart';
 export 'tentura_note_input_decoration.dart';
+export 'tentura_form_field_decoration.dart';
