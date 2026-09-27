@@ -119,6 +119,13 @@ abstract final class TenturaTheme {
         shape: expansionTileShape,
       ),
       iconTheme: IconThemeData(color: defaultIconColor),
+      // List rows on the Tentura scale (15 / 13), not Material's 16 / 14-15:
+      // plain ListTiles (notification settings, pickers) stood a size above
+      // the design-system rows on the next screen.
+      listTileTheme: ListTileThemeData(
+        titleTextStyle: TenturaText.bodyMedium(colorScheme.onSurface),
+        subtitleTextStyle: TenturaText.bodySmall(colorScheme.onSurfaceVariant),
+      ),
       // [ColorScheme.outline] is overridden with the light hairline border, and
       // Material 3 draws unselected controls with it — off switches and empty
       // checkboxes read as disabled. Unselected controls use onSurfaceVariant.
