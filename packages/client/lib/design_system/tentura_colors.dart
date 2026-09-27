@@ -9,7 +9,9 @@ abstract final class TenturaPalette {
   static const Color borderSubtle = Color(0xFFF1F5F9);
   static const Color text = Color(0xFF0F172A);
   static const Color textMuted = Color(0xFF64748B);
-  static const Color textFaint = Color(0xFF94A3B8);
+  // ≥ 3:1 on bg/surface (icons, hints, decorative text); body text uses
+  // [textMuted] (4.5:1).
+  static const Color textFaint = Color(0xFF748399);
   static const Color sky = Color(0xFF0369A1);
   static const Color skyBorder = Color(0xFFBAE6FD);
   static const Color skyBorderAlt = Color(0xFFE0F2FE);

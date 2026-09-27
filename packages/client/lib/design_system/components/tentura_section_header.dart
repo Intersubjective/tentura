@@ -31,7 +31,7 @@ class TenturaSectionHeader extends StatelessWidget {
       children: [
         Text(
           labelText,
-          style: TenturaText.typeLabel(tt.textFaint),
+          style: TenturaText.typeLabel(tt.textMuted),
         ),
         if (helperText != null) ...[
           SizedBox(height: tt.tightGap),

@@ -230,7 +230,7 @@ class _UpdatesFeedTileState extends State<UpdatesFeedTile> {
               child: Text(
                 ageLabel,
                 style: TenturaText.withTabular(
-                  TenturaText.bodySmall(tt.textFaint),
+                  TenturaText.bodySmall(tt.textMuted),
                 ),
               ),
             ),

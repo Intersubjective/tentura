@@ -729,7 +729,7 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
       children: [
         Text(
           _l10n.beaconCreateDetailsLabel,
-          style: TenturaText.typeLabel(tt.textFaint),
+          style: TenturaText.typeLabel(tt.textMuted),
         ),
         SizedBox(height: tt.rowGap),
         DecoratedBox(

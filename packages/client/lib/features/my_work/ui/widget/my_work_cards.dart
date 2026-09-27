@@ -391,7 +391,7 @@ Widget? _myWorkArchiveFooter(BuildContext context, MyWorkCardViewModel vm) {
       alignment: Alignment.centerRight,
       child: TenturaTextAction(
         label: l10n.myWorkUnarchive,
-        tone: TenturaTone.neutral,
+        tone: TenturaTone.info,
         onPressed: () => cubit.unarchiveBeacon(vm.beaconId),
       ),
     );
@@ -400,7 +400,7 @@ Widget? _myWorkArchiveFooter(BuildContext context, MyWorkCardViewModel vm) {
     alignment: Alignment.centerRight,
     child: TenturaTextAction(
       label: l10n.myWorkArchive,
-      tone: TenturaTone.neutral,
+      tone: TenturaTone.info,
       onPressed: () => cubit.archiveBeacon(vm.beaconId),
     ),
   );

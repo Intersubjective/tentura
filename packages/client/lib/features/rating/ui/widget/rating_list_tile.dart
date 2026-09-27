@@ -51,6 +51,17 @@ class RatingListTile extends StatelessWidget {
     final alphaDirect = _heatmapAlpha(direct);
     final alphaReverse = _heatmapAlpha(reverse);
     final reciprocity = _reciprocityClass(direct, reverse);
+    // White on a pale tile ('1.0' at 8 % primary) was invisible: pick the
+    // label colour from the tile as it is actually painted.
+    Color scoreFg(double alpha) {
+      final fill = Color.alphaBlend(
+        colorScheme.primary.withValues(alpha: alpha),
+        colorScheme.surface,
+      );
+      return ThemeData.estimateBrightnessForColor(fill) == Brightness.dark
+          ? colorScheme.onPrimary
+          : colorScheme.onSurface;
+    }
 
     String badgeLabel;
     Color badgeBg;
@@ -148,7 +159,7 @@ class RatingListTile extends StatelessWidget {
                     direct.toStringAsFixed(1),
                     style: textTheme.bodyMedium?.copyWith(
                       fontWeight: FontWeight.w500,
-                      color: colorScheme.onPrimary,
+                      color: scoreFg(alphaDirect),
                     ),
                   ),
                 ),
@@ -171,7 +182,7 @@ class RatingListTile extends StatelessWidget {
                     reverse.toStringAsFixed(1),
                     style: textTheme.bodyMedium?.copyWith(
                       fontWeight: FontWeight.w500,
-                      color: colorScheme.onPrimary,
+                      color: scoreFg(alphaReverse),
                     ),
                   ),
                 ),

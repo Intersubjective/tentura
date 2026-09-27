@@ -345,7 +345,7 @@ class _AttentionMiniCardState extends State<AttentionMiniCard>
       age,
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
-      style: TenturaText.withTabular(TenturaText.bodySmall(tt.textFaint)),
+      style: TenturaText.withTabular(TenturaText.bodySmall(tt.textMuted)),
       semanticsLabel: '',
     ),
   );

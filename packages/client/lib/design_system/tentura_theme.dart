@@ -119,6 +119,54 @@ abstract final class TenturaTheme {
         shape: expansionTileShape,
       ),
       iconTheme: IconThemeData(color: defaultIconColor),
+      // [ColorScheme.outline] is overridden with the light hairline border, and
+      // Material 3 draws unselected controls with it — off switches and empty
+      // checkboxes read as disabled. Unselected controls use onSurfaceVariant.
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return colorScheme.onSurface.withValues(alpha: 0.38);
+          }
+          return states.contains(WidgetState.selected)
+              ? colorScheme.onPrimary
+              : colorScheme.onSurfaceVariant;
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return colorScheme.onSurface.withValues(alpha: 0.12);
+          }
+          return states.contains(WidgetState.selected)
+              ? colorScheme.primary
+              : colorScheme.surfaceContainerHighest;
+        }),
+        trackOutlineColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return Colors.transparent;
+          }
+          return states.contains(WidgetState.disabled)
+              ? colorScheme.onSurface.withValues(alpha: 0.12)
+              : colorScheme.onSurfaceVariant;
+        }),
+      ),
+      checkboxTheme: CheckboxThemeData(
+        side: WidgetStateBorderSide.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? BorderSide.none
+              : BorderSide(
+                  color: states.contains(WidgetState.disabled)
+                      ? colorScheme.onSurface.withValues(alpha: 0.38)
+                      : colorScheme.onSurfaceVariant,
+                  width: 2,
+                ),
+        ),
+      ),
+      radioTheme: RadioThemeData(
+        fillColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? colorScheme.primary
+              : colorScheme.onSurfaceVariant,
+        ),
+      ),
       appBarTheme: AppBarThemeData(
         backgroundColor: colorScheme.surface,
         foregroundColor: colorScheme.onSurface,

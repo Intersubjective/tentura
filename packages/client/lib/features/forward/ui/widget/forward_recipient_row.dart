@@ -520,9 +520,11 @@ class _ForwardRowCheckbox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
+    // The hairline border colour (~1.3:1) left rows looking unselectable;
+    // an empty box uses the Material 3 unselected-control weight.
     final borderColor = enabled
-        ? (isSelected ? tt.info : tt.border)
-        : tt.borderSubtle;
+        ? (isSelected ? tt.info : tt.textMuted)
+        : tt.border;
     return Semantics(
       identifier: identifier,
       label: isSelected
@@ -535,9 +537,8 @@ class _ForwardRowCheckbox extends StatelessWidget {
         child: InkWell(
           onTap: enabled ? onTap : null,
           customBorder: const CircleBorder(),
-          child: SizedBox(
-            width: 44,
-            height: 44,
+          child: SizedBox.square(
+            dimension: kMinInteractiveDimension,
             child: Center(
               child: Container(
                 width: 20,
@@ -545,7 +546,10 @@ class _ForwardRowCheckbox extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: isSelected && enabled ? tt.info : Colors.transparent,
                   borderRadius: BorderRadius.circular(TenturaRadii.accentBar),
-                  border: Border.all(color: borderColor),
+                  border: Border.all(
+                    color: borderColor,
+                    width: isSelected && enabled ? 1 : 2,
+                  ),
                 ),
                 child: isSelected && enabled
                     ? Icon(Icons.check, size: 14, color: tt.surface)
