@@ -148,4 +148,37 @@ INSERT INTO public.person_capability_event (
   });
 }
 
+Future<void> _seedFixture(Connection writer) async {
+  await writer.execute(r'''
+INSERT INTO public."user" (id, display_name, public_key)
+VALUES
+  ('Upcem0141sub1', 'Subject', 'pk-m0141-sub'),
+  ('Upcem0141obs1', 'Observer', 'pk-m0141-obs')
+ON CONFLICT DO NOTHING
+''');
+
+  await writer.execute(r'''
+INSERT INTO public.beacon (id, user_id, title, description, status)
+VALUES (
+  'Bpcem0141bcn1',
+  'Upcem0141sub1',
+  'm0141 fixture beacon',
+  'd',
+  0
+)
+ON CONFLICT DO NOTHING
+''');
+
+  await writer.execute(r'''
+INSERT INTO public.beacon_forward_edge (id, beacon_id, sender_id, recipient_id)
+VALUES (
+  'Fpcem0141edge1',
+  'Bpcem0141bcn1',
+  'Upcem0141sub1',
+  'Upcem0141obs1'
+)
+ON CONFLICT DO NOTHING
+''');
+}
+
 

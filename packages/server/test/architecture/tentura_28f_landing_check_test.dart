@@ -38,6 +38,41 @@ void main() {
       }
     });
 
+    test('m0141 person_capability_event ledger test defines wired _seedFixture', () {
+      const relative =
+          'test/data/database/m0141_person_capability_event_ledger_test.dart';
+      final source = _serverTestSource(relative);
+      if (!source.contains('await _seedFixture(writer)')) {
+        return;
+      }
+      expect(
+        source,
+        contains('Future<void> _seedFixture'),
+        reason:
+            '$relative calls _seedFixture but the helper is missing — '
+            'finish tentura-21x trial merge',
+      );
+    });
+
+    test(
+      'attention_repository_pg_test defines _TestChannels when channel handoff is wired',
+      () {
+        const relative =
+            'test/data/repository/attention_repository_pg_test.dart';
+        final source = _serverTestSource(relative);
+        if (!RegExp(r'\b_TestChannels\(').hasMatch(source)) {
+          return;
+        }
+        expect(
+          source,
+          contains('class _TestChannels'),
+          reason:
+              '$relative uses _TestChannels but the fake is missing — '
+              'finish tentura-21x trial merge',
+        );
+      },
+    );
+
     test(
       'bead acceptance: wrapped dart test tentura_21x_unused_test_setup_test.dart exits 0',
       () {
@@ -131,4 +166,12 @@ Directory _serverPackageRoot() {
     }
   }
   throw StateError('server package root not found');
+}
+
+String _serverTestSource(String relativePath) {
+  final file = File('${_serverPackageRoot().path}/$relativePath');
+  if (!file.existsSync()) {
+    throw StateError('server test file not found: ${file.path}');
+  }
+  return file.readAsStringSync();
 }
