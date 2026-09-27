@@ -351,7 +351,7 @@ _pumpTrustGraphBody(
   await _settleGraph(tester);
 
   if (legendExpanded) {
-    await tester.tap(find.byIcon(Icons.map_outlined));
+    await tester.tap(find.byIcon(Icons.legend_toggle));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
   }

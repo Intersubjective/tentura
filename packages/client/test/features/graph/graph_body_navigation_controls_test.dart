@@ -193,7 +193,7 @@ void _expectTrustModeControls(
   expect(find.byKey(TestIds.key(TestIds.graphFit)), findsOneWidget);
   expect(find.byKey(TestIds.key(TestIds.graphResetToEgo)), findsOneWidget);
   expect(find.byTooltip('Reset to me'), findsOneWidget);
-  expect(find.byIcon(Icons.map_outlined), findsOneWidget);
+  expect(find.byIcon(Icons.legend_toggle), findsOneWidget);
   expect(find.byKey(TestIds.key(TestIds.graphCenterView)), findsNothing);
   expect(find.byKey(TestIds.key(TestIds.graphExpand)), findsNothing);
   expect(find.byKey(TestIds.key(TestIds.graphOpenDetails)), findsNothing);
@@ -216,7 +216,7 @@ void _expectGenealogyModeControls(
   expect(find.byKey(TestIds.key(TestIds.graphResetToEgo)), findsOneWidget);
   expect(find.byTooltip('Reset to origin'), findsOneWidget);
   expect(find.byTooltip('Reset to me'), findsNothing);
-  expect(find.byIcon(Icons.map_outlined), findsOneWidget);
+  expect(find.byIcon(Icons.legend_toggle), findsOneWidget);
   expect(find.byKey(TestIds.key(TestIds.graphCenterView)), findsNothing);
   expect(find.byKey(TestIds.key(TestIds.graphExpand)), findsNothing);
   expect(
@@ -234,7 +234,7 @@ void _expectForwardsModeControls(
   bool withOpenBeacon = false,
 }) {
   expect(find.byKey(TestIds.key(TestIds.graphCenterView)), findsOneWidget);
-  expect(find.byIcon(Icons.map_outlined), findsOneWidget);
+  expect(find.byIcon(Icons.legend_toggle), findsOneWidget);
   expect(find.byKey(TestIds.key(TestIds.graphBack)), findsNothing);
   expect(find.byKey(TestIds.key(TestIds.graphFit)), findsNothing);
   expect(find.byKey(TestIds.key(TestIds.graphResetToEgo)), findsNothing);

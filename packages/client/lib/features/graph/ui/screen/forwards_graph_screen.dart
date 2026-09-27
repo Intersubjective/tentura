@@ -61,8 +61,33 @@ class ForwardsGraphScreen extends StatelessWidget implements AutoRouteWrapper {
         buildWhen: (p, c) =>
             p.status != c.status ||
             p.helpOffererViewerRole != c.helpOffererViewerRole,
-        builder: (context, state) =>
-            Text(_titleFor(l10n, state.helpOffererViewerRole)),
+        builder: (context, state) => FutureBuilder<String?>(
+          future: context.read<GraphCubit>().forwardsBeaconTitle,
+          builder: (context, snapshot) {
+            final title = Text(
+              _titleFor(l10n, state.helpOffererViewerRole),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            );
+            final requestTitle = snapshot.data;
+            if (requestTitle == null) return title;
+            // A deep link or a return visit otherwise shows forwards of an
+            // unnamed Request.
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                title,
+                Text(
+                  requestTitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TenturaText.bodySmall(context.tt.textMuted),
+                ),
+              ],
+            );
+          },
+        ),
       ),
       progress: BlocSelector<GraphCubit, GraphState, bool>(
         selector: (state) => state.isLoading,

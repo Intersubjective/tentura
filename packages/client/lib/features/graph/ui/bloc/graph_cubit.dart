@@ -197,6 +197,20 @@ class GraphCubit extends Cubit<GraphState> {
 
   bool get _isTrustGraph => mode == GraphMode.trust;
 
+  /// Title of the Request whose forwards are drawn, so the screen can say
+  /// which Request it is about. `null` outside the forwards graph or when the
+  /// Request cannot be read.
+  late final Future<String?> forwardsBeaconTitle = () async {
+    final id = forwardsGraphBeaconId;
+    if (id == null || id.isEmpty) return null;
+    try {
+      final title = (await _beaconRepository.fetchBeaconById(id)).title.trim();
+      return title.isEmpty ? null : title;
+    } catch (_) {
+      return null;
+    }
+  }();
+
   /// Active help offerers for [forwardsGraphBeaconId] (forwards graph only).
   /// Highlighted via [UserNode.isHelpOfferer] in the renderer.
   Set<String> _helpOffererIds = const <String>{};

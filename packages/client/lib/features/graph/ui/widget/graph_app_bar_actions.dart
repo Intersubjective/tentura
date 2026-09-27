@@ -177,7 +177,9 @@ class _GraphAppBarActionsState extends State<GraphAppBarActions> {
                 onPressed: graphState.focusPathDepth > 1
                     ? cubit.popFocus
                     : null,
-                icon: Icons.arrow_back,
+                // Not a second back arrow next to the bar's own: this steps
+                // back through focus history inside the graph.
+                icon: Icons.undo,
                 minSize: tt.buttonHeight,
               ),
             );
@@ -227,9 +229,9 @@ class _GraphAppBarActionsState extends State<GraphAppBarActions> {
                   ? l10n.graphLegendClose
                   : l10n.graphLegendOpen,
               onPressed: widget.onToggleLegend,
-              icon: Icon(
-                widget.legendExpanded ? Icons.map : Icons.map_outlined,
-              ),
+              // Same glyph as My field's legend control.
+              icon: const Icon(Icons.legend_toggle),
+              isSelected: widget.legendExpanded,
               constraints: BoxConstraints(
                 minWidth: tt.buttonHeight,
                 minHeight: tt.buttonHeight,
