@@ -153,7 +153,9 @@ function ctaRecoverSeed(inviteCode) {
   return el(
     'a',
     {
-      class: 'btn btn-secondary',
+      // A rare recovery path: a text link, not a second full-weight button
+      // under "Email me a sign-in link".
+      class: 'hint-link',
       href,
       onclick: () => {
         setAttemptId(attemptId, 'seed');
@@ -438,15 +440,15 @@ function renderEmailMagicLinkForm() {
       'data-lpignore': 'true',
     },
     el('label', { class: 'field-label', for: 'email-signin' }, 'Email'),
+    el(
+      'p',
+      { class: 'field-hint' },
+      'We never confirm whether an account exists for this address.',
+    ),
     emailInput,
     submit,
     errorEl,
     successEl,
-    el(
-      'p',
-      { class: 'hint' },
-      'We never confirm whether an account exists for this address.',
-    ),
   );
 }
 
@@ -546,6 +548,11 @@ function renderInviteEntryForm() {
       'data-lpignore': 'true',
     },
     el('label', { class: 'field-label', for: 'invite-entry' }, 'Invite link or code'),
+    el(
+      'p',
+      { class: 'field-hint' },
+      'New here? Paste the invite link a friend sent you.',
+    ),
     input,
     el(
       'button',
@@ -553,11 +560,6 @@ function renderInviteEntryForm() {
       'Continue with invite',
     ),
     errorEl,
-    el(
-      'p',
-      { class: 'hint' },
-      'New here? Paste the invite link a friend sent you.',
-    ),
   );
 }
 
