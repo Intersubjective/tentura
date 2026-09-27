@@ -45,6 +45,7 @@ Future<void> main() async {
     late BeaconRoomRepository room;
 
     setUpAll(() async {
+      if (skipReason != false) return;
       await target.recreate();
       writer = await Connection.open(
         target.databaseEnv.pgEndpoint,
@@ -156,6 +157,7 @@ VALUES
     });
 
     tearDownAll(() async {
+      if (skipReason != false) return;
       await database.close();
       await writer.close();
       await target.drop();

@@ -54,6 +54,7 @@ Future<void> main() async {
     late MutatingUnitOfWork unitOfWork;
 
     setUpAll(() async {
+      if (skipReason != false) return;
       await target.recreate();
       writer = await Connection.open(
         target.databaseEnv.pgEndpoint,
@@ -91,6 +92,7 @@ Future<void> main() async {
     });
 
     tearDownAll(() async {
+      if (skipReason != false) return;
       await database.close();
       await writer.close();
       await target.drop();

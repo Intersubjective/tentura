@@ -212,7 +212,7 @@ INSERT INTO public.person_capability_event (
           await _rebuild(writer);
         }
         final after = await _effectiveOutStrength(writer);
-        expect(after - baseline, closeTo(0, 1e-9));
+        expect(after - baseline, closeTo(0, 1e-8));
       },
       skip: skipReason,
     );

@@ -23,6 +23,7 @@ Future<void> main() async {
     late Connection writer;
 
     setUpAll(() async {
+      if (skipReason != false) return;
       await target.recreate();
       writer = await Connection.open(
         target.databaseEnv.pgEndpoint,
@@ -32,6 +33,7 @@ Future<void> main() async {
     });
 
     tearDownAll(() async {
+      if (skipReason != false) return;
       await writer.close();
       await target.drop();
     });
