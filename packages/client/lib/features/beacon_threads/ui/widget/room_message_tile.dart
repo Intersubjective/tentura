@@ -1030,15 +1030,26 @@ class RoomMessageTile extends StatelessWidget {
                       Icons.insert_drive_file_outlined,
                       size: 22,
                     ),
-                    label: Text(
-                      [
-                        if (a.fileName.trim().isNotEmpty)
-                          a.fileName
-                        else
-                          l10n.beaconRoomAttachmentUntitled,
+                    // The name gives way, the size does not: as one string
+                    // a long name clipped the size and left a stray "·".
+                    label: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            a.fileName.trim().isNotEmpty
+                                ? a.fileName
+                                : l10n.beaconRoomAttachmentUntitled,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                         if (_formatAttachmentSize(a.sizeBytes).isNotEmpty)
-                          ' · ${_formatAttachmentSize(a.sizeBytes)}',
-                      ].join(),
+                          Text(
+                            ' · ${_formatAttachmentSize(a.sizeBytes)}',
+                            maxLines: 1,
+                          ),
+                      ],
                     ),
                     onPressed: onOpenFileAttachment == null
                         ? null

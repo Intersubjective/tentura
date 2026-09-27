@@ -85,12 +85,17 @@ class BeaconChildRequestsSection extends StatelessWidget {
                 ),
                 if (showCreate)
                   if (wide)
+                    // Loose and end-aligned: inside a plain Flexible the button
+                    // started mid-row, floating between title and edge.
                     Flexible(
-                      child: BeaconHudActionButton(
-                        key: TestIds.key(TestIds.childRequestCreate),
-                        icon: Icons.add,
-                        label: l10n.beaconCreateChildRequest,
-                        onPressed: onCreateChild,
+                      child: Align(
+                        alignment: AlignmentDirectional.centerEnd,
+                        child: BeaconHudActionButton(
+                          key: TestIds.key(TestIds.childRequestCreate),
+                          icon: Icons.add,
+                          label: l10n.beaconCreateChildRequest,
+                          onPressed: onCreateChild,
+                        ),
                       ),
                     )
                   else

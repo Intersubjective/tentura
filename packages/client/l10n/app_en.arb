@@ -2299,7 +2299,7 @@
   "notificationCatConnections": "Connections",
   "notificationCatConnectionsDesc": "Invitations and connection activity",
   "notificationCatAmbient": "Low-priority activity",
-  "notificationCatAmbientDesc": "Low-priority background activity",
+  "notificationCatAmbientDesc": "Background updates you can safely skip",
   "notificationDigest": "Email digest",
   "notificationDigestOff": "Off",
   "notificationDigestDaily": "Daily",

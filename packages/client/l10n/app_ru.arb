@@ -2270,7 +2270,7 @@
   "notificationCatConnections": "Связи",
   "notificationCatConnectionsDesc": "Приглашения и активность связей",
   "notificationCatAmbient": "Второстепенное",
-  "notificationCatAmbientDesc": "Фоновая активность низкого приоритета",
+  "notificationCatAmbientDesc": "Фоновые обновления, которые можно пропустить",
   "notificationDigest": "Сводка по эл. почте",
   "notificationDigestOff": "Выкл.",
   "notificationDigestDaily": "Ежедневно",
