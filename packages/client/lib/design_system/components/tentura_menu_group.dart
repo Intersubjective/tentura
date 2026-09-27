@@ -72,6 +72,7 @@ class TenturaMenuTile extends StatelessWidget {
     this.trailing,
     this.destructive = false,
     this.opensPage = true,
+    this.enabled,
     super.key,
   });
 
@@ -93,10 +94,14 @@ class TenturaMenuTile extends StatelessWidget {
   /// Whether the row shows a chevron (it opens another page or sheet).
   final bool opensPage;
 
+  /// Defaults to "has [onTap]". Pass `true` for a display row whose action
+  /// lives in [trailing], so it is not drawn as disabled.
+  final bool? enabled;
+
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
-    final enabled = onTap != null;
+    final enabled = this.enabled ?? onTap != null;
     final base = destructive ? tt.danger : tt.text;
     final fg = enabled ? base : base.withValues(alpha: 0.38);
     return ListTile(

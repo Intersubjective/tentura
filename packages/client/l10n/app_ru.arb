@@ -1836,7 +1836,7 @@
   "@rating": {
     "context": "RatingScreen"
   },
-  "searchBy": "Поиск по",
+  "searchBy": "Поиск людей",
   "@searchBy": {
     "context": "RatingScreen"
   },
@@ -1860,7 +1860,7 @@
   "@quadrantMyFans": {
     "context": "RatingScreen"
   },
-  "alter": "Альтер",
+  "alter": "Человек",
   "@alter": {
     "context": "RatingScreen"
   },
@@ -2032,6 +2032,14 @@
   },
   "addSignInMethod": "Добавить способ входа",
   "@addSignInMethod": {
+    "context": "CredentialsScreen"
+  },
+  "signInMethodsYours": "Ваши способы входа",
+  "@signInMethodsYours": {
+    "context": "CredentialsScreen"
+  },
+  "signInMethodsLastOne": "Единственный способ входа удалить нельзя",
+  "@signInMethodsLastOne": {
     "context": "CredentialsScreen"
   },
   "credentialGoogle": "Google",

@@ -8,6 +8,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/presenter/beacon_phase_input_builders.dart';
 import 'package:tentura/ui/presenter/beacon_phase_presenter.dart';
+import 'package:tentura/ui/utils/relative_time.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 import 'package:tentura/ui/widget/beacon_requirements_bar.dart';
@@ -18,12 +19,18 @@ class BeaconTile extends StatelessWidget {
     required this.beacon,
     required this.onOpenBeacon,
     required this.onForward,
+    this.showAuthor = true,
     super.key,
   });
 
   final Beacon beacon;
   final VoidCallback onOpenBeacon;
   final VoidCallback onForward;
+
+  /// False on a list of one person's Requests: an author row on every card
+  /// would repeat the same name (a quarter of each card) with a lone
+  /// timeline tick beside the update time.
+  final bool showAuthor;
 
   @override
   Widget build(BuildContext context) {
@@ -42,9 +49,18 @@ class BeaconTile extends StatelessWidget {
             '${dateFormatYMD(beacon.updatedAt)} ${timeFormatHm(beacon.updatedAt)}',
           )
         : null;
+    final updatedAgo = l10n.myWorkUpdatedRelative(
+      compactRelativeTimeAgo(
+        when: beacon.updatedAt,
+        now: DateTime.now(),
+        l10n: l10n,
+      ),
+    );
 
     return BeaconCardShell(
       onTap: onOpenBeacon,
+      // Without the author row the floor left a ~40 dp empty band.
+      bodyMinHeight: showAuthor ? kBeaconCardBodyMinHeight : 0,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -59,11 +75,24 @@ class BeaconTile extends StatelessWidget {
                   context.read<ScreenCubit>().showForwardsGraphFor(beacon.id),
             ),
           ),
-          SizedBox(height: tt.rowGap),
-          BeaconCardMetadataLine(
-            beacon: beacon,
-            updatedLine: updatedLine,
-          ),
+          if (showAuthor) ...[
+            SizedBox(height: tt.rowGap),
+            BeaconCardMetadataLine(
+              beacon: beacon,
+              updatedLine: updatedLine,
+            ),
+          ] else if (beaconHasRealUpdate(beacon))
+            Padding(
+              // On the title's keyline, under the status line.
+              padding: EdgeInsets.only(
+                top: tt.tightGap,
+                left: kBeaconCardHeaderIconSize + kSpacingSmall,
+              ),
+              child: Text(
+                updatedAgo,
+                style: TenturaText.bodySmall(tt.textMuted),
+              ),
+            ),
           if (beacon.needs.isNotEmpty) ...[
             SizedBox(height: tt.rowGap),
             BeaconRequirementsBar(needs: beacon.needs),

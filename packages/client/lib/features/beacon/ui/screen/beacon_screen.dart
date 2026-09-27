@@ -190,15 +190,9 @@ class _BeaconScreenState extends State<BeaconScreen> {
                           child: Center(
                             child: Padding(
                               padding: tt.cardPadding,
-                              child: Semantics(
-                                label: _l10n.noBeaconsMessage,
-                                child: Text(
-                                  _l10n.noBeaconsMessage,
-                                  style: TenturaText.bodyMedium(
-                                    scheme.onSurfaceVariant,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
+                              child: TenturaEmptyState(
+                                icon: Icons.campaign_outlined,
+                                title: _l10n.noBeaconsMessage,
                               ),
                             ),
                           ),
@@ -222,6 +216,7 @@ class _BeaconScreenState extends State<BeaconScreen> {
                         child: BeaconTile(
                           key: ValueKey(beacon.id),
                           beacon: beacon,
+                          showAuthor: false,
                           onOpenBeacon: () => context.router.push(
                             BeaconViewRoute(id: beacon.id),
                           ),

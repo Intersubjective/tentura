@@ -24,6 +24,10 @@ _ReciprocityClass _reciprocityClass(double direct, double reverse) {
   return _ReciprocityClass.none;
 }
 
+/// Gap between Rating columns — shared by the header and every row so the
+/// labels stand over their tiles.
+const double kRatingColumnGap = kSpacingSmall;
+
 class RatingListTile extends StatelessWidget {
   const RatingListTile({
     required this.profile,
@@ -142,7 +146,7 @@ class RatingListTile extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(width: kSpacingSmall),
+            const SizedBox(width: kRatingColumnGap),
             // I trust them (heatmap) – rectangle filling the cell
             Expanded(
               flex: 2,
@@ -156,7 +160,7 @@ class RatingListTile extends StatelessWidget {
                     borderRadius: BorderRadius.circular(kBorderRadius),
                   ),
                   child: Text(
-                    direct.toStringAsFixed(1),
+                    direct.toStringAsFixed(0),
                     style: textTheme.bodyMedium?.copyWith(
                       fontWeight: FontWeight.w500,
                       color: scoreFg(alphaDirect),
@@ -165,7 +169,7 @@ class RatingListTile extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(width: kSpacingSmall),
+            const SizedBox(width: kRatingColumnGap),
             // They trust me (heatmap) – rectangle filling the cell
             Expanded(
               flex: 2,
@@ -179,7 +183,7 @@ class RatingListTile extends StatelessWidget {
                     borderRadius: BorderRadius.circular(kBorderRadius),
                   ),
                   child: Text(
-                    reverse.toStringAsFixed(1),
+                    reverse.toStringAsFixed(0),
                     style: textTheme.bodyMedium?.copyWith(
                       fontWeight: FontWeight.w500,
                       color: scoreFg(alphaReverse),
@@ -188,9 +192,9 @@ class RatingListTile extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(width: kSpacingSmall),
+            const SizedBox(width: kRatingColumnGap),
             // Class badge
-            Flexible(
+            Expanded(
               flex: 2,
               child: Center(
                 child: Container(

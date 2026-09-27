@@ -218,9 +218,11 @@ class _RatingHeatmapHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final tt = context.tt;
     final colorScheme = Theme.of(context).colorScheme;
-    final headerLabelStyle = TenturaText.titleSmall(
+    // Column labels on the label scale: at titleSmall (15) "I trust them"
+    // and "They trust me" were cut to "I tr…" / "They t…" on a phone.
+    final headerLabelStyle = TenturaText.labelMedium(
       colorScheme.onSurfaceVariant,
-    ).copyWith(fontWeight: FontWeight.w600);
+    );
     return SizedBox(
       height: tt.buttonHeight,
       child: Container(
@@ -248,7 +250,7 @@ class _RatingHeatmapHeader extends StatelessWidget {
                 onTap: cubit.sortByAlterColumn,
               ),
             ),
-            SizedBox(width: tt.tightGap),
+            const SizedBox(width: kRatingColumnGap),
             Expanded(
               flex: 2,
               child: _RatingSortHeader(
@@ -257,11 +259,11 @@ class _RatingHeatmapHeader extends StatelessWidget {
                     !isSortedByReverse && !isSortedByAlter && !isSortedByClass,
                 isAscending: isSortedByAsc,
                 labelStyle: headerLabelStyle,
-                alignment: Alignment.centerRight,
+                alignment: Alignment.center,
                 onTap: cubit.sortByDirectColumn,
               ),
             ),
-            SizedBox(width: tt.tightGap),
+            const SizedBox(width: kRatingColumnGap),
             Expanded(
               flex: 2,
               child: _RatingSortHeader(
@@ -270,13 +272,13 @@ class _RatingHeatmapHeader extends StatelessWidget {
                     isSortedByReverse && !isSortedByAlter && !isSortedByClass,
                 isAscending: isSortedByAsc,
                 labelStyle: headerLabelStyle,
-                alignment: Alignment.centerRight,
+                alignment: Alignment.center,
                 onTap: cubit.sortByReverseColumn,
               ),
             ),
-            SizedBox(width: tt.tightGap),
-            SizedBox(
-              width: 100,
+            const SizedBox(width: kRatingColumnGap),
+            Expanded(
+              flex: 2,
               child: _RatingSortHeader(
                 label: l10n.classLabel,
                 isActive: isSortedByClass,
@@ -333,6 +335,8 @@ class _RatingSortHeader extends StatelessWidget {
                     textAlign: alignment == Alignment.center
                         ? TextAlign.center
                         : TextAlign.start,
+                    // Two lines before an ellipsis: a phone column is ~70 dp.
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),

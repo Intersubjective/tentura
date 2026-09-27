@@ -91,16 +91,18 @@ class _CredentialsScreenState extends State<CredentialsScreen>
         body: SafeArea(
           child: BlocBuilder<CredentialsCubit, CredentialsState>(
             builder: (context, state) {
-              final itemCount = _listItemCount(state);
               return TenturaContentColumn(
                 child: RefreshIndicator.adaptive(
                   onRefresh: () => context.read<CredentialsCubit>().fetch(),
-                  child: ListView.builder(
+                  child: ListView(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: EdgeInsets.symmetric(vertical: tt.sectionGap),
-                    itemCount: itemCount,
-                    itemBuilder: (context, index) =>
-                        _listItemAt(context, l10n, theme, state, index),
+                    padding: EdgeInsets.fromLTRB(
+                      tt.screenHPadding,
+                      tt.rowGap,
+                      tt.screenHPadding,
+                      tt.sectionGap,
+                    ),
+                    children: _sections(context, l10n, theme, state),
                   ),
                 ),
               );
@@ -111,111 +113,82 @@ class _CredentialsScreenState extends State<CredentialsScreen>
     );
   }
 
-  int _listItemCount(CredentialsState state) {
-    var count = 0;
-    if (state.credentials.isEmpty && !state.isLoading) {
-      count++;
-    }
-    count += state.credentials.length;
-    if (state.showAddSection) {
-      count++; // divider
-      count++; // section header
-      if (state.canAddGoogle) count++;
-      if (state.canAddEmail) count++;
-      if (state.canAddRecoverySeed) count++;
-    }
-    return count;
-  }
-
-  Widget _listItemAt(
+  /// Existing methods, then the ones that can be added — each a titled
+  /// group on the menu keyline, so "Add sign-in method" no longer reads as
+  /// one more existing method.
+  List<Widget> _sections(
     BuildContext context,
     L10n l10n,
     ThemeData theme,
     CredentialsState state,
-    int index,
   ) {
-    var i = index;
-    if (state.credentials.isEmpty && !state.isLoading) {
-      if (i == 0) {
-        final tt = context.tt;
-        return Padding(
+    final tt = context.tt;
+    final onlyOne = state.credentials.length == 1;
+    return [
+      if (state.credentials.isEmpty && !state.isLoading)
+        Padding(
           padding: EdgeInsets.all(tt.screenHPadding),
           child: Text(
             l10n.signInMethodsEmpty,
             textAlign: TextAlign.center,
             style: theme.textTheme.bodyMedium,
           ),
-        );
-      }
-      i--;
-    }
-    if (i < state.credentials.length) {
-      final credential = state.credentials[i];
-      return ListTile(
-        leading: Icon(_iconForType(credential.type)),
-        title: Text(_typeLabel(l10n, credential.type)),
-        subtitle: Text(
-          _subtitle(context, l10n, credential),
-          style: theme.textTheme.bodySmall,
+        )
+      else if (state.credentials.isNotEmpty)
+        TenturaMenuGroup(
+          title: l10n.signInMethodsYours,
+          children: [
+            for (final credential in state.credentials)
+              TenturaMenuTile(
+                icon: _iconForType(credential.type),
+                title: _typeLabel(l10n, credential.type),
+                subtitle: _subtitle(context, l10n, credential),
+                opensPage: false,
+                enabled: true,
+                // Removing the last method would lock the account.
+                trailing: IconButton(
+                  icon: const Icon(Icons.delete_outline),
+                  tooltip: onlyOne
+                      ? l10n.signInMethodsLastOne
+                      : l10n.buttonRemove,
+                  onPressed: state.isLoading || onlyOne
+                      ? null
+                      : () => _confirmRemove(context, l10n, credential),
+                ),
+              ),
+          ],
         ),
-        trailing: IconButton(
-          icon: const Icon(Icons.delete_outline),
-          tooltip: l10n.buttonRemove,
-          onPressed: state.isLoading
-              ? null
-              : () => _confirmRemove(context, l10n, credential),
+      if (state.showAddSection) ...[
+        TenturaMenuGroup(
+          title: l10n.addSignInMethod,
+          children: [
+            if (state.canAddGoogle)
+              TenturaMenuTile(
+                icon: Icons.g_mobiledata,
+                title: l10n.credentialGoogle,
+                trailing: Icon(Icons.add, color: tt.info),
+                onTap: state.isLoading ? null : () => _linkGoogle(context),
+              ),
+            if (state.canAddEmail)
+              TenturaMenuTile(
+                icon: Icons.mail_outline,
+                title: l10n.credentialEmail,
+                trailing: Icon(Icons.add, color: tt.info),
+                onTap: state.isLoading ? null : () => _linkEmail(context, l10n),
+              ),
+            if (state.canAddRecoverySeed)
+              TenturaMenuTile(
+                // Not the device-key glyph: a seed phrase is a different
+                // thing to have.
+                icon: Icons.password_outlined,
+                title: l10n.credentialRecoverySeed,
+                trailing: Icon(Icons.add, color: tt.info),
+                onTap: state.isLoading ? null : () => _linkSeed(context, l10n),
+              ),
+          ],
         ),
-      );
-    }
-    i -= state.credentials.length;
-    if (!state.showAddSection) {
-      return const SizedBox.shrink();
-    }
-    if (i == 0) {
-      return const TenturaHairlineDivider();
-    }
-    if (i == 1) {
-      final tt = context.tt;
-      return Padding(
-        padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
-        child: Text(
-          l10n.addSignInMethod,
-          style: theme.textTheme.titleSmall,
-        ),
-      );
-    }
-    i -= 2;
-    if (state.canAddGoogle) {
-      if (i == 0) {
-        return ListTile(
-          leading: const Icon(Icons.g_mobiledata),
-          title: Text(l10n.credentialGoogle),
-          enabled: !state.isLoading,
-          onTap: state.isLoading ? null : () => _linkGoogle(context),
-        );
-      }
-      i--;
-    }
-    if (state.canAddEmail) {
-      if (i == 0) {
-        return ListTile(
-          leading: const Icon(Icons.mail_outline),
-          title: Text(l10n.credentialEmail),
-          enabled: !state.isLoading,
-          onTap: state.isLoading ? null : () => _linkEmail(context, l10n),
-        );
-      }
-      i--;
-    }
-    if (state.canAddRecoverySeed && i == 0) {
-      return ListTile(
-        leading: const Icon(Icons.vpn_key_outlined),
-        title: Text(l10n.credentialRecoverySeed),
-        enabled: !state.isLoading,
-        onTap: state.isLoading ? null : () => _linkSeed(context, l10n),
-      );
-    }
-    return const SizedBox.shrink();
+      ],
+    ];
   }
 
   Future<void> _linkGoogle(BuildContext context) async {
@@ -333,7 +306,11 @@ class _CredentialsScreenState extends State<CredentialsScreen>
     L10n l10n,
     CredentialEntity credential,
   ) {
-    final identifier = credential.identifier.length > 16
+    // Key hashes are shortened; an email address is shown whole — cut to 16
+    // characters it read "elena-ux@test.te…" on a 650 dp row.
+    final identifier =
+        credential.type != CredentialTypes.emailOtp &&
+            credential.identifier.length > 16
         ? '${credential.identifier.substring(0, 16)}…'
         : credential.identifier;
     final created = credential.createdAt;
