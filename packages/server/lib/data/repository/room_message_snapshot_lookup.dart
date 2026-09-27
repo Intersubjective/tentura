@@ -130,8 +130,7 @@ final class RoomMessageSnapshotLookup implements RoomMessageSnapshotLookupPort {
   }
 
   /// One-row quote snapshot mirroring `listMessagesEnriched` `quotedFact`.
-  /// Returns null (client refetch) when the revision is missing or the fact's
-  /// source message carries attachments, which paint does not serialize.
+  /// Returns null when the revision is missing.
   Future<QuotedFactEntity?> _resolveQuotedFact({
     required String factCardId,
     required int seq,
@@ -144,10 +143,7 @@ SELECT
   r.fact_text, f.pinned_by, u.display_name AS pinned_by_title,
   f.visibility::integer AS visibility, f.status::integer AS status,
   f.revision_seq::integer AS current_seq,
-  EXISTS (
-    SELECT 1 FROM public.beacon_room_message_attachment a
-    WHERE a.message_id = f.source_message_id
-  ) AS source_has_attachments
+  COALESCE(r.attachments_json::text, '[]') AS attachments_json
 FROM public.beacon_fact_card_revision r
 JOIN public.beacon_fact_card f ON f.id = r.fact_card_id
 LEFT JOIN public."user" u ON u.id = f.pinned_by
@@ -161,7 +157,7 @@ WHERE r.fact_card_id = $1::text AND r.seq = $2::integer
           ],
         )
         .getSingleOrNull();
-    if (row == null || row.read<bool>('source_has_attachments')) {
+    if (row == null) {
       return null;
     }
     final pinnedById = row.readNullable<String>('pinned_by');
@@ -174,7 +170,7 @@ WHERE r.fact_card_id = $1::text AND r.seq = $2::integer
       visibility: row.read<int>('visibility'),
       status: row.read<int>('status'),
       currentSeq: row.read<int>('current_seq'),
-      attachmentsJson: '[]',
+      attachmentsJson: row.read<String>('attachments_json'),
     );
   }
 

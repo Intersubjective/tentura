@@ -21,6 +21,10 @@ class BeaconFactCardRevisions extends Table {
 
   late final factText = text()();
 
+  /// Same JSON array shape as room message `attachmentsJson`.
+  /// DB default `'[]'::jsonb` (see m0200); Drift maps jsonb as Object?.
+  late final attachmentsJson = customType(PgTypes.jsonb)();
+
   @ReferenceName('factRevisionActor')
   late final actorId = text().nullable().references(
     Users,

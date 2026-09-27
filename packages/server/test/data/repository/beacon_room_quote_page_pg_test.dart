@@ -5,6 +5,7 @@ import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
 import 'package:postgres/postgres.dart';
+import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/consts/beacon_fact_card_consts.dart';
@@ -16,6 +17,8 @@ import 'package:tentura_server/data/repository/beacon_hierarchy_repository.dart'
 import 'package:tentura_server/data/repository/beacon_room_repository.dart';
 import 'package:tentura_server/domain/use_case/beacon_fact_card_case.dart';
 import 'package:tentura_server/env.dart';
+import 'package:tentura_server/domain/port/image_repository_port.dart';
+import 'package:tentura_server/domain/port/task_repository_port.dart';
 
 import '../../support/disposable_pg_target.dart';
 import '../../support/pg_test_public_keys.dart';
@@ -81,6 +84,8 @@ Future<void> main() async {
           facts = BeaconFactCardCase(
             BeaconFactCardRepository(db, room),
             room,
+            _UnusedImage(),
+            _UnusedTasks(),
             BeaconHierarchyRepository(db),
             BeaconAccessRepository(db),
             env: Env(environment: Environment.test),
@@ -517,3 +522,8 @@ class _RecordingCounter extends QueryCounter {
     return super.runSelect(executor, statement, args);
   }
 }
+
+class _UnusedImage extends Fake implements ImageRepositoryPort {}
+
+class _UnusedTasks extends Fake implements TaskRepositoryPort {}
+

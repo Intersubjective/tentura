@@ -12,9 +12,6 @@ import 'package:tentura/features/beacon_view/ui/widget/beacon_pinned_fact_card.d
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
-const double _kFactsGridMinWidth = 520;
-const double _kFactsGridExtent = 280;
-
 Future<void> showBeaconPinnedFactsSheet(
   BuildContext pageContext, {
   required BeaconViewCubit cubit,
@@ -103,30 +100,13 @@ class _BeaconPinnedFactsSheetBody extends StatelessWidget {
                             l10n.beaconFactsSheetEmpty,
                             style: TenturaText.bodyMedium(tt.textMuted),
                           )
-                        : LayoutBuilder(
-                            builder: (context, constraints) {
-                              if (constraints.maxWidth < _kFactsGridMinWidth) {
-                                return ListView.separated(
-                                  itemCount: facts.length,
-                                  separatorBuilder: (_, _) =>
-                                      SizedBox(height: tt.rowGap),
-                                  itemBuilder: (_, index) =>
-                                      cardFor(facts[index]),
-                                );
-                              }
-                              return GridView.builder(
-                                gridDelegate:
-                                    SliverGridDelegateWithMaxCrossAxisExtent(
-                                      maxCrossAxisExtent: _kFactsGridExtent,
-                                      mainAxisSpacing: tt.rowGap,
-                                      crossAxisSpacing: tt.rowGap,
-                                      childAspectRatio: 0.72,
-                                    ),
-                                itemCount: facts.length,
-                                itemBuilder: (_, index) =>
-                                    cardFor(facts[index]),
-                              );
-                            },
+                        : ListView.separated(
+                            // Intrinsic-height cards (no fixed aspect grid):
+                            // short text → short card; full card is tappable.
+                            itemCount: facts.length,
+                            separatorBuilder: (_, _) =>
+                                SizedBox(height: tt.rowGap),
+                            itemBuilder: (_, index) => cardFor(facts[index]),
                           ),
                   ),
                   if (canAdd) ...[

@@ -55,6 +55,7 @@ class _RecordingFactCardRepository extends FakeBeaconFactCardRepository {
     required String factCardId,
     required String newText,
     required int baseRevisionSeq,
+    String? attachmentsJson,
   }) async {
     correctCallCount++;
     lastBaseRevisionSeq = baseRevisionSeq;

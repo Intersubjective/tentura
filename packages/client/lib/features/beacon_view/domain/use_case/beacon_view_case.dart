@@ -313,11 +313,13 @@ final class BeaconViewCase extends UseCaseBase {
     required String factCardId,
     required String newText,
     required int baseRevisionSeq,
+    String? attachmentsJson,
   }) => _factCards.correct(
     beaconId: beaconId,
     factCardId: factCardId,
     newText: newText,
     baseRevisionSeq: baseRevisionSeq,
+    attachmentsJson: attachmentsJson,
   );
 
   Future<void> removeFact({

@@ -106,6 +106,7 @@ DELETE FROM public.beacon_fact_card WHERE beacon_id = @beacon
       BeaconFactCardRepository? via,
       int rateMax = 20,
       Duration quietWindow = kFactEditQuietWindow,
+      String? attachmentsJson,
     }) => (via ?? repo).editText(
       factCardId: factId,
       beaconId: _beaconId,
@@ -115,6 +116,7 @@ DELETE FROM public.beacon_fact_card WHERE beacon_id = @beacon
       rateWindow: const Duration(seconds: 60),
       rateMax: rateMax,
       quietWindow: quietWindow,
+      attachmentsJson: attachmentsJson,
     );
 
     Future<FactEditOutcome> restore(
@@ -667,6 +669,161 @@ WHERE pg_backend_pid() = ANY(pg_blocking_pids(pid))
       },
       skip: skipReason,
     );
+
+    test(
+      'attach-only edit (same text, new attachments) → new revision + snapshot',
+      () async {
+        await _seedFact(
+          writer,
+          id: _factAttachOnly,
+          text: 'Photo fact',
+          attachmentsJson: '[{"id":"Aold","kind":1,"position":0,'
+              '"mime":"image/jpeg","sizeBytes":10,"fileName":"old.jpg",'
+              '"imageId":"Iold","imageAuthorId":"$_pinnerId",'
+              '"blurHash":"","width":1,"height":1}]',
+        );
+        const next = '[{"id":"Anew","kind":1,"position":0,'
+            '"mime":"image/jpeg","sizeBytes":20,"fileName":"new.jpg",'
+            '"imageId":"Inew","imageAuthorId":"$_editorAId",'
+            '"blurHash":"","width":2,"height":2}]';
+        final outcome = await edit(
+          _factAttachOnly,
+          _editorAId,
+          'Photo fact',
+          1,
+          attachmentsJson: next,
+        );
+        expect(
+          outcome,
+          isA<FactEditApplied>().having((o) => o.newSeq, 'newSeq', 2),
+        );
+        expect(await revisionCount(_factAttachOnly), 2);
+        final snap = await writer.execute(
+          Sql.named('''
+SELECT attachments_json::text FROM public.beacon_fact_card_revision
+WHERE fact_card_id = @id AND seq = 2
+'''),
+          parameters: {'id': _factAttachOnly},
+        );
+        expect(snap.single.single as String, contains('Anew'));
+        expect(snap.single.single as String, isNot(contains('Aold')));
+      },
+      skip: skipReason,
+    );
+
+    test(
+      'same text + same attachments → FactEditNoOp',
+      () async {
+        const snap = '[{"id":"Asame","kind":1,"position":0,'
+            '"mime":"image/jpeg","sizeBytes":10,"fileName":"same.jpg",'
+            '"imageId":"Isame","imageAuthorId":"$_pinnerId",'
+            '"blurHash":"","width":1,"height":1}]';
+        await _seedFact(
+          writer,
+          id: _factAttachNoOp,
+          text: 'Unchanged',
+          attachmentsJson: snap,
+        );
+        final outcome = await edit(
+          _factAttachNoOp,
+          _editorAId,
+          'Unchanged',
+          1,
+          attachmentsJson: snap,
+        );
+        expect(
+          outcome,
+          isA<FactEditNoOp>().having((o) => o.currentSeq, 'currentSeq', 1),
+        );
+        expect(await revisionCount(_factAttachNoOp), 1);
+      },
+      skip: skipReason,
+    );
+
+    test(
+      'restore restores attachments from the chosen seq',
+      () async {
+        await _seedFact(
+          writer,
+          id: _factAttachRestore,
+          text: 'v1',
+          attachmentsJson: '[{"id":"Av1","kind":1,"position":0,'
+              '"mime":"image/jpeg","sizeBytes":1,"fileName":"v1.jpg",'
+              '"imageId":"Iv1","imageAuthorId":"$_pinnerId",'
+              '"blurHash":"","width":1,"height":1}]',
+        );
+        expect(
+          await edit(
+            _factAttachRestore,
+            _editorAId,
+            'v2',
+            1,
+            attachmentsJson: '[{"id":"Av2","kind":1,"position":0,'
+                '"mime":"image/jpeg","sizeBytes":2,"fileName":"v2.jpg",'
+                '"imageId":"Iv2","imageAuthorId":"$_editorAId",'
+                '"blurHash":"","width":2,"height":2}]',
+          ),
+          isA<FactEditApplied>(),
+        );
+        expect(
+          await restore(_factAttachRestore, _editorAId, 1, 2),
+          isA<FactEditApplied>().having((o) => o.newSeq, 'newSeq', 3),
+        );
+        final snap = await writer.execute(
+          Sql.named('''
+SELECT fact_text, attachments_json::text
+FROM public.beacon_fact_card_revision
+WHERE fact_card_id = @id AND seq = 3
+'''),
+          parameters: {'id': _factAttachRestore},
+        );
+        expect(snap.single[0], 'v1');
+        expect(snap.single[1] as String, contains('Av1'));
+        expect(snap.single[1] as String, isNot(contains('Av2')));
+      },
+      skip: skipReason,
+    );
+
+    test(
+      'null sourceMessageId fact can gain images via attachmentsJson',
+      () async {
+        await _seedFact(
+          writer,
+          id: _factNoSource,
+          text: 'Manual pin',
+        );
+        const next = '[{"id":"Aadd","kind":1,"position":0,'
+            '"mime":"image/jpeg","sizeBytes":5,"fileName":"add.jpg",'
+            '"imageId":"Iadd","imageAuthorId":"$_editorAId",'
+            '"blurHash":"","width":3,"height":3}]';
+        expect(
+          await edit(
+            _factNoSource,
+            _editorAId,
+            'Manual pin',
+            1,
+            attachmentsJson: next,
+          ),
+          isA<FactEditApplied>(),
+        );
+        final source = await writer.execute(
+          Sql.named('''
+SELECT source_message_id FROM public.beacon_fact_card WHERE id = @id
+'''),
+          parameters: {'id': _factNoSource},
+        );
+        expect(source.single.single, isNull);
+        final snap = await writer.execute(
+          Sql.named('''
+SELECT attachments_json::text FROM public.beacon_fact_card_revision
+WHERE fact_card_id = @id AND seq = 2
+'''),
+          parameters: {'id': _factNoSource},
+        );
+        expect(snap.single.single as String, contains('Aadd'));
+      },
+      skip: skipReason,
+    );
   });
 }
 
@@ -698,6 +855,10 @@ const _factEditors = 'Ffeeditors1';
 const _factRace = 'Fferace0001';
 const _factResubmit = 'Fferesubmit';
 const _factStatusProbe = 'Ffestatprob';
+const _factAttachOnly = 'Ffeattach01';
+const _factAttachNoOp = 'Ffeattnoop';
+const _factAttachRestore = 'Ffeattrest';
+const _factNoSource = 'Ffenosource';
 
 final _t0 = DateTime.utc(2026, 3, 1, 12);
 
@@ -739,6 +900,7 @@ Future<void> _seedFact(
   String pinnedBy = _pinnerId,
   int status = BeaconFactCardStatusBits.active,
   bool fresh = false,
+  String attachmentsJson = '[]',
 }) async {
   final createdAt = fresh ? DateTime.timestamp() : _t0;
   await writer.execute(
@@ -761,9 +923,16 @@ VALUES (@id, @beacon, @text, ${BeaconFactCardVisibilityBits.public}, @pinner,
   await writer.execute(
     Sql.named('''
 INSERT INTO public.beacon_fact_card_revision
-  (fact_card_id, seq, fact_text, actor_id, kind, created_at)
-VALUES (@id, 1, @text, @pinner, ${BeaconFactCardRevisionKindBits.created}, @at)
+  (fact_card_id, seq, fact_text, actor_id, kind, created_at, attachments_json)
+VALUES (@id, 1, @text, @pinner, ${BeaconFactCardRevisionKindBits.created}, @at,
+        @att::jsonb)
 '''),
-    parameters: {'id': id, 'text': text, 'pinner': pinnedBy, 'at': createdAt},
+    parameters: {
+      'id': id,
+      'text': text,
+      'pinner': pinnedBy,
+      'at': createdAt,
+      'att': attachmentsJson,
+    },
   );
 }

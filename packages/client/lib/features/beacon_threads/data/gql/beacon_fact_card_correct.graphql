@@ -3,11 +3,13 @@ mutation BeaconFactCardCorrect(
   $factCardId: String!
   $newText: String!
   $baseRevisionSeq: Int!
+  $attachmentsJson: String
 ) {
   BeaconFactCardCorrect(
     beaconId: $beaconId
     factCardId: $factCardId
     newText: $newText
     baseRevisionSeq: $baseRevisionSeq
+    attachmentsJson: $attachmentsJson
   )
 }

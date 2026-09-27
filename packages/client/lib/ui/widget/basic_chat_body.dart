@@ -26,6 +26,7 @@ import 'package:tentura/features/beacon_threads/ui/widget/room_date_separator.da
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/features/beacon_threads/domain/room_message_receipt.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_tile.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/room_attachment_widgets.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_pinned_fact_visibility_mark.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_unread_divider.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -1697,14 +1698,35 @@ class _ComposerQuotedFactBanner extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  Text(
-                    fact.factText,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
+                  if (fact.attachments.any(
+                    (a) => a.isImage && a.imageId.isNotEmpty,
+                  )) ...[
+                    SizedBox(height: tt.tightGap),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(
+                        TenturaRadii.cardDense,
+                      ),
+                      child: SizedBox(
+                        width: tt.avatarSize,
+                        height: tt.avatarSize,
+                        child: roomAttachmentAlbumThumbnail(
+                          context,
+                          fact.attachments.firstWhere(
+                            (a) => a.isImage && a.imageId.isNotEmpty,
+                          ),
+                        ),
+                      ),
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  ],
+                  if (fact.factText.trim().isNotEmpty)
+                    Text(
+                      fact.factText,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                 ],
               ),
             ),

@@ -326,6 +326,7 @@ class _V2RoutingLink extends Link {
     'BeaconFactCardList',
     'BeaconFactCardPin',
     'BeaconFactCardCorrect',
+    'BeaconFactCardAttachmentUpload',
     'BeaconFactCardRestore',
     'BeaconFactCardRevisions',
     'BeaconFactCardRemove',

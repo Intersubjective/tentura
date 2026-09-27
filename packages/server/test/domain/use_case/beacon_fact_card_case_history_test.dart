@@ -12,6 +12,8 @@ import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
+import 'package:tentura_server/domain/port/image_repository_port.dart';
+import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/use_case/beacon_fact_card_case.dart';
 import 'package:tentura_server/env.dart';
 
@@ -171,6 +173,10 @@ class _KeysetPagingFakeFacts extends _FakeFacts {
 /// lookups must not be used.
 class _UnusedRoom extends Fake implements BeaconRoomRepositoryPort {}
 
+class _UnusedImage extends Fake implements ImageRepositoryPort {}
+
+class _UnusedTasks extends Fake implements TaskRepositoryPort {}
+
 /// Lifecycle comes from `loadRoomAccess.beaconStatus`, not a second read.
 class _UnusedHierarchy extends Fake implements BeaconHierarchyRepositoryPort {}
 
@@ -183,6 +189,8 @@ void main() {
     case_ = BeaconFactCardCase(
       facts,
       _UnusedRoom(),
+      _UnusedImage(),
+      _UnusedTasks(),
       _UnusedHierarchy(),
       FakeBeaconAccessGuard(),
       env: Env(environment: Environment.test),
@@ -289,6 +297,8 @@ void main() {
       pagingCase = BeaconFactCardCase(
         pagingFacts,
         _UnusedRoom(),
+        _UnusedImage(),
+        _UnusedTasks(),
         _UnusedHierarchy(),
         FakeBeaconAccessGuard(),
         env: Env(environment: Environment.test),

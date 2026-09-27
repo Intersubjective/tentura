@@ -283,6 +283,7 @@ WHERE source_message_id = $1::text AND status IN (0, 1)
             existingFactCardId: existing.read<String>('id'),
           );
         }
+        await _copySourceAttachmentsOntoRevision(factCardId: id, seq: 1);
         return BeaconFactCardEntity(
           id: id,
           beaconId: row.read<String>('beacon_id'),
@@ -295,6 +296,88 @@ WHERE source_message_id = $1::text AND status IN (0, 1)
           updatedAt: _readNullableTimestamp(row, 'updated_at'),
         );
       }));
+
+  /// Copies the fact's source-message attachments into [seq]'s snapshot.
+  Future<void> _copySourceAttachmentsOntoRevision({
+    required String factCardId,
+    required int seq,
+  }) async {
+    await _db.customUpdate(
+      r'''
+UPDATE public.beacon_fact_card_revision r
+SET attachments_json = COALESCE((
+  SELECT jsonb_agg(item ORDER BY (item->>'position')::int)
+  FROM (
+    SELECT jsonb_strip_nulls(jsonb_build_object(
+      'id', a.id,
+      'kind', a.kind,
+      'position', a.position,
+      'mime', a.mime,
+      'sizeBytes', a.size_bytes,
+      'fileName', a.file_name,
+      'imageId', COALESCE(i.id::text, ''),
+      'imageAuthorId', COALESCE(i.author_id, ''),
+      'blurHash', COALESCE(i.hash, ''),
+      'width', COALESCE(i.width, 0),
+      'height', COALESCE(i.height, 0)
+    )) AS item
+    FROM public.beacon_fact_card f
+    JOIN public.beacon_room_message_attachment a
+      ON a.message_id = f.source_message_id
+    LEFT JOIN public.image i ON i.id = a.image_id
+    WHERE f.id = $1::text
+  ) q
+), '[]'::jsonb)
+WHERE r.fact_card_id = $1::text AND r.seq = $2::int
+''',
+      variables: [
+        Variable<String>(factCardId),
+        Variable<int>(seq),
+      ],
+      updates: {_db.beaconFactCardRevisions},
+    );
+  }
+
+  @override
+  Future<Map<String, String>> headAttachmentsJsonByFactIds(
+    Iterable<String> factCardIds,
+  ) async {
+    final ids = factCardIds.where((id) => id.isNotEmpty).toSet().toList();
+    if (ids.isEmpty) return const {};
+    final rows = await _db.customSelect(
+      r'''
+SELECT f.id, COALESCE(r.attachments_json::text, '[]') AS attachments_json
+FROM public.beacon_fact_card f
+LEFT JOIN public.beacon_fact_card_revision r
+  ON r.fact_card_id = f.id AND r.seq = f.revision_seq
+WHERE f.id = ANY($1::text[])
+''',
+      variables: [Variable(TypedValue(Type.textArray, ids))],
+    ).get();
+    return {
+      for (final row in rows)
+        row.read<String>('id'): row.read<String>('attachments_json'),
+    };
+  }
+
+  @override
+  Future<String> attachmentsJsonForRevision({
+    required String factCardId,
+    required int seq,
+  }) async {
+    final row = await _db.customSelect(
+      r'''
+SELECT COALESCE(attachments_json::text, '[]') AS attachments_json
+FROM public.beacon_fact_card_revision
+WHERE fact_card_id = $1::text AND seq = $2::int
+''',
+      variables: [
+        Variable<String>(factCardId),
+        Variable<int>(seq),
+      ],
+    ).getSingleOrNull();
+    return row?.read<String>('attachments_json') ?? '[]';
+  }
 
   /// Plan §8.3 "Set visibility" / §14.3: one CTE updates the card and writes
   /// the `factVisibilityChanged` event with `fact_card_id` set. A
@@ -372,11 +455,13 @@ SELECT count(*)::integer AS updated FROM fact
     required Duration rateWindow,
     required int rateMax,
     required Duration quietWindow,
+    String? attachmentsJson,
   }) => _runEdit(
     factCardId: factCardId,
     beaconId: beaconId,
     actorUserId: actorUserId,
     newText: newText.trim(),
+    attachmentsJson: attachmentsJson,
     baseRevisionSeq: baseRevisionSeq,
     rateWindow: rateWindow,
     rateMax: rateMax,
@@ -401,6 +486,7 @@ SELECT count(*)::integer AS updated FROM fact
     beaconId: beaconId,
     actorUserId: actorUserId,
     newText: null,
+    attachmentsJson: null,
     baseRevisionSeq: baseRevisionSeq,
     rateWindow: rateWindow,
     rateMax: rateMax,
@@ -413,11 +499,16 @@ SELECT count(*)::integer AS updated FROM fact
   /// latest committed row `FOR UPDATE`; the CAS, rate limit, restore source
   /// gate and quiet window all live in the one CTE, and the diagnostic
   /// columns map to a [FactEditOutcome] in the order fixed by §8.3.
+  ///
+  /// `$14` is optional client attachments JSON (text). Restore copies from
+  /// [fromSeq]; text-only edits with null `$14` copy the previous head
+  /// snapshot; a change to text or attachments is a real write.
   Future<FactEditOutcome> _runEdit({
     required String factCardId,
     required String beaconId,
     required String actorUserId,
     required String? newText,
+    required String? attachmentsJson,
     required int baseRevisionSeq,
     required Duration rateWindow,
     required int rateMax,
@@ -438,13 +529,25 @@ WITH locked AS (
   FOR UPDATE
 ),
 src AS (
-  SELECT r.fact_text
+  SELECT r.fact_text, r.attachments_json
   FROM public.beacon_fact_card_revision r
   WHERE $13::int IS NOT NULL
     AND r.fact_card_id = $1::text AND r.seq = $13::int
 ),
+head_att AS (
+  SELECT COALESCE(r.attachments_json, '[]'::jsonb) AS attachments_json
+  FROM locked l
+  LEFT JOIN public.beacon_fact_card_revision r
+    ON r.fact_card_id = l.id AND r.seq = l.revision_seq
+),
 input AS (
   SELECT COALESCE((SELECT s.fact_text FROM src s), $4::text) AS new_text,
+         COALESCE(
+           (SELECT s.attachments_json FROM src s),
+           CASE WHEN $14::text IS NULL THEN NULL ELSE $14::text::jsonb END,
+           (SELECT h.attachments_json FROM head_att h),
+           '[]'::jsonb
+         ) AS new_attachments,
          ($13::int IS NULL OR EXISTS (SELECT 1 FROM src)) AS src_ok,
          (SELECT count(*) FROM public.beacon_fact_card_revision r
           WHERE r.actor_id = $3::text
@@ -464,22 +567,26 @@ upd AS (
          AND NOT EXISTS (SELECT 1 FROM public.beacon_fact_card_revision r
                          WHERE r.fact_card_id = f.id AND r.actor_id = $3::text)
         THEN 1 ELSE 0 END
-  FROM locked, input
+  FROM locked, input, head_att
   WHERE f.id = locked.id
     AND input.src_ok
     AND input.rate_ok
     AND input.new_text IS NOT NULL
     AND locked.status <> 2
     AND locked.revision_seq = $5::int
-    AND locked.fact_text IS DISTINCT FROM input.new_text
+    AND (
+      locked.fact_text IS DISTINCT FROM input.new_text
+      OR head_att.attachments_json IS DISTINCT FROM input.new_attachments
+    )
   RETURNING f.id, f.revision_seq, f.visibility, f.pinned_by, f.created_at,
             f.source_message_id
 ),
 rev AS (
   INSERT INTO public.beacon_fact_card_revision
-    (id, fact_card_id, seq, fact_text, actor_id, kind, restored_from_seq)
+    (id, fact_card_id, seq, fact_text, actor_id, kind, restored_from_seq,
+     attachments_json)
   SELECT $9::text, upd.id, upd.revision_seq, input.new_text, $3::text,
-         $12::int, $13::int
+         $12::int, $13::int, input.new_attachments
   FROM upd, input
   RETURNING seq
 ),
@@ -517,8 +624,12 @@ SELECT (SELECT u.revision_seq FROM upd u)                    AS new_seq,
        EXISTS (SELECT 1 FROM locked)                         AS found,
        (SELECT l.status FROM locked l)                       AS current_status,
        (SELECT l.revision_seq FROM locked l)                 AS current_seq,
-       ((SELECT l.fact_text FROM locked l)
-          IS NOT DISTINCT FROM (SELECT i.new_text FROM input i)) AS same_text,
+       (
+         (SELECT l.fact_text FROM locked l)
+           IS NOT DISTINCT FROM (SELECT i.new_text FROM input i)
+         AND (SELECT h.attachments_json FROM head_att h)
+           IS NOT DISTINCT FROM (SELECT i.new_attachments FROM input i)
+       ) AS same_text,
        (SELECT i.src_ok FROM input i)                        AS src_ok,
        (SELECT i.rate_ok FROM input i)                       AS rate_ok;
 ''',
@@ -536,6 +647,7 @@ SELECT (SELECT u.revision_seq FROM upd u)                    AS new_seq,
             Variable<String>(BeaconActivityEventEntity.newId),
             Variable<int>(kind),
             Variable<int>(fromSeq),
+            Variable<String>(attachmentsJson),
           ],
         ).get();
         final row = rows.single;

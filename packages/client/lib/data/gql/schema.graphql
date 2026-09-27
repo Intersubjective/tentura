@@ -3754,7 +3754,8 @@ enum invitation_update_column {
 
 """mutation root"""
 type mutation_root {
-  BeaconFactCardCorrect(baseRevisionSeq: Int!, beaconId: String!, factCardId: String!, newText: String!): Int!
+  BeaconFactCardCorrect(attachmentsJson: String, baseRevisionSeq: Int!, beaconId: String!, factCardId: String!, newText: String!): Int!
+  BeaconFactCardAttachmentUpload(beaconId: String!, file: v2_Upload!): String!
   BeaconFactCardPin(beaconId: String!, factText: String!, sourceMessageId: String, visibility: Int!): Boolean!
   BeaconFactCardRemove(beaconId: String!, factCardId: String!): Boolean!
   BeaconFactCardRestore(baseRevisionSeq: Int!, beaconId: String!, factCardId: String!, fromSeq: Int!): Int!

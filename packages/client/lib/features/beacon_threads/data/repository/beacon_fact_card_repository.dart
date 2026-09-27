@@ -1,11 +1,14 @@
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura/data/gql/tentura_v2_upload.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
 import 'package:tentura/domain/entity/beacon_fact_history_entry.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
+import 'package:tentura/domain/entity/room_pending_upload.dart';
 
+import '../gql/_g/beacon_fact_card_attachment_upload.req.gql.dart';
 import '../gql/_g/beacon_fact_card_correct.req.gql.dart';
 import '../gql/_g/beacon_fact_card_list.data.gql.dart';
 import '../gql/_g/beacon_fact_card_list.req.gql.dart';
@@ -84,6 +87,7 @@ class BeaconFactCardRepository {
     required String factCardId,
     required String newText,
     required int baseRevisionSeq,
+    String? attachmentsJson,
   }) => _remoteApiService
       .request(
         GBeaconFactCardCorrectReq(
@@ -91,11 +95,37 @@ class BeaconFactCardRepository {
             ..beaconId = beaconId
             ..factCardId = factCardId
             ..newText = newText
-            ..baseRevisionSeq = baseRevisionSeq,
+            ..baseRevisionSeq = baseRevisionSeq
+            ..attachmentsJson = attachmentsJson,
         ),
       )
       .firstWhere((e) => e.dataSource == DataSource.Link)
       .then((r) => r.dataOrThrow(label: _label).BeaconFactCardCorrect);
+
+  /// Stages one image; returns a single attachment JSON object string.
+  Future<String> uploadAttachment({
+    required String beaconId,
+    required RoomPendingUpload upload,
+  }) async {
+    final file = TenturaV2Upload(
+      filename: upload.fileName,
+      mimeType: upload.mimeType,
+      bytes: upload.bytes,
+    );
+    return _remoteApiService
+        .request(
+          GBeaconFactCardAttachmentUploadReq(
+            (b) => b.vars
+              ..beaconId = beaconId
+              ..file = file,
+          ),
+        )
+        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .then(
+          (r) =>
+              r.dataOrThrow(label: _label).BeaconFactCardAttachmentUpload,
+        );
+  }
 
   /// Restores revision [fromSeq] as the new head; returns its seq.
   Future<int> restore({

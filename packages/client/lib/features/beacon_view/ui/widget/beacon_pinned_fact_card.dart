@@ -55,10 +55,10 @@ class _BeaconPinnedFactCardState extends State<BeaconPinnedFactCard> {
       Theme.of(context),
     );
 
-    final touchTapEnabled =
-        onManage != null &&
-        !desktopSelection &&
-        (hasText || images.isEmpty && files.isEmpty);
+    // Desktop: secondary tap / hover ⋮ open manage so text stays selectable.
+    // Touch: whole card (incl. attachment-only) opens manage; nested image
+    // GestureDetectors still open the album.
+    final touchTapEnabled = onManage != null && !desktopSelection;
 
     final showHoverToolbar =
         _hovering && widget.showPointerManage && onManage != null;

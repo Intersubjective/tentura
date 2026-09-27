@@ -61,6 +61,10 @@ class FactHistorySheet extends StatefulWidget {
 class _FactHistorySheetState extends State<FactHistorySheet> {
   late final FactHistoryCubit _cubit;
 
+  /// In-sheet Undo host (avoids full-height Scaffold + app SnackBar behind
+  /// the modal barrier — see former ScaffoldMessenger comment).
+  _HistoryUndoBanner? _undoBanner;
+
   @override
   void initState() {
     super.initState();
@@ -79,19 +83,100 @@ class _FactHistorySheetState extends State<FactHistorySheet> {
     super.dispose();
   }
 
+  void _showUndoBanner({
+    required String message,
+    required String undoLabel,
+    required VoidCallback onUndo,
+  }) {
+    setState(() {
+      _undoBanner = _HistoryUndoBanner(
+        message: message,
+        undoLabel: undoLabel,
+        onUndo: () {
+          setState(() => _undoBanner = null);
+          onUndo();
+        },
+        onDismiss: () => setState(() => _undoBanner = null),
+      );
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    final maxH = MediaQuery.sizeOf(context).height * 0.9;
     return BlocProvider.value(
       value: _cubit,
-      // A local ScaffoldMessenger/Scaffold keeps the restore SnackBar (with
-      // its tappable Undo action) inside this sheet's own route content, on
-      // top of the modal barrier. Attaching to the app-level
-      // ScaffoldMessenger instead would render the SnackBar behind the
-      // still-open sheet's barrier, which absorbs the Undo tap.
-      child: ScaffoldMessenger(
-        child: Scaffold(
-          backgroundColor: Colors.transparent,
-          body: _FactHistorySheetBody(canMutate: widget.canMutate),
+      child: SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: maxH),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _FactHistorySheetBody(
+                  canMutate: widget.canMutate,
+                  onShowUndo: _showUndoBanner,
+                ),
+                if (_undoBanner case final banner?) banner,
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HistoryUndoBanner extends StatelessWidget {
+  const _HistoryUndoBanner({
+    required this.message,
+    required this.undoLabel,
+    required this.onUndo,
+    required this.onDismiss,
+  });
+
+  final String message;
+  final String undoLabel;
+  final VoidCallback onUndo;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final tt = context.tt;
+    return Material(
+      color: scheme.inverseSurface,
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: tt.screenHPadding,
+          vertical: tt.rowGap / 2,
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                message,
+                style: TenturaText.bodySmall(scheme.onInverseSurface),
+              ),
+            ),
+            TextButton(
+              onPressed: onUndo,
+              child: Text(
+                undoLabel,
+                style: TenturaText.status(scheme.inversePrimary),
+              ),
+            ),
+            IconButton(
+              tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+              onPressed: onDismiss,
+              icon: Icon(
+                Icons.close,
+                size: tt.iconSize,
+                color: scheme.onInverseSurface,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -99,49 +184,80 @@ class _FactHistorySheetState extends State<FactHistorySheet> {
 }
 
 class _FactHistorySheetBody extends StatelessWidget {
-  const _FactHistorySheetBody({required this.canMutate});
+  const _FactHistorySheetBody({
+    required this.canMutate,
+    required this.onShowUndo,
+  });
 
   final bool canMutate;
+  final void Function({
+    required String message,
+    required String undoLabel,
+    required VoidCallback onUndo,
+  })
+  onShowUndo;
 
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
-    return SafeArea(
-      child: BlocBuilder<FactHistoryCubit, FactHistoryState>(
-        builder: (context, state) {
-          final entries = state.entries;
-          final baselines = _diffBaselines(entries);
-          return SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Padding(
-                  padding: EdgeInsets.only(
-                    left: tt.screenHPadding,
-                    right: tt.screenHPadding,
-                    top: tt.rowGap,
-                    bottom: tt.rowGap,
+    return BlocBuilder<FactHistoryCubit, FactHistoryState>(
+      builder: (context, state) {
+        final entries = state.entries;
+        final baselines = _diffBaselines(entries);
+        final headSeq = entries
+            .whereType<BeaconFactHistoryEntry>()
+            .firstOrNull
+            ?.seq;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: EdgeInsets.only(
+                left: tt.screenHPadding,
+                right: tt.screenHPadding / 2,
+                top: tt.rowGap,
+                bottom: tt.rowGap / 2,
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      l10n.beaconRoomFactHistorySheetTitle,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
                   ),
-                  child: Text(
-                    l10n.beaconRoomFactHistorySheetTitle,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-                for (var i = 0; i < entries.length; i++) ...[
-                  if (i > 0) const Divider(height: 1),
-                  _FactHistoryRow(
-                    entry: entries[i],
-                    olderRevision: baselines[i],
-                    canMutate: canMutate,
+                  IconButton(
+                    tooltip: l10n.buttonClose,
+                    onPressed: () => Navigator.of(context).maybePop(),
+                    icon: Icon(Icons.close, size: tt.iconSize),
                   ),
                 ],
-              ],
+              ),
             ),
-          );
-        },
-      ),
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: EdgeInsets.only(bottom: tt.rowGap),
+              itemCount: entries.length,
+              itemBuilder: (context, i) {
+                return _FactHistoryTimelineRow(
+                  entry: entries[i],
+                  olderRevision: baselines[i],
+                  canMutate: canMutate,
+                  isHead: entries[i] is BeaconFactHistoryEntry &&
+                      (entries[i] as BeaconFactHistoryEntry).seq == headSeq,
+                  isFirst: i == 0,
+                  isLast: i == entries.length - 1,
+                  showDividerAbove: i > 0,
+                  onShowUndo: onShowUndo,
+                );
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -165,16 +281,34 @@ List<BeaconFactHistoryEntry?> _diffBaselines(
   return result;
 }
 
-class _FactHistoryRow extends StatelessWidget {
-  const _FactHistoryRow({
+class _FactHistoryTimelineRow extends StatelessWidget {
+  const _FactHistoryTimelineRow({
     required this.entry,
     required this.olderRevision,
     required this.canMutate,
+    required this.isHead,
+    required this.isFirst,
+    required this.isLast,
+    required this.showDividerAbove,
+    required this.onShowUndo,
   });
 
   final BeaconFactTimelineEntry entry;
   final BeaconFactHistoryEntry? olderRevision;
   final bool canMutate;
+  final bool isHead;
+  final bool isFirst;
+  final bool isLast;
+  final bool showDividerAbove;
+  final void Function({
+    required String message,
+    required String undoLabel,
+    required VoidCallback onUndo,
+  })
+  onShowUndo;
+
+  static const double _railWidth = 16;
+  static const double _nodeSize = 8;
 
   @override
   Widget build(BuildContext context) {
@@ -182,63 +316,110 @@ class _FactHistoryRow extends StatelessWidget {
     final tt = context.tt;
     final scheme = Theme.of(context).colorScheme;
     final row = entry;
+    final railColor = scheme.outlineVariant;
+    final nodeColor = scheme.primary;
 
-    return Padding(
-      padding: EdgeInsets.symmetric(
-        horizontal: tt.screenHPadding,
-        vertical: tt.rowGap,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (row is BeaconFactHistoryEvent)
-            Text(
-              _eventLabel(l10n, row),
-              style: TenturaText.status(scheme.onSurfaceVariant),
-            )
-          else if (row is BeaconFactHistoryEntry) ...[
-            if (row is! BeaconFactHistoryImported)
-              Text(
-                _authorLabel(l10n, row),
-                style: TenturaText.status(scheme.onSurfaceVariant),
-              ),
-            SizedBox(height: tt.tightGap),
-            if (row is BeaconFactHistoryImported)
-              Text(
-                l10n.beaconRoomFactHistoryImportedBaseline,
-                style: TenturaText.status(scheme.onSurfaceVariant),
-              )
-            else if (row is BeaconFactHistoryRestored)
-              Text(
-                l10n.beaconRoomFactHistoryRestoredFrom(row.restoredFromSeq),
-                style: TenturaText.status(scheme.onSurfaceVariant),
-              ),
-            SizedBox(height: tt.tightGap),
-            _CollapsibleDiffBody(
-              spans: _bodySpans(
-                scheme: scheme,
-                factText: row.factText,
-                olderText: olderRevision?.factText,
-              ),
-            ),
-            if (canMutate) ...[
-              SizedBox(height: tt.tightGap),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton(
-                  style: TextButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (showDividerAbove)
+          Padding(
+            padding: EdgeInsets.only(left: tt.screenHPadding + _railWidth),
+            child: const TenturaHairlineDivider(),
+          ),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
+          child: Stack(
+            children: [
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: _railWidth,
+                child: CustomPaint(
+                  painter: _TimelineRailPainter(
+                    railColor: railColor,
+                    nodeColor: nodeColor,
+                    nodeSize: _nodeSize,
+                    drawAbove: !isFirst,
+                    drawBelow: !isLast,
                   ),
-                  onPressed: () => unawaited(_onRestore(context, row.seq)),
-                  child: Text(l10n.beaconRoomFactHistoryRestoreAction),
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.only(
+                  left: _railWidth + tt.rowGap,
+                  top: tt.rowGap,
+                  bottom: tt.rowGap,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (row is BeaconFactHistoryEvent)
+                      Text(
+                        _eventLabel(l10n, row),
+                        style: TenturaText.status(scheme.onSurfaceVariant),
+                      )
+                    else if (row is BeaconFactHistoryEntry) ...[
+                      if (row is! BeaconFactHistoryImported)
+                        Text(
+                          _authorLabel(l10n, row),
+                          style: TenturaText.status(
+                            scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      SizedBox(height: tt.tightGap),
+                      if (row is BeaconFactHistoryImported)
+                        Text(
+                          l10n.beaconRoomFactHistoryImportedBaseline,
+                          style: TenturaText.status(
+                            scheme.onSurfaceVariant,
+                          ),
+                        )
+                      else if (row is BeaconFactHistoryRestored)
+                        Text(
+                          l10n.beaconRoomFactHistoryRestoredFrom(
+                            row.restoredFromSeq,
+                          ),
+                          style: TenturaText.status(
+                            scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      SizedBox(height: tt.tightGap),
+                      _CollapsibleDiffBody(
+                        spans: _bodySpans(
+                          scheme: scheme,
+                          factText: row.factText,
+                          olderText: olderRevision?.factText,
+                        ),
+                      ),
+                      if (canMutate && !isHead) ...[
+                        SizedBox(height: tt.tightGap),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton(
+                            style: TextButton.styleFrom(
+                              padding: EdgeInsets.zero,
+                              minimumSize: Size.zero,
+                              tapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            onPressed: () =>
+                                unawaited(_onRestore(context, row.seq)),
+                            child: Text(
+                              l10n.beaconRoomFactHistoryRestoreAction,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ],
                 ),
               ),
             ],
-          ],
-        ],
-      ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -290,17 +471,65 @@ class _FactHistoryRow extends StatelessWidget {
       return;
     }
 
-    showSnackBar(
-      context,
-      text: l10n.beaconRoomFactHistoryRestoredSnackbar,
-      action: previousHeadSeq == null
-          ? null
-          : SnackBarAction(
-              label: l10n.beaconRoomFactHistoryUndo,
-              onPressed: () => unawaited(cubit.restore(previousHeadSeq)),
-            ),
+    if (previousHeadSeq == null) {
+      showSnackBar(
+        context,
+        text: l10n.beaconRoomFactHistoryRestoredSnackbar,
+      );
+      return;
+    }
+
+    onShowUndo(
+      message: l10n.beaconRoomFactHistoryRestoredSnackbar,
+      undoLabel: l10n.beaconRoomFactHistoryUndo,
+      onUndo: () => unawaited(cubit.restore(previousHeadSeq)),
     );
   }
+}
+
+class _TimelineRailPainter extends CustomPainter {
+  _TimelineRailPainter({
+    required this.railColor,
+    required this.nodeColor,
+    required this.nodeSize,
+    required this.drawAbove,
+    required this.drawBelow,
+  });
+
+  final Color railColor;
+  final Color nodeColor;
+  final double nodeSize;
+  final bool drawAbove;
+  final bool drawBelow;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cx = size.width / 2;
+    final midY = size.height / 2;
+    final railPaint = Paint()
+      ..color = railColor
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke;
+    if (drawAbove) {
+      canvas.drawLine(Offset(cx, 0), Offset(cx, midY), railPaint);
+    }
+    if (drawBelow) {
+      canvas.drawLine(Offset(cx, midY), Offset(cx, size.height), railPaint);
+    }
+    canvas.drawCircle(
+      Offset(cx, midY),
+      nodeSize / 2,
+      Paint()..color = nodeColor,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _TimelineRailPainter oldDelegate) =>
+      railColor != oldDelegate.railColor ||
+      nodeColor != oldDelegate.nodeColor ||
+      nodeSize != oldDelegate.nodeSize ||
+      drawAbove != oldDelegate.drawAbove ||
+      drawBelow != oldDelegate.drawBelow;
 }
 
 List<InlineSpan> _bodySpans({

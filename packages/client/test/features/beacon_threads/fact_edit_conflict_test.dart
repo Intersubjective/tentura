@@ -84,6 +84,7 @@ class _FactEditRoomCubit extends Mock implements RoomCubit {
     required String factCardId,
     required String newText,
     required int baseRevisionSeq,
+    String? attachmentsJson,
   }) async {
     correctCalls.add((
       factCardId: factCardId,

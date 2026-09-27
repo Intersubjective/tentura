@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/room_attachment_widgets.dart';
 import 'package:tentura/features/beacon_view/domain/pinned_facts.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
@@ -106,9 +107,35 @@ class _FactPickerSheetState extends State<FactPickerSheet> {
                             SizedBox(height: tt.rowGap / 2),
                         itemBuilder: (_, index) {
                           final fact = visible[index];
+                          final images = fact.attachments
+                              .where((a) => a.isImage && a.imageId.isNotEmpty)
+                              .toList();
+                          final title = fact.factText.trim().isNotEmpty
+                              ? fact.factText
+                              : (images.isNotEmpty
+                                    ? l10n.beaconRoomPinFactAttachmentBodyFallback
+                                    : fact.factText);
                           return ListTile(
+                            leading: images.isNotEmpty
+                                ? ClipRRect(
+                                    borderRadius: BorderRadius.circular(
+                                      TenturaRadii.cardDense,
+                                    ),
+                                    child: SizedBox(
+                                      width: tt.avatarSize,
+                                      height: tt.avatarSize,
+                                      child: roomAttachmentAlbumThumbnail(
+                                        context,
+                                        images.first,
+                                      ),
+                                    ),
+                                  )
+                                : Icon(
+                                    Icons.fact_check_outlined,
+                                    size: tt.iconSize,
+                                  ),
                             title: Text(
-                              fact.factText,
+                              title,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),

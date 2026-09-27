@@ -999,6 +999,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
   Future<void> correctFact({
     required String factCardId,
     required String newText,
+    String? attachmentsJson,
   }) async {
     if (_rejectIfDiscussionReadOnly()) return;
     try {
@@ -1007,6 +1008,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
         factCardId: factCardId,
         newText: newText,
         baseRevisionSeq: _factRevisionSeq(factCardId),
+        attachmentsJson: attachmentsJson,
       );
       await _refreshFactCards(state.beacon.id);
       _effects.emit(const ShowMessage(BeaconFactEditSuccessMessage()));

@@ -12,6 +12,8 @@ import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
+import 'package:tentura_server/domain/port/image_repository_port.dart';
+import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/use_case/beacon_fact_card_case.dart';
 import 'package:tentura_server/env.dart';
 
@@ -34,6 +36,7 @@ typedef _EditCall = ({
   Duration rateWindow,
   int rateMax,
   Duration quietWindow,
+  String? attachmentsJson,
 });
 
 typedef _RestoreCall = ({
@@ -92,6 +95,7 @@ class _MockFacts extends Fake implements BeaconFactCardRepositoryPort {
     required Duration rateWindow,
     required int rateMax,
     required Duration quietWindow,
+    String? attachmentsJson,
   }) async {
     editCalls.add((
       factCardId: factCardId,
@@ -102,6 +106,7 @@ class _MockFacts extends Fake implements BeaconFactCardRepositoryPort {
       rateWindow: rateWindow,
       rateMax: rateMax,
       quietWindow: quietWindow,
+      attachmentsJson: attachmentsJson,
     ));
     return outcome;
   }
@@ -135,6 +140,10 @@ class _MockFacts extends Fake implements BeaconFactCardRepositoryPort {
 /// room lookups must not be used.
 class _UnusedRoom extends Fake implements BeaconRoomRepositoryPort {}
 
+class _UnusedImage extends Fake implements ImageRepositoryPort {}
+
+class _UnusedTasks extends Fake implements TaskRepositoryPort {}
+
 /// Lifecycle comes from `loadRoomAccess.beaconStatus`, not a second read.
 class _UnusedHierarchy extends Fake implements BeaconHierarchyRepositoryPort {}
 
@@ -144,6 +153,8 @@ void main() {
   BeaconFactCardCase buildCase(Env env) => BeaconFactCardCase(
     facts,
     _UnusedRoom(),
+    _UnusedImage(),
+    _UnusedTasks(),
     _UnusedHierarchy(),
     FakeBeaconAccessGuard(),
     env: env,
@@ -157,13 +168,18 @@ void main() {
     case_ = buildCase(Env(environment: Environment.test));
   });
 
-  Future<int> correct({String newText = 'New text', int baseSeq = 1}) =>
+  Future<int> correct({
+    String newText = 'New text',
+    int baseSeq = 1,
+    String? attachmentsJson,
+  }) =>
       case_.correct(
         factCardId: _factId,
         beaconId: _beaconId,
         actorUserId: _userId,
         newText: newText,
         baseRevisionSeq: baseSeq,
+        attachmentsJson: attachmentsJson,
       );
 
   Future<int> restore({int fromSeq = 1, int baseSeq = 2}) => case_.restore(
@@ -302,6 +318,35 @@ void main() {
         throwsA(isA<BeaconCreateException>()),
       );
       expect(facts.loadRoomAccessCalls, 0);
+    });
+
+    test(
+      'empty text with attachmentsJson recomputes fact_text from filenames',
+      () async {
+        facts.outcome = const FactEditApplied(newSeq: 2);
+        expect(
+          await correct(
+            newText: '',
+            attachmentsJson:
+                '[{"id":"A1","fileName":"gate.jpg"},'
+                '{"id":"A2","fileName":"door.png"}]',
+          ),
+          2,
+        );
+        expect(facts.editCalls, hasLength(1));
+        expect(facts.editCalls.single.newText, 'gate.jpg, door.png');
+        expect(
+          facts.editCalls.single.attachmentsJson,
+          contains('"id":"A1"'),
+        );
+      },
+    );
+
+    test('attachmentsJson is forwarded on text+attach edits', () async {
+      facts.outcome = const FactEditApplied(newSeq: 3);
+      const json = '[{"id":"Ax"}]';
+      expect(await correct(newText: 'Caption', attachmentsJson: json), 3);
+      expect(facts.editCalls.single.attachmentsJson, json);
     });
 
     test('!canUseRoom → UnauthorizedException(Room access required)', () async {

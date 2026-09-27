@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/quoted_fact.dart';
+import 'package:tentura/domain/entity/room_message_attachment.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/room_attachment_widgets.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 /// Max characters shown in the collapsed one-line excerpt before an ellipsis.
@@ -13,6 +15,9 @@ String _collapsedExcerpt(String text) {
   if (trimmed.length <= kRoomMessageFactQuoteCollapsedMaxChars) return trimmed;
   return '${trimmed.substring(0, kRoomMessageFactQuoteCollapsedMaxChars).trimRight()}…';
 }
+
+List<RoomMessageAttachment> _quoteImages(List<RoomMessageAttachment> all) =>
+    all.where((a) => a.isImage && a.imageId.isNotEmpty).toList();
 
 /// Quoted fact snapshot inside a room message bubble (issue #181 plan
 /// §7.5/§7.6): collapsed to a one-line excerpt by default, tap to expand in
@@ -52,12 +57,13 @@ class _RoomMessageFactQuoteState extends State<RoomMessageFactQuote> {
     final quoted = widget.quotedFact;
     final unpinned = quoted.isUnpinned;
     final showFull = _expanded || unpinned;
-    // The snapshot's currentSeq is only as fresh as the message fetch; a fact
-    // edit refreshes the room's fact list, not the messages.
     final changedSinceQuoted =
         quoted.isChangedSinceQuoted ||
         (widget.currentFact?.revisionSeq ?? 0) > quoted.seq;
     final textColor = unpinned ? scheme.onSurfaceVariant : scheme.onSurface;
+    final images = _quoteImages(quoted.attachments);
+    final hasText = quoted.factText.trim().isNotEmpty;
+    final thumbSize = tt.avatarSize * 1.5;
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -66,12 +72,48 @@ class _RoomMessageFactQuoteState extends State<RoomMessageFactQuote> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            showFull ? quoted.factText : _collapsedExcerpt(quoted.factText),
-            style: TenturaText.bodySmall(textColor),
-            maxLines: showFull ? null : 1,
-            overflow: showFull ? null : TextOverflow.ellipsis,
-          ),
+          if (images.isNotEmpty) ...[
+            if (showFull)
+              SizedBox(
+                height: roomMessageInlineImageAlbumHeight(context) * 0.45,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: images.length,
+                  separatorBuilder: (_, _) => SizedBox(width: tt.tightGap * 2),
+                  itemBuilder: (ctx, i) => ClipRRect(
+                    borderRadius: BorderRadius.circular(TenturaRadii.cardDense),
+                    child: SizedBox(
+                      width: thumbSize * 2,
+                      child: roomAttachmentAlbumThumbnail(ctx, images[i]),
+                    ),
+                  ),
+                ),
+              )
+            else
+              ClipRRect(
+                borderRadius: BorderRadius.circular(TenturaRadii.cardDense),
+                child: SizedBox(
+                  width: thumbSize,
+                  height: thumbSize,
+                  child: roomAttachmentAlbumThumbnail(context, images.first),
+                ),
+              ),
+            if (hasText) SizedBox(height: tt.tightGap),
+          ],
+          if (hasText)
+            Text(
+              showFull ? quoted.factText : _collapsedExcerpt(quoted.factText),
+              style: TenturaText.bodySmall(textColor),
+              maxLines: showFull ? null : 1,
+              overflow: showFull ? null : TextOverflow.ellipsis,
+            )
+          else if (images.isEmpty)
+            Text(
+              l10n.beaconRoomPinFactAttachmentBodyFallback,
+              style: TenturaText.bodySmall(textColor),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           if (unpinned)
             Padding(
               padding: EdgeInsets.only(top: tt.tightGap),
@@ -83,7 +125,6 @@ class _RoomMessageFactQuoteState extends State<RoomMessageFactQuote> {
           if (changedSinceQuoted)
             Padding(
               padding: EdgeInsets.only(top: tt.tightGap),
-              // Wraps in a narrow bubble instead of overflowing.
               child: Wrap(
                 crossAxisAlignment: WrapCrossAlignment.center,
                 spacing: tt.iconTextGap / 2,

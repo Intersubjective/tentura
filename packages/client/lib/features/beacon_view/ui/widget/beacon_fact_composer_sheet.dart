@@ -11,6 +11,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/fact_attachment_preview_strip.dart';
 import 'package:tentura/features/beacon_view/domain/pinned_facts.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -267,25 +268,19 @@ class _BeaconFactComposerBodyState extends State<_BeaconFactComposerBody> {
             ),
             if (_pending.isNotEmpty) ...[
               SizedBox(height: tt.rowGap),
-              for (var i = 0; i < _pending.length; i++)
-                ListTile(
-                  dense: true,
-                  title: Text(
-                    _pending[i].fileName,
-                    style: TenturaText.bodyMedium(
-                      Theme.of(context).colorScheme.onSurface,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  trailing: IconButton(
-                    icon: Icon(Icons.close, size: tt.iconSize),
-                    tooltip: l10n.buttonRemove,
-                    onPressed: _submitting
-                        ? null
-                        : () => setState(() => _pending.removeAt(i)),
-                  ),
-                ),
+              FactAttachmentPreviewStrip(
+                existing: const [],
+                pending: [
+                  for (final u in _pending)
+                    (bytes: u.bytes, fileName: u.fileName, mimeType: u.mimeType),
+                ],
+                onRemoveExisting: (_) {},
+                onRemovePending: (i) {
+                  if (_submitting) return;
+                  setState(() => _pending.removeAt(i));
+                },
+                enabled: !_submitting,
+              ),
             ],
             SizedBox(height: tt.rowGap),
             Align(

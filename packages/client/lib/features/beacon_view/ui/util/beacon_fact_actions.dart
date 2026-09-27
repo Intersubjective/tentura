@@ -20,8 +20,12 @@ Future<void> showBeaconFactActions(
     pageContext,
     fact: fact,
     canMutate: cubit.state.beacon.status.allowsDiscussionWrites,
-    onCorrect: ({required factCardId, required newText}) =>
-        cubit.correctFact(factCardId: factCardId, newText: newText),
+    onCorrect: ({required factCardId, required newText, String? attachmentsJson}) =>
+        cubit.correctFact(
+          factCardId: factCardId,
+          newText: newText,
+          attachmentsJson: attachmentsJson,
+        ),
     onRemove: ({required factCardId}) => cubit.removeFact(factCardId: factCardId),
     onSetVisibility: ({required factCardId, required visibility}) =>
         cubit.setFactVisibility(

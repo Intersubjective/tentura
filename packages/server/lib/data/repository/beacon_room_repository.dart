@@ -222,7 +222,8 @@ SELECT
   q.fact_card_id, q.seq, r.fact_text,
   f.pinned_by, f.source_message_id,
   f.visibility::integer AS visibility, f.status::integer AS status,
-  f.revision_seq::integer AS current_seq
+  f.revision_seq::integer AS current_seq,
+  COALESCE(r.attachments_json::text, '[]') AS attachments_json
 FROM unnest($1::text[], $2::integer[]) AS q(fact_card_id, seq)
 JOIN public.beacon_fact_card f ON f.id = q.fact_card_id
 JOIN public.beacon_fact_card_revision r
@@ -392,9 +393,6 @@ JOIN public.beacon_fact_card_revision r
 
     final attachmentsJsonByMid = await attachmentsJsonByMessageIds([
       ...ids,
-      for (final row in quoteRowByKey.values)
-        if (row.readNullable<String>('source_message_id') case final String id)
-          id,
     ]);
 
     Map<String, Object?>? quotedFactFor(BeaconRoomMessage m) {
@@ -404,7 +402,6 @@ JOIN public.beacon_fact_card_revision r
         return null;
       }
       final pinnedById = row.readNullable<String>('pinned_by');
-      final sourceMessageId = row.readNullable<String>('source_message_id');
       return <String, Object?>{
         'factCardId': row.read<String>('fact_card_id'),
         'seq': row.read<int>('seq'),
@@ -416,9 +413,7 @@ JOIN public.beacon_fact_card_revision r
         'visibility': row.read<int>('visibility'),
         'status': row.read<int>('status'),
         'currentSeq': row.read<int>('current_seq'),
-        'attachmentsJson': sourceMessageId != null
-            ? (attachmentsJsonByMid[sourceMessageId] ?? '[]')
-            : '[]',
+        'attachmentsJson': row.read<String>('attachments_json'),
       };
     }
 

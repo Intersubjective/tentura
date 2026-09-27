@@ -46,7 +46,10 @@ abstract class BeaconFactCardRepositoryPort {
 
   /// Replaces the fact text with [newText] (trimmed by the caller) when
   /// [baseRevisionSeq] is still current; one statement shared with
-  /// [restoreRevision].
+  /// [restoreRevision]. When [attachmentsJson] is non-null it becomes the
+  /// new head snapshot (same shape as room `attachmentsJson`); when null on
+  /// a text edit the previous head snapshot is copied. A change to either
+  /// text or attachments is a real edit (not NoOp).
   Future<FactEditOutcome> editText({
     required String factCardId,
     required String beaconId,
@@ -56,10 +59,11 @@ abstract class BeaconFactCardRepositoryPort {
     required Duration rateWindow,
     required int rateMax,
     required Duration quietWindow,
+    String? attachmentsJson,
   });
 
-  /// Restores the text of revision [fromSeq] as a new revision; the text is
-  /// read inside the statement, never taken from the client.
+  /// Restores the text (and attachment snapshot) of revision [fromSeq] as a
+  /// new revision; both are read inside the statement, never from the client.
   Future<FactEditOutcome> restoreRevision({
     required String factCardId,
     required String beaconId,
@@ -69,6 +73,17 @@ abstract class BeaconFactCardRepositoryPort {
     required Duration rateWindow,
     required int rateMax,
     required Duration quietWindow,
+  });
+
+  /// Head revision `attachments_json` per fact id (`'[]'` when missing).
+  Future<Map<String, String>> headAttachmentsJsonByFactIds(
+    Iterable<String> factCardIds,
+  );
+
+  /// Attachment snapshot for a specific revision seq (`'[]'` when missing).
+  Future<String> attachmentsJsonForRevision({
+    required String factCardId,
+    required int seq,
   });
 
   /// True only when this call unpinned the fact.

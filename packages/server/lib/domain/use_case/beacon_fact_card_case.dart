@@ -1,15 +1,25 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:injectable/injectable.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
+import 'package:tentura_root/utils/infer_image_mime_from_bytes.dart';
 
+import 'package:tentura_server/consts/beacon_fact_card_consts.dart';
+import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_card_outcome.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_history_entry_entity.dart';
+import 'package:tentura_server/domain/entity/task_entity.dart';
+import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/policy/beacon_room_lifecycle_write_policy.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
-import 'package:tentura_server/consts/beacon_fact_card_consts.dart';
-import 'package:tentura_server/domain/exception.dart';
-import 'package:tentura_server/domain/policy/beacon_room_lifecycle_write_policy.dart';
+import 'package:tentura_server/domain/port/image_repository_port.dart';
+import 'package:tentura_server/domain/port/task_repository_port.dart';
+import 'package:tentura_server/utils/id.dart';
+import 'package:tentura_server/utils/read_uint8_stream_with_limit.dart';
 
 import '_use_case_base.dart';
 
@@ -18,6 +28,8 @@ final class BeaconFactCardCase extends UseCaseBase {
   BeaconFactCardCase(
     this._facts,
     this._room,
+    this._imageRepository,
+    this._tasksRepository,
     // Kept for DI; writes and list go through the fused loadRoomAccess
     // preflight.
     // ignore: avoid_unused_constructor_parameters
@@ -31,7 +43,13 @@ final class BeaconFactCardCase extends UseCaseBase {
 
   final BeaconFactCardRepositoryPort _facts;
 
+  // Reserved for future room-coupled fact reads; list now uses revision snaps.
+  // ignore: unused_field
   final BeaconRoomRepositoryPort _room;
+
+  final ImageRepositoryPort _imageRepository;
+
+  final TaskRepositoryPort _tasksRepository;
 
   /// Fused `loadRoomAccess` preflight: room use plus lifecycle write check.
   Future<void> _ensureWritableRoomAccess({
@@ -78,33 +96,107 @@ final class BeaconFactCardCase extends UseCaseBase {
     return {'id': entity.id, 'beaconId': entity.beaconId};
   }
 
-  /// Edits the fact text against the caller's [baseRevisionSeq]; returns
-  /// the resulting head seq.
+  /// Edits fact text and/or attachments against [baseRevisionSeq]; returns
+  /// the resulting head seq. When [attachmentsJson] is null the previous head
+  /// attachment snapshot is kept; when non-null it replaces the snapshot.
   Future<int> correct({
     required String factCardId,
     required String beaconId,
     required String actorUserId,
     required String newText,
     required int baseRevisionSeq,
+    String? attachmentsJson,
   }) async {
-    final trimmed = newText.trim();
-    if (trimmed.isEmpty) {
+    var effectiveText = newText.trim();
+    if (effectiveText.isEmpty && attachmentsJson != null) {
+      final decoded = jsonDecode(attachmentsJson);
+      final names = <String>[];
+      if (decoded is List) {
+        for (final item in decoded) {
+          if (item is Map && item['fileName'] is String) {
+            final n = (item['fileName'] as String).trim();
+            if (n.isNotEmpty) names.add(n);
+          }
+        }
+      }
+      effectiveText = names.isEmpty
+          ? 'Attachment'
+          : names.length <= 3
+          ? names.join(', ')
+          : '${names.take(3).join(', ')}…';
+    }
+    if (effectiveText.isEmpty) {
       throw const BeaconCreateException(description: 'Fact text is empty');
     }
+
     await _ensureWritableRoomAccess(beaconId: beaconId, userId: actorUserId);
+
     return _seqOrThrow(
       await _facts.editText(
         factCardId: factCardId,
         beaconId: beaconId,
         actorUserId: actorUserId,
-        newText: trimmed,
+        newText: effectiveText,
         baseRevisionSeq: baseRevisionSeq,
         rateWindow: env.factEditRateWindow,
         rateMax: env.factEditRateMax,
         quietWindow: kFactEditQuietWindow,
+        attachmentsJson: attachmentsJson,
       ),
       factCardId: factCardId,
     );
+  }
+
+  /// Stages one image attachment for a later [correct] `attachmentsJson`.
+  /// Returns a single JSON object (not an array).
+  Future<String> uploadAttachment({
+    required String beaconId,
+    required String actorUserId,
+    required Stream<Uint8List> attachmentBytes,
+    String? attachmentFilename,
+    String? attachmentMimeType,
+  }) async {
+    await _ensureWritableRoomAccess(beaconId: beaconId, userId: actorUserId);
+    final bytes = await readUint8StreamWithLimit(
+      attachmentBytes,
+      kMaxRoomMessageAttachmentBytes,
+    );
+    if (bytes.isEmpty) {
+      throw const BeaconCreateException(description: 'Empty attachment');
+    }
+    final displayName = (attachmentFilename ?? 'file').trim().isEmpty
+        ? 'file'
+        : attachmentFilename!.trim();
+    var mime = attachmentMimeType ?? 'application/octet-stream';
+    final sniffed = inferImageMimeFromLeadingBytes(bytes);
+    if (sniffed != null) mime = sniffed;
+    if (sniffed == null && !mime.toLowerCase().startsWith('image/')) {
+      throw const BeaconCreateException(
+        description: 'Only image attachments are supported on facts',
+      );
+    }
+    final imageId = await _imageRepository.put(
+      authorId: actorUserId,
+      bytes: Stream.value(bytes),
+    );
+    await _tasksRepository.schedule(
+      TaskEntity(
+        details: TaskCalculateImageHashDetails(imageId: imageId),
+      ),
+    );
+    return jsonEncode({
+      'id': generateId('A'),
+      'kind': BeaconRoomMessageAttachmentKind.image,
+      'position': 0,
+      'mime': mime,
+      'sizeBytes': bytes.length,
+      'fileName': displayName,
+      'imageId': imageId,
+      'imageAuthorId': actorUserId,
+      'blurHash': '',
+      'width': 0,
+      'height': 0,
+    });
   }
 
   /// Restores the text of revision [fromSeq] as a new head revision; returns
@@ -195,15 +287,9 @@ final class BeaconFactCardCase extends UseCaseBase {
       beaconId: beaconId,
       includeRoomOnly: access.canUseRoom,
     );
-    final sourceIdsForAttachments = <String>[
-      for (final e in rows)
-        if (e.sourceMessageId != null && e.sourceMessageId!.isNotEmpty)
-          e.sourceMessageId!,
-    ];
-    final attachmentsBySourceId =
-        sourceIdsForAttachments.isEmpty
-            ? <String, String>{}
-            : await _room.attachmentsJsonByMessageIds(sourceIdsForAttachments);
+    final attachmentsByFactId = await _facts.headAttachmentsJsonByFactIds([
+      for (final e in rows) e.id,
+    ]);
     return [
       for (final e in rows)
         <String, Object?>{
@@ -217,11 +303,7 @@ final class BeaconFactCardCase extends UseCaseBase {
           'status': e.status,
           'createdAt': e.createdAt.toIso8601String(),
           'updatedAt': e.updatedAt?.toIso8601String(),
-          'attachmentsJson': switch (e.sourceMessageId) {
-            final smid? when smid.isNotEmpty =>
-              attachmentsBySourceId[smid] ?? '[]',
-            _ => '[]',
-          },
+          'attachmentsJson': attachmentsByFactId[e.id] ?? '[]',
           'revisionSeq': e.revisionSeq,
           'lastEditedBy': e.lastEditedBy,
           'lastEditedByTitle': e.lastEditedByTitle,

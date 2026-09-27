@@ -399,7 +399,9 @@ void main() {
             throwsA(isA<UnauthorizedException>()),
           );
           final facts = BeaconFactCardCase(
-            _RoomBackedFactCards(room), room, FakeBeaconHierarchyRepository(),
+            _RoomBackedFactCards(room), room,
+            _UnusedImage(), _UnusedTasks(),
+            FakeBeaconHierarchyRepository(),
             FakeBeaconAccessGuard(),
             env: Env(environment: Environment.test), logger: Logger('ExitAccessTest'),
           );
@@ -1243,3 +1245,8 @@ void main() {
     });
   });
 }
+
+class _UnusedImage extends Fake implements ImageRepositoryPort {}
+
+class _UnusedTasks extends Fake implements TaskRepositoryPort {}
+

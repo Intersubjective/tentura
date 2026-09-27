@@ -1,3 +1,4 @@
+import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/use_case/beacon_fact_card_case.dart';
 
 import '../gql_nodel_base.dart';
@@ -20,6 +21,8 @@ final class MutationFactCard extends GqlNodeBase {
 
   final _newText = InputFieldString(fieldName: 'newText');
 
+  final _attachmentsJson = InputFieldString(fieldName: 'attachmentsJson');
+
   final GraphQLFieldInput<int, int> _baseRevisionSeq =
       GraphQLFieldInput('baseRevisionSeq', graphQLInt.nonNullable());
 
@@ -32,6 +35,7 @@ final class MutationFactCard extends GqlNodeBase {
       [
         beaconFactCardPin,
         beaconFactCardCorrect,
+        beaconFactCardAttachmentUpload,
         beaconFactCardRestore,
         beaconFactCardRemove,
         beaconFactCardSetVisibility,
@@ -88,14 +92,46 @@ final class MutationFactCard extends GqlNodeBase {
           _factCardId.field,
           _newText.field,
           _baseRevisionSeq,
+          _attachmentsJson.fieldNullable,
         ],
         resolve: (_, args) => _case.correct(
-              factCardId: _factCardId.fromArgsNonNullable(args),
-              beaconId: _beaconIdStr.fromArgsNonNullable(args),
-              actorUserId: getCredentials(args).sub,
-              newText: _newText.fromArgsNonNullable(args),
-              baseRevisionSeq: args[_baseRevisionSeq.name]! as int,
-            ),
+          factCardId: _factCardId.fromArgsNonNullable(args),
+          beaconId: _beaconIdStr.fromArgsNonNullable(args),
+          actorUserId: getCredentials(args).sub,
+          newText: _newText.fromArgsNonNullable(args),
+          baseRevisionSeq: args[_baseRevisionSeq.name]! as int,
+          attachmentsJson: _attachmentsJson.fromArgs(args),
+        ),
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get beaconFactCardAttachmentUpload =>
+      GraphQLObjectField(
+        'BeaconFactCardAttachmentUpload',
+        graphQLString.nonNullable(),
+        arguments: [
+          _beaconIdStr.field,
+          InputFieldUpload.field,
+        ],
+        resolve: (_, args) async {
+          final uploadMeta = InputFieldUpload.uploadVariablesFromArgs(args);
+          final rawName = uploadMeta?['filename'];
+          final rawType = uploadMeta?['type'];
+          final bytes = InputFieldUpload.fromArgs(args);
+          if (bytes == null) {
+            throw const BeaconCreateException(
+              description: 'Attachment file is required',
+            );
+          }
+          return _case.uploadAttachment(
+            beaconId: _beaconIdStr.fromArgsNonNullable(args),
+            actorUserId: getCredentials(args).sub,
+            attachmentBytes: bytes,
+            attachmentFilename:
+                rawName is String && rawName.trim().isNotEmpty ? rawName : null,
+            attachmentMimeType:
+                rawType is String && rawType.trim().isNotEmpty ? rawType : null,
+          );
+        },
       );
 
   GraphQLObjectField<dynamic, dynamic> get beaconFactCardRestore =>

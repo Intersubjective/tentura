@@ -16,6 +16,8 @@ import 'package:tentura_server/data/repository/beacon_room_repository.dart';
 import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
 import 'package:tentura_server/domain/use_case/beacon_fact_card_case.dart';
 import 'package:tentura_server/env.dart';
+import 'package:tentura_server/domain/port/image_repository_port.dart';
+import 'package:tentura_server/domain/port/task_repository_port.dart';
 
 import '../../support/disposable_pg_target.dart';
 import '../../support/fake_beacon_access_guard.dart';
@@ -23,6 +25,10 @@ import '../../support/pg_test_public_keys.dart';
 import '../../support/query_counter.dart';
 
 /// Lifecycle comes from the fused `loadRoomAccess`; no second status read.
+class _UnusedImage extends Fake implements ImageRepositoryPort {}
+
+class _UnusedTasks extends Fake implements TaskRepositoryPort {}
+
 class _UnusedHierarchy extends Fake implements BeaconHierarchyRepositoryPort {}
 
 /// tentura-617.11 (issue #181 plan §14.5, §14.7 "RT counting"): one edit
@@ -67,6 +73,8 @@ Future<void> main() async {
         case_ = BeaconFactCardCase(
           BeaconFactCardRepository(db, room),
           room,
+          _UnusedImage(),
+          _UnusedTasks(),
           _UnusedHierarchy(),
           FakeBeaconAccessGuard(),
           env: Env(environment: Environment.test),

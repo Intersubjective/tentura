@@ -13,6 +13,8 @@ import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
+import 'package:tentura_server/domain/port/image_repository_port.dart';
+import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/domain/use_case/beacon_fact_card_case.dart';
 import 'package:tentura_server/env.dart';
@@ -59,8 +61,10 @@ class _StubFacts extends Fake implements BeaconFactCardRepositoryPort {
   String? lastPinnedBy;
   String? lastPinnedSourceMessageId;
   String? lastCorrectedText;
+  String? lastCorrectedAttachmentsJson;
   String? lastRemovedFactId;
   int? lastSetVisibility;
+  Map<String, String> headAttachmentsByFactId = const {};
 
   @override
   Future<BeaconFactRoomAccess> loadRoomAccess({
@@ -126,10 +130,28 @@ class _StubFacts extends Fake implements BeaconFactCardRepositoryPort {
     required Duration rateWindow,
     required int rateMax,
     required Duration quietWindow,
+    String? attachmentsJson,
   }) async {
     lastCorrectedText = newText;
+    lastCorrectedAttachmentsJson = attachmentsJson;
     return FactEditApplied(newSeq: baseRevisionSeq + 1);
   }
+
+  @override
+  Future<Map<String, String>> headAttachmentsJsonByFactIds(
+    Iterable<String> factCardIds,
+  ) async => {
+        for (final id in factCardIds)
+          if (headAttachmentsByFactId.containsKey(id))
+            id: headAttachmentsByFactId[id]!,
+      };
+
+  @override
+  Future<String> attachmentsJsonForRevision({
+    required String factCardId,
+    required int seq,
+  }) async =>
+      headAttachmentsByFactId[factCardId] ?? '[]';
 
   @override
   Future<bool> remove({
@@ -151,6 +173,10 @@ class _StubFacts extends Fake implements BeaconFactCardRepositoryPort {
     lastSetVisibility = visibility;
   }
 }
+
+class _UnusedImage extends Fake implements ImageRepositoryPort {}
+
+class _UnusedTasks extends Fake implements TaskRepositoryPort {}
 
 class _StubRoom extends Fake implements BeaconRoomRepositoryPort {
   bool isAuthor = false;
@@ -242,6 +268,8 @@ void main() {
     case_ = BeaconFactCardCase(
       facts,
       room,
+      _UnusedImage(),
+      _UnusedTasks(),
       hierarchy,
       guard,
       env: Env(environment: Environment.test),
@@ -523,25 +551,25 @@ void main() {
       expect(rows.single['id'], 'Froom');
     });
 
-    test('fetches attachments only for visible facts with source messages',
-        () async {
+    test('fetches head revision attachments for listed facts', () async {
       denyRoomAccess();
-      facts.rows = [
-        testFact(
-          id: 'Fpub',
-          visibility: BeaconFactCardVisibilityBits.public,
-          sourceMessageId: 'Rpub',
-        ),
-        testFact(
-          id: 'Froom',
-          visibility: BeaconFactCardVisibilityBits.room,
-          sourceMessageId: 'Rroom',
-        ),
-      ];
-      room.attachmentsByMessageId = {
-        'Rpub': '[{"id":"A1"}]',
-        'Rroom': '[{"id":"A2"}]',
-      };
+      facts
+        ..rows = [
+          testFact(
+            id: 'Fpub',
+            visibility: BeaconFactCardVisibilityBits.public,
+            sourceMessageId: 'Rpub',
+          ),
+          testFact(
+            id: 'Froom',
+            visibility: BeaconFactCardVisibilityBits.room,
+            sourceMessageId: 'Rroom',
+          ),
+        ]
+        ..headAttachmentsByFactId = {
+          'Fpub': '[{"id":"A1"}]',
+          'Froom': '[{"id":"A2"}]',
+        };
 
       final rows = await case_.list(beaconId: _beaconId, userId: _userId);
 

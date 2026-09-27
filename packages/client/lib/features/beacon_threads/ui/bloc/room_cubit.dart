@@ -1033,6 +1033,7 @@ class RoomCubit extends Cubit<RoomState> {
     required String factCardId,
     required String newText,
     required int baseRevisionSeq,
+    String? attachmentsJson,
   }) async {
     if (_rejectIfDiscussionReadOnly()) return;
     emit(
@@ -1044,6 +1045,7 @@ class RoomCubit extends Cubit<RoomState> {
         factCardId: factCardId,
         newText: newText,
         baseRevisionSeq: baseRevisionSeq,
+        attachmentsJson: attachmentsJson,
       );
       await _requestRefresh(scope: _RoomRefreshScope.facts, silent: false);
       if (!isClosed) emit(state.copyWith(status: const StateIsSuccess()));

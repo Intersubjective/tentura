@@ -402,6 +402,7 @@ class FakeBeaconViewFactCardRepository implements BeaconFactCardRepository {
     required String factCardId,
     required String newText,
     required int baseRevisionSeq,
+    String? attachmentsJson,
   }) async {
     correctedIds.add(factCardId);
     return baseRevisionSeq + 1;

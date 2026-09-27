@@ -454,7 +454,21 @@ void main() {
       expect(find.text('Restore this version'), findsNothing);
     });
 
-    testWidgets('"Restore this version" is shown for a mutator', (
+    testWidgets('"Restore this version" is shown for a mutator on non-head', (
+      tester,
+    ) async {
+      final repo = _FakeFactHistoryRepository()
+        ..entries = [
+          _edited(id: 'head', seq: 4, text: 'Head text'),
+          _edited(id: 'e1', seq: 3, text: 'Some fact text'),
+        ];
+
+      await _pumpSheet(tester, repo: repo, canMutate: true);
+
+      expect(find.text('Restore this version'), findsOneWidget);
+    });
+
+    testWidgets('"Restore this version" is hidden on the head revision', (
       tester,
     ) async {
       final repo = _FakeFactHistoryRepository()
@@ -462,12 +476,12 @@ void main() {
 
       await _pumpSheet(tester, repo: repo, canMutate: true);
 
-      expect(find.text('Restore this version'), findsOneWidget);
+      expect(find.text('Restore this version'), findsNothing);
     });
 
     testWidgets(
-      'tapping it calls restore without a confirm dialog, shows a '
-      'SnackBar, then Undo restores the previous head text',
+      'tapping it calls restore without a confirm dialog, shows an '
+      'in-sheet Undo banner, then Undo restores the previous head text',
       (tester) async {
         // Distinct, single-token bodies (no shared words) so a wordDiff
         // merge between neighbouring rows can never make one marker leak
@@ -533,11 +547,13 @@ void main() {
           reason: 'first restore: fromSeq is the tapped row, '
               'baseRevisionSeq is the sheet-open-time head',
         );
+        final l10n = await L10n.delegate.load(const Locale('en'));
         expect(
-          find.byType(SnackBar),
+          find.text(l10n.beaconRoomFactHistoryRestoredSnackbar),
           findsOneWidget,
-          reason: 'D2: a successful restore must show a SnackBar',
+          reason: 'successful restore shows an in-sheet Undo banner',
         );
+        expect(find.text('Undo'), findsOneWidget);
 
         final countAfterRestore = find
             .textContaining(headText)

@@ -51,7 +51,11 @@ Future<void> _openSheet(
                 ctx,
                 fact: fact,
                 canMutate: canMutate,
-                onCorrect: ({required factCardId, required newText}) async {},
+                onCorrect: ({
+                  required factCardId,
+                  required newText,
+                  String? attachmentsJson,
+                }) async {},
                 onRemove: ({required factCardId}) async {},
                 onSetVisibility: ({required factCardId, required visibility}) async {},
                 onEditHistory: onEditHistory ?? (_) {},
@@ -91,27 +95,26 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('"Edit history" is hidden at revisionSeq 1', (tester) async {
+  testWidgets('"Edit history" is shown at revisionSeq 1', (tester) async {
     await _openSheet(tester, fact: _fact());
 
     final l10n = await L10n.delegate.load(const Locale('en'));
     expect(
       find.text(l10n.beaconRoomFactCardActionEditHistory),
-      findsNothing,
+      findsOneWidget,
     );
   });
 
-  testWidgets('"Edit history" is hidden at revisionSeq 1 for a mutator too', (
+  testWidgets('"Edit history" is shown at revisionSeq 1 for a mutator too', (
     tester,
   ) async {
     await _openSheet(tester, fact: _fact(), canMutate: true);
 
     final l10n = await L10n.delegate.load(const Locale('en'));
-    // Mutator sheet is open (Edit action visible) yet no history item.
     expect(find.text(l10n.beaconRoomFactCardActionEdit), findsOneWidget);
     expect(
       find.text(l10n.beaconRoomFactCardActionEditHistory),
-      findsNothing,
+      findsOneWidget,
     );
   });
 

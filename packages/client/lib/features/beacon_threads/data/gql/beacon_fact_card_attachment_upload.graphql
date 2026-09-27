@@ -1,0 +1,6 @@
+mutation BeaconFactCardAttachmentUpload(
+  $beaconId: String!
+  $file: v2_Upload!
+) {
+  BeaconFactCardAttachmentUpload(beaconId: $beaconId, file: $file)
+}
