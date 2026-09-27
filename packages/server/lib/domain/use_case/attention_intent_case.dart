@@ -769,6 +769,7 @@ class AttentionIntentCase {
             ),
             beaconId: beaconId,
             actorUserId: actorUserId,
+            toStatus: toStatus,
           ),
         ),
       );
@@ -883,6 +884,7 @@ class AttentionIntentCase {
             beaconId: destinationBeaconId,
             messageId: messageId,
             actorUserId: actorUserId,
+            toStatus: toStatus.name,
           ),
         ),
       );
@@ -1022,6 +1024,7 @@ class AttentionIntentCase {
               beaconTitle: notification.beaconTitle.trim().isEmpty
                   ? null
                   : notification.beaconTitle.trim(),
+              excerpt: copy.excerpt,
             ),
           ),
       ],

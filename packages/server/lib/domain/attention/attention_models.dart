@@ -297,6 +297,17 @@ abstract class AttentionRecipientRoleFacts with _$AttentionRecipientRoleFacts {
 
     /// Wire literal `'new_account'` or `'existing_account'` on inviteAccepted.
     String? inviteOrigin,
+
+    /// The user's own words the event carries — a message, a note, the text
+    /// of an ask or promise — without the Request title or any boilerplate.
+    ///
+    /// `title`/`body` are push-notification copy and glue this onto the
+    /// Request title and English labels; clients that render the event under
+    /// a Request header read this instead (see `AttentionPolicy`).
+    String? excerpt,
+
+    /// [BeaconStatus] name the Request moved to, on status-change events.
+    String? toStatus,
   }) = _AttentionRecipientRoleFacts;
 }
 

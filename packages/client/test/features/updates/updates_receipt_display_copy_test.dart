@@ -294,4 +294,74 @@ void main() {
       expect(copy.excerpt, isEmpty);
     });
   });
+
+  group('structured payload (excerpt, toStatus)', () {
+    test('the payload excerpt is the quote; body is not parsed', () {
+      final copy = requestScopedEventCopy(
+        title: 'Hikes',
+        body: 'Hikes — see you at 9',
+        presentationKey: 'room_message_posted',
+        presentationPayloadJson: '{"excerpt":"see you at 9"}',
+        requestTitle: 'Hikes',
+        l10n: l10n,
+      );
+
+      expect(copy.event, l10n.updatesFallbackTitleRoomMessagePosted);
+      expect(copy.excerpt, 'see you at 9');
+    });
+
+    test('an empty excerpt means no words, whatever body says', () {
+      final copy = requestScopedEventCopy(
+        title: 'Some label we have never seen',
+        body: 'A sentence no list knows about',
+        presentationKey: 'coordination_changed',
+        presentationPayloadJson: '{"excerpt":""}',
+        l10n: l10n,
+      );
+
+      expect(copy.event, l10n.updatesFallbackTitleCoordinationChanged);
+      expect(copy.excerpt, isEmpty);
+    });
+
+    test('a help offer with a note: localized event, note as quote', () {
+      final copy = requestScopedEventCopy(
+        title: 'Anna',
+        body: 'I can sew',
+        presentationKey: 'help_offer_submitted',
+        presentationPayloadJson: '{"excerpt":"I can sew"}',
+        l10n: l10n,
+      );
+
+      expect(copy.event, l10n.updatesFallbackTitleHelpOfferSubmitted);
+      expect(copy.excerpt, 'I can sew');
+    });
+
+    test('status comes from toStatus, not from the English body', () {
+      final copy = requestScopedEventCopy(
+        title: 'Request status changed',
+        body: 'whatever',
+        presentationKey: 'request_status_changed',
+        presentationPayloadJson: '{"excerpt":"","toStatus":"closed"}',
+        l10n: l10n,
+      );
+
+      expect(
+        copy.event,
+        l10n.attentionEventStatusChanged(l10n.requestStatusActivityClosed),
+      );
+    });
+
+    test('feed rows take the payload excerpt too', () {
+      final copy = resolveUpdatesFeedRowCopy(
+        title: 'Anna',
+        body: 'Anna offered help',
+        presentationKey: 'help_offer_submitted',
+        presentationPayloadJson: '{"excerpt":""}',
+        l10n: l10n,
+      );
+
+      expect(copy.headline, 'Anna');
+      expect(copy.body, isEmpty);
+    });
+  });
 }

@@ -10,11 +10,16 @@ class BeaconNotificationCopy {
     required this.title,
     required this.body,
     required this.actionUrl,
+    this.excerpt = '',
   });
 
   final String title;
   final String body;
   final String actionUrl;
+
+  /// The words [body] quotes, alone — no Request title, no fallback sentence.
+  /// Empty when the event carries none.
+  final String excerpt;
 }
 
 class BeaconNotificationCopyBuilder {
@@ -219,6 +224,7 @@ class BeaconNotificationCopyBuilder {
       title: title,
       body: body,
       actionUrl: _actionUrl(intent),
+      excerpt: excerpt,
     );
   }
 

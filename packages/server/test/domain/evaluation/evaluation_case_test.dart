@@ -1267,6 +1267,7 @@ void main() {
             'actorUserId': userId,
             'beaconId': beaconId,
             'beaconTitle': 't',
+            'excerpt': '',
           });
         },
       );

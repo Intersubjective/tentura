@@ -282,4 +282,26 @@ void main() {
       expect(safe.body.contains('Roof'), isFalse);
     });
   });
+
+  test('excerpt is the words alone, without the Request title', () {
+    final withWords = builder.build(
+      intent: intent(
+        kind: NotificationKind.needsMe,
+        bodyExcerpt: 'see you at 9',
+        beaconTitle: 'Hikes',
+      ),
+      actorDisplayName: 'Anna',
+    );
+    final without = builder.build(
+      intent: intent(
+        kind: NotificationKind.blockerOpened,
+        beaconTitle: 'Hikes',
+      ),
+      actorDisplayName: 'Anna',
+    );
+
+    expect(withWords.body, contains('Hikes'));
+    expect(withWords.excerpt, 'see you at 9');
+    expect(without.excerpt, isEmpty);
+  });
 }

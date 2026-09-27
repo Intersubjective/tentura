@@ -56,6 +56,8 @@ void main() {
               'messageId',
               'beaconTitle',
               'inviteOrigin',
+              'excerpt',
+              'toStatus',
             }),
           ),
         );
@@ -65,6 +67,56 @@ void main() {
         );
       });
     }
+  });
+
+  group('excerpt and toStatus', () {
+    test('the excerpt is always present, and only the words', () {
+      final withWords = policy.project(
+        eventType: AttentionEventType.roomMessagePosted,
+        recipientId: 'r',
+        recipientReasons: const {AttentionRecipientReason.authorOfBeacon},
+        role: _baseRole.copyWith(excerpt: '  see you at 9  '),
+      );
+      final without = policy.project(
+        eventType: AttentionEventType.roomMessagePosted,
+        recipientId: 'r',
+        recipientReasons: const {AttentionRecipientReason.authorOfBeacon},
+        role: _baseRole,
+      );
+
+      expect(withWords.presentationPayload['excerpt'], 'see you at 9');
+      // Present but empty: "no words", not "written before the field".
+      expect(without.presentationPayload['excerpt'], '');
+    });
+
+    test('an unreadable Request shows none of its text', () {
+      final projection = policy.project(
+        eventType: AttentionEventType.roomMessagePosted,
+        recipientId: 'r',
+        recipientReasons: const {AttentionRecipientReason.authorOfBeacon},
+        role: _baseRole.copyWith(
+          canReadBeaconContent: false,
+          excerpt: 'secret',
+        ),
+      );
+
+      expect(projection.presentationPayload['excerpt'], '');
+      expect(projection.presentationPayload.containsKey('beaconTitle'), isFalse);
+    });
+
+    test('toStatus carries a real status name only', () {
+      Map<String, Object?> payload(String status) => policy
+          .project(
+            eventType: AttentionEventType.requestStatusChanged,
+            recipientId: 'r',
+            recipientReasons: const {AttentionRecipientReason.authorOfBeacon},
+            role: _baseRole.copyWith(toStatus: status),
+          )
+          .presentationPayload;
+
+      expect(payload('reviewOpen')['toStatus'], 'reviewOpen');
+      expect(payload('bogus').containsKey('toStatus'), isFalse);
+    });
   });
 
   test('help offer is mandatory for author and standard for steward', () {

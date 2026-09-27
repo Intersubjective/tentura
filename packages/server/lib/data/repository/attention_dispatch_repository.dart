@@ -364,6 +364,8 @@ WHERE NOT EXISTS (SELECT 1 FROM collapsed)''',
     'beaconTitle': role.beaconTitle,
     'trustDirection': role.trustDirection,
     'inviteOrigin': role.inviteOrigin,
+    'excerpt': role.excerpt,
+    'toStatus': role.toStatus,
   };
 
   Map<String, Object?> _decisionPayload(AttentionChannelDecision decision) => {

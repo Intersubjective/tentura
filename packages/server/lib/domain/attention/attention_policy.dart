@@ -1,3 +1,5 @@
+import 'package:tentura_root/domain/entity/beacon_status.dart';
+
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/entity/notification_category.dart';
 
@@ -479,13 +481,33 @@ class AttentionPolicy {
           ? _safeBeaconTitle(role.beaconTitle)
           : null,
       'inviteOrigin': _safeInviteOrigin(role.inviteOrigin),
+      'toStatus': _safeStatusName(role.toStatus),
     };
     for (final MapEntry(:key, :value) in values.entries) {
       if (value != null) {
         payload[key] = value;
       }
     }
+    // Always present, so a client can tell "this event carries no words" from
+    // a receipt written before the field existed. Gated like the title: an
+    // event about a Request the recipient cannot read shows none of its text.
+    final contentReadable = role.canReadBeaconContent || role.beaconId == null;
+    payload['excerpt'] = contentReadable
+        ? _safeExcerpt(role.excerpt) ?? ''
+        : '';
     return payload;
+  }
+
+  String? _safeExcerpt(String? value) {
+    final trimmed = value?.trim();
+    if (trimmed == null || trimmed.isEmpty) return null;
+    return trimmed.length > 512 ? trimmed.substring(0, 512) : trimmed;
+  }
+
+  String? _safeStatusName(String? value) {
+    final trimmed = value?.trim();
+    if (trimmed == null) return null;
+    return BeaconStatus.values.any((s) => s.name == trimmed) ? trimmed : null;
   }
 
   String? _safeId(String? value) {

@@ -88,6 +88,31 @@ String? beaconTitleFromPresentationPayload(String presentationPayloadJson) {
   }
 }
 
+/// The user's own words the event carries, from the server's `excerpt`
+/// payload field: `''` when the event carries none, and **null** when the
+/// receipt predates the field — only then is `body` worth parsing.
+String? excerptFromPresentationPayload(String presentationPayloadJson) =>
+    _payloadString(presentationPayloadJson, 'excerpt');
+
+/// The [BeaconStatus] a status-change event moved the Request to.
+BeaconStatus? toStatusFromPresentationPayload(String presentationPayloadJson) {
+  final name = _payloadString(presentationPayloadJson, 'toStatus');
+  return name == null ? null : BeaconStatus.values.asNameMap()[name];
+}
+
+String? _payloadString(String presentationPayloadJson, String key) {
+  final trimmed = presentationPayloadJson.trim();
+  if (trimmed.isEmpty || trimmed == '{}') return null;
+  try {
+    final decoded = jsonDecode(trimmed);
+    if (decoded is! Map) return null;
+    final value = decoded[key];
+    return value is String ? value.trim() : null;
+  } on Object {
+    return null;
+  }
+}
+
 /// Invite-accepted origin carried in server [presentationPayloadJson].
 String? inviteOriginFromPresentationPayload(String presentationPayloadJson) {
   final trimmed = presentationPayloadJson.trim();
@@ -286,6 +311,7 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
               title: title,
               body: body,
               presentationKey: presentationKey,
+              presentationPayloadJson: presentationPayloadJson,
               l10n: l10n,
             ) ??
             _fallbackTitle(presentationKey, l10n)
@@ -295,10 +321,13 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
       : localizedHeadline;
 
   final bodyOverrideTrim = bodyOverride?.trim();
+  final structuredExcerpt = excerptFromPresentationPayload(
+    presentationPayloadJson,
+  );
   var excerpt = (bodyOverrideTrim != null && bodyOverrideTrim.isNotEmpty)
       ? bodyOverrideTrim
-      : body.trim();
-  if (excerpt.isEmpty) excerpt = fallback.body;
+      : structuredExcerpt ?? body.trim();
+  if (excerpt.isEmpty && structuredExcerpt == null) excerpt = fallback.body;
 
   for (final prefix in <String>{
     if (eventTitle.isNotEmpty) '$eventTitle — ',
@@ -338,18 +367,22 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
 
 final _statusTransitionTail = RegExp(r'from (\w+) to (\w+)\s*$');
 
-/// The event line for a receipt whose server copy is canned English that only
-/// restates the event — «X offered help», «X moved the request from a to b».
+/// The locale's line for an event whose meaning lives in its key and payload
+/// rather than in words — a status change, a trust change, a help offer.
 ///
-/// Returns null when the copy carries something of its own (a help-offer
-/// note), so the caller keeps it. A non-null result replaces both lines: the
-/// canned body is never worth quoting under it.
+/// Returns null when the event is not one of those, so the caller keeps its
+/// own label. On a receipt written before the server sent `excerpt` it
+/// falls back to reading the English `body` («X offered help», «X moved the
+/// request from a to b»).
 String? cannedAttentionEventLine({
   required String title,
   required String body,
   required String? presentationKey,
   required L10n l10n,
+  String presentationPayloadJson = '',
 }) {
+  final structured =
+      excerptFromPresentationPayload(presentationPayloadJson) != null;
   final t = title.trim();
   final b = body.trim();
   if (isTrustChangePresentationKey(presentationKey)) {
@@ -371,11 +404,14 @@ String? cannedAttentionEventLine({
   }
   switch (presentationKey) {
     case 'help_offer_submitted':
-      final canned = b.isEmpty || b == '$t offered help' || b == t;
+      final canned =
+          structured || b.isEmpty || b == '$t offered help' || b == t;
       return canned ? l10n.updatesFallbackTitleHelpOfferSubmitted : null;
     case 'request_status_changed':
-      final to = _statusTransitionTail.firstMatch(b)?.group(2);
-      final status = to == null ? null : BeaconStatus.values.asNameMap()[to];
+      final legacyTo = _statusTransitionTail.firstMatch(b)?.group(2);
+      final status =
+          toStatusFromPresentationPayload(presentationPayloadJson) ??
+          (legacyTo == null ? null : BeaconStatus.values.asNameMap()[legacyTo]);
       return status == null
           ? l10n.updatesFallbackTitleRequestStatusChanged
           : l10n.attentionEventStatusChanged(
@@ -420,6 +456,7 @@ RequestScopedEventCopy requestScopedEventCopy({
     title: title,
     body: body,
     presentationKey: presentationKey,
+    presentationPayloadJson: presentationPayloadJson,
     l10n: l10n,
   );
   final localized = _fallbackTitle(presentationKey, l10n);
@@ -433,6 +470,20 @@ RequestScopedEventCopy requestScopedEventCopy({
     event = localized;
   } else {
     event = t;
+  }
+
+  // The server names the words outright; `body` is push copy and is parsed
+  // only for a receipt written before it did.
+  final structuredExcerpt = excerptFromPresentationPayload(
+    presentationPayloadJson,
+  );
+  if (structuredExcerpt != null) {
+    return RequestScopedEventCopy(
+      event: event,
+      excerpt: requestTitles.contains(structuredExcerpt)
+          ? ''
+          : structuredExcerpt,
+    );
   }
 
   var excerpt = body.trim();
@@ -460,6 +511,8 @@ String? _nonBlank(String? value) {
   return v.isEmpty ? null : v;
 }
 
+/// Legacy: receipts written before the server sent `excerpt` in the payload.
+///
 /// The English sentences the server writes when an event has no excerpt of
 /// its own — `BeaconNotificationCopyBuilder` and `AttentionIntentCase` in
 /// packages/server. They restate the event and are never user words.
@@ -482,6 +535,9 @@ const _serverCannedBodies = {
   'Something in the request thread needs attention',
   'Open General to see your new assignment',
   'You are now connected on Tentura.',
+  // Written by the account-deletion scrub (m0193), which also empties the
+  // payload — so these rows always take this legacy path.
+  'An account involved in this activity was deleted.',
 };
 
 final _serverCannedPatterns = [
