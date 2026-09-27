@@ -7,6 +7,7 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/features/home/ui/widget/home_rail_frame.dart';
 
 import '../bloc/inbox_cubit.dart';
 import '../widget/inbox_watchlist_row.dart';
@@ -38,63 +39,66 @@ class InboxRejectedScreen extends StatelessWidget implements AutoRouteWrapper {
     final tt = context.tt;
     final inboxCubit = context.read<InboxCubit>();
 
-    return Scaffold(
-      backgroundColor: scheme.surface,
-      appBar: TenturaTopBar.of(
-        context,
-        leading: const AutoLeadingButton(),
-        title: Text(l10n.inboxRejectedTitle),
-      ),
-      body: SafeArea(
-        minimum: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
-        child: TenturaContentColumn(
-          child: BlocBuilder<InboxCubit, InboxState>(
-            buildWhen: (_, c) => c.isSuccess || c.isLoading,
-            builder: (_, state) {
-              if (state.isLoading && !state.projectionLoaded) {
-                return const Center(
-                  child: CircularProgressIndicator.adaptive(),
-                );
-              }
-              final items = state.rejected;
-              if (items.isEmpty) {
-                return TenturaEmptyState(
-                  icon: Icons.archive_outlined,
-                  title: l10n.inboxTabRejectedEmpty,
-                  body: l10n.inboxRejectedEmptyHint,
-                );
-              }
-              return RefreshIndicator.adaptive(
-                onRefresh: inboxCubit.fetch,
-                child: ListView.separated(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: EdgeInsets.symmetric(vertical: tt.rowGap),
-                  itemCount: items.length,
-                  separatorBuilder: (_, _) => SizedBox(height: tt.rowGap),
-                  itemBuilder: (_, i) {
-                    final item = items[i];
-                    return InboxWatchlistRow(
-                      key: ValueKey(item.beaconId),
-                      item: item,
-                      onOpenBeacon: () => context.router.push(
-                        BeaconViewRoute(
-                          id: item.beaconId,
-                          entry: kBeaconEntryInbox,
+    return HomeRailFrame(
+      selectedTab: HomeTab.inbox,
+      child: Scaffold(
+        backgroundColor: scheme.surface,
+        appBar: TenturaTopBar.of(
+          context,
+          leading: const AutoLeadingButton(),
+          title: Text(l10n.inboxRejectedTitle),
+        ),
+        body: SafeArea(
+          minimum: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
+          child: TenturaContentColumn(
+            child: BlocBuilder<InboxCubit, InboxState>(
+              buildWhen: (_, c) => c.isSuccess || c.isLoading,
+              builder: (_, state) {
+                if (state.isLoading && !state.projectionLoaded) {
+                  return const Center(
+                    child: CircularProgressIndicator.adaptive(),
+                  );
+                }
+                final items = state.rejected;
+                if (items.isEmpty) {
+                  return TenturaEmptyState(
+                    icon: Icons.archive_outlined,
+                    title: l10n.inboxTabRejectedEmpty,
+                    body: l10n.inboxRejectedEmptyHint,
+                  );
+                }
+                return RefreshIndicator.adaptive(
+                  onRefresh: inboxCubit.fetch,
+                  child: ListView.separated(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: EdgeInsets.symmetric(vertical: tt.rowGap),
+                    itemCount: items.length,
+                    separatorBuilder: (_, _) => SizedBox(height: tt.rowGap),
+                    itemBuilder: (_, i) {
+                      final item = items[i];
+                      return InboxWatchlistRow(
+                        key: ValueKey(item.beaconId),
+                        item: item,
+                        onOpenBeacon: () => context.router.push(
+                          BeaconViewRoute(
+                            id: item.beaconId,
+                            entry: kBeaconEntryInbox,
+                          ),
                         ),
-                      ),
-                      onTap: item.beacon?.allowsForward == true
-                          ? () => context.router.push(
-                              ForwardBeaconRoute(beaconId: item.beaconId),
-                            )
-                          : null,
-                      onMoveToInbox: () => inboxCubit.unreject(item.beaconId),
-                      showCtaRow: false,
-                      showForwardCta: false,
-                    );
-                  },
-                ),
-              );
-            },
+                        onTap: item.beacon?.allowsForward == true
+                            ? () => context.router.push(
+                                ForwardBeaconRoute(beaconId: item.beaconId),
+                              )
+                            : null,
+                        onMoveToInbox: () => inboxCubit.unreject(item.beaconId),
+                        showCtaRow: false,
+                        showForwardCta: false,
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
           ),
         ),
       ),

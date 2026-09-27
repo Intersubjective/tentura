@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/features/home/ui/widget/home_rail_frame.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
@@ -74,79 +75,6 @@ double beaconViewRoomSplitPaneWidth(
   // When both floors cannot fit, lower == maxForChat and ops keeps minOps.
   final lower = math.min(minChat, maxForChat);
   return ideal.clamp(lower, maxForChat);
-}
-
-/// Restores Home's persistent side navigation while a root browse-detail
-/// route covers the Home page on a non-compact window.
-///
-/// Wraps the whole [Scaffold] (as Home does) so the app bar and body share
-/// the same post-rail width — split header panes line up with the body (#169).
-class _BeaconViewHomeRail extends StatelessWidget {
-  const _BeaconViewHomeRail({
-    required this.selectedIndex,
-    required this.child,
-  });
-
-  final int selectedIndex;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    if (context.windowClass == WindowClass.compact) return child;
-
-    final l10n = L10n.of(context)!;
-    final extended = context.windowClass == WindowClass.expanded;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        NavigationRail(
-          extended: extended,
-          selectedIndex: selectedIndex,
-          onDestinationSelected: (index) {
-            final spec = HomeTabSpec.fromIndex(index);
-            if (spec == null) return;
-            final root = context.router.root;
-            root
-                .innerRouterOf<TabsRouter>(HomeRoute.name)
-                ?.setActiveIndex(index);
-            unawaited(root.replacePath(spec.path));
-          },
-          labelType: extended
-              ? NavigationRailLabelType.none
-              : NavigationRailLabelType.all,
-          destinations: [
-            NavigationRailDestination(
-              icon: const Icon(Icons.work_outline),
-              selectedIcon: const Icon(Icons.work),
-              label: Text(l10n.myWork),
-            ),
-            NavigationRailDestination(
-              icon: const Icon(Icons.inbox_outlined),
-              selectedIcon: const Icon(Icons.inbox),
-              label: Text(l10n.inbox),
-            ),
-            NavigationRailDestination(
-              icon: const Icon(TenturaIcons.graph),
-              selectedIcon: const Icon(TenturaIcons.graph),
-              label: Text(l10n.constellationNavLabel),
-            ),
-            NavigationRailDestination(
-              icon: const Icon(Icons.people_outline),
-              selectedIcon: const Icon(Icons.people),
-              label: Text(l10n.network),
-            ),
-            NavigationRailDestination(
-              icon: const Icon(Icons.person_outline),
-              selectedIcon: const Icon(Icons.person),
-              label: Text(l10n.profile),
-            ),
-          ],
-        ),
-        const TenturaVerticalHairline(),
-        Expanded(child: child),
-      ],
-    );
-  }
 }
 
 class BeaconViewScreen extends StatefulWidget {
@@ -1107,14 +1035,11 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                             _switchToSurface(BeaconSurface.now);
                           }
                         },
-                        child: _BeaconViewHomeRail(
-                          selectedIndex: switch (widget.entry) {
-                            kBeaconEntryInbox => HomeTabSpec.forTab(
-                              HomeTab.inbox,
-                            ).index,
-                            kBeaconEntryRoomNotification =>
-                              HomeTabSpec.forTab(HomeTab.updates).index,
-                            _ => HomeTabSpec.forTab(HomeTab.work).index,
+                        child: HomeRailFrame(
+                          selectedTab: switch (widget.entry) {
+                            kBeaconEntryInbox => HomeTab.inbox,
+                            kBeaconEntryRoomNotification => HomeTab.updates,
+                            _ => HomeTab.work,
                           },
                           child: Scaffold(
                             appBar: TenturaTopBar.of(

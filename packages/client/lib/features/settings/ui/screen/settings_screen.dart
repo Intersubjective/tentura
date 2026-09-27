@@ -13,6 +13,7 @@ import '../bloc/settings_cubit.dart';
 import '../widget/language_switch_button.dart';
 import '../widget/reset_counters_button.dart';
 import '../widget/theme_switch_button.dart';
+import 'package:tentura/features/home/ui/widget/home_rail_frame.dart';
 
 @RoutePage()
 class SettingsScreen extends StatelessWidget implements AutoRouteWrapper {
@@ -48,47 +49,50 @@ class SettingsScreen extends StatelessWidget implements AutoRouteWrapper {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
     final visibleVersion = cubit.state.visibleVersion;
-    return Scaffold(
-      appBar: TenturaTopBar.of(
-        context,
-        leading: const AutoLeadingButton(),
-        title: Text(l10n.labelSettings),
-        progress: BlocSelector<AuthCubit, AuthState, bool>(
-          bloc: authCubit,
-          selector: (state) => state.isLoading,
-          builder: TenturaTopBar.loadingBar,
+    return HomeRailFrame(
+      selectedTab: HomeTab.me,
+      child: Scaffold(
+        appBar: TenturaTopBar.of(
+          context,
+          leading: const AutoLeadingButton(),
+          title: Text(l10n.labelSettings),
+          progress: BlocSelector<AuthCubit, AuthState, bool>(
+            bloc: authCubit,
+            selector: (state) => state.isLoading,
+            builder: TenturaTopBar.loadingBar,
+          ),
         ),
-      ),
-      body: SafeArea(
-        child: TenturaContentColumn(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.all(tt.screenHPadding),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              spacing: tt.sectionGap,
-              children: [
-                _LabelledControl(
-                  label: l10n.labelLanguage,
-                  child: const LanguageSwitchButton(),
-                ),
-                _LabelledControl(
-                  label: l10n.labelTheme,
-                  child: const ThemeSwitchButton(),
-                ),
-                _SettingsCommandList(
-                  l10n: l10n,
-                  authCubit: authCubit,
-                  settingsCubit: cubit,
-                  onConfirmResetLocal: () => _confirmResetLocal(context),
-                ),
-                if (visibleVersion != null && visibleVersion.isNotEmpty)
-                  Center(
-                    child: TenturaMetaText(
-                      visibleVersion,
-                      maxLines: 2,
-                    ),
+        body: SafeArea(
+          child: TenturaContentColumn(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.all(tt.screenHPadding),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                spacing: tt.sectionGap,
+                children: [
+                  _LabelledControl(
+                    label: l10n.labelLanguage,
+                    child: const LanguageSwitchButton(),
                   ),
-              ],
+                  _LabelledControl(
+                    label: l10n.labelTheme,
+                    child: const ThemeSwitchButton(),
+                  ),
+                  _SettingsCommandList(
+                    l10n: l10n,
+                    authCubit: authCubit,
+                    settingsCubit: cubit,
+                    onConfirmResetLocal: () => _confirmResetLocal(context),
+                  ),
+                  if (visibleVersion != null && visibleVersion.isNotEmpty)
+                    Center(
+                      child: TenturaMetaText(
+                        visibleVersion,
+                        maxLines: 2,
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         ),

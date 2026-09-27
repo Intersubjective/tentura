@@ -13,6 +13,8 @@ import 'package:tentura/features/context/ui/bloc/context_cubit.dart';
 import '../bloc/rating_cubit.dart';
 import '../widget/rating_list_tile.dart';
 import '../widget/rating_scatter_view.dart';
+import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura/features/home/ui/widget/home_rail_frame.dart';
 
 @RoutePage()
 class RatingScreen extends StatefulWidget implements AutoRouteWrapper {
@@ -130,61 +132,64 @@ class _RatingScreenState extends State<RatingScreen> {
           );
         }
 
-        return Scaffold(
-          appBar: TenturaTopBar.of(
-            context,
-            alignment: TenturaTopBarAlignment.fullWidth,
-            leading: const AutoLeadingWithFallback(fallbackPath: kPathHome),
-            actions: [
-              // Toggle list / scatter view
-              IconButton(
-                tooltip: _isScatterView ? l10n.rating : l10n.scatterView,
-                onPressed: () =>
-                    setState(() => _isScatterView = !_isScatterView),
-                icon: Icon(
-                  _isScatterView ? Icons.list_rounded : Icons.scatter_plot,
-                ),
-              ),
-              if (!_isScatterView)
+        return HomeRailFrame(
+          selectedTab: HomeTab.network,
+          child: Scaffold(
+            appBar: TenturaTopBar.of(
+              context,
+              alignment: TenturaTopBarAlignment.fullWidth,
+              leading: const AutoLeadingWithFallback(fallbackPath: kPathHome),
+              actions: [
+                // Toggle list / scatter view
                 IconButton(
-                  tooltip: l10n.buttonClose,
-                  icon: const Icon(Icons.clear_rounded),
-                  onPressed: filter.isEmpty ? null : cubit.clearSearchFilter,
+                  tooltip: _isScatterView ? l10n.rating : l10n.scatterView,
+                  onPressed: () =>
+                      setState(() => _isScatterView = !_isScatterView),
+                  icon: Icon(
+                    _isScatterView ? Icons.list_rounded : Icons.scatter_plot,
+                  ),
                 ),
-            ],
-            title: _isScatterView
-                ? Text(l10n.rating)
-                : Row(
-                    children: [
-                      Padding(
-                        padding: EdgeInsets.only(right: tt.sectionGap),
-                        child: Text(l10n.rating),
-                      ),
-                      Expanded(
-                        child: Semantics(
-                          label: l10n.searchBy,
-                          child: TextFormField(
-                            decoration: InputDecoration(
-                              contentPadding: EdgeInsets.zero,
-                              hintText: l10n.searchBy,
-                              isCollapsed: true,
-                              isDense: true,
+                if (!_isScatterView)
+                  IconButton(
+                    tooltip: l10n.buttonClose,
+                    icon: const Icon(Icons.clear_rounded),
+                    onPressed: filter.isEmpty ? null : cubit.clearSearchFilter,
+                  ),
+              ],
+              title: _isScatterView
+                  ? Text(l10n.rating)
+                  : Row(
+                      children: [
+                        Padding(
+                          padding: EdgeInsets.only(right: tt.sectionGap),
+                          child: Text(l10n.rating),
+                        ),
+                        Expanded(
+                          child: Semantics(
+                            label: l10n.searchBy,
+                            child: TextFormField(
+                              decoration: InputDecoration(
+                                contentPadding: EdgeInsets.zero,
+                                hintText: l10n.searchBy,
+                                isCollapsed: true,
+                                isDense: true,
+                              ),
+                              initialValue: state.searchFilter,
+                              onChanged: cubit.setSearchFilter,
+                              textInputAction: TextInputAction.go,
                             ),
-                            initialValue: state.searchFilter,
-                            onChanged: cubit.setSearchFilter,
-                            textInputAction: TextInputAction.go,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-            progress: TenturaTopBar.loadingBar(
-              context,
-              state.isLoading && state.items.isNotEmpty,
+                      ],
+                    ),
+              progress: TenturaTopBar.loadingBar(
+                context,
+                state.isLoading && state.items.isNotEmpty,
+              ),
             ),
-          ),
-          body: SafeArea(
-            child: _isScatterView ? body : TenturaContentColumn(child: body),
+            body: SafeArea(
+              child: _isScatterView ? body : TenturaContentColumn(child: body),
+            ),
           ),
         );
       },

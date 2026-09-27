@@ -11,6 +11,8 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/accordion_expansion.dart';
 
 import '../bloc/routing_mute_cubit.dart';
+import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura/features/home/ui/widget/home_rail_frame.dart';
 
 @RoutePage()
 class RoutingMuteScreen extends StatelessWidget implements AutoRouteWrapper {
@@ -29,63 +31,68 @@ class RoutingMuteScreen extends StatelessWidget implements AutoRouteWrapper {
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
-    return Scaffold(
-      appBar: TenturaTopBar.of(
-        context,
-        leading: const AutoLeadingButton(),
-        title: Text(
-          l10n.routingMuteScreenTitle,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
+    return HomeRailFrame(
+      selectedTab: HomeTab.me,
+      child: Scaffold(
+        appBar: TenturaTopBar.of(
+          context,
+          leading: const AutoLeadingButton(),
+          title: Text(
+            l10n.routingMuteScreenTitle,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
-      ),
-      body: BlocBuilder<RoutingMuteCubit, RoutingMuteState>(
-        builder: (context, state) {
-          if (state.isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final cubit = context.read<RoutingMuteCubit>();
-          final isCompact = context.windowClass == WindowClass.compact;
-          final tt = context.tt;
-          final tilePadding = EdgeInsets.symmetric(horizontal: tt.screenHPadding);
-          return TenturaContentColumn(
-            child: ListView(
-              children: [
-                Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    tt.screenHPadding,
-                    tt.sectionGap,
-                    tt.screenHPadding,
-                    tt.tightGap,
-                  ),
-                  child: Text(
-                    l10n.routingMuteScreenDescription,
-                    style: TenturaText.bodySmall(tt.textMuted),
-                  ),
-                ),
-                ExpansionTileTheme(
-                  data: ExpansionTileTheme.of(context).copyWith(
-                    tilePadding: tilePadding,
-                  ),
-                  child: AccordionExpansionGroup(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        for (final group in CapabilityGroup.values)
-                          _GroupSection(
-                            group: group,
-                            mutedSlugs: state.mutedSlugs,
-                            initiallyExpanded: !isCompact,
-                            onToggle: cubit.toggleMute,
-                          ),
-                      ],
+        body: BlocBuilder<RoutingMuteCubit, RoutingMuteState>(
+          builder: (context, state) {
+            if (state.isLoading) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final cubit = context.read<RoutingMuteCubit>();
+            final isCompact = context.windowClass == WindowClass.compact;
+            final tt = context.tt;
+            final tilePadding = EdgeInsets.symmetric(
+              horizontal: tt.screenHPadding,
+            );
+            return TenturaContentColumn(
+              child: ListView(
+                children: [
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      tt.screenHPadding,
+                      tt.sectionGap,
+                      tt.screenHPadding,
+                      tt.tightGap,
+                    ),
+                    child: Text(
+                      l10n.routingMuteScreenDescription,
+                      style: TenturaText.bodySmall(tt.textMuted),
                     ),
                   ),
-                ),
-              ],
-            ),
-          );
-        },
+                  ExpansionTileTheme(
+                    data: ExpansionTileTheme.of(context).copyWith(
+                      tilePadding: tilePadding,
+                    ),
+                    child: AccordionExpansionGroup(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          for (final group in CapabilityGroup.values)
+                            _GroupSection(
+                              group: group,
+                              mutedSlugs: state.mutedSlugs,
+                              initiallyExpanded: !isCompact,
+                              onToggle: cubit.toggleMute,
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }

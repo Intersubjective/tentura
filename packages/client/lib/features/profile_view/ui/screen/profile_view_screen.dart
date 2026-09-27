@@ -5,6 +5,8 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
+import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura/features/home/ui/widget/home_rail_frame.dart';
 
 import '../bloc/profile_reviews_about_me_cubit.dart';
 import '../bloc/profile_shared_beacons_cubit.dart';
@@ -46,50 +48,53 @@ class ProfileViewScreen extends StatelessWidget implements AutoRouteWrapper {
   );
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: buildProfileViewAppBar(context),
-    body: BlocBuilder<ProfileViewCubit, ProfileViewState>(
-      buildWhen: (previous, current) =>
-          previous.blockedProfile != current.blockedProfile,
-      builder: (context, state) {
-        if (state.isBlockedFallback) {
-          return TenturaContentColumn(
-            child: CustomScrollView(
-              slivers: [
-                SliverPadding(
-                  padding: context.tt.cardPadding,
-                  sliver: BlockedProfileViewBody(
-                    profile: state.blockedProfile!,
+  Widget build(BuildContext context) => HomeRailFrame(
+    selectedTab: HomeTab.network,
+    child: Scaffold(
+      appBar: buildProfileViewAppBar(context),
+      body: BlocBuilder<ProfileViewCubit, ProfileViewState>(
+        buildWhen: (previous, current) =>
+            previous.blockedProfile != current.blockedProfile,
+        builder: (context, state) {
+          if (state.isBlockedFallback) {
+            return TenturaContentColumn(
+              child: CustomScrollView(
+                slivers: [
+                  SliverPadding(
+                    padding: context.tt.cardPadding,
+                    sliver: BlockedProfileViewBody(
+                      profile: state.blockedProfile!,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
+            );
+          }
+          return TenturaContentColumn(
+            child: RefreshIndicator.adaptive(
+              onRefresh: () => Future.wait([
+                context.read<ProfileViewCubit>().fetch(),
+                context.read<ProfileReviewsAboutMeCubit>().fetch(),
+                context.read<ProfileSharedBeaconsCubit>().fetch(),
+              ]),
+              child: CustomScrollView(
+                slivers: [
+                  // Body
+                  SliverPadding(
+                    padding: context.tt.cardPadding,
+                    sliver: ProfileViewBody(),
+                  ),
+
+                  ReviewsAboutMeFromProfileSliver(),
+
+                  // Shared beacons (forwarded + co-help-offered)
+                  ProfileSharedBeaconsSliver(),
+                ],
+              ),
             ),
           );
-        }
-        return TenturaContentColumn(
-          child: RefreshIndicator.adaptive(
-            onRefresh: () => Future.wait([
-              context.read<ProfileViewCubit>().fetch(),
-              context.read<ProfileReviewsAboutMeCubit>().fetch(),
-              context.read<ProfileSharedBeaconsCubit>().fetch(),
-            ]),
-            child: CustomScrollView(
-              slivers: [
-                // Body
-                SliverPadding(
-                  padding: context.tt.cardPadding,
-                  sliver: ProfileViewBody(),
-                ),
-
-                ReviewsAboutMeFromProfileSliver(),
-
-                // Shared beacons (forwarded + co-help-offered)
-                ProfileSharedBeaconsSliver(),
-              ],
-            ),
-          ),
-        );
-      },
+        },
+      ),
     ),
   );
 }

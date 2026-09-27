@@ -7,6 +7,7 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/features/home/ui/widget/home_rail_frame.dart';
 
 import '../../domain/entity/inbox_item.dart';
 import '../bloc/inbox_cubit.dart';
@@ -95,80 +96,89 @@ class _InboxWatchingScreenState extends State<InboxWatchingScreen> {
     final inboxCubit = context.read<InboxCubit>();
     final highlightId = _highlightConsumed ? null : _highlightBeaconId;
 
-    return Scaffold(
-      backgroundColor: scheme.surface,
-      appBar: TenturaTopBar.of(
-        context,
-        leading: const AutoLeadingButton(),
-        title: Text(l10n.inboxWatching),
-      ),
-      body: SafeArea(
-        minimum: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
-        child: TenturaContentColumn(
-          child: BlocBuilder<InboxCubit, InboxState>(
-            buildWhen: (_, c) => c.isSuccess || c.isLoading,
-            builder: (_, state) {
-              if (state.isLoading && !state.projectionLoaded) {
-                return const Center(
-                  child: CircularProgressIndicator.adaptive(),
-                );
-              }
-              final items = state.watching;
-              _scrollToHighlightIfNeeded(items);
-              if (items.isEmpty) {
-                return TenturaEmptyState(
-                  icon: Icons.visibility_outlined,
-                  title: l10n.inboxWatchingEmptyCalm,
-                  body: l10n.inboxWatchingEmptyHint,
-                );
-              }
-              return RefreshIndicator.adaptive(
-                onRefresh: inboxCubit.fetch,
-                child: ListView.separated(
-                  controller: _scrollController,
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: EdgeInsets.symmetric(vertical: tt.rowGap),
-                  itemCount: items.length,
-                  separatorBuilder: (_, _) => SizedBox(height: tt.rowGap),
-                  itemBuilder: (_, i) {
-                    final item = items[i];
-                    return InboxWatchlistRow(
-                      key: _keyFor(item.beaconId),
-                      item: item,
-                      isSelected: highlightId == item.beaconId,
-                      onOpenBeacon: () => context.router.push(
-                        BeaconViewRoute(
-                          id: item.beaconId,
-                          entry: kBeaconEntryInbox,
+    return HomeRailFrame(
+      selectedTab: HomeTab.inbox,
+      child: Scaffold(
+        backgroundColor: scheme.surface,
+        appBar: TenturaTopBar.of(
+          context,
+          leading: const AutoLeadingButton(),
+          title: Text(l10n.inboxWatching),
+        ),
+        body: SafeArea(
+          minimum: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
+          child: TenturaContentColumn(
+            child: BlocBuilder<InboxCubit, InboxState>(
+              buildWhen: (_, c) => c.isSuccess || c.isLoading,
+              builder: (_, state) {
+                if (state.isLoading && !state.projectionLoaded) {
+                  return const Center(
+                    child: CircularProgressIndicator.adaptive(),
+                  );
+                }
+                final items = state.watching;
+                _scrollToHighlightIfNeeded(items);
+                if (items.isEmpty) {
+                  return TenturaEmptyState(
+                    icon: Icons.visibility_outlined,
+                    title: l10n.inboxWatchingEmptyCalm,
+                    body: l10n.inboxWatchingEmptyHint,
+                  );
+                }
+                return RefreshIndicator.adaptive(
+                  onRefresh: inboxCubit.fetch,
+                  child: ListView.separated(
+                    controller: _scrollController,
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: EdgeInsets.symmetric(vertical: tt.rowGap),
+                    itemCount: items.length,
+                    separatorBuilder: (_, _) => SizedBox(height: tt.rowGap),
+                    itemBuilder: (_, i) {
+                      final item = items[i];
+                      return InboxWatchlistRow(
+                        key: _keyFor(item.beaconId),
+                        item: item,
+                        isSelected: highlightId == item.beaconId,
+                        onOpenBeacon: () => context.router.push(
+                          BeaconViewRoute(
+                            id: item.beaconId,
+                            entry: kBeaconEntryInbox,
+                          ),
                         ),
-                      ),
-                      onTap: item.beacon?.allowsForward == true
-                          ? () => unawaited(inboxForwardItem(context, item))
-                          : null,
-                      onStopWatching: () =>
-                          unawaited(inboxCubit.stopWatching(item.beaconId)),
-                      onDismissFromInbox: () async {
-                        final msg = await showInboxDismissDialog(context);
-                        if (!context.mounted) return;
-                        if (msg != null) {
-                          await inboxCubit.reject(item.beaconId, message: msg);
-                        }
-                      },
-                      onCantHelp: () async {
-                        final msg = await showRejectionDialog(context);
-                        if (!context.mounted) return;
-                        if (msg != null) {
-                          await inboxCubit.reject(item.beaconId, message: msg);
-                        }
-                      },
-                      onOfferHelp: inboxCardAllowsOfferHelp(item)
-                          ? () => inboxOfferHelp(context, item.beacon!)
-                          : null,
-                    );
-                  },
-                ),
-              );
-            },
+                        onTap: item.beacon?.allowsForward == true
+                            ? () => unawaited(inboxForwardItem(context, item))
+                            : null,
+                        onStopWatching: () =>
+                            unawaited(inboxCubit.stopWatching(item.beaconId)),
+                        onDismissFromInbox: () async {
+                          final msg = await showInboxDismissDialog(context);
+                          if (!context.mounted) return;
+                          if (msg != null) {
+                            await inboxCubit.reject(
+                              item.beaconId,
+                              message: msg,
+                            );
+                          }
+                        },
+                        onCantHelp: () async {
+                          final msg = await showRejectionDialog(context);
+                          if (!context.mounted) return;
+                          if (msg != null) {
+                            await inboxCubit.reject(
+                              item.beaconId,
+                              message: msg,
+                            );
+                          }
+                        },
+                        onOfferHelp: inboxCardAllowsOfferHelp(item)
+                            ? () => inboxOfferHelp(context, item.beacon!)
+                            : null,
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
           ),
         ),
       ),

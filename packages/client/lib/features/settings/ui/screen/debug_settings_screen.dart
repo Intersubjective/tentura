@@ -16,6 +16,8 @@ import 'package:tentura/features/home/ui/bloc/home_activation_cubit.dart';
 
 import '../bloc/debug_settings_cubit.dart';
 import '../message/debug_settings_messages.dart';
+import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura/features/home/ui/widget/home_rail_frame.dart';
 
 @RoutePage()
 class DebugSettingsScreen extends StatelessWidget implements AutoRouteWrapper {
@@ -40,78 +42,83 @@ class DebugSettingsScreen extends StatelessWidget implements AutoRouteWrapper {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
-    return Scaffold(
-      appBar: TenturaTopBar.of(
-        context,
-        leading: const AutoLeadingButton(),
-        title: Text(l10n.settingsDebug),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: l10n.settingsRefresh,
-            onPressed: () => context.read<DebugSettingsCubit>().loadFcmInfo(),
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: TenturaContentColumn(
-          child: BlocBuilder<DebugSettingsCubit, DebugSettingsState>(
-            builder: (context, state) {
-              if (state.isLoadingFcmInfo) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              final cubit = context.read<DebugSettingsCubit>();
-              return SingleChildScrollView(
-                padding: EdgeInsets.all(tt.screenHPadding),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  spacing: tt.sectionGap,
-                  children: [
-                    const FirstRunOrientationDebugSection(),
-                    _FcmRegistrationSection(state: state, l10n: l10n),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      spacing: tt.rowGap,
-                      children: [
-                        TenturaCommandButton(
-                          label: l10n.settingsFcmForceReregister,
-                          icon: const Icon(Icons.sync),
-                          onPressed: state.isForceReregisterEnabled
-                              ? cubit.forceReregisterDevice
-                              : null,
-                        ),
-                        TenturaCommandButton(
-                          label: l10n.settingsNotificationsTest,
-                          icon: const Icon(Icons.notifications_active_outlined),
-                          onPressed: state.isFcmTestEnabled
-                              ? cubit.sendTestNotification
-                              : null,
-                        ),
-                        TenturaCommandButton(
-                          label: l10n.settingsFcmDirectNotificationTest,
-                          icon: const Icon(Icons.phonelink_ring_outlined),
-                          onPressed: cubit.testDirectNotification,
-                        ),
-                        TenturaCommandButton(
-                          label: l10n.settingsEmailTest,
-                          icon: const Icon(Icons.email_outlined),
-                          onPressed: state.isEmailTestEnabled
-                              ? cubit.sendTestEmail
-                              : null,
-                        ),
-                        TenturaCommandButton(
-                          label: l10n.settingsRecalculateCounters,
-                          icon: const Icon(Icons.calculate_outlined),
-                          onPressed: state.isRecalculateCountersEnabled
-                              ? cubit.recalculateCounters
-                              : null,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              );
-            },
+    return HomeRailFrame(
+      selectedTab: HomeTab.me,
+      child: Scaffold(
+        appBar: TenturaTopBar.of(
+          context,
+          leading: const AutoLeadingButton(),
+          title: Text(l10n.settingsDebug),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              tooltip: l10n.settingsRefresh,
+              onPressed: () => context.read<DebugSettingsCubit>().loadFcmInfo(),
+            ),
+          ],
+        ),
+        body: SafeArea(
+          child: TenturaContentColumn(
+            child: BlocBuilder<DebugSettingsCubit, DebugSettingsState>(
+              builder: (context, state) {
+                if (state.isLoadingFcmInfo) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final cubit = context.read<DebugSettingsCubit>();
+                return SingleChildScrollView(
+                  padding: EdgeInsets.all(tt.screenHPadding),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    spacing: tt.sectionGap,
+                    children: [
+                      const FirstRunOrientationDebugSection(),
+                      _FcmRegistrationSection(state: state, l10n: l10n),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        spacing: tt.rowGap,
+                        children: [
+                          TenturaCommandButton(
+                            label: l10n.settingsFcmForceReregister,
+                            icon: const Icon(Icons.sync),
+                            onPressed: state.isForceReregisterEnabled
+                                ? cubit.forceReregisterDevice
+                                : null,
+                          ),
+                          TenturaCommandButton(
+                            label: l10n.settingsNotificationsTest,
+                            icon: const Icon(
+                              Icons.notifications_active_outlined,
+                            ),
+                            onPressed: state.isFcmTestEnabled
+                                ? cubit.sendTestNotification
+                                : null,
+                          ),
+                          TenturaCommandButton(
+                            label: l10n.settingsFcmDirectNotificationTest,
+                            icon: const Icon(Icons.phonelink_ring_outlined),
+                            onPressed: cubit.testDirectNotification,
+                          ),
+                          TenturaCommandButton(
+                            label: l10n.settingsEmailTest,
+                            icon: const Icon(Icons.email_outlined),
+                            onPressed: state.isEmailTestEnabled
+                                ? cubit.sendTestEmail
+                                : null,
+                          ),
+                          TenturaCommandButton(
+                            label: l10n.settingsRecalculateCounters,
+                            icon: const Icon(Icons.calculate_outlined),
+                            onPressed: state.isRecalculateCountersEnabled
+                                ? cubit.recalculateCounters
+                                : null,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
           ),
         ),
       ),

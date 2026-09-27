@@ -15,6 +15,8 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 import '../../domain/entity/credential_entity.dart';
 import '../../domain/entity/credential_types.dart';
 import '../bloc/credentials_cubit.dart';
+import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura/features/home/ui/widget/home_rail_frame.dart';
 
 @RoutePage()
 class CredentialsScreen extends StatefulWidget implements AutoRouteWrapper {
@@ -74,33 +76,36 @@ class _CredentialsScreenState extends State<CredentialsScreen>
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
     final tt = context.tt;
-    return Scaffold(
-      appBar: TenturaTopBar.of(
-        context,
-        leading: const AutoLeadingButton(),
-        title: Text(l10n.signInMethods),
-        progress: BlocSelector<CredentialsCubit, CredentialsState, bool>(
-          selector: (state) => state.isLoading,
-          builder: TenturaTopBar.loadingBar,
+    return HomeRailFrame(
+      selectedTab: HomeTab.me,
+      child: Scaffold(
+        appBar: TenturaTopBar.of(
+          context,
+          leading: const AutoLeadingButton(),
+          title: Text(l10n.signInMethods),
+          progress: BlocSelector<CredentialsCubit, CredentialsState, bool>(
+            selector: (state) => state.isLoading,
+            builder: TenturaTopBar.loadingBar,
+          ),
         ),
-      ),
-      body: SafeArea(
-        child: BlocBuilder<CredentialsCubit, CredentialsState>(
-          builder: (context, state) {
-            final itemCount = _listItemCount(state);
-            return TenturaContentColumn(
-              child: RefreshIndicator.adaptive(
-                onRefresh: () => context.read<CredentialsCubit>().fetch(),
-                child: ListView.builder(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: EdgeInsets.symmetric(vertical: tt.sectionGap),
-                  itemCount: itemCount,
-                  itemBuilder: (context, index) =>
-                      _listItemAt(context, l10n, theme, state, index),
+        body: SafeArea(
+          child: BlocBuilder<CredentialsCubit, CredentialsState>(
+            builder: (context, state) {
+              final itemCount = _listItemCount(state);
+              return TenturaContentColumn(
+                child: RefreshIndicator.adaptive(
+                  onRefresh: () => context.read<CredentialsCubit>().fetch(),
+                  child: ListView.builder(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: EdgeInsets.symmetric(vertical: tt.sectionGap),
+                    itemCount: itemCount,
+                    itemBuilder: (context, index) =>
+                        _listItemAt(context, l10n, theme, state, index),
+                  ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
     );
