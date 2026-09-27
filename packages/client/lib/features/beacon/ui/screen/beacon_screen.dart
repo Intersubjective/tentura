@@ -148,7 +148,7 @@ class _BeaconScreenState extends State<BeaconScreen> {
           ),
         ),
         body: SafeArea(
-          minimum: kPaddingSmallH,
+          minimum: EdgeInsets.symmetric(horizontal: context.tt.screenHPadding),
           child: TenturaContentColumn(
             child: BlocBuilder<BeaconCubit, BeaconState>(
               bloc: _beaconCubit,

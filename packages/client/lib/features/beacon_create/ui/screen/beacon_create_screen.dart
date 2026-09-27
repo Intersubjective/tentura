@@ -335,7 +335,6 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
                       : mode.isDraft
                       ? l10n.editDraftTitle
                       : l10n.createNewBeacon,
-                  style: Theme.of(context).textTheme.titleSmall,
                 ),
               ),
           actions: [
@@ -489,110 +488,37 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
   ) {
     return Material(
       color: tt.surface,
+      // The bar's content sits in the form's column; spanning the window
+      // put the CTA 360 px wider than the fields it submits.
       child: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(
-            tt.screenHPadding,
-            tt.cardPadding.top,
-            tt.screenHPadding,
-            tt.sectionGap,
-          ),
-          child: BlocBuilder<BeaconCreateCubit, BeaconCreateState>(
-            bloc: _beaconCreateCubit,
-            builder: (context, state) {
-              if (state.isEditMode) {
-                return SizedBox(
-                  height: tt.buttonHeight,
-                  width: double.infinity,
-                  child: FilledButton(
-                    key: const Key('BeaconEdit.SaveChangesButton'),
-                    onPressed: state.isLoading
-                        ? null
-                        : () async {
-                            await _beaconCreateCubit.saveEdit(
-                              context: contextName,
-                            );
-                          },
-                    child: _SaveChangesLabel(
-                      isSaving: state.isLoading,
-                      label: l10n.buttonSaveChanges,
-                    ),
-                  ),
-                );
-              }
-
-              if (_step == _recipientsStep) {
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const TenturaHairlineDivider(subtle: true),
-                    SizedBox(height: tt.rowGap),
-                    Row(
-                      children: [
-                        if (!state.isLive)
-                          Expanded(
-                            child: SizedBox(
-                              height: tt.buttonHeight,
-                              child: OutlinedButton(
-                                key: TestIds.key(TestIds.requestMakeLive),
-                                onPressed:
-                                    state.isLoading || !state.canTryToPublish
-                                    ? null
-                                    : () => unawaited(_makeLive()),
-                                child: Text(l10n.buttonMakeLive),
-                              ),
-                            ),
-                          ),
-                        if (!state.isLive) SizedBox(width: tt.rowGap),
-                        if (state.isLive)
-                          Expanded(
-                            child: SizedBox(
-                              height: tt.buttonHeight,
-                              child: FilledButton(
-                                key: const Key(
-                                  'BeaconCreate.SaveChangesButton',
-                                ),
-                                onPressed: state.isLoading
-                                    ? null
-                                    : () async {
-                                        await _beaconCreateCubit.saveEdit(
-                                          context: contextName,
-                                          navigateBack: false,
-                                        );
-                                      },
-                                child: _SaveChangesLabel(
-                                  isSaving: state.isLoading,
-                                  label: l10n.buttonSaveChanges,
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ],
-                );
-              }
-
-              final valid = state.publishBlocker == null;
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const TenturaHairlineDivider(subtle: true),
-                  SizedBox(height: tt.rowGap),
-                  if (state.isLive)
-                    SizedBox(
+        // heightFactor 1: a bottom bar is as tall as its content.
+        child: Center(
+          heightFactor: 1,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: tt.contentMaxWidth ?? double.infinity,
+            ),
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                tt.screenHPadding,
+                tt.cardPadding.top,
+                tt.screenHPadding,
+                tt.sectionGap,
+              ),
+              child: BlocBuilder<BeaconCreateCubit, BeaconCreateState>(
+                bloc: _beaconCreateCubit,
+                builder: (context, state) {
+                  if (state.isEditMode) {
+                    return SizedBox(
                       height: tt.buttonHeight,
                       width: double.infinity,
                       child: FilledButton(
-                        key: const Key('BeaconCreate.SaveChangesButton'),
+                        key: const Key('BeaconEdit.SaveChangesButton'),
                         onPressed: state.isLoading
                             ? null
                             : () async {
                                 await _beaconCreateCubit.saveEdit(
                                   context: contextName,
-                                  navigateBack: false,
                                 );
                               },
                         child: _SaveChangesLabel(
@@ -600,50 +526,135 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
                           label: l10n.buttonSaveChanges,
                         ),
                       ),
-                    )
-                  else
-                    Opacity(
-                      opacity: valid ? 1 : 0.4,
-                      child: SizedBox(
-                        height: tt.buttonHeight,
-                        width: double.infinity,
-                        child: FilledButton(
-                          key: TestIds.key(TestIds.requestRecipientsTab),
-                          onPressed: state.isLoading
-                              ? null
-                              : () => unawaited(_onNext()),
-                          child: Text(l10n.beaconCreateNextRecipients),
+                    );
+                  }
+
+                  if (_step == _recipientsStep) {
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const TenturaHairlineDivider(subtle: true),
+                        SizedBox(height: tt.rowGap),
+                        Row(
+                          children: [
+                            if (!state.isLive)
+                              Expanded(
+                                child: SizedBox(
+                                  height: tt.buttonHeight,
+                                  child: OutlinedButton(
+                                    key: TestIds.key(TestIds.requestMakeLive),
+                                    onPressed:
+                                        state.isLoading ||
+                                            !state.canTryToPublish
+                                        ? null
+                                        : () => unawaited(_makeLive()),
+                                    child: Text(l10n.buttonMakeLive),
+                                  ),
+                                ),
+                              ),
+                            if (!state.isLive) SizedBox(width: tt.rowGap),
+                            if (state.isLive)
+                              Expanded(
+                                child: SizedBox(
+                                  height: tt.buttonHeight,
+                                  child: FilledButton(
+                                    key: const Key(
+                                      'BeaconCreate.SaveChangesButton',
+                                    ),
+                                    onPressed: state.isLoading
+                                        ? null
+                                        : () async {
+                                            await _beaconCreateCubit.saveEdit(
+                                              context: contextName,
+                                              navigateBack: false,
+                                            );
+                                          },
+                                    child: _SaveChangesLabel(
+                                      isSaving: state.isLoading,
+                                      label: l10n.buttonSaveChanges,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
-                      ),
-                    ),
-                  if (!state.isLive) ...[
-                    SizedBox(height: tt.tightGap),
-                    if (state.isAutosaving)
-                      Text(
-                        l10n.beaconCreateAutosaving,
-                        style: TenturaText.bodySmall(tt.textFaint),
-                      )
-                    else if (state.lastAutosavedAt != null)
-                      Text(
-                        l10n.beaconCreateAutosavedJustNow,
-                        style: TenturaText.bodySmall(tt.textFaint),
-                      ),
-                  ],
-                  if (state.isLive) ...[
-                    SizedBox(height: tt.rowGap),
-                    SizedBox(
-                      height: tt.buttonHeight,
-                      width: double.infinity,
-                      child: OutlinedButton(
-                        key: TestIds.key(TestIds.requestRecipientsTab),
-                        onPressed: () => unawaited(_openRecipientsStep()),
-                        child: Text(l10n.beaconCreateNextRecipients),
-                      ),
-                    ),
-                  ],
-                ],
-              );
-            },
+                      ],
+                    );
+                  }
+
+                  final valid = state.publishBlocker == null;
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const TenturaHairlineDivider(subtle: true),
+                      SizedBox(height: tt.rowGap),
+                      if (state.isLive)
+                        SizedBox(
+                          height: tt.buttonHeight,
+                          width: double.infinity,
+                          child: FilledButton(
+                            key: const Key('BeaconCreate.SaveChangesButton'),
+                            onPressed: state.isLoading
+                                ? null
+                                : () async {
+                                    await _beaconCreateCubit.saveEdit(
+                                      context: contextName,
+                                      navigateBack: false,
+                                    );
+                                  },
+                            child: _SaveChangesLabel(
+                              isSaving: state.isLoading,
+                              label: l10n.buttonSaveChanges,
+                            ),
+                          ),
+                        )
+                      else
+                        Opacity(
+                          opacity: valid ? 1 : 0.4,
+                          child: SizedBox(
+                            height: tt.buttonHeight,
+                            width: double.infinity,
+                            child: FilledButton(
+                              key: TestIds.key(TestIds.requestRecipientsTab),
+                              onPressed: state.isLoading
+                                  ? null
+                                  : () => unawaited(_onNext()),
+                              child: Text(l10n.beaconCreateNextRecipients),
+                            ),
+                          ),
+                        ),
+                      if (!state.isLive) ...[
+                        SizedBox(height: tt.tightGap),
+                        if (state.isAutosaving)
+                          Text(
+                            l10n.beaconCreateAutosaving,
+                            style: TenturaText.bodySmall(tt.textFaint),
+                          )
+                        else if (state.lastAutosavedAt != null)
+                          Text(
+                            l10n.beaconCreateAutosavedJustNow,
+                            style: TenturaText.bodySmall(tt.textFaint),
+                          ),
+                      ],
+                      if (state.isLive) ...[
+                        SizedBox(height: tt.rowGap),
+                        SizedBox(
+                          height: tt.buttonHeight,
+                          width: double.infinity,
+                          child: OutlinedButton(
+                            key: TestIds.key(TestIds.requestRecipientsTab),
+                            onPressed: () => unawaited(_openRecipientsStep()),
+                            child: Text(l10n.beaconCreateNextRecipients),
+                          ),
+                        ),
+                      ],
+                    ],
+                  );
+                },
+              ),
+            ),
           ),
         ),
       ),

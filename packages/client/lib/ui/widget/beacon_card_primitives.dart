@@ -13,7 +13,10 @@ import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 
 /// List-card layout tokens (inbox + My Work).
-const double kBeaconCardShellHorizontalMargin = 8;
+/// Cards sit on the list's own edge — the keyline section headers, status
+/// lines and empty states already use. An inset of their own put card borders
+/// 8 px inside every header above them.
+const double kBeaconCardShellHorizontalMargin = 0;
 const double kBeaconCardBodyMinHeight = 104;
 const double kBeaconCardHeaderIconSize = 40;
 const double kBeaconCardMenuSlotWidth = 32;

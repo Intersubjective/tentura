@@ -44,80 +44,88 @@ class NotificationSettingsScreen extends StatelessWidget
             }
             final cubit = context.read<NotificationSettingsCubit>();
             final s = state.settings;
+            // Rows share the section headers' start inset (screenHPadding),
+            // not ListTile's fixed 16 — 8 px apart on expanded windows.
             return TenturaContentColumn(
-              child: ListView(
-                children: [
-                  _SectionHeader(label: l10n.notificationSettingsPush),
-                  for (final c in NotificationSettingsCategory.values)
-                    SwitchListTile(
-                      title: Text(_categoryLabel(l10n, c)),
-                      subtitle: Text(_categoryDesc(l10n, c)),
-                      value: s.isEnabled(c, email: false),
-                      onChanged: (v) => cubit.setChannelCategory(
-                        category: c,
-                        email: false,
-                        enabled: v,
+              child: ListTileTheme.merge(
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: context.tt.screenHPadding,
+                ),
+                child: ListView(
+                  children: [
+                    _SectionHeader(label: l10n.notificationSettingsPush),
+                    for (final c in NotificationSettingsCategory.values)
+                      SwitchListTile(
+                        title: Text(_categoryLabel(l10n, c)),
+                        subtitle: Text(_categoryDesc(l10n, c)),
+                        value: s.isEnabled(c, email: false),
+                        onChanged: (v) => cubit.setChannelCategory(
+                          category: c,
+                          email: false,
+                          enabled: v,
+                        ),
+                      ),
+                    const TenturaHairlineDivider(),
+                    _SectionHeader(label: l10n.notificationSettingsEmail),
+                    for (final c in NotificationSettingsCategory.values)
+                      SwitchListTile(
+                        title: Text(_categoryLabel(l10n, c)),
+                        value: s.isEnabled(c, email: true),
+                        onChanged: (v) => cubit.setChannelCategory(
+                          category: c,
+                          email: true,
+                          enabled: v,
+                        ),
+                      ),
+                    const TenturaHairlineDivider(),
+                    _SectionHeader(label: l10n.notificationSettingsInApp),
+                    Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: context.tt.screenHPadding,
+                      ),
+                      child: Text(
+                        l10n.notificationSettingsInAppMandatory,
+                        style: TenturaText.bodySmall(context.tt.textMuted),
                       ),
                     ),
-                  const TenturaHairlineDivider(),
-                  _SectionHeader(label: l10n.notificationSettingsEmail),
-                  for (final c in NotificationSettingsCategory.values)
-                    SwitchListTile(
-                      title: Text(_categoryLabel(l10n, c)),
-                      value: s.isEnabled(c, email: true),
-                      onChanged: (v) => cubit.setChannelCategory(
-                        category: c,
-                        email: true,
-                        enabled: v,
+                    for (final value in InAppNotificationClass.values)
+                      SwitchListTile(
+                        title: Text(_inAppLabel(l10n, value)),
+                        subtitle: Text(_inAppDescription(l10n, value)),
+                        value: !s.mutedInAppEventClasses.contains(value),
+                        onChanged: (enabled) => cubit.setInAppClass(
+                          value: value,
+                          muted: !enabled,
+                        ),
+                      ),
+                    const TenturaHairlineDivider(),
+                    _SectionHeader(label: l10n.notificationDigest),
+                    RadioGroup<NotificationDigestCadence>(
+                      groupValue: s.emailDigest,
+                      onChanged: (v) => v == null ? null : cubit.setDigest(v),
+                      child: Column(
+                        children: [
+                          for (final cadence
+                              in NotificationDigestCadence.values)
+                            RadioListTile<NotificationDigestCadence>(
+                              title: Text(_digestLabel(l10n, cadence)),
+                              value: cadence,
+                            ),
+                        ],
                       ),
                     ),
-                  const TenturaHairlineDivider(),
-                  _SectionHeader(label: l10n.notificationSettingsInApp),
-                  Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: context.tt.screenHPadding,
-                    ),
-                    child: Text(
-                      l10n.notificationSettingsInAppMandatory,
-                      style: TenturaText.bodySmall(context.tt.textMuted),
-                    ),
-                  ),
-                  for (final value in InAppNotificationClass.values)
+                    const TenturaHairlineDivider(),
+                    _SectionHeader(label: l10n.notificationQuietHours),
+                    _QuietHoursControls(settings: s),
+                    const TenturaHairlineDivider(),
                     SwitchListTile(
-                      title: Text(_inAppLabel(l10n, value)),
-                      subtitle: Text(_inAppDescription(l10n, value)),
-                      value: !s.mutedInAppEventClasses.contains(value),
-                      onChanged: (enabled) => cubit.setInAppClass(
-                        value: value,
-                        muted: !enabled,
-                      ),
+                      title: Text(l10n.notificationLockScreen),
+                      subtitle: Text(l10n.notificationLockScreenDesc),
+                      value: s.lockScreenSafe,
+                      onChanged: cubit.setLockScreenSafe,
                     ),
-                  const TenturaHairlineDivider(),
-                  _SectionHeader(label: l10n.notificationDigest),
-                  RadioGroup<NotificationDigestCadence>(
-                    groupValue: s.emailDigest,
-                    onChanged: (v) => v == null ? null : cubit.setDigest(v),
-                    child: Column(
-                      children: [
-                        for (final cadence in NotificationDigestCadence.values)
-                          RadioListTile<NotificationDigestCadence>(
-                            title: Text(_digestLabel(l10n, cadence)),
-                            value: cadence,
-                          ),
-                      ],
-                    ),
-                  ),
-                  const TenturaHairlineDivider(),
-                  _SectionHeader(label: l10n.notificationQuietHours),
-                  _QuietHoursControls(settings: s),
-                  const TenturaHairlineDivider(),
-                  SwitchListTile(
-                    title: Text(l10n.notificationLockScreen),
-                    subtitle: Text(l10n.notificationLockScreenDesc),
-                    value: s.lockScreenSafe,
-                    onChanged: cubit.setLockScreenSafe,
-                  ),
-                ],
+                  ],
+                ),
               ),
             );
           },
