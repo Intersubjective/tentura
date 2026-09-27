@@ -452,9 +452,35 @@ void main() {
     expect(find.text('Помогаю'), findsOneWidget);
     expect(find.byKey(RequestAttentionCard.offerHelpKey), findsNothing);
     expect(find.byKey(RequestAttentionCard.followKey), findsNothing);
-    // Timeline lives in ⋮; footer only keeps Очистить всё while events remain.
-    expect(find.byKey(RequestAttentionCard.clearAllKey), findsOneWidget);
+    // Timeline lives in ⋮. One event: its own × is the clear — no second
+    // «Очистить всё» for the same act.
+    expect(find.byKey(RequestAttentionCard.clearAllKey), findsNothing);
     expect(find.byKey(RequestAttentionIndicators.dotKey), findsOneWidget);
+  });
+
+  testWidgets('Очистить всё appears once there is more than one event', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _host(
+        RequestAttentionCard(
+          beacon: _beacon,
+          facts: const RequestAttentionFacts(
+            requestId: 'b1',
+            unclearedOptionalEvents: 2,
+          ),
+          eventTotal: 2,
+          eventsPreview: [_event(id: 'e1'), _event(id: 'e2')],
+          onOpenBeacon: () {},
+          onOpenTimeline: () {},
+          onClearEvent: (_) {},
+          onClearAll: () {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(RequestAttentionCard.clearAllKey), findsOneWidget);
   });
 
   testWidgets('Очистить всё disappears when nothing is left to clear', (

@@ -6726,5 +6726,41 @@
         "type": "int"
       }
     }
+  },
+  "attentionEventTrustGivenUp": "You trust them more",
+  "@attentionEventTrustGivenUp": {
+    "description": "Event line: the viewer's trust in the person on the row went up after a closed request."
+  },
+  "attentionEventTrustGivenDown": "You trust them less",
+  "@attentionEventTrustGivenDown": {
+    "description": "Event line: the viewer's trust in the person on the row went down."
+  },
+  "attentionEventTrustGivenNeutral": "Your trust did not change",
+  "@attentionEventTrustGivenNeutral": {
+    "description": "Event line: the viewer's review left their trust in the person unchanged."
+  },
+  "attentionEventTrustReceivedUp": "Trusts you more",
+  "@attentionEventTrustReceivedUp": {
+    "description": "Event line: the person on the row now trusts the viewer more."
+  },
+  "attentionEventTrustReceivedDown": "Trusts you less",
+  "@attentionEventTrustReceivedDown": {
+    "description": "Event line: the person on the row now trusts the viewer less."
+  },
+  "attentionEventTrustReceivedNeutral": "Reviewed you, trust unchanged",
+  "@attentionEventTrustReceivedNeutral": {
+    "description": "Event line: the person on the row reviewed the viewer without a trust change."
+  },
+  "updatesFallbackTitleObligationEnded": "Review window closed",
+  "@updatesFallbackTitleObligationEnded": {
+    "description": "Event label: the review window closed before the viewer sent their review, so it no longer waits on them."
+  },
+  "updatesFallbackTitleCommitmentReleased": "Participation ended",
+  "@updatesFallbackTitleCommitmentReleased": {
+    "description": "Event label: the author ended the viewer's participation in a request."
+  },
+  "updatesFallbackTitleHierarchyStatusChanged": "Linked request status changed",
+  "@updatesFallbackTitleHierarchyStatusChanged": {
+    "description": "Event label: a parent or child request of this one changed status."
   }
 }

@@ -172,6 +172,7 @@ class RequestAttentionCard extends StatelessWidget {
                     eventTotal: eventTotal,
                     eventsPreview: eventsPreview,
                     beaconId: beacon.id,
+                    requestTitle: beacon.title,
                     actors: actors,
                     visibleCap: eventCap,
                     // D-171-5b: the card's hard maximum height *is* this — the
@@ -182,7 +183,12 @@ class RequestAttentionCard extends StatelessWidget {
                     quotedBodyOf: _quotedBodyOf,
                   ),
                 _coalescedForwards(l10n, tt, hasNoteSlots: forwards.isNotEmpty),
-                if (!_isPinned && hasClearable && onClearAll != null) ...[
+                // With one event its own × is the same act; a second control
+                // for it is noise.
+                if (!_isPinned &&
+                    hasClearable &&
+                    eventTotal > 1 &&
+                    onClearAll != null) ...[
                   SizedBox(height: tt.tightGap),
                   TenturaTextAction(
                     key: clearAllKey,

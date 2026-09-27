@@ -27,6 +27,7 @@ List<BeaconHudMetadataEntry> buildMyWorkHudMetadataEntries(
   required String currentUserId,
   bool hideLastEventMetadata = false,
   bool hidePeople = false,
+  bool hideYou = false,
 }) {
   final l10n = L10n.of(context)!;
   final tt = context.tt;
@@ -100,7 +101,8 @@ List<BeaconHudMetadataEntry> buildMyWorkHudMetadataEntries(
               helperHasStandingMessage
           ? CoordinationResponsibility(beaconId: beacon.id)
           : null);
-  if (responsibility != null &&
+  if (!hideYou &&
+      responsibility != null &&
       (!hideCoordinationHud || helperHasStandingMessage)) {
     final phaseInput = beaconPhaseInputFromMyWorkCard(viewModel);
     final phaseResult = deriveBeaconCoordinationPhase(phaseInput);

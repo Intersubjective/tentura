@@ -12,6 +12,7 @@ class MyWorkCardMetadataRow extends StatelessWidget {
     required this.viewModel,
     required this.currentUserId,
     this.hidePeople = false,
+    this.hideYou = false,
     super.key,
   });
 
@@ -21,6 +22,10 @@ class MyWorkCardMetadataRow extends StatelessWidget {
 
   /// When true, people/face-pile is omitted (shared preview already shows it).
   final bool hidePeople;
+
+  /// When true, the YOU row is omitted: the card lists the same obligations
+  /// as rows with their own CTAs right below.
+  final bool hideYou;
 
   @override
   Widget build(BuildContext context) {
@@ -33,6 +38,7 @@ class MyWorkCardMetadataRow extends StatelessWidget {
         currentUserId: currentUserId,
         hideLastEventMetadata: true,
         hidePeople: hidePeople,
+        hideYou: hideYou,
       ),
     );
   }

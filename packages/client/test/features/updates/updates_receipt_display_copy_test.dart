@@ -188,4 +188,110 @@ void main() {
       expect(copy.body, l10n.updatesFallbackBodyGeneric);
     });
   });
+
+  group('requestScopedEventCopy — under a Request header', () {
+    const request = 'Group Hikes & Nature Photography Sessions';
+
+    RequestScopedEventCopy scoped(String title, String body, String key) =>
+        requestScopedEventCopy(
+          title: title,
+          body: body,
+          presentationKey: key,
+          requestTitle: request,
+          l10n: l10n,
+        );
+
+    test('review-ready: localized label, the Request title is not quoted', () {
+      final copy = scoped(
+        'Request closed — close the loop',
+        request,
+        'review_opened',
+      );
+
+      expect(copy.event, l10n.updatesFallbackTitleReviewOpened);
+      expect(copy.excerpt, isEmpty);
+    });
+
+    test('a message keeps its words and loses the Request prefix', () {
+      final copy = scoped(
+        request,
+        '$request — see you at 9',
+        'room_message_posted',
+      );
+
+      expect(copy.event, l10n.updatesFallbackTitleRoomMessagePosted);
+      expect(copy.excerpt, 'see you at 9');
+    });
+
+    test('a canned English fallback body is never quoted', () {
+      final copy = scoped(
+        'Plan updated',
+        'Coordination changed',
+        'coordination_changed',
+      );
+
+      expect(copy.event, l10n.updatesFallbackTitleCoordinationChanged);
+      expect(copy.excerpt, isEmpty);
+    });
+
+    test('a help-offer note survives; the canned sentence does not', () {
+      expect(
+        scoped('Anna', 'I can sew', 'help_offer_submitted').excerpt,
+        'I can sew',
+      );
+      expect(
+        scoped('Anna', 'Anna offered help', 'help_offer_submitted').excerpt,
+        isEmpty,
+      );
+    });
+
+    test('an unknown kind keeps its server title unless it is the Request', () {
+      expect(scoped('Something new', '', 'future_kind').event, 'Something new');
+      expect(
+        scoped(request, '', 'future_kind').event,
+        l10n.updatesFallbackTitleGeneric,
+      );
+    });
+  });
+
+  group('server boilerplate in feed rows', () {
+    test('an English label reads in the locale; its restating body goes', () {
+      final copy = resolveUpdatesFeedRowCopy(
+        title: 'New connection',
+        body: 'You and Anna are now connected.',
+        presentationKey: 'mutual_connection_formed',
+        presentationPayloadJson: '{}',
+        l10n: l10n,
+      );
+
+      expect(copy.headline, l10n.updatesFallbackTitleMutualConnectionFormed);
+      expect(copy.body, isEmpty);
+    });
+
+    test('a name used as the title stays', () {
+      final copy = resolveUpdatesFeedRowCopy(
+        title: 'Anna',
+        body: 'I can sew',
+        presentationKey: 'help_offer_submitted',
+        presentationPayloadJson: '{}',
+        l10n: l10n,
+      );
+
+      expect(copy.headline, 'Anna');
+      expect(copy.body, 'I can sew');
+    });
+
+    test('a trust change says its direction, never the Request again', () {
+      final copy = requestScopedEventCopy(
+        title: 'Trust update',
+        body: 'Your trust in Anna increased after "Hikes".',
+        presentationKey: 'trust_given_changed_up',
+        requestTitle: 'Hikes',
+        l10n: l10n,
+      );
+
+      expect(copy.event, l10n.attentionEventTrustGivenUp);
+      expect(copy.excerpt, isEmpty);
+    });
+  });
 }

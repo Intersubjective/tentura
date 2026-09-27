@@ -17,6 +17,7 @@ import 'package:tentura/ui/widget/beacon_request_preview_identity.dart';
 import 'package:tentura/ui/presenter/beacon_phase_cta.dart';
 import 'package:tentura/ui/presenter/beacon_phase_presenter.dart';
 import 'package:tentura/ui/test_ids.dart';
+import 'package:tentura/domain/entity/beacon_activity_event_consts.dart';
 import 'package:tentura/domain/entity/beacon_coordination_phase.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_close_confirm_dialog.dart';
 import 'package:tentura/features/beacon/ui/util/beacon_lifecycle_ui.dart';
@@ -182,6 +183,29 @@ void _openBeaconOrSelect(
 
 Widget? _myWorkAttentionMarker({required bool attentionMarked}) => null;
 
+/// Live obligations render as rows with their own CTA; a YOU line saying
+/// «ответьте на предложения» above them would be the same thing twice.
+bool _myWorkHasObligationRows(BuildContext context, MyWorkCardViewModel vm) =>
+    myWorkCardAttentionView(
+      beaconId: vm.beaconId,
+      attention: context.select(
+        (MyWorkCubit c) => c.state.attentionByBeacon[vm.beaconId],
+      ),
+      viewerArchived: vm.viewerArchived,
+    ).obligations.isNotEmpty;
+
+/// Whether the card carries a last-event line at all.
+///
+/// Not for a lifecycle change — «Срок обзора истёк» under «Закрыт · 9 сент»
+/// says the status a second time — and not the «обновлено N назад» fallback
+/// when there is no event: the header's freshness slot («неакт. 13 д») is
+/// that same fact.
+bool myWorkWhatsNewLineVisible(MyWorkCardViewModel vm) {
+  final last = vm.lastActivityEvent;
+  return last != null &&
+      last.event.type != BeaconActivityEventTypeBits.beaconLifecycleChanged;
+}
+
 /// Last-event preview — stays inside the card [InkWell] child.
 ///
 /// The what's-new emphasis line is gone: uncleared optional events are rows in
@@ -199,15 +223,17 @@ Widget _myWorkWhatsNewSection(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
-          child: Semantics(
-            identifier: TestIds.myWorkWhatsNew(vm.beaconId),
-            child: MyWorkLastEventBody(
-              beacon: vm.beacon,
-              viewModel: vm,
-              currentUserId: currentUserId,
-              muted: true,
-            ),
-          ),
+          child: myWorkWhatsNewLineVisible(vm)
+              ? Semantics(
+                  identifier: TestIds.myWorkWhatsNew(vm.beaconId),
+                  child: MyWorkLastEventBody(
+                    beacon: vm.beacon,
+                    viewModel: vm,
+                    currentUserId: currentUserId,
+                    muted: true,
+                  ),
+                )
+              : const SizedBox.shrink(),
         ),
         // Beside the preview, not in the header: the identity row's trailing
         // slot is a fixed-width menu box (`kBeaconCardMenuSlotWidth`) and
@@ -619,6 +645,7 @@ class _AuthoredActiveCard extends StatelessWidget {
             viewModel: vm,
             currentUserId: currentUserId,
             hidePeople: true,
+            hideYou: _myWorkHasObligationRows(context, vm),
           ),
           _myWorkWhatsNewSection(
             context,
@@ -708,6 +735,7 @@ class _HelpOfferedActiveCard extends StatelessWidget {
             viewModel: vm,
             currentUserId: currentUserId,
             hidePeople: true,
+            hideYou: _myWorkHasObligationRows(context, vm),
           ),
           _myWorkWhatsNewSection(
             context,
@@ -734,7 +762,6 @@ class _DraftAuthoredCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
-    final theme = Theme.of(context);
     final b = vm.beacon;
     final statusLine = myWorkStatusLine(l10n: l10n, vm: vm);
     final headerStatus = _myWorkCardHeaderStatus(
@@ -789,13 +816,7 @@ class _DraftAuthoredCard extends StatelessWidget {
             viewModel: vm,
             currentUserId: currentUserId,
             hidePeople: true,
-          ),
-          const SizedBox(height: kSpacingSmall),
-          Text(
-            l10n.myWorkDraftStatusLine(b.helpOfferCount),
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+            hideYou: _myWorkHasObligationRows(context, vm),
           ),
           _myWorkWhatsNewSection(
             context,
@@ -926,6 +947,7 @@ class _FinishedAuthoredCard extends StatelessWidget {
             viewModel: vm,
             currentUserId: currentUserId,
             hidePeople: true,
+            hideYou: _myWorkHasObligationRows(context, vm),
           ),
           _myWorkWhatsNewSection(
             context,
@@ -1003,6 +1025,7 @@ class _FinishedHelpOfferedCard extends StatelessWidget {
             viewModel: vm,
             currentUserId: currentUserId,
             hidePeople: true,
+            hideYou: _myWorkHasObligationRows(context, vm),
           ),
           _myWorkWhatsNewSection(
             context,

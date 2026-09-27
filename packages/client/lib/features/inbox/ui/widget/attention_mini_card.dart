@@ -49,6 +49,7 @@ class AttentionMiniCard extends StatefulWidget {
     this.kind = AttentionMiniCardKind.event,
     this.actor,
     this.quotedBody,
+    this.requestTitle,
     this.capabilitySlugs = const [],
     this.onTap,
     this.onDismiss,
@@ -72,8 +73,16 @@ class AttentionMiniCard extends StatefulWidget {
   final AttentionMiniCardKind kind;
   final Profile? actor;
 
-  /// Note or message excerpt shown behind the quote rule. Left-aligned (K4).
+  /// A forward's note, shown behind the quote rule. Left-aligned (K4).
+  ///
+  /// Event rows ignore it: their excerpt is derived from the receipt by
+  /// [requestScopedEventCopy], which knows what the server's copy repeats.
   final String? quotedBody;
+
+  /// The Request the card header already names. Its title is stripped from
+  /// the event line and the quote — receipt copy is written for a push
+  /// notification and leads with it.
+  final String? requestTitle;
 
   /// Capability tags the forwarder attached. Rendered under [quotedBody],
   /// inside the mini-card — never in the card header. Capped to
@@ -149,26 +158,21 @@ class _AttentionMiniCardState extends State<AttentionMiniCard>
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
-    final copy = resolveUpdatesFeedRowCopy(
-      title: widget.receipt.title,
-      body: widget.receipt.body,
-      presentationKey: widget.receipt.presentationKey,
-      presentationPayloadJson: widget.receipt.presentationPayloadJson,
-      l10n: l10n,
-    );
     final profile = widget.actor == null
         ? null
         : profileWithContactOverlay(widget.actor!);
     final shownName = profile?.shownName.trim() ?? '';
-    final canned = cannedAttentionEventLine(
+    final scoped = requestScopedEventCopy(
       title: widget.receipt.title,
       body: widget.receipt.body,
       presentationKey: widget.receipt.presentationKey,
+      presentationPayloadJson: widget.receipt.presentationPayloadJson,
+      requestTitle: widget.requestTitle,
       l10n: l10n,
     );
     final eventLine = widget.nameOnly && shownName.isNotEmpty
         ? shownName
-        : _eventLine(l10n, copy, shownName, canned: canned);
+        : _eventLine(l10n, scoped.event, shownName);
     final localCreatedAt = widget.receipt.createdAt.toLocal();
     final age = compactRelativeTimeAgo(
       when: widget.receipt.createdAt,
@@ -177,11 +181,11 @@ class _AttentionMiniCardState extends State<AttentionMiniCard>
     );
     final absoluteTime =
         '${dateFormatYMD(localCreatedAt)} ${timeFormatHm(localCreatedAt)}';
-    final quoted = _quoteWorthShowing(
-      widget.quotedBody?.trim() ?? '',
-      eventLine: eventLine,
-      canned: canned,
-    );
+    // A forward's note comes from provenance, not the receipt; every other
+    // row quotes only what its receipt carries beyond the event.
+    final quoted = widget.kind == AttentionMiniCardKind.forward
+        ? widget.quotedBody?.trim() ?? ''
+        : scoped.excerpt;
 
     final leading = profile != null
         ? TenturaAvatar.medium(
@@ -326,47 +330,16 @@ class _AttentionMiniCardState extends State<AttentionMiniCard>
   String _semanticsLabel(String eventLine, String age) =>
       [eventLine, age].where((p) => p.isNotEmpty).join(' · ');
 
-  String _eventLine(
-    L10n l10n,
-    UpdatesFeedRowCopy copy,
-    String shownName, {
-    required String? canned,
-  }) {
+  String _eventLine(L10n l10n, String event, String shownName) {
     if (widget.kind == AttentionMiniCardKind.forward && shownName.isNotEmpty) {
       return l10n.attentionMiniCardForwarded(shownName);
     }
-    final headline = copy.headline.trim();
-    final body = copy.body.trim();
-    // When the headline is just the actor name (server title for help-offer
-    // receipts), prefer the body so the event itself shows.
-    final event =
-        canned ??
-        (shownName.isNotEmpty && headline == shownName && body.isNotEmpty
-            ? body
-            : (headline.isNotEmpty ? headline : body));
     if (shownName.isEmpty) return event;
     if (event.isEmpty || event == shownName) return shownName;
     // «alonso offered help» already names the actor; prefixing it again is
     // how one name ended up on a row three times.
     if (event.startsWith(shownName)) return event;
     return '$shownName · $event';
-  }
-
-  /// The quote is for words the event line does not already say — a note, a
-  /// message. A canned server sentence, or a restatement of the line above
-  /// it, is dropped rather than shown twice.
-  String _quoteWorthShowing(
-    String quoted, {
-    required String eventLine,
-    required String? canned,
-  }) {
-    if (quoted.isEmpty) return '';
-    final restates = eventLine == quoted || eventLine.endsWith(quoted);
-    final isCannedEcho =
-        canned != null &&
-        (quoted == widget.receipt.body.trim() ||
-            quoted == widget.receipt.title.trim());
-    return restates || isCannedEcho ? '' : quoted;
   }
 }
 

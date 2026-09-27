@@ -48,6 +48,7 @@ class ActivityEventSubcardBlock extends StatefulWidget {
     this.pageSize = 20,
     this.ctaBuilder,
     this.trailingBuilder,
+    this.requestTitle,
     this.nameOnlyOf,
     this.quotedBodyOf,
     this.canDismiss = attentionRowAlwaysDismissible,
@@ -101,6 +102,9 @@ class ActivityEventSubcardBlock extends StatefulWidget {
   /// A compact CTA placed at the end of the row's event line instead of
   /// under it — for CTAs short enough to share the line.
   final Widget? Function(AttentionReceipt receipt)? trailingBuilder;
+
+  /// The Request the owning card is headed by ([AttentionMiniCard.requestTitle]).
+  final String? requestTitle;
 
   /// Rows whose event a group header above the block already names; they
   /// render the actor alone ([AttentionMiniCard.nameOnly]).
@@ -231,6 +235,7 @@ class _ActivityEventSubcardBlockState extends State<ActivityEventSubcardBlock> {
       actor: _actorFor(receipt),
       quotedBody: widget.quotedBodyOf?.call(receipt),
       trailing: widget.trailingBuilder?.call(receipt),
+      requestTitle: widget.requestTitle,
       nameOnly: widget.nameOnlyOf?.call(receipt) ?? false,
       onTap: widget.onEventTap == null
           ? null

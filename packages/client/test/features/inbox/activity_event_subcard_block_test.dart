@@ -97,7 +97,9 @@ void main() {
     expect(find.byType(AttentionMiniCard), findsOneWidget);
     expect(find.byType(TenturaAvatar), findsOneWidget);
     expect(find.textContaining('Anna'), findsOneWidget);
-    expect(find.textContaining('Offered help'), findsOneWidget);
+    // The event is named by the locale from its kind, not by the server's
+    // English title.
+    expect(find.textContaining('Help offered'), findsOneWidget);
   });
 
   testWidgets('avatar tap opens the profile, never the row action', (

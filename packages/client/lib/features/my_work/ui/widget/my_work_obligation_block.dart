@@ -155,6 +155,7 @@ class MyWorkObligationBlock extends StatelessWidget {
             eventsPreview: rows,
             visibleCap: visibleCap,
             beaconId: vm.beaconId,
+            requestTitle: vm.beacon.title,
             actors: {
               for (final user in vm.beacon.helpOfferUsers) user.id: user,
             },

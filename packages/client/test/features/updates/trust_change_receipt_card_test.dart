@@ -112,7 +112,11 @@ void main() {
       body: 'No significant change in how they trust you.',
     );
 
-    expect(find.textContaining('Someone reviewed you'), findsOneWidget);
+    // The server's English label reads in the locale, direction kept.
+    expect(
+      find.textContaining(l10n.attentionEventTrustReceivedNeutral),
+      findsOneWidget,
+    );
     expect(find.byIcon(TenturaIcons.updates), findsOneWidget);
   });
 
@@ -138,7 +142,8 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text(l10n.updatesFallbackTitleTrustReceivedChanged), findsOneWidget);
+    // The key still says which way trust moved, so the headline does too.
+    expect(find.text(l10n.attentionEventTrustReceivedUp), findsOneWidget);
     expect(
       find.textContaining(l10n.updatesFallbackBodyTrustReceivedChanged),
       findsOneWidget,

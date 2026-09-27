@@ -175,6 +175,10 @@ String _fallbackTitle(
   'review_opened' => l10n.updatesFallbackTitleReviewOpened,
   'review_all_packages_in' => l10n.updatesFallbackTitleReviewAllIn,
   'review_window_cancelled' => l10n.updatesFallbackTitleReviewCancelled,
+  'obligation_ended' => l10n.updatesFallbackTitleObligationEnded,
+  'commitment_released' => l10n.updatesFallbackTitleCommitmentReleased,
+  'beacon_hierarchy_status_changed' =>
+    l10n.updatesFallbackTitleHierarchyStatusChanged,
   'mutual_connection_formed' => l10n.updatesFallbackTitleMutualConnectionFormed,
   'invite_accepted' => l10n.updatesFallbackTitleInviteAccepted,
   'needs_me' => l10n.updatesFallbackTitleNeedsMe,
@@ -275,9 +279,20 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
   );
   final override = headlineOverride?.trim();
   final eventTitle = title.trim().isEmpty ? fallback.title : title.trim();
+  // An English server label reads in the locale instead; a title that is a
+  // name or a Request title is data and stays.
+  final localizedHeadline = _isServerCannedTitle(eventTitle)
+      ? cannedAttentionEventLine(
+              title: title,
+              body: body,
+              presentationKey: presentationKey,
+              l10n: l10n,
+            ) ??
+            _fallbackTitle(presentationKey, l10n)
+      : eventTitle;
   final headline = (override != null && override.isNotEmpty)
       ? override
-      : eventTitle;
+      : localizedHeadline;
 
   final bodyOverrideTrim = bodyOverride?.trim();
   var excerpt = (bodyOverrideTrim != null && bodyOverrideTrim.isNotEmpty)
@@ -295,7 +310,8 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
     }
   }
 
-  final subjectOverride = bodyOverrideTrim != null && bodyOverrideTrim.isNotEmpty
+  final subjectOverride =
+      bodyOverrideTrim != null && bodyOverrideTrim.isNotEmpty
       ? bodyOverrideTrim
       : null;
   final String line2;
@@ -313,7 +329,11 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
     line2 = '';
   }
 
-  return UpdatesFeedRowCopy(headline: headline, body: line2);
+  // A fallback sentence only restates the headline, usually in English.
+  return UpdatesFeedRowCopy(
+    headline: headline,
+    body: _isServerCannedSentence(line2) ? '' : line2,
+  );
 }
 
 final _statusTransitionTail = RegExp(r'from (\w+) to (\w+)\s*$');
@@ -332,6 +352,23 @@ String? cannedAttentionEventLine({
 }) {
   final t = title.trim();
   final b = body.trim();
+  if (isTrustChangePresentationKey(presentationKey)) {
+    final given = presentationKey!.startsWith('trust_given');
+    return switch (trustChangeDirectionFromPresentationKey(presentationKey)) {
+      TrustChangeDirection.up =>
+        given
+            ? l10n.attentionEventTrustGivenUp
+            : l10n.attentionEventTrustReceivedUp,
+      TrustChangeDirection.down =>
+        given
+            ? l10n.attentionEventTrustGivenDown
+            : l10n.attentionEventTrustReceivedDown,
+      TrustChangeDirection.neutral =>
+        given
+            ? l10n.attentionEventTrustGivenNeutral
+            : l10n.attentionEventTrustReceivedNeutral,
+    };
+  }
   switch (presentationKey) {
     case 'help_offer_submitted':
       final canned = b.isEmpty || b == '$t offered help' || b == t;
@@ -347,3 +384,150 @@ String? cannedAttentionEventLine({
   }
   return null;
 }
+
+/// What one event row says inside a card whose header already names the
+/// Request: the event, and the words (a message, a note) it carries.
+class RequestScopedEventCopy {
+  const RequestScopedEventCopy({required this.event, required this.excerpt});
+
+  final String event;
+
+  /// Empty when the receipt carries nothing but the event itself.
+  final String excerpt;
+}
+
+/// Receipt copy is written for a push notification, where nothing else on
+/// screen says which Request it is: the title is an English label («Request
+/// closed — close the loop», «Plan updated») or the Request title itself, and
+/// the body is «<Request title> — <excerpt>», the bare Request title, or an
+/// English fallback sentence. Under a Request header every one of those is a
+/// repeat or untranslated, so the event comes from the locale by
+/// [presentationKey] and only a real excerpt survives into the quote.
+RequestScopedEventCopy requestScopedEventCopy({
+  required String title,
+  required String body,
+  required String? presentationKey,
+  required L10n l10n,
+  String presentationPayloadJson = '',
+  String? requestTitle,
+}) {
+  final requestTitles = {
+    ?_nonBlank(requestTitle),
+    ?beaconTitleFromPresentationPayload(presentationPayloadJson),
+  };
+  final t = title.trim();
+  final canned = cannedAttentionEventLine(
+    title: title,
+    body: body,
+    presentationKey: presentationKey,
+    l10n: l10n,
+  );
+  final localized = _fallbackTitle(presentationKey, l10n);
+  final isKnownKey = localized != l10n.updatesFallbackTitleGeneric;
+  final String event;
+  if (canned != null) {
+    event = canned;
+  } else if (isKnownKey) {
+    event = localized;
+  } else if (t.isEmpty || requestTitles.contains(t)) {
+    event = localized;
+  } else {
+    event = t;
+  }
+
+  var excerpt = body.trim();
+  for (final request in requestTitles) {
+    final prefix = '$request — ';
+    if (excerpt.startsWith(prefix)) {
+      excerpt = excerpt.substring(prefix.length).trim();
+      break;
+    }
+  }
+  final dropped =
+      excerpt.isEmpty ||
+      requestTitles.contains(excerpt) ||
+      excerpt == t ||
+      excerpt == event ||
+      (canned != null &&
+          (presentationKey == 'request_status_changed' ||
+              isTrustChangePresentationKey(presentationKey))) ||
+      _isServerCannedSentence(excerpt);
+  return RequestScopedEventCopy(event: event, excerpt: dropped ? '' : excerpt);
+}
+
+String? _nonBlank(String? value) {
+  final v = value?.trim() ?? '';
+  return v.isEmpty ? null : v;
+}
+
+/// The English sentences the server writes when an event has no excerpt of
+/// its own — `BeaconNotificationCopyBuilder` and `AttentionIntentCase` in
+/// packages/server. They restate the event and are never user words.
+const _serverCannedBodies = {
+  'New thread update',
+  'Review contributions',
+  'Request update',
+  'The request deadline changed',
+  'This request deadline is tomorrow',
+  'Action needed in the request discussion',
+  'Promise withdrawn',
+  'New promise in the request discussion',
+  'Coordination changed',
+  'A blocker was opened',
+  'A blocker was resolved',
+  'Your offer was accepted',
+  'Your offer was declined',
+  'You were removed from the request discussion',
+  'The author ended your participation in this request',
+  'Something in the request thread needs attention',
+  'Open General to see your new assignment',
+  'You are now connected on Tentura.',
+};
+
+final _serverCannedPatterns = [
+  RegExp(
+    r' (offered help|offered to help as backup|withdrew their help|'
+    r'forwarded a request to you|mentioned you|accepted your invitation)$',
+  ),
+  RegExp(r'^(Your|The) \w+ was (accepted|resolved|cancelled)$'),
+  RegExp(r'moved (the request )?from \w+ to \w+$'),
+  RegExp(r'^You and .+ are now connected\.$'),
+  RegExp(r'^Your trust in .+ (increased|decreased) after ".*"\.$'),
+  RegExp(r'^No significant trust change (with|from) .+ after ".*"'),
+  RegExp(r' now trusts you (more|less) after ".*" — and their network\.$'),
+  RegExp(r'^The review window closed on ".*" before your package was sent'),
+];
+
+/// The English labels the server uses as receipt titles (same sources as
+/// [_serverCannedBodies]). Anything else in a title — an actor's name, a
+/// Request title, a user's words — is left alone.
+const _serverCannedTitles = {
+  'Deadline changed',
+  'Deadline reminder',
+  'Asked of you',
+  'Plan updated',
+  'Blocker opened',
+  'Blocker resolved',
+  'Offer accepted',
+  'Offer declined',
+  'Removed from the discussion',
+  'Participation ended',
+  'Request closed — close the loop',
+  'Still needs attention',
+  'Invitation accepted',
+  'Review closed',
+  'Trust update',
+  'Request status changed',
+  'New connection',
+  'Someone trusts you more',
+  'Someone trusts you less',
+  'Someone reviewed you',
+  'Ancestor request status changed',
+  'Child request status changed',
+};
+
+bool _isServerCannedTitle(String text) => _serverCannedTitles.contains(text);
+
+bool _isServerCannedSentence(String text) =>
+    _serverCannedBodies.contains(text) ||
+    _serverCannedPatterns.any((p) => p.hasMatch(text));
