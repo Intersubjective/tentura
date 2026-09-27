@@ -303,7 +303,6 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
       child: Scaffold(
         appBar: TenturaTopBar.of(
           context,
-          centerTitle: true,
           leading: isRecipients
               ? IconButton(
                   icon: const Icon(Icons.arrow_back),

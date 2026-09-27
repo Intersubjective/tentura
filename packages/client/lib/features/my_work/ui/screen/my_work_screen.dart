@@ -162,38 +162,51 @@ class _MyWorkFilterMenu extends StatelessWidget {
       builder: (context, filter) {
         final scheme = theme.colorScheme;
         final tt = context.tt;
-        return Align(
-          alignment: Alignment.centerLeft,
-          child: Tooltip(
-            message: l10n.myWorkFilterMenuTooltip,
-            child: TextButton(
-              style: TextButton.styleFrom(
-                padding: EdgeInsets.symmetric(horizontal: tt.tightGap * 2),
-                minimumSize: Size(tt.buttonHeight, tt.buttonHeight),
-                foregroundColor: scheme.onPrimary,
-              ),
-              onPressed: () => unawaited(_showMyWorkFilterMenu(context, l10n)),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Flexible(
-                    child: Text(
-                      _labelForFilter(l10n, filter),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TenturaText.labelLarge(scheme.onPrimary).copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+        // The screen names itself like Activity does; the filter follows
+        // the title instead of standing in for it.
+        final filterButton = Tooltip(
+          message: l10n.myWorkFilterMenuTooltip,
+          child: TextButton(
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.symmetric(horizontal: tt.tightGap * 2),
+              minimumSize: Size(tt.buttonHeight, tt.buttonHeight),
+              foregroundColor: scheme.onPrimary,
+            ),
+            onPressed: () => unawaited(_showMyWorkFilterMenu(context, l10n)),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    _labelForFilter(l10n, filter),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TenturaText.labelLarge(scheme.onPrimary).copyWith(
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  Icon(
-                    Icons.arrow_drop_down,
-                    color: scheme.onPrimary,
-                  ),
-                ],
-              ),
+                ),
+                Icon(
+                  Icons.arrow_drop_down,
+                  color: scheme.onPrimary,
+                ),
+              ],
             ),
           ),
+        );
+        return Row(
+          children: [
+            Flexible(
+              child: Text(
+                l10n.myWork,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TenturaText.titleLarge(scheme.onPrimary),
+              ),
+            ),
+            SizedBox(width: tt.iconTextGap),
+            Flexible(child: filterButton),
+          ],
         );
       },
     );
@@ -422,36 +435,35 @@ class _MyWorkListBody extends StatelessWidget {
                               AutoTabsRouter.of(context).setActiveIndex(
                                 HomeTabSpec.forTab(HomeTab.constellation).index,
                               ),
-                          onOpenTab: (tab) => AutoTabsRouter.of(context)
-                              .setActiveIndex(HomeTabSpec.forTab(tab).index),
+                          onOpenTab: (tab) => AutoTabsRouter.of(
+                            context,
+                          ).setActiveIndex(HomeTabSpec.forTab(tab).index),
                           onDismiss: () =>
                               context.read<HomeActivationCubit>().dismiss(),
                         ),
                       ),
-                      OrientationDecision.ordinaryEmpty =>
-                        SliverFillRemaining(
-                          hasScrollBody: false,
-                          child: MyWorkEmptyBody(
-                            filter: state.filter,
-                            draftCount: state.draftCount,
-                            archivedCountHint: state.archivedCountHint,
-                            inboxNeedsMeCount: inboxNeedsMeCount,
-                            inboxLoadComplete: inboxLoadComplete,
-                            onCreateBeacon: () =>
-                                context.read<ScreenCubit>().showBeaconCreate(),
-                            onOpenInbox: () =>
-                                AutoTabsRouter.of(context).setActiveIndex(1),
-                            onOpenConstellation: () =>
-                                AutoTabsRouter.of(context).setActiveIndex(
-                                  HomeTabSpec.forTab(HomeTab.constellation)
-                                      .index,
-                                ),
-                            onShowDrafts: () =>
-                                cubit.setFilter(MyWorkFilter.drafts),
-                            onShowArchived: () =>
-                                cubit.setFilter(MyWorkFilter.archived),
-                          ),
+                      OrientationDecision.ordinaryEmpty => SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: MyWorkEmptyBody(
+                          filter: state.filter,
+                          draftCount: state.draftCount,
+                          archivedCountHint: state.archivedCountHint,
+                          inboxNeedsMeCount: inboxNeedsMeCount,
+                          inboxLoadComplete: inboxLoadComplete,
+                          onCreateBeacon: () =>
+                              context.read<ScreenCubit>().showBeaconCreate(),
+                          onOpenInbox: () =>
+                              AutoTabsRouter.of(context).setActiveIndex(1),
+                          onOpenConstellation: () =>
+                              AutoTabsRouter.of(context).setActiveIndex(
+                                HomeTabSpec.forTab(HomeTab.constellation).index,
+                              ),
+                          onShowDrafts: () =>
+                              cubit.setFilter(MyWorkFilter.drafts),
+                          onShowArchived: () =>
+                              cubit.setFilter(MyWorkFilter.archived),
                         ),
+                      ),
                       OrientationDecision.undecided => SliverFillRemaining(
                         hasScrollBody: false,
                         child: Center(

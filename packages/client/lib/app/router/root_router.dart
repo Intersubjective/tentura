@@ -349,10 +349,9 @@ class RootRouter extends RootStackRouter {
       path: kPathProfileEdit,
     ),
 
-    // Settings
+    // Settings — a page (back arrow), not a modal task (close).
     AutoRoute(
       maintainState: false,
-      fullscreenDialog: true,
       page: SettingsRoute.page,
       path: kPathSettings,
       guards: [
@@ -364,7 +363,6 @@ class RootRouter extends RootStackRouter {
     AutoRoute(
       keepHistory: false,
       maintainState: false,
-      fullscreenDialog: true,
       page: CredentialsRoute.page,
       path: kPathSignInMethods,
       guards: [
