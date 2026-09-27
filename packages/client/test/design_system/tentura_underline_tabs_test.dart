@@ -605,4 +605,34 @@ void main() {
       }
     },
   );
+
+  testWidgets('active indicator spans its slot; counts sit by their label', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _tabsHarness(
+        width: 390,
+        child: TenturaUnderlineTabs(
+          tabs: const ['All', 'Unread'],
+          selectedIndex: 0,
+          onChanged: (_) {},
+          badges: const [null, 2],
+          countStyle: TenturaTabCountStyle.plainText,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final indicators = tester
+        .widgetList<SizedBox>(find.byType(SizedBox))
+        .where((b) => b.height == 2)
+        .map((b) => b.width)
+        .toList();
+    expect(indicators, isNotEmpty);
+    expect(indicators.every((w) => w == double.infinity), isTrue);
+
+    final label = tester.getRect(find.text('Unread'));
+    final count = tester.getRect(find.text('2'));
+    expect(count.left - label.right, lessThan(16));
+  });
 }

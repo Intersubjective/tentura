@@ -191,8 +191,8 @@ class _TenturaUnderlineTabsState extends State<TenturaUnderlineTabs>
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final showLabels = !hasIcons ||
-              _labelsFit(context, constraints.maxWidth);
+          final showLabels =
+              !hasIcons || _labelsFit(context, constraints.maxWidth);
           return Row(
             children: [
               for (var i = 0; i < widget.tabs.length; i++)
@@ -362,6 +362,45 @@ class _TabCell extends StatelessWidget {
       }
     }
 
+    // Counts sit right after their label (Material 3 tabs): pinned to the
+    // slot's far edge they read as a separate tab ("Unread      2").
+    final inlineBadges = !badgeOverlay && hasAnyBadge
+        ? Padding(
+            padding: EdgeInsets.only(left: tt.iconTextGap),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (hasPrimaryBadge)
+                  countStyle == TenturaTabCountStyle.plainText
+                      ? Text(
+                          '${badge!}',
+                          style: TenturaText.withTabular(
+                            TenturaText.bodySmall(color),
+                          ),
+                        )
+                      : TenturaCountBadge(
+                          count: badge!,
+                          backgroundColor: badgeBackgroundColor ?? tt.info,
+                        ),
+                if (hasPrimaryBadge && hasSecondaryBadge)
+                  SizedBox(width: tt.tightGap),
+                if (hasSecondaryBadge)
+                  countStyle == TenturaTabCountStyle.plainText
+                      ? Text(
+                          '${secondaryBadge!}',
+                          style: TenturaText.withTabular(
+                            TenturaText.bodySmall(tt.warn),
+                          ),
+                        )
+                      : TenturaCountBadge(
+                          count: secondaryBadge!,
+                          backgroundColor: tt.warn,
+                        ),
+              ],
+            ),
+          )
+        : null;
+
     Widget content = Padding(
       padding: EdgeInsets.symmetric(vertical: tt.rowGap),
       child: Column(
@@ -388,52 +427,18 @@ class _TabCell extends StatelessWidget {
                           style: TenturaText.tabLabel(color),
                         ),
                       ),
+                    ?inlineBadges,
                   ],
                 ),
               ),
-              if (!badgeOverlay && hasAnyBadge) ...[
-                SizedBox(width: tt.iconTextGap),
-                Padding(
-                  padding: EdgeInsets.only(right: tt.iconTextGap),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (hasPrimaryBadge)
-                        countStyle == TenturaTabCountStyle.plainText
-                            ? Text(
-                                '${badge!}',
-                                style: TenturaText.withTabular(
-                                  TenturaText.bodySmall(color),
-                                ),
-                              )
-                            : TenturaCountBadge(
-                                count: badge!,
-                                backgroundColor:
-                                    badgeBackgroundColor ?? tt.info,
-                              ),
-                      if (hasPrimaryBadge && hasSecondaryBadge)
-                        SizedBox(width: tt.tightGap),
-                      if (hasSecondaryBadge)
-                        countStyle == TenturaTabCountStyle.plainText
-                            ? Text(
-                                '${secondaryBadge!}',
-                                style: TenturaText.withTabular(
-                                  TenturaText.bodySmall(tt.warn),
-                                ),
-                              )
-                            : TenturaCountBadge(
-                                count: secondaryBadge!,
-                                backgroundColor: tt.warn,
-                              ),
-                    ],
-                  ),
-                ),
-              ],
             ],
           ),
           const SizedBox(height: 6),
+          // Full slot width: with a height alone the indicator laid out at
+          // zero width and the active tab was told apart by colour only.
           SizedBox(
             height: 2,
+            width: double.infinity,
             child: DecoratedBox(
               decoration: BoxDecoration(
                 color: selected ? active : Colors.transparent,
@@ -482,9 +487,9 @@ class _TabCell extends StatelessWidget {
                     ),
                   ),
                 ),
-            content,
-          ],
-        ),
+              content,
+            ],
+          ),
         ),
       ),
     );
