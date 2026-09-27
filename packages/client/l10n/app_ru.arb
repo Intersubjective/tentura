@@ -5739,9 +5739,27 @@
       }
     }
   },
+  "friendContextInboxShort": "переслано: {count}",
+  "@friendContextInboxShort": {
+    "context": "FriendsScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "friendContextSharedCount": "{count} активных запросов видите оба",
   "@friendContextSharedCount": {
     "context": "FriendsScreen / NetworkPersonCard tooltip",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "friendContextSharedShort": "общих: {count}",
+  "@friendContextSharedShort": {
+    "context": "FriendsScreen",
     "placeholders": {
       "count": {
         "type": "int"

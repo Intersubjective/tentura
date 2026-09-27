@@ -169,8 +169,11 @@ class _FriendsScreenState extends State<FriendsScreen>
                 controller: _tabController,
                 tabs: [
                   Tab(text: l10n.friendsTitle),
+                  // No "(0)": a zero count reads as something to look at.
                   Tab(
-                    text: '${l10n.invitationScreenTitle} ($inviteCount)',
+                    text: inviteCount > 0
+                        ? '${l10n.invitationScreenTitle} ($inviteCount)'
+                        : l10n.invitationScreenTitle,
                   ),
                 ],
               );

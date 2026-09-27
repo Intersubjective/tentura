@@ -5920,9 +5920,27 @@
       }
     }
   },
+  "friendContextInboxShort": "{count} forwarded",
+  "@friendContextInboxShort": {
+    "context": "FriendsScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "friendContextSharedCount": "{count} active requests you both see",
   "@friendContextSharedCount": {
     "context": "FriendsScreen / NetworkPersonCard tooltip",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "friendContextSharedShort": "{count} shared",
+  "@friendContextSharedShort": {
+    "context": "FriendsScreen",
     "placeholders": {
       "count": {
         "type": "int"

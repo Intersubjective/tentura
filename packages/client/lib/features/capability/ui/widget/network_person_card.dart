@@ -62,18 +62,20 @@ class NetworkPersonCard extends StatelessWidget {
     return InkWell(
       onTap: () => screenCubit.showProfile(profile.id),
       child: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: tt.screenHPadding,
-          vertical: tt.cardGap,
-        ),
+        // The screen already insets the list by screenHPadding; a second
+        // inset put rows 8-24 dp inside the tab bar's start edge. A 3-4 line
+        // row carries a list-size avatar, top-aligned with the name, at the
+        // same avatar/text gap as every other people list.
+        padding: EdgeInsets.symmetric(vertical: tt.cardGap),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            PresenceAvatar.small(
+            PresenceAvatar.medium(
               profile: profile,
               userId: profile.id,
               withContactBadge: true,
             ),
-            SizedBox(width: tt.screenHPadding),
+            SizedBox(width: tt.avatarTextGap),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -221,7 +223,10 @@ class _FriendContextCountsRow extends StatelessWidget {
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                   const SizedBox(width: 4),
-                  Text('$inbox', style: style),
+                  Text(
+                    L10n.of(context)!.friendContextInboxShort(inbox),
+                    style: style,
+                  ),
                 ],
               ),
             ),
@@ -239,7 +244,10 @@ class _FriendContextCountsRow extends StatelessWidget {
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                   const SizedBox(width: 4),
-                  Text('$shared', style: style),
+                  Text(
+                    L10n.of(context)!.friendContextSharedShort(shared),
+                    style: style,
+                  ),
                 ],
               ),
             ),
