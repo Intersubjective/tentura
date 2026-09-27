@@ -19,10 +19,10 @@ class ConstellationCameraControls extends StatelessWidget {
 
   /// Viewport insets passed to [ConstellationCubit.fitWholeField] /
   /// [ConstellationCubit.centerOnEgo], excluding this control column and any
-  /// open person-context chrome.
+  /// open context-panel chrome (person or request).
   static EdgeInsets cameraViewportInsets(
     BuildContext context, {
-    required bool personPanelVisible,
+    required bool contextPanelVisible,
   }) {
     final tt = context.tt;
     final media = MediaQuery.of(context);
@@ -33,12 +33,12 @@ class ConstellationCameraControls extends StatelessWidget {
     var right = padding.right + tt.screenHPadding + tt.buttonHeight;
     var bottom = padding.bottom;
 
-    if (personPanelVisible && context.windowClass == WindowClass.compact) {
+    if (contextPanelVisible && context.windowClass == WindowClass.compact) {
       bottom +=
           media.size.height * tt.graphPersonContextCompactMaxHeightFraction +
           tt.rowGap * 2;
     }
-    if (personPanelVisible && context.windowClass != WindowClass.compact) {
+    if (contextPanelVisible && context.windowClass != WindowClass.compact) {
       right += tt.graphPersonContextWidth + tt.screenHPadding;
     }
 

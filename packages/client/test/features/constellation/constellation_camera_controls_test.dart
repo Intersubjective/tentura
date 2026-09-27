@@ -21,12 +21,12 @@ Matrix4 _cameraMatrix(WidgetTester tester) {
 Rect _usableViewport(
   WidgetTester tester,
   ConstellationCubit cubit, {
-  required bool personPanelVisible,
+  required bool contextPanelVisible,
 }) {
   final context = tester.element(find.byType(ConstellationBody));
   final insets = ConstellationCameraControls.cameraViewportInsets(
     context,
-    personPanelVisible: personPanelVisible,
+    contextPanelVisible: contextPanelVisible,
   );
   final pixel = cubit.graphController.viewportSize!;
   return Rect.fromLTRB(
@@ -63,13 +63,13 @@ Rect _sceneNodeRect(ConstellationCubit cubit, String graphId) {
 void _expectFootprintsInsideUsable(
   WidgetTester tester,
   ConstellationCubit cubit, {
-  required bool personPanelVisible,
+  required bool contextPanelVisible,
 }) {
   final controller = cubit.graphController;
   final usable = _usableViewport(
     tester,
     cubit,
-    personPanelVisible: personPanelVisible,
+    contextPanelVisible: contextPanelVisible,
   );
   for (final graphId in controller.renderSnapshot.topology.nodesById.keys) {
     if (controller.renderSnapshot.resolvePosition(graphId) == null) {
@@ -130,7 +130,7 @@ void main() {
       await tester.tap(find.byKey(TestIds.key(TestIds.constellationFitAll)));
       await tester.pump();
 
-      _expectFootprintsInsideUsable(tester, cubit, personPanelVisible: false);
+      _expectFootprintsInsideUsable(tester, cubit, contextPanelVisible: false);
       expect(cubit.graphController.cameraScale, lessThanOrEqualTo(1.0));
     });
 
@@ -152,7 +152,7 @@ void main() {
       await tester.pump();
 
       expect(cubit.graphController.cameraScale, closeTo(1.0, 0.001));
-      final usable = _usableViewport(tester, cubit, personPanelVisible: false);
+      final usable = _usableViewport(tester, cubit, contextPanelVisible: false);
       const egoGraphId = '${TenturaGraphNodeKind.fieldPerson}:ego';
       final egoScene = cubit.graphController.renderSnapshot
           .resolvePosition(egoGraphId)!;

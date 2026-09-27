@@ -14,6 +14,7 @@ import '../utils/ease_in_out_reynolds.dart';
 import '../utils/tentura_layout_algorithms.dart';
 import '../bloc/graph_cubit.dart';
 import '../bloc/graph_person_context_cubit.dart';
+import 'adaptive_context_overlay.dart';
 import 'graph_legend_mode.dart';
 import 'graph_legend_panel.dart';
 import 'graph_node_widget.dart';
@@ -260,47 +261,15 @@ class GraphBodyState extends State<GraphBody>
       return const SizedBox.shrink();
     }
 
-    final tt = context.tt;
-    final panel = GraphPersonContextPanel(
-      profile: profile,
-      focusedNode: focusedNode,
-      hiddenNeighborCount:
-          graphState.hiddenNeighborCounts[focusedNode.id] ?? 0,
-      isLoading: graphState.isLoading,
-      canPageMore: context.read<GraphCubit>().canPageMore(focusedNode.id),
-      onExpand: () => context.read<GraphCubit>().expandNode(focusedNode),
-    );
-
-    if (context.windowClass == WindowClass.compact) {
-      return Positioned(
-        left: tt.screenHPadding,
-        right: tt.screenHPadding,
-        bottom: 0,
-        child: SafeArea(
-          top: false,
-          child: Padding(
-            padding: EdgeInsets.only(bottom: tt.rowGap),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxHeight:
-                    MediaQuery.sizeOf(context).height *
-                    tt.graphPersonContextCompactMaxHeightFraction,
-              ),
-              child: panel,
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Positioned(
-      top: tt.rowGap,
-      right: tt.screenHPadding,
-      bottom: tt.rowGap,
-      width: tt.graphPersonContextWidth,
-      child: SafeArea(
-        left: false,
-        child: panel,
+    return AdaptiveContextOverlay(
+      child: GraphPersonContextPanel(
+        profile: profile,
+        focusedNode: focusedNode,
+        hiddenNeighborCount:
+            graphState.hiddenNeighborCounts[focusedNode.id] ?? 0,
+        isLoading: graphState.isLoading,
+        canPageMore: context.read<GraphCubit>().canPageMore(focusedNode.id),
+        onExpand: () => context.read<GraphCubit>().expandNode(focusedNode),
       ),
     );
   }

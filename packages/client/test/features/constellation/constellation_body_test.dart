@@ -468,7 +468,7 @@ void main() {
       );
     });
 
-    testWidgets('tapping a request node opens the preview sheet', (
+    testWidgets('tapping a request node opens the preview panel', (
       tester,
     ) async {
       final cubit = await _loadCubit(
@@ -497,11 +497,12 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(find.byKey(const Key('constellation.request_preview')), findsOneWidget);
+      expect(find.byType(BottomSheet), findsNothing);
       expect(find.text('Need tools'), findsWidgets);
       expect(find.text('By Ann'), findsOneWidget);
     });
 
-    testWidgets('dismiss and re-tap reopens the request preview sheet', (
+    testWidgets('dismiss and re-tap reopens the request preview panel', (
       tester,
     ) async {
       final cubit = await _loadCubit(
@@ -530,9 +531,13 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
       expect(find.byKey(const Key('constellation.request_preview')), findsOneWidget);
 
-      await tester.tapAt(const Offset(20, 20));
+      final close = find.descendant(
+        of: find.byKey(const Key('constellation.request_preview')),
+        matching: find.byIcon(Icons.close),
+      );
+      expect(close, findsOneWidget);
+      await tester.tap(close);
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
       expect(find.byKey(const Key('constellation.request_preview')), findsNothing);
       expect(cubit.state.selectedRequestId, isNull);
 
@@ -540,6 +545,73 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
       expect(find.byKey(const Key('constellation.request_preview')), findsOneWidget);
+    });
+
+    testWidgets('wide 900x600 person panel uses token rail width', (
+      tester,
+    ) async {
+      final cubit = await _loadCubit(
+        ConstellationField(
+          loadedAt: DateTime.utc(2026, 9, 9),
+          context: '',
+          peers: [const ConstellationPerson(id: 'a', displayName: 'Ann')],
+          edges: [
+            const ConstellationTrustEdgeEntity(src: 'ego', dst: 'a', tier: 1),
+          ],
+          requests: [
+            const ConstellationRequest(
+              id: 'req-a',
+              authorId: 'a',
+              title: 'Need tools',
+              status: 0,
+            ),
+          ],
+        ),
+      );
+
+      await _pumpBody(tester, cubit, size: const Size(900, 600));
+
+      cubit.selectPerson('a');
+      await tester.pump();
+
+      final panel = find.byKey(TestIds.key(TestIds.graphPersonContextPanel));
+      expect(panel, findsOneWidget);
+      expect(tester.getSize(panel).width, 320);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('wide 900x600 request preview uses token rail width', (
+      tester,
+    ) async {
+      final cubit = await _loadCubit(
+        ConstellationField(
+          loadedAt: DateTime.utc(2026, 9, 9),
+          context: '',
+          peers: [const ConstellationPerson(id: 'a', displayName: 'Ann')],
+          edges: [
+            const ConstellationTrustEdgeEntity(src: 'ego', dst: 'a', tier: 1),
+          ],
+          requests: [
+            const ConstellationRequest(
+              id: 'req-a',
+              authorId: 'a',
+              title: 'Need tools',
+              status: 0,
+            ),
+          ],
+        ),
+      );
+
+      await _pumpBody(tester, cubit, size: const Size(900, 600));
+
+      cubit.selectRequest('req-a');
+      await tester.pump();
+
+      final panel = find.byKey(const Key('constellation.request_preview'));
+      expect(panel, findsOneWidget);
+      expect(tester.getSize(panel).width, 320);
+      expect(find.byType(BottomSheet), findsNothing);
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('tapping a person node opens the discoverable-requests panel', (

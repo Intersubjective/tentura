@@ -114,21 +114,19 @@ Future<void> _pumpPreview(
       home: TenturaResponsiveScope(
         child: BlocProvider<ConstellationCubit>.value(
           value: cubit,
-          child: Builder(
-            builder: (context) => Scaffold(
-              body: Center(
-                child: ElevatedButton(
-                  onPressed: () => showConstellationRequestPreviewSheet(
-                    context: context,
-                    request: request,
-                    authorDisplayName: 'Ann',
-                    connectionThroughName: connectionThroughName,
-                    onOpen: () {},
-                    onPrimaryAction: () {},
-                    onForward: () {},
-                    now: DateTime.utc(2026, 9, 13, 12),
-                  ),
-                  child: const Text('Open preview'),
+          child: Scaffold(
+            body: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 320, maxHeight: 600),
+                child: ConstellationRequestPreviewSheet(
+                  request: request,
+                  authorDisplayName: 'Ann',
+                  connectionThroughName: connectionThroughName,
+                  onOpen: () {},
+                  onPrimaryAction: () {},
+                  onForward: () {},
+                  onClose: () {},
+                  now: DateTime.utc(2026, 9, 13, 12),
                 ),
               ),
             ),
@@ -137,7 +135,6 @@ Future<void> _pumpPreview(
       ),
     ),
   );
-  await tester.tap(find.text('Open preview'));
   await tester.pumpAndSettle();
 }
 

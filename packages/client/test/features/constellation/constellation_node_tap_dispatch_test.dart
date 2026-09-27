@@ -105,7 +105,7 @@ void main() {
       expect(cubit.state.selectedPersonId, 'am');
     });
 
-    testWidgets('request node tap opens preview sheet', (tester) async {
+    testWidgets('request node tap opens preview panel', (tester) async {
       final cubit = await loadReferenceCubit();
       addTearDown(cubit.close);
 

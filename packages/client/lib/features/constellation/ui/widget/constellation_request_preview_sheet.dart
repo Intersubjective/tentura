@@ -44,36 +44,7 @@ bool constellationPreviewShowsForward(ConstellationRequest request) {
   return BeaconStatus.fromSmallint(request.status).isOpenFamily;
 }
 
-Future<void> showConstellationRequestPreviewSheet({
-  required BuildContext context,
-  required ConstellationRequest request,
-  required String authorDisplayName,
-  String? connectionThroughName,
-  VoidCallback? onOpen,
-  VoidCallback? onPrimaryAction,
-  VoidCallback? onForward,
-  DateTime? now,
-}) {
-  final cubit = context.read<ConstellationCubit>();
-  return showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
-    builder: (sheetContext) => BlocProvider.value(
-      value: cubit,
-      child: ConstellationRequestPreviewSheet(
-        request: request,
-        authorDisplayName: authorDisplayName,
-        connectionThroughName: connectionThroughName,
-        onOpen: onOpen,
-        onPrimaryAction: onPrimaryAction,
-        onForward: onForward,
-        now: now,
-      ),
-    ),
-  );
-}
-
+/// In-stack request preview card for Constellation (adaptive overlay child).
 class ConstellationRequestPreviewSheet extends StatelessWidget {
   const ConstellationRequestPreviewSheet({
     required this.request,
@@ -82,6 +53,7 @@ class ConstellationRequestPreviewSheet extends StatelessWidget {
     this.onOpen,
     this.onPrimaryAction,
     this.onForward,
+    this.onClose,
     this.now,
     super.key,
   });
@@ -92,6 +64,7 @@ class ConstellationRequestPreviewSheet extends StatelessWidget {
   final VoidCallback? onOpen;
   final VoidCallback? onPrimaryAction;
   final VoidCallback? onForward;
+  final VoidCallback? onClose;
   final DateTime? now;
 
   @override
@@ -113,124 +86,131 @@ class ConstellationRequestPreviewSheet extends StatelessWidget {
     final showOpenButton = onOpen != null &&
         (onPrimaryAction == null || primaryLabel != l10n.openBeacon);
 
-    return SafeArea(
-      child: Padding(
-        key: const Key('constellation.request_preview'),
-        padding: EdgeInsets.fromLTRB(
-          tt.screenHPadding,
-          tt.rowGap,
-          tt.screenHPadding,
-          tt.sectionGap,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
+    final body = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Text(
-                    constellationNeedText(l10n, request),
-                    style: theme.textTheme.titleMedium,
+            Expanded(
+              child: Text(
+                constellationNeedText(l10n, request),
+                style: theme.textTheme.titleMedium,
+              ),
+            ),
+            SizedBox(width: tt.tightGap),
+            BlocBuilder<ConstellationCubit, ConstellationState>(
+              buildWhen: (previous, current) =>
+                  previous.graphRevision != current.graphRevision ||
+                  previous.field != current.field,
+              builder: (context, _) {
+                final cubit = context.read<ConstellationCubit>();
+                return ConstellationRequestStatusMarker(
+                  rawStatus: request.status,
+                  isPinned: cubit.isAnchored(
+                    ConstellationAnchorTarget.beacon(request.id),
                   ),
-                ),
-                SizedBox(width: tt.tightGap),
-                BlocBuilder<ConstellationCubit, ConstellationState>(
-                  buildWhen: (previous, current) =>
-                      previous.graphRevision != current.graphRevision ||
-                      previous.field != current.field,
-                  builder: (context, _) {
-                    final cubit = context.read<ConstellationCubit>();
-                    return ConstellationRequestStatusMarker(
-                      rawStatus: request.status,
-                      isPinned: cubit.isAnchored(
-                        ConstellationAnchorTarget.beacon(request.id),
-                      ),
-                    );
-                  },
-                ),
-              ],
+                );
+              },
             ),
-            if (heldAnnotation != null) ...[
-              SizedBox(height: tt.tightGap),
-              TenturaStatusText(
-                heldAnnotation,
-                tone: TenturaTone.info,
-                maxLines: 2,
-                softWrap: true,
+            if (onClose != null)
+              IconButton(
+                tooltip: l10n.buttonClose,
+                onPressed: onClose,
+                icon: const Icon(Icons.close),
               ),
-            ],
-            SizedBox(height: tt.sectionGap),
-            _PreviewSection(
-              title: l10n.constellationPreviewWhenTitle,
-              body: _whenLine(l10n, clock),
-            ),
-            if (_locationLine(l10n) != null) ...[
-              SizedBox(height: tt.rowGap),
-              _PreviewSection(
-                title: l10n.constellationPreviewWhereTitle,
-                body: _locationLine(l10n)!,
-              ),
-            ],
-            SizedBox(height: tt.rowGap),
-            _PreviewSection(
-              title: l10n.constellationPreviewCoverageTitle,
-              body: coordinationStatusLabel(l10n, status),
-            ),
-            if (connectionLabel != null) ...[
-              SizedBox(height: tt.sectionGap),
-              Text(
-                connectionLabel,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                ),
-              ),
-              SizedBox(height: tt.tightGap),
-              Text(
-                l10n.constellationNotReferral,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-            SizedBox(height: tt.sectionGap),
-            Text(
-              l10n.constellationPreviewAuthorLine(authorDisplayName),
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-              ),
-            ),
-            SizedBox(height: tt.sectionGap),
-            // Drop outlined Open when primary already is Open (mine /
-            // participant / forwarded) — same destination, duplicate CTA.
-            if (showOpenButton)
-              OutlinedButton(
-                onPressed: onOpen,
-                child: Text(l10n.openBeacon),
-              ),
-            if (onPrimaryAction != null) ...[
-              if (showOpenButton) SizedBox(height: tt.rowGap),
-              FilledButton(
-                onPressed: onPrimaryAction,
-                child: Text(primaryLabel),
-              ),
-            ],
-            if (showForward) ...[
-              SizedBox(height: tt.rowGap),
-              OutlinedButton.icon(
-                onPressed: onForward,
-                icon: const Icon(Icons.send_outlined),
-                label: Text(l10n.labelForward),
-              ),
-            ],
-            SizedBox(height: tt.rowGap),
-            ConstellationAnchorTargetButton(
-              target: ConstellationAnchorTarget.beacon(request.id),
-              filled: true,
-            ),
           ],
         ),
+        if (heldAnnotation != null) ...[
+          SizedBox(height: tt.tightGap),
+          TenturaStatusText(
+            heldAnnotation,
+            tone: TenturaTone.info,
+            maxLines: 2,
+            softWrap: true,
+          ),
+        ],
+        SizedBox(height: tt.sectionGap),
+        _PreviewSection(
+          title: l10n.constellationPreviewWhenTitle,
+          body: _whenLine(l10n, clock),
+        ),
+        if (_locationLine(l10n) != null) ...[
+          SizedBox(height: tt.rowGap),
+          _PreviewSection(
+            title: l10n.constellationPreviewWhereTitle,
+            body: _locationLine(l10n)!,
+          ),
+        ],
+        SizedBox(height: tt.rowGap),
+        _PreviewSection(
+          title: l10n.constellationPreviewCoverageTitle,
+          body: coordinationStatusLabel(l10n, status),
+        ),
+        if (connectionLabel != null) ...[
+          SizedBox(height: tt.sectionGap),
+          Text(
+            connectionLabel,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+          SizedBox(height: tt.tightGap),
+          Text(
+            l10n.constellationNotReferral,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+        SizedBox(height: tt.sectionGap),
+        Text(
+          l10n.constellationPreviewAuthorLine(authorDisplayName),
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: scheme.onSurfaceVariant,
+          ),
+        ),
+        SizedBox(height: tt.sectionGap),
+        // Drop outlined Open when primary already is Open (mine /
+        // participant / forwarded) — same destination, duplicate CTA.
+        if (showOpenButton)
+          OutlinedButton(
+            onPressed: onOpen,
+            child: Text(l10n.openBeacon),
+          ),
+        if (onPrimaryAction != null) ...[
+          if (showOpenButton) SizedBox(height: tt.rowGap),
+          FilledButton(
+            onPressed: onPrimaryAction,
+            child: Text(primaryLabel),
+          ),
+        ],
+        if (showForward) ...[
+          SizedBox(height: tt.rowGap),
+          OutlinedButton.icon(
+            onPressed: onForward,
+            icon: const Icon(Icons.send_outlined),
+            label: Text(l10n.labelForward),
+          ),
+        ],
+        SizedBox(height: tt.rowGap),
+        ConstellationAnchorTargetButton(
+          target: ConstellationAnchorTarget.beacon(request.id),
+          filled: true,
+        ),
+      ],
+    );
+
+    return Material(
+      key: const Key('constellation.request_preview'),
+      color: scheme.surfaceContainerHigh,
+      elevation: 4,
+      borderRadius: BorderRadius.circular(tt.cardRadius),
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: tt.cardPadding,
+        child: SingleChildScrollView(child: body),
       ),
     );
   }

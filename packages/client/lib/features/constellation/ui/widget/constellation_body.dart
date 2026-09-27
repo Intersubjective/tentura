@@ -14,6 +14,7 @@ import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
 import 'package:tentura/features/graph/ui/utils/graph_scene_ids.dart';
+import 'package:tentura/features/graph/ui/widget/adaptive_context_overlay.dart';
 import 'package:tentura/features/graph/ui/widget/graph_legend_mode.dart';
 import 'package:tentura/features/graph/ui/widget/graph_legend_panel.dart';
 import 'package:tentura/features/graph/ui/widget/graph_node_widget.dart';
@@ -206,40 +207,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
     }
   }
 
-  Future<void> _showRequestPreview(
-    BuildContext context,
-    ConstellationCubit cubit,
-    ConstellationRequest request,
-  ) async {
-    final state = cubit.state;
-    final author = cubit.profileForPersonId(request.authorId);
-    final authorDisplayName = author?.shownName ?? '';
-    final paths = state.paths;
-    final throughPeerId = paths == null
-        ? null
-        : constellationConnectionThroughPeerId(
-            egoId: cubit.viewerId,
-            authorId: request.authorId,
-            parent: paths.parent,
-          );
-    final connectionThroughName = throughPeerId == null
-        ? null
-        : cubit.profileForPersonId(throughPeerId)?.shownName;
-
-    await showConstellationRequestPreviewSheet(
-      context: context,
-      request: request,
-      authorDisplayName: authorDisplayName,
-      connectionThroughName: connectionThroughName,
-      onOpen: () => _openBeacon(context, request.id),
-      onPrimaryAction: _primaryActionForRequest(context, cubit, request),
-      onForward: constellationPreviewShowsForward(request)
-          ? () => unawaited(_runForwardFlow(context, cubit, request))
-          : null,
-    );
-    if (!context.mounted) {
-      return;
-    }
+  Future<void> _dismissRequestPreview(ConstellationCubit cubit) async {
     cubit.selectRequest(null);
   }
 
@@ -268,7 +236,6 @@ class _ConstellationBodyState extends State<ConstellationBody> {
         viewTab: constellationHeldOpenViewTab(request.heldState),
       ),
       ConstellationHeldState.none => () {
-        Navigator.of(context).pop();
         unawaited(
           _runOfferFlowAndMaybeReopenPreview(
             context,
@@ -304,9 +271,11 @@ class _ConstellationBodyState extends State<ConstellationBody> {
     ConstellationCubit cubit,
     ConstellationRequest request,
   ) async {
+    final requestId = request.id;
+    await _dismissRequestPreview(cubit);
     final reShow = await _runOfferFlow(context, cubit, request);
     if (reShow != null && context.mounted) {
-      await _showRequestPreview(context, cubit, reShow);
+      cubit.selectRequest(requestId);
     }
   }
 
@@ -410,68 +379,70 @@ class _ConstellationBodyState extends State<ConstellationBody> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  Widget _buildPersonContextOverlay(
+  Widget _buildContextOverlay(
     BuildContext context,
     ConstellationCubit cubit,
     ConstellationState state,
   ) {
     final personId = state.selectedPersonId;
-    if (personId == null || personId == cubit.viewerId) {
-      return const SizedBox.shrink();
-    }
-
-    final profile = cubit.profileForPersonId(personId);
-    if (profile == null) {
-      return const SizedBox.shrink();
-    }
-
-    final tt = context.tt;
-    final panel = GraphPersonContextPanel(
-      profile: profile,
-      focusedNode: UserNode(user: profile),
-      discoverableRequests: cubit.discoverableRequestsForPerson(personId),
-      requestsExpanded: state.expandedPersonIds.contains(personId),
-      onToggleRequestsExpanded: () =>
-          cubit.togglePersonRequestsExpanded(personId),
-      onDiscoverableRequestTap: (request) {
-        cubit.selectPerson(null);
-        cubit.selectRequest(request.id);
-      },
-      footer: ConstellationAnchorTargetButton(
-        target: ConstellationAnchorTarget.person(personId),
-      ),
-    );
-
-    if (context.windowClass == WindowClass.compact) {
-      return Positioned(
-        left: tt.screenHPadding,
-        right: tt.screenHPadding,
-        bottom: 0,
-        child: SafeArea(
-          top: false,
-          child: Padding(
-            padding: EdgeInsets.only(bottom: tt.rowGap),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxHeight:
-                    MediaQuery.sizeOf(context).height *
-                    tt.graphPersonContextCompactMaxHeightFraction,
-              ),
-              child: panel,
-            ),
+    if (personId != null && personId != cubit.viewerId) {
+      final profile = cubit.profileForPersonId(personId);
+      if (profile == null) {
+        return const SizedBox.shrink();
+      }
+      return AdaptiveContextOverlay(
+        child: GraphPersonContextPanel(
+          profile: profile,
+          focusedNode: UserNode(user: profile),
+          discoverableRequests: cubit.discoverableRequestsForPerson(personId),
+          requestsExpanded: state.expandedPersonIds.contains(personId),
+          onToggleRequestsExpanded: () =>
+              cubit.togglePersonRequestsExpanded(personId),
+          onDiscoverableRequestTap: (request) {
+            cubit.selectPerson(null);
+            cubit.selectRequest(request.id);
+          },
+          footer: ConstellationAnchorTargetButton(
+            target: ConstellationAnchorTarget.person(personId),
           ),
         ),
       );
     }
 
-    return Positioned(
-      top: tt.rowGap,
-      right: tt.screenHPadding,
-      bottom: tt.rowGap,
-      width: tt.graphPersonContextWidth,
-      child: SafeArea(
-        left: false,
-        child: panel,
+    final requestId = state.selectedRequestId;
+    if (requestId == null) {
+      return const SizedBox.shrink();
+    }
+    final request = cubit.requestById(requestId);
+    if (request == null) {
+      return const SizedBox.shrink();
+    }
+
+    final author = cubit.profileForPersonId(request.authorId);
+    final authorDisplayName = author?.shownName ?? '';
+    final paths = state.paths;
+    final throughPeerId = paths == null
+        ? null
+        : constellationConnectionThroughPeerId(
+            egoId: cubit.viewerId,
+            authorId: request.authorId,
+            parent: paths.parent,
+          );
+    final connectionThroughName = throughPeerId == null
+        ? null
+        : cubit.profileForPersonId(throughPeerId)?.shownName;
+
+    return AdaptiveContextOverlay(
+      child: ConstellationRequestPreviewSheet(
+        request: request,
+        authorDisplayName: authorDisplayName,
+        connectionThroughName: connectionThroughName,
+        onOpen: () => _openBeacon(context, request.id),
+        onPrimaryAction: _primaryActionForRequest(context, cubit, request),
+        onForward: constellationPreviewShowsForward(request)
+            ? () => unawaited(_runForwardFlow(context, cubit, request))
+            : null,
+        onClose: () => unawaited(_dismissRequestPreview(cubit)),
       ),
     );
   }
@@ -482,25 +453,22 @@ class _ConstellationBodyState extends State<ConstellationBody> {
       listeners: [
         BlocListener<ConstellationCubit, ConstellationState>(
           listenWhen: (previous, current) =>
-              previous.selectedRequestId != current.selectedRequestId,
+              previous.selectedRequestId != current.selectedRequestId &&
+              current.selectedRequestId != null,
           listener: (context, state) {
-            final requestId = state.selectedRequestId;
-            if (requestId == null) {
-              return;
-            }
+            final requestId = state.selectedRequestId!;
             final cubit = context.read<ConstellationCubit>();
             final request = cubit.requestById(requestId);
-            if (request == null) {
-              final message = L10n.of(
-                context,
-              )!.constellationSelectionUnavailable;
-              setState(() => _selectionUnavailableMessage = message);
-              SemanticsService.announce(message, TextDirection.ltr);
-              cubit.selectRequest(null);
+            if (request != null) {
+              setState(() => _selectionUnavailableMessage = null);
               return;
             }
-            setState(() => _selectionUnavailableMessage = null);
-            unawaited(_showRequestPreview(context, cubit, request));
+            final message = L10n.of(
+              context,
+            )!.constellationSelectionUnavailable;
+            setState(() => _selectionUnavailableMessage = message);
+            SemanticsService.announce(message, TextDirection.ltr);
+            cubit.selectRequest(null);
           },
         ),
         BlocListener<GraphPersonContextCubit, GraphPersonContextState>(
@@ -518,6 +486,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
             previous.graphRevision != current.graphRevision ||
             previous.loadError != current.loadError ||
             previous.selectedPersonId != current.selectedPersonId ||
+            previous.selectedRequestId != current.selectedRequestId ||
             previous.expandedPersonIds != current.expandedPersonIds ||
             previous.viewMode != current.viewMode ||
             previous.loadedAt != current.loadedAt ||
@@ -573,7 +542,8 @@ class _ConstellationBodyState extends State<ConstellationBody> {
 
               final layoutAlgorithm = cubit.graphSceneLayoutAlgorithm;
 
-              final panelVisible = state.selectedPersonId != null;
+              final panelVisible = state.selectedPersonId != null ||
+                  state.selectedRequestId != null;
 
               return Shortcuts(
                 shortcuts: const {
@@ -655,7 +625,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
   ) {
     final cameraInsets = ConstellationCameraControls.cameraViewportInsets(
       context,
-      personPanelVisible: panelVisible,
+      contextPanelVisible: panelVisible,
     );
     final tt = context.tt;
     final cameraRightInset = panelVisible &&
@@ -870,7 +840,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
               ),
             ),
           ),
-        if (panelVisible) _buildPersonContextOverlay(context, cubit, state),
+        if (panelVisible) _buildContextOverlay(context, cubit, state),
       ],
     );
   }
