@@ -37,6 +37,7 @@ class MyWorkLastEventBody extends StatefulWidget {
     required this.viewModel,
     required this.currentUserId,
     this.muted = false,
+    this.alignToCardKeyline = false,
     super.key,
   });
 
@@ -44,6 +45,11 @@ class MyWorkLastEventBody extends StatefulWidget {
   final MyWorkCardViewModel viewModel;
   final String currentUserId;
   final bool muted;
+
+  /// Inset every form of the line to the card's text keyline (the title and
+  /// the ⚑ row's text). Without it only the attribution-only form is inset,
+  /// and a full event line started under the header tile.
+  final bool alignToCardKeyline;
 
   @override
   State<MyWorkLastEventBody> createState() => _MyWorkLastEventBodyState();
@@ -86,10 +92,16 @@ class _MyWorkLastEventBodyState extends State<MyWorkLastEventBody> {
               color: scheme.onSurfaceVariant.withValues(alpha: 0.72),
             )
           : beaconCardUpdatedLineTextStyle(theme);
-      return Text(
+      final text = Text(
         l10n.myWorkUpdatedRelative(ago),
         style: style,
         softWrap: true,
+      );
+      if (!widget.alignToCardKeyline) return text;
+      final tt = context.tt;
+      return Padding(
+        padding: EdgeInsets.only(left: tt.avatarSize + tt.avatarTextGap),
+        child: text,
       );
     }
 
@@ -102,6 +114,7 @@ class _MyWorkLastEventBodyState extends State<MyWorkLastEventBody> {
       currentUserId: widget.currentUserId,
       now: now,
       muted: widget.muted,
+      alignToCardKeyline: widget.alignToCardKeyline,
     );
   }
 }
@@ -116,6 +129,7 @@ class _EventLineBody extends StatelessWidget {
     required this.currentUserId,
     required this.now,
     this.muted = false,
+    this.alignToCardKeyline = false,
   });
 
   final L10n l10n;
@@ -126,6 +140,7 @@ class _EventLineBody extends StatelessWidget {
   final String currentUserId;
   final DateTime now;
   final bool muted;
+  final bool alignToCardKeyline;
 
   @override
   Widget build(BuildContext context) {
@@ -227,7 +242,7 @@ class _EventLineBody extends StatelessWidget {
         softWrap: true,
       ),
     );
-    if (!attributionOnly) return line;
+    if (!attributionOnly && !alignToCardKeyline) return line;
     // Aligned with the ⚑ row's text: the card keyline its lead column uses.
     final tt = context.tt;
     return Padding(

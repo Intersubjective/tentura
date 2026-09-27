@@ -569,8 +569,7 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                 key: TestIds.key(TestIds.requestTitle),
                 focusNode: _titleFocus,
                 controller: _titleController,
-                // The Request's own title scale (cards, detail header).
-                style: TenturaText.title(tt.text),
+                style: tenturaFormFieldTextStyle(context),
                 keyboardType: TextInputType.text,
                 maxLength: kBeaconTitleMaxLength,
                 onTapOutside: (_) => FocusScope.of(context).unfocus(),

@@ -231,6 +231,8 @@ Widget _myWorkWhatsNewSection(
                     viewModel: vm,
                     currentUserId: currentUserId,
                     muted: true,
+                    // On the text keyline with the title and HUD rows.
+                    alignToCardKeyline: true,
                   ),
                 )
               : const SizedBox.shrink(),
@@ -377,7 +379,9 @@ Widget _myWorkSharedPreviewHeader(
     // keyline.
     identitySize: context.tt.avatarSize,
     trailing: menu,
-    titleMaxLines: 1,
+    // Two lines: at one, "Teen Garden Food Drive Fundra…" ×3 hid the part
+    // that told the Requests apart.
+    titleMaxLines: 2,
     statusSemanticsIdentifier: statusSemanticsIdentifier,
   );
 }
