@@ -331,6 +331,18 @@
   "@friendsTitle": {
     "context": "FriendsScreen"
   },
+  "friendsEmptyTitle": "No people yet",
+  "@friendsEmptyTitle": {
+    "context": "FriendsScreen"
+  },
+  "friendsEmptyBody": "Invite someone you trust. The people here are the ones you can forward Requests to.",
+  "@friendsEmptyBody": {
+    "context": "FriendsScreen"
+  },
+  "friendsInviteMore": "Invite someone you trust",
+  "@friendsInviteMore": {
+    "context": "FriendsScreen"
+  },
   "invitationsShowMenuItem": "Show Invitations",
   "@invitationsShowMenuItem": {
     "context": "FriendsScreen"
@@ -2270,6 +2282,10 @@
   "@inboxWatchingEmptyCalm": {
     "context": "InboxScreen"
   },
+  "inboxWatchingEmptyHint": "Tap Follow on a Request to keep up with its updates here without offering help.",
+  "@inboxWatchingEmptyHint": {
+    "context": "InboxScreen"
+  },
   "activityTriageRequestsNeedResponse": "{count, plural, one{1 request needs your response} other{{count} requests need your response}}",
   "@activityTriageRequestsNeedResponse": {
     "context": "InboxScreen",
@@ -2330,6 +2346,10 @@
   },
   "inboxTabRejectedEmpty": "No declined requests",
   "@inboxTabRejectedEmpty": {
+    "context": "InboxScreen"
+  },
+  "inboxRejectedEmptyHint": "Requests you decline in Activity land here. You can bring any of them back.",
+  "@inboxRejectedEmptyHint": {
     "context": "InboxScreen"
   },
   "inboxViewInTab": "View",

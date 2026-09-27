@@ -58,17 +58,10 @@ class InboxRejectedScreen extends StatelessWidget implements AutoRouteWrapper {
               }
               final items = state.rejected;
               if (items.isEmpty) {
-                return Center(
-                  child: Padding(
-                    padding: tt.cardPadding,
-                    child: Text(
-                      l10n.inboxTabRejectedEmpty,
-                      style: TenturaText.bodyMedium(
-                        scheme.onSurfaceVariant,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
+                return TenturaEmptyState(
+                  icon: Icons.archive_outlined,
+                  title: l10n.inboxTabRejectedEmpty,
+                  body: l10n.inboxRejectedEmptyHint,
                 );
               }
               return RefreshIndicator.adaptive(

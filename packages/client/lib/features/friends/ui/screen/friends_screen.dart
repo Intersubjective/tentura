@@ -205,15 +205,18 @@ class _FriendsScreenState extends State<FriendsScreen>
             child: TabBarView(
               controller: _tabController,
               children: [
-                _FriendsTabBody(friendsCubit: friendsCubit),
+                _FriendsTabBody(
+                  friendsCubit: friendsCubit,
+                  onCreateInvitation: () =>
+                      unawaited(_onCreateInvitation(context)),
+                ),
                 _InvitesTabBody(
                   invitationCubit: _invitationCubit,
                   scrollController: _invitesScrollController,
                   emphasizedInvitationId: _emphasizedInvitationId,
                   l10n: l10n,
                   segment: _invitesSegment,
-                  onSegmentChanged: (i) =>
-                      setState(() => _invitesSegment = i),
+                  onSegmentChanged: (i) => setState(() => _invitesSegment = i),
                   onCreateInvitation: () =>
                       unawaited(_onCreateInvitation(context)),
                 ),
@@ -227,9 +230,17 @@ class _FriendsScreenState extends State<FriendsScreen>
 }
 
 class _FriendsTabBody extends StatelessWidget {
-  const _FriendsTabBody({required this.friendsCubit});
+  const _FriendsTabBody({
+    required this.friendsCubit,
+    required this.onCreateInvitation,
+  });
+
+  /// Below this many people the list leaves most of the screen blank, so an
+  /// invite prompt follows it instead of waiting in the app bar.
+  static const _inviteFooterBelow = 4;
 
   final FriendsCubit friendsCubit;
+  final VoidCallback onCreateInvitation;
 
   @override
   Widget build(BuildContext context) {
@@ -268,24 +279,43 @@ class _FriendsTabBody extends StatelessWidget {
         return RefreshIndicator.adaptive(
           onRefresh: friendsCubit.fetch,
           child: state.friends.isEmpty
-              ? ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  children: [
-                    SizedBox(
-                      height: MediaQuery.sizeOf(context).height * 0.35,
-                      child: Center(
-                        child: Text(
-                          l10n.labelNothingHere,
-                          style: theme.textTheme.displaySmall,
-                          textAlign: TextAlign.center,
-                        ),
+              ? LayoutBuilder(
+                  builder: (context, constraints) => SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: constraints.maxHeight,
+                      ),
+                      child: TenturaEmptyState(
+                        icon: Icons.people_outline,
+                        title: l10n.friendsEmptyTitle,
+                        body: l10n.friendsEmptyBody,
+                        actionLabel: l10n.friendsCreateInvitation,
+                        onAction: onCreateInvitation,
                       ),
                     ),
-                  ],
+                  ),
                 )
               : ListView.separated(
-                  itemCount: friends.length,
+                  itemCount:
+                      friends.length +
+                      (friends.length < _inviteFooterBelow ? 1 : 0),
                   itemBuilder: (_, i) {
+                    if (i == friends.length) {
+                      return Padding(
+                        padding: EdgeInsets.symmetric(
+                          vertical: tt.sectionGap,
+                        ),
+                        child: Center(
+                          child: FilledButton.tonalIcon(
+                            key: const Key('Friends.InviteFooter'),
+                            icon: const Icon(Icons.person_add_alt_1),
+                            label: Text(l10n.friendsInviteMore),
+                            onPressed: onCreateInvitation,
+                          ),
+                        ),
+                      );
+                    }
                     final profile = friends[i];
                     return NetworkPersonCard(
                       key: ValueKey(profile),

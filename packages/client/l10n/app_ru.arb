@@ -331,6 +331,18 @@
   "@friendsTitle": {
     "context": "FriendsScreen"
   },
+  "friendsEmptyTitle": "Пока никого нет",
+  "@friendsEmptyTitle": {
+    "context": "FriendsScreen"
+  },
+  "friendsEmptyBody": "Пригласите того, кому доверяете. Запросы можно пересылать людям из этого списка.",
+  "@friendsEmptyBody": {
+    "context": "FriendsScreen"
+  },
+  "friendsInviteMore": "Пригласить того, кому доверяете",
+  "@friendsInviteMore": {
+    "context": "FriendsScreen"
+  },
   "invitationsShowMenuItem": "Посмотреть приглашения",
   "@invitationsShowMenuItem": {
     "context": "FriendsScreen"
@@ -2228,6 +2240,10 @@
   "@inboxWatchingEmptyCalm": {
     "context": "InboxScreen"
   },
+  "inboxWatchingEmptyHint": "Нажмите «Следить» на запросе, чтобы видеть здесь его обновления, не предлагая помощь.",
+  "@inboxWatchingEmptyHint": {
+    "context": "InboxScreen"
+  },
   "activityTriageRequestsNeedResponse": "{count, plural, one{1 запрос ждёт вашего ответа} few{{count} запроса ждут вашего ответа} many{{count} запросов ждут вашего ответа} other{{count} запросов ждут вашего ответа}}",
   "@activityTriageRequestsNeedResponse": {
     "context": "InboxScreen",
@@ -2288,6 +2304,10 @@
   },
   "inboxTabRejectedEmpty": "Нет отклонённых запросов",
   "@inboxTabRejectedEmpty": {
+    "context": "InboxScreen"
+  },
+  "inboxRejectedEmptyHint": "Сюда попадают запросы, которые вы отклонили в «Активности». Любой из них можно вернуть.",
+  "@inboxRejectedEmptyHint": {
     "context": "InboxScreen"
   },
   "inboxViewInTab": "Перейти",

@@ -19,6 +19,9 @@ abstract final class TenturaSpacing {
   /// M3 search-field height on Updates and similar list screens.
   static const double searchBar = 48;
 
+  /// Readable measure for an empty-state explanation (≈ 45 characters).
+  static const double emptyStateMaxWidth = 360;
+
   /// Unread indicator on a list-row leading glyph.
   static const double unreadDot = 10;
 

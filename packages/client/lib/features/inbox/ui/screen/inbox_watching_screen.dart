@@ -116,17 +116,10 @@ class _InboxWatchingScreenState extends State<InboxWatchingScreen> {
               final items = state.watching;
               _scrollToHighlightIfNeeded(items);
               if (items.isEmpty) {
-                return Center(
-                  child: Padding(
-                    padding: tt.cardPadding,
-                    child: Text(
-                      l10n.inboxWatchingEmptyCalm,
-                      style: TenturaText.bodyMedium(
-                        scheme.onSurfaceVariant,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
+                return TenturaEmptyState(
+                  icon: Icons.visibility_outlined,
+                  title: l10n.inboxWatchingEmptyCalm,
+                  body: l10n.inboxWatchingEmptyHint,
                 );
               }
               return RefreshIndicator.adaptive(
