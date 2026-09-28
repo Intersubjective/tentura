@@ -107,6 +107,8 @@ class UpdatesFeedTile extends StatefulWidget {
   /// the type glyph. Must sit outside the row [InkWell].
   final Profile? actor;
 
+  static const requestTitleKey = Key('updates-feed-tile-request-title');
+
   @override
   State<UpdatesFeedTile> createState() => _UpdatesFeedTileState();
 }
@@ -194,6 +196,16 @@ class _UpdatesFeedTileState extends State<UpdatesFeedTile> {
     final showActorNamePrefix =
         shownName.isNotEmpty && shownName != headline.trim();
 
+    // Which Request the row is about — "Status: in review" alone does not
+    // say. Skipped when the row's own copy already names it.
+    final beaconTitle = widget.receipt.beaconTitle?.trim() ?? '';
+    final requestLine =
+        beaconTitle.isEmpty ||
+            headline.contains(beaconTitle) ||
+            copy.body.contains(beaconTitle)
+        ? null
+        : beaconTitle;
+
     final leading = profile != null
         ? _LeadingAvatar(profile: profile, unread: isUnread)
         : _LeadingGlyph(glyph: glyph, unread: isUnread);
@@ -236,6 +248,14 @@ class _UpdatesFeedTileState extends State<UpdatesFeedTile> {
             ),
           ],
         ),
+        if (requestLine != null)
+          Text(
+            requestLine,
+            key: UpdatesFeedTile.requestTitleKey,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TenturaText.bodySmall(tt.textMuted),
+          ),
         if (copy.body.isNotEmpty)
           Text(
             copy.body,

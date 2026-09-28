@@ -78,6 +78,8 @@ abstract class AttentionReceipt with _$AttentionReceipt {
     String? beaconImageId,
     DateTime? beaconEndAt,
     bool? allowsForward,
+    // The Request the row is about; null when the viewer may not read it.
+    String? beaconTitle,
     int? eventTotal,
     int? eventUnseenCount,
     @Default([]) List<AttentionReceipt> eventsPreview,

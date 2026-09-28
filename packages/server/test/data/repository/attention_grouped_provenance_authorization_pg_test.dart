@@ -169,6 +169,11 @@ ON CONFLICT (user_id, beacon_id) DO UPDATE SET status = 1
       );
       expect(row.beaconAuthorId, isNull);
       expect(row.beaconAuthorName, isNull);
+      expect(
+        row.beaconTitle,
+        isNull,
+        reason: 'the Request title is content behind the same wall',
+      );
       expect(row.beaconEndAt, isNull);
       expect(
         row.allowsForward,
@@ -194,6 +199,7 @@ ON CONFLICT (user_id, beacon_id) DO UPDATE SET status = 1
     expect(row.provenanceJson, isNotNull);
     expect(row.beaconAuthorId, authorId);
     expect(row.allowsForward, isTrue);
+    expect(row.beaconTitle, 'Наши требования');
   }, skip: skipReason);
 }
 

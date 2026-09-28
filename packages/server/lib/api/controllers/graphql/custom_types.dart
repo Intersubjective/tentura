@@ -174,6 +174,8 @@ final GraphQLObjectType gqlTypeAttentionReceipt = () {
     field('beaconImageId', graphQLString),
     field('beaconEndAt', graphQLString),
     field('allowsForward', graphQLBoolean),
+    // The Request a row is about, behind the content wall (null otherwise).
+    field('beaconTitle', graphQLString),
   ]);
   return type;
 }();

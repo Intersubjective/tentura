@@ -747,6 +747,7 @@ ORDER BY page.created_at DESC NULLS LAST, page.id DESC NULLS LAST
         items: items,
       );
     }
+    items = await _attachBeaconTitles(accountId: accountId, items: items);
     final nextCursor = hasMore && items.isNotEmpty
         ? AttentionCursor(
             createdAt: items.last.createdAt,
@@ -872,6 +873,67 @@ ORDER BY page.created_at DESC NULLS LAST, page.id DESC NULLS LAST
           item.copyWith(eventsPreview: byBeacon[item.beaconId]!)
         else
           item,
+    ];
+  }
+
+  /// [AttentionReceipt.beaconTitle] for every row on this page that names a
+  /// Request, including the event previews of grouped rows.
+  ///
+  /// Attached after paging for the same reason the provenance is: one query
+  /// for the page, not a join inside the stream projection. Gated on
+  /// `beacon_can_read_content`, the predicate that already decides
+  /// [AttentionReceipt.title]; an unreadable Request yields no title.
+  Future<List<AttentionReceipt>> _attachBeaconTitles({
+    required String accountId,
+    required List<AttentionReceipt> items,
+  }) async {
+    final beaconIds = <String>{
+      for (final item in items) ...[
+        if (item.beaconId != null) item.beaconId!,
+        for (final event in item.eventsPreview)
+          if (event.beaconId != null) event.beaconId!,
+      ],
+    };
+    if (beaconIds.isEmpty) {
+      return items;
+    }
+    final ids = beaconIds.toList(growable: false);
+    final placeholders = List.generate(
+      ids.length,
+      (index) => '\$${index + 2}',
+    ).join(',');
+    final rows = await _database.customSelect(
+      '''
+SELECT
+  b.id AS beacon_id,
+  CASE
+    WHEN public.beacon_can_read_content(b.id, \$1)
+    THEN nullif(trim(b.title), '')
+  END AS beacon_title
+FROM public.beacon b
+WHERE b.id IN ($placeholders)
+''',
+      variables: [
+        Variable<String>(accountId),
+        ...ids.map(Variable<String>.new),
+      ],
+    ).get();
+    final titles = {
+      for (final row in rows)
+        row.read<String>('beacon_id'): row.readNullable<String>('beacon_title'),
+    };
+    AttentionReceipt withTitle(AttentionReceipt item) {
+      final id = item.beaconId;
+      return id == null ? item : item.copyWith(beaconTitle: titles[id]);
+    }
+
+    return [
+      for (final item in items)
+        withTitle(item).copyWith(
+          eventsPreview: [
+            for (final event in item.eventsPreview) withTitle(event),
+          ],
+        ),
     ];
   }
 

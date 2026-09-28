@@ -134,6 +134,7 @@ final class AttentionRepository implements AttentionRepositoryPort {
     beaconImageId: item.beaconImageId,
     beaconEndAt: item.beaconEndAt,
     allowsForward: item.allowsForward,
+    beaconTitle: item.beaconTitle,
     eventsPreview: eventsPreview,
   );
 
@@ -247,6 +248,7 @@ final class AttentionRepository implements AttentionRepositoryPort {
     String? beaconImageId,
     String? beaconEndAt,
     bool? allowsForward,
+    String? beaconTitle,
     List<AttentionReceipt> eventsPreview = const [],
   }) {
     final parsedSurface = _parseSurface(surface);
@@ -303,6 +305,7 @@ final class AttentionRepository implements AttentionRepositoryPort {
       beaconImageId: beaconImageId,
       beaconEndAt: beaconEndAt == null ? null : DateTime.tryParse(beaconEndAt),
       allowsForward: allowsForward,
+      beaconTitle: beaconTitle,
       eventsPreview: eventsPreview,
     );
   }

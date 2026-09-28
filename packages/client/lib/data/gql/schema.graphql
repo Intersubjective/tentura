@@ -7470,6 +7470,7 @@ type v2_AttentionReceipt {
   beaconEndAt: String
   beaconId: String
   beaconImageId: String
+  beaconTitle: String
   body: String!
   category: String!
   clearReason: String

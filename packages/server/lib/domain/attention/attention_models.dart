@@ -466,6 +466,14 @@ abstract class AttentionReceipt with _$AttentionReceipt {
     String? beaconImageId,
     DateTime? beaconEndAt,
 
+    /// The Request's title, so a feed row can say which Request it is about
+    /// ("Status: in review" on its own does not).
+    ///
+    /// Set on every row with a [beaconId], on every surface, behind the same
+    /// content wall as [title] (`beacon_can_read_content`): `null` when the
+    /// viewer may not read the Request.
+    String? beaconTitle,
+
     /// U10d — whether the action row may offer «Переслать» (§4, §6.3).
     ///
     /// The live gate, not a constant: `BeaconStatus.allowsForward` (the
