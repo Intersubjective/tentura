@@ -1,0 +1,600 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Симулятор закрытия эпизода</title>
+<style>
+:root {
+  --bg: #f7f7f5; --surface: #ffffff; --text: #1d1d1b; --muted: #6b6b66; --border: #dcdcd6;
+  --helped: #2f6fbf; --athanks: #c27a12; --hthanks: #1f9a6a; --warn: #b3261e; --ok: #1f7a3a;
+  --equal: #2f6fbf; --imp: #7aa7e0; --gain: #1f9a6a; --loss: #d98b7c;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #161615; --surface: #20201e; --text: #ececea; --muted: #a3a39c; --border: #3a3a36;
+    --helped: #6ea3e6; --athanks: #e0a54a; --hthanks: #4cc796; --warn: #f2867c; --ok: #6fd08c;
+    --equal: #6ea3e6; --imp: #3f6696; --gain: #4cc796; --loss: #a35a4d;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, sans-serif; }
+header { padding: 16px; border-bottom: 1px solid var(--border); }
+h1 { font-size: 18px; margin: 0 0 4px; }
+h2 { font-size: 15px; margin: 0 0 8px; }
+h3 { font-size: 14px; margin: 12px 0 6px; }
+.muted { color: var(--muted); }
+main { display: grid; grid-template-columns: minmax(340px, 480px) 1fr; gap: 16px; padding: 16px; }
+@media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 12px; }
+.row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+label.inline { display: inline-flex; align-items: center; gap: 4px; }
+input[type=number] { width: 64px; }
+select, input, button { font: inherit; color: inherit; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 3px 6px; }
+button { cursor: pointer; }
+button:hover { border-color: var(--muted); }
+.av { width: 26px; height: 26px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; color: #fff; font-weight: 600; font-size: 12px; flex: none; }
+.helper { border-top: 1px solid var(--border); padding-top: 8px; margin-top: 8px; }
+.slider-row { display: grid; grid-template-columns: 26px 70px 1fr 44px; gap: 6px; align-items: center; margin: 2px 0; }
+.slider-row input[type=range] { width: 100%; }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+th, td { border-bottom: 1px solid var(--border); padding: 4px 6px; text-align: right; }
+th:first-child, td:first-child { text-align: left; }
+.bar { height: 14px; display: flex; border-radius: 3px; overflow: hidden; background: var(--bg); min-width: 120px; }
+.bar span { display: block; height: 100%; }
+.check { margin: 2px 0; }
+.check.ok::before { content: "✓ "; color: var(--ok); font-weight: 700; }
+.check.bad::before { content: "✗ "; color: var(--warn); font-weight: 700; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; }
+.legend i { display: inline-block; width: 18px; height: 4px; vertical-align: middle; margin-right: 4px; border-radius: 2px; }
+svg text { fill: var(--text); font-size: 11px; }
+.note { font-size: 12px; }
+ul.sees { margin: 4px 0 0 18px; padding: 0; }
+.pill { font-size: 11px; padding: 1px 6px; border-radius: 10px; border: 1px solid var(--border); }
+.thx { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 4px; }
+.thx select { min-width: 92px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Симулятор закрытия эпизода</h1>
+  <div class="muted">Расчёт — §4 плана <code>episode-closure-implementation-plan.md</code> rev 9: слой 0 (спасибо автора из пула), слой 1 (честный делёж), слой 2 (спасибо помощников по порядку: оплата целыми <code>u</code> + предпочтение <code>π</code> по рангу). Поток роутинга (ρ) не моделируется — показан как резерв.</div>
+</header>
+<main>
+  <section>
+    <div class="card">
+      <h2>Параметры</h2>
+      <div class="row">
+        <label class="inline">Помощников <input id="n" type="number" min="1" max="8" value="3"></label>
+        <label class="inline">B <input id="pB" type="number" step="0.1" value="1"></label>
+        <label class="inline">ρ <input id="pRho" type="number" step="0.05" min="0" max="0.9" value="0.3"></label>
+        <label class="inline">μ <input id="pMu" type="number" step="0.05" min="0" max="1" value="0.5"></label>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <label class="inline">u, % пула <input id="pU" type="number" step="5" min="0" max="50" value="10"></label>
+        <label class="inline">π, % пула <input id="pPi" type="number" step="5" min="0" max="50" value="10"></label>
+        <label class="inline">r <input id="pR" type="number" step="0.1" min="0.1" max="1" value="0.5"></label>
+        <label class="inline">κ₂, % доли <input id="pK2" type="number" step="5" min="0" max="100" value="30"></label>
+      </div>
+      <div class="muted note" style="margin-top:4px">Порог остатка как оплаты — <code>u/2</code>. Кап спасибо — 3 у автора и у помощника.</div>
+      <h3>Сценарии</h3>
+      <div class="row" id="presets"></div>
+    </div>
+    <div class="card" id="authorCard"></div>
+    <div class="card" id="helpersCard"></div>
+  </section>
+  <section>
+    <div class="card">
+      <h2>Граф рёбер</h2>
+      <div class="legend">
+        <span><i style="background:var(--helped)"></i>автор → помощник: доля (<code>helped</code>)</span>
+        <span><i style="background:var(--athanks)"></i>спасибо автора</span>
+        <span><i style="background:var(--hthanks)"></i>спасибо помощника, усиленное</span>
+        <span><i style="background:repeating-linear-gradient(90deg,var(--hthanks) 0 4px,transparent 4px 7px)"></i>неусиленное (только предпочтение)</span>
+      </div>
+      <svg id="graph" viewBox="0 0 640 480" style="width:100%;height:auto;max-height:520px"></svg>
+      <div class="muted note">Толщина ∝ масса ребра. Подписи — масса в % от <code>pool_h</code>; у спасибо помощника — «№ранга: оплата+предпочтение». Взаимные рёбра рисуются двумя дугами.</div>
+    </div>
+    <div class="card">
+      <h2>Доли из пула автора</h2>
+      <div id="shares"></div>
+    </div>
+    <div class="card">
+      <h2>Рёбра и вклад в доверие</h2>
+      <div id="edges"></div>
+      <div class="muted note">Вклад корзины в ребро <code>mix·s/(k+s)</code>: <code>helped</code> k=1, mix=1.0; <code>thanks</code> (оплата + предпочтение) k=0.5, mix=0.5 (одно закрытие, без затухания и без других корзин).</div>
+    </div>
+    <div class="card">
+      <h2>Проверки</h2>
+      <div id="checks"></div>
+    </div>
+    <div class="card">
+      <h2>Что увидит каждый после закрытия</h2>
+      <div id="sees"></div>
+    </div>
+  </section>
+</main>
+<script>
+"use strict";
+const NAMES = ["Маша", "Петя", "Оля", "Иван", "Катя", "Лёша", "Даша", "Миша"];
+const COLORS = ["#d0527a", "#3b82c4", "#8a5cc2", "#c9722b", "#2a9d8f", "#6d8b2f", "#b5484b", "#5169c9"];
+const OUT = { yes: "Сделал", no: "Не сделал", nb: "Не могу судить" };
+const EPS = 1e-9;
+const THANKS_CAP = 3;
+
+const state = {
+  n: 3,
+  outcome: [],        // 'yes' | 'no' | 'nb'
+  authorThanks: [],   // bool per helper
+  split: 50,          // % for helper 0 when n=2
+  votes: [],          // {on: bool, v: number[] (index by helper, self = 0)}
+  th: [],             // th[i] = ordered list (≤ 3) of recipient indices
+};
+
+function params() {
+  const num = (id) => Number(document.getElementById(id).value) || 0;
+  return { B: num("pB"), rho: num("pRho"), mu: num("pMu"), uPct: num("pU"), piPct: num("pPi"), r: num("pR") || 0.5, k2: num("pK2") / 100 };
+}
+
+function resize(n) {
+  state.n = n;
+  const fit = (arr, fill) => { const a = arr.slice(0, n); while (a.length < n) a.push(fill()); return a; };
+  state.outcome = fit(state.outcome, () => "yes");
+  state.authorThanks = fit(state.authorThanks, () => false);
+  state.votes = fit(state.votes, () => ({ on: false, v: [] })).map((vt, i) => {
+    const v = fit(vt.v, () => 0); v[i] = 0;
+    return { on: vt.on && n >= 3, v };
+  });
+  state.th = fit(state.th, () => []).map((list, i) => {
+    const seen = new Set();
+    return list.filter((j) => j !== i && j < n && !seen.has(j) && seen.add(j)).slice(0, n === 2 ? 1 : THANKS_CAP);
+  });
+  state.votes.forEach((vt, i) => { if (vt.on) normalizeVote(i); });
+}
+
+// ---- linked sliders: sum exactly 100 over others, step 5, largest remainder
+function evenVote(i) {
+  const others = [...Array(state.n).keys()].filter((j) => j !== i);
+  const v = new Array(state.n).fill(0);
+  distribute(v, others, 100, others.map(() => 1));
+  return v;
+}
+function distribute(v, idx, total, weights) {
+  const units = total / 5;
+  const wsum = weights.reduce((a, b) => a + b, 0);
+  const w = wsum > 0 ? weights : weights.map(() => 1);
+  const ws = w.reduce((a, b) => a + b, 0);
+  const raw = w.map((x) => (x / ws) * units);
+  const base = raw.map(Math.floor);
+  let rest = units - base.reduce((a, b) => a + b, 0);
+  const order = raw.map((x, k) => [x - Math.floor(x), k]).sort((a, b) => b[0] - a[0] || a[1] - b[1]);
+  for (let t = 0; t < rest; t++) base[order[t % order.length][1]]++;
+  idx.forEach((j, k) => { v[j] = base[k] * 5; });
+}
+function setVote(i, j, value) {
+  const vt = state.votes[i];
+  const others = [...Array(state.n).keys()].filter((k) => k !== i && k !== j);
+  value = Math.max(0, Math.min(100, Math.round(value / 5) * 5));
+  if (others.length === 0) value = 100;
+  vt.v[j] = value;
+  distribute(vt.v, others, 100 - value, others.map((k) => vt.v[k]));
+}
+function normalizeVote(i) {
+  const vt = state.votes[i];
+  const others = [...Array(state.n).keys()].filter((k) => k !== i);
+  const sum = others.reduce((a, k) => a + vt.v[k], 0);
+  if (sum !== 100) { if (sum === 0) vt.v = evenVote(i); else distribute(vt.v, others, 100, others.map((k) => vt.v[k])); }
+}
+
+// ---- settlement (§4)
+function settle(st, p) {
+  const n = st.n;
+  const M = [...Array(n).keys()];
+  const C = M.filter((i) => st.outcome[i] === "yes");
+  const poolH = (1 - p.rho) * p.B, poolR = p.rho * p.B;
+  const u = (p.uPct / 100) * poolH;
+  const pi = (p.piPct / 100) * poolH;
+  const zeros = () => M.map(() => new Array(n).fill(0));
+  const r = { n, C, poolH, poolR, u, pi, empty: C.length === 0,
+    TA: [], poolD: 0, equal: new Array(n).fill(0), imp: new Array(n).fill(0), share: new Array(n).fill(0),
+    pay: zeros(), pref: zeros(), rank: zeros(), delivered: M.map(() => new Array(n).fill(false)),
+    final: new Array(n).fill(0), lostSlices: 0, authorThanksMass: 0 };
+  if (r.empty) return r;
+
+  // слой 0
+  r.TA = M.filter((i) => st.authorThanks[i]).slice(0, THANKS_CAP);
+  r.authorThanksMass = u * r.TA.length;
+  r.poolD = poolH - r.authorThanksMass;
+
+  // слой 1
+  const muEff = n >= 3 ? p.mu : 0;
+  if (n === 2) {
+    const both = C.length === 2;
+    const s0 = both ? st.split : (C.includes(0) ? 100 : 0);
+    r.equal[0] = r.poolD * s0 / 100; r.equal[1] = r.poolD * (100 - s0) / 100;
+  } else {
+    C.forEach((j) => { r.equal[j] = (1 - muEff) * r.poolD / C.length; });
+  }
+  const slice = muEff * r.poolD / n;
+  if (slice > 0) {
+    M.forEach((i) => {
+      const vt = st.votes[i];
+      if (vt && vt.on) {
+        M.forEach((j) => { if (j !== i) r.imp[j] += slice * vt.v[j] / 100; });
+      } else {
+        const tgt = C.filter((j) => j !== i);
+        if (tgt.length) tgt.forEach((j) => { r.imp[j] += slice / tgt.length; });
+        else r.lostSlices += slice;
+      }
+    });
+  }
+  M.forEach((j) => { r.share[j] = r.equal[j] + r.imp[j]; });
+
+  // слой 2: упорядоченно, оплата + предпочтение
+  M.forEach((i) => {
+    const L = (st.th[i] || []).filter((j) => j !== i).slice(0, n === 2 ? 1 : THANKS_CAP);
+    if (!L.length) return;
+    if (n === 2) {
+      r.pay[i][L[0]] = p.k2 * r.share[i];
+    } else {
+      let left = r.share[i];
+      L.forEach((j) => {
+        if (left >= u - EPS) { r.pay[i][j] = u; left -= u; }
+        else if (left >= u / 2 - EPS) { r.pay[i][j] = left; left = 0; }
+        else r.pay[i][j] = 0;
+      });
+    }
+    const ws = L.map((_, k) => Math.pow(p.r, k));
+    const wsum = ws.reduce((a, b) => a + b, 0);
+    L.forEach((j, k) => {
+      r.pref[i][j] = pi * ws[k] / wsum;
+      r.rank[i][j] = k + 1;
+      r.delivered[i][j] = k === 0 || r.pay[i][j] > EPS;
+    });
+  });
+  M.forEach((j) => {
+    const out = M.reduce((a, k) => a + r.pay[j][k], 0);
+    const inn = M.reduce((a, i) => a + r.pay[i][j], 0);
+    r.final[j] = r.share[j] - out + inn;
+  });
+  return r;
+}
+
+// ---- checks
+function checks(res, p) {
+  const out = [];
+  const add = (ok, text) => out.push({ ok, text });
+  if (res.empty) { add(true, "Никто не подтверждён → ни долей, ни спасибо (U14)"); return out; }
+  const n = res.n, M = [...Array(n).keys()];
+  const sumFinal = res.final.reduce((a, b) => a + b, 0);
+  const expect = res.poolH - res.lostSlices;
+  add(Math.abs(sumFinal + res.authorThanksMass - expect) < 1e-9,
+    `Сохранение пула: Σ final + Σ спасибо автора = ${pct(sumFinal + res.authorThanksMass, res.poolH)} (ожидается ${pct(expect, res.poolH)}${res.lostSlices > EPS ? ", часть срезов не отчеканена" : ""})`);
+  add(sumFinal + res.authorThanksMass <= (1 - p.rho) * p.B + 1e-9, `Рамка автора: helped + thanks = ${pct(sumFinal + res.authorThanksMass, res.poolH)} ≤ pool_h`);
+
+  let payOk = true, frameOk = true, prefOk = true, monoOk = true, delivOk = true, capOk = true, fracOk = true;
+  M.forEach((i) => {
+    const L = M.filter((j) => res.rank[i][j] > 0).sort((a, b) => res.rank[i][a] - res.rank[i][b]);
+    const paySum = M.reduce((a, j) => a + res.pay[i][j], 0);
+    const edgeSum = M.reduce((a, j) => a + res.pay[i][j] + res.pref[i][j], 0);
+    const prefSum = M.reduce((a, j) => a + res.pref[i][j], 0);
+    if (paySum > res.share[i] + 1e-9) payOk = false;
+    if (edgeSum > res.share[i] + res.pi + 1e-9) frameOk = false;
+    if (L.length && Math.abs(prefSum - res.pi) > 1e-9) prefOk = false;
+    if (L.length > THANKS_CAP) capOk = false;
+    for (let k = 1; k < L.length; k++) {
+      const a = L[k - 1], b = L[k];
+      if (res.pay[i][a] + res.pref[i][a] < res.pay[i][b] + res.pref[i][b] - 1e-9) monoOk = false;
+    }
+    L.forEach((j, k) => {
+      const shouldDeliver = k === 0 || res.pay[i][j] > EPS;
+      if (res.delivered[i][j] !== shouldDeliver) delivOk = false;
+      if (n >= 3 && res.pay[i][j] > EPS && res.pay[i][j] < res.u / 2 - 1e-9) fracOk = false;
+    });
+  });
+  add(payOk, "Оплата спасибо помощника в сумме ≤ его доли после дележа");
+  add(fracOk, "Нет дробной оплаты меньше u/2 (остаток < u/2 остаётся у дающего)");
+  add(prefOk, "Предпочтение: у каждого благодарящего Σ = π");
+  add(monoOk, "Первое спасибо сильнее второго, второе сильнее третьего");
+  add(frameOk, "Рамка помощника: Σ рёбер спасибо ≤ доля + π");
+  add(delivOk, "Записка №1 доходит всегда, №2/№3 — только если усилены");
+  add(capOk, "Не больше трёх спасибо у одного дающего");
+  add(res.final.every((x) => x >= -1e-9), "Все итоговые доли ≥ 0");
+
+  if (n >= 3) {
+    let impartial = true, worst = 0;
+    for (let i = 0; i < n; i++) {
+      for (let t = 0; t < 6; t++) {
+        const alt = JSON.parse(JSON.stringify(state));
+        if (t === 0) alt.votes[i].on = false;
+        else {
+          alt.votes[i].on = true;
+          const others = [...Array(n).keys()].filter((k) => k !== i);
+          alt.votes[i].v = new Array(n).fill(0);
+          distribute(alt.votes[i].v, others, 100, others.map(() => Math.random()));
+        }
+        const d = Math.abs(settle(alt, p).share[i] - res.share[i]);
+        worst = Math.max(worst, d);
+        if (d > 1e-9) impartial = false;
+      }
+    }
+    add(impartial, `Беспристрастность: голос помощника не меняет его собственную долю после дележа (макс. отклонение ${worst.toExponential(1)})`);
+    const noThanks = JSON.parse(JSON.stringify(state));
+    noThanks.th = noThanks.th.map(() => []);
+    const r3 = settle(noThanks, p);
+    add(r3.pay.every((row) => row.every((x) => x < EPS)) && r3.pref.every((row) => row.every((x) => x < EPS)), "Голоса без спасибо не ставят ни одного ребра между помощниками");
+  } else {
+    add(true, n === 2 ? "Двое: голосов нет, доли назначает автор (U28); оплата спасибо = κ₂ своей доли, записка доходит всегда" : "Один помощник: голосов и спасибо помощников нет");
+  }
+  return out;
+}
+
+// ---- rendering helpers
+const $ = (id) => document.getElementById(id);
+function pct(x, base) { return (base > 0 ? (100 * x / base) : 0).toFixed(1) + "%"; }
+function av(i) { return `<span class="av" style="background:${COLORS[i]}">${NAMES[i][0]}</span>`; }
+function el(html) { const t = document.createElement("template"); t.innerHTML = html.trim(); return t.content.firstChild; }
+function sat(s, k, mix) { return s > 0 ? mix * s / (k + s) : 0; }
+
+function renderAuthor() {
+  const n = state.n;
+  const card = $("authorCard");
+  const confirmed = state.outcome.filter((o) => o === "yes").length;
+  let html = `<h2>Автор</h2><div class="muted note">Исход по каждому офферу, личное спасибо (${$("pU").value}% пула за каждое, не больше трёх)${n === 2 ? ", соотношение долей (U28)" : ""}.</div>`;
+  for (let i = 0; i < n; i++) {
+    html += `<div class="row" style="margin-top:6px">${av(i)}<b style="min-width:52px">${NAMES[i]}</b>
+      <select data-out="${i}">${Object.entries(OUT).map(([k, v]) => `<option value="${k}" ${state.outcome[i] === k ? "selected" : ""}>${v}</option>`).join("")}</select>
+      <label class="inline"><input type="checkbox" data-athanks="${i}" ${state.authorThanks[i] ? "checked" : ""}> спасибо</label></div>`;
+  }
+  if (n === 2) {
+    const dis = confirmed < 2 ? "disabled" : "";
+    html += `<h3>Как разделить благодарность</h3>
+      <div class="row">${av(0)}<input id="split" type="range" min="0" max="100" step="10" value="${state.split}" ${dis} style="flex:1">${av(1)}</div>
+      <div class="muted note" id="splitNote">${confirmed < 2 ? "Подтверждён не больше одного — слайдер скрыт в продукте (100/0)." : `${NAMES[0]} ${state.split}% · ${NAMES[1]} ${100 - state.split}%`}</div>`;
+  }
+  card.innerHTML = html;
+  card.querySelectorAll("[data-out]").forEach((s) => s.onchange = () => { state.outcome[+s.dataset.out] = s.value; update(); });
+  card.querySelectorAll("[data-athanks]").forEach((c) => c.onchange = () => {
+    const i = +c.dataset.athanks;
+    if (c.checked && state.authorThanks.filter(Boolean).length >= THANKS_CAP) { c.checked = false; alert("Кап: не больше трёх спасибо от автора"); return; }
+    state.authorThanks[i] = c.checked; update();
+  });
+  const sp = $("split");
+  if (sp) sp.oninput = () => {
+    state.split = +sp.value;
+    $("splitNote").textContent = `${NAMES[0]} ${state.split}% · ${NAMES[1]} ${100 - state.split}%`;
+    update(false);
+  };
+}
+
+function renderHelpers() {
+  const n = state.n;
+  const card = $("helpersCard");
+  let html = `<h2>Помощники</h2>`;
+  if (n === 1) html += `<div class="muted">Один помощник: экран голосования и спасибо не показывается.</div>`;
+  const slots = n === 2 ? 1 : THANKS_CAP;
+  for (let i = 0; n > 1 && i < n; i++) {
+    html += `<div class="helper"><div class="row">${av(i)}<b>${NAMES[i]}</b>`;
+    if (n >= 3) html += `<label class="inline"><input type="checkbox" data-von="${i}" ${state.votes[i].on ? "checked" : ""}> голосую «кто сделал больше»</label>`;
+    html += `</div>`;
+    if (n >= 3 && state.votes[i].on) {
+      for (let j = 0; j < n; j++) {
+        if (j === i) continue;
+        html += `<div class="slider-row">${av(j)}<span>${NAMES[j]}</span>
+          <input type="range" min="0" max="100" step="5" value="${state.votes[i].v[j]}" data-vote="${i},${j}">
+          <span data-vlabel="${i},${j}">${state.votes[i].v[j]}%</span></div>`;
+      }
+    }
+    const list = state.th[i];
+    html += `<div class="thx"><span class="muted">Спасибо по порядку${n === 2 ? ` (усиление ${$("pK2").value}% своей доли)` : ""}:</span>`;
+    for (let k = 0; k < slots; k++) {
+      if (k > list.length) break;
+      const cur = list[k];
+      const opts = [...Array(n).keys()].filter((j) => j !== i && (j === cur || !list.includes(j)));
+      html += `<label class="inline">${k + 1}. <select data-th="${i},${k}"><option value="">—</option>${opts.map((j) => `<option value="${j}" ${j === cur ? "selected" : ""}>${NAMES[j]}</option>`).join("")}</select></label>`;
+    }
+    html += `</div></div>`;
+  }
+  card.innerHTML = html;
+  card.querySelectorAll("[data-von]").forEach((c) => c.onchange = () => {
+    const i = +c.dataset.von; state.votes[i].on = c.checked;
+    if (c.checked) state.votes[i].v = evenVote(i);
+    update();
+  });
+  card.querySelectorAll("[data-vote]").forEach((r) => r.oninput = () => {
+    const [i, j] = r.dataset.vote.split(",").map(Number);
+    setVote(i, j, +r.value);
+    card.querySelectorAll(`[data-vote^="${i},"]`).forEach((o) => {
+      const jj = +o.dataset.vote.split(",")[1];
+      if (jj !== j) o.value = state.votes[i].v[jj];
+      card.querySelector(`[data-vlabel="${i},${jj}"]`).textContent = state.votes[i].v[jj] + "%";
+    });
+    update(false);
+  });
+  card.querySelectorAll("[data-th]").forEach((sel) => sel.onchange = () => {
+    const [i, k] = sel.dataset.th.split(",").map(Number);
+    const list = state.th[i].slice();
+    if (sel.value === "") list.splice(k);
+    else list[k] = +sel.value;
+    state.th[i] = list;
+    update();
+  });
+}
+
+function renderShares(res) {
+  if (res.empty) { $("shares").innerHTML = `<div class="muted">Автор никого не подтвердил — эпизод не состоялся.</div>`; return; }
+  const P = res.poolH;
+  const maxV = Math.max(...res.final, ...res.share, EPS);
+  let html = `<div class="muted note">pool_h = ${P.toFixed(3)} · спасибо автора ${pct(res.authorThanksMass, P)} · на делёж pool_d = ${pct(res.poolD, P)} · пул роутинга ρ·B = ${res.poolR.toFixed(3)} (не моделируется)</div>
+  <table><tr><th>Помощник</th><th>равная</th><th>голоса</th><th>доля</th><th>−отдал</th><th>+получил</th><th>итог</th><th></th></tr>`;
+  for (let j = 0; j < res.n; j++) {
+    const out = res.pay[j].reduce((a, b) => a + b, 0);
+    const inn = res.pay.reduce((a, row) => a + row[j], 0);
+    const keep = res.share[j] - out;
+    const w = (x) => (100 * Math.max(0, x) / maxV).toFixed(2) + "%";
+    const eqKeep = Math.max(0, Math.min(res.equal[j], keep));
+    const impKeep = Math.max(0, keep - eqKeep);
+    html += `<tr><td>${av(j)} ${NAMES[j]} <span class="pill">${OUT[state.outcome[j]]}</span></td>
+      <td>${pct(res.equal[j], P)}</td><td>${pct(res.imp[j], P)}</td><td>${pct(res.share[j], P)}</td>
+      <td>${out > EPS ? "−" + pct(out, P) : ""}</td><td>${inn > EPS ? "+" + pct(inn, P) : ""}</td><td><b>${pct(res.final[j], P)}</b></td>
+      <td><div class="bar"><span style="width:${w(eqKeep)};background:var(--equal)"></span><span style="width:${w(impKeep)};background:var(--imp)"></span><span style="width:${w(inn)};background:var(--gain)"></span><span style="width:${w(out)};background:var(--loss);opacity:.55"></span></div></td></tr>`;
+  }
+  html += `</table><div class="legend note" style="margin-top:6px"><span><i style="background:var(--equal)"></i>равная часть</span><span><i style="background:var(--imp)"></i>от голосов</span><span><i style="background:var(--gain)"></i>усиление спасибо получено</span><span><i style="background:var(--loss)"></i>усиление спасибо отдано</span></div>`;
+  $("shares").innerHTML = html;
+}
+
+function edgeList(res) {
+  const E = [];
+  if (res.empty) return E;
+  for (let j = 0; j < res.n; j++) if (res.final[j] > EPS) E.push({ from: -1, to: j, kind: "helped", mass: res.final[j] });
+  res.TA.forEach((j) => E.push({ from: -1, to: j, kind: "athanks", mass: res.u, pay: res.u, pref: 0 }));
+  for (let i = 0; i < res.n; i++) for (let j = 0; j < res.n; j++) {
+    if (res.rank[i][j] > 0) E.push({ from: i, to: j, kind: "hthanks", mass: res.pay[i][j] + res.pref[i][j], pay: res.pay[i][j], pref: res.pref[i][j], rank: res.rank[i][j], paid: res.pay[i][j] > EPS });
+  }
+  return E;
+}
+
+function renderEdges(res, E) {
+  if (!E.length) { $("edges").innerHTML = `<div class="muted">Рёбер нет.</div>`; return; }
+  const name = (i) => (i < 0 ? "Автор" : NAMES[i]);
+  const byPair = new Map();
+  E.forEach((e) => {
+    const k = e.from + ">" + e.to;
+    if (!byPair.has(k)) byPair.set(k, { from: e.from, to: e.to, helped: 0, pay: 0, pref: 0, rank: 0 });
+    const b = byPair.get(k);
+    if (e.kind === "helped") b.helped += e.mass; else { b.pay += e.pay; b.pref += e.pref; b.rank = e.rank || 0; }
+  });
+  let html = `<table><tr><th>Ребро</th><th>helped</th><th>thanks: усиление</th><th>thanks: предпочтение</th><th>вклад helped</th><th>вклад thanks</th><th>T</th></tr>`;
+  [...byPair.values()].forEach((b) => {
+    const th = sat(b.helped, 1, 1), tt = sat(b.pay + b.pref, 0.5, 0.5);
+    const mutual = b.from >= 0 && byPair.has(b.to + ">" + b.from);
+    const tag = b.rank ? ` <span class="pill">№${b.rank}</span>` : "";
+    html += `<tr><td>${name(b.from)} → ${name(b.to)}${tag}${mutual ? ' <span class="pill">взаимное</span>' : ""}</td>
+      <td>${b.helped > EPS ? b.helped.toFixed(3) : ""}</td><td>${b.pay > EPS ? b.pay.toFixed(3) : (b.rank ? "0" : "")}</td><td>${b.pref > EPS ? b.pref.toFixed(3) : ""}</td>
+      <td>${th > EPS ? th.toFixed(3) : ""}</td><td>${tt > EPS ? tt.toFixed(3) : ""}</td><td><b>${(th + tt).toFixed(3)}</b></td></tr>`;
+  });
+  $("edges").innerHTML = html + `</table>`;
+}
+
+function renderGraph(res, E) {
+  const svg = $("graph");
+  const W = 640, H = 480, cx = W / 2, cy = H / 2 + 10, R = Math.min(W, H) / 2 - 60;
+  const n = res.n;
+  const pos = (i) => {
+    if (i < 0) return [cx, cy];
+    const a = -Math.PI / 2 + (2 * Math.PI * i) / n + (n === 1 ? 0 : Math.PI / n);
+    return [cx + R * Math.cos(a), cy + R * Math.sin(a)];
+  };
+  const color = { helped: "var(--helped)", athanks: "var(--athanks)", hthanks: "var(--hthanks)" };
+  let s = `<defs>${Object.entries(color).map(([k, c]) => `<marker id="m-${k}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="${c}"/></marker>`).join("")}</defs>`;
+  const P = res.poolH || 1;
+  const nodeR = 22;
+  E.forEach((e) => {
+    const [x1, y1] = pos(e.from), [x2, y2] = pos(e.to);
+    const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy) || 1;
+    const ux = dx / len, uy = dy / len, nx = -uy, ny = ux;
+    const bend = e.kind === "helped" ? -10 : e.kind === "athanks" ? 26 : 28;
+    const sx = x1 + ux * nodeR, sy = y1 + uy * nodeR, ex = x2 - ux * (nodeR + 3), ey = y2 - uy * (nodeR + 3);
+    const mx = (sx + ex) / 2 + nx * bend, my = (sy + ey) / 2 + ny * bend;
+    const w = 1.2 + 16 * e.mass / P;
+    const dash = e.kind === "athanks" ? 'stroke-dasharray="6 4"' : (e.kind === "hthanks" && !e.paid ? 'stroke-dasharray="3 3"' : "");
+    s += `<path d="M${sx},${sy} Q${mx},${my} ${ex},${ey}" fill="none" stroke="${color[e.kind]}" stroke-width="${w.toFixed(2)}" stroke-opacity="0.85" ${dash} marker-end="url(#m-${e.kind})"/>`;
+    const lx = 0.25 * sx + 0.5 * mx + 0.25 * ex, ly = 0.25 * sy + 0.5 * my + 0.25 * ey;
+    const label = e.kind === "hthanks"
+      ? `№${e.rank}: ${(100 * e.pay / P).toFixed(1)}+${(100 * e.pref / P).toFixed(1)}%`
+      : `${(100 * e.mass / P).toFixed(1)}%`;
+    s += `<text x="${lx.toFixed(1)}" y="${(ly - 4).toFixed(1)}" text-anchor="middle">${label}</text>`;
+  });
+  const node = (i) => {
+    const [x, y] = pos(i);
+    const fill = i < 0 ? "#555" : COLORS[i];
+    const label = i < 0 ? "Автор" : NAMES[i];
+    const sub = i < 0 ? "" : OUT[state.outcome[i]];
+    return `<circle cx="${x}" cy="${y}" r="${nodeR}" fill="${fill}" stroke="var(--surface)" stroke-width="2"/>
+      <text x="${x}" y="${y + 4}" text-anchor="middle" style="fill:#fff;font-weight:700;font-size:13px">${label[0]}</text>
+      <text x="${x}" y="${y + nodeR + 14}" text-anchor="middle">${label}</text>
+      ${sub ? `<text x="${x}" y="${y + nodeR + 27}" text-anchor="middle" style="fill:var(--muted);font-size:10px">${sub}</text>` : ""}`;
+  };
+  s += node(-1);
+  for (let i = 0; i < n; i++) s += node(i);
+  svg.innerHTML = s;
+}
+
+function renderChecks(res, p) {
+  $("checks").innerHTML = checks(res, p).map((c) => `<div class="check ${c.ok ? "ok" : "bad"}">${c.text}</div>`).join("");
+}
+
+function renderSees(res) {
+  if (res.empty) { $("sees").innerHTML = `<div class="muted">Никто ничего не получает.</div>`; return; }
+  const n = res.n;
+  let html = "";
+  for (let j = 0; j < n; j++) {
+    const items = [];
+    items.push({ yes: "Автор подтвердил твой вклад", no: "Автор не подтвердил твой вклад", nb: "Автор не оценил твой вклад" }[state.outcome[j]]);
+    if (n >= 3) for (let i = 0; i < n; i++) if (i !== j && state.votes[i].on && state.votes[i].v[j] > 0) items.push(`${NAMES[i]} отметил(а) твой вклад: ${state.votes[i].v[j]}%`);
+    if (res.TA.includes(j)) items.push("Автор лично поблагодарил тебя + записка");
+    for (let i = 0; i < n; i++) if (i !== j && res.rank[i][j] > 0 && res.delivered[i][j]) items.push(`${NAMES[i]} лично поблагодарил(а) тебя + записка`);
+    // мягкий итог дающему
+    const mine = [...Array(n).keys()].filter((k) => res.rank[j][k] > 0).sort((a, b) => res.rank[j][a] - res.rank[j][b]);
+    if (mine.length) {
+      const got = mine.filter((k) => res.delivered[j][k]).map((k) => NAMES[k]);
+      const not = mine.filter((k) => !res.delivered[j][k]).map((k) => NAMES[k]);
+      let t = got.length ? `${got.join(" и ")} ${got.length > 1 ? "получили" : "получил(а)"} твоё спасибо` : "";
+      if (not.length) t += `${t ? "; " : ""}для ${not.join(" и ")} твоё отношение учтено, записка не дошла`;
+      items.push(`<span class="muted">[итог для тебя как дающего]</span> ${t}`);
+    }
+    html += `<div style="margin-bottom:8px">${av(j)} <b>${NAMES[j]}</b><ul class="sees">${items.map((t) => `<li>${t}</li>`).join("")}</ul></div>`;
+  }
+  $("sees").innerHTML = html + `<div class="muted note">Никто не видит чисел долей, чужих голосов и спасибо, а также ранга и усиления своих полученных спасибо (§15, P4, U33).</div>`;
+}
+
+function update(rerenderInputs = true) {
+  if (rerenderInputs) { renderAuthor(); renderHelpers(); }
+  const p = params();
+  const res = settle(state, p);
+  const E = edgeList(res);
+  renderShares(res); renderEdges(res, E); renderGraph(res, E); renderChecks(res, p); renderSees(res);
+}
+
+// ---- presets
+const PRESETS = [
+  ["Все подтверждены, тишина", (n) => ({ n })],
+  ["Один «Не сделал», коллеги голосуют за него", (n) => ({ n: Math.max(n, 3), apply: () => {
+    state.outcome[0] = "no";
+    for (let i = 1; i < state.n; i++) { state.votes[i].on = true; state.votes[i].v = new Array(state.n).fill(0); setVote(i, 0, 100); }
+  } })],
+  ["Пример из плана: ≈18%, Петя → Маша → Оля", () => ({ n: 4, apply: () => {
+    // Иван «не сделал», но коллеги отдают ему голоса: его доля ≈ 18% pool_h
+    state.outcome = ["yes", "yes", "yes", "no"];
+    $("pMu").value = 0.5;
+    state.votes[0] = { on: true, v: [0, 25, 25, 50] }; state.votes[1] = { on: true, v: [25, 0, 25, 50] };
+    state.votes[2] = { on: true, v: [30, 25, 0, 45] };
+    state.th[3] = [1, 0, 2];
+  } })],
+  ["Взаимные спасибо (пара)", (n) => ({ n: Math.max(n, 3), apply: () => { state.th[0] = [1]; state.th[1] = [0]; } })],
+  ["Круг спасибо", (n) => ({ n: Math.max(n, 3), apply: () => { for (let i = 0; i < state.n; i++) state.th[i] = [(i + 1) % state.n]; } })],
+  ["Все всем по три (веер)", (n) => ({ n: Math.max(n, 5), apply: () => { for (let i = 0; i < state.n; i++) state.th[i] = [1, 2, 3].map((d) => (i + d) % state.n); } })],
+  ["Богатый и бедный", () => ({ n: 3, apply: () => {
+    state.outcome = ["yes", "yes", "yes"];
+    state.votes[1] = { on: true, v: [100, 0, 0] }; state.votes[2] = { on: true, v: [100, 0, 0] }; state.votes[0] = { on: true, v: [0, 50, 50] };
+    state.th[0] = [2, 1]; state.th[2] = [0];
+  } })],
+  ["Двое: автор 80/20, взаимное спасибо", () => ({ n: 2, apply: () => { state.outcome = ["yes", "yes"]; state.split = 80; state.th[0] = [1]; state.th[1] = [0]; } })],
+  ["Никто не подтверждён", (n) => ({ n, apply: () => { state.outcome = state.outcome.map(() => "no"); } })],
+];
+function applyPreset(fn) {
+  const cfg = fn(state.n);
+  state.outcome = []; state.authorThanks = []; state.votes = []; state.th = []; state.split = 50;
+  $("n").value = cfg.n; resize(cfg.n);
+  if (cfg.apply) cfg.apply();
+  update();
+}
+PRESETS.forEach(([label, fn]) => { const b = el(`<button>${label}</button>`); b.onclick = () => applyPreset(fn); $("presets").appendChild(b); });
+
+$("n").onchange = () => { resize(Math.max(1, Math.min(8, +$("n").value || 1))); update(); };
+["pB", "pRho", "pMu", "pU", "pPi", "pR", "pK2"].forEach((id) => $(id).oninput = () => update());
+resize(3);
+update();
+</script>
+</body>
+</html>
