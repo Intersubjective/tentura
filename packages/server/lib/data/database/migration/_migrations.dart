@@ -13,6 +13,7 @@ part 'm0197.dart';
 part 'm0198.dart';
 part 'm0199.dart';
 part 'm0200.dart';
+part 'm0201.dart';
 
 /// `m0193` is a squashed baseline, not an ordinary migration: it is a generated
 /// `pg_dump` of the schema that `m0001`…`m0192` (plus the out-of-band `0161a`
@@ -38,7 +39,17 @@ part 'm0200.dart';
 /// repurposed for an unrelated migration. See
 /// `docs/plans/migration-squash-plan.md` §10. Correct a shipped migration by
 /// adding a new one that asserts the intended state, the way `m0194` does.
-final _allMigrations = <Migration>[m0193, m0194, m0195, m0196, m0197, m0198, m0199, m0200];
+final _allMigrations = <Migration>[
+  m0193,
+  m0194,
+  m0195,
+  m0196,
+  m0197,
+  m0198,
+  m0199,
+  m0200,
+  m0201,
+];
 
 /// Test inventory in the exact order passed to migrant.
 List<Migration> get migrationsForTesting => List.unmodifiable(_allMigrations);
