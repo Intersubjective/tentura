@@ -222,6 +222,55 @@ void main() {
     });
 
     testWidgets(
+      'author labels share one left edge across differently sized bodies',
+      (tester) async {
+        // Regression: Column defaulted to CrossAxisAlignment.center, so
+        // shorter rows shifted right and the timeline rail looked crooked.
+        final repo = _FakeFactHistoryRepository()
+          ..entries = [
+            _edited(
+              id: 'e3',
+              seq: 3,
+              text: 'short',
+              actorTitle: 'ShortBodyAuthor',
+            ),
+            _edited(
+              id: 'e2',
+              seq: 2,
+              text: 'a much longer body that widens the content column',
+              actorTitle: 'LongBodyAuthor',
+            ),
+            _edited(
+              id: 'e1',
+              seq: 1,
+              text: 'mid',
+              actorTitle: 'MidBodyAuthor',
+            ),
+          ];
+
+        await _pumpSheet(tester, repo: repo, canMutate: false);
+
+        final shortDx =
+            tester.getTopLeft(find.textContaining('ShortBodyAuthor')).dx;
+        final longDx =
+            tester.getTopLeft(find.textContaining('LongBodyAuthor')).dx;
+        final midDx =
+            tester.getTopLeft(find.textContaining('MidBodyAuthor')).dx;
+
+        expect(
+          shortDx,
+          moreOrLessEquals(longDx, epsilon: 0.5),
+          reason: 'short-body row must not shift right of long-body row',
+        );
+        expect(
+          midDx,
+          moreOrLessEquals(longDx, epsilon: 0.5),
+          reason: 'mid-body row must share the same left edge',
+        );
+      },
+    );
+
+    testWidgets(
       'an added word gets a background span, a removed word gets lineThrough',
       (tester) async {
         final repo = _FakeFactHistoryRepository()

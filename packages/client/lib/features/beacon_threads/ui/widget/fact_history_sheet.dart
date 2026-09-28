@@ -318,9 +318,13 @@ class _FactHistoryTimelineRow extends StatelessWidget {
     final row = entry;
     final railColor = scheme.outlineVariant;
     final nodeColor = scheme.primary;
+    // Dot sits on the first content line (author / event), not mid-row.
+    final nodeCenterY = tt.rowGap + _nodeSize / 2;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
+      // Stretch so differently sized bodies share one left rail axis.
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (showDividerAbove)
           Padding(
@@ -341,6 +345,7 @@ class _FactHistoryTimelineRow extends StatelessWidget {
                     railColor: railColor,
                     nodeColor: nodeColor,
                     nodeSize: _nodeSize,
+                    nodeCenterY: nodeCenterY,
                     drawAbove: !isFirst,
                     drawBelow: !isLast,
                   ),
@@ -492,6 +497,7 @@ class _TimelineRailPainter extends CustomPainter {
     required this.railColor,
     required this.nodeColor,
     required this.nodeSize,
+    required this.nodeCenterY,
     required this.drawAbove,
     required this.drawBelow,
   });
@@ -499,25 +505,26 @@ class _TimelineRailPainter extends CustomPainter {
   final Color railColor;
   final Color nodeColor;
   final double nodeSize;
+  final double nodeCenterY;
   final bool drawAbove;
   final bool drawBelow;
 
   @override
   void paint(Canvas canvas, Size size) {
     final cx = size.width / 2;
-    final midY = size.height / 2;
+    final nodeY = nodeCenterY.clamp(nodeSize / 2, size.height - nodeSize / 2);
     final railPaint = Paint()
       ..color = railColor
       ..strokeWidth = 1.5
       ..style = PaintingStyle.stroke;
     if (drawAbove) {
-      canvas.drawLine(Offset(cx, 0), Offset(cx, midY), railPaint);
+      canvas.drawLine(Offset(cx, 0), Offset(cx, nodeY), railPaint);
     }
     if (drawBelow) {
-      canvas.drawLine(Offset(cx, midY), Offset(cx, size.height), railPaint);
+      canvas.drawLine(Offset(cx, nodeY), Offset(cx, size.height), railPaint);
     }
     canvas.drawCircle(
-      Offset(cx, midY),
+      Offset(cx, nodeY),
       nodeSize / 2,
       Paint()..color = nodeColor,
     );
@@ -528,6 +535,7 @@ class _TimelineRailPainter extends CustomPainter {
       railColor != oldDelegate.railColor ||
       nodeColor != oldDelegate.nodeColor ||
       nodeSize != oldDelegate.nodeSize ||
+      nodeCenterY != oldDelegate.nodeCenterY ||
       drawAbove != oldDelegate.drawAbove ||
       drawBelow != oldDelegate.drawBelow;
 }
