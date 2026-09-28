@@ -25,6 +25,10 @@ abstract final class TenturaSpacing {
   /// Material 3 fixed pane width for list and supporting panes (360 dp).
   static const double supportingPaneWidth = 360;
 
+  /// List pane beside a detail (list-detail). Wider than a supporting pane:
+  /// at 360 dp a people row's name, handle and context lines felt cramped.
+  static const double listPaneWidth = 440;
+
   /// Narrowest primary pane beside a supporting pane; below it the two
   /// stack into one column.
   static const double supportingPrimaryMinWidth = 560;

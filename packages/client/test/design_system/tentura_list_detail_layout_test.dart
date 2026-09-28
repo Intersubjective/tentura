@@ -28,14 +28,14 @@ Future<void> _pump(
 }
 
 void main() {
-  testWidgets('wide: 360 dp list pane before the detail', (tester) async {
+  testWidgets('wide: 440 dp list pane before the detail', (tester) async {
     await _pump(tester, const Size(1440, 900));
 
     final pane = find.byKey(TenturaListDetailLayout.listPaneKey);
-    expect(tester.getSize(pane).width, TenturaSpacing.supportingPaneWidth);
+    expect(tester.getSize(pane).width, TenturaSpacing.listPaneWidth);
     expect(
       tester.getTopLeft(find.text('detail')).dx,
-      greaterThanOrEqualTo(TenturaSpacing.supportingPaneWidth),
+      greaterThanOrEqualTo(TenturaSpacing.listPaneWidth),
     );
   });
 

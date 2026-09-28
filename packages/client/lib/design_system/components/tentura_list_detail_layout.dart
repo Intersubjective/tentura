@@ -7,7 +7,7 @@ import 'tentura_vertical_hairline.dart';
 ///
 /// The detail stays a real route (its URL, browser Back and deep links are
 /// unchanged); when the body is wide enough, the list it was opened from sits
-/// beside it in a fixed 360 dp pane, so choosing another item does not mean
+/// beside it in a fixed 440 dp pane, so choosing another item does not mean
 /// going back first. Narrower, only the detail shows — the compact behaviour.
 ///
 /// The detail gets whatever width is left and lays itself out for it (a
@@ -34,7 +34,7 @@ class TenturaListDetailLayout extends StatelessWidget {
       builder: (context, constraints) {
         final fits =
             constraints.maxWidth >=
-            TenturaSpacing.supportingPaneWidth +
+            TenturaSpacing.listPaneWidth +
                 TenturaSpacing.supportingPrimaryMinWidth;
         if (!fits) return detail;
         return Row(
@@ -42,7 +42,7 @@ class TenturaListDetailLayout extends StatelessWidget {
           children: [
             SizedBox(
               key: listPaneKey,
-              width: TenturaSpacing.supportingPaneWidth,
+              width: TenturaSpacing.listPaneWidth,
               child: list,
             ),
             const TenturaVerticalHairline(),
