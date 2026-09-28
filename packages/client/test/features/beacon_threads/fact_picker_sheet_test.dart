@@ -528,7 +528,7 @@ void main() {
           roomBodyState(messages: [message]).copyWith(factCards: [fact]),
         );
 
-        await _pumpRoomBodyWithCubit(tester, cubit: cubit);
+        await _pumpRoomBodyWithCubit(tester, cubit: cubit, height: 900);
 
         final l10n = await L10n.delegate.load(const Locale('en'));
 
@@ -571,6 +571,10 @@ void main() {
               'fact" in its actions sheet',
         );
 
+        await tester.ensureVisible(
+          find.text(l10n.beaconRoomActionViewPinnedFact),
+        );
+        await tester.pumpAndSettle();
         await tester.tap(find.text(l10n.beaconRoomActionViewPinnedFact));
         await tester.pumpAndSettle();
 

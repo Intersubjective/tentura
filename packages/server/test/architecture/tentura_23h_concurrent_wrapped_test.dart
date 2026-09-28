@@ -11,6 +11,16 @@ const k23hAcceptanceTestPaths = [
 
 const _23hAcceptanceMarker = 'tentura-23h concurrent wrapped-suite isolation acceptance';
 
+Object get _skipNestedCleanupInCiDartTest {
+  final env = Platform.environment;
+  if (env['GITHUB_ACTIONS'] == 'true' ||
+      env['CI'] == 'true' ||
+      env['TEST_TARGET'] == 'server') {
+    return 'do not nest run_with_test_cleanup.sh inside CI dart test';
+  }
+  return false;
+}
+
 void main() {
   group('tentura-23h concurrent wrapped cleanup', () {
     test('23h acceptance test paths declare tentura-23h markers', () {
@@ -42,6 +52,7 @@ void main() {
         );
       },
       timeout: const Timeout(Duration(minutes: 3)),
+      skip: _skipNestedCleanupInCiDartTest,
     );
 
     test(
@@ -59,6 +70,7 @@ void main() {
         );
       },
       timeout: const Timeout(Duration(minutes: 5)),
+      skip: _skipNestedCleanupInCiDartTest,
     );
 
     test(
@@ -72,6 +84,7 @@ void main() {
         expect(await hold.exitCode, 0);
       },
       timeout: const Timeout(Duration(minutes: 2)),
+      skip: _skipNestedCleanupInCiDartTest,
     );
   });
 }
