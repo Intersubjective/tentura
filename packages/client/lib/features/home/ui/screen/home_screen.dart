@@ -17,7 +17,6 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import '../bloc/home_activation_cubit.dart';
 import '../bloc/home_tab_reselect_cubit.dart';
 import '../bloc/home_attention_cubit.dart';
-import '../bloc/home_list_sources.dart';
 import '../widget/constellation_navbar_item.dart';
 import '../widget/home_activation_binder.dart';
 import '../widget/home_activation_reporter.dart';
@@ -356,37 +355,6 @@ class _InboxScope extends StatefulWidget {
 
 class _InboxScopeState extends State<_InboxScope> {
   var _lastAccountId = '';
-  InboxCubit? _inbox;
-  MyWorkCubit? _myWork;
-  String? _cubitsAccountId;
-
-  /// Created here (not by BlocProvider.create) so the same instances can be
-  /// published to [HomeListSources] for list-detail panes on detail routes.
-  void _ensureCubits(String id) {
-    if (_inbox != null && _cubitsAccountId == id) return;
-    _disposeCubits();
-    _cubitsAccountId = id;
-    _inbox = InboxCubit(userId: id);
-    _myWork = MyWorkCubit(userId: id);
-    GetIt.I<HomeListSources>().publish(inbox: _inbox!, myWork: _myWork!);
-  }
-
-  void _disposeCubits() {
-    final inbox = _inbox;
-    final myWork = _myWork;
-    if (inbox == null || myWork == null) return;
-    GetIt.I<HomeListSources>().clear(inbox: inbox, myWork: myWork);
-    unawaited(inbox.close());
-    unawaited(myWork.close());
-    _inbox = null;
-    _myWork = null;
-  }
-
-  @override
-  void dispose() {
-    _disposeCubits();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -395,12 +363,11 @@ class _InboxScopeState extends State<_InboxScope> {
     }
     final id = _lastAccountId;
     if (id.isEmpty) return widget.child;
-    _ensureCubits(id);
     return MultiBlocProvider(
       key: ValueKey(id),
       providers: [
-        BlocProvider.value(value: _inbox!),
-        BlocProvider.value(value: _myWork!),
+        BlocProvider(create: (_) => InboxCubit(userId: id)),
+        BlocProvider(create: (_) => MyWorkCubit(userId: id)),
       ],
       child: InboxNeedsMeReporter(
         child: HomeActivationReporter(

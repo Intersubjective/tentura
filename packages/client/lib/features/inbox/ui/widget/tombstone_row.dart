@@ -72,12 +72,8 @@ class TombstoneRow extends StatelessWidget {
       // (§11).
       label: [headline, from, sentence].nonNulls.join(', '),
       excludeSemantics: false,
-      selected: TenturaListDetailSelection.of(context) == receipt.beaconId,
       child: Material(
-        // Material 3 list-detail: the Request open beside this list.
-        color: TenturaListDetailSelection.of(context) == receipt.beaconId
-            ? Theme.of(context).colorScheme.secondaryContainer
-            : Colors.transparent,
+        color: Colors.transparent,
         child: InkWell(
           onTap: onOpenBeacon,
           child: Padding(

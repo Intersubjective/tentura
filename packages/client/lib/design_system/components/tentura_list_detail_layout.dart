@@ -16,7 +16,6 @@ class TenturaListDetailLayout extends StatelessWidget {
   const TenturaListDetailLayout({
     required this.detail,
     this.list,
-    this.minDetailWidth = TenturaSpacing.supportingPrimaryMinWidth,
     super.key,
   });
 
@@ -27,10 +26,6 @@ class TenturaListDetailLayout extends StatelessWidget {
 
   final Widget detail;
 
-  /// The detail's own floor. A detail that splits itself (a Request with its
-  /// discussion) needs more than a single-column one before a list can join.
-  final double minDetailWidth;
-
   @override
   Widget build(BuildContext context) {
     final list = this.list;
@@ -39,7 +34,8 @@ class TenturaListDetailLayout extends StatelessWidget {
       builder: (context, constraints) {
         final fits =
             constraints.maxWidth >=
-            TenturaSpacing.supportingPaneWidth + minDetailWidth;
+            TenturaSpacing.supportingPaneWidth +
+                TenturaSpacing.supportingPrimaryMinWidth;
         if (!fits) return detail;
         return Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,

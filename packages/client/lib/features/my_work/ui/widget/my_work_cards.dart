@@ -555,7 +555,6 @@ class _AuthoredActiveCard extends StatelessWidget {
 
     return BeaconCardShell(
       bodyMinHeight: 0,
-      selectionId: vm.beaconId,
       onTap: () => _openBeaconOrSelect(context, vm),
       marker: _myWorkAttentionMarker(attentionMarked: attentionMarked),
       footer: _composeMyWorkFooter(
@@ -694,7 +693,6 @@ class _HelpOfferedActiveCard extends StatelessWidget {
 
     return BeaconCardShell(
       bodyMinHeight: 0,
-      selectionId: vm.beaconId,
       onTap: () => _openBeaconOrSelect(context, vm),
       marker: _myWorkAttentionMarker(attentionMarked: attentionMarked),
       footer: _composeMyWorkFooter(
@@ -782,7 +780,6 @@ class _DraftAuthoredCard extends StatelessWidget {
 
     return BeaconCardShell(
       bodyMinHeight: 0,
-      selectionId: vm.beaconId,
       muted: true,
       onTap: () => _openEditDraft(context, b.id),
       marker: _myWorkAttentionMarker(attentionMarked: attentionMarked),
@@ -865,7 +862,6 @@ class _FinishedAuthoredCard extends StatelessWidget {
     );
     return BeaconCardShell(
       bodyMinHeight: 0,
-      selectionId: vm.beaconId,
       muted: true,
       onTap: () => _openBeaconOrSelect(context, vm),
       marker: _myWorkAttentionMarker(attentionMarked: attentionMarked),
@@ -997,7 +993,6 @@ class _FinishedHelpOfferedCard extends StatelessWidget {
     );
     return BeaconCardShell(
       bodyMinHeight: 0,
-      selectionId: vm.beaconId,
       muted: true,
       onTap: () => _openBeaconOrSelect(context, vm),
       marker: _myWorkAttentionMarker(attentionMarked: attentionMarked),
