@@ -14,6 +14,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/reaction_quick_picker.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/basic_chat_body.dart';
 import 'package:tentura/ui/widget/coordination_participant_lookup.dart';
@@ -566,44 +567,17 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                           padding: EdgeInsets.symmetric(
                             horizontal: tt.screenHPadding,
                           ),
-                          child: Wrap(
-                            spacing: tt.rowGap,
-                            runSpacing: tt.rowGap,
-                            children: [
-                              for (final emoji
-                                  in BeaconRoomMessageReaction
-                                      .quickPickerEmojis)
-                                InkWell(
-                                  customBorder: const CircleBorder(),
-                                  onTap: () {
-                                    Navigator.pop(ctx);
-                                    unawaited(
-                                      cubit.toggleReaction(
-                                        messageId: message.id,
-                                        emoji: emoji,
-                                      ),
-                                    );
-                                  },
-                                  child: DecoratedBox(
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: viewerReactions.contains(emoji)
-                                            ? tt.skyBorder
-                                            : Colors.transparent,
-                                        width: 1.5,
-                                      ),
-                                    ),
-                                    child: Padding(
-                                      padding: EdgeInsets.all(tt.rowGap),
-                                      child: Text(
-                                        emoji,
-                                        style: theme.textTheme.titleMedium,
-                                      ),
-                                    ),
-                                  ),
+                          child: ReactionQuickPicker(
+                            selected: viewerReactions,
+                            onPick: (emoji) {
+                              Navigator.pop(ctx);
+                              unawaited(
+                                cubit.toggleReaction(
+                                  messageId: message.id,
+                                  emoji: emoji,
                                 ),
-                            ],
+                              );
+                            },
                           ),
                         ),
                       if (isOwnMessage)

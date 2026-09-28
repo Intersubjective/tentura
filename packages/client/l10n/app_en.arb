@@ -5533,6 +5533,74 @@
   "@beaconRoomReactionAddTooltip": {
     "description": "Icon button tooltip to open emoji reaction picker for a room message"
   },
+  "beaconRoomReactionMeaningLove": "Love it",
+  "@beaconRoomReactionMeaningLove": {
+    "description": "Hint shown in the reaction picker explaining what this emoji means"
+  },
+  "beaconRoomReactionMeaningThanks": "Thank you",
+  "@beaconRoomReactionMeaningThanks": {
+    "description": "Hint shown in the reaction picker explaining what this emoji means"
+  },
+  "beaconRoomReactionMeaningDeal": "Deal / agreed",
+  "@beaconRoomReactionMeaningDeal": {
+    "description": "Hint shown in the reaction picker explaining what this emoji means"
+  },
+  "beaconRoomReactionMeaningStrength": "You've got this",
+  "@beaconRoomReactionMeaningStrength": {
+    "description": "Hint shown in the reaction picker explaining what this emoji means"
+  },
+  "beaconRoomReactionMeaningHooray": "Hooray!",
+  "@beaconRoomReactionMeaningHooray": {
+    "description": "Hint shown in the reaction picker explaining what this emoji means"
+  },
+  "beaconRoomReactionMeaningGlad": "Glad to hear",
+  "@beaconRoomReactionMeaningGlad": {
+    "description": "Hint shown in the reaction picker explaining what this emoji means"
+  },
+  "beaconRoomReactionMeaningRelief": "What a relief",
+  "@beaconRoomReactionMeaningRelief": {
+    "description": "Hint shown in the reaction picker explaining what this emoji means"
+  },
+  "beaconRoomReactionMeaningFunny": "Funny",
+  "@beaconRoomReactionMeaningFunny": {
+    "description": "Hint shown in the reaction picker explaining what this emoji means"
+  },
+  "beaconRoomReactionMeaningWow": "Wow",
+  "@beaconRoomReactionMeaningWow": {
+    "description": "Hint shown in the reaction picker explaining what this emoji means"
+  },
+  "beaconRoomReactionMeaningThinking": "Let me think",
+  "@beaconRoomReactionMeaningThinking": {
+    "description": "Hint shown in the reaction picker explaining what this emoji means"
+  },
+  "beaconRoomReactionMeaningUnclear": "Not sure I follow",
+  "@beaconRoomReactionMeaningUnclear": {
+    "description": "Hint shown in the reaction picker explaining what this emoji means"
+  },
+  "beaconRoomReactionMeaningWorried": "Worried",
+  "@beaconRoomReactionMeaningWorried": {
+    "description": "Hint shown in the reaction picker explaining what this emoji means"
+  },
+  "beaconRoomReactionMeaningSad": "Sad",
+  "@beaconRoomReactionMeaningSad": {
+    "description": "Hint shown in the reaction picker explaining what this emoji means"
+  },
+  "beaconRoomReactionMeaningAngry": "That's upsetting",
+  "@beaconRoomReactionMeaningAngry": {
+    "description": "Hint shown in the reaction picker explaining what this emoji means"
+  },
+  "beaconRoomReactionMeaningAwkward": "Awkward",
+  "@beaconRoomReactionMeaningAwkward": {
+    "description": "Hint shown in the reaction picker explaining what this emoji means"
+  },
+  "beaconRoomReactionMeaningDisappointed": "Disappointed",
+  "@beaconRoomReactionMeaningDisappointed": {
+    "description": "Hint shown in the reaction picker explaining what this emoji means"
+  },
+  "beaconRoomReactionPickerHint": "Hover or long-press an emoji to see what it means",
+  "@beaconRoomReactionPickerHint": {
+    "description": "Placeholder under the reaction picker before an emoji is hovered or focused"
+  },
   "beaconRoomReactionPickerSemantic": "Reaction picker",
   "@beaconRoomReactionPickerSemantic": {
     "description": "Accessibility label for the floating emoji reaction popup"
