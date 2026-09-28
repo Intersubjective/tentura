@@ -1,8 +1,8 @@
 # Episode closure and trust update — technical architecture
 
-**Status:** draft, rev 3 (2026-09-29). Rev 2 applied the Codex (gpt-6-astra, high) architecture review; rev 3 applies the findings of the Codex review of the step plan that were inherited from this document (see §15).
+**Status:** draft, rev 4 (2026-09-29). Rev 2 applied the Codex (gpt-6-astra, high) architecture review; rev 3 applied the inherited findings of the Codex review of the step plan; rev 4 adds U58 (helper → author edge at episode completion, §5.9a). See §15.
 
-**Normative source:** `episode-closure-implementation-plan.md` (Russian, rev 20). That document holds the product decisions (U1–U57, P1–P11), their rationale and the rejected alternatives (§1.4). This document is the engineering translation: components, data model, algorithms, interfaces, jobs, migration, deployment and test strategy. Where the two disagree, the Russian plan wins and this file must be fixed.
+**Normative source:** `episode-closure-implementation-plan.md` (Russian, rev 21). That document holds the product decisions (U1–U57, P1–P11), their rationale and the rejected alternatives (§1.4). This document is the engineering translation: components, data model, algorithms, interfaces, jobs, migration, deployment and test strategy. Where the two disagree, the Russian plan wins and this file must be fixed.
 
 **Related:** `post-request-closure-social-design.md` (social rationale) · `episode-closure-simulator.html` (reference implementation of the settlement math; §12.3) · `~/MY_SRC/meritrank-rust/NEGATIVE_EDGES_FEATURE.md` (MeritRank walls, service v0.11.0).
 
@@ -102,7 +102,9 @@ CREATE TABLE trust_kind_config (
   half_life_s     double precision NULL CHECK (half_life_s IS NULL OR half_life_s > 0),
   k_sat           double precision NOT NULL CHECK (k_sat > 0),
   mix_weight      double precision NOT NULL CHECK (mix_weight >= 0),
-  wall_levels     jsonb NULL          -- [{"min_n": 3, "level": 0.1}, {"min_n": 6, "level": 0.3}, {"min_n": 10, "level": 0.6}]
+  wall_levels     jsonb NULL,         -- [{"min_n": 3, "level": 0.1}, {"min_n": 6, "level": 0.3}, {"min_n": 10, "level": 0.6}]
+  linear_window_s double precision NULL CHECK (linear_window_s IS NULL OR linear_window_s > 0),  -- U58: linear decay to 0 over the window (instead of half-life)
+  counts_for_immunity boolean NOT NULL DEFAULT true                                            -- U58: false = excluded from T_recent
 );
 
 CREATE TABLE trust_evidence (
@@ -155,7 +157,7 @@ Dropped in phase A: `trust_evidence_event`, `user_trust_source_edge`, `trust_con
 
 The effective-edge deletion trigger `trust_edge_effective_delete_mr` is kept, but its function `trust_edge_on_effective_delete` is rewritten: instead of calling MR inside the deleting transaction it inserts the pair into `trust_publish_queue` when `OLD.prev_sent_weight <> 0` (the publisher then finds no row, treats the target as 0 and calls `mr_delete_edge`). This covers user-FK cascades. `meritrank_edge_tombstone` and its drain path are dropped; the queue is the only publication path.
 
-Seeded kinds (phase A: 1–5; phase B: 6–7):
+Seeded kinds (phase A: 1–5 and 8; phase B: 6–7):
 
 | kind | slug | polarity | written by | subject → object | hl | k | mix |
 |---|---|---|---|---|---|---|---|
@@ -164,6 +166,7 @@ Seeded kinds (phase A: 1–5; phase B: 6–7):
 | 3 | `marked` | trust | finalize and later toggles: bookmark | marker → target | 365 d | 0.5 | 0.2 |
 | 4 | `routed` | trust | finalize: routing engine | sender → recipient of each hop | 182 d | 1 | 0.5 |
 | 5 | `useful_forward` | trust | offer approval (stream 2) | helper → its arrival forwarder | 182 d | 2 | 0.5 |
+| 8 | `worked_with_author` | trust | finalize: every member present until closure, `count = 1/√n` (U58, §5.9a); not in `T_recent` | helper → author | linear to 0 over 180 d | 1 | 0.08 |
 | 6 | `engaged` | trust | phase B: forward engagement | recipient → sender | 90 d | 2 | 0.2 |
 | 7 | `noisy` | wall | phase B: forward ignored until deadline | recipient → sender | 14 d | — | — |
 
@@ -172,10 +175,12 @@ Seeded kinds (phase A: 1–5; phase B: 6–7):
 SQL `trust_project_pair(subject, object)` computes the desired value and enqueues publication; it never calls MR. It takes the existing pair lock `trust_pair_lock(subject, object)`. Callers that project several pairs sort them by `(subject, object)` before locking.
 
 ```
-s_k      = Σ live rows of kind k: count · 2^(−age/hl_k)           (hl NULL → no decay)
+s_k      = Σ live rows of kind k: count · decay_k(age)
+           decay_k = max(0, 1 − age/linear_window_k) if linear_window set (U58)
+                   = 2^(−age/hl_k) if hl set;  1 if both NULL
 s_vouch  = 1 if vote_user(subject → object).amount > 0 else 0
 T        = Σ_trust-kinds mix_k · s_k / (k_k + s_k)
-T_recent = same fold over rows with age ≤ 180 d, plus vouch        (U39)
+T_recent = same fold over rows with age ≤ 180 d of kinds with counts_for_immunity, plus vouch   (U39, U58)
 n_noisy  = s_noisy                                                  (phase B)
 wall     = 1              if user_block(subject → object)           (phase B; phase A: ban ⇒ target 0)
          = level(n_noisy) else if T_recent < 0.05 and n_noisy ≥ 3  (phase B)
@@ -431,13 +436,28 @@ One transaction under the beacon lock:
 1. Re-check the epoch is the expected one and evaluating (sweep: and `closes_at ≤ now`); set status final, `finalized_at`, `finalize_reason`, `settlement_version`, `settlement_params`; `beacon.status = closed`; lifecycle activity event.
 2. Load members, outcomes, split, committed supports, marks, forward DAG; run `EpisodeSettlement` and `ForwardRoutingSettlement`.
 3. Insert `beacon_closure_result` for every member (outcome, band, draft flag, helped). Draft flag: `notCounted` if the voter has a draft and no commit; `lastEditNotCounted` if the draft differs from the committed version.
-4. Record evidence (`helped`: `closure:<b>:<e>:helped:<j>`; `routed`; `marked`: `closure:<b>:<e>:mark:<x>:<y>` with `occurred_at = finalized_at`) and project affected pairs (enqueue publication).
+4. Record evidence (`helped`: `closure:<b>:<e>:helped:<j>`; `routed`; `marked`: `closure:<b>:<e>:mark:<x>:<y>` with `occurred_at = finalized_at`; `worked_with_author` per §5.9a) and project affected pairs (enqueue publication).
 5. Close-ack capability events for C over the offer's helpTypes.
 6. Story → room system message kind 3 `closureStory` if non-empty.
 7. Receipts (§9) with per-recipient source keys.
 8. Preserve the current close effects: `recordBeaconStatusTransition`, `BeaconLifecycleEffectsCase.recordEligibleSourceTransition` (parent/child requests), `unansweredAtClose` events for pending offers and `supersedeAuthorHelpOfferObligationsOnBeaconClose` — in whichever of close / direct close / finalize the current code runs them (S/domain/use_case/evaluation_case.dart:169–234, review_finalization_case.dart:76–105).
 
 After commit the finalize path nudges `TrustPublisher`. MR being down only delays publication; no closure state depends on it.
+
+### 5.9a Helper → author edge (U58)
+
+Written only by finalize (never on a cancelled epoch):
+```
+P = { members of the epoch with departure IS NULL at finalize time }   # present until closure
+for i in P:  i → author  worked_with_author  count = 1/√|P|
+             source_key closure:<b>:<e>:author_edge:<i>,  occurred_at = finalized_at
+```
+- Independent of the author's outcome and split (otherwise the author gains by marking "done").
+- The total inbound mass per episode for the author is bounded by √|P| (count units), so a large episode does not turn the author into a hub.
+- Protection for the helper: leaving before closure (voluntary withdrawal) writes no edge; the author removing someone also writes none. For obvious abuse the ban overrides the pair at projection (phase A: target 0; phase B: −1).
+- Kind 8 has `counts_for_immunity = false`: working for an author never grants the author immunity from the noisy-contact wall.
+- Not retracted after finalize; later removal of the edge only via ban. A bookmark on the author strengthens it.
+- Strength: one edge ≈ 0.08·c/(1+c) with c = 1/√|P| (|P| = 1 → 0.04; 4 → 0.027; 9 → 0.02); pair ceiling 0.08; linear decay to 0 over 180 days.
 
 ### 5.10 Bookmarks after closure
 
@@ -519,7 +539,7 @@ Rename `C/features/evaluation` → `C/features/closure`: `ClosureRepository`, `C
 ### 8.2 Screens and acceptance criteria
 
 - **Author "Подвести итоги" (A10):** member rows (leavers last, "ушёл"/"исключён"), outcome picker (vertical list on narrow screens; hint "«Не выполнено» убирает человека из твоего распределения; «Не могу судить» оставляет его в равной доле"), bookmark 🔖; split section locked until "Изменить распределение" (unlock does not change values), "Вернуть поровну", live preview bars with names "если коллеги промолчат"; story with hint; deadline, extend, close-now with explanation "Можно закрыть раньше после <время>, или когда все помощники ответят" (no list of who answered); for two helpers "Долю каждого распределяешь ты. Каждый из двоих поймёт по своему итогу, как ты разделил".
-- **Helper "Поддержать коллег" (A11):** header "Кого стоит поддержать сверх решения автора? Твоя часть от этого не меняется"; one toggle per colleague "☆ Поддержать / ★ Поддерживаю"; ▲/▼ indicators after the first press with legend "▲ получат добавку — ▼ её отдадут те, кого ты не выбрал"; scapegoat hint "Поддержать всех — то же, что никого. Кто-то должен отдать: снята самая ранняя (…)"; status line "В расчёте: поддержаны …" / "В расчёт ещё не входит" / "На экране иначе — «Готово» заменит расчёт"; Done; "Пропустить — не отмечаю никого" with "Твоя часть не меняется никогда" and a confirm if a committed version exists; "Автор может закрыть после <время> — или раньше, когда ответят все"; privacy line "В приложении твой выбор не видят. По своим итогам другие могут о нём догадаться"; bookmark copy "Закладка чуть усиливает твою связь с этим человеком в сети. Ему не придёт уведомление, части в этом запросе не меняются. Поставить и снять можно и позже". The (i) sheet (`share_flow_diagram.dart`, `CustomPainter` + `TenturaAvatar`) draws **equal grey example flows labelled "пример"**, never real author allocations (U20).
+- **Helper "Поддержать коллег" (A11):** always (also for 1 or 2 members) the U58 notice "Когда запрос закроется, в сети появится слабая связь от тебя к автору: вы работали вместе. Не хочешь её — выйди из запроса до закрытия"; header "Кого стоит поддержать сверх решения автора? Твоя часть от этого не меняется"; one toggle per colleague "☆ Поддержать / ★ Поддерживаю"; ▲/▼ indicators after the first press with legend "▲ получат добавку — ▼ её отдадут те, кого ты не выбрал"; scapegoat hint "Поддержать всех — то же, что никого. Кто-то должен отдать: снята самая ранняя (…)"; status line "В расчёте: поддержаны …" / "В расчёт ещё не входит" / "На экране иначе — «Готово» заменит расчёт"; Done; "Пропустить — не отмечаю никого" with "Твоя часть не меняется никогда" and a confirm if a committed version exists; "Автор может закрыть после <время> — или раньше, когда ответят все"; privacy line "В приложении твой выбор не видят. По своим итогам другие могут о нём догадаться"; bookmark copy "Закладка чуть усиливает твою связь с этим человеком в сети. Ему не придёт уведомление, части в этом запросе не меняются. Поставить и снять можно и позже". The (i) sheet (`share_flow_diagram.dart`, `CustomPainter` + `TenturaAvatar`) draws **equal grey example flows labelled "пример"**, never real author allocations (U20).
 - **Results card (A12):** outcome line; band sentence ("Коллеги подняли твою часть" / "Твоя часть — как если бы коллеги промолчали" / "Коллеги опустили твою часть"); "Автор отметил: не выполнено — части в итогах нет" only when the outcome is not done **and** the band is none (a not-done member supported by colleagues gets a positive part and the raised sentence); draft line ("Твои отметки не вошли…" / "В расчёте прошлая версия…"); own bookmarks with toggles.
 - **My Work (U6):** the archive affordance is shown for helper cards on **open** requests too (derivation change around `showArchiveAffordance`); archiving only hides the card for the viewer — no departure, no evidence.
 
@@ -622,6 +642,7 @@ Pilot metrics (plan §8): effect of supports vs the same episode in silence (fro
 | Publisher lag or MR outage | Queue with retry; closure state independent of MR; health metrics |
 | Author power (α_A, outcomes, removals, two-helper case) | By design (U49); pilot α_A and β |
 | Pair collusion | Accepted (U43); band threshold hides a single pair |
+| Helper → author edge (U58) lends mass to a fake author | Each edge costs real help; weak, √n-budgeted per episode, saturates per pair, linear decay 180 d; exit before closure and ban; no wall immunity |
 | Users misread the UI | Single toggle, indicators, scapegoat hint, "В расчёте", comprehension test |
 | Score scale ×6 in MR 0.11.0 | Phase 0 audit |
 | Cutover partially applied | Restartable `TrustCutoverCase`, publisher paused until done |
@@ -630,6 +651,7 @@ Pilot metrics (plan §8): effect of supports vs the same episode in silence (fro
 
 ## 15. Review log
 
+- rev 4 (2026-09-29) — U58 (plan rev 21): kind 8 `worked_with_author`, helper → author at finalize for members present until closure, `count = 1/√|P|`, linear decay over 180 d, excluded from `T_recent`; kind config gets `linear_window_s` and `counts_for_immunity`.
 - rev 3 (2026-09-29) — inherited findings from the Codex review of the step plan: real `user_trust_edge` column names and trigger name; deletion trigger enqueues instead of calling MR, tombstones dropped; publisher and cutover exclusivity via lease + fencing token (pooled connections); per-request lock key `hashtextextended(beacon_id, 4242)` also taken by commitment-event writers, with a defined lock order; sweep finalizes only the selected epoch; `voter` derived from `active_at_open` and `departure`; legacy reviewOpen requests → needsMoreHelp; Drift/erasure cleanup; apportionment switched to water-filling; empty/singleton A; current close effects preserved; draft-reminder audience narrowed; not-done result text conditional on band.
 - rev 2 (2026-09-29) — Codex gpt-6-astra (high) architecture review, all findings applied: MR reset/bootstrap moved out of migrations into a restartable `TrustCutoverCase` (1); live dependencies on dropped tables removed and a quiesced release sequence added (2); single per-beacon lock and `expectedEpoch` on every mutation (3); full projection wipe incl. non-vote pairs, tombstones kept (4); publication moved to a durable queue acknowledged after `mr_sync` (5); immutable `beacon_closure_result` and frozen settlement params (6); unanswered outcome as NULL, split in its own table, P3 requires explicit answers (7); causal `selectArrivalEdge` instead of the display path query (8); unretract on re-acknowledgement, pair-locked dedup (9); `MembershipReducer` event table, author excluded (10); closure-role read authorization and field allowlist, receipt policies (11); all-supported = silence with server-side scapegoat via atomic toggles (12); phase B transition table and wall levels (13); U6 open-request archive (14); small-group readiness and `canReopen` (15); conservation for empty A and apportionment spec with 19/20/21 vectors (16); FKs, domain checks, due indexes, single readiness authority (17); receipt source keys, activity sources, ISO week-year (18); U20/U36/U44/U53 copy and exact version files (19); nonexistent kind 8 removed (20); code references corrected (`acceptHelpOffer`, `fetchHelpOffererPathChain` signature, reciprocal vote creation site).
 - rev 1 (2026-09-29) — initial translation of plan rev 20.

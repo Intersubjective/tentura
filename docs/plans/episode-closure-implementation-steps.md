@@ -1,11 +1,11 @@
 # Episode closure — step-by-step implementation plan
 
-**Status:** draft, rev 2 (2026-09-29). Rev 2 applies the Codex (gpt-6-astra, high) review of rev 1 (28 findings, §9).
+**Status:** draft, rev 3 (2026-09-29). Rev 2 applied the Codex (gpt-6-astra, high) review of rev 1 (28 findings); rev 3 adds U58, the helper → author edge (§9).
 **For:** an implementer (human or model) who follows steps literally. Every unit lists its inputs, the exact files, the steps, the tests and a "done when" check. Do not skip units or change their order unless the dependency column allows it.
 
 **Sources of truth (read before starting any unit):**
-1. `docs/plans/episode-closure-architecture.md` (rev 3) — the technical design. Section numbers below like "Arch §5.5" point there.
-2. `docs/plans/episode-closure-implementation-plan.md` (Russian, rev 20) — product decisions U1–U57, P1–P11, and all UI copy. When copy is quoted below it is copied from there; use it verbatim.
+1. `docs/plans/episode-closure-architecture.md` (rev 4) — the technical design. Section numbers below like "Arch §5.5" point there.
+2. `docs/plans/episode-closure-implementation-plan.md` (Russian, rev 21) — product decisions U1–U58, P1–P11, and all UI copy. When copy is quoted below it is copied from there; use it verbatim.
 3. `docs/plans/episode-closure-simulator.html` — reference math for settlement (n ≤ 8).
 
 If a step here contradicts the architecture document, stop and report it; do not guess.
@@ -170,7 +170,7 @@ A7, A8 and A9 have no dependencies; do them first. Units are listed in execution
 
 **Steps (one SQL string per list entry, in this order)**
 1. Inventory first (write the result into the migration's doc comment): `grep -n "trust_evidence_event\|user_trust_source_edge\|trust_context_config\|trust_apply_source_evidence\|trust_resync_source\|trust_rebuild_effective\|meritrank_edge_tombstone\|half_life_seconds" packages/server/lib/data/database/migration/*.dart packages/server/lib --include=*.dart -r`. Every SQL function, trigger or view that references them must be dropped or rewritten in this migration; every Dart caller is handled by A2/A4/A5 — list them.
-2. `CREATE TABLE trust_kind_config` as Arch §4.1; insert kinds 1–5 (half-life seconds: 365 d = 31536000, 182 d = 15724800; vouch NULL).
+2. `CREATE TABLE trust_kind_config` as Arch §4.1 (including `linear_window_s` and `counts_for_immunity`); insert kinds 1–5 (half-life seconds: 365 d = 31536000, 182 d = 15724800; vouch NULL) and kind 8 `worked_with_author` (polarity 0, `half_life_s` NULL, `linear_window_s` = 15552000 (180 d), `k_sat` 1, `mix_weight` 0.08, `counts_for_immunity` false). Kinds 6–7 come in B2.
 3. `CREATE TABLE trust_evidence` with its four indexes (Arch §4.1).
 4. `CREATE TABLE trust_publish_queue` and `trust_publisher_lease` (insert row id 1) (Arch §4.1).
 5. `CREATE TABLE trust_cutover_state (id smallint PRIMARY KEY CHECK (id = 1), status text NOT NULL CHECK (status IN ('pending','done')), owner text NULL, token bigint NOT NULL DEFAULT 0, lease_until timestamptz NOT NULL DEFAULT 'epoch', updated_at timestamptz NOT NULL DEFAULT now()); INSERT INTO trust_cutover_state (id, status) VALUES (1, 'pending');`
@@ -180,7 +180,7 @@ A7, A8 and A9 have no dependencies; do them first. Units are listed in execution
 9. Drop `meritrank_edge_tombstone` and any function that drains it (from the inventory).
 10. Alter `user_trust_edge`: drop `s_very_bad, s_bad, s_no_effect, s_good, s_very_good, anchor_at`; add `trust_w`, `wall_d`, `target_w` (`double precision NOT NULL DEFAULT 0`).
 11. Drop (with `IF EXISTS`, functions with their exact signatures): `trust_apply_source_evidence`, `trust_resync_source`, `trust_rebuild_effective_edge`, `trust_rebuild_effective_batch`, tables `trust_evidence_event`, `user_trust_source_edge`, `trust_context_config`, column `trust_policy.half_life_seconds`.
-12. `CREATE FUNCTION trust_fold_pair(p_subject text, p_object text) RETURNS TABLE (trust_w double precision, trust_recent double precision, n_noisy double precision)` — Arch §4.2: over live rows of `trust_evidence` joined to `trust_kind_config`; `age = extract(epoch from now() - occurred_at)`; decay `power(2, -age / half_life_s)` when `half_life_s` is not NULL, else 1; `T = Σ over polarity-0 kinds of mix·s/(k+s)`; vouch contributes `1.0·s/(1+s)` with `s = 1` when `vote_user(subject → object).amount > 0`; `trust_recent` = same over rows with `age ≤ 180·86400` plus vouch; `n_noisy` = decayed sum of kind 7 (0 in phase A).
+12. `CREATE FUNCTION trust_fold_pair(p_subject text, p_object text) RETURNS TABLE (trust_w double precision, trust_recent double precision, n_noisy double precision)` — Arch §4.2: over live rows of `trust_evidence` joined to `trust_kind_config`; `age = extract(epoch from now() - occurred_at)`; decay = `greatest(0, 1 - age / linear_window_s)` when `linear_window_s` is not NULL, else `power(2, -age / half_life_s)` when `half_life_s` is not NULL, else 1; `T = Σ over polarity-0 kinds of mix·s/(k+s)`; vouch contributes `1.0·s/(1+s)` with `s = 1` when `vote_user(subject → object).amount > 0`; `trust_recent` = same over rows with `age ≤ 180·86400` of kinds with `counts_for_immunity = true`, plus vouch; `n_noisy` = decayed sum of kind 7 (0 in phase A).
 13. `CREATE FUNCTION trust_project_pair(p_subject text, p_object text) RETURNS void`:
     - `PERFORM trust_pair_lock(p_subject, p_object);`
     - read `trust_fold_pair`; `eps := (SELECT (value)::text::double precision FROM trust_config WHERE key = 'epsilon')`;
@@ -192,7 +192,7 @@ A7, A8 and A9 have no dependencies; do them first. Units are listed in execution
 
 **Tests (pg)**
 - On a database migrated through `0201` with seeded old trust rows (`migrateDbSchemaThrough(connection, '0201')`, seed, then migrate the rest): `user_trust_edge` is empty afterwards, no error, `trust_cutover_state.status = 'pending'`.
-- `trust_fold_pair`: one `helped` row (count 1, now) ⇒ `T = 0.5`; plus a vouch ⇒ `1.0`; one `marked` row ⇒ `0.1333…`; one `helped` row 365 days old ⇒ `0.3333…`; retracted rows ignored.
+- `trust_fold_pair`: one `helped` row (count 1, now) ⇒ `T = 0.5`; plus a vouch ⇒ `1.0`; one `marked` row ⇒ `0.1333…`; one `helped` row 365 days old ⇒ `0.3333…`; one `worked_with_author` row (count 1, now) ⇒ `T = 0.04` and `trust_recent = 0`; the same row 90 days old ⇒ s = 0.5, `T = 0.08·0.5/1.5 = 0.02667`; 181 days old ⇒ 0; count 0.5, now ⇒ `0.02667`; retracted rows ignored.
 - `trust_project_pair`: target change 0 → 0.5 enqueues; 0.5 → 0.55 does not; 0 → 0.05 enqueues (sign change); 0.5 → 0 keeps the row with `target_w = 0` and enqueues.
 - Deleting a `user_trust_edge` row with `prev_sent_weight = 0.5` inserts a queue row; with `prev_sent_weight = 0` inserts nothing; deleting a user cascades and enqueues.
 - `meritrank_init` is called only in `mr` tests (A4).
@@ -202,7 +202,7 @@ A7, A8 and A9 have no dependencies; do them first. Units are listed in execution
 **Goal:** Arch §4.4.
 
 **Files**
-- create `packages/server/lib/domain/trust/trust_evidence_kind.dart` — `enum TrustEvidenceKind { vouch(1), helped(2), marked(3), routed(4), usefulForward(5), engaged(6), noisy(7) }` with `final int code`.
+- create `packages/server/lib/domain/trust/trust_evidence_kind.dart` — `enum TrustEvidenceKind { vouch(1), helped(2), marked(3), routed(4), usefulForward(5), engaged(6), noisy(7), workedWithAuthor(8) }` with `final int code`.
 - create `packages/server/lib/domain/trust/ledger_evidence.dart` — immutable class `LedgerEvidence` (the old `TrustEvidence` class stays until A10 deletes it; this keeps A2 compiling on its own) `TrustEvidence { subjectId, objectId, kind, count, sourceKey, beaconId?, epoch?, relatedUserId?, occurredAt?, metadata }`; assert `subjectId != objectId`, `count > 0`.
 - create `packages/server/lib/domain/port/trust_ledger_port.dart` (new port; the old `TrustEvidenceRepositoryPort` is deleted in A10):
   ```dart
@@ -601,7 +601,7 @@ Future<T> _inClosureTx<T>({
 2. Set epoch `status = final`, `finalized_at = now`, `finalize_reason`, `settlement_version = 1`, `settlement_params = params.toJson()`; `beacon.status = closed(6)`; preserve the current finalize effects — read `review_finalization_case.dart:76–105` and keep `recordBeaconStatusTransition`, `BeaconLifecycleEffectsCase.recordEligibleSourceTransition` and obligation superseding in the same order.
 3. Build `SettlementInput` from members (voter derived), outcomes, split, version-1 supports (a voter without a commit row has support null) and run `EpisodeSettlement.settle`.
 4. Insert one `beacon_closure_result` per member: outcome (null stored as 3), band, draft flag (`notCounted` = version-0 rows exist and no commit row; `lastEditNotCounted` = commit row exists and version-0 target set ≠ version-1 target set; else none), helped.
-5. Evidence through `TrustLedgerPort.record` (it projects and queues): `helped` for every j with `helped[j] > 0` (subject author, key `closure:$b:$e:helped:$j`); routed from `ForwardRoutingSettlement` with seeds = members whose departure ≠ voluntary; `marked` for every `beacon_closure_mark` row (key `closure:$b:$e:mark:$x:$y`, `occurredAt = finalized_at`).
+5. Evidence through `TrustLedgerPort.record` (it projects and queues): `helped` for every j with `helped[j] > 0` (subject author, key `closure:$b:$e:helped:$j`); routed from `ForwardRoutingSettlement` with seeds = members whose departure ≠ voluntary; `marked` for every `beacon_closure_mark` row (key `closure:$b:$e:mark:$x:$y`, `occurredAt = finalized_at`); `workedWithAuthor` (U58, Arch §5.9a): `P` = members with `departure == null` at this moment; for each i in P record subject i, object author, `count = 1 / sqrt(P.length)`, key `closure:$b:$e:author_edge:$i`, `occurredAt = finalized_at` — independent of outcome and split.
 6. Close-acks for `closeAck` over the offer's help types — copy the exact call from `review_finalization_case.dart`.
 7. Story ⇒ room system message with `system_message_kind = 3`.
 8. `ClosureReceiptsPort.finalized`.
@@ -611,6 +611,7 @@ Future<T> _inClosureTx<T>({
 
 **Tests (pg)**
 - scenario V3 through the database: result bands asIfSilent / lowered / raised; `helped` evidence counts 0.3856 / 0.1471 / 0.1672; queue rows exist; no MR call.
+- U58: three members present ⇒ three `worked_with_author` rows helper → author with count `1/sqrt(3) = 0.57735`; a member marked notDone still gets the row; a member who withdrew during the evaluation window and a member removed by the author get none (and P shrinks, so the rest get `1/sqrt(2)`); a single member ⇒ count 1; a cancelled epoch (reopen) writes none; a blocked pair has published target 0; `trust_recent` of the pair stays 0.
 - draft-only voter ⇒ `notCounted`, no effect on shares.
 - finalize the same epoch twice ⇒ second is a no-op.
 - sweep selected an epoch, then the author extended it before the sweep took the lock ⇒ no-op; same for reopen + reclose (new epoch) ⇒ the new epoch is untouched. Use a test hook between select and lock.
@@ -739,14 +740,15 @@ Future<T> _inClosureTx<T>({
 5. Buttons «Готово» and «Пропустить — не отмечаю никого» with «Твоя часть не меняется никогда»; confirm dialog on Skip when a committed version exists.
 6. «Автор может закрыть после <время> — или раньше, когда ответят все».
 7. Privacy line «В приложении твой выбор не видят. По своим итогам другие могут о нём догадаться».
+7a. U58 notice, shown to every member while the epoch is evaluating, including 1- and 2-member requests and non-voters: «Когда запрос закроется, в сети появится слабая связь от тебя к автору: вы работали вместе. Не хочешь её — выйди из запроса до закрытия».
 8. Bookmark toggle per person (colleagues and the author) with the copy «Закладка чуть усиливает твою связь с этим человеком в сети. Ему не придёт уведомление, части в этом запросе не меняются. Поставить и снять можно и позже».
 9. (i) button opens a sheet with `ShareFlowDiagram`: equal grey example flows labelled «пример», never real values.
 10. Non-voter members (left or removed, or 2-member requests) see only the bookmark section and the deadline.
 11. Desktop: hover and keyboard activation for toggles; no long-press.
 
-**Localization:** `closureHelper*` keys, as in A20.
+**Localization:** `closureHelper*` keys (incl. `closureHelperAuthorEdgeNotice`), as in A20.
 
-**Tests (widget):** toggling shows ▲/▼; `released` hint; status line for the three states; Skip confirm; non-voter view; diagram never receives real numbers (its constructor takes only member count and avatars).
+**Tests (widget):** toggling shows ▲/▼; `released` hint; status line for the three states; Skip confirm; non-voter view; the U58 notice is visible for 1-member, 2-member and non-voter views; diagram never receives real numbers (its constructor takes only member count and avatars).
 
 ### A22 — Results card and My Work archive
 
@@ -861,5 +863,6 @@ Run with `scripts/run_client_integration_web_local.sh` (not wrapped).
 
 ## 9. Review log
 
+- rev 3 (2026-09-29) — U58 (plan rev 21, arch rev 4): kind 8 `worked_with_author` seeded in A1 (linear 180-day window, excluded from immunity), written in A14 for members present until closure with `count = 1/√|P|`, notice in A21.
 - rev 2 (2026-09-29) — Codex gpt-6-astra (high) review of rev 1, all 28 findings applied: real `user_trust_edge` columns and trigger name; Drift ambient transactions via `MutatingUnitOfWorkPort`, ports without session types; publisher and cutover exclusivity by lease + fencing token (pooled connections); sweep passes and re-checks the selected epoch; P0.1 clamps `_target` keeping the block override, `mr_sync` before `bumpMrEpoch`; vote/block/maintenance callers moved to A5; legacy reviewOpen → needsMoreHelp; apportionment fixed to the single water-filling rule (architecture rev 3 aligned); `renormalize` nullable, empty/singleton A, reclose renormalization; routing input spelled out, old trust types removed in A10; membership hooks take the lock before writing events, incl. `UserBlockCase`, voter derived from `active_at_open`; current close/finalize effects preserved; blocked-member access; notDone result text conditional; TaskWorker factory, contract JSON and client classification wiring; Drift/erasure cleanup; deletion trigger enqueues; schema refresh, gen-l10n, overlay test; A11b ports so units compile alone; m0199 test pin; QA expiry control (A24a) and release gates; decayed `n_noisy` tests; reminder audience; B4 locality scope; grep gates exclude migrations with an allowlist.
 - rev 1 (2026-09-29) — initial step plan from architecture rev 2; settlement and apportionment vectors computed with independent Python transcriptions (`settle_ref.py`, `apportion.py` in the session scratchpad) and cross-checked with the simulator.
