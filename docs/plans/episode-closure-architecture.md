@@ -337,7 +337,7 @@ CREATE TABLE beacon_closure_result (                -- immutable per-viewer resu
 );
 ```
 
-Dropped: `beacon_evaluation`, `beacon_evaluation_ack_tag`, `beacon_evaluation_participant`, `beacon_evaluation_visibility`, `beacon_review_status`, `beacon_review_window` (with its Hasura tracking and relationship, §11). Before dropping, `m0202` moves every request with `status = 5` (reviewOpen, legacy window) to `needsMoreHelp(7)` and retires its legacy review obligations; no evidence is minted for legacy windows (old data is discarded by product decision). Account erasure (`UserErasureRepository`) stops deleting the dropped tables; the Drift table classes and `TenturaDb` registrations of all dropped tables are removed.
+Dropped: `beacon_evaluation`, `beacon_evaluation_ack_tag`, `beacon_evaluation_participant`, `beacon_evaluation_visibility`, `beacon_review_status`, `beacon_review_window` (with its Hasura tracking and relationship, §11). Before dropping, `m0203` moves every request with `status = 5` (reviewOpen, legacy window) to `needsMoreHelp(7)` and retires its legacy review obligations; no evidence is minted for legacy windows (old data is discarded by product decision). Account erasure (`UserErasureRepository`) stops deleting the dropped tables; the Drift table classes and `TenturaDb` registrations of all dropped tables are removed.
 
 None of the closure tables are tracked in Hasura; all access goes through the GraphQL V2 resolvers (§7).
 
@@ -448,13 +448,13 @@ After commit the finalize path nudges `TrustPublisher`. MR being down only delay
 ## 6. Phase 0 and phase B details
 
 **Phase 0**
-- `m0200`: `trust_rebuild_effective_edge` publishes `greatest(w, 0)`; operator runs `trustForceRefreshAll` after deploy.
+- `m0201`: `trust_rebuild_effective_edge` sets `_target = CASE WHEN blocked THEN 0 ELSE greatest(_w, 0) END` (block override kept); operator runs `trustForceRefreshAll` after deploy.
 - Bump `postgres-tentura` to the pgmer2 0.8.1 tag in compose.dev.yaml, compose.prod.yaml and CI; call `mr_sync()` before `mr_bump_publish_epoch()` in the rebuild batch and maintenance.
 - Audit absolute score thresholds (`merit_score_lookup`, `mr_score_value`, visibility thresholds, clusters) for the ~6× scale change of MR 0.11.0.
 
 **Phase B**
 - Ban: projection yields −1 even without a trust row; sign/level changes bypass ε; `TrustCutoverCase`-style bootstrap loads negatives.
-- Noisy contact. `beacon_forward_edge` gets `contact_outcome smallint NULL` (1 engaged, 2 declined, 3 ignored), `contact_resolved_at`, `contact_deadline_at` (= `created_at + 7 d + jitter`, jitter ∈ [−1 d, +1 d] from `hash(edge_id)`; set only for edges created after `m0203`; no backfill). Index `(contact_deadline_at) WHERE contact_resolved_at IS NULL`.
+- Noisy contact. `beacon_forward_edge` gets `contact_outcome smallint NULL` (1 engaged, 2 declined, 3 ignored), `contact_resolved_at`, `contact_deadline_at` (= `created_at + 7 d + jitter`, jitter ∈ [−1 d, +1 d] from `hash(edge_id)`; set only for edges created after `m0204`; no backfill). Index `(contact_deadline_at) WHERE contact_resolved_at IS NULL`.
 
   | Transition | Writer | Evidence |
   |---|---|---|
@@ -555,10 +555,10 @@ Migrations are SQL-only and must succeed on a database **without** pgmer2 (test 
 
 | Migration | Content |
 |---|---|
-| `m0200` (phase 0) | `trust_rebuild_effective_edge` publishes `greatest(w, 0)` |
-| `m0201` (A) | trust ledger, kinds, publish queue, publisher lease; projection function; rewritten deletion-trigger function (enqueue, no MR call); drop old trust tables/functions and `meritrank_edge_tombstone`; **empty** `user_trust_edge` (all rows, trigger disabled for the wipe); insert `trust_cutover_state(status = 'pending')` |
-| `m0202` (A) | closure tables and indexes; legacy `status = 5` requests → 7; drop review tables; extend `recipient_safe` allowlist (room system kind 3 needs no constraint change, only constants) |
-| `m0203` (B) | forward-edge contact columns and index; wall levels config; `wall_publish_enabled = true` is flipped by config after deploy |
+| `m0201` (phase 0) | `trust_rebuild_effective_edge` publishes `greatest(w, 0)` |
+| `m0202` (A) | trust ledger, kinds, publish queue, publisher lease; projection function; rewritten deletion-trigger function (enqueue, no MR call); drop old trust tables/functions and `meritrank_edge_tombstone`; **empty** `user_trust_edge` (all rows, trigger disabled for the wipe); insert `trust_cutover_state(status = 'pending')` |
+| `m0203` (A) | closure tables and indexes; legacy `status = 5` requests → 7; drop review tables; extend `recipient_safe` allowlist (room system kind 3 needs no constraint change, only constants) |
+| `m0204` (B) | forward-edge contact columns and index; wall levels config; `wall_publish_enabled = true` is flipped by config after deploy |
 
 Never edit a shipped migration; verify the next free number at implementation time.
 
@@ -576,7 +576,7 @@ It is restartable: each step is idempotent; a crash leaves status `pending` and 
 
 Release sequence (one maintenance window; testers only):
 1. Stop the web client (maintenance page) and server workers.
-2. Apply migrations `m0201`, `m0202`.
+2. Apply migrations `m0202`, `m0203`.
 3. Apply Hasura metadata without `beacon_review_window` and without any closure table.
 4. Start the server (runs pgmer2 upgrade, then `TrustCutoverCase`, then workers).
 5. Deploy the web client built with the new GraphQL schema; bump `packages/client/pubspec.yaml` version and the `packages/client/web/index.html` bootstrap cache-buster; raise `kDefaultMinClientVersion` (S/env.dart:79) to the new version (keep `release_client_version_floor_test` green).

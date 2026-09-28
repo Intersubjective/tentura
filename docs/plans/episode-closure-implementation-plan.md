@@ -617,7 +617,7 @@ open family ──close──▶ reviewOpen (epoch e, status 0)
 ### Фаза 0 — срочно, отдельный PR
 
 **U0.1 — Обрезка отрицательного веса.**
-- Миграция `m0200`: `trust_rebuild_effective_edge` публикует `greatest(_w, 0)`.
+- Миграция `m0201`: `trust_rebuild_effective_edge` публикует `greatest(_w, 0)`.
 - После деплоя — `trustForceRefreshAll`.
 - Тест pg: пара с одним `very_bad` публикует 0; `prev_sent_weight ≥ 0` для всех строк.
 - Не зависит ни от чего.
@@ -635,7 +635,7 @@ open family ──close──▶ reviewOpen (epoch e, status 0)
 ### Фаза A — сервер
 
 **A1 — Схема корзин и новая пересборка** (зависит от U0.1).
-- Миграция `m0201`, по §3.1–3.2:
+- Миграция `m0202`, по §3.1–3.2:
   - удалить старые данные доверия, кроме `vote_user`;
   - создать новые таблицы и `trust_kind_config` с сидом корзин 1–7;
   - новая `trust_rebuild_effective_edge` со свёрткой (ветки стен выключены флагом `wall_publish_enabled = false` в конфиге);
@@ -660,7 +660,7 @@ open family ──close──▶ reviewOpen (epoch e, status 0)
 - Переписать `trust_evidence_writer_test`, `trust_source_context_test` → `trust_kind_config_test`; удалить `trust_migration_test` legacy-ветки.
 
 **A2 — Схема закрытия** (параллельно A1).
-- Миграция `m0202`: §3.3 плюс удаление таблиц отзывов.
+- Миграция `m0203`: §3.3 плюс удаление таблиц отзывов.
 - Системный kind комнаты 3 `closureStory` (S/consts/beacon_room_consts.dart и клиентский зеркальный).
 - `ClosureRepository`:
   - эпохи и члены;

@@ -20,7 +20,7 @@ If a step here contradicts the architecture document, stop and report it; do not
 - Never edit generated files (`*.g.dart`, `*.freezed.dart`, `*.gr.dart`, `*.config.dart`, `*.schema.dart`). After changing DI annotations, freezed classes or GraphQL documents, run code generation:
   - server: `cd packages/server && dart run build_runner build --delete-conflicting-outputs`
   - client: `cd packages/client && dart run build_runner build --delete-conflicting-outputs`
-- Migrations: one file per version in `packages/server/lib/data/database/migration/`, written like `m0199.dart` (`part of '_migrations.dart';`, `final m0NNN = Migration('0NNN', [ r'''SQL''', ... ]);`). Register it in `_migrations.dart` (the `part` line and the `_allMigrations` list). Before creating a migration, check the highest existing number and use the next one; the numbers below (0200–0203) assume `m0199` is the latest. **Never edit a migration that is already on `main`.**
+- Migrations: one file per version in `packages/server/lib/data/database/migration/`, written like `m0199.dart` (`part of '_migrations.dart';`, `final m0NNN = Migration('0NNN', [ r'''SQL''', ... ]);`). Register it in `_migrations.dart` (the `part` line and the `_allMigrations` list). Before creating a migration, check the highest existing number and use the next one; the numbers below (0201–0204) assume `m0200` is the latest (main at 2026-09-29). **Never edit a migration that is already on `main`.**
 - Migrations must not call any `mr_*` function (test databases have no pgmer2 extension). Function bodies are not validated during test migrations, so a wrong column name inside a function only fails when the function runs — every new SQL function needs a pg test that calls it.
 - Real names in the current schema (do not guess others): `user_trust_edge(subject, object, prev_sent_weight, …)`; deletion trigger `trust_edge_effective_delete_mr` on `user_trust_edge`, executing function `trust_edge_on_effective_delete`; pair lock `trust_pair_lock(text, text)` (m0193.dart:4214); baseline functions are declared with `CREATE FUNCTION`, not `CREATE OR REPLACE`.
 - **Transactions.** Server code uses Drift with ambient transactions. Use cases get `MutatingUnitOfWorkPort` (S/domain/port/mutating_unit_of_work_port.dart) and call `_uow.run(actorUserId: …, action: () async { … })`; every repository called inside `action` automatically joins that transaction. Repository ports take **domain arguments only** — never a `Session`, `Tx` or Drift type. Raw SQL inside a repository: `_db.customStatement(sql, [args])` / `_db.customSelect(...)`.
@@ -80,19 +80,19 @@ Never run two wrapped commands at the same time (they delete each other's temp f
 
 | Id | Title | Depends on | Package |
 |---|---|---|---|
-| P0.1 | Publish non-negative weights (m0200) | — | server |
+| P0.1 | Publish non-negative weights (m0201) | — | server |
 | P0.2 | pgmer2 0.8.1 and `mr_sync` barrier | P0.1 | infra, server |
 | P0.3 | Score-scale audit note | P0.2 | docs |
 | A7 | EpisodeSettlement (pure) | — | server domain |
 | A8 | Author split apportionment (pure) | — | server domain |
 | A9 | MembershipReducer (pure) | — | server domain |
-| A1 | Trust ledger schema (m0201) | P0.* merged | server SQL |
+| A1 | Trust ledger schema (m0202) | P0.* merged | server SQL |
 | A2 | Trust domain types and repository (additive) | A1 | server |
 | A3 | TrustPublisher task | A2 | server |
 | A4 | TrustCutoverCase and startup | A3 | server |
 | A5 | Vote, block and maintenance callers on the new ledger | A2 | server |
 | A10 | ForwardRoutingSettlement and removal of the old trust types | A2, A5 | server domain |
-| A6 | Closure schema (m0202), Drift, erasure, Hasura | A1 | server SQL, hasura |
+| A6 | Closure schema (m0203), Drift, erasure, Hasura | A1 | server SQL, hasura |
 | A11 | ClosureRepository | A6, A9 | server data |
 | A11b | Closure ports for receipts and finalization | A11 | server domain |
 | A12 | ClosureCase: lock, lifecycle, membership hooks | A11b | server |
@@ -119,20 +119,20 @@ A7, A8 and A9 have no dependencies; do them first. Units are listed in execution
 
 ## 2. Phase 0 (separate PR, ships first)
 
-### P0.1 — Publish non-negative weights (m0200)
+### P0.1 — Publish non-negative weights (m0201)
 
 **Goal:** MR v0.11.0 treats a negative weight as a wall. Until phase B, never publish negatives.
 
 **Files**
-- create `packages/server/lib/data/database/migration/m0200.dart`
+- create `packages/server/lib/data/database/migration/m0201.dart`
 - modify `packages/server/lib/data/database/migration/_migrations.dart`
-- modify `packages/server/test/data/database/m0199_fact_history_migration_pg_test.dart` — it runs the full registry (line ~49) and then asserts the latest version is exactly `0199` (line ~63). Change that fixture to `migrateDbSchemaThrough(writer, '0199')` for the m0199-specific checks, and keep a separate assertion that the full registry reaches the newest version.
-- create `packages/server/test/data/database/m0200_clamp_mr_test.dart` (tags `pg`, `mr`) and `m0200_clamp_pg_test.dart` (tag `pg`)
+- modify `packages/server/test/data/database/m0199_fact_history_migration_pg_test.dart` — it runs the full registry (line ~49) and then asserts the latest version is exactly `0200` (line ~64). Change that fixture to `migrateDbSchemaThrough(writer, '0200')` for the m0199-specific checks, and keep a separate assertion that the full registry reaches the newest version.
+- create `packages/server/test/data/database/m0201_clamp_mr_test.dart` (tags `pg`, `mr`) and `m0201_clamp_pg_test.dart` (tag `pg`)
 
 **Steps**
-1. In `m0193.dart` find `CREATE FUNCTION public.trust_rebuild_effective_edge` (around line 4256). Copy the whole function into `m0200` as `CREATE OR REPLACE FUNCTION`.
+1. In `m0193.dart` find `CREATE FUNCTION public.trust_rebuild_effective_edge` (around line 4256). Copy the whole function into `m0201` as `CREATE OR REPLACE FUNCTION`.
 2. Change only the assignment of `_target`: `_target := CASE WHEN <the existing blocked condition> THEN 0 ELSE greatest(_w, 0) END;` (keep the block override that is already there around line 4304). Publication and `prev_sent_weight` keep using `_target`. Everything else (ε test, error deferral) stays identical.
-3. Register `m0200`.
+3. Register `m0201`.
 
 **Tests**
 - `mr`: a negative effective weight publishes 0 to MR; a positive one publishes its value; a blocked pair with positive weight publishes 0.
@@ -145,7 +145,7 @@ A7, A8 and A9 have no dependencies; do them first. Units are listed in execution
 **Files**
 - `compose.dev.yaml`, `compose.prod.yaml`, CI workflows: replace `postgres-tentura:v0.8.0` with the 0.8.1 tag (`grep -rn "postgres-tentura:" .`).
 - `packages/server/lib/data/repository/*witness_window*` (the implementation of `WitnessWindowPort.bumpMrEpoch`, used at trust_maintenance_case.dart:103 and meritrank_case.dart:39): run `SELECT mr_sync()` before bumping the epoch.
-- Any SQL function in `m0193.dart` that bumps the publish epoch after MR writes (`grep -n "publish_epoch" m0193.dart`): if one exists, `CREATE OR REPLACE` it in `m0200` (if P0.1 is not merged yet) or in the next free migration, adding `PERFORM mr_sync();` before the bump.
+- Any SQL function in `m0193.dart` that bumps the publish epoch after MR writes (`grep -n "publish_epoch" m0193.dart`): if one exists, `CREATE OR REPLACE` it in `m0201` (if P0.1 is not merged yet) or in the next free migration, adding `PERFORM mr_sync();` before the bump.
 
 **Tests:** existing `mr`-tagged tests pass against the new image; a new `mr` test calls `bumpMrEpoch` and asserts no error.
 
@@ -159,14 +159,14 @@ A7, A8 and A9 have no dependencies; do them first. Units are listed in execution
 
 ## 3. Phase A — server foundations
 
-### A1 — Trust ledger schema (m0201)
+### A1 — Trust ledger schema (m0202)
 
-**Goal:** Arch §4.1–§4.3 and §10 row m0201.
+**Goal:** Arch §4.1–§4.3 and §10 row m0202.
 
 **Files**
-- create `packages/server/lib/data/database/migration/m0201.dart`; register it
+- create `packages/server/lib/data/database/migration/m0202.dart`; register it
 - modify `packages/server/lib/data/database/table/user_trust_edges.dart` (drop the removed columns, add `trustW`, `wallD`, `targetW`); remove Drift table classes and `TenturaDb` registrations of `trust_evidence_event`, `user_trust_source_edge`, `trust_context_config`, `meritrank_edge_tombstone` if they exist; run server build_runner
-- create `packages/server/test/data/database/m0201_trust_ledger_pg_test.dart` (tag `pg`)
+- create `packages/server/test/data/database/m0202_trust_ledger_pg_test.dart` (tag `pg`)
 
 **Steps (one SQL string per list entry, in this order)**
 1. Inventory first (write the result into the migration's doc comment): `grep -n "trust_evidence_event\|user_trust_source_edge\|trust_context_config\|trust_apply_source_evidence\|trust_resync_source\|trust_rebuild_effective\|meritrank_edge_tombstone\|half_life_seconds" packages/server/lib/data/database/migration/*.dart packages/server/lib --include=*.dart -r`. Every SQL function, trigger or view that references them must be dropped or rewritten in this migration; every Dart caller is handled by A2/A4/A5 — list them.
@@ -191,7 +191,7 @@ A7, A8 and A9 have no dependencies; do them first. Units are listed in execution
 14. Rewrite `meritrank_init()` to read `target_w` from `user_trust_edge` (all rows with `target_w <> 0`) plus polling edges (unchanged part).
 
 **Tests (pg)**
-- On a database migrated through `0199` with seeded old trust rows (`migrateDbSchemaThrough(connection, '0199')`, seed, then migrate the rest): `user_trust_edge` is empty afterwards, no error, `trust_cutover_state.status = 'pending'`.
+- On a database migrated through `0201` with seeded old trust rows (`migrateDbSchemaThrough(connection, '0201')`, seed, then migrate the rest): `user_trust_edge` is empty afterwards, no error, `trust_cutover_state.status = 'pending'`.
 - `trust_fold_pair`: one `helped` row (count 1, now) ⇒ `T = 0.5`; plus a vouch ⇒ `1.0`; one `marked` row ⇒ `0.1333…`; one `helped` row 365 days old ⇒ `0.3333…`; retracted rows ignored.
 - `trust_project_pair`: target change 0 → 0.5 enqueues; 0.5 → 0.55 does not; 0 → 0.05 enqueues (sign change); 0.5 → 0 keeps the row with `target_w = 0` and enqueues.
 - Deleting a `user_trust_edge` row with `prev_sent_weight = 0.5` inserts a queue row; with `prev_sent_weight = 0` inserts nothing; deleting a user cascades and enqueues.
@@ -303,19 +303,19 @@ A7, A8 and A9 have no dependencies; do them first. Units are listed in execution
 - maintenance re-queues a pair whose decayed value moved by more than 0.1.
 - `grep -rn "trust_rebuild_effective" packages/server/lib` returns nothing after this unit.
 
-### A6 — Closure schema (m0202), Drift, erasure, Hasura
+### A6 — Closure schema (m0203), Drift, erasure, Hasura
 
-**Goal:** Arch §5.4 and §10 row m0202.
+**Goal:** Arch §5.4 and §10 row m0203.
 
 **Files**
-- create `m0202.dart`, register it
+- create `m0203.dart`, register it
 - Drift: remove table classes and `TenturaDb` registrations of the six dropped review tables; add no Drift classes for closure tables (closure SQL is raw, like the trust ledger); run build_runner. Code that still reads the review tables through Drift must be adapted in this unit to compile — replace its body with `throw UnimplementedError('removed in A18')` only for review-only code paths that A18 deletes, and list them in the commit message.
 - `packages/server/lib/data/repository/user_erasure_repository.dart` (~lines 135–163) and `UserErasurePort` / `UserErasureCase`: remove the SQL for dropped review tables, keep capability cleanup.
 - `hasura/metadata.json`: remove the `beacon_review_window` table entry (~line 15), the beacon relationship to it (~line 1914) and any entry for the other dropped tables (search `beacon_evaluation`, `beacon_review`).
-- tests `test/data/database/m0202_closure_schema_pg_test.dart`; extend the account-erasure pg test to run through `UserErasureCase`.
+- tests `test/data/database/m0203_closure_schema_pg_test.dart`; extend the account-erasure pg test to run through `UserErasureCase`.
 
 **Steps**
-1. Inventory: grep `m0193.dart`–`m0199.dart` for functions, views, triggers and indexes on the six review tables (`beacon_evaluation`, `beacon_evaluation_ack_tag`, `beacon_evaluation_participant`, `beacon_evaluation_visibility`, `beacon_review_status`, `beacon_review_window`, including `beacon_review_window_closes_at_idx`). Drop or rewrite each explicitly; list them in the doc comment.
+1. Inventory: grep `m0193.dart`–`m0200.dart` for functions, views, triggers and indexes on the six review tables (`beacon_evaluation`, `beacon_evaluation_ack_tag`, `beacon_evaluation_participant`, `beacon_evaluation_visibility`, `beacon_review_status`, `beacon_review_window`, including `beacon_review_window_closes_at_idx`). Drop or rewrite each explicitly; list them in the doc comment.
 2. Legacy windows: `UPDATE beacon SET status = 7 WHERE status = 5;` and retire their legacy review obligations (find the obligation table/kind used for review in the inventory and mark them superseded the same way the current reopen does). No evidence rows.
 3. Create the nine closure tables exactly as Arch §5.4 (note `beacon_closure_member.active_at_open`, no `voter` column) with all constraints and indexes, plus `CREATE INDEX ON beacon_closure_member (user_id)`, `CREATE INDEX ON beacon_closure_support (beacon_id, version)`, `CREATE INDEX ON beacon_closure_mark (target_id)`.
 4. Drop the six review tables.
@@ -789,7 +789,7 @@ Future<T> _inClosureTx<T>({
 ### A24 — Release: versions and deploy runbook
 
 **Steps**
-1. Bump `packages/client/pubspec.yaml` version (minor bump from the current `7.24.2`, e.g. `7.25.0` — check `main` first).
+1. Bump `packages/client/pubspec.yaml` version (minor bump from the current version (7.24.8 on main at 2026-09-29), e.g. `7.25.0` — check `main` first).
 2. Run the web app once locally (or `flutter build web`) so `packages/client/web/index.html` gets `flutter_bootstrap.js?v=<new version>`; commit that diff.
 3. Set `kDefaultMinClientVersion` in `packages/server/lib/env.dart` (~line 79) to the new version; update `packages/server/test/release_client_version_floor_test.dart` if it pins the value.
 4. Write the release runbook into the PR description, copied from Arch §11 "Release sequence", plus "after deploy: check `trust_cutover_state.status = 'done'`, queue depth near 0".
