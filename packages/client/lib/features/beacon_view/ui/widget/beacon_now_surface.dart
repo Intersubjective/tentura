@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_lineage_parent_link.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/beacon_hierarchy_cubit.dart';
@@ -228,10 +227,10 @@ class BeaconNowSurface extends StatelessWidget {
             if (admitted) ...[
               const SliverToBoxAdapter(child: _HierarchyBootstrap()),
               SliverPadding(
-                padding: EdgeInsets.only(
-                  left: tt.screenHPadding + kBeaconHudRowLeadWidth,
-                  right: tt.screenHPadding,
-                ),
+                // A section of its own: on the column edge with the Details /
+                // Facts cards and the Forward action above it, not on the HUD
+                // rows' text line (which left it 32 dp in from everything).
+                padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
                 sliver: SliverToBoxAdapter(
                   child: BeaconChildRequestsSection(beaconState: state),
                 ),
