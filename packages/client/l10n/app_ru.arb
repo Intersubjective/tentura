@@ -351,6 +351,14 @@
   "@friendsInviteMore": {
     "context": "FriendsScreen"
   },
+  "homeListDetailEmptyTitle": "Выберите запрос",
+  "@homeListDetailEmptyTitle": {
+    "context": "HomeScreen"
+  },
+  "homeListDetailEmptyBody": "Он откроется здесь, рядом со списком.",
+  "@homeListDetailEmptyBody": {
+    "context": "HomeScreen"
+  },
   "invitationsShowMenuItem": "Посмотреть приглашения",
   "@invitationsShowMenuItem": {
     "context": "FriendsScreen"
