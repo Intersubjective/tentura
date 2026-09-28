@@ -200,6 +200,8 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
             p.status != c.status ||
             p.hasError != c.hasError ||
             p.replyTarget?.id != c.replyTarget?.id ||
+            p.pendingQuotedFact?.factCardId !=
+                c.pendingQuotedFact?.factCardId ||
             p.beaconStatus != c.beaconStatus ||
             p.myUserId != c.myUserId ||
             p.readWatermarksLoaded != c.readWatermarksLoaded ||
@@ -262,6 +264,8 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
             onJumpToReply: (id) => unawaited(cubit.jumpToRepliedMessage(id)),
             replyTarget: state.replyTarget,
             onCancelReply: cubit.cancelReply,
+            pendingQuotedFact: _pendingQuotedFactCard(state),
+            onCancelQuotedFact: cubit.clearPendingQuotedFact,
             onToggleReaction: canWrite
                 ? (messageId, emoji) => cubit.toggleReaction(
                     messageId: messageId,
@@ -298,7 +302,13 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                 ? null
                 : l10n.beaconRoomMessageReadOnlyHint,
             onPickFact: canWrite
-                ? () => unawaited(showFactPickerSheet(context, cubit: cubit))
+                ? () async {
+                    await showFactPickerSheet(context, cubit: cubit);
+                    if (!context.mounted) return;
+                    if (cubit.state.pendingQuotedFact != null) {
+                      _basicChatKey.currentState?.focusComposer();
+                    }
+                  }
                 : null,
             imageRepository: GetIt.I<ImageRepository>(),
             clipboardImageRepository: GetIt.I<ClipboardImageRepository>(),
@@ -320,6 +330,26 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
           );
         },
       ),
+    );
+  }
+
+  BeaconFactCard? _pendingQuotedFactCard(RoomState state) {
+    final quoted = state.pendingQuotedFact;
+    if (quoted == null) return null;
+    for (final card in state.factCards) {
+      if (card.id == quoted.factCardId) return card;
+    }
+    return BeaconFactCard(
+      id: quoted.factCardId,
+      beaconId: state.beaconId,
+      factText: quoted.factText,
+      visibility: quoted.visibility,
+      pinnedBy: quoted.pinnedById ?? '',
+      pinnedByTitle: quoted.pinnedByTitle,
+      createdAt: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+      status: quoted.status,
+      revisionSeq: quoted.currentSeq,
+      attachments: quoted.attachments,
     );
   }
 

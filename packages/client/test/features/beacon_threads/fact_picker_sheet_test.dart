@@ -74,6 +74,13 @@ class _PickerRoomCubit extends RoomBodyHarnessCubit {
       emitHarnessState(state.copyWith(pendingFactsFocusFactId: null));
     }
   }
+
+  @override
+  void clearPendingQuotedFact() {
+    if (state.pendingQuotedFact != null) {
+      emitHarnessState(state.copyWith(pendingQuotedFact: null));
+    }
+  }
 }
 
 BeaconFactCard _fact({
@@ -501,6 +508,30 @@ void main() {
           reason: 'the pending quote must carry the tapped card\'s pinner, '
               'not factB\'s (they differ: author-a vs author-b)',
         );
+
+        expect(
+          find.byKey(const ValueKey('quoted-fact-banner')),
+          findsOneWidget,
+          reason:
+              'beacon_room_body must pass pendingQuotedFact into '
+              'BasicChatBody so the composer shows the attached-fact banner',
+        );
+        expect(find.textContaining(factA.factText), findsWidgets);
+        expect(find.textContaining(factA.pinnedByTitle), findsWidgets);
+
+        await tester.tap(find.byKey(const ValueKey('quoted-fact-close')));
+        await tester.pumpAndSettle();
+
+        expect(
+          cubit.state.pendingQuotedFact,
+          isNull,
+          reason:
+              'closing the banner must call RoomCubit.clearPendingQuotedFact',
+        );
+        expect(
+          find.byKey(const ValueKey('quoted-fact-banner')),
+          findsNothing,
+        );
       },
     );
   });
@@ -629,6 +660,12 @@ void main() {
           'fact-quote',
           reason:
               "'Quote in chat' must call RoomCubit.setPendingQuotedFact",
+        );
+        expect(
+          find.byKey(const ValueKey('quoted-fact-banner')),
+          findsOneWidget,
+          reason:
+              "'Quote in chat' must show the composer attached-fact banner",
         );
 
         expect(
