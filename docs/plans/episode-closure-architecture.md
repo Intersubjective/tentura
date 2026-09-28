@@ -1,6 +1,6 @@
 # Episode closure and trust update — technical architecture
 
-**Status:** draft, rev 2 (2026-09-29). Rev 2 applies the Codex (gpt-6-astra, high) architecture review: 3 blockers and 17 other findings (see §15).
+**Status:** draft, rev 3 (2026-09-29). Rev 2 applied the Codex (gpt-6-astra, high) architecture review; rev 3 applies the findings of the Codex review of the step plan that were inherited from this document (see §15).
 
 **Normative source:** `episode-closure-implementation-plan.md` (Russian, rev 20). That document holds the product decisions (U1–U57, P1–P11), their rationale and the rejected alternatives (§1.4). This document is the engineering translation: components, data model, algorithms, interfaces, jobs, migration, deployment and test strategy. Where the two disagree, the Russian plan wins and this file must be fixed.
 
@@ -135,7 +135,14 @@ CREATE TABLE trust_publish_queue (
   PRIMARY KEY (subject_user_id, object_user_id)
 );
 
-ALTER TABLE user_trust_edge
+CREATE TABLE trust_publisher_lease (           -- fencing for the single publisher
+  id          smallint PRIMARY KEY CHECK (id = 1),
+  owner       text NULL,
+  token       bigint NOT NULL DEFAULT 0,
+  lease_until timestamptz NOT NULL DEFAULT 'epoch'
+);
+
+ALTER TABLE user_trust_edge            -- columns subject, object, prev_sent_weight stay
   DROP COLUMN s_very_bad, DROP COLUMN s_bad, DROP COLUMN s_no_effect,
   DROP COLUMN s_good, DROP COLUMN s_very_good, DROP COLUMN anchor_at,
   ADD COLUMN trust_w    double precision NOT NULL DEFAULT 0,
@@ -144,7 +151,9 @@ ALTER TABLE user_trust_edge
 -- prev_sent_weight stays: the value MR is known to hold (acknowledged after mr_sync).
 ```
 
-Dropped in phase A: `trust_evidence_event`, `user_trust_source_edge`, `trust_context_config`, `trust_policy.half_life_seconds`, `trust_apply_source_evidence`, `trust_resync_source`, and the Dart `cutoverBackfillIfNeeded()` path. The effective-edge deletion trigger (`trust_edge_on_effective_delete`) and `meritrank_edge_tombstone` are **kept**.
+Dropped in phase A: `trust_evidence_event`, `user_trust_source_edge`, `trust_context_config`, `trust_policy.half_life_seconds`, `trust_apply_source_evidence`, `trust_resync_source`, `trust_rebuild_effective_edge`, `trust_rebuild_effective_batch`, and the Dart `cutoverBackfillIfNeeded()` path. Existing column names of `user_trust_edge` (`subject`, `object`) are kept.
+
+The effective-edge deletion trigger `trust_edge_effective_delete_mr` is kept, but its function `trust_edge_on_effective_delete` is rewritten: instead of calling MR inside the deleting transaction it inserts the pair into `trust_publish_queue` when `OLD.prev_sent_weight <> 0` (the publisher then finds no row, treats the target as 0 and calls `mr_delete_edge`). This covers user-FK cascades. `meritrank_edge_tombstone` and its drain path are dropped; the queue is the only publication path.
 
 Seeded kinds (phase A: 1–5; phase B: 6–7):
 
@@ -172,7 +181,8 @@ wall     = 1              if user_block(subject → object)           (phase B; 
          = level(n_noisy) else if T_recent < 0.05 and n_noisy ≥ 3  (phase B)
          = 0
 target   = −1 if ban (phase B) | −wall if wall > 0 | T if T > 0 | 0
-update user_trust_edge set trust_w, wall_d, target_w (upsert row; delete row if target_w = 0 and prev_sent_weight = 0)
+upsert user_trust_edge(subject, object) set trust_w, wall_d, target_w
+  (delete the row only if target_w = 0 and prev_sent_weight = 0; otherwise keep the zero-target row until the publisher acknowledges it)
 if needs_publish(target_w, prev_sent_weight): upsert trust_publish_queue(subject, object)
 needs_publish = |target − prev| > ε  or  sign(target) ≠ sign(prev)  or  wall level changed
 ```
@@ -181,12 +191,14 @@ needs_publish = |target − prev| > ε  or  sign(target) ≠ sign(prev)  or  wal
 
 ### 4.3 Publication (out of transaction)
 
-`TrustPublisher` (TaskWorker, every 10 s; also nudged after finalize):
-1. `SELECT … FROM trust_publish_queue WHERE next_attempt_at ≤ now() ORDER BY enqueued_at LIMIT 200 FOR UPDATE SKIP LOCKED`.
-2. For each pair read `target_w`; call `mr_put_edge(subject, object, target_w, '', 0)` (target 0 ⇒ `mr_delete_edge`).
-3. Call `mr_sync()` once for the batch (pgmer2 0.8.1 barrier).
-4. On success: set `prev_sent_weight = target_w` for the pairs whose `target_w` did not change since read, delete their queue rows, `mr_bump_publish_epoch()`.
-5. On failure: increment `attempts`, exponential `next_attempt_at`, store `last_error`; nothing is acknowledged.
+`TrustPublisher` (TaskWorker, every 10 s; nudges only shorten the wait, they never start a second run). The connection pool makes session advisory locks unreliable, so a single publisher is enforced by a **lease with a fencing token**:
+1. Acquire: `UPDATE trust_publisher_lease SET owner = @me, token = token + 1, lease_until = now() + interval '2 minutes' WHERE id = 1 AND (lease_until < now() OR owner = @me) RETURNING token`. No row ⇒ another publisher is active; return.
+2. Read a batch: `SELECT q.subject_user_id, q.object_user_id, coalesce(e.target_w, 0) FROM trust_publish_queue q LEFT JOIN user_trust_edge e ON e.subject = q.subject_user_id AND e.object = q.object_user_id WHERE q.next_attempt_at ≤ now() ORDER BY q.enqueued_at LIMIT 200`.
+3. Before each MR call check the lease is still ours and not expired (cheap `SELECT` with the token); stop if not. Call `mr_put_edge(subject, object, target, '', 0)`, or `mr_delete_edge` when target = 0.
+4. Call `mr_sync()` once for the batch (pgmer2 0.8.1 barrier).
+5. Acknowledge in one transaction that first re-checks the token (`SELECT … FROM trust_publisher_lease WHERE token = @token AND lease_until > now() FOR UPDATE`; missing ⇒ abort without ack): for every pair re-read the current `target_w` (missing row = 0); if it equals the published value, set `prev_sent_weight = target` (or, for a missing row, nothing) and delete the queue row; a row that is now `target_w = 0 AND prev_sent_weight = 0` is deleted (the trigger does not enqueue because `OLD.prev_sent_weight = 0`); otherwise keep the queue row (it will be republished). Then `mr_bump_publish_epoch()` equivalent (the existing epoch-bump used by maintenance).
+6. On failure: increment `attempts`, exponential `next_attempt_at`, store `last_error`; nothing is acknowledged.
+7. A crash after step 4 and before step 5 only causes a harmless republish of the same values.
 
 The maintenance sweep keeps re-projecting pairs whose decayed value crosses ε (existing keyset sweep, retargeted to `trust_project_pair`).
 
@@ -219,7 +231,9 @@ open family ──close──▶ reviewOpen (epoch e, status evaluating)
 
 ### 5.2 Serialization protocol
 
-Every closure mutation (author or voter) and every lifecycle transition (close, closeNow, extend, reopen, finalize, the expiry sweep, membership changes during an epoch) runs in one transaction that first takes `pg_advisory_xact_lock(hashtextextended('closure:' || beacon_id, 0))`, then re-reads `beacon.status` and the live epoch, and rejects the call if `expectedEpoch` (a required argument of every closure mutation) differs from the live epoch or if the epoch is not evaluating (bookmarks: final allowed). Trust projection inside the same transaction takes pair locks in canonical `(subject, object)` order after the beacon lock. There are no other lock orders.
+Every closure mutation (author or voter), every lifecycle transition (close, closeNow, extend, reopen, finalize, the expiry sweep) and every commitment-event write on a request (acknowledge, withdraw, release, remove, readmit, blocked cleanup) runs in one transaction (`MutatingUnitOfWorkPort.run`) that first takes the per-request lock `pg_advisory_xact_lock(hashtextextended(beacon_id, 4242))` — the same key the current review code uses — **before** writing anything, then re-reads `beacon.status` and the live epoch. Closure mutations reject the call if `expectedEpoch` (a required argument) differs from the live epoch or if the epoch is not evaluating (bookmarks: final allowed). The expiry sweep passes the `(beacon_id, epoch)` it selected and finalizes only if that same epoch is still evaluating and `closes_at ≤ now()` under the lock; otherwise it is a no-op.
+
+Lock order: the global hierarchy scope lock (`tentura.beacon_hierarchy.v1`, only in operations that already take it) → per-request lock → trust pair locks in canonical `(subject, object)` order. There are no other lock orders.
 
 ### 5.3 Membership reducer
 
@@ -236,7 +250,7 @@ Every closure mutation (author or voter) and every lifecycle transition (close, 
 
 The author is never a member (as in `EvaluationParticipantGraphBuilder`:108). No evidence may have subject = object.
 
-Snapshot at close: members = every user with member = true; `departure` from the reducer; `voter = active`. During the epoch, a membership change runs under the beacon lock and updates the member row: `removed` ⇒ `voter = false`, `departure = removed`; `voluntary` ⇒ `departure = voluntary`, `voter` unchanged (U49); re-admission ⇒ `departure = none`, `voter` unchanged from the snapshot rule (active at opening and not currently removed). `M_route` = members whose departure ≠ voluntary.
+Snapshot at close: members = every user with member = true; `departure` from the reducer; `active_at_open = active`. **Voter** is derived, never stored: `voter = active_at_open AND departure IS DISTINCT FROM removed` (U49: active when evaluation opens and not removed by the author; a voluntary leave during the window keeps the vote). During the epoch, a commitment-event write runs under the per-request lock and updates `departure` from the reducer (removed, voluntary, or NULL after readmission); `active_at_open` never changes. `M_route` = members whose departure ≠ voluntary.
 
 ### 5.4 Data model
 
@@ -263,7 +277,7 @@ CREATE TABLE beacon_closure_member (
   user_id          text NOT NULL REFERENCES "user" ON DELETE CASCADE,
   arrival_edge_id  text NULL REFERENCES beacon_forward_edge ON DELETE SET NULL,
   departure        smallint NULL CHECK (departure IN (1, 2)),         -- voluntary, removed
-  voter            boolean NOT NULL,
+  active_at_open   boolean NOT NULL,                                  -- voter = active_at_open AND departure <> removed
   PRIMARY KEY (beacon_id, epoch, user_id),
   FOREIGN KEY (beacon_id, epoch) REFERENCES beacon_closure ON DELETE CASCADE
 );
@@ -323,12 +337,12 @@ CREATE TABLE beacon_closure_result (                -- immutable per-viewer resu
 );
 ```
 
-Dropped: `beacon_evaluation`, `beacon_evaluation_ack_tag`, `beacon_evaluation_participant`, `beacon_evaluation_visibility`, `beacon_review_status`, `beacon_review_window` (with its Hasura tracking and relationship, §11).
+Dropped: `beacon_evaluation`, `beacon_evaluation_ack_tag`, `beacon_evaluation_participant`, `beacon_evaluation_visibility`, `beacon_review_status`, `beacon_review_window` (with its Hasura tracking and relationship, §11). Before dropping, `m0202` moves every request with `status = 5` (reviewOpen, legacy window) to `needsMoreHelp(7)` and retires its legacy review obligations; no evidence is minted for legacy windows (old data is discarded by product decision). Account erasure (`UserErasureRepository`) stops deleting the dropped tables; the Drift table classes and `TenturaDb` registrations of all dropped tables are removed.
 
 None of the closure tables are tracked in Hasura; all access goes through the GraphQL V2 resolvers (§7).
 
 Write rules (under the beacon lock):
-- **Author split.** A = members with outcome done, can't-judge or unanswered. Split rows absent ⇒ exact equal. Otherwise rows cover exactly A, sum to 100, each ≥ 5 when 2 ≤ |A| ≤ 20; |A| > 20 ⇒ rows are deleted and the UI disables custom split (U50). On outcome change the vector is renormalized over the new A (a returning member gets `100/|A|`, the rest scale proportionally) and re-apportioned (§5.5.1).
+- **Author split.** A = members with outcome done, can't-judge or unanswered. Split rows absent ⇒ exact equal. Otherwise rows cover exactly A, sum to 100, each ≥ 5 when 2 ≤ |A| ≤ 20; |A| = 1 ⇒ that member 100; |A| = 0 or |A| > 20 ⇒ rows are deleted (null mode) and the UI disables custom split (U50). On outcome change, and when a new epoch is created, the vector is renormalized over the current A (a newcomer to A gets weight `100/|A|`, the rest keep their weights) and re-apportioned (§5.5.1).
 - **Support.** Mutations are atomic toggles (`closureToggleSupport(target, on)`) on version 0 with `pressed_at = now()`. If a toggle would make the draft cover all other members, the server removes the row with the earliest `pressed_at` among the others and returns the released target (U56); a committed version covering all others is treated as silence by settlement. Only `voter = true` members may write support.
 - **Done** copies version 0 to version 1 (replacing it) and upserts the commit row. **Skip** deletes version 1 rows and upserts the commit row. **Reopen** deletes version 1 rows and commit rows.
 - **User deletion** cascades that user's rows only; other members' `beacon_closure_result` rows are never recomputed.
@@ -386,11 +400,11 @@ band[j] = none        if n ≤ 2, or (helped[j] = 0 and silent[j] = 0)
 - Conservation: for non-empty A, `Σ helped + lost = pool_h`; for empty A, everything is 0.
 - Permutation invariance; marks never affect shares; not-done members get no author part; silence with equal author split over all members ⇒ equal shares; n = 2 ⇒ author split; n = 1 ⇒ `pool_h` if in A.
 
-Reference vectors (α = β = t = 0.5, n = 3, % of pool_h): author 70/20/10 silent → 55.1/29.6/15.3; Masha supports Olya → 55.1/21.0/23.9; equal author, mutual pair support → 37.5/37.5/25.0; author 50/50/0 (Olya not done), both support Olya → 39.6/39.6/20.8; done/notDone/notDone, silence → 66.7/0/0 with 33.3 lost.
+Reference vectors (α = β = t = 0.5, n = 3, % of pool_h, order Masha / Petya / Olya): author 70/20/10 silent → 55.1/29.6/15.3; Masha supports Olya → 55.1/21.0/23.9; equal author, mutual pair support → 37.5/37.5/25.0; author 50/50/0 (Olya not done), both support Olya → 39.6/39.6/20.8; done/notDone/notDone, silence → 66.7/0/0 with 33.3 lost.
 
 #### 5.5.1 Author split apportionment
 
-`apportion(weights over A, min)`: `free = 100 − min·|A|`; raw_j = `free·w_j/Σw` in units of 5; floor each; distribute the remaining units by largest fractional part, ties broken by `hash(beacon_id, helper_id)` ascending; `pct_j = min + 5·units_j`. Used for renormalization and for the moved-slider update (the moved member's value is clamped to `[min, 100 − min·(|A|−1)]` first and excluded). Hand-computed vectors for |A| = 19, 20, 21 and transitions across 20↔21 are part of the tests (the simulator caps at 8 members and is not the oracle for this).
+`apportion(total, weights, min)` — proportional with a lower bound (water-filling), so members above the minimum keep their proportions: (1) `target_j = rem·w_j/Σw` over not-yet-fixed members, `rem = total − min·|fixed|`; every member with `target_j < min` is fixed at `min`; repeat until nobody new is fixed. (2) `units_j = floor(target_j/5)`; the remaining `total/5 − Σunits` units go to the largest fractional parts, ties broken by `sha256(beacon_id + ':' + helper_id)` hex ascending; `pct_j = 5·units_j`. Used for renormalization and for the moved-slider update (the moved member's value is clamped to `[min, 100 − min·(|A|−1)]`, rounded to 5, and the others share `100 − value`). (Rev 2 reserved the minimum for everyone first and split the rest; that version moved a 70 % member to 50 % when a fourth member returned, so it was replaced.) Hand-computed vectors including |A| = 19, 20, 21 are part of the tests (the simulator caps at 8 members and is not the oracle for this).
 
 ### 5.6 Arrival edge (stream 2 and member snapshot)
 
@@ -414,14 +428,14 @@ Rename `ForwardOutcomeFinalizer` → `ForwardRoutingSettlement`:
 ### 5.9 Finalize
 
 One transaction under the beacon lock:
-1. Re-check the epoch is evaluating; set status final, `finalized_at`, `finalize_reason`, `settlement_version`, `settlement_params`; `beacon.status = closed`; lifecycle activity event.
+1. Re-check the epoch is the expected one and evaluating (sweep: and `closes_at ≤ now`); set status final, `finalized_at`, `finalize_reason`, `settlement_version`, `settlement_params`; `beacon.status = closed`; lifecycle activity event.
 2. Load members, outcomes, split, committed supports, marks, forward DAG; run `EpisodeSettlement` and `ForwardRoutingSettlement`.
 3. Insert `beacon_closure_result` for every member (outcome, band, draft flag, helped). Draft flag: `notCounted` if the voter has a draft and no commit; `lastEditNotCounted` if the draft differs from the committed version.
 4. Record evidence (`helped`: `closure:<b>:<e>:helped:<j>`; `routed`; `marked`: `closure:<b>:<e>:mark:<x>:<y>` with `occurred_at = finalized_at`) and project affected pairs (enqueue publication).
 5. Close-ack capability events for C over the offer's helpTypes.
 6. Story → room system message kind 3 `closureStory` if non-empty.
 7. Receipts (§9) with per-recipient source keys.
-8. Supersede obligations.
+8. Preserve the current close effects: `recordBeaconStatusTransition`, `BeaconLifecycleEffectsCase.recordEligibleSourceTransition` (parent/child requests), `unansweredAtClose` events for pending offers and `supersedeAuthorHelpOfferObligationsOnBeaconClose` — in whichever of close / direct close / finalize the current code runs them (S/domain/use_case/evaluation_case.dart:169–234, review_finalization_case.dart:76–105).
 
 After commit the finalize path nudges `TrustPublisher`. MR being down only delays publication; no closure state depends on it.
 
@@ -506,7 +520,7 @@ Rename `C/features/evaluation` → `C/features/closure`: `ClosureRepository`, `C
 
 - **Author "Подвести итоги" (A10):** member rows (leavers last, "ушёл"/"исключён"), outcome picker (vertical list on narrow screens; hint "«Не выполнено» убирает человека из твоего распределения; «Не могу судить» оставляет его в равной доле"), bookmark 🔖; split section locked until "Изменить распределение" (unlock does not change values), "Вернуть поровну", live preview bars with names "если коллеги промолчат"; story with hint; deadline, extend, close-now with explanation "Можно закрыть раньше после <время>, или когда все помощники ответят" (no list of who answered); for two helpers "Долю каждого распределяешь ты. Каждый из двоих поймёт по своему итогу, как ты разделил".
 - **Helper "Поддержать коллег" (A11):** header "Кого стоит поддержать сверх решения автора? Твоя часть от этого не меняется"; one toggle per colleague "☆ Поддержать / ★ Поддерживаю"; ▲/▼ indicators after the first press with legend "▲ получат добавку — ▼ её отдадут те, кого ты не выбрал"; scapegoat hint "Поддержать всех — то же, что никого. Кто-то должен отдать: снята самая ранняя (…)"; status line "В расчёте: поддержаны …" / "В расчёт ещё не входит" / "На экране иначе — «Готово» заменит расчёт"; Done; "Пропустить — не отмечаю никого" with "Твоя часть не меняется никогда" and a confirm if a committed version exists; "Автор может закрыть после <время> — или раньше, когда ответят все"; privacy line "В приложении твой выбор не видят. По своим итогам другие могут о нём догадаться"; bookmark copy "Закладка чуть усиливает твою связь с этим человеком в сети. Ему не придёт уведомление, части в этом запросе не меняются. Поставить и снять можно и позже". The (i) sheet (`share_flow_diagram.dart`, `CustomPainter` + `TenturaAvatar`) draws **equal grey example flows labelled "пример"**, never real author allocations (U20).
-- **Results card (A12):** outcome line; band sentence ("Коллеги подняли твою часть" / "Твоя часть — как если бы коллеги промолчали" / "Коллеги опустили твою часть") or "Автор отметил: не выполнено — части в итогах нет"; draft line ("Твои отметки не вошли…" / "В расчёте прошлая версия…"); own bookmarks with toggles.
+- **Results card (A12):** outcome line; band sentence ("Коллеги подняли твою часть" / "Твоя часть — как если бы коллеги промолчали" / "Коллеги опустили твою часть"); "Автор отметил: не выполнено — части в итогах нет" only when the outcome is not done **and** the band is none (a not-done member supported by colleagues gets a positive part and the raised sentence); draft line ("Твои отметки не вошли…" / "В расчёте прошлая версия…"); own bookmarks with toggles.
 - **My Work (U6):** the archive affordance is shown for helper cards on **open** requests too (derivation change around `showArchiveAffordance`); archiving only hides the card for the viewer — no departure, no evidence.
 
 All styling via the design system (`material-3-flutter` skill); desktop affordances (hover toolbar, keyboard) per the cross-platform gesture rule.
@@ -522,14 +536,14 @@ Delete review screens, cubits, widgets, presenters, `ReviewPackageState`, `Revie
 | Event / job | Recipient | Source event key | Access policy |
 |---|---|---|---|
 | `closureOpened` | author ("подведи итоги", obligation); voters when \|M\| ≥ 3; other members ("можешь поставить 🔖") | `closure_opened:<beacon>:<epoch>:<recipient>` | author/voters: beacon_content; others: recipient_safe |
-| `closureDraftReminder` | voters with a draft that differs from their committed version (or no commit), 24 h before `closes_at` | `closure_draft_reminder:<beacon>:<epoch>:<voter>` | beacon_content |
+| `closureDraftReminder` | voters with (non-empty draft and no commit) or (a commit and a draft target set different from the committed one), 24 h before `closes_at` | `closure_draft_reminder:<beacon>:<epoch>:<voter>` | beacon_content |
 | `closureFinalized` | every member (payload: outcome, band code, draft flag) | `closure_finalized:<beacon>:<epoch>:<recipient>` | beacon_content, or recipient_safe for removed/blocked members |
 | `closureCancelled` | members | `closure_cancelled:<beacon>:<epoch>:<recipient>` | as above |
 | `requestStale` | author | `stale_request:<beacon>:<ISO week-year>-W<week>` | beacon_content |
 
 - Extend the `recipient_safe` presentation-key allowlist (M:5698) with `closure_opened_bookmark_only`, `closure_finalized`, `closure_cancelled`.
 - `StaleRequestReminderSweepCase` (1 h): open family and (`end_at < now` or last activity < now − 14 d), where last activity = max of `beacon_room_message.created_at`, `beacon_activity_event.created_at`, `beacon_help_offer.updated_at`, `beacon_commitment_event.created_at`, `beacon.status_changed_at`, falling back to `beacon.created_at`. No helpers required (U18).
-- `ClosureDraftReminderSweep` (1 h) and `ClosureFinalizeSweep` (replaces the review path in `AttentionExpirySweepCase`, uses `beacon_closure_due`).
+- `ClosureDraftReminderSweep` (1 h) and `ClosureFinalizeSweep` (replaces the review path in `AttentionExpirySweepCase`, uses `beacon_closure_due`; selects `(beacon_id, epoch)` and passes the epoch to finalize, §5.2).
 - Receipts are written inside the finalize / open / cancel transaction.
 - Remove `reviewOpened`, `reviewAllPackagesIn`, `reviewWindowCancelled`, `trustGivenChanged`, `trustReceivedChanged`; update `AttentionPolicy`, destination map, `updates_event_contract_test`.
 
@@ -542,8 +556,8 @@ Migrations are SQL-only and must succeed on a database **without** pgmer2 (test 
 | Migration | Content |
 |---|---|
 | `m0200` (phase 0) | `trust_rebuild_effective_edge` publishes `greatest(w, 0)` |
-| `m0201` (A) | trust ledger, kinds, publish queue; projection function; drop old trust tables/functions; **empty** `user_trust_edge` (all rows) and `meritrank_edge_tombstone`; insert `trust_cutover_state(status = 'pending')` |
-| `m0202` (A) | closure tables and indexes; drop review tables; room system kind 3; extend `recipient_safe` allowlist |
+| `m0201` (A) | trust ledger, kinds, publish queue, publisher lease; projection function; rewritten deletion-trigger function (enqueue, no MR call); drop old trust tables/functions and `meritrank_edge_tombstone`; **empty** `user_trust_edge` (all rows, trigger disabled for the wipe); insert `trust_cutover_state(status = 'pending')` |
+| `m0202` (A) | closure tables and indexes; legacy `status = 5` requests → 7; drop review tables; extend `recipient_safe` allowlist (room system kind 3 needs no constraint change, only constants) |
 | `m0203` (B) | forward-edge contact columns and index; wall levels config; `wall_publish_enabled = true` is flipped by config after deploy |
 
 Never edit a shipped migration; verify the next free number at implementation time.
@@ -552,7 +566,7 @@ Never edit a shipped migration; verify the next free number at implementation ti
 
 ## 11. Deployment and trust cutover (phase A)
 
-`TrustCutoverCase` runs at server startup after migrations and after the pgmer2 upgrade (S/app/app.dart:27 ordering), only when `trust_cutover_state.status = 'pending'`, under a global advisory lock `trust_cutover`, with `TrustPublisher` paused (it checks the state row):
+`TrustCutoverCase` runs at server startup after migrations and after the pgmer2 upgrade (S/app/app.dart:27 ordering), only when `trust_cutover_state.status = 'pending'`, with `TrustPublisher` paused (it checks the state row). Mutual exclusion uses the same lease-with-token pattern as the publisher (columns `owner`, `token`, `lease_until` on `trust_cutover_state`, lease 10 min, renewed between steps, token re-checked in the final transaction), because session advisory locks do not survive the connection pool:
 1. Project every pair that has `vote_user.amount > 0` into `user_trust_edge` (nothing else exists after the wipe).
 2. `mr_reset()`.
 3. `meritrank_init()` — loads `target_w` of all projected pairs plus polling edges (updated to read `target_w`), then `mr_sync()`.
@@ -616,5 +630,6 @@ Pilot metrics (plan §8): effect of supports vs the same episode in silence (fro
 
 ## 15. Review log
 
+- rev 3 (2026-09-29) — inherited findings from the Codex review of the step plan: real `user_trust_edge` column names and trigger name; deletion trigger enqueues instead of calling MR, tombstones dropped; publisher and cutover exclusivity via lease + fencing token (pooled connections); per-request lock key `hashtextextended(beacon_id, 4242)` also taken by commitment-event writers, with a defined lock order; sweep finalizes only the selected epoch; `voter` derived from `active_at_open` and `departure`; legacy reviewOpen requests → needsMoreHelp; Drift/erasure cleanup; apportionment switched to water-filling; empty/singleton A; current close effects preserved; draft-reminder audience narrowed; not-done result text conditional on band.
 - rev 2 (2026-09-29) — Codex gpt-6-astra (high) architecture review, all findings applied: MR reset/bootstrap moved out of migrations into a restartable `TrustCutoverCase` (1); live dependencies on dropped tables removed and a quiesced release sequence added (2); single per-beacon lock and `expectedEpoch` on every mutation (3); full projection wipe incl. non-vote pairs, tombstones kept (4); publication moved to a durable queue acknowledged after `mr_sync` (5); immutable `beacon_closure_result` and frozen settlement params (6); unanswered outcome as NULL, split in its own table, P3 requires explicit answers (7); causal `selectArrivalEdge` instead of the display path query (8); unretract on re-acknowledgement, pair-locked dedup (9); `MembershipReducer` event table, author excluded (10); closure-role read authorization and field allowlist, receipt policies (11); all-supported = silence with server-side scapegoat via atomic toggles (12); phase B transition table and wall levels (13); U6 open-request archive (14); small-group readiness and `canReopen` (15); conservation for empty A and apportionment spec with 19/20/21 vectors (16); FKs, domain checks, due indexes, single readiness authority (17); receipt source keys, activity sources, ISO week-year (18); U20/U36/U44/U53 copy and exact version files (19); nonexistent kind 8 removed (20); code references corrected (`acceptHelpOffer`, `fetchHelpOffererPathChain` signature, reciprocal vote creation site).
 - rev 1 (2026-09-29) — initial translation of plan rev 20.
