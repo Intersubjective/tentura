@@ -22,6 +22,13 @@ abstract final class TenturaSpacing {
   /// Readable measure for an empty-state explanation (≈ 45 characters).
   static const double emptyStateMaxWidth = 360;
 
+  /// Material 3 fixed pane width for list and supporting panes (360 dp).
+  static const double supportingPaneWidth = 360;
+
+  /// Narrowest primary pane beside a supporting pane; below it the two
+  /// stack into one column.
+  static const double supportingPrimaryMinWidth = 560;
+
   /// Unread indicator on a list-row leading glyph.
   static const double unreadDot = 10;
 

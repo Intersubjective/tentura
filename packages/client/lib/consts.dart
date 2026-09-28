@@ -124,6 +124,13 @@ const kQueryMessageId = 'message';
 /// Entry provenance for beacon view resolution (`my_work`, `inbox`, …).
 const kQueryBeaconEntry = 'entry';
 
+/// Profile route `entry=` — which list a profile was opened from, so a wide
+/// window can show that list beside it (Material 3 list-detail).
+const kQueryProfileEntry = 'entry';
+
+/// [kQueryProfileEntry] value: opened from My people.
+const kProfileEntryPeople = 'people';
+
 /// [kQueryBeaconEntry] string values (snake_case).
 const kBeaconEntryMyWork = 'my_work';
 const kBeaconEntryInbox = 'inbox';

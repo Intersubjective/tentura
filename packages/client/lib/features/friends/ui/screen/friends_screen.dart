@@ -208,7 +208,7 @@ class _FriendsScreenState extends State<FriendsScreen>
             child: TabBarView(
               controller: _tabController,
               children: [
-                _FriendsTabBody(
+                FriendsListBody(
                   friendsCubit: friendsCubit,
                   onCreateInvitation: () =>
                       unawaited(_onCreateInvitation(context)),
@@ -232,10 +232,14 @@ class _FriendsScreenState extends State<FriendsScreen>
   }
 }
 
-class _FriendsTabBody extends StatelessWidget {
-  const _FriendsTabBody({
+/// The trusted-people list: My people's first tab, and the list pane beside
+/// a profile on a wide window. Without [onCreateInvitation] (the pane) the
+/// invite prompts are left out.
+class FriendsListBody extends StatelessWidget {
+  const FriendsListBody({
     required this.friendsCubit,
-    required this.onCreateInvitation,
+    this.onCreateInvitation,
+    super.key,
   });
 
   /// Below this many people the list leaves most of the screen blank, so an
@@ -243,7 +247,7 @@ class _FriendsTabBody extends StatelessWidget {
   static const _inviteFooterBelow = 4;
 
   final FriendsCubit friendsCubit;
-  final VoidCallback onCreateInvitation;
+  final VoidCallback? onCreateInvitation;
 
   @override
   Widget build(BuildContext context) {
@@ -302,7 +306,10 @@ class _FriendsTabBody extends StatelessWidget {
               : ListView.separated(
                   itemCount:
                       friends.length +
-                      (friends.length < _inviteFooterBelow ? 1 : 0),
+                      (onCreateInvitation != null &&
+                              friends.length < _inviteFooterBelow
+                          ? 1
+                          : 0),
                   itemBuilder: (_, i) {
                     if (i == friends.length) {
                       return Padding(

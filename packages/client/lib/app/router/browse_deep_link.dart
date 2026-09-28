@@ -39,7 +39,11 @@ BrowseDeepLinkStack? buildBrowseDeepLinkStack(Uri input) {
   if (profileId != null) {
     return (
       owner: HomeTab.network,
-      route: ProfileViewRoute(id: profileId),
+      // `entry` keeps the Material 3 list-detail source (My people).
+      route: ProfileViewRoute(
+        id: profileId,
+        entry: query.optString(kQueryProfileEntry),
+      ),
     );
   }
 

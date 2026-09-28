@@ -29,7 +29,10 @@ import 'mutual_friends_button.dart';
 import 'seen_helping_with_strip.dart';
 
 class ProfileViewBody extends StatelessWidget {
-  const ProfileViewBody({super.key});
+  const ProfileViewBody({this.showNetwork = true, super.key});
+
+  /// False when [ProfileViewNetworkGroup] is placed in a supporting pane.
+  final bool showNetwork;
 
   @override
   Widget build(BuildContext context) {
@@ -122,36 +125,7 @@ class ProfileViewBody extends StatelessWidget {
                 const _SeenHelpingWithSection(),
                 _EditSeedSuggestionSection(profile: profile),
                 _ProfileCapabilitySection(profile: profile),
-                Padding(
-                  padding: EdgeInsets.only(top: context.tt.sectionGap),
-                  child: TenturaMenuGroup(
-                    title: l10n.profileSectionNetwork,
-                    children: [
-                      TenturaMenuTile(
-                        icon: TenturaIcons.graph,
-                        title: l10n.showConnections,
-                        onTap: () => context.read<ScreenCubit>().showGraphFor(
-                          profile.id,
-                        ),
-                      ),
-                      TenturaMenuTile(
-                        icon: Icons.device_hub_outlined,
-                        title: l10n.showInviteGenealogy,
-                        onTap: () => context
-                            .read<ScreenCubit>()
-                            .showInviteGenealogyWith(profile.id),
-                      ),
-                      TenturaMenuTile(
-                        icon: Icons.campaign_outlined,
-                        title: l10n.showBeaconsInvolvedIn,
-                        onTap: () => context
-                            .read<ScreenCubit>()
-                            .showInvolvedBeaconsOf(profile.id),
-                      ),
-                      MutualFriendsButton(userId: profile.id),
-                    ],
-                  ),
-                ),
+                if (showNetwork) ProfileViewNetworkGroup(profile: profile),
               ],
             );
           },
@@ -555,4 +529,63 @@ class _ProfileCapabilitySection extends StatelessWidget {
       },
     );
   }
+}
+
+/// The other profile's navigation: connections, invite tree, shared
+/// Requests and mutual trust.
+class ProfileViewNetworkGroup extends StatelessWidget {
+  const ProfileViewNetworkGroup({required this.profile, super.key});
+
+  final Profile profile;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final screenCubit = context.read<ScreenCubit>();
+    return Padding(
+      padding: EdgeInsets.only(top: context.tt.sectionGap),
+      child: TenturaMenuGroup(
+        title: l10n.profileSectionNetwork,
+        children: [
+          TenturaMenuTile(
+            icon: TenturaIcons.graph,
+            title: l10n.showConnections,
+            onTap: () => screenCubit.showGraphFor(profile.id),
+          ),
+          TenturaMenuTile(
+            icon: Icons.device_hub_outlined,
+            title: l10n.showInviteGenealogy,
+            onTap: () => screenCubit.showInviteGenealogyWith(profile.id),
+          ),
+          TenturaMenuTile(
+            icon: Icons.campaign_outlined,
+            title: l10n.showBeaconsInvolvedIn,
+            onTap: () => screenCubit.showInvolvedBeaconsOf(profile.id),
+          ),
+          MutualFriendsButton(userId: profile.id),
+        ],
+      ),
+    );
+  }
+}
+
+/// [ProfileViewNetworkGroup] for the current [ProfileViewCubit] profile, as a
+/// sliver — the supporting pane's first section. Hidden for the viewer's own
+/// profile and a blocked fallback, like the body it came from.
+class ProfileViewNetworkSliver extends StatelessWidget {
+  const ProfileViewNetworkSliver({super.key});
+
+  @override
+  Widget build(BuildContext context) =>
+      BlocSelector<ProfileViewCubit, ProfileViewState, Profile>(
+        selector: (state) => state.profile,
+        builder: (context, profile) => SliverPadding(
+          padding: context.tt.cardPadding,
+          sliver: SliverToBoxAdapter(
+            child: profile.id.isEmpty
+                ? const SizedBox.shrink()
+                : ProfileViewNetworkGroup(profile: profile),
+          ),
+        ),
+      );
 }

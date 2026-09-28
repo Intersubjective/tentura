@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/capability/friend_context.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
@@ -59,8 +60,10 @@ class NetworkPersonCard extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
     final tt = context.tt;
-    return InkWell(
-      onTap: () => screenCubit.showProfile(profile.id),
+    final selected = TenturaListDetailSelection.of(context) == profile.id;
+    final row = InkWell(
+      onTap: () =>
+          screenCubit.showProfile(profile.id, entry: kProfileEntryPeople),
       child: Padding(
         // The screen already insets the list by screenHPadding; a second
         // inset put rows 8-24 dp inside the tab bar's start edge. A 3-4 line
@@ -181,6 +184,18 @@ class NetworkPersonCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+    // Material 3 list-detail: the person whose profile is open beside this
+    // list is marked selected.
+    return Semantics(
+      selected: selected,
+      child: selected
+          ? Material(
+              color: Theme.of(context).colorScheme.secondaryContainer,
+              borderRadius: BorderRadius.circular(context.tt.cardRadius),
+              child: row,
+            )
+          : row,
     );
   }
 }

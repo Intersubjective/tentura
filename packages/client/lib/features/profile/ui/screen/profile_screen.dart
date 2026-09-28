@@ -18,33 +18,45 @@ class ProfileScreen extends StatelessWidget {
       BlocSelector<ProfileCubit, ProfileState, Profile>(
         bloc: GetIt.I<ProfileCubit>(),
         selector: (state) => state.profile,
-        builder: (context, profile) => Scaffold(
-          appBar: buildProfileAppBar(context, profile: profile),
-          body: SafeArea(
-            minimum: EdgeInsets.symmetric(
-              horizontal: context.tt.screenHPadding,
-            ),
-            child: TenturaContentColumn(
-              child: RefreshIndicator.adaptive(
+        builder: (context, profile) => TenturaSupportingPaneScope(
+          builder: (context) => Scaffold(
+            appBar: buildProfileAppBar(context, profile: profile),
+            body: SafeArea(
+              minimum: EdgeInsets.symmetric(
+                horizontal: context.tt.screenHPadding,
+              ),
+              // Material 3 supporting pane: identity beside its navigation on
+              // a wide window, one column otherwise.
+              child: TenturaSupportingPaneLayout(
                 onRefresh: GetIt.I<ProfileCubit>().fetch,
-                child: CustomScrollView(
-                  slivers: [
-                    SliverPadding(
-                      padding: context.tt.cardPadding,
-                      sliver: SliverToBoxAdapter(
-                        child: ProfileNameNudge(profile: profile),
-                      ),
+                primarySlivers: [
+                  SliverPadding(
+                    padding: context.tt.cardPadding,
+                    sliver: SliverToBoxAdapter(
+                      child: ProfileNameNudge(profile: profile),
                     ),
-                    SliverPadding(
-                      padding: context.tt.cardPadding,
-                      sliver: ProfileBody(
-                        key: Key('ProfileBody:${profile.id}'),
-                        profile: profile,
-                        profileCubit: GetIt.I<ProfileCubit>(),
-                      ),
+                  ),
+                  SliverPadding(
+                    padding: context.tt.cardPadding,
+                    sliver: ProfileBody(
+                      key: Key('ProfileBody:${profile.id}'),
+                      profile: profile,
+                      profileCubit: GetIt.I<ProfileCubit>(),
+                      part: ProfileBodyPart.identity,
                     ),
-                  ],
-                ),
+                  ),
+                ],
+                supportingSlivers: [
+                  SliverPadding(
+                    padding: context.tt.cardPadding,
+                    sliver: ProfileBody(
+                      key: Key('ProfileBody.menus:${profile.id}'),
+                      profile: profile,
+                      profileCubit: GetIt.I<ProfileCubit>(),
+                      part: ProfileBodyPart.menus,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

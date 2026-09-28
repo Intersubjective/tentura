@@ -18,8 +18,8 @@ class ScreenCubit extends Cubit<ScreenState> {
   /// App-wide singleton: navigation/messaging via [UiEffectPort].
   @factoryMethod
   ScreenCubit(UiEffectPort effects)
-      : _effects = effects,
-        super(const ScreenState());
+    : _effects = effects,
+      super(const ScreenState());
 
   /// Route-local bus for screens that provide their own [UiEffectHandler].
   factory ScreenCubit.local([UiEffectPort? effects]) =>
@@ -41,7 +41,9 @@ class ScreenCubit extends Cubit<ScreenState> {
     required String helpOffererId,
     String? helpOffererName,
   }) {
-    final query = StringBuffer('committer=${Uri.encodeQueryComponent(helpOffererId)}');
+    final query = StringBuffer(
+      'committer=${Uri.encodeQueryComponent(helpOffererId)}',
+    );
     if (helpOffererName != null && helpOffererName.isNotEmpty) {
       query
         ..write('&committerName=')
@@ -70,15 +72,18 @@ class ScreenCubit extends Cubit<ScreenState> {
   void showBeacon(
     String id, {
     String entry = kBeaconEntryUnknown,
-  }) =>
-      _navigateTo(
-        '$kPathBeaconView/$id?$kQueryBeaconEntry=${Uri.encodeQueryComponent(entry)}',
-      );
+  }) => _navigateTo(
+    '$kPathBeaconView/$id?$kQueryBeaconEntry=${Uri.encodeQueryComponent(entry)}',
+  );
 
-  void showProfile(String id) => _navigateTo('$kPathProfileView/$id');
+  void showProfile(String id, {String? entry}) => _navigateTo(
+    entry == null
+        ? '$kPathProfileView/$id'
+        : '$kPathProfileView/$id?$kQueryProfileEntry='
+              '${Uri.encodeQueryComponent(entry)}',
+  );
 
-  void showForwardToPerson(String id) =>
-      _navigateTo('$kPathForwardPerson/$id');
+  void showForwardToPerson(String id) => _navigateTo('$kPathForwardPerson/$id');
 
   void showProfileEditor() => _navigateTo(kPathProfileEdit);
 

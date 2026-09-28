@@ -96,17 +96,24 @@ class OwnProfileAvailabilityControl extends StatelessWidget {
   }
 }
 
+/// Which part of the own profile a [ProfileBody] renders: the identity
+/// (avatar, bio, availability) or the navigation groups — so a wide window can
+/// put them in a primary and a supporting pane.
+enum ProfileBodyPart { all, identity, menus }
+
 class ProfileBody extends StatelessWidget {
   const ProfileBody({
     required this.profile,
     this.profileCubit,
     this.clock,
+    this.part = ProfileBodyPart.all,
     super.key,
   });
 
   final Profile profile;
   final ProfileCubit? profileCubit;
   final DateTime Function()? clock;
+  final ProfileBodyPart part;
 
   @override
   Widget build(BuildContext context) {
@@ -120,99 +127,103 @@ class ProfileBody extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Avatar
-          Center(
-            child: profile.hasAvatar
-                ? GestureDetector(
-                    onTap: () => openProfileAvatarFullscreen(context, profile),
-                    child: SelfAwareAvatar.big(
+          if (part != ProfileBodyPart.menus) ...[
+            // Avatar
+            Center(
+              child: profile.hasAvatar
+                  ? GestureDetector(
+                      onTap: () =>
+                          openProfileAvatarFullscreen(context, profile),
+                      child: SelfAwareAvatar.big(
+                        profile: profile,
+                      ),
+                    )
+                  : SelfAwareAvatar.big(
                       profile: profile,
                     ),
-                  )
-                : SelfAwareAvatar.big(
-                    profile: profile,
-                  ),
-          ),
+            ),
 
-          // Description
-          Padding(
-            padding: sectionTop,
-            child: TenturaSelectionArea(
-              child: ShowMoreText(
-                profile.description,
-                style: textTheme.bodyMedium,
-                colorClickableText: theme.colorScheme.primary,
-                annotations: buildUrlAnnotations(linkColor: tt.info),
+            // Description
+            Padding(
+              padding: sectionTop,
+              child: TenturaSelectionArea(
+                child: ShowMoreText(
+                  profile.description,
+                  style: textTheme.bodyMedium,
+                  colorClickableText: theme.colorScheme.primary,
+                  annotations: buildUrlAnnotations(linkColor: tt.info),
+                ),
               ),
             ),
-          ),
 
-          Padding(
-            padding: sectionTop,
-            child: BlocBuilder<ProfileCubit, ProfileState>(
-              bloc: profileCubit ?? GetIt.I<ProfileCubit>(),
-              builder: (context, state) {
-                final todayUtc = availabilityTodayUtc(clock);
-                return OwnProfileAvailabilityControl(
-                  profile: state.profile,
-                  todayUtc: todayUtc,
-                  onChange: () => showAvailabilitySheet(
-                    context,
-                    profileCubit: profileCubit ?? GetIt.I<ProfileCubit>(),
-                    clock: clock,
+            Padding(
+              padding: sectionTop,
+              child: BlocBuilder<ProfileCubit, ProfileState>(
+                bloc: profileCubit ?? GetIt.I<ProfileCubit>(),
+                builder: (context, state) {
+                  final todayUtc = availabilityTodayUtc(clock);
+                  return OwnProfileAvailabilityControl(
+                    profile: state.profile,
+                    todayUtc: todayUtc,
+                    onChange: () => showAvailabilitySheet(
+                      context,
+                      profileCubit: profileCubit ?? GetIt.I<ProfileCubit>(),
+                      clock: clock,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+          if (part != ProfileBodyPart.identity) ...[
+            Padding(
+              padding: sectionTop,
+              child: TenturaMenuGroup(
+                title: l10n.profileSectionNetwork,
+                children: [
+                  TenturaMenuTile(
+                    icon: TenturaIcons.graph,
+                    title: l10n.showConnections,
+                    onTap: () => screenCubit.showGraphFor(profile.id),
                   ),
-                );
-              },
-            ),
-          ),
-
-          Padding(
-            padding: sectionTop,
-            child: TenturaMenuGroup(
-              title: l10n.profileSectionNetwork,
-              children: [
-                TenturaMenuTile(
-                  icon: TenturaIcons.graph,
-                  title: l10n.showConnections,
-                  onTap: () => screenCubit.showGraphFor(profile.id),
-                ),
-                TenturaMenuTile(
-                  icon: Icons.device_hub_outlined,
-                  title: l10n.showInviteGenealogy,
-                  onTap: screenCubit.showInviteGenealogy,
-                ),
-                TenturaMenuTile(
-                  icon: Icons.campaign_outlined,
-                  title: l10n.showBeacons,
-                  onTap: () => screenCubit.showBeaconsOf(profile.id),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: sectionTop,
-            child: TenturaMenuGroup(
-              title: l10n.settingsSectionApp,
-              children: [
-                TenturaMenuTile(
-                  icon: Icons.help_outline,
-                  title: l10n.orientationReopen,
-                  onTap: () => showHowTenturaWorksSheet(
-                    context,
-                    onOpenTab: (tab) =>
-                        AutoTabsRouter.of(context).setActiveIndex(
-                          HomeTabSpec.forTab(tab).index,
-                        ),
+                  TenturaMenuTile(
+                    icon: Icons.device_hub_outlined,
+                    title: l10n.showInviteGenealogy,
+                    onTap: screenCubit.showInviteGenealogy,
                   ),
-                ),
-                TenturaMenuTile(
-                  icon: Icons.settings_outlined,
-                  title: l10n.labelSettings,
-                  onTap: screenCubit.showSettings,
-                ),
-              ],
+                  TenturaMenuTile(
+                    icon: Icons.campaign_outlined,
+                    title: l10n.showBeacons,
+                    onTap: () => screenCubit.showBeaconsOf(profile.id),
+                  ),
+                ],
+              ),
             ),
-          ),
+            Padding(
+              padding: sectionTop,
+              child: TenturaMenuGroup(
+                title: l10n.settingsSectionApp,
+                children: [
+                  TenturaMenuTile(
+                    icon: Icons.help_outline,
+                    title: l10n.orientationReopen,
+                    onTap: () => showHowTenturaWorksSheet(
+                      context,
+                      onOpenTab: (tab) =>
+                          AutoTabsRouter.of(context).setActiveIndex(
+                            HomeTabSpec.forTab(tab).index,
+                          ),
+                    ),
+                  ),
+                  TenturaMenuTile(
+                    icon: Icons.settings_outlined,
+                    title: l10n.labelSettings,
+                    onTap: screenCubit.showSettings,
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
