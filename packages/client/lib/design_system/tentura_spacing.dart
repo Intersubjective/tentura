@@ -29,6 +29,11 @@ abstract final class TenturaSpacing {
   /// stack into one column.
   static const double supportingPrimaryMinWidth = 560;
 
+  /// Request detail keeps its detail | discussion split (two 360+ panes)
+  /// beside a list pane only from here — about a 1600 dp window with the
+  /// rail, Material 3's extra-large class, where three panes fit.
+  static const double requestDetailMinWidth = 960;
+
   /// Unread indicator on a list-row leading glyph.
   static const double unreadDot = 10;
 

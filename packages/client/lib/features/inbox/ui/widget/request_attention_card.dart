@@ -143,10 +143,13 @@ class RequestAttentionCard extends StatelessWidget {
     final forwards = _forwardSlots(visibleCap);
     final eventCap = visibleCap - forwards.length;
     final hasClearable = requestHasDot(facts);
+    // Material 3 list-detail: the Request open beside this list.
+    final selected = TenturaListDetailSelection.of(context) == beacon.id;
 
     return Semantics(
       key: semanticsKey,
       container: true,
+      selected: selected,
       label: _semanticsLabel(l10n),
       child: Material(
         color: tt.surface,
@@ -157,7 +160,12 @@ class RequestAttentionCard extends StatelessWidget {
           child: Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(tt.cardRadius),
-              border: Border.all(color: tt.borderSubtle),
+              border: selected
+                  ? Border.all(
+                      color: Theme.of(context).colorScheme.primary,
+                      width: 2,
+                    )
+                  : Border.all(color: tt.borderSubtle),
             ),
             padding: tt.cardPadding,
             child: Column(

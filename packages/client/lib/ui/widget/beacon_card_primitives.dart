@@ -95,8 +95,13 @@ class BeaconCardShell extends StatelessWidget {
 
     /// Screen-reader label for the card body tap target.
     this.tapSemanticsLabel,
+    this.selectionId,
     super.key,
   });
+
+  /// Marks the card selected when it is the item open beside this list
+  /// ([TenturaListDetailSelection], Material 3 list-detail).
+  final String? selectionId;
 
   final Widget child;
   final VoidCallback? onTap;
@@ -123,6 +128,10 @@ class BeaconCardShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final tt = context.tt;
+    final id = selectionId;
+    final selected =
+        this.selected ||
+        (id != null && TenturaListDetailSelection.of(context) == id);
     final hasFooter = footer != null;
     final hasSupportingContent = marker != null || hasFooter;
     final mainPadding =

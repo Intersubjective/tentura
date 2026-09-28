@@ -29,6 +29,22 @@ export 'package:auto_route/auto_route.dart';
 export 'home_tab_branches.dart';
 export 'root_router.gr.dart';
 
+/// Adds `entry=` to a Request-detail [destination] that has none, so a wide
+/// window can keep the list it was opened from beside it (Material 3
+/// list-detail) and the rail marks that list. Other destinations pass through.
+Uri beaconDestinationWithEntry(Uri destination, {required String entry}) {
+  if (!destination.path.startsWith('$kPathBeaconView/') ||
+      destination.queryParameters.containsKey(kQueryBeaconEntry)) {
+    return destination;
+  }
+  return destination.replace(
+    queryParameters: {
+      ...destination.queryParameters,
+      kQueryBeaconEntry: entry,
+    },
+  );
+}
+
 Uri normalizeBeaconViewThreadDeepLink(Uri uri) {
   final match = RegExp(
     '^${RegExp.escape(kPathBeaconView)}/([^/]+)/thread/([^/]+)\$',
@@ -593,11 +609,16 @@ class RootRouter extends RootStackRouter {
   }
 
   Future<void> openFromUpdate(AttentionReceipt receipt) {
-    final link = attentionDestination(receipt).toString();
-    final branchTab = receipt.surface == AttentionSurface.myWork
-        ? HomeTab.work
-        : HomeTab.inbox;
-    return openFromNotificationLink(link, preferHomeTab: branchTab);
+    final isMyWork = receipt.surface == AttentionSurface.myWork;
+    final destination = beaconDestinationWithEntry(
+      attentionDestination(receipt),
+      entry: isMyWork ? kBeaconEntryMyWork : kBeaconEntryInbox,
+    );
+    final branchTab = isMyWork ? HomeTab.work : HomeTab.inbox;
+    return openFromNotificationLink(
+      destination.toString(),
+      preferHomeTab: branchTab,
+    );
   }
 
   /// Activates Network and opens the Invitations tab on [FriendsRoute].
