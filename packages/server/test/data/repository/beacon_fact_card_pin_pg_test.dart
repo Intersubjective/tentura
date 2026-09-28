@@ -35,9 +35,9 @@ import '../../support/query_counter.dart';
 /// surfaces as [BeaconFactCardAlreadyPinnedException]. The empty-text check
 /// runs in the use case, before any statement.
 ///
-/// `BeaconFactCardCase.pin` costs exactly 5 statements: the fused
-/// `loadRoomAccess` preflight, BEGIN, the `set_config` actor line, the CTE and
-/// COMMIT.
+/// `BeaconFactCardCase.pin` costs exactly 6 statements: the fused
+/// `loadRoomAccess` preflight, BEGIN, the `set_config` actor line, the CTE,
+/// copying source attachments onto the created revision, and COMMIT.
 Future<void> main() async {
   final target = DisposablePgTarget.fromNamedEnvironment(
     envVarName: 'TENTURA_FACT_PIN_PG_TEST_DB',
@@ -204,7 +204,7 @@ WHERE beacon_id = @beacon
     );
 
     test(
-      'pin through the use case costs exactly 5 statements',
+      'pin through the use case costs exactly 6 statements',
       () async {
         counter.reset();
         await useCase.pin(
@@ -216,9 +216,10 @@ WHERE beacon_id = @beacon
         );
         expect(
           counter.count,
-          5,
+          6,
           reason:
-              'loadRoomAccess + BEGIN + set_config + one pin CTE + COMMIT',
+              'loadRoomAccess + BEGIN + set_config + one pin CTE + '
+              'copy source attachments onto seq-1 + COMMIT',
         );
         expect(await liveFactsForSource(_sourceCountId), 1);
       },

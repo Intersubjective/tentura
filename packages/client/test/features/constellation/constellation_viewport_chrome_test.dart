@@ -189,11 +189,21 @@ void main() {
       expect(cubit.state.selectedPersonId, isNull);
       expect(navTaps, navTapsBefore);
 
-      // The actual lower edge also stays hittable; external chrome wins only
-      // outside the graph viewport, never over a pin inside its boundary.
+      // Adaptive side-rail dismisses via close (not empty-canvas barrier).
+      final close = find.descendant(
+        of: find.byKey(const Key('constellation.request_preview')),
+        matching: find.byIcon(Icons.close),
+      );
+      expect(close, findsOneWidget);
+      await tester.tap(close);
+      await tester.pumpAndSettle();
+      expect(cubit.state.selectedRequestId, isNull);
+
+      // Empty viewport stays hittable without re-selecting chrome or the pin.
       await tester.tapAt(viewport.topLeft + const Offset(8, 8));
       await tester.pumpAndSettle();
       expect(cubit.state.selectedRequestId, isNull);
+      expect(navTaps, navTapsBefore);
       controller.jumpToPosition(scene, resetScale: true);
       await tester.pumpAndSettle();
       controller.jumpToPosition(

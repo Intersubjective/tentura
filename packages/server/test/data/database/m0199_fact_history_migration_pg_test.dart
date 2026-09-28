@@ -55,12 +55,13 @@ Future<void> main() async {
     }
 
     test(
-      'the registry now reaches 0199',
+      'the registry now reaches 0200',
       () async {
         final rows = await writer().execute(
           'SELECT max(version COLLATE "C") FROM schema_version',
         );
-        expect(rows.single.single, '0199');
+        // m0199 seeds history; m0200 (attachments_json on revisions) is the tip.
+        expect(rows.single.single, '0200');
       },
       skip: skipReason,
     );

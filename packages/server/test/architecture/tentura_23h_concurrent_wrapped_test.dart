@@ -100,16 +100,9 @@ run23hNestedWrappedConcurrentPeer() async {
   final wrapper = _testCleanupWrapper();
   final nestedTmp = Directory.systemTemp.createTempSync('tentura-23h-nested-');
   try {
-    final peer = await Process.start(
-      wrapper.path,
-      ['--timeout', '45s', '--', 'true'],
-      workingDirectory: _serverPackageRoot().path,
-      environment: Platform.environment,
-    );
-    // Let the peer reach its exit sweep while the victim is still wrapped.
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-
-    final victim = Process.runSync(
+    // Victim first: peer must not exit-sweep before the nested wrap's marker
+    // exists (otherwise orphan/tmpfs cleanup can delete dart_test.kernel.*).
+    final victim = await Process.start(
       wrapper.path,
       [
         '--timeout',
@@ -128,13 +121,25 @@ run23hNestedWrappedConcurrentPeer() async {
         'TMPDIR': nestedTmp.path,
       },
     );
+    final stdoutFuture = victim.stdout.transform(const SystemEncoding().decoder).join();
+    final stderrFuture = victim.stderr.transform(const SystemEncoding().decoder).join();
+    // Give the victim wrap time to mkdir its cleanup marker.
+    await Future<void>.delayed(const Duration(milliseconds: 800));
 
+    final peer = await Process.start(
+      wrapper.path,
+      ['--timeout', '45s', '--', 'true'],
+      workingDirectory: _serverPackageRoot().path,
+      environment: Platform.environment,
+    );
     final peerExit = await peer.exitCode;
+    final victimExit = await victim.exitCode;
+    final stdout = await stdoutFuture;
+    final stderr = await stderrFuture;
     return (
-      exitCode: victim.exitCode,
-      stdout:
-          '${victim.stdout}\n--- peer exit code ---\n$peerExit\n',
-      stderr: victim.stderr as String,
+      exitCode: victimExit,
+      stdout: '$stdout\n--- peer exit code ---\n$peerExit\n',
+      stderr: stderr,
     );
   } finally {
     nestedTmp.deleteSync(recursive: true);

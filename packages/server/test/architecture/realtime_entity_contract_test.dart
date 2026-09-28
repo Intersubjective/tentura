@@ -13,7 +13,7 @@ void main() {
     final repoRoot = contractFile.parent.parent.parent;
     // Squashed baseline (m0193.dart) plus post-baseline parts from
     // _migrations.dart (m0194.dart, m0195.dart, m0196.dart, m0197.dart,
-    // m0198.dart, m0199.dart, …).
+    // m0198.dart, m0199.dart, m0200.dart, …).
     final publisherMigrations = _readPublisherMigrationBodies(repoRoot);
 
     final triggerArgs = <String>{};

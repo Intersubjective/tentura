@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('generated DI composes test, dev, and prod bindings', () {
-    final config = File('lib/app/di/di.config.dart').readAsStringSync();
+    final config = File('lib/app/di/di_current.config.dart').readAsStringSync();
 
     expect(
       config,

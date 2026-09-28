@@ -259,6 +259,8 @@ pg_gc_psql() {
 # run" apart from "resource of a live concurrent run", so when another
 # wrapped invocation is still active we skip them entirely — same policy as
 # sweep_pg_databases never touching a concurrent run's databases.
+# Also treat any live process carrying TENTURA_TEST_CLEANUP_RUN=<other> as
+# active, so a peer cannot race ahead of the victim's mkdir of its marker dir.
 other_active_markers() {
   local self_marker="$1" d name
   [[ -d "$STATE_ROOT" ]] || return 0
@@ -266,8 +268,28 @@ other_active_markers() {
     [[ -d "$d" ]] || continue
     name="$(basename "$d")"
     [[ "$name" == "$self_marker" ]] && continue
+    # Ignore stale pre-* sweep labels if any ever leaked as dirs.
+    [[ "$name" == pre-* ]] && continue
     printf '%s\n' "$name"
   done
+  python3 - "$self_marker" <<'PY'
+import pathlib, sys
+self_marker = sys.argv[1].encode()
+prefix = b"TENTURA_TEST_CLEANUP_RUN="
+for p in pathlib.Path("/proc").iterdir():
+    if not p.name.isdigit():
+        continue
+    try:
+        env = (p / "environ").read_bytes()
+    except (FileNotFoundError, PermissionError, ProcessLookupError):
+        continue
+    for entry in env.split(b"\0"):
+        if not entry.startswith(prefix):
+            continue
+        value = entry[len(prefix):]
+        if value and value != self_marker and not value.startswith(b"pre-"):
+            print(value.decode("ascii", "replace"))
+PY
 }
 
 sweep_run() {

@@ -167,8 +167,8 @@ void main() {
     test('BeaconFactCardCorrect takes baseRevisionSeq and returns Int!', () {
       expect(
         rootFields('mutation_root', 'BeaconFactCardCorrect').single,
-        'BeaconFactCardCorrect(baseRevisionSeq: Int!, beaconId: String!, '
-        'factCardId: String!, newText: String!): Int!',
+        'BeaconFactCardCorrect(attachmentsJson: String, baseRevisionSeq: Int!, '
+        'beaconId: String!, factCardId: String!, newText: String!): Int!',
       );
     });
 

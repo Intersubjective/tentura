@@ -376,13 +376,15 @@ Future<void> main() async {
 
       test(
         'EXPLAIN (enable_seqscan off) of the attachment batch uses '
-        'beacon_room_message_attachment_message_idx',
+        'beacon_fact_card_revision_seq_uq',
         () async {
           counter.reset();
           await useCase.list(beaconId: _beaconId, userId: _admittedId);
           final selects = counter.selects
               .where(
-                (s) => s.statement.contains('beacon_room_message_attachment'),
+                (s) =>
+                    s.statement.contains('beacon_fact_card_revision') &&
+                    s.statement.contains('attachments_json'),
               )
               .toList();
           expect(selects, hasLength(1), reason: 'one attachment batch');
@@ -400,7 +402,7 @@ Future<void> main() async {
             final plan = rows.map((r) => r.values.single).join('\n');
             expect(
               plan,
-              contains('beacon_room_message_attachment_message_idx'),
+              contains('beacon_fact_card_revision_seq_uq'),
               reason: 'plan:\n$plan',
             );
             expect(
@@ -409,7 +411,7 @@ Future<void> main() async {
                 matches(
                   RegExp(
                     r'Seq Scan on (?:public\.)?'
-                    r'beacon_room_message_attachment\b',
+                    r'beacon_fact_card_revision\b',
                   ),
                 ),
               ),
@@ -663,6 +665,47 @@ VALUES
       'editor': _editorId,
       'm1': _publicSourceId,
       'm2': _roomSourceId,
+      'editedAt': _editedAt,
+      't1': _t0,
+      't2': _t0.add(const Duration(minutes: 1)),
+      't3': _t0.add(const Duration(minutes: 2)),
+      't4': _t0.add(const Duration(minutes: 3)),
+      't5': _t0.add(const Duration(minutes: 4)),
+    },
+  );
+  // List reads attachment snapshots from the head revision (m0200), not from
+  // the source message's attachment rows.
+  await writer.execute(
+    Sql.named('''
+INSERT INTO public.beacon_fact_card_revision
+  (id, fact_card_id, seq, fact_text, actor_id, kind, created_at, attachments_json)
+VALUES
+  ('FRlpublic01', @f1, 3, 'public fact', @editor,
+   ${BeaconFactCardRevisionKindBits.edited}, @editedAt,
+   '[{"id":"$_publicAttachmentId","kind":1,"position":0}]'::jsonb),
+  ('FRlroom0001', @f2, 1, 'room fact', @admitted,
+   ${BeaconFactCardRevisionKindBits.created}, @t2,
+   '[{"id":"$_roomAttachmentId","kind":1,"position":0}]'::jsonb),
+  ('FRlcorrect1', @f3, 1, 'corrected fact', @steward,
+   ${BeaconFactCardRevisionKindBits.created}, @t3, '[]'::jsonb),
+  ('FRlremoved1', @f4, 1, 'removed public', @author,
+   ${BeaconFactCardRevisionKindBits.created}, @t4, '[]'::jsonb),
+  ('FRlremoved2', @f5, 1, 'removed room', @author,
+   ${BeaconFactCardRevisionKindBits.created}, @t5, '[]'::jsonb),
+  ('FRlother001', @f6, 1, 'other beacon fact', @author,
+   ${BeaconFactCardRevisionKindBits.created}, @t1, '[]'::jsonb)
+'''),
+    parameters: {
+      'f1': _publicFactId,
+      'f2': _roomFactId,
+      'f3': _correctedFactId,
+      'f4': _removedPublicFactId,
+      'f5': _removedRoomFactId,
+      'f6': _otherBeaconFactId,
+      'author': _authorId,
+      'admitted': _admittedId,
+      'steward': _stewardId,
+      'editor': _editorId,
       'editedAt': _editedAt,
       't1': _t0,
       't2': _t0.add(const Duration(minutes: 1)),
