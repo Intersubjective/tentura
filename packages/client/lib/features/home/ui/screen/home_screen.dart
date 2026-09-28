@@ -256,12 +256,7 @@ class _HomeShellState extends State<_HomeShell> {
                 ],
               ),
               const TenturaVerticalHairline(),
-              Expanded(
-                child: _HomeListDetailFrame(
-                  tabsRouter: tabsRouter,
-                  child: content,
-                ),
-              ),
+              Expanded(child: content),
             ],
           ),
         ),
@@ -416,59 +411,6 @@ class _InboxScopeState extends State<_InboxScope> {
           ),
         ),
       ),
-    );
-  }
-}
-
-/// Material 3 list-detail for the Request lists (My Work, Activity) at the
-/// widths where a Request opens beside its list (see [TenturaListDetailLayout]
-/// on Request detail): the list already sits in its 360 dp pane with an empty
-/// detail pane, so opening a Request does not move the list.
-class _HomeListDetailFrame extends StatelessWidget {
-  const _HomeListDetailFrame({required this.tabsRouter, required this.child});
-
-  final TabsRouter tabsRouter;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final tab = HomeTabSpec.fromIndex(tabsRouter.activeIndex)?.tab;
-    final branch = tabsRouter.stackRouterOfIndex(tabsRouter.activeIndex);
-    final atListRoot = (branch?.stackData.length ?? 1) <= 1;
-    final l10n = L10n.of(context)!;
-    // One tree shape at every width — only the list pane's width changes —
-    // so crossing the threshold never remounts the tab navigators in [child].
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final applies =
-            (tab == HomeTab.work || tab == HomeTab.inbox) && atListRoot;
-        final fits =
-            applies &&
-            constraints.maxWidth >=
-                TenturaSpacing.supportingPaneWidth +
-                    TenturaSpacing.requestDetailMinWidth;
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            SizedBox(
-              width: fits
-                  ? TenturaSpacing.supportingPaneWidth
-                  : constraints.maxWidth,
-              child: child,
-            ),
-            if (fits) ...[
-              const TenturaVerticalHairline(),
-              Expanded(
-                child: TenturaEmptyState(
-                  icon: Icons.campaign_outlined,
-                  title: l10n.homeListDetailEmptyTitle,
-                  body: l10n.homeListDetailEmptyBody,
-                ),
-              ),
-            ],
-          ],
-        );
-      },
     );
   }
 }

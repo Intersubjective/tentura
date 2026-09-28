@@ -351,14 +351,6 @@
   "@friendsInviteMore": {
     "context": "FriendsScreen"
   },
-  "homeListDetailEmptyTitle": "Choose a Request",
-  "@homeListDetailEmptyTitle": {
-    "context": "HomeScreen"
-  },
-  "homeListDetailEmptyBody": "It opens here, next to the list.",
-  "@homeListDetailEmptyBody": {
-    "context": "HomeScreen"
-  },
   "invitationsShowMenuItem": "Show Invitations",
   "@invitationsShowMenuItem": {
     "context": "FriendsScreen"
