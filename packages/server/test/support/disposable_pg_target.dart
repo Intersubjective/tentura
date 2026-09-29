@@ -285,9 +285,16 @@ Future<T> withDisposablePgLifecycleLock<T>(
   Env adminEnv,
   Future<T> Function() action,
 ) async {
+  // tentura-8xf acceptance: the lock session must not inherit the postgres
+  // default queryTimeout (5 minutes) from Env.pgEndpointSettings — under
+  // parallel pg-shard contention a queued pg_advisory_lock wait was cancelled
+  // server-side with a misleading SQLSTATE 57014 after exactly five minutes.
   final connection = await Connection.open(
     adminEnv.pgEndpoint,
-    settings: adminEnv.pgEndpointSettings,
+    settings: ConnectionSettings(
+      sslMode: adminEnv.pgEndpointSettings.sslMode,
+      queryTimeout: const Duration(minutes: 15),
+    ),
   );
   try {
     await connection.execute(
