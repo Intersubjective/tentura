@@ -46,6 +46,29 @@ Env emailAuthUnconfiguredTestEnv() => Env(
       qaAuthToken: '',
     );
 
+/// Hermetic test [Env] for DI smoke tests — ignores shell `.env`, email auth off.
+Env smokeTestEnv() => Env(
+      environment: Environment.test,
+      serverUri: Uri.parse(_kSmokeOrigin),
+      publicKey: Env.kJwtPublicKey,
+      privateKey: Env.kJwtPrivateKey,
+      pgHost: '127.0.0.1',
+      pgPort: 5432,
+      pgPassword: 'password',
+      kS3Endpoint: '127.0.0.1:9000',
+      kS3AccessKey: 'minioadmin',
+      kS3SecretKey: 'minioadmin',
+      kS3Bucket: 'tentura',
+      publicOrigin: _kSmokeOrigin,
+      workersCount: 1,
+      isDebugModeOn: true,
+      resendApiKey: '',
+      resendFromEmail: '',
+      emailDebugSinkDir: '',
+      qaAuthEnabled: false,
+      qaAuthToken: '',
+    );
+
 /// Hermetic dev [Env] for DI smoke tests.
 Env smokeDevEnv() => Env(
       environment: Environment.dev,

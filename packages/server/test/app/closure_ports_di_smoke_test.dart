@@ -8,10 +8,10 @@ import '../support/smoke_env.dart';
 
 /// A11b: non-pg DI smoke — resolves receipt (noop) and finalizer (placeholder).
 void main() {
-  test('closure ports resolve under dev smoke env', () async {
+  test('closure ports resolve under test smoke env', () async {
     addTearDown(() async => getIt.reset());
 
-    await configureDependencies(smokeDevEnv());
+    await configureDependencies(smokeTestEnv());
     await getIt.allReady(ignorePendingAsyncCreation: true);
 
     expect(getIt.isRegistered<ClosureReceiptsPort>(), isTrue);
