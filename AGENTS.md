@@ -179,3 +179,4 @@ If a run_with_test_cleanup.sh-wrapped test prints "All tests passed!" but the wr
 <!-- tentura-u6e landing gate acceptance (fix tentura-5zq) -->
 <!-- tentura-j0q landing gate acceptance (trial merge tentura-acz) -->
 <!-- tentura-kd9 landing gate acceptance (fix tentura-ah4 enospc selftest) -->
+<!-- tentura-uwq landing gate acceptance (fix tentura-ah4 wrapped selftest) -->
