@@ -217,4 +217,32 @@ else
   ok "stale marker dir was reclaimed"
 fi
 
+# --- 11. marker dir vanishing mid-run does not lose a passing exit code ---
+# tentura-fy2: `: >"$marker/done"` had no `|| true` under set -e, so if the
+# marker directory disappeared out from under an in-flight run (a race a
+# concurrent sweep can trigger), the wrapper crashed on that write and
+# reported the wrong exit code instead of the wrapped command's real one.
+BEFORE_MARKERS="$(ls -1 "$STATE_ROOT" 2>/dev/null || true)"
+"$WRAP" --timeout 10s -- sh -c 'sleep 1; exit 7' >/tmp/selftest_fy2_out_$$ 2>&1 &
+RACE_WPID=$!
+NEW_MARKER=""
+for _ in $(seq 1 30); do
+  NEW_MARKER="$(comm -13 <(printf '%s\n' "$BEFORE_MARKERS" | sort) <(ls -1 "$STATE_ROOT" 2>/dev/null | sort) | head -1)"
+  [[ -n "$NEW_MARKER" ]] && break
+  sleep 0.05
+done
+if [[ -n "$NEW_MARKER" ]]; then
+  rm -rf "${STATE_ROOT:?}/$NEW_MARKER"
+fi
+RACE_RC=0
+wait "$RACE_WPID" || RACE_RC=$?
+rm -f /tmp/selftest_fy2_out_$$
+if [[ -z "$NEW_MARKER" ]]; then
+  bad "marker-vanishes-mid-run: could not find the run's marker dir to delete"
+elif [[ "$RACE_RC" -eq 7 ]]; then
+  ok "marker vanishing mid-run still reports the wrapped command's real exit code"
+else
+  bad "marker vanishing mid-run reported exit $RACE_RC, expected 7"
+fi
+
 log "done"

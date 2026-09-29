@@ -447,7 +447,11 @@ main() {
   rc=$?
   set -e
 
-  : >"$marker/done"
+  # tentura-fy2: a concurrent sweep can reclaim this marker dir as stale
+  # (e.g. a narrow window around reaper startup elsewhere) even while this
+  # run is still legitimately using it. Losing the marker must never lose
+  # the real exit code of an already-finished, possibly-passing command.
+  : >"$marker/done" 2>/dev/null || true
   trap - EXIT INT TERM
   sweep_run "$run_id"
   exit "$rc"
