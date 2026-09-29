@@ -10,6 +10,12 @@ const kJ0qAcceptanceTestPaths = [
   'test/architecture/tentura_j0q_pg_acceptance_probe_test.dart',
 ];
 
+/// Later landing gates tracked after tentura-j0q (tentura-kd9, fix tentura-ah4
+/// enospc selftest); they carry their own markers, not the j0q ones.
+const kJ0qTrackedLaterAcceptanceTestPaths = [
+  'test/tentura_kd9_enospc_selftest_landing_check_test.dart',
+];
+
 const _j0qLandingGateMarker =
     'tentura-j0q landing gate acceptance (trial merge tentura-acz)';
 

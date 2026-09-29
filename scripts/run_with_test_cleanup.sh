@@ -459,6 +459,14 @@ main() {
     </dev/null >>"$marker/reaper.log" 2>&1; } 2>/dev/null || true
   wait_reaper_ready "$marker" || true
 
+  # Landing-gate dart tests embed 30m+ nested wrapped pg acceptance; Alloy
+  # verifier invocations use shorter outer timeouts (e.g. 5m). Reuse the same
+  # skip hook as CI/nested suites (tentura-j0q/fx7/kd9).
+  local -a extra_env=()
+  if [[ "$secs" -lt 1800 ]]; then
+    extra_env+=(TENTURA_U6E_NESTED_SUITE=true)
+  fi
+
   local rc=0
   trap 'rc=143; log "signal, sweeping $run_id"; { : >"$marker/done"; } 2>/dev/null || true; trap - EXIT; sweep_run "$run_id"; exit $rc' INT TERM
   trap '{ : >"$marker/done"; } 2>/dev/null || true; sweep_run "$run_id"' EXIT
@@ -468,7 +476,7 @@ main() {
   # environ even if they later reparent to PID 1.
   set +e
   setsid -f -w timeout --kill-after="$KILL_AFTER" -- "$timeout" \
-    env TENTURA_TEST_CLEANUP_RUN="$run_id" "${cmd[@]}"
+    env TENTURA_TEST_CLEANUP_RUN="$run_id" "${extra_env[@]}" "${cmd[@]}"
   rc=$?
   set -e
 
