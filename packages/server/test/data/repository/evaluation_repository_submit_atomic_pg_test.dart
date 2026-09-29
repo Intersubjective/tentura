@@ -15,49 +15,55 @@ import 'package:tentura_server/env.dart';
 /// touching the dropped schema. No database is needed — the stub throws
 /// before any query.
 void main() {
-  group('EvaluationRepository.submitEvaluationAtomic (A18 stub)', () {
-    final repo = EvaluationRepository(
-      TenturaDb(Env(environment: Environment.test)),
-    );
-
-    test('submitEvaluationAtomic is stubbed', () {
-      expect(
-        () => repo.submitEvaluationAtomic(
-          beaconId: 'Bcapc1abcn01',
-          evaluatorId: 'Ucapc1aeval01',
-          evaluatedUserId: 'Ucapc1asubj01',
-          value: 4,
-          reasonTags: const ['quality', 'speed'],
-          note: 'solid help',
-          ackTags: const ['transport', 'pets'],
-        ),
-        throwsA(isA<UnimplementedError>()),
+  group(
+    'EvaluationRepository.submitEvaluationAtomic (post-m0203 contract)',
+    () {
+      final repo = EvaluationRepository(
+        TenturaDb(Env(environment: Environment.test)),
       );
-    });
 
-    test('getEvaluation is stubbed', () {
-      expect(
-        () => repo.getEvaluation(
-          beaconId: 'Bcapc1abcn01',
-          evaluatorId: 'Ucapc1aeval01',
-          evaluatedUserId: 'Ucapc1asubj01',
-        ),
-        throwsA(isA<UnimplementedError>()),
+      test(
+        'submitEvaluationAtomic fails loudly on the dropped review schema',
+        () {
+          expect(
+            () => repo.submitEvaluationAtomic(
+              beaconId: 'Bcapc1abcn01',
+              evaluatorId: 'Ucapc1aeval01',
+              evaluatedUserId: 'Ucapc1asubj01',
+              value: 4,
+              reasonTags: const ['quality', 'speed'],
+              note: 'solid help',
+              ackTags: const ['transport', 'pets'],
+            ),
+            throwsA(isA<UnimplementedError>()),
+          );
+        },
       );
-    });
 
-    test('upsertEvaluation is stubbed', () {
-      expect(
-        () => repo.upsertEvaluation(
-          beaconId: 'Bcapc1abcn01',
-          evaluatorId: 'Ucapc1aeval01',
-          evaluatedUserId: 'Ucapc1asubj01',
-          value: 4,
-          reasonTagsCsv: 'quality',
-          note: 'draft',
-        ),
-        throwsA(isA<UnimplementedError>()),
-      );
-    });
-  });
+      test('getEvaluation fails loudly on the dropped review schema', () {
+        expect(
+          () => repo.getEvaluation(
+            beaconId: 'Bcapc1abcn01',
+            evaluatorId: 'Ucapc1aeval01',
+            evaluatedUserId: 'Ucapc1asubj01',
+          ),
+          throwsA(isA<UnimplementedError>()),
+        );
+      });
+
+      test('upsertEvaluation fails loudly on the dropped review schema', () {
+        expect(
+          () => repo.upsertEvaluation(
+            beaconId: 'Bcapc1abcn01',
+            evaluatorId: 'Ucapc1aeval01',
+            evaluatedUserId: 'Ucapc1asubj01',
+            value: 4,
+            reasonTagsCsv: 'quality',
+            note: 'draft',
+          ),
+          throwsA(isA<UnimplementedError>()),
+        );
+      });
+    },
+  );
 }

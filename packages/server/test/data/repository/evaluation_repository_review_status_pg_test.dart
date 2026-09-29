@@ -15,69 +15,79 @@ import 'package:tentura_server/env.dart';
 /// instead of touching the dropped schema. No database is needed — the stub
 /// throws before any query.
 void main() {
-  group('EvaluationRepository review package sent_at (A18 stub)', () {
-    final repo = EvaluationRepository(
-      TenturaDb(Env(environment: Environment.test)),
-    );
-
-    test('getReviewWindow is stubbed', () {
-      expect(
-        () => repo.getReviewWindow('Bcrvst1abcn01'),
-        throwsA(isA<UnimplementedError>()),
+  group(
+    'EvaluationRepository review package sent_at (post-m0203 contract)',
+    () {
+      final repo = EvaluationRepository(
+        TenturaDb(Env(environment: Environment.test)),
       );
-    });
 
-    test('getReviewUserStatus is stubbed', () {
-      expect(
-        () => repo.getReviewUserStatus('Bcrvst1abcn01', 'Ucrvst1arevw01'),
-        throwsA(isA<UnimplementedError>()),
-      );
-    });
+      test('getReviewWindow fails loudly on the dropped review schema', () {
+        expect(
+          () => repo.getReviewWindow('Bcrvst1abcn01'),
+          throwsA(isA<UnimplementedError>()),
+        );
+      });
 
-    test('setReviewUserStatus is stubbed', () {
-      expect(
-        () => repo.setReviewUserStatus(
-          beaconId: 'Bcrvst1abcn01',
-          userId: 'Ucrvst1arevw01',
-          status: 2,
-          markSent: true,
-        ),
-        throwsA(isA<UnimplementedError>()),
-      );
-    });
+      test('getReviewUserStatus fails loudly on the dropped review schema', () {
+        expect(
+          () => repo.getReviewUserStatus('Bcrvst1abcn01', 'Ucrvst1arevw01'),
+          throwsA(isA<UnimplementedError>()),
+        );
+      });
 
-    test('submitEvaluationAtomic is stubbed', () {
-      expect(
-        () => repo.submitEvaluationAtomic(
-          beaconId: 'Bcrvst1abcn01',
-          evaluatorId: 'Ucrvst1aauth01',
-          evaluatedUserId: 'Ucrvst1arevw01',
-          value: 4,
-          reasonTags: const [],
-          note: 'edited',
-          ackTags: const [],
-        ),
-        throwsA(isA<UnimplementedError>()),
-      );
-    });
+      test('setReviewUserStatus fails loudly on the dropped review schema', () {
+        expect(
+          () => repo.setReviewUserStatus(
+            beaconId: 'Bcrvst1abcn01',
+            userId: 'Ucrvst1arevw01',
+            status: 2,
+            markSent: true,
+          ),
+          throwsA(isA<UnimplementedError>()),
+        );
+      });
 
-    test('deleteReviewScaffoldingForBeacon is stubbed', () {
-      expect(
-        () => repo.deleteReviewScaffoldingForBeacon('Bcrvst1abcn01'),
-        throwsA(isA<UnimplementedError>()),
+      test(
+        'submitEvaluationAtomic fails loudly on the dropped review schema',
+        () {
+          expect(
+            () => repo.submitEvaluationAtomic(
+              beaconId: 'Bcrvst1abcn01',
+              evaluatorId: 'Ucrvst1aauth01',
+              evaluatedUserId: 'Ucrvst1arevw01',
+              value: 4,
+              reasonTags: const [],
+              note: 'edited',
+              ackTags: const [],
+            ),
+            throwsA(isA<UnimplementedError>()),
+          );
+        },
       );
-    });
 
-    test('closeReviewWindow is stubbed', () {
-      expect(
-        () => repo.closeReviewWindow(
-          'Bcrvst1abcn01',
-          reason: 'test',
-          actorUserId: 'Ucrvst1aauth01',
-          requireAllRequiredPackagesSent: true,
-        ),
-        throwsA(isA<UnimplementedError>()),
+      test(
+        'deleteReviewScaffoldingForBeacon fails loudly on the dropped review '
+        'schema',
+        () {
+          expect(
+            () => repo.deleteReviewScaffoldingForBeacon('Bcrvst1abcn01'),
+            throwsA(isA<UnimplementedError>()),
+          );
+        },
       );
-    });
-  });
+
+      test('closeReviewWindow fails loudly on the dropped review schema', () {
+        expect(
+          () => repo.closeReviewWindow(
+            'Bcrvst1abcn01',
+            reason: 'test',
+            actorUserId: 'Ucrvst1aauth01',
+            requireAllRequiredPackagesSent: true,
+          ),
+          throwsA(isA<UnimplementedError>()),
+        );
+      });
+    },
+  );
 }

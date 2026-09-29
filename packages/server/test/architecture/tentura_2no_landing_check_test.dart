@@ -39,6 +39,14 @@ const k2noAcceptanceTestPaths = [
   'test/architecture/tentura_2no_pg_remediation_probe_test.dart',
 ];
 
+/// Alloy tentura-fx7 landing gate — tracked here so the tentura-50o trial
+/// merge landing follows fx7 (kept out of [k2noAcceptanceTestPaths]: those
+/// files carry the fx7 landing gate marker, not the 2no one).
+const k2noFx7AcceptanceTestPaths = [
+  'test/architecture/tentura_fx7_landing_check_test.dart',
+  'test/architecture/tentura_fx7_pg_acceptance_probe_test.dart',
+];
+
 const _2noLandingGateMarker =
     'tentura-2no landing gate acceptance (trial merge tentura-50o)';
 
@@ -49,7 +57,11 @@ void main() {
     test('2no acceptance test paths declare 2no landing gate markers', () {
       for (final path in k2noAcceptanceTestPaths) {
         final file = File(path);
-        expect(file.existsSync(), isTrue, reason: 'missing acceptance path $path');
+        expect(
+          file.existsSync(),
+          isTrue,
+          reason: 'missing acceptance path $path',
+        );
         final source = file.readAsStringSync();
         expect(
           source,

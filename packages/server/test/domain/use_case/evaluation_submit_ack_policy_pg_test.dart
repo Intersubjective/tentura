@@ -1,7 +1,6 @@
 @Tags(['pg'])
 library;
 
-
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
 import 'package:postgres/postgres.dart';
@@ -48,8 +47,8 @@ Future<void> main() async {
       ? false
       : 'Postgres admin database not reachable for disposable test target';
 
-  group('EvaluationCase.evaluationSubmit acknowledgement policy (A18 stub)',
-      () {
+  group('EvaluationCase.evaluationSubmit acknowledgement policy '
+      '(post-m0203 contract)', () {
     late Connection writer;
     late TenturaDb database;
     late EvaluationCase evaluationCase;
@@ -207,6 +206,5 @@ class _NoopReviewFinalization implements ReviewFinalizationPort {
     required String reason,
     String? actorUserId,
     bool requireAllRequiredPackagesSent = false,
-  }) async =>
-      const ReviewFinalizationResult(didClose: false);
+  }) async => const ReviewFinalizationResult(didClose: false);
 }

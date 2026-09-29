@@ -150,3 +150,4 @@ Bead descriptions can cite stale or wrong code and tokens. In tentura-1pr, _buil
 <!-- alloy:memory-review:ptl:end -->
 <!-- tentura-jc0 landing gate acceptance (trial merge tentura-ptl) -->
 <!-- tentura-olc landing gate acceptance (trial merge tentura-21x) -->
+<!-- tentura-fx7 landing gate acceptance (trial merge tentura-50o) -->

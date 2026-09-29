@@ -1,7 +1,6 @@
 @Tags(['pg'])
 library;
 
-
 import 'package:logging/logging.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
@@ -40,7 +39,7 @@ Future<void> main() async {
       ? false
       : 'Postgres admin database not reachable for disposable test target';
 
-  group('ReviewFinalizationCase outcome evidence (A18 stub)', () {
+  group('ReviewFinalizationCase outcome evidence (post-m0203 contract)', () {
     late Connection writer;
     late TenturaDb database;
     late ReviewFinalizationCase finalizationCase;
