@@ -2,7 +2,6 @@
 library;
 
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:logging/logging.dart';
@@ -14,6 +13,7 @@ import 'package:tentura_server/domain/use_case/auth_case.dart';
 import 'package:tentura_server/env.dart';
 
 import '../support/beacon_hierarchy_fixture.dart';
+import '../support/hasura_pg_jwt_keys.dart';
 import '../support/isolated_hasura_session.dart';
 import '../data/repository/beacon_hierarchy_pg_helpers.dart';
 
@@ -44,7 +44,7 @@ Future<void> main() async {
       final session = await openBeaconHierarchyPgSession(target);
       writer = session.writer;
       fixture = BeaconHierarchyFixture(writer: writer, db: session.db);
-      final jwtKeys = _loadJwtKeysFromRepoDotEnv();
+      final jwtKeys = loadJwtKeysForHasuraPgTests();
       authCase = AuthCase(
         _NoopUserRepository(),
         _NoopInvitationRepository(),
@@ -186,32 +186,4 @@ Env _authEnvForHasura(
     publicKey: jwtKeys.publicKey,
     privateKey: jwtKeys.privateKey,
   );
-}
-
-({String publicKey, String privateKey}) _loadJwtKeysFromRepoDotEnv() {
-  final dotEnv = File('${Directory.current.path}/../../.env');
-  if (!dotEnv.existsSync()) {
-    final publicKey = Platform.environment['JWT_PUBLIC_PEM'];
-    final privateKey = Platform.environment['JWT_PRIVATE_PEM'];
-    if (publicKey == null || privateKey == null) {
-      throw StateError('JWT_PUBLIC_PEM/JWT_PRIVATE_PEM required for Hasura access test');
-    }
-    return (publicKey: publicKey, privateKey: privateKey);
-  }
-  final values = <String, String>{};
-  for (final line in dotEnv.readAsLinesSync()) {
-    final trimmed = line.trim();
-    if (trimmed.isEmpty || trimmed.startsWith('#')) continue;
-    final idx = trimmed.indexOf('=');
-    if (idx <= 0) continue;
-    values[trimmed.substring(0, idx)] = trimmed
-        .substring(idx + 1)
-        .replaceAll(r'\n', '\n');
-  }
-  final publicKey = values['JWT_PUBLIC_PEM'] ?? Platform.environment['JWT_PUBLIC_PEM'];
-  final privateKey = values['JWT_PRIVATE_PEM'] ?? Platform.environment['JWT_PRIVATE_PEM'];
-  if (publicKey == null || privateKey == null) {
-    throw StateError('JWT_PUBLIC_PEM/JWT_PRIVATE_PEM required for Hasura access test');
-  }
-  return (publicKey: publicKey, privateKey: privateKey);
 }
