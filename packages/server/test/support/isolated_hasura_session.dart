@@ -184,8 +184,14 @@ final class IsolatedHasuraSession {
   /// bind it, and the losers' health probes are answered by the winner's
   /// Hasura. Each port is therefore claimed with a cross-process file lock
   /// held until the session stops (the OS drops it if the process dies).
+  ///
+  /// tentura-j0q: the lock directory must be shared by every process on the
+  /// host, so it is not derived from `TMPDIR` (nested landing runs set a
+  /// private `TMPDIR`, which would give them a separate lock namespace and
+  /// reopen the cross-process port race).
   static Future<_PortClaim> _claimFreePort() async {
-    final lockDir = Directory('${Directory.systemTemp.path}/tentura_hasura_ports')
+    final tmpRoot = Platform.isWindows ? Directory.systemTemp.path : '/tmp';
+    final lockDir = Directory('$tmpRoot/tentura_hasura_ports')
       ..createSync(recursive: true);
     for (var port = 18080; port < 18280; port++) {
       if (!_claimedPorts.add(port)) {

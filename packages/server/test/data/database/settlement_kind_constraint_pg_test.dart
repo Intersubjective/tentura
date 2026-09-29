@@ -19,24 +19,40 @@ Future<void> main() async {
       ? false
       : 'Postgres admin database not reachable for disposable test target';
 
+  late Connection writer;
+
   group('notification_outbox__settlement_kind_chk expired admission', () {
     // The pre-0166 half of this group tested that `expired` was rejected
     // before the constraint was widened. That schema is inside the squashed
     // baseline and is no longer reachable; what still has to hold is that the
     // constraint admits `expired` at head.
-    test('settling an obligation as expired is accepted', () async {
-      await target.recreate();
-      final writer = await Connection.open(
-        target.databaseEnv.pgEndpoint,
-        settings: target.databaseEnv.pgEndpointSettings,
-      );
-      try {
+
+    // Lifecycle lives in setUpAll/tearDownAll, not the test body: recreate
+    // and drop wait on the cluster-wide disposable-pg lifecycle lock, which
+    // may legitimately exceed the default 30-second test timeout under
+    // parallel pg load (tentura-8xf raised that lock's queryTimeout to 15
+    // minutes; same fix class as review_obligation_backfill_pg_test.dart).
+    if (skipReason == false) {
+      setUpAll(() async {
+        await target.recreate();
+        writer = await Connection.open(
+          target.databaseEnv.pgEndpoint,
+          settings: target.databaseEnv.pgEndpointSettings,
+        );
         await writer.execute('SET check_function_bodies = false');
         await migrateDbSchema(writer);
         await _seedUser(writer);
         await _insertUnsettledObligation(writer, receiptId: 'Nexp0166');
+      });
 
-        await writer.execute('''
+      tearDownAll(() async {
+        await writer.close();
+        await target.drop();
+      });
+    }
+
+    test('settling an obligation as expired is accepted', () async {
+      await writer.execute('''
 UPDATE public.notification_outbox
 SET
   settlement_kind = 'expired',
@@ -44,25 +60,21 @@ SET
 WHERE id = 'Nexp0166'
 ''');
 
-        final rows = await writer.execute('''
+      final rows = await writer.execute('''
 SELECT settlement_kind, settled_at IS NOT NULL
 FROM public.notification_outbox
 WHERE id = 'Nexp0166'
 ''');
-        expect(rows.single[0], 'expired');
-        expect(rows.single[1], isTrue);
+      expect(rows.single[0], 'expired');
+      expect(rows.single[1], isTrue);
 
-        final checkRows = await writer.execute('''
+      final checkRows = await writer.execute('''
 SELECT pg_get_constraintdef(oid)
 FROM pg_constraint
 WHERE conrelid = 'public.notification_outbox'::regclass
   AND conname = 'notification_outbox__settlement_kind_chk'
 ''');
-        expect(checkRows.single[0], contains('expired'));
-      } finally {
-        await writer.close();
-        await target.drop();
-      }
+      expect(checkRows.single[0], contains('expired'));
     }, skip: skipReason);
   }, skip: skipReason);
 }
@@ -100,4 +112,3 @@ INSERT INTO public.notification_outbox (
 )
 ''');
 }
-

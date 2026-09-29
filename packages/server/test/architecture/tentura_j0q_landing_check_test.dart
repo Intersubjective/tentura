@@ -1,35 +1,28 @@
-// tentura-fx7 landing gate acceptance (trial merge tentura-50o)
+// tentura-j0q landing gate acceptance (trial merge tentura-acz)
 
 import 'dart:io';
 
 import 'package:test/test.dart';
 
-/// Alloy tentura-fx7 landing gate — same paths as bead acceptance harness.
-const kFx7AcceptanceTestPaths = [
-  'test/architecture/tentura_fx7_landing_check_test.dart',
-  'test/architecture/tentura_fx7_pg_acceptance_probe_test.dart',
-];
-
-/// Later landing gates tracked after tentura-fx7 (tentura-j0q, trial merge
-/// tentura-acz); they carry their own markers, not the fx7 ones.
-const kFx7TrackedLaterAcceptanceTestPaths = [
+/// Alloy tentura-j0q landing gate — same paths as bead acceptance harness.
+const kJ0qAcceptanceTestPaths = [
   'test/architecture/tentura_j0q_landing_check_test.dart',
   'test/architecture/tentura_j0q_pg_acceptance_probe_test.dart',
 ];
 
-const _fx7LandingGateMarker =
-    'tentura-fx7 landing gate acceptance (trial merge tentura-50o)';
+const _j0qLandingGateMarker =
+    'tentura-j0q landing gate acceptance (trial merge tentura-acz)';
 
-const _trialMergeMarker = 'trial merge tentura-50o';
+const _trialMergeMarker = 'trial merge tentura-acz';
 
-const _2noLandingCheckRelative =
-    'test/architecture/tentura_2no_landing_check_test.dart';
+const _fx7LandingCheckRelative =
+    'test/architecture/tentura_fx7_landing_check_test.dart';
 
-const _agentsFx7LandingComment =
-    '<!-- tentura-fx7 landing gate acceptance (trial merge tentura-50o) -->';
+const _agentsJ0qLandingComment =
+    '<!-- tentura-j0q landing gate acceptance (trial merge tentura-acz) -->';
 
 const _pgAcceptanceProbeRelative =
-    'test/architecture/tentura_fx7_pg_acceptance_probe_test.dart';
+    'test/architecture/tentura_j0q_pg_acceptance_probe_test.dart';
 
 Object get _skipNestedCleanupInCiDartTest {
   final env = Platform.environment;
@@ -43,65 +36,65 @@ Object get _skipNestedCleanupInCiDartTest {
 }
 
 void main() {
-  group('tentura-fx7 landing check (trial merge tentura-50o)', () {
-    test('fx7 acceptance test paths declare fx7 landing gate markers', () {
-      for (final path in kFx7AcceptanceTestPaths) {
+  group('tentura-j0q landing check (trial merge tentura-acz)', () {
+    test('j0q acceptance test paths declare j0q landing gate markers', () {
+      for (final path in kJ0qAcceptanceTestPaths) {
         final file = File(path);
         expect(file.existsSync(), isTrue, reason: 'missing acceptance path $path');
         final source = file.readAsStringSync();
         expect(
           source,
-          contains(_fx7LandingGateMarker),
+          contains(_j0qLandingGateMarker),
           reason:
-              '$path must tag the fx7 landing gate for Alloy trial-merge tracking',
+              '$path must tag the j0q landing gate for Alloy trial-merge tracking',
         );
         expect(
           source,
           contains(_trialMergeMarker),
-          reason: '$path must reference trial merge tentura-50o',
+          reason: '$path must reference trial merge tentura-acz',
         );
       }
     });
 
     test(
-      'tentura-2no landing gate lists fx7 acceptance paths for tentura-50o trial merge',
+      'tentura-fx7 landing gate lists j0q acceptance paths for tentura-acz trial merge',
       () {
-        final source = _serverTestSource(_2noLandingCheckRelative);
-        for (final path in kFx7AcceptanceTestPaths) {
+        final source = _serverTestSource(_fx7LandingCheckRelative);
+        for (final path in kJ0qAcceptanceTestPaths) {
           expect(
             source,
             contains("'$path'"),
             reason:
-                '$_2noLandingCheckRelative k2noAcceptanceTestPaths must include '
-                '$path so Alloy tentura-50o landing tracks fx7 (tentura-fx7)',
+                '$_fx7LandingCheckRelative must include $path so Alloy '
+                'tentura-acz landing tracks j0q after tentura-50o (tentura-fx7)',
           );
         }
       },
     );
 
     test(
-      'AGENTS.md records tentura-fx7 landing gate acceptance beside prior trial merges',
+      'AGENTS.md records tentura-j0q landing gate acceptance beside prior trial merges',
       () {
         final agents = _repoFile('AGENTS.md').readAsStringSync();
         expect(
           agents,
-          contains(_agentsFx7LandingComment),
+          contains(_agentsJ0qLandingComment),
           reason:
-              'append $_agentsFx7LandingComment after tentura-olc on '
-              'alloy/tentura-50o trial merge',
+              'append $_agentsJ0qLandingComment after tentura-u6e on '
+              'alloy/tentura-acz trial merge',
         );
       },
     );
 
     test(
-      'bead acceptance: wrapped dart test tentura_fx7_pg_acceptance_probe_test.dart exits 0',
+      'bead acceptance: wrapped dart test tentura_j0q_pg_acceptance_probe_test.dart exits 0',
       () {
-        final outcome = runFx7AcceptancePgProbeTest();
+        final outcome = runJ0qAcceptancePgProbeTest();
         expect(
           outcome.exitCode,
           0,
           reason:
-              'tentura-fx7 requires '
+              'tentura-j0q requires '
               '`cd packages/server && '
               '../../scripts/run_with_test_cleanup.sh --timeout 30m -- '
               'dart test $_pgAcceptanceProbeRelative` '
@@ -115,14 +108,14 @@ void main() {
     );
 
     test(
-      'bead acceptance: wrapped pg landing command exits 0 (tentura-50o)',
+      'bead acceptance: wrapped pg landing command exits 0 (tentura-acz)',
       () {
-        final outcome = runFx7AcceptancePgLanding();
+        final outcome = runJ0qAcceptancePgLanding();
         expect(
           outcome.exitCode,
           0,
           reason:
-              'tentura-fx7 requires '
+              'tentura-j0q requires '
               '`cd packages/server && '
               '../../scripts/run_with_test_cleanup.sh --timeout 30m -- '
               'dart test --tags pg --exclude-tags mr` '
@@ -137,11 +130,11 @@ void main() {
   });
 }
 
-/// Runs the tentura-fx7 pg probe test (static remediation gates before full pg).
-({int exitCode, String stdout, String stderr}) runFx7AcceptancePgProbeTest() {
+/// Runs the tentura-j0q pg probe test (targeted acz gates before full pg).
+({int exitCode, String stdout, String stderr}) runJ0qAcceptancePgProbeTest() {
   final wrapper = _testCleanupWrapper();
   final nestedTmp = Directory.systemTemp.createTempSync(
-    'tentura-fx7-probe-nested-',
+    'tentura-j0q-probe-nested-',
   );
   try {
     final result = Process.runSync(
@@ -171,11 +164,11 @@ void main() {
   }
 }
 
-/// Runs the exact tentura-50o / tentura-fx7 bead pg acceptance command.
-({int exitCode, String stdout, String stderr}) runFx7AcceptancePgLanding() {
+/// Runs the exact tentura-acz / tentura-j0q bead pg acceptance command.
+({int exitCode, String stdout, String stderr}) runJ0qAcceptancePgLanding() {
   final wrapper = _testCleanupWrapper();
   final nestedTmp = Directory.systemTemp.createTempSync(
-    'tentura-fx7-pg-nested-',
+    'tentura-j0q-pg-nested-',
   );
   try {
     final result = Process.runSync(
