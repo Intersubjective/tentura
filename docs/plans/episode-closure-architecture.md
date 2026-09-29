@@ -1,8 +1,8 @@
 # Episode closure and trust update — technical architecture
 
-**Status:** draft, rev 5 (2026-09-29). Rev 2 applied the Codex (gpt-6-astra, high) architecture review; rev 3 applied the inherited findings of the Codex review of the step plan; rev 4 adds U58 (helper → author edge at episode completion, §5.9a); rev 5 reframes support as the helper's own judgement and documents its self-scaling (§5.5.2). See §15.
+**Status:** draft, rev 6 (2026-09-29). Rev 2 applied the Codex (gpt-6-astra, high) architecture review; rev 3 applied the inherited findings of the Codex review of the step plan; rev 4 adds U58 (helper → author edge at episode completion, §5.9a); rev 5 reframes support as the helper's own judgement and documents its self-scaling (§5.5.2).; rev 6 adds U59 (support edge helper → supported colleague, §5.9b). See §15.
 
-**Normative source:** `episode-closure-implementation-plan.md` (Russian, rev 22). That document holds the product decisions (U1–U57, P1–P11), their rationale and the rejected alternatives (§1.4). This document is the engineering translation: components, data model, algorithms, interfaces, jobs, migration, deployment and test strategy. Where the two disagree, the Russian plan wins and this file must be fixed.
+**Normative source:** `episode-closure-implementation-plan.md` (Russian, rev 23). That document holds the product decisions (U1–U57, P1–P11), their rationale and the rejected alternatives (§1.4). This document is the engineering translation: components, data model, algorithms, interfaces, jobs, migration, deployment and test strategy. Where the two disagree, the Russian plan wins and this file must be fixed.
 
 **Related:** `post-request-closure-social-design.md` (social rationale) · `episode-closure-simulator.html` (reference implementation of the settlement math; §12.3) · `~/MY_SRC/meritrank-rust/NEGATIVE_EDGES_FEATURE.md` (MeritRank walls, service v0.11.0).
 
@@ -157,7 +157,7 @@ Dropped in phase A: `trust_evidence_event`, `user_trust_source_edge`, `trust_con
 
 The effective-edge deletion trigger `trust_edge_effective_delete_mr` is kept, but its function `trust_edge_on_effective_delete` is rewritten: instead of calling MR inside the deleting transaction it inserts the pair into `trust_publish_queue` when `OLD.prev_sent_weight <> 0` (the publisher then finds no row, treats the target as 0 and calls `mr_delete_edge`). This covers user-FK cascades. `meritrank_edge_tombstone` and its drain path are dropped; the queue is the only publication path.
 
-Seeded kinds (phase A: 1–5 and 8; phase B: 6–7):
+Seeded kinds (phase A: 1–5 and 8 in `m0202`, 9 in `m0204`; phase B: 6–7):
 
 | kind | slug | polarity | written by | subject → object | hl | k | mix |
 |---|---|---|---|---|---|---|---|
@@ -167,6 +167,7 @@ Seeded kinds (phase A: 1–5 and 8; phase B: 6–7):
 | 4 | `routed` | trust | finalize: routing engine | sender → recipient of each hop | 182 d | 1 | 0.5 |
 | 5 | `useful_forward` | trust | offer approval (stream 2) | helper → its arrival forwarder | 182 d | 2 | 0.5 |
 | 8 | `worked_with_author` | trust | finalize: every member present until closure, `count = 1/√n` (U58, §5.9a); not in `T_recent` | helper → author | linear to 0 over 180 d | 1 | 0.08 |
+| 9 | `supported_colleague` | trust | finalize: counted support of a voter, `count = 1/√|U_i|` per supported member (U59, §5.9b); not in `T_recent` | supporter → supported | linear to 0 over 180 d | 1 | 0.1 |
 | 6 | `engaged` | trust | phase B: forward engagement | recipient → sender | 90 d | 2 | 0.2 |
 | 7 | `noisy` | wall | phase B: forward ignored until deadline | recipient → sender | 14 d | — | — |
 
@@ -444,7 +445,7 @@ One transaction under the beacon lock:
 1. Re-check the epoch is the expected one and evaluating (sweep: and `closes_at ≤ now`); set status final, `finalized_at`, `finalize_reason`, `settlement_version`, `settlement_params`; `beacon.status = closed`; lifecycle activity event.
 2. Load members, outcomes, split, committed supports, marks, forward DAG; run `EpisodeSettlement` and `ForwardRoutingSettlement`.
 3. Insert `beacon_closure_result` for every member (outcome, band, draft flag, helped). Draft flag: `notCounted` if the voter has a draft and no commit; `lastEditNotCounted` if the draft differs from the committed version.
-4. Record evidence (`helped`: `closure:<b>:<e>:helped:<j>`; `routed`; `marked`: `closure:<b>:<e>:mark:<x>:<y>` with `occurred_at = finalized_at`; `worked_with_author` per §5.9a) and project affected pairs (enqueue publication).
+4. Record evidence (`helped`: `closure:<b>:<e>:helped:<j>`; `routed`; `marked`: `closure:<b>:<e>:mark:<x>:<y>` with `occurred_at = finalized_at`; `worked_with_author` per §5.9a; `supported_colleague` per §5.9b) and project affected pairs (enqueue publication).
 5. Close-ack capability events for C over the offer's helpTypes.
 6. Story → room system message kind 3 `closureStory` if non-empty.
 7. Receipts (§9) with per-recipient source keys.
@@ -466,6 +467,20 @@ for i in P:  i → author  worked_with_author  count = 1/√|P|
 - Kind 8 has `counts_for_immunity = false`: working for an author never grants the author immunity from the noisy-contact wall.
 - Not retracted after finalize; later removal of the edge only via ban. A bookmark on the author strengthens it.
 - Strength: one edge ≈ 0.08·c/(1+c) with c = 1/√|P| (|P| = 1 → 0.04; 4 → 0.027; 9 → 0.02); pair ceiling 0.08; linear decay to 0 over 180 days.
+
+### 5.9b Support edge (U59)
+
+Horizontal edges come only from the supporter's own choice; the settlement consensus still writes only the author's `helped` edges.
+```
+for i in V, if |M| ≥ 3 and ∅ ≠ U_i ≠ M∖{i}        (the support that entered the settlement: committed version, voter)
+  for j in U_i:  i → j  supported_colleague  count = 1/√|U_i|
+                 source_key closure:<b>:<e>:support_edge:<i>:<j>,  occurred_at = finalized_at
+```
+- Written even when the support gave j zero bonus (e.g. every unsupported colleague is not done): a conditional edge would leak other members' outcomes.
+- Independent of j's outcome and departure; a cancelled epoch writes nothing; ban overrides at projection.
+- Outgoing budget per episode √|U_i|; one support ≈ 0.05, two ≈ 0.041 each; linear decay to 0 over 180 d; `counts_for_immunity = false` (immunity only from bookmarks and help).
+- Copy under the ▲▼ legend and in (i): "Поддержка ещё и чуть усиливает твою связь в сети с теми, кого ты выбрал. Им не придёт уведомление".
+- Rejected alternative (plan §1.4): equal-peer range-vote split with every member writing edges to all others by share — compelled endorsement, Sybil channel, per-episode cliques, preferential attachment.
 
 ### 5.10 Bookmarks after closure
 
@@ -547,7 +562,7 @@ Rename `C/features/evaluation` → `C/features/closure`: `ClosureRepository`, `C
 ### 8.2 Screens and acceptance criteria
 
 - **Author "Подвести итоги" (A10):** member rows (leavers last, "ушёл"/"исключён"), outcome picker (vertical list on narrow screens; hint "«Не выполнено» убирает человека из твоего распределения; «Не могу судить» оставляет его в равной доле"), bookmark 🔖; split section locked until "Изменить распределение" (unlock does not change values), "Вернуть поровну", live preview bars with names "если коллеги промолчат"; story with hint; deadline, extend, close-now with explanation "Можно закрыть раньше после <время>, или когда все помощники ответят" (no list of who answered); for two helpers "Долю каждого распределяешь ты. Каждый из двоих поймёт по своему итогу, как ты разделил".
-- **Helper "Поддержать коллег" (A11):** always (also for 1 or 2 members) the U58 notice "Когда запрос закроется, в сети появится слабая связь от тебя к автору: вы работали вместе. Не хочешь её — выйди из запроса до закрытия"; header "Чья работа, по-твоему, была важной? Твоя часть от этого не меняется" (not "beyond the author's decision": the helper does not see it); one toggle per colleague "☆ Поддержать / ★ Поддерживаю"; ▲/▼ indicators after the first press with legend "▲ получат добавку — ▼ её отдадут те, кого ты не выбрал"; scapegoat hint "Поддержать всех — то же, что никого. Кто-то должен отдать: снята самая ранняя (…)"; status line "В расчёте: поддержаны …" / "В расчёт ещё не входит" / "На экране иначе — «Готово» заменит расчёт"; Done; "Пропустить — не отмечаю никого" with "Твоя часть не меняется никогда" and a confirm if a committed version exists; "Автор может закрыть после <время> — или раньше, когда ответят все"; privacy line "В приложении твой выбор не видят. По своим итогам другие могут о нём догадаться"; bookmark copy "Закладка чуть усиливает твою связь с этим человеком в сети. Ему не придёт уведомление, части в этом запросе не меняются. Поставить и снять можно и позже". The (i) sheet (`share_flow_diagram.dart`, `CustomPainter` + `TenturaAvatar`) draws **equal grey example flows labelled "пример"**, never real author allocations (U20); under the diagram the text «Ты не знаешь, как решил автор, — и знать не нужно. Поддержи тех, чья работа, по-твоему, была важной. Если автор уже оценил человека высоко, добавка будет маленькой; если низко — заметной. Отдают в основном те, кому автор дал больше. Автор твой выбор не видит».
+- **Helper "Поддержать коллег" (A11):** always (also for 1 or 2 members) the U58 notice "Когда запрос закроется, в сети появится слабая связь от тебя к автору: вы работали вместе. Не хочешь её — выйди из запроса до закрытия"; header "Чья работа, по-твоему, была важной? Твоя часть от этого не меняется" (not "beyond the author's decision": the helper does not see it); one toggle per colleague "☆ Поддержать / ★ Поддерживаю"; ▲/▼ indicators after the first press with legend "▲ получат добавку — ▼ её отдадут те, кого ты не выбрал" followed by the U59 line "Поддержка ещё и чуть усиливает твою связь в сети с теми, кого ты выбрал. Им не придёт уведомление"; scapegoat hint "Поддержать всех — то же, что никого. Кто-то должен отдать: снята самая ранняя (…)"; status line "В расчёте: поддержаны …" / "В расчёт ещё не входит" / "На экране иначе — «Готово» заменит расчёт"; Done; "Пропустить — не отмечаю никого" with "Твоя часть не меняется никогда" and a confirm if a committed version exists; "Автор может закрыть после <время> — или раньше, когда ответят все"; privacy line "В приложении твой выбор не видят. По своим итогам другие могут о нём догадаться"; bookmark copy "Закладка чуть усиливает твою связь с этим человеком в сети. Ему не придёт уведомление, части в этом запросе не меняются. Поставить и снять можно и позже". The (i) sheet (`share_flow_diagram.dart`, `CustomPainter` + `TenturaAvatar`) draws **equal grey example flows labelled "пример"**, never real author allocations (U20); under the diagram the text «Ты не знаешь, как решил автор, — и знать не нужно. Поддержи тех, чья работа, по-твоему, была важной. Если автор уже оценил человека высоко, добавка будет маленькой; если низко — заметной. Отдают в основном те, кому автор дал больше. Автор твой выбор не видит».
 - **Results card (A12):** outcome line; band sentence ("Коллеги подняли твою часть" / "Твоя часть — как если бы коллеги промолчали" / "Коллеги опустили твою часть"); "Автор отметил: не выполнено — части в итогах нет" only when the outcome is not done **and** the band is none (a not-done member supported by colleagues gets a positive part and the raised sentence); draft line ("Твои отметки не вошли…" / "В расчёте прошлая версия…"); own bookmarks with toggles.
 - **My Work (U6):** the archive affordance is shown for helper cards on **open** requests too (derivation change around `showArchiveAffordance`); archiving only hides the card for the viewer — no departure, no evidence.
 
@@ -586,7 +601,8 @@ Migrations are SQL-only and must succeed on a database **without** pgmer2 (test 
 | `m0201` (phase 0) | `trust_rebuild_effective_edge` publishes `greatest(w, 0)` |
 | `m0202` (A) | trust ledger, kinds, publish queue, publisher lease; projection function; rewritten deletion-trigger function (enqueue, no MR call); drop old trust tables/functions and `meritrank_edge_tombstone`; **empty** `user_trust_edge` (all rows, trigger disabled for the wipe); insert `trust_cutover_state(status = 'pending')` |
 | `m0203` (A) | closure tables and indexes; legacy `status = 5` requests → 7; drop review tables; extend `recipient_safe` allowlist (room system kind 3 needs no constraint change, only constants) |
-| `m0204` (B) | forward-edge contact columns and index; wall levels config; `wall_publish_enabled = true` is flipped by config after deploy |
+| `m0204` (A) | seed kind 9 `supported_colleague` (U59) — `m0202` is already implemented |
+| `m0205` (B) | forward-edge contact columns and index; wall levels config; `wall_publish_enabled = true` is flipped by config after deploy |
 
 Never edit a shipped migration; verify the next free number at implementation time.
 
@@ -650,6 +666,7 @@ Pilot metrics (plan §8): effect of supports vs the same episode in silence (fro
 | Publisher lag or MR outage | Queue with retry; closure state independent of MR; health metrics |
 | Author power (α_A, outcomes, removals, two-helper case) | By design (U49); pilot α_A and β |
 | Pair collusion | Accepted (U43); band threshold hides a single pair |
+| Support edge (U59) adds a "support people I want in my network" motive | Own share still independent of the vote; weak, √-budgeted, 180-day decay; metric: supports to members with prior mutual bookmarks |
 | Helper cannot know the author split, so support feels like guessing or futile | Support asks for own judgement; the rule self-scales (§5.5.2); (i) text; comprehension question 12; vote-efficacy metric (§13) |
 | Helper → author edge (U58) lends mass to a fake author | Each edge costs real help; weak, √n-budgeted per episode, saturates per pair, linear decay 180 d; exit before closure and ban; no wall immunity |
 | Users misread the UI | Single toggle, indicators, scapegoat hint, "В расчёте", comprehension test |
@@ -660,6 +677,7 @@ Pilot metrics (plan §8): effect of supports vs the same episode in silence (fro
 
 ## 15. Review log
 
+- rev 6 (2026-09-29) — plan rev 23: U59 support edge (kind 9 `supported_colleague`, §5.9b, migration `m0204`; phase B migration becomes `m0205`); rejected equal-peer all-to-all scheme recorded in plan §1.4.
 - rev 5 (2026-09-29) — plan rev 22: support is the helper's own judgement, not a guess about the author; §5.5.2 self-scaling with vectors; new helper header and (i) text; vote-efficacy and halo metrics; risk row.
 - rev 4 (2026-09-29) — U58 (plan rev 21): kind 8 `worked_with_author`, helper → author at finalize for members present until closure, `count = 1/√|P|`, linear decay over 180 d, excluded from `T_recent`; kind config gets `linear_window_s` and `counts_for_immunity`.
 - rev 3 (2026-09-29) — inherited findings from the Codex review of the step plan: real `user_trust_edge` column names and trigger name; deletion trigger enqueues instead of calling MR, tombstones dropped; publisher and cutover exclusivity via lease + fencing token (pooled connections); per-request lock key `hashtextextended(beacon_id, 4242)` also taken by commitment-event writers, with a defined lock order; sweep finalizes only the selected epoch; `voter` derived from `active_at_open` and `departure`; legacy reviewOpen requests → needsMoreHelp; Drift/erasure cleanup; apportionment switched to water-filling; empty/singleton A; current close effects preserved; draft-reminder audience narrowed; not-done result text conditional on band.
