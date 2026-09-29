@@ -73,7 +73,7 @@ jobs:
             -e MERITRANK_SERVICE_URL=tcp://meritrank:8080 \
             -e MERITRANK_RECV_TIMEOUT_MSEC=60000 \
             -p 5432:5432 \
-            vbulavintsev/postgres-tentura:v0.8.0
+            vbulavintsev/postgres-tentura:v0.8.1
           for _ in $(seq 1 60); do
             if docker exec tentura-pg pg_isready -U postgres >/dev/null 2>&1; then
               echo "postgres ready"; exit 0

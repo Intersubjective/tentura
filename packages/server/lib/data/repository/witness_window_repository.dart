@@ -155,13 +155,18 @@ WHERE ego_user_id = $1
   );
 
   @override
-  Future<void> bumpMrEpoch() => _database.customStatement(
-    r'''
+  Future<void> bumpMrEpoch() async {
+    // P0.2: pgmer2 0.8.1 barrier — flush pending MR writes to the MeritRank
+    // service before invalidating witness-window caches via the epoch bump.
+    await _database.customStatement('SELECT public.mr_sync()');
+    await _database.customStatement(
+      r'''
 UPDATE public.mr_publish_epoch
 SET epoch = epoch + 1
 WHERE id = true
 ''',
-  );
+    );
+  }
 
   @override
   Future<int> gcStaleWindows() => _database.customUpdate(
