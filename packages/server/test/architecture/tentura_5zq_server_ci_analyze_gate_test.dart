@@ -28,6 +28,16 @@ const _parentBeadMarker = 'parent tentura-617.3';
 const _harnessImport =
     "import '../support/server_ci_lint_gate_harness.dart'";
 
+/// The u6e bead acceptance runs the whole non-pg suite nested; the heavy
+/// analyze/lint subprocess gates below must not run again inside it (they
+/// still run in CI and in targeted acceptance runs, where the flag is unset).
+Object get _skipInU6eNestedSuite {
+  if (Platform.environment['TENTURA_U6E_NESTED_SUITE'] == 'true') {
+    return 'do not nest full-package dart analyze inside the u6e nested suite';
+  }
+  return false;
+}
+
 void main() {
   group('tentura-5zq server CI analyze gate (parent tentura-617.3)', () {
     test('5zq acceptance test paths declare 5zq landing gate markers', () {
@@ -78,6 +88,7 @@ void main() {
         }
       },
       timeout: const Timeout(Duration(minutes: 12)),
+      skip: _skipInU6eNestedSuite,
     );
 
     test(
@@ -128,6 +139,7 @@ void main() {
         }
       },
       timeout: const Timeout(Duration(minutes: 15)),
+      skip: _skipInU6eNestedSuite,
     );
 
     test(
@@ -160,6 +172,7 @@ void main() {
         );
       },
       timeout: const Timeout(Duration(minutes: 15)),
+      skip: _skipInU6eNestedSuite,
     );
   });
 }

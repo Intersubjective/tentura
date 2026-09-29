@@ -60,6 +60,9 @@ void main() {
         );
       },
       timeout: const Timeout(Duration(minutes: 12)),
+      skip: Platform.environment['TENTURA_U6E_NESTED_SUITE'] == 'true'
+          ? 'do not nest check-custom-lints.sh inside the u6e nested suite'
+          : false,
     );
 
     test(

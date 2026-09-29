@@ -7,6 +7,19 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WRAP="$ROOT/scripts/run_with_test_cleanup.sh"
 chmod +x "$WRAP"
 
+# Stay hermetic when invoked from inside an outer wrapped run: the outer run
+# id sits in this process's /proc environ and the outer marker dir in the
+# shared STATE_ROOT, and either one makes every inner wrapper sweep below
+# report "another wrapped run is active" and skip — failing the sweep
+# assertions. Re-exec once without the outer tag and with a private TMPDIR
+# (STATE_ROOT and the tmpfs fixtures both derive from it).
+if [[ -z "${SELFTEST_ISOLATED:-}" ]]; then
+  export SELFTEST_ISOLATED=1
+  exec env -u TENTURA_TEST_CLEANUP_RUN \
+    TMPDIR="$(mktemp -d "${TMPDIR:-/tmp}/tentura-selftest.XXXXXX")" \
+    bash "$ROOT/scripts/run_with_test_cleanup_selftest.sh" "$@"
+fi
+
 pass=0
 fail=0
 cleanup_pids=()
@@ -54,6 +67,9 @@ finish() {
   for p in "${cleanup_pids[@]+"${cleanup_pids[@]}"}"; do
     kill -KILL "$p" 2>/dev/null || true
   done
+  if [[ -n "${SELFTEST_ISOLATED:-}" && "${TMPDIR:-}" == */tentura-selftest.* ]]; then
+    rm -rf "$TMPDIR"
+  fi
   echo
   log "passed=$pass failed=$fail"
   [[ "$fail" -eq 0 ]]

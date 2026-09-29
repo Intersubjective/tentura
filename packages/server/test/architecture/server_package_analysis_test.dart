@@ -36,7 +36,8 @@ Object get _skipNestedCleanupInCiDartTest {
   final env = Platform.environment;
   if (env['GITHUB_ACTIONS'] == 'true' ||
       env['CI'] == 'true' ||
-      env['TEST_TARGET'] == 'server') {
+      env['TEST_TARGET'] == 'server' ||
+      env['TENTURA_U6E_NESTED_SUITE'] == 'true') {
     return 'do not nest run_with_test_cleanup.sh inside CI dart test';
   }
   return false;

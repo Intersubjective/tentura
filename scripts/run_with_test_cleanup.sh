@@ -263,26 +263,31 @@ pg_gc_psql() {
 # active, so a peer cannot race ahead of the victim's mkdir of its marker dir.
 other_active_markers() {
   local self_marker="$1" d name reaper_pid
-  [[ -d "$STATE_ROOT" ]] || return 0
-  for d in "$STATE_ROOT"/*/; do
-    [[ -d "$d" ]] || continue
-    name="$(basename "$d")"
-    [[ "$name" == "$self_marker" ]] && continue
-    # Ignore stale pre-* sweep labels if any ever leaked as dirs.
-    [[ "$name" == pre-* ]] && continue
-    # A marker dir alone does not mean its run is still active: the reaper
-    # only rm -rf's it on a clean exit, so a SIGKILLed wrapper+reaper leaks
-    # the dir forever, which used to permanently disable every future sweep
-    # (tentura-2tj). Trust it only while its own recorded reaper.pid is a
-    # live process; otherwise it's a stale leftover -- reclaim it now so the
-    # next run doesn't have to rediscover it.
-    reaper_pid="$(cat "$d/reaper.pid" 2>/dev/null || true)"
-    if [[ -n "$reaper_pid" ]] && kill -0 "$reaper_pid" 2>/dev/null; then
-      printf '%s\n' "$name"
-    else
-      rm -rf "$d" 2>/dev/null || true
-    fi
-  done
+  # A missing STATE_ROOT must NOT short-circuit the /proc scan below: nested
+  # acceptance harnesses hand a wrapped run a private TMPDIR and delete it in
+  # `finally` right as the wrapper exits, so by the time the reaper sweeps,
+  # STATE_ROOT can be gone while other runs are still active (tentura-u6e).
+  if [[ -d "$STATE_ROOT" ]]; then
+    for d in "$STATE_ROOT"/*/; do
+      [[ -d "$d" ]] || continue
+      name="$(basename "$d")"
+      [[ "$name" == "$self_marker" ]] && continue
+      # Ignore stale pre-* sweep labels if any ever leaked as dirs.
+      [[ "$name" == pre-* ]] && continue
+      # A marker dir alone does not mean its run is still active: the reaper
+      # only rm -rf's it on a clean exit, so a SIGKILLed wrapper+reaper leaks
+      # the dir forever, which used to permanently disable every future sweep
+      # (tentura-2tj). Trust it only while its own recorded reaper.pid is a
+      # live process; otherwise it's a stale leftover -- reclaim it now so the
+      # next run doesn't have to rediscover it.
+      reaper_pid="$(cat "$d/reaper.pid" 2>/dev/null || true)"
+      if [[ -n "$reaper_pid" ]] && kill -0 "$reaper_pid" 2>/dev/null; then
+        printf '%s\n' "$name"
+      else
+        rm -rf "$d" 2>/dev/null || true
+      fi
+    done
+  fi
   python3 - "$self_marker" <<'PY'
 import pathlib, sys
 self_marker = sys.argv[1].encode()

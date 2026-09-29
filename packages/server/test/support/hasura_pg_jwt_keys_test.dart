@@ -34,6 +34,10 @@ void main() async {
   final hasuraPgHarnessSkip = !postgresReachable || !dockerReachable
       ? 'Postgres admin database and Docker required for beacon Hasura pg setUpAll subprocess harness'
       : false;
+  final u6eNestedSuiteSkip =
+      Platform.environment['TENTURA_U6E_NESTED_SUITE'] == 'true'
+      ? 'do not nest dart test subprocesses inside the u6e nested suite'
+      : false;
 
   group('tentura-50o loadJwtKeysForHasuraPgTests default resolution (production setUpAll)', () {
     test(
@@ -62,6 +66,7 @@ void main() async {
         );
       },
       timeout: const Timeout(Duration(minutes: 8)),
+      skip: u6eNestedSuiteSkip,
     );
   });
 
@@ -203,7 +208,9 @@ void main() async {
                 '(output:\n${outcome.combined})',
           );
         },
-        skip: hasuraPgHarnessSkip,
+        skip: hasuraPgHarnessSkip is String
+            ? hasuraPgHarnessSkip
+            : u6eNestedSuiteSkip,
         timeout: const Timeout(Duration(minutes: 15)),
       );
     }
