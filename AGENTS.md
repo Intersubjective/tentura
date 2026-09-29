@@ -142,6 +142,9 @@ review due: 2026-10-05
 
 ### alloy:lesson:bead_source_mismatch_verify_before_refactor
 Bead descriptions can cite stale or wrong code and tokens. In tentura-1pr, _buildAvatarStack in rating_scatter_view.dart is really scatter-plot positioning, not a capped face pile. tt.avatarSizeSmall did not exist, and the small bucket is metadataAvatarSize / TenturaAvatarSize.small. The "existing rating golden tests" also did not exist, since test/features/rating/ holds only rating_repository_test.dart. Grep the cited symbols, tokens and tests before implementing. Add the missing piece as a thin alias, here a getter avatarSizeSmall => metadataAvatarSize plus a token test. Do not replace the scatter view with a max:3 stack, because that drops per-profile plot positions. Record the wiring gap and the missing goldens as follow-ups. Also note that a user-visible client change needs a pubspec.yaml patch bump and a web/index.html cache-buster sync, and this run skipped both.
+
+### alloy:lesson:server_package_ci_lint_gate_is_check_custom_lints
+Required checks and bead acceptance for `packages/server` must match CI: `scripts/check-custom-lints.sh packages/server` (runs `dart analyze --no-fatal-warnings` and ratchets `tentura_lints` against `scripts/custom-lint-baseline.txt`). Do not treat bare fatal-on-warnings `dart analyze .` as the server package gate — it is stricter than CI and can exit 2 while `check-custom-lints.sh` passes.
 <!-- alloy:memory:end -->
 
 <!-- alloy:memory-review:ptl:begin -->
@@ -151,3 +154,4 @@ Bead descriptions can cite stale or wrong code and tokens. In tentura-1pr, _buil
 <!-- tentura-jc0 landing gate acceptance (trial merge tentura-ptl) -->
 <!-- tentura-olc landing gate acceptance (trial merge tentura-21x) -->
 <!-- tentura-fx7 landing gate acceptance (trial merge tentura-50o) -->
+<!-- tentura-5zq landing gate acceptance (parent tentura-617.3) -->

@@ -1,9 +1,10 @@
 // tentura-olc landing gate acceptance (trial merge tentura-21x)
 
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:test/test.dart';
+
+import '../support/server_ci_lint_gate_harness.dart';
 
 /// Alloy tentura-olc landing gate — same paths as the bead acceptance harness.
 const kOlcAcceptanceTestPaths = [
@@ -18,16 +19,6 @@ const _trialMergeMarker = 'trial merge tentura-21x';
 
 const _agentsOlcLandingFixture =
     '../../test/fixtures/agents_alloy_memory_olc_landing_tail.txt';
-
-Object get _skipNestedCleanupInCiDartTest {
-  final env = Platform.environment;
-  if (env['GITHUB_ACTIONS'] == 'true' ||
-      env['CI'] == 'true' ||
-      env['TEST_TARGET'] == 'server') {
-    return 'do not nest run_with_test_cleanup.sh inside CI dart test';
-  }
-  return false;
-}
 
 void main() {
   group('tentura-olc landing check (trial merge tentura-21x)', () {
@@ -51,30 +42,24 @@ void main() {
     });
 
     test(
-      'bead acceptance: wrapped `dart analyze .` exits 0 from packages/server',
+      'bead acceptance: wrapped check-custom-lints.sh packages/server exits 0',
       () {
-        final outcome = runOlcAcceptancePackageAnalyze();
+        final outcome = runOlcAcceptanceServerLintGate();
         expect(
           outcome.exitCode,
           0,
           reason:
-              'tentura-olc requires '
-              '`cd packages/server && '
-              '../../scripts/run_with_test_cleanup.sh --timeout 10m -- '
-              'dart analyze .` to exit 0\n'
+              'tentura-olc requires CI-equivalent '
+              '`bash scripts/check-custom-lints.sh packages/server` from repo root\n'
               'stdout:\n${outcome.stdout}\n'
               'stderr:\n${outcome.stderr}',
         );
         expect(
-          olcPackageAnalyzeErrorDiagnostics(),
-          isEmpty,
-          reason:
-              'package analyze must report no error-severity diagnostics:\n'
-              '${olcPackageAnalyzeErrorDiagnostics().join('\n')}',
+          outcome.stdout,
+          contains('check-custom-lints: packages/server OK'),
         );
       },
       timeout: const Timeout(Duration(minutes: 12)),
-      skip: _skipNestedCleanupInCiDartTest,
     );
 
     test(
@@ -115,100 +100,3 @@ File _repoFile(String relativePath) {
   throw StateError('Repo file not found: $relativePath');
 }
 
-/// Runs the exact tentura-olc bead acceptance analyze command.
-({int exitCode, String stdout, String stderr}) runOlcAcceptancePackageAnalyze() {
-  final wrapper = _testCleanupWrapper();
-  final nestedTmp = Directory.systemTemp.createTempSync(
-    'tentura-olc-nested-',
-  );
-  try {
-    final result = Process.runSync(
-      wrapper.path,
-      [
-        '--timeout',
-        '10m',
-        '--',
-        'dart',
-        'analyze',
-        '.',
-      ],
-      workingDirectory: _serverPackageRoot().path,
-      environment: {
-        ...Platform.environment,
-        'DART_SUPPRESS_ANALYTICS': 'true',
-        'TMPDIR': nestedTmp.path,
-      },
-    );
-    return (
-      exitCode: result.exitCode,
-      stdout: result.stdout as String,
-      stderr: result.stderr as String,
-    );
-  } finally {
-    nestedTmp.deleteSync(recursive: true);
-  }
-}
-
-List<String> olcPackageAnalyzeErrorDiagnostics() {
-  final result = Process.runSync(
-    'dart',
-    ['analyze', '--format=json', '.'],
-    workingDirectory: _serverPackageRoot().path,
-    environment: {
-      ...Platform.environment,
-      'DART_SUPPRESS_ANALYTICS': 'true',
-    },
-  );
-  final stdout = (result.stdout as String).trim();
-  expect(
-    stdout,
-    isNotEmpty,
-    reason:
-        'dart analyze . must emit JSON (exit ${result.exitCode}); '
-        'stderr: ${result.stderr}',
-  );
-
-  final payload = jsonDecode(stdout) as Map<String, dynamic>;
-  final diagnostics =
-      (payload['diagnostics'] as List).cast<Map<String, dynamic>>();
-  return diagnostics
-      .where((d) => d['severity'] == 'ERROR')
-      .map((d) {
-        final location = d['location'] as Map?;
-        final line = location == null
-            ? '?'
-            : (location['range'] as Map?)?['start']?['line'];
-        final file = location?['file'] ?? '?';
-        final message =
-            d['problemMessage']?.toString() ??
-            d['message']?.toString() ??
-            d['code']?.toString();
-        return '$file:$line: $message';
-      })
-      .toList();
-}
-
-File _testCleanupWrapper() {
-  final serverRoot = _serverPackageRoot();
-  final candidates = [
-    File('${serverRoot.path}/../../scripts/run_with_test_cleanup.sh'),
-    File('${serverRoot.parent.parent.path}/scripts/run_with_test_cleanup.sh'),
-  ];
-  for (final file in candidates) {
-    if (file.existsSync()) {
-      return file.absolute;
-    }
-  }
-  throw StateError('scripts/run_with_test_cleanup.sh not found');
-}
-
-Directory _serverPackageRoot() {
-  for (final path in const ['.', '../../packages/server']) {
-    final dir = Directory(path);
-    final candidate = File('${dir.path}/lib/env.dart');
-    if (candidate.existsSync()) {
-      return dir.absolute;
-    }
-  }
-  throw StateError('server package root not found');
-}

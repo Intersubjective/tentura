@@ -1,0 +1,2 @@
+### alloy:lesson:server_package_ci_lint_gate_is_check_custom_lints
+Required checks and bead acceptance for `packages/server` must match CI: `scripts/check-custom-lints.sh packages/server` (runs `dart analyze --no-fatal-warnings` and ratchets `tentura_lints` against `scripts/custom-lint-baseline.txt`). Do not treat bare fatal-on-warnings `dart analyze .` as the server package gate — it is stricter than CI and can exit 2 while `check-custom-lints.sh` passes.
