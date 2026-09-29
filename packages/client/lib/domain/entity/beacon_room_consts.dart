@@ -61,6 +61,7 @@ abstract final class BeaconRoomSemanticMarker {
 abstract final class BeaconRoomSystemMessageKind {
   static const hierarchyLifecycle = 1;
   static const childCreated = 2;
+  static const closureStory = 3;
 }
 
 /// Quick-picker emojis for room message reactions (`RoomMessageReactionToggle`).

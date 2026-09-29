@@ -137,20 +137,15 @@ Future<void> main() async {
         "WHERE source_beacon_id LIKE 'Berasure%' OR id LIKE 'Hier%'",
       );
       await writer.execute(
-        "DELETE FROM public.beacon_evaluation_ack_tag "
-        "WHERE evaluator_id LIKE 'Uerasure%' OR subject_id LIKE 'Uerasure%'",
+        "DELETE FROM public.beacon_closure_support "
+        "WHERE voter_id LIKE 'Uerasure%' OR target_id LIKE 'Uerasure%'",
       );
       await writer.execute(
-        "DELETE FROM public.beacon_evaluation_visibility "
-        "WHERE evaluator_id LIKE 'Uerasure%' OR participant_id LIKE 'Uerasure%'",
-      );
-      await writer.execute(
-        "DELETE FROM public.beacon_evaluation_participant "
+        "DELETE FROM public.beacon_closure_member "
         "WHERE user_id LIKE 'Uerasure%'",
       );
       await writer.execute(
-        "DELETE FROM public.beacon_evaluation "
-        "WHERE evaluator_id LIKE 'Uerasure%' OR evaluated_user_id LIKE 'Uerasure%'",
+        "DELETE FROM public.beacon_closure WHERE beacon_id LIKE 'Berasure%'",
       );
       await writer.execute(
         "DELETE FROM public.person_capability_event "
@@ -310,6 +305,110 @@ INSERT INTO public.beacon (
       );
       expect(userCount.single.single, 1);
     });
+
+    test(
+      'erasure removes only the deleted user closure rows via UserErasureCase',
+      () async {
+        const erasedId = 'Uerasureclsr1';
+        const survivorId = 'Uerasureclsr2';
+        const beaconId = 'Berasurecl01';
+        for (final id in [erasedId, survivorId]) {
+          await writer.execute(
+            Sql.named(r'''
+INSERT INTO public."user" (id, display_name, public_key)
+VALUES (@id, @id, @key)
+ON CONFLICT (id) DO NOTHING
+'''),
+            parameters: {
+              'id': id,
+              'key': 'erasure-closure-key-${id.toLowerCase()}00000001',
+            },
+          );
+        }
+        await writer.execute(
+          Sql.named(r'''
+INSERT INTO public.beacon (
+  id, user_id, title, description, status, published_at, created_at, updated_at
+) VALUES (
+  @id, @owner, 'Closure erasure', 'body', 0,
+  '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'
+)
+'''),
+          parameters: {'id': beaconId, 'owner': survivorId},
+        );
+        await writer.execute(
+          Sql.named(r'''
+INSERT INTO public.beacon_closure (
+  beacon_id, epoch, status, opened_at, closes_at
+) VALUES (
+  @beaconId, 1, 2,
+  '2026-01-01T00:00:00Z', '2026-02-01T00:00:00Z'
+)
+'''),
+          parameters: {'beaconId': beaconId},
+        );
+        for (final memberId in [erasedId, survivorId]) {
+          await writer.execute(
+            Sql.named(r'''
+INSERT INTO public.beacon_closure_member (
+  beacon_id, epoch, user_id, active_at_open
+) VALUES (@beaconId, 1, @userId, true)
+'''),
+            parameters: {'beaconId': beaconId, 'userId': memberId},
+          );
+        }
+        await writer.execute(
+          Sql.named(r'''
+INSERT INTO public.beacon_closure_support (
+  beacon_id, voter_id, target_id, version
+) VALUES (@beaconId, @voter, @target, 1)
+'''),
+          parameters: {
+            'beaconId': beaconId,
+            'voter': erasedId,
+            'target': survivorId,
+          },
+        );
+
+        expect(await stack.userCase.deleteById(id: erasedId), isTrue);
+
+        final erasedMember = await writer.execute(
+          Sql.named(
+            'SELECT count(*)::int FROM public.beacon_closure_member '
+            'WHERE user_id = @id',
+          ),
+          parameters: {'id': erasedId},
+        );
+        expect(erasedMember.single.single, 0);
+
+        final erasedSupport = await writer.execute(
+          Sql.named(
+            'SELECT count(*)::int FROM public.beacon_closure_support '
+            'WHERE voter_id = @id OR target_id = @id',
+          ),
+          parameters: {'id': erasedId},
+        );
+        expect(erasedSupport.single.single, 0);
+
+        final survivorMember = await writer.execute(
+          Sql.named(
+            'SELECT count(*)::int FROM public.beacon_closure_member '
+            'WHERE user_id = @id',
+          ),
+          parameters: {'id': survivorId},
+        );
+        expect(survivorMember.single.single, 1);
+
+        final remainingSupport = await writer.execute(
+          Sql.named(
+            'SELECT count(*)::int FROM public.beacon_closure_support '
+            'WHERE beacon_id = @beaconId',
+          ),
+          parameters: {'beaconId': beaconId},
+        );
+        expect(remainingSupport.single.single, 0);
+      },
+    );
 
     test('nullable-and-anonymise FK dispositions complete erasure', () async {
       const erasedId = 'Uerasurefk001';

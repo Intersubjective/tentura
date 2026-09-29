@@ -24,6 +24,7 @@ abstract final class BeaconHierarchyDeliveryStateWire {
 abstract final class BeaconRoomSystemMessageKind {
   static const hierarchyLifecycle = 1;
   static const childCreated = 2;
+  static const closureStory = 3;
 }
 
 /// Opaque hierarchy list cursor version.

@@ -35,18 +35,12 @@ import 'table/constellation_anchor_cursors.dart';
 import 'table/constellation_anchors.dart';
 import 'table/beacon_commitment_events.dart';
 import 'table/beacon_help_offer_coordinations.dart';
-import 'table/beacon_evaluation_participants.dart';
-import 'table/beacon_evaluation_visibility.dart';
-import 'table/beacon_evaluation_ack_tags.dart';
-import 'table/beacon_evaluations.dart';
 import 'table/beacon_activity_events.dart';
 import 'table/beacon_fact_card_revisions.dart';
 import 'table/beacon_fact_cards.dart';
 import 'table/beacon_forward_edges.dart';
 import 'table/beacon_images.dart';
 import 'table/beacon_image_stages.dart';
-import 'table/beacon_review_statuses.dart';
-import 'table/beacon_review_windows.dart';
 import 'table/beacons.dart';
 import 'table/beacon_participants.dart';
 import 'table/beacon_room_message_attachments.dart';
@@ -101,18 +95,12 @@ part 'tentura_db.g.dart';
     CapabilityEvidenceGenerations,
     CapabilityRoutingMutes,
     BeaconHelpOfferCoordinations,
-    BeaconEvaluationParticipants,
-    BeaconEvaluationVisibility,
-    BeaconEvaluationAckTags,
-    BeaconEvaluations,
     BeaconActivityEvents,
     BeaconFactCards,
     BeaconFactCardRevisions,
     BeaconForwardEdges,
     BeaconImages,
     BeaconImageStages,
-    BeaconReviewStatuses,
-    BeaconReviewWindows,
     ForwardDecisionAttributions,
     BeaconParticipants,
     BeaconRoomMessageAttachments,

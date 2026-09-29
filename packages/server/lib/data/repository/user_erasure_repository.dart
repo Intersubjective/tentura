@@ -135,31 +135,8 @@ WHERE id = $1
   Future<void> deleteUserScopedEvaluationAndCapabilityRows({
     required String userId,
   }) async {
-    await _database.customStatement(
-      r'''
-DELETE FROM public.beacon_evaluation_ack_tag
-WHERE evaluator_id = $1 OR subject_id = $1
-''',
-      [userId],
-    );
-    await _database.customStatement(
-      r'''
-DELETE FROM public.beacon_evaluation_visibility
-WHERE evaluator_id = $1 OR participant_id = $1
-''',
-      [userId],
-    );
-    await _database.customStatement(
-      r'DELETE FROM public.beacon_evaluation_participant WHERE user_id = $1',
-      [userId],
-    );
-    await _database.customStatement(
-      r'''
-DELETE FROM public.beacon_evaluation
-WHERE evaluator_id = $1 OR evaluated_user_id = $1
-''',
-      [userId],
-    );
+    // The review-era evaluation tables were dropped by m0203 (A6); only the
+    // capability-event cleanup remains.
     await _database.customStatement(
       r'''
 DELETE FROM public.person_capability_event

@@ -25,8 +25,9 @@ abstract class UserErasurePort {
     required String ownerId,
   });
 
-  /// Deletes user-scoped evaluation, subjective ack, and capability-event rows
-  /// that must be scrubbed before the account row is removed.
+  /// Deletes user-scoped capability-event rows that must be scrubbed before
+  /// the account row is removed. (The review-era evaluation rows this used to
+  /// cover went away with their tables in m0203.)
   Future<void> deleteUserScopedEvaluationAndCapabilityRows({
     required String userId,
   });
