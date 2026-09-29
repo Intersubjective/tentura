@@ -10,6 +10,13 @@ const kOlcLandingCheckTestRelative =
 const kOlcBeadAcceptanceTestName =
     'bead acceptance: wrapped check-custom-lints.sh packages/server exits 0';
 
+/// Relative to [serverPackageRoot].
+const kU6eLandingCheckTestRelative =
+    'test/architecture/tentura_u6e_landing_check_test.dart';
+
+const kU6eBeadAcceptanceTestName =
+    'bead acceptance: wrapped dart test --exclude-tags pg exits 0 (tentura-5zq landing)';
+
 /// Bead evidence: id8.5 / tentura-617.3 touched line (1-based editor line).
 const k5zqCitedOutsideDiffRelative = 'lib/data/database/tentura_db.dart';
 
@@ -208,6 +215,58 @@ List<Map<String, dynamic>> diagnosticsOnServerRelativeLine(
 String readCheckCustomLintsScriptFromRepo() {
   final repo = repoRootFromServerPackage();
   return File('${repo.path}/scripts/check-custom-lints.sh').readAsStringSync();
+}
+
+/// Runs tentura-u6e bead acceptance: full server non-pg suite via test cleanup wrapper.
+CommandOutcome runU6eAcceptanceNonPgDartTest() {
+  final wrapper = testCleanupWrapperFromServerPackage();
+  final server = serverPackageRoot();
+  final nestedTmp = Directory('${server.path}/.dart_tool').createTempSync(
+    'tentura-u6e-nonpg-nested-',
+  );
+  try {
+    final result = Process.runSync(
+      wrapper.path,
+      [
+        '--timeout',
+        '20m',
+        '--',
+        'dart',
+        'test',
+        '--exclude-tags',
+        'pg',
+      ],
+      workingDirectory: server.path,
+      environment: {
+        ...Platform.environment,
+        'DART_SUPPRESS_ANALYTICS': 'true',
+        'TMPDIR': nestedTmp.path,
+        // The suite includes the acceptance test that launches this process.
+        'TENTURA_U6E_NESTED_SUITE': 'true',
+      },
+    );
+    return (
+      exitCode: result.exitCode,
+      stdout: result.stdout as String,
+      stderr: result.stderr as String,
+    );
+  } finally {
+    nestedTmp.deleteSync(recursive: true);
+  }
+}
+
+File testCleanupWrapperFromServerPackage() {
+  final server = serverPackageRoot();
+  final candidates = [
+    File('${server.path}/../../scripts/run_with_test_cleanup.sh'),
+    File('${repoRootFromServerPackage().path}/scripts/run_with_test_cleanup.sh'),
+  ];
+  for (final file in candidates) {
+    if (file.existsSync()) {
+      return file.absolute;
+    }
+  }
+  throw StateError('scripts/run_with_test_cleanup.sh not found');
 }
 
 /// Runs the olc bead-acceptance test by name (runtime, not source substring).

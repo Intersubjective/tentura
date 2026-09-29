@@ -10,6 +10,14 @@ import '../support/server_ci_lint_gate_harness.dart';
 const k5zqAcceptanceTestPaths = [
   'test/architecture/tentura_5zq_server_ci_analyze_gate_test.dart',
   'test/alloy_landing_gate_5zq_test.dart',
+  'test/architecture/tentura_u6e_landing_check_test.dart',
+  'test/alloy_landing_gate_u6e_test.dart',
+];
+
+/// Paths that must carry the tentura-5zq landing gate marker (not u6e remediation).
+const _k5zqLandingGateMarkerTestPaths = [
+  'test/architecture/tentura_5zq_server_ci_analyze_gate_test.dart',
+  'test/alloy_landing_gate_5zq_test.dart',
 ];
 
 const _5zqLandingGateMarker =
@@ -23,7 +31,7 @@ const _harnessImport =
 void main() {
   group('tentura-5zq server CI analyze gate (parent tentura-617.3)', () {
     test('5zq acceptance test paths declare 5zq landing gate markers', () {
-      for (final path in k5zqAcceptanceTestPaths) {
+      for (final path in _k5zqLandingGateMarkerTestPaths) {
         final resolved = _resolveRepoRelative(path);
         expect(resolved.existsSync(), isTrue, reason: 'missing acceptance path $path');
         final source = resolved.readAsStringSync();
