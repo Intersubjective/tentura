@@ -11,10 +11,13 @@ const kJ0qAcceptanceTestPaths = [
 ];
 
 /// Later landing gates tracked after tentura-j0q (tentura-kd9/uwq, fix
-/// tentura-ah4 selftests); they carry their own markers, not the j0q ones.
+/// tentura-ah4 selftests; tentura-pl4, fix tentura-8u7 non-pg DI); they
+/// carry their own markers, not the j0q ones.
 const kJ0qTrackedLaterAcceptanceTestPaths = [
   'test/tentura_kd9_enospc_selftest_landing_check_test.dart',
   'test/tentura_uwq_wrapped_selftest_landing_check_test.dart',
+  'test/architecture/tentura_pl4_landing_check_test.dart',
+  'test/architecture/tentura_pl4_di_acceptance_probe_test.dart',
 ];
 
 const _j0qLandingGateMarker =

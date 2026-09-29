@@ -255,6 +255,44 @@ CommandOutcome runU6eAcceptanceNonPgDartTest() {
   }
 }
 
+/// Runs tentura-pl4 bead acceptance: full server non-pg suite via test cleanup wrapper.
+CommandOutcome runPl4AcceptanceNonPgDartTest() {
+  final wrapper = testCleanupWrapperFromServerPackage();
+  final server = serverPackageRoot();
+  final nestedTmp = Directory('${server.path}/.dart_tool').createTempSync(
+    'tentura-pl4-nonpg-nested-',
+  );
+  try {
+    final result = Process.runSync(
+      wrapper.path,
+      [
+        '--timeout',
+        '30m',
+        '--',
+        'dart',
+        'test',
+        '--exclude-tags',
+        'pg',
+      ],
+      workingDirectory: server.path,
+      environment: {
+        ...Platform.environment,
+        'DART_SUPPRESS_ANALYTICS': 'true',
+        'TMPDIR': nestedTmp.path,
+        // The suite includes the acceptance test that launches this process.
+        'TENTURA_U6E_NESTED_SUITE': 'true',
+      },
+    );
+    return (
+      exitCode: result.exitCode,
+      stdout: result.stdout as String,
+      stderr: result.stderr as String,
+    );
+  } finally {
+    nestedTmp.deleteSync(recursive: true);
+  }
+}
+
 File testCleanupWrapperFromServerPackage() {
   final server = serverPackageRoot();
   final candidates = [
