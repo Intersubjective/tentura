@@ -12,12 +12,18 @@ final class IsolatedHasuraSession {
     required this.adminSecret,
     required this.containerName,
     required this.port,
-  });
+    required _PortClaim portClaim,
+  }) : _portClaim = portClaim;
 
   final String baseUrl;
   final String adminSecret;
   final String containerName;
   final int port;
+  final _PortClaim _portClaim;
+
+  /// Ports claimed by sessions of this process (file locks don't conflict
+  /// between fds of one process).
+  static final _claimedPorts = <int>{};
 
   static Future<bool> isDockerAvailable() async {
     try {
@@ -37,7 +43,27 @@ final class IsolatedHasuraSession {
       throw StateError('Docker is required for isolated Hasura tests');
     }
 
-    final port = await _findFreePort();
+    final portClaim = await _claimFreePort();
+    try {
+      return await _start(
+        databaseEnv: databaseEnv,
+        jwtPublicPem: jwtPublicPem,
+        adminSecret: adminSecret,
+        portClaim: portClaim,
+      );
+    } on Object {
+      await portClaim.release();
+      rethrow;
+    }
+  }
+
+  static Future<IsolatedHasuraSession> _start({
+    required Env databaseEnv,
+    required String jwtPublicPem,
+    required String adminSecret,
+    required _PortClaim portClaim,
+  }) async {
+    final port = portClaim.port;
     final containerName =
         'tentura_test_hasura_${pid}_${DateTime.timestamp().microsecondsSinceEpoch}';
     final databaseUrl = _postgresDatabaseUrl(databaseEnv);
@@ -87,6 +113,7 @@ final class IsolatedHasuraSession {
       adminSecret: adminSecret,
       containerName: containerName,
       port: port,
+      portClaim: portClaim,
     );
     final healthy = await session._waitForHealthy();
     if (!healthy) {
@@ -113,6 +140,7 @@ final class IsolatedHasuraSession {
 
   Future<void> stop() async {
     await Process.run('docker', ['rm', '-f', containerName]);
+    await _portClaim.release();
   }
 
   Future<bool> _waitForHealthy() async {
@@ -151,13 +179,36 @@ final class IsolatedHasuraSession {
     return body;
   }
 
-  static Future<int> _findFreePort() async {
+  /// Bind-and-release probing is racy: concurrent starts (this process or
+  /// other `dart test` processes) pick the same port before their containers
+  /// bind it, and the losers' health probes are answered by the winner's
+  /// Hasura. Each port is therefore claimed with a cross-process file lock
+  /// held until the session stops (the OS drops it if the process dies).
+  static Future<_PortClaim> _claimFreePort() async {
+    final lockDir = Directory('${Directory.systemTemp.path}/tentura_hasura_ports')
+      ..createSync(recursive: true);
     for (var port = 18080; port < 18280; port++) {
+      if (!_claimedPorts.add(port)) {
+        continue;
+      }
+      RandomAccessFile? lock;
       try {
-        final socket = await ServerSocket.bind(InternetAddress.loopbackIPv4, port);
+        lock = await File('${lockDir.path}/$port.lock').open(
+          mode: FileMode.append,
+        );
+        await lock.lock();
+        final socket = await ServerSocket.bind(
+          InternetAddress.loopbackIPv4,
+          port,
+        );
         await socket.close();
-        return port;
-      } on SocketException catch (_) {}
+        return _PortClaim(port, lock);
+      } on Object catch (_) {
+        _claimedPorts.remove(port);
+        try {
+          await lock?.close();
+        } on Object catch (_) {}
+      }
     }
     throw StateError('No free localhost port for isolated Hasura');
   }
@@ -169,4 +220,23 @@ final class IsolatedHasuraSession {
     port: env.pgPort,
     path: env.pgDatabase,
   ).toString();
+}
+
+final class _PortClaim {
+  _PortClaim(this.port, this._lock);
+
+  final int port;
+  final RandomAccessFile _lock;
+  var _released = false;
+
+  Future<void> release() async {
+    if (_released) {
+      return;
+    }
+    _released = true;
+    IsolatedHasuraSession._claimedPorts.remove(port);
+    try {
+      await _lock.close();
+    } on Object catch (_) {}
+  }
 }
