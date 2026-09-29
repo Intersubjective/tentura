@@ -8,6 +8,7 @@ import 'package:test/test.dart';
 /// Alloy tentura-olc landing gate — same paths as the bead acceptance harness.
 const kOlcAcceptanceTestPaths = [
   'test/architecture/tentura_olc_landing_check_test.dart',
+  'test/architecture/tentura_0cl_agents_olc_fixture_test.dart',
 ];
 
 const _olcLandingGateMarker =
