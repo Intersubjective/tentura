@@ -78,10 +78,7 @@ import 'table/user_availability.dart';
 import 'table/user_presence.dart';
 import 'table/users.dart';
 import 'table/forward_decision_attributions.dart';
-import 'table/meritrank_edge_tombstones.dart';
 import 'table/mr_publish_epochs.dart';
-import 'table/trust_evidence_events.dart';
-import 'table/user_trust_source_edges.dart';
 import 'table/user_trust_edges.dart';
 import 'table/vote_users.dart';
 
@@ -139,13 +136,11 @@ part 'tentura_db.g.dart';
     InviteGenealogy,
     InviteSeedPromptStates,
     Invitations,
-    MeritrankEdgeTombstones,
     MrPublishEpochs,
     PersonCapabilityEvents,
     Pollings,
     PollingActs,
     PollingVariants,
-    TrustEvidenceEvents,
     Users,
     UserBlockIntents,
     UserBlocks,
@@ -153,7 +148,6 @@ part 'tentura_db.g.dart';
     UserAvailability,
     UserPresence,
     UserTrustEdges,
-    UserTrustSourceEdges,
     VoteUsers,
   ],
 )
