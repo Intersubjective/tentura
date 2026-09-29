@@ -191,4 +191,30 @@ else
   if wait_dead "$PGRP_PID"; then ok "wrapper-session SIGKILL: reaper still reaps child"; else bad "wrapper-session SIGKILL left child $PGRP_PID"; fi
 fi
 
+# --- 10. a stale marker dir (dead reaper) does not permanently disable sweeps ---
+# tentura-2tj: a SIGKILLed wrapper+reaper used to leak its marker dir forever,
+# and other_active_markers() counted any marker dir as "active" without
+# checking whether its reaper is actually still alive -- so one leaked
+# marker permanently disabled every future sweep.
+STATE_ROOT="${TMPDIR:-/tmp}/tentura-test-cleanup"
+mkdir -p "$STATE_ROOT"
+DEAD_MARKER="$STATE_ROOT/selftest_stale_$$"
+mkdir -p "$DEAD_MARKER"
+sh -c 'exit 0' & DEAD_PID=$!
+wait "$DEAD_PID" 2>/dev/null || true
+echo "$DEAD_PID" >"$DEAD_MARKER/reaper.pid"
+
+STALE_OUT="$("$WRAP" --timeout 10s -- true 2>&1)"
+if [[ "$STALE_OUT" == *"skipping orphan/tmpfs sweep"* ]]; then
+  bad "stale marker dir with a dead reaper still blocked the sweep"
+else
+  ok "stale marker dir with a dead reaper does not block the sweep"
+fi
+if [[ -d "$DEAD_MARKER" ]]; then
+  bad "stale marker dir was not reclaimed"
+  rm -rf "$DEAD_MARKER"
+else
+  ok "stale marker dir was reclaimed"
+fi
+
 log "done"
