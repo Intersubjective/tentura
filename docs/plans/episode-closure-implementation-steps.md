@@ -1,11 +1,11 @@
 # Episode closure — step-by-step implementation plan
 
-**Status:** draft, rev 3 (2026-09-29). Rev 2 applied the Codex (gpt-6-astra, high) review of rev 1 (28 findings); rev 3 adds U58, the helper → author edge (§9).
+**Status:** draft, rev 4 (2026-09-29). Rev 2 applied the Codex (gpt-6-astra, high) review of rev 1 (28 findings); rev 3 adds U58, the helper → author edge; rev 4 adds unit A7a (support self-scaling tests) and the new helper copy in A21 (§9).
 **For:** an implementer (human or model) who follows steps literally. Every unit lists its inputs, the exact files, the steps, the tests and a "done when" check. Do not skip units or change their order unless the dependency column allows it.
 
 **Sources of truth (read before starting any unit):**
-1. `docs/plans/episode-closure-architecture.md` (rev 4) — the technical design. Section numbers below like "Arch §5.5" point there.
-2. `docs/plans/episode-closure-implementation-plan.md` (Russian, rev 21) — product decisions U1–U58, P1–P11, and all UI copy. When copy is quoted below it is copied from there; use it verbatim.
+1. `docs/plans/episode-closure-architecture.md` (rev 5) — the technical design. Section numbers below like "Arch §5.5" point there.
+2. `docs/plans/episode-closure-implementation-plan.md` (Russian, rev 22) — product decisions U1–U58, P1–P11, and all UI copy. When copy is quoted below it is copied from there; use it verbatim.
 3. `docs/plans/episode-closure-simulator.html` — reference math for settlement (n ≤ 8).
 
 If a step here contradicts the architecture document, stop and report it; do not guess.
@@ -84,6 +84,7 @@ Never run two wrapped commands at the same time (they delete each other's temp f
 | P0.2 | pgmer2 0.8.1 and `mr_sync` barrier | P0.1 | infra, server |
 | P0.3 | Score-scale audit note | P0.2 | docs |
 | A7 | EpisodeSettlement (pure) | — | server domain |
+| A7a | Support self-scaling tests (added in rev 4, after A7 landed) | A7 | server domain tests |
 | A8 | Author split apportionment (pure) | — | server domain |
 | A9 | MembershipReducer (pure) | — | server domain |
 | A1 | Trust ledger schema (m0202) | P0.* merged | server SQL |
@@ -108,14 +109,14 @@ Never run two wrapped commands at the same time (they delete each other's temp f
 | A22 | Results card and My Work archive | A19 | client |
 | A23 | Remove the review feature (client) | A20–A22 | client |
 | A24a | QA closure-expiry control | A14 | server, client e2e helpers |
-| A24 | Release: versions and deploy runbook | A18, A23 | all |
+| A24 | Release: versions and deploy runbook | A7a, A18, A23 | all |
 | A25 | End-to-end tests | A24a, A24 | client e2e |
 | B1 | Ban wall | A* released | server |
 | B2 | Noisy-contact wall | B1 | server |
 | B3 | "I pinged them" display factor | B2 | server |
 | B4 | Wall invariant suites | B1, B2 | server tests |
 
-A7, A8 and A9 have no dependencies; do them first. Units are listed in execution order.
+A7, A8 and A9 have no dependencies; do them first. Units are listed in execution order. A7a was added after A7 landed; it only adds tests and can run at any time.
 
 ## 2. Phase 0 (separate PR, ships first)
 
@@ -394,6 +395,28 @@ final class SettlementResult {
 4. Permutation: shuffling the input list gives identical maps.
 5. All-supported ≡ silence.
 6. Not-done members get no author part: with every support set to null, `helped[j] == 0` for every notDone j. (With supports they may receive peer support — see V6.)
+
+### A7a — Support self-scaling tests
+
+**Goal:** pin Arch §5.5.2: the bonus from a support shrinks as the supported member's author share grows, and an unsupported member pays in proportion to its author share. Tests only; `EpisodeSettlement` is already implemented (A7) and must not change. If a vector fails, stop and report — do not change the algorithm to fit.
+
+**Files:** modify `packages/server/test/domain/closure/episode_settlement_test.dart` (add a `group('support self-scaling (A7a)')`).
+
+**Tests — fixed vectors** (same conventions as A7: members `u1, u2, u3`, α = β = t = 0.5, absolute `helped`, pool_h = 0.7, tolerance 1e-4, lost = 0 in all; u1 supports u3, u2 and u3 silent; all voters):
+
+| Id | Outcomes / split u1/u2/u3 | silent u1 / u2 / u3 | helped u1 / u2 / u3 | bands |
+|---|---|---|---|---|
+| V16 | u3 notDone; 30/70/— | 0.3033 / 0.3967 / 0 | 0.3033 / 0.3412 / 0.0554 | asIfSilent / asIfSilent / raised |
+| V17 | all done; 30/50/20 | 0.2275 / 0.3125 / 0.1600 | 0.2275 / 0.2729 / 0.1996 | asIfSilent / asIfSilent / raised |
+| V18 | all done; 30/35/35 | 0.2154 / 0.2423 / 0.2423 | 0.2154 / 0.2146 / 0.2700 | asIfSilent ×3 |
+| V19 | all done; 30/10/60 | 0.2528 / 0.0917 / 0.3556 | 0.2528 / 0.0838 / 0.3635 | asIfSilent ×3 |
+| V20 | u2 notDone; 30/—/70 | 0.3033 / 0 / 0.3967 | 0.3033 / 0 / 0.3967 | asIfSilent / none / asIfSilent |
+
+(Produced by the same independent Python transcription as V1–V15, which reproduces V2 and V3, and checked against the landed A7 implementation on 2026-09-29: all five match to 1e-4.)
+
+**Tests — property** (seeded `Random(7)`, 500 cases): n = 3, all done, all voters, u1 supports u3 only; `a1` drawn from multiples of 5 in [5, 90]; for two splits with the same `a1` and `a3 < a3'` (both ≥ 5, `a2 = 100 − a1 − a3`, ≥ 5), the gain `helped[u3] − silent[u3]` for `a3` is ≥ the gain for `a3'` (−1e-12); and the loss `silent[u2] − helped[u2]` is ≥ 0 and non-decreasing in `a2`.
+
+**Done when:** `cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- dart test test/domain/closure/episode_settlement_test.dart` is green, and `git diff --stat` touches only that test file.
 
 ### A8 — Author split apportionment
 
@@ -733,7 +756,7 @@ Future<T> _inClosureTx<T>({
 **Files:** `closure_helper_screen.dart`, `closure_helper_cubit.dart`, `ui/widget/support_toggle.dart`, `ui/widget/share_flow_diagram.dart` (`CustomPainter` + `TenturaAvatar`).
 
 **Behaviour:**
-1. Header «Кого стоит поддержать сверх решения автора? Твоя часть от этого не меняется».
+1. Header «Чья работа, по-твоему, была важной? Твоя часть от этого не меняется» (do not use «сверх решения автора»: the helper does not see it).
 2. One toggle per colleague: «☆ Поддержать» / «★ Поддерживаю». After the first press show ▲ on supported and ▼ on the others, with the legend «▲ получат добавку — ▼ её отдадут те, кого ты не выбрал».
 3. When the server returns `released`, show «Поддержать всех — то же, что никого. Кто-то должен отдать: снята самая ранняя (<имя>)».
 4. Status line: «В расчёте: поддержаны …» / «В расчёт ещё не входит» / «На экране иначе — «Готово» заменит расчёт».
@@ -742,13 +765,13 @@ Future<T> _inClosureTx<T>({
 7. Privacy line «В приложении твой выбор не видят. По своим итогам другие могут о нём догадаться».
 7a. U58 notice, shown to every member while the epoch is evaluating, including 1- and 2-member requests and non-voters: «Когда запрос закроется, в сети появится слабая связь от тебя к автору: вы работали вместе. Не хочешь её — выйди из запроса до закрытия».
 8. Bookmark toggle per person (colleagues and the author) with the copy «Закладка чуть усиливает твою связь с этим человеком в сети. Ему не придёт уведомление, части в этом запросе не меняются. Поставить и снять можно и позже».
-9. (i) button opens a sheet with `ShareFlowDiagram`: equal grey example flows labelled «пример», never real values.
+9. (i) button opens a sheet with `ShareFlowDiagram`: equal grey example flows labelled «пример», never real values; under the diagram the text «Ты не знаешь, как решил автор, — и знать не нужно. Поддержи тех, чья работа, по-твоему, была важной. Если автор уже оценил человека высоко, добавка будет маленькой; если низко — заметной. Отдают в основном те, кому автор дал больше. Автор твой выбор не видит».
 10. Non-voter members (left or removed, or 2-member requests) see only the bookmark section and the deadline.
 11. Desktop: hover and keyboard activation for toggles; no long-press.
 
-**Localization:** `closureHelper*` keys (incl. `closureHelperAuthorEdgeNotice`), as in A20.
+**Localization:** `closureHelper*` keys (incl. `closureHelperAuthorEdgeNotice`, `closureHelperHeader`, `closureHelperInfoScaling`), as in A20.
 
-**Tests (widget):** toggling shows ▲/▼; `released` hint; status line for the three states; Skip confirm; non-voter view; the U58 notice is visible for 1-member, 2-member and non-voter views; diagram never receives real numbers (its constructor takes only member count and avatars).
+**Tests (widget):** toggling shows ▲/▼; `released` hint; status line for the three states; Skip confirm; non-voter view; the U58 notice is visible for 1-member, 2-member and non-voter views; the header text is «Чья работа, по-твоему, была важной? Твоя часть от этого не меняется»; the (i) sheet shows the scaling text; diagram never receives real numbers (its constructor takes only member count and avatars).
 
 ### A22 — Results card and My Work archive
 
@@ -863,6 +886,7 @@ Run with `scripts/run_client_integration_web_local.sh` (not wrapped).
 
 ## 9. Review log
 
+- rev 4 (2026-09-29) — plan rev 22, arch rev 5: support reframed as own judgement; new unit A7a (vectors V16–V20 and a scaling property, tests only, A7 already landed); A21 header and (i) text.
 - rev 3 (2026-09-29) — U58 (plan rev 21, arch rev 4): kind 8 `worked_with_author` seeded in A1 (linear 180-day window, excluded from immunity), written in A14 for members present until closure with `count = 1/√|P|`, notice in A21.
 - rev 2 (2026-09-29) — Codex gpt-6-astra (high) review of rev 1, all 28 findings applied: real `user_trust_edge` columns and trigger name; Drift ambient transactions via `MutatingUnitOfWorkPort`, ports without session types; publisher and cutover exclusivity by lease + fencing token (pooled connections); sweep passes and re-checks the selected epoch; P0.1 clamps `_target` keeping the block override, `mr_sync` before `bumpMrEpoch`; vote/block/maintenance callers moved to A5; legacy reviewOpen → needsMoreHelp; apportionment fixed to the single water-filling rule (architecture rev 3 aligned); `renormalize` nullable, empty/singleton A, reclose renormalization; routing input spelled out, old trust types removed in A10; membership hooks take the lock before writing events, incl. `UserBlockCase`, voter derived from `active_at_open`; current close/finalize effects preserved; blocked-member access; notDone result text conditional; TaskWorker factory, contract JSON and client classification wiring; Drift/erasure cleanup; deletion trigger enqueues; schema refresh, gen-l10n, overlay test; A11b ports so units compile alone; m0199 test pin; QA expiry control (A24a) and release gates; decayed `n_noisy` tests; reminder audience; B4 locality scope; grep gates exclude migrations with an allowlist.
 - rev 1 (2026-09-29) — initial step plan from architecture rev 2; settlement and apportionment vectors computed with independent Python transcriptions (`settle_ref.py`, `apportion.py` in the session scratchpad) and cross-checked with the simulator.
