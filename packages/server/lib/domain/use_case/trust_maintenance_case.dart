@@ -13,15 +13,20 @@ base class TrustMaintenanceCase extends UseCaseBase
     implements TrustMaintenancePort {
   TrustMaintenanceCase(
     this._db,
-    this._meritrank, {
+    // Kept for DI/call-site arity; m0202 (A1) removed the tombstone drain,
+    // which was the last MeritRank call here. Publication now goes through
+    // `trust_publish_queue`, drained by the A4/A5 publisher.
+    // ignore: avoid_unused_constructor_parameters
+    MeritrankRepositoryPort meritrank, {
+    // Same arity keep as above: the witness-window epoch bump left with the
+    // tombstone drain.
+    // ignore: avoid_unused_constructor_parameters
     WitnessWindowPort? witnessWindow,
     required super.env,
     required super.logger,
-  }) : _witnessWindow = witnessWindow;
+  });
 
   final TenturaDb _db;
-  final MeritrankRepositoryPort _meritrank;
-  final WitnessWindowPort? _witnessWindow;
 
   DateTime? _lastSuccessAt;
   DateTime? _lastFailedAt;
@@ -33,8 +38,7 @@ base class TrustMaintenanceCase extends UseCaseBase
     if (!_isDue(clock)) return;
 
     try {
-      await _drainTombstones();
-      await _runBoundedSweep(epsilonOverride: null, timeBudget: env.trustSweepTimeBudget);
+      await _runProjectionSweep(timeBudget: env.trustSweepTimeBudget);
       _lastSuccessAt = clock;
       _firstRun = false;
     } catch (e, st) {
@@ -47,11 +51,7 @@ base class TrustMaintenanceCase extends UseCaseBase
 
   @override
   Future<void> forceRefreshAll() async {
-    await _drainTombstones();
-    await _runBoundedSweep(
-      epsilonOverride: -1,
-      timeBudget: null,
-    );
+    await _runProjectionSweep(timeBudget: null);
   }
 
   bool _isDue(DateTime now) {
@@ -64,65 +64,11 @@ base class TrustMaintenanceCase extends UseCaseBase
     return now.difference(anchor) >= env.trustSweepInterval;
   }
 
-  Future<void> _drainTombstones() async {
-    final rows = await _db
-        .customSelect(
-          r'''
-SELECT subject, object
-FROM meritrank_edge_tombstone
-ORDER BY subject, object
-''',
-        )
-        .get();
-    for (final row in rows) {
-      final subject = row.read<String>('subject');
-      final object = row.read<String>('object');
-      await _db.transaction(() async {
-        final live = await _db
-            .customSelect(
-              r'''
-SELECT prev_sent_weight
-FROM user_trust_edge
-WHERE subject = $1 AND object = $2
-''',
-              variables: [
-                Variable<String>(subject),
-                Variable<String>(object),
-              ],
-            )
-            .getSingleOrNull();
-        if (live != null && live.read<double>('prev_sent_weight') != 0) {
-          await _db.customStatement(
-            'DELETE FROM meritrank_edge_tombstone WHERE subject = \$1 AND object = \$2',
-            [subject, object],
-          );
-          return;
-        }
-        try {
-          await _meritrank.deleteEdge(nodeA: subject, nodeB: object);
-          await _witnessWindow?.bumpMrEpoch();
-          await _db.customStatement(
-            'DELETE FROM meritrank_edge_tombstone WHERE subject = \$1 AND object = \$2',
-            [subject, object],
-          );
-        } catch (e) {
-          await _db.customStatement(
-            r'''
-UPDATE meritrank_edge_tombstone
-SET last_error = left($3, 500)
-WHERE subject = $1 AND object = $2
-''',
-            [subject, object, e.toString()],
-          );
-        }
-      });
-    }
-  }
-
-  Future<void> _runBoundedSweep({
-    required double? epsilonOverride,
-    required Duration? timeBudget,
-  }) async {
+  /// Re-projects every known pair via `trust_project_pair` (m0202): folds
+  /// live evidence with time decay into `user_trust_edge` and enqueues
+  /// publication when the target materially changed. Keyset-paginates the
+  /// pair universe so a bounded sweep can stop between batches.
+  Future<void> _runProjectionSweep({required Duration? timeBudget}) async {
     final started = DateTime.timestamp();
     var afterSubject = '';
     var afterObject = '';
@@ -131,38 +77,41 @@ WHERE subject = $1 AND object = $2
           DateTime.timestamp().difference(started) >= timeBudget) {
         break;
       }
-      final row = await _db.transaction(() async {
-        final variables = [
-          Variable<String>(afterSubject),
-          Variable<String>(afterObject),
-          Variable(TypedValue(Type.integer, env.trustSweepBatchSize)),
-        ];
-        if (epsilonOverride == null) {
-          return _db
-              .customSelect(
-                r'SELECT * FROM trust_rebuild_effective_batch($1, $2, $3)',
-                variables: variables,
-              )
-              .getSingleOrNull();
-        }
-        return _db
+      final processed = await _db.transaction(() async {
+        final pairs = await _db
             .customSelect(
-              r'SELECT * FROM trust_rebuild_effective_batch($1, $2, $3, $4)',
+              r'''
+SELECT subject_user_id AS s, object_user_id AS o
+FROM (
+  SELECT subject_user_id, object_user_id FROM public.trust_evidence
+  UNION
+  SELECT subject, object FROM public.user_trust_edge
+) AS pairs
+WHERE (subject_user_id, object_user_id) > ($1, $2)
+ORDER BY subject_user_id, object_user_id
+LIMIT $3
+''',
               variables: [
-                ...variables,
-                Variable<double>(epsilonOverride),
+                Variable<String>(afterSubject),
+                Variable<String>(afterObject),
+                Variable(TypedValue(Type.integer, env.trustSweepBatchSize)),
               ],
             )
-            .getSingleOrNull();
+            .get();
+        for (final pair in pairs) {
+          await _db.customSelect(
+            r'SELECT public.trust_project_pair($1, $2)',
+            variables: [
+              Variable<String>(pair.read<String>('s')),
+              Variable<String>(pair.read<String>('o')),
+            ],
+          ).getSingle();
+        }
+        return pairs;
       });
-      if (row == null) break;
-      final processed = row.read<int>('processed');
-      if (processed == 0) break;
-      final lastSubject = row.read<String?>('last_subject');
-      final lastObject = row.read<String?>('last_object');
-      if (lastSubject == null || lastObject == null) break;
-      afterSubject = lastSubject;
-      afterObject = lastObject;
+      if (processed.isEmpty) break;
+      afterSubject = processed.last.read<String>('s');
+      afterObject = processed.last.read<String>('o');
     }
   }
 }

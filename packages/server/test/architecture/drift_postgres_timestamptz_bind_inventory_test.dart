@@ -97,21 +97,6 @@ void main() {
     },
   );
 
-  test(
-    'attention_expiry lock query keeps typed timestamptz bind',
-    () {
-      final file = File(
-        'lib/data/repository/attention_expiry_repository.dart',
-      );
-      final text = file.readAsStringSync();
-      expect(text, contains('closes_at < \$1'));
-      expect(
-        text,
-        contains('Variable(PgDateTime(now), PgTypes.timestampWithTimezone)'),
-      );
-      expect(text, isNot(contains('Variable<DateTime>')));
-    },
-  );
 }
 
 int _lineNumber(String text, int offset) {

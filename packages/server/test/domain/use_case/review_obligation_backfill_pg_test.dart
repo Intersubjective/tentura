@@ -49,8 +49,12 @@ Future<void> main() async {
       : 'Postgres admin database not reachable for disposable test target';
 
   test(
-    'backfill settles pre-closed windows and second run is a no-op',
+    'backfill is a no-op on the post-m0203 schema and settles nothing',
     () async {
+      // m0203 (A6) dropped the review-window tables and its data step retired
+      // every live reviewOpened obligation, so the deployment-time backfill
+      // for pre-settlement review windows has no subject left: it must settle
+      // nothing and stay idempotent, however often it runs.
       await target.recreate();
       final writer = await Connection.open(
         target.databaseEnv.pgEndpoint,
@@ -61,7 +65,7 @@ Future<void> main() async {
       try {
         await writer.execute('SET check_function_bodies = false');
         await migrateDbSchema(writer);
-        await _seedClosedWindowFixture(writer);
+        await _seedFixture(writer);
 
         final dispatch = AttentionDispatchRepository(database, logger);
         final room = BeaconRoomRepository(database);
@@ -106,7 +110,7 @@ Future<void> main() async {
         );
 
         final firstPass = await backfill.run();
-        expect(firstPass, 2);
+        expect(firstPass, 0);
 
         final kinds = await writer.execute('''
 SELECT settlement_kind
@@ -115,7 +119,7 @@ WHERE beacon_id = '$_beaconId'
   AND requires_action
 ORDER BY account_id
 ''');
-        expect(kinds.map((r) => r[0]), ['expired', 'expired']);
+        expect(kinds.map((r) => r[0]), [null, null]);
 
         final secondPass = await backfill.run();
         expect(secondPass, 0);
@@ -129,14 +133,12 @@ ORDER BY account_id
   );
 }
 
-Future<void> _seedClosedWindowFixture(Connection writer) async {
+Future<void> _seedFixture(Connection writer) async {
   await writer.execute('''
 TRUNCATE TABLE
   public.notification_outbox,
   public.attention_occurrence_recipient,
   public.attention_occurrence,
-  public.beacon_review_status,
-  public.beacon_review_window,
   public.beacon,
   public."user"
 CASCADE
@@ -159,25 +161,6 @@ VALUES (
   ${BeaconStatus.closed.smallintValue}
 )
 ''');
-
-  await writer.execute('''
-INSERT INTO public.beacon_review_window (
-  beacon_id, opened_at, closes_at, status, extensions_used
-) VALUES (
-  '$_beaconId',
-  now() - interval '2 days',
-  now() - interval '1 day',
-  1,
-  0
-)
-''');
-
-  for (final uid in [_reviewer1, _reviewer2]) {
-    await writer.execute('''
-INSERT INTO public.beacon_review_status (beacon_id, user_id, status)
-VALUES ('$_beaconId', '$uid', 4)
-''');
-  }
 }
 
 final class _NoopTrustEvidenceRepository extends Fake
@@ -185,4 +168,3 @@ final class _NoopTrustEvidenceRepository extends Fake
 
 final class _NoopInviteGenealogyRepository extends Fake
     implements InviteGenealogyRepositoryPort {}
-

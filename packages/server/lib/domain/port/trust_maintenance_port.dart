@@ -2,6 +2,6 @@
 abstract interface class TrustMaintenancePort {
   Future<void> forceRefreshAll();
 
-  /// Periodic bounded sweep + tombstone drain.
+  /// Periodic bounded projection sweep.
   Future<void> runDue({DateTime? now});
 }

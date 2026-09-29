@@ -1,4 +1,3 @@
-import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/port/attention_expiry_repository_port.dart';
@@ -7,25 +6,16 @@ import '../database/tentura_db.dart';
 
 @LazySingleton(as: AttentionExpiryRepositoryPort)
 class AttentionExpiryRepository implements AttentionExpiryRepositoryPort {
-  const AttentionExpiryRepository(this._database);
+  const AttentionExpiryRepository(
+    // Kept for DI/call-site arity; m0203 (A6) dropped `beacon_review_window`,
+    // so no review window can ever be due. A18 deletes this call path.
+    // ignore: avoid_unused_constructor_parameters
+    TenturaDb database,
+  );
 
-  final TenturaDb _database;
-
+  /// Post-m0203 there are no review windows, so the expired set is empty by
+  /// construction.
   @override
   Future<List<String>> lockExpiredReviewWindowBeaconIds(DateTime now) =>
-      _database
-          .customSelect(
-            r'''
-SELECT beacon_id
-FROM public.beacon_review_window
-WHERE status = 0 AND closes_at < $1
-ORDER BY beacon_id
-FOR UPDATE
-''',
-            variables: [
-              Variable(PgDateTime(now), PgTypes.timestampWithTimezone),
-            ],
-          )
-          .map((row) => row.read<String>('beacon_id'))
-          .get();
+      Future.value(const []);
 }

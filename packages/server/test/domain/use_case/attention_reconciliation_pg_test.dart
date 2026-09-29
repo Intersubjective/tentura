@@ -66,8 +66,6 @@ const _bLegacy = 'Brecnlegcy01';
 const _bHealthy = 'Brecnhealt01';
 const _bUserSettled = 'Brecnusrst01';
 const _bForeign = 'Brecnforgn01';
-const _bReviewClosed = 'Brecnrvcls01';
-const _bReviewOpen = 'Brecnrvopn01';
 const _bCleared = 'Brecnclear01';
 const _bMultiAudience = 'Brecnmult01';
 const _bMultiAudienceC = 'Brecnmult02';
@@ -151,8 +149,6 @@ Future<void> main() async {
       expect(await _settlement(writer, 'Nrecnstale'), 'superseded');
       // stale live receipt, author already accepted → answered, not dropped.
       expect(await _settlement(writer, 'Nrecnanswr'), 'resolved');
-      // live review receipt whose window closed without a package.
-      expect(await _settlement(writer, 'Nrecnrvcls'), 'expired');
       // removal without withdraw_reason — terminal commitment, not author answer.
       expect(await _settlement(writer, 'Nrecnrmvd'), 'superseded');
       // open task with no receipt → a live obligation exists again.
@@ -160,14 +156,6 @@ Future<void> main() async {
         await _liveObligationCount(
           writer,
           beaconId: _bMissing,
-          accountId: _accountId,
-        ),
-        1,
-      );
-      expect(
-        await _liveObligationCount(
-          writer,
-          beaconId: _bReviewOpen,
           accountId: _accountId,
         ),
         1,
@@ -196,8 +184,8 @@ Future<void> main() async {
         ),
         0,
       );
-      expect(first.createdObligationCount, 4);
-      expect(first.settledObligationCount, 4);
+      expect(first.createdObligationCount, 3);
+      expect(first.settledObligationCount, 3);
 
       // --- what must not be touched --------------------------------------
       // A receipt settled with the wrong reason stays as it is: the source
@@ -538,8 +526,6 @@ VALUES ('$id', '$authorId', 'Request $id', 'desc', ${status.smallintValue})
   await beacon(_bRemoved, _accountId, BeaconStatus.open);
   await beacon(_bDeclined, _accountId, BeaconStatus.open);
   await beacon(_bInboxStance, _accountId, BeaconStatus.open);
-  await beacon(_bReviewClosed, _otherAccountId, BeaconStatus.closed);
-  await beacon(_bReviewOpen, _otherAccountId, BeaconStatus.reviewOpen);
 
   await writer.execute('''
 INSERT INTO public.beacon_steward (beacon_id, user_id) VALUES
@@ -686,40 +672,6 @@ VALUES ('Crecnrmvd01', '$_bRemoved', '$_helperRemoved', '$_accountId', 5)
     targetEntityId: _helperDeclined,
     settlementKind: 'resolved',
   );
-
-  // C6 — review window closed, obligation still live.
-  await writer.execute('''
-INSERT INTO public.beacon_review_window
-  (beacon_id, opened_at, closes_at, status, extensions_used)
-VALUES ('$_bReviewClosed', now() - interval '2 days', now() - interval '1 day', 1, 0)
-''');
-  await writer.execute('''
-INSERT INTO public.beacon_review_status (beacon_id, user_id, status)
-VALUES ('$_bReviewClosed', '$_accountId', 4)
-''');
-  await _receipt(
-    writer,
-    id: 'Nrecnrvcls',
-    accountId: _accountId,
-    beaconId: _bReviewClosed,
-    eventType: 'reviewOpened',
-    presentationKey: 'review_opened',
-    logicalTaskKey:
-        'v1|reviewOpened|$_bReviewClosed|$_bReviewClosed|$_accountId',
-  );
-
-  // C7 — review window open, no obligation receipt.
-  await writer.execute('''
-INSERT INTO public.beacon_review_window
-  (beacon_id, opened_at, closes_at, status, extensions_used)
-VALUES ('$_bReviewOpen', now() - interval '1 day', now() + interval '1 day', 0, 0)
-''');
-  await writer.execute('''
-INSERT INTO public.beacon_review_status (beacon_id, user_id, status) VALUES
-  ('$_bReviewOpen', '$_accountId', 0),
-  ('$_bReviewOpen', '$_stewardB', 0),
-  ('$_bReviewOpen', '$_stewardC', 0)
-''');
 
   // M1 — an optional receipt this account cleared.
   await _receipt(

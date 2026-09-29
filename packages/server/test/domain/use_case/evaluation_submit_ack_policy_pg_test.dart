@@ -18,7 +18,6 @@ import 'package:tentura_server/data/repository/beacon_repository.dart';
 import 'package:tentura_server/data/repository/evaluation_repository.dart';
 import 'package:tentura_server/data/repository/help_offer_repository.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_value.dart';
-import 'package:tentura_server/domain/evaluation/evaluation_participant_role.dart';
 import 'package:tentura_server/domain/port/attention_expiry_repository_port.dart';
 import 'package:tentura_server/domain/entity/review_finalization_result.dart';
 import 'package:tentura_server/domain/port/review_finalization_port.dart';
@@ -49,7 +48,8 @@ Future<void> main() async {
       ? false
       : 'Postgres admin database not reachable for disposable test target';
 
-  group('EvaluationCase.evaluationSubmit acknowledgement policy', () {
+  group('EvaluationCase.evaluationSubmit acknowledgement policy (A18 stub)',
+      () {
     late Connection writer;
     late TenturaDb database;
     late EvaluationCase evaluationCase;
@@ -114,31 +114,7 @@ DELETE FROM public.person_capability_event
 WHERE beacon_id = 'Bcapc1bcn001'
 ''');
       await writer.execute(r'''
-DELETE FROM public.beacon_evaluation_ack_tag
-WHERE beacon_id = 'Bcapc1bcn001'
-''');
-      await writer.execute(r'''
-DELETE FROM public.beacon_evaluation
-WHERE beacon_id = 'Bcapc1bcn001'
-''');
-      await writer.execute(r'''
 DELETE FROM public.beacon_help_offer
-WHERE beacon_id = 'Bcapc1bcn001'
-''');
-      await writer.execute(r'''
-DELETE FROM public.beacon_evaluation_visibility
-WHERE beacon_id = 'Bcapc1bcn001'
-''');
-      await writer.execute(r'''
-DELETE FROM public.beacon_evaluation_participant
-WHERE beacon_id = 'Bcapc1bcn001'
-''');
-      await writer.execute(r'''
-DELETE FROM public.beacon_review_status
-WHERE beacon_id = 'Bcapc1bcn001'
-''');
-      await writer.execute(r'''
-DELETE FROM public.beacon_review_window
 WHERE beacon_id = 'Bcapc1bcn001'
 ''');
       await writer.execute(r'''
@@ -155,27 +131,25 @@ WHERE id = 'Bcapc1bcn001'
     });
 
     test(
-      'writes ack tags to beacon_evaluation_ack_tag without ledger rows',
+      'submit fails loudly on the stubbed review write path and mints nothing',
       () async {
-        await evaluationCase.evaluationSubmit(
-          beaconId: _beaconId,
-          evaluatorId: _evaluatorId,
-          evaluatedUserId: _subjectId,
-          value: BeaconEvaluationValue.zero,
-          reasonTags: const [],
-          note: 'thanks',
-          acknowledgedHelpTags: const ['transport', 'pets'],
+        // m0203 (A6) dropped the review-era tables and stubbed the
+        // EvaluationRepository write path; A18 deletes these call paths.
+        // Until then a submit against a review-era Request must raise the
+        // stub instead of touching the dropped schema, and no acknowledgement
+        // may leak into the capability ledger.
+        await expectLater(
+          () => evaluationCase.evaluationSubmit(
+            beaconId: _beaconId,
+            evaluatorId: _evaluatorId,
+            evaluatedUserId: _subjectId,
+            value: BeaconEvaluationValue.zero,
+            reasonTags: const [],
+            note: 'thanks',
+            acknowledgedHelpTags: const ['transport', 'pets'],
+          ),
+          throwsA(isA<UnimplementedError>()),
         );
-
-        final ackRows = await writer.execute(r'''
-SELECT tag_slug
-FROM public.beacon_evaluation_ack_tag
-WHERE beacon_id = 'Bcapc1bcn001'
-  AND evaluator_id = 'Ucapc1beval01'
-  AND subject_id = 'Ucapc1bsubj01'
-ORDER BY tag_slug
-''');
-        expect(ackRows.map((r) => r[0]), ['pets', 'transport']);
 
         final ledgerRows = await writer.execute(r'''
 SELECT 1
@@ -186,41 +160,6 @@ WHERE beacon_id = 'Bcapc1bcn001'
   AND source_type = 3
 ''');
         expect(ledgerRows, isEmpty);
-      },
-      skip: skipReason,
-    );
-
-    test(
-      'second submit replaces acknowledgement set end-to-end',
-      () async {
-        await evaluationCase.evaluationSubmit(
-          beaconId: _beaconId,
-          evaluatorId: _evaluatorId,
-          evaluatedUserId: _subjectId,
-          value: BeaconEvaluationValue.zero,
-          reasonTags: const [],
-          note: 'first',
-          acknowledgedHelpTags: const ['transport', 'pets'],
-        );
-        await evaluationCase.evaluationSubmit(
-          beaconId: _beaconId,
-          evaluatorId: _evaluatorId,
-          evaluatedUserId: _subjectId,
-          value: BeaconEvaluationValue.zero,
-          reasonTags: const [],
-          note: 'second',
-          acknowledgedHelpTags: const ['manual_labour'],
-        );
-
-        final ackRows = await writer.execute(r'''
-SELECT tag_slug
-FROM public.beacon_evaluation_ack_tag
-WHERE beacon_id = 'Bcapc1bcn001'
-  AND evaluator_id = 'Ucapc1beval01'
-  AND subject_id = 'Ucapc1bsubj01'
-ORDER BY tag_slug
-''');
-        expect(ackRows.map((r) => r[0]), ['manual_labour']);
       },
       skip: skipReason,
     );
@@ -253,76 +192,6 @@ VALUES (
 ON CONFLICT (id) DO UPDATE SET
   status = EXCLUDED.status
 ''');
-
-  await writer.execute(r'''
-INSERT INTO public.beacon_help_offer (
-  beacon_id, user_id, message, help_type, status, offer_kind, stake_state
-) VALUES (
-  'Bcapc1bcn001',
-  'Ucapc1bsubj01',
-  '',
-  '["manual_labour"]',
-  0,
-  0,
-  0
-)
-ON CONFLICT (beacon_id, user_id) DO UPDATE SET
-  help_type = EXCLUDED.help_type,
-  status = EXCLUDED.status
-''');
-
-  await writer.execute(r'''
-INSERT INTO public.beacon_review_window (
-  beacon_id, opened_at, closes_at, status
-) VALUES (
-  'Bcapc1bcn001',
-  now() - interval '1 day',
-  now() + interval '7 days',
-  0
-)
-ON CONFLICT (beacon_id) DO UPDATE SET
-  opened_at = EXCLUDED.opened_at,
-  closes_at = EXCLUDED.closes_at,
-  status = EXCLUDED.status
-''');
-
-  await writer.execute('''
-INSERT INTO public.beacon_evaluation_participant (
-  beacon_id, user_id, role, contribution_summary, causal_hint
-) VALUES
-  (
-    'Bcapc1bcn001',
-    'Ucapc1beval01',
-    ${EvaluationParticipantRole.committer.dbValue},
-    'helped',
-    'hint'
-  ),
-  (
-    'Bcapc1bcn001',
-    'Ucapc1bsubj01',
-    ${EvaluationParticipantRole.author.dbValue},
-    'authored',
-    'hint'
-  )
-ON CONFLICT DO NOTHING
-''');
-
-  await writer.execute(r'''
-INSERT INTO public.beacon_evaluation_visibility (
-  beacon_id, evaluator_id, participant_id
-) VALUES (
-  'Bcapc1bcn001',
-  'Ucapc1beval01',
-  'Ucapc1bsubj01'
-)
-ON CONFLICT DO NOTHING
-''');
-
-  await writer.execute(r'''
-INSERT INTO public.beacon_review_status (beacon_id, user_id, status)
-VALUES ('Bcapc1bcn001', 'Ucapc1beval01', 0)
-ON CONFLICT DO NOTHING
-''');
 }
 
 class _NoopAttentionExpiryRepository implements AttentionExpiryRepositoryPort {
@@ -341,4 +210,3 @@ class _NoopReviewFinalization implements ReviewFinalizationPort {
   }) async =>
       const ReviewFinalizationResult(didClose: false);
 }
-

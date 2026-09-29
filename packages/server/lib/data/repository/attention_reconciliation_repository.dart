@@ -8,9 +8,10 @@ import '../database/tentura_db.dart';
 /// U12 / D15 — the SQL side of "Reset counters".
 ///
 /// It generalises `settleReviewObligationsAfterWindowClose` rather than
-/// standing a second mechanism beside it: the review outcome rule here is that
-/// statement's rule (`beacon_review_status = 2` → `resolved`, else `expired`),
-/// scoped to one account and to windows that are no longer open.
+/// standing a second mechanism beside it. m0203 (A6) dropped the review
+/// tables and retired every live review obligation, so the review-era
+/// members below are inert (nothing to settle, nothing to backfill); A18
+/// deletes those call paths.
 ///
 /// Three properties are load-bearing and each has a test that fails when the
 /// clause is removed:
@@ -27,7 +28,6 @@ class AttentionReconciliationRepository implements AttentionReconciliationPort {
 
   final TenturaDb _database;
 
-  static const _reviewOpened = 'reviewOpened';
   static const _helpOfferSubmitted = 'helpOfferSubmitted';
 
   /// `beacon.status` values that end every question a Request could ask:
@@ -102,47 +102,11 @@ WHERE outbox.id = judged.id
     updateKind: UpdateKind.update,
   );
 
+  /// Inert post-m0203: no review windows or review statuses exist, so no
+  /// review obligation can be obsolete. A18 deletes this call path.
   @override
   Future<int> settleObsoleteReviewObligations({required String accountId}) =>
-      _database.customUpdate(
-        r'''
-UPDATE public.notification_outbox AS outbox
-SET
-  settlement_kind = CASE
-    WHEN COALESCE(
-      (
-        SELECT brs.status
-        FROM public.beacon_review_status AS brs
-        WHERE brs.beacon_id = outbox.beacon_id
-          AND brs.user_id = outbox.account_id
-      ),
-      -1
-    ) = 2 THEN 'resolved'
-    ELSE 'expired'
-  END,
-  settled_at = now(),
-  settled_by_user_id = NULL,
-  settled_by_occurrence_id = NULL
-FROM public.attention_occurrence AS occ
-WHERE outbox.occurrence_id = occ.id
-  AND occ.event_type = $2
-  AND outbox.account_id = $1
-  AND outbox.requires_action
-  AND outbox.settlement_kind IS NULL
-  AND outbox.logical_task_key IS NOT NULL
-  AND NOT EXISTS (
-    SELECT 1
-    FROM public.beacon_review_window AS w
-    WHERE w.beacon_id = outbox.beacon_id
-      AND w.status = 0
-  )
-''',
-        variables: [
-          Variable<String>(accountId),
-          const Variable<String>(_reviewOpened),
-        ],
-        updateKind: UpdateKind.update,
-      );
+      Future.value(0);
 
   @override
   Future<List<ReconcilableHelpOfferTask>> listUnbackedHelpOfferTasks({
@@ -215,62 +179,13 @@ ORDER BY offer.beacon_id, offer.user_id
     ];
   }
 
+  /// Inert post-m0203: no open review windows exist, so no review task can
+  /// be unbacked. A18 deletes this call path.
   @override
   Future<List<ReconcilableReviewTask>> listUnbackedReviewTasks({
     required String accountId,
-  }) async {
-    final rows = await _database
-        .customSelect(
-          r'''
-SELECT
-  w.beacon_id AS beacon_id,
-  b.title AS beacon_title,
-  b.user_id AS author_id,
-  (
-    SELECT COALESCE(MAX(prior.lifecycle_generation), 0)
-    FROM public.notification_outbox AS prior
-    JOIN public.attention_occurrence AS occ ON occ.id = prior.occurrence_id
-    WHERE prior.account_id = $1
-      AND occ.event_type = $2
-      AND prior.beacon_id = w.beacon_id
-  ) + 1 AS next_generation
-FROM public.beacon_review_window AS w
-JOIN public.beacon AS b ON b.id = w.beacon_id
-JOIN public.beacon_review_status AS brs
-  ON brs.beacon_id = w.beacon_id AND brs.user_id = $1
-WHERE w.status = 0
-  AND brs.status <> 2
-  AND NOT EXISTS (
-    SELECT 1
-    FROM public.notification_outbox AS nb
-    JOIN public.attention_occurrence AS occ ON occ.id = nb.occurrence_id
-    WHERE nb.account_id = $1
-      AND occ.event_type = $2
-      AND nb.beacon_id = w.beacon_id
-      AND nb.requires_action
-      AND (
-        nb.settlement_kind IS NULL
-        OR nb.settled_by_user_id IS NOT NULL
-      )
-  )
-ORDER BY w.beacon_id
-''',
-          variables: [
-            Variable<String>(accountId),
-            const Variable<String>(_reviewOpened),
-          ],
-        )
-        .get();
-    return [
-      for (final row in rows)
-        ReconcilableReviewTask(
-          beaconId: row.read<String>('beacon_id'),
-          beaconTitle: row.read<String>('beacon_title'),
-          authorId: row.read<String>('author_id'),
-          generation: row.read<int>('next_generation'),
-        ),
-    ];
-  }
+  }) =>
+      Future.value(const []);
 
   @override
   Future<int> countUnkeyedLiveObligations({required String accountId}) async {

@@ -46,9 +46,9 @@ Future<void> main() async {
       await writer.execute('SET check_function_bodies = false');
       await migrateDbSchema(writer);
 
-      if (!await _hasBatchRebuild(writer)) {
+      if (!await _hasPairProjection(writer)) {
         throw StateError(
-          'trust_rebuild_effective_batch missing after migrateDbSchema',
+          'trust_project_pair missing after migrateDbSchema',
         );
       }
 
@@ -80,16 +80,18 @@ ON CONFLICT (id) DO NOTHING
 
     tearDown(() async {
       await db.customStatement(
-        "DELETE FROM public.user_trust_source_edge "
-        "WHERE subject IN ('$aliceId', '$bobId') OR object IN ('$aliceId', '$bobId')",
+        "DELETE FROM public.trust_evidence "
+        "WHERE subject_user_id IN ('$aliceId', '$bobId') "
+        "OR object_user_id IN ('$aliceId', '$bobId')",
       );
       await db.customStatement(
         "DELETE FROM public.user_trust_edge "
         "WHERE subject IN ('$aliceId', '$bobId') OR object IN ('$aliceId', '$bobId')",
       );
       await db.customStatement(
-        "DELETE FROM public.meritrank_edge_tombstone "
-        "WHERE subject IN ('$aliceId', '$bobId') OR object IN ('$aliceId', '$bobId')",
+        "DELETE FROM public.trust_publish_queue "
+        "WHERE subject_user_id IN ('$aliceId', '$bobId') "
+        "OR object_user_id IN ('$aliceId', '$bobId')",
       );
     });
 
@@ -99,7 +101,7 @@ ON CONFLICT (id) DO NOTHING
       await target.drop();
     });
 
-    test('first runDue succeeds on empty tombstone set', () async {
+    test('first runDue succeeds on empty pair set', () async {
       await expectLater(maintenance.runDue(), completes);
     }, skip: skipReason);
 
@@ -109,56 +111,68 @@ ON CONFLICT (id) DO NOTHING
       await expectLater(maintenance.runDue(now: now), completes);
     }, skip: skipReason);
 
-    test('rebuild restores stale effective edge from source', () async {
-      await db
-          .customSelect(
-            r'SELECT trust_apply_source_evidence($1, $2, $3, $4, $5)',
-            variables: [
-              const Variable<String>('personal'),
-              Variable<String>(aliceId),
-              Variable<String>(bobId),
-              const Variable<String>('good'),
-              const Variable<double>(1),
-            ],
-          )
-          .getSingle();
-      await db
-          .customSelect(
-            r'SELECT trust_rebuild_effective_edge($1, $2)',
-            variables: [
-              Variable<String>(aliceId),
-              Variable<String>(bobId),
-            ],
-          )
-          .getSingle();
+    test('sweep projects live evidence onto the pair edge', () async {
+      await _insertEvidence(db, aliceId, bobId);
+
+      await maintenance.forceRefreshAll();
+
+      final row = await db.customSelect(
+        "SELECT trust_w, target_w FROM user_trust_edge "
+        "WHERE subject = '$aliceId' AND object = '$bobId'",
+      ).getSingle();
+      expect(row.read<double>('trust_w'), greaterThan(0));
+      expect(row.read<double>('target_w'), greaterThan(0));
+
+      // A materially changed target is queued for publication, not sent
+      // in-transaction.
+      final queued = await db.customSelect(
+        "SELECT count(*)::int AS c FROM public.trust_publish_queue "
+        "WHERE subject_user_id = '$aliceId' AND object_user_id = '$bobId'",
+      ).getSingle();
+      expect(queued.read<int>('c'), 1);
+    }, skip: skipReason);
+
+    test('sweep restores a stale projection from the evidence ledger',
+        () async {
+      await _insertEvidence(db, aliceId, bobId);
+      await maintenance.forceRefreshAll();
+
       await db.customStatement(
         '''
-UPDATE user_trust_edge SET s_good = 0, updated_at = now()
+UPDATE user_trust_edge SET trust_w = 0, target_w = 0, updated_at = now()
 WHERE subject = '$aliceId' AND object = '$bobId'
 ''',
       );
-      await db
-          .customSelect(
-            r'SELECT trust_rebuild_effective_edge($1, $2, $3)',
-            variables: [
-              Variable<String>(aliceId),
-              Variable<String>(bobId),
-              const Variable<double>(-1),
-            ],
-          )
-          .getSingle();
+
+      await maintenance.forceRefreshAll();
+
       final row = await db.customSelect(
-        "SELECT s_good FROM user_trust_edge WHERE subject = '$aliceId' AND object = '$bobId'",
+        "SELECT trust_w FROM user_trust_edge "
+        "WHERE subject = '$aliceId' AND object = '$bobId'",
       ).getSingle();
-      expect(row.read<double>('s_good'), greaterThan(0));
+      expect(row.read<double>('trust_w'), greaterThan(0));
     }, skip: skipReason);
   });
 }
 
-Future<bool> _hasBatchRebuild(Connection connection) async {
+Future<void> _insertEvidence(
+  TenturaDb db,
+  String subjectId,
+  String objectId,
+) =>
+    db.customStatement(
+      '''
+INSERT INTO public.trust_evidence
+  (id, subject_user_id, object_user_id, kind, count, source_key)
+VALUES ('tmt-ev-$subjectId-$objectId', '$subjectId', '$objectId', 2, 1,
+        'tmt:$subjectId:$objectId')
+''',
+    );
+
+Future<bool> _hasPairProjection(Connection connection) async {
   final rows = await connection.execute('''
 SELECT count(*)::int > 0 AS ok FROM pg_proc
-WHERE proname = 'trust_rebuild_effective_batch'
+WHERE proname = 'trust_project_pair'
 ''');
   return rows.single.single as bool;
 }

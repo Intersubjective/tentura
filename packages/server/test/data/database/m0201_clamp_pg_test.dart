@@ -10,8 +10,10 @@ import 'package:tentura_server/data/database/tentura_db.dart'
 
 import '../../support/disposable_pg_target.dart';
 
-/// P0.1 pg-only: publication failures must stay deferred — rebuild completes
-/// without raising even when `mr_put_edge` fails mid-flight.
+/// P0.1 pg-only, post-m0202 shape: projection never publishes in-transaction
+/// (a materially changed target lands on `trust_publish_queue` with
+/// `prev_sent_weight` untouched), and the projected target weight is clamped
+/// to non-negative — a block forces it to 0.
 const _alice = 'Um0201pgalice';
 const _bob = 'Um0201pgbob01';
 const _allIds = [_alice, _bob];
@@ -68,115 +70,84 @@ Future<void> main() async {
   }
 
   test(
-    'trust_rebuild_effective_edge defers publish when mr_put_edge fails',
+    'trust_project_pair enqueues publication instead of sending in-transaction',
     () async {
-      var mrStubbed = false;
-      addTearDown(() async {
-        if (mrStubbed) {
-          await _restorePgmer2AndSchema(writer);
-          mrStubbed = false;
-        }
-      });
+      await _insertEvidence(database, _alice, _bob);
+      await _project(database, _alice, _bob);
 
-      await _applySource(database, _alice, _bob, 'very_good', 2);
-      await _rebuild(database, _alice, _bob, epsilonOverride: -1);
-      final prevBefore = await _readPrevSent(database, _alice, _bob);
-      expect(prevBefore, greaterThan(0));
-
-      await _applySource(database, _alice, _bob, 'very_bad', 3);
-
-      await _stubMrPutEdgeFailure(writer);
-      mrStubbed = true;
-
-      final rawWeight = await _rebuild(
-        database,
-        _alice,
-        _bob,
-        epsilonOverride: -1,
-      );
-      expect(rawWeight, lessThan(0));
-
+      final edge = await _readEdge(database, _alice, _bob);
+      expect(edge, isNotNull);
+      expect(edge!.trustW, greaterThan(0));
+      expect(edge.targetW, greaterThan(0));
       expect(
-        await _readPrevSent(database, _alice, _bob),
-        closeTo(prevBefore, 1e-9),
+        edge.prevSentWeight,
+        0,
+        reason: 'projection must not publish; the queue is the only path',
       );
 
-      await _restorePgmer2AndSchema(writer);
-      mrStubbed = false;
+      final queued = await database.customSelect(
+        'SELECT count(*)::int AS c FROM public.trust_publish_queue '
+        "WHERE subject_user_id = '$_alice' AND object_user_id = '$_bob'",
+      ).getSingle();
+      expect(queued.read<int>('c'), 1);
+    },
+    skip: skipReason,
+  );
 
-      await database.customSelect('SELECT 1').getSingle();
+  test(
+    'trust_project_pair clamps the target to non-negative under a block',
+    () async {
+      await _insertEvidence(database, _alice, _bob);
+      await _project(database, _alice, _bob);
+      expect(await _readEdge(database, _alice, _bob), isNotNull);
+
+      await database.customStatement(
+        "INSERT INTO public.user_block (blocker_id, blocked_id, origin_id) "
+        "VALUES ('$_alice', '$_bob', '$_alice')",
+      );
+      await _project(database, _alice, _bob);
+
+      // Target 0 with nothing ever sent: the edge row is retired, and the
+      // sign change is queued for publication.
+      expect(await _readEdge(database, _alice, _bob), isNull);
+      final queued = await database.customSelect(
+        'SELECT count(*)::int AS c FROM public.trust_publish_queue '
+        "WHERE subject_user_id = '$_alice' AND object_user_id = '$_bob'",
+      ).getSingle();
+      expect(queued.read<int>('c'), 1);
     },
     skip: skipReason,
   );
 }
 
-Future<void> _stubMrPutEdgeFailure(Connection writer) async {
-  await writer.execute('DROP EXTENSION IF EXISTS pgmer2 CASCADE');
-  await writer.execute(r'''
-CREATE FUNCTION public.mr_put_edge(
-  src text,
-  dst text,
-  weight double precision,
-  context text,
-  ticker bigint
-) RETURNS void
-LANGUAGE plpgsql
-AS $$
-BEGIN
-  RAISE EXCEPTION 'm0201 induced mr_put_edge failure';
-END;
-$$;
-''');
-}
-
-Future<void> _restorePgmer2AndSchema(Connection writer) async {
-  await writer.execute('DROP EXTENSION IF EXISTS pgmer2 CASCADE');
-  await writer.execute('CREATE EXTENSION IF NOT EXISTS pgmer2');
-  await migrateDbSchema(writer);
-}
-
-Future<void> _applySource(
+Future<void> _insertEvidence(
   TenturaDb db,
-  String subject,
-  String object,
-  String bin,
-  double amount,
-) async {
-  await db.customStatement(
-    r'''
-SELECT trust_apply_source_evidence('personal', $1, $2, $3, $4)
+  String subjectId,
+  String objectId,
+) =>
+    db.customStatement(
+      '''
+INSERT INTO public.trust_evidence
+  (id, subject_user_id, object_user_id, kind, count, source_key)
+VALUES ('m0201-ev-$subjectId-$objectId', '$subjectId', '$objectId', 2, 1,
+        'm0201:$subjectId:$objectId')
 ''',
-    [subject, object, bin, amount],
-  );
-}
+    );
 
-Future<double> _rebuild(
-  TenturaDb db,
-  String subject,
-  String object, {
-  required double epsilonOverride,
-}) async {
-  final row = await db
-      .customSelect(
-        r'SELECT trust_rebuild_effective_edge($1, $2, $3) AS w',
-        variables: [
-          Variable<String>(subject),
-          Variable<String>(object),
-          Variable<double>(epsilonOverride),
-        ],
-      )
-      .getSingle();
-  return row.read<double>('w');
-}
+Future<void> _project(TenturaDb db, String subject, String object) =>
+    db.customSelect(
+      r'SELECT public.trust_project_pair($1, $2)',
+      variables: [Variable<String>(subject), Variable<String>(object)],
+    ).getSingle();
 
-Future<double> _readPrevSent(
+Future<({double trustW, double targetW, double prevSentWeight})?> _readEdge(
   TenturaDb db,
   String subject,
   String object,
 ) async {
-  final row = await db.customSelect(
+  final rows = await db.customSelect(
     r'''
-SELECT prev_sent_weight
+SELECT trust_w, target_w, prev_sent_weight
 FROM public.user_trust_edge
 WHERE subject = $1 AND object = $2
 ''',
@@ -184,8 +155,14 @@ WHERE subject = $1 AND object = $2
       Variable<String>(subject),
       Variable<String>(object),
     ],
-  ).getSingle();
-  return row.read<double>('prev_sent_weight');
+  ).get();
+  if (rows.isEmpty) return null;
+  final row = rows.single;
+  return (
+    trustW: row.read<double>('trust_w'),
+    targetW: row.read<double>('target_w'),
+    prevSentWeight: row.read<double>('prev_sent_weight'),
+  );
 }
 
 Future<void> _insertUser(TenturaDb db, String id) => db.customStatement('''
@@ -197,12 +174,20 @@ ON CONFLICT (id) DO NOTHING
 Future<void> _cleanup(TenturaDb db) async {
   final idList = _allIds.map((id) => "'$id'").join(', ');
   await db.customStatement(
-    'DELETE FROM public.user_trust_source_edge '
-    'WHERE subject IN ($idList) OR object IN ($idList)',
+    'DELETE FROM public.trust_evidence '
+    'WHERE subject_user_id IN ($idList) OR object_user_id IN ($idList)',
   );
   await db.customStatement(
     'DELETE FROM public.user_trust_edge '
     'WHERE subject IN ($idList) OR object IN ($idList)',
+  );
+  await db.customStatement(
+    'DELETE FROM public.trust_publish_queue '
+    'WHERE subject_user_id IN ($idList) OR object_user_id IN ($idList)',
+  );
+  await db.customStatement(
+    'DELETE FROM public.user_block '
+    'WHERE blocker_id IN ($idList) OR blocked_id IN ($idList)',
   );
   await db.customStatement(
     '''DELETE FROM public."user" WHERE id IN ($idList)''',
