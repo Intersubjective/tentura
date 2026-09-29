@@ -12,6 +12,7 @@ const k5zqAcceptanceTestPaths = [
   'test/alloy_landing_gate_5zq_test.dart',
   'test/architecture/tentura_u6e_landing_check_test.dart',
   'test/alloy_landing_gate_u6e_test.dart',
+  'test/tentura_499_wrapped_selftest_landing_check_test.dart',
 ];
 
 /// Paths that must carry the tentura-5zq landing gate marker (not u6e remediation).

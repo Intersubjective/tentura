@@ -262,7 +262,7 @@ pg_gc_psql() {
 # Also treat any live process carrying TENTURA_TEST_CLEANUP_RUN=<other> as
 # active, so a peer cannot race ahead of the victim's mkdir of its marker dir.
 other_active_markers() {
-  local self_marker="$1" d name reaper_pid
+  local self_marker="$1" d name reaper_pid our_tmp="${TMPDIR:-/tmp}"
   # A missing STATE_ROOT must NOT short-circuit the /proc scan below: nested
   # acceptance harnesses hand a wrapped run a private TMPDIR and delete it in
   # `finally` right as the wrapper exits, so by the time the reaper sweeps,
@@ -288,10 +288,23 @@ other_active_markers() {
       fi
     done
   fi
-  python3 - "$self_marker" <<'PY'
+  python3 - "$self_marker" "$our_tmp" <<'PY'
 import pathlib, sys
+
 self_marker = sys.argv[1].encode()
-prefix = b"TENTURA_TEST_CLEANUP_RUN="
+our_tmp = sys.argv[2].encode()
+prefix_run = b"TENTURA_TEST_CLEANUP_RUN="
+prefix_tmp = b"TMPDIR="
+
+
+def peer_tmpdir(env: bytes) -> bytes:
+    for entry in env.split(b"\0"):
+        if entry.startswith(prefix_tmp):
+            value = entry[len(prefix_tmp) :]
+            return value if value else b"/tmp"
+    return b"/tmp"
+
+
 for p in pathlib.Path("/proc").iterdir():
     if not p.name.isdigit():
         continue
@@ -299,10 +312,12 @@ for p in pathlib.Path("/proc").iterdir():
         env = (p / "environ").read_bytes()
     except (FileNotFoundError, PermissionError, ProcessLookupError):
         continue
+    if peer_tmpdir(env) != our_tmp:
+        continue
     for entry in env.split(b"\0"):
-        if not entry.startswith(prefix):
+        if not entry.startswith(prefix_run):
             continue
-        value = entry[len(prefix):]
+        value = entry[len(prefix_run) :]
         if value and value != self_marker and not value.startswith(b"pre-"):
             print(value.decode("ascii", "replace"))
 PY
