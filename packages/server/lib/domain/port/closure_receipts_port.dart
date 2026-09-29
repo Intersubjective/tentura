@@ -9,7 +9,7 @@ abstract interface class ClosureReceiptsPort {
 }
 
 /// Placeholder until A17 wires closure receipt outbox writes.
-@Singleton(order: -1000)
+@Singleton(as: ClosureReceiptsPort)
 class NoopClosureReceipts implements ClosureReceiptsPort {
   @override
   Future<void> opened(String beaconId, int epoch) async {}
