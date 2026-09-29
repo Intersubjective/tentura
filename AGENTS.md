@@ -89,7 +89,7 @@ cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 30m -- \
 
 Never start a bare `flutter test` / `dart test` / `dart analyze` in the
 background. Default suite timeout is 45m (`--timeout`); override shorter
-for a single file. Wrapper self-check: `bash scripts/run_with_test_cleanup_selftest.sh`.
+for a single file. Wrapper self-check: `bash scripts/run_with_test_cleanup_selftest.sh`. Full/unwritable-`TMPDIR` behaviour (tentura-ah4): `bash scripts/run_with_test_cleanup_enospc_selftest.sh`.
 
 > Do **not** use `flutter analyze` to check `tentura_lints` rules — it does not load analyzer
 > plugins and always reports them clean. Nor `dart analyze <subdir>`: plugin diagnostics only

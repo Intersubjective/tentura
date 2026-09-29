@@ -364,8 +364,10 @@ run_reaper() {
     esac
   done
   local marker="$STATE_ROOT/$run_id"
-  mkdir -p "$marker"
-  echo "$$" >"$marker/reaper.pid"
+  # Bookkeeping is best-effort (tentura-ah4): with no marker dir the run has
+  # no reaper, but the wrapped command must not care.
+  mkdir -p "$marker" 2>/dev/null || exit 0
+  { echo "$$" >"$marker/reaper.pid"; } 2>/dev/null || exit 0
   trap '' HUP
   local now
   while true; do
@@ -419,7 +421,9 @@ main() {
     esac
   done
 
-  mkdir -p "$STATE_ROOT"
+  # Best-effort (tentura-ah4): a full or unwritable TMPDIR (e.g. tmpfs out of
+  # inodes) must not stop the wrapped command from running.
+  mkdir -p "$STATE_ROOT" 2>/dev/null || true
 
   if [[ "$sweep_only" -eq 1 ]]; then
     sweep_run "sweep-only-$$"
@@ -443,20 +447,21 @@ main() {
   local run_id
   run_id="$(python3 -c 'import uuid; print(uuid.uuid4().hex)')"
   local marker="$STATE_ROOT/$run_id"
-  mkdir -p "$marker"
+  mkdir -p "$marker" 2>/dev/null || true
   local deadline=$(( $(date +%s) + secs + 45 ))
 
   # Pre-sweep leftovers from previous killed agents before we start more.
   sweep_run "pre-$run_id"
 
   log "run $run_id timeout=$timeout cwd=$(pwd)"
-  setsid -f -- "$SELF" --reaper --run-id "$run_id" --parent "$$" --deadline "$deadline" \
-    </dev/null >>"$marker/reaper.log" 2>&1 || true
+  # Braces silence the shell's own "cannot open reaper.log" redirect error.
+  { setsid -f -- "$SELF" --reaper --run-id "$run_id" --parent "$$" --deadline "$deadline" \
+    </dev/null >>"$marker/reaper.log" 2>&1; } 2>/dev/null || true
   wait_reaper_ready "$marker" || true
 
   local rc=0
-  trap 'rc=143; log "signal, sweeping $run_id"; : >"$marker/done" 2>/dev/null || true; trap - EXIT; sweep_run "$run_id"; exit $rc' INT TERM
-  trap ': >"$marker/done" 2>/dev/null || true; sweep_run "$run_id"' EXIT
+  trap 'rc=143; log "signal, sweeping $run_id"; { : >"$marker/done"; } 2>/dev/null || true; trap - EXIT; sweep_run "$run_id"; exit $rc' INT TERM
+  trap '{ : >"$marker/done"; } 2>/dev/null || true; sweep_run "$run_id"' EXIT
 
   # New session so a SIGKILL of this wrapper's process group cannot
   # silently take the reaper — and so leftover testers are findable by
@@ -471,7 +476,7 @@ main() {
   # (e.g. a narrow window around reaper startup elsewhere) even while this
   # run is still legitimately using it. Losing the marker must never lose
   # the real exit code of an already-finished, possibly-passing command.
-  : >"$marker/done" 2>/dev/null || true
+  { : >"$marker/done"; } 2>/dev/null || true
   trap - EXIT INT TERM
   sweep_run "$run_id"
   exit "$rc"
