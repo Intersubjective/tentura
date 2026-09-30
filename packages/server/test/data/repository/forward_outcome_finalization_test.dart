@@ -1,9 +1,6 @@
 @Tags(['pg'])
 library;
 
-import 'dart:io';
-
-import 'package:injectable/injectable.dart' show Environment;
 import 'package:test/test.dart';
 
 import 'package:tentura_server/data/database/tentura_db.dart';
@@ -11,27 +8,23 @@ import 'package:tentura_server/data/repository/trust_evidence_repository.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/review_close_snapshot.dart';
-import 'package:tentura_server/env.dart';
 
+import '../../support/disposable_pg_target.dart';
 import '../../support/review_finalization_test_support.dart' as support;
 import '../../support/pg_test_public_keys.dart';
 
 /// End-to-end forward finalization with real TrustEvidenceRepository (pg).
 Future<void> main() async {
-  final postgresReachable = await _canConnectPostgres();
-  var skipReason = postgresReachable ? false : 'local Postgres not reachable';
+  final target = DisposablePgTarget.fromNamedEnvironment(
+    envVarName: 'TENTURA_FORWARD_OUTCOME_FINALIZATION_PG_TEST_DB',
+    defaultNamePrefix: 'tentura_test_fof',
+  );
+  final reachable = await canReachPostgresAdmin(target);
+  final skipReason = reachable
+      ? false
+      : 'Postgres admin database not reachable for disposable test target';
 
-  if (postgresReachable) {
-    final probe = TenturaDb(_testEnv());
-    try {
-      if (!await _hasLedger(probe)) {
-        skipReason = 'trust_evidence_event missing (m0122 not applied)';
-      }
-    } finally {
-      await probe.close();
-    }
-  }
-
+  late DisposablePgWriterSession session;
   late TenturaDb db;
   late TrustEvidenceRepository trustRepo;
 
@@ -43,7 +36,8 @@ Future<void> main() async {
 
   if (skipReason == false) {
     setUpAll(() async {
-      db = TenturaDb(_testEnv());
+      session = await setUpDisposablePgWriter(target: target);
+      db = openDisposablePgDatabase(target);
       trustRepo = TrustEvidenceRepository(db);
       for (var i = 0; i < allIds.length; i++) {
         await db.customStatement(
@@ -60,14 +54,10 @@ ON CONFLICT (id) DO NOTHING
     tearDown(() async {
       final idList = allIds.map((id) => "'$id'").join(', ');
       await db.customStatement(
-        "DELETE FROM public.trust_evidence_event "
-        "WHERE request_id = '$beaconId' "
+        "DELETE FROM public.trust_evidence "
+        "WHERE beacon_id = '$beaconId' "
         "OR subject_user_id IN ($idList) "
         "OR object_user_id IN ($idList)",
-      );
-      await db.customStatement(
-        "DELETE FROM public.user_trust_source_edge "
-        "WHERE subject IN ($idList) OR object IN ($idList)",
       );
       await db.customStatement(
         "DELETE FROM public.user_trust_edge "
@@ -80,7 +70,7 @@ ON CONFLICT (id) DO NOTHING
       await db.customStatement(
         '''DELETE FROM public."user" WHERE id IN ($idList)''',
       );
-      await db.close();
+      await tearDownDisposablePgWriter(session: session, drift: db);
     });
   }
 
@@ -145,8 +135,8 @@ ON CONFLICT (id) DO NOTHING
 
     final forwardRows = await db.customSelect(
       '''
-SELECT COUNT(*)::int AS c FROM trust_evidence_event
-WHERE request_id = '$beaconId' AND trust_context = 'forward'
+SELECT COUNT(*)::int AS c FROM public.trust_evidence
+WHERE beacon_id = '$beaconId' AND kind = 5
 ''',
     ).getSingle();
     expect(forwardRows.read<int>('c'), greaterThan(0));
@@ -157,41 +147,10 @@ WHERE request_id = '$beaconId' AND trust_context = 'forward'
     expect(second.didClose, isTrue);
     final afterRetry = await db.customSelect(
       '''
-SELECT COUNT(*)::int AS c FROM trust_evidence_event
-WHERE request_id = '$beaconId' AND trust_context = 'forward'
+SELECT COUNT(*)::int AS c FROM public.trust_evidence
+WHERE beacon_id = '$beaconId' AND kind = 5
 ''',
     ).getSingle();
     expect(afterRetry.read<int>('c'), forwardRows.read<int>('c'));
   }, skip: skipReason);
-}
-
-Env _testEnv() => Env(
-  environment: Environment.test,
-  pgHost: Platform.environment['POSTGRES_HOST'] ?? 'localhost',
-  pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
-  pgDatabase: Platform.environment['POSTGRES_DBNAME'] ?? 'postgres',
-  pgUsername: Platform.environment['POSTGRES_USERNAME'] ?? 'postgres',
-  pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
-  genealogyNodeKeySecret: 'test-genealogy-secret',
-);
-
-Future<bool> _canConnectPostgres() async {
-  try {
-    final db = TenturaDb(_testEnv());
-    await db.customSelect('SELECT 1').getSingle();
-    await db.close();
-    return true;
-  } catch (_) {
-    return false;
-  }
-}
-
-Future<bool> _hasLedger(TenturaDb db) async {
-  final row = await db.customSelect(
-    '''
-SELECT count(*)::int > 0 AS ok FROM information_schema.tables
-WHERE table_schema = 'public' AND table_name = 'trust_evidence_event'
-''',
-  ).getSingle();
-  return row.read<bool>('ok');
 }

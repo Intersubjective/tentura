@@ -1,9 +1,6 @@
 @Tags(['pg'])
 library;
 
-import 'dart:io';
-
-import 'package:injectable/injectable.dart' show Environment;
 import 'package:test/test.dart';
 
 import 'package:tentura_server/data/database/tentura_db.dart'
@@ -14,25 +11,21 @@ import 'package:tentura_server/domain/trust/trust_context.dart';
 import 'package:tentura_server/domain/trust/trust_evidence.dart';
 import 'package:tentura_server/domain/trust/trust_evidence_metadata.dart';
 import 'package:tentura_server/domain/trust/trust_source_type.dart';
-import 'package:tentura_server/env.dart';
 
+import '../../support/disposable_pg_target.dart';
 import '../../support/pg_test_public_keys.dart';
 
 Future<void> main() async {
-  final postgresReachable = await _canConnectPostgres();
-  var skipReason = postgresReachable ? false : 'local Postgres not reachable';
+  final target = DisposablePgTarget.fromNamedEnvironment(
+    envVarName: 'TENTURA_TRUST_EVIDENCE_WRITER_PG_TEST_DB',
+    defaultNamePrefix: 'tentura_test_tew',
+  );
+  final reachable = await canReachPostgresAdmin(target);
+  final skipReason = reachable
+      ? false
+      : 'Postgres admin database not reachable for disposable test target';
 
-  if (postgresReachable) {
-    final probe = TenturaDb(_testEnv());
-    try {
-      if (!await _hasLedger(probe)) {
-        skipReason = 'trust_evidence_event missing (m0122 not applied)';
-      }
-    } finally {
-      await probe.close();
-    }
-  }
-
+  late DisposablePgWriterSession session;
   late TenturaDb db;
   late TrustEvidenceRepository repo;
 
@@ -53,16 +46,19 @@ ON CONFLICT (id) DO NOTHING
   Future<int> ledgerCount({String? request}) async {
     final filter = request == null
         ? "subject_user_id IN ('$aliceId', '$bobId')"
-        : "request_id = '$request'";
-    final row = await db.customSelect(
-      'SELECT COUNT(*)::int AS c FROM trust_evidence_event WHERE $filter',
-    ).getSingle();
+        : "beacon_id = '$request'";
+    final row = await db
+        .customSelect(
+          'SELECT COUNT(*)::int AS c FROM public.trust_evidence WHERE $filter',
+        )
+        .getSingle();
     return row.read<int>('c');
   }
 
   if (skipReason == false) {
     setUpAll(() async {
-      db = TenturaDb(_testEnv());
+      session = await setUpDisposablePgWriter(target: target);
+      db = openDisposablePgDatabase(target);
       repo = TrustEvidenceRepository(db);
       for (final id in allIds) {
         await user(id);
@@ -71,13 +67,9 @@ ON CONFLICT (id) DO NOTHING
 
     tearDown(() async {
       await db.customStatement(
-        "DELETE FROM public.trust_evidence_event "
+        "DELETE FROM public.trust_evidence "
         "WHERE subject_user_id IN ('$aliceId', '$bobId') "
         "OR object_user_id IN ('$aliceId', '$bobId')",
-      );
-      await db.customStatement(
-        "DELETE FROM public.user_trust_source_edge "
-        "WHERE subject IN ('$aliceId', '$bobId') OR object IN ('$aliceId', '$bobId')",
       );
       await db.customStatement(
         "DELETE FROM public.user_trust_edge "
@@ -86,14 +78,11 @@ ON CONFLICT (id) DO NOTHING
     });
 
     tearDownAll(() async {
-      await db.customStatement(
-        '''DELETE FROM public."user" WHERE id IN ('$aliceId', '$bobId')''',
-      );
-      await db.close();
+      await tearDownDisposablePgWriter(session: session, drift: db);
     });
   }
 
-  test('record writes ledger row and bumps source', () async {
+  test('record writes ledger row and projects the pair', () async {
     await repo.record(
       TrustEvidenceBatch(
         sourceUserId: aliceId,
@@ -111,11 +100,14 @@ ON CONFLICT (id) DO NOTHING
       ),
     );
     expect(await ledgerCount(), 1);
-    final source = await db.customSelect(
-      "SELECT s_good FROM user_trust_source_edge WHERE trust_context = 'personal' AND subject = '$aliceId'",
-    ).getSingleOrNull();
-    expect(source, isNotNull);
-    expect(source!.read<double>('s_good'), greaterThan(0));
+    final edge = await db
+        .customSelect(
+          "SELECT trust_w FROM public.user_trust_edge "
+          "WHERE subject = '$aliceId' AND object = '$bobId'",
+        )
+        .getSingleOrNull();
+    expect(edge, isNotNull);
+    expect(edge!.read<double>('trust_w'), greaterThan(0));
   }, skip: skipReason);
 
   test('duplicate propagated bin is idempotent', () async {
@@ -139,7 +131,7 @@ ON CONFLICT (id) DO NOTHING
     expect(await ledgerCount(request: requestId), 1);
   }, skip: skipReason);
 
-  test('both propagated source types can coexist on one request pair', () async {
+  test('positive evidence from different source types coexists', () async {
     await repo.record(
       TrustEvidenceBatch(
         sourceUserId: aliceId,
@@ -156,6 +148,27 @@ ON CONFLICT (id) DO NOTHING
           ),
           TrustEvidence(
             targetUserId: bobId,
+            bin: TrustBin.good,
+            count: 1,
+            context: TrustContext.forward,
+            sourceType: TrustSourceType.unsuccessfulRequestForward,
+            requestId: requestId,
+            sourceId: 'prop:other',
+          ),
+        ],
+      ),
+    );
+    expect(await ledgerCount(request: requestId), 2);
+  }, skip: skipReason);
+
+  test('no-effect evidence gets no ledger row (phase A)', () async {
+    await repo.record(
+      TrustEvidenceBatch(
+        sourceUserId: aliceId,
+        at: DateTime.utc(2026, 2, 1),
+        items: [
+          TrustEvidence(
+            targetUserId: bobId,
             bin: TrustBin.noEffect,
             count: 1,
             context: TrustContext.forward,
@@ -166,7 +179,7 @@ ON CONFLICT (id) DO NOTHING
         ],
       ),
     );
-    expect(await ledgerCount(request: requestId), 2);
+    expect(await ledgerCount(request: requestId), 0);
   }, skip: skipReason);
 
   test('metadata stores only constrained keys', () async {
@@ -190,9 +203,11 @@ ON CONFLICT (id) DO NOTHING
         ],
       ),
     );
-    final row = await db.customSelect(
-      "SELECT metadata::text AS m FROM trust_evidence_event WHERE request_id = '$requestId' LIMIT 1",
-    ).getSingle();
+    final row = await db
+        .customSelect(
+          "SELECT metadata::text AS m FROM public.trust_evidence WHERE beacon_id = '$requestId' LIMIT 1",
+        )
+        .getSingle();
     final json = row.read<String>('m');
     expect(json, contains('algorithm_version'));
     expect(json, contains('supporting_commitment_ids'));
@@ -200,7 +215,7 @@ ON CONFLICT (id) DO NOTHING
     expect(json, isNot(contains('mass')));
   }, skip: skipReason);
 
-  test('hasForwardEvidenceForRequest reflects forward context rows', () async {
+  test('hasForwardEvidenceForRequest reflects forward ledger rows', () async {
     expect(await repo.hasForwardEvidenceForRequest(requestId), isFalse);
     await repo.record(
       TrustEvidenceBatch(
@@ -209,10 +224,10 @@ ON CONFLICT (id) DO NOTHING
         items: [
           TrustEvidence(
             targetUserId: bobId,
-            bin: TrustBin.noEffect,
+            bin: TrustBin.good,
             count: 1,
             context: TrustContext.forward,
-            sourceType: TrustSourceType.unsuccessfulRequestForward,
+            sourceType: TrustSourceType.propagatedAuthorEvaluatedCommitment,
             requestId: requestId,
           ),
         ],
@@ -220,35 +235,4 @@ ON CONFLICT (id) DO NOTHING
     );
     expect(await repo.hasForwardEvidenceForRequest(requestId), isTrue);
   }, skip: skipReason);
-}
-
-Env _testEnv() => Env(
-  environment: Environment.test,
-  pgHost: Platform.environment['POSTGRES_HOST'] ?? 'localhost',
-  pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
-  pgDatabase: Platform.environment['POSTGRES_DBNAME'] ?? 'postgres',
-  pgUsername: Platform.environment['POSTGRES_USERNAME'] ?? 'postgres',
-  pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
-  genealogyNodeKeySecret: 'test-genealogy-secret',
-);
-
-Future<bool> _canConnectPostgres() async {
-  try {
-    final db = TenturaDb(_testEnv());
-    await db.customSelect('SELECT 1').getSingle();
-    await db.close();
-    return true;
-  } catch (_) {
-    return false;
-  }
-}
-
-Future<bool> _hasLedger(TenturaDb db) async {
-  final row = await db.customSelect(
-    '''
-SELECT count(*)::int > 0 AS ok FROM information_schema.tables
-WHERE table_schema = 'public' AND table_name = 'trust_evidence_event'
-''',
-  ).getSingle();
-  return row.read<bool>('ok');
 }

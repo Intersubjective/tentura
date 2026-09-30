@@ -4,7 +4,7 @@ import '../entity/forward_attribution_method.dart';
 
 part 'trust_evidence_metadata.freezed.dart';
 
-/// Typed audit metadata stored in `trust_evidence_event.metadata` jsonb.
+/// Typed audit metadata stored in `trust_evidence.metadata` jsonb.
 @freezed
 abstract class TrustEvidenceMetadata with _$TrustEvidenceMetadata {
   const factory TrustEvidenceMetadata({

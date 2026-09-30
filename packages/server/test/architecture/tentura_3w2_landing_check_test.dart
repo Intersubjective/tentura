@@ -128,6 +128,7 @@ void main() {
               'stderr:\n${result.stderr}',
         );
       },
+      skip: bead8u7TransientStateSkip(),
     );
 
     test(
@@ -147,6 +148,7 @@ void main() {
               'required check must not keep testing detached HEAD $_stale8u7TipSha',
         );
       },
+      skip: bead8u7TransientStateSkip(),
     );
 
     test(
@@ -195,6 +197,7 @@ void main() {
         );
       },
       timeout: const Timeout(Duration(minutes: 12)),
+      skip: bead8u7TransientStateSkip(),
     );
 
     test(

@@ -109,6 +109,7 @@ void main() {
               'git status --porcelain:\n$porcelain',
         );
       },
+      skip: bead8u7TransientStateSkip(),
     );
 
     test(
@@ -142,6 +143,7 @@ void main() {
           );
         }
       },
+      skip: bead8u7TransientStateSkip(),
     );
 
     test(

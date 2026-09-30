@@ -1,39 +1,43 @@
 @Tags(['pg'])
 library;
 
-import 'dart:io';
-
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
+import 'package:tentura_server/data/repository/trust_evidence_repository.dart';
 import 'package:tentura_server/data/repository/user_block_repository.dart';
 import 'package:tentura_server/domain/invite_genealogy/invite_genealogy_node_key.dart';
+import 'package:tentura_server/domain/trust/trust_bin.dart';
+import 'package:tentura_server/domain/trust/trust_context.dart';
+import 'package:tentura_server/domain/trust/trust_evidence.dart';
+import 'package:tentura_server/domain/trust/trust_source_type.dart';
 import 'package:tentura_server/domain/use_case/block_cascade_case.dart';
 import 'package:tentura_server/domain/use_case/block_release_sweep_case.dart';
 import 'package:tentura_server/env.dart';
 
+import '../../support/disposable_pg_target.dart';
+
 /// Release sweep — spec §9.7 T-F1…T-F7, §11 X10, plus cursor advancement.
 Future<void> main() async {
-  final postgresReachable = await _canConnectPostgres();
-  var skipReason = postgresReachable ? false : 'local Postgres not reachable';
+  // Runs on a disposable database cloned at the head schema (post-m0202): the
+  // ambient database may predate the trust ledger and publish queue.
+  final target = DisposablePgTarget.fromNamedEnvironment(
+    envVarName: 'TENTURA_BLOCK_RELEASE_SWEEP_PG_TEST_DB',
+    defaultNamePrefix: 'tentura_test_brs',
+  );
+  final postgresReachable = await canReachPostgresAdmin(target);
+  final skipReason = postgresReachable
+      ? false
+      : 'Postgres admin database not reachable for disposable test target';
 
-  if (postgresReachable) {
-    final probe = TenturaDb(_testEnv());
-    try {
-      if (!await _hasUserBlockSchema(probe)) {
-        skipReason = 'm0135 schema (user_block / block_hides) missing';
-      }
-    } finally {
-      await probe.close();
-    }
-  }
-
+  late DisposablePgWriterSession session;
   late TenturaDb db;
   late Env env;
   late UserBlockRepository repo;
+  late TrustEvidenceRepository trustEvidenceRepo;
   late BlockCascadeCase cascadeJob;
   late BlockReleaseSweepCase releaseJob;
 
@@ -128,16 +132,28 @@ ON CONFLICT (subject, object) DO UPDATE SET amount = EXCLUDED.amount
     required String subject,
     required String object,
   }) async {
+    await trustEvidenceRepo.record(
+      TrustEvidenceBatch(
+        sourceUserId: subject,
+        at: DateTime.utc(2026, 1, 2),
+        items: [
+          TrustEvidence(
+            targetUserId: object,
+            bin: TrustBin.good,
+            count: kTrustVoteEvidenceCount,
+            context: TrustContext.personal,
+            sourceType: TrustSourceType.userVote,
+          ),
+        ],
+      ),
+    );
+    // The publisher is not running: stamp what it would have published.
     await db.customStatement(
       '''
-SELECT trust_apply_source_evidence(
-  'personal', '$subject', '$object', 'good', 1
-)
+UPDATE public.user_trust_edge SET prev_sent_weight = target_w
+WHERE subject = '$subject' AND object = '$object'
 ''',
     );
-    await db.customSelect(
-      "SELECT trust_rebuild_effective_edge('$subject', '$object', -1)",
-    ).getSingle();
   }
 
   Future<void> seedCanonicalFixture() async {
@@ -270,8 +286,12 @@ WHERE blocker_id = '$aliceId' AND blocked_id = '$bobId'
       'OR blocked_id IN ($idList)',
     );
     await db.customStatement(
-      'DELETE FROM public.user_trust_source_edge WHERE subject IN ($idList) '
-      'OR object IN ($idList)',
+      'DELETE FROM public.trust_evidence WHERE subject_user_id IN ($idList) '
+      'OR object_user_id IN ($idList)',
+    );
+    await db.customStatement(
+      'DELETE FROM public.trust_publish_queue '
+      'WHERE subject_user_id IN ($idList) OR object_user_id IN ($idList)',
     );
     await db.customStatement(
       'DELETE FROM public.user_trust_edge WHERE subject IN ($idList) '
@@ -291,8 +311,9 @@ WHERE blocker_id = '$aliceId' AND blocked_id = '$bobId'
 
   void bindHarness(Env testEnv) {
     env = testEnv;
-    db = TenturaDb(env);
+    db = openDisposablePgDatabase(target);
     repo = UserBlockRepository(env, db);
+    trustEvidenceRepo = TrustEvidenceRepository(db);
     cascadeJob = BlockCascadeCase(
       repo,
       env: env,
@@ -306,8 +327,12 @@ WHERE blocker_id = '$aliceId' AND blocked_id = '$bobId'
   }
 
   if (skipReason == false) {
+    setUpAll(() async {
+      session = await setUpDisposablePgWriter(target: target);
+    });
+
     setUp(() async {
-      bindHarness(_testEnv());
+      bindHarness(_testEnv(target));
       await cleanup();
       await seedCanonicalFixture();
     });
@@ -315,6 +340,10 @@ WHERE blocker_id = '$aliceId' AND blocked_id = '$bobId'
     tearDown(() async {
       await cleanup();
       await db.close();
+    });
+
+    tearDownAll(() async {
+      await tearDownDisposablePgWriter(session: session);
     });
   }
 
@@ -529,43 +558,18 @@ ON CONFLICT DO NOTHING
   );
 }
 
-Env _testEnv({
+Env _testEnv(
+  DisposablePgTarget target, {
   int? trustSweepBatchSize,
   Duration? trustSweepTimeBudget,
 }) => Env(
   environment: Environment.test,
-  pgHost: Platform.environment['POSTGRES_HOST'] ?? 'localhost',
-  pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
-  pgDatabase: Platform.environment['POSTGRES_DBNAME'] ?? 'postgres',
-  pgUsername: Platform.environment['POSTGRES_USERNAME'] ?? 'postgres',
-  pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
+  pgHost: target.databaseEnv.pgHost,
+  pgPort: target.databaseEnv.pgPort,
+  pgDatabase: target.databaseName,
+  pgUsername: target.databaseEnv.pgUsername,
+  pgPassword: target.databaseEnv.pgPassword,
   genealogyNodeKeySecret: 'test-genealogy-secret',
   trustSweepBatchSize: trustSweepBatchSize,
   trustSweepTimeBudget: trustSweepTimeBudget,
 );
-
-Future<bool> _canConnectPostgres() async {
-  try {
-    final db = TenturaDb(_testEnv());
-    await db.customSelect('SELECT 1').getSingle();
-    await db.close();
-    return true;
-  } catch (_) {
-    return false;
-  }
-}
-
-Future<bool> _hasUserBlockSchema(TenturaDb db) async {
-  final row = await db
-      .customSelect(
-        r'''
-SELECT EXISTS (
-  SELECT 1
-  FROM information_schema.tables
-  WHERE table_schema = 'public' AND table_name = 'user_block'
-) AS ok
-''',
-      )
-      .getSingle();
-  return row.read<bool>('ok');
-}

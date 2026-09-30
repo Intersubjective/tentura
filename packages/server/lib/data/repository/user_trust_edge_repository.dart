@@ -20,13 +20,14 @@ import '../database/tentura_db.dart';
 class UserTrustEdgeRepository implements UserTrustEdgeRepositoryPort {
   UserTrustEdgeRepository(
     this._db,
-    this._meritrank,
+    // Kept for DI signature stability; publication is queue-driven.
+    // ignore: avoid_unused_constructor_parameters
+    MeritrankRepositoryPort meritrank,
     this._trustEvidenceRepository, {
     WitnessWindowPort? witnessWindow,
   }) : _witnessWindow = witnessWindow;
 
   final TenturaDb _db;
-  final MeritrankRepositoryPort _meritrank;
   final TrustEvidenceRepositoryPort _trustEvidenceRepository;
   final WitnessWindowPort? _witnessWindow;
 
@@ -93,13 +94,13 @@ class UserTrustEdgeRepository implements UserTrustEdgeRepositoryPort {
 
   @override
   Future<void> cutoverBackfillIfNeeded() async {
-    final trustCount = await _db
+    final hasProjection = await _db
         .customSelect(
-          'SELECT count(*)::int AS c FROM user_trust_source_edge',
+          'SELECT EXISTS (SELECT 1 FROM public.user_trust_edge) AS present',
         )
-        .map((r) => r.read<int>('c'))
+        .map((r) => r.read<bool>('present'))
         .getSingle();
-    if (trustCount > 0) return;
+    if (hasProjection) return;
 
     final votes = await _db
         .customSelect(
@@ -130,8 +131,7 @@ class UserTrustEdgeRepository implements UserTrustEdgeRepositoryPort {
       );
     }
 
-    await _meritrank.reset();
-    await _meritrank.init();
+    // MeritRank is fed by trust_publish_queue (m0202); no reset/init here.
     await _witnessWindow?.bumpMrEpoch();
   }
 

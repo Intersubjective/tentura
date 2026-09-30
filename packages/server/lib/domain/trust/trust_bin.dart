@@ -8,7 +8,7 @@ enum TrustBin {
 
   const TrustBin(this.key);
 
-  /// Stable snake_case key passed to SQL trust_apply_source_evidence.
+  /// Stable snake_case key of the evidence ledger bins.
   final String key;
 }
 

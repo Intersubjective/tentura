@@ -32,7 +32,11 @@ void main() {
     test('3i0m acceptance test paths declare 3i0m landing gate markers', () {
       for (final path in k3i0mAcceptanceTestPaths) {
         final file = _acceptanceFile(path);
-        expect(file.existsSync(), isTrue, reason: 'missing acceptance path $path');
+        expect(
+          file.existsSync(),
+          isTrue,
+          reason: 'missing acceptance path $path',
+        );
         final source = file.readAsStringSync();
         expect(
           source,
@@ -98,7 +102,10 @@ void main() {
               'trial merge of $_8u7TrialMergeRef with HEAD must be clean\n'
               'stdout:\n${trialMerge.stdout}\nstderr:\n${trialMerge.stderr}',
         );
-        final trialTree = (trialMerge.stdout as String).split('\n').first.trim();
+        final trialTree = (trialMerge.stdout as String)
+            .split('\n')
+            .first
+            .trim();
         for (final path in k3i0mBeadAcceptanceTestPaths) {
           final repoRelative = 'packages/server/$path';
           final show = Process.runSync(
@@ -160,6 +167,7 @@ void main() {
         );
       },
       timeout: const Timeout(Duration(minutes: 11)),
+      skip: bead8u7TransientStateSkip(),
     );
 
     test(
@@ -177,6 +185,7 @@ void main() {
         );
       },
       timeout: const Timeout(Duration(minutes: 11)),
+      skip: bead8u7TransientStateSkip(),
     );
 
     test(

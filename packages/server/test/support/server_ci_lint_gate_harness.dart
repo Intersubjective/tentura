@@ -523,6 +523,23 @@ const k3i0mBeadAcceptanceTestPaths = [
 
 const _8u7TrialMergeRef = 'alloy/tentura-8u7';
 
+/// Skip reason for checks that assert the live state of the alloy/tentura-8u7
+/// bead ref (tip, worktree, host ancestry), or `false` while that bead is still
+/// in flight. Once the bead tip is an ancestor of host HEAD (or the ref is
+/// gone) the bead has landed, and Alloy has removed its worktree, so those
+/// assertions describe state that no longer exists.
+Object bead8u7TransientStateSkip() {
+  final result = Process.runSync(
+    'git',
+    ['merge-base', '--is-ancestor', _8u7TrialMergeRef, 'HEAD'],
+    workingDirectory: repoRootFromServerPackage().path,
+  );
+  // 1 = not an ancestor (bead in flight); 0 = landed; 128 = ref gone.
+  return result.exitCode == 1
+      ? false
+      : '$_8u7TrialMergeRef already landed on host HEAD (or ref removed)';
+}
+
 /// Runs tentura-3i0m bead acceptance: the wrapped four-file dart test on a
 /// detached worktree at alloy/tentura-8u7.
 CommandOutcome run3i0mAcceptanceFourFileDartTestOn8u7TrialMerge() {
