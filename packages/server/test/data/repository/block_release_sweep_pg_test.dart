@@ -413,41 +413,27 @@ WHERE blocker_id = '$aliceId' AND blocked_id = '$bobId'
   );
 
   test(
-    'T-F5: released pair republishes honest trust weight via trust_rebuild',
+    'T-F5: released pair re-projects honest target via trust_project_pair',
     () async {
-      final honestRow = await db.customSelect(
+      Future<double> targetW() => db.customSelect(
         '''
-SELECT prev_sent_weight
+SELECT target_w
 FROM public.user_trust_edge
 WHERE subject = '$aliceId' AND object = '$p1Id'
 ''',
-      ).getSingle();
-      final honestWeight = honestRow.read<double>('prev_sent_weight');
+      ).map((r) => r.read<double>('target_w')).getSingle();
+
+      final honestWeight = await targetW();
       expect(honestWeight, greaterThan(0));
 
       await materializeMode1Cascade();
-      expect(
-        await db.customSelect(
-          '''
-SELECT prev_sent_weight
-FROM public.user_trust_edge
-WHERE subject = '$aliceId' AND object = '$p1Id'
-''',
-        ).map((r) => r.read<double>('prev_sent_weight')).getSingle(),
-        0,
-      );
+      // Phase A: a block forces target 0; the publisher delivers the zero.
+      expect(await targetW(), 0);
 
       await insertMutualVote(p1Id, veraId);
       await runFullReleaseSweep();
 
-      final row = await db.customSelect(
-        '''
-SELECT prev_sent_weight
-FROM public.user_trust_edge
-WHERE subject = '$aliceId' AND object = '$p1Id'
-''',
-      ).getSingle();
-      expect(row.read<double>('prev_sent_weight'), closeTo(honestWeight, 0.001));
+      expect(await targetW(), closeTo(honestWeight, 0.001));
     },
     skip: skipReason,
   );

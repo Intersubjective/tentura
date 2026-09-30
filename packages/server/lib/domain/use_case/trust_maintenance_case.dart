@@ -38,7 +38,7 @@ base class TrustMaintenanceCase extends UseCaseBase
     if (!_isDue(clock)) return;
 
     try {
-      await _runProjectionSweep(timeBudget: env.trustSweepTimeBudget);
+      await _runProjectionSweep(env.trustSweepTimeBudget);
       _lastSuccessAt = clock;
       _firstRun = false;
     } catch (e, st) {
@@ -51,7 +51,7 @@ base class TrustMaintenanceCase extends UseCaseBase
 
   @override
   Future<void> forceRefreshAll() async {
-    await _runProjectionSweep(timeBudget: null);
+    await _runProjectionSweep(null);
   }
 
   bool _isDue(DateTime now) {
@@ -68,7 +68,7 @@ base class TrustMaintenanceCase extends UseCaseBase
   /// live evidence with time decay into `user_trust_edge` and enqueues
   /// publication when the target materially changed. Keyset-paginates the
   /// pair universe so a bounded sweep can stop between batches.
-  Future<void> _runProjectionSweep({required Duration? timeBudget}) async {
+  Future<void> _runProjectionSweep(Duration? timeBudget) async {
     final started = DateTime.timestamp();
     var afterSubject = '';
     var afterObject = '';
@@ -83,9 +83,8 @@ base class TrustMaintenanceCase extends UseCaseBase
               r'''
 SELECT subject_user_id AS s, object_user_id AS o
 FROM (
-  SELECT subject_user_id, object_user_id FROM public.trust_evidence
-  UNION
-  SELECT subject, object FROM public.user_trust_edge
+  SELECT subject AS subject_user_id, object AS object_user_id
+  FROM public.user_trust_edge
 ) AS pairs
 WHERE (subject_user_id, object_user_id) > ($1, $2)
 ORDER BY subject_user_id, object_user_id
@@ -113,5 +112,6 @@ LIMIT $3
       afterSubject = processed.last.read<String>('s');
       afterObject = processed.last.read<String>('o');
     }
+    await _db.customStatement('SELECT public.mr_bump_publish_epoch()');
   }
 }

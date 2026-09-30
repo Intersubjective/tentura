@@ -270,6 +270,38 @@ WHERE subject = '$subject' AND object = '$object'
     return row.read<double>('prev_sent_weight');
   }
 
+  Future<double> targetWeight(String subject, String object) async {
+    final row = await db.customSelect(
+      '''
+SELECT target_w
+FROM public.user_trust_edge
+WHERE subject = '$subject' AND object = '$object'
+''',
+    ).getSingle();
+    return row.read<double>('target_w');
+  }
+
+  Future<double> foldWeight(String subject, String object) async {
+    final row = await db.customSelect(
+      '''
+SELECT trust_w FROM public.trust_fold_pair('$subject', '$object')
+''',
+    ).getSingle();
+    return row.read<double>('trust_w');
+  }
+
+  Future<bool> isQueued(String subject, String object) async {
+    final row = await db.customSelect(
+      '''
+SELECT EXISTS (
+  SELECT 1 FROM public.trust_publish_queue
+  WHERE subject_user_id = '$subject' AND object_user_id = '$object'
+) AS ok
+''',
+    ).getSingle();
+    return row.read<bool>('ok');
+  }
+
   Future<double> rebuildReturnWeight({
     required String subject,
     required String object,
@@ -439,57 +471,36 @@ WHERE blocker_id = '$aliceId' AND blocked_id = '$bobId'
   }
 
   test(
-    'T-G1: block gates publish to zero without touching source evidence',
+    'T-G1: block projects target 0 and queues the zero without touching source evidence',
     () async {
       final sourceBefore = await sourceRows(subject: aliceId, object: bobId);
-      final projectionBefore = await trustEdgeProjection(
-        subject: aliceId,
-        object: bobId,
-      );
-      final honestPrev = projectionBefore['prev_sent_weight']! as double;
+      final honestPrev = await prevSentWeight(aliceId, bobId);
       expect(honestPrev, greaterThan(0));
 
       await repo.block(blockerId: aliceId, blockedId: bobId, cascadeMode: 0);
       await repo.applyWithdrawal(blockerId: aliceId, blockedId: bobId);
 
-      expect(await prevSentWeight(aliceId, bobId), 0);
+      expect(await targetWeight(aliceId, bobId), 0);
+      expect(await isQueued(aliceId, bobId), isTrue);
+      // The publisher, not the block, moves prev_sent_weight (on ack).
+      expect(await prevSentWeight(aliceId, bobId), closeTo(honestPrev, 1e-9));
       expect(await sourceRows(subject: aliceId, object: bobId), sourceBefore);
-
-      final projectionAfter = await trustEdgeProjection(
-        subject: aliceId,
-        object: bobId,
-      );
-      for (final key in ['trust_w', 'wall_d', 'target_w']) {
-        expect(
-          projectionAfter[key]! as double,
-          closeTo(projectionBefore[key]! as double, 0.0001),
-        );
-      }
-
-      final returned = await rebuildReturnWeight(
-        subject: aliceId,
-        object: bobId,
-        epsilonOverride: -1,
-      );
-      expect(returned, closeTo(honestPrev, 0.001));
-      expect(returned, greaterThan(0));
     },
     skip: skipReason,
   );
 
   test(
-    'T-G2: unblock republishes honest weight exactly',
+    'T-G2: unblock restores the fold value as target',
     () async {
-      final honestPrev = await prevSentWeight(aliceId, bobId);
       await repo.block(blockerId: aliceId, blockedId: bobId, cascadeMode: 0);
       await repo.applyWithdrawal(blockerId: aliceId, blockedId: bobId);
-      expect(await prevSentWeight(aliceId, bobId), 0);
+      expect(await targetWeight(aliceId, bobId), 0);
 
       await repo.unblock(blockerId: aliceId, blockedId: bobId);
 
       expect(
-        await prevSentWeight(aliceId, bobId),
-        closeTo(honestPrev, 0.001),
+        await targetWeight(aliceId, bobId),
+        closeTo(await foldWeight(aliceId, bobId), 1e-9),
       );
     },
     skip: skipReason,
@@ -533,36 +544,23 @@ WHERE blocker_id = '$aliceId' AND blocked_id = '$bobId'
 
       await materializeMode1Cascade();
 
-      expect(await prevSentWeight(aliceId, p1Id), 0);
+      expect(await targetWeight(aliceId, p1Id), 0);
+      expect(await isQueued(aliceId, p1Id), isTrue);
     },
     skip: skipReason,
   );
 
   test(
-    'T-G6: cascade materialization publishes even when |w − prev| < epsilon',
+    'T-G6: cascade materialization queues the zero target',
     () async {
-      final before = await trustEdgeProjection(subject: aliceId, object: p1Id);
-      final stablePrev = before['prev_sent_weight']! as double;
-      final stableW = await rebuildReturnWeight(
-        subject: aliceId,
-        object: p1Id,
+      await db.customStatement(
+        "DELETE FROM public.trust_publish_queue WHERE subject_user_id = '$aliceId'",
       );
-      expect((stableW - stablePrev).abs(), lessThan(0.1));
-
-      final prevAfterNoop = await prevSentWeight(aliceId, p1Id);
-      await rebuildReturnWeight(subject: aliceId, object: p1Id);
-      expect(await prevSentWeight(aliceId, p1Id), closeTo(prevAfterNoop, 1e-9));
 
       await materializeMode1Cascade();
 
-      expect(await prevSentWeight(aliceId, p1Id), 0);
-
-      await rebuildReturnWeight(
-        subject: aliceId,
-        object: p1Id,
-        epsilonOverride: -1,
-      );
-      expect(await prevSentWeight(aliceId, p1Id), 0);
+      expect(await targetWeight(aliceId, p1Id), 0);
+      expect(await isQueued(aliceId, p1Id), isTrue);
     },
     skip: skipReason,
   );
@@ -589,13 +587,14 @@ WHERE blocker_id = '$aliceId' AND blocked_id = '$bobId'
 
       for (var cycle = 0; cycle < 2; cycle++) {
         await materializeMode1Cascade();
-        expect(await prevSentWeight(aliceId, p1Id), 0);
+        expect(await targetWeight(aliceId, p1Id), 0);
 
         await repo.unblock(blockerId: aliceId, blockedId: bobId);
         expect(
-          await prevSentWeight(aliceId, p1Id),
-          closeTo(honestP1, 0.001),
+          await targetWeight(aliceId, p1Id),
+          closeTo(await foldWeight(aliceId, p1Id), 1e-9),
         );
+        expect(await prevSentWeight(aliceId, p1Id), closeTo(honestP1, 1e-9));
       }
     },
     skip: skipReason,

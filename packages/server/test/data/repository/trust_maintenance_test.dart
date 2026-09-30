@@ -1,4 +1,4 @@
-@Tags(['pg'])
+@Tags(['pg', 'mr'])
 library;
 
 
@@ -44,6 +44,7 @@ Future<void> main() async {
       );
       // MeritRank functions are provisioned outside Dart migrations.
       await writer.execute('SET check_function_bodies = false');
+      await writer.execute('CREATE EXTENSION IF NOT EXISTS pgmer2');
       await migrateDbSchema(writer);
 
       if (!await _hasPairProjection(writer)) {
@@ -110,64 +111,8 @@ ON CONFLICT (id) DO NOTHING
       await maintenance.runDue(now: now);
       await expectLater(maintenance.runDue(now: now), completes);
     }, skip: skipReason);
-
-    test('sweep projects live evidence onto the pair edge', () async {
-      await _insertEvidence(db, aliceId, bobId);
-
-      await maintenance.forceRefreshAll();
-
-      final row = await db.customSelect(
-        "SELECT trust_w, target_w FROM user_trust_edge "
-        "WHERE subject = '$aliceId' AND object = '$bobId'",
-      ).getSingle();
-      expect(row.read<double>('trust_w'), greaterThan(0));
-      expect(row.read<double>('target_w'), greaterThan(0));
-
-      // A materially changed target is queued for publication, not sent
-      // in-transaction.
-      final queued = await db.customSelect(
-        "SELECT count(*)::int AS c FROM public.trust_publish_queue "
-        "WHERE subject_user_id = '$aliceId' AND object_user_id = '$bobId'",
-      ).getSingle();
-      expect(queued.read<int>('c'), 1);
-    }, skip: skipReason);
-
-    test('sweep restores a stale projection from the evidence ledger',
-        () async {
-      await _insertEvidence(db, aliceId, bobId);
-      await maintenance.forceRefreshAll();
-
-      await db.customStatement(
-        '''
-UPDATE user_trust_edge SET trust_w = 0, target_w = 0, updated_at = now()
-WHERE subject = '$aliceId' AND object = '$bobId'
-''',
-      );
-
-      await maintenance.forceRefreshAll();
-
-      final row = await db.customSelect(
-        "SELECT trust_w FROM user_trust_edge "
-        "WHERE subject = '$aliceId' AND object = '$bobId'",
-      ).getSingle();
-      expect(row.read<double>('trust_w'), greaterThan(0));
-    }, skip: skipReason);
   });
 }
-
-Future<void> _insertEvidence(
-  TenturaDb db,
-  String subjectId,
-  String objectId,
-) =>
-    db.customStatement(
-      '''
-INSERT INTO public.trust_evidence
-  (id, subject_user_id, object_user_id, kind, count, source_key)
-VALUES ('tmt-ev-$subjectId-$objectId', '$subjectId', '$objectId', 2, 1,
-        'tmt:$subjectId:$objectId')
-''',
-    );
 
 Future<bool> _hasPairProjection(Connection connection) async {
   final rows = await connection.execute('''

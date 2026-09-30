@@ -4,11 +4,6 @@ import 'package:tentura_server/domain/port/meritrank_repository_port.dart';
 import 'package:tentura_server/domain/port/trust_evidence_repository_port.dart';
 import 'package:tentura_server/domain/port/user_trust_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/witness_window_port.dart';
-import 'package:tentura_server/domain/trust/trust_bin.dart';
-import 'package:tentura_server/domain/trust/trust_context.dart';
-import 'package:tentura_server/domain/trust/trust_evidence.dart';
-import 'package:tentura_server/domain/trust/trust_math.dart';
-import 'package:tentura_server/domain/trust/trust_source_type.dart';
 
 import '../database/tentura_db.dart';
 
@@ -23,14 +18,15 @@ class UserTrustEdgeRepository implements UserTrustEdgeRepositoryPort {
     // Kept for DI signature stability; publication is queue-driven.
     // ignore: avoid_unused_constructor_parameters
     MeritrankRepositoryPort meritrank,
-    this._trustEvidenceRepository, {
+    // Kept for DI signature stability; A5 removed the evidence write.
+    // ignore: avoid_unused_constructor_parameters
+    TrustEvidenceRepositoryPort trustEvidenceRepository, {
     // Kept for DI signature stability; unused.
     // ignore: avoid_unused_constructor_parameters
     WitnessWindowPort? witnessWindow,
   });
 
   final TenturaDb _db;
-  final TrustEvidenceRepositoryPort _trustEvidenceRepository;
 
   @override
   Future<void> setVoteAmountAndApplyEvidence({
@@ -38,11 +34,7 @@ class UserTrustEdgeRepository implements UserTrustEdgeRepositoryPort {
     required String objectUserId,
     required int newAmount,
   }) => _db.transaction(
-    () => _setVoteAmountCore(
-      subjectUserId: subjectUserId,
-      objectUserId: objectUserId,
-      newAmount: newAmount,
-    ),
+    () => _setVoteAmountCore(subjectUserId, objectUserId, newAmount),
   );
 
   @override
@@ -50,11 +42,7 @@ class UserTrustEdgeRepository implements UserTrustEdgeRepositoryPort {
     required String subjectUserId,
     required String objectUserId,
     required int newAmount,
-  }) => _setVoteAmountCore(
-    subjectUserId: subjectUserId,
-    objectUserId: objectUserId,
-    newAmount: newAmount,
-  );
+  }) => _setVoteAmountCore(subjectUserId, objectUserId, newAmount);
 
   @override
   Future<bool> setVoteAmountAndDetectMutualFormationInTransaction({
@@ -75,11 +63,7 @@ class UserTrustEdgeRepository implements UserTrustEdgeRepositoryPort {
       subjectUserId: objectUserId,
       objectUserId: subjectUserId,
     );
-    await _setVoteAmountCore(
-      subjectUserId: subjectUserId,
-      objectUserId: objectUserId,
-      newAmount: newAmount,
-    );
+    await _setVoteAmountCore(subjectUserId, objectUserId, newAmount);
     return previousAmount <= 0 && newAmount > 0 && reverseAmount > 0;
   }
 
@@ -93,11 +77,11 @@ class UserTrustEdgeRepository implements UserTrustEdgeRepositoryPort {
         .getSingle();
   }
 
-  Future<void> _setVoteAmountCore({
-    required String subjectUserId,
-    required String objectUserId,
-    required int newAmount,
-  }) async {
+  Future<void> _setVoteAmountCore(
+    String subjectUserId,
+    String objectUserId,
+    int newAmount,
+  ) async {
     final existing = await _db.managers.voteUsers
         .filter(
           (v) => v.subject.id(subjectUserId) & v.object.id(objectUserId),
@@ -122,23 +106,9 @@ class UserTrustEdgeRepository implements UserTrustEdgeRepositoryPort {
           .update((o) => o(amount: Value(newAmount)));
     }
 
-    final bin = voteAmountToBin(newAmount);
-    if (bin == null) return;
-
-    await _trustEvidenceRepository.record(
-      TrustEvidenceBatch(
-        sourceUserId: subjectUserId,
-        at: DateTime.now().toUtc(),
-        items: [
-          TrustEvidence(
-            targetUserId: objectUserId,
-            bin: bin,
-            count: kTrustVoteEvidenceCount,
-            context: TrustContext.personal,
-            sourceType: TrustSourceType.userVote,
-          ),
-        ],
-      ),
+    await _db.customStatement(
+      r'SELECT public.trust_project_pair($1, $2)',
+      [subjectUserId, objectUserId],
     );
   }
 

@@ -1,8 +1,6 @@
 @Tags(['pg'])
 library;
 
-import 'dart:io';
-
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
 import 'package:test/test.dart';
@@ -14,23 +12,23 @@ import 'package:tentura_server/domain/invite_genealogy/invite_genealogy_node_key
 import 'package:tentura_server/domain/use_case/block_cascade_case.dart';
 import 'package:tentura_server/env.dart';
 
+import '../../support/disposable_pg_target.dart';
+
 /// Cascade materialization job — spec §9.3 T-B8/T-B9, §11 X5/X6/X8.
 /// (cascade_mode 2 was removed in m0138 — only mode 0/1 remain.)
 Future<void> main() async {
-  final postgresReachable = await _canConnectPostgres();
-  var skipReason = postgresReachable ? false : 'local Postgres not reachable';
+  // Disposable database at the head schema: the ambient database may predate
+  // the trust ledger (`trust_project_pair`), which block/unblock now call.
+  final target = DisposablePgTarget.fromNamedEnvironment(
+    envVarName: 'TENTURA_BLOCK_CASCADE_PG_TEST_DB',
+    defaultNamePrefix: 'tentura_test_bcj',
+  );
+  final postgresReachable = await canReachPostgresAdmin(target);
+  final skipReason = postgresReachable
+      ? false
+      : 'Postgres admin database not reachable for disposable test target';
 
-  if (postgresReachable) {
-    final probe = TenturaDb(_testEnv());
-    try {
-      if (!await _hasUserBlockSchema(probe)) {
-        skipReason = 'm0135 schema (user_block / block_hides) missing';
-      }
-    } finally {
-      await probe.close();
-    }
-  }
-
+  late DisposablePgWriterSession session;
   late TenturaDb db;
   late Env env;
   late UserBlockRepository repo;
@@ -312,7 +310,7 @@ WHERE blocker_id = '$blockerId' AND blocked_id = '$blockedId'
 
   void bindHarness(Env testEnv) {
     env = testEnv;
-    db = TenturaDb(env);
+    db = openDisposablePgDatabase(target);
     repo = UserBlockRepository(env, db);
     cascadeJob = BlockCascadeCase(
       repo,
@@ -322,16 +320,24 @@ WHERE blocker_id = '$blockerId' AND blocked_id = '$blockedId'
   }
 
   if (skipReason == false) {
+    setUpAll(() async {
+      session = await setUpDisposablePgWriter(target: target);
+    });
+
     tearDown(() async {
       await cleanup();
       await db.close();
+    });
+
+    tearDownAll(() async {
+      await tearDownDisposablePgWriter(session: session);
     });
   }
 
   test(
     'T-B8: mode-1 materialization ends done with materialized_count = 3',
     () async {
-      bindHarness(_testEnv());
+      bindHarness(_testEnv(target));
       await seedCanonicalFixture();
       await repo.block(blockerId: aliceId, blockedId: bobId, cascadeMode: 1);
       await runUntilComplete();
@@ -350,7 +356,7 @@ WHERE blocker_id = '$blockerId' AND blocked_id = '$blockedId'
   test(
     'T-B9: two batched passes yield the same inherited set as one pass',
     () async {
-      bindHarness(_testEnv(blockCascadeBatchSize: 2));
+      bindHarness(_testEnv(target, blockCascadeBatchSize: 2));
       await seedCanonicalFixture();
       await repo.block(blockerId: aliceId, blockedId: bobId, cascadeMode: 1);
       await runUntilComplete();
@@ -359,7 +365,7 @@ WHERE blocker_id = '$blockerId' AND blocked_id = '$blockedId'
       await cleanup();
       await db.close();
 
-      bindHarness(_testEnv(blockCascadeBatchSize: 500));
+      bindHarness(_testEnv(target, blockCascadeBatchSize: 500));
       await seedCanonicalFixture();
       await repo.block(blockerId: aliceId, blockedId: bobId, cascadeMode: 1);
       await runUntilComplete();
@@ -374,7 +380,7 @@ WHERE blocker_id = '$blockerId' AND blocked_id = '$blockedId'
   test(
     'X5: catch-up pass blocks signup that landed after snapshot',
     () async {
-      bindHarness(_testEnv(blockCascadeBatchSize: 1));
+      bindHarness(_testEnv(target, blockCascadeBatchSize: 1));
       await seedCanonicalFixture();
       await repo.block(blockerId: aliceId, blockedId: bobId, cascadeMode: 1);
 
@@ -423,7 +429,7 @@ WHERE blocker_id = '$aliceId'
   test(
     'X6: unblock mid-run aborts further inserts without error',
     () async {
-      bindHarness(_testEnv(blockCascadeBatchSize: 1));
+      bindHarness(_testEnv(target, blockCascadeBatchSize: 1));
       await seedCanonicalFixture();
       await repo.block(blockerId: aliceId, blockedId: bobId, cascadeMode: 1);
 
@@ -457,7 +463,7 @@ WHERE blocker_id = '$aliceId'
     'X8: large cascade caps at BLOCK_CASCADE_MAX_ROWS with status 3',
     () async {
       bindHarness(
-        _testEnv(blockCascadeMaxRows: 5, blockCascadeBatchSize: 2),
+        _testEnv(target, blockCascadeMaxRows: 5, blockCascadeBatchSize: 2),
       );
       await seedHubFixture();
       await repo.block(blockerId: aliceId, blockedId: hubId, cascadeMode: 1);
@@ -472,43 +478,20 @@ WHERE blocker_id = '$aliceId'
   );
 }
 
-Env _testEnv({
+Env _testEnv(
+  DisposablePgTarget target, {
   int? blockCascadeMaxDepth,
   int? blockCascadeMaxRows,
   int? blockCascadeBatchSize,
 }) => Env(
   environment: Environment.test,
-  pgHost: Platform.environment['POSTGRES_HOST'] ?? 'localhost',
-  pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
-  pgDatabase: Platform.environment['POSTGRES_DBNAME'] ?? 'postgres',
-  pgUsername: Platform.environment['POSTGRES_USERNAME'] ?? 'postgres',
-  pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
+  pgHost: target.databaseEnv.pgHost,
+  pgPort: target.databaseEnv.pgPort,
+  pgDatabase: target.databaseName,
+  pgUsername: target.databaseEnv.pgUsername,
+  pgPassword: target.databaseEnv.pgPassword,
   genealogyNodeKeySecret: 'test-genealogy-secret',
   blockCascadeMaxDepth: blockCascadeMaxDepth,
   blockCascadeMaxRows: blockCascadeMaxRows,
   blockCascadeBatchSize: blockCascadeBatchSize,
 );
-
-Future<bool> _canConnectPostgres() async {
-  try {
-    final db = TenturaDb(_testEnv());
-    await db.customSelect('SELECT 1').getSingle();
-    await db.close();
-    return true;
-  } catch (_) {
-    return false;
-  }
-}
-
-Future<bool> _hasUserBlockSchema(TenturaDb db) async {
-  final row = await db.customSelect(
-    '''
-SELECT
-  to_regclass('public.user_block') IS NOT NULL
-  AND to_regclass('public.user_block_intent') IS NOT NULL
-  AND (SELECT count(*) FROM pg_proc WHERE proname = 'block_cascade_candidates') > 0
-  AS ok
-''',
-  ).getSingle();
-  return row.read<bool>('ok');
-}

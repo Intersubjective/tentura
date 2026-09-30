@@ -1,8 +1,6 @@
 @Tags(['pg'])
 library;
 
-import 'dart:io';
-
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
@@ -24,30 +22,25 @@ import 'package:tentura_server/domain/use_case/transactional_attention_case.dart
 import 'package:tentura_server/domain/use_case/user_case.dart';
 import 'package:tentura_server/env.dart';
 
+import '../../support/disposable_pg_target.dart';
 import '../../support/pg_test_public_keys.dart';
 import '../../support/user_erasure_test_stack.dart';
 
 /// Direct block repository integration — spec §9.2 Group T-A.
 Future<void> main() async {
-  final postgresReachable = await _canConnectPostgres();
-  var skipReason = postgresReachable ? false : 'local Postgres not reachable';
-  var beaconBlockSkipReason = skipReason;
+  // Disposable database at the head schema: the ambient database may predate
+  // the trust ledger (`trust_project_pair`), which block/unblock now call.
+  final target = DisposablePgTarget.fromNamedEnvironment(
+    envVarName: 'TENTURA_USER_BLOCK_PG_TEST_DB',
+    defaultNamePrefix: 'tentura_test_ubr',
+  );
+  final postgresReachable = await canReachPostgresAdmin(target);
+  final skipReason = postgresReachable
+      ? false
+      : 'Postgres admin database not reachable for disposable test target';
+  final beaconBlockSkipReason = skipReason;
 
-  if (postgresReachable) {
-    final probe = TenturaDb(_testEnv());
-    try {
-      if (!await _hasUserBlockSchema(probe)) {
-        skipReason = 'm0135 schema (user_block / block_hides) missing';
-        beaconBlockSkipReason = skipReason;
-      } else if (!await _beaconVisibilityIncludesBlock(probe)) {
-        beaconBlockSkipReason =
-            'm0136 schema (beacon_can_read_content block clause) missing';
-      }
-    } finally {
-      await probe.close();
-    }
-  }
-
+  late DisposablePgWriterSession session;
   late TenturaDb db;
   late UserBlockRepository repo;
   late UserCase userCase;
@@ -143,7 +136,7 @@ ON CONFLICT (id) DO NOTHING
   }
 
   UserCase buildAccountErasureUserCase(UserRepository users) {
-    final env = _testEnv();
+    final env = _testEnv(target);
     final log = Logger('user_block_repository_pg_test');
     final dispatch = AttentionDispatchRepository(db, log);
     final unitOfWork = MutatingUnitOfWork(db);
@@ -165,8 +158,9 @@ ON CONFLICT (id) DO NOTHING
 
   if (skipReason == false) {
     setUpAll(() async {
-      db = TenturaDb(_testEnv());
-      repo = UserBlockRepository(_testEnv(), db);
+      session = await setUpDisposablePgWriter(target: target);
+      db = openDisposablePgDatabase(target);
+      repo = UserBlockRepository(_testEnv(target), db);
       userCase = buildAccountErasureUserCase(buildDefaultUserRepository(db));
     });
 
@@ -175,6 +169,7 @@ ON CONFLICT (id) DO NOTHING
     tearDownAll(() async {
       await cleanup();
       await db.close();
+      await tearDownDisposablePgWriter(session: session);
     });
   }
 
@@ -321,7 +316,7 @@ ON CONFLICT (id) DO NOTHING
   test(
     'T-A7c: failed account erasure rolls back block rows and owned beacon',
     () async {
-      final env = _testEnv();
+      final env = _testEnv(target);
       final failingUsers = _FailingUserRepository(
         env,
         db,
@@ -377,39 +372,15 @@ ON CONFLICT (id) DO NOTHING
   }, skip: skipReason);
 }
 
-Env _testEnv() => Env(
+Env _testEnv(DisposablePgTarget target) => Env(
   environment: Environment.test,
-  pgHost: Platform.environment['POSTGRES_HOST'] ?? 'localhost',
-  pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
-  pgDatabase: Platform.environment['POSTGRES_DBNAME'] ?? 'postgres',
-  pgUsername: Platform.environment['POSTGRES_USERNAME'] ?? 'postgres',
-  pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
+  pgHost: target.databaseEnv.pgHost,
+  pgPort: target.databaseEnv.pgPort,
+  pgDatabase: target.databaseName,
+  pgUsername: target.databaseEnv.pgUsername,
+  pgPassword: target.databaseEnv.pgPassword,
   genealogyNodeKeySecret: 'test-genealogy-secret',
 );
-
-Future<bool> _canConnectPostgres() async {
-  try {
-    final db = TenturaDb(_testEnv());
-    await db.customSelect('SELECT 1').getSingle();
-    await db.close();
-    return true;
-  } catch (_) {
-    return false;
-  }
-}
-
-Future<bool> _hasUserBlockSchema(TenturaDb db) async {
-  final row = await db.customSelect(
-    '''
-SELECT
-  to_regclass('public.user_block') IS NOT NULL
-  AND to_regclass('public.user_block_intent') IS NOT NULL
-  AND (SELECT count(*) FROM pg_proc WHERE proname = 'block_hides') > 0
-  AS ok
-''',
-  ).getSingle();
-  return row.read<bool>('ok');
-}
 
 final class _FailingUserRepository extends UserRepository {
   _FailingUserRepository(
@@ -436,15 +407,3 @@ final class _NoopTrustEvidenceRepository extends Fake
 
 final class _NoopInviteGenealogyRepository extends Fake
     implements InviteGenealogyRepositoryPort {}
-
-Future<bool> _beaconVisibilityIncludesBlock(TenturaDb db) async {
-  final row = await db.customSelect(
-    r'''
-SELECT prosrc LIKE '%block_hides%' AS ok
-FROM pg_proc p
-JOIN pg_namespace n ON n.oid = p.pronamespace
-WHERE n.nspname = 'public' AND p.proname = 'beacon_can_read_content'
-''',
-  ).getSingleOrNull();
-  return row?.read<bool>('ok') ?? false;
-}

@@ -13,10 +13,6 @@ import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart
 import 'package:tentura_server/domain/port/invite_seed_prompt_port.dart';
 import 'package:tentura_server/domain/port/trust_evidence_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
-import 'package:tentura_server/domain/trust/trust_bin.dart';
-import 'package:tentura_server/domain/trust/trust_context.dart';
-import 'package:tentura_server/domain/trust/trust_evidence.dart';
-import 'package:tentura_server/domain/trust/trust_source_type.dart';
 import 'package:tentura_server/env.dart';
 
 import '../database/tentura_db.dart';
@@ -36,7 +32,9 @@ class UserRepository implements UserRepositoryPort {
   UserRepository(
     this._env,
     this._database,
-    this._trustEvidenceRepository,
+    // Kept for DI signature stability; A5 removed the evidence write.
+    // ignore: avoid_unused_constructor_parameters
+    TrustEvidenceRepositoryPort trustEvidenceRepository,
     this._inviteGenealogyRepository,
     this._inviteSeedPrompt,
   );
@@ -44,7 +42,6 @@ class UserRepository implements UserRepositoryPort {
   final Env _env;
 
   final TenturaDb _database;
-  final TrustEvidenceRepositoryPort _trustEvidenceRepository;
   final InviteGenealogyRepositoryPort _inviteGenealogyRepository;
   final InviteSeedPromptPort _inviteSeedPrompt;
 
@@ -239,10 +236,7 @@ class UserRepository implements UserRepositoryPort {
         o(subject: invitation.userId, object: user.id, amount: 1),
       ],
     );
-    await _applyReciprocalTrustEdges(
-      userA: user.id,
-      userB: invitation.userId,
-    );
+    await _applyReciprocalTrustEdges(user.id, invitation.userId);
 
     await _upsertInviteContact(
       viewerId: invitation.userId,
@@ -410,10 +404,7 @@ class UserRepository implements UserRepositoryPort {
         o(subject: invitation.userId, object: user.id, amount: 1),
       ],
     );
-    await _applyReciprocalTrustEdges(
-      userA: user.id,
-      userB: invitation.userId,
-    );
+    await _applyReciprocalTrustEdges(user.id, invitation.userId);
 
     await _upsertInviteContact(
       viewerId: invitation.userId,
@@ -925,49 +916,28 @@ class UserRepository implements UserRepositoryPort {
         mode: InsertMode.insertOrIgnore,
         onConflict: DoNothing(),
       );
-      await _applyReciprocalTrustEdges(
-        userA: invitation.userId,
-        userB: userId,
-      );
+      await _applyReciprocalTrustEdges(invitation.userId, userId);
     }
 
     return true;
   });
 
-  Future<void> _applyReciprocalTrustEdges({
-    required String userA,
-    required String userB,
-  }) async {
-    final at = DateTime.timestamp();
-    await _trustEvidenceRepository.record(
-      TrustEvidenceBatch(
-        sourceUserId: userA,
-        at: at,
-        items: [
-          TrustEvidence(
-            targetUserId: userB,
-            bin: TrustBin.good,
-            count: kTrustVoteEvidenceCount,
-            context: TrustContext.personal,
-            sourceType: TrustSourceType.userVote,
-          ),
-        ],
-      ),
-    );
-    await _trustEvidenceRepository.record(
-      TrustEvidenceBatch(
-        sourceUserId: userB,
-        at: at,
-        items: [
-          TrustEvidence(
-            targetUserId: userA,
-            bin: TrustBin.good,
-            count: kTrustVoteEvidenceCount,
-            context: TrustContext.personal,
-            sourceType: TrustSourceType.userVote,
-          ),
-        ],
-      ),
-    );
+  Future<void> _applyReciprocalTrustEdges(
+    String userA,
+    String userB,
+  ) async {
+    final pairs = [
+      [userA, userB],
+      [userB, userA],
+    ]..sort((x, y) {
+        final c = x[0].compareTo(y[0]);
+        return c != 0 ? c : x[1].compareTo(y[1]);
+      });
+    for (final pair in pairs) {
+      await _database.customStatement(
+        r'SELECT public.trust_project_pair($1, $2)',
+        [pair[0], pair[1]],
+      );
+    }
   }
 }
