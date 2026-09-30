@@ -20,7 +20,4 @@ abstract class UserTrustEdgeRepositoryPort {
   });
 
   Future<void> forceRefreshStar(String sourceUserId);
-
-  /// Seeds trust edges from vote_user, computes prev_sent_weight, reloads MR.
-  Future<void> cutoverBackfillIfNeeded();
 }

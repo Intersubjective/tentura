@@ -24,12 +24,13 @@ class UserTrustEdgeRepository implements UserTrustEdgeRepositoryPort {
     // ignore: avoid_unused_constructor_parameters
     MeritrankRepositoryPort meritrank,
     this._trustEvidenceRepository, {
+    // Kept for DI signature stability; unused.
+    // ignore: avoid_unused_constructor_parameters
     WitnessWindowPort? witnessWindow,
-  }) : _witnessWindow = witnessWindow;
+  });
 
   final TenturaDb _db;
   final TrustEvidenceRepositoryPort _trustEvidenceRepository;
-  final WitnessWindowPort? _witnessWindow;
 
   @override
   Future<void> setVoteAmountAndApplyEvidence({
@@ -92,49 +93,6 @@ class UserTrustEdgeRepository implements UserTrustEdgeRepositoryPort {
         .getSingle();
   }
 
-  @override
-  Future<void> cutoverBackfillIfNeeded() async {
-    final hasProjection = await _db
-        .customSelect(
-          'SELECT EXISTS (SELECT 1 FROM public.user_trust_edge) AS present',
-        )
-        .map((r) => r.read<bool>('present'))
-        .getSingle();
-    if (hasProjection) return;
-
-    final votes = await _db
-        .customSelect(
-          'SELECT subject, object, amount FROM vote_user WHERE amount <> 0',
-        )
-        .get();
-    if (votes.isEmpty) return;
-
-    final at = DateTime.timestamp();
-    for (final vote in votes) {
-      final amount = vote.read<int>('amount');
-      final bin = voteAmountToBin(amount);
-      if (bin == null) continue;
-      await _trustEvidenceRepository.record(
-        TrustEvidenceBatch(
-          sourceUserId: vote.read<String>('subject'),
-          at: at,
-          items: [
-            TrustEvidence(
-              targetUserId: vote.read<String>('object'),
-              bin: bin,
-              count: kTrustVoteEvidenceCount,
-              context: TrustContext.personal,
-              sourceType: TrustSourceType.userVote,
-            ),
-          ],
-        ),
-      );
-    }
-
-    // MeritRank is fed by trust_publish_queue (m0202); no reset/init here.
-    await _witnessWindow?.bumpMrEpoch();
-  }
-
   Future<void> _setVoteAmountCore({
     required String subjectUserId,
     required String objectUserId,
@@ -170,7 +128,7 @@ class UserTrustEdgeRepository implements UserTrustEdgeRepositoryPort {
     await _trustEvidenceRepository.record(
       TrustEvidenceBatch(
         sourceUserId: subjectUserId,
-        at: DateTime.timestamp(),
+        at: DateTime.now().toUtc(),
         items: [
           TrustEvidence(
             targetUserId: objectUserId,

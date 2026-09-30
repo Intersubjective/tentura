@@ -11,9 +11,6 @@ class UserTrustEdgeRepositoryMock implements UserTrustEdgeRepositoryPort {
   const UserTrustEdgeRepositoryMock();
 
   @override
-  Future<void> cutoverBackfillIfNeeded() async {}
-
-  @override
   Future<void> forceRefreshStar(String sourceUserId) async {}
 
   @override

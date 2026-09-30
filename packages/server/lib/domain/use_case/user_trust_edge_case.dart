@@ -78,9 +78,6 @@ final class UserTrustEdgeCase extends UseCaseBase {
     await _trustMaintenance.forceRefreshAll();
   }
 
-  Future<void> cutoverBackfillIfNeeded() =>
-      _trustEdgeRepository.cutoverBackfillIfNeeded();
-
   Future<void> _invalidateWitnessWindows(
     String subjectUserId,
     String objectUserId,

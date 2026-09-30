@@ -52,7 +52,6 @@ void main() {
       ),
     ).thenAnswer((_) async => false);
     when(trustEdgeRepo.forceRefreshStar(any)).thenAnswer((_) async {});
-    when(trustEdgeRepo.cutoverBackfillIfNeeded()).thenAnswer((_) async {});
   });
 
   group('UserTrustEdgeCase.setUserVote', () {
@@ -255,15 +254,6 @@ void main() {
 
       verify(userRepo.getById(userId)).called(1);
       expect(trustMaintenance.forceRefreshAllCalls, 0);
-    });
-  });
-
-  group('UserTrustEdgeCase.cutoverBackfillIfNeeded', () {
-    test('delegates to trust edge repository', () async {
-      await case_.cutoverBackfillIfNeeded();
-
-      verify(trustEdgeRepo.cutoverBackfillIfNeeded()).called(1);
-      verifyZeroInteractions(userRepo);
     });
   });
 }

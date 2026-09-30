@@ -9,8 +9,6 @@ import 'package:test/test.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/trust_evidence_repository.dart';
-import 'package:tentura_server/data/repository/user_trust_edge_repository.dart';
-import 'package:tentura_server/domain/port/meritrank_repository_port.dart';
 import 'package:tentura_server/domain/trust/trust_bin.dart';
 import 'package:tentura_server/domain/trust/trust_context.dart';
 import 'package:tentura_server/domain/trust/trust_evidence.dart';
@@ -18,13 +16,6 @@ import 'package:tentura_server/domain/trust/trust_source_type.dart';
 
 import '../../support/disposable_pg_target.dart';
 import '../../support/pg_test_public_keys.dart';
-
-/// `cutoverBackfillIfNeeded` never touches MeritRank.
-class _UnusedMeritrank implements MeritrankRepositoryPort {
-  @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      throw StateError('unexpected MeritRank call: ${invocation.memberName}');
-}
 
 Future<void> main() async {
   final target = DisposablePgTarget.fromNamedEnvironment(
@@ -44,7 +35,6 @@ Future<void> main() async {
   late DisposablePgWriterSession session;
   late TenturaDb db;
   late TrustEvidenceRepository evidenceRepo;
-  late UserTrustEdgeRepository edgeRepo;
 
   const aliceId = 'UbtaiAlice01';
   const bobId = 'UbtaiBob0001';
@@ -78,11 +68,6 @@ ON CONFLICT (id) DO NOTHING
       session = await setUpDisposablePgWriter(target: target);
       db = openDisposablePgDatabase(target);
       evidenceRepo = TrustEvidenceRepository(db);
-      edgeRepo = UserTrustEdgeRepository(
-        db,
-        _UnusedMeritrank(),
-        evidenceRepo,
-      );
       for (final id in allIds) {
         await user(id);
       }
@@ -167,43 +152,6 @@ SELECT
             )
             .getSingleOrNull();
         expect(row, isNotNull, reason: 'evidence must reach the projection');
-        expect(row!.read<double>('trust_w'), greaterThan(0));
-      },
-      skip: skipReason,
-    );
-  });
-
-  group('UserTrustEdgeRepository.cutoverBackfillIfNeeded on the migrated schema',
-      () {
-    test(
-      'completes on an empty database',
-      () async {
-        await edgeRepo.cutoverBackfillIfNeeded();
-      },
-      skip: skipReason,
-    );
-
-    test(
-      'backfills an existing vote into the trust projection',
-      () async {
-        await db.customStatement(
-          "INSERT INTO public.vote_user (subject, object, amount) "
-          "VALUES ('$aliceId', '$bobId', 1)",
-        );
-
-        await edgeRepo.cutoverBackfillIfNeeded();
-
-        final row = await db
-            .customSelect(
-              'SELECT trust_w FROM public.user_trust_edge '
-              'WHERE subject = \$1 AND object = \$2',
-              variables: [
-                Variable<String>(aliceId),
-                Variable<String>(bobId),
-              ],
-            )
-            .getSingleOrNull();
-        expect(row, isNotNull);
         expect(row!.read<double>('trust_w'), greaterThan(0));
       },
       skip: skipReason,

@@ -6,7 +6,7 @@ import 'package:postgres/postgres.dart';
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/domain/use_case/attention_cutover_case.dart';
-import 'package:tentura_server/domain/use_case/user_trust_edge_case.dart';
+import 'package:tentura_server/domain/use_case/trust_cutover_case.dart';
 
 import 'di.dart';
 import 'worker.dart';
@@ -28,8 +28,8 @@ class App {
     await connection.execute('ALTER EXTENSION pgmer2 UPDATE');
     final getIt = await configureDependencies(env);
     await getIt.allReady();
-    await getIt<UserTrustEdgeCase>().cutoverBackfillIfNeeded();
-    // U18a — D19's cutover, on the same boot hook as the trust backfill and
+    await getIt<TrustCutoverCase>().runIfPending();
+    // U18a — D19's cutover, on the same boot hook as the trust cutover and
     // for the same reason: it is restartable, so an interrupted boot simply
     // resumes on the next one.
     await getIt<AttentionCutoverCase>().cutoverBackfillIfNeeded();
@@ -74,6 +74,11 @@ class App {
   //
   Future<void> _uploadGraph(Connection connection) async {
     try {
+      // Until the trust cutover is done the graph must stay untouched.
+      final done = await connection.execute(
+        "SELECT 1 FROM trust_cutover_state WHERE id = 1 AND status = 'done'",
+      );
+      if (done.isEmpty) return;
       final edgesResult = await connection.execute(
         'SELECT count(*) FROM mr_edgelist()',
       );
