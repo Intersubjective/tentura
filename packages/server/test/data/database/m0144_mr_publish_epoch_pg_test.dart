@@ -1,7 +1,6 @@
 @Tags(['pg', 'mr'])
 library;
 
-
 import 'package:drift/drift.dart' show Variable;
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
@@ -142,35 +141,6 @@ Future<void> main() async {
 
   group('mr_publish_epoch SQL', () {
     test(
-      'trust_rebuild_effective_edge bumps epoch on successful publish',
-      () async {
-        expect(await _readEpoch(database), BigInt.zero);
-        await _seedHonestTrustEdge(database, subject: _alice, object: _bob);
-        expect(await _readEpoch(database), greaterThan(BigInt.zero));
-      },
-      skip: skipReason,
-    );
-
-    test(
-      'trust_rebuild_effective_edge skips epoch bump when epsilon gate blocks publish',
-      () async {
-        await _seedHonestTrustEdge(database, subject: _alice, object: _bob);
-        final afterFirst = await _readEpoch(database);
-
-        await database.customSelect(
-          r'SELECT trust_rebuild_effective_edge($1, $2)',
-          variables: [
-            Variable<String>(_alice),
-            Variable<String>(_bob),
-          ],
-        ).getSingle();
-
-        expect(await _readEpoch(database), afterFirst);
-      },
-      skip: skipReason,
-    );
-
-    test(
       'notify_meritrank_vote_user_mutation bumps epoch when wired to vote_user',
       () async {
         await database.customStatement('''
@@ -191,7 +161,8 @@ VALUES ('$_alice', '$_bob', 1, now(), now())
 
   group('mr_publish_epoch use cases', () {
     test(
-      'setUserVote bumps epoch and drops stale cached witness window',
+      'setUserVote queues the pair, leaves the epoch to the publisher and drops '
+      'stale cached witness window',
       () async {
         await _seedCachedWindow(database, witnessWindow, ego: _alice);
 
@@ -201,7 +172,10 @@ VALUES ('$_alice', '$_bob', 1, now(), now())
           amount: 1,
         );
 
-        expect(await _readEpoch(database), greaterThan(BigInt.zero));
+        // m0202: MR is fed out of transaction by the publisher, which owns
+        // the epoch bump; the write path only queues the pair.
+        expect(await _queuedPairs(database), [(_alice, _bob)]);
+        expect(await _readEpoch(database), BigInt.zero);
         expect(
           await witnessWindow.cachedWindow(
             egoId: _alice,
@@ -215,12 +189,16 @@ VALUES ('$_alice', '$_bob', 1, now(), now())
     );
 
     test(
-      'block bumps epoch and invalidates cached windows for both users',
+      'block queues the withdrawal and invalidates cached windows for both '
+      'users',
       () async {
         await _seedHonestTrustEdge(database, subject: _alice, object: _bob);
         await _seedHonestTrustEdge(database, subject: _bob, object: _alice);
         await _seedCachedWindow(database, witnessWindow, ego: _alice);
         await _seedCachedWindow(database, witnessWindow, ego: _bob);
+        await database.customStatement(
+          'DELETE FROM public.trust_publish_queue',
+        );
         final epochBefore = await _readEpoch(database);
 
         await blockCase.block(
@@ -229,57 +207,9 @@ VALUES ('$_alice', '$_bob', 1, now(), now())
           cascadeMode: 0,
         );
 
-        expect(await _readEpoch(database), greaterThan(epochBefore));
+        expect(await _queuedPairs(database), contains((_alice, _bob)));
+        expect(await _readEpoch(database), epochBefore);
         expect(await _windowRowCount(database), 0);
-      },
-      skip: skipReason,
-    );
-
-    test(
-      'trust_rebuild_effective_edge does not bump epoch when mr_put_edge fails',
-      () async {
-        await database.customStatement(
-          r'''
-SELECT trust_apply_source_evidence(
-  'personal', $1, $2, 'very_good', 2
-)
-''',
-          [_alice, _bob],
-        );
-        final before = await _readEpoch(database);
-
-        await writer.execute('DROP EXTENSION IF EXISTS pgmer2 CASCADE');
-        await writer.execute('''
-CREATE FUNCTION public.mr_put_edge(
-  src text,
-  dst text,
-  weight double precision,
-  context text,
-  ticker bigint
-) RETURNS void
-LANGUAGE plpgsql
-AS \$\$
-BEGIN
-  RAISE EXCEPTION 'b3 induced mr_put_edge failure';
-END;
-\$\$;
-''');
-
-        try {
-          await database.customSelect(
-            r'SELECT trust_rebuild_effective_edge($1, $2, $3)',
-            variables: [
-              Variable<String>(_alice),
-              Variable<String>(_bob),
-              const Variable<double>(-1),
-            ],
-          ).getSingle();
-          expect(await _readEpoch(database), before);
-        } finally {
-          await writer.execute('DROP EXTENSION IF EXISTS pgmer2 CASCADE');
-          await writer.execute('CREATE EXTENSION IF NOT EXISTS pgmer2');
-          await migrateDbSchema(writer);
-        }
       },
       skip: skipReason,
     );
@@ -293,20 +223,27 @@ Future<void> _seedHonestTrustEdge(
 }) async {
   await db.customStatement(
     r'''
-SELECT trust_apply_source_evidence(
-  'personal', $1, $2, 'very_good', 2
-)
+INSERT INTO public.trust_evidence
+  (id, subject_user_id, object_user_id, kind, count, source_key)
+VALUES ('m0144-ev-' || $1::text || '-' || $2::text, $1, $2, 2, 2,
+        'm0144:' || $1::text || ':' || $2::text)
 ''',
     [subject, object],
   );
-  await db.customSelect(
-    r'SELECT trust_rebuild_effective_edge($1, $2, $3)',
-    variables: [
-      Variable<String>(subject),
-      Variable<String>(object),
-      const Variable<double>(-1),
-    ],
-  ).getSingle();
+  await db
+      .customSelect(
+        r'SELECT public.trust_project_pair($1, $2)',
+        variables: [Variable<String>(subject), Variable<String>(object)],
+      )
+      .getSingle();
+  // The publisher is not running: stamp what it would have published.
+  await db.customStatement(
+    r'''
+UPDATE public.user_trust_edge SET prev_sent_weight = target_w
+WHERE subject = $1 AND object = $2
+''',
+    [subject, object],
+  );
 }
 
 Future<void> _seedCachedWindow(
@@ -328,6 +265,21 @@ Future<void> _seedCachedWindow(
   expect(await _windowRowCount(db), greaterThan(0));
 }
 
+Future<List<(String, String)>> _queuedPairs(TenturaDb db) async {
+  final rows = await db.customSelect(
+    r'''
+SELECT subject_user_id, object_user_id
+FROM public.trust_publish_queue
+WHERE subject_user_id IN ('Ucapb3alice01', 'Ucapb3bob0001')
+ORDER BY subject_user_id, object_user_id
+''',
+  ).get();
+  return [
+    for (final r in rows)
+      (r.read<String>('subject_user_id'), r.read<String>('object_user_id')),
+  ];
+}
+
 Future<BigInt> _readEpoch(TenturaDb db) async {
   final row = await db
       .customSelect(
@@ -343,10 +295,13 @@ VALUES ('$id', '$id', 'pk-$id', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
 ON CONFLICT (id) DO NOTHING
 ''');
 
-Future<void> _clearMrEdge(TenturaDb db, String subject, String object) =>
-    db.customStatement(
-      "SELECT mr_put_edge('$subject', '$object', 0::double precision, ''::text, 0)",
-    );
+Future<void> _clearMrEdge(
+  TenturaDb db,
+  String subject,
+  String object,
+) => db.customStatement(
+  "SELECT mr_put_edge('$subject', '$object', 0::double precision, ''::text, 0)",
+);
 
 Future<void> _cleanup(TenturaDb db, MeritrankRepository meritRank) async {
   for (final id in _allIds) {
@@ -374,8 +329,12 @@ Future<void> _cleanup(TenturaDb db, MeritrankRepository meritRank) async {
     'OR blocked_id IN ($idList)',
   );
   await db.customStatement(
-    'DELETE FROM public.user_trust_source_edge '
-    'WHERE subject IN ($idList) OR object IN ($idList)',
+    'DELETE FROM public.trust_publish_queue '
+    'WHERE subject_user_id IN ($idList) OR object_user_id IN ($idList)',
+  );
+  await db.customStatement(
+    'DELETE FROM public.trust_evidence '
+    'WHERE subject_user_id IN ($idList) OR object_user_id IN ($idList)',
   );
   await db.customStatement(
     'DELETE FROM public.user_trust_edge '
@@ -395,15 +354,13 @@ Future<void> _resetEpoch(TenturaDb db) => db.customStatement(
 );
 
 Future<int> _windowRowCount(TenturaDb db) async {
-  final row = await db
-      .customSelect(
-        r'''
+  final row = await db.customSelect(
+    r'''
 SELECT count(*)::int AS c
 FROM public.ego_witness_window
 WHERE ego_user_id LIKE 'Ucapb3%'
 ''',
-      )
-      .getSingle();
+  ).getSingle();
   return row.read<int>('c');
 }
 
@@ -412,8 +369,7 @@ final class _PassThroughUoW extends Fake implements MutatingUnitOfWorkPort {
   Future<T> run<T>({
     required Future<T> Function() action,
     String? actorUserId,
-  }) =>
-      action();
+  }) => action();
 }
 
 final class _FakeUsers extends Fake implements UserRepositoryPort {
@@ -421,8 +377,7 @@ final class _FakeUsers extends Fake implements UserRepositoryPort {
   Future<UserEntity> getById(String id) async => UserEntity(id: id);
 }
 
-final class _FakeTrustMaintenance extends Fake
-    implements TrustMaintenancePort {
+final class _FakeTrustMaintenance extends Fake implements TrustMaintenancePort {
   @override
   Future<void> forceRefreshAll() async {}
 
@@ -441,8 +396,7 @@ final class _FakeForwardEdges extends Fake
   Future<List<ForwardEdgeEntity>> fetchByRecipientId(
     String recipientId, {
     String? context,
-  }) async =>
-      [];
+  }) async => [];
 }
 
 final class _FakeContacts extends Fake implements UserContactRepositoryPort {
@@ -450,8 +404,7 @@ final class _FakeContacts extends Fake implements UserContactRepositoryPort {
   Future<bool> delete({
     required String viewerId,
     required String subjectId,
-  }) async =>
-      false;
+  }) async => false;
 }
 
 final class _FakeBeacons extends Fake implements BeaconRepositoryPort {
@@ -459,15 +412,14 @@ final class _FakeBeacons extends Fake implements BeaconRepositoryPort {
   Future<BeaconEntity> getBeaconById({
     required String beaconId,
     String? filterByUserId,
-  }) async =>
-      BeaconEntity(
-        id: beaconId,
-        title: 't',
-        author: UserEntity(id: 'unused'),
-        createdAt: DateTime.utc(2026),
-        updatedAt: DateTime.utc(2026),
-        status: BeaconStatus.open,
-      );
+  }) async => BeaconEntity(
+    id: beaconId,
+    title: 't',
+    author: UserEntity(id: 'unused'),
+    createdAt: DateTime.utc(2026),
+    updatedAt: DateTime.utc(2026),
+    status: BeaconStatus.open,
+  );
 }
 
 final class _NoopCapabilityEvidence extends Fake
@@ -508,8 +460,7 @@ final class _FakeInbox extends Fake implements InboxRepositoryPort {
     String? context,
     int limit = 50,
     int offset = 0,
-  }) async =>
-      [];
+  }) async => [];
 
   @override
   Future<List<String>> fetchRejectedUserIdsByBeacon(String beaconId) async =>

@@ -32,7 +32,6 @@ Future<void> main() async {
   late Env env;
   late UserBlockRepository repo;
   late BlockCascadeCase cascadeJob;
-  late bool hasLegacyTrustLedger;
 
   // Canonical §9.1 ids with `g` infix for parallel-safe pg runs.
   const rootId = 'Ublkgroot0001';
@@ -220,31 +219,22 @@ ON CONFLICT (subject, object) DO UPDATE SET
     required String subject,
     required String object,
   }) async {
-    if (!hasLegacyTrustLedger) {
-      return [];
-    }
     final rows = await db.customSelect(
       '''
-SELECT trust_context, subject, object,
-       s_very_bad, s_bad, s_no_effect, s_good, s_very_good,
-       anchor_at::text AS anchor_at
-FROM public.user_trust_source_edge
-WHERE subject = '$subject' AND object = '$object'
-ORDER BY trust_context
+SELECT id, kind, count, source_key, retracted_at::text AS retracted_at
+FROM public.trust_evidence
+WHERE subject_user_id = '$subject' AND object_user_id = '$object'
+ORDER BY id
 ''',
     ).get();
     return rows
         .map(
           (row) => {
-            'trust_context': row.read<String>('trust_context'),
-            'subject': row.read<String>('subject'),
-            'object': row.read<String>('object'),
-            's_very_bad': row.read<double>('s_very_bad'),
-            's_bad': row.read<double>('s_bad'),
-            's_no_effect': row.read<double>('s_no_effect'),
-            's_good': row.read<double>('s_good'),
-            's_very_good': row.read<double>('s_very_good'),
-            'anchor_at': row.read<String>('anchor_at'),
+            'id': row.read<String>('id'),
+            'kind': row.read<int>('kind'),
+            'count': row.read<double>('count'),
+            'source_key': row.read<String>('source_key'),
+            'retracted_at': row.readNullable<String>('retracted_at'),
           },
         )
         .toList();
@@ -324,69 +314,28 @@ WHERE subject_user_id = $1 AND object_user_id = $2
         return honestRow.read<double>('w');
       }
     }
-    if (!hasLegacyTrustLedger) {
-      final row = await db
-          .customSelect(
-            r'''
+    final row = await db
+        .customSelect(
+          r'''
 SELECT trust_w AS w
 FROM public.user_trust_edge
 WHERE subject = $1 AND object = $2
 ''',
-            variables: [
-              Variable<String>(subject),
-              Variable<String>(object),
-            ],
-          )
-          .getSingleOrNull();
-      return row?.read<double>('w') ?? 0;
-    }
-    await db.customSelect(
-      r'SELECT public.trust_project_pair($1, $2)',
-      variables: [
-        Variable<String>(subject),
-        Variable<String>(object),
-      ],
-    ).getSingle();
-    if (epsilonOverride == -1) {
-      await db.customStatement(
-        r'''
-UPDATE public.user_trust_edge
-SET prev_sent_weight = target_w, updated_at = now()
-WHERE subject = $1 AND object = $2
-''',
-        [subject, object],
-      );
-      await db.customStatement(
-        r'''
-DELETE FROM public.trust_publish_queue
-WHERE subject_user_id = $1 AND object_user_id = $2
-''',
-        [subject, object],
-      );
-    }
-    final row = await db.customSelect(
-      r'''
-SELECT trust_w AS w
-FROM public.user_trust_edge
-WHERE subject = $1 AND object = $2
-''',
-      variables: [
-        Variable<String>(subject),
-        Variable<String>(object),
-      ],
-    ).getSingle();
-    return row.read<double>('w');
+          variables: [
+            Variable<String>(subject),
+            Variable<String>(object),
+          ],
+        )
+        .getSingleOrNull();
+    return row?.read<double>('w') ?? 0;
   }
 
   Future<int> trustEvidenceEventCount() async {
-    if (!hasLegacyTrustLedger) {
-      return 0;
-    }
     final idList = fixtureIds.map((id) => "'$id'").join(', ');
     final row = await db.customSelect(
       '''
 SELECT COUNT(*)::int AS c
-FROM public.trust_evidence_event
+FROM public.trust_evidence
 WHERE subject_user_id IN ($idList) OR object_user_id IN ($idList)
 ''',
     ).getSingle();
@@ -430,16 +379,10 @@ WHERE blocker_id = '$aliceId' AND blocked_id = '$bobId'
       'DELETE FROM public.user_block_intent WHERE blocker_id IN ($idList) '
       'OR blocked_id IN ($idList)',
     );
-    if (hasLegacyTrustLedger) {
-      await db.customStatement(
-        'DELETE FROM public.trust_evidence_event '
-        'WHERE subject_user_id IN ($idList) OR object_user_id IN ($idList)',
-      );
-      await db.customStatement(
-        'DELETE FROM public.user_trust_source_edge WHERE subject IN ($idList) '
-        'OR object IN ($idList)',
-      );
-    }
+    await db.customStatement(
+      'DELETE FROM public.trust_evidence '
+      'WHERE subject_user_id IN ($idList) OR object_user_id IN ($idList)',
+    );
     await db.customStatement(
       'DELETE FROM public.user_trust_edge WHERE subject IN ($idList) '
       'OR object IN ($idList)',
@@ -477,7 +420,6 @@ WHERE blocker_id = '$aliceId' AND blocked_id = '$bobId'
       await writer.execute('SET check_function_bodies = false');
       await migrateDbSchema(writer);
       bindHarness(_disposableEnv(target));
-      hasLegacyTrustLedger = await _hasLegacyTrustLedger(db);
     });
 
     setUp(() async {
@@ -626,7 +568,7 @@ WHERE blocker_id = '$aliceId' AND blocked_id = '$bobId'
   );
 
   test(
-    'T-G7: block/unblock cycle adds zero trust_evidence_event rows',
+    'T-G7: block/unblock cycle adds zero trust_evidence rows',
     () async {
       final eventsBefore = await trustEvidenceEventCount();
 
@@ -696,15 +638,6 @@ WHERE blocker_id = '$aliceId' OR blocked_id = '$aliceId'
     },
     skip: skipReason,
   );
-}
-
-Future<bool> _hasLegacyTrustLedger(TenturaDb db) async {
-  final row = await db.customSelect(
-    '''
-SELECT to_regclass('public.trust_evidence_event') IS NOT NULL AS ok
-''',
-  ).getSingle();
-  return row.read<bool>('ok');
 }
 
 Env _disposableEnv(DisposablePgTarget target) => Env(

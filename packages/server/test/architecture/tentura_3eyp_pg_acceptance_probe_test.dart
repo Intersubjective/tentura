@@ -20,7 +20,7 @@ Future<void> main() async {
 
   group('tentura-3eyp pg acceptance probe (parent tentura-jszi)', () {
     test('regression paths match tentura-3eyp bead enumeration', () {
-      expect(k3eypUserTrustEdgeSeedRegressionPaths, hasLength(7));
+      expect(k3eypUserTrustEdgeSeedRegressionPaths, hasLength(6));
     });
 
     test(

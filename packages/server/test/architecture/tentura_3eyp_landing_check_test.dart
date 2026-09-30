@@ -39,7 +39,7 @@ void main() {
     });
 
     test('3eyp regression pg paths are enumerated for jszi trust-seed landing', () {
-      expect(k3eypUserTrustEdgeSeedRegressionPaths, hasLength(7));
+      expect(k3eypUserTrustEdgeSeedRegressionPaths, hasLength(6));
       for (final path in k3eypUserTrustEdgeSeedRegressionPaths) {
         expect(
           File('${serverPackageRoot().path}/$path').existsSync(),

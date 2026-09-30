@@ -12,7 +12,6 @@ const k3eypUserTrustEdgeSeedRegressionPaths = [
   'test/data/repository/block_cascade_candidates_pg_test.dart',
   'test/data/repository/user_block_withdrawal_gate_pg_test.dart',
   'test/data/repository/user_block_graph_enforcement_pg_test.dart',
-  'test/data/repository/trust_migration_test.dart',
 ];
 
 /// Columns removed from `user_trust_edge` in migration m0202 step 10.

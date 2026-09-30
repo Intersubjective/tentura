@@ -36,9 +36,7 @@ import 'package:tentura_server/data/repository/user_availability_repository.dart
 import 'package:tentura_server/data/repository/user_profile_batch_lookup.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/data/repository/vote_user_friendship_lookup.dart';
-import 'package:tentura_server/domain/evaluation/beacon_evaluation_value.dart';
 import 'package:tentura_server/domain/entity/forward_delivery_result.dart';
-import 'package:tentura_server/domain/entity/gql_public/beacon_close_review_result.dart';
 import 'package:tentura_server/domain/entity/gql_public/beacon_status_result.dart';
 import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
 import 'package:tentura_server/domain/port/trust_evidence_repository_port.dart';
@@ -73,31 +71,16 @@ final class LifecycleOutcomeShape {
     required this.forwardDeliveredCount,
     required this.forwardSkippedCount,
     required this.acceptStatus,
-    required this.closeReviewStatus,
-    required this.closeReviewHasClosesAt,
-    required this.finalizeStatus,
-    required this.finalizeDidClose,
-    required this.finalizeTrustPairCount,
   });
 
   final int forwardDeliveredCount;
   final int forwardSkippedCount;
   final int acceptStatus;
-  final int closeReviewStatus;
-  final bool closeReviewHasClosesAt;
-  final int finalizeStatus;
-  final bool finalizeDidClose;
-  final int finalizeTrustPairCount;
 
   Map<String, Object?> toComparableMap() => {
     'forwardDeliveredCount': forwardDeliveredCount,
     'forwardSkippedCount': forwardSkippedCount,
     'acceptStatus': acceptStatus,
-    'closeReviewStatus': closeReviewStatus,
-    'closeReviewHasClosesAt': closeReviewHasClosesAt,
-    'finalizeStatus': finalizeStatus,
-    'finalizeDidClose': finalizeDidClose,
-    'finalizeTrustPairCount': finalizeTrustPairCount,
   };
 }
 
@@ -293,68 +276,14 @@ final class _ChildIndependenceHarness {
     );
     _assertAcceptShape(accepted);
 
-    final closeReview = await evaluationCase.beaconClose(
-      beaconId: beaconId,
-      userId: ownerId,
-      expectedRequiresReviewWindow: true,
-    );
-    _assertCloseReviewShape(closeReview);
-
-    await evaluationCase.evaluationSubmit(
-      beaconId: beaconId,
-      evaluatorId: ownerId,
-      evaluatedUserId: recipientId,
-      value: BeaconEvaluationValue.pos1,
-      reasonTags: const ['delivered_as_promised'],
-      note: 'thanks',
-      acknowledgedHelpTags: const ['transport'],
-    );
-    await evaluationCase.evaluationFinalize(
-      beaconId: beaconId,
-      userId: ownerId,
-    );
-
-    await evaluationCase.evaluationSubmit(
-      beaconId: beaconId,
-      evaluatorId: recipientId,
-      evaluatedUserId: ownerId,
-      value: BeaconEvaluationValue.pos1,
-      reasonTags: const ['clear_request'],
-      note: 'good request',
-    );
-    await evaluationCase.evaluationFinalize(
-      beaconId: beaconId,
-      userId: recipientId,
-    );
-
-    // The last required send must not close anything: the window is still open
-    // and the author may now close explicitly.
-    final afterLastSend = await evaluationCase.reviewWindowStatus(
-      beaconId: beaconId,
-      userId: ownerId,
-    );
-    expect(afterLastSend.hasWindow, isTrue);
-    expect(afterLastSend.windowComplete ?? false, isFalse);
-    expect(afterLastSend.canCloseNow, isTrue);
-
-    final closed = await evaluationCase.closeNow(
-      beaconId: beaconId,
-      userId: ownerId,
-    );
-    final afterClose = await evaluationCase.reviewWindowStatus(
-      beaconId: beaconId,
-      userId: ownerId,
-    );
+    // The review-window close/submit/finalize leg is gone: m0203 dropped the
+    // review tables and EvaluationRepository is an A18 stub until the closure
+    // flow replaces it, so the generic lifecycle now ends at acceptance.
 
     return LifecycleOutcomeShape(
       forwardDeliveredCount: forward.deliveredRecipientIds.length,
       forwardSkippedCount: forward.availabilitySkippedRecipientIds.length,
       acceptStatus: accepted.status,
-      closeReviewStatus: closeReview.status,
-      closeReviewHasClosesAt: closeReview.closesAt != null,
-      finalizeStatus: closed.status,
-      finalizeDidClose: afterClose.windowComplete ?? false,
-      finalizeTrustPairCount: 0,
     );
   }
 }
@@ -367,11 +296,6 @@ void _assertForwardShape(ForwardDeliveryResult result) {
 
 void _assertAcceptShape(BeaconStatusResult result) {
   expect(result.beaconId, isNotEmpty);
-  expect(result.status, isA<int>());
-}
-
-void _assertCloseReviewShape(BeaconCloseReviewResult result) {
-  expect(result.id, isNotEmpty);
   expect(result.status, isA<int>());
 }
 
@@ -477,7 +401,8 @@ Future<void> main() async {
         expect(
           nestedOutcome.toComparableMap(),
           standaloneOutcome.toComparableMap(),
-          reason: 'nested child must use the same generic lifecycle result shape',
+          reason:
+              'nested child must use the same generic lifecycle result shape',
         );
 
         final parentAfter = await _beaconSnapshot(
@@ -511,7 +436,8 @@ Future<void> main() async {
           BeaconHierarchyTopology.beaconC,
         );
         expect(childRow['parent_beacon_id'], BeaconHierarchyTopology.beaconB);
-        expect(childRow['status'], BeaconStatus.closed.smallintValue);
+        // The lifecycle stops at acceptance (review close leg removed in A18).
+        expect(childRow['status'], BeaconStatus.open.smallintValue);
       },
       skip: skipReason,
     );
@@ -685,43 +611,7 @@ Future<void> _resetBeaconForSecondRun({
 }) async {
   await writer.execute(
     Sql.named(r'''
-DELETE FROM public.trust_evidence_event WHERE request_id = @id
-'''),
-    parameters: {'id': beaconId},
-  );
-  await writer.execute(
-    Sql.named(r'''
-DELETE FROM public.beacon_evaluation_ack_tag WHERE beacon_id = @id
-'''),
-    parameters: {'id': beaconId},
-  );
-  await writer.execute(
-    Sql.named(r'''
-DELETE FROM public.beacon_evaluation WHERE beacon_id = @id
-'''),
-    parameters: {'id': beaconId},
-  );
-  await writer.execute(
-    Sql.named(r'''
-DELETE FROM public.beacon_evaluation_participant WHERE beacon_id = @id
-'''),
-    parameters: {'id': beaconId},
-  );
-  await writer.execute(
-    Sql.named(r'''
-DELETE FROM public.beacon_evaluation_visibility WHERE beacon_id = @id
-'''),
-    parameters: {'id': beaconId},
-  );
-  await writer.execute(
-    Sql.named(r'''
-DELETE FROM public.beacon_review_status WHERE beacon_id = @id
-'''),
-    parameters: {'id': beaconId},
-  );
-  await writer.execute(
-    Sql.named(r'''
-DELETE FROM public.beacon_review_window WHERE beacon_id = @id
+DELETE FROM public.trust_evidence WHERE beacon_id = @id
 '''),
     parameters: {'id': beaconId},
   );
@@ -782,9 +672,7 @@ Future<Map<String, Object?>> _beaconSnapshot(
 SELECT
   status,
   updated_at::text,
-  parent_beacon_id,
-  (SELECT status FROM public.beacon_review_window WHERE beacon_id = @id LIMIT 1),
-  (SELECT closes_at::text FROM public.beacon_review_window WHERE beacon_id = @id LIMIT 1)
+  parent_beacon_id
 FROM public.beacon
 WHERE id = @id
 '''),
@@ -795,8 +683,6 @@ WHERE id = @id
     'status': row.single[0],
     'updated_at': row.single[1],
     'parent_beacon_id': row.single[2],
-    'review_window_status': row.single[3],
-    'review_window_closes_at': row.single[4],
   };
 }
 
@@ -823,28 +709,19 @@ Future<List<Map<String, Object?>>> _trustSnapshot(
 ) async {
   final edgeRows = await writer.execute(
     Sql.named(r'''
-SELECT subject, object, s_good, prev_sent_weight, updated_at::text
+SELECT subject, object, trust_w, prev_sent_weight, updated_at::text
 FROM public.user_trust_edge
 WHERE subject = @userId OR object = @userId
 ORDER BY subject, object
 '''),
     parameters: {'userId': userId},
   );
-  final sourceRows = await writer.execute(
-    Sql.named(r'''
-SELECT trust_context, subject, object, s_good, updated_at::text
-FROM public.user_trust_source_edge
-WHERE subject = @userId OR object = @userId
-ORDER BY trust_context, subject, object
-'''),
-    parameters: {'userId': userId},
-  );
   final evidenceRows = await writer.execute(
     Sql.named(r'''
-SELECT trust_context, subject_user_id, object_user_id, bin, count::text
-FROM public.trust_evidence_event
+SELECT id, subject_user_id, object_user_id, kind, count::text
+FROM public.trust_evidence
 WHERE subject_user_id = @userId OR object_user_id = @userId
-ORDER BY trust_context, subject_user_id, object_user_id, bin
+ORDER BY id
 '''),
     parameters: {'userId': userId},
   );
@@ -854,26 +731,17 @@ ORDER BY trust_context, subject_user_id, object_user_id, bin
         'kind': 'edge',
         'subject': row[0],
         'object': row[1],
-        's_good': row[2],
+        'trust_w': row[2],
         'prev_sent_weight': row[3],
-        'updated_at': row[4],
-      },
-    for (final row in sourceRows)
-      {
-        'kind': 'source',
-        'trust_context': row[0],
-        'subject': row[1],
-        'object': row[2],
-        's_good': row[3],
         'updated_at': row[4],
       },
     for (final row in evidenceRows)
       {
         'kind': 'evidence',
-        'trust_context': row[0],
+        'id': row[0],
         'subject_user_id': row[1],
         'object_user_id': row[2],
-        'bin': row[3],
+        'evidence_kind': row[3],
         'count': row[4],
       },
   ];
@@ -898,8 +766,7 @@ ORDER BY peer_id
     parameters: {'userId': userId},
   );
   return [
-    for (final row in rows)
-      {'peer_id': row[0], 'fwd': row[1], 'rev': row[2]},
+    for (final row in rows) {'peer_id': row[0], 'fwd': row[1], 'rev': row[2]},
   ];
 }
 
@@ -927,41 +794,7 @@ Future<void> _cleanupLifecycleArtifacts(Connection writer) async {
   for (final id in ids) {
     await writer.execute(
       Sql.named(
-        "DELETE FROM public.trust_evidence_event WHERE request_id = @id",
-      ),
-      parameters: {'id': id},
-    );
-    await writer.execute(
-      Sql.named(
-        "DELETE FROM public.beacon_evaluation_ack_tag WHERE beacon_id = @id",
-      ),
-      parameters: {'id': id},
-    );
-    await writer.execute(
-      Sql.named("DELETE FROM public.beacon_evaluation WHERE beacon_id = @id"),
-      parameters: {'id': id},
-    );
-    await writer.execute(
-      Sql.named(
-        "DELETE FROM public.beacon_evaluation_participant WHERE beacon_id = @id",
-      ),
-      parameters: {'id': id},
-    );
-    await writer.execute(
-      Sql.named(
-        "DELETE FROM public.beacon_evaluation_visibility WHERE beacon_id = @id",
-      ),
-      parameters: {'id': id},
-    );
-    await writer.execute(
-      Sql.named(
-        "DELETE FROM public.beacon_review_status WHERE beacon_id = @id",
-      ),
-      parameters: {'id': id},
-    );
-    await writer.execute(
-      Sql.named(
-        "DELETE FROM public.beacon_review_window WHERE beacon_id = @id",
+        "DELETE FROM public.trust_evidence WHERE beacon_id = @id",
       ),
       parameters: {'id': id},
     );
