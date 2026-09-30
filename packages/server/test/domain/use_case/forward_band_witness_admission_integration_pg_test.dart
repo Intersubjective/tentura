@@ -16,7 +16,6 @@ import 'package:tentura_server/data/repository/beacon_repository.dart';
 import 'package:tentura_server/data/repository/capability_cell_repository.dart';
 import 'package:tentura_server/data/repository/capability_evidence_repository.dart';
 import 'package:tentura_server/data/repository/capability_own_evidence_repository.dart';
-import 'package:tentura_server/data/repository/evaluation_repository.dart';
 import 'package:tentura_server/data/repository/forward_edge_repository.dart';
 import 'package:tentura_server/data/repository/help_offer_repository.dart';
 import 'package:tentura_server/data/repository/inbox_repository.dart';
@@ -30,18 +29,12 @@ import 'package:tentura_server/data/repository/witness_window_repository.dart';
 import 'package:tentura_server/domain/capability/capability_consts.dart';
 import 'package:tentura_server/domain/capability/capability_evidence_models.dart';
 import 'package:tentura_server/domain/capability/witness_window_policy.dart';
-import 'package:tentura_server/domain/evaluation/beacon_evaluation_value.dart';
-import 'package:tentura_server/domain/evaluation/evaluation_participant_role.dart';
 import 'package:tentura_server/domain/use_case/capability_projection_case.dart';
 import 'package:tentura_server/domain/use_case/forward_band_case.dart';
-import 'package:tentura_server/domain/use_case/evaluation/review_finalization_case.dart';
 import 'package:tentura_server/env.dart';
 
-import '../../support/fake_beacon_hierarchy_repository.dart';
-import '../../support/beacon_lifecycle_effects_test_support.dart';
-import '../../support/review_finalization_test_support.dart';
-
 import '../../support/disposable_pg_target.dart';
+import '../../support/forward_band_witness_g3a_pg_cleanup.dart';
 
 const _alice = 'Ucapg3alice1';
 const _bob = 'Ucapg3bob001';
@@ -73,8 +66,8 @@ Future<void> main() async {
     late BandCandidateRepository bandCandidateRepo;
     late RoutingMuteRepository routingMuteRepo;
     late ForwardBandCase forwardBandCase;
-    late ReviewFinalizationCase finalizationCase;
-    late EvaluationRepository evalRepo;
+    late CapabilityEvidenceRepository capEvidenceRepo;
+    late MutatingUnitOfWork unitOfWork;
 
     setUpAll(() async {
       await target.recreate();
@@ -136,27 +129,12 @@ Future<void> main() async {
         logger: logger,
       );
 
-      evalRepo = EvaluationRepository(database);
-      final capEvidenceRepo = CapabilityEvidenceRepository(database);
-      final unitOfWork = MutatingUnitOfWork(database);
-      finalizationCase = ReviewFinalizationCase(
-        unitOfWork,
-        evalRepo,
-        FakeForwardEdges(),
-        FakeAttribution(),
-        FakeHelpOffers(),
-        RecordingTrustEvidence(),
-        capEvidenceRepo,
-        FakeBeaconHierarchyRepository(),
-        buildLifecycleEffectsCase(),
-        NoopAttentionSystemSettlement(),
-        env: env,
-        logger: logger,
-      );
+      capEvidenceRepo = CapabilityEvidenceRepository(database);
+      unitOfWork = MutatingUnitOfWork(database);
     });
 
     setUp(() async {
-      await _cleanup(database, meritRank);
+      await forwardBandWitnessG3aIntegrationCleanup(database, meritRank);
       for (final id in _allIds) {
         await _insertUser(database, id);
       }
@@ -170,35 +148,22 @@ Future<void> main() async {
       await target.drop();
     });
 
-    Future<void> markPackagesSent(Iterable<String> evaluatorIds) async {
-      for (final evaluatorId in evaluatorIds) {
-        await evalRepo.setReviewUserStatus(
-          beaconId: _beaconId,
-          userId: evaluatorId,
-          status: 2,
-        );
-      }
-    }
-
     test(
       'witness admission gates Tier B network-outcome band rows per ego',
       () async {
-        await evalRepo.submitEvaluationAtomic(
-          beaconId: _beaconId,
-          evaluatorId: _bob,
-          evaluatedUserId: _carol,
-          value: BeaconEvaluationValue.pos1,
-          reasonTags: const ['quality'],
-          note: 'thanks',
-          ackTags: const [_tag],
-        );
-        await markPackagesSent([_bob]);
-        final closeResult = await finalizationCase.closeAndFinalize(
-          _beaconId,
-          reason: 'test',
+        await unitOfWork.run(
           actorUserId: _bob,
+          action: () => capEvidenceRepo.emitOutcomeEvidenceBatch(
+            beaconId: _beaconId,
+            emissions: [
+              OutcomeEmission(
+                observerUserId: _bob,
+                subjectUserId: _carol,
+                tagSlug: _tag,
+              ),
+            ],
+          ),
         );
-        expect(closeResult.didClose, isTrue);
         expect(
           await _outcomeEvidenceCount(
             writer,
@@ -207,7 +172,8 @@ Future<void> main() async {
             tagSlug: _tag,
           ),
           1,
-          reason: 'finalized close must emit beacon-scoped outcome evidence',
+          reason:
+              'outcome emission must write beacon-scoped close-ack evidence',
         );
 
         final aliceCandidates = await bandCandidateRepo.candidatesFor(
@@ -393,59 +359,6 @@ ON CONFLICT (id) DO UPDATE SET
   primary_need_slug = EXCLUDED.primary_need_slug,
   status = EXCLUDED.status
 ''');
-
-  await writer.execute(r'''
-INSERT INTO public.beacon_review_window (
-  beacon_id, opened_at, closes_at, status
-) VALUES (
-  'Bcapg3bcn001',
-  now() - interval '1 day',
-  now() + interval '7 days',
-  0
-)
-ON CONFLICT (beacon_id) DO UPDATE SET
-  opened_at = EXCLUDED.opened_at,
-  closes_at = EXCLUDED.closes_at,
-  status = EXCLUDED.status
-''');
-
-  await writer.execute('''
-INSERT INTO public.beacon_evaluation_participant (
-  beacon_id, user_id, role, contribution_summary, causal_hint
-) VALUES
-  (
-    'Bcapg3bcn001',
-    'Ucapg3bob001',
-    ${EvaluationParticipantRole.author.dbValue},
-    'authored',
-    'hint'
-  ),
-  (
-    'Bcapg3bcn001',
-    'Ucapg3carol1',
-    ${EvaluationParticipantRole.committer.dbValue},
-    'helped',
-    'hint'
-  )
-ON CONFLICT DO NOTHING
-''');
-
-  await writer.execute(r'''
-INSERT INTO public.beacon_evaluation_visibility (
-  beacon_id, evaluator_id, participant_id
-) VALUES (
-  'Bcapg3bcn001',
-  'Ucapg3bob001',
-  'Ucapg3carol1'
-)
-ON CONFLICT DO NOTHING
-''');
-
-  await writer.execute(r'''
-INSERT INTO public.beacon_review_status (beacon_id, user_id, status)
-VALUES ('Bcapg3bcn001', 'Ucapg3bob001', 0)
-ON CONFLICT DO NOTHING
-''');
 }
 
 Future<void> _trustBothWays(TenturaDb db, String a, String b) async {
@@ -467,81 +380,9 @@ Future<void> _mrEdge(
   double weight,
 ) => meritRank.putEdge(nodeA: subject, nodeB: object, weight: weight);
 
-Future<void> _clearMrEdge(
-  TenturaDb db,
-  String subject,
-  String object,
-) => db.customStatement(
-  "SELECT mr_put_edge('$subject', '$object', 0::double precision, ''::text, 0)",
-);
-
 Future<void> _insertUser(TenturaDb db, String id) => db.customStatement('''
 INSERT INTO public."user" (id, display_name, public_key, created_at, updated_at)
 VALUES ('$id', '$id', 'pk-$id', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
 ON CONFLICT (id) DO NOTHING
 ''');
-
-Future<void> _cleanup(TenturaDb db, MeritrankRepository meritRank) async {
-  for (final ego in [_alice, _eve]) {
-    for (final peer in [_bob, _carol, _alice, _eve]) {
-      if (ego == peer) continue;
-      await _clearMrEdge(db, ego, peer);
-      await _clearMrEdge(db, peer, ego);
-    }
-  }
-  await _clearMrEdge(db, _alice, _bob);
-  await _clearMrEdge(db, _bob, _alice);
-
-  final idList = _allIds.map((id) => "'$id'").join(', ');
-  await db.customStatement(
-    'DELETE FROM public.capability_routing_mute WHERE user_id IN ($idList)',
-  );
-  await db.customStatement(
-    'DELETE FROM public.ego_witness_window '
-    'WHERE ego_user_id IN ($idList) OR witness_user_id IN ($idList)',
-  );
-  await db.customStatement(
-    'DELETE FROM public.person_capability_event '
-    'WHERE observer_user_id IN ($idList) OR subject_user_id IN ($idList)',
-  );
-  await db.customStatement(
-    'DELETE FROM public.capability_evidence_edge '
-    'WHERE observer_user_id IN ($idList) OR subject_user_id IN ($idList)',
-  );
-  await db.customStatement(
-    'DELETE FROM public.capability_evidence_generation '
-    'WHERE observer_user_id IN ($idList) OR subject_user_id IN ($idList)',
-  );
-  await db.customStatement(
-    "DELETE FROM public.beacon_evaluation_ack_tag WHERE beacon_id = '$_beaconId'",
-  );
-  await db.customStatement(
-    "DELETE FROM public.beacon_evaluation WHERE beacon_id = '$_beaconId'",
-  );
-  await db.customStatement(
-    "DELETE FROM public.beacon_evaluation_participant WHERE beacon_id = '$_beaconId'",
-  );
-  await db.customStatement(
-    "DELETE FROM public.beacon_evaluation_visibility WHERE beacon_id = '$_beaconId'",
-  );
-  await db.customStatement(
-    "DELETE FROM public.beacon_review_status WHERE beacon_id = '$_beaconId'",
-  );
-  await db.customStatement(
-    "UPDATE public.beacon SET status = 0 WHERE id = '$_beaconId'",
-  );
-  await db.customStatement(
-    "DELETE FROM public.beacon_review_window WHERE beacon_id = '$_beaconId'",
-  );
-  await db.customStatement(
-    "DELETE FROM public.beacon WHERE id = '$_beaconId'",
-  );
-  await db.customStatement(
-    'DELETE FROM public.vote_user '
-    'WHERE subject IN ($idList) OR object IN ($idList)',
-  );
-  await db.customStatement(
-    'DELETE FROM public."user" WHERE id IN ($idList)',
-  );
-}
 
