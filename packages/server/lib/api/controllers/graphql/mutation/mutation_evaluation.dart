@@ -1,9 +1,7 @@
 import 'package:tentura_server/domain/use_case/evaluation_case.dart';
 
-import '../custom_types.dart';
 import '../gql_nodel_base.dart';
 import '../input/_input_types.dart';
-import '../mappers/gql_v2_dto_maps.dart';
 
 final class MutationEvaluation extends GqlNodeBase {
   MutationEvaluation({EvaluationCase? evaluationCase})
@@ -14,10 +12,6 @@ final class MutationEvaluation extends GqlNodeBase {
   final _evaluatedUserId = InputFieldString(fieldName: 'evaluatedUserId');
 
   final _note = InputFieldString(fieldName: 'note');
-
-  final _expectedRequiresReviewWindow = InputFieldBool(
-    fieldName: 'expectedRequiresReviewWindow',
-  );
 
   final GraphQLFieldInput<List<String>, List<String>> _reasonTagsField =
       GraphQLFieldInput(
@@ -41,82 +35,12 @@ final class MutationEvaluation extends GqlNodeBase {
   );
 
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
-    beaconClose,
-    beaconExtendReview,
-    beaconReopen,
-    beaconCloseNow,
     evaluationSubmit,
     evaluationFinalize,
     evaluationSkip,
     evaluationDraftSave,
     evaluationDraftDelete,
   ];
-
-  GraphQLObjectField<dynamic, dynamic> get beaconClose => GraphQLObjectField(
-    'beaconClose',
-    gqlTypeBeaconCloseReviewResult.nonNullable(),
-    arguments: [
-      InputFieldId.field,
-      _expectedRequiresReviewWindow.field,
-    ],
-    resolve: (_, args) {
-      final jwt = getCredentials(args);
-      return _evaluationCase
-          .beaconClose(
-            beaconId: InputFieldId.fromArgsNonNullable(args),
-            userId: jwt.sub,
-            expectedRequiresReviewWindow: _expectedRequiresReviewWindow
-                .fromArgsNonNullable(args),
-          )
-          .then(beaconCloseReviewResultToGqlMap);
-    },
-  );
-
-  GraphQLObjectField<dynamic, dynamic> get beaconExtendReview =>
-      GraphQLObjectField(
-        'beaconExtendReview',
-        gqlTypeBeaconExtendReviewResult.nonNullable(),
-        arguments: [InputFieldId.field],
-        resolve: (_, args) {
-          final jwt = getCredentials(args);
-          return _evaluationCase
-              .extendReviewWindow(
-                beaconId: InputFieldId.fromArgsNonNullable(args),
-                userId: jwt.sub,
-              )
-              .then(beaconExtendReviewResultToGqlMap);
-        },
-      );
-
-  GraphQLObjectField<dynamic, dynamic> get beaconReopen => GraphQLObjectField(
-    'beaconReopen',
-    gqlTypeBeaconCloseReviewResult.nonNullable(),
-    arguments: [InputFieldId.field],
-    resolve: (_, args) {
-      final jwt = getCredentials(args);
-      return _evaluationCase
-          .reopenFromReview(
-            beaconId: InputFieldId.fromArgsNonNullable(args),
-            userId: jwt.sub,
-          )
-          .then(beaconCloseReviewResultToGqlMap);
-    },
-  );
-
-  GraphQLObjectField<dynamic, dynamic> get beaconCloseNow => GraphQLObjectField(
-    'beaconCloseNow',
-    gqlTypeBeaconCloseReviewResult.nonNullable(),
-    arguments: [InputFieldId.field],
-    resolve: (_, args) {
-      final jwt = getCredentials(args);
-      return _evaluationCase
-          .closeNow(
-            beaconId: InputFieldId.fromArgsNonNullable(args),
-            userId: jwt.sub,
-          )
-          .then(beaconCloseReviewResultToGqlMap);
-    },
-  );
 
   GraphQLObjectField<dynamic, dynamic> get evaluationSubmit =>
       GraphQLObjectField(

@@ -12,6 +12,7 @@ import 'mutation_capability_routing.dart';
 import 'mutation_help_offer.dart';
 import 'mutation_coordination.dart';
 import 'mutation_constellation_anchor.dart';
+import 'mutation_closure.dart';
 import 'mutation_complaint.dart';
 import 'mutation_contact.dart';
 import 'mutation_evaluation.dart';
@@ -39,6 +40,7 @@ List<GraphQLObjectField<dynamic, dynamic>> get mutationsAll => [
   ...MutationHelpOffer().all,
   ...MutationCoordination().all,
   ...MutationConstellationAnchor().all,
+  ...MutationClosure().all,
   ...MutationComplaint().all,
   ...MutationContact().all,
   ...MutationEvaluation().all,

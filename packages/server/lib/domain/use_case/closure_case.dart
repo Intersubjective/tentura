@@ -8,8 +8,10 @@ import 'package:tentura_server/domain/closure/author_split.dart';
 import 'package:tentura_server/domain/closure/closure_entities.dart';
 import 'package:tentura_server/domain/closure/closure_exception.dart';
 import 'package:tentura_server/domain/closure/closure_outcome.dart';
+import 'package:tentura_server/domain/closure/closure_view.dart';
 import 'package:tentura_server/domain/closure/finalize_reason.dart';
 import 'package:tentura_server/domain/closure/membership_reducer.dart';
+import 'package:tentura_server/domain/commitment/commitment_event.dart';
 import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
 import 'package:tentura_server/domain/commitment/commitment_state.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -609,6 +611,194 @@ final class ClosureCase extends UseCaseBase {
       await _repo.saveStory(beaconId: beaconId, body: text);
     },
   );
+
+  /// Members who were blocked: their last membership event is
+  /// `blockedCleanup` (a later acknowledgement or readmission lifts it).
+  Set<String> _blockedIds(Map<String, List<CommitmentEvent>> eventsByUser) => {
+    for (final MapEntry(key: userId, value: events) in eventsByUser.entries)
+      if (_isBlocked(events)) userId,
+  };
+
+  static bool _isBlocked(List<CommitmentEvent> events) {
+    var blocked = false;
+    for (final e in List<CommitmentEvent>.from(
+      events,
+    )..sort((a, b) => a.seq.compareTo(b.seq))) {
+      switch (e.kind) {
+        case CommitmentEventKind.blockedCleanup:
+          blocked = true;
+        case CommitmentEventKind.acknowledged:
+        case CommitmentEventKind.readmittedToChat:
+          blocked = false;
+        case CommitmentEventKind.offered:
+        case CommitmentEventKind.acknowledgementSoftened:
+        case CommitmentEventKind.withdrawnByHelper:
+        case CommitmentEventKind.releasedByAuthor:
+        case CommitmentEventKind.removedFromChat:
+        case CommitmentEventKind.unansweredAtClose:
+          break;
+      }
+    }
+    return blocked;
+  }
+
+  /// Role-specific closure state (Arch §7). Outsiders and blocked members get
+  /// the same not-found, so the role does not leak.
+  Future<ClosureStateView> state({
+    required String viewerId,
+    required String beaconId,
+  }) async {
+    final epoch =
+        await _repo.liveEpoch(beaconId) ?? await _repo.latestEpoch(beaconId);
+    if (epoch == null || epoch.status == ClosureEpochStatus.cancelled) {
+      throw IdNotFoundException(id: beaconId);
+    }
+    final authorId = (await _beacons.getBeaconById(
+      beaconId: beaconId,
+    )).author.id;
+    final rows = await _repo.members(beaconId: beaconId, epoch: epoch.epoch);
+    final blocked = _blockedIds(await _commitments.eventsByUser(beaconId));
+
+    final role = viewerId == authorId
+        ? ClosureRole.author
+        : !rows.any((m) => m.userId == viewerId) || blocked.contains(viewerId)
+        ? throw IdNotFoundException(id: beaconId)
+        : rows.any(
+            // A departed member (voluntary or removed) reads as a member.
+            (m) =>
+                m.userId == viewerId && m.activeAtOpen && m.departure == null,
+          )
+        ? ClosureRole.voter
+        : ClosureRole.member;
+    final isAuthor = role == ClosureRole.author;
+
+    final members = [
+      for (final m in rows)
+        ClosureMemberView(
+          id: m.userId,
+          notInRequest: m.departure != null || blocked.contains(m.userId),
+          departure: isAuthor
+              ? (m.departure ??
+                        (blocked.contains(m.userId) ? Departure.removed : null))
+                    ?.name
+              : null,
+        ),
+    ];
+    final myMarks = [
+      for (final r in await _repo.marks(beaconId))
+        if (r.markerId == viewerId) r.targetId,
+    ];
+    final finalized = epoch.status == ClosureEpochStatus.finalized;
+    final story = isAuthor || finalized ? await _repo.story(beaconId) : null;
+    final earlyCloseAt = epoch.openedAt.add(_closeNowGrace);
+
+    switch (role) {
+      case ClosureRole.author:
+        final outcomes = await _repo.outcomes(beaconId);
+        return ClosureStateView(
+          epoch: epoch.epoch,
+          status: epoch.status,
+          role: role,
+          members: members,
+          closesAt: epoch.closesAt,
+          myMarks: myMarks,
+          outcomes: {
+            for (final o in outcomes)
+              if (o.outcome != null) o.helperId: o.outcome!,
+          },
+          split: await _repo.split(beaconId),
+          earlyCloseAt: earlyCloseAt,
+          canCloseNow:
+              !finalized &&
+              canCloseNow(
+                epoch: epoch,
+                members: rows,
+                outcomes: outcomes,
+                commits: await _repo.commits(beaconId),
+                now: DateTime.timestamp(),
+              ),
+          // Every earlier epoch of a live one was cancelled (reopen).
+          canReopen: canReopen(
+            live: finalized ? null : epoch,
+            cancelledEpochs: epoch.epoch - 1,
+          ),
+          story: story,
+        );
+      case ClosureRole.voter:
+        final mine = {
+          for (final r in await _repo.supports(
+            beaconId: beaconId,
+            version: ClosureSupportVersion.draft,
+          ))
+            if (r.voterId == viewerId) r.targetId,
+        };
+        final committed = {
+          for (final r in await _repo.supports(
+            beaconId: beaconId,
+            version: ClosureSupportVersion.committed,
+          ))
+            if (r.voterId == viewerId) r.targetId,
+        };
+        final hasCommit = (await _repo.commits(
+          beaconId,
+        )).any((c) => c.voterId == viewerId);
+        return ClosureStateView(
+          epoch: epoch.epoch,
+          status: epoch.status,
+          role: role,
+          members: members,
+          closesAt: epoch.closesAt,
+          myMarks: myMarks,
+          mySupport: mine.toList(),
+          inCalcText: !hasCommit
+              ? 'notCounted'
+              : mine.length == committed.length && mine.containsAll(committed)
+              ? 'counted'
+              : 'differs',
+          earlyCloseAt: earlyCloseAt,
+          story: story,
+        );
+      case ClosureRole.member:
+        return ClosureStateView(
+          epoch: epoch.epoch,
+          status: epoch.status,
+          role: role,
+          members: members,
+          closesAt: epoch.closesAt,
+          myMarks: myMarks,
+          story: story,
+        );
+    }
+  }
+
+  /// The viewer's own result of the latest epoch; members only (blocked
+  /// members included). The author is not a member.
+  Future<ClosureResultView?> resultForViewer({
+    required String viewerId,
+    required String beaconId,
+  }) async {
+    final epoch = await _repo.latestEpoch(beaconId);
+    if (epoch == null ||
+        !(await _repo.members(
+          beaconId: beaconId,
+          epoch: epoch.epoch,
+        )).any((m) => m.userId == viewerId)) {
+      throw IdNotFoundException(id: beaconId);
+    }
+    if (epoch.status != ClosureEpochStatus.finalized) return null;
+    final row = await _repo.resultFor(beaconId: beaconId, userId: viewerId);
+    if (row == null) return null;
+    return ClosureResultView(
+      outcome: row.outcome,
+      band: row.band,
+      draftFlag: row.draftFlag,
+      marks: [
+        for (final r in await _repo.marks(beaconId))
+          if (r.markerId == viewerId) r.targetId,
+      ],
+      story: await _repo.story(beaconId),
+    );
+  }
 
   /// Re-derives [helperId]'s departure after a commitment event. Callers hold
   /// the per-request lock and run in the same transaction as the write.

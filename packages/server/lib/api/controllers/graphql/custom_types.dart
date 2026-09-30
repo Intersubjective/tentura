@@ -97,6 +97,17 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeEmailTestSendResult,
   gqlTypeUserRecalculateBookkeepingResult,
   gqlTypeAttentionReceipt,
+  gqlEnumClosureOutcome,
+  gqlEnumClosureBand,
+  gqlEnumClosureDraftFlag,
+  gqlEnumClosureRole,
+  gqlInputClosureSplitEntry,
+  gqlTypeClosureMember,
+  gqlTypeClosureOutcomeEntry,
+  gqlTypeClosureSplitEntry,
+  gqlTypeClosureState,
+  gqlTypeClosureResult,
+  gqlTypeClosureToggleResult,
 ];
 
 /// Account notification preferences (channel × category matrix + controls).
@@ -1762,3 +1773,121 @@ final gqlTypeUserRecalculateBookkeepingResult =
           GraphQLListType(graphQLString.nonNullable()).nonNullable(),
         ),
       ]);
+
+// Episode closure (A16, Arch §7). Field allowlists are fixed here: no type
+// carries another user's support, commit, split value, share or result.
+
+final gqlEnumClosureOutcome = enumTypeFromStrings(
+  'ClosureOutcome',
+  const ['done', 'notDone', 'cantJudge'],
+);
+
+final gqlEnumClosureBand = enumTypeFromStrings(
+  'ClosureBand',
+  const ['raised', 'asIfSilent', 'lowered', 'none'],
+);
+
+final gqlEnumClosureDraftFlag = enumTypeFromStrings(
+  'ClosureDraftFlag',
+  const ['none', 'notCounted', 'lastEditNotCounted'],
+);
+
+final gqlEnumClosureRole = enumTypeFromStrings(
+  'ClosureRole',
+  const ['author', 'voter', 'member'],
+);
+
+final gqlInputClosureSplitEntry = GraphQLInputObjectType(
+  'ClosureSplitEntryInput',
+  inputFields: [
+    GraphQLInputObjectField('helperId', graphQLString.nonNullable()),
+    GraphQLInputObjectField('pct', graphQLInt.nonNullable()),
+  ],
+);
+
+final gqlTypeClosureMember =
+    GraphQLObjectType(
+        'ClosureMember',
+        null,
+      )
+      ..fields.addAll([
+        field('id', graphQLString.nonNullable()),
+        field('displayName', graphQLString),
+        field('avatarId', graphQLString),
+        field('helpTypes', GraphQLListType(graphQLString.nonNullable())),
+        field('offerText', graphQLString),
+        field('notInRequest', graphQLBoolean.nonNullable()),
+        // Author only: `voluntary` | `removed`.
+        field('departure', graphQLString),
+      ]);
+
+final gqlTypeClosureOutcomeEntry =
+    GraphQLObjectType(
+        'ClosureOutcomeEntry',
+        null,
+      )
+      ..fields.addAll([
+        field('helperId', graphQLString.nonNullable()),
+        field('outcome', gqlEnumClosureOutcome.nonNullable()),
+      ]);
+
+final gqlTypeClosureSplitEntry =
+    GraphQLObjectType(
+        'ClosureSplitEntry',
+        null,
+      )
+      ..fields.addAll([
+        field('helperId', graphQLString.nonNullable()),
+        field('pct', graphQLInt.nonNullable()),
+      ]);
+
+final gqlTypeClosureState =
+    GraphQLObjectType(
+        'ClosureState',
+        null,
+      )
+      ..fields.addAll([
+        field('epoch', graphQLInt.nonNullable()),
+        field('status', graphQLInt.nonNullable()),
+        field('role', gqlEnumClosureRole.nonNullable()),
+        field(
+          'members',
+          GraphQLListType(gqlTypeClosureMember.nonNullable()).nonNullable(),
+        ),
+        field(
+          'outcomes',
+          GraphQLListType(gqlTypeClosureOutcomeEntry.nonNullable()),
+        ),
+        field(
+          'split',
+          GraphQLListType(gqlTypeClosureSplitEntry.nonNullable()),
+        ),
+        field('mySupport', GraphQLListType(graphQLString.nonNullable())),
+        field('inCalcText', graphQLString),
+        field('myMarks', GraphQLListType(graphQLString.nonNullable())),
+        field('closesAt', graphQLString.nonNullable()),
+        field('earlyCloseAt', graphQLString),
+        field('canCloseNow', graphQLBoolean),
+        field('canReopen', graphQLBoolean),
+        field('story', graphQLString),
+      ]);
+
+final gqlTypeClosureResult =
+    GraphQLObjectType(
+        'ClosureResult',
+        null,
+      )
+      ..fields.addAll([
+        field('outcome', gqlEnumClosureOutcome.nonNullable()),
+        field('band', gqlEnumClosureBand.nonNullable()),
+        field('draftFlag', gqlEnumClosureDraftFlag.nonNullable()),
+        field('marks', GraphQLListType(graphQLString.nonNullable())),
+        field('story', graphQLString),
+      ]);
+
+final gqlTypeClosureToggleResult =
+    GraphQLObjectType(
+        'ClosureToggleResult',
+        null,
+      )
+      ..fields.add(field('released', graphQLString));
