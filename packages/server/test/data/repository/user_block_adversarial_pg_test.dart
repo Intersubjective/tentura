@@ -18,11 +18,23 @@ import 'package:tentura_server/domain/invite_genealogy/invite_genealogy_node_key
 import 'package:tentura_server/domain/use_case/block_cascade_case.dart';
 import 'package:tentura_server/env.dart';
 
+import '../../support/disposable_pg_target.dart';
+
 /// Adversarial corner cases — spec §11 X1, X7, X12, X13, X15, X16.
 ///
 /// X9 (churn) is covered by `user_block_withdrawal_gate_pg_test.dart`.
 Future<void> main() async {
-  final postgresReachable = await _canConnectPostgres();
+  // tentura-ting: run on a disposable head-schema database, never the ambient
+  // (drift-prone) one.
+  final postgresReachable = await canReachPostgresAdmin(_target);
+  DisposablePgWriterSession? pgSession;
+  if (postgresReachable) {
+    pgSession = await setUpDisposablePgWriter(
+      target: _target,
+      createPgmer2Extension: true,
+    );
+    tearDownAll(() => tearDownDisposablePgWriter(session: pgSession!));
+  }
   var skipReason = postgresReachable ? false : 'local Postgres not reachable';
   var beaconBlockSkipReason = skipReason;
 
@@ -580,26 +592,20 @@ WHERE blocker_id = '$aliceId' AND blocked_id = '$bobId'
   );
 }
 
+final _target = DisposablePgTarget.fromNamedEnvironment(
+  envVarName: 'TENTURA_BLOCK_ADVERSARIAL_TEST_DB',
+  defaultNamePrefix: 'tentura_test_block_adv',
+);
+
 Env _testEnv() => Env(
   environment: Environment.test,
   pgHost: Platform.environment['POSTGRES_HOST'] ?? 'localhost',
   pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
-  pgDatabase: Platform.environment['POSTGRES_DBNAME'] ?? 'postgres',
+  pgDatabase: _target.databaseName,
   pgUsername: Platform.environment['POSTGRES_USERNAME'] ?? 'postgres',
   pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
   genealogyNodeKeySecret: 'test-genealogy-secret',
 );
-
-Future<bool> _canConnectPostgres() async {
-  try {
-    final db = TenturaDb(_testEnv());
-    await db.customSelect('SELECT 1').getSingle();
-    await db.close();
-    return true;
-  } catch (_) {
-    return false;
-  }
-}
 
 Future<bool> _hasUserBlockSchema(TenturaDb db) async {
   final row = await db.customSelect(

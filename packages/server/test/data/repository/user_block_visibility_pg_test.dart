@@ -9,13 +9,25 @@ import 'package:test/test.dart';
 import 'package:tentura_server/data/database/tentura_db.dart';
 import 'package:tentura_server/env.dart';
 
+import '../../support/disposable_pg_target.dart';
+
 /// Hasura visibility enforcement via computed-field SQL — spec §3.4/§3.5 / T-H E11–E12.
 ///
 /// No Hasura HTTP integration harness exists in this repo; pg tests assert the
 /// underlying `user_hidden_for_viewer` / `user_presence_hidden_for_viewer`
 /// functions that Hasura permission filters delegate to.
 Future<void> main() async {
-  final postgresReachable = await _canConnectPostgres();
+  // tentura-ting: run on a disposable head-schema database, never the ambient
+  // (drift-prone) one.
+  final postgresReachable = await canReachPostgresAdmin(_target);
+  DisposablePgWriterSession? pgSession;
+  if (postgresReachable) {
+    pgSession = await setUpDisposablePgWriter(
+      target: _target,
+      createPgmer2Extension: true,
+    );
+    tearDownAll(() => tearDownDisposablePgWriter(session: pgSession!));
+  }
   var skipReason = postgresReachable ? false : 'local Postgres not reachable';
 
   if (postgresReachable) {
@@ -183,26 +195,20 @@ ORDER BY p.user_id
   return rows.map((row) => row.read<String>('user_id')).toSet();
 }
 
+final _target = DisposablePgTarget.fromNamedEnvironment(
+  envVarName: 'TENTURA_BLOCK_VISIBILITY_TEST_DB',
+  defaultNamePrefix: 'tentura_test_block_vis',
+);
+
 Env _testEnv() => Env(
   environment: Environment.test,
   pgHost: Platform.environment['POSTGRES_HOST'] ?? 'localhost',
   pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
-  pgDatabase: Platform.environment['POSTGRES_DBNAME'] ?? 'postgres',
+  pgDatabase: _target.databaseName,
   pgUsername: Platform.environment['POSTGRES_USERNAME'] ?? 'postgres',
   pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
   genealogyNodeKeySecret: 'test-genealogy-secret',
 );
-
-Future<bool> _canConnectPostgres() async {
-  try {
-    final db = TenturaDb(_testEnv());
-    await db.customSelect('SELECT 1').getSingle();
-    await db.close();
-    return true;
-  } catch (_) {
-    return false;
-  }
-}
 
 Future<bool> _hasUserBlockSchema(TenturaDb db) async {
   final row = await db.customSelect(
