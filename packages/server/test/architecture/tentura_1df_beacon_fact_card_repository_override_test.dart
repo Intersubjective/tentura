@@ -180,6 +180,15 @@ void main() {
               '${annotateOverrides.join('\n')}',
         );
       },
+      // Same convention as the other analyze gates (tentura-21x, tentura-5zq,
+      // server_package_analysis): inside the nested acceptance suites several
+      // concurrent `dart analyze` processes race the cold analyzer plugin AOT
+      // compile in a fresh checkout (the plugin manager rebuilds
+      // plugin.aot without a cross-process lock), so run this gate only at
+      // the outer suite level.
+      skip: Platform.environment['TENTURA_U6E_NESTED_SUITE'] == 'true'
+          ? 'do not run dart analyze inside the u6e nested suite'
+          : false,
     );
   });
 }

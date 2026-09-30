@@ -293,6 +293,30 @@ CommandOutcome runPl4AcceptanceNonPgDartTest() {
   }
 }
 
+/// Serializes the nested full-pg-suite landing acceptance runs per checkout.
+///
+/// The tentura-fx7 and tentura-j0q landing gates each nest a complete
+/// `dart test --tags pg --exclude-tags mr` run. Many pg test files share the
+/// same local Postgres cluster with fixed fixture ids (and cascade jobs such
+/// as `BlockCascadeCase.runDue` process intents globally), so two nested pg
+/// suites progressing through the same files in lockstep corrupt each other's
+/// fixtures (observed: block_cascade_job_pg_test X8 cascade status,
+/// forward_edge create_batch dedup unique violations). Disposable per-process
+/// pg targets are unaffected, so probe subsets stay unlocked; only the
+/// full-pg landing runners take this lock.
+T runWithNestedPgLandingSuiteLock<T>(T Function() body) {
+  final lockFile = File(
+    '${serverPackageRoot().path}/.dart_tool/nested_pg_landing_suite.lock',
+  )..createSync(recursive: true);
+  final raf = lockFile.openSync(mode: FileMode.append);
+  try {
+    raf.lockSync(FileLock.blockingExclusive);
+    return body();
+  } finally {
+    raf.closeSync();
+  }
+}
+
 File testCleanupWrapperFromServerPackage() {
   final server = serverPackageRoot();
   final candidates = [

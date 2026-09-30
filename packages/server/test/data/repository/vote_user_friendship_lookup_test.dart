@@ -15,11 +15,16 @@ Future<void> main() async {
   late TenturaDb db;
   late VoteUserFriendshipLookup lookup;
 
-  const viewerId = 'Uvfviewer01';
-  const peerA = 'Uvfpeera001';
-  const peerB = 'Uvfpeerb001';
-  const peerC = 'Uvfpeerc001';
-  const allIds = [viewerId, peerA, peerB, peerC];
+  // Process-unique fixture ids: the landing-gate acceptance tests nest full
+  // non-pg suite runs, so several instances of this file can execute
+  // concurrently against the same shared Postgres database; with fixed ids
+  // one instance's tearDown deletes another instance's rows mid-test.
+  final runSuffix = '_$pid';
+  final viewerId = 'Uvfviewer01$runSuffix';
+  final peerA = 'Uvfpeera001$runSuffix';
+  final peerB = 'Uvfpeerb001$runSuffix';
+  final peerC = 'Uvfpeerc001$runSuffix';
+  final allIds = [viewerId, peerA, peerB, peerC];
 
   Future<void> insertUser(String id) => db.customStatement(
     '''

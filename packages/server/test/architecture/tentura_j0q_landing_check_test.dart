@@ -4,6 +4,8 @@ import 'dart:io';
 
 import 'package:test/test.dart';
 
+import '../support/server_ci_lint_gate_harness.dart';
+
 /// Alloy tentura-j0q landing gate — same paths as bead acceptance harness.
 const kJ0qAcceptanceTestPaths = [
   'test/architecture/tentura_j0q_landing_check_test.dart',
@@ -175,37 +177,43 @@ void main() {
 }
 
 /// Runs the exact tentura-acz / tentura-j0q bead pg acceptance command.
+///
+/// Serialized against the tentura-fx7 full-pg landing run: two nested full pg
+/// suites share the same Postgres cluster and fixed-id fixtures, so they must
+/// not overlap (see [runWithNestedPgLandingSuiteLock]).
 ({int exitCode, String stdout, String stderr}) runJ0qAcceptancePgLanding() {
   final wrapper = _testCleanupWrapper();
   final nestedTmp = Directory.systemTemp.createTempSync(
     'tentura-j0q-pg-nested-',
   );
   try {
-    final result = Process.runSync(
-      wrapper.path,
-      [
-        '--timeout',
-        '30m',
-        '--',
-        'dart',
-        'test',
-        '--tags',
-        'pg',
-        '--exclude-tags',
-        'mr',
-      ],
-      workingDirectory: _serverPackageRoot().path,
-      environment: {
-        ...Platform.environment,
-        'DART_SUPPRESS_ANALYTICS': 'true',
-        'TMPDIR': nestedTmp.path,
-      },
-    );
-    return (
-      exitCode: result.exitCode,
-      stdout: result.stdout as String,
-      stderr: result.stderr as String,
-    );
+    return runWithNestedPgLandingSuiteLock(() {
+      final result = Process.runSync(
+        wrapper.path,
+        [
+          '--timeout',
+          '30m',
+          '--',
+          'dart',
+          'test',
+          '--tags',
+          'pg',
+          '--exclude-tags',
+          'mr',
+        ],
+        workingDirectory: _serverPackageRoot().path,
+        environment: {
+          ...Platform.environment,
+          'DART_SUPPRESS_ANALYTICS': 'true',
+          'TMPDIR': nestedTmp.path,
+        },
+      );
+      return (
+        exitCode: result.exitCode,
+        stdout: result.stdout as String,
+        stderr: result.stderr as String,
+      );
+    });
   } finally {
     nestedTmp.deleteSync(recursive: true);
   }
