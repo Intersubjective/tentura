@@ -69,10 +69,68 @@ File olcLandingCheckTestFile() {
   return candidate;
 }
 
+/// Runs `dart <args>` (an `analyze` invocation) under a per-checkout
+/// `flock(1)` so the server package's analyzer gates never overlap.
+///
+/// `dart test` runs the architecture gates of one suite as concurrent
+/// isolates, and each gate spawns its own analysis server. They all share the
+/// checkout's tentura_lints plugin snapshot under `~/.dartServer/.plugin_manager`,
+/// which the plugin manager rebuilds in place without a cross-process lock; a
+/// server that has the old `plugin.aot` mapped then dies with SIGBUS
+/// ("The analysis server crashed unexpectedly"). An external lock is needed:
+/// `RandomAccessFile.lock` does not exclude isolates of the same process.
+///
+/// `dart analyze` always prints something (a JSON object or "No issues
+/// found!"), so empty stdout means the analysis server died under full-suite
+/// load rather than reporting diagnostics; such runs are retried.
+ProcessResult runDartAnalyzeSerialized(
+  List<String> args, {
+  required String workingDirectory,
+  Map<String, String>? environment,
+}) {
+  const maxAttempts = 3;
+  late ProcessResult result;
+  for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+    result = _runUnderAnalyzeLock(
+      'dart',
+      args,
+      workingDirectory: workingDirectory,
+      environment: environment,
+    );
+    if ((result.stdout as String).trim().isNotEmpty) break;
+  }
+  return result;
+}
+
+ProcessResult _runUnderAnalyzeLock(
+  String executable,
+  List<String> args, {
+  required String workingDirectory,
+  Map<String, String>? environment,
+}) {
+  final lockFile = File(
+    '${serverPackageRoot().path}/.dart_tool/dart_analyze_gate.lock',
+  )..createSync(recursive: true);
+  final hasFlock = Process.runSync('which', ['flock']).exitCode == 0;
+  return hasFlock
+      ? Process.runSync(
+          'flock',
+          [lockFile.path, executable, ...args],
+          workingDirectory: workingDirectory,
+          environment: environment,
+        )
+      : Process.runSync(
+          executable,
+          args,
+          workingDirectory: workingDirectory,
+          environment: environment,
+        );
+}
+
 /// CI step: `bash scripts/check-custom-lints.sh packages/server` from repo root.
 CommandOutcome runServerCiLintGateFromRepoRoot() {
   final repo = repoRootFromServerPackage();
-  final result = Process.runSync(
+  final result = _runUnderAnalyzeLock(
     'bash',
     ['scripts/check-custom-lints.sh', 'packages/server'],
     workingDirectory: repo.path,
@@ -91,8 +149,7 @@ CommandOutcome runServerCiLintGateFromRepoRoot() {
 /// Alloy historical required check (fatal-on-warnings default for `dart analyze .`).
 CommandOutcome runBareDartAnalyzeDotInServerPackage() {
   final server = serverPackageRoot();
-  final result = Process.runSync(
-    'dart',
+  final result = runDartAnalyzeSerialized(
     ['analyze', '.'],
     workingDirectory: server.path,
     environment: {
@@ -110,8 +167,7 @@ CommandOutcome runBareDartAnalyzeDotInServerPackage() {
 /// Same analyzer flags as [scripts/check-custom-lints.sh].
 CommandOutcome runDartAnalyzeDotNoFatalWarningsInServerPackage() {
   final server = serverPackageRoot();
-  final result = Process.runSync(
-    'dart',
+  final result = runDartAnalyzeSerialized(
     ['analyze', '--no-fatal-warnings', '.'],
     workingDirectory: server.path,
     environment: {
@@ -131,8 +187,7 @@ CommandOutcome runOlcAcceptanceServerLintGate() => runServerCiLintGateFromRepoRo
 
 PackageAnalyzeSummary summarizePackageWideDartAnalyze() {
   final server = serverPackageRoot();
-  final result = Process.runSync(
-    'dart',
+  final result = runDartAnalyzeSerialized(
     ['analyze', '--format=json', '.'],
     workingDirectory: server.path,
     environment: {
@@ -147,7 +202,11 @@ PackageAnalyzeSummary summarizePackageWideDartAnalyze() {
       errorCount: -1,
       warningCount: -1,
       infoCount: -1,
-      errorLines: ['empty dart analyze --format=json stdout'],
+      errorLines: [
+        'empty dart analyze --format=json stdout '
+            '(exit ${result.exitCode})',
+        'stderr: ${result.stderr}',
+      ],
     );
   }
   final payload = jsonDecode(stdout) as Map<String, dynamic>;
@@ -184,8 +243,7 @@ List<Map<String, dynamic>> diagnosticsOnServerRelativeLine(
 ) {
   final server = serverPackageRoot();
   final absolute = File('${server.path}/$relativePath').absolute.path;
-  final result = Process.runSync(
-    'dart',
+  final result = runDartAnalyzeSerialized(
     ['analyze', '--format=json', '.'],
     workingDirectory: server.path,
     environment: {

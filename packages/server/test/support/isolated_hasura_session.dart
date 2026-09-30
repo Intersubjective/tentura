@@ -21,10 +21,6 @@ final class IsolatedHasuraSession {
   final int port;
   final _PortClaim _portClaim;
 
-  /// Ports claimed by sessions of this process (file locks don't conflict
-  /// between fds of one process).
-  static final _claimedPorts = <int>{};
-
   static Future<bool> isDockerAvailable() async {
     try {
       final result = await Process.run('docker', ['info']);
@@ -189,12 +185,23 @@ final class IsolatedHasuraSession {
   /// host, so it is not derived from `TMPDIR` (nested landing runs set a
   /// private `TMPDIR`, which would give them a separate lock namespace and
   /// reopen the cross-process port race).
+  ///
+  /// File locks never conflict inside one OS process, and `dart test` runs
+  /// every test file as an isolate of the *same* runner process, so a static
+  /// in-memory set would be isolate-local and blind to sibling test files.
+  /// Within the process a port is therefore first claimed by exclusively
+  /// creating a `<port>.<pid>.claim` marker (atomic across isolates), before
+  /// the lock file is even opened — closing any fd of a locked file drops the
+  /// process's lock on it. A marker left by a dead process only skips a port.
   static Future<_PortClaim> _claimFreePort() async {
     final tmpRoot = Platform.isWindows ? Directory.systemTemp.path : '/tmp';
     final lockDir = Directory('$tmpRoot/tentura_hasura_ports')
       ..createSync(recursive: true);
     for (var port = 18080; port < 18280; port++) {
-      if (!_claimedPorts.add(port)) {
+      final marker = File('${lockDir.path}/$port.$pid.claim');
+      try {
+        await marker.create(exclusive: true);
+      } on Object catch (_) {
         continue;
       }
       RandomAccessFile? lock;
@@ -208,12 +215,12 @@ final class IsolatedHasuraSession {
           port,
         );
         await socket.close();
-        return _PortClaim(port, lock);
+        return _PortClaim(port, lock, marker);
       } on Object catch (_) {
-        _claimedPorts.remove(port);
         try {
           await lock?.close();
         } on Object catch (_) {}
+        await _deleteQuietly(marker);
       }
     }
     throw StateError('No free localhost port for isolated Hasura');
@@ -229,10 +236,11 @@ final class IsolatedHasuraSession {
 }
 
 final class _PortClaim {
-  _PortClaim(this.port, this._lock);
+  _PortClaim(this.port, this._lock, this._marker);
 
   final int port;
   final RandomAccessFile _lock;
+  final File _marker;
   var _released = false;
 
   Future<void> release() async {
@@ -240,9 +248,15 @@ final class _PortClaim {
       return;
     }
     _released = true;
-    IsolatedHasuraSession._claimedPorts.remove(port);
     try {
       await _lock.close();
     } on Object catch (_) {}
+    await _deleteQuietly(_marker);
   }
+}
+
+Future<void> _deleteQuietly(File file) async {
+  try {
+    await file.delete();
+  } on Object catch (_) {}
 }

@@ -183,9 +183,17 @@ void main() {
 /// not overlap (see [runWithNestedPgLandingSuiteLock]).
 ({int exitCode, String stdout, String stderr}) runJ0qAcceptancePgLanding() {
   final wrapper = _testCleanupWrapper();
-  final nestedTmp = Directory.systemTemp.createTempSync(
-    'tentura-j0q-pg-nested-',
-  );
+  // A full pg suite writes several GB of dart_test kernel files into TMPDIR.
+  // Keep them on disk (.dart_tool), not on the RAM tmpfs (Directory.systemTemp
+  // → /tmp): tmpfs pressure with a full swap makes mmap page faults fail and
+  // unrelated processes die with SIGBUS (observed: `dart analyze` crashing
+  // with Bus error BUS_ADRERR in the tentura-5zq CI analyze gate). Killed runs
+  // also leak the dir (finally never runs) and the wrapper sweep only reclaims
+  // flutter_tools.*/dart_test.kernel.* — on disk a leak is harmless. Same
+  // convention as runU6eAcceptanceNonPgDartTest/runPl4AcceptanceNonPgDartTest.
+  final nestedTmp = Directory(
+    '${_serverPackageRoot().path}/.dart_tool',
+  ).createTempSync('tentura-j0q-pg-nested-');
   try {
     return runWithNestedPgLandingSuiteLock(() {
       final result = Process.runSync(

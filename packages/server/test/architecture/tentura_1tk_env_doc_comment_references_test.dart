@@ -3,6 +3,9 @@ import 'dart:io';
 
 import 'package:test/test.dart';
 
+import '../support/server_ci_lint_gate_harness.dart'
+    show runDartAnalyzeSerialized;
+
 /// tentura-1tk (tentura-617.37): `lib/env.dart` doc on [Env.genealogyNodeKeySecret]
 /// must not reference names outside analyzer scope (see line ~597).
 const _envRelative = 'lib/env.dart';
@@ -12,8 +15,7 @@ void main() {
     test(
       'dart analyze reports no comment_references on lib/env.dart',
       () {
-        final result = Process.runSync(
-          'dart',
+        final result = runDartAnalyzeSerialized(
           ['analyze', '--format=json', _envRelative],
           workingDirectory: _serverPackageRoot().path,
         );

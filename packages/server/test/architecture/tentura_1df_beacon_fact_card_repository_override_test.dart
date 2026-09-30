@@ -3,6 +3,9 @@ import 'dart:io';
 
 import 'package:test/test.dart';
 
+import '../support/server_ci_lint_gate_harness.dart'
+    show runDartAnalyzeSerialized;
+
 /// tentura-1df (tentura-617.13): `BeaconFactCardRepository` must annotate every
 /// `BeaconFactCardRepositoryPort` override with `@override` so
 /// `dart analyze lib/data/repository/beacon_fact_card_repository.dart` stays
@@ -141,8 +144,7 @@ void main() {
     test(
       'dart analyze reports no annotate_overrides on beacon_fact_card_repository',
       () {
-        final result = Process.runSync(
-          'dart',
+        final result = runDartAnalyzeSerialized(
           ['analyze', '--format=json', _repositoryRelative],
           workingDirectory: _serverPackageRoot().path,
         );

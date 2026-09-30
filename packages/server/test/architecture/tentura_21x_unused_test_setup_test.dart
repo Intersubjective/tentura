@@ -3,6 +3,9 @@ import 'dart:io';
 
 import 'package:test/test.dart';
 
+import '../support/server_ci_lint_gate_harness.dart'
+    show runDartAnalyzeSerialized;
+
 /// tentura-21x (tentura-617.3): disposable PG and erasure tests declared
 /// upgrade targets, writers, channel fakes, and fixture helpers that were never
 /// wired into assertions. Suppressing `unused_*` hid dropped coverage; the fix
@@ -302,8 +305,7 @@ bool _isGuardedTestFile(String? file) {
 List<String> guardedUnusedSetupDiagnosticsFromPackageAnalyze() {
   final serverRoot = _serverPackageRoot();
 
-  final result = Process.runSync(
-    'dart',
+  final result = runDartAnalyzeSerialized(
     ['analyze', '--format=json', '.'],
     workingDirectory: serverRoot.path,
     environment: {

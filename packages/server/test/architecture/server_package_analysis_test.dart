@@ -8,6 +8,9 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
+import '../support/server_ci_lint_gate_harness.dart'
+    show runDartAnalyzeSerialized;
+
 /// Lib paths touched by tentura-id8.5 (People seen GraphQL wiring + analyze
 /// hygiene). Scoped checks must stay warning/error-free in package context.
 const kId85TouchedLibRelatives = <String>[
@@ -152,8 +155,7 @@ typedef PackageAnalyzeDiagnosticEntry = ({
 
 /// Runs bare `dart analyze .` from [serverPackageRoot] (checked-in options).
 ({int exitCode, String stdout, String stderr}) runServerPackageAnalyze() {
-  final result = Process.runSync(
-    'dart',
+  final result = runDartAnalyzeSerialized(
     ['analyze', '.'],
     workingDirectory: serverPackageRoot().path,
     environment: {
@@ -176,8 +178,7 @@ typedef PackageAnalyzeDiagnosticEntry = ({
   List<PackageAnalyzeDiagnosticEntry> warnings,
   List<PackageAnalyzeDiagnosticEntry> errors,
 }) runDartAnalyzeOnId85TouchedLibPaths() {
-  final result = Process.runSync(
-    'dart',
+  final result = runDartAnalyzeSerialized(
     ['analyze', '--format=json', ...kId85TouchedLibRelatives],
     workingDirectory: serverPackageRoot().path,
     environment: {
@@ -240,8 +241,7 @@ List<PackageAnalyzeDiagnosticEntry> _diagnosticEntries({
   required String severity,
   String? filePath,
 }) {
-  final result = Process.runSync(
-    'dart',
+  final result = runDartAnalyzeSerialized(
     ['analyze', '--format=json', '.'],
     workingDirectory: serverPackageRoot().path,
     environment: {
