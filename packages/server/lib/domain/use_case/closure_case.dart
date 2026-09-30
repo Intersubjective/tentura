@@ -629,6 +629,40 @@ final class ClosureCase extends UseCaseBase {
     );
   }
 
+  /// Stream 2 (Arch §5.7): approving an offer credits the forwarder through
+  /// whom the helper arrived. Call inside the approval transaction, after the
+  /// acknowledgement is stored.
+  Future<void> recordApprovalEdge({
+    required String beaconId,
+    required String helperId,
+    required String authorId,
+  }) async {
+    await _repo.lockRequest(beaconId);
+    final offers = await _helpOffers.fetchAllByBeaconId(beaconId);
+    final offer = offers.where((o) => o.userId == helperId).firstOrNull;
+    if (offer == null) return;
+    final edge = await _repo.selectArrivalEdge(
+      beaconId: beaconId,
+      helperId: helperId,
+      offerCreatedAt: offer.createdAt,
+    );
+    if (edge == null ||
+        edge.senderId == authorId ||
+        edge.senderId == helperId) {
+      return;
+    }
+    await _repo.recordApprovalEdge(
+      beaconId: beaconId,
+      helperId: helperId,
+      senderId: edge.senderId,
+      arrivalEdgeId: edge.id,
+    );
+  }
+
+  /// Stream 2: voluntary withdrawal retracts the approval edge.
+  Future<void> retractApprovalEdge(String beaconId, String helperId) =>
+      _repo.retractApprovalEdge(beaconId: beaconId, helperId: helperId);
+
   Future<void> _recordUnansweredAtCloseOffers({
     required String beaconId,
     required String authorId,

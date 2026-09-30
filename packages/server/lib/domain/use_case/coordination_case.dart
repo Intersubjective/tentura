@@ -355,6 +355,11 @@ final class CoordinationCase extends UseCaseBase {
           userId: offerUserId,
           actorUserId: actorUserId,
         );
+        await _closureCase?.recordApprovalEdge(
+          beaconId: beaconId,
+          helperId: offerUserId,
+          authorId: beacon.author.id,
+        );
         await transaction.record(
           await _attentionIntents!.offerAccepted(
             receiverId: offerUserId,

@@ -200,4 +200,18 @@ class ClosureRepositoryMock implements ClosureRepositoryPort {
     required DateTime offerCreatedAt,
   }) async =>
       null;
+
+  @override
+  Future<void> recordApprovalEdge({
+    required String beaconId,
+    required String helperId,
+    required String senderId,
+    required String arrivalEdgeId,
+  }) async {}
+
+  @override
+  Future<void> retractApprovalEdge({
+    required String beaconId,
+    required String helperId,
+  }) async {}
 }

@@ -302,6 +302,7 @@ final class HelpOfferCase extends UseCaseBase {
           reason: withdrawReason,
         );
         await _closureCase?.applyMembershipEvent(beaconId, userId);
+        await _closureCase?.retractApprovalEdge(beaconId, userId);
         await _helpOfferRepository.withdraw(
           beaconId: beaconId,
           userId: userId,

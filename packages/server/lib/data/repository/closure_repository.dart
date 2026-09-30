@@ -9,6 +9,10 @@ import 'package:tentura_server/domain/closure/closure_outcome.dart';
 import 'package:tentura_server/domain/closure/membership_reducer.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 import 'package:tentura_server/domain/port/closure_repository_port.dart';
+import 'package:tentura_server/domain/trust/ledger_evidence.dart';
+import 'package:tentura_server/domain/trust/trust_evidence_kind.dart';
+
+import 'trust_ledger_repository.dart';
 
 import '../database/tentura_db.dart';
 
@@ -24,6 +28,8 @@ class ClosureRepository implements ClosureRepositoryPort {
   const ClosureRepository(this._database);
 
   final TenturaDb _database;
+
+  TrustLedgerRepository get _ledger => TrustLedgerRepository(_database);
 
   static const _epochColumns = '''
 beacon_id,
@@ -762,6 +768,43 @@ LIMIT 1
       )
       .map(_mapEdge)
       .getSingleOrNull();
+
+  @override
+  Future<void> recordApprovalEdge({
+    required String beaconId,
+    required String helperId,
+    required String senderId,
+    required String arrivalEdgeId,
+  }) async {
+    await _ledger.lockPair(helperId, senderId);
+    final key = 'approval:$beaconId:$helperId';
+    if (await _ledger.exists(key)) {
+      await _ledger.unretract(key);
+      return;
+    }
+    final since = DateTime.timestamp().subtract(const Duration(days: 30));
+    if (await _ledger.hasLiveUsefulForwardSince(helperId, senderId, since)) {
+      return;
+    }
+    await _ledger.record([
+      LedgerEvidence(
+        subjectId: helperId,
+        objectId: senderId,
+        kind: TrustEvidenceKind.usefulForward,
+        count: 1,
+        sourceKey: key,
+        beaconId: beaconId,
+        relatedUserId: senderId,
+        metadata: {'arrival_edge_id': arrivalEdgeId},
+      ),
+    ]);
+  }
+
+  @override
+  Future<void> retractApprovalEdge({
+    required String beaconId,
+    required String helperId,
+  }) => _ledger.retract('approval:$beaconId:$helperId');
 
   static ClosureEpoch _mapEpoch(QueryRow row) => ClosureEpoch(
     beaconId: row.read<String>('beacon_id'),
