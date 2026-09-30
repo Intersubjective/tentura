@@ -44,6 +44,12 @@ const _runtimeAttentionEventTypes = <String>[
   'trustReceivedChanged',
   'deadlineChanged',
   'deadlineReminder',
+  // A17: closure receipts.
+  'closureOpened',
+  'closureDraftReminder',
+  'closureFinalized',
+  'closureCancelled',
+  'requestStale',
 ];
 
 const _classificationVariantKeys = {
@@ -239,6 +245,52 @@ const _expectedEventTypes = <Map<String, String>>[
     'muteability': 'standard',
     'coveringTest':
         'packages/server/test/domain/evaluation/evaluation_case_test.dart',
+  },
+  // A17: closure receipts and reminder sweeps.
+  {
+    'eventType': 'closureOpened',
+    'producer': 'ClosureReceiptsRepository.opened',
+    'recipientCategory': 'closure_members',
+    'destinationFamily': 'beacon',
+    'muteability': 'standard',
+    'coveringTest':
+        'packages/server/test/domain/use_case/closure_notifications_pg_test.dart',
+  },
+  {
+    'eventType': 'closureDraftReminder',
+    'producer': 'ClosureDraftReminderSweepCase.runDue',
+    'recipientCategory': 'closure_voters',
+    'destinationFamily': 'beacon',
+    'muteability': 'standard',
+    'coveringTest':
+        'packages/server/test/domain/use_case/closure_notifications_pg_test.dart',
+  },
+  {
+    'eventType': 'closureFinalized',
+    'producer': 'ClosureReceiptsRepository.finalized',
+    'recipientCategory': 'closure_members',
+    'destinationFamily': 'beacon',
+    'muteability': 'standard',
+    'coveringTest':
+        'packages/server/test/domain/use_case/closure_notifications_pg_test.dart',
+  },
+  {
+    'eventType': 'closureCancelled',
+    'producer': 'ClosureReceiptsRepository.cancelled',
+    'recipientCategory': 'closure_members',
+    'destinationFamily': 'beacon',
+    'muteability': 'standard',
+    'coveringTest':
+        'packages/server/test/domain/use_case/closure_notifications_pg_test.dart',
+  },
+  {
+    'eventType': 'requestStale',
+    'producer': 'StaleRequestReminderSweepCase.runDue',
+    'recipientCategory': 'request_author',
+    'destinationFamily': 'beacon',
+    'muteability': 'standard',
+    'coveringTest':
+        'packages/server/test/domain/use_case/closure_notifications_pg_test.dart',
   },
 ];
 

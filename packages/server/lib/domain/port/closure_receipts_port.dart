@@ -1,5 +1,3 @@
-import 'package:injectable/injectable.dart';
-
 abstract interface class ClosureReceiptsPort {
   Future<void> opened(String beaconId, int epoch);
 
@@ -8,8 +6,8 @@ abstract interface class ClosureReceiptsPort {
   Future<void> cancelled(String beaconId, int epoch);
 }
 
-/// Placeholder until A17 wires closure receipt outbox writes.
-@Singleton(as: ClosureReceiptsPort)
+/// Side-effect-free receipts for callers that do not write outbox rows; the
+/// production binding is `ClosureReceiptsRepository`.
 class NoopClosureReceipts implements ClosureReceiptsPort {
   const NoopClosureReceipts();
 

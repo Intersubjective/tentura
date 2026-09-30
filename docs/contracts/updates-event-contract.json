@@ -129,6 +129,46 @@
       "destinationFamily": "received_reviews",
       "muteability": "standard",
       "coveringTest": "packages/server/test/domain/evaluation/evaluation_case_test.dart"
+    },
+    {
+      "eventType": "closureOpened",
+      "producer": "ClosureReceiptsRepository.opened",
+      "recipientCategory": "closure_members",
+      "destinationFamily": "beacon",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/closure_notifications_pg_test.dart"
+    },
+    {
+      "eventType": "closureDraftReminder",
+      "producer": "ClosureDraftReminderSweepCase.runDue",
+      "recipientCategory": "closure_voters",
+      "destinationFamily": "beacon",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/closure_notifications_pg_test.dart"
+    },
+    {
+      "eventType": "closureFinalized",
+      "producer": "ClosureReceiptsRepository.finalized",
+      "recipientCategory": "closure_members",
+      "destinationFamily": "beacon",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/closure_notifications_pg_test.dart"
+    },
+    {
+      "eventType": "closureCancelled",
+      "producer": "ClosureReceiptsRepository.cancelled",
+      "recipientCategory": "closure_members",
+      "destinationFamily": "beacon",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/closure_notifications_pg_test.dart"
+    },
+    {
+      "eventType": "requestStale",
+      "producer": "StaleRequestReminderSweepCase.runDue",
+      "recipientCategory": "request_author",
+      "destinationFamily": "beacon",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/closure_notifications_pg_test.dart"
     }
   ],
   "producers": [
@@ -462,6 +502,46 @@
       "destinationFamily": "profile",
       "muteability": "standard",
       "coveringTest": "packages/server/test/domain/use_case/user_trust_edge_case_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/data/repository/closure_receipts_repository.dart",
+      "eventType": "closureOpened",
+      "recipientCategory": "closure_members",
+      "destinationFamily": "beacon",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/closure_notifications_pg_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/closure_draft_reminder_sweep_case.dart",
+      "eventType": "closureDraftReminder",
+      "recipientCategory": "closure_voters",
+      "destinationFamily": "beacon",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/closure_notifications_pg_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/data/repository/closure_receipts_repository.dart",
+      "eventType": "closureFinalized",
+      "recipientCategory": "closure_members",
+      "destinationFamily": "beacon",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/closure_notifications_pg_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/data/repository/closure_receipts_repository.dart",
+      "eventType": "closureCancelled",
+      "recipientCategory": "closure_members",
+      "destinationFamily": "beacon",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/closure_notifications_pg_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/stale_request_reminder_sweep_case.dart",
+      "eventType": "requestStale",
+      "recipientCategory": "request_author",
+      "destinationFamily": "beacon",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/closure_notifications_pg_test.dart"
     }
   ],
   "eventClassifications": [
@@ -1273,6 +1353,126 @@
           "coalescible": true,
           "producerTests": [
             "unverified"
+          ],
+          "transitionTests": []
+        }
+      ]
+    },
+    {
+      "eventType": "closureOpened",
+      "status": "supported",
+      "variants": [
+        {
+          "recipientPredicate": "reason:closureMember",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "beacon_content",
+          "recoverableVia": "request_timeline",
+          "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "system",
+          "coalescible": true,
+          "producerTests": [
+            "packages/server/test/domain/use_case/closure_notifications_pg_test.dart"
+          ],
+          "transitionTests": []
+        }
+      ]
+    },
+    {
+      "eventType": "closureDraftReminder",
+      "status": "supported",
+      "variants": [
+        {
+          "recipientPredicate": "reason:closureMember",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "beacon_content",
+          "recoverableVia": "request_timeline",
+          "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "system",
+          "coalescible": true,
+          "producerTests": [
+            "packages/server/test/domain/use_case/closure_notifications_pg_test.dart"
+          ],
+          "transitionTests": []
+        }
+      ]
+    },
+    {
+      "eventType": "closureFinalized",
+      "status": "supported",
+      "variants": [
+        {
+          "recipientPredicate": "reason:closureMember",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "beacon_content",
+          "recoverableVia": "request_timeline",
+          "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "system",
+          "coalescible": true,
+          "producerTests": [
+            "packages/server/test/domain/use_case/closure_notifications_pg_test.dart"
+          ],
+          "transitionTests": []
+        }
+      ]
+    },
+    {
+      "eventType": "closureCancelled",
+      "status": "supported",
+      "variants": [
+        {
+          "recipientPredicate": "reason:closureMember",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "beacon_content",
+          "recoverableVia": "request_timeline",
+          "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "system",
+          "coalescible": true,
+          "producerTests": [
+            "packages/server/test/domain/use_case/closure_notifications_pg_test.dart"
+          ],
+          "transitionTests": []
+        }
+      ]
+    },
+    {
+      "eventType": "requestStale",
+      "status": "supported",
+      "variants": [
+        {
+          "recipientPredicate": "reason:authorOfBeacon",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "beacon_content",
+          "recoverableVia": "request_timeline",
+          "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "system",
+          "coalescible": true,
+          "producerTests": [
+            "packages/server/test/domain/use_case/closure_notifications_pg_test.dart"
           ],
           "transitionTests": []
         }

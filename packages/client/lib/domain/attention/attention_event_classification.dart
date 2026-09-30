@@ -164,6 +164,26 @@ const attentionEventClassifications = <String, AttentionEventClassification>{
     headlineTreatment: AttentionHeadlineTreatment.system,
     coalescible: true,
   ),
+  'closureOpened': AttentionEventClassification(
+    headlineTreatment: AttentionHeadlineTreatment.system,
+    coalescible: true,
+  ),
+  'closureDraftReminder': AttentionEventClassification(
+    headlineTreatment: AttentionHeadlineTreatment.system,
+    coalescible: true,
+  ),
+  'closureFinalized': AttentionEventClassification(
+    headlineTreatment: AttentionHeadlineTreatment.system,
+    coalescible: true,
+  ),
+  'closureCancelled': AttentionEventClassification(
+    headlineTreatment: AttentionHeadlineTreatment.system,
+    coalescible: true,
+  ),
+  'requestStale': AttentionEventClassification(
+    headlineTreatment: AttentionHeadlineTreatment.system,
+    coalescible: true,
+  ),
 };
 
 /// What an unreadable or unknown `eventType` classifies as.

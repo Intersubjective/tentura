@@ -52,6 +52,11 @@ abstract final class AttentionEventTypeCatalog {
       case AttentionEventType.trustReceivedChanged:
       case AttentionEventType.deadlineChanged:
       case AttentionEventType.deadlineReminder:
+      case AttentionEventType.closureOpened:
+      case AttentionEventType.closureDraftReminder:
+      case AttentionEventType.closureFinalized:
+      case AttentionEventType.closureCancelled:
+      case AttentionEventType.requestStale:
         return;
     }
   }
@@ -91,6 +96,15 @@ enum AttentionEventType {
   trustReceivedChanged,
   deadlineChanged,
   deadlineReminder,
+
+  /// A17 closure receipts (Arch §9). `requestStale` is the author's weekly
+  /// "this request went quiet" notice, distinct from the coordination-item
+  /// [staleReminder].
+  closureOpened,
+  closureDraftReminder,
+  closureFinalized,
+  closureCancelled,
+  requestStale,
 }
 
 extension AttentionEventTypeScope on AttentionEventType {

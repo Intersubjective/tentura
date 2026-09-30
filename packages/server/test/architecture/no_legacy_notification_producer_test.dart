@@ -9,6 +9,13 @@ const _notificationOutboxPortPath =
 const _attentionDispatchRepositoryPath =
     'lib/data/repository/attention_dispatch_repository.dart';
 
+// A17: closure receipts and reminder sweeps write one outbox row per
+// recipient in the caller's transaction with set-based SQL.
+const _closureOutboxWriterPaths = {
+  'lib/data/repository/closure_receipts_repository.dart',
+  'lib/data/repository/closure_reminder_repository.dart',
+};
+
 final _retiredSymbol = RegExp(
   r'\b(?:BeaconRoomNotificationPort|InviteAcceptedNotificationPort)\b',
 );
@@ -148,6 +155,7 @@ List<String> _findViolations(Map<String, String> sources) {
     }
 
     if (entry.key != _attentionDispatchRepositoryPath &&
+        !_closureOutboxWriterPaths.contains(entry.key) &&
         _outboxInsert.hasMatch(code)) {
       violations.add(
         '${entry.key} writes notification_outbox outside AttentionDispatchRepository',

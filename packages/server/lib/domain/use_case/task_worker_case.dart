@@ -23,7 +23,9 @@ import 'package:tentura_server/domain/use_case/capability_cell_expiry_sweep_case
 import 'package:tentura_server/domain/use_case/capability_telemetry_case.dart';
 import 'package:tentura_server/domain/use_case/user_availability_case.dart';
 import 'package:tentura_server/domain/use_case/deadline_reminder_sweep_case.dart';
+import 'package:tentura_server/domain/use_case/closure_draft_reminder_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/closure_finalize_sweep_case.dart';
+import 'package:tentura_server/domain/use_case/stale_request_reminder_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/trust_publisher_case.dart';
 import 'package:tentura_server/domain/port/trust_maintenance_port.dart';
 import 'package:tentura_server/domain/port/witness_window_port.dart';
@@ -57,6 +59,8 @@ final class TaskWorkerCase extends UseCaseBase {
     DeadlineReminderSweepCase deadlineReminderSweep,
     TrustPublisherCase trustPublisher,
     ClosureFinalizeSweepCase closureFinalizeSweep,
+    ClosureDraftReminderSweepCase closureDraftReminderSweep,
+    StaleRequestReminderSweepCase staleRequestReminderSweep,
   ) => Future.value(
     TaskWorkerCase(
       imageRepository,
@@ -82,6 +86,8 @@ final class TaskWorkerCase extends UseCaseBase {
       deadlineReminderSweep: deadlineReminderSweep,
       trustPublisher: trustPublisher,
       closureFinalizeSweep: closureFinalizeSweep,
+      closureDraftReminderSweep: closureDraftReminderSweep,
+      staleRequestReminderSweep: staleRequestReminderSweep,
       env: env,
       logger: logger,
     ),
@@ -108,6 +114,8 @@ final class TaskWorkerCase extends UseCaseBase {
     DeadlineReminderSweepCase? deadlineReminderSweep,
     TrustPublisherCase? trustPublisher,
     ClosureFinalizeSweepCase? closureFinalizeSweep,
+    ClosureDraftReminderSweepCase? closureDraftReminderSweep,
+    StaleRequestReminderSweepCase? staleRequestReminderSweep,
     required super.env,
     required super.logger,
   }) : _imageObjectGc = imageObjectGc,
@@ -125,7 +133,9 @@ final class TaskWorkerCase extends UseCaseBase {
        _userAvailabilityCase = userAvailabilityCase,
        _deadlineReminderSweep = deadlineReminderSweep,
        _trustPublisher = trustPublisher,
-       _closureFinalizeSweep = closureFinalizeSweep;
+       _closureFinalizeSweep = closureFinalizeSweep,
+       _closureDraftReminderSweep = closureDraftReminderSweep,
+       _staleRequestReminderSweep = staleRequestReminderSweep;
 
   final ImageRepositoryPort _imageRepository;
 
@@ -151,6 +161,8 @@ final class TaskWorkerCase extends UseCaseBase {
   final DeadlineReminderSweepCase? _deadlineReminderSweep;
   final TrustPublisherCase? _trustPublisher;
   final ClosureFinalizeSweepCase? _closureFinalizeSweep;
+  final ClosureDraftReminderSweepCase? _closureDraftReminderSweep;
+  final StaleRequestReminderSweepCase? _staleRequestReminderSweep;
 
   /// Per-process identity for `image_object_gc` lease ownership (§3.4).
   final _gcLeaseOwner = generateId('W');
@@ -177,6 +189,8 @@ final class TaskWorkerCase extends UseCaseBase {
   var _lastDeadlineReminderSweep = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastTrustPublish = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastClosureFinalizeSweep = DateTime.fromMillisecondsSinceEpoch(0);
+  var _lastClosureDraftReminderSweep = DateTime.fromMillisecondsSinceEpoch(0);
+  var _lastStaleRequestReminderSweep = DateTime.fromMillisecondsSinceEpoch(0);
 
   late final _tasks = <Future<void> Function()>[
     // Trust publisher: cadence 10 s; nudge() forces the next tick.
@@ -200,6 +214,26 @@ final class TaskWorkerCase extends UseCaseBase {
       }
       _lastClosureFinalizeSweep = now;
       await _closureFinalizeSweep?.run();
+    },
+    // Closure draft reminder: voters whose draft differs from their commit.
+    () async {
+      final now = DateTime.timestamp();
+      if (now.difference(_lastClosureDraftReminderSweep) <
+          const Duration(hours: 1)) {
+        return;
+      }
+      _lastClosureDraftReminderSweep = now;
+      await _closureDraftReminderSweep?.runDue(now: now);
+    },
+    // Weekly nudge to the author of a stale open request.
+    () async {
+      final now = DateTime.timestamp();
+      if (now.difference(_lastStaleRequestReminderSweep) <
+          const Duration(hours: 1)) {
+        return;
+      }
+      _lastStaleRequestReminderSweep = now;
+      await _staleRequestReminderSweep?.runDue(now: now);
     },
     () async {
       final now = DateTime.timestamp();

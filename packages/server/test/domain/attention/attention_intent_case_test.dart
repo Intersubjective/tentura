@@ -12,6 +12,14 @@ import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import '../../support/test_attention_harness.dart';
 import '../../support/fake_user_block_repository.dart';
 
+const _closureOutboxEventTypes = {
+  'closureOpened',
+  'closureDraftReminder',
+  'closureFinalized',
+  'closureCancelled',
+  'requestStale',
+};
+
 void main() {
   const actor = 'actor';
   const target = 'target';
@@ -339,6 +347,9 @@ void main() {
         .cast<Map<String, Object?>>()
         .map((row) => row['eventType']! as String)
         .where((eventType) => !pending.contains(eventType))
+        // A17: closure receipts are written by ClosureReceiptsRepository and
+        // the reminder sweeps straight into the outbox, not via an intent.
+        .where((eventType) => !_closureOutboxEventTypes.contains(eventType))
         .toSet();
 
     expect(

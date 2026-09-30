@@ -323,6 +323,17 @@ _fixtureFor(String eventName) => switch (eventName) {
     reasons: const {AttentionRecipientReason.reviewParticipant},
     role: _baseRole.copyWith(trustDirection: 'up'),
   ),
+  'closureOpened' ||
+  'closureDraftReminder' ||
+  'closureFinalized' ||
+  'closureCancelled' => (
+    reasons: const {AttentionRecipientReason.reviewParticipant},
+    role: _baseRole,
+  ),
+  'requestStale' => (
+    reasons: const {AttentionRecipientReason.authorOfBeacon},
+    role: _baseRole,
+  ),
   _ => throw StateError('No policy fixture for $eventName'),
 };
 

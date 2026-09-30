@@ -89,6 +89,11 @@ class AttentionPolicy {
     AttentionEventType.obligationEnded =>
       AttentionSuppressionClass.standard,
     AttentionEventType.deadlineReminder => AttentionSuppressionClass.mandatory,
+    AttentionEventType.closureDraftReminder ||
+    AttentionEventType.requestStale ||
+    AttentionEventType.closureOpened ||
+    AttentionEventType.closureFinalized ||
+    AttentionEventType.closureCancelled => AttentionSuppressionClass.standard,
     AttentionEventType.relayReceived ||
     AttentionEventType.roomMessagePosted ||
     AttentionEventType.mutualConnectionFormed ||
@@ -145,7 +150,12 @@ class AttentionPolicy {
     AttentionEventType.coordinationChanged ||
     AttentionEventType.commitmentCancelled => NotificationCategory.coordination,
     AttentionEventType.deadlineChanged => NotificationCategory.coordination,
-    AttentionEventType.deadlineReminder => NotificationCategory.asksOfMe,
+    AttentionEventType.deadlineReminder ||
+    AttentionEventType.closureOpened ||
+    AttentionEventType.closureDraftReminder ||
+    AttentionEventType.requestStale => NotificationCategory.asksOfMe,
+    AttentionEventType.closureFinalized ||
+    AttentionEventType.closureCancelled => NotificationCategory.unblocksMe,
     AttentionEventType.trustGivenChanged ||
     AttentionEventType.trustReceivedChanged => NotificationCategory.connections,
   };
@@ -187,7 +197,15 @@ class AttentionPolicy {
     AttentionEventType.trustReceivedChanged =>
       AttentionAccessPolicy.beaconContent,
     AttentionEventType.deadlineChanged ||
-    AttentionEventType.deadlineReminder => AttentionAccessPolicy.beaconContent,
+    AttentionEventType.deadlineReminder ||
+    AttentionEventType.closureDraftReminder ||
+    AttentionEventType.requestStale => AttentionAccessPolicy.beaconContent,
+    AttentionEventType.closureOpened ||
+    AttentionEventType.closureFinalized ||
+    AttentionEventType.closureCancelled =>
+      role.canReadBeaconContent
+          ? AttentionAccessPolicy.beaconContent
+          : AttentionAccessPolicy.recipientSafe,
   };
 
   AttentionDestination _destination(
@@ -230,7 +248,12 @@ class AttentionPolicy {
         targetEntityId: role.coordinationItemId,
       ),
       AttentionEventType.deadlineChanged ||
-      AttentionEventType.deadlineReminder => AttentionDestination(
+      AttentionEventType.deadlineReminder ||
+      AttentionEventType.closureOpened ||
+      AttentionEventType.closureDraftReminder ||
+      AttentionEventType.closureFinalized ||
+      AttentionEventType.closureCancelled ||
+      AttentionEventType.requestStale => AttentionDestination(
         kind: AttentionDestinationKind.beacon,
         targetEntityId: role.beaconId,
       ),
@@ -318,6 +341,11 @@ class AttentionPolicy {
     AttentionEventType.trustReceivedChanged => false,
     AttentionEventType.deadlineChanged => false,
     AttentionEventType.deadlineReminder => false,
+    AttentionEventType.closureOpened => false,
+    AttentionEventType.closureDraftReminder => false,
+    AttentionEventType.closureFinalized => false,
+    AttentionEventType.closureCancelled => false,
+    AttentionEventType.requestStale => false,
   };
 
   /// U11 / D16 — the placement of a receipt, decided by the producer.
@@ -449,6 +477,14 @@ class AttentionPolicy {
     AttentionEventType.commitmentRedirected => 'commitment_redirected',
     AttentionEventType.deadlineChanged => 'deadline_changed',
     AttentionEventType.deadlineReminder => 'deadline_reminder',
+    AttentionEventType.closureOpened =>
+      role.canReadBeaconContent
+          ? 'closure_opened'
+          : 'closure_opened_bookmark_only',
+    AttentionEventType.closureDraftReminder => 'closure_draft_reminder',
+    AttentionEventType.closureFinalized => 'closure_finalized',
+    AttentionEventType.closureCancelled => 'closure_cancelled',
+    AttentionEventType.requestStale => 'request_stale',
     AttentionEventType.trustGivenChanged => _trustChangePresentationKey(
       'trust_given_changed',
       role.trustDirection,
