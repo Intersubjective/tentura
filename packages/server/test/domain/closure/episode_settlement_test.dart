@@ -12,6 +12,9 @@ const _impartialityTol = 1e-12;
 const _conservationTol = 1e-9;
 const _poolH = 0.7;
 
+/// Flip to true once A7a vector and property expectations are accepted (tests-only).
+const _a7aAcceptanceEnabled = true;
+
 final _settlement = EpisodeSettlement();
 const _defaultParams = SettlementParams();
 
@@ -63,6 +66,20 @@ void _expectHelped(
   }
 }
 
+void _expectSilent(
+  SettlementResult result,
+  Map<String, double> expected, {
+  double tol = _vectorTol,
+}) {
+  for (final entry in expected.entries) {
+    expect(
+      result.silent[entry.key],
+      closeTo(entry.value, tol),
+      reason: 'silent[${entry.key}]',
+    );
+  }
+}
+
 void _expectBands(
   SettlementResult result,
   Map<String, ClosureBand> expected,
@@ -70,6 +87,34 @@ void _expectBands(
   for (final entry in expected.entries) {
     expect(result.band[entry.key], entry.value);
   }
+}
+
+void _requireA7aAcceptance(String scope) {
+  expect(
+    _a7aAcceptanceEnabled,
+    isTrue,
+    reason:
+        'A7a $scope: enable _a7aAcceptanceEnabled after pinning Arch §5.5.2',
+  );
+}
+
+void _assertA7aVector(
+  SettlementResult result, {
+  required String vectorId,
+  required Map<String, double> silent,
+  required Map<String, double> helped,
+  required double lost,
+  required Map<String, ClosureBand> bands,
+}) {
+  _expectSilent(result, silent);
+  _expectHelped(result, helped);
+  expect(result.lost, closeTo(lost, _vectorTol), reason: '$vectorId lost');
+  _expectBands(result, bands);
+}
+
+void _assertA7aSelfScalingProperty(void Function() runCases) {
+  _requireA7aAcceptance('self-scaling property');
+  runCases();
 }
 
 void main() {
@@ -324,6 +369,191 @@ void main() {
         'u2': ClosureBand.asIfSilent,
         'u3': ClosureBand.asIfSilent,
         'u4': ClosureBand.raised,
+      });
+    });
+  });
+
+  group('support self-scaling (A7a)', () {
+    test('V16 u3 notDone, split 30/70, u1 supports u3', () {
+      _requireA7aAcceptance('V16');
+      final result = _settle(
+        [
+          _member('u1', support: {'u3'}),
+          _member('u2'),
+          _member('u3', outcome: ClosureOutcome.notDone),
+        ],
+        authorSplit: {'u1': 30, 'u2': 70},
+      );
+      _assertA7aVector(
+        result,
+        vectorId: 'V16',
+        silent: {'u1': 0.3033, 'u2': 0.3967, 'u3': 0},
+        helped: {'u1': 0.3033, 'u2': 0.3412, 'u3': 0.0554},
+        lost: 0,
+        bands: {
+          'u1': ClosureBand.asIfSilent,
+          'u2': ClosureBand.asIfSilent,
+          'u3': ClosureBand.raised,
+        },
+      );
+    });
+
+    test('V17 all done, split 30/50/20, u1 supports u3', () {
+      _requireA7aAcceptance('V17');
+      final result = _settle(
+        _threeDone(u1Support: {'u3'}),
+        authorSplit: {'u1': 30, 'u2': 50, 'u3': 20},
+      );
+      _assertA7aVector(
+        result,
+        vectorId: 'V17',
+        silent: {'u1': 0.2275, 'u2': 0.3125, 'u3': 0.1600},
+        helped: {'u1': 0.2275, 'u2': 0.2729, 'u3': 0.1996},
+        lost: 0,
+        bands: {
+          'u1': ClosureBand.asIfSilent,
+          'u2': ClosureBand.asIfSilent,
+          'u3': ClosureBand.raised,
+        },
+      );
+    });
+
+    test('V18 all done, split 30/35/35, u1 supports u3', () {
+      _requireA7aAcceptance('V18');
+      final result = _settle(
+        _threeDone(u1Support: {'u3'}),
+        authorSplit: {'u1': 30, 'u2': 35, 'u3': 35},
+      );
+      _assertA7aVector(
+        result,
+        vectorId: 'V18',
+        silent: {'u1': 0.2154, 'u2': 0.2423, 'u3': 0.2423},
+        helped: {'u1': 0.2154, 'u2': 0.2146, 'u3': 0.2700},
+        lost: 0,
+        bands: {
+          'u1': ClosureBand.asIfSilent,
+          'u2': ClosureBand.asIfSilent,
+          'u3': ClosureBand.asIfSilent,
+        },
+      );
+    });
+
+    test('V19 all done, split 30/10/60, u1 supports u3', () {
+      _requireA7aAcceptance('V19');
+      final result = _settle(
+        _threeDone(u1Support: {'u3'}),
+        authorSplit: {'u1': 30, 'u2': 10, 'u3': 60},
+      );
+      _assertA7aVector(
+        result,
+        vectorId: 'V19',
+        silent: {'u1': 0.2528, 'u2': 0.0917, 'u3': 0.3556},
+        helped: {'u1': 0.2528, 'u2': 0.0838, 'u3': 0.3635},
+        lost: 0,
+        bands: {
+          'u1': ClosureBand.asIfSilent,
+          'u2': ClosureBand.asIfSilent,
+          'u3': ClosureBand.asIfSilent,
+        },
+      );
+    });
+
+    test('V20 u2 notDone, split 30/70 u1/u3, u1 supports u3', () {
+      _requireA7aAcceptance('V20');
+      final result = _settle(
+        [
+          _member('u1', support: {'u3'}),
+          _member('u2', outcome: ClosureOutcome.notDone),
+          _member('u3'),
+        ],
+        authorSplit: {'u1': 30, 'u3': 70},
+      );
+      _assertA7aVector(
+        result,
+        vectorId: 'V20',
+        silent: {'u1': 0.3033, 'u2': 0, 'u3': 0.3967},
+        helped: {'u1': 0.3033, 'u2': 0, 'u3': 0.3967},
+        lost: 0,
+        bands: {
+          'u1': ClosureBand.asIfSilent,
+          'u2': ClosureBand.none,
+          'u3': ClosureBand.asIfSilent,
+        },
+      );
+    });
+
+    test('supported gain shrinks as author share grows; unsupported loss scales', () {
+      _assertA7aSelfScalingProperty(() {
+        final rng = Random(7);
+        var casesRun = 0;
+        while (casesRun < 500) {
+        final a1 = 5 + 5 * rng.nextInt(18);
+        final maxA3 = 100 - a1 - 5;
+        if (maxA3 < 10) {
+          continue;
+        }
+        final a3Choices = <int>[
+          for (var a3 = 5; a3 <= maxA3; a3 += 5) a3,
+        ];
+        if (a3Choices.length < 2) {
+          continue;
+        }
+        final iLow = rng.nextInt(a3Choices.length - 1);
+        final iHigh =
+            iLow + 1 + rng.nextInt(a3Choices.length - 1 - iLow);
+        final a3Low = a3Choices[iLow];
+        final a3High = a3Choices[iHigh];
+        final a2Low = 100 - a1 - a3Low;
+        final a2High = 100 - a1 - a3High;
+        if (a2Low < 5 || a2High < 5) {
+          continue;
+        }
+
+          final splitLow = {'u1': a1, 'u2': a2Low, 'u3': a3Low};
+          final splitHigh = {'u1': a1, 'u2': a2High, 'u3': a3High};
+          casesRun++;
+
+          final silentMembers = _threeDone();
+          final supportMembers = _threeDone(u1Support: {'u3'});
+
+          final silentLow = _settle(silentMembers, authorSplit: splitLow);
+          final helpedLow = _settle(supportMembers, authorSplit: splitLow);
+          final silentHigh = _settle(silentMembers, authorSplit: splitHigh);
+          final helpedHigh = _settle(supportMembers, authorSplit: splitHigh);
+
+          final gainLow =
+              helpedLow.helped['u3']! - silentLow.silent['u3']!;
+          final gainHigh =
+              helpedHigh.helped['u3']! - silentHigh.silent['u3']!;
+          expect(
+            gainLow,
+            greaterThanOrEqualTo(gainHigh - _impartialityTol),
+            reason:
+                'case $casesRun a1=$a1 a3Low=$a3Low a3High=$a3High gain u3',
+          );
+
+          final lossLow =
+              silentLow.silent['u2']! - helpedLow.helped['u2']!;
+          final lossHigh =
+              silentHigh.silent['u2']! - helpedHigh.helped['u2']!;
+          expect(
+            lossLow,
+            greaterThanOrEqualTo(-_impartialityTol),
+            reason: 'case $casesRun a2Low=$a2Low loss u2 non-negative',
+          );
+          expect(
+            lossHigh,
+            greaterThanOrEqualTo(-_impartialityTol),
+            reason: 'case $casesRun a2High=$a2High loss u2 non-negative',
+          );
+          expect(
+            lossLow,
+            greaterThanOrEqualTo(lossHigh - _impartialityTol),
+            reason:
+                'case $casesRun a2Low=$a2Low a2High=$a2High loss u2 non-decreasing in a2',
+          );
+        }
+        expect(casesRun, 500);
       });
     });
   });
