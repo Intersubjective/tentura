@@ -111,15 +111,13 @@ WHERE tgname = 'vote_user_bump_direct_trust_version'
         )).single.single,
         1,
       );
+      // m0202 drops trust_context_config, so a migrated database has no rows
+      // to seed there: the table itself must be gone.
       expect(
-        [
-          for (final row in await connection.execute(
-            'SELECT trust_context FROM public.trust_context_config '
-            'ORDER BY trust_context',
-          ))
-            row.single! as String,
-        ],
-        ['commitment', 'forward', 'legacy', 'personal'],
+        (await connection.execute(
+          "SELECT to_regclass('public.trust_context_config') IS NULL",
+        )).single.single,
+        isTrue,
       );
     },
     skip: skipReason,
