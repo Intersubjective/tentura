@@ -312,14 +312,14 @@ A7, A8 and A9 have no dependencies; do them first. Units are listed in execution
 **Files**
 - `packages/server/lib/data/repository/user_trust_edge_repository.dart` — `_setVoteAmountCore` (~lines 138–184) writes vote evidence today: remove the evidence write and call `trust_project_pair(subject, object)` after every vote-state change, including removal (amount ≤ 0).
 - `packages/server/lib/data/repository/user_repository.dart` — `_applyReciprocalTrustEdges` (~line 937): remove the evidence write; keep the `vote_user` rows (created around line 920); project both pairs in sorted order.
-- `packages/server/lib/data/repository/user_block_repository.dart` — replace the three `trust_rebuild_effective_edge` calls (~lines 94, 162, 773: block withdrawal, unblock, inherited-block release) with `trust_project_pair` for the same pair (phase A: blocked ⇒ target 0).
-- `packages/server/lib/domain/use_case/trust_maintenance_case.dart` — the maintenance SQL lives in this file (~lines 143, 150, calling `trust_rebuild_effective_*`): replace with a keyset sweep over `user_trust_edge (subject, object)` in batches of 200 calling `trust_project_pair`. Keep the 24 h cadence and the epoch bump (now with `mr_sync`, P0.2).
+- `packages/server/lib/data/repository/user_block_repository.dart` — replace the three `trust\_rebuild\_effective\_edge` calls (~lines 94, 162, 773: block withdrawal, unblock, inherited-block release) with `trust_project_pair` for the same pair (phase A: blocked ⇒ target 0).
+- `packages/server/lib/domain/use_case/trust_maintenance_case.dart` — the maintenance SQL lives in this file (~lines 143, 150, calling `trust\_rebuild\_effective\_*`): replace with a keyset sweep over `user_trust_edge (subject, object)` in batches of 200 calling `trust_project_pair`. Keep the 24 h cadence and the epoch bump (now with `mr_sync`, P0.2).
 
 **Tests (pg)**
 - vote up ⇒ `target_w = 0.5` and a queue row; vote removed after publication (`prev_sent_weight = 0.5`) ⇒ row kept with `target_w = 0` and a queue row; after a publisher ack (call the A3 repository) the row is gone.
 - block ⇒ target 0 and queue row; unblock ⇒ target back to the fold value.
 - maintenance re-queues a pair whose decayed value moved by more than 0.1.
-- `grep -rn "trust_rebuild_effective" packages/server/lib` returns nothing after this unit.
+- Verify with `scripts/check-trust-rebuild-effective-lib.sh`: same naive `grep -rn trust_rebuild_effective packages/server/lib` as Alloy inventory, but hits under immutable shipped migrations (`packages/server/lib/data/database/migration/`, e.g. m0193 on main) are allowed; any other lib hit fails (no caller code after this unit).
 
 ### A6 — Closure schema (m0203), Drift, erasure, Hasura
 

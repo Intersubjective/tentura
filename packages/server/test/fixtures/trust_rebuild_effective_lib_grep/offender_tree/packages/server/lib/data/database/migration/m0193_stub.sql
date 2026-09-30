@@ -1,0 +1,2 @@
+-- fixture: migration hit is allowed
+-- trust_rebuild_effective_batch placeholder

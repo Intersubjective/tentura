@@ -1,0 +1,1 @@
+caller must not reference trust_rebuild_effective in production lib
