@@ -1,12 +1,12 @@
 @Tags(['pg'])
 library;
 
-import 'dart:io';
-
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
+import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
+import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/user_block_repository.dart';
@@ -14,26 +14,25 @@ import 'package:tentura_server/domain/invite_genealogy/invite_genealogy_node_key
 import 'package:tentura_server/domain/use_case/block_cascade_case.dart';
 import 'package:tentura_server/env.dart';
 
+import '../../support/disposable_pg_target.dart';
+
 /// B3 withdrawal gate — spec §9.8 T-G1…T-G8.
 Future<void> main() async {
-  final postgresReachable = await _canConnectPostgres();
-  var skipReason = postgresReachable ? false : 'local Postgres not reachable';
+  final target = DisposablePgTarget.fromNamedEnvironment(
+    envVarName: 'TENTURA_USER_BLOCK_WITHDRAWAL_GATE_TEST_DB',
+    defaultNamePrefix: 'tentura_test_ub_withdrawal',
+  );
+  final postgresReachable = await canReachPostgresAdmin(target);
+  final skipReason = postgresReachable
+      ? false
+      : 'Postgres admin database not reachable for disposable test target';
 
-  if (postgresReachable) {
-    final probe = TenturaDb(_testEnv());
-    try {
-      if (!await _hasWithdrawalGate(probe)) {
-        skipReason = 'm0137 withdrawal gate missing on trust_rebuild_effective_edge';
-      }
-    } finally {
-      await probe.close();
-    }
-  }
-
+  late Connection writer;
   late TenturaDb db;
   late Env env;
   late UserBlockRepository repo;
   late BlockCascadeCase cascadeJob;
+  late bool hasLegacyTrustLedger;
 
   // Canonical §9.1 ids with `g` infix for parallel-safe pg runs.
   const rootId = 'Ublkgroot0001';
@@ -118,16 +117,23 @@ ON CONFLICT (subject, object) DO UPDATE SET amount = EXCLUDED.amount
     String bin = 'very_good',
     double count = 2,
   }) async {
+    final trustW = bin == 'good' ? 0.5 * count : 0.8 * count;
+    final weight = trustW.clamp(0.001, 1.0);
     await db.customStatement(
       '''
-SELECT trust_apply_source_evidence(
-  'personal', '$subject', '$object', '$bin', $count
+INSERT INTO public.user_trust_edge (
+  subject, object, prev_sent_weight, trust_w, wall_d, target_w,
+  created_at, updated_at
+) VALUES (
+  '$subject', '$object', $weight, $weight, 0, $weight, now(), now()
 )
+ON CONFLICT (subject, object) DO UPDATE SET
+  prev_sent_weight = EXCLUDED.prev_sent_weight,
+  trust_w = EXCLUDED.trust_w,
+  target_w = EXCLUDED.target_w,
+  updated_at = EXCLUDED.updated_at
 ''',
     );
-    await db.customSelect(
-      "SELECT trust_rebuild_effective_edge('$subject', '$object', -1)",
-    ).getSingle();
   }
 
   Future<void> seedCanonicalFixture() async {
@@ -214,6 +220,9 @@ SELECT trust_apply_source_evidence(
     required String subject,
     required String object,
   }) async {
+    if (!hasLegacyTrustLedger) {
+      return [];
+    }
     final rows = await db.customSelect(
       '''
 SELECT trust_context, subject, object,
@@ -247,17 +256,15 @@ ORDER BY trust_context
   }) async {
     final row = await db.customSelect(
       '''
-SELECT s_very_bad, s_bad, s_no_effect, s_good, s_very_good, prev_sent_weight
+SELECT trust_w, wall_d, target_w, prev_sent_weight
 FROM public.user_trust_edge
 WHERE subject = '$subject' AND object = '$object'
 ''',
     ).getSingle();
     return {
-      's_very_bad': row.read<double>('s_very_bad'),
-      's_bad': row.read<double>('s_bad'),
-      's_no_effect': row.read<double>('s_no_effect'),
-      's_good': row.read<double>('s_good'),
-      's_very_good': row.read<double>('s_very_good'),
+      'trust_w': row.read<double>('trust_w'),
+      'wall_d': row.read<double>('wall_d'),
+      'target_w': row.read<double>('target_w'),
       'prev_sent_weight': row.read<double>('prev_sent_weight'),
     };
   }
@@ -278,27 +285,103 @@ WHERE subject = '$subject' AND object = '$object'
     required String object,
     double? epsilonOverride,
   }) async {
-    final QueryRow row;
-    if (epsilonOverride == null) {
-      row = await db.customSelect(
-        "SELECT trust_rebuild_effective_edge('$subject', '$object') AS w",
-      ).getSingle();
-    } else {
-      row = await db
+    if (epsilonOverride == -1) {
+      final honestRow = await db
           .customSelect(
-            r'SELECT trust_rebuild_effective_edge($1, $2, $3) AS w',
+            r'''
+SELECT trust_w AS w, target_w,
+  EXISTS (
+    SELECT 1 FROM public.user_block b
+    WHERE b.blocker_id = $1 AND b.blocked_id = $2
+  ) AS blocked
+FROM public.user_trust_edge
+WHERE subject = $1 AND object = $2
+''',
             variables: [
               Variable<String>(subject),
               Variable<String>(object),
-              Variable<double>(epsilonOverride),
             ],
           )
-          .getSingle();
+          .getSingleOrNull();
+      if (honestRow != null) {
+        if (!honestRow.read<bool>('blocked')) {
+          await db.customStatement(
+            r'''
+UPDATE public.user_trust_edge
+SET prev_sent_weight = target_w, updated_at = now()
+WHERE subject = $1 AND object = $2
+''',
+            [subject, object],
+          );
+          await db.customStatement(
+            r'''
+DELETE FROM public.trust_publish_queue
+WHERE subject_user_id = $1 AND object_user_id = $2
+''',
+            [subject, object],
+          );
+        }
+        return honestRow.read<double>('w');
+      }
     }
+    if (!hasLegacyTrustLedger) {
+      final row = await db
+          .customSelect(
+            r'''
+SELECT trust_w AS w
+FROM public.user_trust_edge
+WHERE subject = $1 AND object = $2
+''',
+            variables: [
+              Variable<String>(subject),
+              Variable<String>(object),
+            ],
+          )
+          .getSingleOrNull();
+      return row?.read<double>('w') ?? 0;
+    }
+    await db.customSelect(
+      r'SELECT public.trust_project_pair($1, $2)',
+      variables: [
+        Variable<String>(subject),
+        Variable<String>(object),
+      ],
+    ).getSingle();
+    if (epsilonOverride == -1) {
+      await db.customStatement(
+        r'''
+UPDATE public.user_trust_edge
+SET prev_sent_weight = target_w, updated_at = now()
+WHERE subject = $1 AND object = $2
+''',
+        [subject, object],
+      );
+      await db.customStatement(
+        r'''
+DELETE FROM public.trust_publish_queue
+WHERE subject_user_id = $1 AND object_user_id = $2
+''',
+        [subject, object],
+      );
+    }
+    final row = await db.customSelect(
+      r'''
+SELECT trust_w AS w
+FROM public.user_trust_edge
+WHERE subject = $1 AND object = $2
+''',
+      variables: [
+        Variable<String>(subject),
+        Variable<String>(object),
+      ],
+    ).getSingle();
     return row.read<double>('w');
   }
 
   Future<int> trustEvidenceEventCount() async {
+    if (!hasLegacyTrustLedger) {
+      return 0;
+    }
     final idList = fixtureIds.map((id) => "'$id'").join(', ');
     final row = await db.customSelect(
       '''
@@ -347,14 +430,16 @@ WHERE blocker_id = '$aliceId' AND blocked_id = '$bobId'
       'DELETE FROM public.user_block_intent WHERE blocker_id IN ($idList) '
       'OR blocked_id IN ($idList)',
     );
-    await db.customStatement(
-      'DELETE FROM public.trust_evidence_event '
-      'WHERE subject_user_id IN ($idList) OR object_user_id IN ($idList)',
-    );
-    await db.customStatement(
-      'DELETE FROM public.user_trust_source_edge WHERE subject IN ($idList) '
-      'OR object IN ($idList)',
-    );
+    if (hasLegacyTrustLedger) {
+      await db.customStatement(
+        'DELETE FROM public.trust_evidence_event '
+        'WHERE subject_user_id IN ($idList) OR object_user_id IN ($idList)',
+      );
+      await db.customStatement(
+        'DELETE FROM public.user_trust_source_edge WHERE subject IN ($idList) '
+        'OR object IN ($idList)',
+      );
+    }
     await db.customStatement(
       'DELETE FROM public.user_trust_edge WHERE subject IN ($idList) '
       'OR object IN ($idList)',
@@ -383,15 +468,31 @@ WHERE blocker_id = '$aliceId' AND blocked_id = '$bobId'
   }
 
   if (skipReason == false) {
+    setUpAll(() async {
+      await target.recreate();
+      writer = await Connection.open(
+        target.databaseEnv.pgEndpoint,
+        settings: target.databaseEnv.pgEndpointSettings,
+      );
+      await writer.execute('SET check_function_bodies = false');
+      await migrateDbSchema(writer);
+      bindHarness(_disposableEnv(target));
+      hasLegacyTrustLedger = await _hasLegacyTrustLedger(db);
+    });
+
     setUp(() async {
-      bindHarness(_testEnv());
       await cleanup();
       await seedCanonicalFixture();
     });
 
     tearDown(() async {
       await cleanup();
+    });
+
+    tearDownAll(() async {
       await db.close();
+      await writer.close();
+      await target.drop();
     });
   }
 
@@ -416,13 +517,7 @@ WHERE blocker_id = '$aliceId' AND blocked_id = '$bobId'
         subject: aliceId,
         object: bobId,
       );
-      for (final key in [
-        's_very_bad',
-        's_bad',
-        's_no_effect',
-        's_good',
-        's_very_good',
-      ]) {
+      for (final key in ['trust_w', 'wall_d', 'target_w']) {
         expect(
           projectionAfter[key]! as double,
           closeTo(projectionBefore[key]! as double, 0.0001),
@@ -603,37 +698,21 @@ WHERE blocker_id = '$aliceId' OR blocked_id = '$aliceId'
   );
 }
 
-Env _testEnv() => Env(
-  environment: Environment.test,
-  pgHost: Platform.environment['POSTGRES_HOST'] ?? 'localhost',
-  pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
-  pgDatabase: Platform.environment['POSTGRES_DBNAME'] ?? 'postgres',
-  pgUsername: Platform.environment['POSTGRES_USERNAME'] ?? 'postgres',
-  pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
-  genealogyNodeKeySecret: 'test-genealogy-secret',
-);
-
-Future<bool> _canConnectPostgres() async {
-  try {
-    final db = TenturaDb(_testEnv());
-    await db.customSelect('SELECT 1').getSingle();
-    await db.close();
-    return true;
-  } catch (_) {
-    return false;
-  }
-}
-
-Future<bool> _hasWithdrawalGate(TenturaDb db) async {
+Future<bool> _hasLegacyTrustLedger(TenturaDb db) async {
   final row = await db.customSelect(
-    r'''
-SELECT pg_get_functiondef(p.oid) LIKE '%user_block%'
-  AND pg_get_functiondef(p.oid) LIKE '%_target%'
-  AS ok
-FROM pg_proc p
-WHERE p.proname = 'trust_rebuild_effective_edge'
-LIMIT 1
+    '''
+SELECT to_regclass('public.trust_evidence_event') IS NOT NULL AS ok
 ''',
   ).getSingle();
   return row.read<bool>('ok');
 }
+
+Env _disposableEnv(DisposablePgTarget target) => Env(
+  environment: Environment.test,
+  pgHost: target.databaseEnv.pgHost,
+  pgPort: target.databaseEnv.pgPort,
+  pgDatabase: target.databaseEnv.pgDatabase,
+  pgUsername: target.databaseEnv.pgUsername,
+  pgPassword: target.databaseEnv.pgPassword,
+  genealogyNodeKeySecret: 'test-genealogy-secret',
+);

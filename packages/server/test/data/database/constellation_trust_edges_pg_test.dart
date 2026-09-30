@@ -71,13 +71,16 @@ ON CONFLICT (subject, object) DO UPDATE SET amount = EXCLUDED.amount
       db.customStatement(
         '''
 INSERT INTO public.user_trust_edge (
-  subject, object, anchor_at, prev_sent_weight, created_at, updated_at
+  subject, object, prev_sent_weight, trust_w, wall_d, target_w,
+  created_at, updated_at
 ) VALUES (
-  '$subject', '$object', '2026-01-01T00:00:00Z', $prevSentWeight,
+  '$subject', '$object', $prevSentWeight, $prevSentWeight, 0, $prevSentWeight,
   '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'
 )
 ON CONFLICT (subject, object) DO UPDATE SET
   prev_sent_weight = EXCLUDED.prev_sent_weight,
+  trust_w = EXCLUDED.trust_w,
+  target_w = EXCLUDED.target_w,
   updated_at = EXCLUDED.updated_at
 ''',
       );

@@ -1,29 +1,23 @@
 @Tags(['pg'])
 library;
 
-import 'dart:io';
-
-import 'package:injectable/injectable.dart' show Environment;
 import 'package:test/test.dart';
 
 import 'package:tentura_server/data/database/tentura_db.dart';
-import 'package:tentura_server/env.dart';
+
+import '../../support/disposable_pg_target.dart';
 
 Future<void> main() async {
-  final postgresReachable = await _canConnectPostgres();
-  var skipReason = postgresReachable ? false : 'local Postgres not reachable';
+  final target = DisposablePgTarget.fromNamedEnvironment(
+    envVarName: 'TENTURA_USER_TRUST_EDGE_DEGREE_TEST_DB',
+    defaultNamePrefix: 'tentura_test_uted',
+  );
+  final reachable = await canReachPostgresAdmin(target);
+  final skipReason = reachable
+      ? false
+      : 'Postgres admin database not reachable for disposable test target';
 
-  if (postgresReachable) {
-    final probe = TenturaDb(_testEnv());
-    try {
-      if (!await _hasUserTrustEdgeTable(probe)) {
-        skipReason = 'user_trust_edge table missing';
-      }
-    } finally {
-      await probe.close();
-    }
-  }
-
+  late DisposablePgWriterSession session;
   late TenturaDb db;
 
   const aliceId = 'UdegAlice001';
@@ -33,7 +27,8 @@ Future<void> main() async {
 
   if (skipReason == false) {
     setUpAll(() async {
-      db = TenturaDb(_testEnv());
+      session = await setUpDisposablePgWriter(target: target);
+      db = openDisposablePgDatabase(target);
 
       Future<void> user(String id) => db.customStatement(
         '''
@@ -49,21 +44,26 @@ ON CONFLICT (id) DO NOTHING
 INSERT INTO public.user_trust_edge (
   subject,
   object,
-  anchor_at,
   prev_sent_weight,
+  trust_w,
+  wall_d,
+  target_w,
   created_at,
   updated_at
 ) VALUES (
   '$subject',
   '$object',
-  '2026-01-01T00:00:00Z',
+  $weight,
+  $weight,
+  0,
   $weight,
   '2026-01-01T00:00:00Z',
   '2026-01-01T00:00:00Z'
 )
 ON CONFLICT (subject, object) DO UPDATE SET
   prev_sent_weight = EXCLUDED.prev_sent_weight,
-  anchor_at = EXCLUDED.anchor_at,
+  trust_w = EXCLUDED.trust_w,
+  target_w = EXCLUDED.target_w,
   updated_at = EXCLUDED.updated_at
 ''',
           );
@@ -78,15 +78,7 @@ ON CONFLICT (subject, object) DO UPDATE SET
     });
 
     tearDownAll(() async {
-      final idList = allIds.map((id) => "'$id'").join(', ');
-      await db.customStatement('''
-DELETE FROM public.user_trust_edge WHERE subject IN ($idList)
-  OR object IN ($idList)
-''');
-      await db.customStatement(
-        '''DELETE FROM public."user" WHERE id IN ($idList)''',
-      );
-      await db.close();
+      await tearDownDisposablePgWriter(session: session, drift: db);
     });
   }
 
@@ -154,37 +146,4 @@ Future<int> _degree(
       )
       .getSingle();
   return row.read<int>('degree');
-}
-
-Env _testEnv() => Env(
-  environment: Environment.test,
-  pgHost: Platform.environment['POSTGRES_HOST'] ?? 'localhost',
-  pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
-  pgDatabase: Platform.environment['POSTGRES_DBNAME'] ?? 'postgres',
-  pgUsername: Platform.environment['POSTGRES_USERNAME'] ?? 'postgres',
-  pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
-  genealogyNodeKeySecret: 'test-genealogy-secret',
-);
-
-Future<bool> _canConnectPostgres() async {
-  try {
-    final db = TenturaDb(_testEnv());
-    await db.customSelect('SELECT 1').getSingle();
-    await db.close();
-    return true;
-  } catch (_) {
-    return false;
-  }
-}
-
-Future<bool> _hasUserTrustEdgeTable(TenturaDb db) async {
-  final rows = await db.customSelect(
-    '''
-SELECT 1
-FROM information_schema.tables
-WHERE table_schema = 'public' AND table_name = 'user_trust_edge'
-LIMIT 1
-''',
-  ).getSingleOrNull();
-  return rows != null;
 }

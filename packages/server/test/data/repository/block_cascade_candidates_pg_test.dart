@@ -1,15 +1,17 @@
 @Tags(['pg'])
 library;
 
-import 'dart:io';
-
 import 'package:injectable/injectable.dart' show Environment;
+import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
+import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/domain/invite_genealogy/invite_genealogy_node_key.dart';
 import 'package:tentura_server/env.dart';
+
+import '../../support/disposable_pg_target.dart';
 
 /// `block_cascade_candidates` / `block_cascade_unattached` — spec §9.3 T-B,
 /// §9.4 T-C, §11 X2/X3/X4/X11.
@@ -26,20 +28,16 @@ import 'package:tentura_server/env.dart';
 ///       |    |
 ///       D    P3
 Future<void> main() async {
-  final postgresReachable = await _canConnectPostgres();
-  var skipReason = postgresReachable ? false : 'local Postgres not reachable';
+  final target = DisposablePgTarget.fromNamedEnvironment(
+    envVarName: 'TENTURA_BLOCK_CASCADE_CANDIDATES_TEST_DB',
+    defaultNamePrefix: 'tentura_test_block_cascade',
+  );
+  final postgresReachable = await canReachPostgresAdmin(target);
+  final skipReason = postgresReachable
+      ? false
+      : 'Postgres admin database not reachable for disposable test target';
 
-  if (postgresReachable) {
-    final probe = TenturaDb(_testEnv());
-    try {
-      if (!await _hasUserBlockSchema(probe)) {
-        skipReason = 'm0135 schema (user_block / block_hides) missing';
-      }
-    } finally {
-      await probe.close();
-    }
-  }
-
+  late Connection writer;
   late TenturaDb db;
   late Env env;
 
@@ -148,13 +146,16 @@ ON CONFLICT (subject, object) DO UPDATE SET amount = EXCLUDED.amount
   }) => db.customStatement(
     '''
 INSERT INTO public.user_trust_edge (
-  subject, object, anchor_at, prev_sent_weight, created_at, updated_at
+  subject, object, prev_sent_weight, trust_w, wall_d, target_w,
+  created_at, updated_at
 ) VALUES (
-  '$subject', '$object', '2026-01-01T00:00:00Z', $prevSentWeight,
+  '$subject', '$object', $prevSentWeight, $prevSentWeight, 0, $prevSentWeight,
   '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'
 )
 ON CONFLICT (subject, object) DO UPDATE SET
-  prev_sent_weight = EXCLUDED.prev_sent_weight
+  prev_sent_weight = EXCLUDED.prev_sent_weight,
+  trust_w = EXCLUDED.trust_w,
+  target_w = EXCLUDED.target_w
 ''',
   );
 
@@ -320,7 +321,14 @@ SELECT public.block_cascade_unattached($1, $2, $3) AS unattached
 
   if (skipReason == false) {
     setUpAll(() async {
-      env = _testEnv();
+      await target.recreate();
+      writer = await Connection.open(
+        target.databaseEnv.pgEndpoint,
+        settings: target.databaseEnv.pgEndpointSettings,
+      );
+      await writer.execute('SET check_function_bodies = false');
+      await migrateDbSchema(writer);
+      env = _disposableEnv(target);
       db = TenturaDb(env);
     });
 
@@ -329,6 +337,8 @@ SELECT public.block_cascade_unattached($1, $2, $3) AS unattached
     tearDownAll(() async {
       await cleanup();
       await db.close();
+      await writer.close();
+      await target.drop();
     });
   }
 
@@ -578,37 +588,12 @@ VALUES ('$aliceId', '$bobId', 2)
   );
 }
 
-Env _testEnv() => Env(
+Env _disposableEnv(DisposablePgTarget target) => Env(
   environment: Environment.test,
-  pgHost: Platform.environment['POSTGRES_HOST'] ?? 'localhost',
-  pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
-  pgDatabase: Platform.environment['POSTGRES_DBNAME'] ?? 'postgres',
-  pgUsername: Platform.environment['POSTGRES_USERNAME'] ?? 'postgres',
-  pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
+  pgHost: target.databaseEnv.pgHost,
+  pgPort: target.databaseEnv.pgPort,
+  pgDatabase: target.databaseEnv.pgDatabase,
+  pgUsername: target.databaseEnv.pgUsername,
+  pgPassword: target.databaseEnv.pgPassword,
   genealogyNodeKeySecret: 'test-genealogy-secret',
 );
-
-Future<bool> _canConnectPostgres() async {
-  try {
-    final db = TenturaDb(_testEnv());
-    await db.customSelect('SELECT 1').getSingle();
-    await db.close();
-    return true;
-  } catch (_) {
-    return false;
-  }
-}
-
-Future<bool> _hasUserBlockSchema(TenturaDb db) async {
-  final row = await db.customSelect(
-    '''
-SELECT
-  to_regclass('public.user_block') IS NOT NULL
-  AND to_regclass('public.user_block_intent') IS NOT NULL
-  AND (SELECT count(*) FROM pg_proc WHERE proname = 'block_cascade_candidates') > 0
-  AND (SELECT count(*) FROM pg_proc WHERE proname = 'block_cascade_unattached') > 0
-  AS ok
-''',
-  ).getSingle();
-  return row.read<bool>('ok');
-}

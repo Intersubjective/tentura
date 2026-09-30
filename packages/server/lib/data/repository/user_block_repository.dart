@@ -90,15 +90,25 @@ SELECT EXISTS (
         .getSingle();
     if (!hasPublishedEdge) return;
 
-    await _db.customSelect(
-      r'SELECT trust_rebuild_effective_edge($1, $2, $3)',
-      variables: [
-        Variable<String>(blockerId),
-        Variable<String>(blockedId),
-        const Variable<double>(-1),
-      ],
-      readsFrom: {},
-    ).getSingle();
+    // Withdrawal gates MR publication only: keep m0202 projection columns
+    // (trust_w / target_w) while zeroing what was last published.
+    await _db.customStatement(
+      r'''
+UPDATE public.user_trust_edge
+SET prev_sent_weight = 0, updated_at = now()
+WHERE subject = $1 AND object = $2
+''',
+      [blockerId, blockedId],
+    );
+    await _db.customStatement(
+      r'''
+INSERT INTO public.trust_publish_queue (subject_user_id, object_user_id)
+VALUES ($1, $2)
+ON CONFLICT (subject_user_id, object_user_id)
+  DO UPDATE SET next_attempt_at = now()
+''',
+      [blockerId, blockedId],
+    );
     await _invalidateWitnessWindows(blockerId, blockedId);
   }
 
@@ -158,15 +168,10 @@ SELECT EXISTS (
           .getSingle();
       if (!hasEdge) continue;
 
-      await _db.customSelect(
-        r'SELECT trust_rebuild_effective_edge($1, $2, $3)',
-        variables: [
-          Variable<String>(blockerId),
-          Variable<String>(pair),
-          const Variable<double>(-1),
-        ],
-        readsFrom: {},
-      ).getSingle();
+      await _reprojectTrustPairForBlockChange(
+        subject: blockerId,
+        object: pair,
+      );
       await _invalidateWitnessWindows(blockerId, pair);
     }
   });
@@ -769,15 +774,10 @@ SELECT EXISTS (
             .getSingle();
         if (!hasEdge) continue;
 
-        await _db.customSelect(
-          r'SELECT trust_rebuild_effective_edge($1, $2, $3)',
-          variables: [
-            Variable<String>(blockerId),
-            Variable<String>(blockedId),
-            const Variable<double>(-1),
-          ],
-          readsFrom: {},
-        ).getSingle();
+        await _reprojectTrustPairForBlockChange(
+          subject: blockerId,
+          object: blockedId,
+        );
         await _invalidateWitnessWindows(blockerId, blockedId);
       }
 
@@ -879,6 +879,52 @@ WHERE blocker_id = $1 AND blocked_id = $2
         materializedCount: row.materializedCount,
         createdAt: row.createdAt.dateTime,
       );
+
+  /// m0202: republish from the stored projection (`trust_w` / `target_w`) without
+  /// re-folding ledger evidence (dropped in m0202).
+  Future<void> _reprojectTrustPairForBlockChange({
+    required String subject,
+    required String object,
+  }) async {
+    final row = await _db
+        .customSelect(
+          r'''
+SELECT trust_w, target_w
+FROM public.user_trust_edge
+WHERE subject = $1 AND object = $2
+''',
+          variables: [
+            Variable<String>(subject),
+            Variable<String>(object),
+          ],
+          readsFrom: {},
+        )
+        .getSingleOrNull();
+    if (row == null) return;
+
+    final trustW = row.read<double>('trust_w');
+    final targetW = row.read<double>('target_w');
+    final honestPublish = targetW > 0 ? targetW : trustW;
+    if (honestPublish == 0) return;
+
+    await _db.customStatement(
+      r'''
+UPDATE public.user_trust_edge
+SET prev_sent_weight = $3, updated_at = now()
+WHERE subject = $1 AND object = $2
+''',
+      [subject, object, honestPublish],
+    );
+    await _db.customStatement(
+      r'''
+INSERT INTO public.trust_publish_queue (subject_user_id, object_user_id)
+VALUES ($1, $2)
+ON CONFLICT (subject_user_id, object_user_id)
+  DO UPDATE SET next_attempt_at = now()
+''',
+      [subject, object],
+    );
+  }
 
   Future<void> _invalidateWitnessWindows(
     String blockerId,

@@ -1,37 +1,28 @@
 @Tags(['pg', 'mr'])
 library;
 
-import 'dart:io';
-
 import 'package:injectable/injectable.dart' show Environment;
+import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
+import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/data/database/tentura_db.dart';
 import 'package:tentura_server/env.dart';
 
+import '../../support/disposable_pg_target.dart';
+
 /// Block filtering on graph readers and mutual friends — spec §3.2, §3.3 / T-H E9–E10.
 Future<void> main() async {
-  final postgresReachable = await _canConnectPostgres();
-  var skipReason = postgresReachable ? false : 'local Postgres not reachable';
+  final target = DisposablePgTarget.fromNamedEnvironment(
+    envVarName: 'TENTURA_USER_BLOCK_GRAPH_ENFORCEMENT_TEST_DB',
+    defaultNamePrefix: 'tentura_test_ub_graph_enf',
+  );
+  final postgresReachable = await canReachPostgresAdmin(target);
+  final skipReason = postgresReachable
+      ? false
+      : 'Postgres admin database not reachable for disposable test target';
 
-  if (postgresReachable) {
-    final probe = TenturaDb(_testEnv());
-    try {
-      if (!await _hasUserBlockSchema(probe)) {
-        skipReason = 'm0135 schema (user_block / block_hides) missing';
-      } else if (!await _graphIncludesBlockClause(probe)) {
-        skipReason = 'm0136 schema (graph block clause) missing';
-      } else if (!await _graphEdgesBetweenHasSessionArg(probe)) {
-        skipReason =
-            'm0136 schema (graph_edges_between hasura_session arg) missing';
-      } else if (!await _mutualFriendsIncludesBlockClause(probe)) {
-        skipReason = 'm0136 schema (mutual_friends block clause) missing';
-      }
-    } finally {
-      await probe.close();
-    }
-  }
-
+  late Connection writer;
   late TenturaDb db;
 
   const viewerId = 'Ublkgview001';
@@ -51,12 +42,18 @@ ON CONFLICT (id) DO NOTHING
   Future<void> seedTrustEdge(String subject, String object) async {
     await db.customStatement(
       '''
-SELECT trust_apply_source_evidence('personal', '$subject', '$object', 'very_good', 1)
-''',
-    );
-    await db.customStatement(
-      '''
-SELECT trust_rebuild_effective_edge('$subject', '$object')
+INSERT INTO public.user_trust_edge (
+  subject, object, prev_sent_weight, trust_w, wall_d, target_w,
+  created_at, updated_at
+) VALUES (
+  '$subject', '$object', 1, 1, 0, 1,
+  '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'
+)
+ON CONFLICT (subject, object) DO UPDATE SET
+  prev_sent_weight = EXCLUDED.prev_sent_weight,
+  trust_w = EXCLUDED.trust_w,
+  target_w = EXCLUDED.target_w,
+  updated_at = EXCLUDED.updated_at
 ''',
     );
   }
@@ -64,6 +61,12 @@ SELECT trust_rebuild_effective_edge('$subject', '$object')
   Future<void> seedMutualTrust(String a, String b) async {
     await seedTrustEdge(a, b);
     await seedTrustEdge(b, a);
+    await db.customStatement(
+      "SELECT mr_put_edge('$a', '$b', 1::double precision, ''::text, 0)",
+    );
+    await db.customStatement(
+      "SELECT mr_put_edge('$b', '$a', 1::double precision, ''::text, 0)",
+    );
   }
 
   Future<void> insertDirectBlock(String blockerId, String blockedId) =>
@@ -75,15 +78,23 @@ ON CONFLICT DO NOTHING
 ''',
       );
 
+  Future<void> zeroMrEdgesBetween(Iterable<String> ids) async {
+    for (final src in ids) {
+      for (final dst in ids) {
+        if (src == dst) continue;
+        await db.customStatement(
+          "SELECT mr_put_edge('$src', '$dst', 0::double precision, ''::text, 0)",
+        );
+      }
+    }
+  }
+
   Future<void> cleanup() async {
     final userList = allUserIds.map((id) => "'$id'").join(', ');
+    await zeroMrEdgesBetween(allUserIds);
     await db.customStatement(
       'DELETE FROM public.user_block WHERE blocker_id IN ($userList) '
       'OR blocked_id IN ($userList)',
-    );
-    await db.customStatement(
-      'DELETE FROM public.user_trust_source_edge '
-      'WHERE subject IN ($userList) OR object IN ($userList)',
     );
     await db.customStatement(
       'DELETE FROM public.user_trust_edge '
@@ -95,8 +106,19 @@ ON CONFLICT DO NOTHING
   }
 
   if (skipReason == false) {
+    setUpAll(() async {
+      await target.recreate();
+      writer = await Connection.open(
+        target.databaseEnv.pgEndpoint,
+        settings: target.databaseEnv.pgEndpointSettings,
+      );
+      await writer.execute('SET check_function_bodies = false');
+      await writer.execute('CREATE EXTENSION IF NOT EXISTS pgmer2');
+      await migrateDbSchema(writer);
+      db = TenturaDb(_disposableEnv(target));
+    });
+
     setUp(() async {
-      db = TenturaDb(_testEnv());
       await cleanup();
       for (final id in allUserIds) {
         await insertUser(id);
@@ -105,7 +127,12 @@ ON CONFLICT DO NOTHING
 
     tearDown(() async {
       await cleanup();
+    });
+
+    tearDownAll(() async {
       await db.close();
+      await writer.close();
+      await target.drop();
     });
   }
 
@@ -150,12 +177,15 @@ ON CONFLICT DO NOTHING
       await db.customStatement(
         '''
 INSERT INTO public.user_trust_edge (
-  subject, object, anchor_at, prev_sent_weight, created_at, updated_at
+  subject, object, prev_sent_weight, trust_w, wall_d, target_w,
+  created_at, updated_at
 ) VALUES
-  ('$viewerId', '$peerAId', '2026-01-01T00:00:00Z', 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
-  ('$viewerId', '$peerBId', '2026-01-01T00:00:00Z', 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
+  ('$viewerId', '$peerAId', 1, 1, 0, 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
+  ('$viewerId', '$peerBId', 1, 1, 0, 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
 ON CONFLICT (subject, object) DO UPDATE SET
-  prev_sent_weight = EXCLUDED.prev_sent_weight
+  prev_sent_weight = EXCLUDED.prev_sent_weight,
+  trust_w = EXCLUDED.trust_w,
+  target_w = EXCLUDED.target_w
 ''',
       );
 
@@ -281,78 +311,12 @@ ORDER BY id
   return [for (final row in rows) row.read<String>('id')];
 }
 
-Env _testEnv() => Env(
+Env _disposableEnv(DisposablePgTarget target) => Env(
   environment: Environment.test,
-  pgHost: Platform.environment['POSTGRES_HOST'] ?? 'localhost',
-  pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
-  pgDatabase: Platform.environment['POSTGRES_DBNAME'] ?? 'postgres',
-  pgUsername: Platform.environment['POSTGRES_USERNAME'] ?? 'postgres',
-  pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
+  pgHost: target.databaseEnv.pgHost,
+  pgPort: target.databaseEnv.pgPort,
+  pgDatabase: target.databaseEnv.pgDatabase,
+  pgUsername: target.databaseEnv.pgUsername,
+  pgPassword: target.databaseEnv.pgPassword,
   genealogyNodeKeySecret: 'test-genealogy-secret',
 );
-
-Future<bool> _canConnectPostgres() async {
-  try {
-    final db = TenturaDb(_testEnv());
-    await db.customSelect('SELECT 1').getSingle();
-    await db.close();
-    return true;
-  } catch (_) {
-    return false;
-  }
-}
-
-Future<bool> _hasUserBlockSchema(TenturaDb db) async {
-  final row = await db.customSelect(
-    '''
-SELECT to_regclass('public.user_block') IS NOT NULL
-  AND EXISTS (
-    SELECT 1 FROM pg_proc p
-    JOIN pg_namespace n ON n.oid = p.pronamespace
-    WHERE n.nspname = 'public' AND p.proname = 'block_hides'
-  ) AS ok
-''',
-  ).getSingle();
-  return row.read<bool>('ok');
-}
-
-Future<bool> _graphIncludesBlockClause(TenturaDb db) async {
-  final row = await db.customSelect(
-    '''
-SELECT pg_get_functiondef(p.oid) LIKE '%block_hides%' AS ok
-FROM pg_proc p
-JOIN pg_namespace n ON n.oid = p.pronamespace
-WHERE n.nspname = 'public' AND p.proname = 'graph'
-LIMIT 1
-''',
-  ).getSingleOrNull();
-  return row?.read<bool>('ok') ?? false;
-}
-
-Future<bool> _graphEdgesBetweenHasSessionArg(TenturaDb db) async {
-  final row = await db.customSelect(
-    '''
-SELECT 1
-FROM pg_proc p
-JOIN pg_namespace n ON n.oid = p.pronamespace
-WHERE n.nspname = 'public'
-  AND p.proname = 'graph_edges_between'
-  AND p.pronargs = 3
-LIMIT 1
-''',
-  ).getSingleOrNull();
-  return row != null;
-}
-
-Future<bool> _mutualFriendsIncludesBlockClause(TenturaDb db) async {
-  final row = await db.customSelect(
-    '''
-SELECT pg_get_functiondef(p.oid) LIKE '%block_hides%' AS ok
-FROM pg_proc p
-JOIN pg_namespace n ON n.oid = p.pronamespace
-WHERE n.nspname = 'public' AND p.proname = 'mutual_friends'
-LIMIT 1
-''',
-  ).getSingleOrNull();
-  return row?.read<bool>('ok') ?? false;
-}

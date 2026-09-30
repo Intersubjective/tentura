@@ -1,33 +1,54 @@
 @Tags(['pg'])
 library;
 
-import 'dart:io';
-
 import 'package:injectable/injectable.dart' show Environment;
+import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
+import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/env.dart';
 
+import '../../support/disposable_pg_target.dart';
 import '../../support/pg_test_public_keys.dart';
 
 /// Verifies m0122 legacy source copy preserved pre-migration effective rows.
 Future<void> main() async {
-  final postgresReachable = await _canConnectPostgres();
-  var skipReason = postgresReachable ? false : 'local Postgres not reachable';
+  final target = DisposablePgTarget.fromNamedEnvironment(
+    envVarName: 'TENTURA_TRUST_MIGRATION_TEST_DB',
+    defaultNamePrefix: 'tentura_test_trust_migration',
+  );
+  var skipReason = await canReachPostgresAdmin(target)
+      ? false
+      : 'Postgres admin database not reachable for disposable test target';
 
-  if (postgresReachable) {
-    final probe = TenturaDb(_testEnv());
+  if (skipReason == false) {
+    await target.recreate();
+    final bootstrapWriter = await Connection.open(
+      target.databaseEnv.pgEndpoint,
+      settings: target.databaseEnv.pgEndpointSettings,
+    );
     try {
-      if (!await _hasSourceTable(probe)) {
-        skipReason = 'user_trust_source_edge missing (m0122 not applied)';
+      await bootstrapWriter.execute('SET check_function_bodies = false');
+      await migrateDbSchema(bootstrapWriter);
+      final probe = TenturaDb(_disposableEnv(target));
+      try {
+        if (!await _hasSourceTable(probe)) {
+          skipReason = 'user_trust_source_edge missing (m0122 not applied)';
+        } else if (!await _hasLegacyEffectiveBins(probe)) {
+          skipReason =
+              'user_trust_edge tier bins missing (m0202 projection; legacy copy N/A)';
+        }
+      } finally {
+        await probe.close();
       }
     } finally {
-      await probe.close();
+      await bootstrapWriter.close();
     }
   }
 
+  late Connection writer;
   late TenturaDb db;
 
   const aliceId = 'UtmgAlice001';
@@ -35,7 +56,14 @@ Future<void> main() async {
 
   if (skipReason == false) {
     setUpAll(() async {
-      db = TenturaDb(_testEnv());
+      await target.recreate();
+      writer = await Connection.open(
+        target.databaseEnv.pgEndpoint,
+        settings: target.databaseEnv.pgEndpointSettings,
+      );
+      await writer.execute('SET check_function_bodies = false');
+      await migrateDbSchema(writer);
+      db = TenturaDb(_disposableEnv(target));
       await db.customStatement(
         '''
 INSERT INTO public."user" (id, display_name, public_key, created_at, updated_at)
@@ -63,6 +91,8 @@ ON CONFLICT (id) DO NOTHING
         '''DELETE FROM public."user" WHERE id IN ('$aliceId', '$bobId')''',
       );
       await db.close();
+      await writer.close();
+      await target.drop();
     });
   }
 
@@ -70,15 +100,15 @@ ON CONFLICT (id) DO NOTHING
     await db.customStatement(
       '''
 INSERT INTO public.user_trust_edge (
-  subject, object, s_very_bad, s_bad, s_no_effect, s_good, s_very_good,
-  anchor_at, prev_sent_weight, created_at, updated_at
+  subject, object, prev_sent_weight, trust_w, wall_d, target_w,
+  created_at, updated_at
 ) VALUES (
-  '$aliceId', '$bobId', 0, 0, 0, 3, 1,
-  '2026-01-01T00:00:00Z', 0.5, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'
+  '$aliceId', '$bobId', 0.5, 0.8, 0, 0.8,
+  '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'
 )
 ON CONFLICT (subject, object) DO UPDATE SET
-  s_good = EXCLUDED.s_good,
-  s_very_good = EXCLUDED.s_very_good
+  trust_w = EXCLUDED.trust_w,
+  target_w = EXCLUDED.target_w
 ''',
     );
 
@@ -87,8 +117,9 @@ ON CONFLICT (subject, object) DO UPDATE SET
 INSERT INTO public.user_trust_source_edge
   (trust_context, subject, object, s_very_bad, s_bad, s_no_effect, s_good,
    s_very_good, anchor_at, created_at, updated_at)
-SELECT 'legacy', subject, object, s_very_bad, s_bad, s_no_effect, s_good,
-       s_very_good, anchor_at, created_at, updated_at
+SELECT 'legacy', subject, object,
+  0, 0, 0, trust_w, target_w,
+  created_at, created_at, updated_at
 FROM public.user_trust_edge
 WHERE subject = '$aliceId' AND object = '$bobId'
 ON CONFLICT (trust_context, subject, object) DO UPDATE SET
@@ -105,19 +136,29 @@ WHERE trust_context = 'legacy' AND subject = '$aliceId' AND object = '$bobId'
     ).getSingle();
     final effective = await db.customSelect(
       '''
-SELECT s_good, s_very_good FROM user_trust_edge
+SELECT trust_w, wall_d, target_w, prev_sent_weight FROM user_trust_edge
 WHERE subject = '$aliceId' AND object = '$bobId'
 ''',
     ).getSingle();
 
-    expect(legacy.read<double>('s_good'), effective.read<double>('s_good'));
+    expect(legacy.read<double>('s_good'), effective.read<double>('trust_w'));
     expect(
       legacy.read<double>('s_very_good'),
-      effective.read<double>('s_very_good'),
+      effective.read<double>('target_w'),
     );
 
+    await db.customSelect(
+      r'SELECT public.trust_project_pair($1, $2)',
+      variables: [
+        Variable<String>(aliceId),
+        Variable<String>(bobId),
+      ],
+    ).getSingle();
     final weightAfterRebuild = await db.customSelect(
-      "SELECT trust_rebuild_effective_edge('$aliceId', '$bobId') AS w",
+      '''
+SELECT target_w AS w FROM user_trust_edge
+WHERE subject = '$aliceId' AND object = '$bobId'
+''',
     ).getSingle();
     expect(weightAfterRebuild.read<double>('w'), isNotNull);
   }, skip: skipReason);
@@ -130,32 +171,33 @@ WHERE subject = '$aliceId' AND object = '$bobId'
   }, skip: skipReason);
 }
 
-Env _testEnv() => Env(
+Env _disposableEnv(DisposablePgTarget target) => Env(
   environment: Environment.test,
-  pgHost: Platform.environment['POSTGRES_HOST'] ?? 'localhost',
-  pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
-  pgDatabase: Platform.environment['POSTGRES_DBNAME'] ?? 'postgres',
-  pgUsername: Platform.environment['POSTGRES_USERNAME'] ?? 'postgres',
-  pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
+  pgHost: target.databaseEnv.pgHost,
+  pgPort: target.databaseEnv.pgPort,
+  pgDatabase: target.databaseEnv.pgDatabase,
+  pgUsername: target.databaseEnv.pgUsername,
+  pgPassword: target.databaseEnv.pgPassword,
   genealogyNodeKeySecret: 'test-genealogy-secret',
 );
-
-Future<bool> _canConnectPostgres() async {
-  try {
-    final db = TenturaDb(_testEnv());
-    await db.customSelect('SELECT 1').getSingle();
-    await db.close();
-    return true;
-  } catch (_) {
-    return false;
-  }
-}
 
 Future<bool> _hasSourceTable(TenturaDb db) async {
   final row = await db.customSelect(
     '''
 SELECT count(*)::int > 0 AS ok FROM information_schema.tables
 WHERE table_schema = 'public' AND table_name = 'user_trust_source_edge'
+''',
+  ).getSingle();
+  return row.read<bool>('ok');
+}
+
+Future<bool> _hasLegacyEffectiveBins(TenturaDb db) async {
+  final row = await db.customSelect(
+    '''
+SELECT count(*)::int > 0 AS ok FROM information_schema.columns
+WHERE table_schema = 'public'
+  AND table_name = 'user_trust_edge'
+  AND column_name = 's_good'
 ''',
   ).getSingle();
   return row.read<bool>('ok');
