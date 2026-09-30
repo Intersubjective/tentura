@@ -21,6 +21,9 @@ class ClosureRepositoryMock implements ClosureRepositoryPort {
   Future<ClosureEpoch?> liveEpoch(String beaconId) async => null;
 
   @override
+  Future<ClosureEpoch?> latestEpoch(String beaconId) async => null;
+
+  @override
   Future<int> maxEpoch(String beaconId) async => 0;
 
   @override
@@ -119,6 +122,29 @@ class ClosureRepositoryMock implements ClosureRepositoryPort {
   Future<void> commitSupport({
     required String beaconId,
     required String voterId,
+  }) async {}
+
+  @override
+  Future<void> commitDraft({
+    required String beaconId,
+    required String voterId,
+  }) async {}
+
+  @override
+  Future<void> upsertMarkEvidence({
+    required String beaconId,
+    required int epoch,
+    required String markerId,
+    required String targetId,
+    required DateTime occurredAt,
+  }) async {}
+
+  @override
+  Future<void> retractMarkEvidence({
+    required String beaconId,
+    required int epoch,
+    required String markerId,
+    required String targetId,
   }) async {}
 
   @override

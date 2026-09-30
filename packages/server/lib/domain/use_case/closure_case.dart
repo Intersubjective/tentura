@@ -12,6 +12,7 @@ import 'package:tentura_server/domain/closure/finalize_reason.dart';
 import 'package:tentura_server/domain/closure/membership_reducer.dart';
 import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
 import 'package:tentura_server/domain/commitment/commitment_state.dart';
+import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/attention_system_settlement_port.dart';
 import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
@@ -70,6 +71,8 @@ final class ClosureCase extends UseCaseBase {
   static const Duration _closeNowGrace = Duration(hours: 48);
   static const int _maxExtensions = 2;
   static const int _smallEpisodeSize = 2;
+  static const int _minToggleMembers = 3;
+  static const int _maxStoryLength = 2000;
 
   /// Takes the per-request lock. Commitment-event writers call this before
   /// writing, inside their existing transaction.
@@ -335,6 +338,277 @@ final class ClosureCase extends UseCaseBase {
       live != null &&
       live.status == ClosureEpochStatus.evaluating &&
       cancelledEpochs < kMaxReviewReopens;
+
+  /// Author records (or clears, with null) one member's outcome; a custom
+  /// split is renormalized to the new A (E7).
+  Future<void> saveOutcome({
+    required String authorId,
+    required String beaconId,
+    required int expectedEpoch,
+    required String helperId,
+    ClosureOutcome? outcome,
+  }) => _inClosureTx<void>(
+    actorId: authorId,
+    beaconId: beaconId,
+    expectedEpoch: expectedEpoch,
+    body: (live) async {
+      await _requireAuthor(beaconId, authorId);
+      final members = await _repo.members(
+        beaconId: beaconId,
+        epoch: live!.epoch,
+      );
+      if (!members.any((m) => m.userId == helperId)) {
+        throw const ClosureException.notMember();
+      }
+      await _repo.saveOutcome(
+        beaconId: beaconId,
+        helperId: helperId,
+        outcome: outcome,
+      );
+      final split = await _repo.split(beaconId);
+      if (split.isEmpty) return;
+      await _repo.replaceSplit(
+        beaconId,
+        renormalize(
+          current: split,
+          newA: await _setA(beaconId, members),
+          beaconId: beaconId,
+        ),
+      );
+    },
+  );
+
+  /// Author replaces the custom split (null deletes it).
+  Future<void> saveAuthorSplit({
+    required String authorId,
+    required String beaconId,
+    required int expectedEpoch,
+    required Map<String, int>? split,
+  }) => _inClosureTx<void>(
+    actorId: authorId,
+    beaconId: beaconId,
+    expectedEpoch: expectedEpoch,
+    body: (live) async {
+      await _requireAuthor(beaconId, authorId);
+      if (split != null) {
+        final members = await _repo.members(
+          beaconId: beaconId,
+          epoch: live!.epoch,
+        );
+        switch (validate(split, await _setA(beaconId, members))) {
+          case null:
+            break;
+          case 'splitTooLarge':
+            throw const ClosureException.splitTooLarge();
+          default:
+            throw const ClosureException.invalidSplit();
+        }
+      }
+      await _repo.replaceSplit(beaconId, split);
+    },
+  );
+
+  /// Members whose outcome is done, can't judge or unanswered.
+  Future<Set<String>> _setA(
+    String beaconId,
+    List<ClosureMemberRow> members,
+  ) async {
+    final notDone = {
+      for (final o in await _repo.outcomes(beaconId))
+        if (o.outcome == ClosureOutcome.notDone) o.helperId,
+    };
+    return {
+      for (final m in members)
+        if (!notDone.contains(m.userId)) m.userId,
+    };
+  }
+
+  /// Voter toggles support for [targetId]. When the draft then holds every
+  /// other member, the earliest other press is released and returned.
+  Future<String?> toggleSupport({
+    required String voterId,
+    required String beaconId,
+    required int expectedEpoch,
+    required String targetId,
+    required bool on,
+  }) => _inClosureTx<String?>(
+    actorId: voterId,
+    beaconId: beaconId,
+    expectedEpoch: expectedEpoch,
+    body: (live) async {
+      final members = await _repo.members(
+        beaconId: beaconId,
+        epoch: live!.epoch,
+      );
+      _requireVoter(members, voterId);
+      if (members.length < _minToggleMembers) {
+        throw const ClosureException.wrongStatus();
+      }
+      if (targetId == voterId || !members.any((m) => m.userId == targetId)) {
+        throw const ClosureException.notMember();
+      }
+      await _repo.toggleSupport(
+        beaconId: beaconId,
+        voterId: voterId,
+        targetId: targetId,
+        on: on,
+      );
+      if (!on) return null;
+
+      final others = {
+        for (final m in members)
+          if (m.userId != voterId) m.userId,
+      };
+      final draft = [
+        for (final r in await _repo.supports(
+          beaconId: beaconId,
+          version: ClosureSupportVersion.draft,
+        ))
+          if (r.voterId == voterId) r,
+      ];
+      if (!draft.map((r) => r.targetId).toSet().containsAll(others)) {
+        return null;
+      }
+      final earliest =
+          (draft.where((r) => r.targetId != targetId).toList()
+                ..sort((a, b) => a.pressedAt.compareTo(b.pressedAt)))
+              .first
+              .targetId;
+      await _repo.toggleSupport(
+        beaconId: beaconId,
+        voterId: voterId,
+        targetId: earliest,
+        on: false,
+      );
+      return earliest;
+    },
+  );
+
+  void _requireVoter(List<ClosureMemberRow> members, String userId) {
+    if (!members.any((m) => m.userId == userId && isVoter(m))) {
+      throw const ClosureException.notVoter();
+    }
+  }
+
+  /// Voter commits the current draft as version 1.
+  Future<void> done({
+    required String voterId,
+    required String beaconId,
+    required int expectedEpoch,
+  }) => _inClosureTx<void>(
+    actorId: voterId,
+    beaconId: beaconId,
+    expectedEpoch: expectedEpoch,
+    body: (live) async {
+      _requireVoter(
+        await _repo.members(beaconId: beaconId, epoch: live!.epoch),
+        voterId,
+      );
+      await _repo.commitDraft(beaconId: beaconId, voterId: voterId);
+    },
+  );
+
+  /// Voter commits without support.
+  Future<void> skip({
+    required String voterId,
+    required String beaconId,
+    required int expectedEpoch,
+  }) => _inClosureTx<void>(
+    actorId: voterId,
+    beaconId: beaconId,
+    expectedEpoch: expectedEpoch,
+    body: (live) async {
+      _requireVoter(
+        await _repo.members(beaconId: beaconId, epoch: live!.epoch),
+        voterId,
+      );
+      await _repo.skip(beaconId: beaconId, voterId: voterId);
+    },
+  );
+
+  /// Author or member marks [targetId] on an evaluating or the latest final
+  /// epoch. After finalize the mark also lands in the evidence ledger, dated
+  /// `finalized_at`.
+  Future<void> setMark({
+    required String userId,
+    required String beaconId,
+    required int expectedEpoch,
+    required String targetId,
+    required bool on,
+  }) => _inClosureTx<void>(
+    actorId: userId,
+    beaconId: beaconId,
+    expectedEpoch: null,
+    body: (live) async {
+      final epoch = live ?? await _repo.latestEpoch(beaconId);
+      if (epoch == null ||
+          epoch.epoch != expectedEpoch ||
+          epoch.status == ClosureEpochStatus.cancelled) {
+        throw const ClosureException.staleEpoch();
+      }
+      final authorId = (await _beacons.getBeaconById(
+        beaconId: beaconId,
+      )).author.id;
+      final memberIds = {
+        for (final m in await _repo.members(
+          beaconId: beaconId,
+          epoch: epoch.epoch,
+        ))
+          m.userId,
+      };
+      bool participant(String id) => id == authorId || memberIds.contains(id);
+      if (!participant(userId) || !participant(targetId)) {
+        throw const ClosureException.notMember();
+      }
+      if (userId == targetId) throw const ClosureException.notMember();
+
+      await _repo.setMark(
+        beaconId: beaconId,
+        markerId: userId,
+        targetId: targetId,
+        on: on,
+      );
+      if (epoch.status != ClosureEpochStatus.finalized) return;
+      if (on) {
+        await _repo.upsertMarkEvidence(
+          beaconId: beaconId,
+          epoch: epoch.epoch,
+          markerId: userId,
+          targetId: targetId,
+          occurredAt: epoch.finalizedAt!,
+        );
+      } else {
+        await _repo.retractMarkEvidence(
+          beaconId: beaconId,
+          epoch: epoch.epoch,
+          markerId: userId,
+          targetId: targetId,
+        );
+      }
+    },
+  );
+
+  /// Author's closing story; empty deletes it.
+  Future<void> saveStory({
+    required String authorId,
+    required String beaconId,
+    required int expectedEpoch,
+    required String body,
+  }) => _inClosureTx<void>(
+    actorId: authorId,
+    beaconId: beaconId,
+    expectedEpoch: expectedEpoch,
+    body: (live) async {
+      await _requireAuthor(beaconId, authorId);
+      final text = body.trim();
+      if (text.length > _maxStoryLength) {
+        throw const PayloadTooLargeException(
+          description: 'Story is longer than 2000 characters',
+        );
+      }
+      await _repo.saveStory(beaconId: beaconId, body: text);
+    },
+  );
 
   /// Re-derives [helperId]'s departure after a commitment event. Callers hold
   /// the per-request lock and run in the same transaction as the write.

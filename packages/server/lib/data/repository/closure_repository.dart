@@ -58,6 +58,21 @@ WHERE beacon_id = \$1 AND status = 0
       .getSingleOrNull();
 
   @override
+  Future<ClosureEpoch?> latestEpoch(String beaconId) => _database
+      .customSelect(
+        '''
+SELECT $_epochColumns
+FROM public.beacon_closure
+WHERE beacon_id = \$1
+ORDER BY epoch DESC
+LIMIT 1
+''',
+        variables: [Variable<String>(beaconId)],
+      )
+      .map(_mapEpoch)
+      .getSingleOrNull();
+
+  @override
   Future<int> maxEpoch(String beaconId) => _database
       .customSelect(
         r'''
@@ -315,18 +330,22 @@ WHERE beacon_id = $1
         Variable<int>(entry.value),
       ]);
     }
-    return _database.customInsert(
-      '''
-WITH d AS (
-  DELETE FROM public.beacon_closure_author_split
-  WHERE beacon_id = \$1
-  RETURNING beacon_id
-)
+    // Two statements: a data-modifying CTE would check the primary key
+    // against the rows it is deleting.
+    return _database
+        .customUpdate(
+          r'DELETE FROM public.beacon_closure_author_split WHERE beacon_id = $1',
+          variables: [Variable<String>(beaconId)],
+        )
+        .then(
+          (_) => _database.customInsert(
+            '''
 INSERT INTO public.beacon_closure_author_split (beacon_id, helper_id, pct)
 VALUES ${values.join(', ')}
 ''',
-      variables: variables,
-    );
+            variables: variables,
+          ),
+        );
   }
 
   @override
@@ -410,17 +429,106 @@ ON CONFLICT (beacon_id, voter_id) DO NOTHING
   );
 
   @override
+  Future<void> commitDraft({
+    required String beaconId,
+    required String voterId,
+  }) async {
+    final variables = [Variable<String>(beaconId), Variable<String>(voterId)];
+    await _database.customUpdate(
+      r'''
+DELETE FROM public.beacon_closure_support
+WHERE beacon_id = $1 AND voter_id = $2 AND version = 1
+''',
+      variables: variables,
+    );
+    await _database.customInsert(
+      r'''
+INSERT INTO public.beacon_closure_support (
+  beacon_id, voter_id, target_id, version, pressed_at
+)
+SELECT beacon_id, voter_id, target_id, 1, pressed_at
+FROM public.beacon_closure_support
+WHERE beacon_id = $1 AND voter_id = $2 AND version = 0
+''',
+      variables: variables,
+    );
+    await _database.customInsert(
+      r'''
+INSERT INTO public.beacon_closure_commit (beacon_id, voter_id, committed_at)
+VALUES ($1, $2, now())
+ON CONFLICT (beacon_id, voter_id) DO UPDATE SET committed_at = now()
+''',
+      variables: variables,
+    );
+  }
+
+  @override
   Future<void> skip({
     required String beaconId,
     required String voterId,
   }) => _database.customInsert(
     r'''
+WITH dropped AS (
+  DELETE FROM public.beacon_closure_support
+  WHERE beacon_id = $1 AND voter_id = $2 AND version = 1
+  RETURNING 1
+)
 INSERT INTO public.beacon_closure_commit (beacon_id, voter_id, committed_at)
 VALUES ($1, $2, now())
-ON CONFLICT (beacon_id, voter_id) DO NOTHING
+ON CONFLICT (beacon_id, voter_id) DO UPDATE SET committed_at = now()
 ''',
     variables: [Variable<String>(beaconId), Variable<String>(voterId)],
   );
+
+  @override
+  Future<void> upsertMarkEvidence({
+    required String beaconId,
+    required int epoch,
+    required String markerId,
+    required String targetId,
+    required DateTime occurredAt,
+  }) => _database.customInsert(
+    r'''
+INSERT INTO public.trust_evidence (
+  id, subject_user_id, object_user_id, kind, count, source_key,
+  beacon_id, closure_epoch, occurred_at
+) VALUES (
+  gen_random_uuid()::text, $1, $2, 3, 1, $3, $4, $5, $6
+)
+ON CONFLICT (source_key) DO UPDATE SET retracted_at = NULL
+''',
+    variables: [
+      Variable<String>(markerId),
+      Variable<String>(targetId),
+      Variable<String>(_markSourceKey(beaconId, epoch, markerId, targetId)),
+      Variable<String>(beaconId),
+      Variable<int>(epoch),
+      Variable(PgDateTime(occurredAt), PgTypes.timestampWithTimezone),
+    ],
+  );
+
+  @override
+  Future<void> retractMarkEvidence({
+    required String beaconId,
+    required int epoch,
+    required String markerId,
+    required String targetId,
+  }) => _database.customUpdate(
+    r'''
+UPDATE public.trust_evidence SET retracted_at = now()
+WHERE source_key = $1 AND retracted_at IS NULL
+''',
+    variables: [
+      Variable<String>(_markSourceKey(beaconId, epoch, markerId, targetId)),
+    ],
+  );
+
+  static String _markSourceKey(
+    String beaconId,
+    int epoch,
+    String markerId,
+    String targetId,
+  ) => 'closure:$beaconId:$epoch:mark:$markerId:$targetId';
 
   @override
   Future<void> clearCommitted(String beaconId) => _database.customUpdate(
@@ -512,15 +620,20 @@ ORDER BY marker_id, target_id
   Future<void> saveStory({
     required String beaconId,
     required String body,
-  }) => _database.customInsert(
-    r'''
+  }) => body.isEmpty
+      ? _database.customUpdate(
+          r'DELETE FROM public.beacon_closure_story WHERE beacon_id = $1',
+          variables: [Variable<String>(beaconId)],
+        )
+      : _database.customInsert(
+          r'''
 INSERT INTO public.beacon_closure_story (beacon_id, body)
 VALUES ($1, $2)
 ON CONFLICT (beacon_id)
 DO UPDATE SET body = EXCLUDED.body, updated_at = now()
 ''',
-    variables: [Variable<String>(beaconId), Variable<String>(body)],
-  );
+          variables: [Variable<String>(beaconId), Variable<String>(body)],
+        );
 
   @override
   Future<String?> story(String beaconId) => _database

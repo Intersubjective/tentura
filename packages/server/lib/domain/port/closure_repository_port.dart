@@ -17,6 +17,9 @@ abstract class ClosureRepositoryPort {
   /// no longer live.
   Future<ClosureEpoch?> liveEpoch(String beaconId);
 
+  /// The most recently created epoch in any status, if any.
+  Future<ClosureEpoch?> latestEpoch(String beaconId);
+
   /// Highest epoch number ever created for [beaconId] (0 if none).
   Future<int> maxEpoch(String beaconId);
 
@@ -90,6 +93,14 @@ abstract class ClosureRepositoryPort {
     required String voterId,
   });
 
+  /// Done: replaces the voter's version-1 rows with a copy of their draft and
+  /// upserts the commit row (`committed_at = now()`).
+  Future<void> commitDraft({
+    required String beaconId,
+    required String voterId,
+  });
+
+  /// Drops the voter's version-1 rows and upserts the commit row.
   Future<void> skip({
     required String beaconId,
     required String voterId,
@@ -104,6 +115,23 @@ abstract class ClosureRepositoryPort {
     required String markerId,
     required String targetId,
     required bool on,
+  });
+
+  /// Ledger row `marked` (kind 3, count 1) for a post-finalize mark; an
+  /// existing row with the same source key is un-retracted.
+  Future<void> upsertMarkEvidence({
+    required String beaconId,
+    required int epoch,
+    required String markerId,
+    required String targetId,
+    required DateTime occurredAt,
+  });
+
+  Future<void> retractMarkEvidence({
+    required String beaconId,
+    required int epoch,
+    required String markerId,
+    required String targetId,
   });
 
   Future<List<ClosureMarkRow>> marks(String beaconId);
