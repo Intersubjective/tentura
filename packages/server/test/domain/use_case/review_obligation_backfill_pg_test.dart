@@ -24,7 +24,6 @@ import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repositor
 import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
-import 'package:tentura_server/domain/port/trust_evidence_repository_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/obligation_reconciliation_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
@@ -83,7 +82,6 @@ Future<void> main() async {
         UserRepository(
           target.databaseEnv,
           database,
-          _NoopTrustEvidenceRepository(),
           _NoopInviteGenealogyRepository(),
           InviteSeedPromptRepositoryMock(),
         ),
@@ -175,8 +173,6 @@ VALUES (
 ''');
 }
 
-final class _NoopTrustEvidenceRepository extends Fake
-    implements TrustEvidenceRepositoryPort {}
 
 final class _NoopInviteGenealogyRepository extends Fake
     implements InviteGenealogyRepositoryPort {}

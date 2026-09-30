@@ -28,7 +28,6 @@ import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
-import 'package:tentura_server/domain/port/trust_evidence_repository_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/capability_case.dart';
 import 'package:tentura_server/domain/use_case/help_offer_case.dart';
@@ -38,8 +37,6 @@ import 'package:tentura_server/env.dart';
 import '../../support/fake_user_block_repository.dart';
 import '../../support/pg_test_public_keys.dart';
 
-final class _NoopTrustEvidenceRepository extends Fake
-    implements TrustEvidenceRepositoryPort {}
 
 final class _NoopInviteGenealogyRepository extends Fake
     implements InviteGenealogyRepositoryPort {}
@@ -147,7 +144,6 @@ ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status
           UserRepository(
             env,
             db,
-            _NoopTrustEvidenceRepository(),
             _NoopInviteGenealogyRepository(),
             InviteSeedPromptRepositoryMock(),
           ),

@@ -29,7 +29,7 @@ class Invitations extends Table with TimestampsFields {
 
   /// 'new_account' | 'existing_account' (see `InviteOrigin`). Null while
   /// pending. CHECK-enforced in Postgres (m0152) — no Dart TypeConverter,
-  /// mirrors the TrustSourceType idiom (plain enum + manual string write).
+  /// plain enum + manual string write.
   late final inviteOrigin = text().nullable()();
 
   /// When this invitation was consumed. Null while pending. Distinct from

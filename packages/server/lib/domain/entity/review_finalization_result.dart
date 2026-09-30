@@ -1,6 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-import 'package:tentura_server/domain/trust/trust_bin.dart';
+import 'package:tentura_server/domain/entity/gql_public/evaluation_received_result.dart';
 
 part 'review_finalization_result.freezed.dart';
 
@@ -9,7 +9,7 @@ abstract class FinalizedTrustPair with _$FinalizedTrustPair {
   const factory FinalizedTrustPair({
     required String evaluatorId,
     required String evaluatedUserId,
-    required TrustBin bin,
+    required EvaluationReceivedTrustTone tone,
   }) = _FinalizedTrustPair;
 }
 

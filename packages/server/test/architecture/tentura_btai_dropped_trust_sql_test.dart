@@ -57,17 +57,6 @@ void main() {
       });
     }
 
-    test('TrustEvidenceRepository.record does not call the dropped rebuild RPC',
-        () {
-      final source = File(
-        'lib/data/repository/trust_evidence_repository.dart',
-      ).readAsStringSync();
-      expect(
-        source,
-        isNot(contains(r'SELECT trust_rebuild_effective_edge($1, $2)')),
-      );
-    });
-
     test('cutoverBackfillIfNeeded does not count user_trust_source_edge', () {
       final source = File(
         'lib/data/repository/user_trust_edge_repository.dart',

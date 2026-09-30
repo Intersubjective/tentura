@@ -11,7 +11,6 @@ import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/invite/invite_origin.dart';
 import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
 import 'package:tentura_server/domain/port/invite_seed_prompt_port.dart';
-import 'package:tentura_server/domain/port/trust_evidence_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/env.dart';
 
@@ -32,9 +31,6 @@ class UserRepository implements UserRepositoryPort {
   UserRepository(
     this._env,
     this._database,
-    // Kept for DI signature stability; A5 removed the evidence write.
-    // ignore: avoid_unused_constructor_parameters
-    TrustEvidenceRepositoryPort trustEvidenceRepository,
     this._inviteGenealogyRepository,
     this._inviteSeedPrompt,
   );

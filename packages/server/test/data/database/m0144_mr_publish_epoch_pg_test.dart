@@ -11,7 +11,6 @@ import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/meritrank_repository.dart';
-import 'package:tentura_server/data/repository/trust_evidence_repository.dart';
 import 'package:tentura_server/data/repository/user_block_repository.dart';
 import 'package:tentura_server/data/repository/user_trust_edge_repository.dart';
 import 'package:tentura_server/data/repository/witness_window_repository.dart';
@@ -60,7 +59,6 @@ Future<void> main() async {
   late TenturaDb database;
   late WitnessWindowRepository witnessWindow;
   late MeritrankRepository meritRank;
-  late TrustEvidenceRepository trustEvidence;
   late UserTrustEdgeRepository trustEdgeRepo;
   late UserTrustEdgeCase trustEdgeCase;
   late UserBlockRepository blockRepo;
@@ -79,11 +77,9 @@ Future<void> main() async {
       database = TenturaDb(target.databaseEnv);
       witnessWindow = WitnessWindowRepository(database);
       meritRank = MeritrankRepository(database);
-      trustEvidence = TrustEvidenceRepository(database);
       trustEdgeRepo = UserTrustEdgeRepository(
         database,
         meritRank,
-        trustEvidence,
         witnessWindow: witnessWindow,
       );
       final attention = TestAttentionHarness();

@@ -23,20 +23,17 @@ import 'package:tentura_server/data/repository/capability_evidence_repository.da
 import 'package:tentura_server/data/repository/commitment_repository.dart';
 import 'package:tentura_server/data/repository/coordination_repository.dart';
 import 'package:tentura_server/data/repository/evaluation_repository.dart';
-import 'package:tentura_server/data/repository/forward_attribution_repository.dart';
 import 'package:tentura_server/data/repository/forward_edge_repository.dart';
 import 'package:tentura_server/data/repository/help_offer_repository.dart';
 import 'package:tentura_server/data/repository/inbox_repository.dart';
 import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repository_mock.dart';
 import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
 import 'package:tentura_server/data/repository/person_capability_event_repository.dart';
-import 'package:tentura_server/data/repository/trust_evidence_repository.dart';
 import 'package:tentura_server/data/repository/user_availability_repository.dart';
 import 'package:tentura_server/data/repository/user_profile_batch_lookup.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/data/repository/vote_user_friendship_lookup.dart';
 import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
-import 'package:tentura_server/domain/port/trust_evidence_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/use_case/attention_expiry_sweep_case.dart';
@@ -393,7 +390,6 @@ final class _Harness {
       UserRepository(
         env,
         db,
-        _NoopTrustEvidenceRepository(),
         _NoopInviteGenealogyRepository(),
         InviteSeedPromptRepositoryMock(),
       ),
@@ -411,10 +407,6 @@ final class _Harness {
     final reviewFinalization = ReviewFinalizationCase(
       unitOfWork,
       evalRepo,
-      forwardEdges,
-      ForwardAttributionRepository(db),
-      helpOffers,
-      TrustEvidenceRepository(db),
       CapabilityEvidenceRepository(db),
       hierarchy,
       lifecycleEffects,
@@ -497,8 +489,6 @@ final class _Harness {
   }
 }
 
-final class _NoopTrustEvidenceRepository extends Fake
-    implements TrustEvidenceRepositoryPort {}
 
 final class _NoopInviteGenealogyRepository extends Fake
     implements InviteGenealogyRepositoryPort {}

@@ -7,7 +7,7 @@ import 'package:tentura_server/domain/entity/beacon_notification_context.dart';
 import 'package:tentura_server/domain/port/attention_expiry_repository_port.dart';
 import 'package:tentura_server/domain/entity/review_finalization_result.dart';
 import 'package:tentura_server/domain/port/review_finalization_port.dart';
-import 'package:tentura_server/domain/trust/trust_bin.dart';
+import 'package:tentura_server/domain/entity/gql_public/evaluation_received_result.dart';
 import 'package:tentura_server/domain/use_case/attention_expiry_sweep_case.dart';
 
 import '../../support/test_attention_harness.dart';
@@ -120,7 +120,7 @@ void main() {
           const FinalizedTrustPair(
             evaluatorId: evaluatorId,
             evaluatedUserId: evaluatedUserId,
-            bin: TrustBin.good,
+            tone: EvaluationReceivedTrustTone.up,
           ),
         ],
       );
@@ -156,7 +156,7 @@ void main() {
           const FinalizedTrustPair(
             evaluatorId: 'Ureviewer',
             evaluatedUserId: 'Ureviewed',
-            bin: TrustBin.noEffect,
+            tone: EvaluationReceivedTrustTone.noChange,
           ),
         ],
       );

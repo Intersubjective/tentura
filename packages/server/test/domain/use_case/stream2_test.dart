@@ -31,7 +31,6 @@ import 'package:tentura_server/data/repository/user_profile_batch_lookup.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/data/repository/vote_user_friendship_lookup.dart';
 import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
-import 'package:tentura_server/domain/port/trust_evidence_repository_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/capability_case.dart';
 import 'package:tentura_server/domain/port/closure_finalizer_port.dart';
@@ -334,7 +333,6 @@ final class _Harness {
       UserRepository(
         env,
         db,
-        _NoopTrustEvidenceRepository(),
         _NoopInviteGenealogyRepository(),
         InviteSeedPromptRepositoryMock(),
       ),
@@ -413,8 +411,6 @@ final class _Harness {
   }
 }
 
-final class _NoopTrustEvidenceRepository extends Fake
-    implements TrustEvidenceRepositoryPort {}
 
 final class _NoopInviteGenealogyRepository extends Fake
     implements InviteGenealogyRepositoryPort {}

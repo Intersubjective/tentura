@@ -13,7 +13,6 @@ import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
-import 'package:tentura_server/domain/port/trust_evidence_repository_port.dart';
 import 'package:tentura_server/domain/use_case/beacon_lifecycle_effects_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 import 'package:tentura_server/domain/use_case/user_case.dart';
@@ -74,7 +73,6 @@ final class UserErasureTestStack {
 UserRepository buildDefaultUserRepository(TenturaDb db) => UserRepository(
   Env(environment: Environment.test),
   db,
-  _NoopTrustEvidenceRepository(),
   _NoopInviteGenealogyRepository(),
   InviteSeedPromptRepositoryMock(),
 );
@@ -84,8 +82,6 @@ final class _NoopImageRepository extends Fake
 
 final class _NoopTaskRepository extends Fake implements TaskRepositoryPort {}
 
-final class _NoopTrustEvidenceRepository extends Fake
-    implements TrustEvidenceRepositoryPort {}
 
 final class _NoopInviteGenealogyRepository extends Fake
     implements InviteGenealogyRepositoryPort {}

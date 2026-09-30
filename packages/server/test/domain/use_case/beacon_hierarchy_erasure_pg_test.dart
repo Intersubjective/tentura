@@ -18,7 +18,6 @@ import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repositor
 import 'package:tentura_server/data/repository/user_erasure_repository.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
-import 'package:tentura_server/domain/port/trust_evidence_repository_port.dart';
 import 'package:tentura_server/domain/use_case/beacon_lifecycle_effects_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 import 'package:tentura_server/env.dart';
@@ -31,7 +30,6 @@ final class _FailingUserRepository extends UserRepository {
   _FailingUserRepository(
     super.env,
     super.database,
-    super.trustEvidenceRepository,
     super.inviteGenealogyRepository,
     super.inviteSeedPrompt,
   );
@@ -96,7 +94,6 @@ Future<void> main() async {
       users = _FailingUserRepository(
         Env(environment: Environment.test),
         session.db,
-        _NoopTrustEvidenceRepository(),
         _NoopInviteGenealogyRepository(),
         InviteSeedPromptRepositoryMock(),
       );
@@ -704,8 +701,6 @@ SELECT beacon_id FROM public.beacon_help_offer WHERE beacon_id = @beacon
   }, skip: skipReason);
 }
 
-final class _NoopTrustEvidenceRepository extends Fake
-    implements TrustEvidenceRepositoryPort {}
 
 final class _NoopInviteGenealogyRepository extends Fake
     implements InviteGenealogyRepositoryPort {}

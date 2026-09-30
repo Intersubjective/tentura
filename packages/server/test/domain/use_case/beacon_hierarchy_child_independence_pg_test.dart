@@ -30,7 +30,6 @@ import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
 import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repository_mock.dart';
 import 'package:tentura_server/data/repository/person_capability_event_repository.dart';
 import 'package:tentura_server/data/repository/person_visibility_repository.dart';
-import 'package:tentura_server/data/repository/trust_evidence_repository.dart';
 import 'package:tentura_server/data/repository/user_block_repository.dart';
 import 'package:tentura_server/data/repository/user_availability_repository.dart';
 import 'package:tentura_server/data/repository/user_profile_batch_lookup.dart';
@@ -39,7 +38,6 @@ import 'package:tentura_server/data/repository/vote_user_friendship_lookup.dart'
 import 'package:tentura_server/domain/entity/forward_delivery_result.dart';
 import 'package:tentura_server/domain/entity/gql_public/beacon_status_result.dart';
 import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
-import 'package:tentura_server/domain/port/trust_evidence_repository_port.dart';
 import 'package:tentura_server/domain/use_case/attention_expiry_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/beacon_lifecycle_effects_case.dart';
@@ -124,7 +122,6 @@ final class _ChildIndependenceHarness {
       UserRepository(
         env,
         db,
-        _NoopTrustEvidenceRepository(),
         _NoopInviteGenealogyRepository(),
         InviteSeedPromptRepositoryMock(),
       ),
@@ -157,10 +154,6 @@ final class _ChildIndependenceHarness {
     final reviewFinalization = ReviewFinalizationCase(
       unitOfWork,
       evalRepo,
-      forwardEdges,
-      ForwardAttributionRepository(db),
-      helpOffers,
-      TrustEvidenceRepository(db),
       CapabilityEvidenceRepository(db),
       hierarchy,
       lifecycleEffects,
@@ -807,8 +800,6 @@ Future<void> _cleanupLifecycleArtifacts(Connection writer) async {
   }
 }
 
-final class _NoopTrustEvidenceRepository extends Fake
-    implements TrustEvidenceRepositoryPort {}
 
 final class _NoopInviteGenealogyRepository extends Fake
     implements InviteGenealogyRepositoryPort {}

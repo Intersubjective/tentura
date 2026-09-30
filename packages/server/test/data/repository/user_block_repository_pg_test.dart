@@ -16,7 +16,6 @@ import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repositor
 import 'package:tentura_server/data/repository/user_block_repository.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
-import 'package:tentura_server/domain/port/trust_evidence_repository_port.dart';
 import 'package:tentura_server/domain/use_case/beacon_lifecycle_effects_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 import 'package:tentura_server/domain/use_case/user_case.dart';
@@ -320,7 +319,6 @@ ON CONFLICT (id) DO NOTHING
       final failingUsers = _FailingUserRepository(
         env,
         db,
-        _NoopTrustEvidenceRepository(),
         _NoopInviteGenealogyRepository(),
         InviteSeedPromptRepositoryMock(),
       );
@@ -386,7 +384,6 @@ final class _FailingUserRepository extends UserRepository {
   _FailingUserRepository(
     super.env,
     super.database,
-    super.trustEvidenceRepository,
     super.inviteGenealogyRepository,
     super.inviteSeedPrompt,
   );
@@ -402,8 +399,6 @@ final class _FailingUserRepository extends UserRepository {
   }
 }
 
-final class _NoopTrustEvidenceRepository extends Fake
-    implements TrustEvidenceRepositoryPort {}
 
 final class _NoopInviteGenealogyRepository extends Fake
     implements InviteGenealogyRepositoryPort {}

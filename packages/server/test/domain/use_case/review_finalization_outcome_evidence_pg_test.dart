@@ -18,12 +18,7 @@ import '../../support/beacon_lifecycle_effects_test_support.dart';
 
 import '../../support/disposable_pg_target.dart';
 import '../../support/review_finalization_test_support.dart'
-    show
-        FakeAttribution,
-        FakeForwardEdges,
-        FakeHelpOffers,
-        NoopAttentionSystemSettlement,
-        RecordingTrustEvidence;
+    show NoopAttentionSystemSettlement;
 
 const _beaconId = 'Bcapc2bcn001';
 const _author = 'Ucapc2author1';
@@ -58,10 +53,6 @@ Future<void> main() async {
       finalizationCase = ReviewFinalizationCase(
         MutatingUnitOfWork(database),
         evalRepo,
-        FakeForwardEdges(),
-        FakeAttribution(),
-        FakeHelpOffers(),
-        RecordingTrustEvidence(),
         CapabilityEvidenceRepository(database),
         FakeBeaconHierarchyRepository(),
         buildLifecycleEffectsCase(),

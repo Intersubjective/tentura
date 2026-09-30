@@ -16,8 +16,6 @@ import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/attention_system_settlement_port.dart';
 import 'package:tentura_server/domain/port/mutating_unit_of_work_port.dart';
-import 'package:tentura_server/domain/port/trust_evidence_repository_port.dart';
-import 'package:tentura_server/domain/trust/trust_evidence.dart';
 import 'package:tentura_server/domain/use_case/evaluation/review_finalization_case.dart';
 import 'package:tentura_server/env.dart';
 
@@ -103,21 +101,6 @@ final class FakeHelpOffers extends Fake implements HelpOfferRepositoryPort {
       offers;
 }
 
-final class RecordingTrustEvidence extends Fake
-    implements TrustEvidenceRepositoryPort {
-  final recorded = <TrustEvidenceBatch>[];
-  bool forwardAlreadyRecorded = false;
-
-  @override
-  Future<void> record(TrustEvidenceBatch batch) async {
-    recorded.add(batch);
-  }
-
-  @override
-  Future<bool> hasForwardEvidenceForRequest(String requestId) async =>
-      forwardAlreadyRecorded;
-}
-
 final class NoopAttentionSystemSettlement extends Fake
     implements AttentionSystemSettlementPort {
   @override
@@ -199,21 +182,13 @@ final class NoopCapabilityEvidence extends Fake implements CapabilityEvidencePor
 
 ReviewFinalizationCase buildReviewFinalizationCase({
   required EvaluationRepositoryPort evaluationRepo,
-  required ForwardEdgeRepositoryPort forwardEdges,
-  required HelpOfferRepositoryPort helpOffers,
-  required TrustEvidenceRepositoryPort trustEvidence,
   CapabilityEvidencePort? capabilityEvidence,
-  ForwardAttributionRepositoryPort? attribution,
   RecordingBeaconHierarchyOutbox? lifecycleOutbox,
 }) {
   final outbox = lifecycleOutbox ?? RecordingBeaconHierarchyOutbox();
   return ReviewFinalizationCase(
       PassThroughUoW(),
       evaluationRepo,
-      forwardEdges,
-      attribution ?? FakeAttribution(),
-      helpOffers,
-      trustEvidence,
       capabilityEvidence ?? NoopCapabilityEvidence(),
       FakeBeaconHierarchyRepository(),
       buildLifecycleEffectsCase(outbox: outbox),

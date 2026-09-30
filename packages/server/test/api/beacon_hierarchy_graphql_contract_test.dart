@@ -25,7 +25,6 @@ import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
-import 'package:tentura_server/domain/port/trust_evidence_repository_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/beacon_child_create_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
@@ -36,10 +35,6 @@ import '../support/fake_user_block_repository.dart';
 import '../support/pg_test_public_keys.dart';
 import '../data/repository/beacon_hierarchy_pg_helpers.dart';
 
-final class _NoopTrustEvidenceRepository implements TrustEvidenceRepositoryPort {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => null;
-}
 
 final class _NoopInviteGenealogyRepository
     implements InviteGenealogyRepositoryPort {
@@ -100,7 +95,6 @@ Future<void> main() async {
         UserRepository(
           Env(environment: Environment.test),
           session.db,
-          _NoopTrustEvidenceRepository(),
           _NoopInviteGenealogyRepository(),
           InviteSeedPromptRepositoryMock(),
         ),

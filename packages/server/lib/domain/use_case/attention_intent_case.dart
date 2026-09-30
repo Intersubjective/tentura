@@ -19,7 +19,7 @@ import 'package:tentura_server/domain/port/beacon_room_notification_context_port
 import 'package:tentura_server/domain/port/user_block_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/policy/beacon_hierarchy_notice_copy.dart';
-import 'package:tentura_server/domain/trust/trust_bin.dart';
+import 'package:tentura_server/domain/entity/gql_public/evaluation_received_result.dart';
 
 /// Builds the immutable, recipient-specific snapshot recorded by an attention
 /// producer. Call this inside the producer's unit of work.
@@ -431,12 +431,12 @@ class AttentionIntentCase {
     required String beaconTitle,
     required String evaluatorId,
     required String evaluatedUserId,
-    required TrustBin bin,
+    required EvaluationReceivedTrustTone tone,
     required String sourceEventKey,
   }) async {
     final evaluated = await _users.getById(evaluatedUserId);
     final name = evaluated.displayName.trim();
-    final direction = _trustDirectionFor(bin);
+    final direction = _trustDirectionFor(tone);
     return AttentionDispatchIntent(
       eventType: AttentionEventType.trustGivenChanged,
       sourceEventKey: sourceEventKey,
@@ -480,12 +480,12 @@ class AttentionIntentCase {
     required String beaconTitle,
     required String evaluatorId,
     required String evaluatedUserId,
-    required TrustBin bin,
+    required EvaluationReceivedTrustTone tone,
     required String sourceEventKey,
   }) async {
     final evaluator = await _users.getById(evaluatorId);
     final name = evaluator.displayName.trim();
-    final direction = _trustDirectionFor(bin);
+    final direction = _trustDirectionFor(tone);
     return AttentionDispatchIntent(
       eventType: AttentionEventType.trustReceivedChanged,
       sourceEventKey: sourceEventKey,
@@ -522,10 +522,11 @@ class AttentionIntentCase {
     );
   }
 
-  String _trustDirectionFor(TrustBin bin) => switch (bin) {
-    TrustBin.veryBad || TrustBin.bad => 'down',
-    TrustBin.noEffect => 'noChange',
-    TrustBin.good || TrustBin.veryGood => 'up',
+  String _trustDirectionFor(EvaluationReceivedTrustTone tone) => switch (tone) {
+    EvaluationReceivedTrustTone.down => 'down',
+    EvaluationReceivedTrustTone.up => 'up',
+    EvaluationReceivedTrustTone.noChange ||
+    EvaluationReceivedTrustTone.noBasis => 'noChange',
   };
 
   String _trustGivenBody({

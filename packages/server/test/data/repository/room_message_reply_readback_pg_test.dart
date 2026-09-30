@@ -27,7 +27,6 @@ import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart
 import 'package:tentura_server/domain/port/polling_repository_port.dart';
 import 'package:tentura_server/domain/port/remote_storage_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
-import 'package:tentura_server/domain/port/trust_evidence_repository_port.dart';
 import 'package:tentura_server/domain/port/upload_quota_repository_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/beacon_room_case.dart';
@@ -561,7 +560,6 @@ WHERE id = '${reply.id}'
         UserRepository(
           Env(environment: Environment.test),
           database,
-          _NoopTrustEvidenceRepository(),
           _NoopInviteGenealogyRepository(),
           InviteSeedPromptRepositoryMock(),
         ),
@@ -690,8 +688,6 @@ Future<bool> _canConnect(Env env) async {
   }
 }
 
-final class _NoopTrustEvidenceRepository extends Fake
-    implements TrustEvidenceRepositoryPort {}
 
 final class _NoopInviteGenealogyRepository extends Fake
     implements InviteGenealogyRepositoryPort {}

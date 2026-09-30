@@ -1,7 +1,6 @@
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/port/meritrank_repository_port.dart';
-import 'package:tentura_server/domain/port/trust_evidence_repository_port.dart';
 import 'package:tentura_server/domain/port/user_trust_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/witness_window_port.dart';
 
@@ -17,10 +16,7 @@ class UserTrustEdgeRepository implements UserTrustEdgeRepositoryPort {
     this._db,
     // Kept for DI signature stability; publication is queue-driven.
     // ignore: avoid_unused_constructor_parameters
-    MeritrankRepositoryPort meritrank,
-    // Kept for DI signature stability; A5 removed the evidence write.
-    // ignore: avoid_unused_constructor_parameters
-    TrustEvidenceRepositoryPort trustEvidenceRepository, {
+    MeritrankRepositoryPort meritrank, {
     // Kept for DI signature stability; unused.
     // ignore: avoid_unused_constructor_parameters
     WitnessWindowPort? witnessWindow,

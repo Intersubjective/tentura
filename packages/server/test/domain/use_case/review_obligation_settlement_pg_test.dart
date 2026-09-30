@@ -23,7 +23,6 @@ import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repositor
 import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
-import 'package:tentura_server/domain/port/trust_evidence_repository_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/attention_settlement_case.dart';
 
@@ -83,7 +82,6 @@ Future<void> main() async {
         UserRepository(
           target.databaseEnv,
           database,
-          _NoopTrustEvidenceRepository(),
           _NoopInviteGenealogyRepository(),
           InviteSeedPromptRepositoryMock(),
         ),
@@ -330,8 +328,6 @@ VALUES ('$_beaconId', '$_authorId', 'Obligation beacon', 'desc', ${BeaconStatus.
 ''');
 }
 
-final class _NoopTrustEvidenceRepository extends Fake
-    implements TrustEvidenceRepositoryPort {}
 
 final class _NoopInviteGenealogyRepository extends Fake
     implements InviteGenealogyRepositoryPort {}

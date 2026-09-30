@@ -6,7 +6,7 @@ import 'package:test/test.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_context.dart';
 import 'package:tentura_server/domain/entity/invite_accepted_notification_intent.dart';
-import 'package:tentura_server/domain/trust/trust_bin.dart';
+import 'package:tentura_server/domain/entity/gql_public/evaluation_received_result.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 
 import '../../support/test_attention_harness.dart';
@@ -207,7 +207,7 @@ void main() {
             beaconTitle: 'Request title',
             evaluatorId: actor,
             evaluatedUserId: target,
-            bin: TrustBin.good,
+            tone: EvaluationReceivedTrustTone.up,
             sourceEventKey: eventKey,
           ),
         ),
@@ -220,7 +220,7 @@ void main() {
             beaconTitle: 'Request title',
             evaluatorId: actor,
             evaluatedUserId: target,
-            bin: TrustBin.good,
+            tone: EvaluationReceivedTrustTone.up,
             sourceEventKey: eventKey,
           ),
         ),

@@ -11,7 +11,6 @@ import 'package:tentura_server/data/database/tentura_db.dart'
 import 'package:tentura_server/data/repository/invite_genealogy_repository.dart';
 import 'package:tentura_server/data/repository/invite_seed_prompt_repository.dart';
 import 'package:tentura_server/data/repository/user_block_repository.dart';
-import 'package:tentura_server/data/repository/mock/trust_evidence_repository_mock.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/domain/entity/account_credential_entity.dart';
 import 'package:tentura_server/domain/entity/asserted_contact.dart';
@@ -43,7 +42,6 @@ Future<void> main() async {
       repo = UserRepository(
         env,
         db,
-        const TrustEvidenceRepositoryMock(),
         InviteGenealogyRepository(env, db, UserBlockRepository(env, db)),
         InviteSeedPromptRepository(db),
       );

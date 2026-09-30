@@ -41,7 +41,6 @@ import 'package:tentura_server/domain/commitment/commitment_event.dart';
 import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
 import 'package:tentura_server/domain/port/commitment_repository_port.dart';
 import 'package:tentura_server/domain/port/attention_system_settlement_port.dart';
-import 'package:tentura_server/domain/trust/trust_bin.dart';
 
 import '../../support/fake_beacon_hierarchy_repository.dart';
 import '../../support/beacon_lifecycle_effects_test_support.dart';
@@ -3686,17 +3685,17 @@ void main() {
             const FinalizedTrustPair(
               evaluatorId: userId,
               evaluatedUserId: committerId,
-              bin: TrustBin.good,
+              tone: EvaluationReceivedTrustTone.up,
             ),
             const FinalizedTrustPair(
               evaluatorId: committerId,
               evaluatedUserId: userId,
-              bin: TrustBin.bad,
+              tone: EvaluationReceivedTrustTone.down,
             ),
             const FinalizedTrustPair(
               evaluatorId: forwarderId,
               evaluatedUserId: committerId,
-              bin: TrustBin.veryGood,
+              tone: EvaluationReceivedTrustTone.up,
             ),
           ],
         );
@@ -3745,7 +3744,7 @@ void main() {
           const FinalizedTrustPair(
             evaluatorId: userId,
             evaluatedUserId: helperId,
-            bin: TrustBin.noEffect,
+            tone: EvaluationReceivedTrustTone.noChange,
           ),
         ],
       );
@@ -3784,17 +3783,17 @@ void main() {
           const FinalizedTrustPair(
             evaluatorId: userId,
             evaluatedUserId: helperId,
-            bin: TrustBin.good,
+            tone: EvaluationReceivedTrustTone.up,
           ),
           const FinalizedTrustPair(
             evaluatorId: helperId,
             evaluatedUserId: userId,
-            bin: TrustBin.veryBad,
+            tone: EvaluationReceivedTrustTone.down,
           ),
           const FinalizedTrustPair(
             evaluatorId: userId,
             evaluatedUserId: helperId,
-            bin: TrustBin.noEffect,
+            tone: EvaluationReceivedTrustTone.noChange,
           ),
         ],
       );

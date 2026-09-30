@@ -24,7 +24,6 @@ import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/attention_dispatch_port.dart';
 import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
-import 'package:tentura_server/domain/port/trust_evidence_repository_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/beacon_child_create_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
@@ -98,7 +97,6 @@ Future<void> main() async {
         UserRepository(
           Env(environment: Environment.test),
           session.db,
-          _NoopTrustEvidenceRepository(),
           _NoopInviteGenealogyRepository(),
           InviteSeedPromptRepositoryMock(),
         ),
@@ -686,10 +684,6 @@ CREATE TRIGGER test_fail_promotion
   });
 }
 
-final class _NoopTrustEvidenceRepository implements TrustEvidenceRepositoryPort {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => null;
-}
 
 final class _NoopInviteGenealogyRepository
     implements InviteGenealogyRepositoryPort {

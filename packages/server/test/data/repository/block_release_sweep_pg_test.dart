@@ -7,13 +7,11 @@ import 'package:test/test.dart';
 
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
-import 'package:tentura_server/data/repository/trust_evidence_repository.dart';
+import 'package:tentura_server/data/repository/trust_ledger_repository.dart';
 import 'package:tentura_server/data/repository/user_block_repository.dart';
 import 'package:tentura_server/domain/invite_genealogy/invite_genealogy_node_key.dart';
-import 'package:tentura_server/domain/trust/trust_bin.dart';
-import 'package:tentura_server/domain/trust/trust_context.dart';
-import 'package:tentura_server/domain/trust/trust_evidence.dart';
-import 'package:tentura_server/domain/trust/trust_source_type.dart';
+import 'package:tentura_server/domain/trust/ledger_evidence.dart';
+import 'package:tentura_server/domain/trust/trust_evidence_kind.dart';
 import 'package:tentura_server/domain/use_case/block_cascade_case.dart';
 import 'package:tentura_server/domain/use_case/block_release_sweep_case.dart';
 import 'package:tentura_server/env.dart';
@@ -37,7 +35,7 @@ Future<void> main() async {
   late TenturaDb db;
   late Env env;
   late UserBlockRepository repo;
-  late TrustEvidenceRepository trustEvidenceRepo;
+  late TrustLedgerRepository trustLedgerRepo;
   late BlockCascadeCase cascadeJob;
   late BlockReleaseSweepCase releaseJob;
 
@@ -132,21 +130,16 @@ ON CONFLICT (subject, object) DO UPDATE SET amount = EXCLUDED.amount
     required String subject,
     required String object,
   }) async {
-    await trustEvidenceRepo.record(
-      TrustEvidenceBatch(
-        sourceUserId: subject,
-        at: DateTime.utc(2026, 1, 2),
-        items: [
-          TrustEvidence(
-            targetUserId: object,
-            bin: TrustBin.good,
-            count: kTrustVoteEvidenceCount,
-            context: TrustContext.personal,
-            sourceType: TrustSourceType.userVote,
-          ),
-        ],
+    await trustLedgerRepo.record([
+      LedgerEvidence(
+        subjectId: subject,
+        objectId: object,
+        kind: TrustEvidenceKind.vouch,
+        count: 3,
+        sourceKey: 'block_release_sweep:$subject:$object',
+        occurredAt: DateTime.utc(2026, 1, 2),
       ),
-    );
+    ]);
     // The publisher is not running: stamp what it would have published.
     await db.customStatement(
       '''
@@ -313,7 +306,7 @@ WHERE blocker_id = '$aliceId' AND blocked_id = '$bobId'
     env = testEnv;
     db = openDisposablePgDatabase(target);
     repo = UserBlockRepository(env, db);
-    trustEvidenceRepo = TrustEvidenceRepository(db);
+    trustLedgerRepo = TrustLedgerRepository(db);
     cascadeJob = BlockCascadeCase(
       repo,
       env: env,

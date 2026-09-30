@@ -7,7 +7,7 @@ import 'package:tentura_server/domain/port/attention_expiry_repository_port.dart
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/port/review_finalization_port.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
-import 'package:tentura_server/domain/trust/trust_bin.dart';
+import 'package:tentura_server/domain/entity/gql_public/evaluation_received_result.dart';
 import 'package:tentura_server/utils/id.dart';
 
 @Singleton(order: 3)
@@ -66,13 +66,13 @@ class AttentionExpirySweepCase {
                 );
               }
               for (final pair in result.pairs) {
-                if (pair.bin == TrustBin.noEffect) continue;
+                if (pair.tone == EvaluationReceivedTrustTone.noChange) continue;
                 final given = await _intents.trustGivenChanged(
                   beaconId: beaconId,
                   beaconTitle: beaconTitle,
                   evaluatorId: pair.evaluatorId,
                   evaluatedUserId: pair.evaluatedUserId,
-                  bin: pair.bin,
+                  tone: pair.tone,
                   sourceEventKey: 'trust_given:${generateId('A')}',
                 );
                 await transaction.record(given);
@@ -81,7 +81,7 @@ class AttentionExpirySweepCase {
                   beaconTitle: beaconTitle,
                   evaluatorId: pair.evaluatorId,
                   evaluatedUserId: pair.evaluatedUserId,
-                  bin: pair.bin,
+                  tone: pair.tone,
                   sourceEventKey: 'trust_received:${generateId('A')}',
                 );
                 await transaction.record(received);

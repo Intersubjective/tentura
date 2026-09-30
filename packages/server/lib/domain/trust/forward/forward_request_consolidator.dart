@@ -1,46 +1,33 @@
-import 'package:tentura_server/domain/trust/trust_bin.dart';
-
 import 'forward_mass_propagator.dart';
-import 'forward_outcome_policy.dart';
 
-typedef PairBinKey = (
-  String sender,
-  String recipient,
-  TrustBin bin,
-  ForwardOutcomeProvenance provenance,
-);
+const kForwardObservationWeight = 1.0;
 
-/// Vector consolidation across commitments per sender.
+/// Vector consolidation across seeds, keyed by `(sender, recipient)` only.
 final class ForwardRequestConsolidator {
-  Map<PairBinKey, double> accumulate(
-    List<(
-      TrustBin bin,
-      ForwardOutcomeProvenance provenance,
-      Map<ForwardPair, double> sharesByPair,
-    )> perCommitmentShares, {
+  Map<ForwardPair, double> accumulate(
+    List<Map<ForwardPair, double>> perSeedShares, {
     double observationWeight = kForwardObservationWeight,
   }) {
-    final support = <PairBinKey, double>{};
-    for (final entry in perCommitmentShares) {
-      final (bin, provenance, shares) = entry;
+    final support = <ForwardPair, double>{};
+    for (final shares in perSeedShares) {
       for (final share in shares.entries) {
-        final key = (share.key.$1, share.key.$2, bin, provenance);
-        support[key] = (support[key] ?? 0) + observationWeight * share.value;
+        support[share.key] =
+            (support[share.key] ?? 0) + observationWeight * share.value;
       }
     }
     return support;
   }
 
-  Map<PairBinKey, double> normalizePerSender(
-    Map<PairBinKey, double> support, {
-    double budget = kForwardEvaluatedOutcomeBudget,
+  Map<ForwardPair, double> normalizePerSender(
+    Map<ForwardPair, double> support, {
+    required double budget,
   }) {
-    final bySender = <String, List<PairBinKey>>{};
+    final bySender = <String, List<ForwardPair>>{};
     for (final key in support.keys) {
       bySender.putIfAbsent(key.$1, () => []).add(key);
     }
 
-    final deltas = <PairBinKey, double>{};
+    final deltas = <ForwardPair, double>{};
     for (final entry in bySender.entries) {
       final keys = entry.value;
       final z = keys.fold<double>(0, (s, k) => s + (support[k] ?? 0));

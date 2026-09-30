@@ -26,7 +26,6 @@ import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/port/attention_dispatch_port.dart';
 import 'package:tentura_server/domain/port/beacon_hierarchy_outbox_port.dart';
 import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
-import 'package:tentura_server/domain/port/trust_evidence_repository_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/beacon_hierarchy_delivery_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
@@ -36,8 +35,6 @@ import '../../support/beacon_hierarchy_fixture.dart';
 import '../../support/fake_user_block_repository.dart';
 import 'beacon_hierarchy_pg_helpers.dart';
 
-final class _NoopTrustEvidenceRepository extends Fake
-    implements TrustEvidenceRepositoryPort {}
 
 final class _NoopInviteGenealogyRepository extends Fake
     implements InviteGenealogyRepositoryPort {}
@@ -316,7 +313,6 @@ Future<void> main() async {
         UserRepository(
           Env(environment: Environment.test),
           session.db,
-          _NoopTrustEvidenceRepository(),
           _NoopInviteGenealogyRepository(),
           InviteSeedPromptRepositoryMock(),
         ),

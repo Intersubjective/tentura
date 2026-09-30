@@ -11,7 +11,6 @@ import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/meritrank_repository.dart';
 import 'package:tentura_server/data/repository/invite_seed_prompt_repository.dart';
-import 'package:tentura_server/data/repository/trust_evidence_repository.dart';
 import 'package:tentura_server/data/repository/trust_publish_repository.dart';
 import 'package:tentura_server/data/repository/user_block_repository.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
@@ -137,13 +136,11 @@ Future<void> main() async {
       voteRepo = UserTrustEdgeRepository(
         db,
         MeritrankRepository(db),
-        TrustEvidenceRepository(db),
       );
       blockRepo = UserBlockRepository(target.databaseEnv, db);
       userRepo = UserRepository(
         target.databaseEnv,
         db,
-        TrustEvidenceRepository(db),
         _NoopInviteGenealogyRepository(),
         InviteSeedPromptRepository(db),
       );

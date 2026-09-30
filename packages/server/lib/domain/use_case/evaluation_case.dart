@@ -43,7 +43,6 @@ import 'evaluation/evaluation_participant_graph_builder.dart';
 import 'evaluation/evaluation_prompt_variant.dart';
 import 'package:tentura_server/domain/port/attention_system_settlement_port.dart';
 import 'package:tentura_server/domain/port/review_finalization_port.dart';
-import 'package:tentura_server/domain/trust/trust_bin.dart';
 import '_use_case_base.dart';
 
 List<String> _reasonTagsFromCsv(String csv) => csv.isEmpty
@@ -581,13 +580,13 @@ final class EvaluationCase extends UseCaseBase {
           if (transaction != null) {
             final beaconTitle = result.beaconTitle ?? beacon.title;
             for (final pair in result.pairs) {
-              if (pair.bin == TrustBin.noEffect) continue;
+              if (pair.tone == EvaluationReceivedTrustTone.noChange) continue;
               final given = await _attentionIntents!.trustGivenChanged(
                 beaconId: beaconId,
                 beaconTitle: beaconTitle,
                 evaluatorId: pair.evaluatorId,
                 evaluatedUserId: pair.evaluatedUserId,
-                bin: pair.bin,
+                tone: pair.tone,
                 sourceEventKey: 'trust_given:${generateId('A')}',
               );
               await transaction.record(given);
@@ -596,7 +595,7 @@ final class EvaluationCase extends UseCaseBase {
                 beaconTitle: beaconTitle,
                 evaluatorId: pair.evaluatorId,
                 evaluatedUserId: pair.evaluatedUserId,
-                bin: pair.bin,
+                tone: pair.tone,
                 sourceEventKey: 'trust_received:${generateId('A')}',
               );
               await transaction.record(received);
