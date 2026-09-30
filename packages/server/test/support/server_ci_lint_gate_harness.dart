@@ -553,6 +553,48 @@ CommandOutcome run3i0mAcceptanceFourFileDartTestOn8u7TrialMerge() {
   });
 }
 
+/// Relative to [serverPackageRoot] — leaf tests Alloy's bare
+/// `git worktree add --detach alloy/tentura-8u7` required check runs
+/// (tentura-3w2).
+const k3w2Bare8u7LeafTestPaths = [
+  'test/data/repository/vote_user_friendship_lookup_test.dart',
+  'test/architecture/tentura_olc_landing_check_test.dart',
+];
+
+/// Runs tentura-3w2 bead acceptance: the wrapped leaf dart tests on a bare
+/// detached worktree at alloy/tentura-8u7 (no host HEAD merge), exactly as
+/// Alloy's required check does.
+CommandOutcome run3w2Bare8u7RequiredCheckLeafDartTest() {
+  return _runIn8u7TrialMergeWorktree(mergeLandingTarget: false, (
+    serverPackage,
+    nestedTmp,
+  ) {
+    final wrapper = testCleanupWrapperFromServerPackage();
+    final result = Process.runSync(
+      wrapper.path,
+      [
+        '--timeout',
+        '10m',
+        '--',
+        'dart',
+        'test',
+        ...k3w2Bare8u7LeafTestPaths,
+      ],
+      workingDirectory: serverPackage.path,
+      environment: {
+        ...Platform.environment,
+        'DART_SUPPRESS_ANALYTICS': 'true',
+        'TMPDIR': nestedTmp.path,
+      },
+    );
+    return (
+      exitCode: result.exitCode,
+      stdout: result.stdout as String,
+      stderr: result.stderr as String,
+    );
+  });
+}
+
 void _generateIgnoredSourcesIn8u7TrialMerge(Directory serverPackage) {
   final result = Process.runSync(
     'dart',
@@ -613,7 +655,10 @@ typedef _8u7TrialMergeWorktreeRun<T> =
       Directory nestedTmp,
     );
 
-T _runIn8u7TrialMergeWorktree<T>(_8u7TrialMergeWorktreeRun<T> run) {
+T _runIn8u7TrialMergeWorktree<T>(
+  _8u7TrialMergeWorktreeRun<T> run, {
+  bool mergeLandingTarget = true,
+}) {
   final hostRepo = repoRootFromServerPackage();
   final worktreeParent = Directory.systemTemp.createTempSync(
     'tentura-3i0m-8u7-wt-',
@@ -634,7 +679,9 @@ T _runIn8u7TrialMergeWorktree<T>(_8u7TrialMergeWorktreeRun<T> run) {
         '${add.stdout}\n${add.stderr}',
       );
     }
-    _mergeLandingTargetInto8u7TrialMerge(hostRepo, worktreePath);
+    if (mergeLandingTarget) {
+      _mergeLandingTargetInto8u7TrialMerge(hostRepo, worktreePath);
+    }
     final serverPackage = Directory('$worktreePath/packages/server');
     _generateIgnoredSourcesIn8u7TrialMerge(serverPackage);
     return run(serverPackage, nestedTmp);

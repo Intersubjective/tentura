@@ -16,6 +16,7 @@ const kPl4AcceptanceTestPaths = [
 /// remediation); they carry their own markers, not the pl4 ones.
 const kPl4TrackedLaterAcceptanceTestPaths = [
   'test/architecture/tentura_30e_landing_check_nesting_test.dart',
+  'test/architecture/tentura_3w2_landing_check_test.dart',
 ];
 
 const _pl4LandingGateMarker =
