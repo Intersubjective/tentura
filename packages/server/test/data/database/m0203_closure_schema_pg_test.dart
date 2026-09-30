@@ -43,7 +43,7 @@ Future<void> main() async {
           lastInclusiveVersion: '0202',
         );
         await _seedLegacyReviewWindow(session.writer);
-        await migrateDbSchema(session.writer);
+        await migrateDbSchemaThrough(session.writer, '0203');
       });
 
       tearDownAll(() async {
