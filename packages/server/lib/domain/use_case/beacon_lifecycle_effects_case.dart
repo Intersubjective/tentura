@@ -12,7 +12,7 @@ import '_use_case_base.dart';
 ///
 /// Callers must invoke this inside their existing transaction after
 /// [BeaconHierarchyRepositoryPort.lockMutationScope] and the source row lock.
-@Singleton(order: 2)
+@Singleton(order: 1)
 final class BeaconLifecycleEffectsCase extends UseCaseBase {
   BeaconLifecycleEffectsCase(
     this._outbox, {

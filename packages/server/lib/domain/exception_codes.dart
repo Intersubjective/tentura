@@ -207,3 +207,29 @@ class ConstellationExceptionCodes extends ExceptionCodes {
   @override
   int get codeNumber => codeSpace + exceptionCode.index;
 }
+
+// Episode closure (A12)
+
+enum ClosureExceptionCode {
+  notAuthor,
+  notVoter,
+  notMember,
+  staleEpoch,
+  wrongStatus,
+  reopenLimit,
+  extendLimit,
+  notReady,
+  invalidSplit,
+  splitTooLarge,
+}
+
+class ClosureExceptionCodes extends ExceptionCodes {
+  static const codeSpace = 1800;
+
+  const ClosureExceptionCodes(this.exceptionCode);
+
+  final ClosureExceptionCode exceptionCode;
+
+  @override
+  int get codeNumber => codeSpace + exceptionCode.index;
+}

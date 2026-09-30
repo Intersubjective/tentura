@@ -12,6 +12,7 @@ import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/port/attention_system_settlement_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
+import 'package:tentura_server/domain/use_case/closure_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 import 'package:tentura_server/utils/id.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
@@ -32,12 +33,14 @@ final class HelpOfferCase extends UseCaseBase {
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
     AttentionSystemSettlementPort? attentionSystemSettlement,
+    ClosureCase? closureCase,
     required super.env,
     required super.logger,
   }) : _roomRepository = roomRepository,
        _attentionIntents = attentionIntents,
        _attention = attention,
-       _attentionSystemSettlement = attentionSystemSettlement;
+       _attentionSystemSettlement = attentionSystemSettlement,
+       _closureCase = closureCase;
 
   final BeaconRoomRepositoryPort _roomRepository;
   final HelpOfferRepositoryPort _helpOfferRepository;
@@ -49,6 +52,7 @@ final class HelpOfferCase extends UseCaseBase {
   final TransactionalAttentionCase? _attention;
   final AttentionSystemSettlementPort? _attentionSystemSettlement;
   final BeaconAccessGuard _guard;
+  final ClosureCase? _closureCase;
 
   Future<void> offerHelp({
     required String beaconId,
@@ -289,6 +293,7 @@ final class HelpOfferCase extends UseCaseBase {
     await _attention!.runAction<void>(
       actorUserId: userId,
       action: (transaction) async {
+        await _closureCase?.lockRequest(beaconId);
         await _commitmentRepository.record(
           beaconId: beaconId,
           userId: userId,
@@ -296,6 +301,7 @@ final class HelpOfferCase extends UseCaseBase {
           kind: CommitmentEventKind.withdrawnByHelper,
           reason: withdrawReason,
         );
+        await _closureCase?.applyMembershipEvent(beaconId, userId);
         await _helpOfferRepository.withdraw(
           beaconId: beaconId,
           userId: userId,

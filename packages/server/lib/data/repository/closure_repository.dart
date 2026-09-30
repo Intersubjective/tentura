@@ -58,6 +58,46 @@ WHERE beacon_id = \$1 AND status = 0
       .getSingleOrNull();
 
   @override
+  Future<int> maxEpoch(String beaconId) => _database
+      .customSelect(
+        r'''
+SELECT COALESCE(MAX(epoch), 0) AS n
+FROM public.beacon_closure
+WHERE beacon_id = $1
+''',
+        variables: [Variable<String>(beaconId)],
+      )
+      .map((row) => row.read<int>('n'))
+      .getSingle();
+
+  @override
+  Future<int> cancelledEpochCount(String beaconId) => _database
+      .customSelect(
+        r'''
+SELECT count(*)::int AS n
+FROM public.beacon_closure
+WHERE beacon_id = $1 AND status = 2
+''',
+        variables: [Variable<String>(beaconId)],
+      )
+      .map((row) => row.read<int>('n'))
+      .getSingle();
+
+  @override
+  Future<void> extendEpoch({
+    required String beaconId,
+    required int epoch,
+  }) => _database.customUpdate(
+    r'''
+UPDATE public.beacon_closure
+SET closes_at = closes_at + interval '7 days',
+    extensions_used = extensions_used + 1
+WHERE beacon_id = $1 AND epoch = $2
+''',
+    variables: [Variable<String>(beaconId), Variable<int>(epoch)],
+  );
+
+  @override
   Future<ClosureEpoch> createEpoch({
     required String beaconId,
     required int epoch,

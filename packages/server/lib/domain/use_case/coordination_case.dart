@@ -22,6 +22,7 @@ import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/user_block_repository_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
+import 'package:tentura_server/domain/use_case/closure_case.dart';
 import 'package:tentura_server/domain/use_case/commitment_query_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 import 'package:tentura_server/utils/id.dart';
@@ -43,12 +44,14 @@ final class CoordinationCase extends UseCaseBase {
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
     AttentionSystemSettlementPort? attentionSystemSettlement,
+    ClosureCase? closureCase,
     required BeaconAccessGuard guard,
     required super.env,
     required super.logger,
   }) : _attentionIntents = attentionIntents,
        _attention = attention,
        _attentionSystemSettlement = attentionSystemSettlement,
+       _closureCase = closureCase,
        _guard = guard;
 
   final BeaconRepositoryPort _beaconRepository;
@@ -63,6 +66,7 @@ final class CoordinationCase extends UseCaseBase {
   final TransactionalAttentionCase? _attention;
   final AttentionSystemSettlementPort? _attentionSystemSettlement;
   final BeaconAccessGuard _guard;
+  final ClosureCase? _closureCase;
   final BeaconHierarchyRepositoryPort _hierarchyRepository;
 
   Future<BeaconEntity> _ensureAuthorOrSteward({
@@ -217,12 +221,14 @@ final class CoordinationCase extends UseCaseBase {
   }) async {
     final events = await _eventsForPair(beaconId: beaconId, userId: userId);
     if (currentStakeState(events) == CommitmentStakeState.acknowledged) return;
+    await _closureCase?.lockRequest(beaconId);
     await _commitmentRepository.record(
       beaconId: beaconId,
       userId: userId,
       actorUserId: actorUserId,
       kind: CommitmentEventKind.acknowledged,
     );
+    await _closureCase?.applyMembershipEvent(beaconId, userId);
   }
 
   Future<void> _recordSoftenedIfTransition({
@@ -249,6 +255,7 @@ final class CoordinationCase extends UseCaseBase {
   }) async {
     final events = await _eventsForPair(beaconId: beaconId, userId: userId);
     if (_isRemovedFromChatByEvents(events)) return;
+    await _closureCase?.lockRequest(beaconId);
     await _commitmentRepository.record(
       beaconId: beaconId,
       userId: userId,
@@ -256,6 +263,7 @@ final class CoordinationCase extends UseCaseBase {
       kind: CommitmentEventKind.removedFromChat,
       reason: reason,
     );
+    await _closureCase?.applyMembershipEvent(beaconId, userId);
   }
 
   Future<void> _recordReadmittedToChatIfTransition({
@@ -265,12 +273,14 @@ final class CoordinationCase extends UseCaseBase {
   }) async {
     final events = await _eventsForPair(beaconId: beaconId, userId: userId);
     if (!_isRemovedFromChatByEvents(events)) return;
+    await _closureCase?.lockRequest(beaconId);
     await _commitmentRepository.record(
       beaconId: beaconId,
       userId: userId,
       actorUserId: actorUserId,
       kind: CommitmentEventKind.readmittedToChat,
     );
+    await _closureCase?.applyMembershipEvent(beaconId, userId);
   }
 
   Future<void> _recordResponseCommitmentEvents({
@@ -566,6 +576,7 @@ final class CoordinationCase extends UseCaseBase {
           reason: trimmedReason,
           sourceEventKey: 'admission:${generateId('A')}',
         );
+        await _closureCase?.lockRequest(beaconId);
         await _commitmentRepository.record(
           beaconId: beaconId,
           userId: offerUserId,
@@ -573,6 +584,7 @@ final class CoordinationCase extends UseCaseBase {
           kind: CommitmentEventKind.releasedByAuthor,
           reason: trimmedReason,
         );
+        await _closureCase?.applyMembershipEvent(beaconId, offerUserId);
         await transaction.record(intent);
         final snap = await _coordinationRepository.beaconStatusSnapshot(
           beaconId,
@@ -691,6 +703,18 @@ final class CoordinationCase extends UseCaseBase {
 
         if (target == BeaconStatus.needsMoreHelp &&
             beacon.status == BeaconStatus.reviewOpen) {
+          final closure = _closureCase;
+          if (closure != null) {
+            await closure.reopen(authorId: authorUserId, beaconId: beaconId);
+            final snap = await _coordinationRepository.beaconStatusSnapshot(
+              beaconId,
+            );
+            return BeaconStatusResult(
+              beaconId: beaconId,
+              status: snap.status.smallintValue,
+              statusChangedAt: snap.statusChangedAt,
+            );
+          }
           final w = await _evaluationRepository.getReviewWindow(beaconId);
           if (w != null) {
             if (w.status == 1) {

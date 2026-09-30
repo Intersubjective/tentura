@@ -17,6 +17,14 @@ abstract class ClosureRepositoryPort {
   /// no longer live.
   Future<ClosureEpoch?> liveEpoch(String beaconId);
 
+  /// Highest epoch number ever created for [beaconId] (0 if none).
+  Future<int> maxEpoch(String beaconId);
+
+  Future<int> cancelledEpochCount(String beaconId);
+
+  /// `closes_at += 7 days`, `extensions_used += 1` on the live epoch.
+  Future<void> extendEpoch({required String beaconId, required int epoch});
+
   Future<ClosureEpoch> createEpoch({
     required String beaconId,
     required int epoch,

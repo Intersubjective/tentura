@@ -16,6 +16,7 @@ import 'package:tentura_server/domain/port/user_contact_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/port/witness_window_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
+import 'package:tentura_server/domain/use_case/closure_case.dart';
 import 'package:tentura_server/domain/user_block/user_block_withdraw_reason.dart';
 import 'package:tentura_server/utils/id.dart';
 
@@ -40,11 +41,13 @@ final class UserBlockCase extends UseCaseBase {
     AttentionIntentCase? attentionIntents,
     AttentionDispatchPort? attentionDispatch,
     WitnessWindowPort? witnessWindow,
+    ClosureCase? closureCase,
     required super.env,
     required super.logger,
   }) : _attentionIntents = attentionIntents,
        _attentionDispatch = attentionDispatch,
-       _witnessWindow = witnessWindow;
+       _witnessWindow = witnessWindow,
+       _closureCase = closureCase;
 
   final MutatingUnitOfWorkPort _unitOfWork;
   final UserBlockRepositoryPort _blocks;
@@ -60,6 +63,7 @@ final class UserBlockCase extends UseCaseBase {
   final AttentionIntentCase? _attentionIntents;
   final AttentionDispatchPort? _attentionDispatch;
   final WitnessWindowPort? _witnessWindow;
+  final ClosureCase? _closureCase;
 
   Future<void> block({
     required String blockerId,
@@ -186,6 +190,7 @@ final class UserBlockCase extends UseCaseBase {
       );
       if (authorId != beaconAuthorId) continue;
       final beaconId = offer.beaconId;
+      await _closureCase?.lockRequest(beaconId);
       await _commitmentRepository.record(
         beaconId: beaconId,
         userId: offererId,
@@ -193,6 +198,7 @@ final class UserBlockCase extends UseCaseBase {
         kind: CommitmentEventKind.blockedCleanup,
         reason: kBlockWithdrawReason,
       );
+      await _closureCase?.applyMembershipEvent(beaconId, offererId);
       await _helpOffers.withdraw(
         beaconId: beaconId,
         userId: offererId,
