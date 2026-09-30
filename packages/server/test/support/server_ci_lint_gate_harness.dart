@@ -413,6 +413,102 @@ CommandOutcome runOlcBeadAcceptanceDartTest() {
   );
 }
 
+/// Relative to [serverPackageRoot] — the tentura-8u7 bead landing harness
+/// re-checked by tentura-3i0m on the alloy/tentura-8u7 trial merge.
+const k3i0mBeadAcceptanceTestPaths = [
+  'test/architecture/tentura_pl4_di_acceptance_probe_test.dart',
+  'test/architecture/tentura_8u7_landing_check_test.dart',
+  'test/architecture/tentura_pl4_landing_check_test.dart',
+  'test/architecture/tentura_amn_8u7_worktree_remediation_test.dart',
+];
+
+const _8u7TrialMergeRef = 'alloy/tentura-8u7';
+
+/// Runs tentura-3i0m bead acceptance: the wrapped four-file dart test on a
+/// detached worktree at alloy/tentura-8u7.
+CommandOutcome run3i0mAcceptanceFourFileDartTestOn8u7TrialMerge() {
+  return _runIn8u7TrialMergeWorktree((serverPackage, nestedTmp) {
+    final wrapper = testCleanupWrapperFromServerPackage();
+    final result = Process.runSync(
+      wrapper.path,
+      [
+        '--timeout',
+        '10m',
+        '--',
+        'dart',
+        'test',
+        ...k3i0mBeadAcceptanceTestPaths,
+      ],
+      workingDirectory: serverPackage.path,
+      environment: {
+        ...Platform.environment,
+        'DART_SUPPRESS_ANALYTICS': 'true',
+        'TMPDIR': nestedTmp.path,
+      },
+    );
+    return (
+      exitCode: result.exitCode,
+      stdout: result.stdout as String,
+      stderr: result.stderr as String,
+    );
+  });
+}
+
+void _generateIgnoredSourcesIn8u7TrialMerge(Directory serverPackage) {
+  final result = Process.runSync(
+    'dart',
+    ['run', 'build_runner', 'build', '-d'],
+    workingDirectory: serverPackage.path,
+    environment: {
+      ...Platform.environment,
+      'DART_SUPPRESS_ANALYTICS': 'true',
+    },
+  );
+  if (result.exitCode != 0) {
+    throw StateError(
+      'build_runner build failed in 8u7 trial-merge worktree:\n'
+      '${result.stdout}\n${result.stderr}',
+    );
+  }
+}
+
+typedef _8u7TrialMergeWorktreeRun<T> = T Function(
+  Directory serverPackage,
+  Directory nestedTmp,
+);
+
+T _runIn8u7TrialMergeWorktree<T>(_8u7TrialMergeWorktreeRun<T> run) {
+  final hostRepo = repoRootFromServerPackage();
+  final worktreeParent =
+      Directory.systemTemp.createTempSync('tentura-3i0m-8u7-wt-');
+  final worktreePath = '${worktreeParent.path}/checkout';
+  final nestedTmp = Directory.systemTemp.createTempSync('tentura-3i0m-8u7-tmp-');
+  try {
+    final add = Process.runSync(
+      'git',
+      ['worktree', 'add', '--detach', worktreePath, _8u7TrialMergeRef],
+      workingDirectory: hostRepo.path,
+    );
+    if (add.exitCode != 0) {
+      throw StateError(
+        'git worktree add $_8u7TrialMergeRef failed:\n'
+        '${add.stdout}\n${add.stderr}',
+      );
+    }
+    final serverPackage = Directory('$worktreePath/packages/server');
+    _generateIgnoredSourcesIn8u7TrialMerge(serverPackage);
+    return run(serverPackage, nestedTmp);
+  } finally {
+    nestedTmp.deleteSync(recursive: true);
+    Process.runSync(
+      'git',
+      ['worktree', 'remove', '--force', worktreePath],
+      workingDirectory: hostRepo.path,
+    );
+    worktreeParent.deleteSync(recursive: true);
+  }
+}
+
 String _formatDiagnostic(Map<String, dynamic> d) {
   final location = d['location'] as Map?;
   final line = (location?['range'] as Map?)?['start']?['line'];

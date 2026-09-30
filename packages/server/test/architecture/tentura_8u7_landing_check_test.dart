@@ -12,6 +12,8 @@ const k8u7AcceptanceTestPaths = [
   'test/architecture/tentura_8u7_landing_check_test.dart',
   'test/architecture/tentura_pl4_landing_check_test.dart',
   'test/architecture/tentura_pl4_di_acceptance_probe_test.dart',
+  'test/architecture/tentura_amn_8u7_worktree_remediation_test.dart',
+  'test/architecture/tentura_3i0m_landing_check_test.dart',
   'test/alloy_landing_gate_pl4_test.dart',
 ];
 
