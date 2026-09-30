@@ -275,6 +275,80 @@ String readCheckCustomLintsScriptFromRepo() {
   return File('${repo.path}/scripts/check-custom-lints.sh').readAsStringSync();
 }
 
+/// Landing gates that spawn wrapped full-suite `dart test` runs (tentura-30e).
+///
+/// Each one skips itself when [kNestedLandingSuiteEnv] is set, so a nested
+/// suite never re-enters a landing-check subprocess gate. Before tentura-30e
+/// the fx7/j0q full-pg runners did not set it, so pg probe tests inside the
+/// nested pg suite spawned their own wrapped pg subsets concurrently on the
+/// shared Postgres (four nested "Failing tests:" blocks in one outer run).
+const k30eReentrantLandingCheckRelativePaths = [
+  'test/architecture/tentura_pl4_landing_check_test.dart',
+  'test/architecture/tentura_u6e_landing_check_test.dart',
+  'test/architecture/tentura_fx7_landing_check_test.dart',
+  'test/architecture/tentura_j0q_landing_check_test.dart',
+];
+
+/// Env flag that re-entrant landing gates and subprocess-spawning tests skip on.
+const kNestedLandingSuiteEnv = 'TENTURA_U6E_NESTED_SUITE';
+
+/// Env var carrying how many landing-suite subprocess levels are above us.
+const kNestedLandingSuiteDepthEnv = 'TENTURA_NESTED_LANDING_SUITE_DEPTH';
+
+/// A landing gate may nest at most one full-suite subprocess level.
+const maxNestedLandingSuiteDepth = 1;
+
+/// Environment for a nested landing-suite subprocess: marks it nested so
+/// re-entrant gates skip, and refuses to stack beyond
+/// [maxNestedLandingSuiteDepth].
+Map<String, String> nestedLandingSuiteChildEnvironment(Directory nestedTmp) {
+  final env = Platform.environment;
+  final depth = int.tryParse(env[kNestedLandingSuiteDepthEnv] ?? '') ?? 0;
+  if (depth >= maxNestedLandingSuiteDepth ||
+      env[kNestedLandingSuiteEnv] == 'true') {
+    throw StateError(
+      'refusing to nest a landing suite subprocess at depth ${depth + 1} '
+      '(max $maxNestedLandingSuiteDepth)',
+    );
+  }
+  return {
+    ...env,
+    'DART_SUPPRESS_ANALYTICS': 'true',
+    'TMPDIR': nestedTmp.path,
+    // The suite includes the acceptance test that launches this process.
+    kNestedLandingSuiteEnv: 'true',
+    kNestedLandingSuiteDepthEnv: '${depth + 1}',
+  };
+}
+
+/// Child environment for the nested full-pg landing runners (fx7/j0q).
+Map<String, String> nestedPgLandingSuiteChildEnvironment(Directory nestedTmp) =>
+    nestedLandingSuiteChildEnvironment(nestedTmp);
+
+/// Wrapper argv for the nested non-pg landing suite (u6e/pl4).
+List<String> nonPgNestedLandingDartTestArgs({required String timeout}) => [
+  '--timeout',
+  timeout,
+  '--',
+  'dart',
+  'test',
+  '--exclude-tags',
+  'pg',
+];
+
+/// Wrapper argv for the nested full-pg landing suite (fx7/j0q).
+const _pgNestedLandingDartTestArgs = [
+  '--timeout',
+  '30m',
+  '--',
+  'dart',
+  'test',
+  '--tags',
+  'pg',
+  '--exclude-tags',
+  'mr',
+];
+
 /// Runs tentura-u6e bead acceptance: full server non-pg suite via test cleanup wrapper.
 CommandOutcome runU6eAcceptanceNonPgDartTest() {
   final wrapper = testCleanupWrapperFromServerPackage();
@@ -285,23 +359,9 @@ CommandOutcome runU6eAcceptanceNonPgDartTest() {
   try {
     final result = Process.runSync(
       wrapper.path,
-      [
-        '--timeout',
-        '20m',
-        '--',
-        'dart',
-        'test',
-        '--exclude-tags',
-        'pg',
-      ],
+      nonPgNestedLandingDartTestArgs(timeout: '20m'),
       workingDirectory: server.path,
-      environment: {
-        ...Platform.environment,
-        'DART_SUPPRESS_ANALYTICS': 'true',
-        'TMPDIR': nestedTmp.path,
-        // The suite includes the acceptance test that launches this process.
-        'TENTURA_U6E_NESTED_SUITE': 'true',
-      },
+      environment: nestedLandingSuiteChildEnvironment(nestedTmp),
     );
     return (
       exitCode: result.exitCode,
@@ -323,23 +383,9 @@ CommandOutcome runPl4AcceptanceNonPgDartTest() {
   try {
     final result = Process.runSync(
       wrapper.path,
-      [
-        '--timeout',
-        '30m',
-        '--',
-        'dart',
-        'test',
-        '--exclude-tags',
-        'pg',
-      ],
+      nonPgNestedLandingDartTestArgs(timeout: '30m'),
       workingDirectory: server.path,
-      environment: {
-        ...Platform.environment,
-        'DART_SUPPRESS_ANALYTICS': 'true',
-        'TMPDIR': nestedTmp.path,
-        // The suite includes the acceptance test that launches this process.
-        'TENTURA_U6E_NESTED_SUITE': 'true',
-      },
+      environment: nestedLandingSuiteChildEnvironment(nestedTmp),
     );
     return (
       exitCode: result.exitCode,
@@ -375,11 +421,64 @@ T runWithNestedPgLandingSuiteLock<T>(T Function() body) {
   }
 }
 
+/// Runs the exact tentura-50o / tentura-fx7 bead pg acceptance command.
+CommandOutcome runFx7AcceptancePgLanding() {
+  return _runNestedPgLandingSuite(
+    'tentura-fx7-pg-nested-',
+    childEnvironment: nestedPgLandingSuiteChildEnvironment,
+  );
+}
+
+/// Runs the exact tentura-acz / tentura-j0q bead pg acceptance command.
+CommandOutcome runJ0qAcceptancePgLanding() {
+  return _runNestedPgLandingSuite(
+    'tentura-j0q-pg-nested-',
+    childEnvironment: nestedPgLandingSuiteChildEnvironment,
+  );
+}
+
+/// Full `dart test --tags pg --exclude-tags mr` run for fx7/j0q landing gates,
+/// serialized via [runWithNestedPgLandingSuiteLock] and marked nested via
+/// [childEnvironment].
+CommandOutcome _runNestedPgLandingSuite(
+  String tmpPrefix, {
+  required Map<String, String> Function(Directory nestedTmp) childEnvironment,
+}) {
+  final wrapper = testCleanupWrapperFromServerPackage();
+  final server = serverPackageRoot();
+  // A full pg suite writes several GB of dart_test kernel files into TMPDIR.
+  // Keep them on disk (.dart_tool), not on the RAM tmpfs (/tmp): tmpfs
+  // pressure with a full swap makes mmap page faults fail and unrelated
+  // processes die with SIGBUS (tentura-5zq).
+  final nestedTmp = Directory(
+    '${server.path}/.dart_tool',
+  ).createTempSync(tmpPrefix);
+  try {
+    return runWithNestedPgLandingSuiteLock(() {
+      final result = Process.runSync(
+        wrapper.path,
+        _pgNestedLandingDartTestArgs,
+        workingDirectory: server.path,
+        environment: childEnvironment(nestedTmp),
+      );
+      return (
+        exitCode: result.exitCode,
+        stdout: result.stdout as String,
+        stderr: result.stderr as String,
+      );
+    });
+  } finally {
+    nestedTmp.deleteSync(recursive: true);
+  }
+}
+
 File testCleanupWrapperFromServerPackage() {
   final server = serverPackageRoot();
   final candidates = [
     File('${server.path}/../../scripts/run_with_test_cleanup.sh'),
-    File('${repoRootFromServerPackage().path}/scripts/run_with_test_cleanup.sh'),
+    File(
+      '${repoRootFromServerPackage().path}/scripts/run_with_test_cleanup.sh',
+    ),
   ];
   for (final file in candidates) {
     if (file.existsSync()) {
@@ -508,17 +607,21 @@ void _mergeLandingTargetInto8u7TrialMerge(
   }
 }
 
-typedef _8u7TrialMergeWorktreeRun<T> = T Function(
-  Directory serverPackage,
-  Directory nestedTmp,
-);
+typedef _8u7TrialMergeWorktreeRun<T> =
+    T Function(
+      Directory serverPackage,
+      Directory nestedTmp,
+    );
 
 T _runIn8u7TrialMergeWorktree<T>(_8u7TrialMergeWorktreeRun<T> run) {
   final hostRepo = repoRootFromServerPackage();
-  final worktreeParent =
-      Directory.systemTemp.createTempSync('tentura-3i0m-8u7-wt-');
+  final worktreeParent = Directory.systemTemp.createTempSync(
+    'tentura-3i0m-8u7-wt-',
+  );
   final worktreePath = '${worktreeParent.path}/checkout';
-  final nestedTmp = Directory.systemTemp.createTempSync('tentura-3i0m-8u7-tmp-');
+  final nestedTmp = Directory.systemTemp.createTempSync(
+    'tentura-3i0m-8u7-tmp-',
+  );
   try {
     final add = Process.runSync(
       'git',

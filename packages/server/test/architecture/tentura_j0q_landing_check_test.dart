@@ -176,57 +176,6 @@ void main() {
   }
 }
 
-/// Runs the exact tentura-acz / tentura-j0q bead pg acceptance command.
-///
-/// Serialized against the tentura-fx7 full-pg landing run: two nested full pg
-/// suites share the same Postgres cluster and fixed-id fixtures, so they must
-/// not overlap (see [runWithNestedPgLandingSuiteLock]).
-({int exitCode, String stdout, String stderr}) runJ0qAcceptancePgLanding() {
-  final wrapper = _testCleanupWrapper();
-  // A full pg suite writes several GB of dart_test kernel files into TMPDIR.
-  // Keep them on disk (.dart_tool), not on the RAM tmpfs (Directory.systemTemp
-  // → /tmp): tmpfs pressure with a full swap makes mmap page faults fail and
-  // unrelated processes die with SIGBUS (observed: `dart analyze` crashing
-  // with Bus error BUS_ADRERR in the tentura-5zq CI analyze gate). Killed runs
-  // also leak the dir (finally never runs) and the wrapper sweep only reclaims
-  // flutter_tools.*/dart_test.kernel.* — on disk a leak is harmless. Same
-  // convention as runU6eAcceptanceNonPgDartTest/runPl4AcceptanceNonPgDartTest.
-  final nestedTmp = Directory(
-    '${_serverPackageRoot().path}/.dart_tool',
-  ).createTempSync('tentura-j0q-pg-nested-');
-  try {
-    return runWithNestedPgLandingSuiteLock(() {
-      final result = Process.runSync(
-        wrapper.path,
-        [
-          '--timeout',
-          '30m',
-          '--',
-          'dart',
-          'test',
-          '--tags',
-          'pg',
-          '--exclude-tags',
-          'mr',
-        ],
-        workingDirectory: _serverPackageRoot().path,
-        environment: {
-          ...Platform.environment,
-          'DART_SUPPRESS_ANALYTICS': 'true',
-          'TMPDIR': nestedTmp.path,
-        },
-      );
-      return (
-        exitCode: result.exitCode,
-        stdout: result.stdout as String,
-        stderr: result.stderr as String,
-      );
-    });
-  } finally {
-    nestedTmp.deleteSync(recursive: true);
-  }
-}
-
 File _testCleanupWrapper() {
   final serverRoot = _serverPackageRoot();
   final candidates = [

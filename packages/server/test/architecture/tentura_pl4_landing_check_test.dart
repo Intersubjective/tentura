@@ -12,6 +12,12 @@ const kPl4AcceptanceTestPaths = [
   'test/architecture/tentura_pl4_di_acceptance_probe_test.dart',
 ];
 
+/// Later landing gates tracked after tentura-pl4 (tentura-30e nesting
+/// remediation); they carry their own markers, not the pl4 ones.
+const kPl4TrackedLaterAcceptanceTestPaths = [
+  'test/architecture/tentura_30e_landing_check_nesting_test.dart',
+];
+
 const _pl4LandingGateMarker =
     'tentura-pl4 landing gate acceptance (fix tentura-8u7)';
 
@@ -177,43 +183,6 @@ void main() {
       },
     );
   });
-}
-
-/// Runs tentura-pl4 bead acceptance: full server non-pg suite via test cleanup wrapper.
-CommandOutcome runPl4AcceptanceNonPgDartTest() {
-  final wrapper = testCleanupWrapperFromServerPackage();
-  final server = serverPackageRoot();
-  final nestedTmp = Directory('${server.path}/.dart_tool').createTempSync(
-    'tentura-pl4-nonpg-nested-',
-  );
-  try {
-    final result = Process.runSync(
-      wrapper.path,
-      [
-        '--timeout',
-        '30m',
-        '--',
-        'dart',
-        'test',
-        '--exclude-tags',
-        'pg',
-      ],
-      workingDirectory: server.path,
-      environment: {
-        ...Platform.environment,
-        'DART_SUPPRESS_ANALYTICS': 'true',
-        'TMPDIR': nestedTmp.path,
-        'TENTURA_U6E_NESTED_SUITE': 'true',
-      },
-    );
-    return (
-      exitCode: result.exitCode,
-      stdout: result.stdout as String,
-      stderr: result.stderr as String,
-    );
-  } finally {
-    nestedTmp.deleteSync(recursive: true);
-  }
 }
 
 File _repoFile(String relativePath) {

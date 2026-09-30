@@ -164,3 +164,4 @@ Tentura tests: always wrap flutter test / dart test / scripts/check-custom-lints
 <!-- tentura-uwq landing gate acceptance (fix tentura-ah4 wrapped selftest) -->
 <!-- tentura-pl4 landing gate acceptance (fix tentura-8u7) -->
 <!-- tentura-3i0m landing gate acceptance (fix tentura-8u7) -->
+<!-- tentura-30e landing gate acceptance (fix tentura-pl4) -->
