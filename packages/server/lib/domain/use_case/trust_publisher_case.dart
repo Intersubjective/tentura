@@ -5,7 +5,7 @@ import 'package:tentura_server/utils/id.dart';
 
 import '_use_case_base.dart';
 
-@Singleton(order: 3)
+@Singleton(order: 1)
 final class TrustPublisherCase extends UseCaseBase {
   TrustPublisherCase(
     this._port, {

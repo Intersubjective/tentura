@@ -214,4 +214,28 @@ class ClosureRepositoryMock implements ClosureRepositoryPort {
     required String beaconId,
     required String helperId,
   }) async {}
+
+  @override
+  Future<List<ClosureDueEpoch>> dueEpochs({int limit = 50}) async => const [];
+
+  @override
+  Future<ClosureRoutingSource> routingSource(String beaconId) async =>
+      const ClosureRoutingSource(
+        edges: [],
+        attributionByBatch: {},
+        offerAt: {},
+      );
+
+  @override
+  Future<void> postStoryMessage({
+    required String beaconId,
+    required String body,
+  }) async {}
+
+  @override
+  Future<void> insertCloseAcknowledgements({
+    required String beaconId,
+    required String authorId,
+    required Set<String> helperIds,
+  }) async {}
 }

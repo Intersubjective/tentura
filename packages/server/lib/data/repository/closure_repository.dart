@@ -3,15 +3,19 @@ import 'dart:convert';
 import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura_server/consts/beacon_hierarchy_consts.dart';
 import 'package:tentura_server/domain/closure/closure_band.dart';
 import 'package:tentura_server/domain/closure/closure_entities.dart';
 import 'package:tentura_server/domain/closure/closure_outcome.dart';
 import 'package:tentura_server/domain/closure/membership_reducer.dart';
+import 'package:tentura_server/domain/capability/capability_evidence_models.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 import 'package:tentura_server/domain/port/closure_repository_port.dart';
+import 'package:tentura_server/domain/trust/forward/forward_provenance.dart';
 import 'package:tentura_server/domain/trust/ledger_evidence.dart';
 import 'package:tentura_server/domain/trust/trust_evidence_kind.dart';
 
+import 'capability_evidence_repository.dart';
 import 'trust_ledger_repository.dart';
 
 import '../database/tentura_db.dart';
@@ -821,6 +825,148 @@ LIMIT 1
       null => null,
     },
   );
+
+  @override
+  Future<List<ClosureDueEpoch>> dueEpochs({int limit = 50}) => _database
+      .customSelect(
+        r'''
+SELECT beacon_id, epoch
+FROM public.beacon_closure
+WHERE status = 0 AND closes_at <= now()
+ORDER BY closes_at
+LIMIT $1
+''',
+        variables: [Variable<int>(limit)],
+      )
+      .map(
+        (row) => ClosureDueEpoch(
+          beaconId: row.read<String>('beacon_id'),
+          epoch: row.read<int>('epoch'),
+        ),
+      )
+      .get();
+
+  @override
+  Future<ClosureRoutingSource> routingSource(String beaconId) async {
+    final edges = await _database
+        .customSelect(
+          r'''
+SELECT id, sender_id, recipient_id, parent_edge_id, batch_id,
+  created_at::text AS created_at, cancelled_at::text AS cancelled_at
+FROM public.beacon_forward_edge
+WHERE beacon_id = $1
+ORDER BY created_at, id
+''',
+          variables: [Variable<String>(beaconId)],
+        )
+        .map(
+          (row) => ForwardProvenanceEdge(
+            id: row.read<String>('id'),
+            senderId: row.read<String>('sender_id'),
+            recipientId: row.read<String>('recipient_id'),
+            parentEdgeId: row.readNullable<String>('parent_edge_id'),
+            batchId: row.readNullable<String>('batch_id'),
+            createdAt: DateTime.parse(row.read<String>('created_at')).toUtc(),
+            cancelledAt: _parseTs(row.readNullable<String>('cancelled_at')),
+          ),
+        )
+        .get();
+    final attributions = await _database
+        .customSelect(
+          r'''
+SELECT a.child_forward_batch_id, a.parent_forward_edge_id, a.attribution_weight
+FROM public.forward_decision_attribution a
+WHERE a.child_forward_batch_id IN (
+  SELECT batch_id FROM public.beacon_forward_edge
+  WHERE beacon_id = $1 AND batch_id IS NOT NULL
+)
+ORDER BY a.child_forward_batch_id, a.parent_forward_edge_id
+''',
+          variables: [Variable<String>(beaconId)],
+        )
+        .get();
+    final byBatch = <String, List<ForwardAttributionInput>>{};
+    for (final row in attributions) {
+      final batchId = row.read<String>('child_forward_batch_id');
+      byBatch
+          .putIfAbsent(batchId, () => [])
+          .add(
+            ForwardAttributionInput(
+              batchId: batchId,
+              parentForwardEdgeId: row.read<String>('parent_forward_edge_id'),
+              weight: row.read<double>('attribution_weight'),
+            ),
+          );
+    }
+    final offers = await _database
+        .customSelect(
+          r'''
+SELECT user_id, created_at::text AS created_at
+FROM public.beacon_help_offer
+WHERE beacon_id = $1
+''',
+          variables: [Variable<String>(beaconId)],
+        )
+        .get();
+    return ClosureRoutingSource(
+      edges: edges,
+      attributionByBatch: byBatch,
+      offerAt: {
+        for (final row in offers)
+          row.read<String>('user_id'): DateTime.parse(
+            row.read<String>('created_at'),
+          ).toUtc(),
+      },
+    );
+  }
+
+  @override
+  Future<void> postStoryMessage({
+    required String beaconId,
+    required String body,
+  }) => _database.customInsert(
+    r'''
+INSERT INTO public.beacon_room_message (beacon_id, body, system_message_kind)
+VALUES ($1, $2, $3)
+''',
+    variables: [
+      Variable<String>(beaconId),
+      Variable<String>(body),
+      Variable<int>(BeaconRoomSystemMessageKind.closureStory),
+    ],
+  );
+
+  @override
+  Future<void> insertCloseAcknowledgements({
+    required String beaconId,
+    required String authorId,
+    required Set<String> helperIds,
+  }) async {
+    if (helperIds.isEmpty) return;
+    final offers = await _database
+        .customSelect(
+          r'''
+SELECT user_id, help_type
+FROM public.beacon_help_offer
+WHERE beacon_id = $1 AND help_type IS NOT NULL AND help_type <> ''
+ORDER BY user_id
+''',
+          variables: [Variable<String>(beaconId)],
+        )
+        .get();
+    final emissions = [
+      for (final row in offers)
+        if (helperIds.contains(row.read<String>('user_id')))
+          OutcomeEmission(
+            observerUserId: authorId,
+            subjectUserId: row.read<String>('user_id'),
+            tagSlug: row.read<String>('help_type'),
+          ),
+    ];
+    await CapabilityEvidenceRepository(
+      _database,
+    ).emitOutcomeEvidenceBatch(beaconId: beaconId, emissions: emissions);
+  }
 
   static ForwardEdgeEntity _mapEdge(QueryRow row) => ForwardEdgeEntity(
     id: row.read<String>('id'),

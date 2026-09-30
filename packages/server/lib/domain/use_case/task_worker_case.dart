@@ -23,6 +23,7 @@ import 'package:tentura_server/domain/use_case/capability_cell_expiry_sweep_case
 import 'package:tentura_server/domain/use_case/capability_telemetry_case.dart';
 import 'package:tentura_server/domain/use_case/user_availability_case.dart';
 import 'package:tentura_server/domain/use_case/deadline_reminder_sweep_case.dart';
+import 'package:tentura_server/domain/use_case/closure_finalize_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/trust_publisher_case.dart';
 import 'package:tentura_server/domain/port/trust_maintenance_port.dart';
 import 'package:tentura_server/domain/port/witness_window_port.dart';
@@ -55,6 +56,7 @@ final class TaskWorkerCase extends UseCaseBase {
     UserAvailabilityCase userAvailabilityCase,
     DeadlineReminderSweepCase deadlineReminderSweep,
     TrustPublisherCase trustPublisher,
+    ClosureFinalizeSweepCase closureFinalizeSweep,
   ) => Future.value(
     TaskWorkerCase(
       imageRepository,
@@ -79,6 +81,7 @@ final class TaskWorkerCase extends UseCaseBase {
       userAvailabilityCase: userAvailabilityCase,
       deadlineReminderSweep: deadlineReminderSweep,
       trustPublisher: trustPublisher,
+      closureFinalizeSweep: closureFinalizeSweep,
       env: env,
       logger: logger,
     ),
@@ -104,6 +107,7 @@ final class TaskWorkerCase extends UseCaseBase {
     UserAvailabilityCase? userAvailabilityCase,
     DeadlineReminderSweepCase? deadlineReminderSweep,
     TrustPublisherCase? trustPublisher,
+    ClosureFinalizeSweepCase? closureFinalizeSweep,
     required super.env,
     required super.logger,
   }) : _imageObjectGc = imageObjectGc,
@@ -120,7 +124,8 @@ final class TaskWorkerCase extends UseCaseBase {
        _capabilityCellPort = capabilityCellPort,
        _userAvailabilityCase = userAvailabilityCase,
        _deadlineReminderSweep = deadlineReminderSweep,
-       _trustPublisher = trustPublisher;
+       _trustPublisher = trustPublisher,
+       _closureFinalizeSweep = closureFinalizeSweep;
 
   final ImageRepositoryPort _imageRepository;
 
@@ -145,6 +150,7 @@ final class TaskWorkerCase extends UseCaseBase {
   final UserAvailabilityCase? _userAvailabilityCase;
   final DeadlineReminderSweepCase? _deadlineReminderSweep;
   final TrustPublisherCase? _trustPublisher;
+  final ClosureFinalizeSweepCase? _closureFinalizeSweep;
 
   /// Per-process identity for `image_object_gc` lease ownership (§3.4).
   final _gcLeaseOwner = generateId('W');
@@ -170,6 +176,7 @@ final class TaskWorkerCase extends UseCaseBase {
   var _lastAvailabilityCleanupSweep = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastDeadlineReminderSweep = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastTrustPublish = DateTime.fromMillisecondsSinceEpoch(0);
+  var _lastClosureFinalizeSweep = DateTime.fromMillisecondsSinceEpoch(0);
 
   late final _tasks = <Future<void> Function()>[
     // Trust publisher: cadence 10 s; nudge() forces the next tick.
@@ -183,6 +190,16 @@ final class TaskWorkerCase extends UseCaseBase {
       }
       _lastTrustPublish = now;
       await publisher.run();
+    },
+    // Closure finalize: epochs whose evaluation window has elapsed.
+    () async {
+      final now = DateTime.timestamp();
+      if (now.difference(_lastClosureFinalizeSweep) <
+          const Duration(seconds: 60)) {
+        return;
+      }
+      _lastClosureFinalizeSweep = now;
+      await _closureFinalizeSweep?.run();
     },
     () async {
       final now = DateTime.timestamp();

@@ -1,6 +1,7 @@
 import 'package:tentura_server/domain/closure/closure_band.dart';
 import 'package:tentura_server/domain/closure/closure_outcome.dart';
 import 'package:tentura_server/domain/closure/membership_reducer.dart';
+import 'package:tentura_server/domain/trust/forward/forward_provenance.dart';
 
 /// A11 closure persistence entities (Arch §5.4) — plain immutable row
 /// carriers for the raw-SQL `beacon_closure*` tables (no Drift classes).
@@ -190,4 +191,27 @@ final class ClosureResultRow {
   final ClosureBand band;
   final ClosureResultDraftFlag draftFlag;
   final double helped;
+}
+
+/// An evaluating epoch whose window has elapsed (finalize sweep candidate).
+final class ClosureDueEpoch {
+  const ClosureDueEpoch({required this.beaconId, required this.epoch});
+
+  final String beaconId;
+  final int epoch;
+}
+
+/// Raw forward-routing inputs of one request (Arch §5.8).
+final class ClosureRoutingSource {
+  const ClosureRoutingSource({
+    required this.edges,
+    required this.attributionByBatch,
+    required this.offerAt,
+  });
+
+  final List<ForwardProvenanceEdge> edges;
+  final Map<String, List<ForwardAttributionInput>> attributionByBatch;
+
+  /// Help-offer `created_at` by user.
+  final Map<String, DateTime> offerAt;
 }

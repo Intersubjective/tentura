@@ -180,4 +180,23 @@ abstract class ClosureRepositoryPort {
     required String beaconId,
     required String helperId,
   });
+
+  /// `status = evaluating AND closes_at <= now()`, oldest first.
+  Future<List<ClosureDueEpoch>> dueEpochs({int limit = 50});
+
+  Future<ClosureRoutingSource> routingSource(String beaconId);
+
+  /// Posts [body] to the request room as a system message (kind 3).
+  Future<void> postStoryMessage({
+    required String beaconId,
+    required String body,
+  });
+
+  /// Close-acknowledgement capability events `author → helper` over each
+  /// helper's offer help type (none when the offer carries no help type).
+  Future<void> insertCloseAcknowledgements({
+    required String beaconId,
+    required String authorId,
+    required Set<String> helperIds,
+  });
 }
