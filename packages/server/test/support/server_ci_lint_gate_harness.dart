@@ -472,6 +472,42 @@ void _generateIgnoredSourcesIn8u7TrialMerge(Directory serverPackage) {
   }
 }
 
+/// Alloy lands a bead on the trial merge of its branch with the landing
+/// target, so merge the host HEAD (landing target) into the detached
+/// alloy/tentura-8u7 checkout; a stale bead ref alone lacks later landings.
+void _mergeLandingTargetInto8u7TrialMerge(
+  Directory hostRepo,
+  String worktreePath,
+) {
+  final head = Process.runSync(
+    'git',
+    ['rev-parse', 'HEAD'],
+    workingDirectory: hostRepo.path,
+  );
+  if (head.exitCode != 0) {
+    throw StateError('git rev-parse HEAD failed:\n${head.stderr}');
+  }
+  final merge = Process.runSync(
+    'git',
+    [
+      '-c',
+      'user.name=alloy-trial-merge',
+      '-c',
+      'user.email=alloy-trial-merge@localhost',
+      'merge',
+      '--no-edit',
+      (head.stdout as String).trim(),
+    ],
+    workingDirectory: worktreePath,
+  );
+  if (merge.exitCode != 0) {
+    throw StateError(
+      'trial merge of host HEAD into $_8u7TrialMergeRef failed:\n'
+      '${merge.stdout}\n${merge.stderr}',
+    );
+  }
+}
+
 typedef _8u7TrialMergeWorktreeRun<T> = T Function(
   Directory serverPackage,
   Directory nestedTmp,
@@ -495,6 +531,7 @@ T _runIn8u7TrialMergeWorktree<T>(_8u7TrialMergeWorktreeRun<T> run) {
         '${add.stdout}\n${add.stderr}',
       );
     }
+    _mergeLandingTargetInto8u7TrialMerge(hostRepo, worktreePath);
     final serverPackage = Directory('$worktreePath/packages/server');
     _generateIgnoredSourcesIn8u7TrialMerge(serverPackage);
     return run(serverPackage, nestedTmp);

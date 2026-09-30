@@ -83,18 +83,35 @@ void main() {
       'bead acceptance paths exist on $_8u7TrialMergeRef at packages/server',
       () {
         final repo = repoRootFromServerPackage();
+        // Alloy lands on the trial merge of the bead ref with the landing
+        // target (host HEAD), as run3i0mAcceptanceFourFileDartTestOn8u7TrialMerge
+        // does, so look the paths up in that merged tree.
+        final trialMerge = Process.runSync(
+          'git',
+          ['merge-tree', '--write-tree', _8u7TrialMergeRef, 'HEAD'],
+          workingDirectory: repo.path,
+        );
+        expect(
+          trialMerge.exitCode,
+          0,
+          reason:
+              'trial merge of $_8u7TrialMergeRef with HEAD must be clean\n'
+              'stdout:\n${trialMerge.stdout}\nstderr:\n${trialMerge.stderr}',
+        );
+        final trialTree = (trialMerge.stdout as String).split('\n').first.trim();
         for (final path in k3i0mBeadAcceptanceTestPaths) {
           final repoRelative = 'packages/server/$path';
           final show = Process.runSync(
             'git',
-            ['show', '$_8u7TrialMergeRef:$repoRelative'],
+            ['show', '$trialTree:$repoRelative'],
             workingDirectory: repo.path,
           );
           expect(
             show.exitCode,
             0,
             reason:
-                '$_8u7TrialMergeRef must contain $path before tentura-3i0m '
+                '$_8u7TrialMergeRef trial merge must contain $path before '
+                'tentura-3i0m '
                 'landing\nstderr:\n${show.stderr}',
           );
         }
