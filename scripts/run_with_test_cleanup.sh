@@ -268,7 +268,7 @@ pg_gc_psql() {
 # Also treat any live process carrying TENTURA_TEST_CLEANUP_RUN=<other> as
 # active, so a peer cannot race ahead of the victim's mkdir of its marker dir.
 other_active_markers() {
-  local self_marker="$1" d name reaper_pid our_tmp="${TMPDIR:-/tmp}"
+  local self_marker="$1" d name reaper_pid wrapper_pid our_tmp="${TMPDIR:-/tmp}"
   # A missing STATE_ROOT must NOT short-circuit the /proc scan below: nested
   # acceptance harnesses hand a wrapped run a private TMPDIR and delete it in
   # `finally` right as the wrapper exits, so by the time the reaper sweeps,
@@ -286,8 +286,15 @@ other_active_markers() {
       # (tentura-2tj). Trust it only while its own recorded reaper.pid is a
       # live process; otherwise it's a stale leftover -- reclaim it now so the
       # next run doesn't have to rediscover it.
+      # Between the wrapper creating its marker dir and its reaper publishing
+      # reaper.pid, the dir is owned by the wrapper: it is published already
+      # carrying wrapper.pid (see create_marker), so a dir whose wrapper is
+      # alive is not stale yet (tentura-1hx).
       reaper_pid="$(cat "$d/reaper.pid" 2>/dev/null || true)"
+      wrapper_pid="$(cat "$d/wrapper.pid" 2>/dev/null || true)"
       if [[ -n "$reaper_pid" ]] && kill -0 "$reaper_pid" 2>/dev/null; then
+        printf '%s\n' "$name"
+      elif [[ -n "$wrapper_pid" ]] && kill -0 "$wrapper_pid" 2>/dev/null; then
         printf '%s\n' "$name"
       else
         rm -rf "$d" 2>/dev/null || true
@@ -346,6 +353,16 @@ sweep_run() {
     log "removed unreferenced tmpfs:"
     printf '%s\n' "$gone" | sed 's/^/  /' >&2
   fi
+}
+
+# Publish the marker dir atomically with wrapper.pid inside, so no sweep ever
+# sees it empty and mistakes it for a stale leftover (tentura-1hx). The staging
+# name is dot-prefixed, which the "$STATE_ROOT"/*/ scan skips.
+create_marker() {
+  local marker="$1" staging
+  staging="$STATE_ROOT/.new-${marker##*/}"
+  { mkdir -p "$staging" && echo "$$" >"$staging/wrapper.pid" && mv "$staging" "$marker"; } 2>/dev/null ||
+    { rm -rf "$staging"; mkdir -p "$marker"; } 2>/dev/null || true
 }
 
 wait_reaper_ready() {
@@ -453,7 +470,7 @@ main() {
   local run_id
   run_id="$(python3 -c 'import uuid; print(uuid.uuid4().hex)')"
   local marker="$STATE_ROOT/$run_id"
-  mkdir -p "$marker" 2>/dev/null || true
+  create_marker "$marker"
   local deadline=$(( $(date +%s) + secs + 45 ))
 
   # Pre-sweep leftovers from previous killed agents before we start more.
