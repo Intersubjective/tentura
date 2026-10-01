@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:tentura_server/env.dart';
 
+import 'hasura_pg_jwt_fresh_checkout_harness_contract.dart';
+
 /// Shared JWT PEM loader for isolated Hasura pg tests (tentura-50o).
 ///
 /// Resolution order: repo `.env` entries, then process environment, then
@@ -11,8 +13,7 @@ import 'package:tentura_server/env.dart';
   Map<String, String>? platformEnvironmentOverride,
 }) {
   final platformEnv = platformEnvironmentOverride ?? Platform.environment;
-  final dotEnv =
-      repoDotEnvOverride ?? File('${Directory.current.path}/../../.env');
+  final dotEnv = repoDotEnvOverride ?? _repoDotEnvFileForHasuraPgTests(platformEnv);
 
   final values = <String, String>{};
   if (dotEnv.existsSync()) {
@@ -37,4 +38,21 @@ import 'package:tentura_server/env.dart';
       Env.kJwtPrivateKey.replaceAll(r'\n', '\n');
 
   return (publicKey: publicKey, privateKey: privateKey);
+}
+
+File _repoDotEnvFileForHasuraPgTests(Map<String, String> platformEnv) {
+  for (final key in kHasuraPgFreshCheckoutDotEnvPathEnvCandidates) {
+    if (key == 'TENTURA_HASURA_PG_FRESH_CHECKOUT_REPO_ROOT') {
+      final root = platformEnv[key];
+      if (root != null && root.isNotEmpty) {
+        return File('$root/.env');
+      }
+      continue;
+    }
+    final path = platformEnv[key];
+    if (path != null && path.isNotEmpty) {
+      return File(path);
+    }
+  }
+  return File('${Directory.current.path}/../../.env');
 }

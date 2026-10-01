@@ -12,6 +12,8 @@ import 'beacon_hierarchy_fixture.dart';
 import 'hasura_pg_jwt_keys.dart';
 import 'isolated_hasura_session.dart';
 
+part 'hasura_pg_jwt_keys_test_3zd.dart';
+
 const _kDefaultPathProbeRelative =
     'test/support/hasura_pg_jwt_default_path_probe_test.dart';
 const _kDefaultPathProbeName =
@@ -215,6 +217,8 @@ void main() async {
       );
     }
   });
+
+  registerTentura3zdHarnessTests();
 }
 
 bool get _isCiDartTestHost {
@@ -227,21 +231,16 @@ bool get _isCiDartTestHost {
 Future<({String stdout, String stderr, int exitCode, String combined})>
     _runFreshCheckoutDartTest(List<String> testArgs) async {
   final serverRoot = Directory.current.path;
-  final repoRoot = p.normalize(p.join(serverRoot, '../..'));
-  final dotEnv = File(p.join(repoRoot, '.env'));
-  File? hiddenDotEnv;
-
-  if (dotEnv.existsSync()) {
-    hiddenDotEnv = File(
-      '${dotEnv.path}.tentura50o_hide_${DateTime.timestamp().microsecondsSinceEpoch}',
-    );
-    await dotEnv.rename(hiddenDotEnv.path);
-  }
+  final scratchDir = await Directory.systemTemp.createTemp(
+    'tentura-hasura-pg-fresh-checkout-',
+  );
+  final scratchDotEnv = File(p.join(scratchDir.path, '.env'));
 
   try {
     final env = Map<String, String>.from(Platform.environment)
       ..remove('JWT_PUBLIC_PEM')
-      ..remove('JWT_PRIVATE_PEM');
+      ..remove('JWT_PRIVATE_PEM')
+      ..['TENTURA_TEST_REPO_DOT_ENV'] = scratchDotEnv.path;
 
     final ProcessResult result;
     if (_isCiDartTestHost) {
@@ -280,8 +279,8 @@ Future<({String stdout, String stderr, int exitCode, String combined})>
       combined: '$stdout\n$stderr',
     );
   } finally {
-    if (hiddenDotEnv != null && hiddenDotEnv.existsSync()) {
-      await hiddenDotEnv.rename(dotEnv.path);
+    if (scratchDir.existsSync()) {
+      await scratchDir.delete(recursive: true);
     }
   }
 }
