@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # One-shot local dev bootstrap: make .env bootable, bring up infra, and apply
-# Hasura metadata — the setup steps that otherwise fail silently. It does NOT
-# start the foreground processes (API server, Flutter web, Caddy); it prints the
-# commands to run for those, since each wants its own terminal.
+# Hasura metadata — the setup steps that otherwise fail silently. Starts the API
+# if needed for remote-schema introspection, then prints the commands to run
+# Flutter web and Caddy in their own terminals.
 #
 # Idempotent: safe to re-run. Reuses an existing .env and never regenerates keys
 # that are already non-placeholder.
@@ -55,15 +55,29 @@ for _ in $(seq 1 60); do
   sleep 2
 done
 
-# 6. Apply Hasura metadata (else the app shows "field 'beacon' not found ...").
+# 6. The Tentura remote schema must be reachable before applying metadata.
+SERVER_LOG="${SERVER_LOG:-/tmp/tentura-server-dev.log}"
+if ! curl -sf -m 3 http://127.0.0.1:2080/health >/dev/null 2>&1; then
+  echo "Starting Tentura API (log: $SERVER_LOG)..."
+  nohup "$ROOT/scripts/run-server-local.sh" >"$SERVER_LOG" 2>&1 &
+  for _ in $(seq 1 60); do
+    curl -sf -m 2 http://127.0.0.1:2080/health >/dev/null 2>&1 && break
+    sleep 2
+  done
+  if ! curl -sf -m 2 http://127.0.0.1:2080/health >/dev/null 2>&1; then
+    echo "Tentura API did not become healthy (see $SERVER_LOG)" >&2
+    exit 1
+  fi
+fi
+
+# 7. Apply Hasura metadata (else the app shows "field 'beacon' not found ...").
 bash "$ROOT/scripts/hasura_apply_metadata.sh"
 
 cat <<'EOF'
 
-Infra is up and Hasura metadata is applied. Start the three foreground
-processes, each in its own terminal:
+Infra and Tentura API are up and Hasura metadata is applied. Start the two
+foreground processes, each in its own terminal:
 
-  ./scripts/run-server-local.sh          # Tentura API  -> :2080
   ./scripts/run-flutter-web-local.sh     # Flutter web  -> :8888
   caddy run --config Caddyfile.local     # HTTPS proxy  -> https://dev.lvh.me:9443
 

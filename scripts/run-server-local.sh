@@ -30,4 +30,12 @@ if command -v ss >/dev/null 2>&1 && ss -tln 2>/dev/null | grep -qE "[.:]${PORT} 
   exit 1
 fi
 
-exec dart run bin/tentura.dart "$@"
+# Keep the launcher alive so callers can stop the API by its script name/PID.
+# A separate process group lets shutdown also stop Dart's child processes.
+setsid dart run bin/tentura.dart "$@" &
+server_pid=$!
+trap 'kill -- "-$server_pid" 2>/dev/null || true; wait "$server_pid" 2>/dev/null || true' EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+wait "$server_pid"
