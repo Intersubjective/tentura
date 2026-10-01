@@ -235,10 +235,91 @@ WHERE r.fact_card_id = @template
       skip: skipReason,
     );
 
+    test(
+      'composite quote fixture references doomed fact via quoted_fact columns',
+      () async {
+        await applyCompositeQuoteFixtureAfterMigration(writer());
+
+        final row = (await writer().execute('''
+SELECT linked_fact_card_id, quoted_fact_card_id, quoted_fact_revision_seq
+FROM public.beacon_room_message
+WHERE id = 'Rf199quote'
+''')).single;
+        expect(
+          row[0],
+          isNull,
+          reason: 'linked_fact on the doomed beacon is CASCADEd away',
+        );
+        expect(row[1], _quotedFactId);
+        expect(row[2], 1);
+      },
+      skip: skipReason,
+    );
+
+    test(
+      'composite quote fixture places a surviving-beacon message on the composite FK',
+      () async {
+        await applyCompositeQuoteFixtureAfterMigration(writer());
+
+        final rows = await writer().execute(
+          Sql.named('''
+SELECT id, quoted_fact_revision_seq
+FROM public.beacon_room_message
+WHERE beacon_id = @beacon AND quoted_fact_card_id = @fact
+ORDER BY id
+'''),
+          parameters: {'beacon': _beaconId, 'fact': _quotedFactId},
+        );
+        expect(rows, hasLength(1));
+        expect(rows.single[0], _crossBeaconQuoteMessageId);
+        expect(rows.single[1], 1);
+      },
+      skip: skipReason,
+    );
+
+    test(
+      'beacon delete SET NULL clears composite quote on a surviving-beacon message',
+      () async {
+        await applyCompositeQuoteFixtureAfterMigration(writer());
+
+        final quotedBefore = await writer().execute(
+          Sql.named(
+            'SELECT quoted_fact_card_id, quoted_fact_revision_seq '
+            'FROM public.beacon_room_message WHERE id = @id',
+          ),
+          parameters: {'id': _crossBeaconQuoteMessageId},
+        );
+        expect(quotedBefore, hasLength(1));
+        expect(quotedBefore.single[0], _quotedFactId);
+        expect(quotedBefore.single[1], 1);
+
+        await writer().execute(
+          Sql.named('DELETE FROM public.beacon WHERE id = @id'),
+          parameters: {'id': _deleteBeaconId},
+        );
+
+        final crossBeacon = await writer().execute(
+          Sql.named(
+            'SELECT quoted_fact_card_id, quoted_fact_revision_seq '
+            'FROM public.beacon_room_message WHERE id = @id',
+          ),
+          parameters: {'id': _crossBeaconQuoteMessageId},
+        );
+        expect(crossBeacon, hasLength(1), reason: 'quoting message survives');
+        expect(crossBeacon.single[0], isNull);
+        expect(crossBeacon.single[1], isNull);
+      },
+      skip: skipReason,
+    );
+
     // Last: it deletes a beacon from the shared fixture.
     test(
       'deleting a beacon whose fact is quoted by a message succeeds',
       () async {
+        // After the SET NULL test deletes the doomed beacon, re-seed via the
+        // fixture before asserting revision count.
+        await applyCompositeQuoteFixtureAfterMigration(writer());
+
         final before = await writer().execute(
           Sql.named(
             'SELECT count(*)::int FROM public.beacon_fact_card_revision '
@@ -248,30 +329,6 @@ WHERE r.fact_card_id = @template
         );
         expect(before.single.single, 1);
 
-        // Quote revision 1 from a message on the surviving beacon (so the
-        // beacon delete does not cascade it away) and from one on the deleted
-        // beacon. Only the composite FK's SET NULL can clear the former.
-        await writer().execute(
-          Sql.named('''
-INSERT INTO public.beacon_room_message
-  (id, beacon_id, author_id, body, quoted_fact_card_id, quoted_fact_revision_seq)
-VALUES (@id, @beacon, @author, 'cross-beacon quote', @fact, 1)
-'''),
-          parameters: {
-            'id': _crossBeaconQuoteMessageId,
-            'beacon': _beaconId,
-            'author': _otherId,
-            'fact': _quotedFactId,
-          },
-        );
-        await writer().execute(
-          Sql.named('''
-UPDATE public.beacon_room_message
-SET quoted_fact_card_id = @fact, quoted_fact_revision_seq = 1
-WHERE id = 'Rf199quote'
-'''),
-          parameters: {'fact': _quotedFactId},
-        );
         final quotedBefore = await writer().execute(
           Sql.named(
             'SELECT count(*)::int FROM public.beacon_room_message '
@@ -487,6 +544,99 @@ VALUES
 
 /// The plan may carry `history_truncated` on the fact or on its revision;
 /// read it from whichever table has it (exactly one must).
+/// tentura-7ft: after m0199 adds quote columns, wire composite-FK quotes for
+/// the delete-beacon scenario (surviving-beacon message + doomed-beacon row).
+Future<void> applyCompositeQuoteFixtureAfterMigration(Connection writer) async {
+  await _ensureQuotedFactOnDeleteBeacon(writer);
+
+  await writer.execute(
+    Sql.named('''
+UPDATE public.beacon_room_message
+SET linked_fact_card_id = NULL,
+    quoted_fact_card_id = @fact,
+    quoted_fact_revision_seq = 1
+WHERE id = 'Rf199quote'
+'''),
+    parameters: {'fact': _quotedFactId},
+  );
+
+  await writer.execute(
+    Sql.named('''
+INSERT INTO public.beacon_room_message
+  (id, beacon_id, author_id, body, quoted_fact_card_id, quoted_fact_revision_seq)
+VALUES (@id, @beacon, @author, 'cross-beacon quote', @fact, 1)
+ON CONFLICT (id) DO UPDATE SET
+  quoted_fact_card_id = EXCLUDED.quoted_fact_card_id,
+  quoted_fact_revision_seq = EXCLUDED.quoted_fact_revision_seq
+'''),
+    parameters: {
+      'id': _crossBeaconQuoteMessageId,
+      'beacon': _beaconId,
+      'author': _pinnerId,
+      'fact': _quotedFactId,
+    },
+  );
+}
+
+/// Restores the doomed-beacon quote target when a prior test deleted the beacon.
+Future<void> _ensureQuotedFactOnDeleteBeacon(Connection writer) async {
+  final exists = await writer.execute(
+    Sql.named('SELECT 1 FROM public.beacon_fact_card WHERE id = @id'),
+    parameters: {'id': _quotedFactId},
+  );
+  if (exists.isNotEmpty) {
+    return;
+  }
+
+  await _seedBeacon(writer, _deleteBeaconId);
+  await writer.execute('''
+INSERT INTO public.beacon_room_message (id, beacon_id, author_id, body)
+VALUES ('Rf199src03', '$_deleteBeaconId', '$_pinnerId', 'source 3')
+ON CONFLICT (id) DO NOTHING
+''');
+  await writer.execute('''
+INSERT INTO public.beacon_fact_card
+  (id, beacon_id, fact_text, visibility, pinned_by, source_message_id, status,
+   created_at, updated_at, revision_seq)
+VALUES
+  ('$_quotedFactId', '$_deleteBeaconId', 'Quoted fact text', 0, '$_pinnerId',
+   'Rf199src03', ${BeaconFactCardStatusBits.active},
+   '2026-01-05 00:00:00+00', '2026-01-05 00:00:00+00', 1)
+ON CONFLICT (id) DO NOTHING
+''');
+  await writer.execute(
+    Sql.named('''
+INSERT INTO public.beacon_fact_card_revision
+  (fact_card_id, seq, fact_text, actor_id, kind, created_at)
+VALUES
+  (@fact, 1, 'Quoted fact text', @pinner, @kind, '2026-01-05 00:00:00+00')
+ON CONFLICT (fact_card_id, seq) DO NOTHING
+'''),
+    parameters: {
+      'fact': _quotedFactId,
+      'pinner': _pinnerId,
+      'kind': BeaconFactCardRevisionKindBits.created,
+    },
+  );
+  await writer.execute(
+    Sql.named('''
+INSERT INTO public.beacon_room_message
+  (id, beacon_id, author_id, body, linked_fact_card_id)
+VALUES ('Rf199quote', @beacon, @author, 'quoting', @fact)
+ON CONFLICT (id) DO UPDATE SET
+  beacon_id = EXCLUDED.beacon_id,
+  linked_fact_card_id = EXCLUDED.linked_fact_card_id,
+  quoted_fact_card_id = NULL,
+  quoted_fact_revision_seq = NULL
+'''),
+    parameters: {
+      'beacon': _deleteBeaconId,
+      'author': _pinnerId,
+      'fact': _quotedFactId,
+    },
+  );
+}
+
 Future<Map<String, bool>> _historyTruncatedByFact(Connection writer) async {
   final owners = await writer.execute('''
 SELECT table_name::text FROM information_schema.columns
