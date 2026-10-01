@@ -36,6 +36,7 @@ final class ClosureStateView {
     this.earlyCloseAt,
     this.canCloseNow,
     this.canReopen,
+    this.extensionsUsed,
     this.story,
   });
 
@@ -52,6 +53,7 @@ final class ClosureStateView {
   final DateTime? earlyCloseAt;
   final bool? canCloseNow;
   final bool? canReopen;
+  final int? extensionsUsed;
   final String? story;
 }
 

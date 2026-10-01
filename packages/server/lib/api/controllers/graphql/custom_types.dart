@@ -1678,6 +1678,7 @@ final gqlTypeClosureState =
         field('earlyCloseAt', graphQLString),
         field('canCloseNow', graphQLBoolean),
         field('canReopen', graphQLBoolean),
+        field('extensionsUsed', graphQLInt),
         field('story', graphQLString),
       ]);
 

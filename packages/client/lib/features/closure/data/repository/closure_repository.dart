@@ -74,6 +74,7 @@ class ClosureRepository {
               : DateTime.parse(s.earlyCloseAt!).toUtc(),
           canCloseNow: s.canCloseNow ?? false,
           canReopen: s.canReopen ?? false,
+          extensionsUsed: s.extensionsUsed ?? 0,
           story: s.story,
         );
       });

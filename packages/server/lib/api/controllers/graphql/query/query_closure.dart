@@ -85,6 +85,7 @@ final class QueryClosure extends GqlNodeBase {
     'earlyCloseAt': s.earlyCloseAt?.toUtc().toIso8601String(),
     'canCloseNow': s.canCloseNow,
     'canReopen': s.canReopen,
+    'extensionsUsed': s.extensionsUsed,
     'story': s.story,
   };
 }

@@ -196,6 +196,38 @@ void main() {
     expect(sent.single.variables['beaconId'], _beaconId);
   });
 
+  test('fetchState maps extensionsUsed from the wire', () async {
+    for (final used in [0, 1, 2]) {
+      final json = _stateJson()..['extensionsUsed'] = used;
+      await _withRemote(
+        {
+          'ClosureState': {'__typename': 'query_root', 'closureState': json},
+        },
+        <_Sent>[],
+        (repo) async {
+          final s = await repo.fetchState(_beaconId);
+          expect(s.extensionsUsed, used);
+        },
+      );
+    }
+  });
+
+  test('fetchState defaults an omitted extensionsUsed key to 0', () async {
+    final json = _stateJson()
+      ..['role'] = 'voter'
+      ..remove('extensionsUsed');
+    await _withRemote(
+      {
+        'ClosureState': {'__typename': 'query_root', 'closureState': json},
+      },
+      <_Sent>[],
+      (repo) async {
+        final s = await repo.fetchState(_beaconId);
+        expect(s.extensionsUsed, 0);
+      },
+    );
+  });
+
   test('fetchState maps a voter view with every nullable absent', () async {
     final json = _stateJson()
       ..['role'] = 'voter'

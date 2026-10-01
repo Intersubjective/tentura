@@ -7878,6 +7878,7 @@ type v2_ClosureState {
   closesAt: String!
   earlyCloseAt: String
   epoch: Int!
+  extensionsUsed: Int
   inCalcText: String
   members: [v2_ClosureMember!]!
   myMarks: [String!]

@@ -64,6 +64,7 @@ const _types = {
     'closesAt: String!',
     'earlyCloseAt: String',
     'epoch: Int!',
+    'extensionsUsed: Int',
     'inCalcText: String',
     'members: [v2_ClosureMember!]!',
     'myMarks: [String!]',
@@ -167,6 +168,7 @@ void main() {
         'earlyCloseAt',
         'canCloseNow',
         'canReopen',
+        'extensionsUsed',
         'story',
       });
       final members = op.selection!.firstWhere((f) => f.name == 'members');

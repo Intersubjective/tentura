@@ -72,6 +72,7 @@ const _stateFields = {
   'earlyCloseAt',
   'canCloseNow',
   'canReopen',
+  'extensionsUsed',
   'story',
 };
 
@@ -180,6 +181,15 @@ void main() {
           'earlyCloseAt',
         ]),
       );
+    });
+
+    test('ClosureState exposes extensionsUsed as a nullable Int', () {
+      final field = _objectType(
+        'ClosureState',
+      ).fields.where((f) => f.name == 'extensionsUsed');
+      expect(field, hasLength(1));
+      // Author-only like canReopen: null for the other roles, so not `Int!`.
+      expect(field.single.type, same(graphQLInt));
     });
 
     test('query and mutation tables match Arch §7', () {
@@ -440,6 +450,38 @@ void main() {
     );
   });
 
+  group('closureState extensionsUsed (serialized JSON)', () {
+    Future<Map<String, dynamic>> state(String viewer, int extensionsUsed) async {
+      final r = await _run(
+        _graph(_Fixture(extensionsUsed: extensionsUsed)),
+        'closureState',
+        viewer,
+        args: 'beaconId: "$_beaconId"',
+        selection: _selection(_objectType('ClosureState')),
+      );
+      expect(r['errors'], isNull, reason: '${r['errors']}');
+      return r['closureState'] as Map<String, dynamic>;
+    }
+
+    test('author sees the live epoch extension count', () async {
+      for (final used in [0, 1, 2]) {
+        final s = await state(_authorId, used);
+        expect(s['extensionsUsed'], used, reason: 'extensionsUsed=$used');
+      }
+    });
+
+    for (final (label, viewer) in [
+      ('active voter', _voterId),
+      ('voluntary leaver', _leaverId),
+    ]) {
+      test('$label does not get extensionsUsed', () async {
+        final s = await state(viewer, 2);
+        expect(s.containsKey('extensionsUsed'), isTrue);
+        expect(s['extensionsUsed'], isNull);
+      });
+    }
+  });
+
   group('closureState exact per-role shape (serialized JSON)', () {
     late GraphQL graph;
 
@@ -528,6 +570,7 @@ void main() {
             'earlyCloseAt',
             'canCloseNow',
             'canReopen',
+            'extensionsUsed',
             'story',
           },
           required: {
@@ -537,6 +580,7 @@ void main() {
             'closesAt',
             'canCloseNow',
             'canReopen',
+            'extensionsUsed',
           },
         );
         expectMemberKeys(s, authorDetail: true);
@@ -982,22 +1026,24 @@ final _peerPressedAt = DateTime.utc(2026, 9, 2, 7, 8, 9);
 final _peerCommittedAt = DateTime.utc(2026, 9, 3, 4, 5, 6);
 
 final class _Fixture {
-  _Fixture({this.finalized = false}) {
-    repo = _Repo(finalized: finalized);
+  _Fixture({this.finalized = false, this.extensionsUsed = 0}) {
+    repo = _Repo(finalized: finalized, extensionsUsed: extensionsUsed);
     beacons = _Beacons();
     commitments = _Commitments();
   }
 
   final bool finalized;
+  final int extensionsUsed;
   late final _Repo repo;
   late final _Beacons beacons;
   late final _Commitments commitments;
 }
 
 final class _Repo implements ClosureRepositoryPort {
-  _Repo({required this.finalized});
+  _Repo({required this.finalized, this.extensionsUsed = 0});
 
   final bool finalized;
+  final int extensionsUsed;
 
   ClosureEpoch get _epoch => ClosureEpoch(
     beaconId: _beaconId,
@@ -1007,7 +1053,7 @@ final class _Repo implements ClosureRepositoryPort {
         : ClosureEpochStatus.evaluating,
     openedAt: _t0,
     closesAt: _t0.add(const Duration(days: 7)),
-    extensionsUsed: 0,
+    extensionsUsed: extensionsUsed,
     finalizedAt: finalized ? _t0.add(const Duration(days: 7)) : null,
   );
 

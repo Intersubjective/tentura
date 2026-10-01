@@ -722,6 +722,7 @@ final class ClosureCase extends UseCaseBase {
             live: finalized ? null : epoch,
             cancelledEpochs: epoch.epoch - 1,
           ),
+          extensionsUsed: epoch.extensionsUsed,
           story: story,
         );
       case ClosureRole.voter:
