@@ -33,16 +33,37 @@ log() { printf '\n[integration] %s\n' "$*"; }
 die() { echo "[integration] ERROR: $*" >&2; exit 1; }
 
 # --- 0. env & QA token -------------------------------------------------------
-[[ -f "$ROOT/.env" ]] || die "missing $ROOT/.env (copy .env.example)"
-QA_AUTH_TOKEN="${QA_AUTH_TOKEN:-$(grep -E '^QA_AUTH_TOKEN=' "$ROOT/.env" | cut -d= -f2-)}"
-[[ -n "$QA_AUTH_TOKEN" ]] || die "QA_AUTH_TOKEN not set in env or $ROOT/.env"
-grep -qE '^QA_AUTH_ENABLED=true' "$ROOT/.env" || die ".env needs QA_AUTH_ENABLED=true"
-grep -qE '^QA_SIMPLE_LOGIN_MODE=true' "$ROOT/.env" || die ".env needs QA_SIMPLE_LOGIN_MODE=true"
+ENV_FILE="$ROOT/.env"
+REGEN_JWT=0
+ensure_kv() {
+  grep -qE "^$1=" "$ENV_FILE" || printf '%s=%s\n' "$1" "$2" >>"$ENV_FILE"
+}
+if [[ ! -f "$ENV_FILE" ]]; then
+  [[ -f "$ROOT/.env.example" ]] || die "missing $ROOT/.env (copy .env.example)"
+  cp "$ROOT/.env.example" "$ENV_FILE"
+  example_pub="$(grep -E '^JWT_PUBLIC_PEM=' "$ROOT/.env.example" || true)"
+  current_pub="$(grep -E '^JWT_PUBLIC_PEM=' "$ENV_FILE" || true)"
+  if [[ -z "$current_pub" || "$current_pub" == "$example_pub" ]]; then
+    bash "$ROOT/scripts/gen-dev-jwt.sh"
+    REGEN_JWT=1
+  fi
+  ensure_kv ENVIRONMENT dev
+  ensure_kv QA_AUTH_ENABLED true
+  ensure_kv QA_AUTH_TOKEN local-dev-qa-token
+  ensure_kv QA_SIMPLE_LOGIN_MODE true
+fi
+QA_AUTH_TOKEN="${QA_AUTH_TOKEN:-$(grep -E '^QA_AUTH_TOKEN=' "$ENV_FILE" | cut -d= -f2-)}"
+[[ -n "$QA_AUTH_TOKEN" ]] || die "QA_AUTH_TOKEN not set in env or $ENV_FILE"
+grep -qE '^QA_AUTH_ENABLED=true' "$ENV_FILE" || die ".env needs QA_AUTH_ENABLED=true"
+grep -qE '^QA_SIMPLE_LOGIN_MODE=true' "$ENV_FILE" || die ".env needs QA_SIMPLE_LOGIN_MODE=true"
 
 # --- 1. docker compose infra -------------------------------------------------
 if ! curl -sf -m 3 http://127.0.0.1:8080/healthz >/dev/null 2>&1; then
   log "starting docker compose infra (hasura not answering)"
   (cd "$ROOT" && docker compose up -d)
+  if [[ "$REGEN_JWT" == "1" ]]; then
+    (cd "$ROOT" && docker compose up -d --force-recreate hasura)
+  fi
   for _ in $(seq 1 60); do
     curl -sf -m 2 http://127.0.0.1:8080/healthz >/dev/null 2>&1 && break
     sleep 2
