@@ -236,10 +236,15 @@ class RootRouter {
     // Unlike the legacy QA helpers, the realtime suspension route is not
     // registered at all in non-QA environments.
     if (_env.isQaAuthEnabled) {
-      router.post(
-        '/_qa/integration/realtime-socket',
-        _qaIntegrationController.realtimeSocket,
-      );
+      router
+        ..post(
+          '/_qa/integration/realtime-socket',
+          _qaIntegrationController.realtimeSocket,
+        )
+        ..post(
+          '/_qa/integration/expire-closure',
+          _qaIntegrationController.expireClosure,
+        );
     }
 
     return router.call;

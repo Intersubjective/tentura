@@ -28,6 +28,10 @@ abstract class ClosureRepositoryPort {
   /// `closes_at += 7 days`, `extensions_used += 1` on the live epoch.
   Future<void> extendEpoch({required String beaconId, required int epoch});
 
+  /// QA only: `closes_at = now() - 1 second` on the live (evaluating) epoch of
+  /// [beaconId], so the next sweep pass finalizes it.
+  Future<void> expireLiveEpoch(String beaconId);
+
   Future<ClosureEpoch> createEpoch({
     required String beaconId,
     required int epoch,

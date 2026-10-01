@@ -146,6 +146,15 @@ Future<IntegrationWitnessFixture> bootstrapWitnessFixture({
   );
 }
 
+/// Expires the live closure epoch of [beaconId] right now: the server moves
+/// `closes_at` just into the past and runs one real finalize sweep pass.
+Future<void> expireClosure({required String beaconId}) => _postJson(
+  '/_qa/integration/expire-closure',
+  {'beaconId': beaconId},
+  includeCredentials: false,
+  extraHeaders: _qaHeaders,
+);
+
 Future<void> loginAs(WidgetTester tester, String email) async {
   debugPrint('[e2e] loginAs($email): posting test-login');
   await _postJson(

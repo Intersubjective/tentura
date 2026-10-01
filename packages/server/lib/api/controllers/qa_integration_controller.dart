@@ -6,10 +6,12 @@ import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/domain/capability/capability_evidence_models.dart';
 import 'package:tentura_server/domain/entity/account_credential_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
+import 'package:tentura_server/domain/port/closure_repository_port.dart';
 import 'package:tentura_server/domain/port/meritrank_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/port/vote_user_friendship_lookup_port.dart';
 import 'package:tentura_server/domain/port/witness_window_port.dart';
+import 'package:tentura_server/domain/use_case/closure_finalize_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/email_auth_case.dart';
 import 'package:tentura_server/domain/use_case/invitation_case.dart';
 import 'package:tentura_server/domain/use_case/user_trust_edge_case.dart';
@@ -31,6 +33,8 @@ final class QaIntegrationController extends BaseController {
     this._userTrustEdgeCase,
     this._meritrank,
     this._witnessWindow,
+    this._closureRepository,
+    this._closureFinalizeSweep,
   );
 
   final EmailAuthCase _emailAuthCase;
@@ -41,6 +45,8 @@ final class QaIntegrationController extends BaseController {
   final UserTrustEdgeCase _userTrustEdgeCase;
   final MeritrankRepositoryPort _meritrank;
   final WitnessWindowPort _witnessWindow;
+  final ClosureRepositoryPort _closureRepository;
+  final ClosureFinalizeSweepCase _closureFinalizeSweep;
 
   Future<Response> bootstrap(Request request) async {
     if (!_qaAllowed(request)) {
@@ -239,6 +245,35 @@ final class QaIntegrationController extends BaseController {
         'suspended': _realtimeSocketGate.isAuthenticationSuspended(userId),
         'sessionsClosed': sessionsClosed,
       }),
+      headers: _jsonNoStore,
+    );
+  }
+
+  /// Expires the live closure epoch of a request without waiting for the
+  /// window: moves `closes_at` just into the past, then runs one real
+  /// [ClosureFinalizeSweepCase] pass (never a direct finalize).
+  Future<Response> expireClosure(Request request) async {
+    if (!_qaAllowed(request)) {
+      return Response.notFound(null);
+    }
+
+    Map<String, dynamic> body;
+    try {
+      body = (await request.body.asJson as Map).cast<String, dynamic>();
+    } catch (_) {
+      return Response.badRequest(body: 'invalid JSON body');
+    }
+
+    final beaconId = (body['beaconId'] as String? ?? '').trim();
+    if (beaconId.isEmpty) {
+      return Response.badRequest(body: 'beaconId is required');
+    }
+
+    await _closureRepository.expireLiveEpoch(beaconId);
+    await _closureFinalizeSweep.run();
+
+    return Response.ok(
+      jsonEncode({'beaconId': beaconId}),
       headers: _jsonNoStore,
     );
   }

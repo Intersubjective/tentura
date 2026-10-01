@@ -36,6 +36,9 @@ class ClosureRepositoryMock implements ClosureRepositoryPort {
   }) async {}
 
   @override
+  Future<void> expireLiveEpoch(String beaconId) async {}
+
+  @override
   Future<ClosureEpoch> createEpoch({
     required String beaconId,
     required int epoch,

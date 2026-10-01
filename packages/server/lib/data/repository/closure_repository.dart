@@ -123,6 +123,16 @@ WHERE beacon_id = $1 AND epoch = $2
   );
 
   @override
+  Future<void> expireLiveEpoch(String beaconId) => _database.customUpdate(
+    r'''
+UPDATE public.beacon_closure
+SET closes_at = now() - interval '1 second'
+WHERE beacon_id = $1 AND status = 0
+''',
+    variables: [Variable<String>(beaconId)],
+  );
+
+  @override
   Future<ClosureEpoch> createEpoch({
     required String beaconId,
     required int epoch,
