@@ -44,4 +44,8 @@ abstract final class BeaconLifecycleChangeReason {
   static const reviewExpired = 'reviewExpired';
   static const reopenedFromReview = 'reopenedFromReview';
   static const cancelled = 'cancelled';
+  static const deleted = 'deleted';
+  static const needsMoreHelp = 'needsMoreHelp';
+  static const enoughHelp = 'enoughHelp';
+  static const neutralOpen = 'neutralOpen';
 }
