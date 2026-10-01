@@ -248,6 +248,7 @@ void main() {
             );
           },
           timeout: const Timeout(Duration(minutes: 12)),
+          tags: const ['pg'],
           skip: _skipNestedCleanupOnGitHubActions,
         );
       }

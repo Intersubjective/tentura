@@ -101,8 +101,8 @@ kill_tagged_tree() {
 
 # Orphans from a previous SIGKILL'd agent. Do not key off ppid==1:
 # systemd user sessions reparent to a subreaper (not PID 1). A live
-# `flutter test` tester is a child of flutter_tools.snapshot; after the
-# runner dies it is not. Never touch `--target=dartdevc` (web `flutter run`).
+# tester/compiler is a child of Flutter tooling or Dart's test runner; after
+# the runner dies it is not. Never touch `--target=dartdevc` (web `flutter run`).
 kill_orphan_testers() {
   python3 - <<'PY'
 import os, pathlib, signal, time
@@ -124,9 +124,15 @@ def ppid_of(pid: str) -> int:
 def is_web_compiler(blob: bytes) -> bool:
     return b"--target=dartdevc" in blob
 
-def owned_by_flutter_tools(pid: str) -> bool:
-    blob = cmd(str(ppid_of(pid)))
-    return b"flutter_tools.snapshot" in blob
+def owned_by_test_runner(pid: str) -> bool:
+    # Parent ownership does not depend on wrapper tags or a shared TMPDIR.
+    args = cmd(str(ppid_of(pid))).split(b"\0")
+    return any(
+        b"flutter_tools.snapshot" in arg
+        or arg.endswith(b"/bin/test.dart")
+        or b"/pub/bin/test/test.dart" in arg
+        for arg in args
+    )
 
 victims = []
 for p in pathlib.Path("/proc").iterdir():
@@ -134,13 +140,13 @@ for p in pathlib.Path("/proc").iterdir():
         continue
     pid = p.name
     blob = cmd(pid)
-    if b"flutter_tester" in blob and not owned_by_flutter_tools(pid):
+    if b"flutter_tester" in blob and not owned_by_test_runner(pid):
         victims.append(int(pid))
         continue
     if (
         b"frontend_server" in blob
         and not is_web_compiler(blob)
-        and not owned_by_flutter_tools(pid)
+        and not owned_by_test_runner(pid)
     ):
         victims.append(int(pid))
 

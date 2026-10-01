@@ -54,6 +54,7 @@ void main() {
         );
       },
       timeout: const Timeout(Duration(minutes: 26)),
+      tags: const ['pg'],
       skip: Platform.environment['TENTURA_U6E_NESTED_SUITE'] == 'true'
           ? 'do not nest a wrapped pg suite inside the u6e nested suite'
           : false,
