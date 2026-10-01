@@ -4,7 +4,6 @@
 import 'dart:io';
 
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
-import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 import 'package:tentura_server/env.dart';
 
@@ -76,10 +75,7 @@ void main() async {
     test('uses embedded test keys when repo .env is missing and JWT env is empty', () {
       final keys = loadJwtKeysForHasuraPgTests(
         repoDotEnvOverride: File(
-          p.join(
-            Directory.systemTemp.path,
-            'missing-tentura-env-${DateTime.timestamp().microsecondsSinceEpoch}',
-          ),
+          '${Directory.systemTemp.path}/missing-tentura-env-${DateTime.timestamp().microsecondsSinceEpoch}',
         ),
         platformEnvironmentOverride: const {},
       );
@@ -98,10 +94,7 @@ void main() async {
       () {
         final keys = loadJwtKeysForHasuraPgTests(
           repoDotEnvOverride: File(
-            p.join(
-              Directory.systemTemp.path,
-              'missing-tentura-env-${DateTime.timestamp().microsecondsSinceEpoch}',
-            ),
+            '${Directory.systemTemp.path}/missing-tentura-env-${DateTime.timestamp().microsecondsSinceEpoch}',
           ),
           platformEnvironmentOverride: const {
             'JWT_PUBLIC_PEM': _markerPublic,
@@ -117,7 +110,7 @@ void main() async {
     test('uses embedded test keys when repo .env exists but omits JWT PEM entries', () async {
       final dir = await Directory.systemTemp.createTemp('tentura-hasura-jwt-');
       addTearDown(() => dir.delete(recursive: true));
-      final dotEnv = File(p.join(dir.path, '.env'));
+      final dotEnv = File('${dir.path}/.env');
       await dotEnv.writeAsString('PG_HOST=127.0.0.1\n# no JWT keys\n');
 
       final keys = loadJwtKeysForHasuraPgTests(
@@ -138,7 +131,7 @@ void main() async {
     test('prefers JWT PEM values from repo .env when present', () async {
       final dir = await Directory.systemTemp.createTemp('tentura-hasura-jwt-');
       addTearDown(() => dir.delete(recursive: true));
-      final dotEnv = File(p.join(dir.path, '.env'));
+      final dotEnv = File('${dir.path}/.env');
       await dotEnv.writeAsString(
         'JWT_PUBLIC_PEM=$_markerPublic\nJWT_PRIVATE_PEM=$_markerPrivate\n',
       );
@@ -163,7 +156,7 @@ void main() async {
     test('setUpAll calls loadJwtKeysForHasuraPgTests() with no overrides', () {
       final serverRoot = Directory.current.path;
       for (final relative in apiTestRelatives) {
-        final src = File(p.join(serverRoot, relative)).readAsStringSync();
+        final src = File('$serverRoot/$relative').readAsStringSync();
         final setUpAllStart = src.indexOf('setUpAll(() async {');
         expect(setUpAllStart, isNot(-1), reason: '$relative must declare setUpAll');
         final setUpAllEnd = src.indexOf('});', setUpAllStart);
@@ -234,7 +227,7 @@ Future<({String stdout, String stderr, int exitCode, String combined})>
   final scratchDir = await Directory.systemTemp.createTemp(
     'tentura-hasura-pg-fresh-checkout-',
   );
-  final scratchDotEnv = File(p.join(scratchDir.path, '.env'));
+  final scratchDotEnv = File('${scratchDir.path}/.env');
 
   try {
     final env = Map<String, String>.from(Platform.environment)
@@ -252,9 +245,9 @@ Future<({String stdout, String stderr, int exitCode, String combined})>
         environment: env,
       );
     } else {
-      final script = p.normalize(
-        p.join(serverRoot, '../../scripts/run_with_test_cleanup.sh'),
-      );
+      final script = File(
+        '$serverRoot/../../scripts/run_with_test_cleanup.sh',
+      ).absolute.path;
       result = await Process.run(
         script,
         [

@@ -7,7 +7,7 @@ import 'hasura_pg_jwt_keys.dart';
 
 void main() {
   test('tentura-50o loadJwtKeysForHasuraPgTests default path fresh checkout', () {
-    expect(() => loadJwtKeysForHasuraPgTests(), returnsNormally);
+    expect(loadJwtKeysForHasuraPgTests, returnsNormally);
     final keys = loadJwtKeysForHasuraPgTests();
     expect(keys.publicKey, isNotEmpty);
     expect(keys.privateKey, isNotEmpty);

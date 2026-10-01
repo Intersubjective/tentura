@@ -101,7 +101,7 @@ class BasicChatBody extends StatefulWidget {
 
   final String errorText;
 
-  /// Logical unread-list position (see [RoomState.firstUnreadIndex]); retained for
+  /// Logical unread-list position (see `RoomState.firstUnreadIndex`); retained for
   /// callers that still key off an index. Divider placement uses
   /// [firstUnreadMessageId], not this value.
   final int firstUnreadIndex;
@@ -243,9 +243,9 @@ class BasicChatBodyState extends State<BasicChatBody> {
 
   static const int _kScrollToMessageMaxPasses = 48;
 
-  /// Scrolls so the row with [id] is on screen. Off-screen rows may not be
+  /// Scrolls so the row with the given message id is on screen. Off-screen rows may not be
   /// built yet, so we jump `ScrollController` to an estimated offset and
-  /// retry across frames (same idea as [_viewportScrollAttempt]).
+  /// retry across frames (same idea as `_viewportScrollAttempt`).
   /// Returns keyboard focus to the discussion composer (e.g. after an edit
   /// sheet closes) so the user can keep typing without clicking.
   void focusComposer() => _composerKey.currentState?.requestComposerFocus();
@@ -581,10 +581,9 @@ class BasicChatBodyState extends State<BasicChatBody> {
                             breakGroupAbove:
                                 dateChanged ||
                                 showUnreadBand ||
-                                (prev != null &&
-                                    promotedChildBySourceMessageId.containsKey(
-                                      prev.id,
-                                    )),
+                                promotedChildBySourceMessageId.containsKey(
+                                  prev.id,
+                                ),
                             onActionsPressed: widget.onMessageActions,
                             onReplyPressed: widget.onReply,
                             onJumpToReply: widget.onJumpToReply,
@@ -711,8 +710,8 @@ class BeaconRoomComposer extends StatefulWidget {
     required this.clipboardImageRepository,
     required this.isSending,
     required this.onSend,
-    this.onSendWithMentions,
     required this.participants,
+    this.onSendWithMentions,
     this.enableAttachments = true,
     this.enableParticipantMentions = true,
     this.readOnlyHint,
@@ -1094,7 +1093,7 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
     }
   }
 
-  /// file_picker 12 dropped [PlatformFile.extension]; derive from [name].
+  /// file_picker 12 dropped `PlatformFile.extension`; derive from `name`.
   String? _extensionFromFileName(String name) {
     final dot = name.lastIndexOf('.');
     if (dot <= 0 || dot == name.length - 1) {
