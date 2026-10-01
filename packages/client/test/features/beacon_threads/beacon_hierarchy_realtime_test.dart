@@ -174,7 +174,11 @@ void main() {
           source: RealtimeChangeSource.serverInvalidation,
         ),
       );
-      await waitFor(() => port.capabilitiesCalls >= 2);
+      await waitFor(
+        () =>
+            port.capabilitiesCalls >= 2 &&
+            port.childrenCalls > initialChildrenCalls,
+      );
       expect(port.childrenCalls, greaterThan(initialChildrenCalls));
     });
 
