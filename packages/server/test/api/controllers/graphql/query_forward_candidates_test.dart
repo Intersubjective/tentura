@@ -110,6 +110,12 @@ class _FakePeers implements ForwardCandidatesRepositoryPort {
     lastViewerId = viewerId;
     return rows;
   }
+
+  @override
+  Future<Map<String, List<DateTime>>> fetchRecentOwnForwardTimes({
+    required String viewerId,
+    required DateTime since,
+  }) async => const {};
 }
 
 class _PassthroughProfiles implements UserProfileBatchLookup {

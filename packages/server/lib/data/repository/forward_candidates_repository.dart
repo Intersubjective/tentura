@@ -1,4 +1,5 @@
 import 'package:injectable/injectable.dart';
+import 'package:postgres/postgres.dart' show Type, TypedValue;
 
 import 'package:tentura_server/domain/entity/forward_candidate_peer_row.dart';
 import 'package:tentura_server/domain/port/forward_candidates_repository_port.dart';
@@ -42,5 +43,34 @@ class ForwardCandidatesRepository implements ForwardCandidatesRepositoryPort {
           trustsViewer: row.read<bool>('subject_explicitly_trusts_viewer'),
         ),
     ];
+  }
+
+  @override
+  Future<Map<String, List<DateTime>>> fetchRecentOwnForwardTimes({
+    required String viewerId,
+    required DateTime since,
+  }) async {
+    if (viewerId.trim().isEmpty) {
+      return const {};
+    }
+
+    final rows = await _database
+        .customSelect(
+          'SELECT recipient_id, created_at FROM public.beacon_forward_edge '
+          r'WHERE sender_id = $1 AND created_at >= $2',
+          variables: [
+            Variable.withString(viewerId),
+            Variable(TypedValue(Type.timestampTz, since.toUtc())),
+          ],
+        )
+        .get();
+
+    final result = <String, List<DateTime>>{};
+    for (final row in rows) {
+      result
+          .putIfAbsent(row.read<String>('recipient_id'), () => [])
+          .add((row.data['created_at']! as DateTime).toUtc());
+    }
+    return result;
   }
 }

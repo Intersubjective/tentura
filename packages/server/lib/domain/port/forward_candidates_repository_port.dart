@@ -7,4 +7,11 @@ abstract class ForwardCandidatesRepositoryPort {
     required String viewerId,
     required String context,
   });
+
+  /// Timestamps of [viewerId]'s own forwards at or after [since], grouped by
+  /// recipient id. Read-only; blank [viewerId] yields an empty map.
+  Future<Map<String, List<DateTime>>> fetchRecentOwnForwardTimes({
+    required String viewerId,
+    required DateTime since,
+  });
 }

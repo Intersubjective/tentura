@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/entity/forward_candidate_peer_row.dart';
@@ -26,9 +28,16 @@ final class ForwardCandidatesCase extends UseCaseBase {
   /// Trust peers (unchanged) followed by bond-only peers with zero MR/trust.
   /// Every bonded peer is flagged with `sharesActiveContext` (issue #146).
 
+  /// Forwards older than this no longer lower a candidate's displayed score.
+  static const _pingWindow = Duration(days: 7);
+
+  /// Largest share of the displayed score that recent pings can remove.
+  static const _maxPingDiscount = 0.8;
+
   Future<List<UserPublicRecord>> fetch({
     required String viewerId,
     required String context,
+    DateTime? now,
   }) async {
     if (viewerId.trim().isEmpty) {
       return const [];
@@ -58,6 +67,12 @@ final class ForwardCandidatesCase extends UseCaseBase {
       return const [];
     }
 
+    final clock = (now ?? DateTime.timestamp()).toUtc();
+    final pingTimes = await _peers.fetchRecentOwnForwardTimes(
+      viewerId: viewerId,
+      since: clock.subtract(_pingWindow),
+    );
+
     final viewerTrustsPeerIds = {
       for (final peer in peers)
         if (peer.viewerTrusts) peer.peerId,
@@ -73,7 +88,9 @@ final class ForwardCandidatesCase extends UseCaseBase {
       for (final peer in peers)
         peer.peerId: MutualScoreRecord(
           srcScore: peer.reverseMr,
-          dstScore: peer.forwardMr,
+          dstScore:
+              peer.forwardMr *
+              _pingFactor(pingTimes[peer.peerId] ?? const [], clock),
         ),
     };
 
@@ -92,6 +109,21 @@ final class ForwardCandidatesCase extends UseCaseBase {
               ? _withSharedContext(profile)
               : profile,
     ];
+  }
+
+  /// `1 − min(0.8, Σ 2^(−age_days))` over forwards within the 7-day window.
+  /// Display only: never persisted.
+  static double _pingFactor(List<DateTime> times, DateTime now) {
+    var sum = 0.0;
+    for (final t in times) {
+      final age = now.difference(t);
+      if (age > _pingWindow) {
+        continue;
+      }
+      final ageDays = age.isNegative ? 0.0 : age.inMicroseconds / 8.64e10;
+      sum += math.pow(2, -ageDays);
+    }
+    return 1 - math.min(_maxPingDiscount, sum);
   }
 
   static UserPublicRecord _withSharedContext(UserPublicRecord u) =>
