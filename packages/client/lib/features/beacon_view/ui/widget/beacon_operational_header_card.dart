@@ -11,6 +11,8 @@ import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/presenter/beacon_hud_author_action.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_details_facts_access_row.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_details_sheet.dart';
+import 'package:tentura/features/closure/domain/entity/closure_member.dart';
+import 'package:tentura/features/closure/ui/widget/closure_result_card.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/beacon_hud_metadata_composer.dart';
@@ -91,6 +93,18 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           ClosedRequestBanner(beacon: state.beacon),
+          if (state.beacon.status == BeaconStatus.closed && !state.isBeaconMine)
+            Padding(
+              padding: EdgeInsets.only(bottom: tt.cardGap),
+              child: ClosureResultCard(
+                beaconId: state.beacon.id,
+                viewerId: state.myProfile.id,
+                author: ClosureMember(
+                  id: state.beacon.author.id,
+                  displayName: state.beacon.author.shownName,
+                ),
+              ),
+            ),
           RequestAccessReasonBanner(beacon: state.beacon),
           // Someone else's Request has to say whose it is; the author's own
           // view already knows.

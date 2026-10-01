@@ -39,6 +39,13 @@ class ClosureRepositoryMock implements ClosureRepositoryPort {
   Future<void> expireLiveEpoch(String beaconId) async {}
 
   @override
+  Future<String> seedQaRequestWithHelpers({
+    required String authorId,
+    required List<String> helperIds,
+    required String title,
+  }) async => 'Bqamockrequest';
+
+  @override
   Future<ClosureEpoch> createEpoch({
     required String beaconId,
     required int epoch,

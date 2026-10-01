@@ -32,6 +32,14 @@ abstract class ClosureRepositoryPort {
   /// [beaconId], so the next sweep pass finalizes it.
   Future<void> expireLiveEpoch(String beaconId);
 
+  /// QA only: inserts an open, published request owned by [authorId] with one
+  /// acknowledged help offer per [helperIds] entry; returns the request id.
+  Future<String> seedQaRequestWithHelpers({
+    required String authorId,
+    required List<String> helperIds,
+    required String title,
+  });
+
   Future<ClosureEpoch> createEpoch({
     required String beaconId,
     required int epoch,

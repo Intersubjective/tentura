@@ -155,6 +155,87 @@ Future<void> expireClosure({required String beaconId}) => _postJson(
   extraHeaders: _qaHeaders,
 );
 
+/// Author plus three helpers with accepted offers on one published request
+/// (closure e2e, A25). Backed by `/_qa/integration/closure-fixture`.
+class ClosureFixture {
+  const ClosureFixture({
+    required this.authorEmail,
+    required this.authorUserId,
+    required this.authorName,
+    required this.helperEmails,
+    required this.helperUserIds,
+    required this.beaconId,
+    required this.beaconTitle,
+  });
+
+  final String authorEmail;
+  final String authorUserId;
+  final String authorName;
+  final List<String> helperEmails;
+  final List<String> helperUserIds;
+  final String beaconId;
+  final String beaconTitle;
+}
+
+Future<ClosureFixture> bootstrapClosureFixture({required String runId}) async {
+  final result = await _postJson(
+    '/_qa/integration/closure-fixture',
+    {'runId': runId},
+    includeCredentials: false,
+    extraHeaders: _qaHeaders,
+  );
+  return ClosureFixture(
+    authorEmail: result['authorEmail']! as String,
+    authorUserId: result['authorUserId']! as String,
+    authorName: result['authorName']! as String,
+    helperEmails: (result['helperEmails']! as List).cast<String>(),
+    helperUserIds: (result['helperUserIds']! as List).cast<String>(),
+    beaconId: result['beaconId']! as String,
+    beaconTitle: result['beaconTitle']! as String,
+  );
+}
+
+/// Posts a raw V2 GraphQL [query] as [email] while the app stays signed in as
+/// [restoreEmail]; returns the decoded `data` map and throws on errors.
+Future<Map<String, dynamic>> runGraphQlAs({
+  required String email,
+  required String restoreEmail,
+  required String query,
+}) async {
+  await _postJson(
+    '/api/v2/auth/email/test-login',
+    {'email': email},
+    includeCredentials: true,
+  );
+  try {
+    final tokenResponse = await _postJson(
+      '/api/v2/session/access-token',
+      const <String, Object?>{},
+      includeCredentials: true,
+    );
+    final token = tokenResponse['access_token'] as String?;
+    if (token == null || token.isEmpty) {
+      throw StateError('access-token missing for $email: $tokenResponse');
+    }
+    final result = await _postJson(
+      '/api/v2/graphql',
+      {'query': query},
+      includeCredentials: true,
+      extraHeaders: {'Authorization': 'Bearer $token'},
+    );
+    if (result['errors'] != null) {
+      throw StateError('GraphQL as $email failed: ${result['errors']}');
+    }
+    return (result['data'] as Map).cast<String, dynamic>();
+  } finally {
+    await _postJson(
+      '/api/v2/auth/email/test-login',
+      {'email': restoreEmail},
+      includeCredentials: true,
+    );
+  }
+}
+
 Future<void> loginAs(WidgetTester tester, String email) async {
   debugPrint('[e2e] loginAs($email): posting test-login');
   await _postJson(

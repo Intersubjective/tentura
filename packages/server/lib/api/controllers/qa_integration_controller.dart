@@ -209,6 +209,75 @@ final class QaIntegrationController extends BaseController {
     );
   }
 
+  /// Closure e2e fixture (A25): an author and three helpers, each helper
+  /// mutually befriended with the author, plus one published request with an
+  /// acknowledged offer from each helper.
+  Future<Response> closureFixture(Request request) async {
+    if (!_qaAllowed(request)) {
+      return Response.notFound(null);
+    }
+
+    Map<String, dynamic> body;
+    try {
+      body = (await request.body.asJson as Map).cast<String, dynamic>();
+    } catch (_) {
+      return Response.badRequest(body: 'invalid JSON body');
+    }
+
+    final runId = (body['runId'] as String? ?? '').trim().toLowerCase();
+    if (runId.isEmpty) {
+      return Response.badRequest(body: 'runId is required');
+    }
+    if (!RegExp(r'^[a-z0-9_-]{3,64}$').hasMatch(runId)) {
+      return Response.badRequest(body: 'runId must match [a-z0-9_-]{3,64}');
+    }
+
+    final authorEmail = _normalizeQaEmail(
+      'it-author-$runId@test.tentura.local',
+    );
+    final helperEmails = [
+      for (var i = 1; i <= 3; i++)
+        _normalizeQaEmail('it-helper$i-$runId@test.tentura.local'),
+    ];
+    if (authorEmail == null || helperEmails.any((e) => e == null)) {
+      return Response.badRequest(body: 'invalid QA email');
+    }
+
+    final author = await _ensureQaUser(authorEmail);
+    _realtimeSocketGate.registerBootstrappedUser(author.id);
+    final helpers = <UserEntity>[];
+    for (final email in helperEmails) {
+      final helper = await _ensureQaUser(email!);
+      _realtimeSocketGate.registerBootstrappedUser(helper.id);
+      await _ensureFriendship(
+        a: author,
+        b: helper,
+        addresseeName: 'IT helper ${helpers.length + 1} $runId',
+      );
+      helpers.add(helper);
+    }
+
+    const beaconTitle = 'Closure e2e request';
+    final beaconId = await _closureRepository.seedQaRequestWithHelpers(
+      authorId: author.id,
+      helperIds: [for (final h in helpers) h.id],
+      title: beaconTitle,
+    );
+
+    return Response.ok(
+      jsonEncode({
+        'authorEmail': authorEmail,
+        'authorUserId': author.id,
+        'authorName': author.displayName,
+        'beaconId': beaconId,
+        'beaconTitle': beaconTitle,
+        'helperEmails': helperEmails,
+        'helperUserIds': [for (final h in helpers) h.id],
+      }),
+      headers: _jsonNoStore,
+    );
+  }
+
   Future<Response> realtimeSocket(Request request) async {
     if (!_qaAllowed(request)) {
       return Response.notFound(null);

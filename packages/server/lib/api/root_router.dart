@@ -242,6 +242,10 @@ class RootRouter {
           _qaIntegrationController.realtimeSocket,
         )
         ..post(
+          '/_qa/integration/closure-fixture',
+          _qaIntegrationController.closureFixture,
+        )
+        ..post(
           '/_qa/integration/expire-closure',
           _qaIntegrationController.expireClosure,
         );

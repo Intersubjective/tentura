@@ -8,6 +8,7 @@ import 'package:tentura_server/domain/closure/closure_band.dart';
 import 'package:tentura_server/domain/closure/closure_entities.dart';
 import 'package:tentura_server/domain/closure/closure_outcome.dart';
 import 'package:tentura_server/domain/closure/membership_reducer.dart';
+import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
 import 'package:tentura_server/domain/capability/capability_evidence_models.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 import 'package:tentura_server/domain/port/closure_repository_port.dart';
@@ -16,6 +17,7 @@ import 'package:tentura_server/domain/trust/ledger_evidence.dart';
 import 'package:tentura_server/domain/trust/trust_evidence_kind.dart';
 
 import 'capability_evidence_repository.dart';
+import 'commitment_repository.dart' show insertCommitmentEvent;
 import 'trust_ledger_repository.dart';
 
 import '../database/tentura_db.dart';
@@ -131,6 +133,48 @@ WHERE beacon_id = $1 AND status = 0
 ''',
     variables: [Variable<String>(beaconId)],
   );
+
+  @override
+  Future<String> seedQaRequestWithHelpers({
+    required String authorId,
+    required List<String> helperIds,
+    required String title,
+  }) => _database.transaction(() async {
+    final beaconId = (await _database
+        .customSelect(
+          r'''
+INSERT INTO public.beacon (user_id, title, description, status, published_at)
+VALUES ($1, $2, '', 0, now())
+RETURNING id
+''',
+          variables: [Variable<String>(authorId), Variable<String>(title)],
+        )
+        .getSingle()).read<String>('id');
+    for (final helperId in helperIds) {
+      await _database.customInsert(
+        r'''
+INSERT INTO public.beacon_help_offer (beacon_id, user_id)
+VALUES ($1, $2)
+''',
+        variables: [Variable<String>(beaconId), Variable<String>(helperId)],
+      );
+      await insertCommitmentEvent(
+        _database,
+        beaconId: beaconId,
+        userId: helperId,
+        actorUserId: helperId,
+        kind: CommitmentEventKind.offered,
+      );
+      await insertCommitmentEvent(
+        _database,
+        beaconId: beaconId,
+        userId: helperId,
+        actorUserId: authorId,
+        kind: CommitmentEventKind.acknowledged,
+      );
+    }
+    return beaconId;
+  });
 
   @override
   Future<ClosureEpoch> createEpoch({
