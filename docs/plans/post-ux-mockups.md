@@ -271,8 +271,9 @@ context line:
 │   и сможет добавить вас в ответ.           │
 ```
 
-The other side gets the existing `trustReceivedChanged` event in Activity with «Добавить в
-ответ»; reciprocity fires `mutualConnectionFormed`.
+Adding is quiet: the other side gets no notification (plan Q18). To ask for an add-back, write
+to them in the chat (an @mention notifies). When both have added each other, both get the
+existing `mutualConnectionFormed` event.
 
 «Граф пересылок» is the existing forward-graph screen (the same one Requests have), opened
 for the Post. It shows who forwarded to whom, starting from the author. This is the only place the
