@@ -5,8 +5,6 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/commitment_stake_state.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/features/evaluation/domain/entity/review_window_info.dart';
-import 'package:tentura/features/evaluation/domain/review_package_state.dart';
 
 import 'entity/my_work_card_view_model.dart';
 import 'entity/my_work_fetch_types.dart';
@@ -15,8 +13,7 @@ import 'entity/my_work_sort.dart';
 
 /// Sort key: higher = earlier in list. Tie-break with [Beacon.updatedAt], then id.
 int myWorkCardSortTier(MyWorkCardViewModel vm) {
-  if (vm.showReviewCta) return 400;
-  if (vm.attentionChip == MyWorkAttentionChip.reviewWindowOpen) return 390;
+  if (vm.attentionChip == MyWorkAttentionChip.wrappingUp) return 390;
   if (vm.showReviewHelpOffersCta) return 350;
   if (vm.attentionChip == MyWorkAttentionChip.moreHelpNeeded) return 250;
   if (vm.kind == MyWorkCardKind.authoredDraft) return 50;
@@ -26,33 +23,6 @@ int myWorkCardSortTier(MyWorkCardViewModel vm) {
   }
   return 200;
 }
-
-/// Viewer package state for a My Work card, from the lifecycle and the batch
-/// window row. Same inputs as the beacon HUD/banner inference; a missing row
-/// means the viewer has no window.
-ReviewPackageState deriveMyWorkReviewPackageState({
-  required BeaconStatus beaconStatus,
-  required ReviewWindowInfo? review,
-}) => deriveReviewPackageState(
-  beaconIsInReview:
-      beaconStatus == BeaconStatus.reviewOpen &&
-      !(review?.windowComplete ?? false),
-  beaconIsClosed:
-      beaconStatus == BeaconStatus.closed || (review?.windowComplete ?? false),
-  hasWindow: review?.hasWindow ?? false,
-  windowComplete: review?.windowComplete ?? false,
-  userReviewStatus: review?.userReviewStatus,
-  sentAt: review?.sentAt,
-  requiredTotal: review?.requiredTotal ?? 0,
-  requiredAnswered: review?.requiredReviewed ?? 0,
-  totalTargets: review?.totalCount ?? 0,
-);
-
-/// Whether [state] still asks the viewer to act on their review package.
-bool myWorkReviewPackageNeedsAction(ReviewPackageState? state) =>
-    state == ReviewPackageState.inProgress ||
-    state == ReviewPackageState.readyToSend ||
-    state == ReviewPackageState.changedNotSent;
 
 /// The server's ordering keys for one Request (U10c).
 ///
@@ -165,7 +135,7 @@ MyWorkCardViewModel _deriveAuthored({
 
   MyWorkAttentionChip? attention;
   if (lc == BeaconStatus.reviewOpen) {
-    attention = MyWorkAttentionChip.reviewWindowOpen;
+    attention = MyWorkAttentionChip.wrappingUp;
   } else if (beacon.status == BeaconStatus.needsMoreHelp) {
     attention = MyWorkAttentionChip.moreHelpNeeded;
   }
@@ -428,7 +398,6 @@ MyWorkCardViewModel? myWorkCardAfterArchiveRevocation(
       sources: nextSources,
       viewerArchived: true,
       showArchiveAffordance: false,
-      showReviewCta: false,
       showCloseNowCta: false,
       showReviewHelpOffersCta: false,
       attentionChip: null,
@@ -438,7 +407,6 @@ MyWorkCardViewModel? myWorkCardAfterArchiveRevocation(
     sources: nextSources,
     viewerArchived: true,
     showArchiveAffordance: false,
-    showReviewCta: false,
     showCloseNowCta: false,
     showReviewHelpOffersCta: false,
     attentionChip: null,

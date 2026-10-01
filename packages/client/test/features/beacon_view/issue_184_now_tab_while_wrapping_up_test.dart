@@ -12,7 +12,8 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/presenter/beacon_hud_author_action.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_operational_header_card.dart';
-import 'package:tentura/features/evaluation/domain/entity/review_window_info.dart';
+import 'package:tentura/features/closure/domain/entity/closure_role.dart';
+import 'package:tentura/features/closure/domain/entity/closure_state.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/beacon_you_responsibility_line.dart';
@@ -29,8 +30,8 @@ class _MockProfileCubit extends Mock implements ProfileCubit {
   Stream<ProfileState> get stream => Stream<ProfileState>.value(state);
 }
 
-/// Post–Send and complete author snapshot on request `B678bc1ca1d1e` trail
-/// (review window still open, package submitted, close-now not yet allowed — #162).
+/// Author snapshot on request `B678bc1ca1d1e` trail while wrapping up
+/// (closure open, close-now not yet allowed — #162).
 BeaconViewState _postSubmitAuthorNowState({
   String beaconId = 'B678bc1ca1d1e',
 }) {
@@ -47,13 +48,12 @@ BeaconViewState _postSubmitAuthorNowState({
     beacon: beacon,
     myProfile: author,
     beaconContextLoaded: true,
-    reviewWindowInfo: const ReviewWindowInfo(
-      beaconId: 'B678bc1ca1d1e',
-      hasWindow: true,
-      userReviewStatus: 2,
-      totalCount: 2,
-      reviewedCount: 2,
-      canCloseNow: false,
+    closureState: ClosureState(
+      epoch: 1,
+      status: BeaconStatus.reviewOpen.smallintValue,
+      role: ClosureRole.author,
+      members: const [],
+      closesAt: DateTime.utc(2026, 9, 21),
     ),
     beaconRoomCue: BeaconRoomState(
       beaconId: beaconId,
@@ -98,9 +98,9 @@ Future<void> _pumpOperationalHeader(
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('issue #184 — Now tab after evaluation submit', () {
+  group('issue #184 — Now tab while wrapping up', () {
     testWidgets(
-      'operational header survives semantics flush (post-submit reviewOpen author)',
+      'operational header survives semantics flush (wrapping-up author)',
       (tester) async {
         final state = _postSubmitAuthorNowState();
         await _pumpOperationalHeader(

@@ -27,7 +27,7 @@ Future<void> showBeaconViewUpdateStatusSheet(
   if (lifecycle == BeaconStatus.deleted) return;
 
   final l10n = L10n.of(context)!;
-  final review = state.reviewWindowInfo;
+  final closure = state.closureState;
   final menuInput = BeaconStatusMenuInput(
     beacon: state.beacon,
     closureReadiness: state.closureReadiness,
@@ -37,15 +37,12 @@ Future<void> showBeaconViewUpdateStatusSheet(
     // Explicit: follows the build-time knob even while it equals the default.
     // ignore: avoid_redundant_argument_values
     allowForceCloseWhenBlocked: kBeaconAllowForceCloseWhenBlocked,
-    reviewWindow: review == null
+    closure: closure == null
         ? null
-        : ReviewWindowMenuSnapshot(
-            reviewedCount: review.reviewedCount,
-            totalCount: review.totalCount,
-            windowComplete: review.windowComplete,
-            extensionsUsed: review.extensionsUsed,
-            canCloseNow: review.canCloseNow,
-            canReopen: review.canReopen,
+        : ClosureMenuSnapshot(
+            extensionsUsed: closure.extensionsUsed,
+            canCloseNow: closure.canCloseNow,
+            canReopen: closure.canReopen,
           ),
     serverCanCancel: state.displayStatus?.canCancel,
   );
@@ -294,18 +291,13 @@ Future<void> beaconViewDispatchStatusMenuAction(
       if (!context.mounted) return;
       final confirmed = await showBeaconCloseNowConfirmSheet(
         context: context,
-        unsentStartedPackages:
-            state.reviewWindowInfo?.unsentStartedPackages ?? 0,
       );
       if (confirmed) await cubit.closeBeaconNow();
     case BeaconStatusMenuAction.extendReview:
       await cubit.extendReview();
     case BeaconStatusMenuAction.reopen:
       if (!context.mounted) return;
-      final ok = await showBeaconReopenConfirmSheet(
-        context: context,
-        sentReviewerCount: state.reviewWindowInfo?.sentReviewerCount ?? 0,
-      );
+      final ok = await showBeaconReopenConfirmSheet(context: context);
       if (ok) await cubit.reopenBeacon();
     case BeaconStatusMenuAction.cancel:
       if (!context.mounted) return;

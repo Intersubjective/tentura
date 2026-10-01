@@ -30,8 +30,8 @@ import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 
-import 'package:tentura/features/evaluation/domain/entity/beacon_close_result.dart';
-import 'package:tentura/features/evaluation/domain/entity/review_window_info.dart';
+import 'package:tentura/features/closure/domain/entity/beacon_close_result.dart';
+import 'package:tentura/features/closure/domain/entity/closure_state.dart';
 
 import '../../domain/use_case/beacon_view_case.dart';
 import 'package:tentura/features/beacon/domain/exception.dart';
@@ -399,15 +399,15 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     }
   }
 
-  /// Refreshes review-window snapshot when lifecycle is wrapping up.
-  Future<void> refreshReviewWindowInfo() async {
+  /// Refreshes the closure snapshot when lifecycle is wrapping up.
+  Future<void> refreshClosureState() async {
     if (state.beacon.status != BeaconStatus.reviewOpen) return;
     try {
-      final reviewWindowInfo = await _case.fetchReviewWindowStatusIfReviewOpen(
+      final closureState = await _case.fetchClosureStateIfReviewOpen(
         state.beacon.id,
       );
       if (!isClosed) {
-        emit(state.copyWith(reviewWindowInfo: reviewWindowInfo));
+        emit(state.copyWith(closureState: closureState));
       }
     } on Object catch (_) {
       // Keep stale snapshot; never infer Close now from partial data.
@@ -1254,25 +1254,12 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
         TimelineCreation(author: beacon.author, createdAt: beacon.createdAt),
       ]..sort();
 
-      var showDraftEvaluationCta = false;
-      if (beacon.status == BeaconStatus.open) {
-        try {
-          showDraftEvaluationCta = await _case.beaconHasDraftEvaluationTargets(
-            beaconId,
-          );
-        } on Object catch (_) {
-          showDraftEvaluationCta = false;
-        }
-      }
-
-      ReviewWindowInfo? reviewWindowInfo;
+      ClosureState? closureState;
       if (beacon.status == BeaconStatus.reviewOpen) {
         try {
-          reviewWindowInfo = await _case.fetchReviewWindowStatusIfReviewOpen(
-            beaconId,
-          );
+          closureState = await _case.fetchClosureStateIfReviewOpen(beaconId);
         } on Object catch (_) {
-          reviewWindowInfo = null;
+          closureState = null;
         }
       }
 
@@ -1296,8 +1283,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           beaconRoomCue: beaconRoomCue,
           openCoordinationBlocker: openCoordinationBlocker,
           roomActivityEvents: roomActivityEvents,
-          showDraftEvaluationCta: showDraftEvaluationCta,
-          reviewWindowInfo: reviewWindowInfo,
+          closureState: closureState,
           displayStatus: displayStatus,
           forwardsLoaded: !clearForwards && wasForwardsLoaded,
           myForwards: clearForwards ? const [] : state.myForwards,

@@ -1,3 +1,0 @@
-mutation EvaluationFinalize($id: String!) {
-  evaluationFinalize(id: $id)
-}

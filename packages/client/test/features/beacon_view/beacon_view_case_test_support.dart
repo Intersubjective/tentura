@@ -24,8 +24,8 @@ import 'package:tentura/features/beacon_view/data/repository/coordination_reposi
 import 'package:tentura/features/beacon_view/data/repository/beacon_display_repository.dart';
 import 'package:tentura/domain/entity/beacon_display_status_dto.dart';
 import 'package:tentura/features/beacon_view/domain/use_case/beacon_view_case.dart';
-import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';
-import 'package:tentura/features/evaluation/domain/entity/beacon_close_result.dart';
+import 'package:tentura/features/closure/data/repository/closure_repository.dart';
+import 'package:tentura/features/closure/domain/entity/beacon_close_result.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 import 'package:tentura/features/inbox/data/repository/inbox_repository.dart';
@@ -177,12 +177,10 @@ class TrackingBeaconRepository implements BeaconRepository {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-class FakeBeaconViewEvaluationRepository implements EvaluationRepository {
+class FakeBeaconViewClosureRepository implements ClosureRepository {
   @override
-  Future<BeaconCloseResult> beaconClose({
-    required String beaconId,
-    required bool expectedRequiresReviewWindow,
-  }) async => BeaconCloseResult(beaconId: beaconId, state: 1);
+  Future<BeaconCloseResult> beaconClose({required String beaconId}) async =>
+      BeaconCloseResult(beaconId: beaconId, state: 1);
 
   @override
   Future<BeaconLifecycleMutationResult> beaconCancel(String beaconId) async =>
@@ -580,7 +578,7 @@ BeaconViewCase buildTestBeaconViewCase({
   FakeBeaconViewForwardRepository? forward,
   RoomReadWatermarkStore? watermarkStore,
   TrackingBeaconRepository? beaconRepo,
-  FakeBeaconViewEvaluationRepository? evaluationRepo,
+  FakeBeaconViewClosureRepository? closureRepo,
   FakeBeaconViewCoordinationRepository? coordinationRepo,
   FakeBeaconDisplayRepository? displayRepo,
   FakeBeaconViewFactCardRepository? factCardsRepo,
@@ -591,7 +589,7 @@ BeaconViewCase buildTestBeaconViewCase({
   final forwardRepo = forward ?? FakeBeaconViewForwardRepository();
   final watermark = watermarkStore ?? RoomReadWatermarkStore.testing();
   final beacon = beaconRepo ?? TrackingBeaconRepository();
-  final evaluation = evaluationRepo ?? FakeBeaconViewEvaluationRepository();
+  final closure = closureRepo ?? FakeBeaconViewClosureRepository();
   final coordination =
       coordinationRepo ?? FakeBeaconViewCoordinationRepository();
   final display = displayRepo ?? FakeBeaconDisplayRepository();
@@ -602,7 +600,7 @@ BeaconViewCase buildTestBeaconViewCase({
   return BeaconViewCase(
     beacon,
     forwardRepo,
-    evaluation,
+    closure,
     FakeBeaconViewArchiveRepository(),
     coordination,
     display,

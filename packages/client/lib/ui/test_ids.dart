@@ -139,44 +139,12 @@ abstract final class TestIds {
   static String beaconStatusRow(String rowId) => 'beacon.status_row.$rowId';
 
   /// Author HUD primary action, keyed by [BeaconHudAuthorAction.name]
-  /// (e.g. `wrapUpForReview`, `reviewContributions`, `closeNow`).
+  /// (e.g. `wrapUpForReview`, `closeNow`).
   static String beaconHudAuthorAction(String action) =>
       'beacon.hud_author_action.$action';
 
   static const beaconHudMarkEnoughHelpConfirm =
       'beacon.hud.mark_enough_help.confirm';
-
-  /// The control that opens the review package, wherever it is offered — the
-  /// My Desk card affordance and the Request's review banner.
-  ///
-  /// Its label is not stable (`Review contributions` / `Submit changes`), and
-  /// the browser journeys used to match the literal text `Review`, which no
-  /// label has equalled since the obligation CTA was named. Plan §7.3 asks
-  /// acceptance journeys to drive real controls through stable TestIds; this
-  /// is that id.
-  static const reviewOpen = 'review.open';
-
-  static String evaluationParticipant(String userId) =>
-      'evaluation.participant.$userId';
-  static const evaluationSave = 'evaluation.save';
-  static const evaluationSubmit = 'evaluation.submit';
-
-  /// The package status line in the checklist's bottom bar (#162).
-  static const evaluationPackageStatus = 'evaluation.package_status';
-
-  /// The tonal button offered once the package is sent.
-  static const evaluationDone = 'evaluation.done';
-  static String evaluationImpact(String value) => 'evaluation.impact.$value';
-  static const evaluationCapabilityDone = 'evaluation.capability.done';
-  static const evaluationCapabilityCancel = 'evaluation.capability.cancel';
-  static const evaluationCapabilityField = 'evaluation.capability.field';
-  static const evaluationCapabilityInfo = 'evaluation.capability.info';
-  static String evaluationCannotEvaluate(String userId) =>
-      'evaluation.cannot_evaluate.$userId';
-  static String evaluationReviewAction(String userId) =>
-      'evaluation.review_action.$userId';
-  static String evaluationUndoCannotEvaluate(String userId) =>
-      'evaluation.undo_cannot_evaluate.$userId';
 
   /// Trust graph node tap target, keyed by user id.
   static String graphNode(String userId) => 'graph.node.$userId';

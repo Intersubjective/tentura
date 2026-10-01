@@ -12,16 +12,14 @@ import 'package:tentura/features/beacon_view/ui/presenter/beacon_hud_author_acti
 import 'package:tentura/features/beacon_view/ui/widget/beacon_hud_author_confirm_sheets.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_app_bar_overflow.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_status_bottom_sheet.dart';
-import 'package:tentura/features/evaluation/domain/entity/review_window_info.dart';
+import 'package:tentura/features/closure/domain/entity/closure_role.dart';
+import 'package:tentura/features/closure/domain/entity/closure_state.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 final _l10n = lookupL10n(const Locale('en'));
 
-BeaconViewState _state({
-  BeaconStatus status = BeaconStatus.reviewOpen,
-  int sentReviewerCount = 0,
-  int unsentStartedPackages = 0,
-}) => BeaconViewState(
+BeaconViewState _state({BeaconStatus status = BeaconStatus.reviewOpen}) =>
+    BeaconViewState(
   beacon: Beacon(
     id: 'b1',
     title: 'T',
@@ -31,15 +29,14 @@ BeaconViewState _state({
     status: status,
   ),
   myProfile: const Profile(id: 'uAuthor', displayName: 'Author'),
-  reviewWindowInfo: ReviewWindowInfo(
-    beaconId: 'b1',
-    hasWindow: true,
-    userReviewStatus: 2,
-    totalCount: 2,
+  closureState: ClosureState(
+    epoch: 1,
+    status: BeaconStatus.reviewOpen.smallintValue,
+    role: ClosureRole.author,
+    members: const [],
+    closesAt: DateTime.utc(2026, 6, 27),
     canCloseNow: true,
     canReopen: true,
-    sentReviewerCount: sentReviewerCount,
-    unsentStartedPackages: unsentStartedPackages,
   ),
   beaconContextLoaded: true,
 );
@@ -89,78 +86,52 @@ Future<BuildContext> _pumpHost(WidgetTester tester) async {
 
 void main() {
   group('shared close confirm', () {
-    testWidgets(
-      'the discard note appears only when a package was started and not sent',
-      (tester) async {
-        final context = await _pumpHost(tester);
-        final withNote = showBeaconCloseNowConfirmSheet(
-          context: context,
-          unsentStartedPackages: 2,
-        );
-        await tester.pumpAndSettle();
-        expect(find.text(_l10n.beaconReviewCloseNowBody), findsOneWidget);
-        expect(
-          find.text(_l10n.beaconReviewCloseNowDiscardNote(2)),
-          findsOneWidget,
-        );
-        await tester.tap(find.text(_l10n.buttonCancel));
-        await tester.pumpAndSettle();
-        expect(await withNote, isFalse);
-
-        final withoutNote = showBeaconCloseNowConfirmSheet(
-          context: context,
-        );
-        await tester.pumpAndSettle();
-        expect(find.text(_l10n.beaconReviewCloseNowBody), findsOneWidget);
-        expect(
-          find.textContaining('did not send it'),
-          findsNothing,
-        );
-        await tester.tap(find.text(_l10n.beaconHudConfirmCloseNowAction));
-        await tester.pumpAndSettle();
-        expect(await withoutNote, isTrue);
-      },
-    );
-  });
-
-  group('shared reopen confirm', () {
-    testWidgets('the reopen confirm names the number of people who already '
-        'sent', (tester) async {
-      final context = await _pumpHost(tester);
-      final result = showBeaconReopenConfirmSheet(
-        context: context,
-        sentReviewerCount: 3,
-      );
-      await tester.pumpAndSettle();
-      expect(find.text(_l10n.beaconReviewReopenBody(3)), findsOneWidget);
-      expect(find.text(_l10n.beaconReviewReopenBodyNoSent), findsNothing);
-      await tester.tap(find.text(_l10n.beaconReviewReopenConfirm));
-      await tester.pumpAndSettle();
-      expect(await result, isTrue);
-    });
-
-    testWidgets('the reopen confirm without senders uses the short body', (
+    testWidgets('close now asks for confirmation before it resolves', (
       tester,
     ) async {
       final context = await _pumpHost(tester);
-      final result = showBeaconReopenConfirmSheet(
-        context: context,
-        sentReviewerCount: 0,
-      );
+      final cancelled = showBeaconCloseNowConfirmSheet(context: context);
+      await tester.pumpAndSettle();
+      expect(find.text(_l10n.beaconReviewCloseNowBody), findsOneWidget);
+      await tester.tap(find.text(_l10n.buttonCancel));
+      await tester.pumpAndSettle();
+      expect(await cancelled, isFalse);
+
+      final confirmed = showBeaconCloseNowConfirmSheet(context: context);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(_l10n.beaconHudConfirmCloseNowAction));
+      await tester.pumpAndSettle();
+      expect(await confirmed, isTrue);
+    });
+  });
+
+  group('shared reopen confirm', () {
+    testWidgets('the reopen confirm uses the short body', (tester) async {
+      final context = await _pumpHost(tester);
+      final result = showBeaconReopenConfirmSheet(context: context);
       await tester.pumpAndSettle();
       expect(find.text(_l10n.beaconReviewReopenBodyNoSent), findsOneWidget);
       await tester.tap(find.text(_l10n.buttonCancel));
       await tester.pumpAndSettle();
       expect(await result, isFalse);
     });
+
+    testWidgets('confirming returns true', (tester) async {
+      final context = await _pumpHost(tester);
+      final result = showBeaconReopenConfirmSheet(context: context);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(_l10n.beaconReviewReopenConfirm));
+      await tester.pumpAndSettle();
+      expect(await result, isTrue);
+    });
   });
 
   group('entry points confirm before mutating', () {
-    testWidgets('HUD close shows the close confirm with the discard note', (
+    testWidgets('HUD close shows the close confirm', (
       tester,
     ) async {
       final context = await _pumpHost(tester);
-      final cubit = _MockBeaconViewCubit(_state(unsentStartedPackages: 1));
+      final cubit = _MockBeaconViewCubit(_state());
       final done = beaconViewHandleAuthorHudAction(
         context: context,
         cubit: cubit,
@@ -174,10 +145,6 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text(_l10n.beaconReviewCloseNowBody), findsOneWidget);
-      expect(
-        find.text(_l10n.beaconReviewCloseNowDiscardNote(1)),
-        findsOneWidget,
-      );
       expect(cubit.closeCalls, 0);
       await tester.tap(find.text(_l10n.beaconHudConfirmCloseNowAction));
       await tester.pumpAndSettle();
@@ -187,7 +154,7 @@ void main() {
 
     testWidgets('status sheet close shows the close confirm', (tester) async {
       final context = await _pumpHost(tester);
-      final state = _state(unsentStartedPackages: 2);
+      final state = _state();
       final cubit = _MockBeaconViewCubit(state);
       final done = beaconViewDispatchStatusMenuAction(
         context,
@@ -198,10 +165,6 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text(_l10n.beaconReviewCloseNowBody), findsOneWidget);
-      expect(
-        find.text(_l10n.beaconReviewCloseNowDiscardNote(2)),
-        findsOneWidget,
-      );
       expect(cubit.closeCalls, 0);
       await tester.tap(find.text(_l10n.buttonCancel));
       await tester.pumpAndSettle();
@@ -209,11 +172,11 @@ void main() {
       expect(cubit.closeCalls, 0);
     });
 
-    testWidgets('status sheet reopen names senders before reopening', (
+    testWidgets('status sheet reopen confirms before reopening', (
       tester,
     ) async {
       final context = await _pumpHost(tester);
-      final state = _state(status: BeaconStatus.closed, sentReviewerCount: 4);
+      final state = _state(status: BeaconStatus.closed);
       final cubit = _MockBeaconViewCubit(state);
       final done = beaconViewDispatchStatusMenuAction(
         context,
@@ -223,7 +186,7 @@ void main() {
         l10n: _l10n,
       );
       await tester.pumpAndSettle();
-      expect(find.text(_l10n.beaconReviewReopenBody(4)), findsOneWidget);
+      expect(find.text(_l10n.beaconReviewReopenBodyNoSent), findsOneWidget);
       expect(cubit.reopenCalls, 0);
       await tester.tap(find.text(_l10n.beaconReviewReopenConfirm));
       await tester.pumpAndSettle();

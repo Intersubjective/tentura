@@ -19,7 +19,7 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
-import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';
+import 'package:tentura/features/closure/data/repository/closure_repository.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 import 'package:tentura/features/home/domain/entity/home_activation.dart';
@@ -275,9 +275,9 @@ Future<void> _pumpMyWorkShell(WidgetTester tester) async {
   if (!GetIt.I.isRegistered<BeaconRepository>()) {
     GetIt.I.registerSingleton<BeaconRepository>(FakeBeaconRepository());
   }
-  if (!GetIt.I.isRegistered<EvaluationRepository>()) {
-    GetIt.I.registerSingleton<EvaluationRepository>(
-      EvaluationRepositoryMock(),
+  if (!GetIt.I.isRegistered<ClosureRepository>()) {
+    GetIt.I.registerSingleton<ClosureRepository>(
+      ClosureRepositoryMock(),
     );
   }
   final attentionRepo = _PurityAttentionRepo();
@@ -498,8 +498,8 @@ void main() {
     if (GetIt.I.isRegistered<BeaconRepository>()) {
       GetIt.I.unregister<BeaconRepository>();
     }
-    if (GetIt.I.isRegistered<EvaluationRepository>()) {
-      GetIt.I.unregister<EvaluationRepository>();
+    if (GetIt.I.isRegistered<ClosureRepository>()) {
+      GetIt.I.unregister<ClosureRepository>();
     }
     if (GetIt.I.isRegistered<AttentionCase>()) {
       final attention = GetIt.I<AttentionCase>();

@@ -267,8 +267,6 @@ String _authorYouSituationLine(
     BeaconHudAuthorAction.wrapUpForReview ||
     BeaconHudAuthorAction.closeNow =>
       l10n.beaconHudYouAuthorReadyToClose,
-    BeaconHudAuthorAction.reviewContributions =>
-      l10n.beaconHudYouAuthorReviewBeforeClose,
   };
 }
 

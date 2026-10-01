@@ -156,7 +156,6 @@ void main() {
         status: BeaconStatus.reviewOpen,
         updatedAt: now,
       ),
-      showReviewCta: true,
     );
     final line = myWorkStatusLine(
       l10n: l10n,

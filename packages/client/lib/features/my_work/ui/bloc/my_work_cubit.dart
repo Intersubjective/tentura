@@ -37,10 +37,6 @@ class MyWorkCubit extends Cubit<MyWorkState> {
       (_) => unawaited(fetch(showLoading: false)),
       cancelOnError: false,
     );
-    _reviewPackageChanges = _myWorkCase.reviewPackageChanges.listen(
-      (_) => unawaited(fetch(showLoading: false)),
-      cancelOnError: false,
-    );
     _forwardChanges = _myWorkCase.forwardChanges.listen(
       (_) => unawaited(fetch(showLoading: false)),
       cancelOnError: false,
@@ -120,7 +116,6 @@ class MyWorkCubit extends Cubit<MyWorkState> {
   late final StreamSubscription<RepositoryEvent<Beacon>> _beaconChanges;
 
   late final StreamSubscription<dynamic> _helpOfferChanges;
-  late final StreamSubscription<void> _reviewPackageChanges;
 
   late final StreamSubscription<String> _forwardChanges;
 
@@ -152,7 +147,6 @@ class MyWorkCubit extends Cubit<MyWorkState> {
     _invalidationTimers.clear();
     await _beaconChanges.cancel();
     await _helpOfferChanges.cancel();
-    await _reviewPackageChanges.cancel();
     await _forwardChanges.cancel();
     await _readWatermarkSub.cancel();
     await _deskRelevantChanges.cancel();
@@ -245,15 +239,14 @@ class MyWorkCubit extends Cubit<MyWorkState> {
         if (isClosed || seq != _fetchSeq) {
           return;
         }
-        final withReviewWindows = await _myWorkCase.loadReviewWindows(
+        final withClosureStates = await _myWorkCase.loadClosureStates(
           init.nonArchivedCards,
-          userId: _userId,
         );
         if (isClosed || seq != _fetchSeq) {
           return;
         }
         final merged = mergeMyWorkDeskCards(
-          serverCards: withReviewWindows,
+          serverCards: withClosureStates,
           localCards: state.nonArchivedCards,
           preferIds: _pendingDeskBeaconIds,
         );

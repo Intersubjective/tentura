@@ -63,11 +63,7 @@ UpdatesReceiptDisplayCopy resolveUpdatesReceiptDisplayCopy({
         ? _fallbackTitle(presentationKey, l10n)
         : trimmedTitle,
     body: trimmedBody.isEmpty
-        ? _fallbackBody(
-            presentationKey,
-            l10n,
-            beaconTitleFromPresentationPayload(presentationPayloadJson),
-          )
+        ? _fallbackBody(presentationKey, l10n)
         : trimmedBody,
   );
 }
@@ -197,9 +193,6 @@ String _fallbackTitle(
   'offer_removed' => l10n.updatesFallbackTitleOfferRemoved,
   'room_message_posted' => l10n.updatesFallbackTitleRoomMessagePosted,
   'request_status_changed' => l10n.updatesFallbackTitleRequestStatusChanged,
-  'review_opened' => l10n.updatesFallbackTitleReviewOpened,
-  'review_all_packages_in' => l10n.updatesFallbackTitleReviewAllIn,
-  'review_window_cancelled' => l10n.updatesFallbackTitleReviewCancelled,
   'obligation_ended' => l10n.updatesFallbackTitleObligationEnded,
   'commitment_released' => l10n.updatesFallbackTitleCommitmentReleased,
   'beacon_hierarchy_status_changed' =>
@@ -229,11 +222,7 @@ String _fallbackTitle(
   _ => l10n.updatesFallbackTitleGeneric,
 };
 
-String _fallbackBody(
-  String? presentationKey,
-  L10n l10n,
-  String? beaconTitle,
-) => switch (presentationKey) {
+String _fallbackBody(String? presentationKey, L10n l10n) => switch (presentationKey) {
   'relay_received' => l10n.updatesFallbackBodyRelayReceived,
   'help_offer_submitted' => l10n.updatesFallbackBodyHelpOfferSubmitted,
   'offer_accepted' => l10n.updatesFallbackBodyOfferAccepted,
@@ -241,11 +230,6 @@ String _fallbackBody(
   'offer_removed' => l10n.updatesFallbackBodyOfferRemoved,
   'room_message_posted' => l10n.updatesFallbackBodyRoomMessagePosted,
   'request_status_changed' => l10n.updatesFallbackBodyRequestStatusChanged,
-  'review_opened' => l10n.updatesFallbackBodyReviewOpened,
-  'review_all_packages_in' when beaconTitle != null =>
-    l10n.updatesFallbackBodyReviewAllIn(beaconTitle),
-  'review_window_cancelled' when beaconTitle != null =>
-    l10n.updatesFallbackBodyReviewCancelled(beaconTitle),
   'mutual_connection_formed' => l10n.updatesFallbackBodyMutualConnectionFormed,
   'invite_accepted' => l10n.updatesFallbackBodyInviteAccepted,
   'needs_me' => l10n.updatesFallbackBodyNeedsMe,

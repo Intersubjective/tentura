@@ -16,7 +16,6 @@ import 'package:tentura_root/consts.dart';
 import 'auth_link.dart';
 import 'auth_loss_classifier.dart';
 import 'package:tentura/features/constellation/data/model/constellation_error_mapper.dart';
-import 'package:tentura/features/evaluation/data/model/evaluation_error_mapper.dart';
 import 'package:tentura/features/closure/data/model/closure_error_mapper.dart';
 
 import 'beacon_hierarchy_error_mapper.dart';
@@ -83,7 +82,6 @@ Future<Client> buildClient({
               }
               throwIfBeaconHierarchyError(code, ext);
               throwIfConstellationError(code, ext);
-              throwIfEvaluationError(code);
               throwIfClosureError(code);
             }
             throw mapRemoteFailure(errs);
@@ -238,18 +236,6 @@ class _V2RoutingLink extends Link {
     'BeaconReleaseCommitment',
     'SetBeaconStatus',
     'BeaconDisplayStatuses',
-    'EvaluationParticipants',
-    'EvaluationDraftParticipants',
-    'ReviewWindowStatus',
-    'MyWorkReviewWindows',
-    'EvaluationReceived',
-    'EvaluationSummary',
-    'EvaluationsWrittenAboutMeBy',
-    'EvaluationSubmit',
-    'EvaluationFinalize',
-    'EvaluationSkip',
-    'EvaluationDraftSave',
-    'EvaluationDraftDelete',
     'CreateComplaint',
     'FcmRegisterToken',
     'FcmTokenDelete',

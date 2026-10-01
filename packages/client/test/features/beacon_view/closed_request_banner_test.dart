@@ -17,36 +17,6 @@ Beacon _beacon({required BeaconStatus status}) => Beacon(
       updatedAt: DateTime.utc(2026, 6, 20),
     );
 
-Future<void> _pumpBanner(
-  WidgetTester tester, {
-  required Beacon beacon,
-  required double width,
-}) async {
-  await tester.pumpWidget(
-    MaterialApp(
-      locale: const Locale('en'),
-      theme: TenturaTheme.light(),
-      localizationsDelegates: L10n.localizationsDelegates,
-      supportedLocales: L10n.supportedLocales,
-      home: MediaQuery(
-        data: MediaQueryData(size: Size(width, 640)),
-        child: TenturaResponsiveScope(
-          child: Scaffold(
-            body: Align(
-              alignment: Alignment.topCenter,
-              child: SizedBox(
-                width: width,
-                child: ClosedRequestBanner(beacon: beacon),
-              ),
-            ),
-          ),
-        ),
-      ),
-    ),
-  );
-  await tester.pumpAndSettle();
-}
-
 void main() {
   final open = _beacon(status: BeaconStatus.open);
   final closed = _beacon(status: BeaconStatus.closed);
@@ -79,23 +49,5 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(find.text('View my reviews'), findsOneWidget);
-  });
-
-  testWidgets('compact width places CTA below title', (tester) async {
-    await _pumpBanner(tester, beacon: closed, width: 360);
-
-    final title = tester.getRect(find.text('This request is closed'));
-    final cta = tester.getRect(find.text('View my reviews'));
-    expect(cta.top, greaterThanOrEqualTo(title.bottom));
-  });
-
-  testWidgets('wide width places CTA beside title', (tester) async {
-    await _pumpBanner(tester, beacon: closed, width: 800);
-
-    final title = tester.getRect(find.text('This request is closed'));
-    final cta = tester.getRect(find.text('View my reviews'));
-    expect(cta.left, greaterThanOrEqualTo(title.right));
-    expect(cta.top, lessThan(title.bottom));
   });
 }

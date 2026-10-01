@@ -98,7 +98,7 @@ IconData beaconActivityLogIcon(BeaconActivityEvent e) {
 }
 
 IconData _beaconLifecycleLogIcon(String? reason) => switch (reason) {
-  BeaconLifecycleChangeReason.reviewWindowOpened =>
+  BeaconLifecycleChangeReason.closureOpened =>
     Icons.hourglass_top_outlined,
   BeaconLifecycleChangeReason.directClose ||
   BeaconLifecycleChangeReason.authorCloseNow => Icons.flag_circle_outlined,
@@ -218,7 +218,7 @@ Color _beaconLifecycleLogIconColor(TenturaTokens tt, String? reason) =>
 String beaconLifecycleEventLabel(L10n l10n, BeaconActivityEvent e) {
   final reason = lifecycleChangeReasonFromEvent(e);
   return switch (reason) {
-    BeaconLifecycleChangeReason.reviewWindowOpened =>
+    BeaconLifecycleChangeReason.closureOpened =>
       l10n.beaconLifecycleReviewOpen,
     BeaconLifecycleChangeReason.directClose => l10n.beaconLifecycleClosed,
     BeaconLifecycleChangeReason.authorCloseNow =>

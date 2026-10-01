@@ -68,23 +68,19 @@ Future<bool> showBeaconHudMarkEnoughHelpConfirmSheet({
 }
 
 /// Shared close-now confirm for every author close entry (HUD, status sheet,
-/// My Work). [unsentStartedPackages] is the beacon-scoped count of packages
-/// started and not sent; they are discarded on close.
+/// My Work).
 Future<bool> showBeaconCloseNowConfirmSheet({
   required BuildContext context,
   bool canCloseNow = true,
-  int unsentStartedPackages = 0,
 }) {
   final l10n = L10n.of(context)!;
   return _showAuthorConfirmSheet(
     context: context,
     title: l10n.beaconHudConfirmCloseNowTitle,
     body: [
-      if (canCloseNow) ...[
-        l10n.beaconReviewCloseNowBody,
-        if (unsentStartedPackages > 0)
-          l10n.beaconReviewCloseNowDiscardNote(unsentStartedPackages),
-      ] else
+      if (canCloseNow)
+        l10n.beaconReviewCloseNowBody
+      else
         l10n.beaconHudConfirmCloseNowBlockedBody,
     ],
     action: l10n.beaconHudConfirmCloseNowAction,
@@ -93,21 +89,13 @@ Future<bool> showBeaconCloseNowConfirmSheet({
   );
 }
 
-/// Shared reopen confirm; names reviewers whose send is undone.
-Future<bool> showBeaconReopenConfirmSheet({
-  required BuildContext context,
-  required int sentReviewerCount,
-}) {
+/// Shared reopen confirm.
+Future<bool> showBeaconReopenConfirmSheet({required BuildContext context}) {
   final l10n = L10n.of(context)!;
   return _showAuthorConfirmSheet(
     context: context,
     title: l10n.beaconReviewReopenTitle,
-    body: [
-      if (sentReviewerCount > 0)
-        l10n.beaconReviewReopenBody(sentReviewerCount)
-      else
-        l10n.beaconReviewReopenBodyNoSent,
-    ],
+    body: [l10n.beaconReviewReopenBodyNoSent],
     action: l10n.beaconReviewReopenConfirm,
   );
 }

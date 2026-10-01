@@ -62,19 +62,6 @@ void main() {
     expect(uri.queryParameters.containsKey(kQueryThreadId), isFalse);
   });
 
-  test('received reviews destination uses beacon id path', () {
-    final uri = attentionDestination(
-      receipt(
-        destinationKind: 'received_reviews',
-        targetEntityId: 'B1',
-        beaconId: 'B1',
-        actionUrl: '/beacon/reviews-received/Bfallback',
-      ),
-    );
-
-    expect(uri.path, '$kPathReceivedReviews/B1');
-  });
-
   test('unknown destination retains the server action url', () {
     expect(
       attentionDestination(
@@ -86,31 +73,5 @@ void main() {
       ).toString(),
       '/profile/view/U1',
     );
-  });
-
-  test('review_all_packages_in opens the request, not the checklist', () {
-    final uri = attentionDestination(
-      receipt(
-        destinationKind: 'review',
-        targetEntityId: 'B1',
-        beaconId: 'B1',
-        presentationKey: 'review_all_packages_in',
-      ),
-    );
-
-    expect(uri.path, '$kPathBeaconView/B1');
-  });
-
-  test('review_opened still opens the checklist', () {
-    final uri = attentionDestination(
-      receipt(
-        destinationKind: 'review',
-        targetEntityId: 'B1',
-        beaconId: 'B1',
-        presentationKey: 'review_opened',
-      ),
-    );
-
-    expect(uri.path, '$kPathReviewContributions/B1');
   });
 }

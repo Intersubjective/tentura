@@ -26,7 +26,6 @@ import 'package:tentura/features/beacon_view/ui/sheet/help_offer_tile_sheet.dart
 import 'package:tentura/features/beacon_view/ui/widget/beacon_hud_author_confirm_sheets.dart';
 import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_obligation_block.dart';
-import 'package:tentura/features/my_work/ui/widget/my_work_review_affordance.dart';
 import 'package:tentura/features/my_work/domain/derive_my_work_card_attention.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_card_attention_indicators.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_last_event_row.dart';
@@ -35,33 +34,15 @@ import 'package:tentura/features/beacon/ui/util/beacon_delete_ui.dart';
 import 'package:tentura/features/beacon/ui/util/beacon_lineage_overflow_actions.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_overflow_menu.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
-import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';
+import 'package:tentura/features/closure/data/repository/closure_repository.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 
 bool myWorkCloseBeaconEnabled(MyWorkCardViewModel vm) =>
     vm.beacon.status == BeaconStatus.open && vm.displayStatus != null;
 
-/// Shared close confirm for a My Work card; the card carries no review
-/// counts, so the beacon-scoped unsent count is fetched first.
-Future<bool> myWorkConfirmCloseNow({
-  required BuildContext context,
-  required String beaconId,
-  required EvaluationRepository evaluationRepository,
-}) async {
-  final review = await evaluationRepository.fetchReviewWindowStatus(beaconId);
-  if (!context.mounted) return false;
-  return showBeaconCloseNowConfirmSheet(
-    context: context,
-    unsentStartedPackages: review.unsentStartedPackages,
-  );
-}
-
 /// Footer Forward CTA on authored My Work cards (gated by `Beacon.allowsForward`).
 bool myWorkNeedsForwardCta(MyWorkCardViewModel vm) => vm.beacon.allowsForward;
-
-bool myWorkExpectedRequiresReviewWindow(MyWorkCardViewModel vm) =>
-    (vm.displayStatus?.everAcknowledgedCommitterCount ?? 0) > 0;
 
 Future<void> _confirmAndDeleteMyWorkBeacon(
   BuildContext context, {
@@ -247,20 +228,6 @@ Widget _myWorkWhatsNewSection(
   );
 }
 
-/// Stacks the present footer parts; null when none.
-Widget? _joinFooters(List<Widget?> parts) {
-  final present = parts.whereType<Widget>().toList();
-  return switch (present.length) {
-    0 => null,
-    1 => present.single,
-    _ => Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: present,
-    ),
-  };
-}
-
 /// Composes shell footer: obligations first, then existing controls.
 /// Returns null only when every section is absent (D-SC8).
 Widget? _composeMyWorkFooter(
@@ -268,7 +235,6 @@ Widget? _composeMyWorkFooter(
   required MyWorkCardViewModel vm,
   Widget? existingFooter,
   bool suppressReviewHelpOffersFallback = false,
-  bool suppressReviewFallback = false,
 }) {
   final view = myWorkCardAttentionView(
     beaconId: vm.beaconId,
@@ -284,7 +250,6 @@ Widget? _composeMyWorkFooter(
     obligations: obligations,
     optionalEvents: optionalEvents,
     suppressReviewHelpOffersFallback: suppressReviewHelpOffersFallback,
-    suppressReviewFallback: suppressReviewFallback,
   );
   if (!showObligations && existingFooter == null) {
     return null;
@@ -311,10 +276,7 @@ Widget? _composeMyWorkFooter(
             showRequestAttentionTimelineSheet(context, beaconId: vm.beaconId),
           ),
           suppressReviewHelpOffersFallback: suppressReviewHelpOffersFallback,
-          suppressReviewFallback: suppressReviewFallback,
           onReviewHelpOffers: () => _openBeaconReviewHelpOffers(context, vm),
-          onReviewContributions: () =>
-              _openReviewContributions(context, vm.beaconId),
           onRespondHelpOffer: (offererId) => unawaited(
             showHelpOfferTileSheetFromDesk(
               context: context,
@@ -355,10 +317,6 @@ void _openSendDraft(BuildContext context, String id) {
       ),
     ),
   );
-}
-
-void _openReviewContributions(BuildContext context, String id) {
-  unawaited(context.router.push(ReviewContributionsRoute(id: id)));
 }
 
 ({BeaconPhaseStatusPresentation? phaseStatus}) _myWorkCardHeaderStatus(
@@ -438,18 +396,13 @@ class _AuthoredActiveCard extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final b = vm.beacon;
 
-    final evaluationRepo = GetIt.I<EvaluationRepository>();
+    final closureRepo = GetIt.I<ClosureRepository>();
     final statusLine = myWorkStatusLine(l10n: l10n, vm: vm);
     final headerStatus = _myWorkCardHeaderStatus(
       statusLine,
       roomSubtitle: vm.roomInboxSubtitle.isEmpty ? null : vm.roomInboxSubtitle,
     );
 
-    // The package state owns the review affordance; the phase CTA never
-    // duplicates it.
-    final hasReviewCta =
-        myWorkReviewAffordanceKind(vm.reviewPackageState) !=
-        MyWorkReviewAffordanceKind.none;
     final needsForwardCta = myWorkNeedsForwardCta(vm);
     final showCloseNowCta = vm.showCloseNowCta;
     final phaseAction = myWorkEffectivePrimaryAction(
@@ -457,8 +410,7 @@ class _AuthoredActiveCard extends StatelessWidget {
       viewerUserId: currentUserId,
     );
     final phaseCtaLabel =
-        (phaseAction == BeaconPhasePrimaryAction.forward && !b.allowsForward) ||
-            phaseAction == BeaconPhasePrimaryAction.reviewContributions
+        phaseAction == BeaconPhasePrimaryAction.forward && !b.allowsForward
         ? null
         : myWorkPhasePrimaryCtaLabel(
             l10n: l10n,
@@ -467,10 +419,7 @@ class _AuthoredActiveCard extends StatelessWidget {
           );
 
     final Widget? footerActions;
-    if (showCloseNowCta ||
-        phaseCtaLabel != null ||
-        hasReviewCta ||
-        needsForwardCta) {
+    if (showCloseNowCta || phaseCtaLabel != null || needsForwardCta) {
       footerActions = Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -483,13 +432,11 @@ class _AuthoredActiveCard extends StatelessWidget {
                 label: l10n.beaconCloseNowCta,
                 onPressed: () async {
                   try {
-                    final confirmed = await myWorkConfirmCloseNow(
+                    final confirmed = await showBeaconCloseNowConfirmSheet(
                       context: context,
-                      beaconId: b.id,
-                      evaluationRepository: evaluationRepo,
                     );
                     if (!confirmed) return;
-                    await evaluationRepo.beaconCloseNow(b.id);
+                    await closureRepo.beaconCloseNow(b.id);
                     if (context.mounted) {
                       await context.read<MyWorkCubit>().fetch(
                         showLoading: false,
@@ -508,16 +455,6 @@ class _AuthoredActiveCard extends StatelessWidget {
                 },
               ),
             ),
-            if (hasReviewCta || needsForwardCta || phaseCtaLabel != null)
-              const SizedBox(height: kSpacingSmall),
-          ],
-          if (hasReviewCta) ...[
-            MyWorkReviewAffordance(
-              vm: vm,
-              isAuthor: true,
-              onOpenReview: () =>
-                  _openReviewContributions(context, vm.beaconId),
-            ),
             if (needsForwardCta || phaseCtaLabel != null)
               const SizedBox(height: kSpacingSmall),
           ],
@@ -529,8 +466,6 @@ class _AuthoredActiveCard extends StatelessWidget {
                 onPressed: () => switch (phaseAction) {
                   BeaconPhasePrimaryAction.reviewOffers =>
                     _openBeaconReviewHelpOffers(context, vm),
-                  BeaconPhasePrimaryAction.reviewContributions =>
-                    _openReviewContributions(context, vm.beaconId),
                   BeaconPhasePrimaryAction.forward => b.allowsForward
                       ? unawaited(
                           context.router.push(
@@ -575,7 +510,6 @@ class _AuthoredActiveCard extends StatelessWidget {
         existingFooter: footerActions,
         suppressReviewHelpOffersFallback:
             phaseAction == BeaconPhasePrimaryAction.reviewOffers,
-        suppressReviewFallback: hasReviewCta,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -598,11 +532,7 @@ class _AuthoredActiveCard extends StatelessWidget {
                       }
                       if (!context.mounted) return;
                       try {
-                        await evaluationRepo.beaconClose(
-                          beaconId: b.id,
-                          expectedRequiresReviewWindow:
-                              myWorkExpectedRequiresReviewWindow(vm),
-                        );
+                        await closureRepo.beaconClose(beaconId: b.id);
                       } catch (e) {
                         if (context.mounted) {
                           showSnackBar(
@@ -623,7 +553,7 @@ class _AuthoredActiveCard extends StatelessWidget {
                       await Future<void>.delayed(Duration.zero);
                       if (!context.mounted) return;
                       try {
-                        await evaluationRepo.beaconCancel(b.id);
+                        await closureRepo.beaconCancel(b.id);
                       } catch (e) {
                         if (context.mounted) {
                           showSnackBar(
@@ -699,10 +629,6 @@ class _HelpOfferedActiveCard extends StatelessWidget {
       roomSubtitle: vm.roomInboxSubtitle.isEmpty ? null : vm.roomInboxSubtitle,
     );
 
-    final hasReviewCta =
-        myWorkReviewAffordanceKind(vm.reviewPackageState) !=
-        MyWorkReviewAffordanceKind.none;
-
     return BeaconCardShell(
       bodyMinHeight: 0,
       onTap: () => _openBeaconOrSelect(context, vm),
@@ -710,17 +636,7 @@ class _HelpOfferedActiveCard extends StatelessWidget {
       footer: _composeMyWorkFooter(
         context,
         vm: vm,
-        existingFooter: _joinFooters([
-          if (hasReviewCta)
-            MyWorkReviewAffordance(
-              vm: vm,
-              isAuthor: false,
-              onOpenReview: () =>
-                  _openReviewContributions(context, vm.beaconId),
-            ),
-          _myWorkArchiveFooter(context, vm),
-        ]),
-        suppressReviewFallback: hasReviewCta,
+        existingFooter: _myWorkArchiveFooter(context, vm),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -868,7 +784,7 @@ class _FinishedAuthoredCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final b = vm.beacon;
-    final evaluationRepo = GetIt.I<EvaluationRepository>();
+    final closureRepo = GetIt.I<ClosureRepository>();
     final statusLine = myWorkStatusLine(l10n: l10n, vm: vm);
     final headerStatus = _myWorkCardHeaderStatus(
       statusLine,
@@ -905,11 +821,7 @@ class _FinishedAuthoredCard extends StatelessWidget {
                       }
                       if (!context.mounted) return;
                       try {
-                        await evaluationRepo.beaconClose(
-                          beaconId: b.id,
-                          expectedRequiresReviewWindow:
-                              myWorkExpectedRequiresReviewWindow(vm),
-                        );
+                        await closureRepo.beaconClose(beaconId: b.id);
                       } catch (e) {
                         if (context.mounted) {
                           showSnackBar(
@@ -930,7 +842,7 @@ class _FinishedAuthoredCard extends StatelessWidget {
                       await Future<void>.delayed(Duration.zero);
                       if (!context.mounted) return;
                       try {
-                        await evaluationRepo.beaconCancel(b.id);
+                        await closureRepo.beaconCancel(b.id);
                       } catch (e) {
                         if (context.mounted) {
                           showSnackBar(

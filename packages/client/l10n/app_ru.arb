@@ -1710,15 +1710,6 @@
   "@profileSharedBeaconsCoHelpOfferedSection": {
     "context": "Profile — co-helped beacons section header"
   },
-  "profileReviewsFromPersonSectionTitle": "Отзывы от {name}",
-  "@profileReviewsFromPersonSectionTitle": {
-    "context": "Profile — reviews the profile owner wrote about the viewer",
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
   "showMutualFriends": "Показать взаимное доверие",
   "@showMutualFriends": {
     "context": "Profile"
@@ -3541,10 +3532,6 @@
   "@myWorkReviewHelpOffersCta": {
     "context": "MyWorkScreen"
   },
-  "myWorkReviewCta": "Проверить",
-  "@myWorkReviewCta": {
-    "context": "MyWorkScreen"
-  },
   "myWorkCaughtUp": "Сейчас от вас ничего не ждут",
   "@myWorkCaughtUp": {
     "context": "MyWorkScreen"
@@ -4145,302 +4132,8 @@
       }
     }
   },
-  "evaluationBannerTitle": "Запрос закрыт — отзыв о вкладе",
-  "evaluationBannerTitleDraft": "Приватные черновики",
-  "evaluationBannerSubtitle": "Приватно, только для этого запроса. Не публично.",
-  "evaluationBannerSubtitleDraft": "Сохраняйте приватные заметки до закрытия запроса. Они не учитываются, пока вы не отправите отзыв после закрытия.",
-  "evaluationBannerReview": "Оценить",
-  "evaluationBannerDraftReview": "Черновик отзыва",
-  "evaluationAcknowledgeTitle": "Признать вклад",
-  "evaluationAcknowledgeTitleDraft": "Черновик отзыва",
-  "evaluationReviewListPrivacyTitle": "Приватность отзывов",
-  "evaluationReviewListPrivacyTitleDraft": "Приватность черновика",
-  "evaluationReviewListPrivacyLive": "Отзывы приватны между двумя людьми. После закрытия окна отзывов только оцениваемый человек увидит ваше имя, выбранное влияние, подтверждения возможностей и заметку. Отзывы никогда не публичны и не видны другим участникам.",
-  "evaluationReviewListPrivacyDraft": "Это приватные черновики. Они не передаются другим во время окна отзывов; сохраните их, чтобы отправить после закрытия запроса.",
-  "evaluationPrivacyBlock": "Ваш отзыв здесь приватен. Он не будет показан публично, и другие участники запроса по умолчанию не увидят ваши ответы. Он используется только для улучшения вашего локального представления о доверии: кому вы можете больше доверять, кому меньше или через кого маршрутизировать запросы в следующий раз. Проще говоря: ответы помогают Tentura давать вам более точные персональные рекомендации и подбор относительно людей здесь и связанных с ними. Оценивайте только то, что вы реально видели в этом запросе. Если не уверены, выберите «Нет оснований».",
-  "evaluationPrivacyShort": "Ваш отзыв приватен.",
-  "evaluationDraftDone": "Готово",
-  "evaluationSectionAuthor": "Автор",
-  "evaluationSectionHelpOfferer": "Помощники",
-  "evaluationSectionForwarder": "Переславшие",
-  "evaluationReviewDeadline": "Окно отзывов до {date}",
-  "@evaluationReviewDeadline": {
-    "placeholders": {
-      "date": {
-        "type": "String"
-      }
-    }
-  },
-  "evaluationSubmitFinish": "Отправить оценки",
-  "evaluationSubmitChanges": "Отправить изменения",
-  "evaluationPackageSentAt": "Оценки отправлены {date}",
-  "@evaluationPackageSentAt": {
-    "placeholders": {
-      "date": {
-        "type": "String"
-      }
-    }
-  },
-  "evaluationPackageSentHint": "Изменить можно, пока запрос не закрыт. После изменения пакет придётся отправить заново.",
-  "evaluationPackageDirtyTitle": "Изменения не отправлены",
-  "evaluationPackageDirtyBody": "Пока пакет не отправлен, ваши оценки не будут учтены при закрытии запроса.",
-  "evaluationPackageDone": "Готово",
-  "evaluationPausedTitle": "Автор вернул запрос в работу",
-  "evaluationPausedBody": "Оценки никому не переданы. Сохранённые ответы остались черновиками — отправить их можно будет, когда автор снова свернёт запрос.",
-  "evaluationPausedAction": "К запросу",
-  "evaluationClosedSentBody": "Запрос закрыт. Ваши оценки отправлены и учтены.",
-  "evaluationClosedUnsentBody": "Запрос закрыт до того, как вы отправили пакет. Незавершённые оценки не сохранились.",
-  "evaluationSectionRequired": "Обязательные",
-  "evaluationSectionOptional": "Необязательные · участие завершилось",
-  "evaluationOptionalHint": "Эти оценки не обязательны и не задерживают закрытие запроса.",
-  "evaluationOptionalSkip": "Пропустить",
-  "evaluationProgressSplit": "{req} из {reqTotal} обязательных · {opt} из {optTotal} необязательных",
-  "@evaluationProgressSplit": {
-    "placeholders": {
-      "req": {
-        "type": "int"
-      },
-      "reqTotal": {
-        "type": "int"
-      },
-      "opt": {
-        "type": "int"
-      },
-      "optTotal": {
-        "type": "int"
-      }
-    }
-  },
-  "evaluationOwnPackageOptional": "Вы больше не участвуете в этом запросе. Оценку можно оставить, но она не обязательна. Если не отправите до закрытия, она не сохранится.",
-  "evaluationContextCommitted": "Помогал(а) с {date}",
-  "@evaluationContextCommitted": {
-    "placeholders": {
-      "date": {
-        "type": "String"
-      }
-    }
-  },
-  "evaluationContextCommittedVia": "Помогал(а) с {date} · через {name}",
-  "@evaluationContextCommittedVia": {
-    "placeholders": {
-      "date": {
-        "type": "String"
-      },
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "evaluationContextCommittedNoDate": "Помогал(а) с этим запросом",
-  "evaluationContextEnded": "Участие завершилось",
-  "evaluationContextForwarder": "Передал(а) запрос дальше",
-  "evaluationContextOffer": "«{message}»",
-  "@evaluationContextOffer": {
-    "placeholders": {
-      "message": {
-        "type": "String"
-      }
-    }
-  },
-  "evaluationSkipForNow": "Пропустить",
-  "evaluationProgress": "{reviewed} из {total} оценено",
-  "@evaluationProgress": {
-    "placeholders": {
-      "reviewed": {
-        "type": "int"
-      },
-      "total": {
-        "type": "int"
-      }
-    }
-  },
-  "evaluationPrivateHint": "Приватный отзыв только для этого запроса. Ответ используется только для вашей персональной логики доверия и рекомендаций. Это не публичный балл, и другие участники не видят вашу оценку с привязкой к имени.",
-  "evaluationPromptAuthor": "Как вклад автора повлиял на этот запрос?",
-  "evaluationPromptHelpOfferer": "Как помощь этого человека повлияла на запрос?",
-  "evaluationPromptHelpOffererHandoff": "Как этот человек вёл себя после пересылки запроса ему?",
-  "evaluationPromptForwarder": "Помогла или помешала эта пересылка запросу?",
-  "evaluationEmptyTargets": "Пока некого оценивать по этому запросу.",
-  "evaluationSave": "Сохранить",
-  "evaluationSummaryTitle": "Ваш отзыв по этому запросу",
-  "evaluationNotReviewed": "Не оценено",
-  "evaluationReviewed": "Оценено",
-  "evaluationNoBasisLabel": "Нет оснований",
-  "evaluationChooseImpact": "Выберите влияние.",
-  "evaluationTrustQuestion": "Как этот вклад повлиял на ваше личное доверие к {name}?",
-  "@evaluationTrustQuestion": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "evaluationTrustNoChangeContribution": "Этот вклад не изменил моё доверие",
-  "evaluationTrustDecreasedContribution": "Моё доверие к этому человеку уменьшилось",
-  "evaluationTrustIncreasedContribution": "Моё доверие к этому человеку увеличилось",
-  "evaluationTrustIntensityHeading": "Насколько?",
-  "evaluationTrustIntensityLittle": "Немного",
-  "evaluationTrustIntensityLot": "Заметно",
-  "evaluationTrustIntensityReasonRequired": "нужна причина",
-  "evaluationTrustPreviewNoBasis": "Ваше личное доверие к {name} не будет обновлено.",
-  "@evaluationTrustPreviewNoBasis": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "evaluationTrustPreviewZero": "Этот вклад не изменит ваше личное доверие к {name}.",
-  "@evaluationTrustPreviewZero": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "evaluationTrustPreviewNeg1": "После этого вклада ваше личное доверие к {name} немного уменьшится.",
-  "@evaluationTrustPreviewNeg1": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "evaluationTrustPreviewNeg2": "После этого вклада ваше личное доверие к {name} заметно уменьшится.",
-  "@evaluationTrustPreviewNeg2": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "evaluationTrustPreviewPos1": "После этого вклада ваше личное доверие к {name} немного увеличится.",
-  "@evaluationTrustPreviewPos1": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "evaluationTrustPreviewPos2": "После этого вклада ваше личное доверие к {name} заметно увеличится.",
-  "@evaluationTrustPreviewPos2": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "evaluationTrustChoiceRequired": "Выберите, как этот вклад повлиял на ваше доверие.",
-  "evaluationTrustIntensityRequired": "Выберите, насколько изменилось ваше доверие.",
-  "evaluationReasonValidationError": "Выберите хотя бы одну причину.",
-  "evaluationRoleAuthor": "Автор",
-  "evaluationRoleHelpOfferer": "Помощник",
-  "evaluationRoleForwarder": "Переславший",
-  "evaluationRoleFormerCommitter": "Бывший помощник",
-  "evaluationReceivedScreenTitle": "Мои отзывы · {beaconTitle}",
-  "@evaluationReceivedScreenTitle": {
-    "placeholders": {
-      "beaconTitle": {
-        "type": "String"
-      }
-    }
-  },
-  "evaluationReceivedScreenTitleGeneric": "Мои отзывы",
-  "evaluationReceivedEmptyWindowOpen": "Отзывы появятся здесь, когда запрос будет завершён.",
-  "evaluationReceivedEmptyNoReviews": "Никто не оставил вам отзыв по этому запросу.",
-  "evaluationReceivedTrustUpLabel": "Доверие выросло",
-  "evaluationReceivedTrustDownLabel": "Доверие снизилось",
-  "evaluationReceivedNeutralLabel": "Существенных изменений нет",
-  "evaluationReceivedNoBasisLabel": "Нет оснований для оценки",
-  "evaluationImpactHelpedALot": "Очень помогло",
-  "evaluationImpactHelpedSomewhat": "Скорее помогло",
-  "evaluationImpactNoRealEffect": "Без заметного эффекта",
-  "evaluationImpactHurtSomewhat": "Скорее навредило",
-  "evaluationImpactHurtALot": "Сильно навредило",
-  "evaluationCannotEvaluate": "Не могу оценить",
-  "evaluationCannotEvaluateReplacement": "Текущее влияние, подтверждения возможностей и заметка будут сброшены. Отзыв по этому человеку не отправится, и ваше доверие к нему не изменится.",
-  "evaluationCannotEvaluateExplanation": "Вы отметили, что не видели этот вклад. Отзыв не отправится, и ваше доверие к этому человеку не изменится.",
-  "evaluationCannotEvaluateUndo": "Вернуть",
-  "evaluationCardActionReview": "Оценить",
-  "evaluationCardActionEdit": "Изменить",
-  "evaluationListIntro": "Нажмите «Оценить» у каждого человека, чтобы оценить его вклад.",
-  "evaluationProgressRemainingHint": "Осталось оценить: {count}. Не видели чей-то вклад? Отметьте «Не могу оценить» на его карточке.",
-  "@evaluationProgressRemainingHint": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "evaluationCapabilityChoose": "Чем именно?",
-  "evaluationCapabilityChooseInfo": "Список собран из потребностей этого запроса, типов помощи в активном предложении этого человека и тегов, которые вы уже отметили ранее. Отметьте, чем именно человек помог в этом запросе. После закрытия окна отзывов это увидит только он. Отметки помогают Tentura точнее подсказывать вам, через кого и с какими навыками маршрутизировать запросы — это не публичный рейтинг.",
-  "evaluationCapabilityDone": "Готово",
-  "evaluationCapabilityAdditional": "+{count}",
-  "@evaluationCapabilityAdditional": {"placeholders": {"count": {"type": "int"}}},
-  "evaluationReceivedSeeReviewWindowStatus": "Статус окна отзывов",
-  "reviewWindowViewReceivedReviewsAction": "Посмотреть полученные отзывы",
-  "closedRequestViewMyReviewsAction": "Мои отзывы",
-  "evaluationTrustLessSummary": "Меньше",
-  "evaluationTrustMoreSummary": "Больше",
-  "evaluationTrustNoChangeSummary": "Без изменений",
-  "evaluationSubjectiveTrustHint": "Это ваша субъективная оценка конкретного взаимодействия. Она не является публичным рейтингом.",
-  "evaluationAckOptionalHeading": "Отметить навыки (необязательно)",
-  "evaluationReasonRequiredHeading": "Выберите причину (обязательно)",
-  "@evaluationReasonRequiredHeading": {
-    "context": "EvaluationDetailSheet"
-  },
-  "evaluationReasonOptionalHeading": "Причина (необязательно)",
-  "@evaluationReasonOptionalHeading": {
-    "context": "EvaluationDetailSheet"
-  },
-  "evaluationReasonUnknown": "Причина",
-  "@evaluationReasonUnknown": {
-    "context": "EvaluationDetailSheet",
-    "description": "Fallback label when an unknown reason tag slug is encountered"
-  },
-  "evaluationNoteLabelOptional": "Короткая заметка (необязательно) — увидят только вы и {name}",
-  "@evaluationNoteLabelOptional": {
-    "context": "EvaluationDetailSheet",
-    "placeholders": {
-      "name": {"type": "String"}
-    }
-  },
-  "evaluationReasonClearRequest": "Ясный запрос",
-  "evaluationReasonFairClosure": "Честное закрытие",
-  "evaluationReasonUsefulUpdates": "Полезные обновления",
-  "evaluationReasonCoordinatedWell": "Хорошая координация",
-  "evaluationReasonUnclearRequest": "Неясный запрос",
-  "evaluationReasonPoorUpdates": "Плохие обновления",
-  "evaluationReasonClosedUnfairly": "Закрыто нечестно",
-  "evaluationReasonHardToCoordinate": "Трудно координироваться",
-  "evaluationReasonDeliveredAsPromised": "Сделано как обещано",
-  "evaluationReasonVeryUseful": "Очень полезно",
-  "evaluationReasonCommunicatedHonestly": "Честная коммуникация",
-  "evaluationReasonAboveExpectation": "Выше ожиданий",
-  "evaluationReasonDidNotFollowThrough": "Не довёл(а) до конца",
-  "evaluationReasonOverpromised": "Обещал(а) больше, чем сделал(а)",
-  "evaluationReasonCreatedExtraWork": "Создал(а) лишнюю работу",
-  "evaluationReasonPoorCommunication": "Плохая коммуникация",
-  "evaluationReasonReachedRightPerson": "Попало к нужному человеку",
-  "evaluationReasonForwardedQuickly": "Быстро переслал(а)",
-  "evaluationReasonUsefulRoutingNote": "Полезная заметка при пересылке",
-  "evaluationReasonCrucialBridge": "Ключевой мостик",
-  "evaluationReasonSentToWrongPeople": "Отправлено не тем людям",
-  "evaluationReasonCreatedNoise": "Создал(а) шум",
-  "evaluationReasonForwardedTooLate": "Переслал(а) слишком поздно",
-  "evaluationReasonMisleadingNote": "Вводящая в заблуждение заметка",
-  "evaluationTonePositive": "В основном положительно",
-  "evaluationToneMixed": "Смешанно",
-  "evaluationToneNegative": "В основном отрицательно",
-  "evaluationReviewPeriodEndsIn": "Период отзыва закончится через {remaining}.",
-  "@evaluationReviewPeriodEndsIn": {
-    "placeholders": {
-      "remaining": {
-        "type": "String"
-      }
-    }
-  },
-  "evaluationReviewDurationDaysHours": "{days}д {hours}ч",
-  "@evaluationReviewDurationDaysHours": {
+  "durationRemainingDaysHours": "{days}д {hours}ч",
+  "@durationRemainingDaysHours": {
     "placeholders": {
       "days": {
         "type": "int"
@@ -4450,8 +4143,8 @@
       }
     }
   },
-  "evaluationReviewDurationHoursMinutes": "{hours}ч {minutes}м",
-  "@evaluationReviewDurationHoursMinutes": {
+  "durationRemainingHoursMinutes": "{hours}ч {minutes}м",
+  "@durationRemainingHoursMinutes": {
     "placeholders": {
       "hours": {
         "type": "int"
@@ -4461,15 +4154,15 @@
       }
     }
   },
-  "evaluationReviewDurationMinutes": "{minutes}м",
-  "@evaluationReviewDurationMinutes": {
+  "durationRemainingMinutes": "{minutes}м",
+  "@durationRemainingMinutes": {
     "placeholders": {
       "minutes": {
         "type": "int"
       }
     }
   },
-  "evaluationReviewDurationLessThanMinute": "<1м",
+  "durationRemainingLessThanMinute": "<1м",
   "labelHelpTypeOptional": "Тип помощи (необязательно)",
   "labelWithdrawReasonRequired": "Почему вы отзываете помощь?",
   "coordinationNeutral": "—",
@@ -4671,12 +4364,10 @@
   "beaconHudOverflowMore": "Ещё действия",
   "beaconHudOverflowCloseBeacon": "Закрыть запрос…",
   "beaconHudYouAuthorReadyToClose": "Завершите цикл",
-  "beaconHudYouAuthorReviewBeforeClose": "Проверьте предложения помощи перед закрытием",
   "beaconHudYouAuthorCoordinationActive": "Координация активна — обновите или перешлите",
   "beaconHudTokenReadyToClose": "ГОТОВ К ЗАКРЫТИЮ",
   "beaconHudTokenReviewBeforeClose": "ПРОВЕРКА ПЕРЕД ЗАКРЫТИЕМ",
   "beaconHudTokenClosureBlocked": "ЗАКРЫТИЕ ЗАБЛОКИРОВАНО",
-  "beaconHudCtaReviewContributions": "Оценка",
   "beaconHudCtaOpenLog": "Журнал",
   "beaconCloseSheetReadyTitle": "Закрыть запрос?",
   "beaconCloseSheetReadyBody": "Запрос будет отмечен завершённым и откроется подтверждение вклада.",
@@ -4729,27 +4420,11 @@
   "beaconReviewReopenSuccess": "Запрос снова открыт",
   "beaconReviewCloseNowSuccess": "Запрос закрыт",
   "beaconReviewReopenTitle": "Открыть запрос снова?",
-  "beaconReviewReopenBody": "Окно оценки закроется. {sent} участников уже отправили оценки — их отправка будет отменена, и отправить придётся заново. Открыть снова можно только один раз.",
-  "@beaconReviewReopenBody": {
-    "placeholders": {
-      "sent": {
-        "type": "int"
-      }
-    }
-  },
   "beaconReviewReopenBodyNoSent": "Окно оценки закроется, сохранённые ответы останутся черновиками. Открыть снова можно только один раз.",
   "beaconReviewReopenConfirm": "Открыть снова",
   "beaconNeedsMoreHelpRevertTitle": "Нужна ещё помощь?",
   "beaconNeedsMoreHelpRevertBody": "Возврат в «Открыт» и отметка, что нужна ещё помощь. Заметки отзыва сохраняются как черновики, где это ещё уместно.",
   "beaconNeedsMoreHelpRevertConfirm": "Нужна ещё помощь",
-  "beaconReviewWindowClosesAt": "Закрывается {date}",
-  "@beaconReviewWindowClosesAt": {
-    "placeholders": {
-      "date": {
-        "type": "String"
-      }
-    }
-  },
   "beaconReviewCloseNowBlocked": "«Закрыть сейчас» доступно, когда каждый обязательный рецензент завершил или пропустил отзыв.",
   "beaconDeleteBlockedTitle": "Нельзя удалить",
   "beaconDeleteBlockedBody": "У этого запроса были подтверждённые помощники. Архивируйте его в «Моя работа».",
@@ -4807,36 +4482,11 @@
   "beaconCtaUpdateStatus": "Статус",
   "beaconHudActMarkEnoughHelp": "Помощи достаточно",
   "beaconHudActWrapUpForReview": "Завершить для отзыва",
-  "beaconHudActReviewContributions": "Оценить вклад",
-  "beaconHudActEffectReviewProgress": "Осталось {count} из {total}",
-  "@beaconHudActEffectReviewProgress": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      },
-      "total": {
-        "type": "int"
-      }
-    }
-  },
-  "beaconHudReviewSent": "Ваши оценки отправлены",
-  "beaconHudReviewEdit": "Изменить",
-  "beaconHudWaitingForRequiredReviews": "Ждём оценки от остальных участников",
-  "beaconHudWaitingForAuthorClose": "Ждём, пока автор закроет запрос",
   "beaconReviewCloseNowBody": "Оценки станут видны адресатам, изменить их будет нельзя.",
-  "beaconReviewCloseNowDiscardNote": "{count} участников начали оценку и не отправили её — она не сохранится.",
-  "@beaconReviewCloseNowDiscardNote": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "beaconHudActEffectResolveBlocker": "Открывает «Элементы» для снятия блокера",
   "beaconHudActEffectReviewOffers": "Открывает «Люди»; принятие добавляет помощника в обсуждение",
   "beaconHudActEffectMarkEnoughHelp": "Сигнал помощникам; запрос остаётся открытым",
   "beaconHudActEffectWrapUpForReview": "Запускает окно отзыва; помощники могут подтвердить",
-  "beaconHudActEffectReviewContributions": "Открывает ваш чек-лист отзыва",
   "beaconHudActEffectCloseNow": "Закрывает запрос, когда все отзывы получены",
   "beaconHudActEffectForward": "Делится запросом; доступ к обсуждению не меняется",
   "beaconHudYouChangeStatusInOverflow": "Измените статус запроса в меню ⋮",
@@ -6000,26 +5650,6 @@
   "updatesFallbackBodyRoomMessagePosted": "Новая активность в теме запроса.",
   "updatesFallbackTitleRequestStatusChanged": "Статус запроса изменился",
   "updatesFallbackBodyRequestStatusChanged": "Изменился статус запроса.",
-  "updatesFallbackTitleReviewOpened": "Закройте цикл",
-  "updatesFallbackBodyReviewOpened": "Запрос готов к оценке.",
-  "updatesFallbackTitleReviewAllIn": "Все оценки собраны",
-  "updatesFallbackBodyReviewAllIn": "Запрос «{title}» можно закрыть.",
-  "@updatesFallbackBodyReviewAllIn": {
-    "placeholders": {
-      "title": {
-        "type": "String"
-      }
-    }
-  },
-  "updatesFallbackTitleReviewCancelled": "Окно оценки отменено",
-  "updatesFallbackBodyReviewCancelled": "Автор вернул запрос «{title}» в работу.",
-  "@updatesFallbackBodyReviewCancelled": {
-    "placeholders": {
-      "title": {
-        "type": "String"
-      }
-    }
-  },
   "updatesFallbackTitleMutualConnectionFormed": "Новая связь",
   "updatesFallbackBodyMutualConnectionFormed": "Вы теперь связаны в Tentura.",
   "updatesFallbackTitleInviteAccepted": "Приглашение принято",

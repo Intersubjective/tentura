@@ -10,12 +10,10 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/features/friends/ui/widget/people_list_pane.dart';
 import 'package:tentura/features/home/ui/widget/home_rail_frame.dart';
 
-import '../bloc/profile_reviews_about_me_cubit.dart';
 import '../bloc/profile_shared_beacons_cubit.dart';
 import '../bloc/profile_view_cubit.dart';
 import '../widget/blocked_profile_view_body.dart';
 import '../widget/profile_shared_beacons_sliver.dart';
-import '../widget/reviews_about_me_from_profile_sliver.dart';
 import '../widget/profile_view_app_bar.dart';
 import '../widget/profile_view_body.dart';
 
@@ -45,9 +43,6 @@ class ProfileViewScreen extends StatelessWidget implements AutoRouteWrapper {
             meId: GetIt.I<ProfileCubit>().state.profile.id,
             targetId: id,
           ),
-        ),
-        BlocProvider(
-          create: (_) => ProfileReviewsAboutMeCubit(profileOwnerId: id),
         ),
       ],
       child: this,
@@ -92,7 +87,6 @@ class ProfileViewScreen extends StatelessWidget implements AutoRouteWrapper {
               return TenturaSupportingPaneLayout(
                 onRefresh: () => Future.wait([
                   context.read<ProfileViewCubit>().fetch(),
-                  context.read<ProfileReviewsAboutMeCubit>().fetch(),
                   context.read<ProfileSharedBeaconsCubit>().fetch(),
                 ]),
                 primarySlivers: [
@@ -103,7 +97,6 @@ class ProfileViewScreen extends StatelessWidget implements AutoRouteWrapper {
                 ],
                 supportingSlivers: const [
                   ProfileViewNetworkSliver(),
-                  ReviewsAboutMeFromProfileSliver(),
                   // Shared beacons (forwarded + co-help-offered)
                   ProfileSharedBeaconsSliver(),
                 ],

@@ -218,18 +218,10 @@ Future<void> beaconViewHandleAuthorHudAction({
         onOpenPeopleTab: onOpenPeopleTab,
         onOpenGeneralThread: onOpenGeneralThread,
       );
-    case BeaconHudAuthorAction.reviewContributions:
-      final beaconId = cubit.state.beacon.id;
-      await context.router.push(ReviewContributionsRoute(id: beaconId));
-      if (context.mounted) {
-        await cubit.refreshReviewWindowInfo();
-      }
     case BeaconHudAuthorAction.closeNow:
-      final review = cubit.state.reviewWindowInfo;
       final confirmed = await showBeaconCloseNowConfirmSheet(
         context: context,
-        canCloseNow: review?.canCloseNow == true,
-        unsentStartedPackages: review?.unsentStartedPackages ?? 0,
+        canCloseNow: cubit.state.closureState?.canCloseNow == true,
       );
       if (!context.mounted) return;
       if (!confirmed) return;
@@ -340,7 +332,7 @@ Widget beaconViewAppBarOverflow({
               beaconViewShowsRequestStatusOverflow(state)
           ? () async {
               if (!context.mounted) return;
-              await cubit.refreshReviewWindowInfo();
+              await cubit.refreshClosureState();
               if (!context.mounted) return;
               await onAuthorManageStatus();
             }
@@ -363,13 +355,6 @@ Widget beaconViewAppBarOverflow({
       onCreatePoll: onCreatePoll,
       onUpdatePlan: onUpdatePlan,
       onForward: onForward,
-      onDraftReview: state.showDraftEvaluationCta
-          ? () => unawaited(
-              context.router.push(
-                ReviewContributionsRoute(id: beaconId, draft: true),
-              ),
-            )
-          : null,
       onDelete: showBeaconManagementOverflow
           ? () async {
               if (!context.mounted) return;
@@ -398,7 +383,7 @@ Widget beaconViewAppBarOverflow({
             beaconViewShowsRequestStatusOverflow(state)
         ? () async {
             if (!context.mounted) return;
-            await cubit.refreshReviewWindowInfo();
+            await cubit.refreshClosureState();
             if (!context.mounted) return;
             await onAuthorManageStatus();
           }
@@ -444,13 +429,6 @@ Widget beaconViewAppBarOverflow({
               fork: () => cubit.forkFromThis(),
             );
           }
-        : null,
-    onDraftReview: state.showDraftEvaluationCta
-        ? () => unawaited(
-            context.router.push(
-              ReviewContributionsRoute(id: beaconId, draft: true),
-            ),
-          )
         : null,
     onWatch: !state.isHelpOffered && state.inboxStatus == InboxItemStatus.needsMe
         ? () => unawaited(cubit.moveToWatching())

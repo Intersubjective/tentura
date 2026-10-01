@@ -136,59 +136,6 @@ void main() {
     expect(emptyNote.body, l10n.updatesFallbackBodyHelpOfferSubmitted);
   });
 
-  group('review package rows', () {
-    const payload = '{"beaconTitle":"Garden cleanup"}';
-
-    test(
-      'review_all_packages_in renders title and body with request title',
-      () {
-        final copy = resolveUpdatesReceiptDisplayCopy(
-          title: '',
-          body: '',
-          presentationKey: 'review_all_packages_in',
-          presentationPayloadJson: payload,
-          l10n: l10n,
-        );
-
-        expect(copy.title, l10n.updatesFallbackTitleReviewAllIn);
-        expect(
-          copy.body,
-          l10n.updatesFallbackBodyReviewAllIn('Garden cleanup'),
-        );
-      },
-    );
-
-    test(
-      'review_window_cancelled renders title and body with request title',
-      () {
-        final copy = resolveUpdatesReceiptDisplayCopy(
-          title: '',
-          body: '',
-          presentationKey: 'review_window_cancelled',
-          presentationPayloadJson: payload,
-          l10n: l10n,
-        );
-
-        expect(copy.title, l10n.updatesFallbackTitleReviewCancelled);
-        expect(
-          copy.body,
-          l10n.updatesFallbackBodyReviewCancelled('Garden cleanup'),
-        );
-      },
-    );
-
-    test('without a request title the body falls back to generic', () {
-      final copy = resolveUpdatesReceiptDisplayCopy(
-        title: '',
-        body: '',
-        presentationKey: 'review_all_packages_in',
-        l10n: l10n,
-      );
-
-      expect(copy.body, l10n.updatesFallbackBodyGeneric);
-    });
-  });
-
   group('requestScopedEventCopy — under a Request header', () {
     const request = 'Group Hikes & Nature Photography Sessions';
 
@@ -200,17 +147,6 @@ void main() {
           requestTitle: request,
           l10n: l10n,
         );
-
-    test('review-ready: localized label, the Request title is not quoted', () {
-      final copy = scoped(
-        'Request closed — close the loop',
-        request,
-        'review_opened',
-      );
-
-      expect(copy.event, l10n.updatesFallbackTitleReviewOpened);
-      expect(copy.excerpt, isEmpty);
-    });
 
     test('a message keeps its words and loses the Request prefix', () {
       final copy = scoped(

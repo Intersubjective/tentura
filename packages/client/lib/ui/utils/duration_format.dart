@@ -8,22 +8,22 @@ String formatCompactDurationRemaining(
   L10n l10n,
 ) {
   if (remaining.isNegative || remaining == Duration.zero) {
-    return l10n.evaluationReviewDurationLessThanMinute;
+    return l10n.durationRemainingLessThanMinute;
   }
   final days = remaining.inDays;
   final hoursTotal = remaining.inHours;
   final hours = hoursTotal % 24;
   final minutes = remaining.inMinutes % 60;
   if (days > 0) {
-    return l10n.evaluationReviewDurationDaysHours(days, hours);
+    return l10n.durationRemainingDaysHours(days, hours);
   }
   if (hoursTotal > 0) {
-    return l10n.evaluationReviewDurationHoursMinutes(hoursTotal, minutes);
+    return l10n.durationRemainingHoursMinutes(hoursTotal, minutes);
   }
   if (minutes > 0) {
-    return l10n.evaluationReviewDurationMinutes(minutes);
+    return l10n.durationRemainingMinutes(minutes);
   }
-  return l10n.evaluationReviewDurationLessThanMinute;
+  return l10n.durationRemainingLessThanMinute;
 }
 
 bool _sameCalendarDayLocal(DateTime a, DateTime b) {

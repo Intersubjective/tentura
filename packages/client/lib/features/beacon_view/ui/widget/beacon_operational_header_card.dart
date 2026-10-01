@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -12,7 +11,6 @@ import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/presenter/beacon_hud_author_action.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_details_facts_access_row.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_details_sheet.dart';
-import 'package:tentura/features/evaluation/ui/widget/review_window_banner_host.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/beacon_hud_metadata_composer.dart';
@@ -132,18 +130,6 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
             onOpenFacts: onOpenPinnedFacts,
           ),
           const SizedBox(height: kBeaconHudRowGap),
-          if (state.beacon.status == BeaconStatus.reviewOpen) ...[
-            ReviewWindowBannerHost(
-              reviewWindowInfo: state.reviewWindowInfo,
-              isAuthor: state.isBeaconMine,
-            ),
-            TenturaCommandButton(
-              label: l10n.reviewWindowViewReceivedReviewsAction,
-              onPressed: () => context.router.push(
-                ReceivedReviewsRoute(id: state.beacon.id),
-              ),
-            ),
-          ],
           if (hasOtherAction || showForwardCta) ...[
             const SizedBox(height: 10),
             if (authorSpec != null)

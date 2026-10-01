@@ -1,7 +1,5 @@
 // Repository test doubles for injectable [Environment.test].
 
-import 'dart:async';
-
 import 'package:injectable/injectable.dart';
 import 'package:mockito/mockito.dart';
 
@@ -17,10 +15,10 @@ import 'package:tentura/features/auth/domain/port/auth_remote_repository_port.da
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/beacon_view/data/repository/coordination_repository.dart';
 
+import 'package:tentura/features/closure/data/repository/closure_repository.dart';
 import 'package:tentura/features/complaint/data/repository/complaint_repository.dart';
 import 'package:tentura/features/context/data/repository/context_repository.dart';
 
-import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';
 import 'package:tentura/features/favorites/data/repository/favorites_remote_repository.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/friends/data/repository/friends_remote_repository.dart';
@@ -61,11 +59,8 @@ class ForwardsGraphRepositoryMock extends Mock
 @Injectable(as: InvitationRepository, env: [Environment.test], order: 1)
 class InvitationRepositoryMock extends Mock implements InvitationRepository {}
 
-@Injectable(as: EvaluationRepository, env: [Environment.test], order: 1)
-class EvaluationRepositoryMock extends Mock implements EvaluationRepository {
-  @override
-  Stream<void> get reviewPackageChanges => const Stream.empty();
-}
+@Injectable(as: ClosureRepository, env: [Environment.test], order: 1)
+class ClosureRepositoryMock extends Mock implements ClosureRepository {}
 
 @Injectable(as: CoordinationRepository, env: [Environment.test], order: 1)
 class CoordinationRepositoryMock extends Mock

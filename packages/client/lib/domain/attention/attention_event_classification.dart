@@ -80,18 +80,6 @@ const attentionEventClassifications = <String, AttentionEventClassification>{
     headlineTreatment: AttentionHeadlineTreatment.beacon,
     coalescible: true,
   ),
-  'reviewOpened': AttentionEventClassification(
-    headlineTreatment: AttentionHeadlineTreatment.beacon,
-    coalescible: true,
-  ),
-  'reviewAllPackagesIn': AttentionEventClassification(
-    headlineTreatment: AttentionHeadlineTreatment.beacon,
-    coalescible: true,
-  ),
-  'reviewWindowCancelled': AttentionEventClassification(
-    headlineTreatment: AttentionHeadlineTreatment.beacon,
-    coalescible: true,
-  ),
   'obligationEnded': AttentionEventClassification(
     headlineTreatment: AttentionHeadlineTreatment.beacon,
     coalescible: false,
@@ -145,14 +133,6 @@ const attentionEventClassifications = <String, AttentionEventClassification>{
     coalescible: true,
   ),
   'commitmentRedirected': AttentionEventClassification(
-    headlineTreatment: AttentionHeadlineTreatment.beacon,
-    coalescible: true,
-  ),
-  'trustGivenChanged': AttentionEventClassification(
-    headlineTreatment: AttentionHeadlineTreatment.beacon,
-    coalescible: true,
-  ),
-  'trustReceivedChanged': AttentionEventClassification(
     headlineTreatment: AttentionHeadlineTreatment.beacon,
     coalescible: true,
   ),

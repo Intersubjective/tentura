@@ -20,8 +20,6 @@ class MyWorkObligationGroup {
   List<String> get receiptIds => [for (final r in receipts) r.id];
 
   bool get isHelpOffer => presentationKey == 'help_offer_submitted';
-
-  bool get isReview => presentationKey == 'review_opened';
 }
 
 String? myWorkObligationOffererId(AttentionReceipt receipt) {

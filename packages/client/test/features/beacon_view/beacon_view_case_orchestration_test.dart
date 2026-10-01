@@ -163,7 +163,7 @@ void main() {
   });
 
   group('BeaconViewCase refetch after lifecycle mutations', () {
-    test('beaconClose refreshes beacon after evaluation', () async {
+    test('beaconClose refreshes beacon after closure', () async {
       final beacon = TrackingBeaconRepository();
       final case_ = buildTestBeaconViewCase(beaconRepo: beacon);
 
@@ -175,7 +175,7 @@ void main() {
       expect(beacon.refreshAndNotifyCalls, ['B1']);
     });
 
-    test('beaconCancel refreshes beacon after evaluation', () async {
+    test('beaconCancel refreshes beacon after closure', () async {
       final beacon = TrackingBeaconRepository();
       final case_ = buildTestBeaconViewCase(beaconRepo: beacon);
 
@@ -184,7 +184,7 @@ void main() {
       expect(beacon.refreshAndNotifyCalls, ['B2']);
     });
 
-    test('beaconExtendReview refreshes beacon after evaluation', () async {
+    test('beaconExtendReview refreshes beacon after closure', () async {
       final beacon = TrackingBeaconRepository();
       final case_ = buildTestBeaconViewCase(beaconRepo: beacon);
 
@@ -193,7 +193,7 @@ void main() {
       expect(beacon.refreshAndNotifyCalls, ['B3']);
     });
 
-    test('beaconReopen refreshes beacon after evaluation', () async {
+    test('beaconReopen refreshes beacon after closure', () async {
       final beacon = TrackingBeaconRepository();
       final case_ = buildTestBeaconViewCase(beaconRepo: beacon);
 
@@ -202,7 +202,7 @@ void main() {
       expect(beacon.refreshAndNotifyCalls, ['B4']);
     });
 
-    test('beaconCloseNow refreshes beacon after evaluation', () async {
+    test('beaconCloseNow refreshes beacon after closure', () async {
       final beacon = TrackingBeaconRepository();
       final case_ = buildTestBeaconViewCase(beaconRepo: beacon);
 

@@ -55,25 +55,15 @@ void main() {
     expect(groups[1].receiptIds, ['r3']);
   });
 
-  test('unknown and review stay one group per receipt', () {
+  test('unknown kinds stay one group per receipt', () {
     final groups = groupMyWorkObligations([
-      _receipt(id: 'rev', presentationKey: 'review_opened'),
+      _receipt(id: 'a', presentationKey: 'something_old'),
       _receipt(id: 'unk', presentationKey: 'something_new'),
     ]);
 
     expect(groups, hasLength(2));
-    expect(groups[0].isReview, isTrue);
-    expect(groups[0].receiptIds, ['rev']);
+    expect(groups.any((g) => g.isHelpOffer), isFalse);
+    expect(groups[0].receiptIds, ['a']);
     expect(groups[1].receiptIds, ['unk']);
-  });
-
-  test('review-complete and reopen rows are not review obligations', () {
-    final groups = groupMyWorkObligations([
-      _receipt(id: 'all', presentationKey: 'review_all_packages_in'),
-      _receipt(id: 'cxl', presentationKey: 'review_window_cancelled'),
-    ]);
-
-    expect(groups, hasLength(2));
-    expect(groups.any((g) => g.isReview || g.isHelpOffer), isFalse);
   });
 }

@@ -3,8 +3,6 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.dart';
-import 'package:tentura/features/evaluation/domain/entity/review_window_info.dart';
-import 'package:tentura/features/evaluation/domain/review_package_state.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 /// Author-only HUD actions on the beacon detail operational header.
@@ -13,7 +11,6 @@ enum BeaconHudAuthorAction {
   reviewOffers,
   markEnoughHelp,
   wrapUpForReview,
-  reviewContributions,
   closeNow,
 }
 
@@ -39,8 +36,7 @@ BeaconHudAuthorActEffectPresentation effectPresentationForBeaconHudAuthorAction(
     BeaconHudAuthorAction.markEnoughHelp || BeaconHudAuthorAction.closeNow =>
       BeaconHudAuthorActEffectPresentation.hiddenKeepSemantics,
     BeaconHudAuthorAction.resolveBlocker ||
-    BeaconHudAuthorAction.wrapUpForReview ||
-    BeaconHudAuthorAction.reviewContributions =>
+    BeaconHudAuthorAction.wrapUpForReview =>
       BeaconHudAuthorActEffectPresentation.mutedSubtitle,
   };
 }
@@ -127,51 +123,10 @@ BeaconHudAuthorAction? deriveBeaconHudAuthorAction(BeaconViewState state) {
   return null;
 }
 
-/// Package state from the request lifecycle and its viewer-scoped snapshot.
-ReviewPackageState reviewPackageStateOf(BeaconViewState state) =>
-    reviewPackageStateFromWindow(
-      state.reviewWindowInfo,
-      beaconStatus: state.beacon.status,
-    );
-
-/// Shared HUD/banner inference; the banner mounts only during reviewOpen.
-ReviewPackageState reviewPackageStateFromWindow(
-  ReviewWindowInfo? review, {
-  BeaconStatus beaconStatus = BeaconStatus.reviewOpen,
-}) => deriveReviewPackageState(
-  beaconIsInReview:
-      beaconStatus == BeaconStatus.reviewOpen &&
-      !(review?.windowComplete ?? false),
-  beaconIsClosed:
-      beaconStatus == BeaconStatus.closed || (review?.windowComplete ?? false),
-  hasWindow: review?.hasWindow ?? false,
-  windowComplete: review?.windowComplete ?? false,
-  userReviewStatus: review?.userReviewStatus,
-  sentAt: review?.sentAt,
-  requiredTotal: review?.requiredTotal ?? 0,
-  requiredAnswered: review?.requiredReviewed ?? 0,
-  totalTargets: review?.totalCount ?? 0,
-);
-
-BeaconHudAuthorAction? _reviewOpenAuthorAction(BeaconViewState state) {
-  final review = state.reviewWindowInfo;
-  if (review == null || !review.hasWindow || review.windowComplete) return null;
-  // The author's close action outranks any review action.
-  if (review.canCloseNow == true) return BeaconHudAuthorAction.closeNow;
-  return switch (reviewPackageStateOf(state)) {
-    ReviewPackageState.inProgress ||
-    ReviewPackageState.readyToSend ||
-    ReviewPackageState.changedNotSent =>
-      BeaconHudAuthorAction.reviewContributions,
-    // Sent: entry point must change shape, or #162 comes back.
-    ReviewPackageState.sent ||
-    ReviewPackageState.paused ||
-    ReviewPackageState.closed ||
-    ReviewPackageState.closedUnsent ||
-    ReviewPackageState.notEnrolled ||
-    ReviewPackageState.empty => null,
-  };
-}
+BeaconHudAuthorAction? _reviewOpenAuthorAction(BeaconViewState state) =>
+    state.closureState?.canCloseNow == true
+        ? BeaconHudAuthorAction.closeNow
+        : null;
 
 IconData iconForBeaconHudAuthorAction(BeaconHudAuthorAction action) {
   return switch (action) {
@@ -179,7 +134,6 @@ IconData iconForBeaconHudAuthorAction(BeaconHudAuthorAction action) {
     BeaconHudAuthorAction.reviewOffers => Icons.people_outline,
     BeaconHudAuthorAction.markEnoughHelp => Icons.check_circle_outline,
     BeaconHudAuthorAction.wrapUpForReview => Icons.rate_review_outlined,
-    BeaconHudAuthorAction.reviewContributions => Icons.rate_review_outlined,
     BeaconHudAuthorAction.closeNow => Icons.lock_outline,
   };
 }
@@ -193,8 +147,6 @@ String labelForBeaconHudAuthorAction(L10n l10n, BeaconHudAuthorAction action) {
     BeaconHudAuthorAction.reviewOffers => l10n.beaconPhaseCtaReviewOffers,
     BeaconHudAuthorAction.markEnoughHelp => l10n.beaconHudActMarkEnoughHelp,
     BeaconHudAuthorAction.wrapUpForReview => l10n.beaconHudActWrapUpForReview,
-    BeaconHudAuthorAction.reviewContributions =>
-      l10n.beaconHudActReviewContributions,
     BeaconHudAuthorAction.closeNow => l10n.beaconReviewCloseNowAction,
   };
 }
@@ -211,8 +163,6 @@ String effectLineForBeaconHudAuthorAction(
       l10n.beaconHudActEffectMarkEnoughHelp,
     BeaconHudAuthorAction.wrapUpForReview =>
       l10n.beaconHudActEffectWrapUpForReview,
-    BeaconHudAuthorAction.reviewContributions =>
-      l10n.beaconHudActEffectReviewContributions,
     BeaconHudAuthorAction.closeNow => l10n.beaconHudActEffectCloseNow,
   };
 }
@@ -225,15 +175,7 @@ BeaconHudAuthorActSpec? deriveBeaconHudAuthorActSpec({
   final action = deriveBeaconHudAuthorAction(state);
   if (action == null) return null;
   final label = labelForBeaconHudAuthorAction(l10n, action);
-  final review = state.reviewWindowInfo;
-  final effectLine =
-      action == BeaconHudAuthorAction.reviewContributions &&
-          reviewPackageStateOf(state) == ReviewPackageState.inProgress
-      ? l10n.beaconHudActEffectReviewProgress(
-          review!.requiredTotal - review.requiredReviewed,
-          review.requiredTotal,
-        )
-      : effectLineForBeaconHudAuthorAction(l10n, action);
+  final effectLine = effectLineForBeaconHudAuthorAction(l10n, action);
   return BeaconHudAuthorActSpec(
     action: action,
     label: label,

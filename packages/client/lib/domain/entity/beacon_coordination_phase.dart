@@ -40,7 +40,6 @@ enum BeaconPhasePrimaryAction {
   reviewOffers,
   forward,
   offerHelp,
-  reviewContributions,
   none,
 }
 

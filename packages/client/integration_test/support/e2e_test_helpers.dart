@@ -38,7 +38,6 @@ import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart'
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart' show LinearPiActive;
-import 'package:tentura/ui/utils/capability_tag_presenter.dart';
 
 class IntegrationFixture {
   const IntegrationFixture({
@@ -310,7 +309,6 @@ String _screenDump() {
     'reviewOffers',
     'markEnoughHelp',
     'wrapUpForReview',
-    'reviewContributions',
     'closeNow',
     'forward',
   ]) {
@@ -399,7 +397,7 @@ Future<void> tapAndSettle(WidgetTester tester, Finder finder) async {
   // throws "Bad state: No element" for empty `.first`-style finders.
   debugPrint('[e2e] tapAndSettle(${finder.describeMatch(Plurality.one)})');
   await pumpUntilVisible(tester, finder);
-  // Long scrollables (e.g. the evaluation sheet) can keep the target off
+  // Long scrollables (e.g. a tall sheet) can keep the target off
   // screen; ensureVisible is a no-op without a Scrollable ancestor.
   await tester.ensureVisible(finder);
   await pumpSettleBounded(tester);
@@ -413,9 +411,9 @@ Future<void> tapAndSettle(WidgetTester tester, Finder finder) async {
 /// English group-header text (this suite hardcodes English strings
 /// throughout rather than resolving l10n — see the pre-existing `'OK'`/
 /// `'Resolve'` finders below) for the accordion section a capability slug's
-/// chip lives under in `CapabilityChipSet` (Requirements sheet, evaluation
-/// ack-tags — both instantiate it with no search `query`, so sections start
-/// collapsed and must be expanded by tapping the header first).
+/// chip lives under in `CapabilityChipSet` (Requirements sheet — it is
+/// instantiated with no search `query`, so sections start collapsed and must
+/// be expanded by tapping the header first).
 String _capabilityGroupLabelFor(String slug) {
   final group = CapabilityTag.fromSlug(slug)?.group;
   return switch (group) {
@@ -978,62 +976,13 @@ Future<void> popToThreadsListIfNeeded(WidgetTester tester) =>
 Finder _hudAction(String action) =>
     find.byKey(TestIds.key(TestIds.beaconHudAuthorAction(action)));
 
-Future<void> closeRequestAndOpenReview(WidgetTester tester) async {
-  await tapAndSettle(tester, find.byKey(TestIds.key(TestIds.beaconTabNow)));
-  // The author closes via the operational HUD primary action (not the overflow
-  // menu). The HUD is a small state machine that depends on closure readiness:
-  //   markEnoughHelp → wrapUpForReview → (close) → reviewContributions.
-  // Drive it until the review screen is reached, handling whichever action the
-  // HUD currently offers.
-  await pumpUntil(
-    tester,
-    () =>
-        finderHasMatch(_hudAction('markEnoughHelp')) ||
-        finderHasMatch(_hudAction('wrapUpForReview')) ||
-        finderHasMatch(_hudAction('reviewContributions')),
-    timeout: const Duration(seconds: 30),
-  );
-
-  if (finderHasMatch(_hudAction('markEnoughHelp'))) {
-    await tapAndSettle(tester, _hudAction('markEnoughHelp').first);
-    await tapAndSettle(
-      tester,
-      find.byKey(TestIds.key(TestIds.beaconHudMarkEnoughHelpConfirm)),
-    );
-    await pumpUntilVisible(
-      tester,
-      _hudAction('wrapUpForReview'),
-      timeout: const Duration(seconds: 30),
-    );
-  }
-
-  await tapAndSettle(tester, _hudAction('wrapUpForReview').first);
-  await tapAndSettle(
-    tester,
-    find.byKey(TestIds.key(TestIds.beaconCloseConfirm)).first,
-  );
-
-  // Close completes → review window opens → HUD offers review contributions.
-  await pumpUntilVisible(
-    tester,
-    _hudAction('reviewContributions'),
-    timeout: const Duration(seconds: 30),
-  );
-  await tapAndSettle(tester, _hudAction('reviewContributions').first);
-
-  await pumpUntilVisible(
-    tester,
-    find.byKey(TestIds.key(TestIds.evaluationSubmit)),
-  );
-}
-
-/// After every required reviewer has finished or skipped, closes the request
-/// via My Work's "Close request" card CTA when visible, otherwise the beacon
-/// detail HUD `closeNow` action (and its confirm sheet).
+/// Once the closure allows it, closes the request now via My Work's "Close
+/// request" card CTA when visible, otherwise the beacon detail HUD `closeNow`
+/// action (and its confirm sheet).
 ///
-/// Sending the last required review package never closes the window: the author
-/// must close explicitly. So the request is still in review here, and the
-/// Finished card with Archive only appears after the close this helper performs.
+/// Nothing closes on its own before the author does: the request is still
+/// wrapping up here, and the Finished card with Archive only appears after the
+/// close this helper performs.
 Future<void> triggerCloseNow(WidgetTester tester) async {
   await _forceMyWorkDesk(tester);
   final myWorkClose = find.byWidgetPredicate(
@@ -1046,16 +995,16 @@ Future<void> triggerCloseNow(WidgetTester tester) async {
     tester,
     () => finderHasMatch(myWorkClose) || finderHasMatch(hudCloseNow),
   );
-  // The last send must not have closed anything: the request is still in
-  // review, so no Finished/Archive card may be on the desk yet.
+  // The request is still wrapping up, so no Finished/Archive card may be on
+  // the desk yet.
   expect(
     finderHasMatch(find.widgetWithText(TextButton, 'Archive')),
     isFalse,
     reason: 'Request closed without an explicit author close',
   );
   // Both entries open the same shared close-now confirm sheet, and nothing is
-  // closed until it is confirmed: the card CTA routes through
-  // `myWorkConfirmCloseNow`, the HUD action through the status sheet. Tapping
+  // closed until it is confirmed: the card CTA and the HUD
+  // action both go through `showBeaconCloseNowConfirmSheet`. Tapping
   // the entry alone left the request in review, and the wait for the Finished
   // card below then timed out with the close CTA still on screen (#191).
   if (finderHasMatch(myWorkClose)) {
@@ -1080,138 +1029,6 @@ Future<void> triggerCloseNow(WidgetTester tester) async {
     () => finderHasMatch(find.widgetWithText(TextButton, 'Archive')),
     timeout: const Duration(seconds: 30),
   );
-}
-
-/// Mark every remaining card cannot-evaluate (if needed) then send the package.
-Future<void> sendCompleteReviewPackage(WidgetTester tester) async {
-  await pumpUntilVisible(
-    tester,
-    find.byKey(TestIds.key(TestIds.evaluationSubmit)),
-  );
-  for (var i = 0; i < 12; i++) {
-    final submit = tester.widget<FilledButton>(
-      find.byKey(TestIds.key(TestIds.evaluationSubmit)),
-    );
-    if (submit.onPressed != null) {
-      break;
-    }
-    final cannotEvaluate = find.byWidgetPredicate(
-      (widget) =>
-          widget is TextButton &&
-          widget.key is ValueKey<String> &&
-          (widget.key! as ValueKey<String>).value.startsWith(
-            'evaluation.cannot_evaluate.',
-          ) &&
-          widget.onPressed != null,
-    );
-    expect(cannotEvaluate, findsWidgets);
-    await tapAndSettle(tester, cannotEvaluate.first);
-    final confirm = find.text('Cannot evaluate');
-    if (confirm.evaluate().isNotEmpty) {
-      await tapAndSettle(tester, confirm.last);
-    }
-  }
-  await tapAndSettle(
-    tester,
-    find.byKey(TestIds.key(TestIds.evaluationSubmit)),
-  );
-}
-
-Future<void> reviewParticipant(
-  WidgetTester tester,
-  String userId, {
-  String impact = 'zero',
-  List<String> ackTags = const [],
-}) async {
-  final tile = find.byKey(TestIds.key(TestIds.evaluationParticipant(userId)));
-  expect(
-    tile,
-    findsOneWidget,
-    reason: 'evaluation participant $userId must be present',
-  );
-  await tapAndSettle(tester, tile.first);
-  await tapAndSettle(
-    tester,
-    find.byKey(TestIds.key(TestIds.evaluationImpact(impact))),
-  );
-  if (ackTags.isNotEmpty) {
-    final field = find.byKey(TestIds.key(TestIds.evaluationCapabilityField));
-    expect(
-      field,
-      findsOneWidget,
-      reason: 'acknowledgement field must be present for positive impact',
-    );
-    await tapAndSettle(tester, field);
-    for (final slug in ackTags) {
-      final tag = CapabilityTag.fromSlug(slug);
-      expect(tag, isNotNull, reason: 'unknown capability slug: $slug');
-      final group = _capabilityGroupLabelFor(slug);
-      final chip = find.byKey(TestIds.key(TestIds.capabilityChip(slug)));
-      if (chip.evaluate().isEmpty) {
-        final groupFinder = find.text(group);
-        expect(
-          groupFinder,
-          findsOneWidget,
-          reason: 'capability group $group must be present',
-        );
-        await tapAndSettle(tester, groupFinder);
-      }
-      expect(
-        chip,
-        findsOneWidget,
-        reason: 'capability chip $slug must be visible',
-      );
-      await tapAndSettle(tester, chip);
-    }
-    final done = find.byKey(TestIds.key(TestIds.evaluationCapabilityDone));
-    expect(done, findsOneWidget, reason: 'capability Done must be present');
-    await tapAndSettle(tester, done);
-  }
-  final saveButton = find.byKey(TestIds.key(TestIds.evaluationSave));
-  await tapAndSettle(tester, saveButton);
-  await pumpUntil(tester, () => saveButton.evaluate().isEmpty);
-  final impactLabel = switch (impact) {
-    'pos1' => 'Helped somewhat',
-    'pos2' => 'Helped a lot',
-    'neg1' => 'Hurt somewhat',
-    'neg2' => 'Hurt a lot',
-    'zero' => 'No real effect',
-    _ => throw ArgumentError('unknown evaluation impact: $impact'),
-  };
-  expect(
-    find.descendant(of: tile, matching: find.text(impactLabel)),
-    findsOneWidget,
-    reason: 'submitted impact label must be visible for participant $userId',
-  );
-  if (ackTags.isNotEmpty) {
-    await tapAndSettle(tester, tile);
-    await pumpUntilVisible(
-      tester,
-      find.byKey(TestIds.key(TestIds.evaluationCapabilityField)),
-    );
-    final l10n = L10n.of(tester.element(find.byType(Scaffold).first))!;
-    for (final slug in ackTags) {
-      final tag = CapabilityTag.fromSlug(slug);
-      expect(tag, isNotNull, reason: 'unknown capability slug: $slug');
-      final label = tag!.labelOf(l10n);
-      expect(
-        find.textContaining(label),
-        findsWidgets,
-        reason: 'saved acknowledgement $slug must survive reload',
-      );
-    }
-    final reopenedSaveButton = find.byKey(
-      TestIds.key(TestIds.evaluationSave),
-    );
-    expect(
-      reopenedSaveButton,
-      findsOneWidget,
-      reason: 'reopened review sheet must show Save',
-    );
-    Navigator.of(tester.element(reopenedSaveButton)).pop();
-    await pumpSettleBounded(tester);
-    await pumpUntil(tester, () => reopenedSaveButton.evaluate().isEmpty);
-  }
 }
 
 Future<void> toggleRoutingMute(

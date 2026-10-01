@@ -26,7 +26,7 @@ BeaconStatusMenuInput _input({
   bool hasCommitters = false,
   bool canManageLifecycle = true,
   bool canSetCoordination = true,
-  ReviewWindowMenuSnapshot? reviewWindow,
+  ClosureMenuSnapshot? closure,
   bool? serverCanCancel,
 }) =>
     BeaconStatusMenuInput(
@@ -35,7 +35,7 @@ BeaconStatusMenuInput _input({
       hasCommitters: hasCommitters,
       canManageLifecycle: canManageLifecycle,
       canSetCoordination: canSetCoordination,
-      reviewWindow: reviewWindow,
+      closure: closure,
       serverCanCancel: serverCanCancel,
     );
 
@@ -93,14 +93,11 @@ void main() {
     );
   });
 
-  test('review open with incomplete reviewers disables close now', () {
+  test('review open before the closure allows it disables close now', () {
     final rows = buildBeaconStatusMenuRows(
       _input(
         beacon: _beacon(status: BeaconStatus.reviewOpen),
-        reviewWindow: const ReviewWindowMenuSnapshot(
-          reviewedCount: 1,
-          totalCount: 3,
-          windowComplete: false,
+        closure: const ClosureMenuSnapshot(
           extensionsUsed: 0,
           canCloseNow: false,
         ),
@@ -113,14 +110,11 @@ void main() {
     );
   });
 
-  test('review open with all reviewers done enables close now', () {
+  test('review open once the closure allows it enables close now', () {
     final rows = buildBeaconStatusMenuRows(
       _input(
         beacon: _beacon(status: BeaconStatus.reviewOpen),
-        reviewWindow: const ReviewWindowMenuSnapshot(
-          reviewedCount: 3,
-          totalCount: 3,
-          windowComplete: false,
+        closure: const ClosureMenuSnapshot(
           extensionsUsed: 0,
           canCloseNow: true,
         ),
@@ -159,10 +153,7 @@ void main() {
       _input(
         beacon: _beacon(status: BeaconStatus.reviewOpen),
         canManageLifecycle: true,
-        reviewWindow: const ReviewWindowMenuSnapshot(
-          reviewedCount: 0,
-          totalCount: 1,
-          windowComplete: false,
+        closure: const ClosureMenuSnapshot(
           extensionsUsed: 0,
           canReopen: false,
         ),

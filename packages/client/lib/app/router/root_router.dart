@@ -396,20 +396,6 @@ class RootRouter extends RootStackRouter {
       ],
     ),
 
-    // Review contributions — root registration only exists as a redirect
-    // target; see the BeaconViewRoute comment above for the pattern.
-    AutoRoute(
-      usesPathAsKey: true,
-      page: ReviewContributionsRoute.page,
-      path: '$kPathReviewContributions/:id',
-    ),
-
-    AutoRoute(
-      usesPathAsKey: true,
-      page: ReceivedReviewsRoute.page,
-      path: '$kPathReceivedReviews/:id',
-    ),
-
     // Forward Beacon
     AutoRoute(
       usesPathAsKey: true,

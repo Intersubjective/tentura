@@ -26,13 +26,14 @@ import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/my_work_beacon_attention.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
 import '../../support/attention_repository_fake_base.dart';
+import 'package:tentura/features/closure/data/repository/closure_repository.dart';
+import 'package:tentura/features/closure/domain/entity/closure_state.dart';
 import 'package:tentura/features/my_work/domain/use_case/my_work_case.dart';
 import 'package:tentura/features/polling/data/repository/polling_repository.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 
 import '../beacon_view/beacon_view_case_test_support.dart' show FakeBeaconDisplayRepository;
 import '../block/support/controllable_block_case.dart' show noopBlockCase;
-import '../evaluation/evaluation_case_test.dart' show FakeEvaluationRepository;
 import '../../support/test_realtime_sync.dart';
 
 class StubAttentionRepository extends AttentionRepositoryFake {
@@ -256,6 +257,23 @@ class FakeMyWorkRepository implements MyWorkRepository {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+/// Serves closure states by beacon id; an id without one fails the read.
+class FakeMyWorkClosureRepository implements ClosureRepository {
+  final statesByBeacon = <String, ClosureState>{};
+  final fetchedIds = <String>[];
+
+  @override
+  Future<ClosureState> fetchState(String beaconId) async {
+    fetchedIds.add(beaconId);
+    final state = statesByBeacon[beaconId];
+    if (state == null) throw StateError('no closure state for $beaconId');
+    return state;
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 class FakeArchiveRepository implements ArchiveRepository {
   @override
   Future<void> archive(String beaconId) async {}
@@ -403,7 +421,7 @@ MyWorkCase buildTestMyWorkCase({
   ArchiveRepository? archiveRepo,
   FakeRoomHints? roomHints,
   FakeBeaconDisplayRepository? displayRepo,
-  FakeEvaluationRepository? evaluationRepo,
+  FakeMyWorkClosureRepository? closureRepo,
   RoomReadWatermarkStore? watermarkStore,
   FakeBeaconThreadsRepository? roomRepo,
   BookkeepingRefreshSignal? bookkeepingRefreshSignal,
@@ -428,7 +446,7 @@ MyWorkCase buildTestMyWorkCase({
     ),
     hints,
     displayRepo ?? FakeBeaconDisplayRepository(),
-    evaluationRepo ?? FakeEvaluationRepository(),
+    closureRepo ?? FakeMyWorkClosureRepository(),
     realtime,
     bookkeepingRefreshSignal ?? BookkeepingRefreshSignal(),
     attentionCase ??

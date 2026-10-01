@@ -84,23 +84,6 @@ BrowseDeepLinkStack? buildBrowseDeepLinkStack(Uri input) {
       route: InvolvedBeaconRoute(id: involvedId),
     );
   }
-  final reviewId = _singleId(path, kPathReviewContributions);
-  if (reviewId != null) {
-    return (
-      owner: HomeTab.work,
-      route: ReviewContributionsRoute(
-        id: reviewId,
-        draft: query.getBool('draft', false),
-      ),
-    );
-  }
-  final receivedId = _singleId(path, kPathReceivedReviews);
-  if (receivedId != null) {
-    return (
-      owner: HomeTab.work,
-      route: ReceivedReviewsRoute(id: receivedId),
-    );
-  }
 
   final forwardsGraphId = _singleId(path, kPathForwardsGraph);
   if (forwardsGraphId != null) {

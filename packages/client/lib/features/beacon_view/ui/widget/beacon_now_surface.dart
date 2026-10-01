@@ -91,11 +91,10 @@ class BeaconNowSurface extends StatelessWidget {
           p.beaconRoomCue?.currentLine != c.beaconRoomCue?.currentLine ||
           p.beaconRoomCue?.openBlockerTitle !=
               c.beaconRoomCue?.openBlockerTitle ||
-          p.showDraftEvaluationCta != c.showDraftEvaluationCta ||
           p.unansweredHelpOffersCount != c.unansweredHelpOffersCount ||
           p.needCoordinationHelpOffersCount !=
               c.needCoordinationHelpOffersCount ||
-          p.reviewWindowInfo != c.reviewWindowInfo ||
+          p.closureState != c.closureState ||
           p.beaconContextLoaded != c.beaconContextLoaded ||
           p.isRoomAdmissionBlocked != c.isRoomAdmissionBlocked ||
           p.coordinationDeniesRoomAdmission != c.coordinationDeniesRoomAdmission,

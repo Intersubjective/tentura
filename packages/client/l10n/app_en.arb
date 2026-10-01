@@ -1710,15 +1710,6 @@
   "@profileSharedBeaconsCoHelpOfferedSection": {
     "context": "Profile — co-helped beacons section header"
   },
-  "profileReviewsFromPersonSectionTitle": "Reviews from {name}",
-  "@profileReviewsFromPersonSectionTitle": {
-    "context": "Profile — reviews the profile owner wrote about the viewer",
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
   "showMutualFriends": "Show mutual trust",
   "@showMutualFriends": {
     "context": "Profile"
@@ -3583,10 +3574,6 @@
   "@myWorkReviewHelpOffersCta": {
     "context": "MyWorkScreen"
   },
-  "myWorkReviewCta": "Review",
-  "@myWorkReviewCta": {
-    "context": "MyWorkScreen"
-  },
   "myWorkCaughtUp": "Nothing needs you right now",
   "@myWorkCaughtUp": {
     "context": "MyWorkScreen"
@@ -4190,302 +4177,8 @@
       }
     }
   },
-  "evaluationBannerTitle": "Request closed — review contributions",
-  "evaluationBannerTitleDraft": "Private draft notes",
-  "evaluationBannerSubtitle": "Private, request-local feedback. Not public.",
-  "evaluationBannerSubtitleDraft": "Save private notes for after closure. They do not count until you submit after the request closes.",
-  "evaluationBannerReview": "Review",
-  "evaluationBannerDraftReview": "Draft review",
-  "evaluationAcknowledgeTitle": "Acknowledge contributions",
-  "evaluationAcknowledgeTitleDraft": "Draft review notes",
-  "evaluationReviewListPrivacyTitle": "Review privacy",
-  "evaluationReviewListPrivacyTitleDraft": "Draft privacy",
-  "evaluationReviewListPrivacyLive": "Reviews are pairwise-private. After the review window closes, only the person you evaluate will see your name, impact choice, capability acknowledgements, and note. Reviews are never public and are not visible to unrelated participants.",
-  "evaluationReviewListPrivacyDraft": "These are private draft notes. They are not shared during the review window; save them to submit after the request closes.",
-  "evaluationPrivacyBlock": "Your feedback here is private. It will not be shown publicly, and other people in this request will not see your answers by default. It is only used to improve your own local trust view: who you may want to trust more, trust less, or route requests through next time. In simple terms: your answers help Tentura make better personal recommendations and matching for you around the people involved here and the people connected to them. Please judge only what you actually saw in this request. If you are not sure, choose \"No basis\".",
-  "evaluationPrivacyShort": "Your feedback is private.",
-  "evaluationDraftDone": "Done",
-  "evaluationSectionAuthor": "Author",
-  "evaluationSectionHelpOfferer": "Helpers",
-  "evaluationSectionForwarder": "Forwarders",
-  "evaluationReviewDeadline": "Review closes {date}",
-  "@evaluationReviewDeadline": {
-    "placeholders": {
-      "date": {
-        "type": "String"
-      }
-    }
-  },
-  "evaluationSubmitFinish": "Send reviews",
-  "evaluationSubmitChanges": "Send changes",
-  "evaluationPackageSentAt": "Reviews sent {date}",
-  "@evaluationPackageSentAt": {
-    "placeholders": {
-      "date": {
-        "type": "String"
-      }
-    }
-  },
-  "evaluationPackageSentHint": "You can change them until the request closes. After a change the package must be sent again.",
-  "evaluationPackageDirtyTitle": "Changes not sent",
-  "evaluationPackageDirtyBody": "Until the package is sent, your reviews are not counted when the request closes.",
-  "evaluationPackageDone": "Done",
-  "evaluationPausedTitle": "The author reopened the request",
-  "evaluationPausedBody": "Nothing was shared. Your saved answers stayed drafts — you can send them when the author wraps the request up again.",
-  "evaluationPausedAction": "Open the request",
-  "evaluationClosedSentBody": "The request is closed. Your reviews were sent and counted.",
-  "evaluationClosedUnsentBody": "The request closed before you sent your package. Unsent reviews were not kept.",
-  "evaluationSectionRequired": "Required",
-  "evaluationSectionOptional": "Optional · participation ended",
-  "evaluationOptionalHint": "These reviews are optional and do not hold up closing.",
-  "evaluationOptionalSkip": "Skip",
-  "evaluationProgressSplit": "{req} of {reqTotal} required · {opt} of {optTotal} optional",
-  "@evaluationProgressSplit": {
-    "placeholders": {
-      "req": {
-        "type": "int"
-      },
-      "reqTotal": {
-        "type": "int"
-      },
-      "opt": {
-        "type": "int"
-      },
-      "optTotal": {
-        "type": "int"
-      }
-    }
-  },
-  "evaluationOwnPackageOptional": "You no longer take part in this request. A review is welcome but not required. If you do not send it before the request closes, it is discarded.",
-  "evaluationContextCommitted": "Helping since {date}",
-  "@evaluationContextCommitted": {
-    "placeholders": {
-      "date": {
-        "type": "String"
-      }
-    }
-  },
-  "evaluationContextCommittedVia": "Helping since {date} · via {name}",
-  "@evaluationContextCommittedVia": {
-    "placeholders": {
-      "date": {
-        "type": "String"
-      },
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "evaluationContextCommittedNoDate": "Helped with this request",
-  "evaluationContextEnded": "Participation ended",
-  "evaluationContextForwarder": "Forwarded the request",
-  "evaluationContextOffer": "“{message}”",
-  "@evaluationContextOffer": {
-    "placeholders": {
-      "message": {
-        "type": "String"
-      }
-    }
-  },
-  "evaluationSkipForNow": "Skip for now",
-  "evaluationProgress": "{reviewed} of {total} reviewed",
-  "@evaluationProgress": {
-    "placeholders": {
-      "reviewed": {
-        "type": "int"
-      },
-      "total": {
-        "type": "int"
-      }
-    }
-  },
-  "evaluationPrivateHint": "Private feedback for this request only. Your answer is used only to improve your own personalized trust and recommendation logic. It is not a public score, and it is not shown to other people here as your named rating.",
-  "evaluationPromptAuthor": "How did the author’s contribution affect this request?",
-  "evaluationPromptHelpOfferer": "How did this person's help affect this request?",
-  "evaluationPromptHelpOffererHandoff": "How did this person handle the handoff after you forwarded the request to them?",
-  "evaluationPromptForwarder": "How did this forwarding help or hurt this request?",
-  "evaluationEmptyTargets": "There is no one to review for this request yet.",
-  "evaluationSave": "Save",
-  "evaluationSummaryTitle": "Your feedback in this request",
-  "evaluationNotReviewed": "Not reviewed",
-  "evaluationReviewed": "Reviewed",
-  "evaluationNoBasisLabel": "No basis",
-  "evaluationChooseImpact": "Choose an impact.",
-  "evaluationTrustQuestion": "How did this contribution affect your personal trust in {name}?",
-  "@evaluationTrustQuestion": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "evaluationTrustNoChangeContribution": "This contribution did not change my trust",
-  "evaluationTrustDecreasedContribution": "My trust in this person decreased",
-  "evaluationTrustIncreasedContribution": "My trust in this person increased",
-  "evaluationTrustIntensityHeading": "How much?",
-  "evaluationTrustIntensityLittle": "A little",
-  "evaluationTrustIntensityLot": "A lot",
-  "evaluationTrustIntensityReasonRequired": "reason required",
-  "evaluationTrustPreviewNoBasis": "Your personal trust in {name} will not be updated.",
-  "@evaluationTrustPreviewNoBasis": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "evaluationTrustPreviewZero": "This contribution will not change your personal trust in {name}.",
-  "@evaluationTrustPreviewZero": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "evaluationTrustPreviewNeg1": "After this contribution, your personal trust in {name} will decrease slightly.",
-  "@evaluationTrustPreviewNeg1": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "evaluationTrustPreviewNeg2": "After this contribution, your personal trust in {name} will decrease noticeably.",
-  "@evaluationTrustPreviewNeg2": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "evaluationTrustPreviewPos1": "After this contribution, your personal trust in {name} will increase slightly.",
-  "@evaluationTrustPreviewPos1": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "evaluationTrustPreviewPos2": "After this contribution, your personal trust in {name} will increase noticeably.",
-  "@evaluationTrustPreviewPos2": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "evaluationTrustChoiceRequired": "Choose how this contribution affected your trust.",
-  "evaluationTrustIntensityRequired": "Choose how much your trust changed.",
-  "evaluationReasonValidationError": "Choose at least one reason.",
-  "evaluationRoleAuthor": "Author",
-  "evaluationRoleHelpOfferer": "Helper",
-  "evaluationRoleForwarder": "Forwarder",
-  "evaluationRoleFormerCommitter": "Former helper",
-  "evaluationReceivedScreenTitle": "My reviews · {beaconTitle}",
-  "@evaluationReceivedScreenTitle": {
-    "placeholders": {
-      "beaconTitle": {
-        "type": "String"
-      }
-    }
-  },
-  "evaluationReceivedScreenTitleGeneric": "My reviews",
-  "evaluationReceivedEmptyWindowOpen": "Reviews will appear here once the request finishes.",
-  "evaluationReceivedEmptyNoReviews": "No one left feedback for you on this request.",
-  "evaluationReceivedTrustUpLabel": "Trust increased",
-  "evaluationReceivedTrustDownLabel": "Trust decreased",
-  "evaluationReceivedNeutralLabel": "No significant change",
-  "evaluationReceivedNoBasisLabel": "No basis to judge",
-  "evaluationImpactHelpedALot": "Helped a lot",
-  "evaluationImpactHelpedSomewhat": "Helped somewhat",
-  "evaluationImpactNoRealEffect": "No real effect",
-  "evaluationImpactHurtSomewhat": "Hurt somewhat",
-  "evaluationImpactHurtALot": "Hurt a lot",
-  "evaluationCannotEvaluate": "Cannot evaluate",
-  "evaluationCannotEvaluateReplacement": "Your current impact, capability acknowledgements, and note will be cleared. No review will be sent for this person and your trust in them will not change.",
-  "evaluationCannotEvaluateExplanation": "You marked that you did not see this contribution. No review will be sent and your trust in this person will not change.",
-  "evaluationCannotEvaluateUndo": "Undo",
-  "evaluationCardActionReview": "Review",
-  "evaluationCardActionEdit": "Edit",
-  "evaluationListIntro": "Tap Review on each person to rate their contribution.",
-  "evaluationProgressRemainingHint": "Left to review: {count}. Did not see someone's contribution? Mark \"Cannot evaluate\" on their card.",
-  "@evaluationProgressRemainingHint": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "evaluationCapabilityChoose": "What exactly?",
-  "evaluationCapabilityChooseInfo": "This list combines this request's needs, the types of help in this person's active help offer, and any tags you already saved for them. Mark what they specifically helped with in this request. After the review window closes, only they see these marks. Tentura uses them as private cues for your future routing suggestions — not a public rating.",
-  "evaluationCapabilityDone": "Done",
-  "evaluationCapabilityAdditional": "+{count}",
-  "@evaluationCapabilityAdditional": {"placeholders": {"count": {"type": "int"}}},
-  "evaluationReceivedSeeReviewWindowStatus": "See review window status",
-  "reviewWindowViewReceivedReviewsAction": "See the reviews you receive",
-  "closedRequestViewMyReviewsAction": "View my reviews",
-  "evaluationTrustLessSummary": "Less",
-  "evaluationTrustMoreSummary": "More",
-  "evaluationTrustNoChangeSummary": "No change",
-  "evaluationSubjectiveTrustHint": "This is your subjective assessment of a specific interaction. It is not a public rating.",
-  "evaluationAckOptionalHeading": "Acknowledge skills (optional)",
-  "evaluationReasonRequiredHeading": "Choose reason (required)",
-  "@evaluationReasonRequiredHeading": {
-    "context": "EvaluationDetailSheet"
-  },
-  "evaluationReasonOptionalHeading": "Reason (optional)",
-  "@evaluationReasonOptionalHeading": {
-    "context": "EvaluationDetailSheet"
-  },
-  "evaluationReasonUnknown": "Reason",
-  "@evaluationReasonUnknown": {
-    "context": "EvaluationDetailSheet",
-    "description": "Fallback label when an unknown reason tag slug is encountered"
-  },
-  "evaluationNoteLabelOptional": "Short note (optional) — only you and {name} will see it",
-  "@evaluationNoteLabelOptional": {
-    "context": "EvaluationDetailSheet",
-    "placeholders": {
-      "name": {"type": "String"}
-    }
-  },
-  "evaluationReasonClearRequest": "Clear request",
-  "evaluationReasonFairClosure": "Fair closure",
-  "evaluationReasonUsefulUpdates": "Useful updates",
-  "evaluationReasonCoordinatedWell": "Coordinated well",
-  "evaluationReasonUnclearRequest": "Unclear request",
-  "evaluationReasonPoorUpdates": "Poor updates",
-  "evaluationReasonClosedUnfairly": "Closed unfairly",
-  "evaluationReasonHardToCoordinate": "Hard to coordinate",
-  "evaluationReasonDeliveredAsPromised": "Delivered as promised",
-  "evaluationReasonVeryUseful": "Very useful",
-  "evaluationReasonCommunicatedHonestly": "Communicated honestly",
-  "evaluationReasonAboveExpectation": "Above expectation",
-  "evaluationReasonDidNotFollowThrough": "Did not follow through",
-  "evaluationReasonOverpromised": "Overpromised",
-  "evaluationReasonCreatedExtraWork": "Created extra work",
-  "evaluationReasonPoorCommunication": "Poor communication",
-  "evaluationReasonReachedRightPerson": "Reached the right person",
-  "evaluationReasonForwardedQuickly": "Forwarded quickly",
-  "evaluationReasonUsefulRoutingNote": "Useful routing note",
-  "evaluationReasonCrucialBridge": "Crucial bridge",
-  "evaluationReasonSentToWrongPeople": "Sent to the wrong people",
-  "evaluationReasonCreatedNoise": "Created noise",
-  "evaluationReasonForwardedTooLate": "Forwarded too late",
-  "evaluationReasonMisleadingNote": "Misleading note",
-  "evaluationTonePositive": "Mostly positive",
-  "evaluationToneMixed": "Mixed",
-  "evaluationToneNegative": "Mostly negative",
-  "evaluationReviewPeriodEndsIn": "Review period ends in {remaining}.",
-  "@evaluationReviewPeriodEndsIn": {
-    "placeholders": {
-      "remaining": {
-        "type": "String"
-      }
-    }
-  },
-  "evaluationReviewDurationDaysHours": "{days}d {hours}h",
-  "@evaluationReviewDurationDaysHours": {
+  "durationRemainingDaysHours": "{days}d {hours}h",
+  "@durationRemainingDaysHours": {
     "placeholders": {
       "days": {
         "type": "int"
@@ -4495,8 +4188,8 @@
       }
     }
   },
-  "evaluationReviewDurationHoursMinutes": "{hours}h {minutes}m",
-  "@evaluationReviewDurationHoursMinutes": {
+  "durationRemainingHoursMinutes": "{hours}h {minutes}m",
+  "@durationRemainingHoursMinutes": {
     "placeholders": {
       "hours": {
         "type": "int"
@@ -4506,15 +4199,15 @@
       }
     }
   },
-  "evaluationReviewDurationMinutes": "{minutes}m",
-  "@evaluationReviewDurationMinutes": {
+  "durationRemainingMinutes": "{minutes}m",
+  "@durationRemainingMinutes": {
     "placeholders": {
       "minutes": {
         "type": "int"
       }
     }
   },
-  "evaluationReviewDurationLessThanMinute": "<1m",
+  "durationRemainingLessThanMinute": "<1m",
   "labelHelpTypeOptional": "Type of help (optional)",
   "labelWithdrawReasonRequired": "Why are you stepping back?",
   "coordinationNeutral": "—",
@@ -4744,12 +4437,10 @@
   "beaconHudOverflowMore": "More actions",
   "beaconHudOverflowCloseBeacon": "Close request…",
   "beaconHudYouAuthorReadyToClose": "Close the loop",
-  "beaconHudYouAuthorReviewBeforeClose": "Review help offers before closing",
   "beaconHudYouAuthorCoordinationActive": "Coordination still active — update or forward",
   "beaconHudTokenReadyToClose": "READY TO CLOSE",
   "beaconHudTokenReviewBeforeClose": "REVIEW BEFORE CLOSE",
   "beaconHudTokenClosureBlocked": "CLOSURE BLOCKED",
-  "beaconHudCtaReviewContributions": "Review",
   "beaconHudCtaOpenLog": "Log",
   "beaconCloseSheetReadyTitle": "Close request?",
   "beaconCloseSheetReadyBody": "This marks the request complete and opens contribution acknowledgement.",
@@ -4802,27 +4493,11 @@
   "beaconReviewReopenSuccess": "Request reopened",
   "beaconReviewCloseNowSuccess": "Request closed",
   "beaconReviewReopenTitle": "Reopen request?",
-  "beaconReviewReopenBody": "The review window closes. {sent} people already sent their reviews — their send is undone and they must send again. A request can be reopened only once.",
-  "@beaconReviewReopenBody": {
-    "placeholders": {
-      "sent": {
-        "type": "int"
-      }
-    }
-  },
   "beaconReviewReopenBodyNoSent": "The review window closes; saved answers stay drafts. A request can be reopened only once.",
   "beaconReviewReopenConfirm": "Reopen",
   "beaconNeedsMoreHelpRevertTitle": "Need more help?",
   "beaconNeedsMoreHelpRevertBody": "Returns to Open and marks more help needed. Review notes are kept as drafts where still relevant.",
   "beaconNeedsMoreHelpRevertConfirm": "Need more help",
-  "beaconReviewWindowClosesAt": "Closes {date}",
-  "@beaconReviewWindowClosesAt": {
-    "placeholders": {
-      "date": {
-        "type": "String"
-      }
-    }
-  },
   "beaconReviewCloseNowBlocked": "Close now is available when every required reviewer has finished or skipped.",
   "beaconDeleteBlockedTitle": "Cannot delete",
   "beaconDeleteBlockedBody": "This request had acknowledged helpers. Archive it from My desk instead.",
@@ -4876,36 +4551,11 @@
   "beaconCtaUpdateStatus": "Update status",
   "beaconHudActMarkEnoughHelp": "We have enough help",
   "beaconHudActWrapUpForReview": "Wrap up for review",
-  "beaconHudActReviewContributions": "Review contributions",
-  "beaconHudActEffectReviewProgress": "{count} of {total} left",
-  "@beaconHudActEffectReviewProgress": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      },
-      "total": {
-        "type": "int"
-      }
-    }
-  },
-  "beaconHudReviewSent": "Your reviews are sent",
-  "beaconHudReviewEdit": "Edit",
-  "beaconHudWaitingForRequiredReviews": "Waiting for the other participants' reviews",
-  "beaconHudWaitingForAuthorClose": "Waiting for the author to close the request",
   "beaconReviewCloseNowBody": "Reviews become visible to their recipients and can no longer be changed.",
-  "beaconReviewCloseNowDiscardNote": "{count} people started a review and did not send it — it will not be kept.",
-  "@beaconReviewCloseNowDiscardNote": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "beaconHudActEffectResolveBlocker": "Opens Items to clear the blocker",
   "beaconHudActEffectReviewOffers": "Opens People; accept adds helper to the discussion",
   "beaconHudActEffectMarkEnoughHelp": "Signals helpers; request stays open",
   "beaconHudActEffectWrapUpForReview": "Starts review window; helpers can acknowledge",
-  "beaconHudActEffectReviewContributions": "Opens your review checklist",
   "beaconHudActEffectCloseNow": "Closes request when all reviews are in",
   "beaconHudActEffectForward": "Shares request; does not change discussion access",
   "beaconHudYouChangeStatusInOverflow": "Change request state in ⋮ menu",
@@ -6377,26 +6027,6 @@
   "updatesFallbackBodyRoomMessagePosted": "New activity in a request thread.",
   "updatesFallbackTitleRequestStatusChanged": "Request status changed",
   "updatesFallbackBodyRequestStatusChanged": "A request status changed.",
-  "updatesFallbackTitleReviewOpened": "Close the loop",
-  "updatesFallbackBodyReviewOpened": "A request is ready for review.",
-  "updatesFallbackTitleReviewAllIn": "All reviews are in",
-  "updatesFallbackBodyReviewAllIn": "The request “{title}” can be closed.",
-  "@updatesFallbackBodyReviewAllIn": {
-    "placeholders": {
-      "title": {
-        "type": "String"
-      }
-    }
-  },
-  "updatesFallbackTitleReviewCancelled": "Review window cancelled",
-  "updatesFallbackBodyReviewCancelled": "The author reopened the request “{title}”.",
-  "@updatesFallbackBodyReviewCancelled": {
-    "placeholders": {
-      "title": {
-        "type": "String"
-      }
-    }
-  },
   "updatesFallbackTitleMutualConnectionFormed": "New connection",
   "updatesFallbackBodyMutualConnectionFormed": "You are now connected on Tentura.",
   "updatesFallbackTitleInviteAccepted": "Invitation accepted",

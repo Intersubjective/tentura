@@ -46,22 +46,16 @@ enum BeaconStatusMenuDisabledReason {
   reopenLimitReached,
 }
 
-class ReviewWindowMenuSnapshot {
-  const ReviewWindowMenuSnapshot({
-    required this.reviewedCount,
-    required this.totalCount,
-    required this.windowComplete,
+class ClosureMenuSnapshot {
+  const ClosureMenuSnapshot({
     required this.extensionsUsed,
     this.canCloseNow,
     this.canReopen,
-    this.maxExtensions = kMaxBeaconReviewExtensions,
+    this.maxExtensions = kMaxBeaconClosureExtensions,
   });
 
-  static const int kMaxBeaconReviewExtensions = 2;
+  static const int kMaxBeaconClosureExtensions = 2;
 
-  final int reviewedCount;
-  final int totalCount;
-  final bool windowComplete;
   final int extensionsUsed;
   final bool? canCloseNow;
   final bool? canReopen;
@@ -81,7 +75,7 @@ class BeaconStatusMenuInput {
     required this.hasCommitters,
     required this.canManageLifecycle,
     required this.canSetCoordination,
-    this.reviewWindow,
+    this.closure,
     this.allowForceCloseWhenBlocked = false,
     this.serverCanCancel,
   });
@@ -91,7 +85,7 @@ class BeaconStatusMenuInput {
   final bool hasCommitters;
   final bool canManageLifecycle;
   final bool canSetCoordination;
-  final ReviewWindowMenuSnapshot? reviewWindow;
+  final ClosureMenuSnapshot? closure;
   final bool allowForceCloseWhenBlocked;
   final bool? serverCanCancel;
 }
@@ -199,7 +193,7 @@ BeaconStatusMenuRow _openRow(BeaconStatusMenuInput input) {
 
   if (lifecycle == BeaconStatus.reviewOpen) {
     final canReopen =
-        input.canManageLifecycle && (input.reviewWindow?.serverCanReopen ?? true);
+        input.canManageLifecycle && (input.closure?.serverCanReopen ?? true);
     return BeaconStatusMenuRow(
       id: BeaconStatusMenuRowId.open,
       action: BeaconStatusMenuAction.reopen,
@@ -207,7 +201,7 @@ BeaconStatusMenuRow _openRow(BeaconStatusMenuInput input) {
       isEnabled: canReopen,
       disabledReason: switch ((
         input.canManageLifecycle,
-        input.reviewWindow?.serverCanReopen,
+        input.closure?.serverCanReopen,
       )) {
         (false, _) => BeaconStatusMenuDisabledReason.lifecycleAuthorOnly,
         (true, false) => BeaconStatusMenuDisabledReason.reopenLimitReached,
@@ -307,7 +301,7 @@ bool _closeBlocked(BeaconStatusMenuInput input) =>
 
 BeaconStatusMenuRow _wrappingUpRow(BeaconStatusMenuInput input) {
   final lifecycle = input.beacon.status;
-  final review = input.reviewWindow;
+  final review = input.closure;
 
   if (lifecycle == BeaconStatus.draft) {
     return const BeaconStatusMenuRow(
@@ -371,7 +365,7 @@ BeaconStatusMenuRow _wrappingUpRow(BeaconStatusMenuInput input) {
 
 BeaconStatusMenuRow _closedRow(BeaconStatusMenuInput input) {
   final lifecycle = input.beacon.status;
-  final review = input.reviewWindow;
+  final review = input.closure;
 
   if (lifecycle == BeaconStatus.draft) {
     return const BeaconStatusMenuRow(

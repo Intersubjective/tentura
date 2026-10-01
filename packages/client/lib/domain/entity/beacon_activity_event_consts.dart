@@ -38,7 +38,7 @@ abstract final class BeaconActivityEventTypeBits {
 
 /// [`beacon_activity_event.diff.reason`] for type [BeaconActivityEventTypeBits.beaconLifecycleChanged].
 abstract final class BeaconLifecycleChangeReason {
-  static const reviewWindowOpened = 'reviewWindowOpened';
+  static const closureOpened = 'closureOpened';
   static const directClose = 'directClose';
   static const authorCloseNow = 'authorCloseNow';
   static const reviewExpired = 'reviewExpired';

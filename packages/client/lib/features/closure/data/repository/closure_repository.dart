@@ -4,6 +4,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura/data/gql/_g/schema.schema.gql.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 
+import '../../domain/entity/beacon_close_result.dart';
 import '../../domain/entity/closure_band.dart';
 import '../../domain/entity/closure_draft_flag.dart';
 import '../../domain/entity/closure_member.dart';
@@ -11,6 +12,7 @@ import '../../domain/entity/closure_outcome.dart';
 import '../../domain/entity/closure_result.dart';
 import '../../domain/entity/closure_role.dart';
 import '../../domain/entity/closure_state.dart';
+import '../gql/_g/beacon_cancel.req.gql.dart';
 import '../gql/_g/beacon_close.req.gql.dart';
 import '../gql/_g/beacon_close_now.req.gql.dart';
 import '../gql/_g/beacon_extend_closure.req.gql.dart';
@@ -264,4 +266,59 @@ class ClosureRepository {
       )
       .firstWhere((e) => e.dataSource == DataSource.Link)
       .then((r) => r.dataOrThrow(label: _label));
+
+  Future<BeaconLifecycleMutationResult> beaconCancel(String beaconId) =>
+      _remoteApiService
+          .request(GBeaconCancelReq((b) => b.vars.id = beaconId))
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then((r) {
+            final result = r.dataOrThrow(label: _label).beaconCancel;
+            return BeaconLifecycleMutationResult(
+              beaconId: result.id,
+              state: result.status,
+            );
+          });
+
+  // The request-view and My Work callers carry no epoch, so each of these
+  // reads the closure state first and reports the state it ends in.
+
+  Future<BeaconCloseResult> beaconClose({required String beaconId}) async {
+    await close(beaconId);
+    final closure = await fetchState(beaconId);
+    return BeaconCloseResult(
+      beaconId: beaconId,
+      state: closure.status,
+      closesAt: closure.closesAt.toIso8601String(),
+    );
+  }
+
+  Future<BeaconExtendReviewResult> beaconExtendReview(String beaconId) async {
+    final before = await fetchState(beaconId);
+    await extendClosure(beaconId: beaconId, expectedEpoch: before.epoch);
+    final after = await fetchState(beaconId);
+    return BeaconExtendReviewResult(
+      beaconId: beaconId,
+      closesAt: after.closesAt.toIso8601String(),
+    );
+  }
+
+  Future<BeaconLifecycleMutationResult> beaconReopen(String beaconId) async {
+    final before = await fetchState(beaconId);
+    await reopen(beaconId: beaconId, expectedEpoch: before.epoch);
+    final after = await fetchState(beaconId);
+    return BeaconLifecycleMutationResult(
+      beaconId: beaconId,
+      state: after.status,
+    );
+  }
+
+  Future<BeaconLifecycleMutationResult> beaconCloseNow(String beaconId) async {
+    final before = await fetchState(beaconId);
+    await closeNow(beaconId: beaconId, expectedEpoch: before.epoch);
+    final after = await fetchState(beaconId);
+    return BeaconLifecycleMutationResult(
+      beaconId: beaconId,
+      state: after.status,
+    );
+  }
 }

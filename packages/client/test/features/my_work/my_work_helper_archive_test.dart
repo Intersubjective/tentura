@@ -15,7 +15,7 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/commitment_stake_state.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
-import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';
+import 'package:tentura/features/closure/data/repository/closure_repository.dart';
 import 'package:tentura/features/my_work/domain/derive_my_work_cards.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_fetch_types.dart';
@@ -66,9 +66,9 @@ void main() {
     if (!GetIt.I.isRegistered<BeaconRepository>()) {
       GetIt.I.registerSingleton<BeaconRepository>(FakeBeaconRepository());
     }
-    if (!GetIt.I.isRegistered<EvaluationRepository>()) {
-      GetIt.I.registerSingleton<EvaluationRepository>(
-        EvaluationRepositoryMock(),
+    if (!GetIt.I.isRegistered<ClosureRepository>()) {
+      GetIt.I.registerSingleton<ClosureRepository>(
+        ClosureRepositoryMock(),
       );
     }
   });
@@ -77,8 +77,8 @@ void main() {
     for (final unregister in <void Function()>[
       if (GetIt.I.isRegistered<BeaconRepository>())
         GetIt.I.unregister<BeaconRepository>,
-      if (GetIt.I.isRegistered<EvaluationRepository>())
-        GetIt.I.unregister<EvaluationRepository>,
+      if (GetIt.I.isRegistered<ClosureRepository>())
+        GetIt.I.unregister<ClosureRepository>,
     ]) {
       unregister();
     }

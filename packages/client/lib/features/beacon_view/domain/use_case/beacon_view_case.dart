@@ -17,9 +17,9 @@ import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
-import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';
-import 'package:tentura/features/evaluation/domain/entity/beacon_close_result.dart';
-import 'package:tentura/features/evaluation/domain/entity/review_window_info.dart';
+import 'package:tentura/features/closure/data/repository/closure_repository.dart';
+import 'package:tentura/features/closure/domain/entity/beacon_close_result.dart';
+import 'package:tentura/features/closure/domain/entity/closure_state.dart';
 import 'package:tentura/features/my_work/data/repository/archive_repository.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
@@ -42,7 +42,7 @@ final class BeaconViewCase extends UseCaseBase {
   BeaconViewCase(
     this._beaconRepository,
     this._forwardRepository,
-    this._evaluationRepository,
+    this._closureRepository,
     this._archiveRepository,
     this._coordinationRepository,
     this._displayRepository,
@@ -59,7 +59,7 @@ final class BeaconViewCase extends UseCaseBase {
 
   final ForwardRepository _forwardRepository;
 
-  final EvaluationRepository _evaluationRepository;
+  final ClosureRepository _closureRepository;
 
   final ArchiveRepository _archiveRepository;
 
@@ -121,32 +121,29 @@ final class BeaconViewCase extends UseCaseBase {
     required String beaconId,
     required bool expectedRequiresReviewWindow,
   }) async {
-    final result = await _evaluationRepository.beaconClose(
-      beaconId: beaconId,
-      expectedRequiresReviewWindow: expectedRequiresReviewWindow,
-    );
+    final result = await _closureRepository.beaconClose(beaconId: beaconId);
     await _beaconRepository.refreshAndNotify(beaconId);
     return result;
   }
 
   Future<void> beaconCancel(String beaconId) async {
-    await _evaluationRepository.beaconCancel(beaconId);
+    await _closureRepository.beaconCancel(beaconId);
     await _beaconRepository.refreshAndNotify(beaconId);
   }
 
   Future<BeaconExtendReviewResult> beaconExtendReview(String beaconId) async {
-    final result = await _evaluationRepository.beaconExtendReview(beaconId);
+    final result = await _closureRepository.beaconExtendReview(beaconId);
     await _beaconRepository.refreshAndNotify(beaconId);
     return result;
   }
 
   Future<void> beaconReopen(String beaconId) async {
-    await _evaluationRepository.beaconReopen(beaconId);
+    await _closureRepository.beaconReopen(beaconId);
     await _beaconRepository.refreshAndNotify(beaconId);
   }
 
   Future<void> beaconCloseNow(String beaconId) async {
-    await _evaluationRepository.beaconCloseNow(beaconId);
+    await _closureRepository.beaconCloseNow(beaconId);
     await _beaconRepository.refreshAndNotify(beaconId);
   }
 
@@ -157,12 +154,6 @@ final class BeaconViewCase extends UseCaseBase {
     required String beaconId,
     required String userId,
   }) => _archiveRepository.unarchive(beaconId: beaconId, userId: userId);
-
-  /// True when the viewer has at least one draft evaluation participant (open beacon).
-  Future<bool> beaconHasDraftEvaluationTargets(String beaconId) async {
-    final list = await _evaluationRepository.fetchDraftParticipants(beaconId);
-    return list.isNotEmpty;
-  }
 
   Future<bool> forwardOfferHelp({
     required String beaconId,
@@ -514,12 +505,10 @@ final class BeaconViewCase extends UseCaseBase {
     await _beaconRepository.refreshAndNotify(beaconId);
   }
 
-  Future<ReviewWindowInfo?> fetchReviewWindowStatusIfReviewOpen(
-    String beaconId,
-  ) async {
+  Future<ClosureState?> fetchClosureStateIfReviewOpen(String beaconId) async {
     final beacon = await fetchBeaconById(beaconId);
     if (beacon.status != BeaconStatus.reviewOpen) return null;
-    return _evaluationRepository.fetchReviewWindowStatus(beaconId);
+    return _closureRepository.fetchState(beaconId);
   }
 
   Future<Beacon> fork(String sourceId) => _beaconRepository.fork(sourceId);

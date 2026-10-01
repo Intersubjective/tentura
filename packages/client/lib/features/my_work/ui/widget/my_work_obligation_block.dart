@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
-import 'package:tentura/features/evaluation/domain/review_package_state.dart';
 import 'package:tentura/features/inbox/ui/widget/activity_event_subcard_block.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/features/my_work/domain/group_my_work_obligations.dart';
@@ -20,14 +19,12 @@ bool myWorkObligationBlockVisible({
   required List<AttentionReceipt> obligations,
   List<AttentionReceipt> optionalEvents = const [],
   bool suppressReviewHelpOffersFallback = false,
-  bool suppressReviewFallback = false,
 }) {
   if (obligations.isNotEmpty) return true;
   if (optionalEvents.isNotEmpty) return true;
   if (vm.showReviewHelpOffersCta && !suppressReviewHelpOffersFallback) {
     return true;
   }
-  if (vm.showReviewCta && !suppressReviewFallback) return true;
   return false;
 }
 
@@ -48,10 +45,8 @@ class MyWorkObligationBlock extends StatelessWidget {
     this.onClearEvent,
     this.onOpenTimeline,
     this.onReviewHelpOffers,
-    this.onReviewContributions,
     this.onRespondHelpOffer,
     this.suppressReviewHelpOffersFallback = false,
-    this.suppressReviewFallback = false,
     super.key,
   });
 
@@ -69,7 +64,6 @@ class MyWorkObligationBlock extends StatelessWidget {
 
   final VoidCallback? onOpenTimeline;
   final VoidCallback? onReviewHelpOffers;
-  final VoidCallback? onReviewContributions;
 
   /// Opens the People help-offer sheet for [offererId].
   final void Function(String offererId)? onRespondHelpOffer;
@@ -77,10 +71,6 @@ class MyWorkObligationBlock extends StatelessWidget {
   /// When true, do not show the aggregate Review-offers tonal CTA (footer
   /// already provides that destination).
   final bool suppressReviewHelpOffersFallback;
-
-  /// When true, do not show the Review tonal CTA (footer / sub-card already
-  /// provides ReviewContributionsRoute).
-  final bool suppressReviewFallback;
 
   @override
   Widget build(BuildContext context) {
@@ -97,7 +87,6 @@ class MyWorkObligationBlock extends StatelessWidget {
       for (final g in groups)
         if (g.isHelpOffer && _respondCallback(g) != null) g.primary.id,
     };
-    final hasReviewGroup = groups.any((g) => g.isReview);
     final groupByReceiptId = <String, MyWorkObligationGroup>{
       for (final group in groups) group.primary.id: group,
     };
@@ -106,29 +95,21 @@ class MyWorkObligationBlock extends StatelessWidget {
     // per-offer Respond sheet — keep when CTA flag is set unless footer owns it.
     final showAggregateReviewOffers =
         vm.showReviewHelpOffersCta && !suppressReviewHelpOffersFallback;
-    final showReviewFallback =
-        vm.showReviewCta && !suppressReviewFallback && !hasReviewGroup;
 
     final rows = <AttentionReceipt>[
       for (final group in groups) group.primary,
       ...optionalEvents,
     ];
 
-    if (rows.isEmpty && !showAggregateReviewOffers && !showReviewFallback) {
+    if (rows.isEmpty && !showAggregateReviewOffers) {
       return const SizedBox.shrink();
     }
 
     final primaryCtaLabel = showAggregateReviewOffers
         ? l10n.myWorkReviewHelpOffersCta
-        : showReviewFallback
-        ? (vm.reviewPackageState == ReviewPackageState.changedNotSent
-              ? l10n.evaluationSubmitChanges
-              : l10n.myWorkReviewCta)
         : null;
     final primaryOnPressed = showAggregateReviewOffers
         ? onReviewHelpOffers
-        : showReviewFallback
-        ? onReviewContributions
         : null;
 
     // Obligations up to the group cap, plus one optional line — so the × is
@@ -251,30 +232,17 @@ class MyWorkObligationBlock extends StatelessWidget {
     return () => respond(offererId);
   }
 
-  /// A review obligation the viewer has already opened by deep link and left
-  /// a draft behind reads as in progress — opening a CTA and saving an unsent
-  /// draft resolves nothing, so the obligation stays and says so (D04).
   String? _ctaLabel(L10n l10n, MyWorkObligationGroup group) {
     if (group.isHelpOffer) {
       return onRespondHelpOffer == null || group.offererId == null
           ? null
           : l10n.myWorkObligationRespond;
     }
-    if (group.isReview) {
-      if (onReviewContributions == null) return null;
-      return switch (vm.reviewPackageState) {
-        ReviewPackageState.changedNotSent => l10n.evaluationSubmitChanges,
-        ReviewPackageState.readyToSend => l10n.evaluationSubmitFinish,
-        ReviewPackageState.inProgress => l10n.evaluationBannerDraftReview,
-        _ => l10n.myWorkReviewCta,
-      };
-    }
     return null;
   }
 
   VoidCallback? _ctaCallback(MyWorkObligationGroup group) {
     if (group.isHelpOffer) return _respondCallback(group);
-    if (group.isReview) return onReviewContributions;
     return null;
   }
 }

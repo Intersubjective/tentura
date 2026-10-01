@@ -7,7 +7,6 @@ import 'package:tentura/domain/entity/coordination_responsibility.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/open_blocker_cue.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/features/evaluation/domain/review_package_state.dart';
 
 import 'my_work_last_event.dart';
 
@@ -30,8 +29,8 @@ enum MyWorkCardKind {
 enum MyWorkMembershipSource { authored, helpOffered, obligation }
 
 enum MyWorkAttentionChip {
-  /// Author: beacon in review window (Wrapping up).
-  reviewWindowOpen,
+  /// Author: beacon is wrapping up (closure open).
+  wrappingUp,
 
   /// Author: beacon-level "more help needed".
   moreHelpNeeded,
@@ -49,15 +48,7 @@ abstract class MyWorkCardViewModel with _$MyWorkCardViewModel {
     @Default(CommitmentStakeState.none) CommitmentStakeState stakeState,
     @Default([]) List<Profile> forwarderSenders,
     @Default(false) bool showReviewHelpOffersCta,
-    @Default(false) bool showReviewCta,
     @Default(false) bool showCloseNowCta,
-
-    /// Viewer's review package on a reviewOpen card; null until the batch
-    /// window read enriches the card.
-    ReviewPackageState? reviewPackageState,
-
-    /// Window-level: every required package is in (author waiting copy).
-    @Default(false) bool reviewAllRequiredSent,
     @Default(false) bool showArchiveAffordance,
     MyWorkAttentionChip? attentionChip,
 

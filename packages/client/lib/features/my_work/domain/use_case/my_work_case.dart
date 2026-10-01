@@ -22,8 +22,8 @@ import 'package:tentura/features/inbox/domain/entity/inbox_room_card_hints.dart'
 import '../../data/repository/archive_repository.dart';
 import '../../data/repository/my_work_repository.dart';
 import 'package:tentura/features/beacon_view/data/repository/beacon_display_repository.dart';
-import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';
-import 'package:tentura/features/evaluation/domain/entity/review_window_info.dart';
+import 'package:tentura/features/closure/data/repository/closure_repository.dart';
+import 'package:tentura/features/closure/domain/entity/closure_state.dart';
 import '../derive_my_work_cards.dart';
 import '../entity/my_work_card_view_model.dart';
 import '../entity/my_work_desk_load_types.dart';
@@ -40,7 +40,7 @@ final class MyWorkCase extends UseCaseBase {
     this._beaconRoomCase,
     this._roomHints,
     this._displayRepository,
-    this._evaluationRepository,
+    this._closureRepository,
     this._realtimeSyncCase,
     this._bookkeepingRefreshSignal,
     this._attentionCase, {
@@ -61,7 +61,7 @@ final class MyWorkCase extends UseCaseBase {
   final BeaconRoomHintsRepository _roomHints;
 
   final BeaconDisplayRepository _displayRepository;
-  final EvaluationRepository _evaluationRepository;
+  final ClosureRepository _closureRepository;
   final RealtimeSyncCase _realtimeSyncCase;
 
   final BookkeepingRefreshSignal _bookkeepingRefreshSignal;
@@ -73,9 +73,6 @@ final class MyWorkCase extends UseCaseBase {
 
   Stream<HelpOfferEvent> get helpOfferChanges =>
       _forwardRepository.helpOfferChanges;
-
-  Stream<void> get reviewPackageChanges =>
-      _evaluationRepository.reviewPackageChanges;
 
   Stream<String> get forwardChanges => _forwardRepository.forwardChanges;
 
@@ -131,47 +128,38 @@ final class MyWorkCase extends UseCaseBase {
     );
   }
 
-  Future<List<MyWorkCardViewModel>> loadReviewWindows(
-    List<MyWorkCardViewModel> cards, {
-    required String userId,
-  }) async {
-    final reviewOpenIds = [
+  /// Lets the author close a wrapping-up Request from its desk card once the
+  /// closure state allows it. A card whose state cannot be read stays as is.
+  Future<List<MyWorkCardViewModel>> loadClosureStates(
+    List<MyWorkCardViewModel> cards,
+  ) async {
+    final authoredWrappingUp = [
       for (final c in cards)
-        if (c.beacon.status == BeaconStatus.reviewOpen) c.beaconId,
+        if (c.beacon.status == BeaconStatus.reviewOpen &&
+            c.role == MyWorkCardRole.authored)
+          c.beaconId,
     ];
-    if (reviewOpenIds.isEmpty) {
+    if (authoredWrappingUp.isEmpty) {
       return cards;
     }
-    final windows = await _evaluationRepository.fetchReviewWindowStatuses(
-      reviewOpenIds,
-    );
-    final windowByBeacon = {for (final w in windows) w.beaconId: w};
+    final states = <String, ClosureState>{};
+    await Future.wait([
+      for (final id in authoredWrappingUp)
+        () async {
+          try {
+            states[id] = await _closureRepository.fetchState(id);
+          } on Object catch (_) {
+            // Never infer Close now from partial data.
+          }
+        }(),
+    ]);
     return [
       for (final card in cards)
-        if (card.beacon.status != BeaconStatus.reviewOpen)
-          card
+        if (states[card.beaconId]?.canCloseNow == true)
+          card.copyWith(showCloseNowCta: true)
         else
-          _withReviewWindow(card, windowByBeacon[card.beaconId]),
+          card,
     ];
-  }
-
-  MyWorkCardViewModel _withReviewWindow(
-    MyWorkCardViewModel card,
-    ReviewWindowInfo? window,
-  ) {
-    final package = deriveMyWorkReviewPackageState(
-      beaconStatus: card.beacon.status,
-      review: window,
-    );
-    return card.copyWith(
-      reviewPackageState: package,
-      reviewAllRequiredSent: window?.allRequiredSent ?? false,
-      showReviewCta: myWorkReviewPackageNeedsAction(package),
-      showCloseNowCta:
-          card.showCloseNowCta ||
-          (card.role == MyWorkCardRole.authored &&
-              window?.canCloseNow == true),
-    );
   }
 
   Future<Map<String, MyWorkBeaconAttention>> loadMyWorkAttention(

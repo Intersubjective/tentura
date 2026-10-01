@@ -1,3 +1,0 @@
-mutation EvaluationSkip($id: String!) {
-  evaluationSkip(id: $id)
-}
