@@ -309,15 +309,18 @@ final class ForwardCase extends UseCaseBase {
             attributionParentEdgeIds: attributionParentEdgeIds,
           );
 
-          await transaction.record(
-            await _attentionIntents!.relayReceived(
-              beaconId: beaconId,
-              senderId: senderId,
-              beaconAuthorId: beacon.author.id,
-              recipientIds: insertedRecipientIds,
-              sourceEventKey: 'forward_batch:$batchId',
-            ),
-          );
+          final intents = _attentionIntents;
+          if (intents != null) {
+            await transaction.record(
+              await intents.relayReceived(
+                beaconId: beaconId,
+                senderId: senderId,
+                beaconAuthorId: beacon.author.id,
+                recipientIds: insertedRecipientIds,
+                sourceEventKey: 'forward_batch:$batchId',
+              ),
+            );
+          }
         }
         return ForwardDeliveryResult(
           batchId: batchId,

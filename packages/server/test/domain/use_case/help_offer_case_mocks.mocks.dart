@@ -1327,6 +1327,47 @@ class MockForwardEdgeRepositoryPort extends _i1.Mock
             returnValue: _i3.Future<Set<String>>.value(<String>{}),
           )
           as _i3.Future<Set<String>>);
+
+  @override
+  _i3.Future<
+    List<
+      ({String beaconId, String edgeId, String recipientId, String senderId})
+    >
+  >
+  claimIgnoredContacts({int? limit = 200}) =>
+      (super.noSuchMethod(
+            Invocation.method(#claimIgnoredContacts, [], {#limit: limit}),
+            returnValue:
+                _i3.Future<
+                  List<
+                    ({
+                      String beaconId,
+                      String edgeId,
+                      String recipientId,
+                      String senderId,
+                    })
+                  >
+                >.value(
+                  <
+                    ({
+                      String beaconId,
+                      String edgeId,
+                      String recipientId,
+                      String senderId,
+                    })
+                  >[],
+                ),
+          )
+          as _i3.Future<
+            List<
+              ({
+                String beaconId,
+                String edgeId,
+                String recipientId,
+                String senderId,
+              })
+            >
+          >);
 }
 
 /// A class which mocks [InboxRepositoryPort].

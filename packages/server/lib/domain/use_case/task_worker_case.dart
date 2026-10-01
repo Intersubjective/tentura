@@ -23,6 +23,7 @@ import 'package:tentura_server/domain/use_case/capability_telemetry_case.dart';
 import 'package:tentura_server/domain/use_case/user_availability_case.dart';
 import 'package:tentura_server/domain/use_case/deadline_reminder_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/closure_draft_reminder_sweep_case.dart';
+import 'package:tentura_server/domain/use_case/contact_resolution_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/closure_finalize_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/stale_request_reminder_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/trust_publisher_case.dart';
@@ -59,6 +60,7 @@ final class TaskWorkerCase extends UseCaseBase {
     ClosureFinalizeSweepCase closureFinalizeSweep,
     ClosureDraftReminderSweepCase closureDraftReminderSweep,
     StaleRequestReminderSweepCase staleRequestReminderSweep,
+    ContactResolutionSweepCase contactResolutionSweep,
   ) => Future.value(
     TaskWorkerCase(
       imageRepository,
@@ -85,6 +87,7 @@ final class TaskWorkerCase extends UseCaseBase {
       closureFinalizeSweep: closureFinalizeSweep,
       closureDraftReminderSweep: closureDraftReminderSweep,
       staleRequestReminderSweep: staleRequestReminderSweep,
+      contactResolutionSweep: contactResolutionSweep,
       env: env,
       logger: logger,
     ),
@@ -112,6 +115,7 @@ final class TaskWorkerCase extends UseCaseBase {
     ClosureFinalizeSweepCase? closureFinalizeSweep,
     ClosureDraftReminderSweepCase? closureDraftReminderSweep,
     StaleRequestReminderSweepCase? staleRequestReminderSweep,
+    ContactResolutionSweepCase? contactResolutionSweep,
     required super.env,
     required super.logger,
   }) : _imageObjectGc = imageObjectGc,
@@ -130,7 +134,8 @@ final class TaskWorkerCase extends UseCaseBase {
        _trustPublisher = trustPublisher,
        _closureFinalizeSweep = closureFinalizeSweep,
        _closureDraftReminderSweep = closureDraftReminderSweep,
-       _staleRequestReminderSweep = staleRequestReminderSweep;
+       _staleRequestReminderSweep = staleRequestReminderSweep,
+       _contactResolutionSweep = contactResolutionSweep;
 
   final ImageRepositoryPort _imageRepository;
 
@@ -157,6 +162,7 @@ final class TaskWorkerCase extends UseCaseBase {
   final ClosureFinalizeSweepCase? _closureFinalizeSweep;
   final ClosureDraftReminderSweepCase? _closureDraftReminderSweep;
   final StaleRequestReminderSweepCase? _staleRequestReminderSweep;
+  final ContactResolutionSweepCase? _contactResolutionSweep;
 
   /// Per-process identity for `image_object_gc` lease ownership (§3.4).
   final _gcLeaseOwner = generateId('W');
@@ -184,6 +190,7 @@ final class TaskWorkerCase extends UseCaseBase {
   var _lastClosureFinalizeSweep = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastClosureDraftReminderSweep = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastStaleRequestReminderSweep = DateTime.fromMillisecondsSinceEpoch(0);
+  var _lastContactResolutionSweep = DateTime.fromMillisecondsSinceEpoch(0);
 
   late final _tasks = <Future<void> Function()>[
     // Trust publisher: cadence 10 s; nudge() forces the next tick.
@@ -217,6 +224,16 @@ final class TaskWorkerCase extends UseCaseBase {
       }
       _lastClosureDraftReminderSweep = now;
       await _closureDraftReminderSweep?.runDue(now: now);
+    },
+    // Noisy contact: forwards unanswered past their deadline.
+    () async {
+      final now = DateTime.timestamp();
+      if (now.difference(_lastContactResolutionSweep) <
+          const Duration(hours: 1)) {
+        return;
+      }
+      _lastContactResolutionSweep = now;
+      await _contactResolutionSweep?.run();
     },
     // Weekly nudge to the author of a stale open request.
     () async {

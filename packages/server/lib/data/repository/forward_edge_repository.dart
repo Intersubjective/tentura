@@ -504,4 +504,40 @@ DO NOTHING
         cancelledAt: row.cancelledAt?.dateTime,
         recipientReadAt: row.recipientReadAt?.dateTime,
       );
+
+  @override
+  Future<List<IgnoredContact>> claimIgnoredContacts({int limit = 200}) async {
+    final rows = await _database
+        .customSelect(
+          r'''
+UPDATE public.beacon_forward_edge e
+SET contact_outcome = 3, contact_resolved_at = now()
+FROM (
+  SELECT f.id FROM public.beacon_forward_edge f
+  WHERE f.contact_resolved_at IS NULL
+    AND f.contact_deadline_at <= now()
+    AND NOT EXISTS (
+      SELECT 1 FROM public.inbox_item i
+      WHERE i.user_id = f.recipient_id AND i.beacon_id = f.beacon_id
+        AND i.status = 1)
+  ORDER BY f.contact_deadline_at
+  LIMIT $1
+  FOR UPDATE SKIP LOCKED
+) due
+WHERE e.id = due.id
+RETURNING e.id, e.beacon_id, e.sender_id, e.recipient_id
+''',
+          variables: [Variable<int>(limit)],
+        )
+        .get();
+    return [
+      for (final r in rows)
+        (
+          edgeId: r.read<String>('id'),
+          beaconId: r.read<String>('beacon_id'),
+          senderId: r.read<String>('sender_id'),
+          recipientId: r.read<String>('recipient_id'),
+        ),
+    ];
+  }
 }

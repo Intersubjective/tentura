@@ -125,4 +125,8 @@ class ForwardEdgeRepositoryMock implements ForwardEdgeRepositoryPort {
     required String senderId,
     required int withinDays,
   }) => Future.value(const {});
+
+  @override
+  Future<List<IgnoredContact>> claimIgnoredContacts({int limit = 200}) =>
+      Future.value(const []);
 }

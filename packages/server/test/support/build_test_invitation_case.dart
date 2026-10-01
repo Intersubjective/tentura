@@ -60,6 +60,10 @@ class _NoopForwardEdgeRepositoryPort implements ForwardEdgeRepositoryPort {
       _d.cancel(edgeId, senderId);
 
   @override
+  Future<List<IgnoredContact>> claimIgnoredContacts({int limit = 200}) =>
+      _d.claimIgnoredContacts(limit: limit);
+
+  @override
   Future<void> create({
     required String beaconId,
     required String senderId,

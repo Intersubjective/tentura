@@ -113,4 +113,18 @@ abstract class ForwardEdgeRepositoryPort {
     required String senderId,
     required int withinDays,
   });
+
+  /// Claims (`FOR UPDATE SKIP LOCKED`) up to [limit] tracked contacts whose
+  /// deadline has passed and resolves them as ignored (`contact_outcome` 3).
+  /// Watching recipients stay neutral and are not claimed. Runs inside the
+  /// caller's transaction.
+  Future<List<IgnoredContact>> claimIgnoredContacts({int limit = 200});
 }
+
+/// A forward-edge contact the deadline sweep resolved as ignored.
+typedef IgnoredContact = ({
+  String edgeId,
+  String beaconId,
+  String senderId,
+  String recipientId,
+});

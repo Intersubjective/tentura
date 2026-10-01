@@ -166,8 +166,10 @@ final class HelpOfferCase extends UseCaseBase {
               beaconId: beaconId,
               helpTypes: helpTypes,
             );
+            final intents = _attentionIntents;
+            if (intents == null) return;
             await transaction.record(
-              await _attentionIntents!.helpOfferSubmitted(
+              await intents.helpOfferSubmitted(
                 beaconId: beaconId,
                 helpOffererId: userId,
                 authorId: lockedBeacon.author.id,
