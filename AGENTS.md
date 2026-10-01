@@ -169,15 +169,3 @@ Tentura local dev scripts run from an Alloy worktree hit two footguns. (1) compo
 - **tentura-layout-pub-workspace-packages-client-flutter-run**: applied
 - **tentura-tests-always-wrap-flutter-test-dart-test**: applied
 <!-- alloy:memory-review:ptl:end -->
-<!-- tentura-jc0 landing gate acceptance (trial merge tentura-ptl) -->
-<!-- tentura-olc landing gate acceptance (trial merge tentura-21x) -->
-<!-- tentura-fx7 landing gate acceptance (trial merge tentura-50o) -->
-<!-- tentura-5zq landing gate acceptance (parent tentura-617.3) -->
-<!-- tentura-u6e landing gate acceptance (fix tentura-5zq) -->
-<!-- tentura-j0q landing gate acceptance (trial merge tentura-acz) -->
-<!-- tentura-kd9 landing gate acceptance (fix tentura-ah4 enospc selftest) -->
-<!-- tentura-uwq landing gate acceptance (fix tentura-ah4 wrapped selftest) -->
-<!-- tentura-pl4 landing gate acceptance (fix tentura-8u7) -->
-<!-- tentura-3i0m landing gate acceptance (fix tentura-8u7) -->
-<!-- tentura-30e landing gate acceptance (fix tentura-pl4) -->
-<!-- tentura-3w2 landing gate acceptance (fix tentura-pl4) -->

@@ -34,8 +34,7 @@ Object get _skipNestedCleanupOnGitHubActions {
   final env = Platform.environment;
   if (env['GITHUB_ACTIONS'] == 'true' ||
       env['CI'] == 'true' ||
-      env['TEST_TARGET'] == 'server' ||
-      env['TENTURA_U6E_NESTED_SUITE'] == 'true') {
+      env['TEST_TARGET'] == 'server') {
     return 'do not nest run_with_test_cleanup.sh inside CI dart test';
   }
   return false;
@@ -72,9 +71,6 @@ void main() {
         );
       },
       timeout: const Timeout(Duration(minutes: 3)),
-      skip: Platform.environment['TENTURA_U6E_NESTED_SUITE'] == 'true'
-          ? 'do not run a full-package dart analyze inside the u6e nested suite'
-          : false,
     );
 
     group('unused symbols are wired with real assertions or removed', () {
