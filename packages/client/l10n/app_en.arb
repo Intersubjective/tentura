@@ -7072,5 +7072,125 @@
   "closureAuthorStale": "The request changed, data refreshed",
   "@closureAuthorStale": {
     "description": "Snackbar after a stale-epoch write."
+  },
+  "closureHelperHeader": "Whose work do you think mattered? Your own share does not change with this",
+  "@closureHelperHeader": {
+    "description": "Helper screen header."
+  },
+  "closureHelperSupport": "☆ Support",
+  "@closureHelperSupport": {
+    "description": "Support toggle, off."
+  },
+  "closureHelperSupported": "★ Supporting",
+  "@closureHelperSupported": {
+    "description": "Support toggle, on."
+  },
+  "closureHelperLegend": "▲ get a top-up — ▼ give it up, those you did not choose",
+  "@closureHelperLegend": {
+    "description": "Legend of the up/down markers shown after the first support press."
+  },
+  "closureHelperSupportEdgeNote": "Supporting also slightly strengthens your link in the network with those you chose. They get no notification",
+  "@closureHelperSupportEdgeNote": {
+    "description": "Side effect of supporting (U59)."
+  },
+  "closureHelperReleased": "Supporting everyone is the same as supporting no one. Someone has to give up: the earliest was released ({name})",
+  "@closureHelperReleased": {
+    "description": "Hint when the server released the earliest support.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "closureHelperStatusCounted": "Counted: you support {names}",
+  "@closureHelperStatusCounted": {
+    "description": "Status line: the committed version equals the screen.",
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "closureHelperStatusCountedNone": "Counted: you support no one",
+  "@closureHelperStatusCountedNone": {
+    "description": "Status line: the committed version is empty."
+  },
+  "closureHelperStatusNone": "Not counted yet",
+  "@closureHelperStatusNone": {
+    "description": "Status line: nothing committed yet."
+  },
+  "closureHelperStatusDiffers": "The screen differs — “Done” will replace what is counted",
+  "@closureHelperStatusDiffers": {
+    "description": "Status line: the screen differs from the committed version."
+  },
+  "closureHelperDone": "Done",
+  "@closureHelperDone": {
+    "description": "Commits the helper's choice."
+  },
+  "closureHelperSkip": "Skip — I mark no one",
+  "@closureHelperSkip": {
+    "description": "Skips supporting anyone."
+  },
+  "closureHelperSkipNote": "Your own share never changes",
+  "@closureHelperSkipNote": {
+    "description": "Note under the skip button."
+  },
+  "closureHelperSkipConfirmTitle": "Skip?",
+  "@closureHelperSkipConfirmTitle": {
+    "description": "Title of the skip confirmation."
+  },
+  "closureHelperSkipConfirm": "Erase what is already counted?",
+  "@closureHelperSkipConfirm": {
+    "description": "Body of the skip confirmation."
+  },
+  "closureHelperSkipConfirmAction": "Skip",
+  "@closureHelperSkipConfirmAction": {
+    "description": "Confirm button of the skip confirmation."
+  },
+  "closureHelperEarlyClose": "The author can close after {when} — or earlier, once everyone has answered",
+  "@closureHelperEarlyClose": {
+    "description": "Early-close line.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "closureHelperDeadline": "Deadline: {when}",
+  "@closureHelperDeadline": {
+    "description": "Deadline line.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "closureHelperPrivacy": "In the app nobody sees your choice. From their own results others may guess it",
+  "@closureHelperPrivacy": {
+    "description": "Privacy line."
+  },
+  "closureHelperAuthorEdgeNotice": "When the request closes, a weak link from you to the author appears in the network: you worked together. If you do not want it, leave the request before it closes",
+  "@closureHelperAuthorEdgeNotice": {
+    "description": "U58 notice shown to every member while the epoch is evaluating."
+  },
+  "closureHelperBookmarkNote": "A bookmark slightly strengthens your link with this person in the network. They get no notification, the shares in this request do not change. You can set and remove it later too",
+  "@closureHelperBookmarkNote": {
+    "description": "Copy under the bookmark toggles."
+  },
+  "closureHelperInfoTooltip": "How it works",
+  "@closureHelperInfoTooltip": {
+    "description": "Tooltip of the (i) button."
+  },
+  "closureHelperInfoScaling": "You do not know how the author decided — and you do not need to. Support those whose work you think mattered. If the author already rated a person high, the top-up will be small; if low — noticeable. Mostly those whom the author gave more give it up. The author does not see your choice",
+  "@closureHelperInfoScaling": {
+    "description": "Text under the flow diagram."
+  },
+  "closureHelperDiagramExample": "example",
+  "@closureHelperDiagramExample": {
+    "description": "Label of the example flows in the diagram."
+  },
+  "closureHelperStale": "The request changed, data refreshed",
+  "@closureHelperStale": {
+    "description": "Snackbar after a stale-epoch write."
   }
 }
