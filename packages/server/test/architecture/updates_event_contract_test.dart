@@ -57,7 +57,7 @@ const _entryKeys = {
   'coveringTest',
 };
 
-const _pendingProducerEventTypes = <String>[];
+const _pendingProducerEventTypes = <String>['obligationEnded'];
 
 const _expectedEventTypes = <Map<String, String>>[
   {
@@ -126,7 +126,7 @@ const _expectedEventTypes = <Map<String, String>>[
   {
     'eventType': 'requestStatusChanged',
     'producer':
-        'BeaconCase|CoordinationCase|EvaluationCase|AttentionExpirySweepCase',
+        'BeaconCase|CoordinationCase',
     'recipientCategory': 'active_participants_and_inbox_stance_holders',
     'destinationFamily': 'beacon',
     'muteability': 'standard_or_noisy',
@@ -134,40 +134,13 @@ const _expectedEventTypes = <Map<String, String>>[
         'packages/server/test/domain/use_case/coordination_case_revert_test.dart',
   },
   {
-    'eventType': 'reviewOpened',
-    'producer': 'EvaluationCase.beaconClose',
-    'recipientCategory': 'admitted_participants',
-    'destinationFamily': 'review',
-    'muteability': 'mandatory',
-    'coveringTest':
-        'packages/server/test/domain/evaluation/evaluation_case_test.dart',
-  },
-  {
-    'eventType': 'reviewAllPackagesIn',
-    'producer': 'EvaluationCase.evaluationFinalize',
-    'recipientCategory': 'beacon_author',
-    'destinationFamily': 'review',
-    'muteability': 'standard',
-    'coveringTest':
-        'packages/server/test/domain/evaluation/evaluation_case_test.dart',
-  },
-  {
-    'eventType': 'reviewWindowCancelled',
-    'producer': 'EvaluationCase.reopenFromReview',
-    'recipientCategory': 'review_participant',
-    'destinationFamily': 'beacon',
-    'muteability': 'standard',
-    'coveringTest':
-        'packages/server/test/domain/evaluation/evaluation_case_test.dart',
-  },
-  {
     'eventType': 'obligationEnded',
-    'producer': 'AttentionExpirySweepCase.runDue',
-    'recipientCategory': 'review_participant',
+    'producer': 'none (no live producer; enum value retained)',
+    'recipientCategory': 'active_participants',
     'destinationFamily': 'beacon',
     'muteability': 'standard',
     'coveringTest':
-        'packages/server/test/domain/use_case/review_obligation_settlement_pg_test.dart',
+        'packages/server/test/domain/attention/attention_policy_test.dart',
   },
   {
     'eventType': 'mutualConnectionFormed',
@@ -188,24 +161,6 @@ const _expectedEventTypes = <Map<String, String>>[
     'muteability': 'standard',
     'coveringTest':
         'packages/server/test/domain/use_case/invitation_case_test.dart',
-  },
-  {
-    'eventType': 'trustGivenChanged',
-    'producer': 'EvaluationCase.closeNow|AttentionExpirySweepCase.runDue',
-    'recipientCategory': 'review_participant',
-    'destinationFamily': 'profile',
-    'muteability': 'standard',
-    'coveringTest':
-        'packages/server/test/domain/evaluation/evaluation_case_test.dart',
-  },
-  {
-    'eventType': 'trustReceivedChanged',
-    'producer': 'EvaluationCase.closeNow|AttentionExpirySweepCase.runDue',
-    'recipientCategory': 'review_participant',
-    'destinationFamily': 'received_reviews',
-    'muteability': 'standard',
-    'coveringTest':
-        'packages/server/test/domain/evaluation/evaluation_case_test.dart',
   },
   // A17: closure receipts and reminder sweeps.
   {

@@ -8,7 +8,6 @@ import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/gql_public/help_offer_with_coordination_row.dart';
 import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
-import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 import 'package:tentura_server/domain/use_case/commitment_query_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_case.dart';
 import 'package:tentura_server/env.dart';
@@ -20,7 +19,6 @@ import '../../support/recording_commitment_repository.dart';
 import '../../support/test_attention_harness.dart';
 import 'help_offer_case_mocks.mocks.dart';
 
-class _MinimalEvaluationRepo extends Fake implements EvaluationRepositoryPort {}
 
 const _beaconId = 'Bbbbbbbbbbbbb';
 const _authorId = 'Uauthor000001';
@@ -95,7 +93,6 @@ void main() {
       helpOfferRepo,
       coordinationRepo,
       roomRepo,
-      _MinimalEvaluationRepo(),
       FakeUserBlockRepository(),
       commitmentRepo,
       CommitmentQueryCase(

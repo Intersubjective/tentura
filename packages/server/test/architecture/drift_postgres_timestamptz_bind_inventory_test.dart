@@ -8,7 +8,7 @@ import 'package:test/test.dart';
 /// That mismatch yields:
 ///   `operator does not exist: timestamp with time zone < bigint`
 /// and was the root cause of `beaconClose` failing inside
-/// [AttentionExpiryRepository.lockExpiredReviewWindowBeaconIds].
+/// the removed attention-expiry sweep.
 ///
 /// Allowed binds for timestamptz parameters:
 /// - `Variable(PgDateTime(...), PgTypes.timestampWithTimezone)`

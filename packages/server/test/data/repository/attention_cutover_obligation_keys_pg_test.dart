@@ -74,7 +74,7 @@ Future<void> main() async {
 
       final report = await backfill.cutoverBackfillIfNeeded();
 
-      expect(report.keyedObligations, 2);
+      expect(report.keyedObligations, 1);
 
       final offer = await _receipt(writer, _derivableOfferId);
       expect(
@@ -89,14 +89,6 @@ Future<void> main() async {
         reason: 'the generation is not historically derivable; 1 is what a '
             'single live row for a task can honestly claim',
       );
-
-      final review = await _receipt(writer, _derivableReviewId);
-      expect(
-        review['logical_task_key'],
-        'v1|reviewOpened|$_beaconId|$_beaconId|$_viewerId',
-        reason: 'reviewOpened varies its generations over the Request',
-      );
-      expect(review['lifecycle_generation'], 1);
     });
 
     // The case a careless widening of the derivability predicate gets wrong.
@@ -162,7 +154,7 @@ Future<void> main() async {
       final before = await reconciliation.countUnkeyedLiveObligations(
         accountId: _viewerId,
       );
-      expect(before, _undecidable.length + 4);
+      expect(before, _undecidable.length + 3);
 
       await backfill.cutoverBackfillIfNeeded();
 
@@ -171,8 +163,8 @@ Future<void> main() async {
       );
       expect(
         after,
-        before - 2,
-        reason: 'the two derivable rows left the count and everything else '
+        before - 1,
+        reason: 'the one derivable row left the count and everything else '
             'stayed in it — the honest answer the user already sees',
       );
     });
@@ -217,9 +209,9 @@ Future<void> main() async {
 
       expect(
         report.keyedObligations,
-        2,
-        reason: 'the review obligation, and the second legacy offer — whose '
-            'collision disappeared when the rival claimed a different key',
+        1,
+        reason: 'the second legacy offer, whose collision disappeared when '
+            'the rival claimed a different key',
       );
       expect(
         (await _receipt(writer, _duplicateOfferId))['logical_task_key'],
@@ -251,8 +243,8 @@ Future<void> main() async {
       expect(progress['obligation_key_cursor'], isNotNull);
       final fixedInstant = progress['cutover_at'];
       final keyedFirst = await _keyedIds(writer);
-      expect(keyedFirst, isNot(contains(_derivableReviewId)),
-          reason: 'one batch of one row did not reach the second obligation');
+      expect(keyedFirst, [_derivableOfferId, _alreadyKeyedId],
+          reason: 'one batch of one row stopped after the first derivable row');
 
       final resumed = await backfill.cutoverBackfillIfNeeded(batchSize: 1);
       expect(resumed.alreadyComplete, isFalse);
@@ -271,7 +263,7 @@ Future<void> main() async {
       await _resetFixtures(writer);
       await _seed(writer);
       final oneShot = await backfill.cutoverBackfillIfNeeded();
-      expect(oneShot.keyedObligations, 2);
+      expect(oneShot.keyedObligations, 1);
       expect(await _snapshot(writer), afterResume);
     });
   }, skip: skipReason);
@@ -359,7 +351,6 @@ const _otherBeaconId = 'Bu18b00002';
 // Ordered by id, because the pass walks ids and the first row to derive a key
 // is the one that takes it.
 const _derivableOfferId = 'Nu18b01';
-const _derivableReviewId = 'Nu18b02';
 const _noOccurrenceId = 'Nu18b03';
 const _mismatchedOccurrenceId = 'Nu18b04';
 const _collapsedId = 'Nu18b05';
@@ -420,15 +411,6 @@ Future<void> _seed(Connection writer) async {
     eventType: 'helpOfferSubmitted',
     reasons: ['authorOfBeacon'],
     targetEntityId: _helperId,
-  );
-
-  await _occurrence(writer, id: 'AOu18b02', eventType: 'reviewOpened');
-  await _obligation(
-    writer,
-    id: _derivableReviewId,
-    occurrenceId: 'AOu18b02',
-    eventType: 'reviewOpened',
-    reasons: ['reviewParticipant'],
   );
 
   // 2. Undecidable, five ways.

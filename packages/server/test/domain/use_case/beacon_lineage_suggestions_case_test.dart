@@ -3,7 +3,6 @@ import 'package:test/test.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/lineage_memory_fact.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
-import 'package:tentura_server/domain/evaluation/beacon_evaluation_value.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/lineage_memory_read_port.dart';
 import 'package:tentura_server/domain/use_case/beacon_lineage_suggestions_case.dart';
@@ -17,14 +16,12 @@ class _FakeLineageMemoryReadPort implements LineageMemoryReadPort {
     required this.edges,
     required this.whoHelped,
     this.whoRouted = const {},
-    this.evaluations = const [],
     this.tags = const [],
   });
 
   final List<LineageForwardEdgeFact> edges;
   final Set<String> whoHelped;
   final Set<String> whoRouted;
-  final List<LineageEvaluationFact> evaluations;
   final List<LineagePrivateTagFact> tags;
 
   @override
@@ -46,13 +43,6 @@ class _FakeLineageMemoryReadPort implements LineageMemoryReadPort {
     required Set<String> beaconIds,
   }) async =>
       edges;
-
-  @override
-  Future<List<LineageEvaluationFact>> fetchMyEvaluationsOnLineage({
-    required String userId,
-    required Set<String> beaconIds,
-  }) async =>
-      evaluations;
 
   @override
   Future<List<LineagePrivateTagFact>> fetchMyPrivateTags({
@@ -141,7 +131,7 @@ Future<LineageForwardSuggestions> _load(
 
 void main() {
   group('policy classification (ADR 0004)', () {
-    test('classify G1–G4, auto-select G1+G3 only, newest note', () async {
+    test('classify G1, G3, G4, auto-select G1+G3 only, newest note', () async {
       final result = await _load(
         _FakeLineageMemoryReadPort(
           edges: [
@@ -155,13 +145,6 @@ void main() {
           ],
           whoHelped: {'u-helped'},
           whoRouted: {'u-routed'},
-          evaluations: const [
-            LineageEvaluationFact(
-              evaluatedUserId: 'u-reviewed',
-              value: BeaconEvaluationValue.pos1,
-              reasonTags: 'coordination',
-            ),
-          ],
           tags: const [
             LineagePrivateTagFact(subjectUserId: 'u-tagged', slug: 'driver'),
           ],
@@ -170,16 +153,11 @@ void main() {
 
       expect(result.suggestedNote, 'newest note');
       final byUser = {for (final s in result.suggestions) s.userId: s};
-      expect(byUser.keys, containsAll(['u-helped', 'u-reviewed', 'u-routed', 'u-tagged']));
+      expect(byUser.keys, containsAll(['u-helped', 'u-routed', 'u-tagged']));
 
       expect(byUser['u-helped']!.group, LineageSuggestionGroup.involved);
       expect(byUser['u-helped']!.reasonCode, LineageSuggestionReasonCodes.helpedBefore);
       expect(byUser['u-helped']!.autoSelect, isTrue);
-
-      expect(byUser['u-reviewed']!.group, LineageSuggestionGroup.reviewedPositive);
-      expect(byUser['u-reviewed']!.reasonCode, LineageSuggestionReasonCodes.reviewedHelpful);
-      expect(byUser['u-reviewed']!.reasonArg, 'coordination');
-      expect(byUser['u-reviewed']!.autoSelect, isFalse);
 
       expect(byUser['u-routed']!.group, LineageSuggestionGroup.routedHelp);
       expect(byUser['u-routed']!.reasonCode, LineageSuggestionReasonCodes.routedHelp);
@@ -191,7 +169,7 @@ void main() {
       expect(byUser['u-tagged']!.autoSelect, isFalse);
     });
 
-    test('sorts suggestions G1 → G2 → G3 → G4', () async {
+    test('sorts suggestions G1 → G3 → G4', () async {
       final result = await _load(
         _FakeLineageMemoryReadPort(
           edges: [
@@ -201,13 +179,6 @@ void main() {
           ],
           whoHelped: {'u-g1'},
           whoRouted: {'u-g3'},
-          evaluations: const [
-            LineageEvaluationFact(
-              evaluatedUserId: 'u-g2',
-              value: BeaconEvaluationValue.pos2,
-              reasonTags: '',
-            ),
-          ],
           tags: const [
             LineagePrivateTagFact(subjectUserId: 'u-g4', slug: 'cook'),
           ],
@@ -218,7 +189,6 @@ void main() {
         result.suggestions.map((s) => s.group).toList(),
         [
           LineageSuggestionGroup.involved,
-          LineageSuggestionGroup.reviewedPositive,
           LineageSuggestionGroup.routedHelp,
           LineageSuggestionGroup.privateTag,
         ],
@@ -231,13 +201,6 @@ void main() {
           edges: [_edge(recipientId: 'u-dup')],
           whoHelped: {'u-dup'},
           whoRouted: {'u-dup'},
-          evaluations: const [
-            LineageEvaluationFact(
-              evaluatedUserId: 'u-dup',
-              value: BeaconEvaluationValue.pos1,
-              reasonTags: 'ignored',
-            ),
-          ],
           tags: const [
             LineagePrivateTagFact(subjectUserId: 'u-dup', slug: 'ignored'),
           ],
@@ -248,30 +211,6 @@ void main() {
       expect(result.suggestions.single.group, LineageSuggestionGroup.involved);
       expect(result.suggestions.single.autoSelect, isTrue);
     });
-
-    for (final row in <({int value, String label})>[
-      (value: BeaconEvaluationValue.neg1, label: 'negative'),
-      (value: BeaconEvaluationValue.zero, label: 'neutral'),
-      (value: BeaconEvaluationValue.noBasis, label: 'no basis'),
-    ]) {
-      test('G2 excludes ${row.label} evaluations', () async {
-        final result = await _load(
-          _FakeLineageMemoryReadPort(
-            edges: const [],
-            whoHelped: const {},
-            evaluations: [
-              LineageEvaluationFact(
-                evaluatedUserId: 'u-eval',
-                value: row.value,
-                reasonTags: 'tag',
-              ),
-            ],
-          ),
-        );
-
-        expect(result.suggestions, isEmpty);
-      });
-    }
   });
 
   group('pushback de-prioritize and suppress (ADR 0004)', () {
@@ -315,24 +254,6 @@ void main() {
         expect(ids.contains('u1'), row.expectSuggested);
       });
     }
-
-    test('G2 single pushback de-prioritizes reviewed user', () async {
-      final result = await _load(
-        _FakeLineageMemoryReadPort(
-          edges: [_edge(recipientId: 'u-reviewed', beaconId: 'b1', rejected: true)],
-          whoHelped: const {},
-          evaluations: const [
-            LineageEvaluationFact(
-              evaluatedUserId: 'u-reviewed',
-              value: BeaconEvaluationValue.pos1,
-              reasonTags: 'coordination',
-            ),
-          ],
-        ),
-      );
-
-      expect(result.suggestions, isEmpty);
-    });
 
     test('G3 single pushback de-prioritizes routed user', () async {
       final result = await _load(

@@ -10,20 +10,15 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/attention_dispatch_repository.dart';
-import 'package:tentura_server/data/repository/attention_expiry_repository.dart';
 import 'package:tentura_server/data/repository/attention_repository.dart';
 import 'package:tentura_server/data/repository/attention_system_settlement_repository.dart';
 import 'package:tentura_server/data/repository/beacon_access_repository.dart';
-import 'package:tentura_server/data/repository/beacon_hierarchy_outbox_repository.dart';
 import 'package:tentura_server/data/repository/beacon_hierarchy_repository.dart';
 import 'package:tentura_server/data/repository/beacon_repository.dart';
 import 'package:tentura_server/data/repository/beacon_room_notification_context_repository.dart';
 import 'package:tentura_server/data/repository/beacon_room_repository.dart';
-import 'package:tentura_server/data/repository/capability_evidence_repository.dart';
 import 'package:tentura_server/data/repository/commitment_repository.dart';
 import 'package:tentura_server/data/repository/coordination_repository.dart';
-import 'package:tentura_server/data/repository/evaluation_repository.dart';
-import 'package:tentura_server/data/repository/forward_edge_repository.dart';
 import 'package:tentura_server/data/repository/help_offer_repository.dart';
 import 'package:tentura_server/data/repository/inbox_repository.dart';
 import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repository_mock.dart';
@@ -34,19 +29,12 @@ import 'package:tentura_server/data/repository/user_profile_batch_lookup.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/data/repository/vote_user_friendship_lookup.dart';
 import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
-import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
-import 'package:tentura_server/domain/use_case/attention_expiry_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/attention_settlement_case.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
-import 'package:tentura_server/domain/use_case/beacon_lifecycle_effects_case.dart';
 import 'package:tentura_server/domain/use_case/capability_case.dart';
 import 'package:tentura_server/domain/use_case/commitment_query_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_case.dart';
-import 'package:tentura_server/domain/use_case/evaluation/evaluation_draft_purger.dart';
-import 'package:tentura_server/domain/use_case/evaluation/evaluation_participant_graph_builder.dart';
-import 'package:tentura_server/domain/use_case/evaluation/review_finalization_case.dart';
-import 'package:tentura_server/domain/use_case/evaluation_case.dart';
 import 'package:tentura_server/domain/use_case/help_offer_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 import 'package:tentura_server/env.dart';
@@ -162,11 +150,10 @@ Future<void> main() async {
       );
       expect(await needsYou(_authorId), 2);
 
-      await harness.evaluationCase.beaconClose(
-        beaconId: _beaconId,
-        userId: _authorId,
-        expectedRequiresReviewWindow: false,
-      );
+      // The closure use cases call exactly this statement when a Request
+      // leaves the open states.
+      await harness.systemSettlement
+          .supersedeAuthorHelpOfferObligationsOnBeaconClose(_beaconId);
 
       expect(
         await needsYou(_authorId),
@@ -281,7 +268,7 @@ WHERE outbox.occurrence_id = occ.id
       expect(await _helpOfferSettlementKind(writer, _helperId), isNull);
 
       // Second layer: the repository statement refuses it even when reached
-      // directly, exactly as it already refuses `reviewOpened`.
+      // directly, exactly as it already refuses every other obligation family.
       final updated = await AttentionSettlementRepository(database).settle(
         accountId: _authorId,
         receiptId: receiptId,
@@ -361,12 +348,12 @@ final class _Harness {
   const _Harness({
     required this.helpOfferCase,
     required this.coordinationCase,
-    required this.evaluationCase,
+    required this.systemSettlement,
   });
 
   final HelpOfferCase helpOfferCase;
   final CoordinationCase coordinationCase;
-  final EvaluationCase evaluationCase;
+  final AttentionSystemSettlementRepository systemSettlement;
 
   static _Harness build(TenturaDb db, Env env) {
     final logger = Logger('HelpOfferObligationSettlementPgTest');
@@ -380,11 +367,6 @@ final class _Harness {
     final beacons = BeaconRepository(db);
     final access = BeaconAccessRepository(db);
     final hierarchy = BeaconHierarchyRepository(db);
-    final lifecycleEffects = BeaconLifecycleEffectsCase(
-      BeaconHierarchyOutboxRepository(db),
-      env: env,
-      logger: logger,
-    );
     final attentionIntents = AttentionIntentCase(
       BeaconRoomNotificationContextRepository(room, db, helpOffers, commitments),
       UserRepository(
@@ -399,18 +381,6 @@ final class _Harness {
     final commitmentQuery = CommitmentQueryCase(
       commitments,
       helpOffers,
-      env: env,
-      logger: logger,
-    );
-    final evalRepo = EvaluationRepository(db);
-    final forwardEdges = ForwardEdgeRepository(db);
-    final reviewFinalization = ReviewFinalizationCase(
-      unitOfWork,
-      evalRepo,
-      CapabilityEvidenceRepository(db),
-      hierarchy,
-      lifecycleEffects,
-      systemSettlement,
       env: env,
       logger: logger,
     );
@@ -443,7 +413,6 @@ final class _Harness {
           room,
         ),
         room,
-        evalRepo,
         FakeUserBlockRepository(),
         commitments,
         commitmentQuery,
@@ -455,36 +424,7 @@ final class _Harness {
         env: env,
         logger: logger,
       ),
-      evaluationCase: EvaluationCase(
-        beacons,
-        forwardEdges,
-        evalRepo,
-        DriftUserProfileBatchLookup(db, UserAvailabilityRepository(db)),
-        EvaluationParticipantGraphBuilder(
-          commitments,
-          helpOffers,
-          forwardEdges,
-          _StubUserRepository(),
-        ),
-        EvaluationDraftPurger(evalRepo),
-        commitmentQuery,
-        commitments,
-        helpOffers,
-        hierarchy,
-        lifecycleEffects,
-        attentionIntents: attentionIntents,
-        attention: attention,
-        attentionExpirySweep: AttentionExpirySweepCase(
-          AttentionExpiryRepository(db),
-          reviewFinalization,
-          attentionIntents,
-          attention,
-        ),
-        attentionSystemSettlement: systemSettlement,
-        reviewFinalization: reviewFinalization,
-        env: env,
-        logger: logger,
-      ),
+      systemSettlement: systemSettlement,
     );
   }
 }
@@ -492,9 +432,3 @@ final class _Harness {
 
 final class _NoopInviteGenealogyRepository extends Fake
     implements InviteGenealogyRepositoryPort {}
-
-final class _StubUserRepository extends Fake implements UserRepositoryPort {
-  @override
-  Future<UserEntity> getById(String id) async =>
-      UserEntity(id: id, displayName: id);
-}

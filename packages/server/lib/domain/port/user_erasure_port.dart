@@ -26,7 +26,7 @@ abstract class UserErasurePort {
   });
 
   /// Deletes user-scoped capability-event rows that must be scrubbed before
-  /// the account row is removed. (The review-era evaluation rows this used to
+  /// the account row is removed. (The review-era rows this used to
   /// cover went away with their tables in m0203.)
   Future<void> deleteUserScopedEvaluationAndCapabilityRows({
     required String userId,

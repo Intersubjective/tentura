@@ -36,10 +36,7 @@ const _reviewer1 = 'Uroblgrevw01';
 const _reviewer2 = 'Uroblgrevw02';
 const _subjectId = 'Uroblgsubj01';
 
-/// m0203 (A6) dropped the review-era tables and its data step retired every
-/// live `reviewOpened` obligation, so the review-window settlement tests that
-/// used to live here no longer have a subject. What remains is the live
-/// help-offer settlement surface plus the user-settle guard.
+/// Live help-offer settlement surface plus the user-settle guard.
 Future<void> main() async {
   final target = DisposablePgTarget.fromNamedEnvironment(
     envVarName: 'TENTURA_REVIEW_OBLIGATION_TEST_DB',

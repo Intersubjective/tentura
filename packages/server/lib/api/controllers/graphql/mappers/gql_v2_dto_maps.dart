@@ -6,34 +6,16 @@ import 'package:tentura_root/domain/entity/beacon_parent_reference.dart';
 import 'package:tentura_root/domain/entity/beacon_promotion_source.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_owner_summary.dart';
 import 'package:tentura_server/domain/port/beacon_hierarchy_command_port.dart';
-import 'package:tentura_server/domain/entity/gql_public/beacon_close_review_result.dart';
-import 'package:tentura_server/domain/entity/gql_public/beacon_extend_review_result.dart';
+import 'package:tentura_server/domain/entity/gql_public/beacon_cancel_result.dart';
 import 'package:tentura_server/domain/entity/gql_public/beacon_image_added_result.dart';
 import 'package:tentura_server/domain/entity/gql_public/beacon_image_staged_result.dart';
 import 'package:tentura_server/domain/entity/gql_public/beacon_involvement_result.dart';
 import 'package:tentura_server/domain/entity/gql_public/beacon_status_result.dart';
-import 'package:tentura_server/domain/entity/gql_public/evaluation_draft_row_result.dart';
-import 'package:tentura_server/domain/entity/gql_public/evaluation_participant_result.dart';
-import 'package:tentura_server/domain/entity/evaluation/evaluations_written_about_viewer_row.dart';
-import 'package:tentura_server/domain/entity/gql_public/evaluation_received_result.dart';
-import 'package:tentura_server/domain/entity/gql_public/evaluation_summary_result.dart';
 import 'package:tentura_server/domain/entity/gql_public/forward_graph_result.dart';
-import 'package:tentura_server/domain/entity/gql_public/review_window_status_result.dart';
 
-Map<String, dynamic> beaconCloseReviewResultToGqlMap(
-  BeaconCloseReviewResult dto,
-) => {
+Map<String, dynamic> beaconCancelResultToGqlMap(BeaconCancelResult dto) => {
   'id': dto.id,
   'status': dto.status,
-  'closesAt': dto.closesAt?.toUtc().toIso8601String(),
-};
-
-Map<String, dynamic> beaconExtendReviewResultToGqlMap(
-  BeaconExtendReviewResult dto,
-) => {
-  'id': dto.id,
-  'closesAt': dto.closesAt.toUtc().toIso8601String(),
-  'extensionsRemaining': dto.extensionsRemaining,
 };
 
 Map<String, dynamic> beaconImageAddedResultToGqlMap(
@@ -98,116 +80,6 @@ Map<String, dynamic> beaconInvolvementResultToGqlMap(
   'myForwardedRecipients': dto.myForwardedRecipients
       .map(myForwardRecipientToGqlMap)
       .toList(),
-};
-
-Map<String, dynamic> evaluationParticipantToGqlMap(
-  EvaluationParticipantResult dto,
-) => {
-  'userId': dto.userId,
-  'displayName': dto.displayName,
-  'imageId': dto.imageId,
-  'role': dto.role,
-  'contributionSummary': dto.contributionSummary,
-  'causalHint': dto.causalHint,
-  'value': dto.value,
-  'reasonTags': dto.reasonTags,
-  'note': dto.note,
-  'promptVariant': dto.promptVariant,
-  'acknowledgedHelpTags': dto.acknowledgedHelpTags,
-  'acknowledgeableHelpTags': dto.acknowledgeableHelpTags,
-  'maxAcknowledgedHelpTags': dto.maxAcknowledgedHelpTags,
-  'isSubmitted': dto.isSubmitted,
-  'isOptional': dto.isOptional,
-  'rowStatus': dto.rowStatus,
-  'committedAt': dto.committedAt?.toUtc().toIso8601String(),
-  'offerMessage': dto.offerMessage,
-  'forwarderDisplayName': dto.forwarderDisplayName,
-};
-
-Map<String, dynamic> evaluationDraftRowToGqlMap(EvaluationDraftRowResult dto) =>
-    {
-      'evaluatedUserId': dto.evaluatedUserId,
-      'value': dto.value,
-      'reasonTags': dto.reasonTags,
-      'note': dto.note,
-    };
-
-Map<String, dynamic> reviewWindowStatusToGqlMap(ReviewWindowStatusResult dto) =>
-    {
-      'beaconId': dto.beaconId,
-      'hasWindow': dto.hasWindow,
-      'beaconTitle': dto.beaconTitle,
-      'openedAt': dto.openedAt?.toUtc().toIso8601String(),
-      'closesAt': dto.closesAt?.toUtc().toIso8601String(),
-      'windowComplete': dto.windowComplete,
-      'userReviewStatus': dto.userReviewStatus,
-      'reviewedCount': dto.reviewedCount,
-      'totalCount': dto.totalCount,
-      'extensionsUsed': dto.extensionsUsed,
-      'canCloseNow': dto.canCloseNow,
-      'canReopen': dto.canReopen,
-      'requiredTotal': dto.requiredTotal,
-      'requiredReviewed': dto.requiredReviewed,
-      'optionalTotal': dto.optionalTotal,
-      'optionalReviewed': dto.optionalReviewed,
-      'viewerPackageOptional': dto.viewerPackageOptional,
-      'sentAt': dto.sentAt?.toUtc().toIso8601String(),
-      'allRequiredSent': dto.allRequiredSent,
-      'unsentStartedPackages': dto.unsentStartedPackages,
-      'sentReviewerCount': dto.sentReviewerCount,
-    };
-
-Map<String, dynamic> evaluationSummaryToGqlMap(EvaluationSummaryResult dto) => {
-  'suppressed': dto.suppressed,
-  'tone': dto.tone,
-  'message': dto.message,
-  'topReasonTags': dto.topReasonTags,
-  'neg2': dto.neg2,
-  'neg1': dto.neg1,
-  'zero': dto.zero,
-  'pos1': dto.pos1,
-  'pos2': dto.pos2,
-  'roleSummaryLine': dto.roleSummaryLine,
-};
-
-Map<String, dynamic> evaluationReceivedToGqlMap(
-  EvaluationReceivedResult dto,
-) => {
-  'beaconId': dto.beaconId,
-  'beaconTitle': dto.beaconTitle,
-  'windowClosed': dto.windowClosed,
-  'rows': dto.rows.map(evaluationReceivedRowToGqlMap).toList(),
-};
-
-Map<String, dynamic> evaluationReceivedRowToGqlMap(
-  EvaluationReceivedRow dto,
-) => {
-  'reviewerId': dto.reviewerId,
-  'reviewerDisplayName': dto.reviewerDisplayName,
-  'reviewerImageId': dto.reviewerImageId,
-  'reviewerRole': dto.reviewerRole.dbValue,
-  'value': dto.value,
-  'tone': dto.tone.name,
-  'reasonTags': dto.reasonTags,
-  'acknowledgedHelpTags': dto.acknowledgedHelpTags,
-  'note': dto.note,
-  'occurredAt': dto.occurredAt.toUtc().toIso8601String(),
-};
-
-Map<String, dynamic> evaluationsWrittenAboutViewerRowToGqlMap(
-  EvaluationsWrittenAboutViewerRow dto,
-) => {
-  'beaconId': dto.beaconId,
-  'beaconTitle': dto.beaconTitle,
-  'beaconClosedAt': dto.beaconClosedAt?.toUtc().toIso8601String(),
-  'evaluatorId': dto.evaluatorId,
-  'evaluatedUserId': dto.evaluatedUserId,
-  'value': dto.value,
-  'tone': dto.tone.name,
-  'reasonTags': dto.reasonTags,
-  'acknowledgedHelpTags': dto.acknowledgedHelpTags,
-  'note': dto.note,
-  'occurredAt': dto.occurredAt.toUtc().toIso8601String(),
 };
 
 Map<String, dynamic> beaconHierarchyOwnerSummaryToGqlMap(

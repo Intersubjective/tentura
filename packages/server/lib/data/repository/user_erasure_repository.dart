@@ -135,7 +135,7 @@ WHERE id = $1
   Future<void> deleteUserScopedEvaluationAndCapabilityRows({
     required String userId,
   }) async {
-    // The review-era evaluation tables were dropped by m0203 (A6); only the
+    // The review-era tables were dropped by m0203 (A6); only the
     // capability-event cleanup remains.
     await _database.customStatement(
       r'''

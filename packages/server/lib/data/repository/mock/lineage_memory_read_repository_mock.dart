@@ -39,12 +39,6 @@ class LineageMemoryReadRepositoryMock implements LineageMemoryReadPort {
   }) => Future.value(const {});
 
   @override
-  Future<List<LineageEvaluationFact>> fetchMyEvaluationsOnLineage({
-    required String userId,
-    required Set<String> beaconIds,
-  }) => Future.value(const []);
-
-  @override
   Future<List<LineagePrivateTagFact>> fetchMyPrivateTags({
     required String userId,
   }) => Future.value(const []);

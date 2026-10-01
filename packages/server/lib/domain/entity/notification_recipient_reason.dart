@@ -6,5 +6,4 @@ enum NotificationRecipientReason {
   roomModeratorOrSteward,
   admittedRoomMember,
   forwardRecipient,
-  reviewParticipant,
 }

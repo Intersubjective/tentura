@@ -26,7 +26,7 @@ class ClosureReceiptsRepository implements ClosureReceiptsPort {
     category: 'asksOfMe',
     priority: 'high',
     title: 'Time to sum up',
-    body: 'The evaluation window is open.',
+    body: 'The closing window is open.',
     safeKey: 'closure_opened_bookmark_only',
     includeAuthor: true,
   );
@@ -56,7 +56,7 @@ class ClosureReceiptsRepository implements ClosureReceiptsPort {
     category: 'unblocksMe',
     priority: 'normal',
     title: 'Evaluation cancelled',
-    body: 'The evaluation was cancelled.',
+    body: 'The closing was cancelled.',
     safeKey: 'closure_cancelled',
     includeAuthor: false,
   );

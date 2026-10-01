@@ -249,7 +249,7 @@ void main() {
         BeaconHierarchyPolicy.isHierarchyLifecycleNoticeEligible(
           from: BeaconStatus.open,
           to: BeaconStatus.reviewOpen,
-          reason: BeaconStatusTransitionReason.reviewWindowOpened,
+          reason: BeaconStatusTransitionReason.closureOpened,
         ),
         isTrue,
       );
@@ -257,7 +257,7 @@ void main() {
         BeaconHierarchyPolicy.isHierarchyLifecycleNoticeEligible(
           from: BeaconStatus.reviewOpen,
           to: BeaconStatus.closed,
-          reason: BeaconStatusTransitionReason.reviewExpired,
+          reason: BeaconStatusTransitionReason.closureExpired,
         ),
         isTrue,
       );

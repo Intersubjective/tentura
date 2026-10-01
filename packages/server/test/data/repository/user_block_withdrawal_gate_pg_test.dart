@@ -240,25 +240,6 @@ ORDER BY id
         .toList();
   }
 
-  Future<Map<String, Object?>> trustEdgeProjection({
-    required String subject,
-    required String object,
-  }) async {
-    final row = await db.customSelect(
-      '''
-SELECT trust_w, wall_d, target_w, prev_sent_weight
-FROM public.user_trust_edge
-WHERE subject = '$subject' AND object = '$object'
-''',
-    ).getSingle();
-    return {
-      'trust_w': row.read<double>('trust_w'),
-      'wall_d': row.read<double>('wall_d'),
-      'target_w': row.read<double>('target_w'),
-      'prev_sent_weight': row.read<double>('prev_sent_weight'),
-    };
-  }
-
   Future<double> prevSentWeight(String subject, String object) async {
     final row = await db.customSelect(
       '''
@@ -300,66 +281,6 @@ SELECT EXISTS (
 ''',
     ).getSingle();
     return row.read<bool>('ok');
-  }
-
-  Future<double> rebuildReturnWeight({
-    required String subject,
-    required String object,
-    double? epsilonOverride,
-  }) async {
-    if (epsilonOverride == -1) {
-      final honestRow = await db
-          .customSelect(
-            r'''
-SELECT trust_w AS w, target_w,
-  EXISTS (
-    SELECT 1 FROM public.user_block b
-    WHERE b.blocker_id = $1 AND b.blocked_id = $2
-  ) AS blocked
-FROM public.user_trust_edge
-WHERE subject = $1 AND object = $2
-''',
-            variables: [
-              Variable<String>(subject),
-              Variable<String>(object),
-            ],
-          )
-          .getSingleOrNull();
-      if (honestRow != null) {
-        if (!honestRow.read<bool>('blocked')) {
-          await db.customStatement(
-            r'''
-UPDATE public.user_trust_edge
-SET prev_sent_weight = target_w, updated_at = now()
-WHERE subject = $1 AND object = $2
-''',
-            [subject, object],
-          );
-          await db.customStatement(
-            r'''
-DELETE FROM public.trust_publish_queue
-WHERE subject_user_id = $1 AND object_user_id = $2
-''',
-            [subject, object],
-          );
-        }
-        return honestRow.read<double>('w');
-      }
-    }
-    final row = await db
-        .customSelect(
-          r'''
-SELECT trust_w AS w
-FROM public.user_trust_edge
-WHERE subject = $1 AND object = $2
-''',
-          variables: [
-            Variable<String>(subject),
-            Variable<String>(object),
-          ],
-        )
-        .getSingleOrNull();
-    return row?.read<double>('w') ?? 0;
   }
 
   Future<int> trustEvidenceEventCount() async {

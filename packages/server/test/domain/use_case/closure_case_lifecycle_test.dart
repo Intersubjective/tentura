@@ -253,7 +253,7 @@ Future<void> main() async {
         (
           from: BeaconStatus.open.smallintValue,
           to: BeaconStatus.reviewOpen.smallintValue,
-          reason: 'reviewWindowOpened',
+          reason: 'closureOpened',
         ),
       ]);
     }, skip: skipReason);

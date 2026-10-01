@@ -14,7 +14,6 @@ import 'package:tentura_server/domain/port/notification_outbox_repository_port.d
 import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/use_case/beacon_case.dart';
 import 'package:tentura_server/domain/use_case/email_digest_case.dart';
-import 'package:tentura_server/domain/use_case/attention_expiry_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/attention_channel_delivery_case.dart';
 import 'package:tentura_server/domain/use_case/beacon_hierarchy_delivery_case.dart';
 import 'package:tentura_server/domain/use_case/block_cascade_case.dart';
@@ -45,7 +44,6 @@ final class TaskWorkerCase extends UseCaseBase {
     TaskRepositoryPort tasksRepository,
     EmailDigestCase emailDigestCase,
     NotificationOutboxRepositoryPort notificationOutbox,
-    AttentionExpirySweepCase attentionExpirySweep,
     AttentionChannelDeliveryCase attentionChannelDelivery,
     BeaconHierarchyDeliveryCase beaconHierarchyDelivery,
     TrustMaintenancePort trustMaintenance,
@@ -72,7 +70,6 @@ final class TaskWorkerCase extends UseCaseBase {
       // UserCase comment): constructor injection here makes generated DI call
       // `getAsync` on an already-resolved sync singleton, which throws at runtime.
       beaconCase: GetIt.I<BeaconCase>(),
-      attentionExpirySweep: attentionExpirySweep,
       attentionChannelDelivery: attentionChannelDelivery,
       beaconHierarchyDelivery: beaconHierarchyDelivery,
       trustMaintenance: trustMaintenance,
@@ -100,7 +97,6 @@ final class TaskWorkerCase extends UseCaseBase {
     this._notificationOutbox, {
     ImageObjectGcPort? imageObjectGc,
     BeaconCase? beaconCase,
-    AttentionExpirySweepCase? attentionExpirySweep,
     AttentionChannelDeliveryCase? attentionChannelDelivery,
     BeaconHierarchyDeliveryCase? beaconHierarchyDelivery,
     TrustMaintenancePort? trustMaintenance,
@@ -120,7 +116,6 @@ final class TaskWorkerCase extends UseCaseBase {
     required super.logger,
   }) : _imageObjectGc = imageObjectGc,
        _beaconCase = beaconCase,
-       _attentionExpirySweep = attentionExpirySweep,
        _attentionChannelDelivery = attentionChannelDelivery,
        _beaconHierarchyDelivery = beaconHierarchyDelivery,
        _trustMaintenance = trustMaintenance,
@@ -147,7 +142,6 @@ final class TaskWorkerCase extends UseCaseBase {
 
   final ImageObjectGcPort? _imageObjectGc;
   final BeaconCase? _beaconCase;
-  final AttentionExpirySweepCase? _attentionExpirySweep;
   final AttentionChannelDeliveryCase? _attentionChannelDelivery;
   final BeaconHierarchyDeliveryCase? _beaconHierarchyDelivery;
   final TrustMaintenancePort? _trustMaintenance;
@@ -173,7 +167,6 @@ final class TaskWorkerCase extends UseCaseBase {
 
   var _lastRetentionSweep = DateTime.fromMillisecondsSinceEpoch(0);
 
-  var _lastAttentionExpirySweep = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastAttentionDeliverySweep = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastBeaconHierarchyDeliverySweep = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastTrustMaintenanceSweep = DateTime.fromMillisecondsSinceEpoch(0);
@@ -205,7 +198,7 @@ final class TaskWorkerCase extends UseCaseBase {
       _lastTrustPublish = now;
       await publisher.run();
     },
-    // Closure finalize: epochs whose evaluation window has elapsed.
+    // Closure finalize: epochs whose closing window has elapsed.
     () async {
       final now = DateTime.timestamp();
       if (now.difference(_lastClosureFinalizeSweep) <
@@ -256,16 +249,6 @@ final class TaskWorkerCase extends UseCaseBase {
         workerId: 'task-worker',
         now: now,
       );
-    },
-    // Review expiry is a system-owned status transition with atomic receipts.
-    () async {
-      final now = DateTime.timestamp();
-      if (now.difference(_lastAttentionExpirySweep) <
-          const Duration(minutes: 1)) {
-        return;
-      }
-      _lastAttentionExpirySweep = now;
-      await _attentionExpirySweep!.runDue(now: now);
     },
     () async {
       final now = DateTime.timestamp();

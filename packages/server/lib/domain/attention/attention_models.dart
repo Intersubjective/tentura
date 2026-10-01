@@ -30,9 +30,6 @@ abstract final class AttentionEventTypeCatalog {
       case AttentionEventType.roomMessagePosted:
       case AttentionEventType.requestStatusChanged:
       case AttentionEventType.beaconHierarchyStatusChanged:
-      case AttentionEventType.reviewOpened:
-      case AttentionEventType.reviewAllPackagesIn:
-      case AttentionEventType.reviewWindowCancelled:
       case AttentionEventType.obligationEnded:
       case AttentionEventType.mutualConnectionFormed:
       case AttentionEventType.inviteAccepted:
@@ -48,8 +45,6 @@ abstract final class AttentionEventTypeCatalog {
       case AttentionEventType.commitmentCancelled:
       case AttentionEventType.commitmentRedirected:
       case AttentionEventType.commitmentReleased:
-      case AttentionEventType.trustGivenChanged:
-      case AttentionEventType.trustReceivedChanged:
       case AttentionEventType.deadlineChanged:
       case AttentionEventType.deadlineReminder:
       case AttentionEventType.closureOpened:
@@ -71,9 +66,6 @@ enum AttentionEventType {
   roomMessagePosted,
   requestStatusChanged,
   beaconHierarchyStatusChanged,
-  reviewOpened,
-  reviewAllPackagesIn,
-  reviewWindowCancelled,
 
   /// U07b2 / §5 "nothing disappears unexplained": an obligation that ended by
   /// expiry or by someone else's cancellation, never by the person's own act.
@@ -92,8 +84,6 @@ enum AttentionEventType {
   commitmentCancelled,
   commitmentRedirected,
   commitmentReleased,
-  trustGivenChanged,
-  trustReceivedChanged,
   deadlineChanged,
   deadlineReminder,
 
@@ -126,7 +116,6 @@ enum AttentionRecipientReason {
   roomModeratorOrSteward,
   admittedRoomMember,
   forwardRecipient,
-  reviewParticipant,
   inboxStanceHolder,
   directedChatTarget,
   reciprocalCounterpart,
@@ -143,21 +132,6 @@ extension AttentionRecipientReasonScope on AttentionRecipientReason {
     AttentionRecipientReason.inviter => false,
     _ => true,
   };
-}
-
-/// Why an obligation ended by something other than the person's own act
-/// (§5 "nothing disappears unexplained"). One value per explanation copy.
-enum AttentionObligationEndReason {
-  /// The review window's deadline passed and the window closed itself.
-  ///
-  /// The only value today, and deliberately so (U07b2):
-  /// * `EvaluationCase.closeNow` cannot leave an expired obligation behind —
-  ///   it refuses unless every author/committer participant has already sent
-  ///   (`_canCloseNow`), so there is nothing unexplained to explain.
-  /// * The author *cancelling* a window (`EvaluationCase.reopenFromReview`)
-  ///   supersedes the obligations and already emits `reviewWindowCancelled`
-  ///   to the same reviewers; a second explanation would be noise.
-  reviewWindowExpired,
 }
 
 enum AttentionSuppressionClass { mandatory, standard, noisy }
@@ -224,7 +198,6 @@ enum AttentionDestinationKind {
   beaconRoomMessage,
   review,
   profile,
-  receivedReviews,
   safeTerminal,
 }
 
@@ -236,7 +209,6 @@ extension AttentionDestinationKindWireName on AttentionDestinationKind {
     AttentionDestinationKind.beaconRoomMessage => 'beacon_room_message',
     AttentionDestinationKind.review => 'review',
     AttentionDestinationKind.profile => 'profile',
-    AttentionDestinationKind.receivedReviews => 'received_reviews',
     AttentionDestinationKind.safeTerminal => 'safe_terminal',
   };
 }
@@ -305,8 +277,8 @@ abstract class AttentionRecipientRoleFacts with _$AttentionRecipientRoleFacts {
 
     /// Trust direction for presentation-key encoding: `up`, `down`, `noChange`.
     ///
-    /// Mirrors receiver-facing trust tone naming without coupling to evaluation
-    /// domain types. Null and unmapped values fall through to a neutral key.
+    /// Mirrors receiver-facing trust tone naming. Null and unmapped values fall
+    /// through to a neutral key.
     String? trustDirection,
 
     /// Wire literal `'new_account'` or `'existing_account'` on inviteAccepted.

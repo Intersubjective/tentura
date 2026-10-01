@@ -7,12 +7,6 @@ import '../database/tentura_db.dart';
 
 /// U12 / D15 — the SQL side of "Reset counters".
 ///
-/// It generalises `settleReviewObligationsAfterWindowClose` rather than
-/// standing a second mechanism beside it. m0203 (A6) dropped the review
-/// tables and retired every live review obligation, so the review-era
-/// members below are inert (nothing to settle, nothing to backfill); A18
-/// deletes those call paths.
-///
 /// Three properties are load-bearing and each has a test that fails when the
 /// clause is removed:
 ///
@@ -102,12 +96,6 @@ WHERE outbox.id = judged.id
     updateKind: UpdateKind.update,
   );
 
-  /// Inert post-m0203: no review windows or review statuses exist, so no
-  /// review obligation can be obsolete. A18 deletes this call path.
-  @override
-  Future<int> settleObsoleteReviewObligations({required String accountId}) =>
-      Future.value(0);
-
   @override
   Future<List<ReconcilableHelpOfferTask>> listUnbackedHelpOfferTasks({
     required String accountId,
@@ -178,14 +166,6 @@ ORDER BY offer.beacon_id, offer.user_id
         ),
     ];
   }
-
-  /// Inert post-m0203: no open review windows exist, so no review task can
-  /// be unbacked. A18 deletes this call path.
-  @override
-  Future<List<ReconcilableReviewTask>> listUnbackedReviewTasks({
-    required String accountId,
-  }) =>
-      Future.value(const []);
 
   @override
   Future<int> countUnkeyedLiveObligations({required String accountId}) async {

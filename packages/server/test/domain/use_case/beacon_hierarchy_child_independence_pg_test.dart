@@ -10,7 +10,6 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
-import 'package:tentura_server/data/repository/attention_expiry_repository.dart';
 import 'package:tentura_server/data/repository/attention_dispatch_repository.dart';
 import 'package:tentura_server/data/repository/beacon_access_repository.dart';
 import 'package:tentura_server/data/repository/beacon_hierarchy_outbox_repository.dart';
@@ -18,10 +17,11 @@ import 'package:tentura_server/data/repository/beacon_hierarchy_repository.dart'
 import 'package:tentura_server/data/repository/beacon_repository.dart';
 import 'package:tentura_server/data/repository/beacon_room_notification_context_repository.dart';
 import 'package:tentura_server/data/repository/beacon_room_repository.dart';
+import 'package:tentura_server/data/repository/attention_system_settlement_repository.dart';
 import 'package:tentura_server/data/repository/capability_evidence_repository.dart';
+import 'package:tentura_server/data/repository/closure_repository.dart';
 import 'package:tentura_server/data/repository/commitment_repository.dart';
 import 'package:tentura_server/data/repository/coordination_repository.dart';
-import 'package:tentura_server/data/repository/evaluation_repository.dart';
 import 'package:tentura_server/data/repository/forward_attribution_repository.dart';
 import 'package:tentura_server/data/repository/forward_edge_repository.dart';
 import 'package:tentura_server/data/repository/help_offer_repository.dart';
@@ -38,27 +38,22 @@ import 'package:tentura_server/data/repository/vote_user_friendship_lookup.dart'
 import 'package:tentura_server/domain/entity/forward_delivery_result.dart';
 import 'package:tentura_server/domain/entity/gql_public/beacon_status_result.dart';
 import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
-import 'package:tentura_server/domain/use_case/attention_expiry_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/beacon_lifecycle_effects_case.dart';
+import 'package:tentura_server/domain/port/closure_finalizer_port.dart';
+import 'package:tentura_server/domain/port/closure_receipts_port.dart';
 import 'package:tentura_server/domain/use_case/capability_case.dart';
+import 'package:tentura_server/domain/use_case/closure_case.dart';
 import 'package:tentura_server/domain/use_case/commitment_query_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_case.dart';
-import 'package:tentura_server/domain/use_case/evaluation/evaluation_draft_purger.dart';
-import 'package:tentura_server/domain/use_case/evaluation/evaluation_participant_graph_builder.dart';
-import 'package:tentura_server/domain/use_case/evaluation/review_finalization_case.dart';
-import 'package:tentura_server/domain/use_case/evaluation_case.dart';
 import 'package:tentura_server/domain/use_case/forward_case.dart';
 import 'package:tentura_server/domain/use_case/help_offer_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 import 'package:tentura_server/env.dart';
 
 import '../../data/repository/beacon_hierarchy_pg_helpers.dart';
-import '../../domain/evaluation/evaluation_graph_test_repos.dart';
 import '../../support/beacon_hierarchy_fixture.dart';
 import '../../support/fake_user_block_repository.dart';
-import '../../support/review_finalization_test_support.dart'
-    show NoopAttentionSystemSettlement;
 
 const _standaloneBeaconId = 'Bhierstand01';
 
@@ -87,13 +82,13 @@ final class _ChildIndependenceHarness {
     required this.forwardCase,
     required this.helpOfferCase,
     required this.coordinationCase,
-    required this.evaluationCase,
+    required this.closureCase,
   });
 
   final ForwardCase forwardCase;
   final HelpOfferCase helpOfferCase;
   final CoordinationCase coordinationCase;
-  final EvaluationCase evaluationCase;
+  final ClosureCase closureCase;
 
   static _ChildIndependenceHarness build(TenturaDb db, Env env) {
     final logger = Logger('ChildIndependencePgTest');
@@ -139,49 +134,22 @@ final class _ChildIndependenceHarness {
       env: env,
       logger: logger,
     );
-    final evalRepo = EvaluationRepository(db);
     final forwardEdges = ForwardEdgeRepository(db);
     final profileLookup = DriftUserProfileBatchLookup(
       db,
       UserAvailabilityRepository(db),
     );
-    final graphBuilder = EvaluationParticipantGraphBuilder(
-      commitments,
-      helpOffers,
-      forwardEdges,
-      StubUserRepository('User'),
-    );
-    final reviewFinalization = ReviewFinalizationCase(
-      unitOfWork,
-      evalRepo,
-      CapabilityEvidenceRepository(db),
-      hierarchy,
-      lifecycleEffects,
-      NoopAttentionSystemSettlement(),
-      env: env,
-      logger: logger,
-    );
-    final evaluationCase = EvaluationCase(
-      beacons,
-      forwardEdges,
-      evalRepo,
-      profileLookup,
-      graphBuilder,
-      EvaluationDraftPurger(evalRepo),
-      commitmentQuery,
-      commitments,
-      helpOffers,
-      hierarchy,
-      lifecycleEffects,
-      attentionIntents: attentionIntents,
-      attention: attention,
-      attentionExpirySweep: AttentionExpirySweepCase(
-        AttentionExpiryRepository(db),
-        reviewFinalization,
-        attentionIntents,
-        attention,
-      ),
-      reviewFinalization: reviewFinalization,
+    final closureCase = ClosureCase(
+      unitOfWork: unitOfWork,
+      closureRepository: ClosureRepository(db),
+      beaconRepository: beacons,
+      commitmentRepository: commitments,
+      helpOfferRepository: helpOffers,
+      hierarchyRepository: hierarchy,
+      lifecycleEffects: lifecycleEffects,
+      attentionSystemSettlement: AttentionSystemSettlementRepository(db),
+      receipts: NoopClosureReceipts(),
+      finalizer: _NoFinalizer(),
       env: env,
       logger: logger,
     );
@@ -229,7 +197,6 @@ final class _ChildIndependenceHarness {
           room,
         ),
         room,
-        evalRepo,
         FakeUserBlockRepository(),
         commitments,
         commitmentQuery,
@@ -240,7 +207,7 @@ final class _ChildIndependenceHarness {
         env: env,
         logger: logger,
       ),
-      evaluationCase: evaluationCase,
+      closureCase: closureCase,
     );
   }
 
@@ -269,9 +236,8 @@ final class _ChildIndependenceHarness {
     );
     _assertAcceptShape(accepted);
 
-    // The review-window close/submit/finalize leg is gone: m0203 dropped the
-    // review tables and EvaluationRepository is an A18 stub until the closure
-    // flow replaces it, so the generic lifecycle now ends at acceptance.
+    // The generic lifecycle ends at acceptance; closing is exercised
+    // separately through ClosureCase.
 
     return LifecycleOutcomeShape(
       forwardDeliveredCount: forward.deliveredRecipientIds.length,
@@ -429,7 +395,7 @@ Future<void> main() async {
           BeaconHierarchyTopology.beaconC,
         );
         expect(childRow['parent_beacon_id'], BeaconHierarchyTopology.beaconB);
-        // The lifecycle stops at acceptance (review close leg removed in A18).
+        // The lifecycle stops at acceptance.
         expect(childRow['status'], BeaconStatus.open.smallintValue);
       },
       skip: skipReason,
@@ -454,12 +420,15 @@ Future<void> main() async {
           userId: BeaconHierarchyTopology.carolId,
         );
 
-        final parentClose = await harness.evaluationCase.beaconClose(
+        await harness.closureCase.close(
+          authorId: BeaconHierarchyTopology.bobId,
           beaconId: BeaconHierarchyTopology.beaconB,
-          userId: BeaconHierarchyTopology.bobId,
-          expectedRequiresReviewWindow: false,
         );
-        expect(parentClose.status, BeaconStatus.closed.smallintValue);
+        final parentAfterClose = await _beaconSnapshot(
+          writer,
+          BeaconHierarchyTopology.beaconB,
+        );
+        expect(parentAfterClose['status'], BeaconStatus.closed.smallintValue);
 
         final childAfter = await _beaconSnapshot(
           writer,
@@ -479,6 +448,8 @@ Future<void> main() async {
     );
   });
 }
+
+final class _NoFinalizer extends Fake implements ClosureFinalizerPort {}
 
 Future<void> _reseedParticipantsAfterHierarchyTree(Connection writer) async {
   for (final row in <(String, String, String, int)>[

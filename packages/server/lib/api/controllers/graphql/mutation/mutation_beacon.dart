@@ -58,14 +58,14 @@ final class MutationBeacon extends GqlNodeBase {
 
   GraphQLObjectField<dynamic, dynamic> get beaconCancel => GraphQLObjectField(
     'beaconCancel',
-    gqlTypeBeaconCloseReviewResult.nonNullable(),
+    gqlTypeBeaconCancelResult.nonNullable(),
     arguments: [InputFieldId.field],
     resolve: (_, args) => _beaconCase
         .beaconCancel(
           beaconId: InputFieldId.fromArgsNonNullable(args),
           userId: getCredentials(args).sub,
         )
-        .then(beaconCloseReviewResultToGqlMap),
+        .then(beaconCancelResultToGqlMap),
   );
 
   GraphQLObjectField<dynamic, dynamic> get create => GraphQLObjectField(

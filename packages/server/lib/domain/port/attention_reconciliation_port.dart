@@ -14,18 +14,8 @@ abstract class AttentionReconciliationPort {
   /// (the helper withdrew, the author removed them, the Request ended).
   Future<int> settleObsoleteHelpOfferObligations({required String accountId});
 
-  /// Settle live `reviewOpened` obligations whose window is no longer open,
-  /// with the same outcome rule the window-close path uses: `resolved` when
-  /// that reviewer sent their package, `expired` otherwise.
-  Future<int> settleObsoleteReviewObligations({required String accountId});
-
   /// Help-offer tasks that are genuinely still open and carry no live receipt.
   Future<List<ReconcilableHelpOfferTask>> listUnbackedHelpOfferTasks({
-    required String accountId,
-  });
-
-  /// Review tasks that are genuinely still open and carry no live receipt.
-  Future<List<ReconcilableReviewTask>> listUnbackedReviewTasks({
     required String accountId,
   });
 

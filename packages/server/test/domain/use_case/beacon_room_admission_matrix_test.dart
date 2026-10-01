@@ -26,7 +26,6 @@ import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
 import 'package:tentura_server/domain/port/commitment_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
-import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/polling_repository_port.dart';
@@ -163,7 +162,6 @@ class _MinimalPolling extends Fake implements PollingRepositoryPort {}
 
 class _MinimalUploadQuota extends Fake implements UploadQuotaRepositoryPort {}
 
-class _MinimalEvaluationRepo extends Fake implements EvaluationRepositoryPort {}
 
 // Stateful offer storage: declining must deactivate the content/involvement grant.
 class _ExitOffers extends Fake implements HelpOfferRepositoryPort {
@@ -282,7 +280,6 @@ void main() {
             offers,
             coordinationRepo,
             room,
-            _MinimalEvaluationRepo(),
             FakeUserBlockRepository(),
             commitments,
             _commitmentQueryCase(commitments, offers),
@@ -558,7 +555,6 @@ void main() {
           helpOfferRepo,
           coordinationRepo,
           roomRepo,
-          _MinimalEvaluationRepo(),
           FakeUserBlockRepository(),
           commitmentRepo,
           _commitmentQueryCase(commitmentRepo, helpOfferRepo),
@@ -738,7 +734,6 @@ void main() {
           helpOfferRepo,
           coordinationRepo,
           roomRepo,
-          _MinimalEvaluationRepo(),
           userBlocks,
           commitmentRepo,
           _commitmentQueryCase(commitmentRepo, helpOfferRepo),
@@ -972,7 +967,6 @@ void main() {
           helpOfferRepo,
           coordinationRepo,
           roomRepo,
-          _MinimalEvaluationRepo(),
           userBlocks,
           commitmentRepo,
           _commitmentQueryCase(commitmentRepo, helpOfferRepo),

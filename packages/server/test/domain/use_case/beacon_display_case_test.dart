@@ -9,10 +9,10 @@ import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
 import 'package:tentura_server/domain/coordination/derive_beacon_display_status.dart';
 import 'package:tentura_server/domain/entity/beacon_display_status.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
-import 'package:tentura_server/domain/entity/evaluation/beacon_evaluation_record.dart';
+import 'package:tentura_server/domain/closure/closure_entities.dart';
 import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
-import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
+import 'package:tentura_server/domain/port/closure_repository_port.dart';
 import 'package:tentura_server/domain/use_case/beacon_display_case.dart';
 import 'package:tentura_server/domain/use_case/commitment_query_case.dart';
 import 'package:tentura_server/env.dart';
@@ -23,19 +23,18 @@ import '../../support/noop_commitment_query_case.dart';
 import '../../support/recording_commitment_repository.dart';
 import 'help_offer_case_mocks.mocks.dart';
 
-class _FakeEvaluationRepository extends Fake implements EvaluationRepositoryPort {
-  BeaconReviewWindowRecord? reviewWindow;
+class _FakeClosureRepository extends Fake implements ClosureRepositoryPort {
+  ClosureEpoch? live;
 
   @override
-  Future<BeaconReviewWindowRecord?> getReviewWindow(String beaconId) async =>
-      reviewWindow;
+  Future<ClosureEpoch?> liveEpoch(String beaconId) async => live;
 }
 
 void main() {
   late MockBeaconRepositoryPort beaconRepo;
   late MockHelpOfferRepositoryPort helpOfferRepo;
   late MockCoordinationRepositoryPort coordinationRepo;
-  late _FakeEvaluationRepository evaluationRepo;
+  late _FakeClosureRepository closureRepo;
   late MockBeaconRoomRepositoryPort roomRepo;
   late FakeBeaconAccessGuard guard;
   late BeaconDisplayCase case_;
@@ -79,7 +78,7 @@ void main() {
     beaconRepo = MockBeaconRepositoryPort();
     helpOfferRepo = MockHelpOfferRepositoryPort();
     coordinationRepo = MockCoordinationRepositoryPort();
-    evaluationRepo = _FakeEvaluationRepository();
+    closureRepo = _FakeClosureRepository();
     roomRepo = MockBeaconRoomRepositoryPort();
     guard = FakeBeaconAccessGuard();
     commitmentQueryCase = noopCommitmentQueryCase(
@@ -90,7 +89,7 @@ void main() {
       beaconRepo,
       helpOfferRepo,
       coordinationRepo,
-      evaluationRepo,
+      closureRepo,
       roomRepo,
       guard,
       commitmentQueryCase,
@@ -295,18 +294,17 @@ void main() {
       );
     });
 
-    test('reviewOpen fetches review window closesAt', () async {
+    test('reviewOpen fetches live closure epoch closesAt', () async {
       when(beaconRepo.getBeaconById(beaconId: beaconId)).thenAnswer(
         (_) async => openBeacon(status: BeaconStatus.reviewOpen),
       );
-      evaluationRepo.reviewWindow = BeaconReviewWindowRecord(
+      closureRepo.live = ClosureEpoch(
         beaconId: beaconId,
+        epoch: 1,
+        status: ClosureEpochStatus.evaluating,
         openedAt: now,
         closesAt: reviewClosesAt,
-        status: 0,
         extensionsUsed: 0,
-        createdAt: now,
-        updatedAt: now,
       );
 
       final result = await case_.displayStatuses(
@@ -371,7 +369,7 @@ void main() {
                 beaconRepo,
                 helpOfferRepo,
                 coordinationRepo,
-                evaluationRepo,
+                closureRepo,
                 roomRepo,
                 guard,
                 queryCase,
@@ -439,7 +437,7 @@ void main() {
           beaconRepo,
           helpOfferRepo,
           coordinationRepo,
-          evaluationRepo,
+          closureRepo,
           roomRepo,
           guard,
           commitmentQueryCaseFromEvents([

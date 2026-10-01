@@ -1640,7 +1640,6 @@ class AttentionSettlementRepository implements AttentionSettlementPort {
 
   final TenturaDb _database;
 
-  static const _reviewOpenedEventType = 'reviewOpened';
   static const _helpOfferSubmittedEventType = 'helpOfferSubmitted';
 
   @override
@@ -1696,13 +1695,11 @@ WHERE outbox.occurrence_id = occ.id
   )
   AND ($3 <> 'dismissed' OR outbox.suppression_class <> 'mandatory')
   AND occ.event_type IS DISTINCT FROM $4
-  AND occ.event_type IS DISTINCT FROM $5
 ''',
     variables: [
       Variable<String>(accountId),
       Variable<String>(receiptId),
       Variable<String>(kind.wireName),
-      Variable<String>(_reviewOpenedEventType),
       Variable<String>(_helpOfferSubmittedEventType),
     ],
     updateKind: UpdateKind.update,

@@ -1,7 +1,7 @@
 /// U12 / D15 — "Reset counters" is invalidation and repair, not erasure.
 ///
 /// Reconciliation recomputes *derived* obligation state from the source of
-/// truth (the help offer, the review window) and nothing else. It may create
+/// truth (the help offer) and nothing else. It may create
 /// an obligation that a lost dispatch never wrote, and it may settle one whose
 /// source task is finished — always with the reason the source actually gives.
 ///
@@ -29,21 +29,6 @@ final class ReconcilableHelpOfferTask {
   /// Generation the repaired receipt will carry — part of the deterministic
   /// source event key, so a repair of a later generation is a new occurrence
   /// rather than a silent no-op against an earlier one.
-  final int generation;
-}
-
-/// A review task whose reviewer obligation is missing a live receipt.
-final class ReconcilableReviewTask {
-  const ReconcilableReviewTask({
-    required this.beaconId,
-    required this.beaconTitle,
-    required this.authorId,
-    required this.generation,
-  });
-
-  final String beaconId;
-  final String beaconTitle;
-  final String authorId;
   final int generation;
 }
 

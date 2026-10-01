@@ -2,7 +2,6 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/beacon_lineage_visibility.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
-import 'package:tentura_server/domain/evaluation/beacon_evaluation_value.dart';
 import 'package:tentura_server/domain/entity/lineage_memory_fact.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/lineage_memory_read_port.dart';
@@ -84,12 +83,6 @@ final class BeaconLineageSuggestionsCase extends UseCaseBase {
             recipientIds: candidateRecipientIds,
           );
 
-    final evaluations =
-        await _lineageMemoryReadPort.fetchMyEvaluationsOnLineage(
-          userId: userId,
-          beaconIds: lineageSet,
-        );
-
     final privateTags = await _lineageMemoryReadPort.fetchMyPrivateTags(
       userId: userId,
     );
@@ -105,22 +98,6 @@ final class BeaconLineageSuggestionsCase extends UseCaseBase {
       classified[recipientId] = const _ClassifiedSuggestion(
         group: LineageSuggestionGroup.involved,
         reasonCode: LineageSuggestionReasonCodes.helpedBefore,
-      );
-    }
-
-    for (final eval in evaluations) {
-      if (!BeaconEvaluationValue.isPositive(eval.value)) continue;
-      final uid = eval.evaluatedUserId;
-      if (_isPushbackSuppressed(uid, pushbackCounts)) continue;
-      if (_hasSinglePushback(uid, pushbackCounts)) continue;
-      if (classified.containsKey(uid)) continue;
-      final tagArg = eval.reasonTags.trim().isEmpty
-          ? null
-          : eval.reasonTags.split(',').first.trim();
-      classified[uid] = _ClassifiedSuggestion(
-        group: LineageSuggestionGroup.reviewedPositive,
-        reasonCode: LineageSuggestionReasonCodes.reviewedHelpful,
-        reasonArg: tagArg,
       );
     }
 

@@ -106,23 +106,24 @@ class BeaconExceptionCodes extends ExceptionCodes {
   int get codeNumber => codeSpace + exceptionCode.index;
 }
 
-// Evaluation (beacon-local review)
+// Beacon lifecycle (cancel / delete / status) exceptions
 
+/// Indices are wire codes (1400 + index); retired values keep their slot.
 enum EvaluationExceptionCode {
   unspecified,
-  reviewWindowNotOpen,
+  retired1401,
   notEligible,
-  evaluationAlreadySubmitted,
-  reasonTagRequired,
-  reviewWindowExpired,
+  retired1403,
+  retired1404,
+  retired1405,
   beaconNotClosable,
-  reviewAlreadyClosed,
-  invalidEvaluationValue,
-  invalidReasonTags,
-  closeBranchConflict,
-  ackRoleNotEligible,
-  invalidAckTagSlug,
-  ackTagCapExceeded,
+  retired1407,
+  retired1408,
+  retired1409,
+  retired1410,
+  retired1411,
+  retired1412,
+  retired1413,
 }
 
 class EvaluationExceptionCodes extends ExceptionCodes {

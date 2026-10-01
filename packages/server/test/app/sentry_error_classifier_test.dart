@@ -20,11 +20,11 @@ void main() {
       );
     });
 
-    test('EvaluationException reviewWindowNotOpen is expected', () {
+    test('EvaluationException notEligible is expected', () {
       expect(
         isInternalFaultException(
           EvaluationException(
-            evaluationCode: EvaluationExceptionCode.reviewWindowNotOpen,
+            code: EvaluationExceptionCode.notEligible,
           ),
         ),
         isFalse,
@@ -35,7 +35,7 @@ void main() {
       expect(
         isInternalFaultException(
           EvaluationException(
-            evaluationCode: EvaluationExceptionCode.unspecified,
+            code: EvaluationExceptionCode.unspecified,
           ),
         ),
         isTrue,

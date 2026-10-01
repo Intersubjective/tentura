@@ -50,7 +50,6 @@ class BeaconDisplayStatusInput {
     this.hasUnreviewedOffers = false,
     this.hasOpenRoomAsks = false,
     this.reviewClosesAt,
-    this.reviewWindowStatus,
     this.updatedAt,
     this.lastActivityAt,
   });
@@ -62,7 +61,6 @@ class BeaconDisplayStatusInput {
   final bool hasUnreviewedOffers;
   final bool hasOpenRoomAsks;
   final DateTime? reviewClosesAt;
-  final int? reviewWindowStatus;
   final DateTime? updatedAt;
   final DateTime? lastActivityAt;
 }
@@ -233,7 +231,7 @@ BeaconDisplayStatusResult _derivePublic(BeaconDisplayStatusInput input) {
 
 BeaconDisplaySlot2Kind _reviewSlot2(BeaconDisplayStatusInput input) {
   final closesAt = input.reviewClosesAt;
-  if (closesAt == null || input.reviewWindowStatus == 1) {
+  if (closesAt == null) {
     return BeaconDisplaySlot2Kind.none;
   }
   return BeaconDisplaySlot2Kind.reviewCountdown;

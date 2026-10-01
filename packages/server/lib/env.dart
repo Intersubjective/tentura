@@ -44,9 +44,9 @@ Duration? _parseEnvDuration(String? raw) {
 ///
 /// Raised to 5.6.38 for the commitment-truth-rework core release (plan
 /// docs/plans/commitment-truth-rework-plan.md §12.3): after P3.5, the server
-/// computes `beaconClose`'s review-window requirement from ever-acknowledged
+/// computes `beaconClose`'s review requirement from ever-acknowledged
 /// commitment history, not from currently-active offers. Older clients still
-/// compute their `expectedRequiresReviewWindow` guess from active offers only
+/// compute their `expectedRequiresReview` guess from active offers only
 /// and will systematically mismatch on any request where a helper withdrew or
 /// was released, hitting `closeBranchConflict` on every close attempt. P3.11
 /// fixes the client to read the server-provided counter instead, so this gate

@@ -95,7 +95,7 @@ final class ClosureFinalizeCase extends UseCaseBase
       toStatus: BeaconStatus.closed,
       reason: closedByAuthor
           ? BeaconLifecycleChangeReason.authorCloseNow
-          : BeaconLifecycleChangeReason.reviewExpired,
+          : BeaconLifecycleChangeReason.closureExpired,
       actorId: closedByAuthor ? authorId : null,
     );
     await _lifecycleEffects.recordEligibleSourceTransition(
@@ -106,7 +106,7 @@ final class ClosureFinalizeCase extends UseCaseBase
       actorUserId: closedByAuthor ? authorId : null,
       reason: closedByAuthor
           ? BeaconStatusTransitionReason.authorCloseNow
-          : BeaconStatusTransitionReason.reviewExpired,
+          : BeaconStatusTransitionReason.closureExpired,
     );
     await _settlement.supersedeAuthorHelpOfferObligationsOnBeaconClose(
       beaconId,

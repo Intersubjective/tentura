@@ -16,7 +16,6 @@ import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/port/attention_system_settlement_port.dart';
-import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 import 'package:tentura_server/domain/use_case/commitment_query_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_case.dart';
 import 'package:tentura_server/env.dart';
@@ -28,7 +27,6 @@ import '../../support/recording_commitment_repository.dart';
 import '../../support/test_attention_harness.dart';
 import 'help_offer_case_mocks.mocks.dart';
 
-class _MinimalEvaluationRepo extends Fake implements EvaluationRepositoryPort {}
 
 class _RecordingAttentionSystemSettlement extends Fake
     implements AttentionSystemSettlementPort {
@@ -70,23 +68,6 @@ class _RecordingAttentionSystemSettlement extends Fake
   Future<int> supersedeAuthorHelpOfferObligationsOnBeaconClose(
     String beaconId,
   ) async => 0;
-
-  @override
-  Future<int> settleReviewObligationsAfterWindowClose(String beaconId) async =>
-      0;
-
-  @override
-  Future<int> supersedeReviewObligationsOnReopen(String beaconId) async => 0;
-
-  @override
-  Future<int> settleReviewerObligationOnPackageSend({
-    required String beaconId,
-    required String reviewerAccountId,
-  }) async =>
-      0;
-
-  @override
-  Future<List<String>> listBeaconIdsWithClosedReviewWindows() async => [];
 }
 
 void main() {
@@ -154,7 +135,6 @@ void main() {
       helpOfferRepo,
       coordinationRepo,
       roomRepo,
-      _MinimalEvaluationRepo(),
       FakeUserBlockRepository(),
       commitmentRepo,
       commitmentQueryCase,

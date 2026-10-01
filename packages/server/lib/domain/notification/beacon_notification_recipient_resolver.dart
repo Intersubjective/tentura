@@ -186,7 +186,7 @@ class BeaconNotificationRecipientResolver {
         for (final uid in intent.admittedUserIds) {
           add(
             uid,
-            NotificationRecipientReason.reviewParticipant,
+            NotificationRecipientReason.activeParticipant,
             intent.priority,
           );
         }

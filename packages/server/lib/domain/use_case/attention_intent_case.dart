@@ -6,7 +6,6 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_context.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_intent.dart';
-import 'package:tentura_server/domain/entity/beacon_notification_recipient.dart';
 import 'package:tentura_server/domain/entity/invite_accepted_notification_intent.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/entity/notification_priority.dart';
@@ -19,7 +18,6 @@ import 'package:tentura_server/domain/port/beacon_room_notification_context_port
 import 'package:tentura_server/domain/port/user_block_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/policy/beacon_hierarchy_notice_copy.dart';
-import 'package:tentura_server/domain/entity/gql_public/evaluation_received_result.dart';
 
 /// Builds the immutable, recipient-specific snapshot recorded by an attention
 /// producer. Call this inside the producer's unit of work.
@@ -318,251 +316,6 @@ class AttentionIntentCase {
       beaconId: beaconId,
       recipients: recipients,
     );
-  }
-
-  Future<AttentionDispatchIntent> reviewOpened({
-    required String beaconId,
-    required String beaconTitle,
-    required Set<String> recipientUserIds,
-    required String actorUserId,
-    required String sourceEventKey,
-  }) => fromBeaconNotification(
-    notification: BeaconNotificationIntent(
-      kind: NotificationKind.reviewReady,
-      priority: NotificationPriority.high,
-      beaconId: beaconId,
-      actorUserId: actorUserId,
-      beaconTitle: beaconTitle,
-      admittedUserIds: recipientUserIds.toList(),
-    ),
-    eventType: AttentionEventType.reviewOpened,
-    sourceEventKey: sourceEventKey,
-    resolveContext: false,
-  );
-
-  Future<AttentionDispatchIntent> reviewAllPackagesIn({
-    required String beaconId,
-    required String beaconTitle,
-    required String authorUserId,
-    required String sourceEventKey,
-  }) => fromBeaconNotification(
-    notification: BeaconNotificationIntent(
-      kind: NotificationKind.reviewReady,
-      priority: NotificationPriority.normal,
-      beaconId: beaconId,
-      actorUserId: authorUserId,
-      beaconTitle: beaconTitle,
-      admittedUserIds: [authorUserId],
-    ),
-    eventType: AttentionEventType.reviewAllPackagesIn,
-    sourceEventKey: sourceEventKey,
-    resolveContext: false,
-  );
-
-  Future<AttentionDispatchIntent> reviewWindowCancelled({
-    required String beaconId,
-    required String beaconTitle,
-    required Set<String> recipientUserIds,
-    required String actorUserId,
-    required String sourceEventKey,
-  }) => fromBeaconNotification(
-    notification: BeaconNotificationIntent(
-      kind: NotificationKind.reviewReady,
-      priority: NotificationPriority.high,
-      beaconId: beaconId,
-      actorUserId: actorUserId,
-      beaconTitle: beaconTitle,
-      admittedUserIds: recipientUserIds.toList(),
-    ),
-    eventType: AttentionEventType.reviewWindowCancelled,
-    sourceEventKey: sourceEventKey,
-    resolveContext: false,
-  );
-
-  /// §5 "nothing disappears unexplained": one explanation per Request per
-  /// reason, addressed to the reviewers whose obligation ended without them
-  /// acting. [sourceEventKey] must be derived from the Request and the reason
-  /// (not a fresh id), so a repeated sweep dedups at the occurrence grain.
-  Future<AttentionDispatchIntent> reviewObligationEnded({
-    required String beaconId,
-    required String beaconTitle,
-    required Set<String> recipientUserIds,
-    required AttentionObligationEndReason reason,
-    required String? actorUserId,
-    required String sourceEventKey,
-  }) async => AttentionDispatchIntent(
-    eventType: AttentionEventType.obligationEnded,
-    sourceEventKey: sourceEventKey,
-    actorUserId: actorUserId,
-    priority: NotificationPriority.normal,
-    kind: NotificationKind.reviewReady,
-    title: 'Review closed',
-    body: switch (reason) {
-      AttentionObligationEndReason.reviewWindowExpired =>
-        'The review window closed on "$beaconTitle" before your package was '
-            'sent, so it is no longer waiting on you.',
-    },
-    actionUrl: '/#$kPathBeaconView/${Uri.encodeQueryComponent(beaconId)}',
-    collapseKey: AttentionCollapseKey.family(
-      'obligation_ended',
-      [beaconId, reason.name],
-    ),
-    beaconId: beaconId,
-    recipients: [
-      for (final recipientId in recipientUserIds.toList()..sort())
-        AttentionRecipientSnapshot(
-          recipientId: recipientId,
-          reasons: const {AttentionRecipientReason.reviewParticipant},
-          role: AttentionRecipientRoleFacts(
-            beaconId: beaconId,
-            canReadBeaconContent: true,
-            beaconTitle: beaconTitle,
-            targetEntityId: beaconId,
-            actorUserId: actorUserId,
-          ),
-        ),
-    ],
-  );
-
-  /// [NotificationKind.reviewReady] — legacy outbox/push plumbing only; Updates
-  /// cards dispatch on [AttentionEventType] presentation keys.
-  Future<AttentionDispatchIntent> trustGivenChanged({
-    required String beaconId,
-    required String beaconTitle,
-    required String evaluatorId,
-    required String evaluatedUserId,
-    required EvaluationReceivedTrustTone tone,
-    required String sourceEventKey,
-  }) async {
-    final evaluated = await _users.getById(evaluatedUserId);
-    final name = evaluated.displayName.trim();
-    final direction = _trustDirectionFor(tone);
-    return AttentionDispatchIntent(
-      eventType: AttentionEventType.trustGivenChanged,
-      sourceEventKey: sourceEventKey,
-      actorUserId: evaluatedUserId,
-      priority: NotificationPriority.normal,
-      kind: NotificationKind.reviewReady,
-      title: 'Trust update',
-      body: _trustGivenBody(
-        name: name,
-        beaconTitle: beaconTitle,
-        direction: direction,
-      ),
-      actionUrl: '/#/profile/view/${Uri.encodeQueryComponent(evaluatedUserId)}',
-      collapseKey: AttentionCollapseKey.family(
-        'trust_given',
-        [beaconId, evaluatorId, evaluatedUserId],
-      ),
-      beaconId: beaconId,
-      recipients: [
-        AttentionRecipientSnapshot(
-          recipientId: evaluatorId,
-          reasons: const {AttentionRecipientReason.reviewParticipant},
-          role: AttentionRecipientRoleFacts(
-            beaconId: beaconId,
-            canReadBeaconContent: true,
-            beaconTitle: beaconTitle,
-            targetEntityId: evaluatedUserId,
-            actorUserId: evaluatedUserId,
-            trustDirection: direction,
-          ),
-        ),
-      ],
-      targetEntityId: evaluatedUserId,
-    );
-  }
-
-  /// [NotificationKind.reviewReady] — same legacy-kind choice as
-  /// [trustGivenChanged].
-  Future<AttentionDispatchIntent> trustReceivedChanged({
-    required String beaconId,
-    required String beaconTitle,
-    required String evaluatorId,
-    required String evaluatedUserId,
-    required EvaluationReceivedTrustTone tone,
-    required String sourceEventKey,
-  }) async {
-    final evaluator = await _users.getById(evaluatorId);
-    final name = evaluator.displayName.trim();
-    final direction = _trustDirectionFor(tone);
-    return AttentionDispatchIntent(
-      eventType: AttentionEventType.trustReceivedChanged,
-      sourceEventKey: sourceEventKey,
-      actorUserId: evaluatorId,
-      priority: NotificationPriority.normal,
-      kind: NotificationKind.reviewReady,
-      title: _trustReceivedTitle(direction),
-      body: _trustReceivedBody(
-        name: name,
-        beaconTitle: beaconTitle,
-        direction: direction,
-      ),
-      actionUrl: '/#$kPathBeaconView/$beaconId',
-      collapseKey: AttentionCollapseKey.family(
-        'trust_received',
-        [beaconId, evaluatorId, evaluatedUserId],
-      ),
-      beaconId: beaconId,
-      recipients: [
-        AttentionRecipientSnapshot(
-          recipientId: evaluatedUserId,
-          reasons: const {AttentionRecipientReason.reviewParticipant},
-          role: AttentionRecipientRoleFacts(
-            beaconId: beaconId,
-            canReadBeaconContent: true,
-            beaconTitle: beaconTitle,
-            targetEntityId: beaconId,
-            actorUserId: evaluatorId,
-            trustDirection: direction,
-          ),
-        ),
-      ],
-      targetEntityId: beaconId,
-    );
-  }
-
-  String _trustDirectionFor(EvaluationReceivedTrustTone tone) => switch (tone) {
-    EvaluationReceivedTrustTone.down => 'down',
-    EvaluationReceivedTrustTone.up => 'up',
-    EvaluationReceivedTrustTone.noChange ||
-    EvaluationReceivedTrustTone.noBasis => 'noChange',
-  };
-
-  String _trustGivenBody({
-    required String name,
-    required String beaconTitle,
-    required String direction,
-  }) {
-    final counterpart = name.isEmpty ? 'them' : name;
-    return switch (direction) {
-      'up' => 'Your trust in $counterpart increased after "$beaconTitle".',
-      'down' => 'Your trust in $counterpart decreased after "$beaconTitle".',
-      _ =>
-        'No significant trust change with $counterpart after "$beaconTitle".',
-    };
-  }
-
-  String _trustReceivedTitle(String direction) => switch (direction) {
-    'up' => 'Someone trusts you more',
-    'down' => 'Someone trusts you less',
-    _ => 'Someone reviewed you',
-  };
-
-  String _trustReceivedBody({
-    required String name,
-    required String beaconTitle,
-    required String direction,
-  }) {
-    final reviewer = name.isEmpty ? 'Someone' : name;
-    return switch (direction) {
-      'up' =>
-        '$reviewer now trusts you more after "$beaconTitle" — and their network.',
-      'down' =>
-        '$reviewer now trusts you less after "$beaconTitle" — and their network.',
-      _ =>
-        'No significant trust change from $reviewer after "$beaconTitle" — and their network.',
-    };
   }
 
   Future<AttentionDispatchIntent> roomMessagePosted({
@@ -966,21 +719,10 @@ class AttentionIntentCase {
     final context = resolveContext
         ? await _context.loadContextForBeacon(notification.beaconId)
         : const BeaconNotificationContext();
-    // This informational event is addressed to its stable author actor. The
-    // general notification resolver deliberately excludes actors.
-    final resolvedRecipients =
-        eventType == AttentionEventType.reviewAllPackagesIn
-        ? [
-            BeaconNotificationRecipient(
-              userId: notification.actorUserId,
-              reasons: const {NotificationRecipientReason.authorOfBeacon},
-              priority: notification.priority,
-            ),
-          ]
-        : _resolver.resolveRecipients(
-            intent: notification,
-            ctx: context,
-          );
+    final resolvedRecipients = _resolver.resolveRecipients(
+      intent: notification,
+      ctx: context,
+    );
     final hiddenPeerIds = await _userBlocks.hiddenPeerIds(
       viewerId: notification.actorUserId,
       peerIds: resolvedRecipients.map((recipient) => recipient.userId),
@@ -1103,7 +845,5 @@ class AttentionIntentCase {
       AttentionRecipientReason.admittedRoomMember,
     NotificationRecipientReason.forwardRecipient =>
       AttentionRecipientReason.forwardRecipient,
-    NotificationRecipientReason.reviewParticipant =>
-      AttentionRecipientReason.reviewParticipant,
   };
 }

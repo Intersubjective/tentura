@@ -4,7 +4,6 @@ import 'package:tentura_root/domain/entity/beacon_status_transition.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
-import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/commitment/commitment_event.dart';
 import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
@@ -36,7 +35,6 @@ final class CoordinationCase extends UseCaseBase {
     this._helpOfferRepository,
     this._coordinationRepository,
     this._beaconRoomRepository,
-    this._evaluationRepository,
     this._userBlockRepository,
     this._commitmentRepository,
     this._commitmentQueryCase,
@@ -58,7 +56,6 @@ final class CoordinationCase extends UseCaseBase {
   final HelpOfferRepositoryPort _helpOfferRepository;
   final CoordinationRepositoryPort _coordinationRepository;
   final BeaconRoomRepositoryPort _beaconRoomRepository;
-  final EvaluationRepositoryPort _evaluationRepository;
   final UserBlockRepositoryPort _userBlockRepository;
   final CommitmentRepositoryPort _commitmentRepository;
   final CommitmentQueryCase _commitmentQueryCase;
@@ -719,24 +716,6 @@ final class CoordinationCase extends UseCaseBase {
               status: snap.status.smallintValue,
               statusChangedAt: snap.statusChangedAt,
             );
-          }
-          final w = await _evaluationRepository.getReviewWindow(beaconId);
-          if (w != null) {
-            if (w.status == 1) {
-              throw EvaluationException(
-                evaluationCode: EvaluationExceptionCode.reviewAlreadyClosed,
-                description:
-                    'Request review is closed and cannot be re-opened',
-              );
-            }
-            if (w.status == 0) {
-              await _evaluationRepository.downgradeSubmittedReviewsToDraft(
-                beaconId,
-              );
-              await _evaluationRepository.deleteReviewScaffoldingForBeacon(
-                beaconId,
-              );
-            }
           }
         }
 

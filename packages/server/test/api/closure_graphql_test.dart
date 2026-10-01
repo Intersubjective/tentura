@@ -237,7 +237,7 @@ void main() {
       );
     });
 
-    test('closure mutations left MutationEvaluation and MutationBeacon', () {
+    test('closure mutations left MutationBeacon', () {
       const moved = [
         'beaconClose',
         'beaconCloseNow',
@@ -246,7 +246,7 @@ void main() {
         'beaconExtendClosure',
       ];
       const dir = 'lib/api/controllers/graphql/mutation';
-      for (final file in ['mutation_evaluation.dart', 'mutation_beacon.dart']) {
+      for (final file in ['mutation_beacon.dart']) {
         final src = File('$dir/$file').readAsStringSync();
         for (final n in moved) {
           expect(

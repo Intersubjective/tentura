@@ -26,7 +26,7 @@ class ClosureReminderRepository implements ClosureReminderSweepPort {
         '''
 INSERT INTO public.notification_outbox ($_insertColumns)
 SELECT gen_random_uuid()::text, m.user_id, 'asksOfMe', 'staleRemind', 'high',
-  'Finish your evaluation',
+  'Finish your review',
   'Your draft has not been committed. The window closes within a day.',
   \$2::text || c.beacon_id || '?is_deep_link=true',
   k.skey, c.beacon_id, k.skey, 'beacon', c.beacon_id,

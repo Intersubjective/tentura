@@ -1,6 +1,8 @@
 {
   "schemaVersion": 5,
-  "pendingProducerEventTypes": [],
+  "pendingProducerEventTypes": [
+    "obligationEnded"
+  ],
   "eventTypes": [
     {
       "eventType": "relayReceived",
@@ -60,43 +62,19 @@
     },
     {
       "eventType": "requestStatusChanged",
-      "producer": "BeaconCase|CoordinationCase|EvaluationCase|AttentionExpirySweepCase",
+      "producer": "BeaconCase|CoordinationCase",
       "recipientCategory": "active_participants_and_inbox_stance_holders",
       "destinationFamily": "beacon",
       "muteability": "standard_or_noisy",
       "coveringTest": "packages/server/test/domain/use_case/coordination_case_revert_test.dart"
     },
     {
-      "eventType": "reviewOpened",
-      "producer": "EvaluationCase.beaconClose",
-      "recipientCategory": "admitted_participants",
-      "destinationFamily": "review",
-      "muteability": "mandatory",
-      "coveringTest": "packages/server/test/domain/evaluation/evaluation_case_test.dart"
-    },
-    {
-      "eventType": "reviewAllPackagesIn",
-      "producer": "EvaluationCase.evaluationFinalize",
-      "recipientCategory": "beacon_author",
-      "destinationFamily": "review",
-      "muteability": "standard",
-      "coveringTest": "packages/server/test/domain/evaluation/evaluation_case_test.dart"
-    },
-    {
-      "eventType": "reviewWindowCancelled",
-      "producer": "EvaluationCase.reopenFromReview",
-      "recipientCategory": "review_participant",
-      "destinationFamily": "beacon",
-      "muteability": "standard",
-      "coveringTest": "packages/server/test/domain/evaluation/evaluation_case_test.dart"
-    },
-    {
       "eventType": "obligationEnded",
-      "producer": "AttentionExpirySweepCase.runDue",
-      "recipientCategory": "review_participant",
+      "producer": "none (no live producer; enum value retained)",
+      "recipientCategory": "active_participants",
       "destinationFamily": "beacon",
       "muteability": "standard",
-      "coveringTest": "packages/server/test/domain/use_case/review_obligation_settlement_pg_test.dart"
+      "coveringTest": "packages/server/test/domain/attention/attention_policy_test.dart"
     },
     {
       "eventType": "mutualConnectionFormed",
@@ -113,22 +91,6 @@
       "destinationFamily": "profile",
       "muteability": "standard",
       "coveringTest": "packages/server/test/domain/use_case/invitation_case_test.dart"
-    },
-    {
-      "eventType": "trustGivenChanged",
-      "producer": "EvaluationCase.closeNow|AttentionExpirySweepCase.runDue",
-      "recipientCategory": "review_participant",
-      "destinationFamily": "profile",
-      "muteability": "standard",
-      "coveringTest": "packages/server/test/domain/evaluation/evaluation_case_test.dart"
-    },
-    {
-      "eventType": "trustReceivedChanged",
-      "producer": "EvaluationCase.closeNow|AttentionExpirySweepCase.runDue",
-      "recipientCategory": "review_participant",
-      "destinationFamily": "received_reviews",
-      "muteability": "standard",
-      "coveringTest": "packages/server/test/domain/evaluation/evaluation_case_test.dart"
     },
     {
       "eventType": "closureOpened",
@@ -179,14 +141,6 @@
       "destinationFamily": "profile",
       "muteability": "standard",
       "coveringTest": "packages/server/test/domain/use_case/auth_case_test.dart"
-    },
-    {
-      "useCase": "packages/server/lib/domain/use_case/attention_expiry_sweep_case.dart",
-      "eventType": "requestStatusChanged",
-      "recipientCategory": "active_participants_and_inbox_stance_holders",
-      "destinationFamily": "beacon",
-      "muteability": "standard_or_noisy",
-      "coveringTest": "packages/server/test/domain/use_case/attention_expiry_sweep_case_test.dart"
     },
     {
       "useCase": "packages/server/lib/domain/use_case/beacon_case.dart",
@@ -448,30 +402,6 @@
       "coveringTest": "packages/server/test/domain/use_case/credential_auth_case_test.dart"
     },
     {
-      "useCase": "packages/server/lib/domain/use_case/evaluation_case.dart",
-      "eventType": "reviewOpened",
-      "recipientCategory": "admitted_participants",
-      "destinationFamily": "review",
-      "muteability": "mandatory",
-      "coveringTest": "packages/server/test/domain/evaluation/evaluation_case_test.dart"
-    },
-    {
-      "useCase": "packages/server/lib/domain/use_case/evaluation_case.dart",
-      "eventType": "reviewAllPackagesIn",
-      "recipientCategory": "beacon_author",
-      "destinationFamily": "review",
-      "muteability": "standard",
-      "coveringTest": "packages/server/test/domain/evaluation/evaluation_case_test.dart"
-    },
-    {
-      "useCase": "packages/server/lib/domain/use_case/evaluation_case.dart",
-      "eventType": "reviewWindowCancelled",
-      "recipientCategory": "review_participant",
-      "destinationFamily": "beacon",
-      "muteability": "standard",
-      "coveringTest": "packages/server/test/domain/evaluation/evaluation_case_test.dart"
-    },
-    {
       "useCase": "packages/server/lib/domain/use_case/forward_case.dart",
       "eventType": "relayReceived",
       "recipientCategory": "forward_recipients",
@@ -595,11 +525,11 @@
           "actionDescriptor": "respondToHelpOffer",
           "logicalTaskKey": "v1|helpOfferSubmitted|{targetEntityId}|{recipientId}",
           "resolutionTransitions": [
+            "ClosureCase.close",
             "CoordinationCase.acceptHelpOffer",
             "CoordinationCase.declineHelpOffer",
             "CoordinationCase.releaseCommitment",
             "CoordinationCase.removeFromRoom",
-            "EvaluationCase.beaconClose",
             "HelpOfferCase.withdraw"
           ]
         },
@@ -828,92 +758,11 @@
       ]
     },
     {
-      "eventType": "reviewOpened",
-      "status": "supported",
-      "variants": [
-        {
-          "recipientPredicate": "reason:reviewParticipant",
-          "scope": "beacon",
-          "attentionClass": "obligation",
-          "placement": "primary",
-          "groupKey": "beaconId",
-          "orderingEffect": "promote_on_obligation",
-          "accessPolicy": "beacon_content",
-          "recoverableVia": "request_timeline",
-          "clearPolicy": "forbidden",
-          "selfAuthored": false,
-          "headlineTreatment": "beacon",
-          "coalescible": true,
-          "producerTests": [
-            "packages/server/test/domain/evaluation/evaluation_case_test.dart"
-          ],
-          "transitionTests": [
-            "packages/server/test/domain/evaluation/evaluation_case_test.dart"
-          ],
-          "actionDescriptor": "openReview",
-          "logicalTaskKey": "v1|reviewOpened|{beaconId}|{recipientId}",
-          "resolutionTransitions": [
-            "EvaluationCase.evaluationFinalize",
-            "EvaluationCase.reopenFromReview",
-            "ReviewFinalizationCase.closeAndFinalize"
-          ]
-        }
-      ]
-    },
-    {
-      "eventType": "reviewAllPackagesIn",
-      "status": "supported",
-      "variants": [
-        {
-          "recipientPredicate": "reason:authorOfBeacon",
-          "scope": "beacon",
-          "attentionClass": "optional",
-          "placement": "primary",
-          "groupKey": "beaconId",
-          "orderingEffect": "stable",
-          "accessPolicy": "beacon_content",
-          "recoverableVia": "request_timeline",
-          "clearPolicy": "explicit_or_request_open",
-          "selfAuthored": false,
-          "headlineTreatment": "beacon",
-          "coalescible": true,
-          "producerTests": [
-            "packages/server/test/domain/evaluation/evaluation_case_test.dart"
-          ],
-          "transitionTests": []
-        }
-      ]
-    },
-    {
-      "eventType": "reviewWindowCancelled",
-      "status": "supported",
-      "variants": [
-        {
-          "recipientPredicate": "reason:reviewParticipant",
-          "scope": "beacon",
-          "attentionClass": "optional",
-          "placement": "primary",
-          "groupKey": "beaconId",
-          "orderingEffect": "stable",
-          "accessPolicy": "beacon_content",
-          "recoverableVia": "request_timeline",
-          "clearPolicy": "explicit_or_request_open",
-          "selfAuthored": false,
-          "headlineTreatment": "beacon",
-          "coalescible": true,
-          "producerTests": [
-            "packages/server/test/domain/evaluation/evaluation_case_test.dart"
-          ],
-          "transitionTests": []
-        }
-      ]
-    },
-    {
       "eventType": "obligationEnded",
       "status": "supported",
       "variants": [
         {
-          "recipientPredicate": "reason:reviewParticipant",
+          "recipientPredicate": "reason:activeParticipant",
           "scope": "beacon",
           "attentionClass": "optional",
           "placement": "primary",
@@ -926,7 +775,7 @@
           "headlineTreatment": "beacon",
           "coalescible": false,
           "producerTests": [
-            "packages/server/test/domain/use_case/review_obligation_settlement_pg_test.dart"
+            "packages/server/test/domain/attention/attention_policy_test.dart"
           ],
           "transitionTests": []
         }
@@ -1257,54 +1106,6 @@
           "coalescible": true,
           "producerTests": [
             "packages/server/test/domain/use_case/coordination_item/ask_lifecycle_case_test.dart"
-          ],
-          "transitionTests": []
-        }
-      ]
-    },
-    {
-      "eventType": "trustGivenChanged",
-      "status": "supported",
-      "variants": [
-        {
-          "recipientPredicate": "reason:reviewParticipant",
-          "scope": "beacon",
-          "attentionClass": "optional",
-          "placement": "primary",
-          "groupKey": "beaconId",
-          "orderingEffect": "stable",
-          "accessPolicy": "profile",
-          "recoverableVia": "history_only",
-          "clearPolicy": "explicit_or_request_open",
-          "selfAuthored": false,
-          "headlineTreatment": "beacon",
-          "coalescible": true,
-          "producerTests": [
-            "packages/server/test/domain/evaluation/evaluation_case_test.dart"
-          ],
-          "transitionTests": []
-        }
-      ]
-    },
-    {
-      "eventType": "trustReceivedChanged",
-      "status": "supported",
-      "variants": [
-        {
-          "recipientPredicate": "reason:reviewParticipant",
-          "scope": "beacon",
-          "attentionClass": "optional",
-          "placement": "primary",
-          "groupKey": "beaconId",
-          "orderingEffect": "stable",
-          "accessPolicy": "beacon_content",
-          "recoverableVia": "history_only",
-          "clearPolicy": "explicit_or_request_open",
-          "selfAuthored": false,
-          "headlineTreatment": "beacon",
-          "coalescible": true,
-          "producerTests": [
-            "packages/server/test/domain/evaluation/evaluation_case_test.dart"
           ],
           "transitionTests": []
         }

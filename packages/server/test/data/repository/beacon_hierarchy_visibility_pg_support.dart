@@ -9,7 +9,6 @@ import 'package:tentura_server/domain/entity/invitation_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
-import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 import 'package:tentura_server/domain/use_case/capability_case.dart';
 import 'package:tentura_server/domain/use_case/commitment_query_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_case.dart';
@@ -308,7 +307,6 @@ final class HierarchyOnlyViewerHarness {
     help_mocks.MockHelpOfferRepositoryPort(),
     help_mocks.MockCoordinationRepositoryPort(),
     help_mocks.MockBeaconRoomRepositoryPort(),
-    _FakeEvaluationRepository(),
     FakeUserBlockRepository(),
     RecordingCommitmentRepository(),
     CommitmentQueryCase(
@@ -323,9 +321,6 @@ final class HierarchyOnlyViewerHarness {
     logger: _logger,
   );
 }
-
-final class _FakeEvaluationRepository extends Fake
-    implements EvaluationRepositoryPort {}
 
 final class _HarnessChildBeaconRepo extends Fake implements BeaconRepositoryPort {
   _HarnessChildBeaconRepo(this._child);

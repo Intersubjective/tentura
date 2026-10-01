@@ -28,7 +28,6 @@ void main() {
       '.offerRemoved(',
       '.commitmentReleased(',
     ],
-    'evaluation_case.dart': ['runAction(', '.reviewOpened('],
     'beacon_room_case.dart': [
       'runAction<',
       '.helpOfferSubmitted(',
@@ -67,18 +66,6 @@ void main() {
     ],
     'coordination_case.dart': [
       'runAction(',
-      '.requestStatusChanged(',
-    ],
-    'evaluation_case.dart': [
-      'runAction(',
-      '.requestStatusChanged(',
-      '_lifecycleEffects.recordEligibleSourceTransition(',
-    ],
-    'evaluation/review_finalization_case.dart': [
-      '_lifecycleEffects.recordEligibleSourceTransition(',
-    ],
-    'attention_expiry_sweep_case.dart': [
-      'actorUserId: null',
       '.requestStatusChanged(',
     ],
     'user_trust_edge_case.dart': [
@@ -150,8 +137,6 @@ void main() {
       const expectedIntentSites = <String, int>{
         'beacon_case.dart': 2,
         'coordination_case.dart': 1,
-        'evaluation_case.dart': 3,
-        'attention_expiry_sweep_case.dart': 1,
       };
 
       for (final entry in expectedIntentSites.entries) {
@@ -168,22 +153,7 @@ void main() {
       final worker = File(
         'lib/domain/use_case/task_worker_case.dart',
       ).readAsStringSync();
-      expect(worker, contains('_attentionExpirySweep!.runDue'));
-
-      final finalizer = File(
-        'lib/domain/use_case/evaluation/review_finalization_case.dart',
-      ).readAsStringSync();
-      expect(
-        RegExp(r'_lifecycleEffects\.recordEligibleSourceTransition\(')
-            .allMatches(finalizer),
-        hasLength(1),
-        reason: 'final Closed hierarchy event is owned only by closeAndFinalize',
-      );
-      expect(
-        finalizer,
-        isNot(contains('requestStatusChanged(')),
-        reason: 'review finalizer must not duplicate status attention producers',
-      );
+      expect(worker, contains('_closureFinalizeSweep'));
     },
   );
 

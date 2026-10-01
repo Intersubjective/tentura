@@ -6,7 +6,6 @@ import 'package:test/test.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_context.dart';
 import 'package:tentura_server/domain/entity/invite_accepted_notification_intent.dart';
-import 'package:tentura_server/domain/entity/gql_public/evaluation_received_result.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 
 import '../../support/test_attention_harness.dart';
@@ -149,86 +148,12 @@ void main() {
           ),
         ),
         (
-          eventType: AttentionEventType.reviewOpened,
-          legacyKind: 'reviewReady',
-          recipient: target,
-          build: (intents) => intents.reviewOpened(
-            beaconId: beacon,
-            beaconTitle: 'Request title',
-            recipientUserIds: const {target},
-            actorUserId: actor,
-            sourceEventKey: eventKey,
-          ),
-        ),
-        (
-          eventType: AttentionEventType.reviewAllPackagesIn,
-          legacyKind: 'reviewReady',
-          recipient: actor,
-          build: (intents) => intents.reviewAllPackagesIn(
-            beaconId: beacon,
-            beaconTitle: 'Request title',
-            authorUserId: actor,
-            sourceEventKey: eventKey,
-          ),
-        ),
-        (
-          eventType: AttentionEventType.reviewWindowCancelled,
-          legacyKind: 'reviewReady',
-          recipient: target,
-          build: (intents) => intents.reviewWindowCancelled(
-            beaconId: beacon,
-            beaconTitle: 'Request title',
-            recipientUserIds: const {target},
-            actorUserId: actor,
-            sourceEventKey: eventKey,
-          ),
-        ),
-        (
-          eventType: AttentionEventType.obligationEnded,
-          legacyKind: 'reviewReady',
-          recipient: target,
-          build: (intents) => intents.reviewObligationEnded(
-            beaconId: beacon,
-            beaconTitle: 'Request title',
-            recipientUserIds: const {target},
-            reason: AttentionObligationEndReason.reviewWindowExpired,
-            actorUserId: actor,
-            sourceEventKey: eventKey,
-          ),
-        ),
-        (
           eventType: AttentionEventType.mutualConnectionFormed,
           legacyKind: 'inviteAccepted',
           recipient: target,
           build: (intents) => intents.mutualConnectionFormed(
             actorUserId: actor,
             counterpartUserId: target,
-            sourceEventKey: eventKey,
-          ),
-        ),
-        (
-          eventType: AttentionEventType.trustGivenChanged,
-          legacyKind: 'reviewReady',
-          recipient: actor,
-          build: (intents) => intents.trustGivenChanged(
-            beaconId: beacon,
-            beaconTitle: 'Request title',
-            evaluatorId: actor,
-            evaluatedUserId: target,
-            tone: EvaluationReceivedTrustTone.up,
-            sourceEventKey: eventKey,
-          ),
-        ),
-        (
-          eventType: AttentionEventType.trustReceivedChanged,
-          legacyKind: 'reviewReady',
-          recipient: target,
-          build: (intents) => intents.trustReceivedChanged(
-            beaconId: beacon,
-            beaconTitle: 'Request title',
-            evaluatorId: actor,
-            evaluatedUserId: target,
-            tone: EvaluationReceivedTrustTone.up,
             sourceEventKey: eventKey,
           ),
         ),
@@ -296,13 +221,7 @@ void main() {
         expect(intent.eventType, fixture.eventType);
         expect(intent.kind.name, fixture.legacyKind);
         expect(intent.sourceEventKey, eventKey);
-        expect(
-          intent.actorUserId,
-          switch (fixture.eventType) {
-            AttentionEventType.trustGivenChanged => target,
-            _ => actor,
-          },
-        );
+        expect(intent.actorUserId, actor);
         expect(intent.title, isNotEmpty);
         expect(intent.body, isNotEmpty);
         expect(intent.actionUrl, isNotEmpty);
@@ -315,17 +234,6 @@ void main() {
           switch (fixture.eventType) {
             AttentionEventType.coordinationChanged => startsWith(
               'v1|coordination_changed|',
-            ),
-            AttentionEventType.trustGivenChanged => startsWith(
-              'v1|trust_given|',
-            ),
-            AttentionEventType.trustReceivedChanged => startsWith(
-              'v1|trust_received|',
-            ),
-            // One explanation per Request per reason — the family is the
-            // dedup unit, not the source event id.
-            AttentionEventType.obligationEnded => startsWith(
-              'v1|obligation_ended|',
             ),
             _ => startsWith('v1|none|'),
           },
@@ -393,7 +301,7 @@ void main() {
   test('actor-null status transition keeps a null receipt actor', () async {
     final intent = await harness.intents.requestStatusChanged(
       beaconId: beacon,
-      fromStatus: 'reviewOpen',
+      fromStatus: 'needsMoreHelp',
       toStatus: 'closed',
       sourceEventKey: eventKey,
     );
@@ -411,11 +319,11 @@ void main() {
     group('fromBeaconNotification hub', () {
       Future<AttentionDispatchIntent> buildIntent(
         TestAttentionHarness harness,
-      ) => harness.intents.reviewOpened(
+      ) => harness.intents.relayReceived(
         beaconId: beacon,
-        beaconTitle: 'Request title',
-        recipientUserIds: {target, unrelated},
-        actorUserId: actor,
+        senderId: actor,
+        beaconAuthorId: author,
+        recipientIds: [target, unrelated],
         sourceEventKey: eventKey,
       );
 

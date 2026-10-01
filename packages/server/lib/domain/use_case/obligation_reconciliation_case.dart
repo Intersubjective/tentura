@@ -4,7 +4,6 @@ import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/attention/attention_reconciliation_models.dart';
 import 'package:tentura_server/domain/port/attention_query_port.dart';
 import 'package:tentura_server/domain/port/attention_reconciliation_port.dart';
-import 'package:tentura_server/domain/port/attention_system_settlement_port.dart';
 
 import '_use_case_base.dart';
 import 'attention_intent_case.dart';
@@ -23,14 +22,10 @@ abstract interface class ObligationReconciliationRunner {
 
 /// U12 / D15 — reconciliation: repair source-derived obligation state.
 ///
-/// This is the generalisation of `ReviewObligationBackfillCase`, not a second
-/// mechanism beside it. [run] is that case's global sweep, unchanged in
-/// behaviour and still the deployment-time repair for review windows that
-/// closed before settlement shipped. [reconcileAccount] is the per-account
-/// repair behind the Settings control, and it covers both obligation kinds
-/// U07a found (`helpOfferSubmitted`, `reviewOpened`) in both directions:
-/// a live receipt whose task is finished is settled with the source's own
-/// reason, and an open task with no live receipt gets one.
+/// [reconcileAccount] is the per-account repair behind the Settings control.
+/// It covers the help-offer obligation in both directions: a live receipt
+/// whose task is finished is settled with the source's own reason, and an
+/// open task with no live receipt gets one.
 ///
 /// What it must never do is undo an act. It writes only `requires_action`
 /// rows; it never touches `cleared_at`, `seen_at`, an Inbox stance, a
@@ -40,7 +35,6 @@ abstract interface class ObligationReconciliationRunner {
 final class ObligationReconciliationCase extends UseCaseBase
     implements ObligationReconciliationRunner {
   ObligationReconciliationCase(
-    this._systemSettlement,
     this._reconciliation,
     this._query,
     this._attention,
@@ -49,25 +43,10 @@ final class ObligationReconciliationCase extends UseCaseBase
     required super.logger,
   });
 
-  final AttentionSystemSettlementPort _systemSettlement;
   final AttentionReconciliationPort _reconciliation;
   final AttentionQueryPort _query;
   final TransactionalAttentionCase _attention;
   final AttentionIntentCase _intents;
-
-  /// Idempotent sweep for review windows closed before obligation settlement
-  /// shipped. Returns total `notification_outbox` rows updated.
-  Future<int> run() async {
-    final beaconIds = await _systemSettlement
-        .listBeaconIdsWithClosedReviewWindows();
-    var total = 0;
-    for (final beaconId in beaconIds) {
-      total += await _systemSettlement.settleReviewObligationsAfterWindowClose(
-        beaconId,
-      );
-    }
-    return total;
-  }
 
   @override
   Future<AttentionReconciliationResult> reconcileAccount({
@@ -81,13 +60,9 @@ final class ObligationReconciliationCase extends UseCaseBase
       );
     }
 
-    final settled =
-        await _reconciliation.settleObsoleteHelpOfferObligations(
-          accountId: accountId,
-        ) +
-        await _reconciliation.settleObsoleteReviewObligations(
-          accountId: accountId,
-        );
+    final settled = await _reconciliation.settleObsoleteHelpOfferObligations(
+      accountId: accountId,
+    );
 
     var created = 0;
     for (final task in await _reconciliation.listUnbackedHelpOfferTasks(
@@ -106,23 +81,6 @@ final class ObligationReconciliationCase extends UseCaseBase
         ),
       );
     }
-    for (final task in await _reconciliation.listUnbackedReviewTasks(
-      accountId: accountId,
-    )) {
-      created += await _record(
-        accountId: accountId,
-        actorUserId: task.authorId,
-        intent: await _intents.reviewOpened(
-          beaconId: task.beaconId,
-          beaconTitle: task.beaconTitle,
-          recipientUserIds: {accountId},
-          actorUserId: task.authorId,
-          sourceEventKey:
-              'reconcile:review_opened:${task.beaconId}:g${task.generation}',
-        ),
-      );
-    }
-
     return AttentionReconciliationResult(
       createdObligationCount: created,
       settledObligationCount: settled,

@@ -140,7 +140,7 @@ final class ClosureCase extends UseCaseBase {
         fromStatus: beacon.status,
         toStatus: target,
         reason: opensEpoch
-            ? BeaconLifecycleChangeReason.reviewWindowOpened
+            ? BeaconLifecycleChangeReason.closureOpened
             : BeaconLifecycleChangeReason.directClose,
         actorId: authorId,
       );
@@ -151,7 +151,7 @@ final class ClosureCase extends UseCaseBase {
         occurredAt: now,
         actorUserId: authorId,
         reason: opensEpoch
-            ? BeaconStatusTransitionReason.reviewWindowOpened
+            ? BeaconStatusTransitionReason.closureOpened
             : BeaconStatusTransitionReason.directClose,
       );
       await _recordUnansweredAtCloseOffers(

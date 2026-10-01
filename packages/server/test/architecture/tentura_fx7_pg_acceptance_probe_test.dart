@@ -4,32 +4,18 @@ import 'dart:io';
 
 import 'package:test/test.dart';
 
-/// Same ten paths as [k2noRegressionPgTestPaths] in tentura_2no landing gates.
+/// Same paths as [k2noRegressionPgTestPaths] in tentura_2no landing gates.
 const kFx7RegressionPgTestPaths = [
-  'test/domain/use_case/review_finalization_outcome_evidence_pg_test.dart',
-  'test/domain/use_case/review_obligation_settlement_pg_test.dart',
-  'test/domain/use_case/evaluation_submit_ack_policy_pg_test.dart',
   'test/domain/use_case/help_offer_obligation_settlement_pg_test.dart',
-  'test/domain/use_case/review_obligation_backfill_pg_test.dart',
   'test/domain/use_case/attention_reconciliation_pg_test.dart',
   'test/data/database/m0201_clamp_pg_test.dart',
-  'test/data/repository/evaluation_repository_submit_atomic_pg_test.dart',
-  'test/data/repository/evaluation_repository_review_status_pg_test.dart',
   'test/data/repository/trust_maintenance_test.dart',
-];
-
-/// Evaluation-era files that must be remediated off A18 stub placeholders.
-const _fx7EvaluationRemediatedPaths = [
-  'test/domain/use_case/review_finalization_outcome_evidence_pg_test.dart',
-  'test/domain/use_case/evaluation_submit_ack_policy_pg_test.dart',
-  'test/data/repository/evaluation_repository_submit_atomic_pg_test.dart',
-  'test/data/repository/evaluation_repository_review_status_pg_test.dart',
 ];
 
 void main() {
   group('tentura-fx7 pg acceptance probe (trial merge tentura-50o)', () {
     test('regression pg paths match tentura-50o landing enumeration', () {
-      expect(kFx7RegressionPgTestPaths, hasLength(10));
+      expect(kFx7RegressionPgTestPaths, hasLength(4));
       for (final path in kFx7RegressionPgTestPaths) {
         expect(
           File(path).existsSync(),
@@ -38,29 +24,6 @@ void main() {
         );
       }
     });
-
-    test(
-      'tentura-50o regression evaluation pg tests are remediated past A18 stubs',
-      () {
-        for (final path in _fx7EvaluationRemediatedPaths) {
-          final source = File(path).readAsStringSync();
-          expect(
-            source.contains('A18 stub'),
-            isFalse,
-            reason:
-                '$path still documents A18 stub placeholders — '
-                'replace with post-m0203 disposable-pg coverage (tentura-fx7)',
-          );
-          expect(
-            RegExp(r"test\('.*is stubbed'").hasMatch(source),
-            isFalse,
-            reason:
-                '$path still asserts stubbed UnimplementedError paths — '
-                'finish tentura-50o pg landing remediation',
-          );
-        }
-      },
-    );
 
     test(
       'tentura-50o regression pg files run green under pg tag filter',
@@ -84,7 +47,7 @@ void main() {
           result.exitCode,
           0,
           reason:
-              'tentura-50o landing requires all ten regression pg files to pass '
+              'tentura-50o landing requires all regression pg files to pass '
               'under --tags pg\n'
               'stdout:\n${result.stdout}\n'
               'stderr:\n${result.stderr}',

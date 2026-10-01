@@ -291,20 +291,8 @@ _fixtureFor(String eventName) => switch (eventName) {
     reasons: const {AttentionRecipientReason.activeParticipant},
     role: _baseRole,
   ),
-  'reviewOpened' => (
-    reasons: const {AttentionRecipientReason.reviewParticipant},
-    role: _baseRole,
-  ),
-  'reviewAllPackagesIn' => (
-    reasons: const {AttentionRecipientReason.authorOfBeacon},
-    role: _baseRole,
-  ),
-  'reviewWindowCancelled' => (
-    reasons: const {AttentionRecipientReason.reviewParticipant},
-    role: _baseRole,
-  ),
   'obligationEnded' => (
-    reasons: const {AttentionRecipientReason.reviewParticipant},
+    reasons: const {AttentionRecipientReason.activeParticipant},
     role: _baseRole,
   ),
   'mutualConnectionFormed' => (
@@ -315,19 +303,11 @@ _fixtureFor(String eventName) => switch (eventName) {
     reasons: const {AttentionRecipientReason.inviter},
     role: _baseRole.copyWith(beaconId: null),
   ),
-  'trustGivenChanged' => (
-    reasons: const {AttentionRecipientReason.reviewParticipant},
-    role: _baseRole.copyWith(trustDirection: 'up'),
-  ),
-  'trustReceivedChanged' => (
-    reasons: const {AttentionRecipientReason.reviewParticipant},
-    role: _baseRole.copyWith(trustDirection: 'up'),
-  ),
   'closureOpened' ||
   'closureDraftReminder' ||
   'closureFinalized' ||
   'closureCancelled' => (
-    reasons: const {AttentionRecipientReason.reviewParticipant},
+    reasons: const {AttentionRecipientReason.activeParticipant},
     role: _baseRole,
   ),
   'requestStale' => (
@@ -363,7 +343,5 @@ bool _matchesDestination(
     destination == AttentionDestinationKind.beaconRoomMessage,
   'review' => destination == AttentionDestinationKind.review,
   'profile' => destination == AttentionDestinationKind.profile,
-  'received_reviews' =>
-    destination == AttentionDestinationKind.receivedReviews,
   _ => false,
 };

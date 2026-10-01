@@ -20,7 +20,6 @@ import 'package:tentura_server/data/repository/beacon_room_repository.dart';
 import 'package:tentura_server/data/repository/closure_repository.dart';
 import 'package:tentura_server/data/repository/commitment_repository.dart';
 import 'package:tentura_server/data/repository/coordination_repository.dart';
-import 'package:tentura_server/data/repository/evaluation_repository.dart';
 import 'package:tentura_server/data/repository/help_offer_repository.dart';
 import 'package:tentura_server/data/repository/inbox_repository.dart';
 import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repository_mock.dart';
@@ -345,7 +344,6 @@ final class _Harness {
       env: env,
       logger: logger,
     );
-    final evalRepo = EvaluationRepository(db);
     final closureCase = ClosureCase(
       unitOfWork: unitOfWork,
       closureRepository: ClosureRepository(db),
@@ -394,7 +392,6 @@ final class _Harness {
           room,
         ),
         room,
-        evalRepo,
         FakeUserBlockRepository(),
         commitments,
         commitmentQuery,

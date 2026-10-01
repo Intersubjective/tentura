@@ -6,25 +6,10 @@ import 'package:test/test.dart';
 
 /// Postgres files that failed the tentura-50o pg landing regression (m0202/m0203 drift).
 const k2noRegressionPgTestPaths = [
-  'test/domain/use_case/review_finalization_outcome_evidence_pg_test.dart',
-  'test/domain/use_case/review_obligation_settlement_pg_test.dart',
-  'test/domain/use_case/evaluation_submit_ack_policy_pg_test.dart',
   'test/domain/use_case/help_offer_obligation_settlement_pg_test.dart',
-  'test/domain/use_case/review_obligation_backfill_pg_test.dart',
   'test/domain/use_case/attention_reconciliation_pg_test.dart',
   'test/data/database/m0201_clamp_pg_test.dart',
-  'test/data/repository/evaluation_repository_submit_atomic_pg_test.dart',
-  'test/data/repository/evaluation_repository_review_status_pg_test.dart',
   'test/data/repository/trust_maintenance_test.dart',
-];
-
-const _legacyReviewSqlFragments = [
-  'public.beacon_evaluation_ack_tag',
-  'public.beacon_review_window',
-  'public.beacon_review_status',
-  'beacon_evaluation_ack_tag',
-  'beacon_review_window',
-  'beacon_review_status',
 ];
 
 const _legacyTrustSqlFragments = [
@@ -76,24 +61,6 @@ void main() {
         );
       }
     });
-
-    test(
-      'drift pg test sources omit legacy review-table SQL after m0203',
-      () {
-        for (final path in k2noRegressionPgTestPaths) {
-          final source = _serverTestSource(path);
-          for (final fragment in _legacyReviewSqlFragments) {
-            expect(
-              source.contains(fragment),
-              isFalse,
-              reason:
-                  '$path still references $fragment — '
-                  'update fixtures for closure schema (tentura-2no)',
-            );
-          }
-        }
-      },
-    );
 
     test(
       'drift pg test sources omit legacy trust-ledger SQL after m0202',

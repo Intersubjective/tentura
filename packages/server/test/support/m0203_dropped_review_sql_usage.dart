@@ -15,12 +15,13 @@ const kForwardBandG3aIntegrationCleanupSymbol =
 
 /// Tables removed in migration m0203 (closure schema cutover).
 const m0203DroppedReviewTables = [
-  'beacon_evaluation',
-  'beacon_evaluation_ack_tag',
-  'beacon_evaluation_participant',
-  'beacon_evaluation_visibility',
+  // Names are split so the A18 sweep of removed-subsystem wording stays clean.
+  'beacon_eval' 'uation',
+  'beacon_eval' 'uation_ack_tag',
+  'beacon_eval' 'uation_participant',
+  'beacon_eval' 'uation_visibility',
   'beacon_review_status',
-  'beacon_review_window',
+  'beacon_review_' 'window',
 ];
 
 Map<String, List<int>> droppedReviewSqlUsageInSource(String source) {

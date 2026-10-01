@@ -181,7 +181,7 @@ ON CONFLICT (event_id, target_beacon_id) DO NOTHING
           toStatus: BeaconStatus.reviewOpen,
           occurredAt: DateTime.utc(2026, 4, 1),
           actorUserId: BeaconHierarchyTopology.aliceId,
-          reason: BeaconStatusTransitionReason.reviewWindowOpened,
+          reason: BeaconStatusTransitionReason.closureOpened,
         );
         final closedEvent = await lifecycleEffects.recordEligibleSourceTransition(
           sourceBeaconId: BeaconHierarchyTopology.beaconA,

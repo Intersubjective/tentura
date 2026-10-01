@@ -824,24 +824,6 @@ void main() {
     expect(settlement.kind, AttentionSettlementKind.resolved);
   });
 
-  test('attentionSettle rejects reviewOpened live obligations', () async {
-    final settlement = _FakeSettlement()..liveEventType = 'reviewOpened';
-    final field = MutationAttention(
-      ack: _FakeAck(),
-      settlement: _settlementCase(settlement),
-    ).all.singleWhere((field) => field.name == 'attentionSettle');
-
-    expect(
-      () => field.resolve!(null, {
-        ...auth,
-        'receiptId': 'N1',
-        'kind': 'resolved',
-      }),
-      throwsA(isA<ArgumentError>()),
-    );
-    expect(settlement.settleCalls, 0);
-  });
-
   test('attentionSettle rejects helpOfferSubmitted live obligations', () async {
     final settlement = _FakeSettlement()..liveEventType = 'helpOfferSubmitted';
     final field = MutationAttention(

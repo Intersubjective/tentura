@@ -6,8 +6,8 @@ import 'package:tentura_server/domain/entity/beacon_display_status.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
+import 'package:tentura_server/domain/port/closure_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_repository_port.dart';
-import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/use_case/commitment_query_case.dart';
 
@@ -19,7 +19,7 @@ final class BeaconDisplayCase extends UseCaseBase {
     this._beaconRepository,
     this._helpOfferRepository,
     this._coordinationRepository,
-    this._evaluationRepository,
+    this._closureRepository,
     this._beaconRoomRepository,
     this._guard,
     this._commitmentQueryCase, {
@@ -30,7 +30,7 @@ final class BeaconDisplayCase extends UseCaseBase {
   final BeaconRepositoryPort _beaconRepository;
   final HelpOfferRepositoryPort _helpOfferRepository;
   final CoordinationRepositoryPort _coordinationRepository;
-  final EvaluationRepositoryPort _evaluationRepository;
+  final ClosureRepositoryPort _closureRepository;
   final BeaconRoomRepositoryPort _beaconRoomRepository;
   final BeaconAccessGuard _guard;
   final CommitmentQueryCase _commitmentQueryCase;
@@ -72,11 +72,9 @@ final class BeaconDisplayCase extends UseCaseBase {
           );
 
       DateTime? reviewClosesAt;
-      int? reviewWindowStatus;
       if (beacon.status == BeaconStatus.reviewOpen) {
-        final w = await _evaluationRepository.getReviewWindow(beaconId);
-        reviewClosesAt = w?.closesAt;
-        reviewWindowStatus = w?.status;
+        reviewClosesAt = (await _closureRepository.liveEpoch(beaconId))
+            ?.closesAt;
       }
 
       final derived = deriveBeaconDisplayStatus(
@@ -86,7 +84,6 @@ final class BeaconDisplayCase extends UseCaseBase {
           helpOfferCount: activeOffers,
           hasUnreviewedOffers: hasUnreviewed,
           reviewClosesAt: reviewClosesAt,
-          reviewWindowStatus: reviewWindowStatus,
           updatedAt: beacon.updatedAt,
         ),
       );

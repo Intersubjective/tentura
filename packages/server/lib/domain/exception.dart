@@ -508,11 +508,11 @@ final class BeaconFactCardRateLimitedException extends ExceptionBase {
 
 final class EvaluationException extends ExceptionBase {
   EvaluationException({
-    required EvaluationExceptionCode evaluationCode,
+    required EvaluationExceptionCode code,
     String? description,
   }) : super(
-         code: EvaluationExceptionCodes(evaluationCode),
-         description: description ?? evaluationCode.name,
+         code: EvaluationExceptionCodes(code),
+         description: description ?? code.name,
        );
 }
 

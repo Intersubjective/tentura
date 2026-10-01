@@ -2,7 +2,6 @@ import 'package:injectable/injectable.dart';
 import 'package:postgres/postgres.dart' show Type, TypedValue;
 
 import 'package:tentura_server/domain/entity/lineage_memory_fact.dart';
-import 'package:tentura_server/domain/evaluation/beacon_evaluation_row_status.dart';
 import 'package:tentura_server/domain/port/lineage_memory_read_port.dart';
 
 import '../database/tentura_db.dart';
@@ -152,37 +151,6 @@ class LineageMemoryReadRepository implements LineageMemoryReadPort {
       ],
     ).get();
     return rows.map((r) => r.read<String>('direct_recipient_id')).toSet();
-  }
-
-  @override
-  Future<List<LineageEvaluationFact>> fetchMyEvaluationsOnLineage({
-    required String userId,
-    required Set<String> beaconIds,
-  }) async {
-    if (beaconIds.isEmpty) return const [];
-    final rows = await _database.customSelect(
-      r'''
-      SELECT evaluated_user_id, value, reason_tags
-        FROM beacon_evaluation
-       WHERE evaluator_id = $1
-         AND beacon_id = ANY($2::text[])
-         AND status IN ($3, $4)
-      ''',
-      variables: [
-        Variable.withString(userId),
-        Variable(TypedValue(Type.textArray, beaconIds.toList())),
-        Variable.withInt(BeaconEvaluationRowStatus.submitted),
-        Variable.withInt(BeaconEvaluationRowStatus.final_),
-      ],
-    ).get();
-    return [
-      for (final row in rows)
-        LineageEvaluationFact(
-          evaluatedUserId: row.read<String>('evaluated_user_id'),
-          value: row.read<int>('value'),
-          reasonTags: row.read<String>('reason_tags'),
-        ),
-    ];
   }
 
   @override

@@ -15,18 +15,6 @@ class LineageForwardEdgeFact {
   final bool rejected;
 }
 
-class LineageEvaluationFact {
-  const LineageEvaluationFact({
-    required this.evaluatedUserId,
-    required this.value,
-    required this.reasonTags,
-  });
-
-  final String evaluatedUserId;
-  final int value;
-  final String reasonTags;
-}
-
 class LineagePrivateTagFact {
   const LineagePrivateTagFact({
     required this.subjectUserId,

@@ -24,11 +24,6 @@ abstract class LineageMemoryReadPort {
     required Set<String> recipientIds,
   });
 
-  Future<List<LineageEvaluationFact>> fetchMyEvaluationsOnLineage({
-    required String userId,
-    required Set<String> beaconIds,
-  });
-
   Future<List<LineagePrivateTagFact>> fetchMyPrivateTags({
     required String userId,
   });

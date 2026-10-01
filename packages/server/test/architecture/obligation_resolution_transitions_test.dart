@@ -36,7 +36,7 @@ void main() {
   });
 
   test('the rule accepts the live methods the settlement suites exercise', () {
-    expect(_methodExists('EvaluationCase.evaluationFinalize'), isTrue);
+    expect(_methodExists('ClosureCase.closeNow'), isTrue);
     expect(_methodExists('HelpOfferCase.withdraw'), isTrue);
   });
 }

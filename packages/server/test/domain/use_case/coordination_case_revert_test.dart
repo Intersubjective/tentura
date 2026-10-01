@@ -9,15 +9,10 @@ import 'package:tentura_server/domain/coordination/coordination_response_type.da
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_context.dart';
-import 'package:tentura_server/domain/entity/evaluation/beacon_evaluation_record.dart';
-import 'package:tentura_server/domain/entity/evaluation/cross_beacon_evaluation_record.dart';
 import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
-import 'package:tentura_server/domain/evaluation/beacon_evaluation_row_status.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
-import 'package:tentura_server/domain/entity/review_close_snapshot.dart';
-import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/use_case/coordination_case.dart';
 import 'package:tentura_server/domain/use_case/commitment_query_case.dart';
@@ -29,177 +24,6 @@ import '../../support/recording_commitment_repository.dart';
 import '../../support/test_attention_harness.dart';
 import 'help_offer_case_mocks.mocks.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
-
-class _TrackingEvaluationRepository implements EvaluationRepositoryPort {
-  BeaconReviewWindowRecord? reviewWindowResult;
-  int downgradeSubmittedCalls = 0;
-  int deleteScaffoldingCalls = 0;
-
-  @override
-  Future<void> downgradeSubmittedReviewsToDraft(String beaconId) async {
-    downgradeSubmittedCalls++;
-  }
-
-  @override
-  Future<void> deleteReviewScaffoldingForBeacon(String beaconId) async {
-    deleteScaffoldingCalls++;
-    reviewWindowResult = null;
-  }
-
-  @override
-  Future<BeaconReviewWindowRecord?> getReviewWindow(String beaconId) async =>
-      reviewWindowResult;
-
-  @override
-  Future<BeaconEvaluationRecord?> getEvaluation({
-    required String beaconId,
-    required String evaluatorId,
-    required String evaluatedUserId,
-  }) async => null;
-
-  @override
-  Future<List<BeaconEvaluationRecord>> listEvaluationsForEvaluator({
-    required String beaconId,
-    required String evaluatorId,
-  }) async => [];
-
-  @override
-  Future<int?> getReviewUserStatus(String beaconId, String userId) async =>
-      null;
-
-  @override
-  Future<DateTime?> getReviewSentAt(String beaconId, String userId) async =>
-      null;
-
-  @override
-  Future<void> insertParticipant({
-    required String beaconId,
-    required String userId,
-    required int role,
-    required String contributionSummary,
-    required String causalHint,
-    DateTime? committedAt,
-    String offerMessage = '',
-    String? forwarderDisplayName,
-  }) async {}
-
-  @override
-  Future<void> insertReviewStatus({
-    required String beaconId,
-    required String userId,
-    int status = 0,
-  }) async {}
-
-  @override
-  Future<void> insertReviewWindow({
-    required String beaconId,
-    required DateTime openedAt,
-    required DateTime closesAt,
-  }) async {}
-
-  @override
-  Future<void> insertVisibility({
-    required String beaconId,
-    required String evaluatorId,
-    required String participantId,
-  }) async {}
-
-  @override
-  Future<List<BeaconEvaluationRecord>> listEvaluationsForEvaluatedUser({
-    required String beaconId,
-    required String evaluatedUserId,
-  }) async => [];
-
-  @override
-  Future<List<CrossBeaconEvaluationRecord>> listFinalizedEvaluationsBetween({
-    required String evaluatorId,
-    required String evaluatedUserId,
-  }) async =>
-      [];
-
-  @override
-  Future<List<BeaconEvaluationParticipantRecord>> listParticipants(
-    String beaconId,
-  ) async => [];
-
-  @override
-  Future<List<BeaconEvaluationVisibilityRecord>> listVisibilityForEvaluator(
-    String beaconId,
-    String evaluatorId,
-  ) async => [];
-
-  @override
-  Future<List<BeaconEvaluationVisibilityRecord>> listAllVisibility(
-    String beaconId,
-  ) async => [];
-
-  @override
-  Future<List<BeaconEvaluationRecord>> listDraftRowsForBeacon(
-    String beaconId,
-  ) async => [];
-
-  @override
-  Future<void> deleteEvaluationRow({
-    required String beaconId,
-    required String evaluatorId,
-    required String evaluatedUserId,
-  }) async {}
-
-  @override
-  Future<void> finalizeSubmittedEvaluationsForBeacon(String beaconId) async {}
-
-  @override
-  Future<void> deleteDraftEvaluationsForBeacon(String beaconId) async {}
-
-  @override
-  Future<Map<String, int>> listReviewStatusesForBeacon(String beaconId) async =>
-      {};
-
-  @override
-  Future<DateTime> extendReviewWindow(String beaconId) async =>
-      DateTime.timestamp().add(const Duration(days: 7));
-
-  @override
-  Future<ReviewCloseSnapshot?> closeReviewWindow(
-    String beaconId, {
-    required String reason,
-    String? actorUserId,
-    bool requireAllRequiredPackagesSent = false,
-  }) async =>
-      null;
-
-  @override
-  Future<void> setReviewUserStatus({
-    required String beaconId,
-    required String userId,
-    required int status,
-    bool markSent = false,
-  }) async {}
-
-  @override
-  Future<void> upsertEvaluation({
-    required String beaconId,
-    required String evaluatorId,
-    required String evaluatedUserId,
-    required int value,
-    required String reasonTagsCsv,
-    required String note,
-    int status = BeaconEvaluationRowStatus.submitted,
-    EvaluationWriteResolver? resolve,
-  }) async {}
-
-  @override
-  Future<void> submitEvaluationAtomic({
-    required String beaconId,
-    required String evaluatorId,
-    required String evaluatedUserId,
-    required int value,
-    required List<String> reasonTags,
-    required String note,
-    required List<String> ackTags,
-    EvaluationWriteResolver? resolve,
-  }) async {}
-}
 
 class _TransactionBeaconRepo implements BeaconRepositoryPort {
   _TransactionBeaconRepo(this.locked);
@@ -291,37 +115,10 @@ void main() {
     status: status,
   );
 
-  BeaconReviewWindowRecord openWindow() {
-    final opened = now.subtract(const Duration(hours: 1));
-    return BeaconReviewWindowRecord(
-      beaconId: beaconId,
-      openedAt: opened,
-      closesAt: opened.add(const Duration(days: 7)),
-      status: 0,
-      extensionsUsed: 0,
-      createdAt: opened,
-      updatedAt: now,
-    );
-  }
-
-  BeaconReviewWindowRecord closedWindow() {
-    final opened = now.subtract(const Duration(days: 8));
-    return BeaconReviewWindowRecord(
-      beaconId: beaconId,
-      openedAt: opened,
-      closesAt: opened.add(const Duration(days: 7)),
-      status: 1,
-      extensionsUsed: 0,
-      createdAt: opened,
-      updatedAt: now,
-    );
-  }
-
   late _TransactionBeaconRepo beaconRepo;
   late MockHelpOfferRepositoryPort helpOfferRepo;
   late MockCoordinationRepositoryPort coordinationRepo;
   late MockBeaconRoomRepositoryPort roomRepo;
-  late _TrackingEvaluationRepository evalRepo;
   late NoOpCommitmentRepository commitmentRepo;
   late CommitmentQueryCase commitmentQueryCase;
   late CoordinationCase case_;
@@ -332,7 +129,6 @@ void main() {
         helpOfferRepo,
         coordinationRepo,
         roomRepo,
-        evalRepo,
         FakeUserBlockRepository(),
         commitmentRepo,
         commitmentQueryCase,
@@ -349,7 +145,6 @@ void main() {
     helpOfferRepo = MockHelpOfferRepositoryPort();
     coordinationRepo = MockCoordinationRepositoryPort();
     roomRepo = MockBeaconRoomRepositoryPort();
-    evalRepo = _TrackingEvaluationRepository();
     commitmentRepo = NoOpCommitmentRepository();
     commitmentQueryCase = CommitmentQueryCase(
       commitmentRepo,
@@ -447,9 +242,8 @@ void main() {
 
   group('setBeaconStatus more help', () {
     test(
-      'on wrapping up downgrades review and sets needsMoreHelp status',
+      'on wrapping up sets needsMoreHelp status',
       () async {
-        evalRepo.reviewWindowResult = openWindow();
         stubTransaction(beacon(status: BeaconStatus.reviewOpen));
 
         final result = await case_.setBeaconStatus(
@@ -459,8 +253,6 @@ void main() {
         );
 
         expect(result.status, BeaconStatus.needsMoreHelp.smallintValue);
-        expect(evalRepo.downgradeSubmittedCalls, 1);
-        expect(evalRepo.deleteScaffoldingCalls, 1);
         expect(beaconRepo.statusTransitions, [
           _StatusTransitionCall(
             beaconId: beaconId,
@@ -482,8 +274,6 @@ void main() {
         status: BeaconStatus.needsMoreHelp.smallintValue,
       );
 
-      expect(evalRepo.downgradeSubmittedCalls, 0);
-      expect(evalRepo.deleteScaffoldingCalls, 0);
       expect(beaconRepo.statusTransitions, [
         _StatusTransitionCall(
           beaconId: beaconId,
@@ -496,7 +286,6 @@ void main() {
     });
 
     test('steward may trigger needsMoreHelp on wrapping up', () async {
-      evalRepo.reviewWindowResult = openWindow();
       stubTransaction(beacon(status: BeaconStatus.reviewOpen));
       when(
         roomRepo.isBeaconSteward(
@@ -511,7 +300,6 @@ void main() {
         status: BeaconStatus.needsMoreHelp.smallintValue,
       );
 
-      expect(evalRepo.downgradeSubmittedCalls, 1);
       expect(beaconRepo.statusTransitions, [
         _StatusTransitionCall(
           beaconId: beaconId,
@@ -542,61 +330,6 @@ void main() {
       );
     });
 
-    test(
-      'allows needsMoreHelp on wrapping up when review window row is missing',
-      () async {
-        evalRepo.reviewWindowResult = null;
-        stubTransaction(beacon(status: BeaconStatus.reviewOpen));
-
-        final result = await case_.setBeaconStatus(
-          beaconId: beaconId,
-          authorUserId: authorId,
-          status: BeaconStatus.needsMoreHelp.smallintValue,
-        );
-
-        expect(result.status, BeaconStatus.needsMoreHelp.smallintValue);
-        expect(evalRepo.downgradeSubmittedCalls, 0);
-        expect(evalRepo.deleteScaffoldingCalls, 0);
-        expect(beaconRepo.statusTransitions, [
-          _StatusTransitionCall(
-            beaconId: beaconId,
-            fromStatus: BeaconStatus.reviewOpen,
-            toStatus: BeaconStatus.needsMoreHelp,
-            reason: 'needsMoreHelp',
-            actorId: authorId,
-          ),
-        ]);
-      },
-    );
-
-    test(
-      'rejects needsMoreHelp on wrapping up when review episode is complete',
-      () async {
-        evalRepo.reviewWindowResult = closedWindow();
-        stubTransaction(beacon(status: BeaconStatus.reviewOpen));
-
-        await expectLater(
-          case_.setBeaconStatus(
-            beaconId: beaconId,
-            authorUserId: authorId,
-            status: BeaconStatus.needsMoreHelp.smallintValue,
-          ),
-          throwsA(
-            isA<EvaluationException>().having(
-              (e) => e.code.codeNumber,
-              'codeNumber',
-              const EvaluationExceptionCodes(
-                EvaluationExceptionCode.reviewAlreadyClosed,
-              ).codeNumber,
-            ),
-          ),
-        );
-
-        expect(evalRepo.downgradeSubmittedCalls, 0);
-        expect(evalRepo.deleteScaffoldingCalls, 0);
-        expect(beaconRepo.statusTransitions, isEmpty);
-      },
-    );
   });
 
   group('setBeaconStatus enough help', () {
@@ -610,8 +343,6 @@ void main() {
       );
 
       expect(result.status, BeaconStatus.enoughHelp.smallintValue);
-      expect(evalRepo.downgradeSubmittedCalls, 0);
-      expect(evalRepo.deleteScaffoldingCalls, 0);
       expect(beaconRepo.statusTransitions, [
         _StatusTransitionCall(
           beaconId: beaconId,
@@ -662,8 +393,6 @@ void main() {
         ),
       );
 
-      expect(evalRepo.downgradeSubmittedCalls, 0);
-      expect(evalRepo.deleteScaffoldingCalls, 0);
       expect(beaconRepo.statusTransitions, isEmpty);
     });
 
@@ -850,8 +579,6 @@ void main() {
         ),
       );
 
-      expect(evalRepo.downgradeSubmittedCalls, 0);
-      expect(evalRepo.deleteScaffoldingCalls, 0);
       expect(beaconRepo.statusTransitions, isEmpty);
     });
 

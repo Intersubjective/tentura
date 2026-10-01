@@ -66,14 +66,14 @@ String stripDartAndSqlComments(String s) {
       out.write(quote);
       i += quote.length;
       quote = null;
-    } else if (quote!.length == 1 && c == '\n') {
+    } else if (quote.length == 1 && c == '\n') {
       out.write(c);
       i++;
       quote = null;
     } else if (s.startsWith('--', i) &&
         (i == 0 ||
             _isSpace(s[i - 1]) ||
-            s.startsWith(quote, i - quote!.length)) &&
+            s.startsWith(quote, i - quote.length)) &&
         (i + 2 >= s.length ||
             _isSpace(s[i + 2]) ||
             s.startsWith(quote, i + 2))) {

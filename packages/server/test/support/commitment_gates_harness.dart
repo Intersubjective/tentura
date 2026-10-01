@@ -8,13 +8,10 @@ import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
 import 'package:tentura_server/domain/commitment/commitment_state.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
-import 'package:tentura_server/domain/entity/evaluation/beacon_evaluation_record.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
-import 'package:tentura_server/domain/port/attention_expiry_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
-import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 import 'package:tentura_server/domain/port/capability_evidence_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
@@ -23,20 +20,14 @@ import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/inbox_repository_port.dart';
 import 'package:tentura_server/domain/port/mutating_unit_of_work_port.dart';
 import 'package:tentura_server/domain/port/person_capability_event_repository_port.dart';
-import 'package:tentura_server/domain/entity/review_finalization_result.dart';
-import 'package:tentura_server/domain/port/review_finalization_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/port/user_block_repository_port.dart';
 import 'package:tentura_server/domain/port/user_contact_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
-import 'package:tentura_server/domain/use_case/attention_expiry_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/beacon_case.dart';
 import 'package:tentura_server/domain/use_case/capability_case.dart';
 import 'package:tentura_server/domain/use_case/commitment_query_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_case.dart';
-import 'package:tentura_server/domain/use_case/evaluation/evaluation_draft_purger.dart';
-import 'package:tentura_server/domain/use_case/evaluation/evaluation_participant_graph_builder.dart';
-import 'package:tentura_server/domain/use_case/evaluation_case.dart';
 import 'package:tentura_server/domain/use_case/help_offer_case.dart';
 import 'package:tentura_server/domain/use_case/user_block_case.dart';
 import 'package:tentura_server/env.dart';
@@ -50,7 +41,6 @@ import 'beacon_lifecycle_effects_test_support.dart';
 import 'fake_user_block_repository.dart';
 import 'recording_commitment_repository.dart';
 import 'test_attention_harness.dart';
-import '../domain/evaluation/evaluation_graph_test_repos.dart';
 
 /// In-memory help-offer store shared across gate-scenario use cases.
 final class InMemoryHelpOfferRepository implements HelpOfferRepositoryPort {
@@ -129,8 +119,7 @@ final class InMemoryHelpOfferRepository implements HelpOfferRepositoryPort {
   Future<bool> hasActiveHelpOffer({
     required String beaconId,
     required String userId,
-  }) async =>
-      _offers[_key(beaconId, userId)]?.isActive ?? false;
+  }) async => _offers[_key(beaconId, userId)]?.isActive ?? false;
 
   @override
   Future<List<String>> fetchActiveHelpTypes({
@@ -177,16 +166,14 @@ final class MutableBeaconRepository implements BeaconRepositoryPort {
   Future<BeaconEntity> getBeaconById({
     required String beaconId,
     String? filterByUserId,
-  }) async =>
-      beacon;
+  }) async => beacon;
 
   @override
   Future<T> runInBeaconStateTransaction<T>({
     required String beaconId,
     required String userId,
     required Future<T> Function(BeaconEntity locked) fn,
-  }) =>
-      fn(beacon);
+  }) => fn(beacon);
 
   @override
   Future<void> recordBeaconStatusTransition({
@@ -267,127 +254,13 @@ final class NoOpPersonCapabilityEventRepository extends Fake
   }) async {}
 }
 
-final class GateScenarioEvaluationRepository extends Fake
-    implements EvaluationRepositoryPort {
-  BeaconReviewWindowRecord? reviewWindowResult;
-  List<BeaconEvaluationParticipantRecord> participantsResult = [];
-  Map<String, int> reviewStatusesResult = {};
-  int downgradeSubmittedCalls = 0;
-  int deleteScaffoldingCalls = 0;
-  int insertReviewWindowCalls = 0;
-
-  @override
-  Future<BeaconReviewWindowRecord?> getReviewWindow(String beaconId) async =>
-      reviewWindowResult;
-
-  @override
-  Future<void> downgradeSubmittedReviewsToDraft(String beaconId) async {
-    downgradeSubmittedCalls++;
-  }
-
-  @override
-  Future<void> deleteReviewScaffoldingForBeacon(String beaconId) async {
-    deleteScaffoldingCalls++;
-    reviewWindowResult = null;
-  }
-
-  @override
-  Future<void> insertReviewWindow({
-    required String beaconId,
-    required DateTime openedAt,
-    required DateTime closesAt,
-  }) async {
-    insertReviewWindowCalls++;
-  }
-
-  @override
-  Future<void> insertParticipant({
-    required String beaconId,
-    required String userId,
-    required int role,
-    required String contributionSummary,
-    required String causalHint,
-    DateTime? committedAt,
-    String offerMessage = '',
-    String? forwarderDisplayName,
-  }) async {}
-
-  @override
-  Future<void> insertReviewStatus({
-    required String beaconId,
-    required String userId,
-    int status = 0,
-  }) async {}
-
-  @override
-  Future<void> insertVisibility({
-    required String beaconId,
-    required String evaluatorId,
-    required String participantId,
-  }) async {}
-
-  @override
-  Future<List<BeaconEvaluationParticipantRecord>> listParticipants(
-    String beaconId,
-  ) async =>
-      participantsResult;
-
-  @override
-  Future<Map<String, int>> listReviewStatusesForBeacon(String beaconId) async =>
-      reviewStatusesResult;
-
-  @override
-  Future<List<BeaconEvaluationVisibilityRecord>> listAllVisibility(
-    String beaconId,
-  ) async =>
-      [];
-
-  @override
-  Future<List<BeaconEvaluationRecord>> listDraftRowsForBeacon(
-    String beaconId,
-  ) async =>
-      [];
-}
-
-final class GateScenarioReviewFinalization extends Fake
-    implements ReviewFinalizationPort {
-  final closeAndFinalizeCalls =
-      <
-        ({
-          String beaconId,
-          String reason,
-          String? actorUserId,
-          bool requireAllRequiredPackagesSent,
-        })
-      >[];
-
-  @override
-  Future<ReviewFinalizationResult> closeAndFinalize(
-    String beaconId, {
-    required String reason,
-    String? actorUserId,
-    bool requireAllRequiredPackagesSent = false,
-  }) async {
-    closeAndFinalizeCalls.add(
-      (
-        beaconId: beaconId,
-        reason: reason,
-        actorUserId: actorUserId,
-        requireAllRequiredPackagesSent: requireAllRequiredPackagesSent,
-      ),
-    );
-    return const ReviewFinalizationResult(didClose: true);
-  }
-}
-
 final class PassThroughMutatingUnitOfWork extends Fake
     implements MutatingUnitOfWorkPort {
   @override
   Future<T> run<T>({
     required Future<T> Function() action,
     String? actorUserId,
-  }) =>
-      action();
+  }) => action();
 }
 
 final class GateScenarioUserRepository extends Fake
@@ -411,8 +284,7 @@ final class NoOpUserContactRepository extends Fake
   Future<bool> delete({
     required String viewerId,
     required String subjectId,
-  }) async =>
-      true;
+  }) async => true;
 }
 
 final class NoOpUserBlockRepository extends Fake
@@ -423,8 +295,7 @@ final class NoOpUserBlockRepository extends Fake
   Future<int> countRecentByBlocker({
     required String blockerId,
     required Duration window,
-  }) async =>
-      0;
+  }) async => 0;
 
   @override
   Future<void> block({
@@ -446,13 +317,6 @@ final class NoOpUserBlockRepository extends Fake
     required String blockerId,
     required String blockedId,
   }) async {}
-}
-
-final class NoOpAttentionExpiryRepository extends Fake
-    implements AttentionExpiryRepositoryPort {
-  @override
-  Future<List<String>> lockExpiredReviewWindowBeaconIds(DateTime now) async =>
-      const [];
 }
 
 /// Wires real use cases to in-memory fakes for P3.12 gate scenarios.
@@ -485,10 +349,6 @@ final class CommitmentGatesHarness {
   late CoordinationCase coordinationCase;
   late BeaconCase beaconCase;
   late UserBlockCase userBlockCase;
-  late EvaluationCase evaluationCase;
-  late EvaluationParticipantGraphBuilder graphBuilder;
-  late GateScenarioEvaluationRepository evalRepo;
-  late GateScenarioReviewFinalization reviewFinalization;
   late TestAttentionHarness attention;
 
   late MockCoordinationRepositoryPort _coordinationRepo;
@@ -558,7 +418,6 @@ final class CommitmentGatesHarness {
       helpOfferRepo,
       _coordinationRepo,
       _roomRepo,
-      GateScenarioEvaluationRepository(),
       FakeUserBlockRepository(),
       commitmentRepo,
       commitmentQueryCase,
@@ -598,41 +457,6 @@ final class CommitmentGatesHarness {
       _inboxRepo,
       _NoopCapabilityEvidence(),
       FakeBeaconHierarchyRepository(),
-      env: Env(environment: Environment.test),
-      logger: Logger(_logName),
-    );
-
-    evalRepo = GateScenarioEvaluationRepository();
-    reviewFinalization = GateScenarioReviewFinalization();
-    final forwardRepo = EmptyGraphForwardEdgeRepository();
-    graphBuilder = EvaluationParticipantGraphBuilder(
-      commitmentRepo,
-      helpOfferRepo,
-      forwardRepo,
-      StubUserRepository('User'),
-    );
-
-    evaluationCase = EvaluationCase(
-      beaconRepo,
-      forwardRepo,
-      evalRepo,
-      StubUserProfileBatchLookup('User'),
-      graphBuilder,
-      EvaluationDraftPurger(evalRepo),
-      commitmentQueryCase,
-      commitmentRepo,
-      helpOfferRepo,
-      FakeBeaconHierarchyRepository(),
-      buildLifecycleEffectsCase(),
-      attentionIntents: attention.intents,
-      attention: attention.transactional,
-      attentionExpirySweep: AttentionExpirySweepCase(
-        NoOpAttentionExpiryRepository(),
-        reviewFinalization,
-        attention.intents,
-        attention.transactional,
-      ),
-      reviewFinalization: reviewFinalization,
       env: Env(environment: Environment.test),
       logger: Logger(_logName),
     );
@@ -722,14 +546,14 @@ final class CommitmentGatesHarness {
   Future<void> offerHelp({
     String userId = '',
     String message = 'I can help',
-  }) =>
-      helpOfferCase.offerHelp(
-        beaconId: beaconId,
-        userId: userId.isEmpty ? helperId : userId,
-        message: message,
-      );
+  }) => helpOfferCase.offerHelp(
+    beaconId: beaconId,
+    userId: userId.isEmpty ? helperId : userId,
+    message: message,
+  );
 
-  Future<void> acceptOffer({String userId = ''}) => coordinationCase.acceptHelpOffer(
+  Future<void> acceptOffer({String userId = ''}) =>
+      coordinationCase.acceptHelpOffer(
         beaconId: beaconId,
         offerUserId: userId.isEmpty ? helperId : userId,
         actorUserId: authorId,
@@ -750,10 +574,10 @@ final class CommitmentGatesHarness {
   }
 
   Future<void> blockHelper() => userBlockCase.block(
-        blockerId: authorId,
-        blockedId: helperId,
-        cascadeMode: 0,
-      );
+    blockerId: authorId,
+    blockedId: helperId,
+    cascadeMode: 0,
+  );
 
   Future<void> recordReleasedByAuthor({String userId = ''}) =>
       commitmentRepo.record(
@@ -771,32 +595,18 @@ final class CommitmentGatesHarness {
     return currentStakeState(events) == CommitmentStakeState.acknowledged;
   }
 
-  BeaconReviewWindowRecord openReviewWindow() {
-    final now = commitmentRepo.clock;
-    return BeaconReviewWindowRecord(
-      beaconId: beaconId,
-      openedAt: now.subtract(const Duration(hours: 1)),
-      closesAt: now.add(const Duration(days: 7)),
-      status: 0,
-      extensionsUsed: 0,
-      createdAt: now,
-      updatedAt: now,
-    );
-  }
-
   Future<void> setCoordinationResponse({
     required int responseType,
     bool inviteToRoom = false,
     String userId = '',
-  }) =>
-      coordinationCase.setCoordinationResponse(
-        beaconId: beaconId,
-        offerUserId: userId.isEmpty ? helperId : userId,
-        authorUserId: authorId,
-        responseType: responseType,
-        inviteToRoom: inviteToRoom,
-        removeFromRoom: false,
-      );
+  }) => coordinationCase.setCoordinationResponse(
+    beaconId: beaconId,
+    offerUserId: userId.isEmpty ? helperId : userId,
+    authorUserId: authorId,
+    responseType: responseType,
+    inviteToRoom: inviteToRoom,
+    removeFromRoom: false,
+  );
 
   Future<void> declineOffer({String userId = ''}) =>
       coordinationCase.declineHelpOffer(
@@ -829,6 +639,5 @@ class _FakeForwardEdgeRepository extends Fake
   Future<List<ForwardEdgeEntity>> fetchByRecipientId(
     String recipientId, {
     String? context,
-  }) async =>
-      [];
+  }) async => [];
 }

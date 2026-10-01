@@ -74,7 +74,7 @@ void main() {
       toStatus: BeaconStatus.reviewOpen,
       occurredAt: DateTime.utc(2026, 3, 1, 10),
       actorUserId: 'U-actor',
-      reason: BeaconStatusTransitionReason.reviewWindowOpened,
+      reason: BeaconStatusTransitionReason.closureOpened,
     );
     final closed = await case_.recordEligibleSourceTransition(
       sourceBeaconId: 'B-source',
@@ -82,7 +82,7 @@ void main() {
       toStatus: BeaconStatus.closed,
       occurredAt: DateTime.utc(2026, 3, 8, 10),
       actorUserId: 'U-actor',
-      reason: BeaconStatusTransitionReason.reviewExpired,
+      reason: BeaconStatusTransitionReason.closureExpired,
     );
 
     expect(wrappingUp, isNotNull);
@@ -101,7 +101,7 @@ void main() {
       toStatus: BeaconStatus.reviewOpen,
       occurredAt: DateTime.utc(2026, 3, 1),
       actorUserId: 'U-actor',
-      reason: BeaconStatusTransitionReason.reviewWindowOpened,
+      reason: BeaconStatusTransitionReason.closureOpened,
     );
     await case_.recordEligibleSourceTransition(
       sourceBeaconId: 'B-source',

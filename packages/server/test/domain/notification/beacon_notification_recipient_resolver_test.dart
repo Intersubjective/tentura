@@ -129,7 +129,7 @@ void main() {
       recipients.every(
         (r) =>
             r.reasons.length == 1 &&
-            r.reasons.contains(NotificationRecipientReason.reviewParticipant),
+            r.reasons.contains(NotificationRecipientReason.activeParticipant),
       ),
       isTrue,
     );

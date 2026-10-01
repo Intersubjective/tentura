@@ -1,7 +1,7 @@
 import 'package:tentura_server/domain/entity/verified_contact_entity.dart';
 import 'package:tentura_server/domain/util/email_auth_util.dart';
 
-/// A contact asserted by a credential during auth, with trust evaluation applied.
+/// A contact asserted by a credential during auth, with trust assessment applied.
 class AssertedContact {
   const AssertedContact._({
     required this.kind,

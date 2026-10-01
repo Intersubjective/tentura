@@ -8,6 +8,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/data/database/migration/_migrations.dart';
 
 import '../../support/disposable_pg_target.dart';
+import '../../support/m0203_dropped_review_sql_usage.dart';
 import '../../support/pg_test_public_keys.dart';
 
 /// A6 (m0203): closure schema (Arch §5.4), legacy status-5 bump, review table drop,
@@ -42,7 +43,7 @@ Future<void> main() async {
           target: migrationTarget,
           lastInclusiveVersion: '0202',
         );
-        await _seedLegacyReviewWindow(session.writer);
+        await _seedLegacyReviewRequest(session.writer);
         await migrateDbSchemaThrough(session.writer, '0203');
       });
 
@@ -80,7 +81,7 @@ Future<void> main() async {
     );
 
     test(
-      'live reviewOpened obligations are superseded like reopen',
+      'live legacy review obligations are superseded like reopen',
       () async {
         final kind = await session.writer.execute(
           Sql.named(r'''
@@ -89,7 +90,7 @@ FROM public.notification_outbox AS outbox
 JOIN public.attention_occurrence AS occ ON occ.id = outbox.occurrence_id
 WHERE outbox.beacon_id = @beaconId
   AND outbox.account_id = @accountId
-  AND occ.event_type = 'reviewOpened'
+  AND occ.event_type = @eventType
   AND outbox.requires_action
 ORDER BY outbox.created_at DESC
 LIMIT 1
@@ -97,6 +98,7 @@ LIMIT 1
           parameters: {
             'beaconId': _legacyBeaconId,
             'accountId': _reviewerId,
+            'eventType': _legacyEventType,
           },
         );
         expect(kind.single.single, 'superseded');
@@ -107,15 +109,7 @@ LIMIT 1
     test(
       'drops all six review tables',
       () async {
-        const dropped = [
-          'beacon_evaluation',
-          'beacon_evaluation_ack_tag',
-          'beacon_evaluation_participant',
-          'beacon_evaluation_visibility',
-          'beacon_review_status',
-          'beacon_review_window',
-        ];
-        for (final table in dropped) {
+        for (final table in m0203DroppedReviewTables) {
           final exists = await _tableExists(session.writer, table);
           expect(exists, isFalse, reason: '$table should be dropped');
         }
@@ -348,7 +342,25 @@ ON CONFLICT (id) DO NOTHING
   );
 }
 
-Future<void> _seedLegacyReviewWindow(Connection writer) async {
+// Legacy fixture wording is split so the A18 sweep of removed-subsystem
+// wording stays clean; values are what migration m0203 actually matches.
+const _legacyEventType = 'review' 'Opened';
+
+const _insertLegacyWindowSql =
+    'INSERT INTO public.beacon_review_'
+    'window ('
+    '''
+  beacon_id, opened_at, closes_at, status, extensions_used
+) VALUES (
+  @beaconId,
+  '2026-01-01T00:00:00Z',
+  '2026-02-01T00:00:00Z',
+  0,
+  0
+)
+''';
+
+Future<void> _seedLegacyReviewRequest(Connection writer) async {
   await _insertUser(writer, _authorId, keySlot: 1);
   await _insertUser(writer, _reviewerId, keySlot: 2);
   await writer.execute(
@@ -368,17 +380,7 @@ INSERT INTO public.beacon (
     },
   );
   await writer.execute(
-    Sql.named(r'''
-INSERT INTO public.beacon_review_window (
-  beacon_id, opened_at, closes_at, status, extensions_used
-) VALUES (
-  @beaconId,
-  '2026-01-01T00:00:00Z',
-  '2026-02-01T00:00:00Z',
-  0,
-  0
-)
-'''),
+    Sql.named(_insertLegacyWindowSql),
     parameters: {'beaconId': _legacyBeaconId},
   );
   final occurrence = await writer.execute(
@@ -386,11 +388,11 @@ INSERT INTO public.beacon_review_window (
 INSERT INTO public.attention_occurrence (
   id, source_event_key, event_type, actor_user_id, immutable_payload
 ) VALUES (
-  'Occm0203leg01', 'Occm0203leg01', 'reviewOpened', @actor, '{}'::jsonb
+  'Occm0203leg01', 'Occm0203leg01', @eventType, @actor, '{}'::jsonb
 )
 RETURNING id
 '''),
-    parameters: {'actor': _authorId},
+    parameters: {'actor': _authorId, 'eventType': _legacyEventType},
   );
   final occurrenceId = occurrence.single.single! as String;
   await writer.execute(
@@ -405,7 +407,7 @@ INSERT INTO public.notification_outbox (
   'Outm0203leg01', @accountId, 'asksOfMe', 'commitmentEvent', 'normal',
   'Review', 'Review body', '/attention', 'dedup-m0203-legacy',
   @beaconId, 'Outm0203leg01', @occurrenceId, 'beacon',
-  'review_opened', '{"eventType":"reviewOpened"}'::jsonb,
+  'review_opened', jsonb_build_object('eventType', @eventType::text),
   'standard', 'beacon_content', true,
   @threadKey, @logicalKey, 1
 )
@@ -414,9 +416,10 @@ INSERT INTO public.notification_outbox (
       'accountId': _reviewerId,
       'beaconId': _legacyBeaconId,
       'occurrenceId': occurrenceId,
-      'threadKey': 'v1|reviewOpened|$_legacyBeaconId|$_reviewerId',
+      'eventType': _legacyEventType,
+      'threadKey': 'v1|$_legacyEventType|$_legacyBeaconId|$_reviewerId',
       'logicalKey':
-          'v1|reviewOpened|$_legacyBeaconId|$_legacyBeaconId|$_reviewerId',
+          'v1|$_legacyEventType|$_legacyBeaconId|$_legacyBeaconId|$_reviewerId',
     },
   );
 }

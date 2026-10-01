@@ -66,7 +66,6 @@ class AttentionPolicy {
     AttentionEventType.offerDeclined ||
     AttentionEventType.offerRemoved ||
     AttentionEventType.commitmentReleased ||
-    AttentionEventType.reviewOpened ||
     AttentionEventType.needsMe ||
     AttentionEventType.staleReminder => AttentionSuppressionClass.mandatory,
     AttentionEventType.blockerOpened =>
@@ -84,8 +83,6 @@ class AttentionPolicy {
           : AttentionSuppressionClass.noisy,
     AttentionEventType.coordinationChanged => AttentionSuppressionClass.noisy,
     AttentionEventType.deadlineChanged ||
-    AttentionEventType.reviewAllPackagesIn ||
-    AttentionEventType.reviewWindowCancelled ||
     AttentionEventType.obligationEnded =>
       AttentionSuppressionClass.standard,
     AttentionEventType.deadlineReminder => AttentionSuppressionClass.mandatory,
@@ -107,9 +104,6 @@ class AttentionPolicy {
       AttentionSuppressionClass.standard,
     AttentionEventType.commitmentRedirected =>
       AttentionSuppressionClass.mandatory,
-    AttentionEventType.trustGivenChanged ||
-    AttentionEventType.trustReceivedChanged =>
-      AttentionSuppressionClass.standard,
   };
 
   bool _isActiveRequestParticipant(AttentionRecipientReason reason) =>
@@ -130,9 +124,6 @@ class AttentionPolicy {
     AttentionEventType.commitmentReleased ||
     AttentionEventType.needsMe ||
     AttentionEventType.staleReminder => NotificationCategory.asksOfMe,
-    AttentionEventType.reviewOpened ||
-    AttentionEventType.reviewAllPackagesIn ||
-    AttentionEventType.reviewWindowCancelled ||
     AttentionEventType.obligationEnded ||
     AttentionEventType.blockerResolved => NotificationCategory.unblocksMe,
     AttentionEventType.commitmentAccepted ||
@@ -156,8 +147,6 @@ class AttentionPolicy {
     AttentionEventType.requestStale => NotificationCategory.asksOfMe,
     AttentionEventType.closureFinalized ||
     AttentionEventType.closureCancelled => NotificationCategory.unblocksMe,
-    AttentionEventType.trustGivenChanged ||
-    AttentionEventType.trustReceivedChanged => NotificationCategory.connections,
   };
 
   AttentionAccessPolicy _accessPolicy(
@@ -178,9 +167,6 @@ class AttentionPolicy {
     AttentionEventType.roomMessagePosted ||
     AttentionEventType.requestStatusChanged ||
     AttentionEventType.beaconHierarchyStatusChanged ||
-    AttentionEventType.reviewOpened ||
-    AttentionEventType.reviewAllPackagesIn ||
-    AttentionEventType.reviewWindowCancelled ||
     AttentionEventType.obligationEnded ||
     AttentionEventType.needsMe ||
     AttentionEventType.blockerOpened ||
@@ -192,9 +178,7 @@ class AttentionPolicy {
     AttentionEventType.commitmentAccepted ||
     AttentionEventType.commitmentResolved ||
     AttentionEventType.commitmentCancelled ||
-    AttentionEventType.commitmentRedirected ||
-    AttentionEventType.trustGivenChanged ||
-    AttentionEventType.trustReceivedChanged =>
+    AttentionEventType.commitmentRedirected =>
       AttentionAccessPolicy.beaconContent,
     AttentionEventType.deadlineChanged ||
     AttentionEventType.deadlineReminder ||
@@ -265,12 +249,6 @@ class AttentionPolicy {
         kind: AttentionDestinationKind.beaconRoomMessage,
         targetEntityId: role.messageId,
       ),
-      AttentionEventType.reviewOpened ||
-      AttentionEventType.reviewAllPackagesIn => AttentionDestination(
-        kind: AttentionDestinationKind.review,
-        targetEntityId: role.beaconId,
-      ),
-      AttentionEventType.reviewWindowCancelled ||
       AttentionEventType.obligationEnded => AttentionDestination(
         kind: AttentionDestinationKind.beacon,
         targetEntityId: role.beaconId,
@@ -279,14 +257,6 @@ class AttentionPolicy {
       AttentionEventType.inviteAccepted => AttentionDestination(
         kind: AttentionDestinationKind.profile,
         targetEntityId: role.targetEntityId,
-      ),
-      AttentionEventType.trustGivenChanged => AttentionDestination(
-        kind: AttentionDestinationKind.profile,
-        targetEntityId: role.targetEntityId,
-      ),
-      AttentionEventType.trustReceivedChanged => AttentionDestination(
-        kind: AttentionDestinationKind.receivedReviews,
-        targetEntityId: role.beaconId,
       ),
     };
   }
@@ -300,8 +270,6 @@ class AttentionPolicy {
         AttentionEventType.requestStatusChanged ||
         AttentionEventType.beaconHierarchyStatusChanged =>
           AttentionPreferenceClass.requestProgress,
-        AttentionEventType.trustGivenChanged ||
-        AttentionEventType.trustReceivedChanged => null,
         _ => null,
       };
 
@@ -312,7 +280,6 @@ class AttentionPolicy {
     AttentionEventType.helpOfferSubmitted => reasons.contains(
       AttentionRecipientReason.authorOfBeacon,
     ),
-    AttentionEventType.reviewOpened => true,
     AttentionEventType.relayReceived => false,
     AttentionEventType.offerAccepted => false,
     AttentionEventType.offerDeclined => false,
@@ -320,8 +287,6 @@ class AttentionPolicy {
     AttentionEventType.roomMessagePosted => false,
     AttentionEventType.requestStatusChanged => false,
     AttentionEventType.beaconHierarchyStatusChanged => false,
-    AttentionEventType.reviewAllPackagesIn => false,
-    AttentionEventType.reviewWindowCancelled => false,
     AttentionEventType.obligationEnded => false,
     AttentionEventType.mutualConnectionFormed => false,
     AttentionEventType.inviteAccepted => false,
@@ -337,8 +302,6 @@ class AttentionPolicy {
     AttentionEventType.commitmentCancelled => false,
     AttentionEventType.commitmentRedirected => false,
     AttentionEventType.commitmentReleased => false,
-    AttentionEventType.trustGivenChanged => false,
-    AttentionEventType.trustReceivedChanged => false,
     AttentionEventType.deadlineChanged => false,
     AttentionEventType.deadlineReminder => false,
     AttentionEventType.closureOpened => false,
@@ -383,13 +346,11 @@ class AttentionPolicy {
   /// two Requests holds two distinct tasks.
   ///
   /// The subject is what a *generation* is allowed to vary over, so it differs
-  /// per obligation variant (U07a: there are exactly two):
+  /// per obligation variant (U07a: there is exactly one):
   ///
   /// * `helpOfferSubmitted` — subject is the **helper**, so withdrawing and
   ///   offering again is a new generation of the author's one standing task,
   ///   not a second obligation.
-  /// * `reviewOpened` — subject is the **Request**, so a reopened review
-  ///   window is a new generation of the reviewer's one standing task.
   ///
   /// Returns `null` for anything that is not a live obligation; those receipts
   /// must leave both columns NULL (m0178 `notification_outbox__logical_task_chk`).
@@ -406,7 +367,6 @@ class AttentionPolicy {
     }
     final subject = switch (eventType) {
       AttentionEventType.helpOfferSubmitted => role.targetEntityId,
-      AttentionEventType.reviewOpened => beaconId,
       // A new obligation variant must declare what its generations vary over
       // before it can be written; silently reusing the Request would collapse
       // unrelated tasks onto one key.
@@ -458,9 +418,6 @@ class AttentionPolicy {
     AttentionEventType.requestStatusChanged => 'request_status_changed',
     AttentionEventType.beaconHierarchyStatusChanged =>
       'beacon_hierarchy_status_changed',
-    AttentionEventType.reviewOpened => 'review_opened',
-    AttentionEventType.reviewAllPackagesIn => 'review_all_packages_in',
-    AttentionEventType.reviewWindowCancelled => 'review_window_cancelled',
     AttentionEventType.obligationEnded => 'obligation_ended',
     AttentionEventType.mutualConnectionFormed => 'mutual_connection_formed',
     AttentionEventType.inviteAccepted => 'invite_accepted',
@@ -485,22 +442,7 @@ class AttentionPolicy {
     AttentionEventType.closureFinalized => 'closure_finalized',
     AttentionEventType.closureCancelled => 'closure_cancelled',
     AttentionEventType.requestStale => 'request_stale',
-    AttentionEventType.trustGivenChanged => _trustChangePresentationKey(
-      'trust_given_changed',
-      role.trustDirection,
-    ),
-    AttentionEventType.trustReceivedChanged => _trustChangePresentationKey(
-      'trust_received_changed',
-      role.trustDirection,
-    ),
   };
-
-  String _trustChangePresentationKey(String prefix, String? trustDirection) =>
-      switch (trustDirection) {
-        'up' => '${prefix}_up',
-        'down' => '${prefix}_down',
-        _ => '${prefix}_neutral',
-      };
 
   Map<String, Object?> _presentationPayload(
     AttentionEventType eventType,

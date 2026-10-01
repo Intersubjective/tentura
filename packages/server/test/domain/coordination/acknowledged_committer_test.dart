@@ -1,7 +1,7 @@
 import 'package:test/test.dart';
 
 import 'package:tentura_server/domain/coordination/coordination_response_type.dart';
-import 'package:tentura_server/domain/evaluation/acknowledged_committer.dart';
+import 'package:tentura_server/domain/coordination/acknowledged_committer.dart';
 
 void main() {
   group('isAcknowledgedCommitterResponse', () {

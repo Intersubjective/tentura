@@ -28,7 +28,7 @@ import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/utils/id.dart';
 
 import '../entity/beacon_entity.dart';
-import '../entity/gql_public/beacon_close_review_result.dart';
+import '../entity/gql_public/beacon_cancel_result.dart';
 import '../entity/gql_public/beacon_image_added_result.dart';
 import '../entity/gql_public/beacon_image_staged_result.dart';
 import '../entity/task_entity.dart';
@@ -430,7 +430,7 @@ final class BeaconCase extends UseCaseBase {
         fn: (locked) async {
           if (locked.author.id != userId) {
             throw EvaluationException(
-              evaluationCode: EvaluationExceptionCode.notEligible,
+              code: EvaluationExceptionCode.notEligible,
             );
           }
           final snapshot = await _beaconRepository.getMediaSnapshot(beaconId);
@@ -494,7 +494,7 @@ final class BeaconCase extends UseCaseBase {
         fn: (locked) async {
           if (locked.author.id != userId) {
             throw EvaluationException(
-              evaluationCode: EvaluationExceptionCode.notEligible,
+              code: EvaluationExceptionCode.notEligible,
             );
           }
           final snapshot = await _beaconRepository.getMediaSnapshot(beaconId);
@@ -544,7 +544,7 @@ final class BeaconCase extends UseCaseBase {
     fn: (locked) async {
       if (locked.author.id != userId) {
         throw EvaluationException(
-          evaluationCode: EvaluationExceptionCode.notEligible,
+          code: EvaluationExceptionCode.notEligible,
         );
       }
 
@@ -630,7 +630,7 @@ final class BeaconCase extends UseCaseBase {
     fn: (locked) async {
       if (locked.author.id != userId) {
         throw EvaluationException(
-          evaluationCode: EvaluationExceptionCode.notEligible,
+          code: EvaluationExceptionCode.notEligible,
         );
       }
       final attachedIds = [for (final image in locked.images) image.id];
@@ -669,7 +669,7 @@ final class BeaconCase extends UseCaseBase {
     fn: (locked) async {
       if (locked.author.id != userId) {
         throw EvaluationException(
-          evaluationCode: EvaluationExceptionCode.notEligible,
+          code: EvaluationExceptionCode.notEligible,
         );
       }
       final attachedIds = {for (final image in locked.images) image.id};
@@ -754,11 +754,11 @@ final class BeaconCase extends UseCaseBase {
   }
 
   /// Author cancels an open beacon with zero acknowledged committers (state 1).
-  Future<BeaconCloseReviewResult> beaconCancel({
+  Future<BeaconCancelResult> beaconCancel({
     required String beaconId,
     required String userId,
   }) {
-    Future<BeaconCloseReviewResult> mutate(AttentionTransaction? transaction) async {
+    Future<BeaconCancelResult> mutate(AttentionTransaction? transaction) async {
       await _hierarchyRepository.lockMutationScope();
       return _beaconRepository.runInBeaconStateTransaction(
           beaconId: beaconId,
@@ -766,19 +766,19 @@ final class BeaconCase extends UseCaseBase {
           fn: (beacon) async {
             if (!beacon.status.isOpenFamily) {
               throw EvaluationException(
-                evaluationCode: EvaluationExceptionCode.beaconNotClosable,
+                code: EvaluationExceptionCode.beaconNotClosable,
                 description: 'Request must be open to cancel',
               );
             }
             if (beacon.author.id != userId) {
               throw EvaluationException(
-                evaluationCode: EvaluationExceptionCode.notEligible,
+                code: EvaluationExceptionCode.notEligible,
                 description: 'Only the author can cancel',
               );
             }
             if (await _commitmentQueryCase.everHadCommitter(beaconId)) {
               throw EvaluationException(
-                evaluationCode: EvaluationExceptionCode.beaconNotClosable,
+                code: EvaluationExceptionCode.beaconNotClosable,
                 description:
                     'Cannot cancel a request that ever had a committer',
               );
@@ -810,7 +810,7 @@ final class BeaconCase extends UseCaseBase {
             if (intent != null) {
               await transaction!.record(intent);
             }
-            return BeaconCloseReviewResult(
+            return BeaconCancelResult(
               id: beaconId,
               status: BeaconStatus.cancelled.smallintValue,
             );
@@ -836,7 +836,7 @@ final class BeaconCase extends UseCaseBase {
       fn: (beacon) async {
         if (beacon.author.id != userId) {
           throw EvaluationException(
-            evaluationCode: EvaluationExceptionCode.notEligible,
+            code: EvaluationExceptionCode.notEligible,
           );
         }
 
@@ -868,7 +868,7 @@ final class BeaconCase extends UseCaseBase {
 
         if (await _commitmentQueryCase.everHadCommitter(beacon.id)) {
           throw EvaluationException(
-            evaluationCode: EvaluationExceptionCode.beaconNotClosable,
+            code: EvaluationExceptionCode.beaconNotClosable,
             description: 'Cannot delete a request that ever had a committer',
           );
         }
@@ -880,7 +880,7 @@ final class BeaconCase extends UseCaseBase {
         );
         if (verdict.verdict != BeaconStatusTransitionVerdict.allowed) {
           throw EvaluationException(
-            evaluationCode: EvaluationExceptionCode.beaconNotClosable,
+            code: EvaluationExceptionCode.beaconNotClosable,
           );
         }
 

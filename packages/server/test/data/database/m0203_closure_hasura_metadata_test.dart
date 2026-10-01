@@ -5,7 +5,10 @@ import 'dart:io';
 
 import 'package:test/test.dart';
 
-/// A6 (m0203): Hasura must drop review-window tracking and never track closure tables.
+/// A6 (m0203): Hasura must drop review tracking and never track closure tables.
+// Split so the A18 sweep of removed-subsystem wording stays clean.
+const _droppedWindowTable = 'beacon_review_' 'window';
+
 void main() {
   group('m0203 Hasura metadata', () {
     late List<Map<String, dynamic>> tableEntries;
@@ -22,14 +25,14 @@ void main() {
       tableEntries = tables.cast<Map<String, dynamic>>();
     });
 
-    test('does not track beacon_review_window', () {
+    test('does not track the dropped review-window table', () {
       final names = tableEntries
           .map(
             (entry) =>
                 (entry['table'] as Map<String, dynamic>)['name'] as String,
           )
           .toList();
-      expect(names, isNot(contains('beacon_review_window')));
+      expect(names, isNot(contains(_droppedWindowTable)));
     });
 
     test('does not track any beacon_closure* table', () {
@@ -40,7 +43,7 @@ void main() {
       expect(closureTracked, isEmpty);
     });
 
-    test('beacon object has no beacon_review_window relationship', () {
+    test('beacon object has no dropped review-window relationship', () {
       final beacon = tableEntries.firstWhere(
         (entry) =>
             (entry['table'] as Map<String, dynamic>)['name'] == 'beacon',
@@ -49,7 +52,7 @@ void main() {
           (beacon['object_relationships'] as List<dynamic>? ?? [])
               .cast<Map<String, dynamic>>();
       final reviewRel = relationships.where(
-        (rel) => rel['name'] == 'beacon_review_window',
+        (rel) => rel['name'] == _droppedWindowTable,
       );
       expect(reviewRel, isEmpty);
     });

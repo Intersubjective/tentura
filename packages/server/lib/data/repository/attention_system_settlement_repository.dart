@@ -11,44 +11,7 @@ class AttentionSystemSettlementRepository
 
   final TenturaDb _database;
 
-  static const _reviewOpenedEventType = 'reviewOpened';
   static const _helpOfferSubmittedEventType = 'helpOfferSubmitted';
-
-  /// Post-m0203 there are no review windows or per-user review statuses
-  /// (m0203 dropped both tables and retired every live review obligation),
-  /// so nothing is ever settled here. A18 deletes this call path.
-  @override
-  Future<int> settleReviewObligationsAfterWindowClose(String beaconId) =>
-      Future.value(0);
-
-  @override
-  Future<int> settleReviewerObligationOnPackageSend({
-    required String beaconId,
-    required String reviewerAccountId,
-  }) =>
-      _database.customUpdate(
-        r'''
-UPDATE public.notification_outbox AS outbox
-SET
-  settlement_kind = 'resolved',
-  settled_at = now(),
-  settled_by_user_id = NULL,
-  settled_by_occurrence_id = NULL
-FROM public.attention_occurrence AS occ
-WHERE outbox.occurrence_id = occ.id
-  AND occ.event_type = $3
-  AND outbox.beacon_id = $1
-  AND outbox.account_id = $2
-  AND outbox.requires_action
-  AND outbox.settlement_kind IS NULL
-''',
-        variables: [
-          Variable<String>(beaconId),
-          Variable<String>(reviewerAccountId),
-          Variable<String>(_reviewOpenedEventType),
-        ],
-        updateKind: UpdateKind.update,
-      );
 
   @override
   Future<int> settleAuthorHelpOfferSubmitted({
@@ -140,57 +103,4 @@ WHERE outbox.occurrence_id = occ.id
         ],
         updateKind: UpdateKind.update,
       );
-
-  @override
-  Future<int> supersedeReviewObligationsOnReopen(String beaconId) =>
-      _database.customUpdate(
-        r'''
-UPDATE public.notification_outbox AS outbox
-SET
-  settlement_kind = 'superseded',
-  settled_at = now(),
-  settled_by_user_id = NULL,
-  settled_by_occurrence_id = NULL
-FROM public.attention_occurrence AS occ
-WHERE outbox.occurrence_id = occ.id
-  AND occ.event_type = $2
-  AND outbox.beacon_id = $1
-  AND outbox.requires_action
-  AND outbox.settlement_kind IS NULL
-''',
-        variables: [
-          Variable<String>(beaconId),
-          Variable<String>(_reviewOpenedEventType),
-        ],
-        updateKind: UpdateKind.update,
-      );
-
-  @override
-  Future<List<String>> listExpiredReviewObligationAccountIds(
-    String beaconId,
-  ) async {
-    final rows = await _database.customSelect(
-      r'''
-SELECT DISTINCT outbox.account_id AS account_id
-FROM public.notification_outbox AS outbox
-JOIN public.attention_occurrence AS occ ON occ.id = outbox.occurrence_id
-WHERE occ.event_type = $2
-  AND outbox.beacon_id = $1
-  AND outbox.requires_action
-  AND outbox.settlement_kind = 'expired'
-ORDER BY account_id
-''',
-      variables: [
-        Variable<String>(beaconId),
-        Variable<String>(_reviewOpenedEventType),
-      ],
-    ).get();
-    return rows.map((row) => row.read<String>('account_id')).toList();
-  }
-
-  /// Post-m0203 no review windows exist, so the closed-window set is empty
-  /// by construction. A18 deletes this call path.
-  @override
-  Future<List<String>> listBeaconIdsWithClosedReviewWindows() =>
-      Future.value(const []);
 }

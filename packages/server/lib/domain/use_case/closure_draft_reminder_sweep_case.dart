@@ -6,7 +6,7 @@ import 'package:tentura_server/domain/port/mutating_unit_of_work_port.dart';
 import '_use_case_base.dart';
 
 /// A17: hourly reminder to voters whose draft is not what they committed,
-/// 24 h before the evaluation window closes.
+/// 24 h before the closing window closes.
 @Singleton(order: 3)
 final class ClosureDraftReminderSweepCase extends UseCaseBase {
   ClosureDraftReminderSweepCase({

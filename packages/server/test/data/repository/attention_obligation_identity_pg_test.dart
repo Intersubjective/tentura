@@ -151,30 +151,6 @@ FROM public.notification_outbox
       );
     });
 
-    test('a reopened review window is a new generation of one review task',
-        () async {
-      await _record(
-        unitOfWork,
-        dispatch,
-        _reviewOpened(sourceEventKey: 'review-1'),
-      );
-      await _record(
-        unitOfWork,
-        dispatch,
-        _reviewOpened(sourceEventKey: 'review-2'),
-      );
-
-      final live = await _liveObligations(writer);
-      expect(live, hasLength(1));
-      expect(
-        live.single['logical_task_key'],
-        'v1|reviewOpened|$_beaconId|$_beaconId|$_reviewerId',
-        reason: 'the subject of a review obligation is the Request itself; '
-            'generations distinguish review windows',
-      );
-      expect(live.single['lifecycle_generation'], 2);
-    });
-
     test('replaying one source_event_key does not bump the generation',
         () async {
       for (var i = 0; i < 3; i++) {
@@ -361,31 +337,6 @@ AttentionDispatchIntent _helpOffer({
   beaconId: beaconId,
   targetEntityId: _helperId,
 );
-
-AttentionDispatchIntent _reviewOpened({required String sourceEventKey}) =>
-    AttentionDispatchIntent(
-      eventType: AttentionEventType.reviewOpened,
-      sourceEventKey: sourceEventKey,
-      actorUserId: _authorId,
-      priority: NotificationPriority.high,
-      kind: NotificationKind.reviewReady,
-      title: 'Review opened',
-      body: 'A review window opened',
-      actionUrl: '/#/view?id=$_beaconId',
-      collapseKey: 'review|$_beaconId',
-      recipients: const [
-        AttentionRecipientSnapshot(
-          recipientId: _reviewerId,
-          reasons: {AttentionRecipientReason.reviewParticipant},
-          role: AttentionRecipientRoleFacts(
-            canReadBeaconContent: true,
-            beaconId: _beaconId,
-            actorUserId: _authorId,
-          ),
-        ),
-      ],
-      beaconId: _beaconId,
-    );
 
 AttentionDispatchIntent _relay({required String sourceEventKey}) =>
     AttentionDispatchIntent(

@@ -41,15 +41,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeUserContact,
   gqlTypeBlockIntent,
   gqlTypeBlockPreview,
-  gqlTypeBeaconCloseReviewResult,
-  gqlTypeBeaconExtendReviewResult,
-  gqlTypeEvaluationParticipant,
-  gqlTypeEvaluationDraftRow,
-  gqlTypeReviewWindowStatus,
-  gqlTypeEvaluationSummary,
-  gqlTypeEvaluationReceived,
-  gqlTypeEvaluationReceivedRow,
-  gqlTypeEvaluationsWrittenAboutViewerRow,
+  gqlTypeBeaconCancelResult,
   gqlTypeCoordinationStatusResult,
   gqlTypeBeaconDisplayStatus,
   gqlTypeHelpOfferWithCoordinationRow,
@@ -1159,198 +1151,15 @@ final gqlTypeBlockPreview = GraphQLObjectType('BlockPreview', null)
     field('willWithdrawEdge', graphQLBoolean.nonNullable()),
   ]);
 
-/// `beaconClose` result.
-final gqlTypeBeaconCloseReviewResult =
+/// `beaconCancel` result.
+final gqlTypeBeaconCancelResult =
     GraphQLObjectType(
-        'BeaconCloseReviewResult',
+        'BeaconCancelResult',
         null,
       )
       ..fields.addAll([
         field('id', graphQLString.nonNullable()),
         field('status', graphQLInt.nonNullable()),
-        field('closesAt', graphQLString),
-      ]);
-
-final gqlTypeBeaconExtendReviewResult =
-    GraphQLObjectType(
-        'BeaconExtendReviewResult',
-        null,
-      )
-      ..fields.addAll([
-        field('id', graphQLString.nonNullable()),
-        field('closesAt', graphQLString.nonNullable()),
-        field('extensionsRemaining', graphQLInt.nonNullable()),
-      ]);
-
-final gqlTypeEvaluationParticipant =
-    GraphQLObjectType(
-        'EvaluationParticipant',
-        null,
-      )
-      ..fields.addAll([
-        field('userId', graphQLString.nonNullable()),
-        field('displayName', graphQLString.nonNullable()),
-        field('imageId', graphQLString.nonNullable()),
-        field('role', graphQLInt.nonNullable()),
-        field('contributionSummary', graphQLString.nonNullable()),
-        field('causalHint', graphQLString.nonNullable()),
-        field('value', graphQLInt),
-        field(
-          'reasonTags',
-          GraphQLListType(graphQLString.nonNullable()),
-        ),
-        field('note', graphQLString.nonNullable()),
-        field('promptVariant', graphQLString.nonNullable()),
-        field(
-          'acknowledgedHelpTags',
-          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
-        ),
-        field(
-          'acknowledgeableHelpTags',
-          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
-        ),
-        field('maxAcknowledgedHelpTags', graphQLInt.nonNullable()),
-        field('isSubmitted', graphQLBoolean.nonNullable()),
-        field('isOptional', graphQLBoolean.nonNullable()),
-        field('rowStatus', graphQLInt.nonNullable()),
-        field('committedAt', graphQLString),
-        field('offerMessage', graphQLString.nonNullable()),
-        field('forwarderDisplayName', graphQLString),
-      ]);
-
-/// One saved draft row for `evaluationDrafts` query.
-final gqlTypeEvaluationDraftRow =
-    GraphQLObjectType(
-        'EvaluationDraftRow',
-        null,
-      )
-      ..fields.addAll([
-        field('evaluatedUserId', graphQLString.nonNullable()),
-        field('value', graphQLInt.nonNullable()),
-        field(
-          'reasonTags',
-          GraphQLListType(graphQLString.nonNullable()),
-        ),
-        field('note', graphQLString.nonNullable()),
-      ]);
-
-final gqlTypeReviewWindowStatus =
-    GraphQLObjectType(
-        'ReviewWindowStatus',
-        null,
-      )
-      ..fields.addAll([
-        field('beaconId', graphQLString.nonNullable()),
-        field('hasWindow', graphQLBoolean.nonNullable()),
-        field('beaconTitle', graphQLString.nonNullable()),
-        field('openedAt', graphQLString),
-        field('closesAt', graphQLString),
-        field('windowComplete', graphQLBoolean),
-        field('userReviewStatus', graphQLInt),
-        field('reviewedCount', graphQLInt),
-        field('totalCount', graphQLInt),
-        field('extensionsUsed', graphQLInt),
-        field('canCloseNow', graphQLBoolean),
-        field('canReopen', graphQLBoolean),
-        field('requiredTotal', graphQLInt),
-        field('requiredReviewed', graphQLInt),
-        field('optionalTotal', graphQLInt),
-        field('optionalReviewed', graphQLInt),
-        field('viewerPackageOptional', graphQLBoolean),
-        field('sentAt', graphQLString),
-        field('allRequiredSent', graphQLBoolean),
-        field('unsentStartedPackages', graphQLInt),
-        field('sentReviewerCount', graphQLInt),
-      ]);
-
-final gqlTypeEvaluationSummary =
-    GraphQLObjectType(
-        'EvaluationSummary',
-        null,
-      )
-      ..fields.addAll([
-        field('suppressed', graphQLBoolean.nonNullable()),
-        field('tone', graphQLString.nonNullable()),
-        field('message', graphQLString.nonNullable()),
-        field(
-          'topReasonTags',
-          GraphQLListType(graphQLString.nonNullable()),
-        ),
-        field('neg2', graphQLInt),
-        field('neg1', graphQLInt),
-        field('zero', graphQLInt),
-        field('pos1', graphQLInt),
-        field('pos2', graphQLInt),
-        field('roleSummaryLine', graphQLString.nonNullable()),
-      ]);
-
-/// Named per-reviewer received reviews for one beacon (V2).
-final gqlTypeEvaluationReceived =
-    GraphQLObjectType(
-        'EvaluationReceived',
-        null,
-      )
-      ..fields.addAll([
-        field('beaconId', graphQLString.nonNullable()),
-        field('beaconTitle', graphQLString.nonNullable()),
-        field('windowClosed', graphQLBoolean.nonNullable()),
-        field(
-          'rows',
-          GraphQLListType(
-            gqlTypeEvaluationReceivedRow.nonNullable(),
-          ).nonNullable(),
-        ),
-      ]);
-
-/// One named review received by the evaluated participant (V2).
-final gqlTypeEvaluationReceivedRow =
-    GraphQLObjectType(
-        'EvaluationReceivedRow',
-        null,
-      )
-      ..fields.addAll([
-        field('reviewerId', graphQLString.nonNullable()),
-        field('reviewerDisplayName', graphQLString.nonNullable()),
-        field('reviewerImageId', graphQLString.nonNullable()),
-        field('reviewerRole', graphQLInt.nonNullable()),
-        field('value', graphQLInt.nonNullable()),
-        field('tone', graphQLString.nonNullable()),
-        field(
-          'reasonTags',
-          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
-        ),
-        field(
-          'acknowledgedHelpTags',
-          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
-        ),
-        field('note', graphQLString.nonNullable()),
-        field('occurredAt', graphQLString.nonNullable()),
-      ]);
-
-/// One finalized review a profile owner wrote about the viewer (V2).
-final gqlTypeEvaluationsWrittenAboutViewerRow =
-    GraphQLObjectType(
-        'EvaluationsWrittenAboutViewerRow',
-        null,
-      )
-      ..fields.addAll([
-        field('beaconId', graphQLString.nonNullable()),
-        field('beaconTitle', graphQLString.nonNullable()),
-        field('beaconClosedAt', graphQLString),
-        field('evaluatorId', graphQLString.nonNullable()),
-        field('evaluatedUserId', graphQLString.nonNullable()),
-        field('value', graphQLInt.nonNullable()),
-        field('tone', graphQLString.nonNullable()),
-        field(
-          'reasonTags',
-          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
-        ),
-        field(
-          'acknowledgedHelpTags',
-          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
-        ),
-        field('note', graphQLString.nonNullable()),
-        field('occurredAt', graphQLString.nonNullable()),
       ]);
 
 /// Result of coordination/status mutations (V2).

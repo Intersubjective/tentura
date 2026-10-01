@@ -19,7 +19,6 @@ import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
-import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 import 'package:tentura_server/domain/port/image_object_gc_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
@@ -34,7 +33,6 @@ import '../../support/recording_commitment_repository.dart';
 import '../../support/test_attention_harness.dart';
 import 'help_offer_case_mocks.mocks.dart';
 
-class _MinimalEvaluationRepo extends Fake implements EvaluationRepositoryPort {}
 
 class _TransactionStubBeaconRepo implements BeaconRepositoryPort {
   _TransactionStubBeaconRepo(this._beacon);
@@ -104,7 +102,6 @@ void main() {
       helpOfferRepo,
       coordinationRepo,
       roomRepo,
-      _MinimalEvaluationRepo(),
       FakeUserBlockRepository(),
       commitmentRepo,
       commitmentQueryCase,

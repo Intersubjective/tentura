@@ -13,7 +13,6 @@ import 'package:tentura_server/data/repository/beacon_room_repository.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
-import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 import 'package:tentura_server/domain/use_case/commitment_query_case.dart';
 import 'package:tentura_server/domain/use_case/beacon_involvement_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_case.dart';
@@ -346,7 +345,6 @@ CoordinationCase _buildCoordinationCase({
     help_mocks.MockHelpOfferRepositoryPort(),
     coordination,
     room,
-    _FakeEvaluationRepository(),
     FakeUserBlockRepository(),
     RecordingCommitmentRepository(),
     CommitmentQueryCase(
@@ -361,9 +359,6 @@ CoordinationCase _buildCoordinationCase({
     logger: _logger,
   );
 }
-
-final class _FakeEvaluationRepository extends Fake
-    implements EvaluationRepositoryPort {}
 
 Future<void> _seed(Connection writer) async {
   for (final (i, id) in [_author, _steward, _appointed, _stranger].indexed) {

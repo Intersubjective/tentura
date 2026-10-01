@@ -14,7 +14,6 @@ import 'package:tentura_server/data/database/tentura_db.dart'
 import 'package:tentura_server/data/repository/attention_dispatch_repository.dart';
 import 'package:tentura_server/data/repository/attention_reconciliation_repository.dart';
 import 'package:tentura_server/data/repository/attention_repository.dart';
-import 'package:tentura_server/data/repository/attention_system_settlement_repository.dart';
 import 'package:tentura_server/data/repository/beacon_access_repository.dart';
 import 'package:tentura_server/data/repository/beacon_room_notification_context_repository.dart';
 import 'package:tentura_server/data/repository/beacon_room_repository.dart';
@@ -117,7 +116,6 @@ Future<void> main() async {
         FakeUserBlockRepository(),
       );
       reconciliation = ObligationReconciliationCase(
-        AttentionSystemSettlementRepository(database),
         AttentionReconciliationRepository(database),
         AttentionRepository(database),
         TransactionalAttentionCase(MutatingUnitOfWork(database), dispatch),
@@ -308,7 +306,6 @@ WHERE user_id = '$_accountId' AND tombstone_dismissed_at IS NOT NULL
         FakeUserBlockRepository(),
       );
       reconciliation = ObligationReconciliationCase(
-        AttentionSystemSettlementRepository(database),
         AttentionReconciliationRepository(database),
         AttentionRepository(database),
         TransactionalAttentionCase(MutatingUnitOfWork(database), dispatch),
