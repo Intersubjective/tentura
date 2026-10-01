@@ -22,6 +22,7 @@ builders:
     applies_builders:
       [
         'ferry_generator|serializer_builder',
+        'ferry_generator|outputs_refresh_builder',
         'built_value_generator|built_value',
       ]
     runs_before:
@@ -42,3 +43,11 @@ builders:
     build_to: source
     applies_builders: ['built_value_generator|built_value']
     runs_before: ['built_value_generator|built_value']
+
+  outputs_refresh_builder:
+    import: 'package:ferry_generator/outputs_refresh_builder.dart'
+    builder_factories: ['outputsRefreshBuilder']
+    build_extensions: { '.graphql': [] }
+    required_inputs: ['.g.dart']
+    auto_apply: none
+    build_to: source
