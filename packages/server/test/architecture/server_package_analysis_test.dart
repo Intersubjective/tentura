@@ -10,6 +10,8 @@ import 'package:test/test.dart';
 
 import '../support/server_ci_lint_gate_harness.dart'
     show runDartAnalyzeSerialized;
+import '../support/tentura_xri1_analyze_contract.dart'
+    show kTenturaXri1CitedTestRelatives;
 
 /// Lib paths touched by tentura-id8.5 (People seen GraphQL wiring + analyze
 /// hygiene). Scoped checks must stay warning/error-free in package context.
@@ -142,6 +144,24 @@ void main() {
         skip: _skipNestedCleanupInCiDartTest,
       );
     }
+
+    for (final relative in kTenturaXri1CitedTestRelatives) {
+      test(
+        'tentura-xri1 cited test $relative has no WARNING in package analyze',
+        () {
+          expect(
+            packageAnalyzeWarningDiagnosticsForRelative(relative),
+            isEmpty,
+            reason:
+                'tentura-xri1 cited test path $relative must stay WARNING-free '
+                'in package-wide `dart analyze .`:\n'
+                '${packageAnalyzeWarningDiagnosticsForRelative(relative).join('\n')}',
+          );
+        },
+        timeout: const Timeout(Duration(minutes: 12)),
+        skip: _skipNestedCleanupInCiDartTest,
+      );
+    }
   });
 }
 
@@ -215,6 +235,15 @@ List<String> packageAnalyzeDiagnosticsForRelative(String relativePath) {
         severity: 'ERROR',
         filePath: absolute,
       ).map((e) => '${e.file}:${e.line}: ${e.message}').toList();
+}
+
+List<String> packageAnalyzeWarningDiagnosticsForRelative(String relativePath) {
+  final serverRoot = serverPackageRoot();
+  final absolute = File('${serverRoot.path}/$relativePath').absolute.path;
+  return _diagnosticEntries(
+    severity: 'WARNING',
+    filePath: absolute,
+  ).map((e) => '${e.file}:${e.line}: ${e.message}').toList();
 }
 
 bool isId85TouchedLibAnalyzePath(String absoluteFile) =>
