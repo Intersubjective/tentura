@@ -6937,5 +6937,140 @@
   "updatesFallbackTitleHierarchyStatusChanged": "Linked request status changed",
   "@updatesFallbackTitleHierarchyStatusChanged": {
     "description": "Event label: a parent or child request of this one changed status."
+  },
+  "closureAuthorTitle": "Sum up",
+  "@closureAuthorTitle": {
+    "description": "Author closure screen title."
+  },
+  "closureAuthorOutcomeDone": "Done",
+  "@closureAuthorOutcomeDone": {
+    "description": "Outcome option: the helper did what they offered."
+  },
+  "closureAuthorOutcomeNotDone": "Not done",
+  "@closureAuthorOutcomeNotDone": {
+    "description": "Outcome option: the helper did not deliver."
+  },
+  "closureAuthorOutcomeCantJudge": "Can't judge",
+  "@closureAuthorOutcomeCantJudge": {
+    "description": "Outcome option: the author cannot judge."
+  },
+  "closureAuthorOutcomeHint": "“Not done” removes the person from your split. “Can't judge” keeps them in an equal share",
+  "@closureAuthorOutcomeHint": {
+    "description": "Hint under the outcome pickers."
+  },
+  "closureAuthorMemberLeft": "left",
+  "@closureAuthorMemberLeft": {
+    "description": "Badge: the helper left the request."
+  },
+  "closureAuthorMemberRemoved": "removed",
+  "@closureAuthorMemberRemoved": {
+    "description": "Badge: the author removed the helper."
+  },
+  "closureAuthorOutcomeLabel": "{name}: {outcome}",
+  "@closureAuthorOutcomeLabel": {
+    "description": "Semantics label of one outcome option.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "outcome": {
+        "type": "String"
+      }
+    }
+  },
+  "closureAuthorBookmarkLabel": "{name}: bookmark",
+  "@closureAuthorBookmarkLabel": {
+    "description": "Semantics label of the bookmark toggle.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "closureAuthorSplitTitle": "Split",
+  "@closureAuthorSplitTitle": {
+    "description": "Split section title."
+  },
+  "closureAuthorSplitChange": "Change the split",
+  "@closureAuthorSplitChange": {
+    "description": "Unlocks the split sliders."
+  },
+  "closureAuthorSplitSave": "Save the split",
+  "@closureAuthorSplitSave": {
+    "description": "Saves the split sliders."
+  },
+  "closureAuthorSplitReset": "Back to equal",
+  "@closureAuthorSplitReset": {
+    "description": "Resets the split to equal shares."
+  },
+  "closureAuthorSplitEqual": "Equal among everyone you did not mark “Not done”",
+  "@closureAuthorSplitEqual": {
+    "description": "Caption when no custom split is saved."
+  },
+  "closureAuthorSplitTooMany": "You can split by hand among at most 20 people. Here the shares stay equal",
+  "@closureAuthorSplitTooMany": {
+    "description": "Why the split is disabled."
+  },
+  "closureAuthorSplitShare": "{name} — {pct}%",
+  "@closureAuthorSplitShare": {
+    "description": "One saved split share.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "pct": {
+        "type": "int"
+      }
+    }
+  },
+  "closureAuthorPreviewTitle": "if colleagues stay silent",
+  "@closureAuthorPreviewTitle": {
+    "description": "Live preview title."
+  },
+  "closureAuthorTwoMembers": "You set each share. Each of the two will understand from their own result how you divided",
+  "@closureAuthorTwoMembers": {
+    "description": "Note shown when there are two members."
+  },
+  "closureAuthorStoryHint": "Tell how it went",
+  "@closureAuthorStoryHint": {
+    "description": "Story field hint."
+  },
+  "closureAuthorStorySave": "Save",
+  "@closureAuthorStorySave": {
+    "description": "Saves the story."
+  },
+  "closureAuthorDeadline": "Deadline: {when}",
+  "@closureAuthorDeadline": {
+    "description": "Deadline line.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "closureAuthorExtend": "Extend by 7 days",
+  "@closureAuthorExtend": {
+    "description": "Extends the deadline."
+  },
+  "closureAuthorCloseNow": "Finish now",
+  "@closureAuthorCloseNow": {
+    "description": "Closes the request now."
+  },
+  "closureAuthorCloseEarlyHint": "You can close earlier after {when}, or once all helpers have answered",
+  "@closureAuthorCloseEarlyHint": {
+    "description": "Early-close hint.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "closureAuthorReopen": "Return to work",
+  "@closureAuthorReopen": {
+    "description": "Reopens the request."
+  },
+  "closureAuthorStale": "The request changed, data refreshed",
+  "@closureAuthorStale": {
+    "description": "Snackbar after a stale-epoch write."
   }
 }

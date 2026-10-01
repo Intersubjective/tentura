@@ -27,6 +27,9 @@ abstract class ClosureState with _$ClosureState {
     @Default(false) bool canCloseNow,
     @Default(false) bool canReopen,
     String? story,
+
+    /// Author only: how many times the deadline was extended (max 2).
+    @Default(0) int extensionsUsed,
   }) = _ClosureState;
 
   const ClosureState._();
