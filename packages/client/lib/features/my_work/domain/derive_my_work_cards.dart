@@ -250,6 +250,7 @@ MyWorkCardViewModel _deriveHelpOffered({
     authorResponseType: row.authorResponseType,
     stakeState: row.stakeState,
     forwarderSenders: row.forwarderSenders,
+    showArchiveAffordance: true,
     helpOfferRowUpdatedAt: row.helpOfferRowUpdatedAt,
     authorCoordinationUpdatedAt: row.authorCoordinationUpdatedAt,
     sources: {MyWorkMembershipSource.helpOffered},

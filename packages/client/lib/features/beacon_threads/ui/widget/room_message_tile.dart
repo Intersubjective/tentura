@@ -29,6 +29,7 @@ import 'package:tentura/features/beacon_threads/ui/widget/fact_actions_sheet.dar
 import 'package:tentura/features/beacon_threads/ui/widget/fact_history_sheet.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/reaction_senders_sheet.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_attachment_widgets.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/room_closure_story_card.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_bubble_measure.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_fact_quote.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_receipt_glyph.dart';
@@ -475,6 +476,10 @@ class RoomMessageTile extends StatelessWidget {
 
     if (BeaconHierarchyNotice.isHierarchyNoticeRow(message)) {
       return BeaconHierarchyNotice(message: message);
+    }
+
+    if (RoomClosureStoryCard.isClosureStoryRow(message)) {
+      return RoomClosureStoryCard(message: message);
     }
 
     if (isParticipantJoinedNotification(message)) {

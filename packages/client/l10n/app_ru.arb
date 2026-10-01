@@ -6472,5 +6472,17 @@
   "closureHelperInfoTooltip": "Как это работает",
   "closureHelperInfoScaling": "Ты не знаешь, как решил автор, — и знать не нужно. Поддержи тех, чья работа, по-твоему, была важной. Если автор уже оценил человека высоко, добавка будет маленькой; если низко — заметной. Отдают в основном те, кому автор дал больше. Автор твой выбор не видит",
   "closureHelperDiagramExample": "пример",
-  "closureHelperStale": "Запрос изменился, данные обновлены"
+  "closureHelperStale": "Запрос изменился, данные обновлены",
+  "closureResultTitle": "Итоги для тебя",
+  "closureResultOutcomeDone": "Автор отметил: выполнено",
+  "closureResultOutcomeNotDone": "Автор отметил: не выполнено",
+  "closureResultOutcomeCantJudge": "Автор отметил: не смог судить",
+  "closureResultNoShare": "Автор отметил: не выполнено — части в итогах нет",
+  "closureResultBandRaised": "Коллеги подняли твою часть",
+  "closureResultBandAsIfSilent": "Твоя часть — как если бы коллеги промолчали",
+  "closureResultBandLowered": "Коллеги опустили твою часть",
+  "closureResultDraftNotCounted": "Твои отметки не вошли: ты не нажал «Готово»",
+  "closureResultDraftLastEdit": "В расчёте прошлая версия, последняя правка не вошла",
+  "closureResultMarksTitle": "Твои закладки",
+  "closureStoryRoomTitle": "Итоги от автора"
 }

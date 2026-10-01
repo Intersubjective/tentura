@@ -7192,5 +7192,53 @@
   "closureHelperStale": "The request changed, data refreshed",
   "@closureHelperStale": {
     "description": "Snackbar after a stale-epoch write."
+  },
+  "closureResultTitle": "Results for you",
+  "@closureResultTitle": {
+    "description": "Title of the Results card on the request screen after finalize."
+  },
+  "closureResultOutcomeDone": "The author marked: done",
+  "@closureResultOutcomeDone": {
+    "description": "Outcome line of the Results card."
+  },
+  "closureResultOutcomeNotDone": "The author marked: not done",
+  "@closureResultOutcomeNotDone": {
+    "description": "Outcome line of the Results card."
+  },
+  "closureResultOutcomeCantJudge": "The author marked: could not judge",
+  "@closureResultOutcomeCantJudge": {
+    "description": "Outcome line of the Results card."
+  },
+  "closureResultNoShare": "The author marked: not done — no share in the results",
+  "@closureResultNoShare": {
+    "description": "Outcome line when the outcome is not done and the band is none (V8)."
+  },
+  "closureResultBandRaised": "Colleagues raised your share",
+  "@closureResultBandRaised": {
+    "description": "Band sentence of the Results card."
+  },
+  "closureResultBandAsIfSilent": "Your share is as if colleagues had stayed silent",
+  "@closureResultBandAsIfSilent": {
+    "description": "Band sentence of the Results card."
+  },
+  "closureResultBandLowered": "Colleagues lowered your share",
+  "@closureResultBandLowered": {
+    "description": "Band sentence of the Results card."
+  },
+  "closureResultDraftNotCounted": "Your marks were not counted: you did not press “Done”",
+  "@closureResultDraftNotCounted": {
+    "description": "Draft line: the viewer's draft never reached the result."
+  },
+  "closureResultDraftLastEdit": "The previous version was counted, the last edit was not",
+  "@closureResultDraftLastEdit": {
+    "description": "Draft line: the viewer's last edit did not reach the result."
+  },
+  "closureResultMarksTitle": "Your bookmarks",
+  "@closureResultMarksTitle": {
+    "description": "Heading above the viewer's own bookmark toggles."
+  },
+  "closureStoryRoomTitle": "Closing words from the author",
+  "@closureStoryRoomTitle": {
+    "description": "Heading of the closure story system card in the room."
   }
 }

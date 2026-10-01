@@ -17,6 +17,7 @@ import 'package:tentura/ui/widget/beacon_request_preview_identity.dart';
 import 'package:tentura/ui/presenter/beacon_phase_cta.dart';
 import 'package:tentura/ui/presenter/beacon_phase_presenter.dart';
 import 'package:tentura/ui/test_ids.dart';
+import 'package:tentura/domain/attention/entity/my_work_beacon_attention.dart';
 import 'package:tentura/domain/entity/beacon_activity_event_consts.dart';
 import 'package:tentura/domain/entity/beacon_coordination_phase.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_close_confirm_dialog.dart';
@@ -56,7 +57,7 @@ Future<bool> myWorkConfirmCloseNow({
   );
 }
 
-/// Footer Forward CTA on authored My Work cards (gated by [Beacon.allowsForward]).
+/// Footer Forward CTA on authored My Work cards (gated by `Beacon.allowsForward`).
 bool myWorkNeedsForwardCta(MyWorkCardViewModel vm) => vm.beacon.allowsForward;
 
 bool myWorkExpectedRequiresReviewWindow(MyWorkCardViewModel vm) =>
@@ -81,6 +82,7 @@ Future<void> _confirmAndDeleteMyWorkBeacon(
         onArchive: () => cubit.archiveBeacon(b.id),
       ) ??
       false) {
+    if (!context.mounted) return;
     await runBeaconDeleteWithRetry(
       context,
       delete: () => repo.delete(b.id),
@@ -188,8 +190,8 @@ Widget? _myWorkAttentionMarker({required bool attentionMarked}) => null;
 bool _myWorkHasObligationRows(BuildContext context, MyWorkCardViewModel vm) =>
     myWorkCardAttentionView(
       beaconId: vm.beaconId,
-      attention: context.select(
-        (MyWorkCubit c) => c.state.attentionByBeacon[vm.beaconId],
+      attention: context.select<MyWorkCubit, MyWorkBeaconAttention?>(
+        (c) => c.state.attentionByBeacon[vm.beaconId],
       ),
       viewerArchived: vm.viewerArchived,
     ).obligations.isNotEmpty;
@@ -220,7 +222,6 @@ Widget _myWorkWhatsNewSection(
   return Padding(
     padding: EdgeInsets.only(top: tt.tightGap),
     child: Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
           child: myWorkWhatsNewLineVisible(vm)
@@ -246,6 +247,20 @@ Widget _myWorkWhatsNewSection(
   );
 }
 
+/// Stacks the present footer parts; null when none.
+Widget? _joinFooters(List<Widget?> parts) {
+  final present = parts.whereType<Widget>().toList();
+  return switch (present.length) {
+    0 => null,
+    1 => present.single,
+    _ => Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: present,
+    ),
+  };
+}
+
 /// Composes shell footer: obligations first, then existing controls.
 /// Returns null only when every section is absent (D-SC8).
 Widget? _composeMyWorkFooter(
@@ -257,8 +272,8 @@ Widget? _composeMyWorkFooter(
 }) {
   final view = myWorkCardAttentionView(
     beaconId: vm.beaconId,
-    attention: context.select(
-      (MyWorkCubit c) => c.state.attentionByBeacon[vm.beaconId],
+    attention: context.select<MyWorkCubit, MyWorkBeaconAttention?>(
+      (c) => c.state.attentionByBeacon[vm.beaconId],
     ),
     viewerArchived: vm.viewerArchived,
   );
@@ -310,7 +325,7 @@ Widget? _composeMyWorkFooter(
           ),
         ),
       if (showObligations && existingFooter != null) SizedBox(height: tt.rowGap),
-      if (existingFooter != null) existingFooter,
+      ?existingFooter,
     ],
   );
 }
@@ -381,7 +396,6 @@ Widget _myWorkSharedPreviewHeader(
     trailing: menu,
     // Two lines: at one, "Teen Garden Food Drive Fundra…" ×3 hid the part
     // that told the Requests apart.
-    titleMaxLines: 2,
     statusSemanticsIdentifier: statusSemanticsIdentifier,
   );
 }
@@ -395,7 +409,6 @@ Widget? _myWorkArchiveFooter(BuildContext context, MyWorkCardViewModel vm) {
       alignment: Alignment.centerRight,
       child: TenturaTextAction(
         label: l10n.myWorkUnarchive,
-        tone: TenturaTone.info,
         onPressed: () => cubit.unarchiveBeacon(vm.beaconId),
       ),
     );
@@ -404,7 +417,6 @@ Widget? _myWorkArchiveFooter(BuildContext context, MyWorkCardViewModel vm) {
     alignment: Alignment.centerRight,
     child: TenturaTextAction(
       label: l10n.myWorkArchive,
-      tone: TenturaTone.info,
       onPressed: () => cubit.archiveBeacon(vm.beaconId),
     ),
   );
@@ -698,14 +710,16 @@ class _HelpOfferedActiveCard extends StatelessWidget {
       footer: _composeMyWorkFooter(
         context,
         vm: vm,
-        existingFooter: hasReviewCta
-            ? MyWorkReviewAffordance(
-                vm: vm,
-                isAuthor: false,
-                onOpenReview: () =>
-                    _openReviewContributions(context, vm.beaconId),
-              )
-            : null,
+        existingFooter: _joinFooters([
+          if (hasReviewCta)
+            MyWorkReviewAffordance(
+              vm: vm,
+              isAuthor: false,
+              onOpenReview: () =>
+                  _openReviewContributions(context, vm.beaconId),
+            ),
+          _myWorkArchiveFooter(context, vm),
+        ]),
         suppressReviewFallback: hasReviewCta,
       ),
       child: Column(

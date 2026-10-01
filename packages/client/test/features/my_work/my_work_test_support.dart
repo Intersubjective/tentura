@@ -400,6 +400,7 @@ MyWorkCase buildTestMyWorkCase({
   FakeMyWorkRepository? repo,
   FakeBeaconRepository? beaconRepo,
   FakeForwardRepository? forwardRepo,
+  ArchiveRepository? archiveRepo,
   FakeRoomHints? roomHints,
   FakeBeaconDisplayRepository? displayRepo,
   FakeEvaluationRepository? evaluationRepo,
@@ -417,7 +418,7 @@ MyWorkCase buildTestMyWorkCase({
   final realtime = realtimeSyncCase ?? buildTestRealtimeSync().case_;
   return MyWorkCase(
     repo ?? FakeMyWorkRepository(),
-    FakeArchiveRepository(),
+    archiveRepo ?? FakeArchiveRepository(),
     forward,
     beacon,
     buildTestBeaconThreadsCase(
