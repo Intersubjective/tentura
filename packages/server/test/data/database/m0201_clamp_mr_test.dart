@@ -11,8 +11,9 @@ import 'package:tentura_server/data/database/tentura_db.dart'
 import '../../support/disposable_pg_target.dart';
 import '../../support/m0201_clamp_mr_harness.dart';
 
-/// P0.1 (mr): projected trust must never publish a negative weight to MeritRank.
-/// Post-m0202 publication reads `target_w` (clamped non-negative; blocks force 0).
+/// P0.1 (mr): projected trust must never publish a negative weight to MeritRank
+/// except for the B1 ban wall. Post-m0202 publication reads `target_w`
+/// (clamped non-negative outside a block; m0205 makes a block publish -1).
 const _alice = m0201ClampMrAliceId;
 const _bob = m0201ClampMrBobId;
 
@@ -110,7 +111,7 @@ WHERE subject_user_id = '$_alice' AND object_user_id = '$_bob'
     );
 
     test(
-      'blocked pair with positive effective weight still publishes 0 to MR',
+      'blocked pair with positive effective weight publishes -1 (ban wall) to MR',
       () async {
         await _seedPositivePair(database);
         await database.customStatement('''
@@ -120,12 +121,13 @@ ON CONFLICT DO NOTHING
 ''');
         await _project(database, _alice, _bob);
         final edge = await _readEdge(database, _alice, _bob);
-        expect(edge, isNull, reason: 'target 0 retires the edge row');
+        expect(edge, isNotNull, reason: 'B1: a ban wall keeps the edge row');
+        expect(edge!.targetW, closeTo(-1, 1e-9));
 
         await _publishTargetToMr(database, _alice, _bob);
         expect(
           await _readPrevSent(database, _alice, _bob),
-          closeTo(0, 1e-9),
+          closeTo(-1, 1e-9),
         );
       },
       skip: skipReason,

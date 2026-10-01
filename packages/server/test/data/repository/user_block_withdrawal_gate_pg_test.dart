@@ -401,7 +401,7 @@ WHERE blocker_id = '$aliceId' AND blocked_id = '$bobId'
       await repo.block(blockerId: aliceId, blockedId: bobId, cascadeMode: 0);
       await repo.applyWithdrawal(blockerId: aliceId, blockedId: bobId);
 
-      expect(await targetWeight(aliceId, bobId), 0);
+      expect(await targetWeight(aliceId, bobId), -1);
       expect(await isQueued(aliceId, bobId), isTrue);
       // The publisher, not the block, moves prev_sent_weight (on ack).
       expect(await prevSentWeight(aliceId, bobId), closeTo(honestPrev, 1e-9));
@@ -415,7 +415,7 @@ WHERE blocker_id = '$aliceId' AND blocked_id = '$bobId'
     () async {
       await repo.block(blockerId: aliceId, blockedId: bobId, cascadeMode: 0);
       await repo.applyWithdrawal(blockerId: aliceId, blockedId: bobId);
-      expect(await targetWeight(aliceId, bobId), 0);
+      expect(await targetWeight(aliceId, bobId), -1);
 
       await repo.unblock(blockerId: aliceId, blockedId: bobId);
 
@@ -465,7 +465,7 @@ WHERE blocker_id = '$aliceId' AND blocked_id = '$bobId'
 
       await materializeMode1Cascade();
 
-      expect(await targetWeight(aliceId, p1Id), 0);
+      expect(await targetWeight(aliceId, p1Id), -1);
       expect(await isQueued(aliceId, p1Id), isTrue);
     },
     skip: skipReason,
@@ -480,7 +480,7 @@ WHERE blocker_id = '$aliceId' AND blocked_id = '$bobId'
 
       await materializeMode1Cascade();
 
-      expect(await targetWeight(aliceId, p1Id), 0);
+      expect(await targetWeight(aliceId, p1Id), -1);
       expect(await isQueued(aliceId, p1Id), isTrue);
     },
     skip: skipReason,
@@ -508,7 +508,7 @@ WHERE blocker_id = '$aliceId' AND blocked_id = '$bobId'
 
       for (var cycle = 0; cycle < 2; cycle++) {
         await materializeMode1Cascade();
-        expect(await targetWeight(aliceId, p1Id), 0);
+        expect(await targetWeight(aliceId, p1Id), -1);
 
         await repo.unblock(blockerId: aliceId, blockedId: bobId);
         expect(

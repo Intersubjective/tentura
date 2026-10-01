@@ -95,7 +95,7 @@ Future<void> main() async {
   );
 
   test(
-    'trust_project_pair clamps the target to non-negative under a block',
+    'trust_project_pair projects the -1 wall under a block',
     () async {
       await _insertEvidence(database, _alice, _bob);
       await _project(database, _alice, _bob);
@@ -107,9 +107,9 @@ Future<void> main() async {
       );
       await _project(database, _alice, _bob);
 
-      // Target 0 with nothing ever sent: the edge row is retired, and the
-      // sign change is queued for publication.
-      expect(await _readEdge(database, _alice, _bob), isNull);
+      // B1: a block raises the wall (target -1) even though nothing was
+      // ever sent, and the sign change is queued for publication.
+      expect((await _readEdge(database, _alice, _bob))?.targetW, -1);
       final queued = await database.customSelect(
         'SELECT count(*)::int AS c FROM public.trust_publish_queue '
         "WHERE subject_user_id = '$_alice' AND object_user_id = '$_bob'",

@@ -7,6 +7,7 @@ import 'package:mockito/mockito.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
+import 'package:tentura_server/data/repository/trust_ledger_repository.dart';
 import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
@@ -110,6 +111,7 @@ Future<void> main() async {
         _FakeInbox(),
         _NoopCapabilityEvidence(),
         FakeBeaconHierarchyRepository(),
+        trustLedger: TrustLedgerRepository(database),
         witnessWindow: witnessWindow,
         env: target.databaseEnv,
         logger: Logger('mr_publish_epoch_pg_test'),

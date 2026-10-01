@@ -420,8 +420,8 @@ WHERE subject = '$aliceId' AND object = '$p1Id'
       expect(honestWeight, greaterThan(0));
 
       await materializeMode1Cascade();
-      // Phase A: a block forces target 0; the publisher delivers the zero.
-      expect(await targetW(), 0);
+      // Phase A: a block raises the wall (target -1).
+      expect(await targetW(), -1);
 
       await insertMutualVote(p1Id, veraId);
       await runFullReleaseSweep();

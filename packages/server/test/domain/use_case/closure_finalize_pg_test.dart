@@ -817,7 +817,7 @@ WHERE beacon_id = '$_beacon' AND kind = $_kWorkedWithAuthor
     );
 
     test(
-      'blocked pair: evidence row exists, published target 0, trust_recent 0',
+      'blocked pair: evidence row exists, published wall -1, trust_recent 0',
       () async {
         await seedEpoch();
         await member(_u1);
@@ -832,7 +832,7 @@ VALUES ('$_u1', '$_author', '$_u1')
 SELECT coalesce(max(target_w), 0) FROM public.user_trust_edge
 WHERE subject = '$_u1' AND object = '$_author'
 ''');
-        expect(edge.single.single, 0);
+        expect(edge.single.single, -1);
         final fold = await rows(
           "SELECT trust_recent FROM public.trust_fold_pair('$_u1', '$_author')",
         );

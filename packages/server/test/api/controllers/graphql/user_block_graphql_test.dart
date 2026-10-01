@@ -4,6 +4,7 @@ import 'package:test/test.dart';
 
 import '../../../support/fake_beacon_hierarchy_repository.dart';
 
+import 'package:tentura_server/data/repository/mock/trust_ledger_repository_mock.dart';
 import 'package:tentura_server/api/controllers/graphql/input/_input_types.dart';
 import 'package:tentura_server/api/controllers/graphql/mutation/mutation_user_block.dart';
 import 'package:tentura_server/api/controllers/graphql/query/query_user_block.dart';
@@ -137,6 +138,7 @@ UserBlockCase _userBlockCase(_RecordingBlockRepository blocks) => UserBlockCase(
   _FakeInbox(),
   _NoopCapabilityEvidence(),
       FakeBeaconHierarchyRepository(),
+  trustLedger: TrustLedgerRepositoryMock(),
   env: Env.test(),
   logger: Logger('user-block-graphql-test'),
 );

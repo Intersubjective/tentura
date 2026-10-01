@@ -30,10 +30,14 @@ final class TrustCutoverCase extends UseCaseBase {
   Future<void> runIfPending() async {
     final deadline = DateTime.timestamp().add(_leaseLength);
     while (true) {
-      if (await _port.isDone()) return;
+      if (await _port.isDone()) {
+        await _banWalls();
+        return;
+      }
       final token = await _port.acquire(_instanceId);
       if (token != null) {
         await _cutover(token);
+        await _banWalls();
         return;
       }
       // Another instance is cutting over.
@@ -58,6 +62,21 @@ final class TrustCutoverCase extends UseCaseBase {
     await _port.init(token);
     await _port.sync(token);
     await _port.finish(token);
+  }
+
+  /// B1: projects every existing block as a wall, once. Idempotent, so a
+  /// concurrent run is harmless; publication goes through the queue.
+  Future<void> _banWalls() async {
+    if (await _port.banWallsDone()) return;
+    final pairs = await _port.banPairs();
+    for (var i = 0; i < pairs.length; i += _batchSize) {
+      final batch = pairs.sublist(
+        i,
+        i + _batchSize > pairs.length ? pairs.length : i + _batchSize,
+      );
+      await _uow.run(action: () => _port.projectBanPairs(batch));
+    }
+    await _port.markBanWallsDone();
   }
 
   Future<void> _renew(int token) async {

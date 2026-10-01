@@ -72,6 +72,19 @@ class _SpyPort implements TrustCutoverPort {
   }
 
   @override
+  Future<bool> banWallsDone() => _inner.banWallsDone();
+
+  @override
+  Future<List<(String, String)>> banPairs() => _inner.banPairs();
+
+  @override
+  Future<void> projectBanPairs(List<(String, String)> pairs) =>
+      _inner.projectBanPairs(pairs);
+
+  @override
+  Future<void> markBanWallsDone() => _inner.markBanWallsDone();
+
+  @override
   Future<void> reset(int token) async {
     log.add('reset');
     await Future<void>.delayed(resetDelay);

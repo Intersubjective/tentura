@@ -84,6 +84,48 @@ RETURNING token
   }
 
   @override
+  Future<bool> banWallsDone() async {
+    final rows = await _database
+        .customSelect(
+          'SELECT 1 FROM public.trust_cutover_state '
+          'WHERE id = 1 AND ban_walls_at IS NOT NULL',
+        )
+        .get();
+    return rows.isNotEmpty;
+  }
+
+  @override
+  Future<List<(String, String)>> banPairs() async {
+    final rows = await _database
+        .customSelect(
+          'SELECT blocker_id, blocked_id FROM public.user_block '
+          'ORDER BY blocker_id, blocked_id',
+        )
+        .get();
+    return [
+      for (final r in rows)
+        (r.read<String>('blocker_id'), r.read<String>('blocked_id')),
+    ];
+  }
+
+  @override
+  Future<void> projectBanPairs(List<(String, String)> pairs) async {
+    for (final (subject, object) in pairs) {
+      await _database
+          .customSelect(
+            r'SELECT public.trust_project_pair($1, $2)',
+            variables: [Variable<String>(subject), Variable<String>(object)],
+          )
+          .get();
+    }
+  }
+
+  @override
+  Future<void> markBanWallsDone() => _database.customUpdate(
+    'UPDATE public.trust_cutover_state SET ban_walls_at = now() WHERE id = 1',
+  );
+
+  @override
   Future<void> reset(int token) async {
     await _requireLease(token);
     await _database.customStatement('SELECT public.mr_reset()');

@@ -309,13 +309,17 @@ VALUES ('a5-ev-1', '$a', '$b', 2, 2, 'a5:ledger:1', now())
       expect(await calls(), contains('$a>$b'));
       final blocked = await edge();
       expect(blocked, isNotNull);
-      expect(blocked!['target_w'], 0);
+      expect(blocked!['target_w'], closeTo(-1, 1e-9));
       expect(blocked['prev'], closeTo(0.5, 1e-9));
       expect(await queued(), 1);
 
-      // Publisher delivers the zero: row and queue entry disappear.
-      await ack(0);
-      expect(await edge(), isNull);
+      // Publisher delivers the ban wall (-1): row stays (nonzero target),
+      // queue entry clears.
+      await ack(-1);
+      final walled = await edge();
+      expect(walled, isNotNull);
+      expect(walled!['target_w'], closeTo(-1, 1e-9));
+      expect(walled['prev'], closeTo(-1, 1e-9));
       expect(await queued(), 0);
       await resetCalls();
 
@@ -344,11 +348,11 @@ VALUES ('a5-ev-1', '$a', '$b', 2, 2, 'a5:ledger:1', now())
       await blockRepo.applyWithdrawal(blockerId: a, blockedId: b);
 
       expect(await calls(), contains('$a>$b'));
-      expect((await edge())!['target_w'], 0);
+      expect((await edge())!['target_w'], closeTo(-1, 1e-9));
       expect(await queued(), 1);
       expect(await evidenceRows(), 1, reason: 'block never touches evidence');
 
-      await ack(0);
+      await ack(-1);
       await resetCalls();
       await blockRepo.unblock(blockerId: a, blockedId: b);
 

@@ -25,4 +25,16 @@ abstract interface class TrustCutoverPort {
 
   /// One transaction; no-op when [token] is no longer the current lease.
   Future<void> finish(int token);
+
+  /// Whether the one-shot `ban_walls` step (B1) has run.
+  Future<bool> banWallsDone();
+
+  /// Every `user_block` row as `(blocker, blocked)`, ordered.
+  Future<List<(String, String)>> banPairs();
+
+  /// Projects [pairs] onto `user_trust_edge`; idempotent, needs no lease.
+  Future<void> projectBanPairs(List<(String, String)> pairs);
+
+  /// Records the `ban_walls` step as done.
+  Future<void> markBanWallsDone();
 }

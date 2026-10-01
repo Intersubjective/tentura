@@ -11,6 +11,7 @@ import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/inbox_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
 import 'package:tentura_server/domain/port/mutating_unit_of_work_port.dart';
+import 'package:tentura_server/domain/port/trust_ledger_port.dart';
 import 'package:tentura_server/domain/port/user_block_repository_port.dart';
 import 'package:tentura_server/domain/port/user_contact_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
@@ -38,13 +39,15 @@ final class UserBlockCase extends UseCaseBase {
     this._inbox,
     this._capabilityEvidence,
     this._hierarchyRepository, {
+    required TrustLedgerPort trustLedger,
     AttentionIntentCase? attentionIntents,
     AttentionDispatchPort? attentionDispatch,
     WitnessWindowPort? witnessWindow,
     ClosureCase? closureCase,
     required super.env,
     required super.logger,
-  }) : _attentionIntents = attentionIntents,
+  }) : _trustLedger = trustLedger,
+       _attentionIntents = attentionIntents,
        _attentionDispatch = attentionDispatch,
        _witnessWindow = witnessWindow,
        _closureCase = closureCase;
@@ -60,6 +63,7 @@ final class UserBlockCase extends UseCaseBase {
   final InboxRepositoryPort _inbox;
   final CapabilityEvidencePort _capabilityEvidence;
   final BeaconHierarchyRepositoryPort _hierarchyRepository;
+  final TrustLedgerPort _trustLedger;
   final AttentionIntentCase? _attentionIntents;
   final AttentionDispatchPort? _attentionDispatch;
   final WitnessWindowPort? _witnessWindow;
@@ -92,6 +96,7 @@ final class UserBlockCase extends UseCaseBase {
           blockedId: blockedId,
         );
         await _invalidateWitnessWindows(blockerId, blockedId);
+        await _trustLedger.project([(blockerId, blockedId)]);
       },
     );
   }
@@ -109,6 +114,7 @@ final class UserBlockCase extends UseCaseBase {
             blockedId: blockedId,
           );
           await _invalidateWitnessWindows(blockerId, blockedId);
+          await _trustLedger.project([(blockerId, blockedId)]);
         },
       );
 

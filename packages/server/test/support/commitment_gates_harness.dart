@@ -4,6 +4,7 @@ import 'package:meta/meta.dart';
 import 'package:mockito/mockito.dart';
 
 import 'package:tentura_root/domain/entity/beacon_status.dart';
+import 'package:tentura_server/data/repository/mock/trust_ledger_repository_mock.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
 import 'package:tentura_server/domain/commitment/commitment_state.dart';
@@ -457,6 +458,7 @@ final class CommitmentGatesHarness {
       _inboxRepo,
       _NoopCapabilityEvidence(),
       FakeBeaconHierarchyRepository(),
+      trustLedger: TrustLedgerRepositoryMock(),
       env: Env(environment: Environment.test),
       logger: Logger(_logName),
     );
