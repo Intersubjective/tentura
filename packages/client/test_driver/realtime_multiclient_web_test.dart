@@ -2,7 +2,13 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:ferry/ferry.dart' show OperationRequest, RequestSerializer;
 import 'package:http/http.dart' as http;
+import 'package:tentura/features/beacon/data/gql/_g/beacon_child_create.req.gql.dart';
+import 'package:tentura/features/beacon/data/gql/_g/beacon_create.req.gql.dart';
+import 'package:tentura/features/beacon_view/data/gql/_g/beacon_help_offer_accept.req.gql.dart';
+import 'package:tentura/features/forward/data/gql/_g/beacon_offer_help.req.gql.dart';
+import 'package:tentura/features/forward/data/gql/_g/forward_beacon.req.gql.dart';
 import 'package:webdriver/async_io.dart' hide TimeoutException;
 
 const _appOrigin = 'https://dev.lvh.me:9443';
@@ -739,18 +745,19 @@ Future<SocketControlResult> _controlSocket(
   );
 }
 
-String _escapeGraphQlString(String value) =>
-    value.replaceAll(r'\', r'\\').replaceAll('"', r'\"');
-
 Future<String> _createBeaconViaApi({
   required String authorEmail,
   required String title,
 }) async {
-  final query =
-      'mutation { beaconCreate(title: "${_escapeGraphQlString(title)}", description: "${_escapeGraphQlString(title)}", draft: false) { id } }';
+  final request = GBeaconCreateReq(
+    (b) => b.vars
+      ..title = title
+      ..description = title
+      ..draft = false,
+  );
   final response = await _postGraphQlAuthenticated(
     email: authorEmail,
-    query: query,
+    request: request,
   );
   final errors = response['errors'];
   if (errors != null) {
@@ -770,11 +777,14 @@ Future<void> _forwardBeaconViaApi({
   required String beaconId,
   required String recipientId,
 }) async {
-  final query =
-      'mutation { beaconForward(id: "$beaconId", recipientIds: ["$recipientId"]) { deliveredRecipientIds } }';
+  final request = GForwardBeaconReq(
+    (b) => b.vars
+      ..beaconId = beaconId
+      ..recipientIds.add(recipientId),
+  );
   final response = await _postGraphQlAuthenticated(
     email: authorEmail,
-    query: query,
+    request: request,
   );
   final errors = response['errors'];
   if (errors != null) {
@@ -795,11 +805,14 @@ Future<void> _offerHelpViaApi({
   required String beaconId,
   required String message,
 }) async {
-  final query =
-      'mutation { beaconOfferHelp(id: "$beaconId", message: "${_escapeGraphQlString(message)}") }';
+  final request = GBeaconOfferHelpReq(
+    (b) => b.vars
+      ..beaconId = beaconId
+      ..message = message,
+  );
   final response = await _postGraphQlAuthenticated(
     email: helperEmail,
-    query: query,
+    request: request,
   );
   final errors = response['errors'];
   if (errors != null) {
@@ -816,11 +829,14 @@ Future<void> _acceptHelpOfferViaApi({
   required String beaconId,
   required String offerUserId,
 }) async {
-  final query =
-      'mutation { acceptHelpOffer(id: "$beaconId", offerUserId: "$offerUserId") { beaconId } }';
+  final request = GAcceptHelpOfferReq(
+    (b) => b.vars
+      ..beaconId = beaconId
+      ..offerUserId = offerUserId,
+  );
   final response = await _postGraphQlAuthenticated(
     email: authorEmail,
-    query: query,
+    request: request,
   );
   final errors = response['errors'];
   if (errors != null) {
@@ -839,15 +855,17 @@ Future<String> _createPublishedChildViaApi({
   required String title,
   required String clientCommandId,
 }) async {
-  final query =
-      'mutation { beaconChildCreate(parentBeaconId: "$parentBeaconId", '
-      'clientCommandId: "$clientCommandId", '
-      'title: "${_escapeGraphQlString(title)}", '
-      'description: "${_escapeGraphQlString(title)}", draft: false) '
-      '{ outcome beaconId } }';
+  final request = GBeaconChildCreateReq(
+    (b) => b.vars
+      ..parentBeaconId = parentBeaconId
+      ..clientCommandId = clientCommandId
+      ..title = title
+      ..description = title
+      ..draft = false,
+  );
   final response = await _postGraphQlAuthenticated(
     email: helperEmail,
-    query: query,
+    request: request,
   );
   final errors = response['errors'];
   if (errors != null) {
@@ -864,7 +882,7 @@ Future<String> _createPublishedChildViaApi({
 
 Future<Map<String, dynamic>> _postGraphQlAuthenticated({
   required String email,
-  required String query,
+  required OperationRequest<Object?, Object?> request,
 }) async {
   final bearer = await _bearerTokenForEmail(email);
   final client = HttpClient();
@@ -873,7 +891,11 @@ Future<Map<String, dynamic>> _postGraphQlAuthenticated({
     final gqlRequest = await client.postUrl(gqlUri);
     gqlRequest.headers.set(HttpHeaders.contentTypeHeader, 'application/json');
     gqlRequest.headers.set(HttpHeaders.authorizationHeader, 'Bearer $bearer');
-    gqlRequest.write(jsonEncode({'query': query}));
+    gqlRequest.write(
+      jsonEncode(
+        const RequestSerializer().serializeRequest(request.execRequest),
+      ),
+    );
     final gqlResponse = await gqlRequest.close();
     final gqlBody = await gqlResponse.transform(utf8.decoder).join();
     if (gqlResponse.statusCode != HttpStatus.ok) {

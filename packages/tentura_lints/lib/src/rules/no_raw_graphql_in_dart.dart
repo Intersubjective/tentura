@@ -17,7 +17,7 @@ final class NoRawGraphqlInDart extends AnalysisRule {
   static const LintCode code = LintCode(
     'no_raw_graphql_in_dart',
     'Raw GraphQL document strings are forbidden in Dart. Put the operation in '
-    'a .graphql file and use the generated *Req class from ferry_generator.',
+        'a .graphql file and use the generated *Req class from ferry_generator.',
     severity: DiagnosticSeverity.ERROR,
   );
 
@@ -35,25 +35,78 @@ final class NoRawGraphqlInDart extends AnalysisRule {
     RuleVisitorRegistry registry,
     RuleContext context,
   ) {
-    final visitor = _Visitor(this, context);
-    registry.addSimpleStringLiteral(this, visitor);
-    registry.addAdjacentStrings(this, visitor);
+    final visitor = _CompilationUnitVisitor(this, context);
+    registry.addCompilationUnit(this, visitor);
     registry.addMethodInvocation(this, visitor);
   }
 }
 
-final class _Visitor extends SimpleAstVisitor<void> {
-  _Visitor(this.rule, this.context);
+final class _CompilationUnitVisitor extends SimpleAstVisitor<void> {
+  _CompilationUnitVisitor(this.rule, this.context);
 
   final NoRawGraphqlInDart rule;
   final RuleContext context;
 
   @override
-  void visitSimpleStringLiteral(SimpleStringLiteral node) {
-    if (_skipPath(context.definingUnit.file.path)) {
+  void visitCompilationUnit(CompilationUnit node) {
+    if (_GraphqlStringLint.skipPath(context.definingUnit.file.path)) {
       return;
     }
-    if (!_skipBecauseUnderGqlCall(node)) {
+    node.accept(_GraphqlStringLint(rule, context));
+  }
+
+  @override
+  void visitMethodInvocation(MethodInvocation node) {
+    if (_GraphqlStringLint.skipPath(context.definingUnit.file.path)) {
+      return;
+    }
+    if (node.methodName.name == 'gql') {
+      final first = _GraphqlStringLint.firstPositionalArg(node.argumentList);
+      if (first is StringLiteral) {
+        final value = _GraphqlStringLint.combinedLiteralText(first);
+        if (value.isNotEmpty) {
+          rule.reportAtNode(first);
+        }
+      }
+    }
+  }
+}
+
+final class _GraphqlStringLint extends RecursiveAstVisitor<void> {
+  _GraphqlStringLint(this.rule, this.context);
+
+  final NoRawGraphqlInDart rule;
+  final RuleContext context;
+
+  @override
+  void visitAdjacentStrings(AdjacentStrings node) {
+    if (!skipBecauseUnderGqlCall(node) &&
+        NoRawGraphqlInDart._documentLead.hasMatch(combinedLiteralText(node))) {
+      rule.reportAtNode(node);
+    }
+    super.visitAdjacentStrings(node);
+  }
+
+  @override
+  void visitStringInterpolation(StringInterpolation node) {
+    if (insideAdjacentStrings(node)) {
+      return;
+    }
+    if (!skipBecauseUnderGqlCall(node)) {
+      final combined = combinedLiteralText(node);
+      if (NoRawGraphqlInDart._documentLead.hasMatch(combined)) {
+        rule.reportAtNode(node);
+      }
+    }
+    super.visitStringInterpolation(node);
+  }
+
+  @override
+  void visitSimpleStringLiteral(SimpleStringLiteral node) {
+    if (insideAdjacentStrings(node)) {
+      return;
+    }
+    if (!skipBecauseUnderGqlCall(node)) {
       final value = node.stringValue;
       if (value != null && NoRawGraphqlInDart._documentLead.hasMatch(value)) {
         rule.reportAtNode(node);
@@ -62,48 +115,10 @@ final class _Visitor extends SimpleAstVisitor<void> {
     super.visitSimpleStringLiteral(node);
   }
 
-  @override
-  void visitAdjacentStrings(AdjacentStrings node) {
-    if (_skipPath(context.definingUnit.file.path)) {
-      return;
-    }
-    if (!_skipBecauseUnderGqlCall(node)) {
-      final value = node.stringValue;
-      if (value != null && NoRawGraphqlInDart._documentLead.hasMatch(value)) {
-        rule.reportAtNode(node);
-      }
-    }
-    super.visitAdjacentStrings(node);
-  }
-
-  @override
-  void visitMethodInvocation(MethodInvocation node) {
-    if (_skipPath(context.definingUnit.file.path)) {
-      return;
-    }
-    if (node.methodName.name == 'gql') {
-      final first = _firstPositionalArg(node.argumentList);
-      if (first is StringLiteral) {
-        final value = first.stringValue;
-        if (value != null && value.isNotEmpty) {
-          rule.reportAtNode(first);
-        }
-      }
-    }
-    super.visitMethodInvocation(node);
-  }
-
-  static bool _skipPath(String path) {
+  static bool skipPath(String path) {
     if (path.contains('packages/tentura_lints/')) {
       return true;
     }
-    // Transport-level tests legitimately build a document by hand to exercise
-    // the link itself (e.g. v2_upload_multipart_link_test), where routing
-    // through ferry_generator would defeat the point of the test.
-    //
-    // Match on `packages/<pkg>/test/`, not a bare `/test/`: the rule test
-    // sandbox roots files at `/home/test/lib/…`, which a bare match would
-    // exclude wholesale — silently disabling the rule's own tests.
     if (path.contains('packages/client/test/') ||
         path.contains('packages/server/test/')) {
       return true;
@@ -117,8 +132,7 @@ final class _Visitor extends SimpleAstVisitor<void> {
     return false;
   }
 
-  /// Avoid double-reporting strings already flagged in [visitMethodInvocation].
-  static bool _skipBecauseUnderGqlCall(StringLiteral node) {
+  static bool skipBecauseUnderGqlCall(StringLiteral node) {
     var current = node.parent;
     if (current is AdjacentStrings) {
       current = current.parent;
@@ -130,7 +144,16 @@ final class _Visitor extends SimpleAstVisitor<void> {
     return inv is MethodInvocation && inv.methodName.name == 'gql';
   }
 
-  static Expression? _firstPositionalArg(ArgumentList list) {
+  static bool insideAdjacentStrings(AstNode node) {
+    for (var current = node.parent; current != null; current = current.parent) {
+      if (current is AdjacentStrings) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  static Expression? firstPositionalArg(ArgumentList list) {
     for (final a in list.arguments) {
       if (a is NamedArgument) {
         continue;
@@ -138,5 +161,28 @@ final class _Visitor extends SimpleAstVisitor<void> {
       return a.argumentExpression;
     }
     return null;
+  }
+
+  static String combinedLiteralText(StringLiteral node) {
+    if (node is SimpleStringLiteral) {
+      return node.stringValue ?? '';
+    }
+    if (node is StringInterpolation) {
+      final buffer = StringBuffer();
+      for (final element in node.elements) {
+        if (element is InterpolationString) {
+          buffer.write(element.value);
+        }
+      }
+      return buffer.toString();
+    }
+    if (node is AdjacentStrings) {
+      final buffer = StringBuffer();
+      for (final part in node.strings) {
+        buffer.write(combinedLiteralText(part));
+      }
+      return buffer.toString();
+    }
+    return '';
   }
 }

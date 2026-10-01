@@ -169,11 +169,122 @@ class NoRawGraphqlInDartTest extends AnalysisRuleTest {
     );
   }
 
+  Future<void> test_reports_interpolated_gql_call() async {
+    await assertDiagnostics(
+      r'''
+void gql(String document) {}
+void load(String id) {
+  gql('query { user(id: "$id") { id } }');
+}
+''',
+      [lint(58, 34)],
+    );
+  }
+
+  Future<void> test_reports_adjacent_gql_call_with_interpolation() async {
+    await assertDiagnostics(
+      r'''
+void gql(String document) {}
+void load(String id) {
+  gql('query { user(id: "' '$id' '") { id } }');
+}
+''',
+      [lint(58, 40)],
+    );
+  }
+
+  Future<void>
+  test_reports_adjacent_strings_starting_with_interpolation() async {
+    await assertDiagnostics(
+      r'''
+void postGraphQl(String document) {}
+void load(String id) {
+  postGraphQl('query { user(id: "$id")' ' { id } }');
+}
+''',
+      [lint(74, 37)],
+    );
+  }
+
   Future<void> test_allows_regular_string() async {
     await assertNoDiagnostics(
       '''
 const title = 'hello world';
 ''',
+    );
+  }
+
+  /// tentura-7xz: interpolated documents must not bypass the rule.
+  Future<void> test_reports_interpolated_mutation_document() async {
+    await assertDiagnostics(
+      r'''
+Future<void> postGraphQl(String q) async {}
+Future<void> userSubscribe(String objectUserId) async {
+  await postGraphQl(
+    'mutation { userSubscribe(objectId: "$objectUserId") }',
+  );
+}
+''',
+      [lint(125, 55)],
+    );
+  }
+
+  /// tentura-7xz: non-string interpolation inside a GraphQL document.
+  Future<void> test_reports_interpolated_query_with_expression_holes() async {
+    await assertDiagnostics(
+      r'''
+Future<void> postGraphQl(String q) async {}
+Future<void> load(bool showClosed, bool participatedOnly) async {
+  await postGraphQl(
+    'query { constellationField(showClosed: $showClosed, participatedOnly: $participatedOnly) { id } }',
+  );
+}
+''',
+      [lint(135, 99)],
+    );
+  }
+
+  /// tentura-7xz: adjacent string segments with an interpolation hole.
+  Future<void> test_reports_adjacent_strings_with_interpolation_hole() async {
+    await assertDiagnostics(
+      r'''
+Future<void> postGraphQl(String q) async {}
+Future<void> subscribe(String objectUserId) async {
+  await postGraphQl(
+    'mutation { userSubscribe(objectId: "'
+    '$objectUserId'
+    '") }',
+  );
+}
+''',
+      [lint(121, 69)],
+    );
+  }
+}
+
+@reflectiveTest
+class NoRawGraphqlInDartIntegrationTestScopeTest extends AnalysisRuleTest {
+  @override
+  String get testFileName =>
+      'packages/client/integration_test/support/e2e_probe.dart';
+
+  @override
+  void setUp() {
+    rule = NoRawGraphqlInDart();
+    super.setUp();
+  }
+
+  /// Only `packages/<pkg>/test/` is excluded; integration_test must stay in scope.
+  Future<void>
+  test_reports_interpolated_document_under_integration_test() async {
+    await assertDiagnostics(
+      r'''
+Future<void> postGraphQl(String q) async {}
+void userSubscribe(String objectUserId) {
+  postGraphQl('mutation { userSubscribe(objectId: "$objectUserId") }');
+}
+''',
+      [lint(100, 55)],
     );
   }
 }
@@ -365,6 +476,7 @@ void main() {
     defineReflectiveTests(NoCubitToDataServiceImportsTest);
     defineReflectiveTests(CubitRequiresUseCaseForMultiReposTest);
     defineReflectiveTests(NoRawGraphqlInDartTest);
+    defineReflectiveTests(NoRawGraphqlInDartIntegrationTestScopeTest);
     defineReflectiveTests(NoRawGraphqlInDartClientTestScopeTest);
     defineReflectiveTests(NoRawEdgeInsetsTest);
     defineReflectiveTests(NoRawBorderRadiusTest);

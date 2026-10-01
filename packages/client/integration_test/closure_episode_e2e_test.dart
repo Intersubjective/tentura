@@ -4,12 +4,25 @@
 // `support/e2e_test_helpers.dart` (backed by a QA server endpoint):
 //  * [bootstrapClosureFixture] - author + three helpers with accepted offers
 //    on one published request.
-//  * [runGraphQlAs] - posts a raw V2 GraphQL document as a given user and
+//  * [postGraphQlAsUser] - posts a generated V2 GraphQL request as a user and
 //    returns the decoded `data` map (throws on GraphQL errors).
+
+import 'package:ferry/ferry.dart' show OperationRequest;
 import 'package:flutter/material.dart' show Card, IconData, Icons, Row;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-
+import 'package:tentura/data/gql/_g/schema.schema.gql.dart';
+import 'package:tentura/features/closure/data/gql/_g/beacon_close.req.gql.dart';
+import 'package:tentura/features/closure/data/gql/_g/beacon_reopen.req.gql.dart';
+import 'package:tentura/features/closure/data/gql/_g/closure_done.req.gql.dart';
+import 'package:tentura/features/closure/data/gql/_g/closure_result_for_viewer.req.gql.dart';
+import 'package:tentura/features/closure/data/gql/_g/closure_save_author_split.req.gql.dart';
+import 'package:tentura/features/closure/data/gql/_g/closure_save_outcome.req.gql.dart';
+import 'package:tentura/features/closure/data/gql/_g/closure_save_story.req.gql.dart';
+import 'package:tentura/features/closure/data/gql/_g/closure_set_mark.req.gql.dart';
+import 'package:tentura/features/closure/data/gql/_g/closure_skip.req.gql.dart';
+import 'package:tentura/features/closure/data/gql/_g/closure_state.req.gql.dart';
+import 'package:tentura/features/closure/data/gql/_g/closure_toggle_support.req.gql.dart';
 import 'package:tentura/main.dart' as app;
 
 import 'support/e2e_test_helpers.dart';
@@ -17,14 +30,21 @@ import 'support/e2e_test_helpers.dart';
 Future<Map<String, dynamic>> _as(
   ClosureFixture f,
   String email,
-  String query,
-) => runGraphQlAs(email: email, restoreEmail: f.authorEmail, query: query);
+  OperationRequest<Object?, Object?> request,
+) async {
+  final result = await postGraphQlAsUser(
+    email: email,
+    restoreEmail: f.authorEmail,
+    request: request,
+  );
+  return (result['data'] as Map).cast<String, dynamic>();
+}
 
 Future<int> _epoch(ClosureFixture f, String email) async {
   final data = await _as(
     f,
     email,
-    'query { closureState(beaconId: "${f.beaconId}") { epoch } }',
+    GClosureStateReq((b) => b.vars..beaconId = f.beaconId),
   );
   return (data['closureState'] as Map)['epoch'] as int;
 }
@@ -33,8 +53,7 @@ Future<Map<String, dynamic>> _result(ClosureFixture f, String email) async {
   final data = await _as(
     f,
     email,
-    'query { closureResultForViewer(beaconId: "${f.beaconId}") '
-    '{ outcome band draftFlag marks story } }',
+    GClosureResultForViewerReq((b) => b.vars..beaconId = f.beaconId),
   );
   return (data['closureResultForViewer'] as Map).cast<String, dynamic>();
 }
@@ -47,43 +66,77 @@ Future<void> _closeSupportExpire(WidgetTester tester) async {
   await _as(
     f,
     f.authorEmail,
-    'mutation { beaconClose(beaconId: "${f.beaconId}") }',
+    GBeaconCloseReq((b) => b.vars..beaconId = f.beaconId),
   );
   final epoch = await _epoch(f, f.authorEmail);
   // Author split 70/20/10 across the three helpers (V3 bands).
   await _as(
     f,
     f.authorEmail,
-    'mutation { closureSaveAuthorSplit(beaconId: "${f.beaconId}", '
-    'expectedEpoch: $epoch, split: [ '
-    '{helperId: "$id1", pct: 70}, {helperId: "$id2", pct: 20}, '
-    '{helperId: "$id3", pct: 10}]) }',
+    GClosureSaveAuthorSplitReq(
+      (b) => b.vars
+        ..beaconId = f.beaconId
+        ..expectedEpoch = epoch
+        ..split.addAll([
+          Gv2_ClosureSplitEntryInput(
+            (b) => b
+              ..helperId = id1
+              ..pct = 70,
+          ),
+          Gv2_ClosureSplitEntryInput(
+            (b) => b
+              ..helperId = id2
+              ..pct = 20,
+          ),
+          Gv2_ClosureSplitEntryInput(
+            (b) => b
+              ..helperId = id3
+              ..pct = 10,
+          ),
+        ]),
+    ),
   );
   // Helper 1 supports helper 3, bookmarks the author, presses Done.
   await _as(
     f,
     h1,
-    'mutation { closureToggleSupport(beaconId: "${f.beaconId}", '
-    'expectedEpoch: $epoch, on: true, targetId: "$id3") { released } }',
+    GClosureToggleSupportReq(
+      (b) => b.vars
+        ..beaconId = f.beaconId
+        ..expectedEpoch = epoch
+        ..on = true
+        ..targetId = id3,
+    ),
   );
   await _as(
     f,
     h1,
-    'mutation { closureSetMark(beaconId: "${f.beaconId}", '
-    'expectedEpoch: $epoch, on: true, targetId: "${f.authorUserId}") }',
+    GClosureSetMarkReq(
+      (b) => b.vars
+        ..beaconId = f.beaconId
+        ..expectedEpoch = epoch
+        ..on = true
+        ..targetId = f.authorUserId,
+    ),
   );
   await _as(
     f,
     h1,
-    'mutation { closureDone(beaconId: "${f.beaconId}", '
-    'expectedEpoch: $epoch) }',
+    GClosureDoneReq(
+      (b) => b.vars
+        ..beaconId = f.beaconId
+        ..expectedEpoch = epoch,
+    ),
   );
   // Helper 2 skips.
   await _as(
     f,
     h2,
-    'mutation { closureSkip(beaconId: "${f.beaconId}", '
-    'expectedEpoch: $epoch) }',
+    GClosureSkipReq(
+      (b) => b.vars
+        ..beaconId = f.beaconId
+        ..expectedEpoch = epoch,
+    ),
   );
 
   await expireClosure(beaconId: f.beaconId);
@@ -123,48 +176,83 @@ Future<void> _reopenKeepsDrafts(WidgetTester tester) async {
   await _as(
     f,
     f.authorEmail,
-    'mutation { beaconClose(beaconId: "$beacon") }',
+    GBeaconCloseReq((b) => b.vars..beaconId = beacon),
   );
   final epoch = await _epoch(f, f.authorEmail);
   // Author drafts: an outcome, a story and a custom split.
   await _as(
     f,
     f.authorEmail,
-    'mutation { closureSaveOutcome(beaconId: "$beacon", '
-    'expectedEpoch: $epoch, helperId: "$id1", outcome: done) }',
+    GClosureSaveOutcomeReq(
+      (b) => b.vars
+        ..beaconId = beacon
+        ..expectedEpoch = epoch
+        ..helperId = id1
+        ..outcome = Gv2_ClosureOutcome.done,
+    ),
   );
   await _as(
     f,
     f.authorEmail,
-    'mutation { closureSaveStory(beaconId: "$beacon", '
-    'expectedEpoch: $epoch, body: "draft story") }',
+    GClosureSaveStoryReq(
+      (b) => b.vars
+        ..beaconId = beacon
+        ..expectedEpoch = epoch
+        ..body = 'draft story',
+    ),
   );
   await _as(
     f,
     f.authorEmail,
-    'mutation { closureSaveAuthorSplit(beaconId: "$beacon", '
-    'expectedEpoch: $epoch, split: [ '
-    '{helperId: "$id1", pct: 70}, {helperId: "$id2", pct: 20}, '
-    '{helperId: "$id3", pct: 10}]) }',
+    GClosureSaveAuthorSplitReq(
+      (b) => b.vars
+        ..beaconId = beacon
+        ..expectedEpoch = epoch
+        ..split.addAll([
+          Gv2_ClosureSplitEntryInput(
+            (b) => b
+              ..helperId = id1
+              ..pct = 70,
+          ),
+          Gv2_ClosureSplitEntryInput(
+            (b) => b
+              ..helperId = id2
+              ..pct = 20,
+          ),
+          Gv2_ClosureSplitEntryInput(
+            (b) => b
+              ..helperId = id3
+              ..pct = 10,
+          ),
+        ]),
+    ),
   );
   // Helper 1 supports helper 3 and presses Done: a committed version.
   await _as(
     f,
     h1,
-    'mutation { closureToggleSupport(beaconId: "$beacon", '
-    'expectedEpoch: $epoch, on: true, targetId: "$id3") { released } }',
+    GClosureToggleSupportReq(
+      (b) => b.vars
+        ..beaconId = beacon
+        ..expectedEpoch = epoch
+        ..on = true
+        ..targetId = id3,
+    ),
   );
   await _as(
     f,
     h1,
-    'mutation { closureDone(beaconId: "$beacon", expectedEpoch: $epoch) }',
+    GClosureDoneReq(
+      (b) => b.vars
+        ..beaconId = beacon
+        ..expectedEpoch = epoch,
+    ),
   );
   Future<Map<String, dynamic>> helperState() async =>
       ((await _as(
                 f,
                 h1,
-                'query { closureState(beaconId: "$beacon") '
-                '{ epoch mySupport inCalcText } }',
+                GClosureStateReq((b) => b.vars..beaconId = beacon),
               ))['closureState']
               as Map)
           .cast<String, dynamic>();
@@ -173,21 +261,23 @@ Future<void> _reopenKeepsDrafts(WidgetTester tester) async {
   await _as(
     f,
     f.authorEmail,
-    'mutation { beaconReopen(beaconId: "$beacon", expectedEpoch: $epoch) }',
+    GBeaconReopenReq(
+      (b) => b.vars
+        ..beaconId = beacon
+        ..expectedEpoch = epoch,
+    ),
   );
   await _as(
     f,
     f.authorEmail,
-    'mutation { beaconClose(beaconId: "$beacon") }',
+    GBeaconCloseReq((b) => b.vars..beaconId = beacon),
   );
 
   final author =
       ((await _as(
                 f,
                 f.authorEmail,
-                'query { closureState(beaconId: "$beacon") '
-                '{ epoch outcomes { helperId outcome } story '
-                'split { helperId pct } } }',
+                GClosureStateReq((b) => b.vars..beaconId = beacon),
               ))['closureState']
               as Map)
           .cast<String, dynamic>();
@@ -228,7 +318,7 @@ Future<void> _bookmarkToggle(WidgetTester tester) async {
   await _as(
     f,
     f.authorEmail,
-    'mutation { beaconClose(beaconId: "${f.beaconId}") }',
+    GBeaconCloseReq((b) => b.vars..beaconId = f.beaconId),
   );
   await expireClosure(beaconId: f.beaconId);
   // The finalized result exists for the viewer and carries no bookmark yet.

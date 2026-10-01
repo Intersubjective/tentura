@@ -5,6 +5,15 @@ import 'dart:ui' show Offset, PlatformDispatcher, PointerDeviceKind;
 
 import 'package:ferry/ferry.dart' show OperationRequest, RequestSerializer;
 import 'package:flutter/material.dart';
+import 'package:tentura/data/gql/_g/schema.schema.gql.dart';
+import 'package:tentura/data/gql/_g/user_subscribe.req.gql.dart';
+import 'package:tentura/features/beacon/data/gql/_g/beacon_create.req.gql.dart';
+import 'package:tentura/features/beacon/data/gql/_g/beacon_delete_by_id.req.gql.dart';
+import 'package:tentura/features/closure/data/gql/_g/beacon_close.req.gql.dart';
+import 'package:tentura/features/constellation/data/gql/_g/constellation_anchor_delete.req.gql.dart';
+import 'package:tentura/features/constellation/data/gql/_g/constellation_anchor_upsert.req.gql.dart';
+import 'package:tentura/features/constellation/data/gql/_g/constellation_anchors_fetch.req.gql.dart';
+import 'package:tentura/features/forward/data/gql/_g/forward_beacon.req.gql.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:web/web.dart' as web;
@@ -1266,8 +1275,8 @@ Future<String> ensureQaUserId(WidgetTester tester, String email) async {
 }
 
 Future<void> userSubscribe(String objectUserId) async {
-  await _postGraphQl(
-    'mutation { userSubscribe(objectId: "$objectUserId") }',
+  await _postGraphQlRequest(
+    GUserSubscribeReq((b) => b.vars.objectId = objectUserId),
   );
 }
 
@@ -1431,7 +1440,9 @@ Future<void> tapGraphControl(WidgetTester tester, Finder finder) async {
 GraphCubit readGraphCubit(WidgetTester tester) =>
     tester.element(find.byType(GraphBody)).read<GraphCubit>();
 
-Future<Map<String, dynamic>> _postGraphQl(String query) async {
+Future<Map<String, dynamic>> _postGraphQlRequest(
+  OperationRequest<Object?, Object?> request,
+) async {
   final tokenResponse = await _postJson(
     '/api/v2/session/access-token',
     const <String, Object?>{},
@@ -1443,7 +1454,7 @@ Future<Map<String, dynamic>> _postGraphQl(String query) async {
   }
   return _postJson(
     '/api/v2/graphql',
-    {'query': query},
+    const RequestSerializer().serializeRequest(request.execRequest),
     includeCredentials: true,
     extraHeaders: {'Authorization': 'Bearer $token'},
   );
@@ -1531,9 +1542,6 @@ Map<String, String> get _qaHeaders {
   }
   return {'Authorization': 'Bearer $token'};
 }
-
-String _escapeGraphQlString(String value) =>
-    value.replaceAll(r'\', r'\\').replaceAll('"', r'\"');
 
 ConstellationCubit readConstellationCubit(WidgetTester tester) =>
     tester.element(find.byType(ConstellationBody)).read<ConstellationCubit>();
@@ -1978,8 +1986,12 @@ Future<List<Map<String, dynamic>>> fetchConstellationAnchors({
   bool showClosed = false,
   bool participatedOnly = false,
 }) async {
-  final response = await _postGraphQl(
-    'query { constellationField(showClosed: $showClosed, participatedOnly: $participatedOnly, projection: ANCHORS) { anchorProjection { revision anchors { targetKind targetId xUnits yUnits coordinateSpaceVersion revision } } } }',
+  final response = await _postGraphQlRequest(
+    GConstellationAnchorsFetchReq(
+      (b) => b.vars
+        ..showClosed = showClosed
+        ..participatedOnly = participatedOnly,
+    ),
   );
   final errors = response['errors'];
   if (errors != null) {
@@ -2012,10 +2024,15 @@ Future<Map<String, dynamic>> upsertConstellationAnchor({
   required double yUnits,
   int coordinateSpaceVersion = 1,
 }) async {
-  final x = xUnits.toStringAsFixed(4);
-  final y = yUnits.toStringAsFixed(4);
-  final response = await _postGraphQl(
-    'mutation { constellationAnchorUpsert(targetKind: $targetKind, targetId: "$targetId", xUnits: $x, yUnits: $y, coordinateSpaceVersion: $coordinateSpaceVersion) { anchor { targetKind targetId xUnits yUnits coordinateSpaceVersion revision } } }',
+  final response = await _postGraphQlRequest(
+    GConstellationAnchorUpsertReq(
+      (b) => b.vars
+        ..targetKind = Gv2_ConstellationAnchorTargetKind.valueOf(targetKind)
+        ..targetId = targetId
+        ..xUnits = xUnits
+        ..yUnits = yUnits
+        ..coordinateSpaceVersion = coordinateSpaceVersion,
+    ),
   );
   final errors = response['errors'];
   if (errors != null) {
@@ -2034,8 +2051,12 @@ Future<void> deleteConstellationAnchor({
   required String targetKind,
   required String targetId,
 }) async {
-  final response = await _postGraphQl(
-    'mutation { constellationAnchorDelete(targetKind: $targetKind, targetId: "$targetId") { targetKind targetId revision } }',
+  final response = await _postGraphQlRequest(
+    GConstellationAnchorDeleteReq(
+      (b) => b.vars
+        ..targetKind = Gv2_ConstellationAnchorTargetKind.valueOf(targetKind)
+        ..targetId = targetId,
+    ),
   );
   final errors = response['errors'];
   if (errors != null) {
@@ -2048,8 +2069,13 @@ Future<String> createPublishedBeacon({
   String? description,
 }) async {
   final body = description ?? title;
-  final response = await _postGraphQl(
-    'mutation { beaconCreate(title: "${_escapeGraphQlString(title)}", description: "${_escapeGraphQlString(body)}", draft: false) { id } }',
+  final response = await _postGraphQlRequest(
+    GBeaconCreateReq(
+      (b) => b.vars
+        ..title = title
+        ..description = body
+        ..draft = false,
+    ),
   );
   final errors = response['errors'];
   if (errors != null) {
@@ -2067,8 +2093,12 @@ Future<void> forwardBeaconTo({
   required String beaconId,
   required String recipientId,
 }) async {
-  final response = await _postGraphQl(
-    'mutation { beaconForward(id: "$beaconId", recipientIds: ["$recipientId"]) { deliveredRecipientIds } }',
+  final response = await _postGraphQlRequest(
+    GForwardBeaconReq(
+      (b) => b.vars
+        ..beaconId = beaconId
+        ..recipientIds.add(recipientId),
+    ),
   );
   final errors = response['errors'];
   if (errors != null) {
@@ -2077,8 +2107,8 @@ Future<void> forwardBeaconTo({
 }
 
 Future<void> closeBeaconForReview(String beaconId) async {
-  final response = await _postGraphQl(
-    'mutation { beaconClose(id: "$beaconId", expectedRequiresReviewWindow: false) { id } }',
+  final response = await _postGraphQlRequest(
+    GBeaconCloseReq((b) => b.vars.beaconId = beaconId),
   );
   final errors = response['errors'];
   if (errors != null) {
@@ -2087,8 +2117,8 @@ Future<void> closeBeaconForReview(String beaconId) async {
 }
 
 Future<void> deleteBeaconById(String beaconId) async {
-  final response = await _postGraphQl(
-    'mutation { beaconDeleteById(id: "$beaconId") }',
+  final response = await _postGraphQlRequest(
+    GBeaconDeleteByIdReq((b) => b.vars.id = beaconId),
   );
   final errors = response['errors'];
   if (errors != null) {

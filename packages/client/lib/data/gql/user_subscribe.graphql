@@ -1,0 +1,3 @@
+mutation UserSubscribe($objectId: String!) {
+  userSubscribe(objectId: $objectId)
+}
