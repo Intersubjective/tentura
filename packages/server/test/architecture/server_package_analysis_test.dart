@@ -299,9 +299,17 @@ List<PackageAnalyzeDiagnosticEntry> parseDiagnosticEntries(
     reason: 'dart analyze --format=json must emit JSON',
   );
 
-  final payload = jsonDecode(stdout) as Map<String, dynamic>;
-  final diagnostics =
-      (payload['diagnostics'] as List).cast<Map<String, dynamic>>();
+  final Object? decoded;
+  try {
+    decoded = jsonDecode(stdout);
+  } on FormatException {
+    fail('dart analyze --format=json did not emit analyzer JSON:\n$stdout');
+  }
+  if (decoded is! Map<String, dynamic> || decoded['diagnostics'] is! List) {
+    fail('dart analyze --format=json did not emit analyzer JSON:\n$stdout');
+  }
+  final diagnostics = (decoded['diagnostics'] as List)
+      .cast<Map<String, dynamic>>();
   return diagnostics
       .where((d) {
         if (d['severity'] != severity) {

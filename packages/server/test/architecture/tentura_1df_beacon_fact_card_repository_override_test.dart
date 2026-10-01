@@ -1,10 +1,9 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:test/test.dart';
 
 import '../support/server_ci_lint_gate_harness.dart'
-    show runDartAnalyzeSerialized;
+    show decodeAnalyzeDiagnostics, runDartAnalyzeSerialized;
 
 /// tentura-1df (tentura-617.13): `BeaconFactCardRepository` must annotate every
 /// `BeaconFactCardRepositoryPort` override with `@override` so
@@ -154,10 +153,7 @@ void main() {
           reason: 'stderr: ${result.stderr}\nstdout: ${result.stdout}',
         );
 
-        final payload =
-            jsonDecode(result.stdout as String) as Map<String, dynamic>;
-        final diagnostics =
-            (payload['diagnostics'] as List).cast<Map<String, dynamic>>();
+        final diagnostics = decodeAnalyzeDiagnostics(result.stdout as String);
         final annotateOverrides = diagnostics
             .where((d) => d['code'] == 'annotate_overrides')
             .map((d) {

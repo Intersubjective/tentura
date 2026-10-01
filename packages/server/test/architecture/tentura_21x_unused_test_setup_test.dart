@@ -1,10 +1,9 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:test/test.dart';
 
 import '../support/server_ci_lint_gate_harness.dart'
-    show runDartAnalyzeSerialized;
+    show decodeAnalyzeDiagnostics, runDartAnalyzeSerialized;
 
 /// tentura-21x (tentura-617.3): disposable PG and erasure tests declared
 /// upgrade targets, writers, channel fakes, and fixture helpers that were never
@@ -319,9 +318,7 @@ List<String> guardedUnusedSetupDiagnosticsFromPackageAnalyze() {
         'stderr: ${result.stderr}',
   );
 
-  final payload = jsonDecode(stdout) as Map<String, dynamic>;
-  final diagnostics =
-      (payload['diagnostics'] as List).cast<Map<String, dynamic>>();
+  final diagnostics = decodeAnalyzeDiagnostics(stdout);
   return diagnostics
       .where(
         (d) =>

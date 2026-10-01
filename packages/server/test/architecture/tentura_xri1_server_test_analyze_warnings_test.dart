@@ -3,13 +3,12 @@
 // server_package_analysis_test.dart. Focused regression (not a substitute for
 // the full server test suite); package-wide WARNING gate via shared helpers.
 
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:test/test.dart';
 
 import '../support/server_ci_lint_gate_harness.dart'
-    show runDartAnalyzeSerialized;
+    show decodeAnalyzeDiagnostics, runDartAnalyzeSerialized;
 import '../support/tentura_xri1_analyze_contract.dart';
 import 'server_package_analysis_test.dart'
     show
@@ -243,8 +242,7 @@ List<Map<String, dynamic>> _loadPackageAnalyzeDiagnostics() {
         'dart analyze --format=json . must emit JSON (exit ${result.exitCode}); '
         'stderr: ${result.stderr}',
   );
-  final payload = jsonDecode(stdout) as Map<String, dynamic>;
-  return (payload['diagnostics'] as List).cast<Map<String, dynamic>>();
+  return decodeAnalyzeDiagnostics(stdout);
 }
 
 List<String> _xri1CitedWarnings(List<Map<String, dynamic>> diagnostics) =>

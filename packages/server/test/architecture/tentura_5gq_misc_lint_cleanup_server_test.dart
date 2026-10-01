@@ -1,13 +1,15 @@
 // tentura-5gq (server items 5–6): test-support analyzer hygiene at cited paths.
 
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 import '../support/server_ci_lint_gate_harness.dart'
-    show runDartAnalyzeSerialized, serverPackageRoot;
+    show
+        decodeAnalyzeDiagnostics,
+        runDartAnalyzeSerialized,
+        serverPackageRoot;
 
 const _jwtKeysTestRelative = 'test/support/hasura_pg_jwt_keys_test.dart';
 const _jwtDefaultPathProbeRelative =
@@ -104,8 +106,7 @@ int _countDartAnalyzeDiagnosticsOnRelativePaths(List<String> relativePaths) {
       'stderr: ${result.stderr}',
     );
   }
-  final payload = jsonDecode(stdout) as Map<String, dynamic>;
-  return (payload['diagnostics'] as List).length;
+  return decodeAnalyzeDiagnostics(stdout).length;
 }
 
 List<({String relativePath, int lineOneBased, String code})>
@@ -126,9 +127,7 @@ List<({String relativePath, int lineOneBased, String code})>
       'stderr: ${result.stderr}',
     );
   }
-  final payload = jsonDecode(stdout) as Map<String, dynamic>;
-  final diagnostics =
-      (payload['diagnostics'] as List).cast<Map<String, dynamic>>();
+  final diagnostics = decodeAnalyzeDiagnostics(stdout);
   final hits = <({String relativePath, int lineOneBased, String code})>[];
   for (final site in beadSites) {
     final absolute = File('${server.path}/${site.relativePath}').absolute.path;

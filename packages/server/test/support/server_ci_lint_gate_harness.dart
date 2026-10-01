@@ -3,6 +3,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:test/test.dart' show TestFailure;
+
 /// Bead evidence: id8.5 / tentura-617.3 touched line (1-based editor line).
 const k5zqCitedOutsideDiffRelative = 'lib/data/database/tentura_db.dart';
 
@@ -57,13 +59,16 @@ Directory repoRootFromServerPackage() {
 ///
 /// `dart analyze` always prints something (a JSON object or "No issues
 /// found!"), so empty stdout means the analysis server died under full-suite
-/// load rather than reporting diagnostics; such runs are retried.
+/// load rather than reporting diagnostics; such runs are retried. For
+/// `--format=json` runs any stdout that is not an analyzer JSON object (crash
+/// banners, signal text, truncated JSON) is retried too.
 ProcessResult runDartAnalyzeSerialized(
   List<String> args, {
   required String workingDirectory,
   Map<String, String>? environment,
 }) {
   const maxAttempts = 3;
+  final expectsJson = args.contains('--format=json');
   late ProcessResult result;
   for (var attempt = 1; attempt <= maxAttempts; attempt++) {
     result = _runUnderAnalyzeLock(
@@ -72,9 +77,43 @@ ProcessResult runDartAnalyzeSerialized(
       workingDirectory: workingDirectory,
       environment: environment,
     );
-    if ((result.stdout as String).trim().isNotEmpty) break;
+    final stdout = (result.stdout as String).trim();
+    if (expectsJson
+        ? _tryDecodeAnalyzerPayload(stdout) != null
+        : stdout.isNotEmpty) {
+      break;
+    }
   }
   return result;
+}
+
+/// The single raw decode of analyzer JSON stdout; `null` unless [stdout] is a
+/// JSON object with a `diagnostics` list.
+Map<String, dynamic>? _tryDecodeAnalyzerPayload(String stdout) {
+  try {
+    final payload = jsonDecode(stdout);
+    if (payload is Map<String, dynamic> && payload['diagnostics'] is List) {
+      return payload;
+    }
+  } on FormatException {
+    // Non-JSON analyzer output (crash banner, truncated JSON).
+  }
+  return null;
+}
+
+/// Decodes `dart analyze --format=json` [stdout] into its diagnostics, failing
+/// with a [TestFailure] that quotes the output when it is not analyzer JSON.
+List<Map<String, dynamic>> decodeAnalyzeDiagnostics(String stdout) {
+  final payload = _tryDecodeAnalyzerPayload(stdout.trim());
+  if (payload == null) {
+    const maxQuoted = 2000;
+    final quoted = stdout.trim();
+    throw TestFailure(
+      'dart analyze --format=json did not emit analyzer JSON:\n'
+      '${quoted.length > maxQuoted ? quoted.substring(0, maxQuoted) : quoted}',
+    );
+  }
+  return (payload['diagnostics'] as List).cast<Map<String, dynamic>>();
 }
 
 ProcessResult _runUnderAnalyzeLock(
@@ -184,9 +223,7 @@ PackageAnalyzeSummary summarizePackageWideDartAnalyze() {
       ],
     );
   }
-  final payload = jsonDecode(stdout) as Map<String, dynamic>;
-  final diagnostics =
-      (payload['diagnostics'] as List).cast<Map<String, dynamic>>();
+  final diagnostics = decodeAnalyzeDiagnostics(stdout);
   var errors = 0;
   var warnings = 0;
   var infos = 0;
@@ -230,9 +267,7 @@ List<Map<String, dynamic>> diagnosticsOnServerRelativeLine(
   if (stdout.isEmpty) {
     return [];
   }
-  final payload = jsonDecode(stdout) as Map<String, dynamic>;
-  final diagnostics =
-      (payload['diagnostics'] as List).cast<Map<String, dynamic>>();
+  final diagnostics = decodeAnalyzeDiagnostics(stdout);
   final lineZero = lineOneBased - 1;
   return diagnostics.where((d) {
     final location = d['location'] as Map?;
