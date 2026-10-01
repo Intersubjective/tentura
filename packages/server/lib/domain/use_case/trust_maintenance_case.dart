@@ -1,18 +1,16 @@
 import 'package:injectable/injectable.dart';
-import 'package:postgres/postgres.dart' show TypedValue, Type;
 
 import 'package:tentura_server/domain/port/meritrank_repository_port.dart';
 import 'package:tentura_server/domain/port/trust_maintenance_port.dart';
+import 'package:tentura_server/domain/port/trust_maintenance_sweep_port.dart';
 import 'package:tentura_server/domain/port/witness_window_port.dart';
 import 'package:tentura_server/domain/use_case/_use_case_base.dart';
-
-import '../../data/database/tentura_db.dart';
 
 @Singleton(as: TrustMaintenancePort, order: 2)
 base class TrustMaintenanceCase extends UseCaseBase
     implements TrustMaintenancePort {
   TrustMaintenanceCase(
-    this._db,
+    this._sweep,
     // Kept for DI/call-site arity; m0202 (A1) removed the tombstone drain,
     // which was the last MeritRank call here. Publication now goes through
     // `trust_publish_queue`, drained by the A4/A5 publisher.
@@ -26,7 +24,7 @@ base class TrustMaintenanceCase extends UseCaseBase
     required super.logger,
   });
 
-  final TenturaDb _db;
+  final TrustMaintenanceSweepPort _sweep;
 
   DateTime? _lastSuccessAt;
   DateTime? _lastFailedAt;
@@ -77,41 +75,16 @@ base class TrustMaintenanceCase extends UseCaseBase
           DateTime.timestamp().difference(started) >= timeBudget) {
         break;
       }
-      final processed = await _db.transaction(() async {
-        final pairs = await _db
-            .customSelect(
-              r'''
-SELECT subject_user_id AS s, object_user_id AS o
-FROM (
-  SELECT subject AS subject_user_id, object AS object_user_id
-  FROM public.user_trust_edge
-) AS pairs
-WHERE (subject_user_id, object_user_id) > ($1, $2)
-ORDER BY subject_user_id, object_user_id
-LIMIT $3
-''',
-              variables: [
-                Variable<String>(afterSubject),
-                Variable<String>(afterObject),
-                Variable(TypedValue(Type.integer, env.trustSweepBatchSize)),
-              ],
-            )
-            .get();
-        for (final pair in pairs) {
-          await _db.customSelect(
-            r'SELECT public.trust_project_pair($1, $2)',
-            variables: [
-              Variable<String>(pair.read<String>('s')),
-              Variable<String>(pair.read<String>('o')),
-            ],
-          ).getSingle();
-        }
-        return pairs;
-      });
+      final processed = await _sweep.projectNextBatch(
+        afterSubject: afterSubject,
+        afterObject: afterObject,
+        batchSize: env.trustSweepBatchSize,
+      );
       if (processed.isEmpty) break;
-      afterSubject = processed.last.read<String>('s');
-      afterObject = processed.last.read<String>('o');
+      final last = processed.last;
+      afterSubject = last.$1;
+      afterObject = last.$2;
     }
-    await _db.customStatement('SELECT public.mr_bump_publish_epoch()');
+    await _sweep.bumpMrPublishEpoch();
   }
 }

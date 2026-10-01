@@ -1,7 +1,6 @@
 @Tags(['pg', 'mr'])
 library;
 
-
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
 import 'package:postgres/postgres.dart';
@@ -11,12 +10,12 @@ import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/meritrank_repository.dart';
+import 'package:tentura_server/data/repository/trust_maintenance_sweep_repository.dart';
 import 'package:tentura_server/domain/use_case/trust_maintenance_case.dart';
 import 'package:tentura_server/env.dart';
 
-import '../../support/pg_test_public_keys.dart';
-
 import '../../support/disposable_pg_target.dart';
+import '../../support/pg_test_public_keys.dart';
 
 Future<void> main() async {
   final target = DisposablePgTarget.fromNamedEnvironment(
@@ -55,7 +54,7 @@ Future<void> main() async {
 
       db = TenturaDb(target.databaseEnv);
       maintenance = TrustMaintenanceCase(
-        db,
+        TrustMaintenanceSweepRepository(db),
         MeritrankRepository(db),
         env: Env(
           environment: Environment.test,

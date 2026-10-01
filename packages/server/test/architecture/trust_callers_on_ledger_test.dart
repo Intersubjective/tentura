@@ -75,8 +75,8 @@ void main() {
 
   test('maintenance sweep reads user_trust_edge keyset, not evidence', () {
     final body = _body(
-      _code('lib/domain/use_case/trust_maintenance_case.dart'),
-      'Future<void> _runProjectionSweep(',
+      _code('lib/data/repository/trust_maintenance_sweep_repository.dart'),
+      '_db.transaction(() async {',
     );
     expect(body, contains('trust_project_pair'));
     expect(body, contains('user_trust_edge'));

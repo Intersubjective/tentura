@@ -11,6 +11,7 @@ import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/meritrank_repository.dart';
 import 'package:tentura_server/data/repository/invite_seed_prompt_repository.dart';
+import 'package:tentura_server/data/repository/trust_maintenance_sweep_repository.dart';
 import 'package:tentura_server/data/repository/trust_publish_repository.dart';
 import 'package:tentura_server/data/repository/user_block_repository.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
@@ -146,7 +147,7 @@ Future<void> main() async {
       );
       publishRepo = TrustPublishRepository(db);
       maintenance = TrustMaintenanceCase(
-        db,
+        TrustMaintenanceSweepRepository(db),
         MeritrankRepository(db),
         env: Env(
           environment: Environment.test,
@@ -506,7 +507,7 @@ FROM generate_series(1, $n) AS i
         const Duration(hours: 24),
       );
       final daily = TrustMaintenanceCase(
-        db,
+        TrustMaintenanceSweepRepository(db),
         MeritrankRepository(db),
         env: Env(environment: Environment.test),
         logger: Logger('TrustCallersLedgerTest.daily'),
