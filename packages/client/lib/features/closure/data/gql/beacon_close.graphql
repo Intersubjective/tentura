@@ -1,0 +1,3 @@
+mutation BeaconClose($beaconId: String!) {
+  beaconClose(beaconId: $beaconId)
+}

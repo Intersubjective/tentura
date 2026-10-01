@@ -3784,13 +3784,13 @@ type mutation_root {
   attentionSettle(kind: String!, receiptId: String!): Int!
   attentionUndo(operationId: String!, undoToken: String!): v2_AttentionUndoResult!
   beaconAddImage(id: String!, image: v2_Upload = {}): v2_BeaconImageAdded!
-  beaconCancel(id: String!): v2_BeaconCloseReviewResult!
+  beaconCancel(id: String!): v2_BeaconCancelResult!
   beaconChildCreate(addressLabel: String, clientCommandId: String!, context: String, coordinates: v2_Coordinates = {}, description: String, draft: Boolean, endAt: String, needs: String, parentBeaconId: String!, primaryNeedSlug: String, sourceMessageId: String, startAt: String, tags: String, title: String!): v2_BeaconChildCreateResult!
-  beaconClose(expectedRequiresReviewWindow: Boolean!, id: String!): v2_BeaconCloseReviewResult!
-  beaconCloseNow(id: String!): v2_BeaconCloseReviewResult!
+  beaconClose(beaconId: String!): Boolean!
+  beaconCloseNow(beaconId: String!, expectedEpoch: Int!): Boolean!
   beaconCreate(addressLabel: String, context: String, coordinates: v2_Coordinates = {}, description: String, draft: Boolean, endAt: String, image: v2_Upload = {}, isDiscoverable: Boolean, needs: String, primaryNeedSlug: String, startAt: String, tags: String, title: String!): v2_Beacon!
   beaconDeleteById(id: String!): Boolean!
-  beaconExtendReview(id: String!): v2_BeaconExtendReviewResult!
+  beaconExtendClosure(beaconId: String!, expectedEpoch: Int!): Boolean!
   beaconFork(id: String!): v2_Beacon!
   beaconForward(attributionParentEdgeIds: [String!], context: String, id: String!, note: String, parentEdgeId: String, perRecipientNotes: String, reasons: [String!], recipientBandProvenance: [v2_ForwardRecipientBandProvenanceInput], recipientIds: [String!], recipientReasons: [v2_ForwardRecipientReasonInput]): v2_ForwardDeliveryResult!
   beaconForwardCancel(id: String!): Boolean!
@@ -3801,7 +3801,7 @@ type mutation_root {
   beaconOfferHelp(expectedOfferKind: Int, helpTypes: [String!], id: String!, message: String): Boolean!
   beaconPublish(id: String!): v2_Beacon!
   beaconRemoveImage(beaconId: String!, imageId: String!): Boolean!
-  beaconReopen(id: String!): v2_BeaconCloseReviewResult!
+  beaconReopen(beaconId: String!, expectedEpoch: Int!): Boolean!
   beaconReorderImages(beaconId: String!, imageIds: [String!]): Boolean!
   beaconSetMedia(coverImageId: String, coverSource: Int!, coverThumbImageId: String, id: String!, imageIds: [String!]): v2_Beacon!
   beaconStageImage(id: String!, image: v2_Upload = {}): v2_BeaconImageStaged!
@@ -3810,6 +3810,13 @@ type mutation_root {
   beaconWithdraw(id: String!, message: String, withdrawReason: String!): Boolean!
   capabilityPrivateLabelSet(slugs: [String!], subjectUserId: String!): Boolean!
   capabilitySetViewerVisible(slugs: [String!], subjectUserId: String!): Boolean!
+  closureDone(beaconId: String!, expectedEpoch: Int!): Boolean!
+  closureSaveAuthorSplit(beaconId: String!, expectedEpoch: Int!, split: [v2_ClosureSplitEntryInput!]): Boolean!
+  closureSaveOutcome(beaconId: String!, expectedEpoch: Int!, helperId: String!, outcome: v2_ClosureOutcome): Boolean!
+  closureSaveStory(beaconId: String!, body: String!, expectedEpoch: Int!): Boolean!
+  closureSetMark(beaconId: String!, expectedEpoch: Int!, on: Boolean!, targetId: String!): Boolean!
+  closureSkip(beaconId: String!, expectedEpoch: Int!): Boolean!
+  closureToggleSupport(beaconId: String!, expectedEpoch: Int!, on: Boolean!, targetId: String!): v2_ClosureToggleResult!
   complaintCreate(details: String!, email: String!, id: String!, type: String!): Boolean!
   constellationAnchorDelete(targetId: String!, targetKind: v2_ConstellationAnchorTargetKind!): v2_ConstellationAnchorDeleteResult!
   constellationAnchorUpsert(coordinateSpaceVersion: Int!, targetId: String!, targetKind: v2_ConstellationAnchorTargetKind!, xUnits: Float!, yUnits: Float!): v2_ConstellationAnchorUpsertResult!
@@ -5015,6 +5022,8 @@ type query_root {
   beacon_steward_by_pk(beacon_id: String!): beacon_steward
   blockInherited(originId: String!): [v2_user!]
   blockPreview(cascadeMode: Int, objectId: String!): v2_BlockPreview!
+  closureResultForViewer(beaconId: String!): v2_ClosureResult
+  closureState(beaconId: String!): v2_ClosureState!
   constellationField(participatedOnly: Boolean! = false, projection: v2_ConstellationProjection! = FULL, showClosed: Boolean! = false): v2_ConstellationField!
 
   """
@@ -7582,7 +7591,7 @@ type v2_BeaconChildCreateResult {
   outcome: String!
 }
 
-type v2_BeaconCloseReviewResult {
+type v2_BeaconCancelResult {
   closesAt: String
   id: String!
   status: Int!
@@ -7601,12 +7610,6 @@ type v2_BeaconDisplayStatus {
   status: Int!
   suggestedAction: String!
   tier: String!
-}
-
-type v2_BeaconExtendReviewResult {
-  closesAt: String!
-  extensionsRemaining: Int!
-  id: String!
 }
 
 type v2_BeaconFactCardRevisionsPage {
@@ -7809,6 +7812,85 @@ type v2_BlockPreview {
   cascadeCapped: Boolean!
   openCommitmentCount: Int!
   willWithdrawEdge: Boolean!
+}
+
+enum v2_ClosureBand {
+  raised
+  asIfSilent
+  lowered
+  none
+}
+
+enum v2_ClosureDraftFlag {
+  none
+  notCounted
+  lastEditNotCounted
+}
+
+type v2_ClosureMember {
+  avatarId: String
+  departure: String
+  displayName: String
+  helpTypes: [String!]
+  id: String!
+  notInRequest: Boolean!
+  offerText: String
+}
+
+enum v2_ClosureOutcome {
+  done
+  notDone
+  cantJudge
+}
+
+type v2_ClosureOutcomeEntry {
+  helperId: String!
+  outcome: v2_ClosureOutcome!
+}
+
+type v2_ClosureResult {
+  band: v2_ClosureBand!
+  draftFlag: v2_ClosureDraftFlag!
+  marks: [String!]
+  outcome: v2_ClosureOutcome!
+  story: String
+}
+
+enum v2_ClosureRole {
+  author
+  voter
+  member
+}
+
+type v2_ClosureSplitEntry {
+  helperId: String!
+  pct: Int!
+}
+
+input v2_ClosureSplitEntryInput {
+  helperId: String!
+  pct: Int!
+}
+
+type v2_ClosureState {
+  canCloseNow: Boolean
+  canReopen: Boolean
+  closesAt: String!
+  earlyCloseAt: String
+  epoch: Int!
+  inCalcText: String
+  members: [v2_ClosureMember!]!
+  myMarks: [String!]
+  mySupport: [String!]
+  outcomes: [v2_ClosureOutcomeEntry!]
+  role: v2_ClosureRole!
+  split: [v2_ClosureSplitEntry!]
+  status: Int!
+  story: String
+}
+
+type v2_ClosureToggleResult {
+  released: String
 }
 
 type v2_ConstellationAnchor {

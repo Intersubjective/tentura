@@ -5,6 +5,7 @@ import 'package:gql_exec/gql_exec.dart';
 import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura/domain/exception/server_exception.dart';
 import 'package:tentura/features/auth/domain/exception.dart';
+import 'package:tentura/features/closure/domain/closure_exception.dart';
 
 import 'exception.dart';
 import 'session_fetch.dart';
@@ -21,6 +22,9 @@ Object mapRemoteFailure(Object? error) {
   // below we re-enter here with the original — pass it through untouched
   // instead of flattening its real message back into raw text.
   if (error is GenericException) {
+    return error;
+  }
+  if (error is ClosureException) {
     return error;
   }
   if (error is AuthSessionLostException) {

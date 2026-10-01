@@ -1,0 +1,3 @@
+mutation ClosureSkip($beaconId: String!, $expectedEpoch: Int!) {
+  closureSkip(beaconId: $beaconId, expectedEpoch: $expectedEpoch)
+}

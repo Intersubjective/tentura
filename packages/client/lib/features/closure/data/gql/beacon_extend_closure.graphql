@@ -1,0 +1,3 @@
+mutation BeaconExtendClosure($beaconId: String!, $expectedEpoch: Int!) {
+  beaconExtendClosure(beaconId: $beaconId, expectedEpoch: $expectedEpoch)
+}

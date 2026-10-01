@@ -40,12 +40,6 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
     DateTime? startAt,
     DateTime? endAt,
 
-    /// From Hasura `beacon_review_window.closes_at` when tracked; null if no row.
-    DateTime? reviewClosesAt,
-
-    /// `beacon_review_window.status` (0=open, 1=complete); null if no row.
-    int? reviewWindowStatus,
-
     /// Rows in `beacon_help_offer` for this beacon (from GraphQL aggregate when fetched).
     @Default(0) int helpOfferCount,
 

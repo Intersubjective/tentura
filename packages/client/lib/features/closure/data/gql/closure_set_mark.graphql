@@ -1,0 +1,13 @@
+mutation ClosureSetMark(
+  $beaconId: String!
+  $expectedEpoch: Int!
+  $on: Boolean!
+  $targetId: String!
+) {
+  closureSetMark(
+    beaconId: $beaconId
+    expectedEpoch: $expectedEpoch
+    on: $on
+    targetId: $targetId
+  )
+}

@@ -1,0 +1,11 @@
+mutation ClosureSaveAuthorSplit(
+  $beaconId: String!
+  $expectedEpoch: Int!
+  $split: [v2_ClosureSplitEntryInput!]
+) {
+  closureSaveAuthorSplit(
+    beaconId: $beaconId
+    expectedEpoch: $expectedEpoch
+    split: $split
+  )
+}

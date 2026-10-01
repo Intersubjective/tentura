@@ -1,0 +1,32 @@
+query ClosureState($beaconId: String!) {
+  closureState(beaconId: $beaconId) {
+    epoch
+    status
+    role
+    members {
+      id
+      displayName
+      avatarId
+      helpTypes
+      offerText
+      notInRequest
+      departure
+    }
+    outcomes {
+      helperId
+      outcome
+    }
+    split {
+      helperId
+      pct
+    }
+    mySupport
+    inCalcText
+    myMarks
+    closesAt
+    earlyCloseAt
+    canCloseNow
+    canReopen
+    story
+  }
+}

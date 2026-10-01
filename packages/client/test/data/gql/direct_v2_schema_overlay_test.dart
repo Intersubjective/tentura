@@ -9,7 +9,7 @@ void main() {
   // `v2_Coordinates`, `Upload` → `v2_Upload`). Client documents must use
   // those stitched names. Hasura `user` exposes `display_name` (snake_case).
   test(
-    'fetched schema exposes stitched V2 inputs and review-extension types',
+    'fetched schema exposes stitched V2 inputs and closure types',
     () {
       final schema = File('lib/data/gql/schema.graphql').readAsStringSync();
 
@@ -21,12 +21,18 @@ void main() {
       expect(
         schema,
         contains(
-          'beaconExtendReview(id: String!): '
-          'v2_BeaconExtendReviewResult!',
+          'beaconExtendClosure(beaconId: String!, expectedEpoch: Int!): '
+          'Boolean!',
         ),
       );
-      expect(schema, contains('type v2_BeaconExtendReviewResult {'));
-      expect(schema, contains('extensionsRemaining: Int!'));
+      expect(schema, isNot(contains('beaconExtendReview(')));
+      expect(schema, isNot(contains('type v2_BeaconExtendReviewResult {')));
+      expect(
+        schema,
+        contains('closureState(beaconId: String!): v2_ClosureState!'),
+      );
+      expect(schema, contains('type v2_ClosureState {'));
+      expect(schema, contains('type v2_ClosureResult {'));
       expect(
         schema,
         contains('forwardCandidates(context: String!): [v2_user!]!'),
@@ -70,6 +76,54 @@ void main() {
       );
     },
   );
+
+  test('fetched schema exposes every closure operation with its stitched '
+      'signature', () {
+    final schema = File('lib/data/gql/schema.graphql').readAsStringSync();
+
+    String rootLines(String root) {
+      final start = schema.indexOf('type $root {');
+      expect(start, isNonNegative, reason: 'type $root is missing');
+      return schema.substring(start, schema.indexOf('\n}', start));
+    }
+
+    final query = rootLines(
+      'query_root',
+    ).split('\n').map((l) => l.trim()).toSet();
+    final mutation = rootLines(
+      'mutation_root',
+    ).split('\n').map((l) => l.trim()).toSet();
+
+    const queries = [
+      'closureState(beaconId: String!): v2_ClosureState!',
+      'closureResultForViewer(beaconId: String!): v2_ClosureResult',
+    ];
+    const mutations = [
+      'beaconClose(beaconId: String!): Boolean!',
+      'beaconCloseNow(beaconId: String!, expectedEpoch: Int!): Boolean!',
+      'beaconExtendClosure(beaconId: String!, expectedEpoch: Int!): Boolean!',
+      'beaconReopen(beaconId: String!, expectedEpoch: Int!): Boolean!',
+      'closureSaveOutcome(beaconId: String!, expectedEpoch: Int!, '
+          'helperId: String!, outcome: v2_ClosureOutcome): Boolean!',
+      'closureSaveAuthorSplit(beaconId: String!, expectedEpoch: Int!, '
+          'split: [v2_ClosureSplitEntryInput!]): Boolean!',
+      'closureToggleSupport(beaconId: String!, expectedEpoch: Int!, '
+          'on: Boolean!, targetId: String!): v2_ClosureToggleResult!',
+      'closureDone(beaconId: String!, expectedEpoch: Int!): Boolean!',
+      'closureSkip(beaconId: String!, expectedEpoch: Int!): Boolean!',
+      'closureSetMark(beaconId: String!, expectedEpoch: Int!, on: Boolean!, '
+          'targetId: String!): Boolean!',
+      'closureSaveStory(beaconId: String!, body: String!, '
+          'expectedEpoch: Int!): Boolean!',
+    ];
+    for (final q in queries) {
+      expect(query, contains(q));
+    }
+    for (final m in mutations) {
+      expect(mutation, contains(m));
+    }
+    expect(mutation.any((l) => l.startsWith('beaconExtendReview(')), isFalse);
+  });
 
   test('fetched schema exposes MarkBeaconPeopleSeen and authorSeenAt', () {
     final schema = File('lib/data/gql/schema.graphql').readAsStringSync();
@@ -263,13 +317,15 @@ void main() {
         'graphQLBoolean': 'Boolean',
         'graphQLFloat': 'Float',
       };
-      final fields = RegExp(
-        r"field\('(\w+)',\s*(\w+)(\.nonNullable\(\))?\)",
-      ).allMatches(body).map((m) {
-        final scalar = scalars[m.group(2)!];
-        expect(scalar, isNotNull, reason: 'unmapped type ${m.group(2)}');
-        return '  ${m.group(1)}: $scalar${m.group(3) == null ? '' : '!'}';
-      }).toList()..sort();
+      final fields =
+          RegExp(
+              r"field\('(\w+)',\s*(\w+)(\.nonNullable\(\))?\)",
+            ).allMatches(body).map((m) {
+              final scalar = scalars[m.group(2)!];
+              expect(scalar, isNotNull, reason: 'unmapped type ${m.group(2)}');
+              return '  ${m.group(1)}: $scalar${m.group(3) == null ? '' : '!'}';
+            }).toList()
+            ..sort();
       return 'type v2_$typeName {\n${fields.join('\n')}\n}';
     }
 

@@ -1,0 +1,11 @@
+mutation ClosureSaveStory(
+  $beaconId: String!
+  $body: String!
+  $expectedEpoch: Int!
+) {
+  closureSaveStory(
+    beaconId: $beaconId
+    body: $body
+    expectedEpoch: $expectedEpoch
+  )
+}

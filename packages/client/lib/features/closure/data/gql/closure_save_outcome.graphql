@@ -1,0 +1,13 @@
+mutation ClosureSaveOutcome(
+  $beaconId: String!
+  $expectedEpoch: Int!
+  $helperId: String!
+  $outcome: v2_ClosureOutcome
+) {
+  closureSaveOutcome(
+    beaconId: $beaconId
+    expectedEpoch: $expectedEpoch
+    helperId: $helperId
+    outcome: $outcome
+  )
+}

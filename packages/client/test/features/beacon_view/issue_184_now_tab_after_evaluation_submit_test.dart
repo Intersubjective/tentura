@@ -42,7 +42,6 @@ BeaconViewState _postSubmitAuthorNowState({
     createdAt: DateTime.utc(2026, 9, 14),
     updatedAt: DateTime.utc(2026, 9, 14, 19, 2),
     status: BeaconStatus.reviewOpen,
-    reviewClosesAt: DateTime.utc(2026, 9, 21),
   );
   return BeaconViewState(
     beacon: beacon,

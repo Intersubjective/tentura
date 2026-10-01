@@ -4,6 +4,7 @@ import 'package:built_collection/built_collection.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/service/remote_api_service.dart';
+import 'package:tentura/features/closure/data/repository/closure_repository.dart';
 
 import 'package:tentura/features/evaluation/domain/entity/beacon_close_result.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_participant.dart';
@@ -14,10 +15,6 @@ import 'package:tentura/features/evaluation/domain/entity/evaluation_value.dart'
 import 'package:tentura/features/evaluation/domain/entity/review_window_info.dart';
 
 import '../gql/_g/beacon_cancel.req.gql.dart';
-import '../gql/_g/beacon_close.req.gql.dart';
-import '../gql/_g/beacon_close_now.req.gql.dart';
-import '../gql/_g/beacon_extend_review.req.gql.dart';
-import '../gql/_g/beacon_reopen.req.gql.dart';
 import '../gql/_g/evaluation_draft_participants.data.gql.dart';
 import '../gql/_g/evaluation_draft_participants.req.gql.dart';
 import '../gql/_g/evaluation_draft_save.req.gql.dart';
@@ -37,9 +34,10 @@ import '../gql/_g/review_window_status.req.gql.dart';
 
 @Singleton(env: [Environment.dev, Environment.prod])
 class EvaluationRepository {
-  EvaluationRepository(this._remoteApiService);
+  EvaluationRepository(this._remoteApiService, this._closureRepository);
 
   final RemoteApiService _remoteApiService;
+  final ClosureRepository _closureRepository;
   final _reviewPackageChanges = StreamController<void>.broadcast();
 
   /// Fires after the viewer's package is sent or a saved card demotes it.
@@ -410,35 +408,20 @@ class EvaluationRepository {
         .then((r) => r.dataOrThrow(label: _label));
   }
 
+  // Temporary adapter over the closure API until the review feature is
+  // removed (A23): the old callers carry no epoch, so it is read first.
   Future<BeaconCloseResult> beaconClose({
     required String beaconId,
     required bool expectedRequiresReviewWindow,
-  }) =>
-      _remoteApiService
-          .request(
-            GBeaconCloseReq(
-              (b) => b.vars
-                ..id = beaconId
-                ..expectedRequiresReviewWindow = expectedRequiresReviewWindow,
-            ),
-          )
-          .firstWhere((e) => e.dataSource == DataSource.Link)
-          .then(
-            (r) {
-              final result = r.dataOrThrow(label: _label).beaconClose;
-              // The V2 `beaconClose` resolver returns only id/status/closesAt;
-              // it signals a committer-count branch conflict by throwing
-              // `closeBranchConflict` (surfaced as a retryable error), never via
-              // a `branchMismatch` field. Selecting fields the server does not
-              // return makes Ferry fail to build the (non-nullable) response and
-              // hang the whole transition — see issue #74.
-              return BeaconCloseResult(
-                beaconId: result.id,
-                state: result.status,
-                closesAt: result.closesAt,
-              );
-            },
-          );
+  }) async {
+    await _closureRepository.close(beaconId);
+    final closure = await _closureRepository.fetchState(beaconId);
+    return BeaconCloseResult(
+      beaconId: beaconId,
+      state: closure.status,
+      closesAt: closure.closesAt.toIso8601String(),
+    );
+  }
 
   Future<BeaconLifecycleMutationResult> beaconCancel(String beaconId) =>
       _remoteApiService
@@ -454,48 +437,44 @@ class EvaluationRepository {
             },
           );
 
-  Future<BeaconExtendReviewResult> beaconExtendReview(String beaconId) =>
-      _remoteApiService
-          .request(GBeaconExtendReviewReq((b) => b.vars.id = beaconId))
-          .firstWhere((e) => e.dataSource == DataSource.Link)
-          .then(
-            (r) {
-              final result = r.dataOrThrow(label: _label).beaconExtendReview;
-              return BeaconExtendReviewResult(
-                beaconId: result.id,
-                closesAt: result.closesAt,
-                extensionsRemaining: result.extensionsRemaining,
-              );
-            },
-          );
+  Future<BeaconExtendReviewResult> beaconExtendReview(String beaconId) async {
+    final before = await _closureRepository.fetchState(beaconId);
+    await _closureRepository.extendClosure(
+      beaconId: beaconId,
+      expectedEpoch: before.epoch,
+    );
+    final after = await _closureRepository.fetchState(beaconId);
+    return BeaconExtendReviewResult(
+      beaconId: beaconId,
+      closesAt: after.closesAt.toIso8601String(),
+    );
+  }
 
-  Future<BeaconLifecycleMutationResult> beaconReopen(String beaconId) =>
-      _remoteApiService
-          .request(GBeaconReopenReq((b) => b.vars.id = beaconId))
-          .firstWhere((e) => e.dataSource == DataSource.Link)
-          .then(
-            (r) {
-              final result = r.dataOrThrow(label: _label).beaconReopen;
-              return BeaconLifecycleMutationResult(
-                beaconId: result.id,
-                state: result.status,
-              );
-            },
-          );
+  Future<BeaconLifecycleMutationResult> beaconReopen(String beaconId) async {
+    final before = await _closureRepository.fetchState(beaconId);
+    await _closureRepository.reopen(
+      beaconId: beaconId,
+      expectedEpoch: before.epoch,
+    );
+    final after = await _closureRepository.fetchState(beaconId);
+    return BeaconLifecycleMutationResult(
+      beaconId: beaconId,
+      state: after.status,
+    );
+  }
 
-  Future<BeaconLifecycleMutationResult> beaconCloseNow(String beaconId) =>
-      _remoteApiService
-          .request(GBeaconCloseNowReq((b) => b.vars.id = beaconId))
-          .firstWhere((e) => e.dataSource == DataSource.Link)
-          .then(
-            (r) {
-              final result = r.dataOrThrow(label: _label).beaconCloseNow;
-              return BeaconLifecycleMutationResult(
-                beaconId: result.id,
-                state: result.status,
-              );
-            },
-          );
+  Future<BeaconLifecycleMutationResult> beaconCloseNow(String beaconId) async {
+    final before = await _closureRepository.fetchState(beaconId);
+    await _closureRepository.closeNow(
+      beaconId: beaconId,
+      expectedEpoch: before.epoch,
+    );
+    final after = await _closureRepository.fetchState(beaconId);
+    return BeaconLifecycleMutationResult(
+      beaconId: beaconId,
+      state: after.status,
+    );
+  }
 }
 
 EvaluationReceivedRow _mapEvaluationReceivedRow(

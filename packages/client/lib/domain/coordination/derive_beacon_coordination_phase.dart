@@ -70,12 +70,11 @@ BeaconCoordinationPhaseResult _deriveCoordinationTier(
   if (status == BeaconStatus.reviewOpen) {
     return BeaconCoordinationPhaseResult(
       phase: BeaconCoordinationPhase.wrappingUp,
-      slot2Kind: _reviewSlot2(beacon),
+      slot2Kind: BeaconPhaseSlot2Kind.none,
       suggestedAction: offerReviewContributions
           ? BeaconPhasePrimaryAction.reviewContributions
           : BeaconPhasePrimaryAction.none,
       rowHarmony: const BeaconPhaseRowHarmony(suppressNowPlaceholder: true),
-      reviewClosesAt: beacon.reviewClosesAt,
       lastActivityAt: activityAt,
     );
   }
@@ -193,14 +192,6 @@ BeaconCoordinationPhaseResult _derivePublicTier(
     rowHarmony: BeaconPhaseRowHarmony.empty,
     lastActivityAt: activityAt,
   );
-}
-
-BeaconPhaseSlot2Kind _reviewSlot2(Beacon beacon) {
-  final closesAt = beacon.reviewClosesAt;
-  if (closesAt == null || beacon.reviewWindowStatus == 1) {
-    return BeaconPhaseSlot2Kind.none;
-  }
-  return BeaconPhaseSlot2Kind.reviewCountdown;
 }
 
 DateTime? _activityAt(BeaconCoordinationPhaseInput input) {

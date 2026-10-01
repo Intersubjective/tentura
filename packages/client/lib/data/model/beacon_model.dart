@@ -10,7 +10,6 @@ import 'user_model.dart';
 extension type const BeaconModel(GBeaconModel i) implements GBeaconModel {
   Beacon toEntity() {
     final author = (i.author as UserModel).toEntity();
-    final reviewWindow = i.beacon_review_window;
     return Beacon(
       id: i.id,
       author: author,
@@ -43,8 +42,6 @@ extension type const BeaconModel(GBeaconModel i) implements GBeaconModel {
       },
       startAt: i.start_at,
       endAt: i.end_at,
-      reviewClosesAt: reviewWindow?.closes_at,
-      reviewWindowStatus: reviewWindow?.status,
       helpOfferCount: i.help_offers_aggregate.aggregate?.count ?? 0,
       unansweredHelpOfferCount: i.unanswered_help_offers.aggregate?.count ?? 0,
       primaryNeedSlug: i.primary_need_slug,

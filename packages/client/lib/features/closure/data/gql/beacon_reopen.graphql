@@ -1,0 +1,3 @@
+mutation BeaconReopen($beaconId: String!, $expectedEpoch: Int!) {
+  beaconReopen(beaconId: $beaconId, expectedEpoch: $expectedEpoch)
+}

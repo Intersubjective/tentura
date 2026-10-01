@@ -1,6 +1,0 @@
-mutation BeaconCloseNow($id: String!) {
-  beaconCloseNow(id: $id) {
-    id
-    status
-  }
-}

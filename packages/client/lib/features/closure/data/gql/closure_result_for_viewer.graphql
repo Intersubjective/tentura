@@ -1,0 +1,9 @@
+query ClosureResultForViewer($beaconId: String!) {
+  closureResultForViewer(beaconId: $beaconId) {
+    outcome
+    band
+    draftFlag
+    marks
+    story
+  }
+}

@@ -1,0 +1,15 @@
+mutation ClosureToggleSupport(
+  $beaconId: String!
+  $expectedEpoch: Int!
+  $on: Boolean!
+  $targetId: String!
+) {
+  closureToggleSupport(
+    beaconId: $beaconId
+    expectedEpoch: $expectedEpoch
+    on: $on
+    targetId: $targetId
+  ) {
+    released
+  }
+}

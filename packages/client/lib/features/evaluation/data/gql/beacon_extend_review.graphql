@@ -1,7 +1,0 @@
-mutation BeaconExtendReview($id: String!) {
-  beaconExtendReview(id: $id) {
-    id
-    closesAt
-    extensionsRemaining
-  }
-}

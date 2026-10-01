@@ -109,8 +109,6 @@ void main() {
       beacon: Beacon.empty.copyWith(
         id: 'a',
         status: BeaconStatus.reviewOpen,
-        reviewClosesAt: closesAt,
-        reviewWindowStatus: 0,
         helpOfferCount: 3,
         updatedAt: now,
       ),
@@ -156,8 +154,6 @@ void main() {
       beacon: Beacon.empty.copyWith(
         id: 'x',
         status: BeaconStatus.reviewOpen,
-        reviewClosesAt: DateTime.utc(2026, 6, 25),
-        reviewWindowStatus: 0,
         updatedAt: now,
       ),
       showReviewCta: true,
