@@ -23,6 +23,7 @@ import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/port/beacon_child_create_port.dart';
 import 'package:tentura_server/domain/use_case/commitment_query_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/utils/id.dart';
@@ -210,7 +211,21 @@ final class BeaconCase extends UseCaseBase {
     bool draft = false,
     String? addressLabel,
     bool? isDiscoverable,
+    BeaconKind kind = BeaconKind.request,
+    BeaconForwardPolicyValue forwardPolicy = BeaconForwardPolicyValue.open,
   }) async {
+    final asDraft = draft || kind == BeaconKind.post;
+    BeaconCreationPolicy.assertKindFields(
+      kind: kind,
+      title: title,
+      description: description,
+      isDiscoverable: isDiscoverable ?? kind == BeaconKind.request,
+      needs: BeaconCreationPolicy.normalizeNeeds(needs),
+      primaryNeedSlug: primaryNeedSlug,
+      startAt: startAt,
+      endAt: endAt,
+      hasCover: imageBytes != null,
+    );
     await _enforceCreateRateLimit(userId);
     final normalizedNeeds = BeaconCreationPolicy.normalizeNeeds(needs);
     final resolvedPrimary = BeaconCreationPolicy.resolvePrimaryNeedSlug(
@@ -236,6 +251,7 @@ final class BeaconCase extends UseCaseBase {
 
       final desc = BeaconCreationPolicy.normalizeStandaloneDescription(
         description,
+        kind: kind,
       );
       return await _beaconRepository.createBeacon(
         authorId: userId,
@@ -250,9 +266,11 @@ final class BeaconCase extends UseCaseBase {
         primaryNeedSlug: resolvedPrimary,
         startAt: startAt,
         endAt: endAt,
-        status: draft ? BeaconStatus.draft : null,
+        status: asDraft ? BeaconStatus.draft : null,
         addressLabel: BeaconCreationPolicy.trimOrNull(addressLabel),
-        isDiscoverable: isDiscoverable ?? true,
+        isDiscoverable: isDiscoverable ?? kind == BeaconKind.request,
+        kind: kind,
+        forwardPolicy: forwardPolicy,
       );
     } catch (_) {
       for (final imageId in imageIds) {
@@ -761,61 +779,60 @@ final class BeaconCase extends UseCaseBase {
     Future<BeaconCancelResult> mutate(AttentionTransaction? transaction) async {
       await _hierarchyRepository.lockMutationScope();
       return _beaconRepository.runInBeaconStateTransaction(
-          beaconId: beaconId,
-          userId: userId,
-          fn: (beacon) async {
-            if (!beacon.status.isOpenFamily) {
-              throw EvaluationException(
-                code: EvaluationExceptionCode.beaconNotClosable,
-                description: 'Request must be open to cancel',
-              );
-            }
-            if (beacon.author.id != userId) {
-              throw EvaluationException(
-                code: EvaluationExceptionCode.notEligible,
-                description: 'Only the author can cancel',
-              );
-            }
-            if (await _commitmentQueryCase.everHadCommitter(beaconId)) {
-              throw EvaluationException(
-                code: EvaluationExceptionCode.beaconNotClosable,
-                description:
-                    'Cannot cancel a request that ever had a committer',
-              );
-            }
-            final intent = transaction == null
-                ? null
-                : await _attentionIntents!.requestStatusChanged(
-                    beaconId: beaconId,
-                    fromStatus: beacon.status.name,
-                    toStatus: BeaconStatus.cancelled.name,
-                    actorUserId: userId,
-                    sourceEventKey: 'request_status:${generateId('A')}',
-                  );
-            await _lifecycleEffects.recordEligibleSourceTransition(
-              sourceBeaconId: beaconId,
-              fromStatus: beacon.status,
-              toStatus: BeaconStatus.cancelled,
-              occurredAt: DateTime.timestamp(),
-              actorUserId: userId,
-              reason: BeaconStatusTransitionReason.cancelled,
+        beaconId: beaconId,
+        userId: userId,
+        fn: (beacon) async {
+          if (!beacon.status.isOpenFamily) {
+            throw EvaluationException(
+              code: EvaluationExceptionCode.beaconNotClosable,
+              description: 'Request must be open to cancel',
             );
-            await _beaconRepository.recordBeaconStatusTransition(
-              beaconId: beaconId,
-              fromStatus: beacon.status,
-              toStatus: BeaconStatus.cancelled,
-              reason: BeaconLifecycleChangeReason.cancelled,
-              actorId: userId,
+          }
+          if (beacon.author.id != userId) {
+            throw EvaluationException(
+              code: EvaluationExceptionCode.notEligible,
+              description: 'Only the author can cancel',
             );
-            if (intent != null) {
-              await transaction!.record(intent);
-            }
-            return BeaconCancelResult(
-              id: beaconId,
-              status: BeaconStatus.cancelled.smallintValue,
+          }
+          if (await _commitmentQueryCase.everHadCommitter(beaconId)) {
+            throw EvaluationException(
+              code: EvaluationExceptionCode.beaconNotClosable,
+              description: 'Cannot cancel a request that ever had a committer',
             );
-          },
-        );
+          }
+          final intent = transaction == null
+              ? null
+              : await _attentionIntents!.requestStatusChanged(
+                  beaconId: beaconId,
+                  fromStatus: beacon.status.name,
+                  toStatus: BeaconStatus.cancelled.name,
+                  actorUserId: userId,
+                  sourceEventKey: 'request_status:${generateId('A')}',
+                );
+          await _lifecycleEffects.recordEligibleSourceTransition(
+            sourceBeaconId: beaconId,
+            fromStatus: beacon.status,
+            toStatus: BeaconStatus.cancelled,
+            occurredAt: DateTime.timestamp(),
+            actorUserId: userId,
+            reason: BeaconStatusTransitionReason.cancelled,
+          );
+          await _beaconRepository.recordBeaconStatusTransition(
+            beaconId: beaconId,
+            fromStatus: beacon.status,
+            toStatus: BeaconStatus.cancelled,
+            reason: BeaconLifecycleChangeReason.cancelled,
+            actorId: userId,
+          );
+          if (intent != null) {
+            await transaction!.record(intent);
+          }
+          return BeaconCancelResult(
+            id: beaconId,
+            status: BeaconStatus.cancelled.smallintValue,
+          );
+        },
+      );
     }
 
     return _attention!.runAction(actorUserId: userId, action: mutate);
@@ -831,89 +848,89 @@ final class BeaconCase extends UseCaseBase {
     ) async {
       await _hierarchyRepository.lockMutationScope();
       return _beaconRepository.runInBeaconStateTransaction(
-      beaconId: beaconId,
-      userId: userId,
-      fn: (beacon) async {
-        if (beacon.author.id != userId) {
-          throw EvaluationException(
-            code: EvaluationExceptionCode.notEligible,
-          );
-        }
-
-        if (beacon.status == BeaconStatus.draft) {
-          for (final image in beacon.images) {
-            await _imageObjectGc.enqueue(
-              imageId: image.id,
-              authorId: beacon.author.id,
-            );
-            await _imageRepository.deleteOwnedRow(
-              imageId: image.id,
-              authorId: beacon.author.id,
+        beaconId: beaconId,
+        userId: userId,
+        fn: (beacon) async {
+          if (beacon.author.id != userId) {
+            throw EvaluationException(
+              code: EvaluationExceptionCode.notEligible,
             );
           }
-          final thumbId = beacon.coverThumbImageId;
-          if (thumbId != null && thumbId.isNotEmpty) {
-            await _imageObjectGc.enqueue(
-              imageId: thumbId,
-              authorId: beacon.author.id,
-            );
-            await _imageRepository.deleteOwnedRow(
-              imageId: thumbId,
-              authorId: beacon.author.id,
-            );
-          }
-          await _beaconRepository.deleteBeaconById(beacon.id, userId: userId);
-          return true;
-        }
 
-        if (await _commitmentQueryCase.everHadCommitter(beacon.id)) {
-          throw EvaluationException(
-            code: EvaluationExceptionCode.beaconNotClosable,
-            description: 'Cannot delete a request that ever had a committer',
-          );
-        }
-
-        final verdict = validateBeaconStatusTransition(
-          from: beacon.status,
-          to: BeaconStatus.deleted,
-          reason: BeaconStatusTransitionReason.deleted,
-        );
-        if (verdict.verdict != BeaconStatusTransitionVerdict.allowed) {
-          throw EvaluationException(
-            code: EvaluationExceptionCode.beaconNotClosable,
-          );
-        }
-
-        final intent = transaction == null
-            ? null
-            : await _attentionIntents!.requestStatusChanged(
-                beaconId: beacon.id,
-                fromStatus: beacon.status.name,
-                toStatus: BeaconStatus.deleted.name,
-                actorUserId: userId,
-                sourceEventKey: 'request_status:${generateId('A')}',
+          if (beacon.status == BeaconStatus.draft) {
+            for (final image in beacon.images) {
+              await _imageObjectGc.enqueue(
+                imageId: image.id,
+                authorId: beacon.author.id,
               );
-        await _lifecycleEffects.recordEligibleSourceTransition(
-          sourceBeaconId: beacon.id,
-          fromStatus: beacon.status,
-          toStatus: BeaconStatus.deleted,
-          occurredAt: DateTime.timestamp(),
-          actorUserId: userId,
-          reason: BeaconStatusTransitionReason.deleted,
-        );
-        await _beaconRepository.recordBeaconStatusTransition(
-          beaconId: beacon.id,
-          fromStatus: beacon.status,
-          toStatus: BeaconStatus.deleted,
-          reason: BeaconLifecycleChangeReason.deleted,
-          actorId: userId,
-        );
-        if (intent != null) {
-          await transaction!.record(intent);
-        }
-        return true;
-      },
-    );
+              await _imageRepository.deleteOwnedRow(
+                imageId: image.id,
+                authorId: beacon.author.id,
+              );
+            }
+            final thumbId = beacon.coverThumbImageId;
+            if (thumbId != null && thumbId.isNotEmpty) {
+              await _imageObjectGc.enqueue(
+                imageId: thumbId,
+                authorId: beacon.author.id,
+              );
+              await _imageRepository.deleteOwnedRow(
+                imageId: thumbId,
+                authorId: beacon.author.id,
+              );
+            }
+            await _beaconRepository.deleteBeaconById(beacon.id, userId: userId);
+            return true;
+          }
+
+          if (await _commitmentQueryCase.everHadCommitter(beacon.id)) {
+            throw EvaluationException(
+              code: EvaluationExceptionCode.beaconNotClosable,
+              description: 'Cannot delete a request that ever had a committer',
+            );
+          }
+
+          final verdict = validateBeaconStatusTransition(
+            from: beacon.status,
+            to: BeaconStatus.deleted,
+            reason: BeaconStatusTransitionReason.deleted,
+          );
+          if (verdict.verdict != BeaconStatusTransitionVerdict.allowed) {
+            throw EvaluationException(
+              code: EvaluationExceptionCode.beaconNotClosable,
+            );
+          }
+
+          final intent = transaction == null
+              ? null
+              : await _attentionIntents!.requestStatusChanged(
+                  beaconId: beacon.id,
+                  fromStatus: beacon.status.name,
+                  toStatus: BeaconStatus.deleted.name,
+                  actorUserId: userId,
+                  sourceEventKey: 'request_status:${generateId('A')}',
+                );
+          await _lifecycleEffects.recordEligibleSourceTransition(
+            sourceBeaconId: beacon.id,
+            fromStatus: beacon.status,
+            toStatus: BeaconStatus.deleted,
+            occurredAt: DateTime.timestamp(),
+            actorUserId: userId,
+            reason: BeaconStatusTransitionReason.deleted,
+          );
+          await _beaconRepository.recordBeaconStatusTransition(
+            beaconId: beacon.id,
+            fromStatus: beacon.status,
+            toStatus: BeaconStatus.deleted,
+            reason: BeaconLifecycleChangeReason.deleted,
+            actorId: userId,
+          );
+          if (intent != null) {
+            await transaction!.record(intent);
+          }
+          return true;
+        },
+      );
     }
 
     return _attention!.runAction(actorUserId: userId, action: mutate);

@@ -9,6 +9,7 @@ import '../../support/beacon_lifecycle_effects_test_support.dart';
 
 import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
@@ -58,6 +59,8 @@ class _StubBeaconRepo extends Fake implements BeaconRepositoryPort {
     String? lineageParentBeaconId,
     String? lineageRootBeaconId,
     bool? isDiscoverable,
+    BeaconKind kind = BeaconKind.request,
+    BeaconForwardPolicyValue forwardPolicy = BeaconForwardPolicyValue.open,
   }) async {
     createBeaconCalls++;
     lastAddressLabel = addressLabel;

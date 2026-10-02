@@ -10,6 +10,7 @@ import 'package:tentura_server/consts.dart'
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/entity/beacon_media_state.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
@@ -35,12 +36,11 @@ BeaconEntity _beaconRowToEntity(
   Beacon beacon, {
   required User author,
   List<Image>? images,
-}) =>
-    beaconModelToEntity(
-      beacon,
-      author: author,
-      images: images,
-    ).copyWith(isDiscoverable: beacon.isDiscoverable);
+}) => beaconModelToEntity(
+  beacon,
+  author: author,
+  images: images,
+).copyWith(isDiscoverable: beacon.isDiscoverable);
 
 @Injectable(
   as: BeaconRepositoryPort,
@@ -64,7 +64,10 @@ class BeaconRepository implements BeaconRepositoryPort {
         .customSelect(
           r'''SELECT id FROM public.beacon WHERE status = 0 AND end_at >= $1 AND end_at < $2''',
           variables: [
-            Variable(PgDateTime(nextUtcDayStart), PgTypes.timestampWithTimezone),
+            Variable(
+              PgDateTime(nextUtcDayStart),
+              PgTypes.timestampWithTimezone,
+            ),
             Variable(
               PgDateTime(followingUtcDayStart),
               PgTypes.timestampWithTimezone,
@@ -86,7 +89,10 @@ class BeaconRepository implements BeaconRepositoryPort {
           r'''SELECT id FROM public.beacon WHERE id = $1 AND status = 0 AND end_at >= $2 AND end_at < $3 FOR UPDATE''',
           variables: [
             Variable<String>(beaconId),
-            Variable(PgDateTime(nextUtcDayStart), PgTypes.timestampWithTimezone),
+            Variable(
+              PgDateTime(nextUtcDayStart),
+              PgTypes.timestampWithTimezone,
+            ),
             Variable(
               PgDateTime(followingUtcDayStart),
               PgTypes.timestampWithTimezone,
@@ -119,6 +125,8 @@ class BeaconRepository implements BeaconRepositoryPort {
     String? lineageParentBeaconId,
     String? lineageRootBeaconId,
     bool? isDiscoverable,
+    BeaconKind kind = BeaconKind.request,
+    BeaconForwardPolicyValue forwardPolicy = BeaconForwardPolicyValue.open,
   }) => _database.withMutatingUser(authorId, () async {
     final effectiveStatus = status ?? BeaconStatus.open;
     final publishedAt = effectiveStatus == BeaconStatus.draft
@@ -147,6 +155,8 @@ class BeaconRepository implements BeaconRepositoryPort {
         lineageParentBeaconId: Value(lineageParentBeaconId),
         lineageRootBeaconId: Value(lineageRootBeaconId),
         isDiscoverable: Value(isDiscoverable ?? true),
+        kind: Value(kind.value),
+        forwardPolicy: Value(forwardPolicy.value),
       ),
     );
 

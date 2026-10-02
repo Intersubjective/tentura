@@ -16,6 +16,7 @@ import 'package:tentura_server/api/controllers/graphql/custom_types.dart';
 import 'package:tentura_server/api/controllers/graphql/input/_input_types.dart';
 import 'package:tentura_server/api/controllers/graphql/mutation/mutation_beacon.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/beacon_media_state.dart';
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
@@ -72,6 +73,8 @@ class _StubBeaconRepo extends Fake implements BeaconRepositoryPort {
     String? lineageParentBeaconId,
     String? lineageRootBeaconId,
     bool? isDiscoverable,
+    BeaconKind kind = BeaconKind.request,
+    BeaconForwardPolicyValue forwardPolicy = BeaconForwardPolicyValue.open,
   }) async {
     createCalls++;
     return BeaconEntity(
@@ -222,7 +225,10 @@ void main() {
 
     test('Beacon exposes the additive cover/primary fields', () {
       final names = gqlTypeBeacon.fields.map((f) => f.name).toSet();
-      expect(names, containsAll(['primaryNeedSlug', 'coverImageId', 'coverSource']));
+      expect(
+        names,
+        containsAll(['primaryNeedSlug', 'coverImageId', 'coverSource']),
+      );
       final coverSourceField = gqlTypeBeacon.fields.singleWhere(
         (f) => f.name == 'coverSource',
       );
@@ -230,30 +236,38 @@ void main() {
       expect(_baseTypeName(coverSourceField.type), 'Int');
     });
 
-    test('mutation.all exposes the new stage/media fields alongside legacy ones', () {
-      final names = mutation.all.map((f) => f.name).toSet();
-      expect(
-        names,
-        containsAll([
-          'beaconCreate',
-          'beaconUpdate',
-          'beaconUpdateDraft',
-          'beaconAddImage',
-          'beaconStageImage',
-          'beaconSetMedia',
-          'beaconRemoveImage',
-          'beaconReorderImages',
-        ]),
-      );
-    });
+    test(
+      'mutation.all exposes the new stage/media fields alongside legacy ones',
+      () {
+        final names = mutation.all.map((f) => f.name).toSet();
+        expect(
+          names,
+          containsAll([
+            'beaconCreate',
+            'beaconUpdate',
+            'beaconUpdateDraft',
+            'beaconAddImage',
+            'beaconStageImage',
+            'beaconSetMedia',
+            'beaconRemoveImage',
+            'beaconReorderImages',
+          ]),
+        );
+      },
+    );
   });
 
   group('actual list/upload/int introspection (§3.6)', () {
-    test('beaconSetMedia declares imageIds as a non-null list of non-null String', () {
-      final field = mutation.all.singleWhere((f) => f.name == 'beaconSetMedia');
-      final imageIds = field.inputs.singleWhere((i) => i.name == 'imageIds');
-      expect(_isListOf(imageIds.type, 'String'), isTrue);
-    });
+    test(
+      'beaconSetMedia declares imageIds as a non-null list of non-null String',
+      () {
+        final field = mutation.all.singleWhere(
+          (f) => f.name == 'beaconSetMedia',
+        );
+        final imageIds = field.inputs.singleWhere((i) => i.name == 'imageIds');
+        expect(_isListOf(imageIds.type, 'String'), isTrue);
+      },
+    );
 
     test('beaconSetMedia declares coverSource as a required Int', () {
       final field = mutation.all.singleWhere((f) => f.name == 'beaconSetMedia');
@@ -272,25 +286,31 @@ void main() {
       expect(_isNonNullable(coverImageId.type), isFalse);
     });
 
-    test('beaconStageImage declares the upload as Upload (Hasura: v2_Upload)', () {
-      final field = mutation.all.singleWhere(
-        (f) => f.name == 'beaconStageImage',
-      );
-      final upload = field.inputs.singleWhere((i) => i.name == 'image');
-      expect(InputFieldUpload.type.name, 'Upload');
-      expect(_baseTypeName(upload.type), 'Upload');
-    });
+    test(
+      'beaconStageImage declares the upload as Upload (Hasura: v2_Upload)',
+      () {
+        final field = mutation.all.singleWhere(
+          (f) => f.name == 'beaconStageImage',
+        );
+        final upload = field.inputs.singleWhere((i) => i.name == 'image');
+        expect(InputFieldUpload.type.name, 'Upload');
+        expect(_baseTypeName(upload.type), 'Upload');
+      },
+    );
 
-    test('beaconStageImage and beaconSetMedia return the new payload types', () {
-      final stage = mutation.all.singleWhere(
-        (f) => f.name == 'beaconStageImage',
-      );
-      final setMedia = mutation.all.singleWhere(
-        (f) => f.name == 'beaconSetMedia',
-      );
-      expect(_baseTypeName(stage.type), 'BeaconImageStaged');
-      expect(_baseTypeName(setMedia.type), 'Beacon');
-    });
+    test(
+      'beaconStageImage and beaconSetMedia return the new payload types',
+      () {
+        final stage = mutation.all.singleWhere(
+          (f) => f.name == 'beaconStageImage',
+        );
+        final setMedia = mutation.all.singleWhere(
+          (f) => f.name == 'beaconSetMedia',
+        );
+        expect(_baseTypeName(stage.type), 'BeaconImageStaged');
+        expect(_baseTypeName(setMedia.type), 'Beacon');
+      },
+    );
   });
 
   group('missing required list is rejected', () {
@@ -308,29 +328,37 @@ void main() {
   });
 
   group('old documents validate: omitted vs explicit primaryNeedSlug', () {
-    test('create without primaryNeedSlug key derives it (legacy compatibility)', () async {
-      final field = mutation.all.singleWhere((f) => f.name == 'beaconCreate');
-      final result = await field.resolve!(null, {
-        ...auth,
-        'title': 'Pickup request',
-        'description': 'A description that is long enough.',
-        'needs': 'food',
-      }) as Map;
-      expect(result['primaryNeedSlug'], 'food');
-    });
+    test(
+      'create without primaryNeedSlug key derives it (legacy compatibility)',
+      () async {
+        final field = mutation.all.singleWhere((f) => f.name == 'beaconCreate');
+        final result =
+            await field.resolve!(null, {
+                  ...auth,
+                  'title': 'Pickup request',
+                  'description': 'A description that is long enough.',
+                  'needs': 'food',
+                })
+                as Map;
+        expect(result['primaryNeedSlug'], 'food');
+      },
+    );
 
-    test('create with an explicit null primaryNeedSlug and non-empty needs is rejected', () async {
-      final field = mutation.all.singleWhere((f) => f.name == 'beaconCreate');
-      await expectLater(
-        field.resolve!(null, {
-          ...auth,
-          'title': 'Pickup request',
-          'description': 'A description that is long enough.',
-          'needs': 'food',
-          'primaryNeedSlug': null,
-        }),
-        throwsA(isA<BeaconPrimaryNeedNotInNeedsException>()),
-      );
-    });
+    test(
+      'create with an explicit null primaryNeedSlug and non-empty needs is rejected',
+      () async {
+        final field = mutation.all.singleWhere((f) => f.name == 'beaconCreate');
+        await expectLater(
+          field.resolve!(null, {
+            ...auth,
+            'title': 'Pickup request',
+            'description': 'A description that is long enough.',
+            'needs': 'food',
+            'primaryNeedSlug': null,
+          }),
+          throwsA(isA<BeaconPrimaryNeedNotInNeedsException>()),
+        );
+      },
+    );
   });
 }

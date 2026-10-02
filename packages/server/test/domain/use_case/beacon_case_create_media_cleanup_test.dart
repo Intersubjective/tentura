@@ -13,6 +13,7 @@ import '../../support/beacon_lifecycle_effects_test_support.dart';
 import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/task_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
@@ -57,6 +58,8 @@ class _FailingCreateBeaconRepo extends Fake implements BeaconRepositoryPort {
     String? lineageParentBeaconId,
     String? lineageRootBeaconId,
     bool? isDiscoverable,
+    BeaconKind kind = BeaconKind.request,
+    BeaconForwardPolicyValue forwardPolicy = BeaconForwardPolicyValue.open,
   }) async {
     throw failure;
   }
@@ -140,20 +143,22 @@ void main() {
     },
   );
 
-  test('rethrows the original database failure, not a compensation error',
-      () async {
-    beaconRepo.failure = ArgumentError('bad payload');
+  test(
+    'rethrows the original database failure, not a compensation error',
+    () async {
+      beaconRepo.failure = ArgumentError('bad payload');
 
-    await expectLater(
-      case_.create(
-        userId: 'Uauth',
-        title: 'Pickup request',
-        description: 'A description that is long enough.',
-        imageBytes: const Stream.empty(),
-      ),
-      throwsA(isA<ArgumentError>()),
-    );
-  });
+      await expectLater(
+        case_.create(
+          userId: 'Uauth',
+          title: 'Pickup request',
+          description: 'A description that is long enough.',
+          imageBytes: const Stream.empty(),
+        ),
+        throwsA(isA<ArgumentError>()),
+      );
+    },
+  );
 
   test('a rate-limited create never uploads or compensates', () async {
     final env = Env(environment: Environment.test, beaconCreateMaxPerUser: 1);

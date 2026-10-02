@@ -1,3 +1,4 @@
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/use_case/beacon_case.dart';
 
 import '../custom_types.dart';
@@ -30,6 +31,10 @@ final class MutationBeacon extends GqlNodeBase {
   final _primaryNeedSlug = InputFieldString(fieldName: 'primaryNeedSlug');
 
   final _isDiscoverable = InputFieldBool(fieldName: 'isDiscoverable');
+
+  final _kind = InputFieldInt(fieldName: 'kind');
+
+  final _forwardPolicy = InputFieldInt(fieldName: 'forwardPolicy');
 
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
     create,
@@ -72,7 +77,7 @@ final class MutationBeacon extends GqlNodeBase {
     'beaconCreate',
     gqlTypeBeacon.nonNullable(),
     arguments: [
-      InputFieldBeaconTitle.fieldNonNullable,
+      InputFieldBeaconTitle.field,
       InputFieldDescription.field,
       InputFieldCoordinates.field,
       InputFieldUpload.fieldImage,
@@ -85,26 +90,47 @@ final class MutationBeacon extends GqlNodeBase {
       _addressLabel.fieldNullable,
       _draft.fieldNullable,
       _isDiscoverable.fieldNullable,
+      _kind.fieldNullable,
+      _forwardPolicy.fieldNullable,
     ],
-    resolve: (_, args) => _beaconCase
-        .create(
-          userId: getCredentials(args).sub,
-          title: InputFieldBeaconTitle.fromArgsNonNullable(args),
-          description: InputFieldDescription.fromArgs(args),
-          coordinates: InputFieldCoordinates.fromArgs(args),
-          imageBytes: InputFieldUpload.fromArgs(args),
-          context: InputFieldContext.fromArgs(args),
-          startAt: _startAt.fromArgs(args),
-          endAt: _endAt.fromArgs(args),
-          tags: _tags.fromArgs(args),
-          needs: _needs.fromArgs(args),
-          primaryNeedSlug: _primaryNeedSlug.fromArgs(args),
-          primaryNeedSlugProvided: args.containsKey('primaryNeedSlug'),
-          draft: _draft.fromArgs(args) ?? false,
-          addressLabel: _addressLabel.fromArgs(args),
-          isDiscoverable: _isDiscoverable.fromArgs(args) ?? true,
-        )
-        .then((v) => v.asJson),
+    resolve: (_, args) {
+      final kindValue = _kind.fromArgs(args);
+      final kind = kindValue == null
+          ? BeaconKind.request
+          : BeaconKind.fromValue(kindValue);
+      final title = InputFieldBeaconTitle.fromArgs(args);
+      if (title == null && kind != BeaconKind.post) {
+        throw GraphQLException([
+          GraphQLExceptionError(
+            'Missing value for argument "title" of field "beaconCreate".',
+          ),
+        ]);
+      }
+      final forwardPolicyValue = _forwardPolicy.fromArgs(args);
+      return _beaconCase
+          .create(
+            userId: getCredentials(args).sub,
+            title: title ?? '',
+            kind: kind,
+            forwardPolicy: forwardPolicyValue == null
+                ? BeaconForwardPolicyValue.open
+                : BeaconForwardPolicyValue.fromValue(forwardPolicyValue),
+            description: InputFieldDescription.fromArgs(args),
+            coordinates: InputFieldCoordinates.fromArgs(args),
+            imageBytes: InputFieldUpload.fromArgs(args),
+            context: InputFieldContext.fromArgs(args),
+            startAt: _startAt.fromArgs(args),
+            endAt: _endAt.fromArgs(args),
+            tags: _tags.fromArgs(args),
+            needs: _needs.fromArgs(args),
+            primaryNeedSlug: _primaryNeedSlug.fromArgs(args),
+            primaryNeedSlugProvided: args.containsKey('primaryNeedSlug'),
+            draft: _draft.fromArgs(args) ?? false,
+            addressLabel: _addressLabel.fromArgs(args),
+            isDiscoverable: _isDiscoverable.fromArgs(args),
+          )
+          .then((v) => v.asJson);
+    },
   );
 
   GraphQLObjectField<dynamic, dynamic> get fork => GraphQLObjectField(
@@ -255,8 +281,9 @@ final class MutationBeacon extends GqlNodeBase {
           userId: getCredentials(args).sub,
           imageIds: InputFieldBeaconMedia.imageIdsFromArgs(args),
           coverImageId: InputFieldBeaconMedia.coverImageIdFromArgs(args),
-          coverThumbImageId:
-              InputFieldBeaconMedia.coverThumbImageIdFromArgs(args),
+          coverThumbImageId: InputFieldBeaconMedia.coverThumbImageIdFromArgs(
+            args,
+          ),
           coverThumbImageIdPresent:
               InputFieldBeaconMedia.coverThumbImageIdPresent(args),
           coverSource: InputFieldBeaconMedia.coverSourceFromArgs(args),

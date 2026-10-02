@@ -2,6 +2,7 @@ import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/beacon_media_state.dart';
 
 abstract class BeaconRepositoryPort {
@@ -31,6 +32,8 @@ abstract class BeaconRepositoryPort {
     String? lineageParentBeaconId,
     String? lineageRootBeaconId,
     bool? isDiscoverable,
+    BeaconKind kind = BeaconKind.request,
+    BeaconForwardPolicyValue forwardPolicy = BeaconForwardPolicyValue.open,
   });
 
   /// Creates a nested child beacon with immutable [parentBeaconId].

@@ -4,6 +4,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/domain/entity/coordinates.dart';
 
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/beacon_media_state.dart';
 import 'package:tentura_server/domain/entity/image_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
@@ -60,6 +61,8 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
     String? lineageParentBeaconId,
     String? lineageRootBeaconId,
     bool? isDiscoverable,
+    BeaconKind kind = BeaconKind.request,
+    BeaconForwardPolicyValue forwardPolicy = BeaconForwardPolicyValue.open,
   }) async {
     final now = DateTime.timestamp();
     final images = [
