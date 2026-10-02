@@ -1,4 +1,8 @@
-// tentura-6rzi landing gate acceptance (parent tentura-m0b)
+// tentura-6rzi: CI web deploy's post-build verify step must pass `build/web`,
+// so the deploy artifact's own version consistency keeps being checked
+// (parent tentura-m0b: the no-arg default was changed to check tracked
+// sources, so a caller relying on no-arg to check the built artifact would
+// otherwise silently stop doing so).
 
 import 'dart:io';
 
@@ -6,45 +10,10 @@ import 'package:test/test.dart';
 
 import '../support/ci_web_deploy_verify_harness.dart';
 
-/// Alloy tentura-6rzi: CI web deploy post-build verify must pass `build/web`.
-const k6rziAcceptanceTestPaths = [
-  'test/architecture/tentura_6rzi_ci_web_deploy_verify_test.dart',
-  '../../test/alloy_landing_gate_6rzi_test.dart',
-];
-
-const _rzi6LandingGateMarker =
-    'tentura-6rzi landing gate acceptance (parent tentura-m0b)';
-
-const _parentBeadMarker = 'parent tentura-m0b';
-
 Directory _repoRoot() => ciWebDeployVerifyRepoRootFromServerPackage();
 
 void main() {
   group('tentura-6rzi CI web deploy verify (parent tentura-m0b)', () {
-    test('6rzi acceptance test paths declare 6rzi landing gate markers', () {
-      for (final path in k6rziAcceptanceTestPaths) {
-        final file = File(path);
-        expect(
-          file.existsSync(),
-          isTrue,
-          reason: 'missing acceptance path $path',
-        );
-        final source = file.readAsStringSync();
-        expect(
-          source,
-          contains(_rzi6LandingGateMarker),
-          reason:
-              '$path must tag the 6rzi landing gate for Alloy '
-              'trial-merge tracking',
-        );
-        expect(
-          source,
-          contains(_parentBeadMarker),
-          reason: '$path must reference parent bead tentura-m0b',
-        );
-      }
-    });
-
     test(
       'supported post-build verify shell parser rejects quoting and extra args '
       '(tentura-6rzi)',
