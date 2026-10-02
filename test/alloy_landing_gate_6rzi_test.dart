@@ -50,24 +50,26 @@ void main() {
           _repoRoot(),
           k6rziDevPipelineWorkflowRelativePath,
         );
-        expectPostBuildVerifyUsesBuildWeb(yaml);
+        expectPostBuildVerifyUsesBuildWeb(
+          yaml,
+          workflowRelativePath: k6rziDevPipelineWorkflowRelativePath,
+        );
       },
     );
 
     test(
-      'pipeline.yml CI post-build verify shell step rejects stale build/web '
-      'from packages/client (tentura-6rzi)',
+      'pipeline.yml web deploy verify rejects stale client build/web only '
+      'from workflow shell cwd (tentura-6rzi)',
       () async {
         final repoRoot = _repoRoot();
         final yaml = readRepoFileForCiWebDeployVerify(
           repoRoot,
           k6rziDevPipelineWorkflowRelativePath,
         );
-        final verifyShellLine = postBuildVerifyShellLineFromDeployBlock(yaml);
-        final clientRoot = Directory('${repoRoot.path}/packages/client');
-        await expectCiPostBuildVerifyShellStepRejectsStaleBuildWeb(
-          clientPackageRoot: clientRoot,
-          verifyShellLine: verifyShellLine,
+        await expectCiDeployBlockPostBuildVerifyRejectsStaleClientBuildWeb(
+          repoRoot: repoRoot,
+          workflowYaml: yaml,
+          workflowRelativePath: k6rziDevPipelineWorkflowRelativePath,
         );
       },
     );

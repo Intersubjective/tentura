@@ -77,6 +77,110 @@ void main() {
     );
 
     test(
+      'web deploy verify extraction is scoped to builder step, not later jobs '
+      '(tentura-6rzi fixture)',
+      () {
+        const fixtureYaml = '''
+      - name: Build dev web in builder container
+        run: |
+          docker run bash -c "
+              cd packages/client && flutter gen-l10n
+              dart run tool/generate_wasm_preload_artifacts.dart
+              dart run tool/verify_web_version_consistency.dart build/web
+              cd build/web && tar -czf /app/web-dev.tgz . && cd ../..
+            "
+      - name: Unrelated later job
+        run: |
+          docker run bash -c "
+              dart run tool/generate_wasm_preload_artifacts.dart
+              dart run tool/verify_web_version_consistency.dart build/web
+              cd build/web && tar -czf /app/web-decoy.tgz . && cd ../..
+            "
+''';
+        final line = postBuildVerifyShellLineFromDeployBlock(
+          fixtureYaml,
+          workflowRelativePath: k6rziDevPipelineWorkflowRelativePath,
+        );
+        expect(line, 'dart run tool/verify_web_version_consistency.dart build/web');
+      },
+    );
+
+    test(
+      'decoy build/web verify before packaging does not satisfy contract when '
+      'pre-packaging invoke is no-arg (tentura-6rzi fixture)',
+      () {
+        const fixtureYaml = '''
+      - name: Build dev web in builder container
+        run: |
+          docker run bash -c "
+              cd packages/client && flutter gen-l10n
+              dart run tool/generate_wasm_preload_artifacts.dart
+              dart run tool/verify_web_version_consistency.dart build/web
+              dart run tool/verify_web_version_consistency.dart
+              cd build/web && tar -czf /app/web-dev.tgz . && cd ../..
+            "
+''';
+        expect(
+          () => expectPostBuildVerifyUsesBuildWeb(
+            fixtureYaml,
+            workflowRelativePath: k6rziDevPipelineWorkflowRelativePath,
+          ),
+          throwsA(isA<TestFailure>()),
+        );
+      },
+    );
+
+    test(
+      'builder step without docker bash -c cannot borrow a later step verify '
+      '(tentura-6rzi fixture)',
+      () {
+        const fixtureYaml = '''
+      - name: Build dev web in builder container
+        run: echo missing docker bash
+      - name: Unrelated later job
+        run: |
+          docker run bash -c "
+              dart run tool/generate_wasm_preload_artifacts.dart
+              dart run tool/verify_web_version_consistency.dart build/web
+              cd build/web && tar -czf /app/web-decoy.tgz . && cd ../..
+            "
+''';
+        expect(
+          () => postBuildVerifyShellLineFromDeployBlock(
+            fixtureYaml,
+            workflowRelativePath: k6rziDevPipelineWorkflowRelativePath,
+          ),
+          throwsA(isA<TestFailure>()),
+        );
+      },
+    );
+
+    test(
+      'no-arg post-build verify after wasm preload fails 6rzi contract (fixture)',
+      () {
+        const brokenWorkflow = '''
+      - name: Build dev web in builder container
+        run: |
+          docker run bash -c "
+              cd packages/client && flutter gen-l10n
+              dart run tool/trim_web_deploy_artifact.dart
+              dart run tool/apply_versioned_web_assets.dart
+              dart run tool/generate_wasm_preload_artifacts.dart
+              dart run tool/verify_web_version_consistency.dart
+              cd build/web && tar -czf /app/web-dev.tgz . && cd ../..
+            "
+''';
+        expect(
+          () => expectPostBuildVerifyUsesBuildWeb(
+            brokenWorkflow,
+            workflowRelativePath: k6rziDevPipelineWorkflowRelativePath,
+          ),
+          throwsA(isA<TestFailure>()),
+        );
+      },
+    );
+
+    test(
       'pipeline.yml post-build verify uses supported CI shell syntax only '
       '(tentura-6rzi)',
       () {
@@ -84,7 +188,10 @@ void main() {
           _repoRoot(),
           k6rziDevPipelineWorkflowRelativePath,
         );
-        final line = postBuildVerifyShellLineFromDeployBlock(yaml);
+        final line = postBuildVerifyShellLineFromDeployBlock(
+          yaml,
+          workflowRelativePath: k6rziDevPipelineWorkflowRelativePath,
+        );
         expect(
           () => parseCiPostBuildVerifyShellLine(line),
           returnsNormally,
@@ -104,24 +211,26 @@ void main() {
           _repoRoot(),
           k6rziDevPipelineWorkflowRelativePath,
         );
-        expectPostBuildVerifyUsesBuildWeb(yaml);
+        expectPostBuildVerifyUsesBuildWeb(
+          yaml,
+          workflowRelativePath: k6rziDevPipelineWorkflowRelativePath,
+        );
       },
     );
 
     test(
-      'pipeline.yml CI post-build verify shell step rejects stale build/web '
-      'from packages/client (tentura-6rzi)',
+      'pipeline.yml web deploy verify rejects stale client build/web only '
+      'from workflow shell cwd (tentura-6rzi)',
       () async {
         final repoRoot = _repoRoot();
         final yaml = readRepoFileForCiWebDeployVerify(
           repoRoot,
           k6rziDevPipelineWorkflowRelativePath,
         );
-        final verifyShellLine = postBuildVerifyShellLineFromDeployBlock(yaml);
-        final clientRoot = Directory('${repoRoot.path}/packages/client');
-        await expectCiPostBuildVerifyShellStepRejectsStaleBuildWeb(
-          clientPackageRoot: clientRoot,
-          verifyShellLine: verifyShellLine,
+        await expectCiDeployBlockPostBuildVerifyRejectsStaleClientBuildWeb(
+          repoRoot: repoRoot,
+          workflowYaml: yaml,
+          workflowRelativePath: k6rziDevPipelineWorkflowRelativePath,
         );
       },
     );
