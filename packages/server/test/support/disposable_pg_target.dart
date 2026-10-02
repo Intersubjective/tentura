@@ -200,8 +200,7 @@ final class DisposablePgTarget {
   });
 
   /// Drops this database, under the lifecycle lock.
-  Future<void> drop() =>
-      withDisposablePgLifecycleLock(adminEnv, _dropUnlocked);
+  Future<void> drop() => withDisposablePgLifecycleLock(adminEnv, _dropUnlocked);
 
   /// Clones the prebuilt template instead of running the schema build.
   ///
@@ -266,6 +265,28 @@ final class DisposablePgWriterSession {
   final DisposablePgTarget target;
   final Connection writer;
   final bool setupComplete;
+}
+
+/// Environment variable that turns pg/Hasura test skips into failures.
+const pgTestsRequiredEnvVar = 'TENTURA_PG_TESTS_REQUIRED';
+
+/// True when `TENTURA_PG_TESTS_REQUIRED=1` (REQUIRED mode).
+bool isPgTestsRequired([Map<String, String>? environment]) =>
+    (environment ?? Platform.environment)[pgTestsRequiredEnvVar] == '1';
+
+/// `null` when Postgres is reachable, otherwise a skip reason — or, in
+/// REQUIRED mode, a [StateError] so the test run fails instead of skipping.
+Future<String?> pgSkipReason(
+  DisposablePgTarget target, {
+  Map<String, String>? environment,
+}) async {
+  if (await canReachPostgresAdmin(target)) return null;
+  if (isPgTestsRequired(environment)) {
+    throw StateError(
+      'Postgres required ($pgTestsRequiredEnvVar=1) but not reachable',
+    );
+  }
+  return 'Postgres not reachable for ${target.envVarName}';
 }
 
 Future<bool> canReachPostgresAdmin(DisposablePgTarget target) async {
