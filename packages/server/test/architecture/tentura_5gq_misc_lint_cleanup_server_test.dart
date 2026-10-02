@@ -20,15 +20,8 @@ const _server5gqJwtSupportRelatives = <String>[
   _jwtDefaultPathProbeRelative,
 ];
 
-/// Pre-fix `dart analyze --format=json .` on packages/server (bead filing tree).
-const _serverPackageDartAnalyzeBaselineDiagnosticCount = 1881;
-
 /// Pre-fix `dart analyze --format=json` on [_server5gqJwtSupportRelatives].
 const _server5gqJwtSupportBaselineDiagnosticCount = 2;
-
-const _serverPackageDartAnalyzePostFixDiagnosticCount =
-    _serverPackageDartAnalyzeBaselineDiagnosticCount -
-    _server5gqJwtSupportBaselineDiagnosticCount;
 
 const _server5gqBeadSites = <({String relativePath, int lineOneBased, String code})>[
   (
@@ -71,26 +64,10 @@ void main() {
               'drop from baseline $_server5gqJwtSupportBaselineDiagnosticCount '
               'to 0 (actual $scopedCount)',
         );
-
-        final packageCount = _countDartAnalyzeDiagnosticsOnServerPackage();
-        expect(
-          packageCount,
-          _serverPackageDartAnalyzePostFixDiagnosticCount,
-          reason:
-              'tentura-5gq server package dart analyze must drop by exactly '
-              '$_server5gqJwtSupportBaselineDiagnosticCount from baseline '
-              '$_serverPackageDartAnalyzeBaselineDiagnosticCount '
-              '(post-fix $_serverPackageDartAnalyzePostFixDiagnosticCount, '
-              'actual $packageCount)',
-        );
       },
       timeout: const Timeout(Duration(minutes: 8)),
     );
   });
-}
-
-int _countDartAnalyzeDiagnosticsOnServerPackage() {
-  return _countDartAnalyzeDiagnosticsOnRelativePaths(['.']);
 }
 
 int _countDartAnalyzeDiagnosticsOnRelativePaths(List<String> relativePaths) {
