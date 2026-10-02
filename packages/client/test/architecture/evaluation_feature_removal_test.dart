@@ -7,7 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 ///
 /// Mirrors the unit's acceptance grep:
 /// `grep -rln "evaluation\|reviewWindow\|review_window" lib test integration_test
-///  --include=*.dart | grep -v "\.g\.dart\|\.gql\.dart"`.
+///  --include=*.dart | grep -v "\.g\.dart\|\.gql\.dart\|\.config\.dart"`.
 final _removedPattern = RegExp('evaluation|reviewWindow|review_window');
 
 /// Identifiers allowed to survive. `BeaconStatus.reviewOpen` does not match
@@ -23,7 +23,12 @@ Iterable<File> _dartFiles(String root) {
       .whereType<File>()
       .where((f) => f.path.endsWith('.dart'))
       .where(
-        (f) => !f.path.endsWith('.g.dart') && !f.path.endsWith('.gql.dart'),
+        // Injectable output is generated too. The DI freshness test briefly
+        // installs a historical config fixture with removed feature imports.
+        (f) =>
+            !f.path.endsWith('.g.dart') &&
+            !f.path.endsWith('.gql.dart') &&
+            !f.path.endsWith('.config.dart'),
       );
 }
 

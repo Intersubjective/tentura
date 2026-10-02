@@ -17,7 +17,7 @@ const _client5gqProductionRelatives = <String>[
 ];
 
 /// Pre-fix `dart analyze --format=json .` on packages/client (bead filing tree).
-const _clientPackageDartAnalyzeBaselineDiagnosticCount = 1934;
+const _clientPackageDartAnalyzeBaselineDiagnosticCount = 1940;
 
 /// Pre-fix bead item-1 diagnostics present on basic_chat_body at pinned sites
 /// (dart analyze; site 21 unnecessary_import is already clean on this tree).

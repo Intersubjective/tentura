@@ -22,6 +22,25 @@ String _versionIn(String pubspec) {
   return match!.group(1)!;
 }
 
+List<int> _releaseVersionParts(String version) => [
+  for (final part in version.split('.')) int.parse(part),
+];
+
+/// Full semver ordering — patch bumps on the same minor must pass (unlike the
+/// removed git-show-main minor-only gate).
+int _compareReleaseVersions(String left, String right) {
+  final a = _releaseVersionParts(left);
+  final b = _releaseVersionParts(right);
+  for (var i = 0; i < a.length; i++) {
+    final c = a[i].compareTo(b[i]);
+    if (c != 0) return c;
+  }
+  return 0;
+}
+
+bool _releaseVersionPolicyAllows(String worktreeVersion, String mainRefVersion) =>
+    _compareReleaseVersions(worktreeVersion, mainRefVersion) >= 0;
+
 Iterable<String> _peopleSeenSections() sync* {
   final files =
       Directory('${_repoRoot().path}/docs/features')
@@ -159,6 +178,34 @@ void main() {
       environment: {'TERMINOLOGY_STRICT': '1'},
     );
     expect(result.exitCode, 0, reason: '${result.stdout}\n${result.stderr}');
+  });
+
+  test('release version policy passes on a clean main checkout and allows same-minor patch releases', () {
+      // tentura-h8q acceptance scenarios the legacy minor-only gate rejected:
+      expect(_releaseVersionPolicyAllows('7.22.3', '7.22.3'), isTrue);
+      expect(_releaseVersionPolicyAllows('7.22.4', '7.22.3'), isTrue);
+
+      final gitShow = Process.runSync(
+        'git',
+        ['show', 'main:packages/client/pubspec.yaml'],
+        workingDirectory: _repoRoot().path,
+      );
+      expect(
+        gitShow.exitCode,
+        0,
+        reason: '${gitShow.stdout}\n${gitShow.stderr}',
+      );
+      final worktreeVersion = _versionIn(
+        _repoFile('packages/client/pubspec.yaml').readAsStringSync(),
+      );
+      final mainRefVersion = _versionIn('${gitShow.stdout}');
+      expect(
+        _releaseVersionPolicyAllows(worktreeVersion, mainRefVersion),
+        isTrue,
+        reason:
+            'Working-tree client version ($worktreeVersion) must not trail '
+            'main:packages/client/pubspec.yaml ($mainRefVersion)',
+      );
   });
 
   test('tracked web cache buster matches pubspec version', () {

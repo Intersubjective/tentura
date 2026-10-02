@@ -287,7 +287,7 @@ int? parseFlutterAnalyzeIssueCount(String combinedOutput) {
 
 CommandOutcome runFlutterAnalyzeOnRelativePaths(List<String> relativePaths) {
   final client = clientPackageRoot();
-  final result = Process.runSync(
+  final result = _runUnderClientAnalyzeLock(
     'flutter',
     ['analyze', ...relativePaths],
     workingDirectory: client.path,
