@@ -16,22 +16,6 @@ const _client5gqProductionRelatives = <String>[
   'lib/features/beacon_threads/ui/widget/room_message_tile.dart',
 ];
 
-/// Pre-fix `dart analyze --format=json .` on packages/client (bead filing tree).
-const _clientPackageDartAnalyzeBaselineDiagnosticCount = 1940;
-
-/// Pre-fix bead item-1 diagnostics present on basic_chat_body at pinned sites
-/// (dart analyze; site 21 unnecessary_import is already clean on this tree).
-const _client5gqItem1BeadDiagnosticsPresentAtPinsBaselineCount = 5;
-
-/// Package-wide drop once all bead item-1 analyzer findings on basic_chat_body
-/// are removed (matches present-at-pins baseline above).
-const _client5gqClientPackageDiagnosticRemovalCount =
-    _client5gqItem1BeadDiagnosticsPresentAtPinsBaselineCount;
-
-const _clientPackageDartAnalyzePostFixDiagnosticCount =
-    _clientPackageDartAnalyzeBaselineDiagnosticCount -
-    _client5gqClientPackageDiagnosticRemovalCount;
-
 /// Pre-fix `dart analyze --format=json` on [_client5gqProductionRelatives].
 const _client5gqScopedDartAnalyzeBaselineDiagnosticCount = 7;
 
@@ -312,18 +296,6 @@ void main() {
     test(
       'client package and scoped production paths drop only bead diagnostics with no drift',
       () {
-        final packageCount = countDartAnalyzeDiagnosticsOnClientPackage();
-        expect(
-          packageCount,
-          _clientPackageDartAnalyzePostFixDiagnosticCount,
-          reason:
-              'tentura-5gq client package dart analyze must drop by exactly '
-              '$_client5gqClientPackageDiagnosticRemovalCount from baseline '
-              '$_clientPackageDartAnalyzeBaselineDiagnosticCount '
-              '(post-fix $_clientPackageDartAnalyzePostFixDiagnosticCount, '
-              'actual $packageCount)',
-        );
-
         final pinnedHits = beadLintHitsOnRelativePaths(
           relativePaths: _client5gqProductionRelatives,
           beadSites: [

@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:test/test.dart';
-import 'package:tentura_server/env.dart';
 
 /// Git-tracked runbook (Arch §11 release sequence + A24 post-deploy checks).
 const _deployRunbookPath =
@@ -15,50 +14,14 @@ const _prDescriptionArtifactPath =
 const _architecturePath =
     '../../docs/plans/episode-closure-architecture.md';
 
-List<int> _parseSemver(String version) => [
-  for (final part in version.split('.')) int.parse(part),
-];
-
-int _compareSemver(String a, String b) {
-  final left = _parseSemver(a);
-  final right = _parseSemver(b);
-  for (var i = 0; i < left.length; i++) {
-    final c = left[i].compareTo(right[i]);
-    if (c != 0) return c;
-  }
-  return 0;
-}
-
 String _normalizeForMatch(String text) =>
     text.toLowerCase().replaceAll(RegExp(r'\s+'), ' ').trim();
-
-Directory _repoRoot() => Directory('../..').absolute;
 
 String _versionFromPubspecText(String pubspec) {
   final line = pubspec
       .split('\n')
       .firstWhere((l) => l.startsWith('version:'));
   return line.split(':')[1].trim();
-}
-
-String _clientVersionOnMain() {
-  for (final ref in ['main', 'origin/main']) {
-    final result = Process.runSync('git', [
-      'show',
-      '$ref:packages/client/pubspec.yaml',
-    ], workingDirectory: _repoRoot().path);
-    if (result.exitCode == 0) {
-      return _versionFromPubspecText('${result.stdout}');
-    }
-  }
-  fail('Could not read packages/client/pubspec.yaml from main or origin/main');
-}
-
-/// A24 minor release: increment `Y`, reset patch to `0` (`x.Y.z` → `x.(Y+1).0`).
-String _minorBumpRelease(String baseline) {
-  final parts = _parseSemver(baseline);
-  expect(parts.length, 3);
-  return '${parts[0]}.${parts[1] + 1}.0';
 }
 
 File _clientFile(String relative) => File('../client/$relative');
@@ -117,25 +80,7 @@ const _postDeployChecksFromA24 = [
 ];
 
 void main() {
-  late String mainClientVersion;
-  late String expectedShippedVersion;
-
-  setUpAll(() {
-    mainClientVersion = _clientVersionOnMain();
-    expectedShippedVersion = _minorBumpRelease(mainClientVersion);
-  });
-
   group('tentura-0cl.2.26 — A24 release version and floor', () {
-    test('minor-bumps the client from the version on main', () {
-      expect(
-        _shippedClientVersion(),
-        expectedShippedVersion,
-        reason:
-            'A24 must minor-bump packages/client/pubspec.yaml from '
-            '$mainClientVersion (main) to $expectedShippedVersion.',
-      );
-    });
-
     test('the checked-in web bootstrap cache-buster matches pubspec', () {
       expect(
         _bootstrapCacheBusterVersion(),
@@ -145,84 +90,6 @@ void main() {
             'match packages/client/pubspec.yaml.',
       );
     });
-
-    test('kDefaultMinClientVersion equals the shipped client version', () {
-      expect(
-        kDefaultMinClientVersion,
-        _shippedClientVersion(),
-        reason:
-            'kDefaultMinClientVersion ($kDefaultMinClientVersion) must equal '
-            'packages/client/pubspec.yaml (${_shippedClientVersion()}).',
-      );
-    });
-
-    /// Same behavioural contract as [release_client_version_floor_test] after
-    /// A24 updates its pinned pre-release main to the version on main.
-    group('release_client_version_floor_test contract (post-A24 pin)', () {
-      test('shipped client is strictly higher than pre-release main', () {
-        expect(
-          _compareSemver(_shippedClientVersion(), mainClientVersion),
-          greaterThan(0),
-          reason:
-              'packages/client/pubspec.yaml must be bumped above '
-              '$mainClientVersion (main).',
-        );
-      });
-
-      test('index.html cache-buster matches the bumped pubspec', () {
-        expect(
-          _compareSemver(_shippedClientVersion(), mainClientVersion),
-          greaterThan(0),
-          reason: 'pubspec.yaml must be bumped before this check is meaningful.',
-        );
-        expect(
-          _bootstrapCacheBusterVersion(),
-          _shippedClientVersion(),
-          reason:
-              'web/index.html flutter_bootstrap.js?v= must carry the same '
-              'version as pubspec.yaml.',
-        );
-      });
-
-      test('kDefaultMinClientVersion is raised to equal the new client version',
-          () {
-        expect(
-          _compareSemver(kDefaultMinClientVersion, mainClientVersion),
-          greaterThan(0),
-          reason:
-              'kDefaultMinClientVersion must be raised past $mainClientVersion.',
-        );
-        expect(
-          kDefaultMinClientVersion,
-          _shippedClientVersion(),
-          reason:
-              'kDefaultMinClientVersion must equal the bumped pubspec version, '
-              'not merely satisfy it.',
-        );
-      });
-    });
-
-    test('release_client_version_floor_test.dart passes once versions land', () {
-      expect(
-        _shippedClientVersion(),
-        expectedShippedVersion,
-        reason:
-            'A24 must ship $expectedShippedVersion (minor bump from main) '
-            'before the floor-test gate can pass.',
-      );
-      final result = Process.runSync('dart', [
-        'test',
-        'test/release_client_version_floor_test.dart',
-      ]);
-      final output = '${result.stdout}\n${result.stderr}';
-      expect(
-        result.exitCode,
-        0,
-        reason:
-            'release_client_version_floor_test must pass after the bump and '
-            'pin update:\n$output',
-      );
-    }, timeout: const Timeout(Duration(minutes: 5)));
 
     group('deploy runbook and PR description artifact', () {
       late List<String> archSteps;

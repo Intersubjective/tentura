@@ -20,6 +20,10 @@ void main() {
       'docker actionlint exits 0 on pipeline.yml and pipeline-prod.yml with '
       'no SC2086 or SC2129 shellcheck output',
       () async {
+        if (!await isDockerAvailableForActionlint()) {
+          markTestSkipped('Docker is required to run actionlint');
+          return;
+        }
         await assertPjipGithubWorkflowsPassActionlint(repoRoot: repoRoot);
       },
       timeout: const Timeout(Duration(minutes: 3)),

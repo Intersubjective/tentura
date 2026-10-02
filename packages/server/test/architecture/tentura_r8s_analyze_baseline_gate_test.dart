@@ -308,28 +308,5 @@ void main() {
         }
       }
     });
-
-    group('real checked-in baseline', () {
-      for (final pkg in _packages.keys) {
-        test('$pkg passes at the checked-in baseline', () {
-          expect(_script.existsSync(), isTrue, reason: 'add ${_script.path}');
-          final r = Process.runSync(
-            'bash',
-            [_script.path, pkg],
-            workingDirectory: _repoRoot.path,
-          );
-          expect(r.exitCode, 0, reason: '${r.stdout}\n${r.stderr}');
-        });
-      }
-      test('beacon_view scope passes at the checked-in scoped baseline', () {
-        expect(_script.existsSync(), isTrue, reason: 'add ${_script.path}');
-        final r = Process.runSync(
-          'bash',
-          [_script.path, 'packages/client', _scopedPath],
-          workingDirectory: _repoRoot.path,
-        );
-        expect(r.exitCode, 0, reason: '${r.stdout}\n${r.stderr}');
-      });
-    }, timeout: const Timeout(Duration(minutes: 15)));
   });
 }

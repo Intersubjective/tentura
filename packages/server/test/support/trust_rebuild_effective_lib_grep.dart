@@ -9,10 +9,6 @@ const trustRebuildEffectiveServerLibGrepPath = 'packages/server/lib';
 const trustRebuildEffectiveShippedMigrationPathSegment =
     'packages/server/lib/data/database/migration/';
 
-/// Last commit on `main` that touched m0193 (immutable shipped migration pin).
-const trustRebuildEffectiveM0193MainHeadPin =
-    'd33eb3f0b15df74571785643361a1e31142d7b92';
-
 const trustRebuildEffectiveM0193RepoPath =
     'packages/server/lib/data/database/migration/m0193.dart';
 

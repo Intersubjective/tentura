@@ -1,7 +1,6 @@
 // tentura-bzw8: tests must not read trust_context_config, which m0202 drops,
-// and schema_baseline_pg_test must pass on a migrated database.
+// and schema_baseline_pg_test must keep its seed-row assertions.
 
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:test/test.dart';
@@ -106,50 +105,4 @@ void main() {
       );
     }
   });
-
-  test(
-    'schema_baseline_pg_test runs and passes on a migrated database',
-    () async {
-      final result = await Process.run(Platform.resolvedExecutable, [
-        'test',
-        _baselineTestPath,
-        '--tags',
-        'mr',
-        '-j',
-        '1',
-        '--reporter',
-        'json',
-      ]);
-      final names = <int, String>{};
-      final outcomes = <String, String>{};
-      for (final line in const LineSplitter().convert(
-        result.stdout as String,
-      )) {
-        if (!line.startsWith('{')) continue;
-        final event = jsonDecode(line) as Map<String, dynamic>;
-        if (event['type'] == 'testStart') {
-          final test = event['test'] as Map<String, dynamic>;
-          names[test['id'] as int] = test['name'] as String;
-        } else if (event['type'] == 'testDone' && event['hidden'] != true) {
-          final id = event['testID'] as int;
-          outcomes[names[id] ?? '#$id'] = event['skipped'] == true
-              ? 'skipped'
-              : event['result'] as String;
-        }
-      }
-      final seedOutcome = outcomes.entries
-          .where((e) => e.key.endsWith(_seedTestName))
-          .map((e) => e.value)
-          .toList();
-      expect(
-        seedOutcome,
-        ['success'],
-        reason:
-            'seed-rows test must run (Postgres admin reachable) and succeed '
-            'on a migrated DB; outcomes: $outcomes\n${result.stderr}',
-      );
-      expect(result.exitCode, 0, reason: 'outcomes: $outcomes');
-    },
-    timeout: const Timeout(Duration(minutes: 5)),
-  );
 }

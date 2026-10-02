@@ -8,7 +8,6 @@ import 'package:test/test.dart';
 
 import '../support/hasura_pg_jwt_fresh_checkout_harness_contract.dart';
 
-const _3zdAcceptanceMarker = 'tentura-3zd acceptance';
 
 const _harnessRelative = 'test/support/hasura_pg_jwt_keys_test.dart';
 const _harnessPartRelative = 'test/support/hasura_pg_jwt_keys_test_3zd.dart';
@@ -54,23 +53,13 @@ void main() {
   });
 
   group('tentura-3zd Hasura pg JWT env subprocess harness', () {
-    test('acceptance file declares tentura-3zd marker', () {
-      final source = File(
-        'test/architecture/tentura_3zd_hasura_pg_jwt_env_harness_test.dart',
-      ).readAsStringSync();
-      expect(
-        source,
-        contains(_3zdAcceptanceMarker),
-        reason: 'Alloy tentura-3zd tracking expects the marker in this file',
-      );
-    });
-
     test(
       'fresh-checkout harness keeps workspace .env visible to subprocess child',
       () async {
         final dotEnv = workspaceRepoDotEnvFile(serverRoot);
         if (!dotEnv.existsSync()) {
           markTestSkipped('workspace repo .env required for child visibility probe');
+          return;
         }
 
         expect(
@@ -142,6 +131,7 @@ void main() {
         final dotEnv = workspaceRepoDotEnvFile(serverRoot);
         if (!dotEnv.existsSync()) {
           markTestSkipped('workspace repo .env required for SIGKILL probe');
+          return;
         }
 
         final markerDir = await Directory.systemTemp.createTemp(
