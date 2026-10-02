@@ -1,53 +1,53 @@
 # Post + creating Posts/Requests in Constellation — plan
 
-**Status:** draft rev 2 (2026-10-01): rebased onto `feature/trust-closure-redesign` (4ebd291da:
-episode closure, trust ledger, noisy-contact wall, review subsystem removed; migrations up to m0207).
-§3a holds the new owner decisions this raised.
+**Status:** rev 4 (2026-10-02). All owner decisions are taken (§3, §3a). Rev 4 applies the Codex
+(gpt-6.1-sol, high) review of rev 3 (18 findings; §10). The step-by-step implementation plan is
+`docs/plans/post-implementation-steps.md`.
+**Baseline:** Tentura after the episode-closure + trust redesign (`feature/trust-closure-redesign`,
+finished, merge to `main` pending cleanup only): closure lifecycle, trust ledger, noisy-contact wall,
+no review subsystem, migrations up to m0207. This plan treats that state as the working product.
 **Branch:** `feature/post-constellation` (on top of `feature/trust-closure-redesign`).
 **Spec source:** owner brief (2026-09-30, Russian) — Post as a light social object, forward policy,
-creating Posts and Requests directly on the Constellation graph with "web" edges and an
-audience radius, post-publish relay spread, activity-based fading, one-way Post → Request.
+creating Posts and Requests directly on the Constellation graph with "web" edges and an audience
+radius, post-publish relay spread, activity-based fading, one-way Post → Request.
+**UX:** `docs/plans/post-ux-mockups.md` (ASCII mockups, all copy).
 
-**Primary constraint (owner):** maximal reuse, no duplicated code paths. The plan is therefore
-organised around *where the existing machinery already does the job* and what the smallest
-seam is that lets it do the job for a Post as well.
+**Primary constraint (owner):** maximal reuse, no duplicated code paths. The plan is organised
+around *where the existing machinery already does the job* and the smallest seam that lets it do
+the job for a Post as well.
 
 ---
 
 ## 0. TL;DR
 
-1. **A Post is a `beacon` with `kind = post`.** Not a new table, entity or route. Room, forward
-   edges, inbox rows, attention receipts, realtime kinds, images, blocks, rate limits, deep links,
-   share links and the forward screen are all keyed by `beacon.id` and work unchanged. Post → Request
-   is an in-place `kind` flip, which is exactly why "one-way conversion" is cheap.
-2. **Forward edge = Post membership.** For `kind = post`, an active inbound forward edge
-   materialises a `beacon_participant` row with `room_access = admitted` (DB trigger, same
-   pattern as `inbox_item_on_forward_insert`). Every existing room gate (`_canUseRoom`,
-   `beacon_effective_admission`, `realtime_room_recipients`, mention resolution, read receipts)
-   then works with no Post branch.
-3. **Forward policy — «Можно пересылать», Posts only**, default **on**; the author may switch it
-   off before sending. After publish it is one-way (off → on only).
-   Requests are untouched (always forwardable, as today). One new column `beacon.forward_policy`
-   (`closed | open`) enforced by
-   one server policy function used by `ForwardCase` *and* `InvitationCase`, and mirrored by one
-   client getter.
-4. **The graph composer is a second view of the existing create flow**, not a second create flow:
-   same `BeaconCreateCubit` (server draft), same `ForwardCubit` (selection, eligibility, notes,
-   send). The graph only *renders* `ForwardCubit` selection as edges and *writes* to it on
-   tap/radius. The list picker stays the accessible alternative on the same cubit.
-5. **Three refactors carry the reuse** and land before any Post UI: a `RoomHost` seam out of
-   `BeaconViewCubit` (so the 1447-line `RoomCubit` + room widgets serve a Post view), a
-   `ForwardTargetProfile` on the forward screen (hide band/reasons/lineage/offer nudge for Posts),
-   and a `kind` parameter on `BeaconCreateCubit`.
-6. **Membership webs on the graph** (only for the selected object): object → *forwarded to* and
-   object → *inside*, two colours, only to people already on ego's map (D6/§9.1); the rest is "+N".
-   The forward chain is never drawn.
-7. **Fading** uses one new column `beacon.last_activity_at`, bumped by triggers on room messages,
-   reactions and forwards (it also fixes today's `BeaconDisplayStatus.lastActivityAt` fallback to
-   `updated_at`).
-
-Several shipped decisions are amended by this feature (§2) — they need an explicit owner sign-off,
-not a silent override.
+1. **A Post is a `beacon` with `kind = 1`** (Requests are `kind = 0`). Not a new table, entity or
+   route. Room, forward edges, inbox rows, attention receipts, realtime kinds, attachments, blocks,
+   rate limits, deep links, share links and the forward screen are keyed by `beacon.id` and are
+   reused. Post → Request is an in-place, validated `kind` flip.
+2. **The Post is its room.** Its content is the author's first room message (the *root message*).
+   The beacon row carries no title/description. The Post screen is the room only, plus an overflow
+   menu.
+3. **Forward edge = Post membership.** For `kind = 1`, an active inbound forward edge materialises a
+   `beacon_participant` row with role `addressee` (6) and `room_access = admitted` (3), via a DB
+   trigger. Existing room gates then work. Blocks are enforced at the room gate (§4.7).
+4. **One server transaction publishes a Post** (`postPublish`): publish the draft, forward to the
+   recipients (admission happens here), then write the root message (mentions resolve against the
+   now-admitted audience). No client-side multi-mutation sequence, so there is no partial state to
+   recover from.
+5. **Forward policy «Можно пересылать»** — Posts only. Default **on**; the author may switch it off
+   before sending; after publish it is one-way (off → on). One column, one policy function used by
+   every edge-creating path (forward, invite create, invite accept).
+6. **Request-only behaviour is enforced server-side**: one Dart guard
+   (`BeaconKindPolicy.requireRequest`) on every Request-only use case and room mutation, `kind = 0`
+   in Request-only SQL and Hasura write permissions, and a DB trigger that rejects help offers on
+   Posts. An audit pg test proves it.
+7. **The graph composer is a second view of the existing create flow**: same `BeaconCreateCubit`,
+   same `ForwardCubit` selection. One selection-intent adapter serves both the graph and the list
+   picker.
+8. **Membership webs on the graph** (only for the selected object): object → *forwarded to* and
+   object → *inside*, two colours, only to people already on ego's map; the rest is "+N". The
+   forward chain is never drawn on the map; it lives on the existing forward-graph screen.
+9. **Fading** uses one new column `beacon.last_activity_at`.
 
 ---
 
@@ -55,200 +55,297 @@ not a silent override.
 
 | Need from the brief | Existing machinery | Reuse verdict |
 |---|---|---|
-| Object addressed to chosen people | `beacon` + `beacon_forward_edge` (`m0193.dart:5054`); audience of a published Request is already "forward edges made at create time" (`beacon_create_cubit.dart:984-1020` publish → `forwardCubit.forward()`) | **As is** |
-| Own Room with replies + reactions (the Post itself = the root message) | `beacon_room_message`, `_reaction`, `_attachment`, polls, `beacon_room_seen`, realtime `room_*` kinds, `BeaconRoomCase` — all keyed by `beacon_id` | **As is on server**; client needs the `RoomHost` seam (§5.3) |
-| Same relay mechanics + recipient screen | `ForwardCase.forward` (`forward_case.dart:160-339`), `ForwardCubit`, `ForwardRecipientPicker` (`embedded: true` already used by the create wizard's Recipients step) | **As is**, sections gated by `ForwardTargetProfile` |
-| New recipients join the same Post and see history | `listMessages` returns full General history to any admitted member | **As is** once forward ⇒ admission (§4.2) |
-| Photo / meme | room message attachments (`beacon_room_message_attachment`) on the root message | **As is** |
-| "Not for me" | `inbox_item.status = 2` + `inbox_item_on_rejection_update` | **As is**, plus room leave (`room_access = left`) for Posts |
-| Share via link | `InvitationCase` (accepted invite *inserts a forward edge*, `user_repository.dart:120-160`) | **As is**, gated by forward policy |
-| Who is in it (for map webs) | `beacon_member` (inside), `beacon_forward_edge` recipients (forwarded), `beacon_room_seen` (opened), `beacon_admitted_helper` (m0174) for Requests | New projection `memberWebs`, no chain data (§6.2) |
-| Draft node draggable on graph | Constellation drag presentation (`beginDragNew`, `updateDragPresentation`, `FD/scene/scene_presentation.dart` overrides/holds), `spawnPositionResolver` | **As is**, new placement phase without anchor write (§7.2) |
-| Object stays where author put it | Constellation anchors, target kind `beacon` (`ConstellationAnchorTargetKind`) — a Post *is* a beacon | **As is**: the draft drop point becomes the author's `beacon` anchor on publish |
-| Thin edges added/removed live | `reconcileTopology(requestLayout:false, layoutOnTopologyChange:false)`; `ConstellationEdgePainter` + `constellation_edge_style.dart` | New edge kind only |
-| Radius circle | `GraphView.canvasBackgroundBuilder` (scene space, unused today); `sceneToViewportLocal` | New painter only |
-| Forward graph («Граф пересылок») | `ForwardsGraphScreen` (`/graph/forwards/:id`), `BeaconForwardGraphCase.asMap` (gate `canReadInvolvement`: author, forward edge, or room-admitted — Post `addressee` rows pass), `beacon_overflow_menu` `forwards_graph` item | **As is** for Posts; help-offerer path mode (`?committer=`) not offered (§5.4a) |
-| Post → Request | In-place: `kind` flip + edit form (`BeaconCreateRoute(editId:)`); room system row via `system_message_kind` (new value **4**, `convertedToRequest`; 3 is `closureStory`, `beacon_hierarchy_consts.dart:27`, client `beacon_room_consts.dart:64`) | New mutation, reused UI |
-| Last activity | `beacon_activity_event`, `latestMainRoomMessageCreatedAt` exist but no stored column | **New column** (§4.4) |
+| Object addressed to chosen people | `beacon` + `beacon_forward_edge` (`m0193.dart:5054`); a published Request's audience is already "forward edges made at create time" (`beacon_create_cubit.dart:983-1021`) | **As is** |
+| Own room with replies + reactions | `beacon_room_message`, `_reaction`, `_attachment`, polls, `beacon_room_seen`, realtime `room_*` kinds, `BeaconRoomCase` — all keyed by `beacon_id` | **As is on server** (+ block check, §4.7); client needs the `RoomHost` seam (§5.3) |
+| Same relay mechanics + recipient screen | `ForwardCase.forward` (`forward_case.dart:160-339`), `ForwardCubit`, `ForwardRecipientPicker` (`embedded: true`) | **As is**, sections gated by `ForwardTargetProfile` |
+| New recipients see history | `listMessages` returns full General history to any admitted member | **As is** once forward ⇒ admission (§4.2) |
+| Photo / meme | room message attachments on the root message | **As is** |
+| "Not for me" / leave | `inbox_item.status = 2` + `inbox_item_on_rejection_update` | **Extended**: for Posts the status trigger also sets `room_access = left` and back (§4.8) |
+| Share via link | `InvitationCase` (accepted invite inserts a forward edge, `user_repository.dart:109-142`) | **As is**, gated by forward policy on every path (§4.3) |
+| Forward graph | `ForwardsGraphScreen` (`/graph/forwards/:id`), `BeaconForwardGraphCase.asMap` gated by `beacon_can_read_involvement` (m0197: admitted participant of any role passes) | **As is**; help-offerer path mode not offered for Posts |
+| Who is in it (map webs) | `beacon_member`, forward edge recipients, `beacon_room_seen` | New projection `memberWebs` (§6.2) |
+| Draft node on graph | Constellation drag presentation (`beginDragNew` `constellation_cubit.dart:513`, `updateDragPresentation` :531) | **As is**, new placement phase without anchor write (§7.2) |
+| Object stays where author put it | anchors, target kind `beacon` | **As is**: drop point becomes the author's `beacon` anchor on publish |
+| Thin edges added/removed live | `reconcileTopology(requestLayout:false, layoutOnTopologyChange:false)` (`constellation_cubit.dart:2298`) | New edge kinds; painter keyed per kind (§6.4) |
+| Radius circle | `GraphView.canvasBackgroundBuilder` (exists in the graph package, not yet wired by Constellation) | New painter only |
+| Empty-canvas gestures | **Missing**: `GraphView` has only node callbacks (`graph_view.dart:109-124`) | **New** canvas tap/secondary-tap callbacks in `packages/force_directed_graphview` (§7.1) |
+| Mute | `notification_beacon_mute` + `beaconMuteSet/Clear` + `NotificationPreferenceGate` (push/email) | **Extended**: in-app read rule (§5.6a); client UI is new |
+| Pin | `beacon_pinned` + favorites pin mutations | **Extended**: `pinned_at`; Favorites stays Request-only |
+| Post → Request | `BeaconCreateScreen` form + `BeaconCreationPolicy`; system rows via `system_message_kind` (new value 4) | New mutation, reused form (§4.6, §5.8) |
 
-What does **not** exist and must be built: `kind` + `forward_policy` + `last_activity_at` columns,
-forward-⇒-admission for Posts, a Post view shell, a composer placement phase, a draft recipient
-edge kind, radius selection model, membership webs in the field payload, fade presentation.
-
----
-
-## 2. Shipped decisions this feature amends (need explicit sign-off)
-
-| # | Current rule (source) | Amendment proposed |
-|---|---|---|
-| A1 | "Beacon is the only first-class object"; "forwarding matters more than posting"; comments/1:1 chat out of scope (`Tentura_current_status_quo.md` §3, §4.1, §4.2) | Beacon stays the only *table*; it gets two kinds. A Post is addressed (not a feed, not public, not discoverable), so the anti-feed axioms hold. Status-quo doc §4 gains "Post". |
-| A2 | Chat admission is always explicit; forward never admits (`CONTEXT.md` § Commitment facts, `features/beacon_room.md:96,165`) | **For `kind = post` only**, an active inbound forward edge *is* admission. Requests unchanged. |
-| A3 | D5 / §9.1: forward edges are never drawn in Constellation (`constellation-edge-semantics.md`) | **Decided 2026-09-30:** the forward *chain* is still never drawn on the map (it lives on the existing forward-graph screen, §5.4). New, narrower edge class: **membership webs** from the selected object to people, drawn **only while a Post/Request is selected**, **only to people already placed on ego's map** (D6 unchanged); everyone else collapses into "+N". Two colours: *forwarded to* (has it, not inside) and *inside* (in the room). |
-| A4 | D9: only request holders + their path ancestors are drawn | In **composer mode** the composition widens to all forward-eligible visible peers (up to the render cap), otherwise nobody can be picked on the graph. |
-| A5 | §9.2 anti-feed: prominence never encodes recency/engagement | A Post's *presence* (fade/expiry) uses conversation recency. Not ranking, not badges, not sort order. Requests unaffected. |
-| A6 | Pinning D15/D17: no provisional local-only state | One scoped exception: the composer draft node lives only in the session until publish; on publish it becomes a normal `beacon` anchor. |
-| A7 | `person_bond`: co-members of an open beacon are "mutually visible as people" (`m0193.dart:3639-3670`). Used **only** by forwarding: bond peers appear in forward candidates (`forward_candidates_case.dart:41`) and pass the forward recipient gate (`forward_case.dart:236`, `personVisiblePeerIds`); plus the shared-contexts query. It does **not** gate profile reads (Hasura `user` = block check only) and does not feed Constellation. | `kind = post` membership does **not** create a bond. Seeing and contacting each other inside a Post room needs no bond (§5.7); the bond would only add *forward reach*, and for Posts that reach would be unbounded (see Q2). |
+What does **not** exist and must be built: `kind`, `forward_policy`, `last_activity_at`,
+`post_root_message_id`, `pinned_at` columns; forward⇒admission; `postPublish`; the first-response
+claim; kind-aware validation and guards; a Post view shell; canvas gestures; a composer placement
+phase; web edge kinds; radius selection model; membership webs in the field payload.
 
 ---
 
-## 3. Owner decisions (with recommendations)
+## 2. Shipped decisions this feature amends
 
-| # | Question | Recommendation |
+| # | Current rule (source) | Amendment |
 |---|---|---|
-| Q1 | Where do Posts live for the author and for recipients? | **Decided direction 2026-09-30 (rev 3):** «Для вас» gets **one grouped, non-pinned row per Post**, bumped only by events directed at me (Post sent to me, reply to me, @mention); a second Activity tab **«Разговоры»** lists every Post I'm in («Сейчас» / «Затихли») with per-row counters and no dot. Never My Work (`responsibility_scope_base_beacons` excludes `kind = post`). Plus Моё поле. Details: `post-ux-mockups.md` §Q1, M1–M2. |
-| Q2 | Does Post membership create `person_bond`? | **Decided 2026-09-30: no bond.** (Rationale: a Post never closes and an open-forward audience is uncurated, so a bond would be permanent, unbounded forward reach.) Members still see each other, open profiles and add contacts from the room (§5.7). |
-| Q3 | On Post → Request, what happens to members admitted "by address"? | **Decided 2026-09-30 (direction):** keep room access with no stake, as an explicit **intermediate participant state** («Участник из поста») from which one tap leads to *Offer help* (normal offer → author acknowledges → helper with stake; already admitted, so no re-admission) or *Leave chat*. UX in `post-ux-mockups.md` §M8. |
-| Q4 | Webs on the map | **Decided 2026-09-30:** only on selection; object → *forwarded to* and object → *inside*, different colours; no forward chain. For Requests the *forwarded to* colour is shown only to viewers with involvement read; others see *inside* (admitted helpers — already a content-audience right) only. |
-| Q5 | Fade parameters | **Decided 2026-09-30:** `kPostActiveWindow = 72h` since `last_activity_at`, visual fade over the last 24h, then out of the active field (Posts history keeps it; pinned Posts keep their anchor). Any new message/reaction/forward revives it. |
-| Q6 | Post "Not interested" | = leave: `inbox_item.status = 2` (existing) **and** `room_access = left` (existing constant). Reversible from Rejected ("Return"). |
-| Q7 | Where the Post content lives | **Decided 2026-10-01 (owner):** the Post *is* its room. The Post content is the **author's first message** in the room (text + attachments + mentions) — the *root message*. The beacon row carries no content for Posts (`title`/`description` empty); the room's top pinned strip (the place the Request uses for NOW / plan) becomes a link to the root message. No other surfaces besides the overflow menu. |
-| Q8 | Recipient cap per Post send | **Decided 2026-09-30:** no special server cap — handled by interface limits (explicit count + list before Send) and by the noisy-contact wall, which has now shipped (m0206/m0207, `contact_resolution_sweep_case.dart`; ping discount in `forward_candidates_case.dart:31-127`). How Posts feed it: Q15. |
-| Q9 | Forward policy for Requests | **Decided 2026-10-01 (owner): none.** Requests keep today's rules exactly (any content reader may forward; discoverable by default). «Можно пересылать» is a Post-only mechanic. Converting a closed Post to a Request therefore **opens** forwarding — the convert dialog says so. |
-| Q12 | Post «Можно пересылать» | **Decided 2026-10-01 (owner), revised the same day: default on.** A new Post can be forwarded: any member may forward it to anyone mutually visible to them (today's forward rules), and those people join and may forward further. Before sending, the author may switch it **off**, and then only the people the author invited take part (the author can always invite more). After publish the setting is **one-way**: a closed Post can be opened (`beaconForwardingOpen`), but an open Post can never be closed — forwards already made cannot be taken back. |
-| Q10 | Can a Post have child Requests / be forked? | No children (hierarchy policy rejects `kind = post`); "Convert to Request" covers the need. Fork allowed only for Requests. |
-| Q11 | User-facing noun | «Пост» / "Post" (l10n + `check-user-facing-terminology.sh` allowlist). Its room is "Chat" like a Request's. |
+| A1 | "Beacon is the only first-class object"; comments/1:1 chat out of scope (`Tentura_current_status_quo.md` §3, §4) | Beacon stays the only *table*; it gets two kinds. A Post is addressed (not a feed, not public, not discoverable). Status-quo doc gains "Post". |
+| A2 | Chat admission is always explicit; forward never admits (`CONTEXT.md`, `features/beacon_room.md`) | **For `kind = 1` only**, an active inbound forward edge is admission. Requests unchanged. |
+| A3 | D5: forward edges are never drawn in Constellation (`constellation-edge-semantics.md:96`) | The forward *chain* is still never drawn on the map (it lives on the forward-graph screen). New, narrower edge class: **membership webs** from the selected object to people already placed on ego's map (D6 unchanged); everyone else collapses into "+N". |
+| A4 | D9: only request holders + their path ancestors are drawn (`:100`) | In **composer mode** the composition widens to forward-eligible visible peers (up to the render cap). |
+| A5 | §9.2 anti-feed: prominence never encodes recency (`:552`) | A Post's *presence* (fade/expiry) uses conversation recency. Not ranking, not sort order. Requests unaffected. |
+| A6 | Pinning D15/D17: no provisional local-only state | One scoped exception: the composer draft node lives only in the session until publish. |
+| A7 | `person_bond`: co-members of an open beacon are mutually visible as people (`m0193.dart:3639-3670`); used by forward candidates, the forward gate and shared contexts | `kind = 1` membership does **not** create a bond. |
 
-The rest of the plan assumes the recommendations; each unit names the decision it depends on.
+---
 
-### 3a. New decisions raised by the rebase (trust / closure)
+## 3. Owner decisions
 
-| # | Question | What the code does today | Recommendation |
-|---|---|---|---|
-| Q15 | Post forwards and the noisy-contact wall | Every `beacon_forward_edge` gets a ~7-day contact deadline (`contact_edge_set_deadline`, `m0206.dart:31-148`, no kind filter; only self-forwards and forwards to the author are exempt). Engaged = recipient offers help or forwards on → `engaged` evidence (kind 6, positive, to MR). Declined = `inbox_item.status = 2` → no evidence. Otherwise ignored unless `inbox_item.status = 1` → `noisy` evidence (kind 7) recipient → sender; 3+ with low recent trust → negative wall in MR (m0207). Room replies/reactions do **not** count. | **Decided 2026-10-01 (owner):** keep the wall for Posts (it is the planned answer to mass sending, Q8), but make it Post-aware: for `kind = 1` the recipient's **first room message or reaction** resolves the edge as engaged (call the existing `contact_engage` from the §4.4 activity trigger), and «Не интересно» / leave (status 2) stays declined. Without this, a recipient who replies but never sets «watching» makes the sender look noisy. |
-| Q16 | Post-phase forwards after conversion to a Request | `ForwardRoutingSettlement` runs only at closure finalize, so pure Posts produce no routing evidence. After conversion, all forward edges (incl. Post-phase ones) are in the routing DAG and are arrival edges for `usefulForward` credit (`closure_repository.dart:~810`, filter is only `created_at < offer`). | **Decided 2026-10-01 (owner):** keep: a Post-phase forward that brought the eventual helper is a real route. No filter. |
-| Q17 | Ping discount across kinds | Forward-candidate score is discounted up to 80% for people the viewer forwarded to in the last 7 days (`forward_candidates_repository.dart:49-66`), no kind filter. | **Decided 2026-10-01 (owner):** keep across kinds: it is about pinging the same person, whatever the object. |
-| Q18 | «Add to contacts» notification | `trustReceivedChanged` was removed with the review subsystem; `UserTrustEdgeCase` emits only `mutualConnectionFormed` on reciprocity (`user_trust_edge_case.dart:53`). A one-way add notifies nobody. | **Decided 2026-10-01 (owner):** v1: no new event. The «add me back» ask happens in the Post chat itself (an ordinary @mention message, which already notifies); reciprocity fires `mutualConnectionFormed`. A dedicated add-back event is a follow-up if wanted. |
+| # | Question | Decision |
+|---|---|---|
+| Q1 | Where do Posts live? | «Для вас» gets **one grouped, non-pinned row per Post**, bumped only by events directed at me (Post sent to me, reply to me, @mention, and for the author: first responses). A second Activity tab **«Разговоры»** lists every Post I'm in («Сейчас» / «Затихли»), no dot. Never My Work. Plus Моё поле. Mockups §Q1, M1–M2. |
+| Q2 | Does Post membership create `person_bond`? | **No.** Members still see each other, open profiles and add contacts (§5.7). |
+| Q3 | On Post → Request, what happens to addressees? | They keep room access with no stake, as an **intermediate participant state** («Участник из поста»): one tap to *Offer help* (normal offer → author acknowledges → helper) or *Leave chat*. A declined or withdrawn offer returns them to the intermediate state (they stay admitted). Mockup M8. |
+| Q4 | Webs on the map | Only on selection; *forwarded to* and *inside*, different colours; no chain. For Requests *forwarded to* only for viewers with involvement read. |
+| Q5 | Fade | `kPostActiveWindow = 72h` since `last_activity_at`, visual fade over the last 24h, then out of the active field (history keeps it; pinned Posts keep their anchor). |
+| Q6 | Post "Not interested" | = leave: `inbox_item.status = 2` **and** `room_access = left`. Reversible from «Не интересно» («Вернуть»). |
+| Q7 | Where the Post content lives | The root message (text + attachments + mentions). The room's top pinned strip links to it. No other surfaces besides the overflow menu. |
+| Q8 | Recipient cap | No special server cap — interface limits + the noisy-contact wall (Q15). |
+| Q9 | Forward policy for Requests | None. Requests keep today's rules. Converting a closed Post opens forwarding — the convert dialog says so. |
+| Q10 | Children / fork | No children of Posts, no fork of Posts. |
+| Q11 | Noun | «Пост» / "Post". Its room is "Chat" like a Request's. |
+| Q12 | Post «Можно пересылать» | Default **on**. Before sending the author may switch it off (only invited people take part; the author can always invite more). After publish: one-way, off → on. |
+
+### 3a. Interaction with closure and trust (decided)
+
+| # | Question | Decision |
+|---|---|---|
+| Q15 | Post forwards and the noisy-contact wall (m0206) | Keep the wall for Posts, Post-aware: a recipient's **first room message or reaction** in the Post resolves their pending inbound contact edges as engaged (existing `contact_engage(p_beacon, p_user)`, `m0206.dart:89-127`). «Не интересно» / leave stays declined (existing `contact_inbox_on_decline`). |
+| Q16 | Post-phase forwards after conversion | They keep routing / `usefulForward` credit. No filter. |
+| Q17 | Ping discount across kinds | Applies across kinds (`forward_candidates_repository.dart:49-66`). |
+| Q18 | «Add to contacts» notification | No new event. A one-way add notifies nobody; the add-back ask is an @mention in the chat; reciprocity fires `mutualConnectionFormed`. |
+
+### 3b. Decisions taken in rev 4 (from the review; within the owner's direction)
+
+| # | Topic | Decision |
+|---|---|---|
+| R4-1 | Publishing | One transactional server mutation `postPublish` (§4.5). The client never chains publish/forward/message mutations for a Post. |
+| R4-2 | Conversion | The Request form opens **first**, prefilled from the root; one mutation `beaconConvertToRequest` validates and writes Request content and flips `kind` atomically. Cancel leaves the Post unchanged (§4.6). |
+| R4-3 | Deleting the root | While `kind = 1`, deleting the root message deletes the Post (existing `BeaconCase.deleteById`). After conversion the root is an ordinary message. FK `ON DELETE SET NULL`. |
+| R4-4 | Mute in-app | A muted Post's receipts are hidden from «Для вас» reads, counts and dismiss-all while the mute is active, except @mentions. Muting changes no receipt; when it expires, uncleared receipts are visible again. |
+| R4-5 | Profile history | «Переслано пользователю» on profiles stays Request-only (`kind = 0`). |
+| R4-6 | Root mentions | Resolved after admission inside `postPublish`. A recipient who is also mentioned gets one notification (the arrival); the mention is not sent separately to arrival recipients. |
 
 ---
 
 ## 4. Server design
 
-### 4.1 Schema (one migration, `m0208`; m0201–m0207 belong to the closure/trust redesign)
+### 4.1 Schema (`m0208`)
 
 ```sql
 ALTER TABLE beacon
   ADD COLUMN kind smallint NOT NULL DEFAULT 0,            -- 0 request, 1 post
-  ADD COLUMN forward_policy smallint NOT NULL DEFAULT 1,  -- Posts: 1 open (create default), 0 closed (author opt-out); one-way 0 → 1
-  ADD COLUMN last_activity_at timestamptz;                -- backfill: coalesce(latest room msg, published_at, created_at)
+  ADD COLUMN forward_policy smallint NOT NULL DEFAULT 1,  -- 1 open, 0 closed (Posts only)
+  ADD COLUMN last_activity_at timestamptz,
+  ADD COLUMN post_root_message_id text
+    REFERENCES beacon_room_message(id) ON DELETE SET NULL;
 
--- Posts: only draft(3) / open(0) / deleted(2); never discoverable; request-only columns unused.
+ALTER TABLE beacon ADD CONSTRAINT beacon_kind_range CHECK (kind IN (0, 1));
+ALTER TABLE beacon ADD CONSTRAINT beacon_forward_policy_ck
+  CHECK (forward_policy IN (0, 1) AND (kind = 1 OR forward_policy = 1));
+-- Posts: only open(0) / deleted(2) / draft(3); never discoverable; no hierarchy, no schedule,
+-- no cover; no row content.
 ALTER TABLE beacon ADD CONSTRAINT beacon_post_shape_ck CHECK (
-  kind = 0 OR (status IN (0, 2, 3) AND is_discoverable = false
-               AND parent_beacon_id IS NULL AND end_at IS NULL AND start_at IS NULL)
-);
--- Requests keep a non-empty title; Posts carry no content on the row (Q7):
---   CHECK (kind = 0 AND title <> '' OR kind = 1 AND title = '' AND description = '')
-ALTER TABLE beacon ADD COLUMN post_root_message_id text REFERENCES beacon_room_message(id);
--- Set by trigger on the author's first non-system message in a kind = 1 room; immutable after.
--- Requests are always open: CHECK (kind = 1 OR forward_policy = 1). Existing rows get 1 by the default.
--- One-way is enforced by a BEFORE UPDATE trigger rejecting 1 → 0 on published rows.
+  kind = 0 OR (status IN (0, 2, 3) AND is_discoverable = false AND parent_beacon_id IS NULL
+               AND start_at IS NULL AND end_at IS NULL AND title = '' AND description = ''
+               AND cover_image_id IS NULL));
+-- Requests keep their existing title/description CHECKs; no new Request CHECK.
+-- One-way forward policy: BEFORE UPDATE trigger rejects forward_policy 1 → 0 when status <> 3.
+-- kind is immutable except 1 → 0 (conversion): BEFORE UPDATE trigger rejects 0 → 1.
+ALTER TABLE beacon_pinned ADD COLUMN pinned_at timestamptz NOT NULL DEFAULT now();
+-- Backfill: last_activity_at = coalesce(latest non-system room message, published_at, created_at).
 ```
 
-- **Status reuse, not a new status.** A live Post is `status = 0`, so `allowsForward`,
-  `allowsDiscussionWrites`, `BeaconRoomLifecycleWritePolicy` and the lifecycle write-guard trigger work
-  with no branch. The cost is that every Request-only query filtering `status IN (0,7,8)` must also
-  filter `kind = 0` — handled by the audit unit (S3) and an audit test, not by hoping.
-  *Rejected alternative:* a new status value `9 = live post`. It excludes Posts everywhere by default,
-  but then every shared gate (forward, room writes, write-guard trigger, client status getters, Hasura
-  filters) needs `OR status = 9`, which is the larger and more scattered diff.
-- `last_activity_at` is generic (Requests get it too) — `beacon_display_case.dart:74-88` can finally
-  pass a real value.
-- `beacon_forward_edge` already carries closure-era triggers: `contact_edge_set_deadline` (BEFORE
-  INSERT), `contact_edge_on_cancel` (BEFORE UPDATE OF `cancelled_at`), `contact_engage_on_forward`
-  (AFTER INSERT), and `inbox_item` has `contact_inbox_on_decline` (`m0206.dart`). The §4.2 admission
-  trigger and the §4.4 activity trigger run next to them; S1 tests pin the combined behaviour
-  (insert, cancel, decline). Status `5` now means "closure epoch open"; the open family is still
-  `{0,7,8}`, so the Post CHECK above is unaffected.
+- Check the existing `__title_len` / `__description_len` CHECKs (`m0193.dart:858-859`): if they
+  reject an empty string, relax them to `kind = 1 OR <old condition>` in m0208.
+- **Status reuse, not a new status.** A live Post is `status = 0`, so `allowsForward`, room write
+  policy and the lifecycle write-guard trigger work unchanged. Every Request-only query that filters
+  the open family must also filter `kind = 0` (§4.9, audit test).
+- `last_activity_at` is generic; `beacon_display_case.dart` can pass it.
+- `beacon_participant.role` has no CHECK, so role 6 needs no SQL change. Add
+  `BeaconParticipantRoleBits.addressee = 6` (server `lib/consts/beacon_room_consts.dart:2-9`, client
+  `lib/domain/entity/beacon_room_consts.dart:2-9`) and `SystemMessageKind convertedToRequest = 4`
+  (server `beacon_hierarchy_consts.dart:24-28`, client `beacon_room_consts.dart:61-65`).
+- Drift: add the new columns to `packages/server/lib/data/database/table/beacons.dart` and
+  `pinned_at` to the pinned table class; the Drift reconciliation tests must stay green.
+- `beacon_mapper.dart:11-44` maps the new fields (and fix its existing omission of
+  `isDiscoverable`, which the new code relies on).
 
 ### 4.2 Forward ⇒ admission for Posts (A2)
 
-Trigger on `beacon_forward_edge` (AFTER INSERT, and AFTER UPDATE OF `cancelled_at`), mirroring
-`inbox_item_on_forward_insert`:
+Function `post_reconcile_admission(p_beacon text, p_user text)` + triggers on `beacon_forward_edge`
+AFTER INSERT and AFTER UPDATE OF `cancelled_at`, mirroring `inbox_item_on_forward_insert`
+(`m0193.dart:2073-2092`). Only when `beacon.kind = 1` and `p_user` is not the author. The function
+first ensures and locks the participant row (`INSERT … ON CONFLICT (beacon_id, user_id) DO NOTHING`
+with `role = 6, room_access = 0`, then `SELECT … FOR UPDATE`), then decides:
 
-- insert: if `beacon.kind = 1` → upsert `beacon_participant(beacon_id, recipient_id, role = addressee (new, 6),
-  room_access = 3)` unless the row is `left` by the user's own choice. A new role rather than
-  `helper`, so no stake/closure-membership/People query can mistake an addressee for a helper.
-  (Closure members come only from commitment events, `membership_reducer.dart`, so addressees can
-  never become closure members, even after conversion.)
-- cancel: if no other active inbound edge remains → `room_access = none`.
+- active inbound edge exists (`recipient_id = p_user AND cancelled_at IS NULL`), the row has
+  `role = 6` and is not `left` → `room_access = 3`.
+- no active inbound edge and the row is `role = 6, room_access = 3` → `room_access = 0`.
+- a `left` row (5) is never changed here (voluntary leave survives cancel and resend).
+- rows with any other role (steward, helper, candidate, …) are never changed here.
 
-Why a trigger and not `ForwardCase`: there are two insertion paths (`ForwardEdgeRepository.createBatch`
-and invite acceptance via `UserRepository.bindMutual`), and the trigger covers both plus any future one.
-The author is already a member by authorship.
+The participant column is `user_id` (`m0193.dart:4891`), unique `(beacon_id, user_id)`.
+Locking the participant row serialises concurrent cancellations for the same recipient.
 
-Downstream consequences, each one line of SQL:
-- `beacon_member` view: includes `addressee` — needed so realtime/mentions/read-receipts see them.
-- `person_bond` / `person_bond_peers`: add `AND b.kind = 0` (A7).
-- `beacon_can_read_content`: no change (forward edge is already a read path; discoverability branch is
-  dead for Posts by the CHECK).
-- Role `addressee` must be ignored by every commitment/closure-membership/People-tab query (they
-  filter by `beacon_help_offer` / committer roles today — verify in S3).
-- Admission writes **no system room row** (decided 2026-10-01): forwards and joins leave no trace in
-  the chat. «Участники» shows who joined and who brought them, and lists by name the members who
-  have not opened the Post yet (from `room_seen`). Every member sees this list.
+Downstream, each one line of SQL:
+- `beacon_member` (`m0193.dart:5233-5249`): already includes `room_access = 3` rows — addressees are
+  members (needed by realtime, mentions, read receipts).
+- `beacon_admitted_helper` (`:4906-4911`): add `AND role <> 6` (addressees are not helpers).
+- `person_bond`, `person_bond_peers`, `person_shared_contexts`: add `AND b.kind = 0` (A7).
+- `beacon_can_read_content`: no change (forward edge is already a read path).
+- No system room row on admission.
 
-### 4.3 Forward policy (single function)
+### 4.3 Forward policy (one function, every edge path)
 
-`BeaconForwardPolicy.canForward({beacon, senderId})` in `packages/server/lib/domain/policy/`:
-`beacon.allowsForward && (beacon.forwardPolicy == open || senderId == beacon.authorId)`. For a
-Request `forwardPolicy` is always `open`, so the function reduces to today's check.
-Called from `ForwardCase.forward` (next to the existing `allowsForward` check, `forward_case.dart:218`)
-and `InvitationCase.create/_acceptBeaconInviteOnly` (`invitation_case.dart:75,374`). Exposed on the
-beacon read model as `viewer_can_forward` (Hasura computed field) so the client never re-derives it.
-New mutation `beaconForwardingOpen(id)`: author-only, `kind = post`, `closed → open` only; no
-inverse exists anywhere in the API. `beaconCreate(kind: post)` accepts `forwardPolicy` (default
-open, Q12).
+`BeaconForwardPolicy.canForward({required BeaconEntity beacon, required String senderId})` in
+`packages/server/lib/domain/policy/`: `beacon.allowsForward && (beacon.forwardPolicy == open ||
+senderId == beacon.author.id)`. For a Request `forwardPolicy` is always `open`.
 
-### 4.4 `last_activity_at`
+Called from every path that creates a forward edge: `ForwardCase.forward`
+(`forward_case.dart:218`), `InvitationCase.create` (`:75`), `InvitationCase.accept` (`:234`) and
+`_acceptBeaconInviteOnly` (`:374`), and the invited-user creation paths that call
+`_materializeBeaconInviteForward` (`user_repository.dart:109-142`, ~:244, ~:412) — the use case
+re-checks the policy (with the invite issuer as sender) before calling them. Today `accept` and
+`createInvited*` do not re-check `allowsForward` at all; this is fixed for both kinds.
 
-Trigger bumps on: `beacon_room_message` insert (non-system rows), `beacon_room_message_reaction`
-insert, `beacon_forward_edge` insert. Monotonic (`GREATEST`). Debounce is unnecessary at our volume.
-For `kind = 1` the same message/reaction trigger also resolves the sender's pending contact edge
-to the reacting recipient as engaged via the existing `contact_engage` (Q15).
+Exposed on the beacon read model as Hasura computed field `viewer_can_forward`
+(`beacon_get_viewer_can_forward(beacon_row, hasura_session)`), the same rule in SQL; a parity test
+compares it with the Dart policy. New mutation `beaconForwardingOpen(id)`: author-only, `kind = 1`,
+`0 → 1` only.
 
-### 4.5 Request-only paths reject Posts (one guard)
+### 4.4 `last_activity_at` and the first-response claim
 
-`BeaconKindPolicy.requireRequest(beacon)` throws a domain exception; called at the top of:
-`HelpOfferCase` (offer/withdraw), `CoordinationCase` (accept/decline/remove/release/setResponse/
-setBeaconStatus), `ClosureCase` — once, in `_inClosureTx` (`closure_case.dart:82`), which covers
-close/closeNow/extend/reopen/saveOutcome/saveAuthorSplit/toggleSupport/done/skip/setMark/saveStory/
-state (today `close()` checks only author + open family, so a Post would hit the CHECK with a raw DB
-error), `BeaconCase.beaconCancel`,
-`BeaconCase.fork`, `BeaconChildCreateCase`, `beacon_hierarchy_policy.dart`,
-`DeadlineReminderSweepCase` query, `beacon_display_case.dart`. `BeaconCase.deleteById` works for Posts
-(no committer gate applies — the gate function returns false for Posts naturally, verify).
+- Trigger bumps `last_activity_at = GREATEST(...)` on `beacon_room_message` insert (non-system),
+  `beacon_room_message_reaction` insert, `beacon_forward_edge` insert.
+- Table `post_first_response(beacon_id, user_id, source_kind smallint /* 1 message, 2 reaction */,
+  source_id text, created_at, PRIMARY KEY (beacon_id, user_id))`.
+- Function `post_claim_first_response(p_beacon, p_user, p_kind, p_source) RETURNS boolean`:
+  returns false for the author or `kind <> 1`; `INSERT … ON CONFLICT DO NOTHING`; when the row was
+  inserted, `PERFORM contact_engage(p_beacon, p_user)` (Q15) and return true.
+- `BeaconRoomCase.createMessage` and `reactionToggle` call it (through a repository port) inside the
+  same transaction as the message/reaction write, for `kind = 1` and non-author actors only. When it
+  returns true, the case records `postFirstResponse` for the author. The winner facts are immutable
+  (the claim row); removing the reaction or deleting the message later does not reset the claim.
+- `reactionToggle` must know whether the reaction was added: `toggleReaction`
+  (`beacon_room_repository.dart:1241-1269`) returns `bool added`.
+- Undirected messages today persist outside the attention transaction (`beacon_room_case.dart:471`);
+  for `kind = 1` the message path always runs inside `runAction`.
 
-SQL filters that need `kind = 0`: `constellation_field_snapshot_reader.dart` request list (Posts get their
-own section, §6.2), `responsibility_scope_base_beacons` (Q1), `derive_beacon_display_status`, My Work
-Hasura query (`my_work_fetch.graphql`), deadline sweep, inbox before-response tombstone trigger (Posts:
-no tombstones — they have no close), **stale-request reminder** (`closure_reminder_repository.dart:76-110`,
-`WHERE b.status IN (0,7,8)` + 14 days quiet — without `kind = 0` every quiet Post would get «Ваш
-запрос затих»). Closure draft-reminder / finalize sweeps, `EpisodeSettlement`, author split, support
-edges and closure receipts are all keyed by `beacon_closure` rows, so the `ClosureCase` guard covers
-them.
+### 4.5 `postPublish` (one transaction)
+
+New `PostCase.publish(...)` in `packages/server/lib/domain/use_case/post_case.dart`, V2 mutation
+`postPublish(id, body, mentions, recipients[{userId, note}], forwardPolicy)`. The draft exists
+(`beaconCreate(kind: 1)` as a draft). Attachments are added after publish through the existing room
+attachment API on the root message (as in chat today). Inside one
+`TransactionalAttentionCase.runAction`:
+
+1. Lock (§4.10) and re-read the beacon under the lock; require author, `kind = 1`, `status = 3`,
+   non-empty `body` (or `hasAttachments: true` with an empty body), ≥ 1 recipient.
+2. Set `forward_policy`; publish (`status = 0`, `published_at`) through the same repository code as
+   `BeaconCase.publishDraft`.
+3. Forward: the edge-creation core of `ForwardCase.forward` (recipient gate, blocks, notes,
+   `relayReceived` intents), extracted into a method that takes the open `AttentionTransaction`
+   instead of opening its own. Admission triggers fire here.
+4. Root: insert the root message through the core of `BeaconRoomCase.createMessage` (mention
+   resolution now sees the admitted audience); set `post_root_message_id`. Mentions of arrival
+   recipients produce no separate mention intent (R4-6).
+5. Return the beacon id and root message id.
+
+Idempotency: if the beacon is already published with a root (`post_root_message_id IS NOT NULL`),
+`postPublish` returns the existing ids and does nothing (safe client retry after a lost response).
+The Constellation composer (§7.5) calls the same mutation. Whether extraction or nesting is used in
+steps 2–4 is decided by spike S0.
+
+### 4.6 `beaconConvertToRequest`
+
+`BeaconCase.convertToRequest(authorId, id, BeaconSaveCommand content, isDiscoverable)`: lock order
+as §4.10; require author, `kind = 1`, `status = 0`; validate `content` with the **Request** branch of
+`BeaconCreationPolicy` (title, description, needs, schedule); in one transaction write the content,
+`kind = 0`, `forward_policy = 1`, `is_discoverable`, keep `addressee` rows, insert the system row
+(`system_message_kind = 4`, structural payload only), emit the realtime `beacon` change.
+`post_root_message_id` is kept (harmless). The client opens the Request form first (prefilled from
+the root) and calls this mutation on submit (§5.8).
+
+### 4.7 Blocks in Post rooms
+
+A Post member may have been admitted through a third person's forward, so edge cleanup between the
+blocked pair (`user_block_case.dart:253`) does not remove them. Rule: for `kind = 1`, the room gate
+(`BeaconRoomCase._canUseRoom`, `beacon_room_case.dart:125-137`) also requires
+`beacon_can_read_content(beacon, viewer)` (which already denies across an author↔viewer block).
+The same predicate is added to the Hasura `beacon_participant` select permission branch that admits
+room participants (`hasura/metadata.json` ~:1705), to attachment reads, and to the field projection
+(§6.2). Member↔member blocks behave as in Request rooms today.
+
+### 4.8 Leave and return
+
+Extend the inbox status transition for `kind = 1` in SQL (one trigger function, AFTER UPDATE OF
+`status` ON `inbox_item`): `→ 2` sets the participant `room_access = 5` (left) for a role-6 row;
+`2 → 0|1` sets it back to 3 if an active inbound edge exists. The existing Hasura `inbox_set_status`
+mutation stays the only client call. The author has no inbox item and cannot leave.
+
+### 4.9 Request-only paths reject Posts
+
+`BeaconKindPolicy.requireRequest(BeaconEntity)` throws `BeaconNotRequestException`
+(`BeaconExceptionCode` 1321, mirrored on the client). Called at the top of:
+
+- `HelpOfferCase` (`offerHelp`, `setRoleLabel`, `withdraw`), `CoordinationCase`
+  (`_prepareAdmissionAction` callers, `releaseCommitment`, `setCoordinationResponse`,
+  `setBeaconStatus`, `helpOffersWithCoordination`), `ClosureCase` (in `_requireAuthor` and in every
+  public method that loads the beacon), `BeaconCase.beaconCancel`, `fork`,
+  `BeaconChildCreateCase._assertParentCreateAllowed` (parent is a Post),
+  `BeaconDisplayCase.displayStatuses` (Posts get no display status).
+- Room mutations that are Request capabilities: `participantOfferHelp`, `roomAdmit`,
+  `stewardPromote`, `nowLineUpdate`, plan update, coordination items, fact cards
+  (`beacon_fact_card_case.dart:55`), child promotion. S3 enumerates every mutation in
+  `mutation_beacon_room.dart` and classifies it Post-allowed (messages, reactions, attachments,
+  polls, seen, edit/delete own message) or Request-only.
+- DB: `BEFORE INSERT` trigger on `beacon_help_offer` raising for `kind = 1`.
+- Hasura: `beacon_help_offer` insert and update checks (`metadata.json` ~:1553, ~:1628) gain
+  `beacon: {kind: {_eq: 0}}`.
+- SQL `kind = 0` in: `responsibility_scope_base_beacons` (`m0193.dart:4105-4120`), constellation
+  request sections (`constellation_field_snapshot_reader.dart:509,549`,
+  `constellation_field_repository.dart:177,207`), deadline reminder candidates
+  (`beacon_repository.dart:59,79`), stale-request reminder (`closure_reminder_repository.dart:92`),
+  `attention_repository.dart:1027,1075` (verify each), the before-response tombstone function
+  (`m0193.dart:510-606`), My Work Hasura query (`my_work_fetch.graphql`), profile shared beacons
+  (`profile_shared_beacons_fetch.graphql`, R4-5), Favorites fetch and the Favorites live-update path
+  (`favorites_cubit.dart:116`).
+- `BeaconCase.deleteById` works for Posts (verified by test).
 
 **Audit test (S3 acceptance):** a pg test seeds one Post and one Request with the same audience and
-asserts the Post is absent from: My Work, the Constellation request section, discoverability, display
-status, deadline sweep, stale-request reminder, help-offer/coordination/closure mutations (each
-throws), person bond, and has no `beacon_closure` row — and present in: inbox, room, attention,
+asserts the Post is absent from every list above and that each Request-only mutation throws
+`BeaconNotRequestException` (or is rejected by Hasura/DB) — and present in: inbox, room, attention,
 forward graph.
 
-### 4.6 API
+### 4.10 Lock order
 
-- `beaconCreate(kind, forwardPolicy, …)` — `kind` immutable afterwards except via convert.
-  `BeaconCreationPolicy` skips needs/primary-slug/schedule normalisation for Posts; the create rate
-  limit is shared.
-- `beaconConvertToRequest(id, isDiscoverable)` — author-only, `kind = post AND status = 0`; in one
-  transaction: `kind = 0`, `forward_policy = 1` (Requests are always forwardable, Q9),
-  `is_discoverable = arg`, re-derive status (open),
-  keep `addressee` members (Q3: role stays `addressee`, which Request code already ignores for stake),
-  insert a system room row (`system_message_kind = 4`, `convertedToRequest`, structural payload only),
-  emit `beacon` realtime change. Then the client opens the edit form to add needs/schedule.
-- Attention: `relayReceived` copy/category branch on kind ("X shared a post with you" / batch "N posts
-  shared with you") in `beacon_notification_copy_builder.dart`; deep link unchanged
-  (`/beacon/view/:id`, the view dispatches by kind). No per-message receipts for Posts in v1 (same as
-  Requests: unread badge only).
-- Hasura: expose `kind`, `forward_policy`, `last_activity_at`, `viewer_can_forward`.
+One order everywhere a Post edge, participant or kind changes: (1) global hierarchy advisory lock
+(`tentura.beacon_hierarchy.v1`, already taken by participant-row statement triggers,
+`m0193.dart:1022,6976`) — taken explicitly at the start of `postPublish`, forward to a Post, invite
+accept for a Post, `convertToRequest` and leave/return; (2) per-request advisory lock (4242);
+(3) beacon row `FOR UPDATE`/`FOR SHARE` (re-read `kind`, `status`, `forward_policy` under the lock);
+(4) recipient availability locks (`forward_edge_repository.dart:114`); (5) trust pair locks (inside
+`contact_engage`). Block actions already take (1) first. A concurrent pg test runs forward ∥ block,
+forward ∥ convert, cancel ∥ cancel.
+
+### 4.11 API summary
+
+- `beaconCreate(kind, forwardPolicy, …)` — kind-aware validation (`BeaconCreationPolicy` gets a
+  Post branch: title/description must be empty; no needs/slug/schedule/cover). Applies to create,
+  draft save, publish and edit.
+- `postPublish`, `beaconForwardingOpen`, `beaconConvertToRequest` (new).
+- Attention copy: `relayReceived` branch on kind ("X shared a post with you") —
+  `BeaconNotificationIntent` gains `beaconKind`; `beacon_notification_copy_builder.dart:138-143`.
+- Hasura: expose `kind`, `forward_policy`, `last_activity_at`, `post_root_message_id`,
+  `viewer_can_forward`; `pinned_at` on `beacon_pinned`.
+- Client SDL snapshot `packages/client/lib/data/gql/schema.graphql` is refreshed per
+  `DEVELOPMENT.md`.
 
 ---
 
@@ -256,175 +353,128 @@ forward graph.
 
 ### 5.1 Domain
 
-`Beacon` gains `kind` (`BeaconKind {request, post}`), `forwardPolicy`, `lastActivityAt`,
-`viewerCanForward`. `allowsForward` call sites that decide *whether to show Forward* switch to
-`viewerCanForward`. Request-only getters (`canCommitAsViewer`, `allowsCoordination`, …) return false for
-Posts — one `isRequest` guard inside the entity, not at every call site.
+`Beacon` (`lib/domain/entity/beacon.dart`) gains `kind` (`BeaconKind {request, post}`),
+`forwardPolicy`, `lastActivityAt`, `viewerCanForward`, `postRootMessageId`. Forward buttons use
+`viewerCanForward`. Request-only getters (`canCommitAsViewer`, `allowsCoordination`, …) return false
+for Posts via one `isRequest` guard inside the entity.
 
-### 5.2 Create (reuse `BeaconCreateCubit` + the room composer)
+### 5.2 Create
 
-- A Post is created by **writing its first message**. The create screen is an empty room: the room's
-  own composer (text, attachments, mentions — the same widget as in chat) plus a «Кому» row that
-  opens the recipient picker. No Post form, no `InfoTab` variant, no `beacon_image` for Posts
-  (photos are message attachments).
-- Sequence, reusing existing mutations only: `beaconCreate(kind: post, draft: true)` (for a stable
-  id) → `beaconPublish` → `roomMessageCreate` (root; first attachment inline) →
-  `roomMessageAttachmentAdd` × n → `beaconForward` (recipients). Until the forward, nobody but the
-  author is a member, so no one can see a half-built Post. The trigger in §4.1 stamps
-  `post_root_message_id`.
-- Recovery: a published Post with no root or no recipients is **unsent** — it shows only to the
-  author in «Разговоры» as «Не отправлено · Дописать / Удалить» and resumes the same sequence.
-  (Alternative if this proves flaky: one server `PostCase.publish` doing the same steps in one
-  transaction — same repositories, no new tables.)
-- Requests keep today's form and rules unchanged (`BeaconCreateRoute(kind: request)`).
-- Post only: `ForwardingSwitch` («Можно пересылать», default **on**) in the «Кому» row; the author
-  may switch it off before sending. After publish a closed Post shows a one-way «Разрешить
-  пересылку» author action with a confirmation; an open Post shows a locked state.
-- Entry points: My Work "+" becomes a small menu (Post / Request); Activity app bar gets "New post";
-  Constellation composer (§7).
+- A Post is created by **writing its first message**. The create screen is an empty room: the
+  room's composer (`BeaconRoomComposer`, `basic_chat_body.dart:707`) plus a «Кому» row that opens
+  the recipient picker on a `ForwardCubit(embedded: true)`.
+- Flow: `BeaconCreateCubit(kind: post).ensureDraft()` (server draft for a stable id) → the user
+  writes, picks recipients, toggles «Можно пересылать» (default on) → ➤ calls `postPublish` once,
+  then uploads the composer's attachments to the root message with the existing room attachment API.
+  On a lost response the retry is safe (§4.5).
+- Cancel: an empty draft is deleted silently; a draft with content asks, then is deleted (Post
+  drafts are not kept).
+- Requests keep today's form (`BeaconCreateRoute`).
 
-### 5.3 Room reuse: the `RoomHost` seam (refactor R1, no behaviour change)
+### 5.3 Room reuse: `RoomHost` seam (refactor R1, no behaviour change)
 
-Today `BeaconRoomSurface` needs `BeaconViewCubit`; `ThreadHostCubit` pulls `BeaconStatus` from it;
-`RoomCubit.load` fetches facts/room state/blocker/plan; `BeaconRoomBody` and `RoomMessageTile` import
-Request-only sheets (commitment, child promotion, facts, blocker).
-
-Introduce in `features/beacon_threads/domain/`:
+`BeaconRoomSurface` takes `BeaconViewCubit` but reads only admission flags and the author
+(`beacon_room_surface.dart:135-187`). `ThreadHostCubit` and `RoomCubit` import it for doc comments
+only. Introduce in `features/beacon_threads/domain/`:
 
 ```dart
 abstract interface class RoomHost {
   String get beaconId;
-  String get authorId;
-  BeaconStatus get status;           // write gate
-  bool get isAdmitted;               // replaces isRoomAdmissionBlocked / coordinationDeniesRoomAdmission
-  RoomCapabilities get capabilities; // facts, blocker, promoteToChild, commitmentSheet, currentLine
+  Profile get author;
+  BeaconStatus get status;
+  bool get isAdmissionBlocked;
+  bool get coordinationDeniesAdmission;
+  RoomCapabilities get capabilities;
   Stream<void> get changes;
 }
 ```
 
-Closure is Request-only too: `BeaconViewState.closureState` / `refreshClosureState()`,
-`ClosureResultCard`, `closed_request_banner`, `RoomClosureStoryCard` (system kind 3 in
-`room_message_tile.dart`) and the `beacon_status_menu` closure rows sit behind
-`RoomCapabilities.closure`.
-
-`BeaconViewCubit` implements it with all capabilities on (Requests: zero behaviour change, proven by
-the existing widget tests). `PostViewCubit` implements it with capabilities off. `RoomCubit` skips the
-fact/state/blocker/plan loads when the capability is off; tile/body actions are gated by the same
-flags. The `listThreads`-before-render prerequisite becomes a Request capability (a Post always has
-General).
+`RoomCapabilities` flags: `facts`, `blocker`, `plan`, `coordinationItems`, `childPromotion`,
+`commitmentSheet`, `closure`, `pinnedStrip` (`requestNow` | `postRoot`). `BeaconViewCubit`
+implements `RoomHost` with all Request capabilities on (zero behaviour change, proven by the
+existing tests). `RoomCubit._fetchFullSnapshot` (`room_cubit.dart:673-718`) skips facts, room state,
+blocker, plan and coordination items when the capability is off; `BeaconRoomBody` actions (Turn
+into, Child request, Update plan, Jump to plan, Pin fact, View pinned fact) and `RoomMessageTile`
+pieces (commitment sheet, child promotion footer, fact history, closure story card) are gated by
+the same flags.
 
 ### 5.4 Post view = the room
 
-Same route `/beacon/view/:id`; `BeaconViewScreen` dispatches by `kind` (deep links, notifications,
-share links unchanged). A Post screen **is** `BeaconRoomSurface` via `RoomHost` and nothing else: no
-header card, no tabs, no HUD/STATUS/NOW/People/Log.
-- The room's top pinned strip (where a Request shows NOW / pinned facts) shows the root message
-  excerpt; tap scrolls to the root. `RoomCapabilities.pinnedStrip = postRoot`.
-- The root is an ordinary message: reactions, replies (`reply_to_message_id`), edit and delete use
-  the existing message actions. Deleting the root = deleting the Post (author only, confirm).
-- Forward provenance for a forwarded recipient («Вам переслала Мария: …») is a quiet line inside
-  the pinned strip.
-- Overflow ⋮ carries all management: pin/unpin, mute, participants, forward graph, show on map, forward (if
-  `viewerCanForward`), enable forwarding (author, one-way), convert to Request (author), leave
-  (recipient), delete (author).
-- **Forward graph (decided 2026-10-01).** Any member opens the existing `ForwardsGraphScreen` for
-  the Post (⋮ «Граф пересылок», and «Как пост дошёл до людей ›» in «Участники»). No new screen,
-  query or permission: `canReadInvolvement` already admits every Post member. Post differences
-  only: no help-offerer path mode and no commitment colours (no offers exist). This is the one place
-  the forward chain is shown. The map still never draws it (A3), and the chat carries no
-  forward rows (§4.2).
-- Previews elsewhere (Activity rows, «Разговоры», map node, notifications) read the root message:
-  server surfaces join `post_root_message_id`; the client «Разговоры» list gets the excerpt + last
-  message from the existing `inboxRoomContextBatch` query (extended with the root excerpt).
+Same route `/beacon/view/:id`; `BeaconViewOperationalScreen` (`beacon_view_host_screen.dart:213`)
+dispatches by kind to `PostViewScreen`. `PostViewCubit implements RoomHost` (capabilities off,
+`pinnedStrip = postRoot`). The screen is `BeaconRoomSurface` + an app bar with title "author: root
+excerpt", 🔕 when muted, and ⋮:
+- pin/unpin in «Разговоры», mute, participants, forward graph (existing `ForwardsGraphScreen`),
+  show on map, forward (if `viewerCanForward`), «Разрешить пересылку» (author, while closed),
+  convert to Request (author), leave (recipient), delete (author).
+- The pinned strip shows the root excerpt and scrolls to it; for a forwarded recipient it also shows
+  «Вам переслала ‹X›: ‹note›».
+- Deleting the root (author) = deleting the Post, with confirmation (R4-3).
 
 ### 5.5 Forward screen: `ForwardTargetProfile` (refactor R2)
 
-Derived from `Beacon.kind` inside `ForwardCubit`; `ForwardRecipientPicker` reads it to hide:
-capability band (`ForwardBandStrip`), reason chips, lineage section, attribution dialog, offer-help
-nudge, requirements bar in `CompactBeaconContextStrip`. Candidates, involvement, notes, availability,
-invite bar, search — unchanged. Server `forward_band_case` is simply not called for Posts.
+Derived from `ForwardState.beacon.kind`. For Posts the picker hides: band (`ForwardBandStrip`,
+`forward_recipient_picker.dart:568`), reason chips (`_editReasons` :231), lineage (`:714`),
+attribution dialog (`:205`), the context strip requirements bar. The offer-help nudge policy
+(`forward_draft_policy.dart:39`) returns false for Posts. Candidates, notes, search, invite bar
+unchanged.
 
 ### 5.6 Activity
 
-- **«Для вас»:** one grouped row per Post (reuse of the per-object grouping of `requestActivity`
-  rows, `attention_repository.dart:~545`), **never** in the pinned «unanswered forward» zone: the
-  synthetic `forward` row (`inbox_item` → `item_kind 'forward'`) is excluded for `kind = post`, and the
-  arrival is an optional update instead. Events: `relayReceived` (Post variant), `roomMessagePosted`
-  (reply to me), and the @mention variant of it (`roomMessagePosted` with `NotificationKind.roomMention`,
-emitted by the mention intent, `attention_intent_case.dart:342-364` — there is no separate
-`roomMentioned` event type) — all already exist — plus one new event
-  **`postFirstResponse`** for the author: emitted on a person's **first response** to the author's
-  Post — their first message in the room **or** their first emoji reaction on the root message,
-  whichever comes first (one event per person; later messages/reactions by the same person don't
-  emit). Emitted from the existing attention blocks of `BeaconRoomCase.createMessage`
-  (`beacon_room_case.dart:430-478`) and the reaction toggle; the grouped row lists names and
-  reactions. Declaration in `docs/contracts/updates-event-contract.json` (schemaVersion 5, existing
-  vocabulary only): in `eventTypes`, `producers` (with real `producerTests`) and
-  `eventClassifications[].variants[]` — `scope: "beacon"`, `attentionClass: "optional"`,
-  `placement: "primary"`, `groupKey: "beaconId"`, `orderingEffect: "stable"`,
-  `clearPolicy: "explicit_or_request_open"`, `recoverableVia: "room"` (a «Разговоры» value would be a
-  new vocabulary entry — not needed). It sits in `pendingProducerEventTypes` until the producer lands,
-  and is mirrored in server `AttentionEventType` (`assertDeclared`) and client
-  `attention_event_classification.dart`; guarded by `updates_event_contract_test.dart`,
-  `updates_event_coverage_test.dart`, `closure_event_types_contract_test.dart`. Client: `PostAttentionRow`
-  variant in `for_you_stream_entries.dart` / `activity_stream_view.dart` (branch on kind, not a new
-  list).
-- **«Разговоры» tab:** `TenturaPrimaryTabBar` in the Activity top bar; list = Hasura query of beacons
-  where `kind = post` and viewer is author or active addressee, ordered by `last_activity_at`, split at
-  `kPostActiveWindow` into «Сейчас» / «Затихли»; per-row unread count from `beacon_room_seen`. No tab
-  dot.
+- **Server read rule (S10):** for `kind = 1`, receipts group into one row per Post that includes
+  `relay_received` arrivals (today excluded, `attention_repository.dart:388`); the group position is
+  the **latest** directed event (`MAX(created_at)`, not `MIN`, `:514`); Post `inbox_item.status = 0`
+  rows are not pinned decisions (`attention_dismissible_sql.dart:64`); read, count and dismiss-all
+  share one predicate. Muted Posts: R4-4.
+- **Events:** `relayReceived` (Post variant), `roomMessagePosted` (reply to me; @mention via
+  `NotificationKind.roomMention`), and new **`postFirstResponse`** (author; §4.4). Declaration in
+  `docs/contracts/updates-event-contract.json` (`eventTypes`, `producers`,
+  `eventClassifications`): `recipientPredicate: "reason:postAuthor"`, `scope: "beacon"`,
+  `attentionClass: "optional"`, `placement: "primary"`, `groupKey: "beaconId"`,
+  `orderingEffect: "stable"`, `accessPolicy: "beacon_content"`, `recoverableVia: "room"`,
+  `clearPolicy: "explicit_or_request_open"`, `coalescible: true`. Mirrored in `AttentionEventType`
+  (`attention_models.dart:60-98`, `assertDeclared`), the exhaustive switches in
+  `attention_policy.dart`, and the client `attention_event_classification.dart`.
+- **Client:** `PostAttentionRow` variant in `activity_stream_view.dart` (`_ActivityStreamCell`
+  switch :992-1073), branch on kind.
+- **«Разговоры» tab:** `TenturaPrimaryTabBar` in `InboxScreen` (`inbox_screen.dart:119-135`; example
+  `friends_screen.dart:168`); list = Hasura query of beacons with `kind = 1` where the viewer is
+  author or active addressee, pinned first (`pinned_at`), then `last_activity_at`, split at
+  `kPostActiveWindow` into «Сейчас» / «Затихли»; unread count from `beacon_room_seen`. No tab dot.
 
-### 5.6a Mute, pin, leave (all reuse)
+### 5.6a Mute, pin, leave
 
-- **Mute:** `notification_beacon_mute(account_id, beacon_id, muted_until)` + V2 `beaconMuteSet` /
-  `beaconMuteClear` already exist (`mutation_notification_preferences.dart:60-78`) and
-  `NotificationPreferenceGate` already blocks push/email for muted beacons. Missing: client UI (none
-  today) and the in-app rule — for a muted Post, the «Для вас» row is suppressed for every event
-  the @mention (`NotificationKind.roomMention` / mention recipient reason — visible, no push).
-  Durations 1h / 3h / 1d / 3d / forever (`null`).
-  The same UI can later be offered on Requests.
-- **Pin in «Разговоры»:** reuse `beacon_pinned` + existing pin/unpin mutations
-  (`features/favorites/data/gql/beacon_pin_by_id.graphql`). For `kind = post` it means "pinned on
-  top of «Разговоры», never ages out of the list"; the Favorites screen keeps filtering to Requests
-  (`kind = 0`), so the two meanings never mix on one screen. Needs a `pinned_at` column for pin-time
-  ordering (the table has none today).
-- **Leave:** `inbox_item.status = 2` + `room_access = left` (plan §4.2); lists in the existing
-  «Не интересно» archive with «Вернуть» (re-admits). No system row. A later re-send from someone
-  else produces an arrival row with «Вернуться в разговор» and does **not** re-admit automatically
-  (the §4.2 trigger already skips `left` rows). Author cannot leave.
+- **Mute:** UI on `beaconMuteSet` / `beaconMuteClear` (present in the client schema, no caller
+  today). Durations 1h / 3h / 1d / 3d / forever (`null`). Push/email: existing gate. In-app: R4-4.
+- **Pin in «Разговоры»:** existing pin/unpin mutations; `pinned_at` orders them. Favorites stays
+  Request-only (fetch and live path).
+- **Leave / return:** inbox status 2 / back (§4.8); listed in the existing «Не интересно» archive
+  (`inbox_rejected_screen.dart`) with «Вернуть». A later re-send produces an arrival row but does not
+  re-admit (the §4.2 function keeps `left`).
 
-### 5.7 Meeting people inside a Post room
+### 5.7 Meeting people in a Post room
 
-Goal (owner): everyone in the room sees each other; I can open the profile of someone far away on my
-graph and add them to contacts right from the chat, and they can add me back.
-
-All of this already works without any visibility change:
-- Profile reads are gated only by blocks (Hasura `user.hidden_for_viewer` → `block_hides`), so any
-  member can open any other member's profile.
-- Room members (author + `addressee`s) are listed through the same participant projection as Request
-  chat; message author avatars open the profile sheet.
-- "Add to contacts" = the existing trust action from the profile (`UserTrustEdgeCase`; it now
-  writes through the trust ledger, m0202).
-- A one-way add notifies nobody (`trustReceivedChanged` was removed with the review subsystem). The
-  «add me back» ask is an ordinary @mention message in the Post chat (Q18); reciprocity fires
-  `mutualConnectionFormed`. That reciprocal explicit trust is what makes the two mutually visible
-  (and forwardable) from then on — through the normal, deliberate path.
-
-Work here is UI only: make sure the room message author tap → profile sheet with "Add to contacts"
-exists for Post rooms (reused from Request chat via `RoomHost`), and optionally a small "you both are
-in this Post" line on that sheet (reuse `sharedContexts`, extended to include `kind = post`).
-A dedicated "ask them to add me" request or add-back event does not exist and is not needed for v1
-(Q18).
+Profiles are gated only by blocks, so any member can open any member's profile (avatar tap →
+`ScreenCubit.showProfile`, `room_message_tile.dart:1524`). «Добавить в контакты» is the existing
+`ProfileViewCubit.addFriend`. No new event (Q18). The "you are both in this Post" line via
+`person_shared_contexts` is dropped for v1 (that view is `kind = 0` now, A7).
 
 ### 5.8 Convert to Request
 
-Author action on the Post view → confirm dialog (states: audience keeps access, forwarding becomes
-open because every Request is forwardable, choose discoverability) → `beaconConvertToRequest` → open
-`BeaconCreateRoute(editId:)` on the now-open Request (edit of an open Request is already supported,
-`loadEdit`). The form is **prefilled from the root message** (first line → title, rest →
-description, image attachments offered as the cover) — a one-time copy, because a Request needs
-its own content. The root message stays as the first message of the chat, and the top strip becomes
-the Request's normal NOW / pinned-facts area. `post_root_message_id` is kept (harmless).
+Author ⋮ «Превратить в запрос» → confirm dialog (audience keeps access; forwarding becomes open;
+choose discoverability) → `BeaconCreateRoute(convertFromPostId:)` opens the Request form prefilled
+from the root (first line → title, cut to the title limit; rest → description; image attachment →
+cover suggestion). Submit calls `beaconConvertToRequest` (§4.6). Cancel leaves the Post unchanged.
+After conversion the room shows the Request UI; addressees see M8.
+
+### 5.9 Intermediate participant state after conversion (Q3)
+
+- Server: an addressee row keeps `role = 6`. `participantOfferHelp` / `offerHelp` keep the row
+  admitted; acknowledgement sets `role = 2` (helper). `declineHelpOffer`
+  (`coordination_case.dart:421`) and withdraw **do not revoke** room access for a `role = 6` row (it
+  stays an addressee). `removeFromRoom` and leave work as for anyone.
+- Client: M8 «Участник из поста» card with [Предложить помощь] / «Выйти из чата»; the author's
+  People tab gets a section «ИЗ ПОСТА».
 
 ---
 
@@ -432,46 +482,40 @@ the Request's normal NOW / pinned-facts area. `post_root_message_id` is kept (ha
 
 ### 6.1 Node model
 
-Do **not** add a sibling sealed class: extend the existing `FieldRequestNode` into
-`FieldBeaconNode(beacon, kind)` (rename is mechanical). Anchors, tap resolution, selection, overlay
-labels, semantics and preview routing all already work per request node; only the node glyph, status
-marker (none for Posts), and placement rule branch on `kind`. `ConstellationRequest` gets `kind`,
-`memberIds` (placed members only), `lastActivityAt`.
+Extend `FieldRequestNode` (`node_details.dart:309-349`) into `FieldBeaconNode(beacon, kind)` (rename
+is mechanical). Only the glyph, status marker (none for Posts) and placement rule branch on kind.
+`ConstellationRequest` (`constellation_field.dart:56-99`) gets `kind`, `memberIds`, `lastActivityAt`,
+`hiddenReachCount`.
 
 ### 6.2 Server payload
 
-`constellationField` gains:
-- `posts`: Posts where viewer is author or active addressee, `status = 0`,
-  `last_activity_at > now() - kPostActiveWindow` (or pinned by the viewer).
-- `memberWebs {beaconId, personId, state: forwarded|inside}` for those Posts — **not** the forward
-  chain (A3). For a selected Request the same shape is fetched lazily (new small query
-  `beaconMemberWebs(id)`: admitted helpers for every content reader, forward recipients only with
-  involvement read).
-
-`inside` = room member (`beacon_member`); for Posts additionally "has opened it" (`beacon_room_seen`
-row exists) — a recipient who never opened is `forwarded`. The server drops persons that are not in
-ego's mutually visible peer set (D6/§9.1) and returns `hiddenReachCount` per object instead. No
-`parent_edge_id` data ever reaches the field.
+`ConstellationField` (`custom_types.dart:966-993`) gains:
+- `posts`: Posts where the viewer is author or active addressee, `status = 0`, readable
+  (`beacon_can_read_content`, §4.7), `last_activity_at > now() - 72h` or pinned by the viewer.
+- `memberWebs {beaconId, personId, state: forwarded|inside}` for those Posts; `inside` = admitted
+  member who has a `beacon_room_seen` row; `forwarded` = active inbound edge recipient otherwise.
+  Persons outside ego's mutually visible peer set (`_allVisiblePeerIds`,
+  `constellation_field_snapshot_reader.dart:402`) are dropped and counted in `hiddenReachCount`.
+- A lazy query `beaconMemberWebs(id)` for a selected Request: admitted helpers for every content
+  reader; forward recipients only with involvement read.
 
 ### 6.3 Placement
 
-New semantic-ideal rule in `computeConstellationPlacedLayout`: a Post with no anchor is placed at the
-**barycenter of its placed members** (author included), then goes through the existing collision
-candidate search. The author's composer drop point is stored as a `beacon` anchor at publish (§7.5), so
-the author always sees it exactly where they put it; recipients see it among the people it reached.
+New rule in `computeConstellationPlacedLayout` (`constellation_layout.dart:219-443`, after request
+placement :411-432): a Post with no anchor is placed at the barycenter of its placed members (author
+included), then through `_chooseAutomaticPosition` (:517). The author's composer drop point is a
+`beacon` anchor.
 
 ### 6.4 Rendering
 
-- New `ConstellationEdgeKind.webForwarded` / `webInside` (thin, low-alpha, non-directional; two
-  colour tokens) + `draftRecipient` (§7). Drawn only for the selected object.
-  Style cases in `constellation_edge_style.dart`; legend entries. The pair-uniqueness assert in
-  `addEdge` (`constellation_cubit.dart:2263`) becomes per-kind (a web may coincide with a trust
-  path between the same two people).
-- Webs are a star from the object to each placed member, never person→person.
-- Fade: opacity = f(`lastActivityAt`, `loadedAt`) computed in the presentation frame; no recency
-  ordering anywhere (A5).
-- "+N reached" chip reuses the overflow chip widget.
-- Snapshot semantics stay (D15): relay growth appears on refresh; realtime growth is a follow-up.
+- `ConstellationEdgeKind` (`constellation_cubit.dart:33`) gains `webForwarded`, `webInside`,
+  `draftRecipient`; styles in `constellation_edge_style.dart:7-44`; legend
+  (`graph_legend_content.dart:104-125`).
+- Edge identity becomes `(src, dst, kind)`: `addEdge`'s pair assert (:2263) and the painter's
+  `edgeKindByPair` lookup (`constellation_body.dart:982-984`) are keyed per kind.
+- Webs are drawn only for the selected object; star from the object to each placed member.
+- Fade: opacity from `lastActivityAt` vs `loadedAt` in the presentation frame; no ordering.
+- "+N" chip reuses `constellation_overflow_group.dart`.
 
 ---
 
@@ -479,123 +523,122 @@ the author always sees it exactly where they put it; recipients see it among the
 
 ### 7.1 Entry
 
-- Toolbar button "Create here" (Post / Request) + desktop secondary-tap on empty canvas + touch
-  long-press on empty canvas (never long-press alone — cross-platform rule). The draft spawns at the
-  pointer (or viewport centre for the button).
+- Toolbar button «Создать здесь» (Post / Request) in `constellation_app_bar.dart`.
+- Desktop secondary-tap and touch long-press on empty canvas: new `onCanvasTap` /
+  `onCanvasSecondaryTap` / `onCanvasLongPress` callbacks in `packages/force_directed_graphview`
+  `GraphView` (hit-test miss on all nodes), with scene coordinates. Never long-press alone.
 
 ### 7.2 State ownership
 
 ```
 ConstellationComposerCubit (thin)       — draft position, radius, manual adds/removes, mode
-   ├── BeaconCreateCubit (kind)         — content + server draft (ensureDraft on first edit)
-   └── ForwardCubit(draftId, embedded)  — candidates, eligibility, selection, notes, send
+   ├── BeaconCreateCubit (kind)         — server draft (ensureDraft)
+   └── ForwardCubit(draftId, embedded)  — candidates, eligibility, selection, notes
 ```
 
-- **Selection truth lives in `ForwardCubit`.** The composer computes
-  `selected = (inRadius ∪ manualAdded) \ manualRemoved`, intersects with `canForwardToOn`, and syncs it
-  into `ForwardCubit` (`initialSelectedIds` / toggle API). The pure model
-  `RadiusRecipientSelection` lives in `features/constellation/domain/` and is unit-tested on its own:
-  manual adds survive shrinking the radius; manual removes survive growing it; ineligible people are
-  never selected.
-- `ConstellationPlacementPhase.composing` (new): the draft is a topology node `fd:draft` positioned by a
-  presentation override (the same machinery as `draggingNew`), **no anchor write** until publish (A6).
-  Person drag-to-pin is suspended in this phase so tap/drag on people means recipients, not pins.
+- **One selection authority:** `RadiusRecipientSelection` (pure, `features/constellation/domain/`):
+  `selected = (inRadius ∪ manualAdded) \ manualRemoved`, intersected with eligibility. Every edit —
+  graph tap, radius change, **and list-picker toggles** — goes through the composer's intent API
+  (`toggle(personId)`, `setRadius(r)`, `moveDraft(p)`), which updates the overrides and pushes the
+  result into `ForwardCubit` with a new bulk `setSelection(Set<String>)`. In composer mode the list
+  picker's toggle callback is routed to the composer, not to `ForwardCubit.toggleSelection`.
+- `ConstellationPlacementPhase.composing` (`constellation_state.dart:20`): the draft is a topology
+  node `fd:draft` positioned by a presentation override (as `draggingNew`), no anchor write until
+  publish. Person drag-to-pin is suspended in this phase.
 
 ### 7.3 Composition widening (A4)
 
-On entering composer mode the cubit recomposes with `includeForwardCandidates: true`: all visible
-peers that are forward candidates (`fetchForwardCandidates` ∩ `field.peers`) are kept and laid out on
-their rings, up to the render cap; pinned people keep positions. Exit restores the normal composition.
-Ineligible visible people (paused, blocked, already involved) render disabled with the reason on tap
-(reusing `ForwardRecipientRowHost` copy).
+Entering composer mode recomposes with forward candidates (`ForwardCubit` candidates ∩ field peers)
+added to the kept set (`constellation_anchor_composition.dart:146-262`), up to the render cap (120).
+Exit restores the normal composition. Ineligible people render disabled with the reason on tap.
 
 ### 7.4 Gestures (v1)
 
-- Drag the draft node: move (presentation override; radius re-evaluates on drop, not per frame).
-- Tap a person: toggle manual add/remove → edge appears/disappears (`reconcileTopology` without
-  relayout).
-- Radius handle on the circle rim: drag to resize (scene-space circle via `canvasBackgroundBuilder`);
-  people whose scene position is inside are proposed and edges draw immediately.
-- **Deferred to v2:** drag a line from the draft to a person; drag a person onto the draft
-  (`mapNodeAtSceneCentre` exists as the hit test).
-- Bottom composer sheet: body (Post) or title + short description (Request), recipient count
-  «Будет отправлено: N» with the list, forward policy (Post), personal note (existing
-  `ForwardBottomComposer`), "List view" (opens `ForwardRecipientPicker` on the *same* `ForwardCubit` —
-  the accessible path and the Text-view parity answer), "More details" (Request → full
-  `BeaconCreateRoute` with the same draft id and preselected recipients), Send.
+- Drag the draft: move; radius membership recomputes on drop.
+- Tap a person: toggle; edge appears/disappears without relayout.
+- Radius handle on the circle rim: resize (scene-space circle via `canvasBackgroundBuilder`); live.
+- Deferred: drag a line to a person; drag a person onto the draft.
 
-### 7.4a UX details (from `post-ux-mockups.md` §K)
+### 7.5 Sheet and publish
 
-- Starting radius = distance to the 3rd-nearest eligible person (+ margin); `RadiusRecipientSelection`
-  owns this rule.
-- Radius membership is recomputed on draft drop, live while dragging the radius handle.
-- Wide layout: the composer sheet is a side panel; hover links chip ↔ web; right-click on a person
-  toggles.
-- A11y: «Списком» (list picker on the same `ForwardCubit`) + a radius slider in the sheet.
-- Cancel: an empty draft exits silently; a Post draft with content asks and is **deleted** (Post
-  drafts are not kept); a Request draft follows today's rule (stays in My Work drafts).
-- After Send: the Post is briefly shown selected with its *forwarded* webs, then settles.
-
-### 7.5 Publish
-
-Existing `BeaconCreateCubit.sendRequest` (publish → forward → confirmation dialog), then
-`ConstellationAnchorCase.upsert(beacon, dropPoint)` so the object stays where the author placed it. The
-cubit reloads the field (snapshot), and the new node appears; selecting it shows its webs.
-
-### 7.6 Request vs Post in the composer
-
-Identical except: Request content sheet has title + need, no forward policy, "More details" is
-prominent; the published Request is discoverable per the author's choice and gets its normal
-satellite placement for others (the author's pin keeps it at the drop point for the author only).
+- Post sheet = the same room composer + «Кому» chips + «Можно пересылать» (mockup K4). Send =
+  `postPublish` (§4.5), then `ConstellationAnchorCase.upsert(beacon, dropPoint)`
+  (`constellation_anchor_case.dart:248`), then field reload.
+- Request sheet: title + short description + «Подробнее» (full form with the same draft id and
+  preselected recipients); Send = the existing `BeaconCreateCubit.sendRequest`, then the anchor.
+- «Списком» opens `ForwardRecipientPicker` on the same `ForwardCubit` (routed through the composer
+  intents, §7.2). A11y: a radius slider in the sheet.
+- Starting radius = distance to the 3rd-nearest eligible person (+ margin).
 
 ---
 
-## 8. Units (dependency-ordered)
+## 8. Units (summary; the step plan has the detail)
 
-| Unit | Scope | Depends | Acceptance |
-|---|---|---|---|
-| **P0** | Owner decisions Q1–Q18 + doc amendments A1–A7 (status quo, CONTEXT, edge-semantics, pinning, beacon_room, visibility matrix, terminology) + a Post row in `episode-closure-architecture.md` §Phase B (noisy-contact wall, Q15) | — | Docs merged |
-| **S1** | `m0208`: columns, CHECKs, backfill, `last_activity_at` triggers (+ Post engagement → `contact_engage`, Q15), forward⇒admission trigger, `addressee` role, `beacon_member`, `person_bond(_peers)` `kind = 0`, system kind 4 | P0 | pg tests: admission on forward/invite accept, revoke on cancel, no bond, activity bump, coexistence with the m0206 contact triggers (insert / cancel / decline), Post reply resolves the contact edge as engaged |
-| **S2** | `BeaconForwardPolicy` in forward + invitation (Post closed/open); `beaconForwardingOpen` one-way (Posts); `viewer_can_forward`; Hasura metadata | S1 | pg tests: closed/open Post, one-way trigger, invite path, Requests unchanged |
-| **S3** | `BeaconKindPolicy.requireRequest` (incl. `ClosureCase._inClosureTx`) + `kind = 0` filters (incl. stale-request reminder) + audit pg test (§4.5) | S1 | audit test green |
-| **S4** | `beaconCreate(kind, forwardPolicy)`, `beaconConvertToRequest`, notification copy branch | S2, S3 | pg + unit tests |
-| **R1** | Client `RoomHost` seam incl. `RoomCapabilities.closure` (no behaviour change) | — | existing room/beacon_view/closure tests unchanged and green |
-| **R2** | `ForwardTargetProfile` (no behaviour change for Requests) | — | existing forward tests green |
-| **R3** | `BeaconCreateCubit(kind)`; Post create = empty-room screen with the room composer + «Кому»; `ForwardingSwitch` (Posts) + published-Post one-way action; unsent-Post recovery | S4 | widget tests |
-| **C1** | `Beacon` domain fields + `isRequest` guards; codegen | S4 | unit tests |
-| **C2** | Post view = room only (kind dispatch, `PostViewCubit implements RoomHost`, pinned strip → root, overflow incl. «Граф пересылок» → existing `ForwardsGraphScreen`) | R1, C1 | widget tests; pg test: Post addressee passes `canReadInvolvement` |
-| **C3** | «Для вас» Post row (grouped, non-pinned, contract declarations) + «Разговоры» tab (history split, pinned section); mute UI + muted in-app rule; pin via `beacon_pinned` (+ `pinned_at`); leave/return via «Не интересно»; Not interested = leave; room author tap → profile + Add to contacts (§5.7) | C1 | widget tests |
-| **C4** | Convert to Request flow | C2, S4 | widget test + pg test |
-| **G1** | Server field: `posts`, `memberWebs`, `hiddenReachCount`; `beaconMemberWebs(id)` query for Requests | S1 | pg test incl. D6 drop and involvement gate |
-| **G2** | Client `FieldBeaconNode(kind)`, barycenter placement, web edge kinds (selection-only), fade, "+N reached" chip, per-kind edge uniqueness | G1, C1 | domain layout tests + widget tests |
-| **G3** | Request webs on selection (lazy `beaconMemberWebs`) | G2 | widget test |
-| **K1** | `RadiusRecipientSelection` pure model | — | unit tests |
-| **K2** | Composer phase: draft node, widened composition, draft edges bound to `ForwardCubit`, tap toggle, radius painter + handle | G2, K1, R2, R3 | widget tests (structural, no goldens) |
-| **K3** | Composer sheet, list-view handoff, More details handoff, publish + anchor | K2 | widget + integration_test (web e2e) |
-| **V** | Client version bump from 7.25.0 to ≥ 7.26.0 (pubspec + `index.html` `?v=` + manifest) and `kDefaultMinClientVersion` (`env.dart:79`, now 7.25.0) to match | all | — |
-| **F** (follow-ups) | drag-line / drag-onto gestures; realtime relay growth; per-message Post attention if wanted | — | — |
-
-R1, R2, K1 have no server dependency and can start immediately in parallel with S1–S4.
+| Unit | Scope | Depends |
+|---|---|---|
+| S0 | Spike: compose publish + forward + message in one transaction (pg) | — |
+| S1 | m0208 schema, Drift, mapper, consts | — |
+| S2 | Admission function + triggers, helper/bond views | S1 |
+| S3 | `BeaconKindPolicy` + guards + Hasura/DB help-offer guard + `kind = 0` SQL + audit test | S1 |
+| S4 | `BeaconForwardPolicy` on every edge path + `viewer_can_forward` + `beaconForwardingOpen` | S1 |
+| S5 | Kind-aware `BeaconCreationPolicy` + `beaconCreate(kind)` | S1 |
+| S6 | `postPublish` | S0, S2, S4, S5 |
+| S7 | First-response claim + `postFirstResponse` + reaction `added` + contract | S2 |
+| S8 | Post room block gate + Hasura participant predicate | S2 |
+| S9 | Leave/return trigger | S2 |
+| S10 | Activity read rule (grouping, position, pinned predicate, mute) | S7 |
+| S11 | Lock order + concurrency tests | S4, S6, S9 |
+| S12 | `beaconConvertToRequest` + intermediate state server rules | S3, S5 |
+| S13 | Root delete = Post delete | S6 |
+| S14 | Notification copy | S1 |
+| G1 | Field payload: posts, memberWebs, beaconMemberWebs | S2, S8 |
+| R1, R2 | Client RoomHost, ForwardTargetProfile (no behaviour change) | — |
+| C0 | Client schema refresh + Beacon domain fields | S1–S6 |
+| C1… | Client Post create, view, activity, mute/pin/leave, convert, intermediate | C0, R1, R2 |
+| G2, G3 | Client field nodes/webs; Request webs | G1, C0 |
+| K0…K3 | Canvas gestures in graph package, radius model, composer, sheet | G2 |
+| V | Release | all |
 
 ---
 
 ## 9. Risks
 
-- **Status reuse leaks Posts into Request surfaces.** Mitigated by S3's audit test; any new Request query
-  written later must filter `kind = 0` — add a line to `DEV_GUIDELINES.md` and consider a SQL lint grep in
-  CI for `status IN (0` without `kind` in `packages/server/lib/data/**`.
-- **`RoomHost` refactor touches large files** (`RoomCubit` 1447, `RoomMessageTile` 2723,
-  `BeaconRoomBody` 1199 lines). Land it as a pure refactor with no behaviour change before any Post UI.
-- **Composer widening shifts the layout** when entering the mode. Accept (pins stable, 350 ms
-  transition); revisit only if it tests badly.
-- **Radius selecting too many people.** Soft cap (Q8) + explicit count and list before Send; nothing is
-  sent without the Send tap.
-- **Addressee role vs existing People/committer queries** — verify in S3 that no count, face pile or
-  closure membership includes `role = 6`.
-- **Conversion race** (a forward in flight while converting) — conversion takes the same beacon row lock
-  the forward transaction takes **and** the closure advisory lock
-  (`pg_advisory_xact_lock(hashtextextended(id, 4242))`, `closure_repository.dart:54`); trigger-created
-  addressee rows stay valid for a Request (Q3).
-- **Noisy-contact wall misfires on Posts** if Post engagement is not wired (Q15): replies would not
-  count, so active Posts would make senders look noisy. S1 has a pg test for it. Invite links
-  (accepted invites insert forward edges) feed the wall the same way.
+- **Transaction composition (S0).** Existing use cases open their own `runAction`; `postPublish`
+  needs them inside one transaction. Drift nests transactions as savepoints; S0 proves it with a pg
+  test before anything depends on it.
+- **Status reuse leaks Posts into Request surfaces.** Mitigated by S3's audit test and a CI grep
+  for open-family filters without `kind` in `packages/server/lib/data/**`.
+- **Lock order (S11).** Participant-row triggers take the global hierarchy lock; every Post path
+  takes it first.
+- **`RoomHost` refactor touches large files** (`RoomCubit`, `RoomMessageTile` 2723 lines,
+  `BeaconRoomBody`). Pure refactor first.
+- **Graph package change (K0)** — empty-canvas gestures in `force_directed_graphview` touch hit
+  testing used by every graph screen; regression tests on the existing graph screens.
+- **Composer widening shifts the layout.** Accept; pins stay.
+
+---
+
+## 10. Review record
+
+Rev 4 applied the Codex (gpt-6.1-sol, high) review of rev 3:
+
+| # | Finding | Resolution |
+|---|---|---|
+| 1 | Blocks do not revoke Post room access admitted via a third party | §4.7 |
+| 2 | Hasura help-offer writes bypass the Dart guard | §4.9 Hasura + DB trigger |
+| 3 | Empty Post fails description validation | §4.11 kind-aware `BeaconCreationPolicy` (S5) |
+| 4 | Conversion vs Request CHECK | R4-2, §4.6 (form first, atomic validated convert); no new Request CHECK |
+| 5 | Claimed conversion lock absent; lock order undefined | §4.10 (S11) |
+| 6 | Root delete cannot delete the Post | R4-3, §5.4 (S13) |
+| 7 | Client publish sequence has no retry identity; composer bypass | R4-1, §4.5 (idempotent `postPublish`), §7.5 |
+| 8 | Leave/return has no server implementation | §4.8 (S9) |
+| 9 | Cancel erases leave; concurrent cancels; wrong column | §4.2 (row lock, `left` preserved, `user_id`) |
+| 10 | Intermediate state vs decline; helper projection | §4.2 `beacon_admitted_helper`, §5.9 |
+| 11 | Request-only room mutations missing | §4.9 room mutation classification |
+| 12 | Activity grouping loses arrivals and bumps | §5.6 server read rule (S10) |
+| 13 | First response needs durable claim | §4.4 claim table + function (S7) |
+| 14 | Mute in-app needs server rule | R4-4 (S10) |
+| 15 | Root mentions before admission | §4.5 order (forward before root), R4-6 |
+| 16 | Profile history / Favorites live path | R4-5, §4.9 |
+| 17 | Two selection authorities | §7.2 one intent API + bulk `setSelection` |
+| 18 | Unit ownership | §8 + the step plan |

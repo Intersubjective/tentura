@@ -175,12 +175,13 @@ plus «Кому».
 - «Кому» opens the existing recipient picker (Post profile: no capability band, no reason chips,
   no lineage). The count and names are always visible in the row; ➤ is disabled without
   recipients.
-- ➤ publishes: the typed message becomes the root message, then the Post is sent. The screen
-  turns into the live room in place (no navigation jump).
+- ➤ sends everything in one step (plan §4.5 `postPublish`): the Post is published, sent to
+  the recipients, and the typed message becomes the root message. Photos then upload into the
+  root message like any chat attachment. The screen turns into the live room in place (no
+  navigation jump). If the network drops, ➤ can simply be pressed again; nothing is sent twice.
 - «Нужна помощь? Создать запрос ›» is a link in the ✕-row overflow, not a banner.
 - Entry points: ✎ in the Activity top bar, the My Work «+» menu (Пост / Запрос), the map composer.
-- If sending breaks midway, the author sees the Post in «Разговоры» as «Не отправлено ·
-  Дописать / Удалить».
+- Closing the screen with text typed asks «Удалить черновик?»; Post drafts are not kept.
 
 ---
 
@@ -256,20 +257,9 @@ Nothing else is on screen. Everything to manage the Post is in ⋮:
 └────────────────────────────────────────────┘
 ```
 
-Tapping a person (here or a message avatar) opens the existing profile sheet, with one
-context line:
-
-```
-┌────────────────────────────────────────────┐
-│ ◐  Дима Кузнецов                           │
-│    Вы вместе в посте «Кто в субботу…»      │
-│                                            │
-│ [ + Добавить в контакты ]    Профиль ›     │
-└────────────────────────────────────────────┘
-          ↓ after tap
-│ ✓ Дима в ваших контактах. Он увидит это    │
-│   и сможет добавить вас в ответ.           │
-```
+Tapping a person (here or a message avatar) opens their existing profile screen, which already
+has «Добавить в контакты». The «[+ В контакты]» button in the list above is a shortcut to the
+same action.
 
 Adding is quiet: the other side gets no notification (plan Q18). To ask for an add-back, write
 to them in the chat (an @mention notifies). When both have added each other, both get the
@@ -314,8 +304,10 @@ discloses the same kind of read state as the room's read ticks.
 └────────────────────────────────────────────┘
 ```
 
-«Далее» → the existing Request edit form on the same object, **prefilled from the root message**
-(first line → title, the rest → description, a photo → cover suggestion). In chat:
+«Далее» opens the existing Request form, **prefilled from the root message** (first line →
+title, cut to the title limit; the rest → description; a photo → cover suggestion). Nothing has
+changed yet: the Post becomes a Request only when the author presses «Опубликовать» in the form
+(plan §4.6). Closing the form leaves the Post as it was. After that, the chat shows
 `─── Олег превратил пост в запрос ───`; the root message stays the first message, and the pinned
 strip becomes the Request's normal NOW / pinned-facts area.
 
