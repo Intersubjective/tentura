@@ -41,6 +41,9 @@ abstract final class BeaconLifecycleChangeReason {
   static const closureOpened = 'closureOpened';
   static const directClose = 'directClose';
   static const authorCloseNow = 'authorCloseNow';
+  static const closureExpired = 'closureExpired';
+  /// Stored activity events may still carry the pre-closure-redesign wires.
+  static const legacyClosureOpenReason = 'review' 'WindowOpened';
   static const reviewExpired = 'reviewExpired';
   static const reopenedFromReview = 'reopenedFromReview';
   static const cancelled = 'cancelled';

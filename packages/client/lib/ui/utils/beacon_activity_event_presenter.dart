@@ -27,9 +27,11 @@ String? lifecycleChangeReasonFromEvent(BeaconActivityEvent e) {
   }
 }
 
-bool beaconLifecycleEventIsSystem(BeaconActivityEvent e) =>
-    lifecycleChangeReasonFromEvent(e) ==
-    BeaconLifecycleChangeReason.reviewExpired;
+bool beaconLifecycleEventIsSystem(BeaconActivityEvent e) {
+  final reason = lifecycleChangeReasonFromEvent(e);
+  return reason == BeaconLifecycleChangeReason.closureExpired ||
+      reason == BeaconLifecycleChangeReason.reviewExpired;
+}
 
 BeaconActivityLogTier beaconActivityLogTier(BeaconActivityEvent e) {
   if (e.type >= 100 && e.type < 500) return BeaconActivityLogTier.high;
@@ -98,10 +100,12 @@ IconData beaconActivityLogIcon(BeaconActivityEvent e) {
 }
 
 IconData _beaconLifecycleLogIcon(String? reason) => switch (reason) {
-  BeaconLifecycleChangeReason.closureOpened =>
+  BeaconLifecycleChangeReason.closureOpened ||
+  BeaconLifecycleChangeReason.legacyClosureOpenReason =>
     Icons.hourglass_top_outlined,
   BeaconLifecycleChangeReason.directClose ||
   BeaconLifecycleChangeReason.authorCloseNow => Icons.flag_circle_outlined,
+  BeaconLifecycleChangeReason.closureExpired ||
   BeaconLifecycleChangeReason.reviewExpired => Icons.timer_off_outlined,
   BeaconLifecycleChangeReason.reopenedFromReview => Icons.replay_outlined,
   BeaconLifecycleChangeReason.cancelled => Icons.cancel_outlined,
@@ -218,11 +222,13 @@ Color _beaconLifecycleLogIconColor(TenturaTokens tt, String? reason) =>
 String beaconLifecycleEventLabel(L10n l10n, BeaconActivityEvent e) {
   final reason = lifecycleChangeReasonFromEvent(e);
   return switch (reason) {
-    BeaconLifecycleChangeReason.closureOpened =>
+    BeaconLifecycleChangeReason.closureOpened ||
+    BeaconLifecycleChangeReason.legacyClosureOpenReason =>
       l10n.beaconLifecycleReviewOpen,
     BeaconLifecycleChangeReason.directClose => l10n.beaconLifecycleClosed,
     BeaconLifecycleChangeReason.authorCloseNow =>
       l10n.beaconActivityLifecycleClosedAfterReview,
+    BeaconLifecycleChangeReason.closureExpired ||
     BeaconLifecycleChangeReason.reviewExpired =>
       l10n.beaconActivityLifecycleReviewExpired,
     BeaconLifecycleChangeReason.reopenedFromReview =>
