@@ -7,7 +7,9 @@ class Images extends Table {
   late final id = customType(PgTypes.uuid).withDefault(genRandomUuid())();
 
   @ReferenceName('author')
-  late final authorId = text().references(Users, #id)();
+  late final authorId = text()
+      .references(Users, #id)
+      .customConstraint('NOT NULL REFERENCES "user" (id)')();
 
   late final Column<int> height = integer()
       .check(height.isBiggerOrEqualValue(0))
