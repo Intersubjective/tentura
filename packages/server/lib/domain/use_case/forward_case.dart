@@ -1,5 +1,8 @@
 import 'package:injectable/injectable.dart';
+import 'package:meta/meta.dart' show visibleForTesting;
 import 'package:tentura_server/domain/coordination/resolve_forward_parent_edge.dart';
+import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/forward_attribution_method.dart';
 import 'package:tentura_server/domain/entity/forward_delivery_result.dart';
 import 'package:tentura_server/domain/entity/forward_edge_created.dart';
@@ -13,6 +16,7 @@ import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/inbox_repository_port.dart';
 import 'package:tentura_server/domain/port/person_visibility_repository_port.dart';
+import 'package:tentura_server/domain/port/post_lock_port.dart';
 import 'package:tentura_server/domain/port/user_block_repository_port.dart';
 import 'package:tentura_server/utils/id.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
@@ -34,11 +38,13 @@ final class ForwardCase extends UseCaseBase {
     this._userBlockRepository,
     this._personVisibilityRepository,
     this._guard, {
+    PostLockPort? postLock,
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
     required super.env,
     required super.logger,
-  }) : _attentionIntents = attentionIntents,
+  }) : _postLock = postLock,
+       _attentionIntents = attentionIntents,
        _attention = attention;
 
   final ForwardEdgeRepositoryPort _forwardEdgeRepository;
@@ -52,6 +58,12 @@ final class ForwardCase extends UseCaseBase {
   final UserBlockRepositoryPort _userBlockRepository;
   final PersonVisibilityRepositoryPort _personVisibilityRepository;
   final BeaconAccessGuard _guard;
+  final PostLockPort? _postLock;
+
+  /// Test hook: runs for a Post after the first beacon read and before the
+  /// post lock is taken.
+  @visibleForTesting
+  Future<void> Function()? beforeLockForTest;
 
   void _validateReasonSlugs(List<String> slugs) {
     for (final slug in slugs) {
@@ -197,52 +209,26 @@ final class ForwardCase extends UseCaseBase {
     if (nonSelfRecipients.isEmpty) {
       throw ArgumentError('recipientIds must not contain only the sender');
     }
-    final hidden = await _userBlockRepository.hiddenPeerIds(
-      viewerId: senderId,
-      peerIds: nonSelfRecipients,
-    );
-    final recipients = nonSelfRecipients
-        .where((id) => !hidden.contains(id))
-        .toList();
-
-    if (!await _guard.canReadContent(
+    final firstRead = await _beaconRepository.getBeaconById(
       beaconId: beaconId,
-      viewerId: senderId,
-    )) {
-      throw const UnauthorizedException(
-        description: 'Sender cannot read request content',
-      );
-    }
-
-    final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
-    if (!beacon.allowsForward) {
-      throw const UnauthorizedException(
-        description: 'Request does not allow forwarding',
-      );
-    }
-
-    final inbound = await _forwardEdgeRepository.fetchActiveInboundEdges(
-      beaconId: beaconId,
-      recipientId: senderId,
     );
-    final resolvedParentEdgeId = resolveForwardParentEdgeId(
-      clientParentEdgeId: parentEdgeId,
-      activeInboundEdges: inbound,
-      senderId: senderId,
-      authorId: beacon.author.id,
-    );
+    final isPost = firstRead.kind == BeaconKind.post;
 
-    if (recipients.isNotEmpty) {
-      final visible = await _personVisibilityRepository.personVisiblePeerIds(
-        viewerId: senderId,
-        peerIds: recipients,
-        context: visibilityContext,
+    // Requests: checks run before the transaction. Posts: every mutable check
+    // runs after the post lock, inside the transaction.
+    ({List<String> recipients, String? parentEdgeId, BeaconEntity beacon})?
+    preChecked;
+    if (!isPost) {
+      preChecked = await _checkForward(
+        senderId: senderId,
+        beaconId: beaconId,
+        nonSelfRecipients: nonSelfRecipients,
+        visibilityContext: visibilityContext,
+        parentEdgeId: parentEdgeId,
+        rejectBlocked: false,
       );
-      if (recipients.any((id) => !visible.contains(id))) {
-        throw const UnauthorizedException(
-          description: 'Direct request routing requires mutual visibility',
-        );
-      }
+    } else {
+      await beforeLockForTest?.call();
     }
 
     final batchId = generateId('X');
@@ -250,6 +236,21 @@ final class ForwardCase extends UseCaseBase {
     return _attention!.runAction(
       actorUserId: senderId,
       action: (transaction) async {
+        if (isPost) {
+          await _postLock!.lockForPostMutation(beaconId);
+          preChecked = await _checkForward(
+            senderId: senderId,
+            beaconId: beaconId,
+            nonSelfRecipients: nonSelfRecipients,
+            visibilityContext: visibilityContext,
+            parentEdgeId: parentEdgeId,
+            rejectBlocked: true,
+          );
+        }
+        final checked = preChecked!;
+        final beacon = checked.beacon;
+        final recipients = checked.recipients;
+        final resolvedParentEdgeId = checked.parentEdgeId;
         final batchResult = await _forwardEdgeRepository.createBatch(
           beaconId: beaconId,
           senderId: senderId,
@@ -331,6 +332,78 @@ final class ForwardCase extends UseCaseBase {
               batchResult.availabilitySkippedRecipientIds,
         );
       },
+    );
+  }
+
+  /// Block filter, read gate, forward policy, mutual visibility and parent
+  /// edge. With [rejectBlocked] a hidden recipient fails the forward instead of
+  /// being dropped silently.
+  Future<({List<String> recipients, String? parentEdgeId, BeaconEntity beacon})>
+  _checkForward({
+    required String senderId,
+    required String beaconId,
+    required List<String> nonSelfRecipients,
+    required String visibilityContext,
+    required String? parentEdgeId,
+    required bool rejectBlocked,
+  }) async {
+    final hidden = await _userBlockRepository.hiddenPeerIds(
+      viewerId: senderId,
+      peerIds: nonSelfRecipients,
+    );
+    if (rejectBlocked && hidden.isNotEmpty) {
+      throw const UnauthorizedException(
+        description: 'Recipient is not available for forwarding',
+      );
+    }
+    final recipients = nonSelfRecipients
+        .where((id) => !hidden.contains(id))
+        .toList();
+
+    if (!await _guard.canReadContent(
+      beaconId: beaconId,
+      viewerId: senderId,
+    )) {
+      throw const UnauthorizedException(
+        description: 'Sender cannot read request content',
+      );
+    }
+
+    final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
+    if (!beacon.allowsForward) {
+      throw const UnauthorizedException(
+        description: 'Request does not allow forwarding',
+      );
+    }
+
+    final inbound = await _forwardEdgeRepository.fetchActiveInboundEdges(
+      beaconId: beaconId,
+      recipientId: senderId,
+    );
+    final resolvedParentEdgeId = resolveForwardParentEdgeId(
+      clientParentEdgeId: parentEdgeId,
+      activeInboundEdges: inbound,
+      senderId: senderId,
+      authorId: beacon.author.id,
+    );
+
+    if (recipients.isNotEmpty) {
+      final visible = await _personVisibilityRepository.personVisiblePeerIds(
+        viewerId: senderId,
+        peerIds: recipients,
+        context: visibilityContext,
+      );
+      if (recipients.any((id) => !visible.contains(id))) {
+        throw const UnauthorizedException(
+          description: 'Direct request routing requires mutual visibility',
+        );
+      }
+    }
+
+    return (
+      recipients: recipients,
+      parentEdgeId: resolvedParentEdgeId,
+      beacon: beacon,
     );
   }
 
