@@ -128,6 +128,7 @@ jobs:
                   cd packages/server
                   dart run build_runner build -d
                   bash ../../scripts/check-custom-lints.sh packages/server
+                  bash ../../scripts/check-analyze-baseline.sh packages/server
                   dart test --exclude-tags pg
                   ! rg "package:tentura_server/data/repository" lib/domain
                   ! rg "package:tentura_server/data/(service|storage)/" lib/domain/use_case
@@ -159,6 +160,7 @@ jobs:
                   flutter gen-l10n
                   dart run build_runner build -d
                   bash ../../scripts/check-custom-lints.sh packages/client
+                  bash ../../scripts/check-analyze-baseline.sh packages/client
                   flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env
                   ;;
                 *)
