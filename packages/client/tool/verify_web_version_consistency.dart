@@ -1,7 +1,11 @@
-// CI guard: fail the build if the deployed web entry points disagree on the
-// cache-busting build version. Run AFTER generate_wasm_preload_artifacts.dart.
+// CI guard: fail the build if web entry points disagree on the cache-busting
+// build version.
 //
-// Checks that all of these reference the same `resolveWebBuildVersion()`:
+// With no arguments (local / pre-build): compares tracked sources only —
+//   - pubspec.yaml                resolveWebBuildVersion()
+//   - web/index.html              flutter_bootstrap.js?v=<version>
+//
+// With a build/web directory argument (after flutter build + post-process tools):
 //   - build/web/index.html        flutter_bootstrap.js?v=<version>
 //   - build/web/manifest.json     "version"
 //   - build/web/wasm-preload-manifest.json  "version"
@@ -17,7 +21,41 @@ import 'dart:io';
 import '../hook/build/web_build_version.dart';
 
 void main(List<String> args) {
-  final buildWebDir = args.isEmpty ? 'build/web' : args.single;
+  if (args.isEmpty) {
+    _verifyTrackedSources();
+    return;
+  }
+  _verifyBuildWeb(args.single);
+}
+
+void _verifyTrackedSources() {
+  final expected = resolveWebBuildVersion();
+  print('Expected web build version: $expected');
+
+  final problems = <String>[];
+  void check(String label, String? actual) {
+    if (actual == null) {
+      problems.add('$label: could not read version');
+    } else if (actual != expected) {
+      problems.add('$label: "$actual" != expected "$expected"');
+    } else {
+      print('OK  $label = $actual');
+    }
+  }
+
+  check('web/index.html bootstrap query', _indexBootstrapVersion('web'));
+
+  if (problems.isNotEmpty) {
+    stderr.writeln('web version consistency check FAILED:');
+    for (final p in problems) {
+      stderr.writeln('  - $p');
+    }
+    exit(1);
+  }
+  print('web version consistency check passed.');
+}
+
+void _verifyBuildWeb(String buildWebDir) {
   final expected = resolveWebBuildVersion();
   print('Expected web build version: $expected');
 

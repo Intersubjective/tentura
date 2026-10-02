@@ -22,8 +22,12 @@ flutter build web --wasm --pwa-strategy=none --source-maps --dart-define-from-fi
 dart run tool/apply_google_maps_web_key.dart
 dart run tool/trim_web_deploy_artifact.dart
 dart run tool/generate_wasm_preload_artifacts.dart
-dart run tool/verify_web_version_consistency.dart
+dart run tool/verify_web_version_consistency.dart build/web
 ```
+
+Running `dart run tool/verify_web_version_consistency.dart` with no arguments checks
+only tracked sources (`pubspec.yaml` vs `web/index.html`); pass `build/web` after the
+post-build steps above to validate the deploy artifact.
 
 Set `GOOGLE_MAPS_API_KEY` in the same `.env` used for Dart defines. For
 Android local builds, also put it in `android/local.properties`; for iOS local

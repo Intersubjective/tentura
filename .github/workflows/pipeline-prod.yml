@@ -108,9 +108,9 @@ jobs:
           VERSION_LINE=$(grep '^version:' packages/server/pubspec.yaml | sed 's/version:[[:space:]]*//')
           VERSION_CLEAN=${VERSION_LINE//+/-}
           VERSION_CLEAN=${VERSION_CLEAN//\//-}
-          echo "server_version=$VERSION_CLEAN" >> $GITHUB_OUTPUT
+          echo "server_version=$VERSION_CLEAN" >> "$GITHUB_OUTPUT"
           CLIENT_VERSION=$(grep '^version:' packages/client/pubspec.yaml | sed 's/version:[[:space:]]*//' | sed 's/+.*//')
-          echo "client_version=$CLIENT_VERSION" >> $GITHUB_OUTPUT
+          echo "client_version=$CLIENT_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Cache pub dependencies
         uses: actions/cache@v5
@@ -222,7 +222,7 @@ jobs:
               python3 -c \"import json, pathlib; v=json.load(open('build/web/wasm-preload-manifest.json'))['version']; assert pathlib.Path(f'build/web/app-assets/{v}/main.dart.js').is_file()\"
               # Block deploy if index.html / manifest / preload manifest / SW
               # disagree on the cache-busting build version (stale-asset guard).
-              dart run tool/verify_web_version_consistency.dart
+              dart run tool/verify_web_version_consistency.dart build/web
               cd build/web && tar -czf /app/web-prod-\${SERVER_VERSION}.tar.gz . && cd ../..
             "
 
@@ -295,9 +295,9 @@ jobs:
           VERSION_LINE=$(grep '^version:' packages/server/pubspec.yaml | sed 's/version:[[:space:]]*//')
           VERSION_CLEAN=${VERSION_LINE//+/-}
           VERSION_CLEAN=${VERSION_CLEAN//\//-}
-          echo "server_version=$VERSION_CLEAN" >> $GITHUB_OUTPUT
+          echo "server_version=$VERSION_CLEAN" >> "$GITHUB_OUTPUT"
           CLIENT_VERSION=$(grep '^version:' packages/client/pubspec.yaml | sed 's/version:[[:space:]]*//' | sed 's/+.*//')
-          echo "client_version=$CLIENT_VERSION" >> $GITHUB_OUTPUT
+          echo "client_version=$CLIENT_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Build and push server image
         uses: docker/build-push-action@v7
@@ -317,14 +317,16 @@ jobs:
 
       - name: Print version summary
         run: |
-          echo "### Versions built" >> $GITHUB_STEP_SUMMARY
-          echo "| Package | Version |" >> $GITHUB_STEP_SUMMARY
-          echo "|---------|---------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Server  | ${{ steps.versions.outputs.server_version }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Client  | ${{ steps.versions.outputs.client_version }} |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Client version gate default ships in the server image (\`packages/server/lib/env.dart\`)." \
-               "Override \`MIN_CLIENT_VERSION\` in the \`prod\` GitHub Environment or VPS \`.env\` only when needed." >> $GITHUB_STEP_SUMMARY
+          {
+            echo "### Versions built"
+            echo "| Package | Version |"
+            echo "|---------|---------|"
+            echo "| Server  | ${{ steps.versions.outputs.server_version }} |"
+            echo "| Client  | ${{ steps.versions.outputs.client_version }} |"
+            echo ""
+            echo "Client version gate default ships in the server image (\`packages/server/lib/env.dart\`)." \
+                 "Override \`MIN_CLIENT_VERSION\` in the \`prod\` GitHub Environment or VPS \`.env\` only when needed."
+          } >> "$GITHUB_STEP_SUMMARY"
 
   deploy-prod:
     runs-on: ubuntu-latest
@@ -363,12 +365,12 @@ jobs:
             exit 1
           fi
           cp "$CACHED" web-prod.tar.gz
-          echo "archive_name=web-prod.tar.gz" >> $GITHUB_OUTPUT
+          echo "archive_name=web-prod.tar.gz" >> "$GITHUB_OUTPUT"
           if [ -f web-build-output/landing-prod.tar.gz ]; then
             cp web-build-output/landing-prod.tar.gz landing-prod.tar.gz
-            echo "landing_archive_name=landing-prod.tar.gz" >> $GITHUB_OUTPUT
+            echo "landing_archive_name=landing-prod.tar.gz" >> "$GITHUB_OUTPUT"
           else
-            echo "landing_archive_name=" >> $GITHUB_OUTPUT
+            echo "landing_archive_name=" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Setup SSH
