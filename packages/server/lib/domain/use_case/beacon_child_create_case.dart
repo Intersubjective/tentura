@@ -10,6 +10,7 @@ import 'package:tentura_root/domain/entity/coordinates.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/policy/beacon_creation_policy.dart';
+import 'package:tentura_server/domain/policy/beacon_kind_policy.dart';
 import 'package:tentura_server/domain/policy/beacon_promotion_eligibility_policy.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_child_create_port.dart';
@@ -471,6 +472,10 @@ final class BeaconChildCreateCase extends UseCaseBase
     if (!admitted) {
       throw const BeaconChildCreateForbiddenException();
     }
+
+    BeaconKindPolicy.requireRequest(
+      await _beaconRepository.getBeaconById(beaconId: parentBeaconId),
+    );
 
     final parent = await _commands.loadParentValidationRow(parentBeaconId);
     if (parent == null || !parent.isPublished) {

@@ -10,8 +10,10 @@ import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
 
 import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
+import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/discussion_product_policy_port.dart';
+import 'package:tentura_server/domain/policy/beacon_kind_policy.dart';
 import 'package:tentura_server/domain/policy/beacon_room_lifecycle_write_policy.dart';
 import 'package:tentura_server/domain/port/mutating_unit_of_work_port.dart';
 import 'package:tentura_server/domain/port/user_block_repository_port.dart';
@@ -61,12 +63,22 @@ class BeaconRoomCase extends UseCaseBase {
     this._unitOfWork,
     this._hierarchyRepository,
     this._discussionPolicy, {
+    BeaconRepositoryPort? beaconRepository,
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
     required super.env,
     required super.logger,
-  }) : _attentionIntents = attentionIntents,
+  }) : _beaconRepository = beaconRepository,
+       _attentionIntents = attentionIntents,
        _attention = attention;
+
+  final BeaconRepositoryPort? _beaconRepository;
+
+  /// Rejects a Post for the Request-only room mutations.
+  Future<void> _requireRequest(String beaconId) async {
+    final beacon = await _beaconRepository?.getBeaconById(beaconId: beaconId);
+    if (beacon != null) BeaconKindPolicy.requireRequest(beacon);
+  }
 
   final BeaconRoomRepositoryPort _room;
 
@@ -629,6 +641,7 @@ class BeaconRoomCase extends UseCaseBase {
     required String userId,
     required String text,
   }) async {
+    await _requireRequest(beaconId);
     final trimmed = text.trim();
     if (trimmed.isEmpty) {
       throw const BeaconCreateException(description: 'Plan text is required');
@@ -781,6 +794,7 @@ class BeaconRoomCase extends UseCaseBase {
     required String userId,
     required String messageId,
   }) async {
+    await _requireRequest(beaconId);
     final msg = await _room.getRoomMessageById(messageId);
     if (msg == null || msg.beaconId != beaconId) {
       throw IdNotFoundException(
@@ -994,6 +1008,7 @@ class BeaconRoomCase extends UseCaseBase {
     required String userId,
     required String note,
   }) async {
+    await _requireRequest(beaconId);
     await _attention!.runAction<void>(
       actorUserId: userId,
       action: (transaction) async {
@@ -1027,6 +1042,7 @@ class BeaconRoomCase extends UseCaseBase {
     required String participantUserId,
     required String actorUserId,
   }) async {
+    await _requireRequest(beaconId);
     final author = await _room.isBeaconAuthor(
       beaconId: beaconId,
       userId: actorUserId,
@@ -1064,6 +1080,7 @@ class BeaconRoomCase extends UseCaseBase {
     required String stewardUserId,
     required String authorUserId,
   }) async {
+    await _requireRequest(beaconId);
     final author = await _room.isBeaconAuthor(
       beaconId: beaconId,
       userId: authorUserId,

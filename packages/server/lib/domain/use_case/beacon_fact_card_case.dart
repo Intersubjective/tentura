@@ -11,10 +11,12 @@ import 'package:tentura_server/domain/entity/beacon_fact_card_outcome.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_history_entry_entity.dart';
 import 'package:tentura_server/domain/entity/task_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/policy/beacon_kind_policy.dart';
 import 'package:tentura_server/domain/policy/beacon_room_lifecycle_write_policy.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
+import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
@@ -37,9 +39,12 @@ final class BeaconFactCardCase extends UseCaseBase {
     // Kept for DI, same as the hierarchy port above.
     // ignore: avoid_unused_constructor_parameters
     BeaconAccessGuard guard, {
+    BeaconRepositoryPort? beaconRepository,
     required super.env,
     required super.logger,
-  });
+  }) : _beaconRepository = beaconRepository;
+
+  final BeaconRepositoryPort? _beaconRepository;
 
   final BeaconFactCardRepositoryPort _facts;
 
@@ -56,6 +61,8 @@ final class BeaconFactCardCase extends UseCaseBase {
     required String beaconId,
     required String userId,
   }) async {
+    final beacon = await _beaconRepository?.getBeaconById(beaconId: beaconId);
+    if (beacon != null) BeaconKindPolicy.requireRequest(beacon);
     final access = await _facts.loadRoomAccess(
       beaconId: beaconId,
       userId: userId,

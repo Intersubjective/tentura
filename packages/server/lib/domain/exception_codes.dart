@@ -93,6 +93,7 @@ enum BeaconExceptionCode {
   beaconFactCardEditConflict, // 1318
   beaconFactCardRemoved, // 1319
   beaconFactCardRateLimited, // 1320
+  beaconNotRequest, // 1321
 }
 
 class BeaconExceptionCodes extends ExceptionCodes {

@@ -506,6 +506,17 @@ final class BeaconFactCardRateLimitedException extends ExceptionBase {
       );
 }
 
+/// The operation is only defined for a Request; the beacon is a Post.
+final class BeaconNotRequestException extends ExceptionBase {
+  const BeaconNotRequestException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(
+          BeaconExceptionCode.beaconNotRequest,
+        ),
+        description: description ?? 'Operation is only available for Requests',
+      );
+}
+
 final class EvaluationException extends ExceptionBase {
   EvaluationException({
     required EvaluationExceptionCode code,

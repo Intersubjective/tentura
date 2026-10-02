@@ -26,6 +26,7 @@ import 'package:tentura_server/domain/use_case/transactional_attention_case.dart
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
+import 'package:tentura_server/domain/policy/beacon_kind_policy.dart';
 import 'package:tentura_server/utils/id.dart';
 
 import '../entity/beacon_entity.dart';
@@ -714,6 +715,7 @@ final class BeaconCase extends UseCaseBase {
   }) async {
     await _enforceCreateRateLimit(userId);
     final source = await _beaconRepository.getBeaconById(beaconId: sourceId);
+    BeaconKindPolicy.requireRequest(source);
     await assertBeaconLineageSourceVisible(
       guard: _guard,
       beaconId: sourceId,
@@ -782,6 +784,7 @@ final class BeaconCase extends UseCaseBase {
         beaconId: beaconId,
         userId: userId,
         fn: (beacon) async {
+          BeaconKindPolicy.requireRequest(beacon);
           if (!beacon.status.isOpenFamily) {
             throw EvaluationException(
               code: EvaluationExceptionCode.beaconNotClosable,

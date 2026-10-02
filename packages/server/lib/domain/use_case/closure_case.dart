@@ -15,6 +15,7 @@ import 'package:tentura_server/domain/commitment/commitment_event.dart';
 import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
 import 'package:tentura_server/domain/commitment/commitment_state.dart';
 import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/policy/beacon_kind_policy.dart';
 import 'package:tentura_server/domain/port/attention_system_settlement_port.dart';
 import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
@@ -101,6 +102,7 @@ final class ClosureCase extends UseCaseBase {
 
   Future<void> _requireAuthor(String beaconId, String authorId) async {
     final beacon = await _beacons.getBeaconById(beaconId: beaconId);
+    BeaconKindPolicy.requireRequest(beacon);
     if (beacon.author.id != authorId) {
       throw const ClosureException.notAuthor();
     }
@@ -117,6 +119,7 @@ final class ClosureCase extends UseCaseBase {
     hierarchyScope: true,
     body: (live) async {
       final beacon = await _beacons.getBeaconById(beaconId: beaconId);
+      BeaconKindPolicy.requireRequest(beacon);
       if (beacon.author.id != authorId) {
         throw const ClosureException.notAuthor();
       }
@@ -252,6 +255,7 @@ final class ClosureCase extends UseCaseBase {
     expectedEpoch: expectedEpoch,
     body: (live) async {
       final beacon = await _beacons.getBeaconById(beaconId: beaconId);
+      BeaconKindPolicy.requireRequest(beacon);
       if (beacon.author.id != authorId) {
         throw const ClosureException.notAuthor();
       }
@@ -548,9 +552,9 @@ final class ClosureCase extends UseCaseBase {
           epoch.status == ClosureEpochStatus.cancelled) {
         throw const ClosureException.staleEpoch();
       }
-      final authorId = (await _beacons.getBeaconById(
-        beaconId: beaconId,
-      )).author.id;
+      final beacon = await _beacons.getBeaconById(beaconId: beaconId);
+      BeaconKindPolicy.requireRequest(beacon);
+      final authorId = beacon.author.id;
       final memberIds = {
         for (final m in await _repo.members(
           beaconId: beaconId,
@@ -653,9 +657,9 @@ final class ClosureCase extends UseCaseBase {
     if (epoch == null || epoch.status == ClosureEpochStatus.cancelled) {
       throw IdNotFoundException(id: beaconId);
     }
-    final authorId = (await _beacons.getBeaconById(
-      beaconId: beaconId,
-    )).author.id;
+    final beacon = await _beacons.getBeaconById(beaconId: beaconId);
+    BeaconKindPolicy.requireRequest(beacon);
+    final authorId = beacon.author.id;
     final rows = await _repo.members(beaconId: beaconId, epoch: epoch.epoch);
     final blocked = _blockedIds(await _commitments.eventsByUser(beaconId));
 
