@@ -79,6 +79,24 @@ class Beacons extends Table
   /// Author opt-out for field discovery (D4). Backfilled true (D12).
   late final isDiscoverable = boolean().withDefault(const Constant(true))();
 
+  /// 0 = request, 1 = post (m0209).
+  late final Column<int> kind = integer().withDefault(const Constant(0))();
+
+  /// 0 = closed, 1 = open; closed is valid only for posts (m0209).
+  late final Column<int> forwardPolicy =
+      integer().withDefault(const Constant(1))();
+
+  /// Newest non-system message, reaction or forward edge (m0209).
+  late final lastActivityAt = customType(
+    PgTypes.timestampWithTimezone,
+  ).nullable()();
+
+  /// Author's first room message of a post; cleared if the message is deleted.
+  ///
+  /// The FK onto `beacon_room_message` lives in SQL only (m0209); a Drift
+  /// reference would make `beacon` and `beacon_room_message` cyclic.
+  late final postRootMessageId = text().nullable()();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
 

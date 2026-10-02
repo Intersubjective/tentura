@@ -3,6 +3,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/domain/entity/coordinates.dart';
 
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 
 import '../database/tentura_db.dart';
 import 'image_mapper.dart';
@@ -41,4 +42,9 @@ BeaconEntity beaconModelToEntity(
   lineageRootBeaconId: model.lineageRootBeaconId,
   parentBeaconId: model.parentBeaconId,
   publishedAt: model.publishedAt?.dateTime,
+  isDiscoverable: model.isDiscoverable,
+  kind: BeaconKind.fromValue(model.kind),
+  forwardPolicy: BeaconForwardPolicyValue.fromValue(model.forwardPolicy),
+  lastActivityAt: model.lastActivityAt?.dateTime,
+  postRootMessageId: model.postRootMessageId,
 );

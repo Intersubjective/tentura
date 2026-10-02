@@ -7,6 +7,7 @@ import 'package:tentura_root/domain/entity/coordinates.dart';
 import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/utils/id.dart';
 
+import 'beacon_kind.dart';
 import 'image_entity.dart';
 import 'user_entity.dart';
 
@@ -42,6 +43,11 @@ abstract class BeaconEntity with _$BeaconEntity {
     String? parentBeaconId,
     DateTime? publishedAt,
     @Default(true) bool isDiscoverable,
+    @Default(BeaconKind.request) BeaconKind kind,
+    @Default(BeaconForwardPolicyValue.open)
+    BeaconForwardPolicyValue forwardPolicy,
+    DateTime? lastActivityAt,
+    String? postRootMessageId,
   }) = _BeaconEntity;
 
   const BeaconEntity._();

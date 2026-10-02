@@ -1,5 +1,6 @@
 import 'package:test/test.dart';
 
+import 'package:tentura_server/consts/beacon_hierarchy_consts.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 
 void main() {
@@ -24,6 +25,20 @@ void main() {
       expect(kMaxRoomMessageAttachments, 10);
       expect(kMaxRoomMessageAttachmentBytes, 10 * 1024 * 1024);
       expect(kBeaconRoomCurrentLineMaxLength, 60);
+    });
+  });
+
+  group('BeaconParticipantRoleBits', () {
+    test('addressee is the role admitted by an inbound forward', () {
+      expect(BeaconParticipantRoleBits.forwarder, 5);
+      expect(BeaconParticipantRoleBits.addressee, 6);
+    });
+  });
+
+  group('BeaconRoomSystemMessageKind', () {
+    test('converted-to-request notice has its own kind', () {
+      expect(BeaconRoomSystemMessageKind.closureStory, 3);
+      expect(BeaconRoomSystemMessageKind.convertedToRequest, 4);
     });
   });
 
