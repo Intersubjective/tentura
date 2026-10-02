@@ -29,36 +29,40 @@ class CapabilityEvidenceRepository implements CapabilityEvidencePort {
     required String observerId,
     required String subjectId,
     required List<String> slugs,
-  }) => _database.withMutatingUser(observerId, () async {
-    await _lockForwardEdge(forwardEdgeId);
+  }) {
+    // `observerId` attributes the evidence rows; when a different actor's
+    // transaction is already open (a recipient blocking a sender) the rows are
+    // still written under that transaction instead of re-entering as observer.
+    Future<void> body() async {
+      await _lockForwardEdge(forwardEdgeId);
 
-    final currentSlugs = await _activeForwardSlugs(forwardEdgeId);
-    final desiredSlugs = slugs.toSet();
-    final affectedSlugs = {...currentSlugs, ...desiredSlugs};
+      final currentSlugs = await _activeForwardSlugs(forwardEdgeId);
+      final desiredSlugs = slugs.toSet();
+      final affectedSlugs = {...currentSlugs, ...desiredSlugs};
 
-    final triples = _sortedUniqueTriples(
-      affectedSlugs.map(
-        (slug) => (observer: observerId, subject: subjectId, tag: slug),
-      ),
-    );
-    if (triples.isEmpty) {
-      return;
-    }
+      final triples = _sortedUniqueTriples(
+        affectedSlugs.map(
+          (slug) => (observer: observerId, subject: subjectId, tag: slug),
+        ),
+      );
+      if (triples.isEmpty) {
+        return;
+      }
 
-    final beaconId = await _forwardEdgeBeaconId(forwardEdgeId);
+      final beaconId = await _forwardEdgeBeaconId(forwardEdgeId);
 
-    await _withCellWriteDiscipline(
-      triples,
-      () => _forwardChangingTriples(
-        forwardEdgeId: forwardEdgeId,
-        observerId: observerId,
-        subjectId: subjectId,
-        currentSlugs: currentSlugs,
-        desiredSlugs: desiredSlugs,
-      ),
-      () async {
-        await _database.customStatement(
-          r'''
+      await _withCellWriteDiscipline(
+        triples,
+        () => _forwardChangingTriples(
+          forwardEdgeId: forwardEdgeId,
+          observerId: observerId,
+          subjectId: subjectId,
+          currentSlugs: currentSlugs,
+          desiredSlugs: desiredSlugs,
+        ),
+        () async {
+          await _database.customStatement(
+            r'''
           UPDATE public.person_capability_event
           SET deleted_at = now()
           WHERE forward_edge_id = $1
@@ -66,42 +70,47 @@ class CapabilityEvidenceRepository implements CapabilityEvidencePort {
             AND deleted_at IS NULL
             AND NOT (tag_slug = ANY($3::text[]))
           ''',
-          [
-            forwardEdgeId,
-            CapabilityEventSource.forwardReason.dbValue,
-            TypedValue(Type.textArray, slugs),
-          ],
-        );
+            [
+              forwardEdgeId,
+              CapabilityEventSource.forwardReason.dbValue,
+              TypedValue(Type.textArray, slugs),
+            ],
+          );
 
-        for (final slug in slugs) {
-          await _database.customStatement(
-            r'''
+          for (final slug in slugs) {
+            await _database.customStatement(
+              r'''
             INSERT INTO public.person_capability_event (
               id, subject_user_id, observer_user_id, tag_slug, source_type,
               forward_edge_id, beacon_id, visibility
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             ON CONFLICT DO NOTHING
             ''',
-            [
-              generateId('CE'),
-              subjectId,
-              observerId,
-              slug,
-              CapabilityEventSource.forwardReason.dbValue,
-              forwardEdgeId,
-              beaconId,
-              CapabilityEventVisibility.private.dbValue,
-            ],
-          );
-          await _liftTombstone(
-            observerId: observerId,
-            subjectId: subjectId,
-            slug: slug,
-          );
-        }
-      },
-    );
-  });
+              [
+                generateId('CE'),
+                subjectId,
+                observerId,
+                slug,
+                CapabilityEventSource.forwardReason.dbValue,
+                forwardEdgeId,
+                beaconId,
+                CapabilityEventVisibility.private.dbValue,
+              ],
+            );
+            await _liftTombstone(
+              observerId: observerId,
+              subjectId: subjectId,
+              slug: slug,
+            );
+          }
+        },
+      );
+    }
+
+    return _database.isInAmbientMutatingTransaction
+        ? body()
+        : _database.withMutatingUser(observerId, body);
+  }
 
   @override
   Future<void> emitOutcomeEvidenceBatch({
@@ -172,7 +181,9 @@ class CapabilityEvidenceRepository implements CapabilityEvidencePort {
           subjectId: subjectId,
           slug: slug,
         );
-        return hasActive ? {triple} : <({String observer, String subject, String tag})>{};
+        return hasActive
+            ? {triple}
+            : <({String observer, String subject, String tag})>{};
       },
       () => _database.customStatement(
         r'''
@@ -301,16 +312,20 @@ class CapabilityEvidenceRepository implements CapabilityEvidencePort {
     }
   }
 
-  Future<void> _lockForwardEdge(String forwardEdgeId) => _database.customStatement(
+  Future<void> _lockForwardEdge(
+    String forwardEdgeId,
+  ) => _database.customStatement(
     r"SELECT pg_advisory_xact_lock(hashtextextended('cap:forward:' || $1, 4242))",
     [forwardEdgeId],
   );
 
-  Future<void> _lockSeedAttestationPair(String observerId, String subjectId) =>
-      _database.customStatement(
-        r"SELECT pg_advisory_xact_lock(hashtextextended('cap:seed:' || $1 || chr(31) || $2, 4242))",
-        [observerId, subjectId],
-      );
+  Future<void> _lockSeedAttestationPair(
+    String observerId,
+    String subjectId,
+  ) => _database.customStatement(
+    r"SELECT pg_advisory_xact_lock(hashtextextended('cap:seed:' || $1 || chr(31) || $2, 4242))",
+    [observerId, subjectId],
+  );
 
   Future<void> _lockCell(String observer, String subject, String tag) =>
       _database.customStatement(
@@ -373,7 +388,9 @@ class CapabilityEvidenceRepository implements CapabilityEvidencePort {
           variables: [
             Variable.withString(observerId),
             Variable.withString(subjectId),
-            Variable.withInt(CapabilityEventSource.seedRoutingAttestation.dbValue),
+            Variable.withInt(
+              CapabilityEventSource.seedRoutingAttestation.dbValue,
+            ),
           ],
         )
         .get();
@@ -404,7 +421,9 @@ class CapabilityEvidenceRepository implements CapabilityEvidencePort {
             Variable.withString(subjectId),
             Variable.withString(slug),
             Variable.withString(beaconId),
-            Variable.withInt(CapabilityEventSource.closeAcknowledgement.dbValue),
+            Variable.withInt(
+              CapabilityEventSource.closeAcknowledgement.dbValue,
+            ),
           ],
         )
         .getSingleOrNull();
@@ -550,7 +569,8 @@ class CapabilityEvidenceRepository implements CapabilityEvidencePort {
     [observerId, subjectId, slug],
   );
 
-  static List<({String observer, String subject, String tag})> _sortedUniqueTriples(
+  static List<({String observer, String subject, String tag})>
+  _sortedUniqueTriples(
     Iterable<({String observer, String subject, String tag})> triples,
   ) {
     final unique = triples.toSet().toList()

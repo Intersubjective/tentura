@@ -432,7 +432,11 @@ final class InvitationCase extends UseCaseBase {
       throw IdNotFoundException(id: invitation.id);
     }
     final beacon = await _beaconUnderPostLock(beaconId);
-    if (!beacon.allowsForward ||
+    if (await _userBlockRepository.isBlockedPair(
+          a: userId,
+          b: invitation.issuer.id,
+        ) ||
+        !beacon.allowsForward ||
         beacon.status == BeaconStatus.draft ||
         beacon.status == BeaconStatus.deleted) {
       throw IdNotFoundException(id: invitation.id);
