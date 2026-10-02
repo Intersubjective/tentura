@@ -134,12 +134,23 @@ def owned_by_test_runner(pid: str) -> bool:
         for arg in args
     )
 
+def is_wrapper(blob: bytes) -> bool:
+    # The wrapper's argv carries the wrapped command, which may merely mention
+    # frontend_server_aot.dart.snapshot (tentura-uh2m); a sweep running inside
+    # or beside the wrapper must never mistake it for an orphan compiler.
+    return any(
+        arg.rsplit(b"/", 1)[-1] == b"run_with_test_cleanup.sh"
+        for arg in blob.split(b"\0")
+    )
+
 victims = []
 for p in pathlib.Path("/proc").iterdir():
     if not p.name.isdigit():
         continue
     pid = p.name
     blob = cmd(pid)
+    if is_wrapper(blob):
+        continue
     if b"flutter_tester" in blob and not owned_by_test_runner(pid):
         victims.append(int(pid))
         continue
