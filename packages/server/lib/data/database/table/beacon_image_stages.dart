@@ -27,7 +27,4 @@ class BeaconImageStages extends Table {
 
   @override
   String get tableName => 'beacon_image_stage';
-
-  @override
-  bool get withoutRowId => true;
 }

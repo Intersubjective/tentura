@@ -31,7 +31,4 @@ class AccountVerifiedContacts extends Table {
 
   @override
   String get tableName => 'account_verified_contact';
-
-  @override
-  bool get withoutRowId => true;
 }

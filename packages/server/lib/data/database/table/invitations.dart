@@ -43,7 +43,4 @@ class Invitations extends Table with TimestampsFields {
 
   @override
   String get tableName => 'invitation';
-
-  @override
-  bool get withoutRowId => true;
 }

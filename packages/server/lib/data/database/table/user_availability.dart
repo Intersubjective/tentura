@@ -19,7 +19,4 @@ class UserAvailability extends Table {
 
   @override
   String get tableName => 'user_availability';
-
-  @override
-  bool get withoutRowId => true;
 }

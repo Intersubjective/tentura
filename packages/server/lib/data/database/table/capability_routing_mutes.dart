@@ -18,7 +18,4 @@ class CapabilityRoutingMutes extends Table {
 
   @override
   String get tableName => 'capability_routing_mute';
-
-  @override
-  bool get withoutRowId => true;
 }

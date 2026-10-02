@@ -35,7 +35,4 @@ class AccountSessions extends Table {
 
   @override
   String get tableName => 'account_session';
-
-  @override
-  bool get withoutRowId => true;
 }

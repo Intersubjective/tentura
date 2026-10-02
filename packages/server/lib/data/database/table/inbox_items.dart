@@ -47,7 +47,4 @@ class InboxItems extends Table {
 
   @override
   String get tableName => 'inbox_item';
-
-  @override
-  bool get withoutRowId => true;
 }

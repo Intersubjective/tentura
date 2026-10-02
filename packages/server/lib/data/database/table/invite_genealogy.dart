@@ -52,7 +52,4 @@ class InviteGenealogy extends Table {
 
   @override
   String get tableName => 'invite_genealogy';
-
-  @override
-  bool get withoutRowId => true;
 }

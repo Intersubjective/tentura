@@ -47,7 +47,4 @@ class PersonCapabilityEvents extends Table {
 
   @override
   String get tableName => 'person_capability_event';
-
-  @override
-  bool get withoutRowId => true;
 }

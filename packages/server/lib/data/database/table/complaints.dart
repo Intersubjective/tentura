@@ -25,7 +25,4 @@ class Complaints extends Table {
 
   @override
   String get tableName => 'complaint';
-
-  @override
-  bool get withoutRowId => true;
 }

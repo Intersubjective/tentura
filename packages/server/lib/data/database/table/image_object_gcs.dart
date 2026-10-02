@@ -31,7 +31,4 @@ class ImageObjectGcs extends Table {
 
   @override
   String get tableName => 'image_object_gc';
-
-  @override
-  bool get withoutRowId => true;
 }

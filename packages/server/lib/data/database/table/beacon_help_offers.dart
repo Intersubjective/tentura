@@ -38,7 +38,4 @@ class BeaconHelpOffers extends Table with TimestampsFields {
 
   @override
   String get tableName => 'beacon_help_offer';
-
-  @override
-  bool get withoutRowId => true;
 }

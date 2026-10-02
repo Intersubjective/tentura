@@ -31,7 +31,4 @@ class AccountCredentials extends Table {
 
   @override
   String get tableName => 'account_credential';
-
-  @override
-  bool get withoutRowId => true;
 }

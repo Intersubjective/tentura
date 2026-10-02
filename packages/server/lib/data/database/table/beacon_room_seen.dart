@@ -26,7 +26,4 @@ class BeaconRoomSeen extends Table {
 
   @override
   String get tableName => 'beacon_room_seen';
-
-  @override
-  bool get withoutRowId => true;
 }

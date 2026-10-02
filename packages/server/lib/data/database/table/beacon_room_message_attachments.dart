@@ -33,7 +33,4 @@ class BeaconRoomMessageAttachments extends Table {
 
   @override
   String get tableName => 'beacon_room_message_attachment';
-
-  @override
-  bool get withoutRowId => true;
 }

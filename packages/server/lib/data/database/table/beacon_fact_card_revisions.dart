@@ -52,7 +52,4 @@ class BeaconFactCardRevisions extends Table {
 
   @override
   String get tableName => 'beacon_fact_card_revision';
-
-  @override
-  bool get withoutRowId => true;
 }

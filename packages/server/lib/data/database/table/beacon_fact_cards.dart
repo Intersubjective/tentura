@@ -51,7 +51,4 @@ class BeaconFactCards extends Table with TimestampsFields {
 
   @override
   String get tableName => 'beacon_fact_card';
-
-  @override
-  bool get withoutRowId => true;
 }

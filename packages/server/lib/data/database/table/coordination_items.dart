@@ -42,7 +42,4 @@ class CoordinationItems extends Table {
 
   @override
   String get tableName => 'coordination_item';
-
-  @override
-  bool get withoutRowId => true;
 }

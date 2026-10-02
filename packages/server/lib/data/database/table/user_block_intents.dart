@@ -34,7 +34,4 @@ class UserBlockIntents extends Table with TimestampsFields {
 
   @override
   String get tableName => 'user_block_intent';
-
-  @override
-  bool get withoutRowId => true;
 }

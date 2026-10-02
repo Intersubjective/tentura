@@ -38,7 +38,4 @@ class EmailAuthTransactions extends Table {
 
   @override
   String get tableName => 'email_auth_transaction';
-
-  @override
-  bool get withoutRowId => true;
 }

@@ -81,7 +81,4 @@ class BeaconRoomMessages extends Table {
 
   @override
   String get tableName => 'beacon_room_message';
-
-  @override
-  bool get withoutRowId => true;
 }

@@ -30,7 +30,4 @@ class Images extends Table {
 
   @override
   String get tableName => 'image';
-
-  @override
-  bool get withoutRowId => true;
 }

@@ -25,7 +25,4 @@ class InviteSeedPromptStates extends Table {
 
   @override
   String get tableName => 'invite_seed_prompt_state';
-
-  @override
-  bool get withoutRowId => true;
 }

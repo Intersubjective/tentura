@@ -18,7 +18,4 @@ class VoteUsers extends Table with TimestampsFields, TickerFields {
 
   @override
   String get tableName => 'vote_user';
-
-  @override
-  bool get withoutRowId => true;
 }

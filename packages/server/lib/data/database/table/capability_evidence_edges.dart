@@ -38,7 +38,4 @@ class CapabilityEvidenceEdges extends Table {
 
   @override
   String get tableName => 'capability_evidence_edge';
-
-  @override
-  bool get withoutRowId => true;
 }

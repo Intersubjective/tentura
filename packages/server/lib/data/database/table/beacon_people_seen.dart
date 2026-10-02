@@ -18,7 +18,4 @@ class BeaconPeopleSeen extends Table {
 
   @override
   String get tableName => 'beacon_people_seen';
-
-  @override
-  bool get withoutRowId => true;
 }

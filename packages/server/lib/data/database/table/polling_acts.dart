@@ -23,7 +23,4 @@ class PollingActs extends Table {
 
   @override
   String get tableName => 'polling_act';
-
-  @override
-  bool get withoutRowId => true;
 }

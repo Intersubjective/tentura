@@ -22,7 +22,4 @@ class UserBlocks extends Table {
 
   @override
   String get tableName => 'user_block';
-
-  @override
-  bool get withoutRowId => true;
 }

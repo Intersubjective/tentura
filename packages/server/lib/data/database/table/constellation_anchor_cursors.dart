@@ -17,7 +17,4 @@ class ConstellationAnchorCursors extends Table {
 
   @override
   String get tableName => 'constellation_anchor_cursor';
-
-  @override
-  bool get withoutRowId => true;
 }

@@ -84,7 +84,4 @@ class Beacons extends Table
 
   @override
   String get tableName => 'beacon';
-
-  @override
-  bool get withoutRowId => true;
 }

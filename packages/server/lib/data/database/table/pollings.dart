@@ -33,7 +33,4 @@ class Pollings extends Table with TimestampsFields {
 
   @override
   String get tableName => 'polling';
-
-  @override
-  bool get withoutRowId => true;
 }

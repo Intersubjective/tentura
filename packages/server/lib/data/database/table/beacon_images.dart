@@ -17,7 +17,4 @@ class BeaconImages extends Table {
 
   @override
   String get tableName => 'beacon_image';
-
-  @override
-  bool get withoutRowId => true;
 }

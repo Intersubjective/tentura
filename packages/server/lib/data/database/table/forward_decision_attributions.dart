@@ -26,7 +26,4 @@ class ForwardDecisionAttributions extends Table {
 
   @override
   String get tableName => 'forward_decision_attribution';
-
-  @override
-  bool get withoutRowId => true;
 }

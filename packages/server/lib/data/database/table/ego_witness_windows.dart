@@ -27,7 +27,4 @@ class EgoWitnessWindows extends Table {
 
   @override
   String get tableName => 'ego_witness_window';
-
-  @override
-  bool get withoutRowId => true;
 }

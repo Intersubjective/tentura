@@ -23,7 +23,4 @@ class UserPresence extends Table {
 
   @override
   String get tableName => 'user_presence';
-
-  @override
-  bool get withoutRowId => true;
 }

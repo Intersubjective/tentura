@@ -29,7 +29,4 @@ class ConstellationAnchors extends Table {
 
   @override
   String get tableName => 'constellation_anchor';
-
-  @override
-  bool get withoutRowId => true;
 }

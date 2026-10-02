@@ -25,7 +25,4 @@ class UserContacts extends Table with TimestampsFields {
 
   @override
   String get tableName => 'user_contact';
-
-  @override
-  bool get withoutRowId => true;
 }

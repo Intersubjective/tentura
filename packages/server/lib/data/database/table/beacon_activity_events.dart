@@ -43,7 +43,4 @@ class BeaconActivityEvents extends Table {
 
   @override
   String get tableName => 'beacon_activity_event';
-
-  @override
-  bool get withoutRowId => true;
 }

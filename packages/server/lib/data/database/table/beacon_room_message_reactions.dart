@@ -23,7 +23,4 @@ class BeaconRoomMessageReactions extends Table {
 
   @override
   String get tableName => 'beacon_room_message_reaction';
-
-  @override
-  bool get withoutRowId => true;
 }

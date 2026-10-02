@@ -23,7 +23,4 @@ class UserTrustEdges extends Table with TimestampsFields {
 
   @override
   String get tableName => 'user_trust_edge';
-
-  @override
-  bool get withoutRowId => true;
 }

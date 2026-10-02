@@ -16,7 +16,4 @@ class PollingVariants extends Table {
 
   @override
   String get tableName => 'polling_variant';
-
-  @override
-  bool get withoutRowId => true;
 }

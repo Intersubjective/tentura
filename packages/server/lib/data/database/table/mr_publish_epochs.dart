@@ -10,7 +10,4 @@ class MrPublishEpochs extends Table {
 
   @override
   String get tableName => 'mr_publish_epoch';
-
-  @override
-  bool get withoutRowId => true;
 }

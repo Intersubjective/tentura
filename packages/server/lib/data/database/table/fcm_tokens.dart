@@ -25,7 +25,4 @@ class FcmTokens extends Table {
 
   @override
   String get tableName => 'fcm_token';
-
-  @override
-  bool get withoutRowId => true;
 }

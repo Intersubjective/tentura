@@ -28,7 +28,4 @@ class Users extends Table with TitleDescriptionFields, TimestampsFields {
 
   @override
   String get tableName => 'user';
-
-  @override
-  bool get withoutRowId => true;
 }

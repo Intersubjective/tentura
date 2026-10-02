@@ -54,7 +54,4 @@ class BeaconForwardEdges extends Table {
 
   @override
   String get tableName => 'beacon_forward_edge';
-
-  @override
-  bool get withoutRowId => true;
 }

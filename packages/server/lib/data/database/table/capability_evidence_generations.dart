@@ -19,7 +19,4 @@ class CapabilityEvidenceGenerations extends Table {
 
   @override
   String get tableName => 'capability_evidence_generation';
-
-  @override
-  bool get withoutRowId => true;
 }
