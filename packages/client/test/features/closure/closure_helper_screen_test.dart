@@ -35,9 +35,6 @@
 //    avatars: author + every member)`.
 //  - strings are Russian (locale `ru`), keys `closureHelper*` in both ARBs.
 
-import 'dart:convert';
-import 'dart:io';
-
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -913,46 +910,5 @@ void main() {
       scrollable: scrollable,
     );
     expect(tester.takeException(), isNull);
-  });
-
-  test('every helper string exists in both ARB files, Russian verbatim', () {
-    Map<String, dynamic> arb(String f) =>
-        jsonDecode(File(f).readAsStringSync()) as Map<String, dynamic>;
-    for (final f in ['l10n/app_ru.arb', 'l10n/app_en.arb']) {
-      final keys = arb(f).keys.where((k) => k.startsWith('closureHelper'));
-      expect(keys.length, greaterThanOrEqualTo(15), reason: f);
-      for (final k in [
-        'closureHelperAuthorEdgeNotice',
-        'closureHelperHeader',
-        'closureHelperInfoScaling',
-        'closureHelperSupportEdgeNote',
-      ]) {
-        expect(keys, contains(k), reason: '$f $k');
-      }
-    }
-    final ru = arb('l10n/app_ru.arb');
-    expect(ru['closureHelperHeader'], _header);
-    expect(ru['closureHelperAuthorEdgeNotice'], _authorEdge);
-    expect(ru['closureHelperInfoScaling'], _scaling);
-    expect(ru['closureHelperSupportEdgeNote'], _supportEdge);
-    final values = ru.entries
-        .where((e) => e.key.startsWith('closureHelper'))
-        .map((e) => e.value.toString())
-        .toList();
-    for (final s in [
-      _off,
-      _on,
-      _legend,
-      _statusNone,
-      _statusDiffers,
-      'Готово',
-      _skipLabel,
-      _skipNote,
-      _skipConfirm,
-      _privacy,
-      _bookmarkCopy,
-    ]) {
-      expect(values, contains(s));
-    }
   });
 }

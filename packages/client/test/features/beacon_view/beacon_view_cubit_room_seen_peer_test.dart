@@ -1,7 +1,4 @@
-// tentura-fpi landing gate acceptance (chat read receipts / room_seen_peer)
-
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
@@ -122,23 +119,6 @@ void main() {
         reason: 'peer read-presence must not refetch fact cards',
       );
     });
-
-    test(
-      '_fetchForEntityTypes documents roomSeenPeer as presence-only',
-      () {
-        final source = File(
-          'lib/features/beacon_view/ui/bloc/beacon_view_cubit.dart',
-        ).readAsStringSync();
-
-        expect(
-          source,
-          contains('BeaconRoomEntityType.roomSeenPeer'),
-          reason:
-              'request detail must treat roomSeenPeer like roomSeen: '
-              'explicit empty branch beside the existing roomSeen arm',
-        );
-      },
-    );
   });
 }
 

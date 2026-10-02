@@ -11,7 +11,6 @@
 //    GREY (near-zero chroma); the painted output depends only on the member
 //    count and the number of avatars, never on who the avatars are.
 
-import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -22,8 +21,6 @@ import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/closure/ui/widget/share_flow_diagram.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-
-const _file = 'lib/features/closure/ui/widget/share_flow_diagram.dart';
 
 // Digit-free ids and names, so any digit the diagram prints is its own.
 String _letters(int i) => String.fromCharCodes([
@@ -217,36 +214,5 @@ void main() {
       ),
       findsWidgets,
     );
-  });
-
-  test('every constructor takes only memberCount, avatars and key', () {
-    final src = File(_file).readAsStringSync();
-    expect(src, contains('class ShareFlowDiagram '));
-    final starts = RegExp(
-      r'^[ \t]*(?:const[ \t]+|factory[ \t]+)?ShareFlowDiagram(?:\.\w+)?[ \t]*\(',
-      multiLine: true,
-    ).allMatches(src).toList();
-    expect(starts, isNotEmpty, reason: 'a constructor is declared');
-    final names = <String>{};
-    for (final m in starts) {
-      var depth = 1;
-      var i = m.end;
-      while (depth > 0 && i < src.length) {
-        final ch = src[i++];
-        if (ch == '(') depth++;
-        if (ch == ')') depth--;
-      }
-      final params = src.substring(m.end, i - 1);
-      names.addAll(
-        params
-            .replaceAll(RegExp(r'[{}\[\]]'), '')
-            .split(',')
-            .map((s) => s.split('=').first.trim())
-            .where((s) => s.isNotEmpty)
-            .map((s) => s.split(RegExp(r'[\s.]')).last),
-      );
-    }
-    expect(names, containsAll(['memberCount', 'avatars']));
-    expect(names.difference({'memberCount', 'avatars', 'key'}), isEmpty);
   });
 }

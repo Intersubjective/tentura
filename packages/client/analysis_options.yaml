@@ -43,8 +43,6 @@ analyzer:
     - "**/*.freezed.dart"
     - "lib/ui/l10n/**"
     - "test/drift/**.dart"
-    # Lint probe for tentura-7xz; analyzed only via dart analyze <this-file>.
-    - integration_test/support/tentura_7xz_interpolation_lint_probe.dart
     - build/**
     - android/**
     - ios/**

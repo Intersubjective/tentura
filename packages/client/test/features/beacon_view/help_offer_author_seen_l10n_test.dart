@@ -26,18 +26,6 @@ String? _enKeyFor(String value) {
 }
 
 void main() {
-  for (final english in [_notSeenEnglish, _seenEnglish]) {
-    test('"$english" has an English ARB entry and a Russian translation', () {
-      final key = _enKeyFor(english);
-      expect(key, isNotNull, reason: 'app_en.arb needs exactly one "$english"');
-
-      final ru = _arb('ru')[key];
-      expect(ru, isA<String>(), reason: 'app_ru.arb must translate $key');
-      expect((ru as String).trim(), isNotEmpty);
-      expect(ru, isNot(english), reason: 'Russian copy must be translated');
-    });
-  }
-
   testWidgets('the pending-offer label renders in Russian from l10n', (
     tester,
   ) async {

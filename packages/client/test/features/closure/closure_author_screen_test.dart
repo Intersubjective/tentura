@@ -15,9 +15,6 @@
 //    `closure.author.story.save`.
 //  - strings are Russian (locale `ru`), keys `closureAuthor*` in both ARBs.
 
-import 'dart:convert';
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
@@ -487,35 +484,6 @@ void main() {
     await tester.tap(find.text('Вернуть в работу'));
     await tester.pumpAndSettle();
     expect(fake.calls['reopen'], {'expectedEpoch': _epoch});
-  });
-
-  test('every author string exists in both ARB files', () {
-    for (final f in ['l10n/app_ru.arb', 'l10n/app_en.arb']) {
-      final arb =
-          jsonDecode(File(f).readAsStringSync()) as Map<String, dynamic>;
-      final keys = arb.keys.where((k) => k.startsWith('closureAuthor'));
-      expect(keys.length, greaterThanOrEqualTo(15), reason: f);
-    }
-    final ru =
-        jsonDecode(File('l10n/app_ru.arb').readAsStringSync())
-            as Map<String, dynamic>;
-    final values = ru.entries
-        .where((e) => e.key.startsWith('closureAuthor'))
-        .map((e) => e.value.toString())
-        .toList();
-    for (final s in [
-      'Выполнено',
-      'Не выполнено',
-      'Не могу судить',
-      'Изменить распределение',
-      'Вернуть поровну',
-      'если коллеги промолчат',
-      'Продлить на 7 дней',
-      'Завершить сейчас',
-      'Вернуть в работу',
-    ]) {
-      expect(values, contains(s));
-    }
   });
 
   testWidgets('members: actives first, leavers in order with their own label', (

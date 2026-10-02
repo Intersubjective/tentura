@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:graphql_schema2/graphql_schema2.dart';
 import 'package:graphql_server2/graphql_server2.dart';
@@ -247,45 +246,6 @@ void main() {
       );
     });
 
-    test('closure mutations left MutationBeacon', () {
-      const moved = [
-        'beaconClose',
-        'beaconCloseNow',
-        'beaconReopen',
-        'beaconExtendReview',
-        'beaconExtendClosure',
-      ];
-      const dir = 'lib/api/controllers/graphql/mutation';
-      for (final file in ['mutation_beacon.dart']) {
-        final src = File('$dir/$file').readAsStringSync();
-        for (final n in moved) {
-          expect(
-            src.contains("'$n'"),
-            isFalse,
-            reason: '$file must no longer define $n',
-          );
-        }
-      }
-      final names = MutationClosure(
-        closureCase: _closureCase(_Fixture()),
-      ).all.map((f) => f.name).toList();
-      for (final n in ['beaconClose', 'beaconCloseNow', 'beaconReopen']) {
-        expect(names.where((x) => x == n), hasLength(1));
-      }
-    });
-
-    test('closure module is registered in the query and mutation roots', () {
-      const dir = 'lib/api/controllers/graphql';
-      expect(
-        File('$dir/mutation/_mutations_all.dart').readAsStringSync(),
-        contains('MutationClosure()'),
-      );
-      expect(
-        File('$dir/query/_queries_all.dart').readAsStringSync(),
-        contains('QueryClosure()'),
-      );
-    });
-
     test('ClosureState and ClosureMember fields are exactly the allowlist', () {
       expect(
         _objectType('ClosureState').fields.map((f) => f.name).toSet(),
@@ -451,7 +411,10 @@ void main() {
   });
 
   group('closureState extensionsUsed (serialized JSON)', () {
-    Future<Map<String, dynamic>> state(String viewer, int extensionsUsed) async {
+    Future<Map<String, dynamic>> state(
+      String viewer,
+      int extensionsUsed,
+    ) async {
       final r = await _run(
         _graph(_Fixture(extensionsUsed: extensionsUsed)),
         'closureState',

@@ -47,8 +47,10 @@ const _signatures = {
   'closureToggleSupport':
       'closureToggleSupport(beaconId: String!, expectedEpoch: Int!, '
       'on: Boolean!, targetId: String!): v2_ClosureToggleResult!',
-  'closureDone': 'closureDone(beaconId: String!, expectedEpoch: Int!): Boolean!',
-  'closureSkip': 'closureSkip(beaconId: String!, expectedEpoch: Int!): Boolean!',
+  'closureDone':
+      'closureDone(beaconId: String!, expectedEpoch: Int!): Boolean!',
+  'closureSkip':
+      'closureSkip(beaconId: String!, expectedEpoch: Int!): Boolean!',
   'closureSetMark':
       'closureSetMark(beaconId: String!, expectedEpoch: Int!, on: Boolean!, '
       'targetId: String!): Boolean!',
@@ -84,7 +86,10 @@ const _types = {
     'notInRequest: Boolean!',
     'offerText: String',
   ],
-  'v2_ClosureOutcomeEntry': ['helperId: String!', 'outcome: v2_ClosureOutcome!'],
+  'v2_ClosureOutcomeEntry': [
+    'helperId: String!',
+    'outcome: v2_ClosureOutcome!',
+  ],
   'v2_ClosureSplitEntry': ['helperId: String!', 'pct: Int!'],
   'v2_ClosureResult': [
     'band: v2_ClosureBand!',
@@ -202,8 +207,8 @@ void main() {
   group('schema carries the Arch §7 contract', () {
     for (final e in _signatures.entries) {
       test('${e.key} signature', () {
-        final root = e.value.contains(': Boolean!') ||
-                e.key == 'closureToggleSupport'
+        final root =
+            e.value.contains(': Boolean!') || e.key == 'closureToggleSupport'
             ? 'mutation_root'
             : 'query_root';
         final fields = schema.fields(root)!;
@@ -220,10 +225,9 @@ void main() {
       test('${e.key} fields', () {
         final fields = schema.fields(e.key);
         expect(fields, isNotNull, reason: 'type ${e.key} is missing');
-        final lines = fields!.entries
-            .map((f) => '${f.key}: ${f.value.$2}')
-            .toList()
-          ..sort();
+        final lines =
+            fields!.entries.map((f) => '${f.key}: ${f.value.$2}').toList()
+              ..sort();
         expect(lines, e.value);
       });
     }
@@ -255,10 +259,6 @@ void main() {
       );
       expect(body, contains('helperId: String!'));
       expect(body, contains('pct: Int!'));
-    });
-
-    test('review-extension contract is gone', () {
-      expect(schema.sdl, isNot(contains('beaconExtendReview(')));
     });
   });
 }

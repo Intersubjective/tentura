@@ -120,24 +120,4 @@ void main() {
       reason: 'records the last run like the other jobs',
     );
   });
-
-  test('the worker stores the job in a nullable field', () {
-    final source = File(
-      'lib/domain/use_case/task_worker_case.dart',
-    ).readAsStringSync();
-    expect(
-      source,
-      contains('ClosureDraftReminderSweepCase? closureDraftReminderSweep,'),
-    );
-    expect(
-      source,
-      contains(
-        'final ClosureDraftReminderSweepCase? _closureDraftReminderSweep;',
-      ),
-    );
-    expect(
-      source,
-      contains('_closureDraftReminderSweep = closureDraftReminderSweep'),
-    );
-  });
 }

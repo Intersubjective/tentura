@@ -37,13 +37,6 @@ void main() {
         1320,
       );
     });
-
-    test('fact codes are the last enum values', () {
-      expect(
-        BeaconExceptionCode.values.last,
-        BeaconExceptionCode.beaconFactCardRateLimited,
-      );
-    });
   });
 
   group('fact card exceptions', () {

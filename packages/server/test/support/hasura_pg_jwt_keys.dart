@@ -2,9 +2,15 @@ import 'dart:io';
 
 import 'package:tentura_server/env.dart';
 
-import 'hasura_pg_jwt_fresh_checkout_harness_contract.dart';
+/// Env vars that may redirect where the loader reads repo dotenv from.
+const kHasuraPgFreshCheckoutDotEnvPathEnvCandidates = <String>[
+  'TENTURA_HASURA_PG_REPO_DOT_ENV',
+  'TENTURA_HASURA_PG_FRESH_CHECKOUT_DOT_ENV',
+  'TENTURA_TEST_REPO_DOT_ENV',
+  'TENTURA_HASURA_PG_FRESH_CHECKOUT_REPO_ROOT',
+];
 
-/// Shared JWT PEM loader for isolated Hasura pg tests (tentura-50o).
+/// Shared JWT PEM loader for isolated Hasura pg tests.
 ///
 /// Resolution order: repo `.env` entries, then process environment, then
 /// [Env.kJwtPublicKey] / [Env.kJwtPrivateKey] (CI and fresh checkout).
@@ -13,7 +19,8 @@ import 'hasura_pg_jwt_fresh_checkout_harness_contract.dart';
   Map<String, String>? platformEnvironmentOverride,
 }) {
   final platformEnv = platformEnvironmentOverride ?? Platform.environment;
-  final dotEnv = repoDotEnvOverride ?? _repoDotEnvFileForHasuraPgTests(platformEnv);
+  final dotEnv =
+      repoDotEnvOverride ?? _repoDotEnvFileForHasuraPgTests(platformEnv);
 
   final values = <String, String>{};
   if (dotEnv.existsSync()) {

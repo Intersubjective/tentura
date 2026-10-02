@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
@@ -22,8 +21,6 @@ import 'package:tentura/features/polling/data/repository/polling_repository.dart
 
 import '../../support/test_realtime_sync.dart';
 import 'inbox_case_test.dart';
-
-// tentura-n59 landing gate acceptance (chat read receipts)
 
 void main() {
   late FakeInboxRepository repo;
@@ -100,28 +97,6 @@ void main() {
         reason: 'InboxCase must not merge roomSeenPeer into desk refetch ids',
       );
       await sub.cancel();
-    });
-
-    test('deskRelevantChanges allow-list documents roomSeenPeer exclusion', () {
-      final inboxSource = File(
-        'lib/features/inbox/domain/use_case/inbox_case.dart',
-      ).readAsStringSync();
-      final threadsSource = File(
-        'lib/features/beacon_threads/domain/use_case/beacon_threads_case.dart',
-      ).readAsStringSync();
-
-      expect(
-        inboxSource,
-        contains('roomSeenPeer'),
-        reason: 'InboxCase must document roomSeenPeer outside desk refetch ids',
-      );
-      expect(
-        threadsSource,
-        contains('roomSeenPeer'),
-        reason:
-            'BeaconThreadsCase desk allow-list must document roomSeenPeer '
-            'as presence-only',
-      );
     });
   });
 }

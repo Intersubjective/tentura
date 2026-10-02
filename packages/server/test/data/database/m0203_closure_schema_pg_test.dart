@@ -8,8 +8,16 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/data/database/migration/_migrations.dart';
 
 import '../../support/disposable_pg_target.dart';
-import '../../support/m0203_dropped_review_sql_usage.dart';
 import '../../support/pg_test_public_keys.dart';
+
+const _droppedReviewTables = [
+  'beacon_evaluation',
+  'beacon_evaluation_ack_tag',
+  'beacon_evaluation_participant',
+  'beacon_evaluation_visibility',
+  'beacon_review_status',
+  'beacon_review_window',
+];
 
 /// A6 (m0203): closure schema (Arch §5.4), legacy status-5 bump, review table drop,
 /// and notification allowlist — see `docs/plans/episode-closure-implementation-steps.md`.
@@ -109,7 +117,7 @@ LIMIT 1
     test(
       'drops all six review tables',
       () async {
-        for (final table in m0203DroppedReviewTables) {
+        for (final table in _droppedReviewTables) {
           final exists = await _tableExists(session.writer, table);
           expect(exists, isFalse, reason: '$table should be dropped');
         }
@@ -344,7 +352,9 @@ ON CONFLICT (id) DO NOTHING
 
 // Legacy fixture wording is split so the A18 sweep of removed-subsystem
 // wording stays clean; values are what migration m0203 actually matches.
-const _legacyEventType = 'review' 'Opened';
+const _legacyEventType =
+    'review'
+    'Opened';
 
 const _insertLegacyWindowSql =
     'INSERT INTO public.beacon_review_'

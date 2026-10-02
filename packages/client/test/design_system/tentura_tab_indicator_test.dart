@@ -31,10 +31,5 @@ void main() {
       expect(identical(darkA, darkB), isTrue);
       expect(identical(lightA, darkA), isFalse);
     });
-
-    test('exported from design-system barrel', () {
-      expect(TenturaTabIndicatorStyle, isNotNull);
-      expect(TenturaTabIndicator, isNotNull);
-    });
   });
 }

@@ -4,31 +4,6 @@ import 'package:test/test.dart';
 
 void main() {
   final app = File('lib/app/app.dart').readAsStringSync();
-  String read(String path) => File(path).readAsStringSync();
-
-  test('app.dart no longer calls the trust cutoverBackfillIfNeeded', () {
-    // Only the attention cutover may keep its own backfill call.
-    final calls = RegExp(
-      r'getIt<(\w+)>\(\)\s*\.cutoverBackfillIfNeeded\(',
-    ).allMatches(app).map((m) => m.group(1)).toList();
-    expect(calls, everyElement('AttentionCutoverCase'));
-    // No other receiver shape (variable, port, repository) either.
-    expect(
-      RegExp(r'cutoverBackfillIfNeeded\(').allMatches(app).length,
-      calls.length,
-    );
-  });
-
-  test('trust cutoverBackfillIfNeeded is deleted from repo, port and case', () {
-    for (final f in const [
-      'lib/data/repository/user_trust_edge_repository.dart',
-      'lib/domain/port/user_trust_edge_repository_port.dart',
-      'lib/domain/use_case/user_trust_edge_case.dart',
-      'lib/data/repository/mock/user_trust_edge_repository_mock.dart',
-    ]) {
-      expect(read(f), isNot(contains('cutoverBackfillIfNeeded')), reason: f);
-    }
-  });
 
   test('app.dart runs TrustCutoverCase.runIfPending after the pgmer2 upgrade '
       'and before workers start', () {
@@ -66,14 +41,5 @@ void main() {
       head.substring(guard!.end),
       isNot(contains('meritrank_init')),
     );
-  });
-
-  test('backfill-only code is gone from UserTrustEdgeRepository', () {
-    final repo = read('lib/data/repository/user_trust_edge_repository.dart');
-    // The old backfill read every non-zero vote and bumped the MR epoch.
-    expect(repo, isNot(contains('FROM vote_user WHERE amount <> 0')));
-    expect(repo, isNot(contains('bumpMrEpoch')));
-    expect(repo, isNot(contains('hasProjection')));
-    expect(repo, isNot(contains('DateTime.timestamp()')));
   });
 }

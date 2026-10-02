@@ -13,7 +13,7 @@ import 'package:gql/language.dart';
 /// string per stale or missing output (naming the document / file); empty
 /// when everything is current. Must not depend on file mtimes.
 ///
-/// Contract pinned by `beacon_fact_card_gql_codegen_freshness_test.dart`.
+/// Contract pinned by `gql_codegen_freshness_test.dart`.
 List<String> findStaleGqlCodegen({
   required Directory gqlDir,
   required File schema,

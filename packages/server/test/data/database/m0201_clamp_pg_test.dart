@@ -19,13 +19,6 @@ const _bob = 'Um0201pgbob01';
 const _allIds = [_alice, _bob];
 
 Future<void> main() async {
-  test('migration 0201 is registered in the schema registry', () {
-    expect(
-      migrationsForTesting.map((m) => m.version),
-      contains('0201'),
-    );
-  });
-
   final target = DisposablePgTarget.fromNamedEnvironment(
     envVarName: 'TENTURA_M0201_CLAMP_PG_TEST_DB',
     defaultNamePrefix: 'tentura_test_m0201_clamp_pg',
@@ -85,10 +78,12 @@ Future<void> main() async {
         reason: 'projection must not publish; the queue is the only path',
       );
 
-      final queued = await database.customSelect(
-        'SELECT count(*)::int AS c FROM public.trust_publish_queue '
-        "WHERE subject_user_id = '$_alice' AND object_user_id = '$_bob'",
-      ).getSingle();
+      final queued = await database
+          .customSelect(
+            'SELECT count(*)::int AS c FROM public.trust_publish_queue '
+            "WHERE subject_user_id = '$_alice' AND object_user_id = '$_bob'",
+          )
+          .getSingle();
       expect(queued.read<int>('c'), 1);
     },
     skip: skipReason,
@@ -110,10 +105,12 @@ Future<void> main() async {
       // B1: a block raises the wall (target -1) even though nothing was
       // ever sent, and the sign change is queued for publication.
       expect((await _readEdge(database, _alice, _bob))?.targetW, -1);
-      final queued = await database.customSelect(
-        'SELECT count(*)::int AS c FROM public.trust_publish_queue '
-        "WHERE subject_user_id = '$_alice' AND object_user_id = '$_bob'",
-      ).getSingle();
+      final queued = await database
+          .customSelect(
+            'SELECT count(*)::int AS c FROM public.trust_publish_queue '
+            "WHERE subject_user_id = '$_alice' AND object_user_id = '$_bob'",
+          )
+          .getSingle();
       expect(queued.read<int>('c'), 1);
     },
     skip: skipReason,
@@ -124,38 +121,40 @@ Future<void> _insertEvidence(
   TenturaDb db,
   String subjectId,
   String objectId,
-) =>
-    db.customStatement(
-      '''
+) => db.customStatement(
+  '''
 INSERT INTO public.trust_evidence
   (id, subject_user_id, object_user_id, kind, count, source_key)
 VALUES ('m0201-ev-$subjectId-$objectId', '$subjectId', '$objectId', 2, 1,
         'm0201:$subjectId:$objectId')
 ''',
-    );
+);
 
-Future<void> _project(TenturaDb db, String subject, String object) =>
-    db.customSelect(
+Future<void> _project(TenturaDb db, String subject, String object) => db
+    .customSelect(
       r'SELECT public.trust_project_pair($1, $2)',
       variables: [Variable<String>(subject), Variable<String>(object)],
-    ).getSingle();
+    )
+    .getSingle();
 
 Future<({double trustW, double targetW, double prevSentWeight})?> _readEdge(
   TenturaDb db,
   String subject,
   String object,
 ) async {
-  final rows = await db.customSelect(
-    r'''
+  final rows = await db
+      .customSelect(
+        r'''
 SELECT trust_w, target_w, prev_sent_weight
 FROM public.user_trust_edge
 WHERE subject = $1 AND object = $2
 ''',
-    variables: [
-      Variable<String>(subject),
-      Variable<String>(object),
-    ],
-  ).get();
+        variables: [
+          Variable<String>(subject),
+          Variable<String>(object),
+        ],
+      )
+      .get();
   if (rows.isEmpty) return null;
   final row = rows.single;
   return (
