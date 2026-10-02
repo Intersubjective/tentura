@@ -82,6 +82,90 @@ void main() {
     );
   });
 
+  group('verifyBearerJwt', () {
+    test('returns 401 when Authorization is absent', () async {
+      final handler = middleware.verifyBearerJwt(echoSub);
+      final res = await handler(gqlRequest());
+      expect(res.statusCode, 401);
+    });
+
+    test('returns 401 when Bearer is present but invalid', () async {
+      final handler = middleware.verifyBearerJwt(echoSub);
+      final res = await handler(
+        gqlRequest(authorization: 'Bearer not-a-jwt'),
+      );
+      expect(res.statusCode, 401);
+    });
+
+    test('returns 401 when Authorization header is malformed', () async {
+      final handler = middleware.verifyBearerJwt(echoSub);
+      final res = await handler(gqlRequest(authorization: 'Bearer'));
+      expect(res.statusCode, 401);
+    });
+
+    test('returns 200 when Bearer is valid', () async {
+      final token = authCase.issueAccessToken(_accountId).rawToken;
+      final handler = middleware.verifyBearerJwt(echoSub);
+      final res = await handler(gqlRequest(authorization: 'Bearer $token'));
+      expect(res.statusCode, 200);
+      expect(await res.readAsString(), _accountId);
+    });
+
+    test('invokes inner handler exactly once after valid JWT parse', () async {
+      var innerCalls = 0;
+      Future<Response> countingInner(Request request) async {
+        innerCalls++;
+        return echoSub(request);
+      }
+
+      final token = authCase.issueAccessToken(_accountId).rawToken;
+      final handler = middleware.verifyBearerJwt(countingInner);
+      final res = await handler(gqlRequest(authorization: 'Bearer $token'));
+
+      expect(res.statusCode, 200);
+      expect(innerCalls, 1);
+    });
+
+    test('does not invoke inner handler when JWT parse fails', () async {
+      var innerCalls = 0;
+      Future<Response> mustNotRun(Request request) async {
+        innerCalls++;
+        return Response.ok('unexpected');
+      }
+
+      final handler = middleware.verifyBearerJwt(mustNotRun);
+      final res = await handler(
+        gqlRequest(authorization: 'Bearer not-a-jwt'),
+      );
+
+      expect(res.statusCode, 401);
+      expect(innerCalls, 0);
+    });
+
+    test(
+      'propagates downstream async handler StateError outside JWT catch',
+      () async {
+        Future<Response> failingInner(Request request) async {
+          throw StateError('downstream');
+        }
+
+        final token = authCase.issueAccessToken(_accountId).rawToken;
+        final handler = middleware.verifyBearerJwt(failingInner);
+
+        await expectLater(
+          handler(gqlRequest(authorization: 'Bearer $token')),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              'downstream',
+            ),
+          ),
+        );
+      },
+    );
+  });
+
   group('extractJwtClaims', () {
     test('continues anonymous when Authorization is absent', () async {
       final handler = middleware.extractJwtClaims(echoSub);

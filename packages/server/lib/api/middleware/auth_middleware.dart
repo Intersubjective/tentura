@@ -29,17 +29,18 @@ class AuthMiddleware {
   Middleware get verifyBearerJwt =>
       (innerHandler) => (request) async {
         if (request.headers.containsKey(kHeaderAuthorization)) {
+          final JwtEntity jwt;
           try {
-            final jwt = _authCase.parseAndVerifyJwt(
+            jwt = _authCase.parseAndVerifyJwt(
               token: _extractAuthTokenFromHeaders(request.headers),
-            );
-            return await innerHandler(
-              request.change(context: {kContextJwtKey: jwt}),
             );
           } catch (e) {
             _log.warning('JWT verification failed', e);
             return Response.unauthorized(null);
           }
+          return await innerHandler(
+            request.change(context: {kContextJwtKey: jwt}),
+          );
         }
         return Response.unauthorized(null);
       };
