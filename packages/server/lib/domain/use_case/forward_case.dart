@@ -17,6 +17,7 @@ import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/inbox_repository_port.dart';
 import 'package:tentura_server/domain/port/person_visibility_repository_port.dart';
 import 'package:tentura_server/domain/port/post_lock_port.dart';
+import 'package:tentura_server/domain/policy/beacon_forward_policy.dart';
 import 'package:tentura_server/domain/port/user_block_repository_port.dart';
 import 'package:tentura_server/utils/id.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
@@ -373,6 +374,11 @@ final class ForwardCase extends UseCaseBase {
     if (!beacon.allowsForward) {
       throw const UnauthorizedException(
         description: 'Request does not allow forwarding',
+      );
+    }
+    if (!BeaconForwardPolicy.canForward(beacon: beacon, senderId: senderId)) {
+      throw const UnauthorizedException(
+        description: 'Forwarding is off for this post',
       );
     }
 

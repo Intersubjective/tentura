@@ -117,6 +117,16 @@ abstract class BeaconRepositoryPort {
     required Future<T> Function(BeaconEntity locked) fn,
   });
 
+  /// Takes the Post lock sequence (see `PostLockPort`) for [beaconId]; must run
+  /// inside the caller's transaction.
+  Future<void> lockPostForMutation(String beaconId);
+
+  /// Sets `beacon.forward_policy`; the caller holds the beacon row lock.
+  Future<void> setForwardPolicy({
+    required String beaconId,
+    required BeaconForwardPolicyValue policy,
+  });
+
   /// Atomically updates beacon status and inserts a status activity log row.
   Future<void> recordBeaconStatusTransition({
     required String beaconId,

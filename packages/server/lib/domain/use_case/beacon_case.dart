@@ -838,6 +838,48 @@ final class BeaconCase extends UseCaseBase {
     return _attention!.runAction(actorUserId: userId, action: mutate);
   }
 
+  /// One-way: switches an open Post from author-only to open forwarding.
+  Future<bool> openForwarding({
+    required String authorId,
+    required String id,
+  }) => _attention!.runAction(
+    actorUserId: authorId,
+    action: (_) async {
+      await _beaconRepository.lockPostForMutation(id);
+      return _beaconRepository.runInBeaconStateTransaction(
+        beaconId: id,
+        userId: authorId,
+        fn: (beacon) async {
+          if (beacon.author.id != authorId) {
+            throw const UnauthorizedException(
+              description: 'Only the author can open forwarding',
+            );
+          }
+          if (beacon.kind != BeaconKind.post) {
+            throw const BeaconCreateException(
+              description: 'Only a post has a forwarding policy',
+            );
+          }
+          if (beacon.status != BeaconStatus.open) {
+            throw const BeaconCreateException(
+              description: 'Forwarding can be opened on an open post only',
+            );
+          }
+          if (beacon.forwardPolicy != BeaconForwardPolicyValue.closed) {
+            throw const BeaconCreateException(
+              description: 'Forwarding is already open',
+            );
+          }
+          await _beaconRepository.setForwardPolicy(
+            beaconId: id,
+            policy: BeaconForwardPolicyValue.open,
+          );
+          return true;
+        },
+      );
+    },
+  );
+
   //
   Future<bool> deleteById({
     required String beaconId,

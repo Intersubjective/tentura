@@ -2,13 +2,16 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/domain/beacon_visibility.dart';
 import 'package:tentura_server/domain/coordination/resolve_forward_parent_edge.dart';
+import 'package:tentura_server/domain/policy/beacon_forward_policy.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/invitation_repository_port.dart';
+import 'package:tentura_server/domain/port/post_lock_port.dart';
 import 'package:tentura_server/domain/port/user_contact_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/entity/invitation_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/invite_accepted_notification_intent.dart';
 import 'package:tentura_server/domain/entity/invite_preview_result.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
@@ -32,11 +35,13 @@ final class InvitationCase extends UseCaseBase {
     this._guard,
     this._forwardEdgeRepository,
     this._userBlockRepository, {
+    PostLockPort? postLock,
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
     required super.env,
     required super.logger,
-  }) : _attentionIntents = attentionIntents,
+  }) : _postLock = postLock,
+       _attentionIntents = attentionIntents,
        _attention = attention;
 
   final InvitationRepositoryPort _invitationRepository;
@@ -55,6 +60,8 @@ final class InvitationCase extends UseCaseBase {
 
   final UserBlockRepositoryPort _userBlockRepository;
 
+  final PostLockPort? _postLock;
+
   final AttentionIntentCase? _attentionIntents;
 
   final TransactionalAttentionCase? _attention;
@@ -64,37 +71,86 @@ final class InvitationCase extends UseCaseBase {
     required String addresseeName,
     String? beaconId,
   }) async {
-    String? parentForwardEdgeId;
-    if (beaconId != null) {
-      if (!await _guard.canReadContent(beaconId: beaconId, viewerId: userId)) {
-        throw const UnauthorizedException(
-          description: 'Issuer cannot read request content',
-        );
-      }
-      final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
+    if (beaconId == null) {
+      return _invitationRepository.create(
+        issuerId: userId,
+        addresseeName: ContactCase.normalizeOptionalName(addresseeName),
+      );
+    }
+    if (!await _guard.canReadContent(beaconId: beaconId, viewerId: userId)) {
+      throw const UnauthorizedException(
+        description: 'Issuer cannot read request content',
+      );
+    }
+
+    Future<InvitationEntity> createForBeacon(BeaconEntity beacon) async {
       if (!beacon.allowsForward) {
         throw const UnauthorizedException(
           description: 'Request does not allow forwarding',
+        );
+      }
+      if (!BeaconForwardPolicy.canForward(beacon: beacon, senderId: userId)) {
+        throw const UnauthorizedException(
+          description: 'Forwarding is off for this post',
         );
       }
       final inbound = await _forwardEdgeRepository.fetchActiveInboundEdges(
         beaconId: beaconId,
         recipientId: userId,
       );
-      parentForwardEdgeId = resolveForwardParentEdgeId(
-        clientParentEdgeId: null,
-        activeInboundEdges: inbound,
-        senderId: userId,
-        authorId: beacon.author.id,
+      return _invitationRepository.create(
+        issuerId: userId,
+        addresseeName: ContactCase.normalizeOptionalName(addresseeName),
+        beaconId: beaconId,
+        parentForwardEdgeId: resolveForwardParentEdgeId(
+          clientParentEdgeId: null,
+          activeInboundEdges: inbound,
+          senderId: userId,
+          authorId: beacon.author.id,
+        ),
       );
     }
 
-    return _invitationRepository.create(
-      issuerId: userId,
-      addresseeName: ContactCase.normalizeOptionalName(addresseeName),
-      beaconId: beaconId,
-      parentForwardEdgeId: parentForwardEdgeId,
+    final firstRead = await _beaconRepository.getBeaconById(beaconId: beaconId);
+    if (firstRead.kind != BeaconKind.post) return createForBeacon(firstRead);
+    return _attention!.runAction(
+      actorUserId: userId,
+      action: (_) async =>
+          createForBeacon(await _beaconUnderPostLock(beaconId)),
     );
+  }
+
+  /// Reads the beacon; for a Post takes the Post lock first and re-reads, so
+  /// everything the caller checks afterwards is judged under the lock. Must
+  /// run inside the caller's transaction.
+  Future<BeaconEntity> _beaconUnderPostLock(String beaconId) async {
+    final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
+    if (beacon.kind != BeaconKind.post) return beacon;
+    await _postLock!.lockForPostMutation(beaconId);
+    return _beaconRepository.getBeaconById(beaconId: beaconId);
+  }
+
+  /// The invite's issuer must still be allowed to forward its beacon.
+  Future<void> _requireIssuerCanForward(InvitationEntity invitation) async {
+    final beacon = await _beaconUnderPostLock(invitation.beaconId!);
+    _requireBeaconInviteForward(invitation: invitation, beacon: beacon);
+  }
+
+  void _requireBeaconInviteForward({
+    required InvitationEntity invitation,
+    required BeaconEntity beacon,
+  }) {
+    if (!beacon.allowsForward) {
+      throw IdNotFoundException(id: invitation.id);
+    }
+    if (!BeaconForwardPolicy.canForward(
+      beacon: beacon,
+      senderId: invitation.issuer.id,
+    )) {
+      throw const UnauthorizedException(
+        description: 'Forwarding is off for this post',
+      );
+    }
   }
 
   /// Renames the addressee of the caller's own, still unconsumed invite.
@@ -251,11 +307,16 @@ final class InvitationCase extends UseCaseBase {
       invitation: invitation,
       userId: userId,
       emitMutualConnection: true,
-      mutation: () => _userRepository.bindMutual(
-        invitationId: invitationId,
-        userId: userId,
-        bindFriendship: true,
-      ),
+      mutation: () async {
+        if (invitation.beaconId != null) {
+          await _requireIssuerCanForward(invitation);
+        }
+        return _userRepository.bindMutual(
+          invitationId: invitationId,
+          userId: userId,
+          bindFriendship: true,
+        );
+      },
     );
   }
 
@@ -370,12 +431,13 @@ final class InvitationCase extends UseCaseBase {
     )) {
       throw IdNotFoundException(id: invitation.id);
     }
-    final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
+    final beacon = await _beaconUnderPostLock(beaconId);
     if (!beacon.allowsForward ||
         beacon.status == BeaconStatus.draft ||
         beacon.status == BeaconStatus.deleted) {
       throw IdNotFoundException(id: invitation.id);
     }
+    _requireBeaconInviteForward(invitation: invitation, beacon: beacon);
 
     return _userRepository.bindMutual(
       invitationId: invitation.id,

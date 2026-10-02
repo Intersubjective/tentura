@@ -222,6 +222,20 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
       storageById.removeWhere((key, value) => value.id == id);
 
   @override
+  Future<void> lockPostForMutation(String beaconId) async {}
+
+  @override
+  Future<void> setForwardPolicy({
+    required String beaconId,
+    required BeaconForwardPolicyValue policy,
+  }) async {
+    final beacon = storageById[beaconId];
+    if (beacon != null) {
+      storageById[beaconId] = beacon.copyWith(forwardPolicy: policy);
+    }
+  }
+
+  @override
   Future<T> runInBeaconStateTransaction<T>({
     required String beaconId,
     required String userId,

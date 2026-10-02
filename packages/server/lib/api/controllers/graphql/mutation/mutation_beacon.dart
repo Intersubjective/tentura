@@ -44,6 +44,7 @@ final class MutationBeacon extends GqlNodeBase {
     publish,
     deleteById,
     beaconCancel,
+    beaconForwardingOpen,
     addImage,
     removeImage,
     reorderImages,
@@ -60,6 +61,17 @@ final class MutationBeacon extends GqlNodeBase {
       userId: getCredentials(args).sub,
     ),
   );
+
+  GraphQLObjectField<dynamic, dynamic> get beaconForwardingOpen =>
+      GraphQLObjectField(
+        'beaconForwardingOpen',
+        graphQLBoolean,
+        arguments: [InputFieldId.field],
+        resolve: (_, args) => _beaconCase.openForwarding(
+          authorId: getCredentials(args).sub,
+          id: InputFieldId.fromArgsNonNullable(args),
+        ),
+      );
 
   GraphQLObjectField<dynamic, dynamic> get beaconCancel => GraphQLObjectField(
     'beaconCancel',

@@ -459,6 +459,30 @@ class MockBeaconRepositoryPort extends _i1.Mock
           as _i3.Future<T>);
 
   @override
+  _i3.Future<void> lockPostForMutation(String? beaconId) =>
+      (super.noSuchMethod(
+            Invocation.method(#lockPostForMutation, [beaconId]),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> setForwardPolicy({
+    required String? beaconId,
+    required _i10.BeaconForwardPolicyValue? policy,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#setForwardPolicy, [], {
+              #beaconId: beaconId,
+              #policy: policy,
+            }),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
   _i3.Future<void> recordBeaconStatusTransition({
     required String? beaconId,
     required _i9.BeaconStatus? fromStatus,

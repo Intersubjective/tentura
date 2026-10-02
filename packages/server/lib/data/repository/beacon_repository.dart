@@ -17,6 +17,7 @@ import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 
 import '../database/tentura_db.dart';
 import '../mapper/beacon_mapper.dart';
+import 'post_lock_repository.dart';
 
 export 'package:tentura_server/domain/entity/beacon_entity.dart';
 
@@ -470,6 +471,22 @@ class BeaconRepository implements BeaconRepositoryPort {
     final locked = await getBeaconById(beaconId: beaconId);
     return fn(locked);
   });
+
+  // Not a constructor dependency: a DI edge to the lock reorders registration
+  // of the singletons that depend on this repository.
+  @override
+  Future<void> lockPostForMutation(String beaconId) =>
+      PostLockRepository(_database).lockForPostMutation(beaconId);
+
+  @override
+  Future<void> setForwardPolicy({
+    required String beaconId,
+    required BeaconForwardPolicyValue policy,
+  }) async {
+    await _database.managers.beacons
+        .filter((e) => e.id.equals(beaconId))
+        .update((o) => o(forwardPolicy: Value(policy.value)));
+  }
 
   @override
   Future<void> recordBeaconStatusTransition({
