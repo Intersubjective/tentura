@@ -261,4 +261,22 @@ else
   bad "marker vanishing mid-run reported exit $RACE_RC, expected 7"
 fi
 
+# --- 12. leaked nested-harness TMPDIRs are reclaimed; live/fresh/foreign kept ---
+# Harnesses hand a nested wrapped run a private `tentura-*` TMPDIR and drop it
+# in `finally`; a SIGKILLed outer test leaks it with a multi-GB kernel cache.
+NT="${TMPDIR:?}"
+mkdir -p "$NT/tentura-st-leaked-A/tentura-test-cleanup" \
+  "$NT/tentura-st-live-B/dart_test.kernel.X" \
+  "$NT/tentura-st-fresh-C/dart_test.kernel.Y" \
+  "$NT/tentura-st-foreign-D"
+touch -d '-1 hour' "$NT/tentura-st-leaked-A" "$NT/tentura-st-live-B" "$NT/tentura-st-foreign-D"
+env TMPDIR="$NT/tentura-st-live-B" python3 -c 'import time; time.sleep(30)' &
+cleanup_pids+=("$!")
+sleep 0.2
+"$WRAP" --sweep-only >/dev/null 2>&1
+if [[ ! -d "$NT/tentura-st-leaked-A" ]]; then ok "leaked nested TMPDIR removed"; else bad "leaked nested TMPDIR survived"; fi
+if [[ -d "$NT/tentura-st-live-B" ]]; then ok "nested TMPDIR of a live process kept"; else bad "live nested TMPDIR deleted"; fi
+if [[ -d "$NT/tentura-st-fresh-C" ]]; then ok "fresh nested TMPDIR kept"; else bad "fresh nested TMPDIR deleted"; fi
+if [[ -d "$NT/tentura-st-foreign-D" ]]; then ok "tentura-* dir without nested signature kept"; else bad "foreign tentura-* dir deleted"; fi
+
 log "done"
