@@ -46,6 +46,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeBeaconDisplayStatus,
   gqlTypeHelpOfferWithCoordinationRow,
   gqlTypeRoomMessageCreatePayload,
+  gqlTypePostPublishResult,
   gqlTypeRoomMessageQuotedFact,
   gqlTypeRoomMessageRow,
   gqlTypeBeaconRoomStateRow,
@@ -429,6 +430,13 @@ final gqlTypeRoomMessageCreatePayload =
       ..fields.addAll([
         field('id', graphQLString.nonNullable()),
       ]);
+
+/// Result of `postPublish`.
+final gqlTypePostPublishResult = GraphQLObjectType('PostPublishResult', null)
+  ..fields.addAll([
+    field('beaconId', graphQLString.nonNullable()),
+    field('rootMessageId', graphQLString.nonNullable()),
+  ]);
 
 /// Quoted fact revision snapshot on a room message (issue #181 plan §8.11).
 final gqlTypeRoomMessageQuotedFact =

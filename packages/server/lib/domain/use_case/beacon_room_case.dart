@@ -47,7 +47,7 @@ import '_use_case_base.dart';
 // TODO(contract): tighten permissions with visibility / forward graph —
 // current checks are author-or-steward or admitted-member only.
 @Singleton(order: 2)
-final class BeaconRoomCase extends UseCaseBase {
+class BeaconRoomCase extends UseCaseBase {
   BeaconRoomCase(
     this._room,
     this._items,
@@ -310,6 +310,7 @@ final class BeaconRoomCase extends UseCaseBase {
     List<int> explicitMentionLengths = const [],
     String? quotedFactCardId,
     int? quotedFactRevisionSeq,
+    Set<String> suppressMentionNotifyFor = const {},
   }) async {
     if ((quotedFactCardId == null) != (quotedFactRevisionSeq == null)) {
       throw const IdWrongException(
@@ -398,7 +399,10 @@ final class BeaconRoomCase extends UseCaseBase {
     final mentionIds = resolvedMentions.ids;
     final mentionRecipientIds = {
       for (final id in mentionIds)
-        if (id.isNotEmpty && id != userId) id,
+        if (id.isNotEmpty &&
+            id != userId &&
+            !suppressMentionNotifyFor.contains(id))
+          id,
     };
     final otherDirectedIds =
         <String>{

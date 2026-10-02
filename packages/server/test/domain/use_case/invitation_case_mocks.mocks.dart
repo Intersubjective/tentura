@@ -1002,6 +1002,21 @@ class MockBeaconRepositoryPort extends _i1.Mock
           as _i6.Future<void>);
 
   @override
+  _i6.Future<void> setPostRootMessage({
+    required String? beaconId,
+    required String? messageId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#setPostRootMessage, [], {
+              #beaconId: beaconId,
+              #messageId: messageId,
+            }),
+            returnValue: _i6.Future<void>.value(),
+            returnValueForMissingStub: _i6.Future<void>.value(),
+          )
+          as _i6.Future<void>);
+
+  @override
   _i6.Future<void> recordBeaconStatusTransition({
     required String? beaconId,
     required _i16.BeaconStatus? fromStatus,

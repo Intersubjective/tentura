@@ -127,6 +127,12 @@ abstract class BeaconRepositoryPort {
     required BeaconForwardPolicyValue policy,
   });
 
+  /// Sets `beacon.post_root_message_id` once; a no-op when already set.
+  Future<void> setPostRootMessage({
+    required String beaconId,
+    required String messageId,
+  });
+
   /// Atomically updates beacon status and inserts a status activity log row.
   Future<void> recordBeaconStatusTransition({
     required String beaconId,

@@ -19,13 +19,7 @@ abstract class InputFieldUpload {
     defaultValue: <String, dynamic>{},
   );
 
-  static final type = GraphQLInputObjectType(
-    'Upload',
-    inputFields: [
-      GraphQLInputObjectField('filename', graphQLString),
-      GraphQLInputObjectField('type', graphQLString),
-    ],
-  );
+  static final type = _UploadInputType();
 
   static Stream<Uint8List>? fromArgs(Map<String, dynamic> args) =>
       args[kGlobalInputQueryFile] as Stream<Uint8List>?;
@@ -44,4 +38,27 @@ abstract class InputFieldUpload {
   static const _fieldKey = 'file';
 
   static const _fieldImageKey = 'image';
+}
+
+/// `Upload` input; an unset variable (`null`) deserializes to an empty map.
+final class _UploadInputType extends GraphQLInputObjectType {
+  _UploadInputType()
+    : super(
+        'Upload',
+        inputFields: [
+          GraphQLInputObjectField('filename', graphQLString),
+          GraphQLInputObjectField('type', graphQLString),
+        ],
+      );
+
+  @override
+  ValidationResult<Map<String, dynamic>> validate(String key, dynamic input) =>
+      super.validate(
+        key,
+        input as Map<dynamic, dynamic>? ?? const <String, dynamic>{},
+      );
+
+  @override
+  Map<String, dynamic> deserialize(Map<dynamic, dynamic>? serialized) =>
+      super.deserialize(serialized ?? const <String, dynamic>{});
 }

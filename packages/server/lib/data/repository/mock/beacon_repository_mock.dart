@@ -225,6 +225,17 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
   Future<void> lockPostForMutation(String beaconId) async {}
 
   @override
+  Future<void> setPostRootMessage({
+    required String beaconId,
+    required String messageId,
+  }) async {
+    final beacon = storageById[beaconId];
+    if (beacon != null && beacon.postRootMessageId == null) {
+      storageById[beaconId] = beacon.copyWith(postRootMessageId: messageId);
+    }
+  }
+
+  @override
   Future<void> setForwardPolicy({
     required String beaconId,
     required BeaconForwardPolicyValue policy,

@@ -489,6 +489,16 @@ class BeaconRepository implements BeaconRepositoryPort {
   }
 
   @override
+  Future<void> setPostRootMessage({
+    required String beaconId,
+    required String messageId,
+  }) => _database.customStatement(
+    'UPDATE public.beacon SET post_root_message_id = \$2 '
+    'WHERE id = \$1 AND post_root_message_id IS NULL',
+    [beaconId, messageId],
+  );
+
+  @override
   Future<void> recordBeaconStatusTransition({
     required String beaconId,
     required BeaconStatus fromStatus,
