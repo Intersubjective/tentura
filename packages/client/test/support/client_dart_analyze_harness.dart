@@ -26,15 +26,41 @@ bool clientAnalyzePathsEqual(String a, String b) {
       File(b).absolute.uri.normalizePath().toFilePath();
 }
 
+/// The single raw decode of analyzer JSON stdout; `null` unless [stdout] is a
+/// JSON object with a `diagnostics` list.
+Map<String, dynamic>? _tryDecodeAnalyzerPayload(String stdout) {
+  try {
+    final payload = jsonDecode(stdout);
+    if (payload is Map<String, dynamic> && payload['diagnostics'] is List) {
+      return payload;
+    }
+  } on FormatException {
+    // Non-JSON analyzer output (crash banner, truncated JSON).
+  }
+  return null;
+}
+
+/// Runs `dart analyze --format=json` under a per-checkout `flock(1)` so the
+/// client package's analyzer gates never overlap.
+///
+/// `flutter test`/`dart test` run architecture gates as concurrent isolates,
+/// and each spawns its own analysis server sharing the checkout's
+/// tentura_lints plugin snapshot under `~/.dartServer/.plugin_manager`, which
+/// the plugin manager rebuilds in place without a cross-process lock; a
+/// server that has the old `plugin.aot` mapped then dies mid-analyze (SIGBUS,
+/// a crash banner, or truncated JSON instead of a diagnostics payload). An
+/// external lock is needed: `RandomAccessFile.lock` does not exclude isolates
+/// of the same process. Retries validate the decoded JSON shape, not just
+/// that stdout is non-empty, so a crash banner is retried too.
 List<Map<String, dynamic>> runDartAnalyzeJsonOnRelativePaths(
   List<String> relativePaths,
 ) {
   final client = clientPackageRoot();
   const maxAttempts = 3;
   late ProcessResult result;
-  var stdout = '';
+  Map<String, dynamic>? payload;
   for (var attempt = 1; attempt <= maxAttempts; attempt++) {
-    result = Process.runSync(
+    result = _runUnderClientAnalyzeLock(
       'dart',
       ['analyze', '--format=json', ...relativePaths],
       workingDirectory: client.path,
@@ -44,19 +70,47 @@ List<Map<String, dynamic>> runDartAnalyzeJsonOnRelativePaths(
         'FLUTTER_SUPPRESS_ANALYTICS': 'true',
       },
     );
-    stdout = (result.stdout as String).trim();
-    if (stdout.isNotEmpty) {
+    payload = _tryDecodeAnalyzerPayload((result.stdout as String).trim());
+    if (payload != null) {
       break;
     }
   }
-  if (stdout.isEmpty) {
+  if (payload == null) {
+    const maxQuoted = 2000;
+    final quoted = (result.stdout as String).trim();
     throw StateError(
-      'dart analyze must emit JSON (exit ${result.exitCode}); '
-      'stderr: ${result.stderr}',
+      'dart analyze --format=json did not emit analyzer JSON after '
+      '$maxAttempts attempts (exit ${result.exitCode}); stderr: '
+      '${result.stderr}\nstdout: '
+      '${quoted.length > maxQuoted ? quoted.substring(0, maxQuoted) : quoted}',
     );
   }
-  final payload = jsonDecode(stdout) as Map<String, dynamic>;
   return (payload['diagnostics'] as List).cast<Map<String, dynamic>>();
+}
+
+ProcessResult _runUnderClientAnalyzeLock(
+  String executable,
+  List<String> args, {
+  required String workingDirectory,
+  Map<String, String>? environment,
+}) {
+  final lockFile = File(
+    '${clientPackageRoot().path}/.dart_tool/dart_analyze_gate.lock',
+  )..createSync(recursive: true);
+  final hasFlock = Process.runSync('which', ['flock']).exitCode == 0;
+  return hasFlock
+      ? Process.runSync(
+          'flock',
+          [lockFile.path, executable, ...args],
+          workingDirectory: workingDirectory,
+          environment: environment,
+        )
+      : Process.runSync(
+          executable,
+          args,
+          workingDirectory: workingDirectory,
+          environment: environment,
+        );
 }
 
 int countDartAnalyzeDiagnosticsOnRelativePaths(List<String> relativePaths) {
