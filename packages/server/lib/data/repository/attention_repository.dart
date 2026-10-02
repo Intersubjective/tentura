@@ -1072,6 +1072,7 @@ JOIN public."user" author ON author.id = readable.author_id
 
   /// `BeaconStatus.allowsForward` as SQL — composed from the enum, so the
   /// action row cannot drift from the gate `forward_case.dart` enforces.
+  // No `kind = 0`: this feeds the receipt feed, which also shows Posts.
   static final String _openFamilyStatusList =
       (BeaconStatus.openFamilyValues.toList()..sort()).join(', ');
 

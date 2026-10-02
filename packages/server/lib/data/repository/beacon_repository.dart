@@ -63,7 +63,7 @@ class BeaconRepository implements BeaconRepositoryPort {
   }) async {
     final rows = await _database
         .customSelect(
-          r'''SELECT id FROM public.beacon WHERE status = 0 AND end_at >= $1 AND end_at < $2''',
+          r'''SELECT id FROM public.beacon WHERE kind = 0 AND status = 0 AND end_at >= $1 AND end_at < $2''',
           variables: [
             Variable(
               PgDateTime(nextUtcDayStart),
@@ -87,7 +87,7 @@ class BeaconRepository implements BeaconRepositoryPort {
   }) async {
     final rows = await _database
         .customSelect(
-          r'''SELECT id FROM public.beacon WHERE id = $1 AND status = 0 AND end_at >= $2 AND end_at < $3 FOR UPDATE''',
+          r'''SELECT id FROM public.beacon WHERE id = $1 AND kind = 0 AND status = 0 AND end_at >= $2 AND end_at < $3 FOR UPDATE''',
           variables: [
             Variable<String>(beaconId),
             Variable(

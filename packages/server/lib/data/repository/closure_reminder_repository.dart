@@ -89,7 +89,8 @@ SELECT gen_random_uuid()::text, b.user_id, 'asksOfMe', 'staleRemind', 'normal',
   'standard', 'beacon_content', false, 'primary'
 FROM public.beacon b,
 LATERAL (SELECT 'stale_request:' || b.id || ':' || \$2::text AS skey) k
-WHERE b.status IN (${BeaconStatus.openFamilyValues.join(', ')})
+WHERE b.kind = 0
+  AND b.status IN (${BeaconStatus.openFamilyValues.join(', ')})
   AND (
     b.end_at < \$1::timestamptz
     OR greatest(
