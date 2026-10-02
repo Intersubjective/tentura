@@ -69,6 +69,7 @@ abstract class BeaconRoomRepositoryPort {
     required String actorId,
     String? targetUserId,
     String? sourceMessageId,
+    String? factCardId,
     Map<String, Object?>? diff,
   });
 

@@ -1487,6 +1487,7 @@ RETURNING last_seen_at
     required String actorId,
     String? targetUserId,
     String? sourceMessageId,
+    String? factCardId,
     Map<String, Object?>? diff,
   }) => _db.withMutatingUser(actorId, () async {
     await _db.managers.beaconActivityEvents.create(
@@ -1498,6 +1499,7 @@ RETURNING last_seen_at
         actorId: Value(actorId),
         targetUserId: Value(targetUserId),
         sourceMessageId: Value(sourceMessageId),
+        factCardId: Value(factCardId),
         diff: Value(diff),
         createdAt: const Value.absent(),
       ),

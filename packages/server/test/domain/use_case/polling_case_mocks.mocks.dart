@@ -315,6 +315,7 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
     required String? actorId,
     String? targetUserId,
     String? sourceMessageId,
+    String? factCardId,
     Map<String, Object?>? diff,
   }) =>
       (super.noSuchMethod(
@@ -325,6 +326,7 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
               #actorId: actorId,
               #targetUserId: targetUserId,
               #sourceMessageId: sourceMessageId,
+              #factCardId: factCardId,
               #diff: diff,
             }),
             returnValue: _i3.Future<void>.value(),
