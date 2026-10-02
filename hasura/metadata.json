@@ -1265,7 +1265,7 @@
                           },
                           {
                             "resume_on": {
-                              "_gt": "now()"
+                              "_gt": "utc_today()"
                             }
                           }
                         ]

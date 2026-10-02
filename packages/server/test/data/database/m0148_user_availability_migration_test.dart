@@ -10,6 +10,7 @@ import 'package:test/test.dart';
 import 'package:tentura_server/data/database/migration/_migrations.dart';
 
 import '../../support/disposable_pg_target.dart';
+import '../../support/hasura_user_availability_filter.dart';
 
 Future<void> main() async {
   final target = DisposablePgTarget.fromNamedEnvironment(
@@ -28,65 +29,70 @@ Future<void> main() async {
     );
   }
 
-  group('m0148 user_availability migration', () {
-    late DisposablePgWriterSession session;
-    late Connection writer;
+  // Every test waits on the cluster-wide lifecycle lock, which other files
+  // hold for longer than the default 30 s test timeout in the long pg run.
+  group(
+    'm0148 user_availability migration',
+    timeout: const Timeout(Duration(minutes: 5)),
+    () {
+      late DisposablePgWriterSession session;
+      late Connection writer;
 
-    setUpAll(() async {
-      if (skipReason != false) {
-        return;
-      }
-      session = await setUpDisposablePgWriter(target: target);
-      writer = session.writer;
-    });
-
-    tearDown(() async {
-      for (final statement in [
-        'DELETE FROM public.user_block '
-            "WHERE blocker_id LIKE 'Um0148%' OR blocked_id LIKE 'Um0148%'",
-        'DELETE FROM public.user_availability WHERE user_id LIKE \'Um0148%\'',
-        'DELETE FROM public."user" WHERE id LIKE \'Um0148%\'',
-      ]) {
-        try {
-          await writer.execute(statement);
-        } on Object {
-          // First test runs before migrateDbSchema; tables may not exist yet.
+      setUpAll(() async {
+        if (skipReason != false) {
+          return;
         }
-      }
-    });
+        session = await setUpDisposablePgWriter(target: target);
+        writer = session.writer;
+      });
 
-    tearDownAll(() async {
-      if (skipReason != false) {
-        return;
-      }
-      await tearDownDisposablePgWriter(session: session);
-    });
+      tearDown(() async {
+        for (final statement in [
+          'DELETE FROM public.user_block '
+              "WHERE blocker_id LIKE 'Um0148%' OR blocked_id LIKE 'Um0148%'",
+          'DELETE FROM public.user_availability WHERE user_id LIKE \'Um0148%\'',
+          'DELETE FROM public."user" WHERE id LIKE \'Um0148%\'',
+        ]) {
+          try {
+            await writer.execute(statement);
+          } on Object {
+            // First test runs before migrateDbSchema; tables may not exist yet.
+          }
+        }
+      });
 
-    test(
-      'disposable target uses an isolated database name',
-      () {
-        expect(target.databaseName, startsWith('tentura_test_'));
-        expect(target.databaseName, isNot('postgres'));
-        expect(target.databaseEnv.pgDatabase, target.databaseName);
-      },
-      skip: skipReason,
-    );
+      tearDownAll(() async {
+        if (skipReason != false) {
+          return;
+        }
+        await tearDownDisposablePgWriter(session: session);
+      });
 
-    test(
-      'fresh schema creates logged user_availability, CHECK, index, and hidden function',
-      () async {
-        await migrateLocked(writer);
-        await _expectM0148Schema(writer);
-      },
-      skip: skipReason,
-    );
+      test(
+        'disposable target uses an isolated database name',
+        () {
+          expect(target.databaseName, startsWith('tentura_test_'));
+          expect(target.databaseName, isNot('postgres'));
+          expect(target.databaseEnv.pgDatabase, target.databaseName);
+        },
+        skip: skipReason,
+      );
 
-    test(
-      'CHECK rejects empty rows; FK cascades; no per-user backfill',
-      () async {
-        await migrateLocked(writer);
+      test(
+        'fresh schema creates logged user_availability, CHECK, index, and hidden function',
+        () async {
+          await migrateLocked(writer);
+          await _expectM0148Schema(writer);
+        },
+        skip: skipReason,
+      );
 
-        await writer.execute(r'''
+      test(
+        'CHECK rejects empty rows; FK cascades; no per-user backfill',
+        () async {
+          await migrateLocked(writer);
+
+          await writer.execute(r'''
 INSERT INTO public."user" (id, display_name, public_key)
 VALUES
   ('Um0148open', 'Open', 'pk-open'),
@@ -94,111 +100,111 @@ VALUES
 ON CONFLICT DO NOTHING
 ''');
 
-        final sparseCount = await writer.execute(
-          'SELECT count(*)::int FROM public.user_availability',
-        );
-        expect(sparseCount.single.single, 0);
+          final sparseCount = await writer.execute(
+            'SELECT count(*)::int FROM public.user_availability',
+          );
+          expect(sparseCount.single.single, 0);
 
-        await expectLater(
-          writer.execute(r'''
+          await expectLater(
+            writer.execute(r'''
 INSERT INTO public.user_availability (user_id, is_limited, resume_on)
 VALUES ('Um0148open', false, NULL)
 '''),
-          throwsA(isA<Exception>()),
-        );
+            throwsA(isA<Exception>()),
+          );
 
-        await writer.execute(r'''
+          await writer.execute(r'''
 INSERT INTO public.user_availability (user_id, is_limited, resume_on)
 VALUES ('Um0148open', true, NULL)
 ''');
 
-        await writer.execute(r'''
+          await writer.execute(r'''
 INSERT INTO public.user_availability (user_id, is_limited, resume_on)
 VALUES ('Um0148child', false, CURRENT_DATE + 7)
 ''');
 
-        await writer.execute(
-          '''DELETE FROM public."user" WHERE id = 'Um0148child' ''',
-        );
-        final childRow = await writer.execute(
-          '''SELECT count(*)::int FROM public.user_availability '''
-          '''WHERE user_id = 'Um0148child' ''',
-        );
-        expect(childRow.single.single, 0);
-      },
-      skip: skipReason,
-    );
+          await writer.execute(
+            '''DELETE FROM public."user" WHERE id = 'Um0148child' ''',
+          );
+          final childRow = await writer.execute(
+            '''SELECT count(*)::int FROM public.user_availability '''
+            '''WHERE user_id = 'Um0148child' ''',
+          );
+          expect(childRow.single.single, 0);
+        },
+        skip: skipReason,
+      );
 
-    test(
-      'hidden_for_viewer delegates symmetric block_hides like user_presence',
-      () async {
-        await migrateLocked(writer);
+      test(
+        'hidden_for_viewer delegates symmetric block_hides like user_presence',
+        () async {
+          await migrateLocked(writer);
 
-        const viewerId = 'Um0148viewer';
-        const peerId = 'Um0148peer';
-        final session = _sessionJson(viewerId);
+          const viewerId = 'Um0148viewer';
+          const peerId = 'Um0148peer';
+          final session = _sessionJson(viewerId);
 
-        await writer.execute('''
+          await writer.execute('''
 INSERT INTO public."user" (id, display_name, public_key)
 VALUES
   ('$viewerId', 'Viewer', 'pk-viewer'),
   ('$peerId', 'Peer', 'pk-peer')
 ON CONFLICT DO NOTHING
 ''');
-        await writer.execute('''
+          await writer.execute('''
 INSERT INTO public.user_availability (user_id, is_limited)
 VALUES ('$viewerId', true), ('$peerId', true)
 ON CONFLICT DO NOTHING
 ''');
 
-        final visibleBefore = await _queryVisibleAvailabilityUserIds(
-          writer,
-          session,
-        );
-        expect(visibleBefore, containsAll([viewerId, peerId]));
+          final visibleBefore = await _queryVisibleAvailabilityUserIds(
+            writer,
+            session,
+          );
+          expect(visibleBefore, containsAll([viewerId, peerId]));
 
-        await writer.execute('''
+          await writer.execute('''
 INSERT INTO public.user_block (blocker_id, blocked_id, origin_id)
 VALUES ('$viewerId', '$peerId', '$peerId')
 ON CONFLICT DO NOTHING
 ''');
 
-        final visibleAfterBlock = await _queryHiddenAvailabilityUserIds(
-          writer,
-          session,
-        );
-        expect(visibleAfterBlock, contains(peerId));
-        expect(visibleAfterBlock, isNot(contains(viewerId)));
+          final visibleAfterBlock = await _queryHiddenAvailabilityUserIds(
+            writer,
+            session,
+          );
+          expect(visibleAfterBlock, contains(peerId));
+          expect(visibleAfterBlock, isNot(contains(viewerId)));
 
-        await writer.execute(
-          '''DELETE FROM public.user_block '''
-          '''WHERE blocker_id = '$viewerId' AND blocked_id = '$peerId' ''',
-        );
-        await writer.execute('''
+          await writer.execute(
+            '''DELETE FROM public.user_block '''
+            '''WHERE blocker_id = '$viewerId' AND blocked_id = '$peerId' ''',
+          );
+          await writer.execute('''
 INSERT INTO public.user_block (blocker_id, blocked_id, origin_id)
 VALUES ('$peerId', '$viewerId', '$viewerId')
 ON CONFLICT DO NOTHING
 ''');
 
-        final visibleAfterReverse = await _queryHiddenAvailabilityUserIds(
-          writer,
-          session,
-        );
-        expect(visibleAfterReverse, contains(peerId));
-        expect(visibleAfterReverse, isNot(contains(viewerId)));
-      },
-      skip: skipReason,
-    );
+          final visibleAfterReverse = await _queryHiddenAvailabilityUserIds(
+            writer,
+            session,
+          );
+          expect(visibleAfterReverse, contains(peerId));
+          expect(visibleAfterReverse, isNot(contains(viewerId)));
+        },
+        skip: skipReason,
+      );
 
-    test(
-      'Hasura select filter hides expired pause-only rows but keeps limited+past',
-      () async {
-        await migrateLocked(writer);
+      test(
+        'Hasura select filter hides expired pause-only rows but keeps limited+past',
+        () async {
+          await migrateLocked(writer);
 
-        const viewerId = 'Um0148read';
-        final session = _sessionJson(viewerId);
+          const viewerId = 'Um0148read';
+          final session = _sessionJson(viewerId);
 
-        await writer.execute('''
+          await writer.execute('''
 INSERT INTO public."user" (id, display_name, public_key)
 VALUES
   ('$viewerId', 'Reader', 'pk-read'),
@@ -208,16 +214,16 @@ VALUES
 ON CONFLICT DO NOTHING
 ''');
 
-        final utcToday = await writer.execute(r'''
+          final utcToday = await writer.execute(r'''
 SELECT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::date AS today_utc
 ''');
-        final todayUtc = utcToday.single.single as DateTime;
-        final yesterday = todayUtc.subtract(const Duration(days: 1));
-        final tomorrow = todayUtc.add(const Duration(days: 1));
-        final yesterdayStr = _isoDate(yesterday);
-        final tomorrowStr = _isoDate(tomorrow);
+          final todayUtc = utcToday.single.single as DateTime;
+          final yesterday = todayUtc.subtract(const Duration(days: 1));
+          final tomorrow = todayUtc.add(const Duration(days: 1));
+          final yesterdayStr = _isoDate(yesterday);
+          final tomorrowStr = _isoDate(tomorrow);
 
-        await writer.execute('''
+          await writer.execute('''
 INSERT INTO public.user_availability (user_id, is_limited, resume_on)
 VALUES
   ('Um0148pausePast', false, '$yesterdayStr'),
@@ -226,26 +232,28 @@ VALUES
 ON CONFLICT DO NOTHING
 ''');
 
-        final visible = await _queryHasuraVisibleAvailabilityUserIds(
-          writer,
-          session,
-        );
-        expect(visible, isNot(contains('Um0148pausePast')));
-        expect(visible, contains('Um0148pauseFuture'));
-        expect(visible, contains('Um0148limitedPast'));
-      },
-      skip: skipReason,
-    );
+          final visible = await _queryHasuraVisibleAvailabilityUserIds(
+            writer,
+            session,
+            hasuraUserAvailabilityResumeOnExpression(),
+          );
+          expect(visible, isNot(contains('Um0148pausePast')));
+          expect(visible, contains('Um0148pauseFuture'));
+          expect(visible, contains('Um0148limitedPast'));
+        },
+        skip: skipReason,
+      );
 
-    test(
-      'Hasura now() filter matches UTC calendar date on this connection',
-      () async {
-        await migrateLocked(writer);
+      test(
+        'Hasura now() filter matches UTC calendar date on this connection',
+        () async {
+          await migrateLocked(writer);
 
-        final parity = await writer.execute(r'''
+          final hasuraExpression = hasuraUserAvailabilityResumeOnExpression();
+          final parity = await writer.execute('''
 WITH samples AS (
   SELECT
-    d.resume_on > now() AS hasura_style,
+    d.resume_on > $hasuraExpression AS hasura_style,
     d.resume_on > (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::date AS utc_style
   FROM (
     VALUES
@@ -262,47 +270,49 @@ SELECT
   )::int AS mismatch_count
 FROM samples
 ''');
-        expect(
-          parity.single[1],
-          0,
-          reason:
-              'Hasura resume_on > now() must agree with UTC calendar date; '
-              'connection TimeZone was ${parity.single[0]}',
-        );
-        expect(parity.single[0], 'UTC');
-      },
-      skip: skipReason,
-    );
+          expect(
+            parity.single[1],
+            0,
+            reason:
+                'Hasura resume_on > now() must agree with UTC calendar date; '
+                'connection TimeZone was ${parity.single[0]}',
+          );
+          expect(parity.single[0], 'UTC');
+        },
+        skip: skipReason,
+      );
 
-
-    test(
-      'Hasura metadata exposes only public columns and omits updated_at',
-      () {
-        final metadataFile = File(
-          '${Directory.current.path}/../../hasura/metadata.json',
-        );
-        final metadata =
-            jsonDecode(metadataFile.readAsStringSync()) as Map<String, dynamic>;
-        final tables =
-            (metadata['metadata'] as Map<String, dynamic>)['sources'][0]['tables']
-                as List<dynamic>;
-        final availability = tables.cast<Map<String, dynamic>>().firstWhere(
-          (entry) =>
-              (entry['table'] as Map<String, dynamic>)['name'] ==
-              'user_availability',
-        );
-        final permission =
-            (availability['select_permissions'] as List<dynamic>).single
-                as Map<String, dynamic>;
-        final columns =
-            ((permission['permission'] as Map<String, dynamic>)['columns']
-                    as List<dynamic>)
-                .cast<String>();
-        expect(columns, ['is_limited', 'resume_on', 'user_id']);
-        expect(columns, isNot(contains('updated_at')));
-      },
-    );
-  });
+      test(
+        'Hasura metadata exposes only public columns and omits updated_at',
+        () {
+          final metadataFile = File(
+            '${Directory.current.path}/../../hasura/metadata.json',
+          );
+          final metadata =
+              jsonDecode(metadataFile.readAsStringSync())
+                  as Map<String, dynamic>;
+          final tables =
+              (metadata['metadata']
+                      as Map<String, dynamic>)['sources'][0]['tables']
+                  as List<dynamic>;
+          final availability = tables.cast<Map<String, dynamic>>().firstWhere(
+            (entry) =>
+                (entry['table'] as Map<String, dynamic>)['name'] ==
+                'user_availability',
+          );
+          final permission =
+              (availability['select_permissions'] as List<dynamic>).single
+                  as Map<String, dynamic>;
+          final columns =
+              ((permission['permission'] as Map<String, dynamic>)['columns']
+                      as List<dynamic>)
+                  .cast<String>();
+          expect(columns, ['is_limited', 'resume_on', 'user_id']);
+          expect(columns, isNot(contains('updated_at')));
+        },
+      );
+    },
+  );
 }
 
 Future<void> _expectM0148Schema(Connection writer) async {
@@ -395,22 +405,21 @@ ORDER BY ua.user_id
 Future<Set<String>> _queryHasuraVisibleAvailabilityUserIds(
   Connection writer,
   String sessionJson,
+  String resumeOnExpression,
 ) async {
   final rows = await writer.execute('''
 SELECT ua.user_id
 FROM public.user_availability ua
 WHERE NOT public.user_availability_hidden_for_viewer(ua, '$sessionJson'::json)
-  AND (ua.is_limited OR ua.resume_on > now())
+  AND (ua.is_limited OR ua.resume_on > $resumeOnExpression)
 ORDER BY ua.user_id
 ''');
   return rows.map((row) => row[0] as String).toSet();
 }
 
-String _sessionJson(String viewerId) =>
-    '{"x-hasura-user-id": "$viewerId"}';
+String _sessionJson(String viewerId) => '{"x-hasura-user-id": "$viewerId"}';
 
 String _isoDate(DateTime value) =>
     '${value.year.toString().padLeft(4, '0')}-'
     '${value.month.toString().padLeft(2, '0')}-'
     '${value.day.toString().padLeft(2, '0')}';
-

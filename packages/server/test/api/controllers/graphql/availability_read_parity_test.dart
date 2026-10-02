@@ -86,7 +86,7 @@ Future<void> main() async {
       final orFilters = (effectiveFilter['_or'] as List<dynamic>)
           .cast<Map<String, dynamic>>();
       expect(orFilters[0]['is_limited'], {'_eq': true});
-      expect(orFilters[1]['resume_on'], {'_gt': 'now()'});
+      expect(orFilters[1]['resume_on'], {'_gt': 'utc_today()'});
     });
 
     test('user_availability has no mutation permissions', () {

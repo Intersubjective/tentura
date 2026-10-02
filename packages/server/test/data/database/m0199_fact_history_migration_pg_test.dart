@@ -55,14 +55,14 @@ Future<void> main() async {
     }
 
     test(
-      'the registry now reaches 0207',
+      'the registry now reaches 0208',
       () async {
         final rows = await writer().execute(
           'SELECT max(version COLLATE "C") FROM schema_version',
         );
         // m0199 seeds history; m0200 attachments_json; m0201 MR weight clamp;
-        // m0202 trust ledger; m0203 closure schema; m0204 seeds kind 9; m0205 ban wall; m0206 noisy-contact wall; m0207 wall level change always publishes is the tip.
-        expect(rows.single.single, '0207');
+        // m0202 trust ledger; m0203 closure schema; m0204 seeds kind 9; m0205 ban wall; m0206 noisy-contact wall; m0207 wall level change always publishes; m0208 utc_today() is the tip.
+        expect(rows.single.single, '0208');
       },
       skip: skipReason,
     );
