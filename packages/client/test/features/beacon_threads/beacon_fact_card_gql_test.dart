@@ -2,15 +2,17 @@
 // documents, their Ferry codegen and V2 routing. `beacon_fact_card_repository
 // _test.dart` covers the runtime mapping; this file guards the acceptance
 // criterion "build_runner succeeds": every fact document has up-to-date
-// generated output (not older than the document or schema.graphql, so a
-// failed or skipped `dart run build_runner build -d` after a .graphql or
-// schema edit is caught) with the variables the operations need.
+// generated output (compared by content, not mtime, so a failed or skipped
+// `dart run build_runner build -d` after a .graphql or schema edit is caught)
+// with the variables the operations need.
 
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/data/service/remote_api_client/build_client.dart';
+
+import '../../support/gql_codegen_freshness.dart';
 
 const _gqlDir = 'lib/features/beacon_threads/data/gql';
 const _schemaPath = 'lib/data/gql/schema.graphql';
@@ -24,8 +26,6 @@ const _factDocuments = [
   'beacon_fact_card_set_visibility',
   'beacon_fact_card_revisions',
 ];
-
-const _generatedSuffixes = ['ast', 'data', 'req', 'var'];
 
 /// Strips `#` comments so a commented-out field does not count.
 String _document(String name) {
@@ -105,33 +105,17 @@ void main() {
   });
 
   group('codegen (build_runner)', () {
-    test('every fact document has generated output no older than the '
-        'document and schema.graphql', () {
-      final schemaModified = File(_schemaPath).lastModifiedSync();
-      for (final name in _factDocuments) {
-        final source = File('$_gqlDir/$name.graphql');
-        expect(source.existsSync(), isTrue, reason: source.path);
-        final sourceModified = source.lastModifiedSync();
-        for (final suffix in _generatedSuffixes) {
-          final generated = File('$_gqlDir/_g/$name.$suffix.gql.dart');
-          expect(
-            generated.existsSync(),
-            isTrue,
-            reason: '${generated.path} missing: run build_runner',
-          );
-          final generatedModified = generated.lastModifiedSync();
-          expect(
-            generatedModified.isBefore(sourceModified),
-            isFalse,
-            reason: '${generated.path} is older than ${source.path}',
-          );
-          expect(
-            generatedModified.isBefore(schemaModified),
-            isFalse,
-            reason: '${generated.path} is older than $_schemaPath',
-          );
-        }
-      }
+    test('every fact document has generated output matching the document '
+        'and schema.graphql', () {
+      expect(
+        findStaleGqlCodegen(
+          gqlDir: Directory(_gqlDir),
+          schema: File(_schemaPath),
+          documents: _factDocuments,
+        ),
+        isEmpty,
+        reason: 'stale generated output: run build_runner',
+      );
     });
 
     test('generated vars carry baseRevisionSeq / fromSeq / before', () {
