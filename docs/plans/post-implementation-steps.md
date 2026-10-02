@@ -76,8 +76,11 @@ itself is missing, stop and report it.
   `{"name":"x","definition":{"function":{"name":"beacon_get_x","schema":"public"},"session_argument":"hasura_session","table_argument":"beacon_row"}}`
   (see `is_pinned` ~:159). Role `user` select permission columns end with `"is_discoverable"`
   (~:292); computed fields list ~:294.
-  - **Every unit that edits `metadata.json` adds two tests:** (a) a JSON-shape test like
-    `packages/server/test/data/database/m0203_closure_hasura_metadata_test.dart:17-23`; and (b) a
+  - **Every unit that edits `metadata.json` adds two tests:** (a) a JSON-shape test asserting the
+    new computed field/columns/permissions are present (for the metadata-parsing pattern, see
+    `packages/server/test/architecture/hasura_metadata_closure_tables_untracked_test.dart` --
+    `m0203_closure_hasura_metadata_test.dart` was renamed/rewritten to this file in a1707d683 and no
+    longer covers the same assertion); and (b) a
     behavioural pg test through `IsolatedHasuraSession` (`test/support/isolated_hasura_session.dart`)
     that queries/mutates as role `user` and asserts the result, and calls
     `session.assertMetadataConsistent()` (added by unit T0). `applyRepoMetadata` uses
@@ -362,12 +365,12 @@ with evidence). Commit `test(post): S0 transaction composition spike`.
   `last_activity_at` equals the message time.
 - pure mapper: a row with `kind 1, forward_policy 0, is_discoverable false` maps to `post`,
   `closed`, `isDiscoverable == false`.
-- existing: `drift_create_all_migrated_pg_test.dart`, `m0194_drift_reconciliation_pg_test.dart`,
+- existing: `drift_images_create_table_on_migrated_pg_test.dart`, `m0194_drift_reconciliation_pg_test.dart`,
   `schema_baseline_pg_test.dart`, `migration_registry_test.dart`, the m0199 test.
 
 **Done when:** in REQUIRED mode, `dart test test/data/database/m0209_post_schema_pg_test.dart
 test/data/mapper/beacon_mapper_kind_test.dart test/data/database/m0199_fact_history_migration_pg_test.dart
-test/data/database/drift_create_all_migrated_pg_test.dart test/data/database/m0194_drift_reconciliation_pg_test.dart`
+test/data/database/drift_images_create_table_on_migrated_pg_test.dart test/data/database/m0194_drift_reconciliation_pg_test.dart`
 (wrapped, in `packages/server`) is green.
 
 ### S2 — Forward ⇒ admission for Posts; helper and bond views (m0210)
