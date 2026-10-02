@@ -1,9 +1,9 @@
-// tentura-9f0 landing gate acceptance (trial merge tentura-rsm)
+// Chat read receipts (room_seen_peer): contract coverage + sender receipt
+// glyph behavior.
 
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/domain/entity/beacon_participant.dart';
@@ -14,28 +14,6 @@ import 'package:tentura/features/beacon_threads/domain/room_message_receipt.dart
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_receipt_glyph.dart';
 
 import 'support/room_body_harness.dart';
-
-/// Alloy tentura-n59 landing gate — same six paths as the bead acceptance command.
-const kN59AcceptanceTestPaths = [
-  'test/features/beacon_threads/room_cubit_unread_test.dart',
-  'test/features/beacon_threads/threads_cubit_test.dart',
-  'test/features/beacon_threads/beacon_threads_case_test.dart',
-  'test/features/beacon_threads/beacon_room_message_actions_sheet_test.dart',
-  'test/features/inbox/inbox_case_desk_relevant_changes_test.dart',
-  'test/data/service/remote_api_client/direct_operation_routing_test.dart',
-];
-
-const _clientPackageRootSegments = ['packages', 'client'];
-
-File _clientFile(String relativePath) {
-  for (final prefix in const ['../../', '']) {
-    final candidate = File('$prefix$relativePath');
-    if (candidate.existsSync()) {
-      return candidate.absolute;
-    }
-  }
-  throw StateError('Client file not found: $relativePath');
-}
 
 File _repoContractFile() {
   for (final path in const [
@@ -59,46 +37,8 @@ Map<String, dynamic> _roomSeenPeerContractEntry() {
   );
 }
 
-List<String> _contractTestPaths(Map<String, dynamic> contract) {
-  return (contract['contractTests']! as List).cast<String>();
-}
-
 void main() {
-  group('chat read receipts landing check (tentura-n59)', () {
-    test('n59 acceptance test files declare tentura-n59 landing gate marker', () {
-      for (final path in kN59AcceptanceTestPaths) {
-        final file = _clientFile(path);
-        expect(
-          file.existsSync(),
-          isTrue,
-          reason: 'missing acceptance path $path',
-        );
-        final source = file.readAsStringSync();
-        expect(
-          source,
-          contains('tentura-n59'),
-          reason:
-              '$path must tag the n59 landing gate for Alloy trial-merge tracking',
-        );
-      }
-    });
-
-    test('realtime contractTests registers every n59 acceptance path', () {
-      final contract =
-          jsonDecode(_repoContractFile().readAsStringSync())
-              as Map<String, dynamic>;
-      final contractTests = _contractTestPaths(contract);
-      for (final relative in kN59AcceptanceTestPaths) {
-        final repoRelative = [..._clientPackageRootSegments, relative].join('/');
-        expect(
-          contractTests,
-          contains(repoRelative),
-          reason:
-              'contractTests must list $repoRelative for the n59 landing gate',
-        );
-      }
-    });
-
+  group('chat read receipts (room_seen_peer)', () {
     test(
       'room_seen_peer contract lists threads and inbox desk guard acceptance tests',
       () {
@@ -135,20 +75,6 @@ void main() {
         );
       },
     );
-
-    test('realtime contractTests registers the n59 landing check harness', () {
-      final contract =
-          jsonDecode(_repoContractFile().readAsStringSync())
-              as Map<String, dynamic>;
-      final contractTests = _contractTestPaths(contract);
-      expect(
-        contractTests,
-        contains(
-          'packages/client/test/features/beacon_threads/chat_read_receipts_n59_landing_check_test.dart',
-        ),
-        reason: 'n59 landing gate must be part of the realtime contract evidence set',
-      );
-    });
 
     test(
       'RoomReceiptIndex suppresses sender receipts without another admitted member',

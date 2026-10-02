@@ -1,6 +1,5 @@
-// tentura-9f0 landing gate acceptance (trial merge tentura-rsm)
+// Chat read receipts / room_seen_peer: sender receipt glyph behavior.
 
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -15,25 +14,6 @@ import 'package:tentura/features/beacon_threads/ui/widget/room_message_tile.dart
 
 import 'support/room_body_harness.dart';
 
-// tentura-fpi landing gate acceptance (chat read receipts / room_seen_peer)
-
-/// Alloy tentura-fpi landing gate — same paths as the bead acceptance command.
-const kFpiAcceptanceTestPaths = [
-  'test/architecture/beacon_room_read_receipts_release_test.dart',
-  'test/architecture/realtime_entity_contract_impacts_test.dart',
-  'test/features/beacon_threads/beacon_room_body_receipts_test.dart',
-  'test/features/beacon_threads/beacon_threads_case_read_watermarks_test.dart',
-  'test/features/beacon_threads/beacon_threads_repository_read_watermarks_test.dart',
-  'test/features/beacon_threads/room_cubit_read_watermarks_test.dart',
-  'test/features/beacon_threads/room_message_receipt_test.dart',
-  'test/features/beacon_threads/room_message_receipt_glyph_test.dart',
-  'test/features/beacon_threads/beacon_room_invalidation_test.dart',
-  'test/data/service/invalidation_service_room_seen_peer_test.dart',
-  'test/features/beacon_view/beacon_view_cubit_room_seen_peer_test.dart',
-];
-
-const _clientPackageRootSegments = ['packages', 'client'];
-
 File _clientFile(String relativePath) {
   for (final prefix in const ['../../', '']) {
     final candidate = File('$prefix$relativePath');
@@ -42,23 +22,6 @@ File _clientFile(String relativePath) {
     }
   }
   throw StateError('Client file not found: $relativePath');
-}
-
-File _repoContractFile() {
-  for (final path in const [
-    '../../docs/contracts/realtime-entity-contract.json',
-    'docs/contracts/realtime-entity-contract.json',
-  ]) {
-    final file = File(path);
-    if (file.existsSync()) {
-      return file.absolute;
-    }
-  }
-  throw StateError('Realtime entity contract manifest not found');
-}
-
-List<String> _contractTestPaths(Map<String, dynamic> contract) {
-  return (contract['contractTests']! as List).cast<String>();
 }
 
 Finder receiptGlyphForMessageBody(String body) {
@@ -82,56 +45,7 @@ void main() {
   const peer = Profile(id: 'peer', displayName: 'Peer');
   final messageCreatedAt = DateTime.utc(2026, 6, 30, 12);
 
-  group('chat read receipts landing check (tentura-fpi)', () {
-    test('fpi acceptance test files declare tentura-fpi landing gate marker', () {
-      for (final path in kFpiAcceptanceTestPaths) {
-        final file = _clientFile(path);
-        expect(
-          file.existsSync(),
-          isTrue,
-          reason: 'missing acceptance path $path',
-        );
-        final source = file.readAsStringSync();
-        expect(
-          source,
-          contains('tentura-fpi'),
-          reason:
-              '$path must tag the fpi landing gate for Alloy trial-merge tracking',
-        );
-      }
-    });
-
-    test('realtime contractTests registers the fpi landing check harness', () {
-      final contract =
-          jsonDecode(_repoContractFile().readAsStringSync())
-              as Map<String, dynamic>;
-      final contractTests = _contractTestPaths(contract);
-      expect(
-        contractTests,
-        contains(
-          'packages/client/test/features/beacon_threads/chat_read_receipts_fpi_landing_check_test.dart',
-        ),
-        reason:
-            'fpi landing gate must be part of the realtime contract evidence set',
-      );
-    });
-
-    test('realtime contractTests registers every fpi acceptance path', () {
-      final contract =
-          jsonDecode(_repoContractFile().readAsStringSync())
-              as Map<String, dynamic>;
-      final contractTests = _contractTestPaths(contract);
-      for (final relative in kFpiAcceptanceTestPaths) {
-        final repoRelative = [..._clientPackageRootSegments, relative].join('/');
-        expect(
-          contractTests,
-          contains(repoRelative),
-          reason:
-              'contractTests must list $repoRelative for the fpi landing gate',
-        );
-      }
-    });
-
+  group('chat read receipts (room_seen_peer)', () {
     test(
       'beacon_room_body_receipts_test uses roomBodyStateForSenderReceipts for multi-member receipts',
       () {

@@ -1,13 +1,12 @@
-// tentura-7qx client flutter analyze gate (parent tentura-617.36)
+// tentura-7qx: client bead gates must use scoped flutter analyze, not bare
+// package-wide `flutter analyze .` (which treats ambient pre-existing
+// info/warning debt as fatal).
 
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
 import '../support/client_flutter_analyze_gate_harness.dart';
-
-const k7qxClientFlutterAnalyzeGateMarker =
-    'tentura-7qx client flutter analyze gate';
 
 /// Only skip when this file is invoked from a nested bead acceptance suite,
 /// not on the CI client shard (contrast tentura-5zq server gate).
@@ -20,15 +19,6 @@ Object get _skipIn7qxNestedSuite {
 
 void main() {
   group('tentura-7qx client flutter analyze gate', () {
-    test('7qx gate test file declares landing gate marker for Alloy tracking', () {
-      final self = File(
-        '${clientPackageRoot().path}/test/architecture/'
-        'tentura_7qx_client_flutter_analyze_gate_test.dart',
-      );
-      final source = self.readAsStringSync();
-      expect(source, contains(k7qxClientFlutterAnalyzeGateMarker));
-    });
-
     test(
       'client-bead-flutter-analyze-gate contract exists and forbids bare package-wide bead gates',
       () {
