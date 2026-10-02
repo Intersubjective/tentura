@@ -3,9 +3,6 @@
 // `BeaconFactCardRepository.revisions` / `.restore`; it must never touch
 // RoomCubit. `baseRevisionSeq` is fixed at construction time (the revision
 // the sheet opened with per plan §14.6), never refetched.
-//
-// `FactHistoryCubit` does not exist yet, so this file does not compile —
-// every test below fails until it (and `FactHistoryState`) are added.
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
