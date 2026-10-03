@@ -17,7 +17,7 @@ Map<String, dynamic> constellationFieldToGqlMap(
   'requestsCapped': snapshot.requestsCapped,
   'posts': snapshot.posts.map(_postToGqlMap).toList(growable: false),
   'memberWebs': snapshot.memberWebs
-      .map(_memberWebToGqlMap)
+      .map(constellationMemberWebToGqlMap)
       .toList(growable: false),
   'anchorProjection': constellationAnchorProjectionToGqlMap(
     snapshot.anchorProjection,
@@ -121,7 +121,7 @@ Map<String, dynamic> _postToGqlMap(ConstellationPostRecord post) => {
   'hiddenReachCount': post.hiddenReachCount,
 };
 
-Map<String, dynamic> _memberWebToGqlMap(ConstellationMemberWebRecord web) => {
+Map<String, dynamic> constellationMemberWebToGqlMap(ConstellationMemberWebRecord web) => {
   'beaconId': web.beaconId,
   'personId': web.personId,
   'state': web.state.name.toUpperCase(),
