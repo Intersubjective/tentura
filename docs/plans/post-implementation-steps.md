@@ -145,7 +145,13 @@ receipts.
 2. pg and Hasura tests ran in REQUIRED mode (§0.2) and the output shows them **executed, not
    skipped**. A skipped test never satisfies "done".
 3. The existing tests named in the unit still pass.
-4. `dart analyze` (server) / `flutter analyze <touched dirs>` (client) show no new issues.
+4. `dart analyze`/`flutter analyze` show no new issues **on the files your diff actually touches** --
+   scope the command to those files (or `git diff --name-only` them in), not a whole directory or
+   package. A sibling file in the same directory that happens to be pre-existing-dirty (edited
+   elsewhere in the same unit, or by an earlier unit) can carry unrelated pre-existing warnings;
+   those are out of scope and are not "new issues" from this unit. Confirm pre-existing with
+   `git blame` on the flagged line and `git diff --unified=0 <file>` to see what you actually
+   changed in it, rather than assuming directory-wide cleanliness.
 5. Custom lints pass for the touched package; the count in `scripts/custom-lint-baseline.txt` may
    only go down.
 6. A unit compiles and passes on its own and does not implement a later unit's scope. If a step
