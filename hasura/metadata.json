@@ -1733,16 +1733,38 @@
                         }
                       },
                       {
-                        "beacon": {
-                          "beacon_participants": {
-                            "user_id": {
-                              "_eq": "X-Hasura-User-Id"
-                            },
-                            "room_access": {
-                              "_eq": 3
+                        "_and": [
+                          {
+                            "beacon": {
+                              "beacon_participants": {
+                                "user_id": {
+                                  "_eq": "X-Hasura-User-Id"
+                                },
+                                "room_access": {
+                                  "_eq": 3
+                                }
+                              }
                             }
+                          },
+                          {
+                            "_or": [
+                              {
+                                "beacon": {
+                                  "kind": {
+                                    "_eq": 0
+                                  }
+                                }
+                              },
+                              {
+                                "beacon": {
+                                  "can_read_content": {
+                                    "_eq": true
+                                  }
+                                }
+                              }
+                            ]
                           }
-                        }
+                        ]
                       }
                     ]
                   }
@@ -1848,16 +1870,38 @@
                         }
                       },
                       {
-                        "beacon": {
-                          "beacon_participants": {
-                            "user_id": {
-                              "_eq": "X-Hasura-User-Id"
-                            },
-                            "room_access": {
-                              "_eq": 3
+                        "_and": [
+                          {
+                            "beacon": {
+                              "beacon_participants": {
+                                "user_id": {
+                                  "_eq": "X-Hasura-User-Id"
+                                },
+                                "room_access": {
+                                  "_eq": 3
+                                }
+                              }
                             }
+                          },
+                          {
+                            "_or": [
+                              {
+                                "beacon": {
+                                  "kind": {
+                                    "_eq": 0
+                                  }
+                                }
+                              },
+                              {
+                                "beacon": {
+                                  "can_read_content": {
+                                    "_eq": true
+                                  }
+                                }
+                              }
+                            ]
                           }
-                        }
+                        ]
                       }
                     ]
                   }

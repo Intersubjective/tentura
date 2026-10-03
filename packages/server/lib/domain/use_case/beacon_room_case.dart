@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'dart:typed_data';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/beacon_room_record.dart';
 import 'package:tentura_server/domain/entity/beacon_thread_record.dart';
 import 'package:tentura_server/domain/entity/coordination_item_record.dart';
@@ -134,12 +135,28 @@ class BeaconRoomCase extends UseCaseBase {
     await _rejectOrdinaryUserWritesForLifecycle(beaconId);
   }
 
+  /// A Post member admitted through somebody else's forward keeps their
+  /// participant row when blocked by the author, so the room gate must deny
+  /// them itself (the block half of `beacon_can_read_content`). Requests are
+  /// unaffected.
+  Future<bool> _isBlockedFromPost({
+    required String beaconId,
+    required String userId,
+  }) async {
+    final beacon = await _beaconRepository?.getBeaconById(beaconId: beaconId);
+    if (beacon == null || beacon.kind != BeaconKind.post) return false;
+    return _userBlockRepository.isBlockedPair(a: beacon.author.id, b: userId);
+  }
+
   Future<bool> _canUseRoom({
     required String beaconId,
     required String userId,
   }) async {
     if (await _room.isBeaconAuthor(beaconId: beaconId, userId: userId)) {
       return true;
+    }
+    if (await _isBlockedFromPost(beaconId: beaconId, userId: userId)) {
+      return false;
     }
     if (await _room.isBeaconSteward(beaconId: beaconId, userId: userId)) {
       return true;
