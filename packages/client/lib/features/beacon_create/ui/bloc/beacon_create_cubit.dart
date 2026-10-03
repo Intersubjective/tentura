@@ -240,9 +240,8 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   }
 
   void _scheduleAutosave() {
-    if (!_autosaveArmed || _convertFromPostId != null) return;
-    if (state.isEditMode || state.isLive) return;
-    if (state.title.trim().length < kTitleMinLength) return;
+    if (!_autosaveArmed) return;
+    if (!_shouldQuietPersist) return;
     _autosaveTimer?.cancel();
     _autosaveTimer = Timer(const Duration(seconds: 1), () {
       unawaited(_quietPersist());
@@ -259,10 +258,16 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     await _quietPersist();
   }
 
+  /// Autosave only once the server would accept the draft: a standalone
+  /// request needs a description (`BeaconCreationPolicy`), so saving right
+  /// after the title was typed failed and left a sticky "Description is
+  /// required" error snackbar over the form while the user was still typing
+  /// (UI review, creation flow). Child requests may have an empty one.
   bool get _shouldQuietPersist {
     if (isClosed || state.isEditMode || state.isLive) return false;
     if (_convertFromPostId != null) return false;
-    return state.title.trim().length >= kTitleMinLength;
+    if (state.title.trim().length < kTitleMinLength) return false;
+    return state.isChildMode || state.description.trim().isNotEmpty;
   }
 
   Future<void> _quietPersist() async {

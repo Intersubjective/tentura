@@ -87,6 +87,9 @@ class _BeaconPinnedFactsSheetBody extends StatelessWidget {
               );
 
               return Column(
+                // Size to content (capped by maxHeight): an empty or short
+                // list opened a near-full-screen sheet (UI review).
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
@@ -94,13 +97,14 @@ class _BeaconPinnedFactsSheetBody extends StatelessWidget {
                     style: Theme.of(context).textTheme.titleSmall,
                   ),
                   SizedBox(height: tt.rowGap),
-                  Expanded(
+                  Flexible(
                     child: facts.isEmpty
                         ? Text(
                             l10n.beaconFactsSheetEmpty,
                             style: TenturaText.bodyMedium(tt.textMuted),
                           )
                         : ListView.separated(
+                            shrinkWrap: true,
                             // Intrinsic-height cards (no fixed aspect grid):
                             // short text → short card; full card is tappable.
                             itemCount: facts.length,

@@ -105,9 +105,12 @@ class _ConnectBottomSheetState extends State<ConnectBottomSheet> {
           // Button (paste)
           Padding(
             padding: EdgeInsets.symmetric(vertical: tt.rowGap),
-            child: FilledButton(
+            // Alternatives to the primary Search are outlined: three filled
+            // buttons read as three primaries (UI review).
+            child: OutlinedButton.icon(
               onPressed: _getCodeFromClipboard,
-              child: Text(_l10n.buttonPaste),
+              icon: const Icon(Icons.content_paste),
+              label: Text(_l10n.buttonPaste),
             ),
           ),
 
@@ -119,14 +122,15 @@ class _ConnectBottomSheetState extends State<ConnectBottomSheet> {
           // Button (scan qr)
           Padding(
             padding: EdgeInsets.symmetric(vertical: tt.rowGap),
-            child: FilledButton(
+            child: OutlinedButton.icon(
               onPressed: () async {
                 final code = await QRScanDialog.show(context);
                 if (context.mounted && code != null) {
                   await _goWithCode(code);
                 }
               },
-              child: Text(_l10n.buttonScanQR),
+              icon: const Icon(Icons.qr_code_scanner),
+              label: Text(_l10n.buttonScanQR),
             ),
           ),
         ],

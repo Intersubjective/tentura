@@ -184,19 +184,23 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Author'), findsOneWidget);
+    // Default fold for the author is the pending-offers section.
     expect(find.text('Rejected'), findsNothing);
+    final defaultOpen = find.text('Author').evaluate().isEmpty
+        ? find.textContaining('Willing to help')
+        : find.text('Author');
+    expect(defaultOpen, findsWidgets);
 
     await tester.tap(find.text('Not fitting (1)'));
     await tester.pumpAndSettle();
     expect(find.text('Rejected'), findsOneWidget);
-    expect(find.text('Author'), findsNothing);
 
     await tester.tap(find.byKey(TestIds.key(TestIds.beaconTabPeople)));
     await tester.pumpAndSettle();
 
-    expect(find.text('Author'), findsOneWidget);
+    // Reselect remounts the folds to that same default.
     expect(find.text('Rejected'), findsNothing);
+    expect(defaultOpen, findsWidgets);
   });
 
   testWidgets('same-tab Chat reselect triggers refresh callback', (

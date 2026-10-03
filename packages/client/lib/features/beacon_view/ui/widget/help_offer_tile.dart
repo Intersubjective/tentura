@@ -75,6 +75,10 @@ class HelpOfferTile extends StatelessWidget {
     final theme = Theme.of(context);
     final tt = context.tt;
     final isWithdrawn = helpOffer.isWithdrawn;
+    // A declined offer is stored as withdrawn too; say what really happened
+    // and keep the author's reason visible (UI review, People tab).
+    final isDeclinedByAuthor =
+        helpOffer.admissionAction == HelpOfferAdmissionAction.decline;
     final dateShown = isWithdrawn ? helpOffer.updatedAt : helpOffer.createdAt;
     final roomAccess = helpOffer.roomAccess ?? participant?.roomAccess;
     final isAdmitted = roomAccess == RoomAccessBits.admitted;
@@ -212,7 +216,12 @@ class HelpOfferTile extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 6),
-                    if (isWithdrawn)
+                    if (isDeclinedByAuthor)
+                      TenturaStatusText(
+                        l10n.helpOfferStatusDeclined,
+                        tone: TenturaTone.danger,
+                      )
+                    else if (isWithdrawn)
                       TenturaStatusText(l10n.labelWithdrawn)
                     else if (stakeParticipationLabel != null)
                       TenturaStatusText(stakeParticipationLabel),
@@ -328,7 +337,7 @@ class HelpOfferTile extends StatelessWidget {
               style: TenturaText.status(theme.colorScheme.onSurfaceVariant),
             ),
           ],
-          if (!isWithdrawn &&
+          if ((!isWithdrawn || isDeclinedByAuthor) &&
               !showAuthorStar &&
               !(helpOffer.offerKind == 1 &&
                   !isAdmitted &&
@@ -642,76 +651,37 @@ class _AuthorAdmissionFooter extends StatelessWidget {
           ),
           SizedBox(height: tt.tightGap),
         ],
-        if (context.windowClass == WindowClass.compact)
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (onAccept != null)
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TenturaTextAction(
-                    key: TestIds.key(TestIds.helpOfferAccept(offerUserId)),
-                    semanticsIdentifier: TestIds.helpOfferAccept(offerUserId),
-                    label: l10n.helpOfferAdmissionAccept,
-                    onPressed: onAccept,
-                    tone: TenturaTone.good,
-                    icon: const Icon(Icons.check_outlined),
-                  ),
+        // A real decision row (UI review, People tab): tonal Accept as the
+        // primary answer, quiet Decline beside it — not two coloured text
+        // links stacked on phones.
+        Row(
+          children: [
+            if (onAccept != null)
+              FilledButton.tonalIcon(
+                key: TestIds.key(TestIds.helpOfferAccept(offerUserId)),
+                onPressed: onAccept,
+                icon: const Icon(Icons.check),
+                label: Semantics(
+                  identifier: TestIds.helpOfferAccept(offerUserId),
+                  child: Text(l10n.helpOfferAdmissionAccept),
                 ),
-              if (onDecline != null) ...[
-                if (onAccept != null) SizedBox(height: tt.tightGap),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TenturaTextAction(
-                    key: TestIds.key(TestIds.helpOfferDecline(offerUserId)),
-                    semanticsIdentifier: TestIds.helpOfferDecline(offerUserId),
-                    label: l10n.helpOfferAdmissionDecline,
-                    onPressed: onDecline,
-                    tone: TenturaTone.danger,
-                    icon: const Icon(Icons.close_outlined),
-                  ),
+              ),
+            if (onAccept != null && onDecline != null)
+              SizedBox(width: tt.rowGap),
+            if (onDecline != null)
+              TextButton(
+                key: TestIds.key(TestIds.helpOfferDecline(offerUserId)),
+                onPressed: onDecline,
+                style: TextButton.styleFrom(
+                  foregroundColor: Theme.of(context).colorScheme.error,
                 ),
-              ],
-            ],
-          )
-        else
-          Row(
-            children: [
-              if (onAccept != null)
-                TenturaTextAction(
-                  key: TestIds.key(TestIds.helpOfferAccept(offerUserId)),
-                  semanticsIdentifier: TestIds.helpOfferAccept(offerUserId),
-                  label: l10n.helpOfferAdmissionAccept,
-                  onPressed: onAccept,
-                  tone: TenturaTone.good,
-                  icon: const Icon(Icons.check_outlined),
+                child: Semantics(
+                  identifier: TestIds.helpOfferDecline(offerUserId),
+                  child: Text(l10n.helpOfferAdmissionDecline),
                 ),
-              if (onAccept != null && onDecline != null)
-                SizedBox(width: tt.tightGap),
-              if (onDecline != null)
-                TenturaTextAction(
-                  key: TestIds.key(TestIds.helpOfferDecline(offerUserId)),
-                  semanticsIdentifier: TestIds.helpOfferDecline(offerUserId),
-                  label: l10n.helpOfferAdmissionDecline,
-                  onPressed: onDecline,
-                  tone: TenturaTone.danger,
-                  icon: const Icon(Icons.close_outlined),
-                ),
-            ],
-          ),
-        if (onReleaseCommitment != null) ...[
-          SizedBox(height: tt.tightGap),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TenturaTextAction(
-              key: TestIds.key(TestIds.helpOfferRelease(offerUserId)),
-              semanticsIdentifier: TestIds.helpOfferRelease(offerUserId),
-              label: l10n.helpOfferReleaseCommitment,
-              onPressed: onReleaseCommitment,
-              tone: TenturaTone.neutral,
-            ),
-          ),
-        ],
+              ),
+          ],
+        ),
       ],
     );
   }

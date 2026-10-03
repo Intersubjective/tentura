@@ -16,6 +16,7 @@ import '../bloc/screen_cubit.dart';
 import '../effect/ui_effect_bus.dart';
 import '../effect/ui_effect_handler.dart';
 import '../l10n/l10n.dart';
+import 'package:tentura/design_system/tentura_radii.dart';
 import 'copy_text_to_clipboard.dart';
 
 /// Provides a route-local [ScreenCubit] and [UiEffectHandler] subtree.
@@ -87,6 +88,9 @@ ScaffoldFeatureController<SnackBar, SnackBarClosedReason> showSnackBar(
   Duration? duration,
   Object? error,
   StackTrace? stackTrace,
+  /// Technical text kept for the copy action when [text] is a friendly
+  /// summary of it.
+  String? detail,
 }) {
   // Errors linger longer so the message can be read and the Copy button tapped.
   duration ??= Duration(seconds: isError ? 15 : kSnackBarDuration);
@@ -97,10 +101,13 @@ ScaffoldFeatureController<SnackBar, SnackBarClosedReason> showSnackBar(
 
   // The full, untruncated message. The SnackBar may clip long text on screen,
   // so we keep the complete string for logging and for the Copy action.
-  final fullText = [
+  final shownText = [
     ?text,
     ...?textSpans?.map((s) => s.toPlainText()),
   ].join();
+  final fullText = detail == null || detail.isEmpty
+      ? shownText
+      : '$shownText\n$detail';
 
   if (isError) {
     if (error != null) {
@@ -115,7 +122,7 @@ ScaffoldFeatureController<SnackBar, SnackBarClosedReason> showSnackBar(
       action ??
       (isError && fullText.isNotEmpty
           ? SnackBarAction(
-              label: L10n.of(context)?.copyToClipboard ?? 'Copy',
+              label: L10n.of(context)?.copyErrorDetails ?? 'Copy',
               onPressed: () {
                 unawaited(copyTextToClipboard(fullText));
               },
@@ -128,15 +135,24 @@ ScaffoldFeatureController<SnackBar, SnackBarClosedReason> showSnackBar(
       duration: duration,
       // Action and close icon coexist (M3); users can dismiss without using the action.
       showCloseIcon: true,
-      margin: isFloating ? kPaddingAll : null,
+      closeIconColor: isError ? theme.colorScheme.onErrorContainer : null,
+      // Errors float in the error container with an icon instead of a
+      // full-bleed red bar (UI review): readable, and clearly separate from
+      // the bottom navigation and CTAs it used to cover.
+      margin: isFloating || isError ? kPaddingAll : null,
       // Web: horizontal Dismissible + PointerPanZoom (Firefox trackpad) can hit-test
       // before the snack bar is laid out during route transitions (Sentry #7579576017).
       dismissDirection: kIsWeb
           ? DismissDirection.none
           : DismissDirection.horizontal,
-      behavior: isFloating ? SnackBarBehavior.floating : null,
+      behavior: isFloating || isError ? SnackBarBehavior.floating : null,
+      shape: isError
+          ? RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(TenturaRadii.cardDense),
+            )
+          : null,
       backgroundColor: isError
-          ? theme.colorScheme.error
+          ? theme.colorScheme.errorContainer
           : color ?? theme.snackBarTheme.backgroundColor,
       content: RichText(
         text: TextSpan(
@@ -144,7 +160,7 @@ ScaffoldFeatureController<SnackBar, SnackBarClosedReason> showSnackBar(
           children: textSpans,
           style: isError
               ? theme.snackBarTheme.contentTextStyle?.copyWith(
-                  color: theme.colorScheme.onError,
+                  color: theme.colorScheme.onErrorContainer,
                 )
               : theme.snackBarTheme.contentTextStyle,
         ),

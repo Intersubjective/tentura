@@ -376,7 +376,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byIcon(BeaconHudRowIcons.you), findsOneWidget);
-    expect(find.text('Review 2 commitment(s)'), findsOneWidget);
+    expect(find.text('Review 2 offers'), findsOneWidget);
   });
 
   testWidgets(

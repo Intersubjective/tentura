@@ -9,6 +9,8 @@ class HelpOfferAdmissionReasonDialog extends StatefulWidget {
     required this.title,
     required this.hintText,
     this.explanatoryNote,
+    this.submitLabel,
+    this.destructive = false,
     super.key,
   });
 
@@ -17,6 +19,8 @@ class HelpOfferAdmissionReasonDialog extends StatefulWidget {
     required String title,
     required String hintText,
     String? explanatoryNote,
+    String? submitLabel,
+    bool destructive = false,
   }) => showTenturaAdaptiveSheet<String>(
     context: context,
     useRootNavigator: true,
@@ -25,12 +29,20 @@ class HelpOfferAdmissionReasonDialog extends StatefulWidget {
       title: title,
       hintText: hintText,
       explanatoryNote: explanatoryNote,
+      submitLabel: submitLabel,
+      destructive: destructive,
     ),
   );
 
   final String title;
   final String hintText;
   final String? explanatoryNote;
+
+  /// Verb for the primary button ("Decline"); defaults to OK.
+  final String? submitLabel;
+
+  /// Paints the primary button in the error role.
+  final bool destructive;
 
   @override
   State<HelpOfferAdmissionReasonDialog> createState() =>
@@ -109,17 +121,13 @@ class _HelpOfferAdmissionReasonDialogState
                   FocusManager.instance.primaryFocus?.unfocus(),
             ),
             SizedBox(height: tt.sectionGap),
-            TextButton(
-              onPressed: _requestClose,
-              child: Text(l10n.buttonCancel),
-            ),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                key: TestIds.key(TestIds.admissionReasonSubmit),
-                onPressed: _canSubmit ? _submit : null,
-                child: Text(l10n.buttonOk),
-              ),
+            TenturaSheetActions(
+              cancelLabel: l10n.buttonCancel,
+              onCancel: _requestClose,
+              primaryKey: TestIds.key(TestIds.admissionReasonSubmit),
+              primaryLabel: widget.submitLabel ?? l10n.buttonOk,
+              destructive: widget.destructive,
+              onPrimary: _canSubmit ? _submit : null,
             ),
           ],
         ),

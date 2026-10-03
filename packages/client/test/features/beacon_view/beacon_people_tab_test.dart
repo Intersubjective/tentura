@@ -369,13 +369,36 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Author'), findsOneWidget);
+    // The author's pending offer is the section open by default.
+    expect(find.text('Helper'), findsOneWidget);
 
     await tester.tap(find.text('Forwards'));
     await tester.pumpAndSettle();
 
     expect(cubit.loadForwardsCalls, 1);
-    expect(find.text('Author'), findsOneWidget);
+    expect(find.text('Helper'), findsOneWidget);
+  });
+
+  testWidgets('author sees pending offers above active helpers', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrapPeople(
+        BeaconPeopleTabBody(
+          state: _state,
+          beaconViewCubit: _MockBeaconViewCubit(),
+          l10n: lookupL10n(const Locale('en')),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final willingTop = tester
+        .getTopLeft(find.text('Willing to help (1)'))
+        .dy;
+    final activeTop = tester.getTopLeft(find.text('Active helpers (1)')).dy;
+    expect(willingTop, lessThan(activeTop));
+    expect(find.text('Helper'), findsOneWidget);
   });
 
   testWidgets('Not fitting fold is collapsed by default', (tester) async {
@@ -449,13 +472,14 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Author'), findsOneWidget);
-    expect(find.text('Helper'), findsNothing);
+    // Author view: pending offers open first, settled helpers collapsed.
+    expect(find.text('Helper'), findsOneWidget);
+    expect(find.text('Author'), findsNothing);
     await tester.tap(find.text('Not fitting (1)'));
     await tester.pumpAndSettle();
 
     expect(find.text('Rejected'), findsOneWidget);
-    expect(find.text('Author'), findsNothing);
+    expect(find.text('Helper'), findsNothing);
   });
 
   testWidgets('End participation visible when stake is acknowledged', (

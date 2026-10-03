@@ -70,7 +70,10 @@ PreferredSizeWidget buildProfileAppBar(
         onPressed: () => context.read<ScreenCubit>().showProfileEditor(),
         icon: const Icon(Icons.edit_outlined),
       ),
-      ShareCodeIconButton.id(profile.id),
+      ShareCodeIconButton.id(
+        profile.id,
+        displayName: profile.displayName,
+      ),
       PopupMenuButton<String>(
         icon: const Icon(Icons.more_vert),
         tooltip: MaterialLocalizations.of(context).showMenuTooltip,

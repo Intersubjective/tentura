@@ -53,6 +53,7 @@ String? peopleTabAccordionSectionId({
   required BeaconPeopleSections sections,
   required String? focusUserId,
   required bool showWithdrawn,
+  bool viewerIsAuthor = false,
 }) {
   final focus = focusUserId?.trim();
   if (focus != null && focus.isNotEmpty) {
@@ -68,6 +69,12 @@ String? peopleTabAccordionSectionId({
     if (showWithdrawn) {
       return BeaconPeopleAccordionSection.withdrawn;
     }
+  }
+  // The author's open decisions come first: pending offers used to sit
+  // collapsed under the already-settled helpers while the tab badge asked
+  // for attention (UI review, People tab).
+  if (viewerIsAuthor && sections.willingToHelp.isNotEmpty) {
+    return BeaconPeopleAccordionSection.willingToHelp;
   }
   if (sections.activeHelpers.isNotEmpty) {
     return BeaconPeopleAccordionSection.activeHelpers;

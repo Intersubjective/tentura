@@ -75,6 +75,9 @@ class _FactPickerSheetState extends State<FactPickerSheet> {
             tt.rowGap,
           ),
           child: Column(
+            // Size to content (capped by maxHeight): an empty or short
+            // list opened a near-full-screen sheet (UI review).
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
@@ -95,13 +98,14 @@ class _FactPickerSheetState extends State<FactPickerSheet> {
                 ),
                 SizedBox(height: tt.rowGap),
               ],
-              Expanded(
+              Flexible(
                 child: facts.isEmpty
                     ? Text(
                         l10n.beaconFactsSheetEmpty,
                         style: TenturaText.bodyMedium(tt.textMuted),
                       )
                     : ListView.separated(
+                        shrinkWrap: true,
                         itemCount: visible.length,
                         separatorBuilder: (_, _) =>
                             SizedBox(height: tt.rowGap / 2),

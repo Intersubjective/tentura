@@ -399,7 +399,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('<role not selected>'), findsOneWidget);
+    expect(find.text('No role yet'), findsOneWidget);
     expect(find.text('Edit role'), findsOneWidget);
   });
 

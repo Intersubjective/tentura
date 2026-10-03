@@ -151,7 +151,7 @@ void main() {
       );
 
       expect(find.byType(TenturaCapabilityGlyph), findsNothing);
-      expect(find.text('<role not selected>'), findsOneWidget);
+      expect(find.text('No role yet'), findsOneWidget);
     },
   );
 
@@ -237,7 +237,7 @@ void main() {
       ],
     );
 
-    expect(find.text('<role not selected>'), findsNothing);
+    expect(find.text('No role yet'), findsNothing);
     expect(find.byType(TenturaCapabilityGlyph), findsNothing);
   });
 }
