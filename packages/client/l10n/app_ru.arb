@@ -6223,5 +6223,18 @@
   "postCreateDiscardBody": "Пост ещё не отправлен. Текст и фото не сохранятся.",
   "postCreateNeedHelp": "Нужна помощь? Создать запрос ›",
   "postCreateMenuPost": "Пост",
-  "postCreateMenuRequest": "Запрос"
+  "postCreateMenuRequest": "Запрос",
+  "postMenuPin": "Закрепить в разговорах",
+  "postMenuUnpin": "Открепить",
+  "postMenuMute": "Заглушить",
+  "postMenuUnmute": "Включить звук",
+  "postMuteHour": "На 1 час",
+  "postMuteThreeHours": "На 3 часа",
+  "postMuteDay": "На день",
+  "postMuteThreeDays": "На 3 дня",
+  "postMuteForever": "Навсегда",
+  "postMenuLeave": "Выйти из разговора",
+  "postLeaveConfirmTitle": "Выйти из разговора?",
+  "postLeaveConfirmBody": "Сообщения перестанут приходить, пост исчезнет из разговоров. Вернуться можно из «Не интересно».",
+  "postLeaveConfirmAction": "Выйти"
 }

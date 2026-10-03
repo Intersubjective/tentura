@@ -1,0 +1,3 @@
+mutation BeaconMuteClear($beaconId: String!) {
+  beaconMuteClear(beaconId: $beaconId)
+}

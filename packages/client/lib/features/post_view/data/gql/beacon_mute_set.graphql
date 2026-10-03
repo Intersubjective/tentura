@@ -1,0 +1,3 @@
+mutation BeaconMuteSet($beaconId: String!, $mutedUntil: String) {
+  beaconMuteSet(beaconId: $beaconId, mutedUntil: $mutedUntil)
+}

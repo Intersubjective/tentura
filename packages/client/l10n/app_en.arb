@@ -7137,5 +7137,57 @@
   "postCreateMenuRequest": "Request",
   "@postCreateMenuRequest": {
     "description": "My Work «+» menu entry that starts a Request."
+  },
+  "postMenuPin": "Pin in conversations",
+  "@postMenuPin": {
+    "description": "Post overflow: pin the Post among conversations."
+  },
+  "postMenuUnpin": "Unpin",
+  "@postMenuUnpin": {
+    "description": "Post overflow (pinned): unpin the Post."
+  },
+  "postMenuMute": "Mute",
+  "@postMenuMute": {
+    "description": "Post overflow: opens the mute durations."
+  },
+  "postMenuUnmute": "Turn sound on",
+  "@postMenuUnmute": {
+    "description": "Post overflow (muted): clear the mute."
+  },
+  "postMuteHour": "For 1 hour",
+  "@postMuteHour": {
+    "description": "Mute duration: one hour."
+  },
+  "postMuteThreeHours": "For 3 hours",
+  "@postMuteThreeHours": {
+    "description": "Mute duration: three hours."
+  },
+  "postMuteDay": "For a day",
+  "@postMuteDay": {
+    "description": "Mute duration: one day."
+  },
+  "postMuteThreeDays": "For 3 days",
+  "@postMuteThreeDays": {
+    "description": "Mute duration: three days."
+  },
+  "postMuteForever": "Forever",
+  "@postMuteForever": {
+    "description": "Mute duration: no end."
+  },
+  "postMenuLeave": "Leave conversation",
+  "@postMenuLeave": {
+    "description": "Post overflow (recipient): leave the conversation."
+  },
+  "postLeaveConfirmTitle": "Leave conversation?",
+  "@postLeaveConfirmTitle": {
+    "description": "Title of the leave-conversation confirmation."
+  },
+  "postLeaveConfirmBody": "Messages will stop coming and the post will disappear from conversations. You can return from “Not interested”.",
+  "@postLeaveConfirmBody": {
+    "description": "Body of the leave-conversation confirmation."
+  },
+  "postLeaveConfirmAction": "Leave",
+  "@postLeaveConfirmAction": {
+    "description": "Confirm button of the leave-conversation confirmation."
   }
 }

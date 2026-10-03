@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
+import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_room_lease.dart';
@@ -16,12 +17,29 @@ import '../bloc/post_view_cubit.dart';
 import '../widget/post_participants_sheet.dart';
 
 enum _PostAction {
+  pin,
+  unpin,
+  mute,
+  unmute,
   participants,
   forwardsGraph,
   showOnField,
   forward,
   allowForwarding,
   delete,
+  leave,
+}
+
+enum _MuteChoice {
+  hour(Duration(hours: 1)),
+  threeHours(Duration(hours: 3)),
+  day(Duration(days: 1)),
+  threeDays(Duration(days: 3)),
+  forever(null);
+
+  const _MuteChoice(this.duration);
+
+  final Duration? duration;
 }
 
 class PostViewScreen extends StatefulWidget {
@@ -120,6 +138,26 @@ class _Overflow extends StatelessWidget {
       icon: const Icon(Icons.more_vert),
       onSelected: (action) => unawaited(_run(context, action)),
       itemBuilder: (_) => [
+        if (state.summary?.isPinned ?? false)
+          PopupMenuItem(
+            value: _PostAction.unpin,
+            child: Text(l10n.postMenuUnpin),
+          )
+        else
+          PopupMenuItem(
+            value: _PostAction.pin,
+            child: Text(l10n.postMenuPin),
+          ),
+        if (state.summary?.isMutedAt(DateTime.now()) ?? false)
+          PopupMenuItem(
+            value: _PostAction.unmute,
+            child: Text(l10n.postMenuUnmute),
+          )
+        else
+          PopupMenuItem(
+            value: _PostAction.mute,
+            child: Text('${l10n.postMenuMute} ›'),
+          ),
         PopupMenuItem(
           value: _PostAction.participants,
           child: Text(l10n.postMenuParticipants),
@@ -148,7 +186,24 @@ class _Overflow extends StatelessWidget {
             value: _PostAction.delete,
             child: Text(l10n.postMenuDelete),
           ),
+        if (_viewerIsAddressee(context, viewerIsAuthor))
+          PopupMenuItem(
+            value: _PostAction.leave,
+            child: Text(l10n.postMenuLeave),
+          ),
       ],
+    );
+  }
+
+  /// Only a recipient can leave; the author mutes or deletes instead.
+  bool _viewerIsAddressee(BuildContext context, bool viewerIsAuthor) {
+    if (viewerIsAuthor) return false;
+    final myId = context.read<PostViewCubit>().myProfile.id;
+    final participants =
+        context.read<ThreadHostCubit>().roomCubit?.state.participants ??
+        const [];
+    return participants.any(
+      (p) => p.userId == myId && p.role == BeaconParticipantRoleBits.addressee,
     );
   }
 
@@ -157,6 +212,19 @@ class _Overflow extends StatelessWidget {
     final screenCubit = context.read<ScreenCubit>();
     final id = cubit.beaconId;
     switch (action) {
+      case _PostAction.pin:
+        await cubit.pin();
+      case _PostAction.unpin:
+        await cubit.unpin();
+      case _PostAction.mute:
+        final choice = await _pickMuteChoice(context);
+        if (choice != null) await cubit.mute(choice.duration);
+      case _PostAction.unmute:
+        await cubit.unmute();
+      case _PostAction.leave:
+        if (await _confirmLeave(context) && context.mounted) {
+          await cubit.leave();
+        }
       case _PostAction.participants:
         final room = context.read<ThreadHostCubit>().roomCubit;
         await showPostParticipantsSheet(
@@ -178,6 +246,51 @@ class _Overflow extends StatelessWidget {
           await cubit.delete();
         }
     }
+  }
+
+  Future<_MuteChoice?> _pickMuteChoice(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    return showDialog<_MuteChoice>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: Text(l10n.postMenuMute),
+        children: [
+          for (final choice in _MuteChoice.values)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(ctx, choice),
+              child: Text(switch (choice) {
+                _MuteChoice.hour => l10n.postMuteHour,
+                _MuteChoice.threeHours => l10n.postMuteThreeHours,
+                _MuteChoice.day => l10n.postMuteDay,
+                _MuteChoice.threeDays => l10n.postMuteThreeDays,
+                _MuteChoice.forever => l10n.postMuteForever,
+              }),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<bool> _confirmLeave(BuildContext context) async {
+    final l10n = L10n.of(context)!;
+    return await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text(l10n.postLeaveConfirmTitle),
+            content: Text(l10n.postLeaveConfirmBody),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(l10n.buttonCancel),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text(l10n.postLeaveConfirmAction),
+              ),
+            ],
+          ),
+        ) ??
+        false;
   }
 
   Future<bool> _confirmAllowForwarding(BuildContext context) async {
