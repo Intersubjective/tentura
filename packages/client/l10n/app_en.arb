@@ -7190,6 +7190,27 @@
   "@postLeaveConfirmAction": {
     "description": "Confirm button of the leave-conversation confirmation."
   },
+  "postOriginCardTitle": "Post participant",
+  "@postOriginCardTitle": {
+    "description": "Request header card for a former Post member who has not offered help yet."
+  },
+  "postOriginCardBody": "You're in the chat. To take part in the work, offer help.",
+  "@postOriginCardBody": {
+    "description": "Explains the intermediate state of a former Post member on the Request screen."
+  },
+  "postOriginLeaveChat": "Leave chat",
+  "@postOriginLeaveChat": {
+    "description": "Former Post member leaves the Request chat (postLeave)."
+  },
+  "postOriginPeopleSection": "FROM POST · {count}",
+  "@postOriginPeopleSection": {
+    "description": "Author People tab section: former Post members still in the chat.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "postMenuConvertToRequest": "Turn into a Request",
   "@postMenuConvertToRequest": {
     "description": "Post overflow menu item (author): convert the Post to a Request."

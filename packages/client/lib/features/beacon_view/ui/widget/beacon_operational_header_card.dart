@@ -31,6 +31,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
     required this.onAuthorTap,
     this.onAuthorHudAction,
     this.onOfferHelp,
+    this.onLeavePostChat,
     this.onEditHelpOffer,
     this.onWatch,
     this.onStopWatching,
@@ -48,6 +49,9 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
 
   final void Function(BeaconHudAuthorAction action)? onAuthorHudAction;
   final VoidCallback? onOfferHelp;
+
+  /// Leaves the Request chat as a former Post member (`postLeave`).
+  final VoidCallback? onLeavePostChat;
   final VoidCallback? onEditHelpOffer;
   final VoidCallback? onWatch;
   final VoidCallback? onStopWatching;
@@ -75,7 +79,9 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
     final authorSpec = state.isBeaconMine && onAuthorHudAction != null
         ? deriveBeaconHudAuthorActSpec(l10n: l10n, state: state)
         : null;
-    final helperActions = authorSpec == null
+    final showPostOriginCard =
+        state.isPostOriginParticipant && onLeavePostChat != null;
+    final helperActions = authorSpec == null && !showPostOriginCard
         ? _buildHelperHudActions(l10n)
         : const _HelperHudActions();
     final showForwardCta = state.beacon.viewerCanForward && onForward != null;
@@ -131,6 +137,14 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: kBeaconHudRowGap),
+          if (showPostOriginCard) ...[
+            _PostOriginCard(
+              l10n: l10n,
+              onOfferHelp: onOfferHelp,
+              onLeave: onLeavePostChat!,
+            ),
+            const SizedBox(height: kBeaconHudRowGap),
+          ],
           BeaconDetailsFactsAccessRow(
             showDetails: beaconViewHasDetailsContent(state.beacon),
             factsCount: activePinnedFacts(state.factCards).length,
@@ -287,6 +301,56 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
       );
     }
     return _HelperHudActions(primary: out.take(3).toList());
+  }
+}
+
+/// Intermediate state of a former Post member: in the chat, no offer yet.
+class _PostOriginCard extends StatelessWidget {
+  const _PostOriginCard({
+    required this.l10n,
+    required this.onOfferHelp,
+    required this.onLeave,
+  });
+
+  final L10n l10n;
+  final VoidCallback? onOfferHelp;
+  final VoidCallback onLeave;
+
+  @override
+  Widget build(BuildContext context) {
+    final tt = context.tt;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          l10n.postOriginCardTitle,
+          style: TenturaText.title(tt.text),
+        ),
+        SizedBox(height: tt.tightGap),
+        Text(
+          l10n.postOriginCardBody,
+          style: TenturaText.bodySmall(tt.textMuted),
+        ),
+        SizedBox(height: tt.rowGap),
+        Wrap(
+          spacing: tt.rowGap,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            if (onOfferHelp != null)
+              BeaconHudActionButton(
+                icon: Icons.volunteer_activism_outlined,
+                label: l10n.labelOfferHelp,
+                onPressed: onOfferHelp,
+                filled: true,
+              ),
+            TextButton(
+              onPressed: onLeave,
+              child: Text(l10n.postOriginLeaveChat),
+            ),
+          ],
+        ),
+      ],
+    );
   }
 }
 

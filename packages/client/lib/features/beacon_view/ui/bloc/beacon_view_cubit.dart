@@ -30,6 +30,7 @@ import 'package:tentura/ui/effect/ui_effect_port.dart';
 
 import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
+import 'package:tentura/features/post_view/data/repository/post_membership_repository.dart';
 
 import 'package:tentura/features/closure/domain/entity/beacon_close_result.dart';
 import 'package:tentura/features/closure/domain/entity/closure_state.dart';
@@ -53,8 +54,10 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
     required Profile myProfile,
     BeaconViewCase? beaconViewCase,
     UiEffectPort? effects,
+    PostMembershipRepository? postMembershipRepository,
   }) : _case = beaconViewCase ?? GetIt.I<BeaconViewCase>(),
        _effects = effects ?? GetIt.I<UiEffectPort>(),
+       _postMembershipRepository = postMembershipRepository,
        super(_idToState(id, myProfile)) {
     final seen = _case.pinnedFactsSeenAt(id, myProfile.id);
     if (seen != null) {
@@ -125,6 +128,8 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
   Stream<void> get changes => stream.map((_) {});
 
   final UiEffectPort _effects;
+
+  PostMembershipRepository? _postMembershipRepository;
 
   void _showSnackError(Object error) {
     _effects.emit(ShowError(error));
@@ -294,6 +299,19 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
     } catch (e) {
       _showSnackError(e);
     }
+  }
+
+  /// A former Post member leaves the Request chat; the card goes away on the
+  /// refresh that follows.
+  Future<void> leavePostChat() async {
+    try {
+      await (_postMembershipRepository ??= GetIt.I<PostMembershipRepository>())
+          .postLeave(state.beacon.id);
+    } catch (e) {
+      _showSnackError(e);
+      return;
+    }
+    _requestFullRefresh();
   }
 
   Future<void> stopWatching() async {

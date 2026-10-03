@@ -135,7 +135,10 @@ BeaconPeopleSections classifyBeaconPeopleSections({
   };
   if (activeHelpers == null) {
     for (final p in visibleParticipants) {
-      if (p.roomAccess == RoomAccessBits.admitted) {
+      // A Post addressee in the chat is not a helper yet; the author's People
+      // tab lists them in their own section.
+      if (p.roomAccess == RoomAccessBits.admitted &&
+          p.role != BeaconParticipantRoleBits.addressee) {
         admittedUserIds.add(p.userId);
       }
     }

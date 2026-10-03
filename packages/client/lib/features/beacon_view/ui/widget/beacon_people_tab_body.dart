@@ -9,6 +9,7 @@ import 'package:tentura/domain/entity/beacon_people_lens.dart';
 import 'package:tentura/domain/entity/beacon_people_row.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/commitment_stake_state.dart';
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/help_offer_admission_reason_dialog.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/help_offer_message_dialog.dart';
@@ -267,6 +268,20 @@ class BeaconPeopleTabBody extends StatelessWidget {
         return aDirect ? -1 : 1;
       });
     }
+
+    final postOriginRows = state.isBeaconMine
+        ? [
+            for (final p in state.roomParticipants)
+              if (p.role == BeaconParticipantRoleBits.addressee &&
+                  p.roomAccess == RoomAccessBits.admitted)
+                BeaconPeopleRow(
+                  userId: p.userId,
+                  profile: Profile(id: p.userId, displayName: p.userTitle),
+                  participant: p,
+                  isAuthor: false,
+                ),
+          ]
+        : const <BeaconPeopleRow>[];
 
     final peopleSections = BeaconPeopleSections(
       activeHelpers: sections.activeHelpers,
@@ -534,6 +549,22 @@ class BeaconPeopleTabBody extends StatelessWidget {
           ),
         ),
         SizedBox(height: tt.rowGap),
+        if (postOriginRows.isNotEmpty) ...[
+          Text(
+            l10n.postOriginPeopleSection(postOriginRows.length),
+            style: sectionHeaderStyle,
+          ),
+          SizedBox(height: tt.tightGap),
+          for (final row in postOriginRows) ...[
+            _ObserverActiveHelperTile(
+              row: row,
+              viewerId: viewerId,
+              onOpenProfile: () =>
+                  context.read<ScreenCubit>().showProfile(row.userId),
+            ),
+            const SizedBox(height: 12),
+          ],
+        ],
         AccordionExpansionGroup(
           initialExpandedId: requestedSectionId,
           requestedExpandedId: requestedSectionId,

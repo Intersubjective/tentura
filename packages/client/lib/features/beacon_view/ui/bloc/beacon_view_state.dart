@@ -332,6 +332,18 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
         p.roomAccess == RoomAccessBits.admitted,
   );
 
+  /// A former Post member (addressee) still in the chat who has not offered
+  /// help: the intermediate state shown on the Request screen.
+  bool get isPostOriginParticipant =>
+      !isBeaconMine &&
+      !isHelpOffered &&
+      roomParticipants.any(
+        (p) =>
+            p.userId == myProfile.id &&
+            p.role == BeaconParticipantRoleBits.addressee &&
+            p.roomAccess == RoomAccessBits.admitted,
+      );
+
   /// True for the beacon author or a promoted Steward.
   bool get isAuthorOrSteward => isBeaconMine || isSteward;
 

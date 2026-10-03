@@ -415,11 +415,13 @@ Future<BeaconViewHarness> pumpBeaconViewHarness(
   String? threadId,
   String? messageId,
   ThreadsCubit? threadsCubit,
+  BeaconViewCubit? beaconViewCubit,
+  Locale locale = const Locale('en'),
 }) async {
   final harnessRecorder = recorder ?? BeaconViewRoomCubitRecorder();
   final harnessHost = host ?? beaconViewHarnessHost(recorder: harnessRecorder);
   final harnessRouter = router ?? BeaconViewHarnessRouter();
-  final beaconCubit = _HarnessBeaconViewCubit(beaconState);
+  final beaconCubit = beaconViewCubit ?? _HarnessBeaconViewCubit(beaconState);
   final harnessThreadsCubit =
       threadsCubit ??
       _HarnessThreadsCubit(
@@ -447,7 +449,7 @@ Future<BeaconViewHarness> pumpBeaconViewHarness(
         theme: TenturaTheme.light(),
         localizationsDelegates: L10n.localizationsDelegates,
         supportedLocales: L10n.supportedLocales,
-        locale: const Locale('en'),
+        locale: locale,
         home: BeaconViewResizableMediaQuery(
           key: mediaKey,
           size: size,
