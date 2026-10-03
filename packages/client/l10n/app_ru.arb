@@ -2121,6 +2121,10 @@
   "@copyToClipboard": {
     "context": "ShowSeedDialog, ShareCodeDialog"
   },
+  "errorGenericAction": "Что-то пошло не так. Попробуйте ещё раз.",
+  "@errorGenericAction": {},
+  "copyErrorDetails": "Скопировать подробности",
+  "@copyErrorDetails": {},
   "seedCopied": "Seed-фраза скопирована!",
   "@seedCopied": {
     "context": "ShowSeedDialog"
@@ -3874,6 +3878,8 @@
     "context": "BeaconViewScreen",
     "description": "Badge for withdrawn help offer in help offers list"
   },
+  "helpOfferStatusDeclined": "Отклонено",
+  "@helpOfferStatusDeclined": {},
   "timelineCreated": "{author} создал(а) запрос",
   "@timelineCreated": {
     "context": "BeaconViewScreen",
@@ -4304,7 +4310,7 @@
   "beaconBlockersPanelTitle": "Блокеры / Вопросы",
   "beaconBlockersPanelAskInRoom": "Спросить в Общем",
   "beaconHudYourRolePanelTitle": "Ваша роль",
-  "beaconHudYouAuthorReview": "Проверить {count} участие(й)",
+  "beaconHudYouAuthorReview": "{count, plural, one{Проверить {count} предложение} few{Проверить {count} предложения} other{Проверить {count} предложений}}",
   "@beaconHudYouAuthorReview": {
     "placeholders": {
       "count": {
@@ -4652,7 +4658,7 @@
       }
     }
   },
-  "beaconShowWithdrawn": "Показать снятые ({count})",
+  "beaconShowWithdrawn": "Показать закрытые предложения ({count})",
   "@beaconShowWithdrawn": {
     "placeholders": {
       "count": {
@@ -5324,7 +5330,7 @@
   "@helpOfferRoleLabelField": {
     "description": "Editable short role label on People help-offer card and chat peek sheet"
   },
-  "helpOfferRoleLabelPlaceholder": "<роль не выбрана>",
+  "helpOfferRoleLabelPlaceholder": "Роль не выбрана",
   "@helpOfferRoleLabelPlaceholder": {
     "description": "Shown under chat avatar / on People card when role_label is empty"
   },

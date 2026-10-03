@@ -39,10 +39,19 @@ class CapabilityTagFilterChip extends StatelessWidget {
         : swatch.container.withValues(alpha: 0.4);
     final chip = FilterChip(
       key: TestIds.key(TestIds.capabilityChip(tag.slug)),
-      label: Text(tag.labelOf(l10n)),
-      // Keep the category glyph in both states — Material's checkmark would
-      // replace the avatar and hurt scannability. Selection is conveyed by
-      // saturated fill, weight, and Semantics.selected (not color alone).
+      // A trailing check marks selection by shape, not only by the inverted
+      // fill (UI review, ontology picker); the category glyph stays as avatar
+      // because Material's checkmark would replace it.
+      label: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(child: Text(tag.labelOf(l10n))),
+          if (selected) ...[
+            SizedBox(width: context.tt.tightGap * 2),
+            Icon(Icons.check, size: 16, color: selectedFg),
+          ],
+        ],
+      ),
       avatar: Icon(
         tag.icon,
         size: 18,

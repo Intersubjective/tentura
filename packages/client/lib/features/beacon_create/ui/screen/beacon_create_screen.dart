@@ -327,12 +327,17 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
                   isEdit: s.isEditMode,
                   isLive: s.isLive,
                 ),
+                // The title names the step, and a fresh request keeps
+                // "Create new request" after autosave quietly made a draft —
+                // it used to flip to "Edit draft" mid-typing (UI review).
                 builder: (context, mode) => Text(
-                  mode.isEdit
+                  isRecipients
+                      ? l10n.beaconRecipients
+                      : mode.isEdit
                       ? l10n.editBeaconTitle
                       : mode.isLive
                       ? l10n.liveRequestTitle
-                      : mode.isDraft
+                      : mode.isDraft && widget.draftId.isNotEmpty
                       ? l10n.editDraftTitle
                       : l10n.createNewBeacon,
                 ),

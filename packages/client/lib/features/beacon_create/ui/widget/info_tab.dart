@@ -19,6 +19,7 @@ import 'package:tentura/features/context/ui/widget/context_drop_down.dart';
 import 'package:tentura/features/geo/ui/dialog/choose_location_dialog.dart';
 
 import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
+import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/ui/utils/capability_tag_presenter.dart';
 
 import '../bloc/beacon_create_cubit.dart';
@@ -306,7 +307,11 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
     await _flushDraft();
     if (!context.mounted) return;
     final l10n = L10n.of(context)!;
-    await showTenturaAdaptiveSheet<void>(
+    // Switching the segment is provisional until a date is picked or OK is
+    // pressed: dismissing the sheet used to leave "When? Tap to choose" on the
+    // form for a mode the user never confirmed (UI review, creation flow).
+    final kindOnOpen = _timingKindNotifier.value;
+    final confirmed = await showTenturaAdaptiveSheet<bool>(
       context: context,
       builder: (_) => UnfocusSheetBody(
         child: SafeArea(
@@ -384,7 +389,7 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                     Align(
                       alignment: AlignmentDirectional.centerEnd,
                       child: FilledButton(
-                        onPressed: () => Navigator.of(ctx).pop(),
+                        onPressed: () => Navigator.of(ctx).pop(true),
                         child: Text(l10n.buttonOk),
                       ),
                     ),
@@ -396,6 +401,13 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
         ),
       ),
     );
+    final noDatePicked =
+        _cubit.state.startAt == null && _cubit.state.endAt == null;
+    if (confirmed != true &&
+        noDatePicked &&
+        _timingKindNotifier.value != kindOnOpen) {
+      _onTimingKindChanged(kindOnOpen);
+    }
   }
 
   Future<void> _showCoverSheet(BuildContext context) async {
@@ -678,6 +690,16 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
         child: const TenturaHairlineDivider(subtle: true),
       );
 
+  String _requirementsSummary(Set<String> needs) {
+    final labels = [
+      for (final slug in needs)
+        CapabilityTag.fromSlug(slug)?.labelOf(_l10n) ?? slug,
+    ];
+    return labels.isEmpty
+        ? _l10n.beaconRequirementsSelectedCount(needs.length)
+        : labels.join(', ');
+  }
+
   String _coverSubtitle(BeaconCreateState s) {
     final capability = s.primaryCapability?.labelOf(_l10n);
     final count = s.images.length;
@@ -695,6 +717,12 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
       final photo = _l10n.beaconCoverStatusPhoto;
       if (countPart == null) return photo;
       return '$photo · $countPart';
+    }
+    // Without a photo the request shows its primary capability's symbol —
+    // the row said "None" while the cover sheet previewed that symbol.
+    if (capability != null) {
+      final named = _l10n.beaconCoverStatusSymbolNamed(capability);
+      return countPart == null ? named : '$named · $countPart';
     }
     return countPart ?? _l10n.beaconCreateImagesNone;
   }
@@ -741,17 +769,19 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                 ),
               ),
               _detailsHairline(tt),
-              BlocSelector<BeaconCreateCubit, BeaconCreateState, int>(
+              BlocSelector<BeaconCreateCubit, BeaconCreateState, Set<String>>(
                 bloc: _cubit,
-                selector: (s) => s.needs.length,
-                builder: (context, count) => CreateDetailsRow(
+                selector: (s) => s.needs,
+                builder: (context, needs) => CreateDetailsRow(
                   keyId: const Key('BeaconCreate.RequirementsRow'),
                   icon: Icons.checklist_outlined,
                   title: _l10n.beaconRequirementsTitle,
-                  subtitle: count == 0
+                  // Name the picks ("Calls, Translation") rather than
+                  // "3 selected", so the form says what was chosen.
+                  subtitle: needs.isEmpty
                       ? _l10n.beaconRequirementsNone
-                      : _l10n.beaconRequirementsSelectedCount(count),
-                  filled: count > 0,
+                      : _requirementsSummary(needs),
+                  filled: needs.isNotEmpty,
                   onTap: () => unawaited(_showRequirementsSheet(context)),
                 ),
               ),

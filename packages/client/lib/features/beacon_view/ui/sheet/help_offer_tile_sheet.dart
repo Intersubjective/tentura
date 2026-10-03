@@ -111,6 +111,8 @@ class _HelpOfferTileSheetBody extends StatelessWidget {
                           context,
                           title: l10n.helpOfferDeclineDialogTitle,
                           hintText: l10n.helpOfferDeclineDialogHint,
+                          submitLabel: l10n.helpOfferAdmissionDecline,
+                          destructive: true,
                         );
                         if (reason == null || !context.mounted) return;
                         final ok = await cubit.decline(reason: reason);

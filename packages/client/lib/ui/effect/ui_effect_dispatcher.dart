@@ -92,10 +92,14 @@ void dispatchUiEffect(
             error: error is AuthSessionLostException ? null : error,
           );
         default:
+          // Unmapped errors are usually transport / GraphQL text
+          // ("field 'x' not found in type 'query_root'"): say something a
+          // person can act on, keep the raw text for "Copy details".
           showSnackBar(
             context,
             isError: true,
-            text: error.toString(),
+            text: L10n.of(context)?.errorGenericAction ?? error.toString(),
+            detail: error.toString(),
             error: error is AuthSessionLostException ? null : error,
           );
       }

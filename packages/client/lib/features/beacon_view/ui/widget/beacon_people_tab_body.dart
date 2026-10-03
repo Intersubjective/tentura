@@ -282,6 +282,7 @@ class BeaconPeopleTabBody extends StatelessWidget {
             sections: sections,
             focusUserId: focusUserId,
             showWithdrawn: showWithdrawn,
+            viewerIsAuthor: state.isAuthorOrSteward,
           );
 
     TimelineHelpOffer helpOfferForRow(BeaconPeopleRow row) {
@@ -330,6 +331,8 @@ class BeaconPeopleTabBody extends StatelessWidget {
                   context,
                   title: l10n.helpOfferDeclineDialogTitle,
                   hintText: l10n.helpOfferDeclineDialogHint,
+                  submitLabel: l10n.helpOfferAdmissionDecline,
+                  destructive: true,
                 );
                 if (reason != null && context.mounted) {
                   await beaconViewCubit.declineHelpOffer(
@@ -537,106 +540,123 @@ class BeaconPeopleTabBody extends StatelessWidget {
           ),
         ),
         SizedBox(height: tt.rowGap),
-        AccordionExpansionGroup(
-          initialExpandedId: requestedSectionId,
-          requestedExpandedId: requestedSectionId,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              peopleSectionFold(
-                sectionId: BeaconPeopleAccordionSection.activeHelpers,
-                title: l10n.beaconPeopleLensActiveHelpersHeading,
-                rows: peopleSections.activeHelpers,
-                initiallyExpanded: true,
-              ),
-              if (peopleSections.activeHelpers.isNotEmpty &&
-                  (peopleSections.willingToHelp.isNotEmpty ||
-                      peopleSections.notFitting.isNotEmpty))
-                const SizedBox(height: 8),
-              peopleSectionFold(
-                sectionId: BeaconPeopleAccordionSection.willingToHelp,
-                title: l10n.beaconPeopleLensWillingToHelpHeading,
-                rows: peopleSections.willingToHelp,
-                initiallyExpanded: true,
-              ),
-              if (peopleSections.willingToHelp.isNotEmpty &&
-                  peopleSections.notFitting.isNotEmpty)
-                const SizedBox(height: 8),
-              peopleSectionFold(
-                sectionId: BeaconPeopleAccordionSection.notFitting,
-                title: l10n.beaconPeopleLensNotFittingHeading,
-                rows: peopleSections.notFitting,
-                initiallyExpanded: false,
-              ),
-              if (backupOffers.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Text(
-                  '${l10n.helpOffersBackupGroupTitle} (${backupOffers.length})',
-                  style: sectionHeaderStyle,
-                ),
-                SizedBox(height: tt.tightGap),
-                Text(
-                  l10n.helpOffersBackupGroupHint,
-                  style: TenturaText.bodySmall(tt.textMuted),
-                ),
-                const SizedBox(height: 8),
-                for (var k = 0; k < backupOffers.length; k++) ...[
-                  if (k != 0) const SizedBox(height: 12),
-                  focusWrap(
-                    backupOffers[k].user.id,
-                    HelpOfferTile(
-                      helpOffer: backupOffers[k],
-                      beaconId: beacon.id,
-                      beaconAuthor: beacon.author,
-                      beaconAuthorId: beacon.author.id,
-                      isMine: backupOffers[k].user.id == state.myProfile.id,
-                      isAuthorView: state.isAuthorOrSteward,
-                      showBackupHint: false,
-                      onEditRole:
-                          !backupOffers[k].isWithdrawn &&
-                              (backupOffers[k].user.id == state.myProfile.id ||
-                                  state.isAuthorOrSteward)
-                          ? () async {
-                              final offer = backupOffers[k];
-                              final next = await HelpOfferRoleLabelDialog.show(
-                                context,
-                                initialText: offer.roleLabel ?? '',
-                              );
-                              if (next != null && context.mounted) {
-                                await beaconViewCubit.setRoleLabel(
-                                  offerUserId: offer.user.id,
-                                  roleLabel: next,
-                                );
-                              }
-                            }
-                          : null,
-                    ),
+        Builder(
+          builder: (context) {
+            final pendingFirst =
+                state.isAuthorOrSteward &&
+                peopleSections.willingToHelp.isNotEmpty;
+            final activeFold = peopleSectionFold(
+              sectionId: BeaconPeopleAccordionSection.activeHelpers,
+              title: l10n.beaconPeopleLensActiveHelpersHeading,
+              rows: peopleSections.activeHelpers,
+              initiallyExpanded: true,
+            );
+            final willingFold = peopleSectionFold(
+              sectionId: BeaconPeopleAccordionSection.willingToHelp,
+              title: l10n.beaconPeopleLensWillingToHelpHeading,
+              rows: peopleSections.willingToHelp,
+              initiallyExpanded: true,
+            );
+            return AccordionExpansionGroup(
+              initialExpandedId: requestedSectionId,
+              requestedExpandedId: requestedSectionId,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Author with open offers: decisions first (UI review).
+                  for (final fold
+                      in pendingFirst
+                          ? [willingFold, activeFold]
+                          : [activeFold, willingFold]) ...[
+                    fold,
+                    if (fold == (pendingFirst ? willingFold : activeFold) &&
+                        peopleSections.activeHelpers.isNotEmpty &&
+                        peopleSections.willingToHelp.isNotEmpty)
+                      SizedBox(height: tt.rowGap),
+                  ],
+                  if ((peopleSections.activeHelpers.isNotEmpty ||
+                          peopleSections.willingToHelp.isNotEmpty) &&
+                      peopleSections.notFitting.isNotEmpty)
+                    SizedBox(height: tt.rowGap),
+                  peopleSectionFold(
+                    sectionId: BeaconPeopleAccordionSection.notFitting,
+                    title: l10n.beaconPeopleLensNotFittingHeading,
+                    rows: peopleSections.notFitting,
+                    initiallyExpanded: false,
                   ),
-                ],
-              ],
-              if (showWithdrawn) ...[
-                const SizedBox(height: 8),
-                AccordionExpansionTile(
-                  framed: false,
-                  id: BeaconPeopleAccordionSection.withdrawn,
-                  title: Text(l10n.beaconShowWithdrawn(withdrawn.length)),
-                  children: [
-                    for (var j = 0; j < withdrawn.length; j++) ...[
-                      if (j != 0) const SizedBox(height: 12),
-                      HelpOfferTile(
-                        helpOffer: withdrawn[j],
-                        beaconId: beacon.id,
-                        beaconAuthor: beacon.author,
-                        beaconAuthorId: beacon.author.id,
-                        isMine: withdrawn[j].user.id == state.myProfile.id,
-                        isAuthorView: state.isAuthorOrSteward,
+                  if (backupOffers.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      '${l10n.helpOffersBackupGroupTitle} (${backupOffers.length})',
+                      style: sectionHeaderStyle,
+                    ),
+                    SizedBox(height: tt.tightGap),
+                    Text(
+                      l10n.helpOffersBackupGroupHint,
+                      style: TenturaText.bodySmall(tt.textMuted),
+                    ),
+                    const SizedBox(height: 8),
+                    for (var k = 0; k < backupOffers.length; k++) ...[
+                      if (k != 0) const SizedBox(height: 12),
+                      focusWrap(
+                        backupOffers[k].user.id,
+                        HelpOfferTile(
+                          helpOffer: backupOffers[k],
+                          beaconId: beacon.id,
+                          beaconAuthor: beacon.author,
+                          beaconAuthorId: beacon.author.id,
+                          isMine: backupOffers[k].user.id == state.myProfile.id,
+                          isAuthorView: state.isAuthorOrSteward,
+                          showBackupHint: false,
+                          onEditRole:
+                              !backupOffers[k].isWithdrawn &&
+                                  (backupOffers[k].user.id ==
+                                          state.myProfile.id ||
+                                      state.isAuthorOrSteward)
+                              ? () async {
+                                  final offer = backupOffers[k];
+                                  final next =
+                                      await HelpOfferRoleLabelDialog.show(
+                                        context,
+                                        initialText: offer.roleLabel ?? '',
+                                      );
+                                  if (next != null && context.mounted) {
+                                    await beaconViewCubit.setRoleLabel(
+                                      offerUserId: offer.user.id,
+                                      roleLabel: next,
+                                    );
+                                  }
+                                }
+                              : null,
+                        ),
                       ),
                     ],
                   ],
-                ),
-              ],
-            ],
-          ),
+                  if (showWithdrawn) ...[
+                    const SizedBox(height: 8),
+                    AccordionExpansionTile(
+                      framed: false,
+                      id: BeaconPeopleAccordionSection.withdrawn,
+                      title: Text(l10n.beaconShowWithdrawn(withdrawn.length)),
+                      children: [
+                        for (var j = 0; j < withdrawn.length; j++) ...[
+                          if (j != 0) const SizedBox(height: 12),
+                          HelpOfferTile(
+                            helpOffer: withdrawn[j],
+                            beaconId: beacon.id,
+                            beaconAuthor: beacon.author,
+                            beaconAuthorId: beacon.author.id,
+                            isMine: withdrawn[j].user.id == state.myProfile.id,
+                            isAuthorView: state.isAuthorOrSteward,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            );
+          },
         ),
       ],
     );

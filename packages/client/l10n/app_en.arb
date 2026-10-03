@@ -118,7 +118,7 @@
   "@buttonYes": {
     "context": "Utils"
   },
-  "buttonOk": "Ok",
+  "buttonOk": "OK",
   "@buttonOk": {
     "context": "Utils"
   },
@@ -941,7 +941,7 @@
   "@filterByTag": {
     "context": "MyFieldScreen"
   },
-  "writeCodeHere": "If you have the Code, please write it here:",
+  "writeCodeHere": "Have an invite or profile code? Enter it here:",
   "@writeCodeHere": {
     "context": "ConnectBottomSheet"
   },
@@ -1891,7 +1891,7 @@
   "@showIntroAgain": {
     "context": "SettingsScreen"
   },
-  "logout": "Logout",
+  "logout": "Log out",
   "@logout": {
     "context": "SettingsScreen"
   },
@@ -2121,6 +2121,10 @@
   "@copyToClipboard": {
     "context": "ShowSeedDialog, ShareCodeDialog"
   },
+  "errorGenericAction": "Something went wrong. Please try again.",
+  "@errorGenericAction": {},
+  "copyErrorDetails": "Copy details",
+  "@copyErrorDetails": {},
   "seedCopied": "Seed copied to clipboard!",
   "@seedCopied": {
     "context": "ShowSeedDialog"
@@ -3919,6 +3923,8 @@
     "context": "BeaconViewScreen",
     "description": "Badge for withdrawn help offer in help offers list"
   },
+  "helpOfferStatusDeclined": "Declined",
+  "@helpOfferStatusDeclined": {},
   "timelineCreated": "{author} created the request",
   "@timelineCreated": {
     "context": "BeaconViewScreen",
@@ -4377,7 +4383,7 @@
   "beaconBlockersPanelTitle": "Blockers / questions",
   "beaconBlockersPanelAskInRoom": "Ask in General",
   "beaconHudYourRolePanelTitle": "Your role",
-  "beaconHudYouAuthorReview": "Review {count} commitment(s)",
+  "beaconHudYouAuthorReview": "{count, plural, =1{Review 1 offer} other{Review {count} offers}}",
   "@beaconHudYouAuthorReview": {
     "placeholders": {
       "count": {
@@ -4721,7 +4727,7 @@
       }
     }
   },
-  "beaconShowWithdrawn": "Show {count} withdrawn",
+  "beaconShowWithdrawn": "Show {count} closed offers",
   "@beaconShowWithdrawn": {
     "placeholders": {
       "count": {
@@ -5556,7 +5562,7 @@
   "@helpOfferRoleLabelField": {
     "description": "Editable short role label on People help-offer card and chat peek sheet"
   },
-  "helpOfferRoleLabelPlaceholder": "<role not selected>",
+  "helpOfferRoleLabelPlaceholder": "No role yet",
   "@helpOfferRoleLabelPlaceholder": {
     "description": "Shown under chat avatar / on People card when role_label is empty"
   },

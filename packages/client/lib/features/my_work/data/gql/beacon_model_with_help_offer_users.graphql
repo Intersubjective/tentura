@@ -6,7 +6,9 @@ fragment BeaconModelWithHelpOfferUsers on beacon {
   help_offers(
     where: { status: { _eq: 0 } }
     order_by: { updated_at: desc }
-    limit: 3
+    # Every pending offer row on a My Work card names its person; at 3 the
+    # fourth offerer fell back to an anonymous "Help offered" (UI review).
+    limit: 12
   ) {
     user {
       ...UserModel

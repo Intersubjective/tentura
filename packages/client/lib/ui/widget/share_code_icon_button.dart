@@ -13,13 +13,18 @@ class ShareCodeIconButton extends StatelessWidget {
     super.key,
   });
 
+  /// [displayName] titles the dialog; the raw id was shown before, which
+  /// meant nothing to the person scanning (UI review).
   ShareCodeIconButton.id(
     String id, {
+    String? displayName,
     Key? key,
     IconData icon = Icons.qr_code,
   }) : this(
          key: key,
-         header: id,
+         header: (displayName == null || displayName.trim().isEmpty)
+             ? id
+             : displayName.trim(),
          link:
              Uri.parse(
                kServerName,
