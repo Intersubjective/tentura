@@ -35,6 +35,24 @@ ConstellationEdgeStyle constellationEdgeStyle(
           dash: 2,
           gap: 4,
         ),
+      ConstellationEdgeKind.webForwarded => (
+          color: scheme.tertiary,
+          width: 1.5,
+          dash: 2,
+          gap: 4,
+        ),
+      ConstellationEdgeKind.webInside => (
+          color: scheme.tertiary,
+          width: 1.5,
+          dash: 0,
+          gap: 0,
+        ),
+      ConstellationEdgeKind.draftRecipient => (
+          color: scheme.tertiary,
+          width: 1.5,
+          dash: 6,
+          gap: 4,
+        ),
       ConstellationEdgeKind.attachment => (
           color: scheme.secondary,
           width: 1.5,

@@ -381,11 +381,43 @@ class _ConstellationViewportOverlayState
               );
             }
 
+            final postChipWidgets = <Widget>[];
+            if (selectedRequestId != null) {
+              final count =
+                  widget.cubit.postOverflowCountByPostId[selectedRequestId] ?? 0;
+              final postGraphId = 'fr:$selectedRequestId';
+              final scenePoint = count > 0 && nodeByGraphId.containsKey(postGraphId)
+                  ? snapshot.resolvePosition(postGraphId)
+                  : null;
+              if (scenePoint != null) {
+                final centre = controller.sceneToViewportLocal(
+                  Offset(scenePoint.x, scenePoint.y),
+                );
+                final chipSize = constellationOverflowChipSize(context, '+$count');
+                final radius = nodeByGraphId[postGraphId]!.size * scale / 2;
+                postChipWidgets.add(
+                  Positioned.fromRect(
+                    rect: Rect.fromLTWH(
+                      centre.dx + radius + gap,
+                      centre.dy - chipSize.height / 2,
+                      chipSize.width,
+                      chipSize.height,
+                    ),
+                    child: ConstellationPostOverflowChip(
+                      postId: selectedRequestId,
+                      hiddenCount: count,
+                    ),
+                  ),
+                );
+              }
+            }
+
             return Stack(
               clipBehavior: Clip.hardEdge,
               children: [
                 ...labelWidgets,
                 ...chipWidgets,
+                ...postChipWidgets,
               ],
             );
           },

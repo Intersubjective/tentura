@@ -14,6 +14,7 @@ import '../../domain/constellation_layout.dart';
 import '../../domain/constellation_drag_cluster.dart';
 import 'package:tentura_root/domain/constellation/constellation_path_resolution.dart';
 import '../../domain/constellation_pin_position.dart';
+import '../../domain/constellation_post_fade.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../../domain/entity/constellation_anchor_projection.dart';
 import '../../domain/entity/constellation_field.dart';
@@ -35,6 +36,9 @@ enum ConstellationEdgeKind {
   tier2Path,
   attachment,
   ringStub,
+  webForwarded,
+  webInside,
+  draftRecipient,
 }
 
 const kConstellationLayoutMaxHops = 3;
@@ -185,6 +189,15 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   /// O(1) kind lookup for edge painting keyed by [EdgeDetails.semanticId] (`src->dst#kind`).
   final Map<String, ConstellationEdgeKind> edgeKindByPair = {};
 
+  /// Opacity per drawn Post id (1 until 48 h, 0.25 at 72 h).
+  Map<String, double> postFadeById = const {};
+
+  /// Opacity per Post web, keyed by [EdgeDetails.semanticId].
+  final Map<String, double> edgeFadeBySemanticId = {};
+
+  /// «+N» chip count per drawn Post: hidden reach plus capped members.
+  Map<String, int> postOverflowCountByPostId = const {};
+
   String layoutEgoId = '';
   Map<String, List<String>> layoutVisibleRequestsByAuthor = const {};
   Set<String> layoutEgoOwnRequestIds = const {};
@@ -193,6 +206,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   Set<String> layoutSupportPersonIds = const {};
   Map<String, ConstellationAnchorPosition> layoutAnchorByNodeId = const {};
   Set<String> layoutKeptPeerIds = const {};
+  Map<String, List<String>> layoutPostMemberIdsByPostId = const {};
   ConstellationPathResolution? layoutPaths;
   Set<String> droppedHolderIds = const {};
   Set<String> displayedRequestIds = const {};
@@ -250,6 +264,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       anchorByNodeId: layoutAnchorByNodeId,
       forgetPriorHintNodeIds: _forgetPriorHintNodeIds,
       footprints: layoutFootprints,
+      postMemberIdsByPostId: layoutPostMemberIdsByPostId,
     );
   }
 
@@ -1241,6 +1256,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         selectedPersonId: requestId != null ? null : state.selectedPersonId,
       ),
     );
+    if (state.field?.posts.isNotEmpty ?? false) {
+      _rebuildGraph();
+    }
   }
 
   void setViewMode(ConstellationViewMode viewMode) {
@@ -1904,6 +1922,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     emit(state.copyWith(expandedPersonIds: expanded));
   }
 
+  bool isPostId(String id) =>
+      state.field?.posts.any((post) => post.id == id) ?? false;
+
   ConstellationRequest? requestById(String requestId) {
     final field = state.field;
     if (field == null) {
@@ -2098,6 +2119,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       graphController.clear();
       edgeKinds.clear();
       edgeKindByPair.clear();
+      edgeFadeBySemanticId.clear();
+      postFadeById = const {};
+      postOverflowCountByPostId = const {};
       overflowHiddenCountByAuthor = const {};
       expandedExtraCountByAuthor = const {};
       return;
@@ -2198,6 +2222,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     final edges = <EdgeDetails>{};
     edgeKinds.clear();
     edgeKindByPair.clear();
+    edgeFadeBySemanticId.clear();
 
     nodes.add(
       FieldPersonNode(
@@ -2228,6 +2253,15 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     for (final request in drawnRequests) {
       nodes.add(FieldBeaconNode(request: request));
     }
+    final drawnPosts = [
+      for (final node in composition?.beaconNodes ?? const <FieldBeaconNode>[])
+        if (node.post != null && drawnRequestIds.contains(node.id)) node,
+    ];
+    nodes.addAll(drawnPosts);
+    layoutPostMemberIdsByPostId = {
+      for (final node in drawnPosts)
+        node.id: ?composition?.postMemberIdsByPostId[node.id],
+    };
 
     final nodeById = {for (final node in nodes) node.id: node};
 
@@ -2235,6 +2269,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       required String srcId,
       required String dstId,
       required ConstellationEdgeKind kind,
+      double? fade,
     }) {
       final src = nodeById[srcId];
       final dst = nodeById[dstId];
@@ -2250,6 +2285,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
           ConstellationEdgeKind.tier2Path => 2,
           ConstellationEdgeKind.attachment => 1.5,
           ConstellationEdgeKind.ringStub => 1.5,
+          ConstellationEdgeKind.webForwarded ||
+          ConstellationEdgeKind.webInside ||
+          ConstellationEdgeKind.draftRecipient => 1.5,
         },
         semanticId:
             '${tenturaGraphNodeId(src)}->${tenturaGraphNodeId(dst)}#${kind.name}',
@@ -2262,6 +2300,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       )] = kind;
       assert(!edgeKindByPair.containsKey(edge.semanticId));
       edgeKindByPair[edge.semanticId] = kind;
+      if (fade != null) {
+        edgeFadeBySemanticId[edge.semanticId] = fade;
+      }
     }
 
     for (final child in paths.keep.intersection(state.keptPeerIds)) {
@@ -2294,6 +2335,60 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         kind: ConstellationEdgeKind.attachment,
       );
     }
+
+    final asOf = (state.loadedAt ?? field.loadedAt).toUtc();
+    final postFade = <String, double>{};
+    final postOverflow = <String, int>{};
+    for (final node in drawnPosts) {
+      final post = node.post!;
+      final fade = constellationPostFade(
+        lastActivityAt: post.lastActivityAt.toUtc(),
+        asOfUtc: asOf,
+      );
+      postFade[post.id] = fade;
+      addEdge(
+        srcId: post.authorId,
+        dstId: post.id,
+        kind: ConstellationEdgeKind.attachment,
+      );
+      var visibleMembers = 0;
+      var placedMembers = 0;
+      final selected = state.selectedRequestId == post.id;
+      for (final web in field.memberWebs) {
+        if (web.beaconId != post.id) {
+          continue;
+        }
+        if (web.personId != _viewer.id && !peersById.containsKey(web.personId)) {
+          continue;
+        }
+        visibleMembers++;
+        if (!nodeById.containsKey(web.personId)) {
+          continue;
+        }
+        placedMembers++;
+        if (!selected) {
+          continue;
+        }
+        addEdge(
+          srcId: post.id,
+          dstId: web.personId,
+          kind: web.state == ConstellationMemberWebState.inside
+              ? ConstellationEdgeKind.webInside
+              : ConstellationEdgeKind.webForwarded,
+          fade: fade,
+        );
+      }
+      final count = constellationPostOverflowCount(
+        hiddenReachCount: post.hiddenReachCount,
+        visibleMemberCount: visibleMembers,
+        placedMemberCount: placedMembers,
+      );
+      if (count > 0) {
+        postOverflow[post.id] = count;
+      }
+    }
+    postFadeById = postFade;
+    postOverflowCountByPostId = postOverflow;
 
     graphController.reconcileTopology(
       nodes,

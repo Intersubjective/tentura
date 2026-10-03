@@ -220,7 +220,7 @@ ConstellationComposedPresentation composeConstellationPresentation({
   final pinnedPostIds = <String>{};
   for (final post in field.posts) {
     final pinned = post.isPinned && anchoredBeaconIds.contains(post.id);
-    if (post.lastActivityAt.isAfter(activeSince)) {
+    if (!post.lastActivityAt.isBefore(activeSince)) {
       activePosts.add(post);
     } else if (!pinned) {
       continue;
@@ -237,9 +237,12 @@ ConstellationComposedPresentation composeConstellationPresentation({
         post,
   ];
 
+  final visiblePostIdSet = {for (final post in visiblePosts) post.id};
   final holderIds = {
     viewerId,
     ...visiblePosts.map((post) => post.authorId),
+    for (final web in field.memberWebs)
+      if (visiblePostIdSet.contains(web.beaconId)) web.personId,
     ...automatic.requests.map((request) => request.authorId),
     ...anchorOverlay.pinnedRequests.map((request) => request.authorId),
     ...pinnedPeerIds,

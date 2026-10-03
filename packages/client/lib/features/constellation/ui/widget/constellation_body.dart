@@ -458,7 +458,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
             final requestId = state.selectedRequestId!;
             final cubit = context.read<ConstellationCubit>();
             final request = cubit.requestById(requestId);
-            if (request != null) {
+            if (request != null || cubit.isPostId(requestId)) {
               setState(() => _selectionUnavailableMessage = null);
               return;
             }
@@ -697,6 +697,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
           },
           edgePainter: ConstellationEdgePainter(
             edgeKindByPair: cubit.edgeKindByPair,
+            edgeFadeBySemanticId: cubit.edgeFadeBySemanticId,
             tt: context.tt,
             scheme: Theme.of(context).colorScheme,
             repaint: cubit.graphController.cameraRevision,
@@ -952,6 +953,7 @@ class ConstellationEdgePainter
     implements RepaintingEdgePainter<NodeDetails, EdgeDetails> {
   const ConstellationEdgePainter({
     required this.edgeKindByPair,
+    this.edgeFadeBySemanticId = const {},
     required this.tt,
     required this.scheme,
     required this.repaint,
@@ -959,6 +961,7 @@ class ConstellationEdgePainter
   });
 
   final Map<String, ConstellationEdgeKind> edgeKindByPair;
+  final Map<String, double> edgeFadeBySemanticId;
   final TenturaTokens tt;
   final ColorScheme scheme;
   @override
@@ -999,7 +1002,9 @@ class ConstellationEdgePainter
     );
 
     final paint = Paint()
-      ..color = style.color
+      ..color = style.color.withValues(
+        alpha: style.color.a * (edgeFadeBySemanticId[edge.semanticId] ?? 1),
+      )
       ..strokeWidth = strokeWidth
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
