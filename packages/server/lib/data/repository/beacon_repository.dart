@@ -6,11 +6,18 @@ import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/consts.dart'
-    show kTitleMaxLength, kTitleMinLength;
+    show
+        kAvatarPlaceholderUrl,
+        kImageExt,
+        kImageServer,
+        kImagesPath,
+        kTitleMaxLength,
+        kTitleMinLength;
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/consts/beacon_hierarchy_consts.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/post_summary.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/entity/beacon_media_state.dart';
@@ -56,6 +63,40 @@ class BeaconRepository implements BeaconRepositoryPort {
   const BeaconRepository(this._database);
 
   final TenturaDb _database;
+
+  @override
+  Future<List<PostSummary>> myPosts(String viewerId) async {
+    final rows = await _database
+        .customSelect(
+          r'SELECT * FROM public.post_my_posts($1)',
+          variables: [Variable<String>(viewerId)],
+        )
+        .get();
+    return rows.map((row) {
+      DateTime? timestamp(String key) => row
+          .readNullableWithType(PgTypes.timestampWithTimezone, key)
+          ?.dateTime
+          .toUtc();
+      final authorId = row.read<String>('author_id');
+      final imageId = row.readNullable<String>('author_image_id');
+      return PostSummary(
+        id: row.read<String>('id'),
+        authorId: authorId,
+        authorName: row.read<String>('author_name'),
+        authorAvatar: imageId == null
+            ? kAvatarPlaceholderUrl
+            : '$kImageServer/$kImagesPath/$authorId/$imageId.$kImageExt',
+        rootExcerpt: row.readNullable<String>('root_excerpt'),
+        lastMessageExcerpt: row.readNullable<String>('last_message_excerpt'),
+        lastMessageAt: timestamp('last_message_at'),
+        lastActivityAt: timestamp('last_activity_at'),
+        pinnedAt: timestamp('pinned_at'),
+        mutedUntil: timestamp('muted_until'),
+        unreadCount: row.read<int>('unread_count'),
+        isAuthor: row.read<bool>('is_author'),
+      );
+    }).toList();
+  }
 
   @override
   Future<List<String>> deadlineReminderCandidateIds({

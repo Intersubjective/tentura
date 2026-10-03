@@ -6,6 +6,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/post_publish_result.dart';
+import 'package:tentura_server/domain/entity/post_summary.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/post_lock_port.dart';
@@ -46,6 +47,10 @@ class PostCase {
        _beaconRepository = beaconRepository,
        _postLock = postLock,
        _attention = attention;
+
+  /// Open Post conversations; the client chooses their ordering.
+  Future<List<PostSummary>> myPosts(String viewerId) =>
+      _beaconRepository.myPosts(viewerId);
 
   final BeaconCase? _injectedBeaconCase;
 

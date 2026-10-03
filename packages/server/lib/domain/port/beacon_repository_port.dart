@@ -2,10 +2,14 @@ import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/post_summary.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/beacon_media_state.dart';
 
 abstract class BeaconRepositoryPort {
+  /// Open Post conversations visible to this viewer.
+  Future<List<PostSummary>> myPosts(String viewerId);
+
   /// Creates the beacon row, attaches [imageIds] in order, then sets the
   /// cover last in the same transaction (so the composite membership FK sees
   /// the attachment row first). [coverImageId] must be a member of

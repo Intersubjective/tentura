@@ -47,6 +47,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeHelpOfferWithCoordinationRow,
   gqlTypeRoomMessageCreatePayload,
   gqlTypePostPublishResult,
+  gqlTypePostSummary,
   gqlTypeRoomMessageQuotedFact,
   gqlTypeRoomMessageRow,
   gqlTypeBeaconRoomStateRow,
@@ -1714,3 +1715,20 @@ final gqlTypeClosureToggleResult =
         null,
       )
       ..fields.add(field('released', graphQLString));
+
+/// Open Post conversation preview for the authenticated viewer.
+final gqlTypePostSummary = GraphQLObjectType('PostSummary', null)
+  ..fields.addAll([
+    field('id', graphQLString.nonNullable()),
+    field('authorId', graphQLString.nonNullable()),
+    field('authorName', graphQLString.nonNullable()),
+    field('authorAvatar', graphQLString.nonNullable()),
+    field('rootExcerpt', graphQLString),
+    field('lastMessageExcerpt', graphQLString),
+    field('lastMessageAt', graphQLString),
+    field('lastActivityAt', graphQLString),
+    field('pinnedAt', graphQLString),
+    field('mutedUntil', graphQLString),
+    field('unreadCount', graphQLInt.nonNullable()),
+    field('isAuthor', graphQLBoolean.nonNullable()),
+  ]);

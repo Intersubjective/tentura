@@ -5320,6 +5320,7 @@ type query_root {
     """filter the rows returned"""
     where: mutual_score_bool_exp
   ): [mutual_score!]!
+  myPosts: [v2_PostSummary!]!
   notificationPreferences: v2_NotificationPreferences!
   personCapabilityCues(subjectUserId: String!): v2_v2_PersonCapabilityCuesPayload!
   personFriendContextBatch(subjectUserIds: [String!]): [v2_v2_PersonFriendContext!]
@@ -8946,3 +8947,17 @@ input vote_user_variance_order_by {
   amount: order_by
 }
 
+type v2_PostSummary {
+  id: String!
+  authorId: String!
+  authorName: String!
+  authorAvatar: String!
+  rootExcerpt: String
+  lastMessageExcerpt: String
+  lastMessageAt: String
+  lastActivityAt: String
+  pinnedAt: String
+  mutedUntil: String
+  unreadCount: Int!
+  isAuthor: Boolean!
+}

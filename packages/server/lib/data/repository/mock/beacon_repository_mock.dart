@@ -7,6 +7,7 @@ import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/beacon_media_state.dart';
 import 'package:tentura_server/domain/entity/image_entity.dart';
+import 'package:tentura_server/domain/entity/post_summary.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
@@ -25,6 +26,28 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
   static final stagesByBeaconId = <String, Map<String, DateTime>>{};
 
   const BeaconRepositoryMock();
+
+  @override
+  Future<List<PostSummary>> myPosts(String viewerId) async => [
+    for (final beacon in storageById.values)
+      if (beacon.kind == BeaconKind.post &&
+          beacon.status == BeaconStatus.open &&
+          beacon.author.id == viewerId)
+        PostSummary(
+          id: beacon.id,
+          authorId: beacon.author.id,
+          authorName: beacon.author.displayName,
+          authorAvatar: beacon.author.imageUrl,
+          rootExcerpt: null,
+          lastMessageExcerpt: null,
+          lastMessageAt: null,
+          lastActivityAt: beacon.lastActivityAt,
+          pinnedAt: null,
+          mutedUntil: null,
+          unreadCount: 0,
+          isAuthor: true,
+        ),
+  ];
 
   @override
   Future<List<String>> deadlineReminderCandidateIds({
