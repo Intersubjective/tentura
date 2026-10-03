@@ -191,3 +191,6 @@ const kBeaconPlaceholderUrl =
 // Others
 
 final kInvitationCodeRegExp = RegExp('I[a-f0-9]{0,12}');
+
+/// Gate for every client entry point that lets a user create a Post.
+const kPostsEnabled = false;

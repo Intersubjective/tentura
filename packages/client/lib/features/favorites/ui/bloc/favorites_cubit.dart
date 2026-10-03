@@ -113,12 +113,15 @@ class FavoritesCubit extends Cubit<FavoritesState> {
 
   //
   //
-  void _onFavoritesChanged(Beacon beacon) => emit(
-    state.copyWith(
-      beacons: beacon.isPinned
-          ? [beacon, ...state.beacons]
-          : state.beacons.where((e) => e.id != beacon.id).toList(),
-      status: StateStatus.isSuccess,
-    ),
-  );
+  void _onFavoritesChanged(Beacon beacon) {
+    if (!beacon.isRequest) return;
+    emit(
+      state.copyWith(
+        beacons: beacon.isPinned
+            ? [beacon, ...state.beacons]
+            : state.beacons.where((e) => e.id != beacon.id).toList(),
+        status: StateStatus.isSuccess,
+      ),
+    );
+  }
 }

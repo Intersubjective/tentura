@@ -8,6 +8,7 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
 
 import 'beacon_cover.dart';
+import 'beacon_kind.dart';
 import 'coordinates.dart';
 import 'image_entity.dart';
 import 'likable.dart';
@@ -91,6 +92,22 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
 
     /// Total admitted helpers (non-author); used for face-pile overflow.
     @Default(0) int admittedHelperCount,
+
+    /// Request (0) or Post (1).
+    @Default(BeaconKind.request) BeaconKind kind,
+
+    /// Forward policy; Posts may be closed to forwarding.
+    @Default(BeaconForwardPolicyValue.open)
+    BeaconForwardPolicyValue forwardPolicy,
+
+    /// Last room activity (Posts); null when none recorded.
+    DateTime? lastActivityAt,
+
+    /// The author's first room message of a Post.
+    String? postRootMessageId,
+
+    /// Hasura computed field: viewer may forward this beacon.
+    @Default(false) bool viewerCanForward,
   }) = _Beacon;
 
   const Beacon._();
@@ -101,18 +118,21 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
   /// Viewer may open this beacon (matches server `beacon_can_read_content`).
   bool get canOpenAsViewer => canReadContent;
 
+  bool get isRequest => kind == BeaconKind.request;
+
   /// Viewer may commit (offer help) when readable and beacon is open-family.
-  bool get canCommitAsViewer => canReadContent && status.isOpenFamily;
+  bool get canCommitAsViewer =>
+      isRequest && canReadContent && status.isOpenFamily;
 
   /// Non-author may offer help only when status is open-family (matches server).
-  bool get allowsNewHelpOfferAsNonAuthor => status.isOpenFamily;
+  bool get allowsNewHelpOfferAsNonAuthor => isRequest && status.isOpenFamily;
 
   /// Help offerer may withdraw only while beacon is open-family (not Wrapping up).
-  bool get allowsWithdrawWhileHelpOffered => status.isOpenFamily;
+  bool get allowsWithdrawWhileHelpOffered => isRequest && status.isOpenFamily;
 
-  bool get allowsCoordination => status.allowsCoordination;
+  bool get allowsCoordination => isRequest && status.allowsCoordination;
 
-  bool get allowsForward => status.allowsForward;
+  bool get allowsForward => isRequest && status.allowsForward;
 
   bool get isFinished => status.isFinished;
 

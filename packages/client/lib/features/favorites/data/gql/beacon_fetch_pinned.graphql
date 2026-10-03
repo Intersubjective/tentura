@@ -1,7 +1,7 @@
 # import '/data/gql/beacon_model.graphql'
 
 query BeaconFetchPinned {
-  beacon_pinned {
+  beacon_pinned(where: { beacon: { kind: { _eq: 0 } } }) {
     beacon {
       ...BeaconModel
     }

@@ -17,7 +17,7 @@ bool beaconViewAllowsForwardAction({
   required bool showInitialLoading,
 }) {
   if (!showBeaconContent || showInitialLoading) return false;
-  return state.beacon.allowsForward;
+  return state.beacon.viewerCanForward;
 }
 
 Future<void> beaconViewOpenForwardThenMaybeNudgeOfferHelp(

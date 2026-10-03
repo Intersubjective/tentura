@@ -546,7 +546,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                               if (inviteNewPersonEnabled(
                                 beaconId: widget.beaconId,
                                 allowsForward:
-                                    state.beacon?.allowsForward == true,
+                                    state.beacon?.viewerCanForward == true,
                                 isLive: widget.isLive,
                               ))
                                 SliverPersistentHeader(

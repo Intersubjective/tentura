@@ -260,6 +260,15 @@ type beacon {
   ): beacon_help_offer_aggregate!
   id: String!
   is_discoverable: Boolean!
+  kind: smallint!
+  forward_policy: smallint!
+  last_activity_at: timestamptz
+  post_root_message_id: String
+
+  """
+  A computed field, executes function "beacon_get_viewer_can_forward"
+  """
+  viewer_can_forward: Boolean
 
   """
   A computed field, executes function "beacon_get_is_pinned"
@@ -663,6 +672,11 @@ input beacon_bool_exp {
   help_offers_aggregate: beacon_help_offer_aggregate_bool_exp
   id: String_comparison_exp
   is_discoverable: Boolean_comparison_exp
+  kind: smallint_comparison_exp
+  forward_policy: smallint_comparison_exp
+  last_activity_at: timestamptz_comparison_exp
+  post_root_message_id: String_comparison_exp
+  viewer_can_forward: Boolean_comparison_exp
   is_pinned: Boolean_comparison_exp
   lat: float8_comparison_exp
   lineage_parent_beacon_id: String_comparison_exp
@@ -1918,6 +1932,11 @@ input beacon_order_by {
   help_offers_aggregate: beacon_help_offer_aggregate_order_by
   id: order_by
   is_discoverable: order_by
+  kind: order_by
+  forward_policy: order_by
+  last_activity_at: order_by
+  post_root_message_id: order_by
+  viewer_can_forward: order_by
   is_pinned: order_by
   lat: order_by
   lineage_parent_beacon_id: order_by
@@ -2599,6 +2618,18 @@ enum beacon_select_column {
 
   """column name"""
   is_discoverable
+
+  """column name"""
+  kind
+
+  """column name"""
+  forward_policy
+
+  """column name"""
+  last_activity_at
+
+  """column name"""
+  post_root_message_id
 
   """column name"""
   lat

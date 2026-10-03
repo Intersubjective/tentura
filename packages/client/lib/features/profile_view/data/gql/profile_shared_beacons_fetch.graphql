@@ -6,7 +6,7 @@ query ProfileForwardedToUser($meId: String!, $targetId: String!) {
     where: {
       sender_id: { _eq: $meId }
       recipient_id: { _eq: $targetId }
-      beacon: { can_read_content: { _eq: true } }
+      beacon: { can_read_content: { _eq: true }, kind: { _eq: 0 } }
     }
     order_by: { created_at: desc }
   ) {
@@ -30,6 +30,7 @@ query ProfileForwardedToUser($meId: String!, $targetId: String!) {
 query ProfileCoCommitted($meId: String!, $targetId: String!) {
   beacon(
     where: {
+      kind: { _eq: 0 }
       _and: [
         { help_offers: { user_id: { _eq: $meId }, status: { _eq: 0 } } }
         { help_offers: { user_id: { _eq: $targetId }, status: { _eq: 0 } } }

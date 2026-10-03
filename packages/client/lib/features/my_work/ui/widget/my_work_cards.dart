@@ -42,7 +42,7 @@ bool myWorkCloseBeaconEnabled(MyWorkCardViewModel vm) =>
     vm.beacon.status == BeaconStatus.open && vm.displayStatus != null;
 
 /// Footer Forward CTA on authored My Work cards (gated by `Beacon.allowsForward`).
-bool myWorkNeedsForwardCta(MyWorkCardViewModel vm) => vm.beacon.allowsForward;
+bool myWorkNeedsForwardCta(MyWorkCardViewModel vm) => vm.beacon.viewerCanForward;
 
 Future<void> _confirmAndDeleteMyWorkBeacon(
   BuildContext context, {
@@ -410,7 +410,7 @@ class _AuthoredActiveCard extends StatelessWidget {
       viewerUserId: currentUserId,
     );
     final phaseCtaLabel =
-        phaseAction == BeaconPhasePrimaryAction.forward && !b.allowsForward
+        phaseAction == BeaconPhasePrimaryAction.forward && !b.viewerCanForward
         ? null
         : myWorkPhasePrimaryCtaLabel(
             l10n: l10n,
@@ -466,7 +466,7 @@ class _AuthoredActiveCard extends StatelessWidget {
                 onPressed: () => switch (phaseAction) {
                   BeaconPhasePrimaryAction.reviewOffers =>
                     _openBeaconReviewHelpOffers(context, vm),
-                  BeaconPhasePrimaryAction.forward => b.allowsForward
+                  BeaconPhasePrimaryAction.forward => b.viewerCanForward
                       ? unawaited(
                           context.router.push(
                             ForwardBeaconRoute(beaconId: b.id),
@@ -571,7 +571,7 @@ class _AuthoredActiveCard extends StatelessWidget {
                       context.router.push(BeaconCreateRoute(editId: b.id)),
                     )
                   : null,
-              onForward: b.allowsForward
+              onForward: b.viewerCanForward
                   ? () => unawaited(
                       context.router.push(ForwardBeaconRoute(beaconId: b.id)),
                     )
@@ -649,7 +649,7 @@ class _HelpOfferedActiveCard extends StatelessWidget {
             statusSemanticsIdentifier: TestIds.myWorkRoomStatus(b.id),
             menu: BeaconOverflowMenu(
               beacon: b,
-              onForward: b.allowsForward
+              onForward: b.viewerCanForward
                   ? () => unawaited(
                       context.router.push(ForwardBeaconRoute(beaconId: b.id)),
                     )
@@ -860,7 +860,7 @@ class _FinishedAuthoredCard extends StatelessWidget {
                       context.router.push(BeaconCreateRoute(editId: b.id)),
                     )
                   : null,
-              onForward: b.allowsForward
+              onForward: b.viewerCanForward
                   ? () => unawaited(
                       context.router.push(ForwardBeaconRoute(beaconId: b.id)),
                     )
@@ -938,7 +938,7 @@ class _FinishedHelpOfferedCard extends StatelessWidget {
             statusSemanticsIdentifier: TestIds.myWorkRoomStatus(b.id),
             menu: BeaconOverflowMenu(
               beacon: b,
-              onForward: b.allowsForward
+              onForward: b.viewerCanForward
                   ? () => unawaited(
                       context.router.push(ForwardBeaconRoute(beaconId: b.id)),
                     )

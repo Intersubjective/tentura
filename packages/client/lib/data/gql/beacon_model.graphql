@@ -59,4 +59,9 @@ fragment BeaconModel on beacon {
   access_level
   access_reasons
   is_discoverable
+  kind
+  forward_policy
+  last_activity_at
+  post_root_message_id
+  viewer_can_forward
 }

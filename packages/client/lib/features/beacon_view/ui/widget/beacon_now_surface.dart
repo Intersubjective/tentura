@@ -211,7 +211,7 @@ class BeaconNowSurface extends StatelessWidget {
                       cubit: beaconViewCubit,
                     ),
                   ),
-                  onForward: state.beacon.allowsForward
+                  onForward: state.beacon.viewerCanForward
                       ? () => unawaited(
                           beaconViewOpenForwardThenMaybeNudgeOfferHelp(
                             context,

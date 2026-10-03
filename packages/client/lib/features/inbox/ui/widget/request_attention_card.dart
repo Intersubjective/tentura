@@ -506,7 +506,7 @@ class RequestAttentionCard extends StatelessWidget {
   );
 
   List<Widget> _actions(L10n l10n, TenturaTokens tt) => [
-    if (onForward != null && beacon.allowsForward)
+    if (onForward != null && beacon.viewerCanForward)
       TenturaTextAction(
         key: forwardKey,
         label: l10n.labelForward,

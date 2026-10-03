@@ -66,6 +66,7 @@ Beacon _openAuthorBeacon({
       createdAt: DateTime.utc(2026, 6, 20),
       updatedAt: DateTime.utc(2026, 6, 20),
       status: status,
+      viewerCanForward: status.allowsForward,
     );
 
 Future<void> _pumpHeaderCard(

@@ -138,6 +138,7 @@ ForwardCubit _forwardCubitWithBeacon({
     id: 'aaaaaaaa-bbbb-cccc-dddd-1234567890ab',
     title: 'Test beacon',
     context: 'General',
+    viewerCanForward: true,
     needs: needs,
     startAt: DateTime.utc(2025, 5, 12),
     endAt: DateTime.utc(2025, 5, 19),

@@ -55,7 +55,7 @@ class _LiveSyncForwardRepository implements ForwardRepository {
   Future<BeaconInvolvementData> fetchBeaconInvolvement({
     required String beaconId,
   }) async => (
-    beacon: Beacon.empty.copyWith(id: beaconId),
+    beacon: Beacon.empty.copyWith(id: beaconId, viewerCanForward: true),
     forwardedToIds: <String>{},
     helpOfferedIds: <String>{},
     withdrawnIds: <String>{},
@@ -271,7 +271,11 @@ void main() {
             perRecipientNotes: {'u-bob': 'personal'},
             beacon:
                 cubit.state.beacon ??
-                Beacon.empty.copyWith(id: 'b1', status: BeaconStatus.open),
+                Beacon.empty.copyWith(
+                  id: 'b1',
+                  status: BeaconStatus.open,
+                  viewerCanForward: true,
+                ),
           ),
         );
 
@@ -337,7 +341,11 @@ void main() {
             perRecipientNotes: {'u-paused': 'note'},
             beacon:
                 cubit.state.beacon ??
-                Beacon.empty.copyWith(id: 'b1', status: BeaconStatus.open),
+                Beacon.empty.copyWith(
+                  id: 'b1',
+                  status: BeaconStatus.open,
+                  viewerCanForward: true,
+                ),
           ),
         );
 
@@ -378,7 +386,11 @@ void main() {
             perRecipientNotes: {'u-bob': 'leftover typed note'},
             beacon:
                 cubit.state.beacon ??
-                Beacon.empty.copyWith(id: 'b1', status: BeaconStatus.open),
+                Beacon.empty.copyWith(
+                  id: 'b1',
+                  status: BeaconStatus.open,
+                  viewerCanForward: true,
+                ),
           ),
         );
         cubit.skipPersonalNote('u-bob');

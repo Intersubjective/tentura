@@ -78,7 +78,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
     final helperActions = authorSpec == null
         ? _buildHelperHudActions(l10n)
         : const _HelperHudActions();
-    final showForwardCta = state.beacon.allowsForward && onForward != null;
+    final showForwardCta = state.beacon.viewerCanForward && onForward != null;
     final hasOtherAction = authorSpec != null || helperActions.hasActions;
 
     return Padding(

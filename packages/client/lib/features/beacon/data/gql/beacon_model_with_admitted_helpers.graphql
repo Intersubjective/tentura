@@ -3,6 +3,11 @@
 
 fragment BeaconModelWithAdmittedHelpers on beacon {
   ...BeaconModel
+  kind
+  forward_policy
+  last_activity_at
+  post_root_message_id
+  viewer_can_forward
   admitted_helpers(order_by: { user_id: asc }, limit: 3) {
     user {
       ...UserModel

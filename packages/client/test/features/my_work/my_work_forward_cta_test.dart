@@ -14,6 +14,7 @@ MyWorkCardViewModel _vm({required BeaconStatus status}) {
     beacon: Beacon.empty.copyWith(
       id: 'b1',
       status: status,
+      viewerCanForward: status.allowsForward,
       author: const Profile(id: 'auth', displayName: 'Author'),
     ),
   );
