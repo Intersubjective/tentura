@@ -7032,6 +7032,53 @@
   "@postParticipantAuthor": {
     "description": "Label next to the Post author in the participants sheet."
   },
+  "postParticipantsInConversation": "IN THE CONVERSATION · {count}",
+  "@postParticipantsInConversation": {
+    "description": "Heading of the Post participants list for members who are in the conversation.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "postParticipantsUnopened": "NOT OPENED YET · {count}",
+  "@postParticipantsUnopened": {
+    "description": "Heading of the Post participants list for admitted members who have not opened the Post.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "postParticipantInContacts": "in contacts",
+  "@postParticipantInContacts": {
+    "description": "Label next to a Post participant who is already a contact."
+  },
+  "postParticipantAddToContacts": "+ Add to contacts",
+  "@postParticipantAddToContacts": {
+    "description": "Shortcut button next to a Post participant who is not a contact."
+  },
+  "postParticipantBroughtBy": "invited by {name}",
+  "@postParticipantBroughtBy": {
+    "description": "Label next to a Post participant naming who forwarded the Post to them.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "postParticipantsForwardingOpen": "Forwarding is open",
+  "@postParticipantsForwardingOpen": {
+    "description": "Participants screen row shown when the Post can be forwarded."
+  },
+  "postParticipantsInvite": "Invite",
+  "@postParticipantsInvite": {
+    "description": "Participants screen button that opens the forward flow."
+  },
+  "postParticipantsForwardsGraph": "How the post reached people",
+  "@postParticipantsForwardsGraph": {
+    "description": "Participants screen link to the forwarding graph."
+  },
   "roomConvertedToRequestNotice": "{author} turned the post into a request",
   "@roomConvertedToRequestNotice": {
     "description": "One-line room notice shown when a Post was converted into a Request.",

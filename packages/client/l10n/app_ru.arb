@@ -6177,6 +6177,35 @@
     }
   },
   "postParticipantAuthor": "автор",
+  "postParticipantsInConversation": "В РАЗГОВОРЕ · {count}",
+  "@postParticipantsInConversation": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "postParticipantsUnopened": "ЕЩЁ НЕ ОТКРЫЛИ · {count}",
+  "@postParticipantsUnopened": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "postParticipantInContacts": "в контактах",
+  "postParticipantAddToContacts": "+ В контакты",
+  "postParticipantBroughtBy": "позвала {name}",
+  "@postParticipantBroughtBy": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "postParticipantsForwardingOpen": "Можно пересылать",
+  "postParticipantsInvite": "Позвать",
+  "postParticipantsForwardsGraph": "Как пост дошёл до людей",
   "roomConvertedToRequestNotice": "{author} превратил пост в запрос",
   "@roomConvertedToRequestNotice": {
     "placeholders": {
