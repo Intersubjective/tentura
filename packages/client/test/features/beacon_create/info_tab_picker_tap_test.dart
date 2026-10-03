@@ -674,7 +674,7 @@ void main() {
     await tester.tap(find.byKey(const Key('BeaconCreate.CoverRow')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Add Images'), findsOneWidget);
+    expect(find.text('Add images'), findsOneWidget);
   });
 
   testWidgets('openImagesInitially opens the images sheet on compact', (
@@ -701,6 +701,6 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Add Images'), findsOneWidget);
+    expect(find.text('Add images'), findsOneWidget);
   });
 }

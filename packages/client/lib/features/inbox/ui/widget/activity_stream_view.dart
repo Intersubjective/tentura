@@ -14,6 +14,7 @@ import 'package:tentura/domain/attention/for_you_stream_entries.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_cubit.dart';
 import 'package:tentura/features/updates/domain/entity/prompt_projection.dart';
+import 'package:tentura/features/updates/updates_receipt_display_copy.dart';
 import 'package:tentura/features/updates/ui/bloc/updates_feed_cubit.dart';
 import 'package:tentura/features/updates/ui/widget/invite_accepted_receipt_card.dart';
 import 'package:tentura/features/updates/ui/widget/prompt_batch_sheet.dart';
@@ -1081,6 +1082,28 @@ class _ActivityStreamCell extends StatelessWidget {
     AttentionReceipt receipt,
     Future<void> Function() onOpenParent,
   ) {
+    // Connection receipts carry a raw "Name · @handle" title; the Updates
+    // screen renders them through the invite card, and so must Activity —
+    // the bare tile showed "Kwame Mensah · Kwame Mensah · @seed_kwame" with
+    // no event line (UI review #203).
+    if (isInviteAcceptedPresentationKey(receipt.presentationKey)) {
+      final subjectId = receipt.actorUserId ?? receipt.targetEntityId;
+      return BlocSelector<UpdatesFeedCubit, UpdatesFeedState, PromptProjection>(
+        selector: (state) => subjectId == null
+            ? const PromptProjection.unknown()
+            : state.promptProjectionFor(subjectId),
+        builder: (context, projection) => InviteAcceptedReceiptCard(
+          key: ValueKey(receipt.id),
+          receipt: receipt,
+          promptProjection: projection,
+          onRetryPromptFetch: streamCubit.retryPromptFetch,
+          onPromptSettled: streamCubit.applyKnownPrompt,
+          onTap: () => unawaited(onOpenParent()),
+          onMarkSeen: () => streamCubit.markSeen(receipt.id),
+          onMarkUnseen: () => streamCubit.markUnseen(receipt.id),
+        ),
+      );
+    }
     final actorId = receipt.actorUserId?.trim() ?? '';
     final actor = actorId.isEmpty ? null : streamCubit.state.actors[actorId];
     return UpdatesFeedTile(

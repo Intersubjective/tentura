@@ -379,7 +379,7 @@ void main() {
 
     expect(find.text('Role'), findsOneWidget);
     expect(find.text('driver'), findsOneWidget);
-    await tester.tap(find.text('edit role'));
+    await tester.tap(find.text('Edit role'));
     await tester.pumpAndSettle();
     expect(edited, isTrue);
   });
@@ -400,7 +400,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('<role not selected>'), findsOneWidget);
-    expect(find.text('edit role'), findsOneWidget);
+    expect(find.text('Edit role'), findsOneWidget);
   });
 
   testWidgets('role editor hidden for observer without onEditRole', (
@@ -420,7 +420,7 @@ void main() {
 
     expect(find.text('Role'), findsOneWidget);
     expect(find.text('nav'), findsOneWidget);
-    expect(find.text('edit role'), findsNothing);
+    expect(find.text('Edit role'), findsNothing);
   });
 
   testWidgets('withdrawn offer shows role read-only', (tester) async {
@@ -442,7 +442,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('was driver'), findsOneWidget);
-    expect(find.text('edit role'), findsNothing);
+    expect(find.text('Edit role'), findsNothing);
   });
 
   testWidgets('primary offer shows no backup badge or hint', (tester) async {

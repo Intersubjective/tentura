@@ -32,6 +32,7 @@ class UpdatesFeedPane extends StatefulWidget {
     this.showTitleRow = false,
     this.offeredViews = kDefaultUpdatesFeedOfferedViews,
     this.showViewControl = true,
+    this.searchOpen,
     super.key,
   });
 
@@ -43,6 +44,10 @@ class UpdatesFeedPane extends StatefulWidget {
   final bool showTitleRow;
   final List<AttentionView> offeredViews;
   final bool showViewControl;
+
+  /// When set, the host owns "Read all" + the search toggle (e.g. in its top
+  /// bar) and the pane drops its own action row (UI review #201).
+  final ValueNotifier<bool>? searchOpen;
 
   @override
   State<UpdatesFeedPane> createState() => _UpdatesFeedPaneState();
@@ -61,6 +66,20 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _scrollController.addListener(_loadMoreWhenNeeded);
+    widget.searchOpen?.addListener(_onExternalSearchToggle);
+  }
+
+  @override
+  void didUpdateWidget(UpdatesFeedPane oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.searchOpen != widget.searchOpen) {
+      oldWidget.searchOpen?.removeListener(_onExternalSearchToggle);
+      widget.searchOpen?.addListener(_onExternalSearchToggle);
+    }
+  }
+
+  void _onExternalSearchToggle() {
+    if (mounted) setState(() {});
   }
 
   @override
@@ -93,6 +112,7 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
 
   @override
   void dispose() {
+    widget.searchOpen?.removeListener(_onExternalSearchToggle);
     WidgetsBinding.instance.removeObserver(this);
     _searchDebounce?.cancel();
     _searchController.dispose();
@@ -107,7 +127,9 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
     final l10n = L10n.of(context)!;
     final tt = context.tt;
     final compact = context.windowClass == WindowClass.compact;
-    final showSearchField = !compact || _searchOpen;
+    final external = widget.searchOpen;
+    final searchOpen = external?.value ?? _searchOpen;
+    final showSearchField = !compact || searchOpen;
     final hasUnread = context.select<UpdatesFeedCubit, bool>(
       (cubit) => cubit.state.summary.unreadTotal > 0,
     );
@@ -128,7 +150,7 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
               searchTooltip: l10n.updatesSearchHint,
             ),
           ),
-        if (!widget.showTitleRow)
+        if (!widget.showTitleRow && external == null)
           Align(
             alignment: Alignment.centerRight,
             child: Padding(
@@ -172,10 +194,12 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
             buildWhen: (p, c) => p.view != c.view || p.summary != c.summary,
             builder: (context, state) {
               final views = widget.offeredViews;
-              final selectedIndex = views.indexOf(state.view).clamp(
-                0,
-                views.length - 1,
-              );
+              final selectedIndex = views
+                  .indexOf(state.view)
+                  .clamp(
+                    0,
+                    views.length - 1,
+                  );
               return TenturaUnderlineTabs(
                 tabs: [
                   for (final view in views) _labelForView(l10n, view),
@@ -485,8 +509,7 @@ class _CollapsedInvitePromptRow extends StatelessWidget {
 bool isFreshInvitePromptReceipt({
   required DateTime createdAt,
   required DateTime now,
-}) =>
-    now.difference(createdAt.toLocal()).inDays < 7;
+}) => now.difference(createdAt.toLocal()).inDays < 7;
 
 /// Pin placement for architecture §5.5 / §5.5.1 (exclusive pin vs collapsed modes).
 InvitePromptPinPlacement computeInvitePromptPinPlacement({

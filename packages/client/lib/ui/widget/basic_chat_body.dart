@@ -766,6 +766,11 @@ class BeaconRoomComposer extends StatefulWidget {
 }
 
 class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
+  static final _composerBorder = OutlineInputBorder(
+    borderRadius: BorderRadius.circular(TenturaRadii.searchBar),
+    borderSide: BorderSide.none,
+  );
+
   @visibleForTesting
   KeyEventResult? debugLastComposerEscapeKeyResult;
 
@@ -1510,9 +1515,29 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
                     key: TestIds.key(TestIds.roomMessageInput),
                     controller: _text,
                     focusNode: _composerFocus,
+                    // Filled, rounded composer (UI review #204) instead of
+                    // the bare underline field.
                     decoration: InputDecoration(
                       hintText:
                           widget.readOnlyHint ?? l10n.beaconRoomMessageHint,
+                      filled: true,
+                      fillColor: theme.colorScheme.surfaceContainerHigh,
+                      isDense: true,
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: context.tt.cardGap + context.tt.tightGap,
+                        vertical: context.tt.cardGap,
+                      ),
+                      border: _composerBorder,
+                      enabledBorder: _composerBorder,
+                      disabledBorder: _composerBorder,
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(
+                          TenturaRadii.searchBar,
+                        ),
+                        borderSide: BorderSide(
+                          color: theme.colorScheme.primary,
+                        ),
+                      ),
                       suffixIconConstraints: const BoxConstraints(
                         minWidth: 2 * kMinInteractiveDimension,
                         minHeight: kMinInteractiveDimension,

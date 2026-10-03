@@ -247,7 +247,7 @@ void _expectForwardsModeControls(
     expect(find.byTooltip('Profile'), findsOneWidget);
   }
   if (withOpenBeacon) {
-    expect(find.byTooltip('Open Request'), findsOneWidget);
+    expect(find.byTooltip('Open request'), findsOneWidget);
   }
 }
 

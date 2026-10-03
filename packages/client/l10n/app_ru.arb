@@ -1807,10 +1807,14 @@
   "@profileRequestOptions": {
     "context": "ProfileViewBody — routing entry to person-forward screen"
   },
-  "trustRelationPrefix": "Доверие:",
-  "@trustRelationPrefix": {
-    "context": "Profile — prefix before reciprocity class label"
-  },
+  "trustSentenceMutual": "Вы доверяете друг другу",
+  "@trustSentenceMutual": {},
+  "trustSentenceOneWayOut": "Вы доверяете этому человеку",
+  "@trustSentenceOneWayOut": {},
+  "trustSentenceOneWayIn": "Этот человек доверяет вам",
+  "@trustSentenceOneWayIn": {},
+  "trustSentenceNone": "Доверия пока нет",
+  "@trustSentenceNone": {},
   "trustInfoTitle": "Доверие в Tentura",
   "@trustInfoTitle": {
     "context": "Profile — info sheet title"
@@ -2941,7 +2945,7 @@
   "@forwardInviteNewPerson": {
     "context": "ForwardBeaconScreen"
   },
-  "forwardClearSelection": "снять выбор",
+  "forwardClearSelection": "Снять выбор",
   "@forwardClearSelection": {
     "context": "ForwardBeaconScreen — replaces the invite affordance once at least one recipient is selected"
   },
@@ -2949,15 +2953,15 @@
   "@forwardInviteCreatedHint": {
     "context": "ForwardBeaconScreen"
   },
-  "forwardAddSharedNoteCommand": "добавить общую заметку",
+  "forwardAddSharedNoteCommand": "Добавить общую заметку",
   "@forwardAddSharedNoteCommand": {
     "context": "ForwardBeaconScreen"
   },
-  "forwardAddPersonalizedNote": "персональная заметка",
+  "forwardAddPersonalizedNote": "Персональная заметка",
   "@forwardAddPersonalizedNote": {
     "context": "ForwardBeaconScreen recipient row"
   },
-  "forwardHidePersonalizedNote": "скрыть заметку",
+  "forwardHidePersonalizedNote": "Скрыть заметку",
   "@forwardHidePersonalizedNote": {
     "context": "ForwardBeaconScreen recipient row"
   },
@@ -3108,10 +3112,6 @@
   },
   "myWorkEmptyActiveBody": "«Мои дела» — запросы, которые вы создали или на которых предложили помощь. Пересланные вам запросы — в «Активности».",
   "@myWorkEmptyActiveBody": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkEmptyActiveInboxHint": "Пересланные запросы ждут вас в «Активности» → «Нужно мне».",
-  "@myWorkEmptyActiveInboxHint": {
     "context": "MyWorkScreen"
   },
   "myWorkEmptyActiveInboxPrimaryCta": "Открыть активность ({count})",
@@ -4768,8 +4768,8 @@
       }
     }
   },
-  "helpOffersTabActionEdit": "правка",
-  "helpOffersTabActionWithdraw": "снять",
+  "helpOffersTabActionEdit": "Правка",
+  "helpOffersTabActionWithdraw": "Снять",
   "helpOffersTabSummaryUseful": "{n} полезн.",
   "@helpOffersTabSummaryUseful": {
     "placeholders": {
@@ -4893,6 +4893,16 @@
       }
     }
   },
+  "beaconRoomViewerAdmittedByActor": "Вас допустил(а) в обсуждение {actorName}",
+  "@beaconRoomViewerAdmittedByActor": {
+    "placeholders": {
+      "actorName": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconRoomViewerJoinedAutoAdmit": "Вы вступили в обсуждение, потому что автор переслал вам этот запрос напрямую",
+  "@beaconRoomViewerJoinedAutoAdmit": {},
   "beaconRoomDateToday": "Сегодня",
   "beaconRoomDateYesterday": "Вчера",
   "beaconRoomMessagePinnedFactChipPublic": "Закреплено · публичный факт",
@@ -5318,7 +5328,7 @@
   "@helpOfferRoleLabelPlaceholder": {
     "description": "Shown under chat avatar / on People card when role_label is empty"
   },
-  "helpOfferRoleLabelEditAction": "изменить роль",
+  "helpOfferRoleLabelEditAction": "Изменить роль",
   "helpOfferRoleLabelTooLong": "Роль — не больше 32 символов в одной строке.",
   "roomAuthorRoleLabelSemantic": "Роль {name}: {role}",
   "@roomAuthorRoleLabelSemantic": {

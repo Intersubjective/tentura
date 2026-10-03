@@ -73,7 +73,11 @@ class ProfileViewScreen extends StatelessWidget implements AutoRouteWrapper {
                   child: CustomScrollView(
                     slivers: [
                       SliverPadding(
-                        padding: context.tt.cardPadding,
+                        padding: EdgeInsets.symmetric(
+                          // Screen gutter, like every other page (#210).
+                          horizontal: context.tt.screenHPadding,
+                          vertical: context.tt.cardGap,
+                        ),
                         sliver: BlockedProfileViewBody(
                           profile: state.blockedProfile!,
                         ),
@@ -91,7 +95,11 @@ class ProfileViewScreen extends StatelessWidget implements AutoRouteWrapper {
                 ]),
                 primarySlivers: [
                   SliverPadding(
-                    padding: context.tt.cardPadding,
+                    padding: EdgeInsets.symmetric(
+                      // Screen gutter, like every other page (#210).
+                      horizontal: context.tt.screenHPadding,
+                      vertical: context.tt.cardGap,
+                    ),
                     sliver: const ProfileViewBody(showNetwork: false),
                   ),
                 ],

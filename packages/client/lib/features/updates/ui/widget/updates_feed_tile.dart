@@ -193,8 +193,10 @@ class _UpdatesFeedTileState extends State<UpdatesFeedTile> {
         : profileWithContactOverlay(widget.actor!);
     final shownName = profile?.shownName.trim() ?? '';
     final headline = copy.headline;
+    // Skip the prefix when the headline already leads with the name, or the
+    // row reads "Name · Name · …" (UI review #203).
     final showActorNamePrefix =
-        shownName.isNotEmpty && shownName != headline.trim();
+        shownName.isNotEmpty && !headline.trim().startsWith(shownName);
 
     // Which Request the row is about — "Status: in review" alone does not
     // say. Skipped when the row's own copy already names it.
@@ -368,7 +370,8 @@ class _UpdatesFeedRowInteraction extends StatelessWidget {
       gestures: <Type, GestureRecognizerFactory>{
         LongPressGestureRecognizer:
             GestureRecognizerFactoryWithHandlers<LongPressGestureRecognizer>(
-              () => LongPressGestureRecognizer(supportedDevices: _touchOrStylus),
+              () =>
+                  LongPressGestureRecognizer(supportedDevices: _touchOrStylus),
               (r) => r
                 ..onLongPress = () {
                   unawaited(HapticFeedback.selectionClick());
@@ -451,7 +454,9 @@ class _UpdatesFeedRowHoverToolbar extends StatelessWidget {
             ),
             tooltip: isUnread ? markSeenLabel : markUnseenLabel,
             icon: Icon(
-              isUnread ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+              isUnread
+                  ? Icons.visibility_outlined
+                  : Icons.visibility_off_outlined,
             ),
             onPressed: isUnread ? onMarkSeen : onMarkUnseen,
           ),

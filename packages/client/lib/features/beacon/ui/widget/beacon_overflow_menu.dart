@@ -11,14 +11,25 @@ import 'package:tentura/ui/test_ids.dart';
 Widget _beaconOverflowMenuRow(
   BuildContext context,
   IconData icon,
-  String label,
-) {
+  String label, {
+  bool destructive = false,
+}) {
   final scheme = Theme.of(context).colorScheme;
+  final tt = context.tt;
+  // Destructive rows read as such at a glance (UI review #200); the rest
+  // keep a muted glyph so the label leads.
+  final fg = destructive ? scheme.error : scheme.onSurface;
   return Row(
     children: [
-      Icon(icon, size: 22, color: scheme.onSurface),
-      const SizedBox(width: 12),
-      Expanded(child: Text(label)),
+      Icon(
+        icon,
+        size: tt.iconSize,
+        color: destructive ? fg : scheme.onSurfaceVariant,
+      ),
+      SizedBox(width: tt.avatarTextGap),
+      Expanded(
+        child: Text(label, style: TenturaText.bodyMedium(fg)),
+      ),
     ],
   );
 }
@@ -116,7 +127,12 @@ class BeaconOverflowMenu extends StatelessWidget {
             _ => null,
           },
           value: value,
-          child: _beaconOverflowMenuRow(context, icon, label),
+          child: _beaconOverflowMenuRow(
+            context,
+            icon,
+            label,
+            destructive: value == 'delete' || value == 'cancel_beacon',
+          ),
         ),
       );
     }
