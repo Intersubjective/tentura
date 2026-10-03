@@ -485,6 +485,9 @@ final class QueryAttention extends GqlNodeBase {
       'beaconEndAt': receipt.beaconEndAt?.toUtc().toIso8601String(),
       'allowsForward': receipt.allowsForward,
       'beaconTitle': receipt.beaconTitle,
+      'beaconKind': receipt.beaconKind?.value,
+      'postRootExcerpt': receipt.postRootExcerpt,
+      'postRootImageId': receipt.postRootImageId,
     };
   }
 }

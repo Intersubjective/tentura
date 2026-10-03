@@ -7479,6 +7479,7 @@ type v2_AttentionReceipt {
   beaconEndAt: String
   beaconId: String
   beaconImageId: String
+  beaconKind: Int
   beaconTitle: String
   body: String!
   category: String!
@@ -7498,6 +7499,8 @@ type v2_AttentionReceipt {
   inAppPreferenceClass: String
   itemKind: String!
   kind: String!
+  postRootExcerpt: String
+  postRootImageId: String
   presentationKey: String
   presentationPayloadJson: String!
   priority: String!

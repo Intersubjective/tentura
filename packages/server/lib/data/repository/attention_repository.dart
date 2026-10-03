@@ -6,6 +6,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/coordination/filter_beacon_notifications.dart';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/notification_category.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/entity/notification_priority.dart';
@@ -877,12 +878,16 @@ ORDER BY page.created_at DESC NULLS LAST, page.id DESC NULLS LAST
   }
 
   /// [AttentionReceipt.beaconTitle] for every row on this page that names a
-  /// Request, including the event previews of grouped rows.
+  /// Request, including the event previews of grouped rows, plus the Post
+  /// fields ([AttentionReceipt.beaconKind], [AttentionReceipt.postRootExcerpt],
+  /// [AttentionReceipt.postRootImageId]).
   ///
   /// Attached after paging for the same reason the provenance is: one query
   /// for the page, not a join inside the stream projection. Gated on
   /// `beacon_can_read_content`, the predicate that already decides
-  /// [AttentionReceipt.title]; an unreadable Request yields no title.
+  /// [AttentionReceipt.title]; an unreadable Request yields no title and no
+  /// root excerpt or image. A Post has no title: its description is its root
+  /// message, cut at 140 characters, and the first image attached to it.
   Future<List<AttentionReceipt>> _attachBeaconTitles({
     required String accountId,
     required List<AttentionReceipt> items,
@@ -909,8 +914,27 @@ SELECT
   CASE
     WHEN public.beacon_can_read_content(b.id, \$1)
     THEN nullif(trim(b.title), '')
-  END AS beacon_title
+  END AS beacon_title,
+  b.kind AS beacon_kind,
+  CASE
+    WHEN public.beacon_can_read_content(b.id, \$1)
+    THEN left(root.body, 140)
+  END AS post_root_excerpt,
+  CASE
+    WHEN public.beacon_can_read_content(b.id, \$1)
+    THEN (
+      SELECT a.image_id::text
+      FROM public.beacon_room_message_attachment a
+      WHERE a.message_id = root.id
+        AND a.kind = 1
+        AND a.image_id IS NOT NULL
+      ORDER BY a."position", a.id
+      LIMIT 1
+    )
+  END AS post_root_image_id
 FROM public.beacon b
+LEFT JOIN public.beacon_room_message root
+  ON root.id = b.post_root_message_id
 WHERE b.id IN ($placeholders)
 ''',
       variables: [
@@ -918,13 +942,16 @@ WHERE b.id IN ($placeholders)
         ...ids.map(Variable<String>.new),
       ],
     ).get();
-    final titles = {
-      for (final row in rows)
-        row.read<String>('beacon_id'): row.readNullable<String>('beacon_title'),
-    };
+    final byId = {for (final row in rows) row.read<String>('beacon_id'): row};
     AttentionReceipt withTitle(AttentionReceipt item) {
-      final id = item.beaconId;
-      return id == null ? item : item.copyWith(beaconTitle: titles[id]);
+      final row = item.beaconId == null ? null : byId[item.beaconId];
+      if (row == null) return item;
+      return item.copyWith(
+        beaconTitle: row.readNullable<String>('beacon_title'),
+        beaconKind: BeaconKind.fromValue(row.read<int>('beacon_kind')),
+        postRootExcerpt: row.readNullable<String>('post_root_excerpt'),
+        postRootImageId: row.readNullable<String>('post_root_image_id'),
+      );
     }
 
     return [

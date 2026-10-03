@@ -180,6 +180,11 @@ final GraphQLObjectType gqlTypeAttentionReceipt = () {
     field('allowsForward', graphQLBoolean),
     // The Request a row is about, behind the content wall (null otherwise).
     field('beaconTitle', graphQLString),
+    // Post projection: `beacon.kind` (0 Request, 1 Post), the root message
+    // excerpt and the first root image id; the last two are null on Requests.
+    field('beaconKind', graphQLInt),
+    field('postRootExcerpt', graphQLString),
+    field('postRootImageId', graphQLString),
   ]);
   return type;
 }();

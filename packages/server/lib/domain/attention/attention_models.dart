@@ -1,5 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/notification_category.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/entity/notification_priority.dart';
@@ -474,6 +475,18 @@ abstract class AttentionReceipt with _$AttentionReceipt {
     /// open family) AND the viewer being allowed to read the Request at all.
     /// `null` on non-grouped rows.
     bool? allowsForward,
+
+    /// `beacon.kind` of the row's beacon; `null` when the row has none.
+    BeaconKind? beaconKind,
+
+    /// A Post's root message cut at 140 characters (a Post has no title).
+    ///
+    /// `null` on a Request, on a Post without a root message, and when the
+    /// viewer may not read the beacon.
+    String? postRootExcerpt,
+
+    /// Id of the first image attached to a Post's root message, by position.
+    String? postRootImageId,
   }) = _AttentionReceipt;
 
   const AttentionReceipt._();
