@@ -88,6 +88,11 @@ final class ConstellationFieldSnapshotReader {
       participatedOnly: params.filters.participatedOnly,
     );
 
+    final postFeed = await _postsAndMemberWebs(
+      viewerId: viewerId,
+      context: context,
+    );
+
     final reservedBeaconIds = {
       for (final request in anchorProjection.pinnedRequests) request.id,
     };
@@ -118,6 +123,12 @@ final class ConstellationFieldSnapshotReader {
     for (final request in requests) {
       profileIds.add(request.authorId);
     }
+    for (final post in postFeed.posts) {
+      profileIds.add(post.authorId);
+    }
+    for (final web in postFeed.memberWebs) {
+      profileIds.add(web.personId);
+    }
 
     final peers = await _repo.peerProfiles(ids: profileIds);
 
@@ -129,6 +140,8 @@ final class ConstellationFieldSnapshotReader {
       requests: requests,
       peersCapped: graphPeers.capped,
       requestsCapped: requestsCapped,
+      posts: postFeed.posts,
+      memberWebs: postFeed.memberWebs,
       anchorProjection: anchorProjection,
     );
   }
@@ -396,6 +409,144 @@ ORDER BY ca.placed_at, COALESCE(ca.beacon_id, ca.person_id)
       supportEdges: supportEdges,
       serverFilteredBeaconIds: uniqueFilterHidden,
       serverFilteredBeaconCount: uniqueFilterHidden.length,
+    );
+  }
+
+  /// Posts the viewer authored or was admitted to (role 6), active within the
+  /// last 72 hours or pinned by the viewer, plus their member webs. Members
+  /// outside the viewer's visible peer set are only counted.
+  Future<
+    ({
+      List<ConstellationPostRecord> posts,
+      List<ConstellationMemberWebRecord> memberWebs,
+    })
+  >
+  _postsAndMemberWebs({
+    required String viewerId,
+    required String context,
+  }) async {
+    final postRows = await _database
+        .customSelect(
+          '''
+SELECT
+  b.id,
+  b.user_id AS author_id,
+  COALESCE(b.last_activity_at, b.published_at, b.created_at) AS last_activity_at,
+  left(COALESCE(root.body, ''), \$2::int) AS root_excerpt,
+  EXISTS (
+    SELECT 1 FROM public.beacon_pinned pin
+    WHERE pin.beacon_id = b.id AND pin.user_id = \$1
+  ) AS is_pinned
+FROM public.beacon b
+LEFT JOIN public.beacon_room_message root ON root.id = b.post_root_message_id
+WHERE b.kind = 1
+  AND b.status = 0
+  AND ${constellationBeaconContentReadableSql(viewerParam: r'$1', beaconAlias: 'b')}
+  AND (
+    b.user_id = \$1
+    OR EXISTS (
+      SELECT 1 FROM public.beacon_participant bp
+      WHERE bp.beacon_id = b.id AND bp.user_id = \$1
+        AND bp.role = 6 AND bp.room_access = 3
+    )
+  )
+  AND (
+    COALESCE(b.last_activity_at, b.published_at, b.created_at)
+      > now() - interval '72 hours'
+    OR EXISTS (
+      SELECT 1 FROM public.beacon_pinned pin
+      WHERE pin.beacon_id = b.id AND pin.user_id = \$1
+    )
+  )
+ORDER BY last_activity_at DESC, b.id
+''',
+          variables: [
+            Variable.withString(viewerId),
+            Variable.withInt(kConstellationPostExcerptLength),
+          ],
+        )
+        .get();
+    if (postRows.isEmpty) {
+      return (
+        posts: const <ConstellationPostRecord>[],
+        memberWebs: const <ConstellationMemberWebRecord>[],
+      );
+    }
+
+    final postIds = [for (final row in postRows) row.read<String>('id')];
+    final memberRows = await _database
+        .customSelect(
+          r'''
+SELECT m.beacon_id, m.person_id, bool_or(m.is_inside) AS is_inside
+FROM (
+  SELECT b.id AS beacon_id, b.user_id AS person_id, true AS is_inside
+  FROM public.beacon b
+  WHERE b.id = ANY($2::text[])
+  UNION ALL
+  SELECT bp.beacon_id, bp.user_id, true
+  FROM public.beacon_participant bp
+  WHERE bp.beacon_id = ANY($2::text[])
+    AND bp.room_access = 3
+    AND EXISTS (
+      SELECT 1 FROM public.beacon_room_seen s
+      WHERE s.beacon_id = bp.beacon_id AND s.user_id = bp.user_id
+        AND s.thread_item_id IS NULL
+    )
+  UNION ALL
+  SELECT e.beacon_id, e.recipient_id, false
+  FROM public.beacon_forward_edge e
+  WHERE e.beacon_id = ANY($2::text[]) AND e.cancelled_at IS NULL
+) m
+WHERE m.person_id <> $1
+GROUP BY m.beacon_id, m.person_id
+ORDER BY m.beacon_id, m.person_id
+''',
+          variables: [
+            Variable.withString(viewerId),
+            Variable(TypedValue(Type.textArray, postIds)),
+          ],
+        )
+        .get();
+
+    final visiblePeerIds = await _allVisiblePeerIds(
+      viewerId: viewerId,
+      context: context,
+    );
+    final memberWebs = <ConstellationMemberWebRecord>[];
+    final hiddenByPost = <String, int>{};
+    for (final row in memberRows) {
+      final beaconId = row.read<String>('beacon_id');
+      final personId = row.read<String>('person_id');
+      if (visiblePeerIds.contains(personId)) {
+        memberWebs.add(
+          ConstellationMemberWebRecord(
+            beaconId: beaconId,
+            personId: personId,
+            state: row.read<bool>('is_inside')
+                ? ConstellationMemberWebState.inside
+                : ConstellationMemberWebState.forwarded,
+          ),
+        );
+      } else {
+        hiddenByPost[beaconId] = (hiddenByPost[beaconId] ?? 0) + 1;
+      }
+    }
+
+    return (
+      posts: [
+        for (final row in postRows)
+          ConstellationPostRecord(
+            id: row.read<String>('id'),
+            authorId: row.read<String>('author_id'),
+            lastActivityAt: readCustomSelectTimestamptz(
+              row.data['last_activity_at'],
+            )!,
+            rootExcerpt: row.read<String>('root_excerpt'),
+            isPinned: row.read<bool>('is_pinned'),
+            hiddenReachCount: hiddenByPost[row.read<String>('id')] ?? 0,
+          ),
+      ],
+      memberWebs: memberWebs,
     );
   }
 

@@ -27,6 +27,9 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeConstellationPeer,
   gqlTypeConstellationEdge,
   gqlTypeConstellationRequest,
+  gqlEnumConstellationMemberWebState,
+  gqlTypeConstellationPost,
+  gqlTypeConstellationMemberWeb,
   gqlEnumConstellationProjection,
   gqlEnumConstellationAnchorTargetKind,
   gqlTypeConstellationAnchor,
@@ -881,8 +884,39 @@ final gqlTypeConstellationRequest =
         field('viewerIsRoomParticipant', graphQLBoolean.nonNullable()),
         field('viewerHasForwardEdge', graphQLBoolean.nonNullable()),
         field('helpOfferCount', graphQLInt.nonNullable()),
+        field('kind', graphQLInt.nonNullable()),
         field('coverSource', graphQLInt.nonNullable()),
         field('coverThumb', gqlTypeImagePublic),
+      ]);
+
+final gqlEnumConstellationMemberWebState = enumTypeFromStrings(
+  'ConstellationMemberWebState',
+  const ['FORWARDED', 'INSIDE'],
+);
+
+final gqlTypeConstellationPost =
+    GraphQLObjectType(
+        'ConstellationPost',
+        null,
+      )
+      ..fields.addAll([
+        field('id', graphQLString.nonNullable()),
+        field('authorId', graphQLString.nonNullable()),
+        field('lastActivityAt', graphQLString.nonNullable()),
+        field('rootExcerpt', graphQLString.nonNullable()),
+        field('isPinned', graphQLBoolean.nonNullable()),
+        field('hiddenReachCount', graphQLInt.nonNullable()),
+      ]);
+
+final gqlTypeConstellationMemberWeb =
+    GraphQLObjectType(
+        'ConstellationMemberWeb',
+        null,
+      )
+      ..fields.addAll([
+        field('beaconId', graphQLString.nonNullable()),
+        field('personId', graphQLString.nonNullable()),
+        field('state', gqlEnumConstellationMemberWebState.nonNullable()),
       ]);
 
 final gqlEnumConstellationProjection = enumTypeFromStrings(
@@ -1000,6 +1034,16 @@ final gqlTypeConstellationField =
         ),
         field('peersCapped', graphQLBoolean.nonNullable()),
         field('requestsCapped', graphQLBoolean.nonNullable()),
+        field(
+          'posts',
+          GraphQLListType(gqlTypeConstellationPost.nonNullable()).nonNullable(),
+        ),
+        field(
+          'memberWebs',
+          GraphQLListType(
+            gqlTypeConstellationMemberWeb.nonNullable(),
+          ).nonNullable(),
+        ),
         field(
           'anchorProjection',
           gqlTypeConstellationAnchorProjection.nonNullable(),

@@ -782,6 +782,294 @@ WHERE id = 'Bstartat001'
       expect(snapshot.anchorProjection.serverFilteredBeaconIds, isEmpty);
     }, skip: skipReason);
   });
+
+  group('Posts and member webs', () {
+    const author = 'Ucfpostauth1';
+    const memberOpened = 'Ucfpostopen1';
+    const memberReceived = 'Ucfpostrecv1';
+    const memberOutside = 'Ucfpostoutsd1';
+    const stranger = 'Ucfpoststrng1';
+    const postId = 'Bcfpost0001';
+
+    Future<void> insertPost({
+      String id = postId,
+      String authorId = author,
+      int status = 0,
+      bool published = true,
+      String rootBody = 'Root text of the post',
+    }) async {
+      await db.customStatement('''
+INSERT INTO public.beacon (
+  id, user_id, title, description, status, kind, is_discoverable,
+  published_at, created_at, updated_at
+) VALUES (
+  '$id', '$authorId', '', '', $status, 1, false,
+  ${published ? 'now()' : 'NULL'}, now(), now()
+)
+''');
+      await db.customStatement('''
+INSERT INTO public.beacon_room_message (id, beacon_id, author_id, body, created_at)
+VALUES ('M$id', '$id', '$authorId', '$rootBody', now())
+''');
+      await db.customStatement(
+        "UPDATE public.beacon SET post_root_message_id = 'M$id' WHERE id = '$id'",
+      );
+    }
+
+    Future<void> forwardPost({
+      required String from,
+      required String to,
+      String id = postId,
+    }) => db.customStatement('''
+INSERT INTO public.beacon_forward_edge (id, beacon_id, sender_id, recipient_id)
+VALUES ('F$id$to', '$id', '$from', '$to')
+''');
+
+    Future<void> cancelForward({
+      required String to,
+      String id = postId,
+    }) => db.customStatement('''
+UPDATE public.beacon_forward_edge SET cancelled_at = now()
+WHERE id = 'F$id$to'
+''');
+
+    Future<void> markRoomSeen(String userId, {String id = postId}) =>
+        db.customStatement('''
+INSERT INTO public.beacon_room_seen (user_id, beacon_id, thread_item_id, last_seen_at)
+VALUES ('$userId', '$id', NULL, now())
+''');
+
+    Future<void> setQuietHours(int hours, {String id = postId}) =>
+        db.customStatement('''
+UPDATE public.beacon SET last_activity_at = now() - interval '$hours hours'
+WHERE id = '$id'
+''');
+
+    Future<void> pinPostForViewer({String id = postId}) => db.customStatement('''
+INSERT INTO public.beacon_pinned (user_id, beacon_id) VALUES ('$egoId', '$id')
+''');
+
+    // The author and the viewer trust each other; the Post is forwarded to the
+    // viewer, so the viewer is an admitted addressee.
+    Future<void> seedAddresseePost() async {
+      await insertUser(author);
+      await reciprocalTrust(egoId, author);
+      await insertPost();
+      await forwardPost(from: author, to: egoId);
+      await setQuietHours(1);
+    }
+
+    Map<String, String> webStates(ConstellationFieldSnapshot snapshot) => {
+      for (final web in snapshot.memberWebs)
+        if (web.beaconId == postId) web.personId: web.state.name,
+    };
+
+    test('addressee sees the Post with author, root excerpt and activity time',
+        () async {
+      await seedAddresseePost();
+
+      final snapshot = await readField(viewerId: egoId);
+
+      final post = snapshot.posts.single;
+      expect(post.id, postId);
+      expect(post.authorId, author);
+      expect(post.rootExcerpt, 'Root text of the post');
+      expect(post.isPinned, isFalse);
+      expect(
+        DateTime.now().toUtc().difference(post.lastActivityAt).inMinutes,
+        inInclusiveRange(59, 61),
+      );
+    }, skip: skipReason);
+
+    test('author sees their own Post', () async {
+      await insertUser(author);
+      await insertPost();
+      await setQuietHours(1);
+
+      final snapshot = await readField(viewerId: author);
+
+      expect(snapshot.posts.map((p) => p.id), [postId]);
+    }, skip: skipReason);
+
+    test('viewer who is neither author nor addressee does not see the Post',
+        () async {
+      await seedAddresseePost();
+      await insertUser(stranger);
+      await reciprocalTrust(stranger, author);
+
+      final snapshot = await readField(viewerId: stranger);
+
+      expect(snapshot.posts, isEmpty);
+      expect(snapshot.memberWebs, isEmpty);
+    }, skip: skipReason);
+
+    test('addressee whose forward edge was cancelled no longer sees the Post',
+        () async {
+      await seedAddresseePost();
+      await cancelForward(to: egoId);
+
+      final snapshot = await readField(viewerId: egoId);
+
+      expect(snapshot.posts, isEmpty);
+    }, skip: skipReason);
+
+    test('draft Post of the author is not listed', () async {
+      await insertUser(author);
+      await insertPost(status: 3, published: false);
+
+      final snapshot = await readField(viewerId: author);
+
+      expect(snapshot.posts, isEmpty);
+    }, skip: skipReason);
+
+    test('Requests never appear among posts', () async {
+      await insertBeacon(id: 'Bcfreq0001', authorId: egoId);
+
+      final snapshot = await readField(viewerId: egoId);
+
+      expect(snapshot.posts, isEmpty);
+      expect(snapshot.memberWebs, isEmpty);
+    }, skip: skipReason);
+
+    test('Post quiet for 71 hours is still listed', () async {
+      await seedAddresseePost();
+      await setQuietHours(71);
+
+      final snapshot = await readField(viewerId: egoId);
+
+      expect(snapshot.posts.map((p) => p.id), [postId]);
+    }, skip: skipReason);
+
+    test('Post quiet for 73 hours is absent unless the viewer pinned it',
+        () async {
+      await seedAddresseePost();
+      await setQuietHours(73);
+
+      final quiet = await readField(viewerId: egoId);
+      expect(quiet.posts, isEmpty);
+      expect(quiet.memberWebs, isEmpty);
+
+      await pinPostForViewer();
+      final pinned = await readField(viewerId: egoId);
+      expect(pinned.posts.map((p) => p.id), [postId]);
+      expect(pinned.posts.single.isPinned, isTrue);
+    }, skip: skipReason);
+
+    test('member web marks a member who opened the Post as inside', () async {
+      await seedAddresseePost();
+      await insertUser(memberOpened);
+      await reciprocalTrust(egoId, memberOpened);
+      await forwardPost(from: author, to: memberOpened);
+      await markRoomSeen(memberOpened);
+
+      final snapshot = await readField(viewerId: egoId);
+
+      expect(webStates(snapshot)[memberOpened], 'inside');
+    }, skip: skipReason);
+
+    test('member web marks a recipient who only received the Post as forwarded',
+        () async {
+      await seedAddresseePost();
+      await insertUser(memberReceived);
+      await reciprocalTrust(egoId, memberReceived);
+      await forwardPost(from: author, to: memberReceived);
+
+      final snapshot = await readField(viewerId: egoId);
+
+      expect(webStates(snapshot)[memberReceived], 'forwarded');
+    }, skip: skipReason);
+
+    test('member web always marks the author inside without a seen row',
+        () async {
+      await seedAddresseePost();
+
+      final snapshot = await readField(viewerId: egoId);
+
+      expect(webStates(snapshot)[author], 'inside');
+    }, skip: skipReason);
+
+    test('member web omits a recipient whose forward edge was cancelled',
+        () async {
+      await seedAddresseePost();
+      await insertUser(memberReceived);
+      await reciprocalTrust(egoId, memberReceived);
+      await forwardPost(from: author, to: memberReceived);
+      await cancelForward(to: memberReceived);
+
+      final snapshot = await readField(viewerId: egoId);
+
+      expect(snapshot.posts, hasLength(1));
+      expect(webStates(snapshot), isNot(contains(memberReceived)));
+    }, skip: skipReason);
+
+    test('member outside the viewer peer set is not listed but counted',
+        () async {
+      await seedAddresseePost();
+      await insertUser(memberReceived);
+      await reciprocalTrust(egoId, memberReceived);
+      await forwardPost(from: author, to: memberReceived);
+      await insertUser(memberOutside);
+      await forwardPost(from: author, to: memberOutside);
+
+      final snapshot = await readField(viewerId: egoId);
+
+      expect(webStates(snapshot), isNot(contains(memberOutside)));
+      expect(webStates(snapshot), contains(memberReceived));
+      expect(snapshot.posts.single.hiddenReachCount, 1);
+    }, skip: skipReason);
+
+    test('hidden reach count is zero when every member is a visible peer',
+        () async {
+      await seedAddresseePost();
+      await insertUser(memberReceived);
+      await reciprocalTrust(egoId, memberReceived);
+      await forwardPost(from: author, to: memberReceived);
+
+      final snapshot = await readField(viewerId: egoId);
+
+      expect(snapshot.posts.single.hiddenReachCount, 0);
+    }, skip: skipReason);
+
+    test('Post is absent when the author blocked the viewer', () async {
+      await seedAddresseePost();
+      await insertBlock(author, egoId);
+
+      final snapshot = await readField(viewerId: egoId);
+
+      expect(snapshot.posts, isEmpty);
+      expect(snapshot.memberWebs, isEmpty);
+    }, skip: skipReason);
+
+    test('Post is absent when the viewer blocked the author', () async {
+      await seedAddresseePost();
+      await insertBlock(egoId, author);
+
+      final snapshot = await readField(viewerId: egoId);
+
+      expect(snapshot.posts, isEmpty);
+      expect(snapshot.memberWebs, isEmpty);
+    }, skip: skipReason);
+
+    test('pinned anchor record of a Post carries kind 1', () async {
+      await seedAddresseePost();
+      await pinBeacon(beaconId: postId, x: 1, y: 2);
+
+      final snapshot = await readField(viewerId: egoId);
+
+      final record = snapshot.anchorProjection.pinnedRequests.single;
+      expect(record.id, postId);
+      expect(record.kind, 1);
+    }, skip: skipReason);
+
+    test('pinned anchor record of a Request carries kind 0', () async {
+      await insertBeacon(id: 'Bcfreq0002', authorId: egoId);
+      await pinBeacon(beaconId: 'Bcfreq0002');
+
+      final snapshot = await readField(viewerId: egoId);
+
+      expect(snapshot.anchorProjection.pinnedRequests.single.kind, 0);
+    }, skip: skipReason);
+  });
 }
 
 final class _DisposablePgTarget {
