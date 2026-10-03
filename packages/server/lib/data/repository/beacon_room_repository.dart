@@ -1064,7 +1064,10 @@ RETURNING *
           .update(
             (o) => o(
               status: const Value(BeaconParticipantStatusBits.offeredHelp),
-              roomAccess: const Value(RoomAccessBits.requested),
+              // An addressee of a converted Post stays admitted.
+              roomAccess: existing.role == BeaconParticipantRoleBits.addressee
+                  ? const Value.absent()
+                  : const Value(RoomAccessBits.requested),
               offerNote: Value(note),
               updatedAt: Value(PgDateTime(DateTime.timestamp())),
             ),
@@ -1118,7 +1121,11 @@ RETURNING *
         beaconId: beaconId,
         userId: offerUserId,
       );
-      if (existing?.roomAccess == RoomAccessBits.admitted) {
+      final isAdmittedAddressee =
+          existing?.roomAccess == RoomAccessBits.admitted &&
+          existing?.role == BeaconParticipantRoleBits.addressee;
+      if (existing?.roomAccess == RoomAccessBits.admitted &&
+          !isAdmittedAddressee) {
         return;
       }
       if (existing == null) {
@@ -1143,9 +1150,15 @@ RETURNING *
               (o) => o(
                 roomAccess: const Value(RoomAccessBits.admitted),
                 status: const Value(BeaconParticipantStatusBits.committed),
+                role: isAdmittedAddressee
+                    ? const Value(BeaconParticipantRoleBits.helper)
+                    : const Value.absent(),
                 updatedAt: Value(PgDateTime(DateTime.timestamp())),
               ),
             );
+      }
+      if (isAdmittedAddressee) {
+        return;
       }
       await recordBeaconRoomParticipantJoined(
         db: _db,
@@ -1169,7 +1182,9 @@ RETURNING *
         beaconId: beaconId,
         userId: offerUserId,
       );
-      if (existing == null) {
+      // An addressee of a converted Post keeps access (leaving is `postLeave`).
+      if (existing == null ||
+          existing.role == BeaconParticipantRoleBits.addressee) {
         return;
       }
       await _db.managers.beaconParticipants
