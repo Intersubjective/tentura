@@ -42,7 +42,7 @@ class GraphNodeWidget extends StatelessWidget {
       GenealogyDeletedNode(:final label) =>
         label.trim().isNotEmpty ? label : l10n.inviteGenealogyAnonymousNode,
       FieldPersonNode(:final person) => person.displayLabel(l10n.unknownPerson),
-      FieldRequestNode(:final request) =>
+      FieldBeaconNode(request: final request?) =>
         request.title.trim().isEmpty ? l10n.beaconViewTitle : request.title,
       _ => '',
     };
@@ -106,13 +106,20 @@ class GraphNodeWidget extends StatelessWidget {
         withRating: withRating,
         isSelf: isSelf,
       ),
-      FieldRequestNode(:final request) => BeaconIdentityTile(
+      FieldBeaconNode(request: final request?) => BeaconIdentityTile(
         beacon: constellationRequestAsIdentityBeacon(request),
         size: nodeDetails.size,
       ),
+      FieldBeaconNode() => CircleAvatar(
+        radius: nodeDetails.size / 2,
+        child: Icon(
+          Icons.chat_bubble_outline,
+          size: nodeDetails.size * 0.45,
+        ),
+      ),
     };
     final useSquareFocus =
-        nodeDetails is BeaconNode || nodeDetails is FieldRequestNode;
+        nodeDetails is BeaconNode || nodeDetails is FieldBeaconNode;
     var decorated = isOrigin && !isSelf
         ? _OriginRing(size: nodeDetails.size, child: node)
         : node;

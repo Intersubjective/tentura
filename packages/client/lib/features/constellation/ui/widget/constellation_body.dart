@@ -731,7 +731,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
                     : null,
                 statusBadge: null,
               ),
-              FieldRequestNode(:final request) => _ConstellationMapNode(
+              FieldBeaconNode(request: final request?) => _ConstellationMapNode(
                 detail: _detail,
                 child: GraphNodeWidget(
                   key: TestIds.key(TestIds.graphNode(node.id)),
@@ -860,7 +860,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
     };
     final selected = switch (node) {
       FieldPersonNode() => panelVisible && node.id == state.selectedPersonId,
-      FieldRequestNode(:final request) => state.selectedRequestId == request.id,
+      FieldBeaconNode(request: final request?) => state.selectedRequestId == request.id,
       _ => false,
     };
     return Semantics(

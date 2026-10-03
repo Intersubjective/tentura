@@ -106,7 +106,7 @@ class _ConstellationViewportOverlayState
     return switch (node) {
       FieldPersonNode(:final person) =>
         cubit.isAnchored(ConstellationAnchorTarget.person(person.id)),
-      FieldRequestNode(:final request) =>
+      FieldBeaconNode(request: final request?) =>
         cubit.isAnchored(ConstellationAnchorTarget.beacon(request.id)) ||
             constellationRequestStatusPresentation(
                   rawStatus: request.status,
@@ -200,11 +200,11 @@ class _ConstellationViewportOverlayState
               final priority = switch (node) {
                 FieldPersonNode(:final person) when person.id == selectedPersonId =>
                   0,
-                FieldRequestNode(:final request) when request.id == selectedRequestId =>
+                FieldBeaconNode(request: final request?) when request.id == selectedRequestId =>
                   0,
                 FieldPersonNode(:final person) when person.id == viewerId => 1,
                 FieldPersonNode() => 2,
-                FieldRequestNode() => 3,
+                FieldBeaconNode() => 3,
                 _ => 3,
               };
 
@@ -225,7 +225,7 @@ class _ConstellationViewportOverlayState
                     1,
                     tt.graphLabelMaxWidthPerson,
                   ),
-                FieldRequestNode(:final request) => (
+                FieldBeaconNode(request: final request?) => (
                     request.title.isEmpty
                         ? l10n.beaconViewTitle
                         : request.title,
@@ -333,7 +333,7 @@ class _ConstellationViewportOverlayState
                     1,
                     tt.graphLabelMaxWidthPerson,
                   ),
-                FieldRequestNode(:final request) => (
+                FieldBeaconNode(request: final request?) => (
                     request.title.isEmpty
                         ? l10n.beaconViewTitle
                         : request.title,

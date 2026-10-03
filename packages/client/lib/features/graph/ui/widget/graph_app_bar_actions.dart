@@ -77,8 +77,8 @@ class _GraphAppBarActionsState extends State<GraphAppBarActions> {
         break;
       case FieldPersonNode(:final person):
         screenCubit.showProfile(person.id);
-      case FieldRequestNode(:final request):
-        screenCubit.showBeacon(request.id);
+      case final FieldBeaconNode n:
+        screenCubit.showBeacon(n.id);
     }
   }
 
@@ -147,7 +147,7 @@ class _GraphAppBarActionsState extends State<GraphAppBarActions> {
               tooltip: l10n.profile,
               icon: Icons.person_outline,
             ),
-            FieldRequestNode() => (
+            FieldBeaconNode() => (
               tooltip: l10n.openBeacon,
               icon: Icons.flag_outlined,
             ),

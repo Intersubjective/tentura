@@ -1,4 +1,6 @@
 import 'package:meta/meta.dart';
+import 'package:tentura/features/graph/domain/entity/node_details.dart'
+    show FieldBeaconNode;
 
 import 'constellation_cap_policy.dart';
 import 'constellation_consts.dart';
@@ -129,6 +131,10 @@ class ConstellationComposedPresentation {
     required this.eligiblePersonIds,
     required this.eligibleRequestIds,
     required this.locallyFilteredPinnedBeaconIds,
+    this.beaconNodes = const [],
+    this.dormantBeaconIds = const {},
+    this.pinnedPostIds = const {},
+    this.postMemberIdsByPostId = const {},
   });
 
   final ConstellationAutomaticLayer automatic;
@@ -141,7 +147,22 @@ class ConstellationComposedPresentation {
   final Set<String> eligiblePersonIds;
   final Set<String> eligibleRequestIds;
   final Set<String> locallyFilteredPinnedBeaconIds;
+
+  /// Requests and Posts as one Beacon list (drawn, pinned and dormant).
+  final List<FieldBeaconNode> beaconNodes;
+
+  /// Anchored Posts past the active window: kept at their anchor, not drawn.
+  final Set<String> dormantBeaconIds;
+
+  /// Anchored Posts shown (active or dormant); never auto-placed.
+  final Set<String> pinnedPostIds;
+
+  /// Visible Post id → member ids, author included.
+  final Map<String, List<String>> postMemberIdsByPostId;
 }
+
+/// A Post stays active this long after its last activity.
+const kConstellationPostActiveWindow = Duration(hours: 72);
 
 ConstellationComposedPresentation composeConstellationPresentation({
   required String viewerId,
@@ -190,8 +211,35 @@ ConstellationComposedPresentation composeConstellationPresentation({
     for (final peer in anchorOverlay.supportPeers) peer.id,
   };
 
+  final anchoredBeaconIds = {
+    for (final anchor in projection.anchors) anchor.target.graphNodeId,
+  };
+  final activeSince = asOfUtc.subtract(kConstellationPostActiveWindow);
+  final activePosts = <ConstellationPost>[];
+  final dormantBeaconIds = <String>{};
+  final pinnedPostIds = <String>{};
+  for (final post in field.posts) {
+    final pinned = post.isPinned && anchoredBeaconIds.contains(post.id);
+    if (post.lastActivityAt.isAfter(activeSince)) {
+      activePosts.add(post);
+    } else if (!pinned) {
+      continue;
+    } else {
+      dormantBeaconIds.add(post.id);
+    }
+    if (pinned) {
+      pinnedPostIds.add(post.id);
+    }
+  }
+  final visiblePosts = [
+    for (final post in field.posts)
+      if (activePosts.contains(post) || dormantBeaconIds.contains(post.id))
+        post,
+  ];
+
   final holderIds = {
     viewerId,
+    ...visiblePosts.map((post) => post.authorId),
     ...automatic.requests.map((request) => request.authorId),
     ...anchorOverlay.pinnedRequests.map((request) => request.authorId),
     ...pinnedPeerIds,
@@ -237,6 +285,8 @@ ConstellationComposedPresentation composeConstellationPresentation({
     expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
     locallyFilteredPinnedBeaconIds: locallyFilteredPinnedBeaconIds,
     authorEligibleIds: {viewerId, ...keptPeerIds},
+    activePosts: activePosts,
+    pinnedPostIds: pinnedPostIds.difference(dormantBeaconIds),
   );
 
   final eligiblePersonIds = {
@@ -247,7 +297,35 @@ ConstellationComposedPresentation composeConstellationPresentation({
   final eligibleRequestIds = {
     ...labelPlan.drawnRequestIds,
     ...locallyVisiblePinnedRequestIds,
+    ...dormantBeaconIds,
   };
+
+  final beaconNodes = <FieldBeaconNode>[
+    for (final request in [
+      ...automatic.requests,
+      ...anchorOverlay.pinnedRequests,
+    ])
+      if (eligibleRequestIds.contains(request.id))
+        FieldBeaconNode(
+          request: request,
+          pinned: pinnedRequestIds.contains(request.id),
+        ),
+    for (final post in visiblePosts)
+      if (eligibleRequestIds.contains(post.id))
+        FieldBeaconNode(post: post, pinned: pinnedPostIds.contains(post.id)),
+  ];
+  final seenBeaconIds = <String>{};
+  beaconNodes.retainWhere((node) => seenBeaconIds.add(node.id));
+
+  final visiblePostIds = {for (final post in visiblePosts) post.id};
+  final memberIdsByPostId = <String, Set<String>>{
+    for (final post in visiblePosts) post.id: {post.authorId},
+  };
+  for (final web in field.memberWebs) {
+    if (visiblePostIds.contains(web.beaconId)) {
+      memberIdsByPostId[web.beaconId]!.add(web.personId);
+    }
+  }
 
   return ConstellationComposedPresentation(
     automatic: automatic,
@@ -260,6 +338,13 @@ ConstellationComposedPresentation composeConstellationPresentation({
     eligiblePersonIds: eligiblePersonIds,
     eligibleRequestIds: eligibleRequestIds,
     locallyFilteredPinnedBeaconIds: locallyFilteredPinnedBeaconIds,
+    beaconNodes: beaconNodes,
+    dormantBeaconIds: dormantBeaconIds,
+    pinnedPostIds: pinnedPostIds,
+    postMemberIdsByPostId: {
+      for (final entry in memberIdsByPostId.entries)
+        entry.key: entry.value.toList(growable: false),
+    },
   );
 }
 
@@ -394,6 +479,8 @@ ConstellationLabelDisplayPlan _buildLabelDisplayPlan({
   required Set<String> expandedSatelliteAuthorIds,
   required Set<String> locallyFilteredPinnedBeaconIds,
   required Set<String> authorEligibleIds,
+  List<ConstellationPost> activePosts = const [],
+  Set<String> pinnedPostIds = const {},
 }) {
   final allByAuthor = <String, List<String>>{};
   for (final request in automatic.requests) {
@@ -402,7 +489,17 @@ ConstellationLabelDisplayPlan _buildLabelDisplayPlan({
   for (final request in anchorOverlay.pinnedRequests) {
     allByAuthor.putIfAbsent(request.authorId, () => <String>[]).add(request.id);
   }
+  final layoutByAuthor = {
+    for (final entry in allByAuthor.entries)
+      entry.key: List<String>.from(entry.value),
+  };
+  for (final post in activePosts) {
+    allByAuthor.putIfAbsent(post.authorId, () => <String>[]).add(post.id);
+  }
   for (final entry in allByAuthor.entries) {
+    entry.value.sort();
+  }
+  for (final entry in layoutByAuthor.entries) {
     entry.value.sort();
   }
 
@@ -420,6 +517,18 @@ ConstellationLabelDisplayPlan _buildLabelDisplayPlan({
         addressLabel: request.addressLabel,
         hasCoordinates: request.hasCoordinates,
       ),
+    ).followedBy(
+      activePosts.map(
+        (post) => (
+          id: post.id,
+          needs: const <String>{},
+          primaryNeedSlug: null,
+          startAt: null,
+          endAt: null,
+          addressLabel: null,
+          hasCoordinates: false,
+        ),
+      ),
     ),
     filters: localFilters,
     asOfUtc: asOfUtc,
@@ -427,6 +536,7 @@ ConstellationLabelDisplayPlan _buildLabelDisplayPlan({
 
   final pinnedRequestIds = {
     for (final request in anchorOverlay.pinnedRequests) request.id,
+    ...pinnedPostIds,
   };
 
   final filteredByAuthor = <String, List<String>>{};
@@ -490,12 +600,17 @@ ConstellationLabelDisplayPlan _buildLabelDisplayPlan({
       drawn.add(request.id);
     }
   }
+  for (final post in activePosts) {
+    if (pinnedPostIds.contains(post.id)) {
+      drawn.add(post.id);
+    }
+  }
 
   return ConstellationLabelDisplayPlan(
     drawnRequestIds: drawn,
-    layoutRequestsByAuthor: allByAuthor,
+    layoutRequestsByAuthor: layoutByAuthor,
     egoOwnRequestIds: {
-      for (final id in allByAuthor[viewerId] ?? const <String>[]) id,
+      for (final id in layoutByAuthor[viewerId] ?? const <String>[]) id,
     },
     overflowHiddenCountByAuthor: overflow,
     pinnedRequestIds: pinnedRequestIds,

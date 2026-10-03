@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/profile.dart';
 
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
@@ -16,7 +17,6 @@ sealed class NodeDetails {
 
   final bool pinned;
 
-  @override
   NodeDetails copyWithPinned(bool isPinned);
 
   String get id;
@@ -30,7 +30,7 @@ sealed class NodeDetails {
     UserNode() => 'u:$id',
     BeaconNode() => 'b:$id',
     FieldPersonNode() => 'fp:$id',
-    FieldRequestNode() => 'fr:$id',
+    FieldBeaconNode() => 'fr:$id',
     GenealogyUserNode() => 'gu:$id',
     GenealogyDeletedNode() => 'gd:$id',
   };
@@ -315,27 +315,43 @@ final class FieldPersonNode extends NodeDetails {
       other.person == person;
 }
 
-/// Request satellite on the Constellation field map.
-final class FieldRequestNode extends NodeDetails {
-  const FieldRequestNode({
-    required this.request,
+/// Glyph drawn for a [FieldBeaconNode].
+enum FieldBeaconGlyph { request, post }
+
+/// Request or Post satellite on the Constellation field map.
+final class FieldBeaconNode extends NodeDetails {
+  const FieldBeaconNode({
+    this.request,
+    this.post,
     super.pinned,
     super.size = 36,
-  });
+  }) : assert(
+         (request == null) != (post == null),
+         'exactly one of request / post',
+       );
 
-  final ConstellationRequest request;
+  final ConstellationRequest? request;
+  final ConstellationPost? post;
+
+  BeaconKind get kind => post == null ? BeaconKind.request : BeaconKind.post;
+
+  FieldBeaconGlyph get glyph =>
+      post == null ? FieldBeaconGlyph.request : FieldBeaconGlyph.post;
+
+  /// Posts carry no lifecycle status.
+  bool get hasStatusMarker => post == null;
 
   @override
-  String get userId => request.authorId;
+  String get userId => post?.authorId ?? request!.authorId;
 
   @override
-  String get id => request.id;
+  String get id => post?.id ?? request!.id;
 
   @override
-  String get label => request.title;
+  String get label => post?.rootExcerpt ?? request!.title;
 
   @override
-  bool get hasImage => request.coverThumb != null;
+  bool get hasImage => request?.coverThumb != null;
 
   @override
   double get score => 0;
@@ -344,16 +360,20 @@ final class FieldRequestNode extends NodeDetails {
   double get rScore => 0;
 
   @override
-  FieldRequestNode copyWithPinned(bool isPinned) => FieldRequestNode(
+  FieldBeaconNode copyWithPinned(bool isPinned) => FieldBeaconNode(
     request: request,
+    post: post,
     pinned: isPinned,
     size: size,
   );
 
   @override
-  int get hashCode => super.hashCode ^ request.hashCode;
+  int get hashCode => super.hashCode ^ request.hashCode ^ post.hashCode;
 
   @override
   bool operator ==(Object other) =>
-      super == other && other is FieldRequestNode && other.request == request;
+      super == other &&
+      other is FieldBeaconNode &&
+      other.request == request &&
+      other.post == post;
 }

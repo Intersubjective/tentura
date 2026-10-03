@@ -14,7 +14,7 @@ void main() {
       ring: 1,
       isKept: true,
     );
-    final request = FieldRequestNode(
+    final request = FieldBeaconNode(
       request: ConstellationRequest(
         id: raw,
         authorId: 'author',

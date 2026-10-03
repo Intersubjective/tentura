@@ -67,12 +67,12 @@ void main() {
       expect(find.byType(BeaconImage), findsNothing);
     });
 
-    testWidgets('FieldRequestNode renders identity tile for cover thumb', (
+    testWidgets('FieldBeaconNode renders identity tile for cover thumb', (
       tester,
     ) async {
       await _pumpNode(
         tester,
-        FieldRequestNode(
+        FieldBeaconNode(
           request: const ConstellationRequest(
             id: 'req-1',
             authorId: 'U1',
@@ -88,12 +88,12 @@ void main() {
       expect(find.byIcon(Icons.flag_outlined), findsNothing);
     });
 
-    testWidgets('FieldRequestNode symbol cover uses capability glyph', (
+    testWidgets('FieldBeaconNode symbol cover uses capability glyph', (
       tester,
     ) async {
       await _pumpNode(
         tester,
-        FieldRequestNode(
+        FieldBeaconNode(
           request: const ConstellationRequest(
             id: 'req-1',
             authorId: 'U1',

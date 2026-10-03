@@ -416,6 +416,7 @@ final class ConstellationSceneLayoutAlgorithm implements SceneLayoutAlgorithm {
         nodeSizes: nodeSizes,
         satelliteRequestIdsByAuthor: visibleRequestsByAuthor,
         requestAuthorById: const {},
+        postMemberIdsByPostId: const {},
         egoOwnRequestIds: egoOwnRequestIds,
         spacing: spacing,
         maxHops: maxHops,

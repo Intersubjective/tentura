@@ -19,6 +19,29 @@ ConstellationField mapConstellationFieldFromFieldFetch(
       requests: [
         for (final request in payload.requests) _mapFieldFetchRequest(request),
       ],
+      posts: [
+        for (final post in payload.posts)
+          ConstellationPost(
+            id: post.id,
+            authorId: post.authorId,
+            rootExcerpt: post.rootExcerpt,
+            lastActivityAt: DateTime.parse(post.lastActivityAt),
+            isPinned: post.isPinned,
+            hiddenReachCount: post.hiddenReachCount,
+          ),
+      ],
+      memberWebs: [
+        for (final web in payload.memberWebs)
+          ConstellationMemberWeb(
+            beaconId: web.beaconId,
+            personId: web.personId,
+            state: switch (web.state) {
+              Gv2_ConstellationMemberWebState.FORWARDED =>
+                ConstellationMemberWebState.forwarded,
+              _ => ConstellationMemberWebState.inside,
+            },
+          ),
+      ],
       peersCapped: payload.peersCapped,
       requestsCapped: payload.requestsCapped,
       anchorProjection: _mapFieldFetchAnchorProjection(payload.anchorProjection),

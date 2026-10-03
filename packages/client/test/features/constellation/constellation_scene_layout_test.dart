@@ -154,7 +154,7 @@ void main() {
           holderIds: {egoId, 'peer-a'},
           edges: const [(src: egoId, dst: 'peer-a', tier: 1)],
         );
-        final requestNode = FieldRequestNode(
+        final requestNode = FieldBeaconNode(
           request: const ConstellationRequest(
             id: 'req-1',
             authorId: 'peer-a',
@@ -227,7 +227,7 @@ void main() {
           holderIds: {egoId, 'peer-a'},
           edges: const [(src: egoId, dst: 'peer-a', tier: 1)],
         );
-        final requestNode = FieldRequestNode(
+        final requestNode = FieldBeaconNode(
           request: const ConstellationRequest(
             id: 'req-1',
             authorId: 'peer-a',

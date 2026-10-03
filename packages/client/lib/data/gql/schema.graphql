@@ -7977,10 +7977,23 @@ type v2_ConstellationField {
   context: String!
   edges: [v2_ConstellationEdge!]!
   loadedAt: String!
+  memberWebs: [v2_ConstellationMemberWeb!]!
   peers: [v2_ConstellationPeer!]!
   peersCapped: Boolean!
+  posts: [v2_ConstellationPost!]!
   requests: [v2_ConstellationRequest!]!
   requestsCapped: Boolean!
+}
+
+type v2_ConstellationMemberWeb {
+  beaconId: String!
+  personId: String!
+  state: v2_ConstellationMemberWebState!
+}
+
+enum v2_ConstellationMemberWebState {
+  FORWARDED
+  INSIDE
 }
 
 type v2_ConstellationPeer {
@@ -7988,6 +8001,15 @@ type v2_ConstellationPeer {
   handle: String
   id: String!
   image: v2_image
+}
+
+type v2_ConstellationPost {
+  authorId: String!
+  hiddenReachCount: Int!
+  id: String!
+  isPinned: Boolean!
+  lastActivityAt: String!
+  rootExcerpt: String!
 }
 
 enum v2_ConstellationProjection {

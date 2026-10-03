@@ -21,7 +21,7 @@ String constellationNodeSemanticLabel({
         }
         return base;
       }(),
-    FieldRequestNode(:final request) => () {
+    FieldBeaconNode(request: final request?) => () {
         final title = request.title.trim();
         final titlePart = title.isEmpty
             ? l10n.beaconViewTitle

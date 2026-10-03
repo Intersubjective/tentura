@@ -1471,7 +1471,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
           person.id == viewerId
               ? null
               : ConstellationAnchorTarget.person(person.id),
-        FieldRequestNode(:final request) => ConstellationAnchorTarget.beacon(
+        FieldBeaconNode(request: final request?) => ConstellationAnchorTarget.beacon(
           request.id,
         ),
         _ => null,
@@ -1865,7 +1865,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
           return;
         }
         selectPerson(person.id);
-      case FieldRequestNode(:final request):
+      case FieldBeaconNode(request: final request?):
         selectRequest(request.id);
       default:
         break;
@@ -2226,7 +2226,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
 
     for (final request in drawnRequests) {
-      nodes.add(FieldRequestNode(request: request));
+      nodes.add(FieldBeaconNode(request: request));
     }
 
     final nodeById = {for (final node in nodes) node.id: node};
