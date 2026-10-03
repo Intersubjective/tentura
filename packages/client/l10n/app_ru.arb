@@ -504,6 +504,7 @@
     "context": "BeaconCreateScreen"
   },
   "buttonMakeLive": "Запустить",
+  "beaconMakeLiveWithoutSending": "Запустить без отправки",
   "@buttonMakeLive": {
     "context": "BeaconCreateScreen"
   },

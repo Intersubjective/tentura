@@ -12,6 +12,7 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
+import 'package:tentura/ui/utils/relative_time.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/features/capability/ui/widget/forward_capability_chips.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
@@ -208,9 +209,16 @@ class HelpOfferTile extends StatelessWidget {
                             ),
                             const SizedBox(height: 2),
                           ],
-                          TenturaMetaText(
-                            '${dateFormatYMD(dateShown.toLocal())} · ${timeFormatHm(dateShown.toLocal())}'
-                            '${helpOffer.isEdited ? ' · ${l10n.labelEdited}' : ''}',
+                          // Relative like the My Work card that opens this
+                          // tile; the exact stamp stays one hover away.
+                          Tooltip(
+                            message:
+                                '${dateFormatYMD(dateShown.toLocal())} · '
+                                '${timeFormatHm(dateShown.toLocal())}',
+                            child: TenturaMetaText(
+                              '${_offerWhen(dateShown, l10n)}'
+                              '${helpOffer.isEdited ? ' · ${l10n.labelEdited}' : ''}',
+                            ),
                           ),
                         ],
                       ),
@@ -409,6 +417,14 @@ String _backupHintText({
   return isMine ? l10n.helpOfferBackupHintMine : l10n.helpOfferBackupHint;
 }
 
+/// "12m ago" for the past week, then the calendar date.
+String _offerWhen(DateTime when, L10n l10n) {
+  final now = DateTime.now();
+  final local = when.toLocal();
+  if (now.difference(local).inDays >= 7) return dateFormatYMD(local);
+  return compactRelativeTimeAgo(when: when, now: now, l10n: l10n);
+}
+
 class _DirectForwardChip extends StatelessWidget {
   const _DirectForwardChip({required this.label});
 
@@ -418,20 +434,25 @@ class _DirectForwardChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final tt = context.tt;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.secondaryContainer,
-        borderRadius: BorderRadius.circular(tt.buttonRadius),
-      ),
-      child: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: tt.tightGap,
-          vertical: tt.tightGap / 2,
+    // Hug the label: in the stretched card column a bare DecoratedBox
+    // became a full-width highlight band.
+    return Align(
+      alignment: AlignmentDirectional.centerStart,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.secondaryContainer,
+          borderRadius: BorderRadius.circular(tt.buttonRadius),
         ),
-        child: Text(
-          label,
-          style: TenturaText.labelSmall(
-            theme.colorScheme.onSecondaryContainer,
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: tt.tightGap,
+            vertical: tt.tightGap / 2,
+          ),
+          child: Text(
+            label,
+            style: TenturaText.labelSmall(
+              theme.colorScheme.onSecondaryContainer,
+            ),
           ),
         ),
       ),
@@ -564,7 +585,8 @@ class _AuthorAdmissionFooter extends StatelessWidget {
     required this.reason,
     required this.onAccept,
     required this.onDecline,
-    required this.offerUserId, this.onReleaseCommitment,
+    required this.offerUserId,
+    this.onReleaseCommitment,
   });
 
   final L10n l10n;

@@ -605,22 +605,22 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
                         SizedBox(height: tt.rowGap),
                         Row(
                           children: [
+                            // Forwarding (the composer above) is this step's
+                            // primary action; publishing without sending is
+                            // the quiet escape hatch, not a second big CTA.
                             if (!state.isLive)
                               Expanded(
-                                child: SizedBox(
-                                  height: tt.buttonHeight,
-                                  child: OutlinedButton(
-                                    key: TestIds.key(TestIds.requestMakeLive),
-                                    onPressed:
-                                        state.isLoading ||
-                                            !state.canTryToPublish
-                                        ? null
-                                        : () => unawaited(_makeLive()),
-                                    child: Text(l10n.buttonMakeLive),
+                                child: TextButton(
+                                  key: TestIds.key(TestIds.requestMakeLive),
+                                  onPressed:
+                                      state.isLoading || !state.canTryToPublish
+                                      ? null
+                                      : () => unawaited(_makeLive()),
+                                  child: Text(
+                                    l10n.beaconMakeLiveWithoutSending,
                                   ),
                                 ),
                               ),
-                            if (!state.isLive) SizedBox(width: tt.rowGap),
                             if (state.isLive)
                               Expanded(
                                 child: SizedBox(

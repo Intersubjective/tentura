@@ -504,6 +504,10 @@
     "context": "BeaconCreateScreen"
   },
   "buttonMakeLive": "Make live",
+  "beaconMakeLiveWithoutSending": "Make live without sending",
+  "@beaconMakeLiveWithoutSending": {
+    "description": "Secondary action on the recipients step: publish the request without forwarding it to anyone yet."
+  },
   "@buttonMakeLive": {
     "context": "BeaconCreateScreen"
   },
@@ -4744,7 +4748,7 @@
       }
     }
   },
-  "beaconShowWithdrawn": "Show {count} closed offers",
+  "beaconShowWithdrawn": "{count, plural, =1{Show 1 closed offer} other{Show {count} closed offers}}",
   "@beaconShowWithdrawn": {
     "placeholders": {
       "count": {
