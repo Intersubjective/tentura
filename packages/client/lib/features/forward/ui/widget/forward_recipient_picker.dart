@@ -43,6 +43,7 @@ class ForwardRecipientPicker extends StatefulWidget {
   const ForwardRecipientPicker({
     required this.beaconId,
     this.embedded = false,
+    this.onToggle,
     this.onSendPressed,
     this.sendEnabled = false,
     this.externalActionLoading = false,
@@ -56,6 +57,11 @@ class ForwardRecipientPicker extends StatefulWidget {
   ///
   /// Bottom send uses [onSendPressed] when provided (beacon-create tab).
   final bool embedded;
+
+  /// Overrides what a row toggle does; defaults to
+  /// [ForwardCubit.toggleSelection]. The graph composer routes it through its
+  /// radius selection.
+  final ValueChanged<String>? onToggle;
 
   /// Host-provided send action (beacon create publish + forward).
   final VoidCallback? onSendPressed;
@@ -127,6 +133,15 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
     }
   }
 
+  void _toggle(ForwardCubit cubit, String userId) {
+    final override = widget.onToggle;
+    if (override != null) {
+      override(userId);
+    } else {
+      cubit.toggleSelection(userId);
+    }
+  }
+
   bool _forwardEdgeActionsEnabled(ForwardCandidate candidate) {
     return candidate.forwardEdgeId != null &&
         forwardEdgeIsCancellable(
@@ -181,8 +196,6 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
 
     final result = await showTenturaAdaptiveSheet<_UncoveredSheetResult>(
       context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
       useRootNavigator: true,
       builder: (ctx) => _UncoveredRecipientsSheet(
         recipientNames: names,
@@ -190,9 +203,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
         initialSharedNote: cubit.state.note,
         onForward: (sharedNote) {
           cubit.setNote(sharedNote);
-          for (final id in uncoveredIds) {
-            cubit.skipPersonalNote(id);
-          }
+          uncoveredIds.forEach(cubit.skipPersonalNote);
         },
       ),
     );
@@ -256,7 +267,6 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
 
     await showTenturaAdaptiveSheet<void>(
       context: context,
-      isScrollControlled: true,
       showDragHandle: false,
       builder: (_) => UnfocusSheetBody(
         child: StatefulBuilder(
@@ -592,7 +602,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                                     skippedPersonalNoteIds:
                                         state.skippedPersonalNoteIds,
                                     onSkipPersonalNote: cubit.skipPersonalNote,
-                                    onToggle: cubit.toggleSelection,
+                                    onToggle: (userId) => _toggle(cubit, userId),
                                     onEditReasons: (userId) => unawaited(
                                       _editReasons(
                                         context,
@@ -742,7 +752,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
           candidate: lineage[i],
           requiredCapabilitySlugs: beacon?.needs ?? const {},
           isSelected: state.selectedIds.contains(lineage[i].id),
-          onToggle: () => cubit.toggleSelection(lineage[i].id),
+          onToggle: () => _toggle(cubit, lineage[i].id),
           onOpenDetails: () => unawaited(
             showForwardCandidateContextSheet(
               sourceContext: context,
@@ -803,7 +813,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
           candidate: visible[i],
           requiredCapabilitySlugs: beacon?.needs ?? const {},
           isSelected: state.selectedIds.contains(visible[i].id),
-          onToggle: () => cubit.toggleSelection(visible[i].id),
+          onToggle: () => _toggle(cubit, visible[i].id),
           onOpenDetails: () => unawaited(
             showForwardCandidateContextSheet(
               sourceContext: context,
@@ -1044,7 +1054,6 @@ class _UncoveredRecipientsSheetState extends State<_UncoveredRecipientsSheet> {
                             SizedBox(height: tt.rowGap),
                             TextField(
                               controller: _sharedNoteController,
-                              autofocus: false,
                               onChanged: (_) => setState(() {}),
                               minLines: 2,
                               maxLines: 4,

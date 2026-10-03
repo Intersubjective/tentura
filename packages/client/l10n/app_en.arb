@@ -7143,6 +7143,24 @@
   "@postCreateMenuRequest": {
     "description": "My Work «+» menu entry that starts a Request."
   },
+  "constellationComposerRecipients": "Will receive · {count}",
+  "@constellationComposerRecipients": {
+    "description": "Heading of the graph composer's recipient chips",
+    "placeholders": {"count": {"type": "int"}}
+  },
+  "constellationComposerList": "List ›",
+  "@constellationComposerList": {
+    "description": "Graph composer button that opens the recipient list picker"
+  },
+  "constellationComposerRadius": "Reach",
+  "@constellationComposerRadius": {
+    "description": "Label of the graph composer radius slider"
+  },
+  "constellationComposerRemoveRecipient": "Remove {name}",
+  "@constellationComposerRemoveRecipient": {
+    "description": "Tooltip of the × on a graph composer recipient chip",
+    "placeholders": {"name": {"type": "String"}}
+  },
   "postMenuPin": "Pin in conversations",
   "@postMenuPin": {
     "description": "Post overflow: pin the Post among conversations."
