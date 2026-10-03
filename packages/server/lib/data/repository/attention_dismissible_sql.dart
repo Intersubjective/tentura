@@ -136,14 +136,27 @@ eligible_pinned AS (
   static String primaryPlacement(String alias) =>
       "$alias.placement = 'primary'";
 
+  /// A Post the receipt's account has muted in-app (`notification_beacon_mute`
+  /// row, indefinite or not yet expired) hides its receipts, except
+  /// `roomMention`. Requests are not affected. Hidden rows are not cleared by
+  /// *Dismiss all*, and come back once the mute ends.
+  static String postMuteExcluded(String alias) =>
+      'NOT EXISTS (SELECT 1 FROM public.notification_beacon_mute nm '
+      'JOIN public.beacon mb ON mb.id = nm.beacon_id '
+      'WHERE nm.account_id = $alias.account_id '
+      'AND nm.beacon_id = $alias.beacon_id AND mb.kind = 1 '
+      'AND (nm.muted_until IS NULL OR nm.muted_until > now()) '
+      "AND $alias.kind IS DISTINCT FROM 'roomMention')";
+
   /// Kind-aware eligibility of a receipt for grouping, previews, counts and
   /// sweeps. A Request's `relay_received` row is the synthetic forward shell
   /// and is excluded; a Post's (`kind = 1`) is its arrival and counts like any
-  /// other child.
+  /// other child. Receipts of a muted Post are excluded ([postMuteExcluded]).
   static String relayShellExcluded(String alias) =>
-      "($alias.presentation_key IS DISTINCT FROM 'relay_received' OR "
+      "(($alias.presentation_key IS DISTINCT FROM 'relay_received' OR "
       'EXISTS (SELECT 1 FROM public.beacon pk WHERE pk.id = $alias.beacon_id '
-      'AND pk.kind = 1))';
+      'AND pk.kind = 1)) '
+      'AND ${postMuteExcluded(alias)})';
 
   /// Set R — dismissible optional receipts, the `notification_outbox` axis.
   ///

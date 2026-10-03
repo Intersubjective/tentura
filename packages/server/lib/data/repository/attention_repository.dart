@@ -1169,6 +1169,7 @@ ranked AS (
   WHERE v.surface = 'activity'
     AND v.beacon_id IN ($placeholders)
     AND v.presentation_key IS DISTINCT FROM 'relay_received'
+    AND ${AttentionDismissibleSql.postMuteExcluded('v')}
     AND ${AttentionDismissibleSql.activeAttention('v')}
     -- The preview is the expansion of `event_total`, so it is filtered by the
     -- same rule that produced that number. The Request's own log — History and

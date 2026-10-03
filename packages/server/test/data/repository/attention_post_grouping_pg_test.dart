@@ -8,8 +8,9 @@ import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/attention_repository.dart';
 import 'package:tentura_server/data/repository/attention_sweep_repository.dart';
-import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/attention/attention_clear_models.dart';
+import 'package:tentura_server/domain/attention/attention_models.dart';
+import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/use_case/attention_sweep_case.dart';
 
 import '../../support/disposable_pg_target.dart';
@@ -57,6 +58,7 @@ TRUNCATE TABLE
   public.inbox_item,
   public.beacon_forward_edge,
   public.beacon_participant,
+  public.notification_beacon_mute,
   public.attention_clear_operation,
   public.attention_request_state,
   public.notification_outbox,
@@ -259,6 +261,311 @@ VALUES (@id, @id, @key)
       },
       skip: skipReason,
     );
+
+    group('mute', () {
+      test(
+        'a muted Post hides its arrival and reply rows from the list, the '
+        'dot and the Dismiss all affordance',
+        () async {
+          await _forwardPost(writer);
+          await _insertReceipt(
+            writer,
+            id: 'Npgarrmute1',
+            beaconId: _postId,
+            presentationKey: 'relay_received',
+            createdAt: _arrivalAt,
+          );
+          await _insertReceipt(
+            writer,
+            id: 'Npgreplmute1',
+            beaconId: _postId,
+            createdAt: _replyAt,
+          );
+          await _mutePost(writer);
+
+          expect(await _activityItems(query), isEmpty);
+          final summary = await query.surfaceSummary(accountId: _viewerId);
+          expect(
+            summary.forYouDot,
+            isFalse,
+            reason: 'a muted Post lights no For You dot',
+          );
+          expect(
+            summary.forYouSweepEligible,
+            isFalse,
+            reason: 'hidden rows are not something Dismiss all would clear',
+          );
+
+          final result = await sweep.dismissAll(
+            accountId: _viewerId,
+            operationId: 'OPpostmute01',
+          );
+          expect(result.failed, isEmpty);
+          expect(
+            result.appliedReceiptIds,
+            isEmpty,
+            reason: 'Dismiss all captures nothing from a muted Post',
+          );
+          expect(await _clearedReceiptIds(writer), isEmpty);
+        },
+        skip: skipReason,
+      );
+
+      test(
+        'an indefinite mute and a mute that runs into the future both hide '
+        'the Post rows',
+        () async {
+          await _forwardPost(writer);
+          await _insertReceipt(
+            writer,
+            id: 'Npgarrmute2',
+            beaconId: _postId,
+            kind: NotificationKind.newRelay,
+            presentationKey: 'relay_received',
+            createdAt: _arrivalAt,
+          );
+
+          await _mutePost(writer, until: DateTime.now().toUtc().add(_aDay));
+          expect(await _activityItems(query), isEmpty);
+
+          await _mutePost(writer);
+          expect(await _activityItems(query), isEmpty);
+        },
+        skip: skipReason,
+      );
+
+      test(
+        'a mention on a muted Post still shows and is the only child counted',
+        () async {
+          await _forwardPost(writer);
+          await _insertReceipt(
+            writer,
+            id: 'Npgarrmute3',
+            beaconId: _postId,
+            presentationKey: 'relay_received',
+            createdAt: _arrivalAt,
+          );
+          await _insertReceipt(
+            writer,
+            id: 'Npgreplmute3',
+            beaconId: _postId,
+            createdAt: _replyAt,
+          );
+          await _insertReceipt(
+            writer,
+            id: 'Npgmentmute3',
+            beaconId: _postId,
+            kind: NotificationKind.roomMention,
+            createdAt: _mentionAt,
+          );
+          await _mutePost(writer);
+
+          final row = (await _activityItems(query)).single;
+
+          expect(row.itemKind, AttentionItemKind.requestActivity);
+          expect(row.beaconId, _postId);
+          expect(row.eventTotal, 1);
+          expect(
+            row.eventUnseenCount,
+            1,
+            reason: 'muted children do not count as unseen either',
+          );
+          expect(row.createdAt.toUtc(), _mentionAt);
+          expect(
+            row.eventsPreview.map((e) => e.id),
+            ['Npgmentmute3'],
+            reason:
+                'muted arrival and reply stay out of the expandable preview',
+          );
+          expect(
+            (await query.surfaceSummary(accountId: _viewerId)).forYouDot,
+            isTrue,
+          );
+        },
+        skip: skipReason,
+      );
+
+      test(
+        'dismiss-all leaves hidden rows of a muted Post uncleared, and they '
+        'return when the mute is lifted',
+        () async {
+          await _forwardPost(writer);
+          await _insertReceipt(
+            writer,
+            id: 'Npgarrmute4',
+            beaconId: _postId,
+            kind: NotificationKind.newRelay,
+            presentationKey: 'relay_received',
+            createdAt: _arrivalAt,
+          );
+          await _insertReceipt(
+            writer,
+            id: 'Npgreplmute4',
+            beaconId: _postId,
+            kind: NotificationKind.roomActivityLowPriority,
+            createdAt: _replyAt,
+          );
+          await _mutePost(writer);
+
+          final result = await sweep.dismissAll(
+            accountId: _viewerId,
+            operationId: 'OPpostmute04',
+          );
+
+          expect(result.failed, isEmpty);
+          expect(result.appliedReceiptIds, isEmpty);
+          expect(
+            await _clearedReceiptIds(writer),
+            isEmpty,
+            reason: 'a row the viewer could not see must not be cleared',
+          );
+
+          await writer.execute(
+            'DELETE FROM public.notification_beacon_mute',
+          );
+          final row = (await _activityItems(query)).single;
+          expect(row.beaconId, _postId);
+          expect(row.eventTotal, 2);
+        },
+        skip: skipReason,
+      );
+
+      test(
+        'dismiss-all on a muted Post clears only the mention it shows',
+        () async {
+          await _forwardPost(writer);
+          await _insertReceipt(
+            writer,
+            id: 'Npgreplmute5',
+            beaconId: _postId,
+            kind: NotificationKind.roomActivityLowPriority,
+            createdAt: _arrivalAt,
+          );
+          await _insertReceipt(
+            writer,
+            id: 'Npgmentmute5',
+            beaconId: _postId,
+            kind: NotificationKind.roomMention,
+            createdAt: _replyAt,
+          );
+          await _mutePost(writer);
+
+          final result = await sweep.dismissAll(
+            accountId: _viewerId,
+            operationId: 'OPpostmute05',
+          );
+
+          expect(result.failed, isEmpty);
+          expect(result.appliedReceiptIds, ['Npgmentmute5']);
+          expect(await _clearedReceiptIds(writer), ['Npgmentmute5']);
+        },
+        skip: skipReason,
+      );
+
+      test(
+        'once the mute has expired the uncleared rows are visible again',
+        () async {
+          await _forwardPost(writer);
+          await _insertReceipt(
+            writer,
+            id: 'Npgarrmute6',
+            beaconId: _postId,
+            kind: NotificationKind.newRelay,
+            presentationKey: 'relay_received',
+            createdAt: _arrivalAt,
+          );
+          await _insertReceipt(
+            writer,
+            id: 'Npgreplmute6',
+            beaconId: _postId,
+            kind: NotificationKind.roomActivityLowPriority,
+            createdAt: _replyAt,
+          );
+          await _mutePost(writer, until: DateTime.now().toUtc().add(_aDay));
+          expect(await _activityItems(query), isEmpty);
+
+          await _mutePost(
+            writer,
+            until: DateTime.now().toUtc().subtract(_aDay),
+          );
+
+          final row = (await _activityItems(query)).single;
+          expect(row.itemKind, AttentionItemKind.requestActivity);
+          expect(row.beaconId, _postId);
+          expect(row.eventTotal, 2);
+          expect(row.createdAt.toUtc(), _replyAt);
+          expect(
+            (await query.surfaceSummary(accountId: _viewerId)).forYouDot,
+            isTrue,
+          );
+        },
+        skip: skipReason,
+      );
+
+      test(
+        'another account muting the Post does not hide the viewer rows',
+        () async {
+          await _forwardPost(writer);
+          await _insertReceipt(
+            writer,
+            id: 'Npgarrmute7',
+            beaconId: _postId,
+            kind: NotificationKind.newRelay,
+            presentationKey: 'relay_received',
+            createdAt: _arrivalAt,
+          );
+          await _mutePost(writer, accountId: _authorId);
+
+          final row = (await _activityItems(query)).single;
+          expect(row.beaconId, _postId);
+          expect(row.eventTotal, 1);
+        },
+        skip: skipReason,
+      );
+
+      test(
+        'a muted Request still shows its rows exactly as without a mute',
+        () async {
+          await _forwardRequest(writer, status: 2);
+          await _insertReceipt(
+            writer,
+            id: 'Nreqreplmute8',
+            beaconId: _requestId,
+            kind: NotificationKind.roomActivityLowPriority,
+            createdAt: _replyAt,
+          );
+          final withoutMute = _rowSignatures(await _activityItems(query));
+          expect(withoutMute, isNotEmpty);
+
+          await _muteBeacon(writer, _requestId);
+          final mutes = await writer.execute(
+            Sql.named(
+              'SELECT count(*) FROM public.notification_beacon_mute '
+              'WHERE account_id = @a AND beacon_id = @b '
+              'AND muted_until IS NULL',
+            ),
+            parameters: {'a': _viewerId, 'b': _requestId},
+          );
+          expect(mutes.single.first, 1, reason: 'the Request is muted');
+
+          expect(
+            _rowSignatures(await _activityItems(query)),
+            withoutMute,
+          );
+          expect(
+            (await query.surfaceSummary(accountId: _viewerId)).forYouDot,
+            isTrue,
+          );
+          final result = await sweep.dismissAll(
+            accountId: _viewerId,
+            operationId: 'OPpostmute08',
+          );
+          expect(result.appliedReceiptIds, ['Nreqreplmute8']);
+          expect(await _clearedReceiptIds(writer), ['Nreqreplmute8']);
+        },
+        skip: skipReason,
+      );
+    });
   });
 }
 
@@ -269,6 +576,8 @@ const _requestId = 'Battnpostgrp02';
 
 final _arrivalAt = DateTime.utc(2026, 7, 16, 10);
 final _replyAt = DateTime.utc(2026, 7, 16, 11);
+final _mentionAt = DateTime.utc(2026, 7, 16, 12);
+const _aDay = Duration(days: 1);
 
 Future<List<AttentionReceipt>> _activityItems(AttentionRepository query) async {
   final feed = await query.attentionFeed(
@@ -360,11 +669,54 @@ Future<Object?> _tombstoneDismissedAt(
   return rows.isEmpty ? null : rows.first.first;
 }
 
+/// The viewer's in-app mute of [beaconId]; `until == null` mutes indefinitely.
+Future<void> _muteBeacon(
+  Connection writer,
+  String beaconId, {
+  String? accountId,
+  DateTime? until,
+}) => writer.execute(
+  Sql.named('''
+INSERT INTO public.notification_beacon_mute (account_id, beacon_id, muted_until)
+VALUES (@accountId, @beaconId, CAST(@until AS timestamptz))
+ON CONFLICT (account_id, beacon_id)
+DO UPDATE SET muted_until = EXCLUDED.muted_until
+'''),
+  parameters: {
+    'accountId': accountId ?? _viewerId,
+    'beaconId': beaconId,
+    'until': until?.toIso8601String(),
+  },
+);
+
+Future<void> _mutePost(
+  Connection writer, {
+  String? accountId,
+  DateTime? until,
+}) => _muteBeacon(writer, _postId, accountId: accountId, until: until);
+
+List<String> _rowSignatures(List<AttentionReceipt> items) => [
+  for (final i in items)
+    '${i.itemKind}:${i.beaconId}:${i.eventTotal}:${i.eventUnseenCount}',
+];
+
+Future<List<String>> _clearedReceiptIds(Connection writer) async {
+  final rows = await writer.execute(
+    Sql.named(
+      'SELECT id FROM public.notification_outbox '
+      'WHERE account_id = @accountId AND cleared_at IS NOT NULL ORDER BY id',
+    ),
+    parameters: {'accountId': _viewerId},
+  );
+  return [for (final r in rows) r.first! as String];
+}
+
 Future<void> _insertReceipt(
   Connection writer, {
   required String id,
   required String beaconId,
   required DateTime createdAt,
+  NotificationKind kind = NotificationKind.coordinationChanged,
   String presentationKey = 'request_status_changed',
 }) => writer.execute(
   Sql.named('''
@@ -375,7 +727,7 @@ INSERT INTO public.notification_outbox (
   destination_kind, presentation_key, presentation_payload,
   suppression_class, access_policy
 ) VALUES (
-  @id, @accountId, 'coordination', 'coordinationChanged', 'normal',
+  @id, @accountId, 'coordination', @kind, 'normal',
   'Title', 'Body', '/attention', @dedupKey, CAST(@createdAt AS timestamptz),
   @beaconId, @sourceEventKey,
   'beacon', @presentationKey, '{"eventType":"fixture"}'::jsonb,
@@ -385,6 +737,7 @@ INSERT INTO public.notification_outbox (
   parameters: {
     'id': id,
     'accountId': _viewerId,
+    'kind': kind.name,
     'dedupKey': 'dedup-$id',
     'beaconId': beaconId,
     'sourceEventKey': 'source-$id',
