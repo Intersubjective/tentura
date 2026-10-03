@@ -2070,9 +2070,20 @@
                     "tombstone_dismissed_at"
                   ],
                   "filter": {
-                    "user_id": {
-                      "_eq": "X-Hasura-User-Id"
-                    }
+                    "_and": [
+                      {
+                        "user_id": {
+                          "_eq": "X-Hasura-User-Id"
+                        }
+                      },
+                      {
+                        "beacon": {
+                          "kind": {
+                            "_eq": 0
+                          }
+                        }
+                      }
+                    ]
                   },
                   "check": null
                 }

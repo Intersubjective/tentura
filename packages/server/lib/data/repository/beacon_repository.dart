@@ -499,6 +499,70 @@ class BeaconRepository implements BeaconRepositoryPort {
   );
 
   @override
+  Future<bool> isPostAddressee({
+    required String beaconId,
+    required String userId,
+  }) async {
+    final rows = await _database
+        .customSelect(
+          r'SELECT 1 FROM public.beacon_participant bp '
+          r'JOIN public.beacon b ON b.id = bp.beacon_id '
+          r'WHERE bp.beacon_id = $1 AND bp.user_id = $2 AND bp.role = 6 '
+          r'AND b.user_id <> bp.user_id',
+          variables: [Variable<String>(beaconId), Variable<String>(userId)],
+        )
+        .get();
+    return rows.isNotEmpty;
+  }
+
+  @override
+  Future<void> leavePostAsAddressee({
+    required String beaconId,
+    required String userId,
+  }) async {
+    await _database.customStatement(
+      r'UPDATE public.inbox_item SET status = 2 '
+      r'WHERE beacon_id = $1 AND user_id = $2',
+      [beaconId, userId],
+    );
+    await _database.customStatement(
+      r'UPDATE public.beacon_participant '
+      r'SET room_access = 5, updated_at = now() '
+      r'WHERE beacon_id = $1 AND user_id = $2',
+      [beaconId, userId],
+    );
+  }
+
+  @override
+  Future<void> returnToPostAsAddressee({
+    required String beaconId,
+    required String userId,
+  }) async {
+    await _database.customStatement(
+      r'UPDATE public.inbox_item SET status = 1 '
+      r'WHERE beacon_id = $1 AND user_id = $2',
+      [beaconId, userId],
+    );
+    await _database.customStatement(
+      r'UPDATE public.beacon_participant '
+      r'SET room_access = 0, updated_at = now() '
+      r'WHERE beacon_id = $1 AND user_id = $2',
+      [beaconId, userId],
+    );
+    await _database.customStatement(
+      r'SELECT public.post_reconcile_admission($1, $2)',
+      [beaconId, userId],
+    );
+    // `post_reconcile_admission` ignores a Request converted from a Post.
+    await _database.customStatement(
+      r'UPDATE public.beacon_participant SET room_access = 3, updated_at = now() '
+      r'WHERE beacon_id = $1 AND user_id = $2 '
+      r'AND EXISTS (SELECT 1 FROM public.beacon WHERE id = $1 AND kind = 0)',
+      [beaconId, userId],
+    );
+  }
+
+  @override
   Future<void> recordBeaconStatusTransition({
     required String beaconId,
     required BeaconStatus fromStatus,

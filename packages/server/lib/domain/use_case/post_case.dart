@@ -142,4 +142,44 @@ class PostCase {
       );
     },
   );
+
+  /// An addressee steps out of a Post (or of a Request converted from one).
+  Future<void> leave({required String userId, required String beaconId}) =>
+      _addresseeAction(
+        userId: userId,
+        beaconId: beaconId,
+        action: _beaconRepository.leavePostAsAddressee,
+      );
+
+  /// An addressee who left comes back.
+  Future<void> returnTo({required String userId, required String beaconId}) =>
+      _addresseeAction(
+        userId: userId,
+        beaconId: beaconId,
+        action: _beaconRepository.returnToPostAsAddressee,
+      );
+
+  Future<void> _addresseeAction({
+    required String userId,
+    required String beaconId,
+    required Future<void> Function({
+      required String beaconId,
+      required String userId,
+    })
+    action,
+  }) => _attention.runAction(
+    actorUserId: userId,
+    action: (_) async {
+      await _postLock.lockForPostMutation(beaconId);
+      if (!await _beaconRepository.isPostAddressee(
+        beaconId: beaconId,
+        userId: userId,
+      )) {
+        throw const UnauthorizedException(
+          description: 'Only an addressee can leave or return to a Post',
+        );
+      }
+      await action(beaconId: beaconId, userId: userId);
+    },
+  );
 }

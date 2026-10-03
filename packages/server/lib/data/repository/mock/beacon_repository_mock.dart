@@ -225,6 +225,24 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
   Future<void> lockPostForMutation(String beaconId) async {}
 
   @override
+  Future<bool> isPostAddressee({
+    required String beaconId,
+    required String userId,
+  }) async => false;
+
+  @override
+  Future<void> leavePostAsAddressee({
+    required String beaconId,
+    required String userId,
+  }) async {}
+
+  @override
+  Future<void> returnToPostAsAddressee({
+    required String beaconId,
+    required String userId,
+  }) async {}
+
+  @override
   Future<void> setPostRootMessage({
     required String beaconId,
     required String messageId,

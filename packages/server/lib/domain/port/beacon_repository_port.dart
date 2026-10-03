@@ -133,6 +133,27 @@ abstract class BeaconRepositoryPort {
     required String messageId,
   });
 
+  /// Whether [userId] is an addressee (`role 6`) of [beaconId] other than its
+  /// author; the caller holds the Post lock.
+  Future<bool> isPostAddressee({
+    required String beaconId,
+    required String userId,
+  });
+
+  /// An addressee steps out: inbox row rejected (declining a pending contact
+  /// edge) and `room_access` set to left.
+  Future<void> leavePostAsAddressee({
+    required String beaconId,
+    required String userId,
+  });
+
+  /// An addressee comes back: inbox row back to watching and room access
+  /// reconciled from the live forward edges (set directly for a Request).
+  Future<void> returnToPostAsAddressee({
+    required String beaconId,
+    required String userId,
+  });
+
   /// Atomically updates beacon status and inserts a status activity log row.
   Future<void> recordBeaconStatusTransition({
     required String beaconId,

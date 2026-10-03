@@ -488,6 +488,84 @@ Future<void> main() async {
       );
     });
 
+    group('leave of a Post', () {
+      test(
+        'a forward to the addressee racing their leave never deadlocks and '
+        'leaves them out of the room',
+        () async {
+          for (var round = 0; round < _rounds; round++) {
+            await _resetFixture(writer);
+            await _insertEdge(writer, _bystander, _recipient);
+            await writer.execute("""
+INSERT INTO public.inbox_item (user_id, beacon_id, status)
+VALUES ('$_recipient', '$_post', 0)
+ON CONFLICT (user_id, beacon_id) DO NOTHING
+""");
+            expect(await _isAdmitted(writer, _post, _recipient), isTrue);
+
+            final forward = _settle(
+              forwardStack.forwardCase.forward(
+                senderId: _author,
+                beaconId: _post,
+                recipientIds: const [_recipient],
+              ),
+            );
+            final leave = _settle(
+              blockStack.postCase.leave(
+                userId: _recipient,
+                beaconId: _post,
+              ),
+            );
+            final outcomes = await _raceRound(round, [forward, leave]);
+
+            expect(
+              outcomes[1].error,
+              isNull,
+              reason: 'round $round: the leave must succeed',
+            );
+            for (final (side, outcome) in [
+              ('forward', outcomes[0]),
+              ('leave', outcomes[1]),
+            ]) {
+              expect(
+                _isDeadlock(outcome.error),
+                isFalse,
+                reason:
+                    'round $round: the $side side must not fail with '
+                    '$_deadlockDetected deadlock_detected: ${outcome.error}',
+              );
+            }
+            final forwardError = outcomes[0].error;
+            if (forwardError != null) {
+              // A forward that loses to the leave may be refused, but only
+              // with a specific domain exception: an unspecified failure is
+              // how a swallowed database error (deadlock, serialization)
+              // would surface.
+              expect(
+                forwardError,
+                isA<ExceptionBase>().having(
+                  (e) => e,
+                  'not an unspecified failure',
+                  isNot(isA<UnspecifiedException>()),
+                ),
+                reason:
+                    'round $round: a refused forward fails with a specific '
+                    'domain exception: $forwardError',
+              );
+            }
+            expect(
+              await _roomAccess(writer, _post, _recipient),
+              RoomAccessBits.left,
+              reason:
+                  'round $round: a forward arriving before or after the leave '
+                  'must not readmit the addressee',
+            );
+          }
+        },
+        timeout: const Timeout(Duration(minutes: 5)),
+      );
+    });
+
     group('invite accept of a Post', () {
       test(
         'an accept racing a block never deadlocks and leaves no admitted row',

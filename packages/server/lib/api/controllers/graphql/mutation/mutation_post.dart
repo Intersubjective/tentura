@@ -48,7 +48,33 @@ final class MutationPost extends GqlNodeBase {
 
   final _forwardPolicy = InputFieldInt(fieldName: 'forwardPolicy');
 
-  List<GraphQLObjectField<dynamic, dynamic>> get all => [postPublish];
+  List<GraphQLObjectField<dynamic, dynamic>> get all => [postPublish, postLeave, postReturn];
+
+  GraphQLObjectField<dynamic, dynamic> get postLeave => GraphQLObjectField(
+    'postLeave',
+    graphQLBoolean.nonNullable(),
+    arguments: [_beaconId.field],
+    resolve: (_, args) async {
+      await _postCase.leave(
+        userId: getCredentials(args).sub,
+        beaconId: _beaconId.fromArgsNonNullable(args),
+      );
+      return true;
+    },
+  );
+
+  GraphQLObjectField<dynamic, dynamic> get postReturn => GraphQLObjectField(
+    'postReturn',
+    graphQLBoolean.nonNullable(),
+    arguments: [_beaconId.field],
+    resolve: (_, args) async {
+      await _postCase.returnTo(
+        userId: getCredentials(args).sub,
+        beaconId: _beaconId.fromArgsNonNullable(args),
+      );
+      return true;
+    },
+  );
 
   GraphQLObjectField<dynamic, dynamic> get postPublish => GraphQLObjectField(
     'postPublish',
