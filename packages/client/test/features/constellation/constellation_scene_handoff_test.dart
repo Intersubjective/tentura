@@ -35,40 +35,38 @@ ConstellationAnchor _anchor({
   BigInt? revision,
   double x = 1,
   double y = 2,
-}) =>
-    ConstellationAnchor(
-      target: ConstellationAnchorTarget.person(personId),
-      position: ConstellationAnchorPosition(
-        xUnits: x,
-        yUnits: y,
-        coordinateSpaceVersion: 1,
-      ),
-      revision: ConstellationAnchorRevision(revision ?? BigInt.one),
-      placedAt: _loadedAt,
-    );
+}) => ConstellationAnchor(
+  target: ConstellationAnchorTarget.person(personId),
+  position: ConstellationAnchorPosition(
+    xUnits: x,
+    yUnits: y,
+    coordinateSpaceVersion: 1,
+  ),
+  revision: ConstellationAnchorRevision(revision ?? BigInt.one),
+  placedAt: _loadedAt,
+);
 
 ConstellationField _field({
   List<ConstellationPerson> peers = const [
     ConstellationPerson(id: 'p1', displayName: 'Peer'),
   ],
   List<ConstellationAnchor> anchors = const [],
-}) =>
-    ConstellationField(
-      loadedAt: _loadedAt,
-      context: '',
-      peers: peers,
-      requests: const [],
-      anchorProjection: ConstellationAnchorProjection(
-        revision: ConstellationAnchorRevision(BigInt.one),
-        anchors: anchors,
-        pinnedPeers: peers,
-        pinnedRequests: const [],
-        supportPeers: const [],
-        supportEdges: const [],
-        serverFilteredBeaconIds: const [],
-        serverFilteredBeaconCount: 0,
-      ),
-    );
+}) => ConstellationField(
+  loadedAt: _loadedAt,
+  context: '',
+  peers: peers,
+  requests: const [],
+  anchorProjection: ConstellationAnchorProjection(
+    revision: ConstellationAnchorRevision(BigInt.one),
+    anchors: anchors,
+    pinnedPeers: peers,
+    pinnedRequests: const [],
+    supportPeers: const [],
+    supportEdges: const [],
+    serverFilteredBeaconIds: const [],
+    serverFilteredBeaconCount: 0,
+  ),
+);
 
 final class _HarnessFieldRepository implements ConstellationRepositoryPort {
   _HarnessFieldRepository(this.field);
@@ -80,34 +78,32 @@ final class _HarnessFieldRepository implements ConstellationRepositoryPort {
     ConstellationFieldMembershipFilters membershipFilters =
         ConstellationFieldMembershipFilters.defaults,
     ConstellationProjection projection = ConstellationProjection.full,
-  }) async =>
-      field;
+  }) async => field;
 }
 
-final class _HarnessAnchorRepository implements ConstellationAnchorRepositoryPort {
+final class _HarnessAnchorRepository
+    implements ConstellationAnchorRepositoryPort {
   @override
   Future<ConstellationAnchorUpsertResult> upsert({
     required ConstellationAnchorTarget target,
     required ConstellationAnchorPosition position,
-  }) async =>
-      ConstellationAnchorUpsertResult(
-        anchor: ConstellationAnchor(
-          target: target,
-          position: position,
-          revision: ConstellationAnchorRevision(BigInt.two),
-          placedAt: _loadedAt,
-        ),
-        revision: ConstellationAnchorRevision(BigInt.two),
-      );
+  }) async => ConstellationAnchorUpsertResult(
+    anchor: ConstellationAnchor(
+      target: target,
+      position: position,
+      revision: ConstellationAnchorRevision(BigInt.two),
+      placedAt: _loadedAt,
+    ),
+    revision: ConstellationAnchorRevision(BigInt.two),
+  );
 
   @override
   Future<ConstellationAnchorDeleteResult> delete({
     required ConstellationAnchorTarget target,
-  }) async =>
-      ConstellationAnchorDeleteResult(
-        target: target,
-        revision: ConstellationAnchorRevision(BigInt.from(3)),
-      );
+  }) async => ConstellationAnchorDeleteResult(
+    target: target,
+    revision: ConstellationAnchorRevision(BigInt.from(3)),
+  );
 }
 
 final class _FakeForwardRepository implements ForwardRepository {
@@ -135,7 +131,9 @@ class _StubContextCubit extends Cubit<GraphPersonContextState>
   void clearSelection() {}
 }
 
-Future<ConstellationCubit> _loadedCubitForField(ConstellationField field) async {
+Future<ConstellationCubit> _loadedCubitForField(
+  ConstellationField field,
+) async {
   final sync = buildTestRealtimeSync();
   final cubit = ConstellationCubit(
     case_: ConstellationFieldCase(
@@ -327,7 +325,9 @@ Future<void> _settleLayout(
 
 void main() {
   group('constellation map selection', () {
-    testWidgets('overlapping pinned beacon tap selects request', (tester) async {
+    testWidgets('overlapping pinned beacon tap selects request', (
+      tester,
+    ) async {
       final cubit = await _loadedCubitForField(_overlappingPinnedField());
       addTearDown(cubit.close);
       await _pumpConstellationMap(tester, cubit);
@@ -343,7 +343,9 @@ void main() {
       final graphId = constellationGraphNodeIdForTarget(
         ConstellationAnchorTarget.beacon('B-overlap'),
       );
-      final point = cubit.graphController.renderSnapshot.resolvePosition(graphId);
+      final point = cubit.graphController.renderSnapshot.resolvePosition(
+        graphId,
+      );
       expect(point, isNotNull);
       cubit.selectMapNodeAtSceneCentre(Offset(point!.x, point.y));
       await tester.pump(const Duration(milliseconds: 300));
@@ -354,8 +356,9 @@ void main() {
   });
 
   group('constellation placement handoff', () {
-    testWidgets('successful drop releases presentation on terminal layout',
-        (tester) async {
+    testWidgets('successful drop releases presentation on terminal layout', (
+      tester,
+    ) async {
       final cubit = await _loadedCubit();
       addTearDown(cubit.close);
       await _pumpConstellationMap(tester, cubit);
@@ -399,7 +402,10 @@ void main() {
         controller.renderSnapshot.presentation.overrides.containsKey(graphId),
         isFalse,
       );
-      expect(controller.scene.layoutOutcome, isA<GraphLayoutOutcomeSucceeded>());
+      expect(
+        controller.scene.layoutOutcome,
+        isA<GraphLayoutOutcomeSucceeded>(),
+      );
       expect(lastSnapshot, isNotNull);
       expect(
         lastSnapshot!.presentation.overrides.containsKey(graphId),
@@ -408,7 +414,9 @@ void main() {
       expect(notifications, greaterThanOrEqualTo(1));
     });
 
-    testWidgets('layout failure keeps drag presentation override', (tester) async {
+    testWidgets('layout failure keeps drag presentation override', (
+      tester,
+    ) async {
       final cubit = await _loadedCubit();
       addTearDown(cubit.close);
       await _pumpConstellationMap(tester, cubit);
@@ -420,7 +428,10 @@ void main() {
       expect(node, isNotNull);
 
       const dragCentre = Offset(2500, 2600);
-      final token = controller.beginNodePresentationDragForId(graphId, dragCentre);
+      final token = controller.beginNodePresentationDragForId(
+        graphId,
+        dragCentre,
+      );
 
       _requestLayoutHandoff(
         cubit,
@@ -438,8 +449,9 @@ void main() {
       expect(held.y, closeTo(dragCentre.dy, 1));
     });
 
-    testWidgets('superseding layout does not release presentation override',
-        (tester) async {
+    testWidgets('superseding layout does not release presentation override', (
+      tester,
+    ) async {
       final cubit = await _loadedCubit();
       addTearDown(cubit.close);
       await _pumpConstellationMap(tester, cubit);
@@ -449,7 +461,10 @@ void main() {
       );
       final controller = cubit.graphController;
       const dragCentre = Offset(2400, 2500);
-      final token = controller.beginNodePresentationDragForId(graphId, dragCentre);
+      final token = controller.beginNodePresentationDragForId(
+        graphId,
+        dragCentre,
+      );
 
       final slow = _SlowLayoutAlgorithm();
       _requestLayoutHandoff(
@@ -503,9 +518,11 @@ void main() {
         await tester.pump();
         expect(controller.activePresentationTokenForNode(graphId), isNotNull);
 
-        final peer = controller.nodes.singleWhere(
-          (n) => n.id == 'p1',
-        ) as FieldPersonNode;
+        final peer =
+            controller.nodes.singleWhere(
+                  (n) => n.id == 'p1',
+                )
+                as FieldPersonNode;
         final refreshedPeer = FieldPersonNode(
           person: Profile(id: 'p1', displayName: 'Renamed peer'),
           ring: peer.ring,
@@ -522,9 +539,11 @@ void main() {
         );
         await tester.pump();
 
-        final updated = controller.nodes.singleWhere(
-          (n) => n.id == 'p1',
-        ) as FieldPersonNode;
+        final updated =
+            controller.nodes.singleWhere(
+                  (n) => n.id == 'p1',
+                )
+                as FieldPersonNode;
         expect(updated.person.displayName, 'Renamed peer');
         expect(controller.activePresentationTokenForNode(graphId), isNotNull);
         final screenAfter = controller.sceneToViewportLocal(panTarget);

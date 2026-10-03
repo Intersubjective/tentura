@@ -204,6 +204,9 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     }
   }
 
+  /// Shows [error] as a snackbar without touching the cubit status.
+  void reportError(Object error) => _effects.emit(ShowError(error));
+
   void _emitSnackError(Object error) {
     _effects.emit(ShowError(error));
     if (!isClosed) {

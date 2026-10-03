@@ -30,6 +30,7 @@ class ForwardCubit extends Cubit<ForwardState> {
     @visibleForTesting ForwardState? debugInitialState,
     this.preselectLineageSuggestions = false,
     this.initialSelectedIds = const {},
+    Map<String, String> initialNotes = const {},
     this.embedded = false,
     DateTime Function()? clock,
   }) : _forwardCase =
@@ -39,7 +40,14 @@ class ForwardCubit extends Cubit<ForwardState> {
        _clock = clock ?? DateTime.now,
        super(
          debugInitialState ??
-             ForwardState(beaconId: beaconId, context: context),
+             ForwardState(
+               beaconId: beaconId,
+               context: context,
+               perRecipientNotes: {
+                 for (final e in initialNotes.entries)
+                   if (initialSelectedIds.contains(e.key)) e.key: e.value,
+               },
+             ),
        ) {
     if (!debugSkipInitialLoad) {
       unawaited(_loadCandidates());

@@ -7152,6 +7152,10 @@
   "@constellationComposerList": {
     "description": "Graph composer button that opens the recipient list picker"
   },
+  "constellationComposerDetails": "Details",
+  "@constellationComposerDetails": {
+    "description": "Graph composer button that opens the full create form"
+  },
   "constellationComposerRadius": "Reach",
   "@constellationComposerRadius": {
     "description": "Label of the graph composer radius slider"

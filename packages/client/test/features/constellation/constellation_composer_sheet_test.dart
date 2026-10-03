@@ -168,7 +168,10 @@ void main() {
               BlocProvider<ProfileCubit>.value(value: _MockProfileCubit()),
             ],
             child: Scaffold(
-              body: ConstellationComposerSheet(composer: composer),
+              body: ConstellationComposerSheet(
+                composer: composer,
+                onOpenFullForm: (_) {},
+              ),
             ),
           ),
         ),

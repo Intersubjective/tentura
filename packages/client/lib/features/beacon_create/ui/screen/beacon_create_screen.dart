@@ -57,8 +57,16 @@ class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
     @QueryParam(kQueryBeaconConvertFromPostId) this.convertFromPostId = '',
     @QueryParam(kQueryBeaconConvertIsDiscoverable)
     this.convertIsDiscoverable = true,
+    this.initialRecipientIds = const {},
+    this.initialNotes = const {},
     super.key,
   });
+
+  /// Recipients preselected on the Recipients tab (graph composer hand-off).
+  final Set<String> initialRecipientIds;
+
+  /// Per-recipient notes for [initialRecipientIds].
+  final Map<String, String> initialNotes;
 
   /// Server draft beacon id when opening from My Work / deep link.
   final String draftId;
@@ -198,8 +206,9 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
             state.lineageParentBeaconId != null &&
             state.lineageParentBeaconId!.isNotEmpty,
         initialSelectedIds: widget.forwardToUserId.isEmpty
-            ? const <String>{}
+            ? widget.initialRecipientIds
             : {widget.forwardToUserId},
+        initialNotes: widget.initialNotes,
         embedded: true,
       );
       _forwardCubitDraftId = id;

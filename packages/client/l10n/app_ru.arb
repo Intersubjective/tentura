@@ -6227,6 +6227,7 @@
   "postCreateMenuRequest": "Запрос",
   "constellationComposerRecipients": "Получат · {count}",
   "constellationComposerList": "Списком ›",
+  "constellationComposerDetails": "Подробнее",
   "constellationComposerRadius": "Охват",
   "constellationComposerRemoveRecipient": "Убрать: {name}",
   "postMenuPin": "Закрепить в разговорах",

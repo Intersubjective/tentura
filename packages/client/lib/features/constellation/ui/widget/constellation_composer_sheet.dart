@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:auto_route/auto_route.dart' show PageRouteInfo;
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -15,15 +16,22 @@ import '../bloc/constellation_composer_cubit.dart';
 ///
 /// A bottom sheet on narrow layouts, a side panel on wide ones.
 class ConstellationComposerSheet extends StatelessWidget {
-  const ConstellationComposerSheet({required this.composer, super.key});
+  const ConstellationComposerSheet({
+    required this.composer,
+    required this.onOpenFullForm,
+    super.key,
+  });
 
   final ConstellationComposerCubit composer;
+
+  /// Receives the full-form route for «Подробнее».
+  final ValueChanged<PageRouteInfo> onOpenFullForm;
 
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
     final wide = context.windowClass == WindowClass.expanded;
-    final body = _SheetBody(composer: composer);
+    final body = _SheetBody(composer: composer, onOpenFullForm: onOpenFullForm);
     if (wide) {
       return Align(
         alignment: Alignment.centerRight,
@@ -49,9 +57,11 @@ class ConstellationComposerSheet extends StatelessWidget {
 }
 
 class _SheetBody extends StatefulWidget {
-  const _SheetBody({required this.composer});
+  const _SheetBody({required this.composer, required this.onOpenFullForm});
 
   final ConstellationComposerCubit composer;
+
+  final ValueChanged<PageRouteInfo> onOpenFullForm;
 
   @override
   State<_SheetBody> createState() => _SheetBodyState();
@@ -90,6 +100,11 @@ class _SheetBodyState extends State<_SheetBody> {
                     key: const Key('constellation.composer.list_button'),
                     onPressed: _toggleList,
                     child: Text(l10n.constellationComposerList),
+                  ),
+                  TextButton(
+                    key: const Key('constellation.composer.details_button'),
+                    onPressed: _openFullForm,
+                    child: Text(l10n.constellationComposerDetails),
                   ),
                 ],
               ),
@@ -146,6 +161,11 @@ class _SheetBodyState extends State<_SheetBody> {
       if (c.id == id) return c.profile.displayName;
     }
     return id;
+  }
+
+  void _openFullForm() {
+    final handoff = composer.fullFormHandoff();
+    if (handoff != null) widget.onOpenFullForm(handoff.toRoute());
   }
 
   void _toggleList() {
