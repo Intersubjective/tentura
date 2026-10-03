@@ -6120,5 +6120,13 @@
   "postRowReplied": "Пост · вам ответили",
   "postRowMentioned": "Пост · вас упомянули",
   "postRowFirstResponses": "На ваш пост откликнулись",
-  "postRowMoreMessages": "и ещё {count, plural, one{1 сообщение} few{{count} сообщения} many{{count} сообщений} other{{count} сообщения}}"
+  "postRowMoreMessages": "и ещё {count, plural, one{1 сообщение} few{{count} сообщения} many{{count} сообщений} other{{count} сообщения}}",
+  "activityTabConversations": "Разговоры",
+  "postsTabNow": "Сейчас",
+  "postsTabQuiet": "Затихли",
+  "postsTabEmpty": "Здесь будут разговоры, которые вы начали или в которые вас позвали",
+  "postsTabNewPost": "Новый пост",
+  "postConversationYours": "Ваш пост",
+  "postConversationAddressed": "{author} · вам",
+  "postConversationMuted": "Звук выключен"
 }

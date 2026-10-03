@@ -316,6 +316,7 @@ class _V2RoutingLink extends Link {
     'BeaconThreadsList',
     'BeaconActivityEventList',
     'InboxRoomContextBatch',
+    'MyPosts',
     'RoomMessageEdit',
     'RoomMessageDelete',
     'MarkThreadSeen',

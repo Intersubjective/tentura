@@ -27,6 +27,8 @@ import 'package:tentura/features/graph/data/repository/forwards_graph_repository
 import 'package:tentura/features/graph/data/repository/graph_repository.dart';
 
 import 'package:tentura/features/inbox/data/repository/inbox_repository.dart';
+import 'package:tentura/features/inbox/domain/entity/post_summary.dart';
+import 'package:tentura/features/inbox/domain/port/posts_repository_port.dart';
 import 'package:tentura/features/invitation/data/repository/invitation_repository.dart';
 
 import 'package:tentura/features/like/data/repository/like_remote_repository.dart';
@@ -48,6 +50,12 @@ class ComplaintRepositoryMock extends Mock implements ComplaintRepository {}
 
 @Injectable(as: InboxRepository, env: [Environment.test], order: 1)
 class InboxRepositoryMock extends Mock implements InboxRepository {}
+
+@Injectable(as: PostsRepositoryPort, env: [Environment.test], order: 1)
+class PostsRepositoryMock extends Mock implements PostsRepositoryPort {
+  @override
+  Future<List<PostSummary>> myPosts() async => const [];
+}
 
 @Injectable(as: GraphRepository, env: [Environment.test], order: 1)
 class GraphRepositoryMock extends Mock implements GraphRepository {}

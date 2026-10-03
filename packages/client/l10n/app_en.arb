@@ -6912,5 +6912,42 @@
         "type": "int"
       }
     }
+  },
+  "activityTabConversations": "Conversations",
+  "@activityTabConversations": {
+    "description": "Activity tab listing the Posts the viewer is in."
+  },
+  "postsTabNow": "Now",
+  "@postsTabNow": {
+    "description": "Section of the conversations tab: Posts active in the last 72 hours."
+  },
+  "postsTabQuiet": "Gone quiet",
+  "@postsTabQuiet": {
+    "description": "Section of the conversations tab: Posts silent for 72 hours or more."
+  },
+  "postsTabEmpty": "Conversations you started or were invited into will appear here",
+  "@postsTabEmpty": {
+    "description": "Empty state of the conversations tab."
+  },
+  "postsTabNewPost": "New post",
+  "@postsTabNewPost": {
+    "description": "Empty-state action that starts a new Post."
+  },
+  "postConversationYours": "Your post",
+  "@postConversationYours": {
+    "description": "Addressing line of a conversations row for the viewer's own Post."
+  },
+  "postConversationAddressed": "{author} · to you",
+  "@postConversationAddressed": {
+    "description": "Addressing line of a conversations row for a Post addressed to the viewer.",
+    "placeholders": {
+      "author": {
+        "type": "String"
+      }
+    }
+  },
+  "postConversationMuted": "Muted",
+  "@postConversationMuted": {
+    "description": "Semantic label of the muted icon on a conversations row."
   }
 }
