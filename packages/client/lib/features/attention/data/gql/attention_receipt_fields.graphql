@@ -10,5 +10,5 @@ fragment AttentionReceiptFields on v2_AttentionReceipt {
   provenanceJson
   beaconAuthorId beaconAuthorName beaconAuthorImageId
   beaconImageId beaconEndAt allowsForward
-  beaconTitle
+  beaconTitle beaconKind postRootExcerpt postRootImageId
 }

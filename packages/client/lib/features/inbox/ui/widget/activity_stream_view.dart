@@ -31,6 +31,7 @@ import '../bloc/activity_offers_cubit.dart';
 import '../../domain/entity/inbox_provenance.dart';
 import 'inbox_card_actions.dart';
 import 'rejection_dialog.dart';
+import 'post_attention_row.dart';
 import 'request_attention_card.dart';
 import 'request_attention_card_mapper.dart';
 import 'tombstone_row.dart';
@@ -1033,6 +1034,20 @@ class _ActivityStreamCell extends StatelessWidget {
       // §6 — one card for the Request, its events as mini-cards inside it
       // under the `timeline` policy (D-171-5b). No tile, no sibling block.
       case ForYouStreamEntryKind.card:
+        // A Post is a lighter row, not a Request card (M1).
+        if (receipt.beaconKind == kBeaconKindPost && beaconId.isNotEmpty) {
+          return KeyedSubtree(
+            key: forwardRowKeyFor(beaconId),
+            child: PostAttentionRow(
+              key: ValueKey(receipt.id),
+              receipt: receipt,
+              onOpen: () => unawaited(onOpenParent()),
+              onDismiss: () => unawaited(
+                GetIt.I<AttentionCase>().clearBeacon(beaconId: beaconId),
+              ),
+            ),
+          );
+        }
         final model = requestCardFromReceipt(
           receipt,
           relation: entry?.relation ?? ForYouStreamRelation.none,

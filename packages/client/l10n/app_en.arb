@@ -6870,5 +6870,47 @@
   "closureStoryRoomTitle": "Closing words from the author",
   "@closureStoryRoomTitle": {
     "description": "Heading of the closure story system card in the room."
+  },
+  "postRowSharedBy": "{author} shared a post",
+  "@postRowSharedBy": {
+    "description": "Headline of a For You row when someone shared a Post with the viewer.",
+    "placeholders": {
+      "author": {
+        "type": "String"
+      }
+    }
+  },
+  "postRowSharedByFrom": "{author} shared a post · forwarded by {sender}",
+  "@postRowSharedByFrom": {
+    "description": "Headline of a For You Post row when the sender differs from the author.",
+    "placeholders": {
+      "author": {
+        "type": "String"
+      },
+      "sender": {
+        "type": "String"
+      }
+    }
+  },
+  "postRowReplied": "Post · you got a reply",
+  "@postRowReplied": {
+    "description": "Headline of a For You Post row: someone replied to the viewer."
+  },
+  "postRowMentioned": "Post · you were mentioned",
+  "@postRowMentioned": {
+    "description": "Headline of a For You Post row: someone @mentioned the viewer."
+  },
+  "postRowFirstResponses": "Your post got responses",
+  "@postRowFirstResponses": {
+    "description": "Headline of a For You Post row for the author: first responses arrived."
+  },
+  "postRowMoreMessages": "and {count, plural, one{1 more message} other{{count} more messages}}",
+  "@postRowMoreMessages": {
+    "description": "Third line of a For You Post row: further unread messages.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }
