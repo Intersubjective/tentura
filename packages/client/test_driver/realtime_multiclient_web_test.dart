@@ -205,7 +205,7 @@ Future<void> _runJourney({
   await helper.clickTestId('capability.software');
   await helper.clickTestId('help_offer.submit');
   timings['updates_delivery_ms'] = await _measureUntil(
-    () => authorPeer.hasTestId('updates-unread-count-1'),
+    () => authorPeer.hasUpdatesUnreadCount(1),
     timeout: const Duration(seconds: 5),
   );
 
@@ -217,8 +217,8 @@ Future<void> _runJourney({
   await Future.wait([
     author.waitForText('offered help'),
     authorPeer.waitForText('offered help'),
-    author.waitForTestId('updates-unread-count-1'),
-    authorPeer.waitForTestId('updates-unread-count-1'),
+    _waitUntil(() => author.hasUpdatesUnreadCount(1)),
+    _waitUntil(() => authorPeer.hasUpdatesUnreadCount(1)),
   ]);
   _require(
     await authorPeer.textCount('offered help') == 1,
@@ -234,8 +234,8 @@ Future<void> _runJourney({
   await author.waitForText('Updates');
   timings['updates_open_ack_ms'] = await _measureUntil(
     () async =>
-        await author.hasTestId('updates-unread-count-0') &&
-        await authorPeer.hasTestId('updates-unread-count-0'),
+        await author.hasUpdatesUnreadCount(0) &&
+        await authorPeer.hasUpdatesUnreadCount(0),
     timeout: const Duration(seconds: 3),
   );
 
@@ -618,8 +618,8 @@ Future<void> _clearAuthorAttentionBaseline(
   await author.clickText('Read all');
   await _waitUntil(
     () async =>
-        await author.hasTestId('updates-unread-count-0') &&
-        await authorPeer.hasTestId('updates-unread-count-0'),
+        await author.hasUpdatesUnreadCount(0) &&
+        await authorPeer.hasUpdatesUnreadCount(0),
     timeout: const Duration(seconds: 5),
   );
 }
@@ -1135,6 +1135,31 @@ final class BrowserSession {
   });
 
   Future<bool> hasTestId(String id) async => await _elementByTestId(id) != null;
+
+  Future<bool> hasUpdatesUnreadCount(int count) async {
+    final element = await _elementByTestId('updates-unread');
+    if (element == null) return false;
+    // The tab renders positive counts as text and omits the count at zero.
+    // Read its semantics subtree so an unrelated badge cannot satisfy the wait.
+    return await driver.execute(
+          r'''
+          const root = arguments[0];
+          const expected = arguments[1];
+          const nodes = [root, ...root.querySelectorAll('*')];
+          const text = nodes.map(element =>
+            element.getAttribute('aria-label') || element.innerText ||
+            element.textContent || ''
+          ).join(' ');
+          if (!text.includes('Unread')) return false;
+          const counts = (text.match(/\b\d+\b/g) || []).map(Number);
+          return expected === 0
+            ? counts.length === 0
+            : counts.length > 0 && counts.every(count => count === expected);
+          ''',
+          [element, count],
+        ) ==
+        true;
+  }
 
   Future<void> waitForTestIdText(String id, String text) =>
       _waitUntil(() => testIdTextContains(id, text));
