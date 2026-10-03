@@ -26,6 +26,7 @@ enum _PostAction {
   showOnField,
   forward,
   allowForwarding,
+  convertToRequest,
   delete,
   leave,
 }
@@ -183,6 +184,11 @@ class _Overflow extends StatelessWidget {
           ),
         if (viewerIsAuthor)
           PopupMenuItem(
+            value: _PostAction.convertToRequest,
+            child: Text(l10n.postMenuConvertToRequest),
+          ),
+        if (viewerIsAuthor)
+          PopupMenuItem(
             value: _PostAction.delete,
             child: Text(l10n.postMenuDelete),
           ),
@@ -240,6 +246,16 @@ class _Overflow extends StatelessWidget {
       case _PostAction.allowForwarding:
         if (await _confirmAllowForwarding(context) && context.mounted) {
           await cubit.allowForwarding();
+        }
+      case _PostAction.convertToRequest:
+        final discoverable = await _confirmConvert(context);
+        if (discoverable != null && context.mounted) {
+          await context.router.push(
+            BeaconCreateRoute(
+              convertFromPostId: id,
+              convertIsDiscoverable: discoverable,
+            ),
+          );
         }
       case _PostAction.delete:
         if (await _confirmDelete(context) && context.mounted) {
@@ -313,6 +329,60 @@ class _Overflow extends StatelessWidget {
           ),
         ) ??
         false;
+  }
+
+  /// M7: the author's confirmation; resolves to the chosen discoverability,
+  /// or null when cancelled.
+  Future<bool?> _confirmConvert(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final others = (context
+                .read<ThreadHostCubit>()
+                .roomCubit
+                ?.state
+                .participants ??
+            const [])
+        .where((p) => p.role != BeaconParticipantRoleBits.author)
+        .length;
+    final wasClosed =
+        state.beacon.forwardPolicy == BeaconForwardPolicyValue.closed;
+    var discoverable = true;
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) => AlertDialog(
+          title: Text(l10n.postConvertTitle),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${l10n.postConvertKeepsConversation(others)} '
+                '${l10n.postConvertEveryoneCanHelp}',
+              ),
+              if (wasClosed) Text(l10n.postConvertForwardingOpens),
+              Text(l10n.postConvertIrreversible),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                value: discoverable,
+                onChanged: (v) => setState(() => discoverable = v ?? true),
+                title: Text(l10n.postConvertDiscoverable),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(l10n.buttonCancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, discoverable),
+              child: Text(l10n.postConvertNext),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<bool> _confirmDelete(BuildContext context) async {

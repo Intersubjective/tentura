@@ -18,6 +18,7 @@ import 'package:tentura/domain/port/beacon_image_port.dart';
 import 'package:tentura/domain/port/post_publish_port.dart';
 import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
+import 'package:tentura/domain/use_case/post_conversion_case.dart';
 import 'package:tentura/domain/use_case/post_publish_case.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/committed_mention.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
@@ -39,11 +40,17 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     BeaconCreateCase? beaconCreateCase,
     BeaconHierarchyCase? hierarchyCase,
     PostPublishCase? postPublishCase,
+    PostConversionCase? postConversionCase,
     BeaconCreationContext? childCreationContext,
     String? draftBeaconIdToLoad,
     String? editBeaconIdToLoad,
+    String? convertFromPostId,
+    bool convertIsDiscoverable = true,
     UiEffectPort? effects,
-  }) : _case = beaconCreateCase ?? GetIt.I<BeaconCreateCase>(),
+  }) : _convertFromPostId = convertFromPostId == null || convertFromPostId.isEmpty
+           ? null
+           : convertFromPostId,
+       _case = beaconCreateCase ?? GetIt.I<BeaconCreateCase>(),
        _hierarchyCase =
            hierarchyCase ??
            (childCreationContext != null
@@ -52,6 +59,11 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
        _postPublishCase =
            postPublishCase ??
            (kind == BeaconKind.post ? GetIt.I<PostPublishCase>() : null),
+       _postConversionCase =
+           postConversionCase ??
+           (convertFromPostId != null && convertFromPostId.isNotEmpty
+               ? GetIt.I<PostConversionCase>()
+               : null),
        _effects = effects ?? GetIt.I<UiEffectPort>(),
        super(
          BeaconCreateState(
@@ -59,7 +71,9 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
            status:
                (draftBeaconIdToLoad != null &&
                        draftBeaconIdToLoad.isNotEmpty) ||
-                   (editBeaconIdToLoad != null && editBeaconIdToLoad.isNotEmpty)
+                   (editBeaconIdToLoad != null &&
+                       editBeaconIdToLoad.isNotEmpty) ||
+                   (convertFromPostId != null && convertFromPostId.isNotEmpty)
                ? StateStatus.isLoading
                : const StateIsSuccess(),
          ),
@@ -68,6 +82,15 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       unawaited(Future<void>.microtask(() => loadDraft(draftBeaconIdToLoad)));
     } else if (editBeaconIdToLoad != null && editBeaconIdToLoad.isNotEmpty) {
       unawaited(Future<void>.microtask(() => loadEdit(editBeaconIdToLoad)));
+    } else if (convertFromPostId != null && convertFromPostId.isNotEmpty) {
+      unawaited(
+        Future<void>.microtask(
+          () => loadConvertFromPost(
+            convertFromPostId,
+            isDiscoverable: convertIsDiscoverable,
+          ),
+        ),
+      );
     } else if (childCreationContext != null) {
       unawaited(Future<void>.microtask(_initChildComposer));
     }
@@ -81,6 +104,14 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   final BeaconHierarchyCase? _hierarchyCase;
 
   final PostPublishCase? _postPublishCase;
+
+  final PostConversionCase? _postConversionCase;
+
+  /// The Post this form converts to a Request; null for an ordinary form.
+  /// While set, nothing is saved before [submitConversion].
+  String? _convertFromPostId;
+
+  Future<String?>? _conversionInFlight;
 
   final UiEffectPort _effects;
 
@@ -203,7 +234,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   }
 
   void _scheduleAutosave() {
-    if (!_autosaveArmed) return;
+    if (!_autosaveArmed || _convertFromPostId != null) return;
     if (state.isEditMode || state.isLive) return;
     if (state.title.trim().length < kTitleMinLength) return;
     _autosaveTimer?.cancel();
@@ -224,6 +255,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
 
   bool get _shouldQuietPersist {
     if (isClosed || state.isEditMode || state.isLive) return false;
+    if (_convertFromPostId != null) return false;
     return state.title.trim().length >= kTitleMinLength;
   }
 
@@ -296,6 +328,95 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     } catch (e) {
       _emitSnackError(e);
     }
+  }
+
+  /// Opens the form for converting [postId]: the root message prefills it and
+  /// nothing is written until [submitConversion].
+  Future<void> loadConvertFromPost(
+    String postId, {
+    bool isDiscoverable = true,
+  }) async {
+    _convertFromPostId = postId;
+    emit(state.copyWith(status: StateStatus.isLoading));
+    try {
+      final prefill = await _convertCase.prefill(postId);
+      if (isClosed) return;
+      final cover = prefill.coverSuggestion;
+      emit(
+        state.copyWith(
+          title: prefill.title,
+          description: prefill.description,
+          images: [?cover],
+          coverKey: cover?.key,
+          isDiscoverable: isDiscoverable,
+          status: const StateIsSuccess(),
+        ),
+      );
+      validate();
+      if (state.publishBlocker != null) revealValidationHints();
+    } catch (e) {
+      _emitSnackError(e);
+    }
+  }
+
+  PostConversionCase get _convertCase =>
+      _postConversionCase ?? GetIt.I<PostConversionCase>();
+
+  /// Converts the Post, then uploads the kept root photo as the cover. Returns
+  /// the Request id once the Post is converted (a cover failure is only
+  /// reported), null when nothing was converted.
+  Future<String?> submitConversion() {
+    final inFlight = _conversionInFlight;
+    if (inFlight != null) return inFlight;
+    final run = _submitConversion();
+    _conversionInFlight = run;
+    return run.whenComplete(() {
+      if (identical(_conversionInFlight, run)) _conversionInFlight = null;
+    });
+  }
+
+  Future<String?> _submitConversion() async {
+    final postId = _convertFromPostId;
+    if (postId == null || isClosed) return null;
+    validate();
+    if (state.publishBlocker != null) {
+      revealValidationHints();
+      return null;
+    }
+    emit(state.copyWith(status: StateStatus.isLoading));
+    try {
+      await _convertCase.convert(
+        beaconId: postId,
+        title: state.title.trim(),
+        description: state.description.trim(),
+        needs: state.needs,
+        primaryNeedSlug: state.primaryNeedSlug,
+        startAt: state.startAt,
+        endAt: state.endAt,
+        isDiscoverable: state.isDiscoverable,
+      );
+    } catch (e) {
+      _emitSnackError(e);
+      return null;
+    }
+    if (state.images.isNotEmpty) {
+      try {
+        await _case.reconcileMedia(
+          beaconId: postId,
+          images: state.images,
+          coverKey: state.coverKey,
+          coverThumb: state.coverThumb,
+          coverSource: state.coverSource,
+        );
+      } on BeaconSaveFailure catch (e) {
+        _effects.emit(ShowError(e.cause));
+      } catch (e) {
+        _effects.emit(ShowError(e));
+      }
+    }
+    _effects.emit(NavigatePush('$kPathBeaconView/$postId'));
+    if (!isClosed) emit(state.copyWith(status: const StateIsSuccess()));
+    return postId;
   }
 
   BeaconCreateState _loadedState(Beacon beacon) {

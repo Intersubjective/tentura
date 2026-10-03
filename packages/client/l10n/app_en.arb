@@ -7189,5 +7189,42 @@
   "postLeaveConfirmAction": "Leave",
   "@postLeaveConfirmAction": {
     "description": "Confirm button of the leave-conversation confirmation."
+  },
+  "postMenuConvertToRequest": "Turn into a Request",
+  "@postMenuConvertToRequest": {
+    "description": "Post overflow menu item (author): convert the Post to a Request."
+  },
+  "postConvertTitle": "Turn this Post into a Request?",
+  "@postConvertTitle": {
+    "description": "Title of the convert-to-Request confirmation."
+  },
+  "postConvertKeepsConversation": "{count, plural, =0{The conversation stays.} one{The conversation and {count} participant stay.} other{The conversation and {count} participants stay.}}",
+  "@postConvertKeepsConversation": {
+    "description": "First bullet of the convert-to-Request confirmation; count is the number of participants besides the author.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "postConvertEveryoneCanHelp": "Everyone will be able to offer help or leave.",
+  "@postConvertEveryoneCanHelp": {
+    "description": "Second sentence of the first bullet of the convert-to-Request confirmation."
+  },
+  "postConvertForwardingOpens": "The Request can then be forwarded further — that is what a Request relies on.",
+  "@postConvertForwardingOpens": {
+    "description": "Convert-to-Request confirmation bullet, shown only when the Post was closed for forwarding."
+  },
+  "postConvertIrreversible": "A Request cannot be turned back into a Post.",
+  "@postConvertIrreversible": {
+    "description": "Convert-to-Request confirmation bullet."
+  },
+  "postConvertDiscoverable": "People in my field can find the Request",
+  "@postConvertDiscoverable": {
+    "description": "Discoverability checkbox of the convert-to-Request confirmation."
+  },
+  "postConvertNext": "Next: details →",
+  "@postConvertNext": {
+    "description": "Confirm button of the convert-to-Request confirmation; opens the Request form."
   }
 }

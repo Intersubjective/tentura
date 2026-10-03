@@ -1,0 +1,23 @@
+mutation BeaconConvertToRequest(
+  $id: String!
+  $title: String!
+  $description: String
+  $needs: String
+  $primaryNeedSlug: String
+  $startAt: String
+  $endAt: String
+  $isDiscoverable: Boolean
+) {
+  beaconConvertToRequest(
+    id: $id
+    title: $title
+    description: $description
+    needs: $needs
+    primaryNeedSlug: $primaryNeedSlug
+    startAt: $startAt
+    endAt: $endAt
+    isDiscoverable: $isDiscoverable
+  ) {
+    id
+  }
+}

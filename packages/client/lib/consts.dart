@@ -92,6 +92,12 @@ const kQueryBeaconSourceMessageId = 'source_message_id';
 /// Query param for opening the beacon edit screen for an open (published) beacon.
 const kQueryBeaconEditId = 'edit_id';
 
+/// Post id to convert when opening the Request form for «Turn into a Request».
+const kQueryBeaconConvertFromPostId = 'convert_from_post_id';
+
+/// Discoverability picked in the convert confirmation (default true).
+const kQueryBeaconConvertIsDiscoverable = 'convert_is_discoverable';
+
 /// Optional initial operational tab: `threads`, `people`, `log`.
 const kQueryBeaconViewTab = 'tab';
 

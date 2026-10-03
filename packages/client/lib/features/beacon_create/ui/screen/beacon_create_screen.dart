@@ -54,6 +54,9 @@ class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
     @QueryParam(kQueryBeaconForwardTo) this.forwardToUserId = '',
     @QueryParam(kQueryBeaconParentId) this.parentBeaconId = '',
     @QueryParam(kQueryBeaconSourceMessageId) this.sourceMessageId = '',
+    @QueryParam(kQueryBeaconConvertFromPostId) this.convertFromPostId = '',
+    @QueryParam(kQueryBeaconConvertIsDiscoverable)
+    this.convertIsDiscoverable = true,
     super.key,
   });
 
@@ -76,6 +79,13 @@ class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
   /// General message to promote into a child request.
   final String sourceMessageId;
 
+  /// Post being converted to a Request: the form is prefilled from its root
+  /// message and submitting converts it instead of creating a new beacon.
+  final String convertFromPostId;
+
+  /// Discoverability the author chose in the convert confirmation.
+  final bool convertIsDiscoverable;
+
   @override
   State<BeaconCreateScreen> createState() => _BeaconCreateScreenState();
 
@@ -89,6 +99,10 @@ class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
         create: (_) => BeaconCreateCubit(
           draftBeaconIdToLoad: draftId.isEmpty ? null : draftId,
           editBeaconIdToLoad: editId.isEmpty ? null : editId,
+          convertFromPostId: convertFromPostId.isEmpty
+              ? null
+              : convertFromPostId,
+          convertIsDiscoverable: convertIsDiscoverable,
           childCreationContext: _childCreationContext(
             parentBeaconId: parentBeaconId,
             sourceMessageId: sourceMessageId,
@@ -200,6 +214,11 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
     final id = _beaconCreateCubit.state.draftId;
     if (id == null || id.isEmpty) return;
     await popCreateAndOpenLiveBeacon(context.router, beaconId: id);
+  }
+
+  Future<void> _submitConversion() async {
+    _formKey.currentState?.save();
+    await _beaconCreateCubit.submitConversion();
   }
 
   Future<void> _sendRequest() async {
@@ -338,7 +357,7 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
                 ),
               ),
           actions: [
-            if (!isRecipients)
+            if (!isRecipients && widget.convertFromPostId.isEmpty)
               BlocBuilder<BeaconCreateCubit, BeaconCreateState>(
                 bloc: _beaconCreateCubit,
                 buildWhen: (p, c) =>
@@ -526,6 +545,28 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
                           label: l10n.buttonSaveChanges,
                         ),
                       ),
+                    );
+                  }
+
+                  if (widget.convertFromPostId.isNotEmpty) {
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const TenturaHairlineDivider(subtle: true),
+                        SizedBox(height: tt.rowGap),
+                        SizedBox(
+                          height: tt.buttonHeight,
+                          width: double.infinity,
+                          child: FilledButton(
+                            key: const Key('BeaconCreate.ConvertButton'),
+                            onPressed: state.isLoading
+                                ? null
+                                : () => unawaited(_submitConversion()),
+                            child: Text(l10n.buttonPublish),
+                          ),
+                        ),
+                      ],
                     );
                   }
 
