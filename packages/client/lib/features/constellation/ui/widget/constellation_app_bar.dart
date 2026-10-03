@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
 import '../bloc/constellation_cubit.dart';
+import 'constellation_create_entry.dart';
 import 'constellation_filter_bar.dart';
 
 /// App-bar row for the constellation field: title, optional legend, filters,
@@ -37,6 +39,7 @@ class ConstellationAppBarRow extends StatelessWidget {
       builder: (context, state) {
         final cubit = context.read<ConstellationCubit>();
         final showLegend = state.viewMode == ConstellationViewMode.map;
+        final composer = maybeConstellationComposer(context);
 
         return Row(
           children: [
@@ -67,6 +70,25 @@ class ConstellationAppBarRow extends StatelessWidget {
                 ),
               ),
             ),
+            if (composer != null)
+              PopupMenuButton<BeaconKind>(
+                key: const Key('constellation.app_bar.create_here'),
+                tooltip: l10n.constellationCreateHere,
+                icon: const Icon(Icons.add_circle_outline),
+                popUpAnimationStyle: AnimationStyle.noAnimation,
+                itemBuilder: (_) => constellationCreateMenuItems(l10n),
+                onSelected: (kind) {
+                  final controller = cubit.graphController;
+                  final size = controller.viewportSize;
+                  if (size == null) {
+                    return;
+                  }
+                  composer.start(
+                    kind,
+                    controller.viewportLocalToScene(size.center(Offset.zero)),
+                  );
+                },
+              ),
             IconButton(
               key: const Key('constellation.app_bar.filters'),
               tooltip: l10n.constellationFiltersOpen,

@@ -1255,6 +1255,11 @@
   "@requestDiscoverableOff": {
     "description": "Explains discoverability when the toggle is off (used as subtitle when off, or as the sibling alternative when on)."
   },
+  "constellationCreateHere": "Create here",
+  "@constellationCreateHere": {
+    "description": "Tooltip of the Field app-bar button that offers creating a Post or Request at the viewport centre",
+    "context": "ConstellationAppBarRow"
+  },
   "constellationTitle": "My field",
   "@constellationTitle": {
     "description": "App bar title on the Field (Constellation) screen",

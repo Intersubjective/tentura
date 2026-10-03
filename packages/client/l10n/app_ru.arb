@@ -1255,6 +1255,7 @@
   "@requestDiscoverableOff": {
     "description": "Explains discoverability when the toggle is off (used as subtitle when off, or as the sibling alternative when on)."
   },
+  "constellationCreateHere": "Создать здесь",
   "constellationTitle": "Моё поле",
   "@constellationTitle": {
     "description": "App bar title on the Field (Constellation) screen",

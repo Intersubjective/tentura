@@ -30,6 +30,8 @@ import '../utils/constellation_presentation_frame.dart';
 import '../utils/constellation_tap_resolver.dart';
 import 'constellation_anchor_controls.dart';
 import 'constellation_camera_controls.dart';
+import 'constellation_composer_radius.dart';
+import 'constellation_create_entry.dart';
 import 'constellation_filter_bar.dart';
 import 'constellation_overflow_group.dart';
 import 'constellation_request_status_marker.dart';
@@ -69,6 +71,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
   (Brightness, Locale, double)? _lastFootprintSyncKey;
   String? _selectionUnavailableMessage;
   final _internalFrameHolder = ConstellationPresentationFrameHolder();
+  final _graphStackKey = GlobalKey();
 
   // Single owner of pin zoom detail: per-node history would diverge when a
   // node is recreated inside the hysteresis band.
@@ -643,12 +646,36 @@ class _ConstellationBodyState extends State<ConstellationBody> {
         ? tt.screenHPadding + tt.graphPersonContextWidth + tt.screenHPadding
         : tt.screenHPadding;
 
+    final composer = maybeConstellationComposer(context);
+    void offerCreate(Offset scene) {
+      final box = _graphStackKey.currentContext?.findRenderObject();
+      if (composer == null || box is! RenderBox) {
+        return;
+      }
+      unawaited(
+        showConstellationCreateMenu(
+          context,
+          composer: composer,
+          globalPosition: box.localToGlobal(
+            cubit.graphController.sceneToViewportLocal(scene),
+          ),
+          scenePosition: scene,
+        ),
+      );
+    }
+
     return Stack(
+      key: _graphStackKey,
       fit: StackFit.expand,
       children: [
         GraphView<NodeDetails, EdgeDetails>(
           controller: cubit.graphController,
           canvasSize: ConstellationBody._canvasSize,
+          canvasBackgroundBuilder: composer == null
+              ? null
+              : (_) => ConstellationComposerCircle(composer: composer),
+          onCanvasSecondaryTap: composer == null ? null : offerCreate,
+          onCanvasLongPress: composer == null ? null : offerCreate,
           minScale: 0.1,
           maxScale: 3,
           layoutAlgorithm: layoutAlgorithm,
@@ -806,6 +833,13 @@ class _ConstellationBodyState extends State<ConstellationBody> {
             frameHolder: _frameHolder,
           ),
         ),
+        if (composer != null)
+          Positioned.fill(
+            child: ConstellationComposerHandle(
+              composer: composer,
+              controller: cubit.graphController,
+            ),
+          ),
         Positioned(
           top: 0,
           left: 0,
