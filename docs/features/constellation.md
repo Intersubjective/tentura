@@ -18,6 +18,17 @@ A request can appear in Constellation **and** already be held (authored, offered
 
 Alongside the automatic field, each account can pin a person or a request at a chosen map position. Pins are private presentation choices: they do not change discoverability, permissions, discussion admission, or anyone else's Constellation.
 
+## Approved Post + composer amendment (A3–A7)
+
+These are contracts from the [Post + Constellation plan](../plans/post-and-constellation-composer-plan.md), not a statement of release completion. A **Post** is addressed, never discoverable; only Posts readable through existing authorization may appear in the personal field.
+
+- **Membership webs (A3):** only the selected Post or Request draws object-to-person edges for **forwarded to** and **inside**, in two distinct colours. Endpoints must already be placed on ego's map; everyone else collapses into **+N**, without identities or new nodes. D6 mutual visibility remains unchanged; Request forwarded-to webs require involvement-read permission. The forward chain stays on the forward-graph screen.
+- **Composer widening (A4):** the visible composition temporarily includes forward-eligible visible peers up to the render cap (120); exit restores normal composition. A canvas secondary tap, long press, and visible toolbar button open creation at the chosen point. All Post creation entries obey `kPostsEnabled`.
+- **Recipient selection:** a movable draft and audience-radius handle use one selection authority shared with the list picker: `(inRadius ∪ manualAdded) \ manualRemoved`, intersected with current eligibility. Chips, graph taps, radius changes, and list toggles use that same intent API. Panning does not change the radius; an accessible slider and list alternative remain available.
+- **Session draft (A6):** the composer draft node is the sole exception to persisted pin placement. It is session-local, writes no anchor until publish, and suspends person drag-to-pin while composing. Publish creates the object first, then saves its anchor; anchor failure leaves the published object intact and reports the failure.
+- **Post presence (A5):** `last_activity_at` gives a 72-hour active window, fading over the final 24 hours and then leaving the active field. History remains; pinned Posts retain their anchor. Recency controls presence only, never ranking, sort order, people geometry, or Request prominence.
+- **No membership bond (A7):** being in a Post does not create `person_bond`, forwarding eligibility, or shared-context visibility.
+
 ## Home navigation
 
 Bottom navigation (default tab: **My Work**):
@@ -50,7 +61,7 @@ Migrations: **m0160** (`is_discoverable`), **m0161** (symmetric visibility), **m
 - Each person's **active discoverable requests** hang off them as satellite nodes.
 - **Pinned people and requests** retain the viewer's chosen positions across sessions and devices. Pinning a person does not pin or move that person's requests; each request has its own pin.
 - **Residual ring:** mutually visible peers with no drawable path within the hop cap still appear on an outer ring with their requests — tappable, but without a drawn explanation path (D3).
-- **Forward edges are never drawn** (D5). A forwarded request belongs in Inbox, not as a discovery path.
+- **Forward chains are never drawn** (D5). A forwarded request belongs in Inbox, not as a discovery path. The approved membership-web exception below does not draw relay provenance.
 
 ### Edge vocabulary (legend)
 

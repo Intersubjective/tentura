@@ -33,11 +33,15 @@ Older iterations assumed feed/discovery, comments, contexts, and broad social-ne
 - **Forwarding** matters more than posting.
 - **Coordination state** matters more than discussion volume.
 
+**Approved Post amendment (A1):** the Post + Constellation feature extends this direction to addressed **Posts** as well as Requests. A Post is not public, discoverable, or a feed item. This is the feature contract, not a claim that the feature has shipped; implementation and release gates are in [`plans/post-implementation-steps.md`](plans/post-implementation-steps.md).
+
 ## 4. v1 object model
 
 ### 4.1 Beacon is the only first-class object
 
 For v1, **beacon** is the only primary object: a request/need/task that can be forwarded, committed to, coordinated in a **discussion** (internally: room), closed, and optionally nested under a parent via `parent_beacon_id`. Nesting is independent of fork **lineage** (`beaconFork` / `lineage_parent_beacon_id`).
+
+Under the approved Post amendment, `beacon` remains the only primary table/entity, with **Request** (`kind = 0`) and **Post** (`kind = 1`). A Post's content is the author's first General room message (the **root message**, `post_root_message_id`), including attachments and mentions; it has no separate title/description. Its workspace is **Chat** / «Чат». An active inbound forward edge admits a Post addressee without helper stake; Request admission remains explicit. Post membership does not create `person_bond` (A7). Post → Request is a one-way, validated in-place conversion, not a new object. Public comments and global 1:1 chat remain out of scope.
 
 ### 4.2 Explicitly out of scope for v1
 
@@ -114,7 +118,7 @@ A **help offer** is a public, explicit action with a note — willingness to act
 
 The author signals **coverage/fit** via beacon status and **per-offer responses** — not approval/rejection of people. The author **accepts or declines a help offer** (the proposal), not the person. Declining requires a **reason** and is **private** to the offerer.
 
-**Chat admission is always explicit** — offering help or receiving a direct forward does **not** auto-admit. Accepting with an acknowledging response (`useful` / `needCoordination`) grants Chat access together with committer stake.
+**Request Chat admission is always explicit** — offering help or receiving a direct forward does **not** auto-admit. Accepting with an acknowledging response (`useful` / `needCoordination`) grants Chat access together with committer stake. The approved Post-only forward-admission exception is described in §4.1.
 
 Status includes phases such as: no offers yet, coordinating the plan, more/different help needed, enough help in motion. Unreviewed offers stay on the author's YOU/ACT (`Review offers`), not the shared STATUS line.
 
