@@ -189,7 +189,7 @@ Future<void> _runJourney({
   );
   final beaconId = _beaconIdFromUrl(await author.driver.currentUrl);
   await author.clickTestId('beacon.tab.people');
-  await authorPeer.open('/home/updates');
+  await authorPeer.open('/home/inbox/history');
   await authorPeer.waitForText('Updates');
 
   // 2. Helper offers help; the already-mounted People projection converges.
@@ -212,7 +212,7 @@ Future<void> _runJourney({
   // 2a. The enabled Updates slice receives exactly one offer receipt in both
   // author sessions. Opening the card must mark it seen before navigating to
   // the exact People target, then converge its unread badge to zero everywhere.
-  await author.open('/home/updates');
+  await author.open('/home/inbox/history');
   await author.waitForText('Updates');
   await Future.wait([
     author.waitForText('offered help'),
@@ -230,7 +230,7 @@ Future<void> _runJourney({
         (await author.driver.currentUrl).contains('/beacon/view/$beaconId'),
   );
   await author.waitForText('People');
-  await author.open('/home/updates');
+  await author.open('/home/inbox/history');
   await author.waitForText('Updates');
   timings['updates_open_ack_ms'] = await _measureUntil(
     () async =>
@@ -250,20 +250,8 @@ Future<void> _runJourney({
   // then prove the successful hint creates exactly one remote bubble.
   // helperPeer enters Chat so helper's same-account My Work tab stays room-naive.
   await Future.wait([
-    author.open('/beacon/view/$beaconId'),
-    helperPeer.open('/beacon/view/$beaconId'),
-  ]);
-  await Future.wait([
-    author.clickTestId('beacon.tab.threads'),
-    helperPeer.clickTestId('beacon.tab.threads'),
-  ]);
-  await Future.wait([
-    author.clickText('General'),
-    helperPeer.clickText('General'),
-  ]);
-  await Future.wait([
-    author.waitForTestId('room.message.input'),
-    helperPeer.waitForTestId('room.message.input'),
+    _openGeneral(author, beaconId),
+    _openGeneral(helperPeer, beaconId),
   ]);
 
   await helperPeer.blockGraphql(true);
@@ -312,15 +300,14 @@ Future<void> _runJourney({
     () async =>
         await _roomUnreadFromStatus(helper, beaconId) == unreadBeforeProbe + 1,
   );
-  await helperPeer.open('/beacon/view/$beaconId');
-  await helperPeer.clickText('General');
+  await _openGeneral(helperPeer, beaconId);
   await helperPeer.waitForText(myWorkUnreadMessage);
   timings['same_account_my_work_read_ms'] = await _measureUntil(
     () async => await _roomUnreadFromStatus(helper, beaconId) == 0,
     timeout: const Duration(seconds: 5),
   );
 
-  // 4. Nested child hierarchy convergence on a mounted parent Threads view.
+  // 4. Nested child hierarchy convergence on a mounted parent Now view.
   // The helper is an admitted participant and may publish a child; the author's
   // second session must converge without navigation while Inbox stays unchanged.
   final childTitle = 'Nested child $suffix';
@@ -330,20 +317,14 @@ Future<void> _runJourney({
     helper.open('/beacon/view/$beaconId'),
   ]);
   await Future.wait([
-    authorPeer.clickTestId('beacon.tab.threads'),
-    helper.clickTestId('beacon.tab.threads'),
+    authorPeer.clickTestId('beacon.tab.now'),
+    helper.clickTestId('beacon.tab.now'),
   ]);
-  // Stay on the Threads overview (General card + Child requests section)
-  // rather than opening General itself: the new child's title renders on
-  // its BeaconChildRequestsSection card here, not inline in the chat feed
-  // (the hierarchy notice there only ever says "Child request created",
-  // never the child's own title — see room_message_tile.dart /
-  // beacon_hierarchy_notice.dart). "Without navigation" means this mounted
-  // overview must silently pick up the new card, not that a chat view stays
-  // mounted.
+  // Child request cards render on Now; Chat opens General directly.
+  // Keep Now mounted so the new card must arrive without navigation.
   await Future.wait([
-    authorPeer.waitForText('General'),
-    helper.waitForText('General'),
+    authorPeer.waitForTestId('request.child.create'),
+    helper.waitForTestId('request.child.create'),
   ]);
   final childBeaconId = await _createPublishedChildViaApi(
     helperEmail: fixture.helperEmail,
@@ -392,20 +373,8 @@ Future<void> _runJourney({
   // 6. Force a confirmed missed-event window. The server deny gate prevents
   // auth until resume, so the mutation cannot be delivered live.
   await Future.wait([
-    author.open('/beacon/view/$beaconId'),
-    helper.open('/beacon/view/$beaconId'),
-  ]);
-  await Future.wait([
-    author.clickTestId('beacon.tab.threads'),
-    helper.clickTestId('beacon.tab.threads'),
-  ]);
-  await Future.wait([
-    author.clickText('General'),
-    helper.clickText('General'),
-  ]);
-  await Future.wait([
-    author.waitForTestId('room.message.input'),
-    helper.waitForTestId('room.message.input'),
+    _openGeneral(author, beaconId),
+    _openGeneral(helper, beaconId),
   ]);
   final suspended = await _controlSocket(
     qaToken,
@@ -469,7 +438,7 @@ Future<void> _runJourney({
   // 8. Issue #102: helper stays on My Work; author accepts the offer via API.
   await Future.wait([
     helper.open('/home/work'),
-    helperPeer.open('/home/updates'),
+    helperPeer.open('/home/inbox/history'),
   ]);
   await Future.wait([
     helper.waitForText('Accept proof $suffix'),
@@ -617,6 +586,20 @@ Future<void> _runJourney({
   }
 }
 
+// Chat opens General directly; there is no thread list to select from.
+Future<void> _openGeneral(BrowserSession session, String beaconId) async {
+  await session.open('/beacon/view/$beaconId');
+  await _waitUntil(
+    () async =>
+        await session.hasTestId('room.message.input') ||
+        await session.hasTestId('beacon.tab.room'),
+  );
+  if (!await session.hasTestId('room.message.input')) {
+    await session.clickTestId('beacon.tab.room');
+  }
+  await session.waitForTestId('room.message.input');
+}
+
 Future<void> _clearAuthorAttentionBaseline(
   BrowserSession author,
   BrowserSession authorPeer,
@@ -625,8 +608,8 @@ Future<void> _clearAuthorAttentionBaseline(
   // gate enabled that setup event is a valid receipt, but not part of the
   // offer-help release journey, so settle it through the actual Updates UI.
   await Future.wait([
-    author.open('/home/updates'),
-    authorPeer.open('/home/updates'),
+    author.open('/home/inbox/history'),
+    authorPeer.open('/home/inbox/history'),
   ]);
   await Future.wait([
     author.waitForText('Updates'),
