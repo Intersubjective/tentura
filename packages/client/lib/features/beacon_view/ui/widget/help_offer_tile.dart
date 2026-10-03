@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
@@ -97,12 +96,19 @@ class HelpOfferTile extends StatelessWidget {
         !isWithdrawn && helpOffer.user.id != beaconAuthorId;
     final participantMeta = participant;
     final nextMove = participantMeta?.nextMoveText?.trim();
-    final locale = Localizations.localeOf(context).toString();
-    final participantUpdated = participantMeta == null
+    // One timestamp format per card (UI review #205), and no "Updated" line
+    // when it would repeat the header time.
+    final participantUpdatedAt = participantMeta?.updatedAt.toLocal();
+    final participantUpdated =
+        participantUpdatedAt == null ||
+            participantUpdatedAt
+                    .difference(dateShown.toLocal())
+                    .inMinutes
+                    .abs() <
+                1
         ? null
-        : DateFormat.yMMMd(
-            locale,
-          ).add_Hm().format(participantMeta.updatedAt.toLocal());
+        : '${dateFormatYMD(participantUpdatedAt)} · '
+              '${timeFormatHm(participantUpdatedAt)}';
     final stakeParticipationLabel = helpOfferStakeParticipationLabel(
       l10n,
       helpOffer.stakeState,

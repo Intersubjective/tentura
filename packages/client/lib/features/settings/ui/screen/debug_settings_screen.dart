@@ -18,6 +18,8 @@ import '../bloc/debug_settings_cubit.dart';
 import '../message/debug_settings_messages.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/features/home/ui/widget/home_rail_frame.dart';
+import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
+import 'package:tentura/consts.dart';
 
 @RoutePage()
 class DebugSettingsScreen extends StatelessWidget implements AutoRouteWrapper {
@@ -47,7 +49,7 @@ class DebugSettingsScreen extends StatelessWidget implements AutoRouteWrapper {
       child: Scaffold(
         appBar: TenturaTopBar.of(
           context,
-          leading: const AutoLeadingButton(),
+          leading: const AutoLeadingWithFallback(fallbackPath: kPathSettings),
           title: Text(l10n.settingsDebug),
           actions: [
             IconButton(

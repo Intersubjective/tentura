@@ -83,7 +83,7 @@ void main() {
 
     expect(find.text('Mom'), findsOneWidget);
     expect(find.text('Alice · @alice'), findsOneWidget);
-    expect(find.textContaining('Trust:'), findsOneWidget);
+    expect(find.text('No trust yet'), findsOneWidget);
   });
 
   testWidgets('peer with empty shownName uses noName', (tester) async {
@@ -104,7 +104,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('You'), findsOneWidget);
-    expect(find.textContaining('Trust:'), findsNothing);
+    expect(find.text('No trust yet'), findsNothing);
     expect(find.text('@ada'), findsOneWidget);
   });
 }

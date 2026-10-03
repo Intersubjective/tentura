@@ -23,12 +23,19 @@ class ProfileEditScreen extends StatefulWidget implements AutoRouteWrapper {
   const ProfileEditScreen({super.key});
 
   @override
-  Widget wrappedRoute(BuildContext context) => BlocProvider(
-    create: (_) => ProfileEditCubit(
-      profile: GetIt.I<ProfileCubit>().state.profile,
-    ),
-    child: this,
-  );
+  Widget wrappedRoute(BuildContext context) {
+    final profileCubit = GetIt.I<ProfileCubit>();
+    return BlocProvider(
+      create: (_) => ProfileEditCubit(profile: profileCubit.state.profile),
+      child: BlocListener<ProfileCubit, ProfileState>(
+        bloc: profileCubit,
+        listenWhen: (a, b) => a.profile != b.profile,
+        listener: (context, state) =>
+            context.read<ProfileEditCubit>().adoptProfile(state.profile),
+        child: this,
+      ),
+    );
+  }
 
   @override
   State<ProfileEditScreen> createState() => _ProfileEditScreenState();
@@ -82,209 +89,228 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
             if (didPop) return;
             await _requestClose(context, isDirty: hasChanges);
           },
-          child: Form(
-            key: _formKey,
-            child: HomeRailFrame(
-              selectedTab: HomeTab.me,
-              child: Scaffold(
-                appBar: TenturaTopBar.of(
-                  context,
-                  title: Text(l10n.profileOverflowEdit),
-                  leading: IconButton(
-                    tooltip: MaterialLocalizations.of(
-                      context,
-                    ).backButtonTooltip,
-                    icon: const Icon(Icons.arrow_back),
-                    onPressed: () =>
-                        unawaited(_requestClose(context, isDirty: hasChanges)),
-                  ),
-                  actions: [
-                    BlocSelector<
-                      ProfileEditCubit,
-                      ProfileEditState,
-                      (bool, bool)
-                    >(
-                      selector: (state) => (state.hasChanges, state.isLoading),
-                      builder: (_, state) {
-                        final (hasChanges, isLoading) = state;
-                        return TextButton(
-                          onPressed: hasChanges && !isLoading
-                              ? () => _save(cubit)
-                              : null,
-                          child: Text(l10n.buttonSave),
-                        );
-                      },
-                    ),
-                  ],
-                  progress:
-                      BlocSelector<ProfileEditCubit, ProfileEditState, bool>(
-                        selector: (state) => state.isLoading,
-                        builder: TenturaTopBar.loadingBar,
+          // Fields are keyed on the baseline id so `initialValue` picks up a
+          // profile adopted after a cold start.
+          child: BlocSelector<ProfileEditCubit, ProfileEditState, String>(
+            // The account placeholder and the fetched profile share an id, so
+            // key on the editable content, not the id.
+            selector: (state) => Object.hash(
+              state.original.id,
+              state.original.displayName,
+              state.original.handle,
+              state.original.description,
+            ).toString(),
+            builder: (context, originalId) => Form(
+              key: _formKey,
+              child: HomeRailFrame(
+                selectedTab: HomeTab.me,
+                child: Scaffold(
+                  appBar: TenturaTopBar.of(
+                    context,
+                    title: Text(l10n.profileOverflowEdit),
+                    leading: IconButton(
+                      tooltip: MaterialLocalizations.of(
+                        context,
+                      ).backButtonTooltip,
+                      icon: const Icon(Icons.arrow_back),
+                      onPressed: () => unawaited(
+                        _requestClose(context, isDirty: hasChanges),
                       ),
-                ),
-                resizeToAvoidBottomInset: false,
-                body: SafeArea(
-                  child: TenturaContentColumn(
-                    child: Column(
-                      children: [
-                        Padding(
-                          padding: EdgeInsets.fromLTRB(
-                            tt.screenHPadding,
-                            tt.sectionGap,
-                            tt.screenHPadding,
-                            tt.rowGap,
-                          ),
-                          child: BlocBuilder<ProfileEditCubit, ProfileEditState>(
-                            buildWhen: (p, c) =>
-                                p.image != c.image ||
-                                p.willDropImage != c.willDropImage ||
-                                p.isLoading != c.isLoading,
-                            builder: (_, state) {
-                              final avatarSize =
-                                  tt.avatarSize *
-                                  (kTenturaAvatarBigSize /
-                                      kTenturaAvatarDefaultMedium);
-                              return Column(
-                                children: [
-                                  if (state.hasNoImage && state.canDropImage)
-                                    SelfAwareAvatar.big(
-                                      profile: cubit.state.original,
-                                    )
-                                  else
-                                    SizedBox.square(
-                                      dimension: avatarSize,
-                                      child: ClipOval(
-                                        child:
-                                            state.hasNoImage ||
-                                                state.willDropImage
-                                            ? TenturaAvatar.avatarPlaceholder()
-                                            : Image.memory(
-                                                state.image!.imageBytes!,
-                                                fit: BoxFit.cover,
-                                              ),
+                    ),
+                    actions: [
+                      BlocSelector<
+                        ProfileEditCubit,
+                        ProfileEditState,
+                        (bool, bool)
+                      >(
+                        selector: (state) =>
+                            (state.hasChanges, state.isLoading),
+                        builder: (_, state) {
+                          final (hasChanges, isLoading) = state;
+                          return TextButton(
+                            onPressed: hasChanges && !isLoading
+                                ? () => _save(cubit)
+                                : null,
+                            child: Text(l10n.buttonSave),
+                          );
+                        },
+                      ),
+                    ],
+                    progress:
+                        BlocSelector<ProfileEditCubit, ProfileEditState, bool>(
+                          selector: (state) => state.isLoading,
+                          builder: TenturaTopBar.loadingBar,
+                        ),
+                  ),
+                  resizeToAvoidBottomInset: false,
+                  body: SafeArea(
+                    child: TenturaContentColumn(
+                      child: Column(
+                        children: [
+                          Padding(
+                            padding: EdgeInsets.fromLTRB(
+                              tt.screenHPadding,
+                              tt.sectionGap,
+                              tt.screenHPadding,
+                              tt.rowGap,
+                            ),
+                            child: BlocBuilder<ProfileEditCubit, ProfileEditState>(
+                              buildWhen: (p, c) =>
+                                  p.image != c.image ||
+                                  p.willDropImage != c.willDropImage ||
+                                  p.isLoading != c.isLoading,
+                              builder: (_, state) {
+                                final avatarSize =
+                                    tt.avatarSize *
+                                    (kTenturaAvatarBigSize /
+                                        kTenturaAvatarDefaultMedium);
+                                return Column(
+                                  children: [
+                                    if (state.hasNoImage && state.canDropImage)
+                                      SelfAwareAvatar.big(
+                                        profile: cubit.state.original,
+                                      )
+                                    else
+                                      SizedBox.square(
+                                        dimension: avatarSize,
+                                        child: ClipOval(
+                                          child:
+                                              state.hasNoImage ||
+                                                  state.willDropImage
+                                              ? TenturaAvatar.avatarPlaceholder()
+                                              : Image.memory(
+                                                  state.image!.imageBytes!,
+                                                  fit: BoxFit.cover,
+                                                ),
+                                        ),
                                       ),
+                                    SizedBox(height: tt.rowGap),
+                                    _ProfileAvatarActions(
+                                      canRemove:
+                                          state.canDropImage || state.hasImage,
+                                      canCrop:
+                                          state.hasImage ||
+                                          (state.canDropImage &&
+                                              state.hasNoImage &&
+                                              cubit.state.original.hasAvatar),
+                                      isLoading: state.isLoading,
+                                      onRemove: cubit.clearImage,
+                                      onCrop: cropAvatar,
+                                      onUpload: uploadAvatar,
+                                      uploadLabel: l10n.profilePhotoUpload,
+                                      cropLabel: l10n.profilePhotoCrop,
+                                      removeLabel: l10n.buttonRemove,
                                     ),
-                                  SizedBox(height: tt.rowGap),
-                                  _ProfileAvatarActions(
-                                    canRemove:
-                                        state.canDropImage || state.hasImage,
-                                    canCrop:
-                                        state.hasImage ||
-                                        (state.canDropImage &&
-                                            state.hasNoImage &&
-                                            cubit.state.original.hasAvatar),
-                                    isLoading: state.isLoading,
-                                    onRemove: cubit.clearImage,
-                                    onCrop: cropAvatar,
-                                    onUpload: uploadAvatar,
-                                    uploadLabel: l10n.profilePhotoUpload,
-                                    cropLabel: l10n.profilePhotoCrop,
-                                    removeLabel: l10n.buttonRemove,
-                                  ),
-                                ],
-                              );
-                            },
-                          ),
-                        ),
-
-                        Padding(
-                          padding: fieldPadding,
-                          child: TextFormField(
-                            autovalidateMode: AutovalidateMode.onUnfocus,
-                            decoration: tenturaFormFieldDecoration(
-                              context,
-                              labelText: l10n.labelDisplayName,
-                              hintText: l10n.pleaseFillDisplayName,
-                            ),
-                            initialValue: cubit.state.displayName,
-                            maxLength: kTitleMaxLength,
-                            buildCounter: tenturaCounterNearLimit,
-                            style: tenturaFormFieldTextStyle(context),
-                            onChanged: cubit.setDisplayName,
-                            onTapOutside: (_) =>
-                                FocusScope.of(context).unfocus(),
-                            validator: (text) =>
-                                displayNameValidator(l10n, text),
-                          ),
-                        ),
-
-                        Padding(
-                          padding: fieldPadding,
-                          child: TextFormField(
-                            autovalidateMode: AutovalidateMode.onUnfocus,
-                            decoration: tenturaFormFieldDecoration(
-                              context,
-                              labelText: l10n.labelUserHandle,
-                              hintText: l10n.userHandleHint,
-                              helperText: l10n.userHandleHelper,
-                              prefixText: '@',
-                            ),
-                            initialValue: cubit.state.handle,
-                            maxLength: kUserHandleMaxLength,
-                            buildCounter: tenturaCounterNearLimit,
-                            keyboardType: TextInputType.text,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.allow(
-                                RegExp('[a-z0-9_]'),
-                              ),
-                            ],
-                            style: tenturaFormFieldTextStyle(context),
-                            onChanged: cubit.setHandle,
-                            onTapOutside: (_) =>
-                                FocusScope.of(context).unfocus(),
-                            validator: (text) {
-                              final t = (text ?? '').trim().toLowerCase();
-                              if (t.isEmpty) return null;
-                              if (!isValidUserHandleFormat(t)) {
-                                return l10n.userHandleInvalidFormat;
-                              }
-                              return null;
-                            },
-                          ),
-                        ),
-
-                        Expanded(
-                          child: Padding(
-                            padding: fieldPadding,
-                            child: LayoutBuilder(
-                              builder: (context, constraints) {
-                                final textStyle = tenturaFormFieldTextStyle(
-                                  context,
-                                );
-                                final painter = TextPainter(
-                                  text: TextSpan(text: 'A', style: textStyle),
-                                  maxLines: 1,
-                                  textDirection: TextDirection.ltr,
-                                )..layout();
-                                return TextFormField(
-                                  maxLines: constraints.maxHeight > 0
-                                      ? (constraints.maxHeight / painter.height)
-                                            .floor()
-                                      : 1,
-                                  minLines: 1,
-                                  maxLength: kDescriptionMaxLength,
-                                  keyboardType: TextInputType.multiline,
-                                  initialValue: cubit.state.description,
-                                  autovalidateMode: AutovalidateMode.onUnfocus,
-                                  buildCounter: tenturaCounterNearLimit,
-                                  decoration: tenturaFormFieldDecoration(
-                                    context,
-                                    labelText: l10n.labelDescription,
-                                    helperText: l10n.profileDescriptionHelper,
-                                    alignLabelWithHint: true,
-                                  ),
-                                  style: textStyle,
-                                  onChanged: cubit.setDescription,
-                                  onTapOutside: (_) =>
-                                      FocusScope.of(context).unfocus(),
-                                  validator: (text) =>
-                                      descriptionValidator(l10n, text),
+                                  ],
                                 );
                               },
                             ),
                           ),
-                        ),
-                      ],
+
+                          Padding(
+                            padding: fieldPadding,
+                            child: TextFormField(
+                              autovalidateMode: AutovalidateMode.onUnfocus,
+                              decoration: tenturaFormFieldDecoration(
+                                context,
+                                labelText: l10n.labelDisplayName,
+                                hintText: l10n.pleaseFillDisplayName,
+                              ),
+                              key: ValueKey('displayName-$originalId'),
+                              initialValue: cubit.state.displayName,
+                              maxLength: kTitleMaxLength,
+                              buildCounter: tenturaCounterNearLimit,
+                              style: tenturaFormFieldTextStyle(context),
+                              onChanged: cubit.setDisplayName,
+                              onTapOutside: (_) =>
+                                  FocusScope.of(context).unfocus(),
+                              validator: (text) =>
+                                  displayNameValidator(l10n, text),
+                            ),
+                          ),
+
+                          Padding(
+                            padding: fieldPadding,
+                            child: TextFormField(
+                              autovalidateMode: AutovalidateMode.onUnfocus,
+                              decoration: tenturaFormFieldDecoration(
+                                context,
+                                labelText: l10n.labelUserHandle,
+                                hintText: l10n.userHandleHint,
+                                helperText: l10n.userHandleHelper,
+                                prefixText: '@',
+                              ),
+                              key: ValueKey('handle-$originalId'),
+                              initialValue: cubit.state.handle,
+                              maxLength: kUserHandleMaxLength,
+                              buildCounter: tenturaCounterNearLimit,
+                              keyboardType: TextInputType.text,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.allow(
+                                  RegExp('[a-z0-9_]'),
+                                ),
+                              ],
+                              style: tenturaFormFieldTextStyle(context),
+                              onChanged: cubit.setHandle,
+                              onTapOutside: (_) =>
+                                  FocusScope.of(context).unfocus(),
+                              validator: (text) {
+                                final t = (text ?? '').trim().toLowerCase();
+                                if (t.isEmpty) return null;
+                                if (!isValidUserHandleFormat(t)) {
+                                  return l10n.userHandleInvalidFormat;
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+
+                          Expanded(
+                            child: Padding(
+                              padding: fieldPadding,
+                              child: LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final textStyle = tenturaFormFieldTextStyle(
+                                    context,
+                                  );
+                                  final painter = TextPainter(
+                                    text: TextSpan(text: 'A', style: textStyle),
+                                    maxLines: 1,
+                                    textDirection: TextDirection.ltr,
+                                  )..layout();
+                                  return TextFormField(
+                                    maxLines: constraints.maxHeight > 0
+                                        ? (constraints.maxHeight /
+                                                  painter.height)
+                                              .floor()
+                                        : 1,
+                                    minLines: 1,
+                                    maxLength: kDescriptionMaxLength,
+                                    keyboardType: TextInputType.multiline,
+                                    key: ValueKey('description-$originalId'),
+                                    initialValue: cubit.state.description,
+                                    autovalidateMode:
+                                        AutovalidateMode.onUnfocus,
+                                    buildCounter: tenturaCounterNearLimit,
+                                    decoration: tenturaFormFieldDecoration(
+                                      context,
+                                      labelText: l10n.labelDescription,
+                                      helperText: l10n.profileDescriptionHelper,
+                                      alignLabelWithHint: true,
+                                    ),
+                                    style: textStyle,
+                                    onChanged: cubit.setDescription,
+                                    onTapOutside: (_) =>
+                                        FocusScope.of(context).unfocus(),
+                                    validator: (text) =>
+                                        descriptionValidator(l10n, text),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),

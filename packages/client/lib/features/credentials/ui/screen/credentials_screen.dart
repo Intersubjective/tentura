@@ -17,6 +17,7 @@ import '../../domain/entity/credential_types.dart';
 import '../bloc/credentials_cubit.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/features/home/ui/widget/home_rail_frame.dart';
+import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
 
 @RoutePage()
 class CredentialsScreen extends StatefulWidget implements AutoRouteWrapper {
@@ -81,7 +82,7 @@ class _CredentialsScreenState extends State<CredentialsScreen>
       child: Scaffold(
         appBar: TenturaTopBar.of(
           context,
-          leading: const AutoLeadingButton(),
+          leading: const AutoLeadingWithFallback(fallbackPath: kPathSettings),
           title: Text(l10n.signInMethods),
           progress: BlocSelector<CredentialsCubit, CredentialsState, bool>(
             selector: (state) => state.isLoading,

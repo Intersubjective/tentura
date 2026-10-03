@@ -48,10 +48,10 @@ class NetworkPersonCard extends StatelessWidget {
   final List<String> closeAckSlugs;
 
   String _trustReciprocityLabel(L10n l10n) {
-    if (profile.isMutualFriend) return l10n.classMutual;
-    if (profile.isFriend) return l10n.classOneWayOut;
-    if (profile.subjectExplicitlyTrustsViewer) return l10n.classOneWayIn;
-    return l10n.classNone;
+    if (profile.isMutualFriend) return l10n.trustSentenceMutual;
+    if (profile.isFriend) return l10n.trustSentenceOneWayOut;
+    if (profile.subjectExplicitlyTrustsViewer) return l10n.trustSentenceOneWayIn;
+    return l10n.trustSentenceNone;
   }
 
   @override
@@ -124,7 +124,7 @@ class NetworkPersonCard extends StatelessWidget {
                             ),
                           if (!isSelf)
                             Text(
-                              '${l10n.trustRelationPrefix} ${_trustReciprocityLabel(l10n)}',
+                              _trustReciprocityLabel(l10n),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: theme.textTheme.bodySmall?.copyWith(

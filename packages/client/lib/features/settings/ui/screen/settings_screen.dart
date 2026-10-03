@@ -15,6 +15,8 @@ import '../widget/noisy_wall_tile.dart';
 import '../widget/reset_counters_button.dart';
 import '../widget/theme_switch_button.dart';
 import 'package:tentura/features/home/ui/widget/home_rail_frame.dart';
+import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
+import 'package:tentura/consts.dart';
 
 @RoutePage()
 class SettingsScreen extends StatelessWidget implements AutoRouteWrapper {
@@ -55,7 +57,7 @@ class SettingsScreen extends StatelessWidget implements AutoRouteWrapper {
       child: Scaffold(
         appBar: TenturaTopBar.of(
           context,
-          leading: const AutoLeadingButton(),
+          leading: const AutoLeadingWithFallback(fallbackPath: kPathProfile),
           title: Text(l10n.labelSettings),
           progress: BlocSelector<AuthCubit, AuthState, bool>(
             bloc: authCubit,

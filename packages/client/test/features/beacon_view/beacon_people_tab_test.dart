@@ -645,7 +645,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('edit'));
+    await tester.tap(find.text('Edit'));
     await tester.pumpAndSettle();
 
     final field = tester.widget<TextField>(

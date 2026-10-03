@@ -137,7 +137,11 @@ class MyWorkObligationBlock extends StatelessWidget {
             visibleCap: visibleCap,
             beaconId: vm.beaconId,
             requestTitle: vm.beacon.title,
+            // Offers made through the participant path show up only among
+            // admitted helpers; without them the row fell back to an
+            // anonymous "Help offered" (UI review #202).
             actors: {
+              for (final user in vm.beacon.admittedHelperUsers) user.id: user,
               for (final user in vm.beacon.helpOfferUsers) user.id: user,
             },
             // §5: an obligation is not privately dismissible.

@@ -673,18 +673,28 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
                           ),
                         )
                       else
-                        Opacity(
-                          opacity: valid ? 1 : 0.4,
-                          child: SizedBox(
-                            height: tt.buttonHeight,
-                            width: double.infinity,
-                            child: FilledButton(
-                              key: TestIds.key(TestIds.requestRecipientsTab),
-                              onPressed: state.isLoading
-                                  ? null
-                                  : () => unawaited(_onNext()),
-                              child: Text(l10n.beaconCreateNextRecipients),
-                            ),
+                        // Not-ready still answers a tap with validation, so it
+                        // stays enabled but wears the neutral disabled colours
+                        // instead of a 40 % washed-out brand (UI review #197).
+                        SizedBox(
+                          height: tt.buttonHeight,
+                          width: double.infinity,
+                          child: FilledButton(
+                            key: TestIds.key(TestIds.requestRecipientsTab),
+                            style: valid
+                                ? null
+                                : FilledButton.styleFrom(
+                                    backgroundColor: Theme.of(
+                                      context,
+                                    ).colorScheme.surfaceContainerHighest,
+                                    foregroundColor: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                                  ),
+                            onPressed: state.isLoading
+                                ? null
+                                : () => unawaited(_onNext()),
+                            child: Text(l10n.beaconCreateNextRecipients),
                           ),
                         ),
                       if (!state.isLive) ...[

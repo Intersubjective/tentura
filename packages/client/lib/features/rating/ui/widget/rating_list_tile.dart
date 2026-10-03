@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -62,9 +64,18 @@ class RatingListTile extends StatelessWidget {
         colorScheme.primary.withValues(alpha: alpha),
         colorScheme.surface,
       );
-      return ThemeData.estimateBrightnessForColor(fill) == Brightness.dark
-          ? colorScheme.onPrimary
-          : colorScheme.onSurface;
+      // Whichever ink contrasts more with the painted tile — in dark mode a
+      // pale tile is near-black, where onPrimary (navy) vanished (#208).
+      double contrast(Color a, Color b) {
+        final la = a.computeLuminance();
+        final lb = b.computeLuminance();
+        return (math.max(la, lb) + 0.05) / (math.min(la, lb) + 0.05);
+      }
+
+      final candidates = [colorScheme.onSurface, colorScheme.onPrimary];
+      return contrast(candidates[0], fill) >= contrast(candidates[1], fill)
+          ? candidates[0]
+          : candidates[1];
     }
 
     String badgeLabel;
@@ -84,9 +95,10 @@ class RatingListTile extends StatelessWidget {
         badgeBorder = tt.warn.withValues(alpha: 4 / 10);
       case _ReciprocityClass.oneWayIn:
         badgeLabel = l10n.classOneWayIn;
-        badgeBg = colorScheme.secondary.withValues(alpha: 2 / 10);
-        badgeFg = colorScheme.secondary;
-        badgeBorder = colorScheme.secondary.withValues(alpha: 5 / 10);
+        // Neutral, so it stays distinct from the brand "mutual" badge.
+        badgeBg = colorScheme.surfaceContainerHigh;
+        badgeFg = colorScheme.onSurfaceVariant;
+        badgeBorder = colorScheme.outlineVariant;
       case _ReciprocityClass.none:
         badgeLabel = l10n.classNone;
         badgeBg = colorScheme.surfaceContainer;

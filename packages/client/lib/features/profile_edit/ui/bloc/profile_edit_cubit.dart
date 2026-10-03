@@ -24,7 +24,8 @@ class ProfileEditCubit extends Cubit<ProfileEditState> {
     ProfileRepositoryPort? profileRepository,
     UiEffectPort? effects,
   }) : _imageRepository = imageRepository ?? GetIt.I<ImageRepository>(),
-       _profileRepository = profileRepository ?? GetIt.I<ProfileRepositoryPort>(),
+       _profileRepository =
+           profileRepository ?? GetIt.I<ProfileRepositoryPort>(),
        _effects = effects ?? GetIt.I<UiEffectPort>(),
        super(
          ProfileEditState(
@@ -49,9 +50,27 @@ class ProfileEditCubit extends Cubit<ProfileEditState> {
     }
   }
 
+  /// Adopts [profile] as the editing baseline while the form is untouched.
+  ///
+  /// A cold start (refresh / deep link) creates this cubit before the own
+  /// profile has loaded, so the form opened empty and a Save could wipe the
+  /// profile (UI review #207). Once the user has typed, their edits win.
+  void adoptProfile(Profile profile) {
+    if (isClosed || profile.id.isEmpty || state.hasChanges) return;
+    if (profile == state.original) return;
+    emit(
+      ProfileEditState(
+        original: profile,
+        displayName: profile.displayName,
+        handle: profile.handle,
+        description: profile.description,
+        canDropImage: profile.hasAvatar,
+      ),
+    );
+  }
+
   //
-  void setDisplayName(String value) =>
-      emit(state.copyWith(displayName: value));
+  void setDisplayName(String value) => emit(state.copyWith(displayName: value));
 
   //
   void setHandle(String value) => emit(state.copyWith(handle: value));
