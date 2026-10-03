@@ -5,6 +5,7 @@ import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart'
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
+import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 
 import 'room_cubit.dart';
 import 'thread_host_state.dart';
@@ -16,17 +17,20 @@ typedef RoomCubitFactory =
       required String beaconId,
       String? threadItemId,
       DateTime? initialUnreadAnchorAt,
+      RoomCapabilities capabilities,
     });
 
 /// Hosts the General discussion room only (plan §6.1).
 class ThreadHostCubit extends Cubit<ThreadHostState> {
   ThreadHostCubit({
     required this._beaconId,
+    this.capabilities = const RoomCapabilities.request(),
     RoomCubitFactory roomCubitFactory = RoomCubit.new,
   }) : _factory = roomCubitFactory,
        super(const ThreadHostState());
 
   final String _beaconId;
+  final RoomCapabilities capabilities;
   final RoomCubitFactory _factory;
 
   RoomCubit? _roomCubit;
@@ -84,6 +88,7 @@ class ThreadHostCubit extends Cubit<ThreadHostState> {
         beaconId: _beaconId,
         threadItemId: null,
         initialUnreadAnchorAt: thread.lastSeenAt,
+        capabilities: capabilities,
       );
       final cached = _beaconStatus;
       if (cached != null) {

@@ -31,6 +31,7 @@ import '../../domain/entity/committed_mention.dart';
 import '../../domain/entity/request_thread.dart';
 import '../../domain/entity/room_seen_outcome.dart';
 import '../../domain/exception/beacon_fact_already_pinned_exception.dart';
+import '../../domain/room_host.dart';
 import '../../domain/exception/beacon_fact_card_exceptions.dart';
 import '../../domain/use_case/beacon_threads_case.dart';
 import '../message/beacon_room_fact_messages.dart';
@@ -61,6 +62,7 @@ class RoomCubit extends Cubit<RoomState> {
     CoordinationItemRoomSync? coordinationItemRoomSync,
     PresenceRepository? presenceRepository,
     UiEffectPort? effects,
+    this.capabilities = const RoomCapabilities.request(),
   }) : _case = beaconRoomCase ?? GetIt.I<BeaconThreadsCase>(),
        _itemSync =
            coordinationItemRoomSync ?? GetIt.I<CoordinationItemRoomSync>(),
@@ -90,6 +92,9 @@ class RoomCubit extends Cubit<RoomState> {
   }
 
   final BeaconThreadsCase _case;
+
+  /// Request-only fetches this room skips when a capability is off.
+  final RoomCapabilities capabilities;
 
   final CoordinationItemRoomSync _itemSync;
 
@@ -346,7 +351,7 @@ class RoomCubit extends Cubit<RoomState> {
   /// Fact-list-only refresh (factCard invalidation, fact edits); leaves
   /// messages and participants untouched.
   Future<void> _fetchFactCardsSnapshot({required bool silent}) async {
-    if (state.threadItemId != null) return;
+    if (state.threadItemId != null || !capabilities.facts) return;
     try {
       final factCards = await _case.fetchFactCards(state.beaconId);
       if (!isClosed) emit(state.copyWith(factCards: factCards));
@@ -694,21 +699,21 @@ class RoomCubit extends Cubit<RoomState> {
               messageId: pendingMessageId,
             );
       final participantsF = _case.fetchParticipants(state.beaconId);
-      final roomStateF = inThread
+      final roomStateF = inThread || !capabilities.plan
           ? Future<BeaconRoomState?>.value()
           : _case.fetchBeaconRoomState(state.beaconId);
-      final factCardsF = inThread
+      final factCardsF = inThread || !capabilities.facts
           ? Future.value(const <BeaconFactCard>[])
           : _case.fetchFactCards(state.beaconId);
-      final openCoordinationBlockerF = inThread
+      final openCoordinationBlockerF = inThread || !capabilities.blocker
           ? Future<CoordinationItem?>.value()
           : _case.fetchOpenCoordinationBlocker(state.beaconId);
-      final currentCoordinationPlanF = inThread
+      final currentCoordinationPlanF = inThread || !capabilities.plan
           ? Future<CoordinationItem?>.value()
           : _case.fetchCurrentCoordinationPlan(state.beaconId);
       // Join thread reply counts (messageCount/unreadCount) onto messages by
       // linkedItemId — these are not in the gql message snapshot.
-      final coordinationItemsF = inThread
+      final coordinationItemsF = inThread || !capabilities.coordinationItems
           ? Future.value(const <CoordinationItem>[])
           : _case.fetchCoordinationItems(state.beaconId);
       // Non-fatal: a watermark failure must not fail the room load.

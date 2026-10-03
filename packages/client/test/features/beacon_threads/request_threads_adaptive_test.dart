@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 
+import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/data/repository/clipboard_image_repository.dart';
@@ -244,6 +245,7 @@ ThreadHostCubit _host({RoomCubitFactoryRecorder? recorder}) {
       required String beaconId,
       String? threadItemId,
       DateTime? initialUnreadAnchorAt,
+      RoomCapabilities? capabilities,
     }) =>
         factoryRecorder.call(
           beaconId: beaconId,

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:get_it/get_it.dart';
+import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 
 import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
@@ -46,7 +47,7 @@ export 'package:flutter_bloc/flutter_bloc.dart';
 
 export 'beacon_view_state.dart';
 
-class BeaconViewCubit extends Cubit<BeaconViewState> {
+class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
   BeaconViewCubit({
     required String id,
     required Profile myProfile,
@@ -99,6 +100,29 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
   }
 
   final BeaconViewCase _case;
+
+  @override
+  String get beaconId => state.beacon.id;
+
+  @override
+  Profile get author => state.beacon.author;
+
+  @override
+  BeaconStatus get status => state.beacon.status;
+
+  @override
+  bool get isAdmissionBlocked => state.isRoomAdmissionBlocked;
+
+  @override
+  bool get coordinationDeniesAdmission =>
+      state.myActiveHelpOffer?.coordinationResponse ==
+      CoordinationResponseType.notSuitable;
+
+  @override
+  RoomCapabilities get capabilities => const RoomCapabilities.request();
+
+  @override
+  Stream<void> get changes => stream.map((_) {});
 
   final UiEffectPort _effects;
 

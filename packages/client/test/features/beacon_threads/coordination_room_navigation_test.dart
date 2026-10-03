@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 
+import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
@@ -100,6 +101,7 @@ ThreadHostCubit _hostWithRoom(_ScrollTrackingRoomCubit room) {
       required String beaconId,
       String? threadItemId,
       DateTime? initialUnreadAnchorAt,
+      RoomCapabilities? capabilities,
     }) =>
         room,
   );
