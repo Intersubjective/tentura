@@ -48,6 +48,7 @@ const kPathMyWork = '/home/work';
 const kPathConstellation = '/home/constellation';
 const kPathNetwork = '/home/network';
 const kPathBeaconNew = '/beacon/new';
+const kPathPostNew = '/post/new';
 const kPathBeaconView = '/beacon/view';
 const kPathBeaconViewAll = '/beacon/all';
 const kPathBeaconInvolvedAll = '/beacon/involved';

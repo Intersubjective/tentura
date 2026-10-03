@@ -3,6 +3,7 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura/domain/capability/forward_band_row.dart';
 import 'package:tentura/domain/contacts/contact_name_overlay.dart';
+import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -82,6 +83,28 @@ final class ForwardCase extends UseCaseBase {
   Future<String> getCurrentAccountId() =>
       _authLocalRepository.getCurrentAccountId();
 
+  static final BeaconInvolvementData _noInvolvement = (
+    beacon: Beacon.empty,
+    forwardedToIds: const <String>{},
+    helpOfferedIds: const <String>{},
+    withdrawnIds: const <String>{},
+    rejectedIds: const <String>{},
+    watchingIds: const <String>{},
+    onwardForwarderIds: const <String>{},
+    myForwardedRecipientNotes: const <String, String>{},
+    myForwardedRecipientEdgeIds: const <String, String>{},
+    myForwardedRecipientReadAts: const <String, DateTime?>{},
+    myForwardedRecipientHasOnwardChild: const <String, bool>{},
+    myForwardedRecipientRejected: const <String, bool>{},
+  );
+
+  /// No beacon yet (a new Post composes its recipients before a draft exists)
+  /// means nobody is involved with it.
+  Future<BeaconInvolvementData> _involvementOf(String beaconId) =>
+      beaconId.isEmpty
+      ? Future.value(_noInvolvement)
+      : _forwardRepository.fetchBeaconInvolvement(beaconId: beaconId);
+
   Future<ForwardLoad> loadForwardCandidates({
     required String beaconId,
     String context = '',
@@ -90,7 +113,7 @@ final class ForwardCase extends UseCaseBase {
 
     final results = await Future.wait([
       _forwardRepository.fetchForwardCandidates(context: context),
-      _forwardRepository.fetchBeaconInvolvement(beaconId: beaconId),
+      _involvementOf(beaconId),
     ]);
     final profiles = results[0] as Iterable<Profile>;
     final involvement = results[1] as BeaconInvolvementData;

@@ -9,6 +9,7 @@ import 'package:tentura/data/model/beacon_model.dart';
 import 'package:tentura/data/model/user_model.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
@@ -163,7 +164,13 @@ class BeaconRepository implements BeaconWritePort {
   Future<Beacon> create(Beacon beacon, {bool draft = false}) async {
     final request = GBeaconCreateReq((b) {
       b.vars
-        ..title = beacon.title
+        // A Post has no title: the server derives its heading from the root
+        // message, so an empty one is not sent at all.
+        ..title = beacon.kind == BeaconKind.post && beacon.title.isEmpty
+            ? null
+            : beacon.title
+        ..kind = beacon.kind.value
+        ..forwardPolicy = beacon.forwardPolicy.value
         ..description = beacon.description
         ..context = beacon.context.isEmpty ? null : beacon.context
         ..tags = beacon.tags.isEmpty ? null : beacon.tags.join(',')

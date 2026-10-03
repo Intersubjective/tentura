@@ -9,6 +9,7 @@ import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/features/inbox/domain/use_case/posts_case.dart';
+import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
@@ -25,10 +26,14 @@ import '../widget/posts_tab_view.dart';
 class InboxScreen extends StatefulWidget {
   const InboxScreen({
     @QueryParam(kQueryHomeTab) this.initialTab,
+    this.canCreatePost,
     super.key,
   });
 
   final String? initialTab;
+
+  /// Whether the top bar offers starting a Post; defaults to [kPostsEnabled].
+  final bool? canCreatePost;
 
   @override
   State<InboxScreen> createState() => _InboxScreenState();
@@ -142,9 +147,16 @@ class _InboxScreenState extends State<InboxScreen>
                         overflow: TextOverflow.ellipsis,
                         style: TenturaText.titleLarge(scheme.onPrimary),
                       ),
-                      actions: const [
-                        _ActivityDismissAllButton(),
-                        _InboxOverflowMenu(showNotificationHistory: true),
+                      actions: [
+                        if (widget.canCreatePost ?? kPostsEnabled)
+                          IconButton(
+                            icon: const Icon(Icons.edit_outlined),
+                            tooltip: l10n.postsTabNewPost,
+                            onPressed: () =>
+                                context.read<ScreenCubit>().showPostCreate(),
+                          ),
+                        const _ActivityDismissAllButton(),
+                        const _InboxOverflowMenu(showNotificationHistory: true),
                       ],
                       bottom: TenturaPrimaryTabBar(
                         controller: _tabController,

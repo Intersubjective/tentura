@@ -63,6 +63,8 @@ class ScreenCubit extends Cubit<ScreenState> {
 
   void showBeaconCreate() => _navigateTo(kPathBeaconNew);
 
+  void showPostCreate() => _navigateTo(kPathPostNew);
+
   void showBeaconCreateFor(String userId) => _navigateTo(
     '$kPathBeaconNew?'
     '${kQueryBeaconForwardTo}=${Uri.encodeQueryComponent(userId)}',

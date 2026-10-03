@@ -381,6 +381,15 @@ class RootRouter extends RootStackRouter {
       path: kPathBeaconNew,
     ),
 
+    // Post create: same reasoning as Beacon Create — the image picker pushes
+    // routes while this screen is covered.
+    AutoRoute(
+      keepHistory: false,
+      fullscreenDialog: true,
+      page: PostCreateRoute.page,
+      path: kPathPostNew,
+    ),
+
     // Request detail and its nested thread route live on the root browse
     // stack, preserving the mounted Home or Forward source below them.
     AutoRoute(

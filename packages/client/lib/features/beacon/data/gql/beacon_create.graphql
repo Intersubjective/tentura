@@ -1,5 +1,5 @@
 mutation BeaconCreate(
-  $title: String!,
+  $title: String,
   $context: String = "",
   $description: String = "",
   $coordinates: v2_Coordinates = {},
@@ -11,7 +11,9 @@ mutation BeaconCreate(
   $primaryNeedSlug: String,
   $addressLabel: String,
   $draft: Boolean,
-  $isDiscoverable: Boolean
+  $isDiscoverable: Boolean,
+  $kind: Int,
+  $forwardPolicy: Int
 ) {
   beaconCreate(
     title: $title,
@@ -26,7 +28,9 @@ mutation BeaconCreate(
     primaryNeedSlug: $primaryNeedSlug,
     addressLabel: $addressLabel,
     draft: $draft,
-    isDiscoverable: $isDiscoverable
+    isDiscoverable: $isDiscoverable,
+    kind: $kind,
+    forwardPolicy: $forwardPolicy
   ) {
     id
   }

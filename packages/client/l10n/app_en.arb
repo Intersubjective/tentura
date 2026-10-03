@@ -7087,5 +7087,55 @@
         "type": "String"
       }
     }
+  },
+  "postCreateRecipients": "To: {names}",
+  "@postCreateRecipients": {
+    "description": "«To» row of the new-Post screen listing the chosen recipients.",
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "postCreateRecipientsCount": "To: {count, plural, one{{count} person} other{{count} people}}",
+  "@postCreateRecipientsCount": {
+    "description": "«To» row of the new-Post screen when recipient names are not known yet.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "postCreateRecipientsEmpty": "To: choose who to send it to",
+  "@postCreateRecipientsEmpty": {
+    "description": "«To» row of the new-Post screen before anyone is chosen."
+  },
+  "postCreateAllowForwarding": "Can be forwarded",
+  "@postCreateAllowForwarding": {
+    "description": "Switch on the new-Post screen: recipients may forward the Post."
+  },
+  "postCreateEmptyHint": "Write how to start the conversation. This will be the post.",
+  "@postCreateEmptyHint": {
+    "description": "Hint in the empty room of the new-Post screen."
+  },
+  "postCreateDiscardTitle": "Discard draft?",
+  "@postCreateDiscardTitle": {
+    "description": "Title of the confirmation shown when closing the new-Post screen with content."
+  },
+  "postCreateDiscardBody": "The post has not been sent yet. Its text and photos will not be kept.",
+  "@postCreateDiscardBody": {
+    "description": "Body of the discard-draft confirmation on the new-Post screen."
+  },
+  "postCreateNeedHelp": "Need help? Create a request ›",
+  "@postCreateNeedHelp": {
+    "description": "Overflow link on the new-Post screen leading to the Request form."
+  },
+  "postCreateMenuPost": "Post",
+  "@postCreateMenuPost": {
+    "description": "My Work «+» menu entry that starts a Post."
+  },
+  "postCreateMenuRequest": "Request",
+  "@postCreateMenuRequest": {
+    "description": "My Work «+» menu entry that starts a Request."
   }
 }

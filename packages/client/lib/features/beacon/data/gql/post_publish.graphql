@@ -1,0 +1,26 @@
+mutation PostPublish(
+  $id: String!
+  $body: String!
+  $mentionUserIds: [String!]
+  $mentionOffsets: [Int!]
+  $mentionLengths: [Int!]
+  $recipientIds: [String!]
+  $notes: String
+  $forwardPolicy: Int!
+  $file: v2_Upload
+) {
+  postPublish(
+    id: $id
+    body: $body
+    mentionUserIds: $mentionUserIds
+    mentionOffsets: $mentionOffsets
+    mentionLengths: $mentionLengths
+    recipientIds: $recipientIds
+    notes: $notes
+    forwardPolicy: $forwardPolicy
+    file: $file
+  ) {
+    beaconId
+    rootMessageId
+  }
+}

@@ -9,12 +9,17 @@ import 'package:tentura_root/domain/entity/localizable.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/beacon_schedule.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
+import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/domain/port/beacon_image_port.dart';
+import 'package:tentura/domain/port/post_publish_port.dart';
 import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
+import 'package:tentura/domain/use_case/post_publish_case.dart';
+import 'package:tentura/features/beacon_threads/domain/entity/committed_mention.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
@@ -30,8 +35,10 @@ export 'beacon_create_state.dart';
 
 class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   BeaconCreateCubit({
+    this.kind = BeaconKind.request,
     BeaconCreateCase? beaconCreateCase,
     BeaconHierarchyCase? hierarchyCase,
+    PostPublishCase? postPublishCase,
     BeaconCreationContext? childCreationContext,
     String? draftBeaconIdToLoad,
     String? editBeaconIdToLoad,
@@ -42,6 +49,9 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
            (childCreationContext != null
                ? GetIt.I<BeaconHierarchyCase>()
                : null),
+       _postPublishCase =
+           postPublishCase ??
+           (kind == BeaconKind.post ? GetIt.I<PostPublishCase>() : null),
        _effects = effects ?? GetIt.I<UiEffectPort>(),
        super(
          BeaconCreateState(
@@ -63,9 +73,14 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     }
   }
 
+  /// A Post is composed in the room composer, not in the request form.
+  final BeaconKind kind;
+
   final BeaconCreateCase _case;
 
   final BeaconHierarchyCase? _hierarchyCase;
+
+  final PostPublishCase? _postPublishCase;
 
   final UiEffectPort _effects;
 
@@ -84,6 +99,15 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   bool _autosaveAfterInFlight = false;
 
   BeaconSaveCommand? _exactRetrySnapshot;
+
+  Timer? _postDraftTimer;
+
+  /// Set once `postPublish` succeeded: a retry must not send it again.
+  PostPublishResult? _publishedPost;
+
+  /// Index into the attachments of the next upload into the root message
+  /// (the first one rode inline with `postPublish`).
+  int _nextPostAttachment = 1;
 
   Future<void> _initChildComposer() async {
     final context = state.creationContext;
@@ -225,6 +249,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   @override
   Future<void> close() {
     _autosaveTimer?.cancel();
+    _postDraftTimer?.cancel();
     return super.close();
   }
 
@@ -704,7 +729,12 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       context: context,
       tags: state.tags,
       needs: state.needs,
-      title: draftSafeTitle ? _draftSafeTitle(state.title) : state.title,
+      kind: kind,
+      title: kind == BeaconKind.post
+          ? ''
+          : draftSafeTitle
+          ? _draftSafeTitle(state.title)
+          : state.title,
       coordinates: state.coordinates,
       addressLabel: state.location.trim().isEmpty
           ? null
@@ -717,7 +747,9 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       images: state.images,
       primaryNeedSlug: state.primaryNeedSlug,
       coverSource: state.coverSource,
-      isDiscoverable: state.isDiscoverable,
+      // A Post is delivered to the people it is sent to, never shown on the
+      // field.
+      isDiscoverable: kind != BeaconKind.post && state.isDiscoverable,
     );
   }
 
@@ -976,6 +1008,106 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       _emitNavigateBack();
     } catch (e) {
       _emitSnackError(e);
+    }
+  }
+
+  /// A Post has no form to autosave: once the composer holds something and the
+  /// user pauses, a server draft gives the Post a stable id for `postPublish`.
+  /// An untouched screen never reaches the server.
+  void postContentChanged({required bool hasContent}) {
+    _postDraftTimer?.cancel();
+    _postDraftTimer = null;
+    if (!hasContent || isClosed || state.isLive) return;
+    final id = state.draftId;
+    if (id != null && id.isNotEmpty) return;
+    _postDraftTimer = Timer(const Duration(milliseconds: 1500), () {
+      unawaited(
+        ensureDraft(context: '', showMessage: false, quiet: true),
+      );
+    });
+  }
+
+  /// Whether a server draft exists or is being created for this Post.
+  bool get hasPostDraft =>
+      (state.draftId?.isNotEmpty ?? false) || _draftCreateInFlight != null;
+
+  /// Drops the Post draft (if one was created) when the user abandons the
+  /// screen; navigation stays with the caller.
+  Future<void> discardPost() async {
+    _postDraftTimer?.cancel();
+    _postDraftTimer = null;
+    final inFlight = _draftCreateInFlight;
+    final id =
+        state.draftId ?? (inFlight == null ? null : await inFlight.future);
+    if (id == null || id.isEmpty) return;
+    try {
+      await _case.delete(id);
+      if (!isClosed) emit(state.copyWith(draftId: null));
+    } catch (e) {
+      _emitSnackError(e);
+    }
+  }
+
+  /// Publishes the Post in one `postPublish` call and uploads the remaining
+  /// attachments into its root message. Returns true once everything is sent.
+  ///
+  /// Safe to call again after a failure with the same content: a lost
+  /// `postPublish` is re-sent with identical arguments, a failed upload retries
+  /// only that upload.
+  Future<bool> publishPost({
+    required String body,
+    required List<CommittedMention> mentions,
+    required ForwardCubit forwardCubit,
+    required BeaconForwardPolicyValue forwardPolicy,
+    required List<RoomPendingUpload> attachments,
+  }) async {
+    final postCase = _postPublishCase;
+    final recipientIds = forwardCubit.state.selectedIds;
+    if (postCase == null ||
+        recipientIds.isEmpty ||
+        (body.trim().isEmpty && attachments.isEmpty)) {
+      return false;
+    }
+    emit(state.copyWith(status: StateStatus.isLoading));
+    try {
+      var published = _publishedPost;
+      if (published == null) {
+        final draftId =
+            state.draftId ?? await ensureDraft(context: '', showMessage: false);
+        if (draftId == null || draftId.isEmpty) return false;
+        published = await postCase.publish(
+          beaconId: draftId,
+          body: body,
+          mentions: mentions,
+          recipientIds: recipientIds,
+          notes: forwardCubit.state.perRecipientNotes,
+          forwardPolicy: forwardPolicy,
+          firstAttachment: attachments.firstOrNull,
+        );
+        _publishedPost = published;
+        _postDraftTimer?.cancel();
+      }
+      while (_nextPostAttachment < attachments.length) {
+        await postCase.addRootAttachment(
+          beaconId: published.beaconId,
+          messageId: published.rootMessageId,
+          upload: attachments[_nextPostAttachment],
+        );
+        _nextPostAttachment++;
+      }
+      if (!isClosed) {
+        emit(
+          state.copyWith(
+            draftId: published.beaconId,
+            isLive: true,
+            status: const StateIsSuccess(),
+          ),
+        );
+      }
+      return true;
+    } catch (e) {
+      _emitSnackError(e);
+      return false;
     }
   }
 

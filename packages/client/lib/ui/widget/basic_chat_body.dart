@@ -80,6 +80,8 @@ class BasicChatBody extends StatefulWidget {
     this.enableComposerAttachments = true,
     this.enableParticipantMentions = true,
     this.composerReadOnlyHint,
+    this.composerSendEnabled = true,
+    this.onComposerContentChanged,
     this.jumpFabHeroTag = 'basic_chat_jump_latest',
     this.onScrollToPromoteSource,
     this.onOpenCoordinationItem,
@@ -172,6 +174,12 @@ class BasicChatBody extends StatefulWidget {
 
   /// When non-null, the composer is visible but disabled and shows this hint.
   final String? composerReadOnlyHint;
+
+  /// Host gate on top of the composer's own rules: false disables Send.
+  final bool composerSendEnabled;
+
+  /// Reports whether the composer holds text or an attachment, on change.
+  final ValueChanged<bool>? onComposerContentChanged;
 
   /// Distinct [FloatingActionButton.small] hero tag when multiple chat bodies
   /// might exist in the same navigator context.
@@ -693,6 +701,8 @@ class BasicChatBodyState extends State<BasicChatBody> {
                         enableParticipantMentions:
                             widget.enableParticipantMentions,
                         readOnlyHint: widget.composerReadOnlyHint,
+                        sendEnabled: widget.composerSendEnabled,
+                        onContentChanged: widget.onComposerContentChanged,
                         replyTarget: widget.replyTarget,
                         onCancelReply: widget.onCancelReply,
                         onPickFact: widget.onPickFact,
@@ -721,6 +731,8 @@ class BeaconRoomComposer extends StatefulWidget {
     this.enableAttachments = true,
     this.enableParticipantMentions = true,
     this.readOnlyHint,
+    this.sendEnabled = true,
+    this.onContentChanged,
     this.replyTarget,
     this.onCancelReply,
     this.onPickFact,
@@ -753,6 +765,13 @@ class BeaconRoomComposer extends StatefulWidget {
 
   /// Non-null ⇒ composer is locked; also used as the disabled field hint.
   final String? readOnlyHint;
+
+  /// Host gate: false disables Send (and the Enter key) without locking the
+  /// field.
+  final bool sendEnabled;
+
+  /// Called when the composer starts or stops holding text or an attachment.
+  final ValueChanged<bool>? onContentChanged;
 
   final RoomMessage? replyTarget;
 
@@ -788,6 +807,7 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
   var _overlaySelectedIndex = 0;
   var _overlaySyncScheduled = false;
   var _hasText = false;
+  var _reportedContent = false;
   var _submitting = false;
 
   final List<RoomPendingUpload> _pending = [];
@@ -911,7 +931,15 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
     if (hasText != _hasText) {
       setState(() => _hasText = hasText);
     }
+    _reportContent();
     _scheduleOverlaySync();
+  }
+
+  void _reportContent() {
+    final hasContent = _text.text.trim().isNotEmpty || _pending.isNotEmpty;
+    if (hasContent == _reportedContent) return;
+    _reportedContent = hasContent;
+    widget.onContentChanged?.call(hasContent);
   }
 
   void _scheduleOverlaySync() {
@@ -1048,6 +1076,11 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
 
   int get _remainingSlots => kMaxRoomMessageAttachments - _pending.length;
 
+  void _removePending(int index) {
+    setState(() => _pending.removeAt(index));
+    _reportContent();
+  }
+
   void _snack(String message) {
     if (!mounted) {
       return;
@@ -1079,6 +1112,7 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
       return;
     }
     setState(() => _pending.add(upload));
+    _reportContent();
   }
 
   String _mimeFromExtension(String ext) {
@@ -1211,7 +1245,7 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
   }
 
   Future<void> _submit() async {
-    if (widget.readOnlyHint != null || _submitting) {
+    if (widget.readOnlyHint != null || _submitting || !widget.sendEnabled) {
       return;
     }
     final body = _text.text;
@@ -1239,6 +1273,7 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
       _removeOverlay();
       _text.clear();
       setState(_pending.clear);
+      _reportContent();
       // The field is disabled while sending, which drops its focus; restore
       // it once re-enabled so type → send → type works without a click.
       requestComposerFocus();
@@ -1412,7 +1447,7 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
           style: theme.textTheme.labelMedium,
           overflow: TextOverflow.ellipsis,
         ),
-        onDeleted: busy ? null : () => setState(() => _pending.removeAt(index)),
+        onDeleted: busy ? null : () => _removePending(index),
       );
     }
     return Stack(
@@ -1449,7 +1484,7 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
               ),
               tooltip: loc.deleteButtonTooltip,
               iconSize: 20,
-              onPressed: () => setState(() => _pending.removeAt(index)),
+              onPressed: () => _removePending(index),
               icon: Icon(Icons.close, color: theme.colorScheme.onSurface),
             ),
           ),
@@ -1570,7 +1605,9 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
                   key: TestIds.key(TestIds.roomMessageSend),
                   icon: const Icon(Icons.send_rounded),
                   tooltip: L10n.of(context)?.tooltipSendMessage,
-                  onPressed: locked ? null : () => unawaited(_submit()),
+                  onPressed: locked || !widget.sendEnabled
+                      ? null
+                      : () => unawaited(_submit()),
                 ),
               ),
             ),

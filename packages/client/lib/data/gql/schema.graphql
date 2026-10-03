@@ -3819,7 +3819,7 @@ type mutation_root {
   beaconChildCreate(addressLabel: String, clientCommandId: String!, context: String, coordinates: v2_Coordinates = {}, description: String, draft: Boolean, endAt: String, needs: String, parentBeaconId: String!, primaryNeedSlug: String, sourceMessageId: String, startAt: String, tags: String, title: String!): v2_BeaconChildCreateResult!
   beaconClose(beaconId: String!): Boolean!
   beaconCloseNow(beaconId: String!, expectedEpoch: Int!): Boolean!
-  beaconCreate(addressLabel: String, context: String, coordinates: v2_Coordinates = {}, description: String, draft: Boolean, endAt: String, image: v2_Upload = {}, isDiscoverable: Boolean, needs: String, primaryNeedSlug: String, startAt: String, tags: String, title: String!): v2_Beacon!
+  beaconCreate(addressLabel: String, context: String, coordinates: v2_Coordinates = {}, description: String, draft: Boolean, endAt: String, forwardPolicy: Int, image: v2_Upload = {}, isDiscoverable: Boolean, kind: Int, needs: String, primaryNeedSlug: String, startAt: String, tags: String, title: String): v2_Beacon!
   beaconDeleteById(id: String!): Boolean!
   beaconExtendClosure(beaconId: String!, expectedEpoch: Int!): Boolean!
   beaconFork(id: String!): v2_Beacon!
@@ -4044,6 +4044,7 @@ type mutation_root {
   meritrankInit(forceCalculate: Boolean): Int!
   notificationPreferencesUpdate(clearQuietHours: Boolean, clearSnooze: Boolean, emailCategories: [String!], emailDigest: String, locale: String, lockScreenSafe: Boolean, mutedInAppEventClasses: [String!], pushCategories: [String!], quietHoursEnd: Int, quietHoursStart: Int, snoozeUntil: String, tzOffsetMinutes: Int): v2_NotificationPreferences!
   pollingAct(pollingId: String!, score: Int, variantIds: [String!]): Boolean!
+  postPublish(body: String!, file: v2_Upload, forwardPolicy: Int!, id: String!, mentionLengths: [Int!], mentionOffsets: [Int!], mentionUserIds: [String!], notes: String, recipientIds: [String!]): v2_PostPublishResult!
   releaseCommitment(id: String!, offerUserId: String!, reason: String!): v2_BeaconStatusResult!
   removeFromRoom(id: String!, offerUserId: String!, reason: String!): v2_BeaconStatusResult!
   revokeAcknowledgement(beaconId: String!, slug: String!, subjectId: String!): Boolean!
@@ -9000,6 +9001,11 @@ order by variance() on columns of table "vote_user"
 """
 input vote_user_variance_order_by {
   amount: order_by
+}
+
+type v2_PostPublishResult {
+  beaconId: String!
+  rootMessageId: String!
 }
 
 type v2_PostSummary {

@@ -76,7 +76,12 @@ class ForwardRecipientPicker extends StatefulWidget {
 class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
   final _sharedNoteController = TextEditingController();
   final _recipientNoteControllers = <String, TextEditingController>{};
-  final _invitationCubit = InvitationCubit();
+  InvitationCubit? _invitation;
+
+  /// Built on first use: most pickers never start an invite, and a host that
+  /// has no invitation backend (a new Post) must still be able to show the
+  /// recipient list.
+  InvitationCubit get _invitationCubit => _invitation ??= InvitationCubit();
   final _editNoteController = TextEditingController();
   final _scrollController = ScrollController();
 
@@ -225,7 +230,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
     _sharedNoteController.dispose();
     _editNoteController.dispose();
     _scrollController.dispose();
-    unawaited(_invitationCubit.close());
+    unawaited(_invitation?.close());
     super.dispose();
   }
 
@@ -384,8 +389,8 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
     final tt = context.tt;
     final cubit = context.read<ForwardCubit>();
 
-    return BlocProvider.value(
-      value: _invitationCubit,
+    return BlocProvider(
+      create: (_) => _invitationCubit,
       child: MultiBlocListener(
         listeners: [
           BlocListener<ForwardCubit, ForwardState>(
