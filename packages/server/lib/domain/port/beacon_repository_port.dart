@@ -127,6 +127,23 @@ abstract class BeaconRepositoryPort {
     required BeaconForwardPolicyValue policy,
   });
 
+  /// Turns an open Post into an open-forwarding Request in one `UPDATE` (the
+  /// Post shape CHECK forbids writing content before `kind` flips); throws
+  /// `BeaconCreateException` unless exactly one open Post row was updated.
+  Future<void> convertPostToRequest({
+    required String beaconId,
+    required String title,
+    required String description,
+    required Set<String>? needs,
+    required String? primaryNeedSlug,
+    required DateTime? startAt,
+    required DateTime? endAt,
+    required bool isDiscoverable,
+  });
+
+  /// Inserts the kind-4 system message announcing a Post's conversion.
+  Future<void> postConvertedToRequestMessage(String beaconId);
+
   /// Sets `beacon.post_root_message_id` once; a no-op when already set.
   Future<void> setPostRootMessage({
     required String beaconId,

@@ -1002,6 +1002,42 @@ class MockBeaconRepositoryPort extends _i1.Mock
           as _i6.Future<void>);
 
   @override
+  _i6.Future<void> convertPostToRequest({
+    required String? beaconId,
+    required String? title,
+    required String? description,
+    required Set<String>? needs,
+    required String? primaryNeedSlug,
+    required DateTime? startAt,
+    required DateTime? endAt,
+    required bool? isDiscoverable,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#convertPostToRequest, [], {
+              #beaconId: beaconId,
+              #title: title,
+              #description: description,
+              #needs: needs,
+              #primaryNeedSlug: primaryNeedSlug,
+              #startAt: startAt,
+              #endAt: endAt,
+              #isDiscoverable: isDiscoverable,
+            }),
+            returnValue: _i6.Future<void>.value(),
+            returnValueForMissingStub: _i6.Future<void>.value(),
+          )
+          as _i6.Future<void>);
+
+  @override
+  _i6.Future<void> postConvertedToRequestMessage(String? beaconId) =>
+      (super.noSuchMethod(
+            Invocation.method(#postConvertedToRequestMessage, [beaconId]),
+            returnValue: _i6.Future<void>.value(),
+            returnValueForMissingStub: _i6.Future<void>.value(),
+          )
+          as _i6.Future<void>);
+
+  @override
   _i6.Future<void> setPostRootMessage({
     required String? beaconId,
     required String? messageId,

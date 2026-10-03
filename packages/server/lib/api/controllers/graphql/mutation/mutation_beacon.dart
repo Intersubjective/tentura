@@ -1,3 +1,4 @@
+import 'package:tentura_server/domain/entity/beacon_conversion_content.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/use_case/beacon_case.dart';
 
@@ -41,6 +42,7 @@ final class MutationBeacon extends GqlNodeBase {
     fork,
     update,
     updateDraft,
+    convertToRequest,
     publish,
     deleteById,
     beaconCancel,
@@ -232,6 +234,37 @@ final class MutationBeacon extends GqlNodeBase {
         )
         .then((v) => v.asJson),
   );
+
+  GraphQLObjectField<dynamic, dynamic> get convertToRequest =>
+      GraphQLObjectField(
+        'beaconConvertToRequest',
+        gqlTypeBeacon.nonNullable(),
+        arguments: [
+          InputFieldId.field,
+          InputFieldBeaconTitle.fieldNonNullable,
+          InputFieldDescription.field,
+          _startAt.fieldNullable,
+          _endAt.fieldNullable,
+          _needs.fieldNullable,
+          _primaryNeedSlug.fieldNullable,
+          _isDiscoverable.fieldNullable,
+        ],
+        resolve: (_, args) => _beaconCase
+            .convertToRequest(
+              authorId: getCredentials(args).sub,
+              beaconId: InputFieldId.fromArgsNonNullable(args),
+              content: BeaconConversionContent(
+                title: InputFieldBeaconTitle.fromArgsNonNullable(args),
+                description: InputFieldDescription.fromArgs(args),
+                needs: _needs.fromArgs(args),
+                primaryNeedSlug: _primaryNeedSlug.fromArgs(args),
+                startAt: _startAt.fromArgs(args),
+                endAt: _endAt.fromArgs(args),
+              ),
+              isDiscoverable: _isDiscoverable.fromArgs(args) ?? true,
+            )
+            .then((v) => v.asJson),
+      );
 
   GraphQLObjectField<dynamic, dynamic> get publish => GraphQLObjectField(
     'beaconPublish',

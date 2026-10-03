@@ -254,6 +254,39 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
   }
 
   @override
+  Future<void> convertPostToRequest({
+    required String beaconId,
+    required String title,
+    required String description,
+    required Set<String>? needs,
+    required String? primaryNeedSlug,
+    required DateTime? startAt,
+    required DateTime? endAt,
+    required bool isDiscoverable,
+  }) async {
+    final beacon = storageById[beaconId];
+    if (beacon == null ||
+        beacon.kind != BeaconKind.post ||
+        beacon.status != BeaconStatus.open) {
+      throw const BeaconCreateException(description: 'Not an open Post');
+    }
+    storageById[beaconId] = beacon.copyWith(
+      kind: BeaconKind.request,
+      forwardPolicy: BeaconForwardPolicyValue.open,
+      title: title,
+      description: description,
+      needs: needs ?? const {},
+      primaryNeedSlug: primaryNeedSlug,
+      startAt: startAt,
+      endAt: endAt,
+      isDiscoverable: isDiscoverable,
+    );
+  }
+
+  @override
+  Future<void> postConvertedToRequestMessage(String beaconId) async {}
+
+  @override
   Future<void> setForwardPolicy({
     required String beaconId,
     required BeaconForwardPolicyValue policy,

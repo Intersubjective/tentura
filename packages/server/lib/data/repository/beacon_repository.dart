@@ -8,6 +8,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/consts.dart'
     show kTitleMaxLength, kTitleMinLength;
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
+import 'package:tentura_server/consts/beacon_hierarchy_consts.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
@@ -487,6 +488,62 @@ class BeaconRepository implements BeaconRepositoryPort {
         .filter((e) => e.id.equals(beaconId))
         .update((o) => o(forwardPolicy: Value(policy.value)));
   }
+
+  @override
+  Future<void> convertPostToRequest({
+    required String beaconId,
+    required String title,
+    required String description,
+    required Set<String>? needs,
+    required String? primaryNeedSlug,
+    required DateTime? startAt,
+    required DateTime? endAt,
+    required bool isDiscoverable,
+  }) async {
+    final updated = await _database.customUpdate(
+      r'''
+UPDATE public.beacon
+SET title = $2, description = $3, needs = $4, primary_need_slug = $5,
+    start_at = $6, end_at = $7, kind = 0, forward_policy = 1,
+    is_discoverable = $8, updated_at = now()
+WHERE id = $1 AND kind = 1 AND status = 0
+''',
+      variables: [
+        Variable<String>(beaconId),
+        Variable<String>(title),
+        Variable<String>(description),
+        Variable<String>(needs == null || needs.isEmpty ? '' : needs.join(',')),
+        Variable<String>(primaryNeedSlug),
+        Variable<PgDateTime>(
+          startAt == null ? null : PgDateTime(startAt.toUtc()),
+          PgTypes.timestampWithTimezone,
+        ),
+        Variable<PgDateTime>(
+          endAt == null ? null : PgDateTime(endAt.toUtc()),
+          PgTypes.timestampWithTimezone,
+        ),
+        Variable<bool>(isDiscoverable),
+      ],
+    );
+    if (updated != 1) {
+      throw const BeaconCreateException(description: 'Not an open Post');
+    }
+  }
+
+  @override
+  Future<void> postConvertedToRequestMessage(String beaconId) =>
+      _database.customInsert(
+        r'''
+INSERT INTO public.beacon_room_message
+  (beacon_id, body, system_message_kind, system_payload)
+VALUES ($1, '', $2, $3::jsonb)
+''',
+        variables: [
+          Variable<String>(beaconId),
+          Variable<int>(BeaconRoomSystemMessageKind.convertedToRequest),
+          Variable<String>('{"event":"convertedToRequest"}'),
+        ],
+      );
 
   @override
   Future<void> setPostRootMessage({

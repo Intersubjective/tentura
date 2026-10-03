@@ -9,6 +9,7 @@ import 'package:mockito/mockito.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
+import 'package:tentura_server/consts/beacon_hierarchy_consts.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
@@ -37,6 +38,7 @@ import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/data/repository/vote_user_friendship_lookup.dart';
 import 'package:tentura_server/data/repository/witness_window_repository.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
+import 'package:tentura_server/domain/entity/beacon_conversion_content.dart';
 import 'package:tentura_server/domain/entity/task_entity.dart';
 import 'package:tentura_server/domain/entity/forward_delivery_result.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -566,6 +568,107 @@ ON CONFLICT (user_id, beacon_id) DO NOTHING
       );
     });
 
+    group('conversion of a Post', () {
+      test(
+        'a forward racing a conversion never deadlocks and the Post always '
+        'ends up converted with one announcement',
+        () async {
+          for (var round = 0; round < _rounds; round++) {
+            await _resetFixture(writer);
+
+            final forward = _settle(
+              forwardStack.forwardCase.forward(
+                senderId: _author,
+                beaconId: _post,
+                recipientIds: const [_recipient],
+              ),
+            );
+            final convert = _settle(
+              blockStack.beaconCase.convertToRequest(
+                authorId: _author,
+                beaconId: _post,
+                content: BeaconConversionContent(
+                  title: 'Converted while forwarding',
+                  description: 'Converted from a Post.',
+                ),
+                isDiscoverable: false,
+              ),
+            );
+            final outcomes = await _raceRound(round, [forward, convert]);
+
+            expect(
+              outcomes[1].error,
+              isNull,
+              reason: 'round $round: the conversion must succeed',
+            );
+            final forwardError = outcomes[0].error;
+            if (forwardError != null) {
+              // A forward that loses to the conversion may be refused, but
+              // only with a specific domain exception.
+              expect(
+                forwardError,
+                isA<ExceptionBase>().having(
+                  (e) => e,
+                  'not an unspecified failure',
+                  isNot(isA<UnspecifiedException>()),
+                ),
+                reason:
+                    'round $round: a refused forward fails with a specific '
+                    'domain exception: $forwardError',
+              );
+              expect(
+                await _edgeCount(writer, _post, _recipient, liveOnly: false),
+                0,
+                reason: 'round $round: a refused forward leaves no edge',
+              );
+            }
+            if (forwardError == null) {
+              expect(
+                outcomes[0].result?.deliveredRecipientIds,
+                contains(_recipient),
+                reason:
+                    'round $round: an accepted forward delivers to the '
+                    'recipient (nobody is blocked here)',
+              );
+              expect(
+                await _liveEdgeCount(writer, _post, _recipient),
+                1,
+                reason:
+                    'round $round: an accepted forward keeps its live edge '
+                    'through the conversion',
+              );
+              final access = await _roomAccess(writer, _post, _recipient);
+              if (access != null) {
+                expect(
+                  access,
+                  RoomAccessBits.admitted,
+                  reason:
+                      'round $round: an addressee row created by the forward '
+                      'stays admitted',
+                );
+                expect(
+                  await _participantRole(writer, _post, _recipient),
+                  6,
+                  reason: 'round $round: the forward admits as an addressee',
+                );
+              }
+            }
+            expect(
+              await _beaconKind(writer, _post),
+              0,
+              reason: 'round $round: the Post is a Request afterwards',
+            );
+            expect(
+              await _convertedMessageCount(writer, _post),
+              1,
+              reason: 'round $round: exactly one conversion announcement',
+            );
+          }
+        },
+        timeout: const Timeout(Duration(minutes: 5)),
+      );
+    });
+
     group('invite accept of a Post', () {
       test(
         'an accept racing a block never deadlocks and leaves no admitted row',
@@ -711,6 +814,31 @@ WHERE beacon_id = '$beaconId' AND user_id = '$userId'
 ''')).singleOrNull?.single
         as int?;
 
+Future<int?> _beaconKind(Connection writer, String beaconId) async =>
+    (await writer.execute(
+          "SELECT kind FROM public.beacon WHERE id = '$beaconId'",
+        )).singleOrNull?.single
+        as int?;
+
+Future<int> _convertedMessageCount(Connection writer, String beaconId) async =>
+    (await writer.execute('''
+SELECT count(*) FROM public.beacon_room_message
+WHERE beacon_id = '$beaconId'
+  AND system_message_kind = ${BeaconRoomSystemMessageKind.convertedToRequest}
+''')).single.single!
+        as int;
+
+Future<int?> _participantRole(
+  Connection writer,
+  String beaconId,
+  String userId,
+) async =>
+    (await writer.execute('''
+SELECT role FROM public.beacon_participant
+WHERE beacon_id = '$beaconId' AND user_id = '$userId'
+''')).singleOrNull?.single
+        as int?;
+
 Future<void> _resetFixture(Connection writer) async {
   await writer.execute('''
 TRUNCATE TABLE
@@ -783,6 +911,7 @@ final class _Stack {
     required this.forwardCase,
     required this.blockCase,
     required this.postCase,
+    required this.beaconCase,
     required this.invitationCase,
     required this.postLock,
     required this.uow,
@@ -791,6 +920,7 @@ final class _Stack {
   final ForwardCase forwardCase;
   final UserBlockCase blockCase;
   final PostCase postCase;
+  final BeaconCase beaconCase;
   final InvitationCase invitationCase;
   final PostLockPort postLock;
   final MutatingUnitOfWork uow;
@@ -886,6 +1016,7 @@ _Stack _buildStack(TenturaDb db, Env env) {
       env: env,
       logger: logger,
     ),
+    postLock: postLock,
     attentionIntents: intents,
     attention: attention,
     env: env,
@@ -896,6 +1027,7 @@ _Stack _buildStack(TenturaDb db, Env env) {
     uow: uow,
     postLock: postLock,
     forwardCase: forwardCase,
+    beaconCase: beaconCase,
     postCase: PostCase(
       beaconCase: beaconCase,
       forwardCase: forwardCase,

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:typed_data';
+import 'package:meta/meta.dart' show visibleForTesting;
 import 'package:injectable/injectable.dart';
 import 'package:logging/logging.dart';
 
@@ -13,11 +14,13 @@ import 'package:tentura_server/domain/use_case/beacon_lifecycle_effects_case.dar
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/domain/beacon_lineage_visibility.dart';
 import 'package:tentura_server/domain/policy/beacon_creation_policy.dart';
+import 'package:tentura_server/domain/entity/beacon_conversion_content.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/image_object_gc_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
+import 'package:tentura_server/domain/port/post_lock_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/port/beacon_child_create_port.dart';
@@ -113,6 +116,7 @@ final class BeaconCase extends UseCaseBase {
     BeaconHierarchyRepositoryPort hierarchyRepository,
     BeaconChildCreatePort childCreateCase,
     BeaconLifecycleEffectsCase lifecycleEffects,
+    PostLockPort postLock,
     AttentionIntentCase attentionIntents,
     TransactionalAttentionCase attention,
   ) async => BeaconCase(
@@ -125,6 +129,7 @@ final class BeaconCase extends UseCaseBase {
     hierarchyRepository,
     childCreateCase,
     lifecycleEffects,
+    postLock: postLock,
     attentionIntents: attentionIntents,
     attention: attention,
     env: env,
@@ -141,11 +146,13 @@ final class BeaconCase extends UseCaseBase {
     this._hierarchyRepository,
     this._childCreateCase,
     this._lifecycleEffects, {
+    PostLockPort? postLock,
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
     required super.env,
     required super.logger,
-  }) : _attentionIntents = attentionIntents,
+  }) : _postLock = postLock,
+       _attentionIntents = attentionIntents,
        _attention = attention;
 
   final BeaconRepositoryPort _beaconRepository;
@@ -165,6 +172,8 @@ final class BeaconCase extends UseCaseBase {
   final BeaconChildCreatePort _childCreateCase;
 
   final BeaconLifecycleEffectsCase _lifecycleEffects;
+
+  final PostLockPort? _postLock;
 
   final AttentionIntentCase? _attentionIntents;
 
@@ -422,6 +431,62 @@ final class BeaconCase extends UseCaseBase {
       },
     );
   }
+
+  /// Runs inside the conversion transaction right after the `UPDATE`.
+  @visibleForTesting
+  Future<void> Function()? afterConvertUpdateForTest;
+
+  /// Turns the author's open Post into an open-forwarding Request with
+  /// [content], keeps the addressees in the room and announces it in the room.
+  Future<BeaconEntity> convertToRequest({
+    required String authorId,
+    required String beaconId,
+    required BeaconConversionContent content,
+    required bool isDiscoverable,
+  }) => _attention!.runAction(
+    actorUserId: authorId,
+    action: (_) async {
+      await _postLock!.lockForPostMutation(beaconId);
+      final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
+      if (beacon.author.id != authorId) {
+        throw const UnauthorizedException(
+          description: 'Only the author can convert a Post',
+        );
+      }
+      if (beacon.kind != BeaconKind.post ||
+          beacon.status != BeaconStatus.open) {
+        throw const BeaconCreateException(description: 'Not an open Post');
+      }
+      BeaconCreationPolicy.assertKindFields(
+        kind: BeaconKind.request,
+        title: content.title,
+        description: content.description,
+        isDiscoverable: isDiscoverable,
+      );
+      final description = BeaconCreationPolicy.normalizeStandaloneDescription(
+        content.description,
+      );
+      final needs = BeaconCreationPolicy.normalizeNeeds(content.needs);
+      final primaryNeedSlug = BeaconCreationPolicy.resolvePrimaryNeedSlug(
+        needs: needs,
+        primaryNeedSlug: content.primaryNeedSlug,
+        primaryNeedSlugProvided: content.primaryNeedSlug != null,
+      );
+      await _beaconRepository.convertPostToRequest(
+        beaconId: beaconId,
+        title: content.title.trim(),
+        description: description,
+        needs: needs,
+        primaryNeedSlug: primaryNeedSlug,
+        startAt: content.startAt,
+        endAt: content.endAt,
+        isDiscoverable: isDiscoverable,
+      );
+      await afterConvertUpdateForTest?.call();
+      await _beaconRepository.postConvertedToRequestMessage(beaconId);
+      return _beaconRepository.getBeaconById(beaconId: beaconId);
+    },
+  );
 
   /// Legacy immediate-attach bridge (§3.3). Hardened: precheck owner before
   /// upload, re-authorize and cap-check under the beacon lock, and
