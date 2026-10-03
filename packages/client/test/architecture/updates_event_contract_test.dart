@@ -45,6 +45,8 @@ const _runtimeAttentionEventTypes = <String>[
   'closureFinalized',
   'closureCancelled',
   'requestStale',
+  // Post first response receipt.
+  'postFirstResponse',
 ];
 
 const _classificationVariantKeys = {
@@ -240,6 +242,16 @@ const _expectedEventTypes = <Map<String, String>>[
     'muteability': 'standard',
     'coveringTest':
         'packages/server/test/domain/use_case/closure_notifications_pg_test.dart',
+  },
+  {
+    'eventType': 'postFirstResponse',
+    'producer':
+        'BeaconRoomCase.createMessage|BeaconRoomCase.reactionToggle',
+    'recipientCategory': 'post_author',
+    'destinationFamily': 'beacon_room_message',
+    'muteability': 'standard',
+    'coveringTest':
+        'packages/server/test/domain/use_case/post_first_response_pg_test.dart',
   },
 ];
 

@@ -72,6 +72,10 @@ const attentionEventClassifications = <String, AttentionEventClassification>{
     headlineTreatment: AttentionHeadlineTreatment.beacon,
     coalescible: true,
   ),
+  'postFirstResponse': AttentionEventClassification(
+    headlineTreatment: AttentionHeadlineTreatment.beacon,
+    coalescible: true,
+  ),
   'requestStatusChanged': AttentionEventClassification(
     headlineTreatment: AttentionHeadlineTreatment.beacon,
     coalescible: true,

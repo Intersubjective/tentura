@@ -174,6 +174,10 @@ class BeaconNotificationCopyBuilder {
         actor,
         excerpt.isNotEmpty ? excerpt : '$actor mentioned you',
       ),
+      NotificationKind.postFirstResponse => (
+        actor,
+        excerpt.isNotEmpty ? excerpt : '$actor responded to your post',
+      ),
       NotificationKind.staleRemind => (
         'Still needs attention',
         _bodyWithRequest(
@@ -307,6 +311,7 @@ class BeaconNotificationCopyBuilder {
       NotificationKind.blockerResolved ||
       NotificationKind.roomActivityLowPriority ||
       NotificationKind.roomMention ||
+      NotificationKind.postFirstResponse ||
       NotificationKind.commitmentAccepted ||
       NotificationKind.commitmentResolved ||
       NotificationKind.commitmentCancelled ||

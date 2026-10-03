@@ -783,7 +783,7 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
           as _i3.Future<void>);
 
   @override
-  _i3.Future<void> toggleReaction({
+  _i3.Future<bool> toggleReaction({
     required String? messageId,
     required String? userId,
     required String? emoji,
@@ -794,10 +794,27 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
               #userId: userId,
               #emoji: emoji,
             }),
-            returnValue: _i3.Future<void>.value(),
-            returnValueForMissingStub: _i3.Future<void>.value(),
+            returnValue: _i3.Future<bool>.value(false),
           )
-          as _i3.Future<void>);
+          as _i3.Future<bool>);
+
+  @override
+  _i3.Future<bool> claimPostFirstResponse({
+    required String? beaconId,
+    required String? userId,
+    required int? kind,
+    required String? sourceId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#claimPostFirstResponse, [], {
+              #beaconId: beaconId,
+              #userId: userId,
+              #kind: kind,
+              #sourceId: sourceId,
+            }),
+            returnValue: _i3.Future<bool>.value(false),
+          )
+          as _i3.Future<bool>);
 
   @override
   _i3.Future<void> updateMessage({

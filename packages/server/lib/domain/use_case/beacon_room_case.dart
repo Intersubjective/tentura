@@ -46,6 +46,12 @@ import 'package:tentura_server/domain/use_case/transactional_attention_case.dart
 import 'coordination_room_access.dart';
 import '_use_case_base.dart';
 
+/// `post_first_response.source_kind`: the claim was won by a message.
+const _firstResponseByMessage = 1;
+
+/// `post_first_response.source_kind`: the claim was won by a reaction.
+const _firstResponseByReaction = 2;
+
 /// Room coordination: admission, steward, messages (server-side rules).
 // TODO(contract): tighten permissions with visibility / forward graph —
 // current checks are author-or-steward or admitted-member only.
@@ -146,6 +152,14 @@ class BeaconRoomCase extends UseCaseBase {
     final beacon = await _beaconRepository?.getBeaconById(beaconId: beaconId);
     if (beacon == null || beacon.kind != BeaconKind.post) return false;
     return _userBlockRepository.isBlockedPair(a: beacon.author.id, b: userId);
+  }
+
+  /// The author of the beacon when it is a Post, else `null`.
+  Future<String?> _postAuthorId(String beaconId) async {
+    final beacon = await _beaconRepository?.getBeaconById(beaconId: beaconId);
+    return beacon != null && beacon.kind == BeaconKind.post
+        ? beacon.author.id
+        : null;
   }
 
   Future<bool> _canUseRoom({
@@ -443,6 +457,7 @@ class BeaconRoomCase extends UseCaseBase {
 
     final hasDirected =
         mentionRecipientIds.isNotEmpty || otherDirectedIds.isNotEmpty;
+    final postAuthorId = await _postAuthorId(beaconId);
 
     Future<Map<String, Object?>> persist(
       AttentionTransaction? transaction,
@@ -497,11 +512,30 @@ class BeaconRoomCase extends UseCaseBase {
             ),
           );
         }
+        if (postAuthorId != null &&
+            postAuthorId != userId &&
+            await _room.claimPostFirstResponse(
+              beaconId: beaconId,
+              userId: userId,
+              kind: _firstResponseByMessage,
+              sourceId: row.id,
+            )) {
+          await transaction.record(
+            await _attentionIntents!.postFirstResponse(
+              beaconId: beaconId,
+              messageId: row.id,
+              actorUserId: userId,
+              authorUserId: postAuthorId,
+              excerpt: excerpt,
+              sourceEventKey: 'post_first_response:$beaconId:$userId',
+            ),
+          );
+        }
       }
       return {'id': row.id, 'beaconId': row.beaconId};
     }
 
-    if (!hasDirected) {
+    if (!hasDirected && postAuthorId == null) {
       return persist(null);
     }
     return _attention!.runAction(
@@ -1142,10 +1176,42 @@ class BeaconRoomCase extends UseCaseBase {
       );
     }
     await _guardMessageMutation(beaconId: beaconId, msg: msg);
-    await _room.toggleReaction(
-      messageId: messageId,
-      userId: userId,
-      emoji: emoji,
+    final postAuthorId = await _postAuthorId(beaconId);
+    if (postAuthorId == null || postAuthorId == userId) {
+      await _room.toggleReaction(
+        messageId: messageId,
+        userId: userId,
+        emoji: emoji,
+      );
+      return;
+    }
+    await _attention!.runAction<void>(
+      actorUserId: userId,
+      action: (transaction) async {
+        final added = await _room.toggleReaction(
+          messageId: messageId,
+          userId: userId,
+          emoji: emoji,
+        );
+        if (added &&
+            await _room.claimPostFirstResponse(
+              beaconId: beaconId,
+              userId: userId,
+              kind: _firstResponseByReaction,
+              sourceId: messageId,
+            )) {
+          await transaction.record(
+            await _attentionIntents!.postFirstResponse(
+              beaconId: beaconId,
+              messageId: messageId,
+              actorUserId: userId,
+              authorUserId: postAuthorId,
+              excerpt: emoji,
+              sourceEventKey: 'post_first_response:$beaconId:$userId',
+            ),
+          );
+        }
+      },
     );
   }
 

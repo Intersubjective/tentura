@@ -244,11 +244,11 @@ class _PostRoom extends Fake implements BeaconRoomRepositoryPort {
   Future<void> deleteRoomMessage({required String messageId}) async {}
 
   @override
-  Future<void> toggleReaction({
+  Future<bool> toggleReaction({
     required String messageId,
     required String userId,
     required String emoji,
-  }) async {}
+  }) async => true;
 
   @override
   Future<DateTime?> latestMainRoomMessageCreatedAt(String beaconId) async =>

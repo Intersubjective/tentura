@@ -221,10 +221,22 @@ abstract class BeaconRoomRepositoryPort {
     required String authorUserId,
   });
 
-  Future<void> toggleReaction({
+  /// Returns whether the reaction was added (`false`: it was removed).
+  Future<bool> toggleReaction({
     required String messageId,
     required String userId,
     required String emoji,
+  });
+
+  /// Claims the member's first response to a Post (`kind` 1: message, 2:
+  /// reaction; [sourceId] the message or reaction id). `true` only for the
+  /// winning call; `false` for the Post's author, a Request, or a member who
+  /// already holds the claim.
+  Future<bool> claimPostFirstResponse({
+    required String beaconId,
+    required String userId,
+    required int kind,
+    required String sourceId,
   });
 
   Future<void> updateMessage({

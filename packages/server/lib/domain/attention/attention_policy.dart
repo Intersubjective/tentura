@@ -93,6 +93,7 @@ class AttentionPolicy {
     AttentionEventType.closureCancelled => AttentionSuppressionClass.standard,
     AttentionEventType.relayReceived ||
     AttentionEventType.roomMessagePosted ||
+    AttentionEventType.postFirstResponse ||
     AttentionEventType.mutualConnectionFormed ||
     AttentionEventType.inviteAccepted ||
     AttentionEventType.blockerResolved ||
@@ -133,6 +134,7 @@ class AttentionPolicy {
     AttentionEventType.inviteAccepted => NotificationCategory.connections,
     AttentionEventType.relayReceived ||
     AttentionEventType.roomMessagePosted ||
+    AttentionEventType.postFirstResponse ||
     AttentionEventType.requestStatusChanged ||
     AttentionEventType.beaconHierarchyStatusChanged ||
     AttentionEventType.blockerOpened ||
@@ -165,6 +167,7 @@ class AttentionPolicy {
     AttentionEventType.helpOfferSubmitted ||
     AttentionEventType.offerAccepted ||
     AttentionEventType.roomMessagePosted ||
+    AttentionEventType.postFirstResponse ||
     AttentionEventType.requestStatusChanged ||
     AttentionEventType.beaconHierarchyStatusChanged ||
     AttentionEventType.obligationEnded ||
@@ -241,7 +244,8 @@ class AttentionPolicy {
         kind: AttentionDestinationKind.beacon,
         targetEntityId: role.beaconId,
       ),
-      AttentionEventType.roomMessagePosted => AttentionDestination(
+      AttentionEventType.roomMessagePosted ||
+      AttentionEventType.postFirstResponse => AttentionDestination(
         kind: AttentionDestinationKind.beaconRoomMessage,
         targetEntityId: role.messageId,
       ),
@@ -285,6 +289,7 @@ class AttentionPolicy {
     AttentionEventType.offerDeclined => false,
     AttentionEventType.offerRemoved => false,
     AttentionEventType.roomMessagePosted => false,
+    AttentionEventType.postFirstResponse => false,
     AttentionEventType.requestStatusChanged => false,
     AttentionEventType.beaconHierarchyStatusChanged => false,
     AttentionEventType.obligationEnded => false,
@@ -415,6 +420,7 @@ class AttentionPolicy {
     AttentionEventType.offerRemoved => 'offer_removed',
     AttentionEventType.commitmentReleased => 'commitment_released',
     AttentionEventType.roomMessagePosted => 'room_message_posted',
+    AttentionEventType.postFirstResponse => 'post_first_response',
     AttentionEventType.requestStatusChanged => 'request_status_changed',
     AttentionEventType.beaconHierarchyStatusChanged =>
       'beacon_hierarchy_status_changed',

@@ -1238,7 +1238,7 @@ SELECT public.emit_realtime_entity_change(
         );
   });
 
-  Future<void> toggleReaction({
+  Future<bool> toggleReaction({
     required String messageId,
     required String userId,
     required String emoji,
@@ -1255,17 +1255,36 @@ SELECT public.emit_realtime_entity_change(
       await _db.managers.beaconRoomMessageReactions
           .filter((r) => r.id.equals(existing.id))
           .delete();
-    } else {
-      await _db.managers.beaconRoomMessageReactions.create(
-        (o) => o(
-          id: generateId('E'),
-          messageId: messageId,
-          userId: userId,
-          emoji: emoji,
-          createdAt: const Value.absent(),
-        ),
-      );
+      return false;
     }
+    await _db.managers.beaconRoomMessageReactions.create(
+      (o) => o(
+        id: generateId('E'),
+        messageId: messageId,
+        userId: userId,
+        emoji: emoji,
+        createdAt: const Value.absent(),
+      ),
+    );
+    return true;
+  });
+
+  Future<bool> claimPostFirstResponse({
+    required String beaconId,
+    required String userId,
+    required int kind,
+    required String sourceId,
+  }) => _db.withMutatingUser(userId, () async {
+    final rows = await _db.customSelect(
+      r'SELECT public.post_claim_first_response($1, $2, $3::smallint, $4) AS won',
+      variables: [
+        Variable<String>(beaconId),
+        Variable<String>(userId),
+        Variable<int>(kind),
+        Variable<String>(sourceId),
+      ],
+    ).get();
+    return rows.single.read<bool>('won');
   });
 
   Future<bool> isBeaconAuthor({

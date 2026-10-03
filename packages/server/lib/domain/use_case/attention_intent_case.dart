@@ -339,6 +339,30 @@ class AttentionIntentCase {
     emptyBody: 'New thread message',
   );
 
+  /// The first response of [actorUserId] in a Post room, told to the Post
+  /// author ([authorUserId]) once per member.
+  Future<AttentionDispatchIntent> postFirstResponse({
+    required String beaconId,
+    required String messageId,
+    required String actorUserId,
+    required String authorUserId,
+    required String excerpt,
+    required String sourceEventKey,
+  }) => _directedRoomMessage(
+    beaconId: beaconId,
+    messageId: messageId,
+    actorUserId: actorUserId,
+    recipientUserIds: {authorUserId},
+    excerpt: excerpt,
+    sourceEventKey: sourceEventKey,
+    kind: NotificationKind.postFirstResponse,
+    emptyTitle: 'New response',
+    emptyBody: 'responded to your post',
+    bodyPrefixedWithActor: true,
+    eventType: AttentionEventType.postFirstResponse,
+    reason: AttentionRecipientReason.postAuthor,
+  );
+
   /// Personal `@handle` mention — same Updates event as [roomMessagePosted],
   /// but [NotificationKind.roomMention] (coordination) for push/email.
   Future<AttentionDispatchIntent> roomMentioned({
@@ -379,6 +403,9 @@ class AttentionIntentCase {
     String? threadItemId,
     bool titleIsActorName = true,
     bool bodyPrefixedWithActor = false,
+    AttentionEventType eventType = AttentionEventType.roomMessagePosted,
+    AttentionRecipientReason reason =
+        AttentionRecipientReason.directedChatTarget,
   }) async {
     final actor = await _users.getById(actorUserId);
     final actorName = actor.displayName.trim();
@@ -395,7 +422,7 @@ class AttentionIntentCase {
       recipients.add(
         AttentionRecipientSnapshot(
           recipientId: recipientId,
-          reasons: const {AttentionRecipientReason.directedChatTarget},
+          reasons: {reason},
           role: AttentionRecipientRoleFacts(
             canReadBeaconContent: await _accessGuard.canReadContent(
               beaconId: beaconId,
@@ -405,6 +432,9 @@ class AttentionIntentCase {
             coordinationItemId: threadItemId,
             messageId: messageId,
             actorUserId: actorUserId,
+            excerpt: eventType == AttentionEventType.postFirstResponse
+                ? excerpt
+                : null,
           ),
         ),
       );
@@ -426,7 +456,7 @@ class AttentionIntentCase {
               ? '$actorName $emptyBody'
               : emptyBody);
     return AttentionDispatchIntent(
-      eventType: AttentionEventType.roomMessagePosted,
+      eventType: eventType,
       sourceEventKey: sourceEventKey,
       actorUserId: actorUserId,
       priority: NotificationPriority.normal,

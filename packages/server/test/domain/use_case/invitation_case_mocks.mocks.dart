@@ -1017,6 +1017,50 @@ class MockBeaconRepositoryPort extends _i1.Mock
           as _i6.Future<void>);
 
   @override
+  _i6.Future<bool> isPostAddressee({
+    required String? beaconId,
+    required String? userId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#isPostAddressee, [], {
+              #beaconId: beaconId,
+              #userId: userId,
+            }),
+            returnValue: _i6.Future<bool>.value(false),
+          )
+          as _i6.Future<bool>);
+
+  @override
+  _i6.Future<void> leavePostAsAddressee({
+    required String? beaconId,
+    required String? userId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#leavePostAsAddressee, [], {
+              #beaconId: beaconId,
+              #userId: userId,
+            }),
+            returnValue: _i6.Future<void>.value(),
+            returnValueForMissingStub: _i6.Future<void>.value(),
+          )
+          as _i6.Future<void>);
+
+  @override
+  _i6.Future<void> returnToPostAsAddressee({
+    required String? beaconId,
+    required String? userId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#returnToPostAsAddressee, [], {
+              #beaconId: beaconId,
+              #userId: userId,
+            }),
+            returnValue: _i6.Future<void>.value(),
+            returnValueForMissingStub: _i6.Future<void>.value(),
+          )
+          as _i6.Future<void>);
+
+  @override
   _i6.Future<void> recordBeaconStatusTransition({
     required String? beaconId,
     required _i16.BeaconStatus? fromStatus,

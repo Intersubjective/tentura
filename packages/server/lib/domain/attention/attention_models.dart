@@ -52,6 +52,7 @@ abstract final class AttentionEventTypeCatalog {
       case AttentionEventType.closureFinalized:
       case AttentionEventType.closureCancelled:
       case AttentionEventType.requestStale:
+      case AttentionEventType.postFirstResponse:
         return;
     }
   }
@@ -95,6 +96,10 @@ enum AttentionEventType {
   closureFinalized,
   closureCancelled,
   requestStale,
+
+  /// A non-author member's first message or reaction in a Post room, told to
+  /// the Post author once per member.
+  postFirstResponse,
 }
 
 extension AttentionEventTypeScope on AttentionEventType {
@@ -120,6 +125,9 @@ enum AttentionRecipientReason {
   directedChatTarget,
   reciprocalCounterpart,
   inviter,
+
+  /// The author of a Post, hearing about a member's first response.
+  postAuthor,
 }
 
 extension AttentionRecipientReasonScope on AttentionRecipientReason {
