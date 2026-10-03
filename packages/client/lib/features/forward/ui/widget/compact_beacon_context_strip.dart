@@ -15,10 +15,12 @@ import 'package:tentura/ui/widget/self_user_highlight.dart';
 class CompactBeaconContextStrip extends StatelessWidget {
   const CompactBeaconContextStrip({
     required this.beacon,
+    this.showRequirements = true,
     super.key,
   });
 
   final Beacon beacon;
+  final bool showRequirements;
 
   static const _tightStripMaxWidth = 400.0;
 
@@ -111,7 +113,7 @@ class CompactBeaconContextStrip extends StatelessWidget {
                             style: TenturaText.bodySmall(tt.textMuted),
                           ),
                         ),
-                        if (beacon.needs.isNotEmpty) ...[
+                        if (showRequirements && beacon.needs.isNotEmpty) ...[
                           SizedBox(width: tt.iconTextGap),
                           Flexible(
                             child: BeaconRequirementsBar(

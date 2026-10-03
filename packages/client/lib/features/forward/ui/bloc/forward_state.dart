@@ -1,9 +1,11 @@
 import 'package:tentura/domain/capability/forward_band_row.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
 import '../../domain/entity/candidate_involvement.dart';
 import '../../domain/entity/forward_candidate.dart';
+import '../../domain/forward_target_profile.dart';
 
 export 'package:tentura/ui/bloc/state_base.dart';
 
@@ -129,6 +131,10 @@ abstract class ForwardState extends StateBase with _$ForwardState {
   }) = _ForwardState;
 
   const ForwardState._();
+
+  ForwardTargetProfile get profile => beacon?.kind == BeaconKind.post
+      ? ForwardTargetProfile.post
+      : ForwardTargetProfile.request;
 
   Set<String> get bandMemberIds => band.map((row) => row.userId).toSet();
 

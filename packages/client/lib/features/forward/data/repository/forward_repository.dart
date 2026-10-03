@@ -170,7 +170,7 @@ class ForwardRepository {
       )
       .firstWhere((e) => e.dataSource == DataSource.Link)
       .then((r) {
-        final payload = r.dataOrThrow(label: _label).beaconForward!;
+        final payload = r.dataOrThrow(label: _label).beaconForward;
         final result = ForwardDeliveryResult(
           batchId: payload.batchId,
           deliveredRecipientIds: payload.deliveredRecipientIds.toList(),

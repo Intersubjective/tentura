@@ -197,7 +197,8 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
   Future<void> _submitForward(BuildContext context) async {
     final cubit = context.read<ForwardCubit>();
     List<String>? attributionParentEdgeIds;
-    if (!cubit.state.hasMyOutgoingForward) {
+    if (cubit.state.profile.showsAttribution &&
+        !cubit.state.hasMyOutgoingForward) {
       try {
         final sources = await cubit.fetchInboundSources();
         if (!context.mounted) return;
@@ -433,12 +434,17 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
 
             final beacon = state.beacon;
             final visible = state.visibleRecipients;
+            final profile = state.profile;
             final showLineageBlock =
+                profile.showsLineage &&
                 state.activeFilter != ForwardFilter.alreadyInvolved;
             final lineage = showLineageBlock
                 ? state.lineageSuggestions
                 : const <ForwardCandidate>[];
-            final showBandBlock = showLineageBlock && state.band.isNotEmpty;
+            final showBandBlock =
+                profile.showsBand &&
+                state.activeFilter != ForwardFilter.alreadyInvolved &&
+                state.band.isNotEmpty;
             final counts = state.scopeCounts;
             final listIsEmpty =
                 state.activeFilter == ForwardFilter.alreadyInvolved
@@ -536,6 +542,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                             !widget.embedded) ...[
                           CompactBeaconContextStrip(
                             beacon: beacon,
+                            showRequirements: profile.showsRequirements,
                           ),
                           SizedBox(height: tt.rowGap),
                         ],
@@ -738,8 +745,12 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
               candidate: lineage[i],
             ),
           ),
-          reasonSlugs: state.recipientReasons[lineage[i].id] ?? const [],
-          onEditReasons: () => unawaited(
+          reasonSlugs: state.profile.showsReasons
+              ? state.recipientReasons[lineage[i].id] ?? const []
+              : const [],
+          onEditReasons: !state.profile.showsReasons
+              ? null
+              : () => unawaited(
             _editReasons(
               context,
               cubit,
@@ -795,8 +806,12 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
               candidate: visible[i],
             ),
           ),
-          reasonSlugs: state.recipientReasons[visible[i].id] ?? const [],
-          onEditReasons: () => unawaited(
+          reasonSlugs: state.profile.showsReasons
+              ? state.recipientReasons[visible[i].id] ?? const []
+              : const [],
+          onEditReasons: !state.profile.showsReasons
+              ? null
+              : () => unawaited(
             _editReasons(
               context,
               cubit,

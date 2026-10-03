@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/features/forward/domain/forward_draft_policy.dart';
+import 'package:tentura/features/forward/domain/forward_target_profile.dart';
 
 void main() {
   group('uncoveredRecipientIds', () {
@@ -215,6 +216,30 @@ void main() {
           offerHelpAllowed: false,
         ),
         isFalse,
+      );
+    });
+
+    test('Post never nudges even on a first edge with offer help allowed', () {
+      expect(
+        shouldNudgeOfferHelpAfterForwardVisit(
+          hadOutgoingEdgeBefore: false,
+          hasOutgoingEdgeAfter: true,
+          offerHelpAllowed: true,
+          profile: ForwardTargetProfile.post,
+        ),
+        isFalse,
+      );
+    });
+
+    test('explicit Request profile keeps the first-edge nudge', () {
+      expect(
+        shouldNudgeOfferHelpAfterForwardVisit(
+          hadOutgoingEdgeBefore: false,
+          hasOutgoingEdgeAfter: true,
+          offerHelpAllowed: true,
+          profile: ForwardTargetProfile.request,
+        ),
+        isTrue,
       );
     });
   });
