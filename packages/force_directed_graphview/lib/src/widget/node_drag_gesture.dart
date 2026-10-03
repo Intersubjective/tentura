@@ -1,10 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
-import 'package:force_directed_graphview/src/configuration.dart';
-import 'package:force_directed_graphview/src/scene/graph_ids.dart';
-import 'package:force_directed_graphview/src/scene/graph_presentation_token.dart';
-import 'package:force_directed_graphview/src/scene/scene_snapshot.dart';
 import 'package:force_directed_graphview/src/widget/inherited_configuration.dart';
 
 /// Optional node-drag and camera-gating layer for [GraphView].
@@ -24,6 +22,12 @@ class NodeDragGesture extends StatefulWidget {
 
 class _NodeDragGestureState extends State<NodeDragGesture> {
   final _activePointers = <int>{};
+  int? _canvasPointer;
+  Offset? _canvasDownGlobal;
+  Offset? _canvasDownViewport;
+  int? _canvasButtons;
+  Timer? _canvasLongPressTimer;
+  var _canvasLongPressed = false;
 
   GraphNodeId? _pendingNodeId;
   GraphNodeId? _pendingTapNodeId;
@@ -37,9 +41,9 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
   Offset _grabOffset = Offset.zero;
 
   var _scaleBlocked = false;
-  late GraphController _controller;
+  late GraphController<dynamic, dynamic> _controller;
   late GraphViewConfiguration _configuration;
-  GraphController? _registeredAbortController;
+  GraphController<dynamic, dynamic>? _registeredAbortController;
   late final VoidCallback _abortGestures = _abortActiveGestures;
 
   @override
@@ -58,6 +62,7 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
 
   @override
   void dispose() {
+    _cancelCanvasPress();
     _registeredAbortController?.unregisterGestureLifecycleAbort(_abortGestures);
     _registeredAbortController = null;
     _releaseCapture(notifyCancel: true);
@@ -65,6 +70,7 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
   }
 
   void _abortActiveGestures() {
+    _cancelCanvasPress();
     _cancelPendingCapture();
     _releaseCapture(notifyCancel: true);
   }
@@ -109,6 +115,7 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     }
 
     if (_activePointers.length >= 2) {
+      _cancelCanvasPress();
       _cancelPendingCapture();
       _scaleBlocked = true;
       return;
@@ -120,6 +127,22 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
 
     final pos = event.localPosition;
     final pass = _captureDragPassSnapshot();
+    final canvasEnabled = _configuration.onCanvasTap != null ||
+        _configuration.onCanvasSecondaryTap != null ||
+        _configuration.onCanvasLongPress != null;
+    if (canvasEnabled) {
+      final nodeId = _hitTestTopmostNodeIdInSnapshot(
+        pos,
+        pass,
+        draggableOnly: false,
+      );
+      final tapId =
+          _configuration.nodeTapHitTester?.call(pos, pass.orderedNodeIds);
+      if (nodeId == null && tapId == null) {
+        _startCanvasPress(event);
+        return;
+      }
+    }
     final bodyId = _configuration.onNodeTap != null
         ? _hitTestTopmostNodeIdInSnapshot(
             pos,
@@ -184,12 +207,15 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
   }
 
   void _onPointerMove(PointerMoveEvent event) {
+    if (_canvasPointer == event.pointer &&
+        (event.position - _canvasDownGlobal!).distance >= kTouchSlop) {
+      _cancelCanvasPress();
+    }
     if (_pendingNodeId == null &&
         _pendingTapNodeId != null &&
         event.pointer == _pendingPointer) {
       final down = _pendingDownScene;
-      if (down != null &&
-          (event.localPosition - down).distance >= kTouchSlop) {
+      if (down != null && (event.localPosition - down).distance >= kTouchSlop) {
         _cancelPendingCapture();
         return;
       }
@@ -235,6 +261,16 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
 
   void _onPointerUp(PointerUpEvent event) {
     _activePointers.remove(event.pointer);
+    if (_canvasPointer == event.pointer) {
+      final position = _controller.viewportLocalToScene(_canvasDownViewport!);
+      final callback = _canvasLongPressed
+          ? null
+          : _canvasButtons == kSecondaryMouseButton
+              ? _configuration.onCanvasSecondaryTap
+              : _configuration.onCanvasTap;
+      _cancelCanvasPress();
+      callback?.call(position);
+    }
 
     if (_capturedNodeId != null) {
       if (_activePointers.isEmpty) {
@@ -264,6 +300,7 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
   }
 
   void _onPointerCancel(PointerCancelEvent event) {
+    if (_canvasPointer == event.pointer) _cancelCanvasPress();
     _activePointers.remove(event.pointer);
 
     if (_capturedNodeId != null && event.pointer == _capturePointer) {
@@ -275,6 +312,38 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     if (_activePointers.isEmpty) {
       _scaleBlocked = false;
     }
+  }
+
+  void _startCanvasPress(PointerDownEvent event) {
+    if (event.buttons != kPrimaryButton &&
+        event.buttons != kSecondaryMouseButton) {
+      return;
+    }
+    _canvasPointer = event.pointer;
+    _canvasDownGlobal = event.position;
+    // This listener is inside InteractiveViewer's transformed child, so its
+    // local coordinates are already scene coordinates. Store viewport-local
+    // coordinates for the controller's conversion at callback dispatch.
+    _canvasDownViewport = _controller.sceneToViewportLocal(event.localPosition);
+    _canvasButtons = event.buttons;
+    _canvasLongPressed = false;
+    if (event.buttons == kPrimaryButton) {
+      _canvasLongPressTimer = Timer(kLongPressTimeout, () {
+        _canvasLongPressed = true;
+        final position = _controller.viewportLocalToScene(_canvasDownViewport!);
+        _configuration.onCanvasLongPress?.call(position);
+      });
+    }
+  }
+
+  void _cancelCanvasPress() {
+    _canvasLongPressTimer?.cancel();
+    _canvasLongPressTimer = null;
+    _canvasPointer = null;
+    _canvasDownGlobal = null;
+    _canvasDownViewport = null;
+    _canvasButtons = null;
+    _canvasLongPressed = false;
   }
 
   _DragPassSnapshot _captureDragPassSnapshot() {
