@@ -171,6 +171,7 @@ ConstellationComposedPresentation composeConstellationPresentation({
   required DateTime asOfUtc,
   required ConstellationLabelBudget labelBudget,
   Set<String> expandedSatelliteAuthorIds = const {},
+  List<ConstellationMemberWeb> selectedRequestWebs = const [],
 }) {
   final projection = field.resolvedAnchorProjection;
   final automatic = ConstellationAutomaticLayer(
@@ -243,6 +244,7 @@ ConstellationComposedPresentation composeConstellationPresentation({
     ...visiblePosts.map((post) => post.authorId),
     for (final web in field.memberWebs)
       if (visiblePostIdSet.contains(web.beaconId)) web.personId,
+    for (final web in selectedRequestWebs) web.personId,
     ...automatic.requests.map((request) => request.authorId),
     ...anchorOverlay.pinnedRequests.map((request) => request.authorId),
     ...pinnedPeerIds,

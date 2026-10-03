@@ -5051,6 +5051,7 @@ type query_root {
 
   """fetch data from the table: "beacon_steward" using primary key columns"""
   beacon_steward_by_pk(beacon_id: String!): beacon_steward
+  beaconMemberWebs(id: String!): [v2_ConstellationMemberWeb!]!
   blockInherited(originId: String!): [v2_user!]
   blockPreview(cascadeMode: Int, objectId: String!): v2_BlockPreview!
   closureResultForViewer(beaconId: String!): v2_ClosureResult

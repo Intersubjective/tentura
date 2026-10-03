@@ -18,6 +18,7 @@ import '../../domain/constellation_post_fade.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../../domain/entity/constellation_anchor_projection.dart';
 import '../../domain/entity/constellation_field.dart';
+import '../../domain/port/constellation_member_webs_port.dart';
 import '../../domain/use_case/constellation_anchor_case.dart';
 import '../../domain/use_case/constellation_field_case.dart';
 import '../../../graph/domain/entity/edge_details.dart';
@@ -123,10 +124,12 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     required ConstellationFieldCase case_,
     required Profile viewer,
     ConstellationAnchorCase? anchorCase,
+    ConstellationMemberWebsPort? memberWebsPort,
     ForwardRepository? forwardRepository,
     bool loadOnCreate = true,
   }) : _case = case_,
        _anchorCase = anchorCase,
+       _memberWebsPort = memberWebsPort,
        _viewer = viewer,
        _forwardRepositoryOverride = forwardRepository,
        super(const ConstellationState()) {
@@ -135,6 +138,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       (_) => unawaited(_onAnchorRefreshHint()),
       cancelOnError: false,
     );
+    // ignore: invalid_use_of_visible_for_testing_member
     graphController.scene.addListener(_onGraphSceneLayoutOutcomeChanged);
     if (loadOnCreate) {
       unawaited(load());
@@ -143,7 +147,13 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   final ConstellationFieldCase _case;
   final ConstellationAnchorCase? _anchorCase;
+  final ConstellationMemberWebsPort? _memberWebsPort;
   final Profile _viewer;
+
+  /// Lazily fetched member webs per selected Request id (kept for the
+  /// cubit's lifetime; a field reload does not invalidate it).
+  final Map<String, List<ConstellationMemberWeb>> _requestWebsById = {};
+  final Set<String> _requestWebsInFlight = {};
   final ForwardRepository? _forwardRepositoryOverride;
 
   StreamSubscription<void>? _anchorRefreshSub;
@@ -231,6 +241,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   Set<String> get forgetPriorHintNodeIdsForTest => _forgetPriorHintNodeIds;
 
   @visibleForTesting
+  // ignore: invalid_use_of_visible_for_testing_member
   int get writeCount => _anchorCase?.writeCount ?? 0;
 
   bool get placementActionsEnabled =>
@@ -271,6 +282,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   @override
   Future<void> close() async {
     _clearClusterPresentations();
+    // ignore: invalid_use_of_visible_for_testing_member
     graphController.scene.removeListener(_onGraphSceneLayoutOutcomeChanged);
     await _anchorRefreshSub?.cancel();
     _anchorCase?.deactivate(token: _anchorLifecycleToken);
@@ -327,6 +339,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (isClosed || _dispatchingLayoutRecovery) {
       return;
     }
+    // ignore: invalid_use_of_visible_for_testing_member
     final outcome = graphController.scene.layoutOutcome;
     if (outcome is GraphLayoutOutcomeRunning) {
       return;
@@ -445,6 +458,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         asOfUtc: loadedField.loadedAt,
         labelBudget: labelBudget,
         expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
+        selectedRequestWebs: _selectedRequestWebs,
       );
       emit(
         state.copyWith(
@@ -837,7 +851,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (parentStart == null) {
       return;
     }
-    final node = graphController.nodePayloadForId(parentGraphId)! as NodeDetails;
+    final node = graphController.nodePayloadForId(parentGraphId)!;
     final dropCentre = clampClusterDragPosition(node, sceneCentre);
     final limited = constellationLimitClusterDelta(
       parentStart: (x: parentStart.dx, y: parentStart.dy),
@@ -904,9 +918,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       return;
     }
     emit(state.copyWith(placementActionsEnabled: false));
-    final outcome = await _anchorCase!.deleteAnchor(
+    final outcome = await _anchorCase.deleteAnchor(
       target: target,
-      generation: _anchorCase!.lifecycleToken,
+      generation: _anchorCase.lifecycleToken,
       membershipFilters: state.membershipFilters,
     );
     if (isClosed) {
@@ -945,18 +959,18 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       return;
     }
     final outcome = companions.isEmpty
-        ? await _anchorCase!.upsert(
+        ? await _anchorCase.upsert(
             target: target,
             position: position,
-            generation: _anchorCase!.lifecycleToken,
+            generation: _anchorCase.lifecycleToken,
             membershipFilters: state.membershipFilters,
           )
-        : await _anchorCase!.upsertAll(
+        : await _anchorCase.upsertAll(
             parentTarget: target,
             parentPosition: position,
             companions: companions,
             companionTitles: companionTitles,
-            generation: _anchorCase!.lifecycleToken,
+            generation: _anchorCase.lifecycleToken,
             membershipFilters: state.membershipFilters,
           );
     if (isClosed) {
@@ -1053,7 +1067,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         ? _deferredRefreshTargetsForPresentation()
         : const <ConstellationAnchorTarget>{};
     await _mergeConfirmedProjection(
-      _anchorCase!.confirmedProjection,
+      _anchorCase.confirmedProjection,
       deferTargets: deferTargets,
     );
     if (isClosed) {
@@ -1063,7 +1077,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       emit(
         state.copyWith(
           deferredRefreshTargets: deferTargets,
-          syncPending: _anchorCase!.syncPending,
+          syncPending: _anchorCase.syncPending,
         ),
       );
       return;
@@ -1071,7 +1085,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     emit(
       state.copyWith(
         deferredRefreshTargets: {},
-        syncPending: _anchorCase!.syncPending,
+        syncPending: _anchorCase.syncPending,
       ),
     );
     _reconcileLayout();
@@ -1145,6 +1159,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       asOfUtc: state.loadedAt ?? field.loadedAt,
       labelBudget: _currentLabelBudget(),
       expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
+      selectedRequestWebs: _selectedRequestWebs,
     );
     emit(
       state.copyWith(
@@ -1250,14 +1265,52 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (isClosed) {
       return;
     }
+    final previousId = state.selectedRequestId;
     emit(
       state.copyWith(
         selectedRequestId: requestId,
         selectedPersonId: requestId != null ? null : state.selectedPersonId,
       ),
     );
-    if (state.field?.posts.isNotEmpty ?? false) {
+    if (requestId != null) {
+      unawaited(_fetchRequestWebs(requestId));
+    }
+    if (_requestWebsById.containsKey(previousId) ||
+        _requestWebsById.containsKey(requestId)) {
+      _recomposeAndLayout();
+    } else if (state.field?.posts.isNotEmpty ?? false) {
       _rebuildGraph();
+    }
+  }
+
+  List<ConstellationMemberWeb> get _selectedRequestWebs {
+    final selectedId = state.selectedRequestId;
+    return selectedId == null
+        ? const []
+        : _requestWebsById[selectedId] ?? const [];
+  }
+
+  Future<void> _fetchRequestWebs(String requestId) async {
+    final port = _memberWebsPort;
+    if (port == null ||
+        _requestWebsById.containsKey(requestId) ||
+        !_requestWebsInFlight.add(requestId) ||
+        (state.field?.posts.any((post) => post.id == requestId) ?? false)) {
+      return;
+    }
+    try {
+      final webs = await port.fetch(requestId);
+      if (isClosed) {
+        return;
+      }
+      _requestWebsById[requestId] = webs;
+      if (state.selectedRequestId == requestId) {
+        _recomposeAndLayout();
+      }
+    } on Object catch (e, st) {
+      addError(e, st);
+    } finally {
+      _requestWebsInFlight.remove(requestId);
     }
   }
 
@@ -2082,6 +2135,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       asOfUtc: state.loadedAt ?? field.loadedAt,
       labelBudget: _currentLabelBudget(),
       expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
+      selectedRequestWebs: _selectedRequestWebs,
     );
     emit(
       state.copyWith(
@@ -2385,6 +2439,26 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       );
       if (count > 0) {
         postOverflow[post.id] = count;
+      }
+    }
+    final selectedRequestId = state.selectedRequestId;
+    if (selectedRequestId != null &&
+        drawnRequestIds.contains(selectedRequestId)) {
+      final webs =
+          _requestWebsById[selectedRequestId] ??
+          const <ConstellationMemberWeb>[];
+      for (final web in webs) {
+        if (web.personId != _viewer.id &&
+            !peersById.containsKey(web.personId)) {
+          continue;
+        }
+        addEdge(
+          srcId: selectedRequestId,
+          dstId: web.personId,
+          kind: web.state == ConstellationMemberWebState.inside
+              ? ConstellationEdgeKind.webInside
+              : ConstellationEdgeKind.webForwarded,
+        );
       }
     }
     postFadeById = postFade;

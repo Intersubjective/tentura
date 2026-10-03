@@ -5,6 +5,7 @@ import 'package:tentura/data/model/image_model_v2.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../../domain/entity/constellation_anchor_projection.dart';
 import '../../domain/entity/constellation_field.dart';
+import '../gql/_g/beacon_member_webs.data.gql.dart';
 import '../gql/_g/constellation_anchors_fetch.data.gql.dart';
 import '../gql/_g/constellation_field_fetch.data.gql.dart';
 
@@ -32,20 +33,41 @@ ConstellationField mapConstellationFieldFromFieldFetch(
       ],
       memberWebs: [
         for (final web in payload.memberWebs)
-          ConstellationMemberWeb(
+          _memberWeb(
             beaconId: web.beaconId,
             personId: web.personId,
-            state: switch (web.state) {
-              Gv2_ConstellationMemberWebState.FORWARDED =>
-                ConstellationMemberWebState.forwarded,
-              _ => ConstellationMemberWebState.inside,
-            },
+            state: web.state,
           ),
       ],
       peersCapped: payload.peersCapped,
       requestsCapped: payload.requestsCapped,
       anchorProjection: _mapFieldFetchAnchorProjection(payload.anchorProjection),
     );
+
+List<ConstellationMemberWeb> mapBeaconMemberWebs(
+  Iterable<GBeaconMemberWebsData_beaconMemberWebs> webs,
+) => [
+  for (final web in webs)
+    _memberWeb(
+      beaconId: web.beaconId,
+      personId: web.personId,
+      state: web.state,
+    ),
+];
+
+ConstellationMemberWeb _memberWeb({
+  required String beaconId,
+  required String personId,
+  required Gv2_ConstellationMemberWebState state,
+}) => ConstellationMemberWeb(
+  beaconId: beaconId,
+  personId: personId,
+  state: switch (state) {
+    Gv2_ConstellationMemberWebState.FORWARDED =>
+      ConstellationMemberWebState.forwarded,
+    _ => ConstellationMemberWebState.inside,
+  },
+);
 
 ConstellationField mapConstellationFieldFromAnchorsFetch(
   GConstellationAnchorsFetchData_constellationField payload,

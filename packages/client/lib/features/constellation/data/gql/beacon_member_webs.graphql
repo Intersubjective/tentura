@@ -1,0 +1,7 @@
+query BeaconMemberWebs($id: String!) {
+  beaconMemberWebs(id: $id) {
+    beaconId
+    personId
+    state
+  }
+}
