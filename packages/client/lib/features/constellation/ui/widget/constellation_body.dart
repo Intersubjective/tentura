@@ -687,6 +687,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
                   ),
                 );
               case ConstellationPlacementPhase.idle:
+              case ConstellationPlacementPhase.composing:
                 break;
             }
           },

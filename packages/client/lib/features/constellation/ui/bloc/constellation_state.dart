@@ -21,6 +21,7 @@ enum ConstellationPlacementPhase {
   idle,
   draggingExisting,
   draggingNew,
+  composing,
 }
 
 @freezed

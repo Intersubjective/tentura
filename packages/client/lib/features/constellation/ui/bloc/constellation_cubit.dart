@@ -181,6 +181,11 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   int _layoutHandoffGeneration = 0;
 
+  Set<String> _composingCandidateIds = const {};
+  Set<String> _composingSelectedIds = const {};
+  Offset _composingDraftCentre = Offset.zero;
+  void Function(String personId)? _onComposingToggle;
+
   ForwardRepository get _forwardRepository =>
       _forwardRepositoryOverride ?? GetIt.I<ForwardRepository>();
 
@@ -460,6 +465,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         labelBudget: labelBudget,
         expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
         selectedRequestWebs: _selectedRequestWebs,
+        extraKeptPeerIds: _composingCandidateIds,
       );
       emit(
         state.copyWith(
@@ -555,6 +561,59 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         placementFailureMessage: null,
         placementActionsEnabled: false,
       ),
+    );
+  }
+
+  /// Enters the composing phase: adds the draft node at [draftCentre], widens
+  /// the composition to [candidateIds] (field peers only) and draws a draft
+  /// edge to every id in [selectedIds]. Existing nodes keep their positions.
+  void enterComposing({
+    required Offset draftCentre,
+    required Set<String> candidateIds,
+    required Set<String> selectedIds,
+    required void Function(String personId) onToggle,
+  }) {
+    if (isClosed || state.field == null) {
+      return;
+    }
+    _composingCandidateIds = candidateIds;
+    _composingSelectedIds = selectedIds;
+    _composingDraftCentre = draftCentre;
+    _onComposingToggle = onToggle;
+    emit(state.copyWith(placementPhase: ConstellationPlacementPhase.composing));
+    _recomposeAndLayout();
+  }
+
+  /// Leaves the composing phase: removes the draft node and its edges and
+  /// restores the regular composition.
+  void exitComposing() {
+    if (isClosed ||
+        state.placementPhase != ConstellationPlacementPhase.composing) {
+      return;
+    }
+    final token = graphController.activePresentationTokenForNode(
+      const FieldDraftNode().graphNodeId,
+    );
+    if (token != null) {
+      graphController.cancelNodePresentationDrag(token);
+    }
+    _composingCandidateIds = const {};
+    _composingSelectedIds = const {};
+    _onComposingToggle = null;
+    emit(state.copyWith(placementPhase: ConstellationPlacementPhase.idle));
+    _recomposeAndLayout();
+  }
+
+  /// Places the draft node, which is not in the anchor set, at a fixed centre.
+  void _placeDraftNode() {
+    const draftGraphId = 'fd:${FieldDraftNode.draftId}';
+    if (graphController.nodePayloadForId(draftGraphId) == null ||
+        graphController.activePresentationTokenForNode(draftGraphId) != null) {
+      return;
+    }
+    graphController.beginNodePresentationDragForId(
+      draftGraphId,
+      _composingDraftCentre,
     );
   }
 
@@ -1176,6 +1235,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       labelBudget: _currentLabelBudget(),
       expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
       selectedRequestWebs: _selectedRequestWebs,
+      extraKeptPeerIds: _composingCandidateIds,
     );
     emit(
       state.copyWith(
@@ -1568,6 +1628,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       };
 
   bool canDragNode(NodeDetails node) {
+    if (state.placementPhase == ConstellationPlacementPhase.composing) {
+      return false;
+    }
     if (anchorTargetForNode(node) == null) {
       return false;
     }
@@ -1950,6 +2013,12 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       return;
     }
     switch (node) {
+      case FieldPersonNode(:final person)
+          when state.placementPhase == ConstellationPlacementPhase.composing:
+        if (person.id == viewerId) {
+          return;
+        }
+        _toggleComposingPerson(person.id);
       case FieldPersonNode(:final person):
         if (person.id == viewerId) {
           return;
@@ -1960,6 +2029,14 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       default:
         break;
     }
+  }
+
+  void _toggleComposingPerson(String personId) {
+    _composingSelectedIds = _composingSelectedIds.contains(personId)
+        ? (Set<String>.of(_composingSelectedIds)..remove(personId))
+        : {..._composingSelectedIds, personId};
+    _onComposingToggle?.call(personId);
+    _reconcileLayout();
   }
 
   void selectMapNodeAtSceneCentre(Offset sceneCentre) {
@@ -2155,6 +2232,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       labelBudget: _currentLabelBudget(),
       expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
       selectedRequestWebs: _selectedRequestWebs,
+      extraKeptPeerIds: _composingCandidateIds,
     );
     emit(
       state.copyWith(
@@ -2336,6 +2414,12 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         node.id: ?composition?.postMemberIdsByPostId[node.id],
     };
 
+    final composing =
+        state.placementPhase == ConstellationPlacementPhase.composing;
+    if (composing) {
+      nodes.add(const FieldDraftNode());
+    }
+
     final nodeById = {for (final node in nodes) node.id: node};
 
     void addEdge({
@@ -2485,6 +2569,16 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     postFadeById = postFade;
     postOverflowCountByPostId = postOverflow;
 
+    if (composing) {
+      for (final personId in _composingSelectedIds) {
+        addEdge(
+          srcId: FieldDraftNode.draftId,
+          dstId: personId,
+          kind: ConstellationEdgeKind.draftRecipient,
+        );
+      }
+    }
+
     graphController.reconcileTopology(
       nodes,
       edges,
@@ -2492,6 +2586,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       layoutOnTopologyChange: false,
     );
     emit(state.copyWith(graphRevision: state.graphRevision + 1));
+    if (composing) {
+      _placeDraftNode();
+      return;
+    }
     final handoffGeneration = ++_layoutHandoffGeneration;
     _runAfterNextFrame(() {
       if (isClosed || handoffGeneration != _layoutHandoffGeneration) {

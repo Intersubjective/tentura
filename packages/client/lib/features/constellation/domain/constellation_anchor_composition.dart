@@ -173,6 +173,7 @@ ConstellationComposedPresentation composeConstellationPresentation({
   required ConstellationLabelBudget labelBudget,
   Set<String> expandedSatelliteAuthorIds = const {},
   List<ConstellationMemberWeb> selectedRequestWebs = const [],
+  Set<String> extraKeptPeerIds = const {},
 }) {
   final projection = field.resolvedAnchorProjection;
   final automatic = ConstellationAutomaticLayer(
@@ -280,6 +281,7 @@ ConstellationComposedPresentation composeConstellationPresentation({
     ...resolved.keptPeerIds,
     ...pinnedPeerIds,
     for (final peer in anchorOverlay.supportPeers) peer.id,
+    ...extraKeptPeerIds.intersection(visiblePeerIds),
   };
 
   final labelPlan = _buildLabelDisplayPlan(

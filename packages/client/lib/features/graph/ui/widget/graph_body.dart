@@ -217,7 +217,7 @@ class GraphBodyState extends State<GraphBody>
             ),
           ),
         if (panelVisible)
-          _buildPersonContextOverlay(context, graphState, contextState!),
+          _buildPersonContextOverlay(context, graphState, contextState),
       ],
     );
   }

@@ -31,6 +31,7 @@ sealed class NodeDetails {
     BeaconNode() => 'b:$id',
     FieldPersonNode() => 'fp:$id',
     FieldBeaconNode() => 'fr:$id',
+    FieldDraftNode() => 'fd:$id',
     GenealogyUserNode() => 'gu:$id',
     GenealogyDeletedNode() => 'gd:$id',
   };
@@ -376,4 +377,32 @@ final class FieldBeaconNode extends NodeDetails {
       other is FieldBeaconNode &&
       other.request == request &&
       other.post == post;
+}
+
+/// Draft Post node shown while composing on the Constellation field map.
+final class FieldDraftNode extends NodeDetails {
+  const FieldDraftNode({super.size = 36});
+
+  static const draftId = 'draft';
+
+  @override
+  String get id => draftId;
+
+  @override
+  String get userId => '';
+
+  @override
+  String get label => '';
+
+  @override
+  bool get hasImage => false;
+
+  @override
+  double get score => 0;
+
+  @override
+  double get rScore => 0;
+
+  @override
+  FieldDraftNode copyWithPinned(bool isPinned) => FieldDraftNode(size: size);
 }

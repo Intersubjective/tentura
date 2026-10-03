@@ -73,7 +73,7 @@ class _GraphAppBarActionsState extends State<GraphAppBarActions> {
         screenCubit.showProfile(n.user.id);
       case final BeaconNode n:
         screenCubit.showBeacon(n.id);
-      case GenealogyDeletedNode():
+      case GenealogyDeletedNode() || FieldDraftNode():
         break;
       case FieldPersonNode(:final person):
         screenCubit.showProfile(person.id);
@@ -151,7 +151,7 @@ class _GraphAppBarActionsState extends State<GraphAppBarActions> {
               tooltip: l10n.openBeacon,
               icon: Icons.flag_outlined,
             ),
-            GenealogyDeletedNode() => null,
+            GenealogyDeletedNode() || FieldDraftNode() => null,
           };
           if (openDetails != null) {
             contextActions.add(

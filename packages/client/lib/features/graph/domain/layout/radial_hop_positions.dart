@@ -340,7 +340,10 @@ Map<String, Offset> localFanPositions({
   for (var i = 0; i < n; i++) {
     final angle = start + geometry.step * i;
     final offset = Offset(math.cos(angle), math.sin(angle)) * geometry.radius;
-    positions[childIds[i]] = clampLayoutPosition(parentPos + offset, canvasSize);
+    positions[childIds[i]] = clampLayoutPosition(
+      parentPos + offset,
+      canvasSize,
+    );
   }
   return positions;
 }

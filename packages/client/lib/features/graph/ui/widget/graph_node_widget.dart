@@ -110,7 +110,7 @@ class GraphNodeWidget extends StatelessWidget {
         beacon: constellationRequestAsIdentityBeacon(request),
         size: nodeDetails.size,
       ),
-      FieldBeaconNode() => CircleAvatar(
+      FieldBeaconNode() || FieldDraftNode() => CircleAvatar(
         radius: nodeDetails.size / 2,
         child: Icon(
           Icons.chat_bubble_outline,
