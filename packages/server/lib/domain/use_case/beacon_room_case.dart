@@ -17,6 +17,7 @@ import 'package:tentura_server/domain/port/discussion_product_policy_port.dart';
 import 'package:tentura_server/domain/policy/beacon_kind_policy.dart';
 import 'package:tentura_server/domain/policy/beacon_room_lifecycle_write_policy.dart';
 import 'package:tentura_server/domain/port/mutating_unit_of_work_port.dart';
+import 'package:tentura_server/domain/port/post_lock_port.dart';
 import 'package:tentura_server/domain/port/user_block_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
 import 'package:tentura_server/domain/port/polling_repository_port.dart';
@@ -41,6 +42,7 @@ import 'package:tentura_server/utils/id.dart';
 import 'package:tentura_server/utils/read_uint8_stream_with_limit.dart';
 import 'package:tentura_server/utils/room_mention_utils.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
+import 'package:tentura_server/domain/use_case/beacon_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 
 import 'coordination_room_access.dart';
@@ -71,15 +73,21 @@ class BeaconRoomCase extends UseCaseBase {
     this._hierarchyRepository,
     this._discussionPolicy, {
     BeaconRepositoryPort? beaconRepository,
+    BeaconCase? beaconCase,
+    PostLockPort? postLock,
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
     required super.env,
     required super.logger,
   }) : _beaconRepository = beaconRepository,
+       _beaconCase = beaconCase,
+       _postLock = postLock,
        _attentionIntents = attentionIntents,
        _attention = attention;
 
   final BeaconRepositoryPort? _beaconRepository;
+  final BeaconCase? _beaconCase;
+  final PostLockPort? _postLock;
 
   /// Rejects a Post for the Request-only room mutations.
   Future<void> _requireRequest(String beaconId) async {
@@ -1267,37 +1275,55 @@ class BeaconRoomCase extends UseCaseBase {
     required String beaconId,
     required String messageId,
     required String userId,
-  }) async {
-    final msg = await _room.getRoomMessageById(messageId);
-    if (msg == null || msg.beaconId != beaconId) {
-      throw IdNotFoundException(
-        id: messageId,
-        description: 'Room message not found',
-      );
-    }
-    final allowed = await _canMutateMessage(
-      beaconId: beaconId,
-      userId: userId,
-      msg: msg,
-    );
-    if (!allowed) {
-      throw const UnauthorizedException(description: 'Room access required');
-    }
-    if (msg.authorId != userId) {
-      throw const UnauthorizedException(
-        description: 'Only the message author can delete messages',
-      );
-    }
-    await _guardMessageMutation(beaconId: beaconId, msg: msg);
-    await _unitOfWork.run(
-      actorUserId: userId,
-      action: () async {
+  }) => _unitOfWork.run(
+    actorUserId: userId,
+    action: () async {
+      // Serialize with conversion before reading kind and the root pointer.
+      final postLock = _postLock;
+      if (postLock != null) {
+        await postLock.lockForPostMutation(beaconId);
+      } else {
         await _hierarchyRepository.lockMutationScope();
-        await _room.deleteRoomMessage(messageId: messageId);
-      },
-    );
-    return true;
-  }
+      }
+      final beacon = await _beaconRepository?.getBeaconById(beaconId: beaconId);
+      if (beacon?.kind == BeaconKind.post &&
+          beacon?.postRootMessageId == messageId &&
+          postLock == null) {
+        throw StateError('Post deletion requires PostLockPort');
+      }
+      final msg = await _room.getRoomMessageById(messageId);
+      if (msg == null || msg.beaconId != beaconId) {
+        throw IdNotFoundException(
+          id: messageId,
+          description: 'Room message not found',
+        );
+      }
+      final allowed = await _canMutateMessage(
+        beaconId: beaconId,
+        userId: userId,
+        msg: msg,
+      );
+      if (!allowed) {
+        throw const UnauthorizedException(description: 'Room access required');
+      }
+      if (msg.authorId != userId) {
+        throw const UnauthorizedException(
+          description: 'Only the message author can delete messages',
+        );
+      }
+      await _guardMessageMutation(beaconId: beaconId, msg: msg);
+      if (beacon != null &&
+          beacon.kind == BeaconKind.post &&
+          beacon.postRootMessageId == messageId) {
+        if (beacon.author.id != userId) {
+          throw const UnauthorizedException(description: 'Author only');
+        }
+        return _beaconCase!.deleteById(beaconId: beaconId, userId: userId);
+      }
+      await _room.deleteRoomMessage(messageId: messageId);
+      return true;
+    },
+  );
 
   Future<bool> editMessage({
     required String beaconId,

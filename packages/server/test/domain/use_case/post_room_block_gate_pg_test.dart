@@ -5,25 +5,35 @@ import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:postgres/postgres.dart';
-import 'package:test/test.dart';
-
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
+import 'package:tentura_server/data/repository/attention_dispatch_repository.dart';
+import 'package:tentura_server/data/repository/beacon_access_repository.dart';
 import 'package:tentura_server/data/repository/beacon_repository.dart';
+import 'package:tentura_server/data/repository/beacon_room_notification_context_repository.dart';
 import 'package:tentura_server/data/repository/beacon_room_repository.dart';
+import 'package:tentura_server/data/repository/commitment_repository.dart';
 import 'package:tentura_server/data/repository/coordination_item_repository.dart';
+import 'package:tentura_server/data/repository/help_offer_repository.dart';
+import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repository_mock.dart';
 import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
 import 'package:tentura_server/data/repository/polling_repository.dart';
+import 'package:tentura_server/data/repository/post_lock_repository.dart';
 import 'package:tentura_server/data/repository/user_block_repository.dart';
+import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/policy/discussion_product_policy.dart';
 import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
+import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
 import 'package:tentura_server/domain/port/remote_storage_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/port/upload_quota_repository_port.dart';
+import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/beacon_room_case.dart';
+import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 import 'package:tentura_server/env.dart';
+import 'package:test/test.dart';
 
 import '../../support/disposable_pg_target.dart';
 import '../../support/fake_beacon_hierarchy_repository.dart';
@@ -77,8 +87,31 @@ Future<void> main() async {
       database = openDisposablePgDatabase(target);
       final env = Env(environment: Environment.test);
       blocks = UserBlockRepository(env, database);
+      final logger = Logger('post_room_block_gate_pg_test');
+      final roomRepository = BeaconRoomRepository(database);
+      final uow = MutatingUnitOfWork(database);
+      final attention = TransactionalAttentionCase(
+        uow,
+        AttentionDispatchRepository(database, logger),
+      );
+      final intents = AttentionIntentCase(
+        BeaconRoomNotificationContextRepository(
+          roomRepository,
+          database,
+          HelpOfferRepository(database),
+          CommitmentRepository(database),
+        ),
+        UserRepository(
+          env,
+          database,
+          _FakeGenealogy(),
+          InviteSeedPromptRepositoryMock(),
+        ),
+        BeaconAccessRepository(database),
+        blocks,
+      );
       roomCase = BeaconRoomCase(
-        BeaconRoomRepository(database),
+        roomRepository,
         CoordinationItemRepository(database),
         _FakeFactCards(),
         _FakeImages(),
@@ -87,18 +120,39 @@ Future<void> main() async {
         PollingRepository(database),
         _FakeUploadQuota(),
         blocks,
-        MutatingUnitOfWork(database),
+        uow,
         FakeBeaconHierarchyRepository(),
         const ProductionDiscussionProductPolicy(),
         beaconRepository: BeaconRepository(database),
+        postLock: PostLockRepository(database),
+        attention: attention,
+        attentionIntents: intents,
         env: env,
         logger: Logger('post_room_block_gate_pg_test'),
       );
     });
 
+    Future<void> expectFirstResponseReceipt() async {
+      final rows = await writer.execute(
+        Sql.named('''
+        SELECT count(*)::int
+        FROM public.attention_occurrence_recipient r
+        JOIN public.attention_occurrence o ON o.id = r.occurrence_id
+        WHERE o.event_type = 'postFirstResponse' AND r.account_id = @author
+      '''),
+        parameters: {'author': _author},
+      );
+      expect(rows.single.single, 1);
+    }
+
     setUp(() async {
       await writer.execute('''
 TRUNCATE TABLE
+  public.post_first_response,
+  public.notification_outbox,
+  public.attention_occurrence_recipient,
+  public.attention_occurrence,
+  public.inbox_item,
   public.user_block_intent,
   public.user_block,
   public.beacon_room_message_reaction,
@@ -491,6 +545,7 @@ SELECT count(*) FROM public.beacon_room_message WHERE id = '$_recipientPostMessa
             body: 'Welcome aboard',
           );
           expect(created['beaconId'], _post);
+          await expectFirstResponseReceipt();
         });
 
         test('the forwarder still toggles a reaction', () async {
@@ -501,6 +556,7 @@ SELECT count(*) FROM public.beacon_room_message WHERE id = '$_recipientPostMessa
             emoji: '👍',
           );
           expect(await reactionCount(_postRootMessage, _forwarder), 1);
+          await expectFirstResponseReceipt();
         });
 
         test('the author still lists messages', () async {
@@ -581,6 +637,7 @@ SELECT count(*) FROM public.beacon_room_message WHERE id = '$_recipientPostMessa
         body: 'Thanks for the heads up',
       );
       expect(created['beaconId'], _post);
+      await expectFirstResponseReceipt();
     });
   });
 }
@@ -619,3 +676,6 @@ class _FakeUploadQuota extends Fake implements UploadQuotaRepositoryPort {
     required int dailyCapBytes,
   }) async => true;
 }
+
+final class _FakeGenealogy extends Fake
+    implements InviteGenealogyRepositoryPort {}
