@@ -187,6 +187,7 @@ class BeaconPeopleTabBody extends StatelessWidget {
           AccordionExpansionGroup(
             accordionMode: false,
             child: AccordionExpansionTile(
+              framed: false,
               id: BeaconPeopleAccordionSection.activeHelpers,
               initiallyExpanded: true,
               title: Text(
@@ -412,6 +413,7 @@ class BeaconPeopleTabBody extends StatelessWidget {
     }) {
       if (rows.isEmpty) return const SizedBox.shrink();
       return AccordionExpansionTile(
+        framed: false,
         id: sectionId,
         initiallyExpanded: initiallyExpanded,
         title: Text(
@@ -504,6 +506,7 @@ class BeaconPeopleTabBody extends StatelessWidget {
         AccordionExpansionGroup(
           accordionMode: false,
           child: AccordionExpansionTile(
+            framed: false,
             id: _forwardsFoldId,
             title: Text(
               forwardsTitle,
@@ -614,6 +617,7 @@ class BeaconPeopleTabBody extends StatelessWidget {
               if (showWithdrawn) ...[
                 const SizedBox(height: 8),
                 AccordionExpansionTile(
+                  framed: false,
                   id: BeaconPeopleAccordionSection.withdrawn,
                   title: Text(l10n.beaconShowWithdrawn(withdrawn.length)),
                   children: [

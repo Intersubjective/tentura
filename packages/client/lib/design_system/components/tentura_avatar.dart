@@ -24,7 +24,10 @@ enum TenturaAvatarSize {
 const int kAvatarRatingSector = 100 ~/ 4;
 
 /// Fixed diameter for [TenturaAvatarSize.big] (profile hero).
-const double kTenturaAvatarBigSize = 160;
+///
+/// 120 rather than 160: with initials (most people have no photo) a 160 disc
+/// dominated the profile and pushed the actions below the fold (#210).
+const double kTenturaAvatarBigSize = 120;
 
 /// Largest avatar that still carries the MeritRank eye / mutual badge.
 const double kTenturaAvatarBadgeMaxSize = 64;
@@ -33,7 +36,7 @@ const double kTenturaAvatarBadgeMaxSize = 64;
 const double kTenturaAvatarStackRing = 1.5;
 
 /// Default list-row avatar diameter ([TenturaAvatarSize.medium] on compact).
-const double kTenturaAvatarDefaultMedium = kTenturaAvatarBigSize / 4;
+const double kTenturaAvatarDefaultMedium = 40;
 
 /// Unified circular profile avatar: identifier, optional MeritRank chrome,
 /// self halo, author star, and capability overlay badge.

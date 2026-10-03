@@ -79,31 +79,21 @@ class RatingListTile extends StatelessWidget {
     }
 
     String badgeLabel;
-    Color badgeBg;
     Color badgeFg;
-    Color badgeBorder;
     switch (reciprocity) {
       case _ReciprocityClass.mutual:
         badgeLabel = l10n.classMutual;
-        badgeBg = colorScheme.primary.withValues(alpha: 12 / 100);
         badgeFg = colorScheme.primary;
-        badgeBorder = colorScheme.primary.withValues(alpha: 4 / 10);
       case _ReciprocityClass.oneWayOut:
         badgeLabel = l10n.classOneWayOut;
-        badgeBg = tt.warn.withValues(alpha: 12 / 100);
         badgeFg = tt.warn;
-        badgeBorder = tt.warn.withValues(alpha: 4 / 10);
       case _ReciprocityClass.oneWayIn:
         badgeLabel = l10n.classOneWayIn;
-        // Neutral, so it stays distinct from the brand "mutual" badge.
-        badgeBg = colorScheme.surfaceContainerHigh;
+        // Neutral, so it stays distinct from the brand "mutual" label.
         badgeFg = colorScheme.onSurfaceVariant;
-        badgeBorder = colorScheme.outlineVariant;
       case _ReciprocityClass.none:
         badgeLabel = l10n.classNone;
-        badgeBg = colorScheme.surfaceContainer;
         badgeFg = colorScheme.onSurfaceVariant;
-        badgeBorder = colorScheme.outlineVariant;
     }
 
     const rowHeight = 56.0;
@@ -209,26 +199,14 @@ class RatingListTile extends StatelessWidget {
             Expanded(
               flex: 2,
               child: Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: kSpacingSmall,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: badgeBg,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: badgeBorder),
-                  ),
-                  child: Text(
-                    badgeLabel,
-                    style: textTheme.labelSmall?.copyWith(
-                      color: badgeFg,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                  ),
+                // Plain status text, not a pill (design-system principle 2,
+                // UI review #208); wraps instead of truncating to "one-…".
+                child: Text(
+                  badgeLabel,
+                  style: TenturaText.status(badgeFg),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
                 ),
               ),
             ),
