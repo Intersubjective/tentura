@@ -11,38 +11,37 @@ import '../gql/_g/constellation_field_fetch.data.gql.dart';
 
 ConstellationField mapConstellationFieldFromFieldFetch(
   GConstellationFieldFetchData_constellationField payload,
-) =>
-    ConstellationField(
-      loadedAt: DateTime.parse(payload.loadedAt),
-      context: payload.context,
-      peers: [for (final peer in payload.peers) _mapFieldFetchPerson(peer)],
-      edges: [for (final edge in payload.edges) _mapFieldFetchEdge(edge)],
-      requests: [
-        for (final request in payload.requests) _mapFieldFetchRequest(request),
-      ],
-      posts: [
-        for (final post in payload.posts)
-          ConstellationPost(
-            id: post.id,
-            authorId: post.authorId,
-            rootExcerpt: post.rootExcerpt,
-            lastActivityAt: DateTime.parse(post.lastActivityAt),
-            isPinned: post.isPinned,
-            hiddenReachCount: post.hiddenReachCount,
-          ),
-      ],
-      memberWebs: [
-        for (final web in payload.memberWebs)
-          _memberWeb(
-            beaconId: web.beaconId,
-            personId: web.personId,
-            state: web.state,
-          ),
-      ],
-      peersCapped: payload.peersCapped,
-      requestsCapped: payload.requestsCapped,
-      anchorProjection: _mapFieldFetchAnchorProjection(payload.anchorProjection),
-    );
+) => ConstellationField(
+  loadedAt: DateTime.parse(payload.loadedAt),
+  context: payload.context,
+  peers: [for (final peer in payload.peers) _mapFieldFetchPerson(peer)],
+  edges: [for (final edge in payload.edges) _mapFieldFetchEdge(edge)],
+  requests: [
+    for (final request in payload.requests) _mapFieldFetchRequest(request),
+  ],
+  posts: [
+    for (final post in payload.posts)
+      ConstellationPost(
+        id: post.id,
+        authorId: post.authorId,
+        rootExcerpt: post.rootExcerpt,
+        lastActivityAt: DateTime.parse(post.lastActivityAt),
+        isPinned: post.isPinned,
+        hiddenReachCount: post.hiddenReachCount,
+      ),
+  ],
+  memberWebs: [
+    for (final web in payload.memberWebs)
+      _memberWeb(
+        beaconId: web.beaconId,
+        personId: web.personId,
+        state: web.state,
+      ),
+  ],
+  peersCapped: payload.peersCapped,
+  requestsCapped: payload.requestsCapped,
+  anchorProjection: _mapFieldFetchAnchorProjection(payload.anchorProjection),
+);
 
 List<ConstellationMemberWeb> mapBeaconMemberWebs(
   Iterable<GBeaconMemberWebsData_beaconMemberWebs> webs,
@@ -71,54 +70,48 @@ ConstellationMemberWeb _memberWeb({
 
 ConstellationField mapConstellationFieldFromAnchorsFetch(
   GConstellationAnchorsFetchData_constellationField payload,
-) =>
-    ConstellationField(
-      loadedAt: DateTime.parse(payload.loadedAt),
-      context: payload.context,
-      peers: [for (final peer in payload.peers) _mapAnchorsFetchPerson(peer)],
-      edges: [for (final edge in payload.edges) _mapAnchorsFetchEdge(edge)],
-      requests: [
-        for (final request in payload.requests)
-          _mapAnchorsFetchRequest(request),
-      ],
-      peersCapped: payload.peersCapped,
-      requestsCapped: payload.requestsCapped,
-      anchorProjection:
-          _mapAnchorsFetchAnchorProjection(payload.anchorProjection),
-    );
+) => ConstellationField(
+  loadedAt: DateTime.parse(payload.loadedAt),
+  context: payload.context,
+  peers: [for (final peer in payload.peers) _mapAnchorsFetchPerson(peer)],
+  edges: [for (final edge in payload.edges) _mapAnchorsFetchEdge(edge)],
+  requests: [
+    for (final request in payload.requests) _mapAnchorsFetchRequest(request),
+  ],
+  peersCapped: payload.peersCapped,
+  requestsCapped: payload.requestsCapped,
+  anchorProjection: _mapAnchorsFetchAnchorProjection(payload.anchorProjection),
+);
 
 ConstellationPerson _mapPersonFields({
   required String id,
   String? displayName,
   String? handle,
   ImageModelV2? image,
-}) =>
-    ConstellationPerson(
-      id: id,
-      displayName: displayName,
-      handle: handle,
-      image: image?.asEntity,
-    );
+}) => ConstellationPerson(
+  id: id,
+  displayName: displayName,
+  handle: handle,
+  image: image?.asEntity,
+);
 
 ConstellationPerson _mapFieldFetchPerson(
   GConstellationFieldFetchData_constellationField_peers peer,
-) =>
-    _mapPersonFields(
-      id: peer.id,
-      displayName: peer.displayName,
-      handle: peer.handle,
-      image: peer.image as ImageModelV2?,
-    );
+) => _mapPersonFields(
+  id: peer.id,
+  displayName: peer.displayName,
+  handle: peer.handle,
+  image: peer.image as ImageModelV2?,
+);
 
 ConstellationPerson _mapAnchorsFetchPerson(
   GConstellationAnchorsFetchData_constellationField_peers peer,
-) =>
-    _mapPersonFields(
-      id: peer.id,
-      displayName: peer.displayName,
-      handle: peer.handle,
-      image: peer.image as ImageModelV2?,
-    );
+) => _mapPersonFields(
+  id: peer.id,
+  displayName: peer.displayName,
+  handle: peer.handle,
+  image: peer.image as ImageModelV2?,
+);
 
 ConstellationTrustEdgeEntity _mapEdgeFields({
   required String src,
@@ -135,13 +128,11 @@ ConstellationTrustEdgeEntity _mapEdgeFields({
 
 ConstellationTrustEdgeEntity _mapFieldFetchEdge(
   GConstellationFieldFetchData_constellationField_edges edge,
-) =>
-    _mapEdgeFields(src: edge.src, dst: edge.dst, tier: edge.tier);
+) => _mapEdgeFields(src: edge.src, dst: edge.dst, tier: edge.tier);
 
 ConstellationTrustEdgeEntity _mapAnchorsFetchEdge(
   GConstellationAnchorsFetchData_constellationField_edges edge,
-) =>
-    _mapEdgeFields(src: edge.src, dst: edge.dst, tier: edge.tier);
+) => _mapEdgeFields(src: edge.src, dst: edge.dst, tier: edge.tier);
 
 ConstellationRequest _mapRequestFields({
   required String id,
@@ -161,215 +152,209 @@ ConstellationRequest _mapRequestFields({
   required int helpOfferCount,
   required int coverSource,
   ImageModelV2? coverThumb,
-}) =>
-    ConstellationRequest(
-      id: id,
-      authorId: authorId,
-      title: title,
-      status: status,
-      needs: needs.toList(growable: false),
-      primaryNeedSlug: primaryNeedSlug,
-      startAt: startAt == null ? null : DateTime.parse(startAt),
-      endAt: endAt == null ? null : DateTime.parse(endAt),
-      addressLabel: addressLabel,
-      hasCoordinates: hasCoordinates,
-      isMine: isMine,
-      viewerHasActiveHelpOffer: viewerHasActiveHelpOffer,
-      viewerIsRoomParticipant: viewerIsRoomParticipant,
-      viewerHasForwardEdge: viewerHasForwardEdge,
-      helpOfferCount: helpOfferCount,
-      coverSource: BeaconCoverSource.fromWireOrPhoto(coverSource),
-      coverThumb: coverThumb?.asEntity,
-    );
+}) => ConstellationRequest(
+  id: id,
+  authorId: authorId,
+  title: title,
+  status: status,
+  needs: needs.toList(growable: false),
+  primaryNeedSlug: primaryNeedSlug,
+  startAt: startAt == null ? null : DateTime.parse(startAt),
+  endAt: endAt == null ? null : DateTime.parse(endAt),
+  addressLabel: addressLabel,
+  hasCoordinates: hasCoordinates,
+  isMine: isMine,
+  viewerHasActiveHelpOffer: viewerHasActiveHelpOffer,
+  viewerIsRoomParticipant: viewerIsRoomParticipant,
+  viewerHasForwardEdge: viewerHasForwardEdge,
+  helpOfferCount: helpOfferCount,
+  coverSource: BeaconCoverSource.fromWireOrPhoto(coverSource),
+  coverThumb: coverThumb?.asEntity,
+);
 
 ConstellationRequest _mapFieldFetchRequest(
   GConstellationFieldFetchData_constellationField_requests request,
-) =>
-    _mapRequestFields(
-      id: request.id,
-      authorId: request.authorId,
-      title: request.title,
-      status: request.status,
-      needs: request.needs,
-      primaryNeedSlug: request.primaryNeedSlug,
-      startAt: request.startAt,
-      endAt: request.endAt,
-      addressLabel: request.addressLabel,
-      hasCoordinates: request.hasCoordinates,
-      isMine: request.isMine,
-      viewerHasActiveHelpOffer: request.viewerHasActiveHelpOffer,
-      viewerIsRoomParticipant: request.viewerIsRoomParticipant,
-      viewerHasForwardEdge: request.viewerHasForwardEdge,
-      helpOfferCount: request.helpOfferCount,
-      coverSource: request.coverSource,
-      coverThumb: request.coverThumb as ImageModelV2?,
-    );
+) => _mapRequestFields(
+  id: request.id,
+  authorId: request.authorId,
+  title: request.title,
+  status: request.status,
+  needs: request.needs,
+  primaryNeedSlug: request.primaryNeedSlug,
+  startAt: request.startAt,
+  endAt: request.endAt,
+  addressLabel: request.addressLabel,
+  hasCoordinates: request.hasCoordinates,
+  isMine: request.isMine,
+  viewerHasActiveHelpOffer: request.viewerHasActiveHelpOffer,
+  viewerIsRoomParticipant: request.viewerIsRoomParticipant,
+  viewerHasForwardEdge: request.viewerHasForwardEdge,
+  helpOfferCount: request.helpOfferCount,
+  coverSource: request.coverSource,
+  coverThumb: request.coverThumb as ImageModelV2?,
+);
 
 ConstellationRequest _mapAnchorsFetchRequest(
   GConstellationAnchorsFetchData_constellationField_requests request,
-) =>
-    _mapRequestFields(
-      id: request.id,
-      authorId: request.authorId,
-      title: request.title,
-      status: request.status,
-      needs: request.needs,
-      primaryNeedSlug: request.primaryNeedSlug,
-      startAt: request.startAt,
-      endAt: request.endAt,
-      addressLabel: request.addressLabel,
-      hasCoordinates: request.hasCoordinates,
-      isMine: request.isMine,
-      viewerHasActiveHelpOffer: request.viewerHasActiveHelpOffer,
-      viewerIsRoomParticipant: request.viewerIsRoomParticipant,
-      viewerHasForwardEdge: request.viewerHasForwardEdge,
-      helpOfferCount: request.helpOfferCount,
-      coverSource: request.coverSource,
-      coverThumb: request.coverThumb as ImageModelV2?,
-    );
+) => _mapRequestFields(
+  id: request.id,
+  authorId: request.authorId,
+  title: request.title,
+  status: request.status,
+  needs: request.needs,
+  primaryNeedSlug: request.primaryNeedSlug,
+  startAt: request.startAt,
+  endAt: request.endAt,
+  addressLabel: request.addressLabel,
+  hasCoordinates: request.hasCoordinates,
+  isMine: request.isMine,
+  viewerHasActiveHelpOffer: request.viewerHasActiveHelpOffer,
+  viewerIsRoomParticipant: request.viewerIsRoomParticipant,
+  viewerHasForwardEdge: request.viewerHasForwardEdge,
+  helpOfferCount: request.helpOfferCount,
+  coverSource: request.coverSource,
+  coverThumb: request.coverThumb as ImageModelV2?,
+);
 
 ConstellationAnchorProjection _mapFieldFetchAnchorProjection(
   GConstellationFieldFetchData_constellationField_anchorProjection projection,
-) =>
-    ConstellationAnchorProjection(
-      revision: _parseRevision(projection.revision),
-      anchors: [
-        for (final anchor in projection.anchors) _mapFieldFetchAnchor(anchor),
-      ],
-      pinnedPeers: [
-        for (final peer in projection.pinnedPeers)
-          _mapPersonFields(
-            id: peer.id,
-            displayName: peer.displayName,
-            handle: peer.handle,
-            image: peer.image as ImageModelV2?,
-          ),
-      ],
-      pinnedRequests: [
-        for (final request in projection.pinnedRequests)
-          _mapRequestFields(
-            id: request.id,
-            authorId: request.authorId,
-            title: request.title,
-            status: request.status,
-            needs: request.needs,
-            primaryNeedSlug: request.primaryNeedSlug,
-            startAt: request.startAt,
-            endAt: request.endAt,
-            addressLabel: request.addressLabel,
-            hasCoordinates: request.hasCoordinates,
-            isMine: request.isMine,
-            viewerHasActiveHelpOffer: request.viewerHasActiveHelpOffer,
-            viewerIsRoomParticipant: request.viewerIsRoomParticipant,
-            viewerHasForwardEdge: request.viewerHasForwardEdge,
-            helpOfferCount: request.helpOfferCount,
-            coverSource: request.coverSource,
-            coverThumb: request.coverThumb as ImageModelV2?,
-          ),
-      ],
-      supportPeers: [
-        for (final peer in projection.supportPeers)
-          _mapPersonFields(
-            id: peer.id,
-            displayName: peer.displayName,
-            handle: peer.handle,
-            image: peer.image as ImageModelV2?,
-          ),
-      ],
-      supportEdges: [
-        for (final edge in projection.supportEdges)
-          _mapEdgeFields(src: edge.src, dst: edge.dst, tier: edge.tier),
-      ],
-      serverFilteredBeaconIds: projection.serverFilteredBeaconIds
-          .toList(growable: false),
-      serverFilteredBeaconCount: projection.serverFilteredBeaconCount,
-    );
+) => ConstellationAnchorProjection(
+  revision: _parseRevision(projection.revision),
+  anchors: [
+    for (final anchor in projection.anchors) _mapFieldFetchAnchor(anchor),
+  ],
+  pinnedPeers: [
+    for (final peer in projection.pinnedPeers)
+      _mapPersonFields(
+        id: peer.id,
+        displayName: peer.displayName,
+        handle: peer.handle,
+        image: peer.image as ImageModelV2?,
+      ),
+  ],
+  pinnedRequests: [
+    for (final request in projection.pinnedRequests)
+      _mapRequestFields(
+        id: request.id,
+        authorId: request.authorId,
+        title: request.title,
+        status: request.status,
+        needs: request.needs,
+        primaryNeedSlug: request.primaryNeedSlug,
+        startAt: request.startAt,
+        endAt: request.endAt,
+        addressLabel: request.addressLabel,
+        hasCoordinates: request.hasCoordinates,
+        isMine: request.isMine,
+        viewerHasActiveHelpOffer: request.viewerHasActiveHelpOffer,
+        viewerIsRoomParticipant: request.viewerIsRoomParticipant,
+        viewerHasForwardEdge: request.viewerHasForwardEdge,
+        helpOfferCount: request.helpOfferCount,
+        coverSource: request.coverSource,
+        coverThumb: request.coverThumb as ImageModelV2?,
+      ),
+  ],
+  supportPeers: [
+    for (final peer in projection.supportPeers)
+      _mapPersonFields(
+        id: peer.id,
+        displayName: peer.displayName,
+        handle: peer.handle,
+        image: peer.image as ImageModelV2?,
+      ),
+  ],
+  supportEdges: [
+    for (final edge in projection.supportEdges)
+      _mapEdgeFields(src: edge.src, dst: edge.dst, tier: edge.tier),
+  ],
+  serverFilteredBeaconIds: projection.serverFilteredBeaconIds.toList(
+    growable: false,
+  ),
+  serverFilteredBeaconCount: projection.serverFilteredBeaconCount,
+);
 
 ConstellationAnchorProjection _mapAnchorsFetchAnchorProjection(
   GConstellationAnchorsFetchData_constellationField_anchorProjection projection,
-) =>
-    ConstellationAnchorProjection(
-      revision: _parseRevision(projection.revision),
-      anchors: [
-        for (final anchor in projection.anchors)
-          _mapAnchorsFetchAnchor(anchor),
-      ],
-      pinnedPeers: [
-        for (final peer in projection.pinnedPeers)
-          _mapPersonFields(
-            id: peer.id,
-            displayName: peer.displayName,
-            handle: peer.handle,
-            image: peer.image as ImageModelV2?,
-          ),
-      ],
-      pinnedRequests: [
-        for (final request in projection.pinnedRequests)
-          _mapRequestFields(
-            id: request.id,
-            authorId: request.authorId,
-            title: request.title,
-            status: request.status,
-            needs: request.needs,
-            primaryNeedSlug: request.primaryNeedSlug,
-            startAt: request.startAt,
-            endAt: request.endAt,
-            addressLabel: request.addressLabel,
-            hasCoordinates: request.hasCoordinates,
-            isMine: request.isMine,
-            viewerHasActiveHelpOffer: request.viewerHasActiveHelpOffer,
-            viewerIsRoomParticipant: request.viewerIsRoomParticipant,
-            viewerHasForwardEdge: request.viewerHasForwardEdge,
-            helpOfferCount: request.helpOfferCount,
-            coverSource: request.coverSource,
-            coverThumb: request.coverThumb as ImageModelV2?,
-          ),
-      ],
-      supportPeers: [
-        for (final peer in projection.supportPeers)
-          _mapPersonFields(
-            id: peer.id,
-            displayName: peer.displayName,
-            handle: peer.handle,
-            image: peer.image as ImageModelV2?,
-          ),
-      ],
-      supportEdges: [
-        for (final edge in projection.supportEdges)
-          _mapEdgeFields(src: edge.src, dst: edge.dst, tier: edge.tier),
-      ],
-      serverFilteredBeaconIds: projection.serverFilteredBeaconIds
-          .toList(growable: false),
-      serverFilteredBeaconCount: projection.serverFilteredBeaconCount,
-    );
+) => ConstellationAnchorProjection(
+  revision: _parseRevision(projection.revision),
+  anchors: [
+    for (final anchor in projection.anchors) _mapAnchorsFetchAnchor(anchor),
+  ],
+  pinnedPeers: [
+    for (final peer in projection.pinnedPeers)
+      _mapPersonFields(
+        id: peer.id,
+        displayName: peer.displayName,
+        handle: peer.handle,
+        image: peer.image as ImageModelV2?,
+      ),
+  ],
+  pinnedRequests: [
+    for (final request in projection.pinnedRequests)
+      _mapRequestFields(
+        id: request.id,
+        authorId: request.authorId,
+        title: request.title,
+        status: request.status,
+        needs: request.needs,
+        primaryNeedSlug: request.primaryNeedSlug,
+        startAt: request.startAt,
+        endAt: request.endAt,
+        addressLabel: request.addressLabel,
+        hasCoordinates: request.hasCoordinates,
+        isMine: request.isMine,
+        viewerHasActiveHelpOffer: request.viewerHasActiveHelpOffer,
+        viewerIsRoomParticipant: request.viewerIsRoomParticipant,
+        viewerHasForwardEdge: request.viewerHasForwardEdge,
+        helpOfferCount: request.helpOfferCount,
+        coverSource: request.coverSource,
+        coverThumb: request.coverThumb as ImageModelV2?,
+      ),
+  ],
+  supportPeers: [
+    for (final peer in projection.supportPeers)
+      _mapPersonFields(
+        id: peer.id,
+        displayName: peer.displayName,
+        handle: peer.handle,
+        image: peer.image as ImageModelV2?,
+      ),
+  ],
+  supportEdges: [
+    for (final edge in projection.supportEdges)
+      _mapEdgeFields(src: edge.src, dst: edge.dst, tier: edge.tier),
+  ],
+  serverFilteredBeaconIds: projection.serverFilteredBeaconIds.toList(
+    growable: false,
+  ),
+  serverFilteredBeaconCount: projection.serverFilteredBeaconCount,
+);
 
 ConstellationAnchor _mapFieldFetchAnchor(
   GConstellationFieldFetchData_constellationField_anchorProjection_anchors
-      anchor,
-) =>
-    _mapWireAnchor(
-      targetKind: anchor.targetKind,
-      targetId: anchor.targetId,
-      xUnits: anchor.xUnits,
-      yUnits: anchor.yUnits,
-      coordinateSpaceVersion: anchor.coordinateSpaceVersion,
-      revision: anchor.revision,
-      placedAt: anchor.placedAt,
-    );
+  anchor,
+) => _mapWireAnchor(
+  targetKind: anchor.targetKind,
+  targetId: anchor.targetId,
+  xUnits: anchor.xUnits,
+  yUnits: anchor.yUnits,
+  coordinateSpaceVersion: anchor.coordinateSpaceVersion,
+  revision: anchor.revision,
+  placedAt: anchor.placedAt,
+);
 
 ConstellationAnchor _mapAnchorsFetchAnchor(
   GConstellationAnchorsFetchData_constellationField_anchorProjection_anchors
-      anchor,
-) =>
-    _mapWireAnchor(
-      targetKind: anchor.targetKind,
-      targetId: anchor.targetId,
-      xUnits: anchor.xUnits,
-      yUnits: anchor.yUnits,
-      coordinateSpaceVersion: anchor.coordinateSpaceVersion,
-      revision: anchor.revision,
-      placedAt: anchor.placedAt,
-    );
+  anchor,
+) => _mapWireAnchor(
+  targetKind: anchor.targetKind,
+  targetId: anchor.targetId,
+  xUnits: anchor.xUnits,
+  yUnits: anchor.yUnits,
+  coordinateSpaceVersion: anchor.coordinateSpaceVersion,
+  revision: anchor.revision,
+  placedAt: anchor.placedAt,
+);
 
 ConstellationAnchor mapWireAnchor({
   required Gv2_ConstellationAnchorTargetKind targetKind,
@@ -379,16 +364,15 @@ ConstellationAnchor mapWireAnchor({
   required int coordinateSpaceVersion,
   required String revision,
   required String placedAt,
-}) =>
-    _mapWireAnchor(
-      targetKind: targetKind,
-      targetId: targetId,
-      xUnits: xUnits,
-      yUnits: yUnits,
-      coordinateSpaceVersion: coordinateSpaceVersion,
-      revision: revision,
-      placedAt: placedAt,
-    );
+}) => _mapWireAnchor(
+  targetKind: targetKind,
+  targetId: targetId,
+  xUnits: xUnits,
+  yUnits: yUnits,
+  coordinateSpaceVersion: coordinateSpaceVersion,
+  revision: revision,
+  placedAt: placedAt,
+);
 
 ConstellationAnchor _mapWireAnchor({
   required Gv2_ConstellationAnchorTargetKind targetKind,
@@ -438,18 +422,18 @@ void _assertValidTier(int tier) {
   }
 }
 
-Gv2_ConstellationProjection projectionToWire(ConstellationProjection projection) =>
-    switch (projection) {
-      ConstellationProjection.full => Gv2_ConstellationProjection.FULL,
-      ConstellationProjection.anchors => Gv2_ConstellationProjection.ANCHORS,
-    };
+Gv2_ConstellationProjection projectionToWire(
+  ConstellationProjection projection,
+) => switch (projection) {
+  ConstellationProjection.full => Gv2_ConstellationProjection.FULL,
+  ConstellationProjection.anchors => Gv2_ConstellationProjection.ANCHORS,
+};
 
 Gv2_ConstellationAnchorTargetKind targetKindToWire(
   ConstellationAnchorTargetKind kind,
-) =>
-    switch (kind) {
-      ConstellationAnchorTargetKind.person =>
-        Gv2_ConstellationAnchorTargetKind.PERSON,
-      ConstellationAnchorTargetKind.beacon =>
-        Gv2_ConstellationAnchorTargetKind.BEACON,
-    };
+) => switch (kind) {
+  ConstellationAnchorTargetKind.person =>
+    Gv2_ConstellationAnchorTargetKind.PERSON,
+  ConstellationAnchorTargetKind.beacon =>
+    Gv2_ConstellationAnchorTargetKind.BEACON,
+};

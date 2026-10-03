@@ -15,30 +15,30 @@ String constellationNodeSemanticLabel({
 }) {
   return switch (node) {
     FieldPersonNode(:final person) => () {
-        final base = person.shownName;
-        if (cubit.isAnchored(ConstellationAnchorTarget.person(person.id))) {
-          return '$base, ${l10n.constellationPinMarkerSemantics}';
-        }
-        return base;
-      }(),
+      final base = person.shownName;
+      if (cubit.isAnchored(ConstellationAnchorTarget.person(person.id))) {
+        return '$base, ${l10n.constellationPinMarkerSemantics}';
+      }
+      return base;
+    }(),
     FieldBeaconNode(request: final request?) => () {
-        final title = request.title.trim();
-        final titlePart = title.isEmpty
-            ? l10n.beaconViewTitle
-            : '${l10n.beaconViewTitle}: $title';
-        final markerParts = constellationRequestMarkerSemantics(
-          l10n: l10n,
-          tt: tt,
-          rawStatus: request.status,
-          isPinned: cubit.isAnchored(
-            ConstellationAnchorTarget.beacon(request.id),
-          ),
-        );
-        if (markerParts.isEmpty) {
-          return titlePart;
-        }
-        return '$titlePart, ${markerParts.join(', ')}';
-      }(),
+      final title = request.title.trim();
+      final titlePart = title.isEmpty
+          ? l10n.beaconViewTitle
+          : '${l10n.beaconViewTitle}: $title';
+      final markerParts = constellationRequestMarkerSemantics(
+        l10n: l10n,
+        tt: tt,
+        rawStatus: request.status,
+        isPinned: cubit.isAnchored(
+          ConstellationAnchorTarget.beacon(request.id),
+        ),
+      );
+      if (markerParts.isEmpty) {
+        return titlePart;
+      }
+      return '$titlePart, ${markerParts.join(', ')}';
+    }(),
     _ => '',
   };
 }

@@ -19,8 +19,9 @@ enum ConstellationViewportClass {
 
 ConstellationViewportClass constellationViewportClassForSize({
   required double width,
-}) =>
-    width < 840 ? ConstellationViewportClass.compact : ConstellationViewportClass.expanded;
+}) => width < 840
+    ? ConstellationViewportClass.compact
+    : ConstellationViewportClass.expanded;
 
 @immutable
 class ConstellationAutomaticLayer {
@@ -196,8 +197,9 @@ ConstellationComposedPresentation composeConstellationPresentation({
         request.id,
   };
 
-  final locallyVisiblePinnedRequestIds =
-      pinnedRequestIds.difference(locallyFilteredPinnedBeaconIds);
+  final locallyVisiblePinnedRequestIds = pinnedRequestIds.difference(
+    locallyFilteredPinnedBeaconIds,
+  );
 
   final anchorOverlay = _overlayForVisiblePins(
     projection: projection,
@@ -429,30 +431,31 @@ ConstellationAnchorOverlay _overlayForVisiblePins({
       if (neededSupportPeerIds.contains(peer.id)) peer,
   ];
 
-  final supportEdges = constellationSupportEdges(
-    egoId: viewerId,
-    resolution: resolution,
-    trustEdges: mergedEdges,
-  )
-      .map(
-        (edge) => ConstellationTrustEdgeEntity(
-          src: edge.src,
-          dst: edge.dst,
-          tier: edge.tier,
-        ),
-      )
-      .toList()
-    ..sort((a, b) {
-      final src = a.src.compareTo(b.src);
-      if (src != 0) {
-        return src;
-      }
-      final dst = a.dst.compareTo(b.dst);
-      if (dst != 0) {
-        return dst;
-      }
-      return a.tier.compareTo(b.tier);
-    });
+  final supportEdges =
+      constellationSupportEdges(
+            egoId: viewerId,
+            resolution: resolution,
+            trustEdges: mergedEdges,
+          )
+          .map(
+            (edge) => ConstellationTrustEdgeEntity(
+              src: edge.src,
+              dst: edge.dst,
+              tier: edge.tier,
+            ),
+          )
+          .toList()
+        ..sort((a, b) {
+          final src = a.src.compareTo(b.src);
+          if (src != 0) {
+            return src;
+          }
+          final dst = a.dst.compareTo(b.dst);
+          if (dst != 0) {
+            return dst;
+          }
+          return a.tier.compareTo(b.tier);
+        });
 
   // Do not prune automatic copies: support lists only overlay entities.
   for (final peer in projection.supportPeers) {
@@ -509,32 +512,35 @@ ConstellationLabelDisplayPlan _buildLabelDisplayPlan({
   }
 
   final filteredIds = filterRequestIds(
-    requests: [
-      ...automatic.requests,
-      ...anchorOverlay.pinnedRequests,
-    ].map(
-      (request) => (
-        id: request.id,
-        needs: request.needs.toSet(),
-        primaryNeedSlug: request.primaryNeedSlug,
-        startAt: request.startAt,
-        endAt: request.endAt,
-        addressLabel: request.addressLabel,
-        hasCoordinates: request.hasCoordinates,
-      ),
-    ).followedBy(
-      activePosts.map(
-        (post) => (
-          id: post.id,
-          needs: const <String>{},
-          primaryNeedSlug: null,
-          startAt: null,
-          endAt: null,
-          addressLabel: null,
-          hasCoordinates: false,
-        ),
-      ),
-    ),
+    requests:
+        [
+              ...automatic.requests,
+              ...anchorOverlay.pinnedRequests,
+            ]
+            .map(
+              (request) => (
+                id: request.id,
+                needs: request.needs.toSet(),
+                primaryNeedSlug: request.primaryNeedSlug,
+                startAt: request.startAt,
+                endAt: request.endAt,
+                addressLabel: request.addressLabel,
+                hasCoordinates: request.hasCoordinates,
+              ),
+            )
+            .followedBy(
+              activePosts.map(
+                (post) => (
+                  id: post.id,
+                  needs: const <String>{},
+                  primaryNeedSlug: null,
+                  startAt: null,
+                  endAt: null,
+                  addressLabel: null,
+                  hasCoordinates: false,
+                ),
+              ),
+            ),
     filters: localFilters,
     asOfUtc: asOfUtc,
   );

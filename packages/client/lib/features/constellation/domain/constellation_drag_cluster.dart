@@ -50,18 +50,20 @@ ConstellationAuthorSatellites constellationAuthorSatellites({
       unpinned.add(id);
     }
   }
-  return ConstellationAuthorSatellites(pinnedIds: pinned, unpinnedIds: unpinned);
+  return ConstellationAuthorSatellites(
+    pinnedIds: pinned,
+    unpinnedIds: unpinned,
+  );
 }
 
 /// Beacon ids among [anchors] that are Request pins.
 Set<String> constellationPinnedBeaconIds(
   Iterable<ConstellationAnchor> anchors,
-) =>
-    {
-      for (final anchor in anchors)
-        if (anchor.target.kind == ConstellationAnchorTargetKind.beacon)
-          anchor.target.id,
-    };
+) => {
+  for (final anchor in anchors)
+    if (anchor.target.kind == ConstellationAnchorTargetKind.beacon)
+      anchor.target.id,
+};
 
 /// True when [anchors] holds [target] within [epsilon] of [intended].
 bool constellationAnchorAdoptedAt({

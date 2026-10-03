@@ -63,39 +63,39 @@ ConstellationPlacedLayoutInput? _scratchInputAddingTarget({
               footprints: layoutInput.footprints,
             ),
     ConstellationAnchorBeaconTarget(:final id) => () {
-        final authorId = layoutInput.requestAuthorById[id];
-        if (authorId == null) {
-          return null;
-        }
-        final byAuthor = {
-          for (final entry in layoutInput.satelliteRequestIdsByAuthor.entries)
-            entry.key: List<String>.from(entry.value),
-        };
-        byAuthor.putIfAbsent(authorId, () => <String>[]);
-        if (!byAuthor[authorId]!.contains(id)) {
-          byAuthor[authorId]!.add(id);
-          byAuthor[authorId]!.sort();
-        }
-        return (
-          egoId: layoutInput.egoId,
-          paths: layoutInput.paths,
-          automaticKeptPeerIds: layoutInput.automaticKeptPeerIds,
-          pinnedPersonIds: layoutInput.pinnedPersonIds,
-          pinnedRequestIds: layoutInput.pinnedRequestIds,
-          supportPersonIds: layoutInput.supportPersonIds,
-          anchorByNodeId: layoutInput.anchorByNodeId,
-          priorHints: layoutInput.priorHints,
-          nodeSizes: layoutInput.nodeSizes,
-          satelliteRequestIdsByAuthor: byAuthor,
-          requestAuthorById: layoutInput.requestAuthorById,
-          postMemberIdsByPostId: layoutInput.postMemberIdsByPostId,
-          egoOwnRequestIds: layoutInput.egoOwnRequestIds,
-          spacing: layoutInput.spacing,
-          maxHops: layoutInput.maxHops,
-          viewportClass: layoutInput.viewportClass,
-          footprints: layoutInput.footprints,
-        );
-      }(),
+      final authorId = layoutInput.requestAuthorById[id];
+      if (authorId == null) {
+        return null;
+      }
+      final byAuthor = {
+        for (final entry in layoutInput.satelliteRequestIdsByAuthor.entries)
+          entry.key: List<String>.from(entry.value),
+      };
+      byAuthor.putIfAbsent(authorId, () => <String>[]);
+      if (!byAuthor[authorId]!.contains(id)) {
+        byAuthor[authorId]!.add(id);
+        byAuthor[authorId]!.sort();
+      }
+      return (
+        egoId: layoutInput.egoId,
+        paths: layoutInput.paths,
+        automaticKeptPeerIds: layoutInput.automaticKeptPeerIds,
+        pinnedPersonIds: layoutInput.pinnedPersonIds,
+        pinnedRequestIds: layoutInput.pinnedRequestIds,
+        supportPersonIds: layoutInput.supportPersonIds,
+        anchorByNodeId: layoutInput.anchorByNodeId,
+        priorHints: layoutInput.priorHints,
+        nodeSizes: layoutInput.nodeSizes,
+        satelliteRequestIdsByAuthor: byAuthor,
+        requestAuthorById: layoutInput.requestAuthorById,
+        postMemberIdsByPostId: layoutInput.postMemberIdsByPostId,
+        egoOwnRequestIds: layoutInput.egoOwnRequestIds,
+        spacing: layoutInput.spacing,
+        maxHops: layoutInput.maxHops,
+        viewportClass: layoutInput.viewportClass,
+        footprints: layoutInput.footprints,
+      );
+    }(),
   };
 }
 
@@ -106,7 +106,8 @@ ConstellationPlacedLayoutInput layoutInputFromComposition({
   required Map<String, ConstellationSize> nodeSizes,
   required double spacing,
   ConstellationLayoutPriorHints? priorHints,
-  ConstellationViewportClass viewportClass = ConstellationViewportClass.expanded,
+  ConstellationViewportClass viewportClass =
+      ConstellationViewportClass.expanded,
   Map<String, ConstellationFootprint> footprints = const {},
 }) {
   final anchorByNodeId = constellationAnchorsByNodeId(
@@ -176,7 +177,8 @@ ConstellationPlacedLayoutInput layoutInputFromComposition({
     egoOwnRequestIds: drawnSatellites.egoOwn,
     postMemberIdsByPostId: {
       for (final entry in composition.postMemberIdsByPostId.entries)
-        if (labelPlan.drawnRequestIds.contains(entry.key)) entry.key: entry.value,
+        if (labelPlan.drawnRequestIds.contains(entry.key))
+          entry.key: entry.value,
     },
     spacing: spacing,
     maxHops: 3,

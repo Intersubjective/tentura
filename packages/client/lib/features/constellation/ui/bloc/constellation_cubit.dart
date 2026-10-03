@@ -264,8 +264,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
             holderIds: {_viewer.id},
             edges: const [],
           ),
-      keptPeerIds:
-          layoutKeptPeerIds.isEmpty ? state.keptPeerIds : layoutKeptPeerIds,
+      keptPeerIds: layoutKeptPeerIds.isEmpty
+          ? state.keptPeerIds
+          : layoutKeptPeerIds,
       maxHops: kConstellationLayoutMaxHops,
       visibleRequestsByAuthor: layoutVisibleRequestsByAuthor,
       egoOwnRequestIds: layoutEgoOwnRequestIds,
@@ -770,12 +771,19 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         _anchorCase?.confirmedProjection.anchors ??
         state.confirmedProjection?.anchors ??
         const <ConstellationAnchor>[];
-    final remotePinnedBeaconIds = constellationPinnedBeaconIds(projectionAnchors);
+    final remotePinnedBeaconIds = constellationPinnedBeaconIds(
+      projectionAnchors,
+    );
     final parentDelta = parentStart == null
         ? Offset.zero
         : dropCentre - parentStart;
     final companions =
-        <({ConstellationAnchorTarget target, ConstellationAnchorPosition position})>[];
+        <
+          ({
+            ConstellationAnchorTarget target,
+            ConstellationAnchorPosition position,
+          })
+        >[];
     final companionTitles = <String, String>{};
     final droppedCompanionGraphIds = <GraphNodeId>[];
     for (final entry in _placementClusterTargets.entries) {
@@ -809,7 +817,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
     _placementClusterGraphIds.add(parentGraphId);
     _placementClusterTargets.putIfAbsent(parentGraphId, () => target);
-    _placementHandoffGraphIds = Set<GraphNodeId>.from(_placementClusterGraphIds);
+    _placementHandoffGraphIds = Set<GraphNodeId>.from(
+      _placementClusterGraphIds,
+    );
     _draggingNodeId = null;
     // The pointer drag has ended; the write may still be pending or fail.
     graphController.setCameraInteractionGated(false);
@@ -951,8 +961,14 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   Future<void> _submitUpsert({
     required ConstellationAnchorTarget target,
     required ConstellationAnchorPosition position,
-    List<({ConstellationAnchorTarget target, ConstellationAnchorPosition position})>
-        companions = const [],
+    List<
+          ({
+            ConstellationAnchorTarget target,
+            ConstellationAnchorPosition position,
+          })
+        >
+        companions =
+        const [],
     Map<String, String> companionTitles = const {},
   }) async {
     if (_anchorCase == null) {
@@ -1370,7 +1386,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       return;
     }
     NodeDetails? egoNode;
-    for (final candidate in graphController.renderSnapshot.topology.nodesById.values) {
+    for (final candidate
+        in graphController.renderSnapshot.topology.nodesById.values) {
       final payload = candidate.payload;
       if (payload is FieldPersonNode && payload.person.id == _viewer.id) {
         egoNode = payload;
@@ -1435,7 +1452,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   }
 
   @visibleForTesting
-  ConstellationFootprintMetrics? get footprintMetricsForTest => _footprintMetrics;
+  ConstellationFootprintMetrics? get footprintMetricsForTest =>
+      _footprintMetrics;
 
   bool get _placementBusy =>
       state.hasPendingPlacementWrite ||
@@ -1542,9 +1560,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
           person.id == viewerId
               ? null
               : ConstellationAnchorTarget.person(person.id),
-        FieldBeaconNode(request: final request?) => ConstellationAnchorTarget.beacon(
-          request.id,
-        ),
+        FieldBeaconNode(request: final request?) =>
+          ConstellationAnchorTarget.beacon(
+            request.id,
+          ),
         _ => null,
       };
 
@@ -2348,10 +2367,11 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       );
       edges.add(edge);
       edgeKinds[constellationSceneEdgeId(
-        kindName: kind.name,
-        source: src,
-        destination: dst,
-      )] = kind;
+            kindName: kind.name,
+            source: src,
+            destination: dst,
+          )] =
+          kind;
       assert(!edgeKindByPair.containsKey(edge.semanticId));
       edgeKindByPair[edge.semanticId] = kind;
       if (fade != null) {
@@ -2412,7 +2432,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         if (web.beaconId != post.id) {
           continue;
         }
-        if (web.personId != _viewer.id && !peersById.containsKey(web.personId)) {
+        if (web.personId != _viewer.id &&
+            !peersById.containsKey(web.personId)) {
           continue;
         }
         visibleMembers++;

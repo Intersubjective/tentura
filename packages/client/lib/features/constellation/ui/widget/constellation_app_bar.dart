@@ -167,8 +167,7 @@ class _ConstellationViewModeToggle extends StatelessWidget {
     if (!maxWidth.isFinite || maxWidth <= 0) {
       return false;
     }
-    final style =
-        Theme.of(context).textTheme.labelMedium ?? const TextStyle();
+    final style = Theme.of(context).textTheme.labelMedium ?? const TextStyle();
     final iconSize = IconTheme.of(context).size ?? 24;
     final gap = context.tt.iconTextGap;
     final textScaler = MediaQuery.textScalerOf(context);

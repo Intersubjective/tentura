@@ -56,9 +56,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
            (childCreationContext != null
                ? GetIt.I<BeaconHierarchyCase>()
                : null),
-       _postPublishCase =
-           postPublishCase ??
-           (kind == BeaconKind.post ? GetIt.I<PostPublishCase>() : null),
+       _injectedPostPublishCase = postPublishCase,
        _postConversionCase =
            postConversionCase ??
            (convertFromPostId != null && convertFromPostId.isNotEmpty
@@ -103,7 +101,12 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
 
   final BeaconHierarchyCase? _hierarchyCase;
 
-  final PostPublishCase? _postPublishCase;
+  final PostPublishCase? _injectedPostPublishCase;
+
+  /// Resolved on first use: drafting a Post never publishes.
+  PostPublishCase? get _postPublishCase =>
+      _injectedPostPublishCase ??
+      (kind == BeaconKind.post ? GetIt.I<PostPublishCase>() : null);
 
   final PostConversionCase? _postConversionCase;
 

@@ -486,6 +486,20 @@ class ForwardCubit extends Cubit<ForwardState> {
         : ForwardSelectionResult.deselected;
   }
 
+  /// Replaces the selected set; notes and reasons of ids that stay are kept.
+  void setSelection(Set<String> ids) {
+    final selected = Set<String>.from(ids);
+    final draft = _pruneRecipientDraft(state.selectedIds.difference(selected));
+    emit(
+      state.copyWith(
+        selectedIds: selected,
+        perRecipientNotes: draft.notes,
+        recipientReasons: draft.reasons,
+        skippedPersonalNoteIds: draft.skipped,
+      ),
+    );
+  }
+
   void setRecipientReasons(String userId, List<String> slugs) {
     final next = Map<String, List<String>>.from(state.recipientReasons);
     if (slugs.isEmpty) {

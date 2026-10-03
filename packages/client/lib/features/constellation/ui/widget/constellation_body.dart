@@ -107,7 +107,9 @@ class _ConstellationBodyState extends State<ConstellationBody> {
       widget.presentationFrameHolder ?? _internalFrameHolder;
 
   void _scheduleLabelBudgetSync(BuildContext context, Size viewport) {
-    final style = TenturaText.labelSmall(Theme.of(context).colorScheme.onSurface);
+    final style = TenturaText.labelSmall(
+      Theme.of(context).colorScheme.onSurface,
+    );
     final reference = style.fontSize!;
     final ratio = MediaQuery.textScalerOf(context).scale(reference) / reference;
     final footprintKey = (
@@ -115,7 +117,8 @@ class _ConstellationBodyState extends State<ConstellationBody> {
       Localizations.localeOf(context),
       ratio,
     );
-    final budgetDirty = _lastLabelBudgetViewport != viewport ||
+    final budgetDirty =
+        _lastLabelBudgetViewport != viewport ||
         _lastLabelBudgetTextScale != ratio;
     final footprintDirty = _lastFootprintSyncKey != footprintKey;
     if (!budgetDirty && !footprintDirty) {
@@ -198,7 +201,9 @@ class _ConstellationBodyState extends State<ConstellationBody> {
     NodeDetails node,
   ) {
     cubit.selectMapNode(node);
-    if (node case FieldPersonNode(:final person) when person.id != cubit.viewerId) {
+    if (node case FieldPersonNode(
+      :final person,
+    ) when person.id != cubit.viewerId) {
       context.read<GraphPersonContextCubit>().selectProfile(
         person,
         intentional: true,
@@ -228,7 +233,10 @@ class _ConstellationBodyState extends State<ConstellationBody> {
     return switch (request.heldState) {
       ConstellationHeldState.mine ||
       ConstellationHeldState.participant ||
-      ConstellationHeldState.forwarded => () => _openBeacon(context, request.id),
+      ConstellationHeldState.forwarded => () => _openBeacon(
+        context,
+        request.id,
+      ),
       ConstellationHeldState.offered => () => _openBeacon(
         context,
         request.id,
@@ -525,7 +533,9 @@ class _ConstellationBodyState extends State<ConstellationBody> {
               if (state.loadError != null && state.field == null) {
                 return Center(
                   child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: tt.screenHPadding,
+                    ),
                     child: Text(
                       state.loadError.toString(),
                       style: Theme.of(context).textTheme.bodyMedium,
@@ -541,7 +551,8 @@ class _ConstellationBodyState extends State<ConstellationBody> {
 
               final layoutAlgorithm = cubit.graphSceneLayoutAlgorithm;
 
-              final panelVisible = state.selectedPersonId != null ||
+              final panelVisible =
+                  state.selectedPersonId != null ||
                   state.selectedRequestId != null;
 
               return Shortcuts(
@@ -553,11 +564,11 @@ class _ConstellationBodyState extends State<ConstellationBody> {
                   actions: {
                     _CancelPlacementIntent:
                         CallbackAction<_CancelPlacementIntent>(
-                      onInvoke: (_) {
-                        cubit.cancelPlacement();
-                        return null;
-                      },
-                    ),
+                          onInvoke: (_) {
+                            cubit.cancelPlacement();
+                            return null;
+                          },
+                        ),
                   },
                   child: Focus(
                     autofocus: true,
@@ -627,8 +638,8 @@ class _ConstellationBodyState extends State<ConstellationBody> {
       contextPanelVisible: panelVisible,
     );
     final tt = context.tt;
-    final cameraRightInset = panelVisible &&
-            context.windowClass != WindowClass.compact
+    final cameraRightInset =
+        panelVisible && context.windowClass != WindowClass.compact
         ? tt.screenHPadding + tt.graphPersonContextWidth + tt.screenHPadding
         : tt.screenHPadding;
 
@@ -709,29 +720,32 @@ class _ConstellationBodyState extends State<ConstellationBody> {
             final tt = context.tt;
             final scheme = Theme.of(context).colorScheme;
             final mapNode = switch (node) {
-              FieldPersonNode(:final ring, :final person) => _ConstellationMapNode(
-                detail: _detail,
-                child: GraphNodeWidget(
-                  key: TestIds.key(TestIds.graphNode(node.id)),
-                  nodeDetails: node,
-                  hiddenNeighborCount: null,
-                  isOrigin: ring == 0,
-                  isFocused: panelVisible && node.id == state.selectedPersonId,
-                  onTap: null,
-                ),
-                pinBadge: cubit.isAnchored(
-                  ConstellationAnchorTarget.person(person.id),
-                )
-                    ? ExcludeSemantics(
-                        child: ConstellationMarkerBadge.pin(
-                          l10n: l10n,
-                          tt: tt,
-                          scheme: scheme,
-                        ),
+              FieldPersonNode(:final ring, :final person) =>
+                _ConstellationMapNode(
+                  detail: _detail,
+                  child: GraphNodeWidget(
+                    key: TestIds.key(TestIds.graphNode(node.id)),
+                    nodeDetails: node,
+                    hiddenNeighborCount: null,
+                    isOrigin: ring == 0,
+                    isFocused:
+                        panelVisible && node.id == state.selectedPersonId,
+                    onTap: null,
+                  ),
+                  pinBadge:
+                      cubit.isAnchored(
+                        ConstellationAnchorTarget.person(person.id),
                       )
-                    : null,
-                statusBadge: null,
-              ),
+                      ? ExcludeSemantics(
+                          child: ConstellationMarkerBadge.pin(
+                            l10n: l10n,
+                            tt: tt,
+                            scheme: scheme,
+                          ),
+                        )
+                      : null,
+                  statusBadge: null,
+                ),
               FieldBeaconNode(request: final request?) => _ConstellationMapNode(
                 detail: _detail,
                 child: GraphNodeWidget(
@@ -741,9 +755,10 @@ class _ConstellationBodyState extends State<ConstellationBody> {
                   isFocused: state.selectedRequestId == request.id,
                   onTap: null,
                 ),
-                pinBadge: cubit.isAnchored(
-                  ConstellationAnchorTarget.beacon(request.id),
-                )
+                pinBadge:
+                    cubit.isAnchored(
+                      ConstellationAnchorTarget.beacon(request.id),
+                    )
                     ? ExcludeSemantics(
                         child: ConstellationMarkerBadge.pin(
                           l10n: l10n,
@@ -861,7 +876,8 @@ class _ConstellationBodyState extends State<ConstellationBody> {
     };
     final selected = switch (node) {
       FieldPersonNode() => panelVisible && node.id == state.selectedPersonId,
-      FieldBeaconNode(request: final request?) => state.selectedRequestId == request.id,
+      FieldBeaconNode(request: final request?) =>
+        state.selectedRequestId == request.id,
       _ => false,
     };
     return Semantics(
@@ -989,7 +1005,9 @@ class ConstellationEdgePainter
     final style = constellationEdgeStyle(kind, tt, scheme);
     final scale = cameraScale();
     final strokeWidth = effectiveWidth(style.width, scale);
-    final dashLength = style.dash == 0 ? 0.0 : effectiveWidth(style.dash, scale);
+    final dashLength = style.dash == 0
+        ? 0.0
+        : effectiveWidth(style.dash, scale);
     final dashGap = style.gap == 0 ? 0.0 : effectiveWidth(style.gap, scale);
 
     final sourceRadius = edge.source.size / 2;

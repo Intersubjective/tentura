@@ -13,16 +13,19 @@ ConstellationLabelBudget constellationLabelBudget({
   required double textScaleFactor,
 }) {
   final safeScale = textScaleFactor <= 0 ? 1.0 : textScaleFactor;
-  final areaRatio = (viewport.width * viewport.height) /
+  final areaRatio =
+      (viewport.width * viewport.height) /
       (_kReferenceViewportWidth * _kReferenceViewportHeight);
   final densityFactor = areaRatio / safeScale;
 
-  final perPerson = (_kMaxLabelsPerPerson * densityFactor)
-      .floor()
-      .clamp(1, _kMaxLabelsPerPerson);
-  final total = (_kMaxLabelsTotal * densityFactor)
-      .floor()
-      .clamp(1, _kMaxLabelsTotal);
+  final perPerson = (_kMaxLabelsPerPerson * densityFactor).floor().clamp(
+    1,
+    _kMaxLabelsPerPerson,
+  );
+  final total = (_kMaxLabelsTotal * densityFactor).floor().clamp(
+    1,
+    _kMaxLabelsTotal,
+  );
 
   return (perPerson: perPerson, total: total);
 }

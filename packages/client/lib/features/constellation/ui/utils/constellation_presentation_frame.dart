@@ -154,7 +154,8 @@ ConstellationPresentationFrame computeConstellationPresentationFrame({
   }
 
   final placedChips = <String, Rect>{};
-  final sortedChips = [...chips]..sort((a, b) => a.authorId.compareTo(b.authorId));
+  final sortedChips = [...chips]
+    ..sort((a, b) => a.authorId.compareTo(b.authorId));
 
   for (final chip in sortedChips) {
     final author = nodeById[chip.authorGraphId];
@@ -174,7 +175,8 @@ ConstellationPresentationFrame computeConstellationPresentationFrame({
       _chipRectStart(body, chip.size, gap, rtl: rtl),
       _chipRectAbove(body, chip.size, gap),
     ];
-    final placed = _firstFittingCandidate(candidates, viewportRect, occupied) ??
+    final placed =
+        _firstFittingCandidate(candidates, viewportRect, occupied) ??
         candidates.first;
     placedChips[chip.authorId] = placed;
     occupied.add(placed.inflate(1));
@@ -183,17 +185,18 @@ ConstellationPresentationFrame computeConstellationPresentationFrame({
   final labels = <GraphNodeId, Rect>{};
   final forcedLabels = <GraphNodeId>{};
 
-  final labelNodes = nodesInPaintOrder
-      .where((n) => !culled.contains(n.id))
-      .where((n) => n.labelCandidate && n.labelSize != Size.zero)
-      .toList()
-    ..sort((a, b) {
-      final pc = a.priority.compareTo(b.priority);
-      if (pc != 0) return pc;
-      final rc = a.ring.compareTo(b.ring);
-      if (rc != 0) return rc;
-      return a.id.compareTo(b.id);
-    });
+  final labelNodes =
+      nodesInPaintOrder
+          .where((n) => !culled.contains(n.id))
+          .where((n) => n.labelCandidate && n.labelSize != Size.zero)
+          .toList()
+        ..sort((a, b) {
+          final pc = a.priority.compareTo(b.priority);
+          if (pc != 0) return pc;
+          final rc = a.ring.compareTo(b.ring);
+          if (rc != 0) return rc;
+          return a.id.compareTo(b.id);
+        });
 
   for (final node in labelNodes) {
     final body = bodies[node.id]!;
@@ -231,7 +234,11 @@ ConstellationPresentationFrame computeConstellationPresentationFrame({
 Rect _symmetricMinTargetRect(Rect body, double minTarget) {
   final halfW = math.max(body.width / 2, minTarget / 2);
   final halfH = math.max(body.height / 2, minTarget / 2);
-  return Rect.fromCenter(center: body.center, width: halfW * 2, height: halfH * 2);
+  return Rect.fromCenter(
+    center: body.center,
+    width: halfW * 2,
+    height: halfH * 2,
+  );
 }
 
 Rect? _firstFittingCandidate(
@@ -307,7 +314,12 @@ Rect _labelRectEnd(Rect body, Size labelSize, double gap, {required bool rtl}) {
   );
 }
 
-Rect _labelRectStart(Rect body, Size labelSize, double gap, {required bool rtl}) {
+Rect _labelRectStart(
+  Rect body,
+  Size labelSize,
+  double gap, {
+  required bool rtl,
+}) {
   if (rtl) {
     return Rect.fromLTWH(
       body.right + gap,

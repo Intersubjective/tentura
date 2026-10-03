@@ -54,7 +54,11 @@ final class RadiusRecipientSelection {
     final added = {...manualAdded};
     final removed = {...manualRemoved};
     if (selected.contains(id)) {
-      removed.add(id);
+      final inRadius =
+          positions.containsKey(id) &&
+          (positions[id]! - center).distance <= radius;
+      // Outside the circle, dropping the manual addition is the whole undo.
+      if (inRadius) removed.add(id);
       added.remove(id);
     } else {
       added.add(id);

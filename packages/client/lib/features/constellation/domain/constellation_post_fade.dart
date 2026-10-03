@@ -18,7 +18,8 @@ double constellationPostFade({
     return kConstellationPostFadeFloor;
   }
   final t =
-      (age - _fadeStart).inMicroseconds / (_fadeEnd - _fadeStart).inMicroseconds;
+      (age - _fadeStart).inMicroseconds /
+      (_fadeEnd - _fadeStart).inMicroseconds;
   return 1 - t * (1 - kConstellationPostFadeFloor);
 }
 

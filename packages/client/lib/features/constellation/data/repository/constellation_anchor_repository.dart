@@ -30,61 +30,58 @@ final class ConstellationAnchorRepository
   Future<ConstellationAnchorUpsertResult> upsert({
     required ConstellationAnchorTarget target,
     required ConstellationAnchorPosition position,
-  }) =>
-      _remoteApiService
-          .request(
-            GConstellationAnchorUpsertReq((b) {
-              b.vars
-                ..targetKind = targetKindToWire(target.kind)
-                ..targetId = target.id
-                ..xUnits = _graphQlFloatVariable(position.xUnits)
-                ..yUnits = _graphQlFloatVariable(position.yUnits)
-                ..coordinateSpaceVersion = position.coordinateSpaceVersion;
-            }),
-          )
-          .firstWhere((response) => response.dataSource == DataSource.Link)
-          .then((response) {
-            final payload = response
-                .dataOrThrow(label: 'ConstellationAnchorUpsert')
-                .constellationAnchorUpsert;
-            return mapUpsertResult(payload);
-          });
+  }) => _remoteApiService
+      .request(
+        GConstellationAnchorUpsertReq((b) {
+          b.vars
+            ..targetKind = targetKindToWire(target.kind)
+            ..targetId = target.id
+            ..xUnits = _graphQlFloatVariable(position.xUnits)
+            ..yUnits = _graphQlFloatVariable(position.yUnits)
+            ..coordinateSpaceVersion = position.coordinateSpaceVersion;
+        }),
+      )
+      .firstWhere((response) => response.dataSource == DataSource.Link)
+      .then((response) {
+        final payload = response
+            .dataOrThrow(label: 'ConstellationAnchorUpsert')
+            .constellationAnchorUpsert;
+        return mapUpsertResult(payload);
+      });
 
   @override
   Future<ConstellationAnchorDeleteResult> delete({
     required ConstellationAnchorTarget target,
-  }) =>
-      _remoteApiService
-          .request(
-            GConstellationAnchorDeleteReq((b) {
-              b.vars
-                ..targetKind = targetKindToWire(target.kind)
-                ..targetId = target.id;
-            }),
-          )
-          .firstWhere((response) => response.dataSource == DataSource.Link)
-          .then((response) {
-            final payload = response
-                .dataOrThrow(label: 'ConstellationAnchorDelete')
-                .constellationAnchorDelete;
-            return mapDeleteResult(payload);
-          });
+  }) => _remoteApiService
+      .request(
+        GConstellationAnchorDeleteReq((b) {
+          b.vars
+            ..targetKind = targetKindToWire(target.kind)
+            ..targetId = target.id;
+        }),
+      )
+      .firstWhere((response) => response.dataSource == DataSource.Link)
+      .then((response) {
+        final payload = response
+            .dataOrThrow(label: 'ConstellationAnchorDelete')
+            .constellationAnchorDelete;
+        return mapDeleteResult(payload);
+      });
 
   static ConstellationAnchorUpsertResult mapUpsertResult(
     GConstellationAnchorUpsertData_constellationAnchorUpsert payload,
-  ) =>
-      ConstellationAnchorUpsertResult(
-        anchor: mapWireAnchor(
-          targetKind: payload.anchor.targetKind,
-          targetId: payload.anchor.targetId,
-          xUnits: payload.anchor.xUnits,
-          yUnits: payload.anchor.yUnits,
-          coordinateSpaceVersion: payload.anchor.coordinateSpaceVersion,
-          revision: payload.anchor.revision,
-          placedAt: payload.anchor.placedAt,
-        ),
-        revision: _parseRevision(payload.revision),
-      );
+  ) => ConstellationAnchorUpsertResult(
+    anchor: mapWireAnchor(
+      targetKind: payload.anchor.targetKind,
+      targetId: payload.anchor.targetId,
+      xUnits: payload.anchor.xUnits,
+      yUnits: payload.anchor.yUnits,
+      coordinateSpaceVersion: payload.anchor.coordinateSpaceVersion,
+      revision: payload.anchor.revision,
+      placedAt: payload.anchor.placedAt,
+    ),
+    revision: _parseRevision(payload.revision),
+  );
 
   static ConstellationAnchorDeleteResult mapDeleteResult(
     GConstellationAnchorDeleteData_constellationAnchorDelete payload,

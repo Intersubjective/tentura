@@ -23,9 +23,9 @@ String constellationPreviewPrimaryActionLabel(
     ConstellationHeldState.offered => l10n.beaconCtaEditHelpOffer,
     ConstellationHeldState.participant => l10n.openBeacon,
     ConstellationHeldState.forwarded => l10n.openBeacon,
-    ConstellationHeldState.none => switch (
-      BeaconStatus.fromSmallint(request.status)
-    ) {
+    ConstellationHeldState.none => switch (BeaconStatus.fromSmallint(
+      request.status,
+    )) {
       BeaconStatus.enoughHelp => l10n.beaconOfferHelpAsBackup,
       _ => l10n.labelOfferHelp,
     },
@@ -83,7 +83,8 @@ class ConstellationRequestPreviewSheet extends StatelessWidget {
     final primaryLabel = constellationPreviewPrimaryActionLabel(l10n, request);
     final showForward =
         constellationPreviewShowsForward(request) && onForward != null;
-    final showOpenButton = onOpen != null &&
+    final showOpenButton =
+        onOpen != null &&
         (onPrimaryAction == null || primaryLabel != l10n.openBeacon);
 
     final body = Column(

@@ -43,9 +43,12 @@ class ConstellationAnchorTargetButton extends StatelessWidget {
                 }
               }
             : null;
-        final label = anchored ? l10n.constellationUnpinTarget : l10n.constellationPinTarget;
-        final testId =
-            anchored ? TestIds.constellationUnpinTarget : TestIds.constellationPinTarget;
+        final label = anchored
+            ? l10n.constellationUnpinTarget
+            : l10n.constellationPinTarget;
+        final testId = anchored
+            ? TestIds.constellationUnpinTarget
+            : TestIds.constellationPinTarget;
 
         if (filled) {
           return Semantics(

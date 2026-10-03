@@ -46,7 +46,8 @@ abstract class ConstellationPerson with _$ConstellationPerson {
 }
 
 @freezed
-abstract class ConstellationTrustEdgeEntity with _$ConstellationTrustEdgeEntity {
+abstract class ConstellationTrustEdgeEntity
+    with _$ConstellationTrustEdgeEntity {
   const factory ConstellationTrustEdgeEntity({
     required String src,
     required String dst,

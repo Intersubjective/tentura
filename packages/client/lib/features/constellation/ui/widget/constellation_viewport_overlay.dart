@@ -104,8 +104,9 @@ class _ConstellationViewportOverlayState
     required TenturaTokens tt,
   }) {
     return switch (node) {
-      FieldPersonNode(:final person) =>
-        cubit.isAnchored(ConstellationAnchorTarget.person(person.id)),
+      FieldPersonNode(:final person) => cubit.isAnchored(
+        ConstellationAnchorTarget.person(person.id),
+      ),
       FieldBeaconNode(request: final request?) =>
         cubit.isAnchored(ConstellationAnchorTarget.beacon(request.id)) ||
             constellationRequestStatusPresentation(
@@ -198,9 +199,11 @@ class _ConstellationViewportOverlayState
               final bodyDiameter = node.size * scale;
 
               final priority = switch (node) {
-                FieldPersonNode(:final person) when person.id == selectedPersonId =>
+                FieldPersonNode(:final person)
+                    when person.id == selectedPersonId =>
                   0,
-                FieldBeaconNode(request: final request?) when request.id == selectedRequestId =>
+                FieldBeaconNode(request: final request?)
+                    when request.id == selectedRequestId =>
                   0,
                 FieldPersonNode(:final person) when person.id == viewerId => 1,
                 FieldPersonNode() => 2,
@@ -221,17 +224,15 @@ class _ConstellationViewportOverlayState
 
               final (labelText, maxLines, plateWidth) = switch (node) {
                 FieldPersonNode(:final person) => (
-                    person.shownName,
-                    1,
-                    tt.graphLabelMaxWidthPerson,
-                  ),
+                  person.shownName,
+                  1,
+                  tt.graphLabelMaxWidthPerson,
+                ),
                 FieldBeaconNode(request: final request?) => (
-                    request.title.isEmpty
-                        ? l10n.beaconViewTitle
-                        : request.title,
-                    2,
-                    tt.graphLabelMaxWidthRequest,
-                  ),
+                  request.title.isEmpty ? l10n.beaconViewTitle : request.title,
+                  2,
+                  tt.graphLabelMaxWidthRequest,
+                ),
                 _ => ('', 1, tt.graphLabelMaxWidthPerson),
               };
 
@@ -246,12 +247,13 @@ class _ConstellationViewportOverlayState
                       style: labelStyle,
                     );
 
-              final badgeOverhang = _nodeShowsBadge(
-                node: node,
-                cubit: widget.cubit,
-                l10n: l10n,
-                tt: tt,
-              )
+              final badgeOverhang =
+                  _nodeShowsBadge(
+                    node: node,
+                    cubit: widget.cubit,
+                    l10n: l10n,
+                    tt: tt,
+                  )
                   ? badgeOverhangViewport
                   : 0.0;
 
@@ -289,12 +291,16 @@ class _ConstellationViewportOverlayState
               }
               final hidden =
                   widget.cubit.overflowHiddenCountByAuthor[authorId] ?? 0;
-              final expanded =
-                  widget.cubit.isSatelliteOverflowExpanded(authorId);
+              final expanded = widget.cubit.isSatelliteOverflowExpanded(
+                authorId,
+              );
               final chipLabel = expanded
                   ? l10n.constellationFewerRequests
                   : l10n.constellationMoreRequests(hidden);
-              final chipSize = constellationOverflowChipSize(context, chipLabel);
+              final chipSize = constellationOverflowChipSize(
+                context,
+                chipLabel,
+              );
               chipInputs.add(
                 ConstellationFrameChipInput(
                   authorId: authorId,
@@ -329,17 +335,15 @@ class _ConstellationViewportOverlayState
               }
               final (text, maxLines, plateWidth) = switch (node) {
                 FieldPersonNode(:final person) => (
-                    person.shownName,
-                    1,
-                    tt.graphLabelMaxWidthPerson,
-                  ),
+                  person.shownName,
+                  1,
+                  tt.graphLabelMaxWidthPerson,
+                ),
                 FieldBeaconNode(request: final request?) => (
-                    request.title.isEmpty
-                        ? l10n.beaconViewTitle
-                        : request.title,
-                    2,
-                    tt.graphLabelMaxWidthRequest,
-                  ),
+                  request.title.isEmpty ? l10n.beaconViewTitle : request.title,
+                  2,
+                  tt.graphLabelMaxWidthRequest,
+                ),
                 _ => ('', 1, tt.graphLabelMaxWidthPerson),
               };
               labelWidgets.add(
@@ -384,16 +388,21 @@ class _ConstellationViewportOverlayState
             final postChipWidgets = <Widget>[];
             if (selectedRequestId != null) {
               final count =
-                  widget.cubit.postOverflowCountByPostId[selectedRequestId] ?? 0;
+                  widget.cubit.postOverflowCountByPostId[selectedRequestId] ??
+                  0;
               final postGraphId = 'fr:$selectedRequestId';
-              final scenePoint = count > 0 && nodeByGraphId.containsKey(postGraphId)
+              final scenePoint =
+                  count > 0 && nodeByGraphId.containsKey(postGraphId)
                   ? snapshot.resolvePosition(postGraphId)
                   : null;
               if (scenePoint != null) {
                 final centre = controller.sceneToViewportLocal(
                   Offset(scenePoint.x, scenePoint.y),
                 );
-                final chipSize = constellationOverflowChipSize(context, '+$count');
+                final chipSize = constellationOverflowChipSize(
+                  context,
+                  '+$count',
+                );
                 final radius = nodeByGraphId[postGraphId]!.size * scale / 2;
                 postChipWidgets.add(
                   Positioned.fromRect(

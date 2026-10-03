@@ -16,7 +16,9 @@ GraphEdgeId constellationSceneEdgeId({
   return 'c:$kindName:$sourceId->$destinationId';
 }
 
-GraphNodeId constellationGraphNodeIdForTarget(ConstellationAnchorTarget target) {
+GraphNodeId constellationGraphNodeIdForTarget(
+  ConstellationAnchorTarget target,
+) {
   return switch (target.kind) {
     ConstellationAnchorTargetKind.person =>
       '${TenturaGraphNodeKind.fieldPerson}:${target.id}',
