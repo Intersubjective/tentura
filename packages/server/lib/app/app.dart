@@ -26,6 +26,16 @@ class App {
     );
     await migrateDbSchema(connection);
     await connection.execute('ALTER EXTENSION pgmer2 UPDATE');
+    // The boot-time maintenance sweep re-projects existing pairs, so a
+    // changed value reaches MR shortly after start.
+    await connection.execute(
+      Sql.named(
+        'INSERT INTO public.trust_config (key, value) '
+        "VALUES ('noisy_wall_enabled', to_jsonb(@enabled::boolean)) "
+        'ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value',
+      ),
+      parameters: {'enabled': env.trustNoisyWallEnabled},
+    );
     final getIt = await configureDependencies(env);
     await getIt.allReady();
     await getIt<TrustCutoverCase>().runIfPending();

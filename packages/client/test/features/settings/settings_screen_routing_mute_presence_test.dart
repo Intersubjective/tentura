@@ -14,6 +14,7 @@ import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import 'noisy_wall_screen_support.dart';
 import 'settings_reset_counters_support.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
@@ -79,6 +80,8 @@ void main() {
     }
 
     addTearDown(registerReconcilePortForScreenTest());
+    final trustPreferences = FakeTrustPreferenceRepository();
+    addTearDown(registerNoisyWallForScreenTest(trustPreferences));
 
     final router = RootRouter(
       Logger('test'),
@@ -94,7 +97,8 @@ void main() {
       if (registeredSettings && getIt.isRegistered<SettingsCubit>()) {
         getIt.unregister<SettingsCubit>();
       }
-      if (registeredCapability && getIt.isRegistered<CapabilityRepositoryPort>()) {
+      if (registeredCapability &&
+          getIt.isRegistered<CapabilityRepositoryPort>()) {
         getIt.unregister<CapabilityRepositoryPort>();
       }
       if (registeredEffects && getIt.isRegistered<UiEffectPort>()) {
@@ -121,6 +125,24 @@ void main() {
 
     expect(find.text(l10n.settingsRoutingMute), findsOneWidget);
     expect(find.byIcon(Icons.alt_route_outlined), findsOneWidget);
+
+    // The noisy-wall switch sits in the same group and stores the choice.
+    expect(find.text(l10n.settingsNoisyWall), findsOneWidget);
+    final noisySwitch = find.widgetWithText(
+      TenturaMenuTile,
+      l10n.settingsNoisyWall,
+    );
+    expect(
+      tester
+          .widget<Switch>(
+            find.descendant(of: noisySwitch, matching: find.byType(Switch)),
+          )
+          .value,
+      isFalse,
+    );
+    await tester.tap(find.text(l10n.settingsNoisyWall));
+    await tester.pumpAndSettle();
+    expect(trustPreferences.enabled, isTrue);
 
     await tester.tap(find.text(l10n.settingsRoutingMute));
     await tester.pumpAndSettle();

@@ -184,7 +184,7 @@ T        = Σ_trust-kinds mix_k · s_k / (k_k + s_k)
 T_recent = same fold over rows with age ≤ 180 d of kinds with counts_for_immunity, plus vouch   (U39, U58)
 n_noisy  = s_noisy                                                  (phase B)
 wall     = 1              if user_block(subject → object)           (phase B; phase A: ban ⇒ target 0)
-         = level(n_noisy) else if T_recent < 0.05 and n_noisy ≥ 3  (phase B)
+         = level(n_noisy) else if noisy_wall_enabled and T_recent < 0.05 and n_noisy ≥ 3  (phase B; m0209)
          = 0
 target   = −1 if ban (phase B) | −wall if wall > 0 | T if T > 0 | 0
 upsert user_trust_edge(subject, object) set trust_w, wall_d, target_w
@@ -194,6 +194,8 @@ needs_publish = |target − prev| > ε  or  sign(target) ≠ sign(prev)  or  wal
 ```
 
 `level(n)` = the highest `wall_levels` entry with `min_n ≤ n` (3 → 0.1, 6 → 0.3, 10 → 0.6). Phase A ships with `wall_publish_enabled = false` (config row), so only the ban→0 and T branches run.
+
+**m0209:** the noisy wall has its own switch, `trust_config.noisy_wall_enabled` (default `false`), overwritten on every server boot from env `TRUST_NOISY_WALL_ENABLED`; the boot-time maintenance sweep re-projects existing pairs. Off: kind-7 evidence is still recorded, the projection ignores it. The wall owner (`subject`) can override the default for their own frame in `user_trust_preference.noisy_wall_enabled` (no row = default); a row trigger re-projects the owner's pairs. Ban walls stay on `wall_publish_enabled`. Rationale: `noisy-contact-sanctions-design.md` § 12 (no automatic sanctions in the seed stage; log now, enforce later).
 
 ### 4.3 Publication (out of transaction)
 

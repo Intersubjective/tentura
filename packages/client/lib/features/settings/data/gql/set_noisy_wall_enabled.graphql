@@ -1,0 +1,3 @@
+mutation SetNoisyWallEnabled($enabled: Boolean!) {
+  setNoisyWallEnabled(enabled: $enabled)
+}

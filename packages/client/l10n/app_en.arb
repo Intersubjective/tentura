@@ -2278,6 +2278,14 @@
   "@settingsRoutingMute": {
     "description": "Settings menu entry for the routing-mute screen."
   },
+  "settingsNoisyWall": "Mute people whose forwards I ignore",
+  "@settingsNoisyWall": {
+    "description": "Settings switch: noisy-contact walls in the user's own frame (m0209)."
+  },
+  "settingsNoisyWallHint": "If you leave several requests forwarded by the same person unanswered, Tentura lowers that person in your own view of the network for a while, and they may be unable to forward requests to you. Only your view changes; nobody is notified.",
+  "@settingsNoisyWallHint": {
+    "description": "Supporting line under the noisy-wall settings switch."
+  },
   "notificationSettings": "Notification settings",
   "notificationSettingsPush": "Push notifications",
   "notificationSettingsEmail": "Email notifications",

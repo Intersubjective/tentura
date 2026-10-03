@@ -72,5 +72,10 @@ void main() {
     test('MarkBeaconPeopleSeen routes to Tentura V2', () {
       expect(isTenturaDirectOperation('MarkBeaconPeopleSeen'), isTrue);
     });
+
+    test('noisy-wall preference operations route to Tentura V2', () {
+      expect(isTenturaDirectOperation('NoisyWallEnabled'), isTrue);
+      expect(isTenturaDirectOperation('SetNoisyWallEnabled'), isTrue);
+    });
   });
 }

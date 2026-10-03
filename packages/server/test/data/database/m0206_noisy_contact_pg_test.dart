@@ -92,6 +92,11 @@ FROM public.beacon_forward_edge WHERE id = 'Fm0206old0001'
     if (reachable) {
       setUpAll(() async {
         session = await setUpDisposablePgWriter(target: target);
+        // m0209 ships the noisy wall off; this suite tests the wall itself.
+        await session.writer.execute(
+          "UPDATE public.trust_config SET value = 'true' "
+          "WHERE key = 'noisy_wall_enabled'",
+        );
         database = openDisposablePgDatabase(target);
         forwardEdges = ForwardEdgeRepository(database);
         inbox = InboxRepository(database);
