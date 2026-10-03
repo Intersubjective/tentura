@@ -39,6 +39,7 @@ class ThreadDetail extends StatelessWidget {
     this.beaconAuthorId = '',
     this.beaconAuthor,
     this.capabilities = const RoomCapabilities.request(),
+    this.postRoot,
     super.key,
   });
 
@@ -48,6 +49,7 @@ class ThreadDetail extends StatelessWidget {
   final String beaconAuthorId;
   final Profile? beaconAuthor;
   final RoomCapabilities capabilities;
+  final RoomPostRootPin? postRoot;
 
   @override
   Widget build(BuildContext context) {
@@ -64,6 +66,7 @@ class ThreadDetail extends StatelessWidget {
                 onCoordinationSaved: onCoordinationSaved,
                 onOpenCoordinationItem: onOpenCoordinationItem,
                 capabilities: capabilities,
+                postRoot: postRoot,
               ),
             ),
           ],

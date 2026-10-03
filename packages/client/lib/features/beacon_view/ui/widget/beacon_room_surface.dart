@@ -25,6 +25,7 @@ class BeaconRoomSurface extends StatefulWidget {
     this.coordinationItemId,
     this.onCoordinationSaved,
     this.onOpenCoordinationItem,
+    this.postRoot,
     super.key,
   });
 
@@ -38,6 +39,9 @@ class BeaconRoomSurface extends StatefulWidget {
   final String? coordinationItemId;
   final VoidCallback? onCoordinationSaved;
   final void Function(CoordinationItem item)? onOpenCoordinationItem;
+
+  /// Post rooms only: the pinned root strip.
+  final RoomPostRootPin? postRoot;
 
   @override
   State<BeaconRoomSurface> createState() => _BeaconRoomSurfaceState();
@@ -182,6 +186,7 @@ class _BeaconRoomSurfaceState extends State<BeaconRoomSurface> {
                   beaconAuthorId: host.author.id,
                   beaconAuthor: host.author,
                   capabilities: host.capabilities,
+                  postRoot: widget.postRoot,
                   onCoordinationSaved: widget.onCoordinationSaved,
                   onOpenCoordinationItem: widget.onOpenCoordinationItem,
                 );

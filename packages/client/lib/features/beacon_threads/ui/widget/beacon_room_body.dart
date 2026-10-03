@@ -47,12 +47,16 @@ class BeaconRoomBody extends StatefulWidget {
     this.onCoordinationSaved,
     this.onOpenCoordinationItem,
     this.capabilities = const RoomCapabilities.request(),
+    this.postRoot,
   });
 
   final bool enableComposer;
 
   /// Request-only features the hosting screen offers in this room.
   final RoomCapabilities capabilities;
+
+  /// Post rooms only: root message pinned above the messages.
+  final RoomPostRootPin? postRoot;
 
   /// Beacon author id for coordination target lists (from beacon view shell).
   final String beaconAuthorId;
@@ -224,6 +228,10 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                 roomState: state.roomState,
                 openBlocker: state.openCoordinationBlocker,
               );
+          final showPostRoot =
+              !isThreadMode &&
+              widget.capabilities.pinnedStrip == RoomPinnedStrip.postRoot &&
+              (widget.postRoot?.hasStrip ?? false);
           final receiptIndex = RoomReceiptIndex(
             myUserId: state.myUserId,
             watermarks: {
@@ -238,7 +246,14 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
           return BasicChatBody(
             key: _basicChatKey,
             receiptIndex: receiptIndex,
-            header: showPinnedNow
+            header: showPostRoot
+                ? _PinnedPostRootRow(
+                    pin: widget.postRoot!,
+                    onTap: () => cubit.requestScrollToMessage(
+                      widget.postRoot!.messageId,
+                    ),
+                  )
+                : showPinnedNow
                 ? _PinnedNowRow(
                     state: state,
                     onEdit: state.canUpdatePlan
@@ -781,7 +796,10 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                           },
                         ),
                       // ── Destructive (own message), divided off and last. ──
-                      if (canWrite && isOwnMessage && showFactInMenu) ...[
+                      if (canWrite &&
+                          isOwnMessage &&
+                          !isThreadMode &&
+                          !_suppressesRichMessageActions(message)) ...[
                         const Divider(height: 1),
                         ListTile(
                           leading: const Icon(Icons.edit_outlined),
@@ -868,11 +886,20 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     L10n l10n,
     RoomMessage message,
   ) async {
+    final isPostRoot = widget.postRoot?.messageId == message.id;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(l10n.beaconRoomDeleteMessageConfirmTitle),
-        content: Text(l10n.beaconRoomDeleteMessageConfirmBody),
+        title: Text(
+          isPostRoot
+              ? l10n.postDeleteConfirmTitle
+              : l10n.beaconRoomDeleteMessageConfirmTitle,
+        ),
+        content: Text(
+          isPostRoot
+              ? l10n.postDeleteConfirmBody
+              : l10n.beaconRoomDeleteMessageConfirmBody,
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -1205,6 +1232,76 @@ class _PinnedNowRow extends StatelessWidget {
         ),
         const TenturaHairlineDivider(),
       ],
+    );
+  }
+}
+
+/// Post rooms: the root excerpt (tap scrolls to the root message) and, for a
+/// recipient the Post was forwarded to, who forwarded it and their note.
+class _PinnedPostRootRow extends StatelessWidget {
+  const _PinnedPostRootRow({required this.pin, required this.onTap});
+
+  final RoomPostRootPin pin;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final tt = context.tt;
+    final forwardedLine = pin.forwardedBy.isEmpty
+        ? null
+        : pin.forwardNote.isEmpty
+        ? l10n.postForwardedByLineNoNote(pin.forwardedBy)
+        : l10n.postForwardedByLine(pin.forwardedBy, pin.forwardNote);
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        tt.screenHPadding,
+        tt.rowGap,
+        tt.screenHPadding,
+        tt.rowGap,
+      ),
+      child: Material(
+        color: tt.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(tt.cardRadius),
+          side: BorderSide(color: tt.borderSubtle),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: tt.cardPadding,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.push_pin_outlined, size: tt.iconSize),
+                SizedBox(width: tt.iconTextGap),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        pin.excerpt,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TenturaText.bodySmall(tt.text),
+                      ),
+                      if (forwardedLine != null)
+                        Text(
+                          forwardedLine,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TenturaText.bodySmall(tt.textMuted),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

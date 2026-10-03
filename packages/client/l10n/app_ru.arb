@@ -6128,5 +6128,61 @@
   "postsTabNewPost": "Новый пост",
   "postConversationYours": "Ваш пост",
   "postConversationAddressed": "{author} · вам",
-  "postConversationMuted": "Звук выключен"
+  "postConversationMuted": "Звук выключен",
+  "postViewTitle": "{author}: {excerpt}",
+  "@postViewTitle": {
+    "placeholders": {
+      "author": {
+        "type": "String"
+      },
+      "excerpt": {
+        "type": "String"
+      }
+    }
+  },
+  "postMenuParticipants": "Участники",
+  "postMenuShowOnField": "Показать на поле",
+  "postMenuAllowForwarding": "Разрешить пересылку",
+  "postMenuDelete": "Удалить пост",
+  "postAllowForwardingTitle": "Разрешить пересылку?",
+  "postAllowForwardingBody": "Любой участник сможет переслать пост людям из своего круга, и они смогут участвовать. Выключить это будет нельзя.",
+  "postAllowForwardingAction": "Разрешить",
+  "postDeleteConfirmTitle": "Удалить пост?",
+  "postDeleteConfirmBody": "Пост и весь разговор будут удалены без возможности восстановления.",
+  "postForwardedByLine": "Вам переслала {sender}: «{note}»",
+  "@postForwardedByLine": {
+    "placeholders": {
+      "sender": {
+        "type": "String"
+      },
+      "note": {
+        "type": "String"
+      }
+    }
+  },
+  "postForwardedByLineNoNote": "Вам переслала {sender}",
+  "@postForwardedByLineNoNote": {
+    "placeholders": {
+      "sender": {
+        "type": "String"
+      }
+    }
+  },
+  "postParticipantsTitle": "Участники · {count}",
+  "@postParticipantsTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "postParticipantAuthor": "автор",
+  "roomConvertedToRequestNotice": "{author} превратил пост в запрос",
+  "@roomConvertedToRequestNotice": {
+    "placeholders": {
+      "author": {
+        "type": "String"
+      }
+    }
+  }
 }

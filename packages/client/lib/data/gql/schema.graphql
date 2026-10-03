@@ -3826,6 +3826,7 @@ type mutation_root {
   beaconForward(attributionParentEdgeIds: [String!], context: String, id: String!, note: String, parentEdgeId: String, perRecipientNotes: String, reasons: [String!], recipientBandProvenance: [v2_ForwardRecipientBandProvenanceInput], recipientIds: [String!], recipientReasons: [v2_ForwardRecipientReasonInput]): v2_ForwardDeliveryResult!
   beaconForwardCancel(id: String!): Boolean!
   beaconForwardUpdate(id: String!, note: String, reasons: [String!]): Boolean!
+  beaconForwardingOpen(id: String!): Boolean
   beaconHelpOfferRoleLabelSet(id: String!, offerUserId: String!, roleLabel: String!): Boolean!
   beaconMuteClear(beaconId: String!): Boolean!
   beaconMuteSet(beaconId: String!, mutedUntil: String): Boolean!

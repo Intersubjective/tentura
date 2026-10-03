@@ -6949,5 +6949,96 @@
   "postConversationMuted": "Muted",
   "@postConversationMuted": {
     "description": "Semantic label of the muted icon on a conversations row."
+  },
+  "postViewTitle": "{author}: {excerpt}",
+  "@postViewTitle": {
+    "description": "App bar title of the Post screen: author and root message excerpt.",
+    "placeholders": {
+      "author": {
+        "type": "String"
+      },
+      "excerpt": {
+        "type": "String"
+      }
+    }
+  },
+  "postMenuParticipants": "Participants",
+  "@postMenuParticipants": {
+    "description": "Post overflow: open the participants list."
+  },
+  "postMenuShowOnField": "Show on the field",
+  "@postMenuShowOnField": {
+    "description": "Post overflow: open the field map."
+  },
+  "postMenuAllowForwarding": "Allow forwarding",
+  "@postMenuAllowForwarding": {
+    "description": "Post overflow (author, forwarding closed): allow forwarding."
+  },
+  "postMenuDelete": "Delete post",
+  "@postMenuDelete": {
+    "description": "Post overflow (author): delete the Post."
+  },
+  "postAllowForwardingTitle": "Allow forwarding?",
+  "@postAllowForwardingTitle": {
+    "description": "Title of the allow-forwarding confirmation."
+  },
+  "postAllowForwardingBody": "Any member will be able to forward the post to people in their circle, and they will be able to take part. This cannot be switched off again.",
+  "@postAllowForwardingBody": {
+    "description": "Body of the allow-forwarding confirmation."
+  },
+  "postAllowForwardingAction": "Allow",
+  "@postAllowForwardingAction": {
+    "description": "Confirm button of the allow-forwarding confirmation."
+  },
+  "postDeleteConfirmTitle": "Delete post?",
+  "@postDeleteConfirmTitle": {
+    "description": "Title of the confirmation shown before the Post root message is deleted."
+  },
+  "postDeleteConfirmBody": "The post and the whole conversation will be deleted permanently.",
+  "@postDeleteConfirmBody": {
+    "description": "Body of the confirmation shown before the Post root message is deleted."
+  },
+  "postForwardedByLine": "{sender} forwarded this to you: “{note}”",
+  "@postForwardedByLine": {
+    "description": "Pinned strip line for a forwarded recipient.",
+    "placeholders": {
+      "sender": {
+        "type": "String"
+      },
+      "note": {
+        "type": "String"
+      }
+    }
+  },
+  "postForwardedByLineNoNote": "{sender} forwarded this to you",
+  "@postForwardedByLineNoNote": {
+    "description": "Pinned strip line for a forwarded recipient when the forward has no note.",
+    "placeholders": {
+      "sender": {
+        "type": "String"
+      }
+    }
+  },
+  "postParticipantsTitle": "Participants · {count}",
+  "@postParticipantsTitle": {
+    "description": "Title of the Post participants sheet.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "postParticipantAuthor": "author",
+  "@postParticipantAuthor": {
+    "description": "Label next to the Post author in the participants sheet."
+  },
+  "roomConvertedToRequestNotice": "{author} turned the post into a request",
+  "@roomConvertedToRequestNotice": {
+    "description": "One-line room notice shown when a Post was converted into a Request.",
+    "placeholders": {
+      "author": {
+        "type": "String"
+      }
+    }
   }
 }

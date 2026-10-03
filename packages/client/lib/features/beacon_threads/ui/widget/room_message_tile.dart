@@ -488,6 +488,23 @@ class RoomMessageTile extends StatelessWidget {
       return RoomClosureStoryCard(message: message);
     }
 
+    if (message.systemMessageKind ==
+        BeaconRoomSystemMessageKind.convertedToRequest) {
+      final authorName = message.author.shownName.trim();
+      return _ConvertedToRequestNotice(
+        text: l10n.roomConvertedToRequestNotice(
+          authorName.isNotEmpty
+              ? authorName
+              : _participantDisplayName(
+                  participants: participants,
+                  userId: message.authorId,
+                  viewer: myProfile,
+                  l10n: l10n,
+                ),
+        ),
+      );
+    }
+
     if (isParticipantJoinedNotification(message)) {
       final payload = participantJoinedPayload(message);
       if (payload != null) {
@@ -2731,6 +2748,34 @@ class _AuthorRoleLabel extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One-line centered notice: the author turned the Post into a Request.
+class _ConvertedToRequestNotice extends StatelessWidget {
+  const _ConvertedToRequestNotice({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final tt = context.tt;
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: tt.screenHPadding,
+        vertical: tt.tightGap,
+      ),
+      child: Semantics(
+        label: text,
+        child: Text(
+          text,
+          textAlign: TextAlign.center,
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
+          style: TenturaText.bodySmall(tt.textMuted),
         ),
       ),
     );

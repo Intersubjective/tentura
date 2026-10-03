@@ -79,6 +79,25 @@ class RoomCapabilities {
   );
 }
 
+/// What the pinned strip of a Post room shows: the root message and, for a
+/// recipient the Post was forwarded to, who forwarded it and their note.
+@immutable
+class RoomPostRootPin {
+  const RoomPostRootPin({
+    required this.messageId,
+    required this.excerpt,
+    this.forwardedBy = '',
+    this.forwardNote = '',
+  });
+
+  final String messageId;
+  final String excerpt;
+  final String forwardedBy;
+  final String forwardNote;
+
+  bool get hasStrip => excerpt.isNotEmpty || forwardedBy.isNotEmpty;
+}
+
 /// What the room surface reads from the screen that hosts it.
 abstract interface class RoomHost {
   String get beaconId;
