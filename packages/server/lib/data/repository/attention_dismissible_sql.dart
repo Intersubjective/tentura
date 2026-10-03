@@ -65,7 +65,9 @@ visible AS (
 eligible_pinned AS (
   SELECT ii.beacon_id
   FROM public.inbox_item ii
+  JOIN public.beacon b ON b.id = ii.beacon_id
   WHERE ii.user_id = $1
+    AND b.kind = 0
     AND ii.tombstone_dismissed_at IS NULL
     AND ii.status = 0
     AND public.beacon_can_read_content(ii.beacon_id, $1)
@@ -134,6 +136,15 @@ eligible_pinned AS (
   static String primaryPlacement(String alias) =>
       "$alias.placement = 'primary'";
 
+  /// Kind-aware eligibility of a receipt for grouping, previews, counts and
+  /// sweeps. A Request's `relay_received` row is the synthetic forward shell
+  /// and is excluded; a Post's (`kind = 1`) is its arrival and counts like any
+  /// other child.
+  static String relayShellExcluded(String alias) =>
+      "($alias.presentation_key IS DISTINCT FROM 'relay_received' OR "
+      'EXISTS (SELECT 1 FROM public.beacon pk WHERE pk.id = $alias.beacon_id '
+      'AND pk.kind = 1))';
+
   /// Set R — dismissible optional receipts, the `notification_outbox` axis.
   ///
   /// The exclusions are the point:
@@ -152,7 +163,7 @@ activity_optional_dismissible AS (
   FROM visible v
   WHERE v.surface = 'activity'
     AND ${activeOptional('v')}
-    AND v.presentation_key IS DISTINCT FROM 'relay_received'
+    AND ${relayShellExcluded('v')}
 )''';
 
   /// §6 `my desk.dot` — "any owned Request has a dot", where
@@ -286,6 +297,7 @@ activity_outcome_dismissible AS (
   LEFT JOIN public.attention_request_state ars
     ON ars.account_id = ii.user_id AND ars.beacon_id = ii.beacon_id
   WHERE ii.user_id = $1
+    AND b.kind = 0
     AND ii.tombstone_dismissed_at IS NULL
     AND ii.beacon_id NOT IN (SELECT beacon_id FROM eligible_pinned)
     AND (

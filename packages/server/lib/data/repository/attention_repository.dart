@@ -315,6 +315,13 @@ FROM my_desk_dot, for_you_dot, my_desk_count, for_you_sweep_eligible
       AND ${AttentionDismissibleSql.primaryPlacement('v')}
     ) AS is_active_attention''';
 
+  // Today's grouping rule, in three lines:
+  // 1. Receipts on the activity surface group per beacon into one synthetic
+  //    `requestActivity` row, unless the beacon is pinned or a forward row.
+  // 2. `relay_received` receipts never count as children; position is
+  //    `MIN(created_at)` of the group.
+  // 3. Post (kind = 1) differs: `relay_received` counts, position is `MAX`,
+  //    and it is never pinned or an outcome row.
   /// Eligible inbox representatives + child Activity stats shared by the stream.
   ///
   /// Beacon-scoped Activity receipts coalesce onto a pinned For-you card, a
@@ -357,6 +364,7 @@ eligible_forward AS (
   JOIN public.beacon b ON b.id = ii.beacon_id
   LEFT JOIN request_entry re ON re.beacon_id = ii.beacon_id
   WHERE ii.user_id = \$1
+    AND b.kind = 0
     AND ii.tombstone_dismissed_at IS NULL
     AND (
       ii.status <> 0
@@ -386,7 +394,7 @@ activity_child_receipts AS (
   FROM visible v
   WHERE v.surface = 'activity'
     AND v.beacon_id IS NOT NULL
-    AND v.presentation_key IS DISTINCT FROM 'relay_received'
+    AND ${AttentionDismissibleSql.relayShellExcluded('v')}
     -- U11/D16, the load-bearing one. Everything a grouped For You row says
     -- about itself comes from here: `event_total` (the count),
     -- `event_unseen_count` (the dot), `MIN(created_at)` (its position) and
@@ -515,7 +523,9 @@ page_stream AS (
     -- U10c: a synthetic group has no inbox row and therefore no
     -- `first_entry_at`; its entry is the first child that put it on the
     -- surface, which is immutable and does not move when a second arrives.
-    stats.min_created_at AS created_at,
+    -- Post (kind = 1): position is the newest child instead.
+    CASE WHEN b.kind = 1 THEN stats.max_created_at
+      ELSE stats.min_created_at END AS created_at,
     0 AS collapsed_count,
     stats.beacon_id,
     NULL::text AS coordination_item_id,

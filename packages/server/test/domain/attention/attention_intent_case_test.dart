@@ -211,6 +211,19 @@ void main() {
             sourceEventKey: eventKey,
           ),
         ),
+        (
+          eventType: AttentionEventType.postFirstResponse,
+          legacyKind: 'postFirstResponse',
+          recipient: author,
+          build: (intents) => intents.postFirstResponse(
+            beaconId: beacon,
+            messageId: 'message',
+            actorUserId: actor,
+            authorUserId: author,
+            excerpt: 'Hello',
+            sourceEventKey: eventKey,
+          ),
+        ),
       ];
 
   group('migrated producer intent projection', () {
