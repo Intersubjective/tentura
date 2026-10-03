@@ -170,7 +170,7 @@ class _MyWorkFilterMenu extends StatelessWidget {
             style: TextButton.styleFrom(
               padding: EdgeInsets.symmetric(horizontal: tt.tightGap * 2),
               minimumSize: Size(tt.buttonHeight, tt.buttonHeight),
-              foregroundColor: scheme.onPrimary,
+              foregroundColor: scheme.onSurfaceVariant,
             ),
             onPressed: () => unawaited(_showMyWorkFilterMenu(context, l10n)),
             child: Row(
@@ -181,14 +181,14 @@ class _MyWorkFilterMenu extends StatelessWidget {
                     _labelForFilter(l10n, filter),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TenturaText.labelLarge(scheme.onPrimary).copyWith(
+                    style: TenturaText.labelLarge(scheme.onSurfaceVariant).copyWith(
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
                 Icon(
                   Icons.arrow_drop_down,
-                  color: scheme.onPrimary,
+                  color: scheme.onSurfaceVariant,
                 ),
               ],
             ),
@@ -201,7 +201,7 @@ class _MyWorkFilterMenu extends StatelessWidget {
                 l10n.myWork,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TenturaText.titleLarge(scheme.onPrimary),
+                style: TenturaText.titleLarge(scheme.onSurface),
               ),
             ),
             SizedBox(width: tt.iconTextGap),
@@ -260,7 +260,7 @@ class _MyWorkSortButtonState extends State<_MyWorkSortButton> {
             style: TextButton.styleFrom(
               padding: EdgeInsets.symmetric(horizontal: tt.tightGap * 2),
               minimumSize: Size(tt.buttonHeight, tt.buttonHeight),
-              foregroundColor: scheme.onPrimary,
+              foregroundColor: scheme.onSurfaceVariant,
             ),
             onPressed: () => _onPressed(sort),
             child: Row(
@@ -272,7 +272,7 @@ class _MyWorkSortButtonState extends State<_MyWorkSortButton> {
                     label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TenturaText.labelLarge(scheme.onPrimary).copyWith(
+                    style: TenturaText.labelLarge(scheme.onSurfaceVariant).copyWith(
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -280,7 +280,7 @@ class _MyWorkSortButtonState extends State<_MyWorkSortButton> {
                 Icon(
                   Icons.swap_vert,
                   size: tt.iconSize,
-                  color: scheme.onPrimary,
+                  color: scheme.onSurfaceVariant,
                 ),
               ],
             ),

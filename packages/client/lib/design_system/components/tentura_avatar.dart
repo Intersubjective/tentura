@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
 
+import '../tentura_colors.dart';
 import '../tentura_icons.dart';
 import '../tentura_text.dart';
 import '../tentura_tokens.dart';
@@ -170,7 +171,11 @@ class TenturaAvatar extends StatelessWidget {
 
     final initials = initialsForProfile(profile);
     final avatarCore = profile.hasNoAvatar
-        ? ProfileAvatarInitials(lettering: initials, size: s)
+        ? ProfileAvatarInitials(
+            lettering: initials,
+            size: s,
+            hueKey: profile.id,
+          )
         : _Network(
             profile: profile,
             cacheSize: cache,
@@ -301,7 +306,11 @@ class _Network extends StatelessWidget {
     final net = Image.network(
       profile.avatarUrl,
       errorBuilder: (context, error, stackTrace) =>
-          ProfileAvatarInitials(lettering: initials, size: size),
+          ProfileAvatarInitials(
+            lettering: initials,
+            size: size,
+            hueKey: profile.id,
+          ),
       // Only one cache dimension: both set would decode to a square and stretch.
       cacheWidth: cacheSize,
       fit: boxFit,
@@ -317,28 +326,40 @@ class _Network extends StatelessWidget {
 }
 
 /// Circular initials fallback when a profile has no photo (or network load fails).
+///
+/// With a [hueKey] (the user id) each person gets a stable colour from
+/// [TenturaColorPalette.avatarHues], so a list of five people is scannable by
+/// colour (UI review #198). Without one it uses the brand container.
 class ProfileAvatarInitials extends StatelessWidget {
   const ProfileAvatarInitials({
     required this.lettering,
     required this.size,
+    this.hueKey,
     super.key,
   });
 
   final String lettering;
   final double size;
+  final String? hueKey;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final key = hueKey;
+    final swatch = key == null || key.isEmpty
+        ? TenturaSwatch(
+            container: scheme.secondaryContainer,
+            onContainer: scheme.onSecondaryContainer,
+          )
+        : context.palette.avatarHueFor(key);
     final fontSize = size * 0.38;
-    // A paired container role: faint grey on grey read at ~2:1.
     return ColoredBox(
-      color: scheme.secondaryContainer,
+      color: swatch.container,
       child: Center(
         child: Text(
           lettering,
           maxLines: 1,
-          style: TenturaText.bodySmall(scheme.onSecondaryContainer).copyWith(
+          style: TenturaText.bodySmall(swatch.onContainer).copyWith(
             fontSize: fontSize,
             fontWeight: FontWeight.w600,
           ),

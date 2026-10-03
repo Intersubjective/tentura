@@ -599,7 +599,7 @@ void main() {
 
   group('ForwardScopeLinks.preferredHeight', () {
     test('at default scale is at least buttonHeight', () {
-      const tt = TenturaTokens.light;
+      final tt = TenturaTokens.light;
       final height = ForwardScopeLinks.preferredHeight(
         tt,
         TextScaler.noScaling,
@@ -608,7 +608,7 @@ void main() {
     });
 
     test('grows with textScaler so content fits', () {
-      const tt = TenturaTokens.light;
+      final tt = TenturaTokens.light;
       final atDefault = ForwardScopeLinks.preferredHeight(
         tt,
         TextScaler.noScaling,

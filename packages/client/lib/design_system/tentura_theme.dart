@@ -9,48 +9,16 @@ import 'tentura_tokens.dart';
 
 /// Root [ThemeData] for Tentura: Material 3 + [TenturaTokens] extension.
 abstract final class TenturaTheme {
-  static ThemeData light() {
-    final colorScheme =
-        ColorScheme.fromSeed(
-          seedColor: TenturaPalette.sky,
-        ).copyWith(
-          surface: TenturaPalette.bg,
-          surfaceContainer: TenturaPalette.surface,
-          onSurface: TenturaPalette.text,
-          onSurfaceVariant: TenturaPalette.textMuted,
-          outline: TenturaPalette.border,
-          error: TenturaPalette.rose,
-          onError: Colors.white,
-        );
+  static ThemeData light() => fromPalette(TenturaColorPalette.light);
 
-    return _base(
-      colorScheme: colorScheme,
-      tokens: TenturaTokens.light,
-      capabilityColors: TenturaCapabilityColors.light,
-    );
-  }
+  static ThemeData dark() => fromPalette(TenturaColorPalette.dark);
 
-  static ThemeData dark() {
-    final colorScheme =
-        ColorScheme.fromSeed(
-          seedColor: TenturaPalette.skyDark,
-          brightness: Brightness.dark,
-        ).copyWith(
-          surface: TenturaPalette.bgDark,
-          surfaceContainer: TenturaPalette.surfaceDark,
-          onSurface: TenturaPalette.textDark,
-          onSurfaceVariant: TenturaPalette.textMutedDark,
-          outline: TenturaPalette.borderDark,
-          error: TenturaPalette.roseDark,
-          onError: const Color(0xFF0A1826),
-        );
-
-    return _base(
-      colorScheme: colorScheme,
-      tokens: TenturaTokens.dark,
-      capabilityColors: TenturaCapabilityColors.dark,
-    );
-  }
+  /// Full theme from one [TenturaColorPalette]; nothing else picks colours.
+  static ThemeData fromPalette(TenturaColorPalette palette) => _base(
+    colorScheme: palette.toColorScheme(),
+    tokens: TenturaTokens.fromPalette(palette),
+    capabilityColors: palette.capabilities,
+  );
 
   static ThemeData _base({
     required ColorScheme colorScheme,
@@ -60,6 +28,8 @@ abstract final class TenturaTheme {
     final buttonShape = RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(tokens.buttonRadius),
     );
+    final buttonMinSize = Size(0, tokens.buttonHeight);
+    final buttonText = TenturaText.labelLarge(colorScheme.primary);
 
     final expansionTileShape = RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(TenturaRadii.button),
@@ -73,12 +43,9 @@ abstract final class TenturaTheme {
     );
 
     final isDark = colorScheme.brightness == Brightness.dark;
-    final navIndicatorColor = isDark
-        ? colorScheme.secondaryContainer
-        : colorScheme.primary;
-    final navSelectedIconColor = isDark
-        ? colorScheme.onSecondaryContainer
-        : colorScheme.onPrimary;
+    // One selection language in both modes (UI review #196).
+    final navIndicatorColor = colorScheme.primaryContainer;
+    final navSelectedIconColor = colorScheme.onPrimaryContainer;
 
     // In dark M3, [ColorScheme.primary] is often a dark tone; default [Icon]s
     // (no explicit color) would inherit [iconTheme] and disappear on dark surfaces.
@@ -102,17 +69,85 @@ abstract final class TenturaTheme {
           border: OutlineInputBorder(),
         ),
       ),
+      // Button hierarchy (UI review #197): Filled = the one primary action,
+      // Filled.tonal = secondary (brand container), Text = tertiary.
+      // Outlined is neutral-framed. All share radius, height and type.
       elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(shape: buttonShape),
+        style: ElevatedButton.styleFrom(
+          shape: buttonShape,
+          minimumSize: buttonMinSize,
+          textStyle: buttonText,
+          elevation: 0,
+          backgroundColor: colorScheme.secondaryContainer,
+          foregroundColor: colorScheme.onSecondaryContainer,
+        ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           shape: buttonShape,
+          minimumSize: buttonMinSize,
+          textStyle: buttonText,
+          foregroundColor: colorScheme.primary,
           side: BorderSide(color: colorScheme.outlineVariant),
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(shape: buttonShape),
+        style: FilledButton.styleFrom(
+          shape: buttonShape,
+          minimumSize: buttonMinSize,
+          textStyle: buttonText,
+          disabledBackgroundColor: colorScheme.surfaceContainerHighest,
+          disabledForegroundColor: colorScheme.onSurfaceVariant,
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          shape: buttonShape,
+          textStyle: buttonText,
+          foregroundColor: colorScheme.primary,
+        ),
+      ),
+      badgeTheme: BadgeThemeData(
+        // Counts are news, not errors (UI review #199).
+        backgroundColor: colorScheme.primary,
+        textColor: colorScheme.onPrimary,
+      ),
+      tooltipTheme: TooltipThemeData(
+        decoration: BoxDecoration(
+          color: colorScheme.inverseSurface,
+          borderRadius: BorderRadius.circular(TenturaRadii.cardDense),
+        ),
+        textStyle: TenturaText.bodySmall(colorScheme.onInverseSurface),
+      ),
+      popupMenuTheme: PopupMenuThemeData(
+        color: colorScheme.surfaceContainer,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(tokens.cardRadius),
+          side: BorderSide(color: colorScheme.outline),
+        ),
+        labelTextStyle: WidgetStatePropertyAll(
+          TenturaText.bodyMedium(colorScheme.onSurface),
+        ),
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: colorScheme.surfaceContainer,
+        surfaceTintColor: Colors.transparent,
+        modalBackgroundColor: colorScheme.surfaceContainer,
+      ),
+      navigationRailTheme: NavigationRailThemeData(
+        backgroundColor: colorScheme.surface,
+        indicatorColor: navIndicatorColor,
+        selectedIconTheme: IconThemeData(color: navSelectedIconColor),
+        unselectedIconTheme: IconThemeData(
+          color: colorScheme.onSurfaceVariant,
+        ),
+        selectedLabelTextStyle: TenturaText.bodySmall(
+          colorScheme.onSurface,
+        ).copyWith(fontWeight: FontWeight.w600),
+        unselectedLabelTextStyle: TenturaText.bodySmall(
+          colorScheme.onSurfaceVariant,
+        ),
       ),
       expansionTileTheme: ExpansionTileThemeData(
         collapsedShape: expansionTileShape,
@@ -183,8 +218,9 @@ abstract final class TenturaTheme {
         centerTitle: false,
       ),
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: colorScheme.primary,
-        contentTextStyle: TextStyle(color: colorScheme.onPrimary),
+        backgroundColor: colorScheme.inverseSurface,
+        contentTextStyle: TenturaText.bodyMedium(colorScheme.onInverseSurface),
+        actionTextColor: colorScheme.inversePrimary,
         dismissDirection: kIsWeb
             ? DismissDirection.none
             : DismissDirection.down,

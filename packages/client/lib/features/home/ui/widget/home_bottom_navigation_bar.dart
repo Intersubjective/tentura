@@ -32,15 +32,12 @@ class HomeBottomNavigationBar extends StatelessWidget {
     final tokens = context.tt;
     final height = navTheme.height ?? tokens.bottomNavHeight;
 
-    final isDark = scheme.brightness == Brightness.dark;
-    final indicatorColor =
-        navTheme.indicatorColor ??
-        (isDark ? scheme.secondaryContainer : scheme.primary);
+    final indicatorColor = navTheme.indicatorColor ?? scheme.primaryContainer;
     final selectedIconTheme =
         navTheme.iconTheme?.resolve(const {WidgetState.selected}) ??
         IconThemeData(
           size: 24,
-          color: isDark ? scheme.onSecondaryContainer : scheme.onPrimary,
+          color: scheme.onPrimaryContainer,
         );
     final unselectedIconTheme =
         navTheme.iconTheme?.resolve(const {}) ??
@@ -54,28 +51,34 @@ class HomeBottomNavigationBar extends StatelessWidget {
       elevation: navTheme.elevation ?? 0,
       shadowColor: navTheme.shadowColor,
       surfaceTintColor: navTheme.surfaceTintColor ?? Colors.transparent,
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: height,
-          child: Semantics(
-            explicitChildNodes: true,
-            container: true,
-            child: Row(
-              children: [
-                for (var i = 0; i < destinations.length; i++)
-                  Expanded(
-                    child: _HomeNavTile(
-                      destination: destinations[i],
-                      selected: i == selectedIndex,
-                      indicatorColor: indicatorColor,
-                      selectedIconTheme: selectedIconTheme,
-                      unselectedIconTheme: unselectedIconTheme,
-                      labelGap: tokens.tightGap,
-                      onTap: () => onDestinationSelected(i),
+      child: DecoratedBox(
+        // Hairline separates the bar from content in both modes (#196).
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: tokens.border)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: SizedBox(
+            height: height,
+            child: Semantics(
+              explicitChildNodes: true,
+              container: true,
+              child: Row(
+                children: [
+                  for (var i = 0; i < destinations.length; i++)
+                    Expanded(
+                      child: _HomeNavTile(
+                        destination: destinations[i],
+                        selected: i == selectedIndex,
+                        indicatorColor: indicatorColor,
+                        selectedIconTheme: selectedIconTheme,
+                        unselectedIconTheme: unselectedIconTheme,
+                        labelGap: tokens.tightGap,
+                        onTap: () => onDestinationSelected(i),
+                      ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

@@ -245,9 +245,7 @@ class _HomeChromeFixture extends StatelessWidget {
         HomeNavDestination(
           icon: const ConstellationNavbarItem(),
           selectedIcon: const ConstellationNavbarItem(selected: true),
-          label: '',
-          tooltip: l10n.constellationNavLabel,
-          commandChrome: true,
+          label: l10n.constellationNavLabel,
         ),
         HomeNavDestination(
           icon: const FriendsNavbarItem(),
@@ -423,7 +421,9 @@ void main() {
       expect(bar.destinations, hasLength(5));
     });
 
-    testWidgets('compact bottom bar hides Field tab label', (tester) async {
+    testWidgets('compact bottom bar labels the Field tab like the others', (
+      tester,
+    ) async {
       await _pumpHomeChrome(
         tester,
         logicalSize: const Size(390, 800),
@@ -431,11 +431,14 @@ void main() {
         useSideNav: false,
       );
 
-      expect(find.text('My field'), findsNothing);
+      // UI review #196: one destination style, label included.
+      expect(find.text('My field'), findsOneWidget);
       expect(find.byIcon(TenturaIcons.graph), findsOneWidget);
     });
 
-    testWidgets('compact Field tab uses command disk chrome', (tester) async {
+    testWidgets('compact Field tab uses the standard destination chrome', (
+      tester,
+    ) async {
       await _pumpHomeChrome(
         tester,
         logicalSize: const Size(390, 800),
@@ -446,56 +449,24 @@ void main() {
       final bar = tester.widget<HomeBottomNavigationBar>(
         find.byType(HomeBottomNavigationBar),
       );
-      expect(bar.destinations[2].commandChrome, isTrue);
-
-      final disk = tester.widget<DecoratedBox>(
-        find
-            .ancestor(
-              of: find.byIcon(TenturaIcons.graph),
-              matching: find.byType(DecoratedBox),
-            )
-            .first,
+      expect(bar.destinations[2].commandChrome, isFalse);
+      final circles = find.ancestor(
+        of: find.byIcon(TenturaIcons.graph),
+        matching: find.byWidgetPredicate(
+          (w) =>
+              w is DecoratedBox &&
+              w.decoration is BoxDecoration &&
+              (w.decoration as BoxDecoration).shape == BoxShape.circle,
+        ),
       );
-      final decoration = disk.decoration as BoxDecoration;
-      final inactive = Theme.of(
-        tester.element(find.byType(HomeBottomNavigationBar)),
-      ).colorScheme.onSurfaceVariant;
-      expect(decoration.shape, BoxShape.circle);
-      expect(decoration.color, TenturaPalette.surface);
-      expect(decoration.border?.top.color, inactive);
-      expect(
-        tester
-            .widget<IconTheme>(
-              find
-                  .ancestor(
-                    of: find.byIcon(TenturaIcons.graph),
-                    matching: find.byType(IconTheme),
-                  )
-                  .first,
-            )
-            .data
-            .color,
-        inactive,
-      );
+      expect(circles, findsNothing);
 
-      final expectedSize =
-          (TenturaTokens.light.bottomNavHeight +
-              TenturaTokens.light.buttonHeight) /
-          2;
-      final diskSize = tester.getSize(
-        find
-            .ancestor(
-              of: find.byIcon(TenturaIcons.graph),
-              matching: find.byType(DecoratedBox),
-            )
-            .first,
-      );
-      expect(diskSize.width, closeTo(expectedSize, 0.5));
-      expect(diskSize.height, closeTo(expectedSize, 0.5));
-
-      final diskCenter = tester.getCenter(find.byIcon(TenturaIcons.graph));
-      final barCenter = tester.getCenter(find.byType(HomeBottomNavigationBar));
-      expect(diskCenter.dy, closeTo(barCenter.dy, 1));
+      final glyphCenter = tester.getCenter(find.byIcon(TenturaIcons.graph));
+      final workCenter = tester.getCenter(find.text('My Work'));
+      final fieldLabel = tester.getCenter(find.text('My field'));
+      // Same vertical rhythm as its neighbours.
+      expect(fieldLabel.dy, closeTo(workCenter.dy, 1));
+      expect(glyphCenter.dy, lessThan(fieldLabel.dy));
     });
 
     testWidgets('expanded rail shows Field tab label', (tester) async {

@@ -126,7 +126,7 @@ class _InboxScreenState extends State<InboxScreen> {
                         l10n.inbox,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TenturaText.titleLarge(scheme.onPrimary),
+                        style: TenturaText.titleLarge(scheme.onSurface),
                       ),
                       actions: const [
                         _ActivityDismissAllButton(),
