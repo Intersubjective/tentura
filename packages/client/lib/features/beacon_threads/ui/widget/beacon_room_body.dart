@@ -27,6 +27,7 @@ import 'package:tentura/ui/widget/hud_labeled_multiline.dart';
 import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 import 'package:tentura/app/router/root_router.dart';
 
+import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/features/beacon_threads/domain/room_message_receipt.dart';
 
 import '../bloc/room_cubit.dart';
@@ -45,9 +46,13 @@ class BeaconRoomBody extends StatefulWidget {
     this.beaconAuthor,
     this.onCoordinationSaved,
     this.onOpenCoordinationItem,
+    this.capabilities = const RoomCapabilities.request(),
   });
 
   final bool enableComposer;
+
+  /// Request-only features the hosting screen offers in this room.
+  final RoomCapabilities capabilities;
 
   /// Beacon author id for coordination target lists (from beacon view shell).
   final String beaconAuthorId;
@@ -214,6 +219,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
           final canWrite = state.canWriteDiscussion;
           final showPinnedNow =
               !isThreadMode &&
+              widget.capabilities.pinnedStrip == RoomPinnedStrip.requestNow &&
               beaconRoomShowsPinnedNow(
                 roomState: state.roomState,
                 openBlocker: state.openCoordinationBlocker,
@@ -327,6 +333,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                       )),
             pinnedFactForMessage: state.factForRoomMessage,
             pendingJumpMessageId: state.scrollToMessageId,
+            capabilities: widget.capabilities,
           );
         },
       ),
@@ -533,14 +540,16 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
   }) {
     final canWrite = cubit.state.canWriteDiscussion;
     final pf = cubit.state.factForRoomMessage(message);
+    final caps = widget.capabilities;
     final showFactInMenu =
-        !isThreadMode && !_suppressesRichMessageActions(message);
+        caps.facts && !isThreadMode && !_suppressesRichMessageActions(message);
     final isOwnMessage = message.authorId == viewer.id;
     final viewerReactions = _viewerReactionEmojis(message);
     // Already-linked messages can be opened/resolved but never re-promoted;
     // only plain, non-system messages offer the "Turn into…" verbs.
     final linkedItem = message.linkedCoordinationItem;
     final showCreateChild =
+        caps.coordinationItems &&
         canWrite &&
         !isThreadMode &&
         linkedItem == null &&
@@ -657,26 +666,28 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                             );
                           },
                         ),
-                        ListTile(
-                          leading: const Icon(Icons.edit_note_outlined),
-                          title: Text(
-                            l10n.beaconRoomActionUpdatePlanFromMessage,
+                        if (caps.plan)
+                          ListTile(
+                            leading: const Icon(Icons.edit_note_outlined),
+                            title: Text(
+                              l10n.beaconRoomActionUpdatePlanFromMessage,
+                            ),
+                            onTap: () {
+                              Navigator.pop(ctx);
+                              unawaited(
+                                _showUpdatePlanFromMessageSheet(
+                                  context,
+                                  cubit,
+                                  l10n,
+                                  message,
+                                ),
+                              );
+                            },
                           ),
-                          onTap: () {
-                            Navigator.pop(ctx);
-                            unawaited(
-                              _showUpdatePlanFromMessageSheet(
-                                context,
-                                cubit,
-                                l10n,
-                                message,
-                              ),
-                            );
-                          },
-                        ),
                       ],
                       // ── …or open / resolve an already-linked item. ──
-                      if (linkedItem != null &&
+                      if (caps.plan &&
+                          linkedItem != null &&
                           linkedItem.kind == CoordinationItemKind.plan &&
                           (!isThreadMode ||
                               widget.onOpenCoordinationItem != null)) ...[

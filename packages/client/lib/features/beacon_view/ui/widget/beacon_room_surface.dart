@@ -5,12 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
+import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_state.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_state.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/thread_detail.dart';
-import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_room_lease.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -18,7 +18,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 /// CHAT surface: General conversation inline (no scaffold chrome).
 class BeaconRoomSurface extends StatefulWidget {
   const BeaconRoomSurface({
-    required this.beaconViewCubit,
+    required this.host,
     required this.roomLease,
     this.legacyThreadId,
     this.messageId,
@@ -28,7 +28,7 @@ class BeaconRoomSurface extends StatefulWidget {
     super.key,
   });
 
-  final BeaconViewCubit beaconViewCubit;
+  final RoomHost host;
   final BeaconRoomLease roomLease;
 
   /// When set to a non-[RequestThread.generalId] value, shows legacy-unavailable.
@@ -46,6 +46,7 @@ class BeaconRoomSurface extends StatefulWidget {
 class _BeaconRoomSurfaceState extends State<BeaconRoomSurface> {
   RequestThread? _generalThread;
   var _roomReady = false;
+  late Stream<void> _hostChanges = widget.host.changes;
 
   bool _isLegacyThreadId() {
     final id = widget.legacyThreadId?.trim();
@@ -58,6 +59,12 @@ class _BeaconRoomSurfaceState extends State<BeaconRoomSurface> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(_ensureRoom());
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant BeaconRoomSurface oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.host != widget.host) _hostChanges = widget.host.changes;
   }
 
   @override
@@ -132,18 +139,14 @@ class _BeaconRoomSurfaceState extends State<BeaconRoomSurface> {
           return const Center(child: CircularProgressIndicator.adaptive());
         }
 
-        return BlocBuilder<BeaconViewCubit, BeaconViewState>(
-          bloc: widget.beaconViewCubit,
-          buildWhen: (p, c) =>
-              p.isRoomAdmissionBlocked != c.isRoomAdmissionBlocked ||
-              p.coordinationDeniesRoomAdmission !=
-                  c.coordinationDeniesRoomAdmission ||
-              p.beacon != c.beacon,
-          builder: (context, beaconState) {
-            if (beaconState.isRoomAdmissionBlocked) {
+        return StreamBuilder<void>(
+          stream: _hostChanges,
+          builder: (context, _) {
+            final host = widget.host;
+            if (host.isAdmissionBlocked) {
               return Center(
                 child: Text(
-                  beaconState.coordinationDeniesRoomAdmission
+                  host.coordinationDeniesAdmission
                       ? l10n.beaconRoomNoAdmission
                       : l10n.beaconRoomWaitingForApproval,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -176,8 +179,9 @@ class _BeaconRoomSurfaceState extends State<BeaconRoomSurface> {
 
                 return ThreadDetail(
                   thread: _generalThread!,
-                  beaconAuthorId: beaconState.beacon.author.id,
-                  beaconAuthor: beaconState.beacon.author,
+                  beaconAuthorId: host.author.id,
+                  beaconAuthor: host.author,
+                  capabilities: host.capabilities,
                   onCoordinationSaved: widget.onCoordinationSaved,
                   onOpenCoordinationItem: widget.onOpenCoordinationItem,
                 );

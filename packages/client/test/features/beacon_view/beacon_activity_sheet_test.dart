@@ -75,6 +75,24 @@ class _HarnessBeaconViewCubit extends Mock implements BeaconViewCubit {
   Stream<BeaconViewState> get stream => _controller.stream;
 
   @override
+  String get beaconId => _state.beacon.id;
+
+  @override
+  Profile get author => _state.beacon.author;
+
+  @override
+  bool get isAdmissionBlocked => _state.isRoomAdmissionBlocked;
+
+  @override
+  bool get coordinationDeniesAdmission => false;
+
+  @override
+  RoomCapabilities get capabilities => const RoomCapabilities.request();
+
+  @override
+  Stream<void> get changes => stream.map((_) {});
+
+  @override
   Future<void> reportPeopleSurfaceViewed() async {}
 
   @override
