@@ -320,6 +320,7 @@ final class ForwardCase extends UseCaseBase {
                 beaconAuthorId: beacon.author.id,
                 recipientIds: insertedRecipientIds,
                 sourceEventKey: 'forward_batch:$batchId',
+                beaconKind: isPost ? BeaconKind.post : BeaconKind.request,
               ),
             );
           }

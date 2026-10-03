@@ -247,6 +247,7 @@ RETURNING id
         reason: recipient.reasons.map((reason) => reason.name).join(','),
         beaconId: intent.beaconId,
         coordinationItemId: intent.coordinationItemId,
+        beaconKind: intent.beaconKind,
       );
       // U05b — collapsing lives here, at the channel layer, and nowhere else.
       //
@@ -381,5 +382,6 @@ WHERE NOT EXISTS (SELECT 1 FROM collapsed)''',
     'reason': decision.reason,
     'beaconId': decision.beaconId,
     'coordinationItemId': decision.coordinationItemId,
+    'beaconKind': decision.beaconKind.name,
   };
 }

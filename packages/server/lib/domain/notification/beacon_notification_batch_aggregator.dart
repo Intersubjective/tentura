@@ -1,3 +1,4 @@
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
 
 class BeaconNotificationBatchAggregator {
@@ -11,6 +12,7 @@ class BeaconNotificationBatchAggregator {
     required String latestBody,
     required String? beaconTitle,
     required Map<NotificationKind, int> kindCounts,
+    BeaconKind beaconKind = BeaconKind.request,
   }) {
     if (count <= 1) {
       return (title: latestTitle, body: latestBody);
@@ -25,7 +27,7 @@ class BeaconNotificationBatchAggregator {
       final n = kindCounts[kind]!;
       return (
         title: title,
-        body: _pluralBody(kind, n, latestBody),
+        body: _pluralBody(kind, n, latestBody, beaconKind),
       );
     }
 
@@ -36,7 +38,7 @@ class BeaconNotificationBatchAggregator {
       // count, rather than a generic "coordination updates" line.
       return (
         title: title,
-        body: _pluralBody(actionable.first, count, latestBody),
+        body: _pluralBody(actionable.first, count, latestBody, beaconKind),
       );
     }
 
@@ -46,9 +48,18 @@ class BeaconNotificationBatchAggregator {
     );
   }
 
-  String _pluralBody(NotificationKind kind, int n, String latestBody) {
+  String _pluralBody(
+    NotificationKind kind,
+    int n,
+    String latestBody,
+    BeaconKind beaconKind,
+  ) {
     final suffix = latestBody.isNotEmpty ? ', including: $latestBody' : '';
+    final isPost = beaconKind == BeaconKind.post;
     return switch (kind) {
+      NotificationKind.newRelay when isPost =>
+        '$n posts shared with you$suffix',
+      NotificationKind.postFirstResponse => '$n replies to your posts$suffix',
       NotificationKind.needsMe => '$n items need you$suffix',
       NotificationKind.promiseMade => '$n new promises$suffix',
       NotificationKind.coordinationChanged => '$n coordination updates$suffix',
@@ -62,7 +73,7 @@ class BeaconNotificationBatchAggregator {
       NotificationKind.reviewReady => '$n requests ready to review$suffix',
       NotificationKind.staleRemind => '$n items need attention$suffix',
       NotificationKind.roomMention => '$n mentions of you$suffix',
-      _ => '$n request updates$suffix',
+      _ => '$n ${isPost ? 'post' : 'request'} updates$suffix',
     };
   }
 

@@ -52,15 +52,12 @@ class BeaconNotificationService implements BeaconNotificationPort {
         beaconId: decision.beaconId ?? '',
         actorUserId: decision.actorUserId,
         coordinationItemId: decision.coordinationItemId,
-      );
-      final fullCopy = BeaconNotificationCopy(
-        title: decision.title,
-        body: decision.body,
-        actionUrl: decision.actionUrl,
+        beaconKind: decision.beaconKind,
       );
       final preferences = await _preferences.getForAccount(
         decision.recipientId,
       );
+      final fullCopy = _localizedCopy(decision, intent, preferences.locale);
       final muted = decision.beaconId == null
           ? const <String>{}
           : await _preferences.getMutedBeaconIds(decision.recipientId, now);
@@ -124,6 +121,37 @@ class BeaconNotificationService implements BeaconNotificationPort {
         );
       }
     }
+  }
+
+  /// The job's stored English copy, or the recipient-language copy of it when
+  /// the job carries the builder's own default sentence. Text a person wrote
+  /// (an excerpt) is never translated.
+  BeaconNotificationCopy _localizedCopy(
+    AttentionChannelDecision decision,
+    BeaconNotificationIntent intent,
+    String locale,
+  ) {
+    final stored = BeaconNotificationCopy(
+      title: decision.title,
+      body: decision.body,
+      actionUrl: decision.actionUrl,
+    );
+    if (!locale.toLowerCase().startsWith('ru')) return stored;
+    final english = _copyBuilder.build(
+      intent: intent,
+      actorDisplayName: decision.title,
+    );
+    if (english.body != decision.body) return stored;
+    final russian = _copyBuilder.build(
+      intent: intent,
+      actorDisplayName: decision.title,
+      locale: locale,
+    );
+    return BeaconNotificationCopy(
+      title: decision.title,
+      body: russian.body,
+      actionUrl: decision.actionUrl,
+    );
   }
 
   Future<void> _sendDecisionDirect({
@@ -214,6 +242,7 @@ class BeaconNotificationService implements BeaconNotificationPort {
         coordinationItemId: intent.coordinationItemId,
         kind: intent.kind,
         priority: priority,
+        beaconKind: intent.beaconKind,
       ),
     );
     return true;

@@ -1,3 +1,4 @@
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/entity/notification_priority.dart';
 
@@ -21,6 +22,7 @@ class FcmNotificationEntity implements FcmMessageEntity {
     this.coordinationItemId,
     this.kind,
     this.priority,
+    this.beaconKind = BeaconKind.request,
   });
 
   final String title;
@@ -39,4 +41,7 @@ class FcmNotificationEntity implements FcmMessageEntity {
   final NotificationKind? kind;
 
   final NotificationPriority? priority;
+
+  /// Which copy family batches of this message use.
+  final BeaconKind beaconKind;
 }

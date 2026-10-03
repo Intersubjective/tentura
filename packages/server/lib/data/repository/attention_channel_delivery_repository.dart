@@ -4,6 +4,7 @@ import 'package:injectable/injectable.dart';
 import 'package:postgres/postgres.dart' show TypedValue, Type;
 
 import 'package:tentura_server/domain/attention/attention_models.dart';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/entity/notification_priority.dart';
 import 'package:tentura_server/domain/port/attention_channel_delivery_port.dart';
@@ -113,5 +114,7 @@ WHERE id = $1 AND status = 'leased' AND lease_owner = $2''',
     reason: value['reason']! as String,
     beaconId: value['beaconId'] as String?,
     coordinationItemId: value['coordinationItemId'] as String?,
+    beaconKind:
+        BeaconKind.values.asNameMap()[value['beaconKind']] ?? BeaconKind.request,
   );
 }

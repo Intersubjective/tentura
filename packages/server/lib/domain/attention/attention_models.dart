@@ -357,6 +357,7 @@ abstract class AttentionDispatchIntent with _$AttentionDispatchIntent {
     String? coordinationItemId,
     String? targetEntityId,
     String? messageId,
+    @Default(BeaconKind.request) BeaconKind beaconKind,
   }) = _AttentionDispatchIntent;
 }
 
@@ -375,6 +376,7 @@ abstract class AttentionChannelDecision with _$AttentionChannelDecision {
     required String reason,
     String? beaconId,
     String? coordinationItemId,
+    @Default(BeaconKind.request) BeaconKind beaconKind,
   }) = _AttentionChannelDecision;
 }
 

@@ -4,6 +4,7 @@ import 'package:tentura_root/domain/entity/beacon_hierarchy_delivery_direction.d
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/domain/attention/attention_models.dart';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_context.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_intent.dart';
 import 'package:tentura_server/domain/entity/invite_accepted_notification_intent.dart';
@@ -44,6 +45,7 @@ class AttentionIntentCase {
     required String beaconAuthorId,
     required List<String> recipientIds,
     required String sourceEventKey,
+    BeaconKind beaconKind = BeaconKind.request,
   }) => fromBeaconNotification(
     notification: BeaconNotificationIntent(
       kind: NotificationKind.newRelay,
@@ -53,6 +55,7 @@ class AttentionIntentCase {
       forwardRecipientIds: recipientIds
           .where((id) => id != senderId && id != beaconAuthorId)
           .toList(),
+      beaconKind: beaconKind,
     ),
     eventType: AttentionEventType.relayReceived,
     sourceEventKey: sourceEventKey,
@@ -357,7 +360,7 @@ class AttentionIntentCase {
     sourceEventKey: sourceEventKey,
     kind: NotificationKind.postFirstResponse,
     emptyTitle: 'New response',
-    emptyBody: 'responded to your post',
+    emptyBody: 'replied to your post',
     bodyPrefixedWithActor: true,
     eventType: AttentionEventType.postFirstResponse,
     reason: AttentionRecipientReason.postAuthor,
@@ -471,6 +474,9 @@ class AttentionIntentCase {
       beaconId: beaconId,
       coordinationItemId: threadItemId,
       messageId: messageId,
+      beaconKind: kind == NotificationKind.postFirstResponse
+          ? BeaconKind.post
+          : BeaconKind.request,
     );
   }
 
@@ -804,6 +810,7 @@ class AttentionIntentCase {
       beaconId: notification.beaconId.isEmpty ? null : notification.beaconId,
       coordinationItemId: notification.coordinationItemId,
       targetEntityId: targetEntityId ?? notification.targetPersonId,
+      beaconKind: notification.beaconKind,
     );
   }
 

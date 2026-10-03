@@ -1,5 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import 'beacon_kind.dart';
 import 'notification_kind.dart';
 import 'notification_priority.dart';
 
@@ -23,5 +24,6 @@ abstract class BeaconNotificationIntent with _$BeaconNotificationIntent {
     @Default([]) List<String> moderatorUserIds,
     @Default(false) bool promiseWithdrawn,
     @Default(false) bool isBackupOffer,
+    @Default(BeaconKind.request) BeaconKind beaconKind,
   }) = _BeaconNotificationIntent;
 }

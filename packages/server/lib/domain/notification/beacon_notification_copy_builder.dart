@@ -1,5 +1,6 @@
 import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/consts/coordination_item_consts.dart';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_intent.dart';
 import 'package:tentura_server/domain/entity/notification_category.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
@@ -28,7 +29,10 @@ class BeaconNotificationCopyBuilder {
   BeaconNotificationCopy build({
     required BeaconNotificationIntent intent,
     required String actorDisplayName,
+    String locale = 'en',
   }) {
+    final ru = locale.toLowerCase().startsWith('ru');
+    final isPost = intent.beaconKind == BeaconKind.post;
     final actor = actorDisplayName.isEmpty ? 'Someone' : actorDisplayName;
     final excerpt = notificationExcerpt(
       intent.bodyExcerpt.isNotEmpty ? intent.bodyExcerpt : intent.titleExcerpt,
@@ -139,6 +143,10 @@ class BeaconNotificationCopyBuilder {
         actor,
         excerpt.isNotEmpty
             ? '$actor: $excerpt'
+            : isPost
+            ? (ru
+                  ? '$actor поделился постом с вами'
+                  : '$actor shared a post with you')
             : '$actor forwarded a request to you',
       ),
       NotificationKind.commitmentEvent =>
@@ -176,7 +184,11 @@ class BeaconNotificationCopyBuilder {
       ),
       NotificationKind.postFirstResponse => (
         actor,
-        excerpt.isNotEmpty ? excerpt : '$actor responded to your post',
+        excerpt.isNotEmpty
+            ? excerpt
+            : ru
+            ? '$actor откликнулся на ваш пост'
+            : '$actor replied to your post',
       ),
       NotificationKind.staleRemind => (
         'Still needs attention',

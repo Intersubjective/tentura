@@ -101,6 +101,7 @@ class FcmBatchQueue implements FcmBatchQueuePort {
           latestBody: entry.latestMessage.body,
           beaconTitle: null,
           kindCounts: entry.kindCounts,
+          beaconKind: entry.latestMessage.beaconKind,
         );
 
         final notification = entry.count > 1
@@ -113,6 +114,7 @@ class FcmBatchQueue implements FcmBatchQueuePort {
                 coordinationItemId: entry.latestMessage.coordinationItemId,
                 kind: dominantKind,
                 priority: entry.latestMessage.priority,
+                beaconKind: entry.latestMessage.beaconKind,
               )
             : entry.latestMessage;
 
