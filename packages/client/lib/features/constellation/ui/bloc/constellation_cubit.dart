@@ -182,7 +182,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   final Map<GraphEdgeId, ConstellationEdgeKind> edgeKinds = {};
 
-  /// O(1) kind lookup for edge painting (`srcGraphId->dstGraphId`).
+  /// O(1) kind lookup for edge painting keyed by [EdgeDetails.semanticId] (`src->dst#kind`).
   final Map<String, ConstellationEdgeKind> edgeKindByPair = {};
 
   String layoutEgoId = '';
@@ -2251,6 +2251,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
           ConstellationEdgeKind.attachment => 1.5,
           ConstellationEdgeKind.ringStub => 1.5,
         },
+        semanticId:
+            '${tenturaGraphNodeId(src)}->${tenturaGraphNodeId(dst)}#${kind.name}',
       );
       edges.add(edge);
       edgeKinds[constellationSceneEdgeId(
@@ -2258,10 +2260,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         source: src,
         destination: dst,
       )] = kind;
-      final pairKey =
-          '${tenturaGraphNodeId(src)}->${tenturaGraphNodeId(dst)}';
-      assert(!edgeKindByPair.containsKey(pairKey));
-      edgeKindByPair[pairKey] = kind;
+      assert(!edgeKindByPair.containsKey(edge.semanticId));
+      edgeKindByPair[edge.semanticId] = kind;
     }
 
     for (final child in paths.keep.intersection(state.keptPeerIds)) {

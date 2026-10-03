@@ -29,16 +29,20 @@ GraphNodeId constellationGraphNodeIdForDomain(String domainNodeId) {
   return '${TenturaGraphNodeKind.fieldPerson}:$domainNodeId';
 }
 
-/// Resolves the semantic edge id registered in [knownEdgeIds].
+/// Resolves the scene edge id registered in [knownEdgeIds] for the
+/// `'src->dst#kind'` [EdgeDetails.semanticId] of [edge].
 GraphEdgeId constellationEdgeIdForEdge(
   EdgeDetails edge,
   Iterable<GraphEdgeId> knownEdgeIds,
 ) {
-  final pairSuffix =
-      '${tenturaGraphNodeId(edge.source)}->${tenturaGraphNodeId(edge.destination)}';
-  for (final id in knownEdgeIds) {
-    if (id.endsWith(pairSuffix)) {
-      return id;
+  final semanticId = edge.semanticId;
+  final separator = semanticId.lastIndexOf('#');
+  if (separator >= 0) {
+    final sceneId =
+        'c:${semanticId.substring(separator + 1)}:'
+        '${semanticId.substring(0, separator)}';
+    if (knownEdgeIds.contains(sceneId)) {
+      return sceneId;
     }
   }
   return tenturaGraphEdgeId(edge);

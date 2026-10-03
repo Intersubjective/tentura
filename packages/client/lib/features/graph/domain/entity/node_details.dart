@@ -25,6 +25,16 @@ sealed class NodeDetails {
 
   String get label;
 
+  /// Scene node id: kind prefix + [id]; stable across payload changes.
+  String get graphNodeId => switch (this) {
+    UserNode() => 'u:$id',
+    BeaconNode() => 'b:$id',
+    FieldPersonNode() => 'fp:$id',
+    FieldRequestNode() => 'fr:$id',
+    GenealogyUserNode() => 'gu:$id',
+    GenealogyDeletedNode() => 'gd:$id',
+  };
+
   bool get hasImage;
 
   double get rScore;

@@ -13,7 +13,6 @@ import 'package:tentura/features/beacon_view/ui/util/help_offer_types_wire.dart'
 import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
-import 'package:tentura/features/graph/ui/utils/graph_scene_ids.dart';
 import 'package:tentura/features/graph/ui/widget/adaptive_context_overlay.dart';
 import 'package:tentura/features/graph/ui/widget/graph_legend_mode.dart';
 import 'package:tentura/features/graph/ui/widget/graph_legend_panel.dart';
@@ -979,9 +978,7 @@ class ConstellationEdgePainter
     Offset src,
     Offset dst,
   ) {
-    final pairKey =
-        '${tenturaGraphNodeId(edge.source)}->${tenturaGraphNodeId(edge.destination)}';
-    final kind = edgeKindByPair[pairKey];
+    final kind = edgeKindByPair[edge.semanticId];
     if (kind == null) {
       return;
     }

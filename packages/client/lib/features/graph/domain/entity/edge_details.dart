@@ -10,13 +10,20 @@ final class EdgeDetails {
     required this.color,
     this.strokeWidth = 2,
     this.isReciprocal = false,
-  });
+    String? semanticId,
+  }) : _semanticId = semanticId;
 
   final NodeDetails source;
   final NodeDetails destination;
   final Color color;
   final double strokeWidth;
   final bool isReciprocal;
+  final String? _semanticId;
+
+  /// Identity of the edge beyond its endpoints, so parallel edges of different
+  /// kinds stay distinct. Defaults to `'src->dst'` (scene node ids).
+  String get semanticId =>
+      _semanticId ?? '${source.graphNodeId}->${destination.graphNodeId}';
 
   @override
   int get hashCode =>
@@ -24,7 +31,8 @@ final class EdgeDetails {
       destination.hashCode ^
       color.hashCode ^
       strokeWidth.hashCode ^
-      isReciprocal.hashCode;
+      isReciprocal.hashCode ^
+      semanticId.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -35,7 +43,8 @@ final class EdgeDetails {
           destination == other.destination &&
           strokeWidth == other.strokeWidth &&
           color == other.color &&
-          isReciprocal == other.isReciprocal;
+          isReciprocal == other.isReciprocal &&
+          semanticId == other.semanticId;
 
   EdgeDetails copyWith({
     NodeDetails? source,
@@ -49,5 +58,6 @@ final class EdgeDetails {
     strokeWidth: strokeWidth ?? this.strokeWidth,
     color: color ?? this.color,
     isReciprocal: isReciprocal ?? this.isReciprocal,
+    semanticId: _semanticId,
   );
 }
