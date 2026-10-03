@@ -40,7 +40,7 @@ PreferredSizeWidget buildProfileAppBar(
                 profile.displayName.isEmpty ? l10n.noName : profile.displayName,
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: scheme.onPrimary,
+                  color: scheme.onSurface,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -49,7 +49,7 @@ PreferredSizeWidget buildProfileAppBar(
                 Text(
                   '@${profile.handle}',
                   style: theme.textTheme.labelSmall?.copyWith(
-                    color: scheme.onPrimary.withValues(alpha: 0.72),
+                    color: scheme.onSurfaceVariant,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,

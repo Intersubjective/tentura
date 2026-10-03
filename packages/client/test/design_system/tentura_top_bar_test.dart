@@ -28,13 +28,14 @@ void main() {
     final scheme = Theme.of(
       tester.element(find.text('Requests')),
     ).colorScheme;
-    expect(appBar.backgroundColor, scheme.primary);
-    expect(appBar.foregroundColor, scheme.onPrimary);
+    // Tab-root bars render on surface; brand is for actions (#195).
+    expect(appBar.backgroundColor, scheme.surface);
+    expect(appBar.foregroundColor, scheme.onSurface);
     expect(appBar.automaticallyImplyLeading, isFalse);
     expect(appBar.titleSpacing, 0);
   });
 
-  testWidgets('primary top bar action icons use onPrimary in both themes', (
+  testWidgets('primary top bar action icons use onSurface in both themes', (
     tester,
   ) async {
     Future<Color?> actionForeground(ThemeData theme) async {
@@ -70,12 +71,12 @@ void main() {
       return style?.foregroundColor?.resolve(const <WidgetState>{});
     }
 
-    final lightOnPrimary = TenturaTheme.light().colorScheme.onPrimary;
-    final darkOnPrimary = TenturaTheme.dark().colorScheme.onPrimary;
-    expect(await actionForeground(TenturaTheme.light()), lightOnPrimary);
+    final lightInk = TenturaTheme.light().colorScheme.onSurface;
+    final darkInk = TenturaTheme.dark().colorScheme.onSurface;
+    expect(await actionForeground(TenturaTheme.light()), lightInk);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
-    expect(await actionForeground(TenturaTheme.dark()), darkOnPrimary);
+    expect(await actionForeground(TenturaTheme.dark()), darkInk);
   });
 
   testWidgets('TenturaTopBar reserves progress height', (tester) async {
@@ -285,7 +286,7 @@ void main() {
     },
   );
 
-  testWidgets('TenturaPrimaryTabBar uses on-primary tab styling', (
+  testWidgets('TenturaPrimaryTabBar marks selection in brand on surface', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -313,8 +314,9 @@ void main() {
 
     final tabBar = tester.widget<TabBar>(find.byType(TabBar));
     final scheme = Theme.of(tester.element(find.byType(TabBar))).colorScheme;
-    expect(tabBar.labelColor, scheme.onPrimary);
-    expect(tabBar.indicatorColor, scheme.onPrimary);
+    expect(tabBar.labelColor, scheme.primary);
+    expect(tabBar.unselectedLabelColor, scheme.onSurfaceVariant);
+    expect(tabBar.indicatorColor, scheme.primary);
     expect(tabBar.dividerColor, Colors.transparent);
     expect(tabBar.tabAlignment, TabAlignment.start);
   });

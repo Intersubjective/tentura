@@ -14,8 +14,11 @@ description: >
 Tentura already ships a Material 3 theme and a design system. Your job is to
 **use it**, not to redesign it. The app theme (`TenturaTheme.light/dark` in
 `packages/client/lib/design_system/tentura_theme.dart`) is built with
-`useMaterial3: true` from `ColorScheme.fromSeed`, plus a `TenturaTokens`
-`ThemeExtension` for operational density.
+`useMaterial3: true` from a single colour source,
+`TenturaColorPalette.light/dark` in `design_system/tentura_colors.dart` (every
+`ColorScheme` role mapped explicitly — no `fromSeed`), plus a `TenturaTokens`
+`ThemeExtension` for operational density. New colours go into the palette
+(both modes), never into feature code.
 
 Read `docs/tentura-design-system.md` before non-trivial UI changes.
 

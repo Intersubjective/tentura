@@ -57,8 +57,10 @@ class MyWorkNavbarItem extends StatelessWidget {
             key: countKey,
             label: Text('$count'),
             isLabelVisible: true,
-            backgroundColor: selected ? scheme.onPrimary : scheme.primary,
-            textColor: selected ? scheme.primary : scheme.onPrimary,
+            // The selected indicator is a tonal pill now, so the badge
+            // stays brand in both states.
+            backgroundColor: scheme.primary,
+            textColor: scheme.onPrimary,
             child: badged,
           );
         }

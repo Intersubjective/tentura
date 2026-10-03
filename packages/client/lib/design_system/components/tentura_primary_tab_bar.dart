@@ -24,7 +24,10 @@ class TenturaPrimaryTabBar extends StatelessWidget
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final onPrimary = scheme.onPrimary;
+    // Tab-root bars render on surface (see [TenturaTopBarTone.primary]):
+    // brand marks the selection, muted ink the rest.
+    final selected = scheme.primary;
+    final unselected = scheme.onSurfaceVariant;
 
     return TabBar(
       controller: controller,
@@ -33,18 +36,18 @@ class TenturaPrimaryTabBar extends StatelessWidget
       isScrollable: isScrollable,
       labelPadding:
           labelPadding ?? EdgeInsets.symmetric(horizontal: context.tt.rowGap),
-      labelColor: onPrimary,
-      unselectedLabelColor: onPrimary.withValues(alpha: 0.72),
-      indicatorColor: onPrimary,
+      labelColor: selected,
+      unselectedLabelColor: unselected,
+      indicatorColor: selected,
       dividerColor: Colors.transparent,
       indicatorSize: TabBarIndicatorSize.label,
       labelStyle: theme.textTheme.labelLarge?.copyWith(
         fontWeight: FontWeight.w600,
-        color: onPrimary,
+        color: selected,
       ),
       unselectedLabelStyle: theme.textTheme.labelLarge?.copyWith(
         fontWeight: FontWeight.w500,
-        color: onPrimary.withValues(alpha: 0.72),
+        color: unselected,
       ),
       tabs: tabs,
     );
