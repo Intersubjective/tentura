@@ -55,7 +55,8 @@ class AccordionExpansionGroup extends StatefulWidget {
   final String? requestedExpandedId;
 
   @override
-  State<AccordionExpansionGroup> createState() => _AccordionExpansionGroupState();
+  State<AccordionExpansionGroup> createState() =>
+      _AccordionExpansionGroupState();
 }
 
 class _AccordionExpansionGroupState extends State<AccordionExpansionGroup> {
@@ -69,8 +70,7 @@ class _AccordionExpansionGroupState extends State<AccordionExpansionGroup> {
   String? _expandedId;
 
   bool _resolveAccordionMode(BuildContext context) {
-    return widget.accordionMode ??
-        context.windowClass == WindowClass.compact;
+    return widget.accordionMode ?? context.windowClass == WindowClass.compact;
   }
 
   @override
@@ -133,6 +133,7 @@ class AccordionExpansionTile extends StatefulWidget {
     this.onExpansionChanged,
     this.initiallyExpanded = false,
     this.maintainState = true,
+    this.framed = true,
     super.key,
   });
 
@@ -151,6 +152,11 @@ class AccordionExpansionTile extends StatefulWidget {
   final bool initiallyExpanded;
 
   final bool maintainState;
+
+  /// Draws the themed outlined frame around the fold. Pass `false` when the
+  /// children are already cards, so the section reads as a header over cards
+  /// instead of a card holding cards (UI review #205).
+  final bool framed;
 
   @override
   State<AccordionExpansionTile> createState() => _AccordionExpansionTileState();
@@ -199,8 +205,13 @@ class _AccordionExpansionTileState extends State<AccordionExpansionTile> {
     final theme = Theme.of(context);
     final trailing = _buildTrailing(theme);
 
+    final ShapeBorder? unframed = widget.framed ? null : const Border();
+
     if (!accordionMode) {
       return ExpansionTile(
+        shape: unframed,
+        collapsedShape: unframed,
+        tilePadding: widget.framed ? null : EdgeInsets.zero,
         leading: widget.leading,
         initiallyExpanded: widget.initiallyExpanded,
         maintainState: widget.maintainState,
@@ -214,6 +225,9 @@ class _AccordionExpansionTileState extends State<AccordionExpansionTile> {
     final expanded = scope!.expandedId == widget.id;
     return ExpansionTile(
       key: ValueKey('${widget.id}-$expanded'),
+      shape: unframed,
+      collapsedShape: unframed,
+      tilePadding: widget.framed ? null : EdgeInsets.zero,
       leading: widget.leading,
       initiallyExpanded: expanded,
       maintainState: widget.maintainState,

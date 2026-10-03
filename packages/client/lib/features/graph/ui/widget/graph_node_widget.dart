@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 
 import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/design_system/components/tentura_count_badge.dart';
@@ -100,11 +101,35 @@ class GraphNodeWidget extends StatelessWidget {
           size: nodeDetails.size * 0.45,
         ),
       ),
-      FieldPersonNode(:final person) => TenturaAvatar(
-        profile: person,
-        size: nodeDetails.size,
-        withRating: withRating,
-        isSelf: isSelf,
+      // The viewer node is built from the profile the field cubit captured at
+      // creation — on a cold load an id-only placeholder, which drew "?"
+      // in the centre of My field (UI review #211). Draw it from the live
+      // own profile instead.
+      // Read from GetIt like ConstellationScreen does (the field is not
+      // always under a ProfileCubit provider); fall back to the node's own
+      // profile when none is registered (isolated widget tests).
+      FieldPersonNode(:final person) when !GetIt.I.isRegistered<ProfileCubit>() =>
+        TenturaAvatar(
+          profile: person,
+          size: nodeDetails.size,
+          withRating: withRating,
+          isSelf: isSelf,
+        ),
+      FieldPersonNode(:final person) => BlocBuilder<ProfileCubit, ProfileState>(
+        bloc: GetIt.I<ProfileCubit>(),
+        buildWhen: (p, c) => p.profile != c.profile,
+        builder: (context, state) {
+          final live = state.profile;
+          final shown = live.id.isNotEmpty && live.id == person.id
+              ? live
+              : person;
+          return TenturaAvatar(
+            profile: shown,
+            size: nodeDetails.size,
+            withRating: withRating,
+            isSelf: isSelf,
+          );
+        },
       ),
       FieldBeaconNode(request: final request?) => BeaconIdentityTile(
         beacon: constellationRequestAsIdentityBeacon(request),
