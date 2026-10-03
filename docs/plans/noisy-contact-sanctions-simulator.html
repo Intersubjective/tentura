@@ -1,0 +1,1031 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body>
+<title>Симулятор рёбер доверия</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Unbounded:wght@600&display=swap">
+<style>
+/* Layout: instrument bench — controls rail on the left, live readouts (graph, charts) on the right */
+:root {
+  --bg: #f4f6f9; --surface: #ffffff; --surface-2: #eceff4; --fg: #141821; --fg-2: #485062; --muted: #778094;
+  --line: #d6dce5; --accent: #2a78d6;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a;
+  --neg: #c9393a; --neg-bg: #fbe8e8; --pos: #13805a; --pos-bg: #e3f3ec;
+  --n-input: #e6effb; --n-out: #fdf0e9;
+  --f-display: "Unbounded", "Golos Text", system-ui, sans-serif;
+  --f-body: "Golos Text", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+:root, :root[data-theme] { color-scheme: light; }
+/* theme follows the OS only; the viewer's data-theme is deliberately ignored */
+@media (prefers-color-scheme: dark) { :root, :root[data-theme] {
+  --bg: #111318; --surface: #181b21; --surface-2: #21252d; --fg: #eceef2; --fg-2: #b6bcc8; --muted: #858c99;
+  --line: #2e333c; --accent: #3987e5;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+  --neg: #e66767; --neg-bg: #3a2124; --pos: #3cc08f; --pos-bg: #1b3128;
+  --n-input: #1b293b; --n-out: #362619; color-scheme: dark; } }
+
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font: 14px/1.5 var(--f-body); padding-inline: 16px; padding-block: 20px 48px; }
+.wrap { max-width: 1480px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+h1 { font: 600 22px/1.2 var(--f-display); margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+h2 { font-size: 15px; font-weight: 600; margin: 0; text-wrap: balance; }
+h3 { font-size: 12px; font-weight: 600; margin: 0; text-transform: uppercase; letter-spacing: 0.06em; color: var(--fg-2); }
+p { margin: 0; }
+.lede { color: var(--fg-2); max-width: 75ch; }
+code, .mono { font-family: var(--f-mono); font-size: 12px; }
+header { display: flex; flex-direction: column; gap: 10px; }
+.presets { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.presets span { color: var(--muted); font-size: 12px; margin-right: 4px; }
+button { font: inherit; font-size: 13px; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; cursor: pointer; }
+button:hover { border-color: var(--accent); }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+button.on { background: var(--accent); color: var(--surface); border-color: var(--accent); }
+button.ghost { background: transparent; }
+.layout { display: grid; grid-template-columns: minmax(0, 400px) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 980px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+.rail, .main { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.panel > .head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.hint { color: var(--muted); font-size: 12px; }
+details.panel > summary { cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: baseline; }
+details.panel > summary::-webkit-details-marker { display: none; }
+details.panel > summary::after { content: "▸"; color: var(--muted); }
+details.panel[open] > summary::after { content: "▾"; }
+details.fold > summary { gap: 10px; }
+details.fold > summary::after { font-size: 13px; padding: 0 2px; }
+details.fold > summary .head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; flex: 1; min-width: 0; }
+details.fold:not([open]) > summary .hint { display: none; }
+details.panel > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+input, select { font: inherit; font-size: 13px; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 5px; padding: 3px 5px; min-width: 0; }
+input[type=number] { font-family: var(--f-mono); font-size: 12px; width: 100%; }
+input[type=checkbox] { accent-color: var(--accent); }
+input[type=range] { width: 100%; accent-color: var(--accent); padding: 0; border: 0; }
+.tbl-scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 12px; }
+th { text-align: left; font-weight: 500; color: var(--muted); padding: 3px 4px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 3px 4px; border-bottom: 1px solid var(--surface-2); vertical-align: middle; }
+td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; }
+.field { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.field label { font-size: 12px; color: var(--fg-2); }
+.field .sub { font-size: 11px; color: var(--muted); }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
+.seg button { border: 0; border-radius: 0; }
+.nowbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 14px; align-items: center; }
+.nowbar .t { font-family: var(--f-mono); font-size: 13px; white-space: nowrap; }
+.view { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; }
+.view .field { width: 120px; }
+.chips { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+.chip { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 3px; background: var(--surface); }
+.chip .k { font-size: 12px; color: var(--muted); }
+.chip .v { font-family: var(--f-mono); font-size: 18px; font-variant-numeric: tabular-nums; }
+.pill { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--surface-2); color: var(--fg-2); }
+.pill.neg { background: var(--neg-bg); color: var(--neg); }
+.pill.pos { background: var(--pos-bg); color: var(--pos); }
+.figwrap { overflow-x: auto; border-radius: 8px; background: var(--bg); border: 1px solid var(--surface-2); }
+svg text { font-family: var(--f-body); }
+.charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 760px) { .charts { grid-template-columns: minmax(0, 1fr); } }
+.chart { position: relative; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--fg-2); }
+.legend i { display: inline-block; width: 14px; height: 2px; vertical-align: middle; margin-right: 5px; border-radius: 1px; }
+.legend i.dash { background: none !important; border-top: 2px dashed; height: 0; }
+.tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,0.12); z-index: 5; min-width: 150px; }
+.tip .tt { font-family: var(--f-mono); color: var(--muted); margin-bottom: 3px; }
+.tip .r { display: flex; justify-content: space-between; gap: 12px; }
+.tip .r b { font-weight: 500; font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+.sw { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; }
+.node-label { font-size: 11.5px; font-weight: 600; }
+.node-sub { font-size: 10.5px; font-family: var(--f-mono); }
+.node-val { font-size: 12px; font-family: var(--f-mono); font-weight: 500; }
+g.node { cursor: pointer; }
+g.node.pinned rect { stroke: var(--accent); stroke-width: 2.5; }
+g.node:focus { outline: none; }
+g.node:focus-visible rect { stroke: var(--accent); stroke-width: 2; }
+g.node.dim, path.gedge.dim { opacity: 0.18; }
+.keys { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--fg-2); }
+.keys span::before { content: ""; display: inline-block; width: 12px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; border: 1px solid var(--line); }
+.keys .k-in::before { background: var(--n-input); }
+.keys .k-par::before { background: var(--surface-2); border-style: dashed; }
+.keys .k-mid::before { background: var(--surface); }
+.keys .k-out::before { background: var(--n-out); border-color: var(--s2); }
+.del { padding: 1px 6px; font-size: 12px; color: var(--muted); }
+.notes { color: var(--fg-2); font-size: 13px; display: flex; flex-direction: column; gap: 6px; max-width: 90ch; }
+.notes li { margin-bottom: 4px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+<header>
+  <h1>Симулятор рёбер доверия</h1>
+  <p class="lede">Как Тентура превращает evidence из ledger в вес ребра для MeritRank, и что MR делает с этим весом в цепочке A → B → C. Модель повторяет <code>trust_fold_pair</code> (m0202), <code>trust_project_pair</code> (m0207), расписание проекций, шлюз публикации с ε и семантику стен MR v0.11. Время в днях от начала сценария. Переключатель «Модель» выбирает проекцию: текущую (m0207), окно шума с иммунитетом по T_imm или стадии 0–2 из <code>docs/plans/noisy-contact-sanctions-design.md</code>. Модель из «сравнить с» всегда видна пунктиром на графиках веса и скоров.</p>
+  <div class="presets" id="modelBar"><span>Модель:</span><span class="seg" id="modelSeg"></span><span>сравнить с:</span><span class="seg" id="cmpSeg"></span></div>
+  <p class="hint" id="modelHint"></p>
+  <div class="presets" id="presets"><span>Сценарии:</span></div>
+</header>
+
+<div class="layout">
+<aside class="rail">
+  <section class="panel">
+    <div class="head"><h2>События по рёбрам</h2><span class="hint">ребро X→Y = мнение X о Y</span></div>
+    <div class="tbl-scroll"><table id="evTable"><thead><tr><th>Ребро</th><th>Вид</th><th>День</th><th>count</th><th>Отзыв, день</th><th></th></tr></thead><tbody></tbody></table></div>
+    <div class="row"><button id="addEv">Добавить событие</button><button id="clearEv" class="ghost">Очистить</button></div>
+    <p class="hint">noisy на A→B значит: A не ответил на форвард от B. «Отзыв» — момент, когда A всё же ответил (запись retracted), vouch/ban — снятие.</p>
+  </section>
+
+  <details class="panel" open>
+    <summary><h2>Генератор игноров</h2></summary>
+    <p class="hint">B шлёт A несколько форвардов, A молчит. Дедлайн = отправка + 7 дн + джиттер ±1 дн (как md5 в <code>contact_edge_set_deadline</code>), sweep раз в час записывает noisy.</p>
+    <div class="grid2">
+      <div class="field"><label for="gN">Форвардов</label><input type="number" id="gN" value="3" min="1" max="30" step="1"></div>
+      <div class="field"><label for="gDay">Первая отправка, день</label><input type="number" id="gDay" value="0" step="0.5"></div>
+      <div class="field"><label for="gGap">Между отправками, ч</label><input type="number" id="gGap" value="0.1" step="0.1" min="0"></div>
+      <div class="field"><label for="gSeed">Seed джиттера</label><input type="number" id="gSeed" value="7" step="1"></div>
+      <div class="field"><label for="gPhase">Фаза sweep, мин</label><input type="number" id="gPhase" value="21" step="1" min="0" max="59"></div>
+      <div class="field"><label><input type="checkbox" id="gJitter" checked> джиттер дедлайна</label></div>
+      <div class="field"><label for="gKind">Что записать</label><select id="gKind">
+        <option value="7">7 · noisy (как сейчас)</option><option value="seen">просмотрел, без отклика</option>
+        <option value="unseen">не открывал</option><option value="notmine">«не моё» (явно)</option></select></div>
+    </div>
+    <div class="row"><button id="gRun">Добавить на A→B</button><span class="hint" id="gOut"></span></div>
+  </details>
+
+  <details class="panel" open>
+    <summary><h2>Виды evidence</h2></summary>
+    <p class="hint">trust_kind_config. Decay: линейно до 0 за окно, если окно задано; иначе 2^(−age/hl); иначе 1.</p>
+    <div class="tbl-scroll"><table id="kindTable"><thead><tr><th>kind</th><th>hl, дн</th><th>окно, дн</th><th>k_sat</th><th>mix</th><th>иммун.</th></tr></thead><tbody></tbody></table></div>
+  </details>
+
+  <details class="panel" open>
+    <summary><h2>Стена и проекция</h2></summary>
+    <div class="grid2">
+      <div class="field"><label><input type="checkbox" id="pWalls" checked> wall_publish_enabled</label></div>
+      <div class="field"><label for="pVouch">Вес vouch</label><input type="number" id="pVouch" step="0.05"><span class="sub">0.5 при vote_user &gt; 0</span></div>
+      <div class="field"><label for="pImm">Порог иммунитета</label><input type="number" id="pImm" step="0.01"><span class="sub" id="pImmSub"></span></div>
+      <div class="field"><label for="pRecent">Окно T_recent, дн</label><input type="number" id="pRecent" step="1"><span class="sub">только текущая модель</span></div>
+      <div class="field"><label for="pNoisyWin">Окно шума, дн</label><input type="number" id="pNoisyWin" step="1" min="1"><span class="sub">предложение: n = Σcount живых noisy моложе окна</span></div>
+      <div class="field"><label for="pTol">Допуск порога n</label><input type="number" id="pTol" step="0.001"><span class="sub">min_n ≤ n + допуск</span></div>
+      <div class="field"><label for="pEps">ε публикации</label><input type="number" id="pEps" step="0.01"></div>
+      <div class="field"><label for="pMaint">Maintenance, ч</label><input type="number" id="pMaint" step="1" min="1"><span class="sub">TRUST_SWEEP_INTERVAL_HOURS</span></div>
+      <div class="field"><label for="pMaintPh">Фаза maintenance, ч</label><input type="number" id="pMaintPh" step="1" min="0"></div>
+    </div>
+    <h3>Уровни стены (noisy)</h3>
+    <div class="tbl-scroll"><table id="lvlTable"><thead><tr><th>min_n</th><th>уровень d</th></tr></thead><tbody></tbody></table></div>
+    <p class="hint">Уровни общие для всех моделей; в модели стадий они задают кратковременную стену стадии 0.</p>
+  </details>
+
+  <details class="panel" open>
+    <summary><h2>Стадии 0–2</h2></summary>
+    <p class="hint">Сигнал — только просмотренные форварды без отклика (и явное «не моё»). Стадия 0: короткая стена по счёту за окно. Стадия 1: уведомление отправителю. Стадия 2: каждый сигнал после уведомления добавляет долг, который вычитается из T и медленно затухает.</p>
+    <div class="grid2">
+      <div class="field"><label for="sWin">Окно стадии 0, дн</label><input type="number" id="sWin" step="1" min="1"></div>
+      <div class="field"><label for="sBase">Норма неотклика X, q</label><input type="number" id="sBase" step="0.05" min="0" max="0.95"><span class="sub">вес сигнала = 1 − q</span></div>
+      <div class="field"><label for="sK">Порог уведомления K</label><input type="number" id="sK" step="1" min="1"><span class="sub">взвешенных сигналов за окно</span></div>
+      <div class="field"><label for="sValid">Уведомление действует, дн</label><input type="number" id="sValid" step="1" min="1"><span class="sub">сигналы в этот срок → долг</span></div>
+      <div class="field"><label for="sDebt">Долг за сигнал после уведомления</label><input type="number" id="sDebt" step="0.05" min="0"></div>
+      <div class="field"><label for="sNotMine">Долг за «не моё»</label><input type="number" id="sNotMine" step="0.05" min="0"><span class="sub">и без уведомления</span></div>
+      <div class="field"><label for="sDebtHl">Полураспад долга, дн</label><input type="number" id="sDebtHl" step="10" min="1"></div>
+      <div class="field"><label for="sQuant">Шаг квантования минуса</label><input type="number" id="sQuant" step="0.01" min="0"><span class="sub">0 = без квантования (публикуется каждый день)</span></div>
+      <div class="field"><label><input type="checkbox" id="sLocal"> стена стадии 0 локальна при T − долг &gt; 0</label><span class="sub">вкл: в MR уходит T − долг, стена только в приложении; выкл: стена заменяет вес</span></div>
+    </div>
+  </details>
+
+  <details class="panel" open>
+    <summary><h2>MeritRank</h2></summary>
+    <p class="hint">Точное матожидание блужданий для цепочки. Положительные веса MR нормирует по сумме исходящих, поэтому у A и B есть «остальные» связи.</p>
+    <div class="grid2">
+      <div class="field"><label for="mAlpha">α (продолжение)</label><input type="number" id="mAlpha" step="0.05" min="0" max="0.99"><span class="sub">prod 0.85, dev 0.15</span></div>
+      <div class="field"><label for="mZero">zero-opinion</label><input type="number" id="mZero" step="0.01" min="0" max="1"><span class="sub">отдаётся (1−k)·score</span></div>
+      <div class="field"><label for="mOA">Остальные исх. веса A</label><input type="number" id="mOA" step="0.1" min="0"></div>
+      <div class="field"><label for="mOB">Остальные исх. веса B</label><input type="number" id="mOB" step="0.1" min="0"></div>
+      <div class="field"><label for="mRho">ρ: обход через остальных</label><input type="number" id="mRho" step="0.05" min="0" max="1"><span class="sub">доля шагов из «остальных», попадающих в следующего</span></div>
+      <div class="field"><label for="mLambda">λ (blame)</label><input type="number" id="mLambda" step="0.1" min="0"><span class="sub">0 = стена только удерживает кредит</span></div>
+    </div>
+  </details>
+  <div class="row"><button id="resetAll" class="ghost">Сбросить параметры к prod</button></div>
+</aside>
+
+<main class="main">
+  <section class="panel">
+    <div class="head"><h2>Момент времени</h2><span class="hint">клик по графику тоже переставляет момент</span></div>
+    <div class="nowbar"><input type="range" id="now" min="0" max="400" step="0.01" aria-label="Момент времени"><span class="t" id="nowT"></span></div>
+    <div class="view">
+      <div class="field"><label for="vFrom">Окно с дня</label><input type="number" id="vFrom" step="1"></div>
+      <div class="field"><label for="vLen">Длина окна, дн</label><input type="number" id="vLen" step="1" min="0.05"></div>
+      <div class="seg" id="zoomSeg"></div>
+    </div>
+    <div class="chips" id="chips"></div>
+  </section>
+
+  <details class="panel fold" id="fNet" open>
+    <summary><span class="head"><h2>Цепочка A → B → C в момент</h2><span class="hint">опубликованные в MR веса и скоры</span></span></summary>
+    <div class="figwrap" id="netFig"></div>
+  </details>
+
+  <details class="panel fold" id="fGraph" open>
+    <summary><span class="head"><h2>Граф вычисления веса</h2><span class="hint">ребро выбирается и для графиков ниже</span></span></summary>
+    <div class="row"><div class="seg" id="edgeSeg"></div><label class="hint"><input type="checkbox" id="showAllKinds"> все виды</label></div>
+    <div class="keys"><span class="k-in">событие / состояние</span><span class="k-par">параметр</span><span class="k-mid">промежуточное</span><span class="k-out">уходит в MR / скор</span></div>
+    <div class="figwrap" id="graphFig"></div>
+    <p class="hint">Значения — в выбранный момент. Наведи на узел, чтобы подсветить, откуда он берётся и куда идёт. Клик закрепляет подсветку, повторный клик (или клик по пустому месту) снимает.</p>
+  </details>
+
+  <details class="panel fold" id="fCharts" open>
+    <summary><span class="head"><h2>Во времени</h2><span class="hint" id="chartEdgeHint"></span></span></summary>
+    <div class="charts">
+      <div class="chart" id="cTrust"></div>
+      <div class="chart" id="cNoisy"></div>
+      <div class="chart" id="cWeight"></div>
+      <div class="chart" id="cScore"></div>
+    </div>
+  </details>
+
+  <details class="panel notes fold" id="fNotes" open>
+    <summary><h2>Что моделируется и где упрощено</h2></summary>
+    <ul>
+      <li><b>Свёртка</b> точно как <code>trust_fold_pair</code>: s_k = Σ count·decay, вклад вида mix·s/(k_sat+s), T — сумма по trust-видам плюс vouch; T_recent — только записи не старше окна и виды с иммунитетом; n_noisy = s_7 (с затуханием, без насыщения). <b>Предложение</b>: n_noisy = Σcount живых (не отозванных) noisy моложе окна шума, без затухания — три игнора держат стену всё окно, а не ~10 минут.</li>
+      <li><b>Проекция</b> как m0207: ban → −1 (или 0 без стен); иначе стена −d, если T_recent &lt; порога и есть уровень; иначе T; иначе 0. Стена <i>заменяет</i> доверие. <b>Предложение</b>: иммунитет считается по T_imm — вклады иммунных видов без окна свежести плюс vouch (виды 8/9 по-прежнему не дают иммунитета). Спящая связь с T_imm ≥ порога больше не стирается стеной: ребро остаётся T, как требует таблица отображения в спеке MR (§4) и инвариант «невидимый и распространяющийся негатив запрещён». Сценарий «Спящая связь + 3 игнора» показывает разницу.</li>
+      <li><b>Стадии 0–2</b> (<code>docs/plans/noisy-contact-sanctions-design.md</code>): сигнал — только «просмотрел, без отклика», «не моё» и, для совместимости сценариев, kind 7; «не открывал» не считается. Сигнал весит 1 − q (норма неотклика X). Стадия 0: стена по n₀ за окно; при T − долг &gt; 0 и галке «локальна» она живёт только в приложении (ранжирование входящих X), в MR уходит T − долг. Стадия 1: уведомление отправителю, когда n₀ ≥ K, не чаще раза за окно. Стадия 2: каждый сигнал в течение срока уведомления добавляет долг Δ, «не моё» — всегда; долг затухает с полураспадом и вычитается из T, итог может уйти в минус (стена в рамке X). Отзыв сигнала (адресат всё же откликнулся) снимает и его долг. Не моделируются: бюджет отправителя по всем адресатам (Ostra), различие своих просьб и пересылок, посты.</li>
+      <li><b>Когда проекция реально пересчитывается</b>: в момент события по паре (запись, отзыв, vouch, ban) и на каждом maintenance — только если строка <code>user_trust_edge</code> существует (она удаляется при target = 0 и prev = 0). Между проекциями MR видит старый вес.</li>
+      <li><b>Публикация</b>: |target − prev| &gt; ε, или смена знака, или любое изменение отрицательного веса. Издатель считается мгновенным (в жизни ~10 с).</li>
+      <li><b>MR</b>: вместо Монте-Карло — точное матожидание. Блуждание продолжается с вероятностью α и идёт только по положительным рёбрам, доля = вес / сумма исходящих. Отрицательное ребро X→Y делает Y стеной лишь в системе отсчёта X: вход в Y обрывает блуждание с вероятностью d = min(|w|,1), оборванное блуждание не даёт кредита никому. У Тентуры λ = 0. Чужие стены на систему отсчёта A не влияют (R6).</li>
+      <li>«Остальные» — одна сводная вершина вне цепочки. ρ — вероятность, что шаг из неё ведёт к следующему персонажу (косвенный путь). Без них в вырожденной цепочке нормировка делает любой положительный вес равным 1.</li>
+    </ul>
+  </details>
+</main>
+</div>
+</div>
+
+<script>
+"use strict";
+const DAY = 86400;
+const KIND_DEFAULTS = [
+  { kind: 2, slug: "helped",              hl: 365, win: null, k: 1,   mix: 1.0,  imm: true  },
+  { kind: 3, slug: "marked",              hl: 365, win: null, k: 0.5, mix: 0.2,  imm: true  },
+  { kind: 4, slug: "routed",              hl: 182, win: null, k: 1,   mix: 0.5,  imm: true  },
+  { kind: 5, slug: "useful_forward",      hl: 182, win: null, k: 2,   mix: 0.5,  imm: true  },
+  { kind: 6, slug: "engaged",             hl: 90,  win: null, k: 2,   mix: 0.2,  imm: true  },
+  { kind: 7, slug: "noisy",               hl: 14,  win: null, k: null, mix: 0,   imm: false, wall: true },
+  { kind: 8, slug: "worked_with_author",  hl: null, win: 180, k: 1,   mix: 0.08, imm: false },
+  { kind: 9, slug: "supported_colleague", hl: null, win: 180, k: 1,   mix: 0.1,  imm: false },
+];
+const PARAM_DEFAULTS = {
+  model: "prop", cmp: "cur", noisyWin: 14,
+  sWin: 14, sBase: 0, sK: 3, sValid: 90, sDebt: 0.15, sNotMine: 0.15, sDebtHl: 365, sLocal: true, sQuant: 0.05,
+  walls: true, vouchW: 0.5, imm: 0.05, recent: 180, tol: 0.001, eps: 0.1, maint: 24, maintPh: 0,
+  levels: [{ n: 3, d: 0.1 }, { n: 6, d: 0.3 }, { n: 10, d: 0.6 }],
+  alpha: 0.85, zero: 0.02, oA: 1, oB: 1, rho: 0.3, lambda: 0,
+};
+const EDGES = { AB: "A→B", BC: "B→C" };
+const MODELS = { cur: "текущая (m0207)", prop: "окно + T_imm", stages: "стадии 0–2" };
+const MODEL_HINT = {
+  cur: "n_noisy = s₇ с затуханием hl 14 дн; иммунитет по T_recent (свежие ≤ 180 дн)",
+  prop: "n_noisy = Σcount живых noisy за окно, без затухания; иммунитет по T_imm (все иммунные виды без окна свежести + vouch)",
+  stages: "сигнал — только просмотренное без отклика; стадия 0: короткая стена; 1: уведомление отправителю; 2: сигналы после уведомления копят долг, вес = T − долг (может уйти в минус), долг медленно затухает",
+};
+const altModel = () => S.p.cmp !== S.p.model ? S.p.cmp : (S.p.model === "cur" ? "prop" : "cur");
+const NOISE_EV = ["7", "seen", "unseen", "notmine"];
+const EV_KINDS = [
+  ...KIND_DEFAULTS.map(k => ({ v: String(k.kind), label: k.kind + " · " + k.slug })),
+  { v: "seen", label: "просмотрел, без отклика" }, { v: "unseen", label: "не открывал" }, { v: "notmine", label: "«не моё» (явно)" },
+  { v: "vouch", label: "vouch (vote_user)" }, { v: "ban", label: "ban (user_block)" },
+];
+const clone = o => JSON.parse(JSON.stringify(o));
+
+const S = {
+  kinds: clone(KIND_DEFAULTS), p: clone(PARAM_DEFAULTS), events: [],
+  vFrom: 0, vLen: 400, now: 245, edge: "AB", showAll: false, pinned: null,
+};
+
+/* ---------- scenarios ---------- */
+const ev = (edge, kind, day, count = 1, retract = null) => ({ edge, kind: String(kind), day, count, retract });
+const SCENARIOS = [
+  { name: "Помощь, потом 6 игноров", from: 0, len: 400, now: 245, edge: "AB", events: () => [
+      ev("AB", 2, 10), ev("AB", 3, 40), ...Array.from({ length: 6 }, () => ev("AB", 7, 240 + 21 / 1440)),
+      ev("BC", 2, 5), ev("BC", 4, 60), ev("BC", 8, 120) ] },
+  { name: "3 игнора в одном sweep", from: 0, len: 3, now: 1.0, edge: "AB", events: () => [
+      ev("BC", 2, 0), ...Array.from({ length: 3 }, () => ev("AB", 7, 0.5 + 21 / 1440)) ] },
+  { name: "3 игнора, дедлайны разъехались", from: 0, len: 12, now: 8.5, edge: "AB", gen: true, events: () => [ev("BC", 2, 0)] },
+  { name: "Vouch защищает", from: 0, len: 60, now: 31, edge: "AB", events: () => [
+      ev("AB", "vouch", 0), ev("BC", 2, 0), ...Array.from({ length: 6 }, () => ev("AB", 7, 30)) ] },
+  { name: "Слабые связи и ε", from: 0, len: 200, now: 45, edge: "AB", events: () => [
+      ev("AB", 6, 5), ev("AB", 6, 20), ev("AB", 6, 40), ev("AB", 6, 60), ev("AB", 6, 80), ev("BC", 6, 10), ev("BC", 6, 30) ] },
+  { name: "Спящая связь + 3 игнора", from: 0, len: 320, now: 262, edge: "AB", events: () => [
+      ev("AB", 2, 0), ...Array.from({ length: 3 }, () => ev("AB", 7, 250 + 21 / 1440)), ev("BC", 2, 0) ] },
+  { name: "Стадии: продолжает после уведомления", model: "stages", cmp: "cur", from: 0, len: 600, now: 120, edge: "AB", events: () => [
+      ev("AB", 2, 0), ev("AB", 4, 5), ...[30, 31, 32].map(d => ev("AB", "seen", d)),
+      ...Array.from({ length: 10 }, (_, i) => ev("AB", "seen", 40 + i * 7)), ev("BC", 2, 0) ] },
+  { name: "Стадии: остановился после уведомления", model: "stages", cmp: "cur", from: 0, len: 120, now: 40, edge: "AB", events: () => [
+      ev("AB", 2, 0), ...[30, 31, 32].map(d => ev("AB", "seen", d)), ev("BC", 2, 0) ] },
+  { name: "Стадии: адресат уехал", model: "stages", cmp: "cur", from: 0, len: 120, now: 45, edge: "AB", events: () => [
+      ...Array.from({ length: 8 }, (_, i) => ev("AB", "unseen", 30 + i * 2)), ev("BC", 2, 0) ] },
+  { name: "Стадии: чужак шлёт, «не моё»", model: "stages", cmp: "cur", from: 0, len: 400, now: 25, edge: "AB", events: () => [
+      ev("AB", "seen", 10), ev("AB", "notmine", 12), ev("AB", "notmine", 20), ev("BC", 2, 0) ] },
+  { name: "Бан и разбан", from: 0, len: 200, now: 80, edge: "AB", events: () => [
+      ev("AB", 2, 0), ev("AB", "ban", 50, 1, 120), ev("BC", 2, 0) ] },
+];
+
+/* ---------- model: fold + project ---------- */
+function kindCfg(kind) { return S.kinds.find(k => String(k.kind) === String(kind)); }
+function decayOf(cfg, ageD) {
+  if (cfg.win != null && cfg.win > 0) return Math.max(0, 1 - ageD / cfg.win);
+  if (cfg.hl != null && cfg.hl > 0) return Math.pow(2, -ageD / cfg.hl);
+  return 1;
+}
+function live(e, t) { return e.day <= t && (e.retract == null || t < e.retract); }
+
+function fold(edge, t, model = S.p.model) {
+  const p = S.p, per = {};
+  let vouch = false, ban = false;
+  for (const e of S.events) {
+    if (e.edge !== edge || !live(e, t)) continue;
+    if (e.kind === "vouch") { vouch = true; continue; }
+    if (e.kind === "ban") { ban = true; continue; }
+    if (e.kind === "notmine") continue;            // decline: no evidence in cur/prop; stages handles it separately
+    const kk = e.kind === "seen" || e.kind === "unseen" ? "7" : e.kind;
+    const cfg = kindCfg(kk); if (!cfg) continue;
+    const age = t - e.day, d = decayOf(cfg, age);
+    const r = per[kk] || (per[kk] = { cfg, s: 0, sR: 0, sW: 0, n: 0, cnt: 0 });
+    r.s += e.count * d; r.n += 1; r.cnt += e.count;
+    if (cfg.wall && age < p.noisyWin) r.sW += e.count;
+    if (age <= p.recent) r.sR += e.count * d;
+  }
+  const vouchTerm = vouch ? p.vouchW : 0;
+  let T = vouchTerm, TR = vouchTerm, TI = vouchTerm, nDec = 0, nWin = 0;
+  for (const r of Object.values(per)) {
+    const c = r.cfg;
+    if (c.wall) { nDec += r.s; nWin += r.sW; r.c = 0; r.cR = 0; continue; }
+    r.c = r.s > 0 ? c.mix * r.s / (c.k + r.s) : 0;
+    r.cR = c.imm && r.sR > 0 ? c.mix * r.sR / (c.k + r.sR) : 0;
+    T += r.c; TR += r.cR; if (c.imm) TI += r.c;
+  }
+  const st = stagesState(edge, t);
+  const n = model === "prop" ? nWin : model === "stages" ? st.n0 : nDec, G = model === "prop" ? TI : TR;
+  return { per, vouch, ban, vouchTerm, T, TR, TI, G, n, nDec, nWin, model, st, W: T - st.debt };
+}
+/* stages 0–2: order-dependent replay of the live signals on the pair up to t */
+function stagesState(edge, t) {
+  const p = S.p, wq = 1 - Math.min(Math.max(p.sBase, 0), 0.95);
+  const sig = S.events.filter(e => e.edge === edge && (e.kind === "seen" || e.kind === "notmine" || e.kind === "7") && live(e, t))
+    .sort((a, b) => a.day - b.day);
+  const notices = [], debts = [];
+  let last = null;
+  for (let i = 0; i < sig.length; i++) {
+    const e = sig[i], d = e.day, c = e.count * wq;
+    const postNotice = last != null && d > last && d - last <= p.sValid;
+    const dd = Math.max(postNotice ? p.sDebt * e.count : 0, e.kind === "notmine" ? p.sNotMine * e.count : 0);
+    if (dd > 0) debts.push({ t: d, v: dd, why: e.kind === "notmine" ? "«не моё»" : "после уведомления" });
+    const cnt = sig.slice(0, i + 1).filter(x => d - x.day < p.sWin).reduce((a, x) => a + x.count * wq, 0);
+    if (cnt + 1e-9 >= p.sK && (last == null || d - last > p.sWin)) { notices.push(d); last = d; }
+  }
+  const n0 = sig.filter(x => t - x.day < p.sWin).reduce((a, x) => a + x.count * wq, 0);
+  const debt = debts.reduce((a, x) => a + x.v * Math.pow(2, -(t - x.t) / p.sDebtHl), 0);
+  return { n0, debt, notices, debts, nSig: sig.length };
+}
+function project(f) {
+  const p = S.p;
+  if (f.model === "stages") {
+    let level = null;
+    if (p.walls) for (const l of [...p.levels].sort((a, b) => b.n - a.n)) if (l.n <= f.n + p.tol) { level = l.d; break; }
+    const W = f.W;
+    let target, why, local = false;
+    if (f.ban) { target = p.walls ? -1 : 0; why = "ban"; }
+    else if (W < -1e-12) {
+      // MR wants quantized wall levels: round |W| up to the grid so slow debt decay does not republish daily
+      const q = p.sQuant > 0 ? p.sQuant : 0, mag = q ? Math.ceil(-W / q - 1e-9) * q : -W;
+      target = p.walls ? -Math.min(1, Math.max(mag, level ?? 0)) : 0; why = "долг > T: минус";
+    }
+    else if (level != null && !(p.sLocal && W > 1e-12)) { target = -level; why = "стена стадии 0"; }
+    else if (W > 1e-12) { target = W; why = level != null ? "T − долг, стена локально" : "T − долг"; local = level != null; }
+    else { target = 0; why = "нет ребра"; }
+    return { immune: false, level, target, why, local };
+  }
+  const immune = f.G >= p.imm;
+  let level = null;
+  if (p.walls && !immune) {
+    for (const l of [...p.levels].sort((a, b) => b.n - a.n)) if (l.n <= f.n + p.tol) { level = l.d; break; }
+  }
+  let target, why;
+  if (f.ban) { target = p.walls ? -1 : 0; why = "ban"; }
+  else if (level != null) { target = -level; why = "стена"; }
+  else if (f.T > 0) { target = f.T; why = "доверие T"; }
+  else { target = 0; why = "нет ребра"; }
+  return { immune, level, target, why };
+}
+
+/* projection schedule → published steps */
+function simulate(edge, tEnd, model = S.p.model) {
+  const p = S.p, inst = [];
+  for (const e of S.events) {
+    if (e.edge !== edge) continue;
+    if (e.day <= tEnd) inst.push({ t: e.day, src: "событие" });
+    if (e.retract != null && e.retract <= tEnd) inst.push({ t: e.retract, src: "отзыв" });
+  }
+  const step = Math.max(p.maint, 0.25) / 24;
+  for (let t = (p.maintPh / 24) % step; t <= tEnd; t += step) inst.push({ t, src: "maintenance" });
+  inst.sort((a, b) => a.t - b.t || (a.src === "maintenance") - (b.src === "maintenance"));
+  let prev = 0, exists = false;
+  const steps = [{ t: -Infinity, w: 0, src: "старт" }], proj = [];
+  for (const i of inst) {
+    if (i.src === "maintenance" && !exists) continue;
+    const pr = project(fold(edge, i.t, model)), target = pr.target, prevOld = prev;
+    exists = !(target === 0 && prevOld === 0);
+    const pub = Math.abs(target - prev) > p.eps || Math.sign(target) !== Math.sign(prev) || (target < 0 && target !== prev);
+    proj.push({ t: i.t, src: i.src, target, published: pub });
+    if (pub) { prev = target; steps.push({ t: i.t, w: target, src: i.src }); }
+  }
+  return { steps, proj };
+}
+function stepAt(steps, t) { let w = 0; for (const s of steps) { if (s.t <= t) w = s.w; else break; } return w; }
+
+/* ---------- MR (v0.11 walls, exact expectation for the chain) ---------- */
+function mr(wAB, wBC) {
+  const { alpha: a, oA, oB, rho, lambda: lam, zero } = S.p;
+  const share = (w, o) => { const pos = Math.max(w, 0), tot = pos + o; return tot > 0 ? [pos / tot, o / tot] : [0, 0]; };
+  const [pAB, pAo] = share(wAB, oA), [pBC, pBo] = share(wBC, oB);
+  const dB = wAB < 0 ? Math.min(-wAB, 1) : 0, dC = wBC < 0 ? Math.min(-wBC, 1) : 0;
+  // A's frame: only A's own walls count (R6)
+  const arriveB = a * pAB + a * pAo * a * rho;
+  const absB = arriveB * dB;
+  const sAB = arriveB * (1 - dB) - lam * absB;
+  const sAC = arriveB * (1 - dB) * a * pBC;
+  const sAA = 1 - absB;
+  // B's frame
+  const arriveC = a * pBC + a * pBo * a * rho;
+  const sBC = arriveC * (1 - dC) - lam * arriveC * dC;
+  const k = 1 - zero;
+  return { pAB, pAo, pBC, pBo, dB, dC, arriveB, absB, arriveC, core: { sAB, sAC, sAA, sBC },
+           sAB: k * sAB, sAC: k * sAC, sAA: k * sAA, sBC: k * sBC };
+}
+
+/* ---------- formatting ---------- */
+function fmt(v, d = 4) {
+  if (v == null || Number.isNaN(v)) return "—";
+  if (v === 0) return "0";
+  if (Math.abs(v) < 1e-4) return v.toExponential(1);
+  return (+v.toFixed(d)).toString();
+}
+function fmtT(t) {
+  const d = Math.floor(t + 1e-9), m = Math.round((t - d) * 1440), hh = Math.floor(m / 60), mm = m % 60;
+  return "день " + d + ", " + String(hh).padStart(2, "0") + ":" + String(mm).padStart(2, "0");
+}
+const NS = "http://www.w3.org/2000/svg";
+function el(tag, attrs = {}, parent) {
+  const n = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+  if (parent) parent.appendChild(n);
+  return n;
+}
+function txt(parent, x, y, s, attrs = {}) { const t = el("text", { x, y, ...attrs }, parent); t.textContent = s; return t; }
+
+/* ---------- cache ---------- */
+let SIM = null;
+function recompute() {
+  const tEnd = S.vFrom + S.vLen;
+  const o = altModel();
+  SIM = { AB: simulate("AB", tEnd), BC: simulate("BC", tEnd), alt: { AB: simulate("AB", tEnd, o), BC: simulate("BC", tEnd, o) }, tEnd };
+}
+
+/* ---------- chips ---------- */
+function renderChips() {
+  const t = S.now, out = [];
+  for (const e of ["AB", "BC"]) {
+    const f = fold(e, t), pr = project(f), pub = stepAt(SIM[e].steps, t);
+    const cls = pub < 0 ? "neg" : pub > 0 ? "pos" : "";
+    const stale = Math.abs(pub - pr.target) > 1e-9, alt = stepAt(SIM.alt[e].steps, t), diff = Math.abs(alt - pub) > 1e-9;
+    out.push(`<div class="chip"><span class="k">${EDGES[e]}: вес в MR</span><span class="v">${fmt(pub)}</span>
+      <span><span class="pill ${cls}">${pub < 0 ? "стена" : pub > 0 ? "доверие" : "нет ребра"}</span>
+      ${stale ? ` <span class="pill">проекция сейчас дала бы ${fmt(pr.target)}</span>` : ""}
+      ${pr.immune ? ` <span class="pill pos">иммунитет</span>` : ""}
+      ${pr.local ? ` <span class="pill neg">стена в приложении</span>` : ""}
+      ${f.model === "stages" && f.st.notices.filter(x => x <= t).length ? ` <span class="pill">уведомлений: ${f.st.notices.filter(x => x <= t).length}</span>` : ""}
+      ${f.model === "stages" && f.st.debt > 1e-4 ? ` <span class="pill neg">долг ${fmt(f.st.debt, 3)}</span>` : ""}</span>
+      <span class="hint">${MODELS[altModel()]}: ${diff ? `<b class="mono">${fmt(alt)}</b>` : "так же"}</span></div>`);
+  }
+  const m = mr(stepAt(SIM.AB.steps, t), stepAt(SIM.BC.steps, t));
+  const ma = mr(stepAt(SIM.alt.AB.steps, t), stepAt(SIM.alt.BC.steps, t));
+  out.push(`<div class="chip"><span class="k">Скоры (отдаваемые)</span><span class="v" style="font-size:14px">A→B ${fmt(m.sAB)} · A→C ${fmt(m.sAC)}</span><span class="hint">B→C ${fmt(m.sBC)}</span><span class="hint">${MODELS[altModel()]}: A→B ${fmt(ma.sAB)} · A→C ${fmt(ma.sAC)}</span></div>`);
+  document.getElementById("chips").innerHTML = out.join("");
+  document.getElementById("nowT").textContent = fmtT(t);
+}
+
+/* ---------- network figure ---------- */
+function renderNet() {
+  const host = document.getElementById("netFig"); host.innerHTML = "";
+  const t = S.now, wAB = stepAt(SIM.AB.steps, t), wBC = stepAt(SIM.BC.steps, t), m = mr(wAB, wBC);
+  const W = 760, H = 210, svg = el("svg", { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: "img", "aria-label": "Цепочка A, B, C" }, host);
+  const defs = el("defs", {}, svg);
+  for (const [id, c] of [["arPos", "var(--s1)"], ["arNeg", "var(--neg)"], ["arMut", "var(--muted)"]]) {
+    const mk = el("marker", { id, viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto-start-reverse" }, defs);
+    el("path", { d: "M0,0 L10,5 L0,10 z", fill: c }, mk);
+  }
+  const P = { A: [110, 80], B: [380, 80], C: [650, 80], OA: [245, 175], OB: [515, 175] };
+  const R = 30;
+  const edge = (a, b, w, label, dashed) => {
+    const [x1, y1] = P[a], [x2, y2] = P[b], dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy);
+    const r1 = a.startsWith("O") ? 16 : R, r2 = b.startsWith("O") ? 16 : R;
+    const sx = x1 + dx / L * r1, sy = y1 + dy / L * r1, ex = x2 - dx / L * (r2 + 3), ey = y2 - dy / L * (r2 + 3);
+    const col = w < 0 ? "var(--neg)" : w > 0 ? "var(--s1)" : "var(--muted)";
+    const mk = w < 0 ? "arNeg" : w > 0 ? "arPos" : "arMut";
+    el("line", { x1: sx, y1: sy, x2: ex, y2: ey, stroke: col, "stroke-width": w === 0 ? 1.2 : 2, "stroke-dasharray": dashed || w === 0 ? "5 4" : "none", "marker-end": `url(#${mk})` }, svg);
+    if (label) txt(svg, (sx + ex) / 2, (sy + ey) / 2 - 8, label, { "text-anchor": "middle", "font-size": 12, fill: "var(--fg-2)" });
+  };
+  edge("A", "B", wAB, `w = ${fmt(wAB)} · доля ${fmt(m.pAB, 3)}`);
+  edge("B", "C", wBC, `w = ${fmt(wBC)} · доля ${fmt(m.pBC, 3)}`);
+  edge("A", "OA", S.p.oA > 0 ? 1 : 0, "", true);
+  edge("OA", "B", S.p.rho > 0 && S.p.oA > 0 ? 1 : 0, "", true);
+  edge("B", "OB", S.p.oB > 0 ? 1 : 0, "", true);
+  edge("OB", "C", S.p.rho > 0 && S.p.oB > 0 ? 1 : 0, "", true);
+  const node = (k, name, lines, wall) => {
+    const [x, y] = P[k];
+    el("circle", { cx: x, cy: y, r: R, fill: wall ? "var(--neg-bg)" : "var(--surface)", stroke: wall ? "var(--neg)" : "var(--fg-2)", "stroke-width": 1.5 }, svg);
+    txt(svg, x, y + 5, name, { "text-anchor": "middle", "font-size": 16, "font-weight": 600, fill: "var(--fg)" });
+    lines.forEach((l, i) => txt(svg, x, y - R - 10 - (lines.length - 1 - i) * 15, l, { "text-anchor": "middle", "font-size": 11.5, fill: "var(--fg-2)", "font-family": "var(--f-mono)" }));
+  };
+  const onode = (k, name) => { const [x, y] = P[k]; el("circle", { cx: x, cy: y, r: 16, fill: "var(--surface-2)", stroke: "var(--line)", "stroke-dasharray": "3 3" }, svg); txt(svg, x, y + 30, name, { "text-anchor": "middle", "font-size": 11, fill: "var(--muted)" }); };
+  onode("OA", "остальные A"); onode("OB", "остальные B");
+  node("A", "A", [`score_A(A) ${fmt(m.sAA, 3)}`]);
+  node("B", "B", [`score_A(B) ${fmt(m.sAB)}`], m.dB > 0);
+  node("C", "C", [`score_A(C) ${fmt(m.sAC)}`, `score_B(C) ${fmt(m.sBC)}`], m.dC > 0);
+  if (m.dB > 0) txt(svg, P.B[0], P.B[1] + R + 18, `стена для A, d = ${fmt(m.dB, 3)}`, { "text-anchor": "middle", "font-size": 11.5, fill: "var(--neg)" });
+  if (m.dC > 0) txt(svg, P.C[0], P.C[1] + R + 18, `стена для B, d = ${fmt(m.dC, 3)}`, { "text-anchor": "middle", "font-size": 11.5, fill: "var(--neg)" });
+}
+
+/* ---------- computation graph ---------- */
+function buildGraph(edge) {
+  const t = S.now, p = S.p, f = fold(edge, t), pr = project(f), [X, Y] = edge === "AB" ? ["A", "B"] : ["B", "C"];
+  const N = [], add = (id, type, label, sub, val, deps = [], extra = {}) => N.push({ id, type, label, sub, val, deps, ...extra });
+  const kinds = S.kinds.filter(k => S.showAll || f.per[k.kind] || k.wall);
+  const prop = p.model === "prop", stg = p.model === "stages", noRecent = p.model !== "cur";
+  if (!noRecent) add("recent", "par", "окно T_recent", `${p.recent} дн`, "", []);
+  for (const k of kinds) {
+    const r = f.per[k.kind] || { s: 0, sR: 0, n: 0, cnt: 0, c: 0, cR: 0 };
+    const dec = k.win ? `линейно, окно ${k.win} дн` : k.hl ? `hl ${k.hl} дн` : "без decay";
+    add("ev" + k.kind, "in", `evidence ${k.kind} · ${k.slug}`, `${r.n} записей, Σcount ${r.cnt}`, "", []);
+    if (k.wall) {
+      if (stg) {
+        add("ev7", "in", "сигналы шума", `${f.st.nSig} живых: просмотр без отклика, «не моё»`, "", []);
+        add("par7", "par", "окно стадии 0", `${p.sWin} дн · q ${p.sBase}`, "", []);
+        add("n", "mid", "n₀ = Σ(1−q) за окно", "только просмотренное", fmt(f.n), ["ev7", "par7"]);
+      } else if (prop) {
+        add("par" + k.kind, "par", "окно шума", `${p.noisyWin} дн, без затухания`, "", []);
+        add("n", "mid", "n_noisy = Σcount за окно", "живые noisy, age < окна", fmt(f.n), ["ev7", "par7"]);
+      } else {
+        add("par" + k.kind, "par", `decay noisy`, dec, "", []);
+        add("n", "mid", "n_noisy = s₇", "Σ count·2^(−age/hl)", fmt(f.n), ["ev7", "par7"]);
+      }
+      continue;
+    }
+    add("par" + k.kind, "par", `параметры ${k.slug}`, `${dec} · k ${k.k} · mix ${k.mix}`, "", []);
+    add("s" + k.kind, "mid", `s_${k.kind}`, "Σ count·decay", fmt(r.s), ["ev" + k.kind, "par" + k.kind]);
+    add("c" + k.kind, "mid", `вклад ${k.slug} в T`, "mix·s/(k+s)", fmt(r.c), ["s" + k.kind, "par" + k.kind]);
+    if (k.imm && !noRecent) {
+      add("sR" + k.kind, "mid", `s_${k.kind} за окно`, "только age ≤ окна", fmt(r.sR), ["ev" + k.kind, "par" + k.kind, "recent"]);
+      add("cR" + k.kind, "mid", `вклад в T_recent`, "mix·s/(k+s)", fmt(r.cR), ["sR" + k.kind, "par" + k.kind]);
+    }
+  }
+  add("vouch", "in", `vouch ${X}→${Y}`, "vote_user amount > 0", f.vouch ? "да" : "нет", []);
+  add("vouchW", "par", "вес vouch", "", fmt(p.vouchW), []);
+  add("vt", "mid", "вклад vouch", "вес·[vouch]", fmt(f.vouchTerm), ["vouch", "vouchW"]);
+  const cs = kinds.filter(k => !k.wall).map(k => "c" + k.kind), crs = kinds.filter(k => !k.wall && k.imm).map(k => (prop ? "c" : "cR") + k.kind);
+  add("T", "mid", "T", "Σ вкладов + vouch", fmt(f.T), [...cs, "vt"]);
+  if (stg) {
+    const nNot = f.st.notices.filter(x => x <= t).length;
+    add("sK", "par", "порог уведомления K", "", fmt(p.sK), []);
+    add("notice", "mid", "уведомления отправителю", "n₀ ≥ K, не чаще окна", String(nNot), ["n", "sK"]);
+    add("sValid", "par", "уведомление действует", `${p.sValid} дн`, "", []);
+    add("sDp", "par", "долг: Δ · «не моё» · hl", `${p.sDebt} · ${p.sNotMine} · ${p.sDebtHl} дн`, "", []);
+    add("debt", "mid", "долг", "Σ Δ·2^(−age/hl)", fmt(f.st.debt), ["notice", "ev7", "sValid", "sDp"]);
+    add("W", "mid", "T − долг", "долговременный вес", fmt(f.W), ["T", "debt"]);
+    add("lv", "par", "уровни стены", p.levels.map(l => `${l.n}→${l.d}`).join(" · "), "", []);
+    add("tol", "par", "допуск", "", fmt(p.tol), []);
+    add("walls", "par", "wall_publish_enabled", "", p.walls ? "да" : "нет", []);
+    add("level", "mid", "стена стадии 0, d", "max d, min_n ≤ n₀+δ", pr.level == null ? "нет" : fmt(pr.level), ["n", "lv", "tol", "walls"]);
+    add("sLocal", "par", "стена локальна при W > 0", "", p.sLocal ? "да" : "нет", []);
+    add("ban", "in", `ban ${X}→${Y}`, "user_block", f.ban ? "да" : "нет", []);
+    add("target", "mid", "target_w", "ban → минус → стена → T−долг", fmt(pr.target), ["ban", "walls", "level", "W", "sLocal"], { note: pr.why });
+  } else {
+  if (prop) add("TR", "mid", "T_imm", "Σ иммун. вкладов (без окна) + vouch", fmt(f.TI), [...crs, "vt"]);
+  else add("TR", "mid", "T_recent", "Σ свежих иммун. вкладов + vouch", fmt(f.TR), [...crs, "vt"]);
+  add("immThr", "par", "порог иммунитета", "", fmt(p.imm), []);
+  add("imm", "mid", "иммунитет от стены", `${prop ? "T_imm" : "T_recent"} ≥ порога → стены нет`, pr.immune ? "да" : "нет", ["TR", "immThr"], { note: pr.immune ? "стена запрещена" : "стена возможна" });
+  add("lv", "par", "уровни стены", p.levels.map(l => `${l.n}→${l.d}`).join(" · "), "", []);
+  add("tol", "par", "допуск", "", fmt(p.tol), []);
+  add("walls", "par", "wall_publish_enabled", "", p.walls ? "да" : "нет", []);
+  add("level", "mid", "уровень стены d", "без иммун.: max d, min_n≤n+δ", pr.level == null ? "нет" : fmt(pr.level), ["n", "lv", "tol", "imm", "walls"], { gates: { imm: pr.immune } });
+  add("ban", "in", `ban ${X}→${Y}`, "user_block", f.ban ? "да" : "нет", []);
+  add("target", "mid", "target_w", "ban → стена → T → 0", fmt(pr.target), ["ban", "walls", "level", "T"], { note: pr.why });
+  }
+  const sim = SIM[edge], prevProj = sim.proj.filter(q => q.t <= t).pop();
+  add("sched", "par", "расписание проекций", `события + каждые ${p.maint} ч`, prevProj ? `посл. ${fmtT(prevProj.t).replace("день ", "д ")}` : "ещё не было", []);
+  add("eps", "par", "ε публикации", "", fmt(p.eps), []);
+  const wPub = stepAt(sim.steps, t);
+  add("pub", "out", `вес ${X}→${Y} в MR`, "prev_sent_weight", fmt(wPub), ["target", "sched", "eps"]);
+  // MR part
+  const wAB = stepAt(SIM.AB.steps, t), wBC = stepAt(SIM.BC.steps, t), m = mr(wAB, wBC);
+  add("alpha", "par", "α", "", fmt(p.alpha), []);
+  add("rho", "par", "ρ", "", fmt(p.rho), []);
+  add("zero", "par", "zero-opinion", "", fmt(p.zero), []);
+  if (edge === "AB") {
+    add("oA", "par", "остальные веса A", "", fmt(p.oA), []);
+    add("share", "mid", "доля шага A→B", "w⁺/(w⁺+остальные)", fmt(m.pAB), ["pub", "oA"]);
+    add("d", "mid", "сила стены d_A(B)", "min(|w|,1) если w<0", fmt(m.dB), ["pub"]);
+    add("arr", "mid", "P(блуждание A входит в B)", "α·доля + α·(1−доля)·α·ρ", fmt(m.arriveB), ["share", "alpha", "rho"]);
+    add("wBC", "in", "вес B→C в MR", "с другого ребра", fmt(wBC), []);
+    add("oB", "par", "остальные веса B", "", fmt(p.oB), []);
+    add("shBC", "mid", "доля шага B→C", "", fmt(m.pBC), ["wBC", "oB"]);
+    add("sAB", "out", "score_A(B)", "(1−k)·P·(1−d) − λ·P·d", fmt(m.sAB), ["arr", "d", "zero"]);
+    add("sAC", "out", "score_A(C)", "(1−k)·P·(1−d)·α·доля_BC", fmt(m.sAC), ["arr", "d", "shBC", "alpha", "zero"]);
+  } else {
+    add("oB", "par", "остальные веса B", "", fmt(p.oB), []);
+    add("share", "mid", "доля шага B→C", "w⁺/(w⁺+остальные)", fmt(m.pBC), ["pub", "oB"]);
+    add("d", "mid", "сила стены d_B(C)", "min(|w|,1) если w<0", fmt(m.dC), ["pub"]);
+    add("arr", "mid", "P(блуждание B входит в C)", "α·доля + α·(1−доля)·α·ρ", fmt(m.arriveC), ["share", "alpha", "rho"]);
+    add("sBC", "out", "score_B(C)", "(1−k)·P·(1−d) − λ·P·d", fmt(m.sBC), ["arr", "d", "zero"]);
+    add("aB", "in", "A доходит до B, не оборвавшись", "из системы отсчёта A", fmt(m.arriveB * (1 - m.dB)), []);
+    add("sAC", "out", "score_A(C)", "(1−k)·P_A(B)·α·доля_BC", fmt(m.sAC), ["aB", "share", "alpha", "zero"]);
+  }
+  return N;
+}
+
+function renderGraph() {
+  const host = document.getElementById("graphFig"); host.innerHTML = "";
+  const N = buildGraph(S.edge), byId = Object.fromEntries(N.map(n => [n.id, n]));
+  N.forEach(n => n.deps = n.deps.filter(d => byId[d]));
+  const users = {}; N.forEach(n => n.deps.forEach(d => (users[d] = users[d] || []).push(n.id)));
+  // columns: computed nodes by longest path; params/inputs one column left of first consumer
+  const col = {};
+  const depth = id => {
+    if (col[id] != null) return col[id];
+    const n = byId[id];
+    const comp = n.deps.filter(d => byId[d].type !== "par" && byId[d].type !== "in");
+    col[id] = (n.type === "par" || n.type === "in") ? 0 : 1 + Math.max(0, ...comp.map(depth), ...(n.deps.length ? [0] : []));
+    return col[id];
+  };
+  N.forEach(n => depth(n.id));
+  N.forEach(n => { if (n.type === "par" || n.type === "in") { const u = users[n.id] || []; col[n.id] = u.length ? Math.max(0, Math.min(...u.map(x => col[x])) - 1) : 0; } });
+  const nCols = Math.max(...Object.values(col)) + 1;
+  const NW = 178, NH = 54, GX = 46, GY = 12, PAD = 14;
+  const cols = Array.from({ length: nCols }, () => []);
+  N.forEach(n => cols[col[n.id]].push(n));
+  const pos = {}, maxLen = Math.max(...cols.map(l => l.length));
+  // pack each column tightly, centred against the tallest one
+  const pack = () => cols.forEach(list => {
+    const off = (maxLen - list.length) * (NH + GY) / 2;
+    list.forEach((n, i) => { pos[n.id] = { x: PAD + col[n.id] * (NW + GX), y: PAD + off + i * (NH + GY) }; });
+  });
+  // barycentric ordering sweeps (order only, positions re-packed each time)
+  const order = (list, key) => { list.forEach((n, i) => n._k = key(n) ?? pos[n.id].y + i * 1e-3); list.sort((a, b) => a._k - b._k); };
+  const mean = ids => ids.length ? ids.reduce((s, d) => s + pos[d].y, 0) / ids.length : null;
+  pack();
+  for (let pass = 0; pass < 4; pass++) {
+    for (let c = 1; c < nCols; c++) { order(cols[c], n => mean(n.deps)); pack(); }
+    for (let c = nCols - 2; c >= 0; c--) { order(cols[c], n => mean(users[n.id] || [])); pack(); }
+  }
+  const W = PAD * 2 + nCols * NW + (nCols - 1) * GX, H = PAD * 2 + Math.max(...N.map(n => pos[n.id].y)) + NH;
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: "img", "aria-label": "Граф вычисления веса ребра" }, host);
+  const gE = el("g", {}, svg), gN = el("g", {}, svg);
+  const edges = [];
+  N.forEach(n => n.deps.forEach(d => {
+    const a = pos[d], b = pos[n.id], x1 = a.x + NW, y1 = a.y + NH / 2, x2 = b.x, y2 = b.y + NH / 2, mx = (x1 + x2) / 2;
+    const gate = n.gates && d in n.gates, active = gate && n.gates[d];
+    const base = gate ? "var(--neg)" : "var(--line)";
+    const path = el("path", { d: `M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`, fill: "none", stroke: base, "stroke-width": active ? 2.6 : 1.4, "stroke-dasharray": gate ? "5 4" : "none", class: "gedge" }, gE);
+    if (gate) {
+      const lb = txt(gE, mx, (y1 + y2) / 2 - 6, active ? "запрет действует" : "запрет снят", { "text-anchor": "middle", "font-size": 10.5, fill: "var(--neg)", "font-weight": active ? 600 : 400 });
+      lb.setAttribute("paint-order", "stroke"); lb.setAttribute("stroke", "var(--bg)"); lb.setAttribute("stroke-width", 3);
+    }
+    edges.push({ from: d, to: n.id, path, base, gate });
+  }));
+  const style = {
+    in:  { fill: "var(--n-input)", stroke: "var(--s1)", dash: "none" },
+    par: { fill: "var(--surface-2)", stroke: "var(--muted)", dash: "4 3" },
+    mid: { fill: "var(--surface)", stroke: "var(--line)", dash: "none" },
+    out: { fill: "var(--n-out)", stroke: "var(--s2)", dash: "none" },
+  };
+  const gs = {};
+  N.forEach(n => {
+    const { x, y } = pos[n.id], st = style[n.type];
+    const g = el("g", { class: "node", transform: `translate(${x},${y})`, tabindex: 0 }, gN); gs[n.id] = g;
+    el("rect", { width: NW, height: NH, rx: 7, fill: st.fill, stroke: st.stroke, "stroke-dasharray": st.dash, "stroke-width": 1.2 }, g);
+    const neg = n.id === "target" || n.id === "pub" ? parseFloat(n.val) < 0 : false;
+    txt(g, 9, 16, n.label, { class: "node-label", fill: "var(--fg)" });
+    if (n.sub) txt(g, 9, 31, n.sub.length > 30 ? n.sub.slice(0, 29) + "…" : n.sub, { class: "node-sub", fill: "var(--muted)" });
+    if (n.val !== "") txt(g, NW - 9, NH - 9, n.val + (n.note ? "  · " + n.note : ""), { class: "node-val", fill: neg ? "var(--neg)" : "var(--fg)", "text-anchor": "end" });
+    const tt = el("title", {}, g); tt.textContent = `${n.label}\n${n.sub || ""}${n.val !== "" ? "\n= " + n.val : ""}`;
+  });
+  const up = (id, set) => { (byId[id].deps || []).forEach(d => { if (!set.has(d)) { set.add(d); up(d, set); } }); return set; };
+  const down = (id, set) => { (users[id] || []).forEach(d => { if (!set.has(d)) { set.add(d); down(d, set); } }); return set; };
+  const hi = id => {
+    const keep = new Set([id, ...up(id, new Set()), ...down(id, new Set())]);
+    N.forEach(n => gs[n.id].classList.toggle("dim", !keep.has(n.id)));
+    edges.forEach(e => { const on = keep.has(e.from) && keep.has(e.to); e.path.classList.toggle("dim", !on); e.path.setAttribute("stroke", on && !e.gate ? "var(--accent)" : e.base); });
+  };
+  const reset = () => { N.forEach(n => gs[n.id].classList.remove("dim")); edges.forEach(e => { e.path.classList.remove("dim"); e.path.setAttribute("stroke", e.base); }); };
+  // a pinned node keeps its highlight until it is clicked again; hover previews only while nothing is pinned
+  if (S.pinned && !byId[S.pinned]) S.pinned = null;
+  const rest = () => { N.forEach(n => gs[n.id].classList.toggle("pinned", n.id === S.pinned)); if (S.pinned) hi(S.pinned); else reset(); };
+  const toggle = id => { S.pinned = S.pinned === id ? null : id; rest(); };
+  N.forEach(n => {
+    const g = gs[n.id];
+    g.addEventListener("mouseenter", () => { if (!S.pinned) hi(n.id); });
+    g.addEventListener("mouseleave", () => { if (!S.pinned) reset(); });
+    g.addEventListener("click", () => toggle(n.id));
+    g.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(n.id); } });
+  });
+  svg.addEventListener("click", e => { if (e.target === svg && S.pinned) { S.pinned = null; rest(); } });
+  rest();
+}
+
+/* ---------- charts ---------- */
+function sampleLine(fn, t0, t1, n = 700) {
+  const pts = []; for (let i = 0; i <= n; i++) { const t = t0 + (t1 - t0) * i / n; pts.push([t, fn(t)]); } return pts;
+}
+function stepPoints(steps, t0, t1) {
+  const pts = [[t0, stepAt(steps, t0)]];
+  for (const s of steps) if (s.t > t0 && s.t <= t1) pts.push([s.t, s.w]);
+  pts.push([t1, stepAt(steps, t1)]);
+  return pts;
+}
+function valueAt(series, t) {
+  const pts = series.points;
+  if (series.step) { let v = pts[0][1]; for (const [x, y] of pts) { if (x <= t) v = y; else break; } return v; }
+  let lo = 0, hi = pts.length - 1;
+  if (t <= pts[0][0]) return pts[0][1]; if (t >= pts[hi][0]) return pts[hi][1];
+  while (hi - lo > 1) { const m = (lo + hi) >> 1; if (pts[m][0] <= t) lo = m; else hi = m; }
+  const [x0, y0] = pts[lo], [x1, y1] = pts[hi]; return y0 + (y1 - y0) * (t - x0) / (x1 - x0 || 1);
+}
+function niceTicks(lo, hi, n = 5) {
+  const span = hi - lo || 1, raw = span / n, mag = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / mag;
+  const st = (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * mag, out = [];
+  for (let v = Math.ceil(lo / st) * st; v <= hi + st * 1e-9; v += st) out.push(+v.toFixed(10));
+  return out;
+}
+function chart(host, cfg) {
+  host.innerHTML = "";
+  const head = document.createElement("div");
+  head.innerHTML = `<h3>${cfg.title}</h3>`;
+  host.appendChild(head);
+  if (cfg.series.length > 1 || cfg.refs?.length) {
+    const lg = document.createElement("div"); lg.className = "legend";
+    lg.innerHTML = cfg.series.map(s => `<span><i class="${s.dash ? "dash" : ""}" style="background:${s.color};border-color:${s.color}"></i>${s.name}</span>`).join("") +
+      (cfg.refs || []).filter(r => r.legend).map(r => `<span><i class="dash" style="border-color:var(--muted)"></i>${r.legend}</span>`).join("");
+    host.appendChild(lg);
+  }
+  const W = 560, H = 230, m = { l: 46, r: 14, t: 10, b: 28 };
+  const t0 = S.vFrom, t1 = S.vFrom + S.vLen;
+  let lo = Infinity, hi = -Infinity;
+  cfg.series.forEach(s => s.points.forEach(([x, y]) => { if (x >= t0 && x <= t1) { lo = Math.min(lo, y); hi = Math.max(hi, y); } }));
+  (cfg.refs || []).forEach(r => { if (r.include) { lo = Math.min(lo, r.y); hi = Math.max(hi, r.y); } });
+  lo = Math.min(lo, 0); hi = Math.max(hi, cfg.minHi ?? 0.01);
+  if (!Number.isFinite(lo)) { lo = 0; hi = 1; }
+  const padY = (hi - lo) * 0.08; hi += padY; if (lo < 0) lo -= padY;
+  const X = t => m.l + (t - t0) / (t1 - t0) * (W - m.l - m.r), Y = v => m.t + (hi - v) / (hi - lo) * (H - m.t - m.b);
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, width: "100%", role: "img", "aria-label": cfg.title, style: "display:block;max-width:100%;height:auto" }, host);
+  const gGrid = el("g", {}, svg);
+  niceTicks(lo, hi, 4).forEach(v => {
+    el("line", { x1: m.l, x2: W - m.r, y1: Y(v), y2: Y(v), stroke: v === 0 ? "var(--muted)" : "var(--surface-2)", "stroke-width": 1 }, gGrid);
+    txt(gGrid, m.l - 6, Y(v) + 4, fmt(v, 3), { "text-anchor": "end", "font-size": 10.5, fill: "var(--muted)", "font-family": "var(--f-mono)" });
+  });
+  niceTicks(t0, t1, 6).forEach(v => {
+    if (v < t0 || v > t1) return;
+    el("line", { x1: X(v), x2: X(v), y1: H - m.b, y2: H - m.b + 4, stroke: "var(--muted)" }, gGrid);
+    txt(gGrid, X(v), H - m.b + 16, S.vLen < 3 ? fmtT(v).replace("день ", "д") : "д " + fmt(v, 2), { "text-anchor": "middle", "font-size": 10.5, fill: "var(--muted)", "font-family": "var(--f-mono)" });
+  });
+  (cfg.bands || []).forEach(b => { const ya = Y(Math.min(hi, b.y1)), yb = Y(Math.max(lo, b.y0)); if (yb > ya) el("rect", { x: m.l, y: ya, width: W - m.l - m.r, height: yb - ya, fill: b.fill, opacity: 0.7 }, gGrid); });
+  if (cfg.negBand) el("rect", { x: m.l, y: Y(0), width: W - m.l - m.r, height: Math.max(0, Y(lo) - Y(0)), fill: "var(--neg-bg)", opacity: 0.6 }, gGrid);
+  (cfg.refs || []).forEach(r => {
+    if (r.y < lo || r.y > hi) return;
+    el("line", { x1: m.l, x2: W - m.r, y1: Y(r.y), y2: Y(r.y), stroke: "var(--muted)", "stroke-dasharray": "4 4", "stroke-width": 1 }, gGrid);
+    if (r.label) txt(gGrid, W - m.r - 2, Y(r.y) - 4, r.label, { "text-anchor": "end", "font-size": 10.5, fill: "var(--muted)" });
+  });
+  const clipId = "clip" + Math.random().toString(36).slice(2);
+  const cp = el("clipPath", { id: clipId }, svg); el("rect", { x: m.l, y: m.t - 2, width: W - m.l - m.r, height: H - m.t - m.b + 4 }, cp);
+  const gS = el("g", { "clip-path": `url(#${clipId})` }, svg);
+  cfg.series.forEach(s => {
+    let d = "";
+    if (s.step) { s.points.forEach(([x, y], i) => { d += i === 0 ? `M${X(x)},${Y(y)}` : `H${X(x)}V${Y(y)}`; }); }
+    else s.points.forEach(([x, y], i) => { d += (i ? "L" : "M") + X(x).toFixed(1) + "," + Y(y).toFixed(1); });
+    el("path", { d, fill: "none", stroke: s.color, "stroke-width": s.width || 2, "stroke-dasharray": s.dash ? "5 4" : "none", "stroke-linejoin": "round" }, gS);
+  });
+  (cfg.marks || []).forEach(mk => { if (mk.t >= t0 && mk.t <= t1) el("line", { x1: X(mk.t), x2: X(mk.t), y1: H - m.b - 6, y2: H - m.b, stroke: mk.color, "stroke-width": 1.5 }, gS); });
+  el("line", { x1: X(S.now), x2: X(S.now), y1: m.t, y2: H - m.b, stroke: "var(--fg-2)", "stroke-width": 1, "stroke-dasharray": "2 3" }, svg);
+  const cross = el("line", { y1: m.t, y2: H - m.b, stroke: "var(--accent)", "stroke-width": 1, visibility: "hidden" }, svg);
+  const dots = cfg.series.map(s => el("circle", { r: 4, fill: s.color, stroke: "var(--surface)", "stroke-width": 2, visibility: "hidden" }, svg));
+  const hit = el("rect", { x: m.l, y: m.t, width: W - m.l - m.r, height: H - m.t - m.b, fill: "transparent", style: "cursor:crosshair" }, svg);
+  const tip = document.createElement("div"); tip.className = "tip"; tip.hidden = true; host.appendChild(tip);
+  const tAt = ev => { const r = svg.getBoundingClientRect(), sx = (ev.clientX - r.left) / r.width * W; return t0 + (sx - m.l) / (W - m.l - m.r) * (t1 - t0); };
+  hit.addEventListener("mousemove", ev => {
+    const t = Math.min(t1, Math.max(t0, tAt(ev)));
+    cross.setAttribute("x1", X(t)); cross.setAttribute("x2", X(t)); cross.setAttribute("visibility", "visible");
+    const rows = cfg.series.map((s, i) => { const v = valueAt(s, t); dots[i].setAttribute("cx", X(t)); dots[i].setAttribute("cy", Y(v)); dots[i].setAttribute("visibility", "visible"); return `<div class="r"><span><span class="sw" style="background:${s.color}"></span>${s.name}</span><b>${fmt(v)}</b></div>`; });
+    tip.innerHTML = `<div class="tt">${fmtT(t)}</div>${rows.join("")}`;
+    tip.hidden = false;
+    const hr = host.getBoundingClientRect(), r = svg.getBoundingClientRect(), px = (X(t) / W) * r.width + (r.left - hr.left);
+    tip.style.left = Math.min(px + 12, hr.width - tip.offsetWidth - 4) + "px";
+    tip.style.top = (r.top - hr.top + 8) + "px";
+  });
+  hit.addEventListener("mouseleave", () => { tip.hidden = true; cross.setAttribute("visibility", "hidden"); dots.forEach(d => d.setAttribute("visibility", "hidden")); });
+  hit.addEventListener("click", ev => { setNow(Math.min(t1, Math.max(t0, tAt(ev)))); });
+}
+
+function renderCharts() {
+  const e = S.edge, t0 = S.vFrom, t1 = S.vFrom + S.vLen, p = S.p;
+  document.getElementById("chartEdgeHint").textContent = `первые три графика — ребро ${EDGES[e]}`;
+  const prop = p.model === "prop", stg = p.model === "stages", gName = stg ? "T − долг" : prop ? "T_imm" : "T_recent";
+  const lines = { T: [], TR: [], n: [], nAlt: [], tg: [], debt: [] };
+  const gOf = f => stg ? f.W : f.G;
+  const N = 700;
+  for (let i = 0; i <= N; i++) {
+    const t = t0 + (t1 - t0) * i / N, f = fold(e, t), pr = project(f);
+    lines.T.push([t, f.T]); lines.TR.push([t, gOf(f)]); lines.debt.push([t, f.st.debt]); lines.n.push([t, f.n]); lines.nAlt.push([t, prop || stg ? f.nDec : f.nWin]); lines.tg.push([t, pr.target]);
+  }
+  // add exact samples at event instants so steps in T/n render sharp
+  const extra = S.events.filter(x => x.edge === e).flatMap(x => [x.day, x.retract, NOISE_EV.includes(x.kind) ? x.day + p.noisyWin : null, NOISE_EV.includes(x.kind) ? x.day + p.sWin : null]).filter(x => x != null && x > t0 && x < t1);
+  for (const t of extra) for (const tt of [t - 1e-7, t]) { const f = fold(e, tt), pr = project(f); lines.T.push([tt, f.T]); lines.TR.push([tt, gOf(f)]); lines.debt.push([tt, f.st.debt]); lines.n.push([tt, f.n]); lines.nAlt.push([tt, prop || stg ? f.nDec : f.nWin]); lines.tg.push([tt, pr.target]); }
+  Object.values(lines).forEach(a => a.sort((x, y) => x[0] - y[0]));
+  chart(document.getElementById("cTrust"), {
+    title: `Свёртка доверия ${EDGES[e]}`,
+    series: stg
+      ? [{ name: "T", color: "var(--s1)", points: lines.T }, { name: "долг", color: "var(--s3)", points: lines.debt, dash: true, width: 1.5 }, { name: "T − долг", color: "var(--s2)", points: lines.TR }]
+      : [{ name: "T", color: "var(--s1)", points: lines.T }, { name: gName, color: "var(--s2)", points: lines.TR }],
+    refs: stg ? [{ y: 0, include: true }] : [{ y: p.imm, label: `порог иммунитета ${p.imm} · ${gName} ниже — стена возможна`, include: true }], minHi: 0.1,
+    bands: stg ? [] : [{ y0: 0, y1: p.imm, fill: "var(--neg-bg)" }], negBand: stg,
+  });
+  chart(document.getElementById("cNoisy"), {
+    title: stg ? `Сигналы шума ${EDGES[e]} · оранжевые засечки — уведомления` : `n_noisy ${EDGES[e]} и пороги стены`,
+    series: [
+      { name: stg ? `n₀: просмотрено без отклика за ${p.sWin} дн` : prop ? `n_noisy: Σ за окно ${p.noisyWin} дн` : "n_noisy: s₇ с затуханием", color: "var(--s1)", points: lines.n },
+      { name: prop || stg ? "текущая: s₇ с затуханием (все игноры)" : `окно: Σ за ${p.noisyWin} дн`, color: "var(--s3)", points: lines.nAlt, dash: true, width: 1.5 },
+    ],
+    marks: stg ? fold(e, t1).st.notices.map(x => ({ t: x, color: "var(--s2)" })) : [],
+    refs: [...p.levels.map(l => ({ y: l.n, label: `min_n ${l.n} → d ${l.d}`, include: lines.n.some(q => q[1] > 0) && l.n === p.levels[0].n })),
+      ...(stg && p.sK !== p.levels[0].n ? [{ y: p.sK, label: `K = ${p.sK} → уведомление`, include: true }] : [])], minHi: 1,
+  });
+  const sim = SIM[e];
+  chart(document.getElementById("cWeight"), {
+    title: `Вес ребра ${EDGES[e]}`,
+    series: [
+      { name: "target_w, если проецировать в каждый момент", color: "var(--s1)", points: lines.tg, dash: true, width: 1.5 },
+      { name: "опубликовано в MR", color: "var(--s2)", points: stepPoints(sim.steps, t0, t1), step: true },
+      { name: "опубликовано — " + MODELS[altModel()], color: "var(--s3)", points: stepPoints(SIM.alt[e].steps, t0, t1), step: true, dash: true, width: 1.5 },
+    ],
+    negBand: true, refs: [{ y: 0, include: true }],
+    marks: sim.proj.map(q => ({ t: q.t, color: q.published ? "var(--s2)" : "var(--line)" })),
+  });
+  const bps = [...new Set([t0, t1, ...[SIM.AB, SIM.BC, SIM.alt.AB, SIM.alt.BC].flatMap(x => x.steps.map(s => s.t))])].filter(t => t >= t0 && t <= t1).sort((a, b) => a - b);
+  const sc = { sAB: [], sAC: [], sBC: [], aAB: [] };
+  bps.forEach(t => { const m = mr(stepAt(SIM.AB.steps, t), stepAt(SIM.BC.steps, t)), ma = mr(stepAt(SIM.alt.AB.steps, t), stepAt(SIM.alt.BC.steps, t)); sc.sAB.push([t, m.sAB]); sc.sAC.push([t, m.sAC]); sc.sBC.push([t, m.sBC]); sc.aAB.push([t, ma.sAB]); });
+  chart(document.getElementById("cScore"), {
+    title: "Скоры MR (по опубликованным весам)",
+    series: [
+      { name: "score_A(B)", color: "var(--s1)", points: sc.sAB, step: true },
+      { name: "score_A(C)", color: "var(--s2)", points: sc.sAC, step: true },
+      { name: "score_B(C)", color: "var(--s3)", points: sc.sBC, step: true },
+      { name: "score_A(B) — " + MODELS[altModel()], color: "var(--s1)", points: sc.aAB, step: true, dash: true, width: 1.5 },
+    ], minHi: 0.05,
+  });
+}
+
+/* ---------- controls ---------- */
+function renderEvents() {
+  const tb = document.querySelector("#evTable tbody"); tb.innerHTML = "";
+  const sorted = S.events.map((e, i) => ({ e, i })).sort((a, b) => a.e.edge.localeCompare(b.e.edge) || a.e.day - b.e.day);
+  for (const { e, i } of sorted) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td><select data-i="${i}" data-f="edge" aria-label="Ребро">${Object.entries(EDGES).map(([k, v]) => `<option value="${k}" ${k === e.edge ? "selected" : ""}>${v}</option>`).join("")}</select></td>
+      <td><select data-i="${i}" data-f="kind" aria-label="Вид" style="max-width:118px">${EV_KINDS.map(k => `<option value="${k.v}" ${k.v === e.kind ? "selected" : ""}>${k.label}</option>`).join("")}</select></td>
+      <td><input type="number" step="0.5" data-i="${i}" data-f="day" value="${+e.day.toFixed(4)}" aria-label="День" style="width:58px"></td>
+      <td><input type="number" step="0.1" min="0" data-i="${i}" data-f="count" value="${e.count}" aria-label="count" style="width:44px" ${e.kind === "vouch" || e.kind === "ban" ? "disabled" : ""}></td>
+      <td><input type="number" step="0.5" data-i="${i}" data-f="retract" value="${e.retract ?? ""}" placeholder="—" aria-label="Отзыв" style="width:54px"></td>
+      <td><button class="del ghost" data-del="${i}" aria-label="Удалить">✕</button></td>`;
+    tb.appendChild(tr);
+  }
+  tb.querySelectorAll("select,input").forEach(c => c.addEventListener("change", () => {
+    const e = S.events[+c.dataset.i], f = c.dataset.f;
+    if (f === "edge" || f === "kind") e[f] = c.value;
+    else if (f === "retract") e.retract = c.value === "" ? null : +c.value;
+    else e[f] = +c.value;
+    if (f === "kind") renderEvents();
+    update();
+  }));
+  tb.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", () => { S.events.splice(+b.dataset.del, 1); renderEvents(); update(); }));
+}
+function renderKinds() {
+  const tb = document.querySelector("#kindTable tbody"); tb.innerHTML = "";
+  S.kinds.forEach((k, i) => {
+    const tr = document.createElement("tr");
+    const num = (f, step) => k[f] === undefined ? "<td></td>" : `<td><input type="number" step="${step}" min="0" data-k="${i}" data-f="${f}" value="${k[f] ?? ""}" placeholder="—" aria-label="${k.slug} ${f}" style="width:46px" ${k.wall && (f === "k" || f === "mix") ? "disabled" : ""}></td>`;
+    tr.innerHTML = `<td class="mono" title="${k.slug}">${k.kind} ${k.slug.length > 9 ? k.slug.slice(0, 8) + "…" : k.slug}</td>${num("hl", 1)}${num("win", 1)}${num("k", 0.1)}${num("mix", 0.05)}
+      <td><input type="checkbox" data-k="${i}" data-f="imm" ${k.imm ? "checked" : ""} ${k.wall ? "disabled" : ""} aria-label="${k.slug} иммунитет"></td>`;
+    tb.appendChild(tr);
+  });
+  tb.querySelectorAll("input").forEach(c => c.addEventListener("change", () => {
+    const k = S.kinds[+c.dataset.k], f = c.dataset.f;
+    if (f === "imm") k.imm = c.checked; else k[f] = c.value === "" ? null : +c.value;
+    update();
+  }));
+}
+function renderLevels() {
+  const tb = document.querySelector("#lvlTable tbody"); tb.innerHTML = "";
+  S.p.levels.forEach((l, i) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td><input type="number" step="1" min="0" data-l="${i}" data-f="n" value="${l.n}" aria-label="min_n"></td><td><input type="number" step="0.05" min="0" max="1" data-l="${i}" data-f="d" value="${l.d}" aria-label="уровень"></td>`;
+    tb.appendChild(tr);
+  });
+  tb.querySelectorAll("input").forEach(c => c.addEventListener("change", () => { S.p.levels[+c.dataset.l][c.dataset.f] = +c.value; update(); }));
+}
+const PMAP = { sQuant: "sQuant", sWin: "sWin", sBase: "sBase", sK: "sK", sValid: "sValid", sDebt: "sDebt", sNotMine: "sNotMine", sDebtHl: "sDebtHl", pNoisyWin: "noisyWin", pVouch: "vouchW", pImm: "imm", pRecent: "recent", pTol: "tol", pEps: "eps", pMaint: "maint", pMaintPh: "maintPh",
+  mAlpha: "alpha", mZero: "zero", mOA: "oA", mOB: "oB", mRho: "rho", mLambda: "lambda" };
+function syncParams() {
+  for (const [id, k] of Object.entries(PMAP)) document.getElementById(id).value = S.p[k];
+  document.getElementById("pWalls").checked = S.p.walls;
+  document.getElementById("sLocal").checked = S.p.sLocal;
+  document.getElementById("pImmSub").textContent = S.p.model === "prop" ? "стена только при T_imm < порога" : "стена только при T_recent < порога";
+  document.getElementById("vFrom").value = S.vFrom; document.getElementById("vLen").value = S.vLen;
+}
+function setNow(t) { S.now = t; const r = document.getElementById("now"); r.value = t; renderLive(); }
+function renderModel() {
+  const ms = document.getElementById("modelSeg");
+  ms.innerHTML = Object.entries(MODELS).map(([k, v]) => `<button data-m="${k}" class="${S.p.model === k ? "on" : ""}">${v}</button>`).join("");
+  ms.querySelectorAll("button").forEach(b => b.addEventListener("click", () => { S.p.model = b.dataset.m; renderModel(); syncParams(); update(); }));
+  const cs = document.getElementById("cmpSeg");
+  cs.innerHTML = Object.entries(MODELS).map(([k, v]) => `<button data-m="${k}" class="${altModel() === k ? "on" : ""}" ${k === S.p.model ? "disabled" : ""}>${v}</button>`).join("");
+  cs.querySelectorAll("button").forEach(b => b.addEventListener("click", () => { S.p.cmp = b.dataset.m; renderModel(); update(); }));
+  document.getElementById("modelHint").textContent = MODEL_HINT[S.p.model];
+}
+function renderSegs() {
+  const es = document.getElementById("edgeSeg");
+  es.innerHTML = Object.entries(EDGES).map(([k, v]) => `<button data-e="${k}" class="${S.edge === k ? "on" : ""}">${v}</button>`).join("");
+  es.querySelectorAll("button").forEach(b => b.addEventListener("click", () => { S.edge = b.dataset.e; renderSegs(); renderGraph(); renderCharts(); }));
+  const zs = document.getElementById("zoomSeg");
+  const Z = [["1 ч", 1 / 24], ["1 дн", 1], ["7 дн", 7], ["30 дн", 30], ["400 дн", 400]];
+  zs.innerHTML = Z.map(([l, v]) => `<button data-z="${v}" class="${Math.abs(S.vLen - v) < 1e-9 ? "on" : ""}">${l}</button>`).join("");
+  zs.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+    const len = +b.dataset.z; S.vLen = len;
+    S.vFrom = Math.max(0, len >= 400 ? 0 : S.now - len / 2);
+    syncParams(); renderSegs(); update();
+  }));
+}
+function renderLive() {
+  document.getElementById("nowT").textContent = fmtT(S.now);
+  renderChips(); renderNet(); renderGraph(); renderCharts();
+}
+function update() {
+  const r = document.getElementById("now");
+  r.min = S.vFrom; r.max = S.vFrom + S.vLen; r.step = S.vLen / 2000;
+  S.now = Math.min(Math.max(S.now, S.vFrom), S.vFrom + S.vLen); r.value = S.now;
+  recompute(); renderLive();
+}
+
+/* ignore generator */
+function mulberry32(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function generateIgnores() {
+  const n = Math.max(1, Math.min(30, +gN.value | 0)), day = +gDay.value, gapD = (+gGap.value) / 24, seed = +gSeed.value;
+  const phaseD = (+gPhase.value) / 1440, jitter = gJitter.checked, rnd = mulberry32(seed), hour = 1 / 24, out = [];
+  for (let i = 0; i < n; i++) {
+    const sent = day + i * gapD, dl = sent + 7 + (jitter ? (rnd() * 2 - 1) : 0);
+    const k = Math.ceil((dl - phaseD) / hour - 1e-9), at = phaseD + k * hour;
+    S.events.push(ev("AB", gKind.value, at)); out.push(at);
+  }
+  const span = (Math.max(...out) - Math.min(...out)) * 24;
+  document.getElementById("gOut").textContent = `события записаны в ${new Set(out.map(x => x.toFixed(5))).size} разных прогонах sweep, разброс ${span.toFixed(1)} ч`;
+  renderEvents(); update();
+}
+
+function loadScenario(sc) {
+  S.events = sc.events(); S.vFrom = sc.from; S.vLen = sc.len; S.now = sc.now; S.edge = sc.edge;
+  if (sc.model) { S.p.model = sc.model; S.p.cmp = sc.cmp || S.p.cmp; renderModel(); }
+  if (sc.gen) { gN.value = 3; gDay.value = 0; gGap.value = 0.1; gJitter.checked = true; gKind.value = "7"; generateIgnores(); }
+  document.querySelectorAll("#presets button").forEach(b => b.classList.toggle("on", b.dataset.sc === sc.name));
+  syncParams(); renderEvents(); renderSegs(); update();
+}
+
+/* wiring */
+const [gN, gDay, gGap, gSeed, gPhase, gJitter, gKind] = ["gN", "gDay", "gGap", "gSeed", "gPhase", "gJitter", "gKind"].map(id => document.getElementById(id));
+document.getElementById("gRun").addEventListener("click", generateIgnores);
+for (const [id, k] of Object.entries(PMAP)) document.getElementById(id).addEventListener("change", e => { S.p[k] = +e.target.value; update(); });
+document.getElementById("pWalls").addEventListener("change", e => { S.p.walls = e.target.checked; update(); });
+document.getElementById("sLocal").addEventListener("change", e => { S.p.sLocal = e.target.checked; update(); });
+document.getElementById("vFrom").addEventListener("change", e => { S.vFrom = Math.max(0, +e.target.value); renderSegs(); update(); });
+document.getElementById("vLen").addEventListener("change", e => { S.vLen = Math.max(0.01, +e.target.value); renderSegs(); update(); });
+document.getElementById("now").addEventListener("input", e => setNow(+e.target.value));
+document.getElementById("showAllKinds").addEventListener("change", e => { S.showAll = e.target.checked; renderGraph(); });
+document.getElementById("addEv").addEventListener("click", () => { S.events.push(ev(S.edge, 2, Math.round(S.now))); renderEvents(); update(); });
+document.getElementById("clearEv").addEventListener("click", () => { S.events = []; renderEvents(); update(); });
+document.getElementById("resetAll").addEventListener("click", () => { S.kinds = clone(KIND_DEFAULTS); S.p = clone(PARAM_DEFAULTS); renderModel(); syncParams(); renderKinds(); renderLevels(); update(); });
+const pr = document.getElementById("presets");
+SCENARIOS.forEach(sc => { const b = document.createElement("button"); b.textContent = sc.name; b.dataset.sc = sc.name; b.addEventListener("click", () => loadScenario(sc)); pr.appendChild(b); });
+let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(renderCharts, 150); });
+
+document.querySelectorAll("details.fold").forEach(d => {
+  try { const v = localStorage.getItem("fold:" + d.id); if (v != null) d.open = v === "1"; } catch (e) {}
+  d.addEventListener("toggle", () => { try { localStorage.setItem("fold:" + d.id, d.open ? "1" : "0"); } catch (e) {} });
+});
+renderModel(); renderKinds(); renderLevels(); syncParams();
+loadScenario(SCENARIOS[0]);
+</script>
+
+</body></html>
