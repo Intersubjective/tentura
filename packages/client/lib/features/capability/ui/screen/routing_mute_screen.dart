@@ -137,12 +137,13 @@ class _GroupSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final tags = CapabilityTag.values.where((t) => t.group == group).toList();
     final groupSlugs = tags.map((t) => t.slug).toSet();
-    // Groups start folded; one with a turned-off tag opens so the exception
-    // is visible without hunting for it.
     final mutedInGroup = mutedSlugs.intersection(groupSlugs).length;
+    final selectedInGroup = groupSlugs.length - mutedInGroup;
 
     return AccordionExpansionTile(
       id: group.name,
+      // Groups start folded; one with a turned-off tag opens so the
+      // exception is visible without hunting for it.
       initiallyExpanded: mutedInGroup > 0,
       // Collapsed groups must not keep chip Wrap in the tree — matches
       // CapabilityChipSet's own guard against building every chip up front.
@@ -170,8 +171,9 @@ class _GroupSection extends StatelessWidget {
             ),
           ),
           CapabilityReservedCountSlot(
-            visible: mutedInGroup > 0,
-            count: mutedInGroup,
+            visible: true,
+            count: selectedInGroup,
+            total: groupSlugs.length,
           ),
         ],
       ),

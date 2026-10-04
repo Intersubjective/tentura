@@ -212,6 +212,29 @@ void main() {
     },
   );
 
+  testWidgets(
+    'group header counter shows selected/total, not muted/total',
+    (tester) async {
+      await _pumpRoutingMuteScreen(tester, mutedSlugs: ['transport']);
+
+      final logisticsTotal = CapabilityTag.values
+          .where((t) => t.group == CapabilityGroup.logistics)
+          .length;
+      final expectedSelected = logisticsTotal - 1;
+
+      expect(
+        find.descendant(
+          of: find.ancestor(
+            of: find.text(l10n.capabilityGroupLogistics),
+            matching: find.byType(ExpansionTile),
+          ),
+          matching: find.text('$expectedSelected/$logisticsTotal'),
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
   testWidgets('turning transport off persists a mute', (tester) async {
     final repo = await _pumpRoutingMuteScreen(tester);
     await _expandAllGroups(tester, l10n);

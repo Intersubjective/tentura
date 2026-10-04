@@ -6,11 +6,13 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 class CapabilitySelectionCountBadge extends StatelessWidget {
   const CapabilitySelectionCountBadge({
     required this.count,
+    this.total,
     this.preExisting = false,
     super.key,
   });
 
   final int count;
+  final int? total;
   final bool preExisting;
 
   @override
@@ -20,7 +22,8 @@ class CapabilitySelectionCountBadge extends StatelessWidget {
     final cs = theme.colorScheme;
     final bg = preExisting ? cs.secondaryContainer : cs.primaryContainer;
     final fg = preExisting ? cs.onSecondaryContainer : cs.onPrimaryContainer;
-    final text = preExisting ? '★ $count' : '$count';
+    final countText = total == null ? '$count' : '$count/$total';
+    final text = preExisting ? '★ $countText' : countText;
     return Padding(
       padding: EdgeInsets.only(left: tt.tightGap),
       child: Material(
@@ -49,29 +52,37 @@ class CapabilityReservedCountSlot extends StatelessWidget {
   const CapabilityReservedCountSlot({
     required this.visible,
     required this.count,
+    this.total,
     this.preExisting = false,
     super.key,
   });
 
   final bool visible;
   final int count;
+  final int? total;
   final bool preExisting;
 
   @override
   Widget build(BuildContext context) {
+    // Placeholder matches the widest plausible text for this slot's own
+    // total (count can never have more digits than total) so the header
+    // never shifts once the real count renders.
+    final placeholderTotal = total;
     return Stack(
       alignment: Alignment.centerRight,
       children: [
-        const Opacity(
+        Opacity(
           opacity: 0,
           child: CapabilitySelectionCountBadge(
-            count: 9,
+            count: placeholderTotal ?? 9,
+            total: placeholderTotal,
             preExisting: true,
           ),
         ),
         if (visible)
           CapabilitySelectionCountBadge(
             count: count,
+            total: total,
             preExisting: preExisting,
           ),
       ],
