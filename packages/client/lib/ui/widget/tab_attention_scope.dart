@@ -88,10 +88,8 @@ class TabAttentionController {
     return themeMode == ThemeMode.dark ? Brightness.dark : Brightness.light;
   }
 
-  TabAttentionDisplay get _currentDisplay => resolveTabAttentionDisplay(
-    unreadTotal: _unreadTotal,
-    isBackground: _isBackground,
-  );
+  TabAttentionDisplay get _currentDisplay =>
+      resolveTabAttentionDisplay(unreadTotal: _unreadTotal);
 
   Brightness _effectiveBrightness() => _resolveBrightness(_themeMode);
 

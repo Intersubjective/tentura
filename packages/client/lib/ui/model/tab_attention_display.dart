@@ -10,14 +10,12 @@ const tabAttentionNone = (count: 0, label: '');
 /// Above this the title shows `99+`.
 const kTabAttentionDisplayCap = 99;
 
-/// The whole product rule: tab chrome mirrors unread only while the tab is in
-/// the background; focusing clears it (the in-app Updates badge keeps the real
-/// count). See docs/plans/web-tab-unread-indicator-plan.md §2.
-TabAttentionDisplay resolveTabAttentionDisplay({
-  required int unreadTotal,
-  required bool isBackground,
-}) {
-  if (!isBackground || unreadTotal <= 0) return tabAttentionNone;
+/// Tab chrome mirrors the real unread count regardless of focus: the
+/// indicator no longer clears just because the tab became active — only the
+/// unread count itself clearing does that. Supersedes the background-gating
+/// rule in docs/plans/web-tab-unread-indicator-plan.md §2.
+TabAttentionDisplay resolveTabAttentionDisplay({required int unreadTotal}) {
+  if (unreadTotal <= 0) return tabAttentionNone;
   return (
     count: unreadTotal,
     label: unreadTotal > kTabAttentionDisplayCap

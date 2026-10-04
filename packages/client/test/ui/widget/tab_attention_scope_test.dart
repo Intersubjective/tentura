@@ -259,8 +259,11 @@ void main() {
           reason: 'setBaseTitle must not apply while attention is active',
         );
 
-        indicator.setBackground(false);
-        await settle();
+        await pushUnread(
+          repository: repository,
+          realtimeCase: realtimeCase,
+          unread: 0,
+        );
         expect(indicator.records.last.display, tabAttentionNone);
         expect(
           indicator.records.last.baseTitle,
@@ -374,12 +377,15 @@ void main() {
         unread: 2,
       );
 
-      indicator.setBackground(false);
-      await settle();
+      await pushUnread(
+        repository: repository,
+        realtimeCase: realtimeCase,
+        unread: 0,
+      );
 
       expect(indicator.records.last.display, tabAttentionNone);
-      expect(indicator.records.last.titleKey, (false, ''));
-      expect(indicator.records.last.badgeKey, (false, 0));
+      expect(indicator.records.last.titleKey, (true, ''));
+      expect(indicator.records.last.badgeKey, (true, 0));
     });
 
     test('account switch cannot repaint stale pending unread', () async {

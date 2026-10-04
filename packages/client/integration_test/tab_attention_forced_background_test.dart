@@ -17,14 +17,17 @@ import 'support/e2e_test_helpers.dart';
 /// Forced-background adapter regression (QA seam only).
 ///
 /// Asserts `window.__tenturaTabAttention` after a real unread receipt while
-/// `__tenturaForceTabBackground` is set before app init. Does **not** read or
-/// assert live `document.title` — raw DOM title while genuinely hidden remains
-/// a direct-CDP concern.
+/// `__tenturaForceTabBackground` is set before app init, and that the
+/// indicator persists after the tab becomes visible again — the indicator no
+/// longer clears on focus, only the unread count itself clearing does that.
+/// Does **not** read or assert live `document.title` — raw DOM title while
+/// genuinely hidden remains a direct-CDP concern.
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets(
-    'forced-background QA seam reflects unread receipt and clears on visible',
+    'forced-background QA seam reflects unread receipt and persists on '
+    'visible',
     (tester) async {
       _setForceTabBackground(true);
       expect(
@@ -99,30 +102,20 @@ void main() {
         'label=${active['label']} title=${active['title']}',
       );
 
-      // Clear via "visible" transition: drop the QA force override and notify
-      // the adapter so it re-reads isBackground (WebDriver cannot hide the tab).
+      // "Visible" transition: drop the QA force override and notify the
+      // adapter so it re-reads isBackground (WebDriver cannot hide the tab).
+      // The indicator must persist — only the unread count itself clearing
+      // does that now, not tab focus.
       _setForceTabBackground(false);
       _reemitTabBackground();
       await tester.pump();
+      await pumpSettleBounded(tester);
 
-      await _waitForQaState(
-        tester,
-        'clear indicator on visible',
-        () {
-          final state = _readTabAttentionQaState();
-          if (state == null) return false;
-          final count = _asInt(state['count']);
-          final label = state['label']?.toString() ?? '';
-          return count == 0 && label.isEmpty;
-        },
-        timeout: const Duration(seconds: 10),
-      );
-
-      final cleared = _readTabAttentionQaState();
-      expect(cleared, isNotNull);
-      expect(_asInt(cleared!['count']), 0);
-      expect(cleared['label']?.toString(), isEmpty);
-      expect(cleared['title']?.toString(), isNotEmpty);
+      final stillActive = _readTabAttentionQaState();
+      expect(stillActive, isNotNull);
+      expect(_asInt(stillActive!['count']), greaterThanOrEqualTo(1));
+      expect(stillActive['label']?.toString(), isNotEmpty);
+      expect(stillActive['title']?.toString(), isNotEmpty);
     },
   );
 }

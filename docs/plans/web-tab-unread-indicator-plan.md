@@ -14,6 +14,11 @@ One adversarial review round by Codex CLI against rev 1 (16 findings: 1 claimed
 BLOCKER, 9 MAJOR, 6 MINOR). All are folded in; §8 records every disposition,
 including the two findings that were **rejected as over-stated** and the one
 whose severity was **re-derived from code** rather than accepted as filed.
+
+**Superseded (2026-10-04):** the background-gating rule in §2 — clearing the
+indicator when the tab regains focus — was reversed by product decision. The
+indicator now mirrors the unread count regardless of focus; see
+`resolveTabAttentionDisplay` in `tab_attention_display.dart`.
 **Date:** 2026-08-11.
 **Scope:** client-only, web-only. No server, no new endpoint, no Caddy /
 container change. Native builds compile and behave exactly as today (no-op).
