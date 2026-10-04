@@ -133,6 +133,8 @@ class _BeaconCurrentLineSheetBodyState extends State<_BeaconCurrentLineSheetBody
             controller: _controller,
             decoration: InputDecoration(
               hintText: l10n.beaconRoomStripCurrentLineLabel,
+              helperText: l10n.beaconCurrentLineEditHelper,
+              helperMaxLines: 3,
             ),
             onChanged: (_) => setState(() {}),
             maxLength: kBeaconRoomCurrentLineMaxLength,

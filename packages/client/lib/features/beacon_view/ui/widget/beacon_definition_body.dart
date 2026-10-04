@@ -38,7 +38,7 @@ class BeaconDefinitionBody extends StatelessWidget {
         ],
         if (beacon.hasPicture) ...[
           if (requirementTags.isNotEmpty) SizedBox(height: tt.rowGap),
-          _BeaconDefinitionMediaBand(beacon: beacon),
+          BeaconDefinitionMediaBand(beacon: beacon),
         ],
         if (beacon.description.trim().isNotEmpty) ...[
           if (requirementTags.isNotEmpty || beacon.hasPicture)
@@ -58,8 +58,9 @@ class BeaconDefinitionBody extends StatelessWidget {
   }
 }
 
-class _BeaconDefinitionMediaBand extends StatelessWidget {
-  const _BeaconDefinitionMediaBand({required this.beacon});
+/// Cover photo (or gallery) band, sized per window class.
+class BeaconDefinitionMediaBand extends StatelessWidget {
+  const BeaconDefinitionMediaBand({required this.beacon, super.key});
 
   final Beacon beacon;
 

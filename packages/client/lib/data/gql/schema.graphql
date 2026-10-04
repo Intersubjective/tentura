@@ -7105,6 +7105,11 @@ type user {
   ): [mutual_score!]
 
   """
+  A computed field, executes function "user_get_shares_episode_with_viewer"
+  """
+  shares_episode_with_viewer: Boolean
+
+  """
   A computed field, executes function "user_get_trusts_viewer"
   """
   trusts_viewer: Boolean
@@ -7264,6 +7269,7 @@ input user_bool_exp {
   my_vote: Int_comparison_exp
   public_key: String_comparison_exp
   scores: mutual_score_bool_exp
+  shares_episode_with_viewer: Boolean_comparison_exp
   trusts_viewer: Boolean_comparison_exp
   updated_at: timestamptz_comparison_exp
   user_availability: user_availability_bool_exp
@@ -7388,6 +7394,7 @@ input user_order_by {
   my_vote: order_by
   public_key: order_by
   scores_aggregate: mutual_score_aggregate_order_by
+  shares_episode_with_viewer: order_by
   trusts_viewer: order_by
   updated_at: order_by
   user_availability: user_availability_order_by

@@ -27,6 +27,7 @@ import '../gql/_g/beacon_forwarding_open.req.gql.dart';
 import '../gql/_g/beacon_fork.req.gql.dart';
 import '../gql/_g/beacon_fetch_by_id.req.gql.dart';
 import '../gql/_g/beacon_admitted_helpers_roster.req.gql.dart';
+import '../gql/_g/beacon_team_acquaintances.req.gql.dart';
 import '../gql/_g/beacon_delete_by_id.req.gql.dart';
 import '../gql/_g/beacon_remove_image.req.gql.dart';
 import '../gql/_g/beacon_set_media.req.gql.dart';
@@ -138,14 +139,30 @@ class BeaconRepository implements BeaconWritePort {
       .request(GBeaconAdmittedHelpersRosterReq((b) => b.vars.id = id))
       .firstWhere((e) => e.dataSource == DataSource.Link)
       .then((r) {
-        final beacon = r
-            .dataOrThrow(label: _label)
-            .beacon_by_pk;
+        final beacon = r.dataOrThrow(label: _label).beacon_by_pk;
         if (beacon == null) return const <Profile>[];
         return [
           for (final row in beacon.admitted_helpers)
             (row.user as UserModel).toEntity(),
         ];
+      });
+
+  /// Admitted helpers the viewer knows: trusts them, or has shared a past
+  /// Request with them (`shares_episode_with_viewer`). Blocked users never
+  /// come back: the `user` select filter hides them.
+  Future<Set<String>> fetchTeamAcquaintanceIds(String id) => _remoteApiService
+      .request(GBeaconTeamAcquaintancesReq((b) => b.vars.id = id))
+      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .then((r) {
+        final beacon = r.dataOrThrow(label: _label).beacon_by_pk;
+        if (beacon == null) return const <String>{};
+        return {
+          for (final user in beacon.admitted_helpers.map((r) => r.user))
+            if (user != null &&
+                ((user.my_vote ?? 0) > 0 ||
+                    (user.shares_episode_with_viewer ?? false)))
+              user.id,
+        };
       });
 
   /// Server-side lineage fork → new DRAFT; refetch full beacon via Hasura.
