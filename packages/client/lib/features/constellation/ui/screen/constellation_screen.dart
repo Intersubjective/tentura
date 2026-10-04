@@ -18,6 +18,8 @@ import '../../domain/use_case/constellation_field_case.dart';
 import '../../domain/radius_recipient_selection.dart';
 import '../bloc/constellation_composer_cubit.dart';
 import '../bloc/constellation_cubit.dart';
+import '../util/constellation_focus_request.dart';
+import '../widget/constellation_camera_controls.dart';
 import '../widget/constellation_app_bar.dart';
 import '../widget/constellation_body.dart';
 import '../widget/constellation_create_entry.dart';
@@ -91,6 +93,43 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
 
   void _toggleLegend() => setState(() => _legendExpanded = !_legendExpanded);
 
+  final _focusRequest = ConstellationFocusRequest.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusRequest.pending.addListener(_takeFocusRequest);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _takeFocusRequest());
+  }
+
+  @override
+  void dispose() {
+    _focusRequest.pending.removeListener(_takeFocusRequest);
+    super.dispose();
+  }
+
+  /// Focuses a beacon another screen asked for, once the field is loaded.
+  void _takeFocusRequest() {
+    if (!mounted || _focusRequest.pending.value == null) return;
+    final cubit = context.read<ConstellationCubit>();
+    if (cubit.state.status is! StateIsSuccess || cubit.state.isComposing) {
+      return;
+    }
+    final beaconId = _focusRequest.take();
+    if (beaconId == null) return;
+    // A frame later, so a field that has just loaded is laid out.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      cubit.focusBeacon(
+        beaconId,
+        insets: ConstellationCameraControls.cameraViewportInsets(
+          context,
+          contextPanelVisible: true,
+        ),
+      );
+    });
+  }
+
   @override
   void deactivate() {
     final cubit = context.read<ConstellationCubit>();
@@ -123,6 +162,11 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
               }
             },
           ),
+        BlocListener<ConstellationCubit, ConstellationState>(
+          listenWhen: (prev, curr) =>
+              prev.status is! StateIsSuccess && curr.status is StateIsSuccess,
+          listener: (context, _) => _takeFocusRequest(),
+        ),
         BlocListener<HomeTabReselectCubit, HomeTabReselectState>(
           listenWhen: (prev, curr) =>
               prev.constellationReselectCount !=

@@ -2449,3 +2449,93 @@ Future<List<String>> fetchPostFirstResponseUserIds({
     );
   }
 }
+
+/// Runs a raw Hasura [query] as [asEmail] and returns its `data` map, while
+/// the app stays signed in as [restoreEmail] (see [postGraphQlAsUser]).
+Future<Map<String, dynamic>> _hasuraQueryAs({
+  required String query,
+  required String asEmail,
+  required String restoreEmail,
+}) async {
+  await _postJson(
+    '/api/v2/auth/email/test-login',
+    {'email': asEmail},
+    includeCredentials: true,
+  );
+  try {
+    final tokenResponse = await _postJson(
+      '/api/v2/session/access-token',
+      const <String, Object?>{},
+      includeCredentials: true,
+    );
+    final token = tokenResponse['access_token'] as String?;
+    if (token == null || token.isEmpty) {
+      throw StateError('access-token missing for $asEmail: $tokenResponse');
+    }
+    final result = await _postJson(
+      '/api/v1/graphql',
+      {'query': query},
+      includeCredentials: true,
+      extraHeaders: {'Authorization': 'Bearer $token'},
+    );
+    if (result['errors'] != null) {
+      throw StateError('Hasura query failed: ${result['errors']}');
+    }
+    return (result['data']! as Map).cast<String, dynamic>();
+  } finally {
+    await _postJson(
+      '/api/v2/auth/email/test-login',
+      {'email': restoreEmail},
+      includeCredentials: true,
+    );
+  }
+}
+
+/// `beacon.kind` of [beaconId] (0 Request, 1 Post), read through Hasura.
+Future<int?> fetchBeaconKind({
+  required String beaconId,
+  required String asEmail,
+  required String restoreEmail,
+}) async {
+  final data = await _hasuraQueryAs(
+    query: '{ beacon_by_pk(id: "$beaconId") { kind } }',
+    asEmail: asEmail,
+    restoreEmail: restoreEmail,
+  );
+  return (data['beacon_by_pk'] as Map?)?['kind'] as int?;
+}
+
+/// `beacon_participant.role` of [userId] on [beaconId]; null without a row.
+Future<int?> fetchParticipantRole({
+  required String beaconId,
+  required String userId,
+  required String asEmail,
+  required String restoreEmail,
+}) async {
+  final data = await _hasuraQueryAs(
+    query:
+        '{ beacon_participant(where: {beacon_id: {_eq: "$beaconId"}, '
+        'user_id: {_eq: "$userId"}}) { role } }',
+    asEmail: asEmail,
+    restoreEmail: restoreEmail,
+  );
+  final rows = (data['beacon_participant']! as List).cast<Map<String, dynamic>>();
+  return rows.isEmpty ? null : rows.first['role'] as int;
+}
+
+/// Number of `beacon_help_offer` rows by [userId] on [beaconId].
+Future<int> fetchHelpOfferCount({
+  required String beaconId,
+  required String userId,
+  required String asEmail,
+  required String restoreEmail,
+}) async {
+  final data = await _hasuraQueryAs(
+    query:
+        '{ beacon_help_offer(where: {beacon_id: {_eq: "$beaconId"}, '
+        'user_id: {_eq: "$userId"}}) { user_id } }',
+    asEmail: asEmail,
+    restoreEmail: restoreEmail,
+  );
+  return (data['beacon_help_offer']! as List).length;
+}

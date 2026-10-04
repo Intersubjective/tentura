@@ -5,31 +5,21 @@ import 'package:flutter/material.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
+import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/features/beacon_threads/domain/room_host.dart';
+import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
+import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_state.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_room_lease.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_room_surface.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_focus_request.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../bloc/post_view_cubit.dart';
-import '../widget/post_participants_sheet.dart';
-
-enum _PostAction {
-  pin,
-  unpin,
-  mute,
-  unmute,
-  participants,
-  forwardsGraph,
-  showOnField,
-  forward,
-  allowForwarding,
-  convertToRequest,
-  delete,
-  leave,
-}
+import '../widget/post_action.dart';
+import '../widget/post_info_sheet.dart';
 
 enum _MuteChoice {
   hour(Duration(hours: 1)),
@@ -43,6 +33,9 @@ enum _MuteChoice {
   final Duration? duration;
 }
 
+/// A Post is its room. The app bar names it and counts who is in it; a tap on
+/// it opens «О посте» with everything else. ↗ forwards, ⋮ keeps the
+/// shortcuts (mute, pin, complain / leave / delete).
 class PostViewScreen extends StatefulWidget {
   const PostViewScreen({required this.id, super.key});
 
@@ -66,19 +59,27 @@ class _PostViewScreenState extends State<PostViewScreen> {
   @override
   Widget build(BuildContext context) {
     final cubit = context.read<PostViewCubit>();
+    final l10n = L10n.of(context)!;
     return BlocBuilder<PostViewCubit, PostViewState>(
       builder: (context, state) => Scaffold(
         appBar: TenturaTopBar.of(
           context,
-          title: _Title(state: state),
+          title: _Title(
+            state: state,
+            onTap: () => unawaited(_run(context, PostAction.info)),
+          ),
           leading: BackButton(onPressed: () => Navigator.maybePop(context)),
           actions: [
-            if (state.summary?.isMutedAt(DateTime.now()) ?? false)
-              Icon(
-                Icons.notifications_off_outlined,
-                semanticLabel: L10n.of(context)!.postConversationMuted,
+            if (state.beacon.viewerCanForward)
+              IconButton(
+                icon: const Icon(Icons.north_east),
+                tooltip: l10n.labelForward,
+                onPressed: () => unawaited(_run(context, PostAction.forward)),
               ),
-            _Overflow(state: state),
+            _Overflow(
+              state: state,
+              onSelected: (action) => unawaited(_run(context, action)),
+            ),
           ],
         ),
         body: BeaconRoomSurface(
@@ -101,154 +102,51 @@ class _PostViewScreenState extends State<PostViewScreen> {
       forwardNote: edge?.note.trim() ?? '',
     );
   }
-}
 
-class _Title extends StatelessWidget {
-  const _Title({required this.state});
-
-  final PostViewState state;
-
-  @override
-  Widget build(BuildContext context) {
-    final author = state.beacon.author.shownName.isNotEmpty
-        ? state.beacon.author.shownName
-        : state.summary?.authorName ?? '';
-    final excerpt = state.summary?.rootExcerpt.trim() ?? '';
-    return Text(
-      excerpt.isEmpty
-          ? author
-          : L10n.of(context)!.postViewTitle(author, excerpt),
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-    );
-  }
-}
-
-class _Overflow extends StatelessWidget {
-  const _Overflow({required this.state});
-
-  final PostViewState state;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = L10n.of(context)!;
-    final beacon = state.beacon;
-    final viewerIsAuthor =
-        beacon.author.id == context.read<PostViewCubit>().myProfile.id;
-    return PopupMenuButton<_PostAction>(
-      icon: const Icon(Icons.more_vert),
-      onSelected: (action) => unawaited(_run(context, action)),
-      itemBuilder: (_) => [
-        if (state.summary?.isPinned ?? false)
-          PopupMenuItem(
-            value: _PostAction.unpin,
-            child: Text(l10n.postMenuUnpin),
-          )
-        else
-          PopupMenuItem(
-            value: _PostAction.pin,
-            child: Text(l10n.postMenuPin),
-          ),
-        if (state.summary?.isMutedAt(DateTime.now()) ?? false)
-          PopupMenuItem(
-            value: _PostAction.unmute,
-            child: Text(l10n.postMenuUnmute),
-          )
-        else
-          PopupMenuItem(
-            value: _PostAction.mute,
-            child: Text('${l10n.postMenuMute} ›'),
-          ),
-        PopupMenuItem(
-          value: _PostAction.participants,
-          child: Text(l10n.postMenuParticipants),
-        ),
-        PopupMenuItem(
-          value: _PostAction.forwardsGraph,
-          child: Text(l10n.forwardsGraphMenuTitle),
-        ),
-        PopupMenuItem(
-          value: _PostAction.showOnField,
-          child: Text(l10n.postMenuShowOnField),
-        ),
-        if (beacon.viewerCanForward)
-          PopupMenuItem(
-            value: _PostAction.forward,
-            child: Text(l10n.labelForward),
-          ),
-        if (viewerIsAuthor &&
-            beacon.forwardPolicy == BeaconForwardPolicyValue.closed)
-          PopupMenuItem(
-            value: _PostAction.allowForwarding,
-            child: Text(l10n.postMenuAllowForwarding),
-          ),
-        if (viewerIsAuthor)
-          PopupMenuItem(
-            value: _PostAction.convertToRequest,
-            child: Text(l10n.postMenuConvertToRequest),
-          ),
-        if (viewerIsAuthor)
-          PopupMenuItem(
-            value: _PostAction.delete,
-            child: Text(l10n.postMenuDelete),
-          ),
-        if (_viewerIsAddressee(context, viewerIsAuthor))
-          PopupMenuItem(
-            value: _PostAction.leave,
-            child: Text(l10n.postMenuLeave),
-          ),
-      ],
-    );
-  }
-
-  /// Only a recipient can leave; the author mutes or deletes instead.
-  bool _viewerIsAddressee(BuildContext context, bool viewerIsAuthor) {
-    if (viewerIsAuthor) return false;
-    final myId = context.read<PostViewCubit>().myProfile.id;
-    final participants =
-        context.read<ThreadHostCubit>().roomCubit?.state.participants ??
-        const [];
-    return participants.any(
-      (p) => p.userId == myId && p.role == BeaconParticipantRoleBits.addressee,
-    );
-  }
-
-  Future<void> _run(BuildContext context, _PostAction action) async {
+  Future<void> _run(BuildContext context, PostAction action) async {
     final cubit = context.read<PostViewCubit>();
     final screenCubit = context.read<ScreenCubit>();
+    final room = context.read<ThreadHostCubit>().roomCubit;
     final id = cubit.beaconId;
     switch (action) {
-      case _PostAction.pin:
-        await cubit.pin();
-      case _PostAction.unpin:
-        await cubit.unpin();
-      case _PostAction.mute:
+      case PostAction.info:
+        final picked = await showPostInfoSheet(
+          context,
+          cubit: cubit,
+          host: context.read<ThreadHostCubit>(),
+        );
+        if (picked != null && context.mounted) await _run(context, picked);
+      case PostAction.scrollToRoot:
+        final rootId = cubit.state.beacon.postRootMessageId;
+        if (rootId != null) room?.requestScrollToMessage(rootId);
+      case PostAction.forward:
+        await context.router.push(ForwardBeaconRoute(beaconId: id));
+      case PostAction.mute:
         final choice = await _pickMuteChoice(context);
         if (choice != null) await cubit.mute(choice.duration);
-      case _PostAction.unmute:
+      case PostAction.unmute:
         await cubit.unmute();
-      case _PostAction.leave:
-        if (await _confirmLeave(context) && context.mounted) {
-          await cubit.leave();
-        }
-      case _PostAction.participants:
-        final room = context.read<ThreadHostCubit>().roomCubit;
-        await showPostParticipantsSheet(
-          context,
-          participants: room?.state.participants ?? const [],
-        );
-      case _PostAction.forwardsGraph:
+      case PostAction.pin:
+        await cubit.pin();
+      case PostAction.unpin:
+        await cubit.unpin();
+      case PostAction.forwardsGraph:
         screenCubit.showForwardsGraphFor(id);
-      case _PostAction.showOnField:
+      case PostAction.showOnField:
+        ConstellationFocusRequest.instance.requested = id;
         screenCubit.showConstellation();
-      case _PostAction.forward:
-        await context.router.push(ForwardBeaconRoute(beaconId: id));
-      case _PostAction.allowForwarding:
+      case PostAction.allowForwarding:
         if (await _confirmAllowForwarding(context) && context.mounted) {
           await cubit.allowForwarding();
         }
-      case _PostAction.convertToRequest:
-        final discoverable = await _confirmConvert(context);
+      case PostAction.convertToRequest:
+        final discoverable = await _confirmConvert(
+          context,
+          participants: room?.state.participants ?? const [],
+          wasClosed:
+              cubit.state.beacon.forwardPolicy ==
+              BeaconForwardPolicyValue.closed,
+        );
         if (discoverable != null && context.mounted) {
           await context.router.push(
             BeaconCreateRoute(
@@ -257,7 +155,13 @@ class _Overflow extends StatelessWidget {
             ),
           );
         }
-      case _PostAction.delete:
+      case PostAction.complain:
+        screenCubit.showComplaint(id);
+      case PostAction.leave:
+        if (await _confirmLeave(context) && context.mounted) {
+          await cubit.leave();
+        }
+      case PostAction.delete:
         if (await _confirmDelete(context) && context.mounted) {
           await cubit.delete();
         }
@@ -333,18 +237,15 @@ class _Overflow extends StatelessWidget {
 
   /// M7: the author's confirmation; resolves to the chosen discoverability,
   /// or null when cancelled.
-  Future<bool?> _confirmConvert(BuildContext context) {
+  Future<bool?> _confirmConvert(
+    BuildContext context, {
+    required List<BeaconParticipant> participants,
+    required bool wasClosed,
+  }) {
     final l10n = L10n.of(context)!;
-    final others = (context
-                .read<ThreadHostCubit>()
-                .roomCubit
-                ?.state
-                .participants ??
-            const [])
+    final others = participants
         .where((p) => p.role != BeaconParticipantRoleBits.author)
         .length;
-    final wasClosed =
-        state.beacon.forwardPolicy == BeaconForwardPolicyValue.closed;
     var discoverable = true;
     return showDialog<bool>(
       context: context,
@@ -408,5 +309,225 @@ class _Overflow extends StatelessWidget {
           ),
         ) ??
         false;
+  }
+}
+
+/// «‹Автор›: ‹начало поста›» over «N участников · 🔕»; the whole title opens
+/// «О посте».
+class _Title extends StatelessWidget {
+  const _Title({required this.state, required this.onTap});
+
+  final PostViewState state;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final tt = context.tt;
+    final author = state.beacon.author.shownName.isNotEmpty
+        ? state.beacon.author.shownName
+        : state.summary?.authorName ?? '';
+    final excerpt = state.summary?.rootExcerpt.trim() ?? '';
+    final muted = state.summary?.isMutedAt(DateTime.now()) ?? false;
+    final title = excerpt.isEmpty
+        ? author
+        : l10n.postViewTitle(author, excerpt);
+    return Semantics(
+      button: true,
+      hint: l10n.postHeaderOpenInfo,
+      child: InkWell(
+        onTap: onTap,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TenturaText.titleSmall(tt.text),
+            ),
+            Row(
+              children: [
+                Flexible(
+                  child: _MembersLine(
+                    style: TenturaText.bodySmall(tt.textMuted),
+                  ),
+                ),
+                if (muted) ...[
+                  SizedBox(width: tt.tightGap),
+                  Icon(
+                    Icons.notifications_off_outlined,
+                    size: tt.iconSize,
+                    color: tt.textMuted,
+                    semanticLabel: l10n.postConversationMuted,
+                  ),
+                ],
+                if (state.summary?.isPinned ?? false) ...[
+                  SizedBox(width: tt.tightGap),
+                  Icon(
+                    Icons.push_pin_outlined,
+                    size: tt.iconSize,
+                    color: tt.textMuted,
+                    semanticLabel: l10n.postMenuUnpin,
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// «N участников», counted from the room once it is loaded.
+class _MembersLine extends StatelessWidget {
+  const _MembersLine({required this.style});
+
+  final TextStyle style;
+
+  @override
+  Widget build(BuildContext context) =>
+      BlocBuilder<ThreadHostCubit, ThreadHostState>(
+        builder: (context, _) {
+          final room = context.read<ThreadHostCubit>().roomCubit;
+          if (room == null) return const SizedBox.shrink();
+          return BlocBuilder<RoomCubit, RoomState>(
+            bloc: room,
+            buildWhen: (p, c) =>
+                p.participants != c.participants ||
+                p.participantsLoaded != c.participantsLoaded,
+            builder: (context, roomState) {
+              if (!roomState.participantsLoaded) {
+                return const SizedBox.shrink();
+              }
+              final count = roomState.participants
+                  .where((p) => p.roomAccess == RoomAccessBits.admitted)
+                  .length;
+              return Text(
+                L10n.of(context)!.postHeaderMembers(count),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: style,
+              );
+            },
+          );
+        },
+      );
+}
+
+/// ⋮: «О посте», mute and pin, then complain / leave / delete.
+class _Overflow extends StatelessWidget {
+  const _Overflow({required this.state, required this.onSelected});
+
+  final PostViewState state;
+  final ValueChanged<PostAction> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final now = DateTime.now();
+    final summary = state.summary;
+    final viewerId = context.read<PostViewCubit>().myProfile.id;
+    final viewerIsAuthor = state.beacon.author.id == viewerId;
+    final muted = summary?.isMutedAt(now) ?? false;
+
+    PopupMenuItem<PostAction> item(
+      PostAction value,
+      IconData icon,
+      String label, {
+      bool destructive = false,
+    }) => PopupMenuItem(
+      value: value,
+      child: _MenuRow(icon: icon, label: label, destructive: destructive),
+    );
+
+    return PopupMenuButton<PostAction>(
+      icon: const Icon(Icons.more_vert),
+      tooltip: MaterialLocalizations.of(context).showMenuTooltip,
+      onSelected: onSelected,
+      itemBuilder: (_) => [
+        item(PostAction.info, Icons.info_outline, l10n.postMenuInfo),
+        if (muted)
+          item(
+            PostAction.unmute,
+            Icons.notifications_active_outlined,
+            summary!.mutedForever
+                ? l10n.postMenuUnmuteForever
+                : l10n.postMenuUnmuteUntil(
+                    postMuteUntilTime(summary.mutedUntil!, now),
+                  ),
+          )
+        else
+          item(
+            PostAction.mute,
+            Icons.notifications_off_outlined,
+            '${l10n.postMenuMute} ›',
+          ),
+        if (summary?.isPinned ?? false)
+          item(PostAction.unpin, Icons.push_pin, l10n.postMenuUnpin)
+        else
+          item(PostAction.pin, Icons.push_pin_outlined, l10n.postMenuPin),
+        const PopupMenuDivider(),
+        if (!viewerIsAuthor)
+          item(PostAction.complain, Icons.flag_outlined, l10n.buttonComplaint),
+        if (_viewerIsAddressee(context, viewerId))
+          item(
+            PostAction.leave,
+            Icons.logout,
+            l10n.postMenuLeave,
+            destructive: true,
+          ),
+        if (viewerIsAuthor)
+          item(
+            PostAction.delete,
+            Icons.delete_outline,
+            l10n.postMenuDelete,
+            destructive: true,
+          ),
+      ],
+    );
+  }
+
+  /// Only a recipient can leave; the author mutes or deletes instead.
+  bool _viewerIsAddressee(BuildContext context, String viewerId) {
+    final participants =
+        context.read<ThreadHostCubit>().roomCubit?.state.participants ??
+        const [];
+    return participants.any(
+      (p) =>
+          p.userId == viewerId && p.role == BeaconParticipantRoleBits.addressee,
+    );
+  }
+}
+
+class _MenuRow extends StatelessWidget {
+  const _MenuRow({
+    required this.icon,
+    required this.label,
+    this.destructive = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool destructive;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final tt = context.tt;
+    final fg = destructive ? scheme.error : scheme.onSurface;
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: tt.iconSize,
+          color: destructive ? fg : scheme.onSurfaceVariant,
+        ),
+        SizedBox(width: tt.avatarTextGap),
+        Expanded(child: Text(label, style: TenturaText.bodyMedium(fg))),
+      ],
+    );
   }
 }

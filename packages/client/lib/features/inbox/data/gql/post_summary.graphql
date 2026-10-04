@@ -1,0 +1,7 @@
+# import 'post_summary_fields.graphql'
+
+query PostSummary($id: String!) {
+  postSummary(id: $id) {
+    ...PostSummaryFields
+  }
+}

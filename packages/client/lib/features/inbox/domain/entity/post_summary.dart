@@ -14,6 +14,7 @@ final class PostSummary {
     this.lastMessageExcerpt,
     this.pinnedAt,
     this.mutedUntil,
+    this.mutedForever = false,
     this.unreadCount = 0,
     this.isAuthor = false,
   });
@@ -30,11 +31,15 @@ final class PostSummary {
   final DateTime lastActivityAt;
   final DateTime? pinnedAt;
   final DateTime? mutedUntil;
+
+  /// Muted with no expiry ([mutedUntil] is null then).
+  final bool mutedForever;
   final int unreadCount;
   final bool isAuthor;
 
   bool get isPinned => pinnedAt != null;
 
   /// Mute expiry is silent: past [mutedUntil] the Post is simply not muted.
-  bool isMutedAt(DateTime now) => mutedUntil?.isAfter(now) ?? false;
+  bool isMutedAt(DateTime now) =>
+      mutedForever || (mutedUntil?.isAfter(now) ?? false);
 }

@@ -1,9 +1,9 @@
-// The Post participants screen lists who is in the conversation («В РАЗГОВОРЕ»)
-// and who has not opened it yet («ЕЩЁ НЕ ОТКРЫЛИ»), marks contacts, offers a
-// «[+ В контакты]» shortcut that reuses `ProfileViewCubit.addFriend`, shows who
-// brought a member in from the forward edges, opens a profile on tap, shows
-// the «Можно пересылать» + «Позвать» row and links to the
-// forwarding graph. Rows are located by what they show and where they sit, not
+// The Post participants list (a section of «О посте») lists who is in the
+// conversation («В РАЗГОВОРЕ») and who has not opened it yet («ЕЩЁ НЕ
+// ОТКРЫЛИ»), marks contacts, offers a «[+ В контакты]» shortcut that reuses
+// `ProfileViewCubit.addFriend`, shows who brought a member in from the
+// forward edges, opens a profile on tap, offers «Позвать» to a member who may
+// forward and links to the forwarding graph. Rows are located by what they show and where they sit, not
 // by keys, so any layout that renders the M5 mockup passes.
 // UI copy is asserted verbatim in Russian (docs/plans/post-ux-mockups.md, M5).
 
@@ -20,10 +20,9 @@ import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
-import 'package:tentura/features/post_view/ui/screen/post_participants_screen.dart';
+import 'package:tentura/features/post_view/ui/widget/post_participants_list.dart';
 import 'package:tentura/features/profile_view/ui/bloc/profile_view_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
-import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
@@ -162,6 +161,9 @@ class _Harness {
   final _RecordingRouter router;
   final FakeUiEffectPort effects;
 
+  int graphTaps = 0;
+  int inviteTaps = 0;
+
   /// Profile cubits created by the screen, by user id.
   final Map<String, _FakeProfileViewCubit> cubits;
 
@@ -196,10 +198,17 @@ Future<_Harness> _pump(
   Set<String> contactIds = const {'Umaria'},
   List<BeaconParticipant>? participants,
   List<ForwardEdge>? forwardEdges,
+  bool canInvite = true,
 }) async {
   final router = _RecordingRouter();
   final effects = FakeUiEffectPort();
   final cubits = <String, _FakeProfileViewCubit>{};
+  final harness = _Harness(
+    tester: tester,
+    router: router,
+    effects: effects,
+    cubits: cubits,
+  );
 
   await tester.binding.setSurfaceSize(const Size(420, 1000));
   addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -219,16 +228,19 @@ Future<_Harness> _pump(
             child: BlocProvider<ScreenCubit>(
               create: (_) => ScreenCubit(effects),
               child: Scaffold(
-                body: PostParticipantsScreen(
-                  beaconId: _postId,
-                  viewerId: _viewer.id,
-                  participants: participants ?? _participants(),
-                  forwardEdges: forwardEdges ?? _edges(),
-                  profileViewCubitFactory: (id) =>
-                      cubits[id] ??= _FakeProfileViewCubit(
-                        id,
-                        isFriend: contactIds.contains(id),
-                      ),
+                body: SingleChildScrollView(
+                  child: PostParticipantsList(
+                    viewerId: _viewer.id,
+                    participants: participants ?? _participants(),
+                    forwardEdges: forwardEdges ?? _edges(),
+                    onForwardsGraph: () => harness.graphTaps++,
+                    onInvite: canInvite ? () => harness.inviteTaps++ : null,
+                    profileViewCubitFactory: (id) =>
+                        cubits[id] ??= _FakeProfileViewCubit(
+                          id,
+                          isFriend: contactIds.contains(id),
+                        ),
+                  ),
                 ),
               ),
             ),
@@ -238,12 +250,7 @@ Future<_Harness> _pump(
     ),
   );
   await tester.pump(const Duration(milliseconds: 100));
-  return _Harness(
-    tester: tester,
-    router: router,
-    effects: effects,
-    cubits: cubits,
-  );
+  return harness;
 }
 
 final _addToContacts = find.textContaining('В контакты');
@@ -384,7 +391,7 @@ void main() {
       expect(
         h.hasBeside(
           'Света',
-          find.textContaining(RegExp(r'^позвал[а]? Мария$')),
+          find.text('позвал(а): Мария'),
         ),
         isTrue,
       );
@@ -466,21 +473,10 @@ void main() {
       await tester.tap(find.textContaining('Как пост дошёл до людей'));
       await tester.pump();
 
-      expect(
-        h.effects.emitted.whereType<NavigatePush>().map((e) => e.path),
-        contains('/graph/forwards/$_postId'),
-      );
+      expect(h.graphTaps, 1);
     });
 
-    testWidgets('shows «Можно пересылать» with «Позвать» when the Post is '
-        'open to forwarding', (tester) async {
-      await _pump(tester);
-
-      expect(find.text('Можно пересылать'), findsOneWidget);
-      expect(find.textContaining('Позвать'), findsOneWidget);
-    });
-
-    testWidgets('«Позвать» opens the forward flow for the Post', (
+    testWidgets('offers «Позвать» to a member who may forward', (
       tester,
     ) async {
       final h = await _pump(tester);
@@ -488,10 +484,15 @@ void main() {
       await tester.tap(find.textContaining('Позвать'));
       await tester.pump();
 
-      expect(h.router.pushed, hasLength(1));
-      final route = h.router.pushed.single;
-      expect(route, isA<ForwardBeaconRoute>());
-      expect((route.args! as ForwardBeaconRouteArgs).beaconId, _postId);
+      expect(h.inviteTaps, 1);
+    });
+
+    testWidgets('offers no «Позвать» to a member who may not forward', (
+      tester,
+    ) async {
+      await _pump(tester, canInvite: false);
+
+      expect(find.textContaining('Позвать'), findsNothing);
     });
   });
 }

@@ -63,6 +63,10 @@ final class _FakePostsRepository implements PostsRepositoryPort {
     if (fail) throw StateError('myPosts offline');
     return posts;
   }
+
+  @override
+  Future<PostSummary?> postSummary(String id) async =>
+      posts.where((p) => p.id == id).firstOrNull;
 }
 
 Future<void> _settle() async {

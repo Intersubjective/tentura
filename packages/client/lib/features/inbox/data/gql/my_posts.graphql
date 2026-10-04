@@ -1,17 +1,7 @@
+# import 'post_summary_fields.graphql'
+
 query MyPosts {
   myPosts {
-    id
-    authorId
-    authorName
-    authorAvatar
-    rootImageUrl
-    rootExcerpt
-    lastMessageExcerpt
-    lastMessageAt
-    lastActivityAt
-    pinnedAt
-    mutedUntil
-    unreadCount
-    isAuthor
+    ...PostSummaryFields
   }
 }

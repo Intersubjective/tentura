@@ -517,6 +517,85 @@ final class BeaconNotRequestException extends ExceptionBase {
       );
 }
 
+// «Who'll take it?» (baton) — plan §2.2/B2
+// (`docs/plans/baton-who-takes-it-plan.md`).
+
+final class BatonNotFoundException extends ExceptionBase {
+  const BatonNotFoundException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(BeaconExceptionCode.batonNotFound),
+        description: description ?? 'Baton not found',
+      );
+}
+
+final class BatonNotAuthorException extends ExceptionBase {
+  const BatonNotAuthorException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(BeaconExceptionCode.batonNotAuthor),
+        description: description ?? 'Only the baton author may do this',
+      );
+}
+
+final class BatonNotCandidateException extends ExceptionBase {
+  const BatonNotCandidateException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(
+          BeaconExceptionCode.batonNotCandidate,
+        ),
+        description: description ?? 'Not a candidate on this baton',
+      );
+}
+
+final class BatonNotCollectingException extends ExceptionBase {
+  const BatonNotCollectingException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(
+          BeaconExceptionCode.batonNotCollecting,
+        ),
+        description: description ?? 'Baton is no longer collecting answers',
+      );
+}
+
+final class BatonInvalidCandidatesException extends ExceptionBase {
+  const BatonInvalidCandidatesException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(
+          BeaconExceptionCode.batonInvalidCandidates,
+        ),
+        description: description ?? 'Invalid candidate list',
+      );
+}
+
+final class BatonAlreadyActiveException extends ExceptionBase {
+  const BatonAlreadyActiveException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(
+          BeaconExceptionCode.batonAlreadyActive,
+        ),
+        description: description ?? 'This message already has a live baton',
+      );
+}
+
+final class BatonTakerNotAvailableException extends ExceptionBase {
+  const BatonTakerNotAvailableException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(
+          BeaconExceptionCode.batonTakerNotAvailable,
+        ),
+        description: description ?? 'No eligible person is available to take it',
+      );
+}
+
+final class BatonMessageNotEligibleException extends ExceptionBase {
+  const BatonMessageNotEligibleException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(
+          BeaconExceptionCode.batonMessageNotEligible,
+        ),
+        description: description ?? 'A baton cannot start on this message',
+      );
+}
+
 final class EvaluationException extends ExceptionBase {
   EvaluationException({
     required EvaluationExceptionCode code,

@@ -6176,7 +6176,7 @@
   "postAllowForwardingAction": "Разрешить",
   "postDeleteConfirmTitle": "Удалить пост?",
   "postDeleteConfirmBody": "Пост и весь разговор будут удалены без возможности восстановления.",
-  "postForwardedByLine": "Вам переслала {sender}: «{note}»",
+  "postForwardedByLine": "{sender} переслал(а) вам: «{note}»",
   "@postForwardedByLine": {
     "placeholders": {
       "sender": {
@@ -6187,7 +6187,7 @@
       }
     }
   },
-  "postForwardedByLineNoNote": "Вам переслала {sender}",
+  "postForwardedByLineNoNote": "{sender} переслал(а) вам",
   "@postForwardedByLineNoNote": {
     "placeholders": {
       "sender": {
@@ -6222,7 +6222,7 @@
   },
   "postParticipantInContacts": "в контактах",
   "postParticipantAddToContacts": "+ В контакты",
-  "postParticipantBroughtBy": "позвала {name}",
+  "postParticipantBroughtBy": "позвал(а): {name}",
   "@postParticipantBroughtBy": {
     "placeholders": {
       "name": {
@@ -6283,6 +6283,62 @@
   "postConvertIrreversible": "Обратно в пост превратить нельзя.",
   "postConvertDiscoverable": "Люди в моём поле могут найти запрос",
   "postConvertNext": "Далее: детали →",
+  "postHeaderMembers": "{count, plural, one{{count} участник} few{{count} участника} many{{count} участников} other{{count} участника}}",
+  "@postHeaderMembers": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "postHeaderOpenInfo": "Открыть сведения о посте",
+  "postMenuInfo": "О посте",
+  "postMenuUnmuteUntil": "Включить звук · заглушено до {time}",
+  "@postMenuUnmuteUntil": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "postMenuUnmuteForever": "Включить звук · заглушено навсегда",
+  "postInfoForwardingOpen": "Можно пересылать: любой участник может позвать других",
+  "postInfoForwardingClosed": "Пересылать может только автор",
+  "postInfoActiveHours": "{count, plural, one{Активен ещё {count} час} few{Активен ещё {count} часа} many{Активен ещё {count} часов} other{Активен ещё {count} часа}}",
+  "@postInfoActiveHours": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "postInfoActiveDays": "{count, plural, one{Активен ещё {count} день} few{Активен ещё {count} дня} many{Активен ещё {count} дней} other{Активен ещё {count} дня}}",
+  "@postInfoActiveDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "postInfoQuiet": "Затих: новое сообщение вернёт его в «Сейчас»",
+  "postInfoPinned": "Закреплён в разговорах и не затихнет",
+  "postInfoMutedUntil": "Звук выключен до {time}",
+  "@postInfoMutedUntil": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "postInfoMutedForever": "Звук выключен навсегда",
+  "postInfoActionForward": "Переслать",
+  "postInfoActionMute": "Заглушить",
+  "postInfoActionUnmute": "Включить",
+  "postInfoActionPin": "Закрепить",
+  "postInfoActionUnpin": "Открепить",
+  "postInfoActionField": "На поле",
+  "postCreateForwardingOnHint": "Любой участник сможет переслать дальше. После отправки выключить будет нельзя.",
+  "postCreateForwardingOffHint": "Участвуют только те, кого вы позвали. Разрешить пересылку можно будет позже.",
   "beaconHudStepLabel": "ШАГ",
   "beaconHudStepEmptyEditable": "Следующий шаг не задан. Нажмите карандаш, чтобы указать",
   "beaconHudStepAttribution": "{name} · {when}",

@@ -249,6 +249,36 @@ INSERT INTO public.beacon_room_message_attachment
     expect(author.pinnedAt, isNull);
     expect(author.mutedUntil, isNull);
   });
+  test('a mute with no expiry reads as muted for good', () async {
+    final before = (await posts.myPosts(_member)).single;
+    expect(before.mutedForever, isFalse);
+    await writer.execute('''
+      INSERT INTO public.notification_beacon_mute
+        (account_id, beacon_id, muted_until)
+      VALUES ('$_member', '$_post', NULL)
+      ON CONFLICT (account_id, beacon_id) DO UPDATE SET muted_until = NULL
+    ''');
+    final member = (await posts.myPosts(_member)).single;
+    expect(member.mutedUntil, isNull);
+    expect(member.mutedForever, isTrue);
+    final author = (await posts.myPosts(_author)).single;
+    expect(author.mutedForever, isFalse);
+  });
+  test('postSummary returns one row, or null for a non-member', () async {
+    final member = await posts.postSummary(viewerId: _member, beaconId: _post);
+    expect(member?.id, _post);
+    expect(member?.isAuthor, isFalse);
+    final author = await posts.postSummary(viewerId: _author, beaconId: _post);
+    expect(author?.isAuthor, isTrue);
+    expect(
+      await posts.postSummary(viewerId: _stranger, beaconId: _post),
+      isNull,
+    );
+    expect(
+      await posts.postSummary(viewerId: _member, beaconId: 'Bpostsmissing'),
+      isNull,
+    );
+  });
   test('draft, deleted and converted Request rows are excluded', () async {
     for (final status in [3, 2]) {
       await writer.execute(

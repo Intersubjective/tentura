@@ -3,8 +3,8 @@ import 'dart:io';
 
 import 'package:test/test.dart';
 
-/// Shape of the m0218 Hasura exposure: `user.shares_episode_with_viewer`
-/// (#159, #104). Behaviour lives in `m0218_shares_episode_pg_test.dart`.
+/// Shape of the m0220 Hasura exposure: `user.shares_episode_with_viewer`
+/// (#159, #104). Behaviour lives in `m0220_shares_episode_pg_test.dart`.
 Map<String, dynamic> _userTable() {
   final metadata =
       jsonDecode(File('../../hasura/metadata.json').readAsStringSync())

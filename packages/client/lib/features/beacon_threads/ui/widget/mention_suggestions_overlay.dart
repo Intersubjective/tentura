@@ -6,12 +6,18 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/emoji/domain/emoji_catalog.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/presence_avatar.dart';
 
-const double _kMentionOverlayMaxWidth = 360;
+const double _kSuggestionsOverlayMaxWidth = 360;
 const double _kMentionSuggestionRowHeight = 56;
+const double _kEmojiSuggestionRowHeight = kMinInteractiveDimension;
 
+/// Most rows a composer suggestion list shows at once.
+const kComposerSuggestionsMaxRows = 5;
+
+/// `@` completion list above the composer.
 final class MentionSuggestionsOverlay extends StatelessWidget {
   const MentionSuggestionsOverlay({
     required this.suggestions,
@@ -31,10 +37,83 @@ final class MentionSuggestionsOverlay extends StatelessWidget {
   final void Function(int index) onHighlight;
 
   @override
+  Widget build(BuildContext context) => _ComposerSuggestionsOverlay(
+    itemCount: suggestions.length,
+    rowHeight: _kMentionSuggestionRowHeight,
+    anchor: anchor,
+    selectedIndex: selectedIndex,
+    onSelectIndex: (i) => onSelect(suggestions[i]),
+    onDismiss: onDismiss,
+    rowBuilder: (i, selected) => _MentionSuggestionRow(
+      participant: suggestions[i],
+      selected: selected,
+      onHover: () => onHighlight(i),
+      onTap: () => onSelect(suggestions[i]),
+    ),
+  );
+}
+
+/// `:shortcode` completion list above the composer.
+final class EmojiSuggestionsOverlay extends StatelessWidget {
+  const EmojiSuggestionsOverlay({
+    required this.suggestions,
+    required this.anchor,
+    required this.selectedIndex,
+    required this.onSelect,
+    required this.onDismiss,
+    required this.onHighlight,
+    super.key,
+  });
+
+  final List<EmojiMatch> suggestions;
+  final Rect anchor;
+  final int selectedIndex;
+  final void Function(EmojiMatch match) onSelect;
+  final VoidCallback onDismiss;
+  final void Function(int index) onHighlight;
+
+  @override
+  Widget build(BuildContext context) => _ComposerSuggestionsOverlay(
+    itemCount: suggestions.length,
+    rowHeight: _kEmojiSuggestionRowHeight,
+    anchor: anchor,
+    selectedIndex: selectedIndex,
+    onSelectIndex: (i) => onSelect(suggestions[i]),
+    onDismiss: onDismiss,
+    rowBuilder: (i, selected) => _EmojiSuggestionRow(
+      match: suggestions[i],
+      selected: selected,
+      onHover: () => onHighlight(i),
+      onTap: () => onSelect(suggestions[i]),
+    ),
+  );
+}
+
+/// Card of fixed-height rows placed just above [anchor]; a tap outside it
+/// dismisses, a tap inside selects the row under the pointer.
+final class _ComposerSuggestionsOverlay extends StatelessWidget {
+  const _ComposerSuggestionsOverlay({
+    required this.itemCount,
+    required this.rowHeight,
+    required this.anchor,
+    required this.selectedIndex,
+    required this.onSelectIndex,
+    required this.onDismiss,
+    required this.rowBuilder,
+  });
+
+  final int itemCount;
+  final double rowHeight;
+  final Rect anchor;
+  final int selectedIndex;
+  final void Function(int index) onSelectIndex;
+  final VoidCallback onDismiss;
+  final Widget Function(int index, bool selected) rowBuilder;
+
+  @override
   Widget build(BuildContext context) {
     final tt = context.tt;
-    final list = suggestions;
-    if (list.isEmpty) return const SizedBox.shrink();
+    if (itemCount <= 0) return const SizedBox.shrink();
 
     final viewport = MediaQuery.sizeOf(context);
     if (!viewport.isFinite || viewport.width <= 0 || viewport.height <= 0) {
@@ -42,8 +121,8 @@ final class MentionSuggestionsOverlay extends StatelessWidget {
     }
 
     const margin = TenturaSpacing.row;
-    final max = list.length < 5 ? list.length : 5;
-    final height = max * _kMentionSuggestionRowHeight;
+    final max = math.min(itemCount, kComposerSuggestionsMaxRows);
+    final height = max * rowHeight;
     final highlighted = selectedIndex.clamp(0, max - 1);
 
     final left = anchor.left
@@ -53,7 +132,7 @@ final class MentionSuggestionsOverlay extends StatelessWidget {
         )
         .toDouble();
     final width = math.min(
-      _kMentionOverlayMaxWidth,
+      _kSuggestionsOverlayMaxWidth,
       math.max<double>(0, viewport.width - left - margin),
     );
     final top = math.max(margin, anchor.top - height - margin);
@@ -82,11 +161,11 @@ final class MentionSuggestionsOverlay extends StatelessWidget {
                     return;
                   }
 
-                  final index =
-                      ((position.dy - top) / _kMentionSuggestionRowHeight)
-                          .floor()
-                          .clamp(0, max - 1);
-                  onSelect(list[index]);
+                  final index = ((position.dy - top) / rowHeight).floor().clamp(
+                    0,
+                    max - 1,
+                  );
+                  onSelectIndex(index);
                 },
               ),
             ),
@@ -104,13 +183,8 @@ final class MentionSuggestionsOverlay extends StatelessWidget {
                   children: [
                     for (var i = 0; i < max; i++)
                       SizedBox(
-                        height: _kMentionSuggestionRowHeight,
-                        child: _MentionSuggestionRow(
-                          participant: list[i],
-                          selected: i == highlighted,
-                          onHover: () => onHighlight(i),
-                          onTap: () => onSelect(list[i]),
-                        ),
+                        height: rowHeight,
+                        child: rowBuilder(i, i == highlighted),
                       ),
                   ],
                 ),
@@ -196,6 +270,72 @@ class _MentionSuggestionRow extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                       ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EmojiSuggestionRow extends StatelessWidget {
+  const _EmojiSuggestionRow({
+    required this.match,
+    required this.selected,
+    required this.onHover,
+    required this.onTap,
+  });
+
+  final EmojiMatch match;
+  final bool selected;
+  final VoidCallback onHover;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tt = context.tt;
+    final shortcode = ':${match.shortcode}:';
+    return Semantics(
+      identifier: TestIds.roomEmojiSuggestion(match.shortcode),
+      button: true,
+      selected: selected,
+      label: '${match.entry.emoji} $shortcode',
+      child: MouseRegion(
+        onEnter: (_) => onHover(),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: selected
+                  ? theme.colorScheme.surfaceContainerHighest
+                  : null,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: TenturaSpacing.cardPadding,
+              ),
+              child: Row(
+                children: [
+                  ExcludeSemantics(
+                    child: Text(
+                      match.entry.emoji,
+                      style: theme.textTheme.titleLarge,
+                    ),
+                  ),
+                  SizedBox(width: tt.avatarTextGap),
+                  Expanded(
+                    child: ExcludeSemantics(
+                      child: Text(
+                        shortcode,
+                        style: theme.textTheme.bodyMedium,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ),
                 ],

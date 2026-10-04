@@ -10,6 +10,13 @@ abstract class BeaconRepositoryPort {
   /// Open Post conversations visible to this viewer.
   Future<List<PostSummary>> myPosts(String viewerId);
 
+  /// The viewer's conversation row for one Post; null when the viewer is not
+  /// in it (left, not admitted, or the Post is gone).
+  Future<PostSummary?> postSummary({
+    required String viewerId,
+    required String beaconId,
+  });
+
   /// Creates the beacon row, attaches [imageIds] in order, then sets the
   /// cover last in the same transaction (so the composite membership FK sees
   /// the attachment row first). [coverImageId] must be a member of

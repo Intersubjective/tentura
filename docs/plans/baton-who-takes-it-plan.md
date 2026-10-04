@@ -99,7 +99,7 @@ The ru takeover line avoids gendered past tense on purpose (cf. the «позва
 
 ## 2. Architecture
 
-### 2.1 Storage (m0216, raw SQL; no Drift table classes, no Hasura tracking)
+### 2.1 Storage (m0219, raw SQL; no Drift table classes, no Hasura tracking)
 
 ```sql
 CREATE TABLE public.beacon_room_baton (
@@ -196,7 +196,7 @@ runs, REQUIRED-mode pg tests, definition of done). In short:
   not import data/api/ui; repositories return domain entities; use cases take ports.
 - Never edit generated files; regenerate (`dart run build_runner build --delete-conflicting-outputs`;
   client also `flutter gen-l10n`).
-- One new migration per unit, next free version (m0216 is expected for B1). Never edit a shipped
+- One new migration per unit, next free version (m0219 is expected for B1). Never edit a shipped
   migration. Every new SQL function gets a pg test; migration tests also check the upgrade path
   (`setUpDisposablePgWriter(target:, lastInclusiveVersion: '<previous>')` → `migrateDbSchema`).
 - Baton tables are **not** tracked in Hasura. Do not touch `hasura/metadata.json`.
@@ -218,7 +218,7 @@ runs, REQUIRED-mode pg tests, definition of done). In short:
 
 | # | Unit | Title | Depends on | Pkg |
 |---|---|---|---|---|
-| 1 | B1 | Schema m0216: baton tables, realtime triggers, erasure | — | server |
+| 1 | B1 | Schema m0219: baton tables, realtime triggers, erasure | — | server |
 | 2 | B2 | Domain: entities, `BatonSelectionPolicy`, exceptions | — | server |
 | 3 | B3 | Attention event types `batonAsked` / `batonTaken` / `batonAllAnswered` | — | server+client mirror |
 | 4 | B4 | `RoomBatonCase.create` + `respond` (repository, receipts) | B1, B2, B3 | server |
@@ -236,14 +236,14 @@ Critical path: B1 → B4 → B5 → B6 → B7 → C1 → C4 → V (B2, B3 run al
 
 ## 5. Units
 
-### B1 — Schema m0216: baton tables, realtime triggers, erasure
+### B1 — Schema m0219: baton tables, realtime triggers, erasure
 
-**Files:** create `packages/server/lib/data/database/migration/m0216.dart` (next free version), register
+**Files:** create `packages/server/lib/data/database/migration/m0219.dart` (next free version), register
 it in `_migrations.dart`. SQL from §2.1: both tables, constraints, indexes, the two realtime trigger
 functions + triggers (template `m0196.dart`, emit through `emit_realtime_entity_change`), entity kind
 `room_baton`. Add `room_baton` to the account-erasure path if it enumerates tables explicitly (follow what
 S7 did for `post_first_response`; CASCADE / SET NULL may be enough — prove it in the test).
-**Tests (write first, pg):** `test/data/database/m0216_room_baton_pg_test.dart`:
+**Tests (write first, pg):** `test/data/database/m0219_room_baton_pg_test.dart`:
 - upgrade path from the previous version creates both tables;
 - a second live baton on the same message violates `beacon_room_baton_live_per_message`; after setting
   the first to status 2 a new one inserts;

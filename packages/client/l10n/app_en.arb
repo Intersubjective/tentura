@@ -7315,6 +7315,62 @@
   "@postConvertNext": {
     "description": "Confirm button of the convert-to-Request confirmation; opens the Request form."
   },
+  "postHeaderMembers": "{count, plural, one{{count} participant} other{{count} participants}}",
+  "@postHeaderMembers": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "postHeaderOpenInfo": "Open post details",
+  "postMenuInfo": "About this post",
+  "postMenuUnmuteUntil": "Turn sound on · muted until {time}",
+  "@postMenuUnmuteUntil": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "postMenuUnmuteForever": "Turn sound on · muted for good",
+  "postInfoForwardingOpen": "Can be forwarded: any participant can bring others in",
+  "postInfoForwardingClosed": "Only the author can forward",
+  "postInfoActiveHours": "{count, plural, one{Active for {count} more hour} other{Active for {count} more hours}}",
+  "@postInfoActiveHours": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "postInfoActiveDays": "{count, plural, one{Active for {count} more day} other{Active for {count} more days}}",
+  "@postInfoActiveDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "postInfoQuiet": "Gone quiet: a new message brings it back to «Now»",
+  "postInfoPinned": "Pinned in conversations, so it won't go quiet",
+  "postInfoMutedUntil": "Muted until {time}",
+  "@postInfoMutedUntil": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "postInfoMutedForever": "Muted for good",
+  "postInfoActionForward": "Forward",
+  "postInfoActionMute": "Mute",
+  "postInfoActionUnmute": "Unmute",
+  "postInfoActionPin": "Pin",
+  "postInfoActionUnpin": "Unpin",
+  "postInfoActionField": "On field",
+  "postCreateForwardingOnHint": "Any participant can forward it further. Once sent, this can't be turned off.",
+  "postCreateForwardingOffHint": "Only the people you invite take part. You can allow forwarding later.",
   "beaconHudStepLabel": "NEXT STEP",
   "beaconHudStepEmptyEditable": "No next step yet. Tap the pencil to set one",
   "beaconHudStepAttribution": "{name} · {when}",

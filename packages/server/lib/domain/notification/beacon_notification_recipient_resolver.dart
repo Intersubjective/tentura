@@ -202,6 +202,9 @@ class BeaconNotificationRecipientResolver {
 
       case NotificationKind.roomMention:
       case NotificationKind.postFirstResponse:
+      case NotificationKind.batonAsked:
+      case NotificationKind.batonTaken:
+      case NotificationKind.batonAllAnswered:
         // Recipients are already resolved by AttentionIntentCase; legacy
         // BeaconNotificationIntent path has no directed list on this kind.
         break;
