@@ -1,0 +1,3 @@
+mutation RoomBatonCancel($batonId: String!) {
+  roomBatonCancel(batonId: $batonId)
+}

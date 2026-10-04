@@ -1,0 +1,6 @@
+mutation RoomBatonCreate(
+  $messageId: String!
+  $candidates: [v2_RoomBatonCandidateInput!]!
+) {
+  roomBatonCreate(messageId: $messageId, candidates: $candidates)
+}

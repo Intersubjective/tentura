@@ -235,7 +235,8 @@ class RoomCubit extends Cubit<RoomState> {
     final scope = switch (invalidation.entityType) {
       BeaconRoomEntityType.roomMessage ||
       BeaconRoomEntityType.roomReaction ||
-      BeaconRoomEntityType.roomPoll => _RoomRefreshScope.messages,
+      BeaconRoomEntityType.roomPoll ||
+      BeaconRoomEntityType.roomBaton => _RoomRefreshScope.messages,
       BeaconRoomEntityType.factCard => _RoomRefreshScope.facts,
       _ => _RoomRefreshScope.full,
     };

@@ -6,6 +6,7 @@ import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/quoted_fact.dart';
+import 'package:tentura/domain/entity/room_baton_data.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/domain/entity/room_message_hierarchy_payload.dart';
 import 'package:tentura/domain/entity/room_message_mention_span.dart';
@@ -30,6 +31,7 @@ abstract class RoomMessage with _$RoomMessage {
     String? linkedFactCardId,
     String? linkedPollingId,
     String? pollDataJson,
+    RoomBatonData? baton,
     String? linkedItemId,
     int? linkedEventKind,
     int? linkedItemKind,

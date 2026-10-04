@@ -11,6 +11,8 @@ import 'package:tentura/data/gql/tentura_v2_upload.dart';
 import 'package:tentura/domain/contacts/contact_name_overlay.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
+import 'package:tentura/data/gql/_g/schema.schema.gql.dart'
+    show Gv2_RoomBatonCandidateInput;
 import 'package:tentura/data/service/remote_api_client/remote_api_client_web.dart';
 import 'package:tentura/data/service/remote_api_service.dart'
     show DataSource, ErrorHandler;
@@ -19,6 +21,7 @@ import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/quoted_fact.dart';
+import 'package:tentura/domain/entity/room_baton_data.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_read_watermark.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
@@ -44,6 +47,10 @@ import '../gql/_g/room_message_list.req.gql.dart';
 import '../gql/_g/room_message_reaction_toggle.req.gql.dart';
 import '../gql/_g/room_message_target.req.gql.dart';
 import '../gql/_g/room_message_target.data.gql.dart';
+import '../gql/_g/room_baton_cancel.req.gql.dart';
+import '../gql/_g/room_baton_create.req.gql.dart';
+import '../gql/_g/room_baton_respond.req.gql.dart';
+import '../gql/_g/room_baton_select.req.gql.dart';
 import '../gql/_g/room_poll_create.req.gql.dart';
 import '../gql/_g/room_now_line_update.req.gql.dart';
 
@@ -88,6 +95,7 @@ class BeaconThreadsRepository {
     if (inv.entityType == BeaconRoomEntityType.roomMessage ||
         inv.entityType == BeaconRoomEntityType.roomReaction ||
         inv.entityType == BeaconRoomEntityType.roomPoll ||
+        inv.entityType == BeaconRoomEntityType.roomBaton ||
         inv.entityType == BeaconRoomEntityType.participant ||
         inv.entityType == BeaconRoomEntityType.factCard ||
         inv.entityType == BeaconRoomEntityType.coordinationItem ||
@@ -227,6 +235,7 @@ class BeaconThreadsRepository {
             linkedItemLinkedMessageId: m.linkedItemLinkedMessageId,
             linkedItemResolvedAt: m.linkedItemResolvedAt,
             pollDataJson: m.pollDataJson,
+            batonDataJson: m.batonDataJson,
             systemPayloadJson: m.systemPayloadJson,
             attachmentsJson: m.attachmentsJson,
             mentionSpansJson: m.mentionSpansJson,
@@ -315,6 +324,7 @@ class BeaconThreadsRepository {
     linkedItemLinkedMessageId: m.linkedItemLinkedMessageId,
     linkedItemResolvedAt: m.linkedItemResolvedAt,
     pollDataJson: m.pollDataJson,
+    batonDataJson: m.batonDataJson,
     systemPayloadJson: m.systemPayloadJson,
     attachmentsJson: m.attachmentsJson,
     mentionSpansJson: m.mentionSpansJson,
@@ -361,6 +371,7 @@ class BeaconThreadsRepository {
     required String? linkedItemLinkedMessageId,
     required String? linkedItemResolvedAt,
     required String? pollDataJson,
+    required String? batonDataJson,
     required String? systemPayloadJson,
     required String attachmentsJson,
     required String mentionSpansJson,
@@ -436,6 +447,7 @@ class BeaconThreadsRepository {
           ? DateTime.parse(linkedItemResolvedAt)
           : null,
       pollDataJson: pollDataJson,
+      baton: RoomBatonData.tryParse(batonDataJson),
       systemPayloadJson: systemPayloadJson,
       attachments: parseRoomMessageAttachmentsJson(attachmentsJson),
       mentionSpans: parseRoomMessageMentionSpansJson(mentionSpansJson),
@@ -814,6 +826,75 @@ class BeaconThreadsRepository {
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).RoomPollCreate);
   }
+
+  /// Starts a baton on [messageId]; returns the author's view of it.
+  Future<RoomBatonData?> batonCreate({
+    required String messageId,
+    required List<({String userId, int tier})> candidates,
+  }) => _remoteApiService
+      .request(
+        GRoomBatonCreateReq(
+          (b) => b.vars
+            ..messageId = messageId
+            ..candidates.replace([
+              for (final c in candidates)
+                Gv2_RoomBatonCandidateInput(
+                  (i) => i
+                    ..userId = c.userId
+                    ..tier = c.tier,
+                ),
+            ]),
+        ),
+      )
+      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .then(
+        (r) => RoomBatonData.tryParse(
+          r.dataOrThrow(label: _label).roomBatonCreate,
+        ),
+      );
+
+  /// Records the viewer's answer; returns their updated view.
+  Future<RoomBatonData?> batonRespond({
+    required String batonId,
+    required bool canHelp,
+  }) => _remoteApiService
+      .request(
+        GRoomBatonRespondReq(
+          (b) => b.vars
+            ..batonId = batonId
+            ..canHelp = canHelp,
+        ),
+      )
+      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .then(
+        (r) => RoomBatonData.tryParse(
+          r.dataOrThrow(label: _label).roomBatonRespond,
+        ),
+      );
+
+  /// Picks the taker: [userId] manually, or null to let the server choose.
+  Future<RoomBatonData?> batonSelect({
+    required String batonId,
+    String? userId,
+  }) => _remoteApiService
+      .request(
+        GRoomBatonSelectReq(
+          (b) => b.vars
+            ..batonId = batonId
+            ..userId = userId,
+        ),
+      )
+      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .then(
+        (r) => RoomBatonData.tryParse(
+          r.dataOrThrow(label: _label).roomBatonSelect,
+        ),
+      );
+
+  Future<bool> batonCancel({required String batonId}) => _remoteApiService
+      .request(GRoomBatonCancelReq((b) => b.vars.batonId = batonId))
+      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .then((r) => r.dataOrThrow(label: _label).roomBatonCancel);
 
   @disposeMethod
   Future<void> dispose() async {
