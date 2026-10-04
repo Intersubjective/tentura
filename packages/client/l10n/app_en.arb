@@ -7316,7 +7316,6 @@
     "description": "Confirm button of the convert-to-Request confirmation; opens the Request form."
   },
   "beaconHudStepLabel": "NEXT STEP",
-  "beaconHudBlockerLabel": "BLOCKER",
   "beaconHudStepEmptyEditable": "No next step yet. Tap the pencil to set one",
   "beaconHudStepAttribution": "{name} · {when}",
   "@beaconHudStepAttribution": {
@@ -7331,14 +7330,6 @@
   },
   "beaconHudCounterTeam": "{count, plural, =1{1 person in the team} other{{count} people in the team}}",
   "@beaconHudCounterTeam": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "beaconHudCounterMyItems": "{count, plural, =1{1 open item for you} other{{count} open items for you}}",
-  "@beaconHudCounterMyItems": {
     "placeholders": {
       "count": {
         "type": "int"

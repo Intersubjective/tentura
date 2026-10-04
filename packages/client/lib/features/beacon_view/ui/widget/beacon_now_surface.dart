@@ -189,7 +189,6 @@ class _BeaconNowSurfaceState extends State<BeaconNowSurface> {
                 onOpenTeam: admitted
                     ? () => _scrollTo(_teamKey)
                     : () => onSurfaceSelected(BeaconSurface.people),
-                onOpenMyItems: onOpenGeneralThread,
                 onOpenSubrequests: () => _scrollTo(_subrequestsKey),
                 onOpenFacts: () => unawaited(
                   showBeaconPinnedFactsSheet(context, cubit: beaconViewCubit),

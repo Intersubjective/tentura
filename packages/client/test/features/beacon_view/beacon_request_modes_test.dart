@@ -234,7 +234,7 @@ void main() {
       expect(find.byType(TenturaAvatar), findsNWidgets(2));
     });
 
-    testWidgets('the pinned HUD shows blocker and the attributed next step', (
+    testWidgets('the pinned HUD shows the attributed next step', (
       tester,
     ) async {
       await pump(
@@ -256,7 +256,7 @@ void main() {
           onEditStep: () {},
         ),
       );
-      expect(find.textContaining('No gate key'), findsOneWidget);
+      expect(find.textContaining('No gate key'), findsNothing);
       expect(find.textContaining('Frame on Saturday'), findsOneWidget);
       expect(find.textContaining('Olga · '), findsOneWidget);
       expect(find.bySemanticsLabel('2 people in the team'), findsOneWidget);

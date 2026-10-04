@@ -12,16 +12,16 @@ import 'package:tentura/ui/widget/beacon_hud_metadata_table.dart';
 import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 import 'package:tentura/ui/widget/hud_labeled_multiline.dart';
 
-/// Pinned top of the Request HUD (#104): YOU, BLOCKER, NEXT STEP and a
-/// counters strip. Stays put while the rest of Now scrolls; empty rows drop
-/// out (no blocker, no row).
+/// Pinned top of the Request HUD (#104): YOU, NEXT STEP and a counters
+/// strip. Stays put while the rest of Now scrolls; empty rows drop out.
+/// (Coordination items are retired, so there is no BLOCKER row or "my open
+/// items" counter; participant scenarios will reuse that slot.)
 class BeaconHudPinnedBlock extends StatelessWidget {
   const BeaconHudPinnedBlock({
     required this.state,
     this.onEditStep,
     this.onReviewAuthorOffers,
     this.onOpenTeam,
-    this.onOpenMyItems,
     this.onOpenSubrequests,
     this.onOpenFacts,
     this.subrequestCount = 0,
@@ -35,7 +35,6 @@ class BeaconHudPinnedBlock extends StatelessWidget {
   final VoidCallback? onEditStep;
   final VoidCallback? onReviewAuthorOffers;
   final VoidCallback? onOpenTeam;
-  final VoidCallback? onOpenMyItems;
   final VoidCallback? onOpenSubrequests;
   final VoidCallback? onOpenFacts;
   final int subrequestCount;
@@ -43,7 +42,6 @@ class BeaconHudPinnedBlock extends StatelessWidget {
   /// Clock for "2 h ago"; tests pin it.
   final DateTime? now;
 
-  static const blockerIcon = Icons.block_outlined;
 
   @override
   Widget build(BuildContext context) {
@@ -78,14 +76,13 @@ class BeaconHudPinnedBlock extends StatelessWidget {
                     includeNow: false,
                     onReviewAuthorOffers: onReviewAuthorOffers,
                   ),
-                  ..._blockerAndStep(context, l10n),
+                  ..._step(context, l10n),
                 ],
               ),
             _HudCounters(
               state: state,
               subrequestCount: subrequestCount,
               onOpenTeam: onOpenTeam,
-              onOpenMyItems: onOpenMyItems,
               onOpenSubrequests: onOpenSubrequests,
               onOpenFacts: onOpenFacts,
             ),
@@ -95,7 +92,7 @@ class BeaconHudPinnedBlock extends StatelessWidget {
     );
   }
 
-  List<BeaconHudMetadataEntry> _blockerAndStep(
+  List<BeaconHudMetadataEntry> _step(
     BuildContext context,
     L10n l10n,
   ) {
@@ -110,24 +107,6 @@ class BeaconHudPinnedBlock extends StatelessWidget {
     }
     final cue = state.beaconRoomCue;
     final entries = <BeaconHudMetadataEntry>[];
-
-    final blocker =
-        cue?.openBlockerTitle?.trim() ??
-        state.openCoordinationBlocker?.title.trim() ??
-        '';
-    if (blocker.isNotEmpty) {
-      entries.add(
-        BeaconHudMetadataEntry(
-          icon: blockerIcon,
-          semanticsLabel: l10n.beaconHudBlockerLabel,
-          body: _LabeledLine(
-            label: l10n.beaconHudBlockerLabel,
-            text: blocker,
-            color: tt.danger,
-          ),
-        ),
-      );
-    }
 
     final step = cue?.currentLine.trim() ?? '';
     final editor = step.isEmpty ? null : beaconStepEditorName(state);
@@ -194,9 +173,7 @@ class _LabeledLine extends StatelessWidget {
             children: [
               TextSpan(
                 text: '$label  ',
-                style: TenturaText.typeLabel(
-                  color == tt.danger ? tt.danger : tt.textMuted,
-                ),
+                style: TenturaText.typeLabel(tt.textMuted),
               ),
               TextSpan(
                 text: text,
@@ -224,7 +201,6 @@ class _HudCounters extends StatelessWidget {
     required this.state,
     required this.subrequestCount,
     this.onOpenTeam,
-    this.onOpenMyItems,
     this.onOpenSubrequests,
     this.onOpenFacts,
   });
@@ -232,7 +208,6 @@ class _HudCounters extends StatelessWidget {
   final BeaconViewState state;
   final int subrequestCount;
   final VoidCallback? onOpenTeam;
-  final VoidCallback? onOpenMyItems;
   final VoidCallback? onOpenSubrequests;
   final VoidCallback? onOpenFacts;
 
@@ -241,10 +216,6 @@ class _HudCounters extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
     final team = 1 + state.beacon.admittedHelperCount;
-    final you = state.youResponsibility;
-    final myItems = you == null
-        ? 0
-        : you.askOpen + you.promiseOpen + you.blockerOpen;
     final facts = activePinnedFacts(state.factCards).length;
     // Offers waiting on the author are the team's open door: flag it.
     final pending = state.isAuthorOrSteward
@@ -259,13 +230,6 @@ class _HudCounters extends StatelessWidget {
         onTap: onOpenTeam,
         attention: pending > 0,
       ),
-      if (myItems > 0)
-        _HudCounter(
-          icon: Icons.check_box_outline_blank,
-          value: '$myItems',
-          semanticsLabel: l10n.beaconHudCounterMyItems(myItems),
-          onTap: onOpenMyItems,
-        ),
       if (subrequestCount > 0)
         _HudCounter(
           icon: Icons.subdirectory_arrow_right,
