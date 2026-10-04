@@ -45,6 +45,13 @@ fragment BeaconModel on beacon {
       count
     }
   }
+  # Offers made through the participant path (BeaconParticipantOfferHelp) live
+  # in beacon_participant, not beacon_help_offer; 1 = offered, 5 = admitted.
+  participant_help_offers: beacon_participants(
+    where: { status: { _in: [1, 5] } }
+  ) {
+    id
+  }
   unanswered_help_offers: help_offers_aggregate(
     # Unreviewed = active offer (status 0) with no coordination row (author has not responded).
     where: { status: { _eq: 0 }, _not: { coordination: {} } }
