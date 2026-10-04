@@ -6,16 +6,17 @@
 import 'dart:async' as _i3;
 
 import 'package:mockito/mockito.dart' as _i1;
-import 'package:mockito/src/dummies.dart' as _i11;
-import 'package:tentura_root/domain/entity/beacon_cover_source.dart' as _i8;
-import 'package:tentura_root/domain/entity/beacon_status.dart' as _i9;
+import 'package:mockito/src/dummies.dart' as _i12;
+import 'package:tentura_root/domain/entity/beacon_cover_source.dart' as _i9;
+import 'package:tentura_root/domain/entity/beacon_status.dart' as _i10;
 import 'package:tentura_server/domain/capability/capability_evidence_models.dart'
     as _i6;
 import 'package:tentura_server/domain/entity/beacon_entity.dart' as _i2;
-import 'package:tentura_server/domain/entity/beacon_kind.dart' as _i10;
+import 'package:tentura_server/domain/entity/beacon_kind.dart' as _i11;
 import 'package:tentura_server/domain/entity/beacon_media_state.dart' as _i4;
+import 'package:tentura_server/domain/entity/post_summary.dart' as _i8;
 import 'package:tentura_server/domain/port/band_candidate_port.dart' as _i5;
-import 'package:tentura_server/domain/port/beacon_access_guard.dart' as _i12;
+import 'package:tentura_server/domain/port/beacon_access_guard.dart' as _i13;
 import 'package:tentura_server/domain/port/beacon_repository_port.dart' as _i7;
 
 // ignore_for_file: type=lint
@@ -101,6 +102,16 @@ class MockBeaconRepositoryPort extends _i1.Mock
   }
 
   @override
+  _i3.Future<List<_i8.PostSummary>> myPosts(String? viewerId) =>
+      (super.noSuchMethod(
+            Invocation.method(#myPosts, [viewerId]),
+            returnValue: _i3.Future<List<_i8.PostSummary>>.value(
+              <_i8.PostSummary>[],
+            ),
+          )
+          as _i3.Future<List<_i8.PostSummary>>);
+
+  @override
   _i3.Future<_i2.BeaconEntity> createBeacon({
     required String? authorId,
     required String? title,
@@ -116,15 +127,15 @@ class MockBeaconRepositoryPort extends _i1.Mock
     int? ticker = 0,
     String? primaryNeedSlug,
     String? coverImageId,
-    _i8.BeaconCoverSource? coverSource = _i8.BeaconCoverSource.photo,
-    _i9.BeaconStatus? status,
+    _i9.BeaconCoverSource? coverSource = _i9.BeaconCoverSource.photo,
+    _i10.BeaconStatus? status,
     String? addressLabel,
     String? lineageParentBeaconId,
     String? lineageRootBeaconId,
     bool? isDiscoverable,
-    _i10.BeaconKind? kind = _i10.BeaconKind.request,
-    _i10.BeaconForwardPolicyValue? forwardPolicy =
-        _i10.BeaconForwardPolicyValue.open,
+    _i11.BeaconKind? kind = _i11.BeaconKind.request,
+    _i11.BeaconForwardPolicyValue? forwardPolicy =
+        _i11.BeaconForwardPolicyValue.open,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#createBeacon, [], {
@@ -437,8 +448,8 @@ class MockBeaconRepositoryPort extends _i1.Mock
               #fn: fn,
             }),
             returnValue:
-                _i11.ifNotNull(
-                  _i11.dummyValueOrNull<T>(
+                _i12.ifNotNull(
+                  _i12.dummyValueOrNull<T>(
                     this,
                     Invocation.method(#runInBeaconStateTransaction, [], {
                       #beaconId: beaconId,
@@ -471,7 +482,7 @@ class MockBeaconRepositoryPort extends _i1.Mock
   @override
   _i3.Future<void> setForwardPolicy({
     required String? beaconId,
-    required _i10.BeaconForwardPolicyValue? policy,
+    required _i11.BeaconForwardPolicyValue? policy,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#setForwardPolicy, [], {
@@ -581,8 +592,8 @@ class MockBeaconRepositoryPort extends _i1.Mock
   @override
   _i3.Future<void> recordBeaconStatusTransition({
     required String? beaconId,
-    required _i9.BeaconStatus? fromStatus,
-    required _i9.BeaconStatus? toStatus,
+    required _i10.BeaconStatus? fromStatus,
+    required _i10.BeaconStatus? toStatus,
     required String? reason,
     required String? actorId,
   }) =>
@@ -751,7 +762,7 @@ class MockBeaconRepositoryPort extends _i1.Mock
     required String? beaconId,
     required List<String>? imageIds,
     required String? coverImageId,
-    required _i8.BeaconCoverSource? coverSource,
+    required _i9.BeaconCoverSource? coverSource,
     String? coverThumbImageId,
   }) =>
       (super.noSuchMethod(
@@ -770,7 +781,7 @@ class MockBeaconRepositoryPort extends _i1.Mock
   _i3.Future<void> setCover({
     required String? beaconId,
     required String? coverImageId,
-    required _i8.BeaconCoverSource? coverSource,
+    required _i9.BeaconCoverSource? coverSource,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#setCover, [], {
@@ -820,7 +831,7 @@ class MockBeaconRepositoryPort extends _i1.Mock
 /// A class which mocks [BeaconAccessGuard].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockBeaconAccessGuard extends _i1.Mock implements _i12.BeaconAccessGuard {
+class MockBeaconAccessGuard extends _i1.Mock implements _i13.BeaconAccessGuard {
   MockBeaconAccessGuard() {
     _i1.throwOnMissingStub(this);
   }
