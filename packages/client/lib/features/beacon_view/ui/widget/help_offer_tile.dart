@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
@@ -13,6 +12,7 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
+import 'package:tentura/ui/utils/relative_time.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/features/capability/ui/widget/forward_capability_chips.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
@@ -76,6 +76,10 @@ class HelpOfferTile extends StatelessWidget {
     final theme = Theme.of(context);
     final tt = context.tt;
     final isWithdrawn = helpOffer.isWithdrawn;
+    // A declined offer is stored as withdrawn too; say what really happened
+    // and keep the author's reason visible (UI review, People tab).
+    final isDeclinedByAuthor =
+        helpOffer.admissionAction == HelpOfferAdmissionAction.decline;
     final dateShown = isWithdrawn ? helpOffer.updatedAt : helpOffer.createdAt;
     final roomAccess = helpOffer.roomAccess ?? participant?.roomAccess;
     final isAdmitted = roomAccess == RoomAccessBits.admitted;
@@ -97,12 +101,19 @@ class HelpOfferTile extends StatelessWidget {
         !isWithdrawn && helpOffer.user.id != beaconAuthorId;
     final participantMeta = participant;
     final nextMove = participantMeta?.nextMoveText?.trim();
-    final locale = Localizations.localeOf(context).toString();
-    final participantUpdated = participantMeta == null
+    // One timestamp format per card (UI review #205), and no "Updated" line
+    // when it would repeat the header time.
+    final participantUpdatedAt = participantMeta?.updatedAt.toLocal();
+    final participantUpdated =
+        participantUpdatedAt == null ||
+            participantUpdatedAt
+                    .difference(dateShown.toLocal())
+                    .inMinutes
+                    .abs() <
+                1
         ? null
-        : DateFormat.yMMMd(
-            locale,
-          ).add_Hm().format(participantMeta.updatedAt.toLocal());
+        : '${dateFormatYMD(participantUpdatedAt)} · '
+              '${timeFormatHm(participantUpdatedAt)}';
     final stakeParticipationLabel = helpOfferStakeParticipationLabel(
       l10n,
       helpOffer.stakeState,
@@ -198,15 +209,27 @@ class HelpOfferTile extends StatelessWidget {
                             ),
                             const SizedBox(height: 2),
                           ],
-                          TenturaMetaText(
-                            '${dateFormatYMD(dateShown.toLocal())} · ${timeFormatHm(dateShown.toLocal())}'
-                            '${helpOffer.isEdited ? ' · ${l10n.labelEdited}' : ''}',
+                          // Relative like the My Work card that opens this
+                          // tile; the exact stamp stays one hover away.
+                          Tooltip(
+                            message:
+                                '${dateFormatYMD(dateShown.toLocal())} · '
+                                '${timeFormatHm(dateShown.toLocal())}',
+                            child: TenturaMetaText(
+                              '${_offerWhen(dateShown, l10n)}'
+                              '${helpOffer.isEdited ? ' · ${l10n.labelEdited}' : ''}',
+                            ),
                           ),
                         ],
                       ),
                     ),
                     const SizedBox(width: 6),
-                    if (isWithdrawn)
+                    if (isDeclinedByAuthor)
+                      TenturaStatusText(
+                        l10n.helpOfferStatusDeclined,
+                        tone: TenturaTone.danger,
+                      )
+                    else if (isWithdrawn)
                       TenturaStatusText(l10n.labelWithdrawn)
                     else if (stakeParticipationLabel != null)
                       TenturaStatusText(stakeParticipationLabel),
@@ -322,7 +345,7 @@ class HelpOfferTile extends StatelessWidget {
               style: TenturaText.status(theme.colorScheme.onSurfaceVariant),
             ),
           ],
-          if (!isWithdrawn &&
+          if ((!isWithdrawn || isDeclinedByAuthor) &&
               !showAuthorStar &&
               !(helpOffer.offerKind == 1 &&
                   !isAdmitted &&
@@ -394,6 +417,14 @@ String _backupHintText({
   return isMine ? l10n.helpOfferBackupHintMine : l10n.helpOfferBackupHint;
 }
 
+/// "12m ago" for the past week, then the calendar date.
+String _offerWhen(DateTime when, L10n l10n) {
+  final now = DateTime.now();
+  final local = when.toLocal();
+  if (now.difference(local).inDays >= 7) return dateFormatYMD(local);
+  return compactRelativeTimeAgo(when: when, now: now, l10n: l10n);
+}
+
 class _DirectForwardChip extends StatelessWidget {
   const _DirectForwardChip({required this.label});
 
@@ -403,20 +434,25 @@ class _DirectForwardChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final tt = context.tt;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.secondaryContainer,
-        borderRadius: BorderRadius.circular(tt.buttonRadius),
-      ),
-      child: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: tt.tightGap,
-          vertical: tt.tightGap / 2,
+    // Hug the label: in the stretched card column a bare DecoratedBox
+    // became a full-width highlight band.
+    return Align(
+      alignment: AlignmentDirectional.centerStart,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.secondaryContainer,
+          borderRadius: BorderRadius.circular(tt.buttonRadius),
         ),
-        child: Text(
-          label,
-          style: TenturaText.labelSmall(
-            theme.colorScheme.onSecondaryContainer,
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: tt.tightGap,
+            vertical: tt.tightGap / 2,
+          ),
+          child: Text(
+            label,
+            style: TenturaText.labelSmall(
+              theme.colorScheme.onSecondaryContainer,
+            ),
           ),
         ),
       ),
@@ -549,7 +585,8 @@ class _AuthorAdmissionFooter extends StatelessWidget {
     required this.reason,
     required this.onAccept,
     required this.onDecline,
-    required this.offerUserId, this.onReleaseCommitment,
+    required this.offerUserId,
+    this.onReleaseCommitment,
   });
 
   final L10n l10n;
@@ -636,76 +673,37 @@ class _AuthorAdmissionFooter extends StatelessWidget {
           ),
           SizedBox(height: tt.tightGap),
         ],
-        if (context.windowClass == WindowClass.compact)
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (onAccept != null)
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TenturaTextAction(
-                    key: TestIds.key(TestIds.helpOfferAccept(offerUserId)),
-                    semanticsIdentifier: TestIds.helpOfferAccept(offerUserId),
-                    label: l10n.helpOfferAdmissionAccept,
-                    onPressed: onAccept,
-                    tone: TenturaTone.good,
-                    icon: const Icon(Icons.check_outlined),
-                  ),
+        // A real decision row (UI review, People tab): tonal Accept as the
+        // primary answer, quiet Decline beside it — not two coloured text
+        // links stacked on phones.
+        Row(
+          children: [
+            if (onAccept != null)
+              FilledButton.tonalIcon(
+                key: TestIds.key(TestIds.helpOfferAccept(offerUserId)),
+                onPressed: onAccept,
+                icon: const Icon(Icons.check),
+                label: Semantics(
+                  identifier: TestIds.helpOfferAccept(offerUserId),
+                  child: Text(l10n.helpOfferAdmissionAccept),
                 ),
-              if (onDecline != null) ...[
-                if (onAccept != null) SizedBox(height: tt.tightGap),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TenturaTextAction(
-                    key: TestIds.key(TestIds.helpOfferDecline(offerUserId)),
-                    semanticsIdentifier: TestIds.helpOfferDecline(offerUserId),
-                    label: l10n.helpOfferAdmissionDecline,
-                    onPressed: onDecline,
-                    tone: TenturaTone.danger,
-                    icon: const Icon(Icons.close_outlined),
-                  ),
+              ),
+            if (onAccept != null && onDecline != null)
+              SizedBox(width: tt.rowGap),
+            if (onDecline != null)
+              TextButton(
+                key: TestIds.key(TestIds.helpOfferDecline(offerUserId)),
+                onPressed: onDecline,
+                style: TextButton.styleFrom(
+                  foregroundColor: Theme.of(context).colorScheme.error,
                 ),
-              ],
-            ],
-          )
-        else
-          Row(
-            children: [
-              if (onAccept != null)
-                TenturaTextAction(
-                  key: TestIds.key(TestIds.helpOfferAccept(offerUserId)),
-                  semanticsIdentifier: TestIds.helpOfferAccept(offerUserId),
-                  label: l10n.helpOfferAdmissionAccept,
-                  onPressed: onAccept,
-                  tone: TenturaTone.good,
-                  icon: const Icon(Icons.check_outlined),
+                child: Semantics(
+                  identifier: TestIds.helpOfferDecline(offerUserId),
+                  child: Text(l10n.helpOfferAdmissionDecline),
                 ),
-              if (onAccept != null && onDecline != null)
-                SizedBox(width: tt.tightGap),
-              if (onDecline != null)
-                TenturaTextAction(
-                  key: TestIds.key(TestIds.helpOfferDecline(offerUserId)),
-                  semanticsIdentifier: TestIds.helpOfferDecline(offerUserId),
-                  label: l10n.helpOfferAdmissionDecline,
-                  onPressed: onDecline,
-                  tone: TenturaTone.danger,
-                  icon: const Icon(Icons.close_outlined),
-                ),
-            ],
-          ),
-        if (onReleaseCommitment != null) ...[
-          SizedBox(height: tt.tightGap),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TenturaTextAction(
-              key: TestIds.key(TestIds.helpOfferRelease(offerUserId)),
-              semanticsIdentifier: TestIds.helpOfferRelease(offerUserId),
-              label: l10n.helpOfferReleaseCommitment,
-              onPressed: onReleaseCommitment,
-              tone: TenturaTone.neutral,
-            ),
-          ),
-        ],
+              ),
+          ],
+        ),
       ],
     );
   }

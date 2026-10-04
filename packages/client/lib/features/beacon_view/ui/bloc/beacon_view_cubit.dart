@@ -35,6 +35,7 @@ import 'package:tentura/features/post_view/data/repository/post_membership_repos
 import 'package:tentura/features/closure/domain/entity/beacon_close_result.dart';
 import 'package:tentura/features/closure/domain/entity/closure_state.dart';
 
+import '../../domain/help_offer_row_record.dart';
 import '../../domain/use_case/beacon_view_case.dart';
 import 'package:tentura/features/beacon/domain/exception.dart';
 import 'package:tentura/features/beacon_threads/domain/exception/beacon_fact_pin_after_message_exception.dart';
@@ -1126,6 +1127,17 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
     return true;
   }
 
+  Future<List<HelpOfferRowRecord>> _fetchMyHelpOfferAsList(
+    String beaconId,
+  ) async {
+    try {
+      final mine = await _case.fetchMyHelpOffer(beaconId);
+      return [?mine];
+    } on Object catch (_) {
+      return const [];
+    }
+  }
+
   Future<void> _fetchBeaconByIdWithTimeline({bool background = false}) async {
     try {
       final beaconId = state.beacon.id;
@@ -1177,34 +1189,10 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
       final skipRoom = !isMember;
       final canReadAdmittedHelpers = beacon.canReadAdmittedHelpers;
       final results = await Future.wait([
+        // Without involvement access the viewer still sees their own offer
+        // (a declined offerer loses access but must learn why).
         if (skipInvolvement)
-          Future.value(
-            const <
-              ({
-                String beaconId,
-                String userId,
-                Profile user,
-                String message,
-                String? helpType,
-                String? roleLabel,
-                int status,
-                String? withdrawReason,
-                DateTime createdAt,
-                DateTime updatedAt,
-                int? responseType,
-                DateTime? responseUpdatedAt,
-                String? responseAuthorUserId,
-                int? roomAccess,
-                int? admissionAction,
-                String? lastDeclineReason,
-                String? lastRemoveReason,
-                int stakeState,
-                int offerKind,
-                bool isDirectAuthorForward,
-                String? authorSeenAt,
-              })
-            >[],
-          )
+          _fetchMyHelpOfferAsList(beaconId)
         else
           _case.fetchHelpOffersWithCoordination(
             beaconId: beaconId,

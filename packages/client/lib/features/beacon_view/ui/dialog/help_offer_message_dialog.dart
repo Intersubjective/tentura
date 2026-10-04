@@ -417,25 +417,18 @@ class _HelpOfferMessageDialogState extends State<HelpOfferMessageDialog> {
                     child: _buildScrollContent(l10n, theme, tt),
                   ),
                   SizedBox(height: tt.sectionGap),
-                  TextButton(
-                    onPressed: _requestClose,
-                    child: Text(l10n.buttonCancel),
-                  ),
-                  SizedBox(
-                    width: double.infinity,
-                    child: Semantics(
-                      identifier: TestIds.helpOfferSubmit,
-                      button: true,
-                      enabled: _canSubmit,
-                      child: FilledButton(
-                        key: TestIds.key(TestIds.helpOfferSubmit),
-                        onPressed: _canSubmit ? _submit : null,
-                        child: Text(
-                          widget.showHelpTypeChips
-                              ? l10n.helpOfferSubmitAction
-                              : l10n.buttonOk,
-                        ),
-                      ),
+                  Semantics(
+                    identifier: TestIds.helpOfferSubmit,
+                    button: true,
+                    enabled: _canSubmit,
+                    child: TenturaSheetActions(
+                      cancelLabel: l10n.buttonCancel,
+                      onCancel: _requestClose,
+                      primaryKey: TestIds.key(TestIds.helpOfferSubmit),
+                      primaryLabel: widget.showHelpTypeChips
+                          ? l10n.helpOfferSubmitAction
+                          : l10n.buttonOk,
+                      onPrimary: _canSubmit ? _submit : null,
                     ),
                   ),
                 ],

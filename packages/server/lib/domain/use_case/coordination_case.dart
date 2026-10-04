@@ -134,6 +134,32 @@ final class CoordinationCase extends UseCaseBase {
     ];
   }
 
+  /// The viewer's own offer row (any status), or `null` when they never
+  /// offered. Needs only content access: once an offer is declined the
+  /// offerer loses involvement access, yet the decline and its reason are
+  /// theirs to see.
+  Future<HelpOfferWithCoordinationRow?> myHelpOffer({
+    required String beaconId,
+    required String viewerId,
+  }) async {
+    if (!await _guard.canReadContent(
+      beaconId: beaconId,
+      viewerId: viewerId,
+    )) {
+      throw const UnauthorizedException(
+        description: 'Viewer cannot read request',
+      );
+    }
+    final rows = await _coordinationRepository.helpOffersWithCoordination(
+      beaconId,
+      viewerId: viewerId,
+    );
+    for (final row in rows) {
+      if (row.userId == viewerId) return row;
+    }
+    return null;
+  }
+
   Future<BeaconEntity> _prepareAdmissionAction({
     required String beaconId,
     required String offerUserId,
@@ -209,11 +235,10 @@ final class CoordinationCase extends UseCaseBase {
   Future<List<CommitmentEvent>> _eventsForPair({
     required String beaconId,
     required String userId,
-  }) =>
-      _commitmentRepository.eventsForPair(
-        beaconId: beaconId,
-        userId: userId,
-      );
+  }) => _commitmentRepository.eventsForPair(
+    beaconId: beaconId,
+    userId: userId,
+  );
 
   Future<void> _recordAcknowledgedIfTransition({
     required String beaconId,

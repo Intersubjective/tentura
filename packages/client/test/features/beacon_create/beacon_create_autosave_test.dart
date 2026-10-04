@@ -73,4 +73,30 @@ void main() {
     expect(cubit.state.isAutosaving, isFalse);
     expect(write.createdFields, hasLength(1));
   });
+
+  test(
+    'title without a description does not autosave or raise an error',
+    () async {
+      // The server refuses a standalone draft with no description; saving
+      // after the title alone left a sticky "Description is required"
+      // snackbar over the form while the user was still typing.
+      final write = FakeBeaconWritePort();
+      final effects = FakeUiEffectPort();
+      final cubit = BeaconCreateCubit(
+        beaconCreateCase: fakeBeaconCreateCase(write: write),
+        effects: effects,
+      );
+      addTearDown(cubit.close);
+      cubit.setAutosaveContext('');
+
+      cubit.setTitle('Borrow a ladder');
+      await cubit.flushAutosave();
+      expect(write.createdFields, isEmpty);
+      expect(effects.emitted, isEmpty);
+
+      cubit.setDescription('Need a 3 m ladder this weekend.');
+      await cubit.flushAutosave();
+      expect(write.createdFields, isNotEmpty);
+    },
+  );
 }

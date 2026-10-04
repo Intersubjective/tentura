@@ -102,16 +102,21 @@ class ForwardBottomComposer extends StatelessWidget {
                     ),
                     // With people chosen this is the screen's one action:
                     // filled, like Forward on the Request itself.
-                    side: BorderSide(
-                      color: enabled ? scheme.primary : tt.border,
-                    ),
+                    // With nobody chosen it is a hint, not a button: no
+                    // outline or fill, so it no longer reads as a large
+                    // dead control above "Make live" (UI review #216).
+                    side: enabled
+                        ? BorderSide(color: scheme.primary)
+                        : BorderSide.none,
                     foregroundColor: enabled ? scheme.onPrimary : tt.textMuted,
                     disabledForegroundColor: tt.textMuted,
-                    disabledBackgroundColor: tt.surface,
+                    disabledBackgroundColor: Colors.transparent,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(tt.buttonRadius),
                     ),
-                    backgroundColor: enabled ? scheme.primary : tt.surface,
+                    backgroundColor: enabled
+                        ? scheme.primary
+                        : Colors.transparent,
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,

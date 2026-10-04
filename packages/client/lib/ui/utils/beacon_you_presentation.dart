@@ -350,13 +350,12 @@ TenturaTone toneForYouEmptyFallback(
 
 TenturaTone _noOpenItemsTone(BeaconCoordinationPhase? phase) {
   if (phase == null) return TenturaTone.neutral;
+  // "Nothing open" is only good news once the Request has its help; while
+  // still looking for helpers it is a neutral empty state (UI review #199).
   return switch (phase) {
-    BeaconCoordinationPhase.blocked => TenturaTone.neutral,
-    BeaconCoordinationPhase.needsMoreHelp => TenturaTone.neutral,
-    BeaconCoordinationPhase.closed => TenturaTone.neutral,
-    BeaconCoordinationPhase.cancelled => TenturaTone.neutral,
-    BeaconCoordinationPhase.draft => TenturaTone.neutral,
-    _ => TenturaTone.good,
+    BeaconCoordinationPhase.enoughHelpInMotion => TenturaTone.good,
+    BeaconCoordinationPhase.wrappingUp => TenturaTone.good,
+    _ => TenturaTone.neutral,
   };
 }
 

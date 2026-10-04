@@ -15,6 +15,7 @@ export 'components/tentura_identity_tile_frame.dart';
 export 'components/tentura_list_detail_layout.dart';
 export 'components/tentura_menu_group.dart';
 export 'components/tentura_section_header.dart';
+export 'components/tentura_sheet_actions.dart';
 export 'components/tentura_sheet_dismiss_guard.dart';
 export 'components/tentura_count_badge.dart';
 export 'components/tentura_hairline_divider.dart';

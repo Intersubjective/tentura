@@ -4,6 +4,9 @@ import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import '../tentura_tokens.dart';
 
+/// Top-bar role. Both tones paint on the surface colour so the brand colour
+/// stays reserved for actions and selection (UI review #195); [primary] marks
+/// a home-tab root and keeps its own value so callers state intent.
 enum TenturaTopBarTone { primary, surface }
 
 enum TenturaTopBarAlignment {
@@ -106,15 +109,6 @@ class TenturaTopBar extends StatelessWidget implements PreferredSizeWidget {
     bool isLoading, {
     TenturaTopBarTone tone = TenturaTopBarTone.surface,
   }) {
-    if (tone == TenturaTopBarTone.primary) {
-      final onPrimary = Theme.of(context).colorScheme.onPrimary;
-      return LinearPiActive.builder(
-        context,
-        isLoading,
-        color: onPrimary.withValues(alpha: 0.85),
-        backgroundColor: onPrimary.withValues(alpha: 0.15),
-      );
-    }
     return LinearPiActive.builder(context, isLoading);
   }
 
@@ -124,12 +118,8 @@ class TenturaTopBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final bg = tone == TenturaTopBarTone.primary
-        ? scheme.primary
-        : scheme.surface;
-    final fg = tone == TenturaTopBarTone.primary
-        ? scheme.onPrimary
-        : scheme.onSurface;
+    final bg = scheme.surface;
+    final fg = scheme.onSurface;
 
     final barIconTheme = IconThemeData(color: fg);
     // M3 IconButton ignores [IconTheme] when [IconButtonTheme.style] is null.

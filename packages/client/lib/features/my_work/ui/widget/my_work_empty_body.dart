@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_window_class.dart';
-import 'package:tentura/design_system/components/tentura_command_button.dart';
 import 'package:tentura/design_system/components/tentura_text_action.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_filter.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -94,23 +93,16 @@ class MyWorkEmptyBody extends StatelessWidget {
                   ),
                   textAlign: TextAlign.center,
                 ),
-                if (_inboxPrimary) ...[
-                  const SizedBox(height: kSpacingSmall),
-                  Text(
-                    l10n.myWorkEmptyActiveInboxHint,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+                // One filled primary, then quiet text links (UI review
+                // #212). The inbox hint paragraph repeated the body and the
+                // primary CTA already says where to go.
                 const SizedBox(height: kSpacingMedium),
                 if (_inboxPrimary) ...[
-                  TenturaCommandButton(
-                    label: l10n.myWorkEmptyActiveInboxPrimaryCta(
-                      inboxNeedsMeCount,
-                    ),
+                  FilledButton.icon(
                     icon: const Icon(Icons.inbox_outlined),
+                    label: Text(
+                      l10n.myWorkEmptyActiveInboxPrimaryCta(inboxNeedsMeCount),
+                    ),
                     onPressed: onOpenInbox,
                   ),
                   const SizedBox(height: kSpacingSmall),
@@ -119,9 +111,9 @@ class MyWorkEmptyBody extends StatelessWidget {
                     onPressed: onCreateBeacon,
                   ),
                 ] else ...[
-                  TenturaCommandButton(
-                    label: l10n.myWorkEmptyActiveCreateCta,
+                  FilledButton.icon(
                     icon: const Icon(Icons.add),
+                    label: Text(l10n.myWorkEmptyActiveCreateCta),
                     onPressed: onCreateBeacon,
                   ),
                   const SizedBox(height: kSpacingSmall),

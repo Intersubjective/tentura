@@ -59,3 +59,32 @@ String? extractInviteCodeFromText(String text, {String prefix = ''}) {
 
   return null;
 }
+
+final _entityIdExact = RegExp(r'^[UBCI][0-9a-f]{12}$');
+final _entityIdInPath = RegExp(
+  r'/(?:invite|profile/view|beacon/view)/([UBCI][0-9a-f]{12})(?![0-9a-f])',
+);
+
+/// Extracts a profile / request / invite id (`U`/`B`/`C`/`I` + 12 hex) from a
+/// bare id, a share link (`/profile/view/U…`, `/beacon/view/B…`,
+/// `/invite/I…`, also behind `#/` hash routing) or a legacy `?id=` query.
+///
+/// Used by the connect sheet for typed, pasted and QR-scanned input: a
+/// scanned profile QR is the full link, not the bare id.
+String? extractEntityIdFromText(String text) {
+  final trimmed = normalizeInviteCode(text);
+  if (trimmed.isEmpty) return null;
+  if (_entityIdExact.hasMatch(trimmed)) return trimmed;
+
+  final pathMatch = _entityIdInPath.firstMatch(trimmed);
+  if (pathMatch != null) return pathMatch.group(1);
+
+  try {
+    final id = Uri.parse(trimmed).queryParameters['id'];
+    if (id != null) {
+      final normalized = normalizeInviteCode(id);
+      if (_entityIdExact.hasMatch(normalized)) return normalized;
+    }
+  } on FormatException catch (_) {}
+  return null;
+}

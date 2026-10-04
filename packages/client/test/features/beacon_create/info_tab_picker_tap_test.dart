@@ -289,7 +289,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('No date'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Ok'));
+    await tester.tap(find.text('OK'));
     await tester.pumpAndSettle();
 
     expect(cubit.state.title, titleText);
@@ -404,7 +404,7 @@ void main() {
     expect(cubit.state.location, isEmpty);
   });
 
-  testWidgets('removing a requirement updates selected count', (
+  testWidgets('removing a requirement updates the named summary', (
     tester,
   ) async {
     cubit.setNeeds({'money', 'transport'});
@@ -412,7 +412,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(cubit.state.needs, {'money', 'transport'});
-    expect(find.text('2 selected'), findsOneWidget);
+    // The row names the picks rather than counting them.
+    expect(find.text('Money, Transport'), findsOneWidget);
 
     await _openRequirementsSheet(tester);
     await _scrollToGroupInSheet(tester, 'Resources');
@@ -424,7 +425,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(cubit.state.needs, {'transport'});
-    expect(find.text('1 selected'), findsOneWidget);
+    expect(find.text('Transport'), findsWidgets);
   });
 
   testWidgets('requirements sheet shows icon hint copy', (tester) async {
@@ -629,7 +630,7 @@ void main() {
       await tester.pumpAndSettle();
       // Close timing sheet if still open (date picker was stacked above it).
       if (find.text('When?').evaluate().isNotEmpty) {
-        await tester.tap(find.text('Ok'));
+        await tester.tap(find.text('OK'));
         await tester.pumpAndSettle();
       }
       _expectPrimaryFocusOnScope();
@@ -674,7 +675,7 @@ void main() {
     await tester.tap(find.byKey(const Key('BeaconCreate.CoverRow')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Add Images'), findsOneWidget);
+    expect(find.text('Add images'), findsOneWidget);
   });
 
   testWidgets('openImagesInitially opens the images sheet on compact', (
@@ -701,6 +702,6 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Add Images'), findsOneWidget);
+    expect(find.text('Add images'), findsOneWidget);
   });
 }

@@ -198,10 +198,10 @@ class _ProfileTrustRelationLine extends StatelessWidget {
   final Profile profile;
 
   String _trustReciprocityLabel() {
-    if (profile.isMutualFriend) return l10n.classMutual;
-    if (profile.isFriend) return l10n.classOneWayOut;
-    if (profile.subjectExplicitlyTrustsViewer) return l10n.classOneWayIn;
-    return l10n.classNone;
+    if (profile.isMutualFriend) return l10n.trustSentenceMutual;
+    if (profile.isFriend) return l10n.trustSentenceOneWayOut;
+    if (profile.subjectExplicitlyTrustsViewer) return l10n.trustSentenceOneWayIn;
+    return l10n.trustSentenceNone;
   }
 
   @override
@@ -212,7 +212,7 @@ class _ProfileTrustRelationLine extends StatelessWidget {
       child: Align(
         alignment: Alignment.centerLeft,
         child: Text(
-          '${l10n.trustRelationPrefix} ${_trustReciprocityLabel()}',
+          _trustReciprocityLabel(),
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),

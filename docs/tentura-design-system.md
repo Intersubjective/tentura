@@ -6,6 +6,7 @@ Operational, minimal, record-list UI for `packages/client`. Not a social feed, m
 
 | Area | Location |
 |------|----------|
+| **Colours (single source)** | [`tentura_colors.dart`](../packages/client/lib/design_system/tentura_colors.dart) — `TenturaColorPalette.light` / `.dark` |
 | Theme + `ThemeExtension` | [`tentura_theme.dart`](../packages/client/lib/design_system/tentura_theme.dart), [`tentura_tokens.dart`](../packages/client/lib/design_system/tentura_tokens.dart) |
 | Text styles | [`tentura_text.dart`](../packages/client/lib/design_system/tentura_text.dart) |
 | Window breakpoints | [`tentura_window_class.dart`](../packages/client/lib/design_system/tentura_window_class.dart), [`tentura_responsive_scope.dart`](../packages/client/lib/design_system/tentura_responsive_scope.dart) |
@@ -18,6 +19,40 @@ Operational, minimal, record-list UI for `packages/client`. Not a social feed, m
 | Theme compatibility | [`packages/client/lib/ui/theme.dart`](../packages/client/lib/ui/theme.dart) — `createAppTheme` for tests/previews |
 
 Access tokens: `import 'package:tentura/design_system/tentura_design_system.dart';` then `context.tt` ([`TenturaThemeX`](../packages/client/lib/design_system/tentura_tokens.dart)).
+
+## Colour system
+
+Every colour lives in **one file**: [`tentura_colors.dart`](../packages/client/lib/design_system/tentura_colors.dart). `TenturaColorPalette` names ~30 roles; `TenturaColorPalette.light` and `.dark` give their values. Everything else is derived:
+
+```
+TenturaColorPalette.light / .dark
+  ├─ toColorScheme()            → Material ColorScheme (every role mapped, no fromSeed)
+  ├─ TenturaTokens.fromPalette  → context.tt.bg / surface / text* / info / good / warn / danger …
+  ├─ .capabilities              → TenturaCapabilityColors (capability-group tints)
+  └─ .avatarHues                → initials-avatar colours (avatarHueFor(userId))
+```
+
+| Palette role | ColorScheme role(s) | Used for |
+|---|---|---|
+| `brand` / `onBrand` | `primary`, `secondary` / `onPrimary` | filled buttons, links, selection, focus, counts, **info** tone (`tt.info`) |
+| `brandContainer` / `onBrandContainer` | `primaryContainer`, `secondaryContainer` | tonal buttons, nav indicator, selected chips/segments, outgoing chat bubble |
+| `brandBorder` | `inversePrimary`, `primaryFixedDim` | "mine" outlines (`tt.skyBorder`) |
+| `bg` | `surface` | scaffold, top bars |
+| `surface` | `surfaceContainer*` (lowest…default) | cards, sheets, dialogs, nav bar, incoming chat bubble |
+| `surfaceSunken` / `surfaceSunkenStrong` | `surfaceContainerHigh` / `…Highest` | inputs, composer, tracks, recessed fills |
+| `border` / `borderSubtle` / `borderStrong` | `outline` / — / `outlineVariant` | card borders / in-card dividers / outlined-button frames |
+| `text` / `textMuted` / `textFaint` | `onSurface` / `onSurfaceVariant` / — | text tiers |
+| `good` (+container) | `tertiary*` | positive outcome only (enough help, useful) |
+| `warn` (+container) | — | needs attention |
+| `danger` (+container) | `error*` | errors and destructive actions only |
+
+### Re-theming
+
+1. Open `tentura_colors.dart`.
+2. Edit the values in `light` and/or `dark` — e.g. the five `brand*` fields to change the brand hue. Nothing else needs touching.
+3. Run `flutter test test/design_system/tentura_color_palette_test.dart` (wrapped, see `AGENTS.md`): it fails if a pair drops below WCAG contrast (text ≥ 4.5:1, faint ≥ 3:1, every `on*` on its container ≥ 4.5:1).
+
+Rules: feature code never writes hex values; it reads `Theme.of(context).colorScheme.*` or `context.tt.*`. Don't add a colour anywhere but the palette — add a role to `TenturaColorPalette` (both modes) and map it.
 
 ## Type scale (semantic)
 
@@ -200,10 +235,12 @@ Do **not** wrap the app in `MediaQuery.copyWith(textScaler: TextScaler.noScaling
 4. **Hairlines** — use [`TenturaHairlineDivider`](../packages/client/lib/design_system/components/tentura_hairline_divider.dart), not nested cards. **Exception:** My Desk live-obligation sub-cards may nest one outlined [`TenturaTechCardStatic`](../packages/client/lib/design_system/components/tentura_tech_card.dart) (`tt.bg` / `tt.borderSubtle`, optional `radius: TenturaRadii.cardDense`, padding `tt.cardGap`) inside a Request card — no second elevation.
 5. **Tabs** — underline row with 2px active indicator ([`TenturaUnderlineTabs`](../packages/client/lib/design_system/components/tentura_underline_tabs.dart)), not `SegmentedButton` on beacon detail. Labels stay at **13px** logical size. Text-only tabs use **ellipsis** when width is tight. When optional **icons** are passed (request detail), labels hide together if icon+text does not fit each equal slot — badges are not part of that fit decision; icon-only tabs keep the label via Tooltip / Semantics. Vertical padding follows **`context.tt.rowGap`** (density), not a fixed px hack.
    - **`compactIconTabs`** — `Set<int>` of tab indices rendered at fixed width (`context.tt.tabCompactWidth`: **56** dp compact, **64** dp regular/expanded) with icon-only cells; badges overlay the icon. NOW and Chat stay equal-width `Expanded` slots; People uses this mode on request detail.
+   - **Counts** — a *collection size* ("Unread 7", "Not yet seen 3") is a plain muted tabular number after the label (`TenturaTabCountStyle.plainText`); a filled `TenturaCountBadge` is reserved for *new / needs-attention* counts (e.g. unread chat). No parenthesised "(3)".
    - **Tab hit target** — every tab cell is wrapped in `ConstrainedBox(minHeight: kMinInteractiveDimension)` (**48** dp minimum interactive height), including icon-only compact cells.
-6. **Actions** — [`TenturaTextAction`](../packages/client/lib/design_system/components/tentura_text_action.dart) / [`TenturaCommandButton`](../packages/client/lib/design_system/components/tentura_command_button.dart); avoid filled buttons inside dense cards unless truly primary.
-7. **Avatars** — unified [`TenturaAvatar`](../packages/client/lib/design_system/components/tentura_avatar.dart) with four buckets via `TenturaAvatarSize`: **big** (160, profile hero), **medium** (`avatarSize`, list rows / people tab), **small** (`metadataAvatarSize`, facepiles / coordination footer), **tiny** (`avatarTinySize`, inline log/timeline). Optional flags: `showAuthorStar` (beacon author), `isSelf` (viewer halo), `withRating` / `withContactBadge` (MeritRank; honored at big/medium/small only). Personal/identity surfaces default to plain avatars (`withRating: false`). Viewer identity is resolved only in [`SelfAwareAvatar`](../packages/client/lib/ui/widget/self_aware_profile_avatar.dart) (never in the DS widget). Facepiles use [`OverlappingPeopleAvatars`](../packages/client/lib/ui/widget/overlapping_people_avatars.dart) with `selfUserId` + `starredProfileId`.
-8. **A11y** — min tap targets (e.g. button height from tokens); respect system text scaling.
+6. **Button hierarchy** (themed once in `TenturaTheme`): **Filled** = the one primary action on a screen; **Filled.tonal** = secondary actions (brand container); **Text** = tertiary; **Outlined** = neutral frame (`outlineVariant`), brand ink. All share `tt.buttonRadius`, `tt.buttonHeight` and `labelLarge`. Disabled filled buttons are neutral grey, never a washed-out brand. Count badges are brand (`BadgeTheme`), not error red.
+7. **Actions** — [`TenturaTextAction`](../packages/client/lib/design_system/components/tentura_text_action.dart) / [`TenturaCommandButton`](../packages/client/lib/design_system/components/tentura_command_button.dart); avoid filled buttons inside dense cards unless truly primary.
+8. **Avatars** — unified [`TenturaAvatar`](../packages/client/lib/design_system/components/tentura_avatar.dart) with four buckets via `TenturaAvatarSize`: **big** (120, profile hero), **medium** (`avatarSize`, list rows / people tab), **small** (`metadataAvatarSize`, facepiles / coordination footer), **tiny** (`avatarTinySize`, inline log/timeline). Optional flags: `showAuthorStar` (beacon author), `isSelf` (viewer halo), `withRating` / `withContactBadge` (MeritRank; honored at big/medium/small only). Personal/identity surfaces default to plain avatars (`withRating: false`). Viewer identity is resolved only in [`SelfAwareAvatar`](../packages/client/lib/ui/widget/self_aware_profile_avatar.dart) (never in the DS widget). Facepiles use [`OverlappingPeopleAvatars`](../packages/client/lib/ui/widget/overlapping_people_avatars.dart) with `selfUserId` + `starredProfileId`. Photo-less avatars draw initials on a per-person hue (`TenturaColorPalette.avatarHueFor(userId)`), so a list of people is scannable by colour.
+9. **A11y** — min tap targets (e.g. button height from tokens); respect system text scaling.
 
 ### Updates feed (home tab)
 
@@ -236,8 +273,10 @@ Use [`TenturaTopBar`](../packages/client/lib/design_system/components/tentura_to
 
 Tone policy:
 
-- `TenturaTopBarTone.primary`: the 4 home-tab roots only (MyWork, Inbox, Friends, Profile).
+- Every top bar paints on the **surface** colour (`colorScheme.surface`) with `onSurface` ink; brand colour is reserved for actions and selection (UI review #195).
+- `TenturaTopBarTone.primary`: marks the home-tab roots (MyWork, Inbox, Friends, Profile). Same colours as `surface`; it records intent. `TenturaPrimaryTabBar` draws brand-coloured selection on that surface.
 - `TenturaTopBarTone.surface`: pushed/standalone screens and dialogs.
+- Pushed screens use `AutoLeadingWithFallback(fallbackPath: …)` so a deep-linked / refreshed page still has a back button.
 - Immersive exceptions: QR scanner, map picker, gallery/image viewers, room attachment gallery.
 
 Alignment policy:

@@ -65,7 +65,7 @@ void main() {
 
       await tester.tap(find.byKey(TestIds.key(TestIds.beaconOverflowMenu)));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Delete Request'));
+      await tester.tap(find.text('Delete request'));
       await tester.pumpAndSettle();
 
       expect(find.text('Delete request?'), findsOneWidget);

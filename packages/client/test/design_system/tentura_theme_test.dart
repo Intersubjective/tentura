@@ -82,7 +82,8 @@ void main() {
     final selectedIconCtx = tester.element(
       find.descendant(of: barFinder, matching: find.byIcon(Icons.inbox)),
     );
-    expect(IconTheme.of(selectedIconCtx).color, scheme.onPrimary);
+    // Same tonal indicator in both modes (UI review #196).
+    expect(IconTheme.of(selectedIconCtx).color, scheme.onPrimaryContainer);
   });
 
   testWidgets('NavigationBar selected label uses onSurface (dark)', (
@@ -134,7 +135,7 @@ void main() {
     );
     expect(
       IconTheme.of(selectedIconCtx).color,
-      scheme.onSecondaryContainer,
+      scheme.onPrimaryContainer,
     );
   });
 }

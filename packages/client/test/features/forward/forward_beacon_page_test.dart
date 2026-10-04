@@ -410,7 +410,7 @@ void main() {
 
     // Removed: the reminder sheet shown on Forward-press already nudges
     // the user to add a shared note, so there's no proactive affordance.
-    expect(find.text('add shared note'), findsNothing);
+    expect(find.text('Add shared note'), findsNothing);
   });
 
   testWidgets(
@@ -512,19 +512,19 @@ void main() {
 
     await _pumpForwardPage(tester, cubit: cubit);
     expect(find.text('Invite new person'), findsOneWidget);
-    expect(find.text('clear selection'), findsNothing);
+    expect(find.text('Clear selection'), findsNothing);
 
     cubit.toggleSelection('u1');
     await tester.pumpAndSettle();
 
     expect(find.text('Invite new person'), findsNothing);
-    expect(find.text('clear selection'), findsOneWidget);
+    expect(find.text('Clear selection'), findsOneWidget);
 
-    await tester.tap(find.text('clear selection'));
+    await tester.tap(find.text('Clear selection'));
     await tester.pumpAndSettle();
 
     expect(find.text('Invite new person'), findsOneWidget);
-    expect(find.text('clear selection'), findsNothing);
+    expect(find.text('Clear selection'), findsNothing);
     expect(cubit.state.selectedIds, isEmpty);
   });
 

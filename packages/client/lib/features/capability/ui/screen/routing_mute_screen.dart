@@ -13,6 +13,8 @@ import 'package:tentura/ui/widget/accordion_expansion.dart';
 import '../bloc/routing_mute_cubit.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/features/home/ui/widget/home_rail_frame.dart';
+import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
+import 'package:tentura/consts.dart';
 
 @RoutePage()
 class RoutingMuteScreen extends StatelessWidget implements AutoRouteWrapper {
@@ -36,7 +38,7 @@ class RoutingMuteScreen extends StatelessWidget implements AutoRouteWrapper {
       child: Scaffold(
         appBar: TenturaTopBar.of(
           context,
-          leading: const AutoLeadingButton(),
+          leading: const AutoLeadingWithFallback(fallbackPath: kPathSettings),
           title: Text(
             l10n.routingMuteScreenTitle,
             maxLines: 2,

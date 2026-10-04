@@ -13,20 +13,22 @@ class ShareCodeIconButton extends StatelessWidget {
     super.key,
   });
 
+  /// [displayName] titles the dialog; the raw id was shown before, which
+  /// meant nothing to the person scanning (UI review).
   ShareCodeIconButton.id(
     String id, {
+    String? displayName,
     Key? key,
     IconData icon = Icons.qr_code,
   }) : this(
          key: key,
-         header: id,
-         link:
-             Uri.parse(
-               kServerName,
-             ).replace(
-               queryParameters: {'id': id},
-               path: '$kPathProfileView/$id',
-             ),
+         header: (displayName == null || displayName.trim().isEmpty)
+             ? id
+             : displayName.trim(),
+         // The id is in the path; the old `?id=` duplicate only padded the
+         // URL printed under the QR. Pasted / scanned links resolve through
+         // extractEntityIdFromText, which still accepts legacy `?id=` links.
+         link: Uri.parse(kServerName).replace(path: '$kPathProfileView/$id'),
          icon: icon,
        );
 

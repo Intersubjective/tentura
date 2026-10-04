@@ -58,7 +58,6 @@ class ShareCodeDialog extends StatelessWidget {
     final tt = context.tt;
     return AlertDialog.adaptive(
       alignment: Alignment.center,
-      actionsAlignment: MainAxisAlignment.spaceBetween,
       constraints: BoxConstraints(maxWidth: tt.contentMaxWidth ?? 560),
       titlePadding: kPaddingAll,
       contentPadding: kPaddingAll,
@@ -95,59 +94,55 @@ class ShareCodeDialog extends StatelessWidget {
                 textAlign: TextAlign.center,
               ),
             ),
+            SizedBox(height: tt.sectionGap),
+            Builder(
+              builder: (context) => FilledButton.icon(
+                icon: const Icon(Icons.share_outlined),
+                label: Text(l10n.shareLink),
+                onPressed: () async {
+                  try {
+                    final renderObject = context.findRenderObject();
+                    final sharePositionOrigin =
+                        renderObject is RenderBox && renderObject.hasSize
+                        ? renderObject.localToGlobal(Offset.zero) &
+                              renderObject.size
+                        : null;
+                    final result = await SharePlus.instance.share(
+                      ShareParams(
+                        subject: header,
+                        title: l10n.shareLink,
+                        uri: Uri.parse(link),
+                        mailToFallbackEnabled: false,
+                        // iPad popover anchor; optional on other platforms.
+                        sharePositionOrigin: sharePositionOrigin,
+                      ),
+                    );
+                    if (context.mounted &&
+                        result.status == ShareResultStatus.unavailable) {
+                      await _copyLink(context, l10n);
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      await _copyLink(context, l10n);
+                    }
+                  }
+                },
+              ),
+            ),
+            SizedBox(height: tt.rowGap),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.copy_outlined),
+              label: Text(l10n.copyToClipboard),
+              onPressed: () => _copyLink(context, l10n),
+            ),
           ],
         ),
       ),
 
-      // Buttons
+      // Buttons: share and copy are the dialog's job, so they sit with the
+      // link as full-width actions; Close is the quiet dismiss below.
+      actionsAlignment: MainAxisAlignment.center,
       actions: [
-        // Copy to Clipboard
-        TextButton(
-          child: Text(l10n.copyToClipboard),
-          onPressed: () => _copyLink(context, l10n),
-        ),
-
-        // Share Link
-        Builder(
-          builder: (context) => TextButton(
-            child: Text(l10n.shareLink),
-            onPressed: () async {
-              try {
-                final renderObject = context.findRenderObject();
-                final sharePositionOrigin =
-                    renderObject is RenderBox && renderObject.hasSize
-                    ? renderObject.localToGlobal(Offset.zero) &
-                          renderObject.size
-                    : null;
-                final result = await SharePlus.instance.share(
-                  ShareParams(
-                    subject: header,
-                    title: l10n.shareLink,
-                    uri: Uri.parse(link),
-                    mailToFallbackEnabled: false,
-                    // iPad popover anchor; optional on other platforms.
-                    sharePositionOrigin: sharePositionOrigin,
-                  ),
-                );
-                if (context.mounted) {
-                  if (result.status == ShareResultStatus.unavailable) {
-                    await _copyLink(context, l10n);
-                  } else if (result.status == ShareResultStatus.success) {
-                    showSnackBar(
-                      context,
-                      text: result.toString(),
-                    );
-                  }
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  await _copyLink(context, l10n);
-                }
-              }
-            },
-          ),
-        ),
-
         // Close
         TextButton(
           onPressed: Navigator.of(context).pop,

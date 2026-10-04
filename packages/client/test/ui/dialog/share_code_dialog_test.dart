@@ -30,7 +30,7 @@ void main() {
     expect(find.text(link), findsOneWidget);
     expect(find.byType(SelectionArea), findsOneWidget);
     expect(find.text('Copy to clipboard'), findsOneWidget);
-    expect(find.text('Share Link'), findsOneWidget);
+    expect(find.text('Share link'), findsOneWidget);
   });
 
   testWidgets('optional caption renders under the QR and is not the link', (
@@ -82,7 +82,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Share Link'));
+    await tester.tap(find.text('Share link'));
     await tester.pump();
 
     expect(tester.takeException(), isNull);

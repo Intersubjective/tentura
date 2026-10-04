@@ -91,10 +91,15 @@ PreferredSizeWidget buildProfileViewAppBar(BuildContext context) {
           if (isBlockedFallback) {
             return const SizedBox.shrink();
           }
-          return BlocSelector<ProfileViewCubit, ProfileViewState, String>(
+          return BlocSelector<
+            ProfileViewCubit,
+            ProfileViewState,
+            (String, String)
+          >(
             bloc: profileViewCubit,
-            selector: (state) => state.profile.id,
-            builder: (context, profileId) => ShareCodeIconButton.id(profileId),
+            selector: (state) => (state.profile.id, state.profile.shownName),
+            builder: (context, p) =>
+                ShareCodeIconButton.id(p.$1, displayName: p.$2),
           );
         },
       ),

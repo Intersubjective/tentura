@@ -73,12 +73,13 @@ class ForwardScopeLinks extends StatelessWidget {
                                     active ? activeColor : tt.textMuted,
                                   ),
                                 ),
+                                // Collection sizes read "Label  N" like the
+                                // Updates tabs; filled badges are kept for
+                                // new / needs-attention counts (#206).
                                 TextSpan(
-                                  text: ' ($count)',
+                                  text: '\u2002$count',
                                   style: TenturaText.withTabular(
-                                    TenturaText.bodySmall(
-                                      active ? activeColor : tt.textMuted,
-                                    ),
+                                    TenturaText.bodySmall(tt.textMuted),
                                   ),
                                 ),
                               ],

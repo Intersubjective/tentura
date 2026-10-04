@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/capability/capability_group.dart';
 
+import 'tentura_colors.dart';
+
 /// Container + on-container pair for one capability group.
 @immutable
 class CapabilitySwatch {
@@ -65,77 +67,13 @@ class TenturaCapabilityColors extends ThemeExtension<TenturaCapabilityColors> {
   final CapabilitySwatch rpg;
   final CapabilitySwatch special;
 
-  /// Exact light palette from the cover/capability colour plan.
-  static const light = TenturaCapabilityColors(
-    logistics: CapabilitySwatch(
-      container: Color(0xFFEEF2FF),
-      onContainer: Color(0xFF3730A3),
-    ),
-    communication: CapabilitySwatch(
-      container: Color(0xFFECFEFF),
-      onContainer: Color(0xFF155E75),
-    ),
-    knowledge: CapabilitySwatch(
-      container: Color(0xFFF5F3FF),
-      onContainer: Color(0xFF5B21B6),
-    ),
-    care: CapabilitySwatch(
-      container: Color(0xFFFDF4FF),
-      onContainer: Color(0xFF86198F),
-    ),
-    resources: CapabilitySwatch(
-      container: Color(0xFFF0FDFA),
-      onContainer: Color(0xFF115E59),
-    ),
-    technical: CapabilitySwatch(
-      container: Color(0xFFF5F5F4),
-      onContainer: Color(0xFF44403C),
-    ),
-    rpg: CapabilitySwatch(
-      container: Color(0xFFFFFBEB),
-      onContainer: Color(0xFF78350F),
-    ),
-    special: CapabilitySwatch(
-      container: Color(0xFFF1F5F9),
-      onContainer: Color(0xFF475569),
-    ),
-  );
+  /// Light swatches — defined in [TenturaColorPalette.light].
+  static TenturaCapabilityColors get light =>
+      TenturaColorPalette.light.capabilities;
 
-  /// Exact dark palette from the cover/capability colour plan.
-  static const dark = TenturaCapabilityColors(
-    logistics: CapabilitySwatch(
-      container: Color(0xFF252F4A),
-      onContainer: Color(0xFFA5B4FC),
-    ),
-    communication: CapabilitySwatch(
-      container: Color(0xFF16323C),
-      onContainer: Color(0xFF67E8F9),
-    ),
-    knowledge: CapabilitySwatch(
-      container: Color(0xFF2A2647),
-      onContainer: Color(0xFFC4B5FD),
-    ),
-    care: CapabilitySwatch(
-      container: Color(0xFF3A1F3F),
-      onContainer: Color(0xFFF0ABFC),
-    ),
-    resources: CapabilitySwatch(
-      container: Color(0xFF123832),
-      onContainer: Color(0xFF5EEAD4),
-    ),
-    technical: CapabilitySwatch(
-      container: Color(0xFF292524),
-      onContainer: Color(0xFFD6D3D1),
-    ),
-    rpg: CapabilitySwatch(
-      container: Color(0xFF3B2710),
-      onContainer: Color(0xFFFBBF24),
-    ),
-    special: CapabilitySwatch(
-      container: Color(0xFF273240),
-      onContainer: Color(0xFFCBD5E1),
-    ),
-  );
+  /// Dark swatches — defined in [TenturaColorPalette.dark].
+  static TenturaCapabilityColors get dark =>
+      TenturaColorPalette.dark.capabilities;
 
   CapabilitySwatch swatchFor(CapabilityGroup group) => switch (group) {
         CapabilityGroup.logistics => logistics,

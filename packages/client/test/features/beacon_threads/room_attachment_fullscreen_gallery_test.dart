@@ -34,13 +34,13 @@ void main() {
     await _pumpGallery(tester, TenturaTheme.light());
 
     final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
-    expect(scaffold.backgroundColor, TenturaPalette.bg);
+    expect(scaffold.backgroundColor, TenturaColorPalette.light.bg);
   });
 
   testWidgets('gallery scaffold uses theme bg in dark mode', (tester) async {
     await _pumpGallery(tester, TenturaTheme.dark());
 
     final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
-    expect(scaffold.backgroundColor, TenturaPalette.bgDark);
+    expect(scaffold.backgroundColor, TenturaColorPalette.dark.bg);
   });
 }

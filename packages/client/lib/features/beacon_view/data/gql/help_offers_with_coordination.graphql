@@ -1,45 +1,7 @@
-# import '/data/gql/image_model_v2.graphql'
+# import '/features/beacon_view/data/gql/help_offer_with_coordination_fields.graphql'
 
 query HelpOffersWithCoordination($beaconId: String!) {
   helpOffersWithCoordination(id: $beaconId) {
-    beaconId
-    userId
-    message
-    helpType
-    roleLabel
-    status
-    withdrawReason
-    createdAt
-    updatedAt
-    responseType
-    responseUpdatedAt
-    responseAuthorUserId
-    roomAccess
-    admissionAction
-    lastDeclineReason
-    lastRemoveReason
-    offerKind
-    stakeState
-    isDirectAuthorForward
-    authorSeenAt
-    user {
-      id
-      displayName
-      description
-      my_vote
-      trusts_viewer
-      is_mutual_friend
-      image {
-        ...ImageModelV2
-      }
-      user_presence {
-        last_seen_at
-        status
-      }
-      user_availability {
-        is_limited
-        resume_on
-      }
-    }
+    ...HelpOfferWithCoordinationFields
   }
 }

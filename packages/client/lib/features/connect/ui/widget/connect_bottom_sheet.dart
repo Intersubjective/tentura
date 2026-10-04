@@ -10,6 +10,7 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/invitation/data/repository/invitation_repository.dart';
+import 'package:tentura/features/invitation/domain/invite_code.dart';
 import 'package:tentura/features/invitation/ui/dialog/invitation_accept_dialog.dart';
 
 /// Modal bottom sheet with the same code-entry flow as the former Connect tab.
@@ -105,9 +106,12 @@ class _ConnectBottomSheetState extends State<ConnectBottomSheet> {
           // Button (paste)
           Padding(
             padding: EdgeInsets.symmetric(vertical: tt.rowGap),
-            child: FilledButton(
+            // Alternatives to the primary Search are outlined: three filled
+            // buttons read as three primaries (UI review).
+            child: OutlinedButton.icon(
               onPressed: _getCodeFromClipboard,
-              child: Text(_l10n.buttonPaste),
+              icon: const Icon(Icons.content_paste),
+              label: Text(_l10n.buttonPaste),
             ),
           ),
 
@@ -119,14 +123,15 @@ class _ConnectBottomSheetState extends State<ConnectBottomSheet> {
           // Button (scan qr)
           Padding(
             padding: EdgeInsets.symmetric(vertical: tt.rowGap),
-            child: FilledButton(
+            child: OutlinedButton.icon(
               onPressed: () async {
                 final code = await QRScanDialog.show(context);
                 if (context.mounted && code != null) {
                   await _goWithCode(code);
                 }
               },
-              child: Text(_l10n.buttonScanQR),
+              icon: const Icon(Icons.qr_code_scanner),
+              label: Text(_l10n.buttonScanQR),
             ),
           ),
         ],
@@ -143,7 +148,9 @@ class _ConnectBottomSheetState extends State<ConnectBottomSheet> {
     }
   }
 
-  Future<void> _goWithCode(String code) async {
+  Future<void> _goWithCode(String input) async {
+    // A scanned QR is the whole share link, not the bare id.
+    final code = extractEntityIdFromText(input) ?? input.trim();
     if (code.length != kIdLength) {
       showSnackBar(context, isError: true, text: _l10n.codeLengthError);
       return;

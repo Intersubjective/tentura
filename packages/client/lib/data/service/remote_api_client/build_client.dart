@@ -230,6 +230,7 @@ class _V2RoutingLink extends Link {
     'ClosureSaveStory',
     'BeaconWithdraw',
     'HelpOffersWithCoordination',
+    'MyHelpOffer',
     'SetCoordinationResponse',
     'AcceptHelpOffer',
     'DeclineHelpOffer',

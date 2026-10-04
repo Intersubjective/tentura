@@ -5329,6 +5329,7 @@ type query_root {
   ): [user!]!
   myBlocks: [v2_BlockIntent!]
   myContacts: [v2_UserContact!]
+  myHelpOffer(id: String!): v2_HelpOfferWithCoordinationRow
   myPrivateLabelsForUser(subjectUserId: String!): [String!]
   myRoutingTags: [String!]!
   myWorkAttention(beaconIds: [String!]): [v2_MyWorkBeaconAttention!]!

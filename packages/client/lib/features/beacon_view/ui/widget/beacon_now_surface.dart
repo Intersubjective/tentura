@@ -15,6 +15,7 @@ import 'package:tentura/features/beacon_view/ui/widget/beacon_view_app_bar_overf
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_forward_overflow.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_current_line_sheet.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_pinned_facts_sheet.dart';
+import 'package:tentura/features/beacon_view/ui/widget/declined_offer_notice.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -97,7 +98,8 @@ class BeaconNowSurface extends StatelessWidget {
           p.closureState != c.closureState ||
           p.beaconContextLoaded != c.beaconContextLoaded ||
           p.isRoomAdmissionBlocked != c.isRoomAdmissionBlocked ||
-          p.coordinationDeniesRoomAdmission != c.coordinationDeniesRoomAdmission,
+          p.coordinationDeniesRoomAdmission !=
+              c.coordinationDeniesRoomAdmission,
       builder: (context, state) {
         final beaconId = state.beacon.id;
         final admitted = !state.isRoomAdmissionBlocked;
@@ -226,6 +228,20 @@ class BeaconNowSurface extends StatelessWidget {
                 ),
               ),
             ),
+            if (state.myDeclinedHelpOffer case final declined?)
+              SliverPadding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: tt.screenHPadding,
+                ).copyWith(top: tt.cardGap),
+                sliver: SliverToBoxAdapter(
+                  child: DeclinedOfferNotice(
+                    reason: declined.lastDeclineReason,
+                    canOfferAgain:
+                        state.beacon.status.isOpenFamily &&
+                        state.beacon.allowsNewHelpOfferAsNonAuthor,
+                  ),
+                ),
+              ),
             if (admitted) ...[
               const SliverToBoxAdapter(child: _HierarchyBootstrap()),
               SliverPadding(

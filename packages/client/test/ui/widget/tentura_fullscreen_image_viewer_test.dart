@@ -43,7 +43,7 @@ void main() {
     );
 
     final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
-    expect(scaffold.backgroundColor, TenturaPalette.bgDark);
+    expect(scaffold.backgroundColor, TenturaColorPalette.dark.bg);
   });
 
   testWidgets('openProfileAvatarFullscreen pushes viewer when profile has avatar',

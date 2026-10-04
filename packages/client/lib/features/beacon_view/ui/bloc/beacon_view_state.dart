@@ -307,6 +307,20 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
     return null;
   }
 
+  /// The viewer's offer the author declined, while they have no active one.
+  /// Drives the "Your offer was declined" notice on Now (UI review #216).
+  TimelineHelpOffer? get myDeclinedHelpOffer {
+    if (isBeaconMine || myActiveHelpOffer != null) return null;
+    for (final c in helpOffers) {
+      if (c.user.id == myProfile.id &&
+          c.isWithdrawn &&
+          c.admissionAction == HelpOfferAdmissionAction.decline) {
+        return c;
+      }
+    }
+    return null;
+  }
+
   /// Author signaled this help offer may use the beacon room (`notSuitable` counts as denial).
   ///
   /// Also true when the server auto-admitted the viewer (author direct forward):

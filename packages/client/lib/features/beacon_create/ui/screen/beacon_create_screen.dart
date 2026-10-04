@@ -367,12 +367,17 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
                   isEdit: s.isEditMode,
                   isLive: s.isLive,
                 ),
+                // The title names the step, and a fresh request keeps
+                // "Create new request" after autosave quietly made a draft —
+                // it used to flip to "Edit draft" mid-typing (UI review).
                 builder: (context, mode) => Text(
-                  mode.isEdit
+                  isRecipients
+                      ? l10n.beaconRecipients
+                      : mode.isEdit
                       ? l10n.editBeaconTitle
                       : mode.isLive
                       ? l10n.liveRequestTitle
-                      : mode.isDraft
+                      : mode.isDraft && widget.draftId.isNotEmpty
                       ? l10n.editDraftTitle
                       : l10n.createNewBeacon,
                 ),
@@ -600,22 +605,22 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
                         SizedBox(height: tt.rowGap),
                         Row(
                           children: [
+                            // Forwarding (the composer above) is this step's
+                            // primary action; publishing without sending is
+                            // the quiet escape hatch, not a second big CTA.
                             if (!state.isLive)
                               Expanded(
-                                child: SizedBox(
-                                  height: tt.buttonHeight,
-                                  child: OutlinedButton(
-                                    key: TestIds.key(TestIds.requestMakeLive),
-                                    onPressed:
-                                        state.isLoading ||
-                                            !state.canTryToPublish
-                                        ? null
-                                        : () => unawaited(_makeLive()),
-                                    child: Text(l10n.buttonMakeLive),
+                                child: TextButton(
+                                  key: TestIds.key(TestIds.requestMakeLive),
+                                  onPressed:
+                                      state.isLoading || !state.canTryToPublish
+                                      ? null
+                                      : () => unawaited(_makeLive()),
+                                  child: Text(
+                                    l10n.beaconMakeLiveWithoutSending,
                                   ),
                                 ),
                               ),
-                            if (!state.isLive) SizedBox(width: tt.rowGap),
                             if (state.isLive)
                               Expanded(
                                 child: SizedBox(
@@ -673,18 +678,28 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
                           ),
                         )
                       else
-                        Opacity(
-                          opacity: valid ? 1 : 0.4,
-                          child: SizedBox(
-                            height: tt.buttonHeight,
-                            width: double.infinity,
-                            child: FilledButton(
-                              key: TestIds.key(TestIds.requestRecipientsTab),
-                              onPressed: state.isLoading
-                                  ? null
-                                  : () => unawaited(_onNext()),
-                              child: Text(l10n.beaconCreateNextRecipients),
-                            ),
+                        // Not-ready still answers a tap with validation, so it
+                        // stays enabled but wears the neutral disabled colours
+                        // instead of a 40 % washed-out brand (UI review #197).
+                        SizedBox(
+                          height: tt.buttonHeight,
+                          width: double.infinity,
+                          child: FilledButton(
+                            key: TestIds.key(TestIds.requestRecipientsTab),
+                            style: valid
+                                ? null
+                                : FilledButton.styleFrom(
+                                    backgroundColor: Theme.of(
+                                      context,
+                                    ).colorScheme.surfaceContainerHighest,
+                                    foregroundColor: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                                  ),
+                            onPressed: state.isLoading
+                                ? null
+                                : () => unawaited(_onNext()),
+                            child: Text(l10n.beaconCreateNextRecipients),
                           ),
                         ),
                       if (!state.isLive) ...[

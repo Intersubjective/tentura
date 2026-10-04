@@ -504,6 +504,7 @@
     "context": "BeaconCreateScreen"
   },
   "buttonMakeLive": "Запустить",
+  "beaconMakeLiveWithoutSending": "Запустить без отправки",
   "@buttonMakeLive": {
     "context": "BeaconCreateScreen"
   },
@@ -1251,11 +1252,11 @@
   "@requestDiscoverableLabel": {
     "description": "Action label for the author discoverability toggle on a request."
   },
-  "requestDiscoverableOn": "Включено — этот запрос могут найти в «Моём поле» те, кто видит вас. Открыв его, они не попадают в обсуждение.",
+  "requestDiscoverableOn": "Его могут найти в «Моём поле» те, кто видит вас. Это не добавляет их в обсуждение.",
   "@requestDiscoverableOn": {
     "description": "Explains discoverability when the toggle is on (used as subtitle when on, or as the sibling alternative when off)."
   },
-  "requestDiscoverableOff": "Выключено — в «Моём поле» его не найти. Открыть смогут только те, кому вы его переслали, и те, кто уже участвует.",
+  "requestDiscoverableOff": "Не виден в «Моём поле». Открыть его смогут только те, кому вы его переслали, и те, кто уже участвует.",
   "@requestDiscoverableOff": {
     "description": "Explains discoverability when the toggle is off (used as subtitle when off, or as the sibling alternative when on)."
   },
@@ -1812,10 +1813,14 @@
   "@profileRequestOptions": {
     "context": "ProfileViewBody — routing entry to person-forward screen"
   },
-  "trustRelationPrefix": "Доверие:",
-  "@trustRelationPrefix": {
-    "context": "Profile — prefix before reciprocity class label"
-  },
+  "trustSentenceMutual": "Вы доверяете друг другу",
+  "@trustSentenceMutual": {},
+  "trustSentenceOneWayOut": "Вы доверяете этому человеку",
+  "@trustSentenceOneWayOut": {},
+  "trustSentenceOneWayIn": "Этот человек доверяет вам",
+  "@trustSentenceOneWayIn": {},
+  "trustSentenceNone": "Доверия пока нет",
+  "@trustSentenceNone": {},
   "trustInfoTitle": "Доверие в Tentura",
   "@trustInfoTitle": {
     "context": "Profile — info sheet title"
@@ -2122,6 +2127,10 @@
   "@copyToClipboard": {
     "context": "ShowSeedDialog, ShareCodeDialog"
   },
+  "errorGenericAction": "Что-то пошло не так. Попробуйте ещё раз.",
+  "@errorGenericAction": {},
+  "copyErrorDetails": "Скопировать подробности",
+  "@copyErrorDetails": {},
   "seedCopied": "Seed-фраза скопирована!",
   "@seedCopied": {
     "context": "ShowSeedDialog"
@@ -2948,7 +2957,7 @@
   "@forwardInviteNewPerson": {
     "context": "ForwardBeaconScreen"
   },
-  "forwardClearSelection": "снять выбор",
+  "forwardClearSelection": "Снять выбор",
   "@forwardClearSelection": {
     "context": "ForwardBeaconScreen — replaces the invite affordance once at least one recipient is selected"
   },
@@ -2956,15 +2965,15 @@
   "@forwardInviteCreatedHint": {
     "context": "ForwardBeaconScreen"
   },
-  "forwardAddSharedNoteCommand": "добавить общую заметку",
+  "forwardAddSharedNoteCommand": "Добавить общую заметку",
   "@forwardAddSharedNoteCommand": {
     "context": "ForwardBeaconScreen"
   },
-  "forwardAddPersonalizedNote": "персональная заметка",
+  "forwardAddPersonalizedNote": "Персональная заметка",
   "@forwardAddPersonalizedNote": {
     "context": "ForwardBeaconScreen recipient row"
   },
-  "forwardHidePersonalizedNote": "скрыть заметку",
+  "forwardHidePersonalizedNote": "Скрыть заметку",
   "@forwardHidePersonalizedNote": {
     "context": "ForwardBeaconScreen recipient row"
   },
@@ -3115,10 +3124,6 @@
   },
   "myWorkEmptyActiveBody": "«Мои дела» — запросы, которые вы создали или на которых предложили помощь. Пересланные вам запросы — в «Активности».",
   "@myWorkEmptyActiveBody": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkEmptyActiveInboxHint": "Пересланные запросы ждут вас в «Активности» → «Нужно мне».",
-  "@myWorkEmptyActiveInboxHint": {
     "context": "MyWorkScreen"
   },
   "myWorkEmptyActiveInboxPrimaryCta": "Открыть активность ({count})",
@@ -3881,6 +3886,11 @@
     "context": "BeaconViewScreen",
     "description": "Badge for withdrawn help offer in help offers list"
   },
+  "helpOfferDeclinedNoticeTitle": "Ваше предложение отклонено",
+  "helpOfferDeclinedNoticeReasonLabel": "Комментарий автора",
+  "helpOfferDeclinedNoticeHint": "Если что-то изменится, можно предложить помощь снова.",
+  "helpOfferStatusDeclined": "Отклонено",
+  "@helpOfferStatusDeclined": {},
   "timelineCreated": "{author} создал(а) запрос",
   "@timelineCreated": {
     "context": "BeaconViewScreen",
@@ -4311,7 +4321,7 @@
   "beaconBlockersPanelTitle": "Блокеры / Вопросы",
   "beaconBlockersPanelAskInRoom": "Спросить в Общем",
   "beaconHudYourRolePanelTitle": "Ваша роль",
-  "beaconHudYouAuthorReview": "Проверить {count} участие(й)",
+  "beaconHudYouAuthorReview": "{count, plural, one{Проверить {count} предложение} few{Проверить {count} предложения} other{Проверить {count} предложений}}",
   "@beaconHudYouAuthorReview": {
     "placeholders": {
       "count": {
@@ -4659,7 +4669,7 @@
       }
     }
   },
-  "beaconShowWithdrawn": "Показать снятые ({count})",
+  "beaconShowWithdrawn": "Показать закрытые предложения ({count})",
   "@beaconShowWithdrawn": {
     "placeholders": {
       "count": {
@@ -4775,8 +4785,8 @@
       }
     }
   },
-  "helpOffersTabActionEdit": "правка",
-  "helpOffersTabActionWithdraw": "снять",
+  "helpOffersTabActionEdit": "Правка",
+  "helpOffersTabActionWithdraw": "Снять",
   "helpOffersTabSummaryUseful": "{n} полезн.",
   "@helpOffersTabSummaryUseful": {
     "placeholders": {
@@ -4900,6 +4910,16 @@
       }
     }
   },
+  "beaconRoomViewerAdmittedByActor": "Вас допустил(а) в обсуждение {actorName}",
+  "@beaconRoomViewerAdmittedByActor": {
+    "placeholders": {
+      "actorName": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconRoomViewerJoinedAutoAdmit": "Вы вступили в обсуждение, потому что автор переслал вам этот запрос напрямую",
+  "@beaconRoomViewerJoinedAutoAdmit": {},
   "beaconRoomDateToday": "Сегодня",
   "beaconRoomDateYesterday": "Вчера",
   "beaconRoomMessagePinnedFactChipPublic": "Закреплено · публичный факт",
@@ -5321,11 +5341,11 @@
   "@helpOfferRoleLabelField": {
     "description": "Editable short role label on People help-offer card and chat peek sheet"
   },
-  "helpOfferRoleLabelPlaceholder": "<роль не выбрана>",
+  "helpOfferRoleLabelPlaceholder": "Роль не выбрана",
   "@helpOfferRoleLabelPlaceholder": {
     "description": "Shown under chat avatar / on People card when role_label is empty"
   },
-  "helpOfferRoleLabelEditAction": "изменить роль",
+  "helpOfferRoleLabelEditAction": "Изменить роль",
   "helpOfferRoleLabelTooLong": "Роль — не больше 32 символов в одной строке.",
   "roomAuthorRoleLabelSemantic": "Роль {name}: {role}",
   "@roomAuthorRoleLabelSemantic": {

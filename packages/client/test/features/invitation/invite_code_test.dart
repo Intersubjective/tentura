@@ -55,6 +55,60 @@ void main() {
     });
   });
 
+  group('extractEntityIdFromText', () {
+    test('accepts a bare id of any shareable kind', () {
+      expect(extractEntityIdFromText(' U9828d11a1555 '), 'U9828d11a1555');
+      expect(extractEntityIdFromText('B65bdcbaa3a6e'), 'B65bdcbaa3a6e');
+      expect(extractEntityIdFromText('I806d29daebbe-'), 'I806d29daebbe');
+    });
+
+    test('reads the id from a profile share link (scanned QR)', () {
+      expect(
+        extractEntityIdFromText(
+          'https://dev.tentura.io/profile/view/U9828d11a1555',
+        ),
+        'U9828d11a1555',
+      );
+    });
+
+    test('reads hash-routed request links and invite links', () {
+      expect(
+        extractEntityIdFromText(
+          'https://dev.tentura.io/#/beacon/view/B65bdcbaa3a6e?tab=people',
+        ),
+        'B65bdcbaa3a6e',
+      );
+      expect(
+        extractEntityIdFromText('https://dev.tentura.io/invite/I806d29daebbe'),
+        'I806d29daebbe',
+      );
+    });
+
+    test('still accepts legacy ?id= links', () {
+      expect(
+        extractEntityIdFromText(
+          'https://dev.tentura.io/profile/view/U9828d11a1555?id=U9828d11a1555',
+        ),
+        'U9828d11a1555',
+      );
+      expect(
+        extractEntityIdFromText('https://dev.tentura.io/x?id=U9828d11a1555'),
+        'U9828d11a1555',
+      );
+    });
+
+    test('rejects text without a whole id', () {
+      expect(extractEntityIdFromText('hello'), isNull);
+      expect(extractEntityIdFromText('U9828d11a15'), isNull);
+      expect(
+        extractEntityIdFromText(
+          'https://dev.tentura.io/profile/view/U9828d11a1555ff',
+        ),
+        isNull,
+      );
+    });
+  });
+
   group('inviteCodeHadTrailingDash', () {
     test('detects trailing dash', () {
       expect(inviteCodeHadTrailingDash('I806d29daebbe-'), isTrue);

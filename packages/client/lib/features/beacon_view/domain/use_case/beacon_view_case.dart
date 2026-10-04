@@ -36,6 +36,7 @@ import '../../data/repository/coordination_repository.dart';
 import '../../data/repository/beacon_display_repository.dart';
 import 'package:tentura/domain/entity/beacon_display_status_dto.dart';
 import '../pinned_facts.dart';
+import '../help_offer_row_record.dart';
 
 @singleton
 final class BeaconViewCase extends UseCaseBase {
@@ -425,38 +426,16 @@ final class BeaconViewCase extends UseCaseBase {
     }
   }
 
-  Future<
-    List<
-      ({
-        String beaconId,
-        String userId,
-        Profile user,
-        String message,
-        String? helpType,
-        String? roleLabel,
-        int status,
-        String? withdrawReason,
-        DateTime createdAt,
-        DateTime updatedAt,
-        int? responseType,
-        DateTime? responseUpdatedAt,
-        String? responseAuthorUserId,
-        int? roomAccess,
-        int? admissionAction,
-        String? lastDeclineReason,
-        String? lastRemoveReason,
-        int stakeState,
-        int offerKind,
-        bool isDirectAuthorForward,
-        String? authorSeenAt,
-      })
-    >
-  >
-  fetchHelpOffersWithCoordination({
+  Future<List<HelpOfferRowRecord>> fetchHelpOffersWithCoordination({
     required String beaconId,
   }) => _coordinationRepository.fetchHelpOffersWithCoordination(
     beaconId: beaconId,
   );
+
+  /// The viewer's own offer (any status) — see
+  /// [CoordinationRepository.fetchMyHelpOffer].
+  Future<HelpOfferRowRecord?> fetchMyHelpOffer(String beaconId) =>
+      _coordinationRepository.fetchMyHelpOffer(beaconId: beaconId);
 
   Future<DateTime> markPeopleSeen(String beaconId) =>
       _coordinationRepository.markBeaconPeopleSeen(beaconId);

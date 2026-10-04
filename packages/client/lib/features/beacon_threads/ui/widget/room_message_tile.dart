@@ -521,9 +521,19 @@ class RoomMessageTile extends StatelessWidget {
           message.author,
           myProfile.id,
         );
+        // The viewer gets second-person copy ("You were admitted…"), not
+        // the third-person template with "You" substituted (UI review #200).
+        final viewerJoined = joinedId == myProfile.id;
         final line = reason == 'autoAdmit'
-            ? l10n.beaconRoomParticipantJoinedAutoAdmit(joinedName)
-            : l10n.beaconRoomParticipantJoinedByActor(joinedName, actorName);
+            ? (viewerJoined
+                  ? l10n.beaconRoomViewerJoinedAutoAdmit
+                  : l10n.beaconRoomParticipantJoinedAutoAdmit(joinedName))
+            : (viewerJoined
+                  ? l10n.beaconRoomViewerAdmittedByActor(actorName)
+                  : l10n.beaconRoomParticipantJoinedByActor(
+                      joinedName,
+                      actorName,
+                    ));
         return Padding(
           padding: EdgeInsets.fromLTRB(
             tt.screenHPadding,
@@ -801,7 +811,7 @@ class RoomMessageTile extends StatelessWidget {
         mentionedIds: mentionedIds,
         selfUserId: myProfile.id,
         mentionColor: scheme.primary,
-        selfMentionBackground: scheme.tertiaryContainer.withValues(alpha: 0.8),
+        selfMentionBackground: scheme.primaryContainer.withValues(alpha: 0.8),
       ),
     ];
     final explicitMentionSpans = usableRoomMessageMentionSpans(
@@ -839,7 +849,7 @@ class RoomMessageTile extends StatelessWidget {
           textStyle: bodyStyle,
           isSelfMention: userId == myProfile.id,
           mentionColor: scheme.primary,
-          selfMentionBackground: scheme.tertiaryContainer.withValues(
+          selfMentionBackground: scheme.primaryContainer.withValues(
             alpha: 0.8,
           ),
         );
@@ -1000,8 +1010,10 @@ class RoomMessageTile extends StatelessWidget {
             child: Text(
               semantic,
               textAlign: TextAlign.start,
+              // Brand, not tertiary: a fact marker is a label, not a
+              // success state (UI review #199).
               style: theme.textTheme.labelMedium?.copyWith(
-                color: scheme.tertiary,
+                color: scheme.primary,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -1165,8 +1177,11 @@ class RoomMessageTile extends StatelessWidget {
       );
     }
 
-    final bubbleBg = isMine ? tt.info.withValues(alpha: 0.18) : tt.surface;
-    final bubbleBorder = isMine ? tt.skyBorder : tt.borderSubtle;
+    // Same shape language in both modes (UI review #204): outgoing is a
+    // solid brand container with no outline; incoming is the card surface
+    // with the card border so it separates from the scaffold.
+    final bubbleBg = isMine ? scheme.primaryContainer : tt.surface;
+    final bubbleBorder = isMine ? scheme.primaryContainer : tt.border;
 
     final replyQuoteFields = message.isReply
         ? roomReplyQuoteFields(

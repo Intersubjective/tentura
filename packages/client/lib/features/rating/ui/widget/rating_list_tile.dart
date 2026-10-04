@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -62,36 +64,36 @@ class RatingListTile extends StatelessWidget {
         colorScheme.primary.withValues(alpha: alpha),
         colorScheme.surface,
       );
-      return ThemeData.estimateBrightnessForColor(fill) == Brightness.dark
-          ? colorScheme.onPrimary
-          : colorScheme.onSurface;
+      // Whichever ink contrasts more with the painted tile — in dark mode a
+      // pale tile is near-black, where onPrimary (navy) vanished (#208).
+      double contrast(Color a, Color b) {
+        final la = a.computeLuminance();
+        final lb = b.computeLuminance();
+        return (math.max(la, lb) + 0.05) / (math.min(la, lb) + 0.05);
+      }
+
+      final candidates = [colorScheme.onSurface, colorScheme.onPrimary];
+      return contrast(candidates[0], fill) >= contrast(candidates[1], fill)
+          ? candidates[0]
+          : candidates[1];
     }
 
     String badgeLabel;
-    Color badgeBg;
     Color badgeFg;
-    Color badgeBorder;
     switch (reciprocity) {
       case _ReciprocityClass.mutual:
         badgeLabel = l10n.classMutual;
-        badgeBg = colorScheme.primary.withValues(alpha: 12 / 100);
         badgeFg = colorScheme.primary;
-        badgeBorder = colorScheme.primary.withValues(alpha: 4 / 10);
       case _ReciprocityClass.oneWayOut:
         badgeLabel = l10n.classOneWayOut;
-        badgeBg = tt.warn.withValues(alpha: 12 / 100);
         badgeFg = tt.warn;
-        badgeBorder = tt.warn.withValues(alpha: 4 / 10);
       case _ReciprocityClass.oneWayIn:
         badgeLabel = l10n.classOneWayIn;
-        badgeBg = colorScheme.secondary.withValues(alpha: 2 / 10);
-        badgeFg = colorScheme.secondary;
-        badgeBorder = colorScheme.secondary.withValues(alpha: 5 / 10);
+        // Neutral, so it stays distinct from the brand "mutual" label.
+        badgeFg = colorScheme.onSurfaceVariant;
       case _ReciprocityClass.none:
         badgeLabel = l10n.classNone;
-        badgeBg = colorScheme.surfaceContainer;
         badgeFg = colorScheme.onSurfaceVariant;
-        badgeBorder = colorScheme.outlineVariant;
     }
 
     const rowHeight = 56.0;
@@ -197,26 +199,14 @@ class RatingListTile extends StatelessWidget {
             Expanded(
               flex: 2,
               child: Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: kSpacingSmall,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: badgeBg,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: badgeBorder),
-                  ),
-                  child: Text(
-                    badgeLabel,
-                    style: textTheme.labelSmall?.copyWith(
-                      color: badgeFg,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                  ),
+                // Plain status text, not a pill (design-system principle 2,
+                // UI review #208); wraps instead of truncating to "one-…".
+                child: Text(
+                  badgeLabel,
+                  style: TenturaText.status(badgeFg),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
                 ),
               ),
             ),
