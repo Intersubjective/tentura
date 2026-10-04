@@ -123,6 +123,9 @@ final class InboxCase extends UseCaseBase {
     rejectionMessage: rejectionMessage,
   );
 
+  Future<void> dismiss({required String beaconId, String privateNote = ''}) =>
+      _repository.dismiss(beaconId: beaconId, privateNote: privateNote);
+
   Future<void> dismissTombstone({
     required String beaconId,
     DateTime? dismissedAt,

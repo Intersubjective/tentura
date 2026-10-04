@@ -2,6 +2,7 @@
 library;
 
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:logging/logging.dart';
@@ -155,21 +156,117 @@ mutation {
       expect(await rejectAsMember(_request), 1);
       expect(await storedStatus(_request), _inboxRejected);
     });
+
+    test(
+      'dismiss note is owner-only; cannot-help note reaches the sender',
+      () async {
+        // A real forward edge makes the sender's role and visibility meaningful.
+        await writer.execute(
+          "UPDATE public.inbox_item SET status = 1, "
+          "rejection_message = '' WHERE user_id = '$_member' "
+          "AND beacon_id = '$_request'",
+        );
+        await writer.execute("""
+INSERT INTO public.beacon_forward_edge (beacon_id, sender_id, recipient_id)
+VALUES ('$_request', '$_author', '$_member')
+""");
+        final memberToken = authCase.issueAccessToken(_member).rawToken;
+        final senderToken = authCase.issueAccessToken(_author).rawToken;
+        final dismissed = await _graphql(
+          hasura,
+          memberToken,
+          File(
+            '../client/lib/features/inbox/data/gql/inbox_dismiss.graphql',
+          ).readAsStringSync(),
+          variables: {
+            'beaconId': _request,
+            'privateNote': 'My private dismiss note',
+          },
+        );
+        expect(dismissed['errors'], isNull);
+        expect((dismissed['data'] as Map)['update_inbox_item'], {
+          'affected_rows': 1,
+        });
+
+        const noteQuery =
+            '''
+query {
+  inbox_item(where: {user_id: {_eq: "$_member"}, beacon_id: {_eq: "$_request"}}) {
+    private_note
+  }
+  beacon_forward_edge(where: {beacon_id: {_eq: "$_request"}}) {
+    recipient_rejected
+    recipient_rejection_message
+  }
+}
+''';
+        final owner = await _graphql(hasura, memberToken, noteQuery);
+        expect(owner['errors'], isNull);
+        expect((owner['data'] as Map)['inbox_item'], [
+          {'private_note': 'My private dismiss note'},
+        ]);
+        final sender = await _graphql(hasura, senderToken, noteQuery);
+        expect(sender['errors'], isNull);
+        expect((sender['data'] as Map)['inbox_item'], isEmpty);
+        expect((sender['data'] as Map)['beacon_forward_edge'], [
+          {'recipient_rejected': true, 'recipient_rejection_message': ''},
+        ]);
+        final forged = await _graphql(hasura, senderToken, '''
+mutation {
+  update_inbox_item(where: {user_id: {_eq: "$_member"}, beacon_id: {_eq: "$_request"}},
+    _set: {private_note: "forged"}) { affected_rows }
+}
+''');
+        expect(forged['errors'], isNull);
+        expect((forged['data'] as Map)['update_inbox_item'], {
+          'affected_rows': 0,
+        });
+
+        // This is the existing Can't help path. It must still communicate a note.
+        final rejected = await _graphql(
+          hasura,
+          memberToken,
+          File(
+            '../client/lib/features/inbox/data/gql/inbox_set_status.graphql',
+          ).readAsStringSync(),
+          variables: {
+            'beaconId': _request,
+            'status': 2,
+            'rejectionMessage': 'I cannot help today',
+          },
+        );
+        expect(rejected['errors'], isNull);
+        final afterRejection = await _graphql(hasura, senderToken, noteQuery);
+        expect(afterRejection['errors'], isNull);
+        expect((afterRejection['data'] as Map)['inbox_item'], isEmpty);
+        expect((afterRejection['data'] as Map)['beacon_forward_edge'], [
+          {
+            'recipient_rejected': true,
+            'recipient_rejection_message': 'I cannot help today',
+          },
+        ]);
+        final ownerAfter = await _graphql(hasura, memberToken, noteQuery);
+        expect((ownerAfter['data'] as Map)['inbox_item'], [
+          {'private_note': 'My private dismiss note'},
+        ]);
+      },
+    );
   });
 }
 
 Future<Map<String, dynamic>> _graphql(
   IsolatedHasuraSession hasura,
   String jwt,
-  String query,
-) async {
+  String query, {
+  Map<String, Object?> variables = const {},
+}) async {
   final response = await http.post(
     Uri.parse('${hasura.baseUrl}/v1/graphql'),
     headers: {
       'Content-Type': 'application/json',
       'Authorization': 'Bearer $jwt',
     },
-    body: jsonEncode({'query': query}),
+    body: jsonEncode({'query': query, 'variables': variables}),
   );
   return jsonDecode(response.body) as Map<String, dynamic>;
 }

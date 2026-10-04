@@ -285,6 +285,10 @@ class InboxCubit extends Cubit<InboxState> {
     await _updateStatus(beaconId, InboxItemStatus.needsMe);
   }
 
+  Future<void> dismiss(String beaconId, {String note = ''}) async {
+    await _updateStatus(beaconId, InboxItemStatus.rejected, privateNote: note);
+  }
+
   Future<void> reject(String beaconId, {String message = ''}) async {
     await _updateStatus(
       beaconId,
@@ -363,16 +367,21 @@ class InboxCubit extends Cubit<InboxState> {
     String beaconId,
     InboxItemStatus status, {
     String rejectionMessage = '',
+    String? privateNote,
   }) async {
     final idx = state.items.indexWhere((e) => e.beaconId == beaconId);
     if (idx < 0) return;
     final item = state.items[idx];
     try {
-      await _inboxCase.setStatus(
-        beaconId: beaconId,
-        status: status,
-        rejectionMessage: rejectionMessage,
-      );
+      if (privateNote != null) {
+        await _inboxCase.dismiss(beaconId: beaconId, privateNote: privateNote);
+      } else {
+        await _inboxCase.setStatus(
+          beaconId: beaconId,
+          status: status,
+          rejectionMessage: rejectionMessage,
+        );
+      }
       emit(
         state.copyWith(
           items: [
@@ -380,6 +389,7 @@ class InboxCubit extends Cubit<InboxState> {
             item.copyWith(
               status: status,
               rejectionMessage: rejectionMessage,
+              privateNote: privateNote ?? item.privateNote,
             ),
             ...state.items.sublist(idx + 1),
           ],

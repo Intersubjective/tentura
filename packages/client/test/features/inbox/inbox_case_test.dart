@@ -79,6 +79,30 @@ void main() {
     });
   });
 
+  test(
+    'cubit dismiss keeps note private; reject uses the communicated path',
+    () async {
+      repo.fetchResult = [_item(status: InboxItemStatus.watching)];
+      final cubit = InboxCubit(
+        userId: 'u1',
+        inboxCase: case_,
+        effects: FakeUiEffectPort(),
+      );
+      addTearDown(cubit.close);
+      await cubit.stream.firstWhere((state) => state.isSuccess);
+      final id = cubit.state.items.single.beaconId;
+      await cubit.dismiss(id, note: 'My private note');
+      expect(repo.lastDismiss, (beaconId: id, privateNote: 'My private note'));
+      expect(repo.lastSetStatus, isNull);
+      expect(cubit.state.items.single.privateNote, 'My private note');
+      expect(cubit.state.items.single.rejectionMessage, isEmpty);
+      expect(cubit.state.items.single.status, InboxItemStatus.rejected);
+      await cubit.reject(id, message: 'Cannot help today');
+      expect(repo.lastSetStatus?.rejectionMessage, 'Cannot help today');
+      expect(cubit.state.items.single.privateNote, 'My private note');
+    },
+  );
+
   group('InboxCase.setStatus', () {
     test('delegates beaconId, status, and rejectionMessage', () async {
       await case_.setStatus(
@@ -94,6 +118,15 @@ void main() {
       ));
     });
   });
+
+  test(
+    'dismiss stores a private note without sending a rejection message',
+    () async {
+      await case_.dismiss(beaconId: 'b1', privateNote: 'Only for me');
+      expect(repo.lastDismiss, (beaconId: 'b1', privateNote: 'Only for me'));
+      expect(repo.lastSetStatus, isNull);
+    },
+  );
 
   group('InboxCase.dismissTombstone', () {
     test('delegates beaconId and dismissedAt', () async {
@@ -661,6 +694,7 @@ class _FakePollingRepository implements PollingRepository {
 }
 
 class FakeInboxRepository implements InboxRepository {
+  ({String beaconId, String privateNote})? lastDismiss;
   final _localMutationsController = StreamController<void>.broadcast();
 
   List<InboxItem> fetchResult = const [];
@@ -723,6 +757,14 @@ class FakeInboxRepository implements InboxRepository {
       status: status,
       rejectionMessage: rejectionMessage,
     );
+  }
+
+  @override
+  Future<void> dismiss({
+    required String beaconId,
+    String privateNote = '',
+  }) async {
+    lastDismiss = (beaconId: beaconId, privateNote: privateNote);
   }
 
   @override

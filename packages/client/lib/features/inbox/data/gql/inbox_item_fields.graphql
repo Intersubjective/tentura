@@ -7,6 +7,7 @@ fragment InboxItemFields on inbox_item {
   latest_forward_at
   latest_note_preview
   status
+  private_note
   rejection_message
   before_response_terminal_at
   tombstone_dismissed_at

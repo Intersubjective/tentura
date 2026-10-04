@@ -2082,6 +2082,7 @@
                     "latest_note_preview",
                     "status",
                     "rejection_message",
+                    "private_note",
                     "before_response_terminal_at",
                     "tombstone_dismissed_at"
                   ],
@@ -2117,6 +2118,7 @@
                   "columns": [
                     "status",
                     "rejection_message",
+                    "private_note",
                     "tombstone_dismissed_at"
                   ],
                   "filter": {

@@ -152,12 +152,13 @@ void main() {
         expect(_scopedToViewer(permission['filter']), isTrue);
       });
 
-      test('still allows only the three inbox columns', () {
+      test('allows inbox decisions, private notes, and tombstone dismissal', () {
         expect(
           permission['columns'],
           unorderedEquals([
             'status',
             'rejection_message',
+            'private_note',
             'tombstone_dismissed_at',
           ]),
         );

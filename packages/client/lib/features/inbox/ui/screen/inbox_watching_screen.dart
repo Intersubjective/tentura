@@ -154,9 +154,9 @@ class _InboxWatchingScreenState extends State<InboxWatchingScreen> {
                           final msg = await showInboxDismissDialog(context);
                           if (!context.mounted) return;
                           if (msg != null) {
-                            await inboxCubit.reject(
+                            await inboxCubit.dismiss(
                               item.beaconId,
-                              message: msg,
+                              note: msg,
                             );
                           }
                         },

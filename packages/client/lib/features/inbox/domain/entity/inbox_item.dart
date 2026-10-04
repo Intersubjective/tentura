@@ -18,6 +18,7 @@ abstract class InboxItem with _$InboxItem {
     @Default('') String latestNotePreview,
     @Default(InboxItemStatus.needsMe) InboxItemStatus status,
     @Default('') String rejectionMessage,
+    @Default('') String privateNote,
     @Default('') String context,
     @Default(InboxProvenance.empty) InboxProvenance provenance,
     @Default(false) bool isForwardedByMe,

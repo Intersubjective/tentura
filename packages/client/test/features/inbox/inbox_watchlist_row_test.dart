@@ -6,6 +6,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_item.dart';
+import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
 import 'package:tentura/features/inbox/ui/widget/inbox_watchlist_row.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -71,6 +72,29 @@ Future<void> _pumpRow(
 void main() {
   const logicalSize = Size(360, 420);
   final at = DateTime.utc(2026, 6, 20, 12, 34);
+
+  testWidgets('dismissed row shows the owner their private note', (
+    tester,
+  ) async {
+    await _pumpRow(
+      tester,
+      logicalSize: logicalSize,
+      item: InboxItem(
+        beaconId: 'b-private',
+        latestForwardAt: at,
+        status: InboxItemStatus.rejected,
+        privateNote: 'Only I can see this note',
+        beacon: Beacon(
+          id: 'b-private',
+          title: 'Request',
+          author: const Profile(id: 'auth', displayName: 'Alex'),
+          createdAt: at,
+          updatedAt: at,
+        ),
+      ),
+    );
+    expect(find.text('Only I can see this note'), findsOneWidget);
+  });
 
   testWidgets('empty details content omits Details row', (tester) async {
     final beacon = Beacon(

@@ -208,6 +208,18 @@ class InboxWatchlistRow extends StatelessWidget {
             SizedBox(height: tt.sectionGap),
           ],
           if (item.status == InboxItemStatus.rejected &&
+              item.privateNote.isNotEmpty)
+            Padding(
+              padding: EdgeInsets.only(top: tt.rowGap),
+              child: Text(
+                item.privateNote,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+                softWrap: true,
+              ),
+            ),
+          if (item.status == InboxItemStatus.rejected &&
               item.rejectionMessage.isNotEmpty)
             Padding(
               padding: EdgeInsets.only(top: tt.rowGap),

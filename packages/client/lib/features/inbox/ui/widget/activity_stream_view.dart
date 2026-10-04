@@ -694,7 +694,7 @@ class _PinnedRequestCard extends StatelessWidget {
     }
 
     Future<void> cantHelp() async {
-      final message = await showInboxDismissDialog(context);
+      final message = await showRejectionDialog(context);
       if (!context.mounted || message == null) return;
       await inboxCubit.reject(beaconId, message: message);
     }

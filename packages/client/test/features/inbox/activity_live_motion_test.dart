@@ -207,6 +207,9 @@ class _TestInboxCubit extends Cubit<InboxState> implements InboxCubit {
   Future<void> stopWatching(String beaconId) async {}
 
   @override
+  Future<void> dismiss(String beaconId, {String note = ''}) async {}
+
+  @override
   Future<void> reject(String beaconId, {String message = ''}) async {}
 
   @override

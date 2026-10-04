@@ -10,6 +10,7 @@ import '../../domain/entity/inbox_provenance.dart';
 import '../../domain/enum.dart';
 import '../gql/_g/activity_offers.req.gql.dart';
 import '../gql/_g/activity_offers_hydrate.req.gql.dart';
+import '../gql/_g/inbox_dismiss.req.gql.dart';
 import '../gql/_g/inbox_fetch.req.gql.dart';
 import '../gql/_g/inbox_item_fields.data.gql.dart';
 import '../gql/_g/inbox_item_status_for_beacon.req.gql.dart';
@@ -171,6 +172,7 @@ class InboxRepository {
             latestNotePreview: e.latest_note_preview,
             status: inboxItemStatusFromSmallint(e.status),
             rejectionMessage: e.rejection_message,
+            privateNote: e.private_note,
             beforeResponseTerminalAt: e.before_response_terminal_at,
             tombstoneDismissedAt: e.tombstone_dismissed_at,
             provenance: InboxProvenance.parse(
@@ -229,6 +231,27 @@ class InboxRepository {
               ..vars.beaconId = beaconId
               ..vars.status = status.toSmallint
               ..vars.rejectionMessage = rejectionMessage,
+          ),
+        )
+        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .then((r) => r.dataOrThrow(label: _label));
+    if (!_localMutationController.isClosed) {
+      _localMutationController.add(null);
+    }
+  }
+
+  /// Stores the note only on the viewer's inbox row. The forward edge receives
+  /// an empty rejection message, so no sender can read this note.
+  Future<void> dismiss({
+    required String beaconId,
+    String privateNote = '',
+  }) async {
+    await _remoteApiService
+        .request(
+          GInboxDismissReq(
+            (r) => r
+              ..vars.beaconId = beaconId
+              ..vars.privateNote = privateNote,
           ),
         )
         .firstWhere((e) => e.dataSource == DataSource.Link)

@@ -3229,6 +3229,7 @@ type inbox_item {
   inbox_user_help_offer: beacon_help_offer
   latest_forward_at: timestamptz!
   latest_note_preview: String!
+  private_note: String!
   rejection_message: String!
 
   """
@@ -3295,6 +3296,7 @@ input inbox_item_bool_exp {
   inbox_user_help_offer: beacon_help_offer_bool_exp
   latest_forward_at: timestamptz_comparison_exp
   latest_note_preview: String_comparison_exp
+  private_note: String_comparison_exp
   rejection_message: String_comparison_exp
   status: smallint_comparison_exp
   tombstone_dismissed_at: timestamptz_comparison_exp
@@ -3327,6 +3329,7 @@ type inbox_item_max_fields {
   inbox_provenance_data: String
   latest_forward_at: timestamptz
   latest_note_preview: String
+  private_note: String
   rejection_message: String
 
   """
@@ -3354,6 +3357,7 @@ type inbox_item_min_fields {
   inbox_provenance_data: String
   latest_forward_at: timestamptz
   latest_note_preview: String
+  private_note: String
   rejection_message: String
 
   """
@@ -3388,6 +3392,7 @@ input inbox_item_order_by {
   inbox_user_help_offer: beacon_help_offer_order_by
   latest_forward_at: order_by
   latest_note_preview: order_by
+  private_note: order_by
   rejection_message: order_by
   status: order_by
   tombstone_dismissed_at: order_by
@@ -3424,6 +3429,9 @@ enum inbox_item_select_column {
   latest_note_preview
 
   """column name"""
+  private_note
+
+  """column name"""
   rejection_message
 
   """column name"""
@@ -3440,6 +3448,7 @@ enum inbox_item_select_column {
 input type for updating data in table "inbox_item"
 """
 input inbox_item_set_input {
+  private_note: String
   rejection_message: String
 
   """
@@ -3502,6 +3511,7 @@ input inbox_item_stream_cursor_value_input {
   forward_count: Int
   latest_forward_at: timestamptz
   latest_note_preview: String
+  private_note: String
   rejection_message: String
 
   """

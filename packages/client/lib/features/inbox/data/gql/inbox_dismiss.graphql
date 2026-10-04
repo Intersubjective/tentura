@@ -1,0 +1,8 @@
+mutation InboxDismiss($beaconId: String!, $privateNote: String!) {
+  update_inbox_item(
+    where: {beacon_id: {_eq: $beaconId}},
+    _set: {status: 2, rejection_message: "", private_note: $privateNote}
+  ) {
+    affected_rows
+  }
+}
