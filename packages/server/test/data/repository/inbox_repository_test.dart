@@ -54,8 +54,7 @@ Future<void> main() async {
         latestNoteSkipReason = provenanceSkipReason;
         if (latestNoteSkipReason == false &&
             !await _hasM0190LatestNoteForward(probe)) {
-          latestNoteSkipReason =
-              'm0190 provenance (latestNoteForward) missing';
+          latestNoteSkipReason = 'm0190 provenance (latestNoteForward) missing';
         }
       }
     } finally {
@@ -531,15 +530,13 @@ WHERE ii.user_id = $2 AND ii.beacon_id = $3
   );
 
   test(
-    'the Inbox delegate keeps its blocked-sender behaviour (issue #188)',
+    'the Inbox delegate hides blocked senders (issue #188)',
     () async {
-      // U15R-b shares one body between the Inbox computed field and the
-      // attention read path, so this case is the guard on the *one* place
-      // they legitimately differ: the delegate passes `p_exclude_blocked =
-      // false`, and whether that is right is issue #188 — a product decision,
-      // not a thing to settle under cover of a contract extension. If a later
-      // change quietly turns the wall on here, the Inbox starts hiding
-      // forwarders it has always shown, and this goes red.
+      // Since m0218 the Inbox computed field passes `p_exclude_blocked =
+      // true`, like the attention read path: a blocked forwarder leaves the
+      // list, the count and the pinned latest-note forward together. A count
+      // that still included them would tell the viewer someone they blocked
+      // forwarded this.
       await seedUsers();
       await seedBeacon();
 
@@ -593,21 +590,21 @@ WHERE ii.user_id = $2 AND ii.beacon_id = $3
           jsonDecode(row.read<String>('data')) as Map<String, dynamic>;
       expect(
         parsed['totalDistinctSenders'],
-        2,
-        reason: 'the Inbox has never applied the block filter here',
+        1,
+        reason: 'the blocked sender must not be counted',
       );
       expect(
         (parsed['senders'] as List<dynamic>).map((e) => e['id']),
-        containsAll([_senderId, _sender2Id]),
+        [_senderId],
       );
       expect(
         (parsed['latestNoteForward'] as Map<String, dynamic>)['senderId'],
-        _sender2Id,
+        _senderId,
         reason:
-            'the new field reads from the same filtered edges as the list, '
-            'so it shows exactly what this caller already shows — no more, '
-            'and no less',
+            'the pinned forward reads from the same filtered edges as the '
+            'list, so the newer blocked note never surfaces',
       );
+      expect(row.read<String>('data'), isNot(contains('blocked note')));
     },
     skip: latestNoteSkipReason,
   );
@@ -657,18 +654,14 @@ LIMIT 1
   return provenanceFn.isNotEmpty;
 }
 
+/// Reads the tombstone function through [_functionSourceFollowingCalls], so
+/// moving its body behind a delegate cannot silently skip the tombstone cases
+/// the way m0188 once skipped the provenance ones (issue #188).
 Future<bool> _hasM0102TombstoneFunction(TenturaDb db) async {
-  final row = await db.customSelect(
-    r'''
-SELECT pg_get_functiondef(p.oid) AS def
-FROM pg_proc p
-JOIN pg_namespace n ON n.oid = p.pronamespace
-WHERE n.nspname = 'public'
-  AND p.proname = 'inbox_item_apply_tombstone_after_withdraw'
-LIMIT 1
-''',
-  ).getSingleOrNull();
-  final def = row?.read<String>('def') ?? '';
+  final def = await _functionSourceFollowingCalls(
+    db,
+    'inbox_item_apply_tombstone_after_withdraw',
+  );
   return def.contains('b.status') && !def.contains('b.state');
 }
 
@@ -715,10 +708,18 @@ Future<bool> _hasM0103Provenance(TenturaDb db) async {
 /// definition with those of every `public.` function it transitively calls, so
 /// the probes see the SQL that really runs no matter how many hops it is moved
 /// behind.
-Future<String> _provenanceImplSource(TenturaDb db) async {
+Future<String> _provenanceImplSource(TenturaDb db) =>
+    _functionSourceFollowingCalls(db, 'inbox_item_inbox_provenance_data');
+
+/// Definition of `public.[entry]` concatenated with every `public.` function
+/// it transitively calls.
+Future<String> _functionSourceFollowingCalls(
+  TenturaDb db,
+  String entry,
+) async {
   final seen = <String>{};
   final buffer = StringBuffer();
-  final pending = <String>['inbox_item_inbox_provenance_data'];
+  final pending = <String>[entry];
 
   while (pending.isNotEmpty) {
     final name = pending.removeLast();
