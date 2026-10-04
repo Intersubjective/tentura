@@ -9,7 +9,7 @@ import 'package:tentura_server/domain/port/discussion_product_policy_port.dart';
 /// may instantiate an internal multi-thread policy variant.
 ///
 /// See `docs/plans/nested-requests-implementation-plan.md` §5.1 and
-/// `docs/plans/nested-requests-architecture.md`. Future multi-thread exposure
+/// `docs/plans/nested-requests-implementation-plan.md`. Future multi-thread exposure
 /// requires a new authorization/API review.
 abstract final class DiscussionProductPolicy {
   DiscussionProductPolicy._();

@@ -337,10 +337,11 @@ Future<_Harness> _pumpPost(
   addTearDown(() async {
     await tester.pumpWidget(const SizedBox());
     await tester.pump();
-    await threadHost.close().timeout(
-      const Duration(seconds: 5),
-      onTimeout: () {},
-    );
+    // close() needs the fake-async microtask queue pumped to complete;
+    // awaiting it bare hangs (it used to be masked by a 5 s timeout per test).
+    final closing = threadHost.close();
+    await tester.pump();
+    await closing;
   });
 
   final general = RequestThread(

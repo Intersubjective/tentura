@@ -2,7 +2,7 @@
 
 Status: revision 2 — adversarial review round 1 applied; **no implementation performed**. See §11 change log.
 Date: 2026-09-06. Live-code baseline: `104786666` plus the working tree.
-Source: [architectural proposal](nested-requests-architecture.md). Its older baseline was `ecb9a918c`; use the live paths below.
+Source: architectural proposal (never committed; this plan is the surviving record). Its older baseline was `ecb9a918c`; use the live paths below.
 
 The product owner explicitly adopted both proposal defaults while this plan was written:
 

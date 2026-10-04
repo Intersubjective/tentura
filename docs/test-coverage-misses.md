@@ -1,5 +1,11 @@
 # Test coverage misses — agent coordination index
 
+> **Historical — closed backlog (2026-06 snapshot; all 52 items marked implemented).** Do not use it as a todo list.
+> Section 4 (ask / promise / blocker / plan-step coordination items) describes use cases that were later retired
+> (see `CONTEXT.md` § General-only discussion) — those file names no longer exist. The test suite is now being
+> *reduced*, not grown: see [`test-audit.md`](test-audit.md) for the redundancy/slowness audit and the policy for new tests.
+
+
 **Purpose:** Actionable backlog of business-logic and contract tests that are missing or thin. Agents should claim items by ID, set `status: in_progress` in their PR description, and check off acceptance criteria.
 
 **Branch baseline:** `main` (2026-06-25). Re-verify paths after large refactors.

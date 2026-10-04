@@ -4,7 +4,7 @@
 2. **VPS / staging only:** copy `examples/compose.override.example.yaml` → `compose.override.yaml` and adjust **non-secret** per-host settings (dev Hasura console, image tag, postgres tuning, pgAdmin). Never put secrets in the override file.
 3. **Local dev (infra in Docker, Tentura API on the host):** `docker compose up -d` (includes `compose.dev.yaml`) — then run the server from `packages/server`. **Production / VPS:** `docker compose -f compose.prod.yaml up -d` (auto-merges `compose.override.yaml` when present), or `./deploy.sh`.
 4. After changing `.env`, recreate affected containers: `docker compose up -d --force-recreate tentura hasura` (env is baked in at container create time).
-5. Apply SQL commands in `hasura/schema.sql` to Postgres (Hasura schema and MeritRank-related triggers)
+5. The schema (tables, Hasura-facing views/functions, MeritRank-related triggers) is applied automatically: `tentura-server` runs the ordered Drift migrations in `packages/server/lib/data/database/migration/` (`migrateDbSchema`) on startup. There is no hand-applied `schema.sql`.
 6. Apply Hasura metadata: `./scripts/hasura_apply_metadata.sh` (with compose dev Hasura on `http://127.0.0.1:8080`), or upload `hasura/metadata.json` in the Hasura console
 
 ### Compose layout (VPS)

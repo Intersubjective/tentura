@@ -280,7 +280,8 @@ tentura/
 ├── compose.yaml             # Default: includes compose.dev.yaml
 ├── compose.dev.yaml         # Local dev services
 ├── compose.prod.yaml        # Production (Tentura in Docker + Caddy)
-├── hasura/                  # Hasura metadata and schema SQL
+├── hasura/                  # Hasura metadata (`metadata.json`); schema lives in server migrations
+├── sql/                     # Legacy pre-squash trigger extract (`triggers.sql`); not applied by anything
 ├── l10n/                    # Localization .arb files
 └── scripts/                 # Helper scripts
 ```
