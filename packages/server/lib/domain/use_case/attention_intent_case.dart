@@ -366,6 +366,80 @@ class AttentionIntentCase {
     reason: AttentionRecipientReason.postAuthor,
   );
 
+  /// «Who'll take it?» (baton) — plan §2.2/B3
+  /// (`docs/plans/baton-who-takes-it-plan.md`). All three carry only the
+  /// source message's excerpt and never name other candidates (D3/D10).
+
+  /// A candidate is asked to help on [actorUserId]'s baton.
+  Future<AttentionDispatchIntent> batonAsked({
+    required String beaconId,
+    required String messageId,
+    required String actorUserId,
+    required String recipientId,
+    required String excerpt,
+    required String sourceEventKey,
+  }) => _directedRoomMessage(
+    beaconId: beaconId,
+    messageId: messageId,
+    actorUserId: actorUserId,
+    recipientUserIds: {recipientId},
+    excerpt: excerpt,
+    sourceEventKey: sourceEventKey,
+    kind: NotificationKind.batonAsked,
+    emptyTitle: "Who'll take it?",
+    emptyBody: 'asks if you can help',
+    bodyPrefixedWithActor: true,
+    eventType: AttentionEventType.batonAsked,
+    reason: AttentionRecipientReason.batonCandidate,
+  );
+
+  /// The taker is told they took [actorUserId]'s baton.
+  Future<AttentionDispatchIntent> batonTaken({
+    required String beaconId,
+    required String messageId,
+    required String actorUserId,
+    required String recipientId,
+    required String excerpt,
+    required String sourceEventKey,
+  }) => _directedRoomMessage(
+    beaconId: beaconId,
+    messageId: messageId,
+    actorUserId: actorUserId,
+    recipientUserIds: {recipientId},
+    excerpt: excerpt,
+    sourceEventKey: sourceEventKey,
+    kind: NotificationKind.batonTaken,
+    emptyTitle: 'You took it',
+    emptyBody: 'You took it',
+    titleIsActorName: false,
+    eventType: AttentionEventType.batonTaken,
+    reason: AttentionRecipientReason.batonTaker,
+  );
+
+  /// The author ([recipientId]) is told everyone answered their baton.
+  /// Dispatched once per baton (guarded by `all_answered_notified_at`, B4).
+  Future<AttentionDispatchIntent> batonAllAnswered({
+    required String beaconId,
+    required String messageId,
+    required String actorUserId,
+    required String recipientId,
+    required String excerpt,
+    required String sourceEventKey,
+  }) => _directedRoomMessage(
+    beaconId: beaconId,
+    messageId: messageId,
+    actorUserId: actorUserId,
+    recipientUserIds: {recipientId},
+    excerpt: excerpt,
+    sourceEventKey: sourceEventKey,
+    kind: NotificationKind.batonAllAnswered,
+    emptyTitle: 'Everyone answered',
+    emptyBody: "Everyone answered your «Who'll take it?»",
+    titleIsActorName: false,
+    eventType: AttentionEventType.batonAllAnswered,
+    reason: AttentionRecipientReason.batonAuthor,
+  );
+
   /// Personal `@handle` mention — same Updates event as [roomMessagePosted],
   /// but [NotificationKind.roomMention] (coordination) for push/email.
   Future<AttentionDispatchIntent> roomMentioned({
@@ -435,7 +509,11 @@ class AttentionIntentCase {
             coordinationItemId: threadItemId,
             messageId: messageId,
             actorUserId: actorUserId,
-            excerpt: eventType == AttentionEventType.postFirstResponse
+            excerpt:
+                eventType == AttentionEventType.postFirstResponse ||
+                    eventType == AttentionEventType.batonAsked ||
+                    eventType == AttentionEventType.batonTaken ||
+                    eventType == AttentionEventType.batonAllAnswered
                 ? excerpt
                 : null,
           ),

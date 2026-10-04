@@ -27,4 +27,9 @@ enum NotificationKind {
 
   /// A member's first response in a Post room, told to the Post author.
   postFirstResponse,
+
+  /// «Who'll take it?» (baton) — plan §2.2/B3.
+  batonAsked,
+  batonTaken,
+  batonAllAnswered,
 }

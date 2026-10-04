@@ -318,6 +318,18 @@ _fixtureFor(String eventName) => switch (eventName) {
     reasons: const {AttentionRecipientReason.postAuthor},
     role: _baseRole,
   ),
+  'batonAsked' => (
+    reasons: const {AttentionRecipientReason.batonCandidate},
+    role: _baseRole,
+  ),
+  'batonTaken' => (
+    reasons: const {AttentionRecipientReason.batonTaker},
+    role: _baseRole,
+  ),
+  'batonAllAnswered' => (
+    reasons: const {AttentionRecipientReason.batonAuthor},
+    role: _baseRole,
+  ),
   _ => throw StateError('No policy fixture for $eventName'),
 };
 
