@@ -1,16 +1,26 @@
 import 'package:flutter/widgets.dart';
 
+import 'package:tentura/features/emoji/domain/emoji_shortcode_token.dart';
+
 import '../../domain/entity/committed_mention.dart';
+
+export 'package:tentura/features/emoji/domain/emoji_shortcode_token.dart'
+    show EmojiShortcodeToken;
 
 export '../../domain/entity/committed_mention.dart';
 
-/// Text controller that detects the active `@handle` token at cursor and can
-/// replace it with a selected mention.
+/// Text controller that detects the active `@handle` or `:shortcode` token at
+/// cursor and can replace it with a selected mention or emoji.
 final class MentionTextController extends TextEditingController {
-  MentionTextController({super.text});
+  MentionTextController({super.text, this.emojiForShortcode});
+
+  /// Resolves an exact shortcode (no colons) to its emoji. When set, typing
+  /// the closing colon of a known `:shortcode:` replaces it with the emoji.
+  final String? Function(String shortcode)? emojiForShortcode;
 
   String? _activeMentionQuery;
   TextRange? _activeMentionRange;
+  EmojiShortcodeToken? _activeEmojiToken;
   final _committed = <CommittedMention>[];
 
   /// Id-anchored mention ranges that still exactly survive the current text.
@@ -27,9 +37,16 @@ final class MentionTextController extends TextEditingController {
     return _activeMentionRange;
   }
 
+  /// `:query` being typed at cursor (query of 2+ characters), or `null`.
+  EmojiShortcodeToken? get activeEmojiToken {
+    _recompute();
+    return _activeEmojiToken;
+  }
+
   @override
-  set value(TextEditingValue newValue) {
+  set value(TextEditingValue rawValue) {
     final oldValue = value;
+    final newValue = _withTypedShortcodeReplaced(oldValue, rawValue);
     if (oldValue.text != newValue.text) {
       _shiftCommittedMentionsForEdit(oldValue, newValue);
     }
@@ -156,9 +173,44 @@ final class MentionTextController extends TextEditingController {
       ..addAll(next);
   }
 
+  /// Slack-style: a typed closing colon turns a known `:shortcode:` into its
+  /// emoji. Only a single typed `:` at a collapsed caret outside IME
+  /// composition qualifies, so pastes and programmatic edits stay literal.
+  TextEditingValue _withTypedShortcodeReplaced(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final lookup = emojiForShortcode;
+    if (lookup == null) return newValue;
+    final newText = newValue.text;
+    final sel = newValue.selection;
+    if (!sel.isValid || !sel.isCollapsed) return newValue;
+    if (newValue.composing.isValid && !newValue.composing.isCollapsed) {
+      return newValue;
+    }
+    final caret = sel.baseOffset;
+    if (newText.length != oldValue.text.length + 1 ||
+        caret < 1 ||
+        caret > newText.length ||
+        newText[caret - 1] != ':' ||
+        newText.substring(0, caret - 1) + newText.substring(caret) !=
+            oldValue.text) {
+      return newValue;
+    }
+    final done = completedEmojiShortcode(newText, caret);
+    if (done == null) return newValue;
+    final emoji = lookup(done.name.toLowerCase());
+    if (emoji == null) return newValue;
+    return TextEditingValue(
+      text: newText.replaceRange(done.start, done.end, emoji),
+      selection: TextSelection.collapsed(offset: done.start + emoji.length),
+    );
+  }
+
   void _recompute() {
     _activeMentionQuery = null;
     _activeMentionRange = null;
+    _activeEmojiToken = null;
 
     final text = this.text;
     if (text.isEmpty) return;
@@ -166,6 +218,8 @@ final class MentionTextController extends TextEditingController {
     final selectionOffset = selection.baseOffset;
     final cursor = selectionOffset < 0 ? text.length : selectionOffset;
     if (cursor > text.length) return;
+
+    _activeEmojiToken = activeEmojiShortcodeToken(text, cursor);
 
     // Walk left by UTF-16 code units to the token start. Handles are ASCII, so
     // surrogate pairs (emoji) never match `@` / handle chars; they only act as
@@ -230,4 +284,16 @@ final class MentionTextController extends TextEditingController {
 
   bool insertMention(String handleLowercase) =>
       insertLiteralMentionText('@$handleLowercase');
+
+  /// Replaces the active `:query` token with [emoji]; `false` when none.
+  bool insertEmoji(String emoji) {
+    final token = activeEmojiToken;
+    if (token == null) return false;
+    value = value.copyWith(
+      text: text.replaceRange(token.start, token.end, emoji),
+      selection: TextSelection.collapsed(offset: token.start + emoji.length),
+      composing: TextRange.empty,
+    );
+    return true;
+  }
 }
