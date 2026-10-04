@@ -56,6 +56,9 @@ class _StubGraphCubit extends Cubit<GraphState> implements GraphCubit {
   }) : super(GraphState(me: _me, focus: focus, isAnimated: false));
 
   @override
+  ({double? fromViewer, double? toViewer})? viewerLink(String nodeId) => null;
+
+  @override
   final bool genealogyMode;
 
   @override

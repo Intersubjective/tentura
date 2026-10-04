@@ -20,6 +20,7 @@ class GraphNodeWidget extends StatelessWidget {
     this.isOrigin = false,
     this.isFocused = false,
     this.hiddenNeighborCount,
+    this.connectionSemantics,
     this.onTap,
     super.key,
   });
@@ -32,6 +33,10 @@ class GraphNodeWidget extends StatelessWidget {
   final bool isOrigin;
   final bool isFocused;
   final int? hiddenNeighborCount;
+
+  /// Screen-reader description of this node's connection to the viewer
+  /// (e.g. "Olga → you, trust, mutual"); set on the selected node only.
+  final String? connectionSemantics;
   final NodeDetails nodeDetails;
   final VoidCallback? onTap;
 
@@ -188,6 +193,7 @@ class GraphNodeWidget extends StatelessWidget {
         button: true,
         selected: isFocused,
         label: semanticLabel(l10n, nodeDetails),
+        value: connectionSemantics,
         child: MouseRegion(
           cursor: SystemMouseCursors.click,
           child: ExcludeSemantics(

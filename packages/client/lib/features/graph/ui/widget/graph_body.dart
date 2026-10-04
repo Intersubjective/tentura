@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 
@@ -274,6 +275,36 @@ class GraphBodyState extends State<GraphBody>
     );
   }
 
+  /// "Olga → you, trust, mutual" for the selected node's direct link to the
+  /// viewer — the same facts the arrowheads and stroke show on the canvas.
+  String? _viewerConnectionSemantics(NodeDetails node) {
+    final link = _graphCubit.viewerLink(node.id);
+    if (link == null) {
+      return null;
+    }
+    final l10n = L10n.of(context)!;
+    final name = GraphNodeWidget.semanticLabel(l10n, node);
+    final you = l10n.graphEdgeSemanticsYou;
+    final toViewer = link.toViewer;
+    final fromViewer = link.fromViewer;
+    final isMutual = toViewer != null && fromViewer != null;
+    String kind(double weight) => weight < 0
+        ? l10n.graphEdgeSemanticsNegative
+        : l10n.graphEdgeSemanticsTrust;
+    final direction = isMutual
+        ? l10n.graphEdgeSemanticsMutual
+        : l10n.graphEdgeSemanticsOneWay;
+    if (isMutual && (toViewer < 0) == (fromViewer < 0)) {
+      return l10n.graphEdgeSemanticsLink(name, you, kind(toViewer), direction);
+    }
+    return [
+      if (toViewer != null)
+        l10n.graphEdgeSemanticsLink(name, you, kind(toViewer), direction),
+      if (fromViewer != null)
+        l10n.graphEdgeSemanticsLink(you, name, kind(fromViewer), direction),
+    ].join('; ');
+  }
+
   Widget _buildGraphView(GraphState graphState) =>
       GraphView<NodeDetails, EdgeDetails>(
         controller: _graphCubit.graphController,
@@ -340,6 +371,9 @@ class GraphBodyState extends State<GraphBody>
           isOrigin: node.id == _graphCubit.originNodeId,
           isFocused: graphState.focus.isNotEmpty && node.id == graphState.focus,
           hiddenNeighborCount: graphState.hiddenNeighborCounts[node.id],
+          connectionSemantics: node.id == graphState.focus
+              ? _viewerConnectionSemantics(node)
+              : null,
           onTap: () => _onNodeTap(node),
         ),
       );

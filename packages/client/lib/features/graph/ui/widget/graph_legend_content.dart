@@ -9,6 +9,7 @@ import 'package:tentura/ui/widget/contact_badge_legend.dart';
 
 import '../../domain/entity/graph_edge_colors.dart';
 import '../bloc/graph_cubit.dart';
+import '../utils/graph_edge_style.dart';
 import 'graph_legend_edge_swatch.dart';
 import 'graph_legend_mode.dart';
 
@@ -65,13 +66,19 @@ class GraphLegendContent extends StatelessWidget {
     final tt = context.tt;
     final scheme = Theme.of(context).colorScheme;
 
-    Widget row(String label, Color color, {double strokeWidth = 2}) {
+    Widget row(
+      String label,
+      GraphEdgeKind kind, {
+      bool arrowAtStart = false,
+      bool arrowAtEnd = false,
+    }) {
       return Padding(
         padding: EdgeInsets.only(bottom: tt.tightGap),
         child: _LegendRow(
           swatch: GraphLegendEdgeSwatch(
-            color: color,
-            strokeWidth: strokeWidth,
+            style: graphEdgeStyle(kind, edgeColors),
+            arrowAtStart: arrowAtStart,
+            arrowAtEnd: arrowAtEnd,
           ),
           label: label,
         ),
@@ -80,26 +87,40 @@ class GraphLegendContent extends StatelessWidget {
 
     return switch (mode) {
       GraphLegendMode.trust => [
-        row(l10n.graphLegendEdgeEgo, edgeColors.ego, strokeWidth: 3),
-        row(l10n.graphLegendEdgeOther, edgeColors.neutral),
+        row(l10n.graphLegendEdgeEgo, GraphEdgeKind.ego),
+        row(l10n.graphLegendEdgeOther, GraphEdgeKind.other),
         _NegativeEdgeToggleRow(
           label: l10n.graphLegendEdgeNegative,
-          color: edgeColors.negative,
+          style: graphEdgeStyle(GraphEdgeKind.negative, edgeColors),
         ),
-        row(l10n.graphLegendEdgeMutual, edgeColors.neutral),
+        row(
+          l10n.graphLegendEdgeMutual,
+          GraphEdgeKind.other,
+          arrowAtStart: true,
+          arrowAtEnd: true,
+        ),
+        row(l10n.graphLegendEdgeOneWay, GraphEdgeKind.other, arrowAtEnd: true),
+        Padding(
+          padding: EdgeInsets.only(bottom: tt.tightGap),
+          child: Text(
+            l10n.graphLegendEdgeArrowsHint,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+          ),
+        ),
       ],
       GraphLegendMode.forwards => [
-        row(l10n.graphLegendEdgeEgo, edgeColors.ego, strokeWidth: 3),
-        row(l10n.graphLegendEdgeForwardOther, edgeColors.neutral),
+        row(l10n.graphLegendEdgeEgo, GraphEdgeKind.ego),
+        row(l10n.graphLegendEdgeForwardOther, GraphEdgeKind.other),
       ],
       GraphLegendMode.genealogy => [
-        row(l10n.graphLegendEdgeGenealogyEgo, edgeColors.ego, strokeWidth: 3),
+        row(l10n.graphLegendEdgeGenealogyEgo, GraphEdgeKind.genealogyEgo),
+        row(l10n.graphLegendEdgeGenealogyTarget, GraphEdgeKind.genealogyTarget),
         row(
-          l10n.graphLegendEdgeGenealogyTarget,
-          edgeColors.target,
-          strokeWidth: 3,
+          l10n.graphLegendEdgeGenealogyNeutral,
+          GraphEdgeKind.genealogyNeutral,
         ),
-        row(l10n.graphLegendEdgeGenealogyNeutral, edgeColors.neutral),
       ],
       GraphLegendMode.constellation => () {
         final tier1Style = constellationEdgeStyle(
@@ -123,20 +144,19 @@ class GraphLegendContent extends StatelessWidget {
           scheme,
         );
         return [
-          row(
-            l10n.graphLegendConstellationDirectConnection,
-            tier1Style.color,
-            strokeWidth: tier1Style.width,
+          _ConstellationEdgeRow(
+            label: l10n.graphLegendConstellationDirectConnection,
+            style: tier1Style,
           ),
-          _ConstellationDashedEdgeRow(
+          _ConstellationEdgeRow(
             label: l10n.graphLegendConstellationIndirectConnection,
             style: tier2Style,
           ),
-          _ConstellationAttachmentEdgeRow(
+          _ConstellationEdgeRow(
             label: l10n.graphLegendConstellationRequestLink,
             style: attachmentStyle,
           ),
-          _ConstellationDashedEdgeRow(
+          _ConstellationEdgeRow(
             label: l10n.graphLegendConstellationWiderNetworkReach,
             style: ringStubStyle,
           ),
@@ -287,13 +307,10 @@ class GraphLegendContent extends StatelessWidget {
 }
 
 class _NegativeEdgeToggleRow extends StatelessWidget {
-  const _NegativeEdgeToggleRow({
-    required this.label,
-    required this.color,
-  });
+  const _NegativeEdgeToggleRow({required this.label, required this.style});
 
   final String label;
-  final Color color;
+  final GraphEdgeStyle style;
 
   @override
   Widget build(BuildContext context) {
@@ -325,13 +342,14 @@ class _NegativeEdgeToggleRow extends StatelessWidget {
                       width: tt.avatarSize,
                       child: Center(
                         child: GraphLegendEdgeSwatch(
+                          style: style,
                           color: layerVisible
-                              ? color
+                              ? style.color
                               : Color.alphaBlend(
                                   scheme.surfaceContainerHigh.withValues(
                                     alpha: 0.65,
                                   ),
-                                  color,
+                                  style.color,
                                 ),
                         ),
                       ),
@@ -345,10 +363,7 @@ class _NegativeEdgeToggleRow extends StatelessWidget {
                         ),
                       ),
                     ),
-                    Switch(
-                      value: layerVisible,
-                      onChanged: (_) => toggle(),
-                    ),
+                    Switch(value: layerVisible, onChanged: (_) => toggle()),
                   ],
                 ),
               ),
@@ -510,11 +525,8 @@ class _RatingArcSwatchPainter extends CustomPainter {
       oldDelegate.color != color;
 }
 
-class _ConstellationDashedEdgeRow extends StatelessWidget {
-  const _ConstellationDashedEdgeRow({
-    required this.label,
-    required this.style,
-  });
+class _ConstellationEdgeRow extends StatelessWidget {
+  const _ConstellationEdgeRow({required this.label, required this.style});
 
   final String label;
   final ConstellationEdgeStyle style;
@@ -525,88 +537,9 @@ class _ConstellationDashedEdgeRow extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.only(bottom: tt.tightGap),
       child: _LegendRow(
-        swatch: CustomPaint(
-          size: Size(tt.avatarSize, tt.iconSize),
-          painter: _ConstellationDashedSwatchPainter(style: style),
-        ),
+        swatch: GraphLegendConstellationEdgeSwatch(style: style),
         label: label,
       ),
     );
   }
-}
-
-class _ConstellationDashedSwatchPainter extends CustomPainter {
-  const _ConstellationDashedSwatchPainter({required this.style});
-
-  final ConstellationEdgeStyle style;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = style.color
-      ..strokeWidth = style.width
-      ..style = PaintingStyle.stroke;
-    final dash = style.dash;
-    final gap = style.gap;
-    var x = 0.0;
-    final y = size.height / 2;
-    while (x < size.width) {
-      final end = (x + dash).clamp(0.0, size.width);
-      canvas.drawLine(Offset(x, y), Offset(end, y), paint);
-      x += dash + gap;
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _ConstellationDashedSwatchPainter oldDelegate) =>
-      oldDelegate.style != style;
-}
-
-class _ConstellationAttachmentEdgeRow extends StatelessWidget {
-  const _ConstellationAttachmentEdgeRow({
-    required this.label,
-    required this.style,
-  });
-
-  final String label;
-  final ConstellationEdgeStyle style;
-
-  @override
-  Widget build(BuildContext context) {
-    final tt = context.tt;
-    return Padding(
-      padding: EdgeInsets.only(bottom: tt.tightGap),
-      child: _LegendRow(
-        swatch: CustomPaint(
-          size: Size(tt.avatarSize * 0.6, tt.iconSize),
-          painter: _ConstellationAttachmentSwatchPainter(style: style),
-        ),
-        label: label,
-      ),
-    );
-  }
-}
-
-class _ConstellationAttachmentSwatchPainter extends CustomPainter {
-  const _ConstellationAttachmentSwatchPainter({required this.style});
-
-  final ConstellationEdgeStyle style;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = style.color
-      ..strokeWidth = style.width
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
-    final start = Offset(size.width * 0.15, size.height / 2);
-    final end = Offset(size.width * 0.85, size.height / 2);
-    canvas.drawLine(start, end, paint);
-  }
-
-  @override
-  bool shouldRepaint(
-    covariant _ConstellationAttachmentSwatchPainter oldDelegate,
-  ) =>
-      oldDelegate.style != style;
 }

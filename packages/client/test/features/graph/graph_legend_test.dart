@@ -5,7 +5,9 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/graph/domain/entity/graph_mode.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
+import 'package:tentura/features/graph/domain/entity/graph_edge_colors.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_cubit.dart';
+import 'package:tentura/features/graph/ui/utils/graph_edge_style.dart';
 
 import 'scene_layout_test_support.dart';
 import 'package:tentura/features/graph/ui/widget/graph_scaffold.dart';
@@ -200,7 +202,7 @@ void main() {
   testWidgets('trust legend shows negative edge row', (tester) async {
     await _pumpLegendContent(tester, GraphLegendMode.trust);
 
-    expect(find.textContaining('negative connection'), findsOneWidget);
+    expect(find.textContaining('Negative connection'), findsOneWidget);
     expect(find.textContaining('more neighbors'), findsOneWidget);
     expect(find.textContaining('help on this forward'), findsNothing);
   });
@@ -220,7 +222,7 @@ void main() {
 
     expect(find.textContaining('help on this forward'), findsOneWidget);
     expect(find.textContaining('more neighbors'), findsNothing);
-    expect(find.textContaining('negative connection'), findsNothing);
+    expect(find.textContaining('Negative connection'), findsNothing);
   });
 
   testWidgets('constellation tier-1 swatch matches shared edge style', (
@@ -237,10 +239,60 @@ void main() {
       theme.colorScheme,
     ).color;
 
-    final swatch = tester.widget<GraphLegendEdgeSwatch>(
-      find.byType(GraphLegendEdgeSwatch).first,
+    final swatch = tester.widget<GraphLegendConstellationEdgeSwatch>(
+      find.byType(GraphLegendConstellationEdgeSwatch).first,
     );
-    expect(swatch.color, expected);
+    expect(swatch.style.color, expected);
+  });
+
+  testWidgets('constellation request link sample ends in dots', (
+    tester,
+  ) async {
+    await _pumpLegendContent(tester, GraphLegendMode.constellation);
+
+    final styles = tester
+        .widgetList<GraphLegendConstellationEdgeSwatch>(
+          find.byType(GraphLegendConstellationEdgeSwatch),
+        )
+        .map((s) => s.style)
+        .toList();
+    expect(styles, hasLength(4));
+    expect(styles.where((s) => s.endDots), hasLength(1));
+  });
+
+  testWidgets('trust legend samples come from the shared edge styles', (
+    tester,
+  ) async {
+    await _pumpLegendContent(tester, GraphLegendMode.trust);
+
+    final swatches = tester
+        .widgetList<GraphLegendEdgeSwatch>(find.byType(GraphLegendEdgeSwatch))
+        .toList();
+    const colors = GraphEdgeColors(
+      negative: Colors.red,
+      ego: Colors.orange,
+      neutral: Colors.blue,
+      target: Colors.green,
+    );
+    final negative = graphEdgeStyle(GraphEdgeKind.negative, colors);
+    expect(
+      swatches.where(
+        (s) => s.style.crossMark && s.style.pattern == negative.pattern,
+      ),
+      hasLength(1),
+    );
+    expect(
+      swatches.where((s) => s.arrowAtStart && s.arrowAtEnd),
+      hasLength(1),
+      reason: 'mutual trust sample',
+    );
+    expect(
+      swatches.where((s) => !s.arrowAtStart && s.arrowAtEnd),
+      hasLength(1),
+      reason: 'one-way trust sample',
+    );
+    expect(find.text('Mutual trust'), findsOneWidget);
+    expect(find.text('One-way trust'), findsOneWidget);
   });
 
   testWidgets('genealogy legend shows branch colors and hidden children', (
@@ -248,10 +300,10 @@ void main() {
   ) async {
     await _pumpLegendContent(tester, GraphLegendMode.genealogy);
 
-    expect(find.textContaining('your invite branch'), findsOneWidget);
-    expect(find.textContaining('their invite branch'), findsOneWidget);
+    expect(find.textContaining('Your invite branch'), findsOneWidget);
+    expect(find.textContaining('Their invite branch'), findsOneWidget);
     expect(find.textContaining('more invitees'), findsOneWidget);
-    expect(find.textContaining('negative connection'), findsNothing);
+    expect(find.textContaining('Negative connection'), findsNothing);
   });
 
   testWidgets('expanded layout shows navigation and legend controls', (

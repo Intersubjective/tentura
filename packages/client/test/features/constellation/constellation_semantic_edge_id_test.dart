@@ -122,10 +122,16 @@ class _RecordedLine {
 
 class _RecordingCanvas extends Fake implements Canvas {
   final lines = <_RecordedLine>[];
+  final dots = <Offset>[];
 
   @override
   void drawLine(Offset p1, Offset p2, Paint paint) {
     lines.add(_RecordedLine(p1, p2, paint.color, paint.strokeWidth));
+  }
+
+  @override
+  void drawCircle(Offset c, double radius, Paint paint) {
+    dots.add(c);
   }
 }
 
@@ -440,6 +446,9 @@ void main() {
         attachmentStyle.color.toARGB32(),
       );
       expect(attachmentCanvas.lines.single.width, attachmentStyle.width);
+      // Non-color cue: request links end in dots, direct paths do not.
+      expect(pathCanvas.dots, isEmpty);
+      expect(attachmentCanvas.dots, hasLength(2));
     });
 
     test('an edge whose semantic id is not registered is not painted', () {

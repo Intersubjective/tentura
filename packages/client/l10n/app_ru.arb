@@ -1081,15 +1081,15 @@
   "@graphLegendEdgesTitle": {
     "context": "GraphScreen"
   },
-  "graphLegendEdgeEgo": "Золотой — касается вас на графе",
+  "graphLegendEdgeEgo": "Касается вас на графе",
   "@graphLegendEdgeEgo": {
     "context": "GraphScreen"
   },
-  "graphLegendEdgeOther": "Синий — другие положительные связи",
+  "graphLegendEdgeOther": "Другие положительные связи",
   "@graphLegendEdgeOther": {
     "context": "GraphScreen"
   },
-  "graphLegendEdgeNegative": "Красный — отрицательная связь",
+  "graphLegendEdgeNegative": "Отрицательная связь",
   "@graphLegendEdgeNegative": {
     "context": "GraphScreen"
   },
@@ -1097,19 +1097,19 @@
   "@graphLegendEdgeUndirected": {
     "context": "GraphScreen"
   },
-  "graphLegendEdgeForwardOther": "Синий — другие пересылки",
+  "graphLegendEdgeForwardOther": "Другие пересылки",
   "@graphLegendEdgeForwardOther": {
     "context": "ForwardsGraphScreen"
   },
-  "graphLegendEdgeGenealogyEgo": "Золотой — ваша ветка приглашений",
+  "graphLegendEdgeGenealogyEgo": "Ваша ветка приглашений",
   "@graphLegendEdgeGenealogyEgo": {
     "context": "InviteGenealogyScreen"
   },
-  "graphLegendEdgeGenealogyTarget": "Зелёный — их ветка приглашений",
+  "graphLegendEdgeGenealogyTarget": "Их ветка приглашений",
   "@graphLegendEdgeGenealogyTarget": {
     "context": "InviteGenealogyScreen"
   },
-  "graphLegendEdgeGenealogyNeutral": "Синий — общий ствол",
+  "graphLegendEdgeGenealogyNeutral": "Общий ствол",
   "@graphLegendEdgeGenealogyNeutral": {
     "context": "InviteGenealogyScreen"
   },
@@ -1198,10 +1198,18 @@
   "@graphLegendConstellationWiderNetworkReach": {
     "context": "GraphScreen"
   },
-  "graphLegendEdgeMutual": "Одна линия — взаимное доверие (подсветки идут в обе стороны)",
+  "graphLegendEdgeMutual": "Взаимное доверие",
   "@graphLegendEdgeMutual": {
     "context": "GraphScreen"
   },
+  "graphLegendEdgeOneWay": "Доверие в одну сторону",
+  "graphLegendEdgeArrowsHint": "Стрелки видны у связей выбранного человека",
+  "graphEdgeSemanticsLink": "{from} → {to}, {kind}, {direction}",
+  "graphEdgeSemanticsYou": "вы",
+  "graphEdgeSemanticsTrust": "доверие",
+  "graphEdgeSemanticsNegative": "недоверие",
+  "graphEdgeSemanticsMutual": "взаимное",
+  "graphEdgeSemanticsOneWay": "в одну сторону",
   "forwardsGraphMenuTitle": "Граф пересылок",
   "@forwardsGraphMenuTitle": {
     "context": "BeaconOverflowMenu"
@@ -2249,7 +2257,7 @@
   "routingMuteScreenTitle": "Какие типы помощи я могу оказать",
   "routingMuteScreenDescription": "Другие пользователи могут лично оставлять вам приватные тэги — например по результатам завершённых запросов. Система может показывать эти тэги другим людям как подсказку о том, какие виды помощи вы можете оказывать. Если вы не хотите, чтобы некоторые тэги видели третьи лица (не те, кто их поставил), отключите их здесь. Тому, кто поставил тэг, он по-прежнему виден.",
   "attentionResetCounters": "Обновить счётчики",
-  "attentionResetCountersUnrepairable": "{count, plural, one{\u041e\u0434\u043d\u043e \u043d\u0435\u0437\u0430\u0432\u0435\u0440\u0448\u0451\u043d\u043d\u043e\u0435 \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0435 \u043d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u043f\u0435\u0440\u0435\u043f\u0440\u043e\u0432\u0435\u0440\u0438\u0442\u044c.} other{\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u043f\u0435\u0440\u0435\u043f\u0440\u043e\u0432\u0435\u0440\u0438\u0442\u044c \u043d\u0435\u0437\u0430\u0432\u0435\u0440\u0448\u0451\u043d\u043d\u044b\u0445 \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0439: {count}.}} \u041e\u043d\u0438 \u043e\u0441\u0442\u0430\u044e\u0442\u0441\u044f \u0432 \u0441\u043f\u0438\u0441\u043a\u0435 \u043a\u0430\u043a \u0435\u0441\u0442\u044c \u2014 \u0437\u0434\u0435\u0441\u044c \u043d\u0435\u0447\u0435\u0433\u043e \u0438\u0441\u043f\u0440\u0430\u0432\u043b\u044f\u0442\u044c. \u041f\u043e\u0432\u0442\u043e\u0440\u0438\u0442\u044c \u043f\u043e\u0437\u0436\u0435 \u043c\u043e\u0436\u043d\u043e \u0431\u0435\u0437 \u043e\u043f\u0430\u0441\u0435\u043d\u0438\u0439.",
+  "attentionResetCountersUnrepairable": "{count, plural, one{Одно незавершённое действие не удалось перепроверить.} other{Не удалось перепроверить незавершённых действий: {count}.}} Они остаются в списке как есть — здесь нечего исправлять. Повторить позже можно без опасений.",
   "@attentionResetCountersUnrepairable": {
     "context": "SettingsScreen",
     "placeholders": {
@@ -6051,34 +6059,34 @@
   "attentionCardA11yRequest": "Запрос «{title}», от {author}",
   "attentionCardA11yEvents": "{count, plural, one{{count} новое событие} few{{count} новых события} many{{count} новых событий} other{{count} новых событий}}",
   "attentionCardMoreForwarded": "{count, plural, one{ещё {count} переслал} few{ещё {count} переслали} many{ещё {count} переслали} other{ещё {count} переслали}}",
-  "inboxDismissAll": "\u0423\u0431\u0440\u0430\u0442\u044c \u0432\u0441\u0451",
-  "inboxDismissAllCleared": "\u0423\u0431\u0440\u0430\u043d\u043e: {count}",
-  "inboxDismissAllNothing": "\u0423\u0431\u0438\u0440\u0430\u0442\u044c \u043d\u0435\u0447\u0435\u0433\u043e",
-  "inboxDismissAllPartial": "\u0423\u0431\u0440\u0430\u043d\u043e: {count}. \u041e\u0441\u0442\u0430\u043b\u043e\u0441\u044c \u0435\u0449\u0451.",
-  "inboxDismissAllContinue": "\u041f\u0440\u043e\u0434\u043e\u043b\u0436\u0438\u0442\u044c",
-  "inboxDismissAllFailed": "\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0443\u0431\u0440\u0430\u0442\u044c \u0432\u0441\u0451",
-  "inboxDismissAllUndo": "\u041e\u0442\u043c\u0435\u043d\u0438\u0442\u044c",
-  "inboxDismissAllUndone": "\u0412\u043e\u0441\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d\u043e: {count}",
-  "inboxDismissAllUndoFailed": "\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u043e\u0442\u043c\u0435\u043d\u0438\u0442\u044c",
-  "forYouEmptyNothingHere": "\u0417\u0434\u0435\u0441\u044c \u043f\u043e\u043a\u0430 \u043d\u0438\u0447\u0435\u0433\u043e \u043d\u0435\u0442",
-  "forYouEmptyNothingHereHint": "\u0417\u0434\u0435\u0441\u044c \u043f\u043e\u044f\u0432\u044f\u0442\u0441\u044f \u0437\u0430\u043f\u0440\u043e\u0441\u044b, \u043f\u0435\u0440\u0435\u0441\u043b\u0430\u043d\u043d\u044b\u0435 \u0432\u0430\u043c",
-  "forYouEmptyNothingNew": "\u0412\u044b \u0432\u0441\u0451 \u0440\u0430\u0437\u043e\u0431\u0440\u0430\u043b\u0438",
-  "forYouEmptyNothingNewHint": "\u0412\u044b \u0443\u0431\u0440\u0430\u043b\u0438 \u0432\u0441\u0451, \u0447\u0442\u043e \u043c\u043e\u0436\u043d\u043e \u0443\u0431\u0440\u0430\u0442\u044c. \u0422\u043e, \u0447\u0442\u043e \u0436\u0434\u0451\u0442 \u0432\u0430\u0448\u0435\u0433\u043e \u0440\u0435\u0448\u0435\u043d\u0438\u044f, \u043e\u0441\u0442\u0430\u0451\u0442\u0441\u044f \u0432\u044b\u0448\u0435.",
-  "forYouEmptyNoMatch": "\u041d\u0438\u0447\u0435\u0433\u043e \u043d\u0435 \u043f\u043e\u0434\u0445\u043e\u0434\u0438\u0442 \u043f\u043e\u0434 \u044d\u0442\u043e\u0442 \u0444\u0438\u043b\u044c\u0442\u0440",
-  "forYouEmptyNoMatchHint": "\u041f\u043e\u043f\u0440\u043e\u0431\u0443\u0439\u0442\u0435 \u0434\u0440\u0443\u0433\u043e\u0439 \u0444\u0438\u043b\u044c\u0442\u0440, \u0447\u0442\u043e\u0431\u044b \u0443\u0432\u0438\u0434\u0435\u0442\u044c \u043e\u0441\u0442\u0430\u043b\u044c\u043d\u043e\u0435.",
-  "myWorkHelpOffersHeader": "\u041f\u0440\u0435\u0434\u043b\u043e\u0436\u0438\u043b\u0438 \u043f\u043e\u043c\u043e\u0449\u044c \u00b7 {count}",
-  "attentionEventStatusChanged": "\u0421\u0442\u0430\u0442\u0443\u0441: {status}",
-  "attentionCardForwardedBy": "\u041f\u0435\u0440\u0435\u0441\u043b\u0430\u043d\u043e: {name}",
-  "attentionCardForwardedByMany": "{count, plural, one{\u041f\u0435\u0440\u0435\u0441\u043b\u0430\u043d\u043e: {name} \u0438 \u0435\u0449\u0451 {count}} few{\u041f\u0435\u0440\u0435\u0441\u043b\u0430\u043d\u043e: {name} \u0438 \u0435\u0449\u0451 {count}} many{\u041f\u0435\u0440\u0435\u0441\u043b\u0430\u043d\u043e: {name} \u0438 \u0435\u0449\u0451 {count}} other{\u041f\u0435\u0440\u0435\u0441\u043b\u0430\u043d\u043e: {name} \u0438 \u0435\u0449\u0451 {count}}}",
-  "attentionEventTrustGivenUp": "\u0412\u044b \u0434\u043e\u0432\u0435\u0440\u044f\u0435\u0442\u0435 \u0431\u043e\u043b\u044c\u0448\u0435",
-  "attentionEventTrustGivenDown": "\u0412\u044b \u0434\u043e\u0432\u0435\u0440\u044f\u0435\u0442\u0435 \u043c\u0435\u043d\u044c\u0448\u0435",
-  "attentionEventTrustGivenNeutral": "\u0412\u0430\u0448\u0435 \u0434\u043e\u0432\u0435\u0440\u0438\u0435 \u043d\u0435 \u0438\u0437\u043c\u0435\u043d\u0438\u043b\u043e\u0441\u044c",
-  "attentionEventTrustReceivedUp": "\u0414\u043e\u0432\u0435\u0440\u044f\u0435\u0442 \u0432\u0430\u043c \u0431\u043e\u043b\u044c\u0448\u0435",
-  "attentionEventTrustReceivedDown": "\u0414\u043e\u0432\u0435\u0440\u044f\u0435\u0442 \u0432\u0430\u043c \u043c\u0435\u043d\u044c\u0448\u0435",
-  "attentionEventTrustReceivedNeutral": "\u041e\u0446\u0435\u043d\u0438\u043b(\u0430) \u0432\u0430\u0441, \u0434\u043e\u0432\u0435\u0440\u0438\u0435 \u043d\u0435 \u0438\u0437\u043c\u0435\u043d\u0438\u043b\u043e\u0441\u044c",
-  "updatesFallbackTitleObligationEnded": "\u041e\u043a\u043d\u043e \u043e\u0446\u0435\u043d\u043a\u0438 \u0437\u0430\u043a\u0440\u044b\u043b\u043e\u0441\u044c",
-  "updatesFallbackTitleCommitmentReleased": "\u0423\u0447\u0430\u0441\u0442\u0438\u0435 \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043d\u043e",
-  "updatesFallbackTitleHierarchyStatusChanged": "\u0421\u0442\u0430\u0442\u0443\u0441 \u0441\u0432\u044f\u0437\u0430\u043d\u043d\u043e\u0433\u043e \u0437\u0430\u043f\u0440\u043e\u0441\u0430 \u0438\u0437\u043c\u0435\u043d\u0438\u043b\u0441\u044f",
+  "inboxDismissAll": "Убрать всё",
+  "inboxDismissAllCleared": "Убрано: {count}",
+  "inboxDismissAllNothing": "Убирать нечего",
+  "inboxDismissAllPartial": "Убрано: {count}. Осталось ещё.",
+  "inboxDismissAllContinue": "Продолжить",
+  "inboxDismissAllFailed": "Не удалось убрать всё",
+  "inboxDismissAllUndo": "Отменить",
+  "inboxDismissAllUndone": "Восстановлено: {count}",
+  "inboxDismissAllUndoFailed": "Не удалось отменить",
+  "forYouEmptyNothingHere": "Здесь пока ничего нет",
+  "forYouEmptyNothingHereHint": "Здесь появятся запросы, пересланные вам",
+  "forYouEmptyNothingNew": "Вы всё разобрали",
+  "forYouEmptyNothingNewHint": "Вы убрали всё, что можно убрать. То, что ждёт вашего решения, остаётся выше.",
+  "forYouEmptyNoMatch": "Ничего не подходит под этот фильтр",
+  "forYouEmptyNoMatchHint": "Попробуйте другой фильтр, чтобы увидеть остальное.",
+  "myWorkHelpOffersHeader": "Предложили помощь · {count}",
+  "attentionEventStatusChanged": "Статус: {status}",
+  "attentionCardForwardedBy": "Переслано: {name}",
+  "attentionCardForwardedByMany": "{count, plural, one{Переслано: {name} и ещё {count}} few{Переслано: {name} и ещё {count}} many{Переслано: {name} и ещё {count}} other{Переслано: {name} и ещё {count}}}",
+  "attentionEventTrustGivenUp": "Вы доверяете больше",
+  "attentionEventTrustGivenDown": "Вы доверяете меньше",
+  "attentionEventTrustGivenNeutral": "Ваше доверие не изменилось",
+  "attentionEventTrustReceivedUp": "Доверяет вам больше",
+  "attentionEventTrustReceivedDown": "Доверяет вам меньше",
+  "attentionEventTrustReceivedNeutral": "Оценил(а) вас, доверие не изменилось",
+  "updatesFallbackTitleObligationEnded": "Окно оценки закрылось",
+  "updatesFallbackTitleCommitmentReleased": "Участие завершено",
+  "updatesFallbackTitleHierarchyStatusChanged": "Статус связанного запроса изменился",
   "closureAuthorTitle": "Подвести итоги",
   "closureAuthorOutcomeDone": "Выполнено",
   "closureAuthorOutcomeNotDone": "Не выполнено",
