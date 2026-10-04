@@ -10,7 +10,11 @@ final kPartialInviteCodeRegExp = RegExp(r'^I[a-f0-9]{0,12}$');
 final kPartialEntityIdRegExp = RegExp(r'^[UBCI][0-9a-f]{0,12}$');
 
 bool _looksLikePastedUrlOrLink(String text) =>
-    text.contains('://') || text.contains('/invite/') || text.contains('?id=');
+    text.contains('://') ||
+    text.contains('/invite/') ||
+    text.contains('/profile/view/') ||
+    text.contains('/beacon/view/') ||
+    text.contains('?id=');
 
 /// Normalizes keyboard/context-menu paste of invite links into a bare code and
 /// allows progressive `I…` entry. Replaces per-character [FilteringTextInputFormatter]
@@ -47,8 +51,8 @@ class InviteCodeInputFormatter extends TextInputFormatter {
   }
 }
 
-/// Same paste normalization as [InviteCodeInputFormatter] for invite URLs, but
-/// also accepts manual entry of profile/beacon/coordination ids (`U`/`B`/`C`/`I`).
+/// Paste normalization for any shareable link (profile / request / invite)
+/// plus manual entry of profile/beacon/coordination ids (`U`/`B`/`C`/`I`).
 class EntityIdInputFormatter extends TextInputFormatter {
   const EntityIdInputFormatter();
 
@@ -63,7 +67,7 @@ class EntityIdInputFormatter extends TextInputFormatter {
     }
 
     if (_looksLikePastedUrlOrLink(text)) {
-      final extracted = extractInviteCodeFromText(text);
+      final extracted = extractEntityIdFromText(text);
       if (extracted != null) {
         return TextEditingValue(
           text: extracted,

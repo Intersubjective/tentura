@@ -64,7 +64,10 @@ final class AccountCase extends UseCaseBase {
     String prefix = '',
   }) async {
     final text = await _platformRepository.getStringFromClipboard();
-    final code = extractInviteCodeFromText(text, prefix: prefix);
+    // No prefix: any shareable id (profile / request / invite link or code).
+    final code = prefix.isEmpty
+        ? extractEntityIdFromText(text)
+        : extractInviteCodeFromText(text, prefix: prefix);
     if (code != null) {
       return code;
     }

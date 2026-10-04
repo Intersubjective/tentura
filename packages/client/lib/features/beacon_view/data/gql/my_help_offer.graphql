@@ -1,0 +1,9 @@
+# import '/features/beacon_view/data/gql/help_offer_with_coordination_fields.graphql'
+
+# The viewer's own offer row, any status. Unlike helpOffersWithCoordination
+# this needs only content access, so a declined offerer still sees why.
+query MyHelpOffer($beaconId: String!) {
+  myHelpOffer(id: $beaconId) {
+    ...HelpOfferWithCoordinationFields
+  }
+}

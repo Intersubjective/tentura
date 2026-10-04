@@ -25,13 +25,10 @@ class ShareCodeIconButton extends StatelessWidget {
          header: (displayName == null || displayName.trim().isEmpty)
              ? id
              : displayName.trim(),
-         link:
-             Uri.parse(
-               kServerName,
-             ).replace(
-               queryParameters: {'id': id},
-               path: '$kPathProfileView/$id',
-             ),
+         // The id is in the path; the old `?id=` duplicate only padded the
+         // URL printed under the QR. Pasted / scanned links resolve through
+         // extractEntityIdFromText, which still accepts legacy `?id=` links.
+         link: Uri.parse(kServerName).replace(path: '$kPathProfileView/$id'),
          icon: icon,
        );
 

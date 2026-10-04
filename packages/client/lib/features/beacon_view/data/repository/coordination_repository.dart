@@ -9,7 +9,9 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/domain/enums.dart';
 
-import '../gql/_g/help_offers_with_coordination.data.gql.dart';
+import '../../domain/help_offer_row_record.dart';
+
+import '../gql/_g/help_offer_with_coordination_fields.data.gql.dart';
 import '../gql/_g/beacon_help_offer_accept.req.gql.dart';
 import '../gql/_g/beacon_help_offer_decline.req.gql.dart';
 import '../gql/_g/beacon_help_offer_remove.req.gql.dart';
@@ -17,6 +19,7 @@ import '../gql/_g/beacon_help_offer_role_label_set.req.gql.dart';
 import '../gql/_g/beacon_release_commitment.req.gql.dart';
 import '../gql/_g/help_offers_with_coordination.req.gql.dart';
 import '../gql/_g/mark_beacon_people_seen.req.gql.dart';
+import '../gql/_g/my_help_offer.req.gql.dart';
 import '../gql/_g/set_beacon_status.req.gql.dart';
 import '../gql/_g/set_coordination_response.req.gql.dart';
 
@@ -28,34 +31,7 @@ class CoordinationRepository {
 
   static const _label = 'Coordination';
 
-  Future<
-    List<
-      ({
-        String beaconId,
-        String userId,
-        Profile user,
-        String message,
-        String? helpType,
-        String? roleLabel,
-        int status,
-        String? withdrawReason,
-        DateTime createdAt,
-        DateTime updatedAt,
-        int? responseType,
-        DateTime? responseUpdatedAt,
-        String? responseAuthorUserId,
-        int? roomAccess,
-        int? admissionAction,
-        String? lastDeclineReason,
-        String? lastRemoveReason,
-        int stakeState,
-        int offerKind,
-        bool isDirectAuthorForward,
-        String? authorSeenAt,
-      })
-    >
-  >
-  fetchHelpOffersWithCoordination({
+  Future<List<HelpOfferRowRecord>> fetchHelpOffersWithCoordination({
     required String beaconId,
   }) => _remoteApiService
       .request(
@@ -67,36 +43,19 @@ class CoordinationRepository {
         if (rows == null) {
           return [];
         }
-        return rows
-            .map(
-              (e) => (
-                beaconId: e.beaconId,
-                userId: e.userId,
-                user: _profileFromHelpOfferUser(e.user),
-                message: e.message,
-                helpType: e.helpType,
-                roleLabel: e.roleLabel ?? '',
-                status: e.status,
-                withdrawReason: e.withdrawReason,
-                createdAt: DateTime.parse(e.createdAt),
-                updatedAt: DateTime.parse(e.updatedAt),
-                responseType: e.responseType,
-                responseUpdatedAt: e.responseUpdatedAt == null
-                    ? null
-                    : DateTime.parse(e.responseUpdatedAt!),
-                responseAuthorUserId: e.responseAuthorUserId,
-                roomAccess: e.roomAccess,
-                admissionAction: e.admissionAction,
-                lastDeclineReason: e.lastDeclineReason,
-                lastRemoveReason: e.lastRemoveReason,
-                stakeState: e.stakeState,
-                offerKind: e.offerKind,
-                isDirectAuthorForward: e.isDirectAuthorForward,
-                authorSeenAt: e.authorSeenAt,
-              ),
-            )
-            .toList();
+        return rows.map(_helpOfferRowRecord).toList();
       });
+
+  /// The viewer's own offer row (any status), or `null`; readable after a
+  /// decline took away involvement access.
+  Future<HelpOfferRowRecord?> fetchMyHelpOffer({required String beaconId}) =>
+      _remoteApiService
+          .request(GMyHelpOfferReq((r) => r..vars.beaconId = beaconId))
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then((r) {
+            final row = r.dataOrThrow(label: _label).myHelpOffer;
+            return row == null ? null : _helpOfferRowRecord(row);
+          });
 
   Future<DateTime> markBeaconPeopleSeen(String beaconId) async {
     final row = await _remoteApiService
@@ -271,8 +230,34 @@ class CoordinationRepository {
       .then((r) => r.dataOrThrow(label: _label).beaconHelpOfferRoleLabelSet);
 }
 
+HelpOfferRowRecord _helpOfferRowRecord(GHelpOfferWithCoordinationFields e) => (
+  beaconId: e.beaconId,
+  userId: e.userId,
+  user: _profileFromHelpOfferUser(e.user),
+  message: e.message,
+  helpType: e.helpType,
+  roleLabel: e.roleLabel ?? '',
+  status: e.status,
+  withdrawReason: e.withdrawReason,
+  createdAt: DateTime.parse(e.createdAt),
+  updatedAt: DateTime.parse(e.updatedAt),
+  responseType: e.responseType,
+  responseUpdatedAt: e.responseUpdatedAt == null
+      ? null
+      : DateTime.parse(e.responseUpdatedAt!),
+  responseAuthorUserId: e.responseAuthorUserId,
+  roomAccess: e.roomAccess,
+  admissionAction: e.admissionAction,
+  lastDeclineReason: e.lastDeclineReason,
+  lastRemoveReason: e.lastRemoveReason,
+  stakeState: e.stakeState,
+  offerKind: e.offerKind,
+  isDirectAuthorForward: e.isDirectAuthorForward,
+  authorSeenAt: e.authorSeenAt,
+);
+
 Profile _profileFromHelpOfferUser(
-  GHelpOffersWithCoordinationData_helpOffersWithCoordination_user user,
+  GHelpOfferWithCoordinationFields_user user,
 ) {
   UserPresenceStatus? presenceStatus;
   DateTime? presenceLastSeenAt;

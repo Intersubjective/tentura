@@ -1,0 +1,45 @@
+# import '/data/gql/image_model_v2.graphql'
+
+# One help-offer row as the People tab renders it; shared by the full list
+# and the viewer's own row (MyHelpOffer).
+fragment HelpOfferWithCoordinationFields on v2_HelpOfferWithCoordinationRow {
+  beaconId
+  userId
+  message
+  helpType
+  roleLabel
+  status
+  withdrawReason
+  createdAt
+  updatedAt
+  responseType
+  responseUpdatedAt
+  responseAuthorUserId
+  roomAccess
+  admissionAction
+  lastDeclineReason
+  lastRemoveReason
+  offerKind
+  stakeState
+  isDirectAuthorForward
+  authorSeenAt
+  user {
+    id
+    displayName
+    description
+    my_vote
+    trusts_viewer
+    is_mutual_friend
+    image {
+      ...ImageModelV2
+    }
+    user_presence {
+      last_seen_at
+      status
+    }
+    user_availability {
+      is_limited
+      resume_on
+    }
+  }
+}

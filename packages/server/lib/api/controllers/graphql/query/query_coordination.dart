@@ -13,6 +13,7 @@ final class QueryCoordination extends GqlNodeBase {
 
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
     helpOffersWithCoordination,
+    myHelpOffer,
   ];
 
   GraphQLObjectField<dynamic, dynamic> get helpOffersWithCoordination =>
@@ -29,4 +30,20 @@ final class QueryCoordination extends GqlNodeBase {
           return rows.map(helpOfferWithCoordinationToGqlMap).toList();
         },
       );
+
+  /// The viewer's own offer row (any status); see
+  /// [CoordinationCase.myHelpOffer].
+  GraphQLObjectField<dynamic, dynamic> get myHelpOffer => GraphQLObjectField(
+    'myHelpOffer',
+    gqlTypeHelpOfferWithCoordinationRow,
+    arguments: [InputFieldId.field],
+    resolve: (_, args) async {
+      final jwt = getCredentials(args);
+      final row = await _coordinationCase.myHelpOffer(
+        beaconId: InputFieldId.fromArgsNonNullable(args),
+        viewerId: jwt.sub,
+      );
+      return row == null ? null : helpOfferWithCoordinationToGqlMap(row);
+    },
+  );
 }

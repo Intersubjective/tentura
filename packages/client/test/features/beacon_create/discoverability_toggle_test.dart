@@ -72,9 +72,17 @@ Widget _controlHarness({
   );
 }
 
-void _expectBothExplanationsVisible(WidgetTester tester) {
-  expect(find.text(_l10n.requestDiscoverableOn), findsOneWidget);
-  expect(find.text(_l10n.requestDiscoverableOff), findsOneWidget);
+/// Only the current state is explained; the switch itself shows there is an
+/// alternative (UI review #216 — two paragraphs under one switch was noise).
+void _expectOnlyExplanation({required bool discoverable}) {
+  expect(
+    find.text(_l10n.requestDiscoverableOn),
+    discoverable ? findsOneWidget : findsNothing,
+  );
+  expect(
+    find.text(_l10n.requestDiscoverableOff),
+    discoverable ? findsNothing : findsOneWidget,
+  );
 }
 
 void main() {
@@ -107,7 +115,7 @@ void main() {
     final toggle = find.byKey(TestIds.key(TestIds.requestDiscoverableToggle));
     expect(toggle, findsOneWidget);
     expect(tester.widget<SwitchListTile>(toggle).value, isTrue);
-    _expectBothExplanationsVisible(tester);
+    _expectOnlyExplanation(discoverable: true);
     expect(
       tester.widget<SwitchListTile>(toggle).subtitle,
       isA<Text>().having(
@@ -144,10 +152,12 @@ void main() {
     await tester.pumpAndSettle();
     await _scrollToDiscoverabilityToggle(tester);
 
-    await tester.tap(find.byKey(TestIds.key(TestIds.requestDiscoverableToggle)));
+    await tester.tap(
+      find.byKey(TestIds.key(TestIds.requestDiscoverableToggle)),
+    );
     await tester.pumpAndSettle();
     expect(cubit.state.isDiscoverable, isFalse);
-    _expectBothExplanationsVisible(tester);
+    _expectOnlyExplanation(discoverable: false);
     expect(
       tester
           .widget<SwitchListTile>(
@@ -167,7 +177,7 @@ void main() {
     expect(write.updatedFields.single.isDiscoverable, isFalse);
   });
 
-  testWidgets('both explanations are present whenever the toggle is', (
+  testWidgets('only the current state is explained', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -175,7 +185,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    _expectBothExplanationsVisible(tester);
+    _expectOnlyExplanation(discoverable: true);
     expect(
       find.byKey(TestIds.key(TestIds.requestDiscoverableToggle)),
       findsOneWidget,
@@ -197,7 +207,7 @@ void main() {
   });
 
   testWidgets(
-    'compact + large text scale still reaches toggle and both explanations',
+    'compact + large text scale still reaches toggle and its explanation',
     (tester) async {
       final write = FakeBeaconWritePort();
       final cubit = BeaconCreateCubit(
@@ -220,7 +230,7 @@ void main() {
         find.byKey(TestIds.key(TestIds.requestDiscoverableToggle)),
         findsOneWidget,
       );
-      _expectBothExplanationsVisible(tester);
+      _expectOnlyExplanation(discoverable: true);
     },
   );
 }

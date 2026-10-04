@@ -10,6 +10,7 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/invitation/data/repository/invitation_repository.dart';
+import 'package:tentura/features/invitation/domain/invite_code.dart';
 import 'package:tentura/features/invitation/ui/dialog/invitation_accept_dialog.dart';
 
 /// Modal bottom sheet with the same code-entry flow as the former Connect tab.
@@ -147,7 +148,9 @@ class _ConnectBottomSheetState extends State<ConnectBottomSheet> {
     }
   }
 
-  Future<void> _goWithCode(String code) async {
+  Future<void> _goWithCode(String input) async {
+    // A scanned QR is the whole share link, not the bare id.
+    final code = extractEntityIdFromText(input) ?? input.trim();
     if (code.length != kIdLength) {
       showSnackBar(context, isError: true, text: _l10n.codeLengthError);
       return;
