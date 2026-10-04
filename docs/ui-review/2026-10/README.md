@@ -28,3 +28,6 @@ child request, My field, profile QR and the connect sheet.
 `flows/before/` is the pre-round-3 build; `flows/after/` is the build with
 round-3 fixes (the QR capture predates the 3c dialog-action change).
 Images are halved and palette-reduced to keep the repo light.
+
+`flows/after/i216_*` are the #216 follow-ups: the declined-offer notice, the
+single-state discoverability copy and the quiet recipients hint.
