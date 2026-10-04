@@ -77,6 +77,7 @@ void main() {
 
   testWidgets('close control pops the create route', (tester) async {
     final router = _NavRouter();
+    Set<String>? returned;
     await tester.pumpWidget(
       MaterialApp(
         locale: const Locale('en'),
@@ -107,7 +108,11 @@ void main() {
                                 value: createCubit,
                               ),
                             ],
-                            child: const BeaconCreateScreen(),
+                            child: BeaconCreateScreen(
+                              initialRecipientIds: const {'outside-radius'},
+                              onRecipientsChanged: (ids, notes) =>
+                                  returned = ids,
+                            ),
                           ),
                         ),
                       );
@@ -137,6 +142,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
 
     expect(find.byType(BeaconCreateScreen), findsNothing);
+    expect(returned, {'outside-radius'});
     expect(find.text('open-create'), findsOneWidget);
   });
 }

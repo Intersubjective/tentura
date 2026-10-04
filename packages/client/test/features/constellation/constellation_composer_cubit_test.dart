@@ -94,55 +94,63 @@ void main() {
   });
 
   group('composer start', () {
-    test('sets the start radius, selects the three nearest and pushes them',
-        () async {
-      composer.start(BeaconKind.post, Offset.zero);
-      final forward = await touch();
+    test(
+      'sets the start radius, selects the three nearest and pushes them',
+      () async {
+        composer.start(BeaconKind.post, Offset.zero);
+        final forward = await touch();
 
-      expect(composer.selection.radius, closeTo(33, 1e-9));
-      expect(composer.selection.selected, {'Ua', 'Ub', 'Uc'});
-      expect(forward.state.selectedIds, {'Ua', 'Ub', 'Uc'});
-    });
+        expect(composer.selection.radius, closeTo(33, 1e-9));
+        expect(composer.selection.selected, {'Ua', 'Ub', 'Uc'});
+        expect(forward.state.selectedIds, {'Ua', 'Ub', 'Uc'});
+      },
+    );
   });
 
   group('composer start before any edit', () {
-    test('selects the three nearest at the start radius without a draft',
-        () async {
-      composer.start(BeaconKind.post, Offset.zero);
-      await settle();
+    test(
+      'selects the three nearest at the start radius without a draft',
+      () async {
+        composer.start(BeaconKind.post, Offset.zero);
+        await settle();
 
-      expect(composer.selection.radius, closeTo(33, 1e-9));
-      expect(composer.selection.selected, {'Ua', 'Ub', 'Uc'});
-      expect(composer.forwardCubit, isNull);
-      expect(write.createdFields, isEmpty);
-    });
+        expect(composer.selection.radius, closeTo(33, 1e-9));
+        expect(composer.selection.selected, {'Ua', 'Ub', 'Uc'});
+        expect(composer.forwardCubit, isNull);
+        expect(write.createdFields, isEmpty);
+      },
+    );
   });
 
   group('composer intents', () {
-    test('toggling a selected person removes it in selection and forward',
-        () async {
-      composer.start(BeaconKind.post, Offset.zero);
-      final forward = await touch();
+    test(
+      'toggling a selected person removes it in selection and forward',
+      () async {
+        composer.start(BeaconKind.post, Offset.zero);
+        final forward = await touch();
 
-      await composer.toggle('Ub');
-      await settle();
+        await composer.toggle('Ub');
+        await settle();
 
-      expect(composer.selection.selected, {'Ua', 'Uc'});
-      expect(forward.state.selectedIds, {'Ua', 'Uc'});
-    });
+        expect(composer.selection.selected, {'Ua', 'Uc'});
+        expect(forward.state.selectedIds, {'Ua', 'Uc'});
+      },
+    );
 
-    test('growing the radius selects more but keeps the removed one removed',
-        () async {
-      composer.start(BeaconKind.post, Offset.zero);
-      final forward = await touch();
-      await composer.toggle('Ub');
+    test(
+      'growing the radius selects more but keeps the removed one removed',
+      () async {
+        composer.start(BeaconKind.post, Offset.zero);
+        final forward = await touch();
+        await composer.toggle('Ub');
 
-      composer.setRadius(150);
-      await settle();
+        composer.setRadius(150);
+        await settle();
 
-      expect(composer.selection.selected, {'Ua', 'Uc', 'Ud'});
-      expect(forward.state.selectedIds, {'Ua', 'Uc', 'Ud'});
-    });
+        expect(composer.selection.selected, {'Ua', 'Uc', 'Ud'});
+        expect(forward.state.selectedIds, {'Ua', 'Uc', 'Ud'});
+      },
+    );
 
     test('a list-picker toggle behaves like a graph toggle', () async {
       composer.start(BeaconKind.post, Offset.zero);
@@ -198,38 +206,42 @@ void main() {
       expect(write.deletedIds, isEmpty);
     });
 
-    test('the first recipient change creates the draft and pushes selection',
-        () async {
-      composer.start(BeaconKind.post, Offset.zero);
-      expect(write.createdFields, isEmpty);
+    test(
+      'the first recipient change creates the draft and pushes selection',
+      () async {
+        composer.start(BeaconKind.request, Offset.zero);
+        expect(write.createdFields, isEmpty);
 
-      await composer.toggle('Ub');
-      await settle();
+        await composer.toggle('Ub');
+        await settle();
 
-      expect(write.createdFields, hasLength(1));
-      expect(write.createdFields.single.kind, BeaconKind.post);
-      final forward = composer.forwardCubit!;
-      expect(forward.state.beaconId, 'server-beacon');
-      expect(forward.state.selectedIds, {'Ua', 'Uc'});
+        expect(write.createdFields, hasLength(1));
+        expect(write.createdFields.single.kind, BeaconKind.request);
+        final forward = composer.forwardCubit!;
+        expect(forward.state.beaconId, 'server-beacon');
+        expect(forward.state.selectedIds, {'Ua', 'Uc'});
 
-      await composer.toggle('Ud');
-      await settle();
+        await composer.toggle('Ud');
+        await settle();
 
-      expect(write.createdFields, hasLength(1));
-      expect(forward.state.selectedIds, {'Ua', 'Uc', 'Ud'});
-    });
+        expect(write.createdFields, hasLength(1));
+        expect(forward.state.selectedIds, {'Ua', 'Uc', 'Ud'});
+      },
+    );
 
-    test('cancelling after only a recipient change deletes the draft',
-        () async {
-      composer.start(BeaconKind.post, Offset.zero);
-      await composer.toggle('Ub');
-      await settle();
+    test(
+      'cancelling after only a recipient change deletes the draft',
+      () async {
+        composer.start(BeaconKind.request, Offset.zero);
+        await composer.toggle('Ub');
+        await settle();
 
-      await composer.cancel();
-      await settle();
+        await composer.cancel();
+        await settle();
 
-      expect(write.deletedIds, ['server-beacon']);
-    });
+        expect(write.deletedIds, ['server-beacon']);
+      },
+    );
 
     test('cancelling a touched composer deletes the draft once', () async {
       composer.start(BeaconKind.post, Offset.zero);

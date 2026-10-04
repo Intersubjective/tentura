@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
@@ -8,6 +9,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 
 import '../../domain/constellation_anchor_composition.dart';
+import '../../domain/constellation_consts.dart';
 import '../../domain/constellation_density.dart';
 import '../../domain/constellation_filters.dart';
 import '../../domain/constellation_layout.dart';
@@ -182,6 +184,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   int _layoutHandoffGeneration = 0;
 
   Set<String> _composingCandidateIds = const {};
+  Map<String, ConstellationPerson> _composerPeople = const {};
+  final Set<String> _composerPlacedPersonIds = {};
   Set<String> _composingSelectedIds = const {};
   Offset _composingDraftCentre = Offset.zero;
   void Function(String personId)? _onComposingToggle;
@@ -459,7 +463,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
           : resolved.field.copyWith(anchorProjection: confirmedProjection);
       final composition = composeConstellationPresentation(
         viewerId: _viewer.id,
-        field: loadedField,
+        field: _composerField(loadedField),
         localFilters: state.filters,
         asOfUtc: loadedField.loadedAt,
         labelBudget: labelBudget,
@@ -570,14 +574,23 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   Future<({Map<String, Offset> positions, Set<String> eligible})>
   composerPeople() async {
     final eligible = <String>{
-      for (final p in state.field?.peers ?? const <ConstellationPerson>[])
-        p.id,
+      for (final p in state.field?.peers ?? const <ConstellationPerson>[]) p.id,
     };
     try {
       final candidates = await _forwardRepository.fetchForwardCandidates(
         context: state.field?.context ?? '',
       );
-      eligible.addAll(candidates.map((p) => p.id));
+      final profiles = candidates.toList();
+      eligible.addAll(profiles.map((p) => p.id));
+      _composerPeople = {
+        for (final p in profiles)
+          p.id: ConstellationPerson(
+            id: p.id,
+            displayName: p.displayName,
+            handle: p.handle,
+            image: p.image,
+          ),
+      };
     } on Object {
       // The field peers alone are still a usable audience.
     }
@@ -591,8 +604,20 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     return (positions: positions, eligible: eligible);
   }
 
+  String composerPersonName(String id) {
+    final candidate = _composerPeople[id];
+    if (candidate?.displayName?.isNotEmpty ?? false)
+      return candidate!.displayName!;
+    for (final person in state.field?.peers ?? const <ConstellationPerson>[]) {
+      if (person.id == id && (person.displayName?.isNotEmpty ?? false)) {
+        return person.displayName!;
+      }
+    }
+    return id;
+  }
+
   /// Enters the composing phase: adds the draft node at [draftCentre], widens
-  /// the composition to [candidateIds] (field peers only) and draws a draft
+  /// the composition to [candidateIds] (all addressable people) and draws a draft
   /// edge to every id in [selectedIds]. Existing nodes keep their positions.
   void enterComposing({
     required Offset draftCentre,
@@ -607,7 +632,14 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _composingSelectedIds = selectedIds;
     _composingDraftCentre = draftCentre;
     _onComposingToggle = onToggle;
-    emit(state.copyWith(placementPhase: ConstellationPlacementPhase.composing));
+    emit(
+      state.copyWith(
+        placementPhase: ConstellationPlacementPhase.composing,
+        viewMode: ConstellationViewMode.map,
+        selectedPersonId: null,
+        selectedRequestId: null,
+      ),
+    );
     _recomposeAndLayout();
   }
 
@@ -624,6 +656,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (token != null) {
       graphController.cancelNodePresentationDrag(token);
     }
+    for (final id in _composerPlacedPersonIds) {
+      graphController.clearPresentationForNodeId(id);
+    }
+    _composerPlacedPersonIds.clear();
     _composingCandidateIds = const {};
     _composingSelectedIds = const {};
     _onComposingToggle = null;
@@ -634,8 +670,12 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   /// Places the draft node, which is not in the anchor set, at a fixed centre.
   void _placeDraftNode() {
     const draftGraphId = 'fd:${FieldDraftNode.draftId}';
-    if (graphController.nodePayloadForId(draftGraphId) == null ||
-        graphController.activePresentationTokenForNode(draftGraphId) != null) {
+    if (graphController.nodePayloadForId(draftGraphId) == null) {
+      return;
+    }
+    final token = graphController.activePresentationTokenForNode(draftGraphId);
+    if (token != null) {
+      graphController.updateNodePresentationDrag(token, _composingDraftCentre);
       return;
     }
     graphController.beginNodePresentationDragForId(
@@ -1256,7 +1296,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     final mergedField = field.copyWith(anchorProjection: presentation);
     final composition = composeConstellationPresentation(
       viewerId: _viewer.id,
-      field: mergedField,
+      field: _composerField(mergedField),
       localFilters: state.filters,
       asOfUtc: state.loadedAt ?? field.loadedAt,
       labelBudget: _currentLabelBudget(),
@@ -1651,8 +1691,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
           ConstellationAnchorTarget.beacon(
             request.id,
           ),
-        FieldBeaconNode(post: final post?) =>
-          ConstellationAnchorTarget.beacon(post.id),
+        FieldBeaconNode(post: final post?) => ConstellationAnchorTarget.beacon(
+          post.id,
+        ),
         _ => null,
       };
 
@@ -2063,11 +2104,44 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   }
 
   void _toggleComposingPerson(String personId) {
-    _composingSelectedIds = _composingSelectedIds.contains(personId)
-        ? (Set<String>.of(_composingSelectedIds)..remove(personId))
-        : {..._composingSelectedIds, personId};
     _onComposingToggle?.call(personId);
-    _reconcileLayout();
+  }
+
+  /// Addressable people are a session-only overlay, never persisted in the field.
+  ConstellationField _composerField(ConstellationField field) {
+    if (state.placementPhase != ConstellationPlacementPhase.composing)
+      return field;
+    final projection = field.resolvedAnchorProjection;
+    final peers = {
+      for (final peer in field.peers)
+        if (_composingCandidateIds.contains(peer.id)) peer.id: peer,
+      for (final entry in _composerPeople.entries)
+        if (_composingCandidateIds.contains(entry.key)) entry.key: entry.value,
+    };
+    return field.copyWith(
+      peers: peers.values.toList(),
+      requests: const [],
+      posts: const [],
+      memberWebs: const [],
+      anchorProjection: ConstellationAnchorProjection(
+        revision: projection.revision,
+        anchors: [
+          for (final anchor in projection.anchors)
+            if (anchor.target.kind == ConstellationAnchorTargetKind.person &&
+                _composingCandidateIds.contains(anchor.target.id))
+              anchor,
+        ],
+        pinnedPeers: [
+          for (final peer in projection.pinnedPeers)
+            if (_composingCandidateIds.contains(peer.id)) peer,
+        ],
+        pinnedRequests: const [],
+        supportPeers: const [],
+        supportEdges: const [],
+        serverFilteredBeaconIds: const [],
+        serverFilteredBeaconCount: 0,
+      ),
+    );
   }
 
   void selectMapNodeAtSceneCentre(Offset sceneCentre) {
@@ -2257,7 +2331,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
     final composition = composeConstellationPresentation(
       viewerId: _viewer.id,
-      field: field,
+      field: _composerField(field),
       localFilters: state.filters,
       asOfUtc: state.loadedAt ?? field.loadedAt,
       labelBudget: _currentLabelBudget(),
@@ -2294,7 +2368,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   }
 
   void _rebuildGraph() {
-    final field = state.field;
+    final field = state.field == null ? null : _composerField(state.field!);
     final paths = state.paths;
     final composition = state.composition;
     if (field == null || paths == null) {
@@ -2610,6 +2684,12 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       }
     }
 
+    final previousNodeIds = graphController
+        .renderSnapshot
+        .topology
+        .nodesById
+        .keys
+        .toSet();
     graphController.reconcileTopology(
       nodes,
       edges,
@@ -2618,6 +2698,38 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     );
     emit(state.copyWith(graphRevision: state.graphRevision + 1));
     if (composing) {
+      final added =
+          nodes
+              .whereType<FieldPersonNode>()
+              .map((node) => node.graphNodeId)
+              .where((id) => !previousNodeIds.contains(id))
+              .toList()
+            ..sort();
+      final egoPoint = graphController.renderSnapshot.resolvePosition(
+        'fp:$viewerId',
+      );
+      final center = egoPoint == null
+          ? const Offset(kConstellationCanvasCentre, kConstellationCanvasCentre)
+          : Offset(egoPoint.x, egoPoint.y);
+      final firstSlot = _composerPlacedPersonIds.length;
+      for (var i = 0; i < added.length; i++) {
+        var slot = firstSlot + i;
+        var ring = 1;
+        while (slot >= 12 * ring) {
+          slot -= 12 * ring;
+          ring++;
+        }
+        final angle = 2 * math.pi * slot / (12 * ring);
+        graphController.beginNodePresentationDragForId(
+          added[i],
+          center +
+              Offset(
+                math.cos(angle) * ring * kConstellationRingUnitPixels,
+                math.sin(angle) * ring * kConstellationRingUnitPixels,
+              ),
+        );
+        _composerPlacedPersonIds.add(added[i]);
+      }
       _placeDraftNode();
       return;
     }

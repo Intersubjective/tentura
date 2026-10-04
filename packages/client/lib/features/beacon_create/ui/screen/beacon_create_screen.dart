@@ -59,6 +59,8 @@ class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
     this.convertIsDiscoverable = true,
     this.initialRecipientIds = const {},
     this.initialNotes = const {},
+    this.onRecipientsChanged,
+    this.onPublished,
     super.key,
   });
 
@@ -67,6 +69,9 @@ class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
 
   /// Per-recipient notes for [initialRecipientIds].
   final Map<String, String> initialNotes;
+
+  final void Function(Set<String>, Map<String, String>)? onRecipientsChanged;
+  final VoidCallback? onPublished;
 
   /// Server draft beacon id when opening from My Work / deep link.
   final String draftId;
@@ -234,6 +239,7 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
     if (!mounted || !_beaconCreateCubit.state.isLive) return;
     final id = _beaconCreateCubit.state.draftId;
     if (id == null || id.isEmpty) return;
+    widget.onPublished?.call();
     await popCreateAndOpenLiveBeacon(context.router, beaconId: id);
   }
 
@@ -267,6 +273,7 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
     if (!outcome.failed) {
       final id = _beaconCreateCubit.state.draftId;
       if (id == null || id.isEmpty) return;
+      widget.onPublished?.call();
       await popCreateAndOpenLiveBeacon(context.router, beaconId: id);
     }
   }
@@ -278,6 +285,11 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
       _formKey.currentState?.save();
       await _beaconCreateCubit.flushAutosave();
       if (!mounted) return;
+      final forward = _forwardCubit?.state;
+      widget.onRecipientsChanged?.call(
+        {...(forward?.selectedIds ?? widget.initialRecipientIds)},
+        {...(forward?.perRecipientNotes ?? widget.initialNotes)},
+      );
       // PopScope.canPop is false, so maybePop re-enters this method. Pop
       // bypasses that guard; isFirst ignores PopScope for the deep-link case.
       final route = ModalRoute.of(context);

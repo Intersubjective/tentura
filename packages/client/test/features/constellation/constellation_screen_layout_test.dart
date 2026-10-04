@@ -9,6 +9,10 @@ import 'package:tentura/features/constellation/domain/entity/constellation_ancho
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_field_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
+import 'package:tentura/features/constellation/ui/bloc/constellation_composer_cubit.dart';
+import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
+import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
+import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/features/constellation/ui/screen/constellation_screen.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
@@ -17,6 +21,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
+import '../beacon_create/fake_beacon_ports.dart';
 
 const _ego = Profile(id: 'ego', displayName: 'Ego');
 
@@ -88,6 +93,7 @@ Future<void> _pumpScreen(
   WidgetTester tester, {
   required ConstellationCubit cubit,
   required Size size,
+  ConstellationComposerCubit? composer,
 }) async {
   await tester.binding.setSurfaceSize(size);
   await tester.pumpWidget(
@@ -102,6 +108,8 @@ Future<void> _pumpScreen(
           child: MultiBlocProvider(
             providers: [
               BlocProvider<ConstellationCubit>.value(value: cubit),
+              if (composer != null)
+                BlocProvider<ConstellationComposerCubit>.value(value: composer),
               BlocProvider(create: (_) => HomeTabReselectCubit()),
               BlocProvider<GraphPersonContextCubit>(
                 create: (_) => _StubContextCubit(),
@@ -121,6 +129,79 @@ Future<void> _pumpScreen(
 }
 
 void main() {
+  testWidgets(
+    'map composer drives people-only scene and survives an overlaid route',
+    (tester) async {
+      final cubit = await _loadCubit();
+      addTearDown(cubit.close);
+      final composer = ConstellationComposerCubit(
+        positions: const {'a': Offset(350, 350)},
+        eligible: const {'a'},
+        createCubitFactory: (kind) => BeaconCreateCubit(
+          kind: kind,
+          beaconCreateCase: fakeBeaconCreateCase(),
+          effects: FakeUiEffectPort(),
+        ),
+        forwardCubitFactory: (id) =>
+            ForwardCubit(beaconId: id, effects: FakeUiEffectPort()),
+        personName: (_) => 'Ann',
+      );
+      addTearDown(composer.close);
+      await _pumpScreen(
+        tester,
+        cubit: cubit,
+        size: const Size(1280, 800),
+        composer: composer,
+      );
+      composer.start(BeaconKind.post, const Offset(400, 400));
+      composer.setRadius(5);
+      await tester.pumpAndSettle();
+      expect(cubit.state.placementPhase, ConstellationPlacementPhase.composing);
+      expect(cubit.graphController.nodePayloadForId('fr:req-a'), isNull);
+      final person = cubit.graphController.nodePayloadForId('fp:a')!;
+      cubit.selectMapNode(person);
+      expect(
+        composer.selection.selected,
+        isEmpty,
+        reason: 'manual mode is off',
+      );
+      composer.toggleManualSelection();
+      cubit.selectMapNode(person);
+      await tester.pumpAndSettle();
+      expect(composer.selection.manualAdded, {'a'});
+      expect(
+        cubit.graphController.edges.map((e) => e.semanticId),
+        contains('fd:draft->fp:a#draftRecipient'),
+      );
+      final selectionBefore = composer.selection;
+      final navigator = Navigator.of(
+        tester.element(find.byType(ConstellationScreen)),
+      );
+      navigator.push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => const Scaffold(body: Text('full form')),
+        ),
+      );
+      await tester.pumpAndSettle();
+      navigator.pop();
+      await tester.pumpAndSettle();
+      expect(composer.selection, same(selectionBefore));
+      expect(cubit.state.placementPhase, ConstellationPlacementPhase.composing);
+      expect(
+        cubit.graphController.edges.map((e) => e.semanticId),
+        contains('fd:draft->fp:a#draftRecipient'),
+      );
+      cubit.selectMapNode(person);
+      await tester.pumpAndSettle();
+      expect(composer.selection.selected, isEmpty);
+      await tester.tap(
+        find.byKey(const Key('constellation.app_bar.cancel_composer')),
+      );
+      await tester.pumpAndSettle();
+      expect(cubit.state.placementPhase, ConstellationPlacementPhase.idle);
+      expect(cubit.graphController.nodePayloadForId('fr:req-a'), isNotNull);
+    },
+  );
   group('ConstellationScreen desktop centering', () {
     testWidgets(
       'app bar sits in the centered column while the graph canvas is full-bleed',

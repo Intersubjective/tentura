@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -29,6 +31,7 @@ class ConstellationAppBarRow extends StatelessWidget {
 
     return BlocBuilder<ConstellationCubit, ConstellationState>(
       buildWhen: (previous, current) =>
+          previous.placementPhase != current.placementPhase ||
           previous.viewMode != current.viewMode ||
           previous.filterCapabilitySlugs != current.filterCapabilitySlugs ||
           previous.filterLocation != current.filterLocation ||
@@ -40,6 +43,32 @@ class ConstellationAppBarRow extends StatelessWidget {
         final cubit = context.read<ConstellationCubit>();
         final showLegend = state.viewMode == ConstellationViewMode.map;
         final composer = maybeConstellationComposer(context);
+        if (state.placementPhase == ConstellationPlacementPhase.composing) {
+          return Row(
+            children: [
+              Expanded(
+                child: Text(
+                  composer?.kind == BeaconKind.post
+                      ? l10n.postsTabNewPost
+                      : l10n.postCreateMenuRequest,
+                  style: theme.textTheme.titleLarge,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              IconButton(
+                key: const Key('constellation.app_bar.cancel_composer'),
+                tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+                icon: const Icon(Icons.close),
+                onPressed: composer == null
+                    ? null
+                    : () => unawaited(() async {
+                        await composer.cancel();
+                        await composer.finish();
+                      }()),
+              ),
+            ],
+          );
+        }
 
         return Row(
           children: [

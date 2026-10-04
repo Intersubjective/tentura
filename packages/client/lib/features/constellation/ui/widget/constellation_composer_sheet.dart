@@ -2,18 +2,17 @@ import 'dart:async';
 
 import 'package:auto_route/auto_route.dart' show PageRouteInfo;
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
-import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
-import 'package:tentura/features/forward/ui/widget/forward_recipient_picker.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../domain/radius_recipient_selection.dart';
 import '../bloc/constellation_composer_cubit.dart';
 
-/// Recipient controls of the graph composer: «Получат · n», chips with ×, and
-/// «Списком ›». The radius itself is controlled on the canvas (the composer
+/// Recipient controls of the graph composer: «Получат · n» and chips with ×.
+/// The radius itself is controlled on the canvas (the composer
 /// circle's rim handle), not here. There is no inline send: the single
 /// trailing button hands off to the full create screen (Post or Request)
 /// with these recipients already selected; anchoring the result at the drop
@@ -62,21 +61,12 @@ class ConstellationComposerSheet extends StatelessWidget {
   }
 }
 
-class _SheetBody extends StatefulWidget {
+class _SheetBody extends StatelessWidget {
   const _SheetBody({required this.composer, required this.onOpenFullForm});
 
   final ConstellationComposerCubit composer;
 
   final ValueChanged<PageRouteInfo> onOpenFullForm;
-
-  @override
-  State<_SheetBody> createState() => _SheetBodyState();
-}
-
-class _SheetBodyState extends State<_SheetBody> {
-  bool _listOpen = false;
-
-  ConstellationComposerCubit get composer => widget.composer;
 
   @override
   Widget build(BuildContext context) {
@@ -102,14 +92,17 @@ class _SheetBodyState extends State<_SheetBody> {
                       ),
                     ),
                   ),
-                  TextButton(
-                    key: const Key('constellation.composer.list_button'),
-                    onPressed: _toggleList,
-                    child: Text(l10n.constellationComposerList),
+                  IconButton(
+                    key: const Key('constellation.composer.add_person'),
+                    tooltip: l10n.constellationComposerAddPerson,
+                    isSelected: selection.manualSelectionEnabled,
+                    onPressed: composer.toggleManualSelection,
+                    icon: const Icon(Icons.person_add_alt_1_outlined),
+                    selectedIcon: const Icon(Icons.person_add_alt_1),
                   ),
                   TextButton(
                     key: const Key('constellation.composer.details_button'),
-                    onPressed: _openFullForm,
+                    onPressed: () => unawaited(_openFullForm()),
                     child: Text(
                       composer.kind == BeaconKind.post
                           ? l10n.constellationComposerCreate
@@ -118,25 +111,23 @@ class _SheetBodyState extends State<_SheetBody> {
                   ),
                 ],
               ),
-              if (!_listOpen)
-                Wrap(
-                  spacing: tt.tightGap,
-                  children: [
-                    for (final id in selected)
-                      InputChip(
-                        key: Key('constellation.composer.chip.$id'),
-                        label: Text(_nameOf(id)),
-                        deleteButtonTooltipMessage: l10n
-                            .constellationComposerRemoveRecipient(_nameOf(id)),
-                        deleteIcon: KeyedSubtree(
-                          key: Key('constellation.composer.chip_remove.$id'),
-                          child: const Icon(Icons.close),
-                        ),
-                        onDeleted: () => composer.toggle(id),
+              Wrap(
+                spacing: tt.tightGap,
+                children: [
+                  for (final id in selected)
+                    InputChip(
+                      key: Key('constellation.composer.chip.$id'),
+                      label: Text(_nameOf(id)),
+                      deleteButtonTooltipMessage: l10n
+                          .constellationComposerRemoveRecipient(_nameOf(id)),
+                      deleteIcon: KeyedSubtree(
+                        key: Key('constellation.composer.chip_remove.$id'),
+                        child: const Icon(Icons.close),
                       ),
-                  ],
-                ),
-              if (_listOpen) _list(context),
+                      onDeleted: () => composer.toggle(id),
+                    ),
+                ],
+              ),
             ],
           ),
         );
@@ -149,38 +140,16 @@ class _SheetBodyState extends State<_SheetBody> {
     for (final c in candidates) {
       if (c.id == id) return c.profile.displayName;
     }
-    return id;
+    return composer.personName?.call(id) ?? id;
   }
 
-  void _openFullForm() {
-    final handoff = composer.fullFormHandoff();
-    if (handoff == null) return;
-    // A Post has no draft continuity into its full screen — close the
-    // composer so the circle/sheet do not linger over an abandoned draft.
-    if (composer.kind == BeaconKind.post) {
-      unawaited(composer.finish());
-    }
-    widget.onOpenFullForm(handoff.toRoute());
-  }
-
-  void _toggleList() {
-    if (composer.forwardCubit == null) return;
-    setState(() => _listOpen = !_listOpen);
-  }
-
-  /// The embedded picker on the composer's own [ForwardCubit]; row toggles go
-  /// through the radius selection.
-  Widget _list(BuildContext context) {
-    final forward = composer.forwardCubit!;
-    return SizedBox(
-      height: MediaQuery.sizeOf(context).height * 0.8,
-      child: BlocProvider<ForwardCubit>.value(
-        value: forward,
-        child: ForwardRecipientPicker(
-          beaconId: forward.state.beaconId,
-          embedded: true,
-          onToggle: composer.toggle,
-        ),
+  Future<void> _openFullForm() async {
+    final handoff = await composer.prepareFullFormHandoff();
+    if (handoff == null || composer.isClosed) return;
+    onOpenFullForm(
+      handoff.toRoute(
+        onRecipientsChanged: composer.restoreRecipients,
+        onPublished: () => unawaited(composer.finish()),
       ),
     );
   }

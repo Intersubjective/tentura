@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' show Offset;
 
 import 'package:flutter_test/flutter_test.dart';
@@ -128,40 +129,54 @@ void main() {
       draftCentre: const Offset(40, 40),
       candidateIds: {shownPeer, hiddenPeer, 'not-a-field-peer'},
       selectedIds: selected,
-      onToggle: toggled.add,
+      onToggle: (id) {
+        toggled.add(id);
+        final selectedNow =
+            _draftEdgeIds(cubit).contains(
+              'fd:draft->fp:$id#draftRecipient',
+            )
+            ? <String>{}
+            : {id};
+        unawaited(enter(selected: selectedNow));
+      },
     );
     await _settle();
   }
 
   group('composing phase on the graph', () {
-    test('entering adds the draft node and the widened candidate peers',
-        () async {
-      expect(_nodeIds(cubit), isNot(contains('fd:draft')));
-      expect(cubit.state.keptPeerIds, isNot(contains(hiddenPeer)));
-      final before = _positions(cubit);
-      expect(before, contains('fp:$_pinnedPeer'));
+    test(
+      'entering adds the draft node and the widened candidate peers',
+      () async {
+        expect(_nodeIds(cubit), isNot(contains('fd:draft')));
+        expect(cubit.state.keptPeerIds, isNot(contains(hiddenPeer)));
+        final before = _positions(cubit);
+        expect(before, contains('fp:$_pinnedPeer'));
 
-      await enter();
+        await enter();
 
-      expect(cubit.state.placementPhase, ConstellationPlacementPhase.composing);
-      expect(_nodeIds(cubit), contains('fd:draft'));
-      expect(cubit.state.keptPeerIds, contains(hiddenPeer));
-      expect(_nodeIds(cubit), contains('fp:$hiddenPeer'));
-      expect(_nodeIds(cubit), isNot(contains('fp:not-a-field-peer')));
-      expect(cubit.state.keptPeerIds, isNot(contains('not-a-field-peer')));
-      expect(
-        cubit.graphController.getPositionOrNullForId('fd:draft'),
-        const Offset(40, 40),
-      );
-      final after = _positions(cubit);
-      for (final entry in before.entries) {
         expect(
-          after[entry.key],
-          entry.value,
-          reason: 'existing node ${entry.key} (pinned or not) must not move',
+          cubit.state.placementPhase,
+          ConstellationPlacementPhase.composing,
         );
-      }
-    });
+        expect(_nodeIds(cubit), contains('fd:draft'));
+        expect(cubit.state.keptPeerIds, contains(hiddenPeer));
+        expect(_nodeIds(cubit), contains('fp:$hiddenPeer'));
+        expect(_nodeIds(cubit), isNot(contains('fp:not-a-field-peer')));
+        expect(cubit.state.keptPeerIds, isNot(contains('not-a-field-peer')));
+        expect(
+          cubit.graphController.getPositionOrNullForId('fd:draft'),
+          const Offset(40, 40),
+        );
+        final after = _positions(cubit);
+        for (final entry in before.entries) {
+          expect(
+            after[entry.key],
+            entry.value,
+            reason: 'existing node ${entry.key} (pinned or not) must not move',
+          );
+        }
+      },
+    );
 
     test('selected people get draft edges from the draft node', () async {
       await enter(selected: {shownPeer, hiddenPeer});
@@ -170,13 +185,11 @@ void main() {
         'fd:draft->fp:$shownPeer#draftRecipient',
         'fd:draft->fp:$hiddenPeer#draftRecipient',
       });
-
     });
 
     test('tapping a person adds then removes its draft edge', () async {
       await enter();
-      final node =
-          cubit.graphController.nodePayloadForId('fp:$shownPeer')!;
+      final node = cubit.graphController.nodePayloadForId('fp:$shownPeer')!;
       final edge = 'fd:draft->fp:$shownPeer#draftRecipient';
       final before = _positions(cubit);
 
@@ -197,8 +210,7 @@ void main() {
 
     test('tapping a pre-selected person removes its draft edge', () async {
       await enter(selected: {shownPeer});
-      final node =
-          cubit.graphController.nodePayloadForId('fp:$shownPeer')!;
+      final node = cubit.graphController.nodePayloadForId('fp:$shownPeer')!;
 
       cubit.selectMapNode(node);
       await _settle();
@@ -213,22 +225,24 @@ void main() {
       expect(cubit.canDragNode(node!), isFalse);
     });
 
-    test('exiting removes the draft node and restores the composition',
-        () async {
-      final keptBefore = cubit.state.keptPeerIds;
-      final nodesBefore = _nodeIds(cubit);
-      final edgesBefore = _edgeIds(cubit);
-      await enter(selected: {shownPeer});
+    test(
+      'exiting removes the draft node and restores the composition',
+      () async {
+        final keptBefore = cubit.state.keptPeerIds;
+        final nodesBefore = _nodeIds(cubit);
+        final edgesBefore = _edgeIds(cubit);
+        await enter(selected: {shownPeer});
 
-      cubit.exitComposing();
-      await _settle();
+        cubit.exitComposing();
+        await _settle();
 
-      expect(cubit.state.placementPhase, ConstellationPlacementPhase.idle);
-      expect(_nodeIds(cubit), isNot(contains('fd:draft')));
-      expect(_nodeIds(cubit), nodesBefore);
-      expect(_edgeIds(cubit), edgesBefore);
-      expect(cubit.state.keptPeerIds, keptBefore);
-      expect(_draftEdgeIds(cubit), isEmpty);
-    });
+        expect(cubit.state.placementPhase, ConstellationPlacementPhase.idle);
+        expect(_nodeIds(cubit), isNot(contains('fd:draft')));
+        expect(_nodeIds(cubit), nodesBefore);
+        expect(_edgeIds(cubit), edgesBefore);
+        expect(cubit.state.keptPeerIds, keptBefore);
+        expect(_draftEdgeIds(cubit), isEmpty);
+      },
+    );
   });
 }

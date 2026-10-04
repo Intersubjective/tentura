@@ -16,6 +16,7 @@ final class RadiusRecipientSelection {
     required Set<String> eligible,
     Set<String> manualAdded = const {},
     Set<String> manualRemoved = const {},
+    this.manualSelectionEnabled = false,
   }) : positions = Map<String, Offset>.unmodifiable(positions),
        eligible = Set<String>.unmodifiable(eligible),
        manualAdded = Set<String>.unmodifiable(manualAdded),
@@ -38,6 +39,9 @@ final class RadiusRecipientSelection {
 
   /// People excluded independently of the radius; removal wins over addition.
   final Set<String> manualRemoved;
+
+  /// Person taps toggle explicit selection while this mode is enabled.
+  final bool manualSelectionEnabled;
 
   /// Eligible recipients inside the circle or manually added, minus removals.
   Set<String> get selected => Set<String>.unmodifiable({
@@ -71,6 +75,15 @@ final class RadiusRecipientSelection {
   RadiusRecipientSelection withRadius(double radius) =>
       _copyWith(radius: radius);
 
+  RadiusRecipientSelection withManualSelectionEnabled(bool enabled) =>
+      _copyWith(manualSelectionEnabled: enabled);
+
+  /// Explicit addition persists even when the circle moves away.
+  RadiusRecipientSelection addManually(String id) => _copyWith(
+    manualAdded: {...manualAdded, id},
+    manualRemoved: {...manualRemoved}..remove(id),
+  );
+
   /// Moves the circle while preserving all manual overrides.
   RadiusRecipientSelection withCenter(Offset center) =>
       _copyWith(center: center);
@@ -80,6 +93,7 @@ final class RadiusRecipientSelection {
     double? radius,
     Set<String>? manualAdded,
     Set<String>? manualRemoved,
+    bool? manualSelectionEnabled,
   }) => RadiusRecipientSelection(
     center: center ?? this.center,
     radius: radius ?? this.radius,
@@ -87,6 +101,8 @@ final class RadiusRecipientSelection {
     eligible: eligible,
     manualAdded: manualAdded ?? this.manualAdded,
     manualRemoved: manualRemoved ?? this.manualRemoved,
+    manualSelectionEnabled:
+        manualSelectionEnabled ?? this.manualSelectionEnabled,
   );
 
   /// Covers the third-nearest eligible position with ten percent extra room.

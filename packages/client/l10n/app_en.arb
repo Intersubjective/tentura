@@ -7186,6 +7186,7 @@
     "description": "Heading of the graph composer's recipient chips",
     "placeholders": {"count": {"type": "int"}}
   },
+  "constellationComposerAddPerson": "Choose people on the map",
   "constellationComposerList": "List ›",
   "@constellationComposerList": {
     "description": "Graph composer button that opens the recipient list picker"

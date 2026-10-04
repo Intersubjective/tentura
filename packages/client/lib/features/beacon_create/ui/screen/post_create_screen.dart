@@ -27,6 +27,8 @@ class PostCreateScreen extends StatefulWidget implements AutoRouteWrapper {
   const PostCreateScreen({
     @QueryParam(kQueryBeaconForwardTo) this.forwardToUserId = '',
     this.initialRecipientIds = const <String>{},
+    this.onRecipientsChanged,
+    this.onPublished,
     super.key,
   });
 
@@ -35,6 +37,9 @@ class PostCreateScreen extends StatefulWidget implements AutoRouteWrapper {
 
   /// Recipients preselected by the map composer's radius selection.
   final Set<String> initialRecipientIds;
+
+  final void Function(Set<String>, Map<String, String>)? onRecipientsChanged;
+  final VoidCallback? onPublished;
 
   @override
   State<PostCreateScreen> createState() => _PostCreateScreenState();
@@ -97,6 +102,11 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
     }
     if (_createCubit.hasPostDraft) await _createCubit.discardPost();
     if (!mounted) return;
+    final forward = context.read<ForwardCubit>().state;
+    widget.onRecipientsChanged?.call(
+      {...forward.selectedIds},
+      {...forward.perRecipientNotes},
+    );
     // PopScope.canPop is false, so maybePop would re-enter this method; a
     // direct pop bypasses it. A deep-linked screen has nothing to pop to.
     final route = ModalRoute.of(context);
@@ -137,6 +147,7 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
     );
     final id = cubit.state.draftId;
     if (sent && mounted && id != null) {
+      widget.onPublished?.call();
       await context.router.popAndPush(BeaconViewRoute(id: id));
     }
     return sent;

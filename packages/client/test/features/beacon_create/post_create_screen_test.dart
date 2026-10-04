@@ -204,6 +204,7 @@ class _Harness {
 Future<_Harness> _pumpPostCreate(
   WidgetTester tester, {
   Set<String> recipients = const {},
+  void Function(Set<String>, Map<String, String>)? onRecipientsChanged,
 }) async {
   tester.view.physicalSize = const Size(800, 1200);
   tester.view.devicePixelRatio = 1;
@@ -276,7 +277,9 @@ Future<_Harness> _pumpPostCreate(
                             ),
                             BlocProvider<ForwardCubit>.value(value: forward),
                           ],
-                          child: const PostCreateScreen(),
+                          child: PostCreateScreen(
+                            onRecipientsChanged: onRecipientsChanged,
+                          ),
                         ),
                       ),
                     ),
@@ -352,6 +355,21 @@ Finder get _closeControl => find.descendant(
 );
 
 void main() {
+  testWidgets('closing returns current recipients to the map composer', (
+    tester,
+  ) async {
+    Set<String>? returned;
+    await _pumpPostCreate(
+      tester,
+      recipients: {'Umaria'},
+      onRecipientsChanged: (ids, notes) => returned = ids,
+    );
+    await tester.tap(_closeControl);
+    await _settle(tester);
+    expect(returned, {'Umaria'});
+    expect(find.byType(PostCreateScreen), findsNothing);
+  });
+
   group('Post create screen layout', () {
     testWidgets(
       'shows the title, the «Кому» row, the empty hint and the composer',

@@ -27,8 +27,7 @@ final class _StubRepository implements ConstellationRepositoryPort {
     ConstellationFieldMembershipFilters membershipFilters =
         ConstellationFieldMembershipFilters.defaults,
     ConstellationProjection projection = ConstellationProjection.full,
-  }) async =>
-      field;
+  }) async => field;
 }
 
 Future<ConstellationCubit> _loadCubit() async {
@@ -116,6 +115,33 @@ Future<void> _pumpAppBar(
 }
 
 void main() {
+  testWidgets('composer hides legend, filters, view mode and create controls', (
+    tester,
+  ) async {
+    final cubit = await _loadCubit();
+    addTearDown(cubit.close);
+    await _pumpAppBar(tester, cubit: cubit, size: const Size(400, 800));
+    cubit.enterComposing(
+      draftCentre: Offset.zero,
+      candidateIds: const {},
+      selectedIds: const {},
+      onToggle: (_) {},
+    );
+    await tester.pumpAndSettle();
+    for (final key in ['legend', 'filters', 'view_mode', 'create_here']) {
+      expect(find.byKey(Key('constellation.app_bar.$key')), findsNothing);
+    }
+    expect(
+      find.byKey(const Key('constellation.app_bar.cancel_composer')),
+      findsOneWidget,
+    );
+    cubit.exitComposing();
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const Key('constellation.app_bar.filters')),
+      findsOneWidget,
+    );
+  });
   group('ConstellationAppBarRow', () {
     testWidgets(
       'without a composer provided, the create button is absent',
@@ -260,30 +286,34 @@ void main() {
       await cubit.close();
     });
 
-    testWidgets('375px width at text scale 1.0 and 1.3 has no layout exception', (
-      tester,
-    ) async {
-      for (final locale in [const Locale('en'), const Locale('ru')]) {
-        for (final scale in [1.0, 1.3]) {
-          final cubit = await _loadCubit();
-          await _pumpAppBar(
-            tester,
-            cubit: cubit,
-            size: const Size(375, 800),
-            textScaler: TextScaler.linear(scale),
-            locale: locale,
-          );
-          expect(tester.takeException(), isNull);
-          final toggle = tester.widget<SegmentedButton<ConstellationViewMode>>(
-            find.byKey(const Key('constellation.app_bar.view_mode')),
-          );
-          for (final segment in toggle.segments) {
-            expect(segment.tooltip, isNotNull);
+    testWidgets(
+      '375px width at text scale 1.0 and 1.3 has no layout exception',
+      (
+        tester,
+      ) async {
+        for (final locale in [const Locale('en'), const Locale('ru')]) {
+          for (final scale in [1.0, 1.3]) {
+            final cubit = await _loadCubit();
+            await _pumpAppBar(
+              tester,
+              cubit: cubit,
+              size: const Size(375, 800),
+              textScaler: TextScaler.linear(scale),
+              locale: locale,
+            );
+            expect(tester.takeException(), isNull);
+            final toggle = tester
+                .widget<SegmentedButton<ConstellationViewMode>>(
+                  find.byKey(const Key('constellation.app_bar.view_mode')),
+                );
+            for (final segment in toggle.segments) {
+              expect(segment.tooltip, isNotNull);
+            }
+            await cubit.close();
           }
-          await cubit.close();
         }
-      }
-    });
+      },
+    );
 
     testWidgets('text scale 2.0 has no overflow and segment tooltips remain', (
       tester,

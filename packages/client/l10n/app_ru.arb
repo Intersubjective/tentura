@@ -6252,6 +6252,7 @@
   "postCreateMenuPost": "Пост",
   "postCreateMenuRequest": "Запрос",
   "constellationComposerRecipients": "Получат · {count}",
+  "constellationComposerAddPerson": "Выбирать людей на карте",
   "constellationComposerList": "Списком ›",
   "constellationComposerDetails": "Подробнее",
   "constellationComposerCreate": "Создать",

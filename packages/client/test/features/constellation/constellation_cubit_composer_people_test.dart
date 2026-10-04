@@ -4,6 +4,7 @@
 // not just whoever currently has a rendered node on the graph.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/material.dart' show Offset;
 import 'package:logging/logging.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
@@ -38,7 +39,9 @@ class _FakeForwardRepository implements ForwardRepository {
   String? lastContext;
 
   @override
-  Future<Iterable<Profile>> fetchForwardCandidates({String context = ''}) async {
+  Future<Iterable<Profile>> fetchForwardCandidates({
+    String context = '',
+  }) async {
     lastContext = context;
     return candidates;
   }
@@ -57,6 +60,14 @@ void main() {
         context: 'ctx-1',
         // Simulates a capped graph: only one peer actually rendered.
         peers: const [ConstellationPerson(id: 'graph-peer')],
+        requests: const [
+          ConstellationRequest(
+            id: 'active-request',
+            authorId: 'graph-peer',
+            title: 'Active',
+            status: 0,
+          ),
+        ],
         peersCapped: true,
       );
       final forward = _FakeForwardRepository(const [
@@ -84,6 +95,60 @@ void main() {
         {'graph-peer', 'mr-reachable-1', 'mr-reachable-2'},
       );
       expect(forward.lastContext, 'ctx-1');
+      final normalIds = cubit.graphController.nodes
+          .map((n) => n.graphNodeId)
+          .toSet();
+      expect(normalIds, contains('fr:active-request'));
+      cubit.enterComposing(
+        draftCentre: const Offset(200, 200),
+        candidateIds: snapshot.eligible,
+        selectedIds: {'mr-reachable-1'},
+        onToggle: (_) {},
+      );
+      final composingIds = cubit.graphController.nodes
+          .map((n) => n.graphNodeId)
+          .toSet();
+      expect(
+        composingIds,
+        containsAll(['fp:mr-reachable-1', 'fp:mr-reachable-2', 'fd:draft']),
+      );
+      expect(composingIds, isNot(contains('fr:active-request')));
+      expect(
+        cubit.graphController.getPositionOrNullForId('fp:mr-reachable-1'),
+        isNot(
+          cubit.graphController.getPositionOrNullForId('fp:mr-reachable-2'),
+        ),
+      );
+      expect(
+        cubit.state.field,
+        field,
+        reason: 'normal field is never overwritten',
+      );
+      cubit.enterComposing(
+        draftCentre: const Offset(300, 300),
+        candidateIds: snapshot.eligible,
+        selectedIds: {'mr-reachable-1'},
+        onToggle: (_) {},
+      );
+      expect(
+        cubit.graphController.getPositionOrNullForId('fd:draft'),
+        const Offset(300, 300),
+      );
+      await cubit.load();
+      expect(cubit.state.placementPhase, ConstellationPlacementPhase.composing);
+      final refreshedIds = cubit.graphController.nodes
+          .map((n) => n.graphNodeId)
+          .toSet();
+      expect(
+        refreshedIds,
+        containsAll(['fp:mr-reachable-1', 'fp:mr-reachable-2']),
+      );
+      expect(refreshedIds, isNot(contains('fr:active-request')));
+      cubit.exitComposing();
+      expect(
+        cubit.graphController.nodes.map((n) => n.graphNodeId).toSet(),
+        normalIds,
+      );
     },
   );
 

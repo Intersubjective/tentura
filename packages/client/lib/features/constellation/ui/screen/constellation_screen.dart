@@ -15,10 +15,12 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 import '../../domain/port/constellation_member_webs_port.dart';
 import '../../domain/use_case/constellation_anchor_case.dart';
 import '../../domain/use_case/constellation_field_case.dart';
+import '../../domain/radius_recipient_selection.dart';
 import '../bloc/constellation_composer_cubit.dart';
 import '../bloc/constellation_cubit.dart';
 import '../widget/constellation_app_bar.dart';
 import '../widget/constellation_body.dart';
+import '../widget/constellation_create_entry.dart';
 
 @RoutePage()
 class ConstellationScreen extends StatefulWidget implements AutoRouteWrapper {
@@ -65,6 +67,7 @@ class ConstellationScreen extends StatefulWidget implements AutoRouteWrapper {
                     positions: const {},
                     eligible: const {},
                     peopleSnapshot: constellation.composerPeople,
+                    personName: constellation.composerPersonName,
                     createCubitFactory: (kind) => BeaconCreateCubit(kind: kind),
                     forwardCubitFactory: (beaconId) =>
                         ForwardCubit(beaconId: beaconId, embedded: true),
@@ -91,18 +94,43 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
   @override
   void deactivate() {
     final cubit = context.read<ConstellationCubit>();
-    cubit.onRouteLeave();
+    if (cubit.state.placementPhase != ConstellationPlacementPhase.composing) {
+      cubit.onRouteLeave();
+    }
     super.deactivate();
   }
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<HomeTabReselectCubit, HomeTabReselectState>(
-      listenWhen: (prev, curr) =>
-          prev.constellationReselectCount != curr.constellationReselectCount,
-      listener: (context, _) {
-        unawaited(context.read<ConstellationCubit>().load());
-      },
+    final composer = maybeConstellationComposer(context);
+    return MultiBlocListener(
+      listeners: [
+        if (composer != null)
+          BlocListener<ConstellationComposerCubit, RadiusRecipientSelection>(
+            bloc: composer,
+            listener: (context, selection) {
+              final constellation = context.read<ConstellationCubit>();
+              if (composer.createCubit == null) {
+                constellation.exitComposing();
+              } else {
+                constellation.enterComposing(
+                  draftCentre: selection.center,
+                  candidateIds: selection.eligible,
+                  selectedIds: selection.selected,
+                  onToggle: composer.toggleMapRecipient,
+                );
+              }
+            },
+          ),
+        BlocListener<HomeTabReselectCubit, HomeTabReselectState>(
+          listenWhen: (prev, curr) =>
+              prev.constellationReselectCount !=
+              curr.constellationReselectCount,
+          listener: (context, _) {
+            unawaited(context.read<ConstellationCubit>().load());
+          },
+        ),
+      ],
       child: Scaffold(
         appBar: TenturaTopBar.of(
           context,

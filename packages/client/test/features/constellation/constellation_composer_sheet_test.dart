@@ -1,7 +1,5 @@
 // The graph composer's sheet: «Получат · n» recipient chips with ×, a
-// wide-layout side panel, and the «Списком» hand-off that opens the embedded
-// `ForwardRecipientPicker` on the composer's `ForwardCubit` with its toggles
-// routed through `ConstellationComposerCubit.toggle`. The radius itself is
+// wide-layout side panel and full-form hand-off. The radius itself is
 // controlled on the canvas (the composer circle's rim handle, see
 // constellation_composer_radius_test.dart), not by this sheet — these tests
 // drive `composer.setRadius` directly to cover how the sheet reacts.
@@ -306,6 +304,10 @@ void main() {
         await tester.pumpAndSettle();
         final l10n = lookupL10n(const Locale('en'));
         expect(find.text(l10n.constellationComposerCreate), findsOneWidget);
+        composer.toggleManualSelection();
+        composer.toggleMapRecipient('Ue');
+        final centerBefore = composer.selection.center;
+        final radiusBefore = composer.selection.radius;
         final selectedBefore = composer.selection.selected;
 
         await tester.tap(find.byKey(_detailsButton));
@@ -315,10 +317,20 @@ void main() {
         expect(route, isA<PostCreateRoute>());
         final args = route.args! as PostCreateRouteArgs;
         expect(args.initialRecipientIds, selectedBefore);
+        expect(args.initialRecipientIds, contains('Ue'));
+        args.onRecipientsChanged!.call({'Ud', 'Ue'}, const {});
+        await tester.pumpAndSettle();
+        expect(composer.selection.center, centerBefore);
+        expect(composer.selection.radius, radiusBefore);
+        expect(composer.selection.manualSelectionEnabled, isTrue);
+        expect(composer.selection.selected, {'Ud', 'Ue'});
+        expect(composer.selection.manualAdded, containsAll(['Ud', 'Ue']));
+        composer.setRadius(_wideRadius);
+        expect(composer.selection.selected, {'Ud', 'Ue'});
         expect(
           composer.createCubit,
-          isNull,
-          reason: 'a Post hand-off closes the composer — no draft continuity',
+          isNotNull,
+          reason: 'closing the full form must restore the map session',
         );
       },
     );
@@ -356,95 +368,34 @@ void main() {
     });
   });
 
-  group('composer sheet list hand-off', () {
-    testWidgets('«Списком» opens the embedded picker on the composer forward '
-        'cubit', (tester) async {
-      final forward = await startPost(tester);
-      await pumpSheet(tester, size: narrow);
-      expect(find.byType(ForwardRecipientPicker), findsNothing);
+  testWidgets('composer offers chips and create without a list picker', (
+    tester,
+  ) async {
+    await startPost(tester);
+    await pumpSheet(tester, size: narrow);
 
-      await tester.tap(find.byKey(_listButton));
-      await tester.pumpAndSettle();
-
-      final picker = tester.widget<ForwardRecipientPicker>(
-        find.byType(ForwardRecipientPicker),
-      );
-      expect(picker.embedded, isTrue);
-      expect(picker.beaconId, forward.state.beaconId);
-      expect(find.text('Person Ua'), findsOneWidget);
-
-      // The sheet supplies the override; a real tap on a row goes through it.
-      expect(picker.onToggle, isNotNull);
-      await tester.tap(
-        find.byKey(TestIds.key(TestIds.forwardRecipientCheckbox('Ud'))),
-      );
-      await tester.pumpAndSettle();
-      expect(composer.selection.manualAdded, {'Ud'});
-      expect(forward.state.selectedIds, {'Ua', 'Ub', 'Uc', 'Ud'});
-    });
-
-    testWidgets('toggling a person inside the radius in the list removes them '
-        'and a later radius change does not bring them back', (tester) async {
-      final forward = await startPost(tester);
-      await pumpSheet(tester, size: narrow);
-      await tester.tap(find.byKey(_listButton));
-      await tester.pumpAndSettle();
-
-      // Precondition: Ua is selected only because the circle covers them.
-      expect(
-        (_positions['Ua']! - composer.selection.center).distance,
-        lessThanOrEqualTo(composer.selection.radius),
-      );
-      expect(composer.selection.selected, contains('Ua'));
-      expect(composer.selection.manualAdded, isEmpty);
-      expect(composer.selection.manualRemoved, isEmpty);
-
-      await tester.tap(
-        find.byKey(TestIds.key(TestIds.forwardRecipientCheckbox('Ua'))),
-      );
-      await tester.pumpAndSettle();
-
-      expect(composer.selection.manualRemoved, {'Ua'});
-      expect(composer.selection.selected, {'Ub', 'Uc'});
-      expect(forward.state.selectedIds, {'Ub', 'Uc'});
-
-      final radiusBefore = composer.selection.radius;
-      composer.setRadius(_wideRadius);
-      await tester.pumpAndSettle();
-
-      expect(composer.selection.radius, greaterThan(radiusBefore));
-      expect(composer.selection.selected, containsAll(['Ub', 'Uc', 'Ud']));
-      expect(composer.selection.selected, isNot(contains('Ua')));
-      expect(forward.state.selectedIds, composer.selection.selected);
-    });
-
-    testWidgets('toggling a person outside the radius in the list adds them '
-        'and a smaller radius keeps them', (tester) async {
-      final forward = await startPost(tester);
-      await pumpSheet(tester, size: narrow);
-      await tester.tap(find.byKey(_listButton));
-      await tester.pumpAndSettle();
-
-      await tester.tap(
-        find.byKey(TestIds.key(TestIds.forwardRecipientCheckbox('Ue'))),
-      );
-      await tester.pumpAndSettle();
-
-      expect(composer.selection.manualAdded, {'Ue'});
-      expect(forward.state.selectedIds, {'Ua', 'Ub', 'Uc', 'Ue'});
-
-      final radiusBefore = composer.selection.radius;
-      composer.setRadius(_narrowRadius);
-      await tester.pumpAndSettle();
-
-      expect(composer.selection.radius, lessThan(radiusBefore));
-      expect(composer.selection.selected, contains('Ue'));
-      expect(
-        composer.selection.selected,
-        isNot(containsAll(['Ua', 'Ub', 'Uc'])),
-      );
-      expect(forward.state.selectedIds, composer.selection.selected);
-    });
+    expect(find.byKey(_listButton), findsNothing);
+    expect(find.byType(ForwardRecipientPicker), findsNothing);
+    expect(find.byKey(_detailsButton), findsOneWidget);
+    expect(find.byKey(_chip('Ua')), findsOneWidget);
+    final add = find.byKey(const Key('constellation.composer.add_person'));
+    expect(tester.widget<IconButton>(add).isSelected, isFalse);
+    await tester.tap(add);
+    await tester.pumpAndSettle();
+    expect(tester.widget<IconButton>(add).isSelected, isTrue);
+    composer.toggleMapRecipient('Ue');
+    await tester.pumpAndSettle();
+    expect(find.byKey(_chip('Ue')), findsOneWidget);
+    composer.setRadius(_narrowRadius);
+    await tester.pumpAndSettle();
+    expect(composer.selection.selected, {'Ue'});
+    composer.toggleMapRecipient('Ue');
+    await tester.pumpAndSettle();
+    expect(find.byKey(_chip('Ue')), findsNothing);
+    await tester.tap(add);
+    await tester.pumpAndSettle();
+    composer.toggleMapRecipient('Ud');
+    expect(composer.selection.selected, isEmpty);
   });
 
   group('forward recipient picker toggle override', () {

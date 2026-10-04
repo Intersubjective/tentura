@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
-import 'package:get_it/get_it.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -26,7 +25,6 @@ import 'package:tentura/ui/widget/linear_pi_active.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../../domain/entity/constellation_field.dart';
 import '../../domain/radius_recipient_selection.dart';
-import '../../domain/use_case/constellation_anchor_case.dart';
 import '../bloc/constellation_composer_cubit.dart';
 import '../bloc/constellation_cubit.dart';
 import '../utils/constellation_edge_style.dart';
@@ -209,6 +207,9 @@ class _ConstellationBodyState extends State<ConstellationBody> {
     NodeDetails node,
   ) {
     cubit.selectMapNode(node);
+    if (cubit.state.placementPhase == ConstellationPlacementPhase.composing) {
+      return;
+    }
     if (node case FieldPersonNode(
       :final person,
     ) when person.id != cubit.viewerId) {
@@ -573,7 +574,19 @@ class _ConstellationBodyState extends State<ConstellationBody> {
                     _CancelPlacementIntent:
                         CallbackAction<_CancelPlacementIntent>(
                           onInvoke: (_) {
-                            cubit.cancelPlacement();
+                            final composer = maybeConstellationComposer(
+                              context,
+                            );
+                            if (cubit.state.placementPhase ==
+                                    ConstellationPlacementPhase.composing &&
+                                composer != null) {
+                              unawaited(() async {
+                                await composer.cancel();
+                                await composer.finish();
+                              }());
+                            } else {
+                              cubit.cancelPlacement();
+                            }
                             return null;
                           },
                         ),
@@ -583,8 +596,11 @@ class _ConstellationBodyState extends State<ConstellationBody> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const ConstellationFieldNotices(),
-                        const ConstellationEmptyFilterBanner(),
+                        if (state.placementPhase !=
+                            ConstellationPlacementPhase.composing) ...[
+                          const ConstellationFieldNotices(),
+                          const ConstellationEmptyFilterBanner(),
+                        ],
                         if (_selectionUnavailableMessage != null)
                           Material(
                             color: theme.colorScheme.errorContainer,
@@ -679,8 +695,12 @@ class _ConstellationBodyState extends State<ConstellationBody> {
           canvasBackgroundBuilder: composer == null
               ? null
               : (_) => ConstellationComposerCircle(composer: composer),
-          onCanvasSecondaryTap: composer == null ? null : offerCreate,
-          onCanvasLongPress: composer == null ? null : offerCreate,
+          onCanvasSecondaryTap: composer == null || composer.createCubit != null
+              ? null
+              : offerCreate,
+          onCanvasLongPress: composer == null || composer.createCubit != null
+              ? null
+              : offerCreate,
           minScale: 0.1,
           maxScale: 3,
           layoutAlgorithm: layoutAlgorithm,
@@ -909,7 +929,8 @@ class _ConstellationBodyState extends State<ConstellationBody> {
             ),
           ),
         ),
-        if (widget.legendExpanded)
+        if (widget.legendExpanded &&
+            state.placementPhase != ConstellationPlacementPhase.composing)
           Positioned(
             left: 0,
             bottom: panelVisible && context.windowClass == WindowClass.compact
