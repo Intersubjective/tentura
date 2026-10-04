@@ -7,15 +7,13 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/auth/ui/dialog/sign_out_dialog.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
+import 'package:tentura/ui/widget/profile_app_bar_title.dart';
 import 'package:tentura/ui/widget/share_code_icon_button.dart';
 
 PreferredSizeWidget buildProfileAppBar(
   BuildContext context, {
   required Profile profile,
 }) {
-  final theme = Theme.of(context);
-  final scheme = theme.colorScheme;
   final l10n = L10n.of(context)!;
   final tt = context.tt;
 
@@ -23,42 +21,7 @@ PreferredSizeWidget buildProfileAppBar(
     context,
     key: Key('ProfileAppBar:${profile.id}'),
     tone: TenturaTopBarTone.primary,
-    title: Row(
-      children: [
-        SelfAwareAvatar.medium(
-          profile: profile,
-          size: tt.metadataAvatarSize + tt.tightGap * 2,
-        ),
-        SizedBox(width: tt.iconTextGap),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                profile.displayName.isEmpty ? l10n.noName : profile.displayName,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: scheme.onSurface,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              if (profile.handle.isNotEmpty)
-                Text(
-                  '@${profile.handle}',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-            ],
-          ),
-        ),
-      ],
-    ),
+    title: ProfileAppBarTitle(profile: profile),
     actions: [
       IconButton(
         tooltip: l10n.profileOverflowEdit,

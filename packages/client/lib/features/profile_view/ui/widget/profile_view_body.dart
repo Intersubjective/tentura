@@ -200,7 +200,8 @@ class _ProfileTrustRelationLine extends StatelessWidget {
   String _trustReciprocityLabel() {
     if (profile.isMutualFriend) return l10n.trustSentenceMutual;
     if (profile.isFriend) return l10n.trustSentenceOneWayOut;
-    if (profile.subjectExplicitlyTrustsViewer) return l10n.trustSentenceOneWayIn;
+    if (profile.subjectExplicitlyTrustsViewer)
+      return l10n.trustSentenceOneWayIn;
     return l10n.trustSentenceNone;
   }
 
@@ -487,9 +488,10 @@ class _ProfileCapabilitySection extends StatelessWidget {
                   slugs: viewerVisible.map((c) => c.slug).toList(),
                 ),
               ),
-            Padding(
-              padding: kPaddingSmallT,
-              child: OutlinedButton.icon(
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: TenturaTextAction(
+                flushStart: true,
                 onPressed: () {
                   final cubit = context.read<ProfileViewCubit>();
                   unawaited(
@@ -521,7 +523,7 @@ class _ProfileCapabilitySection extends StatelessWidget {
                   );
                 },
                 icon: const Icon(Icons.tune),
-                label: Text(l10n.capabilityEditCapabilities),
+                label: l10n.capabilityEditCapabilities,
               ),
             ),
           ],

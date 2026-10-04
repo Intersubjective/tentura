@@ -130,6 +130,38 @@ void main() {
       );
     }
 
+    testWidgets('mutual trust uses prose and a compact capability action', (
+      tester,
+    ) async {
+      const viewer = Profile(id: 'U-viewer', displayName: 'Viewer');
+      const subject = Profile(
+        id: 'U-peer',
+        displayName: 'Peer',
+        myVote: 1,
+        isMutualFriend: true,
+        score: 1,
+        rScore: 1,
+      );
+      await pumpBody(tester, subject: subject, viewer: viewer);
+      final l10n = lookupL10n(const Locale('en'));
+
+      expect(find.text(l10n.trustSentenceMutual), findsOneWidget);
+      expect(find.text('Trust: mutual'), findsNothing);
+      expect(countFilledButtons(tester), 1);
+      expect(find.text(l10n.profileSendRequestTo), findsOneWidget);
+      final action = find.widgetWithText(
+        TenturaTextAction,
+        l10n.capabilityEditCapabilities,
+      );
+      expect(action, findsOneWidget);
+      expect(
+        tester.getSize(action).width,
+        lessThan(tester.getSize(find.byType(CustomScrollView)).width),
+      );
+      final avatar = find.byType(TenturaAvatar).first;
+      expect(tester.getSize(avatar), const Size(120, 120));
+    });
+
     testWidgets('no shared context keeps trust-only visibility line', (
       tester,
     ) async {
