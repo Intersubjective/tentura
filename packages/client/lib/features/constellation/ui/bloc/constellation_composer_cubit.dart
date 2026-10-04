@@ -144,6 +144,10 @@ class ConstellationComposerCubit extends Cubit<RadiusRecipientSelection> {
     final people = await peopleSnapshot!();
     if (_cancelled || isClosed || !identical(session, _createCubit)) return;
     final known = state.eligible;
+    // People the graph laid out only after the composer opened bring the
+    // first positions; size the circle for them as for an initial snapshot.
+    final firstPositions =
+        !first && !state.positions.keys.any(known.contains);
     final added = {
       for (final id in people.eligible)
         if (!people.positions.containsKey(id) && !known.contains(id)) id,
@@ -156,7 +160,7 @@ class ConstellationComposerCubit extends Cubit<RadiusRecipientSelection> {
       emit(
         RadiusRecipientSelection(
           center: center,
-          radius: first
+          radius: first || firstPositions
               ? RadiusRecipientSelection.startRadius(
                   center,
                   people.positions,
