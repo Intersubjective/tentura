@@ -168,7 +168,7 @@ void main() {
       expect(find.text(l10n.profileSendRequestTo), findsOneWidget);
       expect(find.text(l10n.profileMarkCapabilities('Peer')), findsOneWidget);
       expect(find.byTooltip(l10n.profileEditLabels), findsOneWidget);
-      expect(find.text(l10n.profileLabelsInfoBody('Peer')), findsNothing);
+      expect(find.text(l10n.profileLabelsInfoPrivate), findsNothing);
 
       await openEyeInfo(tester, l10n);
       expect(find.text(l10n.profileEyeReasonMutualTrust), findsOneWidget);
@@ -178,7 +178,7 @@ void main() {
 
     for (final locale in const [Locale('en'), Locale('ru')]) {
       testWidgets(
-        'private labels: one line, explanation behind the lock (${locale.languageCode})',
+        'labels: one line with source icons, explanation behind ⓘ (${locale.languageCode})',
         (tester) async {
           const viewer = Profile(id: 'U-viewer', displayName: 'Viewer');
           const subject = Profile(
@@ -194,20 +194,30 @@ void main() {
             cues: const PersonCapabilityCues(
               viewerVisible: [
                 CapabilityWithSource(slug: 'transport', hasManualLabel: true),
-                CapabilityWithSource(slug: 'storage', hasManualLabel: true),
+                CapabilityWithSource(slug: 'storage', hasManualLabel: false),
               ],
             ),
           );
           final l10n = lookupL10n(locale);
-          final line = l10n.profileMyLabelsLine(
-            '${l10n.capabilityTagTransport}, ${l10n.capabilityTagStorage}',
+          expect(
+            find.bySemanticsLabel(
+              l10n.profileMyLabelsLine(
+                '${l10n.capabilityTagTransport}, ${l10n.capabilityTagStorage}',
+              ),
+            ),
+            findsOneWidget,
           );
-          expect(find.text(line), findsOneWidget);
-          expect(find.text(l10n.profileLabelsInfoBody('Peer')), findsNothing);
+          expect(find.byTooltip(l10n.profileLabelPrivate), findsOneWidget);
+          expect(find.byTooltip(l10n.profileLabelShared), findsOneWidget);
+          expect(find.text(l10n.profileLabelsInfoPrivate), findsNothing);
 
           await tester.tap(find.byTooltip(l10n.profileLabelsInfoTitle));
           await tester.pumpAndSettle();
-          expect(find.text(l10n.profileLabelsInfoBody('Peer')), findsOneWidget);
+          expect(find.text(l10n.profileLabelsInfoPrivate), findsOneWidget);
+          expect(
+            find.text(l10n.profileLabelsInfoShared('Peer')),
+            findsOneWidget,
+          );
         },
       );
     }

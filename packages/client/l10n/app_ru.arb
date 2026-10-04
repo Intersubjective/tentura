@@ -5254,13 +5254,17 @@
   "profileEyeReasonMeritRank": "Через общих знакомых (MeritRank).",
   "profileEyeClosedHint": "Чтобы видеть друг друга, нужно доверие или общие знакомые в обе стороны.",
   "profileEyeTrustNote": "Доверие — ваш голос. Открытый глаз — итог: он может открыться и без доверия, через общих знакомых.",
-  "profileMyLabelsLine": "Ваши метки: {tags}",
-  "profileMarkCapabilities": "Отметить, чем может помочь {name}",
+  "profileMyLabelsLine": "Вы связываете с этим человеком: {tags}",
+  "profileMarkCapabilities": "Отметить, чем помогает {name}",
   "profileEditLabels": "Изменить метки",
-  "profileLabelsInfoTitle": "Ваши личные метки",
-  "profileLabelsInfoBody": "Это ваши заметки, {name} их не видит. По ним Tentura подскажет этого человека для подходящих запросов.",
+  "profileLabelsInfoTitle": "Метки об этом человеке",
+  "profileLabelsInfoPrivate": "Заметки с замком видите только вы: по ним Tentura подсказывает вам этого человека при пересылке.",
+  "profileLabelsInfoShared": "Метки с людьми — из ваших пересылок и отметок о помощи. Их видит {name}, и они помогают людям, которые вам доверяют, найти этого человека для похожих запросов.",
+  "profileLabelPrivate": "Ваша заметка, видите только вы",
+  "profileLabelShared": "Из пересылок или отметок о помощи, видно другим",
+  "profileSeedSuggestionInfo": "Люди, которые вам доверяют, увидят этого человека в подсказках для таких запросов.",
   "capabilityDialogTitle": "Чем может помочь {name}?",
-  "capabilityDialogOnlyYou": "Видно только вам",
+  "capabilityDialogOnlyYou": "Новые метки — ваши заметки, их видите только вы",
   "capabilityEditCapabilities": "Редактировать способности",
   "capabilityCueMyLabels": "Мои метки: {tags}",
   "@capabilityCueMyLabels": {
@@ -5740,7 +5744,7 @@
       }
     }
   },
-  "profileSeedSuggestionAddPrompt": "Предложить типы запросов для {name}",
+  "profileSeedSuggestionAddPrompt": "Предложить для запросов: {name}",
   "@profileSeedSuggestionAddPrompt": {
     "placeholders": {
       "name": {

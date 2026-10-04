@@ -5502,7 +5502,7 @@
   "profileEyeReasonMeritRank": "Through people you both know (MeritRank).",
   "profileEyeClosedHint": "To see each other, you need trust or people you both know, in both directions.",
   "profileEyeTrustNote": "Trust is your own vote. The open eye is the result: it can open without trust, through people you both know.",
-  "profileMyLabelsLine": "Your labels: {tags}",
+  "profileMyLabelsLine": "You link them with: {tags}",
   "@profileMyLabelsLine": {
     "placeholders": {
       "tags": {
@@ -5510,7 +5510,7 @@
       }
     }
   },
-  "profileMarkCapabilities": "Mark what {name} can help with",
+  "profileMarkCapabilities": "Mark what {name} helps with",
   "@profileMarkCapabilities": {
     "placeholders": {
       "name": {
@@ -5519,15 +5519,19 @@
     }
   },
   "profileEditLabels": "Edit labels",
-  "profileLabelsInfoTitle": "Your private labels",
-  "profileLabelsInfoBody": "These are your notes, {name} can't see them. Tentura uses them to suggest this person for matching requests.",
-  "@profileLabelsInfoBody": {
+  "profileLabelsInfoTitle": "Labels about this person",
+  "profileLabelsInfoPrivate": "Notes marked with a lock are visible only to you: Tentura uses them to suggest this person to you when you forward.",
+  "profileLabelsInfoShared": "Labels marked with people come from your forwards and help acknowledgements. {name} sees them, and they help people who trust you find this person for similar requests.",
+  "@profileLabelsInfoShared": {
     "placeholders": {
       "name": {
         "type": "String"
       }
     }
   },
+  "profileLabelPrivate": "Your note, only you see it",
+  "profileLabelShared": "From forwards or help acknowledgements, visible to others",
+  "profileSeedSuggestionInfo": "People who trust you will see this person in suggestions for these requests.",
   "capabilityDialogTitle": "What can {name} help with?",
   "@capabilityDialogTitle": {
     "placeholders": {
@@ -5536,7 +5540,7 @@
       }
     }
   },
-  "capabilityDialogOnlyYou": "Only you can see this",
+  "capabilityDialogOnlyYou": "New labels are your notes, only you see them",
   "capabilityEditCapabilities": "Edit capabilities",
   "capabilityCueMyLabels": "My labels: {tags}",
   "@capabilityCueMyLabels": {
@@ -6161,7 +6165,7 @@
       }
     }
   },
-  "profileSeedSuggestionAddPrompt": "Suggest request types for {name}",
+  "profileSeedSuggestionAddPrompt": "Suggest {name} for requests",
   "@profileSeedSuggestionAddPrompt": {
     "placeholders": {
       "name": {

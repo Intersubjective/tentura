@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 
 /// Short explanation behind an ⓘ / 🔒 tap on the profile, so the profile
-/// itself stays one compact line per fact (#134, #140).
+/// itself stays one compact line per fact (#134, #140). [lineIcons] lead the
+/// matching [lines] when set.
 Future<void> showProfileInfoSheet(
   BuildContext context, {
   required String title,
   required List<String> lines,
+  List<IconData?> lineIcons = const [],
 }) => showTenturaAdaptiveSheet<void>(
   context: context,
   builder: (ctx) {
@@ -25,9 +27,24 @@ Future<void> showProfileInfoSheet(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(title, style: theme.textTheme.titleMedium),
-          for (final line in lines) ...[
+          for (final (i, line) in lines.indexed) ...[
             SizedBox(height: tt.rowGap),
-            Text(line, style: theme.textTheme.bodyMedium),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (lineIcons.elementAtOrNull(i) case final icon?) ...[
+                  Icon(
+                    icon,
+                    size: tt.iconSize,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  SizedBox(width: tt.iconTextGap),
+                ],
+                Expanded(
+                  child: Text(line, style: theme.textTheme.bodyMedium),
+                ),
+              ],
+            ),
           ],
         ],
       ),
@@ -44,6 +61,7 @@ class ProfileFactRow extends StatelessWidget {
     this.iconTooltip,
     this.onIconTap,
     this.onTextTap,
+    this.richText,
     this.trailing,
     super.key,
   });
@@ -55,14 +73,19 @@ class ProfileFactRow extends StatelessWidget {
   final VoidCallback? onTextTap;
   final Widget? trailing;
 
+  /// Replaces [text] visually (inline icons); [text] stays the semantics
+  /// fallback.
+  final InlineSpan? richText;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final tt = context.tt;
     final color = theme.colorScheme.onSurfaceVariant;
     final iconWidget = Icon(icon, size: tt.iconSize, color: color);
-    final label = Text(
-      text,
+    final label = Text.rich(
+      richText ?? TextSpan(text: text),
+      semanticsLabel: richText == null ? null : text,
       maxLines: 2,
       overflow: TextOverflow.ellipsis,
       style: theme.textTheme.bodySmall?.copyWith(color: color),

@@ -449,12 +449,18 @@ class _SeenHelpingWithSection extends StatelessWidget {
   }
 }
 
-/// Your private capability labels about a friend (#134): one compact line,
-/// the "only you see this" explanation behind the lock.
+/// Capability labels the viewer links with a friend (#134): one compact
+/// line. Each label carries its source: 🔒 the viewer's own note (only they
+/// see it) or 👥 from forwards / help acknowledgements (the subject sees it
+/// and it feeds suggestions for people who trust the viewer). The
+/// explanation sits behind ⓘ.
 class _ProfileCapabilitySection extends StatelessWidget {
   const _ProfileCapabilitySection({required this.profile});
 
   final Profile profile;
+
+  static const _privateIcon = Icons.lock_outline;
+  static const _sharedIcon = Icons.group_outlined;
 
   void _edit(BuildContext context, List<CapabilityWithSource> viewerVisible) {
     final cubit = context.read<ProfileViewCubit>();
@@ -482,6 +488,44 @@ class _ProfileCapabilitySection extends StatelessWidget {
     );
   }
 
+  static String _labelOf(L10n l10n, CapabilityWithSource c) =>
+      CapabilityTag.fromSlug(c.slug)?.labelOf(l10n) ?? c.slug;
+
+  InlineSpan _labelsSpan(
+    BuildContext context,
+    L10n l10n,
+    List<CapabilityWithSource> viewerVisible,
+  ) {
+    final theme = Theme.of(context);
+    final tt = context.tt;
+    final iconSize = theme.textTheme.bodySmall?.fontSize ?? tt.iconSize;
+    final prefix = l10n.profileMyLabelsLine('');
+    return TextSpan(
+      children: [
+        TextSpan(text: prefix),
+        for (final (i, c) in viewerVisible.indexed) ...[
+          if (i > 0) const TextSpan(text: ', '),
+          WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: Tooltip(
+              message: c.hasManualLabel
+                  ? l10n.profileLabelPrivate
+                  : l10n.profileLabelShared,
+              child: Icon(
+                c.hasManualLabel ? _privateIcon : _sharedIcon,
+                size: iconSize,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          TextSpan(
+            text: ' ${CapabilityTag.fromSlug(c.slug)?.labelOf(l10n) ?? c.slug}',
+          ),
+        ],
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
@@ -496,27 +540,39 @@ class _ProfileCapabilitySection extends StatelessWidget {
         final myId = context.read<ProfileCubit>().state.profile.id;
         final isSelf = profile.id == myId;
         if (isSelf || !isFriend) return const SizedBox.shrink();
-        final labels = [
-          for (final c in viewerVisible)
-            CapabilityTag.fromSlug(c.slug)?.labelOf(l10n) ?? c.slug,
-        ];
         final name = profile.shownName;
+        final isEmpty = viewerVisible.isEmpty;
         return ProfileFactRow(
-          icon: Icons.lock_outline,
-          iconTooltip: l10n.profileLabelsInfoTitle,
-          onIconTap: () => showProfileInfoSheet(
-            context,
-            title: l10n.profileLabelsInfoTitle,
-            lines: [l10n.profileLabelsInfoBody(name)],
-          ),
-          text: labels.isEmpty
+          icon: Icons.label_outline,
+          text: isEmpty
               ? l10n.profileMarkCapabilities(name)
-              : l10n.profileMyLabelsLine(labels.join(', ')),
+              : l10n.profileMyLabelsLine(
+                  viewerVisible.map((c) => _labelOf(l10n, c)).join(', '),
+                ),
+          richText: isEmpty ? null : _labelsSpan(context, l10n, viewerVisible),
           onTextTap: () => _edit(context, viewerVisible),
-          trailing: IconButton(
-            onPressed: () => _edit(context, viewerVisible),
-            tooltip: l10n.profileEditLabels,
-            icon: Icon(labels.isEmpty ? Icons.add : Icons.edit_outlined),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                onPressed: () => _edit(context, viewerVisible),
+                tooltip: l10n.profileEditLabels,
+                icon: Icon(isEmpty ? Icons.add : Icons.edit_outlined),
+              ),
+              IconButton(
+                onPressed: () => showProfileInfoSheet(
+                  context,
+                  title: l10n.profileLabelsInfoTitle,
+                  lines: [
+                    l10n.profileLabelsInfoPrivate,
+                    l10n.profileLabelsInfoShared(name),
+                  ],
+                  lineIcons: const [_privateIcon, _sharedIcon],
+                ),
+                tooltip: l10n.profileLabelsInfoTitle,
+                icon: const Icon(Icons.info_outline),
+              ),
+            ],
           ),
         );
       },
