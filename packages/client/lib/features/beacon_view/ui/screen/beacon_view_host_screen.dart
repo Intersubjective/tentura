@@ -19,6 +19,7 @@ import 'package:tentura/features/post_view/data/repository/beacon_kind_repositor
 import 'package:tentura/features/post_view/ui/bloc/post_view_cubit.dart';
 import 'package:tentura/features/post_view/ui/screen/post_view_screen.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
+import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
 import 'beacon_view_screen.dart';
@@ -100,7 +101,19 @@ class BeaconViewHostScreen extends StatelessWidget implements AutoRouteWrapper {
         ),
       ),
     ],
-    child: PostViewScreen(id: id),
+    child: Builder(
+      builder: (context) => BlocListener<PostViewCubit, PostViewState>(
+        listenWhen: (p, c) =>
+            c.status is StateIsSuccess &&
+            (p.status is! StateIsSuccess || p.beacon.status != c.beacon.status),
+        listener: (context, state) {
+          context.read<ThreadHostCubit>().syncBeaconStatus(
+            state.beacon.status,
+          );
+        },
+        child: PostViewScreen(id: id),
+      ),
+    ),
   );
 
   Widget _requestScope(Profile myProfile) => BlocProvider(

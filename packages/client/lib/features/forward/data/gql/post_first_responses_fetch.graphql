@@ -1,0 +1,5 @@
+query PostFirstResponsesFetch($beaconId: String!) {
+  post_first_response(where: {beacon_id: {_eq: $beaconId}}) {
+    user_id
+  }
+}

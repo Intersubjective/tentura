@@ -18,6 +18,7 @@ import 'package:tentura/features/beacon/data/gql/_g/post_publish.req.gql.dart';
 import 'package:tentura/features/beacon_threads/data/gql/_g/participant_room_access.req.gql.dart';
 import 'package:tentura/features/forward/data/gql/_g/forward_beacon.req.gql.dart';
 import 'package:tentura/features/forward/data/gql/_g/forward_edges_fetch.req.gql.dart';
+import 'package:tentura/features/forward/data/gql/_g/post_first_responses_fetch.req.gql.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:web/web.dart' as web;
@@ -2390,6 +2391,56 @@ Future<Set<String>> fetchForwardEdgePairs({
       for (final r in rows)
         '${(r['sender'] as Map)['id']}->${(r['recipient'] as Map)['id']}',
     };
+  } finally {
+    await _postJson(
+      '/api/v2/auth/email/test-login',
+      {'email': restoreEmail},
+      includeCredentials: true,
+    );
+  }
+}
+
+/// `user_id` of every `post_first_response` claim row on [beaconId] (one entry
+/// per row, so duplicates stay visible), read through Hasura as [asEmail]
+/// while the app stays signed in as [restoreEmail]. Throws when the table is
+/// not readable by that user: exposing the claims to Hasura is part of the
+/// behaviour under test.
+Future<List<String>> fetchPostFirstResponseUserIds({
+  required String beaconId,
+  required String asEmail,
+  required String restoreEmail,
+}) async {
+  await _postJson(
+    '/api/v2/auth/email/test-login',
+    {'email': asEmail},
+    includeCredentials: true,
+  );
+  try {
+    final tokenResponse = await _postJson(
+      '/api/v2/session/access-token',
+      const <String, Object?>{},
+      includeCredentials: true,
+    );
+    final token = tokenResponse['access_token'] as String?;
+    if (token == null || token.isEmpty) {
+      throw StateError('access-token missing for $asEmail: $tokenResponse');
+    }
+    final result = await _postJson(
+      '/api/v1/graphql',
+      const RequestSerializer().serializeRequest(
+        GPostFirstResponsesFetchReq(
+          (b) => b.vars.beaconId = beaconId,
+        ).execRequest,
+      ),
+      includeCredentials: true,
+      extraHeaders: {'Authorization': 'Bearer $token'},
+    );
+    if (result['errors'] != null) {
+      throw StateError('post_first_response query failed: ${result['errors']}');
+    }
+    final rows = ((result['data']! as Map)['post_first_response']! as List)
+        .cast<Map<String, dynamic>>();
+    return [for (final r in rows) r['user_id'] as String];
   } finally {
     await _postJson(
       '/api/v2/auth/email/test-login',

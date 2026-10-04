@@ -5606,6 +5606,55 @@ type query_root {
 
   """fetch data from the table: "vote_user" using primary key columns"""
   vote_user_by_pk(object: String!, subject: String!): vote_user
+
+  """
+  fetch data from the table: "post_first_response"
+  """
+  post_first_response(
+    """distinct select on columns"""
+    distinct_on: [post_first_response_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [post_first_response_order_by!]
+
+    """filter the rows returned"""
+    where: post_first_response_bool_exp
+  ): [post_first_response!]!
+  """
+  fetch data from the table: "post_first_response" using primary key columns
+  """
+  post_first_response_by_pk(beacon_id: String!, user_id: String!): post_first_response
+
+  """
+  execute function "rating" which returns "mutual_score"
+  """
+  rating(
+    """
+    input parameters for function "rating"
+    """
+    args: rating_args!
+
+    """distinct select on columns"""
+    distinct_on: [mutual_score_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [mutual_score_order_by!]
+
+    """filter the rows returned"""
+    where: mutual_score_bool_exp
+  ): [mutual_score!]!
 }
 
 input rating_args {
@@ -6884,6 +6933,44 @@ type subscription_root {
     """filter the rows returned"""
     where: vote_user_bool_exp
   ): [vote_user!]!
+
+  """
+  fetch data from the table: "post_first_response"
+  """
+  post_first_response(
+    """distinct select on columns"""
+    distinct_on: [post_first_response_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [post_first_response_order_by!]
+
+    """filter the rows returned"""
+    where: post_first_response_bool_exp
+  ): [post_first_response!]!
+  """
+  fetch data from the table: "post_first_response" using primary key columns
+  """
+  post_first_response_by_pk(beacon_id: String!, user_id: String!): post_first_response
+
+  """
+  fetch data from the table in a streaming manner: "post_first_response"
+  """
+  post_first_response_stream(
+    """maximum number of rows returned in a single batch"""
+    batch_size: Int!
+
+    """cursor to stream the results returned by the query"""
+    cursor: [post_first_response_stream_cursor_input]!
+
+    """filter the rows returned"""
+    where: post_first_response_bool_exp
+  ): [post_first_response!]!
 }
 
 scalar timestamptz
@@ -9027,4 +9114,87 @@ type v2_PostSummary {
   mutedUntil: String
   unreadCount: Int!
   isAuthor: Boolean!
+}
+
+"""
+columns and relationships of "post_first_response"
+"""
+type post_first_response {
+  """An object relationship"""
+  beacon: beacon!
+  beacon_id: String!
+  created_at: timestamptz!
+  source_id: String!
+  source_kind: smallint!
+
+  """An object relationship"""
+  user: user!
+  user_id: String!
+}
+
+"""
+Boolean expression to filter rows from the table "post_first_response". All fields are combined with a logical 'AND'.
+"""
+input post_first_response_bool_exp {
+  _and: [post_first_response_bool_exp!]
+  _not: post_first_response_bool_exp
+  _or: [post_first_response_bool_exp!]
+  beacon: beacon_bool_exp
+  beacon_id: String_comparison_exp
+  created_at: timestamptz_comparison_exp
+  source_id: String_comparison_exp
+  source_kind: smallint_comparison_exp
+  user: user_bool_exp
+  user_id: String_comparison_exp
+}
+
+"""Ordering options when selecting data from "post_first_response"."""
+input post_first_response_order_by {
+  beacon: beacon_order_by
+  beacon_id: order_by
+  created_at: order_by
+  source_id: order_by
+  source_kind: order_by
+  user: user_order_by
+  user_id: order_by
+}
+
+"""
+select columns of table "post_first_response"
+"""
+enum post_first_response_select_column {
+  """column name"""
+  beacon_id
+
+  """column name"""
+  created_at
+
+  """column name"""
+  source_id
+
+  """column name"""
+  source_kind
+
+  """column name"""
+  user_id
+}
+
+"""
+Streaming cursor of the table "post_first_response"
+"""
+input post_first_response_stream_cursor_input {
+  """Stream column input with initial value"""
+  initial_value: post_first_response_stream_cursor_value_input!
+
+  """cursor ordering"""
+  ordering: cursor_ordering
+}
+
+"""Initial value of the column from where the streaming should start"""
+input post_first_response_stream_cursor_value_input {
+  beacon_id: String
+  created_at: timestamptz
+  source_id: String
+  source_kind: smallint
+  user_id: String
 }
