@@ -29,7 +29,7 @@ BEGIN
 END;
 $$
 ''',
-  r'''
+  '''
 COMMENT ON FUNCTION public.attention_provenance_data(p_beacon_id text, p_recipient_id text, p_viewer_id text, p_inbox_context text, p_exclude_blocked boolean) IS 'The one forward-provenance body (card spec §4 / plan §0.1a). Returns the `inbox_provenance_data` JSON shape — senders[] {id, displayName, imageId, notePreview, reasonSlugs[], mr}, totalDistinctSenders, strongestNotePreview — plus `latestNoteForward` {forwardId, senderId, displayName, imageId, notePreview, reasonSlugs[], forwardedAt} or null (D-171-5a). Every selection reads from one filtered `edges` CTE: p_exclude_blocked drops blocked senders from the list, the count *and* the pinned forward. Both callers pass true since m0218 (issue #188).';
 ''',
 ]);
