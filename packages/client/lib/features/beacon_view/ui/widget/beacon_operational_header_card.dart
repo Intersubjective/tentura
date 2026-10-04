@@ -461,7 +461,7 @@ class BeaconCardPillReadOnly extends StatelessWidget {
   }
 }
 
-/// Avatar in the HUD lead column, "By <name>" on the HUD text keyline.
+/// Avatar in the HUD lead column, "By `<name>`" on the HUD text keyline.
 class _AuthorLine extends StatelessWidget {
   const _AuthorLine({
     required this.author,

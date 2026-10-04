@@ -278,7 +278,6 @@ class BeaconPeopleTabBody extends StatelessWidget {
                   userId: p.userId,
                   profile: Profile(id: p.userId, displayName: p.userTitle),
                   participant: p,
-                  isAuthor: false,
                 ),
           ]
         : const <BeaconPeopleRow>[];
