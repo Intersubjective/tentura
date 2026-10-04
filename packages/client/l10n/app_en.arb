@@ -5471,6 +5471,66 @@
       }
     }
   },
+  "composerEmojiButtonTooltip": "Emoji",
+  "@composerEmojiButtonTooltip": {
+    "context": "Tooltip of the chat composer button that opens the emoji picker"
+  },
+  "emojiPickerSearchHint": "Search emoji",
+  "@emojiPickerSearchHint": {
+    "context": "Hint in the emoji picker search field"
+  },
+  "emojiPickerNoResults": "No emoji found",
+  "@emojiPickerNoResults": {
+    "context": "Emoji picker search returned nothing"
+  },
+  "emojiCategoryRecent": "Recently used",
+  "@emojiCategoryRecent": {
+    "context": "Emoji picker section"
+  },
+  "emojiCategorySmileys": "Smileys & emotion",
+  "@emojiCategorySmileys": {
+    "context": "Emoji picker section"
+  },
+  "emojiCategoryPeople": "People & body",
+  "@emojiCategoryPeople": {
+    "context": "Emoji picker section"
+  },
+  "emojiCategoryNature": "Animals & nature",
+  "@emojiCategoryNature": {
+    "context": "Emoji picker section"
+  },
+  "emojiCategoryFood": "Food & drink",
+  "@emojiCategoryFood": {
+    "context": "Emoji picker section"
+  },
+  "emojiCategoryTravel": "Travel & places",
+  "@emojiCategoryTravel": {
+    "context": "Emoji picker section"
+  },
+  "emojiCategoryActivities": "Activities",
+  "@emojiCategoryActivities": {
+    "context": "Emoji picker section"
+  },
+  "emojiCategoryObjects": "Objects",
+  "@emojiCategoryObjects": {
+    "context": "Emoji picker section"
+  },
+  "emojiCategorySymbols": "Symbols",
+  "@emojiCategorySymbols": {
+    "context": "Emoji picker section"
+  },
+  "emojiCategoryFlags": "Flags",
+  "@emojiCategoryFlags": {
+    "context": "Emoji picker section"
+  },
+  "emojiSuggestionSemantics": "Insert {emoji} {shortcode}",
+  "@emojiSuggestionSemantics": {
+    "context": "Accessible label for a :shortcode: emoji suggestion in the chat composer",
+    "placeholders": {
+      "emoji": {},
+      "shortcode": {}
+    }
+  },
   "beaconRoomAttachPasteImage": "Paste image",
   "beaconRoomAttachPasteImageNotFound": "No image on clipboard",
   "beaconRoomAttachPasteImageUnsupported": "Clipboard access isn't available",

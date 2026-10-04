@@ -31,6 +31,65 @@ final class MentionSuggestionsOverlay extends StatelessWidget {
   final void Function(int index) onHighlight;
 
   @override
+  Widget build(BuildContext context) =>
+      ComposerSuggestionsOverlay<BeaconParticipant>(
+        suggestions: suggestions,
+        anchor: anchor,
+        selectedIndex: selectedIndex,
+        rowHeight: _kMentionSuggestionRowHeight,
+        onSelect: onSelect,
+        onDismiss: onDismiss,
+        onHighlight: onHighlight,
+        rowBuilder: (context, participant, selected, onHover, onTap) =>
+            _MentionSuggestionRow(
+              participant: participant,
+              selected: selected,
+              onHover: onHover,
+              onTap: onTap,
+            ),
+      );
+}
+
+/// Builds one suggestion row; [onHover] highlights it, [onTap] accepts it.
+typedef ComposerSuggestionRowBuilder<T> =
+    Widget Function(
+      BuildContext context,
+      T item,
+      bool selected,
+      VoidCallback onHover,
+      VoidCallback onTap,
+    );
+
+/// Floating completion card above the composer, shared by `@mention` and
+/// `:shortcode:` completion. Shows at most [maxVisible] rows; a tap outside
+/// the card dismisses it.
+final class ComposerSuggestionsOverlay<T> extends StatelessWidget {
+  const ComposerSuggestionsOverlay({
+    required this.suggestions,
+    required this.anchor,
+    required this.selectedIndex,
+    required this.rowHeight,
+    required this.rowBuilder,
+    required this.onSelect,
+    required this.onDismiss,
+    required this.onHighlight,
+    this.maxWidth = _kMentionOverlayMaxWidth,
+    super.key,
+  });
+
+  static const maxVisible = 5;
+
+  final List<T> suggestions;
+  final Rect anchor;
+  final int selectedIndex;
+  final double rowHeight;
+  final double maxWidth;
+  final ComposerSuggestionRowBuilder<T> rowBuilder;
+  final void Function(T item) onSelect;
+  final VoidCallback onDismiss;
+  final void Function(int index) onHighlight;
+
+  @override
   Widget build(BuildContext context) {
     final tt = context.tt;
     final list = suggestions;
@@ -42,8 +101,8 @@ final class MentionSuggestionsOverlay extends StatelessWidget {
     }
 
     const margin = TenturaSpacing.row;
-    final max = list.length < 5 ? list.length : 5;
-    final height = max * _kMentionSuggestionRowHeight;
+    final max = math.min(list.length, maxVisible);
+    final height = max * rowHeight;
     final highlighted = selectedIndex.clamp(0, max - 1);
 
     final left = anchor.left
@@ -53,7 +112,7 @@ final class MentionSuggestionsOverlay extends StatelessWidget {
         )
         .toDouble();
     final width = math.min(
-      _kMentionOverlayMaxWidth,
+      maxWidth,
       math.max<double>(0, viewport.width - left - margin),
     );
     final top = math.max(margin, anchor.top - height - margin);
@@ -82,10 +141,9 @@ final class MentionSuggestionsOverlay extends StatelessWidget {
                     return;
                   }
 
-                  final index =
-                      ((position.dy - top) / _kMentionSuggestionRowHeight)
-                          .floor()
-                          .clamp(0, max - 1);
+                  final index = ((position.dy - top) / rowHeight)
+                      .floor()
+                      .clamp(0, max - 1);
                   onSelect(list[index]);
                 },
               ),
@@ -104,12 +162,13 @@ final class MentionSuggestionsOverlay extends StatelessWidget {
                   children: [
                     for (var i = 0; i < max; i++)
                       SizedBox(
-                        height: _kMentionSuggestionRowHeight,
-                        child: _MentionSuggestionRow(
-                          participant: list[i],
-                          selected: i == highlighted,
-                          onHover: () => onHighlight(i),
-                          onTap: () => onSelect(list[i]),
+                        height: rowHeight,
+                        child: rowBuilder(
+                          context,
+                          list[i],
+                          i == highlighted,
+                          () => onHighlight(i),
+                          () => onSelect(list[i]),
                         ),
                       ),
                   ],

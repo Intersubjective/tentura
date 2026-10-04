@@ -87,6 +87,12 @@ abstract final class TestIds {
   static const roomMessageInput = 'room.message.input';
   static const roomMessagePaste = 'room.message.paste';
   static const roomMessageSend = 'room.message.send';
+  static const roomEmojiButton = 'room.emoji.button';
+  static const emojiPickerSearch = 'emoji.picker.search';
+  static String emojiPickerCell(String shortcode) =>
+      'emoji.picker.cell.$shortcode';
+  static String roomEmojiSuggestion(String shortcode) =>
+      'room.emoji.suggestion.$shortcode';
 
   /// Press-scale wrapper around a room message bubble (long-press grow).
   static const roomMessageBubblePressScale = 'room.message.bubble_press_scale';

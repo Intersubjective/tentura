@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
@@ -19,6 +20,7 @@ import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/domain/entity/room_message_hierarchy_payload.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/features/beacon_threads/ui/util/room_reply_excerpt.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/emoji_suggestions_overlay.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/mention_suggestions_overlay.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/mention_text_controller.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/participants_matching_mention_query.dart';
@@ -30,6 +32,9 @@ import 'package:tentura/features/beacon_threads/ui/widget/room_message_tile.dart
 import 'package:tentura/features/beacon_threads/ui/widget/room_attachment_widgets.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_pinned_fact_visibility_mark.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_unread_divider.dart';
+import 'package:tentura/ui/emoji/emoji_catalog.dart';
+import 'package:tentura/ui/emoji/emoji_picker.dart';
+import 'package:tentura/ui/emoji/emoji_recents.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -719,7 +724,8 @@ class BasicChatBodyState extends State<BasicChatBody> {
   }
 }
 
-/// Room composer: mentions, optional attachments, send.
+/// Room composer: mentions, emoji (picker and `:shortcode:` completion),
+/// optional attachments, send.
 class BeaconRoomComposer extends StatefulWidget {
   const BeaconRoomComposer({
     required this.imageRepository,
@@ -804,11 +810,14 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
     return result;
   }
 
-  final _text = MentionTextController();
+  late final _text = MentionTextController(
+    emojiForShortcode: _emojiForCompletedShortcode,
+  );
   late final FocusNode _composerFocus;
   final _composerAnchorKey = GlobalKey();
   OverlayEntry? _overlayEntry;
   List<BeaconParticipant> _overlaySuggestions = const [];
+  List<EmojiEntry> _emojiSuggestions = const [];
   var _overlaySelectedIndex = 0;
   var _overlaySyncScheduled = false;
   var _hasText = false;
@@ -831,7 +840,7 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
     }
     final key = event.logicalKey;
     if (key == LogicalKeyboardKey.escape) {
-      if (_overlaySuggestions.isNotEmpty) {
+      if (_suggestionCount > 0) {
         _removeOverlay();
         return _recordComposerEscapeResult(KeyEventResult.handled);
       }
@@ -852,15 +861,15 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
       // Let the text field's own paste run too, so text clipboards still work.
       return KeyEventResult.ignored;
     }
-    if (_overlaySuggestions.isEmpty) {
+    if (_suggestionCount == 0) {
       return KeyEventResult.ignored;
     }
     if (key == LogicalKeyboardKey.arrowDown) {
-      _moveMentionHighlight(1);
+      _moveSuggestionHighlight(1);
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.arrowUp) {
-      _moveMentionHighlight(-1);
+      _moveSuggestionHighlight(-1);
       return KeyEventResult.handled;
     }
     final isCommit =
@@ -874,7 +883,7 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
       if (!mounted) {
         return;
       }
-      _acceptSelectedMentionSuggestion();
+      _acceptSelectedSuggestion();
     });
     return KeyEventResult.handled;
   }
@@ -895,11 +904,20 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
         !keyboard.isAltPressed;
   }
 
-  void _moveMentionHighlight(int delta) {
-    if (_overlaySuggestions.isEmpty) {
+  /// Rows in the open completion card (mentions or emoji), capped at the
+  /// card's visible maximum; 0 when the card is closed.
+  int get _suggestionCount => math.min(
+    _overlaySuggestions.isNotEmpty
+        ? _overlaySuggestions.length
+        : _emojiSuggestions.length,
+    ComposerSuggestionsOverlay.maxVisible,
+  );
+
+  void _moveSuggestionHighlight(int delta) {
+    final max = _suggestionCount;
+    if (max == 0) {
       return;
     }
-    final max = _overlaySuggestions.length < 5 ? _overlaySuggestions.length : 5;
     final next = (_overlaySelectedIndex + delta).clamp(0, max - 1);
     if (next == _overlaySelectedIndex) {
       return;
@@ -953,18 +971,16 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _overlaySyncScheduled = false;
       if (!mounted) return;
-      _syncMentionOverlay();
+      _syncSuggestionOverlay();
     });
   }
 
-  void _syncMentionOverlay() {
-    if (!widget.enableParticipantMentions) {
-      _removeOverlay();
-      return;
-    }
-    final query = _text.activeMentionQuery;
+  void _syncSuggestionOverlay() {
+    final query = widget.enableParticipantMentions
+        ? _text.activeMentionQuery
+        : null;
     if (query == null) {
-      _removeOverlay();
+      _syncEmojiOverlay();
       return;
     }
     final suggestions = participantsMatchingMentionQuery(
@@ -975,11 +991,42 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
       _removeOverlay();
       return;
     }
+    _emojiSuggestions = const [];
     _showOverlay(suggestions);
+  }
+
+  /// `:shortcode` completion; needs two typed characters, like Slack, so a
+  /// plain `:` or `:D` stays quiet.
+  void _syncEmojiOverlay() {
+    final query = _text.activeEmojiQuery;
+    final suggestions = query == null || query.length < 2
+        ? const <EmojiEntry>[]
+        : EmojiCatalog.search(
+            query,
+            limit: ComposerSuggestionsOverlay.maxVisible,
+          );
+    if (suggestions.isEmpty) {
+      _removeOverlay();
+      return;
+    }
+    final same = listEquals(suggestions, _emojiSuggestions);
+    _overlaySuggestions = const [];
+    _emojiSuggestions = suggestions;
+    if (!same) {
+      _overlaySelectedIndex = 0;
+    }
+    _showOrRefreshOverlay();
+  }
+
+  String? _emojiForCompletedShortcode(String name) {
+    final emoji = EmojiCatalog.byShortcode(name)?.emoji;
+    if (emoji != null) EmojiRecents.add(emoji);
+    return emoji;
   }
 
   void _removeOverlay() {
     _overlaySuggestions = const [];
+    _emojiSuggestions = const [];
     _overlaySelectedIndex = 0;
     _overlayEntry?.remove();
     _overlayEntry = null;
@@ -1019,13 +1066,32 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
     return inserted;
   }
 
-  bool _acceptSelectedMentionSuggestion() {
-    if (_overlaySuggestions.isEmpty) {
+  bool _acceptEmojiSuggestion(EmojiEntry entry) {
+    final inserted = _text.insertEmojiForActiveShortcode(entry.emoji);
+    _removeOverlay();
+    if (inserted) {
+      EmojiRecents.add(entry.emoji);
+      if (!_composerFocus.hasFocus) {
+        _composerFocus.requestFocus();
+      }
+    }
+    return inserted;
+  }
+
+  bool _acceptSelectedSuggestion() {
+    final max = _suggestionCount;
+    if (max == 0) {
       return false;
     }
-    final max = _overlaySuggestions.length < 5 ? _overlaySuggestions.length : 5;
     final index = _overlaySelectedIndex.clamp(0, max - 1);
-    return _acceptMentionSuggestion(_overlaySuggestions[index]);
+    return _overlaySuggestions.isNotEmpty
+        ? _acceptMentionSuggestion(_overlaySuggestions[index])
+        : _acceptEmojiSuggestion(_emojiSuggestions[index]);
+  }
+
+  /// Emoji picked in the picker go in at the cursor (replacing a selection).
+  void _insertPickedEmoji(String emoji) {
+    _text.insertAtSelection(emoji);
   }
 
   void _showOverlay(List<BeaconParticipant> suggestions) {
@@ -1041,6 +1107,10 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
     } else if (_overlaySelectedIndex >= suggestions.length) {
       _overlaySelectedIndex = suggestions.length - 1;
     }
+    _showOrRefreshOverlay();
+  }
+
+  void _showOrRefreshOverlay() {
     if (_overlayEntry != null) {
       if (SchedulerBinding.instance.schedulerPhase ==
           SchedulerPhase.persistentCallbacks) {
@@ -1055,19 +1125,32 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
     _overlayEntry = OverlayEntry(
       builder: (_) {
         final list = _overlaySuggestions;
-        if (list.isEmpty) return const SizedBox.shrink();
+        final emoji = _emojiSuggestions;
+        if (list.isEmpty && emoji.isEmpty) return const SizedBox.shrink();
         final anchor = _composerAnchorRect();
         if (anchor == null) return const SizedBox.shrink();
+        void highlight(int index) {
+          _overlaySelectedIndex = index;
+          _overlayEntry?.markNeedsBuild();
+        }
+
+        if (list.isEmpty) {
+          return EmojiSuggestionsOverlay(
+            suggestions: emoji,
+            anchor: anchor,
+            selectedIndex: _overlaySelectedIndex,
+            onDismiss: _removeOverlay,
+            onSelect: _acceptEmojiSuggestion,
+            onHighlight: highlight,
+          );
+        }
         return MentionSuggestionsOverlay(
           suggestions: list,
           anchor: anchor,
           selectedIndex: _overlaySelectedIndex,
           onDismiss: _removeOverlay,
           onSelect: _acceptMentionSuggestion,
-          onHighlight: (index) {
-            _overlaySelectedIndex = index;
-            _overlayEntry?.markNeedsBuild();
-          },
+          onHighlight: highlight,
         );
       },
     );
@@ -1579,6 +1662,13 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
                           color: theme.colorScheme.primary,
                         ),
                       ),
+                      prefixIcon: readOnly
+                          ? null
+                          : EmojiPickerButton(
+                              enabled: !locked,
+                              onPick: _insertPickedEmoji,
+                              onClosed: requestComposerFocus,
+                            ),
                       suffixIconConstraints: const BoxConstraints(
                         minWidth: 2 * kMinInteractiveDimension,
                         minHeight: kMinInteractiveDimension,
@@ -1603,7 +1693,7 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
                     onTapAlwaysCalled: true,
                     onTap: _requestComposerKeyboardFromTap,
                     onSubmitted: (_) {
-                      if (_acceptSelectedMentionSuggestion()) {
+                      if (_acceptSelectedSuggestion()) {
                         return;
                       }
                       unawaited(_submit());
