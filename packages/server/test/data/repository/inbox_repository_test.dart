@@ -54,8 +54,7 @@ Future<void> main() async {
         latestNoteSkipReason = provenanceSkipReason;
         if (latestNoteSkipReason == false &&
             !await _hasM0190LatestNoteForward(probe)) {
-          latestNoteSkipReason =
-              'm0190 provenance (latestNoteForward) missing';
+          latestNoteSkipReason = 'm0190 provenance (latestNoteForward) missing';
         }
       }
     } finally {
