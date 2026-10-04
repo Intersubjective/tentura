@@ -9116,6 +9116,7 @@ type v2_PostSummary {
   authorId: String!
   authorName: String!
   authorAvatar: String!
+  rootImageUrl: String
   rootExcerpt: String
   lastMessageExcerpt: String
   lastMessageAt: String

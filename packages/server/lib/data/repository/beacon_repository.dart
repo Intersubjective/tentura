@@ -68,7 +68,20 @@ class BeaconRepository implements BeaconRepositoryPort {
   Future<List<PostSummary>> myPosts(String viewerId) async {
     final rows = await _database
         .customSelect(
-          r'SELECT * FROM public.post_my_posts($1)',
+          r'''
+SELECT posts.*, cover.image_id::text AS root_image_id,
+       cover.author_id AS root_image_author_id
+FROM public.post_my_posts($1) posts
+JOIN public.beacon b ON b.id = posts.id
+LEFT JOIN LATERAL (
+  SELECT i.id AS image_id, i.author_id
+  FROM public.beacon_room_message_attachment a
+  JOIN public.image i ON i.id = a.image_id
+  WHERE a.message_id = b.post_root_message_id AND a.kind = 1
+  ORDER BY a.position, a.id
+  LIMIT 1
+) cover ON true
+''',
           variables: [Variable<String>(viewerId)],
         )
         .get();
@@ -86,6 +99,9 @@ class BeaconRepository implements BeaconRepositoryPort {
         authorAvatar: imageId == null
             ? kAvatarPlaceholderUrl
             : '$kImageServer/$kImagesPath/$authorId/$imageId.$kImageExt',
+        rootImageUrl: row.readNullable<String>('root_image_id') == null
+            ? null
+            : '$kImageServer/$kImagesPath/${row.read<String>('root_image_author_id')}/${row.read<String>('root_image_id')}.$kImageExt',
         rootExcerpt: row.readNullable<String>('root_excerpt'),
         lastMessageExcerpt: row.readNullable<String>('last_message_excerpt'),
         lastMessageAt: timestamp('last_message_at'),
