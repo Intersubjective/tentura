@@ -55,7 +55,6 @@ ConstellationPlacedLayoutInput? _scratchInputAddingTarget({
               satelliteRequestIdsByAuthor:
                   layoutInput.satelliteRequestIdsByAuthor,
               requestAuthorById: layoutInput.requestAuthorById,
-              postMemberIdsByPostId: layoutInput.postMemberIdsByPostId,
               egoOwnRequestIds: layoutInput.egoOwnRequestIds,
               spacing: layoutInput.spacing,
               maxHops: layoutInput.maxHops,
@@ -88,7 +87,6 @@ ConstellationPlacedLayoutInput? _scratchInputAddingTarget({
         nodeSizes: layoutInput.nodeSizes,
         satelliteRequestIdsByAuthor: byAuthor,
         requestAuthorById: layoutInput.requestAuthorById,
-        postMemberIdsByPostId: layoutInput.postMemberIdsByPostId,
         egoOwnRequestIds: layoutInput.egoOwnRequestIds,
         spacing: layoutInput.spacing,
         maxHops: layoutInput.maxHops,
@@ -131,6 +129,8 @@ ConstellationPlacedLayoutInput layoutInputFromComposition({
       request.id: request.authorId,
     for (final request in composition.anchorOverlay.pinnedRequests)
       request.id: request.authorId,
+    for (final node in composition.beaconNodes)
+      if (node.post case final post?) post.id: post.authorId,
   };
 
   final pinLayoutPeerIds = {
@@ -175,11 +175,6 @@ ConstellationPlacedLayoutInput layoutInputFromComposition({
     satelliteRequestIdsByAuthor: drawnSatellites.byAuthor,
     requestAuthorById: requestAuthorById,
     egoOwnRequestIds: drawnSatellites.egoOwn,
-    postMemberIdsByPostId: {
-      for (final entry in composition.postMemberIdsByPostId.entries)
-        if (labelPlan.drawnRequestIds.contains(entry.key))
-          entry.key: entry.value,
-    },
     spacing: spacing,
     maxHops: 3,
     viewportClass: viewportClass,

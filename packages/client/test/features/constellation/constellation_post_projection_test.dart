@@ -19,7 +19,6 @@ import 'package:tentura/features/constellation/domain/entity/constellation_ancho
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
-import 'package:tentura_root/domain/constellation/constellation_path_resolution.dart';
 
 class _FakeLink extends Link {
   _FakeLink(this.response);
@@ -116,6 +115,7 @@ ConstellationAnchorProjection _projectionPinning(String beaconId) =>
 ConstellationComposedPresentation _compose(
   ConstellationField field, {
   ConstellationLabelBudget labelBudget = (perPerson: 3, total: 150),
+  List<ConstellationMemberWeb> selectedRequestWebs = const [],
 }) => composeConstellationPresentation(
   viewerId: _ego,
   field: field,
@@ -127,6 +127,7 @@ ConstellationComposedPresentation _compose(
   ),
   asOfUtc: _asOf,
   labelBudget: labelBudget,
+  selectedRequestWebs: selectedRequestWebs,
 );
 
 ConstellationPlacedLayoutInput _layoutInput(
@@ -338,71 +339,38 @@ void main() {
   });
 
   group('Post placement', () {
-    test('member webs reach the layout input with the author included', () {
+    test('Post members join the field only while the Post is selected', () {
+      final webs = [_web('post-1', 'peer-b')];
+      final field = _field(posts: [_post('post-1')], memberWebs: webs);
+
+      final idle = _compose(field);
+      expect(idle.keptPeerIds, contains('peer-a'));
+      expect(idle.keptPeerIds, isNot(contains('peer-b')));
+
+      final selected = _compose(field, selectedRequestWebs: webs);
+      expect(selected.keptPeerIds, containsAll(['peer-a', 'peer-b']));
+    });
+
+    test('an unanchored Post is a satellite of its author', () {
       final composed = _compose(
         _field(
           posts: [_post('post-1')],
-          memberWebs: [_web('post-1', 'peer-b'), _web('post-1', _ego)],
+          memberWebs: [_web('post-1', 'peer-b')],
         ),
       );
-      expect(
-        _layoutInput(composed).postMemberIdsByPostId['post-1'],
-        unorderedEquals(['peer-a', 'peer-b', _ego]),
-      );
-    });
+      final input = _layoutInput(composed);
+      expect(input.satelliteRequestIdsByAuthor['peer-a'], contains('post-1'));
+      expect(input.requestAuthorById['post-1'], 'peer-a');
 
-    test('an unanchored Post lands on the barycenter of its placed members', () {
-      final paths = resolveConstellationPaths(
-        egoId: _ego,
-        visiblePeerIds: {'peer-a', 'peer-b'},
-        holderIds: {_ego, 'peer-a', 'peer-b'},
-        edges: [
-          (src: _ego, dst: 'peer-a', tier: 1),
-          (src: _ego, dst: 'peer-b', tier: 1),
-        ],
-      );
-      ConstellationAnchorPosition anchor(double x, double y) =>
-          ConstellationAnchorPosition(
-            xUnits: x,
-            yUnits: y,
-            coordinateSpaceVersion: kConstellationCoordinateSpaceVersionV1,
-          );
-      final input = (
-        egoId: _ego,
-        paths: paths,
-        automaticKeptPeerIds: <String>{},
-        pinnedPersonIds: {'peer-a', 'peer-b'},
-        pinnedRequestIds: <String>{},
-        supportPersonIds: <String>{},
-        anchorByNodeId: {'peer-a': anchor(2, 0), 'peer-b': anchor(0, 2)},
-        priorHints: null,
-        nodeSizes: const {
-          'peer-a': (width: 40.0, height: 40.0),
-          'peer-b': (width: 40.0, height: 40.0),
-          'post-1': (width: 36.0, height: 36.0),
-        },
-        satelliteRequestIdsByAuthor: <String, List<String>>{},
-        requestAuthorById: <String, String>{},
-        egoOwnRequestIds: <String>{},
-        postMemberIdsByPostId: {
-          'post-1': ['peer-a', 'peer-b', _ego],
-        },
-        spacing: _spacing,
-        maxHops: 3,
-        viewportClass: ConstellationViewportClass.expanded,
-        footprints: <String, ConstellationFootprint>{},
-      );
       final layout = computeConstellationPlacedLayout(input: input);
-      final members = ['peer-a', 'peer-b', _ego];
-      final barycenter = (
-        x: members.map((m) => layout.positions[m]!.x).reduce((a, b) => a + b) / 3,
-        y: members.map((m) => layout.positions[m]!.y).reduce((a, b) => a + b) / 3,
+      final post = layout.positions['post-1']!;
+      expect(
+        _distance(post, layout.positions['peer-a']!),
+        lessThan(_distance(post, layout.positions[_ego]!)),
       );
-      // The barycenter is free, so the first candidate is accepted as-is.
-      expect(_distance(layout.positions['post-1']!, barycenter), lessThan(1));
     });
 
-    test('adding a Post does not move people or Requests', () {
+    test('adding a Post does not move people', () {
       ConstellationLayout layoutFor(ConstellationField field) {
         final composed = _compose(field);
         return computeConstellationPlacedLayout(input: _layoutInput(composed));
@@ -417,7 +385,8 @@ void main() {
         ),
       );
       expect(without.positions['req-1'], isNotNull);
-      for (final id in ['peer-a', 'peer-b', _ego, 'req-1']) {
+      expect(mixed.positions['req-1'], isNotNull);
+      for (final id in ['peer-a', 'peer-b', _ego]) {
         expect(mixed.positions[id], without.positions[id], reason: id);
       }
       expect(mixed.positions['post-1'], isNotNull);
