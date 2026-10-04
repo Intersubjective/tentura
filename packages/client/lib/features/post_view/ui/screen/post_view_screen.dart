@@ -113,7 +113,7 @@ class _PostViewScreenState extends State<PostViewScreen> {
         final picked = await showPostInfoSheet(
           context,
           cubit: cubit,
-          room: room,
+          host: context.read<ThreadHostCubit>(),
         );
         if (picked != null && context.mounted) await _run(context, picked);
       case PostAction.scrollToRoot:

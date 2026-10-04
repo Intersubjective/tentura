@@ -286,6 +286,8 @@ Future<_Harness> _pumpPost(
   BeaconRoomState? roomState,
   List<ForwardEdge> forwardEdges = const [],
   PostSummary? summary,
+  Size surface = const Size(700, 900),
+  double textScale = 1,
 }) async {
   final getIt = GetIt.I;
   await getIt.reset();
@@ -361,7 +363,7 @@ Future<_Harness> _pumpPost(
   final router = BeaconViewHarnessRouter();
   final observer = _PushObserver();
 
-  await tester.binding.setSurfaceSize(const Size(700, 900));
+  await tester.binding.setSurfaceSize(surface);
   addTearDown(() => tester.binding.setSurfaceSize(null));
 
   await tester.pumpWidget(
@@ -375,7 +377,10 @@ Future<_Harness> _pumpPost(
         locale: const Locale('ru'),
         navigatorObservers: [observer],
         home: MediaQuery(
-          data: const MediaQueryData(size: Size(700, 900)),
+          data: MediaQueryData(
+            size: surface,
+            textScaler: TextScaler.linear(textScale),
+          ),
           child: TenturaResponsiveScope(
             child: MultiBlocProvider(
               providers: [
@@ -687,6 +692,25 @@ void main() {
   });
 
   group('«О посте»', () {
+    testWidgets('the shortcuts fit a narrow phone with large text', (
+      tester,
+    ) async {
+      await _pumpPost(
+        tester,
+        beacon: _post(),
+        viewer: _reader,
+        surface: const Size(320, 700),
+        textScale: 1.6,
+      );
+      // The room behind the sheet is not under test here (its unread divider
+      // does not fit this width either).
+      tester.takeException();
+      await _openInfo(tester);
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('На поле'), findsOneWidget);
+    });
+
     testWidgets('lists the participants and links the forwarding graph', (
       tester,
     ) async {

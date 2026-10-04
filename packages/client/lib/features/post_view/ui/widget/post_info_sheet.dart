@@ -5,6 +5,8 @@ import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
+import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
+import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_state.dart';
 import 'package:tentura/features/inbox/ui/bloc/posts_cubit.dart';
 import 'package:tentura/features/profile_view/ui/bloc/profile_view_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -20,13 +22,13 @@ import 'post_participants_list.dart';
 Future<PostAction?> showPostInfoSheet(
   BuildContext context, {
   required PostViewCubit cubit,
-  required RoomCubit? room,
+  required ThreadHostCubit host,
   ProfileViewCubit Function(String id)? profileViewCubitFactory,
 }) => showTenturaAdaptiveSheet<PostAction>(
   context: context,
   builder: (_) => PostInfoSheet(
     cubit: cubit,
-    room: room,
+    host: host,
     profileViewCubitFactory: profileViewCubitFactory,
   ),
 );
@@ -34,29 +36,36 @@ Future<PostAction?> showPostInfoSheet(
 class PostInfoSheet extends StatelessWidget {
   const PostInfoSheet({
     required this.cubit,
-    required this.room,
+    required this.host,
     this.profileViewCubitFactory,
     super.key,
   });
 
   final PostViewCubit cubit;
-  final RoomCubit? room;
+
+  /// Watched, not snapshotted: the room may still be opening when the sheet
+  /// is, and its participants and the Leave action appear once it has.
+  final ThreadHostCubit host;
   final ProfileViewCubit Function(String id)? profileViewCubitFactory;
 
   @override
   Widget build(BuildContext context) =>
       BlocBuilder<PostViewCubit, PostViewState>(
         bloc: cubit,
-        builder: (context, state) {
-          final room = this.room;
-          if (room == null) return _body(context, state, const []);
-          return BlocBuilder<RoomCubit, RoomState>(
-            bloc: room,
-            buildWhen: (p, c) => p.participants != c.participants,
-            builder: (context, roomState) =>
-                _body(context, state, roomState.participants),
-          );
-        },
+        builder: (context, state) =>
+            BlocBuilder<ThreadHostCubit, ThreadHostState>(
+              bloc: host,
+              builder: (context, _) {
+                final room = host.roomCubit;
+                if (room == null) return _body(context, state, const []);
+                return BlocBuilder<RoomCubit, RoomState>(
+                  bloc: room,
+                  buildWhen: (p, c) => p.participants != c.participants,
+                  builder: (context, roomState) =>
+                      _body(context, state, roomState.participants),
+                );
+              },
+            ),
       );
 
   Widget _body(
@@ -177,7 +186,7 @@ class PostInfoSheet extends StatelessWidget {
             Padding(
               padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (canForward)
                     _QuickAction(
@@ -304,7 +313,8 @@ class _Fact extends StatelessWidget {
 }
 
 /// One of the round shortcuts under the Post (Переслать / Звук / Закрепить /
-/// На поле).
+/// На поле). The shortcuts share the row equally, so a narrow screen or large
+/// text shortens the labels instead of overflowing.
 class _QuickAction extends StatelessWidget {
   const _QuickAction({
     required this.icon,
@@ -319,21 +329,29 @@ class _QuickAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
-    return Semantics(
-      button: true,
-      label: label,
-      excludeSemantics: true,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(tt.cardRadius),
-        child: Padding(
-          padding: EdgeInsets.all(tt.tightGap),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton.filledTonal(onPressed: onTap, icon: Icon(icon)),
-              Text(label, style: TenturaText.labelSmall(tt.text)),
-            ],
+    return Expanded(
+      child: Semantics(
+        button: true,
+        label: label,
+        excludeSemantics: true,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(tt.cardRadius),
+          child: Padding(
+            padding: EdgeInsets.all(tt.tightGap),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton.filledTonal(onPressed: onTap, icon: Icon(icon)),
+                Text(
+                  label,
+                  style: TenturaText.labelSmall(tt.text),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
           ),
         ),
       ),
