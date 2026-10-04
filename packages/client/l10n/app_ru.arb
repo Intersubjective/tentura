@@ -6282,5 +6282,8 @@
   "postConvertForwardingOpens": "Запрос можно будет пересылать дальше — на этом держится запрос.",
   "postConvertIrreversible": "Обратно в пост превратить нельзя.",
   "postConvertDiscoverable": "Люди в моём поле могут найти запрос",
-  "postConvertNext": "Далее: детали →"
+  "postConvertNext": "Далее: детали →",
+  "composerEmojiButtonTooltip": "Эмодзи",
+  "emojiPickerSearchHint": "Поиск эмодзи",
+  "emojiPickerNoRecents": "Здесь появятся эмодзи, которые вы используете"
 }

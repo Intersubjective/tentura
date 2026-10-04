@@ -2,8 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tentura_root/domain/enums.dart';
 
 import 'package:tentura/data/repository/clipboard_image_repository.dart';
@@ -18,6 +20,7 @@ import 'package:tentura/domain/entity/room_poll_data.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/presence_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/mention_suggestions_overlay.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_tile.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_unread_divider.dart';
@@ -473,6 +476,65 @@ void main() {
 
     expect(find.byType(EmojiSuggestionsOverlay), findsNothing);
     expect(tester.widget<TextField>(field).controller!.text, ':hea');
+  });
+
+  group('emoji picker button', () {
+    setUp(() => SharedPreferences.setMockInitialValues({}));
+
+    Finder emojiButton() => find.byKey(TestIds.key(TestIds.roomEmojiButton));
+
+    testWidgets('wide: popover inserts at the caret and stays open', (
+      tester,
+    ) async {
+      await pumpComposerBody(tester, onSend: (_, _) async => true);
+      final field = find.byType(TextField);
+      await tester.enterText(field, 'hi ');
+      await tester.pump();
+
+      await tester.tap(emojiButton());
+      await tester.pumpAndSettle();
+      expect(find.byType(EmojiPicker), findsOneWidget);
+      expect(find.byType(BottomSheet), findsNothing);
+
+      await tester.tap(find.byIcon(Icons.tag_faces).last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('😀', findRichText: true).first);
+      await tester.pumpAndSettle();
+      expect(tester.widget<TextField>(field).controller!.text, 'hi 😀');
+      expect(find.byType(EmojiPicker), findsOneWidget);
+
+      await tester.tap(emojiButton());
+      await tester.pumpAndSettle();
+      expect(find.byType(EmojiPicker), findsNothing);
+    });
+
+    testWidgets('compact: picker opens as a bottom sheet', (tester) async {
+      await pumpComposerBody(
+        tester,
+        onSend: (_, _) async => true,
+        width: 400,
+      );
+
+      await tester.tap(emojiButton());
+      await tester.pumpAndSettle();
+      expect(find.byType(BottomSheet), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(BottomSheet),
+          matching: find.byType(EmojiPicker),
+        ),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.byIcon(Icons.tag_faces).last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('😀', findRichText: true).first);
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        '😀',
+      );
+    });
   });
 
   testWidgets('paste image adds pending attachment via same path as Photos', (

@@ -98,6 +98,8 @@ abstract final class TestIds {
       'room.message.author_commitment_glyphs';
   static String roomMentionSuggestion(String handle) =>
       'room.mention.suggestion.${handle.trim().toLowerCase()}';
+  static const roomEmojiButton = 'room.emoji.button';
+  static const roomEmojiPicker = 'room.emoji.picker';
   static String roomEmojiSuggestion(String shortcode) =>
       'room.emoji.suggestion.$shortcode';
   static const beaconForward = 'beacon.forward';

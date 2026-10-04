@@ -7314,5 +7314,17 @@
   "postConvertNext": "Next: details →",
   "@postConvertNext": {
     "description": "Confirm button of the convert-to-Request confirmation; opens the Request form."
+  },
+  "composerEmojiButtonTooltip": "Emoji",
+  "@composerEmojiButtonTooltip": {
+    "context": "Tooltip of the chat composer button that opens the emoji picker"
+  },
+  "emojiPickerSearchHint": "Search emoji",
+  "@emojiPickerSearchHint": {
+    "context": "Hint in the emoji picker search field"
+  },
+  "emojiPickerNoRecents": "Emoji you use will show up here",
+  "@emojiPickerNoRecents": {
+    "context": "Empty Recently used tab of the emoji picker"
   }
 }
