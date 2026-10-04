@@ -91,9 +91,6 @@ typedef ConstellationPlacedLayoutInput = ({
   Map<String, String> requestAuthorById,
   Set<String> egoOwnRequestIds,
 
-  /// Drawn Post id → member ids (author included); unanchored Posts are
-  /// placed at the barycenter of their placed members.
-  Map<String, List<String>> postMemberIdsByPostId,
   double spacing,
   int maxHops,
   ConstellationViewportClass viewportClass,
@@ -214,7 +211,6 @@ ConstellationLayout computeConstellationLayout({
       nodeSizes: nodeSizes,
       satelliteRequestIdsByAuthor: visibleRequestsByAuthor,
       requestAuthorById: const {},
-      postMemberIdsByPostId: const {},
       egoOwnRequestIds: egoOwnRequestIds,
       spacing: spacing,
       maxHops: maxHops,
@@ -451,29 +447,6 @@ ConstellationLayout computeConstellationPlacedLayout({
       continue;
     }
     placeAutomatic(requestId, ideal);
-  }
-
-  final postIds = input.postMemberIdsByPostId.keys.toList()..sort();
-  for (final postId in postIds) {
-    if (positions.containsKey(postId)) {
-      continue;
-    }
-    final memberPoints = [
-      for (final memberId in input.postMemberIdsByPostId[postId]!)
-        if (positions[memberId] != null) positions[memberId]!,
-    ];
-    if (memberPoints.isEmpty) {
-      continue;
-    }
-    final ideal = (
-      x:
-          memberPoints.map((p) => p.x).reduce((a, b) => a + b) /
-          memberPoints.length,
-      y:
-          memberPoints.map((p) => p.y).reduce((a, b) => a + b) /
-          memberPoints.length,
-    );
-    placeAutomatic(postId, ideal);
   }
 
   return (positions: positions, ring: ring);

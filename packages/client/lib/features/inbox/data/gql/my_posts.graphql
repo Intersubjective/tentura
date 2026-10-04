@@ -4,6 +4,7 @@ query MyPosts {
     authorId
     authorName
     authorAvatar
+    rootImageUrl
     rootExcerpt
     lastMessageExcerpt
     lastMessageAt

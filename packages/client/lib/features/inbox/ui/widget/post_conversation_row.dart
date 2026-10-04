@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/domain/entity/image_entity.dart';
-import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/relative_time.dart';
 
@@ -29,13 +27,6 @@ class PostConversationRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
-    final author = Profile(
-      id: post.authorId,
-      displayName: post.authorName,
-      image: post.authorAvatar.isEmpty || post.authorAvatar == 'null'
-          ? null
-          : ImageEntity(id: post.authorAvatar, authorId: post.authorId),
-    );
     final addressing = post.isAuthor
         ? l10n.postConversationYours
         : l10n.postConversationAddressed(post.authorName);
@@ -53,7 +44,7 @@ class PostConversationRow extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                TenturaAvatar.medium(profile: author),
+                _ConversationImage(url: post.rootImageUrl),
                 SizedBox(width: tt.avatarTextGap),
                 Expanded(
                   child: Column(
@@ -133,6 +124,46 @@ class PostConversationRow extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Root-message artwork identifies the conversation independently of its author.
+class _ConversationImage extends StatelessWidget {
+  const _ConversationImage({required this.url});
+
+  final String? url;
+
+  @override
+  Widget build(BuildContext context) {
+    final tt = context.tt;
+    final placeholder = ColoredBox(
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      child: Center(
+        child: Icon(
+          Icons.forum_outlined,
+          size: tt.iconSize,
+          color: tt.textMuted,
+        ),
+      ),
+    );
+    final imageUrl = url?.trim() ?? '';
+    return ExcludeSemantics(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(tt.cardRadius),
+        child: SizedBox.square(
+          dimension: tt.avatarSize,
+          child: imageUrl.isEmpty
+              ? placeholder
+              : Image.network(
+                  imageUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => placeholder,
+                  loadingBuilder: (_, child, progress) =>
+                      progress == null ? child : placeholder,
+                ),
         ),
       ),
     );

@@ -264,10 +264,11 @@ void main() {
     test('webs go to placed members, not to capped or unknown ones', () async {
       final cubit = await _load(_fieldOverRenderCap(hiddenReachCount: 2));
       addTearDown(cubit.close);
-      expect(cubit.state.keptPeerIds, hasLength(kConstellationRenderPeerCap));
+      expect(cubit.state.keptPeerIds, {_padded(0)});
 
       cubit.selectRequest('post-1');
       await Future<void>.delayed(Duration.zero);
+      expect(cubit.state.keptPeerIds, hasLength(kConstellationRenderPeerCap));
 
       final webs = cubit.graphController.edges
           .where((e) => e.semanticId.endsWith('#webForwarded'))
@@ -321,14 +322,35 @@ void main() {
       () async {
         final cubit = await _load(_fieldOverRenderCap(hiddenReachCount: 2));
         addTearDown(cubit.close);
+        cubit.selectRequest('post-1');
+        await Future<void>.delayed(Duration.zero);
 
         expect(cubit.postOverflowCountByPostId['post-1'], 3);
       },
     );
 
+    test('members off the field count into the chip until the Post is '
+        'selected', () async {
+      final cubit = await _load();
+      addTearDown(cubit.close);
+
+      expect(cubit.state.keptPeerIds, {'a'});
+      expect(cubit.postOverflowCountByPostId['post-1'], 1);
+
+      cubit.selectRequest('post-1');
+      await Future<void>.delayed(Duration.zero);
+      expect(cubit.state.keptPeerIds, {'a', 'b'});
+
+      cubit.selectRequest(null);
+      await Future<void>.delayed(Duration.zero);
+      expect(cubit.state.keptPeerIds, {'a'});
+    });
+
     test('has no chip entry when nothing is hidden or capped', () async {
       final cubit = await _load();
       addTearDown(cubit.close);
+      cubit.selectRequest('post-1');
+      await Future<void>.delayed(Duration.zero);
 
       expect(cubit.postOverflowCountByPostId['post-1'] ?? 0, 0);
     });
@@ -357,6 +379,7 @@ void main() {
     testWidgets('chip shows the +N label for the Post', (tester) async {
       final cubit = await _load(_fieldOverRenderCap(hiddenReachCount: 2));
       addTearDown(cubit.close);
+      cubit.selectRequest('post-1');
 
       await tester.pumpWidget(
         MaterialApp(
@@ -431,10 +454,10 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       final ids = _semanticIds(cubit);
-      expect(ids, contains('fp:ego->fp:b#tier1Path'));
-      expect(ids, contains('fr:post-1->fp:b#webForwarded'));
-      expect(ids, contains('fp:a->fr:post-1#attachment'));
+      expect(ids, contains('fp:ego->fp:a#tier1Path'));
       expect(ids, contains('fr:post-1->fp:a#webInside'));
+      expect(ids, contains('fp:a->fr:post-1#attachment'));
+      expect(ids, contains('fr:post-1->fp:b#webForwarded'));
     });
   });
 

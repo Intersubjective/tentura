@@ -89,7 +89,12 @@ class _InboxScreenState extends State<InboxScreen>
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => BlocProvider(
+    create: (_) => PostsCubit(postsCase: GetIt.I<PostsCase>()),
+    child: _buildInbox(context),
+  );
+
+  Widget _buildInbox(BuildContext context) {
     return _InboxReceiptsIntentBinder(
       onFirstFrame: _consumeReceiptsIntentIfNeeded,
       child: _InboxMovedSnackBarDismisser(
@@ -162,7 +167,7 @@ class _InboxScreenState extends State<InboxScreen>
                         controller: _tabController,
                         tabs: [
                           Tab(text: l10n.activityForYouTitle),
-                          Tab(text: l10n.activityTabConversations),
+                          const _ConversationsTab(),
                         ],
                       ),
                     ),
@@ -196,6 +201,28 @@ class _InboxScreenState extends State<InboxScreen>
   }
 }
 
+class _ConversationsTab extends StatelessWidget {
+  const _ConversationsTab();
+
+  @override
+  Widget build(BuildContext context) =>
+      BlocSelector<PostsCubit, PostsState, bool>(
+        selector: (state) => state.hasUnread,
+        builder: (context, hasUnread) => Tab(
+          child: Semantics(
+            label: hasUnread
+                ? L10n.of(context)!.activityNavBadgeNewActivity
+                : null,
+            child: Badge(
+              isLabelVisible: hasUnread,
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              child: Text(L10n.of(context)!.activityTabConversations),
+            ),
+          ),
+        ),
+      );
+}
+
 class _InboxReceiptsIntentBinder extends StatefulWidget {
   const _InboxReceiptsIntentBinder({
     required this.onFirstFrame,
@@ -210,7 +237,8 @@ class _InboxReceiptsIntentBinder extends StatefulWidget {
       _InboxReceiptsIntentBinderState();
 }
 
-class _InboxReceiptsIntentBinderState extends State<_InboxReceiptsIntentBinder> {
+class _InboxReceiptsIntentBinderState
+    extends State<_InboxReceiptsIntentBinder> {
   @override
   void initState() {
     super.initState();
@@ -286,10 +314,7 @@ class _PostsTabKeepAliveState extends State<_PostsTabKeepAlive>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return BlocProvider(
-      create: (_) => PostsCubit(postsCase: GetIt.I<PostsCase>()),
-      child: const PostsTabView(),
-    );
+    return const PostsTabView();
   }
 }
 
