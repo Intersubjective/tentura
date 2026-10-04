@@ -1084,15 +1084,15 @@
   "@graphLegendEdgesTitle": {
     "context": "GraphScreen"
   },
-  "graphLegendEdgeEgo": "Gold — touches you on the graph",
+  "graphLegendEdgeEgo": "Touches you on the graph",
   "@graphLegendEdgeEgo": {
     "context": "GraphScreen"
   },
-  "graphLegendEdgeOther": "Blue — other positive connections",
+  "graphLegendEdgeOther": "Other positive connections",
   "@graphLegendEdgeOther": {
     "context": "GraphScreen"
   },
-  "graphLegendEdgeNegative": "Red — negative connection",
+  "graphLegendEdgeNegative": "Negative connection",
   "@graphLegendEdgeNegative": {
     "context": "GraphScreen"
   },
@@ -1100,19 +1100,19 @@
   "@graphLegendEdgeUndirected": {
     "context": "GraphScreen"
   },
-  "graphLegendEdgeForwardOther": "Blue — other forwards",
+  "graphLegendEdgeForwardOther": "Other forwards",
   "@graphLegendEdgeForwardOther": {
     "context": "ForwardsGraphScreen"
   },
-  "graphLegendEdgeGenealogyEgo": "Gold — your invite branch",
+  "graphLegendEdgeGenealogyEgo": "Your invite branch",
   "@graphLegendEdgeGenealogyEgo": {
     "context": "InviteGenealogyScreen"
   },
-  "graphLegendEdgeGenealogyTarget": "Green — their invite branch",
+  "graphLegendEdgeGenealogyTarget": "Their invite branch",
   "@graphLegendEdgeGenealogyTarget": {
     "context": "InviteGenealogyScreen"
   },
-  "graphLegendEdgeGenealogyNeutral": "Blue — shared trunk",
+  "graphLegendEdgeGenealogyNeutral": "Shared trunk",
   "@graphLegendEdgeGenealogyNeutral": {
     "context": "InviteGenealogyScreen"
   },
@@ -1201,9 +1201,55 @@
   "@graphLegendConstellationWiderNetworkReach": {
     "description": "Constellation legend: residual-ring peer with no drawn path (dashed)"
   },
-  "graphLegendEdgeMutual": "One line — mutual trust (highlights flow both ways)",
+  "graphLegendEdgeMutual": "Mutual trust",
   "@graphLegendEdgeMutual": {
     "context": "GraphScreen"
+  },
+  "graphLegendEdgeOneWay": "One-way trust",
+  "@graphLegendEdgeOneWay": {
+    "context": "GraphScreen"
+  },
+  "graphLegendEdgeArrowsHint": "Arrows appear on the selected person's connections",
+  "@graphLegendEdgeArrowsHint": {
+    "context": "GraphScreen"
+  },
+  "graphEdgeSemanticsLink": "{from} → {to}, {kind}, {direction}",
+  "@graphEdgeSemanticsLink": {
+    "description": "Screen-reader description of the connection between the selected person and you",
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      },
+      "kind": {
+        "type": "String"
+      },
+      "direction": {
+        "type": "String"
+      }
+    }
+  },
+  "graphEdgeSemanticsYou": "you",
+  "@graphEdgeSemanticsYou": {
+    "description": "Screen-reader name for the viewer in a connection description"
+  },
+  "graphEdgeSemanticsTrust": "trust",
+  "@graphEdgeSemanticsTrust": {
+    "description": "Screen-reader: positive connection"
+  },
+  "graphEdgeSemanticsNegative": "negative",
+  "@graphEdgeSemanticsNegative": {
+    "description": "Screen-reader: negative connection"
+  },
+  "graphEdgeSemanticsMutual": "mutual",
+  "@graphEdgeSemanticsMutual": {
+    "description": "Screen-reader: connection goes both ways"
+  },
+  "graphEdgeSemanticsOneWay": "one-way",
+  "@graphEdgeSemanticsOneWay": {
+    "description": "Screen-reader: connection goes one way"
   },
   "forwardsGraphMenuTitle": "Track of forwards",
   "@forwardsGraphMenuTitle": {
@@ -2266,7 +2312,7 @@
     "context": "SettingsScreen",
     "description": "SettingsScreen — user-facing name for the attention repair command (D15)."
   },
-  "attentionResetCountersUnrepairable": "{count, plural, =1{One outstanding action could not be rechecked.} other{{count} outstanding actions could not be rechecked.}} They stay on your list exactly as they are \u2014 there is nothing here for you to fix. Running this again later is safe.",
+  "attentionResetCountersUnrepairable": "{count, plural, =1{One outstanding action could not be rechecked.} other{{count} outstanding actions could not be rechecked.}} They stay on your list exactly as they are — there is nothing here for you to fix. Running this again later is safe.",
   "@attentionResetCountersUnrepairable": {
     "context": "SettingsScreen",
     "placeholders": {
@@ -2341,7 +2387,11 @@
   "attentionMiniCardForwarded": "{name} forwarded",
   "@attentionMiniCardForwarded": {
     "description": "Event line of a forward mini-card on a Request card (issue-171 spec 7.1).",
-    "placeholders": { "name": { "type": "String" } }
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   },
   "attentionEventDismiss": "Dismiss update",
   "@attentionEventDismiss": {
@@ -5997,7 +6047,7 @@
   "@inboxDismissDialogTitle": {
     "description": "Title for the inbox dismiss (X) dialog — not the same as Can't help."
   },
-  "inboxDismissDialogHint": "Optional note \u2014 only you can see it",
+  "inboxDismissDialogHint": "Optional note — only you can see it",
   "@inboxDismissDialogHint": {
     "description": "Hint for the optional note when removing a request from Activity. The note is private to its author and is never copied to a forward edge."
   },
@@ -6442,13 +6492,24 @@
   "@attentionCardQuotedTitle": {
     "context": "RequestAttentionCard",
     "description": "A Request title on a card headline, quoted per locale (issue-171 spec 6.1).",
-    "placeholders": { "title": { "type": "String" } }
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
   },
   "attentionCardTitleByForwarder": "“{title}” · from {name}",
   "@attentionCardTitleByForwarder": {
     "context": "RequestAttentionCard",
     "description": "Tombstone header line: quoted title attributed to the last forwarder (spec 8).",
-    "placeholders": { "title": { "type": "String" }, "name": { "type": "String" } }
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
   },
   "attentionCardClearAll": "Clear all",
   "@attentionCardClearAll": {
@@ -6459,28 +6520,47 @@
   "@attentionCardA11yRequest": {
     "context": "RequestAttentionCard",
     "description": "First clause of a card's whole-sentence semantics label (spec 11).",
-    "placeholders": { "title": { "type": "String" }, "author": { "type": "String" } }
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "author": {
+        "type": "String"
+      }
+    }
   },
   "attentionCardA11yEvents": "{count, plural, one{{count} new event} other{{count} new events}}",
   "@attentionCardA11yEvents": {
     "context": "RequestAttentionCard",
     "description": "Event-count clause of a card's semantics label (spec 11).",
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "attentionCardMoreForwarded": "{count, plural, one{{count} more forwarded} other{{count} more forwarded}}",
   "@attentionCardMoreForwarded": {
     "context": "RequestAttentionCard",
     "description": "Coalesced line for note-less forwards on a Request card (spec 7.3).",
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "inboxDismissAll": "Dismiss all",
   "@inboxDismissAll": {
-    "description": "For You header control (U16c-1). The clear axis: it clears every row that carries its own \u00d7 and never an unanswered forward, a pending prompt or an obligation."
+    "description": "For You header control (U16c-1). The clear axis: it clears every row that carries its own × and never an unanswered forward, a pending prompt or an obligation."
   },
   "inboxDismissAllCleared": "Cleared {count}",
   "@inboxDismissAllCleared": {
-    "description": "Confirmation after Dismiss all. It states what was cleared and never that the surface is empty \u2014 the pinned decision zone may still be there.",
-    "placeholders": { "count": { "type": "int" } }
+    "description": "Confirmation after Dismiss all. It states what was cleared and never that the surface is empty — the pinned decision zone may still be there.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "inboxDismissAllNothing": "Nothing to dismiss",
   "@inboxDismissAllNothing": {
@@ -6488,55 +6568,63 @@
   },
   "inboxDismissAllPartial": "Cleared {count}. There is more to clear.",
   "@inboxDismissAllPartial": {
-    "description": "A bounded sweep did not finish. Deliberately not celebratory \u2014 \u00a74 forbids an all-clear message after a partial sweep.",
-    "placeholders": { "count": { "type": "int" } }
+    "description": "A bounded sweep did not finish. Deliberately not celebratory — §4 forbids an all-clear message after a partial sweep.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "inboxDismissAllContinue": "Continue",
   "@inboxDismissAllContinue": {
     "description": "Resumes a partial Dismiss all with the same operation id."
   },
-  "inboxDismissAllFailed": "Couldn\u2019t dismiss everything",
+  "inboxDismissAllFailed": "Couldn’t dismiss everything",
   "@inboxDismissAllFailed": {
     "description": "Dismiss all was refused or failed. Honest failure, never an all-clear message."
   },
   "inboxDismissAllUndo": "Undo",
   "@inboxDismissAllUndo": {
-    "description": "\u00a74: an explicit dismissal can be undone for a short window."
+    "description": "§4: an explicit dismissal can be undone for a short window."
   },
   "inboxDismissAllUndone": "Restored {count}",
   "@inboxDismissAllUndone": {
     "description": "Undo of Dismiss all succeeded.",
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
-  "inboxDismissAllUndoFailed": "Couldn\u2019t undo",
+  "inboxDismissAllUndoFailed": "Couldn’t undo",
   "@inboxDismissAllUndoFailed": {
     "description": "The undo window closed or the server refused it."
   },
   "forYouEmptyNothingHere": "Nothing here yet",
   "@forYouEmptyNothingHere": {
-    "description": "\u00a74 empty state 1 of 3 \u2014 this surface has never had anything on it."
+    "description": "§4 empty state 1 of 3 — this surface has never had anything on it."
   },
   "forYouEmptyNothingHereHint": "Requests forwarded to you will appear here",
   "@forYouEmptyNothingHereHint": {
     "description": "Hint under the 'nothing here' empty state."
   },
-  "forYouEmptyNothingNew": "You\u2019re caught up",
+  "forYouEmptyNothingNew": "You’re caught up",
   "@forYouEmptyNothingNew": {
-    "description": "\u00a74 empty state 2 of 3 \u2014 cleared. Distinct from 'nothing here' on purpose: the decision zone may still be on the surface, so it must not read as an empty screen."
+    "description": "§4 empty state 2 of 3 — cleared. Distinct from 'nothing here' on purpose: the decision zone may still be on the surface, so it must not read as an empty screen."
   },
-  "forYouEmptyNothingNewHint": "You\u2019ve cleared everything that could be cleared. Anything still waiting for your decision stays above.",
+  "forYouEmptyNothingNewHint": "You’ve cleared everything that could be cleared. Anything still waiting for your decision stays above.",
   "@forYouEmptyNothingNewHint": {
-    "description": "Hint under the 'nothing new' empty state. \u00a74 forbids celebrating an empty surface while decisions are pending."
+    "description": "Hint under the 'nothing new' empty state. §4 forbids celebrating an empty surface while decisions are pending."
   },
   "forYouEmptyNoMatch": "Nothing matching this filter",
   "@forYouEmptyNoMatch": {
-    "description": "\u00a74 empty state 3 of 3 \u2014 the surface has content, but not under the active filter."
+    "description": "§4 empty state 3 of 3 — the surface has content, but not under the active filter."
   },
   "forYouEmptyNoMatchHint": "Try a different filter to see the rest.",
   "@forYouEmptyNoMatchHint": {
     "description": "Hint under the 'nothing matching this filter' empty state."
   },
-  "myWorkHelpOffersHeader": "Offered help \u00b7 {count}",
+  "myWorkHelpOffersHeader": "Offered help · {count}",
   "@myWorkHelpOffersHeader": {
     "description": "Group header above help-offer obligation rows on a My Work card; the rows under it show only the person.",
     "placeholders": {
@@ -7184,7 +7272,11 @@
   "constellationComposerRecipients": "Will receive · {count}",
   "@constellationComposerRecipients": {
     "description": "Heading of the graph composer's recipient chips",
-    "placeholders": {"count": {"type": "int"}}
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "constellationOpenPost": "Open post",
   "constellationComposerAddPerson": "Choose people on the map",
@@ -7203,7 +7295,11 @@
   "constellationComposerRemoveRecipient": "Remove {name}",
   "@constellationComposerRemoveRecipient": {
     "description": "Tooltip of the × on a graph composer recipient chip",
-    "placeholders": {"name": {"type": "String"}}
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   },
   "postMenuPin": "Pin in conversations",
   "@postMenuPin": {

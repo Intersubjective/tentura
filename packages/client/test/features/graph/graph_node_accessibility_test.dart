@@ -92,6 +92,27 @@ void main() {
       });
     });
 
+    testWidgets('selected node announces its connection to the viewer', (
+      tester,
+    ) async {
+      const profile = Profile(id: 'U-peer', displayName: 'Olga');
+      await _pumpGraphNode(
+        tester,
+        GraphNodeWidget(
+          nodeDetails: GenealogyUserNode(nodeKey: 'G-peer', user: profile),
+          isFocused: true,
+          connectionSemantics: 'Olga → you, trust, mutual',
+          onTap: () {},
+        ),
+      );
+
+      await _withSemantics(tester, () async {
+        final semantics = _nodeSemantics(tester);
+        expect(semantics.label, 'Olga');
+        expect(semantics.value, 'Olga → you, trust, mutual');
+      });
+    });
+
     testWidgets(
       'unfocused interactive user announces button without selected',
       (
