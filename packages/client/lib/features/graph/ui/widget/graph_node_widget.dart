@@ -45,6 +45,10 @@ class GraphNodeWidget extends StatelessWidget {
       FieldPersonNode(:final person) => person.displayLabel(l10n.unknownPerson),
       FieldBeaconNode(request: final request?) =>
         request.title.trim().isEmpty ? l10n.beaconViewTitle : request.title,
+      FieldBeaconNode(post: final post?) =>
+        post.rootExcerpt.trim().isEmpty
+            ? l10n.postCreateMenuPost
+            : post.rootExcerpt,
       _ => '',
     };
   }

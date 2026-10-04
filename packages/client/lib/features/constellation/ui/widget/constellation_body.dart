@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
+import 'package:get_it/get_it.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -24,6 +25,9 @@ import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../../domain/entity/constellation_field.dart';
+import '../../domain/radius_recipient_selection.dart';
+import '../../domain/use_case/constellation_anchor_case.dart';
+import '../bloc/constellation_composer_cubit.dart';
 import '../bloc/constellation_cubit.dart';
 import '../utils/constellation_edge_style.dart';
 import '../utils/constellation_presentation_frame.dart';
@@ -31,6 +35,7 @@ import '../utils/constellation_tap_resolver.dart';
 import 'constellation_anchor_controls.dart';
 import 'constellation_camera_controls.dart';
 import 'constellation_composer_radius.dart';
+import 'constellation_composer_sheet.dart';
 import 'constellation_create_entry.dart';
 import 'constellation_filter_bar.dart';
 import 'constellation_overflow_group.dart';
@@ -629,6 +634,20 @@ class _ConstellationBodyState extends State<ConstellationBody> {
     );
   }
 
+  Future<void> _sendComposerPost(
+    ConstellationComposerCubit composer,
+    String body,
+  ) async {
+    await composer.contentChanged();
+    final anchorCase = GetIt.I<ConstellationAnchorCase>();
+    final outcome = await composer.sendPost(
+      body: body,
+      anchorCase: anchorCase,
+      generation: anchorCase.lifecycleToken,
+    );
+    if (outcome.published) await composer.finish();
+  }
+
   Widget _buildGraphStack(
     BuildContext context,
     ConstellationCubit cubit,
@@ -812,6 +831,28 @@ class _ConstellationBodyState extends State<ConstellationBody> {
                         ),
                       ),
               ),
+              FieldBeaconNode(post: final post?) => _ConstellationMapNode(
+                detail: _detail,
+                child: GraphNodeWidget(
+                  key: TestIds.key(TestIds.graphNode(node.id)),
+                  nodeDetails: node,
+                  hiddenNeighborCount: null,
+                  isFocused: state.selectedRequestId == post.id,
+                  onTap: null,
+                ),
+                pinBadge:
+                    cubit.isAnchored(ConstellationAnchorTarget.beacon(post.id))
+                    ? ExcludeSemantics(
+                        child: ConstellationMarkerBadge.pin(
+                          l10n: l10n,
+                          tt: tt,
+                          scheme: scheme,
+                        ),
+                      )
+                    : null,
+                // Posts carry no lifecycle status (FieldBeaconNode.hasStatusMarker).
+                statusBadge: null,
+              ),
               _ => const SizedBox.shrink(),
             };
             if (mapNode is! _ConstellationMapNode) {
@@ -833,6 +874,20 @@ class _ConstellationBodyState extends State<ConstellationBody> {
             frameHolder: _frameHolder,
           ),
         ),
+        if (composer != null)
+          BlocBuilder<ConstellationComposerCubit, RadiusRecipientSelection>(
+            bloc: composer,
+            builder: (context, _) => composer.createCubit == null
+                ? const SizedBox.shrink()
+                : Positioned.fill(
+                    child: ConstellationComposerSheet(
+                      composer: composer,
+                      onOpenFullForm: (route) =>
+                          unawaited(context.router.push(route)),
+                      onSend: (body) => _sendComposerPost(composer, body),
+                    ),
+                  ),
+          ),
         if (composer != null)
           Positioned.fill(
             child: ConstellationComposerHandle(
@@ -913,6 +968,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
       FieldPersonNode() => panelVisible && node.id == state.selectedPersonId,
       FieldBeaconNode(request: final request?) =>
         state.selectedRequestId == request.id,
+      FieldBeaconNode(post: final post?) => state.selectedRequestId == post.id,
       _ => false,
     };
     return Semantics(

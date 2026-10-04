@@ -39,6 +39,16 @@ String constellationNodeSemanticLabel({
       }
       return '$titlePart, ${markerParts.join(', ')}';
     }(),
+    FieldBeaconNode(post: final post?) => () {
+      final excerpt = post.rootExcerpt.trim();
+      final titlePart = excerpt.isEmpty
+          ? l10n.postCreateMenuPost
+          : '${l10n.postCreateMenuPost}: $excerpt';
+      if (!cubit.isAnchored(ConstellationAnchorTarget.beacon(post.id))) {
+        return titlePart;
+      }
+      return '$titlePart, ${l10n.constellationPinMarkerSemantics}';
+    }(),
     _ => '',
   };
 }

@@ -564,6 +564,33 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     );
   }
 
+  /// People the composer may address (field peers and forward candidates,
+  /// except the viewer) and their current scene positions; people the graph
+  /// does not show have none.
+  Future<({Map<String, Offset> positions, Set<String> eligible})>
+  composerPeople() async {
+    final eligible = <String>{
+      for (final p in state.field?.peers ?? const <ConstellationPerson>[])
+        p.id,
+    };
+    try {
+      final candidates = await _forwardRepository.fetchForwardCandidates(
+        context: state.field?.context ?? '',
+      );
+      eligible.addAll(candidates.map((p) => p.id));
+    } on Object {
+      // The field peers alone are still a usable audience.
+    }
+    eligible.remove(_viewer.id);
+    final snapshot = graphController.renderSnapshot;
+    final positions = <String, Offset>{};
+    for (final id in eligible) {
+      final point = snapshot.resolvePosition('fp:$id');
+      if (point != null) positions[id] = Offset(point.x, point.y);
+    }
+    return (positions: positions, eligible: eligible);
+  }
+
   /// Enters the composing phase: adds the draft node at [draftCentre], widens
   /// the composition to [candidateIds] (field peers only) and draws a draft
   /// edge to every id in [selectedIds]. Existing nodes keep their positions.
@@ -2026,6 +2053,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         selectPerson(person.id);
       case FieldBeaconNode(request: final request?):
         selectRequest(request.id);
+      case FieldBeaconNode(post: final post?):
+        selectRequest(post.id);
       default:
         break;
     }

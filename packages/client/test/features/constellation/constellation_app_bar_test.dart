@@ -8,8 +8,11 @@ import 'package:tentura/features/constellation/domain/entity/constellation_field
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_field_case.dart';
+import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
+import 'package:tentura/features/constellation/ui/bloc/constellation_composer_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_app_bar.dart';
+import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 const _ego = Profile(id: 'ego', displayName: 'Ego');
@@ -59,6 +62,14 @@ Future<ConstellationCubit> _loadCubit() async {
   return cubit;
 }
 
+ConstellationComposerCubit _buildComposerCubit() => ConstellationComposerCubit(
+  positions: const {},
+  eligible: const {},
+  createCubitFactory: (kind) => BeaconCreateCubit(kind: kind),
+  forwardCubitFactory: (beaconId) =>
+      ForwardCubit(beaconId: beaconId, embedded: true),
+);
+
 Future<void> _pumpAppBar(
   WidgetTester tester, {
   required ConstellationCubit cubit,
@@ -66,8 +77,13 @@ Future<void> _pumpAppBar(
   bool legendExpanded = false,
   Locale locale = const Locale('en'),
   TextScaler textScaler = TextScaler.noScaling,
+  ConstellationComposerCubit? composer,
 }) async {
   await tester.binding.setSurfaceSize(size);
+  final row = ConstellationAppBarRow(
+    legendExpanded: legendExpanded,
+    onToggleLegend: () {},
+  );
   await tester.pumpWidget(
     MaterialApp(
       locale: locale,
@@ -84,10 +100,9 @@ Future<void> _pumpAppBar(
                 appBar: TenturaTopBar.of(
                   context,
                   title: const SizedBox.shrink(),
-                  row: ConstellationAppBarRow(
-                    legendExpanded: legendExpanded,
-                    onToggleLegend: () {},
-                  ),
+                  row: composer == null
+                      ? row
+                      : BlocProvider.value(value: composer, child: row),
                 ),
                 body: const SizedBox.expand(),
               ),
@@ -102,6 +117,54 @@ Future<void> _pumpAppBar(
 
 void main() {
   group('ConstellationAppBarRow', () {
+    testWidgets(
+      'without a composer provided, the create button is absent',
+      (tester) async {
+        final cubit = await _loadCubit();
+        await _pumpAppBar(tester, cubit: cubit, size: const Size(400, 800));
+
+        expect(
+          find.byKey(const Key('constellation.app_bar.create_here')),
+          findsNothing,
+        );
+        await cubit.close();
+      },
+    );
+
+    testWidgets(
+      'with a composer provided, the create button opens the kind menu',
+      (tester) async {
+        final cubit = await _loadCubit();
+        final composer = _buildComposerCubit();
+        await _pumpAppBar(
+          tester,
+          cubit: cubit,
+          size: const Size(400, 800),
+          composer: composer,
+        );
+
+        final createButton = find.byKey(
+          const Key('constellation.app_bar.create_here'),
+        );
+        expect(createButton, findsOneWidget);
+
+        await tester.tap(createButton);
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const Key('constellation.canvas.create_menu.post')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const Key('constellation.canvas.create_menu.request')),
+          findsOneWidget,
+        );
+
+        await cubit.close();
+        await composer.close();
+      },
+    );
+
     testWidgets('filters button opens sheet with filter bar', (tester) async {
       final cubit = await _loadCubit();
       await _pumpAppBar(tester, cubit: cubit, size: const Size(400, 800));

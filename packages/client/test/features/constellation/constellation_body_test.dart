@@ -468,6 +468,69 @@ void main() {
       );
     });
 
+    testWidgets('a Post renders as a node, not just an edge', (
+      tester,
+    ) async {
+      final cubit = await _loadCubit(
+        ConstellationField(
+          loadedAt: DateTime.utc(2026, 9, 9),
+          context: '',
+          peers: [const ConstellationPerson(id: 'a', displayName: 'Ann')],
+          edges: [
+            const ConstellationTrustEdgeEntity(src: 'ego', dst: 'a', tier: 1),
+          ],
+          posts: [
+            ConstellationPost(
+              id: 'post-a',
+              authorId: 'a',
+              rootExcerpt: 'Anyone free Saturday?',
+              lastActivityAt: DateTime.utc(2026, 9, 9),
+            ),
+          ],
+        ),
+      );
+
+      await _pumpBody(tester, cubit);
+
+      expect(
+        find.byKey(TestIds.key(TestIds.graphNode('post-a'))),
+        findsOneWidget,
+      );
+      expect(find.byIcon(Icons.chat_bubble_outline), findsOneWidget);
+      expect(
+        _edgeKindBetween(cubit, 'a', 'post-a'),
+        ConstellationEdgeKind.attachment,
+      );
+    });
+
+    testWidgets('tapping a Post node selects it', (tester) async {
+      final cubit = await _loadCubit(
+        ConstellationField(
+          loadedAt: DateTime.utc(2026, 9, 9),
+          context: '',
+          peers: [const ConstellationPerson(id: 'a', displayName: 'Ann')],
+          edges: [
+            const ConstellationTrustEdgeEntity(src: 'ego', dst: 'a', tier: 1),
+          ],
+          posts: [
+            ConstellationPost(
+              id: 'post-a',
+              authorId: 'a',
+              rootExcerpt: 'Anyone free Saturday?',
+              lastActivityAt: DateTime.utc(2026, 9, 9),
+            ),
+          ],
+        ),
+      );
+
+      await _pumpBody(tester, cubit);
+
+      await tester.tap(find.byKey(TestIds.key(TestIds.graphNode('post-a'))));
+      await tester.pump();
+
+      expect(cubit.state.selectedRequestId, 'post-a');
+    });
+
     testWidgets('tapping a request node opens the preview panel', (
       tester,
     ) async {

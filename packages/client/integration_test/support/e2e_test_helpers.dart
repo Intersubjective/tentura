@@ -4,6 +4,7 @@ import 'dart:js_interop';
 import 'dart:ui' show Offset, PlatformDispatcher, PointerDeviceKind;
 
 import 'package:ferry/ferry.dart' show OperationRequest, RequestSerializer;
+import 'package:flutter/gestures.dart' show kSecondaryMouseButton;
 import 'package:flutter/material.dart';
 import 'package:tentura/data/gql/_g/schema.schema.gql.dart';
 import 'package:tentura/data/gql/_g/user_subscribe.req.gql.dart';
@@ -16,6 +17,7 @@ import 'package:tentura/features/constellation/data/gql/_g/constellation_anchors
 import 'package:tentura/features/beacon/data/gql/_g/post_publish.req.gql.dart';
 import 'package:tentura/features/beacon_threads/data/gql/_g/participant_room_access.req.gql.dart';
 import 'package:tentura/features/forward/data/gql/_g/forward_beacon.req.gql.dart';
+import 'package:tentura/features/forward/data/gql/_g/forward_edges_fetch.req.gql.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:web/web.dart' as web;
@@ -2252,4 +2254,130 @@ Future<void> returnToPostFromNotInterested(
     find.descendant(of: row, matching: find.byIcon(Icons.more_vert)),
   );
   await tapAndSettle(tester, find.text('Move to Activity'));
+}
+
+/// Starts the Map composer for a Post: secondary-tap on the canvas at
+/// [scene] → "Post" in the create menu; waits for the recipient controls.
+Future<void> startMapComposerAt(
+  WidgetTester tester, {
+  required Offset scene,
+}) async {
+  final layoutFinder = _constellationGraphLayoutFinder();
+  await pumpUntilVisible(tester, layoutFinder);
+  final gesture = await tester.createGesture(
+    kind: PointerDeviceKind.mouse,
+    buttons: kSecondaryMouseButton,
+  );
+  await gesture.down(_globalForConstellationScene(tester, scene));
+  await tester.pump(const Duration(milliseconds: 50));
+  await gesture.up();
+  await pumpBounded(tester, frames: 12);
+  await tapAndSettle(
+    tester,
+    find.byKey(const Key('constellation.canvas.create_menu.post')),
+  );
+  await pumpUntilVisible(
+    tester,
+    find.byWidgetPredicate(
+      (w) =>
+          w.key == const Key('constellation.composer.sheet') ||
+          w.key == const Key('constellation.composer.side_panel'),
+    ),
+  );
+}
+
+/// Removes [userId] from the composer's recipients with the chip's ×
+/// (the chip's only tap affordance, its `onDeleted`).
+Future<void> removeMapComposerRecipient(
+  WidgetTester tester,
+  String userId,
+) async {
+  final chip = find.byKey(Key('constellation.composer.chip.$userId'));
+  await pumpUntilVisible(tester, chip, label: 'composer chip for $userId');
+  await tapAndSettle(
+    tester,
+    find.byKey(Key('constellation.composer.chip_remove.$userId')),
+  );
+  await pumpUntil(
+    tester,
+    () => !finderHasMatch(chip),
+    label: 'composer chip for $userId removed',
+  );
+}
+
+/// Types [body] into the composer and taps its send control; returns the id
+/// of the Post it created: the one BEACON anchor that was not there before
+/// the send (the sender may already have other anchored beacons).
+Future<String> sendMapComposerPost(
+  WidgetTester tester, {
+  required String body,
+}) async {
+  Future<Set<String>> anchoredBeaconIds() async => {
+    for (final a in await fetchConstellationAnchors())
+      if (a['targetKind'] == 'BEACON') a['targetId']! as String,
+  };
+  final before = await anchoredBeaconIds();
+  final field = find.byKey(const Key('constellation.composer.body_field'));
+  await pumpUntilVisible(tester, field, label: 'composer body field');
+  await tester.enterText(field, body);
+  await tapAndSettle(
+    tester,
+    find.byKey(const Key('constellation.composer.send_button')),
+  );
+  String? beaconId;
+  await pumpUntilAsync(tester, () async {
+    final fresh = (await anchoredBeaconIds()).difference(before);
+    beaconId = fresh.length == 1 ? fresh.single : null;
+    return beaconId != null;
+  }, label: 'new Post anchored');
+  return beaconId!;
+}
+
+/// The `beacon_forward_edge` rows of [beaconId] as `sender->recipient` user
+/// id pairs, read through Hasura as [asEmail] (the Post's author) while the
+/// app stays signed in as [restoreEmail].
+Future<Set<String>> fetchForwardEdgePairs({
+  required String beaconId,
+  required String asEmail,
+  required String restoreEmail,
+}) async {
+  await _postJson(
+    '/api/v2/auth/email/test-login',
+    {'email': asEmail},
+    includeCredentials: true,
+  );
+  try {
+    final tokenResponse = await _postJson(
+      '/api/v2/session/access-token',
+      const <String, Object?>{},
+      includeCredentials: true,
+    );
+    final token = tokenResponse['access_token'] as String?;
+    if (token == null || token.isEmpty) {
+      throw StateError('access-token missing for $asEmail: $tokenResponse');
+    }
+    final result = await _postJson(
+      '/api/v1/graphql',
+      const RequestSerializer().serializeRequest(
+        GForwardEdgesFetchReq((b) => b.vars.beaconId = beaconId).execRequest,
+      ),
+      includeCredentials: true,
+      extraHeaders: {'Authorization': 'Bearer $token'},
+    );
+    if (result['errors'] != null) {
+      throw StateError('forward edges query failed: ${result['errors']}');
+    }
+    final rows = ((result['data']! as Map)['beacon_forward_edge']! as List)
+        .cast<Map<String, dynamic>>();
+    return {
+      for (final r in rows)
+        '${(r['sender'] as Map)['id']}->${(r['recipient'] as Map)['id']}',
+    };
+  } finally {
+    await _postJson(
+      '/api/v2/auth/email/test-login',
+      {'email': restoreEmail},
+      includeCredentials: true,
+    );
+  }
 }

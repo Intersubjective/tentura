@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:auto_route/auto_route.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
+import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -13,6 +15,7 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 import '../../domain/port/constellation_member_webs_port.dart';
 import '../../domain/use_case/constellation_anchor_case.dart';
 import '../../domain/use_case/constellation_field_case.dart';
+import '../bloc/constellation_composer_cubit.dart';
 import '../bloc/constellation_cubit.dart';
 import '../widget/constellation_app_bar.dart';
 import '../widget/constellation_body.dart';
@@ -47,11 +50,28 @@ class ConstellationScreen extends StatefulWidget implements AutoRouteWrapper {
             memberWebsPort: GetIt.I<ConstellationMemberWebsPort>(),
             viewer: viewer,
           ),
-          child: BlocProvider(
-            create: (context) => GraphPersonContextCubit(
-              profileViewCase: GetIt.I<ProfileViewCase>(),
-              viewerId: viewer.id,
-            ),
+          child: MultiBlocProvider(
+            providers: [
+              BlocProvider(
+                create: (context) => GraphPersonContextCubit(
+                  profileViewCase: GetIt.I<ProfileViewCase>(),
+                  viewerId: viewer.id,
+                ),
+              ),
+              BlocProvider(
+                create: (context) {
+                  final constellation = context.read<ConstellationCubit>();
+                  return ConstellationComposerCubit(
+                    positions: const {},
+                    eligible: const {},
+                    peopleSnapshot: constellation.composerPeople,
+                    createCubitFactory: (kind) => BeaconCreateCubit(kind: kind),
+                    forwardCubitFactory: (beaconId) =>
+                        ForwardCubit(beaconId: beaconId, embedded: true),
+                  );
+                },
+              ),
+            ],
             child: this,
           ),
         );

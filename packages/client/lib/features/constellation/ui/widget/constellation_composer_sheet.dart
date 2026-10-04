@@ -19,6 +19,7 @@ class ConstellationComposerSheet extends StatelessWidget {
   const ConstellationComposerSheet({
     required this.composer,
     required this.onOpenFullForm,
+    this.onSend,
     super.key,
   });
 
@@ -27,11 +28,19 @@ class ConstellationComposerSheet extends StatelessWidget {
   /// Receives the full-form route for «Подробнее».
   final ValueChanged<PageRouteInfo> onOpenFullForm;
 
+  /// Publishes a Post with the typed body; without it the sheet only holds
+  /// the recipient controls.
+  final Future<void> Function(String body)? onSend;
+
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
     final wide = context.windowClass == WindowClass.expanded;
-    final body = _SheetBody(composer: composer, onOpenFullForm: onOpenFullForm);
+    final body = _SheetBody(
+      composer: composer,
+      onOpenFullForm: onOpenFullForm,
+      onSend: onSend,
+    );
     if (wide) {
       return Align(
         alignment: Alignment.centerRight,
@@ -57,18 +66,34 @@ class ConstellationComposerSheet extends StatelessWidget {
 }
 
 class _SheetBody extends StatefulWidget {
-  const _SheetBody({required this.composer, required this.onOpenFullForm});
+  const _SheetBody({
+    required this.composer,
+    required this.onOpenFullForm,
+    this.onSend,
+  });
 
   final ConstellationComposerCubit composer;
 
   final ValueChanged<PageRouteInfo> onOpenFullForm;
+
+  final Future<void> Function(String body)? onSend;
 
   @override
   State<_SheetBody> createState() => _SheetBodyState();
 }
 
 class _SheetBodyState extends State<_SheetBody> {
+  final _bodyController = TextEditingController();
+
   bool _listOpen = false;
+
+  bool _sending = false;
+
+  @override
+  void dispose() {
+    _bodyController.dispose();
+    super.dispose();
+  }
 
   ConstellationComposerCubit get composer => widget.composer;
 
@@ -135,6 +160,25 @@ class _SheetBodyState extends State<_SheetBody> {
                 label: l10n.constellationComposerRadius,
                 onChanged: composer.setRadius,
               ),
+              if (widget.onSend != null) ...[
+                TextField(
+                  key: const Key('constellation.composer.body_field'),
+                  controller: _bodyController,
+                  minLines: 1,
+                  maxLines: 4,
+                  decoration: InputDecoration(
+                    hintText: l10n.postCreateEmptyHint,
+                  ),
+                ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: FilledButton(
+                    key: const Key('constellation.composer.send_button'),
+                    onPressed: _sending ? null : _send,
+                    child: Text(l10n.buttonPublish),
+                  ),
+                ),
+              ],
             ],
           ),
         );
@@ -166,6 +210,15 @@ class _SheetBodyState extends State<_SheetBody> {
   void _openFullForm() {
     final handoff = composer.fullFormHandoff();
     if (handoff != null) widget.onOpenFullForm(handoff.toRoute());
+  }
+
+  Future<void> _send() async {
+    setState(() => _sending = true);
+    try {
+      await widget.onSend!(_bodyController.text);
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
   }
 
   void _toggleList() {

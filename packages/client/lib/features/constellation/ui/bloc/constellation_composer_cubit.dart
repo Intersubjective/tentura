@@ -45,6 +45,9 @@ class ConstellationComposerSendOutcome {
   final String? beaconId;
 }
 
+/// How often the composer re-reads who can be addressed.
+const _peopleRefresh = Duration(seconds: 4);
+
 /// Owns the graph composer: recipient selection, the draft position and the
 /// lazily created server draft with its embedded [ForwardCubit].
 ///
@@ -56,6 +59,7 @@ class ConstellationComposerCubit extends Cubit<RadiusRecipientSelection> {
     required Set<String> eligible,
     required this.createCubitFactory,
     required this.forwardCubitFactory,
+    this.peopleSnapshot,
   }) : super(
          RadiusRecipientSelection(
            center: Offset.zero,
@@ -68,6 +72,15 @@ class ConstellationComposerCubit extends Cubit<RadiusRecipientSelection> {
   final BeaconCreateCubit Function(BeaconKind kind) createCubitFactory;
 
   final ForwardCubit Function(String beaconId) forwardCubitFactory;
+
+  /// Current people positions and eligibility, read when the composer starts;
+  /// without it the constructor's [positions] and [eligible] stay in force.
+  /// Eligible people without a position start selected.
+  final Future<({Map<String, Offset> positions, Set<String> eligible})>
+  Function()?
+  peopleSnapshot;
+
+  Timer? _peopleTimer;
 
   BeaconCreateCubit? _createCubit;
 
@@ -90,6 +103,7 @@ class ConstellationComposerCubit extends Cubit<RadiusRecipientSelection> {
   void start(BeaconKind kind, Offset scenePos) {
     _kind = kind;
     _cancelled = false;
+    _peopleTimer?.cancel();
     _createCubit = createCubitFactory(kind);
     final base = state.withCenter(scenePos);
     emit(
@@ -100,6 +114,44 @@ class ConstellationComposerCubit extends Cubit<RadiusRecipientSelection> {
           base.eligible,
         ),
       ),
+    );
+    if (peopleSnapshot != null) unawaited(_loadPeople(_createCubit!));
+  }
+
+  /// Reads the people now and again while the session lasts: who is reachable
+  /// can change after the composer opens. Later reads keep the circle and the
+  /// manual overrides, and select newly eligible people without a position.
+  Future<void> _loadPeople(BeaconCreateCubit session, {bool first = true}) async {
+    final people = await peopleSnapshot!();
+    if (_cancelled || isClosed || !identical(session, _createCubit)) return;
+    final known = state.eligible;
+    final added = {
+      for (final id in people.eligible)
+        if (!people.positions.containsKey(id) && !known.contains(id)) id,
+    };
+    if (first || added.isNotEmpty || known.length != people.eligible.length) {
+      final center = state.center;
+      emit(
+        RadiusRecipientSelection(
+          center: center,
+          radius: first
+              ? RadiusRecipientSelection.startRadius(
+                  center,
+                  people.positions,
+                  people.eligible,
+                )
+              : state.radius,
+          positions: people.positions,
+          eligible: people.eligible,
+          manualAdded: {...state.manualAdded, ...added},
+          manualRemoved: state.manualRemoved,
+        ),
+      );
+      _push();
+    }
+    _peopleTimer = Timer(
+      _peopleRefresh,
+      () => unawaited(_loadPeople(session, first: false)),
     );
   }
 
@@ -126,11 +178,32 @@ class ConstellationComposerCubit extends Cubit<RadiusRecipientSelection> {
   /// First content edit; creates the draft if it does not exist yet.
   Future<void> contentChanged() => _touch();
 
+  /// Ends the session after a send: drops the create and forward cubits so
+  /// the sheet and the circle disappear.
+  Future<void> finish() async {
+    _peopleTimer?.cancel();
+    final forward = forwardCubit;
+    final create = _createCubit;
+    forwardCubit = null;
+    _createCubit = null;
+    emit(
+      RadiusRecipientSelection(
+        center: state.center,
+        radius: kComposerMinRadius,
+        positions: state.positions,
+        eligible: state.eligible,
+      ),
+    );
+    await forward?.close();
+    await create?.close();
+  }
+
   /// Untouched: no server call. Touched: deletes the draft, after waiting for
   /// a creation that is still in flight.
   Future<void> cancel() async {
     if (_cancelled) return;
     _cancelled = true;
+    _peopleTimer?.cancel();
     await _creating;
     final create = _createCubit;
     if (create != null && (create.state.draftId?.isNotEmpty ?? false)) {
@@ -258,6 +331,7 @@ class ConstellationComposerCubit extends Cubit<RadiusRecipientSelection> {
 
   @override
   Future<void> close() async {
+    _peopleTimer?.cancel();
     await forwardCubit?.close();
     await _createCubit?.close();
     return super.close();
