@@ -7194,10 +7194,6 @@
   "@constellationComposerDetails": {
     "description": "Graph composer button that opens the full create form"
   },
-  "constellationComposerRadius": "Reach",
-  "@constellationComposerRadius": {
-    "description": "Label of the graph composer radius slider"
-  },
   "constellationComposerRemoveRecipient": "Remove {name}",
   "@constellationComposerRemoveRecipient": {
     "description": "Tooltip of the × on a graph composer recipient chip",

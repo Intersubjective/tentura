@@ -1,7 +1,10 @@
-// The graph composer's sheet: «Получат · n» recipient chips with ×, a radius
-// slider, a wide-layout side panel, and the «Списком» hand-off that opens the
-// embedded `ForwardRecipientPicker` on the composer's `ForwardCubit` with its
-// toggles routed through `ConstellationComposerCubit.toggle`.
+// The graph composer's sheet: «Получат · n» recipient chips with ×, a
+// wide-layout side panel, and the «Списком» hand-off that opens the embedded
+// `ForwardRecipientPicker` on the composer's `ForwardCubit` with its toggles
+// routed through `ConstellationComposerCubit.toggle`. The radius itself is
+// controlled on the canvas (the composer circle's rim handle, see
+// constellation_composer_radius_test.dart), not by this sheet — these tests
+// drive `composer.setRadius` directly to cover how the sheet reacts.
 
 import 'dart:async';
 import 'dart:ui' show Offset;
@@ -33,7 +36,13 @@ import '../beacon_create/fake_beacon_ports.dart';
 const _sidePanel = Key('constellation.composer.side_panel');
 const _bottomSheet = Key('constellation.composer.sheet');
 const _listButton = Key('constellation.composer.list_button');
-const _radiusSlider = Key('constellation.composer.radius_slider');
+const _detailsButton = Key('constellation.composer.details_button');
+
+/// Widens the circle past Ud (distance 100) but not Ue (distance 200).
+const _wideRadius = 150.0;
+
+/// Narrows the circle to exclude Ua, Ub and Uc (distances 10/20/30).
+const _narrowRadius = 5.0;
 
 Key _chip(String id) => Key('constellation.composer.chip.$id');
 
@@ -210,7 +219,7 @@ void main() {
       expect(forward.state.selectedIds, {'Ua', 'Uc'});
 
       final radiusBefore = composer.selection.radius;
-      await tester.drag(find.byKey(_radiusSlider), const Offset(2000, 0));
+      composer.setRadius(_wideRadius);
       await tester.pumpAndSettle();
 
       expect(composer.selection.radius, greaterThan(radiusBefore));
@@ -222,15 +231,13 @@ void main() {
     });
   });
 
-  group('composer sheet radius slider', () {
-    testWidgets('dragging the slider up widens the radius and the selection', (
-      tester,
-    ) async {
+  group('composer sheet reacts to radius changes', () {
+    testWidgets('a wider radius grows the selection', (tester) async {
       await startPost(tester);
       await pumpSheet(tester, size: narrow);
       final before = composer.selection;
 
-      await tester.drag(find.byKey(_radiusSlider), const Offset(2000, 0));
+      composer.setRadius(_wideRadius);
       await tester.pumpAndSettle();
 
       expect(composer.selection.radius, greaterThan(before.radius));
@@ -241,12 +248,12 @@ void main() {
       expect(composer.selection.selected, containsAll(before.selected));
     });
 
-    testWidgets('dragging the slider down shrinks the radius', (tester) async {
+    testWidgets('a narrower radius shrinks the selection', (tester) async {
       await startPost(tester);
       await pumpSheet(tester, size: narrow);
       final before = composer.selection;
 
-      await tester.drag(find.byKey(_radiusSlider), const Offset(-2000, 0));
+      composer.setRadius(_narrowRadius);
       await tester.pumpAndSettle();
 
       expect(composer.selection.radius, lessThan(before.radius));
@@ -255,6 +262,27 @@ void main() {
         lessThan(before.selected.length),
       );
     });
+  });
+
+  group('composer sheet «Подробнее» button', () {
+    testWidgets('is hidden for a Post — it sends inline from this sheet', (
+      tester,
+    ) async {
+      await startPost(tester);
+      await pumpSheet(tester, size: narrow);
+
+      expect(find.byKey(_detailsButton), findsNothing);
+    });
+
+    testWidgets(
+      'is shown for a Request — it has no inline send, only the full form',
+      (tester) async {
+        composer.start(BeaconKind.request, Offset.zero);
+        await pumpSheet(tester, size: narrow);
+
+        expect(find.byKey(_detailsButton), findsOneWidget);
+      },
+    );
   });
 
   group('composer sheet layout', () {
@@ -333,7 +361,7 @@ void main() {
       expect(forward.state.selectedIds, {'Ub', 'Uc'});
 
       final radiusBefore = composer.selection.radius;
-      await tester.drag(find.byKey(_radiusSlider), const Offset(2000, 0));
+      composer.setRadius(_wideRadius);
       await tester.pumpAndSettle();
 
       expect(composer.selection.radius, greaterThan(radiusBefore));
@@ -358,7 +386,7 @@ void main() {
       expect(forward.state.selectedIds, {'Ua', 'Ub', 'Uc', 'Ue'});
 
       final radiusBefore = composer.selection.radius;
-      await tester.drag(find.byKey(_radiusSlider), const Offset(-2000, 0));
+      composer.setRadius(_narrowRadius);
       await tester.pumpAndSettle();
 
       expect(composer.selection.radius, lessThan(radiusBefore));

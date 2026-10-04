@@ -874,6 +874,15 @@ class _ConstellationBodyState extends State<ConstellationBody> {
             frameHolder: _frameHolder,
           ),
         ),
+        // The handle paints before the sheet below, so panning the circle
+        // under the sheet does not draw the handle on top of it.
+        if (composer != null)
+          Positioned.fill(
+            child: ConstellationComposerHandle(
+              composer: composer,
+              controller: cubit.graphController,
+            ),
+          ),
         if (composer != null)
           BlocBuilder<ConstellationComposerCubit, RadiusRecipientSelection>(
             bloc: composer,
@@ -887,13 +896,6 @@ class _ConstellationBodyState extends State<ConstellationBody> {
                       onSend: (body) => _sendComposerPost(composer, body),
                     ),
                   ),
-          ),
-        if (composer != null)
-          Positioned.fill(
-            child: ConstellationComposerHandle(
-              composer: composer,
-              controller: cubit.graphController,
-            ),
           ),
         Positioned(
           top: 0,

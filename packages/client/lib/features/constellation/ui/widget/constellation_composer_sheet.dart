@@ -1,9 +1,8 @@
-import 'dart:math' as math;
-
 import 'package:auto_route/auto_route.dart' show PageRouteInfo;
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/features/forward/ui/widget/forward_recipient_picker.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -11,8 +10,9 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import '../../domain/radius_recipient_selection.dart';
 import '../bloc/constellation_composer_cubit.dart';
 
-/// Recipient controls of the graph composer: «Получат · n», chips with ×, the
-/// radius slider and «Списком ›».
+/// Recipient controls of the graph composer: «Получат · n», chips with ×, and
+/// «Списком ›». The radius itself is controlled on the canvas (the composer
+/// circle's rim handle), not here.
 ///
 /// A bottom sheet on narrow layouts, a side panel on wide ones.
 class ConstellationComposerSheet extends StatelessWidget {
@@ -126,11 +126,15 @@ class _SheetBodyState extends State<_SheetBody> {
                     onPressed: _toggleList,
                     child: Text(l10n.constellationComposerList),
                   ),
-                  TextButton(
-                    key: const Key('constellation.composer.details_button'),
-                    onPressed: _openFullForm,
-                    child: Text(l10n.constellationComposerDetails),
-                  ),
+                  // A Post sends inline from this sheet; «Подробнее» only
+                  // makes sense for a Request, which has no inline send and
+                  // must continue into the full form.
+                  if (composer.kind != BeaconKind.post)
+                    TextButton(
+                      key: const Key('constellation.composer.details_button'),
+                      onPressed: _openFullForm,
+                      child: Text(l10n.constellationComposerDetails),
+                    ),
                 ],
               ),
               if (!_listOpen)
@@ -152,14 +156,6 @@ class _SheetBodyState extends State<_SheetBody> {
                   ],
                 ),
               if (_listOpen) _list(context),
-              Text(l10n.constellationComposerRadius),
-              Slider(
-                key: const Key('constellation.composer.radius_slider'),
-                max: _maxRadius(selection),
-                value: selection.radius.clamp(0, _maxRadius(selection)),
-                label: l10n.constellationComposerRadius,
-                onChanged: composer.setRadius,
-              ),
               if (widget.onSend != null) ...[
                 TextField(
                   key: const Key('constellation.composer.body_field'),
@@ -183,19 +179,6 @@ class _SheetBodyState extends State<_SheetBody> {
           ),
         );
       },
-    );
-  }
-
-  /// The farthest eligible person's distance with some room; stable while the
-  /// slider moves, so the thumb does not slide under the pointer.
-  double _maxRadius(RadiusRecipientSelection selection) {
-    final farthest = selection.positions.entries
-        .where((e) => selection.eligible.contains(e.key))
-        .map((e) => (e.value - selection.center).distance)
-        .fold<double>(0, math.max);
-    return math.max(
-      math.max(farthest * 1.1, kComposerMinRadius),
-      selection.radius,
     );
   }
 
