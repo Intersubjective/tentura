@@ -16,12 +16,11 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
-
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura/features/constellation/ui/utils/constellation_presentation_frame.dart';
-
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'fixtures/constellation_reference_fixture.dart';
+import 'package:flutter/gestures.dart';
 
 class _StubContextCubit extends Cubit<GraphPersonContextState>
     implements GraphPersonContextCubit {
@@ -83,8 +82,7 @@ final class _StubRepository implements ConstellationRepositoryPort {
     ConstellationFieldMembershipFilters membershipFilters =
         ConstellationFieldMembershipFilters.defaults,
     ConstellationProjection projection = ConstellationProjection.full,
-  }) async =>
-      field;
+  }) async => field;
 }
 
 ConstellationFieldCase _caseForField(ConstellationField field) =>
@@ -145,77 +143,173 @@ Future<FakeUiEffectPort> _pumpBody(
   return fx;
 }
 
-Finder _requestNodeFinder() => find.byKey(TestIds.key(TestIds.graphNode('req-a')));
+Finder _requestNodeFinder() =>
+    find.byKey(TestIds.key(TestIds.graphNode('req-a')));
 
 Finder _personNodeFinder(String personId) =>
     find.byKey(TestIds.key(TestIds.graphNode(personId)));
 
+final class _CountingContextCubit extends Cubit<GraphPersonContextState>
+    implements GraphPersonContextCubit {
+  _CountingContextCubit() : super(const GraphPersonContextState());
+
+  int selectProfileCalls = 0;
+
+  @override
+  final void Function(Profile profile)? onProfilePatched = null;
+
+  @override
+  void selectProfile(Profile profile, {required bool intentional}) {
+    selectProfileCalls++;
+    emit(state.copyWith(selectedProfile: profile));
+  }
+
+  @override
+  void dismiss() {}
+
+  @override
+  Future<void> trustSelected() async {}
+
+  @override
+  void clearSelection() {
+    emit(const GraphPersonContextState());
+  }
+}
+
+Future<void> _pumpWithContext(
+  WidgetTester tester,
+  ConstellationCubit cubit,
+  GraphPersonContextCubit contextCubit, {
+  Locale locale = const Locale('en'),
+}) async {
+  const size = Size(375, 547);
+  await tester.binding.setSurfaceSize(size);
+  addTearDown(() => tester.binding.setSurfaceSize(null));
+  await tester.pumpWidget(
+    MaterialApp(
+      locale: locale,
+      theme: TenturaTheme.light(),
+      localizationsDelegates: L10n.localizationsDelegates,
+      supportedLocales: L10n.supportedLocales,
+      home: Directionality(
+        textDirection: TextDirection.ltr,
+        child: MediaQuery(
+          data: MediaQueryData(size: size),
+          child: TenturaResponsiveScope(
+            child: MultiBlocProvider(
+              providers: [
+                BlocProvider<ConstellationCubit>.value(value: cubit),
+                BlocProvider<GraphPersonContextCubit>.value(
+                  value: contextCubit,
+                ),
+                BlocProvider<ScreenCubit>(
+                  create: (_) => ScreenCubit(FakeUiEffectPort()),
+                ),
+              ],
+              child: ConstellationBody(
+                legendExpanded: false,
+                onToggleLegend: () {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 400));
+  await tester.pumpAndSettle();
+}
+
 void main() {
   group('Constellation graph edges', () {
-    test('ring holder gets ego stub only, not a keep-tree parent edge', () async {
-      final cubit = await _loadCubit(
-        ConstellationField(
-          loadedAt: DateTime.utc(2026, 9, 9),
-          context: '',
-          peers: [
-            const ConstellationPerson(id: 'a'),
-            const ConstellationPerson(id: 'h'),
-          ],
-          edges: [
-            const ConstellationTrustEdgeEntity(src: 'ego', dst: 'a', tier: 1),
-            const ConstellationTrustEdgeEntity(src: 'a', dst: 'ghost', tier: 1),
-            const ConstellationTrustEdgeEntity(src: 'ghost', dst: 'h', tier: 1),
-          ],
-          requests: [
-            const ConstellationRequest(
-              id: 'req-h',
-              authorId: 'h',
-              title: 'Help',
-              status: 0,
-            ),
-          ],
-        ),
-      );
+    test(
+      'ring holder gets ego stub only, not a keep-tree parent edge',
+      () async {
+        final cubit = await _loadCubit(
+          ConstellationField(
+            loadedAt: DateTime.utc(2026, 9, 9),
+            context: '',
+            peers: [
+              const ConstellationPerson(id: 'a'),
+              const ConstellationPerson(id: 'h'),
+            ],
+            edges: [
+              const ConstellationTrustEdgeEntity(src: 'ego', dst: 'a', tier: 1),
+              const ConstellationTrustEdgeEntity(
+                src: 'a',
+                dst: 'ghost',
+                tier: 1,
+              ),
+              const ConstellationTrustEdgeEntity(
+                src: 'ghost',
+                dst: 'h',
+                tier: 1,
+              ),
+            ],
+            requests: [
+              const ConstellationRequest(
+                id: 'req-h',
+                authorId: 'h',
+                title: 'Help',
+                status: 0,
+              ),
+            ],
+          ),
+        );
 
-      expect(_edgeKindBetween(cubit, 'ego', 'h'), ConstellationEdgeKind.ringStub);
-      expect(
-        cubit.edgeKinds.entries.where(
-          (entry) =>
-              entry.key.endsWith('\0h') &&
-              entry.value != ConstellationEdgeKind.ringStub,
-        ),
-        isEmpty,
-      );
-      expect(cubit.edgeKinds.containsKey('a\0h'), isFalse);
-    });
+        expect(
+          _edgeKindBetween(cubit, 'ego', 'h'),
+          ConstellationEdgeKind.ringStub,
+        );
+        expect(
+          cubit.edgeKinds.entries.where(
+            (entry) =>
+                entry.key.endsWith('\0h') &&
+                entry.value != ConstellationEdgeKind.ringStub,
+          ),
+          isEmpty,
+        );
+        expect(cubit.edgeKinds.containsKey('a\0h'), isFalse);
+      },
+    );
 
-    test('tier-2 keep-tree edge is classified separately from tier-1', () async {
-      final cubit = await _loadCubit(
-        ConstellationField(
-          loadedAt: DateTime.utc(2026, 9, 9),
-          context: '',
-          peers: [
-            const ConstellationPerson(id: 'a'),
-            const ConstellationPerson(id: 'b'),
-          ],
-          edges: [
-            const ConstellationTrustEdgeEntity(src: 'ego', dst: 'a', tier: 1),
-            const ConstellationTrustEdgeEntity(src: 'a', dst: 'b', tier: 2),
-          ],
-          requests: [
-            const ConstellationRequest(
-              id: 'req-b',
-              authorId: 'b',
-              title: 'Need help',
-              status: 0,
-            ),
-          ],
-        ),
-      );
+    test(
+      'tier-2 keep-tree edge is classified separately from tier-1',
+      () async {
+        final cubit = await _loadCubit(
+          ConstellationField(
+            loadedAt: DateTime.utc(2026, 9, 9),
+            context: '',
+            peers: [
+              const ConstellationPerson(id: 'a'),
+              const ConstellationPerson(id: 'b'),
+            ],
+            edges: [
+              const ConstellationTrustEdgeEntity(src: 'ego', dst: 'a', tier: 1),
+              const ConstellationTrustEdgeEntity(src: 'a', dst: 'b', tier: 2),
+            ],
+            requests: [
+              const ConstellationRequest(
+                id: 'req-b',
+                authorId: 'b',
+                title: 'Need help',
+                status: 0,
+              ),
+            ],
+          ),
+        );
 
-      expect(_edgeKindBetween(cubit, 'ego', 'a'), ConstellationEdgeKind.tier1Path);
-      expect(_edgeKindBetween(cubit, 'a', 'b'), ConstellationEdgeKind.tier2Path);
-    });
+        expect(
+          _edgeKindBetween(cubit, 'ego', 'a'),
+          ConstellationEdgeKind.tier1Path,
+        );
+        expect(
+          _edgeKindBetween(cubit, 'a', 'b'),
+          ConstellationEdgeKind.tier2Path,
+        );
+      },
+    );
 
     test('attachment edge kind differs from path stroke kinds', () async {
       final cubit = await _loadCubit(
@@ -237,13 +331,18 @@ void main() {
         ),
       );
 
-      expect(_edgeKindBetween(cubit, 'a', 'req-a'), ConstellationEdgeKind.attachment);
       expect(
         _edgeKindBetween(cubit, 'a', 'req-a'),
-        isNot(anyOf(
-          ConstellationEdgeKind.tier1Path,
-          ConstellationEdgeKind.tier2Path,
-        )),
+        ConstellationEdgeKind.attachment,
+      );
+      expect(
+        _edgeKindBetween(cubit, 'a', 'req-a'),
+        isNot(
+          anyOf(
+            ConstellationEdgeKind.tier1Path,
+            ConstellationEdgeKind.tier2Path,
+          ),
+        ),
       );
     });
   });
@@ -331,75 +430,78 @@ void main() {
       expect(status, findsOneWidget);
     });
 
-    testWidgets('node recreated inside the hysteresis band keeps shared detail', (
-      tester,
-    ) async {
-      final cubit = await loadReferenceCubit(
-        field: constellationReferenceField(
-          anchors: [
-            ...pinnedAnchors(),
-            ConstellationAnchor(
-              target: ConstellationAnchorTarget.person('am'),
-              position: const ConstellationAnchorPosition(
-                xUnits: 4,
-                yUnits: -2,
-                coordinateSpaceVersion: 1,
-              ),
-              revision: ConstellationAnchorRevision(BigInt.one),
-              placedAt: DateTime.utc(2026, 9, 9, 12),
-            ),
-          ],
-        ),
-      );
-      addTearDown(cubit.close);
-      await pumpConstellationBody(tester, cubit);
-      await tester.pumpAndSettle();
-
-      final requestPin = inRequestNode(TestIds.constellationPinMarker);
-      final personPin = inNode('am', TestIds.constellationPinMarker);
-      expect(requestPin, findsOneWidget);
-      expect(personPin, findsOneWidget);
-
-      await zoomUntil(
+    testWidgets(
+      'node recreated inside the hysteresis band keeps shared detail',
+      (
         tester,
-        cubit,
-        0.8,
-        (s) => s < kConstellationOverviewDetailScale,
-      );
-      expect(requestPin, findsNothing);
-      expect(personPin, findsNothing);
+      ) async {
+        final cubit = await loadReferenceCubit(
+          field: constellationReferenceField(
+            anchors: [
+              ...pinnedAnchors(),
+              ConstellationAnchor(
+                target: ConstellationAnchorTarget.person('am'),
+                position: const ConstellationAnchorPosition(
+                  xUnits: 4,
+                  yUnits: -2,
+                  coordinateSpaceVersion: 1,
+                ),
+                revision: ConstellationAnchorRevision(BigInt.one),
+                placedAt: DateTime.utc(2026, 9, 9, 12),
+              ),
+            ],
+          ),
+        );
+        addTearDown(cubit.close);
+        await pumpConstellationBody(tester, cubit);
+        await tester.pumpAndSettle();
 
-      bool inBand(double s) =>
-          s >= kConstellationOverviewDetailScale &&
-          s < kConstellationNormalDetailScale;
-      await zoomUntil(tester, cubit, 1.02, inBand);
-      expect(requestPin, findsNothing);
-      expect(personPin, findsNothing);
+        final requestPin = inRequestNode(TestIds.constellationPinMarker);
+        final personPin = inNode('am', TestIds.constellationPinMarker);
+        expect(requestPin, findsOneWidget);
+        expect(personPin, findsOneWidget);
 
-      // Filter the request out so its node widget is destroyed, then restore.
-      cubit
-        ..setFilterIncludeUnspecified(false)
-        ..setFilterCapabilitySlugs({'tools'});
-      await tester.pump();
-      expect(
-        find.byKey(TestIds.key(TestIds.graphNode('req-in-2'))),
-        findsNothing,
-      );
-      expect(
-        find.byKey(TestIds.key(TestIds.graphNode('am'))),
-        findsOneWidget,
-      );
+        await zoomUntil(
+          tester,
+          cubit,
+          0.8,
+          (s) => s < kConstellationOverviewDetailScale,
+        );
+        expect(requestPin, findsNothing);
+        expect(personPin, findsNothing);
 
-      await cubit.clearFilters();
-      await tester.pumpAndSettle();
-      expect(inBand(cubit.graphController.cameraScale), isTrue);
-      expect(
-        find.byKey(TestIds.key(TestIds.graphNode('req-in-2'))),
-        findsOneWidget,
-      );
-      expect(personPin, findsNothing);
-      expect(requestPin, findsNothing);
-    });
+        bool inBand(double s) =>
+            s >= kConstellationOverviewDetailScale &&
+            s < kConstellationNormalDetailScale;
+        await zoomUntil(tester, cubit, 1.02, inBand);
+        expect(requestPin, findsNothing);
+        expect(personPin, findsNothing);
+
+        // Filter the request out so its node widget is destroyed, then restore.
+        cubit
+          ..setFilterIncludeUnspecified(false)
+          ..setFilterCapabilitySlugs({'tools'});
+        await tester.pump();
+        expect(
+          find.byKey(TestIds.key(TestIds.graphNode('req-in-2'))),
+          findsNothing,
+        );
+        expect(
+          find.byKey(TestIds.key(TestIds.graphNode('am'))),
+          findsOneWidget,
+        );
+
+        await cubit.clearFilters();
+        await tester.pumpAndSettle();
+        expect(inBand(cubit.graphController.cameraScale), isTrue);
+        expect(
+          find.byKey(TestIds.key(TestIds.graphNode('req-in-2'))),
+          findsOneWidget,
+        );
+        expect(personPin, findsNothing);
+        expect(requestPin, findsNothing);
+      },
+    );
   });
 
   group('ConstellationBody', () {
@@ -559,7 +661,10 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.byKey(const Key('constellation.request_preview')), findsOneWidget);
+      expect(
+        find.byKey(const Key('constellation.request_preview')),
+        findsOneWidget,
+      );
       expect(find.byType(BottomSheet), findsNothing);
       expect(find.text('Need tools'), findsWidgets);
       expect(find.text('By Ann'), findsOneWidget);
@@ -592,7 +697,10 @@ void main() {
       await tester.tap(_requestNodeFinder());
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
-      expect(find.byKey(const Key('constellation.request_preview')), findsOneWidget);
+      expect(
+        find.byKey(const Key('constellation.request_preview')),
+        findsOneWidget,
+      );
 
       final close = find.descendant(
         of: find.byKey(const Key('constellation.request_preview')),
@@ -601,13 +709,19 @@ void main() {
       expect(close, findsOneWidget);
       await tester.tap(close);
       await tester.pump();
-      expect(find.byKey(const Key('constellation.request_preview')), findsNothing);
+      expect(
+        find.byKey(const Key('constellation.request_preview')),
+        findsNothing,
+      );
       expect(cubit.state.selectedRequestId, isNull);
 
       await tester.tap(_requestNodeFinder());
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
-      expect(find.byKey(const Key('constellation.request_preview')), findsOneWidget);
+      expect(
+        find.byKey(const Key('constellation.request_preview')),
+        findsOneWidget,
+      );
     });
 
     testWidgets('wide 900x600 person panel uses token rail width', (
@@ -750,12 +864,14 @@ void main() {
         expect(
           panelRect.inflate(0.5).contains(pinRect.topLeft),
           isTrue,
-          reason: 'Pin control must sit on the person-card surface, not over the graph',
+          reason:
+              'Pin control must sit on the person-card surface, not over the graph',
         );
         expect(
           panelRect.inflate(0.5).contains(pinRect.bottomRight),
           isTrue,
-          reason: 'Pin control must sit on the person-card surface, not over the graph',
+          reason:
+              'Pin control must sit on the person-card surface, not over the graph',
         );
         expect(panelRect.height, lessThanOrEqualTo(667 * 0.42 + 1));
         expect(tester.takeException(), isNull);
@@ -807,4 +923,166 @@ void main() {
       },
     );
   });
+
+  // --- merged from constellation_node_tap_dispatch_test.dart ---
+
+  group('Constellation node tap dispatch (R06)', () {
+    testWidgets('single pointer dispatch calls selectProfile once', (
+      tester,
+    ) async {
+      final cubit = await loadReferenceCubit();
+      addTearDown(cubit.close);
+      final contextCubit = _CountingContextCubit();
+      addTearDown(contextCubit.close);
+
+      await _pumpWithContext(tester, cubit, contextCubit);
+
+      await tester.tap(find.byKey(TestIds.key(TestIds.graphNode('am'))));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(contextCubit.selectProfileCalls, 1);
+      expect(cubit.state.selectedPersonId, 'am');
+    });
+
+    testWidgets('request node tap opens preview panel', (tester) async {
+      final cubit = await loadReferenceCubit();
+      addTearDown(cubit.close);
+
+      await pumpConstellationBody(tester, cubit, locale: const Locale('en'));
+
+      await tester.tap(find.byKey(TestIds.key(TestIds.graphNode('req-ego-1'))));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(cubit.state.selectedRequestId, 'req-ego-1');
+      expect(
+        find.byKey(const Key('constellation.request_preview')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('pan starting on label moves camera not placement', (
+      tester,
+    ) async {
+      final cubit = await loadReferenceCubit();
+      addTearDown(cubit.close);
+
+      await pumpConstellationBody(tester, cubit, locale: const Locale('en'));
+      final label = find.byKey(
+        const ValueKey('constellation.label.fr:req-ego-1'),
+      );
+      final rect = tester.getRect(label);
+      final revisionBefore = cubit.graphController.cameraRevision.value;
+
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await gesture.down(rect.center);
+      await tester.pump();
+      await gesture.moveBy(const Offset(60, 0));
+      await tester.pump();
+      await gesture.up();
+      await tester.pump();
+
+      expect(
+        cubit.state.placementPhase,
+        ConstellationPlacementPhase.idle,
+      );
+      expect(
+        cubit.graphController.cameraRevision.value,
+        greaterThan(revisionBefore),
+      );
+    });
+
+    test(
+      'later placedAt anchor sorts above earlier at same position (D22)',
+      () {
+        const shared = ConstellationAnchorPosition(
+          xUnits: 4,
+          yUnits: -2,
+          coordinateSpaceVersion: 1,
+        );
+        final earlier = ConstellationAnchor(
+          target: ConstellationAnchorTarget.beacon('req-in-1'),
+          position: shared,
+          revision: ConstellationAnchorRevision(BigInt.one),
+          placedAt: DateTime.utc(2026, 1, 1),
+        );
+        final later = ConstellationAnchor(
+          target: ConstellationAnchorTarget.beacon('req-in-2'),
+          position: shared,
+          revision: ConstellationAnchorRevision(BigInt.one),
+          placedAt: DateTime.utc(2026, 6, 1),
+        );
+        expect(
+          ConstellationAnchor.comparePaintOrder(earlier, later),
+          lessThan(0),
+        );
+      },
+    );
+
+    testWidgets('combined semantics: one node label with status', (
+      tester,
+    ) async {
+      final cubit = await loadReferenceCubit();
+      addTearDown(cubit.close);
+
+      await pumpConstellationBody(
+        tester,
+        cubit,
+        locale: const Locale('en'),
+      );
+
+      final nodeFinder = find.byKey(TestIds.key(TestIds.graphNode('req-sm-1')));
+      final semantics = tester.getSemantics(nodeFinder);
+      expect(semantics.label, contains('I need documents'));
+      expect(semantics.label, contains('Open'));
+      expect(
+        find.bySemanticsLabel(RegExp(r'I need documents')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('placement drag gates camera until cancel', (tester) async {
+      final cubit = await loadReferenceCubit(
+        field: constellationReferenceField(
+          anchors: _pinnedReferenceAnchors(),
+        ),
+      );
+      addTearDown(cubit.close);
+
+      await pumpConstellationBody(tester, cubit);
+
+      cubit.beginDragExisting(
+        target: ConstellationAnchorTarget.person('am'),
+      );
+      expect(
+        cubit.state.placementPhase,
+        ConstellationPlacementPhase.draggingExisting,
+      );
+      expect(cubit.graphController.isCameraGated, isTrue);
+
+      cubit.cancelPlacement();
+      expect(cubit.graphController.isCameraGated, isFalse);
+      expect(
+        cubit.state.placementPhase,
+        ConstellationPlacementPhase.idle,
+      );
+    });
+  });
+}
+
+List<ConstellationAnchor> _pinnedReferenceAnchors() {
+  final loadedAt = DateTime.utc(2026, 9, 9, 12);
+  final revision = ConstellationAnchorRevision(BigInt.one);
+  return [
+    ConstellationAnchor(
+      target: ConstellationAnchorTarget.person('am'),
+      position: const ConstellationAnchorPosition(
+        xUnits: 4,
+        yUnits: -2,
+        coordinateSpaceVersion: 1,
+      ),
+      revision: revision,
+      placedAt: loadedAt,
+    ),
+  ];
 }

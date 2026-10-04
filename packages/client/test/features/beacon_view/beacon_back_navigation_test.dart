@@ -1,7 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_state.dart';
@@ -9,8 +8,13 @@ import 'package:tentura/features/beacon_threads/ui/widget/thread_detail.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
-
 import 'beacon_view_screen_harness.dart';
+import 'dart:async';
+import 'package:tentura/design_system/components/tentura_underline_tabs.dart';
+import 'package:tentura/design_system/components/tentura_vertical_resize_handle.dart';
+import 'package:tentura/domain/entity/coordination_item.dart';
+import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
+import '../beacon_threads/room_cubit_fakes.dart';
 
 Future<void> _tapPeopleTab(WidgetTester tester) async {
   await tester.tap(find.byKey(TestIds.key(TestIds.beaconTabPeople)));
@@ -79,6 +83,44 @@ class _TwoPageShellState extends State<_TwoPageShell> {
   }
 }
 
+RequestThread _semanticThread({required String id}) => RequestThread(
+  threadId: id,
+  kind: RequestThreadKind.ask,
+  unreadCount: 0,
+  item: CoordinationItem(
+    id: id,
+    beaconId: kBeaconViewHarnessBeaconId,
+    kind: CoordinationItemKind.ask,
+    status: CoordinationItemStatus.open,
+    creatorId: kBeaconViewHarnessAuthorId,
+    createdAt: kBeaconViewHarnessNow,
+    updatedAt: kBeaconViewHarnessNow,
+    published: true,
+    targetPersonId: 'helper',
+    title: 'Ask',
+  ),
+  lastSeenAt: kBeaconViewHarnessSeenAt,
+);
+
+class _DelayedThreadsRepository extends FakeBeaconThreadsRepository {
+  _DelayedThreadsRepository({
+    required super.userId,
+    required this.threads,
+    this.fetchDelay = Duration.zero,
+  });
+
+  final List<RequestThread> threads;
+  final Duration fetchDelay;
+
+  @override
+  Future<List<RequestThread>> fetchThreads(String beaconId) async {
+    if (fetchDelay > Duration.zero) {
+      await Future<void>.delayed(fetchDelay);
+    }
+    return threads;
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -102,7 +144,9 @@ void main() {
       expect(beaconViewPopScope(tester).canPop, isTrue);
     });
 
-    testWidgets('back on CHAT selects NOW without leaving request', (tester) async {
+    testWidgets('back on CHAT selects NOW without leaving request', (
+      tester,
+    ) async {
       final router = BeaconViewHarnessRouter();
       await pumpBeaconViewHarness(
         tester,
@@ -126,7 +170,9 @@ void main() {
       expect(beaconViewPopScope(tester).canPop, isTrue);
     });
 
-    testWidgets('back on PEOPLE selects NOW without leaving request', (tester) async {
+    testWidgets('back on PEOPLE selects NOW without leaving request', (
+      tester,
+    ) async {
       final router = BeaconViewHarnessRouter();
       await pumpBeaconViewHarness(
         tester,
@@ -153,7 +199,9 @@ void main() {
     testWidgets('back on NOW pops the request route', (tester) async {
       final shellKey = GlobalKey<_TwoPageShellState>();
       final threadsCubit = _HarnessThreadsCubitForShell(
-        beaconViewHarnessThreadsState().copyWith(status: const StateIsLoading()),
+        beaconViewHarnessThreadsState().copyWith(
+          status: const StateIsLoading(),
+        ),
       );
 
       await tester.binding.setSurfaceSize(kBeaconViewHarnessCompact);
@@ -197,6 +245,148 @@ void main() {
       expect(popped, isTrue);
       expect(shellKey.currentState!.poppedBeacon, isTrue);
       expect(find.text('my-work'), findsOneWidget);
+    });
+  });
+
+  // --- merged from beacon_surface_selection_test.dart ---
+
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  group('split latch under non-silent threads refresh (T3 / F6)', () {
+    testWidgets(
+      'non-silent fetch while PEOPLE is selected keeps split and surface',
+      (tester) async {
+        final threads = [
+          ...beaconViewHarnessThreadsState().threads,
+          _semanticThread(id: 'coord-item'),
+        ];
+        final repo = _DelayedThreadsRepository(
+          userId: kBeaconViewHarnessAuthorId,
+          threads: threads,
+          fetchDelay: const Duration(milliseconds: 200),
+        );
+        await registerBeaconViewHarnessGetIt(roomRepo: repo);
+
+        final recorder = BeaconViewRoomCubitRecorder();
+        final host = beaconViewHarnessHost(recorder: recorder);
+        final threadsCubit = ThreadsCubit(beaconId: kBeaconViewHarnessBeaconId);
+
+        final harness = await pumpBeaconViewHarness(
+          tester,
+          size: kBeaconViewHarnessExpanded,
+          beaconState: beaconViewHarnessAuthorState(),
+          threadsState: beaconViewHarnessThreadsState(threads: threads),
+          host: host,
+          recorder: recorder,
+          threadsCubit: threadsCubit,
+        );
+
+        expect(find.byType(TenturaVerticalResizeHandle), findsOneWidget);
+
+        await tester.tap(find.byKey(TestIds.key(TestIds.beaconTabPeople)));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 50));
+        expect(_tabs(tester).selectedIndex, 1);
+
+        final roomBeforeFetch = recorder.created.single;
+        final roomsBefore = recorder.created.length;
+
+        unawaited(harness.threadsCubit.fetch());
+        await tester.pump();
+        expect(harness.threadsCubit.state.isLoading, isTrue);
+
+        expect(find.byType(TenturaVerticalResizeHandle), findsOneWidget);
+        expect(_tabs(tester).selectedIndex, 1);
+        expect(recorder.created.length, roomsBefore);
+        expect(roomBeforeFetch.closeCallCount, 0);
+
+        await tester.pump(const Duration(milliseconds: 250));
+        await tester.pump();
+
+        expect(find.byType(TenturaVerticalResizeHandle), findsOneWidget);
+        expect(_tabs(tester).selectedIndex, 1);
+        expect(identical(recorder.created.single, roomBeforeFetch), isTrue);
+        expect(roomBeforeFetch.closeCallCount, 0);
+        expect(find.byType(ThreadDetail), findsOneWidget);
+      },
+    );
+  });
+
+  group('split edge surface reselection (§4.1)', () {
+    testWidgets('non-split CHAT → expanded split selects NOW', (tester) async {
+      final threads = [
+        ...beaconViewHarnessThreadsState().threads,
+        _semanticThread(id: 'edge-now'),
+      ];
+      final recorder = BeaconViewRoomCubitRecorder();
+      final harness = await pumpBeaconViewHarness(
+        tester,
+        size: kBeaconViewHarnessCompact,
+        beaconState: beaconViewHarnessAuthorState(),
+        threadsState: beaconViewHarnessThreadsState(threads: threads),
+        host: beaconViewHarnessHost(recorder: recorder),
+        recorder: recorder,
+      );
+      await tapBeaconChatTabAndWaitForRoom(tester);
+      expect(_tabs(tester).selectedIndex, 1);
+
+      await resizeBeaconViewHarness(
+        tester,
+        harness,
+        kBeaconViewHarnessExpanded,
+      );
+
+      expect(find.byType(TenturaVerticalResizeHandle), findsOneWidget);
+      expect(_tabs(tester).selectedIndex, 0);
+      expect(find.byType(ThreadDetail), findsOneWidget);
+      expect(harness.router.pushCount, 0);
+    });
+
+    testWidgets('expanded split → compact selects CHAT surface', (
+      tester,
+    ) async {
+      final threads = [
+        ...beaconViewHarnessThreadsState().threads,
+        _semanticThread(id: 'edge-room'),
+      ];
+      final recorder = BeaconViewRoomCubitRecorder();
+      final harness = await pumpBeaconViewHarness(
+        tester,
+        size: kBeaconViewHarnessExpanded,
+        beaconState: beaconViewHarnessAuthorState(),
+        threadsState: beaconViewHarnessThreadsState(threads: threads),
+        host: beaconViewHarnessHost(recorder: recorder),
+        recorder: recorder,
+      );
+
+      expect(find.byType(TenturaVerticalResizeHandle), findsOneWidget);
+      expect(_tabs(tester).selectedIndex, 0);
+
+      for (var i = 0; i < 30; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+        if (find.byType(ThreadDetail).evaluate().isNotEmpty) {
+          break;
+        }
+      }
+      expect(find.byType(ThreadDetail), findsOneWidget);
+
+      await resizeBeaconViewHarness(
+        tester,
+        harness,
+        kBeaconViewHarnessCompact,
+      );
+
+      for (var i = 0; i < 30; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+        if (find.byType(ThreadDetail).evaluate().isNotEmpty) {
+          break;
+        }
+      }
+
+      expect(find.byType(TenturaVerticalResizeHandle), findsNothing);
+      expect(_tabs(tester).selectedIndex, 1);
+      expect(find.byType(ThreadDetail), findsOneWidget);
+      expect(harness.router.pushCount, 0);
     });
   });
 }

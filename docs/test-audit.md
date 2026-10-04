@@ -50,18 +50,17 @@ Postgres); both reproduce without these changes.
 
 ## Review queue (needs an owner's eye — not done automatically)
 
-**Dead code + its tests** (nothing in `lib/` imports them; deletion of code was *not* performed):
-`client/.../beacon_view/ui/widget/coordination_target_candidates.dart`,
-`client/.../beacon_threads/ui/util/admitted_chat_members.dart`, `client/lib/ui/utils/normalize.dart`,
-`client/lib/data/repository/mock/data/fixtures.dart`, `server/lib/domain/coordination/acknowledged_committer.dart`
-(each with its single test). Not dead on purpose: `server/lib/domain/beacon_access_policy.dart` is the documented
-Dart mirror of the SQL access matrix, kept honest by `beacon_access_level_parity_pg_test`.
-Other orphans without tests are in `orphans.csv`.
+**Dead code + its tests — done (second pass):** removed `coordination_target_candidates`, `admitted_chat_members`,
+`ui/utils/normalize`, `mock/data/fixtures` (client) and `acknowledged_committer` (server) with their tests; rules/docs
+that pointed at `mock/data/` updated. Kept on purpose: `server/lib/domain/beacon_access_policy.dart` (Dart mirror of the
+SQL access matrix, checked by `beacon_access_level_parity_pg_test`). Other orphans without tests: `orphans.csv`.
 
-**Heavy widget files whose coverage ⊆ a sibling** (merge setup, keep assertions): see
-`overlap_client.md`, e.g. `beacon_surface_selection` ↔ `beacon_back_navigation`,
-`constellation_viewport_overlay` / `constellation_camera_controls` ↔ `constellation_label_budget_widget`,
-`constellation_node_tap_dispatch` ↔ `constellation_body`, `nested_beacon_navigation` ↔ `request_thread_routing`.
+**Widget-file merges — done (second pass)** with `scripts/test_audit/merge_tests.py` (unions imports/helpers, appends
+`main()` bodies; aborts on name collisions): `beacon_surface_selection` → `beacon_back_navigation`;
+`constellation_viewport_overlay` + `constellation_label_budget_widget` → `constellation_camera_controls`;
+`constellation_node_tap_dispatch` → `constellation_body`. Test counts unchanged (7 / 12 / 22 → 41 total, all green).
+Not merged: `nested_beacon_navigation` ↔ `request_thread_routing` (both mutate global `PageInfo` in `setUpAll`; merging
+would change isolation). Expect only ~1–2 s saved per removed file (load cost), not a big win.
 
 **Slow outliers:** `server/test/support/pg_required_mode_test.dart` (26 s without Postgres — probe retries),
 `client/hook/wasm_preload_artifacts_test.dart` + `tool/verify_web_version_consistency_test.dart` (≈9 s each),

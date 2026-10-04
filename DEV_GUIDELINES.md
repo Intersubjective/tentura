@@ -42,7 +42,7 @@ These are **project invariants**. Stricter checks live in `.cursor/rules/archite
 - **Orchestration:** When a cubit coordinates **multiple repositories** or **streams**, add or extend a **`@singleton`** `*Case` in `features/<feature>/domain/use_case/` and inject it (optional ctor param + `GetIt.I` fallback) so the cubit stays thin.
 - **Immutable cubit state:** Never mutate lists/maps **on** `state` (no `state.items.add`, `state.likes[id]=`, in-place `sort`, etc.). Always **`emit(state.copyWith(...))`** with **new** collection instances.
 - **Images:** Picker/cropper types stop in **data**; **`ImageRepository`** exposes domain **`ImagePicked`** (or equivalent) at pick boundaries.
-- **Fixtures:** Prefer **`lib/data/repository/mock/data/`** for shared JSON/Dart stubs used by tests and mocks.
+- **Fixtures:** Keep shared JSON/Dart stubs in `packages/client/test/**/support` or `*_fixtures.dart` files, not in `lib/`.
 
 ### CI
 

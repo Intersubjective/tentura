@@ -60,7 +60,7 @@ export 'lifecycle_handler_native.dart'
 class UserRepositoryMock implements UserRepository { ... }
 ```
 
-**Organization**: `data/repository/mock/`, `*_mock.dart` suffix, mock data in `mock/data/`.
+**Organization**: `data/repository/mock/`, `*_mock.dart` suffix.
 
 **Rules**: All repos have mocks, separate directory, environment-based injection, full interface implementation.
 
