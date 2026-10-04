@@ -1,9 +1,12 @@
-// The Post screen is the room under an app bar «<author>: <root excerpt>» (🔕
-// when muted) with a ⋮ menu (participants, forwarding graph, show on field,
-// forward, allow forwarding, delete), a pinned strip with the root excerpt
-// (tap scrolls to the root; «Вам переслала ‹X›: «‹note›»» for a forwarded
-// recipient), and a Post-specific «Удалить пост?» confirm before the root
-// message is deleted. No tabs and no Request HUD.
+// The Post screen is the room under an app bar «<author>: <root excerpt>» over
+// «N участников» (🔕 when muted) that opens «О посте» on tap, with ↗ for a
+// member who may forward and a short ⋮ menu («О посте», mute, pin, complain /
+// delete). «О посте» holds the participants, the forwarding graph, show on
+// field, forward, allow forwarding and the author's actions. A pinned strip
+// shows the root excerpt (tap scrolls to the root; «‹X› переслал(а) вам:
+// «‹note›»» for a forwarded recipient), and a Post-specific «Удалить пост?»
+// confirm comes before the root message is deleted. No tabs and no Request
+// HUD.
 // UI copy is asserted verbatim in Russian (docs/plans/post-ux-mockups.md).
 
 import 'package:auto_route/auto_route.dart';
@@ -34,12 +37,14 @@ import 'package:tentura/features/beacon_threads/ui/widget/room_message_text_body
 import 'package:tentura/features/beacon_view/ui/widget/beacon_now_surface.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_operational_header_card.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_people_tab_body.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_focus_request.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
 import 'package:tentura/features/inbox/domain/entity/post_summary.dart';
 import 'package:tentura/features/inbox/domain/port/posts_repository_port.dart';
 import 'package:tentura/features/post_view/ui/bloc/post_view_cubit.dart';
 import 'package:tentura/features/post_view/ui/screen/post_view_screen.dart';
+import 'package:tentura/features/post_view/ui/widget/post_info_sheet.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/presence_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
@@ -174,6 +179,10 @@ class _FakePostsRepository implements PostsRepositoryPort {
 
   @override
   Future<List<PostSummary>> myPosts() async => posts;
+
+  @override
+  Future<PostSummary?> postSummary(String id) async =>
+      posts.where((p) => p.id == id).firstOrNull;
 }
 
 class _ProfileCubit extends Mock implements ProfileCubit {
@@ -277,6 +286,8 @@ Future<_Harness> _pumpPost(
   BeaconRoomState? roomState,
   List<ForwardEdge> forwardEdges = const [],
   PostSummary? summary,
+  Size surface = const Size(700, 900),
+  double textScale = 1,
 }) async {
   final getIt = GetIt.I;
   await getIt.reset();
@@ -352,7 +363,7 @@ Future<_Harness> _pumpPost(
   final router = BeaconViewHarnessRouter();
   final observer = _PushObserver();
 
-  await tester.binding.setSurfaceSize(const Size(700, 900));
+  await tester.binding.setSurfaceSize(surface);
   addTearDown(() => tester.binding.setSurfaceSize(null));
 
   await tester.pumpWidget(
@@ -366,7 +377,10 @@ Future<_Harness> _pumpPost(
         locale: const Locale('ru'),
         navigatorObservers: [observer],
         home: MediaQuery(
-          data: const MediaQueryData(size: Size(700, 900)),
+          data: MediaQueryData(
+            size: surface,
+            textScaler: TextScaler.linear(textScale),
+          ),
           child: TenturaResponsiveScope(
             child: MultiBlocProvider(
               providers: [
@@ -427,6 +441,26 @@ Future<void> _openOverflow(WidgetTester tester) async {
 Future<void> _settle(WidgetTester tester) async {
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 500));
+}
+
+/// ⋮ → «О посте».
+Future<void> _openInfo(WidgetTester tester) async {
+  await _openOverflow(tester);
+  await tester.tap(find.text('О посте'));
+  await _settle(tester);
+  expect(find.byType(PostInfoSheet), findsOneWidget);
+}
+
+/// Taps [target] inside «О посте», scrolling it into view first.
+Future<void> _tapInSheet(WidgetTester tester, Finder target) async {
+  final inSheet = find.descendant(
+    of: find.byType(PostInfoSheet),
+    matching: target,
+  );
+  await tester.ensureVisible(inSheet);
+  await tester.pump();
+  await tester.tap(inSheet);
+  await _settle(tester);
 }
 
 Finder _confirmDialog() => find.byType(AlertDialog);
@@ -563,111 +597,86 @@ void main() {
     });
   });
 
-  group('Post overflow menu', () {
-    testWidgets('lists participants, forwarding graph and show-on-field for '
-        'a member', (tester) async {
+  group('Post app bar actions', () {
+    testWidgets('counts the participants under the title', (tester) async {
       await _pumpPost(tester, beacon: _post(), viewer: _reader);
-      await _openOverflow(tester);
 
-      expect(find.text('Участники'), findsOneWidget);
-      expect(find.text('Граф пересылок'), findsOneWidget);
-      expect(find.text('Показать на поле'), findsOneWidget);
+      expect(_inAppBar(find.text('1 участник')), findsOneWidget);
     });
 
-    testWidgets('«Участники» takes the member to the participants view', (
-      tester,
-    ) async {
-      final h = await _pumpPost(tester, beacon: _post(), viewer: _reader);
-      await _openOverflow(tester);
-      final before = h.navigations;
+    testWidgets('tapping the title opens «О посте»', (tester) async {
+      await _pumpPost(tester, beacon: _post(), viewer: _reader);
 
-      await tester.tap(find.text('Участники'));
+      await tester.tap(_inAppBar(find.textContaining('Олег: $_rootText')));
       await _settle(tester);
 
-      expect(h.navigations, greaterThan(before));
+      expect(find.byType(PostInfoSheet), findsOneWidget);
     });
 
-    testWidgets('«Показать на поле» takes the member to the field', (
-      tester,
-    ) async {
-      final h = await _pumpPost(tester, beacon: _post(), viewer: _reader);
-      await _openOverflow(tester);
-      final before = h.navigations;
-
-      await tester.tap(find.text('Показать на поле'));
-      await _settle(tester);
-
-      expect(h.navigations, greaterThan(before));
-    });
-
-    testWidgets('«Граф пересылок» opens the forwarding graph of the Post', (
-      tester,
-    ) async {
-      final h = await _pumpPost(tester, beacon: _post(), viewer: _reader);
-      await _openOverflow(tester);
-
-      await tester.tap(find.text('Граф пересылок'));
-      await tester.pump();
-
-      expect(
-        h.effects.emitted.whereType<NavigatePush>().map((e) => e.path),
-        contains('/graph/forwards/$_postId'),
-      );
-    });
-
-    testWidgets('«Переслать» is shown when the viewer can forward', (
-      tester,
-    ) async {
-      await _pumpPost(
-        tester,
-        beacon: _post(viewerCanForward: true),
-        viewer: _reader,
-      );
-      await _openOverflow(tester);
-
-      expect(find.text('Граф пересылок'), findsOneWidget);
-      expect(find.text('Переслать'), findsOneWidget);
-    });
-
-    testWidgets('«Переслать» opens the forward flow', (tester) async {
+    testWidgets('↗ forwards when the viewer can forward', (tester) async {
       final h = await _pumpPost(
         tester,
         beacon: _post(viewerCanForward: true),
         viewer: _reader,
       );
-      await _openOverflow(tester);
       final before = h.navigations;
 
-      await tester.tap(find.text('Переслать'));
+      await tester.tap(_inAppBar(find.byIcon(Icons.north_east)));
       await _settle(tester);
 
       expect(h.navigations, greaterThan(before));
     });
 
-    testWidgets('«Переслать» is hidden when the viewer cannot forward', (
+    testWidgets('has no ↗ when the viewer cannot forward', (tester) async {
+      await _pumpPost(tester, beacon: _post(), viewer: _reader);
+
+      expect(_inAppBar(find.byIcon(Icons.north_east)), findsNothing);
+    });
+  });
+
+  group('Post overflow menu', () {
+    testWidgets('keeps «О посте», mute, pin and «Жалоба» for a member', (
       tester,
     ) async {
       await _pumpPost(tester, beacon: _post(), viewer: _reader);
       await _openOverflow(tester);
 
-      expect(find.text('Граф пересылок'), findsOneWidget);
-      expect(find.text('Переслать'), findsNothing);
+      expect(find.text('О посте'), findsOneWidget);
+      expect(find.text('Заглушить ›'), findsOneWidget);
+      expect(find.text('Закрепить в разговорах'), findsOneWidget);
+      expect(find.text('Жалоба'), findsOneWidget);
+      for (final moved in [
+        'Участники',
+        'Граф пересылок',
+        'Показать на поле',
+        'Переслать',
+        'Удалить пост',
+      ]) {
+        expect(find.text(moved), findsNothing, reason: moved);
+      }
     });
 
-    testWidgets('author sees «Удалить пост»', (tester) async {
+    testWidgets('«Жалоба» opens the complaint form for the Post', (
+      tester,
+    ) async {
+      final h = await _pumpPost(tester, beacon: _post(), viewer: _reader);
+      await _openOverflow(tester);
+
+      await tester.tap(find.text('Жалоба'));
+      await _settle(tester);
+
+      expect(
+        h.effects.emitted.whereType<NavigatePush>().map((e) => e.path),
+        contains('/complaint/$_postId'),
+      );
+    });
+
+    testWidgets('author sees «Удалить пост» and no «Жалоба»', (tester) async {
       await _pumpPost(tester, beacon: _post(), viewer: _author);
       await _openOverflow(tester);
 
-      expect(find.text('Граф пересылок'), findsOneWidget);
       expect(find.text('Удалить пост'), findsOneWidget);
-    });
-
-    testWidgets('a plain member has no «Удалить пост»', (tester) async {
-      await _pumpPost(tester, beacon: _post(), viewer: _reader);
-      await _openOverflow(tester);
-
-      expect(find.text('Граф пересылок'), findsOneWidget);
-      expect(find.text('Удалить пост'), findsNothing);
+      expect(find.text('Жалоба'), findsNothing);
     });
 
     testWidgets('«Удалить пост» asks «Удалить пост?» first', (tester) async {
@@ -682,38 +691,137 @@ void main() {
     });
   });
 
+  group('«О посте»', () {
+    testWidgets('the shortcuts fit a narrow phone with large text', (
+      tester,
+    ) async {
+      await _pumpPost(
+        tester,
+        beacon: _post(),
+        viewer: _reader,
+        surface: const Size(320, 700),
+        textScale: 1.6,
+      );
+      // The room behind the sheet is not under test here (its unread divider
+      // does not fit this width either).
+      tester.takeException();
+      await _openInfo(tester);
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('На поле'), findsOneWidget);
+    });
+
+    testWidgets('lists the participants and links the forwarding graph', (
+      tester,
+    ) async {
+      await _pumpPost(tester, beacon: _post(), viewer: _reader);
+      await _openInfo(tester);
+
+      expect(find.text('Участники · 1'), findsOneWidget);
+      expect(find.text('Как пост дошёл до людей'), findsOneWidget);
+      expect(
+        find.text('Можно пересылать: любой участник может позвать других'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('«Как пост дошёл до людей» opens the forwarding graph', (
+      tester,
+    ) async {
+      final h = await _pumpPost(tester, beacon: _post(), viewer: _reader);
+      await _openInfo(tester);
+
+      await _tapInSheet(tester, find.text('Как пост дошёл до людей'));
+
+      expect(
+        h.effects.emitted.whereType<NavigatePush>().map((e) => e.path),
+        contains('/graph/forwards/$_postId'),
+      );
+    });
+
+    testWidgets('«На поле» opens the field focused on the Post', (
+      tester,
+    ) async {
+      final h = await _pumpPost(tester, beacon: _post(), viewer: _reader);
+      addTearDown(ConstellationFocusRequest.instance.take);
+      await _openInfo(tester);
+
+      await _tapInSheet(tester, find.text('На поле'));
+
+      expect(
+        h.effects.emitted.whereType<NavigatePush>().map((e) => e.path),
+        contains('/home/constellation'),
+      );
+      expect(ConstellationFocusRequest.instance.pending.value, _postId);
+    });
+
+    testWidgets('offers «Переслать» only when the viewer can forward', (
+      tester,
+    ) async {
+      await _pumpPost(tester, beacon: _post(), viewer: _reader);
+      await _openInfo(tester);
+
+      expect(find.text('Переслать'), findsNothing);
+      expect(find.textContaining('Позвать'), findsNothing);
+    });
+
+    testWidgets('«Переслать» opens the forward flow', (tester) async {
+      final h = await _pumpPost(
+        tester,
+        beacon: _post(viewerCanForward: true),
+        viewer: _reader,
+      );
+      await _openInfo(tester);
+      final before = h.navigations;
+
+      await _tapInSheet(tester, find.text('Переслать'));
+
+      expect(h.navigations, greaterThan(before));
+    });
+
+    testWidgets('author sees «Превратить в запрос» and «Удалить пост»', (
+      tester,
+    ) async {
+      await _pumpPost(tester, beacon: _post(), viewer: _author);
+      await _openInfo(tester);
+
+      expect(find.text('Превратить в запрос'), findsOneWidget);
+      expect(find.text('Удалить пост'), findsOneWidget);
+      expect(find.text('Жалоба'), findsNothing);
+    });
+  });
+
   group('allowing forwarding of a closed Post', () {
     final closed = _post(forwardPolicy: BeaconForwardPolicyValue.closed);
 
     Future<void> openAllowForwardingConfirm(WidgetTester tester) async {
-      await _openOverflow(tester);
-      await tester.tap(find.text('Разрешить пересылку'));
-      await _settle(tester);
+      await _openInfo(tester);
+      await _tapInSheet(tester, find.text('Разрешить пересылку'));
     }
 
     testWidgets('author of a closed Post sees «Разрешить пересылку»', (
       tester,
     ) async {
       await _pumpPost(tester, beacon: closed, viewer: _author);
-      await _openOverflow(tester);
+      await _openInfo(tester);
 
-      expect(find.text('Граф пересылок'), findsOneWidget);
+      expect(find.text('Пересылать может только автор'), findsOneWidget);
       expect(find.text('Разрешить пересылку'), findsOneWidget);
     });
 
     testWidgets('a non-author of a closed Post does not', (tester) async {
       await _pumpPost(tester, beacon: closed, viewer: _reader);
-      await _openOverflow(tester);
+      await _openInfo(tester);
 
-      expect(find.text('Граф пересылок'), findsOneWidget);
+      expect(find.text('Пересылать может только автор'), findsOneWidget);
       expect(find.text('Разрешить пересылку'), findsNothing);
     });
 
     testWidgets('the author of an open Post does not see it', (tester) async {
       await _pumpPost(tester, beacon: _post(), viewer: _author);
-      await _openOverflow(tester);
+      await _openInfo(tester);
 
-      expect(find.text('Граф пересылок'), findsOneWidget);
+      expect(find.text('Как пост дошёл до людей'), findsOneWidget);
       expect(find.text('Разрешить пересылку'), findsNothing);
     });
 
@@ -772,9 +880,9 @@ void main() {
       await _tapDialogConfirm(tester);
       await tester.pump(const Duration(milliseconds: 500));
 
-      await _openOverflow(tester);
+      await _openInfo(tester);
 
-      expect(find.text('Граф пересылок'), findsOneWidget);
+      expect(find.text('Как пост дошёл до людей'), findsOneWidget);
       expect(find.text('Разрешить пересылку'), findsNothing);
     });
   });
@@ -845,7 +953,7 @@ void main() {
         find.descendant(
           of: find.byType(BasicChatBody),
           matching: find.textContaining(
-            'Вам переслала Мария: «ты же хотел»',
+            'Мария переслал(а) вам: «ты же хотел»',
             findRichText: true,
           ),
         ),
@@ -866,7 +974,7 @@ void main() {
       );
 
       expect(_stripExcerptText(), findsNWidgets(2));
-      expect(find.textContaining('Вам переслала'), findsNothing);
+      expect(find.textContaining('переслал(а) вам'), findsNothing);
     });
 
     testWidgets('has no forwarded line for the author', (tester) async {
@@ -880,7 +988,7 @@ void main() {
       );
 
       expect(_stripExcerptText(), findsNWidgets(2));
-      expect(find.textContaining('Вам переслала'), findsNothing);
+      expect(find.textContaining('переслал(а) вам'), findsNothing);
     });
   });
 

@@ -5445,6 +5445,7 @@ type query_root {
 
   """fetch data from the table: "polling_variant" using primary key columns"""
   polling_variant_by_pk(id: String!): polling_variant
+  postSummary(id: String!): v2_PostSummary
 
   """
   execute function "rating" which returns "mutual_score"
@@ -9123,6 +9124,7 @@ type v2_PostSummary {
   lastActivityAt: String
   pinnedAt: String
   mutedUntil: String
+  mutedForever: Boolean!
   unreadCount: Int!
   isAuthor: Boolean!
 }
