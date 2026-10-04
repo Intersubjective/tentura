@@ -41,6 +41,7 @@ import 'constellation_request_status_marker.dart';
 import 'constellation_node_semantics.dart';
 import 'constellation_request_label.dart';
 import 'constellation_request_preview_sheet.dart';
+import 'constellation_post_preview_sheet.dart';
 import 'constellation_text_view.dart';
 import 'constellation_viewport_overlay.dart';
 
@@ -207,7 +208,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
     NodeDetails node,
   ) {
     cubit.selectMapNode(node);
-    if (cubit.state.placementPhase == ConstellationPlacementPhase.composing) {
+    if (cubit.state.isComposing) {
       return;
     }
     if (node case FieldPersonNode(
@@ -229,9 +230,12 @@ class _ConstellationBodyState extends State<ConstellationBody> {
     String beaconId, {
     String? viewTab,
   }) {
-    unawaited(
-      context.router.push(BeaconViewRoute(id: beaconId, viewTab: viewTab)),
-    );
+    unawaited(() async {
+      await context.router.push(
+        BeaconViewRoute(id: beaconId, viewTab: viewTab),
+      );
+      if (context.mounted) await context.read<ConstellationCubit>().load();
+    }());
   }
 
   VoidCallback _primaryActionForRequest(
@@ -431,6 +435,18 @@ class _ConstellationBodyState extends State<ConstellationBody> {
     }
     final request = cubit.requestById(requestId);
     if (request == null) {
+      final post = cubit.postById(requestId);
+      if (post != null) {
+        return AdaptiveContextOverlay(
+          child: ConstellationPostPreviewSheet(
+            post: post,
+            authorDisplayName:
+                cubit.profileForPersonId(post.authorId)?.shownName ?? '',
+            onOpen: () => _openBeacon(context, post.id),
+            onClose: () => cubit.selectRequest(null),
+          ),
+        );
+      }
       return const SizedBox.shrink();
     }
 
@@ -577,9 +593,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
                             final composer = maybeConstellationComposer(
                               context,
                             );
-                            if (cubit.state.placementPhase ==
-                                    ConstellationPlacementPhase.composing &&
-                                composer != null) {
+                            if (cubit.state.isComposing && composer != null) {
                               unawaited(() async {
                                 await composer.cancel();
                                 await composer.finish();
@@ -596,8 +610,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        if (state.placementPhase !=
-                            ConstellationPlacementPhase.composing) ...[
+                        if (!state.isComposing) ...[
                           const ConstellationFieldNotices(),
                           const ConstellationEmptyFilterBanner(),
                         ],
@@ -723,6 +736,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
               nodeId: node.id,
               sceneCentre: position,
             );
+            _syncComposerPersonPositions(cubit, composer);
           },
           onNodeDragEnd: (node, position) {
             final target = cubit.anchorTargetForNode(node);
@@ -733,20 +747,34 @@ class _ConstellationBodyState extends State<ConstellationBody> {
               case ConstellationPlacementPhase.draggingExisting:
               case ConstellationPlacementPhase.draggingNew:
                 unawaited(
-                  cubit.onExistingNodeDrop(
-                    target: target,
-                    sceneCentre: position,
-                  ),
+                  cubit
+                      .onExistingNodeDrop(
+                        target: target,
+                        sceneCentre: position,
+                      )
+                      .then(
+                        (_) => _syncComposerPersonPositions(cubit, composer),
+                      ),
                 );
               case ConstellationPlacementPhase.idle:
               case ConstellationPlacementPhase.composing:
                 break;
             }
           },
-          onNodeDragCancel: (_) => cubit.onPointerCancelDuringDrag(),
+          onNodeDragCancel: (_) {
+            cubit.onPointerCancelDuringDrag();
+            _syncComposerPersonPositions(cubit, composer);
+          },
           onNodeTap: (node) => _onNodeTap(context, cubit, node),
           nodePaintOrder: cubit.orderedNodeIdsForPaint(),
           nodeTapHitTester: (scenePosition, orderedIds) {
+            if (cubit.state.isComposing) {
+              final person = cubit.mapNodeAtSceneCentre(
+                scenePosition,
+                peopleOnly: true,
+              );
+              if (person is FieldPersonNode) return person.graphNodeId;
+            }
             final frame = _frameHolder.frame;
             final controller = cubit.graphController;
             if (frame == null ||
@@ -887,6 +915,9 @@ class _ConstellationBodyState extends State<ConstellationBody> {
             child: ConstellationComposerHandle(
               composer: composer,
               controller: cubit.graphController,
+              hitsPerson: (point) =>
+                  cubit.mapNodeAtSceneCentre(point, peopleOnly: true)
+                      is FieldPersonNode,
             ),
           ),
         if (composer != null)
@@ -897,8 +928,10 @@ class _ConstellationBodyState extends State<ConstellationBody> {
                 : Positioned.fill(
                     child: ConstellationComposerSheet(
                       composer: composer,
-                      onOpenFullForm: (route) =>
-                          unawaited(context.router.push(route)),
+                      onOpenFullForm: (route) => unawaited(() async {
+                        await context.router.push(route);
+                        if (context.mounted) await cubit.load();
+                      }()),
                     ),
                   ),
           ),
@@ -929,8 +962,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
             ),
           ),
         ),
-        if (widget.legendExpanded &&
-            state.placementPhase != ConstellationPlacementPhase.composing)
+        if (widget.legendExpanded && !state.isComposing)
           Positioned(
             left: 0,
             bottom: panelVisible && context.windowClass == WindowClass.compact
@@ -1181,4 +1213,26 @@ class ConstellationEdgePainter
       travelled += dashLength + dashGap;
     }
   }
+}
+
+void _syncComposerPersonPositions(
+  ConstellationCubit cubit,
+  ConstellationComposerCubit? composer,
+) {
+  if (composer == null ||
+      composer.isClosed ||
+      cubit.isClosed ||
+      composer.createCubit == null)
+    return;
+  composer.updatePersonPositions({
+    for (final entry
+        in cubit.graphController.renderSnapshot.topology.nodesById.entries)
+      if (entry.value.payload is FieldPersonNode)
+        if (cubit.graphController.renderSnapshot.resolvePosition(entry.key)
+            case final position?)
+          (entry.value.payload as FieldPersonNode).id: Offset(
+            position.x,
+            position.y,
+          ),
+  });
 }

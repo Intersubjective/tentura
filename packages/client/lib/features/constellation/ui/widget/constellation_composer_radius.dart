@@ -89,11 +89,13 @@ class ConstellationComposerHandle extends StatelessWidget {
   const ConstellationComposerHandle({
     required this.composer,
     required this.controller,
+    this.hitsPerson,
     super.key,
   });
 
   final ConstellationComposerCubit composer;
   final GraphController<NodeDetails, EdgeDetails> controller;
+  final bool Function(Offset scenePosition)? hitsPerson;
 
   Offset _handleAt(double hit) {
     final selection = composer.selection;
@@ -145,6 +147,7 @@ class ConstellationComposerHandle extends StatelessWidget {
                   }
                   final selection = composer.selection;
                   final scenePoint = controller.viewportLocalToScene(local);
+                  if (hitsPerson?.call(scenePoint) ?? false) return false;
                   return (scenePoint - selection.center).distance <=
                       selection.radius;
                 })

@@ -58,12 +58,22 @@ class _StubContextCubit extends Cubit<GraphPersonContextState>
   void clearSelection() {}
 }
 
-Future<ConstellationCubit> _loadCubit() async {
+Future<ConstellationCubit> _loadCubit({bool withPost = false}) async {
   final cubit = ConstellationCubit(
     case_: ConstellationFieldCase(
       _StubRepository(
         ConstellationField(
           loadedAt: DateTime.utc(2026, 9, 9),
+          posts: withPost
+              ? [
+                  ConstellationPost(
+                    id: 'post-a',
+                    authorId: 'a',
+                    rootExcerpt: 'Selected Post excerpt',
+                    lastActivityAt: DateTime.utc(2026, 9, 9),
+                  ),
+                ]
+              : [],
           context: '',
           peers: const [ConstellationPerson(id: 'a', displayName: 'Ann')],
           edges: const [
@@ -129,6 +139,31 @@ Future<void> _pumpScreen(
 }
 
 void main() {
+  for (final size in [const Size(400, 800), const Size(1200, 800)]) {
+    testWidgets(
+      'selecting a Post shows and closes its map context card at $size',
+      (tester) async {
+        final cubit = await _loadCubit(withPost: true);
+        addTearDown(cubit.close);
+        await _pumpScreen(tester, cubit: cubit, size: size);
+        cubit.selectRequest('post-a');
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(const Key('constellation.post_preview')),
+          findsOneWidget,
+        );
+        expect(find.text('Selected Post excerpt'), findsOneWidget);
+        await tester.tap(find.byIcon(Icons.close));
+        await tester.pumpAndSettle();
+        expect(cubit.state.selectedRequestId, isNull);
+        expect(
+          find.byKey(const Key('constellation.post_preview')),
+          findsNothing,
+        );
+      },
+    );
+  }
+
   testWidgets(
     'map composer drives people-only scene and survives an overlaid route',
     (tester) async {

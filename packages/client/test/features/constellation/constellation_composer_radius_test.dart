@@ -84,9 +84,11 @@ Future<ConstellationCubit> _loadCubit() async {
   return cubit;
 }
 
-ConstellationComposerCubit _buildComposerCubit() => ConstellationComposerCubit(
+ConstellationComposerCubit _buildComposerCubit({
+  Set<String> eligible = const {},
+}) => ConstellationComposerCubit(
   positions: const {},
-  eligible: const {},
+  eligible: eligible,
   createCubitFactory: (kind) => BeaconCreateCubit(
     kind: kind,
     beaconCreateCase: fakeBeaconCreateCase(),
@@ -157,8 +159,9 @@ void main() {
       // A point just off-centre, perpendicular to the handle (which sits on
       // the horizontal rim) — inside the circle, clear of the handle's own
       // small hit area.
-      final localStart = controller.sceneToViewportLocal(before) +
-          const Offset(0, 6);
+      final localStart = controller.sceneToViewportLocal(
+        before + Offset(0, composer.selection.radius * 0.8),
+      );
       final localEnd = localStart + const Offset(0, 25);
 
       final gesture = await tester.startGesture(handleOrigin + localStart);
@@ -173,6 +176,118 @@ void main() {
         composer.selection.center,
         controller.viewportLocalToScene(localEnd),
       );
+    },
+  );
+
+  testWidgets(
+    'dragging a person inside the circle preserves the draft centre',
+    (tester) async {
+      final cubit = await _loadCubit();
+      final composer = _buildComposerCubit(eligible: {'a'});
+      addTearDown(cubit.close);
+      addTearDown(composer.close);
+
+      const size = Size(1200, 900);
+      await tester.binding.setSurfaceSize(size);
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('en'),
+          theme: TenturaTheme.light(),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          home: MediaQuery(
+            data: const MediaQueryData(size: size),
+            child: TenturaResponsiveScope(
+              child: MultiBlocProvider(
+                providers: [
+                  BlocProvider<ConstellationCubit>.value(value: cubit),
+                  BlocProvider<ConstellationComposerCubit>.value(
+                    value: composer,
+                  ),
+                  BlocProvider<GraphPersonContextCubit>(
+                    create: (_) => _StubContextCubit(),
+                  ),
+                  BlocProvider<ScreenCubit>(
+                    create: (_) => ScreenCubit(FakeUiEffectPort()),
+                  ),
+                ],
+                child: ConstellationBody(
+                  legendExpanded: false,
+                  onToggleLegend: () {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      composer.start(
+        BeaconKind.post,
+        cubit.graphController.viewportLocalToScene(const Offset(600, 450)),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      cubit.enterComposing(
+        draftCentre: composer.selection.center,
+        candidateIds: {'a'},
+        selectedIds: composer.selection.selected,
+        onToggle: composer.toggleMapRecipient,
+      );
+      await tester.pump();
+      final controller = cubit.graphController;
+      controller.fitToNodeIds(['fp:a']);
+      await tester.pump();
+      final personBefore = controller.getPositionOrNullForId('fp:a')!;
+      final subscription = composer.stream.listen(
+        (selection) => cubit.enterComposing(
+          draftCentre: selection.center,
+          candidateIds: {'a'},
+          selectedIds: selection.selected,
+          onToggle: composer.toggleMapRecipient,
+        ),
+      );
+      addTearDown(subscription.cancel);
+      composer.moveDraft(personBefore);
+      await tester.pump();
+      final before = composer.selection.center;
+      final origin = tester.getTopLeft(
+        find.byType(ConstellationComposerHandle),
+      );
+      final localStart = controller.sceneToViewportLocal(personBefore);
+      final gesture = await tester.startGesture(origin + localStart);
+      await tester.pump();
+      await gesture.moveBy(const Offset(20, 20));
+      await tester.pump();
+      await gesture.moveBy(const Offset(35, 35));
+      await tester.pump();
+      expect(composer.selection.center, before);
+      expect(controller.getPositionOrNullForId('fp:a'), isNot(personBefore));
+      expect(
+        composer.selection.positions['a'],
+        controller.getPositionOrNullForId('fp:a'),
+      );
+      await gesture.cancel();
+      await tester.pump();
+      expect(composer.selection.center, before);
+      expect(controller.getPositionOrNullForId('fp:a'), personBefore);
+      expect(composer.selection.positions['a'], personBefore);
+      composer.toggleManualSelection();
+      await tester.pump();
+      final selectedBefore = composer.selection.selected.contains('a');
+      await tester.tapAt(
+        origin + controller.sceneToViewportLocal(personBefore),
+      );
+      await tester.pump();
+      expect(composer.selection.selected.contains('a'), !selectedBefore);
+      await tester.tapAt(
+        origin + controller.sceneToViewportLocal(personBefore),
+      );
+      await tester.pump();
+      expect(composer.selection.selected.contains('a'), selectedBefore);
     },
   );
 

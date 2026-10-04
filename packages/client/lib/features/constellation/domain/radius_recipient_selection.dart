@@ -88,6 +88,17 @@ final class RadiusRecipientSelection {
   RadiusRecipientSelection withCenter(Offset center) =>
       _copyWith(center: center);
 
+  RadiusRecipientSelection withPersonPositions(Map<String, Offset> updated) =>
+      RadiusRecipientSelection(
+        center: center,
+        radius: radius,
+        positions: {...positions, ...updated},
+        eligible: eligible,
+        manualAdded: manualAdded,
+        manualRemoved: manualRemoved,
+        manualSelectionEnabled: manualSelectionEnabled,
+      );
+
   RadiusRecipientSelection _copyWith({
     Offset? center,
     double? radius,

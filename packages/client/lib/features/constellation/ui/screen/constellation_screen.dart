@@ -94,7 +94,7 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
   @override
   void deactivate() {
     final cubit = context.read<ConstellationCubit>();
-    if (cubit.state.placementPhase != ConstellationPlacementPhase.composing) {
+    if (!cubit.state.isComposing) {
       cubit.onRouteLeave();
     }
     super.deactivate();
@@ -112,6 +112,7 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
               final constellation = context.read<ConstellationCubit>();
               if (composer.createCubit == null) {
                 constellation.exitComposing();
+                unawaited(constellation.load());
               } else {
                 constellation.enterComposing(
                   draftCentre: selection.center,

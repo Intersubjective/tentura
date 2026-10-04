@@ -39,7 +39,7 @@
       "clientKind": "beacon",
       "genericTriggerArgs": ["beacon"],
       "specializedPublishers": [],
-      "impacts": ["request_detail", "inbox", "my_work", "profile_requests", "forward_graph"],
+      "impacts": ["request_detail", "inbox", "my_work", "profile_requests", "forward_graph", "constellation_field"],
       "tests": ["packages/client/test/features/beacon_view/beacon_view_case_orchestration_test.dart"]
     },
     {
@@ -48,7 +48,7 @@
       "clientKind": "forward",
       "genericTriggerArgs": ["forward"],
       "specializedPublishers": [],
-      "impacts": ["inbox", "request_people", "forward_graph", "my_work"],
+      "impacts": ["inbox", "request_people", "forward_graph", "my_work", "constellation_field"],
       "tests": ["packages/client/test/features/forward/forward_cubit_live_sync_test.dart"]
     },
     {
@@ -80,7 +80,7 @@
         "optionalPaintField": "message",
         "paintEvents": ["insert"]
       },
-      "impacts": ["chat", "request_activity", "unread", "inbox", "my_work"],
+      "impacts": ["chat", "request_activity", "unread", "inbox", "my_work", "constellation_field"],
       "tests": ["packages/client/test/features/beacon_threads/room_cubit_unread_test.dart"]
     },
     {
@@ -107,7 +107,7 @@
       "clientKind": "participant",
       "genericTriggerArgs": ["participant"],
       "specializedPublishers": [],
-      "impacts": ["chat_access", "request_people", "presence", "request_detail", "inbox", "my_work"],
+      "impacts": ["chat_access", "request_people", "presence", "request_detail", "inbox", "my_work", "constellation_field"],
       "tests": ["packages/client/test/features/beacon_threads/room_cubit_unread_test.dart"]
     },
     {
@@ -161,7 +161,7 @@
       "clientKind": "roomSeen",
       "genericTriggerArgs": ["room_seen"],
       "specializedPublishers": [],
-      "impacts": ["chat_watermark", "inbox_unread", "my_work_unread", "shell_counters"],
+      "impacts": ["chat_watermark", "inbox_unread", "my_work_unread", "shell_counters", "constellation_field"],
       "tests": ["packages/client/test/features/beacon_threads/beacon_threads_case_test.dart"]
     },
     {

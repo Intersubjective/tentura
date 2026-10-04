@@ -229,6 +229,73 @@ Future<({
 
 void main() {
   group('ConstellationAnchorCubit', () {
+    for (final fail in [false, true]) {
+      test(
+        'composer survives person pin ${fail ? 'failure' : 'success'}',
+        () async {
+          final harness = await _harness();
+          addTearDown(harness.cubit.close);
+          final cubit = harness.cubit;
+          cubit.enterComposing(
+            draftCentre: const Offset(100, 100),
+            candidateIds: {'p1'},
+            selectedIds: {'p1'},
+            onToggle: (_) {},
+          );
+          final before = cubit.graphController.getPositionOrNullForId('fp:p1');
+          if (fail) harness.anchorRepo.upsertError = StateError('pin failed');
+          final target = ConstellationAnchorTarget.person('p1');
+          cubit.beginDragExisting(target: target);
+          cubit.updateDragPresentation(
+            nodeId: 'fp:p1',
+            sceneCentre: const Offset(640, 480),
+          );
+          expect(cubit.state.isComposing, isTrue);
+          await cubit.onExistingNodeDrop(
+            target: target,
+            sceneCentre: const Offset(640, 480),
+          );
+          expect(cubit.state.isComposing, isTrue);
+          expect(cubit.graphController.nodePayloadForId('fd:draft'), isNotNull);
+          expect(
+            cubit.graphController.edges.any(
+              (e) => e.semanticId == 'fd:draft->fp:p1#draftRecipient',
+            ),
+            isTrue,
+          );
+          expect(
+            cubit.graphController.getPositionOrNullForId('fp:p1'),
+            fail ? before : const Offset(640, 480),
+          );
+        },
+      );
+    }
+    test('cancelled drag restores an unanchored composer person', () async {
+      final harness = await _harness(
+        fields: [
+          _field(peers: const [ConstellationPerson(id: 'p1')]),
+        ],
+      );
+      addTearDown(harness.cubit.close);
+      final cubit = harness.cubit;
+      cubit.enterComposing(
+        draftCentre: const Offset(100, 100),
+        candidateIds: {'p1'},
+        selectedIds: {},
+        onToggle: (_) {},
+      );
+      final before = cubit.graphController.getPositionOrNullForId('fp:p1');
+      cubit.beginDragNew(target: ConstellationAnchorTarget.person('p1'));
+      cubit.updateDragPresentation(
+        nodeId: 'fp:p1',
+        sceneCentre: const Offset(640, 480),
+      );
+      cubit.onPointerCancelDuringDrag();
+      expect(cubit.state.isComposing, isTrue);
+      expect(cubit.graphController.getPositionOrNullForId('fp:p1'), before);
+    });
+
+
     test('load stores composition from field case', () async {
       final harness = await _harness();
       addTearDown(harness.cubit.close);

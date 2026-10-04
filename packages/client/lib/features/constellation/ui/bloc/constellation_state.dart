@@ -49,6 +49,7 @@ abstract class ConstellationState extends StateBase with _$ConstellationState {
     @Default(0) int loadGeneration,
     @Default(ConstellationPlacementPhase.idle)
     ConstellationPlacementPhase placementPhase,
+    @Default(false) bool isComposing,
     ConstellationAnchorTarget? activePlacementTarget,
     @Default(<ConstellationAnchorTarget>{})
     Set<ConstellationAnchorTarget> deferredRefreshTargets,

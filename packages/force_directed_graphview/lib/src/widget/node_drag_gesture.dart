@@ -143,20 +143,16 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
         return;
       }
     }
-    final bodyId = _configuration.onNodeTap != null
-        ? _hitTestTopmostNodeIdInSnapshot(
-            pos,
-            pass,
-            draggableOnly: false,
-          )
-        : _hitTestTopmostNodeIdInSnapshot(
-            pos,
-            pass,
-            draggableOnly: true,
-          );
+    // A visible but non-draggable marker must not block a draggable node
+    // underneath it. Taps still use the topmost node independently.
+    final bodyId = _hitTestTopmostNodeIdInSnapshot(
+      pos,
+      pass,
+      draggableOnly: true,
+    );
     final tapId =
         _configuration.nodeTapHitTester?.call(pos, pass.orderedNodeIds) ??
-            bodyId;
+            _hitTestTopmostNodeIdInSnapshot(pos, pass, draggableOnly: false);
     if (bodyId == null && tapId == null) {
       return;
     }

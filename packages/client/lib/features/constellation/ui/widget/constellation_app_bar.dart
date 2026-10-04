@@ -31,6 +31,7 @@ class ConstellationAppBarRow extends StatelessWidget {
 
     return BlocBuilder<ConstellationCubit, ConstellationState>(
       buildWhen: (previous, current) =>
+          previous.isComposing != current.isComposing ||
           previous.placementPhase != current.placementPhase ||
           previous.viewMode != current.viewMode ||
           previous.filterCapabilitySlugs != current.filterCapabilitySlugs ||
@@ -43,7 +44,7 @@ class ConstellationAppBarRow extends StatelessWidget {
         final cubit = context.read<ConstellationCubit>();
         final showLegend = state.viewMode == ConstellationViewMode.map;
         final composer = maybeConstellationComposer(context);
-        if (state.placementPhase == ConstellationPlacementPhase.composing) {
+        if (state.isComposing) {
           return Row(
             children: [
               Expanded(

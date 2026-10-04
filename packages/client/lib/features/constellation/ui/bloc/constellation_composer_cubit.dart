@@ -194,6 +194,19 @@ class ConstellationComposerCubit extends Cubit<RadiusRecipientSelection> {
     state.withManualSelectionEnabled(!state.manualSelectionEnabled),
   );
 
+  void updatePersonPositions(Map<String, Offset> positions) {
+    if (isClosed || _cancelled) return;
+    final updated = {
+      for (final entry in positions.entries)
+        if (state.eligible.contains(entry.key) &&
+            state.positions[entry.key] != entry.value)
+          entry.key: entry.value,
+    };
+    if (updated.isEmpty) return;
+    emit(state.withPersonPositions(updated));
+    _push();
+  }
+
   void toggleMapRecipient(String id) {
     if (_cancelled ||
         !state.manualSelectionEnabled ||

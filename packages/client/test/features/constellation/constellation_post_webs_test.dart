@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
+import 'package:tentura/features/constellation/ui/widget/constellation_post_preview_sheet.dart';
+import '../../support/test_realtime_sync.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 
@@ -14,7 +18,8 @@ import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart'
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
-import 'fixtures/constellation_reference_fixture.dart' show pumpConstellationBody;
+import 'fixtures/constellation_reference_fixture.dart'
+    show pumpConstellationBody;
 import 'package:tentura/features/constellation/domain/constellation_consts.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_overflow_group.dart';
 
@@ -23,14 +28,18 @@ final _loadedAt = DateTime.utc(2026, 10, 3, 12);
 final class _StubRepository implements ConstellationRepositoryPort {
   _StubRepository(this.field);
 
-  final ConstellationField field;
+  ConstellationField field;
+  int fetchCount = 0;
 
   @override
   Future<ConstellationField> fetch({
     ConstellationFieldMembershipFilters membershipFilters =
         ConstellationFieldMembershipFilters.defaults,
     ConstellationProjection projection = ConstellationProjection.full,
-  }) async => field;
+  }) async {
+    fetchCount++;
+    return field;
+  }
 }
 
 ConstellationField _field() => ConstellationField(
@@ -92,7 +101,9 @@ String _padded(int i) => 'p${i.toString().padLeft(3, '0')}';
 /// One more peer than the render cap; every peer is a forwarded member of
 /// the Post, so exactly one visible member cannot be placed.
 ConstellationField _fieldOverRenderCap({required int hiddenReachCount}) {
-  final ids = [for (var i = 0; i <= kConstellationRenderPeerCap; i++) _padded(i)];
+  final ids = [
+    for (var i = 0; i <= kConstellationRenderPeerCap; i++) _padded(i),
+  ];
   return ConstellationField(
     loadedAt: _loadedAt,
     context: '',
@@ -130,7 +141,10 @@ ConstellationField _fieldOverRenderCap({required int hiddenReachCount}) {
 ConstellationField _fieldWithPostAge(Duration age) => ConstellationField(
   loadedAt: _loadedAt,
   context: '',
-  peers: [const ConstellationPerson(id: 'a'), const ConstellationPerson(id: 'b')],
+  peers: [
+    const ConstellationPerson(id: 'a'),
+    const ConstellationPerson(id: 'b'),
+  ],
   edges: [
     const ConstellationTrustEdgeEntity(src: 'ego', dst: 'a', tier: 1),
     const ConstellationTrustEdgeEntity(src: 'ego', dst: 'b', tier: 1),
@@ -155,6 +169,97 @@ ConstellationField _fieldWithPostAge(Duration age) => ConstellationField(
 );
 
 void main() {
+  test(
+    'realtime coalesces Post changes, refreshes messages and catches up',
+    () async {
+      final sync = buildTestRealtimeSync();
+      final repository = _StubRepository(
+        _field().copyWith(posts: [], memberWebs: []),
+      );
+      final cubit = ConstellationCubit(
+        case_: ConstellationFieldCase(
+          repository,
+          env: const Env.fromEnvironment(),
+          logger: Logger('RealtimePostTest'),
+          realtimeSyncCase: sync.case_,
+        ),
+        viewer: const Profile(id: 'ego'),
+        loadOnCreate: false,
+      );
+      addTearDown(sync.port.dispose);
+      addTearDown(cubit.close);
+      await cubit.load();
+      expect(cubit.postById('post-1'), isNull);
+      repository.field = _field();
+      void change(RealtimeEntityKind kind) => sync.port.emitChange(
+        RealtimeEntityChange(
+          kind: kind,
+          aggregateId: 'post-1',
+          operation: RealtimeOperation.update,
+          source: RealtimeChangeSource.serverInvalidation,
+        ),
+      );
+      for (var i = 0; i < 5; i++) {
+        change(RealtimeEntityKind.beacon);
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 350));
+      expect(repository.fetchCount, 2);
+      expect(cubit.postById('post-1'), isNotNull);
+      repository.field = repository.field.copyWith(
+        posts: [
+          repository.field.posts.single.copyWith(rootExcerpt: 'new message'),
+        ],
+      );
+      change(RealtimeEntityKind.roomMessage);
+      await Future<void>.delayed(const Duration(milliseconds: 350));
+      expect(cubit.postById('post-1')!.rootExcerpt, 'new message');
+      repository.field = repository.field.copyWith(posts: [], memberWebs: []);
+      sync.port.emitCatchUp();
+      await Future<void>.delayed(const Duration(milliseconds: 350));
+      expect(cubit.postById('post-1'), isNull);
+      final count = repository.fetchCount;
+      change(RealtimeEntityKind.beacon);
+      await Future<void>.delayed(Duration.zero);
+      await cubit.close();
+      await Future<void>.delayed(const Duration(milliseconds: 350));
+      expect(repository.fetchCount, count);
+    },
+  );
+
+  testWidgets(
+    'Post preview shows excerpt and author and handles open and close',
+    (tester) async {
+      final cubit = await _load();
+      addTearDown(cubit.close);
+      var opened = false;
+      var closed = false;
+      await tester.pumpWidget(
+        BlocProvider.value(
+          value: cubit,
+          child: MaterialApp(
+            theme: TenturaTheme.light(),
+            localizationsDelegates: L10n.localizationsDelegates,
+            supportedLocales: L10n.supportedLocales,
+            home: Scaffold(
+              body: ConstellationPostPreviewSheet(
+                post: _field().posts.single.copyWith(rootExcerpt: 'Post text'),
+                authorDisplayName: 'Alice',
+                onOpen: () => opened = true,
+                onClose: () => closed = true,
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(find.text('Post text'), findsOneWidget);
+      expect(find.textContaining('Alice'), findsOneWidget);
+      await tester.tap(find.byType(FilledButton));
+      expect(opened, isTrue);
+      await tester.tap(find.byIcon(Icons.close));
+      expect(closed, isTrue);
+    },
+  );
+
   group('Post webs only to placed members', () {
     test('webs go to placed members, not to capped or unknown ones', () async {
       final cubit = await _load(_fieldOverRenderCap(hiddenReachCount: 2));
@@ -192,30 +297,34 @@ void main() {
     }
 
     for (final (hours, expected) in [(24, 1.0), (60, 0.625), (72, 0.25)]) {
-      test('Post and its webs are drawn at opacity $expected after $hours h',
-          () async {
-        final cubit = await loadAged(Duration(hours: hours));
+      test(
+        'Post and its webs are drawn at opacity $expected after $hours h',
+        () async {
+          final cubit = await loadAged(Duration(hours: hours));
 
-        expect(cubit.postFadeById['post-1'], closeTo(expected, 1e-9));
-        final web = cubit.graphController.edges.singleWhere(
-          (e) => e.semanticId.endsWith('#webForwarded'),
-        );
-        expect(
-          cubit.edgeFadeBySemanticId[web.semanticId],
-          closeTo(expected, 1e-9),
-        );
-      });
+          expect(cubit.postFadeById['post-1'], closeTo(expected, 1e-9));
+          final web = cubit.graphController.edges.singleWhere(
+            (e) => e.semanticId.endsWith('#webForwarded'),
+          );
+          expect(
+            cubit.edgeFadeBySemanticId[web.semanticId],
+            closeTo(expected, 1e-9),
+          );
+        },
+      );
     }
   });
 
   group('Post overflow chip', () {
-    test('counts hidden reach plus a visible member dropped by the render cap',
-        () async {
-      final cubit = await _load(_fieldOverRenderCap(hiddenReachCount: 2));
-      addTearDown(cubit.close);
+    test(
+      'counts hidden reach plus a visible member dropped by the render cap',
+      () async {
+        final cubit = await _load(_fieldOverRenderCap(hiddenReachCount: 2));
+        addTearDown(cubit.close);
 
-      expect(cubit.postOverflowCountByPostId['post-1'], 3);
-    });
+        expect(cubit.postOverflowCountByPostId['post-1'], 3);
+      },
+    );
 
     test('has no chip entry when nothing is hidden or capped', () async {
       final cubit = await _load();
@@ -224,8 +333,9 @@ void main() {
       expect(cubit.postOverflowCountByPostId['post-1'] ?? 0, 0);
     });
 
-    testWidgets('viewport shows the +N chip only for the selected Post',
-        (tester) async {
+    testWidgets('viewport shows the +N chip only for the selected Post', (
+      tester,
+    ) async {
       final cubit = await _load(_fieldOverRenderCap(hiddenReachCount: 2));
       addTearDown(cubit.close);
 
@@ -270,8 +380,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('constellation.postOverflow.post-1')),
-          findsOneWidget);
+      expect(
+        find.byKey(const Key('constellation.postOverflow.post-1')),
+        findsOneWidget,
+      );
       expect(find.text('+3'), findsOneWidget);
     });
   });

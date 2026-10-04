@@ -222,7 +222,8 @@ void main() {
       await enter();
       final node = cubit.graphController.nodePayloadForId('fp:$shownPeer');
 
-      expect(cubit.canDragNode(node!), isFalse);
+      expect(cubit.canDragNode(node!), isTrue);
+      expect(cubit.state.isComposing, isTrue);
     });
 
     test(

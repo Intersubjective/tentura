@@ -1,5 +1,7 @@
 import 'package:injectable/injectable.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
+import 'package:tentura/domain/use_case/realtime_sync_case.dart';
+import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 
 import '../constellation_anchor_composition.dart';
 import '../constellation_density.dart';
@@ -23,11 +25,25 @@ typedef ConstellationFieldResolved = ({
 final class ConstellationFieldCase extends UseCaseBase {
   ConstellationFieldCase(
     this._repository, {
+    RealtimeSyncCase? realtimeSyncCase,
     required super.env,
     required super.logger,
-  });
+  }) : _realtimeSyncCase = realtimeSyncCase;
 
   final ConstellationRepositoryPort _repository;
+  final RealtimeSyncCase? _realtimeSyncCase;
+
+  Stream<void>? get changes => _realtimeSyncCase
+      ?.changesFor(const {
+        RealtimeEntityKind.beacon,
+        RealtimeEntityKind.forward,
+        RealtimeEntityKind.participant,
+        RealtimeEntityKind.roomMessage,
+        RealtimeEntityKind.roomSeen,
+      })
+      .map((_) {});
+
+  Stream<void>? get catchUps => _realtimeSyncCase?.catchUps.map((_) {});
 
   Future<ConstellationFieldResolved> load({
     required String viewerId,
