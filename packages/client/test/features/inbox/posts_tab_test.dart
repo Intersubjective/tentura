@@ -618,7 +618,7 @@ void main() {
       tester,
     ) async {
       repository.posts = const [];
-      await pumpTab(tester);
+      await pumpTab(tester, view: PostsTabView(onCreatePost: () {}));
 
       expect(
         find.text('Новый пост'),

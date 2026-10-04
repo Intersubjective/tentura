@@ -284,9 +284,9 @@ void main() {
       expect((composer.selection.center - centre).distance, lessThan(2));
     });
 
-    group('with posts disabled the kind menu has no post choice', () {
+    group('the kind menu offers both choices now posts are enabled', () {
       testWidgets('opened by secondary tap', (tester) async {
-        expect(kPostsEnabled, isFalse, reason: 'this guards the gated state');
+        expect(kPostsEnabled, isTrue, reason: 'this guards the enabled state');
         await pump(tester);
 
         await secondaryTapAt(
@@ -295,7 +295,7 @@ void main() {
         );
 
         expect(find.byKey(_kindMenuRequest), findsOneWidget);
-        expect(find.byKey(_kindMenuPost), findsNothing);
+        expect(find.byKey(_kindMenuPost), findsOneWidget);
       });
 
       testWidgets('opened by long press', (tester) async {
@@ -308,7 +308,7 @@ void main() {
         await tester.pump();
 
         expect(find.byKey(_kindMenuRequest), findsOneWidget);
-        expect(find.byKey(_kindMenuPost), findsNothing);
+        expect(find.byKey(_kindMenuPost), findsOneWidget);
       });
 
       testWidgets('opened by the app bar button', (tester) async {
@@ -318,7 +318,7 @@ void main() {
         await tester.pump();
 
         expect(find.byKey(_kindMenuRequest), findsOneWidget);
-        expect(find.byKey(_kindMenuPost), findsNothing);
+        expect(find.byKey(_kindMenuPost), findsOneWidget);
       });
     });
   });

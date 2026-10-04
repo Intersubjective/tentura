@@ -417,15 +417,6 @@ void main() {
       expect(_activityNewPost, findsNothing);
     });
 
-    testWidgets('has no new-Post button by default (kPostsEnabled is off)', (
-      tester,
-    ) async {
-      await _pumpActivity(tester);
-
-      expect(kPostsEnabled, isFalse);
-      expect(_activityNewPost, findsNothing);
-    });
-
     testWidgets('✎ opens the Post create route when Posts are enabled', (
       tester,
     ) async {
@@ -451,21 +442,6 @@ void main() {
       expect(find.text('Пост'), findsNothing);
       expect(_pushed(effects), [kPathBeaconNew]);
     });
-
-    testWidgets(
-      'creates a Request directly by default (kPostsEnabled is off)',
-      (
-        tester,
-      ) async {
-        final effects = await _pumpMyWork(tester);
-
-        await tester.tap(_myWorkPlus);
-        await _settle(tester);
-
-        expect(find.text('Пост'), findsNothing);
-        expect(_pushed(effects), [kPathBeaconNew]);
-      },
-    );
 
     testWidgets('offers «Пост» and «Запрос» when Posts are enabled', (
       tester,
