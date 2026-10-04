@@ -1,0 +1,8 @@
+query ParticipantRoomAccess($beaconId: String!, $userId: String!) {
+  beacon_participant(
+    where: { beacon_id: { _eq: $beaconId }, user_id: { _eq: $userId } }
+  ) {
+    id
+    room_access
+  }
+}

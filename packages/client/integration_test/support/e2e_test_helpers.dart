@@ -13,6 +13,8 @@ import 'package:tentura/features/closure/data/gql/_g/beacon_close.req.gql.dart';
 import 'package:tentura/features/constellation/data/gql/_g/constellation_anchor_delete.req.gql.dart';
 import 'package:tentura/features/constellation/data/gql/_g/constellation_anchor_upsert.req.gql.dart';
 import 'package:tentura/features/constellation/data/gql/_g/constellation_anchors_fetch.req.gql.dart';
+import 'package:tentura/features/beacon/data/gql/_g/post_publish.req.gql.dart';
+import 'package:tentura/features/beacon_threads/data/gql/_g/participant_room_access.req.gql.dart';
 import 'package:tentura/features/forward/data/gql/_g/forward_beacon.req.gql.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -24,6 +26,7 @@ import 'package:tentura/consts.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/domain/capability/capability_group.dart';
+import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
@@ -2089,6 +2092,42 @@ Future<String> createPublishedBeacon({
   return id;
 }
 
+/// Creates a draft Post and publishes it with [body] to [recipientIds] through
+/// the same two mutations the Post composer uses; returns the beacon id.
+Future<String> createPublishedPost({
+  required String body,
+  required List<String> recipientIds,
+}) async {
+  final created = await _postGraphQlRequest(
+    GBeaconCreateReq(
+      (b) => b.vars
+        ..kind = BeaconKind.post.value
+        ..draft = true,
+    ),
+  );
+  if (created['errors'] != null) {
+    throw StateError('post draft create failed: ${created['errors']}');
+  }
+  final id =
+      ((created['data'] as Map?)?['beaconCreate'] as Map?)?['id'] as String?;
+  if (id == null || id.isEmpty) {
+    throw StateError('post draft create returned no id: $created');
+  }
+  final published = await _postGraphQlRequest(
+    GPostPublishReq(
+      (b) => b.vars
+        ..id = id
+        ..body = body
+        ..recipientIds.replace(recipientIds)
+        ..forwardPolicy = BeaconForwardPolicyValue.closed.value,
+    ),
+  );
+  if (published['errors'] != null) {
+    throw StateError('postPublish failed: ${published['errors']}');
+  }
+  return id;
+}
+
 Future<void> forwardBeaconTo({
   required String beaconId,
   required String recipientId,
@@ -2133,4 +2172,84 @@ Future<void> reloadConstellation(WidgetTester tester) async {
   }
   await readConstellationCubit(tester).load();
   await waitForConstellationLoaded(tester);
+}
+
+/// `beacon_participant.room_access` of [userId] on [beaconId], read through
+/// Hasura (`/api/v1/graphql`) as [asEmail]; null when there is no row.
+/// Swaps the cookie back to [restoreEmail] afterwards (see [postGraphQlAsUser]).
+Future<int?> fetchParticipantRoomAccess({
+  required String beaconId,
+  required String userId,
+  required String asEmail,
+  required String restoreEmail,
+}) async {
+  await _postJson(
+    '/api/v2/auth/email/test-login',
+    {'email': asEmail},
+    includeCredentials: true,
+  );
+  try {
+    final tokenResponse = await _postJson(
+      '/api/v2/session/access-token',
+      const <String, Object?>{},
+      includeCredentials: true,
+    );
+    final token = tokenResponse['access_token'] as String?;
+    if (token == null || token.isEmpty) {
+      throw StateError('access-token missing for $asEmail: $tokenResponse');
+    }
+    final result = await _postJson(
+      '/api/v1/graphql',
+      const RequestSerializer().serializeRequest(
+        GParticipantRoomAccessReq(
+          (b) => b.vars
+            ..beaconId = beaconId
+            ..userId = userId,
+        ).execRequest,
+      ),
+      includeCredentials: true,
+      extraHeaders: {'Authorization': 'Bearer $token'},
+    );
+    if (result['errors'] != null) {
+      throw StateError('room_access query failed: ${result['errors']}');
+    }
+    final rows = ((result['data']! as Map)['beacon_participant']! as List)
+        .cast<Map<String, dynamic>>();
+    return rows.isEmpty ? null : rows.first['room_access'] as int;
+  } finally {
+    await _postJson(
+      '/api/v2/auth/email/test-login',
+      {'email': restoreEmail},
+      includeCredentials: true,
+    );
+  }
+}
+
+/// Leaves the open Post's conversation: overflow menu → "Leave conversation"
+/// → confirm "Leave".
+Future<void> leavePostConversation(WidgetTester tester) async {
+  await tapAndSettle(tester, find.byIcon(Icons.more_vert).first);
+  await tapAndSettle(tester, find.text('Leave conversation'));
+  final confirm = find.descendant(
+    of: find.byType(AlertDialog),
+    matching: find.text('Leave'),
+  );
+  await pumpUntilVisible(tester, confirm);
+  await tapAndSettle(tester, confirm);
+}
+
+/// Restores a left Post from the «Not interested» archive
+/// ([kPathInboxRejected]): row overflow menu → "Move to Activity".
+Future<void> returnToPostFromNotInterested(
+  WidgetTester tester, {
+  required String beaconId,
+}) async {
+  await goToPath(tester, kPathInboxRejected);
+  final row = find.byKey(ValueKey(beaconId));
+  await pumpUntilVisible(tester, row);
+  await tapAndSettle(
+    tester,
+    find.descendant(of: row, matching: find.byIcon(Icons.more_vert)),
+  );
+  await tapAndSettle(tester, find.text('Move to Activity'));
 }
