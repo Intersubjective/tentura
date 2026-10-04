@@ -7,6 +7,7 @@ import 'package:logging/logging.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/capability/capability_group.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/domain/port/capability_repository_port.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
@@ -14,6 +15,7 @@ import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
 
@@ -145,48 +147,83 @@ Future<_FakeCapabilityRepository> _pumpRoutingMuteScreen(
   return repository;
 }
 
-Finder _transportSwitch(L10n l10n) =>
-    find.widgetWithText(SwitchListTile, l10n.capabilityTagTransport);
+Finder _chip(String slug) => find.byKey(TestIds.key(TestIds.capabilityChip(slug)));
+
+/// Expands every group accordion so all chips are in the tree.
+Future<void> _expandAllGroups(WidgetTester tester, L10n l10n) async {
+  for (final group in CapabilityGroup.values) {
+    final header = find.text(_groupLabel(l10n, group));
+    if (header.evaluate().isEmpty) continue;
+    final tile = find.ancestor(
+      of: header,
+      matching: find.byType(ExpansionTile),
+    );
+    if (tile.evaluate().isEmpty) continue;
+    if (tester.widget<ExpansionTile>(tile.first).initiallyExpanded) continue;
+    await tester.tap(header);
+  }
+  await tester.pumpAndSettle();
+}
+
+String _groupLabel(L10n l10n, CapabilityGroup group) => switch (group) {
+  CapabilityGroup.logistics => l10n.capabilityGroupLogistics,
+  CapabilityGroup.communication => l10n.capabilityGroupCommunication,
+  CapabilityGroup.knowledge => l10n.capabilityGroupKnowledge,
+  CapabilityGroup.care => l10n.capabilityGroupCare,
+  CapabilityGroup.resources => l10n.capabilityGroupResources,
+  CapabilityGroup.technical => l10n.capabilityGroupTechnical,
+  CapabilityGroup.rpg => l10n.capabilityGroupRpg,
+  CapabilityGroup.special => l10n.capabilityGroupSpecial,
+};
 
 void main() {
   final l10n = lookupL10n(const Locale('en'));
 
-    testWidgets('renders all capability mute toggles with an empty muted set', (
-      tester,
-    ) async {
+  testWidgets('renders all capability chips, selected with an empty muted set', (
+    tester,
+  ) async {
     await _pumpRoutingMuteScreen(tester);
+    await _expandAllGroups(tester, l10n);
 
     expect(find.text(l10n.routingMuteScreenTitle), findsOneWidget);
     expect(find.text(l10n.routingMuteScreenDescription), findsOneWidget);
-    expect(find.byType(SwitchListTile), findsNWidgets(CapabilityTag.values.length));
-    final tiles = tester.widgetList<SwitchListTile>(find.byType(SwitchListTile));
-    expect(tiles.every((tile) => tile.value), isTrue);
+    expect(find.byType(FilterChip), findsNWidgets(CapabilityTag.values.length));
+    final chips = tester.widgetList<FilterChip>(find.byType(FilterChip));
+    expect(chips.every((chip) => chip.selected), isTrue);
   });
 
-  testWidgets('muted transport switch is off and the rest stay on', (
-    tester,
-  ) async {
-    await _pumpRoutingMuteScreen(tester, mutedSlugs: ['transport']);
+  testWidgets(
+    'a muted transport opens its group collapsed and shows it unselected',
+    (tester) async {
+      await _pumpRoutingMuteScreen(tester, mutedSlugs: ['transport']);
 
-    expect(
-      tester.widget<SwitchListTile>(_transportSwitch(l10n)).value,
-      isFalse,
-    );
-    final tiles = tester.widgetList<SwitchListTile>(find.byType(SwitchListTile));
-    expect(tiles.where((tile) => tile.value).length, CapabilityTag.values.length - 1);
-  });
+      // The logistics group auto-expands because it has a muted tag.
+      expect(
+        tester.widget<FilterChip>(_chip('transport')).selected,
+        isFalse,
+      );
+
+      await _expandAllGroups(tester, l10n);
+      final chips = tester.widgetList<FilterChip>(find.byType(FilterChip));
+      expect(
+        chips.where((chip) => chip.selected).length,
+        CapabilityTag.values.length - 1,
+      );
+    },
+  );
 
   testWidgets('turning transport off persists a mute', (tester) async {
     final repo = await _pumpRoutingMuteScreen(tester);
+    await _expandAllGroups(tester, l10n);
 
-    await tester.tap(_transportSwitch(l10n));
+    await tester.tap(_chip('transport'));
     await tester.pumpAndSettle();
 
     expect(repo.setMuteCalls, 1);
     expect(repo.lastMuteSlug, 'transport');
     expect(repo.lastMuteValue, isTrue);
     expect(
-      tester.widget<SwitchListTile>(_transportSwitch(l10n)).value,
+      tester.widget<FilterChip>(_chip('transport')).selected,
       isFalse,
     );
   });
