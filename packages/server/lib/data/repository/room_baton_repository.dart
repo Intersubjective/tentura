@@ -178,25 +178,33 @@ RETURNING id
     required String takerId,
     required BatonSelectionMode mode,
     required DateTime resolvedAt,
-  }) => _database.customStatement(
+  }) => _database.customUpdate(
     r'''
 UPDATE public.beacon_room_baton
    SET status = 1, taker_id = $2, selection_mode = $3, resolved_at = $4
  WHERE id = $1
 ''',
-    [batonId, takerId, mode.smallintValue, resolvedAt],
+    variables: [
+      Variable<String>(batonId),
+      Variable<String>(takerId),
+      Variable<int>(mode.smallintValue),
+      Variable(PgDateTime(resolvedAt), PgTypes.timestampWithTimezone),
+    ],
   );
 
   @override
   Future<void> cancel({
     required String batonId,
     required DateTime resolvedAt,
-  }) => _database.customStatement(
+  }) => _database.customUpdate(
     r'''
 UPDATE public.beacon_room_baton
    SET status = 2, resolved_at = $2
  WHERE id = $1
 ''',
-    [batonId, resolvedAt],
+    variables: [
+      Variable<String>(batonId),
+      Variable(PgDateTime(resolvedAt), PgTypes.timestampWithTimezone),
+    ],
   );
 }

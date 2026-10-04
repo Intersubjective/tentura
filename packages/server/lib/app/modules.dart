@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:injectable/injectable.dart';
 import 'package:logging/logging.dart';
 
@@ -5,4 +7,7 @@ import 'package:logging/logging.dart';
 abstract class RegisterModule {
   @singleton
   Logger get logger => Logger.root;
+
+  @singleton
+  Random get random => Random.secure();
 }

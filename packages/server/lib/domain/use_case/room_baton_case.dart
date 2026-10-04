@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/consts/beacon_room_consts.dart';
@@ -16,7 +18,7 @@ import '_use_case_base.dart';
 
 /// «Who'll take it?» (baton) — plan §2.2/B4
 /// (`docs/plans/baton-who-takes-it-plan.md`): `create` + `respond`.
-/// `select`/`cancel` land in B5.
+/// `select` + `cancel` (B5).
 @Singleton(order: 2)
 class RoomBatonCase extends UseCaseBase {
   RoomBatonCase(
@@ -26,9 +28,10 @@ class RoomBatonCase extends UseCaseBase {
     this._postLock,
     this._attention,
     this._attentionIntents, {
+    Random? random,
     required super.env,
     required super.logger,
-  });
+  }) : _random = random ?? Random.secure();
 
   final RoomBatonRepositoryPort _repo;
   final BeaconRoomRepositoryPort _room;
@@ -36,6 +39,7 @@ class RoomBatonCase extends UseCaseBase {
   final PostLockPort _postLock;
   final TransactionalAttentionCase _attention;
   final AttentionIntentCase _attentionIntents;
+  final Random _random;
 
   Future<void> _rejectIfRoomNotWritable(String beaconId) async {
     final status = await _hierarchyRepository.loadBeaconStatus(beaconId);
@@ -178,6 +182,90 @@ class RoomBatonCase extends UseCaseBase {
           sourceEventKey: 'baton_all_answered:$batonId',
         ),
       );
+    },
+  );
+
+  Future<void> select({
+    required String actorId,
+    required String batonId,
+    String? userId,
+  }) => _attention.runAction(
+    actorUserId: actorId,
+    action: (transaction) async {
+      final found = await _repo.getById(batonId);
+      if (found == null) {
+        throw const BatonNotFoundException();
+      }
+      await _postLock.lockForPostMutation(found.beaconId);
+      final baton = (await _repo.getById(batonId))!;
+      if (baton.authorId != actorId) {
+        throw const BatonNotAuthorException();
+      }
+      if (baton.status != BatonStatus.collecting) {
+        throw const BatonNotCollectingException();
+      }
+
+      final candidates = await _repo.getCandidates(batonId);
+      final admittedIds = await _admittedIds(baton.beaconId);
+      final present = candidates
+          .where((c) => admittedIds.contains(c.userId))
+          .toList(growable: false);
+      final taker = userId == null
+          ? BatonSelectionPolicy.pick(present, random: _random)
+          : BatonSelectionPolicy.pickManual(present, userId);
+
+      await _repo.select(
+        batonId: batonId,
+        takerId: taker.userId,
+        mode: userId == null
+            ? BatonSelectionMode.auto
+            : BatonSelectionMode.manual,
+        resolvedAt: DateTime.timestamp(),
+      );
+      await _room.insertRoomMessage(
+        beaconId: baton.beaconId,
+        authorId: baton.authorId,
+        body: '',
+        semanticMarker: BeaconRoomSemanticMarker.batonTaken,
+        systemPayload: {
+          'batonId': batonId,
+          'sourceMessageId': baton.messageId,
+          'takerUserId': taker.userId,
+        },
+      );
+      final message = await _room.getRoomMessageById(baton.messageId);
+      await transaction.record(
+        await _attentionIntents.batonTaken(
+          beaconId: baton.beaconId,
+          messageId: baton.messageId,
+          actorUserId: actorId,
+          recipientId: taker.userId,
+          excerpt: message?.body.trim() ?? '',
+          sourceEventKey: 'baton_taken:$batonId',
+        ),
+      );
+    },
+  );
+
+  Future<void> cancel({
+    required String actorId,
+    required String batonId,
+  }) => _attention.runAction(
+    actorUserId: actorId,
+    action: (transaction) async {
+      final found = await _repo.getById(batonId);
+      if (found == null) {
+        throw const BatonNotFoundException();
+      }
+      await _postLock.lockForPostMutation(found.beaconId);
+      final baton = (await _repo.getById(batonId))!;
+      if (baton.authorId != actorId) {
+        throw const BatonNotAuthorException();
+      }
+      if (baton.status != BatonStatus.collecting) {
+        throw const BatonNotCollectingException();
+      }
+      await _repo.cancel(batonId: batonId, resolvedAt: DateTime.timestamp());
     },
   );
 }
