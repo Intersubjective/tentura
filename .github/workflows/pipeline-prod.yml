@@ -31,7 +31,8 @@ jobs:
         target:
           - lints
           - server
-          - client
+          - client-a
+          - client-b
     steps:
       - uses: actions/checkout@v6
         with:
@@ -48,7 +49,7 @@ jobs:
         run: |
           set -euo pipefail
           target="${{ matrix.target }}"
-          if [ "$target" = "client" ]; then
+          if [[ "$target" == client-* ]]; then
             bash scripts/test_resolve_deploy_web_config.sh
           fi
           docker run --rm \
@@ -76,14 +77,25 @@ jobs:
                   ! rg "package:tentura_server/data/(service|storage)/" lib/domain/use_case
                   ! rg "package:tentura_server/data/" lib/domain
                   ;;
-                client)
+                client-a)
                   flutter pub get
                   cd packages/client
                   flutter gen-l10n
                   dart run build_runner build -d
                   bash ../../scripts/check-custom-lints.sh packages/client
                   bash ../../scripts/check-analyze-baseline.sh packages/client
-                  flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env
+                  non_feature_paths=$(find test -mindepth 1 -maxdepth 1 \( -type d -o -name "*_test.dart" \) | grep -v "^test/features$")
+                  flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env \
+                    $non_feature_paths \
+                    test/features/beacon_threads test/features/constellation test/features/auth
+                  ;;
+                client-b)
+                  flutter pub get
+                  cd packages/client
+                  flutter gen-l10n
+                  dart run build_runner build -d
+                  other_feature_paths=$(find test/features -mindepth 1 -maxdepth 1 -type d | grep -vE "/(beacon_threads|constellation|auth)$")
+                  flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env $other_feature_paths
                   ;;
                 *)
                   echo "Unknown test target: $TEST_TARGET" >&2

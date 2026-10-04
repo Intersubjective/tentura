@@ -39,7 +39,8 @@ jobs:
         target:
           - lints
           - server
-          - client
+          - client-a
+          - client-b
           - pg
     steps:
       - uses: actions/checkout@v6
@@ -96,7 +97,7 @@ jobs:
         run: |
           set -euo pipefail
           target="${{ matrix.target }}"
-          if [ "$target" = "client" ]; then
+          if [[ "$target" == client-* ]]; then
             bash scripts/test_resolve_deploy_web_config.sh
           fi
           network_args=()
@@ -152,7 +153,16 @@ jobs:
                   dart run bin/utils/run_migrations_once.dart
                   dart test --tags pg --exclude-tags mr
                   ;;
-                client)
+                client-a)
+                  # client-a/client-b split packages/client/test in two to run
+                  # in parallel: client-a keeps every non-feature test
+                  # directory/file (computed, so a new top-level test dir
+                  # lands here automatically) plus the three largest
+                  # test/features/* subdirectories; client-b takes the rest
+                  # of test/features/* (also computed, so a new feature
+                  # subdirectory lands there automatically). Package-wide
+                  # checks (lints, analyze baseline, l10n/arb duplicates)
+                  # only need to run once, so they live on client-a.
                   python3 scripts/test_check_arb_duplicates.py
                   python3 scripts/check_arb_duplicates.py
                   flutter pub get
@@ -161,7 +171,18 @@ jobs:
                   dart run build_runner build -d
                   bash ../../scripts/check-custom-lints.sh packages/client
                   bash ../../scripts/check-analyze-baseline.sh packages/client
-                  flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env
+                  non_feature_paths=$(find test -mindepth 1 -maxdepth 1 \( -type d -o -name "*_test.dart" \) | grep -v "^test/features$")
+                  flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env \
+                    $non_feature_paths \
+                    test/features/beacon_threads test/features/constellation test/features/auth
+                  ;;
+                client-b)
+                  flutter pub get
+                  cd packages/client
+                  flutter gen-l10n
+                  dart run build_runner build -d
+                  other_feature_paths=$(find test/features -mindepth 1 -maxdepth 1 -type d | grep -vE "/(beacon_threads|constellation|auth)$")
+                  flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env $other_feature_paths
                   ;;
                 *)
                   echo "Unknown test target: $TEST_TARGET" >&2
