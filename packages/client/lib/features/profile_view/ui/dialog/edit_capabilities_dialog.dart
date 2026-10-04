@@ -10,20 +10,22 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 
 import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
 
-/// Bottom-sheet modal for editing the viewer's subjective capability view of
-/// [subjectId]. Shows all capability slugs currently visible to the viewer,
+/// Bottom-sheet modal for editing the viewer's private, subjective capability
+/// view of [subjectId]. Shows all capability slugs currently visible to the viewer,
 /// with automatically-acquired slugs (help offer roles, forwards, close-acks)
 /// rendered in a secondary color. The viewer may add or remove any slug;
 /// removals create tombstone records that suppress the slug only for this viewer.
 class EditCapabilitiesDialog extends StatefulWidget {
   const EditCapabilitiesDialog._({
     required this.subjectId,
+    required this.subjectName,
     required this.initialSlugs,
     required this.automaticSlugs,
     required this.onSaved,
   });
 
   final String subjectId;
+  final String subjectName;
   final Set<String> initialSlugs;
   final Set<String> automaticSlugs;
   final void Function(List<String> slugs, Set<String> automaticSlugs) onSaved;
@@ -31,6 +33,7 @@ class EditCapabilitiesDialog extends StatefulWidget {
   static Future<void> show(
     BuildContext context, {
     required String subjectId,
+    required String subjectName,
     required List<CapabilityWithSource> currentVisible,
     required void Function(List<String>, Set<String>) onSaved,
   }) async {
@@ -40,6 +43,7 @@ class EditCapabilitiesDialog extends StatefulWidget {
       showDragHandle: false,
       builder: (_) => EditCapabilitiesDialog._(
         subjectId: subjectId,
+        subjectName: subjectName,
         initialSlugs: currentVisible.map((c) => c.slug).toSet(),
         automaticSlugs: currentVisible
             .where((c) => !c.hasManualLabel)
@@ -94,53 +98,65 @@ class _EditCapabilitiesDialogState extends State<EditCapabilitiesDialog> {
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
+    final theme = Theme.of(context);
     return TenturaSheetDismissGuard(
       isDirty: _isDirty,
       child: DraggableScrollableSheet(
-      expand: false,
-      initialChildSize: 0.75,
-      minChildSize: 0.4,
-      maxChildSize: 0.95,
-      builder: (_, scrollController) => Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    l10n.capabilityEditCapabilities,
-                    style: Theme.of(context).textTheme.titleMedium,
+        expand: false,
+        initialChildSize: 0.75,
+        minChildSize: 0.4,
+        maxChildSize: 0.95,
+        builder: (_, scrollController) => Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          l10n.capabilityDialogTitle(widget.subjectName),
+                          style: theme.textTheme.titleMedium,
+                        ),
+                        Text(
+                          l10n.capabilityDialogOnlyYou,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                FilledButton(
-                  onPressed: _saving ? null : _save,
-                  child: _saving
-                      ? const SizedBox.square(
-                          dimension: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Text(l10n.buttonSave),
-                ),
-              ],
+                  FilledButton(
+                    onPressed: _saving ? null : _save,
+                    child: _saving
+                        ? const SizedBox.square(
+                            dimension: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Text(l10n.buttonSave),
+                  ),
+                ],
+              ),
             ),
-          ),
-          Expanded(
-            child: ListView(
-              controller: scrollController,
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
-              children: [
-                CapabilityChipSet(
-                  selectedSlugs: _selected,
-                  automaticSlugs: widget.automaticSlugs,
-                  onChanged: (s) => setState(() => _selected = s),
-                ),
-              ],
+            Expanded(
+              child: ListView(
+                controller: scrollController,
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+                children: [
+                  CapabilityChipSet(
+                    selectedSlugs: _selected,
+                    automaticSlugs: widget.automaticSlugs,
+                    onChanged: (s) => setState(() => _selected = s),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
     );
   }
 }

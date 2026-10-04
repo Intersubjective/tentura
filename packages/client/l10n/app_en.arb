@@ -1068,11 +1068,11 @@
   "@graphLegendMutual": {
     "context": "GraphScreen"
   },
-  "graphLegendEyeOpen": "Open eye — you and this person have two-way visibility and can forward requests (Trust or MeritRank in each direction)",
+  "graphLegendEyeOpen": "Open eye — you see each other and can forward requests (through trust or MeritRank in each direction)",
   "@graphLegendEyeOpen": {
     "context": "GraphScreen — mutual visibility via Trust or MeritRank per direction (#100)"
   },
-  "graphLegendEyeClosed": "Closed eye — you and this user cannot see each other and cannot forward requests to each other",
+  "graphLegendEyeClosed": "Closed eye — you don't see each other yet and can't forward requests to each other",
   "@graphLegendEyeClosed": {
     "context": "GraphScreen"
   },
@@ -5494,6 +5494,49 @@
   "beaconRoomAttachmentUntitled": "File",
   "beaconRoomAttachmentOpenFailed": "Could not open attachment.",
   "beaconRoomAttachmentOpenShare": "Share file",
+  "profileTrustNotYet": "You don't trust them yet",
+  "profileEyeOpen": "You see each other and can forward requests",
+  "profileEyeClosed": "You don't see each other yet",
+  "profileEyeInfoTitle": "Who sees whom",
+  "profileEyeReasonMutualTrust": "Because you trust each other.",
+  "profileEyeReasonMeritRank": "Through people you both know (MeritRank).",
+  "profileEyeClosedHint": "To see each other, you need trust or people you both know, in both directions.",
+  "profileEyeTrustNote": "Trust is your own vote. The open eye is the result: it can open without trust, through people you both know.",
+  "profileMyLabelsLine": "Your labels: {tags}",
+  "@profileMyLabelsLine": {
+    "placeholders": {
+      "tags": {
+        "type": "String"
+      }
+    }
+  },
+  "profileMarkCapabilities": "Mark what {name} can help with",
+  "@profileMarkCapabilities": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "profileEditLabels": "Edit labels",
+  "profileLabelsInfoTitle": "Your private labels",
+  "profileLabelsInfoBody": "These are your notes, {name} can't see them. Tentura uses them to suggest this person for matching requests.",
+  "@profileLabelsInfoBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "capabilityDialogTitle": "What can {name} help with?",
+  "@capabilityDialogTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "capabilityDialogOnlyYou": "Only you can see this",
   "capabilityEditCapabilities": "Edit capabilities",
   "capabilityCueMyLabels": "My labels: {tags}",
   "@capabilityCueMyLabels": {
