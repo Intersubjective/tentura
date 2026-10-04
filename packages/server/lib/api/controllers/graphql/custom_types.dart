@@ -99,6 +99,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlEnumClosureDraftFlag,
   gqlEnumClosureRole,
   gqlInputClosureSplitEntry,
+  gqlInputRoomBatonCandidate,
   gqlTypeClosureMember,
   gqlTypeClosureOutcomeEntry,
   gqlTypeClosureSplitEntry,
@@ -489,6 +490,8 @@ final gqlTypeRoomMessageRow = GraphQLObjectType('RoomMessageRow', null)
     field('linkedItemLinkedMessageId', graphQLString),
     field('linkedItemResolvedAt', graphQLString),
     field('pollDataJson', graphQLString),
+    // Per-viewer «Who'll take it?» payload; null when the viewer sees none.
+    field('batonDataJson', graphQLString),
     field('systemPayloadJson', graphQLString),
     field('authorTitle', graphQLString.nonNullable()),
     field('authorHasPicture', graphQLBoolean.nonNullable()),
@@ -1662,6 +1665,14 @@ final gqlEnumClosureDraftFlag = enumTypeFromStrings(
 final gqlEnumClosureRole = enumTypeFromStrings(
   'ClosureRole',
   const ['author', 'voter', 'member'],
+);
+
+final gqlInputRoomBatonCandidate = GraphQLInputObjectType(
+  'RoomBatonCandidateInput',
+  inputFields: [
+    GraphQLInputObjectField('userId', graphQLString.nonNullable()),
+    GraphQLInputObjectField('tier', graphQLInt.nonNullable()),
+  ],
 );
 
 final gqlInputClosureSplitEntry = GraphQLInputObjectType(
