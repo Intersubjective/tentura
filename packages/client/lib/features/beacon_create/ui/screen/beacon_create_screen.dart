@@ -1,4 +1,4 @@
-import 'dart:async' show unawaited;
+import 'dart:async' show TimeoutException, unawaited;
 
 import 'package:flutter/material.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
@@ -126,6 +126,9 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
   static const _formStep = 0;
   static const _recipientsStep = 1;
 
+  /// How long the recipients step waits for the draft before offering a retry.
+  static const _draftEnsureTimeout = Duration(seconds: 90);
+
   final _formKey = GlobalKey<FormState>();
 
   late final _beaconCreateCubit = context.read<BeaconCreateCubit>();
@@ -174,6 +177,20 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
     if (_beaconCreateCubit.state.publishBlocker != null) {
       return;
     }
+    final contextName = context.read<ContextCubit>().state.selected;
+    setState(() => _recipientsDraftEnsuring = true);
+    try {
+      await _flushAndEnsureDraft(contextName).timeout(_draftEnsureTimeout);
+    } on TimeoutException {
+      // The create stays in flight: a late answer still sets draftId and
+      // opens the picker.
+    }
+    if (mounted) {
+      setState(() => _recipientsDraftEnsuring = false);
+    }
+  }
+
+  Future<void> _flushAndEnsureDraft(String contextName) async {
     // Flush before the forward band loads: needs selected after the first
     // autosave must reach the server or fetchForwardContext sees empty needs
     // and returns an empty band (no "Seen helping with …").
@@ -181,15 +198,10 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
     if (_beaconCreateCubit.state.draftId != null) {
       return;
     }
-    _recipientsDraftEnsuring = true;
-    final contextName = context.read<ContextCubit>().state.selected;
     await _beaconCreateCubit.ensureDraft(
       context: contextName,
       showMessage: false,
     );
-    if (mounted) {
-      setState(() => _recipientsDraftEnsuring = false);
-    }
   }
 
   ForwardCubit? _forwardCubitFor(BeaconCreateState state, String contextName) {
@@ -769,11 +781,16 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const CircularProgressIndicator.adaptive(),
-            SizedBox(height: context.tt.rowGap),
             Text(
-              l10n.beaconRecipientsPreparing,
+              l10n.beaconRecipientsPrepareFailed,
               style: TenturaText.bodySmall(context.tt.textMuted),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: context.tt.rowGap),
+            TenturaCommandButton(
+              key: const Key('BeaconCreate.RecipientsRetry'),
+              label: l10n.myWorkRetry,
+              onPressed: () => unawaited(_prepareRecipientsTab()),
             ),
           ],
         ),

@@ -608,6 +608,10 @@
   "@beaconRecipientsPreparing": {
     "context": "BeaconCreateScreen"
   },
+  "beaconRecipientsPrepareFailed": "Couldn't prepare the draft. Check your connection and try again.",
+  "@beaconRecipientsPrepareFailed": {
+    "context": "BeaconCreateScreen"
+  },
   "beaconSendConfirmationTitle": "Request sent",
   "@beaconSendConfirmationTitle": {
     "context": "BeaconCreateScreen"
