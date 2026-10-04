@@ -15,11 +15,13 @@ import 'package:tentura/ui/utils/profile_presence_line.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
 import 'package:tentura/ui/widget/trust_info_sheet.dart';
+import 'package:tentura/ui/widget/trust_toggle_line.dart';
 import 'package:tentura/ui/widget/tentura_fullscreen_image_viewer.dart';
 import 'package:tentura/ui/widget/tentura_selection_area.dart';
 import 'package:tentura/ui/widget/url_link_annotations.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 
+import 'package:tentura/features/friends/ui/dialog/friend_remove_dialog.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 
 import '../../domain/port/person_shared_context_port.dart';
@@ -190,8 +192,9 @@ class _ProfileAvatarSection extends StatelessWidget {
   );
 }
 
-/// Your own trust vote toward this person (#140). Incoming trust is part of
-/// why the eye is open, so it lives behind the eye's ⓘ.
+/// Your own trust vote toward this person, with the toggle that casts or
+/// withdraws it (#140). Incoming trust is part of why the eye is open, so it
+/// lives behind the eye's ⓘ.
 class _ProfileTrustRelationLine extends StatelessWidget {
   const _ProfileTrustRelationLine({
     required this.l10n,
@@ -202,17 +205,26 @@ class _ProfileTrustRelationLine extends StatelessWidget {
   final Profile profile;
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: kPaddingSmallT,
-    child: ProfileFactRow(
-      icon: profile.viewerExplicitlyTrustsSubject
-          ? Icons.handshake_outlined
-          : Icons.person_outline,
-      text: profile.viewerExplicitlyTrustsSubject
-          ? l10n.trustSentenceOneWayOut
-          : l10n.profileTrustNotYet,
-    ),
-  );
+  Widget build(BuildContext context) {
+    final trusts = profile.viewerExplicitlyTrustsSubject;
+    final cubit = context.read<ProfileViewCubit>();
+    return Padding(
+      padding: kPaddingSmallT,
+      child: TrustToggleLine(
+        trusts: trusts,
+        onTextTap: () => showTrustInfoSheet(context),
+        onChanged: (on) => on
+            ? unawaited(cubit.addFriend())
+            : unawaited(
+                FriendRemoveDialog.show(
+                  context,
+                  profile: profile,
+                  onRemove: cubit.removeFriend,
+                ),
+              ),
+      ),
+    );
+  }
 }
 
 /// The open / closed eye: the result of trust and MeritRank in both
@@ -305,29 +317,11 @@ class _ProfilePrimaryAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final screenCubit = context.read<ScreenCubit>();
-    final profileViewCubit = context.read<ProfileViewCubit>();
 
     return switch (policy.primaryAction) {
       PersonPrimaryAction.none => const SizedBox.shrink(),
-      PersonPrimaryAction.trust => Padding(
-        padding: kPaddingSmallT,
-        child: Row(
-          children: [
-            Expanded(
-              child: FilledButton.icon(
-                onPressed: profileViewCubit.addFriend,
-                icon: const Icon(Icons.people),
-                label: Text(l10n.trustThisUser),
-              ),
-            ),
-            IconButton(
-              onPressed: () => showTrustInfoSheet(context),
-              icon: const Icon(Icons.info_outline),
-              tooltip: l10n.trustInfoTitle,
-            ),
-          ],
-        ),
-      ),
+      // The trust toggle on the trust line is the trust action (#140).
+      PersonPrimaryAction.trust => const SizedBox.shrink(),
       PersonPrimaryAction.sendRequest => Padding(
         padding: kPaddingSmallT,
         child: FilledButton.icon(
@@ -356,7 +350,6 @@ class _ProfileSecondaryActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final screenCubit = context.read<ScreenCubit>();
-    final profileViewCubit = context.read<ProfileViewCubit>();
     final children = <Widget>[];
 
     if (policy.primaryAction == PersonPrimaryAction.none &&
@@ -368,16 +361,6 @@ class _ProfileSecondaryActions extends StatelessWidget {
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
-        ),
-      );
-    }
-
-    if (policy.showSecondaryTrust) {
-      children.add(
-        OutlinedButton.icon(
-          onPressed: profileViewCubit.addFriend,
-          icon: const Icon(Icons.people_outlined),
-          label: Text(l10n.trustThisUser),
         ),
       );
     }

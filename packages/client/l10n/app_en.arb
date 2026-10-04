@@ -7140,14 +7140,6 @@
       }
     }
   },
-  "postParticipantInContacts": "in contacts",
-  "@postParticipantInContacts": {
-    "description": "Label next to a Post participant who is already a contact."
-  },
-  "postParticipantAddToContacts": "+ Add to contacts",
-  "@postParticipantAddToContacts": {
-    "description": "Shortcut button next to a Post participant who is not a contact."
-  },
   "postParticipantBroughtBy": "invited by {name}",
   "@postParticipantBroughtBy": {
     "description": "Label next to a Post participant naming who forwarded the Post to them.",

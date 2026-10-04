@@ -1,6 +1,6 @@
 // The Post participants screen lists who is in the conversation («В РАЗГОВОРЕ»)
 // and who has not opened it yet («ЕЩЁ НЕ ОТКРЫЛИ»), marks contacts, offers a
-// «[+ В контакты]» shortcut that reuses `ProfileViewCubit.addFriend`, shows who
+// trust toggle (was «[+ В контакты]») shortcut that reuses `ProfileViewCubit.addFriend`, shows who
 // brought a member in from the forward edges, opens a profile on tap, shows
 // the «Можно пересылать» + «Позвать» row and links to the
 // forwarding graph. Rows are located by what they show and where they sit, not
@@ -246,7 +246,11 @@ Future<_Harness> _pump(
   );
 }
 
-final _addToContacts = find.textContaining('В контакты');
+/// The trust toggle in the off position (its tooltip offers trust, #140).
+final _addToContacts = find.byTooltip('Доверять этому пользователю');
+
+/// The trust toggle in the on position.
+final _inContacts = find.byTooltip('Перестать доверять');
 
 void main() {
   group('Post participants screen', () {
@@ -367,12 +371,12 @@ void main() {
       expect(find.textContaining('ЕЩЁ НЕ ОТКРЫЛИ'), findsNothing);
     });
 
-    testWidgets('shows «в контактах» for a member who is a contact', (
+    testWidgets('shows the trust toggle on for a member who is a contact', (
       tester,
     ) async {
       final h = await _pump(tester);
 
-      expect(h.hasBeside('Мария', find.text('в контактах')), isTrue);
+      expect(h.hasBeside('Мария', _inContacts), isTrue);
       expect(h.hasBeside('Мария', _addToContacts), isFalse);
     });
 
@@ -391,7 +395,7 @@ void main() {
     });
 
     testWidgets(
-      'offers «[+ В контакты]» beside a member who is not a contact',
+      'offers the trust toggle off beside a member who is not a contact',
       (
         tester,
       ) async {
@@ -403,7 +407,7 @@ void main() {
       },
     );
 
-    testWidgets('«[+ В контакты]» adds that member through the profile cubit', (
+    testWidgets('the trust toggle adds that member through the profile cubit', (
       tester,
     ) async {
       final h = await _pump(tester);
@@ -420,7 +424,7 @@ void main() {
       );
     });
 
-    testWidgets('a member added from the list reads «в контактах»', (
+    testWidgets('a member added from the list shows the toggle on', (
       tester,
     ) async {
       final h = await _pump(tester);
@@ -428,7 +432,7 @@ void main() {
       await h.tapBeside('Дима', _addToContacts);
       await tester.pump();
 
-      expect(h.hasBeside('Дима', find.text('в контактах')), isTrue);
+      expect(h.hasBeside('Дима', _inContacts), isTrue);
       expect(h.hasBeside('Дима', _addToContacts), isFalse);
     });
 

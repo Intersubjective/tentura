@@ -6239,8 +6239,6 @@
       }
     }
   },
-  "postParticipantInContacts": "в контактах",
-  "postParticipantAddToContacts": "+ В контакты",
   "postParticipantBroughtBy": "позвала {name}",
   "@postParticipantBroughtBy": {
     "placeholders": {

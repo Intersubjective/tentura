@@ -61,6 +61,7 @@ class _StubContextCubit extends Cubit<GraphPersonContextState>
     : super(initial ?? const GraphPersonContextState());
 
   int trustCalls = 0;
+  int untrustCalls = 0;
   int dismissCalls = 0;
 
   @override
@@ -74,6 +75,9 @@ class _StubContextCubit extends Cubit<GraphPersonContextState>
 
   @override
   Future<void> trustSelected() async => trustCalls += 1;
+
+  @override
+  Future<void> untrustSelected() async => untrustCalls += 1;
 
   @override
   void clearSelection() {}
@@ -198,7 +202,7 @@ void main() {
         expect(find.text(l10n.profileSendRequestTo), findsOneWidget);
         expect(find.text(l10n.profile), findsOneWidget);
         expect(find.text(l10n.graphShowMoreConnections(3)), findsOneWidget);
-        expect(find.text(l10n.trustThisUser), findsOneWidget);
+        expect(find.byTooltip(l10n.trustThisUser), findsOneWidget);
         expect(find.text(l10n.profileRequestOptions), findsNothing);
       },
     );
@@ -228,7 +232,7 @@ void main() {
       final l10n = lookupL10n(const Locale('en'));
       expect(find.text(l10n.profileRequestUnavailable), findsOneWidget);
       expect(find.text(l10n.profileRequestOptions), findsOneWidget);
-      expect(find.text(l10n.trustThisUser), findsNothing);
+      expect(find.byTooltip(l10n.trustThisUser), findsNothing);
       expect(find.byType(FilledButton), findsNothing);
     });
 
@@ -254,8 +258,8 @@ void main() {
       );
 
       final l10n = lookupL10n(const Locale('en'));
-      expect(find.byType(FilledButton), findsOneWidget);
-      expect(find.text(l10n.trustThisUser), findsOneWidget);
+      expect(find.byType(FilledButton), findsNothing);
+      expect(find.byTooltip(l10n.trustThisUser), findsOneWidget);
       expect(find.text(l10n.profileRequestOptions), findsOneWidget);
     });
 
@@ -277,10 +281,51 @@ void main() {
       );
 
       final l10n = lookupL10n(const Locale('en'));
-      expect(find.byType(FilledButton), findsOneWidget);
-      expect(find.text(l10n.trustThisUser), findsOneWidget);
+      expect(find.byType(FilledButton), findsNothing);
+      expect(find.byTooltip(l10n.trustThisUser), findsOneWidget);
       expect(find.text(l10n.profileRequestOptions), findsOneWidget);
       expect(find.text(l10n.profile), findsOneWidget);
+    });
+
+    testWidgets('trust toggle: on trusts, off asks to confirm first', (
+      tester,
+    ) async {
+      final contextCubit = _StubContextCubit();
+      final graphCubit = _StubGraphCubit(
+        initial: const GraphState(
+          me: Profile(id: 'U-me', displayName: 'Me'),
+          focus: 'U-peer',
+        ),
+      );
+      await _pumpPanel(
+        tester,
+        profile: const Profile(id: 'U-peer', displayName: 'Peer'),
+        graphState: graphCubit.state,
+        graphCubit: graphCubit,
+        contextCubit: contextCubit,
+      );
+      await tester.tap(
+        find.byKey(TestIds.key(TestIds.graphPersonContextTrust)),
+      );
+      await tester.pumpAndSettle();
+      expect(contextCubit.trustCalls, 1);
+
+      await _pumpPanel(
+        tester,
+        profile: const Profile(id: 'U-peer', displayName: 'Peer', myVote: 1),
+        graphState: graphCubit.state,
+        graphCubit: graphCubit,
+        contextCubit: contextCubit,
+      );
+      final l10n = lookupL10n(const Locale('en'));
+      await tester.tap(
+        find.byKey(TestIds.key(TestIds.graphPersonContextTrust)),
+      );
+      await tester.pumpAndSettle();
+      expect(contextCubit.untrustCalls, 0);
+      await tester.tap(find.text(l10n.buttonRemove));
+      await tester.pumpAndSettle();
+      expect(contextCubit.untrustCalls, 1);
     });
 
     testWidgets('mutual with outgoing trust: Send without secondary Trust', (
@@ -308,7 +353,7 @@ void main() {
 
       final l10n = lookupL10n(const Locale('en'));
       expect(find.text(l10n.profileSendRequestTo), findsOneWidget);
-      expect(find.text(l10n.trustThisUser), findsNothing);
+      expect(find.byTooltip(l10n.trustThisUser), findsNothing);
     });
 
     testWidgets('Send emits forward navigation', (tester) async {
@@ -662,11 +707,14 @@ void main() {
         );
 
         final l10n = lookupL10n(const Locale('en'));
-        expect(find.textContaining('Not taking new requests until'), findsOneWidget);
+        expect(
+          find.textContaining('Not taking new requests until'),
+          findsOneWidget,
+        );
         expect(find.text(l10n.profileSendRequestTo), findsNothing);
         expect(find.text(l10n.profileRequestOptions), findsNothing);
         expect(find.text(l10n.profileRequestUnavailable), findsNothing);
-        expect(find.text(l10n.trustThisUser), findsOneWidget);
+        expect(find.byTooltip(l10n.trustThisUser), findsOneWidget);
         expect(find.byType(FilledButton), findsNothing);
       },
     );
@@ -698,45 +746,51 @@ void main() {
         );
 
         final l10n = lookupL10n(const Locale('en'));
-        expect(find.textContaining('Not taking new requests until'), findsOneWidget);
+        expect(
+          find.textContaining('Not taking new requests until'),
+          findsOneWidget,
+        );
         expect(find.text(l10n.profileRequestUnavailable), findsNothing);
         expect(find.text(l10n.profileRequestOptions), findsNothing);
         expect(find.text(l10n.profileSendRequestTo), findsNothing);
-        expect(find.text(l10n.trustThisUser), findsNothing);
+        expect(find.byTooltip(l10n.trustThisUser), findsNothing);
         expect(find.byType(FilledButton), findsNothing);
       },
     );
 
-    testWidgets('paused subject-only keeps Trust primary without request options', (
-      tester,
-    ) async {
-      final todayUtc = availabilityTodayUtc();
-      final profile = Profile(
-        id: 'U-peer',
-        displayName: 'Peer',
-        rScore: 1,
-        availability: Availability(
-          resumeOn: todayUtc.add(const Duration(days: 3)),
-        ),
-      );
-      final graphCubit = _StubGraphCubit(
-        initial: const GraphState(
-          me: Profile(id: 'U-me', displayName: 'Me'),
-          focus: 'U-peer',
-        ),
-      );
-      await _pumpPanel(
+    testWidgets(
+      'paused subject-only keeps Trust primary without request options',
+      (
         tester,
-        profile: profile,
-        graphState: graphCubit.state,
-        graphCubit: graphCubit,
-      );
+      ) async {
+        final todayUtc = availabilityTodayUtc();
+        final profile = Profile(
+          id: 'U-peer',
+          displayName: 'Peer',
+          rScore: 1,
+          availability: Availability(
+            resumeOn: todayUtc.add(const Duration(days: 3)),
+          ),
+        );
+        final graphCubit = _StubGraphCubit(
+          initial: const GraphState(
+            me: Profile(id: 'U-me', displayName: 'Me'),
+            focus: 'U-peer',
+          ),
+        );
+        await _pumpPanel(
+          tester,
+          profile: profile,
+          graphState: graphCubit.state,
+          graphCubit: graphCubit,
+        );
 
-      final l10n = lookupL10n(const Locale('en'));
-      expect(find.byType(FilledButton), findsOneWidget);
-      expect(find.text(l10n.trustThisUser), findsOneWidget);
-      expect(find.text(l10n.profileRequestOptions), findsNothing);
-      expect(find.text(l10n.profileSendRequestTo), findsNothing);
-    });
+        final l10n = lookupL10n(const Locale('en'));
+        expect(find.byType(FilledButton), findsNothing);
+        expect(find.byTooltip(l10n.trustThisUser), findsOneWidget);
+        expect(find.text(l10n.profileRequestOptions), findsNothing);
+        expect(find.text(l10n.profileSendRequestTo), findsNothing);
+      },
+    );
   });
 }

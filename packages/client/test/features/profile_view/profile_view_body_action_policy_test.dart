@@ -244,7 +244,7 @@ void main() {
 
       final l10n = lookupL10n(const Locale('en'));
       expect(countFilledButtons(tester), 0);
-      expect(find.text(l10n.trustThisUser), findsNothing);
+      expect(find.byTooltip(l10n.trustThisUser), findsNothing);
       expect(find.text(l10n.profileSendRequestTo), findsNothing);
       expect(find.text(l10n.profileRequestOptions), findsNothing);
     });
@@ -266,7 +266,7 @@ void main() {
         final l10n = lookupL10n(const Locale('en'));
         expect(countFilledButtons(tester), 1);
         expect(find.text(l10n.profileSendRequestTo), findsOneWidget);
-        expect(find.text(l10n.trustThisUser), findsOneWidget);
+        expect(find.byTooltip(l10n.trustThisUser), findsOneWidget);
         expect(find.text(l10n.profileRequestOptions), findsNothing);
         expect(find.text(l10n.profileEyeOpen), findsOneWidget);
         await openEyeInfo(tester, l10n);
@@ -289,7 +289,7 @@ void main() {
       final l10n = lookupL10n(const Locale('en'));
       expect(countFilledButtons(tester), 1);
       expect(find.text(l10n.profileSendRequestTo), findsOneWidget);
-      expect(find.text(l10n.trustThisUser), findsNothing);
+      expect(find.byTooltip(l10n.trustThisUser), findsNothing);
       expect(find.text(l10n.profileRequestOptions), findsNothing);
     });
 
@@ -307,8 +307,8 @@ void main() {
         await pumpBody(tester, subject: subject, viewer: viewer);
 
         final l10n = lookupL10n(const Locale('en'));
-        expect(countFilledButtons(tester), 1);
-        expect(find.text(l10n.trustThisUser), findsOneWidget);
+        expect(countFilledButtons(tester), 0);
+        expect(find.byTooltip(l10n.trustThisUser), findsOneWidget);
         expect(find.text(l10n.profileRequestOptions), findsOneWidget);
         expect(find.text(l10n.profileSendRequestTo), findsNothing);
         expect(find.text(l10n.profileEyeClosed), findsOneWidget);
@@ -328,8 +328,8 @@ void main() {
       await pumpBody(tester, subject: subject, viewer: viewer);
 
       final l10n = lookupL10n(const Locale('en'));
-      expect(countFilledButtons(tester), 1);
-      expect(find.text(l10n.trustThisUser), findsOneWidget);
+      expect(countFilledButtons(tester), 0);
+      expect(find.byTooltip(l10n.trustThisUser), findsOneWidget);
       expect(find.text(l10n.profileRequestOptions), findsOneWidget);
       expect(find.text(l10n.profileEyeClosed), findsOneWidget);
     });
@@ -350,7 +350,7 @@ void main() {
 
         final l10n = lookupL10n(const Locale('en'));
         expect(countFilledButtons(tester), 0);
-        expect(find.text(l10n.trustThisUser), findsNothing);
+        expect(find.byTooltip(l10n.trustThisUser), findsNothing);
         expect(find.text(l10n.profileSendRequestTo), findsNothing);
         expect(find.text(l10n.profileRequestUnavailable), findsOneWidget);
         expect(find.text(l10n.profileRequestOptions), findsOneWidget);
@@ -445,7 +445,7 @@ void main() {
         expect(find.text(l10n.profileSendRequestTo), findsNothing);
         expect(find.text(l10n.profileRequestOptions), findsNothing);
         expect(find.text(l10n.profileRequestUnavailable), findsNothing);
-        expect(find.text(l10n.trustThisUser), findsOneWidget);
+        expect(find.byTooltip(l10n.trustThisUser), findsOneWidget);
       },
     );
 
@@ -473,7 +473,7 @@ void main() {
         expect(find.text(l10n.profileRequestUnavailable), findsNothing);
         expect(find.text(l10n.profileRequestOptions), findsNothing);
         expect(find.text(l10n.profileSendRequestTo), findsNothing);
-        expect(find.text(l10n.trustThisUser), findsNothing);
+        expect(find.byTooltip(l10n.trustThisUser), findsNothing);
         expect(countFilledButtons(tester), 0);
       },
     );
@@ -496,7 +496,7 @@ void main() {
         await pumpBody(tester, subject: subject, viewer: viewer);
 
         final l10n = lookupL10n(const Locale('en'));
-        expect(find.text(l10n.trustThisUser), findsOneWidget);
+        expect(find.byTooltip(l10n.trustThisUser), findsOneWidget);
         expect(find.text(l10n.profileRequestOptions), findsNothing);
         expect(find.text(l10n.profileSendRequestTo), findsNothing);
       },

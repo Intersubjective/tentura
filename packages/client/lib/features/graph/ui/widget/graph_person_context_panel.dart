@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -8,9 +10,11 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/model/person_action_policy.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/availability_line.dart';
+import 'package:tentura/ui/widget/trust_toggle_line.dart';
 
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_request_label.dart';
+import 'package:tentura/features/friends/ui/dialog/friend_remove_dialog.dart';
 
 import '../../domain/entity/node_details.dart';
 import '../bloc/graph_person_context_cubit.dart';
@@ -106,6 +110,26 @@ class GraphPersonContextPanel extends StatelessWidget {
           profile: profile,
           todayUtc: todayUtc,
         ),
+        // Between the primary action (1) and request options (2) in tab
+        // order, matching the old trust button's place.
+        FocusTraversalOrder(
+          order: const NumericFocusOrder(1.5),
+          child: TrustToggleLine(
+            trusts: profile.viewerExplicitlyTrustsSubject,
+            switchKey: TestIds.key(TestIds.graphPersonContextTrust),
+            onChanged: contextState.trustLoading
+                ? null
+                : (on) => on
+                      ? unawaited(contextCubit.trustSelected())
+                      : unawaited(
+                          FriendRemoveDialog.show(
+                            context,
+                            profile: profile,
+                            onRemove: contextCubit.untrustSelected,
+                          ),
+                        ),
+          ),
+        ),
         _VisibilitySection(
           l10n: l10n,
           profile: profile,
@@ -129,7 +153,6 @@ class GraphPersonContextPanel extends StatelessWidget {
           policy: policy,
           canShowMore: canShowMore,
           hiddenCount: hiddenNeighborCount,
-          trustLoading: contextState.trustLoading,
           focusedNode: focusedNode,
           contextCubit: contextCubit,
           onExpand: onExpand,
@@ -196,7 +219,6 @@ class GraphPersonContextPanel extends StatelessWidget {
     required PersonActionPolicy policy,
     required bool canShowMore,
     required int hiddenCount,
-    required bool trustLoading,
     required UserNode focusedNode,
     required GraphPersonContextCubit contextCubit,
     VoidCallback? onExpand,
@@ -224,19 +246,9 @@ class GraphPersonContextPanel extends StatelessWidget {
             ),
           ),
         );
+      // The trust toggle line above carries the trust action (#140).
       case PersonPrimaryAction.trust:
-        addGap();
-        children.add(
-          FocusTraversalOrder(
-            order: const NumericFocusOrder(1),
-            child: FilledButton.icon(
-              key: TestIds.key(TestIds.graphPersonContextTrust),
-              onPressed: trustLoading ? null : contextCubit.trustSelected,
-              icon: const Icon(Icons.people),
-              label: Text(l10n.trustThisUser),
-            ),
-          ),
-        );
+        break;
       case PersonPrimaryAction.none:
         if (policy.showRequestOptions && policy.viewerExplicitlyTrustsSubject) {
           addGap();
@@ -261,21 +273,6 @@ class GraphPersonContextPanel extends StatelessWidget {
             onPressed: () => screenCubit.showForwardToPerson(profile.id),
             icon: const Icon(Icons.alt_route_outlined),
             label: Text(l10n.profileRequestOptions),
-          ),
-        ),
-      );
-    }
-
-    if (policy.showSecondaryTrust) {
-      addGap();
-      children.add(
-        FocusTraversalOrder(
-          order: const NumericFocusOrder(2),
-          child: OutlinedButton.icon(
-            key: TestIds.key(TestIds.graphPersonContextTrust),
-            onPressed: trustLoading ? null : contextCubit.trustSelected,
-            icon: const Icon(Icons.people_outlined),
-            label: Text(l10n.trustThisUser),
           ),
         ),
       );
