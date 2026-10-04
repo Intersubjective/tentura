@@ -10,6 +10,7 @@ import 'package:tentura/features/beacon_view/ui/dialog/help_offer_message_dialog
 import 'package:tentura/features/beacon_view/ui/message/help_offer_messages.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/forward_draft_policy.dart';
+import 'package:tentura/features/forward/domain/forward_target_profile.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -70,6 +71,9 @@ Future<void> inboxForwardItem(BuildContext context, InboxItem item) async {
     hadOutgoingEdgeBefore: hadOutgoingEdgeBefore,
     hasOutgoingEdgeAfter: hasOutgoingEdgeAfter,
     offerHelpAllowed: offerHelpAllowed,
+    profile: (afterItem?.beacon ?? item.beacon)?.isRequest ?? true
+        ? ForwardTargetProfile.request
+        : ForwardTargetProfile.post,
   )) {
     return;
   }

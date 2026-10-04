@@ -198,7 +198,7 @@ class BeaconOverflowMenu extends StatelessWidget {
         l10n.dialogWithdrawHelpOfferTitle,
       );
     }
-    if (onForward != null && beacon.allowsForward) {
+    if (onForward != null && beacon.viewerCanForward) {
       add('forward', Icons.send, l10n.labelForward);
     }
     if (onForwardsGraph != null) {

@@ -18,7 +18,7 @@ mixin TitleDescriptionFields on Table {
 
 mixin BeaconTitleDescriptionFields on Table {
   late final title = text().withLength(
-    min: kTitleMinLength,
+    min: 0,
     max: kBeaconTitleMaxLength,
   )();
 

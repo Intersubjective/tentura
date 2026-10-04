@@ -5,11 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
-import 'package:force_directed_graphview/src/configuration.dart';
-import 'package:force_directed_graphview/src/scene/graph_layout_outcome.dart';
-import 'package:force_directed_graphview/src/scene/graph_topology.dart';
-import 'package:force_directed_graphview/src/scene/scene_geometry.dart';
-import 'package:force_directed_graphview/src/scene_controller.dart';
 import 'package:force_directed_graphview/src/util/extensions.dart';
 import 'package:force_directed_graphview/src/widget/graph_layout_view.dart';
 import 'package:force_directed_graphview/src/widget/inherited_configuration.dart';
@@ -48,6 +43,9 @@ class GraphView<N, E> extends StatefulWidget {
     this.onNodeDragCancel,
     this.transformNodeDragPosition,
     this.onNodeTap,
+    this.onCanvasTap,
+    this.onCanvasSecondaryTap,
+    this.onCanvasLongPress,
     this.nodeTapHitTester,
     this.nodePaintOrder,
     super.key,
@@ -93,7 +91,8 @@ class GraphView<N, E> extends StatefulWidget {
   /// which reproduces the pre-transition behaviour.
   ///
   /// Only meaningful together with a layout algorithm that emits its **final**
-  /// layout once (e.g. `FruchtermanReingoldSceneLayoutAlgorithm(showIterations: false)`).
+  /// layout once (e.g.
+  /// `FruchtermanReingoldSceneLayoutAlgorithm(showIterations: false)`).
   /// An algorithm that streams intermediate iterations restarts the transition
   /// on every emission and will look wrong.
   final Duration layoutTransitionDuration;
@@ -123,6 +122,15 @@ class GraphView<N, E> extends StatefulWidget {
   /// Optional short-press hook using scene paint/hit order (not widget z-order).
   final NodeTapCallback<N>? onNodeTap;
 
+  /// Called for a primary short press that hits no node, in scene coordinates.
+  final void Function(Offset scenePosition)? onCanvasTap;
+
+  /// Called for a secondary short press on empty canvas, in scene coordinates.
+  final void Function(Offset scenePosition)? onCanvasSecondaryTap;
+
+  /// Called for a primary long press that hits no node, in scene coordinates.
+  final void Function(Offset scenePosition)? onCanvasLongPress;
+
   /// Optional tap target resolver; defaults to the body hit-test result.
   final NodeTapHitTester? nodeTapHitTester;
 
@@ -151,7 +159,8 @@ class _GraphViewState<N, E> extends State<GraphView<N, E>>
     }
     if (widget.controller != oldWidget.controller ||
         widget.layoutAlgorithm != oldWidget.layoutAlgorithm ||
-        widget.layoutAlgorithm.runtimeType != oldWidget.layoutAlgorithm.runtimeType ||
+        widget.layoutAlgorithm.runtimeType !=
+            oldWidget.layoutAlgorithm.runtimeType ||
         widget.canvasSize != oldWidget.canvasSize ||
         widget.lazyBuilding != oldWidget.lazyBuilding ||
         widget.layoutTransitionDuration != oldWidget.layoutTransitionDuration ||
@@ -209,12 +218,10 @@ class _GraphViewState<N, E> extends State<GraphView<N, E>>
             : (node) => widget.canDragNode!(node as N),
         onNodeDragStart: widget.onNodeDragStart == null
             ? null
-            : (node, position) =>
-                widget.onNodeDragStart!(node as N, position),
+            : (node, position) => widget.onNodeDragStart!(node as N, position),
         onNodeDragUpdate: widget.onNodeDragUpdate == null
             ? null
-            : (node, position) =>
-                widget.onNodeDragUpdate!(node as N, position),
+            : (node, position) => widget.onNodeDragUpdate!(node as N, position),
         onNodeDragEnd: widget.onNodeDragEnd == null
             ? null
             : (node, position) => widget.onNodeDragEnd!(node as N, position),
@@ -228,6 +235,9 @@ class _GraphViewState<N, E> extends State<GraphView<N, E>>
         onNodeTap: widget.onNodeTap == null
             ? null
             : (node) => widget.onNodeTap!(node as N),
+        onCanvasTap: widget.onCanvasTap,
+        onCanvasSecondaryTap: widget.onCanvasSecondaryTap,
+        onCanvasLongPress: widget.onCanvasLongPress,
         nodeTapHitTester: widget.nodeTapHitTester,
         nodePaintOrder: widget.nodePaintOrder,
       ),
@@ -249,7 +259,7 @@ class _CameraGatedInteractiveViewer extends StatefulWidget {
     required this.maxScale,
   });
 
-  final GraphController controller;
+  final GraphController<dynamic, dynamic> controller;
   final TransformationController transformationController;
   final double minScale;
   final double maxScale;

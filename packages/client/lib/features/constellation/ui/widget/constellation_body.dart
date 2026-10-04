@@ -13,7 +13,6 @@ import 'package:tentura/features/beacon_view/ui/util/help_offer_types_wire.dart'
 import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
-import 'package:tentura/features/graph/ui/utils/graph_scene_ids.dart';
 import 'package:tentura/features/graph/ui/widget/adaptive_context_overlay.dart';
 import 'package:tentura/features/graph/ui/widget/graph_legend_mode.dart';
 import 'package:tentura/features/graph/ui/widget/graph_legend_panel.dart';
@@ -31,6 +30,8 @@ import '../utils/constellation_presentation_frame.dart';
 import '../utils/constellation_tap_resolver.dart';
 import 'constellation_anchor_controls.dart';
 import 'constellation_camera_controls.dart';
+import 'constellation_composer_radius.dart';
+import 'constellation_create_entry.dart';
 import 'constellation_filter_bar.dart';
 import 'constellation_overflow_group.dart';
 import 'constellation_request_status_marker.dart';
@@ -70,6 +71,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
   (Brightness, Locale, double)? _lastFootprintSyncKey;
   String? _selectionUnavailableMessage;
   final _internalFrameHolder = ConstellationPresentationFrameHolder();
+  final _graphStackKey = GlobalKey();
 
   // Single owner of pin zoom detail: per-node history would diverge when a
   // node is recreated inside the hysteresis band.
@@ -108,7 +110,9 @@ class _ConstellationBodyState extends State<ConstellationBody> {
       widget.presentationFrameHolder ?? _internalFrameHolder;
 
   void _scheduleLabelBudgetSync(BuildContext context, Size viewport) {
-    final style = TenturaText.labelSmall(Theme.of(context).colorScheme.onSurface);
+    final style = TenturaText.labelSmall(
+      Theme.of(context).colorScheme.onSurface,
+    );
     final reference = style.fontSize!;
     final ratio = MediaQuery.textScalerOf(context).scale(reference) / reference;
     final footprintKey = (
@@ -116,7 +120,8 @@ class _ConstellationBodyState extends State<ConstellationBody> {
       Localizations.localeOf(context),
       ratio,
     );
-    final budgetDirty = _lastLabelBudgetViewport != viewport ||
+    final budgetDirty =
+        _lastLabelBudgetViewport != viewport ||
         _lastLabelBudgetTextScale != ratio;
     final footprintDirty = _lastFootprintSyncKey != footprintKey;
     if (!budgetDirty && !footprintDirty) {
@@ -199,7 +204,9 @@ class _ConstellationBodyState extends State<ConstellationBody> {
     NodeDetails node,
   ) {
     cubit.selectMapNode(node);
-    if (node case FieldPersonNode(:final person) when person.id != cubit.viewerId) {
+    if (node case FieldPersonNode(
+      :final person,
+    ) when person.id != cubit.viewerId) {
       context.read<GraphPersonContextCubit>().selectProfile(
         person,
         intentional: true,
@@ -229,7 +236,10 @@ class _ConstellationBodyState extends State<ConstellationBody> {
     return switch (request.heldState) {
       ConstellationHeldState.mine ||
       ConstellationHeldState.participant ||
-      ConstellationHeldState.forwarded => () => _openBeacon(context, request.id),
+      ConstellationHeldState.forwarded => () => _openBeacon(
+        context,
+        request.id,
+      ),
       ConstellationHeldState.offered => () => _openBeacon(
         context,
         request.id,
@@ -459,7 +469,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
             final requestId = state.selectedRequestId!;
             final cubit = context.read<ConstellationCubit>();
             final request = cubit.requestById(requestId);
-            if (request != null) {
+            if (request != null || cubit.isPostId(requestId)) {
               setState(() => _selectionUnavailableMessage = null);
               return;
             }
@@ -526,7 +536,9 @@ class _ConstellationBodyState extends State<ConstellationBody> {
               if (state.loadError != null && state.field == null) {
                 return Center(
                   child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: tt.screenHPadding,
+                    ),
                     child: Text(
                       state.loadError.toString(),
                       style: Theme.of(context).textTheme.bodyMedium,
@@ -542,7 +554,8 @@ class _ConstellationBodyState extends State<ConstellationBody> {
 
               final layoutAlgorithm = cubit.graphSceneLayoutAlgorithm;
 
-              final panelVisible = state.selectedPersonId != null ||
+              final panelVisible =
+                  state.selectedPersonId != null ||
                   state.selectedRequestId != null;
 
               return Shortcuts(
@@ -554,11 +567,11 @@ class _ConstellationBodyState extends State<ConstellationBody> {
                   actions: {
                     _CancelPlacementIntent:
                         CallbackAction<_CancelPlacementIntent>(
-                      onInvoke: (_) {
-                        cubit.cancelPlacement();
-                        return null;
-                      },
-                    ),
+                          onInvoke: (_) {
+                            cubit.cancelPlacement();
+                            return null;
+                          },
+                        ),
                   },
                   child: Focus(
                     autofocus: true,
@@ -628,17 +641,41 @@ class _ConstellationBodyState extends State<ConstellationBody> {
       contextPanelVisible: panelVisible,
     );
     final tt = context.tt;
-    final cameraRightInset = panelVisible &&
-            context.windowClass != WindowClass.compact
+    final cameraRightInset =
+        panelVisible && context.windowClass != WindowClass.compact
         ? tt.screenHPadding + tt.graphPersonContextWidth + tt.screenHPadding
         : tt.screenHPadding;
 
+    final composer = maybeConstellationComposer(context);
+    void offerCreate(Offset scene) {
+      final box = _graphStackKey.currentContext?.findRenderObject();
+      if (composer == null || box is! RenderBox) {
+        return;
+      }
+      unawaited(
+        showConstellationCreateMenu(
+          context,
+          composer: composer,
+          globalPosition: box.localToGlobal(
+            cubit.graphController.sceneToViewportLocal(scene),
+          ),
+          scenePosition: scene,
+        ),
+      );
+    }
+
     return Stack(
+      key: _graphStackKey,
       fit: StackFit.expand,
       children: [
         GraphView<NodeDetails, EdgeDetails>(
           controller: cubit.graphController,
           canvasSize: ConstellationBody._canvasSize,
+          canvasBackgroundBuilder: composer == null
+              ? null
+              : (_) => ConstellationComposerCircle(composer: composer),
+          onCanvasSecondaryTap: composer == null ? null : offerCreate,
+          onCanvasLongPress: composer == null ? null : offerCreate,
           minScale: 0.1,
           maxScale: 3,
           layoutAlgorithm: layoutAlgorithm,
@@ -677,6 +714,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
                   ),
                 );
               case ConstellationPlacementPhase.idle:
+              case ConstellationPlacementPhase.composing:
                 break;
             }
           },
@@ -698,6 +736,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
           },
           edgePainter: ConstellationEdgePainter(
             edgeKindByPair: cubit.edgeKindByPair,
+            edgeFadeBySemanticId: cubit.edgeFadeBySemanticId,
             tt: context.tt,
             scheme: Theme.of(context).colorScheme,
             repaint: cubit.graphController.cameraRevision,
@@ -709,30 +748,33 @@ class _ConstellationBodyState extends State<ConstellationBody> {
             final tt = context.tt;
             final scheme = Theme.of(context).colorScheme;
             final mapNode = switch (node) {
-              FieldPersonNode(:final ring, :final person) => _ConstellationMapNode(
-                detail: _detail,
-                child: GraphNodeWidget(
-                  key: TestIds.key(TestIds.graphNode(node.id)),
-                  nodeDetails: node,
-                  hiddenNeighborCount: null,
-                  isOrigin: ring == 0,
-                  isFocused: panelVisible && node.id == state.selectedPersonId,
-                  onTap: null,
-                ),
-                pinBadge: cubit.isAnchored(
-                  ConstellationAnchorTarget.person(person.id),
-                )
-                    ? ExcludeSemantics(
-                        child: ConstellationMarkerBadge.pin(
-                          l10n: l10n,
-                          tt: tt,
-                          scheme: scheme,
-                        ),
+              FieldPersonNode(:final ring, :final person) =>
+                _ConstellationMapNode(
+                  detail: _detail,
+                  child: GraphNodeWidget(
+                    key: TestIds.key(TestIds.graphNode(node.id)),
+                    nodeDetails: node,
+                    hiddenNeighborCount: null,
+                    isOrigin: ring == 0,
+                    isFocused:
+                        panelVisible && node.id == state.selectedPersonId,
+                    onTap: null,
+                  ),
+                  pinBadge:
+                      cubit.isAnchored(
+                        ConstellationAnchorTarget.person(person.id),
                       )
-                    : null,
-                statusBadge: null,
-              ),
-              FieldRequestNode(:final request) => _ConstellationMapNode(
+                      ? ExcludeSemantics(
+                          child: ConstellationMarkerBadge.pin(
+                            l10n: l10n,
+                            tt: tt,
+                            scheme: scheme,
+                          ),
+                        )
+                      : null,
+                  statusBadge: null,
+                ),
+              FieldBeaconNode(request: final request?) => _ConstellationMapNode(
                 detail: _detail,
                 child: GraphNodeWidget(
                   key: TestIds.key(TestIds.graphNode(node.id)),
@@ -741,9 +783,10 @@ class _ConstellationBodyState extends State<ConstellationBody> {
                   isFocused: state.selectedRequestId == request.id,
                   onTap: null,
                 ),
-                pinBadge: cubit.isAnchored(
-                  ConstellationAnchorTarget.beacon(request.id),
-                )
+                pinBadge:
+                    cubit.isAnchored(
+                      ConstellationAnchorTarget.beacon(request.id),
+                    )
                     ? ExcludeSemantics(
                         child: ConstellationMarkerBadge.pin(
                           l10n: l10n,
@@ -790,6 +833,13 @@ class _ConstellationBodyState extends State<ConstellationBody> {
             frameHolder: _frameHolder,
           ),
         ),
+        if (composer != null)
+          Positioned.fill(
+            child: ConstellationComposerHandle(
+              composer: composer,
+              controller: cubit.graphController,
+            ),
+          ),
         Positioned(
           top: 0,
           left: 0,
@@ -861,7 +911,8 @@ class _ConstellationBodyState extends State<ConstellationBody> {
     };
     final selected = switch (node) {
       FieldPersonNode() => panelVisible && node.id == state.selectedPersonId,
-      FieldRequestNode(:final request) => state.selectedRequestId == request.id,
+      FieldBeaconNode(request: final request?) =>
+        state.selectedRequestId == request.id,
       _ => false,
     };
     return Semantics(
@@ -953,6 +1004,7 @@ class ConstellationEdgePainter
     implements RepaintingEdgePainter<NodeDetails, EdgeDetails> {
   const ConstellationEdgePainter({
     required this.edgeKindByPair,
+    this.edgeFadeBySemanticId = const {},
     required this.tt,
     required this.scheme,
     required this.repaint,
@@ -960,6 +1012,7 @@ class ConstellationEdgePainter
   });
 
   final Map<String, ConstellationEdgeKind> edgeKindByPair;
+  final Map<String, double> edgeFadeBySemanticId;
   final TenturaTokens tt;
   final ColorScheme scheme;
   @override
@@ -979,9 +1032,7 @@ class ConstellationEdgePainter
     Offset src,
     Offset dst,
   ) {
-    final pairKey =
-        '${tenturaGraphNodeId(edge.source)}->${tenturaGraphNodeId(edge.destination)}';
-    final kind = edgeKindByPair[pairKey];
+    final kind = edgeKindByPair[edge.semanticId];
     if (kind == null) {
       return;
     }
@@ -989,7 +1040,9 @@ class ConstellationEdgePainter
     final style = constellationEdgeStyle(kind, tt, scheme);
     final scale = cameraScale();
     final strokeWidth = effectiveWidth(style.width, scale);
-    final dashLength = style.dash == 0 ? 0.0 : effectiveWidth(style.dash, scale);
+    final dashLength = style.dash == 0
+        ? 0.0
+        : effectiveWidth(style.dash, scale);
     final dashGap = style.gap == 0 ? 0.0 : effectiveWidth(style.gap, scale);
 
     final sourceRadius = edge.source.size / 2;
@@ -1002,7 +1055,9 @@ class ConstellationEdgePainter
     );
 
     final paint = Paint()
-      ..color = style.color
+      ..color = style.color.withValues(
+        alpha: style.color.a * (edgeFadeBySemanticId[edge.semanticId] ?? 1),
+      )
       ..strokeWidth = strokeWidth
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round

@@ -1,5 +1,6 @@
 import 'package:postgres/postgres.dart' show Type, TypedValue;
 import 'package:injectable/injectable.dart';
+import 'package:logging/logging.dart';
 
 import 'package:tentura_server/domain/port/person_visibility_repository_port.dart';
 
@@ -11,7 +12,19 @@ import '../database/tentura_db.dart';
 class PersonVisibilityRepository implements PersonVisibilityRepositoryPort {
   PersonVisibilityRepository(this._database);
 
+  static final _log = Logger('PersonVisibilityRepository');
+
   final TenturaDb _database;
+
+  Future<bool> _hasMeritRank() async {
+    final row = await _database
+        .customSelect(
+          "SELECT to_regprocedure('public.mr_mutual_scores(text, text)') "
+          'IS NOT NULL AS present',
+        )
+        .getSingle();
+    return row.read<bool>('present');
+  }
 
   @override
   Future<Set<String>> mutuallyVisiblePeerIds({
@@ -81,6 +94,18 @@ WHERE c.peer_id <> $1
       return {};
     }
 
+    // Checked up front (not by catching 42883): Post checks run inside the
+    // publish transaction, where a failed statement would abort it.
+    final hasMeritRank = await _hasMeritRank();
+    if (!hasMeritRank) {
+      _log.warning(
+        'mr_mutual_scores() is missing: MeritRank is unavailable, so only '
+        'reciprocal explicit trust and bonds make peers visible',
+      );
+    }
+    final reach = hasMeritRank
+        ? r'public.person_are_mutually_visible($1, c.peer_id, $2)'
+        : r'public.person_reciprocal_explicit_trust($1, c.peer_id)';
     final rows = await _database
         .customSelect(
           r'''
@@ -88,7 +113,9 @@ SELECT DISTINCT c.peer_id
 FROM unnest($3::text[]) AS c(peer_id)
 WHERE c.peer_id <> $1
   AND NOT public.block_hides($1, c.peer_id)
-  AND (public.person_are_mutually_visible($1, c.peer_id, $2)
+  AND (''' +
+              reach +
+              r'''
        OR public.person_bond($1, c.peer_id))
 ''',
           variables: [

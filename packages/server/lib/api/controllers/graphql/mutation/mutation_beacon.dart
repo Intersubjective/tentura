@@ -1,3 +1,5 @@
+import 'package:tentura_server/domain/entity/beacon_conversion_content.dart';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/use_case/beacon_case.dart';
 
 import '../custom_types.dart';
@@ -31,14 +33,20 @@ final class MutationBeacon extends GqlNodeBase {
 
   final _isDiscoverable = InputFieldBool(fieldName: 'isDiscoverable');
 
+  final _kind = InputFieldInt(fieldName: 'kind');
+
+  final _forwardPolicy = InputFieldInt(fieldName: 'forwardPolicy');
+
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
     create,
     fork,
     update,
     updateDraft,
+    convertToRequest,
     publish,
     deleteById,
     beaconCancel,
+    beaconForwardingOpen,
     addImage,
     removeImage,
     reorderImages,
@@ -56,6 +64,17 @@ final class MutationBeacon extends GqlNodeBase {
     ),
   );
 
+  GraphQLObjectField<dynamic, dynamic> get beaconForwardingOpen =>
+      GraphQLObjectField(
+        'beaconForwardingOpen',
+        graphQLBoolean,
+        arguments: [InputFieldId.field],
+        resolve: (_, args) => _beaconCase.openForwarding(
+          authorId: getCredentials(args).sub,
+          id: InputFieldId.fromArgsNonNullable(args),
+        ),
+      );
+
   GraphQLObjectField<dynamic, dynamic> get beaconCancel => GraphQLObjectField(
     'beaconCancel',
     gqlTypeBeaconCancelResult.nonNullable(),
@@ -72,7 +91,7 @@ final class MutationBeacon extends GqlNodeBase {
     'beaconCreate',
     gqlTypeBeacon.nonNullable(),
     arguments: [
-      InputFieldBeaconTitle.fieldNonNullable,
+      InputFieldBeaconTitle.field,
       InputFieldDescription.field,
       InputFieldCoordinates.field,
       InputFieldUpload.fieldImage,
@@ -85,26 +104,47 @@ final class MutationBeacon extends GqlNodeBase {
       _addressLabel.fieldNullable,
       _draft.fieldNullable,
       _isDiscoverable.fieldNullable,
+      _kind.fieldNullable,
+      _forwardPolicy.fieldNullable,
     ],
-    resolve: (_, args) => _beaconCase
-        .create(
-          userId: getCredentials(args).sub,
-          title: InputFieldBeaconTitle.fromArgsNonNullable(args),
-          description: InputFieldDescription.fromArgs(args),
-          coordinates: InputFieldCoordinates.fromArgs(args),
-          imageBytes: InputFieldUpload.fromArgs(args),
-          context: InputFieldContext.fromArgs(args),
-          startAt: _startAt.fromArgs(args),
-          endAt: _endAt.fromArgs(args),
-          tags: _tags.fromArgs(args),
-          needs: _needs.fromArgs(args),
-          primaryNeedSlug: _primaryNeedSlug.fromArgs(args),
-          primaryNeedSlugProvided: args.containsKey('primaryNeedSlug'),
-          draft: _draft.fromArgs(args) ?? false,
-          addressLabel: _addressLabel.fromArgs(args),
-          isDiscoverable: _isDiscoverable.fromArgs(args) ?? true,
-        )
-        .then((v) => v.asJson),
+    resolve: (_, args) {
+      final kindValue = _kind.fromArgs(args);
+      final kind = kindValue == null
+          ? BeaconKind.request
+          : BeaconKind.fromValue(kindValue);
+      final title = InputFieldBeaconTitle.fromArgs(args);
+      if (title == null && kind != BeaconKind.post) {
+        throw GraphQLException([
+          GraphQLExceptionError(
+            'Missing value for argument "title" of field "beaconCreate".',
+          ),
+        ]);
+      }
+      final forwardPolicyValue = _forwardPolicy.fromArgs(args);
+      return _beaconCase
+          .create(
+            userId: getCredentials(args).sub,
+            title: title ?? '',
+            kind: kind,
+            forwardPolicy: forwardPolicyValue == null
+                ? BeaconForwardPolicyValue.open
+                : BeaconForwardPolicyValue.fromValue(forwardPolicyValue),
+            description: InputFieldDescription.fromArgs(args),
+            coordinates: InputFieldCoordinates.fromArgs(args),
+            imageBytes: InputFieldUpload.fromArgs(args),
+            context: InputFieldContext.fromArgs(args),
+            startAt: _startAt.fromArgs(args),
+            endAt: _endAt.fromArgs(args),
+            tags: _tags.fromArgs(args),
+            needs: _needs.fromArgs(args),
+            primaryNeedSlug: _primaryNeedSlug.fromArgs(args),
+            primaryNeedSlugProvided: args.containsKey('primaryNeedSlug'),
+            draft: _draft.fromArgs(args) ?? false,
+            addressLabel: _addressLabel.fromArgs(args),
+            isDiscoverable: _isDiscoverable.fromArgs(args),
+          )
+          .then((v) => v.asJson);
+    },
   );
 
   GraphQLObjectField<dynamic, dynamic> get fork => GraphQLObjectField(
@@ -195,6 +235,37 @@ final class MutationBeacon extends GqlNodeBase {
         .then((v) => v.asJson),
   );
 
+  GraphQLObjectField<dynamic, dynamic> get convertToRequest =>
+      GraphQLObjectField(
+        'beaconConvertToRequest',
+        gqlTypeBeacon.nonNullable(),
+        arguments: [
+          InputFieldId.field,
+          InputFieldBeaconTitle.fieldNonNullable,
+          InputFieldDescription.field,
+          _startAt.fieldNullable,
+          _endAt.fieldNullable,
+          _needs.fieldNullable,
+          _primaryNeedSlug.fieldNullable,
+          _isDiscoverable.fieldNullable,
+        ],
+        resolve: (_, args) => _beaconCase
+            .convertToRequest(
+              authorId: getCredentials(args).sub,
+              beaconId: InputFieldId.fromArgsNonNullable(args),
+              content: BeaconConversionContent(
+                title: InputFieldBeaconTitle.fromArgsNonNullable(args),
+                description: InputFieldDescription.fromArgs(args),
+                needs: _needs.fromArgs(args),
+                primaryNeedSlug: _primaryNeedSlug.fromArgs(args),
+                startAt: _startAt.fromArgs(args),
+                endAt: _endAt.fromArgs(args),
+              ),
+              isDiscoverable: _isDiscoverable.fromArgs(args) ?? true,
+            )
+            .then((v) => v.asJson),
+      );
+
   GraphQLObjectField<dynamic, dynamic> get publish => GraphQLObjectField(
     'beaconPublish',
     gqlTypeBeacon.nonNullable(),
@@ -255,8 +326,9 @@ final class MutationBeacon extends GqlNodeBase {
           userId: getCredentials(args).sub,
           imageIds: InputFieldBeaconMedia.imageIdsFromArgs(args),
           coverImageId: InputFieldBeaconMedia.coverImageIdFromArgs(args),
-          coverThumbImageId:
-              InputFieldBeaconMedia.coverThumbImageIdFromArgs(args),
+          coverThumbImageId: InputFieldBeaconMedia.coverThumbImageIdFromArgs(
+            args,
+          ),
           coverThumbImageIdPresent:
               InputFieldBeaconMedia.coverThumbImageIdPresent(args),
           coverSource: InputFieldBeaconMedia.coverSourceFromArgs(args),

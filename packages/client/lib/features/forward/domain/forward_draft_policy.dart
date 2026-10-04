@@ -1,3 +1,5 @@
+import 'forward_target_profile.dart';
+
 Set<String> uncoveredRecipientIds({
   required Set<String> selectedIds,
   required Map<String, String> perRecipientNotes,
@@ -40,5 +42,9 @@ bool shouldNudgeOfferHelpAfterForwardVisit({
   required bool hadOutgoingEdgeBefore,
   required bool hasOutgoingEdgeAfter,
   required bool offerHelpAllowed,
+  ForwardTargetProfile profile = ForwardTargetProfile.request,
 }) =>
-    !hadOutgoingEdgeBefore && hasOutgoingEdgeAfter && offerHelpAllowed;
+    profile.nudgesOfferHelp &&
+    !hadOutgoingEdgeBefore &&
+    hasOutgoingEdgeAfter &&
+    offerHelpAllowed;

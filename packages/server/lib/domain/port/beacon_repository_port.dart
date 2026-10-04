@@ -2,9 +2,14 @@ import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/post_summary.dart';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/beacon_media_state.dart';
 
 abstract class BeaconRepositoryPort {
+  /// Open Post conversations visible to this viewer.
+  Future<List<PostSummary>> myPosts(String viewerId);
+
   /// Creates the beacon row, attaches [imageIds] in order, then sets the
   /// cover last in the same transaction (so the composite membership FK sees
   /// the attachment row first). [coverImageId] must be a member of
@@ -31,6 +36,8 @@ abstract class BeaconRepositoryPort {
     String? lineageParentBeaconId,
     String? lineageRootBeaconId,
     bool? isDiscoverable,
+    BeaconKind kind = BeaconKind.request,
+    BeaconForwardPolicyValue forwardPolicy = BeaconForwardPolicyValue.open,
   });
 
   /// Creates a nested child beacon with immutable [parentBeaconId].
@@ -112,6 +119,60 @@ abstract class BeaconRepositoryPort {
     required String beaconId,
     required String userId,
     required Future<T> Function(BeaconEntity locked) fn,
+  });
+
+  /// Takes the Post lock sequence (see `PostLockPort`) for [beaconId]; must run
+  /// inside the caller's transaction.
+  Future<void> lockPostForMutation(String beaconId);
+
+  /// Sets `beacon.forward_policy`; the caller holds the beacon row lock.
+  Future<void> setForwardPolicy({
+    required String beaconId,
+    required BeaconForwardPolicyValue policy,
+  });
+
+  /// Turns an open Post into an open-forwarding Request in one `UPDATE` (the
+  /// Post shape CHECK forbids writing content before `kind` flips); throws
+  /// `BeaconCreateException` unless exactly one open Post row was updated.
+  Future<void> convertPostToRequest({
+    required String beaconId,
+    required String title,
+    required String description,
+    required Set<String>? needs,
+    required String? primaryNeedSlug,
+    required DateTime? startAt,
+    required DateTime? endAt,
+    required bool isDiscoverable,
+  });
+
+  /// Inserts the kind-4 system message announcing a Post's conversion.
+  Future<void> postConvertedToRequestMessage(String beaconId);
+
+  /// Sets `beacon.post_root_message_id` once; a no-op when already set.
+  Future<void> setPostRootMessage({
+    required String beaconId,
+    required String messageId,
+  });
+
+  /// Whether [userId] is an addressee (`role 6`) of [beaconId] other than its
+  /// author; the caller holds the Post lock.
+  Future<bool> isPostAddressee({
+    required String beaconId,
+    required String userId,
+  });
+
+  /// An addressee steps out: inbox row rejected (declining a pending contact
+  /// edge) and `room_access` set to left.
+  Future<void> leavePostAsAddressee({
+    required String beaconId,
+    required String userId,
+  });
+
+  /// An addressee comes back: inbox row back to watching and room access
+  /// reconciled from the live forward edges (set directly for a Request).
+  Future<void> returnToPostAsAddressee({
+    required String beaconId,
+    required String userId,
   });
 
   /// Atomically updates beacon status and inserts a status activity log row.

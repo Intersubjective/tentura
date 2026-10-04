@@ -24,4 +24,7 @@ enum NotificationKind {
   commitmentRedirected,
   deadlineChanged,
   deadlineReminder,
+
+  /// A member's first response in a Post room, told to the Post author.
+  postFirstResponse,
 }

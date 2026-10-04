@@ -1,0 +1,3 @@
+mutation PostLeave($id: String!) {
+  postLeave(id: $id)
+}

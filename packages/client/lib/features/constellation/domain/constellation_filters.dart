@@ -91,7 +91,9 @@ bool _matchesCapability(
   if (_capabilityUnspecified(request)) {
     return filters.includeUnspecified;
   }
-  return _capabilitySlugs(request).intersection(filters.capabilitySlugs).isNotEmpty;
+  return _capabilitySlugs(
+    request,
+  ).intersection(filters.capabilitySlugs).isNotEmpty;
 }
 
 bool _hasLocation(ConstellationRequestRef request) {
@@ -121,8 +123,12 @@ bool _matchesTiming(
   return switch (filters.timing) {
     TimingFilterAny() => true,
     TimingFilterUndated() => _timingUnspecified(request),
-    TimingFilterWithinDays(days: final days) =>
-      _matchesWithinDays(request, filters, asOfUtc, days),
+    TimingFilterWithinDays(days: final days) => _matchesWithinDays(
+      request,
+      filters,
+      asOfUtc,
+      days,
+    ),
   };
 }
 

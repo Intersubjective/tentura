@@ -48,6 +48,19 @@ query ConstellationFieldFetch(
         ...ImageModelV2
       }
     }
+    posts {
+      id
+      authorId
+      lastActivityAt
+      rootExcerpt
+      isPinned
+      hiddenReachCount
+    }
+    memberWebs {
+      beaconId
+      personId
+      state
+    }
     anchorProjection {
       revision
       anchors {

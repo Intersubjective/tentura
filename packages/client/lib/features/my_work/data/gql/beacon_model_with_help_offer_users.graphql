@@ -3,6 +3,11 @@
 
 fragment BeaconModelWithHelpOfferUsers on beacon {
   ...BeaconModelWithAdmittedHelpers
+  kind
+  forward_policy
+  last_activity_at
+  post_root_message_id
+  viewer_can_forward
   help_offers(
     where: { status: { _eq: 0 } }
     order_by: { updated_at: desc }

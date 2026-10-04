@@ -80,18 +80,21 @@ class GraphViewConfiguration {
     this.onNodeDragCancel,
     this.transformNodeDragPosition,
     this.onNodeTap,
+    this.onCanvasTap,
+    this.onCanvasSecondaryTap,
+    this.onCanvasLongPress,
     this.nodeTapHitTester,
     this.nodePaintOrder,
   });
 
   /// { @nodoc }
-  final NodeBuilder nodeBuilder;
+  final NodeBuilder<dynamic> nodeBuilder;
 
   /// { @nodoc }
-  final EdgePainter edgePainter;
+  final EdgePainter<dynamic, dynamic> edgePainter;
 
   /// { @nodoc }
-  final LabelBuilder? labelBuilder;
+  final LabelBuilder<dynamic>? labelBuilder;
 
   /// { @nodoc }
   final WidgetBuilder? canvasBackgroundBuilder;
@@ -121,6 +124,15 @@ class GraphViewConfiguration {
   /// Optional short-press selection hook using scene hit order.
   final NodeTapCallback<dynamic>? onNodeTap;
 
+  /// Called for a primary short press that hits no node, in scene coordinates.
+  final void Function(Offset scenePosition)? onCanvasTap;
+
+  /// Called for a secondary short press on empty canvas, in scene coordinates.
+  final void Function(Offset scenePosition)? onCanvasSecondaryTap;
+
+  /// Called for a primary long press that hits no node, in scene coordinates.
+  final void Function(Offset scenePosition)? onCanvasLongPress;
+
   /// Optional tap target resolver; defaults to the body hit-test result.
   final NodeTapHitTester? nodeTapHitTester;
 
@@ -135,7 +147,12 @@ class GraphViewConfiguration {
       onNodeDragCancel != null;
 
   /// Whether the node pointer layer is active.
-  bool get nodePointerLayerEnabled => nodeDragEnabled || onNodeTap != null;
+  bool get nodePointerLayerEnabled =>
+      nodeDragEnabled ||
+      onNodeTap != null ||
+      onCanvasTap != null ||
+      onCanvasSecondaryTap != null ||
+      onCanvasLongPress != null;
 
   /// Returns whether [node] may be dragged.
   bool isNodeDraggable(dynamic node) =>

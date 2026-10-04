@@ -10,6 +10,7 @@ import 'package:tentura_server/domain/coordination/help_type.dart';
 import 'package:tentura_server/domain/coordination/withdraw_reason.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
+import 'package:tentura_server/domain/policy/beacon_kind_policy.dart';
 import 'package:tentura_server/domain/port/attention_system_settlement_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/closure_case.dart';
@@ -89,6 +90,7 @@ final class HelpOfferCase extends UseCaseBase {
           beaconId: beaconId,
           userId: userId,
           fn: (lockedBeacon) async {
+            BeaconKindPolicy.requireRequest(lockedBeacon);
             if (!await _guard.canReadContent(
               beaconId: beaconId,
               viewerId: userId,
@@ -216,6 +218,7 @@ final class HelpOfferCase extends UseCaseBase {
       );
     }
     final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
+    BeaconKindPolicy.requireRequest(beacon);
     final isAuthor = beacon.author.id == actorUserId;
     final isSelf = actorUserId == offerUserId;
     final isSteward = await _roomRepository.isBeaconSteward(
@@ -286,6 +289,7 @@ final class HelpOfferCase extends UseCaseBase {
       );
     }
     final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
+    BeaconKindPolicy.requireRequest(beacon);
     if (!beacon.allowsBeaconWithdraw) {
       throw HelpOfferCoordinationException(
         coordinationCode:

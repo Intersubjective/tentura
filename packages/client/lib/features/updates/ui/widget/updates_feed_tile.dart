@@ -278,7 +278,21 @@ class _UpdatesFeedTileState extends State<UpdatesFeedTile> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              leading,
+              Semantics(
+                key: ValueKey(
+                  TestIds.updatesReceiptReadState(
+                    widget.receipt.id,
+                    seen: widget.receipt.isSeen,
+                  ),
+                ),
+                container: true,
+                explicitChildNodes: true,
+                identifier: TestIds.updatesReceiptReadState(
+                  widget.receipt.id,
+                  seen: widget.receipt.isSeen,
+                ),
+                child: leading,
+              ),
               SizedBox(width: tt.avatarTextGap),
               Expanded(
                 child: _UpdatesFeedRowInteraction(

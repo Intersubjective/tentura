@@ -6,16 +6,26 @@ import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/consts.dart'
-    show kTitleMaxLength, kTitleMinLength;
+    show
+        kAvatarPlaceholderUrl,
+        kImageExt,
+        kImageServer,
+        kImagesPath,
+        kTitleMaxLength,
+        kTitleMinLength;
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
+import 'package:tentura_server/consts/beacon_hierarchy_consts.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/post_summary.dart';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/entity/beacon_media_state.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 
 import '../database/tentura_db.dart';
 import '../mapper/beacon_mapper.dart';
+import 'post_lock_repository.dart';
 
 export 'package:tentura_server/domain/entity/beacon_entity.dart';
 
@@ -35,12 +45,11 @@ BeaconEntity _beaconRowToEntity(
   Beacon beacon, {
   required User author,
   List<Image>? images,
-}) =>
-    beaconModelToEntity(
-      beacon,
-      author: author,
-      images: images,
-    ).copyWith(isDiscoverable: beacon.isDiscoverable);
+}) => beaconModelToEntity(
+  beacon,
+  author: author,
+  images: images,
+).copyWith(isDiscoverable: beacon.isDiscoverable);
 
 @Injectable(
   as: BeaconRepositoryPort,
@@ -56,15 +65,52 @@ class BeaconRepository implements BeaconRepositoryPort {
   final TenturaDb _database;
 
   @override
+  Future<List<PostSummary>> myPosts(String viewerId) async {
+    final rows = await _database
+        .customSelect(
+          r'SELECT * FROM public.post_my_posts($1)',
+          variables: [Variable<String>(viewerId)],
+        )
+        .get();
+    return rows.map((row) {
+      DateTime? timestamp(String key) => row
+          .readNullableWithType(PgTypes.timestampWithTimezone, key)
+          ?.dateTime
+          .toUtc();
+      final authorId = row.read<String>('author_id');
+      final imageId = row.readNullable<String>('author_image_id');
+      return PostSummary(
+        id: row.read<String>('id'),
+        authorId: authorId,
+        authorName: row.read<String>('author_name'),
+        authorAvatar: imageId == null
+            ? kAvatarPlaceholderUrl
+            : '$kImageServer/$kImagesPath/$authorId/$imageId.$kImageExt',
+        rootExcerpt: row.readNullable<String>('root_excerpt'),
+        lastMessageExcerpt: row.readNullable<String>('last_message_excerpt'),
+        lastMessageAt: timestamp('last_message_at'),
+        lastActivityAt: timestamp('last_activity_at'),
+        pinnedAt: timestamp('pinned_at'),
+        mutedUntil: timestamp('muted_until'),
+        unreadCount: row.read<int>('unread_count'),
+        isAuthor: row.read<bool>('is_author'),
+      );
+    }).toList();
+  }
+
+  @override
   Future<List<String>> deadlineReminderCandidateIds({
     required DateTime nextUtcDayStart,
     required DateTime followingUtcDayStart,
   }) async {
     final rows = await _database
         .customSelect(
-          r'''SELECT id FROM public.beacon WHERE status = 0 AND end_at >= $1 AND end_at < $2''',
+          r'''SELECT id FROM public.beacon WHERE kind = 0 AND status = 0 AND end_at >= $1 AND end_at < $2''',
           variables: [
-            Variable(PgDateTime(nextUtcDayStart), PgTypes.timestampWithTimezone),
+            Variable(
+              PgDateTime(nextUtcDayStart),
+              PgTypes.timestampWithTimezone,
+            ),
             Variable(
               PgDateTime(followingUtcDayStart),
               PgTypes.timestampWithTimezone,
@@ -83,10 +129,13 @@ class BeaconRepository implements BeaconRepositoryPort {
   }) async {
     final rows = await _database
         .customSelect(
-          r'''SELECT id FROM public.beacon WHERE id = $1 AND status = 0 AND end_at >= $2 AND end_at < $3 FOR UPDATE''',
+          r'''SELECT id FROM public.beacon WHERE id = $1 AND kind = 0 AND status = 0 AND end_at >= $2 AND end_at < $3 FOR UPDATE''',
           variables: [
             Variable<String>(beaconId),
-            Variable(PgDateTime(nextUtcDayStart), PgTypes.timestampWithTimezone),
+            Variable(
+              PgDateTime(nextUtcDayStart),
+              PgTypes.timestampWithTimezone,
+            ),
             Variable(
               PgDateTime(followingUtcDayStart),
               PgTypes.timestampWithTimezone,
@@ -119,6 +168,8 @@ class BeaconRepository implements BeaconRepositoryPort {
     String? lineageParentBeaconId,
     String? lineageRootBeaconId,
     bool? isDiscoverable,
+    BeaconKind kind = BeaconKind.request,
+    BeaconForwardPolicyValue forwardPolicy = BeaconForwardPolicyValue.open,
   }) => _database.withMutatingUser(authorId, () async {
     final effectiveStatus = status ?? BeaconStatus.open;
     final publishedAt = effectiveStatus == BeaconStatus.draft
@@ -147,6 +198,8 @@ class BeaconRepository implements BeaconRepositoryPort {
         lineageParentBeaconId: Value(lineageParentBeaconId),
         lineageRootBeaconId: Value(lineageRootBeaconId),
         isDiscoverable: Value(isDiscoverable ?? true),
+        kind: Value(kind.value),
+        forwardPolicy: Value(forwardPolicy.value),
       ),
     );
 
@@ -460,6 +513,152 @@ class BeaconRepository implements BeaconRepositoryPort {
     final locked = await getBeaconById(beaconId: beaconId);
     return fn(locked);
   });
+
+  // Not a constructor dependency: a DI edge to the lock reorders registration
+  // of the singletons that depend on this repository.
+  @override
+  Future<void> lockPostForMutation(String beaconId) =>
+      PostLockRepository(_database).lockForPostMutation(beaconId);
+
+  @override
+  Future<void> setForwardPolicy({
+    required String beaconId,
+    required BeaconForwardPolicyValue policy,
+  }) async {
+    await _database.managers.beacons
+        .filter((e) => e.id.equals(beaconId))
+        .update((o) => o(forwardPolicy: Value(policy.value)));
+  }
+
+  @override
+  Future<void> convertPostToRequest({
+    required String beaconId,
+    required String title,
+    required String description,
+    required Set<String>? needs,
+    required String? primaryNeedSlug,
+    required DateTime? startAt,
+    required DateTime? endAt,
+    required bool isDiscoverable,
+  }) async {
+    final updated = await _database.customUpdate(
+      r'''
+UPDATE public.beacon
+SET title = $2, description = $3, needs = $4, primary_need_slug = $5,
+    start_at = $6, end_at = $7, kind = 0, forward_policy = 1,
+    is_discoverable = $8, updated_at = now()
+WHERE id = $1 AND kind = 1 AND status = 0
+''',
+      variables: [
+        Variable<String>(beaconId),
+        Variable<String>(title),
+        Variable<String>(description),
+        Variable<String>(needs == null || needs.isEmpty ? '' : needs.join(',')),
+        Variable<String>(primaryNeedSlug),
+        Variable<PgDateTime>(
+          startAt == null ? null : PgDateTime(startAt.toUtc()),
+          PgTypes.timestampWithTimezone,
+        ),
+        Variable<PgDateTime>(
+          endAt == null ? null : PgDateTime(endAt.toUtc()),
+          PgTypes.timestampWithTimezone,
+        ),
+        Variable<bool>(isDiscoverable),
+      ],
+    );
+    if (updated != 1) {
+      throw const BeaconCreateException(description: 'Not an open Post');
+    }
+  }
+
+  @override
+  Future<void> postConvertedToRequestMessage(String beaconId) =>
+      _database.customInsert(
+        r'''
+INSERT INTO public.beacon_room_message
+  (beacon_id, body, system_message_kind, system_payload)
+VALUES ($1, '', $2, $3::jsonb)
+''',
+        variables: [
+          Variable<String>(beaconId),
+          Variable<int>(BeaconRoomSystemMessageKind.convertedToRequest),
+          Variable<String>('{"event":"convertedToRequest"}'),
+        ],
+      );
+
+  @override
+  Future<void> setPostRootMessage({
+    required String beaconId,
+    required String messageId,
+  }) => _database.customStatement(
+    'UPDATE public.beacon SET post_root_message_id = \$2 '
+    'WHERE id = \$1 AND post_root_message_id IS NULL',
+    [beaconId, messageId],
+  );
+
+  @override
+  Future<bool> isPostAddressee({
+    required String beaconId,
+    required String userId,
+  }) async {
+    final rows = await _database
+        .customSelect(
+          r'SELECT 1 FROM public.beacon_participant bp '
+          r'JOIN public.beacon b ON b.id = bp.beacon_id '
+          r'WHERE bp.beacon_id = $1 AND bp.user_id = $2 AND bp.role = 6 '
+          r'AND b.user_id <> bp.user_id',
+          variables: [Variable<String>(beaconId), Variable<String>(userId)],
+        )
+        .get();
+    return rows.isNotEmpty;
+  }
+
+  @override
+  Future<void> leavePostAsAddressee({
+    required String beaconId,
+    required String userId,
+  }) async {
+    await _database.customStatement(
+      r'UPDATE public.inbox_item SET status = 2 '
+      r'WHERE beacon_id = $1 AND user_id = $2',
+      [beaconId, userId],
+    );
+    await _database.customStatement(
+      r'UPDATE public.beacon_participant '
+      r'SET room_access = 5, updated_at = now() '
+      r'WHERE beacon_id = $1 AND user_id = $2',
+      [beaconId, userId],
+    );
+  }
+
+  @override
+  Future<void> returnToPostAsAddressee({
+    required String beaconId,
+    required String userId,
+  }) async {
+    await _database.customStatement(
+      r'UPDATE public.inbox_item SET status = 1 '
+      r'WHERE beacon_id = $1 AND user_id = $2',
+      [beaconId, userId],
+    );
+    await _database.customStatement(
+      r'UPDATE public.beacon_participant '
+      r'SET room_access = 0, updated_at = now() '
+      r'WHERE beacon_id = $1 AND user_id = $2',
+      [beaconId, userId],
+    );
+    await _database.customStatement(
+      r'SELECT public.post_reconcile_admission($1, $2)',
+      [beaconId, userId],
+    );
+    // `post_reconcile_admission` ignores a Request converted from a Post.
+    await _database.customStatement(
+      r'UPDATE public.beacon_participant SET room_access = 3, updated_at = now() '
+      r'WHERE beacon_id = $1 AND user_id = $2 '
+      r'AND EXISTS (SELECT 1 FROM public.beacon WHERE id = $1 AND kind = 0)',
+      [beaconId, userId],
+    );
+  }
 
   @override
   Future<void> recordBeaconStatusTransition({

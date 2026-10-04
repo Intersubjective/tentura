@@ -216,6 +216,73 @@ if removed:
 PY
 }
 
+# Drops private TMPDIRs that nested-wrapper harnesses leaked.
+#
+# Acceptance harnesses run a nested wrapped `dart test` with a private
+# `tentura-*` TMPDIR and delete it in `finally`, which never runs when the
+# outer test is SIGKILLed. Each leftover holds a multi-GB
+# dart_test.kernel.*; 80 GB of them piled up in packages/server/.dart_tool
+# by 2026-10-02. A dir is reclaimed only when it looks like a nested-wrapper
+# TMPDIR (it holds tentura-test-cleanup/ or dart_test.*), no live process
+# has TMPDIR or cwd inside it, and it is older than NESTED_TMP_MIN_AGE_MIN
+# minutes (covers the gap between mkdtemp and the nested spawn). Safe while
+# other wrapped runs are active, so sweep_run calls it before that check.
+sweep_nested_tmpdirs() {
+  python3 - "${TMPDIR:-/tmp}" "$(dirname "$SELF")/.." "${NESTED_TMP_MIN_AGE_MIN:-10}" <<'PY'
+import os, pathlib, shutil, sys, time
+
+tmp = pathlib.Path(sys.argv[1])
+repo = pathlib.Path(sys.argv[2]).resolve()
+min_age = float(sys.argv[3]) * 60
+
+in_use = []
+for p in pathlib.Path("/proc").iterdir():
+    if not p.name.isdigit():
+        continue
+    try:
+        in_use.append(os.readlink(p / "cwd"))
+    except OSError:
+        pass
+    try:
+        env = (p / "environ").read_bytes()
+    except OSError:
+        continue
+    for entry in env.split(b"\0"):
+        if entry.startswith(b"TMPDIR="):
+            in_use.append(os.fsdecode(entry[len(b"TMPDIR="):]))
+
+
+def busy(d: str) -> bool:
+    return any(u == d or u.startswith(d + "/") for u in in_use)
+
+
+def nested_signature(d: pathlib.Path) -> bool:
+    if (d / "tentura-test-cleanup").is_dir():
+        return True
+    return any(d.glob("dart_test.*"))
+
+
+roots = [tmp] + sorted(repo.glob("packages/*/.dart_tool"))
+now = time.time()
+removed = []
+for root in roots:
+    for d in root.glob("tentura-*"):
+        try:
+            if d.is_symlink() or not d.is_dir() or d.name == "tentura-test-cleanup":
+                continue
+            if now - d.stat().st_mtime < min_age:
+                continue
+        except OSError:
+            continue
+        if not nested_signature(d) or busy(str(d.resolve())):
+            continue
+        shutil.rmtree(d, ignore_errors=True)
+        removed.append(str(d))
+if removed:
+    print("\n".join(removed))
+PY
+}
+
 # Drops disposable Postgres databases left behind by killed test runs.
 #
 # Each pg test creates `tentura_test_*` and drops it in teardown; a SIGKILLed
@@ -351,6 +418,12 @@ sweep_run() {
   local run_id="$1"
   kill_tagged_tree "$run_id"
   sleep 0.4
+  local leaked
+  leaked="$(sweep_nested_tmpdirs || true)"
+  if [[ -n "${leaked:-}" ]]; then
+    log "removed leaked nested TMPDIRs:"
+    printf '%s\n' "$leaked" | sed 's/^/  /' >&2
+  fi
   if [[ -n "$(other_active_markers "${run_id#pre-}")" ]]; then
     log "skipping orphan/tmpfs sweep: another wrapped run is active"
     return 0

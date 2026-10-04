@@ -9,6 +9,7 @@ import 'package:test/test.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import '../../support/beacon_hierarchy_fixture.dart';
+import '../../support/pg_notification_recorder.dart';
 import 'beacon_hierarchy_pg_helpers.dart';
 
 Future<void> main() async {
@@ -22,8 +23,16 @@ Future<void> main() async {
     late Connection writer;
     late Connection listener;
     late BeaconHierarchyFixture fixture;
-    late StreamSubscription<String> notificationSubscription;
-    final notifications = <Map<String, dynamic>>[];
+    late PgNotificationRecorder recorder;
+
+    Future<void> drainNotifications() => recorder.drain(
+          sendBarrier: (token) => writer.execute(
+            Sql.named("SELECT pg_notify('entity_changes', @payload)"),
+            parameters: {
+              'payload': jsonEncode({'entity': 'barrier', 'id': token}),
+            },
+          ),
+        );
 
     setUpAll(() async {
       if (skipReason != false) {
@@ -39,18 +48,14 @@ Future<void> main() async {
         settings: target.databaseEnv.pgEndpointSettings,
       );
       await listener.execute('LISTEN entity_changes');
-      notificationSubscription = listener.channels['entity_changes'].listen(
-        (payload) => notifications.add(
-          jsonDecode(payload) as Map<String, dynamic>,
-        ),
-      );
+      recorder = PgNotificationRecorder(listener.channels['entity_changes']);
     });
 
     tearDown(() async {
       if (skipReason != false) {
         return;
       }
-      notifications.clear();
+      await drainNotifications();
       await fixture.tearDown();
     });
 
@@ -58,7 +63,7 @@ Future<void> main() async {
       if (skipReason != false) {
         return;
       }
-      await notificationSubscription.cancel();
+      await recorder.cancel();
       await listener.close();
       await fixture.db.close();
       await writer.close();
@@ -74,7 +79,7 @@ Future<void> main() async {
     }) async {
       final deadline = DateTime.now().add(const Duration(seconds: 3));
       while (DateTime.now().isBefore(deadline)) {
-        final matches = notifications.where((message) {
+        final matches = recorder.messages.where((message) {
           if (message['entity'] != kind) return false;
           if (aggregateId != null && message['id'] != aggregateId) return false;
           return true;
@@ -137,7 +142,7 @@ Future<void> main() async {
 
     test('draft child save emits no beacon_hierarchy hint', () async {
       await seedTree();
-      notifications.clear();
+      await drainNotifications();
       await writer.execute(
         Sql.named(r'''
 INSERT INTO public.beacon (
@@ -156,7 +161,7 @@ INSERT INTO public.beacon (
       );
       await settle();
       expect(
-        notifications.where((m) => m['entity'] == 'beacon_hierarchy'),
+        recorder.messages.where((m) => m['entity'] == 'beacon_hierarchy'),
         isEmpty,
       );
     });
@@ -164,7 +169,7 @@ INSERT INTO public.beacon (
     test('published child title change notifies parent without leaking title',
         () async {
       await seedTree();
-      notifications.clear();
+      await drainNotifications();
       await writer.execute(
         Sql.named(r'''
 UPDATE public.beacon
@@ -186,7 +191,7 @@ WHERE id = @childId
     test('published child description change notifies parent and child',
         () async {
       await seedTree();
-      notifications.clear();
+      await drainNotifications();
       await writer.execute(
         Sql.named(r'''
 UPDATE public.beacon
@@ -213,7 +218,7 @@ WHERE id = @childId
 
     test('owner display name change notifies owned beacon hierarchy', () async {
       await seedTree();
-      notifications.clear();
+      await drainNotifications();
       await writer.execute(
         Sql.named(r'''
 UPDATE public."user"
@@ -249,7 +254,7 @@ ON CONFLICT (id) DO UPDATE SET room_access = EXCLUDED.room_access
           'roomAccess': 3,
         },
       );
-      notifications.clear();
+      await drainNotifications();
       await writer.execute(
         Sql.named(r'''
 DELETE FROM public.beacon_participant
@@ -272,7 +277,7 @@ WHERE beacon_id = @beaconId AND user_id = @userId
 
     test('parent delete notifies child parent-reference projection owner', () async {
       await seedTree();
-      notifications.clear();
+      await drainNotifications();
       await writer.execute(
         Sql.named(r'''
 UPDATE public.beacon

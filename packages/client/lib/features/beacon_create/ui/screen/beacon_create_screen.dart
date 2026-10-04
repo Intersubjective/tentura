@@ -1,4 +1,4 @@
-import 'dart:async' show unawaited;
+import 'dart:async' show TimeoutException, unawaited;
 
 import 'package:flutter/material.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
@@ -54,8 +54,19 @@ class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
     @QueryParam(kQueryBeaconForwardTo) this.forwardToUserId = '',
     @QueryParam(kQueryBeaconParentId) this.parentBeaconId = '',
     @QueryParam(kQueryBeaconSourceMessageId) this.sourceMessageId = '',
+    @QueryParam(kQueryBeaconConvertFromPostId) this.convertFromPostId = '',
+    @QueryParam(kQueryBeaconConvertIsDiscoverable)
+    this.convertIsDiscoverable = true,
+    this.initialRecipientIds = const {},
+    this.initialNotes = const {},
     super.key,
   });
+
+  /// Recipients preselected on the Recipients tab (graph composer hand-off).
+  final Set<String> initialRecipientIds;
+
+  /// Per-recipient notes for [initialRecipientIds].
+  final Map<String, String> initialNotes;
 
   /// Server draft beacon id when opening from My Work / deep link.
   final String draftId;
@@ -76,6 +87,13 @@ class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
   /// General message to promote into a child request.
   final String sourceMessageId;
 
+  /// Post being converted to a Request: the form is prefilled from its root
+  /// message and submitting converts it instead of creating a new beacon.
+  final String convertFromPostId;
+
+  /// Discoverability the author chose in the convert confirmation.
+  final bool convertIsDiscoverable;
+
   @override
   State<BeaconCreateScreen> createState() => _BeaconCreateScreenState();
 
@@ -89,6 +107,10 @@ class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
         create: (_) => BeaconCreateCubit(
           draftBeaconIdToLoad: draftId.isEmpty ? null : draftId,
           editBeaconIdToLoad: editId.isEmpty ? null : editId,
+          convertFromPostId: convertFromPostId.isEmpty
+              ? null
+              : convertFromPostId,
+          convertIsDiscoverable: convertIsDiscoverable,
           childCreationContext: _childCreationContext(
             parentBeaconId: parentBeaconId,
             sourceMessageId: sourceMessageId,
@@ -103,6 +125,9 @@ class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
 class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
   static const _formStep = 0;
   static const _recipientsStep = 1;
+
+  /// How long the recipients step waits for the draft before offering a retry.
+  static const _draftEnsureTimeout = Duration(seconds: 90);
 
   final _formKey = GlobalKey<FormState>();
 
@@ -152,6 +177,20 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
     if (_beaconCreateCubit.state.publishBlocker != null) {
       return;
     }
+    final contextName = context.read<ContextCubit>().state.selected;
+    setState(() => _recipientsDraftEnsuring = true);
+    try {
+      await _flushAndEnsureDraft(contextName).timeout(_draftEnsureTimeout);
+    } on TimeoutException {
+      // The create stays in flight: a late answer still sets draftId and
+      // opens the picker.
+    }
+    if (mounted) {
+      setState(() => _recipientsDraftEnsuring = false);
+    }
+  }
+
+  Future<void> _flushAndEnsureDraft(String contextName) async {
     // Flush before the forward band loads: needs selected after the first
     // autosave must reach the server or fetchForwardContext sees empty needs
     // and returns an empty band (no "Seen helping with …").
@@ -159,15 +198,10 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
     if (_beaconCreateCubit.state.draftId != null) {
       return;
     }
-    _recipientsDraftEnsuring = true;
-    final contextName = context.read<ContextCubit>().state.selected;
     await _beaconCreateCubit.ensureDraft(
       context: contextName,
       showMessage: false,
     );
-    if (mounted) {
-      setState(() => _recipientsDraftEnsuring = false);
-    }
   }
 
   ForwardCubit? _forwardCubitFor(BeaconCreateState state, String contextName) {
@@ -184,8 +218,9 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
             state.lineageParentBeaconId != null &&
             state.lineageParentBeaconId!.isNotEmpty,
         initialSelectedIds: widget.forwardToUserId.isEmpty
-            ? const <String>{}
+            ? widget.initialRecipientIds
             : {widget.forwardToUserId},
+        initialNotes: widget.initialNotes,
         embedded: true,
       );
       _forwardCubitDraftId = id;
@@ -200,6 +235,11 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
     final id = _beaconCreateCubit.state.draftId;
     if (id == null || id.isEmpty) return;
     await popCreateAndOpenLiveBeacon(context.router, beaconId: id);
+  }
+
+  Future<void> _submitConversion() async {
+    _formKey.currentState?.save();
+    await _beaconCreateCubit.submitConversion();
   }
 
   Future<void> _sendRequest() async {
@@ -338,7 +378,7 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
                 ),
               ),
           actions: [
-            if (!isRecipients)
+            if (!isRecipients && widget.convertFromPostId.isEmpty)
               BlocBuilder<BeaconCreateCubit, BeaconCreateState>(
                 bloc: _beaconCreateCubit,
                 buildWhen: (p, c) =>
@@ -526,6 +566,28 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
                           label: l10n.buttonSaveChanges,
                         ),
                       ),
+                    );
+                  }
+
+                  if (widget.convertFromPostId.isNotEmpty) {
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const TenturaHairlineDivider(subtle: true),
+                        SizedBox(height: tt.rowGap),
+                        SizedBox(
+                          height: tt.buttonHeight,
+                          width: double.infinity,
+                          child: FilledButton(
+                            key: const Key('BeaconCreate.ConvertButton'),
+                            onPressed: state.isLoading
+                                ? null
+                                : () => unawaited(_submitConversion()),
+                            child: Text(l10n.buttonPublish),
+                          ),
+                        ),
+                      ],
                     );
                   }
 
@@ -719,11 +781,16 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const CircularProgressIndicator.adaptive(),
-            SizedBox(height: context.tt.rowGap),
             Text(
-              l10n.beaconRecipientsPreparing,
+              l10n.beaconRecipientsPrepareFailed,
               style: TenturaText.bodySmall(context.tt.textMuted),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: context.tt.rowGap),
+            TenturaCommandButton(
+              key: const Key('BeaconCreate.RecipientsRetry'),
+              label: l10n.myWorkRetry,
+              onPressed: () => unawaited(_prepareRecipientsTab()),
             ),
           ],
         ),

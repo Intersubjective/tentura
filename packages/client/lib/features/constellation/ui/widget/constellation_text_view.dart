@@ -36,8 +36,7 @@ class _ConstellationTextViewState extends State<ConstellationTextView> {
           previous.filterCapabilitySlugs != current.filterCapabilitySlugs ||
           previous.filterLocation != current.filterLocation ||
           previous.filterTiming != current.filterTiming ||
-          previous.filterIncludeUnspecified !=
-              current.filterIncludeUnspecified,
+          previous.filterIncludeUnspecified != current.filterIncludeUnspecified,
       listener: (context, state) {
         final cubit = context.read<ConstellationCubit>();
         for (final authorId in cubit.overflowHiddenCountByAuthor.keys) {
@@ -156,9 +155,11 @@ class _ConstellationTextViewState extends State<ConstellationTextView> {
   ) {
     final ids = <String>{};
     for (final request in field.requests) {
-      if (cubit.discoverableRequestsForPerson(request.authorId).any(
-        (eligible) => eligible.id == request.id,
-      )) {
+      if (cubit
+          .discoverableRequestsForPerson(request.authorId)
+          .any(
+            (eligible) => eligible.id == request.id,
+          )) {
         ids.add(request.authorId);
       }
     }

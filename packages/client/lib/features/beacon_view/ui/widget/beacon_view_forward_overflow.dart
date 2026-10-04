@@ -7,6 +7,7 @@ import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/help_offer_message_dialog.dart';
 import 'package:tentura/features/forward/domain/forward_draft_policy.dart';
+import 'package:tentura/features/forward/domain/forward_target_profile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
@@ -17,7 +18,7 @@ bool beaconViewAllowsForwardAction({
   required bool showInitialLoading,
 }) {
   if (!showBeaconContent || showInitialLoading) return false;
-  return state.beacon.allowsForward;
+  return state.beacon.viewerCanForward;
 }
 
 Future<void> beaconViewOpenForwardThenMaybeNudgeOfferHelp(
@@ -38,6 +39,9 @@ Future<void> beaconViewOpenForwardThenMaybeNudgeOfferHelp(
     hadOutgoingEdgeBefore: hadOutgoingEdgeBefore,
     hasOutgoingEdgeAfter: s.hasForwardedThisBeaconOnce,
     offerHelpAllowed: offerHelpAllowed,
+    profile: s.beacon.isRequest
+        ? ForwardTargetProfile.request
+        : ForwardTargetProfile.post,
   )) {
     return;
   }

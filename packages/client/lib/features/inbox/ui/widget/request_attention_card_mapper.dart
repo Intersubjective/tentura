@@ -117,7 +117,7 @@ RequestAttentionCardModel? requestCardFromInboxItem(
     provenance: item.provenance,
     eventTotal: meta?.eventTotal ?? 0,
     eventsPreview: meta?.eventsPreview ?? const [],
-    allowsForward: beacon.allowsForward,
+    allowsForward: beacon.viewerCanForward,
   );
 }
 

@@ -1,0 +1,16 @@
+query MyPosts {
+  myPosts {
+    id
+    authorId
+    authorName
+    authorAvatar
+    rootExcerpt
+    lastMessageExcerpt
+    lastMessageAt
+    lastActivityAt
+    pinnedAt
+    mutedUntil
+    unreadCount
+    isAuthor
+  }
+}

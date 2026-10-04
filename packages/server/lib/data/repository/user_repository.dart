@@ -3,12 +3,16 @@ import 'dart:math';
 
 import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/domain/entity/account_credential_entity.dart';
 import 'package:tentura_server/domain/entity/asserted_contact.dart';
+import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/invite/invite_origin.dart';
+import 'package:tentura_server/domain/policy/beacon_forward_policy.dart';
 import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
 import 'package:tentura_server/domain/port/invite_seed_prompt_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
@@ -16,6 +20,7 @@ import 'package:tentura_server/env.dart';
 
 import '../database/tentura_db.dart';
 import '../mapper/user_mapper.dart';
+import 'post_lock_repository.dart';
 
 export 'package:tentura_server/domain/entity/user_entity.dart';
 
@@ -141,6 +146,40 @@ class UserRepository implements UserRepositoryPort {
         );
   }
 
+  /// The invite's issuer must still be allowed to forward its beacon. For a
+  /// Post the Post lock is taken first and the beacon is judged under it.
+  Future<void> _requireInviteIssuerMayForward({
+    required String beaconId,
+    required String issuerId,
+  }) async {
+    Future<Beacon?> read() => _database.managers.beacons
+        .filter((e) => e.id(beaconId))
+        .getSingleOrNull();
+
+    var row = await read();
+    if (row != null && row.kind == BeaconKind.post.value) {
+      await PostLockRepository(_database).lockForPostMutation(beaconId);
+      row = await read();
+    }
+    if (row == null) throw IdNotFoundException(id: beaconId);
+    final beacon = BeaconEntity(
+      id: row.id,
+      title: row.title,
+      author: UserEntity(id: row.userId ?? ''),
+      createdAt: row.createdAt.dateTime,
+      updatedAt: row.updatedAt.dateTime,
+      status: BeaconStatus.fromSmallint(row.status),
+      kind: BeaconKind.fromValue(row.kind),
+      forwardPolicy: BeaconForwardPolicyValue.fromValue(row.forwardPolicy),
+    );
+    if (!beacon.allowsForward) throw IdNotFoundException(id: beaconId);
+    if (!BeaconForwardPolicy.canForward(beacon: beacon, senderId: issuerId)) {
+      throw const UnauthorizedException(
+        description: 'Forwarding is off for this post',
+      );
+    }
+  }
+
   /// Called inside the accepting transaction. Keep every ancestor locked until
   /// commit so a concurrent leave cannot invalidate admission before insertion.
   Future<bool> _lockActiveInviteParentChain(String? parentEdgeId) async {
@@ -182,6 +221,13 @@ class UserRepository implements UserRepositoryPort {
         .add(_env.invitationTTL)
         .isBefore(DateTime.timestamp())) {
       throw const InvitationWrongException(description: 'Invitation expired!');
+    }
+
+    if (invitation.beaconId != null) {
+      await _requireInviteIssuerMayForward(
+        beaconId: invitation.beaconId!,
+        issuerId: invitation.userId,
+      );
     }
 
     final user = await _database.managers.users.createReturning(
@@ -349,6 +395,13 @@ class UserRepository implements UserRepositoryPort {
         .add(_env.invitationTTL)
         .isBefore(DateTime.timestamp())) {
       throw const InvitationWrongException(description: 'Invitation expired!');
+    }
+
+    if (invitation.beaconId != null) {
+      await _requireInviteIssuerMayForward(
+        beaconId: invitation.beaconId!,
+        issuerId: invitation.userId,
+      );
     }
 
     final user = await _createUserWithCredential(

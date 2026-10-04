@@ -13,6 +13,7 @@ import '../../support/beacon_lifecycle_effects_test_support.dart';
 import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/image_entity.dart';
 import 'package:tentura_server/domain/entity/task_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
@@ -74,6 +75,8 @@ class _ForkBeaconRepo extends Fake implements BeaconRepositoryPort {
     String? lineageParentBeaconId,
     String? lineageRootBeaconId,
     bool? isDiscoverable,
+    BeaconKind kind = BeaconKind.request,
+    BeaconForwardPolicyValue forwardPolicy = BeaconForwardPolicyValue.open,
   }) async {
     createBeaconCalls.add((
       imageIds: imageIds,
@@ -90,7 +93,11 @@ class _ForkBeaconRepo extends Fake implements BeaconRepositoryPort {
       status: status ?? BeaconStatus.draft,
       images: [
         for (final id in imageIds ?? const <String>[])
-          ImageEntity(id: id, authorId: authorId, createdAt: DateTime.utc(2026)),
+          ImageEntity(
+            id: id,
+            authorId: authorId,
+            createdAt: DateTime.utc(2026),
+          ),
       ],
       coverImageId: coverImageId,
       coverSource: coverSource,

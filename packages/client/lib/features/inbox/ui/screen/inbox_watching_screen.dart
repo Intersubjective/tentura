@@ -145,7 +145,7 @@ class _InboxWatchingScreenState extends State<InboxWatchingScreen> {
                             entry: kBeaconEntryInbox,
                           ),
                         ),
-                        onTap: item.beacon?.allowsForward == true
+                        onTap: item.beacon?.viewerCanForward == true
                             ? () => unawaited(inboxForwardItem(context, item))
                             : null,
                         onStopWatching: () =>

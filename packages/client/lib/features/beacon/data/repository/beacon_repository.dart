@@ -9,6 +9,7 @@ import 'package:tentura/data/model/beacon_model.dart';
 import 'package:tentura/data/model/user_model.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
@@ -22,6 +23,7 @@ import '../../domain/exception.dart';
 import '../model/beacon_model_with_admitted_helpers.dart';
 import '../gql/_g/beacon_add_image.req.gql.dart';
 import '../gql/_g/beacon_create.req.gql.dart';
+import '../gql/_g/beacon_forwarding_open.req.gql.dart';
 import '../gql/_g/beacon_fork.req.gql.dart';
 import '../gql/_g/beacon_fetch_by_id.req.gql.dart';
 import '../gql/_g/beacon_admitted_helpers_roster.req.gql.dart';
@@ -162,7 +164,13 @@ class BeaconRepository implements BeaconWritePort {
   Future<Beacon> create(Beacon beacon, {bool draft = false}) async {
     final request = GBeaconCreateReq((b) {
       b.vars
-        ..title = beacon.title
+        // A Post has no title: the server derives its heading from the root
+        // message, so an empty one is not sent at all.
+        ..title = beacon.kind == BeaconKind.post && beacon.title.isEmpty
+            ? null
+            : beacon.title
+        ..kind = beacon.kind.value
+        ..forwardPolicy = beacon.forwardPolicy.value
         ..description = beacon.description
         ..context = beacon.context.isEmpty ? null : beacon.context
         ..tags = beacon.tags.isEmpty ? null : beacon.tags.join(',')
@@ -372,6 +380,15 @@ class BeaconRepository implements BeaconWritePort {
     } else {
       throw BeaconDeleteException(id);
     }
+  }
+
+  /// One-way: lets any member forward a Post the author had closed.
+  Future<void> openForwarding(String id) async {
+    await _remoteApiService
+        .request(GBeaconForwardingOpenReq((b) => b.vars.id = id))
+        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .then((r) => r.dataOrThrow(label: _label));
+    await refreshAndNotify(id);
   }
 
   /// Refetches [id] from the server and emits [RepositoryEventUpdate]

@@ -1,4 +1,5 @@
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
 import 'package:tentura_root/domain/entity/beacon_access.dart';
 import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
@@ -59,7 +60,12 @@ extension type const BeaconModel(GBeaconModel i) implements GBeaconModel {
           ? null
           : BeaconAccessLevel.fromInt(i.access_level),
       accessReasons: i.access_reasons ?? 0,
-      isDiscoverable: i.is_discoverable ?? true,
+      isDiscoverable: i.is_discoverable,
+      kind: BeaconKind.fromValue(i.kind),
+      forwardPolicy: BeaconForwardPolicyValue.fromValue(i.forward_policy),
+      lastActivityAt: i.last_activity_at,
+      postRootMessageId: i.post_root_message_id,
+      viewerCanForward: i.viewer_can_forward ?? false,
     );
   }
 }

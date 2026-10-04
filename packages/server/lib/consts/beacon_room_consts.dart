@@ -6,6 +6,9 @@ abstract final class BeaconParticipantRoleBits {
   static const candidate = 3;
   static const watcher = 4;
   static const forwarder = 5;
+
+  /// Admitted by an inbound forward edge (Post), or kept after conversion.
+  static const addressee = 6;
 }
 
 /// `beacon_room_message.semantic_marker` — sparse system semantics.

@@ -110,6 +110,7 @@ class _FakeBeaconFactCardRepository implements BeaconFactCardRepository {
 Beacon _openBeacon({String id = 'B1'}) => Beacon.empty.copyWith(
   id: id,
   status: BeaconStatus.open,
+  viewerCanForward: true,
   author: const Profile(id: 'U-me'),
 );
 
@@ -491,6 +492,7 @@ void main() {
     final otherAuthorBeacon = Beacon.empty.copyWith(
       id: 'B1',
       status: BeaconStatus.open,
+      viewerCanForward: true,
       author: const Profile(id: 'U-other'),
     );
     final harness = await _buildHarness(

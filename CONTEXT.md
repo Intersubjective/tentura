@@ -4,9 +4,17 @@ Coordination product for **Requests** (internally: **Beacons**), request **discu
 
 ## Terminology
 
+**Approved Post vocabulary and behavior (A1–A2, A7):** the following Post contracts belong to the [Post + Constellation plan](docs/plans/post-and-constellation-composer-plan.md); this amendment does not assert release completion.
+
+**Post** / **Пост** (internally: `beacon`, `kind = 1`) is an addressed conversation, never public or discoverable. **Request** / «запрос» remains `beacon.kind = 0`; no parallel Post table, entity, or route is introduced. A Post's **Chat** / «Чат» is its General-only room; its **root message** is the author's first room message, referenced by `post_root_message_id`.
+
+**Post addressee** is `beacon_participant.role = 6`: an active inbound forward edge grants `room_access = admitted` (3), without helper stake. With no active inbound edge, addressee admission is revoked; voluntary **left** (5) survives cancellation and resend. Other participant roles are not rewritten. Request forwards do not admit. Post → Request preserves addressee access without stake («Участник из поста»); offering help then follows normal Request acknowledgement rules, and declining or withdrawing an offer returns to that intermediate state.
+
+**Post membership is not a bond** (A7): co-membership in `kind = 1` does not create `person_bond`, forwarding eligibility, or shared-context visibility. Members can see each other inside the Post, open profiles, and add contacts; that does not widen the general mutual-visibility wall.
+
 | Layer | Primary object | Coordination workspace | Home nav branch (offers to you) |
 |-------|----------------|------------------------|---------------------------------------|
-| **User-facing** (UI, push, landing, l10n values) | **Request** / **Requests** | **discussion** | **Activity** / «Активность» |
+| **User-facing** (UI, push, landing, l10n values) | **Request** / **Requests**; **Post** / **Posts** (approved feature) | **discussion** | **Activity** / «Активность» |
 | **Internal** (code, DB, GraphQL, routes, technical docs) | **Beacon** / `beacon` | room / `beacon_room` | `inbox` |
 
 **Request (internally: Beacon)** is a help need that can be forwarded, committed to, coordinated, and closed. **Discussion (internally: room)** is the private coordination workspace on a request — the collective space you are admitted to. On request detail the **Chat** tab (`labelBeaconTabChat` / «Чат») is the short tab-label form of that workspace; **discussion** / **обсуждение** remains the general noun elsewhere. One conversation inside it is a **thread** / **тема**; the built-in thread is **General** / **Общее** (the only public conversation on each request). Retired ask/promise/blocker coordination-item threads are no longer a product surface; nested child requests replaced that model (see **Beacon nesting** below).
@@ -118,6 +126,7 @@ _Avoid_: treating a beacon id/URL as a read capability; using MeritRank score or
 
 **Shared context** (hierarchy observer access, issue #146):
 Membership (level ≤1) on request N grants observer read on every immediate child of N and every ancestor of N, via `contextChild` / `contextAncestor` in `beacon_can_read_content` / `BeaconAccessPolicy`. Context observers may apply, forward, invite, and fork like other level-2 viewers (D2); they do not get discussion, Plan, or involvement visibility unless separately admitted or involved. They **do** see admitted helpers (content-audience right). Grants last while membership on N holds (D5, D6); blocks override (D8). **Co-participant bond:** two members of the same open-family or `reviewOpen` request are mutually visible as people (`person_bond` / server `person_visibility`) until the request leaves that window or membership ends (D3); the bond never feeds discoverability or D11 — only trust visibility does (D4).
+The approved Post amendment restricts co-participant bonds and shared-context membership to Requests (`kind = 0`); Post membership is excluded (A7).
 _Avoid_: treating parentage as admission; expecting discovery to open because you worked together on another request.
 
 **Involvement visibility** (who can see WHO is involved):
@@ -184,7 +193,7 @@ Adds another 7 days to the countdown. Allowed at most **twice**. Additive and lo
 Returns the beacon to **Open**, discarding the review window and its scaffolding and reverting the inbox/activity tombstones the close fired. Strong confirmation ("returns to Open and discards current review progress"). Allowed **at most once** per review window (`kMaxReviewReopens = 1`).
 
 **Deleted** (removal state):
-A beacon removed via Delete — not an outcome. **Delete is gated by stakes:** a beacon that **ever had an acknowledged committer** can never be deleted (the author uses **Archive** to clear it from their own desk). There is **no** separate gate on "material work in the room" — admission invariant ensures non-stewards only work in the discussion after acknowledgement (see **Commitment facts**). A bare offer-then-withdraw with no author acknowledgment (including withdraw inside the 24-hour grace) does NOT lock Delete. Drafts are destroyed permanently (hard delete: row + images). A published beacon that **never** had an acknowledged committer becomes a soft-deleted tombstone (state 2) for people who saw it.
+A beacon removed via Delete — not an outcome. **Delete is gated by stakes:** a beacon that **ever had an acknowledged committer** can never be deleted (the author uses **Archive** to clear it from their own desk). There is **no** separate gate on "material work in the room" — the Request admission invariant ordinarily ties non-steward access to acknowledgement; Post addressees retained after conversion are the approved stake-free exception (see **Commitment facts**). A bare offer-then-withdraw with no author acknowledgment (including withdraw inside the 24-hour grace) does NOT lock Delete. Drafts are destroyed permanently (hard delete: row + images). A published beacon that **never** had an acknowledged committer becomes a soft-deleted tombstone (state 2) for people who saw it.
 _Avoid_: deleting a beacon that ever had an acknowledged committer; locking Delete on unacknowledged/rejected offers or grace-period exits; treating Delete as a universal escape hatch that bypasses committer stake.
 
 ## Commitment facts
@@ -197,7 +206,7 @@ Participation truth for help offers is stored in append-only **`beacon_commitmen
 | **B. Current stake** | Who is actively in the work now | Reversible (withdraw, release, re-acknowledge) |
 | **C. Historical truth** | "The author acknowledged this person's contribution" | Append-only (`everAcknowledged`) |
 
-Pure predicates (`everAcknowledged`, `currentStakeState`, `hasCurrentStake`) derive gates and review composition from event history. Clients also read a denormalized **`stake_state`** projection on `beacon_help_offer` for display only — it is **never** an input for gates. **Admission invariant:** non-author, non-steward discussion access is granted only together with an acknowledging author response (`useful` / `needCoordination`); stewards are a deliberate exception with room access but no committer stake. Full event kinds, grace algorithm, and implementation phases: [`docs/plans/commitment-truth-rework-plan.md`](docs/plans/commitment-truth-rework-plan.md).
+Pure predicates (`everAcknowledged`, `currentStakeState`, `hasCurrentStake`) derive gates and review composition from event history. Clients also read a denormalized **`stake_state`** projection on `beacon_help_offer` for display only — it is **never** an input for gates. **Request admission invariant:** non-author, non-steward discussion access is granted only together with an acknowledging author response (`useful` / `needCoordination`); stewards are a deliberate exception with room access but no committer stake. The approved Post amendment adds forward-admitted addressees and preserves their stake-free access after conversion (see **Post addressee** above). Full event kinds, grace algorithm, and implementation phases: [`docs/plans/commitment-truth-rework-plan.md`](docs/plans/commitment-truth-rework-plan.md).
 
 ## My desk (My Work)
 

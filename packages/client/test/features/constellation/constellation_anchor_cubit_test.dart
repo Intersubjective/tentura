@@ -707,7 +707,7 @@ void main() {
       expect(harness.cubit.state.field!.peers, isEmpty);
       expect(harness.cubit.state.field!.requests, isEmpty);
       expect(
-        harness.cubit.graphController.nodes.whereType<FieldRequestNode>().map((n) => n.id),
+        harness.cubit.graphController.nodes.whereType<FieldBeaconNode>().map((n) => n.id),
         contains('B-pin'),
       );
       expect(

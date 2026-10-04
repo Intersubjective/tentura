@@ -6,6 +6,7 @@ import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
+import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_room_body.dart';
@@ -37,6 +38,8 @@ class ThreadDetail extends StatelessWidget {
     this.onCoordinationSaved,
     this.beaconAuthorId = '',
     this.beaconAuthor,
+    this.capabilities = const RoomCapabilities.request(),
+    this.postRoot,
     super.key,
   });
 
@@ -45,6 +48,8 @@ class ThreadDetail extends StatelessWidget {
   final VoidCallback? onCoordinationSaved;
   final String beaconAuthorId;
   final Profile? beaconAuthor;
+  final RoomCapabilities capabilities;
+  final RoomPostRootPin? postRoot;
 
   @override
   Widget build(BuildContext context) {
@@ -60,6 +65,8 @@ class ThreadDetail extends StatelessWidget {
                 beaconAuthor: beaconAuthor,
                 onCoordinationSaved: onCoordinationSaved,
                 onOpenCoordinationItem: onOpenCoordinationItem,
+                capabilities: capabilities,
+                postRoot: postRoot,
               ),
             ),
           ],

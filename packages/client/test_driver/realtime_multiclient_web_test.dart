@@ -58,7 +58,10 @@ Future<void> main() async {
       helper.login(fixture.helperEmail),
       helperPeer.login(fixture.helperEmail),
     ]);
-    await _clearAuthorAttentionBaseline(author, authorPeer);
+    final authorAttentionBaseline = await _readAuthorAttentionBaseline(
+      author,
+      authorPeer,
+    );
     if (disabledPath == 'live') {
       final suspended = await _controlSocket(
         qaToken,
@@ -81,6 +84,7 @@ Future<void> main() async {
       proof: proof,
       artifactDir: artifactDir,
       disabledPath: disabledPath,
+      authorAttentionBaseline: authorAttentionBaseline,
     );
     await _assertNoUncaughtFlutterErrors([
       author,
@@ -146,6 +150,7 @@ Future<void> _runJourney({
   required Map<String, dynamic> proof,
   required Directory artifactDir,
   required String disabledPath,
+  required int authorAttentionBaseline,
 }) async {
   final suffix = DateTime.now().microsecondsSinceEpoch;
   final title = 'Realtime request $suffix';
@@ -156,7 +161,7 @@ Future<void> _runJourney({
 
   // 1. Helper Inbox stays mounted while the author publishes and forwards.
   await helper.open('/home/inbox');
-  await helper.waitForText('Inbox');
+  await helper.waitForText('For you');
   await author.open('/beacon/new');
   await author.setTestId('request.title', title);
   await author.setTestId(
@@ -164,7 +169,9 @@ Future<void> _runJourney({
     'Simultaneous WebDriver proof for $title',
   );
   await author.clickText('Next: Recipients');
-  await author.clickTestId('forward.recipient.checkbox.${fixture.helperUserId}');
+  await author.clickTestId(
+    'forward.recipient.checkbox.${fixture.helperUserId}',
+  );
 
   await author.setNetworkLatency(const Duration(milliseconds: 700));
   final submitStarted = author.clickTestId('forward.submit');
@@ -189,12 +196,12 @@ Future<void> _runJourney({
   );
   final beaconId = _beaconIdFromUrl(await author.driver.currentUrl);
   await author.clickTestId('beacon.tab.people');
-  await authorPeer.open('/home/updates');
+  await authorPeer.open('/home/inbox/history');
   await authorPeer.waitForText('Updates');
 
   // 2. Helper offers help; the already-mounted People projection converges.
   await helper.open('/home/inbox');
-  await helper.waitForText('Inbox');
+  await helper.waitForText('For you');
   await helper.waitForText(title);
   await helper.waitForTestId('inbox.offer_help');
   await helper.clickTestId('inbox.offer_help');
@@ -205,37 +212,45 @@ Future<void> _runJourney({
   await helper.clickTestId('capability.software');
   await helper.clickTestId('help_offer.submit');
   timings['updates_delivery_ms'] = await _measureUntil(
-    () => authorPeer.hasTestId('updates-unread-count-1'),
+    () => authorPeer.hasUpdatesUnreadCount(authorAttentionBaseline + 1),
     timeout: const Duration(seconds: 5),
   );
 
   // 2a. The enabled Updates slice receives exactly one offer receipt in both
   // author sessions. Opening the card must mark it seen before navigating to
-  // the exact People target, then converge its unread badge to zero everywhere.
-  await author.open('/home/updates');
+  // exact People target. Reading preserves active attention (R2).
+  await author.open('/home/inbox/history');
   await author.waitForText('Updates');
   await Future.wait([
     author.waitForText('offered help'),
     authorPeer.waitForText('offered help'),
-    author.waitForTestId('updates-unread-count-1'),
-    authorPeer.waitForTestId('updates-unread-count-1'),
+    _waitUntil(() => author.hasUpdatesUnreadCount(authorAttentionBaseline + 1)),
+    _waitUntil(
+      () => authorPeer.hasUpdatesUnreadCount(authorAttentionBaseline + 1),
+    ),
   ]);
   _require(
     await authorPeer.textCount('offered help') == 1,
     'Offer produced duplicate Updates cards',
   );
+  final offerReceiptIds = (await author.updatesReceiptIds()).toSet()
+    ..removeAll(await authorPeer.seenUpdatesReceiptIds());
+  _require(offerReceiptIds.length == 1, 'Expected one unseen offer receipt');
+  final offerReceiptId = offerReceiptIds.single;
   await author.clickText('offered help');
   await _waitUntil(
     () async =>
         (await author.driver.currentUrl).contains('/beacon/view/$beaconId'),
   );
   await author.waitForText('People');
-  await author.open('/home/updates');
+  await author.open('/home/inbox/history');
   await author.waitForText('Updates');
   timings['updates_open_ack_ms'] = await _measureUntil(
     () async =>
-        await author.hasTestId('updates-unread-count-0') &&
-        await authorPeer.hasTestId('updates-unread-count-0'),
+        await author.isUpdatesReceiptSeen(offerReceiptId) &&
+        await authorPeer.isUpdatesReceiptSeen(offerReceiptId) &&
+        await author.hasUpdatesUnreadCount(authorAttentionBaseline + 1) &&
+        await authorPeer.hasUpdatesUnreadCount(authorAttentionBaseline + 1),
     timeout: const Duration(seconds: 3),
   );
 
@@ -250,20 +265,8 @@ Future<void> _runJourney({
   // then prove the successful hint creates exactly one remote bubble.
   // helperPeer enters Chat so helper's same-account My Work tab stays room-naive.
   await Future.wait([
-    author.open('/beacon/view/$beaconId'),
-    helperPeer.open('/beacon/view/$beaconId'),
-  ]);
-  await Future.wait([
-    author.clickTestId('beacon.tab.threads'),
-    helperPeer.clickTestId('beacon.tab.threads'),
-  ]);
-  await Future.wait([
-    author.clickText('General'),
-    helperPeer.clickText('General'),
-  ]);
-  await Future.wait([
-    author.waitForTestId('room.message.input'),
-    helperPeer.waitForTestId('room.message.input'),
+    _openGeneral(author, beaconId),
+    _openGeneral(helperPeer, beaconId),
   ]);
 
   await helperPeer.blockGraphql(true);
@@ -312,15 +315,14 @@ Future<void> _runJourney({
     () async =>
         await _roomUnreadFromStatus(helper, beaconId) == unreadBeforeProbe + 1,
   );
-  await helperPeer.open('/beacon/view/$beaconId');
-  await helperPeer.clickText('General');
+  await _openGeneral(helperPeer, beaconId);
   await helperPeer.waitForText(myWorkUnreadMessage);
   timings['same_account_my_work_read_ms'] = await _measureUntil(
     () async => await _roomUnreadFromStatus(helper, beaconId) == 0,
     timeout: const Duration(seconds: 5),
   );
 
-  // 4. Nested child hierarchy convergence on a mounted parent Threads view.
+  // 4. Nested child hierarchy convergence on a mounted parent Now view.
   // The helper is an admitted participant and may publish a child; the author's
   // second session must converge without navigation while Inbox stays unchanged.
   final childTitle = 'Nested child $suffix';
@@ -330,20 +332,14 @@ Future<void> _runJourney({
     helper.open('/beacon/view/$beaconId'),
   ]);
   await Future.wait([
-    authorPeer.clickTestId('beacon.tab.threads'),
-    helper.clickTestId('beacon.tab.threads'),
+    authorPeer.clickTestId('beacon.tab.now'),
+    helper.clickTestId('beacon.tab.now'),
   ]);
-  // Stay on the Threads overview (General card + Child requests section)
-  // rather than opening General itself: the new child's title renders on
-  // its BeaconChildRequestsSection card here, not inline in the chat feed
-  // (the hierarchy notice there only ever says "Child request created",
-  // never the child's own title — see room_message_tile.dart /
-  // beacon_hierarchy_notice.dart). "Without navigation" means this mounted
-  // overview must silently pick up the new card, not that a chat view stays
-  // mounted.
+  // Child request cards render on Now; Chat opens General directly.
+  // Keep Now mounted so the new card must arrive without navigation.
   await Future.wait([
-    authorPeer.waitForText('General'),
-    helper.waitForText('General'),
+    authorPeer.waitForTestId('request.child.create'),
+    helper.waitForTestId('request.child.create'),
   ]);
   final childBeaconId = await _createPublishedChildViaApi(
     helperEmail: fixture.helperEmail,
@@ -360,7 +356,7 @@ Future<void> _runJourney({
     'Nested child card duplicated on parent view',
   );
   await author.open('/home/inbox');
-  await author.waitForText('Inbox');
+  await author.waitForText('For you');
   _require(
     !await author.hasText(childTitle),
     'Nested child appeared in Inbox without direct involvement',
@@ -392,20 +388,8 @@ Future<void> _runJourney({
   // 6. Force a confirmed missed-event window. The server deny gate prevents
   // auth until resume, so the mutation cannot be delivered live.
   await Future.wait([
-    author.open('/beacon/view/$beaconId'),
-    helper.open('/beacon/view/$beaconId'),
-  ]);
-  await Future.wait([
-    author.clickTestId('beacon.tab.threads'),
-    helper.clickTestId('beacon.tab.threads'),
-  ]);
-  await Future.wait([
-    author.clickText('General'),
-    helper.clickText('General'),
-  ]);
-  await Future.wait([
-    author.waitForTestId('room.message.input'),
-    helper.waitForTestId('room.message.input'),
+    _openGeneral(author, beaconId),
+    _openGeneral(helper, beaconId),
   ]);
   final suspended = await _controlSocket(
     qaToken,
@@ -469,7 +453,7 @@ Future<void> _runJourney({
   // 8. Issue #102: helper stays on My Work; author accepts the offer via API.
   await Future.wait([
     helper.open('/home/work'),
-    helperPeer.open('/home/updates'),
+    helperPeer.open('/home/inbox/history'),
   ]);
   await Future.wait([
     helper.waitForText('Accept proof $suffix'),
@@ -548,8 +532,7 @@ Future<void> _runJourney({
     beaconId: reconnectBeaconId,
     message: 'Attention reconnect proof $suffix',
   );
-  final receiptIdsBeforeReconnect =
-      await helperPeer.collectUpdatesReceiptIds();
+  final receiptIdsBeforeReconnect = await helperPeer.collectUpdatesReceiptIds();
   final suspendedHelper = await _controlSocket(
     qaToken,
     fixture.helperUserId,
@@ -581,8 +564,7 @@ Future<void> _runJourney({
   );
   final receiptIdsAfterReconnect = await helperPeer.collectUpdatesReceiptIds();
   _require(
-    receiptIdsAfterReconnect.length ==
-        receiptIdsAfterReconnect.toSet().length,
+    receiptIdsAfterReconnect.length == receiptIdsAfterReconnect.toSet().length,
     'Reconnect catch-up duplicated a receipt id in the feed',
   );
   final newReceiptIdsReconnect = receiptIdsAfterReconnect.difference(
@@ -607,7 +589,8 @@ Future<void> _runJourney({
   // Connected delivery budget is p95 <= 1.5s. A single run records samples;
   // the shell runner aggregates five consecutive runs as the exit gate.
   for (final entry in timings.entries) {
-    final reconnect = entry.key == 'reconnect_catch_up_ms' ||
+    final reconnect =
+        entry.key == 'reconnect_catch_up_ms' ||
         entry.key == 'attention_reconnect_catch_up_ms';
     final budgetMs = reconnect ? 3000 : 1500;
     _require(
@@ -617,28 +600,64 @@ Future<void> _runJourney({
   }
 }
 
-Future<void> _clearAuthorAttentionBaseline(
+// Chat opens General directly; there is no thread list to select from.
+Future<void> _openGeneral(BrowserSession session, String beaconId) async {
+  await session.open('/beacon/view/$beaconId');
+  await _waitUntil(
+    () async =>
+        await session.hasTestId('room.message.input') ||
+        await session.hasTestId('beacon.tab.room'),
+  );
+  if (!await session.hasTestId('room.message.input')) {
+    await session.clickTestId('beacon.tab.room');
+  }
+  await session.waitForTestId('room.message.input');
+}
+
+Future<int> _readAuthorAttentionBaseline(
   BrowserSession author,
   BrowserSession authorPeer,
 ) async {
-  // QA bootstrap establishes a reciprocal connection. With the new-producer
-  // gate enabled that setup event is a valid receipt, but not part of the
-  // offer-help release journey, so settle it through the actual Updates UI.
+  // Bootstrap receipts remain active after Read all (R2). Prove seen-state
+  // convergence separately and retain their count as the journey baseline.
   await Future.wait([
-    author.open('/home/updates'),
-    authorPeer.open('/home/updates'),
+    author.open('/home/inbox/history'),
+    authorPeer.open('/home/inbox/history'),
   ]);
   await Future.wait([
     author.waitForText('Updates'),
     authorPeer.waitForText('Updates'),
   ]);
+  late List<String> baselineIds;
+  await _waitUntil(() async {
+    baselineIds = await author.updatesReceiptIds();
+    if (baselineIds.isEmpty) return false;
+    return await author.hasUpdatesUnreadCount(baselineIds.length) &&
+        await authorPeer.hasUpdatesUnreadCount(baselineIds.length) &&
+        (await authorPeer.updatesReceiptIds()).toSet().containsAll(baselineIds);
+  });
+  for (final session in [author, authorPeer]) {
+    for (final id in baselineIds) {
+      _require(
+        await session.hasUpdatesReceiptReadState(id, seen: false),
+        'Bootstrap receipt was already seen: $id',
+      );
+    }
+  }
+
   await author.clickText('Read all');
-  await _waitUntil(
-    () async =>
-        await author.hasTestId('updates-unread-count-0') &&
-        await authorPeer.hasTestId('updates-unread-count-0'),
-    timeout: const Duration(seconds: 5),
-  );
+  await _waitUntil(() async {
+    for (final session in [author, authorPeer]) {
+      for (final id in baselineIds) {
+        if (!await session.isUpdatesReceiptSeen(id)) return false;
+      }
+      if (!await session.hasUpdatesUnreadCount(baselineIds.length))
+        return false;
+    }
+    return true;
+  }, timeout: const Duration(seconds: 5));
+
+  return baselineIds.length;
 }
 
 String _beaconIdFromUrl(String rawUrl) {
@@ -1152,6 +1171,66 @@ final class BrowserSession {
   });
 
   Future<bool> hasTestId(String id) async => await _elementByTestId(id) != null;
+
+  Future<List<String>> updatesReceiptIds() async {
+    final result = await driver.execute(
+      r'''
+      const ids = new Set();
+      for (const element of document.querySelectorAll('*')) {
+        for (const attr of Array.from(element.attributes || [])) {
+          if (attr.value.startsWith('updates-receipt-')) ids.add(attr.value);
+        }
+      }
+      return Array.from(ids);
+      ''',
+      const [],
+    );
+    return (result as List).cast<String>();
+  }
+
+  Future<List<String>> seenUpdatesReceiptIds() async {
+    final seen = <String>[];
+    for (final id in await updatesReceiptIds()) {
+      if (await isUpdatesReceiptSeen(id)) seen.add(id);
+    }
+    return seen;
+  }
+
+  Future<bool> isUpdatesReceiptSeen(String id) =>
+      hasUpdatesReceiptReadState(id, seen: true);
+
+  Future<bool> hasUpdatesReceiptReadState(String id, {required bool seen}) =>
+      hasTestId(
+        // Mirrors TestIds.updatesReceiptReadState without importing Flutter
+        // into this standalone Dart WebDriver executable.
+        'updates-read-state-${id.substring('updates-receipt-'.length)}-'
+        '${seen ? 'seen' : 'unseen'}',
+      );
+
+  Future<bool> hasUpdatesUnreadCount(int count) async {
+    final element = await _elementByTestId('updates-unread');
+    if (element == null) return false;
+    // The tab renders positive counts as text and omits the count at zero.
+    // Read its semantics subtree so an unrelated badge cannot satisfy the wait.
+    return await driver.execute(
+          r'''
+          const root = arguments[0];
+          const expected = arguments[1];
+          const nodes = [root, ...root.querySelectorAll('*')];
+          const text = nodes.map(element =>
+            element.getAttribute('aria-label') || element.innerText ||
+            element.textContent || ''
+          ).join(' ');
+          if (!text.includes('Unread')) return false;
+          const counts = (text.match(/\b\d+\b/g) || []).map(Number);
+          return expected === 0
+            ? counts.length === 0
+            : counts.length > 0 && counts.every(count => count === expected);
+          ''',
+          [element, count],
+        ) ==
+        true;
+  }
 
   Future<void> waitForTestIdText(String id, String text) =>
       _waitUntil(() => testIdTextContains(id, text));

@@ -22,6 +22,8 @@ abstract class ConstellationField with _$ConstellationField {
     @Default([]) List<ConstellationPerson> peers,
     @Default([]) List<ConstellationTrustEdgeEntity> edges,
     @Default([]) List<ConstellationRequest> requests,
+    @Default([]) List<ConstellationPost> posts,
+    @Default([]) List<ConstellationMemberWeb> memberWebs,
     @Default(false) bool peersCapped,
     @Default(false) bool requestsCapped,
     ConstellationAnchorProjection? anchorProjection,
@@ -44,7 +46,8 @@ abstract class ConstellationPerson with _$ConstellationPerson {
 }
 
 @freezed
-abstract class ConstellationTrustEdgeEntity with _$ConstellationTrustEdgeEntity {
+abstract class ConstellationTrustEdgeEntity
+    with _$ConstellationTrustEdgeEntity {
   const factory ConstellationTrustEdgeEntity({
     required String src,
     required String dst,
@@ -91,4 +94,30 @@ abstract class ConstellationRequest with _$ConstellationRequest {
     }
     return ConstellationHeldState.none;
   }
+}
+
+/// A Post on the Constellation field; labelled by its root excerpt.
+@freezed
+abstract class ConstellationPost with _$ConstellationPost {
+  const factory ConstellationPost({
+    required String id,
+    required String authorId,
+    required String rootExcerpt,
+    required DateTime lastActivityAt,
+    @Default(false) bool isPinned,
+    @Default(0) int hiddenReachCount,
+  }) = _ConstellationPost;
+}
+
+/// `inside`: the author or an admitted member who opened the Post;
+/// `forwarded`: a recipient of an active forward edge who has not opened it.
+enum ConstellationMemberWebState { forwarded, inside }
+
+@freezed
+abstract class ConstellationMemberWeb with _$ConstellationMemberWeb {
+  const factory ConstellationMemberWeb({
+    required String beaconId,
+    required String personId,
+    required ConstellationMemberWebState state,
+  }) = _ConstellationMemberWeb;
 }

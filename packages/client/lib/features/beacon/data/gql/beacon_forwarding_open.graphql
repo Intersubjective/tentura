@@ -1,0 +1,3 @@
+mutation BeaconForwardingOpen($id: String!) {
+  beaconForwardingOpen(id: $id)
+}

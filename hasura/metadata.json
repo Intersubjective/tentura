@@ -164,6 +164,17 @@
                 }
               },
               {
+                "name": "viewer_can_forward",
+                "definition": {
+                  "function": {
+                    "name": "beacon_get_viewer_can_forward",
+                    "schema": "public"
+                  },
+                  "session_argument": "hasura_session",
+                  "table_argument": "beacon_row"
+                }
+              },
+              {
                 "name": "my_vote",
                 "definition": {
                   "function": {
@@ -289,10 +300,15 @@
                     "cover_image_id",
                     "cover_thumb_image_id",
                     "cover_source",
-                    "is_discoverable"
+                    "is_discoverable",
+                    "kind",
+                    "forward_policy",
+                    "last_activity_at",
+                    "post_root_message_id"
                   ],
                   "computed_fields": [
                     "is_pinned",
+                    "viewer_can_forward",
                     "my_vote",
                     "can_read_content",
                     "can_read_involvement",
@@ -524,7 +540,8 @@
                 "permission": {
                   "columns": [
                     "beacon_id",
-                    "user_id"
+                    "user_id",
+                    "pinned_at"
                   ],
                   "filter": {
                     "user_id": {
@@ -1570,6 +1587,11 @@
                           "can_read_content": {
                             "_eq": true
                           }
+                        },
+                        {
+                          "kind": {
+                            "_eq": 0
+                          }
                         }
                       ]
                     }
@@ -1627,13 +1649,22 @@
                   },
                   "check": {
                     "beacon": {
-                      "status": {
-                        "_in": [
-                          0,
-                          7,
-                          8
-                        ]
-                      }
+                      "_and": [
+                        {
+                          "status": {
+                            "_in": [
+                              0,
+                              7,
+                              8
+                            ]
+                          }
+                        },
+                        {
+                          "kind": {
+                            "_eq": 0
+                          }
+                        }
+                      ]
                     }
                   }
                 }
@@ -1702,16 +1733,38 @@
                         }
                       },
                       {
-                        "beacon": {
-                          "beacon_participants": {
-                            "user_id": {
-                              "_eq": "X-Hasura-User-Id"
-                            },
-                            "room_access": {
-                              "_eq": 3
+                        "_and": [
+                          {
+                            "beacon": {
+                              "beacon_participants": {
+                                "user_id": {
+                                  "_eq": "X-Hasura-User-Id"
+                                },
+                                "room_access": {
+                                  "_eq": 3
+                                }
+                              }
                             }
+                          },
+                          {
+                            "_or": [
+                              {
+                                "beacon": {
+                                  "kind": {
+                                    "_eq": 0
+                                  }
+                                }
+                              },
+                              {
+                                "beacon": {
+                                  "can_read_content": {
+                                    "_eq": true
+                                  }
+                                }
+                              }
+                            ]
                           }
-                        }
+                        ]
                       }
                     ]
                   }
@@ -1817,16 +1870,38 @@
                         }
                       },
                       {
-                        "beacon": {
-                          "beacon_participants": {
-                            "user_id": {
-                              "_eq": "X-Hasura-User-Id"
-                            },
-                            "room_access": {
-                              "_eq": 3
+                        "_and": [
+                          {
+                            "beacon": {
+                              "beacon_participants": {
+                                "user_id": {
+                                  "_eq": "X-Hasura-User-Id"
+                                },
+                                "room_access": {
+                                  "_eq": 3
+                                }
+                              }
                             }
+                          },
+                          {
+                            "_or": [
+                              {
+                                "beacon": {
+                                  "kind": {
+                                    "_eq": 0
+                                  }
+                                }
+                              },
+                              {
+                                "beacon": {
+                                  "can_read_content": {
+                                    "_eq": true
+                                  }
+                                }
+                              }
+                            ]
                           }
-                        }
+                        ]
                       }
                     ]
                   }
@@ -1995,9 +2070,20 @@
                     "tombstone_dismissed_at"
                   ],
                   "filter": {
-                    "user_id": {
-                      "_eq": "X-Hasura-User-Id"
-                    }
+                    "_and": [
+                      {
+                        "user_id": {
+                          "_eq": "X-Hasura-User-Id"
+                        }
+                      },
+                      {
+                        "beacon": {
+                          "kind": {
+                            "_eq": 0
+                          }
+                        }
+                      }
+                    ]
                   },
                   "check": null
                 }

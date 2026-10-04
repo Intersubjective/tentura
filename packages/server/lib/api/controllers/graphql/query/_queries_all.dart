@@ -4,6 +4,7 @@ import 'query_beacon_display.dart';
 import 'query_beacon_hierarchy.dart';
 import 'query_attention.dart';
 import 'query_beacon_involvement.dart';
+import 'query_beacon_member_webs.dart';
 import 'query_beacon_room.dart';
 import 'query_capability.dart';
 import 'query_capability_projection.dart';
@@ -27,6 +28,7 @@ import 'query_person_shared_contexts.dart';
 import 'query_notification_preferences.dart';
 import 'query_user_block.dart';
 import 'query_version.dart';
+import 'query_post.dart';
 
 List<GraphQLObjectField<dynamic, dynamic>> get queriesAll => [
   ...QueryAttention().all,
@@ -35,7 +37,9 @@ List<GraphQLObjectField<dynamic, dynamic>> get queriesAll => [
   ...QueryInvitation().all,
   ...QueryInviteGenealogy().all,
   ...QueryBeaconInvolvement().all,
+  ...QueryBeaconMemberWebs().all,
   ...QueryBeaconRoom().all,
+  ...QueryPost().all,
   ...QueryCapability().all,
   ...QueryCapabilityProjection().all,
   ...QueryInviteSeedPrompt().all,

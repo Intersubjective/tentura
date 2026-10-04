@@ -260,6 +260,15 @@ type beacon {
   ): beacon_help_offer_aggregate!
   id: String!
   is_discoverable: Boolean!
+  kind: smallint!
+  forward_policy: smallint!
+  last_activity_at: timestamptz
+  post_root_message_id: String
+
+  """
+  A computed field, executes function "beacon_get_viewer_can_forward"
+  """
+  viewer_can_forward: Boolean
 
   """
   A computed field, executes function "beacon_get_is_pinned"
@@ -663,6 +672,11 @@ input beacon_bool_exp {
   help_offers_aggregate: beacon_help_offer_aggregate_bool_exp
   id: String_comparison_exp
   is_discoverable: Boolean_comparison_exp
+  kind: smallint_comparison_exp
+  forward_policy: smallint_comparison_exp
+  last_activity_at: timestamptz_comparison_exp
+  post_root_message_id: String_comparison_exp
+  viewer_can_forward: Boolean_comparison_exp
   is_pinned: Boolean_comparison_exp
   lat: float8_comparison_exp
   lineage_parent_beacon_id: String_comparison_exp
@@ -1918,6 +1932,11 @@ input beacon_order_by {
   help_offers_aggregate: beacon_help_offer_aggregate_order_by
   id: order_by
   is_discoverable: order_by
+  kind: order_by
+  forward_policy: order_by
+  last_activity_at: order_by
+  post_root_message_id: order_by
+  viewer_can_forward: order_by
   is_pinned: order_by
   lat: order_by
   lineage_parent_beacon_id: order_by
@@ -2599,6 +2618,18 @@ enum beacon_select_column {
 
   """column name"""
   is_discoverable
+
+  """column name"""
+  kind
+
+  """column name"""
+  forward_policy
+
+  """column name"""
+  last_activity_at
+
+  """column name"""
+  post_root_message_id
 
   """column name"""
   lat
@@ -3788,13 +3819,15 @@ type mutation_root {
   beaconChildCreate(addressLabel: String, clientCommandId: String!, context: String, coordinates: v2_Coordinates = {}, description: String, draft: Boolean, endAt: String, needs: String, parentBeaconId: String!, primaryNeedSlug: String, sourceMessageId: String, startAt: String, tags: String, title: String!): v2_BeaconChildCreateResult!
   beaconClose(beaconId: String!): Boolean!
   beaconCloseNow(beaconId: String!, expectedEpoch: Int!): Boolean!
-  beaconCreate(addressLabel: String, context: String, coordinates: v2_Coordinates = {}, description: String, draft: Boolean, endAt: String, image: v2_Upload = {}, isDiscoverable: Boolean, needs: String, primaryNeedSlug: String, startAt: String, tags: String, title: String!): v2_Beacon!
+  beaconConvertToRequest(description: String, endAt: String, id: String!, isDiscoverable: Boolean, needs: String, primaryNeedSlug: String, startAt: String, title: String!): v2_Beacon!
+  beaconCreate(addressLabel: String, context: String, coordinates: v2_Coordinates = {}, description: String, draft: Boolean, endAt: String, forwardPolicy: Int, image: v2_Upload = {}, isDiscoverable: Boolean, kind: Int, needs: String, primaryNeedSlug: String, startAt: String, tags: String, title: String): v2_Beacon!
   beaconDeleteById(id: String!): Boolean!
   beaconExtendClosure(beaconId: String!, expectedEpoch: Int!): Boolean!
   beaconFork(id: String!): v2_Beacon!
   beaconForward(attributionParentEdgeIds: [String!], context: String, id: String!, note: String, parentEdgeId: String, perRecipientNotes: String, reasons: [String!], recipientBandProvenance: [v2_ForwardRecipientBandProvenanceInput], recipientIds: [String!], recipientReasons: [v2_ForwardRecipientReasonInput]): v2_ForwardDeliveryResult!
   beaconForwardCancel(id: String!): Boolean!
   beaconForwardUpdate(id: String!, note: String, reasons: [String!]): Boolean!
+  beaconForwardingOpen(id: String!): Boolean
   beaconHelpOfferRoleLabelSet(id: String!, offerUserId: String!, roleLabel: String!): Boolean!
   beaconMuteClear(beaconId: String!): Boolean!
   beaconMuteSet(beaconId: String!, mutedUntil: String): Boolean!
@@ -4012,6 +4045,9 @@ type mutation_root {
   meritrankInit(forceCalculate: Boolean): Int!
   notificationPreferencesUpdate(clearQuietHours: Boolean, clearSnooze: Boolean, emailCategories: [String!], emailDigest: String, locale: String, lockScreenSafe: Boolean, mutedInAppEventClasses: [String!], pushCategories: [String!], quietHoursEnd: Int, quietHoursStart: Int, snoozeUntil: String, tzOffsetMinutes: Int): v2_NotificationPreferences!
   pollingAct(pollingId: String!, score: Int, variantIds: [String!]): Boolean!
+  postLeave(id: String!): Boolean!
+  postPublish(body: String!, file: v2_Upload, forwardPolicy: Int!, id: String!, mentionLengths: [Int!], mentionOffsets: [Int!], mentionUserIds: [String!], notes: String, recipientIds: [String!]): v2_PostPublishResult!
+  postReturn(id: String!): Boolean!
   releaseCommitment(id: String!, offerUserId: String!, reason: String!): v2_BeaconStatusResult!
   removeFromRoom(id: String!, offerUserId: String!, reason: String!): v2_BeaconStatusResult!
   revokeAcknowledgement(beaconId: String!, slug: String!, subjectId: String!): Boolean!
@@ -5020,6 +5056,7 @@ type query_root {
 
   """fetch data from the table: "beacon_steward" using primary key columns"""
   beacon_steward_by_pk(beacon_id: String!): beacon_steward
+  beaconMemberWebs(id: String!): [v2_ConstellationMemberWeb!]!
   blockInherited(originId: String!): [v2_user!]
   blockPreview(cascadeMode: Int, objectId: String!): v2_BlockPreview!
   closureResultForViewer(beaconId: String!): v2_ClosureResult
@@ -5320,6 +5357,7 @@ type query_root {
     """filter the rows returned"""
     where: mutual_score_bool_exp
   ): [mutual_score!]!
+  myPosts: [v2_PostSummary!]!
   notificationPreferences: v2_NotificationPreferences!
   personCapabilityCues(subjectUserId: String!): v2_v2_PersonCapabilityCuesPayload!
   personFriendContextBatch(subjectUserIds: [String!]): [v2_v2_PersonFriendContext!]
@@ -7479,6 +7517,7 @@ type v2_AttentionReceipt {
   beaconEndAt: String
   beaconId: String
   beaconImageId: String
+  beaconKind: Int
   beaconTitle: String
   body: String!
   category: String!
@@ -7498,6 +7537,8 @@ type v2_AttentionReceipt {
   inAppPreferenceClass: String
   itemKind: String!
   kind: String!
+  postRootExcerpt: String
+  postRootImageId: String
   presentationKey: String
   presentationPayloadJson: String!
   priority: String!
@@ -7942,10 +7983,23 @@ type v2_ConstellationField {
   context: String!
   edges: [v2_ConstellationEdge!]!
   loadedAt: String!
+  memberWebs: [v2_ConstellationMemberWeb!]!
   peers: [v2_ConstellationPeer!]!
   peersCapped: Boolean!
+  posts: [v2_ConstellationPost!]!
   requests: [v2_ConstellationRequest!]!
   requestsCapped: Boolean!
+}
+
+type v2_ConstellationMemberWeb {
+  beaconId: String!
+  personId: String!
+  state: v2_ConstellationMemberWebState!
+}
+
+enum v2_ConstellationMemberWebState {
+  FORWARDED
+  INSIDE
 }
 
 type v2_ConstellationPeer {
@@ -7953,6 +8007,15 @@ type v2_ConstellationPeer {
   handle: String
   id: String!
   image: v2_image
+}
+
+type v2_ConstellationPost {
+  authorId: String!
+  hiddenReachCount: Int!
+  id: String!
+  isPinned: Boolean!
+  lastActivityAt: String!
+  rootExcerpt: String!
 }
 
 enum v2_ConstellationProjection {
@@ -8943,3 +9006,22 @@ input vote_user_variance_order_by {
   amount: order_by
 }
 
+type v2_PostPublishResult {
+  beaconId: String!
+  rootMessageId: String!
+}
+
+type v2_PostSummary {
+  id: String!
+  authorId: String!
+  authorName: String!
+  authorAvatar: String!
+  rootExcerpt: String
+  lastMessageExcerpt: String
+  lastMessageAt: String
+  lastActivityAt: String
+  pinnedAt: String
+  mutedUntil: String
+  unreadCount: Int!
+  isAuthor: Boolean!
+}

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:typed_data';
+import 'package:meta/meta.dart' show visibleForTesting;
 import 'package:injectable/injectable.dart';
 import 'package:logging/logging.dart';
 
@@ -13,18 +14,22 @@ import 'package:tentura_server/domain/use_case/beacon_lifecycle_effects_case.dar
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/domain/beacon_lineage_visibility.dart';
 import 'package:tentura_server/domain/policy/beacon_creation_policy.dart';
+import 'package:tentura_server/domain/entity/beacon_conversion_content.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/image_object_gc_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
+import 'package:tentura_server/domain/port/post_lock_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/port/beacon_child_create_port.dart';
 import 'package:tentura_server/domain/use_case/commitment_query_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
+import 'package:tentura_server/domain/policy/beacon_kind_policy.dart';
 import 'package:tentura_server/utils/id.dart';
 
 import '../entity/beacon_entity.dart';
@@ -111,6 +116,7 @@ final class BeaconCase extends UseCaseBase {
     BeaconHierarchyRepositoryPort hierarchyRepository,
     BeaconChildCreatePort childCreateCase,
     BeaconLifecycleEffectsCase lifecycleEffects,
+    PostLockPort postLock,
     AttentionIntentCase attentionIntents,
     TransactionalAttentionCase attention,
   ) async => BeaconCase(
@@ -123,6 +129,7 @@ final class BeaconCase extends UseCaseBase {
     hierarchyRepository,
     childCreateCase,
     lifecycleEffects,
+    postLock: postLock,
     attentionIntents: attentionIntents,
     attention: attention,
     env: env,
@@ -139,11 +146,13 @@ final class BeaconCase extends UseCaseBase {
     this._hierarchyRepository,
     this._childCreateCase,
     this._lifecycleEffects, {
+    PostLockPort? postLock,
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
     required super.env,
     required super.logger,
-  }) : _attentionIntents = attentionIntents,
+  }) : _postLock = postLock,
+       _attentionIntents = attentionIntents,
        _attention = attention;
 
   final BeaconRepositoryPort _beaconRepository;
@@ -163,6 +172,8 @@ final class BeaconCase extends UseCaseBase {
   final BeaconChildCreatePort _childCreateCase;
 
   final BeaconLifecycleEffectsCase _lifecycleEffects;
+
+  final PostLockPort? _postLock;
 
   final AttentionIntentCase? _attentionIntents;
 
@@ -210,7 +221,21 @@ final class BeaconCase extends UseCaseBase {
     bool draft = false,
     String? addressLabel,
     bool? isDiscoverable,
+    BeaconKind kind = BeaconKind.request,
+    BeaconForwardPolicyValue forwardPolicy = BeaconForwardPolicyValue.open,
   }) async {
+    final asDraft = draft || kind == BeaconKind.post;
+    BeaconCreationPolicy.assertKindFields(
+      kind: kind,
+      title: title,
+      description: description,
+      isDiscoverable: isDiscoverable ?? kind == BeaconKind.request,
+      needs: BeaconCreationPolicy.normalizeNeeds(needs),
+      primaryNeedSlug: primaryNeedSlug,
+      startAt: startAt,
+      endAt: endAt,
+      hasCover: imageBytes != null,
+    );
     await _enforceCreateRateLimit(userId);
     final normalizedNeeds = BeaconCreationPolicy.normalizeNeeds(needs);
     final resolvedPrimary = BeaconCreationPolicy.resolvePrimaryNeedSlug(
@@ -236,6 +261,7 @@ final class BeaconCase extends UseCaseBase {
 
       final desc = BeaconCreationPolicy.normalizeStandaloneDescription(
         description,
+        kind: kind,
       );
       return await _beaconRepository.createBeacon(
         authorId: userId,
@@ -250,9 +276,11 @@ final class BeaconCase extends UseCaseBase {
         primaryNeedSlug: resolvedPrimary,
         startAt: startAt,
         endAt: endAt,
-        status: draft ? BeaconStatus.draft : null,
+        status: asDraft ? BeaconStatus.draft : null,
         addressLabel: BeaconCreationPolicy.trimOrNull(addressLabel),
-        isDiscoverable: isDiscoverable ?? true,
+        isDiscoverable: isDiscoverable ?? kind == BeaconKind.request,
+        kind: kind,
+        forwardPolicy: forwardPolicy,
       );
     } catch (_) {
       for (final imageId in imageIds) {
@@ -403,6 +431,62 @@ final class BeaconCase extends UseCaseBase {
       },
     );
   }
+
+  /// Runs inside the conversion transaction right after the `UPDATE`.
+  @visibleForTesting
+  Future<void> Function()? afterConvertUpdateForTest;
+
+  /// Turns the author's open Post into an open-forwarding Request with
+  /// [content], keeps the addressees in the room and announces it in the room.
+  Future<BeaconEntity> convertToRequest({
+    required String authorId,
+    required String beaconId,
+    required BeaconConversionContent content,
+    required bool isDiscoverable,
+  }) => _attention!.runAction(
+    actorUserId: authorId,
+    action: (_) async {
+      await _postLock!.lockForPostMutation(beaconId);
+      final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
+      if (beacon.author.id != authorId) {
+        throw const UnauthorizedException(
+          description: 'Only the author can convert a Post',
+        );
+      }
+      if (beacon.kind != BeaconKind.post ||
+          beacon.status != BeaconStatus.open) {
+        throw const BeaconCreateException(description: 'Not an open Post');
+      }
+      BeaconCreationPolicy.assertKindFields(
+        kind: BeaconKind.request,
+        title: content.title,
+        description: content.description,
+        isDiscoverable: isDiscoverable,
+      );
+      final description = BeaconCreationPolicy.normalizeStandaloneDescription(
+        content.description,
+      );
+      final needs = BeaconCreationPolicy.normalizeNeeds(content.needs);
+      final primaryNeedSlug = BeaconCreationPolicy.resolvePrimaryNeedSlug(
+        needs: needs,
+        primaryNeedSlug: content.primaryNeedSlug,
+        primaryNeedSlugProvided: content.primaryNeedSlug != null,
+      );
+      await _beaconRepository.convertPostToRequest(
+        beaconId: beaconId,
+        title: content.title.trim(),
+        description: description,
+        needs: needs,
+        primaryNeedSlug: primaryNeedSlug,
+        startAt: content.startAt,
+        endAt: content.endAt,
+        isDiscoverable: isDiscoverable,
+      );
+      await afterConvertUpdateForTest?.call();
+      await _beaconRepository.postConvertedToRequestMessage(beaconId);
+      return _beaconRepository.getBeaconById(beaconId: beaconId);
+    },
+  );
 
   /// Legacy immediate-attach bridge (§3.3). Hardened: precheck owner before
   /// upload, re-authorize and cap-check under the beacon lock, and
@@ -696,6 +780,7 @@ final class BeaconCase extends UseCaseBase {
   }) async {
     await _enforceCreateRateLimit(userId);
     final source = await _beaconRepository.getBeaconById(beaconId: sourceId);
+    BeaconKindPolicy.requireRequest(source);
     await assertBeaconLineageSourceVisible(
       guard: _guard,
       beaconId: sourceId,
@@ -761,65 +846,107 @@ final class BeaconCase extends UseCaseBase {
     Future<BeaconCancelResult> mutate(AttentionTransaction? transaction) async {
       await _hierarchyRepository.lockMutationScope();
       return _beaconRepository.runInBeaconStateTransaction(
-          beaconId: beaconId,
-          userId: userId,
-          fn: (beacon) async {
-            if (!beacon.status.isOpenFamily) {
-              throw EvaluationException(
-                code: EvaluationExceptionCode.beaconNotClosable,
-                description: 'Request must be open to cancel',
-              );
-            }
-            if (beacon.author.id != userId) {
-              throw EvaluationException(
-                code: EvaluationExceptionCode.notEligible,
-                description: 'Only the author can cancel',
-              );
-            }
-            if (await _commitmentQueryCase.everHadCommitter(beaconId)) {
-              throw EvaluationException(
-                code: EvaluationExceptionCode.beaconNotClosable,
-                description:
-                    'Cannot cancel a request that ever had a committer',
-              );
-            }
-            final intent = transaction == null
-                ? null
-                : await _attentionIntents!.requestStatusChanged(
-                    beaconId: beaconId,
-                    fromStatus: beacon.status.name,
-                    toStatus: BeaconStatus.cancelled.name,
-                    actorUserId: userId,
-                    sourceEventKey: 'request_status:${generateId('A')}',
-                  );
-            await _lifecycleEffects.recordEligibleSourceTransition(
-              sourceBeaconId: beaconId,
-              fromStatus: beacon.status,
-              toStatus: BeaconStatus.cancelled,
-              occurredAt: DateTime.timestamp(),
-              actorUserId: userId,
-              reason: BeaconStatusTransitionReason.cancelled,
+        beaconId: beaconId,
+        userId: userId,
+        fn: (beacon) async {
+          BeaconKindPolicy.requireRequest(beacon);
+          if (!beacon.status.isOpenFamily) {
+            throw EvaluationException(
+              code: EvaluationExceptionCode.beaconNotClosable,
+              description: 'Request must be open to cancel',
             );
-            await _beaconRepository.recordBeaconStatusTransition(
-              beaconId: beaconId,
-              fromStatus: beacon.status,
-              toStatus: BeaconStatus.cancelled,
-              reason: BeaconLifecycleChangeReason.cancelled,
-              actorId: userId,
+          }
+          if (beacon.author.id != userId) {
+            throw EvaluationException(
+              code: EvaluationExceptionCode.notEligible,
+              description: 'Only the author can cancel',
             );
-            if (intent != null) {
-              await transaction!.record(intent);
-            }
-            return BeaconCancelResult(
-              id: beaconId,
-              status: BeaconStatus.cancelled.smallintValue,
+          }
+          if (await _commitmentQueryCase.everHadCommitter(beaconId)) {
+            throw EvaluationException(
+              code: EvaluationExceptionCode.beaconNotClosable,
+              description: 'Cannot cancel a request that ever had a committer',
             );
-          },
-        );
+          }
+          final intent = transaction == null
+              ? null
+              : await _attentionIntents!.requestStatusChanged(
+                  beaconId: beaconId,
+                  fromStatus: beacon.status.name,
+                  toStatus: BeaconStatus.cancelled.name,
+                  actorUserId: userId,
+                  sourceEventKey: 'request_status:${generateId('A')}',
+                );
+          await _lifecycleEffects.recordEligibleSourceTransition(
+            sourceBeaconId: beaconId,
+            fromStatus: beacon.status,
+            toStatus: BeaconStatus.cancelled,
+            occurredAt: DateTime.timestamp(),
+            actorUserId: userId,
+            reason: BeaconStatusTransitionReason.cancelled,
+          );
+          await _beaconRepository.recordBeaconStatusTransition(
+            beaconId: beaconId,
+            fromStatus: beacon.status,
+            toStatus: BeaconStatus.cancelled,
+            reason: BeaconLifecycleChangeReason.cancelled,
+            actorId: userId,
+          );
+          if (intent != null) {
+            await transaction!.record(intent);
+          }
+          return BeaconCancelResult(
+            id: beaconId,
+            status: BeaconStatus.cancelled.smallintValue,
+          );
+        },
+      );
     }
 
     return _attention!.runAction(actorUserId: userId, action: mutate);
   }
+
+  /// One-way: switches an open Post from author-only to open forwarding.
+  Future<bool> openForwarding({
+    required String authorId,
+    required String id,
+  }) => _attention!.runAction(
+    actorUserId: authorId,
+    action: (_) async {
+      await _beaconRepository.lockPostForMutation(id);
+      return _beaconRepository.runInBeaconStateTransaction(
+        beaconId: id,
+        userId: authorId,
+        fn: (beacon) async {
+          if (beacon.author.id != authorId) {
+            throw const UnauthorizedException(
+              description: 'Only the author can open forwarding',
+            );
+          }
+          if (beacon.kind != BeaconKind.post) {
+            throw const BeaconCreateException(
+              description: 'Only a post has a forwarding policy',
+            );
+          }
+          if (beacon.status != BeaconStatus.open) {
+            throw const BeaconCreateException(
+              description: 'Forwarding can be opened on an open post only',
+            );
+          }
+          if (beacon.forwardPolicy != BeaconForwardPolicyValue.closed) {
+            throw const BeaconCreateException(
+              description: 'Forwarding is already open',
+            );
+          }
+          await _beaconRepository.setForwardPolicy(
+            beaconId: id,
+            policy: BeaconForwardPolicyValue.open,
+          );
+          return true;
+        },
+      );
+    },
+  );
 
   //
   Future<bool> deleteById({
@@ -831,89 +958,89 @@ final class BeaconCase extends UseCaseBase {
     ) async {
       await _hierarchyRepository.lockMutationScope();
       return _beaconRepository.runInBeaconStateTransaction(
-      beaconId: beaconId,
-      userId: userId,
-      fn: (beacon) async {
-        if (beacon.author.id != userId) {
-          throw EvaluationException(
-            code: EvaluationExceptionCode.notEligible,
-          );
-        }
-
-        if (beacon.status == BeaconStatus.draft) {
-          for (final image in beacon.images) {
-            await _imageObjectGc.enqueue(
-              imageId: image.id,
-              authorId: beacon.author.id,
-            );
-            await _imageRepository.deleteOwnedRow(
-              imageId: image.id,
-              authorId: beacon.author.id,
+        beaconId: beaconId,
+        userId: userId,
+        fn: (beacon) async {
+          if (beacon.author.id != userId) {
+            throw EvaluationException(
+              code: EvaluationExceptionCode.notEligible,
             );
           }
-          final thumbId = beacon.coverThumbImageId;
-          if (thumbId != null && thumbId.isNotEmpty) {
-            await _imageObjectGc.enqueue(
-              imageId: thumbId,
-              authorId: beacon.author.id,
-            );
-            await _imageRepository.deleteOwnedRow(
-              imageId: thumbId,
-              authorId: beacon.author.id,
-            );
-          }
-          await _beaconRepository.deleteBeaconById(beacon.id, userId: userId);
-          return true;
-        }
 
-        if (await _commitmentQueryCase.everHadCommitter(beacon.id)) {
-          throw EvaluationException(
-            code: EvaluationExceptionCode.beaconNotClosable,
-            description: 'Cannot delete a request that ever had a committer',
-          );
-        }
-
-        final verdict = validateBeaconStatusTransition(
-          from: beacon.status,
-          to: BeaconStatus.deleted,
-          reason: BeaconStatusTransitionReason.deleted,
-        );
-        if (verdict.verdict != BeaconStatusTransitionVerdict.allowed) {
-          throw EvaluationException(
-            code: EvaluationExceptionCode.beaconNotClosable,
-          );
-        }
-
-        final intent = transaction == null
-            ? null
-            : await _attentionIntents!.requestStatusChanged(
-                beaconId: beacon.id,
-                fromStatus: beacon.status.name,
-                toStatus: BeaconStatus.deleted.name,
-                actorUserId: userId,
-                sourceEventKey: 'request_status:${generateId('A')}',
+          if (beacon.status == BeaconStatus.draft) {
+            for (final image in beacon.images) {
+              await _imageObjectGc.enqueue(
+                imageId: image.id,
+                authorId: beacon.author.id,
               );
-        await _lifecycleEffects.recordEligibleSourceTransition(
-          sourceBeaconId: beacon.id,
-          fromStatus: beacon.status,
-          toStatus: BeaconStatus.deleted,
-          occurredAt: DateTime.timestamp(),
-          actorUserId: userId,
-          reason: BeaconStatusTransitionReason.deleted,
-        );
-        await _beaconRepository.recordBeaconStatusTransition(
-          beaconId: beacon.id,
-          fromStatus: beacon.status,
-          toStatus: BeaconStatus.deleted,
-          reason: BeaconLifecycleChangeReason.deleted,
-          actorId: userId,
-        );
-        if (intent != null) {
-          await transaction!.record(intent);
-        }
-        return true;
-      },
-    );
+              await _imageRepository.deleteOwnedRow(
+                imageId: image.id,
+                authorId: beacon.author.id,
+              );
+            }
+            final thumbId = beacon.coverThumbImageId;
+            if (thumbId != null && thumbId.isNotEmpty) {
+              await _imageObjectGc.enqueue(
+                imageId: thumbId,
+                authorId: beacon.author.id,
+              );
+              await _imageRepository.deleteOwnedRow(
+                imageId: thumbId,
+                authorId: beacon.author.id,
+              );
+            }
+            await _beaconRepository.deleteBeaconById(beacon.id, userId: userId);
+            return true;
+          }
+
+          if (await _commitmentQueryCase.everHadCommitter(beacon.id)) {
+            throw EvaluationException(
+              code: EvaluationExceptionCode.beaconNotClosable,
+              description: 'Cannot delete a request that ever had a committer',
+            );
+          }
+
+          final verdict = validateBeaconStatusTransition(
+            from: beacon.status,
+            to: BeaconStatus.deleted,
+            reason: BeaconStatusTransitionReason.deleted,
+          );
+          if (verdict.verdict != BeaconStatusTransitionVerdict.allowed) {
+            throw EvaluationException(
+              code: EvaluationExceptionCode.beaconNotClosable,
+            );
+          }
+
+          final intent = transaction == null
+              ? null
+              : await _attentionIntents!.requestStatusChanged(
+                  beaconId: beacon.id,
+                  fromStatus: beacon.status.name,
+                  toStatus: BeaconStatus.deleted.name,
+                  actorUserId: userId,
+                  sourceEventKey: 'request_status:${generateId('A')}',
+                );
+          await _lifecycleEffects.recordEligibleSourceTransition(
+            sourceBeaconId: beacon.id,
+            fromStatus: beacon.status,
+            toStatus: BeaconStatus.deleted,
+            occurredAt: DateTime.timestamp(),
+            actorUserId: userId,
+            reason: BeaconStatusTransitionReason.deleted,
+          );
+          await _beaconRepository.recordBeaconStatusTransition(
+            beaconId: beacon.id,
+            fromStatus: beacon.status,
+            toStatus: BeaconStatus.deleted,
+            reason: BeaconLifecycleChangeReason.deleted,
+            actorId: userId,
+          );
+          if (intent != null) {
+            await transaction!.record(intent);
+          }
+          return true;
+        },
+      );
     }
 
     return _attention!.runAction(actorUserId: userId, action: mutate);

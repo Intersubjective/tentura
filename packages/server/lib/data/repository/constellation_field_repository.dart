@@ -16,6 +16,7 @@ const constellationRequestSelectColumns = r'''
   b.user_id AS author_id,
   b.title,
   b.status,
+  b.kind,
   b.needs,
   b.primary_need_slug,
   b.cover_source,
@@ -174,6 +175,7 @@ SELECT $constellationRequestSelectColumns
 FROM public.beacon b
 LEFT JOIN public.image cover ON cover.id = b.cover_thumb_image_id
 WHERE b.user_id = \$1
+  AND b.kind = 0
   AND b.status IN (0, 7, 8)
   AND b.published_at IS NOT NULL
 ORDER BY b.id
@@ -204,6 +206,7 @@ INNER JOIN public.beacon b ON b.user_id = p.peer_id::text
 LEFT JOIN public.image cover ON cover.id = b.cover_thumb_image_id
 WHERE b.user_id <> \$1
   AND b.is_discoverable
+  AND b.kind = 0
   AND b.status IN (0, 7, 8)
   AND b.published_at IS NOT NULL
   AND NOT public.block_hides(\$1, b.user_id)
@@ -304,6 +307,7 @@ ConstellationRequestRecord readConstellationRequestRow(
     viewerIsRoomParticipant: row.read<bool>('viewer_is_room_participant'),
     viewerHasForwardEdge: row.read<bool>('viewer_has_forward_edge'),
     helpOfferCount: row.read<int>('help_offer_count'),
+    kind: row.read<int>('kind'),
     coverSource: row.read<int>('cover_source'),
     coverThumb: coverThumb,
     viewerParticipates: viewerParticipates,

@@ -5,6 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:tentura/app/router/beacon_view_route_normalizer.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
+import 'package:tentura/domain/entity/beacon_kind.dart';
+import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/beacon_hierarchy_cubit.dart';
@@ -12,6 +15,9 @@ import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_open_clear_listener.dart';
+import 'package:tentura/features/post_view/data/repository/beacon_kind_repository.dart';
+import 'package:tentura/features/post_view/ui/bloc/post_view_cubit.dart';
+import 'package:tentura/features/post_view/ui/screen/post_view_screen.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
@@ -56,65 +62,138 @@ class BeaconViewHostScreen extends StatelessWidget implements AutoRouteWrapper {
 
   @override
   Widget wrappedRoute(BuildContext context) => localScreenCubitScope(
-    child: BlocBuilder<ProfileCubit, ProfileState>(
-      buildWhen: (previous, current) =>
-          previous.profile.id != current.profile.id,
-      builder: (context, profileState) {
-        final myProfile = profileState.profile;
-        return BlocProvider(
-          key: ValueKey('BeaconViewCubit:$id:${myProfile.id}'),
-          create: (_) => BeaconViewCubit(
-            myProfile: myProfile,
-            id: id,
-          ),
-          child: MultiBlocProvider(
-            providers: [
-              BlocProvider(
-                create: (_) {
-                  final cubit = BeaconHierarchyCubit(beaconId: id);
-                  unawaited(cubit.loadParentReference());
-                  return cubit;
-                },
-              ),
-              BlocProvider(
-                create: (_) {
-                  final cubit = ThreadsCubit(beaconId: id);
-                  unawaited(cubit.fetch());
-                  return cubit;
-                },
-              ),
-              BlocProvider(
-                create: (_) => ThreadHostCubit(beaconId: id),
-              ),
-            ],
-            child: Builder(
-              builder: (context) => BlocListener<BeaconViewCubit, BeaconViewState>(
-                listenWhen: (p, c) =>
-                    c.beaconContentLoaded &&
-                    (p.beaconContentLoaded != c.beaconContentLoaded ||
-                        p.beacon.status != c.beacon.status),
-                listener: (context, state) {
-                  context.read<ThreadHostCubit>().syncBeaconStatus(
-                    state.beacon.status,
-                  );
-                },
-                child: BeaconOpenClearListener(
-                  beaconId: id,
-                  child: _BeaconViewMessageCanonicalizer(
-                    beaconId: id,
-                    threadId: threadId,
-                    messageId: messageId,
-                    isDeepLink: isDeepLink,
-                    entry: entry,
-                    child: this,
-                  ),
-                ),
-              ),
+    child: _BeaconKindGate(
+      beaconId: id,
+      builder: (kind) => BlocBuilder<ProfileCubit, ProfileState>(
+        buildWhen: (previous, current) =>
+            previous.profile.id != current.profile.id,
+        builder: (context, profileState) {
+          final myProfile = profileState.profile;
+          if (kind == BeaconKind.post) return _postScope(myProfile);
+          return _requestScope(myProfile);
+        },
+      ),
+    ),
+  );
+
+  Widget _postScope(Profile myProfile) => MultiBlocProvider(
+    key: ValueKey('PostViewCubit:$id:${myProfile.id}'),
+    providers: [
+      BlocProvider(
+        create: (_) {
+          final cubit = PostViewCubit(id: id, myProfile: myProfile);
+          unawaited(cubit.fetch());
+          return cubit;
+        },
+      ),
+      BlocProvider(
+        create: (_) {
+          final cubit = ThreadsCubit(beaconId: id);
+          unawaited(cubit.fetch());
+          return cubit;
+        },
+      ),
+      BlocProvider(
+        create: (_) => ThreadHostCubit(
+          beaconId: id,
+          capabilities: const RoomCapabilities.post(),
+        ),
+      ),
+    ],
+    child: PostViewScreen(id: id),
+  );
+
+  Widget _requestScope(Profile myProfile) => BlocProvider(
+    key: ValueKey('BeaconViewCubit:$id:${myProfile.id}'),
+    create: (_) => BeaconViewCubit(
+      myProfile: myProfile,
+      id: id,
+    ),
+    child: MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (_) {
+            final cubit = BeaconHierarchyCubit(beaconId: id);
+            unawaited(cubit.loadParentReference());
+            return cubit;
+          },
+        ),
+        BlocProvider(
+          create: (_) {
+            final cubit = ThreadsCubit(beaconId: id);
+            unawaited(cubit.fetch());
+            return cubit;
+          },
+        ),
+        BlocProvider(
+          create: (_) => ThreadHostCubit(beaconId: id),
+        ),
+      ],
+      child: Builder(
+        builder: (context) => BlocListener<BeaconViewCubit, BeaconViewState>(
+          listenWhen: (p, c) =>
+              c.beaconContentLoaded &&
+              (p.beaconContentLoaded != c.beaconContentLoaded ||
+                  p.beacon.status != c.beacon.status),
+          listener: (context, state) {
+            context.read<ThreadHostCubit>().syncBeaconStatus(
+              state.beacon.status,
+            );
+          },
+          child: BeaconOpenClearListener(
+            beaconId: id,
+            child: _BeaconViewMessageCanonicalizer(
+              beaconId: id,
+              threadId: threadId,
+              messageId: messageId,
+              isDeepLink: isDeepLink,
+              entry: entry,
+              child: this,
             ),
           ),
-        );
-      },
+        ),
+      ),
     ),
+  );
+}
+
+/// Resolves the beacon kind once, then builds the matching scope.
+class _BeaconKindGate extends StatefulWidget {
+  const _BeaconKindGate({required this.beaconId, required this.builder});
+
+  final String beaconId;
+  final Widget Function(BeaconKind kind) builder;
+
+  @override
+  State<_BeaconKindGate> createState() => _BeaconKindGateState();
+}
+
+class _BeaconKindGateState extends State<_BeaconKindGate> {
+  late Future<BeaconKind> _kind = _resolve();
+
+  Future<BeaconKind> _resolve() async {
+    try {
+      return await GetIt.I<BeaconKindRepository>().fetchKind(widget.beaconId);
+    } on Object {
+      // The Request screen owns load-error presentation.
+      return BeaconKind.request;
+    }
+  }
+
+  @override
+  void didUpdateWidget(_BeaconKindGate oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.beaconId != widget.beaconId) _kind = _resolve();
+  }
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<BeaconKind>(
+    future: _kind,
+    builder: (context, snapshot) => snapshot.hasData
+        ? widget.builder(snapshot.requireData)
+        : const Scaffold(
+            body: Center(child: CircularProgressIndicator.adaptive()),
+          ),
   );
 }
 
@@ -151,7 +230,9 @@ class _BeaconViewMessageCanonicalizerState
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(_canonicalize()));
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => unawaited(_canonicalize()),
+    );
   }
 
   @override
@@ -162,7 +243,9 @@ class _BeaconViewMessageCanonicalizerState
       if (oldWidget.messageId != widget.messageId) {
         _resolvedForMessageId = null;
       }
-      WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(_canonicalize()));
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => unawaited(_canonicalize()),
+      );
     }
   }
 

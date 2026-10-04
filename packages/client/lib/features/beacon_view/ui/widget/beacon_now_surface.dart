@@ -164,6 +164,9 @@ class BeaconNowSurface extends StatelessWidget {
                           state.beacon.allowsNewHelpOfferAsNonAuthor
                       ? () => _runOfferHelpFlow(context, l10n)
                       : null,
+                  onLeavePostChat: state.isPostOriginParticipant
+                      ? () => unawaited(beaconViewCubit.leavePostChat())
+                      : null,
                   onEditHelpOffer:
                       !state.isBeaconMine &&
                           state.isRoomAdmissionBlocked &&
@@ -211,7 +214,7 @@ class BeaconNowSurface extends StatelessWidget {
                       cubit: beaconViewCubit,
                     ),
                   ),
-                  onForward: state.beacon.allowsForward
+                  onForward: state.beacon.viewerCanForward
                       ? () => unawaited(
                           beaconViewOpenForwardThenMaybeNudgeOfferHelp(
                             context,

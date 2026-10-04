@@ -6,6 +6,7 @@ query MyWorkInit($userId: String!, $obligationBeaconIds: [String!]!) {
   authoredNonArchived: beacon(
     where: {
       user_id: {_eq: $userId},
+      kind: {_eq: 0},
       status: {_neq: 2},
       _not: {beacon_archiveds: {user_id: {_eq: $userId}}}
     },
@@ -18,6 +19,7 @@ query MyWorkInit($userId: String!, $obligationBeaconIds: [String!]!) {
       user_id: {_eq: $userId},
       status: {_eq: 0},
       beacon: {
+        kind: {_eq: 0},
         status: {_neq: 2},
         _not: {beacon_archiveds: {user_id: {_eq: $userId}}}
       }
@@ -78,6 +80,7 @@ query MyWorkArchived($userId: String!) {
       user_id: {_eq: $userId},
       status: {_eq: 0},
       beacon: {
+        kind: {_eq: 0},
         status: {_neq: 2},
         beacon_archiveds: {user_id: {_eq: $userId}}
       }

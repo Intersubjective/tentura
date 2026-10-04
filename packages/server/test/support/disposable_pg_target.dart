@@ -4,10 +4,16 @@ import 'dart:math';
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:migrant_db_postgresql/migrant_db_postgresql.dart';
 import 'package:postgres/postgres.dart';
+// The public test API exposes no suite tags; the harness needs them to tell an
+// `mr` suite from a plain `pg` one.
+// ignore: depend_on_referenced_packages
+import 'package:test_api/src/backend/invoker.dart' show Invoker;
 
 import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/data/database/tentura_db.dart';
 import 'package:tentura_server/env.dart';
+
+import 'meritrank_lock_probe.dart';
 
 /// Cross-process lock: concurrent `migrateDbSchema` / `run_migrations_once` on
 /// the same disposable database raises [RaceCondition] from migrant (55P03 /
@@ -55,6 +61,30 @@ String _registryFingerprint() {
 }
 
 var _templateReady = false;
+
+/// MeritRank suite lock sessions held by this suite, by database name.
+final _meritRankSuiteLocks = <String, Connection>{};
+
+/// Whether the running suite is tagged `mr`.
+bool _isMeritRankSuite() =>
+    Invoker.current?.liveTest.suite.metadata.tags.contains('mr') ?? false;
+
+/// `mr` suites share one MeritRank container, so they queue here — before
+/// provisioning a database — and keep the lock until the database is dropped.
+/// Plain `pg` suites never take it.
+Future<void> _acquireMeritRankSuiteLock(DisposablePgTarget target) async {
+  if (!_isMeritRankSuite() ||
+      _meritRankSuiteLocks.containsKey(target.databaseName)) {
+    return;
+  }
+  _meritRankSuiteLocks[target.databaseName] = await holdMeritRankSuiteLock(
+    target,
+  );
+}
+
+Future<void> _releaseMeritRankSuiteLock(DisposablePgTarget target) async {
+  await _meritRankSuiteLocks.remove(target.databaseName)?.close();
+}
 
 /// Builds [templateDatabaseName] once per cluster, if it is not already there.
 ///
@@ -194,14 +224,31 @@ final class DisposablePgTarget {
   /// The entry point for tests that manage their own connection and call
   /// `migrateDbSchema` themselves: the clone already carries the head schema,
   /// so that call finds nothing pending and returns immediately.
-  Future<void> recreate() => withDisposablePgLifecycleLock(adminEnv, () async {
-    await _ensureTemplateUnlocked(adminEnv, templateEnv);
-    await _recreateFromTemplateUnlocked();
-  });
+  ///
+  /// In an `mr`-tagged suite this first takes the MeritRank suite lock, held
+  /// until [drop].
+  Future<void> recreate() async {
+    await _acquireMeritRankSuiteLock(this);
+    try {
+      await withDisposablePgLifecycleLock(adminEnv, () async {
+        await _ensureTemplateUnlocked(adminEnv, templateEnv);
+        await _recreateFromTemplateUnlocked();
+      });
+    } on Object {
+      await _releaseMeritRankSuiteLock(this);
+      rethrow;
+    }
+  }
 
-  /// Drops this database, under the lifecycle lock.
-  Future<void> drop() =>
-      withDisposablePgLifecycleLock(adminEnv, _dropUnlocked);
+  /// Drops this database, under the lifecycle lock, then releases the
+  /// MeritRank suite lock if this suite holds it.
+  Future<void> drop() async {
+    try {
+      await withDisposablePgLifecycleLock(adminEnv, _dropUnlocked);
+    } finally {
+      await _releaseMeritRankSuiteLock(this);
+    }
+  }
 
   /// Clones the prebuilt template instead of running the schema build.
   ///
@@ -268,6 +315,28 @@ final class DisposablePgWriterSession {
   final bool setupComplete;
 }
 
+/// Environment variable that turns pg/Hasura test skips into failures.
+const pgTestsRequiredEnvVar = 'TENTURA_PG_TESTS_REQUIRED';
+
+/// True when `TENTURA_PG_TESTS_REQUIRED=1` (REQUIRED mode).
+bool isPgTestsRequired([Map<String, String>? environment]) =>
+    (environment ?? Platform.environment)[pgTestsRequiredEnvVar] == '1';
+
+/// `null` when Postgres is reachable, otherwise a skip reason — or, in
+/// REQUIRED mode, a [StateError] so the test run fails instead of skipping.
+Future<String?> pgSkipReason(
+  DisposablePgTarget target, {
+  Map<String, String>? environment,
+}) async {
+  if (await canReachPostgresAdmin(target)) return null;
+  if (isPgTestsRequired(environment)) {
+    throw StateError(
+      'Postgres required ($pgTestsRequiredEnvVar=1) but not reachable',
+    );
+  }
+  return 'Postgres not reachable for ${target.envVarName}';
+}
+
 Future<bool> canReachPostgresAdmin(DisposablePgTarget target) async {
   try {
     final connection = await Connection.open(
@@ -319,6 +388,7 @@ Future<DisposablePgWriterSession> setUpDisposablePgWriter({
 }) async {
   Connection? writer;
   try {
+    await _acquireMeritRankSuiteLock(target);
     await withDisposablePgLifecycleLock(target.adminEnv, () async {
       // A full-schema target is cloned from the prebuilt template; only a
       // partial one (`lastInclusiveVersion`) still has to run the registry,
@@ -356,6 +426,7 @@ Future<DisposablePgWriterSession> setUpDisposablePgWriter({
     await withDisposablePgLifecycleLock(target.adminEnv, () async {
       await target._dropUnlocked();
     });
+    await _releaseMeritRankSuiteLock(target);
     final detail = error is RaceCondition
         ? '${error.message} (schema_version LOCK TABLE NOWAIT / version skew)'
         : error;
@@ -381,11 +452,15 @@ Future<void> tearDownDisposablePgWriter({
   if (!session.setupComplete) {
     return;
   }
-  await withDisposablePgLifecycleLock(session.target.adminEnv, () async {
-    if (drift != null) {
-      await drift.close();
-    }
-    await session.writer.close();
-    await session.target._dropUnlocked();
-  });
+  try {
+    await withDisposablePgLifecycleLock(session.target.adminEnv, () async {
+      if (drift != null) {
+        await drift.close();
+      }
+      await session.writer.close();
+      await session.target._dropUnlocked();
+    });
+  } finally {
+    await _releaseMeritRankSuiteLock(session.target);
+  }
 }

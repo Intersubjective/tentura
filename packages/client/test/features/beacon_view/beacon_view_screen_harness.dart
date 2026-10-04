@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 
+import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/data/repository/clipboard_image_repository.dart';
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -210,6 +211,24 @@ class _HarnessBeaconViewCubit extends Mock implements BeaconViewCubit {
   Stream<BeaconViewState> get stream => _controller.stream;
 
   @override
+  String get beaconId => _state.beacon.id;
+
+  @override
+  Profile get author => _state.beacon.author;
+
+  @override
+  bool get isAdmissionBlocked => _state.isRoomAdmissionBlocked;
+
+  @override
+  bool get coordinationDeniesAdmission => false;
+
+  @override
+  RoomCapabilities get capabilities => const RoomCapabilities.request();
+
+  @override
+  Stream<void> get changes => stream.map((_) {});
+
+  @override
   Future<void> reportPeopleSurfaceViewed() async {}
 
   @override
@@ -323,6 +342,7 @@ ThreadHostCubit beaconViewHarnessHost({
       required String beaconId,
       String? threadItemId,
       DateTime? initialUnreadAnchorAt,
+      RoomCapabilities? capabilities,
     }) =>
         factoryRecorder.call(
           beaconId: beaconId,
@@ -395,11 +415,13 @@ Future<BeaconViewHarness> pumpBeaconViewHarness(
   String? threadId,
   String? messageId,
   ThreadsCubit? threadsCubit,
+  BeaconViewCubit? beaconViewCubit,
+  Locale locale = const Locale('en'),
 }) async {
   final harnessRecorder = recorder ?? BeaconViewRoomCubitRecorder();
   final harnessHost = host ?? beaconViewHarnessHost(recorder: harnessRecorder);
   final harnessRouter = router ?? BeaconViewHarnessRouter();
-  final beaconCubit = _HarnessBeaconViewCubit(beaconState);
+  final beaconCubit = beaconViewCubit ?? _HarnessBeaconViewCubit(beaconState);
   final harnessThreadsCubit =
       threadsCubit ??
       _HarnessThreadsCubit(
@@ -427,7 +449,7 @@ Future<BeaconViewHarness> pumpBeaconViewHarness(
         theme: TenturaTheme.light(),
         localizationsDelegates: L10n.localizationsDelegates,
         supportedLocales: L10n.supportedLocales,
-        locale: const Locale('en'),
+        locale: locale,
         home: BeaconViewResizableMediaQuery(
           key: mediaKey,
           size: size,

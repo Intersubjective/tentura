@@ -80,6 +80,11 @@ abstract class AttentionReceipt with _$AttentionReceipt {
     bool? allowsForward,
     // The Request the row is about; null when the viewer may not read it.
     String? beaconTitle,
+    // The beacon kind (0 Request, 1 Post) and, for a Post, its root message:
+    // the excerpt and the image attached to it.
+    int? beaconKind,
+    String? postRootExcerpt,
+    String? postRootImageId,
     int? eventTotal,
     int? eventUnseenCount,
     @Default([]) List<AttentionReceipt> eventsPreview,

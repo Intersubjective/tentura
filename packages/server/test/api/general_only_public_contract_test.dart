@@ -101,11 +101,11 @@ class _StubRoom extends Fake implements BeaconRoomRepositoryPort {
   }
 
   @override
-  Future<void> toggleReaction({
+  Future<bool> toggleReaction({
     required String messageId,
     required String userId,
     required String emoji,
-  }) async {}
+  }) async => true;
 
   @override
   Future<void> updateMessage({

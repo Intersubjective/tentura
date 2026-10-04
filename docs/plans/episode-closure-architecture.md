@@ -496,6 +496,8 @@ for i in V, if |M| ≥ 3 and ∅ ≠ U_i ≠ M∖{i}        (the support that en
 - Audit absolute score thresholds (`merit_score_lookup`, `mr_score_value`, visibility thresholds, clusters) for the ~6× scale change of MR 0.11.0.
 
 **Phase B**
+
+**Approved Post extension:** the noisy-contact wall applies to Posts as well as Requests. For a Post (`kind = 1`), the recipient's first room message or reaction is engagement; forwarding retains its existing engagement behavior. «Не интересно» / leave remains declined, and merely reading or being admitted is not engagement. This is the [Post feature contract](post-and-constellation-composer-plan.md) (§3a Q15), not release evidence.
 - Ban: projection yields −1 even without a trust row; sign/level changes bypass ε; `TrustCutoverCase`-style bootstrap loads negatives.
 - Noisy contact. `beacon_forward_edge` gets `contact_outcome smallint NULL` (1 engaged, 2 declined, 3 ignored), `contact_resolved_at`, `contact_deadline_at` (= `created_at + 7 d + jitter`, jitter ∈ [−1 d, +1 d] from `hash(edge_id)`; set only for edges created after `m0204`; no backfill). Index `(contact_deadline_at) WHERE contact_resolved_at IS NULL`.
 
@@ -503,6 +505,7 @@ for i in V, if |M| ≥ 3 and ∅ ≠ U_i ≠ M∖{i}        (the support that en
   |---|---|---|
   | edge created, sender = recipient or recipient = request author | forward case | none; `contact_outcome` left NULL, `contact_deadline_at` NULL |
   | recipient offers on the request, or forwards it on, before deadline | help-offer / forward cases | `engaged` recipient→sender, key `contact:<edge>:engaged`; resolve |
+  | Post recipient's first room message or first reaction | Post room-message / reaction paths via `contact_engage(p_beacon, p_user)` | approved Post amendment: resolve pending inbound contact edges as engaged; `engaged` recipient→sender, key `contact:<edge>:engaged`; after ignored, retract `contact:<edge>:noisy` |
   | recipient declines ("не могу помочь") | inbox case | none; resolve as declined |
   | sender cancels before resolution | forward case | none; resolve (outcome NULL, resolved_at set) |
   | deadline passes unresolved | `ContactResolutionSweepCase` (1 h, `FOR UPDATE SKIP LOCKED`) | `noisy` recipient→sender, key `contact:<edge>:noisy`; resolve as ignored |

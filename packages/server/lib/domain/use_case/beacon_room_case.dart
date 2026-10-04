@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'dart:typed_data';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/beacon_room_record.dart';
 import 'package:tentura_server/domain/entity/beacon_thread_record.dart';
 import 'package:tentura_server/domain/entity/coordination_item_record.dart';
@@ -10,10 +11,13 @@ import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
 
 import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
+import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/discussion_product_policy_port.dart';
+import 'package:tentura_server/domain/policy/beacon_kind_policy.dart';
 import 'package:tentura_server/domain/policy/beacon_room_lifecycle_write_policy.dart';
 import 'package:tentura_server/domain/port/mutating_unit_of_work_port.dart';
+import 'package:tentura_server/domain/port/post_lock_port.dart';
 import 'package:tentura_server/domain/port/user_block_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
 import 'package:tentura_server/domain/port/polling_repository_port.dart';
@@ -38,16 +42,23 @@ import 'package:tentura_server/utils/id.dart';
 import 'package:tentura_server/utils/read_uint8_stream_with_limit.dart';
 import 'package:tentura_server/utils/room_mention_utils.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
+import 'package:tentura_server/domain/use_case/beacon_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 
 import 'coordination_room_access.dart';
 import '_use_case_base.dart';
 
+/// `post_first_response.source_kind`: the claim was won by a message.
+const _firstResponseByMessage = 1;
+
+/// `post_first_response.source_kind`: the claim was won by a reaction.
+const _firstResponseByReaction = 2;
+
 /// Room coordination: admission, steward, messages (server-side rules).
 // TODO(contract): tighten permissions with visibility / forward graph —
 // current checks are author-or-steward or admitted-member only.
 @Singleton(order: 2)
-final class BeaconRoomCase extends UseCaseBase {
+class BeaconRoomCase extends UseCaseBase {
   BeaconRoomCase(
     this._room,
     this._items,
@@ -61,12 +72,28 @@ final class BeaconRoomCase extends UseCaseBase {
     this._unitOfWork,
     this._hierarchyRepository,
     this._discussionPolicy, {
+    BeaconRepositoryPort? beaconRepository,
+    BeaconCase? beaconCase,
+    PostLockPort? postLock,
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
     required super.env,
     required super.logger,
-  }) : _attentionIntents = attentionIntents,
+  }) : _beaconRepository = beaconRepository,
+       _beaconCase = beaconCase,
+       _postLock = postLock,
+       _attentionIntents = attentionIntents,
        _attention = attention;
+
+  final BeaconRepositoryPort? _beaconRepository;
+  final BeaconCase? _beaconCase;
+  final PostLockPort? _postLock;
+
+  /// Rejects a Post for the Request-only room mutations.
+  Future<void> _requireRequest(String beaconId) async {
+    final beacon = await _beaconRepository?.getBeaconById(beaconId: beaconId);
+    if (beacon != null) BeaconKindPolicy.requireRequest(beacon);
+  }
 
   final BeaconRoomRepositoryPort _room;
 
@@ -122,12 +149,36 @@ final class BeaconRoomCase extends UseCaseBase {
     await _rejectOrdinaryUserWritesForLifecycle(beaconId);
   }
 
+  /// A Post member admitted through somebody else's forward keeps their
+  /// participant row when blocked by the author, so the room gate must deny
+  /// them itself (the block half of `beacon_can_read_content`). Requests are
+  /// unaffected.
+  Future<bool> _isBlockedFromPost({
+    required String beaconId,
+    required String userId,
+  }) async {
+    final beacon = await _beaconRepository?.getBeaconById(beaconId: beaconId);
+    if (beacon == null || beacon.kind != BeaconKind.post) return false;
+    return _userBlockRepository.isBlockedPair(a: beacon.author.id, b: userId);
+  }
+
+  /// The author of the beacon when it is a Post, else `null`.
+  Future<String?> _postAuthorId(String beaconId) async {
+    final beacon = await _beaconRepository?.getBeaconById(beaconId: beaconId);
+    return beacon != null && beacon.kind == BeaconKind.post
+        ? beacon.author.id
+        : null;
+  }
+
   Future<bool> _canUseRoom({
     required String beaconId,
     required String userId,
   }) async {
     if (await _room.isBeaconAuthor(beaconId: beaconId, userId: userId)) {
       return true;
+    }
+    if (await _isBlockedFromPost(beaconId: beaconId, userId: userId)) {
+      return false;
     }
     if (await _room.isBeaconSteward(beaconId: beaconId, userId: userId)) {
       return true;
@@ -310,6 +361,7 @@ final class BeaconRoomCase extends UseCaseBase {
     List<int> explicitMentionLengths = const [],
     String? quotedFactCardId,
     int? quotedFactRevisionSeq,
+    Set<String> suppressMentionNotifyFor = const {},
   }) async {
     if ((quotedFactCardId == null) != (quotedFactRevisionSeq == null)) {
       throw const IdWrongException(
@@ -398,7 +450,10 @@ final class BeaconRoomCase extends UseCaseBase {
     final mentionIds = resolvedMentions.ids;
     final mentionRecipientIds = {
       for (final id in mentionIds)
-        if (id.isNotEmpty && id != userId) id,
+        if (id.isNotEmpty &&
+            id != userId &&
+            !suppressMentionNotifyFor.contains(id))
+          id,
     };
     final otherDirectedIds =
         <String>{
@@ -410,6 +465,7 @@ final class BeaconRoomCase extends UseCaseBase {
 
     final hasDirected =
         mentionRecipientIds.isNotEmpty || otherDirectedIds.isNotEmpty;
+    final postAuthorId = await _postAuthorId(beaconId);
 
     Future<Map<String, Object?>> persist(
       AttentionTransaction? transaction,
@@ -464,11 +520,30 @@ final class BeaconRoomCase extends UseCaseBase {
             ),
           );
         }
+        if (postAuthorId != null &&
+            postAuthorId != userId &&
+            await _room.claimPostFirstResponse(
+              beaconId: beaconId,
+              userId: userId,
+              kind: _firstResponseByMessage,
+              sourceId: row.id,
+            )) {
+          await transaction.record(
+            await _attentionIntents!.postFirstResponse(
+              beaconId: beaconId,
+              messageId: row.id,
+              actorUserId: userId,
+              authorUserId: postAuthorId,
+              excerpt: excerpt,
+              sourceEventKey: 'post_first_response:$beaconId:$userId',
+            ),
+          );
+        }
       }
       return {'id': row.id, 'beaconId': row.beaconId};
     }
 
-    if (!hasDirected) {
+    if (!hasDirected && postAuthorId == null) {
       return persist(null);
     }
     return _attention!.runAction(
@@ -625,6 +700,7 @@ final class BeaconRoomCase extends UseCaseBase {
     required String userId,
     required String text,
   }) async {
+    await _requireRequest(beaconId);
     final trimmed = text.trim();
     if (trimmed.isEmpty) {
       throw const BeaconCreateException(description: 'Plan text is required');
@@ -777,6 +853,7 @@ final class BeaconRoomCase extends UseCaseBase {
     required String userId,
     required String messageId,
   }) async {
+    await _requireRequest(beaconId);
     final msg = await _room.getRoomMessageById(messageId);
     if (msg == null || msg.beaconId != beaconId) {
       throw IdNotFoundException(
@@ -990,6 +1067,7 @@ final class BeaconRoomCase extends UseCaseBase {
     required String userId,
     required String note,
   }) async {
+    await _requireRequest(beaconId);
     await _attention!.runAction<void>(
       actorUserId: userId,
       action: (transaction) async {
@@ -1023,6 +1101,7 @@ final class BeaconRoomCase extends UseCaseBase {
     required String participantUserId,
     required String actorUserId,
   }) async {
+    await _requireRequest(beaconId);
     final author = await _room.isBeaconAuthor(
       beaconId: beaconId,
       userId: actorUserId,
@@ -1060,6 +1139,7 @@ final class BeaconRoomCase extends UseCaseBase {
     required String stewardUserId,
     required String authorUserId,
   }) async {
+    await _requireRequest(beaconId);
     final author = await _room.isBeaconAuthor(
       beaconId: beaconId,
       userId: authorUserId,
@@ -1104,10 +1184,42 @@ final class BeaconRoomCase extends UseCaseBase {
       );
     }
     await _guardMessageMutation(beaconId: beaconId, msg: msg);
-    await _room.toggleReaction(
-      messageId: messageId,
-      userId: userId,
-      emoji: emoji,
+    final postAuthorId = await _postAuthorId(beaconId);
+    if (postAuthorId == null || postAuthorId == userId) {
+      await _room.toggleReaction(
+        messageId: messageId,
+        userId: userId,
+        emoji: emoji,
+      );
+      return;
+    }
+    await _attention!.runAction<void>(
+      actorUserId: userId,
+      action: (transaction) async {
+        final added = await _room.toggleReaction(
+          messageId: messageId,
+          userId: userId,
+          emoji: emoji,
+        );
+        if (added &&
+            await _room.claimPostFirstResponse(
+              beaconId: beaconId,
+              userId: userId,
+              kind: _firstResponseByReaction,
+              sourceId: messageId,
+            )) {
+          await transaction.record(
+            await _attentionIntents!.postFirstResponse(
+              beaconId: beaconId,
+              messageId: messageId,
+              actorUserId: userId,
+              authorUserId: postAuthorId,
+              excerpt: emoji,
+              sourceEventKey: 'post_first_response:$beaconId:$userId',
+            ),
+          );
+        }
+      },
     );
   }
 
@@ -1163,37 +1275,55 @@ final class BeaconRoomCase extends UseCaseBase {
     required String beaconId,
     required String messageId,
     required String userId,
-  }) async {
-    final msg = await _room.getRoomMessageById(messageId);
-    if (msg == null || msg.beaconId != beaconId) {
-      throw IdNotFoundException(
-        id: messageId,
-        description: 'Room message not found',
-      );
-    }
-    final allowed = await _canMutateMessage(
-      beaconId: beaconId,
-      userId: userId,
-      msg: msg,
-    );
-    if (!allowed) {
-      throw const UnauthorizedException(description: 'Room access required');
-    }
-    if (msg.authorId != userId) {
-      throw const UnauthorizedException(
-        description: 'Only the message author can delete messages',
-      );
-    }
-    await _guardMessageMutation(beaconId: beaconId, msg: msg);
-    await _unitOfWork.run(
-      actorUserId: userId,
-      action: () async {
+  }) => _unitOfWork.run(
+    actorUserId: userId,
+    action: () async {
+      // Serialize with conversion before reading kind and the root pointer.
+      final postLock = _postLock;
+      if (postLock != null) {
+        await postLock.lockForPostMutation(beaconId);
+      } else {
         await _hierarchyRepository.lockMutationScope();
-        await _room.deleteRoomMessage(messageId: messageId);
-      },
-    );
-    return true;
-  }
+      }
+      final beacon = await _beaconRepository?.getBeaconById(beaconId: beaconId);
+      if (beacon?.kind == BeaconKind.post &&
+          beacon?.postRootMessageId == messageId &&
+          postLock == null) {
+        throw StateError('Post deletion requires PostLockPort');
+      }
+      final msg = await _room.getRoomMessageById(messageId);
+      if (msg == null || msg.beaconId != beaconId) {
+        throw IdNotFoundException(
+          id: messageId,
+          description: 'Room message not found',
+        );
+      }
+      final allowed = await _canMutateMessage(
+        beaconId: beaconId,
+        userId: userId,
+        msg: msg,
+      );
+      if (!allowed) {
+        throw const UnauthorizedException(description: 'Room access required');
+      }
+      if (msg.authorId != userId) {
+        throw const UnauthorizedException(
+          description: 'Only the message author can delete messages',
+        );
+      }
+      await _guardMessageMutation(beaconId: beaconId, msg: msg);
+      if (beacon != null &&
+          beacon.kind == BeaconKind.post &&
+          beacon.postRootMessageId == messageId) {
+        if (beacon.author.id != userId) {
+          throw const UnauthorizedException(description: 'Author only');
+        }
+        return _beaconCase!.deleteById(beaconId: beaconId, userId: userId);
+      }
+      await _room.deleteRoomMessage(messageId: messageId);
+      return true;
+    },
+  );
 
   Future<bool> editMessage({
     required String beaconId,

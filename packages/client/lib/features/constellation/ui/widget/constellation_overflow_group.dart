@@ -118,3 +118,49 @@ class ConstellationOverflowGroup extends StatelessWidget {
     );
   }
 }
+
+/// «+N» marker next to the selected Post: members the server hid plus visible
+/// members not placed because of the render cap. Not interactive.
+class ConstellationPostOverflowChip extends StatelessWidget {
+  const ConstellationPostOverflowChip({
+    required this.postId,
+    required this.hiddenCount,
+    super.key,
+  });
+
+  final String postId;
+  final int hiddenCount;
+
+  @override
+  Widget build(BuildContext context) {
+    if (hiddenCount <= 0) {
+      return const SizedBox.shrink();
+    }
+    final tt = context.tt;
+    final theme = Theme.of(context);
+    final label = '+$hiddenCount';
+    final size = constellationOverflowChipSize(context, label);
+    return Semantics(
+      identifier: 'constellation.postOverflow.$postId',
+      label: label,
+      child: SizedBox(
+        key: Key('constellation.postOverflow.$postId'),
+        width: size.width,
+        height: size.height,
+        child: Material(
+          color: theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(tt.cardRadius),
+          child: Center(
+            child: Text(
+              label,
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: theme.colorScheme.primary,
+              ),
+              maxLines: 1,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

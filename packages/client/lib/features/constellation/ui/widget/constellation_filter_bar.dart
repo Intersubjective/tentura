@@ -66,7 +66,9 @@ class _ConstellationFilterSheet extends StatelessWidget {
                     ),
                     TextButton(
                       key: const Key('constellation.filter.sheet_clear'),
-                      onPressed: cubit.canClearFilters ? cubit.clearFilters : null,
+                      onPressed: cubit.canClearFilters
+                          ? cubit.clearFilters
+                          : null,
                       child: Text(l10n.constellationClearFilters),
                     ),
                   ],

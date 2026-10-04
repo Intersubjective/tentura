@@ -21,6 +21,7 @@ enum ConstellationPlacementPhase {
   idle,
   draggingExisting,
   draggingNew,
+  composing,
 }
 
 @freezed
@@ -77,7 +78,9 @@ abstract class ConstellationState extends StateBase with _$ConstellationState {
     final loadedField = field;
     final loadedPaths = paths;
     final loadedComposition = composition;
-    if (loadedField == null || loadedPaths == null || loadedComposition == null) {
+    if (loadedField == null ||
+        loadedPaths == null ||
+        loadedComposition == null) {
       return null;
     }
     return (

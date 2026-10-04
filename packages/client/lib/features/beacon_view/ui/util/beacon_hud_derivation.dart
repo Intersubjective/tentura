@@ -209,7 +209,7 @@ String beaconHudYouLine(L10n l10n, BeaconViewState state) {
       if (beacon.status == BeaconStatus.reviewOpen) {
         return l10n.beaconHudWaitingForReviews;
       }
-      if (beacon.allowsForward) {
+      if (beacon.viewerCanForward) {
         return l10n.beaconHudYouForward;
       }
       if (authorHudShowsStatusOverflowFallback(state)) {

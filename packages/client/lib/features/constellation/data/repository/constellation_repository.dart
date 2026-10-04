@@ -34,11 +34,13 @@ final class ConstellationRepository implements ConstellationRepositoryPort {
             }),
           )
           .firstWhere((response) => response.dataSource == DataSource.Link)
-          .then((response) => mapConstellationFieldFromAnchorsFetch(
-                response
-                    .dataOrThrow(label: 'ConstellationAnchorsFetch')
-                    .constellationField,
-              ));
+          .then(
+            (response) => mapConstellationFieldFromAnchorsFetch(
+              response
+                  .dataOrThrow(label: 'ConstellationAnchorsFetch')
+                  .constellationField,
+            ),
+          );
     }
 
     return _remoteApiService
@@ -51,10 +53,12 @@ final class ConstellationRepository implements ConstellationRepositoryPort {
           }),
         )
         .firstWhere((response) => response.dataSource == DataSource.Link)
-        .then((response) => mapConstellationFieldFromFieldFetch(
-              response
-                  .dataOrThrow(label: 'ConstellationFieldFetch')
-                  .constellationField,
-            ));
+        .then(
+          (response) => mapConstellationFieldFromFieldFetch(
+            response
+                .dataOrThrow(label: 'ConstellationFieldFetch')
+                .constellationField,
+          ),
+        );
   }
 }

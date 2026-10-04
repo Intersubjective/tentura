@@ -6,6 +6,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/coordination/filter_beacon_notifications.dart';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/notification_category.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/entity/notification_priority.dart';
@@ -314,6 +315,13 @@ FROM my_desk_dot, for_you_dot, my_desk_count, for_you_sweep_eligible
       AND ${AttentionDismissibleSql.primaryPlacement('v')}
     ) AS is_active_attention''';
 
+  // Today's grouping rule, in three lines:
+  // 1. Receipts on the activity surface group per beacon into one synthetic
+  //    `requestActivity` row, unless the beacon is pinned or a forward row.
+  // 2. `relay_received` receipts never count as children; position is
+  //    `MIN(created_at)` of the group.
+  // 3. Post (kind = 1) differs: `relay_received` counts, position is `MAX`,
+  //    and it is never pinned or an outcome row.
   /// Eligible inbox representatives + child Activity stats shared by the stream.
   ///
   /// Beacon-scoped Activity receipts coalesce onto a pinned For-you card, a
@@ -356,6 +364,7 @@ eligible_forward AS (
   JOIN public.beacon b ON b.id = ii.beacon_id
   LEFT JOIN request_entry re ON re.beacon_id = ii.beacon_id
   WHERE ii.user_id = \$1
+    AND b.kind = 0
     AND ii.tombstone_dismissed_at IS NULL
     AND (
       ii.status <> 0
@@ -385,7 +394,7 @@ activity_child_receipts AS (
   FROM visible v
   WHERE v.surface = 'activity'
     AND v.beacon_id IS NOT NULL
-    AND v.presentation_key IS DISTINCT FROM 'relay_received'
+    AND ${AttentionDismissibleSql.relayShellExcluded('v')}
     -- U11/D16, the load-bearing one. Everything a grouped For You row says
     -- about itself comes from here: `event_total` (the count),
     -- `event_unseen_count` (the dot), `MIN(created_at)` (its position) and
@@ -514,7 +523,9 @@ page_stream AS (
     -- U10c: a synthetic group has no inbox row and therefore no
     -- `first_entry_at`; its entry is the first child that put it on the
     -- surface, which is immutable and does not move when a second arrives.
-    stats.min_created_at AS created_at,
+    -- Post (kind = 1): position is the newest child instead.
+    CASE WHEN b.kind = 1 THEN stats.max_created_at
+      ELSE stats.min_created_at END AS created_at,
     0 AS collapsed_count,
     stats.beacon_id,
     NULL::text AS coordination_item_id,
@@ -877,12 +888,16 @@ ORDER BY page.created_at DESC NULLS LAST, page.id DESC NULLS LAST
   }
 
   /// [AttentionReceipt.beaconTitle] for every row on this page that names a
-  /// Request, including the event previews of grouped rows.
+  /// Request, including the event previews of grouped rows, plus the Post
+  /// fields ([AttentionReceipt.beaconKind], [AttentionReceipt.postRootExcerpt],
+  /// [AttentionReceipt.postRootImageId]).
   ///
   /// Attached after paging for the same reason the provenance is: one query
   /// for the page, not a join inside the stream projection. Gated on
   /// `beacon_can_read_content`, the predicate that already decides
-  /// [AttentionReceipt.title]; an unreadable Request yields no title.
+  /// [AttentionReceipt.title]; an unreadable Request yields no title and no
+  /// root excerpt or image. A Post has no title: its description is its root
+  /// message, cut at 140 characters, and the first image attached to it.
   Future<List<AttentionReceipt>> _attachBeaconTitles({
     required String accountId,
     required List<AttentionReceipt> items,
@@ -909,8 +924,27 @@ SELECT
   CASE
     WHEN public.beacon_can_read_content(b.id, \$1)
     THEN nullif(trim(b.title), '')
-  END AS beacon_title
+  END AS beacon_title,
+  b.kind AS beacon_kind,
+  CASE
+    WHEN public.beacon_can_read_content(b.id, \$1)
+    THEN left(root.body, 140)
+  END AS post_root_excerpt,
+  CASE
+    WHEN public.beacon_can_read_content(b.id, \$1)
+    THEN (
+      SELECT a.image_id::text
+      FROM public.beacon_room_message_attachment a
+      WHERE a.message_id = root.id
+        AND a.kind = 1
+        AND a.image_id IS NOT NULL
+      ORDER BY a."position", a.id
+      LIMIT 1
+    )
+  END AS post_root_image_id
 FROM public.beacon b
+LEFT JOIN public.beacon_room_message root
+  ON root.id = b.post_root_message_id
 WHERE b.id IN ($placeholders)
 ''',
       variables: [
@@ -918,13 +952,16 @@ WHERE b.id IN ($placeholders)
         ...ids.map(Variable<String>.new),
       ],
     ).get();
-    final titles = {
-      for (final row in rows)
-        row.read<String>('beacon_id'): row.readNullable<String>('beacon_title'),
-    };
+    final byId = {for (final row in rows) row.read<String>('beacon_id'): row};
     AttentionReceipt withTitle(AttentionReceipt item) {
-      final id = item.beaconId;
-      return id == null ? item : item.copyWith(beaconTitle: titles[id]);
+      final row = item.beaconId == null ? null : byId[item.beaconId];
+      if (row == null) return item;
+      return item.copyWith(
+        beaconTitle: row.readNullable<String>('beacon_title'),
+        beaconKind: BeaconKind.fromValue(row.read<int>('beacon_kind')),
+        postRootExcerpt: row.readNullable<String>('post_root_excerpt'),
+        postRootImageId: row.readNullable<String>('post_root_image_id'),
+      );
     }
 
     return [
@@ -1072,6 +1109,7 @@ JOIN public."user" author ON author.id = readable.author_id
 
   /// `BeaconStatus.allowsForward` as SQL — composed from the enum, so the
   /// action row cannot drift from the gate `forward_case.dart` enforces.
+  // No `kind = 0`: this feeds the receipt feed, which also shows Posts.
   static final String _openFamilyStatusList =
       (BeaconStatus.openFamilyValues.toList()..sort()).join(', ');
 
@@ -1131,6 +1169,7 @@ ranked AS (
   WHERE v.surface = 'activity'
     AND v.beacon_id IN ($placeholders)
     AND v.presentation_key IS DISTINCT FROM 'relay_received'
+    AND ${AttentionDismissibleSql.postMuteExcluded('v')}
     AND ${AttentionDismissibleSql.activeAttention('v')}
     -- The preview is the expansion of `event_total`, so it is filtered by the
     -- same rule that produced that number. The Request's own log — History and

@@ -608,6 +608,10 @@
   "@beaconRecipientsPreparing": {
     "context": "BeaconCreateScreen"
   },
+  "beaconRecipientsPrepareFailed": "Couldn't prepare the draft. Check your connection and try again.",
+  "@beaconRecipientsPrepareFailed": {
+    "context": "BeaconCreateScreen"
+  },
   "beaconSendConfirmationTitle": "Request sent",
   "@beaconSendConfirmationTitle": {
     "context": "BeaconCreateScreen"
@@ -1254,6 +1258,11 @@
   "requestDiscoverableOff": "Off — no one can find it in My field. Only people you forward it to, and anyone already involved, can open it.",
   "@requestDiscoverableOff": {
     "description": "Explains discoverability when the toggle is off (used as subtitle when off, or as the sibling alternative when on)."
+  },
+  "constellationCreateHere": "Create here",
+  "@constellationCreateHere": {
+    "description": "Tooltip of the Field app-bar button that offers creating a Post or Request at the viewport centre",
+    "context": "ConstellationAppBarRow"
   },
   "constellationTitle": "My field",
   "@constellationTitle": {
@@ -6870,5 +6879,404 @@
   "closureStoryRoomTitle": "Closing words from the author",
   "@closureStoryRoomTitle": {
     "description": "Heading of the closure story system card in the room."
+  },
+  "postRowSharedBy": "{author} shared a post",
+  "@postRowSharedBy": {
+    "description": "Headline of a For You row when someone shared a Post with the viewer.",
+    "placeholders": {
+      "author": {
+        "type": "String"
+      }
+    }
+  },
+  "postRowSharedByFrom": "{author} shared a post · forwarded by {sender}",
+  "@postRowSharedByFrom": {
+    "description": "Headline of a For You Post row when the sender differs from the author.",
+    "placeholders": {
+      "author": {
+        "type": "String"
+      },
+      "sender": {
+        "type": "String"
+      }
+    }
+  },
+  "postRowReplied": "Post · you got a reply",
+  "@postRowReplied": {
+    "description": "Headline of a For You Post row: someone replied to the viewer."
+  },
+  "postRowMentioned": "Post · you were mentioned",
+  "@postRowMentioned": {
+    "description": "Headline of a For You Post row: someone @mentioned the viewer."
+  },
+  "postRowFirstResponses": "Your post got responses",
+  "@postRowFirstResponses": {
+    "description": "Headline of a For You Post row for the author: first responses arrived."
+  },
+  "postRowMoreMessages": "and {count, plural, one{1 more message} other{{count} more messages}}",
+  "@postRowMoreMessages": {
+    "description": "Third line of a For You Post row: further unread messages.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "activityTabConversations": "Conversations",
+  "@activityTabConversations": {
+    "description": "Activity tab listing the Posts the viewer is in."
+  },
+  "postsTabNow": "Now",
+  "@postsTabNow": {
+    "description": "Section of the conversations tab: Posts active in the last 72 hours."
+  },
+  "postsTabQuiet": "Gone quiet",
+  "@postsTabQuiet": {
+    "description": "Section of the conversations tab: Posts silent for 72 hours or more."
+  },
+  "postsTabEmpty": "Conversations you started or were invited into will appear here",
+  "@postsTabEmpty": {
+    "description": "Empty state of the conversations tab."
+  },
+  "postsTabNewPost": "New post",
+  "@postsTabNewPost": {
+    "description": "Empty-state action that starts a new Post."
+  },
+  "postConversationYours": "Your post",
+  "@postConversationYours": {
+    "description": "Addressing line of a conversations row for the viewer's own Post."
+  },
+  "postConversationAddressed": "{author} · to you",
+  "@postConversationAddressed": {
+    "description": "Addressing line of a conversations row for a Post addressed to the viewer.",
+    "placeholders": {
+      "author": {
+        "type": "String"
+      }
+    }
+  },
+  "postConversationMuted": "Muted",
+  "@postConversationMuted": {
+    "description": "Semantic label of the muted icon on a conversations row."
+  },
+  "postViewTitle": "{author}: {excerpt}",
+  "@postViewTitle": {
+    "description": "App bar title of the Post screen: author and root message excerpt.",
+    "placeholders": {
+      "author": {
+        "type": "String"
+      },
+      "excerpt": {
+        "type": "String"
+      }
+    }
+  },
+  "postMenuParticipants": "Participants",
+  "@postMenuParticipants": {
+    "description": "Post overflow: open the participants list."
+  },
+  "postMenuShowOnField": "Show on the field",
+  "@postMenuShowOnField": {
+    "description": "Post overflow: open the field map."
+  },
+  "postMenuAllowForwarding": "Allow forwarding",
+  "@postMenuAllowForwarding": {
+    "description": "Post overflow (author, forwarding closed): allow forwarding."
+  },
+  "postMenuDelete": "Delete post",
+  "@postMenuDelete": {
+    "description": "Post overflow (author): delete the Post."
+  },
+  "postAllowForwardingTitle": "Allow forwarding?",
+  "@postAllowForwardingTitle": {
+    "description": "Title of the allow-forwarding confirmation."
+  },
+  "postAllowForwardingBody": "Any member will be able to forward the post to people in their circle, and they will be able to take part. This cannot be switched off again.",
+  "@postAllowForwardingBody": {
+    "description": "Body of the allow-forwarding confirmation."
+  },
+  "postAllowForwardingAction": "Allow",
+  "@postAllowForwardingAction": {
+    "description": "Confirm button of the allow-forwarding confirmation."
+  },
+  "postDeleteConfirmTitle": "Delete post?",
+  "@postDeleteConfirmTitle": {
+    "description": "Title of the confirmation shown before the Post root message is deleted."
+  },
+  "postDeleteConfirmBody": "The post and the whole conversation will be deleted permanently.",
+  "@postDeleteConfirmBody": {
+    "description": "Body of the confirmation shown before the Post root message is deleted."
+  },
+  "postForwardedByLine": "{sender} forwarded this to you: “{note}”",
+  "@postForwardedByLine": {
+    "description": "Pinned strip line for a forwarded recipient.",
+    "placeholders": {
+      "sender": {
+        "type": "String"
+      },
+      "note": {
+        "type": "String"
+      }
+    }
+  },
+  "postForwardedByLineNoNote": "{sender} forwarded this to you",
+  "@postForwardedByLineNoNote": {
+    "description": "Pinned strip line for a forwarded recipient when the forward has no note.",
+    "placeholders": {
+      "sender": {
+        "type": "String"
+      }
+    }
+  },
+  "postParticipantsTitle": "Participants · {count}",
+  "@postParticipantsTitle": {
+    "description": "Title of the Post participants sheet.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "postParticipantAuthor": "author",
+  "@postParticipantAuthor": {
+    "description": "Label next to the Post author in the participants sheet."
+  },
+  "postParticipantsInConversation": "IN THE CONVERSATION · {count}",
+  "@postParticipantsInConversation": {
+    "description": "Heading of the Post participants list for members who are in the conversation.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "postParticipantsUnopened": "NOT OPENED YET · {count}",
+  "@postParticipantsUnopened": {
+    "description": "Heading of the Post participants list for admitted members who have not opened the Post.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "postParticipantInContacts": "in contacts",
+  "@postParticipantInContacts": {
+    "description": "Label next to a Post participant who is already a contact."
+  },
+  "postParticipantAddToContacts": "+ Add to contacts",
+  "@postParticipantAddToContacts": {
+    "description": "Shortcut button next to a Post participant who is not a contact."
+  },
+  "postParticipantBroughtBy": "invited by {name}",
+  "@postParticipantBroughtBy": {
+    "description": "Label next to a Post participant naming who forwarded the Post to them.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "postParticipantsForwardingOpen": "Forwarding is open",
+  "@postParticipantsForwardingOpen": {
+    "description": "Participants screen row shown when the Post can be forwarded."
+  },
+  "postParticipantsInvite": "Invite",
+  "@postParticipantsInvite": {
+    "description": "Participants screen button that opens the forward flow."
+  },
+  "postParticipantsForwardsGraph": "How the post reached people",
+  "@postParticipantsForwardsGraph": {
+    "description": "Participants screen link to the forwarding graph."
+  },
+  "roomConvertedToRequestNotice": "{author} turned the post into a request",
+  "@roomConvertedToRequestNotice": {
+    "description": "One-line room notice shown when a Post was converted into a Request.",
+    "placeholders": {
+      "author": {
+        "type": "String"
+      }
+    }
+  },
+  "postCreateRecipients": "To: {names}",
+  "@postCreateRecipients": {
+    "description": "«To» row of the new-Post screen listing the chosen recipients.",
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "postCreateRecipientsCount": "To: {count, plural, one{{count} person} other{{count} people}}",
+  "@postCreateRecipientsCount": {
+    "description": "«To» row of the new-Post screen when recipient names are not known yet.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "postCreateRecipientsEmpty": "To: choose who to send it to",
+  "@postCreateRecipientsEmpty": {
+    "description": "«To» row of the new-Post screen before anyone is chosen."
+  },
+  "postCreateAllowForwarding": "Can be forwarded",
+  "@postCreateAllowForwarding": {
+    "description": "Switch on the new-Post screen: recipients may forward the Post."
+  },
+  "postCreateEmptyHint": "Write how to start the conversation. This will be the post.",
+  "@postCreateEmptyHint": {
+    "description": "Hint in the empty room of the new-Post screen."
+  },
+  "postCreateDiscardTitle": "Discard draft?",
+  "@postCreateDiscardTitle": {
+    "description": "Title of the confirmation shown when closing the new-Post screen with content."
+  },
+  "postCreateDiscardBody": "The post has not been sent yet. Its text and photos will not be kept.",
+  "@postCreateDiscardBody": {
+    "description": "Body of the discard-draft confirmation on the new-Post screen."
+  },
+  "postCreateNeedHelp": "Need help? Create a request ›",
+  "@postCreateNeedHelp": {
+    "description": "Overflow link on the new-Post screen leading to the Request form."
+  },
+  "postCreateMenuPost": "Post",
+  "@postCreateMenuPost": {
+    "description": "My Work «+» menu entry that starts a Post."
+  },
+  "postCreateMenuRequest": "Request",
+  "@postCreateMenuRequest": {
+    "description": "My Work «+» menu entry that starts a Request."
+  },
+  "constellationComposerRecipients": "Will receive · {count}",
+  "@constellationComposerRecipients": {
+    "description": "Heading of the graph composer's recipient chips",
+    "placeholders": {"count": {"type": "int"}}
+  },
+  "constellationComposerList": "List ›",
+  "@constellationComposerList": {
+    "description": "Graph composer button that opens the recipient list picker"
+  },
+  "constellationComposerDetails": "Details",
+  "@constellationComposerDetails": {
+    "description": "Graph composer button that opens the full create form"
+  },
+  "constellationComposerRadius": "Reach",
+  "@constellationComposerRadius": {
+    "description": "Label of the graph composer radius slider"
+  },
+  "constellationComposerRemoveRecipient": "Remove {name}",
+  "@constellationComposerRemoveRecipient": {
+    "description": "Tooltip of the × on a graph composer recipient chip",
+    "placeholders": {"name": {"type": "String"}}
+  },
+  "postMenuPin": "Pin in conversations",
+  "@postMenuPin": {
+    "description": "Post overflow: pin the Post among conversations."
+  },
+  "postMenuUnpin": "Unpin",
+  "@postMenuUnpin": {
+    "description": "Post overflow (pinned): unpin the Post."
+  },
+  "postMenuMute": "Mute",
+  "@postMenuMute": {
+    "description": "Post overflow: opens the mute durations."
+  },
+  "postMenuUnmute": "Turn sound on",
+  "@postMenuUnmute": {
+    "description": "Post overflow (muted): clear the mute."
+  },
+  "postMuteHour": "For 1 hour",
+  "@postMuteHour": {
+    "description": "Mute duration: one hour."
+  },
+  "postMuteThreeHours": "For 3 hours",
+  "@postMuteThreeHours": {
+    "description": "Mute duration: three hours."
+  },
+  "postMuteDay": "For a day",
+  "@postMuteDay": {
+    "description": "Mute duration: one day."
+  },
+  "postMuteThreeDays": "For 3 days",
+  "@postMuteThreeDays": {
+    "description": "Mute duration: three days."
+  },
+  "postMuteForever": "Forever",
+  "@postMuteForever": {
+    "description": "Mute duration: no end."
+  },
+  "postMenuLeave": "Leave conversation",
+  "@postMenuLeave": {
+    "description": "Post overflow (recipient): leave the conversation."
+  },
+  "postLeaveConfirmTitle": "Leave conversation?",
+  "@postLeaveConfirmTitle": {
+    "description": "Title of the leave-conversation confirmation."
+  },
+  "postLeaveConfirmBody": "Messages will stop coming and the post will disappear from conversations. You can return from “Not interested”.",
+  "@postLeaveConfirmBody": {
+    "description": "Body of the leave-conversation confirmation."
+  },
+  "postLeaveConfirmAction": "Leave",
+  "@postLeaveConfirmAction": {
+    "description": "Confirm button of the leave-conversation confirmation."
+  },
+  "postOriginCardTitle": "Post participant",
+  "@postOriginCardTitle": {
+    "description": "Request header card for a former Post member who has not offered help yet."
+  },
+  "postOriginCardBody": "You're in the chat. To take part in the work, offer help.",
+  "@postOriginCardBody": {
+    "description": "Explains the intermediate state of a former Post member on the Request screen."
+  },
+  "postOriginLeaveChat": "Leave chat",
+  "@postOriginLeaveChat": {
+    "description": "Former Post member leaves the Request chat (postLeave)."
+  },
+  "postOriginPeopleSection": "FROM POST · {count}",
+  "@postOriginPeopleSection": {
+    "description": "Author People tab section: former Post members still in the chat.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "postMenuConvertToRequest": "Turn into a Request",
+  "@postMenuConvertToRequest": {
+    "description": "Post overflow menu item (author): convert the Post to a Request."
+  },
+  "postConvertTitle": "Turn this Post into a Request?",
+  "@postConvertTitle": {
+    "description": "Title of the convert-to-Request confirmation."
+  },
+  "postConvertKeepsConversation": "{count, plural, =0{The conversation stays.} one{The conversation and {count} participant stay.} other{The conversation and {count} participants stay.}}",
+  "@postConvertKeepsConversation": {
+    "description": "First bullet of the convert-to-Request confirmation; count is the number of participants besides the author.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "postConvertEveryoneCanHelp": "Everyone will be able to offer help or leave.",
+  "@postConvertEveryoneCanHelp": {
+    "description": "Second sentence of the first bullet of the convert-to-Request confirmation."
+  },
+  "postConvertForwardingOpens": "The Request can then be forwarded further — that is what a Request relies on.",
+  "@postConvertForwardingOpens": {
+    "description": "Convert-to-Request confirmation bullet, shown only when the Post was closed for forwarding."
+  },
+  "postConvertIrreversible": "A Request cannot be turned back into a Post.",
+  "@postConvertIrreversible": {
+    "description": "Convert-to-Request confirmation bullet."
+  },
+  "postConvertDiscoverable": "People in my field can find the Request",
+  "@postConvertDiscoverable": {
+    "description": "Discoverability checkbox of the convert-to-Request confirmation."
+  },
+  "postConvertNext": "Next: details →",
+  "@postConvertNext": {
+    "description": "Confirm button of the convert-to-Request confirmation; opens the Request form."
   }
 }

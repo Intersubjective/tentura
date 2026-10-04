@@ -6,6 +6,7 @@ abstract final class BeaconParticipantRoleBits {
   static const candidate = 3;
   static const watcher = 4;
   static const forwarder = 5;
+  static const addressee = 6;
 }
 
 abstract final class RoomAccessBits {
@@ -62,6 +63,7 @@ abstract final class BeaconRoomSystemMessageKind {
   static const hierarchyLifecycle = 1;
   static const childCreated = 2;
   static const closureStory = 3;
+  static const convertedToRequest = 4;
 }
 
 /// Quick-picker emojis for room message reactions (`RoomMessageReactionToggle`).

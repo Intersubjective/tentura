@@ -111,6 +111,20 @@ void main() {
       isTrue,
     );
   });
+
+  test('the Post first response is declared and may be folded into a count', () {
+    expect(
+      classifications.map((e) => e['eventType']),
+      contains('postFirstResponse'),
+    );
+    expect(attentionEventClassifications, contains('postFirstResponse'));
+    expect(classifyAttentionEvent('postFirstResponse').coalescible, isTrue);
+    expect(
+      classifyAttentionEventPayload('{"eventType":"postFirstResponse"}')
+          .coalescible,
+      isTrue,
+    );
+  });
 }
 
 Map<String, dynamic> _loadContract() => Map<String, dynamic>.from(

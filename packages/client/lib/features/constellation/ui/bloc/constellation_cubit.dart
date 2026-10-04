@@ -14,9 +14,11 @@ import '../../domain/constellation_layout.dart';
 import '../../domain/constellation_drag_cluster.dart';
 import 'package:tentura_root/domain/constellation/constellation_path_resolution.dart';
 import '../../domain/constellation_pin_position.dart';
+import '../../domain/constellation_post_fade.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../../domain/entity/constellation_anchor_projection.dart';
 import '../../domain/entity/constellation_field.dart';
+import '../../domain/port/constellation_member_webs_port.dart';
 import '../../domain/use_case/constellation_anchor_case.dart';
 import '../../domain/use_case/constellation_field_case.dart';
 import '../../../graph/domain/entity/edge_details.dart';
@@ -35,6 +37,9 @@ enum ConstellationEdgeKind {
   tier2Path,
   attachment,
   ringStub,
+  webForwarded,
+  webInside,
+  draftRecipient,
 }
 
 const kConstellationLayoutMaxHops = 3;
@@ -119,10 +124,12 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     required ConstellationFieldCase case_,
     required Profile viewer,
     ConstellationAnchorCase? anchorCase,
+    ConstellationMemberWebsPort? memberWebsPort,
     ForwardRepository? forwardRepository,
     bool loadOnCreate = true,
   }) : _case = case_,
        _anchorCase = anchorCase,
+       _memberWebsPort = memberWebsPort,
        _viewer = viewer,
        _forwardRepositoryOverride = forwardRepository,
        super(const ConstellationState()) {
@@ -131,6 +138,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       (_) => unawaited(_onAnchorRefreshHint()),
       cancelOnError: false,
     );
+    // ignore: invalid_use_of_visible_for_testing_member
     graphController.scene.addListener(_onGraphSceneLayoutOutcomeChanged);
     if (loadOnCreate) {
       unawaited(load());
@@ -139,7 +147,13 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   final ConstellationFieldCase _case;
   final ConstellationAnchorCase? _anchorCase;
+  final ConstellationMemberWebsPort? _memberWebsPort;
   final Profile _viewer;
+
+  /// Lazily fetched member webs per selected Request id (kept for the
+  /// cubit's lifetime; a field reload does not invalidate it).
+  final Map<String, List<ConstellationMemberWeb>> _requestWebsById = {};
+  final Set<String> _requestWebsInFlight = {};
   final ForwardRepository? _forwardRepositoryOverride;
 
   StreamSubscription<void>? _anchorRefreshSub;
@@ -167,6 +181,11 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   int _layoutHandoffGeneration = 0;
 
+  Set<String> _composingCandidateIds = const {};
+  Set<String> _composingSelectedIds = const {};
+  Offset _composingDraftCentre = Offset.zero;
+  void Function(String personId)? _onComposingToggle;
+
   ForwardRepository get _forwardRepository =>
       _forwardRepositoryOverride ?? GetIt.I<ForwardRepository>();
 
@@ -182,8 +201,17 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   final Map<GraphEdgeId, ConstellationEdgeKind> edgeKinds = {};
 
-  /// O(1) kind lookup for edge painting (`srcGraphId->dstGraphId`).
+  /// O(1) kind lookup for edge painting keyed by [EdgeDetails.semanticId] (`src->dst#kind`).
   final Map<String, ConstellationEdgeKind> edgeKindByPair = {};
+
+  /// Opacity per drawn Post id (1 until 48 h, 0.25 at 72 h).
+  Map<String, double> postFadeById = const {};
+
+  /// Opacity per Post web, keyed by [EdgeDetails.semanticId].
+  final Map<String, double> edgeFadeBySemanticId = {};
+
+  /// «+N» chip count per drawn Post: hidden reach plus capped members.
+  Map<String, int> postOverflowCountByPostId = const {};
 
   String layoutEgoId = '';
   Map<String, List<String>> layoutVisibleRequestsByAuthor = const {};
@@ -193,6 +221,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   Set<String> layoutSupportPersonIds = const {};
   Map<String, ConstellationAnchorPosition> layoutAnchorByNodeId = const {};
   Set<String> layoutKeptPeerIds = const {};
+  Map<String, List<String>> layoutPostMemberIdsByPostId = const {};
   ConstellationPathResolution? layoutPaths;
   Set<String> droppedHolderIds = const {};
   Set<String> displayedRequestIds = const {};
@@ -217,6 +246,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   Set<String> get forgetPriorHintNodeIdsForTest => _forgetPriorHintNodeIds;
 
   @visibleForTesting
+  // ignore: invalid_use_of_visible_for_testing_member
   int get writeCount => _anchorCase?.writeCount ?? 0;
 
   bool get placementActionsEnabled =>
@@ -239,8 +269,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
             holderIds: {_viewer.id},
             edges: const [],
           ),
-      keptPeerIds:
-          layoutKeptPeerIds.isEmpty ? state.keptPeerIds : layoutKeptPeerIds,
+      keptPeerIds: layoutKeptPeerIds.isEmpty
+          ? state.keptPeerIds
+          : layoutKeptPeerIds,
       maxHops: kConstellationLayoutMaxHops,
       visibleRequestsByAuthor: layoutVisibleRequestsByAuthor,
       egoOwnRequestIds: layoutEgoOwnRequestIds,
@@ -250,12 +281,14 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       anchorByNodeId: layoutAnchorByNodeId,
       forgetPriorHintNodeIds: _forgetPriorHintNodeIds,
       footprints: layoutFootprints,
+      postMemberIdsByPostId: layoutPostMemberIdsByPostId,
     );
   }
 
   @override
   Future<void> close() async {
     _clearClusterPresentations();
+    // ignore: invalid_use_of_visible_for_testing_member
     graphController.scene.removeListener(_onGraphSceneLayoutOutcomeChanged);
     await _anchorRefreshSub?.cancel();
     _anchorCase?.deactivate(token: _anchorLifecycleToken);
@@ -312,6 +345,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (isClosed || _dispatchingLayoutRecovery) {
       return;
     }
+    // ignore: invalid_use_of_visible_for_testing_member
     final outcome = graphController.scene.layoutOutcome;
     if (outcome is GraphLayoutOutcomeRunning) {
       return;
@@ -430,6 +464,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         asOfUtc: loadedField.loadedAt,
         labelBudget: labelBudget,
         expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
+        selectedRequestWebs: _selectedRequestWebs,
+        extraKeptPeerIds: _composingCandidateIds,
       );
       emit(
         state.copyWith(
@@ -525,6 +561,59 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         placementFailureMessage: null,
         placementActionsEnabled: false,
       ),
+    );
+  }
+
+  /// Enters the composing phase: adds the draft node at [draftCentre], widens
+  /// the composition to [candidateIds] (field peers only) and draws a draft
+  /// edge to every id in [selectedIds]. Existing nodes keep their positions.
+  void enterComposing({
+    required Offset draftCentre,
+    required Set<String> candidateIds,
+    required Set<String> selectedIds,
+    required void Function(String personId) onToggle,
+  }) {
+    if (isClosed || state.field == null) {
+      return;
+    }
+    _composingCandidateIds = candidateIds;
+    _composingSelectedIds = selectedIds;
+    _composingDraftCentre = draftCentre;
+    _onComposingToggle = onToggle;
+    emit(state.copyWith(placementPhase: ConstellationPlacementPhase.composing));
+    _recomposeAndLayout();
+  }
+
+  /// Leaves the composing phase: removes the draft node and its edges and
+  /// restores the regular composition.
+  void exitComposing() {
+    if (isClosed ||
+        state.placementPhase != ConstellationPlacementPhase.composing) {
+      return;
+    }
+    final token = graphController.activePresentationTokenForNode(
+      const FieldDraftNode().graphNodeId,
+    );
+    if (token != null) {
+      graphController.cancelNodePresentationDrag(token);
+    }
+    _composingCandidateIds = const {};
+    _composingSelectedIds = const {};
+    _onComposingToggle = null;
+    emit(state.copyWith(placementPhase: ConstellationPlacementPhase.idle));
+    _recomposeAndLayout();
+  }
+
+  /// Places the draft node, which is not in the anchor set, at a fixed centre.
+  void _placeDraftNode() {
+    const draftGraphId = 'fd:${FieldDraftNode.draftId}';
+    if (graphController.nodePayloadForId(draftGraphId) == null ||
+        graphController.activePresentationTokenForNode(draftGraphId) != null) {
+      return;
+    }
+    graphController.beginNodePresentationDragForId(
+      draftGraphId,
+      _composingDraftCentre,
     );
   }
 
@@ -741,12 +830,19 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         _anchorCase?.confirmedProjection.anchors ??
         state.confirmedProjection?.anchors ??
         const <ConstellationAnchor>[];
-    final remotePinnedBeaconIds = constellationPinnedBeaconIds(projectionAnchors);
+    final remotePinnedBeaconIds = constellationPinnedBeaconIds(
+      projectionAnchors,
+    );
     final parentDelta = parentStart == null
         ? Offset.zero
         : dropCentre - parentStart;
     final companions =
-        <({ConstellationAnchorTarget target, ConstellationAnchorPosition position})>[];
+        <
+          ({
+            ConstellationAnchorTarget target,
+            ConstellationAnchorPosition position,
+          })
+        >[];
     final companionTitles = <String, String>{};
     final droppedCompanionGraphIds = <GraphNodeId>[];
     for (final entry in _placementClusterTargets.entries) {
@@ -780,7 +876,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
     _placementClusterGraphIds.add(parentGraphId);
     _placementClusterTargets.putIfAbsent(parentGraphId, () => target);
-    _placementHandoffGraphIds = Set<GraphNodeId>.from(_placementClusterGraphIds);
+    _placementHandoffGraphIds = Set<GraphNodeId>.from(
+      _placementClusterGraphIds,
+    );
     _draggingNodeId = null;
     // The pointer drag has ended; the write may still be pending or fail.
     graphController.setCameraInteractionGated(false);
@@ -822,7 +920,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (parentStart == null) {
       return;
     }
-    final node = graphController.nodePayloadForId(parentGraphId)! as NodeDetails;
+    final node = graphController.nodePayloadForId(parentGraphId)!;
     final dropCentre = clampClusterDragPosition(node, sceneCentre);
     final limited = constellationLimitClusterDelta(
       parentStart: (x: parentStart.dx, y: parentStart.dy),
@@ -889,9 +987,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       return;
     }
     emit(state.copyWith(placementActionsEnabled: false));
-    final outcome = await _anchorCase!.deleteAnchor(
+    final outcome = await _anchorCase.deleteAnchor(
       target: target,
-      generation: _anchorCase!.lifecycleToken,
+      generation: _anchorCase.lifecycleToken,
       membershipFilters: state.membershipFilters,
     );
     if (isClosed) {
@@ -922,26 +1020,32 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   Future<void> _submitUpsert({
     required ConstellationAnchorTarget target,
     required ConstellationAnchorPosition position,
-    List<({ConstellationAnchorTarget target, ConstellationAnchorPosition position})>
-        companions = const [],
+    List<
+          ({
+            ConstellationAnchorTarget target,
+            ConstellationAnchorPosition position,
+          })
+        >
+        companions =
+        const [],
     Map<String, String> companionTitles = const {},
   }) async {
     if (_anchorCase == null) {
       return;
     }
     final outcome = companions.isEmpty
-        ? await _anchorCase!.upsert(
+        ? await _anchorCase.upsert(
             target: target,
             position: position,
-            generation: _anchorCase!.lifecycleToken,
+            generation: _anchorCase.lifecycleToken,
             membershipFilters: state.membershipFilters,
           )
-        : await _anchorCase!.upsertAll(
+        : await _anchorCase.upsertAll(
             parentTarget: target,
             parentPosition: position,
             companions: companions,
             companionTitles: companionTitles,
-            generation: _anchorCase!.lifecycleToken,
+            generation: _anchorCase.lifecycleToken,
             membershipFilters: state.membershipFilters,
           );
     if (isClosed) {
@@ -1038,7 +1142,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         ? _deferredRefreshTargetsForPresentation()
         : const <ConstellationAnchorTarget>{};
     await _mergeConfirmedProjection(
-      _anchorCase!.confirmedProjection,
+      _anchorCase.confirmedProjection,
       deferTargets: deferTargets,
     );
     if (isClosed) {
@@ -1048,7 +1152,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       emit(
         state.copyWith(
           deferredRefreshTargets: deferTargets,
-          syncPending: _anchorCase!.syncPending,
+          syncPending: _anchorCase.syncPending,
         ),
       );
       return;
@@ -1056,7 +1160,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     emit(
       state.copyWith(
         deferredRefreshTargets: {},
-        syncPending: _anchorCase!.syncPending,
+        syncPending: _anchorCase.syncPending,
       ),
     );
     _reconcileLayout();
@@ -1130,6 +1234,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       asOfUtc: state.loadedAt ?? field.loadedAt,
       labelBudget: _currentLabelBudget(),
       expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
+      selectedRequestWebs: _selectedRequestWebs,
+      extraKeptPeerIds: _composingCandidateIds,
     );
     emit(
       state.copyWith(
@@ -1235,12 +1341,53 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (isClosed) {
       return;
     }
+    final previousId = state.selectedRequestId;
     emit(
       state.copyWith(
         selectedRequestId: requestId,
         selectedPersonId: requestId != null ? null : state.selectedPersonId,
       ),
     );
+    if (requestId != null) {
+      unawaited(_fetchRequestWebs(requestId));
+    }
+    if (_requestWebsById.containsKey(previousId) ||
+        _requestWebsById.containsKey(requestId)) {
+      _recomposeAndLayout();
+    } else if (state.field?.posts.isNotEmpty ?? false) {
+      _rebuildGraph();
+    }
+  }
+
+  List<ConstellationMemberWeb> get _selectedRequestWebs {
+    final selectedId = state.selectedRequestId;
+    return selectedId == null
+        ? const []
+        : _requestWebsById[selectedId] ?? const [];
+  }
+
+  Future<void> _fetchRequestWebs(String requestId) async {
+    final port = _memberWebsPort;
+    if (port == null ||
+        _requestWebsById.containsKey(requestId) ||
+        !_requestWebsInFlight.add(requestId) ||
+        (state.field?.posts.any((post) => post.id == requestId) ?? false)) {
+      return;
+    }
+    try {
+      final webs = await port.fetch(requestId);
+      if (isClosed) {
+        return;
+      }
+      _requestWebsById[requestId] = webs;
+      if (state.selectedRequestId == requestId) {
+        _recomposeAndLayout();
+      }
+    } on Object catch (e, st) {
+      addError(e, st);
+    } finally {
+      _requestWebsInFlight.remove(requestId);
+    }
   }
 
   void setViewMode(ConstellationViewMode viewMode) {
@@ -1299,7 +1446,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       return;
     }
     NodeDetails? egoNode;
-    for (final candidate in graphController.renderSnapshot.topology.nodesById.values) {
+    for (final candidate
+        in graphController.renderSnapshot.topology.nodesById.values) {
       final payload = candidate.payload;
       if (payload is FieldPersonNode && payload.person.id == _viewer.id) {
         egoNode = payload;
@@ -1364,7 +1512,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   }
 
   @visibleForTesting
-  ConstellationFootprintMetrics? get footprintMetricsForTest => _footprintMetrics;
+  ConstellationFootprintMetrics? get footprintMetricsForTest =>
+      _footprintMetrics;
 
   bool get _placementBusy =>
       state.hasPendingPlacementWrite ||
@@ -1471,13 +1620,17 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
           person.id == viewerId
               ? null
               : ConstellationAnchorTarget.person(person.id),
-        FieldRequestNode(:final request) => ConstellationAnchorTarget.beacon(
-          request.id,
-        ),
+        FieldBeaconNode(request: final request?) =>
+          ConstellationAnchorTarget.beacon(
+            request.id,
+          ),
         _ => null,
       };
 
   bool canDragNode(NodeDetails node) {
+    if (state.placementPhase == ConstellationPlacementPhase.composing) {
+      return false;
+    }
     if (anchorTargetForNode(node) == null) {
       return false;
     }
@@ -1860,16 +2013,30 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       return;
     }
     switch (node) {
+      case FieldPersonNode(:final person)
+          when state.placementPhase == ConstellationPlacementPhase.composing:
+        if (person.id == viewerId) {
+          return;
+        }
+        _toggleComposingPerson(person.id);
       case FieldPersonNode(:final person):
         if (person.id == viewerId) {
           return;
         }
         selectPerson(person.id);
-      case FieldRequestNode(:final request):
+      case FieldBeaconNode(request: final request?):
         selectRequest(request.id);
       default:
         break;
     }
+  }
+
+  void _toggleComposingPerson(String personId) {
+    _composingSelectedIds = _composingSelectedIds.contains(personId)
+        ? (Set<String>.of(_composingSelectedIds)..remove(personId))
+        : {..._composingSelectedIds, personId};
+    _onComposingToggle?.call(personId);
+    _reconcileLayout();
   }
 
   void selectMapNodeAtSceneCentre(Offset sceneCentre) {
@@ -1903,6 +2070,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
     emit(state.copyWith(expandedPersonIds: expanded));
   }
+
+  bool isPostId(String id) =>
+      state.field?.posts.any((post) => post.id == id) ?? false;
 
   ConstellationRequest? requestById(String requestId) {
     final field = state.field;
@@ -2061,6 +2231,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       asOfUtc: state.loadedAt ?? field.loadedAt,
       labelBudget: _currentLabelBudget(),
       expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
+      selectedRequestWebs: _selectedRequestWebs,
+      extraKeptPeerIds: _composingCandidateIds,
     );
     emit(
       state.copyWith(
@@ -2098,6 +2270,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       graphController.clear();
       edgeKinds.clear();
       edgeKindByPair.clear();
+      edgeFadeBySemanticId.clear();
+      postFadeById = const {};
+      postOverflowCountByPostId = const {};
       overflowHiddenCountByAuthor = const {};
       expandedExtraCountByAuthor = const {};
       return;
@@ -2198,6 +2373,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     final edges = <EdgeDetails>{};
     edgeKinds.clear();
     edgeKindByPair.clear();
+    edgeFadeBySemanticId.clear();
 
     nodes.add(
       FieldPersonNode(
@@ -2226,7 +2402,22 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
 
     for (final request in drawnRequests) {
-      nodes.add(FieldRequestNode(request: request));
+      nodes.add(FieldBeaconNode(request: request));
+    }
+    final drawnPosts = [
+      for (final node in composition?.beaconNodes ?? const <FieldBeaconNode>[])
+        if (node.post != null && drawnRequestIds.contains(node.id)) node,
+    ];
+    nodes.addAll(drawnPosts);
+    layoutPostMemberIdsByPostId = {
+      for (final node in drawnPosts)
+        node.id: ?composition?.postMemberIdsByPostId[node.id],
+    };
+
+    final composing =
+        state.placementPhase == ConstellationPlacementPhase.composing;
+    if (composing) {
+      nodes.add(const FieldDraftNode());
     }
 
     final nodeById = {for (final node in nodes) node.id: node};
@@ -2235,6 +2426,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       required String srcId,
       required String dstId,
       required ConstellationEdgeKind kind,
+      double? fade,
     }) {
       final src = nodeById[srcId];
       final dst = nodeById[dstId];
@@ -2250,18 +2442,25 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
           ConstellationEdgeKind.tier2Path => 2,
           ConstellationEdgeKind.attachment => 1.5,
           ConstellationEdgeKind.ringStub => 1.5,
+          ConstellationEdgeKind.webForwarded ||
+          ConstellationEdgeKind.webInside ||
+          ConstellationEdgeKind.draftRecipient => 1.5,
         },
+        semanticId:
+            '${tenturaGraphNodeId(src)}->${tenturaGraphNodeId(dst)}#${kind.name}',
       );
       edges.add(edge);
       edgeKinds[constellationSceneEdgeId(
-        kindName: kind.name,
-        source: src,
-        destination: dst,
-      )] = kind;
-      final pairKey =
-          '${tenturaGraphNodeId(src)}->${tenturaGraphNodeId(dst)}';
-      assert(!edgeKindByPair.containsKey(pairKey));
-      edgeKindByPair[pairKey] = kind;
+            kindName: kind.name,
+            source: src,
+            destination: dst,
+          )] =
+          kind;
+      assert(!edgeKindByPair.containsKey(edge.semanticId));
+      edgeKindByPair[edge.semanticId] = kind;
+      if (fade != null) {
+        edgeFadeBySemanticId[edge.semanticId] = fade;
+      }
     }
 
     for (final child in paths.keep.intersection(state.keptPeerIds)) {
@@ -2295,6 +2494,91 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       );
     }
 
+    final asOf = (state.loadedAt ?? field.loadedAt).toUtc();
+    final postFade = <String, double>{};
+    final postOverflow = <String, int>{};
+    for (final node in drawnPosts) {
+      final post = node.post!;
+      final fade = constellationPostFade(
+        lastActivityAt: post.lastActivityAt.toUtc(),
+        asOfUtc: asOf,
+      );
+      postFade[post.id] = fade;
+      addEdge(
+        srcId: post.authorId,
+        dstId: post.id,
+        kind: ConstellationEdgeKind.attachment,
+      );
+      var visibleMembers = 0;
+      var placedMembers = 0;
+      final selected = state.selectedRequestId == post.id;
+      for (final web in field.memberWebs) {
+        if (web.beaconId != post.id) {
+          continue;
+        }
+        if (web.personId != _viewer.id &&
+            !peersById.containsKey(web.personId)) {
+          continue;
+        }
+        visibleMembers++;
+        if (!nodeById.containsKey(web.personId)) {
+          continue;
+        }
+        placedMembers++;
+        if (!selected) {
+          continue;
+        }
+        addEdge(
+          srcId: post.id,
+          dstId: web.personId,
+          kind: web.state == ConstellationMemberWebState.inside
+              ? ConstellationEdgeKind.webInside
+              : ConstellationEdgeKind.webForwarded,
+          fade: fade,
+        );
+      }
+      final count = constellationPostOverflowCount(
+        hiddenReachCount: post.hiddenReachCount,
+        visibleMemberCount: visibleMembers,
+        placedMemberCount: placedMembers,
+      );
+      if (count > 0) {
+        postOverflow[post.id] = count;
+      }
+    }
+    final selectedRequestId = state.selectedRequestId;
+    if (selectedRequestId != null &&
+        drawnRequestIds.contains(selectedRequestId)) {
+      final webs =
+          _requestWebsById[selectedRequestId] ??
+          const <ConstellationMemberWeb>[];
+      for (final web in webs) {
+        if (web.personId != _viewer.id &&
+            !peersById.containsKey(web.personId)) {
+          continue;
+        }
+        addEdge(
+          srcId: selectedRequestId,
+          dstId: web.personId,
+          kind: web.state == ConstellationMemberWebState.inside
+              ? ConstellationEdgeKind.webInside
+              : ConstellationEdgeKind.webForwarded,
+        );
+      }
+    }
+    postFadeById = postFade;
+    postOverflowCountByPostId = postOverflow;
+
+    if (composing) {
+      for (final personId in _composingSelectedIds) {
+        addEdge(
+          srcId: FieldDraftNode.draftId,
+          dstId: personId,
+          kind: ConstellationEdgeKind.draftRecipient,
+        );
+      }
+    }
+
     graphController.reconcileTopology(
       nodes,
       edges,
@@ -2302,6 +2586,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       layoutOnTopologyChange: false,
     );
     emit(state.copyWith(graphRevision: state.graphRevision + 1));
+    if (composing) {
+      _placeDraftNode();
+      return;
+    }
     final handoffGeneration = ++_layoutHandoffGeneration;
     _runAfterNextFrame(() {
       if (isClosed || handoffGeneration != _layoutHandoffGeneration) {

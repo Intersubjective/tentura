@@ -37,6 +37,7 @@ final _beacon = Beacon(
   createdAt: DateTime.utc(2026, 6, 1),
   updatedAt: DateTime.utc(2026, 6, 18),
   author: const Profile(id: 'a1', displayName: 'Автор'),
+  viewerCanForward: true,
 );
 
 AttentionReceipt _event({

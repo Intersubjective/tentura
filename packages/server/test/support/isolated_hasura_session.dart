@@ -4,6 +4,9 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:tentura_server/env.dart';
 
+import 'disposable_pg_target.dart'
+    show isPgTestsRequired, pgTestsRequiredEnvVar;
+
 /// Disposable Hasura engine for PG tests — never mutates the long-running
 /// compose instance on :8080.
 final class IsolatedHasuraSession {
@@ -24,10 +27,14 @@ final class IsolatedHasuraSession {
   static Future<bool> isDockerAvailable() async {
     try {
       final result = await Process.run('docker', ['info']);
-      return result.exitCode == 0;
-    } on Object catch (_) {
-      return false;
+      if (result.exitCode == 0) return true;
+    } on Object catch (_) {}
+    if (isPgTestsRequired()) {
+      throw StateError(
+        'Docker required ($pgTestsRequiredEnvVar=1) but not available',
+      );
     }
+    return false;
   }
 
   static Future<IsolatedHasuraSession> start({
@@ -125,12 +132,34 @@ final class IsolatedHasuraSession {
     );
     final metadata =
         jsonDecode(metadataFile.readAsStringSync()) as Map<String, dynamic>;
+    // The Tentura API remote schema has no server behind it in an isolated
+    // session, so it could only ever be reported as inconsistent.
+    final applied = Map<String, dynamic>.of(
+      metadata['metadata'] as Map<String, dynamic>,
+    )..remove('remote_schemas');
     await _postMetadata(
       'replace_metadata',
       args: {
         'allow_inconsistent_metadata': true,
-        'metadata': metadata['metadata'],
+        'metadata': applied,
       },
+    );
+  }
+
+  /// Throws [StateError] listing the inconsistent objects when Hasura reports
+  /// `is_consistent != true`. [applyRepoMetadata] tolerates inconsistent
+  /// metadata, so this is what notices a silently dropped permission.
+  Future<void> assertMetadataConsistent() async {
+    final body = await _postMetadata('get_inconsistent_metadata');
+    if (body['is_consistent'] == true) return;
+    final objects = (body['inconsistent_objects'] as List<dynamic>?) ?? [];
+    final lines = [
+      for (final object in objects)
+        if (object is Map<String, dynamic>)
+          '- ${object['type']}: ${object['reason']} (${jsonEncode(object['definition'])})',
+    ];
+    throw StateError(
+      'Hasura metadata is inconsistent:\n${lines.join('\n')}',
     );
   }
 

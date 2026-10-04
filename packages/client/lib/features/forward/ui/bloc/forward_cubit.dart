@@ -30,6 +30,7 @@ class ForwardCubit extends Cubit<ForwardState> {
     @visibleForTesting ForwardState? debugInitialState,
     this.preselectLineageSuggestions = false,
     this.initialSelectedIds = const {},
+    Map<String, String> initialNotes = const {},
     this.embedded = false,
     DateTime Function()? clock,
   }) : _forwardCase =
@@ -39,7 +40,14 @@ class ForwardCubit extends Cubit<ForwardState> {
        _clock = clock ?? DateTime.now,
        super(
          debugInitialState ??
-             ForwardState(beaconId: beaconId, context: context),
+             ForwardState(
+               beaconId: beaconId,
+               context: context,
+               perRecipientNotes: {
+                 for (final e in initialNotes.entries)
+                   if (initialSelectedIds.contains(e.key)) e.key: e.value,
+               },
+             ),
        ) {
     if (!debugSkipInitialLoad) {
       unawaited(_loadCandidates());
@@ -486,6 +494,20 @@ class ForwardCubit extends Cubit<ForwardState> {
         : ForwardSelectionResult.deselected;
   }
 
+  /// Replaces the selected set; notes and reasons of ids that stay are kept.
+  void setSelection(Set<String> ids) {
+    final selected = Set<String>.from(ids);
+    final draft = _pruneRecipientDraft(state.selectedIds.difference(selected));
+    emit(
+      state.copyWith(
+        selectedIds: selected,
+        perRecipientNotes: draft.notes,
+        recipientReasons: draft.reasons,
+        skippedPersonalNoteIds: draft.skipped,
+      ),
+    );
+  }
+
   void setRecipientReasons(String userId, List<String> slugs) {
     final next = Map<String, List<String>>.from(state.recipientReasons);
     if (slugs.isEmpty) {
@@ -603,7 +625,7 @@ class ForwardCubit extends Cubit<ForwardState> {
     }
     final beacon = state.beacon;
     if (!embedded) {
-      if (beacon == null || !beacon.allowsForward) {
+      if (beacon == null || !beacon.viewerCanForward) {
         _emitSnackError(
           Exception('Forwarding is only available while the request is open'),
         );

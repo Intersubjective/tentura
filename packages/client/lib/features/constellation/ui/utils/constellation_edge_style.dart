@@ -15,30 +15,47 @@ ConstellationEdgeStyle constellationEdgeStyle(
   ConstellationEdgeKind kind,
   TenturaTokens tt,
   ColorScheme scheme,
-) =>
-    switch (kind) {
-      ConstellationEdgeKind.tier1Path => (
-          color: tt.graphEdgePath,
-          width: 2.0,
-          dash: 0,
-          gap: 0,
-        ),
-      ConstellationEdgeKind.tier2Path => (
-          color: tt.graphEdgePath,
-          width: 2.0,
-          dash: 6,
-          gap: 4,
-        ),
-      ConstellationEdgeKind.ringStub => (
-          color: tt.graphEdgePath,
-          width: 1.5,
-          dash: 2,
-          gap: 4,
-        ),
-      ConstellationEdgeKind.attachment => (
-          color: scheme.secondary,
-          width: 1.5,
-          dash: 0,
-          gap: 0,
-        ),
-    };
+) => switch (kind) {
+  ConstellationEdgeKind.tier1Path => (
+    color: tt.graphEdgePath,
+    width: 2.0,
+    dash: 0,
+    gap: 0,
+  ),
+  ConstellationEdgeKind.tier2Path => (
+    color: tt.graphEdgePath,
+    width: 2.0,
+    dash: 6,
+    gap: 4,
+  ),
+  ConstellationEdgeKind.ringStub => (
+    color: tt.graphEdgePath,
+    width: 1.5,
+    dash: 2,
+    gap: 4,
+  ),
+  ConstellationEdgeKind.webForwarded => (
+    color: scheme.tertiary,
+    width: 1.5,
+    dash: 2,
+    gap: 4,
+  ),
+  ConstellationEdgeKind.webInside => (
+    color: scheme.tertiary,
+    width: 1.5,
+    dash: 0,
+    gap: 0,
+  ),
+  ConstellationEdgeKind.draftRecipient => (
+    color: scheme.tertiary,
+    width: 1.5,
+    dash: 6,
+    gap: 4,
+  ),
+  ConstellationEdgeKind.attachment => (
+    color: scheme.secondary,
+    width: 1.5,
+    dash: 0,
+    gap: 0,
+  ),
+};

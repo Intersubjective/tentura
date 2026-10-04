@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/design_system/components/tentura_vertical_resize_handle.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_threads/domain/coordination_item_room_sync.dart';
@@ -45,6 +46,7 @@ _Issue169HostBundle _issue169Host(FakeBeaconThreadsRepository repo) {
       required String beaconId,
       String? threadItemId,
       DateTime? initialUnreadAnchorAt,
+      RoomCapabilities? capabilities,
     }) {
       final cubit = RoomCubit(
         beaconId: beaconId,

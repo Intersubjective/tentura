@@ -1064,7 +1064,10 @@ RETURNING *
           .update(
             (o) => o(
               status: const Value(BeaconParticipantStatusBits.offeredHelp),
-              roomAccess: const Value(RoomAccessBits.requested),
+              // An addressee of a converted Post stays admitted.
+              roomAccess: existing.role == BeaconParticipantRoleBits.addressee
+                  ? const Value.absent()
+                  : const Value(RoomAccessBits.requested),
               offerNote: Value(note),
               updatedAt: Value(PgDateTime(DateTime.timestamp())),
             ),
@@ -1118,7 +1121,11 @@ RETURNING *
         beaconId: beaconId,
         userId: offerUserId,
       );
-      if (existing?.roomAccess == RoomAccessBits.admitted) {
+      final isAdmittedAddressee =
+          existing?.roomAccess == RoomAccessBits.admitted &&
+          existing?.role == BeaconParticipantRoleBits.addressee;
+      if (existing?.roomAccess == RoomAccessBits.admitted &&
+          !isAdmittedAddressee) {
         return;
       }
       if (existing == null) {
@@ -1143,9 +1150,15 @@ RETURNING *
               (o) => o(
                 roomAccess: const Value(RoomAccessBits.admitted),
                 status: const Value(BeaconParticipantStatusBits.committed),
+                role: isAdmittedAddressee
+                    ? const Value(BeaconParticipantRoleBits.helper)
+                    : const Value.absent(),
                 updatedAt: Value(PgDateTime(DateTime.timestamp())),
               ),
             );
+      }
+      if (isAdmittedAddressee) {
+        return;
       }
       await recordBeaconRoomParticipantJoined(
         db: _db,
@@ -1169,7 +1182,9 @@ RETURNING *
         beaconId: beaconId,
         userId: offerUserId,
       );
-      if (existing == null) {
+      // An addressee of a converted Post keeps access (leaving is `postLeave`).
+      if (existing == null ||
+          existing.role == BeaconParticipantRoleBits.addressee) {
         return;
       }
       await _db.managers.beaconParticipants
@@ -1238,7 +1253,7 @@ SELECT public.emit_realtime_entity_change(
         );
   });
 
-  Future<void> toggleReaction({
+  Future<bool> toggleReaction({
     required String messageId,
     required String userId,
     required String emoji,
@@ -1255,17 +1270,36 @@ SELECT public.emit_realtime_entity_change(
       await _db.managers.beaconRoomMessageReactions
           .filter((r) => r.id.equals(existing.id))
           .delete();
-    } else {
-      await _db.managers.beaconRoomMessageReactions.create(
-        (o) => o(
-          id: generateId('E'),
-          messageId: messageId,
-          userId: userId,
-          emoji: emoji,
-          createdAt: const Value.absent(),
-        ),
-      );
+      return false;
     }
+    await _db.managers.beaconRoomMessageReactions.create(
+      (o) => o(
+        id: generateId('E'),
+        messageId: messageId,
+        userId: userId,
+        emoji: emoji,
+        createdAt: const Value.absent(),
+      ),
+    );
+    return true;
+  });
+
+  Future<bool> claimPostFirstResponse({
+    required String beaconId,
+    required String userId,
+    required int kind,
+    required String sourceId,
+  }) => _db.withMutatingUser(userId, () async {
+    final rows = await _db.customSelect(
+      r'SELECT public.post_claim_first_response($1, $2, $3::smallint, $4) AS won',
+      variables: [
+        Variable<String>(beaconId),
+        Variable<String>(userId),
+        Variable<int>(kind),
+        Variable<String>(sourceId),
+      ],
+    ).get();
+    return rows.single.read<bool>('won');
   });
 
   Future<bool> isBeaconAuthor({

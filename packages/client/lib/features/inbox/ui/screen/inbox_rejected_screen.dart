@@ -45,7 +45,7 @@ class InboxRejectedScreen extends StatelessWidget implements AutoRouteWrapper {
         backgroundColor: scheme.surface,
         appBar: TenturaTopBar.of(
           context,
-          leading: const AutoLeadingButton(),
+          leading: const BackButton(),
           title: Text(l10n.inboxRejectedTitle),
         ),
         body: SafeArea(
@@ -85,7 +85,7 @@ class InboxRejectedScreen extends StatelessWidget implements AutoRouteWrapper {
                             entry: kBeaconEntryInbox,
                           ),
                         ),
-                        onTap: item.beacon?.allowsForward == true
+                        onTap: item.beacon?.viewerCanForward == true
                             ? () => context.router.push(
                                 ForwardBeaconRoute(beaconId: item.beaconId),
                               )

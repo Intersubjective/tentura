@@ -665,7 +665,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       case BeaconSurface.room:
         return BeaconRoomSurface(
           key: ValueKey('room-$_threadsFoldEpoch'),
-          beaconViewCubit: beaconViewCubit,
+          host: beaconViewCubit,
           roomLease: roomLease,
           legacyThreadId: widget.threadId,
           messageId: _roomScrollMessageId ?? widget.messageId,
@@ -764,7 +764,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
             SizedBox(
               width: threadPaneWidth,
               child: BeaconRoomSurface(
-                beaconViewCubit: beaconViewCubit,
+                host: beaconViewCubit,
                 roomLease: roomLease,
                 legacyThreadId: widget.threadId,
                 messageId: widget.messageId,

@@ -27,6 +27,7 @@ import 'package:tentura/ui/widget/hud_labeled_multiline.dart';
 import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 import 'package:tentura/app/router/root_router.dart';
 
+import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/features/beacon_threads/domain/room_message_receipt.dart';
 
 import '../bloc/room_cubit.dart';
@@ -45,9 +46,17 @@ class BeaconRoomBody extends StatefulWidget {
     this.beaconAuthor,
     this.onCoordinationSaved,
     this.onOpenCoordinationItem,
+    this.capabilities = const RoomCapabilities.request(),
+    this.postRoot,
   });
 
   final bool enableComposer;
+
+  /// Request-only features the hosting screen offers in this room.
+  final RoomCapabilities capabilities;
+
+  /// Post rooms only: root message pinned above the messages.
+  final RoomPostRootPin? postRoot;
 
   /// Beacon author id for coordination target lists (from beacon view shell).
   final String beaconAuthorId;
@@ -214,10 +223,15 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
           final canWrite = state.canWriteDiscussion;
           final showPinnedNow =
               !isThreadMode &&
+              widget.capabilities.pinnedStrip == RoomPinnedStrip.requestNow &&
               beaconRoomShowsPinnedNow(
                 roomState: state.roomState,
                 openBlocker: state.openCoordinationBlocker,
               );
+          final showPostRoot =
+              !isThreadMode &&
+              widget.capabilities.pinnedStrip == RoomPinnedStrip.postRoot &&
+              (widget.postRoot?.hasStrip ?? false);
           final receiptIndex = RoomReceiptIndex(
             myUserId: state.myUserId,
             watermarks: {
@@ -232,7 +246,14 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
           return BasicChatBody(
             key: _basicChatKey,
             receiptIndex: receiptIndex,
-            header: showPinnedNow
+            header: showPostRoot
+                ? _PinnedPostRootRow(
+                    pin: widget.postRoot!,
+                    onTap: () => cubit.requestScrollToMessage(
+                      widget.postRoot!.messageId,
+                    ),
+                  )
+                : showPinnedNow
                 ? _PinnedNowRow(
                     state: state,
                     onEdit: state.canUpdatePlan
@@ -327,6 +348,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                       )),
             pinnedFactForMessage: state.factForRoomMessage,
             pendingJumpMessageId: state.scrollToMessageId,
+            capabilities: widget.capabilities,
           );
         },
       ),
@@ -533,14 +555,16 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
   }) {
     final canWrite = cubit.state.canWriteDiscussion;
     final pf = cubit.state.factForRoomMessage(message);
+    final caps = widget.capabilities;
     final showFactInMenu =
-        !isThreadMode && !_suppressesRichMessageActions(message);
+        caps.facts && !isThreadMode && !_suppressesRichMessageActions(message);
     final isOwnMessage = message.authorId == viewer.id;
     final viewerReactions = _viewerReactionEmojis(message);
     // Already-linked messages can be opened/resolved but never re-promoted;
     // only plain, non-system messages offer the "Turn into…" verbs.
     final linkedItem = message.linkedCoordinationItem;
     final showCreateChild =
+        caps.coordinationItems &&
         canWrite &&
         !isThreadMode &&
         linkedItem == null &&
@@ -657,26 +681,28 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                             );
                           },
                         ),
-                        ListTile(
-                          leading: const Icon(Icons.edit_note_outlined),
-                          title: Text(
-                            l10n.beaconRoomActionUpdatePlanFromMessage,
+                        if (caps.plan)
+                          ListTile(
+                            leading: const Icon(Icons.edit_note_outlined),
+                            title: Text(
+                              l10n.beaconRoomActionUpdatePlanFromMessage,
+                            ),
+                            onTap: () {
+                              Navigator.pop(ctx);
+                              unawaited(
+                                _showUpdatePlanFromMessageSheet(
+                                  context,
+                                  cubit,
+                                  l10n,
+                                  message,
+                                ),
+                              );
+                            },
                           ),
-                          onTap: () {
-                            Navigator.pop(ctx);
-                            unawaited(
-                              _showUpdatePlanFromMessageSheet(
-                                context,
-                                cubit,
-                                l10n,
-                                message,
-                              ),
-                            );
-                          },
-                        ),
                       ],
                       // ── …or open / resolve an already-linked item. ──
-                      if (linkedItem != null &&
+                      if (caps.plan &&
+                          linkedItem != null &&
                           linkedItem.kind == CoordinationItemKind.plan &&
                           (!isThreadMode ||
                               widget.onOpenCoordinationItem != null)) ...[
@@ -770,7 +796,10 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                           },
                         ),
                       // ── Destructive (own message), divided off and last. ──
-                      if (canWrite && isOwnMessage && showFactInMenu) ...[
+                      if (canWrite &&
+                          isOwnMessage &&
+                          !isThreadMode &&
+                          !_suppressesRichMessageActions(message)) ...[
                         const Divider(height: 1),
                         ListTile(
                           leading: const Icon(Icons.edit_outlined),
@@ -857,11 +886,20 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     L10n l10n,
     RoomMessage message,
   ) async {
+    final isPostRoot = widget.postRoot?.messageId == message.id;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(l10n.beaconRoomDeleteMessageConfirmTitle),
-        content: Text(l10n.beaconRoomDeleteMessageConfirmBody),
+        title: Text(
+          isPostRoot
+              ? l10n.postDeleteConfirmTitle
+              : l10n.beaconRoomDeleteMessageConfirmTitle,
+        ),
+        content: Text(
+          isPostRoot
+              ? l10n.postDeleteConfirmBody
+              : l10n.beaconRoomDeleteMessageConfirmBody,
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -1194,6 +1232,76 @@ class _PinnedNowRow extends StatelessWidget {
         ),
         const TenturaHairlineDivider(),
       ],
+    );
+  }
+}
+
+/// Post rooms: the root excerpt (tap scrolls to the root message) and, for a
+/// recipient the Post was forwarded to, who forwarded it and their note.
+class _PinnedPostRootRow extends StatelessWidget {
+  const _PinnedPostRootRow({required this.pin, required this.onTap});
+
+  final RoomPostRootPin pin;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final tt = context.tt;
+    final forwardedLine = pin.forwardedBy.isEmpty
+        ? null
+        : pin.forwardNote.isEmpty
+        ? l10n.postForwardedByLineNoNote(pin.forwardedBy)
+        : l10n.postForwardedByLine(pin.forwardedBy, pin.forwardNote);
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        tt.screenHPadding,
+        tt.rowGap,
+        tt.screenHPadding,
+        tt.rowGap,
+      ),
+      child: Material(
+        color: tt.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(tt.cardRadius),
+          side: BorderSide(color: tt.borderSubtle),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: tt.cardPadding,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.push_pin_outlined, size: tt.iconSize),
+                SizedBox(width: tt.iconTextGap),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        pin.excerpt,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TenturaText.bodySmall(tt.text),
+                      ),
+                      if (forwardedLine != null)
+                        Text(
+                          forwardedLine,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TenturaText.bodySmall(tt.textMuted),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

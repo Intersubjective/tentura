@@ -11,7 +11,12 @@ import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
 typedef ConstellationPoint = ({double x, double y});
 typedef ConstellationSize = ({double width, double height});
-typedef ConstellationBounds = ({double left, double top, double right, double bottom});
+typedef ConstellationBounds = ({
+  double left,
+  double top,
+  double right,
+  double bottom,
+});
 
 /// Screen-space label/chip/badge sizes at readable scale (R03 → R04 footprints).
 typedef ConstellationFootprintMetrics = ({
@@ -85,6 +90,10 @@ typedef ConstellationPlacedLayoutInput = ({
   Map<String, List<String>> satelliteRequestIdsByAuthor,
   Map<String, String> requestAuthorById,
   Set<String> egoOwnRequestIds,
+
+  /// Drawn Post id → member ids (author included); unanchored Posts are
+  /// placed at the barycenter of their placed members.
+  Map<String, List<String>> postMemberIdsByPostId,
   double spacing,
   int maxHops,
   ConstellationViewportClass viewportClass,
@@ -189,7 +198,8 @@ ConstellationLayout computeConstellationLayout({
   Set<String> supportPersonIds = const {},
   Map<String, ConstellationAnchorPosition> anchorByNodeId = const {},
   ConstellationLayoutPriorHints? priorHints,
-  ConstellationViewportClass viewportClass = ConstellationViewportClass.expanded,
+  ConstellationViewportClass viewportClass =
+      ConstellationViewportClass.expanded,
 }) {
   return computeConstellationPlacedLayout(
     input: (
@@ -204,6 +214,7 @@ ConstellationLayout computeConstellationLayout({
       nodeSizes: nodeSizes,
       satelliteRequestIdsByAuthor: visibleRequestsByAuthor,
       requestAuthorById: const {},
+      postMemberIdsByPostId: const {},
       egoOwnRequestIds: egoOwnRequestIds,
       spacing: spacing,
       maxHops: maxHops,
@@ -236,7 +247,8 @@ ConstellationLayout computeConstellationPlacedLayout({
     }
     final point = constellationV1AnchorToPoint(anchor);
     positions[personId] = point;
-    ring[personId] = input.paths.depth[personId] ??
+    ring[personId] =
+        input.paths.depth[personId] ??
         (input.paths.ring.contains(personId)
             ? input.maxHops + 1
             : input.maxHops);
@@ -348,8 +360,8 @@ ConstellationLayout computeConstellationPlacedLayout({
     // so we do not turn on crossing preference for every satellite.
     final requestAuthorId = isRequest
         ? (input.egoOwnRequestIds.contains(nodeId)
-            ? input.egoId
-            : input.requestAuthorById[nodeId])
+              ? input.egoId
+              : input.requestAuthorById[nodeId])
         : null;
     final hintSkipAuthorId = isRequest
         ? _requestAuthorForHintSkip(
@@ -390,7 +402,8 @@ ConstellationLayout computeConstellationPlacedLayout({
       continue;
     }
     placeAutomatic(personId, ideal);
-    ring[personId] = input.paths.depth[personId] ??
+    ring[personId] =
+        input.paths.depth[personId] ??
         (input.paths.ring.contains(personId)
             ? input.maxHops + 1
             : input.maxHops);
@@ -402,7 +415,8 @@ ConstellationLayout computeConstellationPlacedLayout({
       continue;
     }
     placeAutomatic(personId, ideal);
-    ring[personId] = input.paths.depth[personId] ??
+    ring[personId] =
+        input.paths.depth[personId] ??
         (input.paths.ring.contains(personId)
             ? input.maxHops + 1
             : input.maxHops);
@@ -439,10 +453,36 @@ ConstellationLayout computeConstellationPlacedLayout({
     placeAutomatic(requestId, ideal);
   }
 
+  final postIds = input.postMemberIdsByPostId.keys.toList()..sort();
+  for (final postId in postIds) {
+    if (positions.containsKey(postId)) {
+      continue;
+    }
+    final memberPoints = [
+      for (final memberId in input.postMemberIdsByPostId[postId]!)
+        if (positions[memberId] != null) positions[memberId]!,
+    ];
+    if (memberPoints.isEmpty) {
+      continue;
+    }
+    final ideal = (
+      x:
+          memberPoints.map((p) => p.x).reduce((a, b) => a + b) /
+          memberPoints.length,
+      y:
+          memberPoints.map((p) => p.y).reduce((a, b) => a + b) /
+          memberPoints.length,
+    );
+    placeAutomatic(postId, ideal);
+  }
+
   return (positions: positions, ring: ring);
 }
 
-ConstellationSize _sizeFor(String nodeId, Map<String, ConstellationSize> sizes) {
+ConstellationSize _sizeFor(
+  String nodeId,
+  Map<String, ConstellationSize> sizes,
+) {
   return sizes[nodeId] ?? (width: 64, height: 64);
 }
 
@@ -540,7 +580,8 @@ bool _authorSeatMovedSincePrior({
   final candidates = <ConstellationPoint>[];
 
   final hint = priorHints?.positions[nodeId];
-  final skipHintForMovedAuthor = isRequest &&
+  final skipHintForMovedAuthor =
+      isRequest &&
       _authorSeatMovedSincePrior(
         authorId: hintSkipAuthorId,
         placed: placed,
@@ -688,8 +729,11 @@ bool _priorHintEligible({
   required ConstellationPathResolution paths,
   required int? priorRing,
 }) {
-  final currentRing = paths.depth[nodeId] ??
-      (paths.ring.contains(nodeId) ? (paths.depth.values.fold(0, math.max) + 1) : null);
+  final currentRing =
+      paths.depth[nodeId] ??
+      (paths.ring.contains(nodeId)
+          ? (paths.depth.values.fold(0, math.max) + 1)
+          : null);
   if (priorRing != null && currentRing != null && priorRing != currentRing) {
     return false;
   }
@@ -874,11 +918,12 @@ double _intersectionArea({
   if (depthOneAngles.isEmpty) {
     return (direction: const Offset(0, 1), gap: 2 * math.pi);
   }
-  final normalized = depthOneAngles
-      .map((a) => a % (2 * math.pi))
-      .map((a) => a < 0 ? a + 2 * math.pi : a)
-      .toList()
-    ..sort();
+  final normalized =
+      depthOneAngles
+          .map((a) => a % (2 * math.pi))
+          .map((a) => a < 0 ? a + 2 * math.pi : a)
+          .toList()
+        ..sort();
   var bestGapStart = 0;
   var bestGap = -1.0;
   for (var i = 0; i < normalized.length; i++) {
@@ -968,7 +1013,8 @@ bool _attachmentSegmentCrossesBody({
   double ringGap,
   double minChord,
   double? maxFanRadians,
-})? _footprintAwareFanParams({
+})?
+_footprintAwareFanParams({
   required String authorId,
   required List<String> sortedRequestIds,
   required Map<String, ConstellationFootprint> footprints,
@@ -981,15 +1027,15 @@ bool _attachmentSegmentCrossesBody({
     return null;
   }
   final firstId = sortedRequestIds.first;
-  final requestFootprint = footprints[firstId] ??
+  final requestFootprint =
+      footprints[firstId] ??
       _symmetricBodyFootprint(_sizeFor(firstId, nodeSizes));
   final requestHalfExtent = math.max(
     math.max(requestFootprint.left, requestFootprint.right),
     math.max(requestFootprint.top, requestFootprint.bottom),
   );
   final authorSize = _sizeFor(authorId, nodeSizes);
-  final authorBodyRadius =
-      math.max(authorSize.width, authorSize.height) / 2;
+  final authorBodyRadius = math.max(authorSize.width, authorSize.height) / 2;
   final radius = math.max(
     satelliteOffset,
     authorBodyRadius + spacing + requestHalfExtent,

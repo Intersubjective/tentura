@@ -281,6 +281,7 @@ final class ConstellationSceneLayoutAlgorithm implements SceneLayoutAlgorithm {
     this.priorHints,
     this.nodeSizes = const {},
     this.footprints = const {},
+    this.postMemberIdsByPostId = const {},
     this.spacing = 16,
     this.viewportClass = ConstellationViewportClass.expanded,
   });
@@ -300,6 +301,9 @@ final class ConstellationSceneLayoutAlgorithm implements SceneLayoutAlgorithm {
   final ConstellationLayoutPriorHints? priorHints;
   final Map<String, ConstellationSize> nodeSizes;
   final Map<String, ConstellationFootprint> footprints;
+
+  /// Drawn Post id → member ids; Posts sit at their members' barycenter.
+  final Map<String, List<String>> postMemberIdsByPostId;
   final double spacing;
   final ConstellationViewportClass viewportClass;
 
@@ -416,6 +420,7 @@ final class ConstellationSceneLayoutAlgorithm implements SceneLayoutAlgorithm {
         nodeSizes: nodeSizes,
         satelliteRequestIdsByAuthor: visibleRequestsByAuthor,
         requestAuthorById: const {},
+        postMemberIdsByPostId: postMemberIdsByPostId,
         egoOwnRequestIds: egoOwnRequestIds,
         spacing: spacing,
         maxHops: maxHops,

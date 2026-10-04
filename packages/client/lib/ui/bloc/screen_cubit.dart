@@ -52,6 +52,8 @@ class ScreenCubit extends Cubit<ScreenState> {
     _navigateTo('$kPathForwardsGraph/$beaconId?$query');
   }
 
+  void showConstellation() => _navigateTo(kPathConstellation);
+
   void showRating() => _navigateTo(kPathRating);
 
   void showBeaconsOf(String id) => _navigateTo('$kPathBeaconViewAll/$id');
@@ -60,6 +62,8 @@ class ScreenCubit extends Cubit<ScreenState> {
       _navigateTo('$kPathBeaconInvolvedAll/$id');
 
   void showBeaconCreate() => _navigateTo(kPathBeaconNew);
+
+  void showPostCreate() => _navigateTo(kPathPostNew);
 
   void showBeaconCreateFor(String userId) => _navigateTo(
     '$kPathBeaconNew?'

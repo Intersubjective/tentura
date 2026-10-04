@@ -3,6 +3,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/domain/coordination/derive_beacon_display_status.dart';
 import 'package:tentura_server/domain/entity/beacon_display_status.dart';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
@@ -51,6 +52,7 @@ final class BeaconDisplayCase extends UseCaseBase {
       }
 
       final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
+      if (beacon.kind != BeaconKind.request) continue;
       final tier = await _resolveTier(
         beaconId: beaconId,
         viewerId: viewerId,

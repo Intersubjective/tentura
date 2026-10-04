@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:get_it/get_it.dart';
 
+import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
+import 'package:tentura/features/post_view/data/repository/post_membership_repository.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 
@@ -21,8 +23,10 @@ class InboxCubit extends Cubit<InboxState> {
     required String userId,
     InboxCase? inboxCase,
     InboxOperationalCubit? operationalCubit,
+    PostMembershipRepository? postMembershipRepository,
     UiEffectPort? effects,
   }) : _userId = userId,
+       _postMembershipRepository = postMembershipRepository,
        _inboxCase = inboxCase ?? GetIt.I<InboxCase>(),
        _operationalCubit =
            operationalCubit ??
@@ -64,6 +68,9 @@ class InboxCubit extends Cubit<InboxState> {
   final String _userId;
   final InboxCase _inboxCase;
   final InboxOperationalCubit? _operationalCubit;
+
+  // Built from DI on first use: only returning a Post needs it.
+  PostMembershipRepository? _postMembershipRepository;
 
   final UiEffectPort _effects;
 
@@ -287,6 +294,12 @@ class InboxCubit extends Cubit<InboxState> {
   }
 
   Future<void> unreject(String beaconId) async {
+    final idx = state.items.indexWhere((e) => e.beaconId == beaconId);
+    if (idx >= 0 && state.items[idx].beacon?.kind == BeaconKind.post) {
+      // A Post was left, not declined: `postReturn` re-admits the viewer.
+      await _returnToPost(beaconId);
+      return;
+    }
     await _updateStatus(
       beaconId,
       InboxItemStatus.needsMe,
@@ -333,6 +346,17 @@ class InboxCubit extends Cubit<InboxState> {
     } catch (e) {
       _emitSnackError(e);
     }
+  }
+
+  Future<void> _returnToPost(String beaconId) async {
+    try {
+      await (_postMembershipRepository ??= GetIt.I<PostMembershipRepository>())
+          .postReturn(beaconId);
+    } catch (e) {
+      _emitSnackError(e);
+      return;
+    }
+    await fetch(showLoading: false, showError: false);
   }
 
   Future<void> _updateStatus(

@@ -15,6 +15,10 @@ Map<String, dynamic> constellationFieldToGqlMap(
   'requests': snapshot.requests.map(_requestToGqlMap).toList(growable: false),
   'peersCapped': snapshot.peersCapped,
   'requestsCapped': snapshot.requestsCapped,
+  'posts': snapshot.posts.map(_postToGqlMap).toList(growable: false),
+  'memberWebs': snapshot.memberWebs
+      .map(constellationMemberWebToGqlMap)
+      .toList(growable: false),
   'anchorProjection': constellationAnchorProjectionToGqlMap(
     snapshot.anchorProjection,
   ),
@@ -101,8 +105,24 @@ Map<String, dynamic> _requestToGqlMap(ConstellationRequestRecord request) => {
   'viewerIsRoomParticipant': request.viewerIsRoomParticipant,
   'viewerHasForwardEdge': request.viewerHasForwardEdge,
   'helpOfferCount': request.helpOfferCount,
+  'kind': request.kind,
   'coverSource': request.coverSource,
   'coverThumb': request.coverThumb == null
       ? null
       : imagePublicToGqlMap(request.coverThumb!),
+};
+
+Map<String, dynamic> _postToGqlMap(ConstellationPostRecord post) => {
+  'id': post.id,
+  'authorId': post.authorId,
+  'lastActivityAt': post.lastActivityAt.toIso8601String(),
+  'rootExcerpt': post.rootExcerpt,
+  'isPinned': post.isPinned,
+  'hiddenReachCount': post.hiddenReachCount,
+};
+
+Map<String, dynamic> constellationMemberWebToGqlMap(ConstellationMemberWebRecord web) => {
+  'beaconId': web.beaconId,
+  'personId': web.personId,
+  'state': web.state.name.toUpperCase(),
 };

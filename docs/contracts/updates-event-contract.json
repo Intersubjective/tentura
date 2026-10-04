@@ -131,6 +131,14 @@
       "destinationFamily": "beacon",
       "muteability": "standard",
       "coveringTest": "packages/server/test/domain/use_case/closure_notifications_pg_test.dart"
+    },
+    {
+      "eventType": "postFirstResponse",
+      "producer": "BeaconRoomCase.createMessage|BeaconRoomCase.reactionToggle",
+      "recipientCategory": "post_author",
+      "destinationFamily": "beacon_room_message",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/post_first_response_pg_test.dart"
     }
   ],
   "producers": [
@@ -472,6 +480,14 @@
       "destinationFamily": "beacon",
       "muteability": "standard",
       "coveringTest": "packages/server/test/domain/use_case/closure_notifications_pg_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/beacon_room_case.dart",
+      "eventType": "postFirstResponse",
+      "recipientCategory": "post_author",
+      "destinationFamily": "beacon_room_message",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/post_first_response_pg_test.dart"
     }
   ],
   "eventClassifications": [
@@ -1274,6 +1290,30 @@
           "coalescible": true,
           "producerTests": [
             "packages/server/test/domain/use_case/closure_notifications_pg_test.dart"
+          ],
+          "transitionTests": []
+        }
+      ]
+    },
+    {
+      "eventType": "postFirstResponse",
+      "status": "supported",
+      "variants": [
+        {
+          "recipientPredicate": "reason:postAuthor",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "beacon_content",
+          "recoverableVia": "room",
+          "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "beacon",
+          "coalescible": true,
+          "producerTests": [
+            "packages/server/test/domain/use_case/post_first_response_pg_test.dart"
           ],
           "transitionTests": []
         }

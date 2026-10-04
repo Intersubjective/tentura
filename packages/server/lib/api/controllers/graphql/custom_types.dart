@@ -27,6 +27,9 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeConstellationPeer,
   gqlTypeConstellationEdge,
   gqlTypeConstellationRequest,
+  gqlEnumConstellationMemberWebState,
+  gqlTypeConstellationPost,
+  gqlTypeConstellationMemberWeb,
   gqlEnumConstellationProjection,
   gqlEnumConstellationAnchorTargetKind,
   gqlTypeConstellationAnchor,
@@ -46,6 +49,8 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeBeaconDisplayStatus,
   gqlTypeHelpOfferWithCoordinationRow,
   gqlTypeRoomMessageCreatePayload,
+  gqlTypePostPublishResult,
+  gqlTypePostSummary,
   gqlTypeRoomMessageQuotedFact,
   gqlTypeRoomMessageRow,
   gqlTypeBeaconRoomStateRow,
@@ -179,6 +184,11 @@ final GraphQLObjectType gqlTypeAttentionReceipt = () {
     field('allowsForward', graphQLBoolean),
     // The Request a row is about, behind the content wall (null otherwise).
     field('beaconTitle', graphQLString),
+    // Post projection: `beacon.kind` (0 Request, 1 Post), the root message
+    // excerpt and the first root image id; the last two are null on Requests.
+    field('beaconKind', graphQLInt),
+    field('postRootExcerpt', graphQLString),
+    field('postRootImageId', graphQLString),
   ]);
   return type;
 }();
@@ -429,6 +439,13 @@ final gqlTypeRoomMessageCreatePayload =
       ..fields.addAll([
         field('id', graphQLString.nonNullable()),
       ]);
+
+/// Result of `postPublish`.
+final gqlTypePostPublishResult = GraphQLObjectType('PostPublishResult', null)
+  ..fields.addAll([
+    field('beaconId', graphQLString.nonNullable()),
+    field('rootMessageId', graphQLString.nonNullable()),
+  ]);
 
 /// Quoted fact revision snapshot on a room message (issue #181 plan §8.11).
 final gqlTypeRoomMessageQuotedFact =
@@ -867,8 +884,39 @@ final gqlTypeConstellationRequest =
         field('viewerIsRoomParticipant', graphQLBoolean.nonNullable()),
         field('viewerHasForwardEdge', graphQLBoolean.nonNullable()),
         field('helpOfferCount', graphQLInt.nonNullable()),
+        field('kind', graphQLInt.nonNullable()),
         field('coverSource', graphQLInt.nonNullable()),
         field('coverThumb', gqlTypeImagePublic),
+      ]);
+
+final gqlEnumConstellationMemberWebState = enumTypeFromStrings(
+  'ConstellationMemberWebState',
+  const ['FORWARDED', 'INSIDE'],
+);
+
+final gqlTypeConstellationPost =
+    GraphQLObjectType(
+        'ConstellationPost',
+        null,
+      )
+      ..fields.addAll([
+        field('id', graphQLString.nonNullable()),
+        field('authorId', graphQLString.nonNullable()),
+        field('lastActivityAt', graphQLString.nonNullable()),
+        field('rootExcerpt', graphQLString.nonNullable()),
+        field('isPinned', graphQLBoolean.nonNullable()),
+        field('hiddenReachCount', graphQLInt.nonNullable()),
+      ]);
+
+final gqlTypeConstellationMemberWeb =
+    GraphQLObjectType(
+        'ConstellationMemberWeb',
+        null,
+      )
+      ..fields.addAll([
+        field('beaconId', graphQLString.nonNullable()),
+        field('personId', graphQLString.nonNullable()),
+        field('state', gqlEnumConstellationMemberWebState.nonNullable()),
       ]);
 
 final gqlEnumConstellationProjection = enumTypeFromStrings(
@@ -986,6 +1034,16 @@ final gqlTypeConstellationField =
         ),
         field('peersCapped', graphQLBoolean.nonNullable()),
         field('requestsCapped', graphQLBoolean.nonNullable()),
+        field(
+          'posts',
+          GraphQLListType(gqlTypeConstellationPost.nonNullable()).nonNullable(),
+        ),
+        field(
+          'memberWebs',
+          GraphQLListType(
+            gqlTypeConstellationMemberWeb.nonNullable(),
+          ).nonNullable(),
+        ),
         field(
           'anchorProjection',
           gqlTypeConstellationAnchorProjection.nonNullable(),
@@ -1701,3 +1759,20 @@ final gqlTypeClosureToggleResult =
         null,
       )
       ..fields.add(field('released', graphQLString));
+
+/// Open Post conversation preview for the authenticated viewer.
+final gqlTypePostSummary = GraphQLObjectType('PostSummary', null)
+  ..fields.addAll([
+    field('id', graphQLString.nonNullable()),
+    field('authorId', graphQLString.nonNullable()),
+    field('authorName', graphQLString.nonNullable()),
+    field('authorAvatar', graphQLString.nonNullable()),
+    field('rootExcerpt', graphQLString),
+    field('lastMessageExcerpt', graphQLString),
+    field('lastMessageAt', graphQLString),
+    field('lastActivityAt', graphQLString),
+    field('pinnedAt', graphQLString),
+    field('mutedUntil', graphQLString),
+    field('unreadCount', graphQLInt.nonNullable()),
+    field('isAuthor', graphQLBoolean.nonNullable()),
+  ]);

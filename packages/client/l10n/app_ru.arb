@@ -608,6 +608,10 @@
   "@beaconRecipientsPreparing": {
     "context": "BeaconCreateScreen"
   },
+  "beaconRecipientsPrepareFailed": "Не удалось подготовить черновик. Проверьте соединение и повторите.",
+  "@beaconRecipientsPrepareFailed": {
+    "context": "BeaconCreateScreen"
+  },
   "beaconSendConfirmationTitle": "Запрос отправлен",
   "@beaconSendConfirmationTitle": {
     "context": "BeaconCreateScreen"
@@ -1255,6 +1259,7 @@
   "@requestDiscoverableOff": {
     "description": "Explains discoverability when the toggle is off (used as subtitle when off, or as the sibling alternative when on)."
   },
+  "constellationCreateHere": "Создать здесь",
   "constellationTitle": "Моё поле",
   "@constellationTitle": {
     "description": "App bar title on the Field (Constellation) screen",
@@ -6114,5 +6119,144 @@
   "closureResultDraftNotCounted": "Твои отметки не вошли: ты не нажал «Готово»",
   "closureResultDraftLastEdit": "В расчёте прошлая версия, последняя правка не вошла",
   "closureResultMarksTitle": "Твои закладки",
-  "closureStoryRoomTitle": "Итоги от автора"
+  "closureStoryRoomTitle": "Итоги от автора",
+  "postRowSharedBy": "{author} поделился(ась) постом",
+  "postRowSharedByFrom": "{author} поделился(ась) постом · переслал(а): {sender}",
+  "postRowReplied": "Пост · вам ответили",
+  "postRowMentioned": "Пост · вас упомянули",
+  "postRowFirstResponses": "На ваш пост откликнулись",
+  "postRowMoreMessages": "и ещё {count, plural, one{1 сообщение} few{{count} сообщения} many{{count} сообщений} other{{count} сообщения}}",
+  "activityTabConversations": "Разговоры",
+  "postsTabNow": "Сейчас",
+  "postsTabQuiet": "Затихли",
+  "postsTabEmpty": "Здесь будут разговоры, которые вы начали или в которые вас позвали",
+  "postsTabNewPost": "Новый пост",
+  "postConversationYours": "Ваш пост",
+  "postConversationAddressed": "{author} · вам",
+  "postConversationMuted": "Звук выключен",
+  "postViewTitle": "{author}: {excerpt}",
+  "@postViewTitle": {
+    "placeholders": {
+      "author": {
+        "type": "String"
+      },
+      "excerpt": {
+        "type": "String"
+      }
+    }
+  },
+  "postMenuParticipants": "Участники",
+  "postMenuShowOnField": "Показать на поле",
+  "postMenuAllowForwarding": "Разрешить пересылку",
+  "postMenuDelete": "Удалить пост",
+  "postAllowForwardingTitle": "Разрешить пересылку?",
+  "postAllowForwardingBody": "Любой участник сможет переслать пост людям из своего круга, и они смогут участвовать. Выключить это будет нельзя.",
+  "postAllowForwardingAction": "Разрешить",
+  "postDeleteConfirmTitle": "Удалить пост?",
+  "postDeleteConfirmBody": "Пост и весь разговор будут удалены без возможности восстановления.",
+  "postForwardedByLine": "Вам переслала {sender}: «{note}»",
+  "@postForwardedByLine": {
+    "placeholders": {
+      "sender": {
+        "type": "String"
+      },
+      "note": {
+        "type": "String"
+      }
+    }
+  },
+  "postForwardedByLineNoNote": "Вам переслала {sender}",
+  "@postForwardedByLineNoNote": {
+    "placeholders": {
+      "sender": {
+        "type": "String"
+      }
+    }
+  },
+  "postParticipantsTitle": "Участники · {count}",
+  "@postParticipantsTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "postParticipantAuthor": "автор",
+  "postParticipantsInConversation": "В РАЗГОВОРЕ · {count}",
+  "@postParticipantsInConversation": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "postParticipantsUnopened": "ЕЩЁ НЕ ОТКРЫЛИ · {count}",
+  "@postParticipantsUnopened": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "postParticipantInContacts": "в контактах",
+  "postParticipantAddToContacts": "+ В контакты",
+  "postParticipantBroughtBy": "позвала {name}",
+  "@postParticipantBroughtBy": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "postParticipantsForwardingOpen": "Можно пересылать",
+  "postParticipantsInvite": "Позвать",
+  "postParticipantsForwardsGraph": "Как пост дошёл до людей",
+  "roomConvertedToRequestNotice": "{author} превратил пост в запрос",
+  "@roomConvertedToRequestNotice": {
+    "placeholders": {
+      "author": {
+        "type": "String"
+      }
+    }
+  },
+  "postCreateRecipients": "Кому: {names}",
+  "postCreateRecipientsCount": "Кому: {count, plural, one{{count} человек} few{{count} человека} many{{count} человек} other{{count} человека}}",
+  "postCreateRecipientsEmpty": "Кому: выберите получателей",
+  "postCreateAllowForwarding": "Можно пересылать",
+  "postCreateEmptyHint": "Напишите, с чего начать разговор. Это и будет пост.",
+  "postCreateDiscardTitle": "Удалить черновик?",
+  "postCreateDiscardBody": "Пост ещё не отправлен. Текст и фото не сохранятся.",
+  "postCreateNeedHelp": "Нужна помощь? Создать запрос ›",
+  "postCreateMenuPost": "Пост",
+  "postCreateMenuRequest": "Запрос",
+  "constellationComposerRecipients": "Получат · {count}",
+  "constellationComposerList": "Списком ›",
+  "constellationComposerDetails": "Подробнее",
+  "constellationComposerRadius": "Охват",
+  "constellationComposerRemoveRecipient": "Убрать: {name}",
+  "postMenuPin": "Закрепить в разговорах",
+  "postMenuUnpin": "Открепить",
+  "postMenuMute": "Заглушить",
+  "postMenuUnmute": "Включить звук",
+  "postMuteHour": "На 1 час",
+  "postMuteThreeHours": "На 3 часа",
+  "postMuteDay": "На день",
+  "postMuteThreeDays": "На 3 дня",
+  "postMuteForever": "Навсегда",
+  "postMenuLeave": "Выйти из разговора",
+  "postLeaveConfirmTitle": "Выйти из разговора?",
+  "postLeaveConfirmBody": "Сообщения перестанут приходить, пост исчезнет из разговоров. Вернуться можно из «Не интересно».",
+  "postLeaveConfirmAction": "Выйти",
+  "postOriginCardTitle": "Участник из поста",
+  "postOriginCardBody": "Вы в чате. Чтобы участвовать в деле — предложите помощь.",
+  "postOriginLeaveChat": "Выйти из чата",
+  "postOriginPeopleSection": "ИЗ ПОСТА · {count}",
+  "postMenuConvertToRequest": "Превратить в запрос",
+  "postConvertTitle": "Превратить пост в запрос?",
+  "postConvertKeepsConversation": "{count, plural, =0{Разговор останется.} one{Разговор и {count} участник останутся.} few{Разговор и {count} участника останутся.} many{Разговор и {count} участников останутся.} other{Разговор и {count} участника останутся.}}",
+  "postConvertEveryoneCanHelp": "Каждый сможет предложить помощь или выйти.",
+  "postConvertForwardingOpens": "Запрос можно будет пересылать дальше — на этом держится запрос.",
+  "postConvertIrreversible": "Обратно в пост превратить нельзя.",
+  "postConvertDiscoverable": "Люди в моём поле могут найти запрос",
+  "postConvertNext": "Далее: детали →"
 }

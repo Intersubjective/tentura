@@ -6,15 +6,16 @@
 import 'dart:async' as _i3;
 
 import 'package:mockito/mockito.dart' as _i1;
-import 'package:mockito/src/dummies.dart' as _i10;
+import 'package:mockito/src/dummies.dart' as _i11;
 import 'package:tentura_root/domain/entity/beacon_cover_source.dart' as _i8;
 import 'package:tentura_root/domain/entity/beacon_status.dart' as _i9;
 import 'package:tentura_server/domain/capability/capability_evidence_models.dart'
     as _i6;
 import 'package:tentura_server/domain/entity/beacon_entity.dart' as _i2;
+import 'package:tentura_server/domain/entity/beacon_kind.dart' as _i10;
 import 'package:tentura_server/domain/entity/beacon_media_state.dart' as _i4;
 import 'package:tentura_server/domain/port/band_candidate_port.dart' as _i5;
-import 'package:tentura_server/domain/port/beacon_access_guard.dart' as _i11;
+import 'package:tentura_server/domain/port/beacon_access_guard.dart' as _i12;
 import 'package:tentura_server/domain/port/beacon_repository_port.dart' as _i7;
 
 // ignore_for_file: type=lint
@@ -121,6 +122,9 @@ class MockBeaconRepositoryPort extends _i1.Mock
     String? lineageParentBeaconId,
     String? lineageRootBeaconId,
     bool? isDiscoverable,
+    _i10.BeaconKind? kind = _i10.BeaconKind.request,
+    _i10.BeaconForwardPolicyValue? forwardPolicy =
+        _i10.BeaconForwardPolicyValue.open,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#createBeacon, [], {
@@ -144,6 +148,8 @@ class MockBeaconRepositoryPort extends _i1.Mock
               #lineageParentBeaconId: lineageParentBeaconId,
               #lineageRootBeaconId: lineageRootBeaconId,
               #isDiscoverable: isDiscoverable,
+              #kind: kind,
+              #forwardPolicy: forwardPolicy,
             }),
             returnValue: _i3.Future<_i2.BeaconEntity>.value(
               _FakeBeaconEntity_0(
@@ -169,6 +175,8 @@ class MockBeaconRepositoryPort extends _i1.Mock
                   #lineageParentBeaconId: lineageParentBeaconId,
                   #lineageRootBeaconId: lineageRootBeaconId,
                   #isDiscoverable: isDiscoverable,
+                  #kind: kind,
+                  #forwardPolicy: forwardPolicy,
                 }),
               ),
             ),
@@ -429,8 +437,8 @@ class MockBeaconRepositoryPort extends _i1.Mock
               #fn: fn,
             }),
             returnValue:
-                _i10.ifNotNull(
-                  _i10.dummyValueOrNull<T>(
+                _i11.ifNotNull(
+                  _i11.dummyValueOrNull<T>(
                     this,
                     Invocation.method(#runInBeaconStateTransaction, [], {
                       #beaconId: beaconId,
@@ -450,6 +458,125 @@ class MockBeaconRepositoryPort extends _i1.Mock
                 ),
           )
           as _i3.Future<T>);
+
+  @override
+  _i3.Future<void> lockPostForMutation(String? beaconId) =>
+      (super.noSuchMethod(
+            Invocation.method(#lockPostForMutation, [beaconId]),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> setForwardPolicy({
+    required String? beaconId,
+    required _i10.BeaconForwardPolicyValue? policy,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#setForwardPolicy, [], {
+              #beaconId: beaconId,
+              #policy: policy,
+            }),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> convertPostToRequest({
+    required String? beaconId,
+    required String? title,
+    required String? description,
+    required Set<String>? needs,
+    required String? primaryNeedSlug,
+    required DateTime? startAt,
+    required DateTime? endAt,
+    required bool? isDiscoverable,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#convertPostToRequest, [], {
+              #beaconId: beaconId,
+              #title: title,
+              #description: description,
+              #needs: needs,
+              #primaryNeedSlug: primaryNeedSlug,
+              #startAt: startAt,
+              #endAt: endAt,
+              #isDiscoverable: isDiscoverable,
+            }),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> postConvertedToRequestMessage(String? beaconId) =>
+      (super.noSuchMethod(
+            Invocation.method(#postConvertedToRequestMessage, [beaconId]),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> setPostRootMessage({
+    required String? beaconId,
+    required String? messageId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#setPostRootMessage, [], {
+              #beaconId: beaconId,
+              #messageId: messageId,
+            }),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<bool> isPostAddressee({
+    required String? beaconId,
+    required String? userId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#isPostAddressee, [], {
+              #beaconId: beaconId,
+              #userId: userId,
+            }),
+            returnValue: _i3.Future<bool>.value(false),
+          )
+          as _i3.Future<bool>);
+
+  @override
+  _i3.Future<void> leavePostAsAddressee({
+    required String? beaconId,
+    required String? userId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#leavePostAsAddressee, [], {
+              #beaconId: beaconId,
+              #userId: userId,
+            }),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> returnToPostAsAddressee({
+    required String? beaconId,
+    required String? userId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#returnToPostAsAddressee, [], {
+              #beaconId: beaconId,
+              #userId: userId,
+            }),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
 
   @override
   _i3.Future<void> recordBeaconStatusTransition({
@@ -693,7 +820,7 @@ class MockBeaconRepositoryPort extends _i1.Mock
 /// A class which mocks [BeaconAccessGuard].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockBeaconAccessGuard extends _i1.Mock implements _i11.BeaconAccessGuard {
+class MockBeaconAccessGuard extends _i1.Mock implements _i12.BeaconAccessGuard {
   MockBeaconAccessGuard() {
     _i1.throwOnMissingStub(this);
   }

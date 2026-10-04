@@ -39,7 +39,7 @@ final class ConstellationAnchorPendingWrite {
   final ConstellationAnchorTarget target;
   final ConstellationAnchorPosition? position;
   final Map<ConstellationAnchorTarget, ConstellationAnchorPosition>?
-      companionPositions;
+  companionPositions;
 
   Set<ConstellationAnchorTarget> get targetSet {
     final companions = companionPositions?.keys;
@@ -289,8 +289,10 @@ final class ConstellationAnchorCase extends UseCaseBase {
   Future<ConstellationAnchorWriteOutcome> upsertAll({
     required ConstellationAnchorTarget parentTarget,
     required ConstellationAnchorPosition parentPosition,
-    required List<({ConstellationAnchorTarget target, ConstellationAnchorPosition position})>
-        companions,
+    required List<
+      ({ConstellationAnchorTarget target, ConstellationAnchorPosition position})
+    >
+    companions,
     required int generation,
     Map<String, String> companionTitles = const {},
     ConstellationFieldMembershipFilters membershipFilters =
@@ -310,8 +312,7 @@ final class ConstellationAnchorCase extends UseCaseBase {
       );
     }
     final companionPositions = {
-      for (final companion in companions)
-        companion.target: companion.position,
+      for (final companion in companions) companion.target: companion.position,
     };
     final pending = ConstellationAnchorPendingWrite.clusterUpsert(
       target: parentTarget,
@@ -359,7 +360,8 @@ final class ConstellationAnchorCase extends UseCaseBase {
               if (writeAccount != _viewerAccountId ||
                   writeToken != _loadGeneration) {
                 return const ConstellationAnchorWriteOutcome(
-                  kind: ConstellationAnchorWriteOutcomeKind.staleResponseDiscarded,
+                  kind: ConstellationAnchorWriteOutcomeKind
+                      .staleResponseDiscarded,
                 );
               }
               if (result.revision.compareTo(_confirmed.revision) >= 0) {
@@ -453,10 +455,10 @@ final class ConstellationAnchorCase extends UseCaseBase {
       final failureMessage = missedTitles.isEmpty
           ? (mutationError is ConstellationException
                 ? (mutationError.message ??
-                    'Could not save constellation placement.')
+                      'Could not save constellation placement.')
                 : 'Could not save constellation placement.')
           : 'Could not move ${missedTitles.join(', ')}. '
-              'Other placements were saved.';
+                'Other placements were saved.';
       return ConstellationAnchorWriteOutcome(
         kind: ConstellationAnchorWriteOutcomeKind.failed,
         projection: _confirmed,
@@ -575,7 +577,8 @@ final class ConstellationAnchorCase extends UseCaseBase {
         kind: ConstellationAnchorWriteOutcomeKind.failed,
         projection: _confirmed,
         failureMessage: mutationError is ConstellationException
-            ? (mutationError.message ?? 'Could not save constellation placement.')
+            ? (mutationError.message ??
+                  'Could not save constellation placement.')
             : 'Could not save constellation placement.',
       );
     } finally {

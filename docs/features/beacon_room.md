@@ -93,7 +93,7 @@ Parent admission does **not** grant child discussion access. A forward to the ch
 
 Who sees Discussion content:
 
-- **General row** — author, stewards, and helpers explicitly admitted to the discussion (`room_access`). Offering help or receiving a forward does **not** admit by itself.
+- **General row (Request)** — author, stewards, and helpers explicitly admitted to the discussion (`room_access`). Offering help or receiving a forward does **not** admit by itself.
 - **Child request cards** — effective admission to the **parent** request (same as listing/creating children). Cards use linked-detail visibility, not widened content read.
 - **Child drafts** — author only until published.
 
@@ -162,7 +162,17 @@ Under D6, other helpers cannot see another offerer's seen state. This is not a G
 
 ## Discussion admission and membership
 
-**Admission** to the **discussion** is always **explicit** — offering help or receiving a direct forward does not automatically grant access. When the author **directly forwarded** the request to someone and they offer help, the offer is marked and sorted upward in People, but the author must still **Accept** explicitly before admission.
+### Approved Post admission amendment (A2, A7)
+
+This is the [Post feature contract](../plans/post-and-constellation-composer-plan.md), not release evidence. A **Post** (`beacon.kind = 1`) uses the same General-only room, called **Chat** / «Чат». Its content is the author's root message (`post_root_message_id`), including attachments and mentions.
+
+For Posts only, an active inbound forward edge admits the recipient as an **addressee** (`role = 6`, `room_access = admitted` / 3) without a help offer or committer stake. General reads, history, mentions, realtime membership, and read receipts use that admission; block and room gates still apply. Cancelling the last active inbound edge revokes addressee admission, but voluntary **left** (5) survives cancellation and resend; reconciliation does not overwrite other participant roles. «Не интересно» leaves the Post; «Вернуть» explicitly reverses that choice. On Post → Request, addressees keep stake-free access («Участник из поста»); an offer follows normal acknowledgement rules, and declining or withdrawing it returns to that intermediate state.
+
+Post co-membership does not create `person_bond` or shared-context visibility (A7). Members may see one another inside the Post and open profiles, without gaining general mutual visibility or forwarding eligibility.
+
+### Request admission
+
+**Request admission** to the **discussion** is always **explicit** — offering help or receiving a direct forward does not automatically grant access. When the author **directly forwarded** the request to someone and they offer help, the offer is marked and sorted upward in People, but the author must still **Accept** explicitly before admission.
 
 **Backup offers:** when the request signals **enough help**, additional offers are allowed as **backup** — secondary coordination without "offers awaiting author" pressure. Backup offers are never auto-activated.
 
@@ -174,7 +184,7 @@ Facts pinned on messages use **discussion-scoped** visibility boundaries — req
 
 ## Forwarding
 
-Forwarding passes the request along the trust graph. Each hop is visible to people on the path. Forwarding does not grant discussion access by itself. Parent-only hierarchy visibility does **not** allow forwarding a child.
+Forwarding passes the request along the trust graph. Each hop is visible to people on the path. Forwarding a Request does not grant discussion access by itself; the approved Post-only exception is described above. Parent-only hierarchy visibility does **not** allow forwarding a child.
 
 The Forward candidate mini-profile may show one deterministic path through a
 capped MeritRank graph snapshot. This is provenance from that bounded snapshot,
@@ -199,6 +209,8 @@ Discussion child lists and parent references subscribe to the `beacon_hierarchy`
 | Level | EN | RU |
 |-------|----|----|
 | Request | Request | запрос |
+| Post (approved feature vocabulary) | Post | Пост |
+| Post workspace | Chat | Чат |
 | Whole workspace | discussion | обсуждение |
 | One conversation | thread | тема |
 | Built-in thread | General | Общее |

@@ -7,6 +7,8 @@ alwaysApply: true
 
 ## Contract
 
+**Approved Post amendment (A1–A2):** user-facing **Post** / **Posts**, Russian **Пост** / **посты** (running copy: «пост»), is an addressed `beacon` with `kind = 1`; **Request** / «запрос» is `kind = 0`. Its workspace is **Chat** / «Чат», a General-only room. This Post feature vocabulary follows [`post-and-constellation-composer-plan.md`](../../docs/plans/post-and-constellation-composer-plan.md); it does not certify that the feature has shipped. Existing Request **discussion** / **обсуждение** copy remains valid. Do not introduce a parallel `Post` domain entity, table, repository, or route; internal `beacon_*` identifiers stay unchanged.
+
 | Layer | Primary object | Coordination workspace |
 |-------|----------------|------------------------|
 | **Internal** (code, DB, GraphQL, routes, technical docs) | `Beacon`, `beacon`, `beacon_room` | room |

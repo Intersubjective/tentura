@@ -19,6 +19,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/domain/entity/room_poll_data.dart';
+import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/features/beacon_threads/domain/room_message_receipt.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/coordination_room_navigation.dart';
@@ -93,10 +94,14 @@ class RoomMessageTile extends StatelessWidget {
     this.highlightedMessageId,
     this.promotedChildBeaconId,
     this.receipt,
+    this.capabilities = const RoomCapabilities.request(),
     super.key,
   });
 
   final RoomMessage message;
+
+  /// Request-only features the hosting room offers.
+  final RoomCapabilities capabilities;
 
   /// Sender read/delivery state for the viewer's own messages; ignored for others.
   final RoomMessageReceipt? receipt;
@@ -478,8 +483,26 @@ class RoomMessageTile extends StatelessWidget {
       return BeaconHierarchyNotice(message: message);
     }
 
-    if (RoomClosureStoryCard.isClosureStoryRow(message)) {
+    if (capabilities.closure &&
+        RoomClosureStoryCard.isClosureStoryRow(message)) {
       return RoomClosureStoryCard(message: message);
+    }
+
+    if (message.systemMessageKind ==
+        BeaconRoomSystemMessageKind.convertedToRequest) {
+      final authorName = message.author.shownName.trim();
+      return _ConvertedToRequestNotice(
+        text: l10n.roomConvertedToRequestNotice(
+          authorName.isNotEmpty
+              ? authorName
+              : _participantDisplayName(
+                  participants: participants,
+                  userId: message.authorId,
+                  viewer: myProfile,
+                  l10n: l10n,
+                ),
+        ),
+      );
     }
 
     if (isParticipantJoinedNotification(message)) {
@@ -579,7 +602,11 @@ class RoomMessageTile extends StatelessWidget {
           icon: isEdit ? Icons.edit_outlined : Icons.push_pin_outlined,
           line: line,
           excerpt: _factExcerpt(payload.factText),
-          onWhatChanged: isEdit && revisionSeq != null && revisionSeq > 1
+          onWhatChanged:
+              capabilities.facts &&
+                  isEdit &&
+                  revisionSeq != null &&
+                  revisionSeq > 1
               ? (ctx) => unawaited(
                   showFactHistorySheet(
                     ctx,
@@ -949,15 +976,17 @@ class RoomMessageTile extends StatelessWidget {
                             fact: liveFact,
                           ),
                         ),
-                  onOpenHistory: () => unawaited(
-                    showFactHistorySheet(
-                      context,
-                      beaconId: message.beaconId,
-                      factCardId: quoted.factCardId,
-                      baseRevisionSeq: quoted.currentSeq,
-                      canMutate: cubit?.state.canWriteDiscussion ?? false,
-                    ),
-                  ),
+                  onOpenHistory: capabilities.facts
+                      ? () => unawaited(
+                          showFactHistorySheet(
+                            context,
+                            beaconId: message.beaconId,
+                            factCardId: quoted.factCardId,
+                            baseRevisionSeq: quoted.currentSeq,
+                            canMutate: cubit?.state.canWriteDiscussion ?? false,
+                          ),
+                        )
+                      : null,
                 );
               },
             ),
@@ -1532,7 +1561,8 @@ class RoomMessageTile extends StatelessWidget {
                               size: tt.avatarGutter,
                             ),
                           ),
-                          if (authorParticipant != null &&
+                          if (capabilities.commitmentSheet &&
+                              authorParticipant != null &&
                               authorRoleLabel != null) ...[
                             SizedBox(height: tt.tightGap),
                             _AuthorRoleLabel(
@@ -1551,7 +1581,9 @@ class RoomMessageTile extends StatelessWidget {
             ],
           );
 
-    final childBeaconId = promotedChildBeaconId;
+    final childBeaconId = capabilities.childPromotion
+        ? promotedChildBeaconId
+        : null;
     return Padding(
       padding: EdgeInsets.fromLTRB(
         isMine ? tt.bubbleFarGutter : tt.screenHPadding,
@@ -2716,6 +2748,34 @@ class _AuthorRoleLabel extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One-line centered notice: the author turned the Post into a Request.
+class _ConvertedToRequestNotice extends StatelessWidget {
+  const _ConvertedToRequestNotice({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final tt = context.tt;
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: tt.screenHPadding,
+        vertical: tt.tightGap,
+      ),
+      child: Semantics(
+        label: text,
+        child: Text(
+          text,
+          textAlign: TextAlign.center,
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
+          style: TenturaText.bodySmall(tt.textMuted),
         ),
       ),
     );

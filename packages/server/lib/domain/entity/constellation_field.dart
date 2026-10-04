@@ -13,6 +13,8 @@ class ConstellationFieldSnapshot {
     required this.requests,
     required this.peersCapped,
     required this.requestsCapped,
+    this.posts = const [],
+    this.memberWebs = const [],
     ConstellationAnchorProjection? anchorProjection,
   }) : anchorProjection = anchorProjection ?? ConstellationAnchorProjection.empty;
 
@@ -23,7 +25,47 @@ class ConstellationFieldSnapshot {
   final List<ConstellationRequestRecord> requests;
   final bool peersCapped;
   final bool requestsCapped;
+  final List<ConstellationPostRecord> posts;
+  final List<ConstellationMemberWebRecord> memberWebs;
   final ConstellationAnchorProjection anchorProjection;
+}
+
+@immutable
+class ConstellationPostRecord {
+  const ConstellationPostRecord({
+    required this.id,
+    required this.authorId,
+    required this.lastActivityAt,
+    required this.rootExcerpt,
+    required this.isPinned,
+    required this.hiddenReachCount,
+  });
+
+  final String id;
+  final String authorId;
+  final DateTime lastActivityAt;
+  final String rootExcerpt;
+  final bool isPinned;
+
+  /// Members of the Post outside the viewer's visible peer set.
+  final int hiddenReachCount;
+}
+
+/// `inside`: the author, or an admitted member who opened the Post;
+/// `forwarded`: a recipient of an active forward edge who has not opened it.
+enum ConstellationMemberWebState { forwarded, inside }
+
+@immutable
+class ConstellationMemberWebRecord {
+  const ConstellationMemberWebRecord({
+    required this.beaconId,
+    required this.personId,
+    required this.state,
+  });
+
+  final String beaconId;
+  final String personId;
+  final ConstellationMemberWebState state;
 }
 
 @immutable
@@ -72,6 +114,7 @@ class ConstellationRequestRecord {
     required this.viewerIsRoomParticipant,
     required this.viewerHasForwardEdge,
     required this.helpOfferCount,
+    this.kind = 0,
     this.coverSource = 0,
     this.coverThumb,
     this.viewerParticipates,
@@ -92,6 +135,8 @@ class ConstellationRequestRecord {
   final bool viewerIsRoomParticipant;
   final bool viewerHasForwardEdge;
   final int helpOfferCount;
+  /// Wire: 0 = Request, 1 = Post (matches `beacon.kind`).
+  final int kind;
   /// Wire: 0 = photo, 1 = symbol (matches `beacon.cover_source`).
   final int coverSource;
   final ImagePublicRecord? coverThumb;

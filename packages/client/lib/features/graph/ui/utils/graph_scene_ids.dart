@@ -14,15 +14,7 @@ abstract final class TenturaGraphNodeKind {
 }
 
 /// Stable scene node id: kind + domain layout key (not render payload identity).
-GraphNodeId tenturaGraphNodeId(NodeDetails node) => switch (node) {
-  UserNode() => '${TenturaGraphNodeKind.user}:${node.id}',
-  BeaconNode() => '${TenturaGraphNodeKind.beacon}:${node.id}',
-  FieldPersonNode() => '${TenturaGraphNodeKind.fieldPerson}:${node.id}',
-  FieldRequestNode() => '${TenturaGraphNodeKind.fieldRequest}:${node.id}',
-  GenealogyUserNode() => '${TenturaGraphNodeKind.genealogyUser}:${node.nodeKey}',
-  GenealogyDeletedNode() =>
-    '${TenturaGraphNodeKind.genealogyDeleted}:${node.nodeKey}',
-};
+GraphNodeId tenturaGraphNodeId(NodeDetails node) => node.graphNodeId;
 
 /// Domain layout id used by radial/DAG/constellation pure layout helpers.
 String tenturaLayoutDomainId(GraphNodeId graphNodeId) {

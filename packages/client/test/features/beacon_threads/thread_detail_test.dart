@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/data/repository/clipboard_image_repository.dart';
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -62,6 +63,24 @@ class _MockBeaconViewCubit extends Mock implements BeaconViewCubit {
 
   @override
   Stream<BeaconViewState> get stream => Stream.value(_state);
+
+  @override
+  String get beaconId => _state.beacon.id;
+
+  @override
+  Profile get author => _state.beacon.author;
+
+  @override
+  bool get isAdmissionBlocked => _state.isRoomAdmissionBlocked;
+
+  @override
+  bool get coordinationDeniesAdmission => false;
+
+  @override
+  RoomCapabilities get capabilities => const RoomCapabilities.request();
+
+  @override
+  Stream<void> get changes => stream.map((_) {});
 }
 
 class RecordingRoomCubit extends Mock implements RoomCubit {
@@ -160,6 +179,7 @@ ThreadHostCubit _host({RoomCubitFactoryRecorder? recorder}) {
       required String beaconId,
       String? threadItemId,
       DateTime? initialUnreadAnchorAt,
+      RoomCapabilities? capabilities,
     }) =>
         factoryRecorder.call(
           beaconId: beaconId,
@@ -251,7 +271,7 @@ Future<void> _pumpBeaconRoomSurface(
         BlocProvider<ProfileCubit>.value(value: _MockProfileCubit()),
       ],
       child: BeaconRoomSurface(
-        beaconViewCubit: beaconCubit,
+        host: beaconCubit,
         roomLease: lease,
       ),
     ),
@@ -500,7 +520,7 @@ void main() {
             BlocProvider<ProfileCubit>.value(value: _MockProfileCubit()),
           ],
           child: BeaconRoomSurface(
-            beaconViewCubit: beaconCubit,
+            host: beaconCubit,
             roomLease: lease,
           ),
         ),

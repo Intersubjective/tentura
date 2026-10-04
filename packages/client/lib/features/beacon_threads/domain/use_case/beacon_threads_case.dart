@@ -27,7 +27,7 @@ import '../room_read_watermark_store.dart';
 import '../../../polling/data/repository/polling_repository.dart';
 
 @singleton
-final class BeaconThreadsCase extends UseCaseBase {
+base class BeaconThreadsCase extends UseCaseBase {
   BeaconThreadsCase(
     this._room,
     this._factCards,

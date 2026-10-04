@@ -43,6 +43,7 @@ class ForwardRecipientPicker extends StatefulWidget {
   const ForwardRecipientPicker({
     required this.beaconId,
     this.embedded = false,
+    this.onToggle,
     this.onSendPressed,
     this.sendEnabled = false,
     this.externalActionLoading = false,
@@ -56,6 +57,11 @@ class ForwardRecipientPicker extends StatefulWidget {
   ///
   /// Bottom send uses [onSendPressed] when provided (beacon-create tab).
   final bool embedded;
+
+  /// Overrides what a row toggle does; defaults to
+  /// [ForwardCubit.toggleSelection]. The graph composer routes it through its
+  /// radius selection.
+  final ValueChanged<String>? onToggle;
 
   /// Host-provided send action (beacon create publish + forward).
   final VoidCallback? onSendPressed;
@@ -76,7 +82,12 @@ class ForwardRecipientPicker extends StatefulWidget {
 class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
   final _sharedNoteController = TextEditingController();
   final _recipientNoteControllers = <String, TextEditingController>{};
-  final _invitationCubit = InvitationCubit();
+  InvitationCubit? _invitation;
+
+  /// Built on first use: most pickers never start an invite, and a host that
+  /// has no invitation backend (a new Post) must still be able to show the
+  /// recipient list.
+  InvitationCubit get _invitationCubit => _invitation ??= InvitationCubit();
   final _editNoteController = TextEditingController();
   final _scrollController = ScrollController();
 
@@ -119,6 +130,15 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
       _sharedNoteController.text = '';
     } else if (_sharedNoteController.text != state.note) {
       _sharedNoteController.text = state.note;
+    }
+  }
+
+  void _toggle(ForwardCubit cubit, String userId) {
+    final override = widget.onToggle;
+    if (override != null) {
+      override(userId);
+    } else {
+      cubit.toggleSelection(userId);
     }
   }
 
@@ -176,8 +196,6 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
 
     final result = await showTenturaAdaptiveSheet<_UncoveredSheetResult>(
       context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
       useRootNavigator: true,
       builder: (ctx) => _UncoveredRecipientsSheet(
         recipientNames: names,
@@ -185,9 +203,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
         initialSharedNote: cubit.state.note,
         onForward: (sharedNote) {
           cubit.setNote(sharedNote);
-          for (final id in uncoveredIds) {
-            cubit.skipPersonalNote(id);
-          }
+          uncoveredIds.forEach(cubit.skipPersonalNote);
         },
       ),
     );
@@ -197,7 +213,8 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
   Future<void> _submitForward(BuildContext context) async {
     final cubit = context.read<ForwardCubit>();
     List<String>? attributionParentEdgeIds;
-    if (!cubit.state.hasMyOutgoingForward) {
+    if (cubit.state.profile.showsAttribution &&
+        !cubit.state.hasMyOutgoingForward) {
       try {
         final sources = await cubit.fetchInboundSources();
         if (!context.mounted) return;
@@ -224,7 +241,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
     _sharedNoteController.dispose();
     _editNoteController.dispose();
     _scrollController.dispose();
-    unawaited(_invitationCubit.close());
+    unawaited(_invitation?.close());
     super.dispose();
   }
 
@@ -250,7 +267,6 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
 
     await showTenturaAdaptiveSheet<void>(
       context: context,
-      isScrollControlled: true,
       showDragHandle: false,
       builder: (_) => UnfocusSheetBody(
         child: StatefulBuilder(
@@ -383,8 +399,8 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
     final tt = context.tt;
     final cubit = context.read<ForwardCubit>();
 
-    return BlocProvider.value(
-      value: _invitationCubit,
+    return BlocProvider(
+      create: (_) => _invitationCubit,
       child: MultiBlocListener(
         listeners: [
           BlocListener<ForwardCubit, ForwardState>(
@@ -433,12 +449,17 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
 
             final beacon = state.beacon;
             final visible = state.visibleRecipients;
+            final profile = state.profile;
             final showLineageBlock =
+                profile.showsLineage &&
                 state.activeFilter != ForwardFilter.alreadyInvolved;
             final lineage = showLineageBlock
                 ? state.lineageSuggestions
                 : const <ForwardCandidate>[];
-            final showBandBlock = showLineageBlock && state.band.isNotEmpty;
+            final showBandBlock =
+                profile.showsBand &&
+                state.activeFilter != ForwardFilter.alreadyInvolved &&
+                state.band.isNotEmpty;
             final counts = state.scopeCounts;
             final listIsEmpty =
                 state.activeFilter == ForwardFilter.alreadyInvolved
@@ -536,6 +557,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                             !widget.embedded) ...[
                           CompactBeaconContextStrip(
                             beacon: beacon,
+                            showRequirements: profile.showsRequirements,
                           ),
                           SizedBox(height: tt.rowGap),
                         ],
@@ -546,7 +568,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                               if (inviteNewPersonEnabled(
                                 beaconId: widget.beaconId,
                                 allowsForward:
-                                    state.beacon?.allowsForward == true,
+                                    state.beacon?.viewerCanForward == true,
                                 isLive: widget.isLive,
                               ))
                                 SliverPersistentHeader(
@@ -580,7 +602,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                                     skippedPersonalNoteIds:
                                         state.skippedPersonalNoteIds,
                                     onSkipPersonalNote: cubit.skipPersonalNote,
-                                    onToggle: cubit.toggleSelection,
+                                    onToggle: (userId) => _toggle(cubit, userId),
                                     onEditReasons: (userId) => unawaited(
                                       _editReasons(
                                         context,
@@ -730,7 +752,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
           candidate: lineage[i],
           requiredCapabilitySlugs: beacon?.needs ?? const {},
           isSelected: state.selectedIds.contains(lineage[i].id),
-          onToggle: () => cubit.toggleSelection(lineage[i].id),
+          onToggle: () => _toggle(cubit, lineage[i].id),
           onOpenDetails: () => unawaited(
             showForwardCandidateContextSheet(
               sourceContext: context,
@@ -738,8 +760,12 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
               candidate: lineage[i],
             ),
           ),
-          reasonSlugs: state.recipientReasons[lineage[i].id] ?? const [],
-          onEditReasons: () => unawaited(
+          reasonSlugs: state.profile.showsReasons
+              ? state.recipientReasons[lineage[i].id] ?? const []
+              : const [],
+          onEditReasons: !state.profile.showsReasons
+              ? null
+              : () => unawaited(
             _editReasons(
               context,
               cubit,
@@ -787,7 +813,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
           candidate: visible[i],
           requiredCapabilitySlugs: beacon?.needs ?? const {},
           isSelected: state.selectedIds.contains(visible[i].id),
-          onToggle: () => cubit.toggleSelection(visible[i].id),
+          onToggle: () => _toggle(cubit, visible[i].id),
           onOpenDetails: () => unawaited(
             showForwardCandidateContextSheet(
               sourceContext: context,
@@ -795,8 +821,12 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
               candidate: visible[i],
             ),
           ),
-          reasonSlugs: state.recipientReasons[visible[i].id] ?? const [],
-          onEditReasons: () => unawaited(
+          reasonSlugs: state.profile.showsReasons
+              ? state.recipientReasons[visible[i].id] ?? const []
+              : const [],
+          onEditReasons: !state.profile.showsReasons
+              ? null
+              : () => unawaited(
             _editReasons(
               context,
               cubit,
@@ -1024,7 +1054,6 @@ class _UncoveredRecipientsSheetState extends State<_UncoveredRecipientsSheet> {
                             SizedBox(height: tt.rowGap),
                             TextField(
                               controller: _sharedNoteController,
-                              autofocus: false,
                               onChanged: (_) => setState(() {}),
                               minLines: 2,
                               maxLines: 4,

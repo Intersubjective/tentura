@@ -4,8 +4,10 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/domain/entity/coordinates.dart';
 
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/beacon_media_state.dart';
 import 'package:tentura_server/domain/entity/image_entity.dart';
+import 'package:tentura_server/domain/entity/post_summary.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
@@ -24,6 +26,28 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
   static final stagesByBeaconId = <String, Map<String, DateTime>>{};
 
   const BeaconRepositoryMock();
+
+  @override
+  Future<List<PostSummary>> myPosts(String viewerId) async => [
+    for (final beacon in storageById.values)
+      if (beacon.kind == BeaconKind.post &&
+          beacon.status == BeaconStatus.open &&
+          beacon.author.id == viewerId)
+        PostSummary(
+          id: beacon.id,
+          authorId: beacon.author.id,
+          authorName: beacon.author.displayName,
+          authorAvatar: beacon.author.imageUrl,
+          rootExcerpt: null,
+          lastMessageExcerpt: null,
+          lastMessageAt: null,
+          lastActivityAt: beacon.lastActivityAt,
+          pinnedAt: null,
+          mutedUntil: null,
+          unreadCount: 0,
+          isAuthor: true,
+        ),
+  ];
 
   @override
   Future<List<String>> deadlineReminderCandidateIds({
@@ -60,6 +84,8 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
     String? lineageParentBeaconId,
     String? lineageRootBeaconId,
     bool? isDiscoverable,
+    BeaconKind kind = BeaconKind.request,
+    BeaconForwardPolicyValue forwardPolicy = BeaconForwardPolicyValue.open,
   }) async {
     final now = DateTime.timestamp();
     final images = [
@@ -217,6 +243,82 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
   @override
   Future<void> deleteBeaconById(String id, {required String userId}) async =>
       storageById.removeWhere((key, value) => value.id == id);
+
+  @override
+  Future<void> lockPostForMutation(String beaconId) async {}
+
+  @override
+  Future<bool> isPostAddressee({
+    required String beaconId,
+    required String userId,
+  }) async => false;
+
+  @override
+  Future<void> leavePostAsAddressee({
+    required String beaconId,
+    required String userId,
+  }) async {}
+
+  @override
+  Future<void> returnToPostAsAddressee({
+    required String beaconId,
+    required String userId,
+  }) async {}
+
+  @override
+  Future<void> setPostRootMessage({
+    required String beaconId,
+    required String messageId,
+  }) async {
+    final beacon = storageById[beaconId];
+    if (beacon != null && beacon.postRootMessageId == null) {
+      storageById[beaconId] = beacon.copyWith(postRootMessageId: messageId);
+    }
+  }
+
+  @override
+  Future<void> convertPostToRequest({
+    required String beaconId,
+    required String title,
+    required String description,
+    required Set<String>? needs,
+    required String? primaryNeedSlug,
+    required DateTime? startAt,
+    required DateTime? endAt,
+    required bool isDiscoverable,
+  }) async {
+    final beacon = storageById[beaconId];
+    if (beacon == null ||
+        beacon.kind != BeaconKind.post ||
+        beacon.status != BeaconStatus.open) {
+      throw const BeaconCreateException(description: 'Not an open Post');
+    }
+    storageById[beaconId] = beacon.copyWith(
+      kind: BeaconKind.request,
+      forwardPolicy: BeaconForwardPolicyValue.open,
+      title: title,
+      description: description,
+      needs: needs ?? const {},
+      primaryNeedSlug: primaryNeedSlug,
+      startAt: startAt,
+      endAt: endAt,
+      isDiscoverable: isDiscoverable,
+    );
+  }
+
+  @override
+  Future<void> postConvertedToRequestMessage(String beaconId) async {}
+
+  @override
+  Future<void> setForwardPolicy({
+    required String beaconId,
+    required BeaconForwardPolicyValue policy,
+  }) async {
+    final beacon = storageById[beaconId];
+    if (beacon != null) {
+      storageById[beaconId] = beacon.copyWith(forwardPolicy: policy);
+    }
+  }
 
   @override
   Future<T> runInBeaconStateTransaction<T>({

@@ -56,6 +56,12 @@ abstract final class TestIds {
   static String updatesReceipt(String receiptId) =>
       'updates-receipt-$receiptId';
 
+  /// Passive read-state signal, separate from the receipt's stable identity.
+  static String updatesReceiptReadState(
+    String receiptId, {
+    required bool seen,
+  }) => 'updates-read-state-$receiptId-${seen ? 'seen' : 'unseen'}';
+
   static const inviteAcceptedSetupOpen = 'invite_accepted.setup.open';
   static const inviteAcceptedSetupRetry = 'invite_accepted.setup.retry';
   static const inviteAcceptedSetupModal = 'invite_accepted.setup.modal';

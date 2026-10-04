@@ -48,6 +48,7 @@ const kPathMyWork = '/home/work';
 const kPathConstellation = '/home/constellation';
 const kPathNetwork = '/home/network';
 const kPathBeaconNew = '/beacon/new';
+const kPathPostNew = '/post/new';
 const kPathBeaconView = '/beacon/view';
 const kPathBeaconViewAll = '/beacon/all';
 const kPathBeaconInvolvedAll = '/beacon/involved';
@@ -90,6 +91,12 @@ const kQueryBeaconSourceMessageId = 'source_message_id';
 
 /// Query param for opening the beacon edit screen for an open (published) beacon.
 const kQueryBeaconEditId = 'edit_id';
+
+/// Post id to convert when opening the Request form for «Turn into a Request».
+const kQueryBeaconConvertFromPostId = 'convert_from_post_id';
+
+/// Discoverability picked in the convert confirmation (default true).
+const kQueryBeaconConvertIsDiscoverable = 'convert_is_discoverable';
 
 /// Optional initial operational tab: `threads`, `people`, `log`.
 const kQueryBeaconViewTab = 'tab';
@@ -191,3 +198,6 @@ const kBeaconPlaceholderUrl =
 // Others
 
 final kInvitationCodeRegExp = RegExp('I[a-f0-9]{0,12}');
+
+/// Gate for every client entry point that lets a user create a Post.
+const kPostsEnabled = true;

@@ -16,6 +16,7 @@ import 'package:tentura_server/domain/entity/gql_public/beacon_status_result.dar
 import 'package:tentura_server/domain/entity/gql_public/help_offer_with_coordination_row.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
+import 'package:tentura_server/domain/policy/beacon_kind_policy.dart';
 import 'package:tentura_server/domain/port/attention_system_settlement_port.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
@@ -71,6 +72,7 @@ final class CoordinationCase extends UseCaseBase {
     required String userId,
   }) async {
     final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
+    BeaconKindPolicy.requireRequest(beacon);
     if (beacon.author.id == userId) return beacon;
     final isSteward = await _beaconRoomRepository.isBeaconSteward(
       beaconId: beaconId,
@@ -89,6 +91,7 @@ final class CoordinationCase extends UseCaseBase {
     required String userId,
   }) async {
     final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
+    BeaconKindPolicy.requireRequest(beacon);
     if (beacon.author.id != userId) {
       throw HelpOfferCoordinationException(
         coordinationCode: HelpOfferCoordinationExceptionCode.notBeaconAuthor,
@@ -110,6 +113,7 @@ final class CoordinationCase extends UseCaseBase {
       );
     }
     final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
+    BeaconKindPolicy.requireRequest(beacon);
     final isAuthor = beacon.author.id == viewerId;
     final isSteward =
         !isAuthor &&
