@@ -93,6 +93,18 @@ PostsCubit? cubitOrNull;
 PostsCubit get cubit => cubitOrNull!;
 
 void main() {
+  test('unread marker includes pinned, active and quiet conversations', () {
+    final unread = _post('unread', unreadCount: 1);
+    final read = _post('read');
+    expect(const PostsState().hasUnread, isFalse);
+    expect(
+      PostsState(pinned: [read], active: [read], quiet: [read]).hasUnread,
+      isFalse,
+    );
+    expect(PostsState(pinned: [unread]).hasUnread, isTrue);
+    expect(PostsState(active: [unread]).hasUnread, isTrue);
+    expect(PostsState(quiet: [unread]).hasUnread, isTrue);
+  });
   late _FakePostsRepository repository;
   late ({RealtimeSyncCase case_, TestRealtimeSyncPort port}) sync;
 

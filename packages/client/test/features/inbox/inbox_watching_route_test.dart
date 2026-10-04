@@ -31,6 +31,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../support/test_realtime_sync.dart';
+import '../../support/noop_posts_case.dart';
 import '../block/support/controllable_block_case.dart';
 import '../updates/support/noop_invite_setup_port.dart';
 import 'inbox_case_test.dart'
@@ -221,6 +222,7 @@ Future<void> _pumpInboxOverflow(
   final accounts = _Accounts();
   unawaited(accounts.close());
   final sync = buildTestRealtimeSync();
+  registerNoopPostsCase(sync.case_);
   unawaited(sync.port.dispose());
   final attentionCase = AttentionCase(
     _Repository(),

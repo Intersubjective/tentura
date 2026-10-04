@@ -94,6 +94,10 @@ final class ProfileViewCase extends UseCaseBase {
     );
   }
 
+  /// The server profile alone, with the local contact name applied.
+  Future<Profile> fetchProfile(String profileId) async =>
+      applyContactOverlay(await _profiles.fetchById(profileId));
+
   Profile applyContactOverlay(Profile profile) =>
       switch (_contacts.nameOf(profile.id)) {
         final name? when name.isNotEmpty => profile.copyWith(contactName: name),

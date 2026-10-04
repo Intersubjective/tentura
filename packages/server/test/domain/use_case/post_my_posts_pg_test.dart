@@ -143,6 +143,35 @@ Future<void> main() async {
       expect(await posts.myPosts(_stranger), isEmpty);
     },
   );
+  test(
+    'conversation image comes from root attachments in position order',
+    () async {
+      await writer.execute('''
+INSERT INTO public.image (id, author_id) VALUES
+  ('00000000-0000-0000-0000-000000000001', '$_member'),
+  ('00000000-0000-0000-0000-000000000002', '$_author'),
+  ('00000000-0000-0000-0000-000000000003', '$_author')
+''');
+      await writer.execute('''
+INSERT INTO public.beacon_room_message_attachment
+  (id, message_id, kind, image_id, position) VALUES
+  ('Asecond', 'Mpostsroot001', 1, '00000000-0000-0000-0000-000000000002', 2),
+  ('Afirst', 'Mpostsroot001', 1, '00000000-0000-0000-0000-000000000001', 1),
+  ('Alatest', 'Mpostslast001', 1, '00000000-0000-0000-0000-000000000003', 0)
+''');
+      final post = (await posts.myPosts(_member)).single;
+      expect(
+        post.rootImageUrl,
+        '$kImageServer/$kImagesPath/$_member/00000000-0000-0000-0000-000000000001.$kImageExt',
+      );
+      expect(await posts.myPosts(_stranger), isEmpty);
+    },
+  );
+
+  test('conversation without root images has no thumbnail URL', () async {
+    expect((await posts.myPosts(_member)).single.rootImageUrl, isNull);
+  });
+
   test('left and unadmitted addressees do not see the Post', () async {
     for (final access in [5, 0]) {
       await writer.execute('''

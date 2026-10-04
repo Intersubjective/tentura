@@ -30,4 +30,9 @@ abstract class PostsState extends StateBase with _$PostsState {
   const PostsState._();
 
   bool get isEmpty => pinned.isEmpty && active.isEmpty && quiet.isEmpty;
+
+  bool get hasUnread =>
+      pinned.any((post) => post.unreadCount > 0) ||
+      active.any((post) => post.unreadCount > 0) ||
+      quiet.any((post) => post.unreadCount > 0);
 }

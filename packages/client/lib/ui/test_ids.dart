@@ -90,6 +90,10 @@ abstract final class TestIds {
 
   /// Press-scale wrapper around a room message bubble (long-press grow).
   static const roomMessageBubblePressScale = 'room.message.bubble_press_scale';
+
+  /// Desktop hover-toolbar heart that opens the reaction picker.
+  static const roomMessageReactionPickerButton =
+      'room.message.reaction_picker_button';
   static const roomAuthorCommitmentGlyphs =
       'room.message.author_commitment_glyphs';
   static String roomMentionSuggestion(String handle) =>

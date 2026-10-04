@@ -41,6 +41,8 @@ void main() {
     WidgetTester tester, {
     required RoomMessage message,
     void Function(RoomMessage message)? onReplyPressed,
+    void Function(RoomMessage message)? onActionsPressed,
+    Future<void> Function(String messageId, String emoji)? onToggleReaction,
   }) async {
     final profileCubit = _MockProfileCubit(viewer);
     final presenceCubit = _MockPresenceCubit();
@@ -64,9 +66,9 @@ void main() {
               child: RoomMessageTile(
                 message: message,
                 myProfile: viewer,
-                onActionsPressed: (_) {},
+                onActionsPressed: onActionsPressed ?? (_) {},
                 onReplyPressed: onReplyPressed,
-                onToggleReaction: (_, _) async {},
+                onToggleReaction: onToggleReaction ?? (_, _) async {},
               ),
             ),
           ),
@@ -138,5 +140,41 @@ void main() {
     await hoverBubble(tester);
 
     expect(find.byTooltip(l10n.beaconRoomActionReply), findsNothing);
+  });
+
+  testWidgets('hover heart opens the reaction picker instead of reacting', (
+    tester,
+  ) async {
+    final l10n = lookupL10n(const Locale('en'));
+    final toggled = <(String, String)>[];
+    var actionsCount = 0;
+    await pumpTile(
+      tester,
+      message: RoomMessage(
+        id: 'm1',
+        beaconId: 'b1',
+        authorId: 'other',
+        author: const Profile(id: 'other', displayName: 'Other'),
+        body: 'Hello',
+        createdAt: createdAt,
+      ),
+      onActionsPressed: (_) => actionsCount++,
+      onToggleReaction: (id, emoji) async => toggled.add((id, emoji)),
+    );
+
+    await hoverBubble(tester);
+    await tester.tap(find.byTooltip(l10n.beaconRoomReactionAddTooltip));
+    await tester.pumpAndSettle();
+
+    expect(toggled, isEmpty);
+    expect(actionsCount, 0);
+    expect(find.text(l10n.beaconRoomReactionPickerHint), findsOneWidget);
+
+    const pray = '\u{1F64F}';
+    await tester.tap(find.text(pray));
+    await tester.pumpAndSettle();
+
+    expect(toggled, [('m1', pray)]);
+    expect(find.text(l10n.beaconRoomReactionPickerHint), findsNothing);
   });
 }

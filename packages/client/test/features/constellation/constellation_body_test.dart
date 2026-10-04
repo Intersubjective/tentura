@@ -257,6 +257,7 @@ void main() {
             ],
           ),
         );
+        cubit.selectPerson('h');
 
         expect(
           _edgeKindBetween(cubit, 'ego', 'h'),
@@ -299,6 +300,7 @@ void main() {
             ],
           ),
         );
+        cubit.selectPerson('b');
 
         expect(
           _edgeKindBetween(cubit, 'ego', 'a'),
@@ -310,6 +312,56 @@ void main() {
         );
       },
     );
+
+    test('ego edges are drawn only toward the selected person', () async {
+      final cubit = await _loadCubit(
+        ConstellationField(
+          loadedAt: DateTime.utc(2026, 9, 9),
+          context: '',
+          peers: [
+            const ConstellationPerson(id: 'a'),
+            const ConstellationPerson(id: 'b'),
+            const ConstellationPerson(id: 'c'),
+          ],
+          edges: [
+            const ConstellationTrustEdgeEntity(src: 'ego', dst: 'a', tier: 1),
+            const ConstellationTrustEdgeEntity(src: 'ego', dst: 'c', tier: 1),
+            const ConstellationTrustEdgeEntity(src: 'a', dst: 'b', tier: 1),
+          ],
+          requests: [
+            const ConstellationRequest(
+              id: 'req-b',
+              authorId: 'b',
+              title: 'Need help',
+              status: 0,
+            ),
+            const ConstellationRequest(
+              id: 'req-c',
+              authorId: 'c',
+              title: 'Need help too',
+              status: 0,
+            ),
+          ],
+        ),
+      );
+      addTearDown(cubit.close);
+      Set<String> egoEdgeIds() => {
+        for (final edge in cubit.graphController.edges)
+          if (edge.source.id == 'ego') edge.semanticId,
+      };
+
+      expect(egoEdgeIds(), isEmpty);
+      expect(_edgeKindBetween(cubit, 'a', 'b'), ConstellationEdgeKind.tier1Path);
+
+      cubit.selectPerson('b');
+      expect(egoEdgeIds(), {'fp:ego->fp:a#tier1Path'});
+
+      cubit.selectRequest('req-c');
+      expect(egoEdgeIds(), {'fp:ego->fp:c#tier1Path'});
+
+      cubit.selectRequest(null);
+      expect(egoEdgeIds(), isEmpty);
+    });
 
     test('attachment edge kind differs from path stroke kinds', () async {
       final cubit = await _loadCubit(

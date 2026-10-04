@@ -76,6 +76,7 @@ void main() {
         authorId: 'Uauthor',
         authorName: 'Author',
         authorAvatar: 'https://images.example/avatar.webp',
+        rootImageUrl: 'https://images.example/root.webp',
         rootExcerpt: 'Root',
         lastMessageExcerpt: 'Latest',
         lastMessageAt: DateTime.utc(2030, 1, 3),
@@ -87,7 +88,7 @@ void main() {
       ),
     ];
     final response = await graphQL.parseAndExecute(
-      '{ myPosts { id authorId authorName authorAvatar rootExcerpt '
+      '{ myPosts { id authorId authorName authorAvatar rootImageUrl rootExcerpt '
       'lastMessageExcerpt lastMessageAt lastActivityAt pinnedAt mutedUntil '
       'mutedForever unreadCount isAuthor } }',
       globalVariables: {kGlobalInputQueryJwt: const JwtEntity(sub: 'Uviewer')},
@@ -99,6 +100,7 @@ void main() {
           'authorId': 'Uauthor',
           'authorName': 'Author',
           'authorAvatar': 'https://images.example/avatar.webp',
+          'rootImageUrl': 'https://images.example/root.webp',
           'rootExcerpt': 'Root',
           'lastMessageExcerpt': 'Latest',
           'lastMessageAt': '2030-01-03T00:00:00.000Z',

@@ -23,6 +23,11 @@ class GraphPersonContextCubit extends Cubit<GraphPersonContextState> {
   final String _viewerId;
   final void Function(Profile profile)? onProfilePatched;
 
+  /// Server profile of the current selection. Callers may pass a partial
+  /// profile (Constellation builds one from trust edges only), so the
+  /// visibility flags come from this once it arrives.
+  Profile? _authoritative;
+
   void selectProfile(Profile profile, {required bool intentional}) {
     if (isClosed) return;
     final id = profile.id;
@@ -33,6 +38,7 @@ class GraphPersonContextCubit extends Cubit<GraphPersonContextState> {
 
     final currentId = state.selectedProfile?.id;
     if (currentId != id) {
+      _authoritative = null;
       emit(
         state.copyWith(
           selectedProfile: profile,
@@ -42,7 +48,11 @@ class GraphPersonContextCubit extends Cubit<GraphPersonContextState> {
           selectionSequence: state.selectionSequence + 1,
         ),
       );
+      unawaited(_loadAuthoritative(id, state.selectionSequence));
       return;
+    }
+    if (_authoritative case final known? when known.id == id) {
+      profile = known;
     }
 
     if (intentional) {
@@ -62,6 +72,24 @@ class GraphPersonContextCubit extends Cubit<GraphPersonContextState> {
     }
 
     emit(state.copyWith(selectedProfile: profile));
+  }
+
+  Future<void> _loadAuthoritative(String id, int sequence) async {
+    final Profile fetched;
+    try {
+      fetched = await _case.fetchProfile(id);
+    } on Object {
+      // Best effort: the caller's profile stays on screen.
+      return;
+    }
+    if (isClosed ||
+        fetched.id != id ||
+        state.selectedProfile?.id != id ||
+        state.selectionSequence != sequence) {
+      return;
+    }
+    _authoritative = fetched;
+    emit(state.copyWith(selectedProfile: fetched));
   }
 
   void dismiss() {
@@ -93,6 +121,7 @@ class GraphPersonContextCubit extends Cubit<GraphPersonContextState> {
       if (isClosed) return;
       if (state.selectedProfile?.id == aliceId &&
           state.selectionSequence == sequence) {
+        _authoritative = authoritative;
         emit(
           state.copyWith(
             selectedProfile: authoritative,
@@ -117,6 +146,7 @@ class GraphPersonContextCubit extends Cubit<GraphPersonContextState> {
 
   void clearSelection() {
     if (isClosed) return;
+    _authoritative = null;
     emit(
       state.copyWith(
         selectedProfile: null,

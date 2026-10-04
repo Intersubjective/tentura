@@ -426,4 +426,19 @@ void main() {
 
     expect(find.text(l10n.beaconRoomReplyAttachmentExcerpt), findsOneWidget);
   });
+
+  testWidgets('setting a reply target focuses the composer', (tester) async {
+    await pumpReplyComposer(tester);
+    final field = tester.widget<TextField>(find.byType(TextField));
+    expect(field.focusNode!.hasFocus, isFalse);
+
+    await pumpReplyComposer(
+      tester,
+      replyTarget: _replyTarget(),
+      onCancelReply: () {},
+    );
+    await tester.pump();
+
+    expect(field.focusNode!.hasFocus, isTrue);
+  });
 }

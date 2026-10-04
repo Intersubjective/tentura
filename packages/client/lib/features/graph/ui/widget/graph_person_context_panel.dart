@@ -54,6 +54,12 @@ class GraphPersonContextPanel extends StatelessWidget {
     final scheme = theme.colorScheme;
     final contextCubit = context.read<GraphPersonContextCubit>();
     final contextState = context.watch<GraphPersonContextCubit>().state;
+    // The cubit swaps in the server profile once loaded; the one passed in
+    // may lack the visibility flags (Constellation builds it from edges).
+    final profile = switch (contextState.selectedProfile) {
+      final loaded? when loaded.id == this.profile.id => loaded,
+      _ => this.profile,
+    };
     final todayUtc = availabilityTodayUtc();
     final policy = PersonActionPolicy.from(
       profile,

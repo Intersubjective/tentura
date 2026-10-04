@@ -233,7 +233,6 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   Set<String> layoutSupportPersonIds = const {};
   Map<String, ConstellationAnchorPosition> layoutAnchorByNodeId = const {};
   Set<String> layoutKeptPeerIds = const {};
-  Map<String, List<String>> layoutPostMemberIdsByPostId = const {};
   ConstellationPathResolution? layoutPaths;
   Set<String> droppedHolderIds = const {};
   Set<String> displayedRequestIds = const {};
@@ -293,7 +292,6 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       anchorByNodeId: layoutAnchorByNodeId,
       forgetPriorHintNodeIds: _forgetPriorHintNodeIds,
       footprints: layoutFootprints,
-      postMemberIdsByPostId: layoutPostMemberIdsByPostId,
     );
   }
 
@@ -1468,19 +1466,35 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (requestId != null) {
       unawaited(_fetchRequestWebs(requestId));
     }
-    if (_requestWebsById.containsKey(previousId) ||
-        _requestWebsById.containsKey(requestId)) {
+    if (_selectionAddsMembers(previousId) || _selectionAddsMembers(requestId)) {
       _recomposeAndLayout();
-    } else if (state.field?.posts.isNotEmpty ?? false) {
+    } else {
       _rebuildGraph();
     }
   }
 
+  /// Whether selecting [beaconId] brings its members onto the field.
+  bool _selectionAddsMembers(String? beaconId) =>
+      beaconId != null &&
+      (_requestWebsById.containsKey(beaconId) || _isPostId(beaconId));
+
+  bool _isPostId(String beaconId) =>
+      state.field?.posts.any((post) => post.id == beaconId) ?? false;
+
+  /// Members of the selected Request or Post; only these become field holders,
+  /// so a Post with many recipients shows them only while it is selected.
   List<ConstellationMemberWeb> get _selectedRequestWebs {
     final selectedId = state.selectedRequestId;
-    return selectedId == null
-        ? const []
-        : _requestWebsById[selectedId] ?? const [];
+    if (selectedId == null) {
+      return const [];
+    }
+    if (_isPostId(selectedId)) {
+      return [
+        for (final web in state.field!.memberWebs)
+          if (web.beaconId == selectedId) web,
+      ];
+    }
+    return _requestWebsById[selectedId] ?? const [];
   }
 
   Future<void> _fetchRequestWebs(String requestId) async {
@@ -2236,12 +2250,19 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (isClosed) {
       return;
     }
+    final previousRequestId = state.selectedRequestId;
     emit(
       state.copyWith(
         selectedPersonId: personId,
         selectedRequestId: personId != null ? null : state.selectedRequestId,
       ),
     );
+    if (state.selectedRequestId != previousRequestId &&
+        _selectionAddsMembers(previousRequestId)) {
+      _recomposeAndLayout();
+    } else {
+      _rebuildGraph();
+    }
   }
 
   void togglePersonRequestsExpanded(String personId) {
@@ -2454,6 +2475,27 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _rebuildGraph();
   }
 
+  /// The peer an ego edge may lead to: the first hop on the path to
+  /// [focusPersonId], or the person itself when it hangs on the ring.
+  Set<String> _egoEdgeTargets({
+    required ConstellationPathResolution paths,
+    required String? focusPersonId,
+  }) {
+    if (focusPersonId == null || focusPersonId == _viewer.id) {
+      return const {};
+    }
+    var current = focusPersonId;
+    final seen = <String>{};
+    while (seen.add(current)) {
+      final parentId = paths.parent[current];
+      if (parentId == null || parentId == _viewer.id) {
+        break;
+      }
+      current = parentId;
+    }
+    return {current};
+  }
+
   void _rebuildGraph() {
     final field = state.field == null ? null : _composerField(state.field!);
     final paths = state.paths;
@@ -2601,10 +2643,6 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         if (node.post != null && drawnRequestIds.contains(node.id)) node,
     ];
     nodes.addAll(drawnPosts);
-    layoutPostMemberIdsByPostId = {
-      for (final node in drawnPosts)
-        node.id: ?composition?.postMemberIdsByPostId[node.id],
-    };
 
     final composing = state.isComposing;
     if (composing) {
@@ -2654,9 +2692,19 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       }
     }
 
+    // Edges from ego fan out to every first-hop peer and crowd the field, so
+    // only the one leading to the selected person (or the selected Beacon's
+    // author) is drawn.
+    final egoEdgeTargets = _egoEdgeTargets(
+      paths: paths,
+      focusPersonId:
+          state.selectedPersonId ?? nodeById[state.selectedRequestId]?.userId,
+    );
+
     for (final child in paths.keep.intersection(state.keptPeerIds)) {
       final parentId = paths.parent[child];
-      if (parentId == null) {
+      if (parentId == null ||
+          (parentId == _viewer.id && !egoEdgeTargets.contains(child))) {
         continue;
       }
       final tier = paths.parentTier[child] ?? 1;
@@ -2669,7 +2717,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       );
     }
 
-    for (final ringPeer in paths.ring.intersection(state.keptPeerIds)) {
+    for (final ringPeer in paths.ring.intersection(
+      state.keptPeerIds.intersection(egoEdgeTargets),
+    )) {
       addEdge(
         srcId: _viewer.id,
         dstId: ringPeer,
@@ -2895,9 +2945,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   /// peer's real data in the common case (a direct, explicit connection).
   /// A peer reached only via a tier-2/derived path, or with no edge to the
   /// viewer in `field.edges` at all (e.g. a request-author-only profile),
-  /// still can't honestly be marked "explicit" — that residual case is a
-  /// known, documented limitation (see docs/features/constellation.md),
-  /// not something to paper over with a fabricated score.
+  /// still can't honestly be marked "explicit"; the panel's
+  /// [GraphPersonContextCubit] swaps in the server profile on selection, which
+  /// carries the real visibility flags.
   Profile _profileFromPeer(ConstellationPerson peer) {
     final edges = state.field?.edges ?? const <ConstellationTrustEdgeEntity>[];
     final viewerTrustsSubject = edges.any(

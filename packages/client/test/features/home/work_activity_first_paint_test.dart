@@ -45,6 +45,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
 import '../../support/test_realtime_sync.dart';
+import '../../support/noop_posts_case.dart';
 import '../block/support/controllable_block_case.dart';
 import '../inbox/activity_offers_test_support.dart';
 import '../inbox/inbox_case_test.dart'
@@ -286,6 +287,7 @@ Future<void> _pumpMyWorkShell(WidgetTester tester) async {
   final attentionRepo = _PurityAttentionRepo();
   final accounts = _Accounts();
   final sync = buildTestRealtimeSync();
+  registerNoopPostsCase(sync.case_);
   final attention = AttentionCase(
     attentionRepo,
     accounts,
@@ -383,6 +385,7 @@ Future<void> _pumpActivityShell(WidgetTester tester) async {
   final attentionRepo = _PurityAttentionRepo();
   final accounts = _Accounts();
   final sync = buildTestRealtimeSync();
+  registerNoopPostsCase(sync.case_);
   final attention = AttentionCase(
     attentionRepo,
     accounts,

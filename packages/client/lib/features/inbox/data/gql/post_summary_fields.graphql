@@ -3,6 +3,7 @@ fragment PostSummaryFields on v2_PostSummary {
   authorId
   authorName
   authorAvatar
+  rootImageUrl
   rootExcerpt
   lastMessageExcerpt
   lastMessageAt

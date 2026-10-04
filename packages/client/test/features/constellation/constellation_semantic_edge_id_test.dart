@@ -94,6 +94,7 @@ Future<ConstellationCubit> _loadCubitWithOverlappingPeerKinds() async {
   cubit.emit(
     cubit.state.copyWith(
       keptPeerIds: {'a'},
+      selectedPersonId: 'a',
       paths: (
         depth: {'a': 1},
         derived: <String, int>{},
@@ -278,6 +279,7 @@ void main() {
         ),
       );
       addTearDown(cubit.close);
+      cubit.selectPerson('a');
 
       final sceneEdges = cubit.graphController.renderSnapshot.topology.edgesById;
       expect(sceneEdges.keys.toSet(), {

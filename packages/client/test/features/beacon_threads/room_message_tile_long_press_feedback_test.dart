@@ -119,8 +119,9 @@ void main() {
     await GetIt.I.reset();
   });
 
-  testWidgets('bubble grows during long-press hold and opens actions once',
-      (tester) async {
+  testWidgets('bubble grows during long-press hold and opens actions once', (
+    tester,
+  ) async {
     var actionsCount = 0;
 
     await tester.pumpWidget(
@@ -148,8 +149,9 @@ void main() {
     expect(_bubbleScale(tester), closeTo(1.0, 0.001));
   });
 
-  testWidgets('pointer cancel resets scale without opening actions',
-      (tester) async {
+  testWidgets('pointer cancel resets scale without opening actions', (
+    tester,
+  ) async {
     var actionsCount = 0;
 
     await tester.pumpWidget(
@@ -173,8 +175,9 @@ void main() {
     expect(actionsCount, 0);
   });
 
-  testWidgets('early release resets scale without opening actions',
-      (tester) async {
+  testWidgets('early release resets scale and opens actions as a tap', (
+    tester,
+  ) async {
     var actionsCount = 0;
 
     await tester.pumpWidget(
@@ -194,6 +197,42 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(_bubbleScale(tester), closeTo(1.0, 0.001));
+    expect(actionsCount, 1);
+  });
+
+  testWidgets('single touch tap opens actions (Telegram-style)', (
+    tester,
+  ) async {
+    var actionsCount = 0;
+
+    await tester.pumpWidget(
+      _harness(_messageTile(onActionsPressed: (_) => actionsCount++)),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tapAt(tester.getCenter(_scaleFinder));
+    // Single tap waits out the double-tap (quick-react) window.
+    await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 50));
+    await tester.pumpAndSettle();
+
+    expect(actionsCount, 1);
+  });
+
+  testWidgets('mouse click does not open actions', (tester) async {
+    var actionsCount = 0;
+
+    await tester.pumpWidget(
+      _harness(_messageTile(onActionsPressed: (_) => actionsCount++)),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tapAt(
+      tester.getCenter(_scaleFinder),
+      kind: PointerDeviceKind.mouse,
+    );
+    await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 50));
+    await tester.pumpAndSettle();
+
     expect(actionsCount, 0);
   });
 
@@ -216,7 +255,9 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('reduced motion skips grow but still opens actions', (tester) async {
+  testWidgets('reduced motion skips grow but still opens actions', (
+    tester,
+  ) async {
     var actionsCount = 0;
 
     await tester.pumpWidget(

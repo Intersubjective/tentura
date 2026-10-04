@@ -119,6 +119,33 @@ void main() {
       },
     );
 
+    test(
+      'a partial profile is replaced by the server one on selection',
+      () async {
+        final alice = _alice(myVote: 1, trustsViewer: true);
+        await harness.loadGraph(alice: alice, bob: _bob());
+
+        const partial = Profile(id: 'Ualice', displayName: 'Alice');
+        harness.contextCubit.selectProfile(partial, intentional: true);
+        expect(
+          harness.contextCubit.state.selectedProfile!.isMutuallyVisible,
+          isFalse,
+        );
+        await _settle();
+
+        expect(
+          harness.contextCubit.state.selectedProfile!.isMutuallyVisible,
+          isTrue,
+        );
+
+        harness.contextCubit.selectProfile(partial, intentional: true);
+        expect(
+          harness.contextCubit.state.selectedProfile!.isMutuallyVisible,
+          isTrue,
+        );
+      },
+    );
+
     test('neither → viewer-only trust does not enable Send primary', () async {
       final alice = _alice();
       await harness.loadGraph(alice: alice, bob: _bob());

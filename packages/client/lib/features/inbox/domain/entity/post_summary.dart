@@ -9,6 +9,7 @@ final class PostSummary {
     required this.authorName,
     required this.lastActivityAt,
     this.authorAvatar = '',
+    this.rootImageUrl,
     this.rootExcerpt = '',
     this.lastMessageExcerpt,
     this.pinnedAt,
@@ -22,6 +23,9 @@ final class PostSummary {
   final String authorId;
   final String authorName;
   final String authorAvatar;
+
+  /// First image attached to the Post root message, in attachment order.
+  final String? rootImageUrl;
   final String rootExcerpt;
   final String? lastMessageExcerpt;
   final DateTime lastActivityAt;

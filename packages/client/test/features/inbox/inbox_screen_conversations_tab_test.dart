@@ -20,6 +20,7 @@ import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
@@ -167,7 +168,7 @@ class _AttentionRepo extends AttentionRepositoryFake {
 final class _PostsRepository implements PostsRepositoryPort {
   _PostsRepository(this.posts);
 
-  final List<PostSummary> posts;
+  List<PostSummary> posts;
 
   @override
   Future<List<PostSummary>> myPosts() async => posts;
@@ -177,16 +178,18 @@ final class _PostsRepository implements PostsRepositoryPort {
       posts.where((p) => p.id == id).firstOrNull;
 }
 
-PostSummary _unreadPost(String id) => PostSummary(
+PostSummary _unreadPost(String id, {int unreadCount = 4}) => PostSummary(
   id: id,
   authorId: 'U$id',
   authorName: 'Анна',
   rootExcerpt: 'Посоветуйте стоматолога в центре',
   lastActivityAt: DateTime.now().toUtc(),
-  unreadCount: 4,
+  unreadCount: unreadCount,
 );
 
 late HomeTabReselectCubit _reselect;
+late _PostsRepository _postsRepository;
+late TestRealtimeSyncPort _syncPort;
 
 Future<void> _pumpInbox(
   WidgetTester tester, {
@@ -200,6 +203,7 @@ Future<void> _pumpInbox(
 
   final accounts = _Accounts();
   final sync = buildTestRealtimeSync();
+  _syncPort = sync.port;
   final attention = AttentionCase(
     _AttentionRepo(),
     accounts,
@@ -218,8 +222,9 @@ Future<void> _pumpInbox(
     buildTestBeaconThreadsCase(),
     forwardRepository: _ForwardRepo(),
   );
+  _postsRepository = _PostsRepository(posts);
   final postsCase = PostsCase(
-    _PostsRepository(posts),
+    _postsRepository,
     sync.case_,
     env: const Env(),
     logger: Logger('inbox-conversations-tab-test'),
@@ -372,18 +377,60 @@ void main() {
     expect(_selectedTabIndex(tester), 0);
   });
 
-  testWidgets('unread Posts do not put a dot or badge on the tab bar', (
+  testWidgets('unread conversations show a dot before opening the tab', (
     tester,
   ) async {
     await _pumpInbox(tester, posts: [_unreadPost('Pa'), _unreadPost('Pb')]);
-
-    expect(
+    final badge = tester.widget<Badge>(
       find.descendant(of: _tabBar, matching: find.byType(Badge)),
-      findsNothing,
     );
+    expect(badge.isLabelVisible, isTrue);
+    expect(badge.label, isNull);
+    expect(_selectedTabIndex(tester), 0);
+    await tester.tap(_tab('Разговоры'));
+    await _settle(tester);
     expect(
-      find.descendant(of: _tab('Разговоры'), matching: find.text('8')),
-      findsNothing,
+      tester.widget<Badge>(find.byType(Badge).first).isLabelVisible,
+      isTrue,
     );
+  });
+
+  testWidgets('read conversations and empty list have no visible dot', (
+    tester,
+  ) async {
+    await _pumpInbox(tester, posts: [_unreadPost('Pa', unreadCount: 0)]);
+    final badge = find.descendant(of: _tabBar, matching: find.byType(Badge));
+    expect(tester.widget<Badge>(badge).isLabelVisible, isFalse);
+    _postsRepository.posts = [];
+    _syncPort.emitChange(
+      const RealtimeEntityChange(
+        kind: RealtimeEntityKind.beacon,
+        aggregateId: 'Pa',
+        source: RealtimeChangeSource.serverInvalidation,
+        operation: RealtimeOperation.update,
+      ),
+    );
+    await _settle(tester);
+    expect(tester.widget<Badge>(badge).isLabelVisible, isFalse);
+  });
+
+  testWidgets('conversation dot updates when unread messages change', (
+    tester,
+  ) async {
+    await _pumpInbox(tester, posts: [_unreadPost('Pa', unreadCount: 0)]);
+    final badge = find.descendant(of: _tabBar, matching: find.byType(Badge));
+    for (final count in [4, 0]) {
+      _postsRepository.posts = [_unreadPost('Pa', unreadCount: count)];
+      _syncPort.emitChange(
+        const RealtimeEntityChange(
+          kind: RealtimeEntityKind.beacon,
+          aggregateId: 'Pa',
+          source: RealtimeChangeSource.serverInvalidation,
+          operation: RealtimeOperation.update,
+        ),
+      );
+      await _settle(tester);
+      expect(tester.widget<Badge>(badge).isLabelVisible, count > 0);
+    }
   });
 }

@@ -41,6 +41,7 @@ final class QueryPost extends GqlNodeBase {
     'authorId': post.authorId,
     'authorName': post.authorName,
     'authorAvatar': post.authorAvatar,
+    'rootImageUrl': post.rootImageUrl,
     'rootExcerpt': post.rootExcerpt,
     'lastMessageExcerpt': post.lastMessageExcerpt,
     'lastMessageAt': post.lastMessageAt?.toUtc().toIso8601String(),

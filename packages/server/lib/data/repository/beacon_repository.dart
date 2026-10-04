@@ -87,12 +87,25 @@ class BeaconRepository implements BeaconRepositoryPort {
           // `post_my_posts` reports a mute's expiry only, which is null both
           // for «no mute» and for «muted for good»; the row tells them apart.
           '''
-SELECT p.*, EXISTS (
-  SELECT 1 FROM public.notification_beacon_mute m
-  WHERE m.beacon_id = p.id AND m.account_id = \$1 AND m.muted_until IS NULL
-) AS muted_forever
-FROM public.post_my_posts(\$1) p
-${beaconId == null ? '' : r'WHERE p.id = $2'}''',
+SELECT posts.*, cover.image_id::text AS root_image_id,
+       cover.author_id AS root_image_author_id,
+       EXISTS (
+         SELECT 1 FROM public.notification_beacon_mute m
+         WHERE m.beacon_id = posts.id
+           AND m.account_id = \$1
+           AND m.muted_until IS NULL
+       ) AS muted_forever
+FROM public.post_my_posts(\$1) posts
+JOIN public.beacon b ON b.id = posts.id
+LEFT JOIN LATERAL (
+  SELECT i.id AS image_id, i.author_id
+  FROM public.beacon_room_message_attachment a
+  JOIN public.image i ON i.id = a.image_id
+  WHERE a.message_id = b.post_root_message_id AND a.kind = 1
+  ORDER BY a.position, a.id
+  LIMIT 1
+) cover ON true
+${beaconId == null ? '' : r'WHERE posts.id = $2'}''',
           variables: [
             Variable<String>(viewerId),
             if (beaconId != null) Variable<String>(beaconId),
@@ -113,6 +126,9 @@ ${beaconId == null ? '' : r'WHERE p.id = $2'}''',
         authorAvatar: imageId == null
             ? kAvatarPlaceholderUrl
             : '$kImageServer/$kImagesPath/$authorId/$imageId.$kImageExt',
+        rootImageUrl: row.readNullable<String>('root_image_id') == null
+            ? null
+            : '$kImageServer/$kImagesPath/${row.read<String>('root_image_author_id')}/${row.read<String>('root_image_id')}.$kImageExt',
         rootExcerpt: row.readNullable<String>('root_excerpt'),
         lastMessageExcerpt: row.readNullable<String>('last_message_excerpt'),
         lastMessageAt: timestamp('last_message_at'),

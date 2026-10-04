@@ -135,7 +135,6 @@ class ConstellationComposedPresentation {
     this.beaconNodes = const [],
     this.dormantBeaconIds = const {},
     this.pinnedPostIds = const {},
-    this.postMemberIdsByPostId = const {},
   });
 
   final ConstellationAutomaticLayer automatic;
@@ -157,9 +156,6 @@ class ConstellationComposedPresentation {
 
   /// Anchored Posts shown (active or dormant); never auto-placed.
   final Set<String> pinnedPostIds;
-
-  /// Visible Post id → member ids, author included.
-  final Map<String, List<String>> postMemberIdsByPostId;
 }
 
 /// A Post stays active this long after its last activity.
@@ -241,12 +237,11 @@ ConstellationComposedPresentation composeConstellationPresentation({
         post,
   ];
 
-  final visiblePostIdSet = {for (final post in visiblePosts) post.id};
+  // Post members are holders only through [selectedRequestWebs]: a Post
+  // with many recipients must not pull them all onto the field.
   final holderIds = {
     viewerId,
     ...visiblePosts.map((post) => post.authorId),
-    for (final web in field.memberWebs)
-      if (visiblePostIdSet.contains(web.beaconId)) web.personId,
     for (final web in selectedRequestWebs) web.personId,
     ...automatic.requests.map((request) => request.authorId),
     ...anchorOverlay.pinnedRequests.map((request) => request.authorId),
@@ -326,16 +321,6 @@ ConstellationComposedPresentation composeConstellationPresentation({
   final seenBeaconIds = <String>{};
   beaconNodes.retainWhere((node) => seenBeaconIds.add(node.id));
 
-  final visiblePostIds = {for (final post in visiblePosts) post.id};
-  final memberIdsByPostId = <String, Set<String>>{
-    for (final post in visiblePosts) post.id: {post.authorId},
-  };
-  for (final web in field.memberWebs) {
-    if (visiblePostIds.contains(web.beaconId)) {
-      memberIdsByPostId[web.beaconId]!.add(web.personId);
-    }
-  }
-
   return ConstellationComposedPresentation(
     automatic: automatic,
     anchorOverlay: anchorOverlay,
@@ -350,10 +335,6 @@ ConstellationComposedPresentation composeConstellationPresentation({
     beaconNodes: beaconNodes,
     dormantBeaconIds: dormantBeaconIds,
     pinnedPostIds: pinnedPostIds,
-    postMemberIdsByPostId: {
-      for (final entry in memberIdsByPostId.entries)
-        entry.key: entry.value.toList(growable: false),
-    },
   );
 }
 
@@ -499,17 +480,11 @@ ConstellationLabelDisplayPlan _buildLabelDisplayPlan({
   for (final request in anchorOverlay.pinnedRequests) {
     allByAuthor.putIfAbsent(request.authorId, () => <String>[]).add(request.id);
   }
-  final layoutByAuthor = {
-    for (final entry in allByAuthor.entries)
-      entry.key: List<String>.from(entry.value),
-  };
+  // Posts are satellites of their author, like Requests.
   for (final post in activePosts) {
     allByAuthor.putIfAbsent(post.authorId, () => <String>[]).add(post.id);
   }
   for (final entry in allByAuthor.entries) {
-    entry.value.sort();
-  }
-  for (final entry in layoutByAuthor.entries) {
     entry.value.sort();
   }
 
@@ -621,9 +596,9 @@ ConstellationLabelDisplayPlan _buildLabelDisplayPlan({
 
   return ConstellationLabelDisplayPlan(
     drawnRequestIds: drawn,
-    layoutRequestsByAuthor: layoutByAuthor,
+    layoutRequestsByAuthor: allByAuthor,
     egoOwnRequestIds: {
-      for (final id in layoutByAuthor[viewerId] ?? const <String>[]) id,
+      for (final id in allByAuthor[viewerId] ?? const <String>[]) id,
     },
     overflowHiddenCountByAuthor: overflow,
     pinnedRequestIds: pinnedRequestIds,
