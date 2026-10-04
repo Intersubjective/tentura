@@ -1,0 +1,12 @@
+query BeaconTeamAcquaintances($id: String!) {
+  beacon_by_pk(id: $id) {
+    id
+    admitted_helpers(order_by: { user_id: asc }) {
+      user {
+        id
+        my_vote
+        shares_episode_with_viewer
+      }
+    }
+  }
+}

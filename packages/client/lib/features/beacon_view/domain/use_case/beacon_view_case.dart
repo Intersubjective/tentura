@@ -292,6 +292,16 @@ final class BeaconViewCase extends UseCaseBase {
     }
   }
 
+  /// Admitted helpers the viewer trusts or worked with before; empty when
+  /// unavailable (the showcase strip then simply keeps roster order).
+  Future<Set<String>> fetchTeamAcquaintanceIds(String beaconId) async {
+    try {
+      return await _beaconRepository.fetchTeamAcquaintanceIds(beaconId);
+    } on Object catch (_) {
+      return const {};
+    }
+  }
+
   Future<List<BeaconFactCard>> fetchFactCards(String beaconId) async {
     try {
       return await _factCards.list(beaconId: beaconId);

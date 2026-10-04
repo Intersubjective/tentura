@@ -260,6 +260,10 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
     /// True after [admittedHelperRoster] has been fetched this load.
     @Default(false) bool admittedHelpersLoaded,
 
+    /// Admitted helpers the viewer trusts or worked a past Request with;
+    /// fetched only for the showcase (viewer not let in).
+    @Default({}) Set<String> teamAcquaintanceIds,
+
     BeaconRoomState? beaconRoomCue,
     CoordinationItem? openCoordinationBlocker,
 
@@ -295,6 +299,13 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
   bool get hasError => loadError != null;
 
   bool get isBeaconMine => beacon.author.id == myProfile.id;
+
+  /// The viewer is "inside" the Request: its author or a member let in
+  /// (steward, admitted helper, admitted Post addressee). Inside viewers get
+  /// the operational HUD; everyone else gets the showcase (#159, #104).
+  /// A null access level (local fixtures) keeps the HUD.
+  bool get isInsideRequest =>
+      isBeaconMine || (beacon.accessLevel?.isMember ?? true);
   bool get isBeaconNotMine => beacon.author.id != myProfile.id;
 
   /// Active help offer row for the current viewer, if any.
