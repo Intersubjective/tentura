@@ -1773,6 +1773,7 @@ final gqlTypePostSummary = GraphQLObjectType('PostSummary', null)
     field('lastActivityAt', graphQLString),
     field('pinnedAt', graphQLString),
     field('mutedUntil', graphQLString),
+    field('mutedForever', graphQLBoolean.nonNullable()),
     field('unreadCount', graphQLInt.nonNullable()),
     field('isAuthor', graphQLBoolean.nonNullable()),
   ]);

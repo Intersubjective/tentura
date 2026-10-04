@@ -10,16 +10,17 @@ class PostViewCase {
   final PostsRepositoryPort _posts;
   final ForwardRepository _forwards;
 
-  /// The viewer's conversation row for [beaconId] (root excerpt, mute expiry).
-  Future<PostSummary?> summaryOf(String beaconId) async =>
-      (await _posts.myPosts()).where((p) => p.id == beaconId).firstOrNull;
+  /// The viewer's conversation row for [beaconId] (root excerpt, pin, mute
+  /// expiry); null when the viewer is not in the conversation.
+  Future<PostSummary?> summaryOf(String beaconId) =>
+      _posts.postSummary(beaconId);
 
-  /// The latest forward of [beaconId] addressed to [viewerId], if any.
-  Future<ForwardEdge?> forwardedTo({
-    required String beaconId,
-    required String viewerId,
-  }) async {
-    final edges = await _forwards.fetchEdges(beaconId: beaconId);
+  /// Every forward of [beaconId] the viewer may see: who brought whom in.
+  Future<List<ForwardEdge>> forwardEdges(String beaconId) =>
+      _forwards.fetchEdges(beaconId: beaconId);
+
+  /// The latest of [edges] addressed to [viewerId], if any.
+  static ForwardEdge? latestTo(List<ForwardEdge> edges, String viewerId) {
     ForwardEdge? latest;
     for (final e in edges) {
       if (e.recipient.id != viewerId) continue;

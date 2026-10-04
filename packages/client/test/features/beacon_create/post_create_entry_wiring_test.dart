@@ -207,6 +207,9 @@ class _EmptyAttentionRepo extends AttentionRepositoryFake {
 final class _NoPosts implements PostsRepositoryPort {
   @override
   Future<List<PostSummary>> myPosts() async => const [];
+
+  @override
+  Future<PostSummary?> postSummary(String id) async => null;
 }
 
 Future<void> _settle(WidgetTester tester) async {

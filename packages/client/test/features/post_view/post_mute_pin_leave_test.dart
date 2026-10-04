@@ -38,6 +38,8 @@ import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/features/inbox/domain/port/posts_repository_port.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_cubit.dart';
 import 'package:tentura/features/inbox/ui/screen/inbox_rejected_screen.dart';
+import 'package:tentura/features/post_view/ui/message/post_messages.dart';
+import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/features/post_view/data/repository/post_membership_repository.dart';
 import 'package:tentura/features/post_view/data/repository/post_mute_repository.dart';
 import 'package:tentura/features/post_view/ui/bloc/post_view_cubit.dart';
@@ -85,13 +87,18 @@ RoomMessage _rootMessage() => RoomMessage(
   createdAt: _createdAt,
 );
 
-PostSummary _summary({DateTime? mutedUntil, DateTime? pinnedAt}) => PostSummary(
+PostSummary _summary({
+  DateTime? mutedUntil,
+  bool mutedForever = false,
+  DateTime? pinnedAt,
+}) => PostSummary(
   id: _postId,
   authorId: _author.id,
   authorName: _author.displayName,
   rootExcerpt: _rootText,
   lastActivityAt: _createdAt,
   mutedUntil: mutedUntil,
+  mutedForever: mutedForever,
   pinnedAt: pinnedAt,
 );
 
@@ -125,6 +132,10 @@ class _FakePostsRepository implements PostsRepositoryPort {
 
   @override
   Future<List<PostSummary>> myPosts() async => posts;
+
+  @override
+  Future<PostSummary?> postSummary(String id) async =>
+      posts.where((p) => p.id == id).firstOrNull;
 }
 
 /// Records the mute writes the screen sends, by member.
@@ -598,6 +609,43 @@ void main() {
     });
   });
 
+  group('Mute state in the ⋮ menu', () {
+    testWidgets('a Post muted for good says so and can be unmuted', (
+      tester,
+    ) async {
+      final h = await _pumpPost(
+        tester,
+        viewer: _reader,
+        summary: _summary(mutedForever: true),
+      );
+
+      await _openOverflow(tester);
+      expect(
+        find.text('Включить звук · заглушено навсегда'),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('Включить звук · заглушено навсегда'));
+      await _settle(tester);
+
+      expect(h.mute.clearCalls, [_postId]);
+    });
+
+    testWidgets('a timed mute shows when it ends', (tester) async {
+      await _pumpPost(
+        tester,
+        viewer: _reader,
+        summary: _summary(mutedUntil: DateTime.utc(2100, 1, 2, 3, 4)),
+      );
+
+      await _openOverflow(tester);
+
+      expect(
+        find.textContaining('Включить звук · заглушено до '),
+        findsOneWidget,
+      );
+    });
+  });
+
   group('Pinning a Post in conversations from its ⋮ menu', () {
     testWidgets('«Закрепить в разговорах» pins through favorites', (
       tester,
@@ -648,6 +696,32 @@ void main() {
       expect(h.membership.postReturnCalls, isEmpty);
     });
 
+    testWidgets('after leaving, «Вернуть» brings the member back and reopens '
+        'the Post', (tester) async {
+      final h = await _pumpPost(tester, viewer: _reader);
+
+      await _pickMenuItem(tester, 'Выйти из разговора');
+      await tester.tap(_inDialog(find.byType(FilledButton)));
+      await _settle(tester);
+
+      final message = h.effects.emitted
+          .whereType<ShowMessage>()
+          .map((e) => e.message)
+          .whereType<PostLeftMessage>()
+          .single;
+      expect(message.toRu, 'Вы вышли из разговора');
+      expect(message.label.toRu, 'Вернуть');
+
+      message.onPressed();
+      await _settle(tester);
+
+      expect(h.membership.postReturnCalls, [_postId]);
+      expect(
+        h.effects.emitted.whereType<NavigatePush>().map((e) => e.path),
+        contains('/beacon/view/$_postId'),
+      );
+    });
+
     testWidgets('cancelling the confirm does not leave', (tester) async {
       final h = await _pumpPost(tester, viewer: _reader);
 
@@ -670,7 +744,7 @@ void main() {
       await _openOverflow(tester);
 
       // Positive anchor: the menu is open and has the shared items.
-      expect(find.text('Участники'), findsOneWidget);
+      expect(find.text('О посте'), findsOneWidget);
       expect(find.textContaining('Выйти'), findsNothing);
     });
 
@@ -682,7 +756,7 @@ void main() {
       await _openOverflow(tester);
 
       // Positive anchor: the menu is open and has the author's own items.
-      expect(find.text('Участники'), findsOneWidget);
+      expect(find.text('О посте'), findsOneWidget);
       expect(find.textContaining('Выйти'), findsNothing);
     });
   });

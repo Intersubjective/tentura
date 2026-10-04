@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:get_it/get_it.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
@@ -15,6 +16,7 @@ import 'package:tentura/features/inbox/domain/port/posts_repository_port.dart';
 import 'package:tentura/features/post_view/data/repository/post_membership_repository.dart';
 import 'package:tentura/features/post_view/data/repository/post_mute_repository.dart';
 import 'package:tentura/features/post_view/domain/use_case/post_view_case.dart';
+import 'package:tentura/features/post_view/ui/message/post_messages.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
@@ -26,6 +28,7 @@ class PostViewState extends StateBase {
     required this.beacon,
     this.summary,
     this.forwardedToMe,
+    this.forwardEdges = const [],
     super.status = const StateIsLoading(),
   });
 
@@ -36,6 +39,23 @@ class PostViewState extends StateBase {
 
   /// The forward that brought the Post to the viewer, if one did.
   final ForwardEdge? forwardedToMe;
+
+  /// Every forward of the Post the viewer may see (who brought whom in).
+  final List<ForwardEdge> forwardEdges;
+
+  PostViewState copyWith({
+    Beacon? beacon,
+    PostSummary? summary,
+    ForwardEdge? forwardedToMe,
+    List<ForwardEdge>? forwardEdges,
+    StateStatus? status,
+  }) => PostViewState(
+    beacon: beacon ?? this.beacon,
+    summary: summary ?? this.summary,
+    forwardedToMe: forwardedToMe ?? this.forwardedToMe,
+    forwardEdges: forwardEdges ?? this.forwardEdges,
+    status: status ?? this.status,
+  );
 }
 
 /// Hosts a Post's room: loads the beacon itself and nothing Request-only.
@@ -101,25 +121,11 @@ class PostViewCubit extends Cubit<PostViewState> implements RoomHost {
     try {
       final beacon = await _beaconRepository.fetchBeaconById(beaconId);
       if (isClosed) return;
-      emit(
-        PostViewState(
-          beacon: beacon,
-          summary: state.summary,
-          forwardedToMe: state.forwardedToMe,
-          status: const StateIsSuccess(),
-        ),
-      );
+      emit(state.copyWith(beacon: beacon, status: const StateIsSuccess()));
     } on Object catch (e) {
       if (isClosed) return;
       _effects.emit(ShowError(e));
-      emit(
-        PostViewState(
-          beacon: state.beacon,
-          summary: state.summary,
-          forwardedToMe: state.forwardedToMe,
-          status: const StateIsSuccess(),
-        ),
-      );
+      emit(state.copyWith(status: const StateIsSuccess()));
       return;
     }
     await _fetchExtras();
@@ -172,16 +178,39 @@ class PostViewCubit extends Cubit<PostViewState> implements RoomHost {
   });
 
   Future<void> unpin() => _write(() async {
-    await (favoritesRepository ??= GetIt.I<FavoritesRemoteRepository>())
-        .unpin(userId: myProfile.id, beacon: state.beacon);
+    await (favoritesRepository ??= GetIt.I<FavoritesRemoteRepository>()).unpin(
+      userId: myProfile.id,
+      beacon: state.beacon,
+    );
     await _fetchExtras();
   });
 
-  /// Recipient-only: leaves the conversation and closes the screen.
+  /// Recipient-only: leaves the conversation and closes the screen; the
+  /// snackbar's «Вернуть» brings the viewer back and reopens the Post.
   Future<void> leave() => _write(() async {
-    await (membershipRepository ??= GetIt.I<PostMembershipRepository>())
-        .postLeave(beaconId);
-    _effects.emit(const NavigateBack());
+    final membership = membershipRepository ??=
+        GetIt.I<PostMembershipRepository>();
+    await membership.postLeave(beaconId);
+    final id = beaconId;
+    final effects = _effects;
+    _effects
+      ..emit(const NavigateBack())
+      ..emit(
+        ShowMessage(
+          PostLeftMessage(
+            // Runs after this cubit is closed with its screen: it only uses
+            // the repository and the app-wide effects port.
+            onPressed: () => unawaited(() async {
+              try {
+                await membership.postReturn(id);
+                effects.emit(NavigatePush('$kPathBeaconView/$id'));
+              } on Object catch (e) {
+                effects.emit(ShowError(e));
+              }
+            }()),
+          ),
+        ),
+      );
   });
 
   Future<void> _write(Future<void> Function() action) async {
@@ -192,32 +221,34 @@ class PostViewCubit extends Cubit<PostViewState> implements RoomHost {
     }
   }
 
-  /// Conversation row and inbound forward are decoration: a failure leaves
-  /// the room usable, so it is not surfaced.
+  /// Conversation row and forwards are decoration: a failure leaves the
+  /// room usable, so it is not surfaced.
   Future<void> _fetchExtras() async {
     PostSummary? summary;
-    ForwardEdge? forwardedToMe;
+    var summaryLoaded = false;
+    List<ForwardEdge>? edges;
     try {
       final postViewCase = this.postViewCase ??= PostViewCase(
         GetIt.I<PostsRepositoryPort>(),
         GetIt.I<ForwardRepository>(),
       );
       summary = await postViewCase.summaryOf(beaconId);
-      if (state.beacon.author.id != myProfile.id) {
-        forwardedToMe = await postViewCase.forwardedTo(
-          beaconId: beaconId,
-          viewerId: myProfile.id,
-        );
-      }
+      summaryLoaded = true;
+      edges = await postViewCase.forwardEdges(beaconId);
     } on Object catch (_) {
       // Keep whatever was already loaded.
     }
     if (isClosed) return;
+    final isAuthor = state.beacon.author.id == myProfile.id;
     emit(
       PostViewState(
         beacon: state.beacon,
-        summary: summary ?? state.summary,
-        forwardedToMe: forwardedToMe ?? state.forwardedToMe,
+        // A loaded «not in the conversation» clears a stale pin / mute.
+        summary: summaryLoaded ? summary : state.summary,
+        forwardedToMe: edges == null || isAuthor
+            ? state.forwardedToMe
+            : PostViewCase.latestTo(edges, myProfile.id),
+        forwardEdges: edges ?? state.forwardEdges,
         status: state.status,
       ),
     );

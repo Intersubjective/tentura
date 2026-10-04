@@ -1,0 +1,15 @@
+fragment PostSummaryFields on v2_PostSummary {
+  id
+  authorId
+  authorName
+  authorAvatar
+  rootExcerpt
+  lastMessageExcerpt
+  lastMessageAt
+  lastActivityAt
+  pinnedAt
+  mutedUntil
+  mutedForever
+  unreadCount
+  isAuthor
+}

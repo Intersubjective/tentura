@@ -50,6 +50,13 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
   ];
 
   @override
+  Future<PostSummary?> postSummary({
+    required String viewerId,
+    required String beaconId,
+  }) async =>
+      (await myPosts(viewerId)).where((p) => p.id == beaconId).firstOrNull;
+
+  @override
   Future<List<String>> deadlineReminderCandidateIds({
     required DateTime nextUtcDayStart,
     required DateTime followingUtcDayStart,

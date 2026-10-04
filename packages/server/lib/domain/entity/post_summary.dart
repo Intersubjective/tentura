@@ -13,6 +13,7 @@ final class PostSummary {
     required this.mutedUntil,
     required this.unreadCount,
     required this.isAuthor,
+    this.mutedForever = false,
   });
 
   final String id;
@@ -25,6 +26,10 @@ final class PostSummary {
   final DateTime? lastActivityAt;
   final DateTime? pinnedAt;
   final DateTime? mutedUntil;
+
+  /// Muted with no expiry; [mutedUntil] is null then, as it is when the
+  /// viewer has no mute at all.
+  final bool mutedForever;
   final int unreadCount;
   final bool isAuthor;
 }

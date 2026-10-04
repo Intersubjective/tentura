@@ -65,11 +65,38 @@ class BeaconRepository implements BeaconRepositoryPort {
   final TenturaDb _database;
 
   @override
-  Future<List<PostSummary>> myPosts(String viewerId) async {
+  Future<List<PostSummary>> myPosts(String viewerId) =>
+      _postSummaries(viewerId: viewerId);
+
+  @override
+  Future<PostSummary?> postSummary({
+    required String viewerId,
+    required String beaconId,
+  }) async => (await _postSummaries(
+    viewerId: viewerId,
+    beaconId: beaconId,
+  )).firstOrNull;
+
+  /// All of the viewer's Post rows, or only [beaconId]'s.
+  Future<List<PostSummary>> _postSummaries({
+    required String viewerId,
+    String? beaconId,
+  }) async {
     final rows = await _database
         .customSelect(
-          r'SELECT * FROM public.post_my_posts($1)',
-          variables: [Variable<String>(viewerId)],
+          // `post_my_posts` reports a mute's expiry only, which is null both
+          // for «no mute» and for «muted for good»; the row tells them apart.
+          '''
+SELECT p.*, EXISTS (
+  SELECT 1 FROM public.notification_beacon_mute m
+  WHERE m.beacon_id = p.id AND m.account_id = \$1 AND m.muted_until IS NULL
+) AS muted_forever
+FROM public.post_my_posts(\$1) p
+${beaconId == null ? '' : r'WHERE p.id = $2'}''',
+          variables: [
+            Variable<String>(viewerId),
+            if (beaconId != null) Variable<String>(beaconId),
+          ],
         )
         .get();
     return rows.map((row) {
@@ -92,6 +119,7 @@ class BeaconRepository implements BeaconRepositoryPort {
         lastActivityAt: timestamp('last_activity_at'),
         pinnedAt: timestamp('pinned_at'),
         mutedUntil: timestamp('muted_until'),
+        mutedForever: row.read<bool>('muted_forever'),
         unreadCount: row.read<int>('unread_count'),
         isAuthor: row.read<bool>('is_author'),
       );
