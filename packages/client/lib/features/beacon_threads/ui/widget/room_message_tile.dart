@@ -29,6 +29,7 @@ import 'package:tentura/features/beacon_threads/ui/widget/beacon_hierarchy_notic
 import 'package:tentura/features/beacon_threads/ui/widget/fact_actions_sheet.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/fact_history_sheet.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/reaction_senders_sheet.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/reaction_quick_picker.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_attachment_widgets.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_closure_story_card.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_bubble_measure.dart';
@@ -963,8 +964,7 @@ class RoomMessageTile extends StatelessWidget {
         if (message.quotedFact case final quoted?) ...[
           Padding(
             padding: EdgeInsets.only(
-              top:
-                  (showNameHeader || pinnedFact != null || message.isReply)
+              top: (showNameHeader || pinnedFact != null || message.isReply)
                   ? tt.rowGap / 2
                   : 0,
             ),
@@ -1161,12 +1161,14 @@ class RoomMessageTile extends StatelessWidget {
     final replyCb = onReplyPressed != null && RoomCubit.canReplyTo(message)
         ? () => onReplyPressed!(message)
         : null;
-    // Plain tap opens the linked item/thread (touch only, see
-    // [_MessageBubbleInteraction]); quick-react toggles the heart emoji.
+    // Plain tap opens the linked item/thread, else the action sheet (touch
+    // only, see [_MessageBubbleInteraction]); double-tap quick-react toggles
+    // the heart emoji; the desktop heart button opens the reaction picker.
     final openItemCb = linkedCoord == null
         ? null
         : _coordinationItemTap(context, linkedCoord);
     void Function()? quickReactCb;
+    ValueChanged<String>? pickReactionCb;
     final toggleReaction = onToggleReaction;
     if (toggleReaction != null) {
       quickReactCb = () => unawaited(
@@ -1175,6 +1177,7 @@ class RoomMessageTile extends StatelessWidget {
           BeaconRoomMessageReaction.quickPickerEmojis.first,
         ),
       );
+      pickReactionCb = (emoji) => unawaited(toggleReaction(message.id, emoji));
     }
 
     // Same shape language in both modes (UI review #204): outgoing is a
@@ -1537,6 +1540,8 @@ class RoomMessageTile extends StatelessWidget {
               onReply: replyCb,
               onOpenItem: openItemCb,
               onQuickReact: quickReactCb,
+              onPickReaction: pickReactionCb,
+              selectedReactions: _viewerReactionEmojiSet(message),
               child: bubbleChild,
             ),
           ),
@@ -2457,13 +2462,14 @@ class _ReactorAvatarStrip extends StatelessWidget {
 
 /// Pointer-adaptive interaction wrapper for a message bubble.
 ///
-/// Touch: long-press grows the bubble ~4% during the hold and confirms with a
-/// haptic at recognition, then opens the action sheet; double-tap quick-reacts,
-/// a plain tap opens the linked item. Desktop/mouse/trackpad: secondary-tap
-/// (right-click / Mac ctrl-click / two-finger) opens the sheet and a hover
-/// toolbar exposes quick-react + more. Long-press / double-tap / tap-to-open are
-/// filtered to touch pointers so a mouse can't trigger them and a left click
-/// stays free for text selection.
+/// Touch: a plain tap opens the action sheet like Telegram (or the linked item,
+/// when the message has one); long-press grows the bubble ~4% during the hold,
+/// confirms with a haptic and opens the sheet too; double-tap quick-reacts.
+/// Desktop/mouse/trackpad: secondary-tap (right-click / Mac ctrl-click /
+/// two-finger) opens the sheet and a hover toolbar exposes reply, the reaction
+/// picker (heart) and more. Tap / long-press / double-tap are filtered to touch
+/// pointers so a mouse can't trigger them and a left click stays free for text
+/// selection.
 class _MessageBubbleInteraction extends StatefulWidget {
   const _MessageBubbleInteraction({
     required this.child,
@@ -2471,6 +2477,8 @@ class _MessageBubbleInteraction extends StatefulWidget {
     required this.onActions,
     required this.onOpenItem,
     required this.onQuickReact,
+    required this.onPickReaction,
+    required this.selectedReactions,
     this.onReply,
   });
 
@@ -2480,6 +2488,8 @@ class _MessageBubbleInteraction extends StatefulWidget {
   final VoidCallback? onReply;
   final VoidCallback? onOpenItem;
   final VoidCallback? onQuickReact;
+  final ValueChanged<String>? onPickReaction;
+  final Set<String> selectedReactions;
 
   @override
   State<_MessageBubbleInteraction> createState() =>
@@ -2519,6 +2529,10 @@ class _MessageBubbleInteractionState extends State<_MessageBubbleInteraction>
   );
 
   bool _hovering = false;
+
+  /// The picker popover lives in an overlay outside the [MouseRegion], so the
+  /// toolbar must stay mounted while it is open even after the pointer leaves.
+  bool _pickerOpen = false;
   bool _reduceMotion = false;
 
   @override
@@ -2549,6 +2563,8 @@ class _MessageBubbleInteractionState extends State<_MessageBubbleInteraction>
     final onReply = widget.onReply;
     final onOpenItem = widget.onOpenItem;
     final onQuickReact = widget.onQuickReact;
+    final onPickReaction = widget.onPickReaction;
+    final onTap = onOpenItem ?? onActions;
 
     _reduceMotion = MediaQuery.disableAnimationsOf(context);
 
@@ -2568,11 +2584,11 @@ class _MessageBubbleInteractionState extends State<_MessageBubbleInteraction>
                   ..onLongPress = onActions
                   ..onLongPressEnd = ((_) => _settlePress()),
               ),
-        if (onOpenItem != null)
+        if (onTap != null)
           TapGestureRecognizer:
               GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
                 () => TapGestureRecognizer(supportedDevices: _touchOnly),
-                (r) => r.onTap = onOpenItem,
+                (r) => r.onTap = onTap,
               ),
         if (onQuickReact != null)
           DoubleTapGestureRecognizer:
@@ -2603,12 +2619,12 @@ class _MessageBubbleInteractionState extends State<_MessageBubbleInteraction>
       );
     }
 
-    if (onActions == null && onQuickReact == null && onReply == null) {
+    if (onActions == null && onPickReaction == null && onReply == null) {
       return content;
     }
 
     // MouseRegion hover fires only for pointer devices, so the toolbar never
-    // appears on touch (where long-press / double-tap already cover it).
+    // appears on touch (where tap / long-press / double-tap already cover it).
     return MouseRegion(
       onEnter: (_) {
         if (!_hovering) setState(() => _hovering = true);
@@ -2622,14 +2638,20 @@ class _MessageBubbleInteractionState extends State<_MessageBubbleInteraction>
           content,
           // Kept within the Stack bounds so the surrounding MouseRegion still
           // covers it — moving the pointer onto the toolbar must not dismiss it.
-          if (_hovering)
+          if (_hovering || _pickerOpen)
             Positioned(
               top: 0,
               left: widget.isMine ? 4 : null,
               right: widget.isMine ? null : 4,
               child: _HoverActionToolbar(
                 onReply: onReply,
-                onReact: onQuickReact,
+                onPickReaction: onPickReaction,
+                selectedReactions: widget.selectedReactions,
+                onPickerOpenChanged: (open) {
+                  if (mounted && _pickerOpen != open) {
+                    setState(() => _pickerOpen = open);
+                  }
+                },
                 onMore: onActions,
               ),
             ),
@@ -2639,22 +2661,32 @@ class _MessageBubbleInteractionState extends State<_MessageBubbleInteraction>
   }
 }
 
-/// Desktop hover toolbar: quick-react + more, mirroring Slack/Discord chat rows.
+/// Desktop hover toolbar: reply + reaction picker + more, mirroring
+/// Slack/Discord chat rows.
 class _HoverActionToolbar extends StatelessWidget {
   const _HoverActionToolbar({
-    required this.onReact,
+    required this.onPickReaction,
+    required this.selectedReactions,
+    required this.onPickerOpenChanged,
     required this.onMore,
     this.onReply,
   });
 
+  /// Wide enough for two rows of the 16-emoji grid.
+  static const _pickerWidth = 320.0;
+
   final VoidCallback? onReply;
-  final VoidCallback? onReact;
+  final ValueChanged<String>? onPickReaction;
+  final Set<String> selectedReactions;
+  final ValueChanged<bool> onPickerOpenChanged;
   final VoidCallback? onMore;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final tt = context.tt;
     final l10n = L10n.of(context)!;
+    final onPickReaction = this.onPickReaction;
     return Material(
       elevation: 2,
       color: scheme.surfaceContainerHigh,
@@ -2670,13 +2702,36 @@ class _HoverActionToolbar extends StatelessWidget {
               icon: const Icon(Icons.reply_outlined),
               onPressed: onReply,
             ),
-          if (onReact != null)
-            IconButton(
-              visualDensity: VisualDensity.compact,
-              iconSize: 18,
-              tooltip: l10n.beaconRoomReactionAddTooltip,
-              icon: const Icon(Icons.favorite_border),
-              onPressed: onReact,
+          if (onPickReaction != null)
+            MenuAnchor(
+              onOpen: () => onPickerOpenChanged(true),
+              onClose: () => onPickerOpenChanged(false),
+              menuChildren: [
+                SizedBox(
+                  width: _pickerWidth,
+                  child: Padding(
+                    padding: EdgeInsets.all(tt.rowGap),
+                    child: Builder(
+                      builder: (menuContext) => ReactionQuickPicker(
+                        selected: selectedReactions,
+                        onPick: (emoji) {
+                          MenuController.maybeOf(menuContext)?.close();
+                          onPickReaction(emoji);
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+              builder: (context, controller, _) => IconButton(
+                key: TestIds.key(TestIds.roomMessageReactionPickerButton),
+                visualDensity: VisualDensity.compact,
+                iconSize: 18,
+                tooltip: l10n.beaconRoomReactionAddTooltip,
+                icon: const Icon(Icons.favorite_border),
+                onPressed: () =>
+                    controller.isOpen ? controller.close() : controller.open(),
+              ),
             ),
           if (onMore != null)
             IconButton(
