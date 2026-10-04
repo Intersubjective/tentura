@@ -9,6 +9,7 @@ final class BeaconRoomMessageRecord {
     this.threadItemId,
     this.linkedPollingId,
     this.semanticMarker,
+    this.systemMessageKind,
     this.systemPayload,
     required this.createdAt,
     this.editedAt,
@@ -28,6 +29,7 @@ final class BeaconRoomMessageRecord {
   final String? threadItemId;
   final String? linkedPollingId;
   final int? semanticMarker;
+  final int? systemMessageKind;
   final Map<String, Object?>? systemPayload;
   final DateTime createdAt;
   final DateTime? editedAt;
