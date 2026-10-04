@@ -293,19 +293,47 @@ Future<void> main() async {
       },
     );
 
-    test('rejects an empty recipient list and writes nothing', () async {
-      await expectLater(
-        publish(
+    test(
+      'publishes with an empty recipient list: open, no forward edges, no '
+      'addressees',
+      () async {
+        final result = await publish(
           recipientIds: const [],
           mentionUserIds: const [],
           mentionOffsets: const [],
           mentionLengths: const [],
-        ),
-        throwsA(anything),
-      );
+        );
 
-      expect(await _state(writer), _untouchedState);
-    });
+        expect((await _state(writer))[0], _statusOpen);
+
+        final edges = await writer.execute(
+          Sql.named(
+            'SELECT count(*) FROM public.beacon_forward_edge '
+            'WHERE beacon_id = @id',
+          ),
+          parameters: {'id': _beacon},
+        );
+        expect(edges.single.single, 0);
+
+        final addressees = await writer.execute(
+          Sql.named(
+            'SELECT count(*) FROM public.beacon_participant '
+            'WHERE beacon_id = @id AND role = 6',
+          ),
+          parameters: {'id': _beacon},
+        );
+        expect(addressees.single.single, 0);
+
+        final messages = await writer.execute(
+          Sql.named(
+            'SELECT author_id FROM public.beacon_room_message '
+            'WHERE id = @id',
+          ),
+          parameters: {'id': result.rootMessageId},
+        );
+        expect(messages.single.single, _author);
+      },
+    );
 
     test(
       'a retry by the author returns the same ids and writes nothing new',

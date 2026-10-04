@@ -103,11 +103,6 @@ class PostCase {
           description: 'Post is not a draft',
         );
       }
-      if (recipientIds.isEmpty) {
-        throw const BeaconCreateException(
-          description: 'A Post needs at least one recipient',
-        );
-      }
       if (body.trim().isEmpty && attachmentBytes == null) {
         throw const BeaconCreateException(
           description: 'A Post needs text or an attachment',
@@ -118,12 +113,16 @@ class PostCase {
         policy: forwardPolicy,
       );
       await _beaconCase.publishDraft(userId: authorId, beaconId: beaconId);
-      await _forwardCase.forward(
-        senderId: authorId,
-        beaconId: beaconId,
-        recipientIds: recipientIds,
-        perRecipientNotes: notes,
-      );
+      // Without recipients the Post stays visible only to its author —
+      // `beacon_can_read_content` already admits the author unconditionally.
+      if (recipientIds.isNotEmpty) {
+        await _forwardCase.forward(
+          senderId: authorId,
+          beaconId: beaconId,
+          recipientIds: recipientIds,
+          perRecipientNotes: notes,
+        );
+      }
       final message = await _roomCase.createMessage(
         beaconId: beaconId,
         userId: authorId,

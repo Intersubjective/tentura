@@ -361,17 +361,23 @@ void main() {
       ]);
     });
 
-    testWidgets('without a forward-to user nobody is pre-selected', (
-      tester,
-    ) async {
-      final port = await _pumpScreen(tester, forwardToUserId: '');
+    testWidgets(
+      'without a forward-to user nobody is pre-selected, but ➤ still '
+      'publishes to no one',
+      (tester) async {
+        final port = await _pumpScreen(tester, forwardToUserId: '');
 
-      await tester.enterText(_composerField, 'Привет!');
-      await tester.pump(const Duration(milliseconds: 100));
+        await tester.enterText(_composerField, 'Привет!');
+        await tester.pump(const Duration(milliseconds: 100));
 
-      expect(_sendEnabled(tester), isFalse);
-      expect(port.recipients, isEmpty);
-    });
+        expect(_sendEnabled(tester), isTrue);
+        await tester.tap(_sendButton);
+        for (var i = 0; i < 10; i++) {
+          await tester.pump(const Duration(milliseconds: 50));
+        }
+        expect(port.recipients, [<String>{}]);
+      },
+    );
   });
 
   group('deep link /post/new', () {
@@ -399,17 +405,23 @@ void main() {
       ]);
     });
 
-    testWidgets('without a query opens an empty recipient list', (
-      tester,
-    ) async {
-      final port = await _pumpDeepLink(tester, kPathPostNew);
+    testWidgets(
+      'without a query opens an empty recipient list, but ➤ still publishes '
+      'to no one',
+      (tester) async {
+        final port = await _pumpDeepLink(tester, kPathPostNew);
 
-      expect(find.byType(PostCreateScreen), findsOneWidget);
-      await tester.enterText(_composerField, 'Привет!');
-      await tester.pump(const Duration(milliseconds: 100));
-      expect(_sendEnabled(tester), isFalse);
-      expect(port.recipients, isEmpty);
-    });
+        expect(find.byType(PostCreateScreen), findsOneWidget);
+        await tester.enterText(_composerField, 'Привет!');
+        await tester.pump(const Duration(milliseconds: 100));
+        expect(_sendEnabled(tester), isTrue);
+        await tester.tap(_sendButton);
+        for (var i = 0; i < 10; i++) {
+          await tester.pump(const Duration(milliseconds: 50));
+        }
+        expect(port.recipients, [<String>{}]);
+      },
+    );
 
     test('is registered in the app router at kPathPostNew', () {
       final source = File('lib/app/router/root_router.dart').readAsStringSync();

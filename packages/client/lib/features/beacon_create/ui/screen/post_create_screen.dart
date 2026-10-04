@@ -201,8 +201,7 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
                       imageRepository: GetIt.I<ImageRepository>(),
                       clipboardImageRepository:
                           GetIt.I<ClipboardImageRepository>(),
-                      composerSendEnabled:
-                          _hasContent && forward.selectedIds.isNotEmpty,
+                      composerSendEnabled: _hasContent,
                       onComposerContentChanged: _onContentChanged,
                       emptyPlaceholder: Center(
                         child: Padding(

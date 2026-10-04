@@ -1190,9 +1190,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   }) async {
     final postCase = _postPublishCase;
     final recipientIds = forwardCubit.state.selectedIds;
-    if (postCase == null ||
-        recipientIds.isEmpty ||
-        (body.trim().isEmpty && attachments.isEmpty)) {
+    if (postCase == null || (body.trim().isEmpty && attachments.isEmpty)) {
       return false;
     }
     emit(state.copyWith(status: StateStatus.isLoading));

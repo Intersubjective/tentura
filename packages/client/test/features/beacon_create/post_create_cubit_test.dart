@@ -413,26 +413,28 @@ void main() {
       );
     });
 
-    test('refuses to publish without recipients', () async {
-      final nobody = _forwardCubit(
-        effects,
-        selected: const {},
-        notes: const {},
-      );
-      addTearDown(nobody.close);
+    test(
+      'publishes without recipients — visible only to the author',
+      () async {
+        final nobody = _forwardCubit(
+          effects,
+          selected: const {},
+          notes: const {},
+        );
+        addTearDown(nobody.close);
 
-      final sent = await cubit.publishPost(
-        body: 'Кто в субботу на велопрогулку?',
-        mentions: const [],
-        forwardCubit: nobody,
-        forwardPolicy: BeaconForwardPolicyValue.open,
-        attachments: [_file('a.png')],
-      );
+        final sent = await cubit.publishPost(
+          body: 'Кто в субботу на велопрогулку?',
+          mentions: const [],
+          forwardCubit: nobody,
+          forwardPolicy: BeaconForwardPolicyValue.open,
+          attachments: [_file('a.png')],
+        );
 
-      expect(sent, isFalse);
-      expect(port.publishCalls, isEmpty);
-      expect(write.createdFields, isEmpty);
-    });
+        expect(sent, isTrue);
+        expect(port.publishCalls.single.recipientIds, isEmpty);
+      },
+    );
 
     test('a failed publish leaves the draft and the composer usable', () async {
       port.publishErrors.add(Exception('network down'));

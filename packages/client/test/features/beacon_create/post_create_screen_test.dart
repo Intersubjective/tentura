@@ -1,8 +1,10 @@
 // «Новый пост» is an empty room: ✕ + «Новый пост», a «Кому» row that opens the
 // recipient picker on the shared ForwardCubit, the «Можно пересылать» switch
 // (on by default), an empty-room hint and the room composer. ➤ stays disabled
-// until there is a recipient and text or an attachment; closing an untouched screen makes no
-// server call, closing one with content asks «Удалить черновик?» first.
+// until there is text or an attachment; recipients are optional — a Post sent
+// without any stays visible only to its author. Closing an untouched screen
+// makes no server call, closing one with content asks «Удалить черновик?»
+// first.
 // UI copy is asserted verbatim in Russian (docs/plans/post-ux-mockups.md, M3).
 
 import 'dart:typed_data';
@@ -416,18 +418,24 @@ void main() {
       expect(_sendEnabled(tester), isFalse);
     });
 
-    testWidgets('is disabled with text but without recipients', (tester) async {
-      final h = await _pumpPostCreate(tester);
+    testWidgets(
+      'is enabled with text but without recipients, and publishes to no one',
+      (tester) async {
+        final h = await _pumpPostCreate(tester);
 
-      await tester.enterText(_composerField, 'Кто в субботу на велопрогулку?');
-      await _settle(tester);
+        await tester.enterText(
+          _composerField,
+          'Кто в субботу на велопрогулку?',
+        );
+        await _settle(tester);
 
-      expect(_sendEnabled(tester), isFalse);
-      await tester.tap(_sendButton, warnIfMissed: false);
-      await _settle(tester);
-      expect(h.port.bodies, isEmpty);
-      expect(h.write.createdFields, isEmpty);
-    });
+        expect(_sendEnabled(tester), isTrue);
+        await tester.tap(_sendButton);
+        await _settle(tester);
+        expect(h.port.bodies, ['Кто в субботу на велопрогулку?']);
+        expect(h.port.recipients.single, isEmpty);
+      },
+    );
 
     testWidgets('is enabled with recipients and text, and publishes once', (
       tester,
@@ -458,17 +466,22 @@ void main() {
       expect(h.port.bodies, isEmpty);
     });
 
-    testWidgets('is disabled with an attachment but without recipients', (
-      tester,
-    ) async {
-      final h = await _pumpPostCreate(tester);
+    testWidgets(
+      'is enabled with an attachment but without recipients, and publishes '
+      'to no one',
+      (tester) async {
+        final h = await _pumpPostCreate(tester);
 
-      await _pastePhoto(tester);
+        await _pastePhoto(tester);
 
-      expect(_sendEnabled(tester), isFalse);
-      expect(h.port.bodies, isEmpty);
-      expect(h.write.createdFields, isEmpty);
-    });
+        expect(_sendEnabled(tester), isTrue);
+        await tester.tap(_sendButton);
+        await _settle(tester);
+
+        expect(h.port.bodies, hasLength(1));
+        expect(h.port.recipients.single, isEmpty);
+      },
+    );
 
     testWidgets(
       'is enabled with recipients and an attachment but no text, and publishes the photo',
