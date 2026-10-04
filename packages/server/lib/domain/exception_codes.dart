@@ -94,6 +94,14 @@ enum BeaconExceptionCode {
   beaconFactCardRemoved, // 1319
   beaconFactCardRateLimited, // 1320
   beaconNotRequest, // 1321
+  batonNotFound, // 1322
+  batonNotAuthor, // 1323
+  batonNotCandidate, // 1324
+  batonNotCollecting, // 1325
+  batonInvalidCandidates, // 1326
+  batonAlreadyActive, // 1327
+  batonTakerNotAvailable, // 1328
+  batonMessageNotEligible, // 1329
 }
 
 class BeaconExceptionCodes extends ExceptionCodes {
