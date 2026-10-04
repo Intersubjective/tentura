@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:auto_route/auto_route.dart' show PageRouteInfo;
 import 'package:flutter/material.dart';
 
@@ -12,35 +14,30 @@ import '../bloc/constellation_composer_cubit.dart';
 
 /// Recipient controls of the graph composer: «Получат · n», chips with ×, and
 /// «Списком ›». The radius itself is controlled on the canvas (the composer
-/// circle's rim handle), not here.
+/// circle's rim handle), not here. There is no inline send: the single
+/// trailing button hands off to the full create screen (Post or Request)
+/// with these recipients already selected; anchoring the result at the drop
+/// point is a separate, manual step afterward (drag the new node once it
+/// appears, same as any other beacon on the field).
 ///
 /// A bottom sheet on narrow layouts, a side panel on wide ones.
 class ConstellationComposerSheet extends StatelessWidget {
   const ConstellationComposerSheet({
     required this.composer,
     required this.onOpenFullForm,
-    this.onSend,
     super.key,
   });
 
   final ConstellationComposerCubit composer;
 
-  /// Receives the full-form route for «Подробнее».
+  /// Receives the full-form route.
   final ValueChanged<PageRouteInfo> onOpenFullForm;
-
-  /// Publishes a Post with the typed body; without it the sheet only holds
-  /// the recipient controls.
-  final Future<void> Function(String body)? onSend;
 
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
     final wide = context.windowClass == WindowClass.expanded;
-    final body = _SheetBody(
-      composer: composer,
-      onOpenFullForm: onOpenFullForm,
-      onSend: onSend,
-    );
+    final body = _SheetBody(composer: composer, onOpenFullForm: onOpenFullForm);
     if (wide) {
       return Align(
         alignment: Alignment.centerRight,
@@ -66,34 +63,18 @@ class ConstellationComposerSheet extends StatelessWidget {
 }
 
 class _SheetBody extends StatefulWidget {
-  const _SheetBody({
-    required this.composer,
-    required this.onOpenFullForm,
-    this.onSend,
-  });
+  const _SheetBody({required this.composer, required this.onOpenFullForm});
 
   final ConstellationComposerCubit composer;
 
   final ValueChanged<PageRouteInfo> onOpenFullForm;
-
-  final Future<void> Function(String body)? onSend;
 
   @override
   State<_SheetBody> createState() => _SheetBodyState();
 }
 
 class _SheetBodyState extends State<_SheetBody> {
-  final _bodyController = TextEditingController();
-
   bool _listOpen = false;
-
-  bool _sending = false;
-
-  @override
-  void dispose() {
-    _bodyController.dispose();
-    super.dispose();
-  }
 
   ConstellationComposerCubit get composer => widget.composer;
 
@@ -126,15 +107,15 @@ class _SheetBodyState extends State<_SheetBody> {
                     onPressed: _toggleList,
                     child: Text(l10n.constellationComposerList),
                   ),
-                  // A Post sends inline from this sheet; «Подробнее» only
-                  // makes sense for a Request, which has no inline send and
-                  // must continue into the full form.
-                  if (composer.kind != BeaconKind.post)
-                    TextButton(
-                      key: const Key('constellation.composer.details_button'),
-                      onPressed: _openFullForm,
-                      child: Text(l10n.constellationComposerDetails),
+                  TextButton(
+                    key: const Key('constellation.composer.details_button'),
+                    onPressed: _openFullForm,
+                    child: Text(
+                      composer.kind == BeaconKind.post
+                          ? l10n.constellationComposerCreate
+                          : l10n.constellationComposerDetails,
                     ),
+                  ),
                 ],
               ),
               if (!_listOpen)
@@ -156,25 +137,6 @@ class _SheetBodyState extends State<_SheetBody> {
                   ],
                 ),
               if (_listOpen) _list(context),
-              if (widget.onSend != null) ...[
-                TextField(
-                  key: const Key('constellation.composer.body_field'),
-                  controller: _bodyController,
-                  minLines: 1,
-                  maxLines: 4,
-                  decoration: InputDecoration(
-                    hintText: l10n.postCreateEmptyHint,
-                  ),
-                ),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: FilledButton(
-                    key: const Key('constellation.composer.send_button'),
-                    onPressed: _sending ? null : _send,
-                    child: Text(l10n.buttonPublish),
-                  ),
-                ),
-              ],
             ],
           ),
         );
@@ -192,16 +154,13 @@ class _SheetBodyState extends State<_SheetBody> {
 
   void _openFullForm() {
     final handoff = composer.fullFormHandoff();
-    if (handoff != null) widget.onOpenFullForm(handoff.toRoute());
-  }
-
-  Future<void> _send() async {
-    setState(() => _sending = true);
-    try {
-      await widget.onSend!(_bodyController.text);
-    } finally {
-      if (mounted) setState(() => _sending = false);
+    if (handoff == null) return;
+    // A Post has no draft continuity into its full screen — close the
+    // composer so the circle/sheet do not linger over an abandoned draft.
+    if (composer.kind == BeaconKind.post) {
+      unawaited(composer.finish());
     }
+    widget.onOpenFullForm(handoff.toRoute());
   }
 
   void _toggleList() {

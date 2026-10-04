@@ -9,11 +9,13 @@
 import 'dart:async';
 import 'dart:ui' show Offset;
 
+import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:mockito/mockito.dart';
 
+import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/invitation_entity.dart';
@@ -133,6 +135,8 @@ void main() {
 
   tearDown(() async {
     await composer.close();
+    // A Post hand-off already closes its ForwardCubit via composer.finish()
+    // — ForwardCubit.close() is a no-op when already closed.
     for (final f in forwards) {
       await f.close();
     }
@@ -264,25 +268,69 @@ void main() {
     });
   });
 
-  group('composer sheet «Подробнее» button', () {
-    testWidgets('is hidden for a Post — it sends inline from this sheet', (
-      tester,
-    ) async {
-      await startPost(tester);
-      await pumpSheet(tester, size: narrow);
-
-      expect(find.byKey(_detailsButton), findsNothing);
-    });
-
+  group('composer sheet full-form hand-off button', () {
     testWidgets(
-      'is shown for a Request — it has no inline send, only the full form',
+      'for a Post: labeled «Создать», opens PostCreateRoute with the '
+      'current selection, and closes the composer',
       (tester) async {
-        composer.start(BeaconKind.request, Offset.zero);
-        await pumpSheet(tester, size: narrow);
+        final opened = <PageRouteInfo>[];
+        await startPost(tester);
+        tester.view
+          ..physicalSize = narrow
+          ..devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        await tester.pumpWidget(
+          MaterialApp(
+            locale: const Locale('en'),
+            theme: TenturaTheme.light(),
+            localizationsDelegates: L10n.localizationsDelegates,
+            supportedLocales: L10n.supportedLocales,
+            home: TenturaResponsiveScope(
+              child: MultiBlocProvider(
+                providers: [
+                  BlocProvider<ConstellationComposerCubit>.value(
+                    value: composer,
+                  ),
+                  BlocProvider<ProfileCubit>.value(value: _MockProfileCubit()),
+                ],
+                child: Scaffold(
+                  body: ConstellationComposerSheet(
+                    composer: composer,
+                    onOpenFullForm: opened.add,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final l10n = lookupL10n(const Locale('en'));
+        expect(find.text(l10n.constellationComposerCreate), findsOneWidget);
+        final selectedBefore = composer.selection.selected;
 
-        expect(find.byKey(_detailsButton), findsOneWidget);
+        await tester.tap(find.byKey(_detailsButton));
+        await tester.pump();
+
+        final route = opened.single;
+        expect(route, isA<PostCreateRoute>());
+        final args = route.args! as PostCreateRouteArgs;
+        expect(args.initialRecipientIds, selectedBefore);
+        expect(
+          composer.createCubit,
+          isNull,
+          reason: 'a Post hand-off closes the composer — no draft continuity',
+        );
       },
     );
+
+    testWidgets('for a Request: labeled «Подробнее»', (tester) async {
+      composer.start(BeaconKind.request, Offset.zero);
+      await pumpSheet(tester, size: narrow);
+
+      final l10n = lookupL10n(const Locale('en'));
+      expect(find.byKey(_detailsButton), findsOneWidget);
+      expect(find.text(l10n.constellationComposerDetails), findsOneWidget);
+    });
   });
 
   group('composer sheet layout', () {

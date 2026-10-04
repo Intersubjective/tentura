@@ -634,20 +634,6 @@ class _ConstellationBodyState extends State<ConstellationBody> {
     );
   }
 
-  Future<void> _sendComposerPost(
-    ConstellationComposerCubit composer,
-    String body,
-  ) async {
-    await composer.contentChanged();
-    final anchorCase = GetIt.I<ConstellationAnchorCase>();
-    final outcome = await composer.sendPost(
-      body: body,
-      anchorCase: anchorCase,
-      generation: anchorCase.lifecycleToken,
-    );
-    if (outcome.published) await composer.finish();
-  }
-
   Widget _buildGraphStack(
     BuildContext context,
     ConstellationCubit cubit,
@@ -893,7 +879,6 @@ class _ConstellationBodyState extends State<ConstellationBody> {
                       composer: composer,
                       onOpenFullForm: (route) =>
                           unawaited(context.router.push(route)),
-                      onSend: (body) => _sendComposerPost(composer, body),
                     ),
                   ),
           ),

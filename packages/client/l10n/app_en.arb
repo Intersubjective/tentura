@@ -7192,7 +7192,11 @@
   },
   "constellationComposerDetails": "Details",
   "@constellationComposerDetails": {
-    "description": "Graph composer button that opens the full create form"
+    "description": "Graph composer button that opens the full Request create form"
+  },
+  "constellationComposerCreate": "Create",
+  "@constellationComposerCreate": {
+    "description": "Graph composer button that opens the full Post create screen with these recipients preselected"
   },
   "constellationComposerRemoveRecipient": "Remove {name}",
   "@constellationComposerRemoveRecipient": {

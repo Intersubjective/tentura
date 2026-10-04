@@ -9,8 +9,8 @@ import 'support/e2e_test_helpers.dart';
 /// `beacon_participant.room_access` of an admitted Post recipient.
 const _roomAccessAdmitted = 3;
 
-/// Scene point where the composer is started (the "drop point"); deliberately
-/// off the canvas centre so a default/fixed anchor position would be caught.
+/// Scene point where the composer is started; arbitrary, off the canvas
+/// centre.
 final _dropPoint = Offset(
   constellationCanvasCentrePoint().x + 160,
   constellationCanvasCentrePoint().y - 120,
@@ -20,8 +20,8 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets(
-    'map composer Post reaches only the remaining recipients and is anchored '
-    'at the drop point',
+    'map composer hands off to the full Post screen, which reaches only the '
+    'remaining recipients',
     (tester) async {
       e2eDrainExceptions = false;
       await launchApp(app.main);
@@ -62,9 +62,16 @@ void main() {
         await removeMapComposerRecipient(tester, bobUserId);
       });
 
+      await runE2eStep(
+        '«Создать» opens the full Post screen with the remaining recipients',
+        () async {
+          await openFullFormFromMapComposer(tester);
+        },
+      );
+
       late String beaconId;
-      await runE2eStep('send the Post from the composer', () async {
-        beaconId = await sendMapComposerPost(tester, body: body);
+      await runE2eStep('send the Post from the full screen', () async {
+        beaconId = await sendPostFromFullForm(tester, body: body);
       });
 
       await runE2eStep('forward edges go only from Alice to the remaining people', () async {
@@ -92,26 +99,6 @@ void main() {
         );
         expect(await accessOf(daveUserId, daveEmail), _roomAccessAdmitted);
         expect(await accessOf(bobUserId, bobEmail), isNull);
-      });
-
-      await runE2eStep('an anchor row sits at the drop point', () async {
-        final anchor = constellationAnchorByTarget(
-          await fetchConstellationAnchors(),
-          targetKind: 'BEACON',
-          targetId: beaconId,
-        );
-        expect(anchor, isNotNull);
-        final expected = constellationPointToV1Anchor(
-          (x: _dropPoint.dx, y: _dropPoint.dy),
-        );
-        expect(
-          (anchor!['xUnits'] as num).toDouble(),
-          closeTo(expected.xUnits, 0.01),
-        );
-        expect(
-          (anchor['yUnits'] as num).toDouble(),
-          closeTo(expected.yUnits, 0.01),
-        );
       });
     },
   );

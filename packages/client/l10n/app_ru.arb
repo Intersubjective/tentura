@@ -6254,6 +6254,7 @@
   "constellationComposerRecipients": "Получат · {count}",
   "constellationComposerList": "Списком ›",
   "constellationComposerDetails": "Подробнее",
+  "constellationComposerCreate": "Создать",
   "constellationComposerRemoveRecipient": "Убрать: {name}",
   "postMenuPin": "Закрепить в разговорах",
   "postMenuUnpin": "Открепить",

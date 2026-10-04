@@ -419,6 +419,10 @@ class ForwardCubit extends Cubit<ForwardState> {
 
   @override
   Future<void> close() async {
+    // A second close() must be a no-op: canceling an already-cancelled
+    // subscription a second time has been observed to hang rather than
+    // resolve (unlike a plain StreamSubscription).
+    if (isClosed) return;
     await _forwardChangesSub?.cancel();
     await _contactChangesSub?.cancel();
     await _blockChangesSub?.cancel();

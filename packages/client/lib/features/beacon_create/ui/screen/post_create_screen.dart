@@ -26,11 +26,15 @@ import '../bloc/beacon_create_cubit.dart';
 class PostCreateScreen extends StatefulWidget implements AutoRouteWrapper {
   const PostCreateScreen({
     @QueryParam(kQueryBeaconForwardTo) this.forwardToUserId = '',
+    this.initialRecipientIds = const <String>{},
     super.key,
   });
 
   /// Optional profile-route recipient to preselect.
   final String forwardToUserId;
+
+  /// Recipients preselected by the map composer's radius selection.
+  final Set<String> initialRecipientIds;
 
   @override
   State<PostCreateScreen> createState() => _PostCreateScreenState();
@@ -43,9 +47,10 @@ class PostCreateScreen extends StatefulWidget implements AutoRouteWrapper {
         create: (_) => ForwardCubit(
           beaconId: '',
           embedded: true,
-          initialSelectedIds: forwardToUserId.isEmpty
-              ? const <String>{}
-              : {forwardToUserId},
+          initialSelectedIds: {
+            ...initialRecipientIds,
+            if (forwardToUserId.isNotEmpty) forwardToUserId,
+          },
         ),
       ),
     ],

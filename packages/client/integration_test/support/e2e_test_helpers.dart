@@ -51,6 +51,7 @@ import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/ui/test_ids.dart';
+import 'package:tentura/ui/widget/basic_chat_body.dart' show BeaconRoomComposer;
 import 'package:tentura/ui/widget/linear_pi_active.dart' show LinearPiActive;
 
 class IntegrationFixture {
@@ -2305,32 +2306,48 @@ Future<void> removeMapComposerRecipient(
   );
 }
 
-/// Types [body] into the composer and taps its send control; returns the id
-/// of the Post it created: the one BEACON anchor that was not there before
-/// the send (the sender may already have other anchored beacons).
-Future<String> sendMapComposerPost(
+/// Taps the composer's hand-off button («Создать»), which closes the map
+/// composer and opens the full Post create screen with the current
+/// recipient selection preselected — there is no inline send from the map
+/// composer itself, and no automatic anchor placement (that is a separate,
+/// manual drag-to-pin step on the resulting node, same as any other beacon).
+Future<void> openFullFormFromMapComposer(WidgetTester tester) => tapAndSettle(
+  tester,
+  find.byKey(const Key('constellation.composer.details_button')),
+);
+
+/// From the full Post create screen (reached via
+/// [openFullFormFromMapComposer]), types [body] and sends; returns the
+/// published Post's beacon id, read back from the post-send navigation URL
+/// (`/beacon/view/<id>`).
+Future<String> sendPostFromFullForm(
   WidgetTester tester, {
   required String body,
 }) async {
-  Future<Set<String>> anchoredBeaconIds() async => {
-    for (final a in await fetchConstellationAnchors())
-      if (a['targetKind'] == 'BEACON') a['targetId']! as String,
-  };
-  final before = await anchoredBeaconIds();
-  final field = find.byKey(const Key('constellation.composer.body_field'));
-  await pumpUntilVisible(tester, field, label: 'composer body field');
+  final field = find.descendant(
+    of: find.byType(BeaconRoomComposer),
+    matching: find.byType(TextField),
+  );
+  await pumpUntilVisible(tester, field, label: 'post create composer field');
   await tester.enterText(field, body);
   await tapAndSettle(
     tester,
-    find.byKey(const Key('constellation.composer.send_button')),
+    find.byKey(TestIds.key(TestIds.roomMessageSend)),
   );
-  String? beaconId;
-  await pumpUntilAsync(tester, () async {
-    final fresh = (await anchoredBeaconIds()).difference(before);
-    beaconId = fresh.length == 1 ? fresh.single : null;
-    return beaconId != null;
-  }, label: 'new Post anchored');
-  return beaconId!;
+  await pumpUntil(
+    tester,
+    () => currentAppUrl().contains(kPathBeaconView),
+    label: 'navigated to the published Post',
+  );
+  final match = RegExp(
+    '$kPathBeaconView/([^/?]+)',
+  ).firstMatch(currentAppUrl());
+  if (match == null) {
+    throw StateError(
+      'could not read the beacon id from ${currentAppUrl()}',
+    );
+  }
+  return match.group(1)!;
 }
 
 /// The `beacon_forward_edge` rows of [beaconId] as `sender->recipient` user

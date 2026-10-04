@@ -1651,6 +1651,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
           ConstellationAnchorTarget.beacon(
             request.id,
           ),
+        FieldBeaconNode(post: final post?) =>
+          ConstellationAnchorTarget.beacon(post.id),
         _ => null,
       };
 
