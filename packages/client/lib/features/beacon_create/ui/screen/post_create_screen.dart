@@ -203,6 +203,11 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
                   ),
                   SwitchListTile(
                     title: Text(l10n.postCreateAllowForwarding),
+                    subtitle: Text(
+                      _forwardable
+                          ? l10n.postCreateForwardingOnHint
+                          : l10n.postCreateForwardingOffHint,
+                    ),
                     value: _forwardable,
                     onChanged: (value) => setState(() => _forwardable = value),
                   ),

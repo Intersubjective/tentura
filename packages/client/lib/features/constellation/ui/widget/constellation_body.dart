@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
@@ -1159,18 +1158,15 @@ class ConstellationEdgePainter
       ..strokeCap = StrokeCap.round
       ..isAntiAlias = true;
 
-    if (dashLength <= 0) {
-      canvas.drawLine(trimmed.$1, trimmed.$2, paint);
-    } else {
-      _drawDashedLine(
-        canvas,
-        trimmed.$1,
-        trimmed.$2,
-        paint,
-        dashLength: dashLength,
-        dashGap: dashGap,
-      );
-    }
+    paintConstellationEdgeStroke(
+      canvas,
+      trimmed.$1,
+      trimmed.$2,
+      paint,
+      dash: dashLength,
+      gap: dashGap,
+      endDots: style.endDots,
+    );
   }
 
   (Offset, Offset) _trim({
@@ -1186,32 +1182,6 @@ class ConstellationEdgePainter
     }
     final direction = delta / length;
     return (src + direction * srcInset, dst - direction * dstInset);
-  }
-
-  void _drawDashedLine(
-    Canvas canvas,
-    Offset src,
-    Offset dst,
-    Paint paint, {
-    required double dashLength,
-    required double dashGap,
-  }) {
-    final delta = dst - src;
-    final length = delta.distance;
-    if (length <= 0) {
-      return;
-    }
-    final direction = delta / length;
-    var travelled = 0.0;
-    while (travelled < length) {
-      final dashEnd = math.min(travelled + dashLength, length);
-      canvas.drawLine(
-        src + direction * travelled,
-        src + direction * dashEnd,
-        paint,
-      );
-      travelled += dashLength + dashGap;
-    }
   }
 }
 

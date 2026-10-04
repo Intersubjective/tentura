@@ -172,6 +172,10 @@ final class _PostsRepository implements PostsRepositoryPort {
 
   @override
   Future<List<PostSummary>> myPosts() async => posts;
+
+  @override
+  Future<PostSummary?> postSummary(String id) async =>
+      posts.where((p) => p.id == id).firstOrNull;
 }
 
 PostSummary _unreadPost(String id, {int unreadCount = 4}) => PostSummary(

@@ -10,6 +10,9 @@ import 'package:tentura/features/inbox/domain/use_case/posts_case.dart';
 final class _EmptyPostsRepository implements PostsRepositoryPort {
   @override
   Future<List<PostSummary>> myPosts() async => const [];
+
+  @override
+  Future<PostSummary?> postSummary(String id) async => null;
 }
 
 /// Supplies the conversation list for Activity screen tests focused on its feed.

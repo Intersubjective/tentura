@@ -6,8 +6,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/graph/data/repository/graph_source_repository.dart';
+import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/edge_directed.dart';
 import 'package:tentura/features/graph/domain/entity/graph_edge_colors.dart';
+import 'package:tentura/features/graph/domain/entity/graph_edge_pattern.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_cubit.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
@@ -1286,6 +1288,65 @@ void main() {
 
       expect(_nodeIds(cubit), contains('Ue'));
       expect(_edgePairs(cubit), contains(('Ub', 'Ue')));
+
+      await cubit.close();
+    },
+  );
+
+  test(
+    'edges carry non-color cues and arrows only on the selected node',
+    () async {
+      final source = _FakeGraphSource()
+        ..pages.addAll({
+          null: {
+            _e('Ume', 'Ub'),
+            _e('Ub', 'Ume'),
+            _e('Ume', 'Uc', weight: -1),
+          },
+          'Ub': {_e('Ub', 'Ue')},
+        });
+      final cubit = _cubit(source)..togglePositiveOnly();
+      await _settle();
+
+      EdgeDetails edge(String a, String b) =>
+          cubit.graphController.edges.singleWhere(
+            (e) =>
+                (e.source.id == a && e.destination.id == b) ||
+                (e.source.id == b && e.destination.id == a),
+          );
+
+      final negative = edge('Ume', 'Uc');
+      expect(negative.pattern, GraphEdgePattern.dashed);
+      expect(negative.crossMark, isTrue);
+      final mutual = edge('Ume', 'Ub');
+      expect(mutual.pattern, GraphEdgePattern.solid);
+      expect(mutual.isReciprocal, isTrue);
+      expect(
+        cubit.graphController.edges.any(
+          (e) => e.arrowAtSource || e.arrowAtDestination,
+        ),
+        isFalse,
+        reason: 'no arrows until a node is selected',
+      );
+
+      cubit.handleNodeTap(_liveNode(cubit, 'Ub'));
+      await _settle();
+
+      final selectedMutual = edge('Ume', 'Ub');
+      expect(selectedMutual.arrowAtSource, isTrue);
+      expect(selectedMutual.arrowAtDestination, isTrue);
+      final oneWay = edge('Ub', 'Ue');
+      expect(oneWay.source.id, 'Ub');
+      expect(oneWay.arrowAtDestination, isTrue);
+      expect(oneWay.arrowAtSource, isFalse);
+      for (final e in cubit.graphController.edges) {
+        final touchesSelected = e.source.id == 'Ub' || e.destination.id == 'Ub';
+        expect(e.arrowAtDestination, touchesSelected);
+      }
+
+      expect(cubit.viewerLink('Ub'), (fromViewer: 1.0, toViewer: 1.0));
+      expect(cubit.viewerLink('Uc'), (fromViewer: -1.0, toViewer: null));
+      expect(cubit.viewerLink('Ue'), isNull);
 
       await cubit.close();
     },

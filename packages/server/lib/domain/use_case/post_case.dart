@@ -52,6 +52,12 @@ class PostCase {
   Future<List<PostSummary>> myPosts(String viewerId) =>
       _beaconRepository.myPosts(viewerId);
 
+  /// One row of [myPosts], for the Post screen.
+  Future<PostSummary?> postSummary({
+    required String viewerId,
+    required String beaconId,
+  }) => _beaconRepository.postSummary(viewerId: viewerId, beaconId: beaconId);
+
   final BeaconCase? _injectedBeaconCase;
 
   /// Resolved lazily: `BeaconCase` is pre-resolved by DI after this case.

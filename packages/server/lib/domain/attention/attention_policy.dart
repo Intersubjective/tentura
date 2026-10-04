@@ -101,7 +101,10 @@ class AttentionPolicy {
     AttentionEventType.promiseWithdrawn ||
     AttentionEventType.commitmentAccepted ||
     AttentionEventType.commitmentResolved ||
-    AttentionEventType.commitmentCancelled =>
+    AttentionEventType.commitmentCancelled ||
+    AttentionEventType.batonAsked ||
+    AttentionEventType.batonTaken ||
+    AttentionEventType.batonAllAnswered =>
       AttentionSuppressionClass.standard,
     AttentionEventType.commitmentRedirected =>
       AttentionSuppressionClass.mandatory,
@@ -141,7 +144,10 @@ class AttentionPolicy {
     AttentionEventType.promiseMade ||
     AttentionEventType.promiseWithdrawn ||
     AttentionEventType.coordinationChanged ||
-    AttentionEventType.commitmentCancelled => NotificationCategory.coordination,
+    AttentionEventType.commitmentCancelled ||
+    AttentionEventType.batonAsked ||
+    AttentionEventType.batonTaken ||
+    AttentionEventType.batonAllAnswered => NotificationCategory.coordination,
     AttentionEventType.deadlineChanged => NotificationCategory.coordination,
     AttentionEventType.deadlineReminder ||
     AttentionEventType.closureOpened ||
@@ -181,7 +187,10 @@ class AttentionPolicy {
     AttentionEventType.commitmentAccepted ||
     AttentionEventType.commitmentResolved ||
     AttentionEventType.commitmentCancelled ||
-    AttentionEventType.commitmentRedirected =>
+    AttentionEventType.commitmentRedirected ||
+    AttentionEventType.batonAsked ||
+    AttentionEventType.batonTaken ||
+    AttentionEventType.batonAllAnswered =>
       AttentionAccessPolicy.beaconContent,
     AttentionEventType.deadlineChanged ||
     AttentionEventType.deadlineReminder ||
@@ -245,7 +254,10 @@ class AttentionPolicy {
         targetEntityId: role.beaconId,
       ),
       AttentionEventType.roomMessagePosted ||
-      AttentionEventType.postFirstResponse => AttentionDestination(
+      AttentionEventType.postFirstResponse ||
+      AttentionEventType.batonAsked ||
+      AttentionEventType.batonTaken ||
+      AttentionEventType.batonAllAnswered => AttentionDestination(
         kind: AttentionDestinationKind.beaconRoomMessage,
         targetEntityId: role.messageId,
       ),
@@ -314,6 +326,9 @@ class AttentionPolicy {
     AttentionEventType.closureFinalized => false,
     AttentionEventType.closureCancelled => false,
     AttentionEventType.requestStale => false,
+    AttentionEventType.batonAsked => false,
+    AttentionEventType.batonTaken => false,
+    AttentionEventType.batonAllAnswered => false,
   };
 
   /// U11 / D16 — the placement of a receipt, decided by the producer.
@@ -448,6 +463,9 @@ class AttentionPolicy {
     AttentionEventType.closureFinalized => 'closure_finalized',
     AttentionEventType.closureCancelled => 'closure_cancelled',
     AttentionEventType.requestStale => 'request_stale',
+    AttentionEventType.batonAsked => 'baton_asked',
+    AttentionEventType.batonTaken => 'baton_taken',
+    AttentionEventType.batonAllAnswered => 'baton_all_answered',
   };
 
   Map<String, Object?> _presentationPayload(
