@@ -33,7 +33,7 @@ Older iterations assumed feed/discovery, comments, contexts, and broad social-ne
 - **Forwarding** matters more than posting.
 - **Coordination state** matters more than discussion volume.
 
-**Approved Post amendment (A1):** the Post + Constellation feature extends this direction to addressed **Posts** as well as Requests. A Post is not public, discoverable, or a feed item. This is the feature contract, not a claim that the feature has shipped; implementation and release gates are in [`plans/post-implementation-steps.md`](plans/post-implementation-steps.md).
+**Post amendment (A1, shipped):** the Post + Constellation feature extends this direction to addressed **Posts** as well as Requests. A Post is not public, discoverable, or a feed item. The feature **has shipped** (release step V: flag on); the full contract and the as-built steps are in [`plans/post-and-constellation-composer-plan.md`](plans/post-and-constellation-composer-plan.md) and [`plans/post-implementation-steps.md`](plans/post-implementation-steps.md).
 
 ## 4. v1 object model
 
@@ -41,7 +41,7 @@ Older iterations assumed feed/discovery, comments, contexts, and broad social-ne
 
 For v1, **beacon** is the only primary object: a request/need/task that can be forwarded, committed to, coordinated in a **discussion** (internally: room), closed, and optionally nested under a parent via `parent_beacon_id`. Nesting is independent of fork **lineage** (`beaconFork` / `lineage_parent_beacon_id`).
 
-Under the approved Post amendment, `beacon` remains the only primary table/entity, with **Request** (`kind = 0`) and **Post** (`kind = 1`). A Post's content is the author's first General room message (the **root message**, `post_root_message_id`), including attachments and mentions; it has no separate title/description. Its workspace is **Chat** / «Чат». An active inbound forward edge admits a Post addressee without helper stake; Request admission remains explicit. Post membership does not create `person_bond` (A7). Post → Request is a one-way, validated in-place conversion, not a new object. Public comments and global 1:1 chat remain out of scope.
+With the shipped Post amendment, `beacon` remains the only primary table/entity, with **Request** (`kind = 0`) and **Post** (`kind = 1`). A Post's content is the author's first General room message (the **root message**, `post_root_message_id`), including attachments and mentions; it has no separate title/description. Its workspace is **Chat** / «Чат». An active inbound forward edge admits a Post addressee without helper stake; Request admission remains explicit. Post membership does not create `person_bond` (A7). Post → Request is a one-way, validated in-place conversion, not a new object. Public comments and global 1:1 chat remain out of scope.
 
 ### 4.2 Explicitly out of scope for v1
 

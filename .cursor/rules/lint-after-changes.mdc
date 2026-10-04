@@ -18,7 +18,14 @@ Rules live under `packages/tentura_lints/lib/src/rules/`; register in `lib/main.
 | `no_cubit_to_data_service_import` | Client `**/ui/bloc/*_cubit.dart`: no `.../data/service/` imports. |
 | `no_map_dynamic_in_use_case_api` | `**/lib/domain/use_case/**/*.dart`: public API must not return `Map<String, dynamic>` / `List<Map<…>>` / bare `dynamic`. |
 | `no_raw_graphql_in_dart` | No inline GraphQL document strings or `gql('…')`; use `.graphql` + generated `*Req`. |
-| `no_inline_font_size` | Client `lib/features/**` + `lib/ui/**`: no numeric literal `TextStyle(fontSize: …)` (use `TextTheme` / `TenturaText`; allow-list `design_system/`, `rating_scatter_view.dart`, `colors_drawer.dart`). |
+| `no_inline_font_size` | Client `lib/features/**` + `lib/ui/**`: no numeric literal `TextStyle(fontSize: …)` (use `TextTheme` / `TenturaText`; allow-list `design_system/`, `rating_scatter_view.dart`, `colors_drawer.dart` — the latter is a code-level allowance for a file that no longer exists). |
 | `cubit_requires_use_case_for_multi_repos` | Client `packages/client/.../ui/bloc/*_cubit.dart`: ≥2 repo params ⇒ must inject a `*Case`. |
+| `no_operational_raw_color` | Client `features/beacon_view/`, `features/my_work/`, `features/inbox/`: no `Colors.*` / `Color(0x…)` (use `context.tt` tokens). |
+| `no_operational_raw_text_style` | Same scope: no ad-hoc `TextStyle(…)` (use `TenturaText.*`). |
+| `no_raw_edge_insets` | Client feature / shared UI: no `EdgeInsets*` from raw numeric literals (use `context.tt` density tokens / `TenturaSpacing.*`; `EdgeInsets.zero` is fine). |
+| `no_raw_border_radius` | Client feature / shared UI: no `BorderRadius`/`Radius` from raw numerics (use `context.tt.cardRadius` / `buttonRadius` / `TenturaRadii.*`). |
+| `no_operational_pill_widgets_in_beacon_view` | `features/beacon_view`: no `Chip`/`Badge`/`SegmentedButton` family (use `TenturaStatusText`, `TenturaTypeLabel`, `TenturaUnderlineTabs`). |
+| `use_tentura_top_bar` | Feature / shared UI app bars must use the design-system top bar; plain `AppBar`/`SliverAppBar` only for immersive overlays on an allow-list. |
+| `no_request_domain_entity` | No parallel `Request` domain types — Beacon stays the internal entity. |
 
 **Baselines:** existing debt uses `// TODO(contract): Phase-2 DTO migration — …` plus `// ignore: tentura_lints/<rule>` until Phase 2 DTO work removes them.

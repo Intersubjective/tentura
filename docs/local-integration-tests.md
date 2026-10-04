@@ -42,9 +42,17 @@ Core lifecycle scenarios (each runs in its own `flutter drive` process; the runn
 |---|---|
 | `request_lifecycle_create_forward_inbox_test.dart` | create a request, publish, forward to a helper, confirm it reaches their inbox |
 | `request_lifecycle_offer_admit_chat_test.dart` | offer help → admission → helper creates and publishes a child from the parent Discussion → parent link and Active card → helper closes child from My Work → Finished card while parent stays open → General chat → participation removal |
-| `request_lifecycle_close_review_test.dart` | close a request (wrap-up-for-review) and complete the contribution review |
-| `request_lifecycle_review_trust_control_test.dart` | post-close review two-step trust control: save validation gates (category → intensity → reason), trust-impact preview, saved status on the participant list |
 | `first_run_orientation_test.dart` | first-run orientation panel shown/hidden matrix: dismiss persistence, debug override, activation latch, per-user keys |
+| `closure_episode_e2e_test.dart` | episode-closure journeys (author + three helpers on one published request); setup via QA closure-fixture helper |
+| `fact_pin_edit_quote_test.dart` | two accounts: pin a message as a fact → other edits it → history sheet shows both versions → quote → "Changed since quoted" without reload |
+| `request_lifecycle_beacon_cover_test.dart` | resolved request identity: capabilities, photo/symbol preference, canonical promotion, same identity in My Desk and Inbox |
+| `request_detail_back_navigation_web_test.dart` | web: browser Back leaves the request instead of stepping through surfaces (own file — one `launchApp` per file) |
+| `request_threads_navigation_test.dart` | request detail → General thread navigation (inferred from file name; no header comment) |
+| `tab_attention_forced_background_test.dart` | forced-background tab-attention adapter: indicator persists after the tab becomes visible, only the unread count clears it |
+| `post_leave_and_return_journey_test.dart` | Post participant leave/return (`room_access` 5 then 3) |
+| `map_composer_remove_recipient_anchor_test.dart` | Constellation map composer: removing a recipient and its anchor |
+| `constellation_pinning_test.dart` | Constellation person/request pinning (inferred from file name; no header comment) |
+| `graph_navigation_hops_test.dart` | graph navigation hop expansion (inferred from file name; no header comment) |
 
 Shared helpers: `integration_test/support/e2e_test_helpers.dart`.
 Publish/forward checkpoints cover draft persistence, recipient selection, enabled submit, note confirmation, publication, delivery confirmation, and navigation. The shared helper uses `forwardRecipientCheckbox(userId)` and immediately asserts that the tap changed selection. An authenticated repository read verifies the UI-created Request is published. Confirmation must report delivery to the fixture helper; the lifecycle test then signs in as that helper and opens the Request from Inbox. Timeout diagnostics include draft ID, loading state, validation blocker, selected recipients, and delivery outcome.

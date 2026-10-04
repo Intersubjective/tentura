@@ -396,7 +396,9 @@ Future<void> _pumpSurface(
   addTearDown(() async {
     await tester.pumpWidget(const SizedBox());
     await tester.pump();
-    await threadHost.close().timeout(const Duration(seconds: 5), onTimeout: () {});
+    final closing = threadHost.close();
+    await tester.pump();
+    await closing;
   });
   final general = RequestThread(
     threadId: RequestThread.generalId,
@@ -749,9 +751,11 @@ void main() {
         'Request actions', (tester) async {
       final host = _FakeRoomHost()
         ..capabilities = const RoomCapabilities.post();
-      addTearDown(
-        () => host.close().timeout(const Duration(seconds: 5), onTimeout: () {}),
-      );
+      addTearDown(() async {
+        final closing = host.close();
+        await tester.pump();
+        await closing;
+      });
       await _pumpSurface(tester, host: host, roomState: nowState);
 
       expect(
@@ -768,9 +772,11 @@ void main() {
         'Request actions', (tester) async {
       final host = _FakeRoomHost()
         ..capabilities = const RoomCapabilities.request();
-      addTearDown(
-        () => host.close().timeout(const Duration(seconds: 5), onTimeout: () {}),
-      );
+      addTearDown(() async {
+        final closing = host.close();
+        await tester.pump();
+        await closing;
+      });
       await _pumpSurface(tester, host: host, roomState: nowState);
 
       expect(
@@ -787,9 +793,11 @@ void main() {
     ) async {
       final host = _FakeRoomHost()
         ..capabilities = const RoomCapabilities.post();
-      addTearDown(
-        () => host.close().timeout(const Duration(seconds: 5), onTimeout: () {}),
-      );
+      addTearDown(() async {
+        final closing = host.close();
+        await tester.pump();
+        await closing;
+      });
       await _pumpSurface(tester, host: host, roomState: nowState);
       expect(
         find.textContaining(_nowLine, findRichText: true),
@@ -829,8 +837,9 @@ void main() {
       addTearDown(() async {
         await tester.pumpWidget(const SizedBox());
         await tester.pump();
-        await threadHost.close().timeout(const Duration(seconds: 5), onTimeout: () {});
-        await host.close().timeout(const Duration(seconds: 5), onTimeout: () {});
+        final closing = [threadHost.close(), host.close()];
+        await tester.pump();
+        await Future.wait(closing);
       });
 
       await tester.pumpWidget(

@@ -43,13 +43,18 @@ Short pointers for agents — read only what your task needs.
 | [`plans/constellation-edge-semantics.md`](plans/constellation-edge-semantics.md) | Constellation architecture: ego-centred map of the reachable field of active requests — widened symmetric discoverability read wall, two-tier path algorithm (§5, `ALG-*` clauses), normative for product decisions D1–D17 and UX1–UX10 |
 | [`plans/constellation-implementation-plan.md`](plans/constellation-implementation-plan.md) | Constellation execution plan: 21 ordered units, frozen contracts (§0), migrations m0160–m0163 — mechanical implementation complete; pending overseer UX acceptance (UX9); see [`constellation-implementation-journal.md`](plans/constellation-implementation-journal.md) |
 | [`plans/constellation-pinning-plan.md`](plans/constellation-pinning-plan.md) | Constellation pinning: account-owned person/request placement, private realtime convergence, Map/Text controls, and release gates; repository activation is ready for coordinated deployment |
-| [`plans/nested-requests-architecture.md`](plans/nested-requests-architecture.md) | Nested requests replacing ask/promise/blocker item threads; General-only product with retained backend thread machinery — architectural proposal, implemented (see journal) |
+| [`plans/nested-requests-implementation-journal.md`](plans/nested-requests-implementation-journal.md) | Nested requests replacing ask/promise/blocker item threads; General-only product with retained (`DORMANT(item-threads)`) backend thread machinery — **implemented**; the standalone architecture doc was never committed, so the journal + implementation plan are the record |
 | [`plans/nested-requests-implementation-plan.md`](plans/nested-requests-implementation-plan.md) | Detailed nested-request execution plan: adopted visibility/notice defaults, domain/API/storage contracts, 16 ordered tasks, retirement and verification gates — implemented; see [`nested-requests-implementation-journal.md`](plans/nested-requests-implementation-journal.md) for acceptance evidence |
-| [`plans/availability-request-receptiveness-architecture.md`](plans/availability-request-receptiveness-architecture.md) | Availability / request-receptiveness signal (profile + Forward) — architecture rev 3, awaiting sign-off (reviews: [grok](plans/availability-review-grok46.md), [kimi](plans/availability-review-kimik3.md), [codex](plans/availability-review-codex.md)) |
-| [`plans/issue-110-forward-explicit-architecture.md`](plans/issue-110-forward-explicit-architecture.md) | Explicit forwarding UX (#110): note coverage, stay-on-send, Watching confirm, `allowsForward` gate — architecture rev 1 |
+| [`plans/availability-request-receptiveness-implementation-journal.md`](plans/availability-request-receptiveness-implementation-journal.md) | Availability / request-receptiveness signal (profile + Forward) — implementation journal (the architecture and review documents it cites were never committed) |
+| [`plans/issue-110-forward-explicit-implementation-journal.md`](plans/issue-110-forward-explicit-implementation-journal.md) | Explicit forwarding UX (#110): note coverage, stay-on-send, Watching confirm, `allowsForward` gate — implementation journal (architecture doc never committed) |
 | [`plans/issue-97-invite-identity-plan.md`](plans/issue-97-invite-identity-plan.md) | Invite identity + canonical name (#97) — private nickname, dual-purpose People invite, Updates origin |
 | [`plans/request-centric-attention-plan.md`](plans/request-centric-attention-plan.md) | Request-centric attention execution plan (rev 3): clearing ritual, obligation lifecycle, sweep, 19 ordered units — product contract lives in [`features/request-attention.md`](features/request-attention.md) |
 | [`plans/request-centric-attention-implementation-plan.md`](plans/request-centric-attention-implementation-plan.md) | Executable manifest for the above: frozen names (§0), executor rules (§1), units U01–U19 with acceptance and gates — U01 complete, see [journal](plans/request-centric-attention-implementation-journal.md) |
+| [`plans/post-and-constellation-composer-plan.md`](plans/post-and-constellation-composer-plan.md) · [`post-implementation-steps.md`](plans/post-implementation-steps.md) | Post (`beacon.kind = 1`) + Constellation map composer — **shipped** (release step V: flag on); contract summarised in `Tentura_current_status_quo.md` §3–4. Companions: [`post-ux-mockups.md`](plans/post-ux-mockups.md), [`post-request-closure-social-design.md`](plans/post-request-closure-social-design.md) |
+| [`plans/episode-closure-architecture.md`](plans/episode-closure-architecture.md) · [`episode-closure-implementation-plan.md`](plans/episode-closure-implementation-plan.md) | Episode closure (closure schema m0203+, `features/closure`, closure GraphQL) — code is in `main`; the plan headers still read "draft", treat the code and `docs/beacon-evaluation-principles.md` as authoritative |
+| [`plans/work-activity-redesign-plan.md`](plans/work-activity-redesign-plan.md) | My desk vs Activity split — shipped; cited by `CONTEXT.md` |
+| [`plans/noisy-contact-sanctions-design.md`](plans/noisy-contact-sanctions-design.md) · [`journal`](plans/noisy-contact-sanctions-journal.md) | Noisy-contact sanctions — merged, **off by default** |
+| [`plans/user-block-design.md`](plans/user-block-design.md) · [`journal`](plans/user-block-implementation-journal.md) | User block — implemented; feature spec: [`features/user-block.md`](features/user-block.md) |
 | [`plans/beacon-cross-screen-invalidation-refactor.md`](plans/beacon-cross-screen-invalidation-refactor.md) | Sync My Work/Inbox after local room mutations |
 | [`plans/beacon-location-google-maps-plan.md`](plans/beacon-location-google-maps-plan.md) | Google Maps picker + external Maps hand-off |
 | [`plans/google-maps-server-proxy-plan.md`](plans/google-maps-server-proxy-plan.md) | Server-side Geocoding/Places proxy |
@@ -78,7 +83,8 @@ Short pointers for agents — read only what your task needs.
 | [`tentura-design-system.md`](tentura-design-system.md) | Flutter UI tokens, typography, layout, M3 patterns |
 | [`beacon-ontology-icon-mapping.md`](beacon-ontology-icon-mapping.md) | Ontology leaf → `Icons.*_rounded` catalog |
 | [`client-ui-inventory.md`](client-ui-inventory.md) | Screens, routes, dialogs — **regenerate before trusting** |
-| [`test-coverage-misses.md`](test-coverage-misses.md) | COV-* test backlog for agents claiming coverage work |
+| [`test-audit.md`](test-audit.md) | Test-suite redundancy / slowness audit, tooling (`scripts/test_audit/`), review queue, policy for new tests |
+| [`test-coverage-misses.md`](test-coverage-misses.md) | Historical COV-* backlog (closed 2026-06) — not a todo list |
 | [`realtime-sync-operations.md`](realtime-sync-operations.md) | Realtime contract, dashboards/log queries, alerts |
 | [`local-integration-tests.md`](local-integration-tests.md) | Local integration test harness |
 | [`production-deploy.md`](production-deploy.md) | Production deploy runbook |
@@ -106,6 +112,7 @@ Done and superseded plans live under [`archive/plans/`](archive/plans/) (e.g. co
 
 ## Maintenance
 
+- `plans/` also holds many journals, reviews and older plans that are not individually indexed above; a plan header saying "draft" does **not** mean unimplemented — verify against code before trusting it, and move finished ones to the archive when you touch them.
 - New implementation plans go in [`plans/`](plans/). When done or superseded, move to [`archive/plans/`](archive/plans/), update this index, and fix inbound path citations.
 - QA/analysis/review snapshots go in [`audits/`](audits/).
 - Prefer this index + status quo over grep hits for retired paths in old branches.

@@ -177,7 +177,7 @@ See `advanced-patterns.mdc` for `RemoteRepository`, `StateBase`, and `StateStatu
 - **UI layer**: Test BLoC with mocked use cases/repositories
 - **Integration**: Test use case + repository together
 - **Client CI**: Run `flutter test --dart-define=ENV=test` so injectable resolves test-environment repository mocks
-- **Shared fixtures:** Prefer `packages/client/lib/data/repository/mock/data/` for reusable empty GraphQL-shaped / typed stubs consumed by tests or mocks (avoid copy-pasted `{}` maps)
+- **Shared fixtures:** Put shared stubs under `packages/client/test/` support/fixture files (the former `lib/data/repository/mock/data/` was removed as dead code); use them for reusable empty GraphQL-shaped / typed stubs consumed by tests or mocks (avoid copy-pasted `{}` maps)
 
 ## Server GraphQL (`graphql_schema2`) & library workarounds
 

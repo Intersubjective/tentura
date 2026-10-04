@@ -4,7 +4,7 @@ Coordination product for **Requests** (internally: **Beacons**), request **discu
 
 ## Terminology
 
-**Approved Post vocabulary and behavior (A1–A2, A7):** the following Post contracts belong to the [Post + Constellation plan](docs/plans/post-and-constellation-composer-plan.md); this amendment does not assert release completion.
+**Post vocabulary and behavior (A1–A2, A7, shipped):** the following Post contracts come from the [Post + Constellation plan](docs/plans/post-and-constellation-composer-plan.md); the feature is released (flag on).
 
 **Post** / **Пост** (internally: `beacon`, `kind = 1`) is an addressed conversation, never public or discoverable. **Request** / «запрос» remains `beacon.kind = 0`; no parallel Post table, entity, or route is introduced. A Post's **Chat** / «Чат» is its General-only room; its **root message** is the author's first room message, referenced by `post_root_message_id`.
 
@@ -14,7 +14,7 @@ Coordination product for **Requests** (internally: **Beacons**), request **discu
 
 | Layer | Primary object | Coordination workspace | Home nav branch (offers to you) |
 |-------|----------------|------------------------|---------------------------------------|
-| **User-facing** (UI, push, landing, l10n values) | **Request** / **Requests**; **Post** / **Posts** (approved feature) | **discussion** | **Activity** / «Активность» |
+| **User-facing** (UI, push, landing, l10n values) | **Request** / **Requests**; **Post** / **Posts** | **discussion** | **Activity** / «Активность» |
 | **Internal** (code, DB, GraphQL, routes, technical docs) | **Beacon** / `beacon` | room / `beacon_room` | `inbox` |
 
 **Request (internally: Beacon)** is a help need that can be forwarded, committed to, coordinated, and closed. **Discussion (internally: room)** is the private coordination workspace on a request — the collective space you are admitted to. On request detail the **Chat** tab (`labelBeaconTabChat` / «Чат») is the short tab-label form of that workspace; **discussion** / **обсуждение** remains the general noun elsewhere. One conversation inside it is a **thread** / **тема**; the built-in thread is **General** / **Общее** (the only public conversation on each request). Retired ask/promise/blocker coordination-item threads are no longer a product surface; nested child requests replaced that model (see **Beacon nesting** below).
@@ -126,7 +126,7 @@ _Avoid_: treating a beacon id/URL as a read capability; using MeritRank score or
 
 **Shared context** (hierarchy observer access, issue #146):
 Membership (level ≤1) on request N grants observer read on every immediate child of N and every ancestor of N, via `contextChild` / `contextAncestor` in `beacon_can_read_content` / `BeaconAccessPolicy`. Context observers may apply, forward, invite, and fork like other level-2 viewers (D2); they do not get discussion, Plan, or involvement visibility unless separately admitted or involved. They **do** see admitted helpers (content-audience right). Grants last while membership on N holds (D5, D6); blocks override (D8). **Co-participant bond:** two members of the same open-family or `reviewOpen` request are mutually visible as people (`person_bond` / server `person_visibility`) until the request leaves that window or membership ends (D3); the bond never feeds discoverability or D11 — only trust visibility does (D4).
-The approved Post amendment restricts co-participant bonds and shared-context membership to Requests (`kind = 0`); Post membership is excluded (A7).
+The shipped Post amendment restricts co-participant bonds and shared-context membership to Requests (`kind = 0`); Post membership is excluded (A7).
 _Avoid_: treating parentage as admission; expecting discovery to open because you worked together on another request.
 
 **Involvement visibility** (who can see WHO is involved):
@@ -206,7 +206,7 @@ Participation truth for help offers is stored in append-only **`beacon_commitmen
 | **B. Current stake** | Who is actively in the work now | Reversible (withdraw, release, re-acknowledge) |
 | **C. Historical truth** | "The author acknowledged this person's contribution" | Append-only (`everAcknowledged`) |
 
-Pure predicates (`everAcknowledged`, `currentStakeState`, `hasCurrentStake`) derive gates and review composition from event history. Clients also read a denormalized **`stake_state`** projection on `beacon_help_offer` for display only — it is **never** an input for gates. **Request admission invariant:** non-author, non-steward discussion access is granted only together with an acknowledging author response (`useful` / `needCoordination`); stewards are a deliberate exception with room access but no committer stake. The approved Post amendment adds forward-admitted addressees and preserves their stake-free access after conversion (see **Post addressee** above). Full event kinds, grace algorithm, and implementation phases: [`docs/plans/commitment-truth-rework-plan.md`](docs/plans/commitment-truth-rework-plan.md).
+Pure predicates (`everAcknowledged`, `currentStakeState`, `hasCurrentStake`) derive gates and review composition from event history. Clients also read a denormalized **`stake_state`** projection on `beacon_help_offer` for display only — it is **never** an input for gates. **Request admission invariant:** non-author, non-steward discussion access is granted only together with an acknowledging author response (`useful` / `needCoordination`); stewards are a deliberate exception with room access but no committer stake. The shipped Post amendment adds forward-admitted addressees and preserves their stake-free access after conversion (see **Post addressee** above). Full event kinds, grace algorithm, and implementation phases: [`docs/archive/plans/commitment-truth-rework-plan.md`](docs/archive/plans/commitment-truth-rework-plan.md).
 
 ## My desk (My Work)
 
