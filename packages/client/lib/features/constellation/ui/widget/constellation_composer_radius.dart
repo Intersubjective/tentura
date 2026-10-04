@@ -73,13 +73,18 @@ class _CirclePainter extends CustomPainter {
       old.strokeWidth != strokeWidth;
 }
 
-/// Draggable handle on the rim of the composer circle, in viewport space.
+/// Draggable handle on the rim of the composer circle, in viewport space, and
+/// the whole-circle drag that moves the draft itself.
 ///
-/// Sits on the left of the rim, or on the right when that would leave the
-/// viewport. A press within the handle's radius, tested against the current
-/// selection, claims the gesture at once so the canvas does not pan; dragging
-/// sets the radius to the pointer's scene distance from the circle centre.
-/// Other pointers fall through to the canvas.
+/// The handle sits on the left of the rim, or on the right when that would
+/// leave the viewport. A press within the handle's radius, tested against
+/// the current selection, claims the gesture at once so the canvas does not
+/// pan; dragging sets the radius to the pointer's scene distance from the
+/// circle centre. A press anywhere else inside the circle instead moves the
+/// draft centre (and with it the eventual anchor point) via
+/// `ConstellationComposerCubit.moveDraft` — the handle keeps priority where
+/// the two hit areas overlap, at the handle's own position. Pointers outside
+/// the circle fall through to the canvas.
 class ConstellationComposerHandle extends StatelessWidget {
   const ConstellationComposerHandle({
     required this.composer,
@@ -109,6 +114,9 @@ class ConstellationComposerHandle extends StatelessWidget {
     return RawGestureDetector(
       behavior: HitTestBehavior.translucent,
       gestures: {
+        // Declared first: wins the arena over the center-drag recognizer
+        // below when a press lands on the handle itself (see §sweep order
+        // in GestureArenaManager — the first member to accept wins).
         _HandleDragRecognizer:
             GestureRecognizerFactoryWithHandlers<_HandleDragRecognizer>(
               _HandleDragRecognizer.new,
@@ -120,6 +128,28 @@ class ConstellationComposerHandle extends StatelessWidget {
                   (controller.viewportLocalToScene(local) -
                           composer.selection.center)
                       .distance,
+                )),
+            ),
+        // A press anywhere else inside the circle moves the whole draft.
+        // Explicitly excludes the handle's own hit area rather than relying
+        // on arena sweep order: a press at the exact rim distance would
+        // otherwise satisfy both recognizers' hit tests.
+        _CenterDragRecognizer:
+            GestureRecognizerFactoryWithHandlers<_CenterDragRecognizer>(
+              _CenterDragRecognizer.new,
+              (recognizer) => recognizer
+                ..hits = ((local) {
+                  if (composer.createCubit == null) return false;
+                  if ((local - _handleAt(hit)).distance <= hit / 2) {
+                    return false;
+                  }
+                  final selection = composer.selection;
+                  final scenePoint = controller.viewportLocalToScene(local);
+                  return (scenePoint - selection.center).distance <=
+                      selection.radius;
+                })
+                ..onDrag = ((local) => composer.moveDraft(
+                  controller.viewportLocalToScene(local),
                 )),
             ),
       },
@@ -188,4 +218,35 @@ class _HandleDragRecognizer extends OneSequenceGestureRecognizer {
 
   @override
   String get debugDescription => 'composer radius handle drag';
+}
+
+/// Wins the arena on a press inside the composer circle (outside the radius
+/// handle's own hit area), then reports every move as the new draft centre.
+class _CenterDragRecognizer extends OneSequenceGestureRecognizer {
+  late bool Function(Offset local) hits;
+  late void Function(Offset local) onDrag;
+
+  @override
+  void addAllowedPointer(PointerDownEvent event) {
+    if (!hits(event.localPosition)) {
+      return;
+    }
+    startTrackingPointer(event.pointer, event.transform);
+    resolve(GestureDisposition.accepted);
+  }
+
+  @override
+  void handleEvent(PointerEvent event) {
+    if (event is PointerMoveEvent) {
+      onDrag(event.localPosition);
+    } else if (event is PointerUpEvent || event is PointerCancelEvent) {
+      stopTrackingPointer(event.pointer);
+    }
+  }
+
+  @override
+  void didStopTrackingLastPointer(int pointer) {}
+
+  @override
+  String get debugDescription => 'composer draft centre drag';
 }
