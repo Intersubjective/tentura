@@ -928,6 +928,14 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
             widget.enableParticipantMentions) {
       _scheduleOverlaySync();
     }
+    // Picking a reply target (overflow menu, hover button) means the user is
+    // about to type; put the caret in the field.
+    final target = widget.replyTarget;
+    if (target != null &&
+        target.id != oldWidget.replyTarget?.id &&
+        widget.readOnlyHint == null) {
+      requestComposerFocus();
+    }
   }
 
   void _onTextChanged() {
