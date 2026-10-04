@@ -165,6 +165,7 @@ class Env {
     Duration? trustSweepRetry,
     int? trustSweepBatchSize,
     Duration? trustSweepTimeBudget,
+    bool? trustNoisyWallEnabled,
 
     // User presence (WS offline delay; env CHAT_OFFLINE_DELAY)
     Duration? chatStatusOfflineAfterDelay,
@@ -438,6 +439,9 @@ class Env {
              minutes:
                  int.tryParse(_env['TRUST_SWEEP_TIME_BUDGET_MINUTES'] ?? '') ?? 5,
            ),
+       trustNoisyWallEnabled =
+           trustNoisyWallEnabled ??
+           _env['TRUST_NOISY_WALL_ENABLED']?.trim().toLowerCase() == 'true',
 
        chatStatusOfflineAfterDelay =
            chatStatusOfflineAfterDelay ??
@@ -784,6 +788,11 @@ class Env {
   final int trustSweepBatchSize;
 
   final Duration trustSweepTimeBudget;
+
+  /// Publishes the noisy-contact wall to MeritRank. Off by default: noisy
+  /// evidence is still recorded, the projection just ignores it. Written to
+  /// `trust_config.noisy_wall_enabled` on boot (m0216). Ban walls are separate.
+  final bool trustNoisyWallEnabled;
 
   final Duration chatStatusOfflineAfterDelay;
 

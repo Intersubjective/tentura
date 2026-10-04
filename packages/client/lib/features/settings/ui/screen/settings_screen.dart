@@ -11,6 +11,7 @@ import 'package:tentura/features/profile/ui/dialog/my_profile_delete.dart';
 
 import '../bloc/settings_cubit.dart';
 import '../widget/language_switch_button.dart';
+import '../widget/noisy_wall_tile.dart';
 import '../widget/reset_counters_button.dart';
 import '../widget/theme_switch_button.dart';
 import 'package:tentura/features/home/ui/widget/home_rail_frame.dart';
@@ -162,6 +163,7 @@ class _SettingsCommandList extends StatelessWidget {
                   title: l10n.settingsRoutingMute,
                   onTap: () => context.router.push(const RoutingMuteRoute()),
                 ),
+                const NoisyWallTile(),
               ],
             ),
             TenturaMenuGroup(

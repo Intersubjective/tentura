@@ -13,6 +13,7 @@ import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import 'settings_reset_counters_support.dart';
+import 'noisy_wall_screen_support.dart';
 
 class _FakeAuthCubit extends Fake implements AuthCubit {
   @override
@@ -52,6 +53,8 @@ void main() {
     }
 
     addTearDown(registerReconcilePortForScreenTest());
+
+    addTearDown(registerNoisyWallForScreenTest());
 
     final router = RootRouter(
       Logger('test'),

@@ -207,6 +207,11 @@ VALUES ('Tb4noisy$n', '$owner', '$walled', 7, $n, 'b4:noisy:$n', now())
       await writer.execute('SET check_function_bodies = false');
       await writer.execute('CREATE EXTENSION IF NOT EXISTS pgmer2');
       await migrateDbSchema(writer);
+      // m0216 ships the noisy wall off; these invariants use noisy walls.
+      await writer.execute(
+        "UPDATE public.trust_config SET value = 'true' "
+        "WHERE key = 'noisy_wall_enabled'",
+      );
       db = TenturaDb(target.databaseEnv);
       blockRepo = UserBlockRepository(target.databaseEnv, db);
       publishRepo = TrustPublishRepository(db);

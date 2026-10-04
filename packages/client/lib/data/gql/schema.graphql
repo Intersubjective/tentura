@@ -4054,6 +4054,7 @@ type mutation_root {
   seedRoutingAttestation(slugs: [String!], subjectId: String!): Boolean!
   setBeaconStatus(id: String!, status: Int!): v2_BeaconStatusResult!
   setCoordinationResponse(id: String!, inviteToRoom: Boolean! = false, offerUserId: String!, removeFromRoom: Boolean! = false, responseType: Int!): v2_BeaconStatusResult!
+  setNoisyWallEnabled(enabled: Boolean!): Boolean!
   setRoutingMute(muted: Boolean!, slug: String!): Boolean!
   signIn(authRequestToken: String!): v2_AuthResponse!
   signOut: Boolean!
@@ -5358,6 +5359,7 @@ type query_root {
     where: mutual_score_bool_exp
   ): [mutual_score!]!
   myPosts: [v2_PostSummary!]!
+  noisyWallEnabled: Boolean!
   notificationPreferences: v2_NotificationPreferences!
   personCapabilityCues(subjectUserId: String!): v2_v2_PersonCapabilityCuesPayload!
   personFriendContextBatch(subjectUserIds: [String!]): [v2_v2_PersonFriendContext!]

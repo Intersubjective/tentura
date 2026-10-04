@@ -344,6 +344,8 @@ class _V2RoutingLink extends Link {
     'SeedRoutingAttestation',
     'RevokeAcknowledgement',
     'SetRoutingMute',
+    'NoisyWallEnabled',
+    'SetNoisyWallEnabled',
     'InviteSeedPromptState',
     'InvitePromptStates',
     'InviteSeedPromptAnswer',
