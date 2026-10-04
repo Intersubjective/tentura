@@ -422,6 +422,11 @@ JOIN public.beacon_fact_card_revision r
       viewerUserId: viewerUserId,
     );
 
+    final batonDataJsonByMid = await _batonDataJsonByMessageIds(
+      messageIds: ids,
+      viewerUserId: viewerUserId,
+    );
+
     final linkedItemIds = <String>{
       for (final m in msgs)
         if ((m.linkedItemId ?? '').isNotEmpty) m.linkedItemId!,
@@ -539,6 +544,7 @@ JOIN public.beacon_fact_card_revision r
               .toIso8601String(),
         },
         'pollDataJson': pollDataJsonByMid[id],
+        'batonDataJson': batonDataJsonByMid[id],
         'systemPayloadJson': encodeSystemPayload(m.systemPayload),
         'authorTitle': displayName,
         'authorHasPicture': authorHasPicture,
@@ -588,6 +594,164 @@ JOIN public.beacon_fact_card_revision r
       limit: 1,
     );
     return rows.isEmpty ? null : rows.first;
+  }
+
+  /// Per-viewer «Who'll take it?» payload (plan §1.4); absent key = `null`.
+  Future<Map<String, String?>> _batonDataJsonByMessageIds({
+    required List<String> messageIds,
+    required String viewerUserId,
+  }) async {
+    if (messageIds.isEmpty) return {};
+    final batonRows = await _db
+        .customSelect(
+          r'''
+SELECT b.id, b.message_id, b.author_id, b.status::integer AS status,
+       b.taker_id, b.selection_mode::integer AS selection_mode
+FROM public.beacon_room_baton b
+WHERE b.message_id = ANY($1::text[])
+''',
+          variables: [Variable(TypedValue(Type.textArray, messageIds))],
+        )
+        .get();
+    if (batonRows.isEmpty) return {};
+
+    final batonIds = [for (final r in batonRows) r.read<String>('id')];
+    final candidateRows = await _db
+        .customSelect(
+          r'''
+SELECT baton_id, user_id, tier::integer AS tier,
+       response::integer AS response, responded_at
+FROM public.beacon_room_baton_candidate
+WHERE baton_id = ANY($1::text[])
+ORDER BY tier, user_id
+''',
+          variables: [Variable(TypedValue(Type.textArray, batonIds))],
+        )
+        .get();
+    final candidatesByBatonId = <String, List<QueryRow>>{};
+    for (final r in candidateRows) {
+      candidatesByBatonId
+          .putIfAbsent(r.read<String>('baton_id'), () => [])
+          .add(r);
+    }
+
+    final titleUserIds = <String>{
+      for (final r in batonRows)
+        if (r.readNullable<String>('taker_id') case final String id) id,
+      for (final r in batonRows)
+        if (r.read<String>('author_id') == viewerUserId)
+          for (final c
+              in candidatesByBatonId[r.read<String>('id')] ??
+                  const <QueryRow>[])
+            c.read<String>('user_id'),
+    }.toList();
+    final titleById = <String, String>{};
+    if (titleUserIds.isNotEmpty) {
+      final users = await _db.managers.users
+          .filter((u) => u.id.isIn(titleUserIds))
+          .get();
+      for (final u in users) {
+        titleById[u.id] = u.displayName;
+      }
+    }
+
+    String? isoOrNull(QueryRow row, String column) {
+      final v = row.data[column];
+      if (v == null) return null;
+      if (v is DateTime) return v.toUtc().toIso8601String();
+      return DateTime.tryParse(v.toString())?.toUtc().toIso8601String();
+    }
+
+    String responseName(int v) => switch (v) {
+      1 => 'can_help',
+      2 => 'cant_help',
+      _ => 'waiting',
+    };
+
+    final out = <String, String?>{};
+    for (final b in batonRows) {
+      final batonId = b.read<String>('id');
+      final status = b.read<int>('status');
+      final statusName = switch (status) {
+        1 => 'taken',
+        2 => 'cancelled',
+        _ => 'collecting',
+      };
+      final takerId = b.readNullable<String>('taker_id');
+      final taken = status == 1 && takerId != null;
+      Map<String, Object?> taker() => {
+        'id': takerId,
+        'title': titleById[takerId] ?? '',
+      };
+      final candidates = candidatesByBatonId[batonId] ?? const <QueryRow>[];
+      Map<String, Object?>? payload;
+
+      if (b.read<String>('author_id') == viewerUserId) {
+        if (status != 2) {
+          payload = {
+            'id': batonId,
+            'status': statusName,
+            'viewerRole': 'author',
+            'candidates': [
+              for (final c in candidates)
+                {
+                  'userId': c.read<String>('user_id'),
+                  'title': titleById[c.read<String>('user_id')] ?? '',
+                  'tier': c.read<int>('tier'),
+                  'response': responseName(c.read<int>('response')),
+                  'respondedAt': isoOrNull(c, 'responded_at'),
+                },
+            ],
+            'allAnswered': candidates.every(
+              (c) => c.read<int>('response') != 0,
+            ),
+            'eligibleCount': candidates
+                .where((c) => c.read<int>('response') == 1)
+                .length,
+            if (taken) ...{
+              'taker': taker(),
+              'selectionMode': b.readNullable<int>('selection_mode') == 2
+                  ? 'manual'
+                  : 'auto',
+            },
+          };
+        }
+      } else {
+        QueryRow? mine;
+        for (final c in candidates) {
+          if (c.read<String>('user_id') == viewerUserId) mine = c;
+        }
+        if (mine != null) {
+          final myResponse = mine.read<int>('response');
+          final outcome = status == 0
+              ? null
+              : takerId == viewerUserId
+              ? 'you'
+              : status == 1 && myResponse == 1
+              ? 'someoneElse'
+              : 'closed';
+          payload = {
+            'id': batonId,
+            'status': statusName,
+            'viewerRole': 'candidate',
+            if (status != 2) 'myResponse': responseName(myResponse),
+            'outcome': ?outcome,
+            if (outcome == 'you') 'taker': taker(),
+          };
+        } else if (taken) {
+          payload = {
+            'id': batonId,
+            'status': statusName,
+            'viewerRole': 'observer',
+            'taker': taker(),
+          };
+        }
+      }
+      if (payload != null) {
+        out[b.read<String>('message_id')] = jsonEncode(payload);
+      }
+    }
+    return out;
   }
 
   Future<Map<String, String?>> _pollDataJsonByMessageIds({
