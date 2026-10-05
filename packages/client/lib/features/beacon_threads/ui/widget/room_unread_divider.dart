@@ -24,27 +24,31 @@ class RoomUnreadDivider extends StatelessWidget {
             Expanded(
               child: Divider(color: scheme.primary.withValues(alpha: 0.35)),
             ),
-            Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: context.tt.screenHPadding,
-              ),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(TenturaRadii.avatar),
-                  border: Border.all(
-                    color: scheme.primary.withValues(alpha: 0.45),
-                  ),
+            // Flexible so the chip ellipsizes instead of overflowing on a
+            // narrow phone with large text.
+            Flexible(
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: context.tt.screenHPadding,
                 ),
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: context.tt.screenHPadding,
-                    vertical: context.tt.iconTextGap,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(TenturaRadii.avatar),
+                    border: Border.all(
+                      color: scheme.primary.withValues(alpha: 0.45),
+                    ),
                   ),
-                  child: Text(
-                    chipText,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TenturaText.tabLabel(scheme.primary),
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: context.tt.screenHPadding,
+                      vertical: context.tt.iconTextGap,
+                    ),
+                    child: Text(
+                      chipText,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TenturaText.tabLabel(scheme.primary),
+                    ),
                   ),
                 ),
               ),

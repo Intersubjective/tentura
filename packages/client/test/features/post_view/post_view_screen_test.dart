@@ -702,9 +702,7 @@ void main() {
         surface: const Size(320, 700),
         textScale: 1.6,
       );
-      // The room behind the sheet is not under test here (its unread divider
-      // does not fit this width either).
-      tester.takeException();
+      expect(tester.takeException(), isNull);
       await _openInfo(tester);
 
       expect(tester.takeException(), isNull);
