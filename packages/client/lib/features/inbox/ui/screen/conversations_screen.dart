@@ -160,7 +160,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
         actions: [
           if (canCreatePost)
             IconButton(
-              icon: const Icon(Icons.edit_outlined),
+              icon: const Icon(Icons.add),
               tooltip: l10n.postsTabNewPost,
               onPressed: () => context.read<ScreenCubit>().showPostCreate(),
             ),

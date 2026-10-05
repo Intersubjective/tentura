@@ -101,7 +101,7 @@ Future<void> _pumpFriendsAppBarActions(
 void main() {
   group('FriendsAppBarActions', () {
     testWidgets(
-      'shows Graph, Create invitation, and More at 320px without overflow',
+      'shows Graph, Create invitation, Scan and More at 320px without overflow',
       (
         tester,
       ) async {
@@ -122,13 +122,13 @@ void main() {
         expect(find.byTooltip('Graph'), findsOneWidget);
         expect(find.byTooltip('Create invitation'), findsOneWidget);
         expect(find.byTooltip('More'), findsOneWidget);
-        expect(find.byTooltip('Scan invite code'), findsNothing);
+        expect(find.byTooltip('Scan invite code'), findsOneWidget);
         expect(find.text('Blocked people'), findsNothing);
         expect(tester.takeException(), isNull);
       },
     );
 
-    testWidgets('More menu lists Scan invite code then Blocked people', (
+    testWidgets('More menu lists Blocked people; scanning is in the bar', (
       tester,
     ) async {
       await _pumpFriendsAppBarActions(
@@ -142,15 +142,8 @@ void main() {
       await tester.tap(find.byKey(TestIds.key(TestIds.friendsMore)));
       await tester.pumpAndSettle();
 
-      expect(find.byTooltip('Scan invite code'), findsNothing);
-      expect(find.text('Scan invite code'), findsOneWidget);
+      expect(find.text('Scan invite code'), findsNothing);
       expect(find.text('Blocked people'), findsOneWidget);
-
-      final scanFinder = find.text('Scan invite code');
-      final blockedFinder = find.text('Blocked people');
-      final scanY = tester.getTopLeft(scanFinder).dy;
-      final blockedY = tester.getTopLeft(blockedFinder).dy;
-      expect(scanY, lessThan(blockedY));
     });
 
     testWidgets('trust info button opens trust info sheet', (tester) async {
@@ -202,9 +195,7 @@ void main() {
       await tester.pump();
       expect(createTaps, 1);
 
-      await tester.tap(find.byKey(TestIds.key(TestIds.friendsMore)));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Scan invite code'));
+      await tester.tap(find.byTooltip('Scan invite code'));
       await tester.pump();
       expect(scanTaps, 1);
       expect(blockedTaps, 0);

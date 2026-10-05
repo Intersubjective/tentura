@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/features/home/ui/widget/home_account_avatar_button.dart';
 import 'package:tentura/app/router/root_router.dart';
-import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
@@ -30,11 +29,7 @@ import '../widget/my_work_empty_body.dart';
 
 @RoutePage()
 class MyWorkScreen extends StatefulWidget implements AutoRouteWrapper {
-  const MyWorkScreen({this.canCreatePost, super.key});
-
-  /// Whether «+» offers a Post as well as a Request; defaults to
-  /// [kPostsEnabled].
-  final bool? canCreatePost;
+  const MyWorkScreen({super.key});
 
   @override
   Widget wrappedRoute(BuildContext context) => this;
@@ -59,30 +54,12 @@ class _MyWorkScreenState extends State<MyWorkScreen> {
     final useExpandedPane = context.windowClass == WindowClass.expanded;
     final useCompactTopBar = context.windowClass == WindowClass.compact;
     final tt = context.tt;
-    final createButton = (widget.canCreatePost ?? kPostsEnabled)
-        ? PopupMenuButton<VoidCallback>(
-            tooltip: l10n.newBeacon,
-            icon: const Icon(Icons.add),
-            onSelected: (open) => open(),
-            itemBuilder: (_) {
-              final screen = context.read<ScreenCubit>();
-              return [
-                PopupMenuItem(
-                  value: screen.showPostCreate,
-                  child: Text(l10n.postCreateMenuPost),
-                ),
-                PopupMenuItem(
-                  value: screen.showBeaconCreate,
-                  child: Text(l10n.postCreateMenuRequest),
-                ),
-              ];
-            },
-          )
-        : IconButton(
-            tooltip: l10n.newBeacon,
-            onPressed: () => context.read<ScreenCubit>().showBeaconCreate(),
-            icon: const Icon(Icons.add),
-          );
+    // Work is about Requests: «+» starts one. Posts start from Posts' «+».
+    final createButton = IconButton(
+      tooltip: l10n.newBeacon,
+      onPressed: () => context.read<ScreenCubit>().showBeaconCreate(),
+      icon: const Icon(Icons.add),
+    );
     return BlocListener<HomeTabReselectCubit, HomeTabReselectState>(
       listenWhen: (prev, curr) =>
           prev.myWorkReselectCount != curr.myWorkReselectCount,

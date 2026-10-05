@@ -335,10 +335,7 @@ Future<FakeUiEffectPort> _pumpConversations(
   return base.effects;
 }
 
-Future<FakeUiEffectPort> _pumpMyWork(
-  WidgetTester tester, {
-  bool? canCreatePost,
-}) async {
+Future<FakeUiEffectPort> _pumpMyWork(WidgetTester tester) async {
   final base = await _baseHarness(tester);
   GetIt.I
     ..registerSingleton<BeaconRepository>(FakeBeaconRepository())
@@ -393,9 +390,7 @@ Future<FakeUiEffectPort> _pumpMyWork(
         ),
         BlocProvider<ScreenCubit>(create: (_) => ScreenCubit(base.effects)),
       ],
-      screen: canCreatePost == null
-          ? const MyWorkScreen()
-          : MyWorkScreen(canCreatePost: canCreatePost),
+      screen: const MyWorkScreen(),
     ),
   );
   await _settle(tester);
@@ -407,8 +402,10 @@ Future<FakeUiEffectPort> _pumpMyWork(
 
 Finder get _topBar => find.byType(TenturaTopBar);
 
-Finder get _conversationsNewPost =>
-    find.descendant(of: _topBar, matching: find.byTooltip('Новый пост'));
+Finder get _conversationsNewPost => find.descendant(
+  of: _topBar,
+  matching: find.widgetWithIcon(IconButton, Icons.add),
+);
 
 Finder get _myWorkPlus =>
     find.descendant(of: _topBar, matching: find.byIcon(Icons.add));
@@ -427,7 +424,7 @@ void main() {
       expect(_conversationsNewPost, findsNothing);
     });
 
-    testWidgets('✎ opens the Post create route when Posts are enabled', (
+    testWidgets('«+» opens the Post create route when Posts are enabled', (
       tester,
     ) async {
       final effects = await _pumpConversations(tester, canCreatePost: true);
@@ -441,42 +438,17 @@ void main() {
   });
 
   group('My Work «+»', () {
-    testWidgets('creates a Request directly while Posts are disabled', (
+    // Work is about Requests; Posts start from Posts' own «+».
+    testWidgets('creates a Request directly, with no Post choice', (
       tester,
     ) async {
-      final effects = await _pumpMyWork(tester, canCreatePost: false);
+      final effects = await _pumpMyWork(tester);
 
       await tester.tap(_myWorkPlus);
       await _settle(tester);
 
       expect(find.text('Пост'), findsNothing);
       expect(_pushed(effects), [kPathBeaconNew]);
-    });
-
-    testWidgets('offers «Пост» and «Запрос» when Posts are enabled', (
-      tester,
-    ) async {
-      final effects = await _pumpMyWork(tester, canCreatePost: true);
-
-      await tester.tap(_myWorkPlus);
-      await _settle(tester);
-      expect(find.text('Пост'), findsOneWidget);
-      expect(find.text('Запрос'), findsOneWidget);
-      expect(
-        _pushed(effects),
-        isEmpty,
-        reason: 'opening the menu navigates nowhere',
-      );
-
-      await tester.tap(find.text('Пост'));
-      await _settle(tester);
-      expect(_pushed(effects), [kPathPostNew]);
-
-      await tester.tap(_myWorkPlus);
-      await _settle(tester);
-      await tester.tap(find.text('Запрос'));
-      await _settle(tester);
-      expect(_pushed(effects), [kPathPostNew, kPathBeaconNew]);
     });
   });
 }

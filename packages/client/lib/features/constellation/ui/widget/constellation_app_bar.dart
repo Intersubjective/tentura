@@ -104,7 +104,7 @@ class ConstellationAppBarRow extends StatelessWidget {
               PopupMenuButton<BeaconKind>(
                 key: const Key('constellation.app_bar.create_here'),
                 tooltip: l10n.constellationCreateHere,
-                icon: const Icon(Icons.add_circle_outline),
+                icon: const Icon(Icons.add),
                 popUpAnimationStyle: AnimationStyle.noAnimation,
                 itemBuilder: (_) => constellationCreateMenuItems(l10n),
                 onSelected: (kind) {

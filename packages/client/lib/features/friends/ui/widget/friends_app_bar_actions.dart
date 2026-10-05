@@ -5,7 +5,8 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/trust_info_sheet.dart';
 
-/// People top-bar actions: Graph, Create invitation, and More (QR, Blocked).
+/// People top-bar actions: Graph, Create invitation, Scan invite code, and
+/// More (Blocked; trust info on compact bars).
 class FriendsAppBarActions extends StatelessWidget {
   const FriendsAppBarActions({
     required this.onGraph,
@@ -16,8 +17,7 @@ class FriendsAppBarActions extends StatelessWidget {
     super.key,
   });
 
-  /// Compact bars keep three icons plus ⋮ (Material's app-bar limit); the
-  /// trust explainer moves into ⋮.
+  /// Compact bars cannot fit every icon: the trust explainer moves into ⋮.
   final bool compact;
 
   final VoidCallback onGraph;
@@ -62,6 +62,16 @@ class FriendsAppBarActions extends StatelessWidget {
             padding: EdgeInsets.zero,
             constraints: touchTarget,
           ),
+        // Scanning an invite code is how people join each other: a
+        // first-class action, not a menu entry.
+        IconButton(
+          key: const Key('friends.app_bar.scan_invite'),
+          tooltip: l10n.friendsScanInviteCode,
+          onPressed: onScanInvitationQr,
+          icon: const Icon(Icons.qr_code_scanner),
+          padding: EdgeInsets.zero,
+          constraints: touchTarget,
+        ),
         PopupMenuButton<String>(
           key: TestIds.key(TestIds.friendsMore),
           icon: const Icon(Icons.more_vert),
@@ -70,8 +80,6 @@ class FriendsAppBarActions extends StatelessWidget {
           constraints: touchTarget,
           onSelected: (value) {
             switch (value) {
-              case 'scan':
-                onScanInvitationQr();
               case 'blocked':
                 onBlockedPeople();
               case 'trust':
@@ -95,20 +103,6 @@ class FriendsAppBarActions extends StatelessWidget {
                   ],
                 ),
               ),
-            PopupMenuItem<String>(
-              value: 'scan',
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.qr_code_scanner,
-                    size: tt.iconSize,
-                    color: Theme.of(menuContext).colorScheme.onSurface,
-                  ),
-                  SizedBox(width: tt.rowGap),
-                  Text(l10n.friendsScanInviteCode),
-                ],
-              ),
-            ),
             PopupMenuItem<String>(
               value: 'blocked',
               child: Row(
