@@ -305,9 +305,9 @@ void main() {
       expect(find.text(_actionLabel), findsNothing);
     });
 
-    testWidgets('is off unless the feature flag is injected', (tester) async {
-      // Default flag (`kBatonEnabled`) ships disabled; the widget must read it
-      // rather than hard-code `true`.
+    testWidgets('is offered by the released default feature flag', (tester) async {
+      // The released default enables the action without a test override.
+      // The explicit disabled override is checked separately above.
       final profileCubit = _MockProfileCubit(_viewer);
       final roomCubit = _MockRoomCubit(
         RoomState(
@@ -347,7 +347,7 @@ void main() {
       await openActionsByLongPress(tester);
 
       expect(find.byType(BottomSheet), findsOneWidget);
-      expect(find.text(_actionLabel), findsNothing);
+      expect(find.text(_actionLabel), findsOneWidget);
     });
 
     testWidgets('is not offered on a semantic (system) message', (

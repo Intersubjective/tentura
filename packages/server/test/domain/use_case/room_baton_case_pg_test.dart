@@ -144,6 +144,29 @@ ORDER BY user_id
       expect(await _receiptRecipients(writer, 'batonAsked'), [_candA]);
     });
 
+    for (final (beaconId, messageId) in [
+      (_request, _requestMessage),
+      (_post, _postMessage),
+    ]) {
+      test('author without participant row can create on $beaconId', () async {
+        await writer.execute('''
+DELETE FROM public.beacon_participant
+WHERE beacon_id = '$beaconId' AND user_id = '$_author'
+''');
+
+        final baton = await batonCase.create(
+          actorId: _author,
+          messageId: messageId,
+          candidates: [(userId: _candA, tier: 1)],
+        );
+
+        expect(baton.beaconId, beaconId);
+        expect(baton.authorId, _author);
+        expect(baton.status, BatonStatus.collecting);
+        expect(await _receiptRecipients(writer, 'batonAsked'), [_candA]);
+      });
+    }
+
     test('create on someone else\'s message is rejected without rows', () async {
       await expectLater(
         batonCase.create(

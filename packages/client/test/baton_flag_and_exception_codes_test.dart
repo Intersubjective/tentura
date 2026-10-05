@@ -4,8 +4,8 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/features/beacon_threads/domain/exception/baton_exceptions.dart';
 
 void main() {
-  test('baton start action is gated off by default', () {
-    expect(kBatonEnabled, isFalse);
+  test('baton start action is enabled for release', () {
+    expect(kBatonEnabled, isTrue);
   });
 
   group('baton exception codes mirror the server', () {

@@ -56,10 +56,20 @@ class RoomBatonCase extends UseCaseBase {
     return {for (final p in admitted) p.userId};
   }
 
+  /// Mirrors `BeaconRoomCase._canUseRoom`: the author and stewards always
+  /// have room access regardless of their `beacon_participant` row, which an
+  /// admitted-only check (the baton's actual candidate-eligibility rule)
+  /// would wrongly reject the author/steward for.
   Future<bool> _isAdmitted({
     required String beaconId,
     required String userId,
   }) async {
+    if (await _room.isBeaconAuthor(beaconId: beaconId, userId: userId)) {
+      return true;
+    }
+    if (await _room.isBeaconSteward(beaconId: beaconId, userId: userId)) {
+      return true;
+    }
     final participant = await _room.findParticipant(
       beaconId: beaconId,
       userId: userId,
