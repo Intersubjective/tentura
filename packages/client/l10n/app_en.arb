@@ -8837,5 +8837,112 @@
   "planLineFallback": "Plan changed",
   "@planLineFallback": {
     "description": "Chat line with an unreadable payload."
+  },
+  "planReceiptStepDue": "Your step has started",
+  "@planReceiptStepDue": {
+    "description": "Activity row: the viewer's plan step has started."
+  },
+  "planReceiptStepTurn": "Your turn: the previous step is done",
+  "@planReceiptStepTurn": {
+    "description": "Activity row: the step before the viewer's untimed step is done."
+  },
+  "planReceiptChangePending": "Your step changed",
+  "@planReceiptChangePending": {
+    "description": "Activity row: someone changed the viewer's plan step; awaits «Got it»."
+  },
+  "planReceiptStepReminder": "Your step starts soon",
+  "@planReceiptStepReminder": {
+    "description": "Activity row: reminder before the viewer's step starts (no clock time)."
+  },
+  "planReceiptStepOverdue": "Your step is overdue",
+  "@planReceiptStepOverdue": {
+    "description": "Activity row: the viewer's step is past its end."
+  },
+  "planReceiptStepLate": "A step is running late",
+  "@planReceiptStepLate": {
+    "description": "Activity row (author): a step is running late."
+  },
+  "planReceiptCantMake": "Can't make it",
+  "@planReceiptCantMake": {
+    "description": "Activity row (author): an assignee can't make their step; the row prefixes the name."
+  },
+  "planReceiptStepUnassigned": "A step has no assignee",
+  "@planReceiptStepUnassigned": {
+    "description": "Activity row (author): a step lost its assignee or started without one."
+  },
+  "planReceiptEdited": "Changed the plan",
+  "@planReceiptEdited": {
+    "description": "Activity row: someone changed the plan; the row prefixes the name."
+  },
+  "planReceiptStepDone": "Step done",
+  "@planReceiptStepDone": {
+    "description": "Activity row: a plan step was marked done."
+  },
+  "planCantMakeChatPrefill": "› Step {n}: {title} — can't make it: ",
+  "@planCantMakeChatPrefill": {
+    "description": "Composer text put in by «Can't make it → Write in the discussion»; the person writes after it.",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      },
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "planCopyTitle": "Copy plan",
+  "@planCopyTitle": {
+    "description": "Title of the sheet shown before a Request with a plan is copied."
+  },
+  "planCopyHeader": "PLAN · {count, plural, one{{count} step} other{{count} steps}}",
+  "@planCopyHeader": {
+    "description": "Copy sheet: the toggle that copies the plan, with its step count.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planCopyStartLabel": "First timed step starts",
+  "@planCopyStartLabel": {
+    "description": "Copy sheet: label of the anchor date and time."
+  },
+  "planCopyShift": "all steps shift by {shift}",
+  "@planCopyShift": {
+    "description": "Copy sheet: how far every timed step moves, e.g. «+7 days −30 min».",
+    "placeholders": {
+      "shift": {
+        "type": "String"
+      }
+    }
+  },
+  "planCopyShiftDays": "{count, plural, one{{count} day} other{{count} days}}",
+  "@planCopyShiftDays": {
+    "description": "Copy sheet: the days part of the shift.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planCopyNoShift": "times stay the same",
+  "@planCopyNoShift": {
+    "description": "Copy sheet: the anchor was left where it was."
+  },
+  "planCopyNoTimes": "No timed steps — nothing to schedule",
+  "@planCopyNoTimes": {
+    "description": "Copy sheet: the plan has no timed steps."
+  },
+  "planCopyNoAssignees": "Assignees are not copied",
+  "@planCopyNoAssignees": {
+    "description": "Copy sheet: note that steps arrive without assignees."
+  },
+  "planCopyConfirm": "Continue",
+  "@planCopyConfirm": {
+    "description": "Copy sheet: continue to the new draft."
+  },
+  "myWorkPlanSomeone": "Someone",
+  "@myWorkPlanSomeone": {
+    "description": "My Work plan row (#220): stands for the person who changed the plan when their name is unknown."
   }
 }

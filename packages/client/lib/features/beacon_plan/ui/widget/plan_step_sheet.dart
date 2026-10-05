@@ -20,6 +20,7 @@ Future<void> showPlanStepSheet(
   required PlanPeople people,
   VoidCallback? onEdit,
   VoidCallback? onOpenDiscussion,
+  PlanCantMakeChatCallback? onCantMakeChat,
 }) => showTenturaAdaptiveSheet<void>(
   context: context,
   useRootNavigator: true,
@@ -30,9 +31,15 @@ Future<void> showPlanStepSheet(
       people: people,
       onEdit: onEdit,
       onOpenDiscussion: onOpenDiscussion,
+      onCantMakeChat: onCantMakeChat,
     ),
   ),
 );
+
+/// «Не успеваю → написать в обсуждении»: opens the discussion with the
+/// step quoted in the composer; the plan records it when the message is
+/// sent.
+typedef PlanCantMakeChatCallback = void Function(PlanStep step);
 
 class PlanStepSheet extends StatelessWidget {
   const PlanStepSheet({
@@ -40,6 +47,7 @@ class PlanStepSheet extends StatelessWidget {
     required this.people,
     this.onEdit,
     this.onOpenDiscussion,
+    this.onCantMakeChat,
     super.key,
   });
 
@@ -47,6 +55,7 @@ class PlanStepSheet extends StatelessWidget {
   final PlanPeople people;
   final VoidCallback? onEdit;
   final VoidCallback? onOpenDiscussion;
+  final PlanCantMakeChatCallback? onCantMakeChat;
 
   void _toggle(BuildContext context) {
     unawaited(context.read<PlanCubit>().toggleDone(stepId));
@@ -168,6 +177,14 @@ class PlanStepSheet extends StatelessWidget {
                           step: step,
                           people: peopleNamed,
                           onOpenDiscussion: onOpenDiscussion,
+                          onCantMakeChat: onCantMakeChat == null
+                              ? null
+                              : (s) {
+                                  // The step card goes too: the person is
+                                  // on their way to the discussion.
+                                  Navigator.of(context).pop();
+                                  onCantMakeChat!(s);
+                                },
                         ),
                         child: Text(l10n.planActionCantMake),
                       ),
@@ -207,6 +224,7 @@ Future<void> showPlanCantMakeSheet(
   required PlanStep step,
   required PlanPeople people,
   VoidCallback? onOpenDiscussion,
+  PlanCantMakeChatCallback? onCantMakeChat,
 }) => showTenturaAdaptiveSheet<void>(
   context: context,
   useRootNavigator: true,
@@ -276,6 +294,13 @@ Future<void> showPlanCantMakeSheet(
             leading: const Icon(Icons.forum_outlined),
             title: Text(l10n.planCantMakeChat),
             onTap: () async {
+              final toChat = onCantMakeChat;
+              if (toChat != null) {
+                // Recorded when the quoted message is actually sent.
+                navigator.pop();
+                toChat(step);
+                return;
+              }
               final ok = await cubit.cantMake(
                 stepId: step.id,
                 option: PlanCantMakeOption.chat,

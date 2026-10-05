@@ -44,6 +44,7 @@ class BeaconNowSurface extends StatefulWidget {
     required this.onFocusCoordinationItem,
     required this.onOpenGeneralThread,
     this.planCubit,
+    this.onPlanCantMakeChat,
     super.key,
   });
 
@@ -54,6 +55,9 @@ class BeaconNowSurface extends StatefulWidget {
   final VoidCallback onActivatePeopleTabAttention;
   final void Function(CoordinationItem item) onFocusCoordinationItem;
   final VoidCallback onOpenGeneralThread;
+
+  /// «Не успеваю → написать в обсуждении» (#220).
+  final PlanCantMakeChatCallback? onPlanCantMakeChat;
 
   /// The Request plan (#220), shared with the Plan tab; null without one.
   final PlanCubit? planCubit;
@@ -141,6 +145,7 @@ class _BeaconNowSurfaceState extends State<BeaconNowSurface> {
                         step: step,
                         people: people,
                         onOpenDiscussion: onOpenGeneralThread,
+                        onCantMakeChat: widget.onPlanCantMakeChat,
                       ),
                     )
                   : null,
@@ -151,6 +156,7 @@ class _BeaconNowSurfaceState extends State<BeaconNowSurface> {
                   stepId: id,
                   people: people,
                   onOpenDiscussion: onOpenGeneralThread,
+                  onCantMakeChat: widget.onPlanCantMakeChat,
                 ),
               ),
               onOpenPlan: () => onSurfaceSelected(BeaconSurface.plan),

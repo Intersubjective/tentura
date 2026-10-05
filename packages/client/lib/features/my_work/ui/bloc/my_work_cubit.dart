@@ -8,6 +8,7 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
+import 'package:tentura/features/beacon_plan/domain/entity/plan_viewer_slice.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/features/block/domain/use_case/block_case.dart';
 
@@ -53,6 +54,12 @@ class MyWorkCubit extends Cubit<MyWorkState> {
     // one: a Request that changes surface or gains state has to be re-read
     // here, or the desk keeps showing work that is no longer the viewer's.
     _requestInvalidations = _myWorkCase.requestInvalidations.listen(
+      _onRequestInvalidated,
+      cancelOnError: false,
+    );
+    // A plan write anywhere (a tick, a revision, «Понятно») changes the
+    // plan rows of that Request's card (#220 §5.8).
+    _planChanges = _myWorkCase.planChanges.listen(
       _onRequestInvalidated,
       cancelOnError: false,
     );
@@ -124,6 +131,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
   late final StreamSubscription<BeaconRoomInvalidation> _deskRelevantChanges;
 
   late final StreamSubscription<String> _requestInvalidations;
+  late final StreamSubscription<String> _planChanges;
   late final StreamSubscription<void> _bookkeepingRefresh;
   late final StreamSubscription<void> _catchUps;
   StreamSubscription<RealtimeEntityChange>? _obligationNotificationChanges;
@@ -151,6 +159,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
     await _readWatermarkSub.cancel();
     await _deskRelevantChanges.cancel();
     await _requestInvalidations.cancel();
+    await _planChanges.cancel();
     await _bookkeepingRefresh.cancel();
     await _catchUps.cancel();
     await _obligationNotificationChanges?.cancel();
@@ -203,12 +212,15 @@ class MyWorkCubit extends Cubit<MyWorkState> {
 
   void _scheduleRoomMessageHintRetry(String beaconId) {
     _roomMessageHintRetryTimers.remove(beaconId)?.cancel();
-    _roomMessageHintRetryTimers[beaconId] = Timer(_roomMessageHintRetryDelay, () {
-      _roomMessageHintRetryTimers.remove(beaconId);
-      if (!isClosed) {
-        unawaited(fetch(showLoading: false));
-      }
-    });
+    _roomMessageHintRetryTimers[beaconId] = Timer(
+      _roomMessageHintRetryDelay,
+      () {
+        _roomMessageHintRetryTimers.remove(beaconId);
+        if (!isClosed) {
+          unawaited(fetch(showLoading: false));
+        }
+      },
+    );
   }
 
   Future<void> fetch({bool showLoading = true}) async {
@@ -507,6 +519,57 @@ class MyWorkCubit extends Cubit<MyWorkState> {
     // Request and adopt the answer whole, rather than leaving a card that
     // has a total and nothing to render (the derivation zeroes exactly that).
     await _adoptServerAttention(beaconId, fallback: previous);
+  }
+
+  /// «Готово» on a plan step row of a card (#220 §5.8). The step leaves the
+  /// card at once; a refusal restores it and rethrows for the row to say
+  /// why.
+  Future<void> planStepDone(String beaconId, String stepId) async {
+    if (beaconId.isEmpty || stepId.isEmpty) return;
+    final previous = _planSliceOf(beaconId);
+    _replacePlanSlice(beaconId, previous?.withoutStep(stepId));
+    try {
+      await _myWorkCase.planStepDone(stepId);
+    } catch (_) {
+      _replacePlanSlice(beaconId, previous);
+      rethrow;
+    } finally {
+      if (!isClosed) unawaited(fetch(showLoading: false));
+    }
+  }
+
+  /// «Понятно» on the plan changes row of a card (#220 §5.8).
+  Future<void> planAck(String beaconId, int uptoSeq) async {
+    if (beaconId.isEmpty) return;
+    final previous = _planSliceOf(beaconId);
+    _replacePlanSlice(beaconId, previous?.withoutPending());
+    try {
+      await _myWorkCase.planAck(beaconId: beaconId, uptoSeq: uptoSeq);
+    } catch (_) {
+      _replacePlanSlice(beaconId, previous);
+      rethrow;
+    } finally {
+      if (!isClosed) unawaited(fetch(showLoading: false));
+    }
+  }
+
+  PlanViewerSlice? _planSliceOf(String beaconId) {
+    for (final c in state.nonArchivedCards) {
+      if (c.beaconId == beaconId) return c.planSlice;
+    }
+    return null;
+  }
+
+  void _replacePlanSlice(String beaconId, PlanViewerSlice? slice) {
+    if (isClosed || slice == null) return;
+    emit(
+      state.copyWith(
+        nonArchivedCards: [
+          for (final c in state.nonArchivedCards)
+            c.beaconId == beaconId ? c.copyWith(planSlice: slice) : c,
+        ],
+      ),
+    );
   }
 
   void _restoreAttention(String beaconId, MyWorkBeaconAttention? previous) {

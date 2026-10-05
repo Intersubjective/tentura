@@ -11,6 +11,7 @@ import 'package:tentura/features/home/ui/widget/home_rail_frame.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
+import 'package:tentura/features/beacon_threads/domain/entity/room_composer_intent.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_state.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_cubit.dart';
@@ -114,6 +115,7 @@ class BeaconViewScreen extends StatefulWidget {
     this.entry,
     this.threadId,
     this.messageId,
+    this.stepId,
     super.key,
   });
 
@@ -135,6 +137,9 @@ class BeaconViewScreen extends StatefulWidget {
 
   /// Exact Chat message target from an Updates receipt.
   final String? messageId;
+
+  /// Plan step whose card opens once the plan loads (`tab=plan&step=`).
+  final String? stepId;
 
   @override
   State<BeaconViewScreen> createState() => _BeaconViewScreenState();
@@ -185,6 +190,9 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   /// while the plan is off or not wired (tests without `BeaconPlanCase`).
   PlanCubit? _planCubit;
   bool _planLoadRequested = false;
+
+  /// The deep-linked plan step ([BeaconViewScreen.stepId]) was opened once.
+  bool _planStepHandled = false;
 
   PlanCubit? _ensurePlanCubit() {
     if (!kPlanEnabled) return null;
@@ -591,6 +599,9 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       _didOpenActivitySheetForLogTab = false;
       _previewAsOutsider = false;
     }
+    if (oldWidget.stepId != widget.stepId || oldWidget.id != widget.id) {
+      _planStepHandled = false;
+    }
     if (oldWidget.viewTab != widget.viewTab) {
       _selectedSurface = beaconViewSurfaceForTab(widget.viewTab);
       if (widget.viewTab == 'log') {
@@ -628,6 +639,36 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       _focusUserId = null;
     });
     unawaited(_syncSurfaceQuery(BeaconSurface.people));
+  }
+
+  /// «Не успеваю → написать в обсуждении» (#220): opens the discussion with
+  /// the step quoted in the composer; sending that message records the
+  /// «can't make it» with the person's words.
+  void _startPlanCantMakeChat(PlanStep step, bool isSplit) {
+    final planCubit = _planCubit;
+    final prefill = L10n.of(
+      context,
+    )!.planCantMakeChatPrefill(step.index, step.title);
+    final quote = RoomComposerIntent(prefill: prefill);
+    final intent = RoomComposerIntent(
+      prefill: prefill,
+      onSent: planCubit == null
+          ? null
+          : (body) async {
+              if (planCubit.isClosed) return;
+              await planCubit.cantMake(
+                stepId: step.id,
+                option: PlanCantMakeOption.chat,
+                excerpt: quote.wordsOf(body),
+              );
+            },
+    );
+    context.read<ThreadHostCubit>().armComposerIntent(intent);
+    if (isSplit) {
+      unawaited(_openGeneralThread());
+    } else {
+      _focusDiscussionGeneral();
+    }
   }
 
   void _focusDiscussionGeneral() {
@@ -750,6 +791,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
           onFocusCoordinationItem: (_) => _focusDiscussionGeneral(),
           onOpenGeneralThread: () => unawaited(_openGeneralThread()),
           planCubit: _planCubit,
+          onPlanCantMakeChat: (step) => _startPlanCantMakeChat(step, isSplit),
         );
       case BeaconSurface.plan:
         return BeaconPlanSurface(
@@ -759,6 +801,9 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
           admitted: beaconPlanAdmittedPeople(beaconState),
           // In the split the chat is always on screen; otherwise go there.
           onOpenDiscussion: isSplit ? null : _focusDiscussionGeneral,
+          onCantMakeChat: (step) => _startPlanCantMakeChat(step, isSplit),
+          initialStepId: _planStepHandled ? null : widget.stepId,
+          onInitialStepHandled: () => _planStepHandled = true,
           cubit: _planCubit,
         );
       case BeaconSurface.room:
@@ -1244,6 +1289,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                                             roomCubit: context
                                                 .read<ThreadHostCubit>()
                                                 .roomCubit,
+                                            planCubit: _planCubit,
                                             onItemsTabRefresh:
                                                 _refreshThreadsTab,
                                             onActivityLog: () =>
@@ -1303,6 +1349,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                                                   roomCubit: context
                                                       .read<ThreadHostCubit>()
                                                       .roomCubit,
+                                                  planCubit: _planCubit,
                                                   onItemsTabRefresh:
                                                       _refreshThreadsTab,
                                                   onActivityLog: () =>

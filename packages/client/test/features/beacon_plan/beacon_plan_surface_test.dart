@@ -10,6 +10,7 @@ import 'package:tentura/features/beacon_plan/domain/entity/beacon_plan.dart';
 import 'package:tentura/features/beacon_plan/ui/bloc/plan_cubit.dart';
 import 'package:tentura/features/beacon_plan/ui/widget/beacon_plan_surface.dart';
 import 'package:tentura/features/beacon_plan/ui/widget/plan_step_row.dart';
+import 'package:tentura/features/beacon_plan/ui/widget/plan_step_sheet.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_constants.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
@@ -26,6 +27,8 @@ Future<PlanCubit> _pump(
   WidgetTester tester,
   FakeBeaconPlanRepository repo, {
   Locale locale = const Locale('en'),
+  String? initialStepId,
+  PlanCantMakeChatCallback? onCantMakeChat,
 }) async {
   final cubit = PlanCubit(
     beaconId: 'B1',
@@ -47,6 +50,8 @@ Future<PlanCubit> _pump(
             admitted: _people,
             planCase: planCaseFor(repo),
             clock: () => _now,
+            initialStepId: initialStepId,
+            onCantMakeChat: onCantMakeChat,
           ),
         ),
       ),
@@ -192,4 +197,63 @@ void main() {
     expect(beaconViewSurfaceForTab('plan'), BeaconSurface.plan);
     expect(beaconSurfaceViewTab(BeaconSurface.plan), 'plan');
   });
+
+  testWidgets('deep link step= opens that step card once (#220)', (
+    tester,
+  ) async {
+    final repo = FakeBeaconPlanRepository(BeaconPlan.decode(planJson()));
+    final cubit = await _pump(tester, repo, initialStepId: 'PS000000000003');
+    await tester.pumpAndSettle();
+
+    expect(find.byType(PlanStepSheet), findsOneWidget);
+    expect(find.text('Step 3 of 4'), findsOneWidget);
+
+    // A refetch does not open it again.
+    Navigator.of(tester.element(find.byType(PlanStepSheet))).pop();
+    await tester.pumpAndSettle();
+    await tester.runAsync(cubit.refresh);
+    await tester.pumpAndSettle();
+    expect(find.byType(PlanStepSheet), findsNothing);
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.runAsync(cubit.close);
+  });
+
+  testWidgets('an unknown step= opens nothing', (tester) async {
+    final repo = FakeBeaconPlanRepository(BeaconPlan.decode(planJson()));
+    final cubit = await _pump(tester, repo, initialStepId: 'PSgone');
+    await tester.pumpAndSettle();
+    expect(find.byType(PlanStepSheet), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+    await tester.runAsync(cubit.close);
+  });
+
+  testWidgets(
+    "Can't make it → Write in the discussion hands the step over and "
+    'records nothing yet',
+    (tester) async {
+      final repo = FakeBeaconPlanRepository(BeaconPlan.decode(planJson()));
+      final chats = <PlanStep>[];
+      final cubit = await _pump(
+        tester,
+        repo,
+        initialStepId: 'PS000000000003',
+        onCantMakeChat: chats.add,
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text("Can't make it"));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Write in the discussion'));
+      await tester.pumpAndSettle();
+
+      expect(chats.map((s) => s.id), ['PS000000000003']);
+      expect(repo.cantMakeCalls, isEmpty);
+      // Both sheets are gone: the person is on the way to the discussion.
+      expect(find.byType(PlanStepSheet), findsNothing);
+
+      await tester.pumpWidget(const SizedBox());
+      await tester.runAsync(cubit.close);
+    },
+  );
 }

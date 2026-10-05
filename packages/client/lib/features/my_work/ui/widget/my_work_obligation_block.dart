@@ -8,10 +8,32 @@ import 'package:tentura/features/inbox/ui/widget/activity_event_subcard_block.da
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/features/my_work/domain/group_my_work_obligations.dart';
 import 'package:tentura/features/updates/updates_receipt_display_copy.dart';
+import 'package:tentura/features/my_work/ui/widget/my_work_plan_step_rows.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
 const kMyWorkVisibleObligationGroups = 3;
+
+/// Plan receipts the card's plan rows already show (#220 §5.8): the viewer's
+/// step and change obligations, and the reminder / overdue notices of those
+/// same steps. They stay in the card's attention facts (indicators) but not
+/// in its event rows.
+const _planRowReceiptTypes = {
+  'planStepDue',
+  'planStepTurn',
+  'planChangePending',
+  'planStepReminder',
+  'planStepOverdue',
+};
+
+/// Whether [receipt] is a plan event the plan rows of a card stand for.
+bool myWorkReceiptShownAsPlanRow(AttentionReceipt receipt) =>
+    _planRowReceiptTypes.contains(
+      planReceiptEventType(
+        presentationKey: receipt.presentationKey,
+        presentationPayloadJson: receipt.presentationPayloadJson,
+      ),
+    );
 
 /// Whether the active-event block should render (rows and/or fallback CTA).
 bool myWorkObligationBlockVisible({
@@ -19,7 +41,9 @@ bool myWorkObligationBlockVisible({
   required List<AttentionReceipt> obligations,
   List<AttentionReceipt> optionalEvents = const [],
   bool suppressReviewHelpOffersFallback = false,
+  bool hasPlanRows = false,
 }) {
+  if (hasPlanRows) return true;
   if (obligations.isNotEmpty) return true;
   if (optionalEvents.isNotEmpty) return true;
   if (vm.showReviewHelpOffersCta && !suppressReviewHelpOffersFallback) {
@@ -47,8 +71,12 @@ class MyWorkObligationBlock extends StatelessWidget {
     this.onReviewHelpOffers,
     this.onRespondHelpOffer,
     this.suppressReviewHelpOffersFallback = false,
+    this.planRows,
     super.key,
   });
+
+  /// The Request plan rows (#220 §5.8), rendered first.
+  final MyWorkPlanStepRows? planRows;
 
   final MyWorkCardViewModel vm;
   final List<AttentionReceipt> obligations;
@@ -101,7 +129,8 @@ class MyWorkObligationBlock extends StatelessWidget {
       ...optionalEvents,
     ];
 
-    if (rows.isEmpty && !showAggregateReviewOffers) {
+    final planRows = this.planRows;
+    if (rows.isEmpty && !showAggregateReviewOffers && planRows == null) {
       return const SizedBox.shrink();
     }
 
@@ -122,6 +151,11 @@ class MyWorkObligationBlock extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (planRows != null) ...[
+          planRows,
+          if (rows.isNotEmpty || showAggregateReviewOffers)
+            SizedBox(height: tt.rowGap),
+        ],
         if (helpOfferIds.isNotEmpty)
           Padding(
             padding: EdgeInsets.only(top: tt.tightGap),

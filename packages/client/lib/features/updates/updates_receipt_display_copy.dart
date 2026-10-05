@@ -301,6 +301,67 @@ UpdatesFeedRowCopy? batonReceiptDisplayCopy({
   };
 }
 
+/// Request plan («либретто», #220) event types, by `eventType` payload name
+/// and by server `presentationKey`.
+const _planEventTypes = <String, String>{
+  'planStepDue': 'plan_step_due',
+  'planStepTurn': 'plan_step_turn',
+  'planChangePending': 'plan_change_pending',
+  'planStepReminder': 'plan_step_reminder',
+  'planStepOverdue': 'plan_step_overdue',
+  'planStepLate': 'plan_step_late',
+  'planCantMake': 'plan_cant_make',
+  'planStepUnassigned': 'plan_step_unassigned',
+  'planEdited': 'plan_edited',
+  'planStepDone': 'plan_step_done',
+};
+
+/// The plan event type (`planStepDue`, …) of a receipt, or null when it is
+/// not a Request plan event.
+String? planReceiptEventType({
+  required String? presentationKey,
+  required String presentationPayloadJson,
+}) {
+  final type = attentionEventTypeOf(presentationPayloadJson);
+  if (type != null && _planEventTypes.containsKey(type)) return type;
+  for (final MapEntry(:key, :value) in _planEventTypes.entries) {
+    if (value == presentationKey) return key;
+  }
+  return null;
+}
+
+/// Plan receipt copy: the event in the viewer's locale, and the step title
+/// the server carries as `excerpt`. No clock times (plan K16): the row's own
+/// age label is the only time shown. The actor's name is left to the row's
+/// own prefix, so the headline never repeats it.
+UpdatesFeedRowCopy? planReceiptDisplayCopy({
+  required String? presentationKey,
+  required String presentationPayloadJson,
+  required L10n l10n,
+}) {
+  final type = planReceiptEventType(
+    presentationKey: presentationKey,
+    presentationPayloadJson: presentationPayloadJson,
+  );
+  if (type == null) return null;
+  final headline = switch (type) {
+    'planStepDue' => l10n.planReceiptStepDue,
+    'planStepTurn' => l10n.planReceiptStepTurn,
+    'planChangePending' => l10n.planReceiptChangePending,
+    'planStepReminder' => l10n.planReceiptStepReminder,
+    'planStepOverdue' => l10n.planReceiptStepOverdue,
+    'planStepLate' => l10n.planReceiptStepLate,
+    'planCantMake' => l10n.planReceiptCantMake,
+    'planStepUnassigned' => l10n.planReceiptStepUnassigned,
+    'planEdited' => l10n.planReceiptEdited,
+    _ => l10n.planReceiptStepDone,
+  };
+  return UpdatesFeedRowCopy(
+    headline: headline,
+    body: excerptFromPresentationPayload(presentationPayloadJson) ?? '',
+  );
+}
+
 /// Maps server title/body + payload into a non-duplicating two-line row.
 UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
   required String title,
@@ -320,6 +381,20 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
     actorName: actorName,
   );
   if (baton != null) return baton;
+  final plan = planReceiptDisplayCopy(
+    presentationKey: presentationKey,
+    presentationPayloadJson: presentationPayloadJson,
+    l10n: l10n,
+  );
+  if (plan != null) {
+    final override = headlineOverride?.trim();
+    return UpdatesFeedRowCopy(
+      headline: override != null && override.isNotEmpty
+          ? override
+          : plan.headline,
+      body: plan.body,
+    );
+  }
   final fallback = resolveUpdatesReceiptDisplayCopy(
     title: title,
     body: body,
@@ -485,6 +560,14 @@ RequestScopedEventCopy requestScopedEventCopy({
   );
   if (baton != null) {
     return RequestScopedEventCopy(event: baton.headline, excerpt: baton.body);
+  }
+  final plan = planReceiptDisplayCopy(
+    presentationKey: presentationKey,
+    presentationPayloadJson: presentationPayloadJson,
+    l10n: l10n,
+  );
+  if (plan != null) {
+    return RequestScopedEventCopy(event: plan.headline, excerpt: plan.body);
   }
   final requestTitles = {
     ?_nonBlank(requestTitle),

@@ -1111,7 +1111,16 @@ class _ActivityStreamCell extends StatelessWidget {
                     l10n: L10n.of(context)!,
                   ) !=
                   null;
-              unawaited(isBaton ? onOpenReceipt(event) : onOpenParent());
+              // A plan event opens the Plan tab on its step (#220).
+              final isPlan =
+                  planReceiptEventType(
+                    presentationKey: event.presentationKey,
+                    presentationPayloadJson: event.presentationPayloadJson,
+                  ) !=
+                  null;
+              unawaited(
+                isBaton || isPlan ? onOpenReceipt(event) : onOpenParent(),
+              );
             },
             onOpenTimeline: () => unawaited(
               showRequestAttentionTimelineSheet(context, beaconId: beaconId),

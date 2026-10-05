@@ -20,6 +20,7 @@ class FakeBeaconPlanRepository implements BeaconPlanRepository {
   final ackCalls = <int>[];
   final saveCalls = <(int, PlanSnapshot, String)>[];
   final cantMakeCalls = <(String, PlanCantMakeOption, String?)>[];
+  final cantMakeExcerpts = <String?>[];
   final restoreCalls = <(int, int)>[];
   int fetchCount = 0;
 
@@ -110,6 +111,7 @@ class FakeBeaconPlanRepository implements BeaconPlanRepository {
     String? excerpt,
   }) async {
     cantMakeCalls.add((stepId, option, toUserId));
+    cantMakeExcerpts.add(excerpt);
     return PlanSaveOutcome(
       kind: PlanSaveOutcomeKind.applied,
       revisionSeq: baseRevisionSeq + 1,

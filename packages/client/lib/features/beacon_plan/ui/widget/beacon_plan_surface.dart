@@ -27,6 +27,9 @@ class BeaconPlanSurface extends StatelessWidget {
     required this.viewerId,
     required this.admitted,
     this.onOpenDiscussion,
+    this.onCantMakeChat,
+    this.initialStepId,
+    this.onInitialStepHandled,
     this.planCase,
     this.cubit,
     super.key,
@@ -39,6 +42,15 @@ class BeaconPlanSurface extends StatelessWidget {
   final List<Profile> admitted;
 
   final VoidCallback? onOpenDiscussion;
+
+  final PlanCantMakeChatCallback? onCantMakeChat;
+
+  /// Step whose card opens once the plan has loaded (deep link `step=`).
+  final String? initialStepId;
+
+  /// Called once [initialStepId] was opened (or found gone), so the host
+  /// does not hand it over again when the tab is rebuilt.
+  final VoidCallback? onInitialStepHandled;
 
   /// Test seam; defaults to the DI singleton.
   final BeaconPlanCase? planCase;
@@ -56,6 +68,9 @@ class BeaconPlanSurface extends StatelessWidget {
         child: BeaconPlanView(
           admitted: admitted,
           onOpenDiscussion: onOpenDiscussion,
+          onCantMakeChat: onCantMakeChat,
+          initialStepId: initialStepId,
+          onInitialStepHandled: onInitialStepHandled,
           planCase: planCase,
         ),
       );
@@ -76,6 +91,9 @@ class BeaconPlanSurface extends StatelessWidget {
     child: BeaconPlanView(
       admitted: admitted,
       onOpenDiscussion: onOpenDiscussion,
+      onCantMakeChat: onCantMakeChat,
+      initialStepId: initialStepId,
+      onInitialStepHandled: onInitialStepHandled,
       planCase: planCase,
     ),
   );
@@ -86,6 +104,9 @@ class BeaconPlanView extends StatefulWidget {
   const BeaconPlanView({
     required this.admitted,
     this.onOpenDiscussion,
+    this.onCantMakeChat,
+    this.initialStepId,
+    this.onInitialStepHandled,
     this.planCase,
     this.clock,
     super.key,
@@ -93,6 +114,12 @@ class BeaconPlanView extends StatefulWidget {
 
   final List<Profile> admitted;
   final VoidCallback? onOpenDiscussion;
+  final PlanCantMakeChatCallback? onCantMakeChat;
+
+  /// Step whose card opens once, when the plan first holds it.
+  final String? initialStepId;
+
+  final VoidCallback? onInitialStepHandled;
   final BeaconPlanCase? planCase;
 
   /// Test seam for «now».
@@ -186,8 +213,25 @@ class _BeaconPlanViewState extends State<BeaconPlanView> {
       people: _people(plan),
       onEdit: plan.editable ? () => unawaited(_openEditor(plan)) : null,
       onOpenDiscussion: widget.onOpenDiscussion,
+      onCantMakeChat: widget.onCantMakeChat,
     ),
   );
+
+  /// Set once the deep-linked step's card has been opened (or found gone).
+  bool _initialStepHandled = false;
+
+  void _maybeOpenInitialStep(BeaconPlan? plan) {
+    final id = widget.initialStepId?.trim();
+    if (_initialStepHandled || plan == null || id == null || id.isEmpty) {
+      return;
+    }
+    _initialStepHandled = true;
+    widget.onInitialStepHandled?.call();
+    if (plan.stepById(id) == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _openStep(plan, id);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -209,6 +253,7 @@ class _BeaconPlanViewState extends State<BeaconPlanView> {
       },
       builder: (context, state) {
         final plan = state.plan;
+        _maybeOpenInitialStep(plan);
         if (plan == null) {
           if (state.isLoading) {
             return const Center(child: CircularProgressIndicator.adaptive());

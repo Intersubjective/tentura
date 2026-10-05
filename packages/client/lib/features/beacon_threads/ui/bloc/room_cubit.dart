@@ -28,6 +28,7 @@ import 'package:tentura/ui/effect/ui_effect_port.dart';
 
 import '../../domain/coordination_item_room_sync.dart';
 import '../../domain/entity/beacon_room_invalidation.dart';
+import '../../domain/entity/room_composer_intent.dart';
 import '../../domain/entity/committed_mention.dart';
 import '../../domain/entity/request_thread.dart';
 import '../../domain/entity/room_seen_outcome.dart';
@@ -455,6 +456,37 @@ class RoomCubit extends Cubit<RoomState> {
         ),
       ),
     );
+  }
+
+  /// Puts [intent]'s text into the composer and waits for the message that
+  /// carries it (see [RoomComposerIntent.onSent]). A later intent replaces
+  /// an earlier one.
+  void armComposerIntent(RoomComposerIntent intent) {
+    if (isClosed) return;
+    _armedComposerIntent = intent;
+    emit(
+      state.copyWith(
+        composerPrefill: intent.prefill,
+        composerPrefillSeq: state.composerPrefillSeq + 1,
+      ),
+    );
+  }
+
+  /// The composer took [RoomState.composerPrefill]; a remount must not
+  /// put it back.
+  void clearComposerPrefill() {
+    if (isClosed || state.composerPrefill == null) return;
+    emit(state.copyWith(composerPrefill: null));
+  }
+
+  RoomComposerIntent? _armedComposerIntent;
+
+  void _fireArmedComposerIntent(String sentBody) {
+    final armed = _armedComposerIntent;
+    if (armed == null || !armed.matches(sentBody)) return;
+    _armedComposerIntent = null;
+    final onSent = armed.onSent;
+    if (onSent != null) unawaited(onSent(sentBody));
   }
 
   void clearPendingQuotedFact() {
@@ -1216,6 +1248,7 @@ class RoomCubit extends Cubit<RoomState> {
         ),
       );
       _flushDeferredOwnPaints();
+      _fireArmedComposerIntent(trimmed);
       await markSeenNowIfNeeded();
       if (uploads.isNotEmpty) {
         unawaited(_requestRefresh(scope: _RoomRefreshScope.messages));

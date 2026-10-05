@@ -341,12 +341,18 @@ class InvalidationService implements RealtimeSyncPort {
     final editedAtRaw = message['editedAt'];
     final mentionsRaw = message['mentions'];
     final threadItemIdRaw = message['threadItemId'];
+    final systemMessageKindRaw = message['systemMessageKind'];
+    if (systemMessageKindRaw != null && systemMessageKindRaw is! int) {
+      return null;
+    }
+    // A system line may have no author (plan auto-assignment).
+    final isSystemLine = systemMessageKindRaw is int;
     if (id is! String ||
         id.isEmpty ||
         beaconId is! String ||
         beaconId.isEmpty ||
         authorId is! String ||
-        authorId.isEmpty ||
+        (authorId.isEmpty && !isSystemLine) ||
         body is! String ||
         createdAtRaw is! String) {
       return null;
@@ -460,6 +466,7 @@ class InvalidationService implements RealtimeSyncPort {
       replyToBodyExcerpt: replyToBodyExcerpt,
       replyToHasAttachments: replyToHasAttachments,
       semanticMarker: semanticMarkerRaw as int?,
+      systemMessageKind: systemMessageKindRaw as int?,
       systemPayload: systemPayload,
       quotedFact: quotedFact,
     );
