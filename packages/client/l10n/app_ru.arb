@@ -1065,11 +1065,11 @@
   "@graphLegendMutual": {
     "context": "GraphScreen"
   },
-  "graphLegendEyeOpen": "Открытый глаз — у вас с этим человеком двусторонняя видимость, вы можете пересылать друг другу запросы (доверие или MeritRank в каждом направлении)",
+  "graphLegendEyeOpen": "Открытый глаз — вы видите друг друга и можете пересылать запросы (через доверие или MeritRank в каждом направлении)",
   "@graphLegendEyeOpen": {
     "context": "GraphScreen — mutual visibility via Trust or MeritRank per direction (#100)"
   },
-  "graphLegendEyeClosed": "Закрытый глаз — вы и этот пользователь не видите друг друга и не можете пересылать друг другу запросы",
+  "graphLegendEyeClosed": "Закрытый глаз — вы пока не видите друг друга и не можете пересылать друг другу запросы",
   "@graphLegendEyeClosed": {
     "context": "GraphScreen"
   },
@@ -5254,6 +5254,25 @@
   "beaconRoomAttachmentUntitled": "Файл",
   "beaconRoomAttachmentOpenFailed": "Не удалось открыть вложение.",
   "beaconRoomAttachmentOpenShare": "Поделиться файлом",
+  "profileTrustNotYet": "Вы пока не доверяете этому человеку",
+  "profileEyeOpen": "Вы видите друг друга и можете пересылать запросы",
+  "profileEyeClosed": "Пока не видите друг друга",
+  "profileEyeInfoTitle": "Кто кого видит",
+  "profileEyeReasonMutualTrust": "Потому что вы доверяете друг другу.",
+  "profileEyeReasonMeritRank": "Через общих знакомых (MeritRank).",
+  "profileEyeClosedHint": "Чтобы видеть друг друга, нужно доверие или общие знакомые в обе стороны.",
+  "profileEyeTrustNote": "Доверие — ваш голос. Открытый глаз — итог: он может открыться и без доверия, через общих знакомых.",
+  "profileMyLabelsLine": "Вы связываете с этим человеком: {tags}",
+  "profileMarkCapabilities": "Отметить, чем помогает {name}",
+  "profileEditLabels": "Изменить метки",
+  "profileLabelsInfoTitle": "Метки об этом человеке",
+  "profileLabelsInfoPrivate": "Заметки с замком видите только вы: по ним Tentura подсказывает вам этого человека при пересылке.",
+  "profileLabelsInfoShared": "Метки с людьми — из ваших пересылок и отметок о помощи. Их видит {name}, и они помогают людям, которые вам доверяют, найти этого человека для похожих запросов.",
+  "profileLabelPrivate": "Ваша заметка, видите только вы",
+  "profileLabelShared": "Из пересылок или отметок о помощи, видно другим",
+  "profileSeedSuggestionInfo": "Люди, которые вам доверяют, увидят этого человека в подсказках для таких запросов.",
+  "capabilityDialogTitle": "Чем может помочь {name}?",
+  "capabilityDialogOnlyYou": "Новые метки — ваши заметки, их видите только вы",
   "capabilityEditCapabilities": "Редактировать способности",
   "capabilityCueMyLabels": "Мои метки: {tags}",
   "@capabilityCueMyLabels": {
@@ -5733,7 +5752,7 @@
       }
     }
   },
-  "profileSeedSuggestionAddPrompt": "Предложить типы запросов для {name}",
+  "profileSeedSuggestionAddPrompt": "Предложить для запросов: {name}",
   "@profileSeedSuggestionAddPrompt": {
     "placeholders": {
       "name": {
@@ -6228,8 +6247,6 @@
       }
     }
   },
-  "postParticipantInContacts": "в контактах",
-  "postParticipantAddToContacts": "+ В контакты",
   "postParticipantBroughtBy": "позвал(а): {name}",
   "@postParticipantBroughtBy": {
     "placeholders": {

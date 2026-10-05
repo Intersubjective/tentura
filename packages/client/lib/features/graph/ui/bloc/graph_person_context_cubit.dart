@@ -105,7 +105,12 @@ class GraphPersonContextCubit extends Cubit<GraphPersonContextState> {
     );
   }
 
-  Future<void> trustSelected() async {
+  Future<void> trustSelected() => _setTrust(add: true);
+
+  /// Withdraws the viewer's trust (the mini-profile toggle, #140).
+  Future<void> untrustSelected() => _setTrust(add: false);
+
+  Future<void> _setTrust({required bool add}) async {
     if (isClosed) return;
     final profile = state.selectedProfile;
     if (profile == null) return;
@@ -116,7 +121,9 @@ class GraphPersonContextCubit extends Cubit<GraphPersonContextState> {
     emit(state.copyWith(trustLoading: true, trustError: null));
 
     try {
-      final authoritative = await _case.addFriend(profile);
+      final authoritative = add
+          ? await _case.addFriend(profile)
+          : await _case.removeFriend(profile);
       onProfilePatched?.call(authoritative);
       if (isClosed) return;
       if (state.selectedProfile?.id == aliceId &&

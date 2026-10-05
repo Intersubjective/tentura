@@ -12,6 +12,8 @@ import 'package:tentura/domain/port/capability_repository_port.dart';
 import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import 'profile_info_sheet.dart';
+
 enum _LoadPhase { loading, ready, hidden }
 
 /// Inviter-side edit/withdraw for invite seed routing on the invitee's profile.
@@ -123,9 +125,24 @@ class _EditSeedSuggestionSectionState extends State<EditSeedSuggestionSection> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            promptCopy,
-            style: TenturaText.body(colors.onSurface),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  promptCopy,
+                  style: TenturaText.body(colors.onSurface),
+                ),
+              ),
+              IconButton(
+                onPressed: () => showProfileInfoSheet(
+                  context,
+                  title: promptCopy,
+                  lines: [l10n.profileSeedSuggestionInfo],
+                ),
+                tooltip: l10n.profileSeedSuggestionInfo,
+                icon: const Icon(Icons.info_outline),
+              ),
+            ],
           ),
           SizedBox(height: tt.rowGap),
           CapabilityChipSet(
@@ -139,8 +156,7 @@ class _EditSeedSuggestionSectionState extends State<EditSeedSuggestionSection> {
             runSpacing: tt.tightGap,
             children: [
               FilledButton(
-                onPressed:
-                    _selectedSlugs.isEmpty || _submitting || _withdrawing
+                onPressed: _selectedSlugs.isEmpty || _submitting || _withdrawing
                     ? null
                     : _save,
                 child: _submitting
