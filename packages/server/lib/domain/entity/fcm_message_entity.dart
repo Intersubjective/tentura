@@ -23,6 +23,13 @@ class FcmNotificationEntity implements FcmMessageEntity {
     this.kind,
     this.priority,
     this.beaconKind = BeaconKind.request,
+    this.stepId,
+    this.actions = const [],
+    this.actionToken,
+    this.actionFeedback,
+    this.tag,
+    this.ttlSeconds,
+    this.urgency,
   });
 
   final String title;
@@ -44,4 +51,55 @@ class FcmNotificationEntity implements FcmMessageEntity {
 
   /// Which copy family batches of this message use.
   final BeaconKind beaconKind;
+
+  /// Plan step a plan push is about (#220 §5.9).
+  final String? stepId;
+
+  /// Notification buttons (Chromium web push only; elsewhere a tap opens
+  /// [actionUrl]).
+  final List<FcmNotificationAction> actions;
+
+  /// Signed `PushActionToken` the service worker posts back for [actions].
+  final String? actionToken;
+
+  /// Localized lines the service worker shows after a button tap.
+  final FcmActionFeedback? actionFeedback;
+
+  /// Notification tag (one notification per tag on the device).
+  final String? tag;
+
+  /// Overrides the sender's default TTL.
+  final int? ttlSeconds;
+
+  /// Web push `Urgency` header (`very-low` | `low` | `normal` | `high`).
+  final String? urgency;
+}
+
+/// One notification button.
+final class FcmNotificationAction {
+  const FcmNotificationAction({required this.id, required this.title});
+
+  /// `done` | `ack` | `open`.
+  final String id;
+  final String title;
+
+  Map<String, String> toJson() => {'id': id, 'title': title};
+}
+
+/// What the service worker shows once a button was handled.
+final class FcmActionFeedback {
+  const FcmActionFeedback({
+    required this.done,
+    required this.ack,
+    required this.failed,
+  });
+
+  /// «Отмечено».
+  final String done;
+
+  /// «Подтверждено».
+  final String ack;
+
+  /// «Не получилось — откройте шаг».
+  final String failed;
 }

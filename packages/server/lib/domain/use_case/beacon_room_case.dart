@@ -48,6 +48,10 @@ import 'package:tentura_server/domain/use_case/transactional_attention_case.dart
 import 'coordination_room_access.dart';
 import '_use_case_base.dart';
 
+/// Internal key of an `inboxRoomContextBatch` row: when the manual NOW line
+/// was last written (`DateTime?`).
+const kInboxRowCurrentLineSetAt = '_currentLineSetAt';
+
 /// `post_first_response.source_kind`: the claim was won by a message.
 const _firstResponseByMessage = 1;
 
@@ -784,6 +788,7 @@ class BeaconRoomCase extends UseCaseBase {
           'openBlockerTitle': null,
           ..._emptyOpenBlockerBatchFields(),
           'publicFactSnippet': factSnippet,
+          'planSliceJson': null,
         });
         continue;
       }
@@ -814,6 +819,11 @@ class BeaconRoomCase extends UseCaseBase {
         'openBlockerTitle': openBlocker?.title,
         ...blockerFields,
         'publicFactSnippet': factSnippet,
+        'planSliceJson': null,
+        // Internal (not a GraphQL field): when the manual NOW line was
+        // written, for the plan slice's `effectiveNow`
+        // (`BeaconPlanCase.attachSlices`).
+        kInboxRowCurrentLineSetAt: st?.updatedAt,
       });
     }
     return out;

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:injectable/injectable.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/domain/plan/plan.dart';
@@ -134,6 +136,236 @@ class BeaconPlanCase extends UseCaseBase {
       ],
       'viewerPending': viewerPending,
       'names': names,
+    };
+  }
+
+  /// My Work / inbox plan slices (`planSliceJson`, plan §4.9) of [viewerId]
+  /// for [beaconIds], keyed by beacon id. One batched read for all of them.
+  ///
+  /// [manualLines] carries each Request's manual NOW line and when it was
+  /// written, for `PlanSchedule.effectiveNow`. A Request without steps and
+  /// without pending changes has no slice. Outside the coordination
+  /// statuses only `done` / `total` are filled, so a finished Request never
+  /// offers «Готово» the server would refuse.
+  ///
+  /// The caller must have checked that [viewerId] may read each Request.
+  Future<Map<String, Map<String, Object?>>> slicesFor({
+    required String viewerId,
+    required Iterable<String> beaconIds,
+    Map<String, ({String text, DateTime? setAt})> manualLines = const {},
+    DateTime? now,
+  }) async {
+    if (!env.planEnabled) return const {};
+    return slicesFrom(
+      sources: await _repo.sliceSourcesFor(viewerId, beaconIds),
+      viewerId: viewerId,
+      manualLines: manualLines,
+      now: now,
+    );
+  }
+
+  /// Fills `planSliceJson` on `inboxRoomContextBatch` [rows] (plan §4.9)
+  /// with one batched read for every row the viewer may read
+  /// (`isRoomMember`). Rows carry their manual NOW line and its write time.
+  Future<List<Map<String, Object?>>> attachSlices({
+    required String viewerId,
+    required List<Map<String, Object?>> rows,
+    required String setAtKey,
+  }) async {
+    final manualLines = <String, ({String text, DateTime? setAt})>{
+      for (final row in rows)
+        if (row['isRoomMember'] == true && row['beaconId'] is String)
+          row['beaconId']! as String: (
+            text: (row['currentLine'] as String?) ?? '',
+            setAt: row[setAtKey] as DateTime?,
+          ),
+    };
+    final slices = manualLines.isEmpty
+        ? const <String, Map<String, Object?>>{}
+        : await slicesFor(
+            viewerId: viewerId,
+            beaconIds: manualLines.keys,
+            manualLines: manualLines,
+          );
+    return [
+      for (final row in rows)
+        {
+          for (final MapEntry(:key, :value) in row.entries)
+            if (key != setAtKey) key: value,
+          'planSliceJson': switch (slices[row['beaconId']]) {
+            final slice? => jsonEncode(slice),
+            null => null,
+          },
+        },
+    ];
+  }
+
+  /// [buildPlanSlice] over already-read [sources], keyed by beacon id.
+  static Map<String, Map<String, Object?>> slicesFrom({
+    required Map<String, PlanSliceSource> sources,
+    required String viewerId,
+    Map<String, ({String text, DateTime? setAt})> manualLines = const {},
+    DateTime? now,
+  }) {
+    final at = (now ?? DateTime.now()).toUtc();
+    return {
+      for (final source in sources.values)
+        if (buildPlanSlice(
+              source: source,
+              viewerId: viewerId,
+              now: at,
+              manualLine: manualLines[source.beaconId],
+            )
+            case final slice?)
+          source.beaconId: slice,
+    };
+  }
+
+  /// One `planSliceJson` object (plan §4.9); null when there is nothing to
+  /// show.
+  static Map<String, Object?>? buildPlanSlice({
+    required PlanSliceSource source,
+    required String viewerId,
+    required DateTime now,
+    ({String text, DateTime? setAt})? manualLine,
+  }) {
+    final states = [for (final s in source.steps) s.state];
+    final byId = {for (final s in source.steps) s.id: s};
+    final pendingAck = _slicePendingAck(source, viewerId);
+    if (states.isEmpty && pendingAck == null) return null;
+    final base = <String, Object?>{
+      'done': PlanSchedule.doneCount(states),
+      'total': states.length,
+      'overdueMine': 0,
+      'current': null,
+      'alsoActive': const <Object?>[],
+      'next': null,
+      'pendingAck': null,
+      'now': null,
+    };
+    final status = BeaconStatus.fromSmallint(source.status);
+    if (!status.allowsCoordination) return base;
+
+    final schedule = PlanSchedule.forViewer(viewerId, states, now);
+    final current = schedule.current;
+    final next = schedule.next;
+    final planNow = PlanSchedule.effectiveNow(
+      manualText: manualLine?.text ?? '',
+      manualSetAt: manualLine?.setAt,
+      steps: states,
+      openFamily: status.isOpenFamily,
+      now: now,
+    );
+    final nowStep = planNow.step;
+    return {
+      ...base,
+      'overdueMine': PlanSchedule.overdueCountFor(viewerId, states, now),
+      'current': current == null
+          ? null
+          : {
+              'stepId': current.id,
+              'title': current.title,
+              'description': byId[current.id]?.description ?? '',
+              'startAt': formatPlanInstant(current.startAt),
+              'endAt': formatPlanInstant(current.endAt),
+              'overdueSince': current.isOverdueAt(now)
+                  ? formatPlanInstant(current.overdueBoundary)
+                  : null,
+            },
+      'alsoActive': [
+        for (final s in schedule.alsoActive)
+          {
+            'stepId': s.id,
+            'title': s.title,
+            'startAt': formatPlanInstant(s.startAt),
+            'endAt': formatPlanInstant(s.endAt),
+          },
+      ],
+      'next': next == null
+          ? null
+          : {
+              'stepId': next.id,
+              'title': next.title,
+              'startAt': formatPlanInstant(next.startAt),
+              'endAt': formatPlanInstant(next.endAt),
+            },
+      'pendingAck': pendingAck,
+      'now': !planNow.isPlan || nowStep == null
+          ? null
+          : {
+              'source': 'plan',
+              'stepId': nowStep.id,
+              'title': nowStep.title,
+              'assigneeId': nowStep.assigneeId,
+              'startAt': formatPlanInstant(nowStep.startAt),
+              'index': planNow.index,
+              'count': planNow.count,
+            },
+    };
+  }
+
+  /// Changes by others to the viewer's own steps since `pending_from_seq`
+  /// (the same filter as [view]'s `viewerPending`).
+  static Map<String, Object?>? _slicePendingAck(
+    PlanSliceSource source,
+    String viewerId,
+  ) {
+    final from = source.pendingFromSeq;
+    if (from == null) return null;
+    final relevant = <Map<String, Object?>>[];
+    final actorIds = <String>{};
+    final actorNames = <String, String>{};
+    final stepIds = <String>{};
+    DateTime? lastAt;
+    for (final r in source.pendingRevisions) {
+      if (r.seq < from || r.actorId == viewerId) continue;
+      for (final c in r.changes) {
+        if (PlanChangeOp.fromWire(c['op'] as String?) == null) continue;
+        final change = PlanChange.fromJson(c);
+        if (!change.affectedUserIds.contains(viewerId)) continue;
+        relevant.add(c);
+        stepIds.add(change.stepId);
+        if (r.actorId case final String actor) {
+          actorIds.add(actor);
+          if (r.actorName case final String name when name.trim().isNotEmpty) {
+            actorNames[actor] = name.trim();
+          }
+        }
+        lastAt = r.createdAt;
+      }
+    }
+    if (relevant.isEmpty) return null;
+    final sample = PlanChange.fromJson(relevant.last);
+    final (from: sampleFrom, to: sampleTo) = switch (sample.op) {
+      PlanChangeOp.retitled => (from: sample.fromTitle, to: sample.title),
+      PlanChangeOp.retimed => (
+        from: formatPlanInstant(sample.fromStartAt ?? sample.fromEndAt),
+        to: formatPlanInstant(sample.toStartAt ?? sample.toEndAt),
+      ),
+      PlanChangeOp.reassigned => (
+        from: sample.fromAssigneeId,
+        to: sample.toAssigneeId,
+      ),
+      _ => (from: null, to: null),
+    };
+    return {
+      'fromSeq': from,
+      'headSeq': source.revisionSeq,
+      'changeCount': relevant.length,
+      'actorIds': actorIds.toList(),
+      'actorNames': actorNames,
+      'stepIds': stepIds.toList(),
+      'lastAt': lastAt?.toUtc().toIso8601String(),
+      // The raw change (so a client can word it like the Plan tab) plus the
+      // §4.9 summary fields.
+      'sample': {
+        ...relevant.last,
+        'op': sample.op.wire,
+        'stepId': sample.stepId,
+        'title': sample.title,
+        'from': sampleFrom,
+        'to': sampleTo,
+      },
     };
   }
 

@@ -660,6 +660,9 @@ final gqlTypeInboxRoomContextRow =
         field('openBlockerCreatorImageId', graphQLString),
         field('openBlockerCreatorHasPicture', graphQLBoolean),
         field('publicFactSnippet', graphQLString),
+        // Request plan («либретто», #220) slice of the viewer (plan §4.9):
+        // {done,total,overdueMine,current,alsoActive,next,pendingAck,now}.
+        field('planSliceJson', graphQLString),
       ]);
 
 /// Result of marking a beacon room (or thread) as seen.

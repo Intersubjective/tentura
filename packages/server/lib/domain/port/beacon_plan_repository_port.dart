@@ -155,6 +155,15 @@ abstract interface class BeaconPlanRepositoryPort {
 
   /// Heads of [beaconIds].
   Future<Map<String, BeaconPlanHead>> headsFor(Iterable<String> beaconIds);
+
+  /// My Work / inbox plan slices (plan §4.9): status, live steps, head and
+  /// the pending revisions of [userId] for every Request among [beaconIds],
+  /// in **one** statement. Requests that do not exist or are not Requests
+  /// are absent.
+  Future<Map<String, PlanSliceSource>> sliceSourcesFor(
+    String userId,
+    Iterable<String> beaconIds,
+  );
 }
 
 final class PlanTailMessage {

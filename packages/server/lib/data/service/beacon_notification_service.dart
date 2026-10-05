@@ -12,7 +12,9 @@ import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/entity/notification_priority.dart';
 import 'package:tentura_server/domain/notification/beacon_notification_copy_builder.dart';
 import 'package:tentura_server/domain/notification/notification_preference_gate.dart';
+import 'package:tentura_server/domain/plan/push_action_token.dart';
 import 'package:tentura_server/domain/port/beacon_notification_port.dart';
+import 'package:tentura_server/domain/port/beacon_plan_repository_port.dart';
 import 'package:tentura_server/domain/port/email_notification_port.dart';
 import 'package:tentura_server/domain/port/fcm_batch_queue_port.dart';
 import 'package:tentura_server/domain/port/fcm_remote_repository_port.dart';
@@ -27,8 +29,11 @@ class BeaconNotificationService implements BeaconNotificationPort {
     this._fcmRemote,
     this._preferences,
     this._emailNotification,
-    this._logger,
-  );
+    this._logger, {
+    PushActionToken? pushActionTokens,
+    BeaconPlanRepositoryPort? planRepository,
+  }) : _pushActionTokens = pushActionTokens,
+       _planRepository = planRepository;
 
   final FcmBatchQueuePort _fcmBatch;
   final FcmTokenRepositoryPort _fcmTokens;
@@ -36,6 +41,13 @@ class BeaconNotificationService implements BeaconNotificationPort {
   final NotificationPreferenceRepositoryPort _preferences;
   final EmailNotificationPort _emailNotification;
   final Logger _logger;
+
+  /// Signs plan push buttons (#220 §5.9); without it plan pushes carry no
+  /// buttons and a tap opens the step.
+  final PushActionToken? _pushActionTokens;
+
+  /// Reads the plan head a «Понятно» button confirms up to.
+  final BeaconPlanRepositoryPort? _planRepository;
 
   static const _copyBuilder = BeaconNotificationCopyBuilder();
   static const _gate = NotificationPreferenceGate();
@@ -84,7 +96,18 @@ class BeaconNotificationService implements BeaconNotificationPort {
       }
 
       var pushDelivered = false;
-      if (pushAllowed) {
+      if (pushAllowed && isPlanObligationPushKind(decision.kind)) {
+        // Plan obligations go out at once, one notification per step, with
+        // their own buttons — never coalesced by the batch queue (§5.9).
+        pushDelivered = await _sendPlanDirect(
+          decision: decision,
+          intent: intent,
+          copy: preferences.lockScreenSafe
+              ? _copyBuilder.lockScreenSafe(intent)
+              : fullCopy,
+          locale: preferences.locale,
+        );
+      } else if (pushAllowed) {
         pushDelivered = await _enqueue(
           receiverId: decision.recipientId,
           intent: intent,
@@ -192,6 +215,76 @@ class BeaconNotificationService implements BeaconNotificationPort {
     );
   }
 
+  /// Sends a plan obligation push directly (bypassing [FcmBatchQueuePort])
+  /// with its buttons and signed action token. Returns whether a device
+  /// token existed.
+  Future<bool> _sendPlanDirect({
+    required AttentionChannelDecision decision,
+    required BeaconNotificationIntent intent,
+    required BeaconNotificationCopy copy,
+    required String locale,
+  }) async {
+    final tokens = await _fcmTokens.getTokensByUserId(decision.recipientId);
+    if (tokens.isEmpty) {
+      _logDispatch(
+        intent: intent,
+        receiverUserId: decision.recipientId,
+        actorUserId: intent.actorUserId,
+        reason: decision.reason,
+        hasToken: false,
+        queuedOrDirect: 'skipped',
+        coalescedCount: 0,
+      );
+      return false;
+    }
+    final beaconId = decision.beaconId ?? '';
+    final stepId = decision.coordinationItemId;
+    final buttons = await planPushButtons(
+      kind: decision.kind,
+      recipientId: decision.recipientId,
+      beaconId: beaconId,
+      stepId: stepId,
+      locale: locale,
+      tokens: _pushActionTokens,
+      planRepository: _planRepository,
+    );
+    _logDispatch(
+      intent: intent,
+      receiverUserId: decision.recipientId,
+      actorUserId: intent.actorUserId,
+      reason: decision.reason,
+      hasToken: true,
+      queuedOrDirect: 'direct',
+      coalescedCount: 1,
+    );
+    unawaited(
+      _fcmRemote.sendChatNotification(
+        fcmTokens: tokens.map((token) => token.token).toSet(),
+        message: FcmNotificationEntity(
+          title: copy.title,
+          body: copy.body,
+          actionUrl: copy.actionUrl,
+          beaconId: beaconId,
+          coordinationItemId: stepId,
+          kind: decision.kind,
+          priority: decision.priority,
+          stepId: stepId,
+          actions: buttons.actions,
+          actionToken: buttons.token,
+          actionFeedback: buttons.actions.isEmpty
+              ? null
+              : planPushFeedback(locale),
+          tag: stepId != null && stepId.isNotEmpty
+              ? 'plan:$stepId'
+              : 'plan:$beaconId',
+          ttlSeconds: planPushTtlSeconds(decision.kind),
+          urgency: 'high',
+        ),
+      ),
+    );
+    return true;
+  }
+
   /// Enqueues a push for [receiverId]. Returns whether it was actually
   /// delivered (a device token existed) — used to decide the email fallback.
   Future<bool> _enqueue({
@@ -265,3 +358,95 @@ class BeaconNotificationService implements BeaconNotificationPort {
     );
   }
 }
+
+/// Plan obligations pushed directly with buttons (#220 §5.9).
+bool isPlanObligationPushKind(NotificationKind kind) => switch (kind) {
+  NotificationKind.planStepDue ||
+  NotificationKind.planStepTurn ||
+  NotificationKind.planChangePending ||
+  NotificationKind.planStepReminder ||
+  NotificationKind.planStepOverdue => true,
+  _ => false,
+};
+
+/// How long a plan push may wait for delivery: a reminder is useless once
+/// the step started.
+int planPushTtlSeconds(NotificationKind kind) => switch (kind) {
+  NotificationKind.planStepReminder => 15 * 60,
+  _ => 3600,
+};
+
+/// Buttons of one plan push and the token behind them.
+typedef PlanPushButtons = ({
+  List<FcmNotificationAction> actions,
+  String? token,
+});
+
+/// «Готово» + «Открыть» on a step that is due, about to start or overdue;
+/// «Понятно» on a change to the person's steps; nothing on «your turn» (a
+/// tap opens the step). No token signer → no buttons.
+Future<PlanPushButtons> planPushButtons({
+  required NotificationKind kind,
+  required String recipientId,
+  required String beaconId,
+  required String? stepId,
+  required String locale,
+  required PushActionToken? tokens,
+  required BeaconPlanRepositoryPort? planRepository,
+}) async {
+  const none = (actions: <FcmNotificationAction>[], token: null);
+  if (tokens == null || beaconId.isEmpty) return none;
+  final ru = locale.toLowerCase().startsWith('ru');
+  switch (kind) {
+    case NotificationKind.planStepDue ||
+            NotificationKind.planStepReminder ||
+            NotificationKind.planStepOverdue
+        when stepId != null && stepId.isNotEmpty:
+      return (
+        actions: [
+          FcmNotificationAction(id: 'done', title: ru ? 'Готово' : 'Done'),
+          FcmNotificationAction(id: 'open', title: ru ? 'Открыть' : 'Open'),
+        ],
+        token: tokens.sign(
+          PushActionClaims(
+            accountId: recipientId,
+            action: PushAction.done,
+            beaconId: beaconId,
+            stepId: stepId,
+          ),
+        ),
+      );
+    case NotificationKind.planChangePending:
+      final head = await planRepository?.getHead(beaconId);
+      if (head == null) return none;
+      return (
+        actions: [
+          FcmNotificationAction(id: 'ack', title: ru ? 'Понятно' : 'Got it'),
+        ],
+        token: tokens.sign(
+          PushActionClaims(
+            accountId: recipientId,
+            action: PushAction.ack,
+            beaconId: beaconId,
+            seq: head.revisionSeq,
+          ),
+        ),
+      );
+    case _:
+      return none;
+  }
+}
+
+/// What the service worker says after a button tap.
+FcmActionFeedback planPushFeedback(String locale) =>
+    locale.toLowerCase().startsWith('ru')
+    ? const FcmActionFeedback(
+        done: 'Отмечено',
+        ack: 'Подтверждено',
+        failed: 'Не получилось — откройте шаг',
+      )
+    : const FcmActionFeedback(
+        done: 'Marked done',
+        ack: 'Confirmed',
+        failed: "Didn't work — open the step",
+      );

@@ -778,4 +778,110 @@ SELECT * FROM public.beacon_plan WHERE beacon_id = ANY($1::text[])
         .get();
     return {for (final h in rows.map(_headFromRow)) h.beaconId: h};
   }
+
+  @override
+  Future<Map<String, PlanSliceSource>> sliceSourcesFor(
+    String userId,
+    Iterable<String> beaconIds,
+  ) async {
+    final list = beaconIds.toSet().toList();
+    if (list.isEmpty) return const {};
+    final rows = await _database
+        .customSelect(
+          '''
+SELECT b.id AS beacon_id, b.status,
+  COALESCE(h.revision_seq, 0) AS revision_seq,
+  m.pending_from_seq,
+  (SELECT COALESCE(jsonb_agg(jsonb_build_object(
+      'id', ci.id, 'ordering', ci.ordering, 'title', ci.title,
+      'body', ci.body, 'assigneeId', ci.target_person_id,
+      'startAt', ci.start_at, 'endAt', ci.end_at, 'doneAt', ci.done_at,
+      'doneById', ci.done_by_id, 'createdSeq', ci.created_seq,
+      'contentSeq', ci.content_seq, 'ackSeq', ci.ack_seq)
+      ORDER BY ci.ordering, ci.created_seq, ci.id), '[]'::jsonb)
+   FROM public.coordination_item ci
+   WHERE ci.beacon_id = b.id AND ci.kind = ${BeaconPlanConsts.stepKind}
+     AND ci.status = ${BeaconPlanConsts.stepStatusLive})::text AS steps,
+  (SELECT COALESCE(jsonb_agg(jsonb_build_object(
+      'seq', r.seq, 'actorId', r.actor_id, 'changes', r.changes_json,
+      'createdAt', r.created_at,
+      'actorName', (SELECT u.display_name FROM public."user" u
+                    WHERE u.id = r.actor_id)) ORDER BY r.seq), '[]'::jsonb)
+   FROM public.beacon_plan_revision r
+   WHERE m.pending_from_seq IS NOT NULL AND r.beacon_id = b.id
+     AND r.seq >= m.pending_from_seq)::text AS pending_revisions
+FROM public.beacon b
+LEFT JOIN public.beacon_plan h ON h.beacon_id = b.id
+LEFT JOIN public.beacon_plan_member m
+  ON m.beacon_id = b.id AND m.user_id = \$1
+WHERE b.id = ANY(\$2::text[]) AND b.kind = 0
+''',
+          variables: [
+            Variable<String>(userId),
+            Variable<List<String>>(list, PgTypes.textArray),
+          ],
+        )
+        .get();
+    final out = <String, PlanSliceSource>{};
+    for (final row in rows) {
+      final beaconId = row.read<String>('beacon_id');
+      final rawSteps = _json(row, 'steps');
+      final rawRevisions = _json(row, 'pending_revisions');
+      out[beaconId] = PlanSliceSource(
+        beaconId: beaconId,
+        status: row.read<int>('status'),
+        revisionSeq: row.read<int>('revision_seq'),
+        pendingFromSeq: row.readNullable<int>('pending_from_seq'),
+        steps: [
+          if (rawSteps is List)
+            for (final s in rawSteps)
+              if (s is Map) _sliceStep(beaconId, s.cast<String, Object?>()),
+        ],
+        pendingRevisions: [
+          if (rawRevisions is List)
+            for (final r in rawRevisions)
+              if (r is Map) _sliceRevision(r.cast<String, Object?>()),
+        ],
+      );
+    }
+    return out;
+  }
+
+  static DateTime? _jsonTs(Object? v) =>
+      v is String ? DateTime.tryParse(v)?.toUtc() : null;
+
+  static int _jsonInt(Object? v) => v is num ? v.toInt() : 0;
+
+  static PlanStepRecord _sliceStep(String beaconId, Map<String, Object?> s) =>
+      PlanStepRecord(
+        id: s['id']! as String,
+        beaconId: beaconId,
+        ordering: _jsonInt(s['ordering']),
+        title: (s['title'] as String?) ?? '',
+        description: (s['body'] as String?) ?? '',
+        assigneeId: s['assigneeId'] as String?,
+        startAt: _jsonTs(s['startAt']),
+        endAt: _jsonTs(s['endAt']),
+        doneAt: _jsonTs(s['doneAt']),
+        doneById: s['doneById'] as String?,
+        createdSeq: _jsonInt(s['createdSeq']),
+        contentSeq: _jsonInt(s['contentSeq']),
+        ackSeq: _jsonInt(s['ackSeq']),
+      );
+
+  static PlanPendingRevision _sliceRevision(Map<String, Object?> r) {
+    final changes = r['changes'];
+    return PlanPendingRevision(
+      seq: _jsonInt(r['seq']),
+      actorId: r['actorId'] as String?,
+      actorName: r['actorName'] as String?,
+      changes: [
+        if (changes is List)
+          for (final c in changes)
+            if (c is Map) c.cast<String, Object?>(),
+      ],
+      createdAt:
+          _jsonTs(r['createdAt']) ?? DateTime.fromMillisecondsSinceEpoch(0),
+    );
+  }
 }

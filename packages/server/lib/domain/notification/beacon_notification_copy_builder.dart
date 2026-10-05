@@ -419,7 +419,11 @@ class BeaconNotificationCopyBuilder {
         '/#$kPathBeaconView/$id?tab=threads&thread=$thread'
         '&entry=deep_link&is_deep_link=true';
     final genericUrl = '/#$kPathBeaconView/$id?is_deep_link=true';
-    final planUrl = '/#$kPathBeaconView/$id?tab=plan&is_deep_link=true';
+    // Step pushes open that step's card (`step=` survives only with
+    // `tab=plan`, see the client route normalizer).
+    final planStep = item != null && item.isNotEmpty ? '&step=$item' : '';
+    final planUrl =
+        '/#$kPathBeaconView/$id?tab=plan$planStep&is_deep_link=true';
 
     return switch (intent.kind) {
       NotificationKind.reviewReady => '/#$kPathReviewContributions/$id',

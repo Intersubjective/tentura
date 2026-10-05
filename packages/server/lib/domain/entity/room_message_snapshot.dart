@@ -27,6 +27,9 @@ abstract class RoomMessageSnapshot with _$RoomMessageSnapshot {
     @Default(false) bool replyToHasAttachments,
     int? semanticMarker,
     Map<String, Object?>? systemPayload,
+
+    /// `system_message_kind` of a system line (Request plan lines are 5).
+    int? systemMessageKind,
     QuotedFactEntity? quotedFact,
   }) = _RoomMessageSnapshot;
 }

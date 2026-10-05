@@ -178,3 +178,56 @@ final class PlanSaveOutcome {
     'theirActorIds': theirActorIds.toList(),
   };
 }
+
+/// One plan revision as the My Work slice reads it (pending «Понятно»).
+final class PlanPendingRevision {
+  const PlanPendingRevision({
+    required this.seq,
+    required this.changes,
+    required this.createdAt,
+    this.actorId,
+    this.actorName,
+  });
+
+  final int seq;
+  final String? actorId;
+
+  /// The actor's display name (read along, so the slice needs no second
+  /// query).
+  final String? actorName;
+
+  /// Raw `changes_json` entries.
+  final List<Map<String, Object?>> changes;
+  final DateTime createdAt;
+}
+
+/// Everything the My Work / inbox plan slice (`planSliceJson`, plan §4.9)
+/// needs about one Request for one viewer, read in one batched statement.
+final class PlanSliceSource {
+  const PlanSliceSource({
+    required this.beaconId,
+    required this.status,
+    required this.revisionSeq,
+    required this.steps,
+    this.pendingFromSeq,
+    this.pendingRevisions = const [],
+  });
+
+  final String beaconId;
+
+  /// `beacon.status` smallint.
+  final int status;
+
+  /// Plan head (`0` when the plan was never written).
+  final int revisionSeq;
+
+  /// Live steps in plan order.
+  final List<PlanStepRecord> steps;
+
+  /// The viewer's `beacon_plan_member.pending_from_seq`.
+  final int? pendingFromSeq;
+
+  /// Revisions from [pendingFromSeq] on, oldest first (empty when nothing
+  /// is pending).
+  final List<PlanPendingRevision> pendingRevisions;
+}

@@ -204,13 +204,28 @@ Map<String, Object?> buildFcmMessagePayload({
       if (message.coordinationItemId != null &&
           message.coordinationItemId!.isNotEmpty)
         'item': message.coordinationItemId!,
+      // Plan push buttons (#220 §5.9). `actions` is a JSON string because
+      // every `data` value must be a string.
+      if (message.stepId != null && message.stepId!.isNotEmpty)
+        'stepId': message.stepId!,
+      if (message.tag != null && message.tag!.isNotEmpty) 'tag': message.tag!,
+      if (message.actions.isNotEmpty)
+        'actions': jsonEncode([for (final a in message.actions) a.toJson()]),
+      if (message.actionToken != null && message.actionToken!.isNotEmpty)
+        'actionToken': message.actionToken!,
+      if (message.actionFeedback case final feedback?) ...{
+        'actionDoneText': feedback.done,
+        'actionAckText': feedback.ack,
+        'actionFailedText': feedback.failed,
+      },
     },
     'android': {
-      'ttl': '${ttlInSeconds}s',
+      'ttl': '${message.ttlSeconds ?? ttlInSeconds}s',
     },
     'webpush': {
       'headers': {
-        'TTL': ttlInSeconds.toString(),
+        'TTL': (message.ttlSeconds ?? ttlInSeconds).toString(),
+        if (message.urgency != null) 'Urgency': message.urgency!,
       },
     },
     if (analyticsLabel != null)

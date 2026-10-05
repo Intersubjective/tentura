@@ -139,6 +139,7 @@ base mixin WebsocketPathEntityChanges on WebsocketSessionHandlerBase {
     'replyToHasAttachments': snapshot.replyToHasAttachments,
     'semanticMarker': snapshot.semanticMarker,
     'systemPayload': snapshot.systemPayload,
+    'systemMessageKind': snapshot.systemMessageKind,
     'quotedFact': switch (snapshot.quotedFact) {
       null => null,
       final q => {
