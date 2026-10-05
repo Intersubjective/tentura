@@ -189,6 +189,9 @@ SELECT
   ca.revision::text AS revision,
   ca.placed_at
 FROM public.constellation_anchor ca
+-- Join (not EXISTS): an EXISTS here gets planned as a hashed SubPlan that
+-- runs beacon_can_read_content over every beacon in the table (12s+ on dev).
+LEFT JOIN public.beacon b ON b.id = ca.beacon_id
 WHERE ca.viewer_id = \$1
   AND (
     (
@@ -202,12 +205,8 @@ WHERE ca.viewer_id = \$1
       AND NOT public.block_hides(ca.person_id, \$1)
     )
     OR (
-      ca.beacon_id IS NOT NULL
-      AND EXISTS (
-        SELECT 1 FROM public.beacon b
-        WHERE b.id = ca.beacon_id
-          AND $beaconReadable
-      )
+      b.id IS NOT NULL
+      AND $beaconReadable
     )
   )
 ORDER BY ca.placed_at, COALESCE(ca.beacon_id, ca.person_id)
