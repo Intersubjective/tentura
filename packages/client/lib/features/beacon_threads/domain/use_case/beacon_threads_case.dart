@@ -421,6 +421,14 @@ base class BeaconThreadsCase extends UseCaseBase {
     required bool canHelp,
   }) => _room.batonRespond(batonId: batonId, canHelp: canHelp);
 
+  Future<RoomBatonData?> batonSelect({
+    required String batonId,
+    String? userId,
+  }) => _room.batonSelect(batonId: batonId, userId: userId);
+
+  Future<bool> batonCancel({required String batonId}) =>
+      _room.batonCancel(batonId: batonId);
+
   Future<void> createPoll({
     required String beaconId,
     required String question,

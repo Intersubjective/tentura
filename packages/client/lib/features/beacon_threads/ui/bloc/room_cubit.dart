@@ -1441,6 +1441,32 @@ class RoomCubit extends Cubit<RoomState> {
     }
   }
 
+  /// Author: picks who takes the baton (`null` user id = server picks), then
+  /// refetches so the card shows the taker.
+  Future<void> batonSelect({
+    required String batonId,
+    String? userId,
+  }) async {
+    if (_rejectIfDiscussionReadOnly()) return;
+    try {
+      await _case.batonSelect(batonId: batonId, userId: userId);
+      await _requestRefresh(scope: _RoomRefreshScope.messages);
+    } on Object catch (e) {
+      _showSnackError(e);
+    }
+  }
+
+  /// Author: cancels the baton, then refetches so the card goes away.
+  Future<void> batonCancel({required String batonId}) async {
+    if (_rejectIfDiscussionReadOnly()) return;
+    try {
+      await _case.batonCancel(batonId: batonId);
+      await _requestRefresh(scope: _RoomRefreshScope.messages);
+    } on Object catch (e) {
+      _showSnackError(e);
+    }
+  }
+
   Future<void> createPoll({
     required String question,
     required List<String> variants,

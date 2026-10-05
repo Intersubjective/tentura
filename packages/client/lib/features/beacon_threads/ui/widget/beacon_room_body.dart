@@ -313,6 +313,13 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                     canHelp: canHelp,
                   )
                 : null,
+            onBatonSelect: canWrite
+                ? (_, batonId, userId) =>
+                      cubit.batonSelect(batonId: batonId, userId: userId)
+                : null,
+            onBatonCancel: canWrite
+                ? (_, batonId) => cubit.batonCancel(batonId: batonId)
+                : null,
             onSend: widget.enableComposer
                 ? (body, uploads) => cubit.sendMessage(
                     body: body,

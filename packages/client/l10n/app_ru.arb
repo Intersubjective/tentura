@@ -6381,5 +6381,19 @@
   "batonOutcomeYou": "Вы взялись за это.",
   "batonOutcomeSomeoneElse": "Выбрали другого человека. Спасибо, что откликнулись.",
   "batonOutcomeClosed": "Больше не нужно.",
-  "batonTookIt": "Берёт на себя: {name}"
+  "batonTookIt": "Берёт на себя: {name}",
+  "batonAuthorTitle": "Кто возьмётся: ответы",
+  "batonTierLabel": "Приоритет {n}",
+  "batonStatusCanHelp": "может помочь",
+  "batonStatusWaiting": "ждём ответа",
+  "batonStatusCantHelp": "не может",
+  "batonChooseNow": "Выбрать сейчас",
+  "batonAllAnswered": "Все ответили. Выберите, кто возьмётся.",
+  "batonNobodyYet": "Пока никто не может.",
+  "batonPickForMe": "Выбрать за меня",
+  "batonPickForMeHint": "Один человек из самого высокого приоритета, случайно.",
+  "batonCancel": "Отменить",
+  "batonCancelConfirmTitle": "Отменить «Кто возьмётся?»",
+  "batonCancelConfirmBody": "Людям, которых вы спросили, сообщим, что это больше не нужно.",
+  "batonCancelConfirmAction": "Отменить"
 }

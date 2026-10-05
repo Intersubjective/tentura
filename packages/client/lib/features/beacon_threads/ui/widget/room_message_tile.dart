@@ -16,7 +16,6 @@ import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/domain/entity/room_baton_data.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/domain/entity/room_poll_data.dart';
@@ -87,6 +86,8 @@ class RoomMessageTile extends StatelessWidget {
     this.onOpenFileAttachment,
     this.onVotePoll,
     this.onBatonRespond,
+    this.onBatonSelect,
+    this.onBatonCancel,
     this.previousMessage,
     this.nextMessage,
     this.breakGroupAbove = false,
@@ -166,6 +167,12 @@ class RoomMessageTile extends StatelessWidget {
 
   /// Answers the «Who'll take it?» baton under this message.
   final void Function(String batonId, bool canHelp)? onBatonRespond;
+
+  /// Author only: picks who takes the baton (`null` user id = server picks).
+  final void Function(String batonId, String? userId)? onBatonSelect;
+
+  /// Author only: cancels the baton under this message.
+  final void Function(String batonId)? onBatonCancel;
 
   final List<BeaconParticipant> participants;
 
@@ -469,14 +476,18 @@ class RoomMessageTile extends StatelessWidget {
     return _linkedCoordinationItemOnTap(context, item);
   }
 
-  /// Card under the bubble for a baton the viewer did not start; the
-  /// author's own view is a separate card.
+  /// Card under the bubble: the viewer's answer card, the author's list of
+  /// answers, or the observer's «took it» chip.
   Widget? _batonCard() {
     final baton = message.baton;
-    if (baton == null || baton is RoomBatonAuthorData) return null;
+    if (baton == null) return null;
     final respond = onBatonRespond;
+    final select = onBatonSelect;
+    final cancel = onBatonCancel;
     return RoomBatonCard(
       baton: baton,
+      onSelect: select == null ? null : (userId) => select(baton.id, userId),
+      onCancel: cancel == null ? null : () => cancel(baton.id),
       onRespond: respond == null
           ? null
           : (canHelp) => respond(baton.id, canHelp),

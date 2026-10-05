@@ -7573,6 +7573,19 @@
       }
     }
   },
+  "batonAuthorTitle": "Who'll take it: answers",
+  "@batonAuthorTitle": {
+    "description": "Heading of the message author's «Who'll take it?» card listing every asked person's answer."
+  },
+  "batonTierLabel": "Priority {n}",
+  "@batonTierLabel": {
+    "description": "Priority tier label of an asked person in a «Who'll take it?» baton.",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
   "beaconShowcaseReadMore": "Read more",
   "beaconShowcaseShowLess": "Show less",
   "beaconShowcaseTeamLabel": "IN ON IT",
@@ -7617,5 +7630,53 @@
   "beaconShowcaseOfferPending": "Your offer is with the author",
   "beaconPreviewAsOthers": "How others see it",
   "beaconPreviewBanner": "This is how people outside the request see it",
-  "beaconPreviewExit": "Back to my view"
+  "beaconPreviewExit": "Back to my view",
+  "batonStatusCanHelp": "can help",
+  "@batonStatusCanHelp": {
+    "description": "Author's view: this asked person answered that they can help."
+  },
+  "batonStatusWaiting": "waiting",
+  "@batonStatusWaiting": {
+    "description": "Author's view: this asked person has not answered yet."
+  },
+  "batonStatusCantHelp": "can't help",
+  "@batonStatusCantHelp": {
+    "description": "Author's view: this asked person answered that they can't help."
+  },
+  "batonChooseNow": "Choose now",
+  "@batonChooseNow": {
+    "description": "Author's button that opens the sheet for choosing who takes it."
+  },
+  "batonAllAnswered": "Everyone answered. Choose who takes it.",
+  "@batonAllAnswered": {
+    "description": "Prompt on the author's card once every asked person has answered."
+  },
+  "batonNobodyYet": "Nobody can help yet.",
+  "@batonNobodyYet": {
+    "description": "Shown beside the disabled «Choose now» button while nobody has said they can help."
+  },
+  "batonPickForMe": "Pick for me",
+  "@batonPickForMe": {
+    "description": "Choose sheet action that lets the server select the person who takes it."
+  },
+  "batonPickForMeHint": "One person from the highest priority, at random.",
+  "@batonPickForMeHint": {
+    "description": "Explains what «Pick for me» does."
+  },
+  "batonCancel": "Cancel",
+  "@batonCancel": {
+    "description": "Author's button that cancels the «Who'll take it?» baton (asks for confirmation first)."
+  },
+  "batonCancelConfirmTitle": "Cancel \"Who'll take it?\"",
+  "@batonCancelConfirmTitle": {
+    "description": "Title of the confirmation dialog for cancelling a baton."
+  },
+  "batonCancelConfirmBody": "The people you asked will be told it's no longer needed.",
+  "@batonCancelConfirmBody": {
+    "description": "Body of the confirmation dialog for cancelling a baton."
+  },
+  "batonCancelConfirmAction": "Cancel it",
+  "@batonCancelConfirmAction": {
+    "description": "Confirm button of the cancel-baton dialog."
+  }
 }
