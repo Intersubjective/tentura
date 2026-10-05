@@ -57,7 +57,12 @@ const _entryKeys = {
   'coveringTest',
 };
 
-const _pendingProducerEventTypes = <String>['obligationEnded'];
+const _pendingProducerEventTypes = <String>[
+  'obligationEnded',
+  'batonAsked',
+  'batonTaken',
+  'batonAllAnswered',
+];
 
 const _expectedEventTypes = <Map<String, String>>[
   {
@@ -217,6 +222,36 @@ const _expectedEventTypes = <Map<String, String>>[
     'muteability': 'standard',
     'coveringTest':
         'packages/server/test/domain/use_case/post_first_response_pg_test.dart',
+  },
+  {
+    'eventType': 'batonAsked',
+    'producer':
+        'none (no live producer yet; wired in B4/B5, see docs/plans/baton-who-takes-it-plan.md)',
+    'recipientCategory': 'baton_candidate',
+    'destinationFamily': 'beacon_room_message',
+    'muteability': 'standard',
+    'coveringTest':
+        'packages/server/test/domain/use_case/room_baton_case_pg_test.dart',
+  },
+  {
+    'eventType': 'batonTaken',
+    'producer':
+        'none (no live producer yet; wired in B4/B5, see docs/plans/baton-who-takes-it-plan.md)',
+    'recipientCategory': 'baton_taker',
+    'destinationFamily': 'beacon_room_message',
+    'muteability': 'standard',
+    'coveringTest':
+        'packages/server/test/domain/use_case/room_baton_case_pg_test.dart',
+  },
+  {
+    'eventType': 'batonAllAnswered',
+    'producer':
+        'none (no live producer yet; wired in B4/B5, see docs/plans/baton-who-takes-it-plan.md)',
+    'recipientCategory': 'baton_author',
+    'destinationFamily': 'beacon_room_message',
+    'muteability': 'standard',
+    'coveringTest':
+        'packages/server/test/domain/use_case/room_baton_case_pg_test.dart',
   },
 ];
 

@@ -1,5 +1,5 @@
-// A Post's author converts it to a Request from the ⋮ menu: «Превратить в
-// запрос» opens a confirmation (M7) with the discoverability choice, «Далее»
+// A Post's author converts it to a Request from «О посте» (⋮ → «О посте»):
+// «Превратить в запрос» opens a confirmation (M7) with the discoverability choice, «Далее»
 // opens the Request form for that Post carrying the choice, «Отмена» changes
 // nothing. Recipients never see the item.
 // UI copy is asserted verbatim in Russian (docs/plans/post-ux-mockups.md, M7).
@@ -103,6 +103,10 @@ class _FakePostsRepository implements PostsRepositoryPort {
       lastActivityAt: _createdAt,
     ),
   ];
+
+  @override
+  Future<PostSummary?> postSummary(String id) async =>
+      (await myPosts()).where((p) => p.id == id).firstOrNull;
 }
 
 class _ProfileCubit extends Mock implements ProfileCubit {
@@ -304,8 +308,16 @@ Future<void> _openOverflow(WidgetTester tester) async {
 
 const _menuLabel = 'Превратить в запрос';
 
-Future<void> _openConvertDialog(WidgetTester tester) async {
+/// ⋮ → «О посте»: the sheet that holds the convert item.
+Future<void> _openInfo(WidgetTester tester) async {
   await _openOverflow(tester);
+  await tester.tap(find.text('О посте'));
+  await _settle(tester);
+}
+
+Future<void> _openConvertDialog(WidgetTester tester) async {
+  await _openInfo(tester);
+  await tester.ensureVisible(find.text(_menuLabel));
   await tester.tap(find.text(_menuLabel));
   await _settle(tester);
 }
@@ -315,18 +327,18 @@ Finder _dialog() => find.byType(AlertDialog);
 Finder _inDialog(Finder f) => find.descendant(of: _dialog(), matching: f);
 
 void main() {
-  testWidgets('the author sees the convert item in the ⋮ menu', (tester) async {
+  testWidgets('the author sees the convert item in «О посте»', (tester) async {
     await _pumpPost(tester, viewer: _author);
 
-    await _openOverflow(tester);
+    await _openInfo(tester);
 
     expect(find.text(_menuLabel), findsOneWidget);
   });
 
-  testWidgets('a recipient cannot start a conversion from the menu', (tester) async {
+  testWidgets('a recipient cannot start a conversion', (tester) async {
     final router = await _pumpPost(tester, viewer: _reader);
 
-    await _openOverflow(tester);
+    await _openInfo(tester);
 
     expect(find.text(_menuLabel), findsNothing);
     expect(find.textContaining('Превратить'), findsNothing);

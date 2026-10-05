@@ -1084,15 +1084,15 @@
   "@graphLegendEdgesTitle": {
     "context": "GraphScreen"
   },
-  "graphLegendEdgeEgo": "Gold — touches you on the graph",
+  "graphLegendEdgeEgo": "Touches you on the graph",
   "@graphLegendEdgeEgo": {
     "context": "GraphScreen"
   },
-  "graphLegendEdgeOther": "Blue — other positive connections",
+  "graphLegendEdgeOther": "Other positive connections",
   "@graphLegendEdgeOther": {
     "context": "GraphScreen"
   },
-  "graphLegendEdgeNegative": "Red — negative connection",
+  "graphLegendEdgeNegative": "Negative connection",
   "@graphLegendEdgeNegative": {
     "context": "GraphScreen"
   },
@@ -1100,19 +1100,19 @@
   "@graphLegendEdgeUndirected": {
     "context": "GraphScreen"
   },
-  "graphLegendEdgeForwardOther": "Blue — other forwards",
+  "graphLegendEdgeForwardOther": "Other forwards",
   "@graphLegendEdgeForwardOther": {
     "context": "ForwardsGraphScreen"
   },
-  "graphLegendEdgeGenealogyEgo": "Gold — your invite branch",
+  "graphLegendEdgeGenealogyEgo": "Your invite branch",
   "@graphLegendEdgeGenealogyEgo": {
     "context": "InviteGenealogyScreen"
   },
-  "graphLegendEdgeGenealogyTarget": "Green — their invite branch",
+  "graphLegendEdgeGenealogyTarget": "Their invite branch",
   "@graphLegendEdgeGenealogyTarget": {
     "context": "InviteGenealogyScreen"
   },
-  "graphLegendEdgeGenealogyNeutral": "Blue — shared trunk",
+  "graphLegendEdgeGenealogyNeutral": "Shared trunk",
   "@graphLegendEdgeGenealogyNeutral": {
     "context": "InviteGenealogyScreen"
   },
@@ -1201,9 +1201,55 @@
   "@graphLegendConstellationWiderNetworkReach": {
     "description": "Constellation legend: residual-ring peer with no drawn path (dashed)"
   },
-  "graphLegendEdgeMutual": "One line — mutual trust (highlights flow both ways)",
+  "graphLegendEdgeMutual": "Mutual trust",
   "@graphLegendEdgeMutual": {
     "context": "GraphScreen"
+  },
+  "graphLegendEdgeOneWay": "One-way trust",
+  "@graphLegendEdgeOneWay": {
+    "context": "GraphScreen"
+  },
+  "graphLegendEdgeArrowsHint": "Arrows appear on the selected person's connections",
+  "@graphLegendEdgeArrowsHint": {
+    "context": "GraphScreen"
+  },
+  "graphEdgeSemanticsLink": "{from} → {to}, {kind}, {direction}",
+  "@graphEdgeSemanticsLink": {
+    "description": "Screen-reader description of the connection between the selected person and you",
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      },
+      "kind": {
+        "type": "String"
+      },
+      "direction": {
+        "type": "String"
+      }
+    }
+  },
+  "graphEdgeSemanticsYou": "you",
+  "@graphEdgeSemanticsYou": {
+    "description": "Screen-reader name for the viewer in a connection description"
+  },
+  "graphEdgeSemanticsTrust": "trust",
+  "@graphEdgeSemanticsTrust": {
+    "description": "Screen-reader: positive connection"
+  },
+  "graphEdgeSemanticsNegative": "negative",
+  "@graphEdgeSemanticsNegative": {
+    "description": "Screen-reader: negative connection"
+  },
+  "graphEdgeSemanticsMutual": "mutual",
+  "@graphEdgeSemanticsMutual": {
+    "description": "Screen-reader: connection goes both ways"
+  },
+  "graphEdgeSemanticsOneWay": "one-way",
+  "@graphEdgeSemanticsOneWay": {
+    "description": "Screen-reader: connection goes one way"
   },
   "forwardsGraphMenuTitle": "Track of forwards",
   "@forwardsGraphMenuTitle": {
@@ -2266,7 +2312,7 @@
     "context": "SettingsScreen",
     "description": "SettingsScreen — user-facing name for the attention repair command (D15)."
   },
-  "attentionResetCountersUnrepairable": "{count, plural, =1{One outstanding action could not be rechecked.} other{{count} outstanding actions could not be rechecked.}} They stay on your list exactly as they are \u2014 there is nothing here for you to fix. Running this again later is safe.",
+  "attentionResetCountersUnrepairable": "{count, plural, =1{One outstanding action could not be rechecked.} other{{count} outstanding actions could not be rechecked.}} They stay on your list exactly as they are — there is nothing here for you to fix. Running this again later is safe.",
   "@attentionResetCountersUnrepairable": {
     "context": "SettingsScreen",
     "placeholders": {
@@ -2341,7 +2387,11 @@
   "attentionMiniCardForwarded": "{name} forwarded",
   "@attentionMiniCardForwarded": {
     "description": "Event line of a forward mini-card on a Request card (issue-171 spec 7.1).",
-    "placeholders": { "name": { "type": "String" } }
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   },
   "attentionEventDismiss": "Dismiss update",
   "@attentionEventDismiss": {
@@ -4399,11 +4449,11 @@
   "beaconYouActionWithdraw": "Withdraw",
   "beaconYouActionResolve": "Resolve",
   "beaconHudNoCurrentLine": "Nothing noted yet",
-  "beaconHudEditCurrentLineTitle": "What's next?",
-  "beaconHudEditNowLine": "Edit current line",
+  "beaconHudEditCurrentLineTitle": "Next step",
+  "beaconHudEditNowLine": "Edit next step",
   "beaconHudSituationPanelTitle": "Situation",
   "beaconSituationStateLabel": "State",
-  "beaconSituationCurrentLineLabel": "What's next?",
+  "beaconSituationCurrentLineLabel": "Next step",
   "beaconSituationBlockerLabel": "Blocker",
   "beaconSituationLastChangeLabel": "Last",
   "beaconSituationOpenRoom": "Open General",
@@ -5151,7 +5201,7 @@
   "beaconRoomFactOverflowTooltip": "Manage this fact",
   "labelBeaconTabPeople": "People",
   "beaconRoomStripNowTitle": "Now",
-  "beaconRoomStripCurrentLineLabel": "What's next?",
+  "beaconRoomStripCurrentLineLabel": "What the team does next",
   "beaconRoomStripLastPrivateFactLabel": "Pinned facts",
   "beaconRoomStripMeaningfulChangeLabel": "Latest change",
   "beaconRoomStripOpenBlockerHint": "A blocker is open in General (details in the thread).",
@@ -5414,7 +5464,7 @@
       }
     }
   },
-  "inboxCardRoomCurrentLine": "What's next in General: {text}",
+  "inboxCardRoomCurrentLine": "Next step in General: {text}",
   "@inboxCardRoomCurrentLine": {
     "placeholders": {
       "text": {
@@ -6044,7 +6094,7 @@
   "@inboxDismissDialogTitle": {
     "description": "Title for the inbox dismiss (X) dialog — not the same as Can't help."
   },
-  "inboxDismissDialogHint": "Optional note \u2014 only you can see it",
+  "inboxDismissDialogHint": "Optional note — only you can see it",
   "@inboxDismissDialogHint": {
     "description": "Hint for the optional note when removing a request from Activity. The note is private to its author and is never copied to a forward edge."
   },
@@ -6489,13 +6539,24 @@
   "@attentionCardQuotedTitle": {
     "context": "RequestAttentionCard",
     "description": "A Request title on a card headline, quoted per locale (issue-171 spec 6.1).",
-    "placeholders": { "title": { "type": "String" } }
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
   },
   "attentionCardTitleByForwarder": "“{title}” · from {name}",
   "@attentionCardTitleByForwarder": {
     "context": "RequestAttentionCard",
     "description": "Tombstone header line: quoted title attributed to the last forwarder (spec 8).",
-    "placeholders": { "title": { "type": "String" }, "name": { "type": "String" } }
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
   },
   "attentionCardClearAll": "Clear all",
   "@attentionCardClearAll": {
@@ -6506,28 +6567,47 @@
   "@attentionCardA11yRequest": {
     "context": "RequestAttentionCard",
     "description": "First clause of a card's whole-sentence semantics label (spec 11).",
-    "placeholders": { "title": { "type": "String" }, "author": { "type": "String" } }
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "author": {
+        "type": "String"
+      }
+    }
   },
   "attentionCardA11yEvents": "{count, plural, one{{count} new event} other{{count} new events}}",
   "@attentionCardA11yEvents": {
     "context": "RequestAttentionCard",
     "description": "Event-count clause of a card's semantics label (spec 11).",
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "attentionCardMoreForwarded": "{count, plural, one{{count} more forwarded} other{{count} more forwarded}}",
   "@attentionCardMoreForwarded": {
     "context": "RequestAttentionCard",
     "description": "Coalesced line for note-less forwards on a Request card (spec 7.3).",
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "inboxDismissAll": "Dismiss all",
   "@inboxDismissAll": {
-    "description": "For You header control (U16c-1). The clear axis: it clears every row that carries its own \u00d7 and never an unanswered forward, a pending prompt or an obligation."
+    "description": "For You header control (U16c-1). The clear axis: it clears every row that carries its own × and never an unanswered forward, a pending prompt or an obligation."
   },
   "inboxDismissAllCleared": "Cleared {count}",
   "@inboxDismissAllCleared": {
-    "description": "Confirmation after Dismiss all. It states what was cleared and never that the surface is empty \u2014 the pinned decision zone may still be there.",
-    "placeholders": { "count": { "type": "int" } }
+    "description": "Confirmation after Dismiss all. It states what was cleared and never that the surface is empty — the pinned decision zone may still be there.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "inboxDismissAllNothing": "Nothing to dismiss",
   "@inboxDismissAllNothing": {
@@ -6535,55 +6615,63 @@
   },
   "inboxDismissAllPartial": "Cleared {count}. There is more to clear.",
   "@inboxDismissAllPartial": {
-    "description": "A bounded sweep did not finish. Deliberately not celebratory \u2014 \u00a74 forbids an all-clear message after a partial sweep.",
-    "placeholders": { "count": { "type": "int" } }
+    "description": "A bounded sweep did not finish. Deliberately not celebratory — §4 forbids an all-clear message after a partial sweep.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "inboxDismissAllContinue": "Continue",
   "@inboxDismissAllContinue": {
     "description": "Resumes a partial Dismiss all with the same operation id."
   },
-  "inboxDismissAllFailed": "Couldn\u2019t dismiss everything",
+  "inboxDismissAllFailed": "Couldn’t dismiss everything",
   "@inboxDismissAllFailed": {
     "description": "Dismiss all was refused or failed. Honest failure, never an all-clear message."
   },
   "inboxDismissAllUndo": "Undo",
   "@inboxDismissAllUndo": {
-    "description": "\u00a74: an explicit dismissal can be undone for a short window."
+    "description": "§4: an explicit dismissal can be undone for a short window."
   },
   "inboxDismissAllUndone": "Restored {count}",
   "@inboxDismissAllUndone": {
     "description": "Undo of Dismiss all succeeded.",
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
-  "inboxDismissAllUndoFailed": "Couldn\u2019t undo",
+  "inboxDismissAllUndoFailed": "Couldn’t undo",
   "@inboxDismissAllUndoFailed": {
     "description": "The undo window closed or the server refused it."
   },
   "forYouEmptyNothingHere": "Nothing here yet",
   "@forYouEmptyNothingHere": {
-    "description": "\u00a74 empty state 1 of 3 \u2014 this surface has never had anything on it."
+    "description": "§4 empty state 1 of 3 — this surface has never had anything on it."
   },
   "forYouEmptyNothingHereHint": "Requests forwarded to you will appear here",
   "@forYouEmptyNothingHereHint": {
     "description": "Hint under the 'nothing here' empty state."
   },
-  "forYouEmptyNothingNew": "You\u2019re caught up",
+  "forYouEmptyNothingNew": "You’re caught up",
   "@forYouEmptyNothingNew": {
-    "description": "\u00a74 empty state 2 of 3 \u2014 cleared. Distinct from 'nothing here' on purpose: the decision zone may still be on the surface, so it must not read as an empty screen."
+    "description": "§4 empty state 2 of 3 — cleared. Distinct from 'nothing here' on purpose: the decision zone may still be on the surface, so it must not read as an empty screen."
   },
-  "forYouEmptyNothingNewHint": "You\u2019ve cleared everything that could be cleared. Anything still waiting for your decision stays above.",
+  "forYouEmptyNothingNewHint": "You’ve cleared everything that could be cleared. Anything still waiting for your decision stays above.",
   "@forYouEmptyNothingNewHint": {
-    "description": "Hint under the 'nothing new' empty state. \u00a74 forbids celebrating an empty surface while decisions are pending."
+    "description": "Hint under the 'nothing new' empty state. §4 forbids celebrating an empty surface while decisions are pending."
   },
   "forYouEmptyNoMatch": "Nothing matching this filter",
   "@forYouEmptyNoMatch": {
-    "description": "\u00a74 empty state 3 of 3 \u2014 the surface has content, but not under the active filter."
+    "description": "§4 empty state 3 of 3 — the surface has content, but not under the active filter."
   },
   "forYouEmptyNoMatchHint": "Try a different filter to see the rest.",
   "@forYouEmptyNoMatchHint": {
     "description": "Hint under the 'nothing matching this filter' empty state."
   },
-  "myWorkHelpOffersHeader": "Offered help \u00b7 {count}",
+  "myWorkHelpOffersHeader": "Offered help · {count}",
   "@myWorkHelpOffersHeader": {
     "description": "Group header above help-offer obligation rows on a My Work card; the rows under it show only the person.",
     "placeholders": {
@@ -7223,7 +7311,11 @@
   "constellationComposerRecipients": "Will receive · {count}",
   "@constellationComposerRecipients": {
     "description": "Heading of the graph composer's recipient chips",
-    "placeholders": {"count": {"type": "int"}}
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "constellationOpenPost": "Open post",
   "constellationComposerAddPerson": "Choose people on the map",
@@ -7242,7 +7334,11 @@
   "constellationComposerRemoveRecipient": "Remove {name}",
   "@constellationComposerRemoveRecipient": {
     "description": "Tooltip of the × on a graph composer recipient chip",
-    "placeholders": {"name": {"type": "String"}}
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   },
   "postMenuPin": "Pin in conversations",
   "@postMenuPin": {
@@ -7353,5 +7449,315 @@
   "postConvertNext": "Next: details →",
   "@postConvertNext": {
     "description": "Confirm button of the convert-to-Request confirmation; opens the Request form."
+  },
+  "postHeaderMembers": "{count, plural, one{{count} participant} other{{count} participants}}",
+  "@postHeaderMembers": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "postHeaderOpenInfo": "Open post details",
+  "postMenuInfo": "About this post",
+  "postMenuUnmuteUntil": "Turn sound on · muted until {time}",
+  "@postMenuUnmuteUntil": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "batonCandidatePrompt": "Can you help? We're waiting for your response.",
+  "@batonCandidatePrompt": {
+    "description": "Prompt on the private «Who'll take it?» card shown to an asked person who has not answered."
+  },
+  "batonCandidateCanHelp": "Can help",
+  "@batonCandidateCanHelp": {
+    "description": "Positive answer button on the «Who'll take it?» candidate card."
+  },
+  "batonCandidateCantHelp": "Can't help",
+  "@batonCandidateCantHelp": {
+    "description": "Negative answer button on the «Who'll take it?» candidate card."
+  },
+  "batonCandidateAvailabilityNote": "\"Can help\" means you're available, not that you've taken it yet. If several people can help, one person will be selected.",
+  "@batonCandidateAvailabilityNote": {
+    "description": "Note under the answer buttons explaining that Can help is availability, not taking it."
+  },
+  "batonCandidateAnswered": "Your answer: {answer}. You can change it.",
+  "@batonCandidateAnswered": {
+    "description": "Shown after an asked person answered; {answer} is the Can help / Can't help label.",
+    "placeholders": {
+      "answer": {
+        "type": "String"
+      }
+    }
+  },
+  "postMenuUnmuteForever": "Turn sound on · muted for good",
+  "postInfoForwardingOpen": "Can be forwarded: any participant can bring others in",
+  "postInfoForwardingClosed": "Only the author can forward",
+  "postInfoActiveHours": "{count, plural, one{Active for {count} more hour} other{Active for {count} more hours}}",
+  "@postInfoActiveHours": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "postInfoActiveDays": "{count, plural, one{Active for {count} more day} other{Active for {count} more days}}",
+  "@postInfoActiveDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "postInfoQuiet": "Gone quiet: a new message brings it back to «Now»",
+  "postInfoPinned": "Pinned in conversations, so it won't go quiet",
+  "postInfoMutedUntil": "Muted until {time}",
+  "@postInfoMutedUntil": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "postInfoMutedForever": "Muted for good",
+  "postInfoActionForward": "Forward",
+  "postInfoActionMute": "Mute",
+  "postInfoActionUnmute": "Unmute",
+  "postInfoActionPin": "Pin",
+  "postInfoActionUnpin": "Unpin",
+  "postInfoActionField": "On field",
+  "postCreateForwardingOnHint": "Any participant can forward it further. Once sent, this can't be turned off.",
+  "postCreateForwardingOffHint": "Only the people you invite take part. You can allow forwarding later.",
+  "beaconHudStepLabel": "NEXT STEP",
+  "beaconHudStepEmptyEditable": "No next step yet. Tap the pencil to set one",
+  "beaconHudStepAttribution": "{name} · {when}",
+  "@beaconHudStepAttribution": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconHudCounterTeam": "{count, plural, =1{1 person in the team} other{{count} people in the team}}",
+  "@beaconHudCounterTeam": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconHudCounterSubrequests": "{count, plural, =1{1 sub-request} other{{count} sub-requests}}",
+  "@beaconHudCounterSubrequests": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconHudCounterFacts": "{count, plural, =1{1 pinned fact} other{{count} pinned facts}}",
+  "@beaconHudCounterFacts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconHudEssenceLabel": "ABOUT",
+  "beaconHudTeamSection": "Team",
+  "beaconHudTeamNoMove": "No move noted",
+  "beaconCurrentLineEditHelper": "Everyone in the request sees it. The author and anyone let in can change it.",
+  "batonOutcomeYou": "You took it.",
+  "@batonOutcomeYou": {
+    "description": "Final outcome shown to the person who was selected."
+  },
+  "batonOutcomeSomeoneElse": "Someone else was selected. Thanks for offering.",
+  "@batonOutcomeSomeoneElse": {
+    "description": "Final outcome shown to a volunteer who was not selected."
+  },
+  "batonOutcomeClosed": "No longer needed.",
+  "@batonOutcomeClosed": {
+    "description": "Final outcome shown to an asked person when the baton was cancelled or closed without them."
+  },
+  "batonTookIt": "{name} took it.",
+  "@batonTookIt": {
+    "description": "System line and observer chip naming the person who took the «Who'll take it?» baton.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconShowcaseVia": "via {name}",
+  "@beaconShowcaseVia": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconShowcaseViaMore": "via {name} and {count} more",
+  "@beaconShowcaseViaMore": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "batonAuthorTitle": "Who'll take it: answers",
+  "@batonAuthorTitle": {
+    "description": "Heading of the message author's «Who'll take it?» card listing every asked person's answer."
+  },
+  "batonTierLabel": "Priority {n}",
+  "@batonTierLabel": {
+    "description": "Priority tier label of an asked person in a «Who'll take it?» baton.",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconShowcaseReadMore": "Read more",
+  "beaconShowcaseShowLess": "Show less",
+  "beaconShowcaseTeamLabel": "IN ON IT",
+  "beaconShowcaseTeamEmpty": "Nobody yet. Be the first",
+  "beaconShowcaseTeamNoAcquaintances": "{count, plural, =1{1 person is helping} other{{count} people are helping}}",
+  "@beaconShowcaseTeamNoAcquaintances": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconShowcaseAcquaintances": "People you know: {names}",
+  "@beaconShowcaseAcquaintances": {
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconShowcaseAcquaintancesMore": "People you know: {names} and {count} more",
+  "@beaconShowcaseAcquaintancesMore": {
+    "placeholders": {
+      "names": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconShowcaseTeamSheetTitle": "In on it",
+  "beaconShowcaseTeamHidden": "{count, plural, =1{1 more you can't see} other{{count} more you can't see}}",
+  "@beaconShowcaseTeamHidden": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconShowcaseAcquaintanceTag": "you know them",
+  "beaconShowcaseOfferPending": "Your offer is with the author",
+  "beaconPreviewAsOthers": "How others see it",
+  "beaconPreviewBanner": "This is how people outside the request see it",
+  "beaconPreviewExit": "Back to my view",
+  "batonStatusCanHelp": "can help",
+  "@batonStatusCanHelp": {
+    "description": "Author's view: this asked person answered that they can help."
+  },
+  "batonStatusWaiting": "waiting",
+  "@batonStatusWaiting": {
+    "description": "Author's view: this asked person has not answered yet."
+  },
+  "batonStatusCantHelp": "can't help",
+  "@batonStatusCantHelp": {
+    "description": "Author's view: this asked person answered that they can't help."
+  },
+  "batonChooseNow": "Choose now",
+  "@batonChooseNow": {
+    "description": "Author's button that opens the sheet for choosing who takes it."
+  },
+  "batonAllAnswered": "Everyone answered. Choose who takes it.",
+  "@batonAllAnswered": {
+    "description": "Prompt on the author's card once every asked person has answered."
+  },
+  "batonNobodyYet": "Nobody can help yet.",
+  "@batonNobodyYet": {
+    "description": "Shown beside the disabled «Choose now» button while nobody has said they can help."
+  },
+  "batonPickForMe": "Pick for me",
+  "@batonPickForMe": {
+    "description": "Choose sheet action that lets the server select the person who takes it."
+  },
+  "batonPickForMeHint": "One person from the highest priority, at random.",
+  "@batonPickForMeHint": {
+    "description": "Explains what «Pick for me» does."
+  },
+  "batonCancel": "Cancel",
+  "@batonCancel": {
+    "description": "Author's button that cancels the «Who'll take it?» baton (asks for confirmation first)."
+  },
+  "batonCancelConfirmTitle": "Cancel \"Who'll take it?\"",
+  "@batonCancelConfirmTitle": {
+    "description": "Title of the confirmation dialog for cancelling a baton."
+  },
+  "batonCancelConfirmBody": "The people you asked will be told it's no longer needed.",
+  "@batonCancelConfirmBody": {
+    "description": "Body of the confirmation dialog for cancelling a baton."
+  },
+  "batonCancelConfirmAction": "Cancel it",
+  "@batonCancelConfirmAction": {
+    "description": "Confirm button of the cancel-baton dialog."
+  },
+  "batonReceiptAsked": "{author} asks you can help",
+  "@batonReceiptAsked": {
+    "description": "Private Activity receipt asking the viewer whether they can help.",
+    "placeholders": {
+      "author": {
+        "type": "String"
+      }
+    }
+  },
+  "batonReceiptTaken": "You took it: {excerpt}",
+  "@batonReceiptTaken": {
+    "description": "Private Activity receipt for the selected person.",
+    "placeholders": {
+      "excerpt": {
+        "type": "String"
+      }
+    }
+  },
+  "batonReceiptAllAnswered": "Everyone answered your «Who'll take it?»",
+  "@batonReceiptAllAnswered": {
+    "description": "Private Activity receipt telling the message author everyone answered."
+  },
+  "batonActionStart": "Who'll take it?",
+  "@batonActionStart": {
+    "description": "Message action that starts a «Who'll take it?» baton on the viewer's own message."
+  },
+  "batonCreateTitle": "Who'll take it?",
+  "@batonCreateTitle": {
+    "description": "Title of the sheet where the author picks people to ask «Who'll take it?»."
+  },
+  "batonCreateHint": "Ask a few people privately. Only you will see their answers.",
+  "@batonCreateHint": {
+    "description": "Hint under the title of the create-baton sheet."
+  },
+  "batonCreateTiersToggle": "Set priority",
+  "@batonCreateTiersToggle": {
+    "description": "Switch that reveals a priority control per picked person in the create-baton sheet."
+  },
+  "batonCreateSubmit": "Ask",
+  "@batonCreateSubmit": {
+    "description": "Button that sends the «Who'll take it?» question to the picked people."
   }
 }

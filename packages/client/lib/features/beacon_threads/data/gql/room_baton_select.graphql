@@ -1,0 +1,3 @@
+mutation RoomBatonSelect($batonId: String!, $userId: String) {
+  roomBatonSelect(batonId: $batonId, userId: $userId)
+}

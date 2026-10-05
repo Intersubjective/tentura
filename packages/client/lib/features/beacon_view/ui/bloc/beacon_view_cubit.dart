@@ -1216,6 +1216,12 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
           _case.fetchAdmittedHelpers(beaconId)
         else
           Future.value(const <Profile>[]),
+        // Only the showcase (viewer not let in) orders its team strip by
+        // acquaintance; members get the HUD and never need it.
+        if (canReadAdmittedHelpers && skipRoom)
+          _case.fetchTeamAcquaintanceIds(beaconId)
+        else
+          Future.value(const <String>{}),
       ]);
 
       final helpOffers =
@@ -1258,6 +1264,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
       final roomActivityEvents = results[5]! as List<BeaconActivityEvent>;
       final displayStatus = results[6] as BeaconDisplayStatusDto?;
       final admittedHelperRoster = results[7]! as List<Profile>;
+      final teamAcquaintanceIds = results[8]! as Set<String>;
       final openCoordinationBlocker = beaconRoomCue != null
           ? await _case.fetchOpenCoordinationBlocker(beaconId)
           : null;
@@ -1310,6 +1317,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
           roomParticipantsLoaded: !skipRoom,
           admittedHelperRoster: admittedHelperRoster,
           admittedHelpersLoaded: canReadAdmittedHelpers,
+          teamAcquaintanceIds: teamAcquaintanceIds,
           beaconRoomCue: beaconRoomCue,
           openCoordinationBlocker: openCoordinationBlocker,
           roomActivityEvents: roomActivityEvents,

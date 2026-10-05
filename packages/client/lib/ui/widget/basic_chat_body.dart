@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
@@ -23,6 +24,7 @@ import 'package:tentura/features/beacon_threads/ui/widget/mention_suggestions_ov
 import 'package:tentura/features/beacon_threads/ui/widget/mention_text_controller.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/participants_matching_mention_query.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_date_separator.dart';
+import 'package:tentura/features/emoji/domain/emoji_catalog.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/features/beacon_threads/domain/room_message_receipt.dart';
@@ -73,6 +75,9 @@ class BasicChatBody extends StatefulWidget {
     this.onToggleReaction,
     this.onOpenFileAttachment,
     this.onVotePoll,
+    this.onBatonRespond,
+    this.onBatonSelect,
+    this.onBatonCancel,
     this.header,
     this.emptyPlaceholder,
     this.imageRepository,
@@ -149,6 +154,14 @@ class BasicChatBody extends StatefulWidget {
     int? score,
   })?
   onVotePoll;
+
+  final void Function(String messageId, String batonId, bool canHelp)?
+  onBatonRespond;
+
+  final void Function(String messageId, String batonId, String? userId)?
+  onBatonSelect;
+
+  final void Function(String messageId, String batonId)? onBatonCancel;
 
   final Future<bool> Function(String body, List<RoomPendingUpload> uploads)?
   onSend;
@@ -611,6 +624,24 @@ class BasicChatBodyState extends State<BasicChatBody> {
                                     variantIds,
                                     score: score,
                                   ),
+                            onBatonRespond: widget.onBatonRespond == null
+                                ? null
+                                : (batonId, canHelp) => widget.onBatonRespond!(
+                                    m.id,
+                                    batonId,
+                                    canHelp,
+                                  ),
+                            onBatonSelect: widget.onBatonSelect == null
+                                ? null
+                                : (batonId, userId) => widget.onBatonSelect!(
+                                    m.id,
+                                    batonId,
+                                    userId,
+                                  ),
+                            onBatonCancel: widget.onBatonCancel == null
+                                ? null
+                                : (batonId) =>
+                                      widget.onBatonCancel!(m.id, batonId),
                             onScrollToPromoteSource:
                                 widget.onScrollToPromoteSource,
                             onOpenCoordinationItem:
@@ -804,11 +835,14 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
     return result;
   }
 
-  final _text = MentionTextController();
+  final _text = MentionTextController(
+    emojiForShortcode: EmojiCatalog.emojiForShortcode,
+  );
   late final FocusNode _composerFocus;
   final _composerAnchorKey = GlobalKey();
   OverlayEntry? _overlayEntry;
   List<BeaconParticipant> _overlaySuggestions = const [];
+  List<EmojiMatch> _emojiSuggestions = const [];
   var _overlaySelectedIndex = 0;
   var _overlaySyncScheduled = false;
   var _hasText = false;
@@ -831,7 +865,7 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
     }
     final key = event.logicalKey;
     if (key == LogicalKeyboardKey.escape) {
-      if (_overlaySuggestions.isNotEmpty) {
+      if (_suggestionCount > 0) {
         _removeOverlay();
         return _recordComposerEscapeResult(KeyEventResult.handled);
       }
@@ -852,7 +886,7 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
       // Let the text field's own paste run too, so text clipboards still work.
       return KeyEventResult.ignored;
     }
-    if (_overlaySuggestions.isEmpty) {
+    if (_suggestionCount == 0) {
       return KeyEventResult.ignored;
     }
     if (key == LogicalKeyboardKey.arrowDown) {
@@ -874,7 +908,7 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
       if (!mounted) {
         return;
       }
-      _acceptSelectedMentionSuggestion();
+      _acceptSelectedSuggestion();
     });
     return KeyEventResult.handled;
   }
@@ -895,11 +929,19 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
         !keyboard.isAltPressed;
   }
 
+  /// Rows in whichever suggestion list (`@` or `:`) is open; 0 when none.
+  int get _suggestionCount => math.min(
+    _emojiSuggestions.isNotEmpty
+        ? _emojiSuggestions.length
+        : _overlaySuggestions.length,
+    kComposerSuggestionsMaxRows,
+  );
+
   void _moveMentionHighlight(int delta) {
-    if (_overlaySuggestions.isEmpty) {
+    if (_suggestionCount == 0) {
       return;
     }
-    final max = _overlaySuggestions.length < 5 ? _overlaySuggestions.length : 5;
+    final max = _suggestionCount;
     final next = (_overlaySelectedIndex + delta).clamp(0, max - 1);
     if (next == _overlaySelectedIndex) {
       return;
@@ -966,6 +1008,19 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
   }
 
   void _syncMentionOverlay() {
+    final emojiToken = _text.activeEmojiToken;
+    if (emojiToken != null) {
+      final matches = EmojiCatalog.search(
+        emojiToken.query,
+        limit: kComposerSuggestionsMaxRows,
+      );
+      if (matches.isEmpty) {
+        _removeOverlay();
+      } else {
+        _showOverlay(emoji: matches);
+      }
+      return;
+    }
     if (!widget.enableParticipantMentions) {
       _removeOverlay();
       return;
@@ -983,11 +1038,12 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
       _removeOverlay();
       return;
     }
-    _showOverlay(suggestions);
+    _showOverlay(mentions: suggestions);
   }
 
   void _removeOverlay() {
     _overlaySuggestions = const [];
+    _emojiSuggestions = const [];
     _overlaySelectedIndex = 0;
     _overlayEntry?.remove();
     _overlayEntry = null;
@@ -1027,27 +1083,48 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
     return inserted;
   }
 
-  bool _acceptSelectedMentionSuggestion() {
-    if (_overlaySuggestions.isEmpty) {
-      return false;
+  bool _acceptEmojiSuggestion(EmojiMatch match) {
+    final inserted = _text.insertEmoji(match.entry.emoji);
+    _removeOverlay();
+    if (inserted && !_composerFocus.hasFocus) {
+      _composerFocus.requestFocus();
     }
-    final max = _overlaySuggestions.length < 5 ? _overlaySuggestions.length : 5;
-    final index = _overlaySelectedIndex.clamp(0, max - 1);
-    return _acceptMentionSuggestion(_overlaySuggestions[index]);
+    return inserted;
   }
 
-  void _showOverlay(List<BeaconParticipant> suggestions) {
-    final sameHandles =
-        suggestions.length == _overlaySuggestions.length &&
+  bool _acceptSelectedSuggestion() {
+    final count = _suggestionCount;
+    if (count == 0) {
+      return false;
+    }
+    final index = _overlaySelectedIndex.clamp(0, count - 1);
+    return _emojiSuggestions.isNotEmpty
+        ? _acceptEmojiSuggestion(_emojiSuggestions[index])
+        : _acceptMentionSuggestion(_overlaySuggestions[index]);
+  }
+
+  /// Opens (or refreshes) the suggestion list: [mentions] for `@`, [emoji]
+  /// for `:`. Only one kind is non-empty at a time.
+  void _showOverlay({
+    List<BeaconParticipant> mentions = const [],
+    List<EmojiMatch> emoji = const [],
+  }) {
+    final sameItems =
+        mentions.length == _overlaySuggestions.length &&
+        emoji.length == _emojiSuggestions.length &&
         [
-          for (var i = 0; i < suggestions.length; i++)
-            suggestions[i].userId == _overlaySuggestions[i].userId,
+          for (var i = 0; i < mentions.length; i++)
+            mentions[i].userId == _overlaySuggestions[i].userId,
+          for (var i = 0; i < emoji.length; i++)
+            emoji[i].entry.emoji == _emojiSuggestions[i].entry.emoji,
         ].every((ok) => ok);
-    _overlaySuggestions = suggestions;
-    if (!sameHandles) {
+    _overlaySuggestions = mentions;
+    _emojiSuggestions = emoji;
+    final count = mentions.length + emoji.length;
+    if (!sameItems) {
       _overlaySelectedIndex = 0;
-    } else if (_overlaySelectedIndex >= suggestions.length) {
-      _overlaySelectedIndex = suggestions.length - 1;
+    } else if (_overlaySelectedIndex >= count) {
+      _overlaySelectedIndex = count - 1;
     }
     if (_overlayEntry != null) {
       if (SchedulerBinding.instance.schedulerPhase ==
@@ -1063,9 +1140,25 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
     _overlayEntry = OverlayEntry(
       builder: (_) {
         final list = _overlaySuggestions;
-        if (list.isEmpty) return const SizedBox.shrink();
+        final emojiList = _emojiSuggestions;
+        if (list.isEmpty && emojiList.isEmpty) return const SizedBox.shrink();
         final anchor = _composerAnchorRect();
         if (anchor == null) return const SizedBox.shrink();
+        void highlight(int index) {
+          _overlaySelectedIndex = index;
+          _overlayEntry?.markNeedsBuild();
+        }
+
+        if (emojiList.isNotEmpty) {
+          return EmojiSuggestionsOverlay(
+            suggestions: emojiList,
+            anchor: anchor,
+            selectedIndex: _overlaySelectedIndex,
+            onDismiss: _removeOverlay,
+            onSelect: _acceptEmojiSuggestion,
+            onHighlight: highlight,
+          );
+        }
         return MentionSuggestionsOverlay(
           suggestions: list,
           anchor: anchor,
@@ -1611,7 +1704,7 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
                     onTapAlwaysCalled: true,
                     onTap: _requestComposerKeyboardFromTap,
                     onSubmitted: (_) {
-                      if (_acceptSelectedMentionSuggestion()) {
+                      if (_acceptSelectedSuggestion()) {
                         return;
                       }
                       unawaited(_submit());

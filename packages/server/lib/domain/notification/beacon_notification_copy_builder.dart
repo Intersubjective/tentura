@@ -190,6 +190,26 @@ class BeaconNotificationCopyBuilder {
             ? '$actor откликнулся на ваш пост'
             : '$actor replied to your post',
       ),
+      NotificationKind.batonAsked => (
+        ru
+            ? '$actor спрашивает, сможете ли вы помочь'
+            : '$actor asks you can help',
+        excerpt.isNotEmpty
+            ? excerpt
+            : ru
+            ? '$actor спрашивает, сможете ли вы помочь'
+            : '$actor asks you can help',
+      ),
+      NotificationKind.batonTaken => (
+        ru ? 'Вы взялись за это' : 'You took it',
+        ru ? 'Вы взялись: $excerpt' : 'You took it: $excerpt',
+      ),
+      NotificationKind.batonAllAnswered => (
+        ru ? 'Все ответили' : 'Everyone answered',
+        ru
+            ? 'Все ответили на ваше «Кто возьмётся?»'
+            : "Everyone answered your «Who'll take it?»",
+      ),
       NotificationKind.staleRemind => (
         'Still needs attention',
         _bodyWithRequest(
@@ -327,7 +347,10 @@ class BeaconNotificationCopyBuilder {
       NotificationKind.commitmentAccepted ||
       NotificationKind.commitmentResolved ||
       NotificationKind.commitmentCancelled ||
-      NotificationKind.commitmentRedirected => roomUrl,
+      NotificationKind.commitmentRedirected ||
+      NotificationKind.batonAsked ||
+      NotificationKind.batonTaken ||
+      NotificationKind.batonAllAnswered => roomUrl,
       NotificationKind.deadlineChanged ||
       NotificationKind.deadlineReminder => genericUrl,
     };

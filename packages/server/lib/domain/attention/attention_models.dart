@@ -54,6 +54,9 @@ abstract final class AttentionEventTypeCatalog {
       case AttentionEventType.closureCancelled:
       case AttentionEventType.requestStale:
       case AttentionEventType.postFirstResponse:
+      case AttentionEventType.batonAsked:
+      case AttentionEventType.batonTaken:
+      case AttentionEventType.batonAllAnswered:
         return;
     }
   }
@@ -101,6 +104,13 @@ enum AttentionEventType {
   /// A non-author member's first message or reaction in a Post room, told to
   /// the Post author once per member.
   postFirstResponse,
+
+  /// «Who'll take it?» (baton) — plan §2.2/B3
+  /// (`docs/plans/baton-who-takes-it-plan.md`). All three are
+  /// `requiresAction = false` (D5: availability, not responsibility).
+  batonAsked,
+  batonTaken,
+  batonAllAnswered,
 }
 
 extension AttentionEventTypeScope on AttentionEventType {
@@ -129,6 +139,15 @@ enum AttentionRecipientReason {
 
   /// The author of a Post, hearing about a member's first response.
   postAuthor,
+
+  /// A person asked to help on a baton («Who'll take it?»).
+  batonCandidate,
+
+  /// The person a baton's author selected.
+  batonTaker,
+
+  /// The baton's author, told that everyone answered.
+  batonAuthor,
 }
 
 extension AttentionRecipientReasonScope on AttentionRecipientReason {

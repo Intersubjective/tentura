@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/attention/attention_event_classification.dart';
 import 'package:tentura/features/beacon_view/domain/beacon_status_menu_presenter.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
@@ -222,7 +223,10 @@ String _fallbackTitle(
   _ => l10n.updatesFallbackTitleGeneric,
 };
 
-String _fallbackBody(String? presentationKey, L10n l10n) => switch (presentationKey) {
+String _fallbackBody(
+  String? presentationKey,
+  L10n l10n,
+) => switch (presentationKey) {
   'relay_received' => l10n.updatesFallbackBodyRelayReceived,
   'help_offer_submitted' => l10n.updatesFallbackBodyHelpOfferSubmitted,
   'offer_accepted' => l10n.updatesFallbackBodyOfferAccepted,
@@ -266,6 +270,37 @@ class UpdatesFeedRowCopy {
   final String body;
 }
 
+/// Baton receipt copy uses only the author and the source-message excerpt.
+/// Candidate lists and other payload fields never participate in presentation.
+UpdatesFeedRowCopy? batonReceiptDisplayCopy({
+  required String title,
+  required String? presentationKey,
+  required String presentationPayloadJson,
+  required L10n l10n,
+  String? actorName,
+}) {
+  final type = attentionEventTypeOf(presentationPayloadJson);
+  final excerpt = excerptFromPresentationPayload(presentationPayloadJson) ?? '';
+  final author = actorName?.trim();
+  return switch (type ?? presentationKey) {
+    'batonAsked' || 'baton_asked' => UpdatesFeedRowCopy(
+      headline: l10n.batonReceiptAsked(
+        author != null && author.isNotEmpty ? author : title.trim(),
+      ),
+      body: excerpt,
+    ),
+    'batonTaken' || 'baton_taken' => UpdatesFeedRowCopy(
+      headline: l10n.batonReceiptTaken(excerpt),
+      body: '',
+    ),
+    'batonAllAnswered' || 'baton_all_answered' => UpdatesFeedRowCopy(
+      headline: l10n.batonReceiptAllAnswered,
+      body: excerpt,
+    ),
+    _ => null,
+  };
+}
+
 /// Maps server title/body + payload into a non-duplicating two-line row.
 UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
   required String title,
@@ -275,7 +310,16 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
   required L10n l10n,
   String? headlineOverride,
   String? bodyOverride,
+  String? actorName,
 }) {
+  final baton = batonReceiptDisplayCopy(
+    title: title,
+    presentationKey: presentationKey,
+    presentationPayloadJson: presentationPayloadJson,
+    l10n: l10n,
+    actorName: actorName,
+  );
+  if (baton != null) return baton;
   final fallback = resolveUpdatesReceiptDisplayCopy(
     title: title,
     body: body,
@@ -419,7 +463,7 @@ class RequestScopedEventCopy {
 /// Receipt copy is written for a push notification, where nothing else on
 /// screen says which Request it is: the title is an English label («Request
 /// closed — close the loop», «Plan updated») or the Request title itself, and
-/// the body is «<Request title> — <excerpt>», the bare Request title, or an
+/// the body is «`<Request title> — <excerpt>`», the bare Request title, or an
 /// English fallback sentence. Under a Request header every one of those is a
 /// repeat or untranslated, so the event comes from the locale by
 /// [presentationKey] and only a real excerpt survives into the quote.
@@ -430,7 +474,18 @@ RequestScopedEventCopy requestScopedEventCopy({
   required L10n l10n,
   String presentationPayloadJson = '',
   String? requestTitle,
+  String? actorName,
 }) {
+  final baton = batonReceiptDisplayCopy(
+    title: title,
+    presentationKey: presentationKey,
+    presentationPayloadJson: presentationPayloadJson,
+    l10n: l10n,
+    actorName: actorName,
+  );
+  if (baton != null) {
+    return RequestScopedEventCopy(event: baton.headline, excerpt: baton.body);
+  }
   final requestTitles = {
     ?_nonBlank(requestTitle),
     ?beaconTitleFromPresentationPayload(presentationPayloadJson),
@@ -526,16 +581,16 @@ const _serverCannedBodies = {
 
 final _serverCannedPatterns = [
   RegExp(
-    r' (offered help|offered to help as backup|withdrew their help|'
+    ' (offered help|offered to help as backup|withdrew their help|'
     r'forwarded a request to you|mentioned you|accepted your invitation)$',
   ),
   RegExp(r'^(Your|The) \w+ was (accepted|resolved|cancelled)$'),
   RegExp(r'moved (the request )?from \w+ to \w+$'),
   RegExp(r'^You and .+ are now connected\.$'),
   RegExp(r'^Your trust in .+ (increased|decreased) after ".*"\.$'),
-  RegExp(r'^No significant trust change (with|from) .+ after ".*"'),
+  RegExp('^No significant trust change (with|from) .+ after ".*"'),
   RegExp(r' now trusts you (more|less) after ".*" — and their network\.$'),
-  RegExp(r'^The review window closed on ".*" before your package was sent'),
+  RegExp('^The review window closed on ".*" before your package was sent'),
 ];
 
 /// The English labels the server uses as receipt titles (same sources as

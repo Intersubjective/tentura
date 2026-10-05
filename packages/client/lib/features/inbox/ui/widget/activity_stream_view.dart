@@ -78,10 +78,9 @@ class _ActivityStreamViewState extends State<ActivityStreamView>
     _scrollController.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _demotedSub = context
-          .read<ActivityOffersCubit>()
-          .demotedBeaconIds
-          .listen(_onDemotedBeacon);
+      _demotedSub = context.read<ActivityOffersCubit>().demotedBeaconIds.listen(
+        _onDemotedBeacon,
+      );
       _syncScrollAwayFromOffset();
     });
   }
@@ -201,7 +200,8 @@ class _ActivityStreamViewState extends State<ActivityStreamView>
       return;
     }
 
-    if (mounted && _forwardReceiptForBeacon(streamCubit.state, beaconId) != null) {
+    if (mounted &&
+        _forwardReceiptForBeacon(streamCubit.state, beaconId) != null) {
       offersCubit.stageMovedToStreamNudge(beaconId);
     }
   }
@@ -214,15 +214,16 @@ class _ActivityStreamViewState extends State<ActivityStreamView>
   }
 
   Future<void> _scrollToForwardBeacon(String beaconId) async {
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
     final streamCubit = context.read<UpdatesFeedCubit>();
     for (var pass = 0; pass < 40 && mounted; pass++) {
       await _waitForLayout();
       final key = _forwardRowKeys[beaconId];
       final rowContext = key?.currentContext;
-      if (rowContext != null) {
+      if (rowContext != null && rowContext.mounted) {
         await Scrollable.ensureVisible(
           rowContext,
-          duration: MediaQuery.disableAnimationsOf(context)
+          duration: disableAnimations
               ? Duration.zero
               : const Duration(milliseconds: 300),
           alignment: 0.1,
@@ -237,10 +238,10 @@ class _ActivityStreamViewState extends State<ActivityStreamView>
       if (_forwardReceiptForBeacon(streamCubit.state, beaconId) != null) {
         await _waitForLayout();
         final retryContext = _forwardRowKeys[beaconId]?.currentContext;
-        if (retryContext != null) {
+        if (retryContext != null && retryContext.mounted) {
           await Scrollable.ensureVisible(
             retryContext,
-            duration: MediaQuery.disableAnimationsOf(context)
+            duration: disableAnimations
                 ? Duration.zero
                 : const Duration(milliseconds: 300),
             alignment: 0.1,
@@ -250,9 +251,12 @@ class _ActivityStreamViewState extends State<ActivityStreamView>
         if (_scrollController.hasClients) {
           final position = _scrollController.position;
           if (position.pixels < position.maxScrollExtent) {
-            final stepTarget = (position.pixels + position.viewportDimension * 0.85)
-                .clamp(0.0, position.maxScrollExtent);
-            if (MediaQuery.disableAnimationsOf(context)) {
+            final stepTarget =
+                (position.pixels + position.viewportDimension * 0.85).clamp(
+                  0.0,
+                  position.maxScrollExtent,
+                );
+            if (disableAnimations) {
               _scrollController.jumpTo(stepTarget);
             } else {
               await _scrollController.animateTo(
@@ -266,7 +270,7 @@ class _ActivityStreamViewState extends State<ActivityStreamView>
           // Lazy stream rows may still be unbuilt at max extent; nudge once more.
           if (_forwardRowKeys[beaconId]?.currentContext == null &&
               position.maxScrollExtent > 0) {
-            if (MediaQuery.disableAnimationsOf(context)) {
+            if (disableAnimations) {
               _scrollController.jumpTo(position.maxScrollExtent);
             } else {
               await _scrollController.animateTo(
@@ -285,14 +289,12 @@ class _ActivityStreamViewState extends State<ActivityStreamView>
   }
 
   void _onNewItemsPillTap() {
-    unawaited(
-      _scrollController.animateTo(
-        0,
-        duration: MediaQuery.disableAnimationsOf(context)
-            ? Duration.zero
-            : const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      ),
+    _scrollController.animateTo(
+      0,
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
     );
     context.read<ActivityOffersCubit>().revealHeldBack();
   }
@@ -551,7 +553,8 @@ class _ActivityStreamScrollBody extends StatelessWidget {
           itemBuilder: (context, index) {
             if (index < offersState.items.length) {
               final item = offersState.items[index];
-              final showDot = offersState.unseenQueryComplete &&
+              final showDot =
+                  offersState.unseenQueryComplete &&
                   offersState.unseenBeaconIds.contains(item.beaconId);
               return KeyedSubtree(
                 key: ValueKey('offer-${item.beaconId}'),
@@ -564,11 +567,13 @@ class _ActivityStreamScrollBody extends StatelessWidget {
                 ),
               );
             }
-            final exitEntry =
-                exitingOffers.entries.elementAt(index - offersState.items.length);
+            final exitEntry = exitingOffers.entries.elementAt(
+              index - offersState.items.length,
+            );
             final beaconId = exitEntry.key;
             final item = exitEntry.value;
-            final showDot = offersState.unseenQueryComplete &&
+            final showDot =
+                offersState.unseenQueryComplete &&
                 offersState.unseenBeaconIds.contains(beaconId);
             final card = _PinnedRequestCard(
               item: item,
@@ -622,7 +627,8 @@ class _ActivityStreamScrollBody extends StatelessWidget {
                 // because §4 names three, and it is wired here rather than
                 // inlined so a filter gains its copy by passing `true`.
                 hasActiveFilter: false,
-                hasPinnedZone: placement.pinnedReceipts.isNotEmpty ||
+                hasPinnedZone:
+                    placement.pinnedReceipts.isNotEmpty ||
                     offersState.items.isNotEmpty,
                 wasClearedHere: forYouSweptHere(snapshot.data),
               ),
@@ -718,8 +724,7 @@ class _PinnedRequestCard extends StatelessWidget {
           onOpenTimeline: () => unawaited(
             showRequestAttentionTimelineSheet(context, beaconId: beaconId),
           ),
-          onOfferHelp: () =>
-              unawaited(inboxOfferHelp(context, model.beacon)),
+          onOfferHelp: () => unawaited(inboxOfferHelp(context, model.beacon)),
           onForward: model.allowsForward
               ? () => unawaited(inboxForwardItem(context, item))
               : null,
@@ -793,7 +798,7 @@ class _ActivitySizeFadeCollapseState extends State<_ActivitySizeFadeCollapse>
     );
     return SizeTransition(
       sizeFactor: animation,
-      axisAlignment: -1,
+      alignment: Alignment.topCenter,
       child: FadeTransition(
         opacity: Tween<double>(begin: 1, end: 0).animate(animation),
         child: widget.child,
@@ -814,7 +819,8 @@ class _ActivitySizeFadeReveal extends StatefulWidget {
   final Widget child;
 
   @override
-  State<_ActivitySizeFadeReveal> createState() => _ActivitySizeFadeRevealState();
+  State<_ActivitySizeFadeReveal> createState() =>
+      _ActivitySizeFadeRevealState();
 }
 
 class _ActivitySizeFadeRevealState extends State<_ActivitySizeFadeReveal>
@@ -864,7 +870,7 @@ class _ActivitySizeFadeRevealState extends State<_ActivitySizeFadeReveal>
     );
     return SizeTransition(
       sizeFactor: animation,
-      axisAlignment: -1,
+      alignment: Alignment.topCenter,
       child: FadeTransition(
         opacity: Tween<double>(begin: 0, end: 1).animate(animation),
         child: widget.child,
@@ -977,16 +983,18 @@ class _ActivityStreamCell extends StatelessWidget {
   }
 
   Widget _streamRow(BuildContext context, AttentionReceipt receipt) {
-    Future<void> onOpenParent() async {
-      final beaconId = receipt.beaconId;
+    Future<void> onOpenReceipt(AttentionReceipt target) async {
+      final beaconId = target.beaconId;
       if (beaconId == null || beaconId.isEmpty) {
         // No Request behind this row, so no detail host will clear it: the
         // read axis is all there is (§3).
-        unawaited(streamCubit.markSeen(receipt.id));
+        unawaited(streamCubit.markSeen(target.id));
       }
       if (!context.mounted) return;
-      await GetIt.I<RootRouter>().openFromUpdate(receipt);
+      await GetIt.I<RootRouter>().openFromUpdate(target);
     }
+
+    Future<void> onOpenParent() => onOpenReceipt(receipt);
 
     final entry = entryByReceiptId[receipt.id];
     final beaconId = receipt.beaconId ?? '';
@@ -1013,8 +1021,7 @@ class _ActivityStreamCell extends StatelessWidget {
               unawaited(streamCubit.markSeen(receipt.id));
             },
             onRestore:
-                receipt.forwardOutcome ==
-                    AttentionForwardOutcome.notInterested
+                receipt.forwardOutcome == AttentionForwardOutcome.notInterested
                 ? () => unawaited(inboxCubit.unreject(beaconId))
                 : null,
           ),
@@ -1035,6 +1042,30 @@ class _ActivityStreamCell extends StatelessWidget {
       // §6 — one card for the Request, its events as mini-cards inside it
       // under the `timeline` policy (D-171-5b). No tile, no sibling block.
       case ForYouStreamEntryKind.card:
+        // A grouped Post shows its newest directed event. Baton receipts must
+        // retain that event's private copy and source-message destination.
+        AttentionReceipt? latest;
+        for (final event in receipt.eventsPreview) {
+          if (latest == null || event.createdAt.isAfter(latest.createdAt)) {
+            latest = event;
+          }
+        }
+        final latestEvent = latest;
+        if (receipt.beaconKind == kBeaconKindPost &&
+            latestEvent != null &&
+            batonReceiptDisplayCopy(
+                  title: latestEvent.title,
+                  presentationKey: latestEvent.presentationKey,
+                  presentationPayloadJson: latestEvent.presentationPayloadJson,
+                  l10n: L10n.of(context)!,
+                ) !=
+                null) {
+          return _feedTile(
+            context,
+            latestEvent,
+            () => onOpenReceipt(latestEvent),
+          );
+        }
         // A Post is a lighter row, not a Request card (M1).
         if (receipt.beaconKind == kBeaconKindPost && beaconId.isNotEmpty) {
           return KeyedSubtree(
@@ -1071,6 +1102,17 @@ class _ActivityStreamCell extends StatelessWidget {
             eventsPreview: model.eventsPreview,
             actors: streamCubit.state.actors,
             onOpenBeacon: () => unawaited(onOpenParent()),
+            onEventTap: (event) {
+              final isBaton =
+                  batonReceiptDisplayCopy(
+                    title: event.title,
+                    presentationKey: event.presentationKey,
+                    presentationPayloadJson: event.presentationPayloadJson,
+                    l10n: L10n.of(context)!,
+                  ) !=
+                  null;
+              unawaited(isBaton ? onOpenReceipt(event) : onOpenParent());
+            },
             onOpenTimeline: () => unawaited(
               showRequestAttentionTimelineSheet(context, beaconId: beaconId),
             ),
@@ -1152,7 +1194,6 @@ class _ActivityStreamCell extends StatelessWidget {
               provenance.senders.first.displayName,
         );
   }
-
 }
 
 class _ActivityCollapsedInvitePromptRow extends StatelessWidget {

@@ -32,6 +32,7 @@ import '../../domain/entity/edge_directed.dart';
 import '../../domain/forward_graph_focus_rules.dart';
 import '../../domain/prune_directed_paths.dart';
 import '../../domain/entity/node_details.dart';
+import '../utils/graph_edge_style.dart';
 import '../utils/graph_scene_ids.dart';
 import 'graph_state.dart';
 
@@ -1375,28 +1376,51 @@ class GraphCubit extends Cubit<GraphState> {
     NodeDetails dst,
   ) {
     final egoId = genealogyMode ? state.egoNodeId : _egoNode.id;
-    final branchHighlighted =
-        e.branch == GenealogyEdgeBranch.ego ||
-        e.branch == GenealogyEdgeBranch.target;
     final touchesEgo = egoId.isNotEmpty && (src.id == egoId || dst.id == egoId);
     final isTrustGraph = mode == GraphMode.trust;
+    final isReciprocal =
+        isTrustGraph && _allEdges.containsKey((dst.id, src.id));
+    final style = graphEdgeStyle(switch (e.branch) {
+      GenealogyEdgeBranch.ego => GraphEdgeKind.genealogyEgo,
+      GenealogyEdgeBranch.target => GraphEdgeKind.genealogyTarget,
+      GenealogyEdgeBranch.neutral => GraphEdgeKind.genealogyNeutral,
+      null =>
+        e.weight < 0
+            ? GraphEdgeKind.negative
+            : touchesEgo
+            ? GraphEdgeKind.ego
+            : GraphEdgeKind.other,
+    }, _edgeColors);
+    // Direction only on the selected node's edges, so the graph stays quiet.
+    final focus = state.focus;
+    final showArrows =
+        isTrustGraph &&
+        focus.isNotEmpty &&
+        (src.id == focus || dst.id == focus);
     return EdgeDetails(
       source: src,
       destination: dst,
-      strokeWidth: branchHighlighted || touchesEgo ? 3 : 2,
-      isReciprocal: isTrustGraph && _allEdges.containsKey((dst.id, src.id)),
-      color: switch (e.branch) {
-        GenealogyEdgeBranch.ego => _edgeColors.ego,
-        GenealogyEdgeBranch.target => _edgeColors.target,
-        GenealogyEdgeBranch.neutral => _edgeColors.neutral,
-        null =>
-          e.weight < 0
-              ? _edgeColors.negative
-              : touchesEgo
-              ? _edgeColors.ego
-              : _edgeColors.neutral,
-      },
+      color: style.color,
+      strokeWidth: style.width,
+      pattern: style.pattern,
+      crossMark: style.crossMark,
+      isReciprocal: isReciprocal,
+      arrowAtDestination: showArrows,
+      arrowAtSource: showArrows && isReciprocal,
     );
+  }
+
+  /// Direct trust between the viewer and [nodeId] (trust graph), for the
+  /// selected-connection screen-reader description. `null` when there is no
+  /// direct edge either way in the loaded data.
+  ({double? fromViewer, double? toViewer})? viewerLink(String nodeId) {
+    if (mode != GraphMode.trust || nodeId.isEmpty) return null;
+    final egoId = _egoNode.id;
+    if (nodeId == egoId) return null;
+    final fromViewer = _allEdges[(egoId, nodeId)]?.weight;
+    final toViewer = _allEdges[(nodeId, egoId)]?.weight;
+    if (fromViewer == null && toViewer == null) return null;
+    return (fromViewer: fromViewer, toViewer: toViewer);
   }
 
   /// A mutual trust pair is visually an undirected relation. Keep its two

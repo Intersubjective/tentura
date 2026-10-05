@@ -41,6 +41,7 @@ extension BeaconRoomMessageRowMapper on db.BeaconRoomMessage {
     threadItemId: threadItemId,
     linkedPollingId: linkedPollingId,
     semanticMarker: semanticMarker,
+    systemMessageKind: systemMessageKind,
     systemPayload: systemPayload == null
         ? null
         : Map<String, Object?>.from(systemPayload! as Map),

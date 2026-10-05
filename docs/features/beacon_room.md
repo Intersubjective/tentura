@@ -132,6 +132,49 @@ Child beacons use standard beacon routes, not thread ids.
 
 Unread counts for **General** appear on the **Chat** tab badge (`threadsTabUnreadCount`). Closed-thread unread may be stored but is excluded from the badge. Child request state does not inherit parent read watermarks; viewing a parent does not mark a child's General seen. Own messages do not count as unread. Read-to-bottom suppresses row unread optimistically until sync completes.
 
+## Who'll take it?
+
+In a writable Request or Post discussion, any admitted participant can choose
+**Who'll take it?** / **Кто возьмётся?** on their own non-system message. The
+message action is available through the action button, secondary click, or long
+press. The author privately asks 1–12 other admitted participants, with optional
+priority tiers 1–3 (1 is highest; everyone starts at 1).
+
+Each person asked receives an Activity receipt and a private card on the source
+message, and can answer **Can help** or **Can't help**. They can change their
+answer while answers are being collected. **Can help** means availability; it
+does not mean the person has already taken it.
+
+The author can **Choose now** as soon as someone has answered **Can help**, even
+when other people are still waiting. They can select an available person who is
+still admitted, or use **Pick for me** to pick randomly among available people
+in the highest priority tier. When everyone has answered, the author receives a
+prompt to choose; nobody is selected automatically. With no available person,
+the author can wait or cancel.
+
+Visibility is private and depends on who is viewing the message:
+
+- Only the author sees the candidate list, priority tiers, answers, waiting
+  people, and whether everyone has answered.
+- A candidate sees only their own answer, never other candidates, their own
+  priority tier, or how many people were asked. After selection, their card says
+  **You took it.**, **Someone else was selected. Thanks for offering.**, or
+  **No longer needed.** The card identifies the selected person only when that
+  person is the viewer; the shared system line remains visible to everyone.
+- Other admitted participants see nothing while answers are collected. After
+  selection, they see **{name} took it.** and a small chip on the source message,
+  without candidate lists, refusals, waiting people, or priority tiers.
+
+Selection is final, and the selected person also receives an Activity receipt.
+Cancelling is silent for the discussion: candidates see **No longer needed.**,
+and the author and observers see no card. A cancelled attempt allows a new one
+on the same message; a selected one does not.
+
+This is not a task: it adds no due date, progress status, obligation, or item in
+My Work. Activity receipts are optional responses, not required actions. When
+the work needs separate coordination, participants can create a child Request
+themselves.
+
 ## Read receipts
 
 **Sender read receipts** on **General** show delivery/read state on **the viewer's own** messages only (pending, sent, read glyphs). They are separate from **Activity** / attention unread receipts and from the viewer's own **General** unread badge (`room_seen` / read-to-bottom).

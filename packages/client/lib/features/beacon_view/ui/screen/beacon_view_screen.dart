@@ -18,6 +18,7 @@ import 'package:tentura/features/beacon_threads/ui/coordination_room_navigation.
 import 'package:tentura/features/beacon_threads/ui/widget/thread_detail.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_room_lease.dart';
+import 'package:tentura/features/beacon_view/ui/util/beacon_request_modes.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_room_navigation_scope.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -28,6 +29,7 @@ import '../widget/beacon_anchor_status.dart';
 import '../widget/beacon_now_surface.dart';
 import '../widget/beacon_people_surface.dart';
 import '../widget/beacon_room_surface.dart';
+import '../widget/beacon_showcase_surface.dart';
 import '../widget/beacon_surface_tabs.dart';
 import '../widget/beacon_view_app_bar_overflow.dart';
 import '../widget/beacon_view_app_bar_title.dart';
@@ -39,7 +41,6 @@ bool _beaconPeopleTabAttentionQueryTruthy(String? v) {
   final s = v.toLowerCase();
   return s == '1' || s == 'true' || s == 'yes';
 }
-
 
 /// Expanded thread split when the list has rows — not gated on room navigation.
 bool beaconViewUsesExpandedThreadSplit({
@@ -146,6 +147,27 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
 
   /// Guards legacy `?tab=log` from opening the Activity sheet twice.
   bool _didOpenActivitySheetForLogTab = false;
+
+  /// Author previewing the showcase ("How others see it").
+  bool _previewAsOutsider = false;
+
+  bool _isShowcase(BeaconViewState state) =>
+      state.beaconContentLoaded &&
+      !state.beaconUnavailable &&
+      beaconViewModeFor(
+            state,
+            previewAsOutsider: _previewAsOutsider && state.isBeaconMine,
+          ) ==
+          BeaconViewMode.showcase;
+
+  void _setPreviewAsOutsider(bool value) {
+    if (_previewAsOutsider == value) return;
+    setState(() {
+      _previewAsOutsider = value;
+      _bannerMessage = null;
+      if (value) _selectedSurface = BeaconSurface.now;
+    });
+  }
 
   void _leaveBeaconView(BuildContext context) {
     final router = context.router;
@@ -503,6 +525,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       _hadThreadRowsAtLeastOnce = false;
       _lastIsSplit = null;
       _didOpenActivitySheetForLogTab = false;
+      _previewAsOutsider = false;
     }
     if (oldWidget.viewTab != widget.viewTab) {
       _selectedSurface = beaconViewSurfaceForTab(widget.viewTab);
@@ -920,7 +943,9 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                     builder: (context, constraints) {
                       const minPaneWidth = 360.0;
                       const splitHandleWidth = TenturaSpacing.row;
+                      final showcase = _isShowcase(state);
                       final isSplit =
+                          !showcase &&
                           constraints.maxWidth >=
                               minPaneWidth * 2 + splitHandleWidth &&
                           _computeIsSplit(
@@ -976,6 +1001,16 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                               unawaited(beaconViewCubit.retryInitialLoad()),
                           onGoBack: () => _leaveBeaconView(context),
                         );
+                      } else if (showcase) {
+                        // Outsiders get no tab row: nothing to switch to
+                        // until the author lets them in (#159, #104).
+                        body = TenturaContentColumn(
+                          child: BeaconShowcaseSurface(
+                            beaconViewCubit: beaconViewCubit,
+                            screenCubit: screenCubit,
+                            isPreview: _previewAsOutsider,
+                          ),
+                        );
                       } else if (isSplit) {
                         body = _buildExpandedSplitBody(
                           beaconState: state,
@@ -999,6 +1034,16 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                       final contentColumn = Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
+                          if (showcase && _previewAsOutsider)
+                            MaterialBanner(
+                              content: Text(l10n.beaconPreviewBanner),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => _setPreviewAsOutsider(false),
+                                  child: Text(l10n.beaconPreviewExit),
+                                ),
+                              ],
+                            ),
                           if (_bannerMessage != null)
                             MaterialBanner(
                               content: Text(_bannerMessage!),
@@ -1020,197 +1065,234 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                       // when a ThreadDetail child was open — that child route goes
                       // away in U10, but the leave path must stay unblocked).
                       return BeaconRoomNavigationScope(
-                        isRoomPresented: isBeaconRoomPresented(
-                          isSplit: isSplit,
-                          selectedSurface: _selectedSurface,
-                        ),
+                        isRoomPresented:
+                            !showcase &&
+                            isBeaconRoomPresented(
+                              isSplit: isSplit,
+                              selectedSurface: _selectedSurface,
+                            ),
                         roomLease: roomLease,
                         openGeneralAnchor: _openGeneralThread,
                         child: PopScope(
-                        canPop: _selectedSurface == BeaconSurface.now,
-                        onPopInvokedWithResult: (didPop, result) {
-                          if (didPop) return;
-                          if (_selectedSurface == BeaconSurface.room ||
-                              _selectedSurface == BeaconSurface.people) {
-                            _switchToSurface(BeaconSurface.now);
-                          }
-                        },
-                        child: HomeRailFrame(
-                          selectedTab: switch (widget.entry) {
-                            kBeaconEntryInbox => HomeTab.inbox,
-                            kBeaconEntryRoomNotification => HomeTab.updates,
-                            _ => HomeTab.work,
+                          canPop:
+                              (showcase && !_previewAsOutsider) ||
+                              (!showcase &&
+                                  _selectedSurface == BeaconSurface.now),
+                          onPopInvokedWithResult: (didPop, result) {
+                            if (didPop) return;
+                            if (showcase) {
+                              _setPreviewAsOutsider(false);
+                              return;
+                            }
+                            if (_selectedSurface == BeaconSurface.room ||
+                                _selectedSurface == BeaconSurface.people) {
+                              _switchToSurface(BeaconSurface.now);
+                            }
                           },
-                          child: Scaffold(
-                            appBar: TenturaTopBar.of(
-                              context,
-                              alignment: isSplit
-                                  ? TenturaTopBarAlignment.edgeToEdge
-                                  : TenturaTopBarAlignment.content,
-                              leading: isSplit
-                                  ? null
-                                  : AutoLeadingWithFallback(
-                                      fallbackPath: kPathMyWork,
-                                      onFallback: () => _leaveBeaconView(context),
-                                    ),
-                              title: _buildAppBarTitle(
-                                isSplit: isSplit,
-                                state: state,
-                                showBeaconContent: showBeaconContent,
-                                l10n: l10n,
-                              ),
-                              actions: isSplit
-                                  ? null
-                                  : [
-                                      if (showBeaconContent)
-                                        beaconViewAppBarOverflow(
-                                          context: context,
-                                          state: state,
-                                          cubit: beaconViewCubit,
-                                          screenCubit: screenCubit,
-                                          l10n: l10n,
-                                          inRoomSurface:
-                                              _selectedSurface ==
-                                              BeaconSurface.room,
-                                          roomCubit: context
-                                              .read<ThreadHostCubit>()
-                                              .roomCubit,
-                                          onItemsTabRefresh: _refreshThreadsTab,
-                                          onActivityLog: () =>
-                                              unawaited(_openActivitySheet()),
-                                          onAuthorManageStatus: () async {
-                                            await beaconViewCubit
-                                                .refreshClosureState();
-                                            if (!context.mounted) return;
-                                            await showBeaconViewUpdateStatusSheet(
-                                              context,
-                                              beaconViewCubit.state,
-                                              beaconViewCubit,
-                                              onOpenPeopleTab: () =>
-                                                  _switchToSurface(
-                                                    BeaconSurface.people,
-                                                  ),
-                                              onOpenGeneralThread: () =>
-                                                  unawaited(_openGeneralThread()),
-                                            );
-                                          },
-                                        ),
-                                    ],
-                              row: isSplit
-                                  ? LayoutBuilder(
-                                      builder: (context, constraints) {
-                                        const handleWidth = TenturaSpacing.row;
-                                        // Same post-rail width as the body
-                                        // split, so panes line up (#169).
-                                        final threadPaneWidth =
-                                            _splitThreadPaneWidth(
-                                              tt,
-                                              constraints.maxWidth,
-                                            );
-                                        // #168: one ⋮ for the whole split
-                                        // header — request management and
-                                        // discussion actions share it.
-                                        final splitOverflow = showBeaconContent
-                                            ? beaconViewAppBarOverflow(
-                                                context: context,
-                                                state: state,
-                                                cubit: beaconViewCubit,
-                                                screenCubit: screenCubit,
-                                                l10n: l10n,
-                                                inRoomSurface: true,
-                                                combineSplitPanes: true,
-                                                roomCubit: context
-                                                    .read<ThreadHostCubit>()
-                                                    .roomCubit,
-                                                onItemsTabRefresh:
-                                                    _refreshThreadsTab,
-                                                onActivityLog: () => unawaited(
-                                                  _openActivitySheet(),
-                                                ),
-                                                onAuthorManageStatus: () async {
-                                                  await beaconViewCubit
-                                                      .refreshClosureState();
-                                                  if (!context.mounted) return;
-                                                  await showBeaconViewUpdateStatusSheet(
-                                                    context,
-                                                    beaconViewCubit.state,
-                                                    beaconViewCubit,
-                                                    onOpenPeopleTab: () =>
-                                                        _switchToSurface(
-                                                          BeaconSurface.people,
-                                                        ),
-                                                    onOpenGeneralThread: () =>
-                                                        unawaited(
-                                                          _openGeneralThread(),
-                                                        ),
-                                                  );
-                                                },
-                                              )
-                                            : const SizedBox.shrink();
-                                        return Row(
-                                          children: [
-                                            Expanded(
-                                              child: Padding(
-                                                padding:
-                                                    EdgeInsetsDirectional.symmetric(
-                                                      horizontal:
-                                                          tt.screenHPadding,
-                                                    ),
-                                                child: TenturaContentColumn(
-                                                  child: Row(
-                                                    children: [
-                                                      AutoLeadingWithFallback(
-                                                        fallbackPath:
-                                                            kPathMyWork,
-                                                        onFallback: () =>
-                                                            _leaveBeaconView(
-                                                              context,
-                                                            ),
-                                                      ),
-                                                      Expanded(
-                                                        child:
-                                                            BeaconViewAppBarTitle(
-                                                              beacon:
-                                                                  state.beacon,
-                                                              showBeaconContent:
-                                                                  showBeaconContent,
-                                                              phaseStatus:
-                                                                  appBarPhaseStatus,
-                                                              l10n: l10n,
-                                                            ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                            const SizedBox(width: handleWidth),
-                                            SizedBox(
-                                              width: threadPaneWidth,
-                                              child: _splitThreadPaneAppBar(
-                                                threadsState: threadsState,
-                                                hostState: hostState,
-                                                beaconState: state,
-                                                l10n: l10n,
-                                                tt: tt,
-                                                overflow: splitOverflow,
-                                              ),
-                                            ),
-                                          ],
-                                        );
-                                      },
-                                    )
-                                  : null,
-                              progress: TenturaTopBar.loadingBar(
+                          child: HomeRailFrame(
+                            selectedTab: switch (widget.entry) {
+                              kBeaconEntryInbox => HomeTab.inbox,
+                              kBeaconEntryRoomNotification => HomeTab.updates,
+                              _ => HomeTab.work,
+                            },
+                            child: Scaffold(
+                              appBar: TenturaTopBar.of(
                                 context,
-                                state.isLoading,
+                                alignment: isSplit
+                                    ? TenturaTopBarAlignment.edgeToEdge
+                                    : TenturaTopBarAlignment.content,
+                                leading: isSplit
+                                    ? null
+                                    : AutoLeadingWithFallback(
+                                        fallbackPath: kPathMyWork,
+                                        onFallback: () =>
+                                            _leaveBeaconView(context),
+                                      ),
+                                // The showcase carries the title under its
+                                // cover; the bar keeps only back and ⋮.
+                                title: showcase
+                                    ? const SizedBox.shrink()
+                                    : _buildAppBarTitle(
+                                        isSplit: isSplit,
+                                        state: state,
+                                        showBeaconContent: showBeaconContent,
+                                        l10n: l10n,
+                                      ),
+                                actions: isSplit
+                                    ? null
+                                    : [
+                                        if (showBeaconContent)
+                                          beaconViewAppBarOverflow(
+                                            context: context,
+                                            state: state,
+                                            cubit: beaconViewCubit,
+                                            screenCubit: screenCubit,
+                                            l10n: l10n,
+                                            inRoomSurface:
+                                                !showcase &&
+                                                _selectedSurface ==
+                                                    BeaconSurface.room,
+                                            onPreviewAsOthers:
+                                                showcase || !state.isBeaconMine
+                                                ? null
+                                                : () => _setPreviewAsOutsider(
+                                                    true,
+                                                  ),
+                                            roomCubit: context
+                                                .read<ThreadHostCubit>()
+                                                .roomCubit,
+                                            onItemsTabRefresh:
+                                                _refreshThreadsTab,
+                                            onActivityLog: () =>
+                                                unawaited(_openActivitySheet()),
+                                            onAuthorManageStatus: () async {
+                                              await beaconViewCubit
+                                                  .refreshClosureState();
+                                              if (!context.mounted) return;
+                                              await showBeaconViewUpdateStatusSheet(
+                                                context,
+                                                beaconViewCubit.state,
+                                                beaconViewCubit,
+                                                onOpenPeopleTab: () =>
+                                                    _switchToSurface(
+                                                      BeaconSurface.people,
+                                                    ),
+                                                onOpenGeneralThread: () =>
+                                                    unawaited(
+                                                      _openGeneralThread(),
+                                                    ),
+                                              );
+                                            },
+                                          ),
+                                      ],
+                                row: isSplit
+                                    ? LayoutBuilder(
+                                        builder: (context, constraints) {
+                                          const handleWidth =
+                                              TenturaSpacing.row;
+                                          // Same post-rail width as the body
+                                          // split, so panes line up (#169).
+                                          final threadPaneWidth =
+                                              _splitThreadPaneWidth(
+                                                tt,
+                                                constraints.maxWidth,
+                                              );
+                                          // #168: one ⋮ for the whole split
+                                          // header — request management and
+                                          // discussion actions share it.
+                                          final splitOverflow =
+                                              showBeaconContent
+                                              ? beaconViewAppBarOverflow(
+                                                  context: context,
+                                                  state: state,
+                                                  cubit: beaconViewCubit,
+                                                  screenCubit: screenCubit,
+                                                  l10n: l10n,
+                                                  inRoomSurface: true,
+                                                  combineSplitPanes: true,
+                                                  onPreviewAsOthers:
+                                                      state.isBeaconMine
+                                                      ? () =>
+                                                            _setPreviewAsOutsider(
+                                                              true,
+                                                            )
+                                                      : null,
+                                                  roomCubit: context
+                                                      .read<ThreadHostCubit>()
+                                                      .roomCubit,
+                                                  onItemsTabRefresh:
+                                                      _refreshThreadsTab,
+                                                  onActivityLog: () =>
+                                                      unawaited(
+                                                        _openActivitySheet(),
+                                                      ),
+                                                  onAuthorManageStatus: () async {
+                                                    await beaconViewCubit
+                                                        .refreshClosureState();
+                                                    if (!context.mounted)
+                                                      return;
+                                                    await showBeaconViewUpdateStatusSheet(
+                                                      context,
+                                                      beaconViewCubit.state,
+                                                      beaconViewCubit,
+                                                      onOpenPeopleTab: () =>
+                                                          _switchToSurface(
+                                                            BeaconSurface
+                                                                .people,
+                                                          ),
+                                                      onOpenGeneralThread: () =>
+                                                          unawaited(
+                                                            _openGeneralThread(),
+                                                          ),
+                                                    );
+                                                  },
+                                                )
+                                              : const SizedBox.shrink();
+                                          return Row(
+                                            children: [
+                                              Expanded(
+                                                child: Padding(
+                                                  padding:
+                                                      EdgeInsetsDirectional.symmetric(
+                                                        horizontal:
+                                                            tt.screenHPadding,
+                                                      ),
+                                                  child: TenturaContentColumn(
+                                                    child: Row(
+                                                      children: [
+                                                        AutoLeadingWithFallback(
+                                                          fallbackPath:
+                                                              kPathMyWork,
+                                                          onFallback: () =>
+                                                              _leaveBeaconView(
+                                                                context,
+                                                              ),
+                                                        ),
+                                                        Expanded(
+                                                          child: BeaconViewAppBarTitle(
+                                                            beacon:
+                                                                state.beacon,
+                                                            showBeaconContent:
+                                                                showBeaconContent,
+                                                            phaseStatus:
+                                                                appBarPhaseStatus,
+                                                            l10n: l10n,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(
+                                                width: handleWidth,
+                                              ),
+                                              SizedBox(
+                                                width: threadPaneWidth,
+                                                child: _splitThreadPaneAppBar(
+                                                  threadsState: threadsState,
+                                                  hostState: hostState,
+                                                  beaconState: state,
+                                                  l10n: l10n,
+                                                  tt: tt,
+                                                  overflow: splitOverflow,
+                                                ),
+                                              ),
+                                            ],
+                                          );
+                                        },
+                                      )
+                                    : null,
+                                progress: TenturaTopBar.loadingBar(
+                                  context,
+                                  state.isLoading,
+                                ),
                               ),
+                              body: SafeArea(child: contentColumn),
                             ),
-                            body: SafeArea(child: contentColumn),
                           ),
                         ),
-                      ),
-                    );
+                      );
                     },
                   );
                 },

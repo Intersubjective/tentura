@@ -1,0 +1,3 @@
+mutation RoomBatonRespond($batonId: String!, $canHelp: Boolean!) {
+  roomBatonRespond(batonId: $batonId, canHelp: $canHelp)
+}

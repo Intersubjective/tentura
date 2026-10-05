@@ -31,6 +31,7 @@ import 'package:tentura/features/beacon_threads/ui/widget/fact_history_sheet.dar
 import 'package:tentura/features/beacon_threads/ui/widget/reaction_senders_sheet.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/reaction_quick_picker.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_attachment_widgets.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/room_baton_card.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_closure_story_card.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_bubble_measure.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_fact_quote.dart';
@@ -84,6 +85,9 @@ class RoomMessageTile extends StatelessWidget {
     this.onJumpToReply,
     this.onOpenFileAttachment,
     this.onVotePoll,
+    this.onBatonRespond,
+    this.onBatonSelect,
+    this.onBatonCancel,
     this.previousMessage,
     this.nextMessage,
     this.breakGroupAbove = false,
@@ -161,6 +165,15 @@ class RoomMessageTile extends StatelessWidget {
   })?
   onVotePoll;
 
+  /// Answers the «Who'll take it?» baton under this message.
+  final void Function(String batonId, bool canHelp)? onBatonRespond;
+
+  /// Author only: picks who takes the baton (`null` user id = server picks).
+  final void Function(String batonId, String? userId)? onBatonSelect;
+
+  /// Author only: cancels the baton under this message.
+  final void Function(String batonId)? onBatonCancel;
+
   final List<BeaconParticipant> participants;
 
   /// Fact-pin notify row: semantic fact marker + scroll target in payload.
@@ -172,6 +185,20 @@ class RoomMessageTile extends StatelessWidget {
     }
     final src = m.sourceMessageId;
     return src != null && src.trim().isNotEmpty;
+  }
+
+  /// Taker of a «{name} took it.» system line; null without a usable payload.
+  static String? batonTakerUserId(RoomMessage m) {
+    final raw = m.systemPayloadJson;
+    if (raw == null || raw.trim().isEmpty) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) return null;
+      final taker = decoded['takerUserId'];
+      return taker is String && taker.trim().isNotEmpty ? taker.trim() : null;
+    } on Object {
+      return null;
+    }
   }
 
   static bool isParticipantJoinedNotification(RoomMessage m) =>
@@ -449,6 +476,24 @@ class RoomMessageTile extends StatelessWidget {
     return _linkedCoordinationItemOnTap(context, item);
   }
 
+  /// Card under the bubble: the viewer's answer card, the author's list of
+  /// answers, or the observer's «took it» chip.
+  Widget? _batonCard() {
+    final baton = message.baton;
+    if (baton == null) return null;
+    final respond = onBatonRespond;
+    final select = onBatonSelect;
+    final cancel = onBatonCancel;
+    return RoomBatonCard(
+      baton: baton,
+      onSelect: select == null ? null : (userId) => select(baton.id, userId),
+      onCancel: cancel == null ? null : () => cancel(baton.id),
+      onRespond: respond == null
+          ? null
+          : (canHelp) => respond(baton.id, canHelp),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
@@ -471,8 +516,11 @@ class RoomMessageTile extends StatelessWidget {
         breakGroupAbove || _groupBreak(previousMessage, message);
     // A promoted-source footer ends the visual cluster so the next same-author
     // message (if any) starts fresh rather than merging through the footer.
+    final batonCard = _batonCard();
     final isGroupEnd =
-        promotedChildBeaconId != null || _groupBreak(message, nextMessage);
+        promotedChildBeaconId != null ||
+        batonCard != null ||
+        _groupBreak(message, nextMessage);
 
     final topPad = isGroupStart ? tt.bubbleRowTop : 0.0;
     final bottomPad = tt.tightGap;
@@ -502,6 +550,21 @@ class RoomMessageTile extends StatelessWidget {
                   viewer: myProfile,
                   l10n: l10n,
                 ),
+        ),
+      );
+    }
+
+    if (message.semanticMarker == BeaconRoomSemanticMarker.batonTaken) {
+      final takerId = batonTakerUserId(message);
+      if (takerId == null) return const SizedBox.shrink();
+      return _ConvertedToRequestNotice(
+        text: l10n.batonTookIt(
+          _participantDisplayName(
+            participants: participants,
+            userId: takerId,
+            viewer: myProfile,
+            l10n: l10n,
+          ),
         ),
       );
     }
@@ -1604,6 +1667,11 @@ class RoomMessageTile extends StatelessWidget {
     final childBeaconId = capabilities.childPromotion
         ? promotedChildBeaconId
         : null;
+    final underBubble = [
+      if (childBeaconId != null)
+        BeaconChildPromotionFooter(childBeaconId: childBeaconId),
+      ?batonCard,
+    ];
     return Padding(
       padding: EdgeInsets.fromLTRB(
         isMine ? tt.bubbleFarGutter : tt.screenHPadding,
@@ -1611,7 +1679,7 @@ class RoomMessageTile extends StatelessWidget {
         isMine ? tt.screenHPadding : tt.screenHPadding,
         bottomPad,
       ),
-      child: childBeaconId == null
+      child: underBubble.isEmpty
           ? row
           : Column(
               crossAxisAlignment: isMine
@@ -1619,20 +1687,18 @@ class RoomMessageTile extends StatelessWidget {
                   : CrossAxisAlignment.start,
               children: [
                 row,
-                SizedBox(height: tt.tightGap),
-                if (isMine)
-                  BeaconChildPromotionFooter(childBeaconId: childBeaconId)
-                else
-                  Row(
-                    children: [
-                      SizedBox(width: tt.avatarGutter),
-                      Flexible(
-                        child: BeaconChildPromotionFooter(
-                          childBeaconId: childBeaconId,
-                        ),
-                      ),
-                    ],
-                  ),
+                for (final footer in underBubble) ...[
+                  SizedBox(height: tt.tightGap),
+                  if (isMine)
+                    footer
+                  else
+                    Row(
+                      children: [
+                        SizedBox(width: tt.avatarGutter),
+                        Flexible(child: footer),
+                      ],
+                    ),
+                ],
               ],
             ),
     );

@@ -171,6 +171,10 @@ List<BeaconHudMetadataEntry> buildBeaconViewHudMetadataEntries(
   required BeaconViewState state,
   VoidCallback? onEditNowLine,
   VoidCallback? onReviewAuthorOffers,
+
+  /// False when the caller renders the next step and blocker itself (the
+  /// pinned Request HUD); only the YOU row is built then.
+  bool includeNow = true,
 }) {
   final l10n = L10n.of(context)!;
   final tt = context.tt;
@@ -184,30 +188,31 @@ List<BeaconHudMetadataEntry> buildBeaconViewHudMetadataEntries(
 
   final nowDisplay = beaconHudNowDisplay(l10n, state);
 
-  entries.add(
-    BeaconHudMetadataEntry(
-      icon: BeaconHudRowIcons.now,
-      semanticsLabel: l10n.beaconHudNowLabel,
-      trailing: onEditNowLine != null
-          ? hudNowRowEditButton(
-              context: context,
-              onEdit: onEditNowLine,
-              editSemanticLabel: l10n.beaconHudEditNowLine,
-            )
-          : null,
-      body: HudLabeledMultiline(
-        leadingIcon: BeaconHudRowIcons.now,
+  if (includeNow)
+    entries.add(
+      BeaconHudMetadataEntry(
+        icon: BeaconHudRowIcons.now,
         semanticsLabel: l10n.beaconHudNowLabel,
-        text: nowDisplay.primaryText,
-        subline: nowDisplay.blockerText,
-        mutedColor: tt.textMuted,
-        isPlaceholder: nowDisplay.isPlaceholder,
-        includeLead: false,
-        primaryMaxLines: 1,
-        showTruncationHint: false,
+        trailing: onEditNowLine != null
+            ? hudNowRowEditButton(
+                context: context,
+                onEdit: onEditNowLine,
+                editSemanticLabel: l10n.beaconHudEditNowLine,
+              )
+            : null,
+        body: HudLabeledMultiline(
+          leadingIcon: BeaconHudRowIcons.now,
+          semanticsLabel: l10n.beaconHudNowLabel,
+          text: nowDisplay.primaryText,
+          subline: nowDisplay.blockerText,
+          mutedColor: tt.textMuted,
+          isPlaceholder: nowDisplay.isPlaceholder,
+          includeLead: false,
+          primaryMaxLines: 1,
+          showTruncationHint: false,
+        ),
       ),
-    ),
-  );
+    );
 
   final youResponsibility =
       state.youResponsibility ??

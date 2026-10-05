@@ -57,6 +57,7 @@ class RequestAttentionCard extends StatelessWidget {
     this.eventsPreview = const [],
     this.actors = const {},
     this.onClearEvent,
+    this.onEventTap,
     this.onClearAll,
     this.onOfferHelp,
     this.onForward,
@@ -119,6 +120,9 @@ class RequestAttentionCard extends StatelessWidget {
   final VoidCallback onOpenTimeline;
 
   final ValueChanged<String>? onClearEvent;
+
+  /// Opens the selected receipt, preserving its source-message destination.
+  final ValueChanged<AttentionReceipt>? onEventTap;
   final VoidCallback? onClearAll;
   final VoidCallback? onOfferHelp;
   final VoidCallback? onForward;
@@ -177,8 +181,8 @@ class RequestAttentionCard extends StatelessWidget {
                     visibleCap: eventCap,
                     // D-171-5b: the card's hard maximum height *is* this — the
                     // block leaves for the Timeline instead of growing.
-                    overflowPolicy: AttentionBlockOverflowPolicy.timeline,
                     onOpenTimeline: onOpenTimeline,
+                    onEventTap: onEventTap,
                     onClearEvent: _isPinned ? null : onClearEvent,
                     quotedBodyOf: _quotedBodyOf,
                   ),
@@ -197,7 +201,7 @@ class RequestAttentionCard extends StatelessWidget {
                   ),
                 ],
                 if (_isPinned) ...[
-                  TenturaHairlineDivider(),
+                  const TenturaHairlineDivider(),
                   SizedBox(height: tt.tightGap),
                   _actionRow(l10n, tt),
                 ],
@@ -236,14 +240,15 @@ class RequestAttentionCard extends StatelessWidget {
                 style: TenturaText.titleSmall(tt.text),
               ),
               if (deadline != null)
-                deadline.urgent
-                    ? TenturaStatusText(deadline.text, tone: TenturaTone.danger)
-                    : Text(
-                        deadline.text,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TenturaText.bodySmall(tt.textMuted),
-                      ),
+                if (deadline.urgent)
+                  TenturaStatusText(deadline.text, tone: TenturaTone.danger)
+                else
+                  Text(
+                    deadline.text,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TenturaText.bodySmall(tt.textMuted),
+                  ),
               if (author.isNotEmpty &&
                   _headlineTreatment != AttentionHeadlineTreatment.user)
                 Text(

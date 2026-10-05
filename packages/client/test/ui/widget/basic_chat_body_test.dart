@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/enums.dart';
@@ -18,6 +18,7 @@ import 'package:tentura/domain/entity/room_poll_data.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/presence_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/mention_suggestions_overlay.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_tile.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_unread_divider.dart';
 import 'package:tentura/ui/widget/basic_chat_body.dart';
@@ -424,6 +425,54 @@ void main() {
     expect(find.byType(TextField), findsOneWidget);
     expect(tester.widget<TextField>(find.byType(TextField)).controller!.text,
         isEmpty);
+  });
+
+  testWidgets(
+    'typing :shortcode suggests emoji even with mentions off; Enter inserts',
+    (tester) async {
+      var sent = '';
+      await pumpComposerBody(
+        tester,
+        onSend: (body, _) async {
+          sent = body;
+          return true;
+        },
+      );
+
+      final field = find.byType(TextField);
+      await tester.tap(field);
+      await tester.enterText(field, 'hi :smi');
+      await tester.pumpAndSettle();
+
+      expect(find.byType(EmojiSuggestionsOverlay), findsOneWidget);
+      expect(find.text(':smile:'), findsOneWidget);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pumpAndSettle();
+
+      final controller = tester.widget<TextField>(field).controller!;
+      expect(controller.text, 'hi 😄');
+      expect(find.byType(EmojiSuggestionsOverlay), findsNothing);
+      expect(sent, isEmpty);
+    },
+  );
+
+  testWidgets('Escape closes emoji suggestions without changing text', (
+    tester,
+  ) async {
+    await pumpComposerBody(tester, onSend: (_, _) async => true);
+
+    final field = find.byType(TextField);
+    await tester.tap(field);
+    await tester.enterText(field, ':hea');
+    await tester.pumpAndSettle();
+    expect(find.byType(EmojiSuggestionsOverlay), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(EmojiSuggestionsOverlay), findsNothing);
+    expect(tester.widget<TextField>(field).controller!.text, ':hea');
   });
 
   testWidgets('paste image adds pending attachment via same path as Photos', (

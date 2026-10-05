@@ -46,6 +46,7 @@ class BeaconOverflowMenu extends StatelessWidget {
     this.onOpenBeacon,
     this.onRequestStatus,
     this.onActivityLog,
+    this.onPreviewAsOthers,
     this.onCloseBeacon,
     this.onCancelBeacon,
     this.onEdit,
@@ -74,6 +75,9 @@ class BeaconOverflowMenu extends StatelessWidget {
 
   final Future<void> Function()? onRequestStatus;
   final VoidCallback? onActivityLog;
+
+  /// Author: show the Request as people outside it see it (showcase).
+  final VoidCallback? onPreviewAsOthers;
   final Future<void> Function()? onCloseBeacon;
   final Future<void> Function()? onCancelBeacon;
   final VoidCallback? onEdit;
@@ -152,6 +156,13 @@ class BeaconOverflowMenu extends StatelessWidget {
         'activity_log',
         Icons.history_outlined,
         l10n.labelBeaconTabLog,
+      );
+    }
+    if (onPreviewAsOthers != null) {
+      add(
+        'preview_as_others',
+        Icons.preview_outlined,
+        l10n.beaconPreviewAsOthers,
       );
     }
     if (onCloseBeacon != null && beacon.status == BeaconStatus.open) {
@@ -284,6 +295,7 @@ class BeaconOverflowMenu extends StatelessWidget {
             _deferPopupAction(context, onRequestStatus),
           ),
           'activity_log' => _deferSync(context, onActivityLog),
+          'preview_as_others' => _deferSync(context, onPreviewAsOthers),
           'close_beacon' => unawaited(
             _deferPopupAction(context, onCloseBeacon),
           ),

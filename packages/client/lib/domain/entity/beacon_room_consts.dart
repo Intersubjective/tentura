@@ -56,6 +56,9 @@ abstract final class BeaconRoomSemanticMarker {
 
   /// Fact card unpinned / removed (system line).
   static const factUnpinned = 11;
+
+  /// «Who'll take it?» baton resolved with a taker (system line).
+  static const batonTaken = 12;
 }
 
 /// Mirrors server [BeaconRoomSystemMessageKind].

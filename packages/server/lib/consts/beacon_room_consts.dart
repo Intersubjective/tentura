@@ -45,6 +45,9 @@ abstract final class BeaconRoomSemanticMarker {
 
   /// Fact card unpinned / removed (system line).
   static const factUnpinned = 11;
+
+  /// «Who'll take it?» baton resolved with a taker (system line).
+  static const batonTaken = 12;
 }
 
 /// `beacon_participant.next_move_status` (sparse UX enum).

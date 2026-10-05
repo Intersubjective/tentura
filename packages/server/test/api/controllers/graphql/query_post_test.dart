@@ -12,6 +12,7 @@ import 'package:tentura_server/domain/use_case/post_case.dart';
 
 final class _Posts extends Fake implements PostCase {
   final viewers = <String>[];
+  final summaryCalls = <({String viewerId, String beaconId})>[];
   List<PostSummary> result = [];
 
   @override
@@ -19,7 +20,32 @@ final class _Posts extends Fake implements PostCase {
     viewers.add(viewerId);
     return result;
   }
+
+  @override
+  Future<PostSummary?> postSummary({
+    required String viewerId,
+    required String beaconId,
+  }) async {
+    summaryCalls.add((viewerId: viewerId, beaconId: beaconId));
+    return result.where((p) => p.id == beaconId).firstOrNull;
+  }
 }
+
+PostSummary _summary(String id, {bool mutedForever = false}) => PostSummary(
+  id: id,
+  authorId: 'Uauthor',
+  authorName: 'Author',
+  authorAvatar: 'https://images.example/avatar.webp',
+  rootExcerpt: 'Root',
+  lastMessageExcerpt: null,
+  lastMessageAt: null,
+  lastActivityAt: null,
+  pinnedAt: null,
+  mutedUntil: null,
+  mutedForever: mutedForever,
+  unreadCount: 0,
+  isAuthor: false,
+);
 
 void main() {
   late _Posts posts;
@@ -64,7 +90,7 @@ void main() {
     final response = await graphQL.parseAndExecute(
       '{ myPosts { id authorId authorName authorAvatar rootImageUrl rootExcerpt '
       'lastMessageExcerpt lastMessageAt lastActivityAt pinnedAt mutedUntil '
-      'unreadCount isAuthor } }',
+      'mutedForever unreadCount isAuthor } }',
       globalVariables: {kGlobalInputQueryJwt: const JwtEntity(sub: 'Uviewer')},
     );
     expect(response, {
@@ -81,6 +107,7 @@ void main() {
           'lastActivityAt': '2030-01-04T00:00:00.000Z',
           'pinnedAt': '2030-02-01T00:00:00.000Z',
           'mutedUntil': '2030-03-01T00:00:00.000Z',
+          'mutedForever': false,
           'unreadCount': 2,
           'isAuthor': false,
         },
@@ -101,5 +128,28 @@ void main() {
       throwsA(isA<UnauthorizedException>()),
     );
     expect(posts.viewers, isEmpty);
+  });
+  test('postSummary takes an id and returns a nullable PostSummary', () {
+    expect(query.postSummary.type.toString(), 'PostSummary');
+    expect(query.postSummary.inputs.map((i) => i.name), ['id']);
+  });
+  test("postSummary returns the viewer's row for that Post", () async {
+    const id = 'Bpostsummary1';
+    posts.result = [_summary(id, mutedForever: true)];
+    final response = await graphQL.parseAndExecute(
+      '{ postSummary(id: "$id") { id mutedUntil mutedForever } }',
+      globalVariables: {kGlobalInputQueryJwt: const JwtEntity(sub: 'Uviewer')},
+    );
+    expect(response, {
+      'postSummary': {'id': id, 'mutedUntil': null, 'mutedForever': true},
+    });
+    expect(posts.summaryCalls, [(viewerId: 'Uviewer', beaconId: id)]);
+  });
+  test('postSummary is null when the viewer is not in the Post', () async {
+    final response = await graphQL.parseAndExecute(
+      '{ postSummary(id: "Bpostsummary2") { id } }',
+      globalVariables: {kGlobalInputQueryJwt: const JwtEntity(sub: 'Uviewer')},
+    );
+    expect(response, {'postSummary': null});
   });
 }

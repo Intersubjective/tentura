@@ -111,6 +111,20 @@ class MockBeaconRepositoryPort extends _i1.Mock
           as _i3.Future<List<_i8.PostSummary>>);
 
   @override
+  _i3.Future<_i8.PostSummary?> postSummary({
+    required String? viewerId,
+    required String? beaconId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#postSummary, [], {
+              #viewerId: viewerId,
+              #beaconId: beaconId,
+            }),
+            returnValue: _i3.Future<_i8.PostSummary?>.value(),
+          )
+          as _i3.Future<_i8.PostSummary?>);
+
+  @override
   _i3.Future<_i2.BeaconEntity> createBeacon({
     required String? authorId,
     required String? title,

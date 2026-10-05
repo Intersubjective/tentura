@@ -4061,6 +4061,10 @@ type mutation_root {
   releaseCommitment(id: String!, offerUserId: String!, reason: String!): v2_BeaconStatusResult!
   removeFromRoom(id: String!, offerUserId: String!, reason: String!): v2_BeaconStatusResult!
   revokeAcknowledgement(beaconId: String!, slug: String!, subjectId: String!): Boolean!
+  roomBatonCancel(batonId: String!): Boolean!
+  roomBatonCreate(candidates: [v2_RoomBatonCandidateInput!]!, messageId: String!): String
+  roomBatonRespond(batonId: String!, canHelp: Boolean!): String
+  roomBatonSelect(batonId: String!, userId: String): String
   seedRoutingAttestation(slugs: [String!], subjectId: String!): Boolean!
   setBeaconStatus(id: String!, status: Int!): v2_BeaconStatusResult!
   setCoordinationResponse(id: String!, inviteToRoom: Boolean! = false, offerUserId: String!, removeFromRoom: Boolean! = false, responseType: Int!): v2_BeaconStatusResult!
@@ -5445,6 +5449,7 @@ type query_root {
 
   """fetch data from the table: "polling_variant" using primary key columns"""
   polling_variant_by_pk(id: String!): polling_variant
+  postSummary(id: String!): v2_PostSummary
 
   """
   execute function "rating" which returns "mutual_score"
@@ -7104,6 +7109,11 @@ type user {
   ): [mutual_score!]
 
   """
+  A computed field, executes function "user_get_shares_episode_with_viewer"
+  """
+  shares_episode_with_viewer: Boolean
+
+  """
   A computed field, executes function "user_get_trusts_viewer"
   """
   trusts_viewer: Boolean
@@ -7263,6 +7273,7 @@ input user_bool_exp {
   my_vote: Int_comparison_exp
   public_key: String_comparison_exp
   scores: mutual_score_bool_exp
+  shares_episode_with_viewer: Boolean_comparison_exp
   trusts_viewer: Boolean_comparison_exp
   updated_at: timestamptz_comparison_exp
   user_availability: user_availability_bool_exp
@@ -7387,6 +7398,7 @@ input user_order_by {
   my_vote: order_by
   public_key: order_by
   scores_aggregate: mutual_score_aggregate_order_by
+  shares_episode_with_viewer: order_by
   trusts_viewer: order_by
   updated_at: order_by
   user_availability: user_availability_order_by
@@ -8469,6 +8481,11 @@ type v2_ReviewWindowStatus {
   windowComplete: Boolean
 }
 
+input v2_RoomBatonCandidateInput {
+  tier: Int!
+  userId: String!
+}
+
 type v2_RoomMessageCreatePayload {
   id: String!
 }
@@ -8494,6 +8511,7 @@ type v2_RoomMessageRow {
   authorPicHeight: Int!
   authorPicWidth: Int!
   authorTitle: String!
+  batonDataJson: String
   beaconId: String!
   body: String!
   createdAt: String!
@@ -9123,6 +9141,7 @@ type v2_PostSummary {
   lastActivityAt: String
   pinnedAt: String
   mutedUntil: String
+  mutedForever: Boolean!
   unreadCount: Int!
   isAuthor: Boolean!
 }

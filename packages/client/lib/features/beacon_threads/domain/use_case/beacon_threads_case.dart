@@ -10,6 +10,7 @@ import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/realtime/realtime_room_message_paint.dart';
+import 'package:tentura/domain/entity/room_baton_data.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_read_watermark.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
@@ -414,6 +415,24 @@ base class BeaconThreadsCase extends UseCaseBase {
     int? score,
   }) =>
       _polling.vote(pollingId: pollingId, variantIds: variantIds, score: score);
+
+  Future<RoomBatonData?> batonCreate({
+    required String messageId,
+    required List<({String userId, int tier})> candidates,
+  }) => _room.batonCreate(messageId: messageId, candidates: candidates);
+
+  Future<RoomBatonData?> batonRespond({
+    required String batonId,
+    required bool canHelp,
+  }) => _room.batonRespond(batonId: batonId, canHelp: canHelp);
+
+  Future<RoomBatonData?> batonSelect({
+    required String batonId,
+    String? userId,
+  }) => _room.batonSelect(batonId: batonId, userId: userId);
+
+  Future<bool> batonCancel({required String batonId}) =>
+      _room.batonCancel(batonId: batonId);
 
   Future<void> createPoll({
     required String beaconId,

@@ -22,7 +22,10 @@ void main() {
     });
 
     test('rejects handles longer than max length', () {
-      expect(isValidUserHandleFormat('a' * (kUserHandleMaxLength + 1)), isFalse);
+      expect(
+        isValidUserHandleFormat('a' * (kUserHandleMaxLength + 1)),
+        isFalse,
+      );
     });
   });
 }

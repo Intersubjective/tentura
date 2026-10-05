@@ -1571,6 +1571,38 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     );
   }
 
+  /// Selects [beaconId] (a Request or a Post) and centres the camera on its
+  /// node when it is on the field. A beacon not on the field gets the usual
+  /// «not available» notice from the selection listener.
+  void focusBeacon(String beaconId, {required EdgeInsets insets}) {
+    if (isClosed) {
+      return;
+    }
+    selectRequest(beaconId);
+    if (!graphController.canLayout ||
+        state.placementPhase != ConstellationPlacementPhase.idle) {
+      return;
+    }
+    for (final candidate
+        in graphController.renderSnapshot.topology.nodesById.values) {
+      final payload = candidate.payload;
+      if (payload is! FieldBeaconNode ||
+          (payload.request?.id ?? payload.post?.id) != beaconId) {
+        continue;
+      }
+      final point = graphController.renderSnapshot.resolvePosition(
+        tenturaGraphNodeId(payload),
+      );
+      if (point != null) {
+        graphController.jumpToPosition(
+          Offset(point.x, point.y),
+          viewportInsets: insets,
+        );
+      }
+      return;
+    }
+  }
+
   void centerOnEgo({required EdgeInsets insets}) {
     if (!graphController.canLayout ||
         state.placementPhase != ConstellationPlacementPhase.idle) {

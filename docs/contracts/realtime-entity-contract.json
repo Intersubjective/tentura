@@ -102,6 +102,15 @@
       "tests": ["packages/client/test/features/beacon_threads/room_cubit_unread_test.dart"]
     },
     {
+      "wireKind": "room_baton",
+      "acceptedWireKinds": ["room_baton"],
+      "clientKind": "roomBaton",
+      "genericTriggerArgs": ["room_baton"],
+      "specializedPublishers": [],
+      "impacts": ["chat"],
+      "tests": ["packages/client/test/data/service/invalidation_service_room_baton_test.dart"]
+    },
+    {
       "wireKind": "participant",
       "acceptedWireKinds": ["participant"],
       "clientKind": "participant",
