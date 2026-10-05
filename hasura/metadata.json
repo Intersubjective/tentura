@@ -1139,6 +1139,17 @@
                 }
               },
               {
+                "name": "shares_episode_with_viewer",
+                "definition": {
+                  "function": {
+                    "name": "user_get_shares_episode_with_viewer",
+                    "schema": "public"
+                  },
+                  "session_argument": "hasura_session",
+                  "table_argument": "user_row"
+                }
+              },
+              {
                 "name": "hidden_for_viewer",
                 "definition": {
                   "function": {
@@ -1168,6 +1179,7 @@
                     "my_vote",
                     "is_mutual_friend",
                     "trusts_viewer",
+                    "shares_episode_with_viewer",
                     "hidden_for_viewer"
                   ],
                   "filter": {

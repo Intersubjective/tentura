@@ -4449,11 +4449,11 @@
   "beaconYouActionWithdraw": "Withdraw",
   "beaconYouActionResolve": "Resolve",
   "beaconHudNoCurrentLine": "Nothing noted yet",
-  "beaconHudEditCurrentLineTitle": "What's next?",
-  "beaconHudEditNowLine": "Edit current line",
+  "beaconHudEditCurrentLineTitle": "Next step",
+  "beaconHudEditNowLine": "Edit next step",
   "beaconHudSituationPanelTitle": "Situation",
   "beaconSituationStateLabel": "State",
-  "beaconSituationCurrentLineLabel": "What's next?",
+  "beaconSituationCurrentLineLabel": "Next step",
   "beaconSituationBlockerLabel": "Blocker",
   "beaconSituationLastChangeLabel": "Last",
   "beaconSituationOpenRoom": "Open General",
@@ -5201,7 +5201,7 @@
   "beaconRoomFactOverflowTooltip": "Manage this fact",
   "labelBeaconTabPeople": "People",
   "beaconRoomStripNowTitle": "Now",
-  "beaconRoomStripCurrentLineLabel": "What's next?",
+  "beaconRoomStripCurrentLineLabel": "What the team does next",
   "beaconRoomStripLastPrivateFactLabel": "Pinned facts",
   "beaconRoomStripMeaningfulChangeLabel": "Latest change",
   "beaconRoomStripOpenBlockerHint": "A blocker is open in General (details in the thread).",
@@ -5464,7 +5464,7 @@
       }
     }
   },
-  "inboxCardRoomCurrentLine": "What's next in General: {text}",
+  "inboxCardRoomCurrentLine": "Next step in General: {text}",
   "@inboxCardRoomCurrentLine": {
     "placeholders": {
       "text": {
@@ -7467,6 +7467,111 @@
   "postInfoActionField": "On field",
   "postCreateForwardingOnHint": "Any participant can forward it further. Once sent, this can't be turned off.",
   "postCreateForwardingOffHint": "Only the people you invite take part. You can allow forwarding later.",
+  "beaconHudStepLabel": "NEXT STEP",
+  "beaconHudStepEmptyEditable": "No next step yet. Tap the pencil to set one",
+  "beaconHudStepAttribution": "{name} · {when}",
+  "@beaconHudStepAttribution": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconHudCounterTeam": "{count, plural, =1{1 person in the team} other{{count} people in the team}}",
+  "@beaconHudCounterTeam": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconHudCounterSubrequests": "{count, plural, =1{1 sub-request} other{{count} sub-requests}}",
+  "@beaconHudCounterSubrequests": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconHudCounterFacts": "{count, plural, =1{1 pinned fact} other{{count} pinned facts}}",
+  "@beaconHudCounterFacts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconHudEssenceLabel": "ABOUT",
+  "beaconHudTeamSection": "Team",
+  "beaconHudTeamNoMove": "No move noted",
+  "beaconCurrentLineEditHelper": "Everyone in the request sees it. The author and anyone let in can change it.",
+  "beaconShowcaseVia": "via {name}",
+  "@beaconShowcaseVia": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconShowcaseViaMore": "via {name} and {count} more",
+  "@beaconShowcaseViaMore": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconShowcaseReadMore": "Read more",
+  "beaconShowcaseShowLess": "Show less",
+  "beaconShowcaseTeamLabel": "IN ON IT",
+  "beaconShowcaseTeamEmpty": "Nobody yet. Be the first",
+  "beaconShowcaseTeamNoAcquaintances": "{count, plural, =1{1 person is helping} other{{count} people are helping}}",
+  "@beaconShowcaseTeamNoAcquaintances": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconShowcaseAcquaintances": "People you know: {names}",
+  "@beaconShowcaseAcquaintances": {
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconShowcaseAcquaintancesMore": "People you know: {names} and {count} more",
+  "@beaconShowcaseAcquaintancesMore": {
+    "placeholders": {
+      "names": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconShowcaseTeamSheetTitle": "In on it",
+  "beaconShowcaseTeamHidden": "{count, plural, =1{1 more you can't see} other{{count} more you can't see}}",
+  "@beaconShowcaseTeamHidden": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconShowcaseAcquaintanceTag": "you know them",
+  "beaconShowcaseOfferPending": "Your offer is with the author",
+  "beaconPreviewAsOthers": "How others see it",
+  "beaconPreviewBanner": "This is how people outside the request see it",
+  "beaconPreviewExit": "Back to my view",
   "composerEmojiButtonTooltip": "Emoji",
   "@composerEmojiButtonTooltip": {
     "context": "Tooltip of the chat composer button that opens the emoji picker"

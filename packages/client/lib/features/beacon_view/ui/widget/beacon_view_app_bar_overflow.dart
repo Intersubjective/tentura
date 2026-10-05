@@ -39,8 +39,7 @@ Future<void> beaconViewRunInitialHelpOfferDialog(
 ) async {
   if (!context.mounted) return;
   final useOfferHelpAnyway =
-      cubit.state.beacon.status ==
-      BeaconStatus.enoughHelp;
+      cubit.state.beacon.status == BeaconStatus.enoughHelp;
   final outcome = await HelpOfferMessageDialog.show(
     context,
     title: useOfferHelpAnyway
@@ -287,6 +286,10 @@ Widget beaconViewAppBarOverflow({
   required bool inRoomSurface,
   required VoidCallback onItemsTabRefresh,
   RoomCubit? roomCubit,
+
+  /// Author only: switch to the showcase preview ("How others see it").
+  VoidCallback? onPreviewAsOthers,
+
   /// Expanded split (#168): a single header ⋮ serves both the request pane
   /// and the discussion pane, so it carries both action sets.
   bool combineSplitPanes = false,
@@ -328,7 +331,8 @@ Widget beaconViewAppBarOverflow({
   if (state.isBeaconMine) {
     return BeaconOverflowMenu(
       beacon: b,
-      onRequestStatus: showBeaconManagementOverflow &&
+      onRequestStatus:
+          showBeaconManagementOverflow &&
               beaconViewShowsRequestStatusOverflow(state)
           ? () async {
               if (!context.mounted) return;
@@ -338,12 +342,16 @@ Widget beaconViewAppBarOverflow({
             }
           : null,
       onActivityLog: onActivityLog,
+      onPreviewAsOthers: showBeaconManagementOverflow
+          ? onPreviewAsOthers
+          : null,
       onEdit: showBeaconManagementOverflow && beaconAllowsEdit(b)
           ? () => unawaited(
               context.router.push(BeaconCreateRoute(editId: beaconId)),
             )
           : null,
-      onCreateFrom: showBeaconManagementOverflow && beaconAllowsLineageOverflow(b)
+      onCreateFrom:
+          showBeaconManagementOverflow && beaconAllowsLineageOverflow(b)
           ? () async {
               await runBeaconCreateFromAction(
                 context,
@@ -378,7 +386,8 @@ Widget beaconViewAppBarOverflow({
 
   return BeaconOverflowMenu(
     beacon: b,
-    onRequestStatus: showBeaconManagementOverflow &&
+    onRequestStatus:
+        showBeaconManagementOverflow &&
             state.isAuthorOrSteward &&
             beaconViewShowsRequestStatusOverflow(state)
         ? () async {
@@ -430,7 +439,8 @@ Widget beaconViewAppBarOverflow({
             );
           }
         : null,
-    onWatch: !state.isHelpOffered && state.inboxStatus == InboxItemStatus.needsMe
+    onWatch:
+        !state.isHelpOffered && state.inboxStatus == InboxItemStatus.needsMe
         ? () => unawaited(cubit.moveToWatching())
         : null,
     onStopWatching:

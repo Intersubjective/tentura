@@ -13,13 +13,13 @@ import 'package:tentura/features/beacon_view/ui/widget/beacon_details_facts_acce
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_details_sheet.dart';
 import 'package:tentura/features/closure/domain/entity/closure_member.dart';
 import 'package:tentura/features/closure/ui/widget/closure_result_card.dart';
-import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/beacon_hud_metadata_composer.dart';
 import 'package:tentura/ui/widget/beacon_hud_metadata_table.dart';
 import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 
 import 'beacon_hud_action_button.dart';
+import 'beacon_helper_hud_actions.dart';
 import 'beacon_hud_author_act_block.dart';
 import 'closed_request_banner.dart';
 import 'request_access_reason_banner.dart';
@@ -40,10 +40,16 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
     this.onOpenItemDiscussion,
     this.onOpenPinnedFacts,
     this.onForward,
+    this.showHudRows = true,
     super.key,
   });
 
   final BeaconViewState state;
+
+  /// False when the pinned HUD block above already shows YOU / BLOCKER /
+  /// NEXT STEP; the card then keeps only banners, author and actions, and
+  /// leaves Details to the HUD's ABOUT row.
+  final bool showHudRows;
 
   final VoidCallback onAuthorTap;
 
@@ -82,8 +88,15 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
     final showPostOriginCard =
         state.isPostOriginParticipant && onLeavePostChat != null;
     final helperActions = authorSpec == null && !showPostOriginCard
-        ? _buildHelperHudActions(l10n)
-        : const _HelperHudActions();
+        ? buildBeaconHelperHudActions(
+            l10n: l10n,
+            state: state,
+            onOfferHelp: onOfferHelp,
+            onEditHelpOffer: onEditHelpOffer,
+            onWatch: onWatch,
+            onStopWatching: onStopWatching,
+          )
+        : const BeaconHelperHudActions();
     final showForwardCta = state.beacon.viewerCanForward && onForward != null;
     final hasOtherAction = authorSpec != null || helperActions.hasActions;
 
@@ -124,19 +137,22 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
             ),
             const SizedBox(height: kBeaconHudRowGap),
           ],
-          BeaconHudMetadataTable(
-            buildEntries: (rowWidth) => buildBeaconViewHudMetadataEntries(
-              context,
-              rowWidth: rowWidth,
-              state: state,
-              onEditNowLine: onEditNowLine,
-              onReviewAuthorOffers: onAuthorHudAction == null
-                  ? null
-                  : () =>
-                        onAuthorHudAction!(BeaconHudAuthorAction.reviewOffers),
+          if (showHudRows) ...[
+            BeaconHudMetadataTable(
+              buildEntries: (rowWidth) => buildBeaconViewHudMetadataEntries(
+                context,
+                rowWidth: rowWidth,
+                state: state,
+                onEditNowLine: onEditNowLine,
+                onReviewAuthorOffers: onAuthorHudAction == null
+                    ? null
+                    : () => onAuthorHudAction!(
+                        BeaconHudAuthorAction.reviewOffers,
+                      ),
+              ),
             ),
-          ),
-          const SizedBox(height: kBeaconHudRowGap),
+            const SizedBox(height: kBeaconHudRowGap),
+          ],
           if (showPostOriginCard) ...[
             _PostOriginCard(
               l10n: l10n,
@@ -146,7 +162,8 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
             const SizedBox(height: kBeaconHudRowGap),
           ],
           BeaconDetailsFactsAccessRow(
-            showDetails: beaconViewHasDetailsContent(state.beacon),
+            showDetails:
+                showHudRows && beaconViewHasDetailsContent(state.beacon),
             factsCount: activePinnedFacts(state.factCards).length,
             factsNewCount: pinnedFactsNewCount(
               facts: state.factCards,
@@ -186,121 +203,6 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  _HelperHudActions _buildHelperHudActions(L10n l10n) {
-    final b = state.beacon;
-    final openFamily = b.status.isOpenFamily;
-
-    if (b.status == BeaconStatus.deleted ||
-        b.status == BeaconStatus.closed ||
-        b.status == BeaconStatus.cancelled) {
-      return const _HelperHudActions();
-    }
-
-    if (state.isBeaconMine) {
-      return const _HelperHudActions();
-    }
-
-    if (state.isSteward || b.status == BeaconStatus.reviewOpen || !openFamily) {
-      return const _HelperHudActions();
-    }
-
-    if (b.status == BeaconStatus.enoughHelp && !state.isHelpOffered) {
-      final primary = <_HudActionSpec>[];
-      if (onOfferHelp != null) {
-        primary.add(
-          _HudActionSpec(
-            icon: Icons.volunteer_activism_outlined,
-            label: l10n.beaconOfferHelpAsBackup,
-            onPressed: onOfferHelp,
-            filled: true,
-          ),
-        );
-      }
-      return _HelperHudActions(primary: primary);
-    }
-
-    final canOfferHelp =
-        openFamily &&
-        !state.isHelpOffered &&
-        b.allowsNewHelpOfferAsNonAuthor &&
-        onOfferHelp != null;
-
-    if (canOfferHelp) {
-      final out = <_HudActionSpec>[
-        _HudActionSpec(
-          icon: Icons.volunteer_activism_outlined,
-          label: l10n.labelOfferHelp,
-          onPressed: onOfferHelp,
-          filled: true,
-        ),
-      ];
-      if (state.inboxStatus == InboxItemStatus.needsMe && onWatch != null) {
-        out.add(
-          _HudActionSpec(
-            icon: Icons.visibility_outlined,
-            label: l10n.beaconHeaderWatch,
-            onPressed: onWatch,
-            filled: false,
-          ),
-        );
-      } else if (state.inboxStatus == InboxItemStatus.watching &&
-          onStopWatching != null &&
-          out.length < 3) {
-        out.add(
-          _HudActionSpec(
-            icon: Icons.visibility_off_outlined,
-            label: l10n.beaconHeaderStopWatching,
-            onPressed: onStopWatching,
-            filled: false,
-          ),
-        );
-      }
-      return _HelperHudActions(primary: out.take(3).toList());
-    }
-
-    final canEditHelpOffer =
-        openFamily &&
-        state.isRoomAdmissionBlocked &&
-        !state.coordinationDeniesRoomAdmission &&
-        onEditHelpOffer != null;
-
-    if (canEditHelpOffer) {
-      return _HelperHudActions(
-        primary: [
-          _HudActionSpec(
-            icon: Icons.edit_outlined,
-            label: l10n.beaconCtaEditHelpOffer,
-            onPressed: onEditHelpOffer,
-            filled: true,
-          ),
-        ],
-      );
-    }
-
-    final out = <_HudActionSpec>[];
-    if (state.inboxStatus == InboxItemStatus.needsMe && onWatch != null) {
-      out.add(
-        _HudActionSpec(
-          icon: Icons.visibility_outlined,
-          label: l10n.beaconHeaderWatch,
-          onPressed: onWatch,
-          filled: false,
-        ),
-      );
-    } else if (state.inboxStatus == InboxItemStatus.watching &&
-        onStopWatching != null) {
-      out.add(
-        _HudActionSpec(
-          icon: Icons.visibility_off_outlined,
-          label: l10n.beaconHeaderStopWatching,
-          onPressed: onStopWatching,
-          filled: false,
-        ),
-      );
-    }
-    return _HelperHudActions(primary: out.take(3).toList());
   }
 }
 
@@ -354,34 +256,10 @@ class _PostOriginCard extends StatelessWidget {
   }
 }
 
-class _HelperHudActions {
-  const _HelperHudActions({
-    this.primary = const [],
-  });
-
-  final List<_HudActionSpec> primary;
-
-  bool get hasActions => primary.isNotEmpty;
-}
-
-class _HudActionSpec {
-  const _HudActionSpec({
-    required this.icon,
-    required this.label,
-    required this.onPressed,
-    required this.filled,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback? onPressed;
-  final bool filled;
-}
-
 class _HudActionRail extends StatelessWidget {
   const _HudActionRail({required this.actions});
 
-  final List<_HudActionSpec> actions;
+  final List<BeaconHudActionSpec> actions;
 
   @override
   Widget build(BuildContext context) {
@@ -408,7 +286,7 @@ class _HudActionRail extends StatelessWidget {
 class _HudActionStack extends StatelessWidget {
   const _HudActionStack({required this.actions});
 
-  final _HelperHudActions actions;
+  final BeaconHelperHudActions actions;
 
   @override
   Widget build(BuildContext context) {
@@ -419,7 +297,7 @@ class _HudActionStack extends StatelessWidget {
 class _HudActionButton extends StatelessWidget {
   const _HudActionButton({required this.spec});
 
-  final _HudActionSpec spec;
+  final BeaconHudActionSpec spec;
 
   @override
   Widget build(BuildContext context) {
