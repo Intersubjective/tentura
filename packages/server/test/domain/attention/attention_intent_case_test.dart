@@ -34,7 +34,6 @@ void main() {
       stewardUserIds: {'steward'},
       activeHelpOfferUserIds: {'active'},
       activeRequestParticipantUserIds: {target},
-      activePlanParticipantUserIds: const {},
       inboxStanceUserIds: {'watcher', 'member'},
     ),
   );
@@ -224,6 +223,75 @@ void main() {
             sourceEventKey: eventKey,
           ),
         ),
+        // Request plan («либретто», #220): one builder for every plan event.
+        for (final (type, reason, recipient) in const [
+          (
+            AttentionEventType.planStepDue,
+            AttentionRecipientReason.planStepAssignee,
+            target,
+          ),
+          (
+            AttentionEventType.planStepTurn,
+            AttentionRecipientReason.planStepAssignee,
+            target,
+          ),
+          (
+            AttentionEventType.planChangePending,
+            AttentionRecipientReason.planStepAssignee,
+            target,
+          ),
+          (
+            AttentionEventType.planStepReminder,
+            AttentionRecipientReason.planStepAssignee,
+            target,
+          ),
+          (
+            AttentionEventType.planStepOverdue,
+            AttentionRecipientReason.planStepAssignee,
+            target,
+          ),
+          (
+            AttentionEventType.planStepLate,
+            AttentionRecipientReason.authorOfBeacon,
+            author,
+          ),
+          (
+            AttentionEventType.planCantMake,
+            AttentionRecipientReason.authorOfBeacon,
+            author,
+          ),
+          (
+            AttentionEventType.planStepUnassigned,
+            AttentionRecipientReason.authorOfBeacon,
+            author,
+          ),
+          (
+            AttentionEventType.planEdited,
+            AttentionRecipientReason.admittedRoomMember,
+            'member',
+          ),
+          (
+            AttentionEventType.planStepDone,
+            AttentionRecipientReason.admittedRoomMember,
+            'member',
+          ),
+        ])
+          (
+            eventType: type,
+            legacyKind: type.name,
+            recipient: recipient,
+            build: (intents) => intents.planEvent(
+              eventType: type,
+              beaconId: beacon,
+              beaconTitle: 'Request',
+              actorUserId: actor,
+              recipients: {recipient: reason},
+              sourceEventKey: eventKey,
+              stepId: item,
+              stepTitle: 'Bring chairs',
+              relativeMinutes: 15,
+            ),
+          ),
       ];
 
   group('migrated producer intent projection', () {
@@ -568,5 +636,4 @@ void main() {
       });
     });
   });
-
 }

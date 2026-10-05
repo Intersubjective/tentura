@@ -23,6 +23,8 @@ import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/post_lock_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
+import 'package:tentura_server/domain/use_case/beacon_plan_case.dart';
+import 'package:tentura_server/domain/use_case/plan_attention_case.dart';
 import 'package:tentura_server/domain/port/beacon_child_create_port.dart';
 import 'package:tentura_server/domain/use_case/commitment_query_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
@@ -118,8 +120,13 @@ final class BeaconCase extends UseCaseBase {
     BeaconLifecycleEffectsCase lifecycleEffects,
     PostLockPort postLock,
     AttentionIntentCase attentionIntents,
-    TransactionalAttentionCase attention,
-  ) async => BeaconCase(
+    TransactionalAttentionCase attention, {
+    // Nullable so injectable does not order `BeaconCase` after the plan
+    // graph's depth (it sorts a same-`order` group by non-nullable
+    // dependencies only); both are `order: 1`, registered earlier anyway.
+    BeaconPlanCase? beaconPlan,
+    PlanAttentionCase? planAttention,
+  }) async => BeaconCase(
     beaconRepository,
     imageRepository,
     imageObjectGc,
@@ -132,6 +139,8 @@ final class BeaconCase extends UseCaseBase {
     postLock: postLock,
     attentionIntents: attentionIntents,
     attention: attention,
+    beaconPlan: beaconPlan,
+    planAttention: planAttention,
     env: env,
     logger: logger,
   );
@@ -149,6 +158,8 @@ final class BeaconCase extends UseCaseBase {
     PostLockPort? postLock,
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
+    this._beaconPlan,
+    this._planAttention,
     required super.env,
     required super.logger,
   }) : _postLock = postLock,
@@ -178,6 +189,10 @@ final class BeaconCase extends UseCaseBase {
   final AttentionIntentCase? _attentionIntents;
 
   final TransactionalAttentionCase? _attention;
+
+  final BeaconPlanCase? _beaconPlan;
+
+  final PlanAttentionCase? _planAttention;
 
   /// Spam control: reject when an author has created too many beacons within
   /// the configured trailing window.
@@ -302,13 +317,49 @@ final class BeaconCase extends UseCaseBase {
       beaconId: beaconId,
       filterByUserId: userId,
     );
+    final plan = _beaconPlan;
+    final attention = _attention;
+    final wasDraft = beacon.status == BeaconStatus.draft;
     if (beacon.parentBeaconId != null) {
-      return _childCreateCase.publishDraft(
+      final published = await _childCreateCase.publishDraft(
         actorUserId: userId,
         childBeaconId: beaconId,
       );
+      // The child publish owns its transaction (and its retry handling), so
+      // the plan's first obligations follow in their own.
+      if (plan != null && attention != null && wasDraft) {
+        await attention.runAction<void>(
+          actorUserId: userId,
+          action: (transaction) => plan.onPublished(
+            transaction: transaction,
+            beaconId: beaconId,
+            actorId: userId,
+          ),
+        );
+      }
+      return published;
     }
-    return _beaconRepository.publishDraft(id: beaconId, actorId: userId);
+    if (plan == null || attention == null || !wasDraft) {
+      return _beaconRepository.publishDraft(id: beaconId, actorId: userId);
+    }
+    // One transaction: the publish and the plan's first obligations (and,
+    // for a fork copy, its «План скопирован» line). The repository opens its
+    // transaction with the same actor, so it joins this one.
+    return attention.runAction(
+      actorUserId: userId,
+      action: (transaction) async {
+        final published = await _beaconRepository.publishDraft(
+          id: beaconId,
+          actorId: userId,
+        );
+        await plan.onPublished(
+          transaction: transaction,
+          beaconId: beaconId,
+          actorId: userId,
+        );
+        return published;
+      },
+    );
   }
 
   /// Persists edits to a draft beacon (state 3).
@@ -774,9 +825,18 @@ final class BeaconCase extends UseCaseBase {
   );
 
   /// Creates a DRAFT beacon from a visible source, copying reusable content only.
+  ///
+  /// With [copyPlan] the source's plan steps come along (plan §4.10) when the
+  /// caller is admitted on the source; otherwise they are silently skipped.
+  /// [planStepTimes] maps source step ids to the new start / end the client
+  /// computed; a step without an entry is copied without time. Assignments
+  /// and ticks are never copied.
   Future<BeaconEntity> fork({
     required String sourceId,
     required String userId,
+    bool copyPlan = false,
+    Map<String, ({DateTime? startAt, DateTime? endAt})> planStepTimes =
+        const {},
   }) async {
     await _enforceCreateRateLimit(userId);
     final source = await _beaconRepository.getBeaconById(beaconId: sourceId);
@@ -809,7 +869,7 @@ final class BeaconCase extends UseCaseBase {
         }
       }
 
-      return await _beaconRepository.createBeacon(
+      Future<BeaconEntity> create() => _beaconRepository.createBeacon(
         authorId: userId,
         title: source.title,
         description: source.description,
@@ -826,6 +886,26 @@ final class BeaconCase extends UseCaseBase {
         lineageParentBeaconId: source.id,
         lineageRootBeaconId: source.lineageRootBeaconId ?? source.id,
         isDiscoverable: source.isDiscoverable,
+      );
+      final plan = _beaconPlan;
+      final attention = _attention;
+      if (!copyPlan || plan == null || attention == null) {
+        return await create();
+      }
+      // One transaction: `createBeacon` opens its own with the same actor and
+      // joins this one, so a failed plan copy leaves no draft behind.
+      return await attention.runAction(
+        actorUserId: userId,
+        action: (_) async {
+          final draft = await create();
+          await plan.copyPlan(
+            actorId: userId,
+            sourceBeaconId: source.id,
+            targetBeaconId: draft.id,
+            stepTimes: planStepTimes,
+          );
+          return draft;
+        },
       );
     } catch (_) {
       for (final imageId in imageIds) {
@@ -890,6 +970,11 @@ final class BeaconCase extends UseCaseBase {
             fromStatus: beacon.status,
             toStatus: BeaconStatus.cancelled,
             reason: BeaconLifecycleChangeReason.cancelled,
+            actorId: userId,
+          );
+          // A cancelled Request owes no plan step (plan §4.6).
+          await _planAttention?.onRequestStatusChanged(
+            beaconId: beaconId,
             actorId: userId,
           );
           if (intent != null) {
@@ -1033,6 +1118,10 @@ final class BeaconCase extends UseCaseBase {
             fromStatus: beacon.status,
             toStatus: BeaconStatus.deleted,
             reason: BeaconLifecycleChangeReason.deleted,
+            actorId: userId,
+          );
+          await _planAttention?.onRequestStatusChanged(
+            beaconId: beacon.id,
             actorId: userId,
           );
           if (intent != null) {

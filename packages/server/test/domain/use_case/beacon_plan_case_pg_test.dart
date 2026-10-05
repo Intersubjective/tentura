@@ -3,7 +3,6 @@ library;
 
 import 'dart:convert';
 
-import 'package:logging/logging.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
@@ -12,19 +11,14 @@ import 'package:tentura_server/consts/beacon_plan_consts.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
-import 'package:tentura_server/data/repository/attention_dispatch_repository.dart';
-import 'package:tentura_server/data/repository/beacon_plan_repository.dart';
-import 'package:tentura_server/data/repository/closure_repository.dart';
-import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
 import 'package:tentura_server/domain/entity/beacon_plan.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/use_case/beacon_plan_case.dart';
-import 'package:tentura_server/domain/use_case/plan_attention_case.dart';
-import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 import 'package:tentura_server/env.dart';
 
 import '../../support/disposable_pg_target.dart';
 import '../../support/pg_test_public_keys.dart';
+import '../../support/plan_cases.dart';
 
 const _author = 'Uplancase_au1';
 const _helper = 'Uplancase_hl1';
@@ -330,7 +324,7 @@ WHERE beacon_id = '$_request' ORDER BY created_at
     await save([_s(_a), _s(_b)]);
     await plan.setDone(actorId: _author, stepId: _b, done: true);
     await save([_s(_a)], base: 1);
-    expect(((await view())['steps']! as List), hasLength(1));
+    expect((await view())['steps']! as List, hasLength(1));
     final outcome = await plan.restore(
       actorId: _author,
       beaconId: _request,
@@ -395,20 +389,7 @@ ORDER BY tgname
   });
 }
 
-BeaconPlanCase _buildCase(TenturaDb db, Env env) {
-  final logger = Logger('BeaconPlanCasePgTest');
-  return BeaconPlanCase(
-    BeaconPlanRepository(db),
-    ClosureRepository(db),
-    TransactionalAttentionCase(
-      MutatingUnitOfWork(db),
-      AttentionDispatchRepository(db, logger),
-    ),
-    PlanAttentionCase(env: env, logger: logger),
-    env: env,
-    logger: logger,
-  );
-}
+BeaconPlanCase _buildCase(TenturaDb db, Env env) => PlanCases(db, env).plan;
 
 Future<Map<String, Object?>> _member_(Connection writer, String userId) async {
   final rows = await writer.execute('''
@@ -422,6 +403,7 @@ WHERE beacon_id = '$_request' AND user_id = '$userId'
 Future<void> _resetFixture(Connection writer) async {
   await writer.execute('''
 TRUNCATE TABLE
+  public.beacon_plan_sweep_mark,
   public.notification_outbox,
   public.attention_occurrence_recipient,
   public.attention_occurrence,

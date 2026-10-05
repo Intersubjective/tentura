@@ -11,12 +11,11 @@ class BeaconNotificationRecipientResolver {
 
   static Iterable<String> _activeCoordinationParticipants(
     BeaconNotificationContext ctx,
-  ) =>
-      {
-        ...ctx.activeHelpOfferUserIds,
-        ...ctx.activeRequestParticipantUserIds,
-        ...ctx.activePlanParticipantUserIds,
-      };
+  ) => {
+    ...ctx.activeHelpOfferUserIds,
+    ...ctx.activeRequestParticipantUserIds,
+    ...ctx.activePlanParticipantUserIds,
+  };
 
   List<BeaconNotificationRecipient> resolveRecipients({
     required BeaconNotificationIntent intent,
@@ -53,7 +52,6 @@ class BeaconNotificationRecipientResolver {
             intent.priority,
           );
         }
-        break;
       case NotificationKind.needsMe:
         final target = intent.targetPersonId;
         if (target != null && target.isNotEmpty) {
@@ -205,6 +203,16 @@ class BeaconNotificationRecipientResolver {
       case NotificationKind.batonAsked:
       case NotificationKind.batonTaken:
       case NotificationKind.batonAllAnswered:
+      case NotificationKind.planStepDue:
+      case NotificationKind.planStepTurn:
+      case NotificationKind.planChangePending:
+      case NotificationKind.planStepReminder:
+      case NotificationKind.planStepOverdue:
+      case NotificationKind.planStepLate:
+      case NotificationKind.planCantMake:
+      case NotificationKind.planStepUnassigned:
+      case NotificationKind.planEdited:
+      case NotificationKind.planStepDone:
         // Recipients are already resolved by AttentionIntentCase; legacy
         // BeaconNotificationIntent path has no directed list on this kind.
         break;

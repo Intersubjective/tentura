@@ -22,6 +22,7 @@ import 'package:tentura_server/domain/trust/forward/forward_routing_settlement.d
 import 'package:tentura_server/domain/trust/ledger_evidence.dart';
 import 'package:tentura_server/domain/trust/trust_evidence_kind.dart';
 
+import 'plan_attention_case.dart';
 import '_use_case_base.dart';
 import 'beacon_lifecycle_effects_case.dart';
 import 'trust_publisher_case.dart';
@@ -45,6 +46,7 @@ final class ClosureFinalizeCase extends UseCaseBase
     required AttentionSystemSettlementPort attentionSystemSettlement,
     required TrustPublisherCase trustPublisher,
     ClosureReceiptsPort receipts = const NoopClosureReceipts(),
+    this._planAttention,
     required super.env,
     required super.logger,
   }) : _repo = closureRepository,
@@ -62,6 +64,7 @@ final class ClosureFinalizeCase extends UseCaseBase
   final AttentionSystemSettlementPort _settlement;
   final TrustPublisherCase _publisher;
   final ClosureReceiptsPort _receipts;
+  final PlanAttentionCase? _planAttention;
 
   static const _params = SettlementParams();
 
@@ -111,6 +114,8 @@ final class ClosureFinalizeCase extends UseCaseBase
     await _settlement.supersedeAuthorHelpOfferObligationsOnBeaconClose(
       beaconId,
     );
+    // A closed Request owes no plan step and no «Понятно» (plan P21).
+    await _planAttention?.onRequestStatusChanged(beaconId: beaconId);
 
     final members = await _repo.members(beaconId: beaconId, epoch: epoch);
     final outcomes = {

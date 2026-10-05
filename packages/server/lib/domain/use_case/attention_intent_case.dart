@@ -440,6 +440,123 @@ class AttentionIntentCase {
     reason: AttentionRecipientReason.batonAuthor,
   );
 
+  /// Request plan («либретто», #220) — `plan-implementation.md` §4.6.
+  ///
+  /// One builder for every plan event: the caller has already resolved who
+  /// hears it and why ([recipients]). [stepTitle] is the only user text the
+  /// copy carries; times appear only as [relativeMinutes] (plan K16).
+  /// [collapseFamily] makes each recipient's push and email coalesce per
+  /// Request (`<family>:<beaconId>:<recipientId>`).
+  Future<AttentionDispatchIntent> planEvent({
+    required AttentionEventType eventType,
+    required String beaconId,
+    required String beaconTitle,
+    required String? actorUserId,
+    required Map<String, AttentionRecipientReason> recipients,
+    required String sourceEventKey,
+    String? stepId,
+    String stepTitle = '',
+    int? relativeMinutes,
+    bool channelEligible = true,
+    String? collapseFamily,
+  }) async {
+    final kind = _planKind(eventType);
+    final actor = actorUserId == null || actorUserId.isEmpty
+        ? null
+        : actorUserId;
+    final candidateIds = [
+      for (final id in recipients.keys)
+        if (id.isNotEmpty && id != actor) id,
+    ];
+    final hidden = actor == null
+        ? const <String>{}
+        : await _userBlocks.hiddenPeerIds(
+            viewerId: actor,
+            peerIds: candidateIds,
+          );
+    final snapshots = <AttentionRecipientSnapshot>[];
+    for (final id in candidateIds) {
+      if (hidden.contains(id)) continue;
+      snapshots.add(
+        AttentionRecipientSnapshot(
+          recipientId: id,
+          reasons: {recipients[id]!},
+          collapseKey: collapseFamily == null
+              ? null
+              : AttentionCollapseKey.family(collapseFamily, [beaconId, id]),
+          channelEligible: channelEligible,
+          role: AttentionRecipientRoleFacts(
+            canReadBeaconContent: await _accessGuard.canReadContent(
+              beaconId: beaconId,
+              viewerId: id,
+            ),
+            beaconId: beaconId,
+            coordinationItemId: stepId,
+            actorUserId: actor,
+            beaconTitle: beaconTitle.trim().isEmpty ? null : beaconTitle.trim(),
+            excerpt: stepTitle,
+          ),
+        ),
+      );
+    }
+    final actorName = actor == null
+        ? ''
+        : (await _users.getById(actor)).displayName.trim();
+    final notification = BeaconNotificationIntent(
+      kind: kind,
+      priority: switch (eventType) {
+        AttentionEventType.planEdited ||
+        AttentionEventType.planStepDone => NotificationPriority.low,
+        _ => NotificationPriority.normal,
+      },
+      beaconId: beaconId,
+      actorUserId: actor ?? '',
+      bodyExcerpt: notificationExcerpt(stepTitle),
+      beaconTitle: beaconTitle,
+      coordinationItemId: stepId,
+      relativeMinutes: relativeMinutes,
+    );
+    final copy = _copyBuilder.build(
+      intent: notification,
+      actorDisplayName: actorName,
+    );
+    return AttentionDispatchIntent(
+      eventType: eventType,
+      sourceEventKey: sourceEventKey,
+      actorUserId: actor,
+      priority: notification.priority,
+      kind: kind,
+      title: copy.title,
+      body: copy.body,
+      actionUrl: copy.actionUrl,
+      collapseKey: AttentionCollapseKey.none(sourceEventKey),
+      recipients: snapshots,
+      beaconId: beaconId,
+      coordinationItemId: stepId,
+    );
+  }
+
+  static NotificationKind _planKind(
+    AttentionEventType eventType,
+  ) => switch (eventType) {
+    AttentionEventType.planStepDue => NotificationKind.planStepDue,
+    AttentionEventType.planStepTurn => NotificationKind.planStepTurn,
+    AttentionEventType.planChangePending => NotificationKind.planChangePending,
+    AttentionEventType.planStepReminder => NotificationKind.planStepReminder,
+    AttentionEventType.planStepOverdue => NotificationKind.planStepOverdue,
+    AttentionEventType.planStepLate => NotificationKind.planStepLate,
+    AttentionEventType.planCantMake => NotificationKind.planCantMake,
+    AttentionEventType.planStepUnassigned =>
+      NotificationKind.planStepUnassigned,
+    AttentionEventType.planEdited => NotificationKind.planEdited,
+    AttentionEventType.planStepDone => NotificationKind.planStepDone,
+    _ => throw ArgumentError.value(
+      eventType,
+      'eventType',
+      'not a Request plan event',
+    ),
+  };
+
   /// Personal `@handle` mention — same Updates event as [roomMessagePosted],
   /// but [NotificationKind.roomMention] (coordination) for push/email.
   Future<AttentionDispatchIntent> roomMentioned({
@@ -461,7 +578,6 @@ class AttentionIntentCase {
     kind: NotificationKind.roomMention,
     emptyTitle: 'New mention',
     emptyBody: 'mentioned you',
-    titleIsActorName: true,
     bodyPrefixedWithActor: true,
   );
 

@@ -19,7 +19,7 @@ import '_use_case_base.dart';
 /// Every write follows one lock order (plan P8): `lockRequest` (shared with
 /// close / finalize), then the Request status is re-read, then the
 /// `beacon_plan` head row is locked, then steps and room lines are written.
-@Singleton(order: 3)
+@Singleton(order: 1)
 class BeaconPlanCase extends UseCaseBase {
   BeaconPlanCase(
     this._repo,
@@ -636,7 +636,8 @@ class BeaconPlanCase extends UseCaseBase {
   /// Removes [userId] as assignee from every live step of [beaconId] (they
   /// left the room, were removed or blocked). Runs inside the caller's
   /// transaction; writes one `unassigned_on_leave` revision when anything
-  /// changed.
+  /// changed. Someone who is still admitted (a steward, the author) keeps
+  /// their steps.
   Future<void> unassignOnLeave({
     required AttentionTransaction transaction,
     required String beaconId,
@@ -649,6 +650,7 @@ class BeaconPlanCase extends UseCaseBase {
     final head = await _repo.getHead(beaconId);
     if (head == null) return;
     await _closure.lockRequest(beaconId);
+    if (await _repo.isAdmitted(beaconId, userId)) return;
     final locked = await _repo.lockHead(beaconId);
     final theirs = await _currentSnapshot(beaconId);
     if (!theirs.steps.any((s) => s.assigneeId == userId)) return;
@@ -745,16 +747,27 @@ class BeaconPlanCase extends UseCaseBase {
     return steps.length;
   }
 
-  /// On publish of a fork copy that carries a plan: the «План скопирован»
-  /// line (marker 16). Runs inside the publish transaction.
+  /// On publish of a Request that carries a plan: plan obligations start
+  /// (the author's own steps, a first untimed step), and a fork copy gets
+  /// the «План скопирован» line (marker 16). Runs inside the publish
+  /// transaction.
   Future<void> onPublished({
+    required AttentionTransaction transaction,
     required String beaconId,
     required String actorId,
   }) async {
     if (!env.planEnabled) return;
-    final head = await _repo.getHead(beaconId);
-    final source = head?.copiedFromBeaconId;
-    if (head == null || source == null) return;
+    final existing = await _repo.getHead(beaconId);
+    if (existing == null) return;
+    await _closure.lockRequest(beaconId);
+    final head = await _repo.lockHead(beaconId);
+    await _effects.reconcile(
+      transaction: transaction,
+      beaconId: beaconId,
+      actorId: actorId,
+    );
+    final source = head.copiedFromBeaconId;
+    if (source == null) return;
     final steps = await _repo.liveSteps(beaconId);
     if (steps.isEmpty) return;
     await _repo.insertPlanLine(

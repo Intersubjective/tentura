@@ -27,6 +27,7 @@ import 'package:tentura_server/domain/use_case/commitment_query_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 import 'package:tentura_server/utils/id.dart';
 
+import 'beacon_plan_case.dart';
 import '_use_case_base.dart';
 
 @Singleton(order: 2)
@@ -44,6 +45,7 @@ final class CoordinationCase extends UseCaseBase {
     TransactionalAttentionCase? attention,
     AttentionSystemSettlementPort? attentionSystemSettlement,
     ClosureCase? closureCase,
+    this._beaconPlan,
     required BeaconAccessGuard guard,
     required super.env,
     required super.logger,
@@ -65,6 +67,7 @@ final class CoordinationCase extends UseCaseBase {
   final AttentionSystemSettlementPort? _attentionSystemSettlement;
   final BeaconAccessGuard _guard;
   final ClosureCase? _closureCase;
+  final BeaconPlanCase? _beaconPlan;
   final BeaconHierarchyRepositoryPort _hierarchyRepository;
 
   Future<BeaconEntity> _ensureAuthorOrSteward({
@@ -525,6 +528,13 @@ final class CoordinationCase extends UseCaseBase {
           authorAccountId: beacon.author.id,
           helpOffererUserId: offerUserId,
         );
+        // Their plan steps lose their assignee (plan §4.6 item 4).
+        await _beaconPlan?.unassignOnLeave(
+          transaction: transaction,
+          beaconId: beaconId,
+          userId: offerUserId,
+          actorId: actorUserId,
+        );
         return _statusResult(beaconId, snap);
       },
     );
@@ -598,6 +608,12 @@ final class CoordinationCase extends UseCaseBase {
             beaconId: beaconId,
             authorAccountId: beacon.author.id,
             helpOffererUserId: offerUserId,
+          );
+          await _beaconPlan?.unassignOnLeave(
+            transaction: transaction,
+            beaconId: beaconId,
+            userId: offerUserId,
+            actorId: authorUserId,
           );
         }
         final intent = await _attentionIntents!.commitmentReleased(

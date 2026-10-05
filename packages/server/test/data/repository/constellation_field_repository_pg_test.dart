@@ -564,7 +564,7 @@ WHERE id = 'Bstartat001'
       expect(await visibilityCacheCount(), 0);
     }, skip: skipReason);
 
-    // m0223: visibility is memoized per transaction; the cross-transaction
+    // m0222: visibility is memoized per transaction; the cross-transaction
     // cache table is no longer written on any path.
     test('read-write visibility lookup answers without cache writes', () async {
       const peer = 'Ucfp03warm';

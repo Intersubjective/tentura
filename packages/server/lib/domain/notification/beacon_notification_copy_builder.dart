@@ -210,6 +210,90 @@ class BeaconNotificationCopyBuilder {
             ? 'Все ответили на ваше «Кто возьмётся?»'
             : "Everyone answered your «Who'll take it?»",
       ),
+      NotificationKind.planStepDue => (
+        ru ? 'Ваш шаг начался' : 'Your step has started',
+        _bodyWithRequest(
+          beaconTitle: beaconTitle,
+          excerpt: excerpt,
+          fallback: ru ? 'Шаг плана' : 'Plan step',
+        ),
+      ),
+      NotificationKind.planStepTurn => (
+        ru ? 'Ваш ход' : 'Your turn',
+        _bodyWithRequest(
+          beaconTitle: beaconTitle,
+          excerpt: excerpt,
+          fallback: ru ? 'Предыдущий шаг готов' : 'The previous step is done',
+        ),
+      ),
+      NotificationKind.planChangePending => (
+        ru ? 'Ваш шаг изменён' : 'Your step changed',
+        _bodyWithRequest(
+          beaconTitle: beaconTitle,
+          excerpt: excerpt,
+          fallback: ru ? '$actor изменил(а) план' : '$actor changed the plan',
+        ),
+      ),
+      NotificationKind.planStepReminder => (
+        ru
+            ? 'Ваш шаг через ${_minutes(intent.relativeMinutes, ru: true)}'
+            : 'Your step starts in ${_minutes(intent.relativeMinutes)}',
+        _bodyWithRequest(
+          beaconTitle: beaconTitle,
+          excerpt: excerpt,
+          fallback: ru ? 'Шаг плана' : 'Plan step',
+        ),
+      ),
+      NotificationKind.planStepOverdue => (
+        ru ? 'Ваш шаг просрочен' : 'Your step is overdue',
+        _bodyWithRequest(
+          beaconTitle: beaconTitle,
+          excerpt: excerpt,
+          fallback: ru ? 'Шаг плана' : 'Plan step',
+        ),
+      ),
+      NotificationKind.planStepLate => (
+        ru
+            ? 'Шаг опаздывает на ${_minutes(intent.relativeMinutes, ru: true)}'
+            : 'A step is ${_minutes(intent.relativeMinutes)} late',
+        _bodyWithRequest(
+          beaconTitle: beaconTitle,
+          excerpt: excerpt,
+          fallback: ru ? 'Шаг плана' : 'Plan step',
+        ),
+      ),
+      NotificationKind.planCantMake => (
+        ru ? '$actor не успевает' : "$actor can't make it",
+        _bodyWithRequest(
+          beaconTitle: beaconTitle,
+          excerpt: excerpt,
+          fallback: ru ? 'Шаг плана' : 'Plan step',
+        ),
+      ),
+      NotificationKind.planStepUnassigned => (
+        ru ? 'У шага нет исполнителя' : 'A step has no one',
+        _bodyWithRequest(
+          beaconTitle: beaconTitle,
+          excerpt: excerpt,
+          fallback: ru ? 'Шаг плана' : 'Plan step',
+        ),
+      ),
+      NotificationKind.planEdited => (
+        ru ? 'План изменён' : 'Plan updated',
+        _bodyWithRequest(
+          beaconTitle: beaconTitle,
+          excerpt: excerpt,
+          fallback: ru ? '$actor изменил(а) план' : '$actor changed the plan',
+        ),
+      ),
+      NotificationKind.planStepDone => (
+        ru ? 'Шаг отмечен' : 'A step is done',
+        _bodyWithRequest(
+          beaconTitle: beaconTitle,
+          excerpt: excerpt,
+          fallback: ru ? 'Шаг плана' : 'Plan step',
+        ),
+      ),
       NotificationKind.staleRemind => (
         'Still needs attention',
         _bodyWithRequest(
@@ -294,6 +378,16 @@ class BeaconNotificationCopyBuilder {
     );
   }
 
+  /// A relative duration, never a clock time (plan K16).
+  String _minutes(int? minutes, {bool ru = false}) {
+    final m = (minutes ?? 0) < 1 ? 1 : minutes!;
+    if (m < 60) return ru ? '$m мин' : '$m min';
+    final h = m ~/ 60;
+    final rest = m % 60;
+    if (rest == 0) return ru ? '$h ч' : '$h h';
+    return ru ? '$h ч $rest мин' : '$h h $rest min';
+  }
+
   String _coordinationItemNoun(int? kind) => switch (kind) {
     coordinationItemKindAsk => 'ask',
     coordinationItemKindPromise => 'promise',
@@ -325,6 +419,7 @@ class BeaconNotificationCopyBuilder {
         '/#$kPathBeaconView/$id?tab=threads&thread=$thread'
         '&entry=deep_link&is_deep_link=true';
     final genericUrl = '/#$kPathBeaconView/$id?is_deep_link=true';
+    final planUrl = '/#$kPathBeaconView/$id?tab=plan&is_deep_link=true';
 
     return switch (intent.kind) {
       NotificationKind.reviewReady => '/#$kPathReviewContributions/$id',
@@ -353,6 +448,16 @@ class BeaconNotificationCopyBuilder {
       NotificationKind.batonAllAnswered => roomUrl,
       NotificationKind.deadlineChanged ||
       NotificationKind.deadlineReminder => genericUrl,
+      NotificationKind.planStepDue ||
+      NotificationKind.planStepTurn ||
+      NotificationKind.planChangePending ||
+      NotificationKind.planStepReminder ||
+      NotificationKind.planStepOverdue ||
+      NotificationKind.planStepLate ||
+      NotificationKind.planCantMake ||
+      NotificationKind.planStepUnassigned ||
+      NotificationKind.planEdited ||
+      NotificationKind.planStepDone => planUrl,
     };
   }
 }

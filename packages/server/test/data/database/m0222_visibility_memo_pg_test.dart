@@ -8,7 +8,7 @@ import 'package:tentura_server/data/database/migration/_migrations.dart';
 
 import '../../support/disposable_pg_target.dart';
 
-/// m0223: the viewer's mutually visible set is computed once per transaction
+/// m0222: the viewer's mutually visible set is computed once per transaction
 /// and memoized in a transaction-local setting, in read-only transactions
 /// too. It replaced the cross-transaction `person_mutual_visibility_cache`,
 /// which read-only transactions (Hasura, constellation) could not fill.

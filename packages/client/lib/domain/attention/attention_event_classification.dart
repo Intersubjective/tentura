@@ -88,6 +88,47 @@ const attentionEventClassifications = <String, AttentionEventClassification>{
     headlineTreatment: AttentionHeadlineTreatment.beacon,
     coalescible: true,
   ),
+  // Request plan («либретто», #220).
+  'planStepDue': AttentionEventClassification(
+    headlineTreatment: AttentionHeadlineTreatment.beacon,
+    coalescible: true,
+  ),
+  'planStepTurn': AttentionEventClassification(
+    headlineTreatment: AttentionHeadlineTreatment.beacon,
+    coalescible: true,
+  ),
+  'planChangePending': AttentionEventClassification(
+    headlineTreatment: AttentionHeadlineTreatment.beacon,
+    coalescible: true,
+  ),
+  'planStepReminder': AttentionEventClassification(
+    headlineTreatment: AttentionHeadlineTreatment.system,
+    coalescible: true,
+  ),
+  'planStepOverdue': AttentionEventClassification(
+    headlineTreatment: AttentionHeadlineTreatment.system,
+    coalescible: true,
+  ),
+  'planStepLate': AttentionEventClassification(
+    headlineTreatment: AttentionHeadlineTreatment.system,
+    coalescible: true,
+  ),
+  'planCantMake': AttentionEventClassification(
+    headlineTreatment: AttentionHeadlineTreatment.beacon,
+    coalescible: true,
+  ),
+  'planStepUnassigned': AttentionEventClassification(
+    headlineTreatment: AttentionHeadlineTreatment.system,
+    coalescible: true,
+  ),
+  'planEdited': AttentionEventClassification(
+    headlineTreatment: AttentionHeadlineTreatment.beacon,
+    coalescible: true,
+  ),
+  'planStepDone': AttentionEventClassification(
+    headlineTreatment: AttentionHeadlineTreatment.beacon,
+    coalescible: true,
+  ),
   'requestStatusChanged': AttentionEventClassification(
     headlineTreatment: AttentionHeadlineTreatment.beacon,
     coalescible: true,

@@ -7,6 +7,15 @@ import '../gql_nodel_base.dart';
 import '../input/_input_types.dart';
 import '../mappers/gql_v2_dto_maps.dart';
 
+/// `[PlanStepTimeInput!]` typed over `dynamic`, so a decoded `List<dynamic>`
+/// of maps passes validation on executors that do not re-type variable lists.
+final class _PlanStepTimeListType extends GraphQLListType<dynamic, dynamic> {
+  _PlanStepTimeListType() : super(gqlInputPlanStepTime.nonNullable());
+
+  @override
+  GraphQLType<List<dynamic>, List<dynamic>> coerceToInputObject() => this;
+}
+
 final class MutationBeacon extends GqlNodeBase {
   MutationBeacon({BeaconCase? beaconCase})
     : _beaconCase = beaconCase ?? GetIt.I<BeaconCase>();
@@ -36,6 +45,14 @@ final class MutationBeacon extends GqlNodeBase {
   final _kind = InputFieldInt(fieldName: 'kind');
 
   final _forwardPolicy = InputFieldInt(fieldName: 'forwardPolicy');
+
+  final _copyPlan = InputFieldBool(fieldName: 'copyPlan');
+
+  final _planStepTimes = GraphQLFieldInput(
+    'planStepTimes',
+    _PlanStepTimeListType(),
+    defaultsToNull: true,
+  );
 
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
     create,
@@ -150,14 +167,49 @@ final class MutationBeacon extends GqlNodeBase {
   GraphQLObjectField<dynamic, dynamic> get fork => GraphQLObjectField(
     'beaconFork',
     gqlTypeBeacon.nonNullable(),
-    arguments: [InputFieldId.field],
+    arguments: [
+      InputFieldId.field,
+      _copyPlan.fieldNullable,
+      _planStepTimes,
+    ],
     resolve: (_, args) => _beaconCase
         .fork(
           sourceId: InputFieldId.fromArgsNonNullable(args),
           userId: getCredentials(args).sub,
+          copyPlan: _copyPlan.fromArgs(args) ?? false,
+          planStepTimes: _parsePlanStepTimes(args[_planStepTimes.name]),
         )
         .then((v) => v.asJson),
   );
+
+  static Map<String, ({DateTime? startAt, DateTime? endAt})>
+  _parsePlanStepTimes(Object? raw) {
+    if (raw is! List) return const {};
+    // Like `InputFieldDatetime`: an offset-less value is read as UTC.
+    DateTime? instant(Object? v) {
+      final p = v is String && v.isNotEmpty ? DateTime.tryParse(v) : null;
+      if (p == null || p.isUtc) return p;
+      return DateTime.utc(
+        p.year,
+        p.month,
+        p.day,
+        p.hour,
+        p.minute,
+        p.second,
+        p.millisecond,
+        p.microsecond,
+      );
+    }
+
+    return {
+      for (final entry in raw)
+        if (entry is Map && entry['sourceStepId'] is String)
+          entry['sourceStepId'] as String: (
+            startAt: instant(entry['startAt']),
+            endAt: instant(entry['endAt']),
+          ),
+    };
+  }
 
   GraphQLObjectField<dynamic, dynamic> get update => GraphQLObjectField(
     'beaconUpdate',

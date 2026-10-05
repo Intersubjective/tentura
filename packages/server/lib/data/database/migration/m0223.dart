@@ -15,8 +15,8 @@ part of '_migrations.dart';
 /// steps would otherwise trigger N full Request refreshes. The `beacon_plan`
 /// head row publishes once per write instead.
 ///
-/// The kind CHECK is `NOT VALID`: rows written before this migration are not
-/// re-checked, every new row is.
+/// Legacy kinds are left unconstrained: only kind 6 rows get the plan shape
+/// CHECK, and plan columns stay NULL on every other kind.
 final m0223 = Migration('0223', [
   r'''
 ALTER TABLE public.coordination_item
@@ -29,11 +29,6 @@ ALTER TABLE public.coordination_item
   ADD COLUMN content_seq integer NULL,
   ADD COLUMN ack_seq integer NULL,
   ADD COLUMN removed_seq integer NULL
-''',
-
-  r'''
-ALTER TABLE public.coordination_item
-  ADD CONSTRAINT coordination_item_kind_chk CHECK (kind IN (1, 6)) NOT VALID
 ''',
 
   r'''
