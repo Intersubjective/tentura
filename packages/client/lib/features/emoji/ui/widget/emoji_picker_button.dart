@@ -66,13 +66,33 @@ class _EmojiPickerButtonState extends State<EmojiPickerButton> {
       _closePopover();
     } else {
       setState(_popover.show);
+      HardwareKeyboard.instance.addHandler(_onKey);
     }
   }
 
   void _closePopover() {
     if (!_popover.isShowing) return;
+    HardwareKeyboard.instance.removeHandler(_onKey);
     setState(_popover.hide);
     widget.onClosed?.call();
+  }
+
+  // Focus stays in the composer (or on the button) while the popover is open,
+  // so a focus-tree shortcut inside the overlay would never see Esc; listen at
+  // the keyboard level instead, only while the popover is showing.
+  bool _onKey(KeyEvent event) {
+    if (event is! KeyDownEvent ||
+        event.logicalKey != LogicalKeyboardKey.escape) {
+      return false;
+    }
+    _closePopover();
+    return true;
+  }
+
+  @override
+  void dispose() {
+    HardwareKeyboard.instance.removeHandler(_onKey);
+    super.dispose();
   }
 
   @override
@@ -121,20 +141,15 @@ class _EmojiPickerButtonState extends State<EmojiPickerButton> {
         child: TapRegion(
           groupId: _tapGroup,
           onTapOutside: (_) => _closePopover(),
-          child: CallbackShortcuts(
-            bindings: {
-              const SingleActivator(LogicalKeyboardKey.escape): _closePopover,
-            },
-            child: Material(
-              elevation: 6,
-              borderRadius: BorderRadius.circular(tt.cardRadius),
-              clipBehavior: Clip.antiAlias,
-              child: SizedBox(
-                width: math.min(_kPopoverWidth, viewport.width),
-                child: _ComposerEmojiPicker(
-                  controller: widget.controller,
-                  height: math.min(_kPopoverHeight, viewport.height * 0.6),
-                ),
+          child: Material(
+            elevation: 6,
+            borderRadius: BorderRadius.circular(tt.cardRadius),
+            clipBehavior: Clip.antiAlias,
+            child: SizedBox(
+              width: math.min(_kPopoverWidth, viewport.width),
+              child: _ComposerEmojiPicker(
+                controller: widget.controller,
+                height: math.min(_kPopoverHeight, viewport.height * 0.6),
               ),
             ),
           ),
