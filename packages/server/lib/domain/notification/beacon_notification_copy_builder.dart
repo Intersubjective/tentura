@@ -191,16 +191,18 @@ class BeaconNotificationCopyBuilder {
             : '$actor replied to your post',
       ),
       NotificationKind.batonAsked => (
-        actor,
+        ru
+            ? '$actor спрашивает, сможете ли вы помочь'
+            : '$actor asks you can help',
         excerpt.isNotEmpty
             ? excerpt
             : ru
             ? '$actor спрашивает, сможете ли вы помочь'
-            : '$actor asks if you can help',
+            : '$actor asks you can help',
       ),
       NotificationKind.batonTaken => (
         ru ? 'Вы взялись за это' : 'You took it',
-        excerpt.isNotEmpty ? excerpt : (ru ? 'Вы взялись за это' : 'You took it'),
+        ru ? 'Вы взялись: $excerpt' : 'You took it: $excerpt',
       ),
       NotificationKind.batonAllAnswered => (
         ru ? 'Все ответили' : 'Everyone answered',

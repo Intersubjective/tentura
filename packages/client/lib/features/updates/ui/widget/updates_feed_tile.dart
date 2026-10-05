@@ -126,7 +126,8 @@ class _UpdatesFeedTileState extends State<UpdatesFeedTile> {
     final l10n = L10n.of(context)!;
     final box = context.findRenderObject() as RenderBox?;
     if (box == null) return;
-    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final overlay =
+        Overlay.of(context).context.findRenderObject()! as RenderBox;
     final origin = box.localToGlobal(Offset.zero, ancestor: overlay);
     final position = RelativeRect.fromLTRB(
       origin.dx,
@@ -168,6 +169,9 @@ class _UpdatesFeedTileState extends State<UpdatesFeedTile> {
       l10n: l10n,
       headlineOverride: widget.headlineOverride,
       bodyOverride: widget.bodyOverride,
+      actorName: widget.actor == null
+          ? null
+          : profileWithContactOverlay(widget.actor!).shownName,
     );
     final glyph = updatesFeedGlyphFor(widget.receipt, tt);
     final localCreatedAt = widget.receipt.createdAt.toLocal();
@@ -195,8 +199,18 @@ class _UpdatesFeedTileState extends State<UpdatesFeedTile> {
     final headline = copy.headline;
     // Skip the prefix when the headline already leads with the name, or the
     // row reads "Name · Name · …" (UI review #203).
+    final isBaton =
+        batonReceiptDisplayCopy(
+          title: widget.receipt.title,
+          presentationKey: widget.receipt.presentationKey,
+          presentationPayloadJson: widget.receipt.presentationPayloadJson,
+          l10n: l10n,
+        ) !=
+        null;
     final showActorNamePrefix =
-        shownName.isNotEmpty && !headline.trim().startsWith(shownName);
+        !isBaton &&
+        shownName.isNotEmpty &&
+        !headline.trim().startsWith(shownName);
 
     // Which Request the row is about — "Status: in review" alone does not
     // say. Skipped when the row's own copy already names it.
@@ -265,7 +279,7 @@ class _UpdatesFeedTileState extends State<UpdatesFeedTile> {
             overflow: TextOverflow.ellipsis,
             style: TenturaText.bodySmall(tt.textMuted),
           ),
-        if (rowAction != null) rowAction,
+        ?rowAction,
       ],
     );
 

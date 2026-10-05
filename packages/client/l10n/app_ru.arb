@@ -6395,5 +6395,27 @@
   "batonCancel": "Отменить",
   "batonCancelConfirmTitle": "Отменить «Кто возьмётся?»",
   "batonCancelConfirmBody": "Людям, которых вы спросили, сообщим, что это больше не нужно.",
-  "batonCancelConfirmAction": "Отменить"
+  "batonCancelConfirmAction": "Отменить",
+  "batonReceiptAsked": "{author} спрашивает, сможете ли вы помочь",
+  "@batonReceiptAsked": {
+    "description": "Private Activity receipt asking the viewer whether they can help.",
+    "placeholders": {
+      "author": {
+        "type": "String"
+      }
+    }
+  },
+  "batonReceiptTaken": "Вы взялись: {excerpt}",
+  "@batonReceiptTaken": {
+    "description": "Private Activity receipt for the selected person.",
+    "placeholders": {
+      "excerpt": {
+        "type": "String"
+      }
+    }
+  },
+  "batonReceiptAllAnswered": "Все ответили на ваше «Кто возьмётся?»",
+  "@batonReceiptAllAnswered": {
+    "description": "Private Activity receipt telling the message author everyone answered."
+  }
 }

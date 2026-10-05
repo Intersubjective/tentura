@@ -7678,5 +7678,27 @@
   "batonCancelConfirmAction": "Cancel it",
   "@batonCancelConfirmAction": {
     "description": "Confirm button of the cancel-baton dialog."
+  },
+  "batonReceiptAsked": "{author} asks you can help",
+  "@batonReceiptAsked": {
+    "description": "Private Activity receipt asking the viewer whether they can help.",
+    "placeholders": {
+      "author": {
+        "type": "String"
+      }
+    }
+  },
+  "batonReceiptTaken": "You took it: {excerpt}",
+  "@batonReceiptTaken": {
+    "description": "Private Activity receipt for the selected person.",
+    "placeholders": {
+      "excerpt": {
+        "type": "String"
+      }
+    }
+  },
+  "batonReceiptAllAnswered": "Everyone answered your «Who'll take it?»",
+  "@batonReceiptAllAnswered": {
+    "description": "Private Activity receipt telling the message author everyone answered."
   }
 }
