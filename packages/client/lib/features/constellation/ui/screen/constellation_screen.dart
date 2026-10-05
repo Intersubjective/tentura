@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:auto_route/auto_route.dart';
 
+import 'package:tentura/app/router/home_tab_branches.dart';
+import 'package:tentura/app/router/root_router.gr.dart';
 import 'package:tentura/features/home/ui/widget/home_account_avatar_button.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
@@ -96,6 +98,9 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
 
   final _focusRequest = ConstellationFocusRequest.instance;
 
+  StackRouter? _rootRouter;
+  TabsRouter? _homeTabs;
+
   @override
   void initState() {
     super.initState();
@@ -104,9 +109,39 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // No router (isolated widget tests): treated as always visible.
+    final root = StackRouterScope.of(context)?.controller.root;
+    final tabs = root?.innerRouterOf<TabsRouter>(HomeRoute.name);
+    if (!identical(root, _rootRouter) || !identical(tabs, _homeTabs)) {
+      _rootRouter?.removeListener(_syncVisibility);
+      _homeTabs?.removeListener(_syncVisibility);
+      _rootRouter = root?..addListener(_syncVisibility);
+      _homeTabs = tabs?..addListener(_syncVisibility);
+    }
+    _syncVisibility();
+  }
+
+  @override
   void dispose() {
+    _rootRouter?.removeListener(_syncVisibility);
+    _homeTabs?.removeListener(_syncVisibility);
     _focusRequest.pending.removeListener(_takeFocusRequest);
     super.dispose();
+  }
+
+  /// The field is visible while the Constellation tab is active and no root
+  /// route (a Request, a profile, …) covers Home. Hidden, it stops fetching.
+  void _syncVisibility() {
+    if (!mounted) return;
+    final tabs = _homeTabs;
+    final root = _rootRouter;
+    final tabActive =
+        tabs == null ||
+        tabs.activeIndex == HomeTabSpec.forTab(HomeTab.constellation).index;
+    final homeOnTop = root == null || root.current.name == HomeRoute.name;
+    context.read<ConstellationCubit>().setVisible(tabActive && homeOnTop);
   }
 
   /// Focuses a beacon another screen asked for, once the field is loaded.

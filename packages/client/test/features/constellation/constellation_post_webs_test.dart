@@ -185,6 +185,7 @@ void main() {
         ),
         viewer: const Profile(id: 'ego'),
         loadOnCreate: false,
+        realtimeRefreshMinInterval: Duration.zero,
       );
       addTearDown(sync.port.dispose);
       addTearDown(cubit.close);

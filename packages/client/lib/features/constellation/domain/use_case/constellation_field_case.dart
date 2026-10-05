@@ -11,6 +11,10 @@ import '../entity/constellation_anchor_projection.dart';
 import '../entity/constellation_field.dart';
 import '../port/constellation_repository_port.dart';
 
+/// Minimum spacing between realtime-driven FULL refreshes for changes that
+/// do not touch the field (see [ConstellationFieldCase.isUrgentFieldChange]).
+const kLazyFieldRefreshInterval = Duration(seconds: 30);
+
 typedef ConstellationFieldResolved = ({
   ConstellationField field,
   ConstellationComposedPresentation composition,
@@ -33,15 +37,27 @@ final class ConstellationFieldCase extends UseCaseBase {
   final ConstellationRepositoryPort _repository;
   final RealtimeSyncCase? _realtimeSyncCase;
 
-  Stream<void>? get changes => _realtimeSyncCase
-      ?.changesFor(const {
-        RealtimeEntityKind.beacon,
-        RealtimeEntityKind.forward,
-        RealtimeEntityKind.participant,
-        RealtimeEntityKind.roomMessage,
-        RealtimeEntityKind.roomSeen,
-      })
-      .map((_) {});
+  Stream<RealtimeEntityChange>? get changes => _realtimeSyncCase?.changesFor(
+    const {
+      RealtimeEntityKind.beacon,
+      RealtimeEntityKind.forward,
+      RealtimeEntityKind.participant,
+      RealtimeEntityKind.roomMessage,
+      RealtimeEntityKind.roomSeen,
+    },
+  );
+
+  /// Room traffic is the high-volume kind: it only reshapes the field for a
+  /// Request or Post already on it. Elsewhere it can at most revive a dormant
+  /// Post, so it refreshes lazily ([kLazyFieldRefreshInterval]).
+  static bool isUrgentFieldChange(
+    RealtimeEntityChange change,
+    Set<String> fieldBeaconIds,
+  ) => switch (change.kind) {
+    RealtimeEntityKind.roomMessage ||
+    RealtimeEntityKind.roomSeen => fieldBeaconIds.contains(change.aggregateId),
+    _ => true,
+  };
 
   Stream<void>? get catchUps => _realtimeSyncCase?.catchUps.map((_) {});
 

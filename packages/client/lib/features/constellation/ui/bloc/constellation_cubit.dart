@@ -6,6 +6,7 @@ import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:get_it/get_it.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 
 import '../../domain/constellation_anchor_composition.dart';
@@ -129,7 +130,11 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     ConstellationMemberWebsPort? memberWebsPort,
     ForwardRepository? forwardRepository,
     bool loadOnCreate = true,
+    Duration realtimeRefreshMinInterval = const Duration(seconds: 2),
+    DateTime Function() now = DateTime.now,
   }) : _case = case_,
+       _realtimeRefreshMinInterval = realtimeRefreshMinInterval,
+       _now = now,
        _anchorCase = anchorCase,
        _memberWebsPort = memberWebsPort,
        _viewer = viewer,
@@ -140,7 +145,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       (_) => unawaited(_onAnchorRefreshHint()),
       cancelOnError: false,
     );
-    _fieldChangeSub = _case.changes?.listen((_) => _scheduleFieldRefresh());
+    _fieldChangeSub = _case.changes?.listen(_onFieldChange);
     _fieldCatchUpSub = _case.catchUps?.listen((_) => _scheduleFieldRefresh());
     // ignore: invalid_use_of_visible_for_testing_member
     graphController.scene.addListener(_onGraphSceneLayoutOutcomeChanged);
@@ -163,9 +168,20 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   StreamSubscription<void>? _anchorRefreshSub;
   StreamSubscription<void>? _fieldChangeSub;
   StreamSubscription<void>? _fieldCatchUpSub;
+  final Duration _realtimeRefreshMinInterval;
+  final DateTime Function() _now;
   Timer? _fieldRefreshTimer;
+  DateTime? _fieldRefreshDueAt;
+  DateTime? _lastFieldLoadAt;
   bool _fieldRefreshInFlight = false;
   bool _fieldRefreshQueued = false;
+  bool _fieldRefreshQueuedUrgent = false;
+
+  /// Whether the field is on screen (its tab is active and nothing covers
+  /// it). A hidden field does not refetch; it remembers it is stale and
+  /// refreshes once when shown again.
+  bool _visible = true;
+  bool _staleWhileHidden = false;
   int? _anchorLifecycleToken;
   int _layoutReconciliationCount = 0;
   bool _suppressLateGestureEnd = false;
@@ -298,6 +314,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   @override
   Future<void> close() async {
     _fieldRefreshTimer?.cancel();
+    _fieldRefreshDueAt = null;
     await _fieldChangeSub?.cancel();
     await _fieldCatchUpSub?.cancel();
     _clearClusterPresentations();
@@ -308,29 +325,93 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     return super.close();
   }
 
-  void _scheduleFieldRefresh() {
+  /// Called by the screen when the field becomes visible or hidden.
+  void setVisible(bool visible) {
+    if (isClosed || visible == _visible) return;
+    _visible = visible;
+    if (!visible) {
+      _fieldRefreshTimer?.cancel();
+      _fieldRefreshTimer = null;
+      _fieldRefreshDueAt = null;
+      return;
+    }
+    if (_staleWhileHidden) {
+      _staleWhileHidden = false;
+      _scheduleFieldRefresh();
+    }
+  }
+
+  void _onFieldChange(RealtimeEntityChange change) {
+    final field = state.field;
+    final fieldBeaconIds = {
+      ...?field?.requests.map((r) => r.id),
+      ...?field?.posts.map((p) => p.id),
+      ...?field?.resolvedAnchorProjection.pinnedRequests.map((r) => r.id),
+    };
+    _scheduleFieldRefresh(
+      urgent: ConstellationFieldCase.isUrgentFieldChange(
+        change,
+        fieldBeaconIds,
+      ),
+    );
+  }
+
+  /// Coalesces realtime-driven FULL refreshes: one refresh per window, never
+  /// sooner than [_realtimeRefreshMinInterval] after the previous load (or
+  /// [kLazyFieldRefreshInterval] for changes that do not touch the field).
+  /// A pending refresh is only ever moved earlier, so a steady event stream
+  /// cannot postpone it forever.
+  void _scheduleFieldRefresh({bool urgent = true}) {
     if (isClosed) return;
+    if (!_visible) {
+      _staleWhileHidden = true;
+      return;
+    }
     if (_fieldRefreshInFlight) {
       _fieldRefreshQueued = true;
+      _fieldRefreshQueuedUrgent |= urgent;
+      return;
+    }
+    final now = _now();
+    final spacing = urgent
+        ? _realtimeRefreshMinInterval
+        : kLazyFieldRefreshInterval;
+    final last = _lastFieldLoadAt;
+    var dueAt = now.add(const Duration(milliseconds: 220));
+    if (last != null && last.add(spacing).isAfter(dueAt)) {
+      dueAt = last.add(spacing);
+    }
+    final pending = _fieldRefreshDueAt;
+    if (_fieldRefreshTimer != null &&
+        pending != null &&
+        !pending.isAfter(dueAt)) {
       return;
     }
     _fieldRefreshTimer?.cancel();
-    _fieldRefreshTimer = Timer(const Duration(milliseconds: 220), () {
+    _fieldRefreshDueAt = dueAt;
+    _fieldRefreshTimer = Timer(dueAt.difference(now), () {
       _fieldRefreshTimer = null;
+      _fieldRefreshDueAt = null;
       unawaited(_refreshFieldFromRealtime());
     });
   }
 
   Future<void> _refreshFieldFromRealtime() async {
     if (isClosed) return;
+    if (!_visible) {
+      _staleWhileHidden = true;
+      return;
+    }
     _fieldRefreshInFlight = true;
     try {
       await load();
     } finally {
       _fieldRefreshInFlight = false;
       if (_fieldRefreshQueued && !isClosed) {
+        final urgent = _fieldRefreshQueuedUrgent;
         _fieldRefreshQueued = false;
-        _scheduleFieldRefresh();
+        _fieldRefreshQueuedUrgent = false;
+        _scheduleFieldRefresh(urgent: urgent);
       }
     }
   }
@@ -465,6 +546,15 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   Future<void> load() async {
     if (isClosed) {
       return;
+    }
+    // This load covers any realtime refresh that was waiting to run, and
+    // realtime refreshes are spaced from it.
+    _lastFieldLoadAt = _now();
+    _staleWhileHidden = false;
+    if (!_fieldRefreshInFlight) {
+      _fieldRefreshTimer?.cancel();
+      _fieldRefreshTimer = null;
+      _fieldRefreshDueAt = null;
     }
     final generation = state.loadGeneration + 1;
     emit(
