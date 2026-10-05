@@ -82,8 +82,11 @@ set -e
 
 cat "$out"
 
-errors="$(grep -cE '^[[:space:]]*error (•|-) ' "$out" || true)"
-total="$(grep -cE '^[[:space:]]*(error|warning|info) (•|-) ' "$out" || true)"
+# Count unique diagnostics: the analyzer sometimes reports the same issue
+# twice (seen for hook/build and tool/ files in CI), which made the gate
+# flaky (2122 vs 2126 for identical sources).
+errors="$(grep -E '^[[:space:]]*error (•|-) ' "$out" | sort -u | wc -l || true)"
+total="$(grep -E '^[[:space:]]*(error|warning|info) (•|-) ' "$out" | sort -u | wc -l || true)"
 
 if [[ "$errors" -gt 0 ]]; then
   echo "check-analyze-baseline: $errors analyzer error(s) in $KEY" >&2
