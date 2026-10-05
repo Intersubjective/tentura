@@ -12,6 +12,8 @@ import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_tile.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/thread_detail.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
+import 'package:tentura/features/beacon_view/ui/screen/beacon_view_screen.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_surface_tabs.dart';
 import 'package:tentura/ui/widget/basic_chat_body.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
@@ -157,10 +159,7 @@ void main() {
       );
 
       final discussionHeader = tester.getRect(
-        find.descendant(
-          of: find.byType(AppBar),
-          matching: find.byType(ThreadDetailGeneralTitle),
-        ),
+        find.byKey(beaconSplitChatHeaderKey),
       );
       final discussionPane = tester.getRect(find.byType(ThreadDetail));
       final appBar = tester.getRect(find.byType(AppBar));
@@ -176,6 +175,13 @@ void main() {
         discussionHeader.width,
         closeTo(discussionPane.width, 1),
         reason: 'discussion header width must match the pane',
+      );
+
+      // The chat is the primary pane; Now is the trailing supporting pane.
+      expect(
+        discussionPane.right,
+        lessThanOrEqualTo(tester.getRect(find.byType(BeaconSurfaceTabs)).left),
+        reason: 'chat sits before the Now pane',
       );
 
       // Two-line discussion title must not clip inside the app bar viewport.

@@ -44,74 +44,65 @@ void main() {
       );
     });
 
-    test('without availableWidth uses chat column cap as default', () {
-      final expanded = TenturaTokens.light.applyWindowClass(
-        WindowClass.expanded,
-      );
+    // Chat is the primary pane; Now is the trailing supporting pane.
+    final expanded = TenturaTokens.light.applyWindowClass(
+      WindowClass.expanded,
+    );
 
-      expect(beaconViewRoomSplitPaneWidth(expanded), 720);
-    });
-
-    test('keeps split room pane at a usable floor', () {
-      final narrow = TenturaTokens.light
-          .applyWindowClass(WindowClass.expanded)
-          .copyWith(chatColumnMaxWidth: 320);
-
-      expect(beaconViewRoomSplitPaneWidth(narrow), 360);
-    });
-
-    test('embedded tight split allows 280px room pane floor', () {
-      final expanded = TenturaTokens.light.applyWindowClass(
-        WindowClass.expanded,
-      );
-
+    test('without availableWidth falls back to the pane floor', () {
+      expect(beaconViewNowSplitPaneWidth(expanded), 360);
       expect(
-        beaconViewRoomSplitPaneWidth(
+        beaconViewNowSplitPaneWidth(expanded, preferredWidth: 420),
+        420,
+      );
+    });
+
+    test('defaults to 40% of the split, within 400..640', () {
+      expect(
+        beaconViewNowSplitPaneWidth(expanded, availableWidth: 900),
+        400,
+      );
+      expect(
+        beaconViewNowSplitPaneWidth(expanded, availableWidth: 1200),
+        480,
+      );
+      expect(
+        beaconViewNowSplitPaneWidth(expanded, availableWidth: 2000),
+        kBeaconSplitNowPaneMaxDefaultWidth,
+      );
+    });
+
+    test('embedded tight split allows a 280px pane floor', () {
+      expect(
+        beaconViewNowSplitPaneWidth(
           expanded,
           availableWidth: 560,
           minPaneWidth: 280,
+          preferredWidth: 200,
         ),
         280,
       );
     });
 
-    test('defaults to 42% of available pane width below chat cap', () {
-      final expanded = TenturaTokens.light.applyWindowClass(
-        WindowClass.expanded,
-      );
-
+    test('honors preferred width while the chat keeps its floor', () {
       expect(
-        beaconViewRoomSplitPaneWidth(
+        beaconViewNowSplitPaneWidth(
           expanded,
           availableWidth: 1200,
+          preferredWidth: 600,
         ),
-        504,
-      );
-    });
-
-    test('honors preferred width within clamp bounds', () {
-      final expanded = TenturaTokens.light.applyWindowClass(
-        WindowClass.expanded,
-      );
-
-      expect(
-        beaconViewRoomSplitPaneWidth(
-          expanded,
-          availableWidth: 1200,
-          preferredWidth: 480,
-        ),
-        480,
+        600,
       );
       expect(
-        beaconViewRoomSplitPaneWidth(
+        beaconViewNowSplitPaneWidth(
           expanded,
           availableWidth: 1200,
-          preferredWidth: 900,
+          preferredWidth: 1000,
         ),
         840,
       );
       expect(
-        beaconViewRoomSplitPaneWidth(
+        beaconViewNowSplitPaneWidth(
           expanded,
           availableWidth: 1200,
           preferredWidth: 100,
@@ -120,28 +111,18 @@ void main() {
       );
     });
 
-    test('when both floors cannot fit, shrinks room so ops keeps minPane', () {
-      final expanded = TenturaTokens.light.applyWindowClass(
-        WindowClass.expanded,
-      );
-
-      // 478 total → old clamp forced room to 360 and crushed ops to ~118.
+    test('when both floors cannot fit, the chat shrinks so Now keeps it', () {
       expect(
-        beaconViewRoomSplitPaneWidth(
+        beaconViewNowSplitPaneWidth(
           expanded,
           availableWidth: 478,
-          minPaneWidth: 360,
-        ),
-        118,
-      );
-      expect(
-        beaconViewRoomSplitPaneWidth(
-          expanded,
-          availableWidth: 478,
-          minPaneWidth: 360,
           preferredWidth: 400,
         ),
-        118,
+        360,
+      );
+      expect(
+        beaconViewNowSplitPaneWidth(expanded, availableWidth: 300),
+        300,
       );
     });
   });

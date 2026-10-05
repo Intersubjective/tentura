@@ -26,6 +26,8 @@ import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
 
 import '../widget/beacon_activity_sheet.dart';
 import '../widget/beacon_anchor_status.dart';
+import 'package:tentura/ui/widget/beacon_involved_people_face_pile.dart';
+
 import '../widget/beacon_now_surface.dart';
 import '../widget/beacon_people_surface.dart';
 import '../widget/beacon_room_surface.dart';
@@ -49,34 +51,54 @@ bool beaconViewUsesExpandedThreadSplit({
   required bool hasThreadRows,
 }) => windowClass == WindowClass.expanded && showBeaconContent && hasThreadRows;
 
-/// Ideal / clamped width for the room (3rd) pane in an ops|room split.
+/// Width of the Now pane (the supporting pane) in a chat|Now split.
 ///
-/// Pass [preferredWidth] to honor a user drag override; otherwise uses
-/// 42% of [availableWidth] capped by [TenturaTokens.chatColumnMaxWidth].
-/// Always leaves at least [minPaneWidth] for the ops pane when space allows;
-/// when the window is too narrow for both floors, room pane shrinks first so
-/// ops keeps a readable share (avoids CustomScrollView layout crashes at
-/// ~100px cross-axis extents).
-double beaconViewRoomSplitPaneWidth(
+/// The chat is the primary pane and takes the rest; Material 3 supporting
+/// panes sit trailing at a fixed width. Pass [preferredWidth] to honor a user
+/// drag; otherwise 40% of [availableWidth], kept between
+/// [kBeaconSplitNowPaneMinDefaultWidth] and
+/// [kBeaconSplitNowPaneMaxDefaultWidth]. Always leaves at least
+/// [minPaneWidth] for the chat when space allows; when both floors cannot fit,
+/// the chat shrinks first so Now's scroll view keeps a readable width (it
+/// crashes at ~100px cross-axis extents).
+double beaconViewNowSplitPaneWidth(
   TenturaTokens tt, {
   double? availableWidth,
   double minPaneWidth = 360.0,
   double? preferredWidth,
 }) {
-  final minChat = minPaneWidth;
-  final minOps = minPaneWidth;
   if (availableWidth == null || !availableWidth.isFinite) {
-    final ideal = preferredWidth ?? tt.chatColumnMaxWidth;
-    return ideal.clamp(minChat, math.max(minChat, tt.chatColumnMaxWidth));
+    return math.max(minPaneWidth, preferredWidth ?? minPaneWidth);
   }
 
-  final maxForChat = math.max<double>(0, availableWidth - minOps);
-  final defaultWidth = math.min(tt.chatColumnMaxWidth, availableWidth * 0.42);
-  final ideal = preferredWidth ?? defaultWidth;
-  // When both floors cannot fit, lower == maxForChat and ops keeps minOps.
-  final lower = math.min(minChat, maxForChat);
-  return ideal.clamp(lower, maxForChat);
+  // When both floors cannot fit, Now keeps its floor and the chat shrinks.
+  final floor = math.min(minPaneWidth, availableWidth);
+  final maxForNow = math.max(floor, availableWidth - minPaneWidth);
+  final ideal =
+      preferredWidth ??
+      (availableWidth * 0.4).clamp(
+        math.max(minPaneWidth, kBeaconSplitNowPaneMinDefaultWidth),
+        kBeaconSplitNowPaneMaxDefaultWidth,
+      );
+  return ideal.clamp(floor, maxForNow);
 }
+
+/// Narrowest default for the Now pane; its cards need room for two-column
+/// rows (team member + next move, help offers).
+const double kBeaconSplitNowPaneMinDefaultWidth = 400;
+
+/// Widest the Now pane gets on its own; a drag can widen it further.
+const double kBeaconSplitNowPaneMaxDefaultWidth = 640;
+
+/// The Now pane width the person dragged to, for the rest of the session.
+double? _sessionNowPaneWidth;
+
+/// Forgets the dragged Now pane width (tests start from the default).
+@visibleForTesting
+void resetBeaconSplitNowPaneWidth() => _sessionNowPaneWidth = null;
+
+/// The split header over the chat pane; it spans exactly that pane (#169).
+const beaconSplitChatHeaderKey = Key('beacon-split-chat-header');
 
 class BeaconViewScreen extends StatefulWidget {
   const BeaconViewScreen({
@@ -130,8 +152,10 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   bool _didApplyThreadsResolution = false;
   String? _bannerMessage;
 
-  /// User drag override for the room pane width; null = token default.
-  double? _roomPaneWidthOverride;
+  /// User drag override for the Now pane width; null = default. Kept for the
+  /// session, so every Request opens at the width the person chose.
+  double? get _nowPaneWidthOverride => _sessionNowPaneWidth;
+  set _nowPaneWidthOverride(double? value) => _sessionNowPaneWidth = value;
 
   /// Latched on first successful non-empty [ThreadsState]; reset on beacon id change.
   bool _hadThreadRowsAtLeastOnce = false;
@@ -521,7 +545,6 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       _didApplyThreadsResolution = false;
       _focusThreadId = null;
       _focusUserId = null;
-      _roomPaneWidthOverride = null;
       _hadThreadRowsAtLeastOnce = false;
       _lastIsSplit = null;
       _didOpenActivitySheetForLogTab = false;
@@ -733,18 +756,20 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     );
   }
 
-  /// Room pane width for the ops|room split. The app bar row and the body
+  /// Now pane width for the chat|Now split. The app bar row and the body
   /// both pass their post-rail width so header and pane share one budget.
-  double _splitThreadPaneWidth(
+  double _splitNowPaneWidth(
     TenturaTokens tt,
     double maxWidth, {
     double? preferredWidth,
-  }) => beaconViewRoomSplitPaneWidth(
+  }) => beaconViewNowSplitPaneWidth(
     tt,
     availableWidth: maxWidth - TenturaSpacing.row,
-    preferredWidth: preferredWidth ?? _roomPaneWidthOverride,
+    preferredWidth: preferredWidth ?? _nowPaneWidthOverride,
   );
 
+  /// Wide windows: the chat is the primary pane in the middle, Now (with
+  /// People) the supporting pane on the trailing side.
   Widget _buildExpandedSplitBody({
     required BeaconViewState beaconState,
     required BeaconViewCubit beaconViewCubit,
@@ -756,36 +781,11 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   }) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final threadPaneWidth = _splitThreadPaneWidth(
-          tt,
-          constraints.maxWidth,
-        );
+        final nowPaneWidth = _splitNowPaneWidth(tt, constraints.maxWidth);
         return Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
-              child: _buildTabbedContent(
-                beaconViewCubit: beaconViewCubit,
-                screenCubit: screenCubit,
-                beaconState: beaconState,
-                isSplit: true,
-                roomLease: roomLease,
-              ),
-            ),
-            TenturaVerticalResizeHandle(
-              onDragDelta: (dx) {
-                // Room pane is on the right: drag left (negative dx) widens it.
-                setState(() {
-                  _roomPaneWidthOverride = _splitThreadPaneWidth(
-                    tt,
-                    constraints.maxWidth,
-                    preferredWidth: threadPaneWidth - dx,
-                  );
-                });
-              },
-            ),
-            SizedBox(
-              width: threadPaneWidth,
               child: BeaconRoomSurface(
                 host: beaconViewCubit,
                 roomLease: roomLease,
@@ -795,44 +795,77 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                 onOpenCoordinationItem: _onOpenCoordinationItemFromThread,
               ),
             ),
+            TenturaVerticalResizeHandle(
+              onDragDelta: (dx) {
+                // Now pane is on the trailing side: drag left (negative dx)
+                // widens it. Several moves can land before the next frame, so
+                // each one starts from the width the previous one set, not
+                // from the width this frame was built with.
+                setState(() {
+                  _nowPaneWidthOverride = _splitNowPaneWidth(
+                    tt,
+                    constraints.maxWidth,
+                    preferredWidth:
+                        (_nowPaneWidthOverride ?? nowPaneWidth) - dx,
+                  );
+                });
+              },
+            ),
+            SizedBox(
+              width: nowPaneWidth,
+              child: _buildTabbedContent(
+                beaconViewCubit: beaconViewCubit,
+                screenCubit: screenCubit,
+                beaconState: beaconState,
+                isSplit: true,
+                roomLease: roomLease,
+              ),
+            ),
           ],
         );
       },
     );
   }
 
-  Widget _splitThreadPaneAppBar({
-    required ThreadsState threadsState,
-    required ThreadHostState hostState,
+  /// Header over the Now pane: who is involved (tap opens People) and the
+  /// one ⋮ for the whole split (#168).
+  Widget _splitNowPaneAppBar({
     required BeaconViewState beaconState,
+    required bool showBeaconContent,
     required L10n l10n,
     required TenturaTokens tt,
     required Widget overflow,
   }) {
-    final padding = EdgeInsetsDirectional.symmetric(
-      horizontal: tt.screenHPadding,
-    );
-    final thread = _generalThread(threadsState);
-    if (thread == null) {
-      return Padding(
-        padding: padding,
-        child: Align(
-          alignment: AlignmentDirectional.centerEnd,
-          child: overflow,
-        ),
-      );
-    }
-
-    // The ⋮ lives inside the title so the discussion header spans exactly
-    // the discussion pane below it (#169).
-    return ThreadDetailGeneralTitle(
-      title: threadGeneralAppBarTitle(l10n, beaconState.beacon),
-      beacon: beaconState.beacon,
-      involvedProfiles: beaconState.beacon.admittedHelperUsers,
-      helperCount: beaconState.beacon.admittedHelperCount,
-      currentUserId: beaconState.myProfile.id,
-      padding: padding,
-      trailing: overflow,
+    void openPeople() => _switchToSurface(BeaconSurface.people);
+    return Padding(
+      padding: EdgeInsetsDirectional.symmetric(horizontal: tt.screenHPadding),
+      child: Row(
+        children: [
+          Expanded(
+            child: showBeaconContent
+                ? Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: Semantics(
+                      button: true,
+                      label: l10n.beaconHudPeopleRowSemantics,
+                      onTap: openPeople,
+                      child: ExcludeSemantics(
+                        child: BeaconInvolvedPeopleFacePile(
+                          beacon: beaconState.beacon,
+                          involvedProfiles:
+                              beaconState.beacon.admittedHelperUsers,
+                          currentUserId: beaconState.myProfile.id,
+                          helperCount: beaconState.beacon.admittedHelperCount,
+                          onTap: openPeople,
+                        ),
+                      ),
+                    ),
+                  )
+                : const SizedBox.shrink(),
+          ),
+          overflow,
+        ],
+      ),
     );
   }
 
@@ -1172,8 +1205,8 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                                               TenturaSpacing.row;
                                           // Same post-rail width as the body
                                           // split, so panes line up (#169).
-                                          final threadPaneWidth =
-                                              _splitThreadPaneWidth(
+                                          final nowPaneWidth =
+                                              _splitNowPaneWidth(
                                                 tt,
                                                 constraints.maxWidth,
                                               );
@@ -1230,37 +1263,39 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                                               : const SizedBox.shrink();
                                           return Row(
                                             children: [
+                                              // Over the chat: the Request
+                                              // itself — title and status —
+                                              // so its state never lives only
+                                              // in the side pane.
                                               Expanded(
                                                 child: Padding(
+                                                  key: beaconSplitChatHeaderKey,
                                                   padding:
                                                       EdgeInsetsDirectional.symmetric(
                                                         horizontal:
                                                             tt.screenHPadding,
                                                       ),
-                                                  child: TenturaContentColumn(
-                                                    child: Row(
-                                                      children: [
-                                                        AutoLeadingWithFallback(
-                                                          fallbackPath:
-                                                              kPathMyWork,
-                                                          onFallback: () =>
-                                                              _leaveBeaconView(
-                                                                context,
-                                                              ),
+                                                  child: Row(
+                                                    children: [
+                                                      AutoLeadingWithFallback(
+                                                        fallbackPath:
+                                                            kPathMyWork,
+                                                        onFallback: () =>
+                                                            _leaveBeaconView(
+                                                              context,
+                                                            ),
+                                                      ),
+                                                      Expanded(
+                                                        child: BeaconViewAppBarTitle(
+                                                          beacon: state.beacon,
+                                                          showBeaconContent:
+                                                              showBeaconContent,
+                                                          phaseStatus:
+                                                              appBarPhaseStatus,
+                                                          l10n: l10n,
                                                         ),
-                                                        Expanded(
-                                                          child: BeaconViewAppBarTitle(
-                                                            beacon:
-                                                                state.beacon,
-                                                            showBeaconContent:
-                                                                showBeaconContent,
-                                                            phaseStatus:
-                                                                appBarPhaseStatus,
-                                                            l10n: l10n,
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
+                                                      ),
+                                                    ],
                                                   ),
                                                 ),
                                               ),
@@ -1268,11 +1303,11 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                                                 width: handleWidth,
                                               ),
                                               SizedBox(
-                                                width: threadPaneWidth,
-                                                child: _splitThreadPaneAppBar(
-                                                  threadsState: threadsState,
-                                                  hostState: hostState,
+                                                width: nowPaneWidth,
+                                                child: _splitNowPaneAppBar(
                                                   beaconState: state,
+                                                  showBeaconContent:
+                                                      showBeaconContent,
                                                   l10n: l10n,
                                                   tt: tt,
                                                   overflow: splitOverflow,
