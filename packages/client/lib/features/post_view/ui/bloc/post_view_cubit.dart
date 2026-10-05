@@ -70,6 +70,7 @@ class PostViewCubit extends Cubit<PostViewState> implements RoomHost {
     this.membershipRepository,
     this.favoritesRepository,
     DateTime Function()? clock,
+    this.onClose,
   }) : _beaconRepository = beaconRepository ?? GetIt.I<BeaconRepository>(),
        _clock = clock ?? DateTime.now,
        _effects = effects ?? GetIt.I<UiEffectPort>(),
@@ -95,6 +96,19 @@ class PostViewCubit extends Cubit<PostViewState> implements RoomHost {
   FavoritesRemoteRepository? favoritesRepository;
 
   final DateTime Function() _clock;
+
+  /// Closes the Post's screen after delete / leave. Null for the Post's own
+  /// route (it pops); a list-detail pane passes one that clears its selection.
+  final void Function()? onClose;
+
+  void _close() {
+    final onClose = this.onClose;
+    if (onClose == null) {
+      _effects.emit(const NavigateBack());
+    } else {
+      onClose();
+    }
+  }
 
   @override
   String get beaconId => state.beacon.id;
@@ -150,7 +164,7 @@ class PostViewCubit extends Cubit<PostViewState> implements RoomHost {
       if (!isClosed) _effects.emit(ShowError(e));
       return;
     }
-    _effects.emit(const NavigateBack());
+    _close();
   }
 
   /// Mutes the Post for [duration] from now; `null` mutes it for good.
@@ -193,24 +207,23 @@ class PostViewCubit extends Cubit<PostViewState> implements RoomHost {
     await membership.postLeave(beaconId);
     final id = beaconId;
     final effects = _effects;
-    _effects
-      ..emit(const NavigateBack())
-      ..emit(
-        ShowMessage(
-          PostLeftMessage(
-            // Runs after this cubit is closed with its screen: it only uses
-            // the repository and the app-wide effects port.
-            onPressed: () => unawaited(() async {
-              try {
-                await membership.postReturn(id);
-                effects.emit(NavigatePush('$kPathBeaconView/$id'));
-              } on Object catch (e) {
-                effects.emit(ShowError(e));
-              }
-            }()),
-          ),
+    _close();
+    _effects.emit(
+      ShowMessage(
+        PostLeftMessage(
+          // Runs after this cubit is closed with its screen: it only uses
+          // the repository and the app-wide effects port.
+          onPressed: () => unawaited(() async {
+            try {
+              await membership.postReturn(id);
+              effects.emit(NavigatePush('$kPathBeaconView/$id'));
+            } on Object catch (e) {
+              effects.emit(ShowError(e));
+            }
+          }()),
         ),
-      );
+      ),
+    );
   });
 
   Future<void> _write(Future<void> Function() action) async {

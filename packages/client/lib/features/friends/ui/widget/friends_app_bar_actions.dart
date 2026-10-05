@@ -12,8 +12,13 @@ class FriendsAppBarActions extends StatelessWidget {
     required this.onCreateInvitation,
     required this.onScanInvitationQr,
     required this.onBlockedPeople,
+    this.compact = false,
     super.key,
   });
+
+  /// Compact bars keep three icons plus ⋮ (Material's app-bar limit); the
+  /// trust explainer moves into ⋮.
+  final bool compact;
 
   final VoidCallback onGraph;
   final VoidCallback onCreateInvitation;
@@ -48,14 +53,15 @@ class FriendsAppBarActions extends StatelessWidget {
           padding: EdgeInsets.zero,
           constraints: touchTarget,
         ),
-        IconButton(
-          key: TestIds.key(TestIds.friendsTrustInfo),
-          tooltip: l10n.trustInfoTitle,
-          onPressed: () => showTrustInfoSheet(context),
-          icon: const Icon(Icons.info_outline),
-          padding: EdgeInsets.zero,
-          constraints: touchTarget,
-        ),
+        if (!compact)
+          IconButton(
+            key: TestIds.key(TestIds.friendsTrustInfo),
+            tooltip: l10n.trustInfoTitle,
+            onPressed: () => showTrustInfoSheet(context),
+            icon: const Icon(Icons.info_outline),
+            padding: EdgeInsets.zero,
+            constraints: touchTarget,
+          ),
         PopupMenuButton<String>(
           key: TestIds.key(TestIds.friendsMore),
           icon: const Icon(Icons.more_vert),
@@ -68,9 +74,27 @@ class FriendsAppBarActions extends StatelessWidget {
                 onScanInvitationQr();
               case 'blocked':
                 onBlockedPeople();
+              case 'trust':
+                showTrustInfoSheet(context);
             }
           },
           itemBuilder: (menuContext) => [
+            if (compact)
+              PopupMenuItem<String>(
+                key: TestIds.key(TestIds.friendsTrustInfo),
+                value: 'trust',
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      size: tt.iconSize,
+                      color: Theme.of(menuContext).colorScheme.onSurface,
+                    ),
+                    SizedBox(width: tt.rowGap),
+                    Text(l10n.trustInfoTitle),
+                  ],
+                ),
+              ),
             PopupMenuItem<String>(
               value: 'scan',
               child: Row(

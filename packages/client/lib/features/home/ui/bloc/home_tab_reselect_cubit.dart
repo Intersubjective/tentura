@@ -21,6 +21,11 @@ class HomeTabReselectCubit extends Cubit<HomeTabReselectState> {
     HomeTab.work => emit(
       state.copyWith(myWorkReselectCount: state.myWorkReselectCount + 1),
     ),
+    HomeTab.conversations => emit(
+      state.copyWith(
+        conversationsReselectCount: state.conversationsReselectCount + 1,
+      ),
+    ),
     HomeTab.constellation => emit(
       state.copyWith(
         constellationReselectCount: state.constellationReselectCount + 1,

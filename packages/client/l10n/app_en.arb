@@ -335,7 +335,7 @@
   "@invitationScreenTitle": {
     "context": "InvitationScreen"
   },
-  "friendsTitle": "People",
+  "friendsTitle": "Trusted",
   "@friendsTitle": {
     "context": "FriendsScreen"
   },
@@ -629,7 +629,7 @@
       }
     }
   },
-  "beaconSendConfirmationFailed": "The request was published but delivery failed. Open it from My Work to send again.",
+  "beaconSendConfirmationFailed": "The request was published but delivery failed. Open it from Work to send again.",
   "@beaconSendConfirmationFailed": {
     "context": "BeaconCreateScreen"
   },
@@ -1281,7 +1281,7 @@
   "@helpOffererForwardPathTooltip": {
     "context": "HelpOfferTile — IconButton tooltip for helper forward path graph"
   },
-  "myField": "My field",
+  "myField": "Field",
   "@myField": {
     "context": "HomeScreen"
   },
@@ -1289,11 +1289,11 @@
   "@inbox": {
     "context": "HomeScreen"
   },
-  "myWork": "My Work",
+  "myWork": "Work",
   "@myWork": {
     "context": "HomeScreen"
   },
-  "network": "My people",
+  "network": "People",
   "@network": {
     "context": "HomeScreen"
   },
@@ -1301,11 +1301,11 @@
   "@requestDiscoverableLabel": {
     "description": "Action label for the author discoverability toggle on a request."
   },
-  "requestDiscoverableOn": "People who can see you can find it in My field. Finding it doesn't add them to the discussion.",
+  "requestDiscoverableOn": "People who can see you can find it in the Field. Finding it doesn't add them to the discussion.",
   "@requestDiscoverableOn": {
     "description": "Explains discoverability when the toggle is on (used as subtitle when on, or as the sibling alternative when off)."
   },
-  "requestDiscoverableOff": "Hidden from My field. Only people you forward it to, and anyone already involved, can open it.",
+  "requestDiscoverableOff": "Hidden from the Field. Only people you forward it to, and anyone already involved, can open it.",
   "@requestDiscoverableOff": {
     "description": "Explains discoverability when the toggle is off (used as subtitle when off, or as the sibling alternative when on)."
   },
@@ -1314,7 +1314,7 @@
     "description": "Tooltip of the Field app-bar button that offers creating a Post or Request at the viewport centre",
     "context": "ConstellationAppBarRow"
   },
-  "constellationTitle": "My field",
+  "constellationTitle": "Field",
   "@constellationTitle": {
     "description": "App bar title on the Field (Constellation) screen",
     "context": "ConstellationScreen"
@@ -1324,7 +1324,7 @@
     "description": "Tooltip for the Field map control that fits every visible node into view",
     "context": "ConstellationScreen"
   },
-  "constellationNavLabel": "My field",
+  "constellationNavLabel": "Field",
   "@constellationNavLabel": {
     "description": "Side-nav / accessibility label for the Field tab (bottom bar is icon-only)",
     "context": "HomeScreen"
@@ -3227,7 +3227,7 @@
   "@myWorkEmptyActiveTitle": {
     "context": "MyWorkScreen"
   },
-  "myWorkEmptyActiveBody": "My Work shows requests you authored or offered help on. Requests others forward to you appear in Activity.",
+  "myWorkEmptyActiveBody": "Work shows requests you authored or offered help on. Requests others forward to you appear in Activity.",
   "@myWorkEmptyActiveBody": {
     "context": "MyWorkScreen"
   },
@@ -5723,7 +5723,7 @@
   "helpOfferHideCategories": "Hide categories",
   "helpOfferSearchEmpty": "No match — try Other or keep text only",
   "forwardViewInvitations": "View invitations",
-  "inboxViewMyWork": "View My Work",
+  "inboxViewMyWork": "Open Work",
   "logoutConfirmTitle": "Log out?",
   "logoutConfirmBody": "You’ll need to sign in again to use Tentura on this device.",
   "capabilityCueHelpOffered": "Offered help: {tags}",
@@ -7091,7 +7091,7 @@
       }
     }
   },
-  "activityTabConversations": "Conversations",
+  "activityTabConversations": "Posts",
   "@activityTabConversations": {
     "description": "Activity tab listing the Posts the viewer is in."
   },
@@ -7103,9 +7103,13 @@
   "@postsTabQuiet": {
     "description": "Section of the conversations tab: Posts silent for 72 hours or more."
   },
-  "postsTabEmpty": "Conversations you started or were invited into will appear here",
+  "postsTabEmpty": "Posts you started or were invited into will appear here",
   "@postsTabEmpty": {
     "description": "Empty state of the conversations tab."
+  },
+  "postsTabSelectConversation": "Choose a post to open it here",
+  "@postsTabSelectConversation": {
+    "description": "Placeholder of the chat pane beside the conversations list on a wide window, before one is chosen."
   },
   "postsTabNewPost": "New post",
   "@postsTabNewPost": {
@@ -7340,7 +7344,7 @@
       }
     }
   },
-  "postMenuPin": "Pin in conversations",
+  "postMenuPin": "Pin in Posts",
   "@postMenuPin": {
     "description": "Post overflow: pin the Post among conversations."
   },
@@ -7384,7 +7388,7 @@
   "@postLeaveConfirmTitle": {
     "description": "Title of the leave-conversation confirmation."
   },
-  "postLeaveConfirmBody": "Messages will stop coming and the post will disappear from conversations. You can return from “Not interested”.",
+  "postLeaveConfirmBody": "Messages will stop coming and the post will disappear from Posts. You can return from “Not interested”.",
   "@postLeaveConfirmBody": {
     "description": "Body of the leave-conversation confirmation."
   },
@@ -7513,7 +7517,7 @@
     }
   },
   "postInfoQuiet": "Gone quiet: a new message brings it back to «Now»",
-  "postInfoPinned": "Pinned in conversations, so it won't go quiet",
+  "postInfoPinned": "Pinned in Posts, so it won't go quiet",
   "postInfoMutedUntil": "Muted until {time}",
   "@postInfoMutedUntil": {
     "placeholders": {

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'package:tentura/features/home/ui/widget/home_account_avatar_button.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -110,12 +111,7 @@ class _MyWorkScreenState extends State<MyWorkScreen> {
                     if (constraints.maxWidth < tt.buttonHeight) {
                       return const SizedBox.shrink();
                     }
-                    return const Row(
-                      children: [
-                        Expanded(child: _MyWorkFilterMenu()),
-                        _MyWorkSortButton(),
-                      ],
-                    );
+                    return const _MyWorkTitleControls();
                   },
                 ),
           actions: useCompactTopBar ? null : [createButton],
@@ -127,12 +123,12 @@ class _MyWorkScreenState extends State<MyWorkScreen> {
           row: useCompactTopBar
               ? Row(
                   children: [
-                    const Expanded(child: _MyWorkFilterMenu()),
-                    const _MyWorkSortButton(),
+                    const Expanded(child: _MyWorkTitleControls()),
                     createButton,
                   ],
                 )
               : null,
+          account: homeTopBarAccount(context),
         ),
         body: SafeArea(
           minimum: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
@@ -173,69 +169,88 @@ Future<void> _showMyWorkFilterMenu(
   }
 }
 
-class _MyWorkFilterMenu extends StatelessWidget {
-  const _MyWorkFilterMenu();
+/// The title with the filter and sort controls after it. Their labels name
+/// the current filter and sort; when the bar is too narrow for them, the sort
+/// and then the filter turn into icon buttons (labels move to tooltips).
+class _MyWorkTitleControls extends StatelessWidget {
+  const _MyWorkTitleControls();
 
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
-    final theme = Theme.of(context);
-
-    return BlocSelector<MyWorkCubit, MyWorkState, MyWorkFilter>(
-      selector: (s) => s.filter,
-      builder: (context, filter) {
-        final scheme = theme.colorScheme;
-        final tt = context.tt;
-        // The screen names itself like Activity does; the filter follows
-        // the title instead of standing in for it.
-        final filterButton = Tooltip(
-          message: l10n.myWorkFilterMenuTooltip,
-          child: TextButton(
-            style: TextButton.styleFrom(
-              padding: EdgeInsets.symmetric(horizontal: tt.tightGap * 2),
-              minimumSize: Size(tt.buttonHeight, tt.buttonHeight),
-              foregroundColor: scheme.onSurfaceVariant,
-            ),
-            onPressed: () => unawaited(_showMyWorkFilterMenu(context, l10n)),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Flexible(
-                  child: Text(
-                    _labelForFilter(l10n, filter),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TenturaText.labelLarge(scheme.onSurfaceVariant).copyWith(
-                      fontWeight: FontWeight.w600,
+    return BlocSelector<
+      MyWorkCubit,
+      MyWorkState,
+      ({MyWorkFilter filter, MyWorkSort sort})
+    >(
+      selector: (s) => (filter: s.filter, sort: s.sort),
+      builder: (context, view) => LayoutBuilder(
+        builder: (context, constraints) {
+          final tt = context.tt;
+          final scheme = Theme.of(context).colorScheme;
+          final titleStyle = TenturaText.titleLarge(scheme.onSurface);
+          final filterLabel = _labelForFilter(l10n, view.filter);
+          final sortLabel = _labelForSort(l10n, view.sort);
+          final title =
+              TenturaTopBarControl.textWidth(context, l10n.myWork, titleStyle) +
+              tt.iconTextGap;
+          final filterWide = TenturaTopBarControl.expandedWidth(
+            context,
+            filterLabel,
+          );
+          final sortWide = TenturaTopBarControl.expandedWidth(
+            context,
+            sortLabel,
+          );
+          final icon = TenturaTopBarControl.collapsedWidth(context);
+          final max = constraints.maxWidth;
+          final collapseSort = title + filterWide + sortWide > max;
+          final collapseFilter =
+              collapseSort && title + filterWide + icon > max;
+          return Row(
+            children: [
+              Expanded(
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        l10n.myWork,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: titleStyle,
+                      ),
                     ),
-                  ),
+                    SizedBox(width: tt.iconTextGap),
+                    // The screen names itself like Activity does; the filter
+                    // follows the title instead of standing in for it.
+                    Flexible(
+                      child: TenturaTopBarControl(
+                        label: filterLabel,
+                        icon: Icons.filter_list,
+                        trailingIcon: Icons.arrow_drop_down,
+                        tooltip: l10n.myWorkFilterMenuTooltip,
+                        collapsed: collapseFilter,
+                        onPressed: () =>
+                            unawaited(_showMyWorkFilterMenu(context, l10n)),
+                      ),
+                    ),
+                  ],
                 ),
-                Icon(
-                  Icons.arrow_drop_down,
-                  color: scheme.onSurfaceVariant,
-                ),
-              ],
-            ),
-          ),
-        );
-        return Row(
-          children: [
-            Flexible(
-              child: Text(
-                l10n.myWork,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TenturaText.titleLarge(scheme.onSurface),
               ),
-            ),
-            SizedBox(width: tt.iconTextGap),
-            Flexible(child: filterButton),
-          ],
-        );
-      },
+              _MyWorkSortButton(label: sortLabel, collapsed: collapseSort),
+            ],
+          );
+        },
+      ),
     );
   }
 }
+
+String _labelForSort(L10n l10n, MyWorkSort sort) => switch (sort) {
+  MyWorkSort.recent => l10n.myWorkSortRecent,
+  MyWorkSort.oldest => l10n.myWorkSortOldest,
+  MyWorkSort.alphabetical => l10n.myWorkSortAlphabetical,
+};
 
 MyWorkSort _myWorkSortAfter(MyWorkSort current) => switch (current) {
   MyWorkSort.recent => MyWorkSort.oldest,
@@ -244,7 +259,10 @@ MyWorkSort _myWorkSortAfter(MyWorkSort current) => switch (current) {
 };
 
 class _MyWorkSortButton extends StatefulWidget {
-  const _MyWorkSortButton();
+  const _MyWorkSortButton({required this.label, required this.collapsed});
+
+  final String label;
+  final bool collapsed;
 
   @override
   State<_MyWorkSortButton> createState() => _MyWorkSortButtonState();
@@ -255,64 +273,24 @@ class _MyWorkSortButtonState extends State<_MyWorkSortButton> {
 
   DateTime? _lastTap;
 
-  void _onPressed(MyWorkSort current) {
+  void _onPressed() {
     final now = DateTime.now();
     if (_lastTap != null && now.difference(_lastTap!) < _debounce) {
       return;
     }
     _lastTap = now;
-    context.read<MyWorkCubit>().setSort(_myWorkSortAfter(current));
+    final cubit = context.read<MyWorkCubit>();
+    cubit.setSort(_myWorkSortAfter(cubit.state.sort));
   }
 
   @override
-  Widget build(BuildContext context) {
-    final l10n = L10n.of(context)!;
-
-    return BlocSelector<MyWorkCubit, MyWorkState, MyWorkSort>(
-      selector: (s) => s.sort,
-      builder: (context, sort) {
-        final scheme = Theme.of(context).colorScheme;
-        final tt = context.tt;
-        final label = switch (sort) {
-          MyWorkSort.recent => l10n.myWorkSortRecent,
-          MyWorkSort.oldest => l10n.myWorkSortOldest,
-          MyWorkSort.alphabetical => l10n.myWorkSortAlphabetical,
-        };
-        return Tooltip(
-          message: l10n.myWorkSortMenuTooltip,
-          child: TextButton(
-            style: TextButton.styleFrom(
-              padding: EdgeInsets.symmetric(horizontal: tt.tightGap * 2),
-              minimumSize: Size(tt.buttonHeight, tt.buttonHeight),
-              foregroundColor: scheme.onSurfaceVariant,
-            ),
-            onPressed: () => _onPressed(sort),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: tt.buttonHeight * 2),
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TenturaText.labelLarge(scheme.onSurfaceVariant).copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                Icon(
-                  Icons.swap_vert,
-                  size: tt.iconSize,
-                  color: scheme.onSurfaceVariant,
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
+  Widget build(BuildContext context) => TenturaTopBarControl(
+    label: widget.label,
+    icon: Icons.swap_vert,
+    tooltip: L10n.of(context)!.myWorkSortMenuTooltip,
+    collapsed: widget.collapsed,
+    onPressed: _onPressed,
+  );
 }
 
 class _MyWorkBody extends StatelessWidget {
@@ -454,7 +432,9 @@ class _MyWorkListBody extends StatelessWidget {
                           onCreateBeacon: () =>
                               context.read<ScreenCubit>().showBeaconCreate(),
                           onOpenInbox: () =>
-                              AutoTabsRouter.of(context).setActiveIndex(1),
+                              AutoTabsRouter.of(context).setActiveIndex(
+                                HomeTabSpec.forTab(HomeTab.inbox).index,
+                              ),
                           onOpenConstellation: () =>
                               AutoTabsRouter.of(context).setActiveIndex(
                                 HomeTabSpec.forTab(HomeTab.constellation).index,
@@ -477,7 +457,9 @@ class _MyWorkListBody extends StatelessWidget {
                           onCreateBeacon: () =>
                               context.read<ScreenCubit>().showBeaconCreate(),
                           onOpenInbox: () =>
-                              AutoTabsRouter.of(context).setActiveIndex(1),
+                              AutoTabsRouter.of(context).setActiveIndex(
+                                HomeTabSpec.forTab(HomeTab.inbox).index,
+                              ),
                           onOpenConstellation: () =>
                               AutoTabsRouter.of(context).setActiveIndex(
                                 HomeTabSpec.forTab(HomeTab.constellation).index,

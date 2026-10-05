@@ -41,7 +41,8 @@ import 'package:tentura/features/inbox/domain/use_case/inbox_case.dart';
 import 'package:tentura/features/inbox/domain/use_case/posts_case.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_cubit.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_operational_cubit.dart';
-import 'package:tentura/features/inbox/ui/screen/inbox_screen.dart';
+import 'package:tentura/features/inbox/ui/bloc/posts_cubit.dart';
+import 'package:tentura/features/inbox/ui/screen/conversations_screen.dart';
 import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 import 'package:tentura/features/my_work/ui/screen/my_work_screen.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -282,7 +283,7 @@ Widget _app({required List<BlocProvider> providers, required Widget screen}) =>
       ),
     );
 
-Future<FakeUiEffectPort> _pumpActivity(
+Future<FakeUiEffectPort> _pumpConversations(
   WidgetTester tester, {
   bool? canCreatePost,
 }) async {
@@ -322,9 +323,12 @@ Future<FakeUiEffectPort> _pumpActivity(
         BlocProvider<ProfileCubit>.value(value: _TestProfileCubit()),
         BlocProvider<ScreenCubit>(create: (_) => ScreenCubit(base.effects)),
       ],
-      screen: canCreatePost == null
-          ? const InboxScreen()
-          : InboxScreen(canCreatePost: canCreatePost),
+      screen: BlocProvider(
+        create: (_) => PostsCubit(postsCase: GetIt.I<PostsCase>()),
+        child: canCreatePost == null
+            ? const ConversationsScreen()
+            : ConversationsScreen(canCreatePost: canCreatePost),
+      ),
     ),
   );
   await _settle(tester);
@@ -403,7 +407,7 @@ Future<FakeUiEffectPort> _pumpMyWork(
 
 Finder get _topBar => find.byType(TenturaTopBar);
 
-Finder get _activityNewPost =>
+Finder get _conversationsNewPost =>
     find.descendant(of: _topBar, matching: find.byTooltip('Новый пост'));
 
 Finder get _myWorkPlus =>
@@ -414,22 +418,22 @@ List<String> _pushed(FakeUiEffectPort effects) => [
 ];
 
 void main() {
-  group('Activity top bar', () {
+  group('Conversations top bar', () {
     testWidgets('has no new-Post button while Posts are disabled', (
       tester,
     ) async {
-      await _pumpActivity(tester, canCreatePost: false);
+      await _pumpConversations(tester, canCreatePost: false);
 
-      expect(_activityNewPost, findsNothing);
+      expect(_conversationsNewPost, findsNothing);
     });
 
     testWidgets('✎ opens the Post create route when Posts are enabled', (
       tester,
     ) async {
-      final effects = await _pumpActivity(tester, canCreatePost: true);
+      final effects = await _pumpConversations(tester, canCreatePost: true);
 
-      expect(_activityNewPost, findsOneWidget);
-      await tester.tap(_activityNewPost);
+      expect(_conversationsNewPost, findsOneWidget);
+      await tester.tap(_conversationsNewPost);
       await _settle(tester);
 
       expect(_pushed(effects), [kPathPostNew]);

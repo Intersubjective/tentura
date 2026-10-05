@@ -9,11 +9,13 @@ import '../../domain/entity/post_summary.dart';
 import '../bloc/posts_cubit.dart';
 import 'post_conversation_row.dart';
 
-/// The «Разговоры» tab body: pinned Posts, then «Сейчас», then «Затихли».
+/// The Conversations list: pinned Posts, then «Сейчас», then «Затихли».
 class PostsTabView extends StatelessWidget {
   const PostsTabView({
     this.canCreatePost = kPostsEnabled,
     this.onCreatePost,
+    this.onOpenPost,
+    this.scrollController,
     super.key,
   });
 
@@ -21,6 +23,12 @@ class PostsTabView extends StatelessWidget {
   final bool canCreatePost;
 
   final VoidCallback? onCreatePost;
+
+  /// Opens a Post; null pushes its route. Inbox's list-detail passes one that
+  /// shows the Post beside this list.
+  final ValueChanged<String>? onOpenPost;
+
+  final ScrollController? scrollController;
 
   @override
   Widget build(BuildContext context) {
@@ -39,13 +47,18 @@ class PostsTabView extends StatelessWidget {
           );
         }
         final now = state.now ?? DateTime.now();
+        final selectedId = TenturaListDetailSelection.of(context);
         Widget row(PostSummary post) => PostConversationRow(
           key: ValueKey(post.id),
           post: post,
           now: now,
-          onOpen: () => context.router.push(BeaconViewRoute(id: post.id)),
+          selected: post.id == selectedId,
+          onOpen: () => onOpenPost == null
+              ? context.router.push(BeaconViewRoute(id: post.id))
+              : onOpenPost!(post.id),
         );
         return ListView(
+          controller: scrollController,
           children: [
             for (final post in state.pinned) row(post),
             if (state.active.isNotEmpty) ...[

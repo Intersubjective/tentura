@@ -16,7 +16,8 @@ class HomeBottomNavigationBar extends StatelessWidget {
     super.key,
   });
 
-  final int selectedIndex;
+  /// Null while no destination is open (the profile, on the avatar).
+  final int? selectedIndex;
   final ValueChanged<int> onDestinationSelected;
   final List<HomeNavDestination> destinations;
 

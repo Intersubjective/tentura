@@ -9,6 +9,7 @@ abstract class HomeTabReselectState extends StateBase
     @Default(StateIsSuccess()) StateStatus status,
     @Default(0) int inboxReselectCount,
     @Default(0) int myWorkReselectCount,
+    @Default(0) int conversationsReselectCount,
     @Default(0) int constellationReselectCount,
     @Default(0) int inboxWatchingOpenCount,
     @Default(0) int inboxReceiptsOpenCount,

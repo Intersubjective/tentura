@@ -174,8 +174,12 @@ Future<void> _pumpRoute(
     await unregisterBeaconViewHarnessGetIt();
   });
   final router = _TestRouter();
-  await tester.binding.setSurfaceSize(kBeaconViewHarnessCompact);
-  addTearDown(() => tester.binding.setSurfaceSize(null));
+  // A compact window throughout: surface and MediaQuery agree, so the route
+  // does not render regular-window chrome (the rail) into a phone-wide box.
+  tester.view
+    ..physicalSize = kBeaconViewHarnessCompact
+    ..devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
   await tester.pumpWidget(
     BlocProvider<ProfileCubit>.value(
       value: _ProfileCubit(),

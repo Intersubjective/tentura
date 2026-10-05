@@ -44,8 +44,13 @@ class ProfileNavBarItem extends StatelessWidget {
             hint: state.accounts.length > 1 ? l10n.chooseAccount : null,
             child: GestureDetector(
               key: Key('ProfileNavbarItem:${state.currentAccount}'),
-              onLongPress:
-                  state.accounts.length > 1 ? menuController.open : null,
+              onLongPress: state.accounts.length > 1
+                  ? menuController.open
+                  : null,
+              // Desktop parity for the long press (right click).
+              onSecondaryTap: state.accounts.length > 1
+                  ? menuController.open
+                  : null,
               child: FittedBox(
                 fit: BoxFit.scaleDown,
                 child: BlocBuilder<ProfileCubit, ProfileState>(

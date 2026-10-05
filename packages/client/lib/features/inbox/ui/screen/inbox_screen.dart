@@ -8,50 +8,38 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
-import 'package:tentura/features/inbox/domain/use_case/posts_case.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart';
+import 'package:tentura/features/home/ui/widget/home_account_avatar_button.dart';
 import 'package:tentura/features/updates/ui/bloc/updates_feed_cubit.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import '../bloc/activity_offers_cubit.dart';
 import '../bloc/inbox_cubit.dart';
-import '../bloc/posts_cubit.dart';
 import '../widget/activity_stream_view.dart';
-import '../widget/posts_tab_view.dart';
 
 @RoutePage()
 class InboxScreen extends StatefulWidget {
   const InboxScreen({
     @QueryParam(kQueryHomeTab) this.initialTab,
-    this.canCreatePost,
     super.key,
   });
 
   final String? initialTab;
 
-  /// Whether the top bar offers starting a Post; defaults to [kPostsEnabled].
-  final bool? canCreatePost;
-
   @override
   State<InboxScreen> createState() => _InboxScreenState();
 }
 
-class _InboxScreenState extends State<InboxScreen>
-    with SingleTickerProviderStateMixin {
-  static const _forYouTab = 0;
-
+class _InboxScreenState extends State<InboxScreen> {
   var _lastHandledReceiptsOpenCount = 0;
   final ScrollController _activityScrollController = ScrollController();
-  late final TabController _tabController;
 
   @override
   void initState() {
     super.initState();
-    // «Для вас» is always the way in; «Разговоры» is the second tab.
-    _tabController = TabController(length: 2, vsync: this);
     if (widget.initialTab == kInboxTabReceipts) {
       _lastHandledReceiptsOpenCount = -1;
     }
@@ -59,7 +47,6 @@ class _InboxScreenState extends State<InboxScreen>
 
   @override
   void dispose() {
-    _tabController.dispose();
     _activityScrollController.dispose();
     super.dispose();
   }
@@ -74,10 +61,6 @@ class _InboxScreenState extends State<InboxScreen>
   }
 
   void _scrollActivityFeedToTop() {
-    if (_tabController.index != _forYouTab) {
-      _tabController.animateTo(_forYouTab);
-      return;
-    }
     if (!_activityScrollController.hasClients) return;
     unawaited(
       _activityScrollController.animateTo(
@@ -89,12 +72,7 @@ class _InboxScreenState extends State<InboxScreen>
   }
 
   @override
-  Widget build(BuildContext context) => BlocProvider(
-    create: (_) => PostsCubit(postsCase: GetIt.I<PostsCase>()),
-    child: _buildInbox(context),
-  );
-
-  Widget _buildInbox(BuildContext context) {
+  Widget build(BuildContext context) {
     return _InboxReceiptsIntentBinder(
       onFirstFrame: _consumeReceiptsIntentIfNeeded,
       child: _InboxMovedSnackBarDismisser(
@@ -153,40 +131,19 @@ class _InboxScreenState extends State<InboxScreen>
                         style: TenturaText.titleLarge(scheme.onSurface),
                       ),
                       actions: [
-                        if (widget.canCreatePost ?? kPostsEnabled)
-                          IconButton(
-                            icon: const Icon(Icons.edit_outlined),
-                            tooltip: l10n.postsTabNewPost,
-                            onPressed: () =>
-                                context.read<ScreenCubit>().showPostCreate(),
-                          ),
                         const _ActivityDismissAllButton(),
                         const _InboxOverflowMenu(showNotificationHistory: true),
                       ],
-                      bottom: TenturaPrimaryTabBar(
-                        controller: _tabController,
-                        tabs: [
-                          Tab(text: l10n.activityForYouTitle),
-                          const _ConversationsTab(),
-                        ],
-                      ),
+                      account: homeTopBarAccount(context),
                     ),
                     body: SafeArea(
                       minimum: EdgeInsets.symmetric(
                         horizontal: tt.screenHPadding,
                       ),
                       child: TenturaContentColumn(
-                        child: TabBarView(
-                          controller: _tabController,
-                          children: [
-                            _InboxFeedKeepAlive(
-                              child: _inboxActivityFeedBody(
-                                context,
-                                scrollController: _activityScrollController,
-                              ),
-                            ),
-                            const _PostsTabKeepAlive(),
-                          ],
+                        child: _inboxActivityFeedBody(
+                          context,
+                          scrollController: _activityScrollController,
                         ),
                       ),
                     ),
@@ -199,28 +156,6 @@ class _InboxScreenState extends State<InboxScreen>
       ),
     );
   }
-}
-
-class _ConversationsTab extends StatelessWidget {
-  const _ConversationsTab();
-
-  @override
-  Widget build(BuildContext context) =>
-      BlocSelector<PostsCubit, PostsState, bool>(
-        selector: (state) => state.hasUnread,
-        builder: (context, hasUnread) => Tab(
-          child: Semantics(
-            label: hasUnread
-                ? L10n.of(context)!.activityNavBadgeNewActivity
-                : null,
-            child: Badge(
-              isLabelVisible: hasUnread,
-              backgroundColor: Theme.of(context).colorScheme.primary,
-              child: Text(L10n.of(context)!.activityTabConversations),
-            ),
-          ),
-        ),
-      );
 }
 
 class _InboxReceiptsIntentBinder extends StatefulWidget {
@@ -272,49 +207,6 @@ class _InboxMovedSnackBarDismisser extends StatelessWidget {
       listener: (context, _) => _clearSnackBars(context),
       child: child,
     );
-  }
-}
-
-class _InboxFeedKeepAlive extends StatefulWidget {
-  const _InboxFeedKeepAlive({required this.child});
-
-  final Widget child;
-
-  @override
-  State<_InboxFeedKeepAlive> createState() => _InboxFeedKeepAliveState();
-}
-
-class _InboxFeedKeepAliveState extends State<_InboxFeedKeepAlive>
-    with AutomaticKeepAliveClientMixin {
-  @override
-  bool get wantKeepAlive => true;
-
-  @override
-  Widget build(BuildContext context) {
-    super.build(context);
-    return KeyedSubtree(
-      key: const PageStorageKey<String>('inbox-activity-feed'),
-      child: widget.child,
-    );
-  }
-}
-
-class _PostsTabKeepAlive extends StatefulWidget {
-  const _PostsTabKeepAlive();
-
-  @override
-  State<_PostsTabKeepAlive> createState() => _PostsTabKeepAliveState();
-}
-
-class _PostsTabKeepAliveState extends State<_PostsTabKeepAlive>
-    with AutomaticKeepAliveClientMixin {
-  @override
-  bool get wantKeepAlive => true;
-
-  @override
-  Widget build(BuildContext context) {
-    super.build(context);
-    return const PostsTabView();
   }
 }
 

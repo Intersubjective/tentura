@@ -4,6 +4,55 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 
 void main() {
+  testWidgets('the account entry sits at one spot with actions or a row', (
+    tester,
+  ) async {
+    const accountKey = Key('account');
+    Future<Rect> accountRect({required bool customRow}) async {
+      await tester.pumpWidget(
+        _TopBarHarness(
+          size: const Size(390, 240),
+          builder: (context) => Scaffold(
+            appBar: TenturaTopBar.of(
+              context,
+              title: const Text('Screen'),
+              actions: customRow
+                  ? null
+                  : [IconButton(onPressed: () {}, icon: const Icon(Icons.add))],
+              row: customRow
+                  ? Row(
+                      children: [
+                        const Expanded(child: Text('Screen')),
+                        IconButton(
+                          onPressed: () {},
+                          icon: const Icon(Icons.add),
+                        ),
+                      ],
+                    )
+                  : null,
+              account: IconButton(
+                key: accountKey,
+                onPressed: () {},
+                icon: const Icon(Icons.person),
+              ),
+            ),
+            body: const SizedBox(),
+          ),
+        ),
+      );
+      return tester.getRect(find.byKey(accountKey));
+    }
+
+    final withActions = await accountRect(customRow: false);
+    final withRow = await accountRect(customRow: true);
+    expect(withRow, withActions);
+    // The glyph, not the touch target, sits on the screen gutter.
+    final glyph = tester.getRect(find.byIcon(Icons.person));
+    final bar = tester.getRect(find.byType(AppBar));
+    final gutter = tester.element(find.byType(AppBar)).tt.screenHPadding;
+    expect(glyph.right, closeTo(bar.right - gutter, 1));
+  });
+
   testWidgets('TenturaTopBar captures token height and tone colors', (
     tester,
   ) async {

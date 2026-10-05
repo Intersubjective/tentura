@@ -18,11 +18,8 @@ import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
 import 'package:tentura/features/home/ui/widget/constellation_navbar_item.dart';
-import 'package:tentura/features/home/ui/widget/friends_navbar_item.dart';
 import 'package:tentura/features/home/ui/widget/home_bottom_navigation_bar.dart';
-import 'package:tentura/features/home/ui/widget/inbox_navbar_item.dart';
-import 'package:tentura/features/home/ui/widget/my_work_navbar_item.dart';
-import 'package:tentura/features/home/ui/widget/profile_navbar_item.dart';
+import 'package:tentura/features/home/ui/widget/home_nav_destinations.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_filter.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_empty_body.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -182,49 +179,34 @@ Future<HomeAttentionCubit> _seedAttentionCubit({
   return cubit;
 }
 
-/// Mirrors [HomeScreen]'s five-destination chrome without AutoRoute shell deps.
+/// [HomeScreen]'s five-destination chrome without AutoRoute shell deps,
+/// built from the same [homeNavDestinations] list.
 class _HomeChromeFixture extends StatelessWidget {
   const _HomeChromeFixture({
     required this.useSideNav,
-    this.selectedIndex = 2,
+    this.selectedIndex,
   });
 
   final bool useSideNav;
-  final int selectedIndex;
+  final int? selectedIndex;
+
+  static final fieldIndex = HomeTabSpec.forTab(HomeTab.constellation).index;
 
   @override
   Widget build(BuildContext context) {
-    final l10n = L10n.of(context)!;
+    final selectedIndex = this.selectedIndex ?? fieldIndex;
+    final destinations = homeNavDestinations(L10n.of(context)!);
     if (useSideNav) {
       return NavigationRail(
         selectedIndex: selectedIndex,
         onDestinationSelected: (_) {},
         destinations: [
-          NavigationRailDestination(
-            icon: const MyWorkNavbarItem(),
-            selectedIcon: const MyWorkNavbarItem(selected: true),
-            label: Text(l10n.myWork),
-          ),
-          NavigationRailDestination(
-            icon: const InboxNavbarItem(),
-            selectedIcon: const InboxNavbarItem(selected: true),
-            label: Text(l10n.inbox),
-          ),
-          NavigationRailDestination(
-            icon: const ConstellationNavbarItem(),
-            selectedIcon: const ConstellationNavbarItem(selected: true),
-            label: Text(l10n.constellationNavLabel),
-          ),
-          NavigationRailDestination(
-            icon: const FriendsNavbarItem(),
-            selectedIcon: const FriendsNavbarItem(selected: true),
-            label: Text(l10n.network),
-          ),
-          NavigationRailDestination(
-            icon: const ProfileNavBarItem(),
-            selectedIcon: const ProfileNavBarItem(selected: true),
-            label: Text(l10n.profile),
-          ),
+          for (final d in destinations)
+            NavigationRailDestination(
+              icon: d.icon,
+              selectedIcon: d.selectedIcon,
+              label: Text(d.label),
+            ),
         ],
       );
     }
@@ -232,31 +214,12 @@ class _HomeChromeFixture extends StatelessWidget {
       selectedIndex: selectedIndex,
       onDestinationSelected: (_) {},
       destinations: [
-        HomeNavDestination(
-          icon: const MyWorkNavbarItem(),
-          selectedIcon: const MyWorkNavbarItem(selected: true),
-          label: l10n.myWork,
-        ),
-        HomeNavDestination(
-          icon: const InboxNavbarItem(),
-          selectedIcon: const InboxNavbarItem(selected: true),
-          label: l10n.inbox,
-        ),
-        HomeNavDestination(
-          icon: const ConstellationNavbarItem(),
-          selectedIcon: const ConstellationNavbarItem(selected: true),
-          label: l10n.constellationNavLabel,
-        ),
-        HomeNavDestination(
-          icon: const FriendsNavbarItem(),
-          selectedIcon: const FriendsNavbarItem(selected: true),
-          label: l10n.network,
-        ),
-        HomeNavDestination(
-          icon: const ProfileNavBarItem(),
-          selectedIcon: const ProfileNavBarItem(selected: true),
-          label: l10n.profile,
-        ),
+        for (final d in destinations)
+          HomeNavDestination(
+            icon: d.icon,
+            selectedIcon: d.selectedIcon,
+            label: d.label,
+          ),
       ],
     );
   }
@@ -337,18 +300,9 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('HomeTabSpec', () {
-    test('restores five destinations with Constellation at index 2', () {
-      expect(HomeTabSpec.all, hasLength(5));
-      expect(
-        [for (final spec in HomeTabSpec.all) (spec.tab, spec.index, spec.path)],
-        const [
-          (HomeTab.work, 0, '/home/work'),
-          (HomeTab.inbox, 1, '/home/inbox'),
-          (HomeTab.constellation, 2, '/home/constellation'),
-          (HomeTab.network, 3, '/home/network'),
-          (HomeTab.me, 4, '/home/profile'),
-        ],
-      );
+    test('five destinations with Constellation at index 3', () {
+      expect(HomeTabSpec.destinations, hasLength(5));
+      expect(HomeTabSpec.forTab(HomeTab.constellation).index, 3);
     });
 
     test('My Work remains the default landing tab', () {
@@ -432,7 +386,7 @@ void main() {
       );
 
       // UI review #196: one destination style, label included.
-      expect(find.text('My field'), findsOneWidget);
+      expect(find.text('Field'), findsOneWidget);
       expect(find.byIcon(TenturaIcons.graph), findsOneWidget);
     });
 
@@ -449,7 +403,10 @@ void main() {
       final bar = tester.widget<HomeBottomNavigationBar>(
         find.byType(HomeBottomNavigationBar),
       );
-      expect(bar.destinations[2].commandChrome, isFalse);
+      expect(
+        bar.destinations[_HomeChromeFixture.fieldIndex].commandChrome,
+        isFalse,
+      );
       final circles = find.ancestor(
         of: find.byIcon(TenturaIcons.graph),
         matching: find.byWidgetPredicate(
@@ -462,8 +419,8 @@ void main() {
       expect(circles, findsNothing);
 
       final glyphCenter = tester.getCenter(find.byIcon(TenturaIcons.graph));
-      final workCenter = tester.getCenter(find.text('My Work'));
-      final fieldLabel = tester.getCenter(find.text('My field'));
+      final workCenter = tester.getCenter(find.text('Work'));
+      final fieldLabel = tester.getCenter(find.text('Field'));
       // Same vertical rhythm as its neighbours.
       expect(fieldLabel.dy, closeTo(workCenter.dy, 1));
       expect(glyphCenter.dy, lessThan(fieldLabel.dy));
@@ -477,7 +434,7 @@ void main() {
         useSideNav: true,
       );
 
-      expect(find.text('My field'), findsOneWidget);
+      expect(find.text('Field'), findsOneWidget);
       expect(find.byIcon(TenturaIcons.graph), findsOneWidget);
     });
 

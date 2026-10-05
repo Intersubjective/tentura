@@ -647,12 +647,12 @@ void main() {
   });
 
   group('Pinning a Post in conversations from its ⋮ menu', () {
-    testWidgets('«Закрепить в разговорах» pins through favorites', (
+    testWidgets('«Закрепить в «Постах»» pins through favorites', (
       tester,
     ) async {
       final h = await _pumpPost(tester, viewer: _reader);
 
-      await _pickMenuItem(tester, 'Закрепить в разговорах');
+      await _pickMenuItem(tester, 'Закрепить в «Постах»');
 
       expect(h.favorites.pinCalls, [_postId]);
       expect(h.favorites.unpinCalls, isEmpty);
@@ -668,7 +668,7 @@ void main() {
       );
 
       await _openOverflow(tester);
-      expect(find.textContaining('Закрепить в разговорах'), findsNothing);
+      expect(find.textContaining('Закрепить в «Постах»'), findsNothing);
       expect(find.textContaining('Открепить'), findsOneWidget);
 
       await tester.tap(find.textContaining('Открепить'));

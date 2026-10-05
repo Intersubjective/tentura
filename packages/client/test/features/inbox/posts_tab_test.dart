@@ -587,7 +587,7 @@ void main() {
       expect(find.byType(PostConversationRow), findsNothing);
       expect(
         find.textContaining(
-          'Здесь будут разговоры, которые вы начали или в которые вас позвали',
+          'Здесь будут посты, которые вы начали или в которые вас позвали',
         ),
         findsOneWidget,
       );
@@ -626,7 +626,7 @@ void main() {
         view: PostsTabView(canCreatePost: false, onCreatePost: () {}),
       );
 
-      expect(find.textContaining('Здесь будут разговоры'), findsOneWidget);
+      expect(find.textContaining('Здесь будут посты'), findsOneWidget);
       expect(find.text('Новый пост'), findsNothing);
     });
 
@@ -657,7 +657,7 @@ void main() {
       await pumpTab(tester);
 
       expect(
-        find.textContaining('Здесь будут разговоры'),
+        find.textContaining('Здесь будут посты'),
         findsNothing,
       );
     });

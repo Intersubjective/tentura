@@ -643,7 +643,7 @@ void main() {
 
       expect(find.text('О посте'), findsOneWidget);
       expect(find.text('Заглушить ›'), findsOneWidget);
-      expect(find.text('Закрепить в разговорах'), findsOneWidget);
+      expect(find.text('Закрепить в «Постах»'), findsOneWidget);
       expect(find.text('Жалоба'), findsOneWidget);
       for (final moved in [
         'Участники',

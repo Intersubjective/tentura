@@ -37,9 +37,12 @@ enum _MuteChoice {
 /// it opens «О посте» with everything else. ↗ forwards, ⋮ keeps the
 /// shortcuts (mute, pin, complain / leave / delete).
 class PostViewScreen extends StatefulWidget {
-  const PostViewScreen({required this.id, super.key});
+  const PostViewScreen({required this.id, this.inPane = false, super.key});
 
   final String id;
+
+  /// Shown beside Inbox's conversation list: nothing to go back to.
+  final bool inPane;
 
   @override
   State<PostViewScreen> createState() => _PostViewScreenState();
@@ -68,7 +71,9 @@ class _PostViewScreenState extends State<PostViewScreen> {
             state: state,
             onTap: () => unawaited(_run(context, PostAction.info)),
           ),
-          leading: BackButton(onPressed: () => Navigator.maybePop(context)),
+          leading: widget.inPane
+              ? null
+              : BackButton(onPressed: () => Navigator.maybePop(context)),
           actions: [
             if (state.beacon.viewerCanForward)
               IconButton(

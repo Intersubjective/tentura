@@ -7,7 +7,6 @@ import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/beacon_hierarchy_cubit.dart';
@@ -16,8 +15,8 @@ import 'package:tentura/features/beacon_threads/ui/bloc/threads_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_open_clear_listener.dart';
 import 'package:tentura/features/post_view/data/repository/beacon_kind_repository.dart';
-import 'package:tentura/features/post_view/ui/bloc/post_view_cubit.dart';
-import 'package:tentura/features/post_view/ui/screen/post_view_screen.dart';
+import 'package:tentura/features/home/ui/widget/home_rail_frame.dart';
+import 'package:tentura/features/post_view/ui/screen/post_view_scope.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -77,43 +76,11 @@ class BeaconViewHostScreen extends StatelessWidget implements AutoRouteWrapper {
     ),
   );
 
-  Widget _postScope(Profile myProfile) => MultiBlocProvider(
-    key: ValueKey('PostViewCubit:$id:${myProfile.id}'),
-    providers: [
-      BlocProvider(
-        create: (_) {
-          final cubit = PostViewCubit(id: id, myProfile: myProfile);
-          unawaited(cubit.fetch());
-          return cubit;
-        },
-      ),
-      BlocProvider(
-        create: (_) {
-          final cubit = ThreadsCubit(beaconId: id);
-          unawaited(cubit.fetch());
-          return cubit;
-        },
-      ),
-      BlocProvider(
-        create: (_) => ThreadHostCubit(
-          beaconId: id,
-          capabilities: const RoomCapabilities.post(),
-        ),
-      ),
-    ],
-    child: Builder(
-      builder: (context) => BlocListener<PostViewCubit, PostViewState>(
-        listenWhen: (p, c) =>
-            c.status is StateIsSuccess &&
-            (p.status is! StateIsSuccess || p.beacon.status != c.beacon.status),
-        listener: (context, state) {
-          context.read<ThreadHostCubit>().syncBeaconStatus(
-            state.beacon.status,
-          );
-        },
-        child: PostViewScreen(id: id),
-      ),
-    ),
+  // The Post's own route keeps Home's rail beside it, like every browse
+  // route; Inbox's list-detail pane builds the same scope without it.
+  Widget _postScope(Profile myProfile) => HomeRailFrame(
+    selectedTab: HomeTab.conversations,
+    child: PostViewScope(id: id, myProfile: myProfile),
   );
 
   Widget _requestScope(Profile myProfile) => BlocProvider(

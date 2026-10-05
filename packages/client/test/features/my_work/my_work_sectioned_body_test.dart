@@ -472,4 +472,53 @@ void main() {
     unawaited(homeAttention.close());
     unawaited(boot.accounts.close());
   });
+
+  testWidgets('a 360 dp bar turns the filter and sort labels into icons', (
+    tester,
+  ) async {
+    final attentionRepo = StubAttentionRepository()
+      ..myWorkAttentionResult = const [];
+    final myWorkRepo = FakeMyWorkRepository()
+      ..initResult = (
+        authoredNonArchived: [_beacon(_beaconActive, 'Only active')],
+        helpOfferedNonArchived: const [],
+        obligationBeacons: const [],
+        archivedCountHint: 0,
+      );
+    final boot = await _bootAttention(attentionRepo);
+    final cubit = MyWorkCubit(
+      userId: _accountId,
+      myWorkCase: buildTestMyWorkCase(
+        repo: myWorkRepo,
+        attentionCase: boot.attention,
+      ),
+    );
+    final homeAttention = HomeAttentionCubit(
+      boot.attention,
+      boot.accounts,
+      Logger('top-bar-collapse'),
+    );
+
+    await _pumpMyWork(tester, cubit: cubit, homeAttention: homeAttention);
+
+    final bar = find.byType(AppBar);
+    final controls = tester
+        .widgetList<TenturaTopBarControl>(
+          find.descendant(of: bar, matching: find.byType(TenturaTopBarControl)),
+        )
+        .toList();
+    expect(controls, hasLength(2));
+    expect(controls.every((c) => c.collapsed), isTrue);
+    // Labels live on in the tooltips; nothing in the bar is ellipsized.
+    expect(find.descendant(of: bar, matching: find.text('Recent')), findsNothing);
+    expect(
+      find.descendant(of: bar, matching: find.byIcon(Icons.filter_list)),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+
+    unawaited(cubit.close());
+    unawaited(homeAttention.close());
+    unawaited(boot.accounts.close());
+  });
 }

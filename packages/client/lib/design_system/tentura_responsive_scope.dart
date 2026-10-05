@@ -61,10 +61,35 @@ class TenturaContentColumn extends StatelessWidget {
   }
 }
 
+/// Where a wide [TenturaChatColumn] sits inside its pane.
+///
+/// Centered by default. A chat beside a list (Material 3 list-detail) starts
+/// at the list's edge instead, so the eye goes list → messages without a gap.
+class TenturaChatColumnScope extends InheritedWidget {
+  const TenturaChatColumnScope({
+    required this.alignment,
+    required super.child,
+    super.key,
+  });
+
+  final AlignmentGeometry alignment;
+
+  static AlignmentGeometry of(BuildContext context) =>
+      context
+          .dependOnInheritedWidgetOfExactType<TenturaChatColumnScope>()
+          ?.alignment ??
+      Alignment.topCenter;
+
+  @override
+  bool updateShouldNotify(TenturaChatColumnScope oldWidget) =>
+      oldWidget.alignment != alignment;
+}
+
 /// Centers room-chat surfaces only after the chat panel reaches wide mode.
 ///
 /// Unlike [TenturaContentColumn], regular-width chat stays full panel width so
 /// compact and tablet layouts preserve the existing mobile-first behavior.
+/// [TenturaChatColumnScope] moves the wide column off center.
 class TenturaChatColumn extends StatelessWidget {
   const TenturaChatColumn({required this.child, super.key});
 
@@ -80,7 +105,7 @@ class TenturaChatColumn extends StatelessWidget {
           return child;
         }
         return Align(
-          alignment: Alignment.topCenter,
+          alignment: TenturaChatColumnScope.of(context),
           child: ConstrainedBox(
             constraints: BoxConstraints(maxWidth: tt.chatColumnMaxWidth),
             child: child,

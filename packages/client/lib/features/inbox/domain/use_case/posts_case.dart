@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
@@ -25,5 +27,26 @@ final class PostsCase extends UseCaseBase {
       .changesFor(const {RealtimeEntityKind.beacon})
       .map((_) {});
 
-  Future<List<PostSummary>> myPosts() => _repository.myPosts();
+  /// Whether any of the viewer's Posts has unread messages, as of the last
+  /// [myPosts] load. Feeds the Conversations navigation dot, which also sits
+  /// on routes outside Home's providers.
+  bool get hasUnread => _hasUnread;
+  var _hasUnread = false;
+
+  Stream<bool> get hasUnreadChanges => _hasUnreadChanges.stream;
+  final _hasUnreadChanges = StreamController<bool>.broadcast();
+
+  Future<List<PostSummary>> myPosts() async {
+    final posts = await _repository.myPosts();
+    final hasUnread = postsHaveUnread(posts);
+    if (hasUnread != _hasUnread) {
+      _hasUnread = hasUnread;
+      _hasUnreadChanges.add(hasUnread);
+    }
+    return posts;
+  }
 }
+
+/// A conversation list has unread messages when any Post in it does.
+bool postsHaveUnread(Iterable<PostSummary> posts) =>
+    posts.any((post) => post.unreadCount > 0);

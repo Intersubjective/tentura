@@ -10,6 +10,8 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_cubit.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_operational_cubit.dart';
+import 'package:tentura/features/inbox/domain/use_case/posts_case.dart';
+import 'package:tentura/features/inbox/ui/bloc/posts_cubit.dart';
 import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_attention_reporter.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -17,18 +19,15 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import '../bloc/home_activation_cubit.dart';
 import '../bloc/home_tab_reselect_cubit.dart';
 import '../bloc/home_attention_cubit.dart';
-import '../widget/constellation_navbar_item.dart';
 import '../widget/home_activation_binder.dart';
 import '../widget/home_activation_reporter.dart';
-import '../widget/friends_navbar_item.dart';
 import '../widget/home_bottom_nav_listener.dart';
 import '../widget/home_bottom_navigation_bar.dart';
+import '../widget/home_nav_destinations.dart';
 import '../widget/home_post_join_listener.dart';
+import '../widget/home_rail_account_footer.dart';
 import '../widget/home_shell_chrome_listenable.dart';
-import '../widget/inbox_navbar_item.dart';
 import '../widget/inbox_needs_me_reporter.dart';
-import '../widget/my_work_navbar_item.dart';
-import '../widget/profile_navbar_item.dart';
 
 @RoutePage()
 class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
@@ -72,24 +71,12 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     // Shell chrome uses full viewport width; token density follows [WindowClass].
-    return BlocSelector<ProfileCubit, ProfileState, String>(
-      bloc: GetIt.I<ProfileCubit>(),
-      selector: (state) => state.profile.displayName,
-      builder: (context, profileTitle) {
-        // Fixed tab label keeps the profile icon stable; long names go to tooltip.
-        final profileTooltipLabel = profileTitle.isEmpty
-            ? l10n.noName
-            : profileTitle;
-        final windowClass = context.windowClass;
-        final useSideNav = windowClass != WindowClass.compact;
-        return _HomeShell(
-          l10n: l10n,
-          profileTooltipLabel: profileTooltipLabel,
-          windowClass: windowClass,
-          useSideNav: useSideNav,
-          homeTabRoutes: _homeTabRoutes,
-        );
-      },
+    final windowClass = context.windowClass;
+    return _HomeShell(
+      l10n: l10n,
+      windowClass: windowClass,
+      useSideNav: windowClass != WindowClass.compact,
+      homeTabRoutes: _homeTabRoutes,
     );
   }
 }
@@ -119,14 +106,12 @@ void _onDestinationSelected(
 class _HomeShell extends StatefulWidget {
   const _HomeShell({
     required this.l10n,
-    required this.profileTooltipLabel,
     required this.windowClass,
     required this.useSideNav,
     required this.homeTabRoutes,
   });
 
   final L10n l10n;
-  final String profileTooltipLabel;
   final WindowClass windowClass;
   final bool useSideNav;
   final List<PageRouteInfo> homeTabRoutes;
@@ -170,7 +155,6 @@ class _HomeShellState extends State<_HomeShell> {
           builder: (context, _) => _buildChrome(
             context,
             l10n: widget.l10n,
-            profileTooltipLabel: widget.profileTooltipLabel,
             windowClass: widget.windowClass,
             useSideNav: widget.useSideNav,
             tabsRouter: tabsRouter,
@@ -184,12 +168,13 @@ class _HomeShellState extends State<_HomeShell> {
   Widget _buildChrome(
     BuildContext context, {
     required L10n l10n,
-    required String profileTooltipLabel,
     required WindowClass windowClass,
     required bool useSideNav,
     required TabsRouter tabsRouter,
     required Widget content,
   }) {
+    final meIndex = HomeTabSpec.forTab(HomeTab.me).index;
+    final meActive = tabsRouter.activeIndex == meIndex;
     if (useSideNav) {
       final extendedRail = windowClass == WindowClass.expanded;
       return Scaffold(
@@ -201,7 +186,9 @@ class _HomeShellState extends State<_HomeShell> {
             children: [
               NavigationRail(
                 extended: extendedRail,
-                selectedIndex: tabsRouter.activeIndex,
+                selectedIndex: HomeTabSpec.destinationIndexFor(
+                  tabsRouter.activeIndex,
+                ),
                 onDestinationSelected: (index) => _onDestinationSelected(
                   context,
                   tabsRouter,
@@ -211,48 +198,32 @@ class _HomeShellState extends State<_HomeShell> {
                     ? NavigationRailLabelType.none
                     : NavigationRailLabelType.all,
                 destinations: [
-                  NavigationRailDestination(
-                    icon: const MyWorkNavbarItem(),
-                    selectedIcon: const MyWorkNavbarItem(
-                      selected: true,
+                  for (final d in homeNavDestinations(l10n))
+                    NavigationRailDestination(
+                      icon: d.icon,
+                      selectedIcon: d.selectedIcon,
+                      label: Text(d.label),
                     ),
-                    label: Text(l10n.myWork),
-                  ),
-                  NavigationRailDestination(
-                    icon: const InboxNavbarItem(),
-                    selectedIcon: const InboxNavbarItem(
-                      selected: true,
-                    ),
-                    label: Text(l10n.inbox),
-                  ),
-                  NavigationRailDestination(
-                    icon: const ConstellationNavbarItem(),
-                    selectedIcon: const ConstellationNavbarItem(
-                      selected: true,
-                    ),
-                    label: Text(l10n.constellationNavLabel),
-                  ),
-                  NavigationRailDestination(
-                    icon: const FriendsNavbarItem(),
-                    selectedIcon: const FriendsNavbarItem(
-                      selected: true,
-                    ),
-                    label: Text(l10n.network),
-                  ),
-                  NavigationRailDestination(
-                    icon: Tooltip(
-                      message: profileTooltipLabel,
-                      child: const ProfileNavBarItem(),
-                    ),
-                    selectedIcon: Tooltip(
-                      message: profileTooltipLabel,
-                      child: const ProfileNavBarItem(
-                        selected: true,
+                ],
+                // The account sits at the rail's foot, not among the
+                // destinations.
+                trailing: Expanded(
+                  child: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Padding(
+                      padding: EdgeInsets.only(bottom: context.tt.cardGap),
+                      child: HomeRailAccountFooter(
+                        extended: extendedRail,
+                        selected: meActive,
+                        onPressed: () => _onDestinationSelected(
+                          context,
+                          tabsRouter,
+                          meIndex,
+                        ),
                       ),
                     ),
-                    label: Text(l10n.profile),
                   ),
-                ],
+                ),
               ),
               const TenturaVerticalHairline(),
               Expanded(child: content),
@@ -277,42 +248,16 @@ class _HomeShellState extends State<_HomeShell> {
           : HomeBottomNavigationBar(
               onDestinationSelected: (index) =>
                   _onDestinationSelected(context, tabsRouter, index),
-              selectedIndex: tabsRouter.activeIndex,
+              selectedIndex: HomeTabSpec.destinationIndexFor(
+                tabsRouter.activeIndex,
+              ),
               destinations: [
-                HomeNavDestination(
-                  icon: const MyWorkNavbarItem(),
-                  selectedIcon: const MyWorkNavbarItem(selected: true),
-                  label: l10n.myWork,
-                ),
-                HomeNavDestination(
-                  icon: const InboxNavbarItem(),
-                  selectedIcon: const InboxNavbarItem(selected: true),
-                  label: l10n.inbox,
-                ),
-                HomeNavDestination(
-                  icon: const ConstellationNavbarItem(),
-                  selectedIcon: const ConstellationNavbarItem(
-                    selected: true,
+                for (final d in homeNavDestinations(l10n))
+                  HomeNavDestination(
+                    icon: d.icon,
+                    selectedIcon: d.selectedIcon,
+                    label: d.label,
                   ),
-                  // Same chrome and label as every other destination
-                  // (UI review #196).
-                  label: l10n.constellationNavLabel,
-                ),
-                HomeNavDestination(
-                  icon: const FriendsNavbarItem(),
-                  selectedIcon: const FriendsNavbarItem(
-                    selected: true,
-                  ),
-                  label: l10n.network,
-                ),
-                HomeNavDestination(
-                  icon: const ProfileNavBarItem(),
-                  selectedIcon: const ProfileNavBarItem(
-                    selected: true,
-                  ),
-                  label: l10n.profile,
-                  tooltip: profileTooltipLabel,
-                ),
               ],
             ),
     );
@@ -367,6 +312,11 @@ class _InboxScopeState extends State<_InboxScope> {
       providers: [
         BlocProvider(create: (_) => InboxCubit(userId: id)),
         BlocProvider(create: (_) => MyWorkCubit(userId: id)),
+        // Conversations' list; loading it here also keeps the
+        // Conversations nav dot current on every tab.
+        BlocProvider(
+          create: (_) => PostsCubit(postsCase: GetIt.I<PostsCase>()),
+        ),
       ],
       child: InboxNeedsMeReporter(
         child: HomeActivationReporter(

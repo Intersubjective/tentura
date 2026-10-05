@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:get_it/get_it.dart';
 
+import 'package:tentura/app/router/home_tab_branches.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/features/home/domain/port/post_join_beacon_handoff_port.dart';
 import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
@@ -52,7 +53,7 @@ class _HomePostJoinListenerState extends State<HomePostJoinListener> {
     final dest = postJoin.takeDestination();
     if (dest == null || !dest.hasBeacon) return;
 
-    widget.tabsRouter.setActiveIndex(1);
+    widget.tabsRouter.setActiveIndex(HomeTabSpec.forTab(HomeTab.inbox).index);
 
     GetIt.I<ScreenCubit>().showBeacon(
       dest.beaconId!,

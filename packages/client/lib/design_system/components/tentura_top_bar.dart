@@ -32,6 +32,7 @@ class TenturaTopBar extends StatelessWidget implements PreferredSizeWidget {
     bool? leadingIsIcon,
     bool? trailingIsIcon,
     Widget? row,
+    Widget? account,
     Key? key,
   }) {
     assert(
@@ -52,6 +53,7 @@ class TenturaTopBar extends StatelessWidget implements PreferredSizeWidget {
       leadingIsIcon: leadingIsIcon ?? leading != null,
       trailingIsIcon: trailingIsIcon ?? (actions?.isNotEmpty ?? false),
       row: row,
+      account: account,
       toolbarHeight: tt.appBarHeight,
       screenHPadding: tt.screenHPadding,
       contentMaxWidth: tt.contentMaxWidth,
@@ -76,6 +78,7 @@ class TenturaTopBar extends StatelessWidget implements PreferredSizeWidget {
     this.bottom,
     this.progress,
     this.row,
+    this.account,
     this.contentMaxWidth,
     super.key,
   });
@@ -91,6 +94,11 @@ class TenturaTopBar extends StatelessWidget implements PreferredSizeWidget {
   final bool leadingIsIcon;
   final bool trailingIsIcon;
   final Widget? row;
+
+  /// The account entry (an avatar icon button), always last and always at
+  /// the same spot: its glyph sits on the screen gutter whether the bar has
+  /// [actions] or a custom [row], so it does not shift between screens.
+  final Widget? account;
   final double toolbarHeight;
   final double screenHPadding;
   final double? contentMaxWidth;
@@ -158,6 +166,20 @@ class TenturaTopBar extends StatelessWidget implements PreferredSizeWidget {
   }
 
   Widget _contentRow() {
+    final account = this.account;
+    if (account == null) return _baseRow();
+    return Row(
+      children: [
+        Expanded(child: _baseRow()),
+        Transform.translate(
+          offset: Offset(iconEdgeCompensation, 0),
+          child: account,
+        ),
+      ],
+    );
+  }
+
+  Widget _baseRow() {
     final customRow = row;
     if (customRow != null) {
       return customRow;
@@ -171,7 +193,12 @@ class TenturaTopBar extends StatelessWidget implements PreferredSizeWidget {
     final toolbarTrailing = actions == null
         ? null
         : Transform.translate(
-            offset: Offset(trailingIsIcon ? iconEdgeCompensation : 0, 0),
+            // With an account entry after them, the actions keep their
+            // touch padding as the gap to it; the account takes the edge.
+            offset: Offset(
+              trailingIsIcon && account == null ? iconEdgeCompensation : 0,
+              0,
+            ),
             child: FittedBox(
               fit: BoxFit.scaleDown,
               alignment: AlignmentDirectional.centerEnd,

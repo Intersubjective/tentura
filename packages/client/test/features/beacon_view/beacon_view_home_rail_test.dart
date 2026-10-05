@@ -26,7 +26,7 @@ void main() {
         threadsState: beaconViewHarnessThreadsState(),
       );
 
-      expect(find.text('My field'), findsOneWidget);
+      expect(find.text('Field'), findsOneWidget);
       expect(find.text('Updates'), findsNothing);
       expect(find.byIcon(TenturaIcons.graph), findsOneWidget);
       expect(find.byIcon(Icons.notifications_none), findsNothing);

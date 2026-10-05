@@ -12,6 +12,7 @@ class PostConversationRow extends StatelessWidget {
     required this.post,
     required this.now,
     required this.onOpen,
+    this.selected = false,
     super.key,
   });
 
@@ -22,6 +23,9 @@ class PostConversationRow extends StatelessWidget {
   final DateTime now;
 
   final VoidCallback onOpen;
+
+  /// Open in the list-detail pane beside the list (Material 3 list-detail).
+  final bool selected;
 
   @override
   Widget build(BuildContext context) {
@@ -35,8 +39,12 @@ class PostConversationRow extends StatelessWidget {
 
     return Semantics(
       label: [addressing, post.rootExcerpt, lastMessage].join(', '),
+      selected: selected,
       child: Material(
-        color: Colors.transparent,
+        color: selected
+            ? Theme.of(context).colorScheme.secondaryContainer
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(tt.cardRadius),
         child: InkWell(
           onTap: onOpen,
           child: Padding(

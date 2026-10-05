@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
+import 'package:tentura/features/home/ui/widget/home_account_avatar_button.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/dialog/share_code_dialog.dart';
@@ -153,6 +154,25 @@ class _FriendsScreenState extends State<FriendsScreen>
     final friendsCubit = GetIt.I<FriendsCubit>();
     final scheme = Theme.of(context).colorScheme;
     final l10n = L10n.of(context)!;
+    final compact = context.windowClass == WindowClass.compact;
+    final tabBar = BlocSelector<InvitationCubit, InvitationState, int>(
+      bloc: _invitationCubit,
+      selector: (s) => s.pendingCount,
+      builder: (context, inviteCount) {
+        return TenturaPrimaryTabBar(
+          controller: _tabController,
+          tabs: [
+            Tab(text: l10n.friendsTitle),
+            // No "(0)": a zero count reads as something to look at.
+            Tab(
+              text: inviteCount > 0
+                  ? '${l10n.invitationScreenTitle} ($inviteCount)'
+                  : l10n.invitationScreenTitle,
+            ),
+          ],
+        );
+      },
+    );
 
     return BlocProvider.value(
       value: _invitationCubit,
@@ -161,26 +181,27 @@ class _FriendsScreenState extends State<FriendsScreen>
         appBar: TenturaTopBar.of(
           context,
           tone: TenturaTopBarTone.primary,
-          title: BlocSelector<InvitationCubit, InvitationState, int>(
-            bloc: _invitationCubit,
-            selector: (s) => s.pendingCount,
-            builder: (context, inviteCount) {
-              return TenturaPrimaryTabBar(
-                controller: _tabController,
-                tabs: [
-                  Tab(text: l10n.friendsTitle),
-                  // No "(0)": a zero count reads as something to look at.
-                  Tab(
-                    text: inviteCount > 0
-                        ? '${l10n.invitationScreenTitle} ($inviteCount)'
-                        : l10n.invitationScreenTitle,
-                  ),
-                ],
-              );
-            },
-          ),
+          // Wide bars hold the tabs in the title slot. Compact ones cannot
+          // fit tabs, actions and the account side by side: they get the
+          // standard Material layout — the screen's name in the bar, tabs
+          // in a row of their own under it.
+          title: compact
+              ? Text(
+                  l10n.network,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TenturaText.titleLarge(scheme.onSurface),
+                )
+              : tabBar,
+          bottom: compact
+              ? PreferredSize(
+                  preferredSize: const Size.fromHeight(kTextTabBarHeight),
+                  child: tabBar,
+                )
+              : null,
           actions: [
             FriendsAppBarActions(
+              compact: compact,
               onGraph: () => _onOpenGraph(context),
               onCreateInvitation: () => unawaited(_onCreateInvitation(context)),
               onScanInvitationQr: () =>
@@ -189,6 +210,7 @@ class _FriendsScreenState extends State<FriendsScreen>
                   navigateToBlockedPeopleFromFriends(context),
             ),
           ],
+          account: homeTopBarAccount(context),
           progress: BlocSelector<InvitationCubit, InvitationState, bool>(
             key: Key('Friends.InvitationLoader:${_invitationCubit.hashCode}'),
             bloc: _invitationCubit,

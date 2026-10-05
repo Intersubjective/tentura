@@ -32,6 +32,7 @@ const kPathSignInMethods = '/settings/sign-in-methods';
 const kQueryCredentialLinked = 'linked';
 const kPathComplaint = '/complaint';
 const kPathInbox = '/home/inbox';
+const kPathConversations = '/home/conversations';
 const kPathInboxRejected = '$kPathInbox/rejected';
 const kPathInboxTriage = '$kPathInbox/triage';
 const kPathInboxWatching = '$kPathInbox/watching';

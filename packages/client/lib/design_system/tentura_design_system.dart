@@ -29,6 +29,7 @@ export 'components/tentura_supporting_pane_layout.dart';
 export 'components/tentura_tech_card.dart';
 export 'components/tentura_text_action.dart';
 export 'components/tentura_top_bar.dart';
+export 'components/tentura_top_bar_control.dart';
 export 'components/tentura_primary_tab_bar.dart';
 export 'components/tentura_type_label.dart';
 export 'components/tentura_underline_tabs.dart';

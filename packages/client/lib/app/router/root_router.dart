@@ -109,6 +109,14 @@ class RootRouter extends RootStackRouter {
             AutoRoute(initial: true, page: MyWorkRoute.page, path: ''),
           ],
         ),
+        // Conversations (Posts: list beside the open chat)
+        AutoRoute(
+          page: conversationsTabShell.page,
+          path: kPathConversations.split('/').last,
+          children: [
+            AutoRoute(initial: true, page: ConversationsRoute.page, path: ''),
+          ],
+        ),
         // Inbox (tab body only; rejected archive is a root-level full-screen route)
         AutoRoute(
           page: inboxTabShell.page,
