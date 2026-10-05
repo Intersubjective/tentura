@@ -44,9 +44,16 @@ final class ConstellationFieldSnapshotReader {
     }
 
     final watermark = await _readWatermark(viewerId);
-    final anchorRows = await _loadAuthorizedAnchors(
+    // The viewer's mutually visible, unblocked peers, in id order. Computed
+    // once per snapshot; every query below takes it as an array instead of
+    // re-deriving it (each derivation is a MeritRank round-trip).
+    final visiblePeerIds = await _allVisiblePeerIds(
       viewerId: viewerId,
       context: context,
+    );
+    final anchorRows = await _loadAuthorizedAnchors(
+      viewerId: viewerId,
+      visiblePeerIds: visiblePeerIds,
     );
     final anchorProjection = await _buildAnchorProjection(
       viewerId: viewerId,
@@ -54,6 +61,7 @@ final class ConstellationFieldSnapshotReader {
       filters: params.filters,
       watermark: watermark,
       anchorRows: anchorRows,
+      visiblePeerIds: visiblePeerIds,
     );
 
     if (params.projection == ConstellationProjection.anchors) {
@@ -75,9 +83,8 @@ final class ConstellationFieldSnapshotReader {
       for (final request in anchorProjection.pinnedRequests) request.authorId,
     };
 
-    final graphPeers = await _visibleGraphPeerIds(
-      viewerId: viewerId,
-      context: context,
+    final graphPeers = _visibleGraphPeerIds(
+      visiblePeerIds: visiblePeerIds,
       cap: kConstellationPeerCap,
       excludePeerIds: reservedPeerIds,
     );
@@ -90,7 +97,7 @@ final class ConstellationFieldSnapshotReader {
 
     final postFeed = await _postsAndMemberWebs(
       viewerId: viewerId,
-      context: context,
+      visiblePeerIds: visiblePeerIds,
     );
 
     final reservedBeaconIds = {
@@ -99,7 +106,7 @@ final class ConstellationFieldSnapshotReader {
 
     final peerRequestsRaw = await _discoverableRequests(
       viewerId: viewerId,
-      context: context,
+      visiblePeerIds: visiblePeerIds,
       cap: kConstellationRequestCap,
       excludeBeaconIds: reservedBeaconIds,
       showClosed: params.filters.showClosed,
@@ -113,11 +120,15 @@ final class ConstellationFieldSnapshotReader {
     final requests = [...ownRequests, ...peerRequests];
 
     final edgeNodeIds = {...graphPeers.ids, viewerId};
-    final edges = await _repo.trustEdges(
-      viewerId: viewerId,
-      context: context,
-      nodeIds: edgeNodeIds,
-    );
+    final edges = [
+      for (final edge in await _trustEdges(
+        viewerId: viewerId,
+        context: context,
+        visiblePeerIds: visiblePeerIds,
+      ))
+        if (edgeNodeIds.contains(edge.src) && edgeNodeIds.contains(edge.dst))
+          edge,
+    ];
 
     final profileIds = {...graphPeers.ids, ...reservedPeerIds};
     for (final request in requests) {
@@ -130,7 +141,7 @@ final class ConstellationFieldSnapshotReader {
       profileIds.add(web.personId);
     }
 
-    final peers = await _repo.peerProfiles(ids: profileIds);
+    final peers = await _peerProfiles(profileIds);
 
     return ConstellationFieldSnapshot(
       loadedAt: loadedAt,
@@ -148,6 +159,41 @@ final class ConstellationFieldSnapshotReader {
 
   ConstellationFieldRepository get _repo =>
       ConstellationFieldRepository(_database, _profiles);
+
+  Future<List<ConstellationEdgeRecord>>? _allTrustEdges;
+
+  final _profileById = <String, ConstellationPeerRecord?>{};
+
+  /// Trust edges among the viewer and every visible peer, fetched once per
+  /// snapshot. Callers that need a smaller node set filter it: edges only
+  /// ever join allowed nodes (the viewer and its visible peers), so the
+  /// subset query would return exactly the filtered rows.
+  Future<List<ConstellationEdgeRecord>> _trustEdges({
+    required String viewerId,
+    required String context,
+    required List<String> visiblePeerIds,
+  }) => _allTrustEdges ??= _repo.trustEdges(
+    viewerId: viewerId,
+    context: context,
+    nodeIds: {...visiblePeerIds, viewerId},
+  );
+
+  /// Profiles in id order; ids already fetched in this snapshot are reused.
+  Future<List<ConstellationPeerRecord>> _peerProfiles(Set<String> ids) async {
+    final missing = ids.where((id) => !_profileById.containsKey(id)).toSet();
+    if (missing.isNotEmpty) {
+      final fetched = await _repo.peerProfiles(ids: missing);
+      for (final id in missing) {
+        _profileById[id] = null;
+      }
+      for (final profile in fetched) {
+        _profileById[profile.id] = profile;
+      }
+    }
+    return [
+      for (final id in ids.toList()..sort()) ?_profileById[id],
+    ];
+  }
 
   Future<ConstellationAnchorRevision> _readWatermark(String viewerId) async {
     final rows = await _database.customSelect(
@@ -172,7 +218,7 @@ WHERE viewer_id = $1
 
   Future<List<_AuthorizedAnchorRow>> _loadAuthorizedAnchors({
     required String viewerId,
-    required String context,
+    required List<String> visiblePeerIds,
   }) async {
     final beaconReadable = constellationBeaconContentReadableSql(
       viewerParam: r'$1',
@@ -194,16 +240,8 @@ FROM public.constellation_anchor ca
 LEFT JOIN public.beacon b ON b.id = ca.beacon_id
 WHERE ca.viewer_id = \$1
   AND (
-    (
-      ca.person_id IS NOT NULL
-      AND ca.person_id <> \$1
-      AND EXISTS (
-        SELECT 1 FROM public.person_visible_peers_symmetric(\$1, \$2) p
-        WHERE p.peer_id::text = ca.person_id
-      )
-      AND NOT public.block_hides(\$1, ca.person_id)
-      AND NOT public.block_hides(ca.person_id, \$1)
-    )
+    -- Visible peers exclude the viewer and blocks in either direction.
+    ca.person_id = ANY(\$2::text[])
     OR (
       b.id IS NOT NULL
       AND $beaconReadable
@@ -213,7 +251,7 @@ ORDER BY ca.placed_at, COALESCE(ca.beacon_id, ca.person_id)
 ''',
       variables: [
         Variable.withString(viewerId),
-        Variable.withString(context),
+        Variable(TypedValue(Type.textArray, visiblePeerIds)),
       ],
     ).get();
 
@@ -250,6 +288,7 @@ ORDER BY ca.placed_at, COALESCE(ca.beacon_id, ca.person_id)
     required ConstellationFieldMembershipFilters filters,
     required ConstellationAnchorRevision watermark,
     required List<_AuthorizedAnchorRow> anchorRows,
+    required List<String> visiblePeerIds,
   }) async {
     if (anchorRows.isEmpty) {
       return ConstellationAnchorProjection(
@@ -326,16 +365,12 @@ ORDER BY ca.placed_at, COALESCE(ca.beacon_id, ca.person_id)
       for (final request in pinnedRequests) request.authorId,
     };
 
-    final visiblePeerIds = await _allVisiblePeerIds(
+    // Holders outside the visible set never had edges: trust edges only
+    // join the viewer and visible peers.
+    final pathEdges = await _trustEdges(
       viewerId: viewerId,
       context: context,
-    );
-
-    final pathNodeIds = {...visiblePeerIds, viewerId, ...pathHolderIds};
-    final pathEdges = await _repo.trustEdges(
-      viewerId: viewerId,
-      context: context,
-      nodeIds: pathNodeIds,
+      visiblePeerIds: visiblePeerIds,
     );
 
     final resolution = resolveConstellationPaths(
@@ -367,7 +402,7 @@ ORDER BY ca.placed_at, COALESCE(ca.beacon_id, ca.person_id)
       ...supportPeerIds,
       ...pinnedRequests.map((r) => r.authorId),
     };
-    final profiles = await _repo.peerProfiles(ids: profileIds);
+    final profiles = await _peerProfiles(profileIds);
     final profileById = {for (final p in profiles) p.id: p};
 
     final pinnedPeers = [
@@ -422,7 +457,7 @@ ORDER BY ca.placed_at, COALESCE(ca.beacon_id, ca.person_id)
   >
   _postsAndMemberWebs({
     required String viewerId,
-    required String context,
+    required List<String> visiblePeerIds,
   }) async {
     final postRows = await _database
         .customSelect(
@@ -507,16 +542,13 @@ ORDER BY m.beacon_id, m.person_id
         )
         .get();
 
-    final visiblePeerIds = await _allVisiblePeerIds(
-      viewerId: viewerId,
-      context: context,
-    );
+    final visible = visiblePeerIds.toSet();
     final memberWebs = <ConstellationMemberWebRecord>[];
     final hiddenByPost = <String, int>{};
     for (final row in memberRows) {
       final beaconId = row.read<String>('beacon_id');
       final personId = row.read<String>('person_id');
-      if (visiblePeerIds.contains(personId)) {
+      if (visible.contains(personId)) {
         memberWebs.add(
           ConstellationMemberWebRecord(
             beaconId: beaconId,
@@ -549,58 +581,43 @@ ORDER BY m.beacon_id, m.person_id
     );
   }
 
-  Future<Set<String>> _allVisiblePeerIds({
+  /// Reads the transaction's visibility memo, so later SQL in the same
+  /// snapshot (`beacon_can_read_content`, `constellation_trust_edges`) reuses
+  /// it. `block_hides` checks both directions.
+  Future<List<String>> _allVisiblePeerIds({
     required String viewerId,
     required String context,
   }) async {
     final rows = await _database.customSelect(
       r'''
-SELECT s.peer_id::text AS peer_id
-FROM public.person_visible_peers_symmetric($1, $2) s
-WHERE NOT public.block_hides($1, s.peer_id::text)
-  AND NOT public.block_hides(s.peer_id::text, $1)
-ORDER BY s.peer_id
+SELECT p.peer_id
+FROM unnest(public.person_visible_peer_ids_tx($1, $2)) AS p(peer_id)
+WHERE NOT public.block_hides($1, p.peer_id)
+ORDER BY p.peer_id
 ''',
       variables: [
         Variable.withString(viewerId),
         Variable.withString(context),
       ],
     ).get();
-    return {for (final row in rows) row.read<String>('peer_id')};
+    return [for (final row in rows) row.read<String>('peer_id')];
   }
 
-  Future<({Set<String> ids, bool capped})> _visibleGraphPeerIds({
-    required String viewerId,
-    required String context,
+  ({Set<String> ids, bool capped}) _visibleGraphPeerIds({
+    required List<String> visiblePeerIds,
     required int cap,
     required Set<String> excludePeerIds,
-  }) async {
+  }) {
     if (cap <= 0) {
       return (ids: const <String>{}, capped: false);
     }
-    final rows = await _database.customSelect(
-      r'''
-SELECT s.peer_id::text AS peer_id
-FROM public.person_visible_peers_symmetric($1, $2) s
-WHERE NOT public.block_hides($1, s.peer_id::text)
-  AND NOT public.block_hides(s.peer_id::text, $1)
-  AND NOT (s.peer_id::text = ANY($3::text[]))
-ORDER BY s.peer_id
-LIMIT $4
-''',
-      variables: [
-        Variable.withString(viewerId),
-        Variable.withString(context),
-        Variable(
-          TypedValue(Type.textArray, excludePeerIds.toList()..sort()),
-        ),
-        Variable.withInt(cap + 1),
-      ],
-    ).get();
-    final capped = rows.length > cap;
+    final candidates = [
+      for (final id in visiblePeerIds)
+        if (!excludePeerIds.contains(id)) id,
+    ];
     return (
-      ids: {for (final row in rows.take(cap)) row.read<String>('peer_id')},
-      capped: capped,
+      ids: candidates.take(cap).toSet(),
+      capped: candidates.length > cap,
     );
   }
 
@@ -672,7 +689,7 @@ ORDER BY b.id
 
   Future<List<ConstellationRequestRecord>> _discoverableRequests({
     required String viewerId,
-    required String context,
+    required List<String> visiblePeerIds,
     required int cap,
     required Set<String> excludeBeaconIds,
     required bool showClosed,
@@ -692,10 +709,9 @@ ORDER BY b.id
     final rows = await _database.customSelect(
       '''
 SELECT $constellationRequestSelectColumns
-FROM public.person_visible_peers_symmetric(\$1, \$2) p
-INNER JOIN public.beacon b ON b.user_id = p.peer_id::text
+FROM public.beacon b
 LEFT JOIN public.image cover ON cover.id = b.cover_thumb_image_id
-WHERE b.user_id <> \$1
+WHERE b.user_id = ANY(\$2::text[])
   AND b.is_discoverable
   AND b.kind = 0
   AND b.status = ANY(\$3::int[])
@@ -707,7 +723,7 @@ LIMIT \$5
 ''',
       variables: [
         Variable.withString(viewerId),
-        Variable.withString(context),
+        Variable(TypedValue(Type.textArray, visiblePeerIds)),
         Variable(TypedValue(Type.integerArray, statusArray)),
         Variable(
           TypedValue(Type.textArray, excludeBeaconIds.toList()..sort()),
