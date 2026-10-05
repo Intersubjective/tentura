@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
@@ -20,6 +21,8 @@ import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_room_lease.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_request_modes.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_plan_people.dart';
+import 'package:tentura/features/beacon_plan/domain/use_case/beacon_plan_case.dart';
+import 'package:tentura/features/beacon_plan/ui/bloc/plan_cubit.dart';
 import 'package:tentura/features/beacon_plan/ui/widget/beacon_plan_surface.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_room_navigation_scope.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
@@ -176,6 +179,40 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
 
   /// Author previewing the showcase ("How others see it").
   bool _previewAsOutsider = false;
+
+  /// The Request plan (#220): one cubit (one fetch, realtime refresh) for the
+  /// HUD, the Plan tab badge, the Plan tab and the chat plan lines. Null
+  /// while the plan is off or not wired (tests without `BeaconPlanCase`).
+  PlanCubit? _planCubit;
+  bool _planLoadRequested = false;
+
+  PlanCubit? _ensurePlanCubit() {
+    if (!kPlanEnabled) return null;
+    final existing = _planCubit;
+    if (existing != null) return existing;
+    if (!GetIt.I.isRegistered<BeaconPlanCase>()) return null;
+    return _planCubit = PlanCubit(
+      beaconId: widget.id,
+      viewerId: context.read<BeaconViewCubit>().state.myProfile.id,
+    );
+  }
+
+  /// Loads the plan once the viewer is known to be inside the Request;
+  /// outsiders (showcase, admission pending) never fetch it.
+  void _maybeLoadPlan(PlanCubit? cubit, {required bool insider}) {
+    if (cubit == null || !insider || _planLoadRequested) return;
+    _planLoadRequested = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !cubit.isClosed) unawaited(cubit.load());
+    });
+  }
+
+  void _disposePlanCubit() {
+    final cubit = _planCubit;
+    _planCubit = null;
+    _planLoadRequested = false;
+    if (cubit != null) unawaited(cubit.close());
+  }
 
   bool _isShowcase(BeaconViewState state) =>
       state.beaconContentLoaded &&
@@ -537,6 +574,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   @override
   void dispose() {
     _roomLease?.dispose();
+    _disposePlanCubit();
     super.dispose();
   }
 
@@ -544,6 +582,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   void didUpdateWidget(BeaconViewScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.id != widget.id) {
+      _disposePlanCubit();
       _didApplyThreadsResolution = false;
       _focusThreadId = null;
       _focusUserId = null;
@@ -683,6 +722,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
           onSurfaceSelected: _switchToSurface,
           onSurfaceReselected: _onSurfaceReselected,
           peopleTabAttentionActive: _peopleTabAttentionActive,
+          planCubit: _planCubit,
         ),
       ),
     );
@@ -709,6 +749,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
           onActivatePeopleTabAttention: _activatePeopleTabAttention,
           onFocusCoordinationItem: (_) => _focusDiscussionGeneral(),
           onOpenGeneralThread: () => unawaited(_openGeneralThread()),
+          planCubit: _planCubit,
         );
       case BeaconSurface.plan:
         return BeaconPlanSurface(
@@ -718,6 +759,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
           admitted: beaconPlanAdmittedPeople(beaconState),
           // In the split the chat is always on screen; otherwise go there.
           onOpenDiscussion: isSplit ? null : _focusDiscussionGeneral,
+          cubit: _planCubit,
         );
       case BeaconSurface.room:
         return BeaconRoomSurface(
@@ -1014,6 +1056,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                       final statusSlots = beaconViewStatusSlots(l10n, state);
                       final appBarPhaseStatus = statusSlots.presentation;
 
+                      final planCubit = _ensurePlanCubit();
                       Widget body;
                       if (showInitialLoading) {
                         body = const Center(
@@ -1072,6 +1115,21 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                           beaconState: state,
                           isSplit: false,
                           roomLease: roomLease,
+                        );
+                      }
+
+                      _maybeLoadPlan(
+                        planCubit,
+                        insider:
+                            showBeaconContent &&
+                            !showcase &&
+                            !state.isRoomAdmissionBlocked,
+                      );
+                      if (planCubit != null) {
+                        // Chat plan lines read the copied-from title here.
+                        body = BlocProvider<PlanCubit>.value(
+                          value: planCubit,
+                          child: body,
                         );
                       }
 

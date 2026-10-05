@@ -14,6 +14,7 @@ import '../bloc/plan_cubit.dart';
 import '../screen/plan_edit_screen.dart';
 import '../screen/plan_history_screen.dart';
 import '../util/plan_presenter.dart';
+import 'plan_people_matrix.dart';
 import 'plan_step_row.dart';
 import 'plan_step_sheet.dart';
 
@@ -27,6 +28,7 @@ class BeaconPlanSurface extends StatelessWidget {
     required this.admitted,
     this.onOpenDiscussion,
     this.planCase,
+    this.cubit,
     super.key,
   });
 
@@ -41,8 +43,27 @@ class BeaconPlanSurface extends StatelessWidget {
   /// Test seam; defaults to the DI singleton.
   final BeaconPlanCase? planCase;
 
+  /// The Request's shared plan cubit (also feeding the HUD); when set, the
+  /// tab reuses it instead of fetching again.
+  final PlanCubit? cubit;
+
   @override
-  Widget build(BuildContext context) => BlocProvider(
+  Widget build(BuildContext context) {
+    final shared = cubit;
+    if (shared != null) {
+      return BlocProvider.value(
+        value: shared,
+        child: BeaconPlanView(
+          admitted: admitted,
+          onOpenDiscussion: onOpenDiscussion,
+          planCase: planCase,
+        ),
+      );
+    }
+    return _ownCubit();
+  }
+
+  Widget _ownCubit() => BlocProvider(
     create: (_) {
       final cubit = PlanCubit(
         beaconId: beaconId,
@@ -83,6 +104,8 @@ class BeaconPlanView extends StatefulWidget {
   static const mineKey = Key('plan-filter-mine');
   static const personFilterKey = Key('plan-filter-person');
   static const ackKey = Key('plan-ack');
+  static const viewListKey = Key('plan-view-list');
+  static const viewPeopleKey = Key('plan-view-people');
 
   @override
   State<BeaconPlanView> createState() => _BeaconPlanViewState();
@@ -90,6 +113,9 @@ class BeaconPlanView extends StatefulWidget {
 
 class _BeaconPlanViewState extends State<BeaconPlanView> {
   Timer? _ticker;
+
+  /// «По людям» chosen (only offered on panels ≥ [kPlanMatrixMinWidth]).
+  bool _matrix = false;
   late DateTime _now = _clock();
 
   DateTime _clock() => (widget.clock ?? DateTime.now)();
@@ -211,51 +237,126 @@ class _BeaconPlanViewState extends State<BeaconPlanView> {
           viewerId: state.viewerId,
           now: _now,
         );
-        return RefreshIndicator.adaptive(
-          onRefresh: () => context.read<PlanCubit>().refresh(),
-          child: ListView(
-            padding: EdgeInsets.only(bottom: tt.sectionGap * 2),
-            children: [
-              _PlanHeader(plan: plan, now: _now, people: people),
-              _PlanControls(
-                plan: plan,
-                filter: state.filter,
-                people: people,
-                onHistory: () => _openHistory(plan),
-                onEdit: plan.editable ? () => _openEditor(plan) : null,
-              ),
-              if (plan.hasViewerPending)
-                _PlanPendingCard(plan: plan, people: people),
-              if (items.isEmpty)
-                Padding(
-                  padding: tt.cardPadding,
-                  child: Text(
-                    l10n.planFilterEmpty,
-                    style: TenturaText.bodySmall(tt.textMuted),
-                  ),
-                ),
-              for (final item in items)
-                switch (item) {
-                  PlanListDay(:final day) => PlanDayHeader(day: day),
-                  PlanListNow(:final now) => PlanNowLine(now: now),
-                  PlanListStep(:final step, :final dimmed) => PlanStepRow(
-                    step: step,
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            // The matrix needs the Plan panel's own width (in the split
+            // it is the side pane), not the window's.
+            final canMatrix = constraints.maxWidth >= kPlanMatrixMinWidth;
+            final matrix = canMatrix && _matrix;
+            return RefreshIndicator.adaptive(
+              onRefresh: () => context.read<PlanCubit>().refresh(),
+              child: ListView(
+                padding: EdgeInsets.only(bottom: tt.sectionGap * 2),
+                children: [
+                  _PlanHeader(plan: plan, now: _now, people: people),
+                  _PlanControls(
+                    plan: plan,
+                    filter: state.filter,
                     people: people,
-                    now: _now,
-                    tickable: plan.tickable,
-                    showAckState: plan.editable,
-                    dimmed: dimmed,
-                    busy: state.busyStepIds.contains(step.id),
-                    onToggleDone: () => unawaited(
-                      context.read<PlanCubit>().toggleDone(step.id),
-                    ),
-                    onTap: () => _openStep(plan, step.id),
+                    onHistory: () => _openHistory(plan),
+                    onEdit: plan.editable ? () => _openEditor(plan) : null,
                   ),
-                },
-            ],
-          ),
+                  if (canMatrix)
+                    _PlanViewToggle(
+                      matrix: matrix,
+                      onChanged: (v) => setState(() => _matrix = v),
+                    ),
+                  if (plan.hasViewerPending)
+                    _PlanPendingCard(plan: plan, people: people),
+                  if (matrix)
+                    Padding(
+                      padding: EdgeInsets.only(top: tt.rowGap),
+                      child: PlanPeopleMatrix(
+                        plan: plan,
+                        people: people,
+                        now: _now,
+                        onOpenStep: (id) => _openStep(plan, id),
+                      ),
+                    )
+                  else
+                    ..._listRows(context, state, plan, people, items),
+                ],
+              ),
+            );
+          },
         );
       },
+    );
+  }
+
+  List<Widget> _listRows(
+    BuildContext context,
+    PlanState state,
+    BeaconPlan plan,
+    PlanPeople people,
+    List<PlanListItem> items,
+  ) {
+    final l10n = L10n.of(context)!;
+    final tt = context.tt;
+    return [
+      if (items.isEmpty)
+        Padding(
+          padding: tt.cardPadding,
+          child: Text(
+            l10n.planFilterEmpty,
+            style: TenturaText.bodySmall(tt.textMuted),
+          ),
+        ),
+      for (final item in items)
+        switch (item) {
+          PlanListDay(:final day) => PlanDayHeader(day: day),
+          PlanListNow(:final now) => PlanNowLine(now: now),
+          PlanListStep(:final step, :final dimmed) => PlanStepRow(
+            step: step,
+            people: people,
+            now: _now,
+            tickable: plan.tickable,
+            showAckState: plan.editable,
+            dimmed: dimmed,
+            busy: state.busyStepIds.contains(step.id),
+            onToggleDone: () => unawaited(
+              context.read<PlanCubit>().toggleDone(step.id),
+            ),
+            onTap: () => _openStep(plan, step.id),
+          ),
+        },
+    ];
+  }
+}
+
+/// «Список / По людям» (plan §5.4); shown only on panels ≥ 600.
+class _PlanViewToggle extends StatelessWidget {
+  const _PlanViewToggle({required this.matrix, required this.onChanged});
+
+  final bool matrix;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final tt = context.tt;
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: tt.screenHPadding,
+      ).copyWith(top: tt.tightGap),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          TenturaCommandButton(
+            key: BeaconPlanView.viewListKey,
+            label: l10n.planViewList,
+            selected: !matrix,
+            onPressed: () => onChanged(false),
+          ),
+          SizedBox(width: tt.rowGap),
+          TenturaCommandButton(
+            key: BeaconPlanView.viewPeopleKey,
+            label: l10n.planViewPeople,
+            selected: matrix,
+            onPressed: () => onChanged(true),
+          ),
+        ],
+      ),
     );
   }
 }

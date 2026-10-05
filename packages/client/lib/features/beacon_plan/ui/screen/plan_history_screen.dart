@@ -10,42 +10,77 @@ import '../../domain/use_case/beacon_plan_case.dart';
 import '../bloc/plan_history_cubit.dart';
 import '../util/plan_presenter.dart';
 
-/// Opens the plan history of [plan]'s Request.
+/// Opens the plan history of [plan]'s Request (or of [beaconId] when the
+/// caller has no plan at hand, e.g. a chat line). With [focusSeq] the history
+/// opens on that revision («История ›» of a chat line).
 Future<void> openPlanHistory(
   BuildContext context, {
-  required BeaconPlan plan,
   required PlanPeople people,
+  BeaconPlan? plan,
+  String? beaconId,
+  int? focusSeq,
   BeaconPlanCase? planCase,
-}) => Navigator.of(context, rootNavigator: true).push<void>(
-  MaterialPageRoute(
-    builder: (_) => BlocProvider(
-      create: (_) {
-        final cubit = PlanHistoryCubit(
-          beaconId: plan.beaconId,
-          planCase: planCase,
-        );
-        unawaited(cubit.load());
-        return cubit;
-      },
-      child: PlanHistoryScreen(plan: plan, people: people),
+}) {
+  final id = plan?.beaconId ?? beaconId ?? '';
+  return Navigator.of(context, rootNavigator: true).push<void>(
+    MaterialPageRoute(
+      builder: (_) => BlocProvider(
+        create: (_) {
+          final cubit = PlanHistoryCubit(beaconId: id, planCase: planCase);
+          unawaited(cubit.load());
+          return cubit;
+        },
+        child: PlanHistoryScreen(
+          plan: plan,
+          people: people,
+          focusSeq: focusSeq,
+        ),
+      ),
     ),
-  ),
-);
+  );
+}
 
 /// Revisions newest first: who, when, the l10n-rendered changes; tap one to
 /// preview it and «Вернуть эту версию».
-class PlanHistoryScreen extends StatelessWidget {
+class PlanHistoryScreen extends StatefulWidget {
   const PlanHistoryScreen({
-    required this.plan,
     required this.people,
+    this.plan,
+    this.focusSeq,
     super.key,
   });
 
-  final BeaconPlan plan;
+  final BeaconPlan? plan;
   final PlanPeople people;
+
+  /// Revision to open once the history has loaded.
+  final int? focusSeq;
 
   static Key entryKey(int seq) => Key('plan-history-$seq');
   static const restoreKey = Key('plan-history-restore');
+
+  @override
+  State<PlanHistoryScreen> createState() => _PlanHistoryScreenState();
+}
+
+class _PlanHistoryScreenState extends State<PlanHistoryScreen> {
+  bool _focused = false;
+
+  BeaconPlan? get plan => widget.plan;
+  PlanPeople get people => widget.people;
+
+  void _maybeFocus(BuildContext context, PlanHistoryState state) {
+    final seq = widget.focusSeq;
+    if (_focused || seq == null || state.isLoading || state.items.isEmpty) {
+      return;
+    }
+    _focused = true;
+    final index = state.items.indexWhere((e) => e.seq == seq);
+    if (index < 0) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _openPreview(this.context, seq, index == 0);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,8 +88,11 @@ class PlanHistoryScreen extends StatelessWidget {
     final tt = context.tt;
     return BlocConsumer<PlanHistoryCubit, PlanHistoryState>(
       listenWhen: (p, c) =>
-          p.errorSeq != c.errorSeq || p.restoredSeq != c.restoredSeq,
+          p.errorSeq != c.errorSeq ||
+          p.restoredSeq != c.restoredSeq ||
+          (!_focused && p.items != c.items),
       listener: (context, state) {
+        _maybeFocus(context, state);
         if (state.restoredSeq > 0 && state.restoredFromSeq != null) {
           showSnackBar(
             context,
@@ -95,7 +133,7 @@ class PlanHistoryScreen extends StatelessWidget {
             children: [
               for (final (i, entry) in state.items.indexed)
                 InkWell(
-                  key: entryKey(entry.seq),
+                  key: PlanHistoryScreen.entryKey(entry.seq),
                   onTap: () => _openPreview(context, entry.seq, i == 0),
                   child: Padding(
                     padding: EdgeInsets.symmetric(

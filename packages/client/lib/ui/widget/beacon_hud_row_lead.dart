@@ -20,6 +20,12 @@ abstract final class BeaconHudRowIcons {
   static const IconData lastEvent = Icons.history_outlined;
   static const IconData schedule = Icons.event_outlined;
   static const IconData location = Icons.location_on_outlined;
+
+  /// Request plan rows: BY PLAN and the plan counter (#220).
+  static const IconData plan = Icons.checklist_outlined;
+
+  /// NEXT row: the viewer's next plan step (#220).
+  static const IconData next = Icons.skip_next_outlined;
 }
 
 /// Vertical alignment of the lead icon within [BeaconHudIconRow].
@@ -59,7 +65,8 @@ class BeaconHudRowLead extends StatelessWidget {
       color: scheme.onSurfaceVariant,
     );
 
-    final inset = topInset ??
+    final inset =
+        topInset ??
         (align == BeaconHudRowLeadAlign.start ? _startTopInset : 0.0);
 
     return Semantics(

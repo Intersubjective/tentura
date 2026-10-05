@@ -8487,5 +8487,355 @@
   "planDeletedUser": "deleted member",
   "@planDeletedUser": {
     "description": "Name of a person the plan mentions who is gone."
+  },
+  "beaconHudNextLabel": "NEXT",
+  "@beaconHudNextLabel": {
+    "description": "HUD row label: the viewer's next plan step (like the next Tetris piece)."
+  },
+  "beaconHudByPlanLabel": "BY PLAN",
+  "@beaconHudByPlanLabel": {
+    "description": "HUD row label: the viewer's plan step while a system situation holds the YOU row."
+  },
+  "beaconHudFreeUntil": "Free until {time}",
+  "@beaconHudFreeUntil": {
+    "description": "HUD YOU row: nothing to do by the plan until the next step starts.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconHudInDuration": "in {duration}",
+  "@beaconHudInDuration": {
+    "description": "HUD NEXT row: when the next step starts.",
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconHudAlsoRunning": "also running",
+  "@beaconHudAlsoRunning": {
+    "description": "HUD NEXT row: another active step of the viewer."
+  },
+  "beaconHudOverdueBy": "⏰ +{duration}",
+  "@beaconHudOverdueBy": {
+    "description": "HUD YOU row: how late the viewer's step is.",
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconHudDueBy": "was due by {time}",
+  "@beaconHudDueBy": {
+    "description": "HUD YOU row: when the overdue step was due.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconHudNowByPlan": "by plan · step {n}/{total}",
+  "@beaconHudNowByPlan": {
+    "description": "HUD NOW row subline when the plan set the line.",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconHudNowPlanLine": "{time} {assignee}: {title}",
+  "@beaconHudNowPlanLine": {
+    "description": "HUD NOW row: the plan step that started last.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      },
+      "assignee": {
+        "type": "String"
+      },
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconHudNowPlanLineUnassigned": "{time} {title} · no assignee",
+  "@beaconHudNowPlanLineUnassigned": {
+    "description": "HUD NOW row: a plan step with no assignee.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      },
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconHudPlanCounter": "plan {done}/{total}",
+  "@beaconHudPlanCounter": {
+    "description": "HUD counter: done/total plan steps; opens the Plan tab.",
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconHudPlanOverdueCounter": "⏰ {count}",
+  "@beaconHudPlanOverdueCounter": {
+    "description": "HUD counter: the viewer's overdue plan steps.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconHudCounterPlan": "Plan: {done} of {total} steps done",
+  "@beaconHudCounterPlan": {
+    "description": "Semantics of the plan counter.",
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconHudCounterPlanOverdue": "Your overdue steps: {count}",
+  "@beaconHudCounterPlanOverdue": {
+    "description": "Semantics of the overdue counter.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconHudPlanOpenStep": "Open step: {step}",
+  "@beaconHudPlanOpenStep": {
+    "description": "Semantics: opens the step card from the HUD.",
+    "placeholders": {
+      "step": {
+        "type": "String"
+      }
+    }
+  },
+  "planChangeMany": "{actor} · {when}: {count, plural, one{{count} of your steps changed} other{{count} of your steps changed}}",
+  "@planChangeMany": {
+    "description": "Pending change row when several of the viewer's steps changed.",
+    "placeholders": {
+      "actor": {
+        "type": "String"
+      },
+      "when": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planTabPendingSemantics": "Plan: a step needs you",
+  "@planTabPendingSemantics": {
+    "description": "Semantics of the Plan tab dot: a running step or changes to confirm."
+  },
+  "planViewList": "List",
+  "@planViewList": {
+    "description": "Plan view toggle: list."
+  },
+  "planViewPeople": "By people",
+  "@planViewPeople": {
+    "description": "Plan view toggle: people × time matrix."
+  },
+  "planMatrixUnassignedRow": "No assignee",
+  "@planMatrixUnassignedRow": {
+    "description": "Matrix row of steps with no assignee."
+  },
+  "planMatrixUntimedColumn": "No time",
+  "@planMatrixUntimedColumn": {
+    "description": "Matrix side list of steps without time."
+  },
+  "planMatrixPrevDay": "Previous day",
+  "@planMatrixPrevDay": {
+    "description": "Matrix: previous day button."
+  },
+  "planMatrixNextDay": "Next day",
+  "@planMatrixNextDay": {
+    "description": "Matrix: next day button."
+  },
+  "planMatrixOpenEnd": "no end time",
+  "@planMatrixOpenEnd": {
+    "description": "Semantics: block of a step with no end."
+  },
+  "planMatrixOpenStart": "no start time",
+  "@planMatrixOpenStart": {
+    "description": "Semantics: block of a step with only an end."
+  },
+  "planMatrixNoTimedSteps": "No steps with a time on this day",
+  "@planMatrixNoTimedSteps": {
+    "description": "Matrix: the selected day has no timed steps."
+  },
+  "planLineRevised": "{name} changed the plan",
+  "@planLineRevised": {
+    "description": "Chat line: a plan revision.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "planLineCreated": "{name} created the plan",
+  "@planLineCreated": {
+    "description": "Chat line: the first plan revision.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "planLineRestored": "{name} restored version {seq}",
+  "@planLineRestored": {
+    "description": "Chat line: a plan version was restored.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "seq": {
+        "type": "int"
+      }
+    }
+  },
+  "planLineUnassigned": "{name} left — {count, plural, one{{count} step has no assignee} other{{count} steps have no assignee}}",
+  "@planLineUnassigned": {
+    "description": "Chat line: steps lost their assignee when a person left.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planLineMore": "{count} more",
+  "@planLineMore": {
+    "description": "Chat line: more changes than shown.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planLineHistory": "History ›",
+  "@planLineHistory": {
+    "description": "Chat line: opens plan history at this revision."
+  },
+  "planLineDoneOwn": "✓ {name}: {step}",
+  "@planLineDoneOwn": {
+    "description": "Chat line: the assignee marked their step done.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "step": {
+        "type": "String"
+      }
+    }
+  },
+  "planLineDoneFor": "✓ {actor} for {assignee}: {step}",
+  "@planLineDoneFor": {
+    "description": "Chat line: someone marked another person's step done.",
+    "placeholders": {
+      "actor": {
+        "type": "String"
+      },
+      "assignee": {
+        "type": "String"
+      },
+      "step": {
+        "type": "String"
+      }
+    }
+  },
+  "planLineDoneMany": "✓ {count, plural, one{{count} step done} other{{count} steps done}}",
+  "@planLineDoneMany": {
+    "description": "Chat line header: several coalesced ticks.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planLineTickUndone": "unmarked",
+  "@planLineTickUndone": {
+    "description": "Chat line: the tick was removed (entry struck through)."
+  },
+  "planLineCantMakeMoved": "⏰ {name} can't make it: {step} → moved by {shift}",
+  "@planLineCantMakeMoved": {
+    "description": "Chat line: «Can't make it», step moved by a signed duration.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "step": {
+        "type": "String"
+      },
+      "shift": {
+        "type": "String"
+      }
+    }
+  },
+  "planLineCantMakeMovedTo": "⏰ {name} can't make it: {step} → moved to {time}",
+  "@planLineCantMakeMovedTo": {
+    "description": "Chat line: «Can't make it», step moved to a time.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "step": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "planLineCantMakeHanded": "⏰ {name} can't make it: {step} → handed to {to}",
+  "@planLineCantMakeHanded": {
+    "description": "Chat line: «Can't make it», step handed over.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "step": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "planLineCopied": "Plan copied from «{title}»",
+  "@planLineCopied": {
+    "description": "Chat line: plan copied from a readable Request.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "planLineCopiedUnknown": "Plan copied from another request",
+  "@planLineCopiedUnknown": {
+    "description": "Chat line: plan copied from a Request the viewer can't read."
+  },
+  "planLineFallback": "Plan changed",
+  "@planLineFallback": {
+    "description": "Chat line with an unreadable payload."
   }
 }

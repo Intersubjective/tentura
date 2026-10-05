@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:tentura_root/domain/plan/plan.dart';
 
+import 'package:tentura/domain/coordination/beacon_you_plan_slots.dart';
+
 /// One live step of a Request plan («либретто», #220) as the viewer sees it:
 /// content plus the tick and the «Понятно» bookkeeping.
 @immutable
@@ -361,6 +363,28 @@ final class BeaconPlan {
   /// The viewer has changes to confirm with «Понятно».
   bool get hasViewerPending =>
       viewerPending != null && viewerPending!.changes.isNotEmpty;
+
+  /// Steps the viewer's pending changes touch.
+  Set<String> get viewerPendingStepIds => {
+    for (final c in viewerPending?.changes ?? const <PlanPendingChange>[])
+      c.change.stepId,
+  };
+
+  /// Input of the HUD YOU / BY PLAN / NEXT ladder (plan §5.2).
+  PlanYouInput viewerYouInput({
+    required DateTime now,
+    required String viewerId,
+  }) => PlanYouInput(
+    schedule: viewerSchedule(now: now, viewerId: viewerId),
+    pendingAck: hasViewerPending,
+    pendingStepIds: viewerPendingStepIds,
+  );
+
+  /// The viewer has an active (started or due) step of their own.
+  bool viewerHasCurrentStep({
+    required DateTime now,
+    required String viewerId,
+  }) => viewerSchedule(now: now, viewerId: viewerId).current != null;
 
   BeaconPlan withSteps(List<PlanStep> next) => BeaconPlan(
     beaconId: beaconId,

@@ -40,6 +40,7 @@ import 'package:tentura/features/beacon_threads/ui/widget/room_message_reply_quo
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_text_body.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_trailing_meta_layout.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_pinned_fact_visibility_mark.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/room_plan_line.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_poll_card.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
@@ -535,6 +536,37 @@ class RoomMessageTile extends StatelessWidget {
     if (capabilities.closure &&
         RoomClosureStoryCard.isClosureStoryRow(message)) {
       return RoomClosureStoryCard(message: message);
+    }
+
+    if (message.systemMessageKind == BeaconRoomSystemMessageKind.plan) {
+      String planNameOf(String? userId) {
+        if (userId == null) return l10n.planNoAssignee;
+        final name = _participantDisplayName(
+          participants: participants,
+          userId: userId,
+          viewer: myProfile,
+          l10n: l10n,
+        );
+        return name == userId ? l10n.planDeletedUser : name;
+      }
+
+      final authorName = SelfUserHighlight.displayName(
+        l10n,
+        message.author,
+        myProfile.id,
+      ).trim();
+      return RoomPlanLine(
+        message: message,
+        actorName: authorName.isNotEmpty
+            ? authorName
+            : planNameOf(message.authorId.isEmpty ? null : message.authorId),
+        nameOf: planNameOf,
+        people: [
+          for (final p in participants)
+            if (p.roomAccess == RoomAccessBits.admitted)
+              profileFromBeaconParticipant(p),
+        ],
+      );
     }
 
     if (message.systemMessageKind ==
