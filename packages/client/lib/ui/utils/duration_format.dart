@@ -34,7 +34,8 @@ bool _sameCalendarDayLocal(DateTime a, DateTime b) {
 
 /// Concrete local time/date for closed/cancelled STATUS slot2.
 ///
-/// Same calendar day as [now]: time only; otherwise localized date + time.
+/// Same calendar day as [now]: time only; otherwise the localized day,
+/// with the year only when it is not [now]'s.
 String formatBeaconLifecycleEndedAt({
   required DateTime endedAt,
   required DateTime now,
@@ -45,6 +46,8 @@ String formatBeaconLifecycleEndedAt({
   if (_sameCalendarDayLocal(endedAt, now)) {
     return time;
   }
-  final date = DateFormat.yMMMd(localeName).format(local);
-  return '$date, $time';
+  // Earlier days drop the clock, and this year drops the year.
+  final sameYear = local.year == now.toLocal().year;
+  return (sameYear ? DateFormat.MMMd(localeName) : DateFormat.yMMMd(localeName))
+      .format(local);
 }

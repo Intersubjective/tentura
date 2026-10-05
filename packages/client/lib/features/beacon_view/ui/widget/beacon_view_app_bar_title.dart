@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_cover.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/presenter/beacon_phase_presenter.dart';
 import 'package:tentura/ui/widget/beacon_identity_tile.dart';
@@ -64,17 +65,24 @@ class BeaconViewAppBarTitle extends StatelessWidget {
       );
     }
 
-    final titleText =
-        beacon.title.isEmpty ? l10n.beaconViewTitle : beacon.title;
+    final titleText = beacon.title.isEmpty
+        ? l10n.beaconViewTitle
+        : beacon.title;
 
     final semanticsLabel = '$titleText. $statusLine';
 
+    // A neutral tile is a placeholder, not identity: give its width to the
+    // title instead.
+    final showIdentity = beacon.identity is! BeaconIdentityNeutral;
+
     Widget row = Row(
       children: [
-        ExcludeSemantics(
-          child: BeaconIdentityTile(beacon: beacon, size: _identitySize),
-        ),
-        const SizedBox(width: 8),
+        if (showIdentity) ...[
+          ExcludeSemantics(
+            child: BeaconIdentityTile(beacon: beacon, size: _identitySize),
+          ),
+          SizedBox(width: context.tt.iconTextGap),
+        ],
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -124,10 +132,16 @@ class BeaconViewAppBarTitle extends StatelessWidget {
       );
     }
 
+    // Without a switch hint, the tooltip carries the full title the row
+    // may have elided.
     final tip = tooltipMessage;
-    if (tip != null && tip.isNotEmpty) {
-      row = Tooltip(message: tip, child: row);
-    }
+    final hasTip = tip != null && tip.isNotEmpty;
+    row = Tooltip(
+      message: hasTip ? tip : titleText,
+      // The row's own label already reads the title.
+      excludeFromSemantics: !hasTip,
+      child: row,
+    );
 
     return Semantics(
       button: onTap != null,

@@ -11,7 +11,6 @@ import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/beacon_hierarchy_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_child_requests_section.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
-import 'package:tentura/features/beacon_view/ui/widget/beacon_details_facts_access_row.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_now_surface.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_operational_header_card.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
@@ -192,12 +191,12 @@ void main() {
         label: 'beaconChildRequestsEmpty',
       );
 
-      // The section sits on the column edge shared by the Details / Facts
-      // cards above it (not on the HUD rows' text line).
-      final scrollLeft = tester.getTopLeft(find.byType(CustomScrollView)).dx;
-      final headerInset =
-          tester.getTopLeft(find.byType(BeaconDetailsFactsAccessRow)).dx -
-          scrollLeft;
+      // The section sits on the screen column edge shared by the other Now
+      // sections (not on the HUD rows' text line).
+      final headerInset = tester
+          .element(find.byType(CustomScrollView))
+          .tt
+          .screenHPadding;
       final titleInset = _leftInsetFromAncestor(
         tester: tester,
         textFinder: titleFinder,
@@ -207,7 +206,7 @@ void main() {
         titleInset,
         closeTo(headerInset, 1),
         reason:
-            'child-requests header should align with the Details / Facts cards',
+            'child-requests header should sit on the screen column edge',
       );
     },
   );

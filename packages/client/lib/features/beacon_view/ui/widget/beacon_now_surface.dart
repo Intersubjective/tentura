@@ -17,9 +17,8 @@ import 'package:tentura/features/beacon_view/ui/widget/beacon_current_line_sheet
 import 'package:tentura/features/beacon_view/ui/widget/beacon_pinned_facts_sheet.dart';
 import 'package:tentura/features/beacon_view/ui/widget/declined_offer_notice.dart';
 import 'package:tentura/features/beacon_view/ui/presenter/beacon_hud_author_action.dart';
-import 'package:tentura/features/beacon_view/ui/util/beacon_request_modes.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_hud_pinned_block.dart';
-import 'package:tentura/features/beacon_view/ui/widget/beacon_hud_team_section.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_hud_sections.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_details_sheet.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
@@ -54,7 +53,6 @@ class BeaconNowSurface extends StatefulWidget {
 
 class _BeaconNowSurfaceState extends State<BeaconNowSurface> {
   final _subrequestsKey = GlobalKey();
-  final _teamKey = GlobalKey();
 
   BeaconViewCubit get beaconViewCubit => widget.beaconViewCubit;
   ScreenCubit get screenCubit => widget.screenCubit;
@@ -167,7 +165,6 @@ class _BeaconNowSurfaceState extends State<BeaconNowSurface> {
                 ),
               )
             : null;
-        final team = beaconHudTeam(state);
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -186,9 +183,7 @@ class _BeaconNowSurfaceState extends State<BeaconNowSurface> {
                     : () => authorHudAction(
                         BeaconHudAuthorAction.reviewOffers,
                       ),
-                onOpenTeam: admitted
-                    ? () => _scrollTo(_teamKey)
-                    : () => onSurfaceSelected(BeaconSurface.people),
+                onOpenTeam: () => onSurfaceSelected(BeaconSurface.people),
                 onOpenSubrequests: () => _scrollTo(_subrequestsKey),
                 onOpenFacts: () => unawaited(
                   showBeaconPinnedFactsSheet(context, cubit: beaconViewCubit),
@@ -228,6 +223,14 @@ class _BeaconNowSurfaceState extends State<BeaconNowSurface> {
                         ),
                       ),
                     ),
+                  SliverPadding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: tt.screenHPadding,
+                    ),
+                    sliver: SliverToBoxAdapter(
+                      child: BeaconHudOutcomeSection(beacon: state.beacon),
+                    ),
+                  ),
                   SliverToBoxAdapter(
                     child: ColoredBox(
                       color: scheme.surface,
@@ -323,22 +326,6 @@ class _BeaconNowSurfaceState extends State<BeaconNowSurface> {
                         ),
                       ),
                     ),
-                    SliverPadding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: tt.screenHPadding,
-                      ).copyWith(top: tt.cardGap),
-                      sliver: SliverToBoxAdapter(
-                        child: KeyedSubtree(
-                          key: _teamKey,
-                          child: BeaconHudTeamSection(
-                            members: team,
-                            onOpenProfile: screenCubit.showProfile,
-                            onOpenPeople: () =>
-                                onSurfaceSelected(BeaconSurface.people),
-                          ),
-                        ),
-                      ),
-                    ),
                   ],
                   if (beaconViewHasDetailsContent(state.beacon))
                     SliverPadding(
@@ -346,7 +333,7 @@ class _BeaconNowSurfaceState extends State<BeaconNowSurface> {
                         horizontal: tt.screenHPadding,
                       ).copyWith(top: tt.cardGap, bottom: tt.sectionGap),
                       sliver: SliverToBoxAdapter(
-                        child: BeaconHudEssenceRow(
+                        child: BeaconHudEssenceSection(
                           beacon: state.beacon,
                           onOpenDetails: () => unawaited(
                             showBeaconViewDetailsSheet(

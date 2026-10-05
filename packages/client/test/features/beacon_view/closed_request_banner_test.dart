@@ -9,13 +9,13 @@ import 'package:tentura/features/beacon_view/ui/widget/closed_request_banner.dar
 import 'package:tentura/ui/l10n/l10n.dart';
 
 Beacon _beacon({required BeaconStatus status}) => Beacon(
-      id: 'B1',
-      title: 't',
-      status: status,
-      author: const Profile(id: 'U1', displayName: 'a'),
-      createdAt: DateTime.utc(2026, 6, 20),
-      updatedAt: DateTime.utc(2026, 6, 20),
-    );
+  id: 'B1',
+  title: 't',
+  status: status,
+  author: const Profile(id: 'U1', displayName: 'a'),
+  createdAt: DateTime.utc(2026, 6, 20),
+  updatedAt: DateTime.utc(2026, 6, 20),
+);
 
 void main() {
   final open = _beacon(status: BeaconStatus.open);
@@ -45,7 +45,7 @@ void main() {
     expect(find.text('This request is closed'), findsOneWidget);
     expect(
       find.text(
-        'It no longer produces responses, notifications, or trust evidence.',
+        'It no longer takes new offers or sends notifications.',
       ),
       findsOneWidget,
     );

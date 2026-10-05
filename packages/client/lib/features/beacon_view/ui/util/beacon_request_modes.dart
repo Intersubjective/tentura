@@ -1,7 +1,5 @@
 import 'package:flutter/foundation.dart';
 
-import 'package:tentura/domain/entity/beacon_participant.dart';
-import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 
@@ -92,47 +90,6 @@ BeaconShowcaseTeam beaconShowcaseTeamFromState(BeaconViewState state) {
     acquaintanceIds: state.teamAcquaintanceIds,
     viewerId: state.myProfile.id,
   );
-}
-
-/// One HUD party-frame row: a team member and their current move.
-@immutable
-class BeaconHudTeamMember {
-  const BeaconHudTeamMember({
-    required this.profile,
-    this.nextMove,
-    this.isAuthor = false,
-  });
-
-  final Profile profile;
-  final String? nextMove;
-  final bool isAuthor;
-}
-
-/// HUD team: author first, then admitted helpers, each with their next move
-/// from the room roster when the viewer can read it.
-List<BeaconHudTeamMember> beaconHudTeam(BeaconViewState state) {
-  final moves = <String, String>{
-    for (final BeaconParticipant p in state.roomParticipants)
-      if (p.roomAccess == RoomAccessBits.admitted &&
-          (p.nextMoveText?.trim().isNotEmpty ?? false))
-        p.userId: p.nextMoveText!.trim(),
-  };
-  final author = state.beacon.author;
-  final roster = state.admittedHelpersLoaded
-      ? state.admittedHelperRoster
-      : state.beacon.admittedHelperUsers;
-  final seen = <String>{author.id};
-  return [
-    if (author.id.isNotEmpty)
-      BeaconHudTeamMember(
-        profile: author,
-        nextMove: moves[author.id],
-        isAuthor: true,
-      ),
-    for (final p in roster)
-      if (p.id.isNotEmpty && seen.add(p.id))
-        BeaconHudTeamMember(profile: p, nextMove: moves[p.id]),
-  ];
 }
 
 /// Who last set the next step, as a display name; null when unknown.

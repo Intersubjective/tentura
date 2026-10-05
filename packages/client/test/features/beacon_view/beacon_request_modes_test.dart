@@ -5,7 +5,6 @@ import 'package:tentura_root/domain/entity/beacon_access.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
-import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
@@ -159,32 +158,6 @@ void main() {
     });
   });
 
-  group('beaconHudTeam', () {
-    test('author first, then helpers, with their next move', () {
-      final members = beaconHudTeam(
-        _state(
-          roster: const [_ivan],
-          participants: [
-            BeaconParticipant(
-              id: 'p1',
-              beaconId: 'B1',
-              userId: 'ivan',
-              role: BeaconParticipantRoleBits.helper,
-              status: 0,
-              roomAccess: RoomAccessBits.admitted,
-              createdAt: DateTime(2026),
-              updatedAt: DateTime(2026),
-              nextMoveText: 'soil, 2 m3',
-            ),
-          ],
-        ),
-      );
-      expect(members.map((m) => m.profile.id), ['author', 'ivan']);
-      expect(members.first.isAuthor, isTrue);
-      expect(members.last.nextMove, 'soil, 2 m3');
-    });
-  });
-
   group('beaconStepEditorName', () {
     test('resolves the last editor of the next step', () {
       expect(
@@ -260,6 +233,7 @@ void main() {
       expect(find.textContaining('Frame on Saturday'), findsOneWidget);
       expect(find.textContaining('Olga · '), findsOneWidget);
       expect(find.bySemanticsLabel('2 people in the team'), findsOneWidget);
+      expect(find.text('2 people'), findsOneWidget);
     });
 
     testWidgets('a long description folds behind Read more', (tester) async {

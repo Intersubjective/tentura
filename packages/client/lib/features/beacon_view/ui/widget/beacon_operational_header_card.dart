@@ -46,9 +46,10 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
 
   final BeaconViewState state;
 
-  /// False when the pinned HUD block above already shows YOU / BLOCKER /
-  /// NEXT STEP; the card then keeps only banners, author and actions, and
-  /// leaves Details to the HUD's ABOUT row.
+  /// False in the HUD, where the pinned block above shows YOU / NEXT STEP
+  /// and the counters (facts included), OUTCOME replaces the closed banner,
+  /// and People carries the author; the card then keeps only the access
+  /// banners and actions, and leaves Details to the HUD's ABOUT section.
   final bool showHudRows;
 
   final VoidCallback onAuthorTap;
@@ -111,7 +112,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          ClosedRequestBanner(beacon: state.beacon),
+          if (showHudRows) ClosedRequestBanner(beacon: state.beacon),
           if (state.beacon.status == BeaconStatus.closed &&
               !state.isBeaconMine &&
               state.isHelpOffered)
@@ -128,8 +129,8 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
             ),
           RequestAccessReasonBanner(beacon: state.beacon),
           // Someone else's Request has to say whose it is; the author's own
-          // view already knows.
-          if (!state.isBeaconMine) ...[
+          // view already knows, and so does the HUD (People tab).
+          if (showHudRows && !state.isBeaconMine) ...[
             _AuthorLine(
               author: state.beacon.author,
               label: l10n.beaconViewAuthorLine(state.beacon.author.shownName),
@@ -161,22 +162,24 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
             ),
             const SizedBox(height: kBeaconHudRowGap),
           ],
-          BeaconDetailsFactsAccessRow(
-            showDetails:
-                showHudRows && beaconViewHasDetailsContent(state.beacon),
-            factsCount: activePinnedFacts(state.factCards).length,
-            factsNewCount: pinnedFactsNewCount(
-              facts: state.factCards,
-              seenAt: state.pinnedFactsSeenAt,
-              viewerUserId: state.myProfile.id,
+          if (showHudRows) ...[
+            BeaconDetailsFactsAccessRow(
+              showDetails:
+                  showHudRows && beaconViewHasDetailsContent(state.beacon),
+              factsCount: activePinnedFacts(state.factCards).length,
+              factsNewCount: pinnedFactsNewCount(
+                facts: state.factCards,
+                seenAt: state.pinnedFactsSeenAt,
+                viewerUserId: state.myProfile.id,
+              ),
+              canAddFacts: state.canCoordinateInBeaconRoom,
+              onOpenDetails: () => unawaited(
+                showBeaconViewDetailsSheet(context, beacon: state.beacon),
+              ),
+              onOpenFacts: onOpenPinnedFacts,
             ),
-            canAddFacts: state.canCoordinateInBeaconRoom,
-            onOpenDetails: () => unawaited(
-              showBeaconViewDetailsSheet(context, beacon: state.beacon),
-            ),
-            onOpenFacts: onOpenPinnedFacts,
-          ),
-          const SizedBox(height: kBeaconHudRowGap),
+            const SizedBox(height: kBeaconHudRowGap),
+          ],
           if (hasOtherAction || showForwardCta) ...[
             const SizedBox(height: 10),
             if (authorSpec != null)

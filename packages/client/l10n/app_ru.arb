@@ -2728,7 +2728,7 @@
   "@requestClosedBannerTitle": {
     "context": "Title of the non-dismissible banner on closed requests (status 6)"
   },
-  "requestClosedBannerBody": "Новые отклики, уведомления и доверие по нему больше не создаются.",
+  "requestClosedBannerBody": "Новые отклики и уведомления больше не приходят.",
   "@requestClosedBannerBody": {
     "context": "Supporting text of the non-dismissible banner on closed requests (status 6)"
   },
@@ -6371,9 +6371,15 @@
   "beaconHudCounterTeam": "{count, plural, =1{В команде 1 человек} few{В команде {count} человека} other{В команде {count} человек}}",
   "beaconHudCounterSubrequests": "{count, plural, =1{1 подзапрос} few{{count} подзапроса} other{{count} подзапросов}}",
   "beaconHudCounterFacts": "{count, plural, =1{1 закреплённый факт} few{{count} закреплённых факта} other{{count} закреплённых фактов}}",
-  "beaconHudEssenceLabel": "СУТЬ",
-  "beaconHudTeamSection": "Команда",
-  "beaconHudTeamNoMove": "Ход не указан",
+  "beaconHudEssenceLabel": "Суть",
+  "beaconHudEssenceMore": "Подробнее",
+  "beaconHudCounterTeamShort": "{count, plural, one{{count} участник} few{{count} участника} many{{count} участников} other{{count} участника}}",
+  "beaconHudCounterFactsShort": "{count, plural, one{{count} факт} few{{count} факта} many{{count} фактов} other{{count} факта}}",
+  "beaconOutcomeSection": "Итог",
+  "beaconOutcomeClosed": "Завершён",
+  "beaconOutcomeCancelled": "Отменён",
+  "beaconOutcomeDeleted": "Удалён",
+  "beaconOutcomeReadOnlyNote": "Новые отклики и сообщения больше не принимаются, чат доступен для чтения.",
   "beaconCurrentLineEditHelper": "Его видят все в запросе. Изменить может автор и все, кого впустили.",
   "beaconShowcaseVia": "Переслал(а) {name}",
   "beaconShowcaseViaMore": "Переслал(а) {name} и ещё {count}",

@@ -94,9 +94,8 @@ Widget _harness({
 }) {
   final wc = windowClassForWidth(width);
   final baseTheme = TenturaTheme.light();
-  final tokens =
-      (baseTheme.extension<TenturaTokens>() ?? TenturaTokens.light)
-          .applyWindowClass(wc);
+  final tokens = (baseTheme.extension<TenturaTokens>() ?? TenturaTokens.light)
+      .applyWindowClass(wc);
   return MaterialApp(
     theme: baseTheme.copyWith(
       extensions: [
@@ -118,7 +117,9 @@ Widget _harness({
               ),
             ),
             BlocProvider<ThreadsCubit>.value(
-              value: _StaticThreadsCubit(threadsState ?? _threadsState(unread: 5)),
+              value: _StaticThreadsCubit(
+                threadsState ?? _threadsState(unread: 5),
+              ),
             ),
           ],
           child: SizedBox(width: width, child: child),
@@ -129,7 +130,7 @@ Widget _harness({
 }
 
 void main() {
-  testWidgets('People is icon-only at index 2 when not split', (tester) async {
+  testWidgets('People is labeled at index 2 when not split', (tester) async {
     await tester.pumpWidget(
       _harness(
         width: 360,
@@ -142,19 +143,12 @@ void main() {
     );
     await tester.pump();
 
-    final tt = TenturaTokens.light.applyWindowClass(WindowClass.compact);
-    expect(find.text('People'), findsNothing);
     expect(find.text('Now'), findsOneWidget);
     expect(find.text('Chat'), findsOneWidget);
-
-    final peopleIcon = find.byIcon(Icons.people_outline);
-    final peopleInkWell = tester.renderObject<RenderBox>(
-      find.ancestor(of: peopleIcon, matching: find.byType(InkWell)),
-    );
-    expect(peopleInkWell.size.width, tt.tabCompactWidth);
+    expect(find.text('People'), findsOneWidget);
   });
 
-  testWidgets('People is icon-only at index 1 when split', (tester) async {
+  testWidgets('People sits at index 1 when split', (tester) async {
     await tester.pumpWidget(
       _harness(
         width: 360,
@@ -169,7 +163,7 @@ void main() {
 
     expect(find.text('Chat'), findsNothing);
     expect(find.text('Now'), findsOneWidget);
-    expect(find.text('People'), findsNothing);
+    expect(find.text('People'), findsOneWidget);
     expect(find.byIcon(Icons.people_outline), findsOneWidget);
     expect(find.byIcon(Icons.forum_outlined), findsNothing);
   });
@@ -197,7 +191,9 @@ void main() {
     expect(selected, [BeaconSurface.room, BeaconSurface.people]);
   });
 
-  testWidgets('selected-but-hidden ROOM falls back to NOW index', (tester) async {
+  testWidgets('selected-but-hidden ROOM falls back to NOW index', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       _harness(
         width: 360,
@@ -216,7 +212,9 @@ void main() {
     expect(tabs.selectedIndex, 0);
   });
 
-  testWidgets('badges land on CHAT and People in non-split mode', (tester) async {
+  testWidgets('badges land on CHAT and People in non-split mode', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       _harness(
         width: 360,
@@ -233,7 +231,8 @@ void main() {
 
     expect(find.text('5'), findsOneWidget);
     expect(find.text('2'), findsOneWidget);
-    expect(find.text('3'), findsNothing);
+    // A labeled People tab has room for the coordination count too.
+    expect(find.text('3'), findsOneWidget);
   });
 
   testWidgets('badges land on People only in split mode', (tester) async {
@@ -255,7 +254,9 @@ void main() {
     expect(find.text('2'), findsOneWidget);
   });
 
-  testWidgets('NOW and CHAT stay equal width in non-split mode', (tester) async {
+  testWidgets('all three tabs share the width in non-split mode', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       _harness(
         width: 360,
@@ -268,19 +269,18 @@ void main() {
     );
     await tester.pump();
 
-    final tt = TenturaTokens.light.applyWindowClass(WindowClass.compact);
-    final inkWells = tester.renderObjectList<RenderBox>(
-      find.descendant(
-        of: find.byType(TenturaUnderlineTabs),
-        matching: find.byType(InkWell),
-      ),
-    );
-    final flexWidths = inkWells
+    final widths = tester
+        .renderObjectList<RenderBox>(
+          find.descendant(
+            of: find.byType(TenturaUnderlineTabs),
+            matching: find.byType(InkWell),
+          ),
+        )
         .map((box) => box.size.width)
-        .where((w) => w != tt.tabCompactWidth)
         .toList();
-    expect(flexWidths.length, 2);
-    expect(flexWidths[0], closeTo(flexWidths[1], 0.01));
+    expect(widths, hasLength(3));
+    expect(widths[0], closeTo(widths[1], 0.01));
+    expect(widths[1], closeTo(widths[2], 0.01));
   });
 
   testWidgets('reselecting the active tab calls onSurfaceReselected', (

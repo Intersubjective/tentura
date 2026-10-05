@@ -69,16 +69,17 @@ class BeaconSurfaceTabs extends StatelessWidget {
     }
 
     final peopleIndex = visible.indexOf(BeaconSurface.people);
-    final compactIconTabs = peopleIndex >= 0 ? {peopleIndex} : const <int>{};
 
     return BlocBuilder<BeaconViewCubit, BeaconViewState>(
       buildWhen: (p, c) =>
           p.isBeaconMine != c.isBeaconMine ||
           p.unansweredHelpOffersCount != c.unansweredHelpOffersCount ||
-          p.needCoordinationHelpOffersCount != c.needCoordinationHelpOffersCount,
+          p.needCoordinationHelpOffersCount !=
+              c.needCoordinationHelpOffersCount,
       builder: (context, beaconState) {
         final peopleTabBadge =
-            beaconState.isBeaconMine && beaconState.unansweredHelpOffersCount > 0
+            beaconState.isBeaconMine &&
+                beaconState.unansweredHelpOffersCount > 0
             ? beaconState.unansweredHelpOffersCount
             : null;
         final peopleTabSecondaryBadge =
@@ -127,7 +128,6 @@ class BeaconSurfaceTabs extends StatelessWidget {
               badges: badges,
               badgeBackgroundColors: badgeBackgroundColors,
               secondaryBadges: secondaryBadges,
-              compactIconTabs: compactIconTabs,
               attentionIndex: peopleIndex >= 0 ? peopleIndex : null,
               attentionActive: peopleTabAttentionActive,
             );

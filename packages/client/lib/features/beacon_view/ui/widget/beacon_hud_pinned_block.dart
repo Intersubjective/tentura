@@ -6,6 +6,7 @@ import 'package:tentura/features/beacon_view/domain/pinned_facts.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_request_modes.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/relative_time.dart';
 import 'package:tentura/ui/widget/beacon_hud_metadata_composer.dart';
 import 'package:tentura/ui/widget/beacon_hud_metadata_table.dart';
@@ -41,7 +42,6 @@ class BeaconHudPinnedBlock extends StatelessWidget {
 
   /// Clock for "2 h ago"; tests pin it.
   final DateTime? now;
-
 
   @override
   Widget build(BuildContext context) {
@@ -217,6 +217,13 @@ class _HudCounters extends StatelessWidget {
     final tt = context.tt;
     final team = 1 + state.beacon.admittedHelperCount;
     final facts = activePinnedFacts(state.factCards).length;
+    final newFacts = pinnedFactsNewCount(
+      facts: state.factCards,
+      seenAt: state.pinnedFactsSeenAt,
+      viewerUserId: state.myProfile.id,
+    );
+    // An empty board is still the way in for people who may pin facts.
+    final showFacts = facts > 0 || state.canCoordinateInBeaconRoom;
     // Offers waiting on the author are the team's open door: flag it.
     final pending = state.isAuthorOrSteward
         ? state.unansweredHelpOffersCount
@@ -225,7 +232,7 @@ class _HudCounters extends StatelessWidget {
     final counters = <Widget>[
       _HudCounter(
         icon: BeaconHudRowIcons.people,
-        value: '$team',
+        label: l10n.beaconHudCounterTeamShort(team),
         semanticsLabel: l10n.beaconHudCounterTeam(team),
         onTap: onOpenTeam,
         attention: pending > 0,
@@ -233,16 +240,24 @@ class _HudCounters extends StatelessWidget {
       if (subrequestCount > 0)
         _HudCounter(
           icon: Icons.subdirectory_arrow_right,
-          value: '$subrequestCount',
+          label: l10n.beaconHudCounterSubrequests(subrequestCount),
           semanticsLabel: l10n.beaconHudCounterSubrequests(subrequestCount),
           onTap: onOpenSubrequests,
         ),
-      if (facts > 0)
+      if (showFacts)
         _HudCounter(
+          key: TestIds.key(TestIds.beaconFactsOpen),
           icon: Icons.push_pin_outlined,
-          value: '$facts',
-          semanticsLabel: l10n.beaconHudCounterFacts(facts),
+          label: facts > 0
+              ? l10n.beaconHudCounterFactsShort(facts)
+              : l10n.beaconFactsRowLabel,
+          semanticsLabel: facts > 0
+              ? l10n.beaconHudCounterFacts(facts)
+              : l10n.beaconFactsRowLabel,
           onTap: onOpenFacts,
+          note: newFacts > 0 ? l10n.beaconYouNewCount(newFacts) : null,
+          attention: newFacts > 0,
+          attentionTone: TenturaTone.info,
         ),
     ];
 
@@ -259,22 +274,31 @@ class _HudCounters extends StatelessWidget {
 class _HudCounter extends StatelessWidget {
   const _HudCounter({
     required this.icon,
-    required this.value,
+    required this.label,
     required this.semanticsLabel,
     this.onTap,
+    this.note,
     this.attention = false,
+    this.attentionTone = TenturaTone.warn,
+    super.key,
   });
 
   final IconData icon;
-  final String value;
+  final String label;
   final String semanticsLabel;
   final VoidCallback? onTap;
+
+  /// Short tail after the label in the attention tone (e.g. "+1 new").
+  final String? note;
   final bool attention;
+  final TenturaTone attentionTone;
 
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
-    final color = attention ? tt.warn : tt.textMuted;
+    final color = attention
+        ? tenturaToneColor(tt, attentionTone)
+        : tt.textMuted;
     return Semantics(
       button: onTap != null,
       label: semanticsLabel,
@@ -295,9 +319,13 @@ class _HudCounter extends StatelessWidget {
                 Icon(icon, size: kBeaconHudRowIconSize, color: color),
                 SizedBox(width: tt.tightGap),
                 Text(
-                  value,
+                  label,
                   style: TenturaText.withTabular(TenturaText.status(tt.text)),
                 ),
+                if (note != null) ...[
+                  SizedBox(width: tt.tightGap),
+                  Text(note!, style: TenturaText.status(color)),
+                ],
               ],
             ),
           ),

@@ -2825,7 +2825,7 @@
   "@requestClosedBannerTitle": {
     "context": "Title of the non-dismissible banner on closed requests (status 6)"
   },
-  "requestClosedBannerBody": "It no longer produces responses, notifications, or trust evidence.",
+  "requestClosedBannerBody": "It no longer takes new offers or sends notifications.",
   "@requestClosedBannerBody": {
     "context": "Supporting text of the non-dismissible banner on closed requests (status 6)"
   },
@@ -7572,9 +7572,29 @@
       }
     }
   },
-  "beaconHudEssenceLabel": "ABOUT",
-  "beaconHudTeamSection": "Team",
-  "beaconHudTeamNoMove": "No move noted",
+  "beaconHudEssenceLabel": "About",
+  "beaconHudEssenceMore": "Details",
+  "beaconHudCounterTeamShort": "{count, plural, =1{1 person} other{{count} people}}",
+  "@beaconHudCounterTeamShort": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconHudCounterFactsShort": "{count, plural, =1{1 fact} other{{count} facts}}",
+  "@beaconHudCounterFactsShort": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconOutcomeSection": "Outcome",
+  "beaconOutcomeClosed": "Completed",
+  "beaconOutcomeCancelled": "Cancelled",
+  "beaconOutcomeDeleted": "Deleted",
+  "beaconOutcomeReadOnlyNote": "No new offers or messages. The chat stays readable.",
   "beaconCurrentLineEditHelper": "Everyone in the request sees it. The author and anyone let in can change it.",
   "batonOutcomeYou": "You took it.",
   "@batonOutcomeYou": {

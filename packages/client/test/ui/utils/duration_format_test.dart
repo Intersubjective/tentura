@@ -28,7 +28,10 @@ void main() {
 
   test('hours and minutes', () {
     expect(
-      formatCompactDurationRemaining(const Duration(hours: 2, minutes: 15), l10n),
+      formatCompactDurationRemaining(
+        const Duration(hours: 2, minutes: 15),
+        l10n,
+      ),
       '2h 15m',
     );
   });
@@ -53,7 +56,7 @@ void main() {
     );
   });
 
-  test('lifecycle ended other day shows date and time', () {
+  test('lifecycle ended earlier this year shows the day only', () {
     final endedAt = DateTime(2026, 6, 15, 14, 30);
     final now = DateTime(2026, 6, 20, 12);
     expect(
@@ -62,7 +65,20 @@ void main() {
         now: now,
         localeName: l10n.localeName,
       ),
-      'Jun 15, 2026, 14:30',
+      'Jun 15',
+    );
+  });
+
+  test('lifecycle ended in another year keeps the year', () {
+    final endedAt = DateTime(2025, 6, 15, 14, 30);
+    final now = DateTime(2026, 1, 20, 12);
+    expect(
+      formatBeaconLifecycleEndedAt(
+        endedAt: endedAt,
+        now: now,
+        localeName: l10n.localeName,
+      ),
+      'Jun 15, 2025',
     );
   });
 }
