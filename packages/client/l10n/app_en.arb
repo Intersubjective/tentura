@@ -7429,6 +7429,31 @@
       }
     }
   },
+  "batonCandidatePrompt": "Can you help? We're waiting for your response.",
+  "@batonCandidatePrompt": {
+    "description": "Prompt on the private «Who'll take it?» card shown to an asked person who has not answered."
+  },
+  "batonCandidateCanHelp": "Can help",
+  "@batonCandidateCanHelp": {
+    "description": "Positive answer button on the «Who'll take it?» candidate card."
+  },
+  "batonCandidateCantHelp": "Can't help",
+  "@batonCandidateCantHelp": {
+    "description": "Negative answer button on the «Who'll take it?» candidate card."
+  },
+  "batonCandidateAvailabilityNote": "\"Can help\" means you're available, not that you've taken it yet. If several people can help, one person will be selected.",
+  "@batonCandidateAvailabilityNote": {
+    "description": "Note under the answer buttons explaining that Can help is availability, not taking it."
+  },
+  "batonCandidateAnswered": "Your answer: {answer}. You can change it.",
+  "@batonCandidateAnswered": {
+    "description": "Shown after an asked person answered; {answer} is the Can help / Can't help label.",
+    "placeholders": {
+      "answer": {
+        "type": "String"
+      }
+    }
+  },
   "postMenuUnmuteForever": "Turn sound on · muted for good",
   "postInfoForwardingOpen": "Can be forwarded: any participant can bring others in",
   "postInfoForwardingClosed": "Only the author can forward",
@@ -7508,6 +7533,27 @@
   "beaconHudTeamSection": "Team",
   "beaconHudTeamNoMove": "No move noted",
   "beaconCurrentLineEditHelper": "Everyone in the request sees it. The author and anyone let in can change it.",
+  "batonOutcomeYou": "You took it.",
+  "@batonOutcomeYou": {
+    "description": "Final outcome shown to the person who was selected."
+  },
+  "batonOutcomeSomeoneElse": "Someone else was selected. Thanks for offering.",
+  "@batonOutcomeSomeoneElse": {
+    "description": "Final outcome shown to a volunteer who was not selected."
+  },
+  "batonOutcomeClosed": "No longer needed.",
+  "@batonOutcomeClosed": {
+    "description": "Final outcome shown to an asked person when the baton was cancelled or closed without them."
+  },
+  "batonTookIt": "{name} took it.",
+  "@batonTookIt": {
+    "description": "System line and observer chip naming the person who took the «Who'll take it?» baton.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "beaconShowcaseVia": "via {name}",
   "@beaconShowcaseVia": {
     "placeholders": {
@@ -7523,6 +7569,19 @@
         "type": "String"
       },
       "count": {
+        "type": "int"
+      }
+    }
+  },
+  "batonAuthorTitle": "Who'll take it: answers",
+  "@batonAuthorTitle": {
+    "description": "Heading of the message author's «Who'll take it?» card listing every asked person's answer."
+  },
+  "batonTierLabel": "Priority {n}",
+  "@batonTierLabel": {
+    "description": "Priority tier label of an asked person in a «Who'll take it?» baton.",
+    "placeholders": {
+      "n": {
         "type": "int"
       }
     }
@@ -7572,6 +7631,96 @@
   "beaconPreviewAsOthers": "How others see it",
   "beaconPreviewBanner": "This is how people outside the request see it",
   "beaconPreviewExit": "Back to my view",
+  "batonStatusCanHelp": "can help",
+  "@batonStatusCanHelp": {
+    "description": "Author's view: this asked person answered that they can help."
+  },
+  "batonStatusWaiting": "waiting",
+  "@batonStatusWaiting": {
+    "description": "Author's view: this asked person has not answered yet."
+  },
+  "batonStatusCantHelp": "can't help",
+  "@batonStatusCantHelp": {
+    "description": "Author's view: this asked person answered that they can't help."
+  },
+  "batonChooseNow": "Choose now",
+  "@batonChooseNow": {
+    "description": "Author's button that opens the sheet for choosing who takes it."
+  },
+  "batonAllAnswered": "Everyone answered. Choose who takes it.",
+  "@batonAllAnswered": {
+    "description": "Prompt on the author's card once every asked person has answered."
+  },
+  "batonNobodyYet": "Nobody can help yet.",
+  "@batonNobodyYet": {
+    "description": "Shown beside the disabled «Choose now» button while nobody has said they can help."
+  },
+  "batonPickForMe": "Pick for me",
+  "@batonPickForMe": {
+    "description": "Choose sheet action that lets the server select the person who takes it."
+  },
+  "batonPickForMeHint": "One person from the highest priority, at random.",
+  "@batonPickForMeHint": {
+    "description": "Explains what «Pick for me» does."
+  },
+  "batonCancel": "Cancel",
+  "@batonCancel": {
+    "description": "Author's button that cancels the «Who'll take it?» baton (asks for confirmation first)."
+  },
+  "batonCancelConfirmTitle": "Cancel \"Who'll take it?\"",
+  "@batonCancelConfirmTitle": {
+    "description": "Title of the confirmation dialog for cancelling a baton."
+  },
+  "batonCancelConfirmBody": "The people you asked will be told it's no longer needed.",
+  "@batonCancelConfirmBody": {
+    "description": "Body of the confirmation dialog for cancelling a baton."
+  },
+  "batonCancelConfirmAction": "Cancel it",
+  "@batonCancelConfirmAction": {
+    "description": "Confirm button of the cancel-baton dialog."
+  },
+  "batonReceiptAsked": "{author} asks you can help",
+  "@batonReceiptAsked": {
+    "description": "Private Activity receipt asking the viewer whether they can help.",
+    "placeholders": {
+      "author": {
+        "type": "String"
+      }
+    }
+  },
+  "batonReceiptTaken": "You took it: {excerpt}",
+  "@batonReceiptTaken": {
+    "description": "Private Activity receipt for the selected person.",
+    "placeholders": {
+      "excerpt": {
+        "type": "String"
+      }
+    }
+  },
+  "batonReceiptAllAnswered": "Everyone answered your «Who'll take it?»",
+  "@batonReceiptAllAnswered": {
+    "description": "Private Activity receipt telling the message author everyone answered."
+  },
+  "batonActionStart": "Who'll take it?",
+  "@batonActionStart": {
+    "description": "Message action that starts a «Who'll take it?» baton on the viewer's own message."
+  },
+  "batonCreateTitle": "Who'll take it?",
+  "@batonCreateTitle": {
+    "description": "Title of the sheet where the author picks people to ask «Who'll take it?»."
+  },
+  "batonCreateHint": "Ask a few people privately. Only you will see their answers.",
+  "@batonCreateHint": {
+    "description": "Hint under the title of the create-baton sheet."
+  },
+  "batonCreateTiersToggle": "Set priority",
+  "@batonCreateTiersToggle": {
+    "description": "Switch that reveals a priority control per picked person in the create-baton sheet."
+  },
+  "batonCreateSubmit": "Ask",
+  "@batonCreateSubmit": {
+    "description": "Button that sends the «Who'll take it?» question to the picked people."
+  },
   "composerEmojiButtonTooltip": "Emoji",
   "@composerEmojiButtonTooltip": {
     "context": "Tooltip of the chat composer button that opens the emoji picker"

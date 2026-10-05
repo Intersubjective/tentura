@@ -101,12 +101,14 @@ void main() {
       );
     });
 
-    test('is the next minor, not a jump that skips a real release', () {
-      // The floor names a version its own release must actually ship.
-      // Anything further ahead locks out the release that carries the
-      // contract as well, so the floor must match the shipped client
-      // version exactly rather than merely satisfy it.
-      expect(kDefaultMinClientVersion, _shippedClientVersion());
+    test('compatible baton release preserves the existing cutover floor', () {
+      // Baton enables an already compatible wire contract. Its client-only
+      // release must not force otherwise compatible 7.31.0 clients to update.
+      expect(kDefaultMinClientVersion, '7.31.0');
+      expect(
+        _compare(_shippedClientVersion(), kDefaultMinClientVersion),
+        greaterThanOrEqualTo(0),
+      );
     });
   });
 }

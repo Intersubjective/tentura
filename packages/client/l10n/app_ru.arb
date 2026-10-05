@@ -6373,6 +6373,71 @@
   "beaconPreviewAsOthers": "Как видят другие",
   "beaconPreviewBanner": "Так запрос видят те, кого ещё не впустили",
   "beaconPreviewExit": "Вернуться к своему виду",
+  "batonCandidatePrompt": "Сможете помочь? Мы ждём вашего ответа.",
+  "batonCandidateCanHelp": "Могу помочь",
+  "batonCandidateCantHelp": "Не могу",
+  "batonCandidateAvailabilityNote": "«Могу помочь» значит, что вы свободны, а не что вы уже взялись. Если помочь смогут несколько человек, выберут одного.",
+  "batonCandidateAnswered": "Ваш ответ: {answer}. Его можно изменить.",
+  "batonOutcomeYou": "Вы взялись за это.",
+  "batonOutcomeSomeoneElse": "Выбрали другого человека. Спасибо, что откликнулись.",
+  "batonOutcomeClosed": "Больше не нужно.",
+  "batonTookIt": "Берёт на себя: {name}",
+  "batonAuthorTitle": "Кто возьмётся: ответы",
+  "batonTierLabel": "Приоритет {n}",
+  "batonStatusCanHelp": "может помочь",
+  "batonStatusWaiting": "ждём ответа",
+  "batonStatusCantHelp": "не может",
+  "batonChooseNow": "Выбрать сейчас",
+  "batonAllAnswered": "Все ответили. Выберите, кто возьмётся.",
+  "batonNobodyYet": "Пока никто не может.",
+  "batonPickForMe": "Выбрать за меня",
+  "batonPickForMeHint": "Один человек из самого высокого приоритета, случайно.",
+  "batonCancel": "Отменить",
+  "batonCancelConfirmTitle": "Отменить «Кто возьмётся?»",
+  "batonCancelConfirmBody": "Людям, которых вы спросили, сообщим, что это больше не нужно.",
+  "batonCancelConfirmAction": "Отменить",
+  "batonReceiptAsked": "{author} спрашивает, сможете ли вы помочь",
+  "@batonReceiptAsked": {
+    "description": "Private Activity receipt asking the viewer whether they can help.",
+    "placeholders": {
+      "author": {
+        "type": "String"
+      }
+    }
+  },
+  "batonReceiptTaken": "Вы взялись: {excerpt}",
+  "@batonReceiptTaken": {
+    "description": "Private Activity receipt for the selected person.",
+    "placeholders": {
+      "excerpt": {
+        "type": "String"
+      }
+    }
+  },
+  "batonReceiptAllAnswered": "Все ответили на ваше «Кто возьмётся?»",
+  "@batonReceiptAllAnswered": {
+    "description": "Private Activity receipt telling the message author everyone answered."
+  },
+  "batonActionStart": "Кто возьмётся?",
+  "@batonActionStart": {
+    "description": "Message action that starts a «Who'll take it?» baton on the viewer's own message."
+  },
+  "batonCreateTitle": "Кто возьмётся?",
+  "@batonCreateTitle": {
+    "description": "Title of the sheet where the author picks people to ask «Who'll take it?»."
+  },
+  "batonCreateHint": "Спросите нескольких человек лично. Ответы увидите только вы.",
+  "@batonCreateHint": {
+    "description": "Hint under the title of the create-baton sheet."
+  },
+  "batonCreateTiersToggle": "Задать приоритет",
+  "@batonCreateTiersToggle": {
+    "description": "Switch that reveals a priority control per picked person in the create-baton sheet."
+  },
+  "batonCreateSubmit": "Спросить",
+  "@batonCreateSubmit": {
+    "description": "Button that sends the «Who'll take it?» question to the picked people."
+  },
   "composerEmojiButtonTooltip": "Эмодзи",
   "emojiPickerSearchHint": "Поиск эмодзи",
   "emojiPickerNoRecents": "Здесь появятся эмодзи, которые вы используете"

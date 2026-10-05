@@ -10,6 +10,7 @@ import 'package:http/http.dart' as http;
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'package:tentura/app/sentry/sentry_init.dart';
+import 'package:tentura/features/beacon_threads/domain/exception/baton_exceptions.dart';
 import 'package:tentura/features/beacon_threads/domain/exception/beacon_fact_already_pinned_exception.dart';
 import 'package:tentura_root/consts.dart';
 
@@ -83,6 +84,7 @@ Future<Client> buildClient({
               throwIfBeaconHierarchyError(code, ext);
               throwIfConstellationError(code, ext);
               throwIfClosureError(code);
+              throwIfBatonError(code);
             }
             throw mapRemoteFailure(errs);
           }

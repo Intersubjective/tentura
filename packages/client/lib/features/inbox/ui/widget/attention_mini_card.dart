@@ -1,3 +1,5 @@
+import 'dart:async' show unawaited;
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
@@ -142,16 +144,21 @@ class _AttentionMiniCardState extends State<AttentionMiniCard>
     setState(() => _dismissing = true);
     final announcement = L10n.of(context)!.attentionEventDismissed;
     final direction = Directionality.of(context);
-    _collapse.reverse().whenComplete(() {
-      if (!mounted) return;
-      // Keep the reading position: hand focus to the next row before this one
-      // leaves the tree, so it cannot fall back to the top of the list.
-      if (_dismissFocus.hasFocus) {
-        _dismissFocus.nextFocus();
-      }
-      SemanticsService.announce(announcement, direction);
-      widget.onDismiss?.call();
-    });
+    final view = View.of(context);
+    unawaited(
+      _collapse.reverse().whenComplete(() {
+        if (!mounted) return;
+        // Keep the reading position: hand focus to the next row before this one
+        // leaves the tree, so it cannot fall back to the top of the list.
+        if (_dismissFocus.hasFocus) {
+          _dismissFocus.nextFocus();
+        }
+        unawaited(
+          SemanticsService.sendAnnouncement(view, announcement, direction),
+        );
+        widget.onDismiss?.call();
+      }),
+    );
   }
 
   @override
@@ -168,9 +175,20 @@ class _AttentionMiniCardState extends State<AttentionMiniCard>
       presentationKey: widget.receipt.presentationKey,
       presentationPayloadJson: widget.receipt.presentationPayloadJson,
       requestTitle: widget.requestTitle,
+      actorName: shownName,
       l10n: l10n,
     );
-    final eventLine = widget.nameOnly && shownName.isNotEmpty
+    final isBaton =
+        batonReceiptDisplayCopy(
+          title: widget.receipt.title,
+          presentationKey: widget.receipt.presentationKey,
+          presentationPayloadJson: widget.receipt.presentationPayloadJson,
+          l10n: l10n,
+        ) !=
+        null;
+    final eventLine = isBaton
+        ? scoped.event
+        : widget.nameOnly && shownName.isNotEmpty
         ? shownName
         : _eventLine(l10n, scoped.event, shownName);
     final localCreatedAt = widget.receipt.createdAt.toLocal();
@@ -230,7 +248,6 @@ class _AttentionMiniCardState extends State<AttentionMiniCard>
               children: [
                 LayoutBuilder(
                   builder: (context, rowConstraints) => Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Expanded(
                         // With a CTA on the line the age moves under the
@@ -314,7 +331,7 @@ class _AttentionMiniCardState extends State<AttentionMiniCard>
 
     return SizeTransition(
       sizeFactor: _collapse,
-      axisAlignment: -1,
+      alignment: Alignment.topCenter,
       child: FadeTransition(
         opacity: _collapse,
         child: Material(
@@ -428,7 +445,6 @@ class _CappedCapabilityChips extends StatelessWidget {
     final chips = ForwardCapabilityChips(slugs: shown);
     if (hidden <= 0) return chips;
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Flexible(child: chips),
         SizedBox(width: tt.tightGap),

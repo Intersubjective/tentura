@@ -2,6 +2,8 @@
 /// (`docs/plans/baton-who-takes-it-plan.md`).
 library;
 
+import 'package:tentura_server/utils/id.dart';
+
 /// Canonical persisted baton status (`beacon_room_baton.status` smallint).
 enum BatonStatus {
   collecting(0),
@@ -56,6 +58,8 @@ enum BatonSelectionMode {
 }
 
 class RoomBaton {
+  static String get newId => generateId('L');
+
   const RoomBaton({
     required this.id,
     required this.messageId,

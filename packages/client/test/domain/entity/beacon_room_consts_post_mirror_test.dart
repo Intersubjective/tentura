@@ -10,5 +10,9 @@ void main() {
     test('converted-to-request system message kind', () {
       expect(BeaconRoomSystemMessageKind.convertedToRequest, 4);
     });
+
+    test('baton taken semantic marker', () {
+      expect(BeaconRoomSemanticMarker.batonTaken, 12);
+    });
   });
 }

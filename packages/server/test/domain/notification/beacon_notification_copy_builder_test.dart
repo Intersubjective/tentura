@@ -304,4 +304,34 @@ void main() {
     expect(withWords.excerpt, 'see you at 9');
     expect(without.excerpt, isEmpty);
   });
+  for (final locale in ['en', 'ru']) {
+    for (final kind in [
+      NotificationKind.batonAsked,
+      NotificationKind.batonTaken,
+      NotificationKind.batonAllAnswered,
+    ]) {
+      test('baton receipt push copy ${kind.name} $locale', () {
+        final copy = builder.build(
+          intent: intent(kind: kind, bodyExcerpt: 'Carry the boxes'),
+          actorDisplayName: 'Anna',
+          locale: locale,
+        );
+        final expected = switch ((locale, kind)) {
+          ('ru', NotificationKind.batonAsked) =>
+            'Anna спрашивает, сможете ли вы помочь',
+          ('ru', NotificationKind.batonTaken) => 'Вы взялись: Carry the boxes',
+          ('ru', _) => 'Все ответили на ваше «Кто возьмётся?»',
+          (_, NotificationKind.batonAsked) => 'Anna asks you can help',
+          (_, NotificationKind.batonTaken) => 'You took it: Carry the boxes',
+          _ => "Everyone answered your «Who'll take it?»",
+        };
+        expect(
+          kind == NotificationKind.batonAsked ? copy.title : copy.body,
+          expected,
+        );
+        expect(copy.excerpt, 'Carry the boxes');
+        expect(copy.actionUrl, contains('tab=threads'));
+      });
+    }
+  }
 }

@@ -26,6 +26,7 @@ import 'package:tentura/features/beacon_view/ui/util/beacon_hud_derivation.dart'
 import 'package:tentura/ui/widget/hud_labeled_multiline.dart';
 import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura/consts.dart';
 
 import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/features/beacon_threads/domain/room_message_receipt.dart';
@@ -34,6 +35,7 @@ import '../bloc/room_cubit.dart';
 import '../coordination_room_navigation.dart';
 import 'fact_actions_sheet.dart';
 import 'fact_picker_sheet.dart';
+import 'room_baton_create_sheet.dart';
 import 'room_file_attachment_open.dart';
 import 'room_readers_sheet.dart';
 
@@ -48,9 +50,14 @@ class BeaconRoomBody extends StatefulWidget {
     this.onOpenCoordinationItem,
     this.capabilities = const RoomCapabilities.request(),
     this.postRoot,
+    this.batonEnabled = kBatonEnabled,
   });
 
   final bool enableComposer;
+
+  /// Offers «Who'll take it?» on the viewer's own messages; defaults to
+  /// [kBatonEnabled].
+  final bool batonEnabled;
 
   /// Request-only features the hosting screen offers in this room.
   final RoomCapabilities capabilities;
@@ -305,6 +312,20 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                     variantIds: variantIds,
                     score: score,
                   )
+                : null,
+            onBatonRespond: canWrite
+                ? (messageId, batonId, canHelp) => cubit.batonRespond(
+                    messageId: messageId,
+                    batonId: batonId,
+                    canHelp: canHelp,
+                  )
+                : null,
+            onBatonSelect: canWrite
+                ? (_, batonId, userId) =>
+                      cubit.batonSelect(batonId: batonId, userId: userId)
+                : null,
+            onBatonCancel: canWrite
+                ? (_, batonId) => cubit.batonCancel(batonId: batonId)
                 : null,
             onSend: widget.enableComposer
                 ? (body, uploads) => cubit.sendMessage(
@@ -570,6 +591,12 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
         linkedItem == null &&
         !_suppressesRichMessageActions(message);
     final hasBodyText = message.body.trim().isNotEmpty;
+    final showBatonStart =
+        widget.batonEnabled &&
+        canWrite &&
+        isOwnMessage &&
+        message.semanticMarker == null &&
+        message.baton == null;
     unawaited(
       showModalBottomSheet<void>(
         context: context,
@@ -642,6 +669,31 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                           l10n: l10n,
                           viewer: viewer,
                           message: message,
+                        ),
+                      if (showBatonStart)
+                        ListTile(
+                          leading: const Icon(Icons.pan_tool_alt_outlined),
+                          title: Text(l10n.batonActionStart),
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            unawaited(
+                              showRoomBatonCreateSheet(
+                                context,
+                                participants: [
+                                  for (final p in cubit.state.participants)
+                                    if (p.userId != viewer.id &&
+                                        p.roomAccess == RoomAccessBits.admitted)
+                                      p,
+                                ],
+                                onAsk: (candidates) => unawaited(
+                                  cubit.batonCreate(
+                                    messageId: message.id,
+                                    candidates: candidates,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
                         ),
                       if (canWrite && RoomCubit.canReplyTo(message))
                         ListTile(

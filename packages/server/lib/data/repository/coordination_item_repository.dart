@@ -1701,6 +1701,7 @@ int _previewKindForSemanticMarker(int marker) => switch (marker) {
       BeaconRoomSemanticMarker.factEdited => ThreadMessagePreviewKind.factEdited,
       BeaconRoomSemanticMarker.factUnpinned =>
         ThreadMessagePreviewKind.factUnpinned,
+      BeaconRoomSemanticMarker.batonTaken => ThreadMessagePreviewKind.text,
       _ => throw StateError('Unknown semantic marker: $marker'),
     };
 

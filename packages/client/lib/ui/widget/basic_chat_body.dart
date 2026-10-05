@@ -76,6 +76,9 @@ class BasicChatBody extends StatefulWidget {
     this.onToggleReaction,
     this.onOpenFileAttachment,
     this.onVotePoll,
+    this.onBatonRespond,
+    this.onBatonSelect,
+    this.onBatonCancel,
     this.header,
     this.emptyPlaceholder,
     this.imageRepository,
@@ -152,6 +155,14 @@ class BasicChatBody extends StatefulWidget {
     int? score,
   })?
   onVotePoll;
+
+  final void Function(String messageId, String batonId, bool canHelp)?
+  onBatonRespond;
+
+  final void Function(String messageId, String batonId, String? userId)?
+  onBatonSelect;
+
+  final void Function(String messageId, String batonId)? onBatonCancel;
 
   final Future<bool> Function(String body, List<RoomPendingUpload> uploads)?
   onSend;
@@ -614,6 +625,24 @@ class BasicChatBodyState extends State<BasicChatBody> {
                                     variantIds,
                                     score: score,
                                   ),
+                            onBatonRespond: widget.onBatonRespond == null
+                                ? null
+                                : (batonId, canHelp) => widget.onBatonRespond!(
+                                    m.id,
+                                    batonId,
+                                    canHelp,
+                                  ),
+                            onBatonSelect: widget.onBatonSelect == null
+                                ? null
+                                : (batonId, userId) => widget.onBatonSelect!(
+                                    m.id,
+                                    batonId,
+                                    userId,
+                                  ),
+                            onBatonCancel: widget.onBatonCancel == null
+                                ? null
+                                : (batonId) =>
+                                      widget.onBatonCancel!(m.id, batonId),
                             onScrollToPromoteSource:
                                 widget.onScrollToPromoteSource,
                             onOpenCoordinationItem:

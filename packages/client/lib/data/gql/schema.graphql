@@ -4061,6 +4061,10 @@ type mutation_root {
   releaseCommitment(id: String!, offerUserId: String!, reason: String!): v2_BeaconStatusResult!
   removeFromRoom(id: String!, offerUserId: String!, reason: String!): v2_BeaconStatusResult!
   revokeAcknowledgement(beaconId: String!, slug: String!, subjectId: String!): Boolean!
+  roomBatonCancel(batonId: String!): Boolean!
+  roomBatonCreate(candidates: [v2_RoomBatonCandidateInput!]!, messageId: String!): String
+  roomBatonRespond(batonId: String!, canHelp: Boolean!): String
+  roomBatonSelect(batonId: String!, userId: String): String
   seedRoutingAttestation(slugs: [String!], subjectId: String!): Boolean!
   setBeaconStatus(id: String!, status: Int!): v2_BeaconStatusResult!
   setCoordinationResponse(id: String!, inviteToRoom: Boolean! = false, offerUserId: String!, removeFromRoom: Boolean! = false, responseType: Int!): v2_BeaconStatusResult!
@@ -8477,6 +8481,11 @@ type v2_ReviewWindowStatus {
   windowComplete: Boolean
 }
 
+input v2_RoomBatonCandidateInput {
+  tier: Int!
+  userId: String!
+}
+
 type v2_RoomMessageCreatePayload {
   id: String!
 }
@@ -8502,6 +8511,7 @@ type v2_RoomMessageRow {
   authorPicHeight: Int!
   authorPicWidth: Int!
   authorTitle: String!
+  batonDataJson: String
   beaconId: String!
   body: String!
   createdAt: String!
