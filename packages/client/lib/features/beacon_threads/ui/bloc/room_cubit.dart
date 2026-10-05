@@ -1397,6 +1397,21 @@ class RoomCubit extends Cubit<RoomState> {
     }
   }
 
+  /// Author: asks [candidates] «Who'll take it?» on [messageId], then
+  /// refetches so the author's card appears on the message.
+  Future<void> batonCreate({
+    required String messageId,
+    required List<({String userId, int tier})> candidates,
+  }) async {
+    if (_rejectIfDiscussionReadOnly()) return;
+    try {
+      await _case.batonCreate(messageId: messageId, candidates: candidates);
+      await _requestRefresh(scope: _RoomRefreshScope.messages);
+    } on Object catch (e) {
+      _showSnackError(e);
+    }
+  }
+
   /// Records the viewer's answer to a «Who'll take it?» baton, showing it
   /// at once and rolling it back when the request fails.
   Future<void> batonRespond({

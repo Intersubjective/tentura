@@ -416,6 +416,11 @@ base class BeaconThreadsCase extends UseCaseBase {
   }) =>
       _polling.vote(pollingId: pollingId, variantIds: variantIds, score: score);
 
+  Future<RoomBatonData?> batonCreate({
+    required String messageId,
+    required List<({String userId, int tier})> candidates,
+  }) => _room.batonCreate(messageId: messageId, candidates: candidates);
+
   Future<RoomBatonData?> batonRespond({
     required String batonId,
     required bool canHelp,

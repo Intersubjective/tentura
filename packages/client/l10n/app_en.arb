@@ -7700,5 +7700,25 @@
   "batonReceiptAllAnswered": "Everyone answered your «Who'll take it?»",
   "@batonReceiptAllAnswered": {
     "description": "Private Activity receipt telling the message author everyone answered."
+  },
+  "batonActionStart": "Who'll take it?",
+  "@batonActionStart": {
+    "description": "Message action that starts a «Who'll take it?» baton on the viewer's own message."
+  },
+  "batonCreateTitle": "Who'll take it?",
+  "@batonCreateTitle": {
+    "description": "Title of the sheet where the author picks people to ask «Who'll take it?»."
+  },
+  "batonCreateHint": "Ask a few people privately. Only you will see their answers.",
+  "@batonCreateHint": {
+    "description": "Hint under the title of the create-baton sheet."
+  },
+  "batonCreateTiersToggle": "Set priority",
+  "@batonCreateTiersToggle": {
+    "description": "Switch that reveals a priority control per picked person in the create-baton sheet."
+  },
+  "batonCreateSubmit": "Ask",
+  "@batonCreateSubmit": {
+    "description": "Button that sends the «Who'll take it?» question to the picked people."
   }
 }
