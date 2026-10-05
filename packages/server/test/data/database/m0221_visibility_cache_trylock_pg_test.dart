@@ -42,15 +42,15 @@ Future<void> main() async {
       await tearDownDisposablePgWriter(session: session);
     });
 
-    test('cached visibility uses try-lock, not blocking advisory_xact_lock',
-        () async {
+    test('cached visibility takes no per-pair advisory lock', () async {
+      // m0221 switched to a try-lock; m0222 dropped the lock with the
+      // cross-transaction cache table.
       final rows = await writer.execute('''
 SELECT pg_get_functiondef(
   'public.person_are_mutually_visible_cached(text,text,text)'::regprocedure)
 ''');
       final def = rows.single.single! as String;
-      expect(def, contains('pg_try_advisory_xact_lock'));
-      expect(def, isNot(contains('PERFORM pg_advisory_xact_lock')));
+      expect(def, isNot(contains('pg_advisory_xact_lock')));
     });
 
     test('crossed concurrent pair walks do not deadlock', () async {

@@ -298,3 +298,39 @@ A new unit, **UNIT 04a — "Discoverability visibility cache"**, is inserted
 between UNIT 04 and UNIT 05 in the plan's §3 manifest (implements this cache
 spec) and in the journal's unit checklist. UNIT 05's dependency list gains
 `04a`. UNIT 04a is not folded into UNIT 05, per plan §0.1's instruction.
+
+## Superseded (2026-10-05, m0222, #232)
+
+The UNIT 04a cache table (`person_mutual_visibility_cache`) is no longer read
+or written. Measured on dev, it did not deliver this gate's goal:
+
+- **Read-only transactions bypassed it.** Hasura queries and constellation
+  snapshots (`withReadSnapshot`) run read-only, could not write the cache, and
+  recomputed `person_are_mutually_visible` (1–2 MeritRank round-trips) for
+  every beacon row: `beacon_can_read_content` over 225 beacons took 23.6 s
+  read-only and 13.0 s read-write. Only 2 of 150 cache rows were fresh (60 s
+  TTL plus invalidation on every epoch and trust-version bump).
+- **Every MeritRank call stalled ~88 ms** on Nagle + delayed ACK in the RPC
+  framing (#231, meritrank-rust PR #88), so each miss was expensive.
+
+What replaced it:
+
+- **Closed form.** `mr_mutual_scores(v)` lists `p` iff `S_v(p) > 0` and
+  returns `S_p(v)` with it, so the D14 OR-closure reduces to
+  `(S_v(p) > 0 OR T(v,p)) AND (S_p(v) > 0 OR T(p,v))`. Every mutually
+  visible peer is listed or explicitly trusted by `v`, and
+  `person_are_mutually_visible(v, x)` ≡ `x ∈ person_visible_peers_symmetric(v)`.
+  Only a one-way trusted, unlisted peer costs an extra `mr_node_score`.
+- **Per-transaction memo.** `person_visible_peer_ids_tx(viewer, ctx)` computes
+  the viewer's set once per transaction (read-only included), keyed with the
+  MR epoch and trust version, and stores it in a transaction-local setting.
+  MeritRank failure → empty set for that transaction (fail closed, no per-row
+  retries).
+- **Unchanged:** the block rules (`block_hides` stays live, outside the memo)
+  and the fail-closed outage behaviour.
+
+Equivalence was checked on dev data: the readable-beacon and visible-peer sets
+for 5 viewers are identical before and after (0 differing rows), and the
+symmetry suite (200 random pairs, documented asymmetry case) passes.
+`beacon_can_read_content` over 225 beacons went from 12.7 s to 0.24 s with the
+MR stall still present.

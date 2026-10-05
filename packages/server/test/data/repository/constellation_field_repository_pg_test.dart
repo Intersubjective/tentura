@@ -564,16 +564,18 @@ WHERE id = 'Bstartat001'
       expect(await visibilityCacheCount(), 0);
     }, skip: skipReason);
 
-    test('read-write visibility lookup populates cache row', () async {
+    // m0222: visibility is memoized per transaction; the cross-transaction
+    // cache table is no longer written on any path.
+    test('read-write visibility lookup answers without cache writes', () async {
       const peer = 'Ucfp03warm';
       await insertUser(peer);
       await reciprocalTrust(egoId, peer);
       await db.customStatement('TRUNCATE public.person_mutual_visibility_cache');
+      final row = await db.customSelect(
+        "SELECT public.person_are_mutually_visible_cached('$egoId', '$peer', '$ctx') AS v",
+      ).getSingle();
+      expect(row.read<bool>('v'), isTrue);
       expect(await visibilityCacheCount(), 0);
-      await db.customStatement(
-        "SELECT public.person_are_mutually_visible_cached('$egoId', '$peer', '$ctx')",
-      );
-      expect(await visibilityCacheCount(), greaterThan(0));
     }, skip: skipReason);
 
     test('pinned Beacon author without graph path is residual support peer',
