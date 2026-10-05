@@ -7795,5 +7795,697 @@
   "emojiPickerNoRecents": "Emoji you use will show up here",
   "@emojiPickerNoRecents": {
     "context": "Empty Recently used tab of the emoji picker"
+  },
+  "labelBeaconTabPlan": "Plan",
+  "@labelBeaconTabPlan": {
+    "description": "Request detail tab with the Request plan (steps, who, when)."
+  },
+  "planHeader": "Plan · {done}/{total} · edited by {name}, {when}",
+  "@planHeader": {
+    "description": "Plan tab header: done/total steps and the last editor.",
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      },
+      "name": {
+        "type": "String"
+      },
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "planHeaderShort": "Plan · {done}/{total}",
+  "@planHeaderShort": {
+    "description": "Plan tab header without a known editor.",
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "planHeaderOverdue": "⏰ {count}",
+  "@planHeaderOverdue": {
+    "description": "Plan tab header: number of overdue steps.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planHeaderOverdueSemantics": "Overdue steps: {count}",
+  "@planHeaderOverdueSemantics": {
+    "description": "Semantics label for the overdue counter in the plan header.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planFilterAll": "All",
+  "@planFilterAll": {
+    "description": "Plan filter: every step."
+  },
+  "planFilterMine": "Mine",
+  "@planFilterMine": {
+    "description": "Plan filter: only the viewer's steps."
+  },
+  "planFilterUnassigned": "No assignee",
+  "@planFilterUnassigned": {
+    "description": "Plan filter: steps without an assignee."
+  },
+  "planFilterEmpty": "No steps for this filter",
+  "@planFilterEmpty": {
+    "description": "Plan list is empty under the chosen filter."
+  },
+  "planHistoryAction": "History",
+  "@planHistoryAction": {
+    "description": "Opens the plan revision history."
+  },
+  "planNowLineLabel": "{time} now",
+  "@planNowLineLabel": {
+    "description": "The red «now» line between past and future plan steps.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "planNoAssignee": "no assignee",
+  "@planNoAssignee": {
+    "description": "Step row: the step has nobody assigned."
+  },
+  "planUntimed": "—",
+  "@planUntimed": {
+    "description": "Step row time slot of a step without time."
+  },
+  "planUntimedSemantics": "no time",
+  "@planUntimedSemantics": {
+    "description": "Semantics for a step without time."
+  },
+  "planEndOnly": "by {time}",
+  "@planEndOnly": {
+    "description": "Step with only an end time.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "planDoneBy": "marked by {name}",
+  "@planDoneBy": {
+    "description": "Who ticked the step.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "planAwaitingAck": "awaiting confirmation: {name}",
+  "@planAwaitingAck": {
+    "description": "The assignee has not confirmed the latest change yet.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "planEmptyTitle": "No plan yet.",
+  "@planEmptyTitle": {
+    "description": "Plan tab empty state title."
+  },
+  "planEmptyBody": "Write down who does what and when, and everyone will see their step.",
+  "@planEmptyBody": {
+    "description": "Plan tab empty state body."
+  },
+  "planEmptyCta": "Create plan",
+  "@planEmptyCta": {
+    "description": "Plan tab empty state action (editors only)."
+  },
+  "planEmptyHistoryLink": "Plan history ›",
+  "@planEmptyHistoryLink": {
+    "description": "Link to the plan history when every step was removed."
+  },
+  "planStepCheckboxDone": "Mark done: {step}",
+  "@planStepCheckboxDone": {
+    "description": "Semantics: tick checkbox of a step.",
+    "placeholders": {
+      "step": {
+        "type": "String"
+      }
+    }
+  },
+  "planStepCheckboxUndone": "Unmark: {step}",
+  "@planStepCheckboxUndone": {
+    "description": "Semantics: untick checkbox of a step.",
+    "placeholders": {
+      "step": {
+        "type": "String"
+      }
+    }
+  },
+  "planStepOverdueSemantics": "Overdue: {step}",
+  "@planStepOverdueSemantics": {
+    "description": "Semantics: overdue step.",
+    "placeholders": {
+      "step": {
+        "type": "String"
+      }
+    }
+  },
+  "planActionDone": "Done",
+  "@planActionDone": {
+    "description": "Marks a plan step done."
+  },
+  "planActionUndone": "Unmark",
+  "@planActionUndone": {
+    "description": "Removes the done mark of a step."
+  },
+  "planActionCantMake": "Can't make it",
+  "@planActionCantMake": {
+    "description": "The assignee can't do the step as planned."
+  },
+  "planActionAck": "Got it",
+  "@planActionAck": {
+    "description": "Confirms the viewer saw changes to their steps."
+  },
+  "planActionReschedule": "Move",
+  "@planActionReschedule": {
+    "description": "Confirms moving a step to a new time."
+  },
+  "planActionEdit": "Edit",
+  "@planActionEdit": {
+    "description": "Opens the plan editor on this step."
+  },
+  "planCantMakeReschedule": "Move to…",
+  "@planCantMakeReschedule": {
+    "description": "«Can't make it» option: move the step."
+  },
+  "planCantMakeHandover": "Hand over to someone",
+  "@planCantMakeHandover": {
+    "description": "«Can't make it» option: hand the step to another admitted person."
+  },
+  "planCantMakeChat": "Write in the discussion",
+  "@planCantMakeChat": {
+    "description": "«Can't make it» option: write in the Request discussion."
+  },
+  "planCantMakeNeedTime": "Set a new start or end",
+  "@planCantMakeNeedTime": {
+    "description": "Reschedule sheet: no time chosen yet."
+  },
+  "planStepOf": "Step {n} of {total}",
+  "@planStepOf": {
+    "description": "Step sheet title.",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "planStepLate": "late by {duration}",
+  "@planStepLate": {
+    "description": "Step is overdue by a duration.",
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "planStepAcked": "Change confirmed: ✓ {time}",
+  "@planStepAcked": {
+    "description": "The assignee confirmed the latest change.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "planStepNotAcked": "Change not confirmed yet",
+  "@planStepNotAcked": {
+    "description": "The assignee has not confirmed the latest change."
+  },
+  "planDiscuss": "Discuss ›",
+  "@planDiscuss": {
+    "description": "Opens the Request discussion from a step."
+  },
+  "planHandoverPickerTitle": "Hand over to",
+  "@planHandoverPickerTitle": {
+    "description": "Title of the person picker for handing a step over."
+  },
+  "planHandoverNobody": "Nobody else is in the request yet",
+  "@planHandoverNobody": {
+    "description": "Hand-over picker with nobody to pick."
+  },
+  "planPendingTitle": "Your steps changed",
+  "@planPendingTitle": {
+    "description": "Card with plan changes the viewer has to confirm."
+  },
+  "planChangeOne": "{actor} · {when}: «{step}» {change}",
+  "@planChangeOne": {
+    "description": "One change to the viewer's step.",
+    "placeholders": {
+      "actor": {
+        "type": "String"
+      },
+      "when": {
+        "type": "String"
+      },
+      "step": {
+        "type": "String"
+      },
+      "change": {
+        "type": "String"
+      }
+    }
+  },
+  "planChangeMoved": "{from} → {to}",
+  "@planChangeMoved": {
+    "description": "Step time change.",
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "planChangeAssignedToYou": "assigned to you",
+  "@planChangeAssignedToYou": {
+    "description": "Step assigned to the viewer."
+  },
+  "planChangeHandedTo": "handed to {name}",
+  "@planChangeHandedTo": {
+    "description": "Step handed to someone else.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "planChangeUnassigned": "has no assignee now",
+  "@planChangeUnassigned": {
+    "description": "Viewer's step lost its assignee."
+  },
+  "planChangeRemoved": "removed",
+  "@planChangeRemoved": {
+    "description": "Step removed from the plan."
+  },
+  "planChangeRenamed": "renamed",
+  "@planChangeRenamed": {
+    "description": "Step renamed."
+  },
+  "planEditTitle": "Edit plan",
+  "@planEditTitle": {
+    "description": "Plan editor title."
+  },
+  "planEditSave": "Save",
+  "@planEditSave": {
+    "description": "Saves the plan draft."
+  },
+  "planEditAddStep": "Add step",
+  "@planEditAddStep": {
+    "description": "Adds a step to the draft."
+  },
+  "planEditDeleteStep": "Delete step",
+  "@planEditDeleteStep": {
+    "description": "Deletes a step from the draft."
+  },
+  "planEditReorderHandle": "Drag to reorder",
+  "@planEditReorderHandle": {
+    "description": "Semantics of the reorder handle."
+  },
+  "planEditComment": "What changed (optional)",
+  "@planEditComment": {
+    "description": "Optional comment of a plan revision."
+  },
+  "planEditApply": "Apply",
+  "@planEditApply": {
+    "description": "Applies the step fields to the draft."
+  },
+  "planEditNewStep": "New step",
+  "@planEditNewStep": {
+    "description": "Title of the step editor for a new step."
+  },
+  "planFieldTitle": "What to do",
+  "@planFieldTitle": {
+    "description": "Step title field."
+  },
+  "planFieldDescription": "Details",
+  "@planFieldDescription": {
+    "description": "Step description field."
+  },
+  "planFieldAssignee": "Assignee",
+  "@planFieldAssignee": {
+    "description": "Step assignee field."
+  },
+  "planFieldNoAssignee": "No assignee",
+  "@planFieldNoAssignee": {
+    "description": "Assignee option: nobody."
+  },
+  "planAssigneePickerTitle": "Who does this step",
+  "@planAssigneePickerTitle": {
+    "description": "Assignee picker title."
+  },
+  "planFieldStart": "Start",
+  "@planFieldStart": {
+    "description": "Step start field."
+  },
+  "planFieldEnd": "End",
+  "@planFieldEnd": {
+    "description": "Step end field."
+  },
+  "planFieldClearTime": "No time",
+  "@planFieldClearTime": {
+    "description": "Clears a step time."
+  },
+  "planDiscardTitle": "Discard changes?",
+  "@planDiscardTitle": {
+    "description": "Leaving the editor with unsaved edits."
+  },
+  "planDiscardBody": "Unsaved edits will be lost.",
+  "@planDiscardBody": {
+    "description": "Leaving the editor with unsaved edits."
+  },
+  "planDiscardConfirm": "Discard",
+  "@planDiscardConfirm": {
+    "description": "Discards unsaved plan edits."
+  },
+  "planDiscardKeep": "Keep editing",
+  "@planDiscardKeep": {
+    "description": "Stays in the plan editor."
+  },
+  "planValidationTitleRequired": "Write what to do",
+  "@planValidationTitleRequired": {
+    "description": "Step title is empty."
+  },
+  "planValidationEndBeforeStart": "End is before start",
+  "@planValidationEndBeforeStart": {
+    "description": "Step end before start."
+  },
+  "planValidationTooManySteps": "At most 100 steps",
+  "@planValidationTooManySteps": {
+    "description": "Plan has too many steps."
+  },
+  "planValidationTooLong": "At most {max} characters",
+  "@planValidationTooLong": {
+    "description": "Field is too long.",
+    "placeholders": {
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "planMerged": "{count} steps changed meanwhile ({names}) — merged",
+  "@planMerged": {
+    "description": "Save merged with edits made by others meanwhile.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "planMergedAnon": "{count} steps changed meanwhile — merged",
+  "@planMergedAnon": {
+    "description": "Save merged; names unknown.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planSaved": "Plan saved",
+  "@planSaved": {
+    "description": "Plan saved."
+  },
+  "planConflictTitle": "The same step was changed at the same time",
+  "@planConflictTitle": {
+    "description": "Conflict resolver title."
+  },
+  "planConflictBody": "Choose which version to keep for each step.",
+  "@planConflictBody": {
+    "description": "Conflict resolver hint."
+  },
+  "planConflictMine": "My version",
+  "@planConflictMine": {
+    "description": "Conflict: keep my version."
+  },
+  "planConflictTheirs": "Their version",
+  "@planConflictTheirs": {
+    "description": "Conflict: take their version."
+  },
+  "planConflictStepRemoved": "step removed",
+  "@planConflictStepRemoved": {
+    "description": "Conflict: this side removed the step."
+  },
+  "planHistoryTitle": "Plan history",
+  "@planHistoryTitle": {
+    "description": "Plan history screen title."
+  },
+  "planHistoryRestore": "Restore this version",
+  "@planHistoryRestore": {
+    "description": "Restores a plan revision."
+  },
+  "planHistoryCurrent": "Current",
+  "@planHistoryCurrent": {
+    "description": "Marks the current plan revision."
+  },
+  "planHistoryCreated": "{name} created the plan",
+  "@planHistoryCreated": {
+    "description": "History: plan created.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "planHistoryEdited": "{name} edited the plan",
+  "@planHistoryEdited": {
+    "description": "History: plan edited.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "planHistoryRestored": "{name} restored version {seq}",
+  "@planHistoryRestored": {
+    "description": "History: revision restored.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "seq": {
+        "type": "int"
+      }
+    }
+  },
+  "planHistoryCopied": "Copied from «{title}»",
+  "@planHistoryCopied": {
+    "description": "History: plan copied from another Request.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "planHistoryCopiedUnknown": "Copied from another request",
+  "@planHistoryCopiedUnknown": {
+    "description": "History: plan copied from a Request the viewer can't see."
+  },
+  "planHistoryCantMake": "{name} can't make it",
+  "@planHistoryCantMake": {
+    "description": "History: «Can't make it» (move / hand over).",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "planHistoryCantMakeChat": "{name} can't make it — message in the discussion",
+  "@planHistoryCantMakeChat": {
+    "description": "History: «Can't make it», wrote in the discussion.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "planHistoryUnassignedOnLeave": "{name} left — steps have no assignee",
+  "@planHistoryUnassignedOnLeave": {
+    "description": "History: assignee left, steps unassigned.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "planHistoryRestoredNotice": "Version {seq} restored",
+  "@planHistoryRestoredNotice": {
+    "description": "Snackbar after restoring a revision.",
+    "placeholders": {
+      "seq": {
+        "type": "int"
+      }
+    }
+  },
+  "planHistoryVersion": "Version {seq}",
+  "@planHistoryVersion": {
+    "description": "Revision preview title.",
+    "placeholders": {
+      "seq": {
+        "type": "int"
+      }
+    }
+  },
+  "planHistoryLoadMore": "Show earlier",
+  "@planHistoryLoadMore": {
+    "description": "Loads older plan revisions."
+  },
+  "planHistoryEmpty": "No edits yet",
+  "@planHistoryEmpty": {
+    "description": "Plan history is empty."
+  },
+  "planOpAdded": "+ {step}",
+  "@planOpAdded": {
+    "description": "History change: step added.",
+    "placeholders": {
+      "step": {
+        "type": "String"
+      }
+    }
+  },
+  "planOpRemoved": "– {step}",
+  "@planOpRemoved": {
+    "description": "History change: step removed.",
+    "placeholders": {
+      "step": {
+        "type": "String"
+      }
+    }
+  },
+  "planOpRetitled": "~ {from} → {to}",
+  "@planOpRetitled": {
+    "description": "History change: step renamed.",
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "planOpRedescribed": "{step}: details changed",
+  "@planOpRedescribed": {
+    "description": "History change: description changed.",
+    "placeholders": {
+      "step": {
+        "type": "String"
+      }
+    }
+  },
+  "planOpRetimed": "{step}: {from} → {to}",
+  "@planOpRetimed": {
+    "description": "History change: time changed.",
+    "placeholders": {
+      "step": {
+        "type": "String"
+      },
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "planOpReassigned": "{step}: {from} → {to}",
+  "@planOpReassigned": {
+    "description": "History change: assignee changed.",
+    "placeholders": {
+      "step": {
+        "type": "String"
+      },
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "planOpMoved": "{step}: moved",
+  "@planOpMoved": {
+    "description": "History change: step moved in the order.",
+    "placeholders": {
+      "step": {
+        "type": "String"
+      }
+    }
+  },
+  "planErrorConflict": "Someone changed the same step — choose a version",
+  "@planErrorConflict": {
+    "description": "Error 1330."
+  },
+  "planErrorStepNotFound": "Step not found — the plan was updated",
+  "@planErrorStepNotFound": {
+    "description": "Error 1331."
+  },
+  "planErrorNotEditable": "The plan can't be changed now",
+  "@planErrorNotEditable": {
+    "description": "Error 1332."
+  },
+  "planErrorActionStale": "The plan changed — open the step again",
+  "@planErrorActionStale": {
+    "description": "Error 1333."
+  },
+  "planErrorRestoreSourceMissing": "This version is unavailable",
+  "@planErrorRestoreSourceMissing": {
+    "description": "Error 1334."
+  },
+  "planErrorRateLimited": "Too many edits in a row — try again in a minute",
+  "@planErrorRateLimited": {
+    "description": "Error 1335."
+  },
+  "planErrorAssigneeNotAdmitted": "This person isn't in the request",
+  "@planErrorAssigneeNotAdmitted": {
+    "description": "Error 1336."
+  },
+  "planErrorTooLarge": "A plan can have at most 100 steps",
+  "@planErrorTooLarge": {
+    "description": "Error 1337."
+  },
+  "planErrorDisabled": "Plans are not available right now",
+  "@planErrorDisabled": {
+    "description": "Error 1338."
+  },
+  "planErrorTickFailed": "Couldn't mark the step. Try again",
+  "@planErrorTickFailed": {
+    "description": "Optimistic tick failed and was rolled back."
+  },
+  "planErrorLoad": "Couldn't load the plan",
+  "@planErrorLoad": {
+    "description": "Plan fetch failed."
+  },
+  "planRetry": "Try again",
+  "@planRetry": {
+    "description": "Retries loading the plan."
+  },
+  "planDeletedUser": "deleted member",
+  "@planDeletedUser": {
+    "description": "Name of a person the plan mentions who is gone."
   }
 }

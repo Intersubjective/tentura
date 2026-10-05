@@ -1,0 +1,13 @@
+mutation BeaconPlanSave(
+  $beaconId: String!
+  $baseRevisionSeq: Int!
+  $stepsJson: String!
+  $comment: String
+) {
+  beaconPlanSave(
+    beaconId: $beaconId
+    baseRevisionSeq: $baseRevisionSeq
+    stepsJson: $stepsJson
+    comment: $comment
+  )
+}

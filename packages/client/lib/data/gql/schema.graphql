@@ -3842,6 +3842,11 @@ type mutation_root {
   beaconMuteClear(beaconId: String!): Boolean!
   beaconMuteSet(beaconId: String!, mutedUntil: String): Boolean!
   beaconOfferHelp(expectedOfferKind: Int, helpTypes: [String!], id: String!, message: String): Boolean!
+  beaconPlanAck(beaconId: String!, uptoSeq: Int!): Boolean!
+  beaconPlanRestore(baseRevisionSeq: Int!, beaconId: String!, fromSeq: Int!): String!
+  beaconPlanSave(baseRevisionSeq: Int!, beaconId: String!, comment: String, stepsJson: String!): String!
+  beaconPlanStepCantMake(baseRevisionSeq: Int!, excerpt: String, newEndAt: String, newStartAt: String, option: String!, stepId: String!, toUserId: String): String!
+  beaconPlanStepSetDone(done: Boolean!, stepId: String!): Boolean!
   beaconPublish(id: String!): v2_Beacon!
   beaconRemoveImage(beaconId: String!, imageId: String!): Boolean!
   beaconReopen(beaconId: String!, expectedEpoch: Int!): Boolean!
@@ -4768,6 +4773,9 @@ type query_root {
   beaconInvolvement(id: String!): v2_BeaconInvolvement!
   beaconLineageForwardSuggestions(id: String!): v2_BeaconLineageForwardSuggestions!
   beaconParentReference(beaconId: String!): v2_BeaconParentReference!
+  beaconPlan(beaconId: String!): String!
+  beaconPlanRevision(beaconId: String!, seq: Int!): String!
+  beaconPlanRevisions(beaconId: String!, beforeSeq: Int): String!
   beaconPromotionSource(parentBeaconId: String!, sourceMessageId: String!): v2_BeaconPromotionSource!
   beaconThreads(beaconId: String!): [v2_BeaconThreadRow!]
 

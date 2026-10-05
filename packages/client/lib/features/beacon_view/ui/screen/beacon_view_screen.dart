@@ -19,6 +19,8 @@ import 'package:tentura/features/beacon_threads/ui/widget/thread_detail.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_room_lease.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_request_modes.dart';
+import 'package:tentura/features/beacon_view/ui/util/beacon_plan_people.dart';
+import 'package:tentura/features/beacon_plan/ui/widget/beacon_plan_surface.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_room_navigation_scope.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -708,6 +710,15 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
           onFocusCoordinationItem: (_) => _focusDiscussionGeneral(),
           onOpenGeneralThread: () => unawaited(_openGeneralThread()),
         );
+      case BeaconSurface.plan:
+        return BeaconPlanSurface(
+          key: ValueKey('plan-${beaconState.beacon.id}'),
+          beaconId: beaconState.beacon.id,
+          viewerId: beaconState.myProfile.id,
+          admitted: beaconPlanAdmittedPeople(beaconState),
+          // In the split the chat is always on screen; otherwise go there.
+          onOpenDiscussion: isSplit ? null : _focusDiscussionGeneral,
+        );
       case BeaconSurface.room:
         return BeaconRoomSurface(
           key: ValueKey('room-$_threadsFoldEpoch'),
@@ -1118,6 +1129,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                               return;
                             }
                             if (_selectedSurface == BeaconSurface.room ||
+                                _selectedSurface == BeaconSurface.plan ||
                                 _selectedSurface == BeaconSurface.people) {
                               _switchToSurface(BeaconSurface.now);
                             }

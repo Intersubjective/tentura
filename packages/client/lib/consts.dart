@@ -114,6 +114,9 @@ const kBeaconViewTabHelpOffers = 'help_offers';
 /// [kQueryBeaconViewTab] value — open the Chat surface (expanded split selection).
 const kBeaconViewTabThreads = 'threads';
 
+/// [kQueryBeaconViewTab] value — open the Plan surface (#220).
+const kBeaconViewTabPlan = 'plan';
+
 /// Pre-threads name of [kBeaconViewTabThreads]; accepted on input only.
 const kBeaconViewTabRoomLegacy = 'room';
 
@@ -205,3 +208,9 @@ const kPostsEnabled = true;
 
 /// Enables the «Who'll take it?» (baton) start action.
 const kBatonEnabled = true;
+
+/// Enables the Request plan («либретто», #220): the Plan tab and its sheets.
+const kPlanEnabled = bool.fromEnvironment(
+  'TENTURA_PLAN_ENABLED',
+  defaultValue: true,
+);

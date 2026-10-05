@@ -31,6 +31,7 @@ class BeaconSurfaceTabs extends StatelessWidget {
 
   static IconData _iconFor(BeaconSurface surface) => switch (surface) {
     BeaconSurface.now => Icons.bolt_outlined,
+    BeaconSurface.plan => Icons.checklist_outlined,
     BeaconSurface.room => Icons.forum_outlined,
     BeaconSurface.people => Icons.people_outline,
   };
@@ -38,12 +39,14 @@ class BeaconSurfaceTabs extends StatelessWidget {
   static String _labelFor(BeaconSurface surface, L10n l10n) =>
       switch (surface) {
         BeaconSurface.now => l10n.labelBeaconTabNow,
+        BeaconSurface.plan => l10n.labelBeaconTabPlan,
         BeaconSurface.room => l10n.labelBeaconTabChat,
         BeaconSurface.people => l10n.labelBeaconTabPeople,
       };
 
   static String _tabIdFor(BeaconSurface surface) => switch (surface) {
     BeaconSurface.now => TestIds.beaconTabNow,
+    BeaconSurface.plan => TestIds.beaconTabPlan,
     BeaconSurface.room => TestIds.beaconTabRoom,
     BeaconSurface.people => TestIds.beaconTabPeople,
   };
@@ -100,7 +103,7 @@ class BeaconSurfaceTabs extends StatelessWidget {
               return switch (surface) {
                 BeaconSurface.room => threadsTabBadge,
                 BeaconSurface.people => peopleTabBadge,
-                BeaconSurface.now => null,
+                BeaconSurface.now || BeaconSurface.plan => null,
               };
             }).toList();
 

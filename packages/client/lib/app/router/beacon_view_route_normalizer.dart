@@ -45,8 +45,7 @@ NormalizedBeaconViewQuery normalizeBeaconViewRouteQuery({
 
   final incomingTab = incomingQuery[kQueryBeaconViewTab]?.trim();
   final message = incomingQuery[kQueryMessageId]?.trim();
-  final peopleAttention =
-      incomingQuery[kQueryBeaconPeopleTabAttention]?.trim();
+  final peopleAttention = incomingQuery[kQueryBeaconPeopleTabAttention]?.trim();
 
   final result = <String, String>{...preserved};
 
@@ -64,6 +63,8 @@ NormalizedBeaconViewQuery normalizeBeaconViewRouteQuery({
   switch (incomingTab) {
     case kBeaconViewTabNow:
       result[kQueryBeaconViewTab] = kBeaconViewTabNow;
+    case kBeaconViewTabPlan:
+      result[kQueryBeaconViewTab] = kBeaconViewTabPlan;
     // `room` is the discussion tab's pre-threads name; links that still
     // carry it (old notifications, bookmarks) open the discussion rather
     // than falling through to NOW.
@@ -99,11 +100,10 @@ NormalizedBeaconViewQuery normalizeBeaconViewRouteQuery({
 NormalizedBeaconViewQuery normalizeBeaconViewRouteQueryFromParameters(
   Parameters qp, {
   String? pathThreadId,
-}) =>
-    normalizeBeaconViewRouteQuery(
-      pathThreadId: pathThreadId,
-      incomingQuery: _incomingQueryFromParameters(qp),
-    );
+}) => normalizeBeaconViewRouteQuery(
+  pathThreadId: pathThreadId,
+  incomingQuery: _incomingQueryFromParameters(qp),
+);
 
 BeaconViewOperationalRoute beaconViewOperationalFromNormalized(
   NormalizedBeaconViewQuery normalized,
