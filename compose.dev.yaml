@@ -80,7 +80,7 @@ services:
     restart: unless-stopped
     hostname: meritrank
     container_name: meritrank
-    image: vbulavintsev/meritrank-service:v0.11.0
+    image: vbulavintsev/meritrank-service:v0.11.1
     networks:
       - backend
     environment:
@@ -96,7 +96,7 @@ services:
     restart: unless-stopped
     hostname: postgres
     container_name: postgres
-    image: vbulavintsev/postgres-tentura:v0.8.1
+    image: vbulavintsev/postgres-tentura:v0.8.2
     networks:
       backend: {}
       db_host: {}

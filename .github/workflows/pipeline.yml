@@ -68,13 +68,13 @@ jobs:
             -e MERITRANK_ZERO_OPINION_FACTOR=0.02 \
             -e MERITRANK_ALPHA=0.85 \
             -e MERITRANK_WALKS_CACHE_SIZE=200 \
-            vbulavintsev/meritrank-service:v0.11.0
+            vbulavintsev/meritrank-service:v0.11.1
           docker run -d --name tentura-pg --network tentura-ci \
             -e POSTGRES_PASSWORD=password \
             -e MERITRANK_SERVICE_URL=tcp://meritrank:8080 \
             -e MERITRANK_RECV_TIMEOUT_MSEC=60000 \
             -p 5432:5432 \
-            vbulavintsev/postgres-tentura:v0.8.1
+            vbulavintsev/postgres-tentura:v0.8.2
           for _ in $(seq 1 60); do
             if docker exec tentura-pg pg_isready -U postgres >/dev/null 2>&1; then
               echo "postgres ready"; exit 0

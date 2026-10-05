@@ -159,6 +159,13 @@ chmod 600 .env
 
 For per-host structural overrides. Copy the example and edit:
 
+> **CI deploys overwrite `compose.prod.yaml`** with the repo's copy (the old
+> file is kept as `compose.prod.yaml.prev` and the diff is printed in the
+> deploy log). Anything specific to one host — env tuning, extra services,
+> resource limits — must live in `compose.override.yaml`, which deploys never
+> touch. Compose merges `environment` by variable name, so an override entry
+> replaces the same variable from `compose.prod.yaml`.
+
 ```bash
 # from local dev machine
 scp examples/compose.override.example.yaml root@YOUR_SERVER:/opt/tentura/compose.override.yaml

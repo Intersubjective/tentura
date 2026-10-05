@@ -72,6 +72,22 @@ runs:
             deploy.sh \
             deploy@"$VPS_HOST":/opt/tentura/deploy.sh
 
+        # compose.prod.yaml — previously never synced either, so image pins and
+        # service config changed in the repo never reached the host. Per-host
+        # deltas (dev MeritRank tuning, pgadmin, …) belong in the host's
+        # compose.override.yaml, which is never overwritten. The previous file
+        # is kept as compose.prod.yaml.prev and the change is logged.
+        scp -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=accept-new \
+            -o LogLevel=ERROR \
+            compose.prod.yaml \
+            deploy@"$VPS_HOST":/opt/tentura/compose.prod.yaml.new
+        ssh -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=accept-new \
+            -o LogLevel=ERROR \
+            deploy@"$VPS_HOST" \
+            "cd /opt/tentura && { [ ! -f compose.prod.yaml ] || cp -p compose.prod.yaml compose.prod.yaml.prev; } && { diff -u compose.prod.yaml.prev compose.prod.yaml.new || true; } && mv compose.prod.yaml.new compose.prod.yaml"
+
     - name: Deploy to VPS
       shell: bash
       env:
