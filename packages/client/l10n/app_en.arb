@@ -7429,6 +7429,31 @@
       }
     }
   },
+  "batonCandidatePrompt": "Can you help? We're waiting for your response.",
+  "@batonCandidatePrompt": {
+    "description": "Prompt on the private «Who'll take it?» card shown to an asked person who has not answered."
+  },
+  "batonCandidateCanHelp": "Can help",
+  "@batonCandidateCanHelp": {
+    "description": "Positive answer button on the «Who'll take it?» candidate card."
+  },
+  "batonCandidateCantHelp": "Can't help",
+  "@batonCandidateCantHelp": {
+    "description": "Negative answer button on the «Who'll take it?» candidate card."
+  },
+  "batonCandidateAvailabilityNote": "\"Can help\" means you're available, not that you've taken it yet. If several people can help, one person will be selected.",
+  "@batonCandidateAvailabilityNote": {
+    "description": "Note under the answer buttons explaining that Can help is availability, not taking it."
+  },
+  "batonCandidateAnswered": "Your answer: {answer}. You can change it.",
+  "@batonCandidateAnswered": {
+    "description": "Shown after an asked person answered; {answer} is the Can help / Can't help label.",
+    "placeholders": {
+      "answer": {
+        "type": "String"
+      }
+    }
+  },
   "postMenuUnmuteForever": "Turn sound on · muted for good",
   "postInfoForwardingOpen": "Can be forwarded: any participant can bring others in",
   "postInfoForwardingClosed": "Only the author can forward",
@@ -7508,6 +7533,27 @@
   "beaconHudTeamSection": "Team",
   "beaconHudTeamNoMove": "No move noted",
   "beaconCurrentLineEditHelper": "Everyone in the request sees it. The author and anyone let in can change it.",
+  "batonOutcomeYou": "You took it.",
+  "@batonOutcomeYou": {
+    "description": "Final outcome shown to the person who was selected."
+  },
+  "batonOutcomeSomeoneElse": "Someone else was selected. Thanks for offering.",
+  "@batonOutcomeSomeoneElse": {
+    "description": "Final outcome shown to a volunteer who was not selected."
+  },
+  "batonOutcomeClosed": "No longer needed.",
+  "@batonOutcomeClosed": {
+    "description": "Final outcome shown to an asked person when the baton was cancelled or closed without them."
+  },
+  "batonTookIt": "{name} took it.",
+  "@batonTookIt": {
+    "description": "System line and observer chip naming the person who took the «Who'll take it?» baton.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "beaconShowcaseVia": "via {name}",
   "@beaconShowcaseVia": {
     "placeholders": {

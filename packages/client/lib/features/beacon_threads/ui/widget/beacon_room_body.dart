@@ -306,6 +306,13 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                     score: score,
                   )
                 : null,
+            onBatonRespond: canWrite
+                ? (messageId, batonId, canHelp) => cubit.batonRespond(
+                    messageId: messageId,
+                    batonId: batonId,
+                    canHelp: canHelp,
+                  )
+                : null,
             onSend: widget.enableComposer
                 ? (body, uploads) => cubit.sendMessage(
                     body: body,

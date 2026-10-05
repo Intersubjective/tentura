@@ -75,6 +75,7 @@ class BasicChatBody extends StatefulWidget {
     this.onToggleReaction,
     this.onOpenFileAttachment,
     this.onVotePoll,
+    this.onBatonRespond,
     this.header,
     this.emptyPlaceholder,
     this.imageRepository,
@@ -151,6 +152,9 @@ class BasicChatBody extends StatefulWidget {
     int? score,
   })?
   onVotePoll;
+
+  final void Function(String messageId, String batonId, bool canHelp)?
+  onBatonRespond;
 
   final Future<bool> Function(String body, List<RoomPendingUpload> uploads)?
   onSend;
@@ -612,6 +616,13 @@ class BasicChatBodyState extends State<BasicChatBody> {
                                     pollingId,
                                     variantIds,
                                     score: score,
+                                  ),
+                            onBatonRespond: widget.onBatonRespond == null
+                                ? null
+                                : (batonId, canHelp) => widget.onBatonRespond!(
+                                    m.id,
+                                    batonId,
+                                    canHelp,
                                   ),
                             onScrollToPromoteSource:
                                 widget.onScrollToPromoteSource,

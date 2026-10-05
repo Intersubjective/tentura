@@ -15,6 +15,7 @@ import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/quoted_fact.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
+import 'package:tentura/domain/entity/room_baton_data.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_message_mention_span.dart';
 import 'package:tentura/domain/entity/room_poll_data.dart';
@@ -1392,6 +1393,50 @@ class RoomCubit extends Cubit<RoomState> {
           messages: previousMessages ?? state.messages,
         ),
       );
+      _showSnackError(e);
+    }
+  }
+
+  /// Records the viewer's answer to a «Who'll take it?» baton, showing it
+  /// at once and rolling it back when the request fails.
+  Future<void> batonRespond({
+    required String messageId,
+    required String batonId,
+    required bool canHelp,
+  }) async {
+    if (_rejectIfDiscussionReadOnly()) return;
+    final idx = state.messages.indexWhere((m) => m.id == messageId);
+    List<RoomMessage>? previousMessages;
+    if (idx >= 0) {
+      final msg = state.messages[idx];
+      final baton = msg.baton;
+      if (baton is RoomBatonCandidateData) {
+        previousMessages = List<RoomMessage>.from(state.messages);
+        final updated = msg.copyWith(
+          baton: RoomBatonCandidateData(
+            id: baton.id,
+            status: baton.status,
+            myResponse: canHelp
+                ? RoomBatonResponse.canHelp
+                : RoomBatonResponse.cantHelp,
+            outcome: baton.outcome,
+            taker: baton.taker,
+          ),
+        );
+        emit(
+          state.copyWith(
+            messages: List<RoomMessage>.from(state.messages)..[idx] = updated,
+          ),
+        );
+      }
+    }
+
+    try {
+      await _case.batonRespond(batonId: batonId, canHelp: canHelp);
+      // Silent refresh, like [votePoll]: the answer is already shown.
+      unawaited(_requestRefresh(scope: _RoomRefreshScope.messages));
+    } on Object catch (e) {
+      emit(state.copyWith(messages: previousMessages ?? state.messages));
       _showSnackError(e);
     }
   }

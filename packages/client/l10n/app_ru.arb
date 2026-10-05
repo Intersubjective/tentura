@@ -6372,5 +6372,14 @@
   "beaconShowcaseOfferPending": "Ваше предложение у автора",
   "beaconPreviewAsOthers": "Как видят другие",
   "beaconPreviewBanner": "Так запрос видят те, кого ещё не впустили",
-  "beaconPreviewExit": "Вернуться к своему виду"
+  "beaconPreviewExit": "Вернуться к своему виду",
+  "batonCandidatePrompt": "Сможете помочь? Мы ждём вашего ответа.",
+  "batonCandidateCanHelp": "Могу помочь",
+  "batonCandidateCantHelp": "Не могу",
+  "batonCandidateAvailabilityNote": "«Могу помочь» значит, что вы свободны, а не что вы уже взялись. Если помочь смогут несколько человек, выберут одного.",
+  "batonCandidateAnswered": "Ваш ответ: {answer}. Его можно изменить.",
+  "batonOutcomeYou": "Вы взялись за это.",
+  "batonOutcomeSomeoneElse": "Выбрали другого человека. Спасибо, что откликнулись.",
+  "batonOutcomeClosed": "Больше не нужно.",
+  "batonTookIt": "Берёт на себя: {name}"
 }
