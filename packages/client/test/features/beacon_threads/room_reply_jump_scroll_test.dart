@@ -18,8 +18,8 @@ import 'support/room_body_harness.dart';
 class _TestProfileCubit extends Mock implements ProfileCubit {
   @override
   ProfileState get state => const ProfileState(
-        profile: Profile(id: 'me', displayName: 'Me'),
-      );
+    profile: Profile(id: 'me', displayName: 'Me'),
+  );
 
   @override
   Stream<ProfileState> get stream => Stream<ProfileState>.value(state);
@@ -139,6 +139,8 @@ void main() {
       final bottomPosition = _listScrollableState(tester).position;
       bottomPosition.jumpTo(bottomPosition.maxScrollExtent);
       await tester.pump();
+      // Initial positioning may settle the lazy-list tail over extra frames.
+      await _pumpUntilViewportDone(tester, bodyKey);
 
       expect(state.isViewportScrollDone, isTrue);
       final pinnedBottom = _listScrollableState(tester).position;

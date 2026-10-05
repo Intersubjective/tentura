@@ -96,6 +96,7 @@ class BasicChatBody extends StatefulWidget {
     this.pendingJumpMessageId,
     this.receiptIndex,
     this.capabilities = const RoomCapabilities.request(),
+    this.hideUntilViewportPositioned = false,
     super.key,
   });
 
@@ -219,6 +220,11 @@ class BasicChatBody extends StatefulWidget {
   /// Request-only features passed down to each [RoomMessageTile].
   final RoomCapabilities capabilities;
 
+  /// Keeps the message list invisible until [BasicChatBodyState.
+  /// onRoomDataChangedForViewport] has placed it (first unread or bottom), so
+  /// the top of the history never flashes before the jump.
+  final bool hideUntilViewportPositioned;
+
   @override
   State<BasicChatBody> createState() => BasicChatBodyState();
 }
@@ -255,6 +261,9 @@ class BasicChatBodyState extends State<BasicChatBody> {
       _messageKeys.putIfAbsent(id, GlobalKey.new);
 
   bool get isViewportScrollDone => _viewportScrollDone;
+
+  bool get _listHidden =>
+      widget.hideUntilViewportPositioned && !_viewportScrollDone;
 
   /// Initial viewport scroll: first unread or bottom. Used by beacon room.
   void onRoomDataChangedForViewport({
@@ -360,18 +369,15 @@ class BasicChatBodyState extends State<BasicChatBody> {
     if (firstUnreadMessageId != null) {
       final target = _messageKeys[firstUnreadMessageId]?.currentContext;
       if (target != null) {
-        await Scrollable.ensureVisible(
-          target,
-          duration: const Duration(milliseconds: 280),
-          curve: Curves.easeOut,
-          alignment: 0.12,
-        );
+        // Instant: the list may still be hidden, and an animated scroll from
+        // the top reads as a flash of old history.
+        await Scrollable.ensureVisible(target, alignment: 0.12);
         _onMessageListScroll();
-        if (mounted) {
-          setState(() => _viewportScrollDone = true);
-        }
+        _markViewportScrollDone();
         return;
       }
+      // Lazy list: the target row isn't built until we're near it.
+      _jumpTowardsMessage(firstUnreadMessageId);
       if (pass < 24) {
         WidgetsBinding.instance.addPostFrameCallback((_) async {
           if (!mounted) return;
@@ -381,27 +387,36 @@ class BasicChatBodyState extends State<BasicChatBody> {
             pass + 1,
           );
         });
+      } else {
+        _markViewportScrollDone();
       }
       return;
     }
 
     if (messagesEmpty) {
-      if (mounted) {
-        setState(() => _viewportScrollDone = true);
-      }
+      _markViewportScrollDone();
       return;
     }
 
-    final scrollPos = _scrollController.hasClients
-        ? _scrollController.position
-        : null;
-    if (scrollPos != null && scrollPos.maxScrollExtent >= 0) {
-      _scrollController.jumpTo(scrollPos.maxScrollExtent);
-      _onMessageListScroll();
-      await _invokeMarkSeenNearBottom();
-      if (mounted) {
-        setState(() => _viewportScrollDone = true);
+    if (_scrollController.hasClients) {
+      final pos = _scrollController.position;
+      // Lazy-list extents are estimates: jumping builds the tail and moves
+      // maxScrollExtent, so re-check next frame until the jump sticks.
+      if ((pos.pixels - pos.maxScrollExtent).abs() >= 0.5 && pass < 24) {
+        _scrollController.jumpTo(pos.maxScrollExtent);
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
+          if (!mounted) return;
+          await _viewportScrollAttempt(
+            firstUnreadMessageId,
+            messagesEmpty,
+            pass + 1,
+          );
+        });
+        return;
       }
+      _onMessageListScroll();
+      _markViewportScrollDone();
+      await _invokeMarkSeenNearBottom();
       return;
     }
 
@@ -414,6 +429,32 @@ class BasicChatBodyState extends State<BasicChatBody> {
           pass + 1,
         );
       });
+    } else {
+      _markViewportScrollDone();
+    }
+  }
+
+  void _markViewportScrollDone() {
+    if (mounted && !_viewportScrollDone) {
+      setState(() => _viewportScrollDone = true);
+    }
+  }
+
+  /// Jumps to an index-proportional offset so a not-yet-built row gets laid
+  /// out; [_viewportScrollAttempt] then finishes with `ensureVisible`.
+  void _jumpTowardsMessage(String id) {
+    if (!_scrollController.hasClients) return;
+    final idx = widget.messages.indexWhere((m) => m.id == id);
+    if (idx < 0) return;
+    final pos = _scrollController.position;
+    final n = widget.messages.length;
+    final denom = n <= 1 ? 1.0 : (n - 1).toDouble();
+    final targetPx = ((idx / denom) * pos.maxScrollExtent).clamp(
+      pos.minScrollExtent,
+      pos.maxScrollExtent,
+    );
+    if ((pos.pixels - targetPx).abs() > 6) {
+      _scrollController.jumpTo(targetPx);
     }
   }
 
@@ -511,7 +552,8 @@ class BasicChatBodyState extends State<BasicChatBody> {
       if (payload is RoomMessageHierarchyChildCreated) {
         final sourceMessageId = payload.sourceMessageId;
         if (sourceMessageId != null) {
-          promotedChildBySourceMessageId[sourceMessageId] = payload.childBeaconId;
+          promotedChildBySourceMessageId[sourceMessageId] =
+              payload.childBeaconId;
         }
       }
     }
@@ -566,120 +608,126 @@ class BasicChatBodyState extends State<BasicChatBody> {
                 : Stack(
                     clipBehavior: Clip.none,
                     children: [
-                      ListView.builder(
-                        controller: _scrollController,
-                        // Small gap so the last bubble (notably a full-width
-                        // poll) doesn't sit flush against the composer, which
-                        // made its tap target compete with the text field.
-                        padding: const EdgeInsets.only(bottom: kSpacingSmall),
-                        itemCount: visibleMessages.length,
-                        itemBuilder: (context, i) {
-                          final m = visibleMessages[i];
-                          final prev =
-                              i == 0 ? null : visibleMessages[i - 1];
-                          final next = i + 1 >= visibleMessages.length
-                              ? null
-                              : visibleMessages[i + 1];
-                          final dateChanged =
-                              prev == null ||
-                              !roomMessageSameLocalDay(
-                                prev.createdAt,
-                                m.createdAt,
-                              );
-                          final unreads = widget.unreadCount;
-                          final showUnreadBand =
-                              unreads > 0 &&
-                              unreadBandMessageId != null &&
-                              m.id == unreadBandMessageId;
+                      // Laid out but unpainted until positioned, so row
+                      // keys resolve for the unread jump.
+                      Opacity(
+                        opacity: _listHidden ? 0 : 1,
+                        child: ListView.builder(
+                          controller: _scrollController,
+                          // Small gap so the last bubble (notably a full-width
+                          // poll) doesn't sit flush against the composer, which
+                          // made its tap target compete with the text field.
+                          padding: const EdgeInsets.only(bottom: kSpacingSmall),
+                          itemCount: visibleMessages.length,
+                          itemBuilder: (context, i) {
+                            final m = visibleMessages[i];
+                            final prev = i == 0 ? null : visibleMessages[i - 1];
+                            final next = i + 1 >= visibleMessages.length
+                                ? null
+                                : visibleMessages[i + 1];
+                            final dateChanged =
+                                prev == null ||
+                                !roomMessageSameLocalDay(
+                                  prev.createdAt,
+                                  m.createdAt,
+                                );
+                            final unreads = widget.unreadCount;
+                            final showUnreadBand =
+                                unreads > 0 &&
+                                unreadBandMessageId != null &&
+                                m.id == unreadBandMessageId;
 
-                          final toggle = widget.onToggleReaction;
-                          final vote = widget.onVotePoll;
-                          final pinnedFact = widget.pinnedFactForMessage?.call(
-                            m,
-                          );
-                          final messageTile = RoomMessageTile(
-                            key: _messageKey(m.id),
-                            message: m,
-                            myProfile: widget.myProfile,
-                            previousMessage: prev,
-                            nextMessage: next,
-                            promotedChildBeaconId:
-                                promotedChildBySourceMessageId[m.id],
-                            breakGroupAbove:
-                                dateChanged ||
-                                showUnreadBand ||
-                                promotedChildBySourceMessageId.containsKey(
-                                  prev.id,
-                                ),
-                            onActionsPressed: widget.onMessageActions,
-                            onReplyPressed: widget.onReply,
-                            onJumpToReply: widget.onJumpToReply,
-                            onToggleReaction: toggle,
-                            onOpenFileAttachment: widget.onOpenFileAttachment,
-                            participants: widget.participants,
-                            onVotePoll: vote == null
-                                ? null
-                                : (pollingId, variantIds, {score}) => vote(
-                                    m.id,
-                                    pollingId,
-                                    variantIds,
-                                    score: score,
+                            final toggle = widget.onToggleReaction;
+                            final vote = widget.onVotePoll;
+                            final pinnedFact = widget.pinnedFactForMessage
+                                ?.call(
+                                  m,
+                                );
+                            final messageTile = RoomMessageTile(
+                              key: _messageKey(m.id),
+                              message: m,
+                              myProfile: widget.myProfile,
+                              previousMessage: prev,
+                              nextMessage: next,
+                              promotedChildBeaconId:
+                                  promotedChildBySourceMessageId[m.id],
+                              breakGroupAbove:
+                                  dateChanged ||
+                                  showUnreadBand ||
+                                  promotedChildBySourceMessageId.containsKey(
+                                    prev.id,
                                   ),
-                            onBatonRespond: widget.onBatonRespond == null
-                                ? null
-                                : (batonId, canHelp) => widget.onBatonRespond!(
-                                    m.id,
-                                    batonId,
-                                    canHelp,
-                                  ),
-                            onBatonSelect: widget.onBatonSelect == null
-                                ? null
-                                : (batonId, userId) => widget.onBatonSelect!(
-                                    m.id,
-                                    batonId,
-                                    userId,
-                                  ),
-                            onBatonCancel: widget.onBatonCancel == null
-                                ? null
-                                : (batonId) =>
-                                      widget.onBatonCancel!(m.id, batonId),
-                            onScrollToPromoteSource:
-                                widget.onScrollToPromoteSource,
-                            onOpenCoordinationItem:
-                                widget.onOpenCoordinationItem,
-                            hideCoordinationLifecycleFooter:
-                                widget.hideCoordinationLifecycleFooter,
-                            pinnedFact:
-                                pinnedFact != null &&
-                                    roomPinnedFactIsVisible(pinnedFact)
-                                ? pinnedFact
-                                : null,
-                            highlightedMessageId: _highlightedMessageId,
-                            receipt: widget.receiptIndex?.receiptFor(m),
-                            capabilities: widget.capabilities,
-                          );
+                              onActionsPressed: widget.onMessageActions,
+                              onReplyPressed: widget.onReply,
+                              onJumpToReply: widget.onJumpToReply,
+                              onToggleReaction: toggle,
+                              onOpenFileAttachment: widget.onOpenFileAttachment,
+                              participants: widget.participants,
+                              onVotePoll: vote == null
+                                  ? null
+                                  : (pollingId, variantIds, {score}) => vote(
+                                      m.id,
+                                      pollingId,
+                                      variantIds,
+                                      score: score,
+                                    ),
+                              onBatonRespond: widget.onBatonRespond == null
+                                  ? null
+                                  : (batonId, canHelp) =>
+                                        widget.onBatonRespond!(
+                                          m.id,
+                                          batonId,
+                                          canHelp,
+                                        ),
+                              onBatonSelect: widget.onBatonSelect == null
+                                  ? null
+                                  : (batonId, userId) => widget.onBatonSelect!(
+                                      m.id,
+                                      batonId,
+                                      userId,
+                                    ),
+                              onBatonCancel: widget.onBatonCancel == null
+                                  ? null
+                                  : (batonId) =>
+                                        widget.onBatonCancel!(m.id, batonId),
+                              onScrollToPromoteSource:
+                                  widget.onScrollToPromoteSource,
+                              onOpenCoordinationItem:
+                                  widget.onOpenCoordinationItem,
+                              hideCoordinationLifecycleFooter:
+                                  widget.hideCoordinationLifecycleFooter,
+                              pinnedFact:
+                                  pinnedFact != null &&
+                                      roomPinnedFactIsVisible(pinnedFact)
+                                  ? pinnedFact
+                                  : null,
+                              highlightedMessageId: _highlightedMessageId,
+                              receipt: widget.receiptIndex?.receiptFor(m),
+                              capabilities: widget.capabilities,
+                            );
 
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (dateChanged)
-                                RoomDateSeparator(date: m.createdAt),
-                              if (showUnreadBand)
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (dateChanged)
+                                  RoomDateSeparator(date: m.createdAt),
+                                if (showUnreadBand)
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                    ),
+                                    child: RoomUnreadDivider(
+                                      unreadCount: unreads,
+                                    ),
                                   ),
-                                  child: RoomUnreadDivider(
-                                    unreadCount: unreads,
-                                  ),
-                                ),
-                              messageTile,
-                            ],
-                          );
-                        },
+                                messageTile,
+                              ],
+                            );
+                          },
+                        ),
                       ),
-                      if (_showJumpFab)
+                      if (_showJumpFab && !_listHidden)
                         Positioned(
                           right: 12,
                           bottom: 8,

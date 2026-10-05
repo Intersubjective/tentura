@@ -111,6 +111,24 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    // The viewport listener only sees transitions; a room cubit that already
+    // finished loading would otherwise leave the hidden list unpositioned.
+    final s = context.read<RoomCubit>().state;
+    if (s.status == const StateIsSuccess()) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final cur = context.read<RoomCubit>().state;
+        _basicChatKey.currentState?.onRoomDataChangedForViewport(
+          firstUnreadMessageId: cur.firstUnreadMessageId,
+          messagesEmpty: cur.messages.isEmpty,
+        );
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final myProfile = GetIt.I<ProfileCubit>().state.profile;
@@ -370,6 +388,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
             pinnedFactForMessage: state.factForRoomMessage,
             pendingJumpMessageId: state.scrollToMessageId,
             capabilities: widget.capabilities,
+            hideUntilViewportPositioned: true,
           );
         },
       ),
