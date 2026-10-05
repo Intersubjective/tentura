@@ -112,6 +112,19 @@ void main() {
       expect(local.currentAccountId, 'U-local');
       expect(remote.clearSessionCookieCalls, 0);
     });
+
+    test('slow server propagates so the caller retries instead of '
+        'treating the cookie as absent', () async {
+      final local = FakeAuthLocal()..currentAccountId = 'U-session';
+      final remote = FakeAuthRemote(sessionServerUnavailable: true);
+
+      await expectLater(
+        build(local: local, remote: remote).bootstrapWebSession(),
+        throwsA(isA<AuthServerUnavailableException>()),
+      );
+      expect(remote.clearSessionCookieCalls, 0);
+      expect(local.currentAccountId, 'U-session');
+    });
   });
 }
 
@@ -211,12 +224,14 @@ class FakeAuthRemote implements AuthRemoteRepositoryPort {
     this.sessionUserId = 'U1',
     this.sessionRejected = false,
     this.sessionNetworkError = false,
+    this.sessionServerUnavailable = false,
     this.clearAcknowledged = true,
   });
 
   final String sessionUserId;
   final bool sessionRejected;
   final bool sessionNetworkError;
+  final bool sessionServerUnavailable;
   final bool clearAcknowledged;
   int clearSessionCookieCalls = 0;
 
@@ -224,6 +239,9 @@ class FakeAuthRemote implements AuthRemoteRepositoryPort {
   Future<String> signInWithSession() async {
     if (sessionNetworkError) {
       throw Exception('network');
+    }
+    if (sessionServerUnavailable) {
+      throw const AuthServerUnavailableException();
     }
     if (sessionRejected) {
       throw const SessionAuthRejectedException();

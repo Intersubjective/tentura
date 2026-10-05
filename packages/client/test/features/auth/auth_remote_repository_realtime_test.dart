@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:ferry/ferry.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
@@ -76,7 +78,7 @@ void main() {
 
       await expectLater(
         _repository(client).signIn('seed'),
-        throwsA(isA<SessionHttpException>()),
+        throwsA(isA<AuthServerUnavailableException>()),
       );
 
       expect(client.boundAccountId, isNull);
@@ -109,6 +111,22 @@ void main() {
       expect(client.boundAccountId, isNull);
       expect(client.order, isNot(contains('bind:account-a')));
     });
+
+    for (final (label, error) in [
+      ('503', SessionHttpException(503)),
+      ('timeout', TimeoutException('access-token')),
+    ]) {
+      test('slow cookie signin ($label) maps to server unavailable', () async {
+        final client = _FakeAuthRemoteClient()..tokenError = error;
+
+        await expectLater(
+          _repository(client).signInWithSession(),
+          throwsA(isA<AuthServerUnavailableException>()),
+        );
+
+        expect(client.boundAccountId, isNull);
+      });
+    }
 
     test('signout drops auth and clears the active realtime binding', () async {
       final client = _FakeAuthRemoteClient()

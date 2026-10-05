@@ -4,6 +4,7 @@ import 'package:logging/logging.dart';
 import 'package:tentura_root/domain/entity/auth_request_intent.dart';
 
 import 'package:tentura/data/service/remote_api_client/credentials.dart';
+import 'package:tentura/data/service/remote_api_client/auth_loss_classifier.dart';
 import 'package:tentura/data/service/remote_api_client/auth_remote_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/app/sentry/auth_telemetry.dart';
@@ -71,7 +72,15 @@ class AuthRemoteRepository implements AuthRemoteRepositoryPort {
       seed: seed,
       authTokenFetcher: authTokenFetcher,
     );
-    final authToken = await remoteApiService.getAuthToken();
+    final Credentials authToken;
+    try {
+      authToken = await remoteApiService.getAuthToken();
+    } catch (e) {
+      if (isTransientRemoteFailure(e)) {
+        throw const AuthServerUnavailableException();
+      }
+      rethrow;
+    }
     try {
       await remoteApiService.establishSessionFromBearer(
         authAttemptId: authAttemptId,
@@ -83,6 +92,9 @@ class AuthRemoteRepository implements AuthRemoteRepositoryPort {
           authAttemptId: authAttemptId,
           error: e,
         );
+      }
+      if (isTransientRemoteFailure(e)) {
+        throw const AuthServerUnavailableException();
       }
       rethrow;
     }
@@ -101,6 +113,14 @@ class AuthRemoteRepository implements AuthRemoteRepositoryPort {
     } on SessionHttpException catch (e) {
       if (e.statusCode == 401 || e.statusCode == 403) {
         throw const SessionAuthRejectedException();
+      }
+      if (isTransientRemoteFailure(e)) {
+        throw const AuthServerUnavailableException();
+      }
+      rethrow;
+    } catch (e) {
+      if (isTransientRemoteFailure(e)) {
+        throw const AuthServerUnavailableException();
       }
       rethrow;
     }

@@ -144,6 +144,10 @@ final class AuthCase extends UseCaseBase {
         await _authLocalRepository.addSessionAccount(userId);
       }
       return _SessionProbeResult(userId: userId);
+    } on AuthServerUnavailableException {
+      // Server slow/unreachable: the cookie may still be valid. Let the caller
+      // retry rather than fall back as if there were no session.
+      rethrow;
     } on SessionAuthRejectedException {
       final clearResult = await _authRemoteRepository.clearSessionCookie();
       await _clearGhostSessionOnlyLocalId();

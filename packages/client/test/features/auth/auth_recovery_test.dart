@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 import 'package:tentura/env.dart';
@@ -67,6 +69,32 @@ void main() {
       expect(
         mapRemoteFailure(const AuthenticationNoKeyException()),
         isA<AuthSessionLostException>(),
+      );
+    });
+  });
+
+  group('isTransientRemoteFailure', () {
+    test('timeouts, 5xx, 408/429 and transport failures are transient', () {
+      expect(isTransientRemoteFailure(TimeoutException('slow')), isTrue);
+      expect(isTransientRemoteFailure(SessionHttpException(502)), isTrue);
+      expect(isTransientRemoteFailure(SessionHttpException(429)), isTrue);
+      expect(
+        isTransientRemoteFailure(const ServerStatusException(503)),
+        isTrue,
+      );
+      expect(isTransientRemoteFailure(Exception('socket closed')), isTrue);
+    });
+
+    test('credential rejections are not transient', () {
+      expect(isTransientRemoteFailure(SessionHttpException(401)), isFalse);
+      expect(isTransientRemoteFailure(SessionHttpException(403)), isFalse);
+      expect(
+        isTransientRemoteFailure(const AuthenticationNoKeyException()),
+        isFalse,
+      );
+      expect(
+        isTransientRemoteFailure(const SessionAuthRejectedException()),
+        isFalse,
       );
     });
   });

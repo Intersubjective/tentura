@@ -32,6 +32,16 @@ export 'auth_state.dart';
 
 const _bootstrapTimeout = Duration(seconds: 10);
 
+const _restoreRetryDelays = [
+  Duration(seconds: 2),
+  Duration(seconds: 5),
+  Duration(seconds: 10),
+  Duration(seconds: 20),
+  Duration(seconds: 30),
+];
+
+typedef _RestoredSession = ({String accountId, bool sessionLost});
+
 /// Global Cubit
 @singleton
 class AuthCubit extends Cubit<AuthState> {
@@ -95,6 +105,10 @@ class AuthCubit extends Cubit<AuthState> {
 
   var _authTransitionDepth = 0;
 
+  var _sessionRestoreInFlight = false;
+
+  var _authenticatedBootNoted = false;
+
   String? _pendingSuppressedAccountId;
 
   String get inviteEmail => _env.inviteEmail;
@@ -121,67 +135,129 @@ class AuthCubit extends Cubit<AuthState> {
   }
 
   Future<void> _bootstrap() async {
+    _sessionRestoreInFlight = true;
+    final restore = _restoreSessionWithRetry();
     try {
-      final bootstrap = await _authCase
-          .bootstrapWebSession()
-          .timeout(_bootstrapTimeout);
-      var next = state.copyWith(
-        currentAccountId: bootstrap.currentAccountId,
-        isBootstrapping: false,
-        updatedAt: DateTime.timestamp(),
-      );
-      if (bootstrap.invalidSessionCookieRejected && next.isNotAuthenticated) {
-        _authCase.reloadAfterRejectedSession(
-          clearAcknowledged: bootstrap.sessionCookieClearAcknowledged,
-        );
-        emit(next);
-        return;
-      }
-      if (next.isAuthenticated) {
-        _authCase.noteAuthenticatedBoot();
-        try {
-          await _authCase
-              .signIn(userId: next.currentAccountId)
-              .timeout(_bootstrapTimeout);
-        } on AuthSessionLostException {
-          next = next.copyWith(
-            authRecoveryNeeded: true,
-            authSessionLossCount: 1,
-            currentAccountId: '',
-          );
-        } catch (_) {
-          next = next.copyWith(
-            authRecoveryNeeded: true,
-            authSessionLossCount: 1,
-            currentAccountId: '',
-          );
-        }
-      }
-      emit(next);
+      _applyRestoredSession(await restore.timeout(_bootstrapTimeout));
     } on TimeoutException {
+      // A slow server is not a lost session (dev 2026-10-05: a 60s
+      // access-token response signed everyone out). Start on the stored
+      // account and let the restore finish in the background; only a
+      // rejection from the server signs the user out.
+      final provisionalAccountId = await _authCase.getCurrentAccountId();
       emit(
         state.copyWith(
           isBootstrapping: false,
-          authRecoveryNeeded: true,
-          authSessionLossCount: 2,
-          currentAccountId: '',
+          currentAccountId: provisionalAccountId,
           updatedAt: DateTime.timestamp(),
         ),
       );
+      unawaited(
+        restore.then(
+          (restored) {
+            if (!isClosed && state.currentAccountId == provisionalAccountId) {
+              _applyRestoredSession(restored);
+            }
+          },
+          onError: (Object e, StackTrace s) {
+            if (!isClosed && state.currentAccountId == provisionalAccountId) {
+              _emitBootstrapFailure();
+            }
+          },
+        ),
+      );
     } catch (_) {
+      _emitBootstrapFailure();
+    }
+  }
+
+  void _emitBootstrapFailure() => emit(
+    state.copyWith(
+      isBootstrapping: false,
+      authRecoveryNeeded: true,
+      authSessionLossCount: 1,
+      updatedAt: DateTime.timestamp(),
+    ),
+  );
+
+  void _applyRestoredSession(_RestoredSession restored) {
+    if (restored.sessionLost) {
       emit(
         state.copyWith(
           isBootstrapping: false,
           authRecoveryNeeded: true,
           authSessionLossCount: 1,
+          currentAccountId: '',
           updatedAt: DateTime.timestamp(),
         ),
       );
+      return;
+    }
+    emit(
+      state.copyWith(
+        isBootstrapping: false,
+        currentAccountId: restored.accountId,
+        authRecoveryNeeded: false,
+        authSessionLossCount: 0,
+        updatedAt: DateTime.timestamp(),
+      ),
+    );
+  }
+
+  /// Retries [_restoreSession] while the server is slow or unreachable. When
+  /// retries run out the stored account is kept: requests refresh the token
+  /// lazily, and only a server rejection signs the user out.
+  Future<_RestoredSession> _restoreSessionWithRetry() async {
+    try {
+      for (var attempt = 0; ; attempt++) {
+        try {
+          return await _restoreSession();
+        } on AuthServerUnavailableException {
+          if (attempt >= _restoreRetryDelays.length) {
+            return (
+              accountId: await _authCase.getCurrentAccountId(),
+              sessionLost: false,
+            );
+          }
+          await Future<void>.delayed(_restoreRetryDelays[attempt]);
+        }
+      }
+    } finally {
+      _sessionRestoreInFlight = false;
     }
   }
 
+  Future<_RestoredSession> _restoreSession() async {
+    final bootstrap = await _authCase.bootstrapWebSession();
+    final accountId = bootstrap.currentAccountId;
+    if (bootstrap.invalidSessionCookieRejected && accountId.isEmpty) {
+      _authCase.reloadAfterRejectedSession(
+        clearAcknowledged: bootstrap.sessionCookieClearAcknowledged,
+      );
+      return (accountId: '', sessionLost: false);
+    }
+    if (accountId.isNotEmpty) {
+      if (!_authenticatedBootNoted) {
+        _authenticatedBootNoted = true;
+        _authCase.noteAuthenticatedBoot();
+      }
+      try {
+        await _authCase.signIn(userId: accountId);
+      } on AuthServerUnavailableException {
+        rethrow;
+      } on TimeoutException {
+        throw const AuthServerUnavailableException();
+      } catch (_) {
+        return (accountId: '', sessionLost: true);
+      }
+    }
+    return (accountId: accountId, sessionLost: false);
+  }
+
   void noteAuthSessionLoss(Object error) {
-    if (error is! AuthSessionLostException) {
+    // While the boot restore is still retrying, auth failures from early
+    // requests are expected and must not escalate to the Recover screen.
+    if (error is! AuthSessionLostException || _sessionRestoreInFlight) {
       return;
     }
     final count = state.authSessionLossCount + 1;

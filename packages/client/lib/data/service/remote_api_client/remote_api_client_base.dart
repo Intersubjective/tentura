@@ -43,7 +43,9 @@ abstract base class RemoteApiClientBase {
 
   final Duration authJwtExpiresIn;
 
-  bool _tokenLocked = false;
+  /// In-flight token refresh shared by every concurrent [getAuthToken] caller,
+  /// so a slow server delays them instead of failing them on a short poll.
+  Future<Credentials>? _tokenRefresh;
 
   AuthBox? _authBox;
 
@@ -86,7 +88,7 @@ abstract base class RemoteApiClientBase {
       throw const AuthenticationNoKeyException();
     }
     _bumpAuthGeneration();
-    _tokenLocked = false;
+    _tokenRefresh = null;
     _sessionAuth = false;
     _sessionCredentials = null;
     _authBox = AuthBox.fromSeed(
@@ -102,7 +104,7 @@ abstract base class RemoteApiClientBase {
   @mustCallSuper
   Future<void> setSessionAuth() async {
     _bumpAuthGeneration();
-    _tokenLocked = false;
+    _tokenRefresh = null;
     _authBox = null;
     _sessionAuth = true;
     _sessionCredentials = null;
@@ -159,7 +161,7 @@ abstract base class RemoteApiClientBase {
   Future<void> dropAuth() async {
     _bumpAuthGeneration();
     _authBox = null;
-    _tokenLocked = false;
+    _tokenRefresh = null;
     _sessionAuth = false;
     _sessionCredentials = null;
   }
@@ -169,59 +171,47 @@ abstract base class RemoteApiClientBase {
   //
   @mustCallSuper
   Future<Credentials> getAuthToken() async {
-    final generationAtStart = _authGeneration;
     if (_sessionAuth) {
       if (_sessionCredentials != null && _sessionCredentials!.hasValidToken) {
         return _sessionCredentials!;
       }
-      if (_tokenLocked) {
-        for (var i = 0; i < 5; i++) {
-          await Future<void>.delayed(Duration(milliseconds: 100 + 100 * i));
-          if (!_tokenLocked &&
-              (_sessionCredentials?.hasValidToken ?? false)) {
-            return _sessionCredentials!;
-          }
-        }
-        throw TimeoutException('Timeout while refreshing session token!');
+    } else {
+      if (_authBox == null) {
+        throw const AuthenticationNoKeyException();
       }
-      _tokenLocked = true;
-      try {
-        _sessionCredentials = await _fetchSessionCredentials();
-        if (generationAtStart != _authGeneration) {
-          throw const AuthenticationNoKeyException();
-        }
-        return _sessionCredentials!;
-      } finally {
-        _tokenLocked = false;
+      if (_authBox!.hasValidToken) {
+        return _authBox!.credentials!;
       }
     }
-    if (_authBox == null) {
+    final inFlight = _tokenRefresh;
+    if (inFlight != null) {
+      return inFlight;
+    }
+    final refresh = _refreshToken(_authGeneration);
+    _tokenRefresh = refresh;
+    try {
+      return await refresh;
+    } finally {
+      if (identical(_tokenRefresh, refresh)) {
+        _tokenRefresh = null;
+      }
+    }
+  }
+
+  Future<Credentials> _refreshToken(int generationAtStart) async {
+    if (_sessionAuth) {
+      final credentials = await _fetchSessionCredentials();
+      if (generationAtStart != _authGeneration) {
+        throw const AuthenticationNoKeyException();
+      }
+      return _sessionCredentials = credentials;
+    }
+    final credentials = await _authBox!.fetchCredentials(request);
+    if (generationAtStart != _authGeneration) {
       throw const AuthenticationNoKeyException();
     }
-    if (_authBox!.hasValidToken) {
-      return _authBox!.credentials!;
-    }
-    if (_tokenLocked) {
-      for (var i = 0; i < 5; i++) {
-        await Future<void>.delayed(Duration(milliseconds: 100 + 100 * i));
-        if (!_tokenLocked && (_authBox?.hasValidToken ?? false)) {
-          return _authBox!.credentials!;
-        }
-      }
-      throw TimeoutException('Timeout while refreshing token!');
-    } else {
-      _tokenLocked = true;
-      try {
-        final credentials = await _authBox!.fetchCredentials(request);
-        if (generationAtStart != _authGeneration) {
-          throw const AuthenticationNoKeyException();
-        }
-        _authBox = _authBox!.copyWith(credentials: credentials);
-        return credentials;
-      } finally {
-        _tokenLocked = false;
-      }
-    }
+    _authBox = _authBox!.copyWith(credentials: credentials);
+    return credentials;
   }
 
   /// Authenticated GET (e.g. private room attachment binary download).

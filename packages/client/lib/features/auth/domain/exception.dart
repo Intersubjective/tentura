@@ -98,3 +98,16 @@ final class AuthSessionLostException extends AuthException {
   @override
   String get toRu => 'Не удалось проверить вашу сессию';
 }
+
+/// Session could not be verified because the server was slow or unreachable
+/// (timeout, 5xx, network). Not a rejection: the session may still be valid,
+/// so callers retry instead of signing the user out.
+final class AuthServerUnavailableException extends AuthException {
+  const AuthServerUnavailableException();
+
+  @override
+  String get toEn => "We couldn't reach the server to verify your session";
+
+  @override
+  String get toRu => 'Не удалось связаться с сервером для проверки сессии';
+}

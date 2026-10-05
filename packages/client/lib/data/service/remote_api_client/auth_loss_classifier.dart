@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:ferry/ferry.dart' as gql
     show ResponseFormatException, ServerException;
 import 'package:gql_exec/gql_exec.dart';
@@ -107,6 +109,31 @@ Object mapRemoteFailure(Object? error) {
   }
   return _remoteApiOrUnknown(raw);
 }
+
+/// True when [error] means the server was slow or unreachable (timeout, 5xx,
+/// 408/429, transport failure) rather than that it rejected the credentials.
+/// Session-restore callers retry these instead of signing the user out.
+bool isTransientRemoteFailure(Object? error) {
+  if (error is TimeoutException) {
+    return true;
+  }
+  if (error is SessionHttpException) {
+    return _isTransientStatus(error.statusCode);
+  }
+  if (error is gql.ServerException) {
+    final status = error.statusCode;
+    if (status != null && _isTransientStatus(status)) {
+      return true;
+    }
+  }
+  final mapped = mapRemoteFailure(error);
+  return mapped is ConnectionUplinkException ||
+      (mapped is ServerStatusException &&
+          _isTransientStatus(mapped.statusCode));
+}
+
+bool _isTransientStatus(int status) =>
+    status >= 500 || status == 408 || status == 429;
 
 /// Heuristic: does this error message look like a network/transport failure?
 /// Matches the common socket/timeout/TLS/XHR/fetch signatures across the
