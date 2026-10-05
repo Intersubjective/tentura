@@ -25,6 +25,7 @@ import 'package:tentura/features/beacon_threads/ui/widget/mention_text_controlle
 import 'package:tentura/features/beacon_threads/ui/widget/participants_matching_mention_query.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_date_separator.dart';
 import 'package:tentura/features/emoji/domain/emoji_catalog.dart';
+import 'package:tentura/features/emoji/ui/widget/emoji_picker_button.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/features/beacon_threads/domain/room_message_receipt.dart';
@@ -1680,6 +1681,13 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
                           color: theme.colorScheme.primary,
                         ),
                       ),
+                      prefixIcon: readOnly
+                          ? null
+                          : EmojiPickerButton(
+                              controller: _text,
+                              enabled: !locked,
+                              onClosed: _requestComposerKeyboardFromTap,
+                            ),
                       suffixIconConstraints: const BoxConstraints(
                         minWidth: 2 * kMinInteractiveDimension,
                         minHeight: kMinInteractiveDimension,

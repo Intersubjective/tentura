@@ -7759,5 +7759,17 @@
   "batonCreateSubmit": "Ask",
   "@batonCreateSubmit": {
     "description": "Button that sends the «Who'll take it?» question to the picked people."
+  },
+  "composerEmojiButtonTooltip": "Emoji",
+  "@composerEmojiButtonTooltip": {
+    "context": "Tooltip of the chat composer button that opens the emoji picker"
+  },
+  "emojiPickerSearchHint": "Search emoji",
+  "@emojiPickerSearchHint": {
+    "context": "Hint in the emoji picker search field"
+  },
+  "emojiPickerNoRecents": "Emoji you use will show up here",
+  "@emojiPickerNoRecents": {
+    "context": "Empty Recently used tab of the emoji picker"
   }
 }

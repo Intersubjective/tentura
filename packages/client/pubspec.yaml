@@ -91,6 +91,7 @@ dependencies:
   google_maps_flutter: ^2.17.1
   pointer_interceptor: ^0.10.1+2
   super_clipboard: ^0.9.1
+  emoji_picker_flutter: ^4.5.4
 
 dev_dependencies:
   flutter_test:
@@ -113,6 +114,7 @@ dev_dependencies:
   sentry_dart_plugin: ^3.4.0
   auto_route_generator: ^10.6.0
   flutter_launcher_icons: ^0.14.4
+  shared_preferences: ^2.5.5
 
 flutter:
   generate: true

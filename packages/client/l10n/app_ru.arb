@@ -6454,5 +6454,8 @@
   "batonCreateSubmit": "Спросить",
   "@batonCreateSubmit": {
     "description": "Button that sends the «Who'll take it?» question to the picked people."
-  }
+  },
+  "composerEmojiButtonTooltip": "Эмодзи",
+  "emojiPickerSearchHint": "Поиск эмодзи",
+  "emojiPickerNoRecents": "Здесь появятся эмодзи, которые вы используете"
 }

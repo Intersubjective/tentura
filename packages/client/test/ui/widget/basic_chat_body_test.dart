@@ -2,8 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tentura_root/domain/enums.dart';
 
 import 'package:tentura/data/repository/clipboard_image_repository.dart';
@@ -18,6 +20,7 @@ import 'package:tentura/domain/entity/room_poll_data.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/presence_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/mention_suggestions_overlay.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_tile.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_unread_divider.dart';
@@ -26,11 +29,11 @@ import 'package:tentura/ui/widget/basic_chat_body.dart';
 class _FakeImageRepository extends Fake implements ImageRepository {
   @override
   Future<List<ImagePicked>> pickMultipleImages() async => [
-        ImagePicked(
-          bytes: Uint8List.fromList([1, 2, 3]),
-          fileName: 'test.png',
-        ),
-      ];
+    ImagePicked(
+      bytes: Uint8List.fromList([1, 2, 3]),
+      fileName: 'test.png',
+    ),
+  ];
 }
 
 class _FakeClipboardImageRepository extends Fake
@@ -40,13 +43,13 @@ class _FakeClipboardImageRepository extends Fake
 
   _FakeClipboardImageRepository.result(
     ClipboardImageReadResult result,
-  )   : _result = result,
-        _resultFactory = null;
+  ) : _result = result,
+      _resultFactory = null;
 
   _FakeClipboardImageRepository.factory(
     FutureOr<ClipboardImageReadResult> Function() resultFactory,
-  )   : _result = null,
-        _resultFactory = resultFactory;
+  ) : _result = null,
+      _resultFactory = resultFactory;
 
   @override
   Future<ClipboardImageReadResult> readImage() async {
@@ -347,7 +350,8 @@ void main() {
                   participants: const [],
                   isLoading: false,
                   imageRepository: imageRepository ?? _FakeImageRepository(),
-                  clipboardImageRepository: clipboardImageRepository ??
+                  clipboardImageRepository:
+                      clipboardImageRepository ??
                       _FakeClipboardImageRepository.result(
                         const ClipboardImageReadResult.notFound(),
                       ),
@@ -423,8 +427,10 @@ void main() {
       findsNothing,
     );
     expect(find.byType(TextField), findsOneWidget);
-    expect(tester.widget<TextField>(find.byType(TextField)).controller!.text,
-        isEmpty);
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).controller!.text,
+      isEmpty,
+    );
   });
 
   testWidgets(
@@ -473,6 +479,87 @@ void main() {
 
     expect(find.byType(EmojiSuggestionsOverlay), findsNothing);
     expect(tester.widget<TextField>(field).controller!.text, ':hea');
+  });
+
+  group('emoji picker button', () {
+    setUp(() => SharedPreferences.setMockInitialValues({}));
+
+    Finder emojiButton() => find.byKey(TestIds.key(TestIds.roomEmojiButton));
+
+    testWidgets('wide: popover inserts at the caret and stays open', (
+      tester,
+    ) async {
+      await pumpComposerBody(tester, onSend: (_, _) async => true);
+      final field = find.byType(TextField);
+      await tester.enterText(field, 'hi ');
+      await tester.pump();
+
+      await tester.tap(emojiButton());
+      await tester.pumpAndSettle();
+      expect(find.byType(EmojiPicker), findsOneWidget);
+      expect(find.byType(BottomSheet), findsNothing);
+
+      await tester.tap(find.byIcon(Icons.tag_faces).last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('😀', findRichText: true).first);
+      await tester.pumpAndSettle();
+      expect(tester.widget<TextField>(field).controller!.text, 'hi 😀');
+      expect(find.byType(EmojiPicker), findsOneWidget);
+
+      await tester.tap(emojiButton());
+      await tester.pumpAndSettle();
+      expect(find.byType(EmojiPicker), findsNothing);
+    });
+
+    testWidgets(
+      'wide: Escape closes the popover while the composer has focus',
+      (
+        tester,
+      ) async {
+        await pumpComposerBody(tester, onSend: (_, _) async => true);
+        final field = find.byType(TextField);
+        await tester.tap(field);
+        await tester.enterText(field, 'hi');
+        await tester.pump();
+
+        await tester.tap(emojiButton());
+        await tester.pumpAndSettle();
+        expect(find.byType(EmojiPicker), findsOneWidget);
+
+        await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+        await tester.pumpAndSettle();
+        expect(find.byType(EmojiPicker), findsNothing);
+        expect(tester.widget<TextField>(field).controller!.text, 'hi');
+      },
+    );
+
+    testWidgets('compact: picker opens as a bottom sheet', (tester) async {
+      await pumpComposerBody(
+        tester,
+        onSend: (_, _) async => true,
+        width: 400,
+      );
+
+      await tester.tap(emojiButton());
+      await tester.pumpAndSettle();
+      expect(find.byType(BottomSheet), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(BottomSheet),
+          matching: find.byType(EmojiPicker),
+        ),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.byIcon(Icons.tag_faces).last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('😀', findRichText: true).first);
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        '😀',
+      );
+    });
   });
 
   testWidgets('paste image adds pending attachment via same path as Photos', (
@@ -786,77 +873,79 @@ void main() {
     expect(state.highlightedMessageId.value, isNull);
   });
 
-  testWidgets('successive scroll highlights keep the newer id until timer ends',
-      (tester) async {
-    final base = DateTime.utc(2026, 6, 30, 12);
-    final messages = List.generate(
-      2,
-      (i) => RoomMessage(
-        id: 'm$i',
-        beaconId: 'b1',
-        authorId: 'peer-$i',
-        author: Profile(id: 'peer-$i', displayName: 'Peer $i'),
-        body: 'Message $i',
-        createdAt: base.add(Duration(minutes: i)),
-      ),
-    );
+  testWidgets(
+    'successive scroll highlights keep the newer id until timer ends',
+    (tester) async {
+      final base = DateTime.utc(2026, 6, 30, 12);
+      final messages = List.generate(
+        2,
+        (i) => RoomMessage(
+          id: 'm$i',
+          beaconId: 'b1',
+          authorId: 'peer-$i',
+          author: Profile(id: 'peer-$i', displayName: 'Peer $i'),
+          body: 'Message $i',
+          createdAt: base.add(Duration(minutes: i)),
+        ),
+      );
 
-    final bodyKey = GlobalKey<BasicChatBodyState>();
+      final bodyKey = GlobalKey<BasicChatBodyState>();
 
-    await tester.pumpWidget(
-      MultiBlocProvider(
-        providers: [
-          BlocProvider<ProfileCubit>.value(value: _TestProfileCubit()),
-          BlocProvider<PresenceCubit>.value(value: _TestPresenceCubit()),
-        ],
-        child: MaterialApp(
-          locale: const Locale('en'),
-          theme: TenturaTheme.light(),
-          localizationsDelegates: L10n.localizationsDelegates,
-          supportedLocales: L10n.supportedLocales,
-          home: MediaQuery(
-            data: const MediaQueryData(size: Size(390, 720)),
-            child: TenturaResponsiveScope(
-              child: Scaffold(
-                body: BasicChatBody(
-                  key: bodyKey,
-                  messages: messages,
-                  myProfile: const Profile(id: 'me', displayName: 'Me'),
-                  participants: const [],
-                  isLoading: false,
-                  imageRepository: ImageRepository(),
-                  clipboardImageRepository: ClipboardImageRepository(),
-                  enableComposerAttachments: false,
-                  enableParticipantMentions: false,
-                  onSend: (_, _) async => true,
-                  onToggleReaction: (_, _) async {},
+      await tester.pumpWidget(
+        MultiBlocProvider(
+          providers: [
+            BlocProvider<ProfileCubit>.value(value: _TestProfileCubit()),
+            BlocProvider<PresenceCubit>.value(value: _TestPresenceCubit()),
+          ],
+          child: MaterialApp(
+            locale: const Locale('en'),
+            theme: TenturaTheme.light(),
+            localizationsDelegates: L10n.localizationsDelegates,
+            supportedLocales: L10n.supportedLocales,
+            home: MediaQuery(
+              data: const MediaQueryData(size: Size(390, 720)),
+              child: TenturaResponsiveScope(
+                child: Scaffold(
+                  body: BasicChatBody(
+                    key: bodyKey,
+                    messages: messages,
+                    myProfile: const Profile(id: 'me', displayName: 'Me'),
+                    participants: const [],
+                    isLoading: false,
+                    imageRepository: ImageRepository(),
+                    clipboardImageRepository: ClipboardImageRepository(),
+                    enableComposerAttachments: false,
+                    enableParticipantMentions: false,
+                    onSend: (_, _) async => true,
+                    onToggleReaction: (_, _) async {},
+                  ),
                 ),
               ),
             ),
           ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    final state = bodyKey.currentState!;
-    state.onRoomDataChangedForViewport(
-      firstUnreadMessageId: null,
-      messagesEmpty: false,
-    );
-    await tester.pumpAndSettle();
+      final state = bodyKey.currentState!;
+      state.onRoomDataChangedForViewport(
+        firstUnreadMessageId: null,
+        messagesEmpty: false,
+      );
+      await tester.pumpAndSettle();
 
-    await state.scrollToMessage('m0');
-    await tester.pump(const Duration(milliseconds: 600));
-    await state.scrollToMessage('m1');
-    expect(state.highlightedMessageId.value, 'm1');
+      await state.scrollToMessage('m0');
+      await tester.pump(const Duration(milliseconds: 600));
+      await state.scrollToMessage('m1');
+      expect(state.highlightedMessageId.value, 'm1');
 
-    await tester.pump(const Duration(milliseconds: 700));
-    expect(state.highlightedMessageId.value, 'm1');
+      await tester.pump(const Duration(milliseconds: 700));
+      expect(state.highlightedMessageId.value, 'm1');
 
-    await tester.pump(const Duration(milliseconds: 600));
-    expect(state.highlightedMessageId.value, isNull);
-  });
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(state.highlightedMessageId.value, isNull);
+    },
+  );
 
   testWidgets('prunes message keys but retains pending jump target', (
     tester,
