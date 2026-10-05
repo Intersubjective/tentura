@@ -26,6 +26,9 @@ abstract final class BeaconRoomSystemMessageKind {
   static const childCreated = 2;
   static const closureStory = 3;
   static const convertedToRequest = 4;
+
+  /// Request plan lines (markers 13..16, #220).
+  static const plan = 5;
 }
 
 /// Opaque hierarchy list cursor version.

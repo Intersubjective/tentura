@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:meta/meta.dart';
 
@@ -154,3 +155,17 @@ String? _nonEmpty(String? v) => (v == null || v.isEmpty) ? null : v;
 
 bool _sameInstant(DateTime? a, DateTime? b) =>
     a?.millisecondsSinceEpoch == b?.millisecondsSinceEpoch;
+
+final _stepIdRandom = Random.secure();
+
+/// A fresh plan step id: `PS` + 12 hex digits (plan P6). The client mints it
+/// so a draft survives a conflict and a retry; the server checks the shape
+/// and collisions.
+String newPlanStepId([Random? random]) {
+  final r = random ?? _stepIdRandom;
+  final b = StringBuffer('PS');
+  for (var i = 0; i < 12; i++) {
+    b.write(r.nextInt(16).toRadixString(16));
+  }
+  return b.toString();
+}

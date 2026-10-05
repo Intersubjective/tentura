@@ -273,6 +273,17 @@
         "packages/client/test/features/updates/prompt_projection_test.dart",
         "packages/client/test/data/service/invalidation_service_test.dart"
       ]
+    },
+    {
+      "wireKind": "beacon_plan",
+      "acceptedWireKinds": ["beacon_plan"],
+      "clientKind": "beaconPlan",
+      "genericTriggerArgs": [],
+      "specializedPublishers": ["notify_beacon_plan_change"],
+      "impacts": ["request_detail", "my_work"],
+      "tests": [
+        "packages/server/test/domain/plan/plan_domain_test.dart"
+      ]
     }
   ]
 }

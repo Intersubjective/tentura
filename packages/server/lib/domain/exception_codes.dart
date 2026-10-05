@@ -102,6 +102,15 @@ enum BeaconExceptionCode {
   batonAlreadyActive, // 1327
   batonTakerNotAvailable, // 1328
   batonMessageNotEligible, // 1329
+  planEditConflict, // 1330
+  planStepNotFound, // 1331
+  planNotEditable, // 1332
+  planActionStale, // 1333
+  planRestoreSourceMissing, // 1334
+  planRateLimited, // 1335
+  planAssigneeNotAdmitted, // 1336
+  planTooLarge, // 1337
+  planDisabled, // 1338
 }
 
 class BeaconExceptionCodes extends ExceptionCodes {

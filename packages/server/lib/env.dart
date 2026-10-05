@@ -128,6 +128,7 @@ class Env {
     int? roomMessageMaxPerUser,
     Duration? factEditRateWindow,
     int? factEditRateMax,
+    bool? planEnabled,
     int? uploadDailyCapBytes,
 
     // Web server
@@ -329,6 +330,7 @@ class Env {
            factEditRateMax ??
            int.tryParse(_env['FACT_EDIT_RATE_MAX'] ?? '') ??
            20,
+       planEnabled = planEnabled ?? _env['PLAN_ENABLED'] != 'false',
        uploadDailyCapBytes =
            uploadDailyCapBytes ??
            (int.tryParse(_env['UPLOAD_DAILY_CAP_MB'] ?? '') ?? 200) *
@@ -651,6 +653,10 @@ class Env {
   /// Max fact-card edits/restores one actor may make within
   /// [factEditRateWindow] (`FACT_EDIT_RATE_MAX`).
   final int factEditRateMax;
+
+  /// Request plan («либретто», #220) kill switch: `PLAN_ENABLED=false` turns
+  /// off plan writes, the step sweep and plan copy on fork. On by default.
+  final bool planEnabled;
 
   /// Max total bytes (images + file attachments) one user may upload per UTC
   /// day. Configured in MB via `UPLOAD_DAILY_CAP_MB` (default 200MB).

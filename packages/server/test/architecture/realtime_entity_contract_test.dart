@@ -59,6 +59,7 @@ void main() {
         'notify_coordination_change',
         'notify_help_offer_admission_event_change',
         'notify_beacon_hierarchy_admission_change',
+        'notify_beacon_plan_change',
         'notify_beacon_hierarchy_beacon_change',
         'notify_beacon_hierarchy_promotion_change',
         'notify_constellation_anchor_change',

@@ -43,7 +43,7 @@ Future<void> main() async {
     });
 
     test('cached visibility takes no per-pair advisory lock', () async {
-      // m0221 switched to a try-lock; m0222 dropped the lock with the
+      // m0221 switched to a try-lock; m0223 dropped the lock with the
       // cross-transaction cache table.
       final rows = await writer.execute('''
 SELECT pg_get_functiondef(
