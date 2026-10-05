@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 
+import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/domain/capability/person_capability_cues.dart';
 import 'package:tentura/domain/capability/tag_projection.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -9,16 +10,18 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/domain/util/availability_presets.dart';
 import 'package:tentura/ui/model/person_action_policy.dart';
 import 'package:tentura/ui/utils/availability_line.dart';
+import 'package:tentura/ui/utils/capability_tag_presenter.dart';
 import 'package:tentura/ui/utils/profile_presence_line.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
 import 'package:tentura/ui/widget/trust_info_sheet.dart';
+import 'package:tentura/ui/widget/trust_toggle_line.dart';
 import 'package:tentura/ui/widget/tentura_fullscreen_image_viewer.dart';
 import 'package:tentura/ui/widget/tentura_selection_area.dart';
 import 'package:tentura/ui/widget/url_link_annotations.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 
-import 'package:tentura/features/capability/ui/widget/capability_cue_strip.dart';
+import 'package:tentura/features/friends/ui/dialog/friend_remove_dialog.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 
 import '../../domain/port/person_shared_context_port.dart';
@@ -26,6 +29,7 @@ import '../bloc/profile_view_cubit.dart';
 import '../dialog/edit_capabilities_dialog.dart';
 import 'edit_seed_suggestion_section.dart';
 import 'mutual_friends_button.dart';
+import 'profile_info_sheet.dart';
 import 'seen_helping_with_strip.dart';
 
 class ProfileViewBody extends StatelessWidget {
@@ -188,6 +192,9 @@ class _ProfileAvatarSection extends StatelessWidget {
   );
 }
 
+/// Your own trust vote toward this person, with the toggle that casts or
+/// withdraws it (#140). Incoming trust is part of why the eye is open, so it
+/// lives behind the eye's ⓘ.
 class _ProfileTrustRelationLine extends StatelessWidget {
   const _ProfileTrustRelationLine({
     required this.l10n,
@@ -197,32 +204,31 @@ class _ProfileTrustRelationLine extends StatelessWidget {
   final L10n l10n;
   final Profile profile;
 
-  String _trustReciprocityLabel() {
-    if (profile.isMutualFriend) return l10n.trustSentenceMutual;
-    if (profile.isFriend) return l10n.trustSentenceOneWayOut;
-    if (profile.subjectExplicitlyTrustsViewer)
-      return l10n.trustSentenceOneWayIn;
-    return l10n.trustSentenceNone;
-  }
-
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final trusts = profile.viewerExplicitlyTrustsSubject;
+    final cubit = context.read<ProfileViewCubit>();
     return Padding(
       padding: kPaddingSmallT,
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Text(
-          _trustReciprocityLabel(),
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
+      child: TrustToggleLine(
+        trusts: trusts,
+        onTextTap: () => showTrustInfoSheet(context),
+        onChanged: (on) => on
+            ? unawaited(cubit.addFriend())
+            : unawaited(
+                FriendRemoveDialog.show(
+                  context,
+                  profile: profile,
+                  onRemove: cubit.removeFriend,
+                ),
+              ),
       ),
     );
   }
 }
 
+/// The open / closed eye: the result of trust and MeritRank in both
+/// directions (#140). One line on the profile; the reason sits behind ⓘ.
 class _ProfileVisibilitySection extends StatelessWidget {
   const _ProfileVisibilitySection({
     required this.l10n,
@@ -236,66 +242,62 @@ class _ProfileVisibilitySection extends StatelessWidget {
   final PersonActionPolicy policy;
   final List<PersonSharedContext> sharedContexts;
 
-  List<String> _directionalLines() {
+  String _line() => switch (policy.visibilityState) {
+    PersonVisibilityState.mutual => l10n.profileEyeOpen,
+    PersonVisibilityState.sharedContext => l10n.profileVisibilitySharedContext(
+      sharedContexts.first.title,
+    ),
+    PersonVisibilityState.viewerOnly ||
+    PersonVisibilityState.subjectOnly ||
+    PersonVisibilityState.neither => l10n.profileEyeClosed,
+  };
+
+  List<String> _reasons() {
     final name = profile.shownName;
-    return switch (policy.visibilityState) {
-      PersonVisibilityState.mutual => [l10n.profileVisibilityMutual],
-      PersonVisibilityState.viewerOnly => [
-        l10n.profileVisibilityYouCanSee(name),
-        l10n.profileVisibilityCantSeeYou(name),
-      ],
-      PersonVisibilityState.subjectOnly => [
-        l10n.profileVisibilityTheyCanSeeYou(name),
-        l10n.profileVisibilityYouDontSeeThem(name),
-      ],
-      PersonVisibilityState.neither => [l10n.profileVisibilityNeither],
-      PersonVisibilityState.sharedContext => [
-        l10n.profileVisibilitySharedContext(sharedContexts.first.title),
-        l10n.profileVisibilitySharedContextNote,
-      ],
-    };
+    return [
+      ...switch (policy.visibilityState) {
+        PersonVisibilityState.mutual =>
+          profile.isMutualFriend ||
+                  (policy.viewerExplicitlyTrustsSubject &&
+                      policy.subjectExplicitlyTrustsViewer)
+              ? [l10n.profileEyeReasonMutualTrust]
+              : [l10n.profileEyeReasonMeritRank],
+        PersonVisibilityState.sharedContext => [
+          l10n.profileVisibilitySharedContextNote,
+        ],
+        PersonVisibilityState.viewerOnly => [
+          l10n.profileVisibilityYouCanSee(name),
+          l10n.profileVisibilityCantSeeYou(name),
+          l10n.profileEyeClosedHint,
+        ],
+        PersonVisibilityState.subjectOnly => [
+          l10n.profileVisibilityTheyCanSeeYou(name),
+          l10n.profileVisibilityYouDontSeeThem(name),
+          l10n.profileEyeClosedHint,
+        ],
+        PersonVisibilityState.neither => [l10n.profileEyeClosedHint],
+      },
+      if (policy.subjectExplicitlyTrustsViewer &&
+          !policy.viewerExplicitlyTrustsSubject)
+        l10n.trustSentenceOneWayIn,
+      l10n.profileEyeTrustNote,
+    ];
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final tt = context.tt;
     final eyeOpen = policy.isMutuallyVisible;
-    final eyeTooltip = eyeOpen
-        ? l10n.graphLegendEyeOpen
-        : l10n.graphLegendEyeClosed;
-
-    return Padding(
-      padding: kPaddingSmallT,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Tooltip(
-            message: eyeTooltip,
-            child: Icon(
-              eyeOpen
-                  ? Icons.visibility_outlined
-                  : Icons.visibility_off_outlined,
-              size: tt.iconSize,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          SizedBox(width: tt.iconTextGap),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                for (final line in _directionalLines())
-                  Text(
-                    line,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ],
+    return ProfileFactRow(
+      icon: eyeOpen ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+      text: _line(),
+      trailing: IconButton(
+        onPressed: () => showProfileInfoSheet(
+          context,
+          title: l10n.profileEyeInfoTitle,
+          lines: _reasons(),
+        ),
+        tooltip: l10n.profileEyeInfoTitle,
+        icon: const Icon(Icons.info_outline),
       ),
     );
   }
@@ -315,29 +317,11 @@ class _ProfilePrimaryAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final screenCubit = context.read<ScreenCubit>();
-    final profileViewCubit = context.read<ProfileViewCubit>();
 
     return switch (policy.primaryAction) {
       PersonPrimaryAction.none => const SizedBox.shrink(),
-      PersonPrimaryAction.trust => Padding(
-        padding: kPaddingSmallT,
-        child: Row(
-          children: [
-            Expanded(
-              child: FilledButton.icon(
-                onPressed: profileViewCubit.addFriend,
-                icon: const Icon(Icons.people),
-                label: Text(l10n.trustThisUser),
-              ),
-            ),
-            IconButton(
-              onPressed: () => showTrustInfoSheet(context),
-              icon: const Icon(Icons.info_outline),
-              tooltip: l10n.trustInfoTitle,
-            ),
-          ],
-        ),
-      ),
+      // The trust toggle on the trust line is the trust action (#140).
+      PersonPrimaryAction.trust => const SizedBox.shrink(),
       PersonPrimaryAction.sendRequest => Padding(
         padding: kPaddingSmallT,
         child: FilledButton.icon(
@@ -366,7 +350,6 @@ class _ProfileSecondaryActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final screenCubit = context.read<ScreenCubit>();
-    final profileViewCubit = context.read<ProfileViewCubit>();
     final children = <Widget>[];
 
     if (policy.primaryAction == PersonPrimaryAction.none &&
@@ -378,16 +361,6 @@ class _ProfileSecondaryActions extends StatelessWidget {
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
-        ),
-      );
-    }
-
-    if (policy.showSecondaryTrust) {
-      children.add(
-        OutlinedButton.icon(
-          onPressed: profileViewCubit.addFriend,
-          icon: const Icon(Icons.people_outlined),
-          label: Text(l10n.trustThisUser),
         ),
       );
     }
@@ -459,10 +432,82 @@ class _SeenHelpingWithSection extends StatelessWidget {
   }
 }
 
+/// Capability labels the viewer links with a friend (#134): one compact
+/// line. Each label carries its source: 🔒 the viewer's own note (only they
+/// see it) or 👥 from forwards / help acknowledgements (the subject sees it
+/// and it feeds suggestions for people who trust the viewer). The
+/// explanation sits behind ⓘ.
 class _ProfileCapabilitySection extends StatelessWidget {
   const _ProfileCapabilitySection({required this.profile});
 
   final Profile profile;
+
+  static const _privateIcon = Icons.lock_outline;
+  static const _sharedIcon = Icons.group_outlined;
+
+  void _edit(BuildContext context, List<CapabilityWithSource> viewerVisible) {
+    final cubit = context.read<ProfileViewCubit>();
+    unawaited(
+      EditCapabilitiesDialog.show(
+        context,
+        subjectId: profile.id,
+        subjectName: profile.shownName,
+        currentVisible: viewerVisible,
+        onSaved: (slugs, automaticSlugs) => cubit.updateViewerVisible(
+          slugs
+              .map(
+                (s) => CapabilityWithSource(
+                  slug: s,
+                  hasManualLabel: !automaticSlugs.contains(s),
+                ),
+              )
+              .toList(),
+        ),
+      ).catchError((Object e) {
+        if (context.mounted) {
+          showSnackBar(context, text: e.toString(), isError: true, error: e);
+        }
+      }),
+    );
+  }
+
+  static String _labelOf(L10n l10n, CapabilityWithSource c) =>
+      CapabilityTag.fromSlug(c.slug)?.labelOf(l10n) ?? c.slug;
+
+  InlineSpan _labelsSpan(
+    BuildContext context,
+    L10n l10n,
+    List<CapabilityWithSource> viewerVisible,
+  ) {
+    final theme = Theme.of(context);
+    final tt = context.tt;
+    final iconSize = theme.textTheme.bodySmall?.fontSize ?? tt.iconSize;
+    final prefix = l10n.profileMyLabelsLine('');
+    return TextSpan(
+      children: [
+        TextSpan(text: prefix),
+        for (final (i, c) in viewerVisible.indexed) ...[
+          if (i > 0) const TextSpan(text: ', '),
+          WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: Tooltip(
+              message: c.hasManualLabel
+                  ? l10n.profileLabelPrivate
+                  : l10n.profileLabelShared,
+              child: Icon(
+                c.hasManualLabel ? _privateIcon : _sharedIcon,
+                size: iconSize,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          TextSpan(
+            text: ' ${CapabilityTag.fromSlug(c.slug)?.labelOf(l10n) ?? c.slug}',
+          ),
+        ],
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -478,55 +523,40 @@ class _ProfileCapabilitySection extends StatelessWidget {
         final myId = context.read<ProfileCubit>().state.profile.id;
         final isSelf = profile.id == myId;
         if (isSelf || !isFriend) return const SizedBox.shrink();
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (viewerVisible.isNotEmpty)
-              Padding(
-                padding: kPaddingSmallT,
-                child: CapabilityCueStrip(
-                  slugs: viewerVisible.map((c) => c.slug).toList(),
+        final name = profile.shownName;
+        final isEmpty = viewerVisible.isEmpty;
+        return ProfileFactRow(
+          icon: Icons.label_outline,
+          text: isEmpty
+              ? l10n.profileMarkCapabilities(name)
+              : l10n.profileMyLabelsLine(
+                  viewerVisible.map((c) => _labelOf(l10n, c)).join(', '),
                 ),
+          richText: isEmpty ? null : _labelsSpan(context, l10n, viewerVisible),
+          onTextTap: () => _edit(context, viewerVisible),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                onPressed: () => _edit(context, viewerVisible),
+                tooltip: l10n.profileEditLabels,
+                icon: Icon(isEmpty ? Icons.add : Icons.edit_outlined),
               ),
-            Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: TenturaTextAction(
-                flushStart: true,
-                onPressed: () {
-                  final cubit = context.read<ProfileViewCubit>();
-                  unawaited(
-                    EditCapabilitiesDialog.show(
-                      context,
-                      subjectId: profile.id,
-                      currentVisible: viewerVisible,
-                      onSaved: (slugs, automaticSlugs) =>
-                          cubit.updateViewerVisible(
-                            slugs
-                                .map(
-                                  (s) => CapabilityWithSource(
-                                    slug: s,
-                                    hasManualLabel: !automaticSlugs.contains(s),
-                                  ),
-                                )
-                                .toList(),
-                          ),
-                    ).catchError((Object e) {
-                      if (context.mounted) {
-                        showSnackBar(
-                          context,
-                          text: e.toString(),
-                          isError: true,
-                          error: e,
-                        );
-                      }
-                    }),
-                  );
-                },
-                icon: const Icon(Icons.tune),
-                label: l10n.capabilityEditCapabilities,
+              IconButton(
+                onPressed: () => showProfileInfoSheet(
+                  context,
+                  title: l10n.profileLabelsInfoTitle,
+                  lines: [
+                    l10n.profileLabelsInfoPrivate,
+                    l10n.profileLabelsInfoShared(name),
+                  ],
+                  lineIcons: const [_privateIcon, _sharedIcon],
+                ),
+                tooltip: l10n.profileLabelsInfoTitle,
+                icon: const Icon(Icons.info_outline),
               ),
-            ),
-          ],
+            ],
+          ),
         );
       },
     );

@@ -31,7 +31,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.textContaining('two-way visibility'),
+      find.textContaining('you see each other'),
       findsOneWidget,
     );
     expect(

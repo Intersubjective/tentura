@@ -1068,11 +1068,11 @@
   "@graphLegendMutual": {
     "context": "GraphScreen"
   },
-  "graphLegendEyeOpen": "Open eye — you and this person have two-way visibility and can forward requests (Trust or MeritRank in each direction)",
+  "graphLegendEyeOpen": "Open eye — you see each other and can forward requests (through trust or MeritRank in each direction)",
   "@graphLegendEyeOpen": {
     "context": "GraphScreen — mutual visibility via Trust or MeritRank per direction (#100)"
   },
-  "graphLegendEyeClosed": "Closed eye — you and this user cannot see each other and cannot forward requests to each other",
+  "graphLegendEyeClosed": "Closed eye — you don't see each other yet and can't forward requests to each other",
   "@graphLegendEyeClosed": {
     "context": "GraphScreen"
   },
@@ -5544,6 +5544,53 @@
   "beaconRoomAttachmentUntitled": "File",
   "beaconRoomAttachmentOpenFailed": "Could not open attachment.",
   "beaconRoomAttachmentOpenShare": "Share file",
+  "profileTrustNotYet": "You don't trust them yet",
+  "profileEyeOpen": "You see each other and can forward requests",
+  "profileEyeClosed": "You don't see each other yet",
+  "profileEyeInfoTitle": "Who sees whom",
+  "profileEyeReasonMutualTrust": "Because you trust each other.",
+  "profileEyeReasonMeritRank": "Through people you both know (MeritRank).",
+  "profileEyeClosedHint": "To see each other, you need trust or people you both know, in both directions.",
+  "profileEyeTrustNote": "Trust is your own vote. The open eye is the result: it can open without trust, through people you both know.",
+  "profileMyLabelsLine": "You link them with: {tags}",
+  "@profileMyLabelsLine": {
+    "placeholders": {
+      "tags": {
+        "type": "String"
+      }
+    }
+  },
+  "profileMarkCapabilities": "Mark what {name} helps with",
+  "@profileMarkCapabilities": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "profileEditLabels": "Edit labels",
+  "profileLabelsInfoTitle": "Labels about this person",
+  "profileLabelsInfoPrivate": "Notes marked with a lock are visible only to you: Tentura uses them to suggest this person to you when you forward.",
+  "profileLabelsInfoShared": "Labels marked with people come from your forwards and help acknowledgements. {name} sees them, and they help people who trust you find this person for similar requests.",
+  "@profileLabelsInfoShared": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "profileLabelPrivate": "Your note, only you see it",
+  "profileLabelShared": "From forwards or help acknowledgements, visible to others",
+  "profileSeedSuggestionInfo": "People who trust you will see this person in suggestions for these requests.",
+  "capabilityDialogTitle": "What can {name} help with?",
+  "@capabilityDialogTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "capabilityDialogOnlyYou": "New labels are your notes, only you see them",
   "capabilityEditCapabilities": "Edit capabilities",
   "capabilityCueMyLabels": "My labels: {tags}",
   "@capabilityCueMyLabels": {
@@ -6168,7 +6215,7 @@
       }
     }
   },
-  "profileSeedSuggestionAddPrompt": "Suggest request types for {name}",
+  "profileSeedSuggestionAddPrompt": "Suggest {name} for requests",
   "@profileSeedSuggestionAddPrompt": {
     "placeholders": {
       "name": {
@@ -7180,14 +7227,6 @@
         "type": "int"
       }
     }
-  },
-  "postParticipantInContacts": "in contacts",
-  "@postParticipantInContacts": {
-    "description": "Label next to a Post participant who is already a contact."
-  },
-  "postParticipantAddToContacts": "+ Add to contacts",
-  "@postParticipantAddToContacts": {
-    "description": "Shortcut button next to a Post participant who is not a contact."
   },
   "postParticipantBroughtBy": "invited by {name}",
   "@postParticipantBroughtBy": {

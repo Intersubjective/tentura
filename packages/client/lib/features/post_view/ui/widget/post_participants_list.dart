@@ -8,6 +8,7 @@ import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
+import 'package:tentura/features/friends/ui/dialog/friend_remove_dialog.dart';
 import 'package:tentura/features/profile_view/ui/bloc/profile_view_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/coordination_participant_lookup.dart';
@@ -209,12 +210,24 @@ class _PersonRow extends StatelessWidget {
             if (cubit case final cubit?)
               BlocBuilder<ProfileViewCubit, ProfileViewState>(
                 bloc: cubit,
-                builder: (context, state) => state.profile.isFriend
-                    ? Text(l10n.postParticipantInContacts, style: muted)
-                    : TextButton(
-                        onPressed: cubit.addFriend,
-                        child: Text(l10n.postParticipantAddToContacts),
-                      ),
+                // Trust toggle instead of an "add" button (#140).
+                builder: (context, state) => Tooltip(
+                  message: state.profile.isFriend
+                      ? l10n.removeFromMyField
+                      : l10n.trustThisUser,
+                  child: Switch.adaptive(
+                    value: state.profile.isFriend,
+                    onChanged: (on) => on
+                        ? unawaited(cubit.addFriend())
+                        : unawaited(
+                            FriendRemoveDialog.show(
+                              context,
+                              profile: state.profile,
+                              onRemove: cubit.removeFriend,
+                            ),
+                          ),
+                  ),
+                ),
               ),
           ],
         ),

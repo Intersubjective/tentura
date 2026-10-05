@@ -32,6 +32,9 @@ class _ContextCubit extends Cubit<GraphPersonContextState>
   void clearSelection() {}
   @override
   Future<void> trustSelected() async {}
+
+  @override
+  Future<void> untrustSelected() async {}
 }
 
 void main() {

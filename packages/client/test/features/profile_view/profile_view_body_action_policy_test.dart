@@ -58,11 +58,16 @@ void main() {
       required Profile subject,
       required Profile viewer,
       List<PersonSharedContext> sharedContexts = const [],
+      PersonCapabilityCues cues = PersonCapabilityCues.empty,
       Locale locale = const Locale('en'),
     }) async {
       harness.start(id: subject.id, autoFetch: false);
       harness.cubit.emit(
-        ProfileViewState(profile: subject, sharedContexts: sharedContexts),
+        ProfileViewState(
+          profile: subject,
+          sharedContexts: sharedContexts,
+          cues: cues,
+        ),
       );
 
       await tester.pumpWidget(
@@ -95,6 +100,11 @@ void main() {
       await tester.pumpAndSettle();
     }
 
+    Future<void> openEyeInfo(WidgetTester tester, L10n l10n) async {
+      await tester.tap(find.byTooltip(l10n.profileEyeInfoTitle));
+      await tester.pumpAndSettle();
+    }
+
     int countFilledButtons(WidgetTester tester) =>
         tester.widgetList<FilledButton>(find.byType(FilledButton)).length;
 
@@ -122,15 +132,21 @@ void main() {
           );
           expect(
             find.text(l10n.profileVisibilitySharedContextNote),
+            findsNothing,
+          );
+          expect(find.text(l10n.profileEyeClosed), findsNothing);
+          expect(find.text(l10n.profileSendRequestTo), findsOneWidget);
+
+          await openEyeInfo(tester, l10n);
+          expect(
+            find.text(l10n.profileVisibilitySharedContextNote),
             findsOneWidget,
           );
-          expect(find.text(l10n.profileVisibilityNeither), findsNothing);
-          expect(find.text(l10n.profileSendRequestTo), findsOneWidget);
         },
       );
     }
 
-    testWidgets('mutual trust uses prose and a compact capability action', (
+    testWidgets('mutual trust shows your vote and a compact labels line', (
       tester,
     ) async {
       const viewer = Profile(id: 'U-viewer', displayName: 'Viewer');
@@ -145,22 +161,66 @@ void main() {
       await pumpBody(tester, subject: subject, viewer: viewer);
       final l10n = lookupL10n(const Locale('en'));
 
-      expect(find.text(l10n.trustSentenceMutual), findsOneWidget);
-      expect(find.text('Trust: mutual'), findsNothing);
+      expect(find.text(l10n.trustSentenceOneWayOut), findsOneWidget);
+      expect(find.text(l10n.trustSentenceMutual), findsNothing);
+      expect(find.text(l10n.profileEyeOpen), findsOneWidget);
       expect(countFilledButtons(tester), 1);
       expect(find.text(l10n.profileSendRequestTo), findsOneWidget);
-      final action = find.widgetWithText(
-        TenturaTextAction,
-        l10n.capabilityEditCapabilities,
-      );
-      expect(action, findsOneWidget);
-      expect(
-        tester.getSize(action).width,
-        lessThan(tester.getSize(find.byType(CustomScrollView)).width),
-      );
+      expect(find.text(l10n.profileMarkCapabilities('Peer')), findsOneWidget);
+      expect(find.byTooltip(l10n.profileEditLabels), findsOneWidget);
+      expect(find.text(l10n.profileLabelsInfoPrivate), findsNothing);
+
+      await openEyeInfo(tester, l10n);
+      expect(find.text(l10n.profileEyeReasonMutualTrust), findsOneWidget);
       final avatar = find.byType(TenturaAvatar).first;
       expect(tester.getSize(avatar), const Size(120, 120));
     });
+
+    for (final locale in const [Locale('en'), Locale('ru')]) {
+      testWidgets(
+        'labels: one line with source icons, explanation behind ⓘ (${locale.languageCode})',
+        (tester) async {
+          const viewer = Profile(id: 'U-viewer', displayName: 'Viewer');
+          const subject = Profile(
+            id: 'U-peer',
+            displayName: 'Peer',
+            myVote: 1,
+          );
+          await pumpBody(
+            tester,
+            subject: subject,
+            viewer: viewer,
+            locale: locale,
+            cues: const PersonCapabilityCues(
+              viewerVisible: [
+                CapabilityWithSource(slug: 'transport', hasManualLabel: true),
+                CapabilityWithSource(slug: 'storage', hasManualLabel: false),
+              ],
+            ),
+          );
+          final l10n = lookupL10n(locale);
+          expect(
+            find.bySemanticsLabel(
+              l10n.profileMyLabelsLine(
+                '${l10n.capabilityTagTransport}, ${l10n.capabilityTagStorage}',
+              ),
+            ),
+            findsOneWidget,
+          );
+          expect(find.byTooltip(l10n.profileLabelPrivate), findsOneWidget);
+          expect(find.byTooltip(l10n.profileLabelShared), findsOneWidget);
+          expect(find.text(l10n.profileLabelsInfoPrivate), findsNothing);
+
+          await tester.tap(find.byTooltip(l10n.profileLabelsInfoTitle));
+          await tester.pumpAndSettle();
+          expect(find.text(l10n.profileLabelsInfoPrivate), findsOneWidget);
+          expect(
+            find.text(l10n.profileLabelsInfoShared('Peer')),
+            findsOneWidget,
+          );
+        },
+      );
+    }
 
     testWidgets('no shared context keeps trust-only visibility line', (
       tester,
@@ -170,7 +230,8 @@ void main() {
       await pumpBody(tester, subject: subject, viewer: viewer);
 
       final l10n = lookupL10n(const Locale('en'));
-      expect(find.text(l10n.profileVisibilityNeither), findsOneWidget);
+      expect(find.text(l10n.profileEyeClosed), findsOneWidget);
+      expect(find.text(l10n.profileTrustNotYet), findsOneWidget);
       expect(
         find.text(l10n.profileVisibilitySharedContextNote),
         findsNothing,
@@ -183,7 +244,7 @@ void main() {
 
       final l10n = lookupL10n(const Locale('en'));
       expect(countFilledButtons(tester), 0);
-      expect(find.text(l10n.trustThisUser), findsNothing);
+      expect(find.byTooltip(l10n.trustThisUser), findsNothing);
       expect(find.text(l10n.profileSendRequestTo), findsNothing);
       expect(find.text(l10n.profileRequestOptions), findsNothing);
     });
@@ -205,9 +266,11 @@ void main() {
         final l10n = lookupL10n(const Locale('en'));
         expect(countFilledButtons(tester), 1);
         expect(find.text(l10n.profileSendRequestTo), findsOneWidget);
-        expect(find.text(l10n.trustThisUser), findsOneWidget);
+        expect(find.byTooltip(l10n.trustThisUser), findsOneWidget);
         expect(find.text(l10n.profileRequestOptions), findsNothing);
-        expect(find.text(l10n.profileVisibilityMutual), findsOneWidget);
+        expect(find.text(l10n.profileEyeOpen), findsOneWidget);
+        await openEyeInfo(tester, l10n);
+        expect(find.text(l10n.profileEyeReasonMeritRank), findsOneWidget);
       },
     );
 
@@ -226,7 +289,7 @@ void main() {
       final l10n = lookupL10n(const Locale('en'));
       expect(countFilledButtons(tester), 1);
       expect(find.text(l10n.profileSendRequestTo), findsOneWidget);
-      expect(find.text(l10n.trustThisUser), findsNothing);
+      expect(find.byTooltip(l10n.trustThisUser), findsNothing);
       expect(find.text(l10n.profileRequestOptions), findsNothing);
     });
 
@@ -244,10 +307,12 @@ void main() {
         await pumpBody(tester, subject: subject, viewer: viewer);
 
         final l10n = lookupL10n(const Locale('en'));
-        expect(countFilledButtons(tester), 1);
-        expect(find.text(l10n.trustThisUser), findsOneWidget);
+        expect(countFilledButtons(tester), 0);
+        expect(find.byTooltip(l10n.trustThisUser), findsOneWidget);
         expect(find.text(l10n.profileRequestOptions), findsOneWidget);
         expect(find.text(l10n.profileSendRequestTo), findsNothing);
+        expect(find.text(l10n.profileEyeClosed), findsOneWidget);
+        await openEyeInfo(tester, l10n);
         expect(
           find.text(l10n.profileVisibilityTheyCanSeeYou('Peer')),
           findsOneWidget,
@@ -263,10 +328,10 @@ void main() {
       await pumpBody(tester, subject: subject, viewer: viewer);
 
       final l10n = lookupL10n(const Locale('en'));
-      expect(countFilledButtons(tester), 1);
-      expect(find.text(l10n.trustThisUser), findsOneWidget);
+      expect(countFilledButtons(tester), 0);
+      expect(find.byTooltip(l10n.trustThisUser), findsOneWidget);
       expect(find.text(l10n.profileRequestOptions), findsOneWidget);
-      expect(find.text(l10n.profileVisibilityNeither), findsOneWidget);
+      expect(find.text(l10n.profileEyeClosed), findsOneWidget);
     });
 
     testWidgets(
@@ -285,10 +350,12 @@ void main() {
 
         final l10n = lookupL10n(const Locale('en'));
         expect(countFilledButtons(tester), 0);
-        expect(find.text(l10n.trustThisUser), findsNothing);
+        expect(find.byTooltip(l10n.trustThisUser), findsNothing);
         expect(find.text(l10n.profileSendRequestTo), findsNothing);
         expect(find.text(l10n.profileRequestUnavailable), findsOneWidget);
         expect(find.text(l10n.profileRequestOptions), findsOneWidget);
+        expect(find.text(l10n.profileEyeClosed), findsOneWidget);
+        await openEyeInfo(tester, l10n);
         expect(
           find.text(l10n.profileVisibilityYouCanSee('Peer')),
           findsOneWidget,
@@ -378,7 +445,7 @@ void main() {
         expect(find.text(l10n.profileSendRequestTo), findsNothing);
         expect(find.text(l10n.profileRequestOptions), findsNothing);
         expect(find.text(l10n.profileRequestUnavailable), findsNothing);
-        expect(find.text(l10n.trustThisUser), findsOneWidget);
+        expect(find.byTooltip(l10n.trustThisUser), findsOneWidget);
       },
     );
 
@@ -406,7 +473,7 @@ void main() {
         expect(find.text(l10n.profileRequestUnavailable), findsNothing);
         expect(find.text(l10n.profileRequestOptions), findsNothing);
         expect(find.text(l10n.profileSendRequestTo), findsNothing);
-        expect(find.text(l10n.trustThisUser), findsNothing);
+        expect(find.byTooltip(l10n.trustThisUser), findsNothing);
         expect(countFilledButtons(tester), 0);
       },
     );
@@ -429,7 +496,7 @@ void main() {
         await pumpBody(tester, subject: subject, viewer: viewer);
 
         final l10n = lookupL10n(const Locale('en'));
-        expect(find.text(l10n.trustThisUser), findsOneWidget);
+        expect(find.byTooltip(l10n.trustThisUser), findsOneWidget);
         expect(find.text(l10n.profileRequestOptions), findsNothing);
         expect(find.text(l10n.profileSendRequestTo), findsNothing);
       },
