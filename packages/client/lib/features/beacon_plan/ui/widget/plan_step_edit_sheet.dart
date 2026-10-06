@@ -83,8 +83,9 @@ class _PlanStepEditSheetState extends State<PlanStepEditSheet> {
     final id = _assigneeId;
     if (id == null) return l10n.planFieldNoAssignee;
     for (final p in widget.people) {
-      if (p.id == id)
+      if (p.id == id) {
         return p.shownName.isEmpty ? l10n.unknownPerson : p.shownName;
+      }
     }
     return l10n.planDeletedUser;
   }

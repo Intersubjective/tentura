@@ -229,7 +229,7 @@ void main() {
   group('PlanConflict.resolve', () {
     const a = PlanStepSnapshot(id: 'PSa', title: 'A');
     const b = PlanStepSnapshot(id: 'PSb', title: 'B');
-    final base = PlanSnapshot([a, b]);
+    const base = PlanSnapshot([a, b]);
     final theirs = PlanSnapshot([a.copyWith(title: 'A theirs'), b]);
     final mine = PlanSnapshot([
       a.copyWith(title: 'A mine'),
@@ -256,7 +256,7 @@ void main() {
     test('their removal wins when chosen', () {
       final c = PlanConflict(
         base: base,
-        theirs: PlanSnapshot([b]),
+        theirs: const PlanSnapshot([b]),
         mine: mine,
         currentSeq: 3,
         stepIds: const ['PSa'],

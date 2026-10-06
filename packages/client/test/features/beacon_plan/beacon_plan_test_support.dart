@@ -7,6 +7,7 @@ import 'package:tentura_root/domain/plan/plan.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon_plan/data/repository/beacon_plan_repository.dart';
 import 'package:tentura/features/beacon_plan/domain/use_case/beacon_plan_case.dart';
+import 'package:tentura/features/beacon_plan/domain/exception/beacon_plan_exceptions.dart';
 
 /// In-memory [BeaconPlanRepository] for cubit / widget tests.
 class FakeBeaconPlanRepository implements BeaconPlanRepository {
@@ -24,10 +25,10 @@ class FakeBeaconPlanRepository implements BeaconPlanRepository {
   final restoreCalls = <(int, int)>[];
   int fetchCount = 0;
 
-  Object? setDoneError;
+  BeaconPlanException? setDoneError;
 
   /// Errors thrown by the next saves, in order.
-  final saveErrors = <Object>[];
+  final saveErrors = <BeaconPlanException>[];
   final revisionsBySeq = <int, PlanSnapshot>{};
   PlanRevisionPage page = const PlanRevisionPage();
 

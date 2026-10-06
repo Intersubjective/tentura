@@ -145,7 +145,7 @@ void main() {
           id: 'PSx',
           title: 'ok',
           startAt: DateTime.utc(2026, 1, 2),
-          endAt: DateTime.utc(2026, 1, 1),
+          endAt: DateTime.utc(2026),
         ),
       );
       expect(c.state.validationError, PlanDraftError.endBeforeStart);
@@ -156,7 +156,10 @@ void main() {
       final base = repo.plan.snapshot;
       final theirs = PlanSnapshot([
         for (final s in base.steps)
-          s.id == 'PS000000000002' ? s.copyWith(title: 'Boards (theirs)') : s,
+          if (s.id == 'PS000000000002')
+            s.copyWith(title: 'Boards (theirs)')
+          else
+            s,
       ]);
       repo
         ..revisionsBySeq[4] = base
