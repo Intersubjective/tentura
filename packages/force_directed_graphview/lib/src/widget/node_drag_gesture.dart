@@ -187,7 +187,16 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
 
   /// This recognizer joins the arena only for a draggable node. It therefore
   /// wins an actual node drag while an empty canvas remains available for pan.
+  ///
+  /// A mouse press on a draggable node also joins, only to keep the enclosing
+  /// viewer from panning the camera before capture (its precise-pointer slop
+  /// is far below [kTouchSlop]). The mouse capture itself still happens in
+  /// [_onPointerMove] once the press crosses [kTouchSlop], so a slightly
+  /// jittery click stays a tap and never becomes a drop.
   void _onTouchNodeDragStart(DragStartDetails details) {
+    if (details.kind == PointerDeviceKind.mouse) {
+      return;
+    }
     final nodeId = _pendingNodeId;
     final pointer = _pendingPointer;
     final down = _pendingDownScene;
@@ -519,6 +528,7 @@ final class _NodeDragPanGestureRecognizer extends PanGestureRecognizer {
           supportedDevices: const {
             PointerDeviceKind.touch,
             PointerDeviceKind.stylus,
+            PointerDeviceKind.mouse,
           },
         );
 

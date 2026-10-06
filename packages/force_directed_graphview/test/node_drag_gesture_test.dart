@@ -127,6 +127,57 @@ void main() {
     controller.dispose();
   });
 
+  testWidgets('mouse drag from a node never pans the camera', (tester) async {
+    final controller = _TestHarness.newController();
+    final updates = <Offset>[];
+
+    await _pumpGraph(
+      tester,
+      controller: controller,
+      onNodeDragUpdate: (_, position) => updates.add(position),
+    );
+    final viewer0 =
+        tester.widget<InteractiveViewer>(find.byType(InteractiveViewer));
+    viewer0.transformationController!.value = Matrix4.identity()
+      ..translateByDouble(-100, -100, 0, 1)
+      ..scaleByDouble(2, 2, 1, 1);
+    await tester.pump();
+
+    final nodeCentre = _nodeCenter(tester, _TestHarness.bottom);
+    final viewer = tester.widget<InteractiveViewer>(
+      find.byType(InteractiveViewer),
+    );
+    final cameraBefore = viewer.transformationController!.value.clone();
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+
+    await gesture.down(nodeCentre);
+    await tester.pump();
+    // Small steps below and across the node-capture slop: the viewer must not
+    // pan during the moves that precede capture or the first captured frame.
+    for (var i = 0; i < 6; i++) {
+      await gesture.moveBy(const Offset(4, 2));
+      expect(
+        viewer.transformationController!.value.storage,
+        orderedEquals(cameraBefore.storage),
+      );
+    }
+    await gesture.moveBy(const Offset(40, 10));
+    expect(
+      viewer.transformationController!.value.storage,
+      orderedEquals(cameraBefore.storage),
+    );
+    await tester.pump();
+
+    expect(updates, isNotEmpty);
+    expect(
+      viewer.transformationController!.value.storage,
+      orderedEquals(cameraBefore.storage),
+    );
+
+    await gesture.up();
+    controller.dispose();
+  });
+
   testWidgets('touch drag without a hold keeps the camera fixed',
       (tester) async {
     final controller = _TestHarness.newController();
