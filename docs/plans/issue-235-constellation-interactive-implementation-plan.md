@@ -478,35 +478,28 @@ P2 can run in parallel with P1, because it only touches the server.
 - For trust edges over the visible set (`:370`), capture EXPLAIN on dense V = 1000. Add or adjust indexes only with EXPLAIN evidence. No truncation of visibility, anchors or support paths.
 - **Tests (pg):** `beacon_can_read_content` call count per pinned beacon = 1; snapshot parity on fixtures. **Perf:** ANCHORS p95 recorded vs baseline.
 
-### U45 Adopt the MR connector deadline (pgmer2 0.8.3)
-- The connector work is **done upstream**: `Intersubjective/meritrank-rust` #89, published as `vbulavintsev/postgres-tentura:v0.8.3`.
-- **Tentura side:**
-  - bump the postgres image pin to `v0.8.3` in `compose.dev.yaml`, `compose.prod.yaml` and any CI/test compose files;
-  - deploy notes: `ALTER EXTENSION pgmer2 UPDATE` already runs at startup;
-  - set `MERITRANK_RECV_TIMEOUT_MSEC` as the **per-call** budget. It now covers the whole call, so its meaning has changed: pick a value **above** the measured dense MR cost until U47 or U48 land (see the ARCH §10 risk);
-  - constellation transactions set `SET LOCAL statement_timeout` to the request budget (U11/U13), which the connector now honours while waiting;
-  - degraded vs empty visibility handling (U13).
-- **Tests (Tentura pg/mr):** an MR blackhole during apply → retryable error within budget + 100 ms, and the connection is reusable after rollback; `mr_rpc_attempts()` deltas are used by the U13 RPC-count gate.
+### U45 MR call budget on pgmer2 0.9.x
+- **Done (2026-10-06):**
+  - The connector deadline (pgmer2 0.8.3, upstream #89) ships in `postgres-tentura:v0.9.1` together with the 0.8.x→0.9.x upgrade path (upstream #92).
+  - Compose and CI pin `meritrank-service:v0.12.0` + `postgres-tentura:v0.9.1` (`8b5aad7ff`), deployed to dev.
+  - `ALTER EXTENSION pgmer2 UPDATE` → 0.9.1 verified locally and on dev.
+- **Remaining (Tentura side):**
+  - `MERITRANK_RECV_TIMEOUT_MSEC` is the whole-call budget (still 60000). Choose a per-call value above the measured **cold** MR cost on 0.12 (missing peers are sampled on demand), measured on `tentura_perfsynth`.
+  - Constellation transactions set `SET LOCAL statement_timeout` to the request budget (U11/U13); the connector honours it while waiting.
+  - Degraded vs empty visibility (U13).
+- **Tests (Tentura pg/mr):** an MR blackhole during apply → retryable error within the budget + 100 ms, with the connection reusable after rollback. `mr_rpc_attempts()` deltas feed the U13 RPC-count gate.
 
 ### U46 Frozen RR visibility memo
 - A new migration (next free number): `person_visible_peer_ids_tx` honours a tx-local `tentura_visibility.frozen` flag. Once set, after the first computation the memo ignores later stamp changes (`m0222.dart:104-119`). Constellation read and apply transactions set it. Trust-mutating transactions never do.
 - **Tests (pg):** a second connection commits trust changes continuously while FULL or apply runs → exactly one computation per (viewer, context) per successful attempt; a trust-mutating tx still invalidates; the failure-empty path is unchanged (fail closed).
 
-### U47 Size the MR walks cache to the read working set (run 4)
-- Measurement run 4: with `MERITRANK_WALKS_CACHE_SIZE=200` (local, dev, prod) and V ≈ 1,000, every `mr_mutual_scores` recalculates about 1,000 frames (≈ 6 s). With 1,200 a warm call takes 47–61 ms, and FULL p50 is 154 ms.
-- **Tentura config:**
-  - set `MERITRANK_WALKS_CACHE_SIZE` in `compose.dev.yaml` / `compose.prod.yaml` to ≥ the largest expected visible set + 1;
-  - document the memory budget (about 1 MB per frame at 10k walks; check whether both buffer copies hold walks) in `docs/production-deploy.md`;
-  - the dev host's `compose.override.yaml` is changed by the owner (agents don't touch host files).
-- **Monitoring:** surface MR's `A read needs N peer frames …` warning in the server's MR health signal.
-- **Acceptance:** on `tentura_perfsynth` with the configured size, warm `mr_mutual_scores` p95 ≤ 100 ms for the heavy viewer, and the FULL p95 ≤ the ARCH §7.6 budget. No over-capacity warnings appear in the MR log during the run. The memory measurement is recorded in the journal.
-
-- **Applied 2026-10-06:** compose and CI run `meritrank-service:v0.12.0` + `postgres-tentura:v0.9.1` with the settings below, and `trust_cutover_case_mr_test` was updated. Locally: the mr suite and the pg suite (1,603) are green; the 0.8.3 → 0.9.1 extension upgrade was verified on the real database.
-- **Settings for the switch to MeritRank 0.12.0** (snapshots, D14). They come from the MR agent's tests (2026-10-06) and apply **only together with** `meritrank-service:v0.12.0` + `postgres-tentura:v0.9.1`. On 0.11.1 keep 1200, because 300 thrashes and the other two variables don't exist.
-  - `MERITRANK_WALKS_CACHE_SIZE=300`: at least the active readers (202 today) plus headroom; never lower.
-  - `MERITRANK_ON_DEMAND_NUM_WALKS=10000`: a peer sample as precise as a frame.
-  - `MERITRANK_SNAPSHOT_STALENESS=2`: with 1 write per 100 reads, p99 is 13 ms vs 22 ms at 1.
-  - Also drop the ignored `MERITRANK_SCORES_CACHE_*` / `MERITRANK_SLEEP_DURATION_AFTER_PUBLISH_MS`, and fix `trust_cutover_case_mr_test` (`mr_edgelist()` now lists the variant→polling edge: 4 edges, not 3).
+### U47 MR walks cache + snapshots (MeritRank 0.12)
+- **History.** On MeritRank 0.11.1 a walks cache below one read's working set made every `mr_mutual_scores` recalculate peer frames (≈ 6 s at V ≈ 1,000, run 4); 1200 fixed it (`75051dd09`).
+- **Done (2026-10-06).** Switched to MeritRank 0.12.0, which serves absent peers from reverse-score snapshots (D14), so the cache only has to hold the active readers. Compose and CI set `MERITRANK_WALKS_CACHE_SIZE=300` (≥ active readers, 202 now, plus headroom; never lower), `MERITRANK_ON_DEMAND_NUM_WALKS=10000` and `MERITRANK_SNAPSHOT_STALENESS=2` (`8b5aad7ff`). Deployed to dev: MR uses 542 MiB.
+- **Remaining:**
+  - document the memory budget (≈ 1 MB per frame at 10k walks, plus `MERITRANK_SNAPSHOTS_MB`, default 256) and the "cache ≥ active readers" rule in `docs/production-deploy.md`;
+  - surface MR over-capacity / snapshot pressure in the server's MR health signal.
+- **Acceptance:** on `tentura_perfsynth` with these settings, warm `mr_mutual_scores` p95 ≤ 100 ms for the heavy viewer (V ≈ 1,000), and FULL p95 within the ARCH §7.6 budget, including with 1 write per 100 reads. The journal records cold and warm latency and MR memory.
 
 ### U48 Cross-request visible-set cache (ARCH §7.4a), OPTIONAL
 - Build this only if the **cold** first-read cost (about 2–2.4 s at V ≈ 1,000 after an MR restart or a walk-dirtying write) proves to matter after U47. It is not a release precondition.
