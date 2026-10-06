@@ -133,3 +133,12 @@ The owner updated local MR (v0.11.1, Nagle fix) and Postgres (postgres-tentura v
 - **New finding, not raised by any review round:** the MR score computation itself dominates at dense reach.
 - **Resolution:** ARCH §7.4a promotes the cross-request visible-set cache to required (new U48), plus new external U47 for MR.
 - **Round 4 #2:** connector deadline shipped (pgmer2 0.8.3, upstream #89). U45 becomes adoption.
+
+## Measurement run 4 (2026-10-06): walks cache
+
+The owner asked whether, after warm-up, reverse scores come from a cache.
+- **Finding:** they do **not** once one read's working set exceeds `MERITRANK_WALKS_CACHE_SIZE` (200 everywhere). Portions evict each other, and the reverse-score cache was removed on purpose (`SERVICE_CONSISTENCY_PLAN.md` §2.7).
+- **Effect of sizing the cache:** at 1,200, warm `mr_mutual_scores` drops from about 6 s to about 50 ms, and FULL from 7.2 s to 154 ms.
+- **Resolution:**
+  - ARCH rev 9: §7.4a becomes optional; the walks-cache sizing rule is added to §7.5.
+  - Plan rev 5: U47 = config sizing (release precondition); U48 optional; new U49 (MR generation-checked reverse-score cache, optional, external).

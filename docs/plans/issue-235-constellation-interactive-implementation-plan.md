@@ -1,6 +1,6 @@
 # Constellation always-interactive: implementation plan (issue #235)
 
-Status: **rev 4**, 2026-10-06. Derived from `issue-235-constellation-interactive-architecture.md` **rev 8**, which is binding. D8 is confirmed. Rev 4 rewrites U45 as adoption of the shipped connector (pgmer2 0.8.3), adds U47 (MR score performance, external) and U48 (cross-request visible-set cache), and points U41 at the prepared local datasets.
+Status: **rev 5**, 2026-10-06. Derived from `issue-235-constellation-interactive-architecture.md` **rev 9**, which is binding. Rev 5 (measurement run 4): U47 becomes walks-cache sizing (Tentura config, release precondition), U48 becomes optional, and U49 (MR generation-checked reverse-score cache, external, optional) is added. D8 is confirmed. Rev 4 rewrites U45 as adoption of the shipped connector (pgmer2 0.8.3), adds U47 (MR score performance, external) and U48 (cross-request visible-set cache), and points U41 at the prepared local datasets.
 
 - Rev 2 added the server-performance units U41–U44, plus perf gates.
 - Rev 3 adds U45 (MR connector deadlines, in the `meritrank-rust` repo) and U46 (frozen RR visibility memo), and tightens U09, U10, U11, U13, U15, U21, U23, U26, U41, U42 and U43. Cited as **ARCH §x**; owner decisions are **D1–D7**, invariants **I1–I6** and outbox rules **R1–R9**.
@@ -492,12 +492,17 @@ P2 can run in parallel with P1, because it only touches the server.
 - A new migration (next free number): `person_visible_peer_ids_tx` honours a tx-local `tentura_visibility.frozen` flag. Once set, after the first computation the memo ignores later stamp changes (`m0222.dart:104-119`). Constellation read and apply transactions set it. Trust-mutating transactions never do.
 - **Tests (pg):** a second connection commits trust changes continuously while FULL or apply runs → exactly one computation per (viewer, context) per successful attempt; a trust-mutating tx still invalidates; the failure-empty path is unchanged (fail closed).
 
-### U47 MeritRank score computation at dense reach (repo `meritrank-rust`)
-- Profile `mr_mutual_scores` / `mr_scores` at V ≈ 1,000 using the `tentura_perfsynth` graph (5–7 s per call, MR at 100% CPU; measurement run 3). Check `NUM_WALKS`/alpha sensitivity, and whether a realistic (clustered, heavy-tailed) graph shape behaves like the synthetic expander.
-- Fix candidates: incremental or cached mutual scores per publish epoch, lazy reverse scores, batching.
-- **Acceptance:** `mr_mutual_scores` p95 ≤ 50 ms at V = 1,000 on `tentura_perfsynth` (or an owner-approved target), with results equal to the current implementation on fixtures.
+### U47 Size the MR walks cache to the read working set (run 4)
+- Measurement run 4: with `MERITRANK_WALKS_CACHE_SIZE=200` (local, dev, prod) and V ≈ 1,000, every `mr_mutual_scores` recalculates about 1,000 frames (≈ 6 s). With 1,200 a warm call takes 47–61 ms, and FULL p50 is 154 ms.
+- **Tentura config:**
+  - set `MERITRANK_WALKS_CACHE_SIZE` in `compose.dev.yaml` / `compose.prod.yaml` to ≥ the largest expected visible set + 1;
+  - document the memory budget (about 1 MB per frame at 10k walks; check whether both buffer copies hold walks) in `docs/production-deploy.md`;
+  - the dev host's `compose.override.yaml` is changed by the owner (agents don't touch host files).
+- **Monitoring:** surface MR's `A read needs N peer frames …` warning in the server's MR health signal.
+- **Acceptance:** on `tentura_perfsynth` with the configured size, warm `mr_mutual_scores` p95 ≤ 100 ms for the heavy viewer, and the FULL p95 ≤ the ARCH §7.6 budget. No over-capacity warnings appear in the MR log during the run. The memory measurement is recorded in the journal.
 
-### U48 Cross-request visible-set cache (ARCH §7.4a)
+### U48 Cross-request visible-set cache (ARCH §7.4a), OPTIONAL
+- Build this only if the **cold** first-read cost (about 2–2.4 s at V ≈ 1,000 after an MR restart or a walk-dirtying write) proves to matter after U47. It is not a release precondition.
 - A migration adds a transactional `trust_generation` counter, bumped in-tx by every trust, block or relationship change affecting visibility, plus the `person_visible_set_cache` table.
 - `person_visible_peer_ids_tx` consults and fills the cache under the request snapshot (key: viewer, ctx, MR epoch, trust generation). Degraded results are never cached.
 - **Tests (pg):**
@@ -508,6 +513,10 @@ P2 can run in parallel with P1, because it only touches the server.
   - MR failure → no row;
   - parity with uncached visibility.
 - **Perf:** on `tentura_perfsynth` a warm FULL p95 ≤ the ARCH §7.6 budget, with exactly 0 MR RPCs on a warm hit (`mr_rpc_attempts()` delta).
+
+### U49 Generation-checked reverse-score cache in MR (repo `meritrank-rust`), OPTIONAL
+- For hosts whose memory can't hold the read working set. Cache reverse scores keyed `(peer, ego, gen[peer], zero_rev)`, the same discipline as `cached_score_clusters`, so they survive frame eviction without the staleness that removed the old score cache (`SERVICE_CONSISTENCY_PLAN.md` §2.7). Only peers whose generation changed are recalculated.
+- **Acceptance:** with `WALKS_CACHE_SIZE=200` on the `tentura_perfsynth` graph, a warm `mr_mutual_scores` takes ≤ 100 ms. Results equal a fully resident computation on fixtures. A write that dirties a peer's walks invalidates exactly that peer's entries (test).
 
 ## Dependency graph (for beads)
 
@@ -522,6 +531,6 @@ U26,U28 → U34 → U35
 U30 → U36 → U37 → U38 → U39
 U00 → U41 ; U41 → U13, U15, U17, U18 (perf gates) ; U41,U12 → U42, U44 ; U17 → U43
 U43 → U26 ; U42,U44 → U26 ; U45 → U26 ; U46 → U13 ; U41 → U46 ; U42,U44 → U40
-U41,U46 → U48 ; U48 → U26 ; U41 → U47 ; U47 → U40
+U41 → U47 ; U47 → U26 ; U47 → U48 (optional) ; U47 → U49 (optional, external)
 all → U40
 ```

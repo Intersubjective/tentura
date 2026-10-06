@@ -126,3 +126,37 @@ MR sits at about 100% CPU during a call.
 - Tests: 15 unit tests (fake peers: blackhole, trickle, stalled write, unreachable, reuse, recovery) plus the pgrx suite; CI 7/7 green.
 
 **Housekeeping.** Before this PR, the fork `ichorid/meritrank-rust` `main` lagged the upstream `main` (it lacked the #88 merge); it was fast-forwarded to `289f939`. Upstream had not been reverted.
+
+## Run 4: 2026-10-06, `mr_mutual_scores` and the walks cache
+
+**Question (owner).** First calls are slow while the graph warms up. Each mutual-scores call needs the reverse scores in every peer's frame, and frames are evicted, but caching exists. After warm-up, are reverse scores served from cache?
+
+**Answer: no, not when one read's working set exceeds `MERITRANK_WALKS_CACHE_SIZE`.**
+
+- **Configuration.** Local `compose.dev.yaml:92`, `compose.prod.yaml:120` and the dev host all set **`MERITRANK_WALKS_CACHE_SIZE=200`**. Dev additionally runs `NUM_WALKS=10000`.
+- **Over-capacity path.** `state_manager.rs` `ego_read` reads in two passes: it records the peer frames the first pass touched, pins them and reads again. When the peers exceed the capacity, it pins them **in portions of `capacity`**, and the portions evict one another, so **every such read recalculates the frames**. The service logs this sparsely; seen locally: `A read needs 1018 peer frames but MERITRANK_WALKS_CACHE_SIZE is 200: frames are recalculated on every such read`.
+- **No reverse-score cache.** The service consistency rework removed the old score cache on purpose (`SERVICE_CONSISTENCY_PLAN.md` §2.7: it served stale reverse scores or 0). `MERITRANK_SCORES_CACHE_SIZE`/`_TIMEOUT` are ignored with a start-up warning. Only `cached_score_clusters` remains: per copy, keyed by `(ego, kind, gen, zero_rev)`, and it works (`mr_node_score` 402 → 56 ms on repeat).
+
+**Experiment.** On `tentura_perfsynth` (rebuilt from a fresh dev dump, because the earlier copy had been pruned by the server's trust jobs), the heavy viewer has about 1,019 mutual peers. The local MR container was recreated with only `MERITRANK_WALKS_CACHE_SIZE` changed, and restored to 200 afterwards.
+
+| Walks cache | Cold call | Warm repeats (×5) | Other cluster egos | MR memory |
+|---|---|---|---|---|
+| **200** (current) | 4.9 s | **5.6–6.1 s** (no gain) | 5.7–6.0 s | 314 MiB |
+| **1,200** | 2.4 s | **47–58 ms** | 2.0 s first, then 81–85 ms | 681 MiB |
+| **0** (unlimited) | 2.4 s | **50–61 ms** | 1.95 s first, then 70–75 ms | 680 MiB |
+
+End-to-end on the same data with cache 1,200 (server via `scripts/perf/run_server_db.sh`, `constellation_gql_bench.py --base http://127.0.0.1:2080`, n = 10):
+
+| Operation | p50 | p95 | At cache 200 |
+|---|---|---|---|
+| FULL | **154 ms** | 163 ms | 7.2 s |
+| ANCHORS | **18 ms** | 20 ms | 6.8 s |
+| person upsert | **47 ms** | 59 ms | 6.7 s |
+
+**Conclusions:**
+1. The dense-scale slowness in run 3 was **walks-cache thrash**, not intrinsic MR cost. Sizing the cache to cover one read's working set (largest visible set + 1, here ≥ 1,020) gives about a 100× speed-up after warm-up, and FULL at V ≈ 1,000 then fits the ARCH §7.6 budget.
+2. **The cold cost remains:** about 2–2.4 s for the first read of a new ego (its frame plus the peer frames not yet resident). It recurs after an MR restart (the graph reloads empty) and for frames whose walks a write dirtied.
+3. **Memory is the trade-off.** Here (NUM_WALKS = 1000) about 1,000 extra resident frames cost about 370 MiB. `LOAD_TEST_ANALYSIS.md` puts a frame at about 1 MB at 10k walks (dev's setting), so 1,000 frames ≈ 1 GB (more if both buffer copies hold walks; to verify). The cache size is a memory budget decision per host.
+4. **MR improvement, if eviction must stay below the working set:** a *generation-checked* reverse-score cache keyed `(peer, ego, gen[peer], zero_rev)`, the same key discipline as `cached_score_clusters`. It would let reverse scores survive frame eviction without the staleness that got the old cache removed. Only frames whose generation changed would need recalculation.
+
+**Housekeeping.** The local MR is back at `WALKS_CACHE_SIZE=200` with the `postgres` graph loaded. `tentura_perfsynth` was rebuilt and is intact again (88.8k synthetic edges). Running the Tentura server against it for minutes lets the trust jobs prune synthetic edges that have no `trust_evidence`; keep server runs short, or rebuild the DB.

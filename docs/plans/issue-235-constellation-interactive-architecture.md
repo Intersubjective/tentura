@@ -1,6 +1,6 @@
 # Constellation: always-interactive architecture (issue #235 and beyond)
 
-Status: **architecture, rev 8**, 2026-10-06. Rev 8 adds: D8 confirmed by the owner; measurement runs 2–3 (dev copy and synthetic dense data); the visible-set cache promoted to required (§7.4a); the MR connector deadline shipped upstream (pgmer2 0.8.3).
+Status: **architecture, rev 9**, 2026-10-06. Rev 9: measurement run 4 traced the dense-scale cost to MR walks-cache thrash (`MERITRANK_WALKS_CACHE_SIZE=200` < working set). §7.4a is downgraded to optional. Rev 8 adds: D8 confirmed by the owner; measurement runs 2–3 (dev copy and synthetic dense data); the visible-set cache promoted to required (§7.4a); the MR connector deadline shipped upstream (pgmer2 0.8.3).
 
 - Rev 1/2 (commit `3795be0c6`): proposal plus the owner's decisions.
 - Rev 3: layer-mapped architecture.
@@ -573,9 +573,11 @@ These are **not in this plan's implementation scope**. A separate design must me
 - There is an expiry bound for time-dependent results. Degraded or MR-failure snapshots are uncacheable (m0222's fail-closed memo returns empty sets on MR failure without an epoch change).
 - Tests cover concurrent uncommitted writes, rollback, every dependency, expiry and MR recovery.
 
-### 7.4a Visible-set cache across requests (required at dense scale)
+### 7.4a Visible-set cache across requests (optional; superseded by walks-cache sizing)
 
-**Why now.** Measurement run 3 (`issue-235-constellation-interactive-measurements.md`): at V ≈ 1,000 a single `mr_mutual_scores` costs **5–7 s** of MeritRank CPU, and every FULL, ANCHORS and person-upsert pays it once. Transaction-local reuse can't fix a cost paid once per request, so a correct cross-request cache is required for the dense case. It complements the MR-side work (U47).
+**History.** Run 3 measured `mr_mutual_scores` at **5–7 s** for V ≈ 1,000 and made this cache required. **Run 4** found the cause: the MR walks cache (`MERITRANK_WALKS_CACHE_SIZE=200` locally, on dev and in prod) was smaller than one read's working set (about 1,019 peer frames), so every read recalculated frames. With the cache sized to cover the working set, a warm `mr_mutual_scores` takes **47–61 ms** and FULL p50 is **154 ms** at V ≈ 1,000 (§7.5, U47).
+
+**Now.** This cache is kept as an **optional** design for the remaining **cold** cost: about 2–2.4 s for the first read of a new ego after an MR restart or a walk-dirtying write. Build it only if that cold cost matters in production. The constraints below still apply if it is built.
 
 **Design constraints** (the §7.4 "later" requirements, now binding):
 - **Key:** `(viewer, ctx, mr_publish_epoch, trust_generation)`.
@@ -612,6 +614,8 @@ These are **not in this plan's implementation scope**. A separate design must me
 
 The happy-path latency concern is resolved locally; the failure-time bound below is not.
 
+**Walks cache (run 4, U47).** `MERITRANK_WALKS_CACHE_SIZE` must cover **one read's working set**: the largest visible set + 1. Below that, `ego_read` pins peers in portions that evict one another and **recalculates frames on every read** (about 100× slower at V ≈ 1,000). Reverse scores are deliberately not cached across frame eviction (`meritrank-rust` `SERVICE_CONSISTENCY_PLAN.md` §2.7). The size is a per-host memory budget (about 1 MB per frame at 10k walks). If a host can't afford it, the MR-side option is a generation-checked reverse-score cache (U49).
+
 **Status:** the connector side shipped upstream as `Intersubjective/meritrank-rust` #89, pgmer2 **0.8.3** / `postgres-tentura:v0.8.3`. One absolute per-call deadline; waits interruptible by `statement_timeout`/cancel; `mr_rpc_attempts()`. Tentura adoption (image pin, budgets) is U45.
 
 **MR deadlines (release blocker).** Today `MERITRANK_RECV_TIMEOUT_MSEC=60000` (`compose.dev.yaml:113`, `compose.prod.yaml:101`). The connector also retries once, has no write timeout, uses blocking DNS and per-read socket timeouts. A silent peer can therefore hold a worker's only DB connection for about 120 s, and a Dart timeout can't interrupt the blocking extension call (#231).
@@ -635,7 +639,7 @@ Tests: blackhole, stalled write, trickled response, recovery. Count actual netwo
 - **One DB connection per worker isolate.** Drift's pool is fixed at `maxConnectionCount: 1` (`tentura_db.dart:148`, `env.dart:764`, `WORKAROUNDS.md` §4), and web workers are separate isolates (`app/app.dart:50`). A worker's throughput is therefore about 1 / (mean transaction time). With 8 workers and 300 ms transactions that is only about 27 tx/s for **all** traffic.
   - **Measured (local, one worker, JIT debug, small graph):** FULL saturates at **≈ 36–38 req/s** and ANCHORS at **≈ 145–153 req/s**, already at concurrency 8. Beyond that, only queueing latency grows: FULL p50 goes from 27 ms to 820 ms at concurrency 32. This confirms the model empirically.
   - Eager 30 s refresh for 1,000 sessions (≈ 33 FULL/s) would saturate one worker. D8's lazy policy (≈ 3.3 FULL/s) leaves more than 10× headroom at local scale.
-  - **Dev-copy data** (heaviest viewer: V = 76, payload 39 KB): one worker saturates at ≈ 22 FULL/s and ≈ 120 ANCHORS/s, with FULL p50 55 ms. **Dense synthetic data** (V ≈ 1,000): FULL, ANCHORS and person upsert all take about 7 s, dominated by MR (§7.4a, U47).
+  - **Dev-copy data** (heaviest viewer: V = 76, payload 39 KB): one worker saturates at ≈ 22 FULL/s and ≈ 120 ANCHORS/s, with FULL p50 55 ms. **Dense synthetic data** (V ≈ 1,000): about 7 s per FULL, ANCHORS or person upsert with walks cache 200. With the cache sized to the working set (1,200): FULL p50 **154 ms**, ANCHORS 18 ms, upsert 47 ms (run 4).
   - Transaction duration is the primary capacity lever: prepare before lock, tx-local reuse, no long RR snapshots.
   - **Do not raise the pool size** without first fixing transaction affinity.
   - Admission limits apply before transaction entry.
@@ -731,5 +735,5 @@ All tests are structural; there are no goldens. Suites run serially through `scr
 - **Long-lived `commitUnknown`.** Bounded by idempotent replay. The marker keeps it visible.
 - **Deferred trigger semantics.** The NOTIFY fires at commit, after the tx's writes. pg tests pin the delivered payload, and the realtime fan-out code is unchanged apart from the extra field.
 - **Idle-task starvation on web.** Handled by the independent wake-up plus job token (§5.6).
-- **MR score computation at dense reach** (5–7 s at V ≈ 1,000, measurement run 3). Budgets at dense scale are unattainable until the §7.4a cache and/or MR-side work (U47) land. The connector deadline must not be tightened below the real MR cost for dense viewers before then, or visibility would fail closed for exactly the heaviest users.
+- **MR walks-cache sizing** (run 4). With `MERITRANK_WALKS_CACHE_SIZE` below the largest visible set, dense viewers pay about 6 s per read. Keep the cache ≥ largest visible set + 1, within the host memory budget. The connector deadline must stay above the **cold** first-read cost (about 2.4 s at V ≈ 1,000) or visibility fails closed for exactly the heaviest users on their first read.
 - **Purity refactor of layout and composition** touches tested code. Do it as a mechanical type swap first (adapters at the boundary), with the existing tests as the oracle.

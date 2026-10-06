@@ -30,13 +30,17 @@ def field(projection):
             f"memberWebs {{ beaconId personId state }} {PROJ} }} }}")
 
 
-def login(email):
+def login(email, base):
+    """QA test-login, then exchange the session cookie for a JWT. The cookie is
+    carried by hand so this also works against the plain-HTTP server port."""
     ctx = ssl.create_default_context(); ctx.check_hostname = False; ctx.verify_mode = ssl.CERT_NONE
-    jar = http.cookiejar.CookieJar()
-    opener = urllib.request.build_opener(urllib.request.HTTPSHandler(context=ctx), urllib.request.HTTPCookieProcessor(jar))
-    opener.open(urllib.request.Request(f"{CADDY}/api/v2/auth/email/test-login", json.dumps({"email": email}).encode(),
-                                       {"Content-Type": "application/json"}))
-    tok = json.load(opener.open(urllib.request.Request(f"{CADDY}/api/v2/session/access-token", b"", method="POST")))
+    opener = urllib.request.build_opener(urllib.request.HTTPSHandler(context=ctx))
+    resp = opener.open(urllib.request.Request(f"{base}/api/v2/auth/email/test-login",
+                                              json.dumps({"email": email}).encode(),
+                                              {"Content-Type": "application/json"}))
+    cookies = "; ".join(c.split(";", 1)[0] for c in resp.headers.get_all("Set-Cookie") or [])
+    tok = json.load(opener.open(urllib.request.Request(f"{base}/api/v2/session/access-token", b"",
+                                                       {"Cookie": cookies}, method="POST")))
     return tok["access_token"]
 
 
@@ -91,6 +95,7 @@ if __name__ == "__main__":
     ap.add_argument("--peer")
     ap.add_argument("--projection", default="FULL")
     ap.add_argument("-n", type=int, default=20)
+    ap.add_argument("--base", default=CADDY, help="login base URL (default Caddy); use http://127.0.0.1:2080 without Caddy")
     a = ap.parse_args()
-    client = Client(login(a.email))
+    client = Client(login(a.email, a.base))
     latency(client, a.peer, a.n) if a.mode == "latency" else load(client, a.projection)
