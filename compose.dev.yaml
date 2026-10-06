@@ -96,7 +96,7 @@ services:
     restart: unless-stopped
     hostname: postgres
     container_name: postgres
-    image: vbulavintsev/postgres-tentura:v0.8.2
+    image: vbulavintsev/postgres-tentura:v0.8.3
     networks:
       backend: {}
       db_host: {}

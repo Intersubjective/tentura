@@ -80,7 +80,7 @@ services:
     <<: *common
     hostname: postgres
     container_name: postgres
-    image: vbulavintsev/postgres-tentura:v0.8.2
+    image: vbulavintsev/postgres-tentura:v0.8.3
     # No host ports: reachable only from services on `backend`.
     depends_on:
       meritrank:
