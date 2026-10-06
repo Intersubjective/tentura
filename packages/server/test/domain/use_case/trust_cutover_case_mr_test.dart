@@ -201,13 +201,14 @@ SET status = 'pending', owner = NULL, lease_until = 'epoch' WHERE id = 1
 
       expect(await _status(db), 'done');
       expect(await _owner(db), isNull);
-      // 2 vote edges + author->variant. pgmer2's mr_edgelist() never lists
-      // the variant->polling edge (meritrank_init reports it loaded, and
-      // mr_put_edge of it is not listed either), so it is not asserted.
-      expect(await _mrEdgeCount(db), 3);
+      // 2 vote edges + author->variant + variant->polling. Since MeritRank
+      // 0.12 (one node class) mr_edgelist() lists every edge, including the
+      // variant->polling edge earlier versions hid.
+      expect(await _mrEdgeCount(db), 4);
       expect(await _mrPairCount(db, _alice, _bob), 1);
       expect(await _mrPairCount(db, _bob, _carol), 1);
       expect(await _mrPairCount(db, _carol, _variant), 1);
+      expect(await _mrPairCount(db, _variant, _poll), 1);
       expect(await _mrPairCount(db, _alice, _carol), 0, reason: 'stale edge');
       expect(await _mrPairCount(db, _dave, _alice), 0, reason: 'negative vote');
       expect(await _queueCount(db), 0);
@@ -229,7 +230,7 @@ SET status = 'pending', owner = NULL, lease_until = 'epoch' WHERE id = 1
       ]) {
         expect(log, isNot(contains(op)), reason: 'second run called $op');
       }
-      expect(await _mrEdgeCount(db), 3);
+      expect(await _mrEdgeCount(db), 4);
     },
     skip: skipReason,
   );

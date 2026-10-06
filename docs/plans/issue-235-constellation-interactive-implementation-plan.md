@@ -501,6 +501,7 @@ P2 can run in parallel with P1, because it only touches the server.
 - **Monitoring:** surface MR's `A read needs N peer frames …` warning in the server's MR health signal.
 - **Acceptance:** on `tentura_perfsynth` with the configured size, warm `mr_mutual_scores` p95 ≤ 100 ms for the heavy viewer, and the FULL p95 ≤ the ARCH §7.6 budget. No over-capacity warnings appear in the MR log during the run. The memory measurement is recorded in the journal.
 
+- **Applied 2026-10-06:** compose and CI run `meritrank-service:v0.12.0` + `postgres-tentura:v0.9.1` with the settings below, and `trust_cutover_case_mr_test` was updated. Locally: the mr suite and the pg suite (1,603) are green; the 0.8.3 → 0.9.1 extension upgrade was verified on the real database.
 - **Settings for the switch to MeritRank 0.12.0** (snapshots, D14). They come from the MR agent's tests (2026-10-06) and apply **only together with** `meritrank-service:v0.12.0` + `postgres-tentura:v0.9.1`. On 0.11.1 keep 1200, because 300 thrashes and the other two variables don't exist.
   - `MERITRANK_WALKS_CACHE_SIZE=300`: at least the active readers (202 today) plus headroom; never lower.
   - `MERITRANK_ON_DEMAND_NUM_WALKS=10000`: a peer sample as precise as a frame.

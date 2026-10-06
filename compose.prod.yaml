@@ -80,7 +80,7 @@ services:
     <<: *common
     hostname: postgres
     container_name: postgres
-    image: vbulavintsev/postgres-tentura:v0.8.3
+    image: vbulavintsev/postgres-tentura:v0.9.1
     # No host ports: reachable only from services on `backend`.
     depends_on:
       meritrank:
@@ -106,7 +106,7 @@ services:
     <<: *common
     hostname: meritrank
     container_name: meritrank
-    image: vbulavintsev/meritrank-service:v0.11.1
+    image: vbulavintsev/meritrank-service:v0.12.0
     security_opt:
       - no-new-privileges:true
     networks:
@@ -117,7 +117,9 @@ services:
       - 'MERITRANK_NUM_WALKS=1000'
       - 'MERITRANK_ZERO_OPINION_FACTOR=0.02'
       - 'MERITRANK_ALPHA=0.85'
-      - 'MERITRANK_WALKS_CACHE_SIZE=1200'
+      - 'MERITRANK_WALKS_CACHE_SIZE=300'
+      - 'MERITRANK_ON_DEMAND_NUM_WALKS=10000'
+      - 'MERITRANK_SNAPSHOT_STALENESS=2'
     logging:
       driver: journald
 
