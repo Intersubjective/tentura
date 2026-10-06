@@ -4,6 +4,7 @@ import 'input/_input_types.dart';
 
 List<GraphQLType<dynamic, dynamic>> get customTypes => [
   InputFieldCoordinates.type,
+  InputFieldForwardRecipientBandProvenance.type,
   InputFieldForwardRecipientReasons.type,
   InputFieldUpload.type,
   gqlTypeAuthResponse,
