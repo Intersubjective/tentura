@@ -13,7 +13,7 @@ Review history is in `issue-235-constellation-interactive-review-record.md`. Exe
 - **Layers:** follow `.cursor/rules/architecture.mdc` and the `clean-architecture` skill. Domain stays pure (no Flutter, no `dart:ui`, no Ferry). Cubits use cases only. Server domain → ports only.
 - **UI work** goes through the `material-3-flutter` skill and design-system tokens. All copy goes through l10n (`packages/client/l10n/*.arb`). User-facing terms are **Request** / **Chat**.
 - **Codegen:** never edit generated files. Run `build_runner` after Freezed, Ferry or Injectable changes. Refresh the client schema before Ferry codegen (Ferry consumes the checked-in schema, `packages/client/build.yaml:32`).
-- **Migrations:** new files only (m0223–m0225), each registered in `_migrations.dart` (part list plus registry). Never edit a merged migration.
+- **Migrations:** new files only (m0224–m0226), each registered in `_migrations.dart` (part list plus registry). Never edit a merged migration.
 - **Tests:**
   - Structural only, never goldens. Every run goes through `scripts/run_with_test_cleanup.sh`, **serially**; two wrapped runs sweep each other's kernels.
   - pg tests: `-x pg` excluded locally unless the unit needs them. pg tests must not query `pg_locks` unscoped.
@@ -145,7 +145,7 @@ P2 can run in parallel with P1, because it only touches the server.
 
 ## P2 Server protocol
 
-### U10 m0223: op log and target watermark
+### U10 m0224: op log and target watermark
 - `constellation_anchor_op_log(viewer_id uuid FK users ON DELETE CASCADE, client_op_id text, fingerprint text, result jsonb, revision bigint, created_at timestamptz, PRIMARY KEY (viewer_id, client_op_id))`.
 - `constellation_anchor_target_watermark(viewer_id, target_kind, target_id, revision bigint, PRIMARY KEY (viewer_id, target_kind, target_id))`, which survives anchor deletion.
 - Register both in `_migrations.dart`.
@@ -206,7 +206,7 @@ P2 can run in parallel with P1, because it only touches the server.
 - The **old upsert/delete stay** until U26.
 - **Tests:** a GraphQL controller test for argument parsing, null-safety and error mapping.
 
-### U15 m0224: canonical deferred anchor notifications
+### U15 m0225: canonical deferred anchor notifications
 - Replace the anchor row trigger and add a cursor trigger as `DEFERRABLE INITIALLY DEFERRED` constraint triggers calling the strict publisher with the canonical envelope: event `update`; id and recipient = viewer; `revision` = the final cursor revision as a decimal string. Skip when the viewer row is gone.
 - Remove the Dart absent-delete notify (`constellation_anchor_repository.dart:356-384`).
 - Each deferred callback checks a transaction-local publication marker keyed by `(viewer, final revision)` (`set_config(..., true)`) and calls the publisher only once per viewer per transaction.
@@ -216,7 +216,7 @@ P2 can run in parallel with P1, because it only touches the server.
 - `websocket_path_entity_changes.dart`: refactor `_forwardedExtrasByKind` validation per kind (today it assumes seen timestamps, `:35-46`). Forward `revision` for `constellation_anchor`, and support the `constellation_field` kind.
 - **Tests:** fan-out unit tests for each kind; a malformed revision is dropped with a warning.
 
-### U17 m0225: field-hint producers
+### U17 m0226: field-hint producers
 - Trust changes and MR publication (the global epoch, `m0202.dart:39`) → **one global marker** NOTIFY (no per-viewer enumeration). The fan-out side coalescing and broadcast is U43.
 - Block changes → both parties.
 - **Tests (pg plus fan-out):** a trust change alters a third viewer's field and that viewer receives a hint (via U43 once landed; until then, the marker is asserted at the NOTIFY level); block → both parties; 100 trust changes in one second → 100 markers but ≤ 1 broadcast per window (with U43).

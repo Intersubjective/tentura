@@ -210,7 +210,7 @@ Paths are relative to `packages/server/lib/`.
 
 The whole transaction is retried on serialization failure or deadlock, and any failure discards all prepared inputs. Backoff runs after rollback and outside the DB connection. Retries use bounded jitter with an end-to-end deadline; today's helper retries once, immediately (`data/database/postgres_serialization_retry.dart:8`). An existing anchor alone never authorizes a move after visibility revocation. A new `TenturaDb.withMutatingRepeatableRead` wrapper is needed, because `withMutatingUser` (`tentura_db.dart:194`) sets no isolation level and `withReadSnapshot` is read-only. |
 | Anchor projection reader | `data/repository/constellation_anchor_projection_reader.dart` (new; the anchor half extracted from SR) | Data helper | Shared by ANCHORS reads and `applyBatch`; reuses the tx's m0222 memo |
-| Migrations `m0223`–`m0225` | `data/database/migration/m0223.dart` … `m0225.dart` (new), each registered in `_migrations.dart` (part list plus registry) | SQL | m0223: tables `constellation_anchor_op_log` and `constellation_anchor_target_watermark`. m0224: deferred anchor and cursor NOTIFY triggers with a canonical envelope. m0225: field-hint producers (§7.3). m0193 is left unchanged. |
+| Migrations `m0224`–`m0226` | `data/database/migration/m0224.dart` … `m0226.dart` (new), each registered in `_migrations.dart` (part list plus registry) | SQL | m0224: tables `constellation_anchor_op_log` and `constellation_anchor_target_watermark`. m0225: deferred anchor and cursor NOTIFY triggers with a canonical envelope. m0226: field-hint producers (§7.3). m0193 is left unchanged. |
 | Realtime fan-out | `api/controllers/websocket/path_handler/websocket_path_entity_changes.dart` | API | Extra validation refactored **per kind**: today it assumes seen timestamps (`:35-46`). Explicitly forwards `revision` for `constellation_anchor`, and forwards the `constellation_field` kind. |
 | Dart absent-delete notify | `constellation_anchor_repository.dart:356-384` | Data | **Removed.** The cursor trigger covers it. |
 | Lean profiles | `data/repository/user_profile_batch_lookup.dart` | Data | One-query name, handle and image |
@@ -533,12 +533,12 @@ That depends on the deferred §7.4 dependency generations. Until then, the compl
 - **Callback cost.** NOTIFY deduplication removes duplicate *messages*, not deferred-trigger *executions*: a 64-op batch would queue about 128 callbacks. Each deferred callback first checks a transaction-local publication marker keyed by `(viewer, final revision)`, using `set_config(..., true)`, and returns early when the marker is already set, so the strict publisher runs once per viewer per transaction.
 - Metrics: callback count, publisher calls, commit latency, `pg_notification_queue_usage()`, listener → WS latency. NOTIFY commit locking stays global and every worker runs its own listener (`pg_notification_service.dart:88-93`). So benchmark concurrent notifying commits (transaction body and COMMIT latency separately), cursor-lookup counts, payload bytes, listener backlog, event-loop delay and slow listeners. Listeners never run inside long transactions.
 - Fan-out forwards `revision` explicitly (§4.4). The client decodes it into `ConstellationAnchorRevision`, and coalescing keeps the highest revision.
-- Row revision assignment and cursor locking are unchanged. This is new migration m0224; m0193 is not edited.
+- Row revision assignment and cursor locking are unchanged. This is new migration m0225; m0193 is not edited.
 - Tests: mixed ops, cursor-only deletes, cascades, rollback (no hint), and the full PG → WS → client path.
 
 ### 7.3 Visibility hints
 
-Explicit producers are added in m0225 and the server layer map:
+Explicit producers are added in m0226 and the server layer map:
 
 - **Trust changes and MR publication** (the global epoch bump, `m0202.dart:39`) can affect viewers beyond the trust endpoints, so they invalidate **all connected authenticated viewers** with a payload-free global `constellation_field` hint. This stays until an affected-viewer algorithm is proven complete.
 - **Block changes** invalidate both parties.
