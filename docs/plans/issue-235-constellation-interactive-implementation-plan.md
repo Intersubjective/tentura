@@ -13,7 +13,7 @@ Review history is in `issue-235-constellation-interactive-review-record.md`. Exe
 - **Layers:** follow `.cursor/rules/architecture.mdc` and the `clean-architecture` skill. Domain stays pure (no Flutter, no `dart:ui`, no Ferry). Cubits use cases only. Server domain → ports only.
 - **UI work** goes through the `material-3-flutter` skill and design-system tokens. All copy goes through l10n (`packages/client/l10n/*.arb`). User-facing terms are **Request** / **Chat**.
 - **Codegen:** never edit generated files. Run `build_runner` after Freezed, Ferry or Injectable changes. Refresh the client schema before Ferry codegen (Ferry consumes the checked-in schema, `packages/client/build.yaml:32`).
-- **Migrations:** new files only (m0224–m0226), each registered in `_migrations.dart` (part list plus registry). Never edit a merged migration.
+- **Migrations:** new files only, taking the next free numbers at implementation time (the unit titles say m0224–m0226, but other work may take numbers first), each registered in `_migrations.dart` (part list plus registry). Never edit a merged migration.
 - **Tests:**
   - Structural only, never goldens. Every run goes through `scripts/run_with_test_cleanup.sh`, **serially**; two wrapped runs sweep each other's kernels.
   - pg tests: `-x pg` excluded locally unless the unit needs them. pg tests must not query `pg_locks` unscoped.
