@@ -7,9 +7,9 @@
 > - HUD-переделка #223 (`3ef6b912`): `beacon_hud_pinned_block.dart`, `beacon_request_modes.dart`, миграция `m0220`.
 >
 > Следствия:
-> - **Первые свободные значения:** миграция `m0222`, semantic marker `13`, `BeaconExceptionCode` `1330` (коды позиционные, `1300 + index`, `exception_codes.dart:73-115`), `BeaconActivityEventTypeBits` `21` (на main последний `factRemoved = 20`), `BeaconRoomSystemMessageKind` `5` (на main последний `convertedToRequest = 4`, `consts/beacon_hierarchy_consts.dart:24-29`).
+> - **Первые свободные значения:** миграция `m0223`, semantic marker `13`, `BeaconExceptionCode` `1330` (коды позиционные, `1300 + index`, `exception_codes.dart:73-115`), `BeaconActivityEventTypeBits` `21` (на main последний `factRemoved = 20`), `BeaconRoomSystemMessageKind` `5` (на main последний `convertedToRequest = 4`, `consts/beacon_hierarchy_consts.dart:24-29`).
 > - **Старт:** ни один unit не ждёт HUD или baton. Все начинают с `git fetch && git switch -c feature/plan-220-<unit> origin/main`.
-> - **Номера** сверяются в начале и **при merge** каждого unit: `ls packages/server/lib/data/database/migration/`, consts, enum кодов. На main параллельно приземляются другие агенты. Номер получает заранее только S1 (`m0222`). Остальные миграции названы по смыслу (`m02xx_plan_scope`, `m02yy_plan_quote`), номер присваивается при rebase. В тестах используется `migrationsForTesting.last.version` (`AGENTS.md:144`).
+> - **Номера** сверяются в начале и **при merge** каждого unit: `ls packages/server/lib/data/database/migration/`, consts, enum кодов. На main параллельно приземляются другие агенты. Номер получает заранее только S1 (`m0223`). Остальные миграции названы по смыслу (`m02xx_plan_scope`, `m02yy_plan_quote`), номер присваивается при rebase. В тестах используется `migrationsForTesting.last.version` (`AGENTS.md:144`).
 > - **Ссылки на строки** взяты из локального `f0e27cb`. Для файлов, изменённых на main, их нужно перепривязать в начале unit:
 >   - `98d613c` (baton C3): `room_message_tile.dart`, `room_cubit.dart`, `basic_chat_body.dart`;
 >   - `3ef6b91` (HUD): `beacon_view_screen.dart`, `beacon_now_surface.dart`, `beacon_view_cubit.dart`, `beacon_hud_metadata_composer.dart`.
@@ -18,7 +18,7 @@
 
 > **Поправка владельца (Вадим, 5 окт), отменяет авто-назначение из решения 9:** шаг можно назначить только на допущенного в запрос. При копировании запроса назначения в плане полностью сбрасываются: нет «было: X», нет кнопки «позвать», нет автоназначения при допуске (`former_assignee_id`, `former_reason` и хуки допуска из K2 не нужны).
 
-> **Обновлено 5 окт по main `1f1e094`:** `m0221` занят (visibility-cache trylock), поэтому первая миграция плана — `m0222`. Markers (13+) и коды исключений (1330+) не изменились. Номера перепроверять при merge.
+> **Обновлено 5 окт по main `1f1e094`:** `m0221` занят (visibility-cache trylock), поэтому первая миграция плана была `m0222`. **Обновлено 6 окт:** main занял `m0222` (mutual visibility memo, #232), план переехал на `m0223` (схема) и `m0224` (scope + sweep marks). Markers (13+) и коды исключений (1330+) не изменились. Номера перепроверять при merge.
 
 ## 1. Цель и рамки
 
@@ -144,16 +144,16 @@ SELECT pg_size_pretty(pg_total_relation_size('public.coordination_item')),
 ```
 
 - Строки kind=1 m0158 оставил намеренно (`m0193.dart:2316-2321`). Благодаря P1 они v1 не мешают, их судьбу решает X2.
-- **Множество допустимых kinds в CHECK m0222 выводится из аудита.** Default — `(1, 6)`. Любой найденный kind, кроме 1 (включая 0 и 4), сначала разбирается в X0. Сейчас на `coordination_item` вообще нет CHECK по kind (`m0193.dart:6261, 7773-7808`), так что «неожиданный» kind в prod уронил бы deploy.
+- **Множество допустимых kinds в CHECK m0223 выводится из аудита.** Default — `(1, 6)`. Любой найденный kind, кроме 1 (включая 0 и 4), сначала разбирается в X0. Сейчас на `coordination_item` вообще нет CHECK по kind (`m0193.dart:6261, 7773-7808`), так что «неожиданный» kind в prod уронил бы deploy.
 - Результаты записываются в issue #220. S1 не мержится, пока они не записаны для dev и prod.
 
-### 3.1 Миграция `m0222` (unit S1; номер сверить)
+### 3.1 Миграция `m0223` (unit S1; номер сверить)
 
 ```sql
 -- 0) Guard: only audited kinds may exist (default set: 1)
 DO $$ BEGIN
   IF EXISTS (SELECT 1 FROM public.coordination_item WHERE kind NOT IN (1)) THEN
-    RAISE EXCEPTION 'm0222: unexpected coordination_item kinds; see X0 audit (issue #220)';
+    RAISE EXCEPTION 'm0223: unexpected coordination_item kinds; see X0 audit (issue #220)';
   END IF;
 END $$;
 
@@ -335,7 +335,7 @@ CREATE INDEX beacon_room_message_quoted_plan_step ON public.beacon_room_message 
 | Что | v1 | Позже |
 |---|---|---|
 | Строки kind 1 | не трогаем, план их не видит (P1) | X2: удалить по рецепту m0158 (`m0193.dart:2373-2400`) или оставить, по итогам аудита |
-| Kinds 2/3/5 и любые другие | guard в m0222 падает; CHECK `(1, 6)` | — |
+| Kinds 2/3/5 и любые другие | guard в m0223 падает; CHECK `(1, 6)` | — |
 | `status` 0..4, `linked_event_kind` 1..6 | для kind 6 только `status` 0/3 (CHECK) | — |
 | `ordering` smallint | для kind 6 плотный 1..n | — |
 | `linked_parent_item_id`, `accepted_by_id`, `last_reminded_at`, `stale_*`, `published=false` | для kind 6 не используются | X1: чистка мёртвого кода |
@@ -1072,7 +1072,7 @@ WHERE beacon_id = $b AND kind = 6 AND status = 0
 | 1 | X0 | Аудит prod/dev; доки (request-attention §1/§5/§10, ADR 0004, terminology); макеты и этот план в `docs/plans/` | — | docs |
 | 2 | C0 | Переименование NOW-«плана», подпись NOW (Q6), сканирующий тест | — (Q6 для подписи) | client+server |
 | 3 | S2 | `tentura_root`: Snapshot / Diff / Merge / Schedule / EffectiveNow; тесты в `packages/server/test/domain/plan/` | — | root+server tests |
-| 4 | S1 | Схема m0222 + realtime publisher + контракт (сервер и клиентский enum) | X0 (аудит записан) | server+client |
+| 4 | S1 | Схема m0223 + realtime publisher + контракт (сервер и клиентский enum) | X0 (аудит записан) | server+client |
 | 5 | S3 | Серверный домен: entities, outcome, exceptions 1330+ (литералы), port, `PlanWriteEffects`, `PlanAssigneePolicy`, consts (markers 13..16, system kind 5, activity 21..24), маппинг превью, Log-предикат, клиентские mirrors, env `PLAN_ENABLED` | S2 | server+client mirrors |
 | 6 | S4 | `BeaconPlanCase` read + save + restore (repo, ревизии, ledger, P8) | S1, S3 | server |
 | 7 | S5, S6, S7 | Tick/untick + склейка; ack + «Не успеваю» (reschedule/handover); строки чата и activity как реализация `PlanWriteEffects` | S4 | server |
@@ -1136,9 +1136,9 @@ WHERE beacon_id = $b AND kind = 6 AND status = 0
   - `effectiveNow`: ручная запись позже прибытия; прибытие позже ручной; перенос в будущее; удаление; ничья по времени; отмеченный до старта; reviewOpen; шаг без исполнителя; нумерация `index`;
   - `overdueBoundary`: с концом, без конца, только конец, без времени.
 
-**S1 — Схема m0222.**
+**S1 — Схема m0223.**
 - Файлы:
-  - `packages/server/lib/data/database/migration/m0222.dart`, `_migrations.dart`, `table/coordination_items.dart` (только колонки);
+  - `packages/server/lib/data/database/migration/m0223.dart`, `_migrations.dart`, `table/coordination_items.dart` (только колонки);
   - `docs/contracts/realtime-entity-contract.json`;
   - набор publishers в `packages/server/test/architecture/realtime_entity_contract_test.dart`;
   - клиентский `RealtimeEntityKind.beaconPlan` + `fromWire`.
