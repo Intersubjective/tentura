@@ -21,6 +21,7 @@ import 'package:tentura/domain/entity/room_message_mention_span.dart';
 import 'package:tentura/domain/entity/room_poll_data.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/domain/entity/room_read_watermark.dart';
+import 'package:tentura/features/beacon_plan/domain/use_case/beacon_plan_case.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
@@ -64,8 +65,10 @@ class RoomCubit extends Cubit<RoomState> {
     CoordinationItemRoomSync? coordinationItemRoomSync,
     PresenceRepository? presenceRepository,
     UiEffectPort? effects,
+    BeaconPlanCase? planCase,
     this.capabilities = const RoomCapabilities.request(),
   }) : _case = beaconRoomCase ?? GetIt.I<BeaconThreadsCase>(),
+       _planCaseOverride = planCase,
        _itemSync =
            coordinationItemRoomSync ?? GetIt.I<CoordinationItemRoomSync>(),
        _presenceRepository =
@@ -103,6 +106,12 @@ class RoomCubit extends Cubit<RoomState> {
   final PresenceRepository _presenceRepository;
 
   final UiEffectPort _effects;
+
+  final BeaconPlanCase? _planCaseOverride;
+
+  /// Resolved only when a plan intent fires: most rooms never record one.
+  BeaconPlanCase get _planCase =>
+      _planCaseOverride ?? GetIt.I<BeaconPlanCase>();
 
   void _showMessage(LocalizableMessage message) {
     _effects.emit(ShowMessage(message));
@@ -459,8 +468,8 @@ class RoomCubit extends Cubit<RoomState> {
   }
 
   /// Puts [intent]'s text into the composer and waits for the message that
-  /// carries it (see [RoomComposerIntent.onSent]). A later intent replaces
-  /// an earlier one.
+  /// carries it (see [RoomComposerIntent.planCantMake]). A later intent
+  /// replaces an earlier one.
   void armComposerIntent(RoomComposerIntent intent) {
     if (isClosed) return;
     _armedComposerIntent = intent;
@@ -485,8 +494,25 @@ class RoomCubit extends Cubit<RoomState> {
     final armed = _armedComposerIntent;
     if (armed == null || !armed.matches(sentBody)) return;
     _armedComposerIntent = null;
-    final onSent = armed.onSent;
-    if (onSent != null) unawaited(onSent(sentBody));
+    final cantMake = armed.planCantMake;
+    if (cantMake != null) {
+      unawaited(_recordPlanCantMake(cantMake, armed.wordsOf(sentBody)));
+    }
+  }
+
+  Future<void> _recordPlanCantMake(
+    PlanCantMakeInChat cantMake,
+    String excerpt,
+  ) async {
+    try {
+      await _planCase.cantMakeInChat(
+        stepId: cantMake.stepId,
+        baseRevisionSeq: cantMake.baseRevisionSeq,
+        excerpt: excerpt,
+      );
+    } on Object catch (e) {
+      if (!isClosed) _effects.emit(ShowError(e));
+    }
   }
 
   void clearPendingQuotedFact() {

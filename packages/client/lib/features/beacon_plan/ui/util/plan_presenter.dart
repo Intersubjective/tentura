@@ -6,6 +6,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/duration_format.dart';
 
 import '../../domain/entity/beacon_plan.dart';
+import '../../domain/entity/plan_conflict.dart';
 import '../../domain/entity/plan_revision.dart';
 import '../../domain/exception/beacon_plan_exceptions.dart';
 import '../bloc/plan_state.dart';
@@ -90,6 +91,37 @@ String planStepWhenLabel({
 String planDuration(Duration d, L10n l10n) =>
     formatCompactDurationRemaining(d, l10n);
 
+/// The note after a save conflict: which steps someone else changed (and
+/// who), now carrying their version in the draft.
+String planConflictNoticeText(
+  List<PlanConflictStep> steps,
+  PlanPeople people,
+  L10n l10n,
+) {
+  String? nameOf(PlanConflictStep s) {
+    final name = s.actorName?.trim();
+    if (name != null && name.isNotEmpty) return name;
+    final id = s.actorId;
+    return id == null ? null : people.nameOf(id, l10n);
+  }
+
+  if (steps.length == 1) {
+    final name = nameOf(steps.single);
+    if (name != null) {
+      return l10n.planConflictStepChanged(name, steps.single.title);
+    }
+  }
+  return l10n.planConflictStepsChanged(
+    [
+      for (final s in steps)
+        if (nameOf(s) case final name?)
+          '«${s.title}» ($name)'
+        else
+          '«${s.title}»',
+    ].join(', '),
+  );
+}
+
 /// User-facing text for a plan write error.
 String planErrorText(Object error, L10n l10n) => switch (error) {
   PlanEditConflictException() => l10n.planErrorConflict,
@@ -101,6 +133,7 @@ String planErrorText(Object error, L10n l10n) => switch (error) {
   PlanAssigneeNotAdmittedException() => l10n.planErrorAssigneeNotAdmitted,
   PlanTooLargeException() => l10n.planErrorTooLarge,
   PlanDisabledException() => l10n.planErrorDisabled,
+  PlanInvalidException() => l10n.planErrorInvalid,
   _ => error.toString(),
 };
 
@@ -270,7 +303,6 @@ String planRevisionHeadline({
         ? l10n.planHistoryCopied(plan!.copiedFromTitle!)
         : l10n.planHistoryCopiedUnknown,
   PlanRevisionKind.cantMake => l10n.planHistoryCantMake(actorName),
-  PlanRevisionKind.cantMakeChat => l10n.planHistoryCantMakeChat(actorName),
   PlanRevisionKind.unassignedOnLeave => l10n.planHistoryUnassignedOnLeave(
     actorName,
   ),

@@ -82,51 +82,87 @@ final class BeaconPlanCase extends UseCaseBase {
     excerpt: excerpt,
   );
 
-  /// After a 1330 on save: loads the draft's base and the current head and
-  /// re-runs the three-way merge locally. Returns a [PlanConflict] when steps
-  /// really conflict, or the merged snapshot to save on top of [currentSeq].
-  Future<PlanConflictCheck> prepareResave({
+  /// «Не успеваю → написать в обсуждении»: records the «can't make it» on
+  /// [stepId] with the sent message's own words ([excerpt]).
+  Future<PlanSaveOutcome> cantMakeInChat({
+    required String stepId,
+    required int baseRevisionSeq,
+    required String excerpt,
+  }) => cantMake(
+    stepId: stepId,
+    option: PlanCantMakeOption.chat,
+    baseRevisionSeq: baseRevisionSeq,
+    excerpt: excerpt,
+  );
+
+  /// After a 1330 on save: loads the current plan and re-applies the user's
+  /// edits ([mine], drafted over [base] = revision [baseSeq]) onto it. Steps
+  /// both sides changed take the current version; the result names them and
+  /// who changed them, so the user can check the draft before saving again.
+  Future<PlanRebase> rebaseAfterConflict({
     required String beaconId,
     required int baseSeq,
-    required int currentSeq,
+    required PlanSnapshot base,
     required PlanSnapshot mine,
   }) async {
-    final base = baseSeq <= 0
-        ? PlanSnapshot.empty
-        : (await _repository.revision(beaconId, baseSeq)).snapshot;
-    final theirs = currentSeq <= 0
-        ? PlanSnapshot.empty
-        : (await _repository.revision(beaconId, currentSeq)).snapshot;
-    return switch (PlanMerge.threeWay(base, theirs, mine)) {
-      PlanMergeMerged(:final snapshot) => PlanConflictCheck.merged(
-        snapshot: snapshot,
-        currentSeq: currentSeq,
-      ),
-      PlanMergeConflict(:final stepIds) => PlanConflictCheck.conflict(
-        PlanConflict(
-          base: base,
-          theirs: theirs,
-          mine: mine,
-          currentSeq: currentSeq,
-          stepIds: stepIds,
-        ),
-      ),
+    final fresh = await _repository.fetch(beaconId);
+    final theirs = fresh.snapshot;
+    final conflictIds = switch (PlanMerge.threeWay(base, theirs, mine)) {
+      PlanMergeMerged() => const <String>[],
+      PlanMergeConflict(:final stepIds) => stepIds,
     };
+    final patched = conflictIds.isEmpty
+        ? mine
+        : planTakeTheirSteps(mine, theirs, conflictIds);
+    final draft = switch (PlanMerge.threeWay(base, theirs, patched)) {
+      PlanMergeMerged(:final snapshot) => snapshot,
+      // Cannot happen once their steps are taken; keep the patched draft.
+      PlanMergeConflict() => patched,
+    };
+    if (conflictIds.isEmpty) {
+      return PlanRebase(
+        currentSeq: fresh.revisionSeq,
+        theirs: theirs,
+        draft: draft,
+      );
+    }
+    var page = const PlanRevisionPage();
+    try {
+      page = await _repository.revisions(beaconId);
+    } on Object catch (e) {
+      logger.warning('Plan history for a conflict notice failed', e);
+    }
+    String? actorOf(String stepId) {
+      for (final entry in page.items) {
+        if (entry.seq <= baseSeq) break;
+        if (entry.changes.any((c) => c.stepId == stepId)) {
+          return entry.actorId;
+        }
+      }
+      return fresh.lastEditedById;
+    }
+
+    final theirsById = theirs.byId;
+    final baseById = base.byId;
+    final mineById = mine.byId;
+    PlanConflictStep conflictStep(String id) {
+      final actorId = actorOf(id);
+      final step = theirsById[id] ?? baseById[id] ?? mineById[id];
+      return PlanConflictStep(
+        stepId: id,
+        title: step?.title ?? '',
+        actorId: actorId,
+        actorName: actorId == null
+            ? null
+            : page.names[actorId] ?? fresh.names[actorId],
+      );
+    }
+
+    return PlanRebase(
+      currentSeq: fresh.revisionSeq,
+      theirs: theirs,
+      draft: draft,
+      conflicts: [for (final id in conflictIds) conflictStep(id)],
+    );
   }
-}
-
-/// Result of [BeaconPlanCase.prepareResave].
-final class PlanConflictCheck {
-  const PlanConflictCheck.merged({
-    required PlanSnapshot this.snapshot,
-    required this.currentSeq,
-  }) : conflict = null;
-
-  PlanConflictCheck.conflict(PlanConflict this.conflict)
-    : snapshot = null,
-      currentSeq = conflict.currentSeq;
-
-  final PlanSnapshot? snapshot;
-  final PlanConflict? conflict;
-  final int currentSeq;
 }

@@ -190,10 +190,6 @@ void main() {
       BeaconSurface.plan,
       BeaconSurface.people,
     ]);
-    expect(
-      beaconVisibleSurfaces(isSplit: false, planEnabled: false),
-      [BeaconSurface.now, BeaconSurface.room, BeaconSurface.people],
-    );
     expect(beaconViewSurfaceForTab('plan'), BeaconSurface.plan);
     expect(beaconSurfaceViewTab(BeaconSurface.plan), 'plan');
   });

@@ -1,8 +1,8 @@
 import 'package:tentura/consts.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 
-import 'attention_event_classification.dart';
 import 'entity/attention_receipt.dart';
+import 'plan_receipt_event_type.dart';
 
 /// Resolves typed server targets while retaining [AttentionReceipt.actionUrl]
 /// for old/unknown receipt classes.
@@ -10,7 +10,11 @@ Uri attentionDestination(AttentionReceipt receipt) {
   final target = receipt.targetEntityId;
   final beaconId = receipt.beaconId;
   if (target == null || target.isEmpty) return Uri.parse(receipt.actionUrl);
-  if (receipt.destinationKind == 'beacon' && _isPlanReceipt(receipt)) {
+  if (receipt.destinationKind == 'beacon' &&
+      isPlanReceipt(
+        presentationKey: receipt.presentationKey,
+        presentationPayloadJson: receipt.presentationPayloadJson,
+      )) {
     final step = receipt.coordinationItemId?.trim();
     return Uri(
       path: '$kPathBeaconView/$target',
@@ -43,12 +47,4 @@ Uri attentionDestination(AttentionReceipt receipt) {
     'profile' => Uri(path: '$kPathProfileView/$target'),
     _ => Uri.parse(receipt.actionUrl),
   };
-}
-
-/// Request plan events (#220) open the Plan tab, on the step when there is
-/// one.
-bool _isPlanReceipt(AttentionReceipt receipt) {
-  final type = attentionEventTypeOf(receipt.presentationPayloadJson);
-  if (type != null) return type.startsWith('plan');
-  return receipt.presentationKey?.startsWith('plan_') ?? false;
 }

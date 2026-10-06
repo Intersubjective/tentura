@@ -11,7 +11,7 @@ BeaconSurface beaconViewSurfaceForTab(String? viewTab) {
     case 'log':
       return BeaconSurface.now;
     case kBeaconViewTabPlan:
-      return kPlanEnabled ? BeaconSurface.plan : BeaconSurface.now;
+      return BeaconSurface.plan;
     case kBeaconViewTabPeople:
     case kBeaconViewTabHelpOffers:
       return BeaconSurface.people;
@@ -32,13 +32,9 @@ String beaconSurfaceViewTab(BeaconSurface surface) => switch (surface) {
 
 /// ROOM is hidden only when the expanded split is actually active, because the
 /// conversation is then permanently visible in the right pane (plan D1/§4.1).
-/// PLAN (#220) is shown only while [planEnabled] (`kPlanEnabled`).
-List<BeaconSurface> beaconVisibleSurfaces({
-  required bool isSplit,
-  bool planEnabled = kPlanEnabled,
-}) => [
+List<BeaconSurface> beaconVisibleSurfaces({required bool isSplit}) => [
   BeaconSurface.now,
-  if (planEnabled) BeaconSurface.plan,
+  BeaconSurface.plan,
   if (!isSplit) BeaconSurface.room,
   BeaconSurface.people,
 ];

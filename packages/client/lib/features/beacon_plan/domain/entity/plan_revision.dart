@@ -13,7 +13,6 @@ enum PlanRevisionKind {
   copied(3),
   cantMake(4),
   unassignedOnLeave(5),
-  cantMakeChat(6),
   unknown(-1);
 
   const PlanRevisionKind(this.wire);

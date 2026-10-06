@@ -1,13 +1,26 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:tentura/features/beacon_plan/domain/use_case/beacon_plan_case.dart';
+import 'package:tentura/features/beacon_plan/domain/exception/beacon_plan_exceptions.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/room_composer_intent.dart';
+import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 
+import '../../ui/effect/fake_ui_effect_port.dart';
+import '../beacon_plan/beacon_plan_test_support.dart';
 import 'room_cubit_fakes.dart';
 
 const _prefill = "› Step 3: Build frame — can't make it: ";
+
+const _cantMake = PlanCantMakeInChat(
+  stepId: 'PS000000000003',
+  baseRevisionSeq: 4,
+);
+
+FakeBeaconPlanRepository _planRepo() =>
+    FakeBeaconPlanRepository(BeaconPlan.decode(planJson()));
 
 void main() {
   group('RoomComposerIntent', () {
@@ -54,66 +67,106 @@ void main() {
     });
 
     test(
-      'sending the quoted message fires onSent once with the body',
+      "sending the quoted message records the plan «can't make it» once",
       () async {
         registerRoomCubitProfileCubit(kRoomCubitFakeMyUserId);
         final fakeRoom = FakeBeaconThreadsRepository(
           userId: kRoomCubitFakeMyUserId,
         );
-        final cubit = roomCubitForTest(fakeRoom);
+        final plan = _planRepo();
+        final cubit = roomCubitForTest(fakeRoom, planCase: planCaseFor(plan));
         addTearDown(cubit.close);
         await awaitRoomCubitLoad(cubit);
 
-        final sent = <String>[];
         cubit.armComposerIntent(
-          RoomComposerIntent(
-            prefill: _prefill,
-            onSent: (body) async => sent.add(body),
-          ),
+          const RoomComposerIntent(prefill: _prefill, planCantMake: _cantMake),
         );
 
         // An unrelated message first: the intent keeps waiting.
         expect(await cubit.sendMessage(body: 'hello'), isTrue);
-        expect(sent, isEmpty);
+        expect(plan.cantMakeCalls, isEmpty);
 
         expect(
           await cubit.sendMessage(body: '${_prefill}stuck in traffic'),
           isTrue,
         );
         await Future<void>.delayed(Duration.zero);
-        expect(sent, ['${_prefill}stuck in traffic'.trim()]);
+        expect(plan.cantMakeCalls, [
+          ('PS000000000003', PlanCantMakeOption.chat, null),
+        ]);
+        expect(plan.cantMakeExcerpts, ['stuck in traffic']);
 
         // Fired once only.
         expect(await cubit.sendMessage(body: '${_prefill}again'), isTrue);
         await Future<void>.delayed(Duration.zero);
-        expect(sent, hasLength(1));
+        expect(plan.cantMakeCalls, hasLength(1));
       },
     );
+
+    test('an intent without a plan step records nothing', () async {
+      registerRoomCubitProfileCubit(kRoomCubitFakeMyUserId);
+      final fakeRoom = FakeBeaconThreadsRepository(
+        userId: kRoomCubitFakeMyUserId,
+      );
+      final plan = _planRepo();
+      final cubit = roomCubitForTest(fakeRoom, planCase: planCaseFor(plan));
+      addTearDown(cubit.close);
+      await awaitRoomCubitLoad(cubit);
+
+      cubit.armComposerIntent(const RoomComposerIntent(prefill: _prefill));
+      expect(await cubit.sendMessage(body: '${_prefill}late'), isTrue);
+      await Future<void>.delayed(Duration.zero);
+      expect(plan.cantMakeCalls, isEmpty);
+    });
 
     test('a failed send keeps the intent armed', () async {
       registerRoomCubitProfileCubit(kRoomCubitFakeMyUserId);
       final fakeRoom = FakeBeaconThreadsRepository(
         userId: kRoomCubitFakeMyUserId,
       )..createMessageError = StateError('network');
-      final cubit = roomCubitForTest(fakeRoom);
+      final plan = _planRepo();
+      final cubit = roomCubitForTest(fakeRoom, planCase: planCaseFor(plan));
       addTearDown(cubit.close);
       await awaitRoomCubitLoad(cubit);
 
-      final sent = <String>[];
       cubit.armComposerIntent(
-        RoomComposerIntent(
-          prefill: _prefill,
-          onSent: (body) async => sent.add(body),
-        ),
+        const RoomComposerIntent(prefill: _prefill, planCantMake: _cantMake),
       );
       expect(await cubit.sendMessage(body: '${_prefill}late'), isFalse);
       await Future<void>.delayed(Duration.zero);
-      expect(sent, isEmpty);
+      expect(plan.cantMakeCalls, isEmpty);
 
       fakeRoom.createMessageError = null;
       expect(await cubit.sendMessage(body: '${_prefill}late'), isTrue);
       await Future<void>.delayed(Duration.zero);
-      expect(sent, hasLength(1));
+      expect(plan.cantMakeCalls, hasLength(1));
+    });
+
+    test("a refused «can't make it» surfaces as an error", () async {
+      registerRoomCubitProfileCubit(kRoomCubitFakeMyUserId);
+      final fakeRoom = FakeBeaconThreadsRepository(
+        userId: kRoomCubitFakeMyUserId,
+      );
+      final plan = _planRepo()
+        ..cantMakeError = const PlanActionStaleException();
+      final effects = FakeUiEffectPort();
+      final cubit = roomCubitForTest(
+        fakeRoom,
+        planCase: planCaseFor(plan),
+        effects: effects,
+      );
+      addTearDown(cubit.close);
+      await awaitRoomCubitLoad(cubit);
+
+      cubit.armComposerIntent(
+        const RoomComposerIntent(prefill: _prefill, planCantMake: _cantMake),
+      );
+      expect(await cubit.sendMessage(body: '${_prefill}late'), isTrue);
+      await Future<void>.delayed(Duration.zero);
+      expect(
+        effects.emitted.whereType<ShowError>().map((e) => e.error),
+        [isA<PlanActionStaleException>()],
+      );
     });
   });
 

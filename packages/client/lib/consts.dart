@@ -212,9 +212,3 @@ const kPostsEnabled = true;
 
 /// Enables the «Who'll take it?» (baton) start action.
 const kBatonEnabled = true;
-
-/// Enables the Request plan («либретто», #220): the Plan tab and its sheets.
-const kPlanEnabled = bool.fromEnvironment(
-  'TENTURA_PLAN_ENABLED',
-  defaultValue: true,
-);

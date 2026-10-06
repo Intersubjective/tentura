@@ -4,7 +4,6 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
-import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/features/beacon_plan/domain/entity/beacon_plan.dart';
 import 'package:tentura/features/beacon_plan/domain/entity/plan_fork_copy.dart';
@@ -25,10 +24,7 @@ Future<void> runBeaconCreateFromAction(
 }) async {
   final plan = sourcePlan;
   String? draftId;
-  if (kPlanEnabled &&
-      plan != null &&
-      plan.steps.isNotEmpty &&
-      forkWithPlan != null) {
+  if (plan != null && plan.steps.isNotEmpty && forkWithPlan != null) {
     final choice = await showPlanCopySheet(context, plan: plan);
     if (choice == null || !context.mounted) return;
     final times = choice.stepTimes;

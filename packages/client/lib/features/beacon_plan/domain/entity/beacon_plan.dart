@@ -19,7 +19,6 @@ final class PlanStep {
     this.endAt,
     this.doneAt,
     this.doneById,
-    this.createdSeq = 0,
     this.contentSeq = 0,
     this.ackSeq = 0,
     this.assigneeAckPending = false,
@@ -36,7 +35,6 @@ final class PlanStep {
     endAt: _instant(json['endAt']),
     doneAt: _instant(json['doneAt']),
     doneById: _nonEmpty(json['doneById']),
-    createdSeq: _int(json['createdSeq']),
     contentSeq: _int(json['contentSeq']),
     ackSeq: _int(json['ackSeq']),
     assigneeAckPending: json['assigneeAckPending'] == true,
@@ -53,7 +51,6 @@ final class PlanStep {
   final DateTime? endAt;
   final DateTime? doneAt;
   final String? doneById;
-  final int createdSeq;
   final int contentSeq;
   final int ackSeq;
 
@@ -100,7 +97,6 @@ final class PlanStep {
         endAt: endAt,
         doneAt: doneAt,
         doneById: doneById,
-        createdSeq: createdSeq,
         contentSeq: contentSeq,
         ackSeq: ackSeq,
         assigneeAckPending: assigneeAckPending,
@@ -144,26 +140,16 @@ final class PlanStep {
 final class PlanMember {
   const PlanMember({
     required this.userId,
-    this.pendingFromSeq,
-    this.ackedSeq = 0,
     this.ackedAt,
   });
 
   factory PlanMember.fromJson(Map<String, Object?> json) => PlanMember(
     userId: (json['userId'] as String?) ?? '',
-    pendingFromSeq: _intOrNull(json['pendingFromSeq']),
-    ackedSeq: _int(json['ackedSeq']),
     ackedAt: _instant(json['ackedAt']),
   );
 
   final String userId;
-
-  /// First revision the person still has to confirm; null when nothing waits.
-  final int? pendingFromSeq;
-  final int ackedSeq;
   final DateTime? ackedAt;
-
-  bool get hasPending => pendingFromSeq != null;
 }
 
 /// A change to the viewer's own steps that waits for «Понятно».
@@ -222,7 +208,6 @@ final class BeaconPlan {
   const BeaconPlan({
     required this.beaconId,
     this.revisionSeq = 0,
-    this.changeSeq = 0,
     this.lastEditedById,
     this.lastEditedAt,
     this.copiedFromBeaconId,
@@ -242,7 +227,6 @@ final class BeaconPlan {
     return BeaconPlan(
       beaconId: (json['beaconId'] as String?) ?? '',
       revisionSeq: _int(json['revisionSeq']),
-      changeSeq: _int(json['changeSeq']),
       lastEditedById: _nonEmpty(json['lastEditedById']),
       lastEditedAt: _instant(json['lastEditedAt']),
       copiedFromBeaconId: _nonEmpty(json['copiedFromBeaconId']),
@@ -278,9 +262,6 @@ final class BeaconPlan {
 
   /// Head revision; the base of the next save / restore.
   final int revisionSeq;
-
-  /// Bumped by every plan write (ticks too): the version realtime refers to.
-  final int changeSeq;
   final String? lastEditedById;
   final DateTime? lastEditedAt;
   final String? copiedFromBeaconId;
@@ -389,7 +370,6 @@ final class BeaconPlan {
   BeaconPlan withSteps(List<PlanStep> next) => BeaconPlan(
     beaconId: beaconId,
     revisionSeq: revisionSeq,
-    changeSeq: changeSeq,
     lastEditedById: lastEditedById,
     lastEditedAt: lastEditedAt,
     copiedFromBeaconId: copiedFromBeaconId,
@@ -405,7 +385,6 @@ final class BeaconPlan {
   BeaconPlan withoutViewerPending() => BeaconPlan(
     beaconId: beaconId,
     revisionSeq: revisionSeq,
-    changeSeq: changeSeq,
     lastEditedById: lastEditedById,
     lastEditedAt: lastEditedAt,
     copiedFromBeaconId: copiedFromBeaconId,

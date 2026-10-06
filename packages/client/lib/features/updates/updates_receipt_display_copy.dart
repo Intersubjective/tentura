@@ -4,6 +4,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/attention/attention_event_classification.dart';
+import 'package:tentura/domain/attention/plan_receipt_event_type.dart';
 import 'package:tentura/features/beacon_view/domain/beacon_status_menu_presenter.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
@@ -299,35 +300,6 @@ UpdatesFeedRowCopy? batonReceiptDisplayCopy({
     ),
     _ => null,
   };
-}
-
-/// Request plan («либретто», #220) event types, by `eventType` payload name
-/// and by server `presentationKey`.
-const _planEventTypes = <String, String>{
-  'planStepDue': 'plan_step_due',
-  'planStepTurn': 'plan_step_turn',
-  'planChangePending': 'plan_change_pending',
-  'planStepReminder': 'plan_step_reminder',
-  'planStepOverdue': 'plan_step_overdue',
-  'planStepLate': 'plan_step_late',
-  'planCantMake': 'plan_cant_make',
-  'planStepUnassigned': 'plan_step_unassigned',
-  'planEdited': 'plan_edited',
-  'planStepDone': 'plan_step_done',
-};
-
-/// The plan event type (`planStepDue`, …) of a receipt, or null when it is
-/// not a Request plan event.
-String? planReceiptEventType({
-  required String? presentationKey,
-  required String presentationPayloadJson,
-}) {
-  final type = attentionEventTypeOf(presentationPayloadJson);
-  if (type != null && _planEventTypes.containsKey(type)) return type;
-  for (final MapEntry(:key, :value) in _planEventTypes.entries) {
-    if (value == presentationKey) return key;
-  }
-  return null;
 }
 
 /// Plan receipt copy: the event in the viewer's locale, and the step title

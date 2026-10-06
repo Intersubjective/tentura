@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_lineage_parent_link.dart';
@@ -43,7 +42,6 @@ class BeaconNowSurface extends StatefulWidget {
     required this.onActivatePeopleTabAttention,
     required this.onFocusCoordinationItem,
     required this.onOpenGeneralThread,
-    this.planCubit,
     this.onPlanCantMakeChat,
     super.key,
   });
@@ -58,9 +56,6 @@ class BeaconNowSurface extends StatefulWidget {
 
   /// «Не успеваю → написать в обсуждении» (#220).
   final PlanCantMakeChatCallback? onPlanCantMakeChat;
-
-  /// The Request plan (#220), shared with the Plan tab; null without one.
-  final PlanCubit? planCubit;
 
   @override
   State<BeaconNowSurface> createState() => _BeaconNowSurfaceState();
@@ -111,8 +106,8 @@ class _BeaconNowSurfaceState extends State<BeaconNowSurface> {
     BeaconViewState state,
     Widget Function(BeaconHudPlanData? plan) build,
   ) {
-    final planCubit = widget.planCubit;
-    if (!kPlanEnabled || planCubit == null || state.isRoomAdmissionBlocked) {
+    final planCubit = context.read<PlanCubit?>();
+    if (planCubit == null || state.isRoomAdmissionBlocked) {
       return build(null);
     }
     return BlocBuilder<PlanCubit, PlanState>(

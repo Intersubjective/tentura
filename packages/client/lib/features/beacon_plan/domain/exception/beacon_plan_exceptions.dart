@@ -1,9 +1,10 @@
 /// Typed translations of the Request plan («либретто», #220) GraphQL error
-/// codes 1330–1338 (server `BeaconExceptionCode.plan*`).
+/// codes 1330–1339 (server `BeaconExceptionCode.plan*`).
 ///
-/// Thrown by the routing link's `onGraphQLError` handler in
-/// `data/service/remote_api_client/build_client.dart` when it recognizes one
-/// of these codes in a GraphQL error's `extensions.code`.
+/// Thrown by `throwIfBeaconPlanError` (in
+/// `data/model/beacon_plan_error_mapper.dart`) from the routing link's
+/// `onGraphQLError` handler when it recognizes one of these codes in a
+/// GraphQL error's `extensions.code`.
 sealed class BeaconPlanException implements Exception {
   const BeaconPlanException([this.message]);
 
@@ -85,42 +86,10 @@ final class PlanDisabledException extends BeaconPlanException {
   static const codeNumber = 1338;
 }
 
-/// Throws the matching [BeaconPlanException] for a recognized plan GraphQL
-/// error [code]. Returns normally for any other code.
-void throwIfBeaconPlanError(int? code, Map<String, dynamic>? extensions) {
-  switch (code) {
-    case PlanEditConflictException.codeNumber:
-      final rawSeq = extensions?['currentSeq'];
-      final rawIds = extensions?['conflictStepIds'];
-      throw PlanEditConflictException(
-        currentSeq: switch (rawSeq) {
-          final int v => v,
-          final num v => v.toInt(),
-          final String v => int.tryParse(v) ?? 0,
-          _ => 0,
-        },
-        conflictStepIds: rawIds is List
-            ? [
-                for (final id in rawIds)
-                  if (id is String && id.isNotEmpty) id,
-              ]
-            : const [],
-      );
-    case PlanStepNotFoundException.codeNumber:
-      throw const PlanStepNotFoundException();
-    case PlanNotEditableException.codeNumber:
-      throw const PlanNotEditableException();
-    case PlanActionStaleException.codeNumber:
-      throw const PlanActionStaleException();
-    case PlanRestoreSourceMissingException.codeNumber:
-      throw const PlanRestoreSourceMissingException();
-    case PlanRateLimitedException.codeNumber:
-      throw const PlanRateLimitedException();
-    case PlanAssigneeNotAdmittedException.codeNumber:
-      throw const PlanAssigneeNotAdmittedException();
-    case PlanTooLargeException.codeNumber:
-      throw const PlanTooLargeException();
-    case PlanDisabledException.codeNumber:
-      throw const PlanDisabledException();
-  }
+/// The plan draft is not well-formed (duplicate step, empty or too long
+/// title, an end before its start).
+final class PlanInvalidException extends BeaconPlanException {
+  const PlanInvalidException([super.message]);
+
+  static const codeNumber = 1339;
 }

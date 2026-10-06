@@ -27,6 +27,9 @@ class FakeBeaconPlanRepository implements BeaconPlanRepository {
 
   BeaconPlanException? setDoneError;
 
+  /// Thrown by every cantMake while set.
+  BeaconPlanException? cantMakeError;
+
   /// Errors thrown by the next saves, in order.
   final saveErrors = <BeaconPlanException>[];
   final revisionsBySeq = <int, PlanSnapshot>{};
@@ -113,6 +116,8 @@ class FakeBeaconPlanRepository implements BeaconPlanRepository {
   }) async {
     cantMakeCalls.add((stepId, option, toUserId));
     cantMakeExcerpts.add(excerpt);
+    final error = cantMakeError;
+    if (error != null) throw error;
     return PlanSaveOutcome(
       kind: PlanSaveOutcomeKind.applied,
       revisionSeq: baseRevisionSeq + 1,
@@ -148,7 +153,6 @@ String planJson({
       'endAt': null,
       'doneAt': '2026-10-12T08:40:00.000Z',
       'doneById': 'U2',
-      'createdSeq': 1,
       'contentSeq': 1,
       'ackSeq': 1,
       'assigneeAckPending': false,
@@ -163,7 +167,6 @@ String planJson({
       'endAt': '2026-10-12T10:30:00.000Z',
       'doneAt': null,
       'doneById': null,
-      'createdSeq': 1,
       'contentSeq': 3,
       'ackSeq': 3,
       'assigneeAckPending': true,
@@ -178,7 +181,6 @@ String planJson({
       'endAt': null,
       'doneAt': null,
       'doneById': null,
-      'createdSeq': 2,
       'contentSeq': 2,
       'ackSeq': 2,
       'assigneeAckPending': false,
@@ -193,7 +195,6 @@ String planJson({
       'endAt': null,
       'doneAt': null,
       'doneById': null,
-      'createdSeq': 4,
       'contentSeq': 4,
       'ackSeq': 4,
       'assigneeAckPending': false,
@@ -202,8 +203,6 @@ String planJson({
   'members': [
     {
       'userId': 'ME',
-      'pendingFromSeq': 3,
-      'ackedSeq': 2,
       'ackedAt': '2026-10-12T06:00:00.000Z',
     },
   ],

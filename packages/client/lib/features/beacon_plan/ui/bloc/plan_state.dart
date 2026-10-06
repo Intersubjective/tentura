@@ -64,6 +64,4 @@ abstract class PlanState extends StateBase with _$PlanState {
   }) = _PlanState;
 
   const PlanState._();
-
-  bool get hasPlan => plan != null && !plan!.isEmpty;
 }

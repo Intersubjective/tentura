@@ -11,7 +11,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'package:tentura/app/sentry/sentry_init.dart';
 import 'package:tentura/features/beacon_threads/domain/exception/baton_exceptions.dart';
-import 'package:tentura/features/beacon_plan/domain/exception/beacon_plan_exceptions.dart';
+import 'package:tentura/features/beacon_plan/data/model/beacon_plan_error_mapper.dart';
 import 'package:tentura/features/beacon_threads/domain/exception/beacon_fact_already_pinned_exception.dart';
 import 'package:tentura_root/consts.dart';
 

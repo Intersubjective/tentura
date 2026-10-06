@@ -97,7 +97,6 @@ final class PlanTickEntry {
     this.actorId,
     this.at,
     this.undoneAt,
-    this.undoneById,
   });
 
   final String stepId;
@@ -108,7 +107,6 @@ final class PlanTickEntry {
 
   /// Set when the tick was removed later (plan P17): drawn struck through.
   final DateTime? undoneAt;
-  final String? undoneById;
 
   bool get isUndone => undoneAt != null;
 
@@ -134,7 +132,6 @@ final class PlanStepsDoneLine extends PlanRoomLine {
             actorId: _nonEmpty(t['actorId']),
             at: _instant(t['at']),
             undoneAt: _instant(t['undoneAt']),
-            undoneById: _nonEmpty(t['undoneById']),
           ),
     ];
     if (ticks.isEmpty) throw const FormatException('ticks');
@@ -213,17 +210,15 @@ final class PlanCantMakeLine extends PlanRoomLine {
 
 /// Marker 16: the plan came with a copy of another Request.
 final class PlanCopiedLine extends PlanRoomLine {
-  const PlanCopiedLine({required this.sourceBeaconId, this.stepCount = 0});
+  const PlanCopiedLine({required this.sourceBeaconId});
 
   factory PlanCopiedLine._fromJson(Map<String, Object?> json) => PlanCopiedLine(
     sourceBeaconId: _nonEmpty(json['sourceBeaconId']) ?? '',
-    stepCount: _intOrNull(json['stepCount']) ?? 0,
   );
 
   /// A reference by id only (ADR 0004 Decision 8): the title is shown only
   /// when the viewer can read the source.
   final String sourceBeaconId;
-  final int stepCount;
 }
 
 Map<String, Object?>? _decode(String? raw) {

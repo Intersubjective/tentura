@@ -6,6 +6,8 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
+import 'package:tentura/features/beacon_plan/data/repository/beacon_plan_repository.dart';
+import 'package:tentura/features/beacon_plan/domain/entity/beacon_plan.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card_repository.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_room_hints_repository.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_threads_repository.dart';
@@ -33,6 +35,7 @@ import 'package:tentura/features/polling/data/repository/polling_repository.dart
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 
 import '../beacon_view/beacon_view_case_test_support.dart' show FakeBeaconDisplayRepository;
+import '../beacon_plan/beacon_plan_test_support.dart';
 import '../block/support/controllable_block_case.dart' show noopBlockCase;
 import '../../support/test_realtime_sync.dart';
 
@@ -428,6 +431,7 @@ MyWorkCase buildTestMyWorkCase({
   RealtimeSyncCase? realtimeSyncCase,
   AttentionCase? attentionCase,
   StubAttentionRepository? attentionRepository,
+  BeaconPlanRepository? planRepository,
 }) {
   final hints = roomHints ?? FakeRoomHints();
   final beacon = beaconRepo ?? FakeBeaconRepository();
@@ -454,6 +458,7 @@ MyWorkCase buildTestMyWorkCase({
           repository: attentionRepository,
           realtimeSyncCase: realtime,
         ),
+    planRepository ?? FakeBeaconPlanRepository(BeaconPlan.decode(planJson())),
     env: const Env(),
     logger: Logger('test'),
   );

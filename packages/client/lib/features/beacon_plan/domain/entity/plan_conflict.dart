@@ -1,69 +1,82 @@
 import 'package:flutter/foundation.dart';
 import 'package:tentura_root/domain/plan/plan.dart';
 
-/// Which side wins one conflicting step.
-enum PlanConflictChoice { mine, theirs }
-
-/// A save that hit 1330 with step conflicts: what the user resolves.
+/// A step someone else changed while the draft was open, and both sides
+/// changed it: the draft now carries their version.
 @immutable
-final class PlanConflict {
-  const PlanConflict({
-    required this.base,
-    required this.theirs,
-    required this.mine,
-    required this.currentSeq,
-    required this.stepIds,
+final class PlanConflictStep {
+  const PlanConflictStep({
+    required this.stepId,
+    required this.title,
+    this.actorId,
+    this.actorName,
   });
 
-  /// The revision the draft started from.
-  final PlanSnapshot base;
+  final String stepId;
 
-  /// The plan head now ([currentSeq]).
-  final PlanSnapshot theirs;
+  /// The step's title (their version, else the last one known).
+  final String title;
 
-  /// The local draft.
-  final PlanSnapshot mine;
+  /// Who changed it, when the history says so.
+  final String? actorId;
+
+  /// [actorId]'s display name from the server, when it sent one.
+  final String? actorName;
+}
+
+/// The draft moved onto the current plan after a save conflict (1330).
+@immutable
+final class PlanRebase {
+  const PlanRebase({
+    required this.currentSeq,
+    required this.theirs,
+    required this.draft,
+    this.conflicts = const [],
+  });
+
+  /// The plan head the draft is now based on.
   final int currentSeq;
 
-  /// Steps both sides changed differently, in plan order.
-  final List<String> stepIds;
+  /// Content of [currentSeq].
+  final PlanSnapshot theirs;
 
-  /// Merges [mine] onto [theirs] with every conflicting step decided by
-  /// [choices] (default: mine). The result is a full snapshot to save with
-  /// base = [currentSeq]; it never conflicts again unless someone else
-  /// saves meanwhile.
-  PlanSnapshot resolve(Map<String, PlanConflictChoice> choices) {
-    // Pretend the draft was based on their version of every conflicting
-    // step: then «theirs» is unchanged there and the draft side wins, which
-    // is either my content or a copy of theirs.
-    final baseById = base.byId;
-    final theirsById = theirs.byId;
-    final mineById = mine.byId;
-    final conflicting = stepIds.toSet();
-    final patchedBase = PlanSnapshot([
-      for (final s in base.steps)
-        if (!conflicting.contains(s.id)) s else ?theirsById[s.id],
-      for (final id in stepIds)
-        if (!baseById.containsKey(id)) ?theirsById[id],
-    ]);
-    final patchedMine = PlanSnapshot([
-      for (final s in mine.steps)
-        if (!conflicting.contains(s.id) ||
-            (choices[s.id] ?? PlanConflictChoice.mine) ==
-                PlanConflictChoice.mine)
-          s
-        else
-          ?theirsById[s.id],
-      // Their version of a step I removed comes back when they win.
-      for (final id in stepIds)
-        if (!mineById.containsKey(id) &&
-            choices[id] == PlanConflictChoice.theirs)
-          ?theirsById[id],
-    ]);
-    return switch (PlanMerge.threeWay(patchedBase, theirs, patchedMine)) {
-      PlanMergeMerged(:final snapshot) => snapshot,
-      // Cannot happen after patching; fall back to the draft as is.
-      PlanMergeConflict() => patchedMine,
-    };
+  /// The user's edits re-applied onto [theirs]; conflicting steps carry
+  /// their version.
+  final PlanSnapshot draft;
+
+  /// Steps both sides changed, in plan order; empty when everything merged.
+  final List<PlanConflictStep> conflicts;
+}
+
+/// [mine] with each step of [stepIds] replaced by its version in [theirs]
+/// (dropped when they removed it, put back when only I removed it).
+PlanSnapshot planTakeTheirSteps(
+  PlanSnapshot mine,
+  PlanSnapshot theirs,
+  List<String> stepIds,
+) {
+  final taken = stepIds.toSet();
+  final theirsById = theirs.byId;
+  final steps = [
+    for (final s in mine.steps)
+      if (!taken.contains(s.id)) s else ?theirsById[s.id],
+  ];
+  final present = {for (final s in steps) s.id};
+  for (final id in stepIds) {
+    final their = theirsById[id];
+    if (their == null || present.contains(id)) continue;
+    // Right after its nearest earlier neighbour in their plan.
+    final theirIds = theirs.ids;
+    var at = 0;
+    for (var i = theirIds.indexOf(id) - 1; i >= 0; i--) {
+      final j = steps.indexWhere((s) => s.id == theirIds[i]);
+      if (j >= 0) {
+        at = j + 1;
+        break;
+      }
+    }
+    steps.insert(at, their);
+    present.add(id);
   }
+  return PlanSnapshot(steps);
 }

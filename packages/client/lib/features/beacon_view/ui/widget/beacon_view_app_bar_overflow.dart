@@ -288,10 +288,6 @@ Widget beaconViewAppBarOverflow({
   required VoidCallback onItemsTabRefresh,
   RoomCubit? roomCubit,
 
-  /// The Request's plan (#220), loaded only for a viewer inside it; offers
-  /// «Скопировать план» on «Создать на основе».
-  PlanCubit? planCubit,
-
   /// Author only: switch to the showcase preview ("How others see it").
   VoidCallback? onPreviewAsOthers,
 
@@ -301,6 +297,9 @@ Widget beaconViewAppBarOverflow({
 }) {
   final b = state.beacon;
   final beaconId = b.id;
+  // The Request's plan (#220), loaded only for a viewer inside it; offers
+  // «Скопировать план» on «Создать на основе».
+  final planCubit = context.read<PlanCubit?>();
   final hideOfferHelpWithdraw = hideOfferHelpWithdrawFromOverflow(state);
   final showBeaconManagementOverflow = !inRoomSurface || combineSplitPanes;
   final showRoomActions = inRoomSurface || combineSplitPanes;

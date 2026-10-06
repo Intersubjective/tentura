@@ -31,7 +31,6 @@ class BeaconPlanSurface extends StatelessWidget {
     this.initialStepId,
     this.onInitialStepHandled,
     this.planCase,
-    this.cubit,
     super.key,
   });
 
@@ -55,13 +54,11 @@ class BeaconPlanSurface extends StatelessWidget {
   /// Test seam; defaults to the DI singleton.
   final BeaconPlanCase? planCase;
 
-  /// The Request's shared plan cubit (also feeding the HUD); when set, the
-  /// tab reuses it instead of fetching again.
-  final PlanCubit? cubit;
-
   @override
   Widget build(BuildContext context) {
-    final shared = cubit;
+    // The Request's shared plan cubit (also feeding the HUD) when the host
+    // provides one; otherwise the tab fetches on its own.
+    final shared = context.read<PlanCubit?>();
     if (shared != null) {
       return BlocProvider.value(
         value: shared,

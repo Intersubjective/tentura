@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:tentura/domain/attention/plan_receipt_event_type.dart';
 import 'package:tentura/features/updates/updates_receipt_display_copy.dart';
 import 'package:tentura/ui/l10n/l10n_en.dart';
 import 'package:tentura/ui/l10n/l10n_ru.dart';

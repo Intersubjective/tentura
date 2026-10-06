@@ -39,7 +39,7 @@ abstract class PlanEditState extends StateBase with _$PlanEditState {
     required String beaconId,
 
     /// The revision the draft is based on (taken when the editor opened,
-    /// moved forward only by a conflict resolution).
+    /// moved forward only by a save conflict).
     required int baseSeq,
 
     /// Content of [baseSeq].
@@ -50,9 +50,10 @@ abstract class PlanEditState extends StateBase with _$PlanEditState {
     @Default('') String comment,
     @Default(StateIsSuccess()) StateStatus status,
 
-    /// Set while the user picks versions for conflicting steps.
-    PlanConflict? conflict,
-    @Default({}) Map<String, PlanConflictChoice> choices,
+    /// Steps the last save conflict took from the current plan (the user's
+    /// other edits were kept); [conflictSeq] grows with each conflict.
+    @Default([]) List<PlanConflictStep> conflictSteps,
+    @Default(0) int conflictSeq,
 
     /// Set once the draft is saved; the editor closes on it.
     PlanEditSaved? saved,

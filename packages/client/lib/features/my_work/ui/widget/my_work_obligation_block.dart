@@ -14,27 +14,6 @@ import 'package:tentura/ui/test_ids.dart';
 
 const kMyWorkVisibleObligationGroups = 3;
 
-/// Plan receipts the card's plan rows already show (#220 §5.8): the viewer's
-/// step and change obligations, and the reminder / overdue notices of those
-/// same steps. They stay in the card's attention facts (indicators) but not
-/// in its event rows.
-const _planRowReceiptTypes = {
-  'planStepDue',
-  'planStepTurn',
-  'planChangePending',
-  'planStepReminder',
-  'planStepOverdue',
-};
-
-/// Whether [receipt] is a plan event the plan rows of a card stand for.
-bool myWorkReceiptShownAsPlanRow(AttentionReceipt receipt) =>
-    _planRowReceiptTypes.contains(
-      planReceiptEventType(
-        presentationKey: receipt.presentationKey,
-        presentationPayloadJson: receipt.presentationPayloadJson,
-      ),
-    );
-
 /// Whether the active-event block should render (rows and/or fallback CTA).
 bool myWorkObligationBlockVisible({
   required MyWorkCardViewModel vm,

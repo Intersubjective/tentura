@@ -10,7 +10,6 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 import '../../domain/use_case/beacon_plan_case.dart';
 import '../bloc/plan_edit_cubit.dart';
 import '../util/plan_presenter.dart';
-import '../widget/plan_conflict_resolver.dart';
 import '../widget/plan_step_edit_sheet.dart';
 
 /// Opens the plan editor over [plan]. Resolves to the save outcome, or null
@@ -88,26 +87,23 @@ class PlanEditScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
+    return BlocListener<PlanEditCubit, PlanEditState>(
+      listenWhen: (p, c) => p.conflictSeq != c.conflictSeq,
+      listener: (context, state) => showSnackBar(
+        context,
+        text: planConflictNoticeText(state.conflictSteps, people, l10n),
+      ),
+      child: _body(context, l10n, tt),
+    );
+  }
+
+  Widget _body(BuildContext context, L10n l10n, TenturaTokens tt) {
     return BlocConsumer<PlanEditCubit, PlanEditState>(
-      listenWhen: (p, c) =>
-          p.saved != c.saved ||
-          p.errorSeq != c.errorSeq ||
-          (p.conflict == null && c.conflict != null),
+      listenWhen: (p, c) => p.saved != c.saved || p.errorSeq != c.errorSeq,
       listener: (context, state) {
         final saved = state.saved;
         if (saved != null) {
           Navigator.of(context).pop(saved.outcome);
-          return;
-        }
-        final conflict = state.conflict;
-        if (conflict != null) {
-          unawaited(
-            showPlanConflictResolver(
-              context,
-              cubit: context.read<PlanEditCubit>(),
-              people: people,
-            ),
-          );
           return;
         }
         final error = state.error;

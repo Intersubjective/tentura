@@ -19,7 +19,6 @@ class BeaconSurfaceTabs extends StatelessWidget {
     required this.onSurfaceSelected,
     this.onSurfaceReselected,
     this.peopleTabAttentionActive = false,
-    this.planCubit,
     this.clock,
     super.key,
   });
@@ -32,10 +31,6 @@ class BeaconSurfaceTabs extends StatelessWidget {
   final ValueChanged<BeaconSurface>? onSurfaceReselected;
 
   final bool peopleTabAttentionActive;
-
-  /// The Request plan (#220): the Plan tab shows the viewer's overdue count
-  /// (danger) or a dot for a current step / changes to confirm.
-  final PlanCubit? planCubit;
 
   /// Test seam for the overdue clock.
   final DateTime Function()? clock;
@@ -152,7 +147,10 @@ class BeaconSurfaceTabs extends StatelessWidget {
               );
             }
 
-            final planCubit = this.planCubit;
+            // The Request plan (#220) from the host: the Plan tab shows the
+            // viewer's overdue count (danger) or a dot for a current step /
+            // changes to confirm.
+            final planCubit = context.read<PlanCubit?>();
             if (planCubit == null ||
                 !visible.contains(BeaconSurface.plan) ||
                 beaconState.isRoomAdmissionBlocked) {

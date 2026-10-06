@@ -20,7 +20,7 @@ import '../gql/_g/beacon_plan_step_set_done.req.gql.dart';
 
 /// Request plan («либретто», #220) over Tentura V2 GraphQL. Every operation
 /// carries one JSON string; this repository turns it into domain entities.
-@lazySingleton
+@LazySingleton(env: [Environment.dev, Environment.prod])
 class BeaconPlanRepository {
   BeaconPlanRepository(this._remoteApiService, RealtimeSyncPort realtimeSync) {
     _realtimeSub = realtimeSync.entityChanges

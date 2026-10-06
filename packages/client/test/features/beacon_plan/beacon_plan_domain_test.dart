@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura_root/domain/plan/plan.dart';
 
+import 'package:tentura/features/beacon_plan/data/model/beacon_plan_error_mapper.dart';
 import 'package:tentura/features/beacon_plan/domain/entity/beacon_plan.dart';
 import 'package:tentura/features/beacon_plan/domain/entity/plan_conflict.dart';
 import 'package:tentura/features/beacon_plan/domain/entity/plan_revision.dart';
@@ -38,7 +39,6 @@ void main() {
       );
       expect(plan.beaconId, 'B1');
       expect(plan.revisionSeq, 4);
-      expect(plan.changeSeq, 9);
       expect(plan.editable, isTrue);
       expect(plan.steps, hasLength(4));
       expect(plan.doneCount, 1);
@@ -47,7 +47,7 @@ void main() {
       expect(boards.assigneeAckPending, isTrue);
       expect(boards.endAt, DateTime.utc(2026, 10, 12, 10, 30));
       expect(plan.stepById('PS000000000004')!.assigneeId, isNull);
-      expect(plan.memberOf('ME')!.pendingFromSeq, 3);
+      expect(plan.memberOf('ME')!.ackedAt, DateTime.utc(2026, 10, 12, 6));
       expect(plan.nameOf('U2'), 'Olga');
       final pending = plan.viewerPending!;
       expect(pending.headSeq, 4);
@@ -135,7 +135,7 @@ void main() {
           'items': [
             {
               'seq': 5,
-              'kind': 6,
+              'kind': 4,
               'actorId': 'ME',
               'comment': 'stuck',
               'restoredFromSeq': null,
@@ -161,7 +161,7 @@ void main() {
         }),
       );
       expect(page.items, hasLength(2));
-      expect(page.items.first.kind, PlanRevisionKind.cantMakeChat);
+      expect(page.items.first.kind, PlanRevisionKind.cantMake);
       expect(page.items.first.changes, isEmpty);
       expect(page.items.last.kind, PlanRevisionKind.restored);
       expect(page.items.last.restoredFromSeq, 2);
@@ -202,7 +202,7 @@ void main() {
       );
     });
 
-    test('1331..1338 map to typed exceptions; others pass through', () {
+    test('1331..1339 map to typed exceptions; others pass through', () {
       const expected = <int, Type>{
         1331: PlanStepNotFoundException,
         1332: PlanNotEditableException,
@@ -212,6 +212,7 @@ void main() {
         1336: PlanAssigneeNotAdmittedException,
         1337: PlanTooLargeException,
         1338: PlanDisabledException,
+        1339: PlanInvalidException,
       };
       for (final MapEntry(key: code, value: type) in expected.entries) {
         try {
@@ -226,49 +227,33 @@ void main() {
     });
   });
 
-  group('PlanConflict.resolve', () {
+  group('planTakeTheirSteps', () {
     const a = PlanStepSnapshot(id: 'PSa', title: 'A');
     const b = PlanStepSnapshot(id: 'PSb', title: 'B');
-    const base = PlanSnapshot([a, b]);
-    final theirs = PlanSnapshot([a.copyWith(title: 'A theirs'), b]);
+    const c = PlanStepSnapshot(id: 'PSc', title: 'C');
     final mine = PlanSnapshot([
       a.copyWith(title: 'A mine'),
       b.copyWith(title: 'B mine'),
     ]);
-    final conflict = PlanConflict(
-      base: base,
-      theirs: theirs,
-      mine: mine,
-      currentSeq: 3,
-      stepIds: const ['PSa'],
-    );
 
-    test('mine keeps my content and my other edits', () {
-      final r = conflict.resolve({'PSa': PlanConflictChoice.mine});
-      expect(r.steps.map((s) => s.title), ['A mine', 'B mine']);
-    });
-
-    test('theirs takes their content but keeps my other edits', () {
-      final r = conflict.resolve({'PSa': PlanConflictChoice.theirs});
+    test('a conflicting step takes their content, my other edits stay', () {
+      final theirs = PlanSnapshot([a.copyWith(title: 'A theirs'), b]);
+      final r = planTakeTheirSteps(mine, theirs, const ['PSa']);
       expect(r.steps.map((s) => s.title), ['A theirs', 'B mine']);
     });
 
-    test('their removal wins when chosen', () {
-      final c = PlanConflict(
-        base: base,
-        theirs: const PlanSnapshot([b]),
-        mine: mine,
-        currentSeq: 3,
-        stepIds: const ['PSa'],
-      );
-      expect(
-        c.resolve({'PSa': PlanConflictChoice.theirs}).ids,
-        ['PSb'],
-      );
-      expect(
-        c.resolve({'PSa': PlanConflictChoice.mine}).ids,
-        ['PSa', 'PSb'],
-      );
+    test('their removal wins', () {
+      final r = planTakeTheirSteps(mine, const PlanSnapshot([b]), const [
+        'PSa',
+      ]);
+      expect(r.ids, ['PSb']);
+    });
+
+    test('a step only I removed comes back after its neighbour', () {
+      final theirs = PlanSnapshot([a, b, c.copyWith(title: 'C theirs')]);
+      final r = planTakeTheirSteps(mine, theirs, const ['PSc']);
+      expect(r.ids, ['PSa', 'PSb', 'PSc']);
+      expect(r.byId['PSc']!.title, 'C theirs');
     });
   });
 

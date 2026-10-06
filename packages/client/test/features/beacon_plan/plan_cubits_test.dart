@@ -1,10 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura_root/domain/plan/plan.dart';
 
 import 'package:tentura/features/beacon_plan/domain/entity/beacon_plan.dart';
-import 'package:tentura/features/beacon_plan/domain/entity/plan_conflict.dart';
 import 'package:tentura/features/beacon_plan/domain/entity/plan_revision.dart';
 import 'package:tentura/features/beacon_plan/domain/exception/beacon_plan_exceptions.dart';
 import 'package:tentura/features/beacon_plan/ui/bloc/plan_cubit.dart';
@@ -152,45 +152,75 @@ void main() {
       unawaited(c.close());
     });
 
-    test('conflict → choose theirs → rebased resave', () async {
-      final base = repo.plan.snapshot;
-      final theirs = PlanSnapshot([
-        for (final s in base.steps)
-          if (s.id == 'PS000000000002')
-            s.copyWith(title: 'Boards (theirs)')
-          else
-            s,
-      ]);
-      repo
-        ..revisionsBySeq[4] = base
-        ..revisionsBySeq[5] = theirs
-        ..saveErrors.add(
+    test(
+      'conflict → their step taken, my other edits kept, user told',
+      () async {
+        final fresh = (jsonDecode(planJson()) as Map).cast<String, Object?>();
+        fresh['revisionSeq'] = 5;
+        fresh['lastEditedById'] = 'U2';
+        for (final step in fresh['steps']! as List) {
+          final s = step as Map;
+          if (s['id'] == 'PS000000000002') s['title'] = 'Boards (theirs)';
+        }
+        repo.saveErrors.add(
           const PlanEditConflictException(
             currentSeq: 5,
             conflictStepIds: ['PS000000000002'],
           ),
         );
+        final c = PlanEditCubit(plan: repo.plan, planCase: planCaseFor(repo));
+        repo.plan = BeaconPlan.fromJson(fresh);
+        final mine = c.state.steps.firstWhere((s) => s.id == 'PS000000000002');
+        c
+          ..putStep(mine.copyWith(title: 'Boards (mine)'))
+          ..putStep(
+            c.state.steps
+                .firstWhere((s) => s.id == 'PS000000000003')
+                .copyWith(title: 'Frame (mine)'),
+          );
+        await c.save();
+        expect(repo.saveCalls, hasLength(1), reason: 'no silent resave');
+        expect(c.state.saved, isNull);
+        expect(c.state.conflictSeq, 1);
+        final notice = c.state.conflictSteps.single;
+        expect(notice.stepId, 'PS000000000002');
+        expect(notice.title, 'Boards (theirs)');
+        expect(notice.actorName, 'Olga');
+        expect(c.state.baseSeq, 5, reason: 'rebased onto the head');
+        final byId = c.state.draft.byId;
+        expect(byId['PS000000000002']!.title, 'Boards (theirs)');
+        expect(byId['PS000000000003']!.title, 'Frame (mine)');
+
+        await c.save();
+        expect(repo.saveCalls, hasLength(2));
+        expect(repo.saveCalls.last.$1, 5);
+        expect(c.state.saved, isNotNull);
+        await c.close();
+      },
+    );
+
+    test('conflict the client can merge → rebased and saved again', () async {
+      final fresh = (jsonDecode(planJson()) as Map).cast<String, Object?>();
+      fresh['revisionSeq'] = 5;
+      for (final step in fresh['steps']! as List) {
+        final s = step as Map;
+        if (s['id'] == 'PS000000000004') s['title'] = 'Cart (theirs)';
+      }
+      repo.saveErrors.add(const PlanEditConflictException(currentSeq: 5));
       final c = PlanEditCubit(plan: repo.plan, planCase: planCaseFor(repo));
-      final mine = c.state.steps.firstWhere((s) => s.id == 'PS000000000002');
-      c
-        ..putStep(mine.copyWith(title: 'Boards (mine)'))
-        ..putStep(
-          c.state.steps
-              .firstWhere((s) => s.id == 'PS000000000003')
-              .copyWith(title: 'Frame (mine)'),
-        );
+      repo.plan = BeaconPlan.fromJson(fresh);
+      c.putStep(
+        c.state.steps
+            .firstWhere((s) => s.id == 'PS000000000003')
+            .copyWith(title: 'Frame (mine)'),
+      );
       await c.save();
-      expect(c.state.conflict, isNotNull);
-      expect(c.state.conflict!.stepIds, ['PS000000000002']);
-      expect(c.state.saved, isNull);
-      c.choose('PS000000000002', PlanConflictChoice.theirs);
-      await c.resolveConflict();
       expect(repo.saveCalls, hasLength(2));
       final resave = repo.saveCalls.last;
-      expect(resave.$1, 5, reason: 'rebased onto the head');
-      final byId = resave.$2.byId;
-      expect(byId['PS000000000002']!.title, 'Boards (theirs)');
-      expect(byId['PS000000000003']!.title, 'Frame (mine)');
+      expect(resave.$1, 5);
+      expect(resave.$2.byId['PS000000000004']!.title, 'Cart (theirs)');
+      expect(resave.$2.byId['PS000000000003']!.title, 'Frame (mine)');
+      expect(c.state.conflictSteps, isEmpty);
       expect(c.state.saved, isNotNull);
       await c.close();
     });

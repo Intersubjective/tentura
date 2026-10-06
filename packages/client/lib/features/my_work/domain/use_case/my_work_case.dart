@@ -44,11 +44,11 @@ final class MyWorkCase extends UseCaseBase {
     this._closureRepository,
     this._realtimeSyncCase,
     this._bookkeepingRefreshSignal,
-    this._attentionCase, {
+    this._attentionCase,
+    this._planRepository, {
     required super.env,
     required super.logger,
-    BeaconPlanRepository? planRepository,
-  }) : _planRepository = planRepository;
+  });
 
   final MyWorkRepository _repository;
 
@@ -71,22 +71,18 @@ final class MyWorkCase extends UseCaseBase {
   final AttentionCase _attentionCase;
 
   /// Request plan writes from My Work rows (#220 §5.8).
-  final BeaconPlanRepository? _planRepository;
+  final BeaconPlanRepository _planRepository;
 
   /// Requests whose plan changed on the server (realtime `beacon_plan`).
-  Stream<String> get planChanges =>
-      _planRepository?.changes ?? const Stream<String>.empty();
+  Stream<String> get planChanges => _planRepository.changes;
 
   /// «Готово» on the viewer's plan step.
   Future<void> planStepDone(String stepId) =>
-      _requirePlan().setDone(stepId: stepId, done: true);
+      _planRepository.setDone(stepId: stepId, done: true);
 
   /// «Понятно» on plan changes up to [uptoSeq].
   Future<void> planAck({required String beaconId, required int uptoSeq}) =>
-      _requirePlan().ack(beaconId: beaconId, uptoSeq: uptoSeq);
-
-  BeaconPlanRepository _requirePlan() =>
-      _planRepository ?? (throw StateError('No plan repository'));
+      _planRepository.ack(beaconId: beaconId, uptoSeq: uptoSeq);
 
   Stream<RepositoryEvent<Beacon>> get beaconChanges =>
       _beaconRepository.changes;

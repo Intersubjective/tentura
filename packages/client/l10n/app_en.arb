@@ -8230,26 +8230,6 @@
   "@planSaved": {
     "description": "Plan saved."
   },
-  "planConflictTitle": "The same step was changed at the same time",
-  "@planConflictTitle": {
-    "description": "Conflict resolver title."
-  },
-  "planConflictBody": "Choose which version to keep for each step.",
-  "@planConflictBody": {
-    "description": "Conflict resolver hint."
-  },
-  "planConflictMine": "My version",
-  "@planConflictMine": {
-    "description": "Conflict: keep my version."
-  },
-  "planConflictTheirs": "Their version",
-  "@planConflictTheirs": {
-    "description": "Conflict: take their version."
-  },
-  "planConflictStepRemoved": "step removed",
-  "@planConflictStepRemoved": {
-    "description": "Conflict: this side removed the step."
-  },
   "planHistoryTitle": "Plan history",
   "@planHistoryTitle": {
     "description": "Plan history screen title."
@@ -8308,15 +8288,6 @@
   "planHistoryCantMake": "{name} can't make it",
   "@planHistoryCantMake": {
     "description": "History: «Can't make it» (move / hand over).",
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "planHistoryCantMakeChat": "{name} can't make it — message in the discussion",
-  "@planHistoryCantMakeChat": {
-    "description": "History: «Can't make it», wrote in the discussion.",
     "placeholders": {
       "name": {
         "type": "String"
@@ -8436,7 +8407,28 @@
       }
     }
   },
-  "planErrorConflict": "Someone changed the same step — choose a version",
+  "planConflictStepChanged": "{name}: «{step}» was already changed — their version is kept, your other edits are still here. Check and save",
+  "@planConflictStepChanged": {
+    "description": "Plan editor, after a save conflict on one step: who changed it; the draft took their version and kept the user's other edits.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "step": {
+        "type": "String"
+      }
+    }
+  },
+  "planConflictStepsChanged": "Already changed: {steps}. Their version is kept, your other edits are still here. Check and save",
+  "@planConflictStepsChanged": {
+    "description": "Plan editor, after a save conflict on several steps (or an unknown editor): «Step» (Name), … ; the draft took their versions.",
+    "placeholders": {
+      "steps": {
+        "type": "String"
+      }
+    }
+  },
+  "planErrorConflict": "Someone changed the same step — the plan was updated",
   "@planErrorConflict": {
     "description": "Error 1330."
   },
@@ -8471,6 +8463,10 @@
   "planErrorDisabled": "Plans are not available right now",
   "@planErrorDisabled": {
     "description": "Error 1338."
+  },
+  "planErrorInvalid": "Check the steps: each needs a title, and an end after its start",
+  "@planErrorInvalid": {
+    "description": "Error 1339: the plan draft is not well-formed."
   },
   "planErrorTickFailed": "Couldn't mark the step. Try again",
   "@planErrorTickFailed": {

@@ -240,32 +240,20 @@ Widget? _composeMyWorkFooter(
   Widget? existingFooter,
   bool suppressReviewHelpOffersFallback = false,
 }) {
+  final now = DateTime.now();
   final view = myWorkCardAttentionView(
     beaconId: vm.beaconId,
     attention: context.select<MyWorkCubit, MyWorkBeaconAttention?>(
       (c) => c.state.attentionByBeacon[vm.beaconId],
     ),
     viewerArchived: vm.viewerArchived,
+    planSlice: vm.planSlice,
+    now: now,
   );
-  final planRows = _myWorkPlanRows(context, vm);
-  // The plan rows stand for the plan receipts (#220 §5.8): they stay in the
-  // attention facts, not in the event rows.
-  final obligations = planRows == null
-      ? view.obligations
-      : [
-          for (final r in view.obligations)
-            if (!myWorkReceiptShownAsPlanRow(r)) r,
-        ];
-  final optionalEvents = planRows == null
-      ? view.optionalEvents
-      : [
-          for (final r in view.optionalEvents)
-            if (!myWorkReceiptShownAsPlanRow(r)) r,
-        ];
-  final hiddenOptional = view.optionalEvents.length - optionalEvents.length;
-  final optionalTotal = view.optionalTotal - hiddenOptional < 0
-      ? 0
-      : view.optionalTotal - hiddenOptional;
+  final planRows = view.hasPlanRows ? _myWorkPlanRows(context, vm, now) : null;
+  final obligations = view.obligations;
+  final optionalEvents = view.optionalEvents;
+  final optionalTotal = view.optionalTotal;
   final showObligations = myWorkObligationBlockVisible(
     vm: vm,
     obligations: obligations,
@@ -316,16 +304,14 @@ Widget? _composeMyWorkFooter(
   );
 }
 
-/// The Request plan rows of [vm] (#220 §5.8); null when the plan is off,
-/// the Request has no plan, or nothing in it is the viewer's.
-MyWorkPlanStepRows? _myWorkPlanRows(
+/// The Request plan rows of [vm] (#220 §5.8), for a card whose attention
+/// view has them (`MyWorkCardAttentionView.hasPlanRows`).
+MyWorkPlanStepRows _myWorkPlanRows(
   BuildContext context,
   MyWorkCardViewModel vm,
+  DateTime now,
 ) {
-  final slice = vm.planSlice;
-  if (!kPlanEnabled || slice == null || !slice.hasViewerRows) return null;
-  final now = DateTime.now();
-  if (deriveMyWorkPlanRows(slice, now).isEmpty) return null;
+  final slice = vm.planSlice!;
   final l10n = L10n.of(context)!;
   final people = {
     for (final p in [

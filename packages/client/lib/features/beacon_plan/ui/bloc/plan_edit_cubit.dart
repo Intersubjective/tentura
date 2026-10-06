@@ -14,9 +14,10 @@ export 'plan_edit_state.dart';
 /// The plan editor: a client-side draft saved as one revision.
 ///
 /// The base revision is taken when the editor opens (never at send time).
-/// The server merges by step; on a real conflict (1330) the draft is kept,
-/// the user picks a version per conflicting step and the draft is rebased
-/// onto the current head.
+/// The server merges by step; on a real conflict (1330) the fresh plan is
+/// loaded, the user's own edits are re-applied onto it, the steps someone
+/// else also changed take that version, and the user is told which ones
+/// before saving again.
 class PlanEditCubit extends Cubit<PlanEditState> {
   PlanEditCubit({
     required BeaconPlan plan,
@@ -67,13 +68,6 @@ class PlanEditCubit extends Cubit<PlanEditState> {
 
   void setComment(String comment) => emit(state.copyWith(comment: comment));
 
-  void choose(String stepId, PlanConflictChoice choice) =>
-      emit(state.copyWith(choices: {...state.choices, stepId: choice}));
-
-  /// Leaves the conflict picker without saving (the draft stays).
-  void dismissConflict() =>
-      emit(state.copyWith(conflict: null, choices: const {}));
-
   Future<void> save() async {
     if (state.isSaving || state.validationError != null) return;
     emit(state.copyWith(status: const StateIsLoading()));
@@ -91,8 +85,8 @@ class PlanEditCubit extends Cubit<PlanEditState> {
           saved: PlanEditSaved(outcome),
         ),
       );
-    } on PlanEditConflictException catch (e) {
-      await _onConflict(e);
+    } on PlanEditConflictException {
+      await _onConflict();
     } on Object catch (e) {
       if (isClosed) return;
       emit(
@@ -105,60 +99,30 @@ class PlanEditCubit extends Cubit<PlanEditState> {
     }
   }
 
-  /// Applies the per-step choices, rebases onto the head and saves again.
-  Future<void> resolveConflict() async {
-    final conflict = state.conflict;
-    if (conflict == null) return;
-    final resolved = conflict.resolve(state.choices);
-    emit(
-      state.copyWith(
-        baseSeq: conflict.currentSeq,
-        base: conflict.theirs,
-        steps: resolved.steps,
-        conflict: null,
-        choices: const {},
-      ),
-    );
-    await save();
-  }
-
-  Future<void> _onConflict(PlanEditConflictException e) async {
+  Future<void> _onConflict() async {
     try {
-      final check = await _case.prepareResave(
+      final rebase = await _case.rebaseAfterConflict(
         beaconId: state.beaconId,
         baseSeq: state.baseSeq,
-        currentSeq: e.currentSeq,
+        base: state.base,
         mine: state.draft,
       );
       if (isClosed) return;
-      final conflict = check.conflict;
-      if (conflict != null) {
-        emit(
-          state.copyWith(
-            status: const StateIsSuccess(),
-            conflict: conflict,
-            choices: {
-              for (final id in conflict.stepIds) id: PlanConflictChoice.mine,
-            },
-          ),
-        );
-        return;
-      }
-      // Merged locally (the server could not, e.g. its base was gone).
-      final theirs = (await _case.revision(
-        state.beaconId,
-        check.currentSeq,
-      )).snapshot;
-      if (isClosed) return;
+      final conflicts = rebase.conflicts;
       emit(
         state.copyWith(
           status: const StateIsSuccess(),
-          baseSeq: check.currentSeq,
-          base: theirs,
-          steps: check.snapshot!.steps,
+          baseSeq: rebase.currentSeq,
+          base: rebase.theirs,
+          steps: rebase.draft.steps,
+          conflictSteps: conflicts,
+          conflictSeq: conflicts.isEmpty
+              ? state.conflictSeq
+              : state.conflictSeq + 1,
         ),
       );
-      await save();
+      // Merged locally (the server could not, e.g. its base was gone).
+      if (conflicts.isEmpty) await save();
     } on Object catch (err) {
       if (isClosed) return;
       emit(

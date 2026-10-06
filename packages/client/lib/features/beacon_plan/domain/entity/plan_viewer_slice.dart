@@ -97,64 +97,20 @@ final class PlanSlicePending {
   final PlanChange? sample;
 }
 
-/// The NOW line when the plan sets it (`effectiveNow`, server-side).
-@immutable
-final class PlanSliceNow {
-  const PlanSliceNow({
-    required this.stepId,
-    required this.title,
-    required this.index,
-    required this.count,
-    this.assigneeId,
-    this.startAt,
-  });
-
-  static PlanSliceNow? tryFromJson(Object? raw) {
-    if (raw is! Map || raw['source'] != 'plan') return null;
-    final id = raw['stepId'];
-    if (id is! String || id.isEmpty) return null;
-    return PlanSliceNow(
-      stepId: id,
-      title: (raw['title'] as String?) ?? '',
-      assigneeId: raw['assigneeId'] as String?,
-      startAt: _instant(raw['startAt']),
-      index: _int(raw['index']),
-      count: _int(raw['count']),
-    );
-  }
-
-  final String stepId;
-  final String title;
-  final String? assigneeId;
-  final DateTime? startAt;
-  final int index;
-  final int count;
-}
-
 /// The viewer's share of a Request plan for My Work and the inbox
 /// (`planSliceJson`, plan §4.9), computed by the server in one batched read.
-///
-/// On a finished Request only [done] / [total] are filled, so no row offers
-/// an action the server would refuse.
 @immutable
 final class PlanViewerSlice {
   const PlanViewerSlice({
-    required this.done,
-    required this.total,
-    this.overdueMine = 0,
     this.current,
     this.alsoActive = const [],
     this.next,
     this.pendingAck,
-    this.now,
   });
 
   factory PlanViewerSlice.fromJson(Map<String, Object?> json) {
     final also = json['alsoActive'];
     return PlanViewerSlice(
-      done: _int(json['done']),
-      total: _int(json['total']),
-      overdueMine: _int(json['overdueMine']),
       current: PlanSliceStep.tryFromJson(json['current']),
       alsoActive: [
         if (also is List)
@@ -162,7 +118,6 @@ final class PlanViewerSlice {
       ],
       next: PlanSliceStep.tryFromJson(json['next']),
       pendingAck: PlanSlicePending.tryFromJson(json['pendingAck']),
-      now: PlanSliceNow.tryFromJson(json['now']),
     );
   }
 
@@ -178,12 +133,6 @@ final class PlanViewerSlice {
     }
   }
 
-  final int done;
-  final int total;
-
-  /// The viewer's own overdue steps.
-  final int overdueMine;
-
   /// The step expected from the viewer now.
   final PlanSliceStep? current;
 
@@ -193,7 +142,6 @@ final class PlanViewerSlice {
   /// The viewer's next step.
   final PlanSliceStep? next;
   final PlanSlicePending? pendingAck;
-  final PlanSliceNow? now;
 
   /// Something of the viewer's own to show (a step or a change).
   bool get hasViewerRows =>
@@ -231,9 +179,6 @@ final class PlanViewerSlice {
   /// After a local «Готово» on [stepId]: the step leaves the viewer's rows
   /// until the next refresh.
   PlanViewerSlice withoutStep(String stepId) => PlanViewerSlice(
-    done: done + 1,
-    total: total,
-    overdueMine: overdueMine,
     current: current?.stepId == stepId
         ? (alsoActive.isEmpty ? null : alsoActive.first)
         : current,
@@ -245,18 +190,13 @@ final class PlanViewerSlice {
           ],
     next: next?.stepId == stepId ? null : next,
     pendingAck: pendingAck,
-    now: now,
   );
 
   /// After a local «Понятно».
   PlanViewerSlice withoutPending() => PlanViewerSlice(
-    done: done,
-    total: total,
-    overdueMine: overdueMine,
     current: current,
     alsoActive: alsoActive,
     next: next,
-    now: now,
   );
 }
 

@@ -8,6 +8,7 @@ import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/features/beacon_plan/domain/entity/plan_viewer_slice.dart';
+import 'package:tentura/features/my_work/domain/derive_my_work_plan_rows.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_obligation_block.dart';
@@ -29,9 +30,6 @@ PlanViewerSlice _slice({
   bool finished = false,
 }) {
   final json = <String, Object?>{
-    'done': 2,
-    'total': 5,
-    'overdueMine': overdue ? 1 : 0,
     'current': finished || !current
         ? null
         : {
@@ -44,7 +42,6 @@ PlanViewerSlice _slice({
                   ? _now.subtract(const Duration(minutes: 20))
                   : _now.add(const Duration(minutes: 20)),
             ),
-            'overdueSince': null,
           },
     'alsoActive': const <Object?>[],
     'next': finished || !next
@@ -73,7 +70,6 @@ PlanViewerSlice _slice({
               'to': 'Bring boards',
             },
           },
-    'now': null,
   };
   return PlanViewerSlice.tryDecode(jsonEncode(json))!;
 }
@@ -121,8 +117,6 @@ void main() {
   group('PlanViewerSlice', () {
     test('decodes the §4.9 shape and rebuilds the viewer schedule', () {
       final slice = _slice(pending: true);
-      expect(slice.done, 2);
-      expect(slice.total, 5);
       expect(slice.current!.stepId, 'PSa');
       expect(slice.current!.description, startsWith('Gate on Elm'));
       expect(slice.next!.stepId, 'PSb');
@@ -148,10 +142,9 @@ void main() {
       expect(deriveMyWorkPlanRows(slice, _now), isEmpty);
     });
 
-    test('a local «Готово» drops the step and counts it done', () {
+    test('a local «Готово» drops the step', () {
       final after = _slice().withoutStep('PSa');
       expect(after.current, isNull);
-      expect(after.done, 3);
       expect(after.next!.stepId, 'PSb');
     });
   });

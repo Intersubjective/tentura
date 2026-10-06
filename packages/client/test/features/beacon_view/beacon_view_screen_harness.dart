@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 
+import 'package:tentura/features/beacon_plan/domain/use_case/beacon_plan_case.dart';
 import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/data/repository/clipboard_image_repository.dart';
 import 'package:tentura/data/repository/image_repository.dart';
@@ -34,6 +35,7 @@ import 'package:tentura_root/domain/entity/beacon_hierarchy_capabilities.dart';
 
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
+import '../beacon_plan/beacon_plan_test_support.dart';
 import '../beacon_threads/room_cubit_fakes.dart';
 
 const kBeaconViewHarnessBeaconId = 'b-view-harness';
@@ -388,10 +390,21 @@ Future<void> registerBeaconViewHarnessGetIt({
     await getIt.unregister<UiEffectPort>();
   }
   getIt.registerSingleton<UiEffectPort>(FakeUiEffectPort());
+  // The Request route's host provides a PlanCubit (#220); an empty plan
+  // keeps every plan row hidden.
+  if (getIt.isRegistered<BeaconPlanCase>()) {
+    await getIt.unregister<BeaconPlanCase>();
+  }
+  getIt.registerSingleton<BeaconPlanCase>(
+    planCaseFor(FakeBeaconPlanRepository(const BeaconPlan(beaconId: ''))),
+  );
 }
 
 Future<void> unregisterBeaconViewHarnessGetIt() async {
   final getIt = GetIt.I;
+  if (getIt.isRegistered<BeaconPlanCase>()) {
+    await getIt.unregister<BeaconPlanCase>();
+  }
   if (getIt.isRegistered<ProfileCubit>()) {
     await getIt.unregister<ProfileCubit>();
   }

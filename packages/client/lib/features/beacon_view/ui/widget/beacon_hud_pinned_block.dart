@@ -46,7 +46,7 @@ class BeaconHudPinnedBlock extends StatelessWidget {
   /// Clock for "2 h ago"; tests pin it.
   final DateTime? now;
 
-  /// The Request plan (#220) for insiders while `kPlanEnabled`; null hides
+  /// The Request plan (#220) for insiders; null hides
   /// every plan row, the plan NOW line and the plan counters.
   final BeaconHudPlanData? plan;
 
