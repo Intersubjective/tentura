@@ -4,6 +4,7 @@ import 'package:mockito/mockito.dart';
 import 'package:tentura_server/data/database/tentura_db.dart';
 import 'package:tentura_server/data/repository/attention_dispatch_repository.dart';
 import 'package:tentura_server/data/repository/beacon_access_repository.dart';
+import 'package:tentura_server/data/repository/beacon_hierarchy_command_repository.dart';
 import 'package:tentura_server/data/repository/beacon_plan_repository.dart';
 import 'package:tentura_server/data/repository/beacon_room_notification_context_repository.dart';
 import 'package:tentura_server/data/repository/beacon_room_repository.dart';
@@ -51,10 +52,12 @@ final class PlanCases {
       FakeUserBlockRepository(),
     );
     final repo = BeaconPlanRepository(db);
+    final admission = BeaconHierarchyCommandRepository(db);
     final store = PlanAttentionRepository(db);
     final closure = ClosureRepository(db);
     final planAttention = PlanAttentionCase(
       repo,
+      admission,
       store,
       intents,
       attention,
@@ -71,6 +74,7 @@ final class PlanCases {
     return PlanCases._(
       plan: BeaconPlanCase(
         repo,
+        admission,
         closure,
         attention,
         planAttention,
@@ -80,6 +84,7 @@ final class PlanCases {
       attention: planAttention,
       sweep: PlanStepSweepCase(
         repo,
+        admission,
         store,
         closure,
         attention,

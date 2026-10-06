@@ -17,7 +17,8 @@ import 'forward_case.dart';
 import 'transactional_attention_case.dart';
 
 /// Post-specific flows that compose the Request use cases.
-@Singleton(order: 2)
+// `order: 3`: needs `BeaconRoomCase`, which is `order: 3`.
+@Singleton(order: 3)
 class PostCase {
   @FactoryMethod(preResolve: true)
   static Future<PostCase> createInstance(

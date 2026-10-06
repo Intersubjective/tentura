@@ -4,6 +4,7 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/api/http/cookies.dart';
 import 'package:tentura_server/consts.dart';
+import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/use_case/push_action_case.dart';
 
 import '_base_controller.dart';
@@ -36,7 +37,7 @@ final class PushActionController extends BaseController {
       PushActionOutcome.alreadyDone => _json(200, {'status': 'already'}),
       PushActionOutcome.stale => _json(409, {
         'status': 'stale',
-        'code': 'planActionStale',
+        'code': BeaconExceptionCode.planActionStale.name,
       }),
       PushActionOutcome.invalid => _json(401, {'status': 'invalid'}),
     };

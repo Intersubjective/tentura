@@ -1,64 +1,26 @@
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura_server/domain/plan/push_action.dart';
+import 'package:tentura_server/domain/port/push_action_token_port.dart';
 import 'package:tentura_server/env.dart';
 
-/// What a push notification button does (plan §5.9, P1..P3).
-enum PushAction {
-  /// «Готово»: tick the step.
-  done,
-
-  /// «Понятно»: confirm plan changes up to a revision.
-  ack;
-
-  static PushAction? fromWire(Object? v) {
-    for (final a in values) {
-      if (a.name == v) return a;
-    }
-    return null;
-  }
-}
-
-/// The verified content of a push action token.
-final class PushActionClaims {
-  const PushActionClaims({
-    required this.accountId,
-    required this.action,
-    required this.beaconId,
-    this.stepId,
-    this.seq,
-  });
-
-  final String accountId;
-  final PushAction action;
-  final String beaconId;
-
-  /// The step to tick ([PushAction.done]).
-  final String? stepId;
-
-  /// The plan revision «Понятно» confirms up to ([PushAction.ack]).
-  final int? seq;
-}
-
-/// Short-lived signed token carried by a plan push, so a notification button
-/// can act without opening the app or holding a session.
-///
-/// An EdDSA JWT under the server keys, bound to this server (issuer) and to
-/// its own audience. It deliberately has **no `sub`**: an access-token parser
+/// [PushActionTokenPort] as an EdDSA JWT under the server keys, bound to
+/// this server (issuer) and to its own audience. It deliberately has **no `sub`**: an access-token parser
 /// requires one, so this token can never be replayed as a session, and an
 /// access token (no audience, no `pacc`) never passes [verify].
-@singleton
-class PushActionToken {
-  const PushActionToken(this._env);
+@Singleton(as: PushActionTokenPort)
+class PushActionTokenService implements PushActionTokenPort {
+  const PushActionTokenService(this._env);
 
   final Env _env;
 
-  /// Upper bound of a token's life (plan §5.9: `exp ≤ 24 h`).
-  static const maxTtl = Duration(hours: 24);
+  static const maxTtl = PushActionTokenPort.maxTtl;
 
   static const _purpose = 'push_action';
   static const _audience = 'tentura:push_action';
 
+  @override
   String sign(PushActionClaims claims, {Duration ttl = maxTtl}) =>
       JWT(
         {
@@ -77,8 +39,7 @@ class PushActionToken {
         expiresIn: ttl > maxTtl || ttl.isNegative ? maxTtl : ttl,
       );
 
-  /// The claims when [token] is genuine, unexpired and well-formed; else
-  /// null.
+  @override
   PushActionClaims? verify(String token) {
     if (token.isEmpty) return null;
     final Map<String, dynamic> map;

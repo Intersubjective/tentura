@@ -1,11 +1,12 @@
 import 'package:injectable/injectable.dart';
-import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/domain/plan/plan.dart';
 
 import 'package:tentura_server/consts/beacon_plan_consts.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/beacon_plan.dart';
 import 'package:tentura_server/domain/plan/plan_sweep_phase.dart';
+import 'package:tentura_server/domain/port/beacon_hierarchy_command_port.dart';
 import 'package:tentura_server/domain/port/beacon_plan_repository_port.dart';
 import 'package:tentura_server/domain/port/closure_repository_port.dart';
 import 'package:tentura_server/domain/port/plan_attention_repository_port.dart';
@@ -37,6 +38,7 @@ import '_use_case_base.dart';
 final class PlanStepSweepCase extends UseCaseBase {
   PlanStepSweepCase(
     this._repo,
+    this._admission,
     this._store,
     this._closure,
     this._attention,
@@ -47,6 +49,9 @@ final class PlanStepSweepCase extends UseCaseBase {
   });
 
   final BeaconPlanRepositoryPort _repo;
+
+  /// `beacon_effective_admission` of an assignee.
+  final BeaconHierarchyCommandPort _admission;
   final PlanAttentionRepositoryPort _store;
   final ClosureRepositoryPort _closure;
   final TransactionalAttentionCase _attention;
@@ -102,8 +107,8 @@ final class PlanStepSweepCase extends UseCaseBase {
     await _closure.lockRequest(beaconId);
     final request = await _repo.requestInfo(beaconId);
     if (request == null ||
-        request.kind != 0 ||
-        !BeaconStatus.fromSmallint(request.status).isOpenFamily) {
+        request.kind != BeaconKind.request ||
+        !request.status.isOpenFamily) {
       return false;
     }
     await _repo.lockHead(beaconId);
@@ -143,7 +148,11 @@ final class PlanStepSweepCase extends UseCaseBase {
         await _repo.touchHead(beaconId);
       case PlanSweepPhaseKind.overdue:
         final assignee = step.assigneeId!;
-        if (!await _repo.isAdmitted(beaconId, assignee)) break;
+        final admitted = await _admission.effectiveAdmission(
+          beaconId: beaconId,
+          viewerId: assignee,
+        );
+        if (!admitted) break;
         await _record(
           transaction: transaction,
           request: request,
@@ -204,7 +213,11 @@ final class PlanStepSweepCase extends UseCaseBase {
     final timedAt = candidate.timedAt;
     if (timedAt != null && timedAt.isAfter(windowOpens)) return;
     final assignee = step.assigneeId!;
-    if (!await _repo.isAdmitted(request.beaconId, assignee)) return;
+    final admitted = await _admission.effectiveAdmission(
+      beaconId: request.beaconId,
+      viewerId: assignee,
+    );
+    if (!admitted) return;
     await _record(
       transaction: transaction,
       request: request,

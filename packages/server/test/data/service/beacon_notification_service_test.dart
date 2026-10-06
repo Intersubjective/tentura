@@ -4,7 +4,9 @@ import 'package:uuid/uuid.dart';
 
 import 'package:tentura_server/data/service/beacon_notification_service.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
-import 'package:tentura_server/domain/plan/push_action_token.dart';
+import 'package:tentura_server/data/service/push_action_token_service.dart';
+import 'package:tentura_server/domain/notification/plan_push_policy.dart';
+import 'package:tentura_server/domain/plan/push_action.dart';
 import 'package:tentura_server/domain/entity/fcm_message_entity.dart';
 import 'package:tentura_server/domain/entity/fcm_token_entity.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
@@ -162,7 +164,7 @@ void main() {
     FcmBatchQueuePort? fcmBatch,
     FcmTokenRepositoryPort? fcmTokens,
     FcmRemoteRepositoryPort? fcmRemote,
-    PushActionToken? pushActionTokens,
+    PushActionTokenService? pushActionTokens,
   }) => BeaconNotificationService(
     fcmBatch ?? _FakeFcmBatch(),
     fcmTokens ?? _FakeFcmTokens(),
@@ -272,7 +274,7 @@ void main() {
         'signed token, a per-step tag, TTL and high urgency', () async {
       final batch = _CapturingFcmBatch();
       final remote = _CapturingFcmRemote();
-      final signer = PushActionToken(Env());
+      final signer = PushActionTokenService(Env());
       final email = _CapturingEmail();
       final service = build(
         email: email,
@@ -313,7 +315,7 @@ void main() {
         fcmBatch: batch,
         fcmTokens: tokens(),
         fcmRemote: remote,
-        pushActionTokens: PushActionToken(Env()),
+        pushActionTokens: PushActionTokenService(Env()),
       );
 
       await service.handOffChannels([
@@ -334,7 +336,7 @@ void main() {
       final service = build(
         fcmBatch: batch,
         fcmTokens: tokens(),
-        pushActionTokens: PushActionToken(Env()),
+        pushActionTokens: PushActionTokenService(Env()),
       );
 
       await service.handOffChannels([
@@ -351,7 +353,7 @@ void main() {
         beaconId: 'beacon-1',
         stepId: 'PS000000000001',
         locale: 'ru',
-        tokens: PushActionToken(Env()),
+        tokens: PushActionTokenService(Env()),
         planRepository: null,
       );
       expect(buttons.actions.map((a) => a.title), ['Готово', 'Открыть']);
@@ -366,7 +368,7 @@ void main() {
         beaconId: 'beacon-1',
         stepId: null,
         locale: 'en',
-        tokens: PushActionToken(Env()),
+        tokens: PushActionTokenService(Env()),
         planRepository: null,
       );
       expect(buttons.actions, isEmpty);

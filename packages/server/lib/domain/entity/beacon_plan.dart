@@ -1,7 +1,10 @@
 /// Request plan («либретто», #220) storage records (m0223).
 library;
 
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/domain/plan/plan.dart';
+
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 
 /// `beacon_plan`: one head row per Request.
 final class BeaconPlanHead {
@@ -12,7 +15,6 @@ final class BeaconPlanHead {
     this.lastEditedById,
     this.lastEditedAt,
     this.copiedFromBeaconId,
-    this.copiedFromSeq,
   });
 
   final String beaconId;
@@ -21,7 +23,6 @@ final class BeaconPlanHead {
   final String? lastEditedById;
   final DateTime? lastEditedAt;
   final String? copiedFromBeaconId;
-  final int? copiedFromSeq;
 }
 
 /// A plan step row (`coordination_item` kind 6).
@@ -41,7 +42,6 @@ final class PlanStepRecord {
     this.doneAt,
     this.doneById,
     this.removedSeq,
-    this.sourceItemId,
   });
 
   final String id;
@@ -58,7 +58,6 @@ final class PlanStepRecord {
   final int contentSeq;
   final int ackSeq;
   final int? removedSeq;
-  final String? sourceItemId;
 
   bool get isRemoved => removedSeq != null;
 
@@ -149,8 +148,8 @@ final class PlanRequestInfo {
   });
 
   final String beaconId;
-  final int kind;
-  final int status;
+  final BeaconKind kind;
+  final BeaconStatus status;
   final String authorId;
   final String title;
 }
@@ -215,8 +214,7 @@ final class PlanSliceSource {
 
   final String beaconId;
 
-  /// `beacon.status` smallint.
-  final int status;
+  final BeaconStatus status;
 
   /// Plan head (`0` when the plan was never written).
   final int revisionSeq;

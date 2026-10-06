@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
@@ -43,14 +44,11 @@ import 'package:tentura_server/utils/read_uint8_stream_with_limit.dart';
 import 'package:tentura_server/utils/room_mention_utils.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/beacon_case.dart';
+import 'package:tentura_server/domain/use_case/beacon_plan_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 
 import 'coordination_room_access.dart';
 import '_use_case_base.dart';
-
-/// Internal key of an `inboxRoomContextBatch` row: when the manual NOW line
-/// was last written (`DateTime?`).
-const kInboxRowCurrentLineSetAt = '_currentLineSetAt';
 
 /// `post_first_response.source_kind`: the claim was won by a message.
 const _firstResponseByMessage = 1;
@@ -61,7 +59,11 @@ const _firstResponseByReaction = 2;
 /// Room coordination: admission, steward, messages (server-side rules).
 // TODO(contract): tighten permissions with visibility / forward graph —
 // current checks are author-or-steward or admitted-member only.
-@Singleton(order: 2)
+//
+// `order: 3`: its optional collaborators (`BeaconCase`, `BeaconPlanCase`) are
+// nullable, and injectable ignores nullable dependencies when ordering a
+// same-`order` group, so only a later group guarantees they exist first.
+@Singleton(order: 3)
 class BeaconRoomCase extends UseCaseBase {
   BeaconRoomCase(
     this._room,
@@ -81,6 +83,7 @@ class BeaconRoomCase extends UseCaseBase {
     PostLockPort? postLock,
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
+    this._beaconPlan,
     required super.env,
     required super.logger,
   }) : _beaconRepository = beaconRepository,
@@ -92,6 +95,10 @@ class BeaconRoomCase extends UseCaseBase {
   final BeaconRepositoryPort? _beaconRepository;
   final BeaconCase? _beaconCase;
   final PostLockPort? _postLock;
+
+  /// Request plan slices on the inbox batch (#220 §4.9); nullable for test
+  /// construction.
+  final BeaconPlanCase? _beaconPlan;
 
   /// Rejects a Post for the Request-only room mutations.
   Future<void> _requireRequest(String beaconId) async {
@@ -820,13 +827,32 @@ class BeaconRoomCase extends UseCaseBase {
         ...blockerFields,
         'publicFactSnippet': factSnippet,
         'planSliceJson': null,
-        // Internal (not a GraphQL field): when the manual NOW line was
-        // written, for the plan slice's `effectiveNow`
-        // (`BeaconPlanCase.attachSlices`).
-        kInboxRowCurrentLineSetAt: st?.updatedAt,
       });
     }
-    return out;
+    return _attachPlanSlices(userId: userId, rows: out);
+  }
+
+  /// Fills `planSliceJson` (Request plan, #220 §4.9) on the [rows] the
+  /// viewer may read (`isRoomMember`), with one batched read.
+  Future<List<Map<String, Object?>>> _attachPlanSlices({
+    required String userId,
+    required List<Map<String, Object?>> rows,
+  }) async {
+    final plan = _beaconPlan;
+    final readable = [
+      for (final row in rows)
+        if (row['isRoomMember'] == true) row['beaconId']! as String,
+    ];
+    if (plan == null || readable.isEmpty) return rows;
+    final slices = await plan.slicesFor(viewerId: userId, beaconIds: readable);
+    if (slices.isEmpty) return rows;
+    return [
+      for (final row in rows)
+        switch (slices[row['beaconId']]) {
+          final slice? => {...row, 'planSliceJson': jsonEncode(slice)},
+          null => row,
+        },
+    ];
   }
 
   Future<List<Map<String, Object?>>> listActivityEvents({

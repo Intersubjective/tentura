@@ -13,7 +13,8 @@ import 'package:tentura_server/api/controllers/push_action_controller.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/beacon_plan_repository.dart';
-import 'package:tentura_server/domain/plan/push_action_token.dart';
+import 'package:tentura_server/data/service/push_action_token_service.dart';
+import 'package:tentura_server/domain/plan/push_action.dart';
 import 'package:tentura_server/domain/use_case/beacon_plan_case.dart';
 import 'package:tentura_server/domain/use_case/push_action_case.dart';
 
@@ -49,7 +50,7 @@ Future<void> main() async {
   late Connection writer;
   late TenturaDb database;
   late BeaconPlanCase plan;
-  late PushActionToken tokens;
+  late PushActionTokenService tokens;
   late PushActionController controller;
 
   setUpAll(() async {
@@ -58,7 +59,7 @@ Future<void> main() async {
     database = openDisposablePgDatabase(target);
     final env = target.databaseEnv;
     plan = PlanCases(database, env).plan;
-    tokens = PushActionToken(env);
+    tokens = PushActionTokenService(env);
     controller = PushActionController(
       env,
       PushActionCase(

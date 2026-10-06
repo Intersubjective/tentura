@@ -59,7 +59,8 @@ class FcmNotificationEntity implements FcmMessageEntity {
   /// [actionUrl]).
   final List<FcmNotificationAction> actions;
 
-  /// Signed `PushActionToken` the service worker posts back for [actions].
+  /// Signed push action token (`PushActionTokenPort`) the service worker
+  /// posts back for [actions].
   final String? actionToken;
 
   /// Localized lines the service worker shows after a button tap.

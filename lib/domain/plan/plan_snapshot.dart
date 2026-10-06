@@ -36,10 +36,6 @@ final class PlanStepSnapshot {
   final DateTime? startAt;
   final DateTime? endAt;
 
-  bool get hasStart => startAt != null;
-
-  bool get hasEnd => endAt != null;
-
   /// No start and no end: the step runs after the previous one (`—`).
   bool get isUntimed => startAt == null && endAt == null;
 

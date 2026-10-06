@@ -7,6 +7,7 @@ import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_root/domain/plan/plan.dart';
+import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/consts/beacon_plan_consts.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
@@ -319,6 +320,59 @@ WHERE beacon_id = '$_request' ORDER BY created_at
       expect((await _member_(writer, _member))['pending_from_seq'], 2);
     },
   );
+
+  test('cant make: chat writes no revision and leaves the counter, so a '
+      'concurrent save and restore still apply', () async {
+    await save([_s(_a, who: _helper), _s(_b)]);
+    final outcome = await plan.cantMake(
+      actorId: _helper,
+      stepId: _a,
+      option: PlanCantMakeOption.chat,
+      baseSeq: 1,
+      excerpt: 'Stuck in traffic',
+    );
+    expect(outcome.revisionSeq, 1);
+    expect((await view())['revisionSeq'], 1);
+    final revisions = await writer.execute('''
+SELECT count(*)::int FROM public.beacon_plan_revision
+WHERE beacon_id = '$_request'
+''');
+    expect(revisions.single[0], 1);
+    expect((await _member_(writer, _helper))['pending_from_seq'], isNull);
+    final activity = await writer.execute('''
+SELECT diff->>'option' FROM public.beacon_activity_event
+WHERE beacon_id = '$_request' AND type = ${BeaconActivityEventTypeBits.planCantMake}
+''');
+    expect(activity.single[0], PlanCantMakeOption.chat);
+
+    final saved = await save([_s(_a, who: _helper)], base: 1);
+    expect(saved.kind, PlanSaveOutcomeKind.applied);
+    expect(saved.revisionSeq, 2);
+    final restored = await plan.restore(
+      actorId: _author,
+      beaconId: _request,
+      fromSeq: 1,
+      baseSeq: 2,
+    );
+    expect(restored.revisionSeq, 3);
+  });
+
+  test('a malformed draft is invalid, not too large', () async {
+    // The draft is checked before any I/O: the call itself throws.
+    expect(
+      () => plan.save(
+        actorId: _author,
+        beaconId: _request,
+        baseSeq: 0,
+        stepsJson: '{not json',
+      ),
+      throwsA(isA<PlanInvalidException>()),
+    );
+    expect(
+      () => save([_s(_a), _s(_a)]),
+      throwsA(isA<PlanInvalidException>()),
+    );
+  });
 
   test('restore brings back removed steps with their current ticks', () async {
     await save([_s(_a), _s(_b)]);

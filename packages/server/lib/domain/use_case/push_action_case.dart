@@ -1,8 +1,9 @@
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/exception.dart';
-import 'package:tentura_server/domain/plan/push_action_token.dart';
+import 'package:tentura_server/domain/plan/push_action.dart';
 import 'package:tentura_server/domain/port/beacon_plan_repository_port.dart';
+import 'package:tentura_server/domain/port/push_action_token_port.dart';
 import 'package:tentura_server/domain/use_case/beacon_plan_case.dart';
 
 import '_use_case_base.dart';
@@ -36,7 +37,7 @@ class PushActionCase extends UseCaseBase {
     required super.logger,
   });
 
-  final PushActionToken _tokens;
+  final PushActionTokenPort _tokens;
   final BeaconPlanRepositoryPort _repo;
   final BeaconPlanCase _plan;
 

@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:injectable/injectable.dart';
+import 'package:logging/logging.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/domain/entity/beacon_status_transition.dart';
 
@@ -21,6 +22,7 @@ import 'package:tentura_server/domain/port/trust_ledger_port.dart';
 import 'package:tentura_server/domain/trust/forward/forward_routing_settlement.dart';
 import 'package:tentura_server/domain/trust/ledger_evidence.dart';
 import 'package:tentura_server/domain/trust/trust_evidence_kind.dart';
+import 'package:tentura_server/env.dart';
 
 import 'plan_attention_case.dart';
 import '_use_case_base.dart';
@@ -34,6 +36,7 @@ import 'trust_publisher_case.dart';
 @Singleton(as: ClosureFinalizerPort, order: 1)
 final class ClosureFinalizeCase extends UseCaseBase
     implements ClosureFinalizerPort {
+  /// `planAttention` is nullable for test construction.
   ClosureFinalizeCase({
     // Callers own the transaction; kept so the wiring documents that finalize
     // is always a mutating unit of work.
@@ -56,6 +59,36 @@ final class ClosureFinalizeCase extends UseCaseBase
        _settlement = attentionSystemSettlement,
        _publisher = trustPublisher,
        _receipts = receipts;
+
+  /// DI entry. `planAttention` is non-nullable here so injectable registers
+  /// it first: it ignores nullable dependencies when ordering a same-`order`
+  /// group, and both are `order: 1`.
+  @FactoryMethod()
+  factory ClosureFinalizeCase.create({
+    required MutatingUnitOfWorkPort unitOfWork,
+    required ClosureRepositoryPort closureRepository,
+    required BeaconRepositoryPort beaconRepository,
+    required TrustLedgerPort trustLedger,
+    required BeaconLifecycleEffectsCase lifecycleEffects,
+    required AttentionSystemSettlementPort attentionSystemSettlement,
+    required TrustPublisherCase trustPublisher,
+    required ClosureReceiptsPort receipts,
+    required PlanAttentionCase planAttention,
+    required Env env,
+    required Logger logger,
+  }) => ClosureFinalizeCase(
+    unitOfWork: unitOfWork,
+    closureRepository: closureRepository,
+    beaconRepository: beaconRepository,
+    trustLedger: trustLedger,
+    lifecycleEffects: lifecycleEffects,
+    attentionSystemSettlement: attentionSystemSettlement,
+    trustPublisher: trustPublisher,
+    receipts: receipts,
+    planAttention: planAttention,
+    env: env,
+    logger: logger,
+  );
 
   final ClosureRepositoryPort _repo;
   final BeaconRepositoryPort _beacons;

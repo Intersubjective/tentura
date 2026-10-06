@@ -1,6 +1,7 @@
 /// Request plan («либретто», #220): the time phases `PlanStepSweepCase` acts
 /// on (`plan-implementation.md` §4.5). Pure; the repository's candidate SQL
-/// mirrors `PlanSweepPhase.key` of a step's last phase.
+/// builds the key of a step's last phase from [PlanSweepPhase.keyPrefix],
+/// the phase names and [PlanSweepPhase.noAssignee].
 library;
 
 import 'package:tentura_root/domain/plan/plan.dart';
@@ -39,6 +40,12 @@ final class PlanSweepPhase {
   /// The instant the phase is keyed on (start, overdue boundary, …).
   final DateTime boundary;
 
+  /// Leading part of every [key].
+  static const keyPrefix = 'plan_step:';
+
+  /// The assignee part of the [key] of an unassigned step.
+  static const noAssignee = 'none';
+
   /// Idempotency key: `plan_step:<stepId>:<phase>:<assigneeId|none>:<epochMs>`.
   /// A move or a reassignment yields a new key.
   String get key => keyOf(
@@ -54,7 +61,7 @@ final class PlanSweepPhase {
     required String? assigneeId,
     required DateTime boundary,
   }) =>
-      'plan_step:$stepId:${phase.name}:${assigneeId ?? 'none'}:'
+      '$keyPrefix$stepId:${phase.name}:${assigneeId ?? noAssignee}:'
       '${boundary.toUtc().millisecondsSinceEpoch}';
 
   /// Every phase whose time has come at [now] for one live, unticked step,

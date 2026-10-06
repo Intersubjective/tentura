@@ -121,9 +121,9 @@ final class BeaconCase extends UseCaseBase {
     PostLockPort postLock,
     AttentionIntentCase attentionIntents,
     TransactionalAttentionCase attention, {
-    // Nullable so injectable does not order `BeaconCase` after the plan
-    // graph's depth (it sorts a same-`order` group by non-nullable
-    // dependencies only); both are `order: 1`, registered earlier anyway.
+    // Nullable for test construction. Injectable ignores nullable
+    // dependencies when ordering, so these rely on their `order: 1` being
+    // registered before this `order: 2` case.
     BeaconPlanCase? beaconPlan,
     PlanAttentionCase? planAttention,
   }) async => BeaconCase(

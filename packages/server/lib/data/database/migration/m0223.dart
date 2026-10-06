@@ -24,7 +24,6 @@ ALTER TABLE public.coordination_item
   ADD COLUMN end_at timestamptz NULL,
   ADD COLUMN done_at timestamptz NULL,
   ADD COLUMN done_by_id text NULL REFERENCES public."user"(id) ON DELETE SET NULL,
-  ADD COLUMN source_item_id text NULL REFERENCES public.coordination_item(id) ON DELETE SET NULL,
   ADD COLUMN created_seq integer NULL,
   ADD COLUMN content_seq integer NULL,
   ADD COLUMN ack_seq integer NULL,
@@ -49,7 +48,7 @@ ALTER TABLE public.coordination_item
   ADD CONSTRAINT coordination_item_plan_only_cols_chk CHECK (
     kind = 6 OR (
       start_at IS NULL AND end_at IS NULL AND done_at IS NULL
-      AND done_by_id IS NULL AND source_item_id IS NULL
+      AND done_by_id IS NULL
       AND created_seq IS NULL AND content_seq IS NULL
       AND ack_seq IS NULL AND removed_seq IS NULL
     ))
@@ -80,12 +79,6 @@ CREATE INDEX coordination_item_plan_end_open
 ''',
 
   r'''
-CREATE INDEX coordination_item_source_item
-  ON public.coordination_item (source_item_id)
-  WHERE source_item_id IS NOT NULL
-''',
-
-  r'''
 CREATE INDEX coordination_item_done_by
   ON public.coordination_item (done_by_id)
   WHERE done_by_id IS NOT NULL
@@ -99,7 +92,6 @@ CREATE TABLE public.beacon_plan (
   last_edited_by text NULL REFERENCES public."user"(id) ON DELETE SET NULL,
   last_edited_at timestamptz NULL,
   copied_from_beacon_id text NULL REFERENCES public.beacon(id) ON DELETE SET NULL,
-  copied_from_seq integer NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 )
@@ -118,14 +110,14 @@ CREATE INDEX beacon_plan_copied_from
 ''',
 
   // kind: 0 created, 1 edited, 2 restored, 3 copied, 4 cant_make,
-  // 5 unassigned_on_leave, 6 cant_make_chat (snapshot unchanged).
+  // 5 unassigned_on_leave.
   r'''
 CREATE TABLE public.beacon_plan_revision (
   id text PRIMARY KEY DEFAULT concat('PR', substring(replace(gen_random_uuid()::text, '-', ''), 1, 12)),
   beacon_id text NOT NULL REFERENCES public.beacon_plan(beacon_id) ON DELETE CASCADE,
   seq integer NOT NULL,
   base_seq integer NULL,
-  kind smallint NOT NULL CHECK (kind BETWEEN 0 AND 6),
+  kind smallint NOT NULL CHECK (kind BETWEEN 0 AND 5),
   actor_id text NULL REFERENCES public."user"(id) ON DELETE SET NULL,
   restored_from_seq integer NULL,
   comment text NOT NULL DEFAULT '' CHECK (char_length(comment) <= 280),

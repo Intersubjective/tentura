@@ -725,6 +725,7 @@ final class PlanAssigneeNotAdmittedException extends ExceptionBase {
       );
 }
 
+/// The plan exceeds a size limit: steps, description or comment length.
 final class PlanTooLargeException extends ExceptionBase {
   const PlanTooLargeException({String? description})
     : super(
@@ -738,5 +739,16 @@ final class PlanDisabledException extends ExceptionBase {
     : super(
         code: const BeaconExceptionCodes(BeaconExceptionCode.planDisabled),
         description: description ?? 'Request plans are not enabled',
+      );
+}
+
+/// A plan draft that is not well-formed: unparsable, a duplicate step id, an
+/// empty or too long title, an end before its start (size limits are
+/// [PlanTooLargeException]).
+final class PlanInvalidException extends ExceptionBase {
+  const PlanInvalidException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(BeaconExceptionCode.planInvalid),
+        description: description ?? 'The plan is not valid',
       );
 }

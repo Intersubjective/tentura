@@ -2,12 +2,14 @@ import 'dart:convert';
 
 import 'package:drift_postgres/drift_postgres.dart' show PgTypes;
 import 'package:injectable/injectable.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/domain/plan/plan.dart';
 
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/consts/beacon_hierarchy_consts.dart';
 import 'package:tentura_server/consts/beacon_plan_consts.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/beacon_plan.dart';
 import 'package:tentura_server/domain/port/beacon_plan_repository_port.dart';
 
@@ -23,8 +25,7 @@ class BeaconPlanRepository implements BeaconPlanRepositoryPort {
 
   static const _stepColumns = '''
 id, beacon_id, ordering, title, body, target_person_id, start_at, end_at,
-done_at, done_by_id, created_seq, content_seq, ack_seq, removed_seq,
-source_item_id''';
+done_at, done_by_id, created_seq, content_seq, ack_seq, removed_seq''';
 
   static DateTime? _ts(QueryRow row, String column) {
     final value = row.data[column];
@@ -57,7 +58,6 @@ source_item_id''';
     contentSeq: row.read<int>('content_seq'),
     ackSeq: row.read<int>('ack_seq'),
     removedSeq: row.readNullable<int>('removed_seq'),
-    sourceItemId: row.readNullable<String>('source_item_id'),
   );
 
   BeaconPlanHead _headFromRow(QueryRow row) => BeaconPlanHead(
@@ -67,7 +67,6 @@ source_item_id''';
     lastEditedById: row.readNullable<String>('last_edited_by'),
     lastEditedAt: _ts(row, 'last_edited_at'),
     copiedFromBeaconId: row.readNullable<String>('copied_from_beacon_id'),
-    copiedFromSeq: row.readNullable<int>('copied_from_seq'),
   );
 
   PlanRevisionRecord _revisionFromRow(QueryRow row) {
@@ -103,8 +102,8 @@ SELECT id, kind, status, user_id, title FROM public.beacon WHERE id = $1
     if (row == null) return null;
     return PlanRequestInfo(
       beaconId: row.read<String>('id'),
-      kind: row.read<int>('kind'),
-      status: row.read<int>('status'),
+      kind: BeaconKind.fromValue(row.read<int>('kind')),
+      status: BeaconStatus.fromSmallint(row.read<int>('status')),
       authorId: row.read<String>('user_id'),
       title: row.read<String>('title'),
     );
@@ -189,9 +188,10 @@ WHERE beacon_id = \$1 AND kind = ${BeaconPlanConsts.stepKind}
     if (list.isEmpty) return const {};
     final rows = await _database
         .customSelect(
-          r'''
+          '''
 SELECT id FROM public.coordination_item
-WHERE id = ANY($2::text[]) AND (beacon_id <> $1 OR kind <> 6)
+WHERE id = ANY(\$2::text[])
+  AND (beacon_id <> \$1 OR kind <> ${BeaconPlanConsts.stepKind})
 ''',
           variables: [
             Variable<String>(beaconId),
@@ -324,18 +324,17 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8::text::jsonb, $9::text::jsonb)
     required String? actorId,
     required PlanSnapshot snapshot,
     required Set<String> ackChangedIds,
-    Map<String, String> sourceItemIds = const {},
   }) async {
     final existing = await _allSteps(beaconId);
     final keep = snapshot.ids.toSet();
     for (final step in existing.values) {
       if (step.isRemoved || keep.contains(step.id)) continue;
       await _database.customStatement(
-        r'''
+        '''
 UPDATE public.coordination_item
-SET status = 3, removed_seq = $2, cancelled_at = now(), updated_at = now(),
-    ack_seq = $2
-WHERE id = $1
+SET status = ${BeaconPlanConsts.stepStatusRemoved}, removed_seq = \$2,
+    cancelled_at = now(), updated_at = now(), ack_seq = \$2
+WHERE id = \$1
 ''',
         [step.id, seq],
       );
@@ -346,13 +345,14 @@ WHERE id = $1
       final old = existing[step.id];
       if (old == null) {
         await _database.customStatement(
-          r'''
+          '''
 INSERT INTO public.coordination_item
   (id, beacon_id, kind, status, title, body, creator_id, target_person_id,
-   ordering, published, published_at, start_at, end_at, source_item_id,
+   ordering, published, published_at, start_at, end_at,
    created_seq, content_seq, ack_seq)
-VALUES ($1, $2, 6, 0, $3, $4, $5, $6, $7, true, now(),
-        $8::timestamptz, $9::timestamptz, $10, $11, $11, $11)
+VALUES (\$1, \$2, ${BeaconPlanConsts.stepKind},
+        ${BeaconPlanConsts.stepStatusLive}, \$3, \$4, \$5, \$6, \$7, true,
+        now(), \$8::timestamptz, \$9::timestamptz, \$10, \$10, \$10)
 ''',
           [
             step.id,
@@ -364,7 +364,6 @@ VALUES ($1, $2, 6, 0, $3, $4, $5, $6, $7, true, now(),
             ordering,
             _instant(step.startAt),
             _instant(step.endAt),
-            sourceItemIds[step.id],
             seq,
           ],
         );
@@ -374,15 +373,16 @@ VALUES ($1, $2, 6, 0, $3, $4, $5, $6, $7, true, now(),
       final ackChanged = old.isRemoved || ackChangedIds.contains(step.id);
       if (!contentChanged && old.ordering == ordering) continue;
       await _database.customStatement(
-        r'''
+        '''
 UPDATE public.coordination_item
-SET title = $2, body = $3, target_person_id = $4,
-    start_at = $5::timestamptz, end_at = $6::timestamptz, ordering = $7,
-    status = 0, removed_seq = NULL, cancelled_at = NULL,
-    content_seq = CASE WHEN $8 THEN $10 ELSE content_seq END,
-    ack_seq = CASE WHEN $9 THEN $10 ELSE ack_seq END,
+SET title = \$2, body = \$3, target_person_id = \$4,
+    start_at = \$5::timestamptz, end_at = \$6::timestamptz, ordering = \$7,
+    status = ${BeaconPlanConsts.stepStatusLive}, removed_seq = NULL,
+    cancelled_at = NULL,
+    content_seq = CASE WHEN \$8 THEN \$10 ELSE content_seq END,
+    ack_seq = CASE WHEN \$9 THEN \$10 ELSE ack_seq END,
     updated_at = now()
-WHERE id = $1
+WHERE id = \$1
 ''',
         [
           step.id,
@@ -436,14 +436,11 @@ WHERE beacon_id = $1
   Future<void> setCopiedFrom({
     required String beaconId,
     required String sourceBeaconId,
-    required int sourceSeq,
   }) => _database.customStatement(
     r'''
-UPDATE public.beacon_plan
-SET copied_from_beacon_id = $2, copied_from_seq = $3
-WHERE beacon_id = $1
+UPDATE public.beacon_plan SET copied_from_beacon_id = $2 WHERE beacon_id = $1
 ''',
-    [beaconId, sourceBeaconId, sourceSeq],
+    [beaconId, sourceBeaconId],
   );
 
   @override
@@ -453,10 +450,11 @@ WHERE beacon_id = $1
   }) async {
     final rows = await _database
         .customSelect(
-          r'''
+          '''
 UPDATE public.coordination_item
-SET done_at = now(), done_by_id = $2, updated_at = now()
-WHERE id = $1 AND kind = 6 AND status = 0 AND done_at IS NULL
+SET done_at = now(), done_by_id = \$2, updated_at = now()
+WHERE id = \$1 AND kind = ${BeaconPlanConsts.stepKind}
+  AND status = ${BeaconPlanConsts.stepStatusLive} AND done_at IS NULL
 RETURNING id
 ''',
           variables: [Variable<String>(stepId), Variable<String>(actorId)],
@@ -469,10 +467,11 @@ RETURNING id
   Future<bool> clearDone(String stepId) async {
     final rows = await _database
         .customSelect(
-          r'''
+          '''
 UPDATE public.coordination_item
 SET done_at = NULL, done_by_id = NULL, updated_at = now()
-WHERE id = $1 AND kind = 6 AND status = 0 AND done_at IS NOT NULL
+WHERE id = \$1 AND kind = ${BeaconPlanConsts.stepKind}
+  AND status = ${BeaconPlanConsts.stepStatusLive} AND done_at IS NOT NULL
 RETURNING id
 ''',
           variables: [Variable<String>(stepId)],
@@ -565,17 +564,6 @@ WHERE beacon_id = $1 AND user_id = $2
       );
 
   @override
-  Future<bool> isAdmitted(String beaconId, String userId) async {
-    final row = await _database
-        .customSelect(
-          r'SELECT public.beacon_effective_admission($1, $2) AS ok',
-          variables: [Variable<String>(beaconId), Variable<String>(userId)],
-        )
-        .getSingle();
-    return row.read<bool>('ok');
-  }
-
-  @override
   Future<Map<String, String>> displayNames(Iterable<String> userIds) async {
     final list = userIds.toSet().toList();
     if (list.isEmpty) return const {};
@@ -626,7 +614,6 @@ RETURNING id
     return PlanTailMessage(
       id: row.read<String>('id'),
       marker: row.readNullable<int>('semantic_marker'),
-      systemKind: row.readNullable<int>('system_message_kind'),
       createdAt: _ts(row, 'created_at')!,
       payload: payload is Map ? payload.cast<String, Object?>() : null,
     );
@@ -637,7 +624,7 @@ RETURNING id
     final row = await _database
         .customSelect(
           r'''
-SELECT id, semantic_marker, system_message_kind, created_at,
+SELECT id, semantic_marker, created_at,
        system_payload::text AS system_payload
 FROM public.beacon_room_message
 WHERE beacon_id = $1 AND thread_item_id IS NULL
@@ -671,7 +658,7 @@ WHERE id = $1
     final row = await _database
         .customSelect(
           '''
-SELECT id, semantic_marker, system_message_kind, created_at,
+SELECT id, semantic_marker, created_at,
        system_payload::text AS system_payload
 FROM public.beacon_room_message
 WHERE beacon_id = \$1
@@ -716,70 +703,6 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8::text::jsonb)
   );
 
   @override
-  Future<Map<String, List<PlanStepRecord>>> liveStepsFor(
-    Iterable<String> beaconIds,
-  ) async {
-    final list = beaconIds.toSet().toList();
-    if (list.isEmpty) return const {};
-    final rows = await _database
-        .customSelect(
-          '''
-SELECT $_stepColumns
-FROM public.coordination_item
-WHERE beacon_id = ANY(\$1::text[]) AND kind = ${BeaconPlanConsts.stepKind}
-  AND status = ${BeaconPlanConsts.stepStatusLive}
-ORDER BY beacon_id, ordering, created_seq, id
-''',
-          variables: [Variable<List<String>>(list, PgTypes.textArray)],
-        )
-        .get();
-    final out = <String, List<PlanStepRecord>>{};
-    for (final step in rows.map(_stepFromRow)) {
-      (out[step.beaconId] ??= []).add(step);
-    }
-    return out;
-  }
-
-  @override
-  Future<Map<String, PlanMemberRecord>> membersFor(
-    String userId,
-    Iterable<String> beaconIds,
-  ) async {
-    final list = beaconIds.toSet().toList();
-    if (list.isEmpty) return const {};
-    final rows = await _database
-        .customSelect(
-          r'''
-SELECT * FROM public.beacon_plan_member
-WHERE user_id = $1 AND beacon_id = ANY($2::text[])
-''',
-          variables: [
-            Variable<String>(userId),
-            Variable<List<String>>(list, PgTypes.textArray),
-          ],
-        )
-        .get();
-    return {for (final m in rows.map(_memberFromRow)) m.beaconId: m};
-  }
-
-  @override
-  Future<Map<String, BeaconPlanHead>> headsFor(
-    Iterable<String> beaconIds,
-  ) async {
-    final list = beaconIds.toSet().toList();
-    if (list.isEmpty) return const {};
-    final rows = await _database
-        .customSelect(
-          r'''
-SELECT * FROM public.beacon_plan WHERE beacon_id = ANY($1::text[])
-''',
-          variables: [Variable<List<String>>(list, PgTypes.textArray)],
-        )
-        .get();
-    return {for (final h in rows.map(_headFromRow)) h.beaconId: h};
-  }
-
-  @override
   Future<Map<String, PlanSliceSource>> sliceSourcesFor(
     String userId,
     Iterable<String> beaconIds,
@@ -814,7 +737,7 @@ FROM public.beacon b
 LEFT JOIN public.beacon_plan h ON h.beacon_id = b.id
 LEFT JOIN public.beacon_plan_member m
   ON m.beacon_id = b.id AND m.user_id = \$1
-WHERE b.id = ANY(\$2::text[]) AND b.kind = 0
+WHERE b.id = ANY(\$2::text[]) AND b.kind = ${BeaconKind.request.value}
 ''',
           variables: [
             Variable<String>(userId),
@@ -829,7 +752,7 @@ WHERE b.id = ANY(\$2::text[]) AND b.kind = 0
       final rawRevisions = _json(row, 'pending_revisions');
       out[beaconId] = PlanSliceSource(
         beaconId: beaconId,
-        status: row.read<int>('status'),
+        status: BeaconStatus.fromSmallint(row.read<int>('status')),
         revisionSeq: row.read<int>('revision_seq'),
         pendingFromSeq: row.readNullable<int>('pending_from_seq'),
         steps: [

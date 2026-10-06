@@ -111,6 +111,7 @@ enum BeaconExceptionCode {
   planAssigneeNotAdmitted, // 1336
   planTooLarge, // 1337
   planDisabled, // 1338
+  planInvalid, // 1339
 }
 
 class BeaconExceptionCodes extends ExceptionCodes {

@@ -1,8 +1,6 @@
 @Tags(['pg'])
 library;
 
-import 'dart:convert';
-
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
@@ -92,11 +90,9 @@ Future<void> main() async {
   Future<Map<String, Map<String, Object?>>> slices(
     String viewer, {
     required DateTime now,
-    Map<String, ({String text, DateTime? setAt})> manualLines = const {},
   }) => plan.slicesFor(
     viewerId: viewer,
     beaconIds: [_open, _closed, _empty, 'Bplanslice_missing'],
-    manualLines: manualLines,
     now: now,
   );
 
@@ -115,7 +111,7 @@ Future<void> main() async {
     expect(sources[_empty]!.steps, isEmpty);
   });
 
-  test('current, next, pending change and NOW for the assignee', () async {
+  test('current, next and pending change for the assignee', () async {
     await save(_open, [
       _s(_a, who: _helper, startMin: 0, endMin: 60),
       _s(_b, who: _member, startMin: 30),
@@ -127,15 +123,12 @@ Future<void> main() async {
     );
     expect(all.keys, [_open], reason: 'no steps, no slice');
     final slice = all[_open]!;
-    expect(slice['done'], 0);
-    expect(slice['total'], 3);
-    expect(slice['overdueMine'], 0);
+    expect(slice.keys.toSet(), {'current', 'alsoActive', 'next', 'pendingAck'});
     final current = slice['current']! as Map<String, Object?>;
     expect(current['stepId'], _a);
     expect(current['description'], 'About $_a');
     expect(current['startAt'], '2030-01-10T09:00:00.000Z');
     expect(current['endAt'], '2030-01-10T10:00:00.000Z');
-    expect(current['overdueSince'], isNull);
     expect((slice['next']! as Map)['stepId'], _c);
     expect(slice['alsoActive'], isEmpty);
 
@@ -147,51 +140,6 @@ Future<void> main() async {
     expect(pending['actorNames'], {_author: _author});
     expect((pending['stepIds']! as List).toSet(), {_a, _c});
     expect((pending['sample']! as Map)['op'], 'added');
-
-    final now = slice['now']! as Map<String, Object?>;
-    expect(now['source'], 'plan');
-    expect(now['stepId'], _b, reason: 'the step that started last');
-    expect(now['assigneeId'], _member);
-    expect(now['index'], 2);
-    expect(now['count'], 3);
-  });
-
-  test('attachSlices fills planSliceJson on readable inbox rows only and '
-      'drops the internal set-at key', () async {
-    await save(_open, [_s(_a, who: _helper, startMin: 0)]);
-    final rows = await plan.attachSlices(
-      viewerId: _helper,
-      setAtKey: '_setAt',
-      rows: [
-        {
-          'beaconId': _open,
-          'isRoomMember': true,
-          'currentLine': '',
-          '_setAt': null,
-          'planSliceJson': null,
-        },
-        {'beaconId': _closed, 'isRoomMember': false, 'planSliceJson': null},
-      ],
-    );
-    expect(rows.first.containsKey('_setAt'), isFalse);
-    final slice = jsonDecode(rows.first['planSliceJson']! as String) as Map;
-    expect(slice['total'], 1);
-    expect(rows.last['planSliceJson'], isNull);
-  });
-
-  test('a newer manual NOW line wins over the plan', () async {
-    await save(_open, [_s(_a, who: _helper, startMin: 0)]);
-    final slice = (await slices(
-      _helper,
-      now: _t0.add(const Duration(minutes: 5)),
-      manualLines: {
-        _open: (
-          text: 'Doors open',
-          setAt: _t0.add(const Duration(minutes: 1)),
-        ),
-      },
-    ))[_open]!;
-    expect(slice['now'], isNull);
   });
 
   test('overdue step and «Понятно» clearing the pending change', () async {
@@ -202,12 +150,11 @@ Future<void> main() async {
       now: _t0.add(const Duration(minutes: 45)),
     ))[_open]!;
     expect(slice['pendingAck'], isNull);
-    expect(slice['overdueMine'], 1);
     final current = slice['current']! as Map<String, Object?>;
-    expect(current['overdueSince'], '2030-01-10T09:30:00.000Z');
+    expect(current['stepId'], _a, reason: 'an overdue step stays current');
   });
 
-  test('a retime by someone else is sampled with from / to', () async {
+  test('a retime by someone else is sampled as the raw change', () async {
     await save(_open, [_s(_a, who: _helper, startMin: 0)]);
     await plan.ack(actorId: _helper, beaconId: _open, uptoSeq: 1);
     await save(_open, [_s(_a, who: _helper, startMin: 60)], base: 1);
@@ -220,8 +167,7 @@ Future<void> main() async {
     expect(sample['op'], 'retimed');
     expect(sample['stepId'], _a);
     expect(sample['title'], 'Step $_a');
-    expect(sample['from'], '2030-01-10T09:00:00.000Z');
-    expect(sample['to'], '2030-01-10T10:00:00.000Z');
+    expect(sample.containsKey('from'), isFalse);
     expect(
       PlanChange.fromJson(sample).toStartAt,
       _t0.add(const Duration(hours: 1)),
@@ -229,7 +175,7 @@ Future<void> main() async {
     );
   });
 
-  test('a ticked step leaves current and counts as done', () async {
+  test('a ticked step leaves current', () async {
     await save(_open, [
       _s(_a, who: _helper, startMin: 0),
       _s(_b, who: _helper),
@@ -239,7 +185,6 @@ Future<void> main() async {
       _helper,
       now: _t0.add(const Duration(minutes: 5)),
     ))[_open]!;
-    expect(slice['done'], 1);
     expect(
       (slice['current']! as Map)['stepId'],
       _b,
@@ -247,25 +192,16 @@ Future<void> main() async {
     );
   });
 
-  test('a finished Request carries only done / total', () async {
+  test('a finished Request has no slice', () async {
     await save(_closed, [_s(_d, who: _helper, startMin: 0)]);
     await writer.execute(
       "UPDATE public.beacon SET status = 6 WHERE id = '$_closed'",
     );
-    final slice = (await slices(
+    final all = await slices(
       _helper,
       now: _t0.add(const Duration(minutes: 5)),
-    ))[_closed]!;
-    expect(slice, {
-      'done': 0,
-      'total': 1,
-      'overdueMine': 0,
-      'current': null,
-      'alsoActive': isEmpty,
-      'next': null,
-      'pendingAck': null,
-      'now': null,
-    });
+    );
+    expect(all.containsKey(_closed), isFalse);
   });
 
   test('another viewer sees no pending change of someone else', () async {
@@ -273,7 +209,7 @@ Future<void> main() async {
     final slice = (await slices(_member, now: _t0))[_open]!;
     expect(slice['pendingAck'], isNull);
     expect(slice['current'], isNull);
-    expect(slice['total'], 1);
+    expect(slice['next'], isNull);
   });
 }
 

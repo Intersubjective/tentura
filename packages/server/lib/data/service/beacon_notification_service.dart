@@ -12,7 +12,8 @@ import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/entity/notification_priority.dart';
 import 'package:tentura_server/domain/notification/beacon_notification_copy_builder.dart';
 import 'package:tentura_server/domain/notification/notification_preference_gate.dart';
-import 'package:tentura_server/domain/plan/push_action_token.dart';
+import 'package:tentura_server/domain/notification/plan_push_policy.dart';
+import 'package:tentura_server/domain/plan/push_action.dart';
 import 'package:tentura_server/domain/port/beacon_notification_port.dart';
 import 'package:tentura_server/domain/port/beacon_plan_repository_port.dart';
 import 'package:tentura_server/domain/port/email_notification_port.dart';
@@ -20,6 +21,7 @@ import 'package:tentura_server/domain/port/fcm_batch_queue_port.dart';
 import 'package:tentura_server/domain/port/fcm_remote_repository_port.dart';
 import 'package:tentura_server/domain/port/fcm_token_repository_port.dart';
 import 'package:tentura_server/domain/port/notification_preference_repository_port.dart';
+import 'package:tentura_server/domain/port/push_action_token_port.dart';
 
 @LazySingleton(as: BeaconNotificationPort)
 class BeaconNotificationService implements BeaconNotificationPort {
@@ -30,7 +32,7 @@ class BeaconNotificationService implements BeaconNotificationPort {
     this._preferences,
     this._emailNotification,
     this._logger, {
-    PushActionToken? pushActionTokens,
+    PushActionTokenPort? pushActionTokens,
     BeaconPlanRepositoryPort? planRepository,
   }) : _pushActionTokens = pushActionTokens,
        _planRepository = planRepository;
@@ -44,7 +46,7 @@ class BeaconNotificationService implements BeaconNotificationPort {
 
   /// Signs plan push buttons (#220 §5.9); without it plan pushes carry no
   /// buttons and a tap opens the step.
-  final PushActionToken? _pushActionTokens;
+  final PushActionTokenPort? _pushActionTokens;
 
   /// Reads the plan head a «Понятно» button confirms up to.
   final BeaconPlanRepositoryPort? _planRepository;
@@ -359,94 +361,44 @@ class BeaconNotificationService implements BeaconNotificationPort {
   }
 }
 
-/// Plan obligations pushed directly with buttons (#220 §5.9).
-bool isPlanObligationPushKind(NotificationKind kind) => switch (kind) {
-  NotificationKind.planStepDue ||
-  NotificationKind.planStepTurn ||
-  NotificationKind.planChangePending ||
-  NotificationKind.planStepReminder ||
-  NotificationKind.planStepOverdue => true,
-  _ => false,
-};
-
-/// How long a plan push may wait for delivery: a reminder is useless once
-/// the step started.
-int planPushTtlSeconds(NotificationKind kind) => switch (kind) {
-  NotificationKind.planStepReminder => 15 * 60,
-  _ => 3600,
-};
-
 /// Buttons of one plan push and the token behind them.
 typedef PlanPushButtons = ({
   List<FcmNotificationAction> actions,
   String? token,
 });
 
-/// «Готово» + «Открыть» on a step that is due, about to start or overdue;
-/// «Понятно» on a change to the person's steps; nothing on «your turn» (a
-/// tap opens the step). No token signer → no buttons.
+/// Buttons of a plan push ([planPushActionFor] decides which) and the token
+/// that authorizes them; «Понятно» confirms up to the current plan head. No
+/// token signer → no buttons.
 Future<PlanPushButtons> planPushButtons({
   required NotificationKind kind,
   required String recipientId,
   required String beaconId,
   required String? stepId,
   required String locale,
-  required PushActionToken? tokens,
+  required PushActionTokenPort? tokens,
   required BeaconPlanRepositoryPort? planRepository,
 }) async {
   const none = (actions: <FcmNotificationAction>[], token: null);
   if (tokens == null || beaconId.isEmpty) return none;
-  final ru = locale.toLowerCase().startsWith('ru');
-  switch (kind) {
-    case NotificationKind.planStepDue ||
-            NotificationKind.planStepReminder ||
-            NotificationKind.planStepOverdue
-        when stepId != null && stepId.isNotEmpty:
-      return (
-        actions: [
-          FcmNotificationAction(id: 'done', title: ru ? 'Готово' : 'Done'),
-          FcmNotificationAction(id: 'open', title: ru ? 'Открыть' : 'Open'),
-        ],
-        token: tokens.sign(
-          PushActionClaims(
-            accountId: recipientId,
-            action: PushAction.done,
-            beaconId: beaconId,
-            stepId: stepId,
-          ),
-        ),
-      );
-    case NotificationKind.planChangePending:
-      final head = await planRepository?.getHead(beaconId);
-      if (head == null) return none;
-      return (
-        actions: [
-          FcmNotificationAction(id: 'ack', title: ru ? 'Понятно' : 'Got it'),
-        ],
-        token: tokens.sign(
-          PushActionClaims(
-            accountId: recipientId,
-            action: PushAction.ack,
-            beaconId: beaconId,
-            seq: head.revisionSeq,
-          ),
-        ),
-      );
-    case _:
-      return none;
+  final action = planPushActionFor(kind: kind, stepId: stepId);
+  if (action == null) return none;
+  int? seq;
+  if (action == PushAction.ack) {
+    final head = await planRepository?.getHead(beaconId);
+    if (head == null) return none;
+    seq = head.revisionSeq;
   }
+  return (
+    actions: planPushButtonsFor(action, locale),
+    token: tokens.sign(
+      PushActionClaims(
+        accountId: recipientId,
+        action: action,
+        beaconId: beaconId,
+        stepId: action == PushAction.done ? stepId : null,
+        seq: seq,
+      ),
+    ),
+  );
 }
-
-/// What the service worker says after a button tap.
-FcmActionFeedback planPushFeedback(String locale) =>
-    locale.toLowerCase().startsWith('ru')
-    ? const FcmActionFeedback(
-        done: 'Отмечено',
-        ack: 'Подтверждено',
-        failed: 'Не получилось — откройте шаг',
-      )
-    : const FcmActionFeedback(
-        done: 'Marked done',
-        ack: 'Confirmed',
-        failed: "Didn't work — open the step",
-      );

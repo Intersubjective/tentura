@@ -53,9 +53,6 @@ abstract final class PlanRevisionKind {
   static const copied = 3;
   static const cantMake = 4;
   static const unassignedOnLeave = 5;
-
-  /// «Не успеваю → обсуждение»: history-only, the snapshot is unchanged.
-  static const cantMakeChat = 6;
 }
 
 /// Wire values of the «Не успеваю» options.

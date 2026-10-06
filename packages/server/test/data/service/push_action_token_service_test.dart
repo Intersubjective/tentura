@@ -1,13 +1,14 @@
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 import 'package:test/test.dart';
 
-import 'package:tentura_server/domain/plan/push_action_token.dart';
+import 'package:tentura_server/data/service/push_action_token_service.dart';
+import 'package:tentura_server/domain/plan/push_action.dart';
 import 'package:tentura_server/env.dart';
 
 /// Plan push buttons (#220 §5.9): the signed action token.
 void main() {
   final env = Env();
-  final tokens = PushActionToken(env);
+  final tokens = PushActionTokenService(env);
 
   const done = PushActionClaims(
     accountId: 'Uacc',
@@ -109,7 +110,7 @@ void main() {
   });
 
   test('rejects a token signed by another key', () {
-    final other = PushActionToken(
+    final other = PushActionTokenService(
       Env(privateKey: _otherPrivatePem, publicKey: _otherPublicPem),
     );
     expect(tokens.verify(other.sign(done)), isNull);

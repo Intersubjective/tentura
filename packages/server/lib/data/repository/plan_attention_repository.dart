@@ -1,8 +1,12 @@
 import 'package:drift_postgres/drift_postgres.dart' show PgTypes;
 import 'package:injectable/injectable.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
+import 'package:tentura_root/domain/plan/plan.dart';
 
 import 'package:tentura_server/consts/beacon_plan_consts.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
+import 'package:tentura_server/domain/plan/plan_sweep_phase.dart';
 import 'package:tentura_server/domain/port/plan_attention_repository_port.dart';
 
 import '../database/tentura_db.dart';
@@ -130,9 +134,10 @@ RETURNING key
     required DateTime now,
     int limit = 500,
   }) async {
-    // The NOT EXISTS mirrors `PlanSweepPhase.key` for the step's last phase
-    // (`authorLate` when assigned, `unassignedDue` when not): once that one
-    // is claimed the step never needs the sweep again.
+    // The NOT EXISTS builds `PlanSweepPhase.key` of the step's last phase
+    // (`authorLate` when assigned, `unassignedDue` when not) from the
+    // parameters below: once that one is claimed the step never needs the
+    // sweep again, so long-overdue steps do not crowd out fresh ones.
     final rows = await _database
         .customSelect(
           '''
@@ -140,27 +145,28 @@ SELECT ci.id, ci.beacon_id, ci.target_person_id, ci.start_at, ci.end_at,
        r.created_at AS timed_at
 FROM public.coordination_item ci
 JOIN public.beacon b
-  ON b.id = ci.beacon_id AND b.kind = 0 AND b.status IN (0, 7, 8)
+  ON b.id = ci.beacon_id AND b.kind = \$3
+  AND b.status = ANY(\$4::bigint[])
 LEFT JOIN public.beacon_plan_revision r
   ON r.beacon_id = ci.beacon_id AND r.seq = ci.ack_seq
 WHERE ci.kind = ${BeaconPlanConsts.stepKind}
   AND ci.status = ${BeaconPlanConsts.stepStatusLive}
   AND ci.done_at IS NULL
   AND (
-    ci.start_at <= \$1::timestamptz + interval '15 minutes'
+    ci.start_at <= \$1::timestamptz + \$5 * interval '1 second'
     OR ci.end_at <= \$1::timestamptz
   )
   AND NOT EXISTS (
     SELECT 1 FROM public.beacon_plan_sweep_mark m
-    WHERE m.key = 'plan_step:' || ci.id || CASE
+    WHERE m.key = \$7 || ci.id || ':' || CASE
       WHEN ci.target_person_id IS NULL THEN
-        ':unassignedDue:none:'
+        \$9 || ':' || \$8 || ':'
         || floor(extract(epoch FROM COALESCE(ci.start_at, ci.end_at)) * 1000)
              ::bigint::text
       ELSE
-        ':authorLate:' || ci.target_person_id || ':'
+        \$10 || ':' || ci.target_person_id || ':'
         || floor(extract(epoch FROM COALESCE(
-             ci.end_at, ci.start_at + interval '15 minutes')) * 1000)
+             ci.end_at, ci.start_at + \$6 * interval '1 second')) * 1000)
              ::bigint::text
     END
   )
@@ -170,6 +176,17 @@ LIMIT \$2
           variables: [
             Variable<String>(now.toUtc().toIso8601String()),
             Variable<int>(limit),
+            Variable<int>(BeaconKind.request.value),
+            Variable<List<int>>(
+              BeaconStatus.openFamilyValues.toList(),
+              PgTypes.bigIntArray,
+            ),
+            Variable<int>(kPlanReminderLead.inSeconds),
+            Variable<int>(kPlanUntimedOverdueGrace.inSeconds),
+            const Variable<String>(PlanSweepPhase.keyPrefix),
+            const Variable<String>(PlanSweepPhase.noAssignee),
+            Variable<String>(PlanSweepPhaseKind.unassignedDue.name),
+            Variable<String>(PlanSweepPhaseKind.authorLate.name),
           ],
         )
         .get();

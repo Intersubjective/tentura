@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:injectable/injectable.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/domain/plan/plan.dart';
@@ -7,8 +5,10 @@ import 'package:tentura_root/domain/plan/plan.dart';
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/consts/beacon_plan_consts.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/beacon_plan.dart';
 import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/port/beacon_hierarchy_command_port.dart';
 import 'package:tentura_server/domain/port/beacon_plan_repository_port.dart';
 import 'package:tentura_server/domain/port/closure_repository_port.dart';
 import 'package:tentura_server/domain/use_case/plan_attention_case.dart';
@@ -25,6 +25,7 @@ import '_use_case_base.dart';
 class BeaconPlanCase extends UseCaseBase {
   BeaconPlanCase(
     this._repo,
+    this._admission,
     this._closure,
     this._attention,
     this._effects, {
@@ -33,9 +34,16 @@ class BeaconPlanCase extends UseCaseBase {
   });
 
   final BeaconPlanRepositoryPort _repo;
+
+  /// `beacon_effective_admission`: author, steward, accepted helper or
+  /// admitted room member, minus blocks.
+  final BeaconHierarchyCommandPort _admission;
   final ClosureRepositoryPort _closure;
   final TransactionalAttentionCase _attention;
   final PlanAttentionCase _effects;
+
+  Future<bool> _isAdmitted(String beaconId, String userId) =>
+      _admission.effectiveAdmission(beaconId: beaconId, viewerId: userId);
 
   // ---------------------------------------------------------------- reads
 
@@ -49,7 +57,7 @@ class BeaconPlanCase extends UseCaseBase {
     final steps = await _repo.liveSteps(beaconId);
     final members = await _repo.listMembers(beaconId);
     final membersById = {for (final m in members) m.userId: m};
-    final status = BeaconStatus.fromSmallint(request.status);
+    final status = request.status;
     final editable =
         env.planEnabled &&
         (status.allowsCoordination ||
@@ -93,7 +101,7 @@ class BeaconPlanCase extends UseCaseBase {
     final names = await _repo.displayNames(userIds);
     final copiedFrom = head?.copiedFromBeaconId;
     String? copiedFromTitle;
-    if (copiedFrom != null && await _repo.isAdmitted(copiedFrom, viewerId)) {
+    if (copiedFrom != null && await _isAdmitted(copiedFrom, viewerId)) {
       copiedFromTitle = (await _repo.requestInfo(copiedFrom))?.title;
     }
 
@@ -119,7 +127,6 @@ class BeaconPlanCase extends UseCaseBase {
             'endAt': formatPlanInstant(s.endAt),
             'doneAt': formatPlanInstant(s.doneAt),
             'doneById': s.doneById,
-            'createdSeq': s.createdSeq,
             'contentSeq': s.contentSeq,
             'ackSeq': s.ackSeq,
             'assigneeAckPending': _ackPending(s, membersById),
@@ -127,12 +134,7 @@ class BeaconPlanCase extends UseCaseBase {
       ],
       'members': [
         for (final m in members)
-          {
-            'userId': m.userId,
-            'pendingFromSeq': m.pendingFromSeq,
-            'ackedSeq': m.ackedSeq,
-            'ackedAt': m.ackedAt?.toIso8601String(),
-          },
+          {'userId': m.userId, 'ackedAt': m.ackedAt?.toIso8601String()},
       ],
       'viewerPending': viewerPending,
       'names': names,
@@ -142,82 +144,40 @@ class BeaconPlanCase extends UseCaseBase {
   /// My Work / inbox plan slices (`planSliceJson`, plan §4.9) of [viewerId]
   /// for [beaconIds], keyed by beacon id. One batched read for all of them.
   ///
-  /// [manualLines] carries each Request's manual NOW line and when it was
-  /// written, for `PlanSchedule.effectiveNow`. A Request without steps and
-  /// without pending changes has no slice. Outside the coordination
-  /// statuses only `done` / `total` are filled, so a finished Request never
-  /// offers «Готово» the server would refuse.
+  /// A Request without steps and without pending changes has no slice, and
+  /// neither has one outside the coordination statuses, so a finished
+  /// Request never offers «Готово» the server would refuse.
   ///
   /// The caller must have checked that [viewerId] may read each Request.
   Future<Map<String, Map<String, Object?>>> slicesFor({
     required String viewerId,
     required Iterable<String> beaconIds,
-    Map<String, ({String text, DateTime? setAt})> manualLines = const {},
     DateTime? now,
   }) async {
     if (!env.planEnabled) return const {};
+    final ids = beaconIds.toList();
+    if (ids.isEmpty) return const {};
     return slicesFrom(
-      sources: await _repo.sliceSourcesFor(viewerId, beaconIds),
+      sources: await _repo.sliceSourcesFor(viewerId, ids),
       viewerId: viewerId,
-      manualLines: manualLines,
       now: now,
     );
-  }
-
-  /// Fills `planSliceJson` on `inboxRoomContextBatch` [rows] (plan §4.9)
-  /// with one batched read for every row the viewer may read
-  /// (`isRoomMember`). Rows carry their manual NOW line and its write time.
-  Future<List<Map<String, Object?>>> attachSlices({
-    required String viewerId,
-    required List<Map<String, Object?>> rows,
-    required String setAtKey,
-  }) async {
-    final manualLines = <String, ({String text, DateTime? setAt})>{
-      for (final row in rows)
-        if (row['isRoomMember'] == true && row['beaconId'] is String)
-          row['beaconId']! as String: (
-            text: (row['currentLine'] as String?) ?? '',
-            setAt: row[setAtKey] as DateTime?,
-          ),
-    };
-    final slices = manualLines.isEmpty
-        ? const <String, Map<String, Object?>>{}
-        : await slicesFor(
-            viewerId: viewerId,
-            beaconIds: manualLines.keys,
-            manualLines: manualLines,
-          );
-    return [
-      for (final row in rows)
-        {
-          for (final MapEntry(:key, :value) in row.entries)
-            if (key != setAtKey) key: value,
-          'planSliceJson': switch (slices[row['beaconId']]) {
-            final slice? => jsonEncode(slice),
-            null => null,
-          },
-        },
-    ];
   }
 
   /// [buildPlanSlice] over already-read [sources], keyed by beacon id.
   static Map<String, Map<String, Object?>> slicesFrom({
     required Map<String, PlanSliceSource> sources,
     required String viewerId,
-    Map<String, ({String text, DateTime? setAt})> manualLines = const {},
     DateTime? now,
   }) {
     final at = (now ?? DateTime.now()).toUtc();
     return {
       for (final source in sources.values)
-        if (buildPlanSlice(
-              source: source,
-              viewerId: viewerId,
-              now: at,
-              manualLine: manualLines[source.beaconId],
-            )
-            case final slice?)
-          source.beaconId: slice,
+        source.beaconId: ?buildPlanSlice(
+          source: source,
+          viewerId: viewerId,
+          now: at,
+        ),
     };
   }
 
@@ -227,39 +187,16 @@ class BeaconPlanCase extends UseCaseBase {
     required PlanSliceSource source,
     required String viewerId,
     required DateTime now,
-    ({String text, DateTime? setAt})? manualLine,
   }) {
+    if (!source.status.allowsCoordination) return null;
     final states = [for (final s in source.steps) s.state];
-    final byId = {for (final s in source.steps) s.id: s};
     final pendingAck = _slicePendingAck(source, viewerId);
     if (states.isEmpty && pendingAck == null) return null;
-    final base = <String, Object?>{
-      'done': PlanSchedule.doneCount(states),
-      'total': states.length,
-      'overdueMine': 0,
-      'current': null,
-      'alsoActive': const <Object?>[],
-      'next': null,
-      'pendingAck': null,
-      'now': null,
-    };
-    final status = BeaconStatus.fromSmallint(source.status);
-    if (!status.allowsCoordination) return base;
-
+    final byId = {for (final s in source.steps) s.id: s};
     final schedule = PlanSchedule.forViewer(viewerId, states, now);
     final current = schedule.current;
     final next = schedule.next;
-    final planNow = PlanSchedule.effectiveNow(
-      manualText: manualLine?.text ?? '',
-      manualSetAt: manualLine?.setAt,
-      steps: states,
-      openFamily: status.isOpenFamily,
-      now: now,
-    );
-    final nowStep = planNow.step;
     return {
-      ...base,
-      'overdueMine': PlanSchedule.overdueCountFor(viewerId, states, now),
       'current': current == null
           ? null
           : {
@@ -268,9 +205,6 @@ class BeaconPlanCase extends UseCaseBase {
               'description': byId[current.id]?.description ?? '',
               'startAt': formatPlanInstant(current.startAt),
               'endAt': formatPlanInstant(current.endAt),
-              'overdueSince': current.isOverdueAt(now)
-                  ? formatPlanInstant(current.overdueBoundary)
-                  : null,
             },
       'alsoActive': [
         for (final s in schedule.alsoActive)
@@ -290,17 +224,6 @@ class BeaconPlanCase extends UseCaseBase {
               'endAt': formatPlanInstant(next.endAt),
             },
       'pendingAck': pendingAck,
-      'now': !planNow.isPlan || nowStep == null
-          ? null
-          : {
-              'source': 'plan',
-              'stepId': nowStep.id,
-              'title': nowStep.title,
-              'assigneeId': nowStep.assigneeId,
-              'startAt': formatPlanInstant(nowStep.startAt),
-              'index': planNow.index,
-              'count': planNow.count,
-            },
     };
   }
 
@@ -335,19 +258,6 @@ class BeaconPlanCase extends UseCaseBase {
       }
     }
     if (relevant.isEmpty) return null;
-    final sample = PlanChange.fromJson(relevant.last);
-    final (from: sampleFrom, to: sampleTo) = switch (sample.op) {
-      PlanChangeOp.retitled => (from: sample.fromTitle, to: sample.title),
-      PlanChangeOp.retimed => (
-        from: formatPlanInstant(sample.fromStartAt ?? sample.fromEndAt),
-        to: formatPlanInstant(sample.toStartAt ?? sample.toEndAt),
-      ),
-      PlanChangeOp.reassigned => (
-        from: sample.fromAssigneeId,
-        to: sample.toAssigneeId,
-      ),
-      _ => (from: null, to: null),
-    };
     return {
       'fromSeq': from,
       'headSeq': source.revisionSeq,
@@ -356,16 +266,8 @@ class BeaconPlanCase extends UseCaseBase {
       'actorNames': actorNames,
       'stepIds': stepIds.toList(),
       'lastAt': lastAt?.toUtc().toIso8601String(),
-      // The raw change (so a client can word it like the Plan tab) plus the
-      // §4.9 summary fields.
-      'sample': {
-        ...relevant.last,
-        'op': sample.op.wire,
-        'stepId': sample.stepId,
-        'title': sample.title,
-        'from': sampleFrom,
-        'to': sampleTo,
-      },
+      // The newest raw change, so a client can word it like the Plan tab.
+      'sample': relevant.last,
     };
   }
 
@@ -443,12 +345,11 @@ class BeaconPlanCase extends UseCaseBase {
     required String viewerId,
   }) async {
     final request = await _repo.requestInfo(beaconId);
-    if (request == null || request.kind != 0) {
+    if (request == null || request.kind != BeaconKind.request) {
       throw const BeaconNotRequestException();
     }
-    final status = BeaconStatus.fromSmallint(request.status);
-    if (status == BeaconStatus.deleted ||
-        !await _repo.isAdmitted(beaconId, viewerId)) {
+    if (request.status == BeaconStatus.deleted ||
+        !await _isAdmitted(beaconId, viewerId)) {
       throw const UnauthorizedException(description: 'Room access required');
     }
     return request;
@@ -588,7 +489,7 @@ class BeaconPlanCase extends UseCaseBase {
       final restored = PlanSnapshot([
         for (final s in source.snapshot.steps)
           if (s.assigneeId case final String id
-              when !await _repo.isAdmitted(beaconId, id))
+              when !await _isAdmitted(beaconId, id))
             s.copyWith(assigneeId: () => null)
           else
             s,
@@ -721,8 +622,9 @@ class BeaconPlanCase extends UseCaseBase {
   );
 
   /// «Не успеваю» by the step's assignee: move it ([newStartAt] /
-  /// [newEndAt]), hand it over ([toUserId]) or record that they wrote in the
-  /// discussion ([excerpt], option `chat`).
+  /// [newEndAt]) or hand it over ([toUserId]) — a revision each — or say so
+  /// in the discussion ([excerpt], option `chat`), which leaves the plan and
+  /// its revision counter as they are.
   Future<PlanSaveOutcome> cantMake({
     required String actorId,
     required String stepId,
@@ -748,9 +650,19 @@ class BeaconPlanCase extends UseCaseBase {
       if (step.contentSeq > baseSeq) {
         throw const PlanActionStaleException();
       }
+      if (option == PlanCantMakeOption.chat) {
+        return _cantMakeChat(
+          transaction: transaction,
+          request: request,
+          head: head,
+          step: step,
+          actorId: actorId,
+          excerpt: excerpt,
+        );
+      }
       final theirs = await _currentSnapshot(beaconId);
       final seq = head.revisionSeq + 1;
-      final PlanRevisionRecord revision;
+      final PlanSnapshot changed;
       switch (option) {
         case PlanCantMakeOption.reschedule:
           if (newStartAt == null && newEndAt == null) {
@@ -758,7 +670,7 @@ class BeaconPlanCase extends UseCaseBase {
               description: 'A new time is required',
             );
           }
-          final moved = PlanSnapshot([
+          changed = PlanSnapshot([
             for (final s in theirs.steps)
               if (s.id == stepId)
                 s.copyWith(
@@ -768,80 +680,49 @@ class BeaconPlanCase extends UseCaseBase {
               else
                 s,
           ]);
-          _validateSnapshot(moved);
-          revision = await _writeRevision(
-            request: request,
-            actorId: actorId,
-            seq: seq,
-            baseSeq: head.revisionSeq,
-            kind: PlanRevisionKind.cantMake,
-            from: theirs,
-            to: moved,
-            line: false,
-          );
+          _validateSnapshot(changed);
         case PlanCantMakeOption.handover:
           if (toUserId == null ||
               toUserId == actorId ||
-              !await _repo.isAdmitted(beaconId, toUserId)) {
+              !await _isAdmitted(beaconId, toUserId)) {
             throw const PlanAssigneeNotAdmittedException();
           }
-          final handed = PlanSnapshot([
+          changed = PlanSnapshot([
             for (final s in theirs.steps)
               if (s.id == stepId) s.copyWith(assigneeId: () => toUserId) else s,
           ]);
-          revision = await _writeRevision(
-            request: request,
-            actorId: actorId,
-            seq: seq,
-            baseSeq: head.revisionSeq,
-            kind: PlanRevisionKind.cantMake,
-            from: theirs,
-            to: handed,
-            line: false,
-          );
-        case PlanCantMakeOption.chat:
-          final text = excerpt.trim();
-          await _repo.insertRevision(
-            beaconId: beaconId,
-            seq: seq,
-            baseSeq: head.revisionSeq,
-            kind: PlanRevisionKind.cantMakeChat,
-            actorId: actorId,
-            snapshot: theirs,
-            changes: [
-              {'op': 'cantMake', 'stepId': step.id, 'title': step.title},
-            ],
-            comment: text.length > BeaconPlanConsts.maxCommentLength
-                ? text.substring(0, BeaconPlanConsts.maxCommentLength)
-                : text,
-          );
-          await _repo.touchHead(beaconId, revisionSeq: seq);
-          revision = (await _repo.getRevision(beaconId, seq))!;
         default:
           throw const PlanActionStaleException(description: 'Unknown option');
       }
-
-      if (option != PlanCantMakeOption.chat) {
-        await _repo.insertPlanLine(
-          beaconId: beaconId,
-          actorId: actorId,
-          marker: BeaconRoomSemanticMarker.planCantMake,
-          payload: {
-            'actorId': actorId,
-            'stepId': step.id,
-            'title': step.title,
-            'option': option,
-            'revisionSeq': seq,
-            if (option == PlanCantMakeOption.reschedule) ...{
-              'fromStartAt': formatPlanInstant(step.startAt),
-              'toStartAt': formatPlanInstant(newStartAt),
-              'fromEndAt': formatPlanInstant(step.endAt),
-              'toEndAt': formatPlanInstant(newEndAt),
-            },
-            if (option == PlanCantMakeOption.handover) 'toUserId': toUserId,
+      final revision = await _writeRevision(
+        request: request,
+        actorId: actorId,
+        seq: seq,
+        baseSeq: head.revisionSeq,
+        kind: PlanRevisionKind.cantMake,
+        from: theirs,
+        to: changed,
+        line: false,
+      );
+      await _repo.insertPlanLine(
+        beaconId: beaconId,
+        actorId: actorId,
+        marker: BeaconRoomSemanticMarker.planCantMake,
+        payload: {
+          'actorId': actorId,
+          'stepId': step.id,
+          'title': step.title,
+          'option': option,
+          'revisionSeq': seq,
+          if (option == PlanCantMakeOption.reschedule) ...{
+            'fromStartAt': formatPlanInstant(step.startAt),
+            'toStartAt': formatPlanInstant(newStartAt),
+            'fromEndAt': formatPlanInstant(step.endAt),
+            'toEndAt': formatPlanInstant(newEndAt),
           },
-        );
-      }
+          if (option == PlanCantMakeOption.handover) 'toUserId': toUserId,
+        },
+      );
       await _repo.insertActivity(
         beaconId: beaconId,
         type: BeaconActivityEventTypeBits.planCantMake,
@@ -865,7 +746,7 @@ class BeaconPlanCase extends UseCaseBase {
         actorId: actorId,
         step: step,
         option: option,
-        revisionSeq: seq,
+        sourceEventKey: 'plan_cant_make:$beaconId:$seq',
         excerpt: excerpt,
       );
       return PlanSaveOutcome(
@@ -874,6 +755,52 @@ class BeaconPlanCase extends UseCaseBase {
       );
     },
   );
+
+  /// «Не успеваю → обсуждение»: the person's own words go to the discussion
+  /// (the client sends them); here only the activity, the settled pending
+  /// confirmation and the author's notice are recorded. No revision: the
+  /// plan did not change, so concurrent editors and restores are unaffected.
+  Future<PlanSaveOutcome> _cantMakeChat({
+    required AttentionTransaction transaction,
+    required PlanRequestInfo request,
+    required BeaconPlanHead head,
+    required PlanStepRecord step,
+    required String actorId,
+    required String excerpt,
+  }) async {
+    final beaconId = request.beaconId;
+    await _repo.insertActivity(
+      beaconId: beaconId,
+      type: BeaconActivityEventTypeBits.planCantMake,
+      actorId: actorId,
+      stepId: step.id,
+      diff: {'option': PlanCantMakeOption.chat, 'title': step.title},
+    );
+    // Saying «Не успеваю» is a domain act: it settles the caller's own
+    // pending confirmation (request-attention §5).
+    await _repo.clearPending(beaconId, actorId);
+    // `change_seq` only (realtime refresh); `revision_seq` stays.
+    await _repo.touchHead(beaconId);
+    await _effects.reconcile(
+      transaction: transaction,
+      beaconId: beaconId,
+      actorId: actorId,
+    );
+    await _effects.afterCantMake(
+      transaction: transaction,
+      request: request,
+      actorId: actorId,
+      step: step,
+      option: PlanCantMakeOption.chat,
+      sourceEventKey:
+          'plan_cant_make:$beaconId:chat:${step.id}:${head.changeSeq + 1}',
+      excerpt: excerpt,
+    );
+    return PlanSaveOutcome(
+      kind: PlanSaveOutcomeKind.applied,
+      revisionSeq: head.revisionSeq,
+    );
+  }
 
   /// Removes [userId] as assignee from every live step of [beaconId] (they
   /// left the room, were removed or blocked). Runs inside the caller's
@@ -888,11 +815,11 @@ class BeaconPlanCase extends UseCaseBase {
   }) async {
     if (!env.planEnabled) return;
     final request = await _repo.requestInfo(beaconId);
-    if (request == null || request.kind != 0) return;
+    if (request == null || request.kind != BeaconKind.request) return;
     final head = await _repo.getHead(beaconId);
     if (head == null) return;
     await _closure.lockRequest(beaconId);
-    if (await _repo.isAdmitted(beaconId, userId)) return;
+    if (await _isAdmitted(beaconId, userId)) return;
     final locked = await _repo.lockHead(beaconId);
     final theirs = await _currentSnapshot(beaconId);
     if (!theirs.steps.any((s) => s.assigneeId == userId)) return;
@@ -930,17 +857,13 @@ class BeaconPlanCase extends UseCaseBase {
     Map<String, ({DateTime? startAt, DateTime? endAt})> stepTimes = const {},
   }) async {
     if (!env.planEnabled) return 0;
-    if (!await _repo.isAdmitted(sourceBeaconId, actorId)) return 0;
+    if (!await _isAdmitted(sourceBeaconId, actorId)) return 0;
     final source = await _repo.liveSteps(sourceBeaconId);
     if (source.isEmpty) return 0;
-    final sourceHead = await _repo.getHead(sourceBeaconId);
     final head = await _repo.lockHead(targetBeaconId);
     if (head.revisionSeq != 0) return 0;
-    final sourceIds = <String, String>{};
     final steps = <PlanStepSnapshot>[];
     for (final s in source) {
-      final id = newPlanStepId();
-      sourceIds[id] = s.id;
       final times = stepTimes[s.id];
       var start = times?.startAt?.toUtc();
       var end = times?.endAt?.toUtc();
@@ -951,7 +874,7 @@ class BeaconPlanCase extends UseCaseBase {
       }
       steps.add(
         PlanStepSnapshot(
-          id: id,
+          id: newPlanStepId(),
           title: s.title,
           description: s.description,
           startAt: start,
@@ -978,13 +901,11 @@ class BeaconPlanCase extends UseCaseBase {
       actorId: actorId,
       snapshot: snapshot,
       ackChangedIds: const {},
-      sourceItemIds: sourceIds,
     );
     await _repo.touchHead(targetBeaconId, revisionSeq: 1, editedById: actorId);
     await _repo.setCopiedFrom(
       beaconId: targetBeaconId,
       sourceBeaconId: sourceBeaconId,
-      sourceSeq: sourceHead?.revisionSeq ?? 0,
     );
     return steps.length;
   }
@@ -1040,12 +961,12 @@ class BeaconPlanCase extends UseCaseBase {
   }) async {
     if (!env.planEnabled) throw const PlanDisabledException();
     final first = await _repo.requestInfo(beaconId);
-    if (first == null || first.kind != 0) {
+    if (first == null || first.kind != BeaconKind.request) {
       throw const BeaconNotRequestException();
     }
     await _closure.lockRequest(beaconId);
     final request = (await _repo.requestInfo(beaconId))!;
-    final status = BeaconStatus.fromSmallint(request.status);
+    final status = request.status;
     final draftOk =
         allowDraft &&
         status == BeaconStatus.draft &&
@@ -1053,7 +974,7 @@ class BeaconPlanCase extends UseCaseBase {
     if (!status.allowsCoordination && !draftOk) {
       throw const PlanNotEditableException();
     }
-    if (!await _repo.isAdmitted(beaconId, actorId)) {
+    if (!await _isAdmitted(beaconId, actorId)) {
       throw const UnauthorizedException(description: 'Room access required');
     }
     return request;
@@ -1103,7 +1024,7 @@ class BeaconPlanCase extends UseCaseBase {
       final who = s.assigneeId;
       if (who == null || before[s.id]?.assigneeId == who) continue;
       if (!checked.add(who)) continue;
-      if (!await _repo.isAdmitted(beaconId, who)) {
+      if (!await _isAdmitted(beaconId, who)) {
         throw const PlanAssigneeNotAdmittedException();
       }
     }
@@ -1251,7 +1172,7 @@ class BeaconPlanCase extends UseCaseBase {
     try {
       draft = PlanSnapshot.fromJson(stepsJson);
     } on Object {
-      throw const PlanTooLargeException(description: 'Malformed plan');
+      throw const PlanInvalidException(description: 'Malformed plan');
     }
     _validateSnapshot(draft);
     return draft;
@@ -1264,11 +1185,11 @@ class BeaconPlanCase extends UseCaseBase {
     final seen = <String>{};
     for (final s in draft.steps) {
       if (!seen.add(s.id)) {
-        throw const PlanTooLargeException(description: 'Duplicate step id');
+        throw const PlanInvalidException(description: 'Duplicate step id');
       }
       final title = s.title.trim();
       if (title.isEmpty || title.length > BeaconPlanConsts.maxTitleLength) {
-        throw const PlanTooLargeException(description: 'Bad step title');
+        throw const PlanInvalidException(description: 'Bad step title');
       }
       if (s.description.length > BeaconPlanConsts.maxDescriptionLength) {
         throw const PlanTooLargeException(description: 'Description too long');
@@ -1276,7 +1197,7 @@ class BeaconPlanCase extends UseCaseBase {
       final start = s.startAt;
       final end = s.endAt;
       if (start != null && end != null && end.isBefore(start)) {
-        throw const PlanTooLargeException(description: 'End before start');
+        throw const PlanInvalidException(description: 'End before start');
       }
     }
   }

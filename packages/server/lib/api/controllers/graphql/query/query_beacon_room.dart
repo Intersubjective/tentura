@@ -1,7 +1,6 @@
 import 'package:tentura_server/domain/entity/beacon_activity_event_record.dart';
 import 'package:tentura_server/domain/entity/beacon_thread_record.dart';
 import 'package:tentura_server/domain/entity/room_read_watermark_record.dart';
-import 'package:tentura_server/domain/use_case/beacon_plan_case.dart';
 import 'package:tentura_server/domain/use_case/beacon_room_case.dart';
 
 import '../custom_types.dart';
@@ -9,18 +8,10 @@ import '../gql_nodel_base.dart';
 import '../input/_input_types.dart';
 
 final class QueryBeaconRoom extends GqlNodeBase {
-  QueryBeaconRoom({
-    BeaconRoomCase? beaconRoomCase,
-    BeaconPlanCase? beaconPlanCase,
-  }) : _case = beaconRoomCase ?? GetIt.I<BeaconRoomCase>(),
-       _planOverride = beaconPlanCase;
+  QueryBeaconRoom({BeaconRoomCase? beaconRoomCase})
+    : _case = beaconRoomCase ?? GetIt.I<BeaconRoomCase>();
 
   final BeaconRoomCase _case;
-
-  final BeaconPlanCase? _planOverride;
-
-  /// Request plan slices on the inbox batch (#220 §4.9); resolved on use.
-  BeaconPlanCase get _plan => _planOverride ?? GetIt.I<BeaconPlanCase>();
 
   final _beaconIdStr = InputFieldString(fieldName: 'beaconId');
 
@@ -117,17 +108,10 @@ final class QueryBeaconRoom extends GqlNodeBase {
         'InboxRoomContextBatch',
         GraphQLListType(gqlTypeInboxRoomContextRow.nonNullable()),
         arguments: [InputFieldBeaconIds.field],
-        resolve: (_, args) async {
-          final userId = getCredentials(args).sub;
-          return _plan.attachSlices(
-            viewerId: userId,
-            rows: await _case.inboxRoomContextBatch(
-              userId: userId,
-              beaconIds: InputFieldBeaconIds.fromArgs(args),
-            ),
-            setAtKey: kInboxRowCurrentLineSetAt,
-          );
-        },
+        resolve: (_, args) => _case.inboxRoomContextBatch(
+          userId: getCredentials(args).sub,
+          beaconIds: InputFieldBeaconIds.fromArgs(args),
+        ),
       );
 
   GraphQLObjectField<dynamic, dynamic> get myWorkLastActivityEvent =>
@@ -145,17 +129,17 @@ final class QueryBeaconRoom extends GqlNodeBase {
       );
 
   GraphQLObjectField<dynamic, dynamic> get beaconThreads => GraphQLObjectField(
-    'beaconThreads',
-    GraphQLListType(gqlTypeBeaconThreadRow.nonNullable()),
-    arguments: [_beaconIdStr.field],
-    resolve: (_, args) async {
-      final rows = await _case.listThreads(
-        beaconId: _beaconIdStr.fromArgsNonNullable(args),
-        userId: getCredentials(args).sub,
+        'beaconThreads',
+        GraphQLListType(gqlTypeBeaconThreadRow.nonNullable()),
+        arguments: [_beaconIdStr.field],
+        resolve: (_, args) async {
+          final rows = await _case.listThreads(
+            beaconId: _beaconIdStr.fromArgsNonNullable(args),
+            userId: getCredentials(args).sub,
+          );
+          return rows.map(beaconThreadRecordToMap).toList();
+        },
       );
-      return rows.map(beaconThreadRecordToMap).toList();
-    },
-  );
 
   GraphQLObjectField<dynamic, dynamic> get beaconRoomReadWatermarks =>
       GraphQLObjectField(

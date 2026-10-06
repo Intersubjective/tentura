@@ -1,10 +1,11 @@
 import 'package:injectable/injectable.dart';
-import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/domain/plan/plan.dart';
 
 import 'package:tentura_server/consts/beacon_plan_consts.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/beacon_plan.dart';
+import 'package:tentura_server/domain/port/beacon_hierarchy_command_port.dart';
 import 'package:tentura_server/domain/port/beacon_plan_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_notification_context_port.dart';
 import 'package:tentura_server/domain/port/closure_repository_port.dart';
@@ -39,6 +40,7 @@ import '_use_case_base.dart';
 class PlanAttentionCase extends UseCaseBase {
   PlanAttentionCase(
     this._repo,
+    this._admission,
     this._store,
     this._intents,
     this._attention,
@@ -49,11 +51,18 @@ class PlanAttentionCase extends UseCaseBase {
   });
 
   final BeaconPlanRepositoryPort _repo;
+
+  /// `beacon_effective_admission`: author, steward, accepted helper or
+  /// admitted room member, minus blocks.
+  final BeaconHierarchyCommandPort _admission;
   final PlanAttentionRepositoryPort _store;
   final AttentionIntentCase _intents;
   final TransactionalAttentionCase _attention;
   final ClosureRepositoryPort _closure;
   final BeaconRoomNotificationContextPort _context;
+
+  Future<bool> _isAdmitted(String beaconId, String userId) =>
+      _admission.effectiveAdmission(beaconId: beaconId, viewerId: userId);
 
   // ---------------------------------------------------------------- hooks
 
@@ -64,8 +73,7 @@ class PlanAttentionCase extends UseCaseBase {
     required String? actorId,
     required PlanRevisionRecord revision,
   }) async {
-    final status = BeaconStatus.fromSmallint(request.status);
-    if (status.allowsCoordination) {
+    if (request.status.allowsCoordination) {
       final pendingIds = await _renewPendingChanges(
         transaction: transaction,
         request: request,
@@ -80,17 +88,15 @@ class PlanAttentionCase extends UseCaseBase {
           revision: revision,
         );
       }
-      if (revision.kind != PlanRevisionKind.cantMakeChat) {
-        await _notifyRoom(
-          transaction: transaction,
-          request: request,
-          actorId: actorId,
-          eventType: AttentionEventType.planEdited,
-          sourceEventKey: 'plan_edited:${request.beaconId}:${revision.seq}',
-          collapseFamily: 'plan_edited',
-          skip: pendingIds,
-        );
-      }
+      await _notifyRoom(
+        transaction: transaction,
+        request: request,
+        actorId: actorId,
+        eventType: AttentionEventType.planEdited,
+        sourceEventKey: 'plan_edited:${request.beaconId}:${revision.seq}',
+        collapseFamily: 'plan_edited',
+        skip: pendingIds,
+      );
     }
     await reconcile(
       transaction: transaction,
@@ -142,19 +148,19 @@ class PlanAttentionCase extends UseCaseBase {
     actorId: userId,
   );
 
-  /// «Не успеваю» by the assignee ([actorId]) of [step]. The revision hook
-  /// already ran and reconciled; this tells the author.
+  /// «Не успеваю» by the assignee ([actorId]) of [step]. The caller already
+  /// reconciled; this tells the author. [sourceEventKey] is unique per act.
   Future<void> afterCantMake({
     required AttentionTransaction transaction,
     required PlanRequestInfo request,
     required String actorId,
     required PlanStepRecord step,
     required String option,
-    required int revisionSeq,
+    required String sourceEventKey,
     String excerpt = '',
   }) async {
     if (request.authorId == actorId) return;
-    if (!BeaconStatus.fromSmallint(request.status).allowsCoordination) return;
+    if (!request.status.allowsCoordination) return;
     await transaction.record(
       await _intents.planEvent(
         eventType: AttentionEventType.planCantMake,
@@ -162,7 +168,7 @@ class PlanAttentionCase extends UseCaseBase {
         beaconTitle: request.title,
         actorUserId: actorId,
         recipients: {request.authorId: AttentionRecipientReason.authorOfBeacon},
-        sourceEventKey: 'plan_cant_make:${request.beaconId}:$revisionSeq',
+        sourceEventKey: sourceEventKey,
         stepId: step.id,
         stepTitle: step.title,
       ),
@@ -180,9 +186,8 @@ class PlanAttentionCase extends UseCaseBase {
   }) async {
     await _closure.lockRequest(beaconId);
     final request = await _repo.requestInfo(beaconId);
-    if (request == null || request.kind != 0) return;
-    final status = BeaconStatus.fromSmallint(request.status);
-    if (status.isOpenFamily && env.planEnabled) {
+    if (request == null || request.kind != BeaconKind.request) return;
+    if (request.status.isOpenFamily && env.planEnabled) {
       await _attention.runAction<void>(
         actorUserId: actorId,
         action: (transaction) => reconcile(
@@ -215,12 +220,9 @@ class PlanAttentionCase extends UseCaseBase {
     final instant = (now ?? DateTime.timestamp()).toUtc();
     final live = await _store.liveObligations(beaconId);
     final request = await _repo.requestInfo(beaconId);
-    final status = request == null
-        ? BeaconStatus.deleted
-        : BeaconStatus.fromSmallint(request.status);
     if (request == null ||
-        request.kind != 0 ||
-        !status.allowsCoordination ||
+        request.kind != BeaconKind.request ||
+        !request.status.allowsCoordination ||
         !env.planEnabled) {
       await _store.settle(
         [for (final o in live) o.receiptId],
@@ -228,13 +230,14 @@ class PlanAttentionCase extends UseCaseBase {
       );
       return;
     }
+    final status = request.status;
 
     final steps = await _repo.liveSteps(beaconId);
     final stepsById = {for (final s in steps) s.id: s};
     final states = [for (final s in steps) s.state];
     final admitted = <String, bool>{};
     Future<bool> isAdmitted(String userId) async =>
-        admitted[userId] ??= await _repo.isAdmitted(beaconId, userId);
+        admitted[userId] ??= await _isAdmitted(beaconId, userId);
 
     // What each person owes now.
     final wantStep = <String, (String, AttentionEventType)>{};
@@ -356,7 +359,7 @@ class PlanAttentionCase extends UseCaseBase {
     for (final userId in affected) {
       final member = await _repo.getMember(request.beaconId, userId);
       if (member == null || !member.isPending) continue;
-      if (!await _repo.isAdmitted(request.beaconId, userId)) continue;
+      if (!await _isAdmitted(request.beaconId, userId)) continue;
       var stepTitle = '';
       for (final c in revision.changes) {
         final op = PlanChangeOp.fromWire(c['op'] as String?);

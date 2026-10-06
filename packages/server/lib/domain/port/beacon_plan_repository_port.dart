@@ -59,14 +59,12 @@ abstract interface class BeaconPlanRepositoryPort {
   /// Ordering is renumbered 1..n. Tick columns are never touched.
   ///
   /// [ackChangedIds] are steps whose title, time or assignee changed.
-  /// [sourceItemIds] maps new step ids to the steps they were copied from.
   Future<void> writeSteps({
     required String beaconId,
     required int seq,
     required String? actorId,
     required PlanSnapshot snapshot,
     required Set<String> ackChangedIds,
-    Map<String, String> sourceItemIds = const {},
   });
 
   /// Bumps `change_seq` (and sets `revision_seq` / editor when given); the
@@ -80,7 +78,6 @@ abstract interface class BeaconPlanRepositoryPort {
   Future<void> setCopiedFrom({
     required String beaconId,
     required String sourceBeaconId,
-    required int sourceSeq,
   });
 
   /// Ticks a live step; `false` when it was already ticked.
@@ -105,10 +102,6 @@ abstract interface class BeaconPlanRepositoryPort {
 
   /// Clears a pending «Понятно» without acknowledging (domain act or leave).
   Future<void> clearPending(String beaconId, String userId);
-
-  /// `beacon_effective_admission`: author, steward, accepted helper or
-  /// admitted room member, minus blocks.
-  Future<bool> isAdmitted(String beaconId, String userId);
 
   Future<Map<String, String>> displayNames(Iterable<String> userIds);
 
@@ -142,20 +135,6 @@ abstract interface class BeaconPlanRepositoryPort {
     Map<String, Object?>? diff,
   });
 
-  /// Live steps of Requests in [beaconIds] (batched, for My Work slices).
-  Future<Map<String, List<PlanStepRecord>>> liveStepsFor(
-    Iterable<String> beaconIds,
-  );
-
-  /// The «Понятно» ledgers of [userId] in [beaconIds].
-  Future<Map<String, PlanMemberRecord>> membersFor(
-    String userId,
-    Iterable<String> beaconIds,
-  );
-
-  /// Heads of [beaconIds].
-  Future<Map<String, BeaconPlanHead>> headsFor(Iterable<String> beaconIds);
-
   /// My Work / inbox plan slices (plan §4.9): status, live steps, head and
   /// the pending revisions of [userId] for every Request among [beaconIds],
   /// in **one** statement. Requests that do not exist or are not Requests
@@ -171,13 +150,11 @@ final class PlanTailMessage {
     required this.id,
     required this.createdAt,
     this.marker,
-    this.systemKind,
     this.payload,
   });
 
   final String id;
   final int? marker;
-  final int? systemKind;
   final DateTime createdAt;
   final Map<String, Object?>? payload;
 }
