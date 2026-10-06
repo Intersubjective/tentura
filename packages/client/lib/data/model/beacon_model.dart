@@ -30,8 +30,8 @@ extension type const BeaconModel(GBeaconModel i) implements GBeaconModel {
               long: i.long ?? 0,
             ),
       addressLabel: i.address_label,
-      rScore: i.scores?.firstOrNull?.src_score ?? 0,
-      score: i.scores?.firstOrNull?.dst_score ?? 0,
+      // No `score`/`rScore`: Requests are not MeritRank nodes, so asking
+      // Hasura's `scores` for them only made MeritRank log "Node not found".
       images: [
         for (final bi in i.beacon_images) (bi.image as ImageModel).asEntity,
       ],

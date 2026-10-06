@@ -36,10 +36,6 @@ fragment BeaconModel on beacon {
   author {
     ...UserModel
   }
-  scores {
-    src_score
-    dst_score
-  }
   help_offers_aggregate(where: { status: { _eq: 0 } }) {
     aggregate {
       count
