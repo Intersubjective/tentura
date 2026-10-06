@@ -101,10 +101,10 @@ void main() {
       );
     });
 
-    test('compatible baton release preserves the existing cutover floor', () {
-      // Baton enables an already compatible wire contract. Its client-only
-      // release must not force otherwise compatible 7.31.0 clients to update.
-      expect(kDefaultMinClientVersion, '7.31.0');
+    test('request plan release raises the floor to 7.33.0', () {
+      // Plan obligations (#220) need the Plan UI and «Понятно» to clear;
+      // older clients would receive obligations they cannot act on.
+      expect(kDefaultMinClientVersion, '7.33.0');
       expect(
         _compare(_shippedClientVersion(), kDefaultMinClientVersion),
         greaterThanOrEqualTo(0),

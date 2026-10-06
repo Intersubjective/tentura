@@ -682,16 +682,26 @@ class BeaconPlanCase extends UseCaseBase {
       final request = await _preflight(beaconId: beaconId, actorId: actorId);
       final head = await _repo.lockHead(beaconId);
       final upto = uptoSeq.clamp(0, head.revisionSeq);
-      final later = await _repo.listRevisions(
-        beaconId,
-        afterSeq: upto,
-        limit: 500,
-      );
+      // Oldest first, one seq window at a time: a single newest-first page
+      // would skip the earliest revisions after [upto] on long histories.
+      const window = 500;
       int? nextPending;
-      for (final r in later.reversed) {
-        if (r.actorId != actorId && r.affectedUserIds.contains(actorId)) {
-          nextPending = r.seq;
-          break;
+      for (
+        var from = upto;
+        nextPending == null && from < head.revisionSeq;
+        from += window
+      ) {
+        final later = await _repo.listRevisions(
+          beaconId,
+          afterSeq: from,
+          beforeSeq: from + window + 1,
+          limit: window,
+        );
+        for (final r in later.reversed) {
+          if (r.actorId != actorId && r.affectedUserIds.contains(actorId)) {
+            nextPending = r.seq;
+            break;
+          }
         }
       }
       await _repo.writeAck(
