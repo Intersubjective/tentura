@@ -16,5 +16,6 @@ query InboxRoomContextBatch($beaconIds: [String!]!) {
     openBlockerCreatorImageId
     openBlockerCreatorHasPicture
     publicFactSnippet
+    planSliceJson
   }
 }

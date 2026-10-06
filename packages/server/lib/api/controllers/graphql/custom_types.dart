@@ -100,6 +100,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlEnumClosureRole,
   gqlInputClosureSplitEntry,
   gqlInputRoomBatonCandidate,
+  gqlInputPlanStepTime,
   gqlTypeClosureMember,
   gqlTypeClosureOutcomeEntry,
   gqlTypeClosureSplitEntry,
@@ -561,18 +562,17 @@ final gqlTypeBeaconParticipantRow =
       ]);
 
 /// Peer read watermark for BeaconRoomReadWatermarks (V2 only).
-final gqlTypeRoomReadWatermark =
-    GraphQLObjectType('v2_RoomReadWatermark', null)
-      ..fields.addAll([
-        field('userId', graphQLString.nonNullable()),
-        field('lastSeenAt', graphQLString.nonNullable()),
-        field('userTitle', graphQLString.nonNullable()),
-        field('userHasPicture', graphQLBoolean.nonNullable()),
-        field('userImageId', graphQLString.nonNullable()),
-        field('userBlurHash', graphQLString.nonNullable()),
-        field('userPicHeight', graphQLInt.nonNullable()),
-        field('userPicWidth', graphQLInt.nonNullable()),
-      ]);
+final gqlTypeRoomReadWatermark = GraphQLObjectType('v2_RoomReadWatermark', null)
+  ..fields.addAll([
+    field('userId', graphQLString.nonNullable()),
+    field('lastSeenAt', graphQLString.nonNullable()),
+    field('userTitle', graphQLString.nonNullable()),
+    field('userHasPicture', graphQLBoolean.nonNullable()),
+    field('userImageId', graphQLString.nonNullable()),
+    field('userBlurHash', graphQLString.nonNullable()),
+    field('userPicHeight', graphQLInt.nonNullable()),
+    field('userPicWidth', graphQLInt.nonNullable()),
+  ]);
 
 /// `beacon_fact_card` projection for BeaconFactCardList (V2 only).
 final gqlTypeBeaconFactCardRow = GraphQLObjectType('BeaconFactCardRow', null)
@@ -660,6 +660,9 @@ final gqlTypeInboxRoomContextRow =
         field('openBlockerCreatorImageId', graphQLString),
         field('openBlockerCreatorHasPicture', graphQLBoolean),
         field('publicFactSnippet', graphQLString),
+        // Request plan («либретто», #220) slice of the viewer (plan §4.9):
+        // {done,total,overdueMine,current,alsoActive,next,pendingAck,now}.
+        field('planSliceJson', graphQLString),
       ]);
 
 /// Result of marking a beacon room (or thread) as seen.
@@ -1675,6 +1678,17 @@ final gqlInputRoomBatonCandidate = GraphQLInputObjectType(
   ],
 );
 
+/// Request plan (#220) fork copy: the new time of one source step, computed
+/// by the client in the viewer's zone (plan §4.10, §5.11).
+final gqlInputPlanStepTime = GraphQLInputObjectType(
+  'PlanStepTimeInput',
+  inputFields: [
+    GraphQLInputObjectField('sourceStepId', graphQLString.nonNullable()),
+    GraphQLInputObjectField('startAt', graphQLString),
+    GraphQLInputObjectField('endAt', graphQLString),
+  ],
+);
+
 final gqlInputClosureSplitEntry = GraphQLInputObjectType(
   'ClosureSplitEntryInput',
   inputFields: [
@@ -1764,12 +1778,10 @@ final gqlTypeClosureResult =
         field('story', graphQLString),
       ]);
 
-final gqlTypeClosureToggleResult =
-    GraphQLObjectType(
-        'ClosureToggleResult',
-        null,
-      )
-      ..fields.add(field('released', graphQLString));
+final gqlTypeClosureToggleResult = GraphQLObjectType(
+  'ClosureToggleResult',
+  null,
+)..fields.add(field('released', graphQLString));
 
 /// Open Post conversation preview for the authenticated viewer.
 final gqlTypePostSummary = GraphQLObjectType('PostSummary', null)

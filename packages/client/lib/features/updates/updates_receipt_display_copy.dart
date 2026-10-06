@@ -4,6 +4,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/attention/attention_event_classification.dart';
+import 'package:tentura/domain/attention/plan_receipt_event_type.dart';
 import 'package:tentura/features/beacon_view/domain/beacon_status_menu_presenter.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
@@ -301,6 +302,38 @@ UpdatesFeedRowCopy? batonReceiptDisplayCopy({
   };
 }
 
+/// Plan receipt copy: the event in the viewer's locale, and the step title
+/// the server carries as `excerpt`. No clock times (plan K16): the row's own
+/// age label is the only time shown. The actor's name is left to the row's
+/// own prefix, so the headline never repeats it.
+UpdatesFeedRowCopy? planReceiptDisplayCopy({
+  required String? presentationKey,
+  required String presentationPayloadJson,
+  required L10n l10n,
+}) {
+  final type = planReceiptEventType(
+    presentationKey: presentationKey,
+    presentationPayloadJson: presentationPayloadJson,
+  );
+  if (type == null) return null;
+  final headline = switch (type) {
+    'planStepDue' => l10n.planReceiptStepDue,
+    'planStepTurn' => l10n.planReceiptStepTurn,
+    'planChangePending' => l10n.planReceiptChangePending,
+    'planStepReminder' => l10n.planReceiptStepReminder,
+    'planStepOverdue' => l10n.planReceiptStepOverdue,
+    'planStepLate' => l10n.planReceiptStepLate,
+    'planCantMake' => l10n.planReceiptCantMake,
+    'planStepUnassigned' => l10n.planReceiptStepUnassigned,
+    'planEdited' => l10n.planReceiptEdited,
+    _ => l10n.planReceiptStepDone,
+  };
+  return UpdatesFeedRowCopy(
+    headline: headline,
+    body: excerptFromPresentationPayload(presentationPayloadJson) ?? '',
+  );
+}
+
 /// Maps server title/body + payload into a non-duplicating two-line row.
 UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
   required String title,
@@ -320,6 +353,20 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
     actorName: actorName,
   );
   if (baton != null) return baton;
+  final plan = planReceiptDisplayCopy(
+    presentationKey: presentationKey,
+    presentationPayloadJson: presentationPayloadJson,
+    l10n: l10n,
+  );
+  if (plan != null) {
+    final override = headlineOverride?.trim();
+    return UpdatesFeedRowCopy(
+      headline: override != null && override.isNotEmpty
+          ? override
+          : plan.headline,
+      body: plan.body,
+    );
+  }
   final fallback = resolveUpdatesReceiptDisplayCopy(
     title: title,
     body: body,
@@ -485,6 +532,14 @@ RequestScopedEventCopy requestScopedEventCopy({
   );
   if (baton != null) {
     return RequestScopedEventCopy(event: baton.headline, excerpt: baton.body);
+  }
+  final plan = planReceiptDisplayCopy(
+    presentationKey: presentationKey,
+    presentationPayloadJson: presentationPayloadJson,
+    l10n: l10n,
+  );
+  if (plan != null) {
+    return RequestScopedEventCopy(event: plan.headline, excerpt: plan.body);
   }
   final requestTitles = {
     ?_nonBlank(requestTitle),

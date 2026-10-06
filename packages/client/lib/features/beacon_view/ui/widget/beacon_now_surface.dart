@@ -17,7 +17,13 @@ import 'package:tentura/features/beacon_view/ui/widget/beacon_current_line_sheet
 import 'package:tentura/features/beacon_view/ui/widget/beacon_pinned_facts_sheet.dart';
 import 'package:tentura/features/beacon_view/ui/widget/declined_offer_notice.dart';
 import 'package:tentura/features/beacon_view/ui/presenter/beacon_hud_author_action.dart';
+import 'package:tentura/features/beacon_plan/ui/bloc/plan_cubit.dart';
+import 'package:tentura/features/beacon_plan/ui/util/plan_presenter.dart';
+import 'package:tentura/features/beacon_plan/ui/widget/plan_boundary_ticker.dart';
+import 'package:tentura/features/beacon_plan/ui/widget/plan_step_sheet.dart';
+import 'package:tentura/features/beacon_view/ui/util/beacon_plan_people.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_hud_pinned_block.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_hud_plan_rows.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_hud_sections.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_details_sheet.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
@@ -36,6 +42,7 @@ class BeaconNowSurface extends StatefulWidget {
     required this.onActivatePeopleTabAttention,
     required this.onFocusCoordinationItem,
     required this.onOpenGeneralThread,
+    this.onPlanCantMakeChat,
     super.key,
   });
 
@@ -46,6 +53,9 @@ class BeaconNowSurface extends StatefulWidget {
   final VoidCallback onActivatePeopleTabAttention;
   final void Function(CoordinationItem item) onFocusCoordinationItem;
   final VoidCallback onOpenGeneralThread;
+
+  /// «Не успеваю → написать в обсуждении» (#220).
+  final PlanCantMakeChatCallback? onPlanCantMakeChat;
 
   @override
   State<BeaconNowSurface> createState() => _BeaconNowSurfaceState();
@@ -88,6 +98,69 @@ class _BeaconNowSurfaceState extends State<BeaconNowSurface> {
           ),
         )
       : null;
+
+  /// Builds the pinned block with the plan when the viewer is inside the
+  /// Request and the plan is on; the ticker moves it by the clock.
+  Widget _withPlan(
+    BuildContext context,
+    BeaconViewState state,
+    Widget Function(BeaconHudPlanData? plan) build,
+  ) {
+    final planCubit = context.read<PlanCubit?>();
+    if (planCubit == null || state.isRoomAdmissionBlocked) {
+      return build(null);
+    }
+    return BlocBuilder<PlanCubit, PlanState>(
+      bloc: planCubit,
+      builder: (context, planState) {
+        final plan = planState.plan;
+        if (plan == null) return build(null);
+        final people = PlanPeople(
+          admitted: beaconPlanAdmittedPeople(state),
+          names: plan.names,
+        );
+        return PlanBoundaryTicker(
+          plan: plan,
+          builder: (context, now) => build(
+            BeaconHudPlanData(
+              plan: plan,
+              viewerId: planState.viewerId,
+              now: now,
+              people: people,
+              busyStepIds: planState.busyStepIds,
+              onToggleDone: plan.tickable
+                  ? (id) => unawaited(planCubit.toggleDone(id))
+                  : null,
+              onAck: () => unawaited(planCubit.ack()),
+              onCantMake: plan.tickable
+                  ? (step) => unawaited(
+                      showPlanCantMakeSheet(
+                        context,
+                        cubit: planCubit,
+                        step: step,
+                        people: people,
+                        onOpenDiscussion: onOpenGeneralThread,
+                        onCantMakeChat: widget.onPlanCantMakeChat,
+                      ),
+                    )
+                  : null,
+              onOpenStep: (id) => unawaited(
+                showPlanStepSheet(
+                  context,
+                  cubit: planCubit,
+                  stepId: id,
+                  people: people,
+                  onOpenDiscussion: onOpenGeneralThread,
+                  onCantMakeChat: widget.onPlanCantMakeChat,
+                ),
+              ),
+              onOpenPlan: () => onSurfaceSelected(BeaconSurface.plan),
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   Future<void> _runOfferHelpFlow(BuildContext context, L10n l10n) async {
     await beaconViewRunInitialHelpOfferDialog(
@@ -172,21 +245,26 @@ class _BeaconNowSurfaceState extends State<BeaconNowSurface> {
             BlocBuilder<BeaconHierarchyCubit, BeaconHierarchyState>(
               buildWhen: (p, c) =>
                   p.active.items.length != c.active.items.length,
-              builder: (context, hierarchyState) => BeaconHudPinnedBlock(
-                state: state,
-                subrequestCount: admitted
-                    ? hierarchyState.active.items.length
-                    : 0,
-                onEditStep: _editStepAction(context, state),
-                onReviewAuthorOffers: authorHudAction == null
-                    ? null
-                    : () => authorHudAction(
-                        BeaconHudAuthorAction.reviewOffers,
-                      ),
-                onOpenTeam: () => onSurfaceSelected(BeaconSurface.people),
-                onOpenSubrequests: () => _scrollTo(_subrequestsKey),
-                onOpenFacts: () => unawaited(
-                  showBeaconPinnedFactsSheet(context, cubit: beaconViewCubit),
+              builder: (context, hierarchyState) => _withPlan(
+                context,
+                state,
+                (plan) => BeaconHudPinnedBlock(
+                  state: state,
+                  plan: plan,
+                  subrequestCount: admitted
+                      ? hierarchyState.active.items.length
+                      : 0,
+                  onEditStep: _editStepAction(context, state),
+                  onReviewAuthorOffers: authorHudAction == null
+                      ? null
+                      : () => authorHudAction(
+                          BeaconHudAuthorAction.reviewOffers,
+                        ),
+                  onOpenTeam: () => onSurfaceSelected(BeaconSurface.people),
+                  onOpenSubrequests: () => _scrollTo(_subrequestsKey),
+                  onOpenFacts: () => unawaited(
+                    showBeaconPinnedFactsSheet(context, cubit: beaconViewCubit),
+                  ),
                 ),
               ),
             ),

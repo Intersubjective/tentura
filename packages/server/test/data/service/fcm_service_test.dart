@@ -50,6 +50,51 @@ void main() {
         });
       });
 
+      test('plan push: actions JSON, token, tag, feedback, TTL and Urgency '
+          '(#220 §5.9)', () {
+        final payload = buildFcmMessagePayload(
+          fcmToken: 'tok-1',
+          ttlInSeconds: 3600,
+          message: const FcmNotificationEntity(
+            title: 'Ваш шаг начался',
+            body: 'Грядки — Привезти доски',
+            beaconId: 'B1',
+            stepId: 'PS000000000001',
+            actions: [
+              FcmNotificationAction(id: 'done', title: 'Готово'),
+              FcmNotificationAction(id: 'open', title: 'Открыть'),
+            ],
+            actionToken: 'signed',
+            actionFeedback: FcmActionFeedback(
+              done: 'Отмечено',
+              ack: 'Подтверждено',
+              failed: 'Не получилось — откройте шаг',
+            ),
+            tag: 'plan:PS000000000001',
+            ttlSeconds: 900,
+            urgency: 'high',
+          ),
+        );
+
+        final message = payload['message']! as Map<String, Object?>;
+        final data = message['data']! as Map<String, Object?>;
+        expect(data['stepId'], 'PS000000000001');
+        expect(data['tag'], 'plan:PS000000000001');
+        expect(data['actionToken'], 'signed');
+        expect(
+          data['actions'],
+          '[{"id":"done","title":"Готово"},{"id":"open","title":"Открыть"}]',
+        );
+        expect(data['actionDoneText'], 'Отмечено');
+        expect(data['actionAckText'], 'Подтверждено');
+        expect(data['actionFailedText'], 'Не получилось — откройте шаг');
+        expect(data.values, everyElement(isA<String>()));
+        expect(message['android'], {'ttl': '900s'});
+        expect(message['webpush'], {
+          'headers': {'TTL': '900', 'Urgency': 'high'},
+        });
+      });
+
       test('omits optional data fields entirely when absent, rather than '
           'sending null', () {
         final payload = buildFcmMessagePayload(
@@ -84,8 +129,10 @@ void main() {
       expect(extractFcmErrorCode(body), 'THIRD_PARTY_AUTH_ERROR');
     });
 
-    test('returns null for a 401 with no FcmError detail (bad access token)', () {
-      const body = '''
+    test(
+      'returns null for a 401 with no FcmError detail (bad access token)',
+      () {
+        const body = '''
 {
   "error": {
     "code": 401,
@@ -95,8 +142,9 @@ void main() {
 }
 ''';
 
-      expect(extractFcmErrorCode(body), isNull);
-    });
+        expect(extractFcmErrorCode(body), isNull);
+      },
+    );
 
     test('returns null for a detail list without an FcmError entry', () {
       const body = '''

@@ -50,6 +50,32 @@ NotificationCategory categoryOf(NotificationKind kind) => switch (kind) {
   NotificationKind.deadlineReminder => NotificationCategory.asksOfMe,
   NotificationKind.inviteAccepted => NotificationCategory.connections,
   NotificationKind.roomActivityLowPriority => NotificationCategory.ambient,
+  NotificationKind.planStepDue ||
+  NotificationKind.planChangePending ||
+  NotificationKind.planStepReminder ||
+  NotificationKind.planStepOverdue => NotificationCategory.asksOfMe,
+  NotificationKind.planStepTurn => NotificationCategory.unblocksMe,
+  NotificationKind.planStepLate ||
+  NotificationKind.planCantMake ||
+  NotificationKind.planStepUnassigned => NotificationCategory.coordination,
+  NotificationKind.planEdited ||
+  NotificationKind.planStepDone => NotificationCategory.ambient,
+};
+
+/// Kinds that never trigger an immediate email even in [NotificationCategory]
+/// `asksOfMe` (plan K15): a reminder or an overdue nudge is only useful as a
+/// push, and an email minutes later would be noise.
+const kNoImmediateEmailKinds = <NotificationKind>{
+  NotificationKind.planStepReminder,
+  NotificationKind.planStepOverdue,
+};
+
+/// Kinds left out of the email digest: time-bound nudges and plan hum.
+const kNoDigestKinds = <NotificationKind>{
+  NotificationKind.planStepReminder,
+  NotificationKind.planStepOverdue,
+  NotificationKind.planEdited,
+  NotificationKind.planStepDone,
 };
 
 /// Parse a category from its persisted name, or null if unknown.

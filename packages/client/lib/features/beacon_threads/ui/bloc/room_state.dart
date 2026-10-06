@@ -54,6 +54,12 @@ abstract class RoomState extends StateBase with _$RoomState {
     /// only after a successful send, like [replyTarget].
     QuotedFact? pendingQuotedFact,
 
+    /// Text to put into the composer (another surface asked for it, e.g.
+    /// plan «Не успеваю»); [composerPrefillSeq] bumps per request. Cleared
+    /// once the composer has taken it.
+    String? composerPrefill,
+    @Default(0) int composerPrefillSeq,
+
     /// Off-window jump targets merged into [messages]; excluded from unread.
     @Default(<String>[]) List<String> pinnedJumpMessageIds,
     String? scrollToMessageId,

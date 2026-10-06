@@ -19,6 +19,7 @@ import 'controllers/invite_preview_controller.dart';
 import 'controllers/qa_email_sink_controller.dart';
 import 'controllers/qa_integration_controller.dart';
 import 'controllers/qa_send_fcm_controller.dart';
+import 'controllers/push_action_controller.dart';
 import 'controllers/room_attachment_download_controller.dart';
 import 'controllers/session_controller.dart';
 import 'http/request_log_sanitizer.dart';
@@ -45,6 +46,7 @@ class RootRouter {
     this._qaIntegrationController,
     this._qaSendFcmController,
     this._unsubscribeController,
+    this._pushActionController,
   );
 
   final Env _env;
@@ -82,6 +84,8 @@ class RootRouter {
   final QaSendFcmController _qaSendFcmController;
 
   final UnsubscribeController _unsubscribeController;
+
+  final PushActionController _pushActionController;
 
   Handler routeHandler() {
     final router = Router().plus
@@ -195,6 +199,10 @@ class RootRouter {
         '/email/unsubscribe',
         _unsubscribeController.post,
       )
+      // Plan push buttons (#220 §5.9): the signed action token is the only
+      // credential, so no auth middleware.
+      ..post(PushActionController.path, _pushActionController.post)
+      ..get(PushActionController.path, _pushActionController.methodNotAllowed)
       ..post(
         '/api/v2/invite/<code>/accept-as-existing',
         _inviteAcceptExistingController.handler,

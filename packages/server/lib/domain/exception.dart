@@ -637,3 +637,118 @@ String _constellationDescription(ConstellationExceptionCode code) =>
       ConstellationExceptionCode.targetUnavailable =>
         'Constellation anchor target unavailable',
     };
+
+/// Plan («либретто», #220): save/restore base is stale and both sides changed
+/// the same steps ([conflictStepIds]), or a restore lost the CAS race.
+final class PlanEditConflictException extends ExceptionBase {
+  const PlanEditConflictException({
+    required this.currentSeq,
+    this.conflictStepIds = const [],
+    String? description,
+  }) : super(
+         code: const BeaconExceptionCodes(BeaconExceptionCode.planEditConflict),
+         description: description ?? 'Plan was edited concurrently',
+       );
+
+  final int currentSeq;
+
+  final List<String> conflictStepIds;
+
+  Map<String, Object> get extensions => {
+    'code': '${code.codeNumber}',
+    'path': path,
+    'currentSeq': currentSeq,
+    'conflictStepIds': conflictStepIds,
+  };
+
+  @override
+  Map<String, Object> get toMap => {
+    'message': description,
+    'extensions': extensions,
+  };
+}
+
+final class PlanStepNotFoundException extends ExceptionBase {
+  const PlanStepNotFoundException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(BeaconExceptionCode.planStepNotFound),
+        description: description ?? 'Plan step not found',
+      );
+}
+
+/// The Request is not in a state that allows plan writes (closed, cancelled,
+/// deleted, a Post, or a draft that is not the author's fork copy).
+final class PlanNotEditableException extends ExceptionBase {
+  const PlanNotEditableException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(BeaconExceptionCode.planNotEditable),
+        description: description ?? 'The plan of this request is read-only',
+      );
+}
+
+/// A one-tap action (push button, «Понятно», «Не успеваю») refers to a state
+/// that has moved on: the step was reassigned, removed or already changed.
+final class PlanActionStaleException extends ExceptionBase {
+  const PlanActionStaleException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(BeaconExceptionCode.planActionStale),
+        description: description ?? 'The plan has changed since',
+      );
+}
+
+final class PlanRestoreSourceMissingException extends ExceptionBase {
+  const PlanRestoreSourceMissingException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(
+          BeaconExceptionCode.planRestoreSourceMissing,
+        ),
+        description: description ?? 'Plan revision not found',
+      );
+}
+
+final class PlanRateLimitedException extends ExceptionBase {
+  const PlanRateLimitedException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(BeaconExceptionCode.planRateLimited),
+        description: description ?? 'Too many plan edits, try again shortly',
+      );
+}
+
+final class PlanAssigneeNotAdmittedException extends ExceptionBase {
+  const PlanAssigneeNotAdmittedException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(
+          BeaconExceptionCode.planAssigneeNotAdmitted,
+        ),
+        description:
+            description ?? 'Steps can only be assigned to admitted people',
+      );
+}
+
+/// The plan exceeds a size limit: steps, description or comment length.
+final class PlanTooLargeException extends ExceptionBase {
+  const PlanTooLargeException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(BeaconExceptionCode.planTooLarge),
+        description: description ?? 'The plan exceeds its limits',
+      );
+}
+
+final class PlanDisabledException extends ExceptionBase {
+  const PlanDisabledException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(BeaconExceptionCode.planDisabled),
+        description: description ?? 'Request plans are not enabled',
+      );
+}
+
+/// A plan draft that is not well-formed: unparsable, a duplicate step id, an
+/// empty or too long title, an end before its start (size limits are
+/// [PlanTooLargeException]).
+final class PlanInvalidException extends ExceptionBase {
+  const PlanInvalidException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(BeaconExceptionCode.planInvalid),
+        description: description ?? 'The plan is not valid',
+      );
+}

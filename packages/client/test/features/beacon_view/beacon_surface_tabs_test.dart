@@ -130,10 +130,10 @@ Widget _harness({
 }
 
 void main() {
-  testWidgets('People is labeled at index 2 when not split', (tester) async {
+  testWidgets('People is labeled at index 3 when not split', (tester) async {
     await tester.pumpWidget(
       _harness(
-        width: 360,
+        width: 480,
         child: BeaconSurfaceTabs(
           isSplit: false,
           selectedSurface: BeaconSurface.now,
@@ -144,6 +144,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('Now'), findsOneWidget);
+    expect(find.text('Plan'), findsOneWidget);
     expect(find.text('Chat'), findsOneWidget);
     expect(find.text('People'), findsOneWidget);
   });
@@ -172,7 +173,7 @@ void main() {
     final selected = <BeaconSurface>[];
     await tester.pumpWidget(
       _harness(
-        width: 360,
+        width: 480,
         child: BeaconSurfaceTabs(
           isSplit: false,
           selectedSurface: BeaconSurface.now,
@@ -189,6 +190,14 @@ void main() {
     await tester.tap(find.byIcon(Icons.people_outline));
     await tester.pump();
     expect(selected, [BeaconSurface.room, BeaconSurface.people]);
+
+    await tester.tap(find.text('Plan'));
+    await tester.pump();
+    expect(selected, [
+      BeaconSurface.room,
+      BeaconSurface.people,
+      BeaconSurface.plan,
+    ]);
   });
 
   testWidgets('selected-but-hidden ROOM falls back to NOW index', (
@@ -254,7 +263,7 @@ void main() {
     expect(find.text('2'), findsOneWidget);
   });
 
-  testWidgets('all three tabs share the width in non-split mode', (
+  testWidgets('all four tabs share the width in non-split mode', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -278,9 +287,10 @@ void main() {
         )
         .map((box) => box.size.width)
         .toList();
-    expect(widths, hasLength(3));
+    expect(widths, hasLength(4));
     expect(widths[0], closeTo(widths[1], 0.01));
     expect(widths[1], closeTo(widths[2], 0.01));
+    expect(widths[2], closeTo(widths[3], 0.01));
   });
 
   testWidgets('reselecting the active tab calls onSurfaceReselected', (
@@ -289,7 +299,7 @@ void main() {
     final reselected = <BeaconSurface>[];
     await tester.pumpWidget(
       _harness(
-        width: 360,
+        width: 480,
         child: BeaconSurfaceTabs(
           isSplit: false,
           selectedSurface: BeaconSurface.room,

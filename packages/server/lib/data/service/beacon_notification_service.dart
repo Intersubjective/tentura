@@ -12,12 +12,16 @@ import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/entity/notification_priority.dart';
 import 'package:tentura_server/domain/notification/beacon_notification_copy_builder.dart';
 import 'package:tentura_server/domain/notification/notification_preference_gate.dart';
+import 'package:tentura_server/domain/notification/plan_push_policy.dart';
+import 'package:tentura_server/domain/plan/push_action.dart';
 import 'package:tentura_server/domain/port/beacon_notification_port.dart';
+import 'package:tentura_server/domain/port/beacon_plan_repository_port.dart';
 import 'package:tentura_server/domain/port/email_notification_port.dart';
 import 'package:tentura_server/domain/port/fcm_batch_queue_port.dart';
 import 'package:tentura_server/domain/port/fcm_remote_repository_port.dart';
 import 'package:tentura_server/domain/port/fcm_token_repository_port.dart';
 import 'package:tentura_server/domain/port/notification_preference_repository_port.dart';
+import 'package:tentura_server/domain/port/push_action_token_port.dart';
 
 @LazySingleton(as: BeaconNotificationPort)
 class BeaconNotificationService implements BeaconNotificationPort {
@@ -27,8 +31,11 @@ class BeaconNotificationService implements BeaconNotificationPort {
     this._fcmRemote,
     this._preferences,
     this._emailNotification,
-    this._logger,
-  );
+    this._logger, {
+    PushActionTokenPort? pushActionTokens,
+    BeaconPlanRepositoryPort? planRepository,
+  }) : _pushActionTokens = pushActionTokens,
+       _planRepository = planRepository;
 
   final FcmBatchQueuePort _fcmBatch;
   final FcmTokenRepositoryPort _fcmTokens;
@@ -36,6 +43,13 @@ class BeaconNotificationService implements BeaconNotificationPort {
   final NotificationPreferenceRepositoryPort _preferences;
   final EmailNotificationPort _emailNotification;
   final Logger _logger;
+
+  /// Signs plan push buttons (#220 §5.9); without it plan pushes carry no
+  /// buttons and a tap opens the step.
+  final PushActionTokenPort? _pushActionTokens;
+
+  /// Reads the plan head a «Понятно» button confirms up to.
+  final BeaconPlanRepositoryPort? _planRepository;
 
   static const _copyBuilder = BeaconNotificationCopyBuilder();
   static const _gate = NotificationPreferenceGate();
@@ -84,7 +98,18 @@ class BeaconNotificationService implements BeaconNotificationPort {
       }
 
       var pushDelivered = false;
-      if (pushAllowed) {
+      if (pushAllowed && isPlanObligationPushKind(decision.kind)) {
+        // Plan obligations go out at once, one notification per step, with
+        // their own buttons — never coalesced by the batch queue (§5.9).
+        pushDelivered = await _sendPlanDirect(
+          decision: decision,
+          intent: intent,
+          copy: preferences.lockScreenSafe
+              ? _copyBuilder.lockScreenSafe(intent)
+              : fullCopy,
+          locale: preferences.locale,
+        );
+      } else if (pushAllowed) {
         pushDelivered = await _enqueue(
           receiverId: decision.recipientId,
           intent: intent,
@@ -192,6 +217,76 @@ class BeaconNotificationService implements BeaconNotificationPort {
     );
   }
 
+  /// Sends a plan obligation push directly (bypassing [FcmBatchQueuePort])
+  /// with its buttons and signed action token. Returns whether a device
+  /// token existed.
+  Future<bool> _sendPlanDirect({
+    required AttentionChannelDecision decision,
+    required BeaconNotificationIntent intent,
+    required BeaconNotificationCopy copy,
+    required String locale,
+  }) async {
+    final tokens = await _fcmTokens.getTokensByUserId(decision.recipientId);
+    if (tokens.isEmpty) {
+      _logDispatch(
+        intent: intent,
+        receiverUserId: decision.recipientId,
+        actorUserId: intent.actorUserId,
+        reason: decision.reason,
+        hasToken: false,
+        queuedOrDirect: 'skipped',
+        coalescedCount: 0,
+      );
+      return false;
+    }
+    final beaconId = decision.beaconId ?? '';
+    final stepId = decision.coordinationItemId;
+    final buttons = await planPushButtons(
+      kind: decision.kind,
+      recipientId: decision.recipientId,
+      beaconId: beaconId,
+      stepId: stepId,
+      locale: locale,
+      tokens: _pushActionTokens,
+      planRepository: _planRepository,
+    );
+    _logDispatch(
+      intent: intent,
+      receiverUserId: decision.recipientId,
+      actorUserId: intent.actorUserId,
+      reason: decision.reason,
+      hasToken: true,
+      queuedOrDirect: 'direct',
+      coalescedCount: 1,
+    );
+    unawaited(
+      _fcmRemote.sendChatNotification(
+        fcmTokens: tokens.map((token) => token.token).toSet(),
+        message: FcmNotificationEntity(
+          title: copy.title,
+          body: copy.body,
+          actionUrl: copy.actionUrl,
+          beaconId: beaconId,
+          coordinationItemId: stepId,
+          kind: decision.kind,
+          priority: decision.priority,
+          stepId: stepId,
+          actions: buttons.actions,
+          actionToken: buttons.token,
+          actionFeedback: buttons.actions.isEmpty
+              ? null
+              : planPushFeedback(locale),
+          tag: stepId != null && stepId.isNotEmpty
+              ? 'plan:$stepId'
+              : 'plan:$beaconId',
+          ttlSeconds: planPushTtlSeconds(decision.kind),
+          urgency: 'high',
+        ),
+      ),
+    );
+    return true;
+  }
+
   /// Enqueues a push for [receiverId]. Returns whether it was actually
   /// delivered (a device token existed) — used to decide the email fallback.
   Future<bool> _enqueue({
@@ -264,4 +359,46 @@ class BeaconNotificationService implements BeaconNotificationPort {
       'queuedOrDirect=$queuedOrDirect coalescedCount=$coalescedCount',
     );
   }
+}
+
+/// Buttons of one plan push and the token behind them.
+typedef PlanPushButtons = ({
+  List<FcmNotificationAction> actions,
+  String? token,
+});
+
+/// Buttons of a plan push ([planPushActionFor] decides which) and the token
+/// that authorizes them; «Понятно» confirms up to the current plan head. No
+/// token signer → no buttons.
+Future<PlanPushButtons> planPushButtons({
+  required NotificationKind kind,
+  required String recipientId,
+  required String beaconId,
+  required String? stepId,
+  required String locale,
+  required PushActionTokenPort? tokens,
+  required BeaconPlanRepositoryPort? planRepository,
+}) async {
+  const none = (actions: <FcmNotificationAction>[], token: null);
+  if (tokens == null || beaconId.isEmpty) return none;
+  final action = planPushActionFor(kind: kind, stepId: stepId);
+  if (action == null) return none;
+  int? seq;
+  if (action == PushAction.ack) {
+    final head = await planRepository?.getHead(beaconId);
+    if (head == null) return none;
+    seq = head.revisionSeq;
+  }
+  return (
+    actions: planPushButtonsFor(action, locale),
+    token: tokens.sign(
+      PushActionClaims(
+        accountId: recipientId,
+        action: action,
+        beaconId: beaconId,
+        stepId: action == PushAction.done ? stepId : null,
+        seq: seq,
+      ),
+    ),
+  );
 }

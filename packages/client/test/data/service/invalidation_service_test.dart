@@ -829,6 +829,58 @@ void main() {
       });
     });
 
+    test('parses a plan system line paint (#220), author optional', () {
+      fakeAsync((async) {
+        final wsMessages = StreamController<Map<String, dynamic>>.broadcast();
+        final service = InvalidationService.forTesting(wsMessages.stream);
+        addTearDown(() async {
+          await service.dispose();
+          await wsMessages.close();
+        });
+
+        final received = <RealtimeEntityChange>[];
+        final sub = service.entityChanges.listen(received.add);
+
+        Map<String, dynamic> frame(String id, Map<String, Object?> extra) => {
+          'type': 'subscription',
+          'path': 'entity_changes',
+          'payload': {
+            'entity': 'room_message',
+            'id': 'Bplan',
+            'event': 'insert',
+            'message_id': id,
+            'message': {
+              'id': id,
+              'beaconId': 'Bplan',
+              'body': '',
+              'createdAt': '2026-10-05T10:00:00.000Z',
+              'semanticMarker': 13,
+              'systemPayload': {'revisionSeq': 2, 'changes': <Object>[]},
+              ...extra,
+            },
+          },
+        };
+
+        // Auto-assignment writes the line with no author.
+        wsMessages
+          ..add(frame('Rplan1', {'authorId': '', 'systemMessageKind': 5}))
+          // A person's message still needs its author.
+          ..add(frame('Rplan2', {'authorId': ''}));
+        async.elapse(const Duration(milliseconds: 20));
+
+        final byId = {
+          for (final c in received) c.childId: c.roomMessagePaint,
+        };
+        final paint = byId['Rplan1'];
+        expect(paint?.systemMessageKind, 5);
+        expect(paint?.semanticMarker, 13);
+        expect(paint?.authorId, '');
+        expect(byId.containsKey('Rplan2'), isTrue);
+        expect(byId['Rplan2'], isNull);
+        unawaited(sub.cancel());
+      });
+    });
+
     test('parses room_message paint with quotedFact snapshot fields', () {
       fakeAsync((async) {
         final wsMessages = StreamController<Map<String, dynamic>>.broadcast();

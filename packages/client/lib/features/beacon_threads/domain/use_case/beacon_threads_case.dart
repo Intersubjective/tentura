@@ -165,8 +165,9 @@ base class BeaconThreadsCase extends UseCaseBase {
   Future<List<BeaconParticipant>> fetchParticipants(String beaconId) =>
       _room.fetchParticipants(beaconId);
 
-  Future<List<RoomReadWatermark>> fetchMainRoomReadWatermarks(String beaconId) =>
-      _room.fetchMainRoomReadWatermarks(beaconId);
+  Future<List<RoomReadWatermark>> fetchMainRoomReadWatermarks(
+    String beaconId,
+  ) => _room.fetchMainRoomReadWatermarks(beaconId);
 
   // DORMANT(item-threads): threadItemId targets item-thread scope; always null in production.
   // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
@@ -265,6 +266,7 @@ base class BeaconThreadsCase extends UseCaseBase {
       replyToBodyExcerpt: paint.replyToBodyExcerpt,
       replyToHasAttachments: paint.replyToHasAttachments,
       semanticMarker: paint.semanticMarker,
+      systemMessageKind: paint.systemMessageKind,
       systemPayloadJson: paint.systemPayload == null
           ? null
           : jsonEncode(paint.systemPayload),
@@ -321,12 +323,14 @@ base class BeaconThreadsCase extends UseCaseBase {
   Future<BeaconRoomState> fetchBeaconRoomState(String beaconId) =>
       _room.fetchBeaconRoomState(beaconId);
 
-  Future<CoordinationItem?> fetchOpenCoordinationBlocker(String beaconId) async =>
-      null;
+  Future<CoordinationItem?> fetchOpenCoordinationBlocker(
+    String beaconId,
+  ) async => null;
 
   /// Legacy item reply counts are no longer loaded; returns an empty list.
-  Future<List<CoordinationItem>> fetchCoordinationItems(String beaconId) async =>
-      const [];
+  Future<List<CoordinationItem>> fetchCoordinationItems(
+    String beaconId,
+  ) async => const [];
 
   Future<void> updateRoomNowLine({
     required String beaconId,
@@ -336,8 +340,9 @@ base class BeaconThreadsCase extends UseCaseBase {
     text: currentLine,
   );
 
-  Future<CoordinationItem?> fetchCurrentCoordinationPlan(String beaconId) async =>
-      null;
+  Future<CoordinationItem?> fetchCurrentCoordinationPlan(
+    String beaconId,
+  ) async => null;
 
   Future<List<BeaconFactCard>> fetchFactCards(String beaconId) =>
       _factCards.list(beaconId: beaconId);

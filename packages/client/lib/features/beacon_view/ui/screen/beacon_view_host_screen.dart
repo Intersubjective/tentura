@@ -7,6 +7,7 @@ import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/beacon_plan/ui/bloc/plan_cubit.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/beacon_hierarchy_cubit.dart';
@@ -107,6 +108,12 @@ class BeaconViewHostScreen extends StatelessWidget implements AutoRouteWrapper {
         ),
         BlocProvider(
           create: (_) => ThreadHostCubit(beaconId: id),
+        ),
+        // The Request plan (#220): one cubit (one fetch, realtime refresh)
+        // for the HUD, the Plan tab badge, the Plan tab and the chat plan
+        // lines. The screen loads it once the viewer is inside the Request.
+        BlocProvider(
+          create: (_) => PlanCubit(beaconId: id, viewerId: myProfile.id),
         ),
       ],
       child: Builder(
@@ -283,6 +290,7 @@ class BeaconViewOperationalScreen extends StatelessWidget {
     @QueryParam(kQueryBeaconEntry) this.entry,
     @QueryParam(kQueryThreadId) this.threadId,
     @QueryParam(kQueryMessageId) this.messageId,
+    @QueryParam(kQueryPlanStepId) this.stepId,
     super.key,
   });
 
@@ -294,6 +302,9 @@ class BeaconViewOperationalScreen extends StatelessWidget {
   final String? threadId;
   final String? messageId;
 
+  /// Plan step whose card opens once the plan loads (`tab=plan`).
+  final String? stepId;
+
   @override
   Widget build(BuildContext context) {
     return BeaconViewScreen(
@@ -304,6 +315,7 @@ class BeaconViewOperationalScreen extends StatelessWidget {
       entry: entry,
       threadId: threadId,
       messageId: messageId,
+      stepId: stepId,
     );
   }
 }

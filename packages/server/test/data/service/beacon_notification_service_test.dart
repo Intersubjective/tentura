@@ -4,6 +4,9 @@ import 'package:uuid/uuid.dart';
 
 import 'package:tentura_server/data/service/beacon_notification_service.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
+import 'package:tentura_server/data/service/push_action_token_service.dart';
+import 'package:tentura_server/domain/notification/plan_push_policy.dart';
+import 'package:tentura_server/domain/plan/push_action.dart';
 import 'package:tentura_server/domain/entity/fcm_message_entity.dart';
 import 'package:tentura_server/domain/entity/fcm_token_entity.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
@@ -14,6 +17,7 @@ import 'package:tentura_server/domain/port/fcm_batch_queue_port.dart';
 import 'package:tentura_server/domain/port/fcm_remote_repository_port.dart';
 import 'package:tentura_server/domain/port/fcm_token_repository_port.dart';
 import 'package:tentura_server/domain/port/notification_preference_repository_port.dart';
+import 'package:tentura_server/env.dart';
 
 typedef _EmailConsider = ({
   String recipientUserId,
@@ -88,8 +92,24 @@ class _FakeFcmRemote implements FcmRemoteRepositoryPort {
   Future<List<Exception>> sendChatNotification({
     required Iterable<String> fcmTokens,
     required dynamic message,
-  }) async =>
-      const [];
+  }) async => const [];
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError(invocation.memberName.toString());
+}
+
+class _CapturingFcmRemote implements FcmRemoteRepositoryPort {
+  final sent = <FcmNotificationEntity>[];
+
+  @override
+  Future<List<Exception>> sendChatNotification({
+    required Iterable<String> fcmTokens,
+    required FcmNotificationEntity message,
+  }) async {
+    sent.add(message);
+    return const [];
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) =>
@@ -143,15 +163,17 @@ void main() {
     _CapturingEmail? email,
     FcmBatchQueuePort? fcmBatch,
     FcmTokenRepositoryPort? fcmTokens,
-  }) =>
-      BeaconNotificationService(
-        fcmBatch ?? _FakeFcmBatch(),
-        fcmTokens ?? _FakeFcmTokens(),
-        _FakeFcmRemote(),
-        _FakePrefs(),
-        email ?? _CapturingEmail(),
-        Logger('test'),
-      );
+    FcmRemoteRepositoryPort? fcmRemote,
+    PushActionTokenService? pushActionTokens,
+  }) => BeaconNotificationService(
+    fcmBatch ?? _FakeFcmBatch(),
+    fcmTokens ?? _FakeFcmTokens(),
+    fcmRemote ?? _FakeFcmRemote(),
+    _FakePrefs(),
+    email ?? _CapturingEmail(),
+    Logger('test'),
+    pushActionTokens: pushActionTokens,
+  );
 
   AttentionChannelDecision decision({
     required NotificationKind kind,
@@ -159,20 +181,21 @@ void main() {
     String beaconId = 'beacon-1',
     String dedupKey = 'recipient-1|asksOfMe|beacon-1|',
     String actorUserId = 'actor',
-  }) =>
-      AttentionChannelDecision(
-        receiptId: 'receipt-1',
-        recipientId: recipientId,
-        kind: kind,
-        priority: NotificationPriority.normal,
-        title: 'Title',
-        body: 'Body',
-        actionUrl: '/action',
-        dedupKey: dedupKey,
-        actorUserId: actorUserId,
-        reason: 'test',
-        beaconId: beaconId,
-      );
+    String? coordinationItemId,
+  }) => AttentionChannelDecision(
+    coordinationItemId: coordinationItemId,
+    receiptId: 'receipt-1',
+    recipientId: recipientId,
+    kind: kind,
+    priority: NotificationPriority.normal,
+    title: 'Title',
+    body: 'Body',
+    actionUrl: '/action',
+    dedupKey: dedupKey,
+    actorUserId: actorUserId,
+    reason: 'test',
+    beaconId: beaconId,
+  );
 
   group('handOffChannels push delivery', () {
     test('queues FCM when recipient has a device token', () async {
@@ -207,16 +230,19 @@ void main() {
       expect(email.considers.single.pushDelivered, isTrue);
     });
 
-    test('email fallback sees pushDelivered false without device token', () async {
-      final email = _CapturingEmail();
-      final service = build(email: email);
+    test(
+      'email fallback sees pushDelivered false without device token',
+      () async {
+        final email = _CapturingEmail();
+        final service = build(email: email);
 
-      await service.handOffChannels([
-        decision(kind: NotificationKind.needsMe),
-      ]);
+        await service.handOffChannels([
+          decision(kind: NotificationKind.needsMe),
+        ]);
 
-      expect(email.considers.single.pushDelivered, isFalse);
-    });
+        expect(email.considers.single.pushDelivered, isFalse);
+      },
+    );
 
     test('passes dedup key through to email fallback', () async {
       final email = _CapturingEmail();
@@ -228,6 +254,125 @@ void main() {
       ]);
 
       expect(email.considers.single.channelCollapseKey, dedupKey);
+    });
+  });
+
+  group('plan obligation pushes (#220 §5.9)', () {
+    const recipientId = 'recipient-1';
+    FcmTokenRepositoryPort tokens() => _FakeFcmTokensForUser(recipientId, [
+      FcmTokenEntity(
+        userId: recipientId,
+        appId: const Uuid().v4obj(),
+        platform: 'web',
+        token: 'tok-1',
+        createdAt: DateTime.utc(2026),
+        lastRefreshedAt: DateTime.utc(2026),
+      ),
+    ]);
+
+    test('a due step bypasses the batch queue and carries buttons, a '
+        'signed token, a per-step tag, TTL and high urgency', () async {
+      final batch = _CapturingFcmBatch();
+      final remote = _CapturingFcmRemote();
+      final signer = PushActionTokenService(Env());
+      final email = _CapturingEmail();
+      final service = build(
+        email: email,
+        fcmBatch: batch,
+        fcmTokens: tokens(),
+        fcmRemote: remote,
+        pushActionTokens: signer,
+      );
+
+      await service.handOffChannels([
+        decision(
+          kind: NotificationKind.planStepDue,
+          coordinationItemId: 'PS000000000001',
+        ),
+      ]);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(batch.enqueues, isEmpty);
+      final message = remote.sent.single;
+      expect(message.actions.map((a) => a.id), ['done', 'open']);
+      expect(message.tag, 'plan:PS000000000001');
+      expect(message.stepId, 'PS000000000001');
+      expect(message.urgency, 'high');
+      expect(message.ttlSeconds, 3600);
+      expect(message.actionFeedback, isNotNull);
+      final claims = signer.verify(message.actionToken!)!;
+      expect(claims.accountId, recipientId);
+      expect(claims.action, PushAction.done);
+      expect(claims.stepId, 'PS000000000001');
+      expect(claims.beaconId, 'beacon-1');
+      expect(email.considers.single.pushDelivered, isTrue);
+    });
+
+    test('«your turn» goes direct without buttons', () async {
+      final batch = _CapturingFcmBatch();
+      final remote = _CapturingFcmRemote();
+      final service = build(
+        fcmBatch: batch,
+        fcmTokens: tokens(),
+        fcmRemote: remote,
+        pushActionTokens: PushActionTokenService(Env()),
+      );
+
+      await service.handOffChannels([
+        decision(
+          kind: NotificationKind.planStepTurn,
+          coordinationItemId: 'PS000000000001',
+        ),
+      ]);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(batch.enqueues, isEmpty);
+      expect(remote.sent.single.actions, isEmpty);
+      expect(remote.sent.single.actionToken, isNull);
+    });
+
+    test('ambient plan kinds still go through the batch queue', () async {
+      final batch = _CapturingFcmBatch();
+      final service = build(
+        fcmBatch: batch,
+        fcmTokens: tokens(),
+        pushActionTokens: PushActionTokenService(Env()),
+      );
+
+      await service.handOffChannels([
+        decision(kind: NotificationKind.planCantMake),
+      ]);
+
+      expect(batch.enqueues, hasLength(1));
+    });
+
+    test('Russian buttons and feedback', () async {
+      final buttons = await planPushButtons(
+        kind: NotificationKind.planStepOverdue,
+        recipientId: recipientId,
+        beaconId: 'beacon-1',
+        stepId: 'PS000000000001',
+        locale: 'ru',
+        tokens: PushActionTokenService(Env()),
+        planRepository: null,
+      );
+      expect(buttons.actions.map((a) => a.title), ['Готово', 'Открыть']);
+      expect(planPushFeedback('ru').failed, 'Не получилось — откройте шаг');
+      expect(planPushTtlSeconds(NotificationKind.planStepReminder), 900);
+    });
+
+    test('«Понятно» needs the plan head; none without it', () async {
+      final buttons = await planPushButtons(
+        kind: NotificationKind.planChangePending,
+        recipientId: recipientId,
+        beaconId: 'beacon-1',
+        stepId: null,
+        locale: 'en',
+        tokens: PushActionTokenService(Env()),
+        planRepository: null,
+      );
+      expect(buttons.actions, isEmpty);
+      expect(buttons.token, isNull);
     });
   });
 }

@@ -315,20 +315,16 @@ void main() {
       },
     );
 
-    test('maps quotedFact onto RoomMessage.quotedFact with seq/currentSeq/status', () {
+    test('a plan line paint keeps its system kind (#220)', () {
       final paint = RealtimeRoomMessagePaint(
-        id: 'msg-quote',
+        id: 'msg-plan',
         beaconId: beaconId,
-        authorId: 'author-1',
-        body: 'per the fact:',
-        createdAt: DateTime.utc(2026, 8, 1),
-        quotedFact: const QuotedFact(
-          factCardId: 'fact-1',
-          seq: 2,
-          currentSeq: 3,
-          status: BeaconFactCardStatusBits.active,
-          factText: 'the sky is blue',
-        ),
+        authorId: '',
+        body: '',
+        createdAt: DateTime.utc(2026, 10, 5),
+        semanticMarker: 13,
+        systemMessageKind: BeaconRoomSystemMessageKind.plan,
+        systemPayload: const {'revisionSeq': 2},
       );
 
       final message = case_.roomMessageFromPaint(
@@ -337,12 +333,42 @@ void main() {
         participants: const [],
       );
 
-      expect(message.quotedFact?.factCardId, 'fact-1');
-      expect(message.quotedFact?.seq, 2);
-      expect(message.quotedFact?.currentSeq, 3);
-      expect(message.quotedFact?.status, BeaconFactCardStatusBits.active);
-      expect(message.quotedFact?.factText, 'the sky is blue');
+      expect(message.systemMessageKind, BeaconRoomSystemMessageKind.plan);
+      expect(message.semanticMarker, 13);
+      expect(message.systemPayloadJson, jsonEncode({'revisionSeq': 2}));
     });
+
+    test(
+      'maps quotedFact onto RoomMessage.quotedFact with seq/currentSeq/status',
+      () {
+        final paint = RealtimeRoomMessagePaint(
+          id: 'msg-quote',
+          beaconId: beaconId,
+          authorId: 'author-1',
+          body: 'per the fact:',
+          createdAt: DateTime.utc(2026, 8, 1),
+          quotedFact: const QuotedFact(
+            factCardId: 'fact-1',
+            seq: 2,
+            currentSeq: 3,
+            status: BeaconFactCardStatusBits.active,
+            factText: 'the sky is blue',
+          ),
+        );
+
+        final message = case_.roomMessageFromPaint(
+          paint: paint,
+          currentMessages: const [],
+          participants: const [],
+        );
+
+        expect(message.quotedFact?.factCardId, 'fact-1');
+        expect(message.quotedFact?.seq, 2);
+        expect(message.quotedFact?.currentSeq, 3);
+        expect(message.quotedFact?.status, BeaconFactCardStatusBits.active);
+        expect(message.quotedFact?.factText, 'the sky is blue');
+      },
+    );
 
     test(
       'paint without semanticMarker, systemPayload or quotedFact maps as today',

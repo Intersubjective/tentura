@@ -11,6 +11,7 @@ import 'package:tentura/features/beacon/ui/util/beacon_lifecycle_ui.dart';
 import 'package:tentura/features/beacon/ui/util/beacon_lineage_overflow_actions.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_overflow_menu.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
+import 'package:tentura/features/beacon_plan/ui/bloc/plan_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_room_body.dart'
     show showBeaconRoomUpdatePlanSheet;
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_room_poll_sheet.dart';
@@ -296,6 +297,9 @@ Widget beaconViewAppBarOverflow({
 }) {
   final b = state.beacon;
   final beaconId = b.id;
+  // The Request's plan (#220), loaded only for a viewer inside it; offers
+  // «Скопировать план» on «Создать на основе».
+  final planCubit = context.read<PlanCubit?>();
   final hideOfferHelpWithdraw = hideOfferHelpWithdrawFromOverflow(state);
   final showBeaconManagementOverflow = !inRoomSurface || combineSplitPanes;
   final showRoomActions = inRoomSurface || combineSplitPanes;
@@ -356,6 +360,8 @@ Widget beaconViewAppBarOverflow({
               await runBeaconCreateFromAction(
                 context,
                 fork: () => cubit.forkFromThis(),
+                sourcePlan: planCubit?.state.plan,
+                forkWithPlan: (times) => cubit.forkFromThis(planCopy: times),
               );
             }
           : null,
@@ -436,6 +442,8 @@ Widget beaconViewAppBarOverflow({
             await runBeaconCreateFromAction(
               context,
               fork: () => cubit.forkFromThis(),
+              sourcePlan: planCubit?.state.plan,
+              forkWithPlan: (times) => cubit.forkFromThis(planCopy: times),
             );
           }
         : null,

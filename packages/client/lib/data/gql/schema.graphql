@@ -3833,7 +3833,7 @@ type mutation_root {
   beaconCreate(addressLabel: String, context: String, coordinates: v2_Coordinates = {}, description: String, draft: Boolean, endAt: String, forwardPolicy: Int, image: v2_Upload = {}, isDiscoverable: Boolean, kind: Int, needs: String, primaryNeedSlug: String, startAt: String, tags: String, title: String): v2_Beacon!
   beaconDeleteById(id: String!): Boolean!
   beaconExtendClosure(beaconId: String!, expectedEpoch: Int!): Boolean!
-  beaconFork(id: String!): v2_Beacon!
+  beaconFork(copyPlan: Boolean, id: String!, planStepTimes: [v2_PlanStepTimeInput!]): v2_Beacon!
   beaconForward(attributionParentEdgeIds: [String!], context: String, id: String!, note: String, parentEdgeId: String, perRecipientNotes: String, reasons: [String!], recipientBandProvenance: [v2_ForwardRecipientBandProvenanceInput], recipientIds: [String!], recipientReasons: [v2_ForwardRecipientReasonInput]): v2_ForwardDeliveryResult!
   beaconForwardCancel(id: String!): Boolean!
   beaconForwardUpdate(id: String!, note: String, reasons: [String!]): Boolean!
@@ -3842,6 +3842,11 @@ type mutation_root {
   beaconMuteClear(beaconId: String!): Boolean!
   beaconMuteSet(beaconId: String!, mutedUntil: String): Boolean!
   beaconOfferHelp(expectedOfferKind: Int, helpTypes: [String!], id: String!, message: String): Boolean!
+  beaconPlanAck(beaconId: String!, uptoSeq: Int!): Boolean!
+  beaconPlanRestore(baseRevisionSeq: Int!, beaconId: String!, fromSeq: Int!): String!
+  beaconPlanSave(baseRevisionSeq: Int!, beaconId: String!, comment: String, stepsJson: String!): String!
+  beaconPlanStepCantMake(baseRevisionSeq: Int!, excerpt: String, newEndAt: String, newStartAt: String, option: String!, stepId: String!, toUserId: String): String!
+  beaconPlanStepSetDone(done: Boolean!, stepId: String!): Boolean!
   beaconPublish(id: String!): v2_Beacon!
   beaconRemoveImage(beaconId: String!, imageId: String!): Boolean!
   beaconReopen(beaconId: String!, expectedEpoch: Int!): Boolean!
@@ -4768,6 +4773,9 @@ type query_root {
   beaconInvolvement(id: String!): v2_BeaconInvolvement!
   beaconLineageForwardSuggestions(id: String!): v2_BeaconLineageForwardSuggestions!
   beaconParentReference(beaconId: String!): v2_BeaconParentReference!
+  beaconPlan(beaconId: String!): String!
+  beaconPlanRevision(beaconId: String!, seq: Int!): String!
+  beaconPlanRevisions(beaconId: String!, beforeSeq: Int): String!
   beaconPromotionSource(parentBeaconId: String!, sourceMessageId: String!): v2_BeaconPromotionSource!
   beaconThreads(beaconId: String!): [v2_BeaconThreadRow!]
 
@@ -8355,6 +8363,7 @@ type v2_InboxRoomContextRow {
   openBlockerResponsibleUserId: String
   openBlockerTargetPersonId: String
   openBlockerTitle: String
+  planSliceJson: String
   publicFactSnippet: String
   roomUnreadCount: Int!
 }
@@ -8479,6 +8488,12 @@ type v2_ReviewWindowStatus {
   userReviewStatus: Int
   viewerPackageOptional: Boolean
   windowComplete: Boolean
+}
+
+input v2_PlanStepTimeInput {
+  endAt: String
+  sourceStepId: String!
+  startAt: String
 }
 
 input v2_RoomBatonCandidateInput {

@@ -130,8 +130,7 @@ const _expectedEventTypes = <Map<String, String>>[
   },
   {
     'eventType': 'requestStatusChanged',
-    'producer':
-        'BeaconCase|CoordinationCase',
+    'producer': 'BeaconCase|CoordinationCase',
     'recipientCategory': 'active_participants_and_inbox_stance_holders',
     'destinationFamily': 'beacon',
     'muteability': 'standard_or_noisy',
@@ -215,8 +214,7 @@ const _expectedEventTypes = <Map<String, String>>[
   },
   {
     'eventType': 'postFirstResponse',
-    'producer':
-        'BeaconRoomCase.createMessage|BeaconRoomCase.reactionToggle',
+    'producer': 'BeaconRoomCase.createMessage|BeaconRoomCase.reactionToggle',
     'recipientCategory': 'post_author',
     'destinationFamily': 'beacon_room_message',
     'muteability': 'standard',
@@ -253,6 +251,97 @@ const _expectedEventTypes = <Map<String, String>>[
     'coveringTest':
         'packages/server/test/domain/use_case/room_baton_case_pg_test.dart',
   },
+  // Request plan («либретто», #220) — plan-implementation.md §4.6.
+  {
+    'eventType': 'planStepDue',
+    'producer': 'PlanAttentionCase.reconcile|PlanStepSweepCase.runDue',
+    'recipientCategory': 'plan_step_assignee',
+    'destinationFamily': 'beacon',
+    'muteability': 'mandatory',
+    'coveringTest':
+        'packages/server/test/domain/use_case/plan_attention_case_pg_test.dart',
+  },
+  {
+    'eventType': 'planStepTurn',
+    'producer': 'PlanAttentionCase.reconcile',
+    'recipientCategory': 'plan_step_assignee',
+    'destinationFamily': 'beacon',
+    'muteability': 'mandatory',
+    'coveringTest':
+        'packages/server/test/domain/use_case/plan_attention_case_pg_test.dart',
+  },
+  {
+    'eventType': 'planChangePending',
+    'producer': 'PlanAttentionCase.afterRevision|PlanAttentionCase.reconcile',
+    'recipientCategory': 'plan_step_assignee',
+    'destinationFamily': 'beacon',
+    'muteability': 'mandatory',
+    'coveringTest':
+        'packages/server/test/domain/use_case/plan_attention_case_pg_test.dart',
+  },
+  {
+    'eventType': 'planStepReminder',
+    'producer': 'PlanStepSweepCase.runDue',
+    'recipientCategory': 'plan_step_assignee',
+    'destinationFamily': 'beacon',
+    'muteability': 'standard',
+    'coveringTest':
+        'packages/server/test/domain/use_case/plan_step_sweep_case_pg_test.dart',
+  },
+  {
+    'eventType': 'planStepOverdue',
+    'producer': 'PlanStepSweepCase.runDue',
+    'recipientCategory': 'plan_step_assignee',
+    'destinationFamily': 'beacon',
+    'muteability': 'standard',
+    'coveringTest':
+        'packages/server/test/domain/use_case/plan_step_sweep_case_pg_test.dart',
+  },
+  {
+    'eventType': 'planStepLate',
+    'producer': 'PlanStepSweepCase.runDue',
+    'recipientCategory': 'request_author',
+    'destinationFamily': 'beacon',
+    'muteability': 'standard',
+    'coveringTest':
+        'packages/server/test/domain/use_case/plan_step_sweep_case_pg_test.dart',
+  },
+  {
+    'eventType': 'planCantMake',
+    'producer': 'PlanAttentionCase.afterCantMake',
+    'recipientCategory': 'request_author',
+    'destinationFamily': 'beacon',
+    'muteability': 'standard',
+    'coveringTest':
+        'packages/server/test/domain/use_case/plan_attention_case_pg_test.dart',
+  },
+  {
+    'eventType': 'planStepUnassigned',
+    'producer': 'PlanStepSweepCase.runDue|PlanAttentionCase.afterRevision',
+    'recipientCategory': 'request_author',
+    'destinationFamily': 'beacon',
+    'muteability': 'standard',
+    'coveringTest':
+        'packages/server/test/domain/use_case/plan_step_sweep_case_pg_test.dart',
+  },
+  {
+    'eventType': 'planEdited',
+    'producer': 'PlanAttentionCase.afterRevision',
+    'recipientCategory': 'admitted_room_members',
+    'destinationFamily': 'beacon',
+    'muteability': 'standard_or_noisy',
+    'coveringTest':
+        'packages/server/test/domain/use_case/plan_attention_case_pg_test.dart',
+  },
+  {
+    'eventType': 'planStepDone',
+    'producer': 'PlanAttentionCase.afterTick',
+    'recipientCategory': 'admitted_room_members',
+    'destinationFamily': 'beacon',
+    'muteability': 'standard_or_noisy',
+    'coveringTest':
+        'packages/server/test/domain/use_case/plan_attention_case_pg_test.dart',
+  },
 ];
 
 void main() {
@@ -263,7 +352,10 @@ void main() {
     );
 
     expect(contract.keys.toSet(), _topLevelKeys);
-    expect(contract['schemaVersion'], AttentionEventTypeCatalog.contractSchemaVersion);
+    expect(
+      contract['schemaVersion'],
+      AttentionEventTypeCatalog.contractSchemaVersion,
+    );
 
     final pending = (contract['pendingProducerEventTypes'] as List)
         .cast<String>();
@@ -326,7 +418,11 @@ void main() {
         )
         .map((entry) => entry['eventType'])
         .toSet();
-    expect(safeTerminalEvents, {'offerDeclined', 'offerRemoved', 'commitmentReleased'});
+    expect(safeTerminalEvents, {
+      'offerDeclined',
+      'offerRemoved',
+      'commitmentReleased',
+    });
     expect(
       _pendingProducerEventTypes,
       isNot(contains('inviteAccepted')),
@@ -341,14 +437,14 @@ void main() {
         .toList(growable: false);
 
     final byType = {
-      for (final entry in classifications)
-        entry['eventType']! as String: entry,
+      for (final entry in classifications) entry['eventType']! as String: entry,
     };
 
     expect(
       byType.keys.toSet(),
       AttentionEventType.values.map((event) => event.name).toSet(),
-      reason: 'each runtime enum value must have exactly one classification row',
+      reason:
+          'each runtime enum value must have exactly one classification row',
     );
 
     final unverifiedGaps = <String>[];
@@ -390,7 +486,7 @@ void main() {
           reason: '$eventType variant is missing card contract fields',
         );
 
-        _collectUnverified(variant, '$eventType', unverifiedGaps);
+        _collectUnverified(variant, eventType, unverifiedGaps);
         _enforceClassificationRules(eventType, variant);
 
         // U11 — the declaration and the column must be the same decision.
@@ -541,7 +637,7 @@ void _enforceClassificationRules(
       isNot('forbidden'),
       reason:
           '$eventType must stay clearable for the same reason; see the U19 '
-          'journal entry on gate 2\'s residual population',
+          "journal entry on gate 2's residual population",
     );
   }
 

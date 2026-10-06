@@ -1,0 +1,3 @@
+query BeaconPlanRevision($beaconId: String!, $seq: Int!) {
+  beaconPlanRevision(beaconId: $beaconId, seq: $seq)
+}

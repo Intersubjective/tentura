@@ -14,6 +14,7 @@ import 'package:tentura/domain/attention/for_you_stream_entries.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_cubit.dart';
 import 'package:tentura/features/updates/domain/entity/prompt_projection.dart';
+import 'package:tentura/domain/attention/plan_receipt_event_type.dart';
 import 'package:tentura/features/updates/updates_receipt_display_copy.dart';
 import 'package:tentura/features/updates/ui/bloc/updates_feed_cubit.dart';
 import 'package:tentura/features/updates/ui/widget/invite_accepted_receipt_card.dart';
@@ -1111,7 +1112,16 @@ class _ActivityStreamCell extends StatelessWidget {
                     l10n: L10n.of(context)!,
                   ) !=
                   null;
-              unawaited(isBaton ? onOpenReceipt(event) : onOpenParent());
+              // A plan event opens the Plan tab on its step (#220).
+              final isPlan =
+                  planReceiptEventType(
+                    presentationKey: event.presentationKey,
+                    presentationPayloadJson: event.presentationPayloadJson,
+                  ) !=
+                  null;
+              unawaited(
+                isBaton || isPlan ? onOpenReceipt(event) : onOpenParent(),
+              );
             },
             onOpenTimeline: () => unawaited(
               showRequestAttentionTimelineSheet(context, beaconId: beaconId),

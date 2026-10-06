@@ -37,6 +37,8 @@ final class MutationBeacon extends GqlNodeBase {
 
   final _forwardPolicy = InputFieldInt(fieldName: 'forwardPolicy');
 
+  final _copyPlan = InputFieldBool(fieldName: 'copyPlan');
+
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
     create,
     fork,
@@ -150,11 +152,17 @@ final class MutationBeacon extends GqlNodeBase {
   GraphQLObjectField<dynamic, dynamic> get fork => GraphQLObjectField(
     'beaconFork',
     gqlTypeBeacon.nonNullable(),
-    arguments: [InputFieldId.field],
+    arguments: [
+      InputFieldId.field,
+      _copyPlan.fieldNullable,
+      InputFieldPlanStepTimes.field,
+    ],
     resolve: (_, args) => _beaconCase
         .fork(
           sourceId: InputFieldId.fromArgsNonNullable(args),
           userId: getCredentials(args).sub,
+          copyPlan: _copyPlan.fromArgs(args) ?? false,
+          planStepTimes: InputFieldPlanStepTimes.fromArgs(args),
         )
         .then((v) => v.asJson),
   );

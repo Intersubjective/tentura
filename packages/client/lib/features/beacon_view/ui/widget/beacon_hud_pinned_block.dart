@@ -13,6 +13,8 @@ import 'package:tentura/ui/widget/beacon_hud_metadata_table.dart';
 import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 import 'package:tentura/ui/widget/hud_labeled_multiline.dart';
 
+import 'beacon_hud_plan_rows.dart';
+
 /// Pinned top of the Request HUD (#104): YOU, NEXT STEP and a counters
 /// strip. Stays put while the rest of Now scrolls; empty rows drop out.
 /// (Coordination items are retired, so there is no BLOCKER row or "my open
@@ -27,6 +29,7 @@ class BeaconHudPinnedBlock extends StatelessWidget {
     this.onOpenFacts,
     this.subrequestCount = 0,
     this.now,
+    this.plan,
     super.key,
   });
 
@@ -42,6 +45,15 @@ class BeaconHudPinnedBlock extends StatelessWidget {
 
   /// Clock for "2 h ago"; tests pin it.
   final DateTime? now;
+
+  /// The Request plan (#220) for insiders; null hides
+  /// every plan row, the plan NOW line and the plan counters.
+  final BeaconHudPlanData? plan;
+
+  BeaconHudPlanData? get _plan {
+    final p = plan;
+    return p != null && p.hasSteps ? p : null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -75,12 +87,24 @@ class BeaconHudPinnedBlock extends StatelessWidget {
                     state: state,
                     includeNow: false,
                     onReviewAuthorOffers: onReviewAuthorOffers,
+                    planRows: _plan == null
+                        ? null
+                        : ({required systemOccupiesYou}) =>
+                              buildBeaconHudPlanRows(
+                                context,
+                                _plan!,
+                                systemOccupiesYou: systemOccupiesYou,
+                                requestFinished:
+                                    state.beacon.status.isFinished ||
+                                    state.beacon.status == BeaconStatus.deleted,
+                              ),
                   ),
                   ..._step(context, l10n),
                 ],
               ),
             _HudCounters(
               state: state,
+              plan: _plan,
               subrequestCount: subrequestCount,
               onOpenTeam: onOpenTeam,
               onOpenSubrequests: onOpenSubrequests,
@@ -107,6 +131,49 @@ class BeaconHudPinnedBlock extends StatelessWidget {
     }
     final cue = state.beaconRoomCue;
     final entries = <BeaconHudMetadataEntry>[];
+    final plan = _plan;
+
+    // The plan moves the NOW line by the clock; the manual line wins when it
+    // was written after the step started (last writer wins, K8).
+    final planNow = plan == null
+        ? null
+        : beaconHudPlanNowLine(
+            data: plan,
+            manualText: cue?.currentLine ?? '',
+            manualSetAt: cue?.updatedAt,
+            openFamily: status.isOpenFamily,
+            l10n: l10n,
+          );
+    // With a plan the row is «СЕЙЧАС» (mockup §2); without one it keeps
+    // the next-step label.
+    final rowLabel = plan == null
+        ? l10n.beaconHudStepLabel
+        : l10n.beaconHudNowLabel;
+    if (planNow != null) {
+      entries.add(
+        BeaconHudMetadataEntry(
+          icon: BeaconHudRowIcons.now,
+          semanticsLabel: rowLabel,
+          trailing: onEditStep == null
+              ? null
+              : hudNowRowEditButton(
+                  context: context,
+                  onEdit: onEditStep!,
+                  editSemanticLabel: l10n.beaconHudEditNowLine,
+                ),
+          body: KeyedSubtree(
+            key: beaconHudPlanNowKey,
+            child: _LabeledLine(
+              label: rowLabel,
+              text: planNow.text,
+              color: tt.text,
+              subline: planNow.subline,
+            ),
+          ),
+        ),
+      );
+      return entries;
+    }
 
     final step = cue?.currentLine.trim() ?? '';
     final editor = step.isEmpty ? null : beaconStepEditorName(state);
@@ -123,7 +190,7 @@ class BeaconHudPinnedBlock extends StatelessWidget {
     entries.add(
       BeaconHudMetadataEntry(
         icon: BeaconHudRowIcons.now,
-        semanticsLabel: l10n.beaconHudStepLabel,
+        semanticsLabel: rowLabel,
         trailing: onEditStep == null
             ? null
             : hudNowRowEditButton(
@@ -132,7 +199,7 @@ class BeaconHudPinnedBlock extends StatelessWidget {
                 editSemanticLabel: l10n.beaconHudEditNowLine,
               ),
         body: _LabeledLine(
-          label: l10n.beaconHudStepLabel,
+          label: rowLabel,
           text: step.isNotEmpty
               ? step
               : onEditStep != null
@@ -146,6 +213,9 @@ class BeaconHudPinnedBlock extends StatelessWidget {
     return entries;
   }
 }
+
+/// The NOW row body when the plan set it (tests).
+const beaconHudPlanNowKey = Key('hud-plan-now');
 
 /// `LABEL  text` on one line, with an optional muted second line.
 class _LabeledLine extends StatelessWidget {
@@ -200,12 +270,14 @@ class _HudCounters extends StatelessWidget {
   const _HudCounters({
     required this.state,
     required this.subrequestCount,
+    this.plan,
     this.onOpenTeam,
     this.onOpenSubrequests,
     this.onOpenFacts,
   });
 
   final BeaconViewState state;
+  final BeaconHudPlanData? plan;
   final int subrequestCount;
   final VoidCallback? onOpenTeam;
   final VoidCallback? onOpenSubrequests;
@@ -215,6 +287,12 @@ class _HudCounters extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
+    final plan = this.plan;
+    final planDone = plan?.plan.doneCount ?? 0;
+    final planTotal = plan?.plan.steps.length ?? 0;
+    final planOverdue =
+        plan?.plan.viewerOverdueCount(now: plan.now, viewerId: plan.viewerId) ??
+        0;
     final team = 1 + state.beacon.admittedHelperCount;
     final facts = activePinnedFacts(state.factCards).length;
     final newFacts = pinnedFactsNewCount(
@@ -259,6 +337,24 @@ class _HudCounters extends StatelessWidget {
           attention: newFacts > 0,
           attentionTone: TenturaTone.info,
         ),
+      if (plan != null) ...[
+        _HudCounter(
+          key: BeaconHudPlanKeys.counter,
+          icon: BeaconHudRowIcons.plan,
+          label: l10n.beaconHudPlanCounter(planDone, planTotal),
+          semanticsLabel: l10n.beaconHudCounterPlan(planDone, planTotal),
+          onTap: plan.onOpenPlan,
+        ),
+        if (planOverdue > 0)
+          _HudCounter(
+            key: BeaconHudPlanKeys.overdue,
+            label: l10n.beaconHudPlanOverdueCounter(planOverdue),
+            semanticsLabel: l10n.beaconHudCounterPlanOverdue(planOverdue),
+            onTap: plan.onOpenPlan,
+            attention: true,
+            attentionTone: TenturaTone.danger,
+          ),
+      ],
     ];
 
     return Padding(
@@ -273,9 +369,9 @@ class _HudCounters extends StatelessWidget {
 
 class _HudCounter extends StatelessWidget {
   const _HudCounter({
-    required this.icon,
     required this.label,
     required this.semanticsLabel,
+    this.icon,
     this.onTap,
     this.note,
     this.attention = false,
@@ -283,7 +379,8 @@ class _HudCounter extends StatelessWidget {
     super.key,
   });
 
-  final IconData icon;
+  /// Null when the label carries its own glyph (e.g. «⏰ 1»).
+  final IconData? icon;
   final String label;
   final String semanticsLabel;
   final VoidCallback? onTap;
@@ -316,11 +413,17 @@ class _HudCounter extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(icon, size: kBeaconHudRowIconSize, color: color),
-                SizedBox(width: tt.tightGap),
+                if (icon != null) ...[
+                  Icon(icon, size: kBeaconHudRowIconSize, color: color),
+                  SizedBox(width: tt.tightGap),
+                ],
                 Text(
                   label,
-                  style: TenturaText.withTabular(TenturaText.status(tt.text)),
+                  style: TenturaText.withTabular(
+                    TenturaText.status(
+                      icon == null && attention ? color : tt.text,
+                    ),
+                  ),
                 ),
                 if (note != null) ...[
                   SizedBox(width: tt.tightGap),

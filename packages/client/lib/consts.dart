@@ -114,6 +114,13 @@ const kBeaconViewTabHelpOffers = 'help_offers';
 /// [kQueryBeaconViewTab] value — open the Chat surface (expanded split selection).
 const kBeaconViewTabThreads = 'threads';
 
+/// [kQueryBeaconViewTab] value — open the Plan surface (#220).
+const kBeaconViewTabPlan = 'plan';
+
+/// With [kQueryBeaconViewTab]=`plan`: the plan step whose card opens once
+/// the plan has loaded (notification deep links, #220).
+const kQueryPlanStepId = 'step';
+
 /// Pre-threads name of [kBeaconViewTabThreads]; accepted on input only.
 const kBeaconViewTabRoomLegacy = 'room';
 

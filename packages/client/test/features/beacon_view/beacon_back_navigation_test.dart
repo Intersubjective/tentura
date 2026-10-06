@@ -182,7 +182,7 @@ void main() {
         router: router,
       );
       await _tapPeopleTab(tester);
-      expect(_tabs(tester).selectedIndex, 2);
+      expect(_tabs(tester).selectedIndex, 3);
       expect(beaconViewPopScope(tester).canPop, isFalse);
 
       final handled = await tester.binding.handlePopRoute();
@@ -286,7 +286,7 @@ void main() {
         await tester.tap(find.byKey(TestIds.key(TestIds.beaconTabPeople)));
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 50));
-        expect(_tabs(tester).selectedIndex, 1);
+        expect(_tabs(tester).selectedIndex, 2);
 
         final roomBeforeFetch = recorder.created.single;
         final roomsBefore = recorder.created.length;
@@ -296,7 +296,7 @@ void main() {
         expect(harness.threadsCubit.state.isLoading, isTrue);
 
         expect(find.byType(TenturaVerticalResizeHandle), findsOneWidget);
-        expect(_tabs(tester).selectedIndex, 1);
+        expect(_tabs(tester).selectedIndex, 2);
         expect(recorder.created.length, roomsBefore);
         expect(roomBeforeFetch.closeCallCount, 0);
 
@@ -304,7 +304,7 @@ void main() {
         await tester.pump();
 
         expect(find.byType(TenturaVerticalResizeHandle), findsOneWidget);
-        expect(_tabs(tester).selectedIndex, 1);
+        expect(_tabs(tester).selectedIndex, 2);
         expect(identical(recorder.created.single, roomBeforeFetch), isTrue);
         expect(roomBeforeFetch.closeCallCount, 0);
         expect(find.byType(ThreadDetail), findsOneWidget);
@@ -328,7 +328,7 @@ void main() {
         recorder: recorder,
       );
       await tapBeaconChatTabAndWaitForRoom(tester);
-      expect(_tabs(tester).selectedIndex, 1);
+      expect(_tabs(tester).selectedIndex, 2);
 
       await resizeBeaconViewHarness(
         tester,
@@ -384,7 +384,7 @@ void main() {
       }
 
       expect(find.byType(TenturaVerticalResizeHandle), findsNothing);
-      expect(_tabs(tester).selectedIndex, 1);
+      expect(_tabs(tester).selectedIndex, 2);
       expect(find.byType(ThreadDetail), findsOneWidget);
       expect(harness.router.pushCount, 0);
     });

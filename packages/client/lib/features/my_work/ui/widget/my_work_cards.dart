@@ -26,6 +26,9 @@ import 'package:tentura/features/beacon_view/ui/sheet/help_offer_tile_sheet.dart
 import 'package:tentura/features/beacon_view/ui/widget/beacon_hud_author_confirm_sheets.dart';
 import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_obligation_block.dart';
+import 'package:tentura/features/my_work/ui/widget/my_work_plan_step_rows.dart';
+import 'package:tentura/features/beacon_plan/ui/util/plan_presenter.dart'
+    show planErrorText;
 import 'package:tentura/features/my_work/domain/derive_my_work_card_attention.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_card_attention_indicators.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_last_event_row.dart';
@@ -42,7 +45,8 @@ bool myWorkCloseBeaconEnabled(MyWorkCardViewModel vm) =>
     vm.beacon.status == BeaconStatus.open && vm.displayStatus != null;
 
 /// Footer Forward CTA on authored My Work cards (gated by `Beacon.allowsForward`).
-bool myWorkNeedsForwardCta(MyWorkCardViewModel vm) => vm.beacon.viewerCanForward;
+bool myWorkNeedsForwardCta(MyWorkCardViewModel vm) =>
+    vm.beacon.viewerCanForward;
 
 Future<void> _confirmAndDeleteMyWorkBeacon(
   BuildContext context, {
@@ -236,20 +240,26 @@ Widget? _composeMyWorkFooter(
   Widget? existingFooter,
   bool suppressReviewHelpOffersFallback = false,
 }) {
+  final now = DateTime.now();
   final view = myWorkCardAttentionView(
     beaconId: vm.beaconId,
     attention: context.select<MyWorkCubit, MyWorkBeaconAttention?>(
       (c) => c.state.attentionByBeacon[vm.beaconId],
     ),
     viewerArchived: vm.viewerArchived,
+    planSlice: vm.planSlice,
+    now: now,
   );
+  final planRows = view.hasPlanRows ? _myWorkPlanRows(context, vm, now) : null;
   final obligations = view.obligations;
   final optionalEvents = view.optionalEvents;
+  final optionalTotal = view.optionalTotal;
   final showObligations = myWorkObligationBlockVisible(
     vm: vm,
     obligations: obligations,
     optionalEvents: optionalEvents,
     suppressReviewHelpOffersFallback: suppressReviewHelpOffersFallback,
+    hasPlanRows: planRows != null,
   );
   if (!showObligations && existingFooter == null) {
     return null;
@@ -264,8 +274,9 @@ Widget? _composeMyWorkFooter(
           vm: vm,
           obligations: obligations,
           optionalEvents: optionalEvents,
+          planRows: planRows,
           // The server's total, not the rows in hand (U14b addition 4).
-          optionalTotal: view.optionalTotal,
+          optionalTotal: optionalTotal,
           onClearEvent: (receiptId) => unawaited(
             context.read<MyWorkCubit>().clearOptionalEvent(
               vm.beaconId,
@@ -286,9 +297,55 @@ Widget? _composeMyWorkFooter(
             ),
           ),
         ),
-      if (showObligations && existingFooter != null) SizedBox(height: tt.rowGap),
+      if (showObligations && existingFooter != null)
+        SizedBox(height: tt.rowGap),
       ?existingFooter,
     ],
+  );
+}
+
+/// The Request plan rows of [vm] (#220 §5.8), for a card whose attention
+/// view has them (`MyWorkCardAttentionView.hasPlanRows`).
+MyWorkPlanStepRows _myWorkPlanRows(
+  BuildContext context,
+  MyWorkCardViewModel vm,
+  DateTime now,
+) {
+  final slice = vm.planSlice!;
+  final l10n = L10n.of(context)!;
+  final people = {
+    for (final p in [
+      vm.beacon.author,
+      ...vm.beacon.admittedHelperUsers,
+      ...vm.beacon.helpOfferUsers,
+    ])
+      p.id: p,
+  };
+  final cubit = context.read<MyWorkCubit>();
+  Future<void> run(Future<void> Function() action) async {
+    try {
+      await action();
+    } catch (e) {
+      if (context.mounted) {
+        showSnackBar(context, isError: true, text: planErrorText(e, l10n));
+      }
+    }
+  }
+
+  return MyWorkPlanStepRows(
+    slice: slice,
+    now: now,
+    viewerId: context.read<ProfileCubit>().state.profile.id,
+    nameOf: (id) {
+      final name = people[id]?.shownName.trim() ?? '';
+      return name.isEmpty ? l10n.myWorkPlanSomeone : name;
+    },
+    onDone: (stepId) =>
+        unawaited(run(() => cubit.planStepDone(vm.beaconId, stepId))),
+    onAck: (uptoSeq) =>
+        unawaited(run(() => cubit.planAck(vm.beaconId, uptoSeq))),
+    onOpenStep: (_) =>
+        _openBeaconOrSelect(context, vm, viewTab: kBeaconViewTabPlan),
   );
 }
 
@@ -466,17 +523,19 @@ class _AuthoredActiveCard extends StatelessWidget {
                 onPressed: () => switch (phaseAction) {
                   BeaconPhasePrimaryAction.reviewOffers =>
                     _openBeaconReviewHelpOffers(context, vm),
-                  BeaconPhasePrimaryAction.forward => b.viewerCanForward
-                      ? unawaited(
-                          context.router.push(
-                            ForwardBeaconRoute(beaconId: b.id),
-                          ),
-                        )
-                      : _openBeaconOrSelect(context, vm),
-                  BeaconPhasePrimaryAction.resolveBlocker => _openBeaconOrSelect(
-                    context,
-                    vm,
-                  ),
+                  BeaconPhasePrimaryAction.forward =>
+                    b.viewerCanForward
+                        ? unawaited(
+                            context.router.push(
+                              ForwardBeaconRoute(beaconId: b.id),
+                            ),
+                          )
+                        : _openBeaconOrSelect(context, vm),
+                  BeaconPhasePrimaryAction.resolveBlocker =>
+                    _openBeaconOrSelect(
+                      context,
+                      vm,
+                    ),
                   _ => _openBeaconOrSelect(context, vm),
                 },
               ),
@@ -545,10 +604,11 @@ class _AuthoredActiveCard extends StatelessWidget {
                       }
                     }
                   : null,
-              onCancelBeacon: beaconAllowsCancel(
-                b,
-                serverCanCancel: vm.displayStatus?.canCancel,
-              )
+              onCancelBeacon:
+                  beaconAllowsCancel(
+                    b,
+                    serverCanCancel: vm.displayStatus?.canCancel,
+                  )
                   ? () async {
                       await Future<void>.delayed(Duration.zero);
                       if (!context.mounted) return;
@@ -834,10 +894,11 @@ class _FinishedAuthoredCard extends StatelessWidget {
                       }
                     }
                   : null,
-              onCancelBeacon: beaconAllowsCancel(
-                b,
-                serverCanCancel: vm.displayStatus?.canCancel,
-              )
+              onCancelBeacon:
+                  beaconAllowsCancel(
+                    b,
+                    serverCanCancel: vm.displayStatus?.canCancel,
+                  )
                   ? () async {
                       await Future<void>.delayed(Duration.zero);
                       if (!context.mounted) return;

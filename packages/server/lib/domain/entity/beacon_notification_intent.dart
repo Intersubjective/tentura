@@ -13,9 +13,9 @@ abstract class BeaconNotificationIntent with _$BeaconNotificationIntent {
     required NotificationPriority priority,
     required String beaconId,
     required String actorUserId,
-  @Default('') String titleExcerpt,
-  @Default('') String bodyExcerpt,
-  @Default('') String beaconTitle,
+    @Default('') String titleExcerpt,
+    @Default('') String bodyExcerpt,
+    @Default('') String beaconTitle,
     int? coordinationItemKind,
     String? coordinationItemId,
     String? targetPersonId,
@@ -25,5 +25,10 @@ abstract class BeaconNotificationIntent with _$BeaconNotificationIntent {
     @Default(false) bool promiseWithdrawn,
     @Default(false) bool isBackupOffer,
     @Default(BeaconKind.request) BeaconKind beaconKind,
+
+    /// Request plan copy: a relative distance in whole minutes (until a step
+    /// starts, or how late it is). Server copy never prints a clock time
+    /// (plan K16).
+    int? relativeMinutes,
   }) = _BeaconNotificationIntent;
 }

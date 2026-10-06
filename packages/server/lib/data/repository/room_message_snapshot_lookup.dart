@@ -37,10 +37,15 @@ final class RoomMessageSnapshotLookup implements RoomMessageSnapshotLookupPort {
         row.linkedEventKind != null) {
       return null;
     }
-    // Only fact edit/unpin system lines paint; pin lines (2/3) and every
+    // Only fact edit/unpin system lines and Request plan lines (#220, kind 5,
+    // markers 13..16, author may be null) paint; pin lines (2/3) and every
     // other marker stay client refetch.
     final marker = row.semanticMarker;
+    final isPlanLine =
+        row.systemMessageKind == _planSystemMessageKind &&
+        _planMarkers.contains(marker);
     final isFactSystemLine =
+        isPlanLine ||
         marker == BeaconRoomSemanticMarker.factEdited ||
         marker == BeaconRoomSemanticMarker.factUnpinned;
     final systemPayload = _decodeSystemPayload(row.systemPayload);
@@ -120,9 +125,20 @@ final class RoomMessageSnapshotLookup implements RoomMessageSnapshotLookupPort {
       replyToHasAttachments: replyToHasAttachments,
       semanticMarker: isFactSystemLine ? marker : null,
       systemPayload: isFactSystemLine ? systemPayload : null,
+      systemMessageKind: isPlanLine ? row.systemMessageKind : null,
       quotedFact: quotedFact,
     );
   }
+
+  /// `beacon_room_message.system_message_kind` of Request plan lines.
+  static const _planSystemMessageKind = 5;
+
+  static const _planMarkers = {
+    BeaconRoomSemanticMarker.planRevised,
+    BeaconRoomSemanticMarker.planStepsDone,
+    BeaconRoomSemanticMarker.planCantMake,
+    BeaconRoomSemanticMarker.planCopied,
+  };
 
   static Map<String, Object?>? _decodeSystemPayload(Object? raw) {
     final decoded = raw is String ? jsonDecode(raw) : raw;

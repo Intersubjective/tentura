@@ -32,4 +32,24 @@ enum NotificationKind {
   batonAsked,
   batonTaken,
   batonAllAnswered,
+
+  /// Request plan («либретто», #220) — `plan-implementation.md` §4.6.
+  /// Obligations: your step started / it is your turn / your step changed.
+  planStepDue,
+  planStepTurn,
+  planChangePending,
+
+  /// Optional: 15 minutes before start; once overdue (no immediate email,
+  /// not in the digest — `kNoImmediateEmailKinds`, `kNoDigestKinds`).
+  planStepReminder,
+  planStepOverdue,
+
+  /// Optional, to the Request author.
+  planStepLate,
+  planCantMake,
+  planStepUnassigned,
+
+  /// Ambient, never pushed.
+  planEdited,
+  planStepDone,
 }

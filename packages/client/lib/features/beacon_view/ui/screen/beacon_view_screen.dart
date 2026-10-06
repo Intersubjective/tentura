@@ -10,6 +10,7 @@ import 'package:tentura/features/home/ui/widget/home_rail_frame.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
+import 'package:tentura/features/beacon_threads/domain/entity/room_composer_intent.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_state.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_cubit.dart';
@@ -19,6 +20,10 @@ import 'package:tentura/features/beacon_threads/ui/widget/thread_detail.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_room_lease.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_request_modes.dart';
+import 'package:tentura/features/beacon_view/ui/util/beacon_plan_people.dart';
+import 'package:tentura/features/beacon_plan/domain/entity/beacon_plan.dart';
+import 'package:tentura/features/beacon_plan/ui/bloc/plan_cubit.dart';
+import 'package:tentura/features/beacon_plan/ui/widget/beacon_plan_surface.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_room_navigation_scope.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -109,6 +114,7 @@ class BeaconViewScreen extends StatefulWidget {
     this.entry,
     this.threadId,
     this.messageId,
+    this.stepId,
     super.key,
   });
 
@@ -130,6 +136,9 @@ class BeaconViewScreen extends StatefulWidget {
 
   /// Exact Chat message target from an Updates receipt.
   final String? messageId;
+
+  /// Plan step whose card opens once the plan loads (`tab=plan&step=`).
+  final String? stepId;
 
   @override
   State<BeaconViewScreen> createState() => _BeaconViewScreenState();
@@ -174,6 +183,22 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
 
   /// Author previewing the showcase ("How others see it").
   bool _previewAsOutsider = false;
+
+  /// The Request plan (#220) was asked to load once (the host's [PlanCubit]).
+  bool _planLoadRequested = false;
+
+  /// The deep-linked plan step ([BeaconViewScreen.stepId]) was opened once.
+  bool _planStepHandled = false;
+
+  /// Loads the plan once the viewer is known to be inside the Request;
+  /// outsiders (showcase, admission pending) never fetch it.
+  void _maybeLoadPlan(PlanCubit? cubit, {required bool insider}) {
+    if (cubit == null || !insider || _planLoadRequested) return;
+    _planLoadRequested = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !cubit.isClosed) unawaited(cubit.load());
+    });
+  }
 
   bool _isShowcase(BeaconViewState state) =>
       state.beaconContentLoaded &&
@@ -542,6 +567,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   void didUpdateWidget(BeaconViewScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.id != widget.id) {
+      _planLoadRequested = false;
       _didApplyThreadsResolution = false;
       _focusThreadId = null;
       _focusUserId = null;
@@ -549,6 +575,9 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       _lastIsSplit = null;
       _didOpenActivitySheetForLogTab = false;
       _previewAsOutsider = false;
+    }
+    if (oldWidget.stepId != widget.stepId || oldWidget.id != widget.id) {
+      _planStepHandled = false;
     }
     if (oldWidget.viewTab != widget.viewTab) {
       _selectedSurface = beaconViewSurfaceForTab(widget.viewTab);
@@ -587,6 +616,30 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       _focusUserId = null;
     });
     unawaited(_syncSurfaceQuery(BeaconSurface.people));
+  }
+
+  /// «Не успеваю → написать в обсуждении» (#220): opens the discussion with
+  /// the step quoted in the composer; sending that message records the
+  /// «can't make it» with the person's words.
+  void _startPlanCantMakeChat(PlanStep step, bool isSplit) {
+    final plan = context.read<PlanCubit?>()?.state.plan;
+    final intent = RoomComposerIntent(
+      prefill: L10n.of(
+        context,
+      )!.planCantMakeChatPrefill(step.index, step.title),
+      planCantMake: plan == null
+          ? null
+          : PlanCantMakeInChat(
+              stepId: step.id,
+              baseRevisionSeq: plan.revisionSeq,
+            ),
+    );
+    context.read<ThreadHostCubit>().armComposerIntent(intent);
+    if (isSplit) {
+      unawaited(_openGeneralThread());
+    } else {
+      _focusDiscussionGeneral();
+    }
   }
 
   void _focusDiscussionGeneral() {
@@ -707,6 +760,19 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
           onActivatePeopleTabAttention: _activatePeopleTabAttention,
           onFocusCoordinationItem: (_) => _focusDiscussionGeneral(),
           onOpenGeneralThread: () => unawaited(_openGeneralThread()),
+          onPlanCantMakeChat: (step) => _startPlanCantMakeChat(step, isSplit),
+        );
+      case BeaconSurface.plan:
+        return BeaconPlanSurface(
+          key: ValueKey('plan-${beaconState.beacon.id}'),
+          beaconId: beaconState.beacon.id,
+          viewerId: beaconState.myProfile.id,
+          admitted: beaconPlanAdmittedPeople(beaconState),
+          // In the split the chat is always on screen; otherwise go there.
+          onOpenDiscussion: isSplit ? null : _focusDiscussionGeneral,
+          onCantMakeChat: (step) => _startPlanCantMakeChat(step, isSplit),
+          initialStepId: _planStepHandled ? null : widget.stepId,
+          onInitialStepHandled: () => _planStepHandled = true,
         );
       case BeaconSurface.room:
         return BeaconRoomSurface(
@@ -1064,6 +1130,14 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                         );
                       }
 
+                      _maybeLoadPlan(
+                        context.read<PlanCubit?>(),
+                        insider:
+                            showBeaconContent &&
+                            !showcase &&
+                            !state.isRoomAdmissionBlocked,
+                      );
+
                       final contentColumn = Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -1118,6 +1192,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                               return;
                             }
                             if (_selectedSurface == BeaconSurface.room ||
+                                _selectedSurface == BeaconSurface.plan ||
                                 _selectedSurface == BeaconSurface.people) {
                               _switchToSurface(BeaconSurface.now);
                             }

@@ -48,6 +48,18 @@ abstract final class BeaconRoomSemanticMarker {
 
   /// «Who'll take it?» baton resolved with a taker (system line).
   static const batonTaken = 12;
+
+  /// Request plan revised: save, restore or an assignee leaving (#220).
+  static const planRevised = 13;
+
+  /// Plan steps ticked; consecutive ticks coalesce into one line (#220).
+  static const planStepsDone = 14;
+
+  /// «Не успеваю»: an assignee moved or handed over their step (#220).
+  static const planCantMake = 15;
+
+  /// The plan was copied from another Request on publish (#220).
+  static const planCopied = 16;
 }
 
 /// `beacon_participant.next_move_status` (sparse UX enum).

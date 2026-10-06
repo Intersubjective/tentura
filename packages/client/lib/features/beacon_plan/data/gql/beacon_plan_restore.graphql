@@ -1,0 +1,11 @@
+mutation BeaconPlanRestore(
+  $beaconId: String!
+  $fromSeq: Int!
+  $baseRevisionSeq: Int!
+) {
+  beaconPlanRestore(
+    beaconId: $beaconId
+    fromSeq: $fromSeq
+    baseRevisionSeq: $baseRevisionSeq
+  )
+}

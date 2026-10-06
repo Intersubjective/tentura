@@ -104,6 +104,7 @@ abstract final class TestIds {
       'room.emoji.suggestion.$shortcode';
   static const beaconForward = 'beacon.forward';
   static const beaconTabNow = 'beacon.tab.now';
+  static const beaconTabPlan = 'beacon.tab.plan';
   static const beaconTabRoom = 'beacon.tab.room';
   static const childRequestCreate = 'request.child.create';
   static const childRequestsActive = 'request.children.active';

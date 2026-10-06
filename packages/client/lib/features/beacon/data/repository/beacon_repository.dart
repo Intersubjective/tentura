@@ -18,6 +18,7 @@ import 'package:tentura/domain/port/realtime_sync_port.dart';
 import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 
 import 'package:tentura/domain/entity/image_entity.dart';
+import 'package:tentura/features/beacon_plan/domain/entity/plan_fork_copy.dart';
 
 import '../../domain/exception.dart';
 import '../model/beacon_model_with_admitted_helpers.dart';
@@ -165,10 +166,47 @@ class BeaconRepository implements BeaconWritePort {
         };
       });
 
+  /// `beaconFork` request; plan arguments only when [copyPlan].
+  @visibleForTesting
+  static GBeaconForkReq forkRequest(
+    String sourceId, {
+    bool copyPlan = false,
+    List<PlanStepTime> planStepTimes = const [],
+  }) => GBeaconForkReq((b) {
+    b.vars.id = sourceId;
+    if (!copyPlan) return;
+    b.vars
+      ..copyPlan = true
+      ..planStepTimes.replace([
+        for (final t in planStepTimes)
+          Gv2_PlanStepTimeInput(
+            (i) => i
+              ..sourceStepId = t.sourceStepId
+              ..startAt = scheduleDateTimeToIso(t.startAt)
+              ..endAt = scheduleDateTimeToIso(t.endAt),
+          ),
+      ]);
+  });
+
   /// Server-side lineage fork → new DRAFT; refetch full beacon via Hasura.
-  Future<Beacon> fork(String sourceId) async {
+  ///
+  /// With [copyPlan] the server copies the source plan's live steps into the
+  /// draft (no assignees) at [planStepTimes], which the client computed in
+  /// the viewer's zone (plan §4.10, §5.11). The server copies nothing when
+  /// the caller may not read the source plan.
+  Future<Beacon> fork(
+    String sourceId, {
+    bool copyPlan = false,
+    List<PlanStepTime> planStepTimes = const [],
+  }) async {
     final newId = await _remoteApiService
-        .request(GBeaconForkReq((b) => b.vars.id = sourceId))
+        .request(
+          forkRequest(
+            sourceId,
+            copyPlan: copyPlan,
+            planStepTimes: planStepTimes,
+          ),
+        )
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).beaconFork.id);
     return fetchBeaconById(newId);

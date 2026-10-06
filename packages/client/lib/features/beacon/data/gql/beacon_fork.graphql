@@ -1,5 +1,9 @@
-mutation BeaconFork($id: String!) {
-  beaconFork(id: $id) {
+mutation BeaconFork(
+  $id: String!
+  $copyPlan: Boolean
+  $planStepTimes: [v2_PlanStepTimeInput!]
+) {
+  beaconFork(id: $id, copyPlan: $copyPlan, planStepTimes: $planStepTimes) {
     id
   }
 }

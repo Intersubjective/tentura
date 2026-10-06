@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/features/beacon_plan/ui/bloc/plan_cubit.dart';
+import 'package:tentura/features/beacon_plan/ui/widget/plan_boundary_ticker.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_state.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
@@ -17,6 +19,7 @@ class BeaconSurfaceTabs extends StatelessWidget {
     required this.onSurfaceSelected,
     this.onSurfaceReselected,
     this.peopleTabAttentionActive = false,
+    this.clock,
     super.key,
   });
 
@@ -29,8 +32,12 @@ class BeaconSurfaceTabs extends StatelessWidget {
 
   final bool peopleTabAttentionActive;
 
+  /// Test seam for the overdue clock.
+  final DateTime Function()? clock;
+
   static IconData _iconFor(BeaconSurface surface) => switch (surface) {
     BeaconSurface.now => Icons.bolt_outlined,
+    BeaconSurface.plan => Icons.checklist_outlined,
     BeaconSurface.room => Icons.forum_outlined,
     BeaconSurface.people => Icons.people_outline,
   };
@@ -38,12 +45,14 @@ class BeaconSurfaceTabs extends StatelessWidget {
   static String _labelFor(BeaconSurface surface, L10n l10n) =>
       switch (surface) {
         BeaconSurface.now => l10n.labelBeaconTabNow,
+        BeaconSurface.plan => l10n.labelBeaconTabPlan,
         BeaconSurface.room => l10n.labelBeaconTabChat,
         BeaconSurface.people => l10n.labelBeaconTabPeople,
       };
 
   static String _tabIdFor(BeaconSurface surface) => switch (surface) {
     BeaconSurface.now => TestIds.beaconTabNow,
+    BeaconSurface.plan => TestIds.beaconTabPlan,
     BeaconSurface.room => TestIds.beaconTabRoom,
     BeaconSurface.people => TestIds.beaconTabPeople,
   };
@@ -73,6 +82,7 @@ class BeaconSurfaceTabs extends StatelessWidget {
     return BlocBuilder<BeaconViewCubit, BeaconViewState>(
       buildWhen: (p, c) =>
           p.isBeaconMine != c.isBeaconMine ||
+          p.isRoomAdmissionBlocked != c.isRoomAdmissionBlocked ||
           p.unansweredHelpOffersCount != c.unansweredHelpOffersCount ||
           p.needCoordinationHelpOffersCount !=
               c.needCoordinationHelpOffersCount,
@@ -96,44 +106,122 @@ class BeaconSurfaceTabs extends StatelessWidget {
                 ? threadsState.threadsTabUnreadCount
                 : null;
 
-            final badges = visible.map((surface) {
-              return switch (surface) {
-                BeaconSurface.room => threadsTabBadge,
-                BeaconSurface.people => peopleTabBadge,
-                BeaconSurface.now => null,
-              };
-            }).toList();
+            Widget tabs(BeaconPlanTabBadge plan) {
+              final badges = visible.map((surface) {
+                return switch (surface) {
+                  BeaconSurface.room => threadsTabBadge,
+                  BeaconSurface.people => peopleTabBadge,
+                  BeaconSurface.plan => plan.overdue > 0 ? plan.overdue : null,
+                  BeaconSurface.now => null,
+                };
+              }).toList();
 
-            final badgeBackgroundColors = visible.map((surface) {
-              return switch (surface) {
-                BeaconSurface.people =>
-                  peopleTabBadge != null ? tt.danger : null,
-                _ => null,
-              };
-            }).toList();
+              final badgeBackgroundColors = visible.map((surface) {
+                return switch (surface) {
+                  BeaconSurface.people =>
+                    peopleTabBadge != null ? tt.danger : null,
+                  BeaconSurface.plan => plan.overdue > 0 ? tt.danger : null,
+                  _ => null,
+                };
+              }).toList();
 
-            final secondaryBadges = visible.map((surface) {
-              return switch (surface) {
-                BeaconSurface.people => peopleTabSecondaryBadge,
-                _ => null,
-              };
-            }).toList();
+              final secondaryBadges = visible.map((surface) {
+                return switch (surface) {
+                  BeaconSurface.people => peopleTabSecondaryBadge,
+                  _ => null,
+                };
+              }).toList();
 
-            return TenturaUnderlineTabs(
-              tabs: visible.map((s) => _labelFor(s, l10n)).toList(),
-              icons: visible.map(_iconFor).toList(),
-              tabIds: visible.map(_tabIdFor).toList(),
-              selectedIndex: selectedIndex,
-              onChanged: (i) => _onTabTap(visible, i),
-              badges: badges,
-              badgeBackgroundColors: badgeBackgroundColors,
-              secondaryBadges: secondaryBadges,
-              attentionIndex: peopleIndex >= 0 ? peopleIndex : null,
-              attentionActive: peopleTabAttentionActive,
+              return _tabs(
+                visible: visible,
+                l10n: l10n,
+                selectedIndex: selectedIndex,
+                peopleIndex: peopleIndex,
+                badges: badges,
+                badgeBackgroundColors: badgeBackgroundColors,
+                secondaryBadges: secondaryBadges,
+                dots: [
+                  for (final surface in visible)
+                    surface == BeaconSurface.plan && plan.dot,
+                ],
+              );
+            }
+
+            // The Request plan (#220) from the host: the Plan tab shows the
+            // viewer's overdue count (danger) or a dot for a current step /
+            // changes to confirm.
+            final planCubit = context.read<PlanCubit?>();
+            if (planCubit == null ||
+                !visible.contains(BeaconSurface.plan) ||
+                beaconState.isRoomAdmissionBlocked) {
+              return tabs(BeaconPlanTabBadge.none);
+            }
+            return BlocBuilder<PlanCubit, PlanState>(
+              bloc: planCubit,
+              builder: (context, planState) => PlanBoundaryTicker(
+                plan: planState.plan,
+                clock: clock,
+                builder: (context, now) => tabs(
+                  BeaconPlanTabBadge.of(planState, now),
+                ),
+              ),
             );
           },
         );
       },
     );
   }
+
+  Widget _tabs({
+    required List<BeaconSurface> visible,
+    required L10n l10n,
+    required int selectedIndex,
+    required int peopleIndex,
+    required List<int?> badges,
+    required List<Color?> badgeBackgroundColors,
+    required List<int?> secondaryBadges,
+    required List<bool> dots,
+  }) => TenturaUnderlineTabs(
+    tabs: visible.map((s) => _labelFor(s, l10n)).toList(),
+    icons: visible.map(_iconFor).toList(),
+    tabIds: visible.map(_tabIdFor).toList(),
+    selectedIndex: selectedIndex,
+    onChanged: (i) => _onTabTap(visible, i),
+    badges: badges,
+    badgeBackgroundColors: badgeBackgroundColors,
+    secondaryBadges: secondaryBadges,
+    dots: dots,
+    dotSemanticsLabel: l10n.planTabPendingSemantics,
+    attentionIndex: peopleIndex >= 0 ? peopleIndex : null,
+    attentionActive: peopleTabAttentionActive,
+  );
+}
+
+/// The Plan tab's mark: the viewer's overdue steps, else a dot when a step
+/// of theirs is running or changes wait for «Понятно».
+@immutable
+class BeaconPlanTabBadge {
+  const BeaconPlanTabBadge({this.overdue = 0, this.dot = false});
+
+  factory BeaconPlanTabBadge.of(PlanState state, DateTime now) {
+    final plan = state.plan;
+    if (plan == null || plan.isEmpty) {
+      return plan != null && plan.hasViewerPending
+          ? const BeaconPlanTabBadge(dot: true)
+          : none;
+    }
+    final overdue = plan.viewerOverdueCount(now: now, viewerId: state.viewerId);
+    return BeaconPlanTabBadge(
+      overdue: overdue,
+      dot:
+          overdue == 0 &&
+          (plan.hasViewerPending ||
+              plan.viewerHasCurrentStep(now: now, viewerId: state.viewerId)),
+    );
+  }
+
+  static const none = BeaconPlanTabBadge();
+
+  final int overdue;
+  final bool dot;
 }

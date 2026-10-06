@@ -28,6 +28,8 @@ class TenturaUnderlineTabs extends StatefulWidget {
     this.badges,
     this.badgeBackgroundColors,
     this.secondaryBadges,
+    this.dots,
+    this.dotSemanticsLabel,
     this.tabIds,
     this.attentionIndex,
     this.attentionActive = false,
@@ -52,6 +54,13 @@ class TenturaUnderlineTabs extends StatefulWidget {
   /// Optional per-tab second count (e.g. warn-styled chip). Same length as
   /// [tabs] when non-null; entries null or <=0 are hidden.
   final List<int?>? secondaryBadges;
+
+  /// Optional per-tab attention dot (something to look at, no count). Same
+  /// length as [tabs] when non-null; hidden while the tab shows a badge.
+  final List<bool>? dots;
+
+  /// Screen-reader text of a dot (e.g. «Plan: a step needs you»).
+  final String? dotSemanticsLabel;
 
   /// Optional stable ids for test keys. Same length as [tabs] when non-null.
   final List<String>? tabIds;
@@ -250,6 +259,10 @@ class _TenturaUnderlineTabsState extends State<TenturaUnderlineTabs>
     final icon = widget.icons != null && index < widget.icons!.length
         ? widget.icons![index]
         : null;
+    final dot =
+        widget.dots != null &&
+        index < widget.dots!.length &&
+        widget.dots![index];
 
     final useAnimatedAttention =
         _shouldShowAttention &&
@@ -273,6 +286,8 @@ class _TenturaUnderlineTabsState extends State<TenturaUnderlineTabs>
       badge: badge,
       badgeBackgroundColor: badgeBackground,
       secondaryBadge: secondaryBadge,
+      dot: dot,
+      dotSemanticsLabel: widget.dotSemanticsLabel,
       attentionBackgroundOpacity: attentionOpacity,
       countStyle: widget.countStyle,
     );
@@ -306,6 +321,8 @@ class _TabCell extends StatelessWidget {
     this.badge,
     this.badgeBackgroundColor,
     this.secondaryBadge,
+    this.dot = false,
+    this.dotSemanticsLabel,
     this.attentionBackgroundOpacity = 0.0,
     this.countStyle = TenturaTabCountStyle.badge,
     super.key,
@@ -321,6 +338,8 @@ class _TabCell extends StatelessWidget {
   final int? badge;
   final Color? badgeBackgroundColor;
   final int? secondaryBadge;
+  final bool dot;
+  final String? dotSemanticsLabel;
   final double attentionBackgroundOpacity;
   final TenturaTabCountStyle countStyle;
 
@@ -361,6 +380,25 @@ class _TabCell extends StatelessWidget {
         );
       }
     }
+
+    final dotWidget = dot && !hasAnyBadge
+        ? Padding(
+            padding: EdgeInsets.only(left: tt.tightGap),
+            child: Semantics(
+              label: dotSemanticsLabel,
+              child: SizedBox.square(
+                key: const ValueKey<String>('tentura-tab-dot'),
+                dimension: tt.unreadDotSize,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: tt.info,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+            ),
+          )
+        : null;
 
     // Counts sit right after their label (Material 3 tabs): pinned to the
     // slot's far edge they read as a separate tab ("Unread      2").
@@ -428,6 +466,7 @@ class _TabCell extends StatelessWidget {
                         ),
                       ),
                     ?inlineBadges,
+                    ?dotWidget,
                   ],
                 ),
               ),

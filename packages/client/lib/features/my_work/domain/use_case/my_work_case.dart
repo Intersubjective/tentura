@@ -12,6 +12,7 @@ import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
+import 'package:tentura/features/beacon_plan/data/repository/beacon_plan_repository.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_room_hints_repository.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
@@ -43,7 +44,8 @@ final class MyWorkCase extends UseCaseBase {
     this._closureRepository,
     this._realtimeSyncCase,
     this._bookkeepingRefreshSignal,
-    this._attentionCase, {
+    this._attentionCase,
+    this._planRepository, {
     required super.env,
     required super.logger,
   });
@@ -67,6 +69,20 @@ final class MyWorkCase extends UseCaseBase {
   final BookkeepingRefreshSignal _bookkeepingRefreshSignal;
 
   final AttentionCase _attentionCase;
+
+  /// Request plan writes from My Work rows (#220 §5.8).
+  final BeaconPlanRepository _planRepository;
+
+  /// Requests whose plan changed on the server (realtime `beacon_plan`).
+  Stream<String> get planChanges => _planRepository.changes;
+
+  /// «Готово» on the viewer's plan step.
+  Future<void> planStepDone(String stepId) =>
+      _planRepository.setDone(stepId: stepId, done: true);
+
+  /// «Понятно» on plan changes up to [uptoSeq].
+  Future<void> planAck({required String beaconId, required int uptoSeq}) =>
+      _planRepository.ack(beaconId: beaconId, uptoSeq: uptoSeq);
 
   Stream<RepositoryEvent<Beacon>> get beaconChanges =>
       _beaconRepository.changes;
@@ -200,7 +216,8 @@ final class MyWorkCase extends UseCaseBase {
       _attentionCase.clearReceipt(receiptId: receiptId);
 
   /// A Request whose surface or state changed and has to be re-read (U13c).
-  Stream<String> get requestInvalidations => _attentionCase.requestInvalidations;
+  Stream<String> get requestInvalidations =>
+      _attentionCase.requestInvalidations;
 
   Future<MyWorkDeskArchivedLoad> loadDeskArchived({
     required String userId,
@@ -294,6 +311,7 @@ final class MyWorkCase extends UseCaseBase {
             }
           }
           return c.copyWith(
+            planSlice: h.planSlice,
             roomCurrentLine: h.currentLineSnippet,
             roomOpenBlockerTitle: h.openBlockerTitle,
             roomOpenBlocker: h.openBlocker,

@@ -31,6 +31,7 @@ import 'package:tentura/features/beacon_threads/data/repository/beacon_activity_
 import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card_repository.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
+import 'package:tentura/features/beacon_plan/domain/entity/plan_fork_copy.dart';
 
 import '../../data/repository/coordination_repository.dart';
 import '../../data/repository/beacon_display_repository.dart';
@@ -500,5 +501,13 @@ final class BeaconViewCase extends UseCaseBase {
     return _closureRepository.fetchState(beaconId);
   }
 
-  Future<Beacon> fork(String sourceId) => _beaconRepository.fork(sourceId);
+  Future<Beacon> fork(
+    String sourceId, {
+    bool copyPlan = false,
+    List<PlanStepTime> planStepTimes = const [],
+  }) => _beaconRepository.fork(
+    sourceId,
+    copyPlan: copyPlan,
+    planStepTimes: planStepTimes,
+  );
 }
