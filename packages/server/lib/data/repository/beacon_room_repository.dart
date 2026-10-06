@@ -1279,12 +1279,15 @@ RETURNING *
     required String offerUserId,
     required String authorUserId,
     String admissionReason = BeaconRoomAdmissionReason.accept,
+    int participantStatus = BeaconParticipantStatusBits.committed,
   }) async {
     await _db.withMutatingUser(authorUserId, () async {
       final existing = await findParticipant(
         beaconId: beaconId,
         userId: offerUserId,
       );
+      final isPostMember =
+          existing?.role == BeaconParticipantRoleBits.addressee;
       final isAdmittedAddressee =
           existing?.roomAccess == RoomAccessBits.admitted &&
           existing?.role == BeaconParticipantRoleBits.addressee;
@@ -1301,7 +1304,7 @@ RETURNING *
             beaconId: beaconId,
             userId: offerUserId,
             role: BeaconParticipantRoleBits.helper,
-            status: const Value(BeaconParticipantStatusBits.committed),
+            status: Value(participantStatus),
             roomAccess: const Value(RoomAccessBits.admitted),
           ),
         );
@@ -1313,8 +1316,12 @@ RETURNING *
             .update(
               (o) => o(
                 roomAccess: const Value(RoomAccessBits.admitted),
-                status: const Value(BeaconParticipantStatusBits.committed),
-                role: isAdmittedAddressee
+                status: Value(participantStatus),
+                role:
+                    isAdmittedAddressee ||
+                        (isPostMember &&
+                            participantStatus ==
+                                BeaconParticipantStatusBits.admitted)
                     ? const Value(BeaconParticipantRoleBits.helper)
                     : const Value.absent(),
                 updatedAt: Value(PgDateTime(DateTime.timestamp())),

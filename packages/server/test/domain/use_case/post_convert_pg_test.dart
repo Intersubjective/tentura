@@ -66,10 +66,9 @@ const _roleAddressee = 6;
 
 /// A Post's author turns it into a Request in one validated step: the Request
 /// content, `kind`, forward policy and discoverability change together (one
-/// `UPDATE`, because the Post shape CHECK forbids writing content first), the
-/// addressees stay in the room without counting as helpers, and a system
-/// message tells the room. Real repositories over a disposable Postgres. See
-/// `docs/plans/post-and-constellation-composer-plan.md` §4.6.
+/// `UPDATE`, because the Post shape CHECK forbids writing content first), an
+/// empty helper selection removes the Post's addressees, and a system
+/// message tells the room. Real repositories over a disposable Postgres.
 Future<void> main() async {
   final target = DisposablePgTarget.fromNamedEnvironment(
     envVarName: 'TENTURA_POST_CONVERT_TEST_DB',
@@ -103,6 +102,28 @@ Future<void> main() async {
       startAt: start,
       endAt: end,
     );
+
+    Future<void> convertWithoutHelpers({
+      required String authorId,
+      required String beaconId,
+      required BeaconConversionContent content,
+      required bool isDiscoverable,
+    }) async {
+      // Keep the tests compilable before the helperIds argument is available.
+      // Every conversion explicitly selects no helpers, including refusals.
+      await (Function.apply(
+            beacons.convertToRequest,
+            const <Object?>[],
+            <Symbol, Object?>{
+              #authorId: authorId,
+              #beaconId: beaconId,
+              #content: content,
+              #isDiscoverable: isDiscoverable,
+              #helperIds: const <String>[],
+            },
+          )
+          as Future<Object?>);
+    }
 
     setUpAll(() async {
       session = await setUpDisposablePgWriter(target: target);
@@ -193,7 +214,7 @@ WHERE beacon_id = '$id'
 
     group('with valid content', () {
       test('turns the Post into an open-forwarding Request', () async {
-        await beacons.convertToRequest(
+        await convertWithoutHelpers(
           authorId: _author,
           beaconId: _post,
           content: validContent(),
@@ -206,7 +227,7 @@ WHERE beacon_id = '$id'
       });
 
       test('writes the Request content', () async {
-        await beacons.convertToRequest(
+        await convertWithoutHelpers(
           authorId: _author,
           beaconId: _post,
           content: validContent(),
@@ -226,7 +247,7 @@ WHERE beacon_id = '$id'
         'writes kind, forward policy and every content column in a single '
         'UPDATE of the beacon row',
         () async {
-          await beacons.convertToRequest(
+          await convertWithoutHelpers(
             authorId: _author,
             beaconId: _post,
             content: validContent(),
@@ -244,7 +265,7 @@ WHERE beacon_id = '$id'
       );
 
       test('emits a realtime beacon update to the author', () async {
-        await beacons.convertToRequest(
+        await convertWithoutHelpers(
           authorId: _author,
           beaconId: _post,
           content: validContent(),
@@ -261,7 +282,7 @@ WHERE beacon_id = '$id'
       test('keeps the root message of the Post', () async {
         expect((await beaconRow(_post))[10], _rootMessage);
 
-        await beacons.convertToRequest(
+        await convertWithoutHelpers(
           authorId: _author,
           beaconId: _post,
           content: validContent(),
@@ -280,7 +301,7 @@ SELECT count(*) FROM public.beacon_room_message WHERE id = '$_rootMessage'
       });
 
       test('stores the requested discoverability', () async {
-        await beacons.convertToRequest(
+        await convertWithoutHelpers(
           authorId: _author,
           beaconId: _post,
           content: validContent(),
@@ -293,7 +314,7 @@ SELECT count(*) FROM public.beacon_room_message WHERE id = '$_rootMessage'
       test('bumps updated_at', () async {
         final before = (await beaconRow(_post))[9]! as DateTime;
 
-        await beacons.convertToRequest(
+        await convertWithoutHelpers(
           authorId: _author,
           beaconId: _post,
           content: validContent(),
@@ -307,7 +328,7 @@ SELECT count(*) FROM public.beacon_room_message WHERE id = '$_rootMessage'
       test(
         'inserts exactly one system message announcing the conversion',
         () async {
-          await beacons.convertToRequest(
+          await convertWithoutHelpers(
             authorId: _author,
             beaconId: _post,
             content: validContent(),
@@ -330,8 +351,8 @@ SELECT count(*) FROM public.beacon_room_message WHERE id = '$_rootMessage'
         },
       );
 
-      test('keeps the addressees admitted in the room with role 6', () async {
-        await beacons.convertToRequest(
+      test('an empty helper selection removes every Post addressee', () async {
+        await convertWithoutHelpers(
           authorId: _author,
           beaconId: _post,
           content: validContent(),
@@ -339,15 +360,16 @@ SELECT count(*) FROM public.beacon_room_message WHERE id = '$_rootMessage'
         );
 
         for (final user in [_member, _other]) {
-          final row = await participant(_post, user);
-          expect(row, isNotNull, reason: '$user keeps a participant row');
-          expect(row![0], _roleAddressee, reason: '$user role');
-          expect(row[1], RoomAccessBits.admitted, reason: '$user room_access');
+          expect(
+            await participant(_post, user),
+            isNull,
+            reason: '$user is not selected as a Request helper',
+          );
         }
       });
 
-      test('does not count the addressees as admitted helpers', () async {
-        await beacons.convertToRequest(
+      test('an empty helper selection does not admit helpers', () async {
+        await convertWithoutHelpers(
           authorId: _author,
           beaconId: _post,
           content: validContent(),
@@ -361,7 +383,7 @@ SELECT count(*) FROM public.beacon_room_message WHERE id = '$_rootMessage'
         final draftBefore = await beaconRow(_draftPost);
         final requestBefore = await beaconRow(_plainRequest);
 
-        await beacons.convertToRequest(
+        await convertWithoutHelpers(
           authorId: _author,
           beaconId: _post,
           content: validContent(),
@@ -380,7 +402,7 @@ SELECT count(*) FROM public.beacon_room_message WHERE id = '$_rootMessage'
         final before = await beaconRow(_post);
 
         await expectLater(
-          beacons.convertToRequest(
+          convertWithoutHelpers(
             authorId: _author,
             beaconId: _post,
             content: content,
@@ -420,7 +442,7 @@ SELECT count(*) FROM public.beacon_room_message WHERE id = '$_rootMessage'
         final before = await beaconRow(_post);
 
         await expectLater(
-          beacons.convertToRequest(
+          convertWithoutHelpers(
             authorId: _member,
             beaconId: _post,
             content: validContent(),
@@ -440,7 +462,7 @@ SELECT count(*) FROM public.beacon_room_message WHERE id = '$_rootMessage'
       });
 
       test('a second conversion is rejected and changes nothing', () async {
-        await beacons.convertToRequest(
+        await convertWithoutHelpers(
           authorId: _author,
           beaconId: _post,
           content: validContent(),
@@ -449,7 +471,7 @@ SELECT count(*) FROM public.beacon_room_message WHERE id = '$_rootMessage'
         final afterFirst = await beaconRow(_post);
 
         await expectLater(
-          beacons.convertToRequest(
+          convertWithoutHelpers(
             authorId: _author,
             beaconId: _post,
             content: BeaconConversionContent(
@@ -475,7 +497,7 @@ SELECT count(*) FROM public.beacon_room_message WHERE id = '$_rootMessage'
         final before = await beaconRow(_plainRequest);
 
         await expectLater(
-          beacons.convertToRequest(
+          convertWithoutHelpers(
             authorId: _author,
             beaconId: _plainRequest,
             content: validContent(),
@@ -498,7 +520,7 @@ SELECT count(*) FROM public.beacon_room_message WHERE id = '$_rootMessage'
         final before = await beaconRow(_draftPost);
 
         await expectLater(
-          beacons.convertToRequest(
+          convertWithoutHelpers(
             authorId: _author,
             beaconId: _draftPost,
             content: validContent(),
@@ -521,7 +543,7 @@ SELECT count(*) FROM public.beacon_room_message WHERE id = '$_rootMessage'
         };
 
         await expectLater(
-          beacons.convertToRequest(
+          convertWithoutHelpers(
             authorId: _author,
             beaconId: _post,
             content: validContent(),

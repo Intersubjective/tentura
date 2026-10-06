@@ -36,6 +36,7 @@ final class MutationBeacon extends GqlNodeBase {
   final _kind = InputFieldInt(fieldName: 'kind');
 
   final _forwardPolicy = InputFieldInt(fieldName: 'forwardPolicy');
+  final _helperIds = InputFieldStringList(fieldName: 'helperIds');
 
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
     create,
@@ -248,6 +249,7 @@ final class MutationBeacon extends GqlNodeBase {
           _needs.fieldNullable,
           _primaryNeedSlug.fieldNullable,
           _isDiscoverable.fieldNullable,
+          _helperIds.fieldNullable,
         ],
         resolve: (_, args) => _beaconCase
             .convertToRequest(
@@ -262,6 +264,7 @@ final class MutationBeacon extends GqlNodeBase {
                 endAt: _endAt.fromArgs(args),
               ),
               isDiscoverable: _isDiscoverable.fromArgs(args) ?? true,
+              helperIds: _helperIds.fromArgs(args) ?? const [],
             )
             .then((v) => v.asJson),
       );

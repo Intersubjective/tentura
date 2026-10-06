@@ -72,6 +72,16 @@ void main() {
   });
 
   group('beaconConvertToRequest mutation', () {
+    test('accepts selected helper ids as a list of non-null strings', () {
+      final inputs = field().inputs.where((input) => input.name == 'helperIds');
+      expect(
+        inputs,
+        hasLength(1),
+        reason: 'Authors choose which post members become Request helpers',
+      );
+      expect(_describe(inputs.single.type), '[String!]');
+    });
+
     test('is registered next to the other beacon mutations', () {
       final names = mutation.all.map((f) => f.name);
 
@@ -81,10 +91,11 @@ void main() {
       );
     });
 
-    test('takes the Request content, schedule and discoverability', () {
+    test('takes the Request content, schedule, discoverability and selected '
+        'helpers', () {
       expect(
         field().inputs.map((a) => a.name),
-        unorderedEquals(_requestFormInputs),
+        unorderedEquals([..._requestFormInputs, 'helperIds']),
       );
     });
 

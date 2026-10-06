@@ -14,6 +14,7 @@ import 'package:tentura_server/consts.dart'
         kTitleMaxLength,
         kTitleMinLength;
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
+import 'package:tentura_server/consts/beacon_participant_status_bits.dart';
 import 'package:tentura_server/consts/beacon_hierarchy_consts.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
@@ -25,6 +26,7 @@ import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 
 import '../database/tentura_db.dart';
 import '../mapper/beacon_mapper.dart';
+import 'beacon_room_repository.dart';
 import 'post_lock_repository.dart';
 
 export 'package:tentura_server/domain/entity/beacon_entity.dart';
@@ -612,6 +614,50 @@ WHERE id = $1 AND kind = 1 AND status = 0
     );
     if (updated != 1) {
       throw const BeaconCreateException(description: 'Not an open Post');
+    }
+  }
+
+  @override
+  Future<List<String>> postMemberUserIds(String beaconId) async {
+    final rows = await _database
+        .customSelect(
+          r'''
+SELECT p.user_id
+FROM public.beacon_participant p
+JOIN public.beacon b ON b.id = p.beacon_id
+WHERE p.beacon_id = $1 AND p.role = 6 AND p.user_id <> b.user_id
+  AND NOT EXISTS (
+    SELECT 1 FROM public.beacon_steward s
+    WHERE s.beacon_id = p.beacon_id AND s.user_id = p.user_id
+  )
+ORDER BY p.user_id
+''',
+          variables: [Variable<String>(beaconId)],
+        )
+        .get();
+    return rows.map((row) => row.read<String>('user_id')).toList();
+  }
+
+  @override
+  Future<void> convertPostMembers({
+    required String beaconId,
+    required String authorId,
+    required Set<String> helperIds,
+  }) async {
+    final room = BeaconRoomRepository(_database);
+    for (final helperId in helperIds) {
+      await room.inviteOfferUserToBeaconRoom(
+        beaconId: beaconId,
+        offerUserId: helperId,
+        authorUserId: authorId,
+        participantStatus: BeaconParticipantStatusBits.admitted,
+      );
+    }
+    for (final memberId in await postMemberUserIds(beaconId)) {
+      if (helperIds.contains(memberId)) continue;
+      await _database.managers.beaconParticipants
+          .filter((p) => p.beaconId.id(beaconId) & p.userId.id(memberId))
+          .delete();
     }
   }
 

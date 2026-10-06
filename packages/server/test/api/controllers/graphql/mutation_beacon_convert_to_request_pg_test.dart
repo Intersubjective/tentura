@@ -35,6 +35,7 @@ mutation Convert(
   $startAt: String
   $endAt: String
   $isDiscoverable: Boolean
+  $helperIds: [String!]
 ) {
   beaconConvertToRequest(
     id: $id
@@ -45,6 +46,7 @@ mutation Convert(
     startAt: $startAt
     endAt: $endAt
     isDiscoverable: $isDiscoverable
+    helperIds: $helperIds
   ) {
     id
   }
@@ -158,6 +160,7 @@ Future<void> main() async {
                 'startAt': '2030-05-01T09:00:00Z',
                 'endAt': '2030-05-03T18:00:00Z',
                 'isDiscoverable': isDiscoverable,
+                'helperIds': const <String>[],
               },
               globalVariables: {kGlobalInputQueryJwt: JwtEntity(sub: userId)},
             )
@@ -173,7 +176,8 @@ Future<void> main() async {
     );
 
     test(
-      'passes every argument through and returns the converted Request',
+      'passes Request fields and an empty helper selection through and returns '
+      'the converted Request',
       () async {
         await insertPost('Bconvertgql01');
 
@@ -225,7 +229,11 @@ Future<void> main() async {
         await expectLater(
           schema.parseAndExecute(
             _convert,
-            variableValues: {'id': 'Bconvertgql04', 'title': '   '},
+            variableValues: {
+              'id': 'Bconvertgql04',
+              'title': '   ',
+              'helperIds': const <String>[],
+            },
             globalVariables: {
               kGlobalInputQueryJwt: const JwtEntity(sub: _authorId),
             },

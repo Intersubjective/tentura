@@ -152,6 +152,17 @@ abstract class BeaconRepositoryPort {
     required bool isDiscoverable,
   });
 
+  /// Post addressees other than the author or stewards; caller holds Post lock.
+  Future<List<String>> postMemberUserIds(String beaconId);
+
+  /// Admits selected members and removes the rest after the kind change, in
+  /// the caller's conversion transaction.
+  Future<void> convertPostMembers({
+    required String beaconId,
+    required String authorId,
+    required Set<String> helperIds,
+  });
+
   /// Inserts the kind-4 system message announcing a Post's conversion.
   Future<void> postConvertedToRequestMessage(String beaconId);
 

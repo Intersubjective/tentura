@@ -314,6 +314,16 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
   }
 
   @override
+  Future<List<String>> postMemberUserIds(String beaconId) async => const [];
+
+  @override
+  Future<void> convertPostMembers({
+    required String beaconId,
+    required String authorId,
+    required Set<String> helperIds,
+  }) async {}
+
+  @override
   Future<void> postConvertedToRequestMessage(String beaconId) async {}
 
   @override

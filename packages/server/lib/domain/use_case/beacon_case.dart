@@ -443,9 +443,10 @@ final class BeaconCase extends UseCaseBase {
     required String beaconId,
     required BeaconConversionContent content,
     required bool isDiscoverable,
+    List<String> helperIds = const [],
   }) => _attention!.runAction(
     actorUserId: authorId,
-    action: (_) async {
+    action: (transaction) async {
       await _postLock!.lockForPostMutation(beaconId);
       final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
       if (beacon.author.id != authorId) {
@@ -456,6 +457,13 @@ final class BeaconCase extends UseCaseBase {
       if (beacon.kind != BeaconKind.post ||
           beacon.status != BeaconStatus.open) {
         throw const BeaconCreateException(description: 'Not an open Post');
+      }
+      final selectedHelpers = helperIds.toSet();
+      final members = await _beaconRepository.postMemberUserIds(beaconId);
+      if (!members.toSet().containsAll(selectedHelpers)) {
+        throw const BeaconCreateException(
+          description: 'Selected helpers must be Post members',
+        );
       }
       BeaconCreationPolicy.assertKindFields(
         kind: BeaconKind.request,
@@ -483,6 +491,21 @@ final class BeaconCase extends UseCaseBase {
         isDiscoverable: isDiscoverable,
       );
       await afterConvertUpdateForTest?.call();
+      await _beaconRepository.convertPostMembers(
+        beaconId: beaconId,
+        authorId: authorId,
+        helperIds: selectedHelpers,
+      );
+      for (final helperId in selectedHelpers) {
+        await transaction.record(
+          await _attentionIntents!.offerAccepted(
+            receiverId: helperId,
+            beaconId: beaconId,
+            actorUserId: authorId,
+            sourceEventKey: 'admission:${generateId('A')}',
+          ),
+        );
+      }
       await _beaconRepository.postConvertedToRequestMessage(beaconId);
       return _beaconRepository.getBeaconById(beaconId: beaconId);
     },
