@@ -160,3 +160,10 @@ End-to-end on the same data with cache 1,200 (server via `scripts/perf/run_serve
 4. **MR improvement, if eviction must stay below the working set:** a *generation-checked* reverse-score cache keyed `(peer, ego, gen[peer], zero_rev)`, the same key discipline as `cached_score_clusters`. It would let reverse scores survive frame eviction without the staleness that got the old cache removed. Only frames whose generation changed would need recalculation.
 
 **Housekeeping.** The local MR is back at `WALKS_CACHE_SIZE=200` with the `postgres` graph loaded. `tentura_perfsynth` was rebuilt and is intact again (88.8k synthetic edges). Running the Tentura server against it for minutes lets the trust jobs prune synthetic edges that have no `trust_evidence`; keep server runs short, or rebuild the DB.
+
+## Dev check: 2026-10-06, after deploying walks cache 1200
+
+- `MERITRANK_WALKS_CACHE_SIZE=1200`, `NUM_WALKS=10000`, alpha 0.15; 328 users, 643 MR edges. The MR container was recreated by the deploy at 13:00 UTC.
+- Warming every user's `mr_mutual_scores` (one read each, read-only) took 2 s cold and under 1 s on a second pass. The largest mutual set is 48. No over-capacity warnings.
+- MR memory rose from 226 MiB (fresh) to **543 MiB** with all frames resident, about 1 MB per frame at 10k walks. The host has 7.8 GiB RAM with 6.2 GiB available.
+- `postgres-tentura:v0.8.3` is pinned in compose and CI (`5cee8c14e`). Locally, `ALTER EXTENSION pgmer2 UPDATE` gives 0.8.3 in `postgres`, `tentura_devcopy` and `tentura_perfsynth`.
