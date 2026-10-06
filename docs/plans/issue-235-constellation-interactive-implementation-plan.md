@@ -1,6 +1,6 @@
 # Constellation always-interactive: implementation plan (issue #235)
 
-Status: **rev 5**, 2026-10-06. Derived from `issue-235-constellation-interactive-architecture.md` **rev 9**, which is binding. Rev 5 (measurement run 4): U47 becomes walks-cache sizing (Tentura config, release precondition), U48 becomes optional, and U49 (MR generation-checked reverse-score cache, external, optional) is added. D8 is confirmed. Rev 4 rewrites U45 as adoption of the shipped connector (pgmer2 0.8.3), adds U47 (MR score performance, external) and U48 (cross-request visible-set cache), and points U41 at the prepared local datasets.
+Status: **rev 5**, 2026-10-06. Derived from `issue-235-constellation-interactive-architecture.md` **rev 9**, which is binding. Rev 5 (measurement run 4): U47 becomes walks-cache sizing (Tentura config, release precondition), and U48 becomes optional. A MeritRank generation-checked reverse-score cache is done separately in `meritrank-rust`, outside this plan. D8 is confirmed. Rev 4 rewrites U45 as adoption of the shipped connector (pgmer2 0.8.3), adds U47 (MR score performance, external) and U48 (cross-request visible-set cache), and points U41 at the prepared local datasets.
 
 - Rev 2 added the server-performance units U41–U44, plus perf gates.
 - Rev 3 adds U45 (MR connector deadlines, in the `meritrank-rust` repo) and U46 (frozen RR visibility memo), and tightens U09, U10, U11, U13, U15, U21, U23, U26, U41, U42 and U43. Cited as **ARCH §x**; owner decisions are **D1–D7**, invariants **I1–I6** and outbox rules **R1–R9**.
@@ -514,10 +514,6 @@ P2 can run in parallel with P1, because it only touches the server.
   - parity with uncached visibility.
 - **Perf:** on `tentura_perfsynth` a warm FULL p95 ≤ the ARCH §7.6 budget, with exactly 0 MR RPCs on a warm hit (`mr_rpc_attempts()` delta).
 
-### U49 Generation-checked reverse-score cache in MR (repo `meritrank-rust`), OPTIONAL
-- For hosts whose memory can't hold the read working set. Cache reverse scores keyed `(peer, ego, gen[peer], zero_rev)`, the same discipline as `cached_score_clusters`, so they survive frame eviction without the staleness that removed the old score cache (`SERVICE_CONSISTENCY_PLAN.md` §2.7). Only peers whose generation changed are recalculated.
-- **Acceptance:** with `WALKS_CACHE_SIZE=200` on the `tentura_perfsynth` graph, a warm `mr_mutual_scores` takes ≤ 100 ms. Results equal a fully resident computation on fixtures. A write that dirties a peer's walks invalidates exactly that peer's entries (test).
-
 ## Dependency graph (for beads)
 
 ```
@@ -531,6 +527,6 @@ U26,U28 → U34 → U35
 U30 → U36 → U37 → U38 → U39
 U00 → U41 ; U41 → U13, U15, U17, U18 (perf gates) ; U41,U12 → U42, U44 ; U17 → U43
 U43 → U26 ; U42,U44 → U26 ; U45 → U26 ; U46 → U13 ; U41 → U46 ; U42,U44 → U40
-U41 → U47 ; U47 → U26 ; U47 → U48 (optional) ; U47 → U49 (optional, external)
+U41 → U47 ; U47 → U26 ; U47 → U48 (optional)
 all → U40
 ```

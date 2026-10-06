@@ -614,7 +614,7 @@ These are **not in this plan's implementation scope**. A separate design must me
 
 The happy-path latency concern is resolved locally; the failure-time bound below is not.
 
-**Walks cache (run 4, U47).** `MERITRANK_WALKS_CACHE_SIZE` must cover **one read's working set**: the largest visible set + 1. Below that, `ego_read` pins peers in portions that evict one another and **recalculates frames on every read** (about 100× slower at V ≈ 1,000). Reverse scores are deliberately not cached across frame eviction (`meritrank-rust` `SERVICE_CONSISTENCY_PLAN.md` §2.7). The size is a per-host memory budget (about 1 MB per frame at 10k walks). If a host can't afford it, the MR-side option is a generation-checked reverse-score cache (U49).
+**Walks cache (run 4, U47).** `MERITRANK_WALKS_CACHE_SIZE` must cover **one read's working set**: the largest visible set + 1. Below that, `ego_read` pins peers in portions that evict one another and **recalculates frames on every read** (about 100× slower at V ≈ 1,000). Reverse scores are deliberately not cached across frame eviction (`meritrank-rust` `SERVICE_CONSISTENCY_PLAN.md` §2.7). The size is a per-host memory budget (about 1 MB per frame at 10k walks). A generation-checked reverse-score cache in MeritRank, which would let reverse scores survive frame eviction, is being done separately in `meritrank-rust` before this plan starts. It is outside this plan.
 
 **Status:** the connector side shipped upstream as `Intersubjective/meritrank-rust` #89, pgmer2 **0.8.3** / `postgres-tentura:v0.8.3`. One absolute per-call deadline; waits interruptible by `statement_timeout`/cancel; `mr_rpc_attempts()`. Tentura adoption (image pin, budgets) is U45.
 

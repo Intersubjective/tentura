@@ -141,4 +141,4 @@ The owner asked whether, after warm-up, reverse scores come from a cache.
 - **Effect of sizing the cache:** at 1,200, warm `mr_mutual_scores` drops from about 6 s to about 50 ms, and FULL from 7.2 s to 154 ms.
 - **Resolution:**
   - ARCH rev 9: §7.4a becomes optional; the walks-cache sizing rule is added to §7.5.
-  - Plan rev 5: U47 = config sizing (release precondition); U48 optional; new U49 (MR generation-checked reverse-score cache, optional, external).
+  - Plan rev 5: U47 = config sizing (release precondition); U48 optional. The MR generation-checked reverse-score cache is done separately in `meritrank-rust`, outside this plan.
