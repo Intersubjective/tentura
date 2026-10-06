@@ -1,8 +1,15 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:tentura_root/domain/entity/beacon_status.dart';
+
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_coordination_phase.dart';
+import 'package:tentura/domain/entity/beacon_display_status_dto.dart';
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 
+import '../beacon_view/beacon_view_case_test_support.dart'
+    show FakeBeaconDisplayRepository;
 import 'my_work_test_support.dart';
 
 void main() {
@@ -100,4 +107,63 @@ void main() {
 
     await cubit.close();
   });
+
+  test(
+    'a wrapping-up Request whose wire display status carries an unknown '
+    'primary action stays in the list with a none action',
+    () async {
+      final repo = FakeMyWorkRepository()
+        ..initResult = (
+          authoredNonArchived: [
+            Beacon.empty.copyWith(
+              id: 'open-1',
+              author: const Profile(id: 'user-1'),
+            ),
+            Beacon.empty.copyWith(
+              id: 'wrapping-1',
+              status: BeaconStatus.reviewOpen,
+              author: const Profile(id: 'user-1'),
+            ),
+          ],
+          helpOfferedNonArchived: const [],
+          obligationBeacons: const [],
+          archivedCountHint: 0,
+        );
+      // Wire payload as an older server still sends it for a reviewOpen
+      // Request.
+      final displayRepo = FakeBeaconDisplayRepository(
+        rows: [
+          beaconDisplayStatusFromGql({
+            'beaconId': 'wrapping-1',
+            'status': BeaconStatus.reviewOpen.smallintValue,
+            'phase': 'wrappingUp',
+            'suggestedAction': 'reviewContributions',
+            'slot2Kind': 'reviewCountdown',
+            'tier': 'coordination',
+          }),
+        ],
+      );
+      final cubit = MyWorkCubit(
+        userId: 'user-1',
+        myWorkCase: buildTestMyWorkCase(repo: repo, displayRepo: displayRepo),
+      );
+
+      await cubit.stream.firstWhere((s) => s.isSuccess || s.hasError);
+      expect(cubit.state.hasError, isFalse);
+      expect(
+        cubit.state.nonArchivedCards.map((c) => c.beaconId),
+        containsAll(<String>['open-1', 'wrapping-1']),
+      );
+      final wrapping = cubit.state.nonArchivedCards.firstWhere(
+        (c) => c.beaconId == 'wrapping-1',
+      );
+      expect(wrapping.displayStatus, isNotNull);
+      expect(
+        wrapping.displayStatus!.suggestedAction,
+        BeaconPhasePrimaryAction.none,
+      );
+
+      await cubit.close();
+    },
+  );
 }

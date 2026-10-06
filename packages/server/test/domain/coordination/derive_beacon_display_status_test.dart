@@ -71,5 +71,62 @@ void main() {
       );
       expect(r.phase, BeaconDisplayPhase.blocked);
     });
+
+    group('wrapping-up (reviewOpen) Request', () {
+      test('coordination viewer gets no suggested action', () {
+        final r = deriveBeaconDisplayStatus(
+          BeaconDisplayStatusInput(
+            status: BeaconStatus.reviewOpen,
+            tier: BeaconDisplayTier.coordination,
+          ),
+        );
+        expect(r.phase, BeaconDisplayPhase.wrappingUp);
+        expect(r.suggestedAction, BeaconDisplayPrimaryAction.none);
+      });
+
+      test('keeps the review countdown slot for coordination viewers', () {
+        final r = deriveBeaconDisplayStatus(
+          BeaconDisplayStatusInput(
+            status: BeaconStatus.reviewOpen,
+            tier: BeaconDisplayTier.coordination,
+            reviewClosesAt: DateTime.utc(2026, 10, 10),
+          ),
+        );
+        expect(r.slot2Kind, BeaconDisplaySlot2Kind.reviewCountdown);
+        expect(r.suggestedAction, BeaconDisplayPrimaryAction.none);
+      });
+
+      test('public viewer gets no suggested action', () {
+        final r = deriveBeaconDisplayStatus(
+          BeaconDisplayStatusInput(
+            status: BeaconStatus.reviewOpen,
+            tier: BeaconDisplayTier.public,
+          ),
+        );
+        expect(r.suggestedAction, BeaconDisplayPrimaryAction.none);
+      });
+
+      test('no derived result carries a primary action the client dropped', () {
+        for (final tier in BeaconDisplayTier.values) {
+          for (final status in BeaconStatus.values) {
+            final r = deriveBeaconDisplayStatus(
+              BeaconDisplayStatusInput(status: status, tier: tier),
+            );
+            expect(
+              r.suggestedAction.name,
+              isNot('reviewContributions'),
+              reason: '$status / $tier',
+            );
+          }
+        }
+      });
+    });
+
+    test('primary action enum has no reviewContributions value', () {
+      expect(
+        BeaconDisplayPrimaryAction.values.map((v) => v.name),
+        isNot(contains('reviewContributions')),
+      );
+    });
   });
 }

@@ -37,7 +37,6 @@ enum BeaconDisplayPrimaryAction {
   reviewOffers,
   forward,
   offerHelp,
-  reviewContributions,
   none,
 }
 
@@ -126,7 +125,7 @@ BeaconDisplayStatusResult _deriveCoordination(BeaconDisplayStatusInput input) {
     return BeaconDisplayStatusResult(
       phase: BeaconDisplayPhase.wrappingUp,
       slot2Kind: _reviewSlot2(input),
-      suggestedAction: BeaconDisplayPrimaryAction.reviewContributions,
+      suggestedAction: BeaconDisplayPrimaryAction.none,
       reviewClosesAt: input.reviewClosesAt,
       lastActivityAt: activityAt,
     );

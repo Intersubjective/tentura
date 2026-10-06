@@ -1,3 +1,4 @@
+import 'package:logging/logging.dart';
 import 'package:tentura/domain/entity/beacon_coordination_phase.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
@@ -45,17 +46,50 @@ class BeaconDisplayStatusDto {
 /// Maps server tier string to client enum.
 enum BeaconDisplayTier { coordination, public }
 
-BeaconCoordinationPhase _phaseFromName(String name) =>
-    BeaconCoordinationPhase.values.byName(name);
+final _logger = Logger('BeaconDisplayStatusDto');
 
-BeaconPhasePrimaryAction _actionFromName(String name) =>
-    BeaconPhasePrimaryAction.values.byName(name);
+/// Server-sent enums must never fail the whole list: unknown names log once
+/// and fall back to a safe default.
+T _enumFromName<T extends Enum>(
+  List<T> values,
+  String name,
+  T fallback,
+  String field,
+) {
+  for (final value in values) {
+    if (value.name == name) return value;
+  }
+  _logger.warning('Unknown $field "$name", falling back to ${fallback.name}');
+  return fallback;
+}
 
-BeaconPhaseSlot2Kind _slot2FromName(String name) =>
-    BeaconPhaseSlot2Kind.values.byName(name);
+BeaconCoordinationPhase _phaseFromName(String name) => _enumFromName(
+  BeaconCoordinationPhase.values,
+  name,
+  BeaconCoordinationPhase.coordinating,
+  'phase',
+);
 
-BeaconDisplayTier _tierFromName(String name) =>
-    BeaconDisplayTier.values.byName(name);
+BeaconPhasePrimaryAction _actionFromName(String name) => _enumFromName(
+  BeaconPhasePrimaryAction.values,
+  name,
+  BeaconPhasePrimaryAction.none,
+  'suggestedAction',
+);
+
+BeaconPhaseSlot2Kind _slot2FromName(String name) => _enumFromName(
+  BeaconPhaseSlot2Kind.values,
+  name,
+  BeaconPhaseSlot2Kind.none,
+  'slot2Kind',
+);
+
+BeaconDisplayTier _tierFromName(String name) => _enumFromName(
+  BeaconDisplayTier.values,
+  name,
+  BeaconDisplayTier.public,
+  'tier',
+);
 
 BeaconDisplayStatusDto beaconDisplayStatusFromGql(Map<String, dynamic> json) {
   return BeaconDisplayStatusDto(
