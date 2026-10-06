@@ -348,6 +348,39 @@ void main() {
     );
   });
 
+  group('ThreadsCubit close during fetch', () {
+    test('success completing after close does not emit or throw', () async {
+      final repo = _FakeBeaconThreadsRepository()..threads = [_generalThread()];
+      final cubit = _cubit(repo: repo);
+
+      final gate = Completer<void>();
+      repo.listThreadsGate = gate;
+      final inFlight = cubit.fetch();
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+
+      await cubit.close();
+      gate.complete();
+      await expectLater(inFlight, completes);
+      expect(cubit.state.threads, isEmpty);
+    });
+
+    test('error completing after close does not emit or throw', () async {
+      final repo = _FakeBeaconThreadsRepository()
+        ..listThreadsError = StateError('late failure');
+      final cubit = _cubit(repo: repo);
+
+      final gate = Completer<void>();
+      repo.listThreadsGate = gate;
+      final inFlight = cubit.fetch();
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+
+      await cubit.close();
+      gate.complete();
+      await expectLater(inFlight, completes);
+      expect(cubit.state.loadError, isNull);
+    });
+  });
+
   group('ThreadsCubit invalidation', () {
     test('coalesces bursty non-seen invalidations into one fetch', () async {
       final repo = _FakeBeaconThreadsRepository()..threads = [_generalThread()];

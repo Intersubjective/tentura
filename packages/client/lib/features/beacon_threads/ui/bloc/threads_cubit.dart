@@ -90,13 +90,14 @@ class ThreadsCubit extends Cubit<ThreadsState> {
   };
 
   Future<void> fetch({bool silent = false}) async {
+    if (isClosed) return;
     final generation = ++_fetchGeneration;
     try {
       if (!silent) {
         emit(state.copyWith(status: const StateIsLoading()));
       }
       final threads = await _threads.listThreads(_beaconId);
-      if (generation != _fetchGeneration) return;
+      if (isClosed || generation != _fetchGeneration) return;
       emit(
         state.copyWith(
           threads: threads,
@@ -106,7 +107,7 @@ class ThreadsCubit extends Cubit<ThreadsState> {
         ),
       );
     } on Object catch (e) {
-      if (generation != _fetchGeneration) return;
+      if (isClosed || generation != _fetchGeneration) return;
       emit(state.copyWith(loadError: e, status: const StateIsSuccess()));
     }
   }
