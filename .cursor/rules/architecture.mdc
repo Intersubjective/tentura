@@ -34,7 +34,7 @@ features/
 #### Domain Layer (`domain/` or `features/*/domain/`)
 - **Entities**: Freezed immutable classes representing business objects (see codegen.mdc for Freezed usage)
 - **Use Cases**: Business logic orchestration (extend `UseCaseBase` where the package uses that base)
-- **Ports** (`*_repository_port.dart`, etc.): Narrow interfaces for what domain needs from infrastructure — **server** use cases depend on **ports only**, not concrete `data/repository` types.
+- **Ports** (`*_repository_port.dart`, etc.): Narrow interfaces for what domain needs from infrastructure — **server** use cases depend on **ports only**, not concrete `data/repository` types. **Client** features may also declare ports in `features/*/domain/port/` (e.g. `features/constellation/domain/port/constellation_repository_port.dart`) or shared ones in `lib/domain/port/`; the data repository implements the port (`@LazySingleton(as: …Port, env: [dev, prod])`) and use cases inject the port. Prefer a port over a concrete repository type when the use case needs a test seam or the implementation is swapped per environment.
 - **Exceptions**: Domain-specific error types (see advanced-patterns.mdc for exception hierarchy)
 - **Rules**: 
   - NO dependencies on outer layers (data, ui) — **client:** `packages/tentura_lints` forbids `package:tentura/.../data/` and `.../ui/` imports under `lib/domain/` (see “Static enforcement” below).
