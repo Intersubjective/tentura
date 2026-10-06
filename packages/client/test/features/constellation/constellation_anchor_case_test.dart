@@ -325,6 +325,26 @@ void main() {
       expect(fieldRepo.fetchCount, 1);
     });
 
+    test('write slot frees once the mutation lands, before the recovery read', () async {
+      fieldRepo.fetchGate = Completer<void>();
+      final write = case_.upsert(
+        target: ConstellationAnchorTarget.person('p1'),
+        position: const ConstellationAnchorPosition(
+          xUnits: 2,
+          yUnits: 3,
+          coordinateSpaceVersion: 1,
+        ),
+        generation: 1,
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(case_.hasPendingWrite, isFalse);
+      expect(case_.confirmedProjection.anchors.single.position.xUnits, 2);
+
+      fieldRepo.fetchGate.complete();
+      final outcome = await write;
+      expect(outcome.kind, ConstellationAnchorWriteOutcomeKind.succeeded);
+    });
+
     test('successful mutation keeps confirmation when recovery read fails', () async {
       fieldRepo.fetchError = StateError('offline');
       final outcome = await case_.upsert(

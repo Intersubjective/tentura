@@ -320,6 +320,65 @@ void main() {
       expect(harness.anchorRepo.upsertCount, 0);
     });
 
+    test('drag re-enables when the mutation lands, before the recovery read', () async {
+      final harness = await _harness(
+        fields: [
+          _field(
+            peers: const [
+              ConstellationPerson(id: 'p1', displayName: 'Peer 1'),
+              ConstellationPerson(id: 'p2', displayName: 'Peer 2'),
+            ],
+            anchors: [_anchor(personId: 'p1', revision: BigInt.one)],
+          ),
+        ],
+      );
+      addTearDown(harness.cubit.close);
+      harness.anchorRepo.upsertGate = Completer<void>();
+      harness.fieldRepo.anchorsGate = Completer<void>();
+      final first = ConstellationAnchorTarget.person('p1');
+      harness.cubit.beginDragExisting(target: first);
+      final drop = harness.cubit.onExistingNodeDrop(
+        target: first,
+        sceneCentre: const Offset(2100, 2100),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(harness.cubit.placementActionsEnabled, isFalse);
+
+      harness.anchorRepo.upsertGate.complete();
+      await Future<void>.delayed(Duration.zero);
+      // Recovery read still blocked: the next drag must start anyway (#235).
+      expect(harness.cubit.placementActionsEnabled, isTrue);
+      final second = ConstellationAnchorTarget.person('p2');
+      harness.cubit.beginDragExisting(target: second);
+      expect(
+        harness.cubit.state.placementPhase,
+        ConstellationPlacementPhase.draggingExisting,
+      );
+
+      harness.fieldRepo.anchorsGate.complete();
+      await drop;
+      // The first write's outcome leaves the second drag alone.
+      expect(
+        harness.cubit.state.placementPhase,
+        ConstellationPlacementPhase.draggingExisting,
+      );
+      expect(harness.cubit.state.activePlacementTarget, second);
+      expect(harness.cubit.state.placementFailureMessage, isNull);
+
+      await harness.cubit.onExistingNodeDrop(
+        target: second,
+        sceneCentre: const Offset(2300, 2300),
+      );
+      expect(harness.anchorRepo.upsertCount, 2);
+      expect(harness.cubit.isAnchored(first), isTrue);
+      expect(harness.cubit.isAnchored(second), isTrue);
+      expect(
+        harness.cubit.state.placementPhase,
+        ConstellationPlacementPhase.idle,
+      );
+      expect(harness.cubit.placementActionsEnabled, isTrue);
+    });
+
     test('cancel after drop while write pending does not clear presentation', () async {
       final harness = await _harness();
       addTearDown(harness.cubit.close);

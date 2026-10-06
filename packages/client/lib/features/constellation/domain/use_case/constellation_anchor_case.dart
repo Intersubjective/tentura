@@ -133,6 +133,8 @@ final class ConstellationAnchorCase extends UseCaseBase {
 
   bool get syncPending => _syncPending;
 
+  /// True only while the write's mutation(s) are in flight; the recovery
+  /// read that follows runs without holding the write slot (#235).
   bool get hasPendingWrite => _pendingWrite != null;
 
   ConstellationAnchorTarget? get pendingWriteTarget => _pendingWrite?.target;
@@ -322,7 +324,7 @@ final class ConstellationAnchorCase extends UseCaseBase {
     final writeAccount = _viewerAccountId;
     final writeToken = _loadGeneration;
     _pendingWrite = pending;
-    _writeCount++;
+    final writeSeq = ++_writeCount;
     Object? mutationError;
     var parentAdopted = false;
     try {
@@ -397,6 +399,7 @@ final class ConstellationAnchorCase extends UseCaseBase {
           );
         }
       }
+      _releaseWriteSlot(pending);
 
       var recoveryFailed = false;
       try {
@@ -421,6 +424,16 @@ final class ConstellationAnchorCase extends UseCaseBase {
       if (writeAccount != _viewerAccountId || writeToken != _loadGeneration) {
         return ConstellationAnchorWriteOutcome(
           kind: ConstellationAnchorWriteOutcomeKind.staleResponseDiscarded,
+          projection: _confirmed,
+        );
+      }
+
+      // A newer write may have moved these targets again while the recovery
+      // read was in flight; its own outcome reports on them.
+      if (_writeCount != writeSeq && parentAdopted && mutationError == null) {
+        _syncPending = recoveryFailed;
+        return ConstellationAnchorWriteOutcome(
+          kind: ConstellationAnchorWriteOutcomeKind.succeeded,
           projection: _confirmed,
         );
       }
@@ -465,9 +478,7 @@ final class ConstellationAnchorCase extends UseCaseBase {
         failureMessage: failureMessage,
       );
     } finally {
-      if (identical(_pendingWrite, pending)) {
-        _pendingWrite = null;
-      }
+      _releaseWriteSlot(pending);
     }
   }
 
@@ -538,6 +549,7 @@ final class ConstellationAnchorCase extends UseCaseBase {
           );
         }
       }
+      _releaseWriteSlot(pending);
 
       var recoveryFailed = false;
       try {
@@ -582,9 +594,13 @@ final class ConstellationAnchorCase extends UseCaseBase {
             : 'Could not save constellation placement.',
       );
     } finally {
-      if (identical(_pendingWrite, pending)) {
-        _pendingWrite = null;
-      }
+      _releaseWriteSlot(pending);
+    }
+  }
+
+  void _releaseWriteSlot(ConstellationAnchorPendingWrite pending) {
+    if (identical(_pendingWrite, pending)) {
+      _pendingWrite = null;
     }
   }
 
