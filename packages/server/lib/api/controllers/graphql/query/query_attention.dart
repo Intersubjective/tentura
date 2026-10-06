@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
 import 'package:tentura_server/domain/attention/attention_clear_models.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
@@ -11,6 +12,8 @@ import '../gql_nodel_base.dart';
 import '../input/_input_types.dart';
 
 final class QueryAttention extends GqlNodeBase {
+  static final _log = Logger('QueryAttention');
+
   QueryAttention({AttentionQueryPort? query, AttentionClearCase? clear})
     : _query = query ?? GetIt.I<AttentionQueryPort>(),
       _clearOverride = clear;
@@ -439,8 +442,17 @@ final class QueryAttention extends GqlNodeBase {
       _mapReceipt(receipt);
 
   static Map<String, Object?> _mapReceipt(AttentionReceipt receipt) {
-    final payload = receipt.presentationPayload;
-    validateAttentionPresentationPayload(payload);
+    // Stored receipts may carry writer-specific metadata outside the public
+    // presentation contract. Keep the receipt while omitting those fields.
+    final payload = <String, String>{
+      for (final entry in receipt.presentationPayload.entries)
+        if (attentionPresentationPayloadAllowedKeys.contains(entry.key) &&
+            entry.value is String)
+          entry.key: entry.value! as String,
+    };
+    if (payload.length != receipt.presentationPayload.length) {
+      _log.warning('Omitted unsupported attention presentation fields');
+    }
     return {
       'id': receipt.id,
       'category': receipt.category.name,

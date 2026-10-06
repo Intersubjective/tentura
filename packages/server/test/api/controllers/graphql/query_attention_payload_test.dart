@@ -7,6 +7,8 @@ import 'package:tentura_server/domain/entity/notification_category.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/entity/notification_priority.dart';
 
+import '../../../support/attention_payload_expectations.dart';
+
 void main() {
   const fullPayload = {
     'eventType': 'commitmentAccepted',
@@ -55,35 +57,26 @@ void main() {
     );
   });
 
-  test('rejects unknown presentation payload keys', () {
-    expect(
-      () => QueryAttention.validateAttentionPresentationPayload({
-        ...fullPayload,
-        'junkKey': 'must not leak',
-      }),
-      throwsA(isA<StateError>()),
+  test('maps receipts while stripping unknown presentation fields', () {
+    final mapped = QueryAttention.mapReceiptForTesting(
+      _receipt({...fullPayload, 'junkKey': 'must not leak'}),
     );
-    expect(
-      () => QueryAttention.mapReceiptForTesting(
-        _receipt({...fullPayload, 'junkKey': 'must not leak'}),
-      ),
-      throwsA(isA<StateError>()),
+    expect(mapped['id'], 'receipt-1');
+    expectSanitizedAttentionPayload(
+      mapped['presentationPayloadJson'],
+      requiredFields: fullPayload,
     );
   });
 
-  test('rejects non-string presentation payload values', () {
-    expect(
-      () => QueryAttention.validateAttentionPresentationPayload({
-        ...fullPayload,
-        'beaconTitle': 42,
-      }),
-      throwsA(isA<StateError>()),
+  test('maps receipts while stripping or stringifying non-string fields', () {
+    final mapped = QueryAttention.mapReceiptForTesting(
+      _receipt({...fullPayload, 'beaconTitle': 42}),
     );
-    expect(
-      () => QueryAttention.mapReceiptForTesting(
-        _receipt({...fullPayload, 'beaconTitle': 42}),
-      ),
-      throwsA(isA<StateError>()),
+    expect(mapped['id'], 'receipt-1');
+    expectSanitizedAttentionPayload(
+      mapped['presentationPayloadJson'],
+      requiredFields: {...fullPayload}..remove('beaconTitle'),
+      coercibleFields: const {'beaconTitle': '42'},
     );
   });
 }

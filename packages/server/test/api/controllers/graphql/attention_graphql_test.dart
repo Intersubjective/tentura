@@ -527,7 +527,7 @@ void main() {
   });
 
   test(
-    'attentionFeed rejects unexpected presentation payload fields',
+    'attentionFeed omits unexpected presentation payload fields',
     () async {
       final query = _FakeQuery()
         ..receipt = _FakeQuery().receipt.copyWith(
@@ -536,9 +536,14 @@ void main() {
       final field = QueryAttention(
         query: query,
       ).all.singleWhere((field) => field.name == 'attentionFeed');
-      await expectLater(
-        field.resolve!(null, {...auth, 'view': 'all'}),
-        throwsA(isA<StateError>()),
+      final result =
+          await field.resolve!(null, {...auth, 'view': 'all'}) as Map;
+      final page = result['page'] as Map;
+      final receipt = (page['items'] as List).single as Map;
+      expect(receipt['id'], 'N1');
+      expect(
+        jsonDecode(receipt['presentationPayloadJson'] as String),
+        isEmpty,
       );
     },
   );
