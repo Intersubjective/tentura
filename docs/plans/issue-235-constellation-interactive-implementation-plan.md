@@ -501,6 +501,12 @@ P2 can run in parallel with P1, because it only touches the server.
 - **Monitoring:** surface MR's `A read needs N peer frames …` warning in the server's MR health signal.
 - **Acceptance:** on `tentura_perfsynth` with the configured size, warm `mr_mutual_scores` p95 ≤ 100 ms for the heavy viewer, and the FULL p95 ≤ the ARCH §7.6 budget. No over-capacity warnings appear in the MR log during the run. The memory measurement is recorded in the journal.
 
+- **Settings for the switch to MeritRank 0.12.0** (snapshots, D14). They come from the MR agent's tests (2026-10-06) and apply **only together with** `meritrank-service:v0.12.0` + `postgres-tentura:v0.9.1`. On 0.11.1 keep 1200, because 300 thrashes and the other two variables don't exist.
+  - `MERITRANK_WALKS_CACHE_SIZE=300`: at least the active readers (202 today) plus headroom; never lower.
+  - `MERITRANK_ON_DEMAND_NUM_WALKS=10000`: a peer sample as precise as a frame.
+  - `MERITRANK_SNAPSHOT_STALENESS=2`: with 1 write per 100 reads, p99 is 13 ms vs 22 ms at 1.
+  - Also drop the ignored `MERITRANK_SCORES_CACHE_*` / `MERITRANK_SLEEP_DURATION_AFTER_PUBLISH_MS`, and fix `trust_cutover_case_mr_test` (`mr_edgelist()` now lists the variant→polling edge: 4 edges, not 3).
+
 ### U48 Cross-request visible-set cache (ARCH §7.4a), OPTIONAL
 - Build this only if the **cold** first-read cost (about 2–2.4 s at V ≈ 1,000 after an MR restart or a walk-dirtying write) proves to matter after U47. It is not a release precondition.
 - A migration adds a transactional `trust_generation` counter, bumped in-tx by every trust, block or relationship change affecting visibility, plus the `person_visible_set_cache` table.
