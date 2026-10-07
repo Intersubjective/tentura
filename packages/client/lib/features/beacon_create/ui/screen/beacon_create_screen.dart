@@ -339,6 +339,36 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
     }
   }
 
+  Future<void> _openDraftMenu(
+    BuildContext context,
+    L10n l10n, {
+    required bool hasDraft,
+  }) async {
+    final box = context.findRenderObject() as RenderBox?;
+    final overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox?;
+    if (box == null || overlay == null) return;
+    final position = RelativeRect.fromRect(
+      Rect.fromPoints(
+        box.localToGlobal(Offset.zero, ancestor: overlay),
+        box.localToGlobal(box.size.bottomRight(Offset.zero), ancestor: overlay),
+      ),
+      Offset.zero & overlay.size,
+    );
+    final selected = await showMenu<String>(
+      context: context,
+      position: position,
+      items: [
+        PopupMenuItem(value: 'save', child: Text(l10n.buttonSaveDraft)),
+        if (hasDraft)
+          PopupMenuItem(value: 'delete', child: Text(l10n.deleteBeacon)),
+      ],
+    );
+    if (selected != null && context.mounted) {
+      await _onDraftMenu(selected);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
@@ -406,6 +436,7 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
                 buildWhen: (p, c) =>
                     p.isEditMode != c.isEditMode ||
                     p.isLive != c.isLive ||
+                    p.isLoading != c.isLoading ||
                     p.draftId != c.draftId,
                 builder: (context, state) {
                   if (state.isEditMode || state.isLive) {
@@ -414,41 +445,15 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
                   return TenturaTextAction(
                     label: l10n.beaconCreateDraftAction,
                     tone: TenturaTone.neutral,
-                    onPressed: () async {
-                      final box = context.findRenderObject() as RenderBox?;
-                      final overlay =
-                          Overlay.of(context).context.findRenderObject()
-                              as RenderBox?;
-                      if (box == null || overlay == null) return;
-                      final position = RelativeRect.fromRect(
-                        Rect.fromPoints(
-                          box.localToGlobal(Offset.zero, ancestor: overlay),
-                          box.localToGlobal(
-                            box.size.bottomRight(Offset.zero),
-                            ancestor: overlay,
-                          ),
-                        ),
-                        Offset.zero & overlay.size,
-                      );
-                      final selected = await showMenu<String>(
-                        context: context,
-                        position: position,
-                        items: [
-                          PopupMenuItem(
-                            value: 'save',
-                            child: Text(l10n.buttonSaveDraft),
-                          ),
-                          if (state.draftId != null)
-                            PopupMenuItem(
-                              value: 'delete',
-                              child: Text(l10n.deleteBeacon),
+                    onPressed: state.isLoading
+                        ? null
+                        : () => unawaited(
+                            _openDraftMenu(
+                              context,
+                              l10n,
+                              hasDraft: state.draftId != null,
                             ),
-                        ],
-                      );
-                      if (selected != null && context.mounted) {
-                        await _onDraftMenu(selected);
-                      }
-                    },
+                          ),
                   );
                 },
               ),
@@ -583,7 +588,7 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
                                   context: contextName,
                                 );
                               },
-                        child: _SaveChangesLabel(
+                        child: _BusyLabel(
                           isSaving: state.isLoading,
                           label: l10n.buttonSaveChanges,
                         ),
@@ -606,7 +611,10 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
                             onPressed: state.isLoading
                                 ? null
                                 : () => unawaited(_submitConversion()),
-                            child: Text(l10n.buttonPublish),
+                            child: _BusyLabel(
+                              isSaving: state.isLoading,
+                              label: l10n.buttonPublish,
+                            ),
                           ),
                         ),
                       ],
@@ -633,8 +641,9 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
                                       state.isLoading || !state.canTryToPublish
                                       ? null
                                       : () => unawaited(_makeLive()),
-                                  child: Text(
-                                    l10n.beaconMakeLiveWithoutSending,
+                                  child: _BusyLabel(
+                                    isSaving: state.isLoading,
+                                    label: l10n.beaconMakeLiveWithoutSending,
                                   ),
                                 ),
                               ),
@@ -654,7 +663,7 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
                                               navigateBack: false,
                                             );
                                           },
-                                    child: _SaveChangesLabel(
+                                    child: _BusyLabel(
                                       isSaving: state.isLoading,
                                       label: l10n.buttonSaveChanges,
                                     ),
@@ -688,7 +697,7 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
                                       navigateBack: false,
                                     );
                                   },
-                            child: _SaveChangesLabel(
+                            child: _BusyLabel(
                               isSaving: state.isLoading,
                               label: l10n.buttonSaveChanges,
                             ),
@@ -840,10 +849,11 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
   }
 }
 
-/// Save Changes label with an in-button spinner while the Request persists,
-/// so a slow save reads as busy rather than an ignored tap (GitHub #174).
-class _SaveChangesLabel extends StatelessWidget {
-  const _SaveChangesLabel({
+/// Button label with an in-button spinner while the Request persists or
+/// publishes, so a slow save reads as busy rather than an ignored tap
+/// (GitHub #174, #242).
+class _BusyLabel extends StatelessWidget {
+  const _BusyLabel({
     required this.isSaving,
     required this.label,
   });

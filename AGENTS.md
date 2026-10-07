@@ -137,14 +137,17 @@ Standard dev setup is in `DEVELOPMENT.md` and the `local-debug` skill; only the 
 <!-- headroom:learn:end -->
 
 <!-- alloy:memory:begin -->
-reviewed: 2026-10-05
-review due: 2026-10-12
+reviewed: 2026-10-07
+review due: 2026-10-14
 
-### alloy:lesson:beacon_view_flutter_analyze_scope_and_wire_type_contract
-If acceptance runs `flutter analyze lib/features/<feature>`, fix every diagnostic in that whole directory early (mechanical doc-comment, const, and null-aware syntax), not only files you touched—run `dart fix --apply` and confirm the diff is non-behavioral. When mapping layers receive wire timestamps as strings, keep row/tuple fields as raw String? and parse with DateTime.tryParse(raw)?.toUtc(); update duplicated typedefs and tests together.
+### alloy:lesson:attention_receipt_missing_from_custom_types
+When adding or wiring a server custom GraphQL object type, register it in the top-level list in packages/server/lib/api/controllers/graphql/custom_types.dart; a missing entry breaks runtime queries (e.g. AttentionFeed) even if the type definition exists elsewhere.
 
-### alloy:lesson:check_commands_run_under_bash_not_sh
-Alloy check commands previously ran under /bin/sh (dash), so bash-only syntax (mapfile, process substitution `< <(...)`) in a regression check failed with a false syntax-error (exit 1/2) unrelated to the diff. Alloy now runs checks under bash. If a check fails with a shell syntax error on mapfile or `<(`, treat it as a runner problem and re-run it; do not edit code. Prefer simple portable commands anyway. For broad server regression, build the file list while excluding the dead landing-gate tests (tentura_*_landing_check_test, tentura_amn_8u7_worktree_remediation_test, tentura_pl4_di_acceptance_probe_test) and run `dart test <files> --exclude-tags mr -j 1` wrapped. S0-style spikes (test-only, REQUIRED mode, tests expected to pass first run) need no pubspec bump.
+### alloy:lesson:realtime_kind_requires_contract_manifest_entry
+Confirmed again in tentura-hsuh.8 (baton C1): adding RealtimeEntityKind.roomBaton failed test/architecture/realtime_entity_contract_test.dart on attempt #1 until a `room_baton` entry was added to docs/contracts/realtime-entity-contract.json (wireKind, acceptedWireKinds, clientKind, genericTriggerArgs, specializedPublishers, impacts, tests). Run that contract test in the first targeted checks for any new realtime kind and add the manifest entry up front alongside the enum, wire mapping and BeaconRoomEntityType arm. Also for new V2 mutations: wire exception codes via throwIfXError(code) in build_client.dart, and hand-edit client schema.graphql from server SDL (say so in the commit). Full client suite (~4750 tests, ~3.5 min) passed; if all executed checks are green and the verifier merely ran out of check budget, finish.
+
+### alloy:lesson:web_build_check_requires_wasm_flags
+In tentura-617.33, 7 attempts were wrongly judged "repair"/"retry" because `flutter build web && ... && verify_web_version_consistency.dart` failed — but that invocation is wrong. The required check must run `flutter build web --wasm --pwa-strategy=none --dart-define=ENV=test --dart-define-from-file=env/test.env` (matching CI), then `dart run tool/trim_web_deploy_artifact.dart`, `apply_versioned_web_assets.dart`, and `generate_wasm_preload_artifacts.dart` (which populates build/web/app-assets/<version>/main.dart.wasm+.mjs and refreshes manifest.json/wasm-preload-manifest.json) before `verify_web_version_consistency.dart` will pass — a plain `flutter build web` produces artifacts the wasm-preload manifest checker rejects. Filed as tentura-270 (the required-check command definition itself still lacks --wasm) but not yet fixed at the tooling level. How to apply: for any client bead touching user-visible UI (pubspec.yaml patch bump + web/index.html cache-buster), when running/asked to run the web-build gate, use the full wasm pipeline above wrapped in `./scripts/run_with_test_cleanup.sh --timeout 20m --`, not a bare `flutter build web`. If the check still fails after that, it's likely a real defect, not a stale-artifact false negative.
 <!-- alloy:memory:end -->
 
 <!-- alloy:memory-review:ptl:begin -->

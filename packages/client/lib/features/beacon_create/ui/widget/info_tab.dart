@@ -80,6 +80,22 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
     text: _cubit.state.location,
   );
 
+  /// Set while one of the editor's sheets or dialogs is opening or open.
+  bool _overlayBusy = false;
+
+  /// Runs [open] unless another row's overlay is already opening or open, so
+  /// repeat taps cannot queue a second one behind it (GitHub #242). Overlays
+  /// opened from inside a sheet bypass this and call the opener directly.
+  Future<void> _openOverlay(Future<void> Function() open) async {
+    if (_overlayBusy) return;
+    _overlayBusy = true;
+    try {
+      await open();
+    } finally {
+      _overlayBusy = false;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -89,7 +105,7 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted || _didOpenCoverInitially) return;
         _didOpenCoverInitially = true;
-        unawaited(_showCoverSheet(context));
+        unawaited(_openOverlay(() => _showCoverSheet(context)));
       });
     }
   }
@@ -763,7 +779,9 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                       title: _l10n.beaconTimingWhenTitle,
                       subtitle: subtitle,
                       filled: !empty && summary.isNotEmpty,
-                      onTap: () => unawaited(_showTimingSheet(context)),
+                      onTap: () => unawaited(
+                        _openOverlay(() => _showTimingSheet(context)),
+                      ),
                     );
                   },
                 ),
@@ -782,7 +800,9 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                       ? _l10n.beaconRequirementsNone
                       : _requirementsSummary(needs),
                   filled: needs.isNotEmpty,
-                  onTap: () => unawaited(_showRequirementsSheet(context)),
+                  onTap: () => unawaited(
+                    _openOverlay(() => _showRequirementsSheet(context)),
+                  ),
                 ),
               ),
               _detailsHairline(tt),
@@ -805,7 +825,9 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                     title: _l10n.beaconCreateCoverRow,
                     subtitle: subtitle,
                     filled: filled,
-                    onTap: () => unawaited(_showCoverSheet(context)),
+                    onTap: () => unawaited(
+                      _openOverlay(() => _showCoverSheet(context)),
+                    ),
                   );
                 },
               ),
@@ -847,7 +869,9 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                               },
                             )
                           : null,
-                      onTap: () => unawaited(_pickLocation(context)),
+                      onTap: () => unawaited(
+                        _openOverlay(() => _pickLocation(context)),
+                      ),
                     );
                   },
                 ),

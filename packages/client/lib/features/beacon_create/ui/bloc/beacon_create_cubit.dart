@@ -128,6 +128,14 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   /// instead of starting a second update (GitHub #174 double-tap).
   Future<void>? _saveEditInFlight;
 
+  /// Latches for the user-initiated draft save, publish and send: a repeat
+  /// call while one is running is dropped, so a double tap sends one request
+  /// (GitHub #242). Unlike [_saveEditInFlight] the repeat does not join the
+  /// run, because its caller would repeat the navigation that follows it.
+  bool _draftSaveBusy = false;
+  bool _makeLiveBusy = false;
+  bool _sendRequestBusy = false;
+
   Timer? _autosaveTimer;
 
   String _autosaveContext = '';
@@ -1051,6 +1059,34 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     bool showMessage = true,
     bool quiet = false,
   }) async {
+    if (quiet) {
+      return _saveDraft(
+        context: context,
+        showMessage: showMessage,
+        quiet: true,
+      );
+    }
+    if (_draftSaveBusy) return;
+    _draftSaveBusy = true;
+    // This save carries everything a queued autosave would.
+    _autosaveTimer?.cancel();
+    _autosaveTimer = null;
+    try {
+      await _saveDraft(
+        context: context,
+        showMessage: showMessage,
+        quiet: false,
+      );
+    } finally {
+      _draftSaveBusy = false;
+    }
+  }
+
+  Future<void> _saveDraft({
+    required String context,
+    required bool showMessage,
+    required bool quiet,
+  }) async {
     if (state.isLive) {
       if (quiet) return;
       await saveEdit(context: context, navigateBack: false);
@@ -1251,6 +1287,19 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     required String context,
     required ForwardCubit forwardCubit,
   }) async {
+    if (_sendRequestBusy) return null;
+    _sendRequestBusy = true;
+    try {
+      return await _sendRequest(context: context, forwardCubit: forwardCubit);
+    } finally {
+      _sendRequestBusy = false;
+    }
+  }
+
+  Future<ForwardDeliveryOutcome?> _sendRequest({
+    required String context,
+    required ForwardCubit forwardCubit,
+  }) async {
     if (forwardCubit.state.selectedIds.isEmpty) {
       return null;
     }
@@ -1268,6 +1317,8 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
         }
 
         await saveDraft(context: context, showMessage: false);
+        // The save reported success; the publish still has to run.
+        emit(state.copyWith(status: StateStatus.isLoading));
         await _case.publishDraft(draftId);
         emit(state.copyWith(isLive: true));
       }
@@ -1335,6 +1386,16 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   }
 
   Future<void> makeLive({required String context}) async {
+    if (_makeLiveBusy) return;
+    _makeLiveBusy = true;
+    try {
+      await _makeLive(context: context);
+    } finally {
+      _makeLiveBusy = false;
+    }
+  }
+
+  Future<void> _makeLive({required String context}) async {
     if (state.isLive) {
       return;
     }
@@ -1362,13 +1423,14 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
             _command(context: context, id: id, draftSafeTitle: false),
           );
         }
+        // The save reported success; the publish still has to run.
         emit(
           _applyServerMedia(
             state,
             result.beacon,
             result.images,
             coverThumb: result.coverThumb,
-          ),
+          ).copyWith(status: StateStatus.isLoading),
         );
       } on BeaconSaveFailure catch (e) {
         if (!_isAlreadyPublished(e.cause)) {

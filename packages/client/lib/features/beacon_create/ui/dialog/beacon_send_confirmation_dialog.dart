@@ -45,7 +45,13 @@ class BeaconSendConfirmationDialog extends StatelessWidget {
       ),
       actions: [
         FilledButton(
-          onPressed: () => Navigator.of(context).pop(),
+          // A second press before the route is gone would otherwise pop the
+          // page behind the dialog.
+          onPressed: () {
+            if (ModalRoute.of(context)?.isCurrent ?? false) {
+              Navigator.of(context).pop();
+            }
+          },
           child: Text(l10n.buttonOk),
         ),
       ],
