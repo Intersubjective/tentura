@@ -1,3 +1,5 @@
+import 'dart:math' show Random;
+
 import 'package:postgres/postgres.dart' show ServerException;
 
 /// Retries [action] once after PostgreSQL deadlock (`40P01`) or serialization
@@ -29,4 +31,54 @@ bool isPostgresDeadlockOrSerializationFailure(Object error) {
     return code == '40P01' || code == '40001';
   }
   return false;
+}
+
+/// Thrown when [withPostgresBoundedRetry] runs out of its end-to-end time
+/// budget before an attempt succeeds.
+class PostgresRetryDeadlineExceededException implements Exception {
+  const PostgresRetryDeadlineExceededException(this.deadline, this.cause);
+
+  final Duration deadline;
+  final Object? cause;
+
+  @override
+  String toString() =>
+      'PostgresRetryDeadlineExceededException: deadline $deadline exceeded'
+      '${cause == null ? '' : ' (last error: $cause)'}';
+}
+
+/// Runs [action] up to [maxAttempts] times, sleeping a jittered backoff
+/// between attempts after a deadlock/serialization failure. [action] must own
+/// (and fully roll back) its transaction, so the sleep holds no connection.
+/// Aborts with [PostgresRetryDeadlineExceededException] once [deadline] has
+/// elapsed since the first attempt started.
+Future<T> withPostgresBoundedRetry<T>(
+  Future<T> Function() action, {
+  int maxAttempts = 3,
+  Duration deadline = const Duration(seconds: 5),
+  Duration baseBackoff = const Duration(milliseconds: 20),
+  Future<void> Function(Duration)? sleep,
+  Random? random,
+}) async {
+  final doSleep = sleep ?? Future<void>.delayed;
+  final rng = random ?? Random();
+  final clock = Stopwatch()..start();
+  var attempts = 0;
+  while (true) {
+    attempts++;
+    try {
+      return await action();
+    } on Object catch (error) {
+      if (!isPostgresDeadlockOrSerializationFailure(error)) rethrow;
+      if (clock.elapsed >= deadline) {
+        throw PostgresRetryDeadlineExceededException(deadline, error);
+      }
+      if (attempts >= maxAttempts) rethrow;
+      final ceiling = baseBackoff.inMilliseconds * (1 << (attempts - 1));
+      await doSleep(Duration(milliseconds: rng.nextInt(ceiling + 1)));
+      if (clock.elapsed >= deadline) {
+        throw PostgresRetryDeadlineExceededException(deadline, error);
+      }
+    }
+  }
 }

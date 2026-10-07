@@ -21,6 +21,7 @@ import 'package:tentura_server/domain/entity/polling_entity.dart';
 import 'package:tentura_server/domain/entity/polling_variant_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 
+import 'postgres_serialization_retry.dart';
 import 'custom_types/mentions_text_array_type.dart';
 import 'table/account_credentials.dart';
 import 'table/account_verified_contacts.dart';
@@ -236,6 +237,44 @@ class TenturaDb extends _$TenturaDb {
         },
       );
     });
+  }
+
+  /// Like [withMutatingUser] but in a REPEATABLE READ READ WRITE transaction,
+  /// retried as a whole on 40001/40P01 (max 3 attempts, jittered backoff
+  /// slept after rollback with the connection released, bounded by
+  /// [deadline]).
+  Future<T> withMutatingRepeatableRead<T>(
+    String userId,
+    Future<T> Function() action, {
+    Duration deadline = const Duration(seconds: 5),
+    Future<void> Function(Duration)? sleep,
+  }) {
+    final current = Zone.current[_mutatingTransactionZoneKey];
+    if (current is _MutatingTransactionContext && identical(current.db, this)) {
+      return withMutatingUser(userId, action);
+    }
+    return withPostgresBoundedRetry(
+      () => transaction(() async {
+        await customStatement(
+          'SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ WRITE',
+        );
+        await customStatement(
+          r"SELECT set_config('tentura.mutating_user_id', $1, true)",
+          [userId],
+        );
+        return runZoned(
+          action,
+          zoneValues: {
+            _mutatingTransactionZoneKey: _MutatingTransactionContext(
+              this,
+              userId,
+            ),
+          },
+        );
+      }),
+      deadline: deadline,
+      sleep: sleep,
+    );
   }
 
   /// System-owned mutation transaction with an explicitly empty actor scope.
