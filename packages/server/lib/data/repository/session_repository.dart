@@ -16,7 +16,7 @@ import '../database/tentura_db.dart';
   order: 1,
 )
 class SessionRepository implements SessionRepositoryPort {
-  const SessionRepository(this._database);
+  const SessionRepository(@Named('auth') this._database);
 
   final TenturaDb _database;
 
