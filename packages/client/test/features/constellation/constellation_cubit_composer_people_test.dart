@@ -14,6 +14,7 @@ import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart'
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 
 import '../../support/constellation_store_fixture.dart';
+import '../../support/test_forward_case.dart';
 
 const _ego = Profile(id: 'ego', displayName: 'Ego');
 
@@ -81,7 +82,7 @@ void main() {
           accountId: 'ego',
         ).store,
         viewer: _ego,
-        forwardRepository: forward,
+        forwardCase: buildTestForwardCase(forward),
       );
       addTearDown(cubit.close);
       await cubit.stream.firstWhere((state) => state.status is StateIsSuccess);
@@ -165,7 +166,7 @@ void main() {
           accountId: 'ego',
         ).store,
         viewer: _ego,
-        forwardRepository: _ThrowingForwardRepository(),
+        forwardCase: buildTestForwardCase(_ThrowingForwardRepository()),
       );
       addTearDown(cubit.close);
       await cubit.stream.firstWhere((state) => state.status is StateIsSuccess);

@@ -7,7 +7,7 @@ import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:get_it/get_it.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/features/forward/data/repository/forward_repository.dart';
+import 'package:tentura/features/forward/domain/use_case/forward_case.dart';
 
 import '../../domain/constellation_anchor_composition.dart';
 import '../../domain/constellation_consts.dart';
@@ -22,7 +22,7 @@ import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../../domain/entity/constellation_anchor_projection.dart';
 import '../../domain/entity/constellation_field.dart';
 import '../util/layout_geometry_adapters.dart';
-import '../../domain/port/constellation_member_webs_port.dart';
+import '../../domain/use_case/constellation_member_webs_case.dart';
 import '../../domain/use_case/constellation_anchor_case.dart';
 import '../../domain/use_case/constellation_field_store_case.dart';
 import '../../../graph/domain/entity/edge_details.dart';
@@ -129,13 +129,13 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     required ConstellationFieldStoreCase case_,
     required Profile viewer,
     this._anchorCase,
-    this._memberWebsPort,
-    ForwardRepository? forwardRepository,
+    this._memberWebsCase,
+    ForwardCase? forwardCase,
     bool loadOnCreate = true,
     this._composePresentation = composeConstellationPresentation,
   }) : _case = case_,
        _viewer = viewer,
-       _forwardRepositoryOverride = forwardRepository,
+       _forwardCaseOverride = forwardCase,
        super(const ConstellationState()) {
     _anchorLifecycleToken = _anchorCase?.activate(viewerAccountId: viewer.id);
     _storeLease = _case.lease();
@@ -149,14 +149,14 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   final ConstellationFieldStoreCase _case;
   final ConstellationAnchorCase? _anchorCase;
-  final ConstellationMemberWebsPort? _memberWebsPort;
+  final ConstellationMemberWebsCase? _memberWebsCase;
   final Profile _viewer;
 
   /// Lazily fetched member webs per selected Request id (kept for the
   /// cubit's lifetime; a field reload does not invalidate it).
   final Map<String, List<ConstellationMemberWeb>> _requestWebsById = {};
   final Set<String> _requestWebsInFlight = {};
-  final ForwardRepository? _forwardRepositoryOverride;
+  final ForwardCase? _forwardCaseOverride;
 
   late final StoreLease _storeLease;
   StreamSubscription<ConstellationFieldStoreState>? _storeSub;
@@ -213,8 +213,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   Offset _composingDraftCentre = Offset.zero;
   void Function(String personId)? _onComposingToggle;
 
-  ForwardRepository get _forwardRepository =>
-      _forwardRepositoryOverride ?? GetIt.I<ForwardRepository>();
+  ForwardCase get _forwardCase =>
+      _forwardCaseOverride ?? GetIt.I<ForwardCase>();
 
   late final GraphController<NodeDetails, EdgeDetails> graphController =
       GraphController(
@@ -649,7 +649,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       for (final p in state.field?.peers ?? const <ConstellationPerson>[]) p.id,
     };
     try {
-      final candidates = await _forwardRepository.fetchForwardCandidates(
+      final candidates = await _forwardCase.fetchForwardCandidates(
         context: state.field?.context ?? '',
       );
       final profiles = candidates.toList();
@@ -1658,15 +1658,15 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   }
 
   Future<void> _fetchRequestWebs(String requestId) async {
-    final port = _memberWebsPort;
-    if (port == null ||
+    final case_ = _memberWebsCase;
+    if (case_ == null ||
         _requestWebsById.containsKey(requestId) ||
         !_requestWebsInFlight.add(requestId) ||
         (state.field?.posts.any((post) => post.id == requestId) ?? false)) {
       return;
     }
     try {
-      final webs = await port.fetch(requestId);
+      final webs = await case_.fetch(requestId);
       if (isClosed) {
         return;
       }
@@ -2253,7 +2253,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     List<String>? helpTypes,
   }) async {
     try {
-      final ok = await _forwardRepository.offerHelp(
+      final ok = await _forwardCase.offerHelp(
         beaconId: beaconId,
         message: message,
         helpTypes: helpTypes,

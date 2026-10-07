@@ -76,6 +76,18 @@ final class ForwardCase extends UseCaseBase {
   Future<Iterable<Profile>> fetchForwardCandidates({String context = ''}) =>
       _forwardRepository.fetchForwardCandidates(context: context);
 
+  Future<bool> offerHelp({
+    required String beaconId,
+    String? message,
+    List<String>? helpTypes,
+    int? expectedOfferKind,
+  }) => _forwardRepository.offerHelp(
+    beaconId: beaconId,
+    message: message,
+    helpTypes: helpTypes,
+    expectedOfferKind: expectedOfferKind,
+  );
+
   Future<BeaconInvolvementData> fetchBeaconInvolvement({
     required String beaconId,
   }) => _forwardRepository.fetchBeaconInvolvement(beaconId: beaconId);

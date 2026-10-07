@@ -15,7 +15,7 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/profile_view/domain/use_case/profile_view_case.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
-import '../../domain/port/constellation_member_webs_port.dart';
+import '../../domain/use_case/constellation_member_webs_case.dart';
 import '../../domain/use_case/constellation_anchor_case.dart';
 import '../../domain/use_case/constellation_field_store_case.dart';
 import '../util/layout_geometry_adapters.dart';
@@ -55,7 +55,7 @@ class ConstellationScreen extends StatefulWidget implements AutoRouteWrapper {
           create: (_) => ConstellationCubit(
             case_: GetIt.I<ConstellationFieldStoreCase>(),
             anchorCase: GetIt.I<ConstellationAnchorCase>(),
-            memberWebsPort: GetIt.I<ConstellationMemberWebsPort>(),
+            memberWebsCase: GetIt.I<ConstellationMemberWebsCase>(),
             viewer: viewer,
           ),
           child: MultiBlocProvider(

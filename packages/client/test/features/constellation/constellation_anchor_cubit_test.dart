@@ -19,6 +19,7 @@ import 'package:tentura/features/forward/data/repository/forward_repository.dart
 import '../../support/test_realtime_sync.dart';
 
 import '../../support/constellation_store_fixture.dart';
+import '../../support/test_forward_case.dart';
 
 const _ego = Profile(id: 'ego', displayName: 'Ego');
 final _loadedAt = DateTime.utc(2026, 9, 11, 12);
@@ -215,7 +216,7 @@ _harness({
     ).store,
     anchorCase: anchorCase,
     viewer: _ego,
-    forwardRepository: _FakeForwardRepository(),
+    forwardCase: buildTestForwardCase(_FakeForwardRepository()),
     loadOnCreate: false,
   );
   if (loadOnCreate) {

@@ -11,6 +11,7 @@ import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart'
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 
 import '../../support/constellation_store_fixture.dart';
+import '../../support/test_forward_case.dart';
 
 const _ego = Profile(id: 'ego', displayName: 'Ego');
 final _loadedAt = DateTime.utc(2026, 9, 8, 12, 30);
@@ -103,7 +104,9 @@ Future<(ConstellationCubit, _StubConstellationRepository)> _cubitWithField(
   await fixture.ready();
   final cubit = fixture.createCubit(
     viewer: _ego,
-    forwardRepository: forwardRepository ?? _FakeForwardRepository(),
+    forwardCase: buildTestForwardCase(
+      forwardRepository ?? _FakeForwardRepository(),
+    ),
   );
   await cubit.load();
   return (cubit, repo);

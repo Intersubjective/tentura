@@ -23,6 +23,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 
 import '../../support/constellation_store_fixture.dart';
+import '../../support/test_forward_case.dart';
 
 class _StubContextCubit extends Cubit<GraphPersonContextState>
     implements GraphPersonContextCubit {
@@ -231,7 +232,7 @@ Future<ConstellationCubit> _loadedCubit(WidgetTester tester) async {
       env: const Env.fromEnvironment(),
       logger: Logger('ConstellationLayoutFailureRecoveryTest'),
     ),
-    forwardRepository: _FakeForwardRepository(),
+    forwardCase: buildTestForwardCase(_FakeForwardRepository()),
     loadOnCreate: false,
   );
   await cubit.load();

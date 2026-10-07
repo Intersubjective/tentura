@@ -13,7 +13,7 @@ import 'package:tentura/features/constellation/domain/port/constellation_account
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_field_store_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
-import 'package:tentura/features/forward/data/repository/forward_repository.dart';
+import 'package:tentura/features/forward/domain/use_case/forward_case.dart';
 
 import 'test_realtime_sync.dart';
 
@@ -54,7 +54,7 @@ final class ConstellationStoreFixture {
 
   ConstellationCubit createCubit({
     required Profile viewer,
-    ForwardRepository? forwardRepository,
+    ForwardCase? forwardCase,
     ConstellationPresentationComposer? composePresentation,
   }) {
     final cubit = composePresentation == null
@@ -62,13 +62,13 @@ final class ConstellationStoreFixture {
             case_: store,
             viewer: viewer,
             loadOnCreate: false,
-            forwardRepository: forwardRepository,
+            forwardCase: forwardCase,
           )
         : ConstellationCubit(
             case_: store,
             viewer: viewer,
             loadOnCreate: false,
-            forwardRepository: forwardRepository,
+            forwardCase: forwardCase,
             composePresentation: composePresentation,
           );
     addTearDown(() async {
