@@ -82,7 +82,6 @@ class GraphPersonContextPanel extends StatelessWidget {
           children: [
             TenturaAvatar(
               profile: profile,
-              sizeBucket: TenturaAvatarSize.medium,
               withContactBadge: true,
             ),
             SizedBox(width: tt.avatarTextGap),
@@ -333,9 +332,7 @@ class _OtherProfileAvailabilityLine extends StatelessWidget {
       padding: EdgeInsets.only(bottom: context.tt.rowGap),
       child: TenturaStatusText(
         line,
-        tone: TenturaTone.neutral,
         maxLines: null,
-        softWrap: true,
       ),
     );
   }
@@ -497,7 +494,6 @@ class _DiscoverableRequestRow extends StatelessWidget {
                   annotation,
                   tone: TenturaTone.info,
                   maxLines: 2,
-                  softWrap: true,
                 ),
               ],
             ],

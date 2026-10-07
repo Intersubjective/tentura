@@ -115,7 +115,6 @@ class TabAttentionController {
       _style,
       baseTitle: _baseTitle,
       applyTitle: false,
-      applyFavicon: true,
       applyBadge: false,
     );
   }
@@ -180,9 +179,7 @@ class TabAttentionController {
     _pendingDisplay = null;
     _pendingTitleKey = null;
     _pendingBadgeKey = null;
-    if (pending == null ||
-        pendingTitleKey == null ||
-        pendingBadgeKey == null) {
+    if (pending == null || pendingTitleKey == null || pendingBadgeKey == null) {
       return;
     }
 
@@ -241,9 +238,6 @@ class TabAttentionController {
       display,
       _style,
       baseTitle: _baseTitle,
-      applyTitle: true,
-      applyFavicon: true,
-      applyBadge: true,
     );
   }
 
@@ -258,9 +252,6 @@ class TabAttentionController {
       tabAttentionNone,
       _style,
       baseTitle: _baseTitle,
-      applyTitle: true,
-      applyFavicon: true,
-      applyBadge: true,
     );
     _indicator.dispose();
   }

@@ -23,9 +23,6 @@ Future<void> showAvailabilitySheet(
   final cubit = profileCubit ?? GetIt.I<ProfileCubit>();
   return showTenturaAdaptiveSheet<void>(
     context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
-    useSafeArea: true,
     builder: (ctx) => AvailabilitySheetBody(
       profileCubit: cubit,
       clock: clock,
@@ -241,9 +238,7 @@ class _AvailabilitySheetBodyState extends State<AvailabilitySheetBody> {
                   SizedBox(height: tt.sectionGap),
                   TenturaStatusText(
                     l10n.availabilityResumeEcho(echoWhen),
-                    tone: TenturaTone.neutral,
                     maxLines: null,
-                    softWrap: true,
                   ),
                 ],
                 SizedBox(height: tt.sectionGap),

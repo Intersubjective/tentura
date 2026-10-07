@@ -29,9 +29,9 @@ typedef ConstellationFieldResolved = ({
 final class ConstellationFieldCase extends UseCaseBase {
   ConstellationFieldCase(
     this._repository, {
-    RealtimeSyncCase? realtimeSyncCase,
     required super.env,
     required super.logger,
+    RealtimeSyncCase? realtimeSyncCase,
   }) : _realtimeSyncCase = realtimeSyncCase;
 
   final ConstellationRepositoryPort _repository;

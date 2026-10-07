@@ -38,42 +38,42 @@ final class HomeTabSpec {
   final PageRouteInfo Function() rootRoute;
 
   static final all = <HomeTabSpec>[
-    HomeTabSpec(
+    const HomeTabSpec(
       tab: HomeTab.work,
       index: 0,
       path: kPathMyWork,
       shell: workTabShell,
       rootRoute: MyWorkRoute.new,
     ),
-    HomeTabSpec(
+    const HomeTabSpec(
       tab: HomeTab.conversations,
       index: 1,
       path: kPathConversations,
       shell: conversationsTabShell,
       rootRoute: ConversationsRoute.new,
     ),
-    HomeTabSpec(
+    const HomeTabSpec(
       tab: HomeTab.inbox,
       index: 2,
       path: kPathInbox,
       shell: inboxTabShell,
       rootRoute: InboxRoute.new,
     ),
-    HomeTabSpec(
+    const HomeTabSpec(
       tab: HomeTab.constellation,
       index: 3,
       path: kPathConstellation,
       shell: constellationTabShell,
       rootRoute: ConstellationRoute.new,
     ),
-    HomeTabSpec(
+    const HomeTabSpec(
       tab: HomeTab.network,
       index: 4,
       path: kPathNetwork,
       shell: networkTabShell,
       rootRoute: FriendsRoute.new,
     ),
-    HomeTabSpec(
+    const HomeTabSpec(
       tab: HomeTab.me,
       index: 5,
       path: kPathProfile,

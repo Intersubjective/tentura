@@ -1,10 +1,6 @@
 import 'dart:async';
 import 'dart:ui' show Offset;
 
-import 'package:auto_route/auto_route.dart' show PageRouteInfo;
-import 'package:flutter/foundation.dart'
-    show VoidCallback, mapEquals, setEquals;
-
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
@@ -151,8 +147,7 @@ class ConstellationComposerCubit extends Cubit<RadiusRecipientSelection> {
     final known = state.eligible;
     // People the graph laid out only after the composer opened bring the
     // first positions; size the circle for them as for an initial snapshot.
-    final firstPositions =
-        !first && !state.positions.keys.any(known.contains);
+    final firstPositions = !first && !state.positions.keys.any(known.contains);
     final added = {
       for (final id in people.eligible)
         if (!people.positions.containsKey(id) && !known.contains(id)) id,

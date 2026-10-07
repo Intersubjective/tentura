@@ -135,7 +135,6 @@ class ProfileViewCubit extends Cubit<ProfileViewState> {
             ProfileViewState(
               profile: blockedProfile,
               blockedProfile: blockedProfile,
-              status: const StateIsSuccess(),
             ),
           );
           return;
@@ -176,7 +175,7 @@ class ProfileViewCubit extends Cubit<ProfileViewState> {
           status: const StateIsSuccess(),
         ),
       );
-      await fetch(showLoading: true, showError: true);
+      await fetch();
     } catch (e) {
       _showSnackError(e);
     }

@@ -140,10 +140,6 @@ ConstellationRequest _mapRequestFields({
   required String title,
   required int status,
   required Iterable<String> needs,
-  String? primaryNeedSlug,
-  String? startAt,
-  String? endAt,
-  String? addressLabel,
   required bool hasCoordinates,
   required bool isMine,
   required bool viewerHasActiveHelpOffer,
@@ -151,6 +147,10 @@ ConstellationRequest _mapRequestFields({
   required bool viewerHasForwardEdge,
   required int helpOfferCount,
   required int coverSource,
+  String? primaryNeedSlug,
+  String? startAt,
+  String? endAt,
+  String? addressLabel,
   ImageModelV2? coverThumb,
 }) => ConstellationRequest(
   id: id,
@@ -398,7 +398,7 @@ ConstellationAnchor _mapWireAnchor({
     coordinateSpaceVersion: coordinateSpaceVersion,
   );
   if (positionValidation is! ConstellationAnchorPositionValid) {
-    throw FormatException('Malformed constellation anchor coordinates');
+    throw const FormatException('Malformed constellation anchor coordinates');
   }
   return ConstellationAnchor(
     target: target,

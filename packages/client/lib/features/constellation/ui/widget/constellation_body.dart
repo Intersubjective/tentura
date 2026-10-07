@@ -343,7 +343,6 @@ class _ConstellationBodyState extends State<ConstellationBody> {
               : l10n.dialogOfferHelpTitle,
           hintText: l10n.hintOfferHelpMessage,
           initialText: preservedMessage ?? '',
-          allowEmptyMessage: false,
           showHelpTypeChips: true,
           initialHelpTypeSlugs: preservedHelpTypes?.toSet() ?? const {},
           automaticSlugs: request.needs.toSet(),
@@ -797,7 +796,6 @@ class _ConstellationBodyState extends State<ConstellationBody> {
             repaint: cubit.graphController.cameraRevision,
             cameraScale: () => cubit.graphController.cameraScale,
           ),
-          labelBuilder: null,
           nodeBuilder: (_, node) {
             final l10n = L10n.of(context)!;
             final tt = context.tt;
@@ -809,11 +807,9 @@ class _ConstellationBodyState extends State<ConstellationBody> {
                   child: GraphNodeWidget(
                     key: TestIds.key(TestIds.graphNode(node.id)),
                     nodeDetails: node,
-                    hiddenNeighborCount: null,
                     isOrigin: ring == 0,
                     isFocused:
                         panelVisible && node.id == state.selectedPersonId,
-                    onTap: null,
                   ),
                   pinBadge:
                       cubit.isAnchored(
@@ -827,16 +823,13 @@ class _ConstellationBodyState extends State<ConstellationBody> {
                           ),
                         )
                       : null,
-                  statusBadge: null,
                 ),
               FieldBeaconNode(request: final request?) => _ConstellationMapNode(
                 detail: _detail,
                 child: GraphNodeWidget(
                   key: TestIds.key(TestIds.graphNode(node.id)),
                   nodeDetails: node,
-                  hiddenNeighborCount: null,
                   isFocused: state.selectedRequestId == request.id,
-                  onTap: null,
                 ),
                 pinBadge:
                     cubit.isAnchored(
@@ -872,9 +865,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
                 child: GraphNodeWidget(
                   key: TestIds.key(TestIds.graphNode(node.id)),
                   nodeDetails: node,
-                  hiddenNeighborCount: null,
                   isFocused: state.selectedRequestId == post.id,
-                  onTap: null,
                 ),
                 pinBadge:
                     cubit.isAnchored(ConstellationAnchorTarget.beacon(post.id))
@@ -886,8 +877,6 @@ class _ConstellationBodyState extends State<ConstellationBody> {
                         ),
                       )
                     : null,
-                // Posts carry no lifecycle status (FieldBeaconNode.hasStatusMarker).
-                statusBadge: null,
               ),
               _ => const SizedBox.shrink(),
             };
@@ -1102,11 +1091,11 @@ class ConstellationEdgePainter
     implements RepaintingEdgePainter<NodeDetails, EdgeDetails> {
   const ConstellationEdgePainter({
     required this.edgeKindByPair,
-    this.edgeFadeBySemanticId = const {},
     required this.tt,
     required this.scheme,
     required this.repaint,
     required this.cameraScale,
+    this.edgeFadeBySemanticId = const {},
   });
 
   final Map<String, ConstellationEdgeKind> edgeKindByPair;
