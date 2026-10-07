@@ -8,3 +8,9 @@ tags:
       tests can see each other's graph state. Run them with `-j 1`, separately
       from the rest of the pg suite. Some reach it indirectly — `public.graph`,
       `person_visibility_peers` and friends call `mr_*` internally.
+  perf:
+    description: >-
+      Perf recorder and fixtures (issue #235 U41). Timings come from a real
+      MeritRank service, so these suites are tagged `pg` and `mr` as well:
+      they stay out of the default run and the plain pg run, and run
+      serialised (`-j 1`) like every `mr` suite. Select with `--tags perf`.

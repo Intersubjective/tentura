@@ -9,3 +9,6 @@ test/test_test.dart
 .local
 coverage
 bin/tentura
+
+# perf recorder output (test/perf)
+build/perf/
