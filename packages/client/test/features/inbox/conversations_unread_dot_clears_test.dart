@@ -2,7 +2,6 @@
 // only what the «Разговоры» list last fetched: the list is not mounted on most
 // routes, so a read or a removed Post has to clear the dot on its own.
 
-import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';

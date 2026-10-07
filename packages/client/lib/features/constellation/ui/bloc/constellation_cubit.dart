@@ -126,17 +126,13 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   ConstellationCubit({
     required ConstellationFieldCase case_,
     required Profile viewer,
-    ConstellationAnchorCase? anchorCase,
-    ConstellationMemberWebsPort? memberWebsPort,
+    this._anchorCase,
+    this._memberWebsPort,
     ForwardRepository? forwardRepository,
     bool loadOnCreate = true,
-    Duration realtimeRefreshMinInterval = const Duration(seconds: 2),
-    DateTime Function() now = DateTime.now,
+    this._realtimeRefreshMinInterval = const Duration(seconds: 2),
+    this._now = DateTime.now,
   }) : _case = case_,
-       _realtimeRefreshMinInterval = realtimeRefreshMinInterval,
-       _now = now,
-       _anchorCase = anchorCase,
-       _memberWebsPort = memberWebsPort,
        _viewer = viewer,
        _forwardRepositoryOverride = forwardRepository,
        super(const ConstellationState()) {
@@ -276,7 +272,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   final Set<String> expandedSatelliteAuthorIds = {};
 
   Size _labelBudgetViewport = const Size(1200, 900);
-  double _labelBudgetTextScale = 1.0;
+  double _labelBudgetTextScale = 1;
   ConstellationLabelBudget? _appliedLabelBudget;
   bool _labelBudgetRecomposePending = false;
   ConstellationFootprintMetrics? _footprintMetrics;
@@ -577,7 +573,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     final generation = state.loadGeneration + 1;
     emit(
       state.copyWith(
-        status: StateIsLoading(),
+        status: const StateIsLoading(),
         loadError: null,
         loadGeneration: generation,
       ),
@@ -617,7 +613,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       );
       emit(
         state.copyWith(
-          status: StateIsSuccess(),
+          status: const StateIsSuccess(),
           loadedAt: loadedField.loadedAt,
           field: loadedField,
           composition: composition,
@@ -638,7 +634,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       }
       emit(
         state.copyWith(
-          status: StateIsSuccess(),
+          status: const StateIsSuccess(),
           loadError: error,
         ),
       );
@@ -754,8 +750,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   String composerPersonName(String id) {
     final candidate = _composerPeople[id];
-    if (candidate?.displayName?.isNotEmpty ?? false)
+    if (candidate?.displayName?.isNotEmpty ?? false) {
       return candidate!.displayName!;
+    }
     for (final person in state.field?.peers ?? const <ConstellationPerson>[]) {
       if (person.id == id && (person.displayName?.isNotEmpty ?? false)) {
         return person.displayName!;
@@ -1741,9 +1738,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
     graphController.fitToRect(
       bounds,
-      padding: kMinInteractiveDimension,
       viewportInsets: insets,
-      maxScale: 1.0,
+      maxScale: 1,
     );
   }
 
@@ -2733,8 +2729,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       }
     }
     final drawnRequests = [
-      for (final id in drawnRequestIds)
-        if (requestsById[id] case final request?) request,
+      for (final id in drawnRequestIds) ?requestsById[id],
     ]..sort((a, b) => a.id.compareTo(b.id));
 
     layoutEgoId = _viewer.id;

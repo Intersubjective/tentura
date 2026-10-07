@@ -9,7 +9,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
-import 'package:tentura/data/service/remote_api_client/realtime_socket.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura/env.dart';

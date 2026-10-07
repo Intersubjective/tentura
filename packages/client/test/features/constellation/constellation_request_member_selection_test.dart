@@ -8,7 +8,6 @@ import 'package:tentura/features/constellation/domain/port/constellation_member_
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_field_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
-import 'package:tentura/ui/bloc/screen_cubit.dart';
 
 final class _StubRepository implements ConstellationRepositoryPort {
   @override

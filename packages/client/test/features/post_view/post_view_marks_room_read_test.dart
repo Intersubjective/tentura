@@ -6,13 +6,10 @@
 // next.
 
 import 'package:auto_route/auto_route.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
-import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/data/repository/clipboard_image_repository.dart';
 import 'package:tentura/data/repository/image_repository.dart';
@@ -72,8 +69,6 @@ Beacon _post() => Beacon(
   kind: BeaconKind.post,
   createdAt: _createdAt,
   updatedAt: _createdAt,
-  status: BeaconStatus.open,
-  canReadContent: true,
   author: _author,
   postRootMessageId: _rootId,
 );
@@ -296,10 +291,10 @@ Future<_Session> _openPostFromConversations(
     capabilities: const RoomCapabilities.post(),
     roomCubitFactory:
         ({
-          required String beaconId,
-          String? threadItemId,
-          DateTime? initialUnreadAnchorAt,
-          RoomCapabilities capabilities = const RoomCapabilities.request(),
+          required beaconId,
+          threadItemId,
+          initialUnreadAnchorAt,
+          capabilities = const RoomCapabilities.request(),
         }) => room = _realRoomCubit(
           repository,
           capabilities: capabilities,
@@ -345,7 +340,6 @@ Future<_Session> _openPostFromConversations(
                     ThreadsState(
                       threads: [general],
                       myUserId: _reader.id,
-                      status: const StateIsSuccess(),
                     ),
                   ),
                 ),
@@ -414,7 +408,6 @@ Future<void> _dragListToBottom(WidgetTester tester) async {
     await tester.drag(
       list,
       const Offset(0, -600),
-      kind: PointerDeviceKind.touch,
     );
     await _pumpFrames(tester, 6);
   }

@@ -1,0 +1,4 @@
+# Budget snapshot from 362bf5dfc0e0c68c7dd7c18877a32d0499692b08:scripts/analyze-baseline.txt
+packages/client 2124
+packages/server 1878
+packages/client:lib/features/beacon_view 2

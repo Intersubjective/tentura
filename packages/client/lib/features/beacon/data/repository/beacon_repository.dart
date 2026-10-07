@@ -129,6 +129,7 @@ class BeaconRepository implements BeaconWritePort {
 
   //
   //
+  @override
   Future<Beacon> fetchBeaconById(String id) => _remoteApiService
       .request(GBeaconFetchByIdReq((b) => b.vars.id = id))
       .firstWhere((e) => e.dataSource == DataSource.Link)
@@ -183,6 +184,7 @@ class BeaconRepository implements BeaconWritePort {
   //
   /// Field-only create. Media is published separately via [stageImage] and
   /// [setMedia]; the legacy multipart `image` argument is never used.
+  @override
   Future<Beacon> create(Beacon beacon, {bool draft = false}) async {
     final request = GBeaconCreateReq((b) {
       b.vars
@@ -224,6 +226,7 @@ class BeaconRepository implements BeaconWritePort {
   ///
   /// Persists edits to a server draft beacon (lifecycle DRAFT).
   ///
+  @override
   Future<Beacon> updateDraft(Beacon beacon) async {
     final request = GBeaconUpdateDraftReq((b) {
       b.vars
@@ -256,6 +259,7 @@ class BeaconRepository implements BeaconWritePort {
   ///
   /// Updates an open (published) beacon. Polling fields are not changed.
   ///
+  @override
   Future<Beacon> update(Beacon beacon) async {
     final request = GBeaconUpdateReq((b) {
       b.vars
@@ -288,6 +292,7 @@ class BeaconRepository implements BeaconWritePort {
   ///
   /// Publishes a draft beacon (DRAFT -> OPEN).
   ///
+  @override
   Future<void> publishDraft(String id) async {
     await _remoteApiService
         .request(GBeaconPublishReq((b) => b.vars.id = id))
@@ -320,6 +325,7 @@ class BeaconRepository implements BeaconWritePort {
   }
 
   /// Stages an image that remains invisible until [setMedia].
+  @override
   Future<String> stageImage({
     required String beaconId,
     required ImageEntity image,
@@ -344,6 +350,7 @@ class BeaconRepository implements BeaconWritePort {
   }
 
   /// Atomically publishes ordered attachments and cover preference.
+  @override
   Future<Beacon> setMedia({
     required String beaconId,
     required List<String> imageIds,
@@ -391,6 +398,7 @@ class BeaconRepository implements BeaconWritePort {
 
   //
   //
+  @override
   Future<void> delete(String id) async {
     final isOk = await _remoteApiService
         .request(GBeaconDeleteByIdReq((b) => b.vars.id = id))

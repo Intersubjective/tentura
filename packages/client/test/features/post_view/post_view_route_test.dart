@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
 import 'package:mockito/mockito.dart';
 import 'package:logging/logging.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
@@ -66,8 +65,6 @@ Beacon _beacon(String id, BeaconKind kind) => Beacon(
   kind: kind,
   createdAt: DateTime.utc(2026),
   updatedAt: DateTime.utc(2026),
-  status: BeaconStatus.open,
-  canReadContent: true,
   author: _author,
 );
 
@@ -95,9 +92,9 @@ class _BeaconOnlyRepository implements BeaconRepository {
 
 class _ConversionBeaconRepository extends BeaconRepository {
   _ConversionBeaconRepository(
-    RemoteApiService remote,
-    TestRealtimeSyncPort sync,
-  ) : super(remote, sync);
+    super.remote,
+    TestRealtimeSyncPort super.sync,
+  );
 
   Beacon snapshot = _beacon(_postId, BeaconKind.post);
   int fetchCount = 0;
@@ -136,7 +133,7 @@ class _ConversionRooms extends FakeBeaconThreadsRepository {
 
   @override
   Future<List<RequestThread>> fetchThreads(String beaconId) async => [
-    RequestThread(
+    const RequestThread(
       threadId: RequestThread.generalId,
       kind: RequestThreadKind.general,
     ),
@@ -321,8 +318,8 @@ void main() {
         final sync = buildTestRealtimeSync();
         addTearDown(sync.port.dispose);
         final remote = RemoteApiService(
-          Env.fromEnvironment(),
-          WebSocketClientRealtimeSocketFactory(),
+          const Env.fromEnvironment(),
+          const WebSocketClientRealtimeSocketFactory(),
         );
         addTearDown(remote.close);
         final beacons = _ConversionBeaconRepository(remote, sync.port);
@@ -342,7 +339,7 @@ void main() {
               ? PostsCase(
                   posts,
                   sync.case_,
-                  env: Env.fromEnvironment(),
+                  env: const Env.fromEnvironment(),
                   logger: Logger('PostConversionPaneTest'),
                 )
               : null,

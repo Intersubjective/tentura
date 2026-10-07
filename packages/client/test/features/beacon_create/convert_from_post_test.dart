@@ -4,7 +4,6 @@
 // photo) sets the cover with the ordinary cover upload. A cover failure never
 // undoes the conversion, and closing the form sends nothing to the server.
 
-import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 
