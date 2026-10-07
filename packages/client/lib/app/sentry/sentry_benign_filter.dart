@@ -59,7 +59,18 @@ bool isBenignSentryEvent(SentryEvent event, Hint hint) {
   if (isBenignSentryThrowable(synthetic)) {
     return true;
   }
-  if (_isBenignUnlaidOutHitTest(event, hint)) {
+  final blobs = _errorBlobs(event, hint);
+  if (_isUnlaidOutHitTest(
+    exceptionText: blobs.exceptionText,
+    library: blobs.library,
+    context: blobs.context,
+  )) {
+    return true;
+  }
+  if (_isViewFocusTraversalNullCheck(
+    exceptionText: blobs.exceptionText,
+    context: blobs.context,
+  )) {
     return true;
   }
 
@@ -92,13 +103,13 @@ bool isBenignSentryEvent(SentryEvent event, Hint hint) {
   return false;
 }
 
-/// Flutter web: a pointer packet hit-tests a Listener / barrier before the
-/// first layout. Same class as TENTURA-CLIENT-2J / -12 / -28.
-///
-/// Requires both an unlaid-out hit-test message and gestures/pointer-packet
-/// context so genuine layout failures (`during layout`, rendering library)
-/// still report.
-bool _isBenignUnlaidOutHitTest(SentryEvent event, Hint hint) {
+/// Exception text, Flutter error library and context gathered from the
+/// synthetic-exception hint, the `flutter_error_details` event context and the
+/// serialized exceptions.
+({String exceptionText, String library, String context}) _errorBlobs(
+  SentryEvent event,
+  Hint hint,
+) {
   final exceptionTexts = <String>[];
   final libraries = <String>[];
   final contexts = <String>[];
@@ -134,13 +145,38 @@ bool _isBenignUnlaidOutHitTest(SentryEvent event, Hint hint) {
     }
   }
 
-  return _isUnlaidOutHitTest(
+  return (
     exceptionText: exceptionTexts.join('\n'),
     library: libraries.join('\n'),
     context: contexts.join('\n'),
   );
 }
 
+/// Flutter web: `WidgetsBindingObserver.didChangeViewFocus` runs focus
+/// traversal (`FocusTraversalPolicy._findInitialFocus`, via
+/// `FocusNode.rect`) while the semantics / render tree is mid-update and
+/// throws `Null check operator used on a null value`. Sentry issue
+/// TENTURA-CLIENT-37 (3 events / 2 users, `accessible_navigation=true`,
+/// `BeaconViewRoute`); the stack has no first-party frames. Same
+/// didChangeViewFocus-before-layout race as
+/// https://github.com/flutter/flutter/issues/191508 — drop until a Flutter
+/// upgrade carries the fix.
+///
+/// Requires both the null-check text and the view-focus dispatch context so
+/// null checks raised anywhere else still report.
+bool _isViewFocusTraversalNullCheck({
+  required String exceptionText,
+  required String context,
+}) =>
+    exceptionText.contains('Null check operator used on a null value') &&
+    context.contains('WidgetsBindingObserver.didChangeViewFocus');
+
+/// Flutter web: a pointer packet hit-tests a Listener / barrier before the
+/// first layout. Same class as TENTURA-CLIENT-2J / -12 / -28.
+///
+/// Requires both an unlaid-out hit-test message and gestures/pointer-packet
+/// context so genuine layout failures (`during layout`, rendering library)
+/// still report.
 bool _isUnlaidOutHitTest({
   required String exceptionText,
   required String library,
