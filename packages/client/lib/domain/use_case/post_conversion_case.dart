@@ -48,6 +48,7 @@ class PostConversionCase {
     required DateTime? startAt,
     required DateTime? endAt,
     required bool isDiscoverable,
+    List<String> helperIds = const [],
   }) => _port.convertToRequest(
     beaconId: beaconId,
     title: title,
@@ -57,5 +58,6 @@ class PostConversionCase {
     startAt: startAt,
     endAt: endAt,
     isDiscoverable: isDiscoverable,
+    helperIds: helperIds,
   );
 }

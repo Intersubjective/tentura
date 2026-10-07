@@ -74,6 +74,7 @@ class _FakePostConversionPort implements PostConversionPort {
     required DateTime? startAt,
     required DateTime? endAt,
     required bool isDiscoverable,
+    List<String> helperIds = const [],
   }) async {
     convertedIds.add(beaconId);
     convertedDiscoverable.add(isDiscoverable);

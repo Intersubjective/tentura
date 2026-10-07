@@ -63,6 +63,7 @@ class PostConversionRepository implements PostConversionPort {
     required DateTime? startAt,
     required DateTime? endAt,
     required bool isDiscoverable,
+    List<String> helperIds = const [],
   }) async {
     await _remoteApiService
         .request(
@@ -75,7 +76,8 @@ class PostConversionRepository implements PostConversionPort {
               ..primaryNeedSlug = primaryNeedSlug
               ..startAt = startAt?.toUtc().toIso8601String()
               ..endAt = endAt?.toUtc().toIso8601String()
-              ..isDiscoverable = isDiscoverable,
+              ..isDiscoverable = isDiscoverable
+              ..helperIds.addAll(helperIds),
           ),
         )
         .firstWhere((e) => e.dataSource == DataSource.Link)

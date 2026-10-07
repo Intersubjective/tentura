@@ -25,5 +25,6 @@ abstract interface class PostConversionPort {
     required DateTime? startAt,
     required DateTime? endAt,
     required bool isDiscoverable,
+    List<String> helperIds = const [],
   });
 }

@@ -7,6 +7,7 @@ mutation BeaconConvertToRequest(
   $startAt: String
   $endAt: String
   $isDiscoverable: Boolean
+  $helperIds: [String!]! = []
 ) {
   beaconConvertToRequest(
     id: $id
@@ -17,6 +18,7 @@ mutation BeaconConvertToRequest(
     startAt: $startAt
     endAt: $endAt
     isDiscoverable: $isDiscoverable
+    helperIds: $helperIds
   ) {
     id
   }

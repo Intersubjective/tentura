@@ -145,18 +145,20 @@ class _PostViewScreenState extends State<PostViewScreen> {
           await cubit.allowForwarding();
         }
       case PostAction.convertToRequest:
-        final discoverable = await _confirmConvert(
+        final selection = await _confirmConvert(
           context,
           participants: room?.state.participants ?? const [],
+          authorId: cubit.state.beacon.author.id,
           wasClosed:
               cubit.state.beacon.forwardPolicy ==
               BeaconForwardPolicyValue.closed,
         );
-        if (discoverable != null && context.mounted) {
+        if (selection != null && context.mounted) {
           await context.router.push(
             BeaconCreateRoute(
               convertFromPostId: id,
-              convertIsDiscoverable: discoverable,
+              convertIsDiscoverable: selection.isDiscoverable,
+              convertHelperIds: selection.helperIds,
             ),
           );
         }
@@ -240,31 +242,43 @@ class _PostViewScreenState extends State<PostViewScreen> {
         false;
   }
 
-  /// M7: the author's confirmation; resolves to the chosen discoverability,
-  /// or null when cancelled.
-  Future<bool?> _confirmConvert(
+  /// Choose discoverability and which members become Request helpers.
+  Future<({bool isDiscoverable, List<String> helperIds})?> _confirmConvert(
     BuildContext context, {
     required List<BeaconParticipant> participants,
+    required String authorId,
     required bool wasClosed,
   }) {
     final l10n = L10n.of(context)!;
-    final others = participants
-        .where((p) => p.role != BeaconParticipantRoleBits.author)
-        .length;
+    final members = participants.where((p) => p.userId != authorId).toList();
+    final helperIds = <String>{};
     var discoverable = true;
-    return showDialog<bool>(
+    return showDialog<({bool isDiscoverable, List<String> helperIds})>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setState) => AlertDialog(
           title: Text(l10n.postConvertTitle),
+          scrollable: true,
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                '${l10n.postConvertKeepsConversation(others)} '
-                '${l10n.postConvertEveryoneCanHelp}',
-              ),
+              Text(l10n.postConvertMembersTitle),
+              Text(l10n.postConvertMembersExplanation),
+              for (final member in members)
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  value: helperIds.contains(member.userId),
+                  onChanged: (checked) => setState(() {
+                    if (checked ?? false) {
+                      helperIds.add(member.userId);
+                    } else {
+                      helperIds.remove(member.userId);
+                    }
+                  }),
+                  title: Text(member.displayLabel(l10n.unknownPerson)),
+                ),
               if (wasClosed) Text(l10n.postConvertForwardingOpens),
               Text(l10n.postConvertIrreversible),
               CheckboxListTile(
@@ -282,7 +296,10 @@ class _PostViewScreenState extends State<PostViewScreen> {
               child: Text(l10n.buttonCancel),
             ),
             FilledButton(
-              onPressed: () => Navigator.pop(ctx, discoverable),
+              onPressed: () => Navigator.pop(ctx, (
+                isDiscoverable: discoverable,
+                helperIds: helperIds.toList(),
+              )),
               child: Text(l10n.postConvertNext),
             ),
           ],

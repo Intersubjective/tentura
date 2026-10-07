@@ -57,6 +57,7 @@ class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
     @QueryParam(kQueryBeaconConvertFromPostId) this.convertFromPostId = '',
     @QueryParam(kQueryBeaconConvertIsDiscoverable)
     this.convertIsDiscoverable = true,
+    this.convertHelperIds = const [],
     this.initialRecipientIds = const {},
     this.initialNotes = const {},
     this.onRecipientsChanged,
@@ -99,6 +100,9 @@ class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
   /// Discoverability the author chose in the convert confirmation.
   final bool convertIsDiscoverable;
 
+  /// Post members chosen to become admitted Request helpers.
+  final List<String> convertHelperIds;
+
   @override
   State<BeaconCreateScreen> createState() => _BeaconCreateScreenState();
 
@@ -116,6 +120,7 @@ class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
               ? null
               : convertFromPostId,
           convertIsDiscoverable: convertIsDiscoverable,
+          convertHelperIds: convertHelperIds,
           childCreationContext: _childCreationContext(
             parentBeaconId: parentBeaconId,
             sourceMessageId: sourceMessageId,

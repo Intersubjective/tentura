@@ -1,9 +1,3 @@
-// A Post's author converts it to a Request from «О посте» (⋮ → «О посте»):
-// «Превратить в запрос» opens a confirmation (M7) with the discoverability choice, «Далее»
-// opens the Request form for that Post carrying the choice, «Отмена» changes
-// nothing. Recipients never see the item.
-// UI copy is asserted verbatim in Russian (docs/plans/post-ux-mockups.md, M7).
-
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -41,6 +35,8 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../beacon_threads/support/room_body_harness.dart';
+import '../beacon_create/post_conversion_helper_handoff_test.dart'
+    as conversion;
 import '../beacon_view/beacon_view_screen_harness.dart'
     show BeaconViewHarnessRouter;
 
@@ -49,6 +45,8 @@ const _rootId = 'Mpostroot001';
 const _rootText = 'Кто в субботу на велопрогулку?';
 const _author = Profile(id: 'Uauthor', displayName: 'Олег');
 const _reader = Profile(id: 'Ureader', displayName: 'Мария');
+const _secondMember = Profile(id: 'Usecond', displayName: 'Анна');
+const _unselectedMember = Profile(id: 'Uthird', displayName: 'Иван');
 
 final _createdAt = DateTime.utc(2026, 10, 2, 12);
 
@@ -202,11 +200,15 @@ Future<_RecordingRouter> _pumpPost(
       participants: [
         roomBodyAdmittedParticipant(
           beaconId: _postId,
-          profile: viewer,
-          role: viewer.id == _author.id
-              ? BeaconParticipantRoleBits.author
-              : BeaconParticipantRoleBits.addressee,
+          profile: _author,
+          role: BeaconParticipantRoleBits.author,
         ),
+        for (final member in [_reader, _secondMember, _unselectedMember])
+          roomBodyAdmittedParticipant(
+            beaconId: _postId,
+            profile: member,
+            role: BeaconParticipantRoleBits.addressee,
+          ),
       ],
       participantsLoaded: true,
     ),
@@ -326,101 +328,147 @@ Finder _dialog() => find.byType(AlertDialog);
 
 Finder _inDialog(Finder f) => find.descendant(of: _dialog(), matching: f);
 
-Finder _discoverabilityCheckbox() => find.descendant(
-  of: _inDialog(
-    find.ancestor(
-      of: find.text('Люди в моём поле могут найти запрос'),
-      matching: find.byType(CheckboxListTile),
-    ),
+Finder _memberRow(Profile member) => _inDialog(
+  find.ancestor(
+    of: find.text(member.shownName),
+    matching: find.byType(CheckboxListTile),
   ),
-  matching: find.byType(Checkbox),
 );
 
+Future<void> _selectMember(WidgetTester tester, Profile member) async {
+  final row = _memberRow(member);
+  expect(row, findsOneWidget, reason: 'Each post member needs a checkbox row');
+  await tester.ensureVisible(row);
+  // A regular tap on the label must work on desktop, web, and mobile.
+  await tester.tap(
+    find.descendant(of: row, matching: find.text(member.shownName)),
+  );
+  await tester.pump();
+}
+
+Future<BeaconCreateRoute> _confirm(
+  WidgetTester tester,
+  _RecordingRouter router,
+) async {
+  await tester.tap(_inDialog(find.textContaining('Далее')));
+  await _settle(tester);
+  expect(router.pushed, hasLength(1));
+  return router.pushed.single as BeaconCreateRoute;
+}
+
+// Dynamic access keeps these tests runnable before the new route field exists.
+// Once implemented, this reads the actual generated route arguments.
+List<String> _helperIds(BeaconCreateRoute route) {
+  final dynamic args = route.args!;
+  try {
+    final Object? ids = args.convertHelperIds;
+    expect(ids, isA<Iterable<String>>());
+    return (ids! as Iterable<String>).toList();
+  } on NoSuchMethodError {
+    fail('BeaconCreateRoute must carry convertHelperIds from the confirmation');
+  }
+}
+
 void main() {
-  testWidgets('the author sees the convert item in «О посте»', (tester) async {
-    await _pumpPost(tester, viewer: _author);
-
-    await _openInfo(tester);
-
-    expect(find.text(_menuLabel), findsOneWidget);
-  });
-
-  testWidgets('a recipient cannot start a conversion', (tester) async {
-    final router = await _pumpPost(tester, viewer: _reader);
-
-    await _openInfo(tester);
-
-    expect(find.text(_menuLabel), findsNothing);
-    expect(find.textContaining('Превратить'), findsNothing);
-
-    await tester.tapAt(const Offset(5, 5));
-    await _settle(tester);
-
-    expect(_dialog(), findsNothing);
-    expect(router.pushed, isEmpty);
-  });
-
-  testWidgets('the item opens the confirmation with discoverability ticked', (
-    tester,
-  ) async {
-    final router = await _pumpPost(tester, viewer: _author);
-
-    await _openConvertDialog(tester);
-
-    expect(_dialog(), findsOneWidget);
-    expect(
-      _inDialog(find.text('Превратить пост в запрос?')),
-      findsOneWidget,
+  group('Post conversion member selection', () {
+    testWidgets(
+      'confirming selected members builds the generated Request page and submits their ids through its cubit',
+      (tester) async {
+        final router = await _pumpPost(tester, viewer: _author);
+        await _openConvertDialog(tester);
+        await _selectMember(tester, _reader);
+        await _selectMember(tester, _secondMember);
+        final route = await _confirm(tester, router);
+        final opened = await conversion.pumpConversionRoute(tester, route);
+        expect(opened.fetchedIds, [_postId]);
+        expect(opened.convertedIds, isEmpty);
+        expect(await opened.cubit.submitConversion(), _postId);
+        expect(opened.convertedIds, [_postId]);
+        expect(opened.convertedHelpers, [
+          unorderedEquals([_reader.id, _secondMember.id]),
+        ]);
+      },
     );
-    expect(
-      _inDialog(find.textContaining('Люди в моём поле могут найти запрос')),
-      findsOneWidget,
+
+    testWidgets('shows the localized member carry-over explanation', (
+      tester,
+    ) async {
+      await _pumpPost(tester, viewer: _author);
+      await _openConvertDialog(tester);
+      final dynamic l10n = L10n.of(tester.element(_dialog()))!;
+      String explanation;
+      try {
+        explanation = l10n.postConvertMembersExplanation as String;
+      } on NoSuchMethodError {
+        fail('The member picker needs a localized carry-over explanation');
+      }
+      expect(explanation.trim(), isNotEmpty);
+      expect(_inDialog(find.text(explanation)), findsOneWidget);
+    });
+
+    testWidgets('lists every non-author member with an unchecked checkbox', (
+      tester,
+    ) async {
+      await _pumpPost(tester, viewer: _author);
+      await _openConvertDialog(tester);
+      for (final member in [_reader, _secondMember, _unselectedMember]) {
+        final row = _memberRow(member);
+        expect(
+          row,
+          findsOneWidget,
+          reason: '${member.shownName} must be selectable',
+        );
+        expect(tester.widget<CheckboxListTile>(row).value, isFalse);
+      }
+      expect(_memberRow(_author), findsNothing);
+      expect(_inDialog(find.text(_author.shownName)), findsNothing);
+      // Three member checkboxes plus the existing discoverability checkbox.
+      expect(_inDialog(find.byType(Checkbox)), findsNWidgets(4));
+    });
+
+    testWidgets(
+      'confirming two checked members carries exactly their ids to the Request form',
+      (tester) async {
+        final router = await _pumpPost(tester, viewer: _author);
+        await _openConvertDialog(tester);
+        await _selectMember(tester, _reader);
+        await _selectMember(tester, _secondMember);
+        final route = await _confirm(tester, router);
+        expect(route.args!.convertFromPostId, _postId);
+        expect(
+          _helperIds(route),
+          unorderedEquals([_reader.id, _secondMember.id]),
+        );
+        expect(route.args!.convertIsDiscoverable, isTrue);
+      },
     );
-    expect(tester.widget<Checkbox>(_discoverabilityCheckbox()).value, isTrue);
-    expect(router.pushed, isEmpty);
-  });
 
-  testWidgets('«Далее» opens the Request form for this Post', (tester) async {
-    final router = await _pumpPost(tester, viewer: _author);
-    await _openConvertDialog(tester);
+    testWidgets(
+      'confirming without checking members submits an explicit empty helper list through generated navigation',
+      (tester) async {
+        final router = await _pumpPost(tester, viewer: _author);
+        await _openConvertDialog(tester);
+        final route = await _confirm(tester, router);
+        expect(_helperIds(route), isEmpty);
+        final opened = await conversion.pumpConversionRoute(tester, route);
+        expect(opened.fetchedIds, [_postId]);
+        expect(opened.convertedIds, isEmpty);
+        expect(await opened.cubit.submitConversion(), _postId);
+        expect(opened.convertedIds, [_postId]);
+        expect(opened.convertedHelpers, [<String>[]]);
+      },
+    );
 
-    await tester.tap(_inDialog(find.textContaining('Далее')));
-    await _settle(tester);
-
-    expect(_dialog(), findsNothing);
-    expect(router.pushed, hasLength(1));
-    final route = router.pushed.single as BeaconCreateRoute;
-    expect(route.args!.convertFromPostId, _postId);
-    expect(route.args!.convertIsDiscoverable, isTrue);
-  });
-
-  testWidgets('unticking discoverability in the dialog is passed to the form', (
-    tester,
-  ) async {
-    final router = await _pumpPost(tester, viewer: _author);
-    await _openConvertDialog(tester);
-
-    await tester.tap(_discoverabilityCheckbox());
-    await tester.pump();
-    expect(tester.widget<Checkbox>(_discoverabilityCheckbox()).value, isFalse);
-    await tester.tap(_inDialog(find.textContaining('Далее')));
-    await _settle(tester);
-
-    final route = router.pushed.single as BeaconCreateRoute;
-    expect(route.args!.convertFromPostId, _postId);
-    expect(route.args!.convertIsDiscoverable, isFalse);
-  });
-
-  testWidgets('«Отмена» closes the confirmation and opens nothing', (
-    tester,
-  ) async {
-    final router = await _pumpPost(tester, viewer: _author);
-    await _openConvertDialog(tester);
-
-    await tester.tap(_inDialog(find.text('Отмена')));
-    await _settle(tester);
-
-    expect(_dialog(), findsNothing);
-    expect(router.pushed, isEmpty);
+    testWidgets('unchecking a member removes their id before confirmation', (
+      tester,
+    ) async {
+      final router = await _pumpPost(tester, viewer: _author);
+      await _openConvertDialog(tester);
+      await _selectMember(tester, _reader);
+      await _selectMember(tester, _secondMember);
+      await _selectMember(tester, _reader);
+      final route = await _confirm(tester, router);
+      expect(_helperIds(route), [_secondMember.id]);
+    });
   });
 }

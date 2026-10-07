@@ -6302,6 +6302,8 @@
   "postOriginLeaveChat": "Выйти из чата",
   "postOriginPeopleSection": "ИЗ ПОСТА · {count}",
   "postMenuConvertToRequest": "Превратить в запрос",
+  "postConvertMembersTitle": "Выберите участников для переноса",
+  "postConvertMembersExplanation": "Выбранные участники сразу станут помощниками в запросе. Остальные не войдут в запрос.",
   "postConvertTitle": "Превратить пост в запрос?",
   "postConvertKeepsConversation": "{count, plural, =0{Разговор останется.} one{Разговор и {count} участник останутся.} few{Разговор и {count} участника останутся.} many{Разговор и {count} участников останутся.} other{Разговор и {count} участника останутся.}}",
   "postConvertEveryoneCanHelp": "Каждый сможет предложить помощь или выйти.",

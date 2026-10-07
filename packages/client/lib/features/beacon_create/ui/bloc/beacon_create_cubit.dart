@@ -46,10 +46,13 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     String? editBeaconIdToLoad,
     String? convertFromPostId,
     bool convertIsDiscoverable = true,
+    List<String> convertHelperIds = const [],
     UiEffectPort? effects,
-  }) : _convertFromPostId = convertFromPostId == null || convertFromPostId.isEmpty
+  }) : _convertFromPostId =
+           convertFromPostId == null || convertFromPostId.isEmpty
            ? null
            : convertFromPostId,
+       _convertHelperIds = List.unmodifiable(convertHelperIds),
        _case = beaconCreateCase ?? GetIt.I<BeaconCreateCase>(),
        _hierarchyCase =
            hierarchyCase ??
@@ -113,6 +116,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   /// The Post this form converts to a Request; null for an ordinary form.
   /// While set, nothing is saved before [submitConversion].
   String? _convertFromPostId;
+  final List<String> _convertHelperIds;
 
   Future<String?>? _conversionInFlight;
 
@@ -405,6 +409,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
         startAt: state.startAt,
         endAt: state.endAt,
         isDiscoverable: state.isDiscoverable,
+        helperIds: _convertHelperIds,
       );
     } catch (e) {
       _emitSnackError(e);

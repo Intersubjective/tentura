@@ -7421,6 +7421,8 @@
   "@postMenuConvertToRequest": {
     "description": "Post overflow menu item (author): convert the Post to a Request."
   },
+  "postConvertMembersTitle": "Choose members to carry over",
+  "postConvertMembersExplanation": "Selected members will immediately become helpers in the Request. Other members will not join.",
   "postConvertTitle": "Turn this Post into a Request?",
   "@postConvertTitle": {
     "description": "Title of the convert-to-Request confirmation."
