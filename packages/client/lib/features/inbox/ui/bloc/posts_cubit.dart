@@ -1,5 +1,9 @@
 import 'dart:async';
 
+import 'package:get_it/get_it.dart';
+
+import 'package:tentura/features/beacon_threads/domain/room_read_watermark_store.dart';
+
 import '../../domain/entity/post_summary.dart';
 import '../../domain/use_case/posts_case.dart';
 import 'posts_state.dart';
@@ -14,12 +18,19 @@ class PostsCubit extends Cubit<PostsState> {
   PostsCubit({
     required PostsCase postsCase,
     DateTime Function()? clock,
+    RoomReadWatermarkStore? watermarks,
   }) : _postsCase = postsCase,
        _clock = clock ?? DateTime.now,
        super(const PostsState(status: StateIsLoading())) {
     _changes = _postsCase.changes.listen(
       (_) => unawaited(fetch()),
       cancelOnError: false,
+    );
+    _watchReads(
+      watermarks ??
+          (GetIt.I.isRegistered<RoomReadWatermarkStore>()
+              ? GetIt.I<RoomReadWatermarkStore>()
+              : null),
     );
     unawaited(fetch());
   }
@@ -30,12 +41,34 @@ class PostsCubit extends Cubit<PostsState> {
   final PostsCase _postsCase;
   final DateTime Function() _clock;
   late final StreamSubscription<void> _changes;
+  StreamSubscription<void>? _reads;
   var _generation = 0;
 
   @override
   Future<void> close() async {
     await _changes.cancel();
+    await _reads?.cancel();
     return super.close();
+  }
+
+  /// Reading a Post's room (list reached the bottom, no message sent) never
+  /// reaches the server as a beacon change the list could see, so the list
+  /// refetches itself once a listed Post's read watermark is confirmed.
+  void _watchReads(RoomReadWatermarkStore? watermarks) {
+    if (watermarks == null) return;
+    _reads = watermarks.threadChanges
+        .where(
+          (key) =>
+              !watermarks.hasPendingSync(
+                key.beaconId,
+                threadId: key.threadId,
+              ) &&
+              state.pinned
+                  .followedBy(state.active)
+                  .followedBy(state.quiet)
+                  .any((post) => post.id == key.beaconId),
+        )
+        .listen((_) => unawaited(fetch()), cancelOnError: false);
   }
 
   Future<void> fetch() async {
