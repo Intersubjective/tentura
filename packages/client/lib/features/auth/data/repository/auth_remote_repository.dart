@@ -86,7 +86,8 @@ class AuthRemoteRepository implements AuthRemoteRepositoryPort {
         authAttemptId: authAttemptId,
       );
     } on SessionHttpException catch (e) {
-      if (isValidClientAuthAttemptId(authAttemptId)) {
+      final isReported = isValidClientAuthAttemptId(authAttemptId);
+      if (isReported) {
         await captureSeedRecoveryFailed(
           authOutcome: 'session_cookie_failed',
           authAttemptId: authAttemptId,
@@ -94,7 +95,7 @@ class AuthRemoteRepository implements AuthRemoteRepositoryPort {
         );
       }
       if (isTransientRemoteFailure(e)) {
-        throw const AuthServerUnavailableException();
+        throw AuthServerUnavailableException(isReported: isReported);
       }
       rethrow;
     }

@@ -103,7 +103,10 @@ final class AuthSessionLostException extends AuthException {
 /// (timeout, 5xx, network). Not a rejection: the session may still be valid,
 /// so callers retry instead of signing the user out.
 final class AuthServerUnavailableException extends AuthException {
-  const AuthServerUnavailableException();
+  const AuthServerUnavailableException({this.isReported = false});
+
+  /// Whether seed-recovery telemetry has already captured the underlying error.
+  final bool isReported;
 
   @override
   String get toEn => "We couldn't reach the server to verify your session";

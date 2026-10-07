@@ -198,6 +198,9 @@ final class AccountCase extends UseCaseBase {
     } on SessionHttpException {
       rethrow;
     } catch (e, st) {
+      if (e is AuthServerUnavailableException && e.isReported) {
+        rethrow;
+      }
       await captureSeedRecoveryFailed(
         authOutcome: 'remote_sign_in_failed',
         authAttemptId: authAttemptId,

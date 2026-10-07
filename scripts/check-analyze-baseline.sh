@@ -78,6 +78,7 @@ fi
 target="${SCOPE:-.}"
 set +e
 "$tool" analyze "$target" >"$out" 2>&1
+analyze_status=$?
 set -e
 
 cat "$out"
@@ -87,6 +88,14 @@ cat "$out"
 # flaky (2122 vs 2126 for identical sources).
 errors="$(grep -E '^[[:space:]]*error (•|-) ' "$out" | sort -u | wc -l || true)"
 total="$(grep -E '^[[:space:]]*(error|warning|info) (•|-) ' "$out" | sort -u | wc -l || true)"
+
+# A nonzero exit can indicate diagnostics, but a failed analyzer must never
+# look like a clean run just because it produced no matching diagnostics.
+if [[ "$analyze_status" -ne 0 && "$total" -eq 0 ]] \
+  || ! grep -Eq '^[[:space:]]*([0-9]+ issues? found\.|No issues found!)' "$out"; then
+  echo "check-analyze-baseline: analyzer did not complete for $KEY (exit $analyze_status)" >&2
+  exit 1
+fi
 
 if [[ "$errors" -gt 0 ]]; then
   echo "check-analyze-baseline: $errors analyzer error(s) in $KEY" >&2
