@@ -33,6 +33,8 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
   GraphNodeId? _pendingTapNodeId;
   int? _pendingPointer;
   Offset? _pendingDownScene;
+  Offset? _pendingLastScene;
+  PointerDeviceKind? _pendingKind;
   var _pendingDragged = false;
 
   GraphNodeId? _capturedNodeId;
@@ -88,10 +90,12 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
             GestureRecognizerFactoryWithHandlers<_NodeDragPanGestureRecognizer>(
           () => _NodeDragPanGestureRecognizer(
             canStart: _canStartTouchNodeDrag,
+            isOwning: _isOwningNode,
           ),
           (recognizer) {
             recognizer
               ..canStart = _canStartTouchNodeDrag
+              ..isOwning = _isOwningNode
               ..onStart = _onTouchNodeDragStart;
           },
         ),
@@ -116,6 +120,9 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
 
     if (_activePointers.length >= 2) {
       _cancelCanvasPress();
+      if (_claimPendingNodeForOwner()) {
+        return;
+      }
       _cancelPendingCapture();
       _scaleBlocked = true;
       return;
@@ -161,6 +168,8 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     _pendingTapNodeId = tapId;
     _pendingPointer = event.pointer;
     _pendingDownScene = event.localPosition;
+    _pendingLastScene = event.localPosition;
+    _pendingKind = event.kind;
     _pendingDragged = false;
 
     if (event.kind == PointerDeviceKind.mouse &&
@@ -168,6 +177,40 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
       return;
     }
   }
+
+  /// An additional touch must not turn a touch or stylus node press that has
+  /// already moved past [kTouchSlop] into a camera pinch: the node pointer
+  /// becomes the owner right away, and the recognizer then wins the extra
+  /// pointers. A press that has not moved stays a pinch.
+  bool _claimPendingNodeForOwner() {
+    final nodeId = _pendingNodeId;
+    final pointer = _pendingPointer;
+    final down = _pendingDownScene;
+    final last = _pendingLastScene;
+    if (nodeId == null ||
+        pointer == null ||
+        down == null ||
+        last == null ||
+        _scaleBlocked ||
+        (last - down).distance < kTouchSlop ||
+        _pendingKind == PointerDeviceKind.mouse ||
+        !_configuration.nodeDragEnabled ||
+        _activePointers.length != 2) {
+      return false;
+    }
+    final payload = _controller.nodePayloadForId(nodeId);
+    if (payload == null || !_configuration.isNodeDraggable(payload)) {
+      return false;
+    }
+    _captureNode(nodeId, pointer, down);
+    if (_capturedNodeId == null) {
+      return false;
+    }
+    _updateCapturedPosition(last);
+    return true;
+  }
+
+  bool _isOwningNode() => _capturedNodeId != null;
 
   bool _canStartTouchNodeDrag(PointerDownEvent event) {
     // Keep every added touch in our already-won arena until the drag ends.
@@ -237,6 +280,7 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     if (_pendingNodeId == null || event.pointer != _pendingPointer) {
       return;
     }
+    _pendingLastScene = event.localPosition;
 
     if (_activePointers.length >= 2) {
       _cancelPendingCapture();
@@ -398,6 +442,8 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     _pendingNodeId = null;
     _pendingPointer = null;
     _pendingDownScene = null;
+    _pendingLastScene = null;
+    _pendingKind = null;
 
     _controller.stopLayoutAnimationForInteraction();
     final pass = _captureDragPassSnapshot();
@@ -508,6 +554,8 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     _pendingTapNodeId = null;
     _pendingPointer = null;
     _pendingDownScene = null;
+    _pendingLastScene = null;
+    _pendingKind = null;
     _pendingDragged = false;
   }
 }
@@ -523,7 +571,10 @@ final class _DragPassSnapshot {
 }
 
 final class _NodeDragPanGestureRecognizer extends PanGestureRecognizer {
-  _NodeDragPanGestureRecognizer({required this.canStart})
+  _NodeDragPanGestureRecognizer({
+    required this.canStart,
+    required this.isOwning,
+  })
       : super(
           supportedDevices: const {
             PointerDeviceKind.touch,
@@ -533,6 +584,20 @@ final class _NodeDragPanGestureRecognizer extends PanGestureRecognizer {
         );
 
   bool Function(PointerDownEvent event) canStart;
+
+  /// Whether a node drag already owns the gesture sequence.
+  bool Function() isOwning;
+
+  @override
+  void addAllowedPointer(PointerDownEvent event) {
+    super.addAllowedPointer(event);
+    // The gated viewer only rebuilds a frame after capture, and a captured
+    // drag may not have crossed pan slop yet, so win every pointer here or the
+    // viewer's scale recognizer takes them.
+    if (isOwning()) {
+      resolve(GestureDisposition.accepted);
+    }
+  }
 
   @override
   bool isPointerAllowed(PointerEvent event) {
