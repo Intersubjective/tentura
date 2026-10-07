@@ -216,6 +216,15 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   int _layoutHandoffGeneration = 0;
 
   Set<String> _composingCandidateIds = const {};
+  String? _selectedRequestMemberId;
+
+  Set<String> get _extraKeptPeerIds => {
+    ..._composingCandidateIds,
+    if (_selectedRequestMemberId != null &&
+        _selectedRequestMemberId == state.selectedPersonId)
+      _selectedRequestMemberId!,
+  };
+
   Map<String, ConstellationPerson> _composerPeople = const {};
   final Set<String> _composerPlacedPersonIds = {};
   final Map<String, Offset> _composerPersonPositions = {};
@@ -604,7 +613,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         labelBudget: labelBudget,
         expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
         selectedRequestWebs: _selectedRequestWebs,
-        extraKeptPeerIds: _composingCandidateIds,
+        extraKeptPeerIds: _extraKeptPeerIds,
       );
       emit(
         state.copyWith(
@@ -1509,7 +1518,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       labelBudget: _currentLabelBudget(),
       expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
       selectedRequestWebs: _selectedRequestWebs,
-      extraKeptPeerIds: _composingCandidateIds,
+      extraKeptPeerIds: _extraKeptPeerIds,
     );
     emit(
       state.copyWith(
@@ -1618,6 +1627,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       return;
     }
     final previousId = state.selectedRequestId;
+    final previousMemberId = _selectedRequestMemberId;
+    if (requestId != null) {
+      _selectedRequestMemberId = null;
+    }
     emit(
       state.copyWith(
         selectedRequestId: requestId,
@@ -1627,7 +1640,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (requestId != null) {
       unawaited(_fetchRequestWebs(requestId));
     }
-    if (_selectionAddsMembers(previousId) || _selectionAddsMembers(requestId)) {
+    if (previousMemberId != _selectedRequestMemberId ||
+        _selectionAddsMembers(previousId) ||
+        _selectionAddsMembers(requestId)) {
       _recomposeAndLayout();
     } else {
       _rebuildGraph();
@@ -2412,14 +2427,23 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       return;
     }
     final previousRequestId = state.selectedRequestId;
+    final previousMemberId = _selectedRequestMemberId;
+    // Keep a selected member after clearing the Request that brought them in.
+    _selectedRequestMemberId =
+        personId != null &&
+            (personId == previousMemberId ||
+                _selectedRequestWebs.any((web) => web.personId == personId))
+        ? personId
+        : null;
     emit(
       state.copyWith(
         selectedPersonId: personId,
         selectedRequestId: personId != null ? null : state.selectedRequestId,
       ),
     );
-    if (state.selectedRequestId != previousRequestId &&
-        _selectionAddsMembers(previousRequestId)) {
+    if (previousMemberId != _selectedRequestMemberId ||
+        (state.selectedRequestId != previousRequestId &&
+            _selectionAddsMembers(previousRequestId))) {
       _recomposeAndLayout();
     } else {
       _rebuildGraph();
@@ -2606,7 +2630,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       labelBudget: _currentLabelBudget(),
       expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
       selectedRequestWebs: _selectedRequestWebs,
-      extraKeptPeerIds: _composingCandidateIds,
+      extraKeptPeerIds: _extraKeptPeerIds,
     );
     emit(
       state.copyWith(
