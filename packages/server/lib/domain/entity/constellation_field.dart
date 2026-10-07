@@ -81,6 +81,18 @@ class ConstellationPeerRecord {
   final String? displayName;
   final String? handle;
   final ImagePublicRecord? image;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ConstellationPeerRecord &&
+          other.id == id &&
+          other.displayName == displayName &&
+          other.handle == handle &&
+          other.image == image;
+
+  @override
+  int get hashCode => Object.hash(id, displayName, handle, image);
 }
 
 @immutable
@@ -94,6 +106,17 @@ class ConstellationEdgeRecord {
   final String src;
   final String dst;
   final int tier;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ConstellationEdgeRecord &&
+          other.src == src &&
+          other.dst == dst &&
+          other.tier == tier;
+
+  @override
+  int get hashCode => Object.hash(src, dst, tier);
 }
 
 @immutable
@@ -142,4 +165,63 @@ class ConstellationRequestRecord {
   final ImagePublicRecord? coverThumb;
   /// When set (pinned batch load), full C2 participation predicate; otherwise null.
   final bool? viewerParticipates;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ConstellationRequestRecord &&
+          other.id == id &&
+          other.authorId == authorId &&
+          other.title == title &&
+          other.status == status &&
+          _stringListEquals(other.needs, needs) &&
+          other.primaryNeedSlug == primaryNeedSlug &&
+          other.startAt == startAt &&
+          other.endAt == endAt &&
+          other.addressLabel == addressLabel &&
+          other.hasCoordinates == hasCoordinates &&
+          other.isMine == isMine &&
+          other.viewerHasActiveHelpOffer == viewerHasActiveHelpOffer &&
+          other.viewerIsRoomParticipant == viewerIsRoomParticipant &&
+          other.viewerHasForwardEdge == viewerHasForwardEdge &&
+          other.helpOfferCount == helpOfferCount &&
+          other.kind == kind &&
+          other.coverSource == coverSource &&
+          other.coverThumb == coverThumb &&
+          other.viewerParticipates == viewerParticipates;
+
+  @override
+  int get hashCode => Object.hashAll([
+    id,
+    authorId,
+    title,
+    status,
+    Object.hashAll(needs),
+    primaryNeedSlug,
+    startAt,
+    endAt,
+    addressLabel,
+    hasCoordinates,
+    isMine,
+    viewerHasActiveHelpOffer,
+    viewerIsRoomParticipant,
+    viewerHasForwardEdge,
+    helpOfferCount,
+    kind,
+    coverSource,
+    coverThumb,
+    viewerParticipates,
+  ]);
+}
+
+bool _stringListEquals(List<String> a, List<String> b) {
+  if (a.length != b.length) {
+    return false;
+  }
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) {
+      return false;
+    }
+  }
+  return true;
 }

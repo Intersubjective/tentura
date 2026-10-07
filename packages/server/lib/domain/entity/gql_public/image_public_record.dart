@@ -18,4 +18,18 @@ class ImagePublicRecord {
   final int width;
   final String authorId;
   final DateTime createdAt;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ImagePublicRecord &&
+          other.id == id &&
+          other.hash == hash &&
+          other.height == height &&
+          other.width == width &&
+          other.authorId == authorId &&
+          other.createdAt == createdAt;
+
+  @override
+  int get hashCode => Object.hash(id, hash, height, width, authorId, createdAt);
 }
