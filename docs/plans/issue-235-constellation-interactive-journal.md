@@ -27,3 +27,19 @@ pg tests (`-x pg`) are excluded locally; benchmark numbers for N = 100/300/600 a
 ## UNIT U00 — complete — 2026-10-07
 
 Created this journal with the baseline above and linked the three #235 docs from `docs/README.md`. No code changes.
+
+## UNIT U01 — partial (part 1/2: fixture and benchmark) — 2026-10-07
+
+Added `test/features/constellation/fixtures/synthetic_field.dart` (`syntheticConstellationField(size:, seed:)`: N people + N requests, tier-1/2 trust edges, ~10% anchored people and requests, fixed default seed) and the `bench`-tagged `test/features/constellation/bench/constellation_field_bench_test.dart`, which writes `packages/client/build/bench/constellation_field_baseline.json` (gitignored). Run with `flutter test --tags bench <file>` (exclude from broad runs with `-x bench`). Timeline spans, long-task detector and perf HUD are part 2.
+
+### Baseline (I4 reference)
+
+`flutter test` VM, headless widget binding, 1200×800 surface, 30 drag frames pumped at 16 ms; numbers are wall-clock on the dev machine (not profile web), so use them as a relative reference only.
+
+| N | compose ms | layout ms | drag frame ms (avg) |
+|---|---|---|---|
+| 100 | 13.6 | 34.6 | 19.9 |
+| 300 | 2.5 | 99.7 | 25.7 |
+| 600 | 3.7 | 162.0 | 31.8 |
+
+(N=100 compose includes JIT warm-up.)
