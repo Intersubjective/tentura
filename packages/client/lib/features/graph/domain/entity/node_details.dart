@@ -5,6 +5,11 @@ import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/profile.dart';
 
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
+import 'package:tentura/features/constellation/domain/layout/layout_node_spec.dart'
+    show FieldBeaconGlyph;
+
+export 'package:tentura/features/constellation/domain/layout/layout_node_spec.dart'
+    show FieldBeaconGlyph;
 
 @immutable
 sealed class NodeDetails {
@@ -315,9 +320,6 @@ final class FieldPersonNode extends NodeDetails {
       other.isKept == isKept &&
       other.person == person;
 }
-
-/// Glyph drawn for a [FieldBeaconNode].
-enum FieldBeaconGlyph { request, post }
 
 /// Request or Post satellite on the Constellation field map.
 final class FieldBeaconNode extends NodeDetails {

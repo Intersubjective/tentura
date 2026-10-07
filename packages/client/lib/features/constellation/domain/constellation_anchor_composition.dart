@@ -1,6 +1,4 @@
 import 'package:meta/meta.dart';
-import 'package:tentura/features/graph/domain/entity/node_details.dart'
-    show FieldBeaconNode;
 
 import 'constellation_cap_policy.dart';
 import 'constellation_consts.dart';
@@ -10,6 +8,9 @@ import 'package:tentura_root/domain/constellation/constellation_path_resolution.
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'entity/constellation_anchor_projection.dart';
 import 'entity/constellation_field.dart';
+import 'layout/layout_node_spec.dart';
+
+export 'layout/layout_node_spec.dart';
 
 /// Viewport class for layout-hint eligibility (D33); not a UI token.
 enum ConstellationViewportClass {
@@ -149,7 +150,7 @@ class ConstellationComposedPresentation {
   final Set<String> locallyFilteredPinnedBeaconIds;
 
   /// Requests and Posts as one Beacon list (drawn, pinned and dormant).
-  final List<FieldBeaconNode> beaconNodes;
+  final List<LayoutNodeSpec> beaconNodes;
 
   /// Anchored Posts past the active window: kept at their anchor, not drawn.
   final Set<String> dormantBeaconIds;
@@ -304,19 +305,19 @@ ConstellationComposedPresentation composeConstellationPresentation({
     ...dormantBeaconIds,
   };
 
-  final beaconNodes = <FieldBeaconNode>[
+  final beaconNodes = <LayoutNodeSpec>[
     for (final request in [
       ...automatic.requests,
       ...anchorOverlay.pinnedRequests,
     ])
       if (eligibleRequestIds.contains(request.id))
-        FieldBeaconNode(
+        LayoutNodeSpec(
           request: request,
           pinned: pinnedRequestIds.contains(request.id),
         ),
     for (final post in visiblePosts)
       if (eligibleRequestIds.contains(post.id))
-        FieldBeaconNode(post: post, pinned: pinnedPostIds.contains(post.id)),
+        LayoutNodeSpec(post: post, pinned: pinnedPostIds.contains(post.id)),
   ];
   final seenBeaconIds = <String>{};
   beaconNodes.retainWhere((node) => seenBeaconIds.add(node.id));

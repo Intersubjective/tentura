@@ -2924,8 +2924,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       nodes.add(FieldBeaconNode(request: request));
     }
     final drawnPosts = [
-      for (final node in composition?.beaconNodes ?? const <FieldBeaconNode>[])
-        if (node.post != null && drawnRequestIds.contains(node.id)) node,
+      for (final spec in composition?.beaconNodes ?? const <LayoutNodeSpec>[])
+        if (spec.post != null && drawnRequestIds.contains(spec.id))
+          FieldBeaconNode(post: spec.post, pinned: spec.pinned),
     ];
     nodes.addAll(drawnPosts);
 
