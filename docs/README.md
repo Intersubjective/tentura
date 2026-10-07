@@ -40,6 +40,7 @@ Short pointers for agents — read only what your task needs.
 
 | Doc | Read when |
 |-----|-----------|
+| [`plans/issue-235-constellation-interactive-architecture.md`](plans/issue-235-constellation-interactive-architecture.md) · [`plan`](plans/issue-235-constellation-interactive-implementation-plan.md) · [`journal`](plans/issue-235-constellation-interactive-journal.md) | Interactive constellation (#235) |
 | [`plans/constellation-edge-semantics.md`](plans/constellation-edge-semantics.md) | Constellation architecture: ego-centred map of the reachable field of active requests — widened symmetric discoverability read wall, two-tier path algorithm (§5, `ALG-*` clauses), normative for product decisions D1–D17 and UX1–UX10 |
 | [`plans/constellation-implementation-plan.md`](plans/constellation-implementation-plan.md) | Constellation execution plan: 21 ordered units, frozen contracts (§0), migrations m0160–m0163 — mechanical implementation complete; pending overseer UX acceptance (UX9); see [`constellation-implementation-journal.md`](plans/constellation-implementation-journal.md) |
 | [`plans/constellation-pinning-plan.md`](plans/constellation-pinning-plan.md) | Constellation pinning: account-owned person/request placement, private realtime convergence, Map/Text controls, and release gates; repository activation is ready for coordinated deployment |
