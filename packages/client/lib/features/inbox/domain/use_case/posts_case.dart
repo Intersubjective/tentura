@@ -16,7 +16,17 @@ final class PostsCase extends UseCaseBase {
     this._realtimeSyncCase, {
     required super.env,
     required super.logger,
-  });
+  }) {
+    // The list is not mounted on most routes, so a read or a removed Post
+    // must refresh the dot on its own.
+    // Lives as long as the app-wide singleton.
+    _realtimeSyncCase
+        .changesFor(const {
+          RealtimeEntityKind.roomSeen,
+          RealtimeEntityKind.beacon,
+        })
+        .listen((_) => _refreshWhileUnread());
+  }
 
   final PostsRepositoryPort _repository;
   final RealtimeSyncCase _realtimeSyncCase;
@@ -35,6 +45,15 @@ final class PostsCase extends UseCaseBase {
 
   Stream<bool> get hasUnreadChanges => _hasUnreadChanges.stream;
   final _hasUnreadChanges = StreamController<bool>.broadcast();
+
+  Future<void> _refreshWhileUnread() async {
+    if (!_hasUnread) return;
+    try {
+      await myPosts();
+    } catch (_) {
+      // Keep the last known dot; the next change or list load retries.
+    }
+  }
 
   Future<List<PostSummary>> myPosts() async {
     final posts = await _repository.myPosts();

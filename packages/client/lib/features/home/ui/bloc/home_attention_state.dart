@@ -72,7 +72,9 @@ abstract class HomeAttentionState with _$HomeAttentionState {
   /// counted Activity-surface obligations and saw neither the outcome rows
   /// nor the pinned decision zone. U18c retired that total.
   bool get showRedesignActivityUnreadDot =>
-      surfaceSummaryLoaded && surfaceForYouDot;
+      surfaceSummaryLoaded &&
+      surfaceForYouDot &&
+      (!projectionReady || inboxMarkerIds.isNotEmpty);
 
   /// §6 `my desk.count` — live obligations on owned Requests.
   ///
@@ -91,5 +93,7 @@ abstract class HomeAttentionState with _$HomeAttentionState {
   /// obligations — so an obligation-only Request lit the optional dot. U18c
   /// retired that total.
   bool get showRedesignMyWorkUnreadDot =>
-      surfaceSummaryLoaded && surfaceMyDeskDot;
+      surfaceSummaryLoaded &&
+      surfaceMyDeskDot &&
+      (!projectionReady || myWorkMarkerIds.isNotEmpty);
 }
