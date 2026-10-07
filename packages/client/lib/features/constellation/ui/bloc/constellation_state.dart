@@ -6,7 +6,6 @@ import 'package:tentura_root/domain/constellation/constellation_path_resolution.
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../../domain/entity/constellation_anchor_projection.dart';
 import '../../domain/entity/constellation_field.dart';
-import '../../domain/use_case/constellation_field_case.dart';
 
 export 'package:tentura/ui/bloc/state_base.dart';
 

@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
-import 'package:tentura/features/constellation/domain/use_case/constellation_field_case.dart';
+import 'package:tentura/features/constellation/domain/use_case/constellation_field_store_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/utils/constellation_tap_resolver.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
@@ -17,6 +15,8 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../../ui/effect/fake_ui_effect_port.dart';
+
+import '../../../support/constellation_store_fixture.dart';
 
 const kRefEgo = Profile(id: 'ego', displayName: 'Vadim');
 
@@ -65,8 +65,7 @@ const _allEgoReferenceRequests = [
   ConstellationRequest(
     id: 'req-ego-5',
     authorId: 'ego',
-    title:
-        'Тентура Tentura テスト test — ещё один длинный заголовок req-ego-5',
+    title: 'Тентура Tentura テスト test — ещё один длинный заголовок req-ego-5',
     status: 0,
     isMine: true,
   ),
@@ -117,7 +116,10 @@ ConstellationField constellationReferenceField({
   int egoRequestCount = 6,
   List<ConstellationAnchor>? anchors,
 }) {
-  final clampedEgoCount = egoRequestCount.clamp(0, _allEgoReferenceRequests.length);
+  final clampedEgoCount = egoRequestCount.clamp(
+    0,
+    _allEgoReferenceRequests.length,
+  );
   final requests = [
     ..._allEgoReferenceRequests.take(clampedEgoCount),
     ..._satelliteReferenceRequests,
@@ -153,18 +155,19 @@ final class _StubRepository implements ConstellationRepositoryPort {
     ConstellationFieldMembershipFilters membershipFilters =
         ConstellationFieldMembershipFilters.defaults,
     ConstellationProjection projection = ConstellationProjection.full,
-  }) async =>
-      field;
+  }) async => field;
 }
 
-ConstellationFieldCase constellationCaseForField(ConstellationField field) =>
-    ConstellationFieldCase(
-      _StubRepository(field),
-      env: const Env.fromEnvironment(),
-      logger: Logger('ConstellationReferenceFixture'),
-    );
+ConstellationFieldStoreCase constellationCaseForField(
+  ConstellationField field,
+) => ConstellationStoreFixture(
+  _StubRepository(field),
+  accountId: 'ego',
+).store;
 
-Future<ConstellationCubit> loadReferenceCubit({ConstellationField? field}) async {
+Future<ConstellationCubit> loadReferenceCubit({
+  ConstellationField? field,
+}) async {
   final cubit = ConstellationCubit(
     case_: constellationCaseForField(field ?? constellationReferenceField()),
     viewer: kRefEgo,

@@ -13,11 +13,12 @@ import 'package:tentura/features/graph/ui/utils/graph_scene_ids.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_anchor_repository_port.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_anchor_case.dart';
-import 'package:tentura/features/constellation/domain/use_case/constellation_field_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 
 import '../../support/test_realtime_sync.dart';
+
+import '../../support/constellation_store_fixture.dart';
 
 const _ego = Profile(id: 'ego', displayName: 'Ego');
 final _loadedAt = DateTime.utc(2026, 9, 11, 12);
@@ -27,34 +28,32 @@ ConstellationAnchor _anchor({
   required BigInt revision,
   double x = 1,
   double y = 2,
-}) =>
-    ConstellationAnchor(
-      target: ConstellationAnchorTarget.person(personId),
-      position: ConstellationAnchorPosition(
-        xUnits: x,
-        yUnits: y,
-        coordinateSpaceVersion: 1,
-      ),
-      revision: ConstellationAnchorRevision(revision),
-      placedAt: DateTime.utc(2026, 9, 11),
-    );
+}) => ConstellationAnchor(
+  target: ConstellationAnchorTarget.person(personId),
+  position: ConstellationAnchorPosition(
+    xUnits: x,
+    yUnits: y,
+    coordinateSpaceVersion: 1,
+  ),
+  revision: ConstellationAnchorRevision(revision),
+  placedAt: DateTime.utc(2026, 9, 11),
+);
 
 ConstellationAnchor _beaconAnchor({
   required String beaconId,
   required BigInt revision,
   double x = 1,
   double y = 2,
-}) =>
-    ConstellationAnchor(
-      target: ConstellationAnchorTarget.beacon(beaconId),
-      position: ConstellationAnchorPosition(
-        xUnits: x,
-        yUnits: y,
-        coordinateSpaceVersion: 1,
-      ),
-      revision: ConstellationAnchorRevision(revision),
-      placedAt: DateTime.utc(2026, 9, 11),
-    );
+}) => ConstellationAnchor(
+  target: ConstellationAnchorTarget.beacon(beaconId),
+  position: ConstellationAnchorPosition(
+    xUnits: x,
+    yUnits: y,
+    coordinateSpaceVersion: 1,
+  ),
+  revision: ConstellationAnchorRevision(revision),
+  placedAt: DateTime.utc(2026, 9, 11),
+);
 
 ConstellationField _field({
   BigInt? revision,
@@ -65,23 +64,22 @@ ConstellationField _field({
   List<ConstellationPerson> supportPeers = const [],
   List<ConstellationTrustEdgeEntity> supportEdges = const [],
   List<ConstellationRequest> requests = const [],
-}) =>
-    ConstellationField(
-      loadedAt: _loadedAt,
-      context: '',
-      peers: peers,
-      requests: requests,
-      anchorProjection: ConstellationAnchorProjection(
-        revision: ConstellationAnchorRevision(revision ?? BigInt.one),
-        anchors: anchors,
-        pinnedPeers: pinnedPeers ?? peers,
-        pinnedRequests: pinnedRequests,
-        supportPeers: supportPeers,
-        supportEdges: supportEdges,
-        serverFilteredBeaconIds: const [],
-        serverFilteredBeaconCount: 0,
-      ),
-    );
+}) => ConstellationField(
+  loadedAt: _loadedAt,
+  context: '',
+  peers: peers,
+  requests: requests,
+  anchorProjection: ConstellationAnchorProjection(
+    revision: ConstellationAnchorRevision(revision ?? BigInt.one),
+    anchors: anchors,
+    pinnedPeers: pinnedPeers ?? peers,
+    pinnedRequests: pinnedRequests,
+    supportPeers: supportPeers,
+    supportEdges: supportEdges,
+    serverFilteredBeaconIds: const [],
+    serverFilteredBeaconCount: 0,
+  ),
+);
 
 final class _HarnessFieldRepository implements ConstellationRepositoryPort {
   _HarnessFieldRepository(this.fields);
@@ -112,7 +110,8 @@ final class _HarnessFieldRepository implements ConstellationRepositoryPort {
   }
 }
 
-final class _HarnessAnchorRepository implements ConstellationAnchorRepositoryPort {
+final class _HarnessAnchorRepository
+    implements ConstellationAnchorRepositoryPort {
   Completer<void> upsertGate = Completer<void>()..complete();
   Completer<void> deleteGate = Completer<void>()..complete();
   int upsertCount = 0;
@@ -120,8 +119,10 @@ final class _HarnessAnchorRepository implements ConstellationAnchorRepositoryPor
   Object? upsertError;
   Object? deleteError;
   final List<ConstellationAnchorTarget> upsertTargets = [];
+
   /// When set, the Nth upsert (1-based) throws [upsertError] or a default error.
   int? failOnUpsertIndex;
+
   /// When set, upserts for these targets throw after awaiting the gate.
   Set<ConstellationAnchorTarget> failTargets = {};
 
@@ -176,13 +177,16 @@ final class _FakeForwardRepository implements ForwardRepository {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-Future<({
-  ConstellationCubit cubit,
-  _HarnessFieldRepository fieldRepo,
-  _HarnessAnchorRepository anchorRepo,
-  TestRealtimeSyncPort port,
-  ConstellationAnchorCase anchorCase,
-})> _harness({
+Future<
+  ({
+    ConstellationCubit cubit,
+    _HarnessFieldRepository fieldRepo,
+    _HarnessAnchorRepository anchorRepo,
+    TestRealtimeSyncPort port,
+    ConstellationAnchorCase anchorCase,
+  })
+>
+_harness({
   List<ConstellationField>? fields,
   bool loadOnCreate = true,
 }) async {
@@ -200,16 +204,15 @@ Future<({
   final anchorCase = ConstellationAnchorCase(
     fieldRepo,
     anchorRepo,
-    sync.case_,
     env: const Env.fromEnvironment(),
     logger: Logger('ConstellationAnchorCubitTest'),
   );
   final cubit = ConstellationCubit(
-    case_: ConstellationFieldCase(
+    case_: ConstellationStoreFixture(
       fieldRepo,
-      env: const Env.fromEnvironment(),
-      logger: Logger('ConstellationAnchorCubitTest'),
-    ),
+      accountId: 'ego',
+      realtime: sync.case_,
+    ).store,
     anchorCase: anchorCase,
     viewer: _ego,
     forwardRepository: _FakeForwardRepository(),
@@ -295,13 +298,15 @@ void main() {
       expect(cubit.graphController.getPositionOrNullForId('fp:p1'), before);
     });
 
-
     test('load stores composition from field case', () async {
       final harness = await _harness();
       addTearDown(harness.cubit.close);
 
       expect(harness.cubit.state.composition, isNotNull);
-      expect(harness.cubit.state.composition!.anchorOverlay.anchors, hasLength(1));
+      expect(
+        harness.cubit.state.composition!.anchorOverlay.anchors,
+        hasLength(1),
+      );
     });
 
     test('cancel during drag restores idle without writes', () async {
@@ -316,168 +321,185 @@ void main() {
       );
 
       harness.cubit.cancelPlacement();
-      expect(harness.cubit.state.placementPhase, ConstellationPlacementPhase.idle);
-      expect(harness.anchorRepo.upsertCount, 0);
-    });
-
-    test('drag re-enables when the mutation lands, before the recovery read', () async {
-      final harness = await _harness(
-        fields: [
-          _field(
-            peers: const [
-              ConstellationPerson(id: 'p1', displayName: 'Peer 1'),
-              ConstellationPerson(id: 'p2', displayName: 'Peer 2'),
-            ],
-            anchors: [_anchor(personId: 'p1', revision: BigInt.one)],
-          ),
-        ],
-      );
-      addTearDown(harness.cubit.close);
-      harness.anchorRepo.upsertGate = Completer<void>();
-      harness.fieldRepo.anchorsGate = Completer<void>();
-      final first = ConstellationAnchorTarget.person('p1');
-      harness.cubit.beginDragExisting(target: first);
-      final drop = harness.cubit.onExistingNodeDrop(
-        target: first,
-        sceneCentre: const Offset(2100, 2100),
-      );
-      await Future<void>.delayed(Duration.zero);
-      expect(harness.cubit.placementActionsEnabled, isFalse);
-
-      harness.anchorRepo.upsertGate.complete();
-      await Future<void>.delayed(Duration.zero);
-      // Recovery read still blocked: the next drag must start anyway (#235).
-      expect(harness.cubit.placementActionsEnabled, isTrue);
-      final second = ConstellationAnchorTarget.person('p2');
-      harness.cubit.beginDragExisting(target: second);
-      expect(
-        harness.cubit.state.placementPhase,
-        ConstellationPlacementPhase.draggingExisting,
-      );
-
-      harness.fieldRepo.anchorsGate.complete();
-      await drop;
-      // The first write's outcome leaves the second drag alone.
-      expect(
-        harness.cubit.state.placementPhase,
-        ConstellationPlacementPhase.draggingExisting,
-      );
-      expect(harness.cubit.state.activePlacementTarget, second);
-      expect(harness.cubit.state.placementFailureMessage, isNull);
-
-      await harness.cubit.onExistingNodeDrop(
-        target: second,
-        sceneCentre: const Offset(2300, 2300),
-      );
-      expect(harness.anchorRepo.upsertCount, 2);
-      expect(harness.cubit.isAnchored(first), isTrue);
-      expect(harness.cubit.isAnchored(second), isTrue);
       expect(
         harness.cubit.state.placementPhase,
         ConstellationPlacementPhase.idle,
       );
-      expect(harness.cubit.placementActionsEnabled, isTrue);
+      expect(harness.anchorRepo.upsertCount, 0);
     });
 
-    test('cancel after drop while write pending does not clear presentation', () async {
-      final harness = await _harness();
-      addTearDown(harness.cubit.close);
-      harness.anchorRepo.upsertGate = Completer<void>();
-      final target = ConstellationAnchorTarget.person('p1');
-      final drop = harness.cubit.onExistingNodeDrop(
-        target: target,
-        sceneCentre: const Offset(2100, 2100),
-      );
-      await Future<void>.delayed(Duration.zero);
+    test(
+      'drag re-enables when the mutation lands, before the recovery read',
+      () async {
+        final harness = await _harness(
+          fields: [
+            _field(
+              peers: const [
+                ConstellationPerson(id: 'p1', displayName: 'Peer 1'),
+                ConstellationPerson(id: 'p2', displayName: 'Peer 2'),
+              ],
+              anchors: [_anchor(personId: 'p1', revision: BigInt.one)],
+            ),
+          ],
+        );
+        addTearDown(harness.cubit.close);
+        harness.anchorRepo.upsertGate = Completer<void>();
+        harness.fieldRepo.anchorsGate = Completer<void>();
+        final first = ConstellationAnchorTarget.person('p1');
+        harness.cubit.beginDragExisting(target: first);
+        final drop = harness.cubit.onExistingNodeDrop(
+          target: first,
+          sceneCentre: const Offset(2100, 2100),
+        );
+        await Future<void>.delayed(Duration.zero);
+        expect(harness.cubit.placementActionsEnabled, isFalse);
 
-      harness.cubit.cancelPlacement();
-      expect(harness.anchorRepo.upsertCount, 1);
+        harness.anchorRepo.upsertGate.complete();
+        await Future<void>.delayed(Duration.zero);
+        // Recovery read still blocked: the next drag must start anyway (#235).
+        expect(harness.cubit.placementActionsEnabled, isTrue);
+        final second = ConstellationAnchorTarget.person('p2');
+        harness.cubit.beginDragExisting(target: second);
+        expect(
+          harness.cubit.state.placementPhase,
+          ConstellationPlacementPhase.draggingExisting,
+        );
 
-      harness.anchorRepo.upsertGate.complete();
-      await drop;
-      expect(harness.cubit.isAnchored(target), isTrue);
-    });
+        harness.fieldRepo.anchorsGate.complete();
+        await drop;
+        // The first write's outcome leaves the second drag alone.
+        expect(
+          harness.cubit.state.placementPhase,
+          ConstellationPlacementPhase.draggingExisting,
+        );
+        expect(harness.cubit.state.activePlacementTarget, second);
+        expect(harness.cubit.state.placementFailureMessage, isNull);
 
-    test('remote move during drag defers active target and skips layout', () async {
-      const peer = ConstellationPerson(id: 'p1', displayName: 'Peer 1');
-      const other = ConstellationPerson(id: 'p2', displayName: 'Peer 2');
-      const request = ConstellationRequest(
-        id: 'B1',
-        authorId: 'p1',
-        title: 'Need help',
-        status: 0,
-      );
-      final harness = await _harness(
-        fields: [
+        await harness.cubit.onExistingNodeDrop(
+          target: second,
+          sceneCentre: const Offset(2300, 2300),
+        );
+        expect(harness.anchorRepo.upsertCount, 2);
+        expect(harness.cubit.isAnchored(first), isTrue);
+        expect(harness.cubit.isAnchored(second), isTrue);
+        expect(
+          harness.cubit.state.placementPhase,
+          ConstellationPlacementPhase.idle,
+        );
+        expect(harness.cubit.placementActionsEnabled, isTrue);
+      },
+    );
+
+    test(
+      'cancel after drop while write pending does not clear presentation',
+      () async {
+        final harness = await _harness();
+        addTearDown(harness.cubit.close);
+        harness.anchorRepo.upsertGate = Completer<void>();
+        final target = ConstellationAnchorTarget.person('p1');
+        final drop = harness.cubit.onExistingNodeDrop(
+          target: target,
+          sceneCentre: const Offset(2100, 2100),
+        );
+        await Future<void>.delayed(Duration.zero);
+
+        harness.cubit.cancelPlacement();
+        expect(harness.anchorRepo.upsertCount, 1);
+
+        harness.anchorRepo.upsertGate.complete();
+        await drop;
+        expect(harness.cubit.isAnchored(target), isTrue);
+      },
+    );
+
+    test(
+      'remote move during drag defers active target and skips layout',
+      () async {
+        const peer = ConstellationPerson(id: 'p1', displayName: 'Peer 1');
+        const other = ConstellationPerson(id: 'p2', displayName: 'Peer 2');
+        const request = ConstellationRequest(
+          id: 'B1',
+          authorId: 'p1',
+          title: 'Need help',
+          status: 0,
+        );
+        final harness = await _harness(
+          fields: [
+            _field(
+              peers: const [peer, other],
+              requests: const [request],
+              pinnedRequests: const [request],
+              anchors: [
+                _anchor(personId: 'p1', revision: BigInt.one),
+                _anchor(personId: 'p2', revision: BigInt.one, x: 2, y: 2),
+                _beaconAnchor(
+                  beaconId: 'B1',
+                  revision: BigInt.one,
+                  x: 1.5,
+                  y: 1.5,
+                ),
+              ],
+            ),
+          ],
+        );
+        addTearDown(harness.cubit.close);
+        final reconciliations = harness.cubit.layoutReconciliationCount;
+        final target = ConstellationAnchorTarget.person('p1');
+        final companion = ConstellationAnchorTarget.beacon('B1');
+        harness.cubit.beginDragExisting(target: target);
+
+        harness.fieldRepo.fields.add(
           _field(
+            revision: BigInt.two,
             peers: const [peer, other],
             requests: const [request],
             pinnedRequests: const [request],
             anchors: [
-              _anchor(personId: 'p1', revision: BigInt.one),
-              _anchor(personId: 'p2', revision: BigInt.one, x: 2, y: 2),
-              _beaconAnchor(beaconId: 'B1', revision: BigInt.one, x: 1.5, y: 1.5),
+              _anchor(personId: 'p1', revision: BigInt.two, x: 3, y: 4),
+              _anchor(personId: 'p2', revision: BigInt.two, x: 5, y: 6),
+              _beaconAnchor(beaconId: 'B1', revision: BigInt.two, x: 9, y: 9),
             ],
           ),
-        ],
-      );
-      addTearDown(harness.cubit.close);
-      final reconciliations = harness.cubit.layoutReconciliationCount;
-      final target = ConstellationAnchorTarget.person('p1');
-      final companion = ConstellationAnchorTarget.beacon('B1');
-      harness.cubit.beginDragExisting(target: target);
+        );
+        harness.port.emitChange(
+          const RealtimeEntityChange(
+            kind: RealtimeEntityKind.constellationAnchor,
+            aggregateId: 'ego',
+            operation: RealtimeOperation.update,
+            source: RealtimeChangeSource.serverInvalidation,
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 30));
 
-      harness.fieldRepo.fields.add(
-        _field(
-          revision: BigInt.two,
-          peers: const [peer, other],
-          requests: const [request],
-          pinnedRequests: const [request],
-          anchors: [
-            _anchor(personId: 'p1', revision: BigInt.two, x: 3, y: 4),
-            _anchor(personId: 'p2', revision: BigInt.two, x: 5, y: 6),
-            _beaconAnchor(beaconId: 'B1', revision: BigInt.two, x: 9, y: 9),
-          ],
-        ),
-      );
-      harness.port.emitChange(
-        const RealtimeEntityChange(
-          kind: RealtimeEntityKind.constellationAnchor,
-          aggregateId: 'ego',
-          operation: RealtimeOperation.update,
-          source: RealtimeChangeSource.serverInvalidation,
-        ),
-      );
-      await Future<void>.delayed(const Duration(milliseconds: 30));
-
-      expect(harness.cubit.state.deferredRefreshTargets, {target, companion});
-      expect(
-        harness.cubit.state.confirmedProjection!.revision.value,
-        BigInt.two,
-      );
-      expect(
-        harness.cubit.state.composition!.anchorOverlay.anchors
-            .singleWhere((anchor) => anchor.target.id == 'p1')
-            .position
-            .xUnits,
-        1,
-      );
-      expect(
-        harness.cubit.state.composition!.anchorOverlay.anchors
-            .singleWhere((anchor) => anchor.target.id == 'p2')
-            .position
-            .xUnits,
-        5,
-      );
-      expect(
-        harness.cubit.state.composition!.anchorOverlay.anchors
-            .singleWhere((anchor) => anchor.target == companion)
-            .position
-            .xUnits,
-        1.5,
-      );
-      expect(harness.cubit.layoutReconciliationCount, reconciliations);
-    });
+        expect(harness.cubit.state.deferredRefreshTargets, {target, companion});
+        expect(
+          harness.cubit.state.confirmedProjection!.revision.value,
+          BigInt.two,
+        );
+        expect(
+          harness.cubit.state.composition!.anchorOverlay.anchors
+              .singleWhere((anchor) => anchor.target.id == 'p1')
+              .position
+              .xUnits,
+          1,
+        );
+        expect(
+          harness.cubit.state.composition!.anchorOverlay.anchors
+              .singleWhere((anchor) => anchor.target.id == 'p2')
+              .position
+              .xUnits,
+          5,
+        );
+        expect(
+          harness.cubit.state.composition!.anchorOverlay.anchors
+              .singleWhere((anchor) => anchor.target == companion)
+              .position
+              .xUnits,
+          1.5,
+        );
+        expect(harness.cubit.layoutReconciliationCount, reconciliations);
+      },
+    );
 
     test('draggingNew incoming refresh defers active target', () async {
       const peer = ConstellationPerson(id: 'p1', displayName: 'Peer 1');
@@ -566,115 +588,138 @@ void main() {
       expect(harness.anchorRepo.upsertCount, 1);
     });
 
-    test('failed write rolls back with exactly one reconciliation bump', () async {
-      final harness = await _harness();
-      addTearDown(harness.cubit.close);
-      final reconciliations = harness.cubit.layoutReconciliationCount;
-      harness.anchorRepo.upsertError = StateError('failed');
+    test(
+      'failed write rolls back with exactly one reconciliation bump',
+      () async {
+        final harness = await _harness();
+        addTearDown(harness.cubit.close);
+        final reconciliations = harness.cubit.layoutReconciliationCount;
+        harness.anchorRepo.upsertError = StateError('failed');
 
-      await harness.cubit.onExistingNodeDrop(
-        target: ConstellationAnchorTarget.person('p1'),
-        sceneCentre: const Offset(2100, 2100),
-      );
+        await harness.cubit.onExistingNodeDrop(
+          target: ConstellationAnchorTarget.person('p1'),
+          sceneCentre: const Offset(2100, 2100),
+        );
 
-      expect(harness.cubit.state.placementFailureMessage, isNotNull);
-      expect(harness.cubit.state.syncPending, isTrue);
-      expect(harness.cubit.writeCount, 1);
-      expect(harness.anchorCase.anchorsFetchCount, 1);
-      expect(
-        harness.cubit.layoutReconciliationCount,
-        reconciliations + 1,
-      );
-    });
+        expect(harness.cubit.state.placementFailureMessage, isNotNull);
+        expect(harness.cubit.state.syncPending, isTrue);
+        expect(harness.cubit.writeCount, 1);
+        expect(harness.anchorCase.anchorsFetchCount, 1);
+        expect(
+          harness.cubit.layoutReconciliationCount,
+          reconciliations + 1,
+        );
+      },
+    );
 
-    test('offline recovery clears sync pending after reconnect catch-up', () async {
-      final harness = await _harness();
-      addTearDown(harness.cubit.close);
-      harness.anchorRepo.upsertError = StateError('offline');
+    test(
+      'offline recovery clears sync pending after reconnect catch-up',
+      () async {
+        final harness = await _harness();
+        addTearDown(harness.cubit.close);
+        harness.anchorRepo.upsertError = StateError('offline');
 
-      await harness.cubit.onExistingNodeDrop(
-        target: ConstellationAnchorTarget.person('p1'),
-        sceneCentre: const Offset(2100, 2100),
-      );
-      expect(harness.cubit.state.syncPending, isTrue);
+        await harness.cubit.onExistingNodeDrop(
+          target: ConstellationAnchorTarget.person('p1'),
+          sceneCentre: const Offset(2100, 2100),
+        );
+        expect(harness.cubit.state.syncPending, isTrue);
 
-      harness.fieldRepo.fields.add(
-        _field(
-          revision: BigInt.from(4),
-          peers: const [ConstellationPerson(id: 'p1', displayName: 'Peer')],
-          anchors: [_anchor(personId: 'p1', revision: BigInt.from(4), x: 2, y: 2)],
-        ),
-      );
-      harness.port.emitCatchUp(accountId: 'ego');
-      await Future<void>.delayed(const Duration(milliseconds: 30));
+        harness.fieldRepo.fields.add(
+          _field(
+            revision: BigInt.from(4),
+            peers: const [ConstellationPerson(id: 'p1', displayName: 'Peer')],
+            anchors: [
+              _anchor(personId: 'p1', revision: BigInt.from(4), x: 2, y: 2),
+            ],
+          ),
+        );
+        harness.port.emitCatchUp(accountId: 'ego');
+        await Future<void>.delayed(const Duration(milliseconds: 30));
 
-      expect(harness.cubit.state.syncPending, isFalse);
-      expect(
-        harness.cubit.state.confirmedProjection!.revision.value,
-        BigInt.from(4),
-      );
-    });
+        expect(harness.cubit.state.syncPending, isFalse);
+        expect(
+          harness.cubit.state.confirmedProjection!.revision.value,
+          BigInt.from(4),
+        );
+      },
+    );
 
-    test('stale FULL after ANCHORS does not revert confirmed anchors', () async {
-      final harness = await _harness(loadOnCreate: false);
-      addTearDown(harness.cubit.close);
-      harness.fieldRepo.fields
-        ..clear()
-        ..add(
+    test(
+      'stale FULL after ANCHORS does not revert confirmed anchors',
+      () async {
+        final harness = await _harness(loadOnCreate: false);
+        addTearDown(harness.cubit.close);
+        harness.fieldRepo.fields
+          ..clear()
+          ..add(
+            _field(
+              revision: BigInt.one,
+              peers: const [ConstellationPerson(id: 'p1', displayName: 'Peer')],
+              anchors: [_anchor(personId: 'p1', revision: BigInt.one)],
+            ),
+          );
+        await harness.cubit.load();
+        expect(
+          harness.cubit.state.confirmedProjection!.revision.value,
+          BigInt.one,
+        );
+
+        harness.fieldRepo.fields.add(
+          _field(
+            revision: BigInt.two,
+            peers: const [ConstellationPerson(id: 'p1', displayName: 'Peer')],
+            anchors: [
+              _anchor(personId: 'p1', revision: BigInt.two, x: 3, y: 4),
+            ],
+          ),
+        );
+        harness.port.emitChange(
+          const RealtimeEntityChange(
+            kind: RealtimeEntityKind.constellationAnchor,
+            aggregateId: 'ego',
+            operation: RealtimeOperation.update,
+            source: RealtimeChangeSource.serverInvalidation,
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 30));
+        expect(
+          harness.cubit.state.confirmedProjection!.revision.value,
+          BigInt.two,
+        );
+
+        harness.fieldRepo.fields.add(
           _field(
             revision: BigInt.one,
             peers: const [ConstellationPerson(id: 'p1', displayName: 'Peer')],
-            anchors: [_anchor(personId: 'p1', revision: BigInt.one)],
+            anchors: [
+              _anchor(personId: 'p1', revision: BigInt.one, x: 9, y: 9),
+            ],
           ),
         );
-      await harness.cubit.load();
-      expect(
-        harness.cubit.state.confirmedProjection!.revision.value,
-        BigInt.one,
-      );
+        harness.fieldRepo.fullGate = Completer<void>();
+        final staleLoad = harness.cubit.load();
+        harness.fieldRepo.fullGate.complete();
+        await staleLoad;
 
-      harness.fieldRepo.fields.add(
-        _field(
-          revision: BigInt.two,
-          peers: const [ConstellationPerson(id: 'p1', displayName: 'Peer')],
-          anchors: [_anchor(personId: 'p1', revision: BigInt.two, x: 3, y: 4)],
-        ),
-      );
-      harness.port.emitChange(
-        const RealtimeEntityChange(
-          kind: RealtimeEntityKind.constellationAnchor,
-          aggregateId: 'ego',
-          operation: RealtimeOperation.update,
-          source: RealtimeChangeSource.serverInvalidation,
-        ),
-      );
-      await Future<void>.delayed(const Duration(milliseconds: 30));
-      expect(
-        harness.cubit.state.confirmedProjection!.revision.value,
-        BigInt.two,
-      );
-
-      harness.fieldRepo.fields.add(
-        _field(
-          revision: BigInt.one,
-          peers: const [ConstellationPerson(id: 'p1', displayName: 'Peer')],
-          anchors: [_anchor(personId: 'p1', revision: BigInt.one, x: 9, y: 9)],
-        ),
-      );
-      harness.fieldRepo.fullGate = Completer<void>();
-      final staleLoad = harness.cubit.load();
-      harness.fieldRepo.fullGate.complete();
-      await staleLoad;
-
-      expect(
-        harness.cubit.state.confirmedProjection!.revision.value,
-        BigInt.two,
-      );
-      expect(
-        harness.cubit.state.composition!.anchorOverlay.anchors.single.position.xUnits,
-        3,
-      );
-    });
+        expect(
+          harness.cubit.state.confirmedProjection!.revision.value,
+          BigInt.two,
+        );
+        expect(
+          harness
+              .cubit
+              .state
+              .composition!
+              .anchorOverlay
+              .anchors
+              .single
+              .position
+              .xUnits,
+          3,
+        );
+      },
+    );
 
     test('unpin issues one delete and one reconciliation', () async {
       final harness = await _harness();
@@ -689,23 +734,28 @@ void main() {
       expect(harness.cubit.layoutReconciliationCount, reconciliations + 1);
     });
 
-    test('pinFromText uses computeConstellationPinPosition and upserts once', () async {
-      final harness = await _harness(
-        fields: [
-          _field(
-            peers: const [ConstellationPerson(id: 'p2', displayName: 'Peer 2')],
-            anchors: const [],
-          ),
-        ],
-      );
-      addTearDown(harness.cubit.close);
+    test(
+      'pinFromText uses computeConstellationPinPosition and upserts once',
+      () async {
+        final harness = await _harness(
+          fields: [
+            _field(
+              peers: const [
+                ConstellationPerson(id: 'p2', displayName: 'Peer 2'),
+              ],
+              anchors: const [],
+            ),
+          ],
+        );
+        addTearDown(harness.cubit.close);
 
-      await harness.cubit.pinFromText(
-        target: ConstellationAnchorTarget.person('p2'),
-      );
+        await harness.cubit.pinFromText(
+          target: ConstellationAnchorTarget.person('p2'),
+        );
 
-      expect(harness.anchorRepo.upsertCount, 1);
-    });
+        expect(harness.anchorRepo.upsertCount, 1);
+      },
+    );
 
     test('selection clears when target leaves composed result', () async {
       final harness = await _harness(
@@ -751,18 +801,21 @@ void main() {
       expect(harness.cubit.state.loadGeneration, greaterThan(generation));
     });
 
-    test('route disposal does not emit after close while write continues in case', () async {
-      final harness = await _harness();
-      harness.anchorRepo.upsertGate = Completer<void>();
-      final drop = harness.cubit.onExistingNodeDrop(
-        target: ConstellationAnchorTarget.person('p1'),
-        sceneCentre: const Offset(2100, 2100),
-      );
-      await harness.cubit.close();
-      harness.anchorRepo.upsertGate.complete();
-      await drop;
-      expect(harness.anchorCase.writeCount, 1);
-    });
+    test(
+      'route disposal does not emit after close while write continues in case',
+      () async {
+        final harness = await _harness();
+        harness.anchorRepo.upsertGate = Completer<void>();
+        final drop = harness.cubit.onExistingNodeDrop(
+          target: ConstellationAnchorTarget.person('p1'),
+          sceneCentre: const Offset(2100, 2100),
+        );
+        await harness.cubit.close();
+        harness.anchorRepo.upsertGate.complete();
+        await drop;
+        expect(harness.anchorCase.writeCount, 1);
+      },
+    );
 
     test('stale FULL load does not overwrite newer generation', () async {
       final harness = await _harness(loadOnCreate: false);
@@ -776,135 +829,159 @@ void main() {
       expect(harness.cubit.state.field, isNull);
     });
 
-    test('overlapping drops while write pending discard the second write', () async {
-      final harness = await _harness(
-        fields: [
-          _field(
-            peers: const [
-              ConstellationPerson(id: 'p1', displayName: 'Peer 1'),
-              ConstellationPerson(id: 'p2', displayName: 'Peer 2'),
-            ],
-            anchors: const [],
-          ),
-        ],
-      );
-      addTearDown(harness.cubit.close);
-      harness.anchorRepo.upsertGate = Completer<void>();
-      final target = ConstellationAnchorTarget.person('p2');
-      final first = harness.cubit.onNewNodeDrop(
-        target: target,
-        sceneCentre: const Offset(2100, 2100),
-      );
-      await Future<void>.delayed(Duration.zero);
-      await harness.cubit.onNewNodeDrop(
-        target: target,
-        sceneCentre: const Offset(2200, 2200),
-      );
-      harness.anchorRepo.upsertGate.complete();
-      await first;
-      expect(harness.anchorRepo.upsertCount, 1);
-    });
+    test(
+      'overlapping drops while write pending discard the second write',
+      () async {
+        final harness = await _harness(
+          fields: [
+            _field(
+              peers: const [
+                ConstellationPerson(id: 'p1', displayName: 'Peer 1'),
+                ConstellationPerson(id: 'p2', displayName: 'Peer 2'),
+              ],
+              anchors: const [],
+            ),
+          ],
+        );
+        addTearDown(harness.cubit.close);
+        harness.anchorRepo.upsertGate = Completer<void>();
+        final target = ConstellationAnchorTarget.person('p2');
+        final first = harness.cubit.onNewNodeDrop(
+          target: target,
+          sceneCentre: const Offset(2100, 2100),
+        );
+        await Future<void>.delayed(Duration.zero);
+        await harness.cubit.onNewNodeDrop(
+          target: target,
+          sceneCentre: const Offset(2200, 2200),
+        );
+        harness.anchorRepo.upsertGate.complete();
+        await first;
+        expect(harness.anchorRepo.upsertCount, 1);
+      },
+    );
 
-    test('Map builds overlay-only pinned Request author and attachment', () async {
-      const author = ConstellationPerson(id: 'author-capped', displayName: 'Author');
-      const request = ConstellationRequest(
-        id: 'B-pin',
-        authorId: 'author-capped',
-        title: 'Pinned',
-        status: 0,
-      );
-      final harness = await _harness(
-        fields: [
-          _field(
-            peers: const [],
-            pinnedPeers: const [],
-            requests: const [],
-            anchors: [_beaconAnchor(beaconId: 'B-pin', revision: BigInt.one)],
-            pinnedRequests: const [request],
-            supportPeers: const [author],
-            supportEdges: const [
-              ConstellationTrustEdgeEntity(src: 'ego', dst: 'author-capped', tier: 1),
-            ],
-          ),
-        ],
-      );
-      addTearDown(harness.cubit.close);
-
-      expect(harness.cubit.state.field!.peers, isEmpty);
-      expect(harness.cubit.state.field!.requests, isEmpty);
-      expect(
-        harness.cubit.graphController.nodes.whereType<FieldBeaconNode>().map((n) => n.id),
-        contains('B-pin'),
-      );
-      expect(
-        harness.cubit.graphController.nodes.whereType<FieldPersonNode>().map((n) => n.id),
-        containsAll(['ego', 'author-capped']),
-      );
-      expect(
-        harness.cubit.graphController.edges.map((e) => (e.source.id, e.destination.id)),
-        contains(('author-capped', 'B-pin')),
-      );
-    });
-
-    test('orderedNodeIdsForPaint uses scene graph ids with beacon topmost', () async {
-      const peer = ConstellationPerson(id: 'p-overlap', displayName: 'Peer');
-      const request = ConstellationRequest(
-        id: 'B-overlap',
-        authorId: 'p-overlap',
-        title: 'Overlap',
-        status: 0,
-      );
-      final placedAt = DateTime.utc(2026, 9, 11);
-      final harness = await _harness(
-        fields: [
-          _field(
-            peers: [peer],
-            requests: [request],
-            anchors: [
-              ConstellationAnchor(
-                target: ConstellationAnchorTarget.person('p-overlap'),
-                position: const ConstellationAnchorPosition(
-                  xUnits: 2.5,
-                  yUnits: 2.5,
-                  coordinateSpaceVersion: 1,
+    test(
+      'Map builds overlay-only pinned Request author and attachment',
+      () async {
+        const author = ConstellationPerson(
+          id: 'author-capped',
+          displayName: 'Author',
+        );
+        const request = ConstellationRequest(
+          id: 'B-pin',
+          authorId: 'author-capped',
+          title: 'Pinned',
+          status: 0,
+        );
+        final harness = await _harness(
+          fields: [
+            _field(
+              peers: const [],
+              pinnedPeers: const [],
+              requests: const [],
+              anchors: [_beaconAnchor(beaconId: 'B-pin', revision: BigInt.one)],
+              pinnedRequests: const [request],
+              supportPeers: const [author],
+              supportEdges: const [
+                ConstellationTrustEdgeEntity(
+                  src: 'ego',
+                  dst: 'author-capped',
+                  tier: 1,
                 ),
-                revision: ConstellationAnchorRevision(BigInt.one),
-                placedAt: placedAt,
-              ),
-              ConstellationAnchor(
-                target: ConstellationAnchorTarget.beacon('B-overlap'),
-                position: const ConstellationAnchorPosition(
-                  xUnits: 2.5,
-                  yUnits: 2.5,
-                  coordinateSpaceVersion: 1,
-                ),
-                revision: ConstellationAnchorRevision(BigInt.two),
-                placedAt: placedAt.add(const Duration(seconds: 1)),
-              ),
-            ],
-          ),
-        ],
-      );
-      addTearDown(harness.cubit.close);
+              ],
+            ),
+          ],
+        );
+        addTearDown(harness.cubit.close);
 
-      final paintIds = harness.cubit.orderedNodeIdsForPaint();
-      final controller = harness.cubit.graphController;
-      for (final id in paintIds) {
-        expect(controller.nodePayloadForId(id), isNotNull, reason: id);
-      }
-      expect(
-        paintIds.last,
-        '${TenturaGraphNodeKind.fieldRequest}:B-overlap',
-      );
-      expect(
-        paintIds,
-        contains('${TenturaGraphNodeKind.fieldPerson}:p-overlap'),
-      );
-      expect(
-        paintIds.where((id) => id.startsWith('${TenturaGraphNodeKind.fieldPerson}:')),
-        isNot(contains('${TenturaGraphNodeKind.fieldPerson}:B-overlap')),
-      );
-    });
+        expect(harness.cubit.state.field!.peers, isEmpty);
+        expect(harness.cubit.state.field!.requests, isEmpty);
+        expect(
+          harness.cubit.graphController.nodes.whereType<FieldBeaconNode>().map(
+            (n) => n.id,
+          ),
+          contains('B-pin'),
+        );
+        expect(
+          harness.cubit.graphController.nodes.whereType<FieldPersonNode>().map(
+            (n) => n.id,
+          ),
+          containsAll(['ego', 'author-capped']),
+        );
+        expect(
+          harness.cubit.graphController.edges.map(
+            (e) => (e.source.id, e.destination.id),
+          ),
+          contains(('author-capped', 'B-pin')),
+        );
+      },
+    );
+
+    test(
+      'orderedNodeIdsForPaint uses scene graph ids with beacon topmost',
+      () async {
+        const peer = ConstellationPerson(id: 'p-overlap', displayName: 'Peer');
+        const request = ConstellationRequest(
+          id: 'B-overlap',
+          authorId: 'p-overlap',
+          title: 'Overlap',
+          status: 0,
+        );
+        final placedAt = DateTime.utc(2026, 9, 11);
+        final harness = await _harness(
+          fields: [
+            _field(
+              peers: [peer],
+              requests: [request],
+              anchors: [
+                ConstellationAnchor(
+                  target: ConstellationAnchorTarget.person('p-overlap'),
+                  position: const ConstellationAnchorPosition(
+                    xUnits: 2.5,
+                    yUnits: 2.5,
+                    coordinateSpaceVersion: 1,
+                  ),
+                  revision: ConstellationAnchorRevision(BigInt.one),
+                  placedAt: placedAt,
+                ),
+                ConstellationAnchor(
+                  target: ConstellationAnchorTarget.beacon('B-overlap'),
+                  position: const ConstellationAnchorPosition(
+                    xUnits: 2.5,
+                    yUnits: 2.5,
+                    coordinateSpaceVersion: 1,
+                  ),
+                  revision: ConstellationAnchorRevision(BigInt.two),
+                  placedAt: placedAt.add(const Duration(seconds: 1)),
+                ),
+              ],
+            ),
+          ],
+        );
+        addTearDown(harness.cubit.close);
+
+        final paintIds = harness.cubit.orderedNodeIdsForPaint();
+        final controller = harness.cubit.graphController;
+        for (final id in paintIds) {
+          expect(controller.nodePayloadForId(id), isNotNull, reason: id);
+        }
+        expect(
+          paintIds.last,
+          '${TenturaGraphNodeKind.fieldRequest}:B-overlap',
+        );
+        expect(
+          paintIds,
+          contains('${TenturaGraphNodeKind.fieldPerson}:p-overlap'),
+        );
+        expect(
+          paintIds.where(
+            (id) => id.startsWith('${TenturaGraphNodeKind.fieldPerson}:'),
+          ),
+          isNot(contains('${TenturaGraphNodeKind.fieldPerson}:B-overlap')),
+        );
+      },
+    );
 
     test('requestById resolves overlay-only pinned requests', () async {
       const request = ConstellationRequest(
@@ -925,7 +1002,11 @@ void main() {
               ConstellationPerson(id: 'author-capped', displayName: 'Author'),
             ],
             supportEdges: const [
-              ConstellationTrustEdgeEntity(src: 'ego', dst: 'author-capped', tier: 1),
+              ConstellationTrustEdgeEntity(
+                src: 'ego',
+                dst: 'author-capped',
+                tier: 1,
+              ),
             ],
           ),
         ],
@@ -935,63 +1016,74 @@ void main() {
       expect(harness.cubit.requestById('B-pin'), request);
     });
 
-    test('ANCHORS overlay-only person appears without changing automatic snapshot', () async {
-      final loadedAt = _loadedAt;
-      final harness = await _harness(
-        fields: [
-          _field(peers: const [], anchors: const []),
-        ],
-      );
-      addTearDown(harness.cubit.close);
-      expect(harness.cubit.state.loadedAt, loadedAt);
-      expect(
-        harness.cubit.graphController.nodes.whereType<FieldPersonNode>().map((n) => n.id),
-        ['ego'],
-      );
+    test(
+      'ANCHORS overlay-only person appears without changing automatic snapshot',
+      () async {
+        final loadedAt = _loadedAt;
+        final harness = await _harness(
+          fields: [
+            _field(peers: const [], anchors: const []),
+          ],
+        );
+        addTearDown(harness.cubit.close);
+        expect(harness.cubit.state.loadedAt, loadedAt);
+        expect(
+          harness.cubit.graphController.nodes.whereType<FieldPersonNode>().map(
+            (n) => n.id,
+          ),
+          ['ego'],
+        );
 
-      harness.fieldRepo.fields.add(
-        _field(
-          revision: BigInt.two,
-          peers: const [],
-          pinnedPeers: const [ConstellationPerson(id: 'p-remote', displayName: 'Remote')],
-          anchors: [_anchor(personId: 'p-remote', revision: BigInt.two)],
-        ),
-      );
-      harness.port.emitChange(
-        const RealtimeEntityChange(
-          kind: RealtimeEntityKind.constellationAnchor,
-          aggregateId: 'ego',
-          operation: RealtimeOperation.update,
-          source: RealtimeChangeSource.serverInvalidation,
-        ),
-      );
-      await Future<void>.delayed(const Duration(milliseconds: 30));
+        harness.fieldRepo.fields.add(
+          _field(
+            revision: BigInt.two,
+            peers: const [],
+            pinnedPeers: const [
+              ConstellationPerson(id: 'p-remote', displayName: 'Remote'),
+            ],
+            anchors: [_anchor(personId: 'p-remote', revision: BigInt.two)],
+          ),
+        );
+        harness.port.emitChange(
+          const RealtimeEntityChange(
+            kind: RealtimeEntityKind.constellationAnchor,
+            aggregateId: 'ego',
+            operation: RealtimeOperation.update,
+            source: RealtimeChangeSource.serverInvalidation,
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 30));
 
-      expect(harness.cubit.state.field!.peers, isEmpty);
-      expect(harness.cubit.state.loadedAt, loadedAt);
-      expect(
-        harness.cubit.graphController.nodes.whereType<FieldPersonNode>().map((n) => n.id),
-        contains('p-remote'),
-      );
+        expect(harness.cubit.state.field!.peers, isEmpty);
+        expect(harness.cubit.state.loadedAt, loadedAt);
+        expect(
+          harness.cubit.graphController.nodes.whereType<FieldPersonNode>().map(
+            (n) => n.id,
+          ),
+          contains('p-remote'),
+        );
 
-      harness.fieldRepo.fields.add(
-        _field(revision: BigInt.from(3), peers: const [], anchors: const []),
-      );
-      harness.port.emitChange(
-        const RealtimeEntityChange(
-          kind: RealtimeEntityKind.constellationAnchor,
-          aggregateId: 'ego',
-          operation: RealtimeOperation.delete,
-          source: RealtimeChangeSource.serverInvalidation,
-        ),
-      );
-      await Future<void>.delayed(const Duration(milliseconds: 30));
+        harness.fieldRepo.fields.add(
+          _field(revision: BigInt.from(3), peers: const [], anchors: const []),
+        );
+        harness.port.emitChange(
+          const RealtimeEntityChange(
+            kind: RealtimeEntityKind.constellationAnchor,
+            aggregateId: 'ego',
+            operation: RealtimeOperation.delete,
+            source: RealtimeChangeSource.serverInvalidation,
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 30));
 
-      expect(
-        harness.cubit.graphController.nodes.whereType<FieldPersonNode>().map((n) => n.id),
-        ['ego'],
-      );
-    });
+        expect(
+          harness.cubit.graphController.nodes.whereType<FieldPersonNode>().map(
+            (n) => n.id,
+          ),
+          ['ego'],
+        );
+      },
+    );
 
     test('pinned companion tracks parent delta; unpinned stays', () async {
       const peer = ConstellationPerson(id: 'p1', displayName: 'Peer');
@@ -1015,15 +1107,19 @@ void main() {
             pinnedRequests: const [pinned],
             anchors: [
               _anchor(personId: 'p1', revision: BigInt.one, x: 1, y: 1),
-              _beaconAnchor(beaconId: 'B-pin', revision: BigInt.one, x: 2, y: 2),
+              _beaconAnchor(
+                beaconId: 'B-pin',
+                revision: BigInt.one,
+                x: 2,
+                y: 2,
+              ),
             ],
           ),
         ],
       );
       addTearDown(harness.cubit.close);
       final target = ConstellationAnchorTarget.person('p1');
-      final companionGraphId =
-          '${TenturaGraphNodeKind.fieldRequest}:B-pin';
+      final companionGraphId = '${TenturaGraphNodeKind.fieldRequest}:B-pin';
       final freeGraphId = '${TenturaGraphNodeKind.fieldRequest}:B-free';
       harness.cubit.beginDragExisting(target: target);
 
@@ -1041,8 +1137,9 @@ void main() {
         isTrue,
       );
 
-      final freeBefore = harness.cubit.graphController
-          .getPositionOrNullForId(freeGraphId);
+      final freeBefore = harness.cubit.graphController.getPositionOrNullForId(
+        freeGraphId,
+      );
 
       harness.cubit.updateDragPresentation(
         nodeId: 'p1',
@@ -1062,52 +1159,60 @@ void main() {
       }
     });
 
-    test('cluster drop writes parent then companion in one writeCount', () async {
-      const peer = ConstellationPerson(id: 'p1', displayName: 'Peer');
-      const request = ConstellationRequest(
-        id: 'B1',
-        authorId: 'p1',
-        title: 'Need help',
-        status: 0,
-      );
-      final harness = await _harness(
-        fields: [
-          _field(
-            peers: const [peer],
-            requests: const [request],
-            pinnedRequests: const [request],
-            anchors: [
-              _anchor(personId: 'p1', revision: BigInt.one),
-              _beaconAnchor(beaconId: 'B1', revision: BigInt.one, x: 2, y: 2),
-            ],
-          ),
-          _field(
-            revision: BigInt.from(3),
-            peers: const [peer],
-            requests: const [request],
-            pinnedRequests: const [request],
-            anchors: [
-              _anchor(personId: 'p1', revision: BigInt.from(3), x: 3, y: 3),
-              _beaconAnchor(beaconId: 'B1', revision: BigInt.from(3), x: 4, y: 4),
-            ],
-          ),
-        ],
-      );
-      addTearDown(harness.cubit.close);
-      final target = ConstellationAnchorTarget.person('p1');
-      harness.cubit.beginDragExisting(target: target);
-      await harness.cubit.onExistingNodeDrop(
-        target: target,
-        sceneCentre: const Offset(2048 + 510, 2048 + 510),
-      );
+    test(
+      'cluster drop writes parent then companion in one writeCount',
+      () async {
+        const peer = ConstellationPerson(id: 'p1', displayName: 'Peer');
+        const request = ConstellationRequest(
+          id: 'B1',
+          authorId: 'p1',
+          title: 'Need help',
+          status: 0,
+        );
+        final harness = await _harness(
+          fields: [
+            _field(
+              peers: const [peer],
+              requests: const [request],
+              pinnedRequests: const [request],
+              anchors: [
+                _anchor(personId: 'p1', revision: BigInt.one),
+                _beaconAnchor(beaconId: 'B1', revision: BigInt.one, x: 2, y: 2),
+              ],
+            ),
+            _field(
+              revision: BigInt.from(3),
+              peers: const [peer],
+              requests: const [request],
+              pinnedRequests: const [request],
+              anchors: [
+                _anchor(personId: 'p1', revision: BigInt.from(3), x: 3, y: 3),
+                _beaconAnchor(
+                  beaconId: 'B1',
+                  revision: BigInt.from(3),
+                  x: 4,
+                  y: 4,
+                ),
+              ],
+            ),
+          ],
+        );
+        addTearDown(harness.cubit.close);
+        final target = ConstellationAnchorTarget.person('p1');
+        harness.cubit.beginDragExisting(target: target);
+        await harness.cubit.onExistingNodeDrop(
+          target: target,
+          sceneCentre: const Offset(2048 + 510, 2048 + 510),
+        );
 
-      expect(harness.cubit.writeCount, 1);
-      expect(harness.anchorRepo.upsertCount, 2);
-      expect(
-        harness.anchorRepo.upsertTargets.map((t) => t.id).toList(),
-        ['p1', 'B1'],
-      );
-    });
+        expect(harness.cubit.writeCount, 1);
+        expect(harness.anchorRepo.upsertCount, 2);
+        expect(
+          harness.anchorRepo.upsertTargets.map((t) => t.id).toList(),
+          ['p1', 'B1'],
+        );
+      },
+    );
 
     test('parent fail aborts companions after one HTTP', () async {
       const peer = ConstellationPerson(id: 'p1', displayName: 'Peer');
@@ -1177,7 +1282,12 @@ void main() {
             pinnedRequests: const [request],
             anchors: [
               _anchor(personId: 'p1', revision: BigInt.from(3), x: 3, y: 3),
-              _beaconAnchor(beaconId: 'B1', revision: BigInt.from(3), x: 2, y: 2),
+              _beaconAnchor(
+                beaconId: 'B1',
+                revision: BigInt.from(3),
+                x: 2,
+                y: 2,
+              ),
             ],
           ),
         ],

@@ -8,7 +8,6 @@ import 'dart:math' as math;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 
 import 'package:tentura/consts.dart';
@@ -19,7 +18,6 @@ import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart'
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
-import 'package:tentura/features/constellation/domain/use_case/constellation_field_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_composer_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_app_bar.dart';
@@ -34,6 +32,8 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../beacon_create/fake_beacon_ports.dart';
 import 'package:tentura/features/constellation/ui/util/layout_geometry_adapters.dart';
+
+import '../../support/constellation_store_fixture.dart';
 
 const _ego = Profile(id: 'ego', displayName: 'Ego');
 
@@ -171,11 +171,10 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.runAsync(() async {
       cubit = ConstellationCubit(
-        case_: ConstellationFieldCase(
+        case_: ConstellationStoreFixture(
           _StubRepository(_field()),
-          env: const Env.fromEnvironment(),
-          logger: Logger('ConstellationComposerGesturesTest'),
-        ),
+          accountId: 'ego',
+        ).store,
         viewer: _ego,
       );
       await cubit.stream.firstWhere((s) => s.status is StateIsSuccess);
@@ -186,7 +185,10 @@ void main() {
     await pumpTree(tester);
     await tester.pumpAndSettle(const Duration(milliseconds: 100));
     final entry = cubit.graphController.viewportLocalToScene(
-      tester.getSize(find.byType(GraphView<NodeDetails, EdgeDetails>)).bottomRight(Offset.zero) - const Offset(40, 40),
+      tester
+              .getSize(find.byType(GraphView<NodeDetails, EdgeDetails>))
+              .bottomRight(Offset.zero) -
+          const Offset(40, 40),
     );
     const distances = <double>[40, 80, 120, 300, 600, 1000];
     composer = makeComposer({
@@ -203,14 +205,16 @@ void main() {
     }
   });
 
-  Rect canvas(WidgetTester tester) => tester.getRect(find.byType(GraphView<NodeDetails, EdgeDetails>));
+  Rect canvas(WidgetTester tester) =>
+      tester.getRect(find.byType(GraphView<NodeDetails, EdgeDetails>));
 
   /// Empty canvas spot near the bottom-right corner, in viewport-local space.
   Offset emptyLocal(WidgetTester tester) =>
       canvas(tester).size.bottomRight(Offset.zero) - const Offset(40, 40);
 
   Offset globalOf(WidgetTester tester, Offset scene) =>
-      canvas(tester).topLeft + cubit.graphController.sceneToViewportLocal(scene);
+      canvas(tester).topLeft +
+      cubit.graphController.sceneToViewportLocal(scene);
 
   Future<void> secondaryTapAt(WidgetTester tester, Offset global) async {
     final g = await tester.createGesture(
@@ -237,7 +241,11 @@ void main() {
 
       await secondaryTapAt(tester, canvas(tester).topLeft + local);
       expect(find.byKey(_kindMenuRequest), findsOneWidget);
-      expect(composer.createCubit, isNull, reason: 'nothing starts before a choice');
+      expect(
+        composer.createCubit,
+        isNull,
+        reason: 'nothing starts before a choice',
+      );
 
       await tester.tap(find.byKey(_kindMenuRequest));
       await tester.pump();
@@ -259,7 +267,11 @@ void main() {
       await g.up();
       await tester.pump();
       expect(find.byKey(_kindMenuRequest), findsOneWidget);
-      expect(composer.createCubit, isNull, reason: 'nothing starts before a choice');
+      expect(
+        composer.createCubit,
+        isNull,
+        reason: 'nothing starts before a choice',
+      );
 
       await tester.tap(find.byKey(_kindMenuRequest));
       await tester.pump();
@@ -357,7 +369,10 @@ void main() {
       final before = composer.selection;
       final dir = await findHandleDirection(tester);
       expect(dir, isNotNull, reason: 'a handle must exist on the circle rim');
-      final down = globalOf(tester, before.center.offset + dir! * before.radius);
+      final down = globalOf(
+        tester,
+        before.center.offset + dir! * before.radius,
+      );
 
       final g = await tester.startGesture(down);
       await g.moveTo(down + dir * 60);
@@ -386,7 +401,10 @@ void main() {
       final before = composer.selection;
       final dir = await findHandleDirection(tester);
       expect(dir, isNotNull, reason: 'a handle must exist on the circle rim');
-      final handle = globalOf(tester, before.center.offset + dir! * before.radius);
+      final handle = globalOf(
+        tester,
+        before.center.offset + dir! * before.radius,
+      );
       final miss = handle + dir * 150;
       expect(canvas(tester).contains(miss), isTrue);
 
@@ -407,7 +425,9 @@ void main() {
       await startViaSecondaryTap(tester);
       final before = composer.selection;
       final from = canvas(tester).center + const Offset(200, 200);
-      final probe = cubit.graphController.sceneToViewportLocal(before.center.offset);
+      final probe = cubit.graphController.sceneToViewportLocal(
+        before.center.offset,
+      );
 
       final g = await tester.startGesture(from);
       await g.moveBy(const Offset(-80, -60));

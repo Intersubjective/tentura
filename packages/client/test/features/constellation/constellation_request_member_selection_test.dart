@@ -1,13 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_member_webs_port.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
-import 'package:tentura/features/constellation/domain/use_case/constellation_field_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
+
+import '../../support/constellation_store_fixture.dart';
 
 final class _StubRepository implements ConstellationRepositoryPort {
   @override
@@ -82,11 +81,10 @@ void main() {
 
     setUp(() async {
       cubit = ConstellationCubit(
-        case_: ConstellationFieldCase(
+        case_: ConstellationStoreFixture(
           _StubRepository(),
-          env: const Env.fromEnvironment(),
-          logger: Logger('ConstellationRequestMemberSelectionTest'),
-        ),
+          accountId: 'ego',
+        ).store,
         viewer: const Profile(id: 'ego', displayName: 'Ego'),
         memberWebsPort: _StubMemberWebsPort(),
       );

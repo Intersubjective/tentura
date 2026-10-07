@@ -12,6 +12,28 @@ import 'layout/layout_node_spec.dart';
 
 export 'layout/layout_node_spec.dart';
 
+/// Presentation seam shared by all cubit composition paths.
+typedef ConstellationPresentationComposer =
+    ConstellationComposedPresentation Function({
+      required String viewerId,
+      required ConstellationField field,
+      required ConstellationFilters localFilters,
+      required DateTime asOfUtc,
+      required ConstellationLabelBudget labelBudget,
+      Set<String> expandedSatelliteAuthorIds,
+      List<ConstellationMemberWeb> selectedRequestWebs,
+      Set<String> extraKeptPeerIds,
+    });
+
+typedef ConstellationFieldResolved = ({
+  ConstellationField field,
+  ConstellationComposedPresentation composition,
+  ConstellationPathResolution paths,
+  Set<String> keptPeerIds,
+  Set<String> droppedHolderIds,
+  bool capped,
+});
+
 /// Viewport class for layout-hint eligibility (D33); not a UI token.
 enum ConstellationViewportClass {
   compact,

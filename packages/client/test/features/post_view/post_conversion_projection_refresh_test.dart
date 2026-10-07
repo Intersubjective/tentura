@@ -15,7 +15,6 @@ import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
-import 'package:tentura/features/constellation/domain/use_case/constellation_field_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_item.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_cubit.dart';
@@ -29,6 +28,8 @@ import '../inbox/inbox_case_test.dart'
     show FakeInboxRepository, buildTestBeaconThreadsCase, buildTestInboxCase;
 import '../my_work/my_work_test_support.dart'
     show FakeMyWorkRepository, buildStubAttentionCase, buildTestMyWorkCase;
+
+import '../../support/constellation_store_fixture.dart';
 
 const _id = 'Bconverted01';
 const _helper = Profile(id: 'Uhelperlive01', displayName: 'Helper');
@@ -215,12 +216,11 @@ void main() {
         addTearDown(sync.port.dispose);
         final repository = _FieldSnapshots();
         final cubit = ConstellationCubit(
-          case_: ConstellationFieldCase(
+          case_: ConstellationStoreFixture(
             repository,
-            env: const Env.fromEnvironment(),
-            logger: Logger('PostConversionFieldTest'),
-            realtimeSyncCase: sync.case_,
-          ),
+            realtime: sync.case_,
+            accountId: 'ego',
+          ).store,
           viewer: _helper,
         );
         addTearDown(cubit.close);

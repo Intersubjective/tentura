@@ -1,10 +1,5 @@
-import 'dart:async';
-
 import 'package:injectable/injectable.dart';
 import 'package:meta/meta.dart';
-import 'package:tentura/domain/entity/realtime/realtime_catch_up.dart';
-import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
-import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
 
 import '../constellation_drag_cluster.dart';
@@ -86,18 +81,13 @@ final class ConstellationAnchorsRefreshResult {
 final class ConstellationAnchorCase extends UseCaseBase {
   ConstellationAnchorCase(
     this._fieldRepository,
-    this._anchorRepository,
-    this._realtimeSyncCase, {
+    this._anchorRepository, {
     required super.env,
     required super.logger,
   });
 
   final ConstellationRepositoryPort _fieldRepository;
   final ConstellationAnchorRepositoryPort _anchorRepository;
-  final RealtimeSyncCase _realtimeSyncCase;
-
-  StreamSubscription<RealtimeEntityChange>? _changeSub;
-  StreamSubscription<RealtimeCatchUp>? _catchUpSub;
 
   String _viewerAccountId = '';
   int _loadGeneration = 0;
@@ -106,26 +96,12 @@ final class ConstellationAnchorCase extends UseCaseBase {
   ConstellationAnchorProjection _confirmed =
       ConstellationAnchorProjection.empty;
 
-  ConstellationFieldMembershipFilters _membershipFilters =
-      ConstellationFieldMembershipFilters.defaults;
-
-  Future<void>? _anchorsRefreshInFlight;
-  bool _anchorsRefreshQueued = false;
-  ConstellationFieldMembershipFilters _queuedFilters =
-      ConstellationFieldMembershipFilters.defaults;
-  String _queuedAccountId = '';
-  int _queuedLifecycleToken = 0;
-  int _queuedRequestSeq = 0;
   int _anchorsRequestSeq = 0;
   int _lastAppliedRequestSeq = 0;
 
   ConstellationAnchorPendingWrite? _pendingWrite;
   int _writeCount = 0;
   int _anchorsFetchCount = 0;
-
-  final _refreshController = StreamController<void>.broadcast();
-
-  Stream<void> get refreshSignals => _refreshController.stream;
 
   ConstellationAnchorProjection get confirmedProjection => _confirmed;
 
@@ -159,9 +135,7 @@ final class ConstellationAnchorCase extends UseCaseBase {
     if (_loadGeneration == 0) {
       _loadGeneration = 1;
     }
-    _detachSubscriptions();
     _viewerAccountId = viewerAccountId;
-    _attachSubscriptions();
     return _loadGeneration;
   }
 
@@ -169,7 +143,6 @@ final class ConstellationAnchorCase extends UseCaseBase {
     if (token != null && token != _loadGeneration) {
       return;
     }
-    _detachSubscriptions();
   }
 
   /// Bumps load generation once and clears prior-account anchor state.
@@ -186,37 +159,11 @@ final class ConstellationAnchorCase extends UseCaseBase {
 
   int bumpLoadGeneration() => ++_loadGeneration;
 
-  void syncMembershipFilters(ConstellationFieldMembershipFilters filters) {
-    _membershipFilters = filters;
-  }
-
   void _resetAccountOwnedState() {
     _confirmed = ConstellationAnchorProjection.empty;
     _syncPending = false;
     _pendingWrite = null;
-    _membershipFilters = ConstellationFieldMembershipFilters.defaults;
     _lastAppliedRequestSeq = 0;
-  }
-
-  void _attachSubscriptions() {
-    final accountId = _viewerAccountId;
-    _changeSub = _realtimeSyncCase
-        .changesForAggregate(
-          kinds: const {RealtimeEntityKind.constellationAnchor},
-          aggregateId: accountId,
-        )
-        .listen((_) => _scheduleAnchorsRefresh(), cancelOnError: false);
-    _catchUpSub = _realtimeSyncCase.catchUps.listen(
-      (_) => unawaited(_refreshAnchorsOnce()),
-      cancelOnError: false,
-    );
-  }
-
-  void _detachSubscriptions() {
-    unawaited(_changeSub?.cancel());
-    unawaited(_catchUpSub?.cancel());
-    _changeSub = null;
-    _catchUpSub = null;
   }
 
   /// Seeds the confirmed cache from an accepted FULL snapshot.
@@ -224,26 +171,6 @@ final class ConstellationAnchorCase extends UseCaseBase {
     return _applyIncomingProjection(
       projection,
       requestSeq: ++_anchorsRequestSeq,
-    );
-  }
-
-  /// Applies an ANCHORS-only fetch when [generation] still matches.
-  Future<ConstellationAnchorsRefreshResult?> refreshAnchors({
-    required int generation,
-    ConstellationFieldMembershipFilters membershipFilters =
-        ConstellationFieldMembershipFilters.defaults,
-  }) async {
-    if (generation != _loadGeneration) {
-      return null;
-    }
-    _membershipFilters = membershipFilters;
-    await _refreshAnchorsOnce(membershipFilters: membershipFilters);
-    if (generation != _loadGeneration) {
-      return null;
-    }
-    return ConstellationAnchorsRefreshResult(
-      projection: _confirmed,
-      applied: true,
     );
   }
 
@@ -683,62 +610,6 @@ final class ConstellationAnchorCase extends UseCaseBase {
     );
   }
 
-  void _scheduleAnchorsRefresh() {
-    unawaited(_refreshAnchorsOnce(membershipFilters: _membershipFilters));
-  }
-
-  Future<void> _refreshAnchorsOnce({
-    ConstellationFieldMembershipFilters? membershipFilters,
-  }) async {
-    _queuedFilters = membershipFilters ?? _membershipFilters;
-    _queuedAccountId = _viewerAccountId;
-    _queuedLifecycleToken = _loadGeneration;
-    _queuedRequestSeq = ++_anchorsRequestSeq;
-    _anchorsRefreshQueued = true;
-    final inFlight = _anchorsRefreshInFlight;
-    if (inFlight != null) {
-      return inFlight;
-    }
-    late final Future<void> future;
-    future = _runAnchorsRefreshLoop().whenComplete(() {
-      if (identical(_anchorsRefreshInFlight, future)) {
-        _anchorsRefreshInFlight = null;
-      }
-      if (_anchorsRefreshQueued) {
-        unawaited(_refreshAnchorsOnce(membershipFilters: _queuedFilters));
-      }
-    });
-    _anchorsRefreshInFlight = future;
-    return future;
-  }
-
-  Future<void> _runAnchorsRefreshLoop() async {
-    do {
-      _anchorsRefreshQueued = false;
-      final filters = _queuedFilters;
-      final account = _queuedAccountId;
-      final token = _queuedLifecycleToken;
-      final requestSeq = _queuedRequestSeq;
-      try {
-        final projection = await _fetchAnchorsProjection(
-          membershipFilters: filters,
-        );
-        if (account != _viewerAccountId || token != _loadGeneration) {
-          continue;
-        }
-        if (_applyIncomingProjection(projection, requestSeq: requestSeq)) {
-          _refreshController.add(null);
-        }
-      } on Object catch (error, stackTrace) {
-        logger.warning(
-          'Constellation ANCHORS refresh failed',
-          error,
-          stackTrace,
-        );
-      }
-    } while (_anchorsRefreshQueued);
-  }
-
   Future<ConstellationAnchorProjection> _fetchAnchorsProjection({
     required ConstellationFieldMembershipFilters membershipFilters,
   }) async {
@@ -753,6 +624,5 @@ final class ConstellationAnchorCase extends UseCaseBase {
   @disposeMethod
   Future<void> dispose() async {
     deactivate();
-    await _refreshController.close();
   }
 }

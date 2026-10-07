@@ -16,7 +16,6 @@ import 'package:tentura/features/constellation/domain/entity/constellation_field
 import 'package:tentura/features/constellation/domain/port/constellation_anchor_repository_port.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_anchor_case.dart';
-import 'package:tentura/features/constellation/domain/use_case/constellation_field_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_filter_bar.dart';
@@ -27,8 +26,9 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
-import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
+
+import '../../support/constellation_store_fixture.dart';
 
 const _ego = Profile(id: 'ego', displayName: 'Ego');
 final _loadedAt = DateTime.utc(2026, 9, 11, 12);
@@ -196,20 +196,17 @@ _harness({
         ],
   );
   final anchorRepo = _HarnessAnchorRepository();
-  final sync = buildTestRealtimeSync();
   final anchorCase = ConstellationAnchorCase(
     fieldRepo,
     anchorRepo,
-    sync.case_,
     env: const Env.fromEnvironment(),
     logger: Logger('ConstellationAnchorInteractionTest'),
   );
   final cubit = ConstellationCubit(
-    case_: ConstellationFieldCase(
+    case_: ConstellationStoreFixture(
       fieldRepo,
-      env: const Env.fromEnvironment(),
-      logger: Logger('ConstellationAnchorInteractionTest'),
-    ),
+      accountId: 'ego',
+    ).store,
     anchorCase: anchorCase,
     viewer: _ego,
     forwardRepository: _FakeForwardRepository(),
@@ -495,7 +492,10 @@ void main() {
       final ego = _requireNodeCentre(harness.cubit, 'ego');
       final pinned = _requireNodeCentre(harness.cubit, 'req-1');
       expect((pinned - ego).distance, greaterThan(200));
-      expect(harness.cubit.isAnchored(ConstellationAnchorTarget.beacon('req-1')), isTrue);
+      expect(
+        harness.cubit.isAnchored(ConstellationAnchorTarget.beacon('req-1')),
+        isTrue,
+      );
 
       await harness.cubit.unpinAnchor(
         target: ConstellationAnchorTarget.beacon('req-1'),
@@ -512,7 +512,10 @@ void main() {
       await tester.pump(const Duration(milliseconds: 400));
       await tester.pump(const Duration(milliseconds: 400));
 
-      expect(harness.cubit.isAnchored(ConstellationAnchorTarget.beacon('req-1')), isFalse);
+      expect(
+        harness.cubit.isAnchored(ConstellationAnchorTarget.beacon('req-1')),
+        isFalse,
+      );
       final unpinned = _requireNodeCentre(harness.cubit, 'req-1');
       expect((unpinned - ego).distance, greaterThan(40));
       expect((unpinned - pinned).distance, greaterThan(40));

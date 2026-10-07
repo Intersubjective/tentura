@@ -1,16 +1,11 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
-import 'package:tentura/features/constellation/domain/use_case/constellation_field_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/utils/constellation_edge_style.dart';
 import 'package:tentura/features/constellation/ui/utils/constellation_graph_scene.dart';
@@ -18,7 +13,8 @@ import 'package:tentura/features/constellation/ui/widget/constellation_body.dart
 import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/utils/graph_scene_ids.dart';
-import 'package:tentura/ui/bloc/screen_cubit.dart';
+
+import '../../support/constellation_store_fixture.dart';
 
 FieldPersonNode _person(String id, {int ring = 1}) => FieldPersonNode(
   person: Profile(id: id, displayName: id),
@@ -65,11 +61,10 @@ final class _StubRepository implements ConstellationRepositoryPort {
 
 Future<ConstellationCubit> _loadCubit(ConstellationField field) async {
   final cubit = ConstellationCubit(
-    case_: ConstellationFieldCase(
+    case_: ConstellationStoreFixture(
       _StubRepository(field),
-      env: const Env.fromEnvironment(),
-      logger: Logger('ConstellationSemanticEdgeIdTest'),
-    ),
+      accountId: 'ego',
+    ).store,
     viewer: _ego,
   );
   await cubit.stream.firstWhere((state) => state.status is StateIsSuccess);
@@ -209,42 +204,50 @@ void main() {
       );
     });
 
-    test('scene registers one edge id per kind and maps it to that kind', () async {
-      final cubit = await _loadCubitWithOverlappingPeerKinds();
-      addTearDown(cubit.close);
+    test(
+      'scene registers one edge id per kind and maps it to that kind',
+      () async {
+        final cubit = await _loadCubitWithOverlappingPeerKinds();
+        addTearDown(cubit.close);
 
-      final sceneEdges = cubit.graphController.renderSnapshot.topology.edgesById;
+        final sceneEdges =
+            cubit.graphController.renderSnapshot.topology.edgesById;
 
-      expect(sceneEdges, hasLength(2));
-      expect(cubit.edgeKinds.keys.toSet(), sceneEdges.keys.toSet());
-      for (final entry in sceneEdges.entries) {
-        final edge = entry.value.payload;
-        final kind = ConstellationEdgeKind.values.byName(
-          edge.semanticId.split('#').last,
-        );
-        expect(cubit.edgeKinds[entry.key], kind);
+        expect(sceneEdges, hasLength(2));
+        expect(cubit.edgeKinds.keys.toSet(), sceneEdges.keys.toSet());
+        for (final entry in sceneEdges.entries) {
+          final edge = entry.value.payload;
+          final kind = ConstellationEdgeKind.values.byName(
+            edge.semanticId.split('#').last,
+          );
+          expect(cubit.edgeKinds[entry.key], kind);
+          expect(
+            entry.key,
+            constellationSceneEdgeId(
+              kindName: kind.name,
+              source: edge.source,
+              destination: edge.destination,
+            ),
+          );
+          expect(cubit.edgeKindByPair[edge.semanticId], kind);
+        }
         expect(
-          entry.key,
-          constellationSceneEdgeId(
-            kindName: kind.name,
-            source: edge.source,
-            destination: edge.destination,
-          ),
+          cubit.edgeKinds.values.toSet(),
+          {ConstellationEdgeKind.tier1Path, ConstellationEdgeKind.ringStub},
         );
-        expect(cubit.edgeKindByPair[edge.semanticId], kind);
-      }
-      expect(
-        cubit.edgeKinds.values.toSet(),
-        {ConstellationEdgeKind.tier1Path, ConstellationEdgeKind.ringStub},
-      );
-    });
+      },
+    );
 
     test('resolving each emitted edge against the registered ids gives its '
         'own scene id', () async {
       final cubit = await _loadCubitWithOverlappingPeerKinds();
       addTearDown(cubit.close);
 
-      final sceneIds = cubit.graphController.renderSnapshot.topology.edgesById
+      final sceneIds = cubit
+          .graphController
+          .renderSnapshot
+          .topology
+          .edgesById
           .keys
           .toList();
       for (final edge in cubit.graphController.edges) {
@@ -287,7 +290,8 @@ void main() {
       addTearDown(cubit.close);
       cubit.selectPerson('a');
 
-      final sceneEdges = cubit.graphController.renderSnapshot.topology.edgesById;
+      final sceneEdges =
+          cubit.graphController.renderSnapshot.topology.edgesById;
       expect(sceneEdges.keys.toSet(), {
         'c:tier1Path:fp:ego->fp:a',
         'c:attachment:fp:a->fr:req-a',

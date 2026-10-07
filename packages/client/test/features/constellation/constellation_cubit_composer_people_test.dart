@@ -5,16 +5,15 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart' show Offset;
-import 'package:logging/logging.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
-import 'package:tentura/features/constellation/domain/use_case/constellation_field_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
+
+import '../../support/constellation_store_fixture.dart';
 
 const _ego = Profile(id: 'ego', displayName: 'Ego');
 
@@ -77,11 +76,10 @@ void main() {
         _ego, // mutual-visibility feed may echo the viewer back; must drop.
       ]);
       final cubit = ConstellationCubit(
-        case_: ConstellationFieldCase(
+        case_: ConstellationStoreFixture(
           _StubRepository(field),
-          env: const Env.fromEnvironment(),
-          logger: Logger('ComposerPeopleTest'),
-        ),
+          accountId: 'ego',
+        ).store,
         viewer: _ego,
         forwardRepository: forward,
       );
@@ -162,11 +160,10 @@ void main() {
         peers: const [ConstellationPerson(id: 'graph-peer')],
       );
       final cubit = ConstellationCubit(
-        case_: ConstellationFieldCase(
+        case_: ConstellationStoreFixture(
           _StubRepository(field),
-          env: const Env.fromEnvironment(),
-          logger: Logger('ComposerPeopleTest'),
-        ),
+          accountId: 'ego',
+        ).store,
         viewer: _ego,
         forwardRepository: _ThrowingForwardRepository(),
       );

@@ -7,7 +7,6 @@ import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:get_it/get_it.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 
 import '../../domain/constellation_anchor_composition.dart';
@@ -25,7 +24,7 @@ import '../../domain/entity/constellation_field.dart';
 import '../util/layout_geometry_adapters.dart';
 import '../../domain/port/constellation_member_webs_port.dart';
 import '../../domain/use_case/constellation_anchor_case.dart';
-import '../../domain/use_case/constellation_field_case.dart';
+import '../../domain/use_case/constellation_field_store_case.dart';
 import '../../../graph/domain/entity/edge_details.dart';
 import '../../../graph/domain/entity/node_details.dart';
 import '../../../graph/ui/utils/graph_scene_ids.dart';
@@ -127,25 +126,20 @@ enum ConstellationNodeAbsence {
 
 final class ConstellationCubit extends Cubit<ConstellationState> {
   ConstellationCubit({
-    required ConstellationFieldCase case_,
+    required ConstellationFieldStoreCase case_,
     required Profile viewer,
     this._anchorCase,
     this._memberWebsPort,
     ForwardRepository? forwardRepository,
     bool loadOnCreate = true,
-    this._realtimeRefreshMinInterval = const Duration(seconds: 2),
-    this._now = DateTime.now,
+    this._composePresentation = composeConstellationPresentation,
   }) : _case = case_,
        _viewer = viewer,
        _forwardRepositoryOverride = forwardRepository,
        super(const ConstellationState()) {
     _anchorLifecycleToken = _anchorCase?.activate(viewerAccountId: viewer.id);
-    _anchorRefreshSub = _anchorCase?.refreshSignals.listen(
-      (_) => unawaited(_onAnchorRefreshHint()),
-      cancelOnError: false,
-    );
-    _fieldChangeSub = _case.changes?.listen(_onFieldChange);
-    _fieldCatchUpSub = _case.catchUps?.listen((_) => _scheduleFieldRefresh());
+    _storeLease = _case.lease();
+    _storeSub = _case.changes.listen(_onStoreChanged);
     // ignore: invalid_use_of_visible_for_testing_member
     graphController.scene.addListener(_onGraphSceneLayoutOutcomeChanged);
     if (loadOnCreate) {
@@ -153,7 +147,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
   }
 
-  final ConstellationFieldCase _case;
+  final ConstellationFieldStoreCase _case;
   final ConstellationAnchorCase? _anchorCase;
   final ConstellationMemberWebsPort? _memberWebsPort;
   final Profile _viewer;
@@ -164,23 +158,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   final Set<String> _requestWebsInFlight = {};
   final ForwardRepository? _forwardRepositoryOverride;
 
-  StreamSubscription<void>? _anchorRefreshSub;
-  StreamSubscription<void>? _fieldChangeSub;
-  StreamSubscription<void>? _fieldCatchUpSub;
-  final Duration _realtimeRefreshMinInterval;
-  final DateTime Function() _now;
-  Timer? _fieldRefreshTimer;
-  DateTime? _fieldRefreshDueAt;
-  DateTime? _lastFieldLoadAt;
-  bool _fieldRefreshInFlight = false;
-  bool _fieldRefreshQueued = false;
-  bool _fieldRefreshQueuedUrgent = false;
-
-  /// Whether the field is on screen (its tab is active and nothing covers
-  /// it). A hidden field does not refetch; it remembers it is stale and
-  /// refreshes once when shown again.
-  bool _visible = true;
-  bool _staleWhileHidden = false;
+  late final StoreLease _storeLease;
+  StreamSubscription<ConstellationFieldStoreState>? _storeSub;
+  ConstellationField? _lastAppliedStoreField;
+  final ConstellationPresentationComposer _composePresentation;
   int? _anchorLifecycleToken;
   int _layoutReconciliationCount = 0;
   List<TimelineTask>? _dropReflowSpans;
@@ -331,108 +312,34 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   @override
   Future<void> close() async {
-    _fieldRefreshTimer?.cancel();
-    _fieldRefreshDueAt = null;
-    await _fieldChangeSub?.cancel();
-    await _fieldCatchUpSub?.cancel();
+    _storeLease.dispose();
+    // Not awaited: the store's broadcast stream has no cancel cleanup, so the
+    // returned future is the shared root-zone null future. Awaiting it would
+    // hop the rest of close() out of the caller's zone (fake-async widget
+    // tests then never deliver the state stream's done event).
+    unawaited(_storeSub?.cancel());
+    _storeSub = null;
     _clearClusterPresentations();
     _finishDropReflowSpans();
     // ignore: invalid_use_of_visible_for_testing_member
     graphController.scene.removeListener(_onGraphSceneLayoutOutcomeChanged);
-    await _anchorRefreshSub?.cancel();
     _anchorCase?.deactivate(token: _anchorLifecycleToken);
     return super.close();
   }
 
-  /// Called by the screen when the field becomes visible or hidden.
+  /// Screen visibility contributes to the shared store's lease visibility.
   void setVisible(bool visible) {
-    if (isClosed || visible == _visible) return;
-    _visible = visible;
-    if (!visible) {
-      _fieldRefreshTimer?.cancel();
-      _fieldRefreshTimer = null;
-      _fieldRefreshDueAt = null;
-      return;
-    }
-    if (_staleWhileHidden) {
-      _staleWhileHidden = false;
-      _scheduleFieldRefresh();
-    }
+    if (!isClosed) _storeLease.setVisible(visible);
   }
 
-  void _onFieldChange(RealtimeEntityChange change) {
-    final field = state.field;
-    final fieldBeaconIds = {
-      ...?field?.requests.map((r) => r.id),
-      ...?field?.posts.map((p) => p.id),
-      ...?field?.resolvedAnchorProjection.pinnedRequests.map((r) => r.id),
-    };
-    _scheduleFieldRefresh(
-      urgent: ConstellationFieldCase.isUrgentFieldChange(
-        change,
-        fieldBeaconIds,
-      ),
-    );
-  }
-
-  /// Coalesces realtime-driven FULL refreshes: one refresh per window, never
-  /// sooner than [_realtimeRefreshMinInterval] after the previous load (or
-  /// [kLazyFieldRefreshInterval] for changes that do not touch the field).
-  /// A pending refresh is only ever moved earlier, so a steady event stream
-  /// cannot postpone it forever.
-  void _scheduleFieldRefresh({bool urgent = true}) {
+  void _onStoreChanged(ConstellationFieldStoreState snapshot) {
     if (isClosed) return;
-    if (!_visible) {
-      _staleWhileHidden = true;
+    final field = snapshot.field;
+    if (field == null) {
+      if (state.field != null) onAccountChanged();
       return;
     }
-    if (_fieldRefreshInFlight) {
-      _fieldRefreshQueued = true;
-      _fieldRefreshQueuedUrgent |= urgent;
-      return;
-    }
-    final now = _now();
-    final spacing = urgent
-        ? _realtimeRefreshMinInterval
-        : kLazyFieldRefreshInterval;
-    final last = _lastFieldLoadAt;
-    var dueAt = now.add(const Duration(milliseconds: 220));
-    if (last != null && last.add(spacing).isAfter(dueAt)) {
-      dueAt = last.add(spacing);
-    }
-    final pending = _fieldRefreshDueAt;
-    if (_fieldRefreshTimer != null &&
-        pending != null &&
-        !pending.isAfter(dueAt)) {
-      return;
-    }
-    _fieldRefreshTimer?.cancel();
-    _fieldRefreshDueAt = dueAt;
-    _fieldRefreshTimer = Timer(dueAt.difference(now), () {
-      _fieldRefreshTimer = null;
-      _fieldRefreshDueAt = null;
-      unawaited(_refreshFieldFromRealtime());
-    });
-  }
-
-  Future<void> _refreshFieldFromRealtime() async {
-    if (isClosed) return;
-    if (!_visible) {
-      _staleWhileHidden = true;
-      return;
-    }
-    _fieldRefreshInFlight = true;
-    try {
-      await load();
-    } finally {
-      _fieldRefreshInFlight = false;
-      if (_fieldRefreshQueued && !isClosed) {
-        final urgent = _fieldRefreshQueuedUrgent;
-        _fieldRefreshQueued = false;
-        _fieldRefreshQueuedUrgent = false;
-        _scheduleFieldRefresh(urgent: urgent);
-      }
-    }
+    if (!identical(field, _lastAppliedStoreField)) _applyLoadedField(field);
   }
 
   void retryGraphLayoutAfterFailure() {
@@ -568,18 +475,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   }
 
   Future<void> load() async {
-    if (isClosed) {
-      return;
-    }
-    // This load covers any realtime refresh that was waiting to run, and
-    // realtime refreshes are spaced from it.
-    _lastFieldLoadAt = _now();
-    _staleWhileHidden = false;
-    if (!_fieldRefreshInFlight) {
-      _fieldRefreshTimer?.cancel();
-      _fieldRefreshTimer = null;
-      _fieldRefreshDueAt = null;
-    }
+    if (isClosed) return;
     final generation = state.loadGeneration + 1;
     emit(
       state.copyWith(
@@ -588,81 +484,89 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         loadGeneration: generation,
       ),
     );
-    _anchorCase?.syncMembershipFilters(state.membershipFilters);
+    _case.setMembershipFilters(state.membershipFilters);
     try {
-      final labelBudget = _currentLabelBudget();
-      final resolved = await _case.load(
-        viewerId: _viewer.id,
-        membershipFilters: state.membershipFilters,
-        localFilters: state.filters,
-        labelBudget: labelBudget,
-      );
-      if (isClosed || generation != state.loadGeneration) {
-        return;
+      await _case.requestRefresh(ConstellationRefreshReason.load);
+      if (isClosed || generation != state.loadGeneration) return;
+      final field = _case.current.field;
+      if (field != null && !identical(field, _lastAppliedStoreField)) {
+        _applyLoadedField(field);
+      } else {
+        emit(state.copyWith(status: const StateIsSuccess()));
       }
-      final adopted =
-          _anchorCase?.adoptConfirmedProjection(
-            resolved.field.resolvedAnchorProjection,
-          ) ??
-          true;
-      final confirmedProjection =
-          _anchorCase?.confirmedProjection ??
-          resolved.field.resolvedAnchorProjection;
-      final loadedField = adopted
-          ? resolved.field
-          : resolved.field.copyWith(anchorProjection: confirmedProjection);
-      final composition = kReleaseMode
-          ? composeConstellationPresentation(
+    } on Object catch (error) {
+      if (!isClosed && generation == state.loadGeneration) {
+        emit(state.copyWith(status: const StateIsSuccess(), loadError: error));
+      }
+    }
+  }
+
+  void _applyLoadedField(ConstellationField field) {
+    _lastAppliedStoreField = field;
+    final labelBudget = _currentLabelBudget();
+    final adopted =
+        _anchorCase?.adoptConfirmedProjection(
+          field.resolvedAnchorProjection,
+        ) ??
+        true;
+    final confirmedProjection =
+        _anchorCase?.confirmedProjection ?? field.resolvedAnchorProjection;
+    final loadedField = adopted
+        ? field
+        : field.copyWith(anchorProjection: confirmedProjection);
+    final deferTargets = _shouldDeferPlacementRefresh()
+        ? _deferredRefreshTargetsForPresentation()
+        : const <ConstellationAnchorTarget>{};
+    final presentationField = deferTargets.isEmpty
+        ? loadedField
+        : loadedField.copyWith(
+            anchorProjection: _presentationProjection(
+              confirmedProjection,
+              deferTargets: deferTargets,
+            ),
+          );
+    final composition = kReleaseMode
+        ? _composePresentation(
+            viewerId: _viewer.id,
+            field: _composerField(presentationField),
+            localFilters: state.filters,
+            asOfUtc: loadedField.loadedAt,
+            labelBudget: labelBudget,
+            expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
+            selectedRequestWebs: _selectedRequestWebs,
+            extraKeptPeerIds: _extraKeptPeerIds,
+          )
+        : ConstellationPerf.timeSync(
+            'compose',
+            () => _composePresentation(
               viewerId: _viewer.id,
-              field: _composerField(loadedField),
+              field: _composerField(presentationField),
               localFilters: state.filters,
               asOfUtc: loadedField.loadedAt,
               labelBudget: labelBudget,
               expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
               selectedRequestWebs: _selectedRequestWebs,
               extraKeptPeerIds: _extraKeptPeerIds,
-            )
-          : ConstellationPerf.timeSync(
-              'compose',
-              () => composeConstellationPresentation(
-                viewerId: _viewer.id,
-                field: _composerField(loadedField),
-                localFilters: state.filters,
-                asOfUtc: loadedField.loadedAt,
-                labelBudget: labelBudget,
-                expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
-                selectedRequestWebs: _selectedRequestWebs,
-                extraKeptPeerIds: _extraKeptPeerIds,
-              ),
-            );
-      emit(
-        state.copyWith(
-          status: const StateIsSuccess(),
-          loadedAt: loadedField.loadedAt,
-          field: loadedField,
-          composition: composition,
-          paths: composition.paths,
-          keptPeerIds: composition.keptPeerIds,
-          capped: composition.renderBudgetCapped,
-          loadError: null,
-          syncPending: _anchorCase?.syncPending ?? false,
-          placementActionsEnabled: true,
-        ),
-      );
-      droppedHolderIds = composition.droppedHolderIds;
-      _reconcileSelection(composition);
-      _reconcileLayout();
-    } on Object catch (error) {
-      if (isClosed || generation != state.loadGeneration) {
-        return;
-      }
-      emit(
-        state.copyWith(
-          status: const StateIsSuccess(),
-          loadError: error,
-        ),
-      );
-    }
+            ),
+          );
+    emit(
+      state.copyWith(
+        status: const StateIsSuccess(),
+        loadedAt: loadedField.loadedAt,
+        field: loadedField,
+        composition: composition,
+        paths: composition.paths,
+        keptPeerIds: composition.keptPeerIds,
+        capped: composition.renderBudgetCapped,
+        loadError: null,
+        syncPending: _anchorCase?.syncPending ?? false,
+        deferredRefreshTargets: deferTargets,
+        placementActionsEnabled: true,
+      ),
+    );
+    droppedHolderIds = composition.droppedHolderIds;
+    _reconcileSelection(composition);
+    if (deferTargets.isEmpty) _reconcileLayout();
   }
 
   String get viewerId => _viewer.id;
@@ -1577,7 +1481,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     );
     final mergedField = field.copyWith(anchorProjection: presentation);
     final composition = kReleaseMode
-        ? composeConstellationPresentation(
+        ? _composePresentation(
             viewerId: _viewer.id,
             field: _composerField(mergedField),
             localFilters: state.filters,
@@ -1589,7 +1493,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
           )
         : ConstellationPerf.timeSync(
             'compose',
-            () => composeConstellationPresentation(
+            () => _composePresentation(
               viewerId: _viewer.id,
               field: _composerField(mergedField),
               localFilters: state.filters,
@@ -2181,7 +2085,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       participatedOnly: state.membershipFilters.participatedOnly,
     );
     emit(state.copyWith(membershipFilters: filters));
-    _anchorCase?.syncMembershipFilters(filters);
+    _case.setMembershipFilters(filters);
     await load();
   }
 
@@ -2196,7 +2100,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       participatedOnly: participatedOnly,
     );
     emit(state.copyWith(membershipFilters: filters));
-    _anchorCase?.syncMembershipFilters(filters);
+    _case.setMembershipFilters(filters);
     await load();
   }
 
@@ -2218,7 +2122,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         membershipFilters: defaultMembership,
       ),
     );
-    _anchorCase?.syncMembershipFilters(defaultMembership);
+    _case.setMembershipFilters(defaultMembership);
     if (hadMembershipFilters) {
       await load();
     } else {
@@ -2301,24 +2205,15 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     return 'constellationAbsenceRing';
   }
 
-  /// Refreshes a single request's status/offer/forward flags before an
-  /// action (Offer Help / Forward) commits. This MUST stay on a
-  /// content-wall-gated data source (`_case.load`, the same
-  /// [ConstellationFieldCase] the initial field snapshot came from) rather
-  /// than an involvement-gated one (e.g. `fetchBeaconInvolvement`) —
-  /// discovery-only Constellation viewers per D11 have content-read access
-  /// but never involvement/discussion-admission access, so an
-  /// involvement-gated preflight would always deny the primary Constellation
-  /// action flow. Only the one matching request is merged into state
-  /// ([_replaceRequestInField]); this must not update `state.loadedAt` or
-  /// otherwise claim the whole field was refreshed.
+  /// Checks the current content-wall-gated store snapshot. The server validates
+  /// authorization when the action is submitted.
   Future<ConstellationRequestPreflight> preflightRequestAction(
     String beaconId,
   ) async {
     try {
-      final resolved = await _case.load(viewerId: _viewer.id);
+      final field = _case.current.field;
       ConstellationRequest? refreshed;
-      for (final request in resolved.field.requests) {
+      for (final request in field?.requests ?? const <ConstellationRequest>[]) {
         if (request.id == beaconId) {
           refreshed = request;
           break;
@@ -2335,7 +2230,6 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
           message: _authorizationDeniedMessage(status),
         );
       }
-      _replaceRequestInField(refreshed);
       return ConstellationRequestPreflight.ready(
         request: refreshed,
         viewerHasActiveHelpOffer: refreshed.viewerHasActiveHelpOffer,
@@ -2702,7 +2596,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       return;
     }
     final composition = kReleaseMode
-        ? composeConstellationPresentation(
+        ? _composePresentation(
             viewerId: _viewer.id,
             field: _composerField(field),
             localFilters: state.filters,
@@ -2714,7 +2608,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
           )
         : ConstellationPerf.timeSync(
             'compose',
-            () => composeConstellationPresentation(
+            () => _composePresentation(
               viewerId: _viewer.id,
               field: _composerField(field),
               localFilters: state.filters,
@@ -3250,23 +3144,6 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       myVote: viewerTrustsSubject ? 1 : 0,
       subjectExplicitlyTrustsViewer: subjectTrustsViewer,
     );
-  }
-
-  void _replaceRequestInField(ConstellationRequest refreshed) {
-    final field = state.field;
-    if (field == null) {
-      return;
-    }
-    final requests = [
-      for (final request in field.requests)
-        if (request.id == refreshed.id) refreshed else request,
-    ];
-    emit(
-      state.copyWith(
-        field: field.copyWith(requests: requests),
-      ),
-    );
-    _recomposeAndLayout();
   }
 
   String _authorizationDeniedMessage(BeaconStatus status) => switch (status) {

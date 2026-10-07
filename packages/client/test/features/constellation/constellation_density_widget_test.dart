@@ -1,20 +1,19 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/constellation/domain/constellation_filters.dart';
 import 'package:tentura/features/constellation/domain/constellation_layout.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
-import 'package:tentura/features/constellation/domain/use_case/constellation_field_case.dart';
+import 'package:tentura/features/constellation/domain/use_case/constellation_field_store_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_filter_bar.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_overflow_group.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+
+import '../../support/constellation_store_fixture.dart';
 
 const _ego = Profile(id: 'ego', displayName: 'Ego');
 
@@ -28,16 +27,14 @@ final class _StubRepository implements ConstellationRepositoryPort {
     ConstellationFieldMembershipFilters membershipFilters =
         ConstellationFieldMembershipFilters.defaults,
     ConstellationProjection projection = ConstellationProjection.full,
-  }) async =>
-      field;
+  }) async => field;
 }
 
-ConstellationFieldCase _caseForField(ConstellationField field) =>
-    ConstellationFieldCase(
+ConstellationFieldStoreCase _caseForField(ConstellationField field) =>
+    ConstellationStoreFixture(
       _StubRepository(field),
-      env: const Env.fromEnvironment(),
-      logger: Logger('ConstellationDensityWidgetTest'),
-    );
+      accountId: 'ego',
+    ).store;
 
 Future<ConstellationCubit> _loadCubit(
   ConstellationField field, {
@@ -101,12 +98,14 @@ String _absenceLabel(L10n l10n, ConstellationCubit cubit, String personId) {
   final absence = cubit.absenceForPerson(personId);
   return switch (absence) {
     ConstellationNodeAbsence.none => '',
-    ConstellationNodeAbsence.filterHidden => l10n.constellationAbsenceFilterHidden,
+    ConstellationNodeAbsence.filterHidden =>
+      l10n.constellationAbsenceFilterHidden,
     ConstellationNodeAbsence.spaceCollapsed =>
       l10n.constellationAbsenceSpaceCollapsed,
-    ConstellationNodeAbsence.ring => cubit.peersCapped
-        ? l10n.constellationAbsencePathNotShown
-        : l10n.constellationAbsenceRing,
+    ConstellationNodeAbsence.ring =>
+      cubit.peersCapped
+          ? l10n.constellationAbsencePathNotShown
+          : l10n.constellationAbsenceRing,
     ConstellationNodeAbsence.capDisplaced =>
       l10n.constellationAbsenceCapDisplaced,
     ConstellationNodeAbsence.ringBudgetOmitted =>
@@ -192,51 +191,59 @@ class _AbsenceProbeList extends StatelessWidget {
 
 void main() {
   group('Constellation density and filter widgets', () {
-    testWidgets('compact and expanded layouts keep controls readable at text scales',
-        (tester) async {
-      for (final width in [390.0, 900.0]) {
-        for (final scale in [1.0, 1.3, 2.0]) {
-          final cubit = await _loadCubit(
-            _baseField(
-              peers: [const ConstellationPerson(id: 'a', displayName: 'Ann')],
-              edges: [
-                const ConstellationTrustEdgeEntity(src: 'ego', dst: 'a', tier: 1),
-              ],
-              requests: [
-                const ConstellationRequest(
-                  id: 'req-a',
-                  authorId: 'a',
-                  title: 'Need tools',
-                  status: 0,
-                  needs: ['tools'],
-                ),
-              ],
-            ),
-            viewport: Size(width, 800),
-            textScale: scale,
-          );
-          await _pumpHarness(
-            tester,
-            cubit: cubit,
-            width: width,
-            textScale: scale,
-          );
+    testWidgets(
+      'compact and expanded layouts keep controls readable at text scales',
+      (tester) async {
+        for (final width in [390.0, 900.0]) {
+          for (final scale in [1.0, 1.3, 2.0]) {
+            final cubit = await _loadCubit(
+              _baseField(
+                peers: [const ConstellationPerson(id: 'a', displayName: 'Ann')],
+                edges: [
+                  const ConstellationTrustEdgeEntity(
+                    src: 'ego',
+                    dst: 'a',
+                    tier: 1,
+                  ),
+                ],
+                requests: [
+                  const ConstellationRequest(
+                    id: 'req-a',
+                    authorId: 'a',
+                    title: 'Need tools',
+                    status: 0,
+                    needs: ['tools'],
+                  ),
+                ],
+              ),
+              viewport: Size(width, 800),
+              textScale: scale,
+            );
+            await _pumpHarness(
+              tester,
+              cubit: cubit,
+              width: width,
+              textScale: scale,
+            );
 
-          final filterBar = tester.getSize(
-            find.byKey(const Key('constellation.filter_bar')),
-          );
-          expect(filterBar.width, greaterThan(0));
-          expect(filterBar.height, greaterThan(44 * scale));
+            final filterBar = tester.getSize(
+              find.byKey(const Key('constellation.filter_bar')),
+            );
+            expect(filterBar.width, greaterThan(0));
+            expect(filterBar.height, greaterThan(44 * scale));
 
-          final chip = tester.getSize(
-            find.byKey(const Key('constellation.filter.location.any')),
-          );
-          expect(chip.height, greaterThanOrEqualTo(44));
+            final chip = tester.getSize(
+              find.byKey(const Key('constellation.filter.location.any')),
+            );
+            expect(chip.height, greaterThanOrEqualTo(44));
+          }
         }
-      }
-    });
+      },
+    );
 
-    testWidgets('changing filters does not move person anchors', (tester) async {
+    testWidgets('changing filters does not move person anchors', (
+      tester,
+    ) async {
       final field = _baseField(
         peers: [
           const ConstellationPerson(id: 'a'),
@@ -277,7 +284,9 @@ void main() {
       expect(restored['b'], before['b']);
     });
 
-    testWidgets('four per-node absence states render distinctly', (tester) async {
+    testWidgets('four per-node absence states render distinctly', (
+      tester,
+    ) async {
       final prolific = List.generate(
         6,
         (i) => ConstellationRequest(
@@ -307,7 +316,12 @@ void main() {
               status: 0,
               needs: ['ride'],
             ),
-            const ConstellationRequest(id: 'req-r', authorId: 'r', title: 'Ring', status: 0),
+            const ConstellationRequest(
+              id: 'req-r',
+              authorId: 'r',
+              title: 'Ring',
+              status: 0,
+            ),
           ],
         ),
         viewport: const Size(400, 400),
@@ -370,7 +384,10 @@ void main() {
       );
       expect(find.textContaining('field too large'), findsNothing);
       expect(find.textContaining('requests are hidden'), findsNothing);
-      expect(find.byKey(const Key('constellation.notice.fallback_list')), findsOneWidget);
+      expect(
+        find.byKey(const Key('constellation.notice.fallback_list')),
+        findsOneWidget,
+      );
       expect(cubit.displayedRequestIds, contains('req-ego'));
       expect(
         find.text('Path not shown'),
@@ -380,27 +397,33 @@ void main() {
         find.text("Connection not explained within this map's path rules"),
         findsNothing,
       );
-      expect(find.byKey(const Key('constellation.notice.requests_capped')), findsNothing);
+      expect(
+        find.byKey(const Key('constellation.notice.requests_capped')),
+        findsNothing,
+      );
       expect(
         find.byKey(const Key('constellation.notice.render_budget_capped')),
         findsNothing,
       );
     });
 
-    testWidgets('requestsCapped alone shows distinct copy without path notice', (
-      tester,
-    ) async {
-      final cubit = await _loadCubit(
-        _baseField(requestsCapped: true),
-      );
-      await _pumpHarness(tester, cubit: cubit, width: 900, textScale: 1.0);
+    testWidgets(
+      'requestsCapped alone shows distinct copy without path notice',
+      (
+        tester,
+      ) async {
+        final cubit = await _loadCubit(
+          _baseField(requestsCapped: true),
+        );
+        await _pumpHarness(tester, cubit: cubit, width: 900, textScale: 1.0);
 
-      expect(find.text('Some requests could not be loaded'), findsOneWidget);
-      expect(
-        find.text('Some connection paths are not shown'),
-        findsNothing,
-      );
-    });
+        expect(find.text('Some requests could not be loaded'), findsOneWidget);
+        expect(
+          find.text('Some connection paths are not shown'),
+          findsNothing,
+        );
+      },
+    );
 
     testWidgets('client render budget capped alone shows budget notice', (
       tester,
@@ -487,8 +510,14 @@ void main() {
       );
 
       expect(cubit.droppedHolderIds, isEmpty);
-      expect(cubit.absenceForPerson('r'), ConstellationNodeAbsence.ringBudgetOmitted);
-      expect(cubit.absenceForPerson('h'), isNot(ConstellationNodeAbsence.capDisplaced));
+      expect(
+        cubit.absenceForPerson('r'),
+        ConstellationNodeAbsence.ringBudgetOmitted,
+      );
+      expect(
+        cubit.absenceForPerson('h'),
+        isNot(ConstellationNodeAbsence.capDisplaced),
+      );
 
       await _pumpHarness(tester, cubit: cubit, width: 900, textScale: 1.0);
       expect(
@@ -572,34 +601,37 @@ void main() {
       expect(cubit.displayedRequestIds.length, 5);
     });
 
-    testWidgets('empty filtered result offers clear filters without despair copy', (
-      tester,
-    ) async {
-      final cubit = await _loadCubit(
-        _baseField(
-          requests: [
-            const ConstellationRequest(
-              id: 'req-a',
-              authorId: 'a',
-              title: 'Tools',
-              status: 0,
-              needs: ['tools'],
-            ),
-          ],
-        ),
-      );
-      cubit.setFilterCapabilitySlugs({'ride'});
-      await _pumpHarness(tester, cubit: cubit, width: 900, textScale: 1.0);
+    testWidgets(
+      'empty filtered result offers clear filters without despair copy',
+      (
+        tester,
+      ) async {
+        final cubit = await _loadCubit(
+          _baseField(
+            requests: [
+              const ConstellationRequest(
+                id: 'req-a',
+                authorId: 'a',
+                title: 'Tools',
+                status: 0,
+                needs: ['tools'],
+              ),
+            ],
+          ),
+        );
+        cubit.setFilterCapabilitySlugs({'ride'});
+        await _pumpHarness(tester, cubit: cubit, width: 900, textScale: 1.0);
 
-      expect(find.text('No requests match these filters'), findsOneWidget);
-      expect(find.text('Clear filters'), findsOneWidget);
-      expect(find.textContaining('nobody'), findsNothing);
-      expect(find.textContaining('no one needs'), findsNothing);
+        expect(find.text('No requests match these filters'), findsOneWidget);
+        expect(find.text('Clear filters'), findsOneWidget);
+        expect(find.textContaining('nobody'), findsNothing);
+        expect(find.textContaining('no one needs'), findsNothing);
 
-      await tester.tap(find.byKey(const Key('constellation.filter.clear')));
-      await tester.pumpAndSettle();
-      expect(cubit.hasActiveFilters, isFalse);
-    });
+        await tester.tap(find.byKey(const Key('constellation.filter.clear')));
+        await tester.pumpAndSettle();
+        expect(cubit.hasActiveFilters, isFalse);
+      },
+    );
 
     test('filters use snapshot loadedAt not wall clock', () async {
       final loadedAt = DateTime.utc(2026, 1, 1, 12);

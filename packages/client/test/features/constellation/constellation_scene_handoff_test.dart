@@ -13,7 +13,6 @@ import 'package:tentura/features/constellation/domain/entity/constellation_field
 import 'package:tentura/features/constellation/domain/port/constellation_anchor_repository_port.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_anchor_case.dart';
-import 'package:tentura/features/constellation/domain/use_case/constellation_field_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/utils/constellation_graph_scene.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
@@ -26,6 +25,8 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
+
+import '../../support/constellation_store_fixture.dart';
 
 const _ego = Profile(id: 'ego', displayName: 'Ego');
 final _loadedAt = DateTime.utc(2026, 9, 11, 12);
@@ -139,15 +140,13 @@ Future<ConstellationCubit> _loadedCubitForField(
 ) async {
   final sync = buildTestRealtimeSync();
   final cubit = ConstellationCubit(
-    case_: ConstellationFieldCase(
+    case_: ConstellationStoreFixture(
       _HarnessFieldRepository(field),
-      env: const Env.fromEnvironment(),
-      logger: Logger('ConstellationSceneHandoffTest'),
-    ),
+      accountId: 'ego',
+    ).store,
     anchorCase: ConstellationAnchorCase(
       _HarnessFieldRepository(field),
       _HarnessAnchorRepository(),
-      sync.case_,
       env: const Env.fromEnvironment(),
       logger: Logger('ConstellationSceneHandoffTest'),
     ),

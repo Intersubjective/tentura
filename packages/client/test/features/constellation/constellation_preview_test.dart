@@ -2,13 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:logging/logging.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
-import 'package:tentura/features/constellation/domain/use_case/constellation_field_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_request_label.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_request_preview_sheet.dart';
@@ -19,6 +17,8 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
+
+import '../../support/constellation_store_fixture.dart';
 
 class _StubContextCubit extends Cubit<GraphPersonContextState>
     implements GraphPersonContextCubit {
@@ -51,20 +51,18 @@ final class _StubRepository implements ConstellationRepositoryPort {
     ConstellationFieldMembershipFilters membershipFilters =
         ConstellationFieldMembershipFilters.defaults,
     ConstellationProjection projection = ConstellationProjection.full,
-  }) async =>
-      ConstellationField(
-        loadedAt: DateTime.utc(2026, 9, 13),
-        context: '',
-      );
+  }) async => ConstellationField(
+    loadedAt: DateTime.utc(2026, 9, 13),
+    context: '',
+  );
 }
 
 Future<ConstellationCubit> _previewCubit() async {
   final cubit = ConstellationCubit(
-    case_: ConstellationFieldCase(
+    case_: ConstellationStoreFixture(
       _StubRepository(),
-      env: const Env.fromEnvironment(),
-      logger: Logger('ConstellationPreviewTest'),
-    ),
+      accountId: 'ego',
+    ).store,
     viewer: _ego,
     loadOnCreate: false,
   );
@@ -120,7 +118,10 @@ Future<void> _pumpPreview(
           child: Scaffold(
             body: Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 320, maxHeight: 600),
+                constraints: const BoxConstraints(
+                  maxWidth: 320,
+                  maxHeight: 600,
+                ),
                 child: ConstellationRequestPreviewSheet(
                   request: request,
                   authorDisplayName: 'Ann',
@@ -199,9 +200,10 @@ void main() {
               ConstellationHeldState.mine => l10n.openBeacon,
               ConstellationHeldState.offered => l10n.beaconCtaEditHelpOffer,
               ConstellationHeldState.participant => l10n.openBeacon,
-              ConstellationHeldState.none => statusEntry.key == 8
-                  ? l10n.beaconOfferHelpAsBackup
-                  : l10n.labelOfferHelp,
+              ConstellationHeldState.none =>
+                statusEntry.key == 8
+                    ? l10n.beaconOfferHelpAsBackup
+                    : l10n.labelOfferHelp,
               ConstellationHeldState.forwarded => l10n.openBeacon,
             };
 
@@ -234,8 +236,14 @@ void main() {
         );
 
         expect(find.text(l10n.openBeacon), findsOneWidget);
-        expect(find.widgetWithText(FilledButton, l10n.openBeacon), findsOneWidget);
-        expect(find.widgetWithText(OutlinedButton, l10n.openBeacon), findsNothing);
+        expect(
+          find.widgetWithText(FilledButton, l10n.openBeacon),
+          findsOneWidget,
+        );
+        expect(
+          find.widgetWithText(OutlinedButton, l10n.openBeacon),
+          findsNothing,
+        );
       },
     );
 
@@ -250,8 +258,14 @@ void main() {
           ),
         );
 
-        expect(find.widgetWithText(OutlinedButton, l10n.openBeacon), findsOneWidget);
-        expect(find.widgetWithText(FilledButton, l10n.labelOfferHelp), findsOneWidget);
+        expect(
+          find.widgetWithText(OutlinedButton, l10n.openBeacon),
+          findsOneWidget,
+        );
+        expect(
+          find.widgetWithText(FilledButton, l10n.labelOfferHelp),
+          findsOneWidget,
+        );
       },
     );
   });

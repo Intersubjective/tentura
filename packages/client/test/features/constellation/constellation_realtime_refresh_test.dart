@@ -1,18 +1,18 @@
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
-import 'package:tentura/features/constellation/domain/use_case/constellation_field_case.dart';
+import 'package:tentura/features/constellation/domain/use_case/constellation_field_store_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 
 import '../../support/test_realtime_sync.dart';
+
+import '../../support/constellation_store_fixture.dart';
 
 /// #234: realtime-driven FULL refetches were issued for every room event of
 /// any Request, every 220 ms, also while the tab was hidden.
@@ -46,6 +46,7 @@ void main() {
   late ({RealtimeSyncCase case_, TestRealtimeSyncPort port}) sync;
   late _CountingRepository repository;
   late ConstellationCubit cubit;
+  late ConstellationStoreFixture fixture;
 
   void emit(RealtimeEntityKind kind, String beaconId) => sync.port.emitChange(
     RealtimeEntityChange(
@@ -59,22 +60,26 @@ void main() {
   void build(FakeAsync async) {
     sync = buildTestRealtimeSync();
     repository = _CountingRepository();
-    cubit = ConstellationCubit(
-      case_: ConstellationFieldCase(
-        repository,
-        env: const Env.fromEnvironment(),
-        logger: Logger('ConstellationRealtimeRefreshTest'),
-        realtimeSyncCase: sync.case_,
-      ),
-      viewer: const Profile(id: 'ego'),
+    fixture = ConstellationStoreFixture(
+      repository,
+      accountId: 'ego',
+      realtime: sync.case_,
       now: () => DateTime.utc(2026, 10, 5).add(async.elapsed),
     );
     async.flushMicrotasks();
+    cubit = fixture.createCubit(
+      viewer: const Profile(id: 'ego'),
+    );
+    cubit.load();
+    async.flushMicrotasks();
     expect(repository.fetchCount, 1, reason: 'initial load');
+    expect(cubit.state.field, same(fixture.store.current.field));
   }
 
   void tearDownCubit(FakeAsync async) {
     cubit.close();
+    fixture.store.dispose();
+    fixture.account.close();
     sync.port.dispose();
     async.flushMicrotasks();
   }

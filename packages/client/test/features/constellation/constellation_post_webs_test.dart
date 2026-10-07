@@ -1,27 +1,26 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_post_preview_sheet.dart';
 import '../../support/test_realtime_sync.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/constellation/domain/constellation_post_fade.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
-import 'package:tentura/features/constellation/domain/use_case/constellation_field_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
-import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import 'fixtures/constellation_reference_fixture.dart'
     show pumpConstellationBody;
 import 'package:tentura/features/constellation/domain/constellation_consts.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_overflow_group.dart';
+
+import '../../support/constellation_store_fixture.dart';
+import '../../support/fake_clock_port.dart';
+import '../../support/fake_wake_up_port.dart';
 
 final _loadedAt = DateTime.utc(2026, 10, 3, 12);
 
@@ -78,11 +77,10 @@ ConstellationField _field() => ConstellationField(
 
 Future<ConstellationCubit> _load([ConstellationField? field]) async {
   final cubit = ConstellationCubit(
-    case_: ConstellationFieldCase(
+    case_: ConstellationStoreFixture(
       _StubRepository(field ?? _field()),
-      env: const Env.fromEnvironment(),
-      logger: Logger('ConstellationPostWebsTest'),
-    ),
+      accountId: 'ego',
+    ).store,
     viewer: const Profile(id: 'ego', displayName: 'Ego'),
   );
   await cubit.stream.firstWhere((state) => state.status is StateIsSuccess);
@@ -173,19 +171,37 @@ void main() {
     'realtime coalesces Post changes, refreshes messages and catches up',
     () async {
       final sync = buildTestRealtimeSync();
+      final clock = FakeClockPort(_loadedAt);
+      final wakeUp = FakeWakeUpPort();
+      // Steps past the store's 2 s spacing between realtime-driven FULLs.
+      Future<void> advance(Duration duration) async {
+        var remaining = duration;
+        while (remaining > Duration.zero) {
+          final step = remaining > const Duration(milliseconds: 100)
+              ? const Duration(milliseconds: 100)
+              : remaining;
+          clock.advance(step);
+          wakeUp.elapse(step);
+          for (var i = 0; i < 10; i++) {
+            await Future<void>.delayed(Duration.zero);
+          }
+          remaining -= step;
+        }
+      }
+
       final repository = _StubRepository(
         _field().copyWith(posts: [], memberWebs: []),
       );
       final cubit = ConstellationCubit(
-        case_: ConstellationFieldCase(
+        case_: ConstellationStoreFixture(
           repository,
-          env: const Env.fromEnvironment(),
-          logger: Logger('RealtimePostTest'),
-          realtimeSyncCase: sync.case_,
-        ),
+          realtime: sync.case_,
+          accountId: 'ego',
+          clock: clock,
+          wakeUp: wakeUp,
+        ).store,
         viewer: const Profile(id: 'ego'),
         loadOnCreate: false,
-        realtimeRefreshMinInterval: Duration.zero,
       );
       addTearDown(sync.port.dispose);
       addTearDown(cubit.close);
@@ -203,7 +219,7 @@ void main() {
       for (var i = 0; i < 5; i++) {
         change(RealtimeEntityKind.beacon);
       }
-      await Future<void>.delayed(const Duration(milliseconds: 350));
+      await advance(const Duration(milliseconds: 2500));
       expect(repository.fetchCount, 2);
       expect(cubit.postById('post-1'), isNotNull);
       repository.field = repository.field.copyWith(
@@ -212,17 +228,17 @@ void main() {
         ],
       );
       change(RealtimeEntityKind.roomMessage);
-      await Future<void>.delayed(const Duration(milliseconds: 350));
+      await advance(const Duration(milliseconds: 2500));
       expect(cubit.postById('post-1')!.rootExcerpt, 'new message');
       repository.field = repository.field.copyWith(posts: [], memberWebs: []);
       sync.port.emitCatchUp();
-      await Future<void>.delayed(const Duration(milliseconds: 350));
+      await advance(const Duration(milliseconds: 2500));
       expect(cubit.postById('post-1'), isNull);
       final count = repository.fetchCount;
       change(RealtimeEntityKind.beacon);
       await Future<void>.delayed(Duration.zero);
       await cubit.close();
-      await Future<void>.delayed(const Duration(milliseconds: 350));
+      await advance(const Duration(milliseconds: 2500));
       expect(repository.fetchCount, count);
     },
   );

@@ -12,13 +12,14 @@ import 'package:tentura/features/constellation/domain/entity/constellation_field
 import 'package:tentura/features/constellation/domain/port/constellation_anchor_repository_port.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_anchor_case.dart';
-import 'package:tentura/features/constellation/domain/use_case/constellation_field_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:vm_service/vm_service_io.dart';
 
 import '../../support/test_realtime_sync.dart';
 import 'fixtures/constellation_reference_fixture.dart';
+
+import '../../support/constellation_store_fixture.dart';
 
 final class _Anchors implements ConstellationAnchorRepositoryPort {
   final ack = Completer<void>();
@@ -128,16 +129,14 @@ void main() {
       final anchorCase = ConstellationAnchorCase(
         field,
         anchors,
-        sync.case_,
         env: const Env.fromEnvironment(),
         logger: Logger('TimelineSpanFixture'),
       );
       final cubit = ConstellationCubit(
-        case_: ConstellationFieldCase(
+        case_: ConstellationStoreFixture(
           field,
-          env: const Env.fromEnvironment(),
-          logger: Logger('TimelineSpanFixture'),
-        ),
+          accountId: 'ego',
+        ).store,
         anchorCase: anchorCase,
         viewer: kRefEgo,
         loadOnCreate: false,

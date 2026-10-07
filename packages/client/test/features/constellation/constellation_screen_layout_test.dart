@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
-import 'package:tentura/features/constellation/domain/use_case/constellation_field_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_composer_cubit.dart';
 import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
@@ -22,6 +19,8 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../beacon_create/fake_beacon_ports.dart';
+
+import '../../support/constellation_store_fixture.dart';
 
 const _ego = Profile(id: 'ego', displayName: 'Ego');
 
@@ -63,7 +62,7 @@ class _StubContextCubit extends Cubit<GraphPersonContextState>
 
 Future<ConstellationCubit> _loadCubit({bool withPost = false}) async {
   final cubit = ConstellationCubit(
-    case_: ConstellationFieldCase(
+    case_: ConstellationStoreFixture(
       _StubRepository(
         ConstellationField(
           loadedAt: DateTime.utc(2026, 9, 9),
@@ -93,9 +92,8 @@ Future<ConstellationCubit> _loadCubit({bool withPost = false}) async {
           ],
         ),
       ),
-      env: const Env.fromEnvironment(),
-      logger: Logger('ConstellationScreenLayoutTest'),
-    ),
+      accountId: 'ego',
+    ).store,
     viewer: _ego,
   );
   await cubit.stream.firstWhere((state) => state.status is StateIsSuccess);

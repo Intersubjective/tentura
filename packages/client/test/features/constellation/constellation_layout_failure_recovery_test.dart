@@ -12,7 +12,6 @@ import 'package:tentura/features/constellation/domain/entity/constellation_field
 import 'package:tentura/features/constellation/domain/port/constellation_anchor_repository_port.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_anchor_case.dart';
-import 'package:tentura/features/constellation/domain/use_case/constellation_field_case.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
@@ -21,8 +20,10 @@ import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
-import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
+
+import '../../support/constellation_store_fixture.dart';
+
 class _StubContextCubit extends Cubit<GraphPersonContextState>
     implements GraphPersonContextCubit {
   _StubContextCubit() : super(const GraphPersonContextState());
@@ -70,25 +71,25 @@ final _ego = Profile(id: 'ego', displayName: 'Ego');
 final _loadedAt = DateTime.utc(2026, 9, 13, 12);
 
 ConstellationField _field() => ConstellationField(
-      loadedAt: _loadedAt,
-      context: '',
-      peers: const [
-        ConstellationPerson(id: 'p1', displayName: 'Peer'),
-      ],
-      requests: const [],
-      anchorProjection: ConstellationAnchorProjection(
-        revision: ConstellationAnchorRevision(BigInt.one),
-        anchors: const [],
-        pinnedPeers: const [
-          ConstellationPerson(id: 'p1', displayName: 'Peer'),
-        ],
-        pinnedRequests: const [],
-        supportPeers: const [],
-        supportEdges: const [],
-        serverFilteredBeaconIds: const [],
-        serverFilteredBeaconCount: 0,
-      ),
-    );
+  loadedAt: _loadedAt,
+  context: '',
+  peers: const [
+    ConstellationPerson(id: 'p1', displayName: 'Peer'),
+  ],
+  requests: const [],
+  anchorProjection: ConstellationAnchorProjection(
+    revision: ConstellationAnchorRevision(BigInt.one),
+    anchors: const [],
+    pinnedPeers: const [
+      ConstellationPerson(id: 'p1', displayName: 'Peer'),
+    ],
+    pinnedRequests: const [],
+    supportPeers: const [],
+    supportEdges: const [],
+    serverFilteredBeaconIds: const [],
+    serverFilteredBeaconCount: 0,
+  ),
+);
 
 final class _HarnessFieldRepository implements ConstellationRepositoryPort {
   @override
@@ -96,34 +97,32 @@ final class _HarnessFieldRepository implements ConstellationRepositoryPort {
     ConstellationFieldMembershipFilters membershipFilters =
         ConstellationFieldMembershipFilters.defaults,
     ConstellationProjection projection = ConstellationProjection.full,
-  }) async =>
-      _field();
+  }) async => _field();
 }
 
-final class _HarnessAnchorRepository implements ConstellationAnchorRepositoryPort {
+final class _HarnessAnchorRepository
+    implements ConstellationAnchorRepositoryPort {
   @override
   Future<ConstellationAnchorUpsertResult> upsert({
     required ConstellationAnchorTarget target,
     required ConstellationAnchorPosition position,
-  }) async =>
-      ConstellationAnchorUpsertResult(
-        anchor: ConstellationAnchor(
-          target: target,
-          position: position,
-          revision: ConstellationAnchorRevision(BigInt.two),
-          placedAt: _loadedAt,
-        ),
-        revision: ConstellationAnchorRevision(BigInt.two),
-      );
+  }) async => ConstellationAnchorUpsertResult(
+    anchor: ConstellationAnchor(
+      target: target,
+      position: position,
+      revision: ConstellationAnchorRevision(BigInt.two),
+      placedAt: _loadedAt,
+    ),
+    revision: ConstellationAnchorRevision(BigInt.two),
+  );
 
   @override
   Future<ConstellationAnchorDeleteResult> delete({
     required ConstellationAnchorTarget target,
-  }) async =>
-      ConstellationAnchorDeleteResult(
-        target: target,
-        revision: ConstellationAnchorRevision(BigInt.from(3)),
-      );
+  }) async => ConstellationAnchorDeleteResult(
+    target: target,
+    revision: ConstellationAnchorRevision(BigInt.from(3)),
+  );
 }
 
 final class _FakeForwardRepository implements ForwardRepository {
@@ -220,18 +219,15 @@ Future<void> _pumpConstellationMap(
 }
 
 Future<ConstellationCubit> _loadedCubit(WidgetTester tester) async {
-  final sync = buildTestRealtimeSync();
   final cubit = ConstellationCubit(
-    case_: ConstellationFieldCase(
+    case_: ConstellationStoreFixture(
       _HarnessFieldRepository(),
-      env: const Env.fromEnvironment(),
-      logger: Logger('ConstellationLayoutFailureRecoveryTest'),
-    ),
+      accountId: 'ego',
+    ).store,
     viewer: _ego,
     anchorCase: ConstellationAnchorCase(
       _HarnessFieldRepository(),
       _HarnessAnchorRepository(),
-      sync.case_,
       env: const Env.fromEnvironment(),
       logger: Logger('ConstellationLayoutFailureRecoveryTest'),
     ),
@@ -254,84 +250,87 @@ void main() {
 
   group('constellation layout failure recovery', () {
     testWidgets(
-        'recovers once from confirmed projection after owned layout failure',
-        (tester) async {
-      final cubit = await _loadedCubit(tester);
-      addTearDown(cubit.close);
-      final requestsBefore = cubit.graphController.relayoutInvocationCount;
+      'recovers once from confirmed projection after owned layout failure',
+      (tester) async {
+        final cubit = await _loadedCubit(tester);
+        addTearDown(cubit.close);
+        final requestsBefore = cubit.graphController.relayoutInvocationCount;
 
-      cubit.requestConstellationLayoutForTest(
-        algorithm: _SyncThrowLayoutAlgorithm(),
-      );
-      await tester.pump();
-      var sawOwnedFailure = false;
-      for (var i = 0; i < 40; i++) {
-        await tester.pump(const Duration(milliseconds: 16));
-        if (cubit.graphController.scene.layoutOutcome
-            is GraphLayoutOutcomeFailed) {
-          sawOwnedFailure = true;
+        cubit.requestConstellationLayoutForTest(
+          algorithm: _SyncThrowLayoutAlgorithm(),
+        );
+        await tester.pump();
+        var sawOwnedFailure = false;
+        for (var i = 0; i < 40; i++) {
+          await tester.pump(const Duration(milliseconds: 16));
+          if (cubit.graphController.scene.layoutOutcome
+              is GraphLayoutOutcomeFailed) {
+            sawOwnedFailure = true;
+          }
+          if (cubit.graphController.scene.layoutOutcome
+              is GraphLayoutOutcomeSucceeded) {
+            break;
+          }
         }
-        if (cubit.graphController.scene.layoutOutcome
-            is GraphLayoutOutcomeSucceeded) {
-          break;
-        }
-      }
 
-      expect(
-        sawOwnedFailure,
-        isTrue,
-        reason: 'owned sync failure should surface before recovery succeeds',
-      );
-      expect(
-        cubit.graphController.scene.layoutOutcome,
-        isA<GraphLayoutOutcomeSucceeded>(),
-        reason: 'recovery layout did not succeed',
-      );
-      expect(cubit.state.graphLayoutFailureMessage, isNull);
-      expect(
-        cubit.graphController.relayoutInvocationCount,
-        greaterThanOrEqualTo(requestsBefore + 2),
-      );
-    });
+        expect(
+          sawOwnedFailure,
+          isTrue,
+          reason: 'owned sync failure should surface before recovery succeeds',
+        );
+        expect(
+          cubit.graphController.scene.layoutOutcome,
+          isA<GraphLayoutOutcomeSucceeded>(),
+          reason: 'recovery layout did not succeed',
+        );
+        expect(cubit.state.graphLayoutFailureMessage, isNull);
+        expect(
+          cubit.graphController.relayoutInvocationCount,
+          greaterThanOrEqualTo(requestsBefore + 2),
+        );
+      },
+    );
 
     testWidgets(
-        'second owned failure surfaces message without further relayout loop',
-        (tester) async {
-      final cubit = await _loadedCubit(tester);
-      addTearDown(cubit.close);
-      cubit.testSceneLayoutAlgorithmOverride = _SyncThrowLayoutAlgorithm();
+      'second owned failure surfaces message without further relayout loop',
+      (tester) async {
+        final cubit = await _loadedCubit(tester);
+        addTearDown(cubit.close);
+        cubit.testSceneLayoutAlgorithmOverride = _SyncThrowLayoutAlgorithm();
 
-      cubit.requestConstellationLayoutForTest(
-        algorithm: _SyncThrowLayoutAlgorithm(),
-      );
-      await tester.pump();
-      await _settleGraphLayoutFailureMessage(tester, cubit);
+        cubit.requestConstellationLayoutForTest(
+          algorithm: _SyncThrowLayoutAlgorithm(),
+        );
+        await tester.pump();
+        await _settleGraphLayoutFailureMessage(tester, cubit);
 
-      expect(
-        cubit.state.graphLayoutFailureMessage,
-        kConstellationGraphLayoutFailureMessage,
-      );
-      expect(
-        cubit.graphController.scene.layoutOutcome,
-        isA<GraphLayoutOutcomeFailed>(),
-        reason: 'exhausted recovery should leave a terminal failed outcome',
-      );
+        expect(
+          cubit.state.graphLayoutFailureMessage,
+          kConstellationGraphLayoutFailureMessage,
+        );
+        expect(
+          cubit.graphController.scene.layoutOutcome,
+          isA<GraphLayoutOutcomeFailed>(),
+          reason: 'exhausted recovery should leave a terminal failed outcome',
+        );
 
-      // Let layout-transition tail (350 ms) finish before asserting no relayout loop.
-      for (var i = 0; i < 30; i++) {
-        await tester.pump(const Duration(milliseconds: 16));
-      }
-      final countAfterFailure = cubit.graphController.relayoutInvocationCount;
-      await _pumpFramesWithoutRelayout(
-        tester,
-        cubit,
-        24,
-        relayoutCountBaseline: countAfterFailure,
-      );
-    });
+        // Let layout-transition tail (350 ms) finish before asserting no relayout loop.
+        for (var i = 0; i < 30; i++) {
+          await tester.pump(const Duration(milliseconds: 16));
+        }
+        final countAfterFailure = cubit.graphController.relayoutInvocationCount;
+        await _pumpFramesWithoutRelayout(
+          tester,
+          cubit,
+          24,
+          relayoutCountBaseline: countAfterFailure,
+        );
+      },
+    );
 
-    testWidgets('retryGraphLayoutAfterFailure clears failure and relayouts',
-        (tester) async {
+    testWidgets('retryGraphLayoutAfterFailure clears failure and relayouts', (
+      tester,
+    ) async {
       final cubit = await _loadedCubit(tester);
       addTearDown(cubit.close);
       cubit.testSceneLayoutAlgorithmOverride = _SyncThrowLayoutAlgorithm();

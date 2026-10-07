@@ -1,16 +1,16 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
-import 'package:tentura/features/constellation/domain/use_case/constellation_field_case.dart';
+import 'package:tentura/features/constellation/domain/use_case/constellation_field_store_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
+
+import '../../support/constellation_store_fixture.dart';
 
 const _ego = Profile(id: 'ego', displayName: 'Ego');
 final _loadedAt = DateTime.utc(2026, 9, 8, 12, 30);
@@ -39,23 +39,26 @@ ConstellationRequest _request({
   status: status,
 );
 
-// The preflight refresh (`ConstellationCubit.preflightRequestAction`) must
-// stay on this content-wall-gated `_case.load()` path (never an
-// involvement-gated one — see the cubit's doc comment on that method), so
-// these tests simulate a server-side change between the initial field load
-// and the preflight refresh by mutating what this stub's `fetch()` returns.
-final class _StubConstellationRepository implements ConstellationRepositoryPort {
+// Preflight reads the content-wall-gated current store snapshot. Tests model
+// server updates through an explicit store refresh, then assert preflight itself
+// performs no fetch. Mutations retain server-side authorization validation.
+final class _StubConstellationRepository
+    implements ConstellationRepositoryPort {
   _StubConstellationRepository(this.field);
 
   ConstellationField field;
+  late ConstellationFieldStoreCase store;
+  int fetchCount = 0;
 
   @override
   Future<ConstellationField> fetch({
     ConstellationFieldMembershipFilters membershipFilters =
         ConstellationFieldMembershipFilters.defaults,
     ConstellationProjection projection = ConstellationProjection.full,
-  }) async =>
-      field;
+  }) async {
+    fetchCount++;
+    return field;
+  }
 }
 
 class _FakeForwardRepository implements ForwardRepository {
@@ -95,15 +98,12 @@ Future<(ConstellationCubit, _StubConstellationRepository)> _cubitWithField(
   ForwardRepository? forwardRepository,
 }) async {
   final repo = _StubConstellationRepository(field);
-  final cubit = ConstellationCubit(
-    case_: ConstellationFieldCase(
-      repo,
-      env: const Env.fromEnvironment(),
-      logger: Logger('ConstellationFreshnessTest'),
-    ),
+  final fixture = ConstellationStoreFixture(repo, accountId: _ego.id);
+  repo.store = fixture.store;
+  await fixture.ready();
+  final cubit = fixture.createCubit(
     viewer: _ego,
     forwardRepository: forwardRepository ?? _FakeForwardRepository(),
-    loadOnCreate: false,
   );
   await cubit.load();
   return (cubit, repo);
@@ -126,30 +126,41 @@ void main() {
       expect(cubit.state.loadedAt, before);
     });
 
-    test('selected-request refresh keeps field loadedAt unchanged', () async {
-      final (cubit, repo) = await _cubitWithField(
-        _fieldForRequest(_request(id: 'B1', status: 0)),
-      );
-      repo.field = _fieldForRequest(
-        _request(id: 'B1', status: BeaconStatus.enoughHelp.smallintValue),
-      );
+    test(
+      'preflight uses refreshed store status without changing loadedAt or fetching',
+      () async {
+        final (cubit, repo) = await _cubitWithField(
+          _fieldForRequest(_request(id: 'B1', status: 0)),
+        );
+        repo.field = _fieldForRequest(
+          _request(id: 'B1', status: BeaconStatus.enoughHelp.smallintValue),
+        );
+        await repo.store.requestRefresh(ConstellationRefreshReason.load);
+        await Future<void>.delayed(Duration.zero);
 
-      final preflight = await cubit.preflightRequestAction('B1');
-      expect(preflight, isA<ConstellationRequestPreflightReady>());
-      expect(cubit.state.loadedAt, _loadedAt);
-      expect(
-        cubit.requestById('B1')?.status,
-        BeaconStatus.enoughHelp.smallintValue,
-      );
-    });
+        final before = repo.fetchCount;
+        final preflight = await cubit.preflightRequestAction('B1');
+        expect(repo.fetchCount, before);
+        expect(preflight, isA<ConstellationRequestPreflightReady>());
+        expect(cubit.state.loadedAt, _loadedAt);
+        expect(
+          cubit.requestById('B1')?.status,
+          BeaconStatus.enoughHelp.smallintValue,
+        );
+      },
+    );
 
     test('vanished request preflight explains instead of throwing', () async {
       final (cubit, repo) = await _cubitWithField(
         _fieldForRequest(_request(id: 'B1')),
       );
       repo.field = _fieldForRequests(const []);
+      await repo.store.requestRefresh(ConstellationRefreshReason.load);
+      await Future<void>.delayed(Duration.zero);
 
+      final before = repo.fetchCount;
       final preflight = await cubit.preflightRequestAction('B1');
+      expect(repo.fetchCount, before);
       expect(preflight, isA<ConstellationRequestPreflightUnavailable>());
       expect(
         (preflight as ConstellationRequestPreflightUnavailable).message,
@@ -157,18 +168,23 @@ void main() {
       );
     });
 
-    test('opted-out but still readable request is not refused client-side', () async {
-      final (cubit, repo) = await _cubitWithField(
-        _fieldForRequest(_request(id: 'B1')),
-      );
-      // Discoverability opting out again does not revoke a read already
-      // granted (R7) — the request stays in the content-wall-gated field
-      // fetch, so the preflight must still succeed.
-      repo.field = _fieldForRequest(_request(id: 'B1'));
+    test(
+      'opted-out but still readable request is not refused client-side',
+      () async {
+        final (cubit, repo) = await _cubitWithField(
+          _fieldForRequest(_request(id: 'B1')),
+        );
+        // Discoverability opting out again does not revoke a read already
+        // granted (R7) — the request stays in the content-wall-gated field
+        // fetch, so the preflight must still succeed.
+        repo.field = _fieldForRequest(_request(id: 'B1'));
 
-      final preflight = await cubit.preflightRequestAction('B1');
-      expect(preflight, isA<ConstellationRequestPreflightReady>());
-    });
+        final before = repo.fetchCount;
+        final preflight = await cubit.preflightRequestAction('B1');
+        expect(repo.fetchCount, before);
+        expect(preflight, isA<ConstellationRequestPreflightReady>());
+      },
+    );
 
     test('offerKindChanged preserves draft and can be retried', () async {
       final forwardRepo = _FakeForwardRepository(
@@ -188,16 +204,26 @@ void main() {
       expect(forwardRepo.lastExpectedOfferKind, 0);
     });
 
-    test('authorization denied when request is closed', () async {
-      final (cubit, repo) = await _cubitWithField(
-        _fieldForRequest(_request(id: 'B1')),
-      );
-      repo.field = _fieldForRequest(
-        _request(id: 'B1', status: BeaconStatus.cancelled.smallintValue),
-      );
+    test(
+      'a closed request in the current store is denied without fetching',
+      () async {
+        final (cubit, repo) = await _cubitWithField(
+          _fieldForRequest(_request(id: 'B1')),
+        );
+        repo.field = _fieldForRequest(
+          _request(id: 'B1', status: BeaconStatus.cancelled.smallintValue),
+        );
+        await repo.store.requestRefresh(ConstellationRefreshReason.load);
+        await Future<void>.delayed(Duration.zero);
 
-      final preflight = await cubit.preflightRequestAction('B1');
-      expect(preflight, isA<ConstellationRequestPreflightAuthorizationDenied>());
-    });
+        final before = repo.fetchCount;
+        final preflight = await cubit.preflightRequestAction('B1');
+        expect(repo.fetchCount, before);
+        expect(
+          preflight,
+          isA<ConstellationRequestPreflightAuthorizationDenied>(),
+        );
+      },
+    );
   });
 }

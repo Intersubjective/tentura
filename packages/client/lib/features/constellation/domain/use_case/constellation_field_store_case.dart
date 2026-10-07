@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:injectable/injectable.dart';
+
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/port/clock_port.dart';
 import 'package:tentura/domain/port/wake_up_port.dart';
@@ -8,14 +10,16 @@ import 'package:tentura/domain/use_case/use_case_base.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
 import '../entity/constellation_anchor_projection.dart';
+import '../entity/constellation_field.dart';
 import '../entity/constellation_field_store_state.dart';
 import '../entity/constellation_projection_params.dart';
 import '../port/constellation_account_port.dart';
 import '../port/constellation_repository_port.dart';
-import 'constellation_field_case.dart';
 
 export '../entity/constellation_field_store_state.dart';
 export '../entity/constellation_projection_params.dart';
+
+const kLazyFieldRefreshInterval = Duration(seconds: 30);
 
 enum ConstellationRefreshReason {
   /// Explicit load: dispatched at once, sharing an in-flight read.
@@ -39,6 +43,8 @@ abstract interface class StoreLease {
 /// The account generation follows [ConstellationAccountPort] and is
 /// independent of leases. Refreshes are single-flight per params binding;
 /// a result computed for an earlier binding or account generation is ignored.
+@Order(2)
+@singleton
 final class ConstellationFieldStoreCase extends UseCaseBase {
   ConstellationFieldStoreCase(
     this._repository,
@@ -81,6 +87,7 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
   late final List<StreamSubscription<Object?>> _subscriptions;
   final _changes = StreamController<ConstellationFieldStoreState>.broadcast();
   final _leases = <_StoreLease>{};
+  final _accountReady = Completer<void>();
 
   var _state = ConstellationFieldStoreState(
     field: null,
@@ -157,7 +164,8 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
     _schedule();
   }
 
-  Future<void> requestRefresh(ConstellationRefreshReason reason) {
+  Future<void> requestRefresh(ConstellationRefreshReason reason) async {
+    await _accountReady.future;
     if (!_canFetch) {
       _markStale();
       return Future<void>.value();
@@ -165,6 +173,13 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
     if (reason == ConstellationRefreshReason.load) {
       _cancelTimer();
       return _dispatch(queueIfBusy: false);
+    }
+    // A catch-up resyncs after a gap (e.g. reconnect): it replaces the
+    // ANCHORS read the anchor case used to issue at once, so it is not
+    // debounced. A read already in flight may have missed the gap: queue one.
+    if (reason == ConstellationRefreshReason.catchUp) {
+      _cancelTimer();
+      return _dispatch(queueIfBusy: true);
     }
     _schedule();
     return Future<void>.value();
@@ -186,6 +201,7 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
   }
 
   void _onAccountChanged(String accountId) {
+    if (!_accountReady.isCompleted) _accountReady.complete();
     if (accountId == _accountId) {
       return;
     }
@@ -240,10 +256,11 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
       ...?field?.resolvedAnchorProjection.pinnedRequests.map((r) => r.id),
     };
     _schedule(
-      urgent: ConstellationFieldCase.isUrgentFieldChange(
-        change,
-        fieldBeaconIds,
-      ),
+      urgent: switch (change.kind) {
+        RealtimeEntityKind.roomMessage || RealtimeEntityKind.roomSeen =>
+          fieldBeaconIds.contains(change.aggregateId),
+        _ => true,
+      },
     );
   }
 
@@ -401,6 +418,10 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
         );
         if (generation != _state.generation ||
             paramsGeneration != _paramsGeneration) {
+          // A FULL still pending for the new params reads the anchors too.
+          if (generation == _state.generation && _timer != null) {
+            _anchorsQueued = false;
+          }
           continue;
         }
         _applyAnchors(field.resolvedAnchorProjection);
@@ -415,9 +436,13 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
   }
 
   void _applyAnchors(ConstellationAnchorProjection projection) {
-    final field = _state.field;
-    if (field == null ||
-        projection.revision.compareTo(_state.coveredRevision) < 0) {
+    final field =
+        _state.field ??
+        ConstellationField(
+          loadedAt: _clock.now(),
+          context: _params.context,
+        );
+    if (projection.revision.compareTo(_state.coveredRevision) < 0) {
       return;
     }
     _emit(

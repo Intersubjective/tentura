@@ -13,7 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// or be recorded as an intentional contract-only label in the journal.
 const impactSubscribers = <String, List<String>>{
   'constellation_field': [
-    'packages/client/lib/features/constellation/domain/use_case/constellation_field_case.dart',
+    'packages/client/lib/features/constellation/domain/use_case/constellation_field_store_case.dart',
   ],
   'avatars': [
     'packages/client/lib/features/profile/ui/bloc/profile_cubit.dart',

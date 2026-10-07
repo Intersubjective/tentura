@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
-import 'package:tentura/features/constellation/domain/use_case/constellation_field_case.dart';
+import 'package:tentura/features/constellation/domain/use_case/constellation_field_store_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
@@ -21,6 +20,8 @@ import 'package:tentura/features/constellation/ui/utils/constellation_presentati
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'fixtures/constellation_reference_fixture.dart';
 import 'package:flutter/gestures.dart';
+
+import '../../support/constellation_store_fixture.dart';
 
 class _StubContextCubit extends Cubit<GraphPersonContextState>
     implements GraphPersonContextCubit {
@@ -88,12 +89,11 @@ final class _StubRepository implements ConstellationRepositoryPort {
   }) async => field;
 }
 
-ConstellationFieldCase _caseForField(ConstellationField field) =>
-    ConstellationFieldCase(
+ConstellationFieldStoreCase _caseForField(ConstellationField field) =>
+    ConstellationStoreFixture(
       _StubRepository(field),
-      env: const Env.fromEnvironment(),
-      logger: Logger('ConstellationBodyTest'),
-    );
+      accountId: 'ego',
+    ).store;
 
 Future<ConstellationCubit> _loadCubit(ConstellationField field) async {
   final cubit = ConstellationCubit(
@@ -357,7 +357,10 @@ void main() {
       };
 
       expect(egoEdgeIds(), isEmpty);
-      expect(_edgeKindBetween(cubit, 'a', 'b'), ConstellationEdgeKind.tier1Path);
+      expect(
+        _edgeKindBetween(cubit, 'a', 'b'),
+        ConstellationEdgeKind.tier1Path,
+      );
 
       cubit.selectPerson('b');
       expect(egoEdgeIds(), {'fp:ego->fp:a#tier1Path'});
