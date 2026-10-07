@@ -109,6 +109,7 @@ class BeaconViewScreen extends StatefulWidget {
     this.entry,
     this.threadId,
     this.messageId,
+    this.syncRoute = true,
     super.key,
   });
 
@@ -130,6 +131,10 @@ class BeaconViewScreen extends StatefulWidget {
 
   /// Exact Chat message target from an Updates receipt.
   final String? messageId;
+
+  /// False when embedded in a pane: surface changes must not replace the host
+  /// route's path.
+  final bool syncRoute;
 
   @override
   State<BeaconViewScreen> createState() => _BeaconViewScreenState();
@@ -327,6 +332,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     BeaconSurface surface, {
     String? threadId,
   }) {
+    if (!widget.syncRoute) return Future<void>.value();
     return context.router.replacePath(
       _beaconViewPath(
         viewTab: beaconSurfaceViewTab(surface),

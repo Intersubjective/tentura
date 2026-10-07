@@ -279,6 +279,78 @@ WHERE beacon_id = '$id'
         );
       });
 
+      test(
+        'conversion beacon hints include carried-over helpers and all '
+        'Request publication recipients',
+        () async {
+          Future<void> barrier(String id) async {
+            await writer.execute(
+              Sql.named("SELECT pg_notify('entity_changes', @payload)"),
+              parameters: {
+                'payload': jsonEncode({'entity': 'barrier', 'id': id}),
+              },
+            );
+            await _waitUntil(
+              () => notifications.any(
+                (n) => n['entity'] == 'barrier' && n['id'] == id,
+              ),
+            );
+          }
+
+          await barrier('conversion-before');
+          notifications.clear();
+          expect(await participant(_post, _author), isNull);
+          expect((await participant(_post, _other))![0], _roleAddressee);
+          Future<List<ResultRow>> activeForwardsToOther() => writer.execute(
+            Sql.named('''
+SELECT id FROM public.beacon_forward_edge
+WHERE beacon_id = @beacon AND recipient_id = @recipient
+  AND cancelled_at IS NULL
+'''),
+            parameters: {'beacon': _post, 'recipient': _other},
+          );
+          expect(await activeForwardsToOther(), hasLength(1));
+          await beacons.convertToRequest(
+            authorId: _author,
+            beaconId: _post,
+            content: validContent(),
+            isDiscoverable: true,
+            helperIds: const [_member],
+          );
+          await barrier('conversion-after');
+
+          expect((await beaconRow(_post))[0], _kindRequest);
+          expect(await admittedHelpers(_post), unorderedEquals([_member]));
+          expect(await participant(_post, _other), isNull);
+          expect(await activeForwardsToOther(), hasLength(1));
+          final notices = beaconUpdateNotices(_post);
+          expect(notices, isNotEmpty);
+          final recipients = notices
+              .expand((n) => (n['user_ids']! as List).cast<String>())
+              .toSet();
+          final publicationRecipients = (await writer.execute(
+            Sql.named(
+              'SELECT unnest(public.realtime_beacon_recipients(@beacon))',
+            ),
+            parameters: {'beacon': _post},
+          )).map((row) => row.single! as String).toSet();
+          expect(publicationRecipients, contains(_other));
+          expect(recipients, containsAll([_author, _member, _other]));
+          expect(
+            recipients,
+            contains(_other),
+            reason:
+                'an active forward recipient is notified without being a helper',
+          );
+          expect(recipients, containsAll(publicationRecipients));
+          for (final notice in notices) {
+            expect(notice['actor_user_id'], _author);
+            expect(notice.containsKey('title'), isFalse);
+            expect(notice.containsKey('description'), isFalse);
+          }
+        },
+      );
+
       test('keeps the root message of the Post', () async {
         expect((await beaconRow(_post))[10], _rootMessage);
 

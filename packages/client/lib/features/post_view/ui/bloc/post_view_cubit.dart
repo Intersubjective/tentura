@@ -5,7 +5,9 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/features/favorites/data/repository/favorites_remote_repository.dart';
@@ -74,9 +76,18 @@ class PostViewCubit extends Cubit<PostViewState> implements RoomHost {
   }) : _beaconRepository = beaconRepository ?? GetIt.I<BeaconRepository>(),
        _clock = clock ?? DateTime.now,
        _effects = effects ?? GetIt.I<UiEffectPort>(),
-       super(PostViewState(beacon: _emptyBeacon.copyWith(id: id)));
+       super(PostViewState(beacon: _emptyBeacon.copyWith(id: id))) {
+    _beaconChangesSub = _beaconRepository.changes.listen((event) {
+      if (event.id == beaconId &&
+          (event is RepositoryEventInvalidate<Beacon> ||
+              event is RepositoryEventUpdate<Beacon>)) {
+        unawaited(fetch());
+      }
+    });
+  }
 
   static final _emptyBeacon = Beacon(
+    kind: BeaconKind.post,
     createdAt: DateTime.fromMillisecondsSinceEpoch(0),
     updatedAt: DateTime.fromMillisecondsSinceEpoch(0),
   );
@@ -84,6 +95,7 @@ class PostViewCubit extends Cubit<PostViewState> implements RoomHost {
   final Profile myProfile;
 
   final BeaconRepository _beaconRepository;
+  late final StreamSubscription<RepositoryEvent<Beacon>> _beaconChangesSub;
 
   /// Conversation row and inbound forward; built from DI on first use.
   PostViewCase? postViewCase;
@@ -130,6 +142,12 @@ class PostViewCubit extends Cubit<PostViewState> implements RoomHost {
 
   @override
   Stream<void> get changes => stream.map((_) {});
+
+  @override
+  Future<void> close() async {
+    await _beaconChangesSub.cancel();
+    await super.close();
+  }
 
   Future<void> fetch() async {
     try {

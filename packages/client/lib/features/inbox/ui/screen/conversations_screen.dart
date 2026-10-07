@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/entity/beacon_kind.dart';
+import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/features/home/ui/widget/home_account_avatar_button.dart';
 import 'package:tentura/features/post_view/ui/screen/post_view_scope.dart';
@@ -182,9 +184,8 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
   }
 }
 
-/// Clears the chat pane once its Post leaves the list (deleted, left, or
-/// gone after a refresh).
-class _SelectedPostPruner extends StatelessWidget {
+/// Clears the pane when its Post disappears, preserving converted Requests.
+class _SelectedPostPruner extends StatefulWidget {
   const _SelectedPostPruner({
     required this.selectedPostId,
     required this.onGone,
@@ -196,19 +197,35 @@ class _SelectedPostPruner extends StatelessWidget {
   final Widget child;
 
   @override
+  State<_SelectedPostPruner> createState() => _SelectedPostPrunerState();
+}
+
+class _SelectedPostPrunerState extends State<_SelectedPostPruner> {
+  bool _isListed(PostsState state, String id) => [
+    ...state.pinned,
+    ...state.active,
+    ...state.quiet,
+  ].any((post) => post.id == id);
+
+  Future<void> _prune(PostsState state) async {
+    final id = widget.selectedPostId;
+    if (id == null || _isListed(state, id)) return;
+    try {
+      // Conversion removes the Post from this list but keeps its open pane.
+      final beacon = await GetIt.I<BeaconRepository>().fetchBeaconById(id);
+      if (beacon.kind == BeaconKind.request) return;
+    } on Object {
+      // A deleted or inaccessible Post cannot keep a pane open.
+    }
+    if (!mounted || widget.selectedPostId != id) return;
+    if (!_isListed(context.read<PostsCubit>().state, id)) widget.onGone();
+  }
+
+  @override
   Widget build(BuildContext context) => BlocListener<PostsCubit, PostsState>(
     listenWhen: (_, curr) => curr.loaded,
-    listener: (context, state) {
-      final id = selectedPostId;
-      if (id == null) return;
-      final listed = [
-        ...state.pinned,
-        ...state.active,
-        ...state.quiet,
-      ].any((post) => post.id == id);
-      if (!listed) onGone();
-    },
-    child: child,
+    listener: (_, state) => unawaited(_prune(state)),
+    child: widget.child,
   );
 }
 

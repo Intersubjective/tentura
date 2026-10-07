@@ -577,7 +577,7 @@ BeaconThreadsCase buildTestBeaconThreadsCaseForView(
 BeaconViewCase buildTestBeaconViewCase({
   FakeBeaconViewForwardRepository? forward,
   RoomReadWatermarkStore? watermarkStore,
-  TrackingBeaconRepository? beaconRepo,
+  BeaconRepository? beaconRepo,
   ClosureRepository? closureRepo,
   FakeBeaconViewCoordinationRepository? coordinationRepo,
   FakeBeaconDisplayRepository? displayRepo,
