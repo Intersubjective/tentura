@@ -216,7 +216,22 @@ ${beaconId == null ? '' : r'WHERE posts.id = $2'}''',
     bool? isDiscoverable,
     BeaconKind kind = BeaconKind.request,
     BeaconForwardPolicyValue forwardPolicy = BeaconForwardPolicyValue.open,
+    String? clientOpId,
   }) => _database.withMutatingUser(authorId, () async {
+    if (clientOpId != null) {
+      final existing = await _database
+          .customSelect(
+            r'''SELECT id FROM public.beacon WHERE user_id = $1 AND client_op_id = $2''',
+            variables: [
+              Variable<String>(authorId),
+              Variable<String>(clientOpId),
+            ],
+          )
+          .get();
+      if (existing.isNotEmpty) {
+        return getBeaconById(beaconId: existing.first.read<String>('id'));
+      }
+    }
     final effectiveStatus = status ?? BeaconStatus.open;
     final publishedAt = effectiveStatus == BeaconStatus.draft
         ? null
@@ -248,6 +263,16 @@ ${beaconId == null ? '' : r'WHERE posts.id = $2'}''',
         forwardPolicy: Value(forwardPolicy.value),
       ),
     );
+
+    if (clientOpId != null) {
+      await _database.customUpdate(
+        r'''UPDATE public.beacon SET client_op_id = $2 WHERE id = $1''',
+        variables: [
+          Variable<String>(beacon.id),
+          Variable<String>(clientOpId),
+        ],
+      );
+    }
 
     if (imageIds != null && imageIds.isNotEmpty) {
       await _database.managers.beaconImages.bulkCreate(

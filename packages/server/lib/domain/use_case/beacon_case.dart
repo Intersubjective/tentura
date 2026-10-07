@@ -223,6 +223,7 @@ final class BeaconCase extends UseCaseBase {
     bool? isDiscoverable,
     BeaconKind kind = BeaconKind.request,
     BeaconForwardPolicyValue forwardPolicy = BeaconForwardPolicyValue.open,
+    String? clientOpId,
   }) async {
     final asDraft = draft || kind == BeaconKind.post;
     BeaconCreationPolicy.assertKindFields(
@@ -281,6 +282,7 @@ final class BeaconCase extends UseCaseBase {
         isDiscoverable: isDiscoverable ?? kind == BeaconKind.request,
         kind: kind,
         forwardPolicy: forwardPolicy,
+        clientOpId: clientOpId,
       );
     } catch (_) {
       for (final imageId in imageIds) {

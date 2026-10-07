@@ -668,6 +668,7 @@ class MockBeaconRepositoryPort extends _i1.Mock
     _i18.BeaconKind? kind = _i18.BeaconKind.request,
     _i18.BeaconForwardPolicyValue? forwardPolicy =
         _i18.BeaconForwardPolicyValue.open,
+    String? clientOpId,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#createBeacon, [], {
@@ -693,6 +694,7 @@ class MockBeaconRepositoryPort extends _i1.Mock
               #isDiscoverable: isDiscoverable,
               #kind: kind,
               #forwardPolicy: forwardPolicy,
+              #clientOpId: clientOpId,
             }),
             returnValue: _i6.Future<_i5.BeaconEntity>.value(
               _FakeBeaconEntity_3(

@@ -198,6 +198,14 @@ class BeaconHierarchyCase {
     return created;
   }
 
+  /// Durable operation id of the unsaved top-level Request draft: reused by a
+  /// retry or a reopened composer until the create succeeds.
+  Future<String> standaloneCreateOpId() =>
+      _resolveClientCommandId(const BeaconCreationContextStandalone());
+
+  Future<void> clearStandaloneCreateOpId() =>
+      _commandStore.clear(const BeaconCreationContextStandalone());
+
   Future<void> clearCommandIdentity(BeaconCreationContext creationContext) =>
       _commandStore.clear(creationContext);
 

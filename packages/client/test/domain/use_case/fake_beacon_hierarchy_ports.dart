@@ -165,7 +165,7 @@ class InMemoryBeaconChildCommandStore implements BeaconChildCommandStorePort {
       :final sourceMessageId,
     ) =>
       'promo:$parentBeaconId:$sourceMessageId',
-    BeaconCreationContextStandalone() => throw ArgumentError('standalone'),
+    BeaconCreationContextStandalone() => 'standalone',
   };
 
   @override

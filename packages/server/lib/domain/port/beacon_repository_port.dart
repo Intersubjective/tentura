@@ -45,6 +45,7 @@ abstract class BeaconRepositoryPort {
     bool? isDiscoverable,
     BeaconKind kind = BeaconKind.request,
     BeaconForwardPolicyValue forwardPolicy = BeaconForwardPolicyValue.open,
+    String? clientOpId,
   });
 
   /// Creates a nested child beacon with immutable [parentBeaconId].

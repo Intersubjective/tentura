@@ -93,6 +93,9 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
     /// Total admitted helpers (non-author); used for face-pile overflow.
     @Default(0) int admittedHelperCount,
 
+    /// Create only: client operation id making a repeated create idempotent.
+    String? clientOpId,
+
     /// Request (0) or Post (1).
     @Default(BeaconKind.request) BeaconKind kind,
 

@@ -208,7 +208,8 @@ class BeaconRepository implements BeaconWritePort {
         ..primaryNeedSlug = beacon.primaryNeedSlug
         ..addressLabel = beacon.addressLabel
         ..draft = draft
-        ..isDiscoverable = beacon.isDiscoverable;
+        ..isDiscoverable = beacon.isDiscoverable
+        ..clientOpId = beacon.clientOpId;
     });
     final beaconId = await _remoteApiService
         .request(request)

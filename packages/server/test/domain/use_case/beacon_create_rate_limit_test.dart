@@ -61,6 +61,7 @@ class _StubBeaconRepo extends Fake implements BeaconRepositoryPort {
     bool? isDiscoverable,
     BeaconKind kind = BeaconKind.request,
     BeaconForwardPolicyValue forwardPolicy = BeaconForwardPolicyValue.open,
+    String? clientOpId,
   }) async {
     createBeaconCalls++;
     lastAddressLabel = addressLabel;

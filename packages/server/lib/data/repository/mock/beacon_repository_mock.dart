@@ -93,6 +93,7 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
     bool? isDiscoverable,
     BeaconKind kind = BeaconKind.request,
     BeaconForwardPolicyValue forwardPolicy = BeaconForwardPolicyValue.open,
+    String? clientOpId,
   }) async {
     final now = DateTime.timestamp();
     final images = [

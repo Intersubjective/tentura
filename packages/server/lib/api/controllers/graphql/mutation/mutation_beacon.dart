@@ -25,6 +25,8 @@ final class MutationBeacon extends GqlNodeBase {
 
   final _draft = InputFieldBool(fieldName: 'draft');
 
+  final _clientOpId = InputFieldString(fieldName: 'clientOpId');
+
   final _beaconId = InputFieldString(fieldName: 'beaconId');
 
   final _imageId = InputFieldString(fieldName: 'imageId');
@@ -107,6 +109,7 @@ final class MutationBeacon extends GqlNodeBase {
       _isDiscoverable.fieldNullable,
       _kind.fieldNullable,
       _forwardPolicy.fieldNullable,
+      _clientOpId.fieldNullable,
     ],
     resolve: (_, args) {
       final kindValue = _kind.fromArgs(args);
@@ -143,6 +146,7 @@ final class MutationBeacon extends GqlNodeBase {
             draft: _draft.fromArgs(args) ?? false,
             addressLabel: _addressLabel.fromArgs(args),
             isDiscoverable: _isDiscoverable.fromArgs(args),
+            clientOpId: _clientOpId.fromArgs(args),
           )
           .then((v) => v.asJson);
     },

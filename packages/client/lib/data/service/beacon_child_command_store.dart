@@ -11,9 +11,7 @@ class BeaconChildCommandStore implements BeaconChildCommandStorePort {
   final LocalSecureStorage _storage;
 
   static String storageKey(BeaconCreationContext context) => switch (context) {
-    BeaconCreationContextStandalone() => throw ArgumentError(
-      'Standalone creation has no client command id',
-    ),
+    BeaconCreationContextStandalone() => 'beacon_create_op',
     BeaconCreationContextChild(:final parentBeaconId) =>
       'beacon_child_cmd:$parentBeaconId',
     BeaconCreationContextPromotedChild(

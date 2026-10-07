@@ -992,13 +992,27 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
         result = await _hierarchyCase!.ensureChildDraft(childCommand);
         _clearExactRetrySnapshot();
       } else {
-        sent = _command(
+        final opHierarchy = kind == BeaconKind.request
+            ? _hierarchyCase ??
+                  (GetIt.I.isRegistered<BeaconHierarchyCase>()
+                      ? GetIt.I<BeaconHierarchyCase>()
+                      : null)
+            : null;
+        final command = _command(
           context: context,
           id: '',
           draftSafeTitle: true,
           draft: true,
         );
+        sent = opHierarchy == null
+            ? command
+            : command.copyWith(
+                fields: command.fields.copyWith(
+                  clientOpId: await opHierarchy.standaloneCreateOpId(),
+                ),
+              );
         result = await _case.create(sent);
+        await opHierarchy?.clearStandaloneCreateOpId();
       }
       if (!isClosed) {
         emit(

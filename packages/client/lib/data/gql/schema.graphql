@@ -3830,7 +3830,7 @@ type mutation_root {
   beaconClose(beaconId: String!): Boolean!
   beaconCloseNow(beaconId: String!, expectedEpoch: Int!): Boolean!
   beaconConvertToRequest(description: String, endAt: String, helperIds: [String!], id: String!, isDiscoverable: Boolean, needs: String, primaryNeedSlug: String, startAt: String, title: String!): v2_Beacon!
-  beaconCreate(addressLabel: String, context: String, coordinates: v2_Coordinates = {}, description: String, draft: Boolean, endAt: String, forwardPolicy: Int, image: v2_Upload = {}, isDiscoverable: Boolean, kind: Int, needs: String, primaryNeedSlug: String, startAt: String, tags: String, title: String): v2_Beacon!
+  beaconCreate(addressLabel: String, clientOpId: String, context: String, coordinates: v2_Coordinates = {}, description: String, draft: Boolean, endAt: String, forwardPolicy: Int, image: v2_Upload = {}, isDiscoverable: Boolean, kind: Int, needs: String, primaryNeedSlug: String, startAt: String, tags: String, title: String): v2_Beacon!
   beaconDeleteById(id: String!): Boolean!
   beaconExtendClosure(beaconId: String!, expectedEpoch: Int!): Boolean!
   beaconFork(id: String!): v2_Beacon!

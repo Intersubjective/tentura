@@ -13,7 +13,8 @@ mutation BeaconCreate(
   $draft: Boolean,
   $isDiscoverable: Boolean,
   $kind: Int,
-  $forwardPolicy: Int
+  $forwardPolicy: Int,
+  $clientOpId: String
 ) {
   beaconCreate(
     title: $title,
@@ -30,7 +31,8 @@ mutation BeaconCreate(
     draft: $draft,
     isDiscoverable: $isDiscoverable,
     kind: $kind,
-    forwardPolicy: $forwardPolicy
+    forwardPolicy: $forwardPolicy,
+    clientOpId: $clientOpId
   ) {
     id
   }
