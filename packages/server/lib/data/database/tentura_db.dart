@@ -144,24 +144,55 @@ class TenturaDb extends _$TenturaDb {
 
   @factoryMethod
   TenturaDb(Env env)
-    : super(
-        // Pool must keep maxConnectionCount == 1 (and a long maxConnectionAge).
-        // Drift issues BEGIN/COMMIT/SAVEPOINT via NoTransactionDelegate as
-        // ordinary session.execute() calls; Pool.execute releases the
-        // connection after each statement. A second/expired connection then
-        // hits Postgres 25P01 on RELEASE/ROLLBACK TO SAVEPOINT
-        // (TENTURA-SERVER-H / BeaconDisplayStatuses → getBeaconById).
-        PgDatabase.opened(
+    // Pool must keep maxConnectionCount == 1. Drift issues
+    // BEGIN/COMMIT/SAVEPOINT via NoTransactionDelegate as ordinary
+    // session.execute() calls; Pool.execute releases the connection after each
+    // statement, and the pool may replace an aged connection between two
+    // statements (maxConnectionAge / maxSessionUse). That put SAVEPOINT on a
+    // fresh session outside the transaction (25P01: TENTURA-SERVER-G/H).
+    // _PinnedPoolSession holds one pool connection for a whole transaction.
+    : this._(
+        _PinnedPoolSession(
           Pool<dynamic>.withEndpoints(
             [env.pgEndpoint],
             settings: env.pgPoolSettings,
           ),
+        ),
+        env,
+      );
+
+  TenturaDb._(_PinnedPoolSession session, Env env)
+    : _pinnedSession = session,
+      super(
+        PgDatabase.opened(
+          session,
           enableMigrations: false,
           logStatements: env.isDebugModeOn,
         ),
       );
 
-  TenturaDb.forTest({required QueryExecutor database}) : super(database);
+  TenturaDb.forTest({required QueryExecutor database})
+    : _pinnedSession = null,
+      super(database);
+
+  final _PinnedPoolSession? _pinnedSession;
+
+  @override
+  Future<T> transaction<T>(
+    Future<T> Function() action, {
+    bool requireNew = false,
+  }) async {
+    final session = _pinnedSession;
+    if (session == null) {
+      return super.transaction(action, requireNew: requireNew);
+    }
+    await session.pin();
+    try {
+      return await super.transaction(action, requireNew: requireNew);
+    } finally {
+      session.unpin();
+    }
+  }
 
   @override
   int get schemaVersion => 1;
@@ -245,4 +276,88 @@ final class _MutatingTransactionContext {
 
   final TenturaDb db;
   final String? actorUserId;
+}
+
+/// [Session] over a [Pool] that, while pinned, runs every statement on one
+/// pool connection so a transaction never spans two backend sessions.
+final class _PinnedPoolSession implements Session {
+  _PinnedPoolSession(this._pool);
+
+  final Pool<dynamic> _pool;
+
+  Session? _pinned;
+  Completer<void>? _release;
+  Future<void>? _pinning;
+  int _pins = 0;
+
+  /// While a pin is being acquired a statement must wait for it: going to the
+  /// pool instead would queue behind the pinned connection while holding
+  /// Drift's executor lock that the pinning transaction needs (deadlock).
+  Future<Session> _session() async {
+    if (_pins > 0) {
+      await _pinning;
+    }
+    return _pinned ?? _pool;
+  }
+
+  Future<void> pin() async {
+    _pins++;
+    if (_pins > 1) {
+      await _pinning;
+      return;
+    }
+    final ready = Completer<void>();
+    final release = _release = Completer<void>();
+    _pinning = ready.future;
+    unawaited(
+      _pool
+          .withConnection((connection) {
+            _pinned = connection;
+            ready.complete();
+            return release.future;
+          })
+          .catchError((Object e, StackTrace st) {
+            if (!ready.isCompleted) ready.completeError(e, st);
+          }),
+    );
+    try {
+      await ready.future;
+    } catch (_) {
+      _pins = 0;
+      rethrow;
+    }
+  }
+
+  void unpin() {
+    if (_pins == 0) return;
+    if (--_pins > 0) return;
+    _pinned = null;
+    _release?.complete();
+    _release = null;
+  }
+
+  @override
+  bool get isOpen => _pool.isOpen;
+
+  @override
+  Future<void> get closed => _pool.closed;
+
+  @override
+  Future<Statement> prepare(Object query) async =>
+      (await _session()).prepare(query);
+
+  @override
+  Future<Result> execute(
+    Object query, {
+    Object? parameters,
+    bool ignoreRows = false,
+    QueryMode? queryMode,
+    Duration? timeout,
+  }) async => (await _session()).execute(
+    query,
+    parameters: parameters,
+    ignoreRows: ignoreRows,
+    queryMode: queryMode,
+    timeout: timeout,
+  );
 }

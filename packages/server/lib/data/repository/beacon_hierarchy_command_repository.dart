@@ -361,8 +361,11 @@ WHERE public.beacon_promotions.published_at IS NULL
     required String promoterUserId,
   }) async {
     try {
-      await _database.customStatement(
-        r'''
+      // Savepoint: a unique violation aborts the enclosing transaction, and
+      // the conflict lookup below must still be able to run.
+      await _database.transaction(
+        () => _database.customStatement(
+          r'''
 INSERT INTO public.beacon_promotions (
   child_beacon_id,
   parent_beacon_id,
@@ -378,7 +381,8 @@ SET
   published_at = COALESCE(public.beacon_promotions.published_at, now())
 WHERE public.beacon_promotions.published_at IS NULL
 ''',
-        [childBeaconId, parentBeaconId, sourceMessageId, promoterUserId],
+          [childBeaconId, parentBeaconId, sourceMessageId, promoterUserId],
+        ),
       );
     } on Object catch (error) {
       final existing = await _readPromotionConflictChildId(error);
@@ -488,16 +492,20 @@ WHERE hierarchy_notice_identity = $1
     return null;
   }
 
-  static int _outcomeToDb(BeaconChildCommandOutcome outcome) => switch (outcome) {
-    BeaconChildCommandOutcome.created => BeaconChildCommandResultState.created,
-    BeaconChildCommandOutcome.replayed => BeaconChildCommandResultState.replayed,
-    BeaconChildCommandOutcome.alreadyPromoted =>
-      BeaconChildCommandResultState.alreadyPromoted,
-  };
+  static int _outcomeToDb(BeaconChildCommandOutcome outcome) =>
+      switch (outcome) {
+        BeaconChildCommandOutcome.created =>
+          BeaconChildCommandResultState.created,
+        BeaconChildCommandOutcome.replayed =>
+          BeaconChildCommandResultState.replayed,
+        BeaconChildCommandOutcome.alreadyPromoted =>
+          BeaconChildCommandResultState.alreadyPromoted,
+      };
 
   static BeaconChildCommandOutcome _outcomeFromDb(int value) => switch (value) {
     BeaconChildCommandResultState.created => BeaconChildCommandOutcome.created,
-    BeaconChildCommandResultState.replayed => BeaconChildCommandOutcome.replayed,
+    BeaconChildCommandResultState.replayed =>
+      BeaconChildCommandOutcome.replayed,
     BeaconChildCommandResultState.alreadyPromoted =>
       BeaconChildCommandOutcome.alreadyPromoted,
     _ => BeaconChildCommandOutcome.created,
