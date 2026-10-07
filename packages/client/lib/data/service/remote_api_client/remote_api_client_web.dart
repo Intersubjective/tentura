@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:meta/meta.dart';
 import 'package:ferry/ferry.dart'
     show Client, OperationRequest, OperationResponse;
+import 'package:rxdart/rxdart.dart';
 
 import 'auth_box.dart';
 import 'auth_loss_classifier.dart';
@@ -19,12 +20,21 @@ abstract base class RemoteApiClient extends RemoteApiClientBase {
   });
 
   Client? _gqlClient;
+  final _clientDisposals = StreamController<void>.broadcast(sync: true);
+
+  Future<void> _disposeClient() async {
+    final client = _gqlClient;
+    _gqlClient = null;
+    if (client == null) return;
+    // Ferry disposal can leave queued or in-flight requests without a result.
+    _clientDisposals.add(null);
+    await client.dispose();
+  }
 
   @override
   @mustCallSuper
   Future<void> setSessionAuth() async {
-    await _gqlClient?.dispose();
-    _gqlClient = null;
+    await _disposeClient();
     await super.setSessionAuth();
     _gqlClient = await buildClient(
       params: (
@@ -44,8 +54,7 @@ abstract base class RemoteApiClient extends RemoteApiClientBase {
     required AuthTokenFetcher authTokenFetcher,
     AuthRequestIntent? returnAuthRequestToken,
   }) async {
-    await _gqlClient?.dispose();
-    _gqlClient = null;
+    await _disposeClient();
     _gqlClient = await buildClient(
       params: (
         apiEndpointUrl: apiEndpointUrl,
@@ -65,8 +74,7 @@ abstract base class RemoteApiClient extends RemoteApiClientBase {
   @override
   @mustCallSuper
   Future<void> dropAuth() async {
-    await _gqlClient?.dispose();
-    _gqlClient = null;
+    await _disposeClient();
     await super.dropAuth();
   }
 
@@ -74,8 +82,8 @@ abstract base class RemoteApiClient extends RemoteApiClientBase {
   @mustCallSuper
   Future<void> close() async {
     await super.close();
-    await _gqlClient?.dispose();
-    _gqlClient = null;
+    await _disposeClient();
+    await _clientDisposals.close();
   }
 
   @override
@@ -90,7 +98,31 @@ abstract base class RemoteApiClient extends RemoteApiClientBase {
     if (client == null) {
       throw const AuthenticationNoKeyException();
     }
-    final stream = client.request(request);
+    var receivedResponse = false;
+    final stream = client
+        .request(request)
+        .takeUntil(_clientDisposals.stream)
+        .transform(
+          StreamTransformer<
+            OperationResponse<TData, TVars>,
+            OperationResponse<TData, TVars>
+          >.fromHandlers(
+            handleData: (response, sink) {
+              receivedResponse = true;
+              sink.add(response);
+            },
+            handleDone: (sink) {
+              if (!receivedResponse || !identical(client, _gqlClient)) {
+                sink.addError(
+                  GraphQLNoDataException(
+                    label: request.operation.operationName,
+                  ),
+                );
+              }
+              sink.close();
+            },
+          ),
+        );
     if (kUnboundedGraphQLOperationNames.contains(
       request.operation.operationName,
     )) {
