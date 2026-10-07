@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui' show Offset, Size;
 
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
@@ -11,6 +10,7 @@ import '../../domain/layout/radial_hop_positions.dart';
 import 'graph_scene_ids.dart';
 import 'package:tentura/features/constellation/domain/constellation_anchor_composition.dart';
 import 'package:tentura/features/constellation/domain/constellation_layout.dart';
+import 'package:tentura/features/constellation/domain/layout/layout_geometry.dart';
 import 'package:tentura_root/domain/constellation/constellation_path_resolution.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
@@ -69,7 +69,7 @@ final class RadialHopLayoutAlgorithm implements SceneLayoutAlgorithm {
     required GraphLayoutRequest request,
     required Map<String, GraphNodeId> graphIdByDomain,
     required RadialHopLayout hop,
-    required Size canvasSize,
+    required LSize canvasSize,
     required Map<GraphNodeId, ScenePoint> previous,
   }) {
     final placed = <String, ScenePoint>{};
@@ -101,7 +101,7 @@ final class RadialHopLayoutAlgorithm implements SceneLayoutAlgorithm {
       final offset = hop.positions[id];
       placed[id] = offset == null
           ? fallback
-          : ScenePoint(x: offset.dx, y: offset.dy);
+          : ScenePoint(x: offset.x, y: offset.y);
     }
 
     final parentIds = newcomersByParent.keys.toList()
@@ -112,7 +112,7 @@ final class RadialHopLayoutAlgorithm implements SceneLayoutAlgorithm {
       });
 
     final rootPos = placed[rootId] ??
-        _sceneFromOffset(hop.positions[rootId]) ??
+        _sceneFromPoint(hop.positions[rootId]) ??
         fallback;
 
     for (final parentId in parentIds) {
@@ -126,25 +126,25 @@ final class RadialHopLayoutAlgorithm implements SceneLayoutAlgorithm {
           final offset = hop.positions[childId];
           placed[childId] = offset == null
               ? fallback
-              : ScenePoint(x: offset.dx, y: offset.dy);
+              : ScenePoint(x: offset.x, y: offset.y);
         }
         continue;
       }
 
       final parentPos = placed[parentId] ??
-          _sceneFromOffset(hop.positions[parentId]) ??
+          _sceneFromPoint(hop.positions[parentId]) ??
           fallback;
       final grandparentId = hop.parent[parentId];
       final grandparentPos = grandparentId == null
           ? null
           : (placed[grandparentId] ??
-              _sceneFromOffset(hop.positions[grandparentId]));
+              _sceneFromPoint(hop.positions[grandparentId]));
       final direction = branchUnitDirection(
-        parentPos: Offset(parentPos.x, parentPos.y),
+        parentPos: (x: parentPos.x, y: parentPos.y),
         grandparentPos: grandparentPos == null
             ? null
-            : Offset(grandparentPos.x, grandparentPos.y),
-        rootPos: Offset(rootPos.x, rootPos.y),
+            : (x: grandparentPos.x, y: grandparentPos.y),
+        rootPos: (x: rootPos.x, y: rootPos.y),
       );
       final maxChildSize = childDomainIds
           .map(
@@ -156,7 +156,7 @@ final class RadialHopLayoutAlgorithm implements SceneLayoutAlgorithm {
         maxChildSize + kFanSizePadding,
       );
       final fan = localFanPositions(
-        parentPos: Offset(parentPos.x, parentPos.y),
+        parentPos: (x: parentPos.x, y: parentPos.y),
         direction: direction,
         childIds: childDomainIds,
         canvasSize: canvasSize,
@@ -165,7 +165,7 @@ final class RadialHopLayoutAlgorithm implements SceneLayoutAlgorithm {
         rMax: ringGap * kFanRadiusMultiplier,
       );
       for (final entry in fan.entries) {
-        placed[entry.key] = ScenePoint(x: entry.value.dx, y: entry.value.dy);
+        placed[entry.key] = ScenePoint(x: entry.value.x, y: entry.value.y);
       }
     }
 
@@ -348,7 +348,7 @@ final class ConstellationSceneLayoutAlgorithm implements SceneLayoutAlgorithm {
   /// centre (that coincides with ego and is the unpin failure mode).
   Map<GraphNodeId, ScenePoint> _constellationPositionsFromDomainMap({
     required Map<String, GraphNodeId> graphIdByDomain,
-    required Map<String, Offset> domainPositions,
+    required Map<String, LPoint> domainPositions,
     required GraphLayoutRequest request,
   }) {
     final previous = request.previous?.positions ?? const {};
@@ -361,7 +361,7 @@ final class ConstellationSceneLayoutAlgorithm implements SceneLayoutAlgorithm {
     for (final entry in graphIdByDomain.entries) {
       final domainId = entry.key;
       final graphId = entry.value;
-      final fromDomain = _sceneFromOffset(domainPositions[domainId]);
+      final fromDomain = _sceneFromPoint(domainPositions[domainId]);
       if (fromDomain != null) {
         result[graphId] = fromDomain;
         continue;
@@ -374,7 +374,7 @@ final class ConstellationSceneLayoutAlgorithm implements SceneLayoutAlgorithm {
       final authorOffset =
           authorId == null ? null : domainPositions[authorId];
       if (authorOffset != null) {
-        result[graphId] = ScenePoint(x: authorOffset.dx, y: authorOffset.dy);
+        result[graphId] = ScenePoint(x: authorOffset.x, y: authorOffset.y);
         continue;
       }
       if (!forgetPriorHintNodeIds.contains(domainId)) {
@@ -407,7 +407,7 @@ final class ConstellationSceneLayoutAlgorithm implements SceneLayoutAlgorithm {
     return result;
   }
 
-  Map<String, Offset> _computeConstellationDomainPositions({
+  Map<String, LPoint> _computeConstellationDomainPositions({
     ConstellationLayoutPriorHints? priorHints,
     required Map<String, ConstellationSize> nodeSizes,
   }) {
@@ -431,7 +431,7 @@ final class ConstellationSceneLayoutAlgorithm implements SceneLayoutAlgorithm {
         footprints: footprints,
       ),
     );
-    return constellationLayoutPointsToOffsets(computed.positions);
+    return computed.positions;
   }
 
   ConstellationLayoutPriorHints? _mergePriorHints(GraphLayoutRequest request) {
@@ -550,28 +550,28 @@ GraphLayoutFrame _frame(
       isTerminal: true,
     );
 
-Size _canvasSize(GraphLayoutRequest request) => Size(
-  request.canvasSize.width,
-  request.canvasSize.height,
+LSize _canvasSize(GraphLayoutRequest request) => (
+  w: request.canvasSize.width,
+  h: request.canvasSize.height,
 );
 
-ScenePoint _centerPoint(Size canvasSize) {
-  final center = canvasSize.center(Offset.zero);
-  return ScenePoint(x: center.dx, y: center.dy);
+ScenePoint _centerPoint(LSize canvasSize) {
+  final center = lSizeCenter(canvasSize);
+  return ScenePoint(x: center.x, y: center.y);
 }
 
-ScenePoint? _sceneFromOffset(Offset? offset) =>
-    offset == null ? null : ScenePoint(x: offset.dx, y: offset.dy);
+ScenePoint? _sceneFromPoint(LPoint? point) =>
+    point == null ? null : ScenePoint(x: point.x, y: point.y);
 
 Map<GraphNodeId, ScenePoint> _positionsFromDomainMap({
   required Map<String, GraphNodeId> graphIdByDomain,
-  required Map<String, Offset> domainPositions,
-  required Size canvasSize,
+  required Map<String, LPoint> domainPositions,
+  required LSize canvasSize,
 }) {
   final fallback = _centerPoint(canvasSize);
   return {
     for (final entry in graphIdByDomain.entries)
       entry.value:
-          _sceneFromOffset(domainPositions[entry.key]) ?? fallback,
+          _sceneFromPoint(domainPositions[entry.key]) ?? fallback,
   };
 }

@@ -9,6 +9,7 @@ import 'package:tentura/features/graph/domain/entity/node_details.dart';
 
 import '../../domain/radius_recipient_selection.dart';
 import '../bloc/constellation_composer_cubit.dart';
+import '../util/layout_geometry_adapters.dart';
 
 /// Scene-space radius circle of the composer; paints nothing before start.
 class ConstellationComposerCircle extends StatelessWidget {
@@ -52,12 +53,12 @@ class _CirclePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     canvas
       ..drawCircle(
-        selection.center,
+        selection.center.offset,
         selection.radius,
         Paint()..color = color.withValues(alpha: 0.08),
       )
       ..drawCircle(
-        selection.center,
+        selection.center.offset,
         selection.radius,
         Paint()
           ..color = color
@@ -99,7 +100,7 @@ class ConstellationComposerHandle extends StatelessWidget {
 
   Offset _handleAt(double hit) {
     final selection = composer.selection;
-    final centre = controller.sceneToViewportLocal(selection.center);
+    final centre = controller.sceneToViewportLocal(selection.center.offset);
     final reach = selection.radius * controller.cameraScale;
     final width = controller.viewportSize?.width ?? double.infinity;
     final left = centre + Offset(-reach, 0);
@@ -128,7 +129,7 @@ class ConstellationComposerHandle extends StatelessWidget {
                     (local - _handleAt(hit)).distance <= hit / 2)
                 ..onDrag = ((local) => composer.setRadius(
                   (controller.viewportLocalToScene(local) -
-                          composer.selection.center)
+                          composer.selection.center.offset)
                       .distance,
                 )),
             ),
@@ -148,7 +149,7 @@ class ConstellationComposerHandle extends StatelessWidget {
                   final selection = composer.selection;
                   final scenePoint = controller.viewportLocalToScene(local);
                   if (hitsPerson?.call(scenePoint) ?? false) return false;
-                  return (scenePoint - selection.center).distance <=
+                  return (scenePoint - selection.center.offset).distance <=
                       selection.radius;
                 })
                 ..onDrag = ((local) => composer.moveDraft(

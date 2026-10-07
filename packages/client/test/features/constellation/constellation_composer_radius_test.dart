@@ -26,6 +26,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../beacon_create/fake_beacon_ports.dart';
+import 'package:tentura/features/constellation/ui/util/layout_geometry_adapters.dart';
 
 const _ego = Profile(id: 'ego', displayName: 'Ego');
 
@@ -163,7 +164,7 @@ void main() {
       // the horizontal rim) — inside the circle, clear of the handle's own
       // small hit area.
       final localStart = controller.sceneToViewportLocal(
-        before + Offset(0, composer.selection.radius * 0.8),
+        before.offset + Offset(0, composer.selection.radius * 0.8),
       );
       final localEnd = localStart + const Offset(0, 25);
 
@@ -176,7 +177,7 @@ void main() {
 
       expect(composer.selection.center, isNot(before));
       expect(
-        composer.selection.center,
+        composer.selection.center.offset,
         controller.viewportLocalToScene(localEnd),
       );
     },
@@ -235,7 +236,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 400));
 
       cubit.enterComposing(
-        draftCentre: composer.selection.center,
+        draftCentre: composer.selection.center.offset,
         candidateIds: {'a'},
         selectedIds: composer.selection.selected,
         onToggle: composer.toggleMapRecipient,
@@ -247,7 +248,7 @@ void main() {
       final personBefore = controller.getPositionOrNullForId('fp:a')!;
       final subscription = composer.stream.listen(
         (selection) => cubit.enterComposing(
-          draftCentre: selection.center,
+          draftCentre: selection.center.offset,
           candidateIds: {'a'},
           selectedIds: selection.selected,
           onToggle: composer.toggleMapRecipient,
@@ -270,14 +271,14 @@ void main() {
       expect(composer.selection.center, before);
       expect(controller.getPositionOrNullForId('fp:a'), isNot(personBefore));
       expect(
-        composer.selection.positions['a'],
+        composer.selection.positions['a']?.offset,
         controller.getPositionOrNullForId('fp:a'),
       );
       await gesture.cancel();
       await tester.pump();
       expect(composer.selection.center, before);
       expect(controller.getPositionOrNullForId('fp:a'), personBefore);
-      expect(composer.selection.positions['a'], personBefore);
+      expect(composer.selection.positions['a']?.offset, personBefore);
       composer.toggleManualSelection();
       await tester.pump();
       final selectedBefore = composer.selection.selected.contains('a');

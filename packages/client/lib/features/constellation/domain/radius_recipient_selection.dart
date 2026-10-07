@@ -1,6 +1,8 @@
-import 'dart:ui' show Offset;
+import 'dart:math' as math;
 
 import 'package:meta/meta.dart';
+
+import 'layout/layout_geometry.dart';
 
 /// Initial scene-space radius when no eligible person has a position.
 const double kComposerMinRadius = 40;
@@ -12,24 +14,24 @@ final class RadiusRecipientSelection {
   RadiusRecipientSelection({
     required this.center,
     required this.radius,
-    required Map<String, Offset> positions,
+    required Map<String, LPoint> positions,
     required Set<String> eligible,
     Set<String> manualAdded = const {},
     Set<String> manualRemoved = const {},
     this.manualSelectionEnabled = false,
-  }) : positions = Map<String, Offset>.unmodifiable(positions),
+  }) : positions = Map<String, LPoint>.unmodifiable(positions),
        eligible = Set<String>.unmodifiable(eligible),
        manualAdded = Set<String>.unmodifiable(manualAdded),
        manualRemoved = Set<String>.unmodifiable(manualRemoved);
 
   /// Center of the selection circle in scene coordinates.
-  final Offset center;
+  final LPoint center;
 
   /// Inclusive distance from [center] for automatic selection.
   final double radius;
 
   /// Scene positions keyed by person id.
-  final Map<String, Offset> positions;
+  final Map<String, LPoint> positions;
 
   /// People who may be selected, including those without a position.
   final Set<String> eligible;
@@ -49,7 +51,7 @@ final class RadiusRecipientSelection {
       if (!manualRemoved.contains(id) &&
           (manualAdded.contains(id) ||
               (positions.containsKey(id) &&
-                  (positions[id]! - center).distance <= radius)))
+                  _distance(positions[id]!, center) <= radius)))
         id,
   });
 
@@ -60,7 +62,7 @@ final class RadiusRecipientSelection {
     if (selected.contains(id)) {
       final inRadius =
           positions.containsKey(id) &&
-          (positions[id]! - center).distance <= radius;
+          _distance(positions[id]!, center) <= radius;
       // Outside the circle, dropping the manual addition is the whole undo.
       if (inRadius) removed.add(id);
       added.remove(id);
@@ -85,10 +87,10 @@ final class RadiusRecipientSelection {
   );
 
   /// Moves the circle while preserving all manual overrides.
-  RadiusRecipientSelection withCenter(Offset center) =>
+  RadiusRecipientSelection withCenter(LPoint center) =>
       _copyWith(center: center);
 
-  RadiusRecipientSelection withPersonPositions(Map<String, Offset> updated) =>
+  RadiusRecipientSelection withPersonPositions(Map<String, LPoint> updated) =>
       RadiusRecipientSelection(
         center: center,
         radius: radius,
@@ -100,7 +102,7 @@ final class RadiusRecipientSelection {
       );
 
   RadiusRecipientSelection _copyWith({
-    Offset? center,
+    LPoint? center,
     double? radius,
     Set<String>? manualAdded,
     Set<String>? manualRemoved,
@@ -121,17 +123,23 @@ final class RadiusRecipientSelection {
   /// With fewer than three positions, uses the farthest. Without eligible
   /// positions, returns [kComposerMinRadius].
   static double startRadius(
-    Offset center,
-    Map<String, Offset> positions,
+    LPoint center,
+    Map<String, LPoint> positions,
     Set<String> eligible,
   ) {
     final distances = [
       for (final entry in positions.entries)
-        if (eligible.contains(entry.key)) (entry.value - center).distance,
+        if (eligible.contains(entry.key)) _distance(entry.value, center),
     ]..sort();
     if (distances.isEmpty) {
       return kComposerMinRadius;
     }
     return distances[distances.length < 3 ? distances.length - 1 : 2] * 1.1;
   }
+}
+
+double _distance(LPoint a, LPoint b) {
+  final dx = a.x - b.x;
+  final dy = a.y - b.y;
+  return math.sqrt(dx * dx + dy * dy);
 }

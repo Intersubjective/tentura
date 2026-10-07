@@ -18,6 +18,7 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 import '../../domain/port/constellation_member_webs_port.dart';
 import '../../domain/use_case/constellation_anchor_case.dart';
 import '../../domain/use_case/constellation_field_case.dart';
+import '../util/layout_geometry_adapters.dart';
 import '../../domain/radius_recipient_selection.dart';
 import '../bloc/constellation_composer_cubit.dart';
 import '../bloc/constellation_cubit.dart';
@@ -190,7 +191,7 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
                 unawaited(constellation.load());
               } else {
                 constellation.enterComposing(
-                  draftCentre: selection.center,
+                  draftCentre: selection.center.offset,
                   candidateIds: selection.eligible,
                   selectedIds: selection.selected,
                   onToggle: composer.toggleMapRecipient,

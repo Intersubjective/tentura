@@ -1,6 +1,7 @@
 import 'dart:collection';
 import 'dart:math' as math;
-import 'dart:ui' show Offset, Size;
+
+import 'package:tentura/features/constellation/domain/layout/layout_geometry.dart';
 
 /// Fixed margin for clamping positions when node sizes are unknown.
 const double kLayoutClampMargin = 80;
@@ -17,7 +18,7 @@ const double kDefaultMaxFanRadians = 2 * math.pi / 3;
 /// Result of a radial-hop pass: absolute seats plus the BFS parent map used to
 /// park newly revealed nodes next to an already-pinned parent.
 typedef RadialHopLayout = ({
-  Map<String, Offset> positions,
+  Map<String, LPoint> positions,
   Map<String, String> parent,
   Map<String, int> depth,
 });
@@ -38,12 +39,12 @@ RadialHopLayout computeRadialHopLayout({
   required Set<String> nodeIds,
   required Set<(String, String)> edges,
   required String rootId,
-  required Size canvasSize,
+  required LSize canvasSize,
   double ringGap = 170,
 }) {
   if (nodeIds.isEmpty) {
     return (
-      positions: <String, Offset>{},
+      positions: <String, LPoint>{},
       parent: <String, String>{},
       depth: <String, int>{},
     );
@@ -141,8 +142,8 @@ RadialHopLayout computeRadialHopLayout({
     assignSectors(rootId, 0, 2 * math.pi);
   }
 
-  final centre = canvasSize.center(Offset.zero);
-  final positions = <String, Offset>{};
+  final centre = lSizeCenter(canvasSize);
+  final positions = <String, LPoint>{};
 
   for (final id in nodeIds) {
     if (id == rootId) {
@@ -151,24 +152,24 @@ RadialHopLayout computeRadialHopLayout({
     }
     final nodeAngle = angle[id] ?? 0;
     final radius = depth[id]! * ringGap;
-    final offset =
-        Offset(
-          math.cos(nodeAngle - math.pi / 2),
-          math.sin(nodeAngle - math.pi / 2),
-        ) *
-        radius;
-    positions[id] = clampLayoutPosition(centre + offset, canvasSize);
+    positions[id] = clampLayoutPosition(
+      (
+        x: centre.x + math.cos(nodeAngle - math.pi / 2) * radius,
+        y: centre.y + math.sin(nodeAngle - math.pi / 2) * radius,
+      ),
+      canvasSize,
+    );
   }
 
   return (positions: positions, parent: parent, depth: depth);
 }
 
 /// Convenience wrapper kept for call sites that only need absolute seats.
-Map<String, Offset> radialHopPositions({
+Map<String, LPoint> radialHopPositions({
   required Set<String> nodeIds,
   required Set<(String, String)> edges,
   required String rootId,
-  required Size canvasSize,
+  required LSize canvasSize,
   double ringGap = 170,
 }) => computeRadialHopLayout(
   nodeIds: nodeIds,
@@ -179,40 +180,37 @@ Map<String, Offset> radialHopPositions({
 ).positions;
 
 /// Clamps a canvas position inside [canvasSize] with [kLayoutClampMargin].
-Offset clampLayoutPosition(Offset position, Size canvasSize) {
-  return Offset(
-    position.dx.clamp(
-      kLayoutClampMargin,
-      canvasSize.width - kLayoutClampMargin,
-    ),
-    position.dy.clamp(
-      kLayoutClampMargin,
-      canvasSize.height - kLayoutClampMargin,
-    ),
+LPoint clampLayoutPosition(LPoint position, LSize canvasSize) {
+  return (
+    x: position.x.clamp(kLayoutClampMargin, canvasSize.w - kLayoutClampMargin),
+    y: position.y.clamp(kLayoutClampMargin, canvasSize.h - kLayoutClampMargin),
   );
 }
 
 /// Unit vector continuing the branch past [parentPos], preferring
 /// `parentPos - grandparentPos` so expand keeps the trail's direction.
-Offset branchUnitDirection({
-  required Offset parentPos,
-  Offset? grandparentPos,
-  Offset? rootPos,
+LPoint branchUnitDirection({
+  required LPoint parentPos,
+  LPoint? grandparentPos,
+  LPoint? rootPos,
 }) {
-  Offset? from(Offset? origin) {
+  LPoint? from(LPoint? origin) {
     if (origin == null) {
       return null;
     }
-    final delta = parentPos - origin;
-    if (delta.distanceSquared < 1e-6) {
+    final dx = parentPos.x - origin.x;
+    final dy = parentPos.y - origin.y;
+    final distanceSquared = dx * dx + dy * dy;
+    if (distanceSquared < 1e-6) {
       return null;
     }
-    return delta / delta.distance;
+    final distance = math.sqrt(distanceSquared);
+    return (x: dx / distance, y: dy / distance);
   }
 
   return from(grandparentPos) ??
       from(rootPos) ??
-      const Offset(0, 1); // canvas "down" when everything coincides
+      (x: 0, y: 1); // canvas "down" when everything coincides
 }
 
 /// Amenity chord matching the legacy 30° step at [ringGap].
@@ -298,11 +296,11 @@ double radiusForFanSpan({
 ///
 /// Packing uses [minChord] (default: [amenityChordForRingGap]) and expands the
 /// forward cone up to [maxFanRadians] before growing radius (capped at [rMax]).
-Map<String, Offset> localFanPositions({
-  required Offset parentPos,
-  required Offset direction,
+Map<String, LPoint> localFanPositions({
+  required LPoint parentPos,
+  required LPoint direction,
   required List<String> childIds,
-  required Size canvasSize,
+  required LSize canvasSize,
   double ringGap = 170,
   double maxFanRadians = kDefaultMaxFanRadians,
   double? minChord,
@@ -312,18 +310,24 @@ Map<String, Offset> localFanPositions({
     return {};
   }
 
-  final unit = direction.distanceSquared < 1e-6
-      ? const Offset(0, 1)
-      : direction / direction.distance;
-  final baseAngle = math.atan2(unit.dy, unit.dx);
+  final directionSquared =
+      direction.x * direction.x + direction.y * direction.y;
+  final LPoint unit;
+  if (directionSquared < 1e-6) {
+    unit = (x: 0, y: 1);
+  } else {
+    final directionLength = math.sqrt(directionSquared);
+    unit = (x: direction.x / directionLength, y: direction.y / directionLength);
+  }
+  final baseAngle = math.atan2(unit.y, unit.x);
   final n = childIds.length;
-  final positions = <String, Offset>{};
+  final positions = <String, LPoint>{};
   final effectiveMinChord = minChord ?? amenityChordForRingGap(ringGap);
   final effectiveRMax = rMax ?? ringGap * kFanRadiusMultiplier;
 
   if (n == 1) {
     positions[childIds.single] = clampLayoutPosition(
-      parentPos + unit * ringGap,
+      (x: parentPos.x + unit.x * ringGap, y: parentPos.y + unit.y * ringGap),
       canvasSize,
     );
     return positions;
@@ -339,9 +343,11 @@ Map<String, Offset> localFanPositions({
   final start = baseAngle - geometry.span / 2;
   for (var i = 0; i < n; i++) {
     final angle = start + geometry.step * i;
-    final offset = Offset(math.cos(angle), math.sin(angle)) * geometry.radius;
     positions[childIds[i]] = clampLayoutPosition(
-      parentPos + offset,
+      (
+        x: parentPos.x + math.cos(angle) * geometry.radius,
+        y: parentPos.y + math.sin(angle) * geometry.radius,
+      ),
       canvasSize,
     );
   }

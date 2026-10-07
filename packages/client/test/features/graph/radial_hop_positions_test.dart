@@ -1,14 +1,15 @@
 import 'dart:math' as math;
-import 'dart:ui' show Offset, Size;
 
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/features/graph/domain/layout/radial_hop_positions.dart';
+import 'package:tentura/features/constellation/domain/layout/layout_geometry.dart';
+import '../constellation/layout_point_vector_ext.dart';
 
 void main() {
-  const canvasSize = Size(4096, 4096);
+  const LSize canvasSize = (w: 4096, h: 4096);
   const ringGap = 170.0;
-  final centre = canvasSize.center(Offset.zero);
+  final centre = lSizeCenter(canvasSize);
 
   group('radialHopPositions', () {
     test('root at centre', () {
@@ -244,13 +245,13 @@ void main() {
   });
 
   group('localFanPositions', () {
-    const parentPos = Offset(2000, 2000);
-    const direction = Offset(0, 1);
+    const LPoint parentPos = (x: 2000, y: 2000);
+    const LPoint direction = (x: 0, y: 1);
     const defaultMinChord = 88.0; // amenity at ringGap=170
 
-    double chordBetween(Offset a, Offset b) => (a - b).distance;
+    double chordBetween(LPoint a, LPoint b) => (a - b).distance;
 
-    double angularSpan(List<Offset> positions, Offset centre) {
+    double angularSpan(List<LPoint> positions, LPoint centre) {
       final angles = positions
           .map((p) => math.atan2(p.dy - centre.dy, p.dx - centre.dx))
           .toList()
@@ -260,7 +261,7 @@ void main() {
 
     test('single child continues straight along the branch', () {
       final fan = localFanPositions(
-        parentPos: const Offset(100, 100),
+        parentPos: (x: 100, y: 100),
         direction: direction,
         childIds: const ['c'],
         canvasSize: canvasSize,
@@ -381,7 +382,7 @@ void main() {
 
     test('parent near canvas edge still yields finite clamped positions', () {
       final fan = localFanPositions(
-        parentPos: const Offset(90, 90),
+        parentPos: (x: 90, y: 90),
         direction: direction,
         childIds: List.generate(7, (i) => 'c$i'),
         canvasSize: canvasSize,
@@ -400,8 +401,8 @@ void main() {
   group('branchUnitDirection', () {
     test('prefers parent minus grandparent', () {
       final dir = branchUnitDirection(
-        parentPos: const Offset(10, 30),
-        grandparentPos: const Offset(10, 10),
+        parentPos: (x: 10, y: 30),
+        grandparentPos: (x: 10, y: 10),
       );
       expect(dir.dx, closeTo(0, 1e-9));
       expect(dir.dy, closeTo(1, 1e-9));

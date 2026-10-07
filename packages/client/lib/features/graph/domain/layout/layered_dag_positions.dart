@@ -1,16 +1,16 @@
 import 'dart:collection';
 import 'dart:math' as math;
-import 'dart:ui' show Offset, Size;
 
+import 'package:tentura/features/constellation/domain/layout/layout_geometry.dart';
 import 'radial_hop_positions.dart' show kLayoutClampMargin;
 
 /// Deterministic layered ("Sugiyama-lite") layout for the invite genealogy and
 /// the forwards graph: rank = distance from the root, drawn top to bottom.
-Map<String, Offset> layeredDagPositions({
+Map<String, LPoint> layeredDagPositions({
   required Set<String> nodeIds,
   required Set<(String, String)> edges,
   required Set<String> rootIds,
-  required Size canvasSize,
+  required LSize canvasSize,
   double layerGap = 150,
   double columnGap = 130,
 }) {
@@ -128,15 +128,15 @@ Map<String, Offset> layeredDagPositions({
     final count = layer.length;
     for (var index = 0; index < count; index++) {
       x[layer[index]] =
-          canvasSize.width / 2 + (index - (count - 1) / 2) * columnGap;
+          canvasSize.w / 2 + (index - (count - 1) / 2) * columnGap;
     }
   }
 
   final maxRankValue = sortedRanks.last;
-  final positions = <String, Offset>{};
+  final positions = <String, LPoint>{};
   for (final id in nodeIds) {
-    final y = canvasSize.height / 2 + (rank[id]! - maxRankValue / 2) * layerGap;
-    positions[id] = _clampPosition(Offset(x[id]!, y), canvasSize);
+    final y = canvasSize.h / 2 + (rank[id]! - maxRankValue / 2) * layerGap;
+    positions[id] = _clampPosition((x: x[id]!, y: y), canvasSize);
   }
 
   return positions;
@@ -195,15 +195,9 @@ double _barycentreOfSuccessors(
       placed.length;
 }
 
-Offset _clampPosition(Offset position, Size canvasSize) {
-  return Offset(
-    position.dx.clamp(
-      kLayoutClampMargin,
-      canvasSize.width - kLayoutClampMargin,
-    ),
-    position.dy.clamp(
-      kLayoutClampMargin,
-      canvasSize.height - kLayoutClampMargin,
-    ),
+LPoint _clampPosition(LPoint position, LSize canvasSize) {
+  return (
+    x: position.x.clamp(kLayoutClampMargin, canvasSize.w - kLayoutClampMargin),
+    y: position.y.clamp(kLayoutClampMargin, canvasSize.h - kLayoutClampMargin),
   );
 }

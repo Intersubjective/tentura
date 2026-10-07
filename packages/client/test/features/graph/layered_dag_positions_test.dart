@@ -1,11 +1,12 @@
-import 'dart:ui' show Offset, Size;
 
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/features/graph/domain/layout/layered_dag_positions.dart';
+import 'package:tentura/features/constellation/domain/layout/layout_geometry.dart';
+import '../constellation/layout_point_vector_ext.dart';
 
 void main() {
-  const canvasSize = Size(4096, 4096);
+  const LSize canvasSize = (w: 4096, h: 4096);
   const layerGap = 150.0;
   const columnGap = 130.0;
 

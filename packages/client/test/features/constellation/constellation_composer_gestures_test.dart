@@ -33,6 +33,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../beacon_create/fake_beacon_ports.dart';
+import 'package:tentura/features/constellation/ui/util/layout_geometry_adapters.dart';
 
 const _ego = Profile(id: 'ego', displayName: 'Ego');
 
@@ -243,7 +244,7 @@ void main() {
 
       expect(composer.createCubit, isNotNull);
       expect(composer.kind.name, 'request');
-      expect((composer.selection.center - scene).distance, lessThan(1));
+      expect((composer.selection.center.offset - scene).distance, lessThan(1));
     });
 
     testWidgets('long press on empty canvas opens the kind menu and starts the '
@@ -264,7 +265,7 @@ void main() {
       await tester.pump();
 
       expect(composer.createCubit, isNotNull);
-      expect((composer.selection.center - scene).distance, lessThan(1));
+      expect((composer.selection.center.offset - scene).distance, lessThan(1));
     });
 
     testWidgets('the app bar create-here button offers the kind menu and '
@@ -284,7 +285,7 @@ void main() {
 
       expect(composer.createCubit, isNotNull);
       expect(composer.kind.name, 'request');
-      expect((composer.selection.center - centre).distance, lessThan(2));
+      expect((composer.selection.center.offset - centre).distance, lessThan(2));
     });
 
     group('the kind menu offers both choices now posts are enabled', () {
@@ -335,7 +336,7 @@ void main() {
       final start = composer.selection;
       for (var step = 0; step < 12; step++) {
         final dir = rimDirection(step);
-        final down = globalOf(tester, start.center + dir * start.radius);
+        final down = globalOf(tester, start.center.offset + dir * start.radius);
         if (!canvas(tester).deflate(8).contains(down)) continue;
         final g = await tester.startGesture(down);
         await g.moveTo(down + dir * 120);
@@ -356,7 +357,7 @@ void main() {
       final before = composer.selection;
       final dir = await findHandleDirection(tester);
       expect(dir, isNotNull, reason: 'a handle must exist on the circle rim');
-      final down = globalOf(tester, before.center + dir! * before.radius);
+      final down = globalOf(tester, before.center.offset + dir! * before.radius);
 
       final g = await tester.startGesture(down);
       await g.moveTo(down + dir * 60);
@@ -385,7 +386,7 @@ void main() {
       final before = composer.selection;
       final dir = await findHandleDirection(tester);
       expect(dir, isNotNull, reason: 'a handle must exist on the circle rim');
-      final handle = globalOf(tester, before.center + dir! * before.radius);
+      final handle = globalOf(tester, before.center.offset + dir! * before.radius);
       final miss = handle + dir * 150;
       expect(canvas(tester).contains(miss), isTrue);
 
@@ -406,7 +407,7 @@ void main() {
       await startViaSecondaryTap(tester);
       final before = composer.selection;
       final from = canvas(tester).center + const Offset(200, 200);
-      final probe = cubit.graphController.sceneToViewportLocal(before.center);
+      final probe = cubit.graphController.sceneToViewportLocal(before.center.offset);
 
       final g = await tester.startGesture(from);
       await g.moveBy(const Offset(-80, -60));
@@ -415,7 +416,7 @@ void main() {
       await tester.pump();
 
       expect(
-        cubit.graphController.sceneToViewportLocal(before.center),
+        cubit.graphController.sceneToViewportLocal(before.center.offset),
         isNot(probe),
         reason: 'the gesture must really have panned the camera',
       );

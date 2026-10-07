@@ -1,4 +1,4 @@
-import 'dart:ui' show Size;
+import 'layout/layout_geometry.dart';
 
 typedef ConstellationLabelBudget = ({int perPerson, int total});
 
@@ -9,12 +9,12 @@ const _kReferenceViewportHeight = 900.0;
 
 /// [textScaleFactor] is a dimensionless ratio; 1.0 = default text size.
 ConstellationLabelBudget constellationLabelBudget({
-  required Size viewport,
+  required LSize viewport,
   required double textScaleFactor,
 }) {
   final safeScale = textScaleFactor <= 0 ? 1.0 : textScaleFactor;
   final areaRatio =
-      (viewport.width * viewport.height) /
+      (viewport.w * viewport.h) /
       (_kReferenceViewportWidth * _kReferenceViewportHeight);
   final densityFactor = areaRatio / safeScale;
 

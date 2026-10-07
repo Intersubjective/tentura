@@ -1,19 +1,20 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tentura/features/constellation/domain/layout/layout_geometry.dart';
 import 'package:tentura/features/constellation/domain/radius_recipient_selection.dart';
 
 void main() {
-  const positions = {
-    'near': Offset(3, 4),
-    'middle': Offset(10, 0),
-    'far': Offset(20, 0),
-    'fourth': Offset(40, 0),
-    'fifth': Offset(50, 0),
+  const Map<String, LPoint> positions = {
+    'near': (x: 3, y: 4),
+    'middle': (x: 10, y: 0),
+    'far': (x: 20, y: 0),
+    'fourth': (x: 40, y: 0),
+    'fifth': (x: 50, y: 0),
   };
   final eligible = positions.keys.toSet();
 
   RadiusRecipientSelection selection({double radius = 10}) =>
       RadiusRecipientSelection(
-        center: Offset.zero,
+        center: (x: 0.0, y: 0.0),
         radius: radius,
         positions: positions,
         eligible: eligible,
@@ -41,7 +42,7 @@ void main() {
 
   test('ineligible and unknown people are never selected', () {
     final model = RadiusRecipientSelection(
-      center: Offset.zero,
+      center: (x: 0.0, y: 0.0),
       radius: 100,
       positions: positions,
       eligible: const {'near'},
@@ -54,7 +55,7 @@ void main() {
 
   test('manual removal wins over manual addition', () {
     final model = RadiusRecipientSelection(
-      center: Offset.zero,
+      center: (x: 0.0, y: 0.0),
       radius: 100,
       positions: positions,
       eligible: eligible,
@@ -78,16 +79,16 @@ void main() {
 
   test('moving the center recomputes membership and retains overrides', () {
     final original = selection(radius: 1).toggle('near');
-    final moved = original.withCenter(const Offset(20, 0));
+    final moved = original.withCenter((x: 20, y: 0));
     expect(moved.selected, {'near', 'far'});
     expect(moved.manualAdded, {'near'});
-    expect(original.center, Offset.zero);
+    expect(original.center, (x: 0.0, y: 0.0));
     expect(moved.radius, original.radius);
   });
 
   test('startRadius covers exactly three of five eligible people', () {
     final radius = RadiusRecipientSelection.startRadius(
-      Offset.zero,
+      (x: 0.0, y: 0.0),
       positions,
       eligible,
     );
@@ -100,14 +101,14 @@ void main() {
     () {
       expect(
         RadiusRecipientSelection.startRadius(
-          Offset.zero,
+          (x: 0.0, y: 0.0),
           positions,
           {'near', 'middle', 'missing'},
         ),
         closeTo(11, 1e-10),
       );
       expect(
-        RadiusRecipientSelection.startRadius(Offset.zero, positions, {'near'}),
+        RadiusRecipientSelection.startRadius((x: 0.0, y: 0.0), positions, {'near'}),
         closeTo(5.5, 1e-10),
       );
     },
@@ -116,7 +117,7 @@ void main() {
   test('startRadius measures from center and ignores ineligible positions', () {
     expect(
       RadiusRecipientSelection.startRadius(
-        const Offset(10, 0),
+        (x: 10, y: 0),
         positions,
         {'far'},
       ),
@@ -130,7 +131,7 @@ void main() {
       {'missing'},
     ]) {
       expect(
-        RadiusRecipientSelection.startRadius(Offset.zero, positions, ids),
+        RadiusRecipientSelection.startRadius((x: 0.0, y: 0.0), positions, ids),
         kComposerMinRadius,
       );
     }
@@ -138,12 +139,12 @@ void main() {
   });
 
   test('collections are defensively copied and immutable', () {
-    final mutablePositions = {'near': const Offset(3, 4)};
+    final mutablePositions = <String, LPoint>{'near': (x: 3, y: 4)};
     final mutableEligible = {'near', 'far'};
     final added = {'far'};
     final removed = <String>{};
     final model = RadiusRecipientSelection(
-      center: Offset.zero,
+      center: (x: 0.0, y: 0.0),
       radius: 5,
       positions: mutablePositions,
       eligible: mutableEligible,

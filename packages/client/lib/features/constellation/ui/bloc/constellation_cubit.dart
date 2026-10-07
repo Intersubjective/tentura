@@ -22,6 +22,7 @@ import '../../domain/constellation_post_fade.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../../domain/entity/constellation_anchor_projection.dart';
 import '../../domain/entity/constellation_field.dart';
+import '../util/layout_geometry_adapters.dart';
 import '../../domain/port/constellation_member_webs_port.dart';
 import '../../domain/use_case/constellation_anchor_case.dart';
 import '../../domain/use_case/constellation_field_case.dart';
@@ -1901,7 +1902,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _labelBudgetViewport = viewport;
     _labelBudgetTextScale = textScaleFactor;
     final next = constellationLabelBudget(
-      viewport: viewport,
+      viewport: viewport.lSize,
       textScaleFactor: textScaleFactor,
     );
     if (next == _appliedLabelBudget || state.field == null) {
@@ -1970,7 +1971,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   ConstellationLabelBudget _currentLabelBudget() {
     final budget = constellationLabelBudget(
-      viewport: _labelBudgetViewport,
+      viewport: _labelBudgetViewport.lSize,
       textScaleFactor: _labelBudgetTextScale,
     );
     _appliedLabelBudget = budget;

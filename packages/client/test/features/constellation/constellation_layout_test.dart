@@ -9,6 +9,8 @@ import 'package:tentura/features/constellation/domain/constellation_consts.dart'
 import 'package:tentura/features/constellation/domain/constellation_layout.dart';
 import 'package:tentura_root/domain/constellation/constellation_path_resolution.dart';
 
+import 'layout_point_vector_ext.dart';
+
 const _ego = 'ego';
 const _ringGap = kConstellationRingUnitPixels;
 const _satelliteOffset = 56.0;

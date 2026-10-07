@@ -1,15 +1,15 @@
 import 'dart:math' as math;
-import 'dart:ui' show Offset, Size;
 
 import 'package:meta/meta.dart';
 import 'package:tentura/features/graph/domain/layout/radial_hop_positions.dart';
 
 import 'constellation_anchor_composition.dart';
 import 'constellation_consts.dart';
+import 'layout/layout_geometry.dart';
 import 'package:tentura_root/domain/constellation/constellation_path_resolution.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
-typedef ConstellationPoint = ({double x, double y});
+typedef ConstellationPoint = LPoint;
 typedef ConstellationSize = ({double width, double height});
 typedef ConstellationBounds = ({
   double left,
@@ -167,15 +167,6 @@ ConstellationBounds constellationPlacedNodeBounds({
     return _absoluteFootprintBounds(centre: centre, footprint: footprint);
   }
   return constellationRenderedBounds(centre: centre, size: size);
-}
-
-Map<String, Offset> constellationLayoutPointsToOffsets(
-  Map<String, ConstellationPoint> positions,
-) {
-  return {
-    for (final entry in positions.entries)
-      entry.key: Offset(entry.value.x, entry.value.y),
-  };
 }
 
 ConstellationLayout computeConstellationLayout({
@@ -622,11 +613,10 @@ bool _authorSeatMovedSincePrior({
             ? placed[requestAuthorId]
             : null;
         if (authorCentre != null) {
-          final authorOffset = Offset(authorCentre.x, authorCentre.y);
           for (final candidate in zeroOverlap) {
             if (!_attachmentSegmentCrossesBody(
-              authorCentre: authorOffset,
-              candidateCentre: Offset(candidate.x, candidate.y),
+              authorCentre: authorCentre,
+              candidateCentre: candidate,
               placed: placed,
               placedSizes: placedSizes,
               skipNodeIds: {
@@ -885,11 +875,11 @@ double _intersectionArea({
 }
 
 @visibleForTesting
-({Offset direction, double gap}) constellationEgoSatelliteDirection(
+({LPoint direction, double gap}) constellationEgoSatelliteDirection(
   List<double> depthOneAngles,
 ) {
   if (depthOneAngles.isEmpty) {
-    return (direction: const Offset(0, 1), gap: 2 * math.pi);
+    return (direction: (x: 0, y: 1), gap: 2 * math.pi);
   }
   final normalized =
       depthOneAngles
@@ -912,12 +902,16 @@ double _intersectionArea({
   }
   final start = normalized[bestGapStart];
   final mid = start + bestGap / 2;
-  return (direction: Offset(math.cos(mid), math.sin(mid)), gap: bestGap);
+  return (direction: (x: math.cos(mid), y: math.sin(mid)), gap: bestGap);
 }
 
-bool _segmentIntersectsRect(Offset a, Offset b, ConstellationBounds r) {
-  final dx = b.dx - a.dx;
-  final dy = b.dy - a.dy;
+bool _segmentIntersectsRect(
+  ConstellationPoint a,
+  ConstellationPoint b,
+  ConstellationBounds r,
+) {
+  final dx = b.x - a.x;
+  final dy = b.y - a.y;
   const eps = 1e-9;
   var t0 = 0.0;
   var t1 = 1.0;
@@ -945,24 +939,24 @@ bool _segmentIntersectsRect(Offset a, Offset b, ConstellationBounds r) {
     return true;
   }
 
-  if (!clip(-dx, a.dx - r.left)) {
+  if (!clip(-dx, a.x - r.left)) {
     return false;
   }
-  if (!clip(dx, r.right - a.dx)) {
+  if (!clip(dx, r.right - a.x)) {
     return false;
   }
-  if (!clip(-dy, a.dy - r.top)) {
+  if (!clip(-dy, a.y - r.top)) {
     return false;
   }
-  if (!clip(dy, r.bottom - a.dy)) {
+  if (!clip(dy, r.bottom - a.y)) {
     return false;
   }
   return t0 <= t1;
 }
 
 bool _attachmentSegmentCrossesBody({
-  required Offset authorCentre,
-  required Offset candidateCentre,
+  required ConstellationPoint authorCentre,
+  required ConstellationPoint candidateCentre,
   required Map<String, ConstellationPoint> placed,
   required Map<String, ConstellationSize> placedSizes,
   required Set<String> skipNodeIds,
@@ -1094,14 +1088,12 @@ Map<String, ConstellationPoint> _computeSemanticIdeals({
       x: math.cos(nodeAngle - math.pi / 2) * radius,
       y: math.sin(nodeAngle - math.pi / 2) * radius,
     );
-    ideals[id] = _toPoint(
-      _clampLegacy(
-        (
-          x: centre.x + offset.x,
-          y: centre.y + offset.y,
-        ),
-        canvasSize,
+    ideals[id] = _clampLegacy(
+      (
+        x: centre.x + offset.x,
+        y: centre.y + offset.y,
       ),
+      canvasSize,
     );
   }
 
@@ -1119,14 +1111,12 @@ Map<String, ConstellationPoint> _computeSemanticIdeals({
         x: math.cos(nodeAngle - math.pi / 2) * ringRadius,
         y: math.sin(nodeAngle - math.pi / 2) * ringRadius,
       );
-      ideals[id] = _toPoint(
-        _clampLegacy(
-          (
-            x: centre.x + offset.x,
-            y: centre.y + offset.y,
-          ),
-          canvasSize,
+      ideals[id] = _clampLegacy(
+        (
+          x: centre.x + offset.x,
+          y: centre.y + offset.y,
         ),
+        canvasSize,
       );
     }
   }
@@ -1149,17 +1139,17 @@ Map<String, ConstellationPoint> _computeSemanticIdeals({
       egoAngularGap: egoFanHeading.gap,
     );
     final egoSatellites = localFanPositions(
-      parentPos: Offset(centre.x, centre.y),
+      parentPos: centre,
       direction: egoFanHeading.direction,
       childIds: egoRequests,
-      canvasSize: Size(canvasSize.width, canvasSize.height),
+      canvasSize: (w: canvasSize.width, h: canvasSize.height),
       ringGap: fanOverrides?.ringGap ?? satelliteOffset,
       minChord: fanOverrides?.minChord,
       maxFanRadians: fanOverrides?.maxFanRadians ?? kDefaultMaxFanRadians,
     );
     for (final entry in egoSatellites.entries) {
       if (!alreadyPlaced.contains(entry.key)) {
-        ideals[entry.key] = (x: entry.value.dx, y: entry.value.dy);
+        ideals[entry.key] = entry.value;
       }
     }
   }
@@ -1185,8 +1175,8 @@ Map<String, ConstellationPoint> _computeSemanticIdeals({
     );
     final distance = math.sqrt(radial.x * radial.x + radial.y * radial.y);
     final direction = distance < 1e-6
-        ? branchUnitDirection(parentPos: Offset(centre.x, centre.y))
-        : Offset(radial.x / distance, radial.y / distance);
+        ? branchUnitDirection(parentPos: centre)
+        : (x: radial.x / distance, y: radial.y / distance);
 
     final fanOverrides = _footprintAwareFanParams(
       authorId: author,
@@ -1197,16 +1187,16 @@ Map<String, ConstellationPoint> _computeSemanticIdeals({
       spacing: spacing,
     );
     final satellites = localFanPositions(
-      parentPos: Offset(authorPoint.x, authorPoint.y),
+      parentPos: authorPoint,
       direction: direction,
       childIds: requestIds,
-      canvasSize: Size(canvasSize.width, canvasSize.height),
+      canvasSize: (w: canvasSize.width, h: canvasSize.height),
       ringGap: fanOverrides?.ringGap ?? satelliteOffset,
       minChord: fanOverrides?.minChord,
     );
     for (final entry in satellites.entries) {
       if (!alreadyPlaced.contains(entry.key)) {
-        ideals[entry.key] = (x: entry.value.dx, y: entry.value.dy);
+        ideals[entry.key] = entry.value;
       }
     }
   }
@@ -1214,42 +1204,12 @@ Map<String, ConstellationPoint> _computeSemanticIdeals({
   return ideals;
 }
 
-ConstellationPoint _toPoint(Offset offset) => (x: offset.dx, y: offset.dy);
-
-Offset _clampLegacy(ConstellationPoint point, ConstellationSize canvasSize) {
+ConstellationPoint _clampLegacy(
+  ConstellationPoint point,
+  ConstellationSize canvasSize,
+) {
   return clampLayoutPosition(
-    Offset(point.x, point.y),
-    Size(canvasSize.width, canvasSize.height),
-  );
-}
-
-/// Adapter for graph code that still consumes [Offset] positions.
-({Map<String, Offset> positions, Map<String, int> ring})
-computeConstellationLayoutWithOffsets({
-  required String egoId,
-  required ConstellationPathResolution paths,
-  required Set<String> keptPeerIds,
-  required Map<String, List<String>> visibleRequestsByAuthor,
-  required Set<String> egoOwnRequestIds,
-  required Size canvasSize,
-  int maxHops = 3,
-  double ringGap = kConstellationRingUnitPixels,
-  double residualRingFactor = 1.6,
-  double satelliteOffset = 56,
-}) {
-  final layout = computeConstellationLayout(
-    egoId: egoId,
-    paths: paths,
-    keptPeerIds: keptPeerIds,
-    visibleRequestsByAuthor: visibleRequestsByAuthor,
-    egoOwnRequestIds: egoOwnRequestIds,
-    maxHops: maxHops,
-    ringGap: ringGap,
-    residualRingFactor: residualRingFactor,
-    satelliteOffset: satelliteOffset,
-  );
-  return (
-    positions: constellationLayoutPointsToOffsets(layout.positions),
-    ring: layout.ring,
+    point,
+    (w: canvasSize.width, h: canvasSize.height),
   );
 }

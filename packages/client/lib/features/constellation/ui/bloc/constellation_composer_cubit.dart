@@ -11,6 +11,7 @@ import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart'
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 
 import '../../domain/radius_recipient_selection.dart';
+import '../util/layout_geometry_adapters.dart';
 
 /// What the full create form needs from the composer.
 ///
@@ -76,9 +77,9 @@ class ConstellationComposerCubit extends Cubit<RadiusRecipientSelection> {
     this.personName,
   }) : super(
          RadiusRecipientSelection(
-           center: Offset.zero,
+           center: Offset.zero.lPoint,
            radius: kComposerMinRadius,
-           positions: positions,
+           positions: positions.lPoints,
            eligible: eligible,
          ),
        );
@@ -121,11 +122,11 @@ class ConstellationComposerCubit extends Cubit<RadiusRecipientSelection> {
     _cancelled = false;
     _peopleTimer?.cancel();
     _createCubit = createCubitFactory(kind);
-    final base = state.withCenter(scenePos);
+    final base = state.withCenter(scenePos.lPoint);
     emit(
       base.withRadius(
         RadiusRecipientSelection.startRadius(
-          scenePos,
+          scenePos.lPoint,
           base.positions,
           base.eligible,
         ),
@@ -141,7 +142,11 @@ class ConstellationComposerCubit extends Cubit<RadiusRecipientSelection> {
     BeaconCreateCubit session, {
     bool first = true,
   }) async {
-    final people = await peopleSnapshot!();
+    final snapshot = await peopleSnapshot!();
+    final people = (
+      positions: snapshot.positions.lPoints,
+      eligible: snapshot.eligible,
+    );
     if (_cancelled || isClosed || !identical(session, _createCubit)) return;
     final known = state.eligible;
     // People the graph laid out only after the composer opened bring the
@@ -184,7 +189,7 @@ class ConstellationComposerCubit extends Cubit<RadiusRecipientSelection> {
 
   void moveDraft(Offset scenePos) {
     if (_cancelled) return;
-    emit(state.withCenter(scenePos));
+    emit(state.withCenter(scenePos.lPoint));
     _push();
   }
 
@@ -203,8 +208,8 @@ class ConstellationComposerCubit extends Cubit<RadiusRecipientSelection> {
     final updated = {
       for (final entry in positions.entries)
         if (state.eligible.contains(entry.key) &&
-            state.positions[entry.key] != entry.value)
-          entry.key: entry.value,
+            state.positions[entry.key] != entry.value.lPoint)
+          entry.key: entry.value.lPoint,
     };
     if (updated.isEmpty) return;
     emit(state.withPersonPositions(updated));
