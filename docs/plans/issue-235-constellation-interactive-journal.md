@@ -43,3 +43,22 @@ Added `test/features/constellation/fixtures/synthetic_field.dart` (`syntheticCon
 | 600 | 3.7 | 162.0 | 31.8 |
 
 (N=100 compose includes JIT warm-up.)
+
+## UNIT U45 — partial (part 1/2: measured cold cost and call budget) — 2026-10-07
+
+Measured on MeritRank 0.12.0 + `postgres-tentura` v0.9.1 (local compose), database `tentura_perfsynth` (V≈1000, 89 065 MR edges). Procedure: `SELECT mr_reset(); SELECT meritrank_init();` (empty peer cache), then one `mr_mutual_scores(viewer, '')` per viewer, timed inside a `DO` block; every call was a single RPC attempt (`mr_rpc_attempts()` delta 1). Each viewer's second (warm) call is listed for reference.
+
+| Viewer | Rows | Cold first read | Warm repeat |
+|---|---|---|---|
+| `Uf00000001729` | 985 | 525.9 ms | 23.3 ms |
+| `Uf00000000100` | 1005 | 514.9 ms | 13.9 ms |
+| `Uf00000000336` | 1026 | 31.1 ms | 1.6 ms |
+| `Uf00000002384` | 988 | 489.7 ms | 20.5 ms |
+| `Uf00000001446` | 991 | 24.4 ms | 2.5 ms |
+| `Uf00000002488` | 985 | 12.4 ms | 2.1 ms |
+
+Worst cold first read: 0.53 s (peers missing from the cache are sampled on demand).
+
+For reference, on 0.11.x the same read cost 5–7 s when the walk cache was below the working set.
+
+Chosen: `MERITRANK_RECV_TIMEOUT_MSEC=10000` (a 10 s whole-call budget, roughly 19 times the worst measurement above and above the old dense 7 s cost), identical in `compose.dev.yaml`, `compose.prod.yaml` and the CI `pipeline.yml`. It replaces 60000, which let a silent peer hold a worker's DB connection for about a minute. Part 2 (`statement_timeout`, degraded-vs-empty visibility, blackhole test) is not done here.

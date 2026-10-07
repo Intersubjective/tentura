@@ -74,7 +74,7 @@ jobs:
           docker run -d --name tentura-pg --network tentura-ci \
             -e POSTGRES_PASSWORD=password \
             -e MERITRANK_SERVICE_URL=tcp://meritrank:8080 \
-            -e MERITRANK_RECV_TIMEOUT_MSEC=60000 \
+            -e MERITRANK_RECV_TIMEOUT_MSEC=10000 \
             -p 5432:5432 \
             vbulavintsev/postgres-tentura:v0.9.1
           for _ in $(seq 1 60); do

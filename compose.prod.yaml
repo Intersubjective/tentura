@@ -98,7 +98,7 @@ services:
     environment:
       - POSTGRES_PASSWORD
       - 'MERITRANK_SERVICE_URL=tcp://meritrank:8080'
-      - 'MERITRANK_RECV_TIMEOUT_MSEC=60000'
+      - 'MERITRANK_RECV_TIMEOUT_MSEC=10000'
     logging:
       driver: journald
 
