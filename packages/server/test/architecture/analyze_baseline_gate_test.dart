@@ -69,6 +69,7 @@ echo "$tool \$PWD \$*" >> "${root.path}/invocations.log"
 if [[ "\${1:-}" != "analyze" ]]; then exit 0; fi
 i=0
 echo "Analyzing project..."
+if [[ -n "\${FAKE_STDERR:-}" ]]; then echo "\$FAKE_STDERR" >&2; fi
 for ((n=0; n<\${FAKE_ERRORS:-0}; n++)); do
   echo "  error • Fake error \$n • lib/e\$n.dart:1:1 • fake_error"; i=\$((i+1))
 done
@@ -78,9 +79,9 @@ done
 for ((n=0; n<\${FAKE_INFOS:-0}; n++)); do
   echo "  info • Fake info \$n • lib/i\$n.dart:1:1 • fake_info"; i=\$((i+1))
 done
-if [[ \$i -eq 0 ]]; then echo "No issues found!"; exit 0; fi
+if [[ \$i -eq 0 ]]; then echo "No issues found!"; exit \${FAKE_EXIT:-0}; fi
 echo "\$i issues found."
-exit 1
+exit \${FAKE_EXIT:-1}
 ''';
 
   ProcessResult run(
@@ -89,6 +90,8 @@ exit 1
     int warnings = 0,
     int infos = 0,
     String? scope,
+    int? analyzerExit,
+    String? analyzerStderr,
   }) => Process.runSync(
     'bash',
     [
@@ -102,6 +105,8 @@ exit 1
       'FAKE_ERRORS': '$errors',
       'FAKE_WARNINGS': '$warnings',
       'FAKE_INFOS': '$infos',
+      if (analyzerExit != null) 'FAKE_EXIT': '$analyzerExit',
+      if (analyzerStderr != null) 'FAKE_STDERR': analyzerStderr,
     },
   );
 
@@ -267,6 +272,94 @@ void main() {
         expect(log, isNot(contains('build_runner')));
         expect(log, isNot(contains('gen-l10n')));
       });
+    });
+
+    group('analyzer that did not run to completion', () {
+      const sdkWriteFailure =
+          'Unhandled exception:\n'
+          'FileSystemException: Cannot create file, '
+          'path = \'/opt/sdk/bin/cache/analysis.tmp\' '
+          '(OS Error: Read-only file system, errno = 30)';
+
+      for (final pkg in _packages.keys) {
+        group(pkg, () {
+          late _Fixture fx;
+          setUp(() => fx = _Fixture(_goodBaseline));
+          tearDown(() => fx.dispose());
+
+          test('crash exit code fails even when diagnostics are within '
+              'baseline', () {
+            final r = fx.run(
+              pkg,
+              infos: 1,
+              analyzerExit: 255,
+              analyzerStderr: sdkWriteFailure,
+            );
+            expect(r.exitCode, 1, reason: '${r.stdout}\n${r.stderr}');
+          });
+
+          test('crash exit code fails even when no diagnostics were printed', () {
+            final r = fx.run(
+              pkg,
+              analyzerExit: 255,
+              analyzerStderr: sdkWriteFailure,
+            );
+            expect(r.exitCode, 1, reason: '${r.stdout}\n${r.stderr}');
+          });
+
+          test('usage-error exit code fails even with a summary line', () {
+            final r = fx.run(pkg, infos: 2, analyzerExit: 64);
+            expect(r.exitCode, 1, reason: '${r.stdout}\n${r.stderr}');
+          });
+
+          test('failure message says the analyzer did not complete and '
+              'names its exit code', () {
+            final r = fx.run(pkg, infos: 1, analyzerExit: 255);
+            expect(r.exitCode, 1, reason: '${r.stdout}\n${r.stderr}');
+            expect(
+              r.stderr.toString(),
+              contains('analyzer did not complete for $pkg (exit 255)'),
+            );
+            expect(r.stdout.toString(), isNot(contains('OK (')));
+          });
+
+          test('SDK write failure fails even when the analyzer exits 0 with '
+              'a clean summary', () {
+            final r = fx.run(pkg, analyzerStderr: sdkWriteFailure);
+            expect(r.exitCode, isNot(0), reason: '${r.stdout}\n${r.stderr}');
+            expect(r.exitCode, 1, reason: '${r.stdout}\n${r.stderr}');
+            expect(r.stdout.toString(), isNot(contains('OK (')));
+          });
+
+          test('SDK write failure fails even when the analyzer exits 0 with '
+              'diagnostics within baseline', () {
+            final r = fx.run(pkg, infos: 1, analyzerStderr: sdkWriteFailure);
+            expect(r.exitCode, 1, reason: '${r.stdout}\n${r.stderr}');
+            expect(r.stdout.toString(), isNot(contains('OK (')));
+          });
+
+          test('SDK write failure message says the analyzer did not '
+              'complete', () {
+            final r = fx.run(pkg, analyzerStderr: sdkWriteFailure);
+            expect(r.exitCode, 1, reason: '${r.stdout}\n${r.stderr}');
+            expect(
+              r.stderr.toString(),
+              contains('analyzer did not complete for $pkg'),
+            );
+          });
+
+          test('a clean analyzer run without stderr noise still passes', () {
+            final r = fx.run(pkg);
+            expect(r.exitCode, 0, reason: '${r.stdout}\n${r.stderr}');
+          });
+
+          test('exit code 1 with diagnostics still counts against the '
+              'baseline', () {
+            final r = fx.run(pkg, infos: 1, analyzerExit: 1);
+            expect(r.exitCode, 0, reason: '${r.stdout}\n${r.stderr}');
+          });
+        });
+      }
     });
 
     group('baseline file validation', () {

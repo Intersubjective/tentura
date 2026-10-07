@@ -89,9 +89,13 @@ cat "$out"
 errors="$(grep -E '^[[:space:]]*error (•|-) ' "$out" | sort -u | wc -l || true)"
 total="$(grep -E '^[[:space:]]*(error|warning|info) (•|-) ' "$out" | sort -u | wc -l || true)"
 
-# A nonzero exit can indicate diagnostics, but a failed analyzer must never
-# look like a clean run just because it produced no matching diagnostics.
-if [[ "$analyze_status" -ne 0 && "$total" -eq 0 ]] \
+# Exit 0-3 are the analyzer's own verdicts (clean / info / warning / error; the
+# diagnostics are gated below). Anything else (crash 255, usage error 64) or an
+# unhandled exception / SDK write failure on stderr means it did not complete,
+# even if it still printed a summary line.
+if [[ "$analyze_status" -gt 3 ]] \
+  || [[ "$analyze_status" -ne 0 && "$total" -eq 0 ]] \
+  || grep -Eq '^(Unhandled exception:|[A-Za-z]*FileSystemException)' "$out" \
   || ! grep -Eq '^[[:space:]]*([0-9]+ issues? found\.|No issues found!)' "$out"; then
   echo "check-analyze-baseline: analyzer did not complete for $KEY (exit $analyze_status)" >&2
   exit 1
