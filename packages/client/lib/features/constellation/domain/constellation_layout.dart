@@ -160,8 +160,8 @@ ConstellationBounds constellationRenderedBounds({
 /// Scene-space bounds for a placed node (footprint when known, else body only).
 ConstellationBounds constellationPlacedNodeBounds({
   required ConstellationPoint centre,
-  ConstellationFootprint? footprint,
   required ConstellationSize size,
+  ConstellationFootprint? footprint,
 }) {
   if (footprint != null) {
     return _absoluteFootprintBounds(centre: centre, footprint: footprint);
@@ -621,7 +621,7 @@ bool _authorSeatMovedSincePrior({
               placedSizes: placedSizes,
               skipNodeIds: {
                 nodeId,
-                if (requestAuthorId != null) requestAuthorId,
+                ?requestAuthorId,
               },
             )) {
               return candidate;
@@ -1036,7 +1036,7 @@ Map<String, ConstellationPoint> _computeSemanticIdeals({
   required Map<String, ConstellationPoint> placed,
 }) {
   final ideals = <String, ConstellationPoint>{};
-  final canvasSize = (
+  const canvasSize = (
     width: kConstellationCanvasExtent,
     height: kConstellationCanvasExtent,
   );
@@ -1058,8 +1058,8 @@ Map<String, ConstellationPoint> _computeSemanticIdeals({
 
   void assignEqualSectors(String id, double start, double end) {
     angle[id] = (start + end) / 2;
-    final childList = List<String>.from(children[id] ?? const <String>[]);
-    childList.sort();
+    final childList = List<String>.from(children[id] ?? const <String>[])
+      ..sort();
     if (childList.isEmpty) {
       return;
     }

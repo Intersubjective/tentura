@@ -127,8 +127,9 @@ String? _jsonVersion(String path) {
   final file = File(path);
   if (!file.existsSync()) return null;
   final json = jsonDecode(file.readAsStringSync());
-  if (json is Map && json['version'] is String)
+  if (json is Map && json['version'] is String) {
     return json['version'] as String;
+  }
   return null;
 }
 
