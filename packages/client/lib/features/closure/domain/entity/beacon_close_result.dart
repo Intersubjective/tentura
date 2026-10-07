@@ -1,4 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 part 'beacon_close_result.freezed.dart';
 
@@ -13,6 +14,14 @@ abstract class BeaconCloseResult with _$BeaconCloseResult {
   }) = _BeaconCloseResult;
 
   const BeaconCloseResult._();
+
+  /// V2 returns closure epoch status; older results carry beacon status.
+  BeaconStatus get beaconStatus => switch (state) {
+    0 => BeaconStatus.reviewOpen,
+    1 => BeaconStatus.closed,
+    2 => BeaconStatus.cancelled,
+    _ => BeaconStatus.fromSmallint(state),
+  };
 }
 
 @freezed

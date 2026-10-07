@@ -72,6 +72,11 @@ class BeaconRepository implements BeaconWritePort {
 
   Stream<RepositoryEvent<Beacon>> get changes => _controller.stream;
 
+  /// Publishes an authoritative local mutation result to all open surfaces.
+  void notifyUpdated(Beacon beacon) {
+    _controller.add(RepositoryEventUpdate(beacon));
+  }
+
   @disposeMethod
   Future<void> dispose() async {
     await _invalidationSub.cancel();

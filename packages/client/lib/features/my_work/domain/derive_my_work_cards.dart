@@ -237,7 +237,11 @@ List<MyWorkCardViewModel> upsertAuthoredMyWorkCard(
   return [...without, card]..sort(compareMyWorkCards);
 }
 
-/// Merges [serverCards] with local cards for [preferIds] missing from the server.
+/// Merges [serverCards] with local cards for [preferIds].
+///
+/// A preferred local card fills in for a server row that is missing, and
+/// replaces one whose Request is not newer than the local copy (a read that
+/// still serves the pre-mutation snapshot).
 List<MyWorkCardViewModel> mergeMyWorkDeskCards({
   required List<MyWorkCardViewModel> serverCards,
   required List<MyWorkCardViewModel> localCards,
@@ -246,16 +250,25 @@ List<MyWorkCardViewModel> mergeMyWorkDeskCards({
   if (preferIds.isEmpty) {
     return serverCards;
   }
-  final serverIds = serverCards.map((c) => c.beaconId).toSet();
   final localById = {for (final c in localCards) c.beaconId: c};
-  final preserved = [
+  final serverById = {for (final c in serverCards) c.beaconId: c};
+  final preferred = <MyWorkCardViewModel>[
     for (final id in preferIds)
-      if (!serverIds.contains(id) && localById.containsKey(id)) localById[id]!,
+      if (localById[id] case final local?)
+        if (serverById[id] case final server?
+            when server.beacon.updatedAt.isAfter(local.beacon.updatedAt))
+          ...const <MyWorkCardViewModel>[]
+        else
+          local,
   ];
-  if (preserved.isEmpty) {
+  if (preferred.isEmpty) {
     return serverCards;
   }
-  return [...serverCards, ...preserved]..sort(compareMyWorkCards);
+  final preferredIds = preferred.map((c) => c.beaconId).toSet();
+  return [
+    ...serverCards.where((c) => !preferredIds.contains(c.beaconId)),
+    ...preferred,
+  ]..sort(compareMyWorkCards);
 }
 
 /// Non-archived cards from init fetch (authored, help-offered, and obligations).

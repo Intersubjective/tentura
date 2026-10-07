@@ -416,7 +416,7 @@ BeaconThreadsCase buildTestBeaconThreadsCase(
 
 MyWorkCase buildTestMyWorkCase({
   FakeMyWorkRepository? repo,
-  FakeBeaconRepository? beaconRepo,
+  BeaconRepository? beaconRepo,
   FakeForwardRepository? forwardRepo,
   ArchiveRepository? archiveRepo,
   FakeRoomHints? roomHints,

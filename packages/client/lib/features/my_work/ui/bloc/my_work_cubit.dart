@@ -252,7 +252,17 @@ class MyWorkCubit extends Cubit<MyWorkState> {
         );
         final mergedIds = merged.map((c) => c.beaconId).toSet();
         final stillPending = _pendingDeskBeaconIds.difference(mergedIds);
-        _pendingDeskBeaconIds.removeWhere(mergedIds.contains);
+        // A local card kept over a stale server row stays pending, so a later
+        // stale read cannot revert it.
+        final keptOverServer = {
+          for (final c in merged)
+            if (withClosureStates.any((s) => s.beaconId == c.beaconId) &&
+                !withClosureStates.any((s) => identical(s, c)))
+              c.beaconId,
+        };
+        _pendingDeskBeaconIds.removeWhere(
+          (id) => mergedIds.contains(id) && !keptOverServer.contains(id),
+        );
         emit(
           state.copyWith(
             status: const StateIsSuccess(),

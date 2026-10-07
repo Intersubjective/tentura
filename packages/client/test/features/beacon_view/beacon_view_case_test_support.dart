@@ -174,6 +174,9 @@ class TrackingBeaconRepository implements BeaconRepository {
   }
 
   @override
+  void notifyUpdated(Beacon beacon) => emitUpdate(beacon);
+
+  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 

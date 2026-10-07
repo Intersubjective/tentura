@@ -494,6 +494,9 @@ final class BeaconViewCase extends UseCaseBase {
     await _beaconRepository.refreshAndNotify(beaconId);
   }
 
+  void notifyBeaconUpdated(Beacon beacon) =>
+      _beaconRepository.notifyUpdated(beacon);
+
   Future<ClosureState?> fetchClosureStateIfReviewOpen(String beaconId) async {
     final beacon = await fetchBeaconById(beaconId);
     if (beacon.status != BeaconStatus.reviewOpen) return null;

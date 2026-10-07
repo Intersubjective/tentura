@@ -74,6 +74,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
     );
     _beaconChangesSub = _case.beaconChanges.listen(
       (event) {
+        if (_closingBeacon && event is RepositoryEventUpdate<Beacon>) return;
         if (event is RepositoryEventInvalidate<Beacon> ||
             event is RepositoryEventUpdate<Beacon>) {
           _requestFullRefreshFor(event.id);
@@ -163,6 +164,8 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
 
   bool _fetchInProgress = false;
   bool _fetchPending = false;
+
+  bool _closingBeacon = false;
 
   final Set<BeaconRoomEntityType> _pendingRoomTypes = {};
 
@@ -389,18 +392,23 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
     required bool expectedRequiresReviewWindow,
   }) async {
     if (state.status == StateStatus.isLoading) return null;
+    _closingBeacon = true;
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       final result = await _case.beaconClose(
         beaconId: state.beacon.id,
         expectedRequiresReviewWindow: expectedRequiresReviewWindow,
       );
-      await _fetchBeaconByIdWithTimeline();
+      _case.notifyBeaconUpdated(
+        state.beacon.copyWith(status: result.beaconStatus),
+      );
+      await _fetchBeaconByIdWithTimeline(statusOverride: result.beaconStatus);
       return result;
     } catch (e) {
       _showSnackError(e);
       return null;
     } finally {
+      _closingBeacon = false;
       if (!isClosed && state.status == StateStatus.isLoading) {
         emit(state.copyWith(status: const StateIsSuccess()));
       }
@@ -1138,7 +1146,10 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
     }
   }
 
-  Future<void> _fetchBeaconByIdWithTimeline({bool background = false}) async {
+  Future<void> _fetchBeaconByIdWithTimeline({
+    bool background = false,
+    BeaconStatus? statusOverride,
+  }) async {
     try {
       final beaconId = state.beacon.id;
       final myUserId = state.myProfile.id;
@@ -1151,7 +1162,10 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
 
       late final Beacon beacon;
       try {
-        beacon = await _fetchBeaconByIdOrRetry(beaconId);
+        final fetched = await _fetchBeaconByIdOrRetry(beaconId);
+        beacon = statusOverride == null
+            ? fetched
+            : fetched.copyWith(status: statusOverride);
       } on BeaconFetchException {
         if (isClosed) return;
         if (!state.beaconContentLoaded) {
