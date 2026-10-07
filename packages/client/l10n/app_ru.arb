@@ -6466,5 +6466,6 @@
   },
   "composerEmojiButtonTooltip": "Эмодзи",
   "emojiPickerSearchHint": "Поиск эмодзи",
-  "emojiPickerNoRecents": "Здесь появятся эмодзи, которые вы используете"
+  "emojiPickerNoRecents": "Здесь появятся эмодзи, которые вы используете",
+  "settingsDebugPerformanceHud": "Показатели производительности"
 }

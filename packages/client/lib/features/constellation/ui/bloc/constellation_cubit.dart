@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' show TimelineTask;
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -29,6 +30,7 @@ import '../../../graph/domain/entity/node_details.dart';
 import '../../../graph/ui/utils/graph_scene_ids.dart';
 import '../../../graph/ui/utils/tentura_layout_algorithms.dart';
 import '../utils/constellation_graph_scene.dart';
+import '../util/constellation_perf.dart';
 import 'constellation_state.dart';
 
 export 'package:flutter_bloc/flutter_bloc.dart';
@@ -180,6 +182,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   bool _staleWhileHidden = false;
   int? _anchorLifecycleToken;
   int _layoutReconciliationCount = 0;
+  List<TimelineTask>? _dropReflowSpans;
   bool _suppressLateGestureEnd = false;
   String? _draggingNodeId;
   Set<GraphNodeId> _placementHandoffGraphIds = {};
@@ -332,6 +335,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     await _fieldChangeSub?.cancel();
     await _fieldCatchUpSub?.cancel();
     _clearClusterPresentations();
+    _finishDropReflowSpans();
     // ignore: invalid_use_of_visible_for_testing_member
     graphController.scene.removeListener(_onGraphSceneLayoutOutcomeChanged);
     await _anchorRefreshSub?.cancel();
@@ -490,6 +494,11 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
     _awaitingConstellationLayoutOutcome = false;
 
+    if (!kReleaseMode &&
+        (outcome is GraphLayoutOutcomeSucceeded ||
+            outcome is GraphLayoutOutcomeFailed)) {
+      _finishDropReflowSpans();
+    }
     if (outcome is GraphLayoutOutcomeSucceeded) {
       _layoutRecoveryAttempted = false;
       if (_forgetPriorHintNodeIds.isNotEmpty) {
@@ -601,16 +610,30 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       final loadedField = adopted
           ? resolved.field
           : resolved.field.copyWith(anchorProjection: confirmedProjection);
-      final composition = composeConstellationPresentation(
-        viewerId: _viewer.id,
-        field: _composerField(loadedField),
-        localFilters: state.filters,
-        asOfUtc: loadedField.loadedAt,
-        labelBudget: labelBudget,
-        expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
-        selectedRequestWebs: _selectedRequestWebs,
-        extraKeptPeerIds: _extraKeptPeerIds,
-      );
+      final composition = kReleaseMode
+          ? composeConstellationPresentation(
+              viewerId: _viewer.id,
+              field: _composerField(loadedField),
+              localFilters: state.filters,
+              asOfUtc: loadedField.loadedAt,
+              labelBudget: labelBudget,
+              expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
+              selectedRequestWebs: _selectedRequestWebs,
+              extraKeptPeerIds: _extraKeptPeerIds,
+            )
+          : ConstellationPerf.timeSync(
+              'compose',
+              () => composeConstellationPresentation(
+                viewerId: _viewer.id,
+                field: _composerField(loadedField),
+                localFilters: state.filters,
+                asOfUtc: loadedField.loadedAt,
+                labelBudget: labelBudget,
+                expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
+                selectedRequestWebs: _selectedRequestWebs,
+                extraKeptPeerIds: _extraKeptPeerIds,
+              ),
+            );
       emit(
         state.copyWith(
           status: const StateIsSuccess(),
@@ -1031,9 +1054,50 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
   }
 
+  void _finishDropReflowSpans() {
+    if (kReleaseMode) return;
+    (_dropReflowSpans ?? const <TimelineTask>[]).forEach(
+      ConstellationPerf.finishSpan,
+    );
+    _dropReflowSpans = null;
+  }
+
   Future<void> onExistingNodeDrop({
     required ConstellationAnchorTarget target,
     required Offset sceneCentre,
+  }) async {
+    if (isClosed || _suppressLateGestureEnd) return;
+    if (kReleaseMode) {
+      await _dropNode(target: target, sceneCentre: sceneCentre);
+      return;
+    }
+    final draggable = ConstellationPerf.startSpan(
+      'constellation.drop→draggable',
+    );
+    final ack = ConstellationPerf.startSpan('drop→acked');
+    final reflow = ConstellationPerf.startSpan('drop→reflowed');
+    var handedOff = false;
+    try {
+      await _dropNode(
+        target: target,
+        sceneCentre: sceneCentre,
+        draggableSpan: draggable,
+        ackSpan: ack,
+      );
+      if (!isClosed && !state.isComposing && reflow != null) {
+        (_dropReflowSpans ??= <TimelineTask>[]).add(reflow);
+        handedOff = true;
+      }
+    } finally {
+      if (!handedOff) ConstellationPerf.finishSpan(reflow);
+    }
+  }
+
+  Future<void> _dropNode({
+    required ConstellationAnchorTarget target,
+    required Offset sceneCentre,
+    TimelineTask? draggableSpan,
+    TimelineTask? ackSpan,
   }) async {
     if (isClosed || _suppressLateGestureEnd) {
       return;
@@ -1117,7 +1181,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         placementActionsEnabled: true,
       ),
     );
+    if (!kReleaseMode) ConstellationPerf.finishSpan(draggableSpan);
     await _submitUpsert(
+      ackSpan: ackSpan,
       target: target,
       position: position,
       companions: companions,
@@ -1249,6 +1315,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   Future<void> _submitUpsert({
     required ConstellationAnchorTarget target,
     required ConstellationAnchorPosition position,
+    TimelineTask? ackSpan,
     List<
           ({
             ConstellationAnchorTarget target,
@@ -1283,6 +1350,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
               membershipFilters: state.membershipFilters,
             );
     } finally {
+      if (!kReleaseMode) ConstellationPerf.finishSpan(ackSpan);
       _outstandingWrites--;
     }
     if (isClosed) {
@@ -1507,16 +1575,30 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       deferTargets: deferTargets,
     );
     final mergedField = field.copyWith(anchorProjection: presentation);
-    final composition = composeConstellationPresentation(
-      viewerId: _viewer.id,
-      field: _composerField(mergedField),
-      localFilters: state.filters,
-      asOfUtc: state.loadedAt ?? field.loadedAt,
-      labelBudget: _currentLabelBudget(),
-      expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
-      selectedRequestWebs: _selectedRequestWebs,
-      extraKeptPeerIds: _extraKeptPeerIds,
-    );
+    final composition = kReleaseMode
+        ? composeConstellationPresentation(
+            viewerId: _viewer.id,
+            field: _composerField(mergedField),
+            localFilters: state.filters,
+            asOfUtc: state.loadedAt ?? field.loadedAt,
+            labelBudget: _currentLabelBudget(),
+            expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
+            selectedRequestWebs: _selectedRequestWebs,
+            extraKeptPeerIds: _extraKeptPeerIds,
+          )
+        : ConstellationPerf.timeSync(
+            'compose',
+            () => composeConstellationPresentation(
+              viewerId: _viewer.id,
+              field: _composerField(mergedField),
+              localFilters: state.filters,
+              asOfUtc: state.loadedAt ?? field.loadedAt,
+              labelBudget: _currentLabelBudget(),
+              expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
+              selectedRequestWebs: _selectedRequestWebs,
+              extraKeptPeerIds: _extraKeptPeerIds,
+            ),
+          );
     emit(
       state.copyWith(
         field: mergedField,
@@ -2618,16 +2700,30 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (field == null) {
       return;
     }
-    final composition = composeConstellationPresentation(
-      viewerId: _viewer.id,
-      field: _composerField(field),
-      localFilters: state.filters,
-      asOfUtc: state.loadedAt ?? field.loadedAt,
-      labelBudget: _currentLabelBudget(),
-      expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
-      selectedRequestWebs: _selectedRequestWebs,
-      extraKeptPeerIds: _extraKeptPeerIds,
-    );
+    final composition = kReleaseMode
+        ? composeConstellationPresentation(
+            viewerId: _viewer.id,
+            field: _composerField(field),
+            localFilters: state.filters,
+            asOfUtc: state.loadedAt ?? field.loadedAt,
+            labelBudget: _currentLabelBudget(),
+            expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
+            selectedRequestWebs: _selectedRequestWebs,
+            extraKeptPeerIds: _extraKeptPeerIds,
+          )
+        : ConstellationPerf.timeSync(
+            'compose',
+            () => composeConstellationPresentation(
+              viewerId: _viewer.id,
+              field: _composerField(field),
+              localFilters: state.filters,
+              asOfUtc: state.loadedAt ?? field.loadedAt,
+              labelBudget: _currentLabelBudget(),
+              expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
+              selectedRequestWebs: _selectedRequestWebs,
+              extraKeptPeerIds: _extraKeptPeerIds,
+            ),
+          );
     emit(
       state.copyWith(
         composition: composition,
@@ -2678,6 +2774,14 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   }
 
   void _rebuildGraph() {
+    if (kReleaseMode) {
+      _buildGraphScene();
+      return;
+    }
+    ConstellationPerf.timeSync('scene.build', _buildGraphScene);
+  }
+
+  void _buildGraphScene() {
     final field = state.field == null ? null : _composerField(state.field!);
     final paths = state.paths;
     final composition = state.composition;

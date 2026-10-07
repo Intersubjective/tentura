@@ -6,6 +6,7 @@ import 'package:flutter_native_splash/flutter_native_splash.dart';
 
 import 'package:tentura/config/web_build_config.dart';
 import 'package:tentura/consts.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_perf.dart';
 import 'package:tentura/ui/bloc/app_update_cubit.dart';
 import 'package:tentura/ui/bloc/presence_cubit.dart';
 import 'package:tentura/ui/bloc/realtime_status_cubit.dart';
@@ -97,9 +98,17 @@ class App extends StatelessWidget {
   const App({super.key});
 
   @override
-  Widget build(
-    BuildContext context,
-  ) =>
+  Widget build(BuildContext context) {
+    if (kDebugMode) {
+      return ValueListenableBuilder<bool>(
+        valueListenable: ConstellationPerf.hudEnabled,
+        builder: (context, enabled, child) => _buildApp(context),
+      );
+    }
+    return _buildApp(context);
+  }
+
+  Widget _buildApp(BuildContext context) =>
       BlocSelector<
         SettingsCubit,
         SettingsState,
@@ -118,6 +127,8 @@ class App extends StatelessWidget {
             locale: selected.locale,
             scaffoldMessengerKey: snackbarKey,
             debugShowCheckedModeBanner: false,
+            showPerformanceOverlay:
+                kDebugMode && ConstellationPerf.hudEnabled.value,
             theme: TenturaTheme.light(),
             darkTheme: TenturaTheme.dark(),
             routerConfig: router.config(

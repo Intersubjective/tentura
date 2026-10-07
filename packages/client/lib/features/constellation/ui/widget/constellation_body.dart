@@ -26,6 +26,7 @@ import '../../domain/entity/constellation_field.dart';
 import '../../domain/radius_recipient_selection.dart';
 import '../bloc/constellation_composer_cubit.dart';
 import '../bloc/constellation_cubit.dart';
+import '../util/constellation_perf.dart';
 import '../utils/constellation_edge_style.dart';
 import '../utils/constellation_presentation_frame.dart';
 import '../utils/constellation_tap_resolver.dart';
@@ -84,6 +85,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
   @override
   void initState() {
     super.initState();
+    if (!kReleaseMode) ConstellationPerf.startFrameReporting();
     _graphController = context.read<ConstellationCubit>().graphController;
     _detail = nextConstellationDetailLevel(
       _graphController.cameraScale,
@@ -95,6 +97,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
   @override
   void dispose() {
     _graphController.cameraRevision.removeListener(_onCamera);
+    if (!kReleaseMode) ConstellationPerf.stopFrameReporting();
     super.dispose();
   }
 

@@ -7797,5 +7797,6 @@
   "emojiPickerNoRecents": "Emoji you use will show up here",
   "@emojiPickerNoRecents": {
     "context": "Empty Recently used tab of the emoji picker"
-  }
+  },
+  "settingsDebugPerformanceHud": "Performance overlay"
 }

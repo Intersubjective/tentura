@@ -2,7 +2,9 @@ import 'dart:math' as math;
 import 'dart:ui' show Offset, Size;
 
 import 'package:collection/collection.dart';
+import 'package:flutter/foundation.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_perf.dart';
 
 import '../../domain/layout/layered_dag_positions.dart';
 import '../../domain/layout/radial_hop_positions.dart';
@@ -305,7 +307,13 @@ final class ConstellationSceneLayoutAlgorithm implements SceneLayoutAlgorithm {
 
   @override
   Stream<GraphLayoutFrame> layout(GraphLayoutRequest request) async* {
-    yield _frame(request, _computePositions(request));
+    final positions = kReleaseMode
+        ? _computePositions(request)
+        : ConstellationPerf.timeSync(
+            'layout.job',
+            () => _computePositions(request),
+          );
+    yield _frame(request, positions);
   }
 
   Map<GraphNodeId, ScenePoint> _computePositions(GraphLayoutRequest request) {

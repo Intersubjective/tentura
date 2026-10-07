@@ -1,10 +1,12 @@
 import 'dart:async';
 
 import 'package:auto_route/auto_route.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_perf.dart';
 import 'package:tentura/features/home/domain/entity/home_activation.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
@@ -73,6 +75,16 @@ class DebugSettingsScreen extends StatelessWidget implements AutoRouteWrapper {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     spacing: tt.sectionGap,
                     children: [
+                      if (kDebugMode)
+                        ValueListenableBuilder<bool>(
+                          valueListenable: ConstellationPerf.hudEnabled,
+                          builder: (context, enabled, child) => SwitchListTile(
+                            title: Text(l10n.settingsDebugPerformanceHud),
+                            value: enabled,
+                            onChanged: (value) =>
+                                ConstellationPerf.hudEnabled.value = value,
+                          ),
+                        ),
                       const FirstRunOrientationDebugSection(),
                       _FcmRegistrationSection(state: state, l10n: l10n),
                       Column(
