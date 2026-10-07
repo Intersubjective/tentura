@@ -11,6 +11,7 @@ import 'package:http/testing.dart';
 
 import 'package:tentura/data/service/remote_api_client/realtime_socket.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
+import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/closure/data/repository/closure_repository.dart';
 import 'package:tentura/features/closure/domain/closure_exception.dart';
@@ -532,6 +533,66 @@ void main() {
         errors: {'ClosureState': _codeError(1802)},
       );
     });
+
+    test(
+      'beaconClose still reports a closed Request when the closure state '
+      'read finds no epoch',
+      () async {
+        await _withRemote(
+          {
+            'BeaconClose': {'beaconClose': true},
+            'ClosureState': {
+              'closureState': {
+                '__typename': 'ClosureState',
+                'epoch': 0,
+                'status': 1,
+                'role': 'author',
+                'members': <Object>[],
+                'outcomes': <Object>[],
+                'myMarks': <String>[],
+                'closesAt': '2026-10-05T19:40:00.000Z',
+                'canCloseNow': false,
+                'canReopen': false,
+                'extensionsUsed': 0,
+              },
+            },
+          },
+          <_Sent>[],
+          (repo) async {
+            final result = await repo.beaconClose(beaconId: _beaconId);
+            expect(result.beaconId, _beaconId);
+            // Finalized: the Request is closed and no review window is open.
+            expect(result.state, 1);
+            expect(result.closesAt, isNull);
+          },
+        );
+      },
+    );
+
+    for (final code in [1002, 1802]) {
+      test(
+        'beaconClose propagates closure state error $code after close',
+        () async {
+          await _withRemote(
+            {
+              'BeaconClose': {'beaconClose': true},
+            },
+            <_Sent>[],
+            (repo) async {
+              await expectLater(
+                repo.beaconClose(beaconId: _beaconId),
+                throwsA(
+                  code == 1002
+                      ? isA<RemoteApiException>()
+                      : isA<ClosureNotMemberException>(),
+                ),
+              );
+            },
+            errors: {'ClosureState': _codeError(code)},
+          );
+        },
+      );
+    }
 
     test('typed exceptions are localizable and numbered', () {
       expect(ClosureStaleEpochException.codeNumber, 1803);

@@ -289,7 +289,7 @@ class ClosureRepository {
     return BeaconCloseResult(
       beaconId: beaconId,
       state: closure.status,
-      closesAt: closure.closesAt.toIso8601String(),
+      closesAt: closure.epoch == 0 ? null : closure.closesAt.toIso8601String(),
     );
   }
 

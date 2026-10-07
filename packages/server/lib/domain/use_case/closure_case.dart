@@ -654,7 +654,29 @@ final class ClosureCase extends UseCaseBase {
   }) async {
     final epoch =
         await _repo.liveEpoch(beaconId) ?? await _repo.latestEpoch(beaconId);
-    if (epoch == null || epoch.status == ClosureEpochStatus.cancelled) {
+    if (epoch == null) {
+      // A Request closed directly (no evaluation epoch) has nothing to
+      // evaluate; its author reads it as an already finalized closure.
+      final beacon = await _beacons.getBeaconById(beaconId: beaconId);
+      if (viewerId == beacon.author.id &&
+          beacon.status == BeaconStatus.closed) {
+        BeaconKindPolicy.requireRequest(beacon);
+        return ClosureStateView(
+          epoch: 0,
+          status: ClosureEpochStatus.finalized,
+          role: ClosureRole.author,
+          members: const [],
+          closesAt: beacon.updatedAt,
+          myMarks: const [],
+          outcomes: const {},
+          canCloseNow: false,
+          canReopen: false,
+          extensionsUsed: 0,
+        );
+      }
+      throw IdNotFoundException(id: beaconId);
+    }
+    if (epoch.status == ClosureEpochStatus.cancelled) {
       throw IdNotFoundException(id: beaconId);
     }
     final beacon = await _beacons.getBeaconById(beaconId: beaconId);
@@ -783,11 +805,19 @@ final class ClosureCase extends UseCaseBase {
     required String beaconId,
   }) async {
     final epoch = await _repo.latestEpoch(beaconId);
-    if (epoch == null ||
-        !(await _repo.members(
-          beaconId: beaconId,
-          epoch: epoch.epoch,
-        )).any((m) => m.userId == viewerId)) {
+    if (epoch == null) {
+      final beacon = await _beacons.getBeaconById(beaconId: beaconId);
+      if (viewerId != beacon.author.id ||
+          beacon.status != BeaconStatus.closed) {
+        throw IdNotFoundException(id: beaconId);
+      }
+      BeaconKindPolicy.requireRequest(beacon);
+      return null;
+    }
+    if (!(await _repo.members(
+      beaconId: beaconId,
+      epoch: epoch.epoch,
+    )).any((m) => m.userId == viewerId)) {
       throw IdNotFoundException(id: beaconId);
     }
     if (epoch.status != ClosureEpochStatus.finalized) return null;
@@ -865,6 +895,7 @@ final class ClosureCase extends UseCaseBase {
     final offers = await _helpOffers.fetchByBeaconId(beaconId);
     for (final offer in offers) {
       if (!offer.isActive || offer.offerKind != 0) continue;
+      if (offer.roleLabel?.trim().isNotEmpty ?? false) continue;
       final events = await _commitments.eventsForPair(
         beaconId: beaconId,
         userId: offer.userId,

@@ -145,6 +145,7 @@ bool authorMarkedEnoughHelp(BeaconViewState state) =>
     BeaconStatus.enoughHelp;
 
 bool helpOfferRowSettled(TimelineHelpOffer c, BeaconViewState state) {
+  if (c.roleLabel?.trim().isNotEmpty ?? false) return true;
   final p = beaconParticipantForUser(state, c.user.id);
   if (p != null) {
     if (p.status == BeaconParticipantStatusBits.withdrawn ||

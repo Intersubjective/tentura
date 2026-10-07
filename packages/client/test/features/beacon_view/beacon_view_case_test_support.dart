@@ -578,7 +578,7 @@ BeaconViewCase buildTestBeaconViewCase({
   FakeBeaconViewForwardRepository? forward,
   RoomReadWatermarkStore? watermarkStore,
   TrackingBeaconRepository? beaconRepo,
-  FakeBeaconViewClosureRepository? closureRepo,
+  ClosureRepository? closureRepo,
   FakeBeaconViewCoordinationRepository? coordinationRepo,
   FakeBeaconDisplayRepository? displayRepo,
   FakeBeaconViewFactCardRepository? factCardsRepo,
