@@ -81,6 +81,10 @@ POSTGRES_USERNAME=postgres
 POSTGRES_MAXCONN=20
 # Note: tentura-server forces Drift pool maxConnectionCount=1 regardless
 # (statement transactions; see packages/server/WORKAROUNDS.md §4).
+# Per-statement limit for request connections, in ms (default 30000; 0 = off).
+# Migrations and the task worker are always unbounded; a legitimately long
+# request-path query must run `SET LOCAL statement_timeout = ...` itself.
+POSTGRES_STATEMENT_TIMEOUT_MS=30000
 
 # === JWT (Ed25519 PEM — use \n line escapes from step 2) ===
 JWT_PUBLIC_PEM=-----BEGIN PUBLIC KEY-----\nMC...==\n-----END PUBLIC KEY-----\n

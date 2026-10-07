@@ -353,11 +353,38 @@ final class _PinnedPoolSession implements Session {
     bool ignoreRows = false,
     QueryMode? queryMode,
     Duration? timeout,
-  }) async => (await _session()).execute(
-    query,
-    parameters: parameters,
-    ignoreRows: ignoreRows,
-    queryMode: queryMode,
-    timeout: timeout,
-  );
+  }) async {
+    final session = await _session();
+    if (session is! Pool) {
+      return session.execute(
+        query,
+        parameters: parameters,
+        ignoreRows: ignoreRows,
+        queryMode: queryMode,
+        timeout: timeout,
+      );
+    }
+    // Pool.execute disposes its connection whenever the statement throws. A
+    // statement cancelled by statement_timeout (57014) leaves the connection
+    // healthy, so report server errors out of the callback and rethrow them
+    // after the connection went back to the pool.
+    final (result, error, trace) = await _pool.withConnection((
+      connection,
+    ) async {
+      try {
+        final result = await connection.execute(
+          query,
+          parameters: parameters,
+          ignoreRows: ignoreRows,
+          queryMode: queryMode,
+          timeout: timeout,
+        );
+        return (result, null, null);
+      } on ServerException catch (e, s) {
+        return (null, e, s);
+      }
+    });
+    if (error != null) Error.throwWithStackTrace(error, trace!);
+    return result!;
+  }
 }

@@ -145,6 +145,7 @@ class Env {
     String? pgPassword,
     int? maxConnectionAge,
     int? maxConnectionCount,
+    int? pgStatementTimeoutMs,
 
     // S3 storage
     String? kS3AccessKey,
@@ -384,6 +385,10 @@ class Env {
            maxConnectionCount ??
            int.tryParse(_env['POSTGRES_MAXCONN'] ?? '') ??
            1,
+       pgStatementTimeoutMs =
+           pgStatementTimeoutMs ??
+           int.tryParse(_env['POSTGRES_STATEMENT_TIMEOUT_MS'] ?? '') ??
+           30000,
 
        // Task Worker
        taskOnEmptyDelay =
@@ -752,6 +757,11 @@ class Env {
 
   final int pgMaxConnectionCount;
 
+  /// Per-statement bound for request-path connections (0 disables). Applied
+  /// only through [pgPoolSettings]; migrations and the task worker use
+  /// [pgEndpointSettings] and stay unbounded.
+  final int pgStatementTimeoutMs;
+
   final pgEndpointSettings = const ConnectionSettings(
     sslMode: SslMode.disable,
   );
@@ -764,6 +774,9 @@ class Env {
     maxConnectionCount: 1,
     maxSessionUse: Duration(seconds: pgMaxConnectionAge),
     sslMode: pgEndpointSettings.sslMode,
+    onOpen: (connection) async {
+      await connection.execute('SET statement_timeout = $pgStatementTimeoutMs');
+    },
   );
 
   late final pgEndpoint = Endpoint(
