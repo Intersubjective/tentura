@@ -72,6 +72,12 @@ if [[ $analyze_status -ne 0 ]]; then
   exit "$analyze_status"
 fi
 
+# Plugin failures can be reported even when `dart analyze` exits successfully.
+if grep -Eq 'An error occurred while (executing an analyzer plugin|setting up the analyzer plugin)' "$out"; then
+  echo "check-custom-lints: analyzer plugin failed for $PKG; custom rules may not have run" >&2
+  exit 1
+fi
+
 # `dart analyze` can emit the same diagnostic more than once for a file that is
 # reachable through several analysis roots; dedupe on rule + file:line:col.
 # `grep` exits 1 on a clean package, which `set -o pipefail` would turn into a

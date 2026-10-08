@@ -1,0 +1,37 @@
+An error occurred while executing an analyzer plugin: An error occurred while setting up the analyzer plugin package at '/tmp/analyzer-plugin-setup/cli-cache/.plugin_manager/3524ed8538955c135936bff34a52016a'. The `dart pub upgrade` command failed:
+  exitCode = 69
+  stdout = Resolving dependencies...
+
+  stderr = Got socket error trying to find package analysis_server_plugin at https://pub.dev.
+
+
+#0      PluginManager._computeFiles (package:analysis_server/src/plugin/plugin_manager.dart:683)
+#1      PluginManager.filesFor (package:analysis_server/src/plugin/plugin_manager.dart:348)
+#2      PluginManager.addPluginToContextRoot (package:analysis_server/src/plugin/plugin_manager.dart:189)
+#3      PluginWatcher._addPlugins (package:analysis_server/src/plugin/plugin_watcher.dart:160)
+#4      PluginWatcher.addedDriver (package:analysis_server/src/plugin/plugin_watcher.dart:75)
+#5      AnalysisDriverScheduler.add (package:analyzer/src/dart/analysis/driver.dart:2682)
+#6      new AnalysisDriver (package:analyzer/src/dart/analysis/driver.dart:345)
+#7      ContextBuilderImpl.createContext (package:analyzer/src/dart/analysis/context_builder.dart:160)
+#8      new AnalysisContextCollectionImpl (package:analyzer/src/dart/analysis/analysis_context_collection.dart:95)
+#9      ContextManagerImpl._createAnalysisContexts.performContextRebuildGuarded.performContextRebuild (package:analysis_server/src/context_manager.dart:596)
+<asynchronous suspension>
+#10     ContextManagerImpl._createAnalysisContexts.performContextRebuildGuarded (package:analysis_server/src/context_manager.dart:750)
+<asynchronous suspension>
+#11     _CancellingTaskQueue.queue.<anonymous closure> (package:analysis_server/src/context_manager.dart:1059)
+<asynchronous suspension>
+#12     ContextManagerImpl.setRoots (package:analysis_server/src/context_manager.dart:386)
+<asynchronous suspension>
+#13     LegacyAnalysisServer.setAnalysisRoots (package:analysis_server/src/legacy_analysis_server.dart:903)
+<asynchronous suspension>
+#14     AnalysisSetAnalysisRootsHandler.handle (package:analysis_server/src/handler/legacy/analysis_set_analysis_roots.dart:52)
+<asynchronous suspension>
+#15     LegacyAnalysisServer.handleRequest.<anonymous closure>.<anonymous closure> (package:analysis_server/src/legacy_analysis_server.dart:651)
+<asynchronous suspension>
+#16     AsyncSpan.runUnary (package:perf_witness/src/async_span.dart:183)
+<asynchronous suspension>
+#17     OperationPerformanceImpl.runAsync (package:analyzer/src/util/performance/operation_performance.dart:229)
+<asynchronous suspension>
+#18     LegacyAnalysisServer.handleRequest.<anonymous closure> (package:analysis_server/src/legacy_analysis_server.dart:631)
+<asynchronous suspension>
+
