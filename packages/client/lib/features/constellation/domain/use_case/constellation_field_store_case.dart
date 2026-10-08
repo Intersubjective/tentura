@@ -14,6 +14,7 @@ import '../entity/constellation_field.dart';
 import '../entity/constellation_field_store_state.dart';
 import '../entity/constellation_projection_params.dart';
 import '../port/constellation_account_port.dart';
+import '../port/constellation_anchor_repository_port.dart';
 import '../port/constellation_repository_port.dart';
 
 export '../entity/constellation_field_store_state.dart';
@@ -118,6 +119,17 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
 
   ConstellationFieldStoreState get current => _state;
   ConstellationProjectionParams get projectionParams => _params;
+
+  /// Settle operation slots before publishing their complete confirmed view.
+  void settle(
+    ConstellationAnchorApplyResult result,
+    void Function() settleSlots, {
+    ConstellationProjectionParams? params,
+  }) {
+    settleSlots();
+    if (params != null && params != _params) return;
+    _applyAnchors(result.anchorProjection);
+  }
 
   bool get _visible => _browserVisible && _leases.any((l) => l.visible);
 
