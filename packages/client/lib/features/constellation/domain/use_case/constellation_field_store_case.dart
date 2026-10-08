@@ -113,6 +113,11 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
   Future<void>? _anchorsInFlight;
   var _anchorsQueued = false;
 
+  /// Newest revision among queued anchor hints, and whether any queued hint
+  /// carried none; judged against coverage once the read in flight settles.
+  BigInt? _queuedHintRevision;
+  var _queuedHintUnreadable = false;
+
   /// Pending account-owned replays a catch-up read must wait for, if any.
   Future<void>? Function()? _catchUpHold;
 
@@ -297,6 +302,15 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
       _markStale();
       return;
     }
+    final revision = change.revision;
+    if (revision != null && revision <= _state.coveredRevision.value) {
+      return;
+    }
+    if (revision == null) {
+      _queuedHintUnreadable = true;
+    } else if (_queuedHintRevision == null || revision > _queuedHintRevision!) {
+      _queuedHintRevision = revision;
+    }
     _anchorsQueued = true;
     unawaited(
       _anchorsInFlight ??= _runAnchorsRefresh().whenComplete(
@@ -428,10 +442,24 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
 
   Future<void> _runAnchorsRefresh() async {
     while (_anchorsQueued) {
+      // A FULL in flight reads the anchors too; judge hints once it settles.
+      final full = _fullInFlight;
+      if (full != null && full.paramsGeneration == _paramsGeneration) {
+        await full.future;
+      }
       _anchorsQueued = false;
+      final hinted = _queuedHintRevision;
+      final unreadable = _queuedHintUnreadable;
+      _queuedHintRevision = null;
+      _queuedHintUnreadable = false;
       if (!_canFetch) {
         _markStale();
         return;
+      }
+      if (!unreadable &&
+          hinted != null &&
+          hinted <= _state.coveredRevision.value) {
+        continue;
       }
       final generation = _state.generation;
       final params = _params;
