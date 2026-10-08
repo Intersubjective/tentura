@@ -279,6 +279,20 @@ class GraphSceneController<N, E> with ChangeNotifier {
     _commit();
   }
 
+  /// Updates committed destinations without requesting a new layout.
+  void setLayoutPositions(Map<GraphNodeId, ScenePoint> positions) {
+    _assertLive();
+    _assertNotNotifying();
+    final layout = _layout;
+    if (layout == null) return;
+    _layout = SceneLayout(
+      ticket: layout.ticket,
+      revision: ++_layoutRevision,
+      positions: positions,
+    );
+    _commit();
+  }
+
   /// Installs or clears displayed interpolation between layout frames.
   void setLayoutTransition(Map<GraphNodeId, ScenePoint>? positions) {
     _assertLive();

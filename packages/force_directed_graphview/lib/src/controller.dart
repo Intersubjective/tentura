@@ -53,6 +53,12 @@ class GraphController<N, E> with ChangeNotifier {
   Map<GraphNodeId, ScenePoint>? _transitionTarget;
   Map<GraphNodeId, ScenePoint>? _layoutTransitionCapture;
   GraphLayoutTicket? _transitionLayoutTicket;
+  int? _transitionTopologyRevision;
+  bool _transitionsPaused = false;
+  int _publicationGeneration = 0;
+  GraphLayoutTicket? _pendingLayoutTicket;
+  int? _pendingLayoutTopologyRevision;
+  Map<GraphNodeId, ScenePoint>? _pendingLayoutPositions;
   Object? _viewOwner;
   VoidCallback? _gestureAbortCallback;
   VoidCallback? _gestureCameraSyncCallback;
@@ -282,14 +288,18 @@ class GraphController<N, E> with ChangeNotifier {
   }
 
   void _replaceNodeAndEdgeSets(Set<N> targetNodes, Set<E> targetEdges) {
-    final targetNodesById = {for (final node in targetNodes) _nodeIdOf(node): node};
-    final targetEdgesById = {for (final edge in targetEdges) _edgeIdOf(edge): edge};
+    final targetNodesById = {
+      for (final node in targetNodes) _nodeIdOf(node): node,
+    };
+    final targetEdgesById = {
+      for (final edge in targetEdges) _edgeIdOf(edge): edge,
+    };
 
     _nodes.removeWhere((node) => !targetNodesById.containsKey(_nodeIdOf(node)));
     for (final entry in targetNodesById.entries) {
       final existing = _nodes
           .cast<N?>()
-          .where((node) => node != null && _nodeIdOf(node!) == entry.key)
+          .where((node) => node != null && _nodeIdOf(node) == entry.key)
           .firstOrNull;
       if (existing == null) {
         _nodes.add(entry.value);
@@ -303,7 +313,7 @@ class GraphController<N, E> with ChangeNotifier {
     for (final entry in targetEdgesById.entries) {
       final existing = _edges
           .cast<E?>()
-          .where((edge) => edge != null && _edgeIdOf(edge!) == entry.key)
+          .where((edge) => edge != null && _edgeIdOf(edge) == entry.key)
           .firstOrNull;
       if (existing == null) {
         _edges.add(entry.value);
@@ -597,6 +607,8 @@ class GraphController<N, E> with ChangeNotifier {
   }
 
   void _onSceneStateChanged() {
+    final generation = ++_publicationGeneration;
+    final topologyRevision = _scene.topologyRevision;
     _relayoutInFlight = _scene.layoutOutcome is GraphLayoutOutcomeRunning;
     final outcome = _scene.layoutOutcome;
     GraphLayoutTicket? successTicket;
@@ -618,14 +630,24 @@ class GraphController<N, E> with ChangeNotifier {
       _transitionFrom = null;
       _transitionTarget = null;
       _transitionLayoutTicket = null;
+      _pendingLayoutTicket = successTicket;
+      _pendingLayoutTopologyRevision = topologyRevision;
+      _pendingLayoutPositions = acceptedPositions;
     }
 
     void apply() {
-      if (_disposed) {
+      if (_disposed ||
+          _transitionsPaused ||
+          generation != _publicationGeneration ||
+          topologyRevision != _scene.topologyRevision ||
+          (successTicket != null &&
+              successTicket != _scene.snapshot.layout?.ticket) ||
+          !identical(outcome, _scene.layoutOutcome)) {
         return;
       }
       if (isNewLayoutSuccess && acceptedPositions != null) {
         _lastHandledLayoutSuccessTicket = successTicket;
+        _pendingLayoutPositions = null;
         _handleAcceptedLayout(acceptedPositions);
       }
       if (shouldCenterAfterLayout && canLayout) {
@@ -639,30 +661,99 @@ class GraphController<N, E> with ChangeNotifier {
   }
 
   void _handleAcceptedLayout(Map<GraphNodeId, ScenePoint> target) {
-    _ticker?.stop();
-    if (_transitionDuration == Duration.zero || _ticker == null) {
-      _scene.setLayoutTransition(null);
-      _transitionFrom = null;
-      _transitionTarget = null;
-      _transitionLayoutTicket = null;
-      _layoutTransitionCapture = null;
-      return;
-    }
-
     final from = _layoutTransitionCapture ?? _captureDisplayedPositions();
     _layoutTransitionCapture = null;
-    if (from.isEmpty) {
-      _scene.setLayoutTransition(null);
-      _transitionLayoutTicket = null;
-      return;
+    _startTransition(target, from);
+  }
+
+  /// Moves nodes from their displayed positions, tweening distances over 2 px.
+  /// Nodes in [skip] keep their displayed positions.
+  void animateTo(
+    Map<GraphNodeId, ScenePoint> targets, {
+    Set<GraphNodeId> skip = const {},
+  }) {
+    final from = _captureDisplayedPositions();
+    final destinations = Map<GraphNodeId, ScenePoint>.from(from);
+    for (final entry in targets.entries) {
+      if (from.containsKey(entry.key) && !skip.contains(entry.key)) {
+        destinations[entry.key] = entry.value;
+      }
     }
-    _transitionFrom = from;
-    _transitionTarget = target;
+    _scene.setLayoutPositions(destinations);
+    _startTransition(destinations, from);
+  }
+
+  void _startTransition(
+    Map<GraphNodeId, ScenePoint> target,
+    Map<GraphNodeId, ScenePoint> from,
+  ) {
+    _ticker?.stop();
+    final movingFrom = <GraphNodeId, ScenePoint>{};
+    final movingTarget = <GraphNodeId, ScenePoint>{};
+    if (_transitionDuration != Duration.zero && _ticker != null) {
+      for (final entry in target.entries) {
+        final start = from[entry.key] ?? _spawnScenePoint(entry.key);
+        if (start == null) continue;
+        final dx = entry.value.x - start.x;
+        final dy = entry.value.y - start.y;
+        if (dx * dx + dy * dy > 4) {
+          movingFrom[entry.key] = start;
+          movingTarget[entry.key] = entry.value;
+        }
+      }
+    }
+    _transitionFrom = movingFrom.isEmpty ? null : movingFrom;
+    _transitionTarget = movingTarget.isEmpty ? null : movingTarget;
     _transitionLayoutTicket = _scene.snapshot.layout?.ticket;
-    _scene.setLayoutTransition(from);
-    _ticker!
-      ..stop()
-      ..start();
+    _transitionTopologyRevision = _scene.topologyRevision;
+    _scene.setLayoutTransition(movingFrom.isEmpty ? null : movingFrom);
+    if (movingFrom.isNotEmpty && !_transitionsPaused) _ticker?.start();
+  }
+
+  /// Freezes displayed geometry while retaining unfinished destinations.
+  void pauseTransitions() {
+    if (_transitionsPaused) return;
+    _transitionsPaused = true;
+    _publicationGeneration++;
+    _ticker?.stop();
+    if (_hasCurrentPendingLayout) {
+      _scene.setLayoutTransition(_layoutTransitionCapture);
+    } else if (_transitionTarget != null) {
+      final displayed = _captureDisplayedPositions();
+      _transitionFrom = {
+        for (final id in _transitionTarget!.keys)
+          if (displayed.containsKey(id)) id: displayed[id]!,
+      };
+    }
+  }
+
+  bool get _hasCurrentPendingLayout =>
+      _pendingLayoutPositions != null &&
+      _pendingLayoutTopologyRevision == _scene.topologyRevision &&
+      _scene.layoutOutcome is GraphLayoutOutcomeSucceeded &&
+      (_scene.layoutOutcome as GraphLayoutOutcomeSucceeded).ticket ==
+          _pendingLayoutTicket;
+
+  /// Continues toward retained destinations without counting paused time.
+  void resumeTransitions() {
+    if (!_transitionsPaused) return;
+    _transitionsPaused = false;
+    _publicationGeneration++;
+    if (_hasCurrentPendingLayout) {
+      final target = _pendingLayoutPositions!;
+      _pendingLayoutPositions = null;
+      _lastHandledLayoutSuccessTicket = _pendingLayoutTicket;
+      _handleAcceptedLayout(target);
+    } else if (_transitionFrom != null &&
+        _transitionTarget != null &&
+        _transitionTopologyRevision == _scene.topologyRevision &&
+        _transitionLayoutTicket == _scene.snapshot.layout?.ticket) {
+      _ticker?.start();
+    } else {
+      _transitionFrom = null;
+      _transitionTarget = null;
+      _pendingLayoutPositions = null;
+    }
   }
 
   Map<GraphNodeId, ScenePoint> _captureDisplayedPositions() {
@@ -782,6 +873,7 @@ class GraphController<N, E> with ChangeNotifier {
       _setCameraGated(gated, zoomLive: zoomLive);
 
   void _onTransitionTick(Duration elapsed) {
+    if (_transitionsPaused) return;
     final from = _transitionFrom;
     final target = _transitionTarget;
     if (from == null || target == null) {
@@ -790,8 +882,9 @@ class GraphController<N, E> with ChangeNotifier {
     }
 
     final activeLayoutTicket = _scene.snapshot.layout?.ticket;
-    if (_transitionLayoutTicket != null &&
-        activeLayoutTicket != _transitionLayoutTicket) {
+    if (_transitionTopologyRevision != _scene.topologyRevision ||
+        (_transitionLayoutTicket != null &&
+            activeLayoutTicket != _transitionLayoutTicket)) {
       _ticker?.stop();
       _transitionFrom = null;
       _transitionTarget = null;
@@ -807,15 +900,19 @@ class GraphController<N, E> with ChangeNotifier {
 
     final interpolated = <GraphNodeId, ScenePoint>{};
     for (final entry in target.entries) {
-      final start = from[entry.key] ??
-          _spawnScenePoint(entry.key) ??
-          entry.value;
+      final start =
+          from[entry.key] ?? _spawnScenePoint(entry.key) ?? entry.value;
       interpolated[entry.key] = ScenePoint(
         x: start.x + (entry.value.x - start.x) * eased,
         y: start.y + (entry.value.y - start.y) * eased,
       );
     }
     _scene.setLayoutTransition(interpolated);
+
+    // Keep pending layouts rebased on the geometry the animation displays.
+    if (_relayoutInFlight) {
+      _layoutTransitionCapture = _captureDisplayedPositions();
+    }
 
     if (t >= 1.0) {
       _scene.setLayoutTransition(null);
@@ -1034,38 +1131,6 @@ class GraphController<N, E> with ChangeNotifier {
     }
   }
 
-  void _addNode(N node) {
-    if (_hasNode(node)) {
-      throw StateError('Node is already in the graph');
-    }
-    _nodes.add(node);
-  }
-
-  void _removeNode(N node) {
-    if (!_hasNode(node)) {
-      throw StateError('Node $node is not in the graph');
-    }
-    _edges.removeWhere(
-      (edge) =>
-          _edgeSourceOf(edge) == node || _edgeDestinationOf(edge) == node,
-    );
-    _nodes.remove(node);
-  }
-
-  void _addEdge(E edge) {
-    if (!_hasNode(_edgeSourceOf(edge)) || !_hasNode(_edgeDestinationOf(edge))) {
-      throw StateError('Source or destination node is not in the graph');
-    }
-    _edges.add(edge);
-  }
-
-  void _removeEdge(E edge) {
-    if (!_hasEdge(edge)) {
-      throw StateError('Edge $edge is not in the graph');
-    }
-    _edges.remove(edge);
-  }
-
   /// Removes every node and edge without moving the camera.
   void clear() {
     _nodes.clear();
@@ -1094,23 +1159,36 @@ class GraphController<N, E> with ChangeNotifier {
     _centered = false;
   }
 
-  var _deferredNotifyPending = false;
+  int? _deferredNotifyGeneration;
   var _disposed = false;
 
   @override
   void notifyListeners() {
+    if (_disposed || _transitionsPaused) return;
     final SchedulerBinding? binding = _schedulerBindingOrNull();
     if (binding != null) {
       final phase = binding.schedulerPhase;
       if (phase == SchedulerPhase.persistentCallbacks ||
           phase == SchedulerPhase.midFrameMicrotasks) {
-        if (_deferredNotifyPending) {
+        final generation = _publicationGeneration;
+        if (_deferredNotifyGeneration == generation) {
           return;
         }
-        _deferredNotifyPending = true;
+        _deferredNotifyGeneration = generation;
+        final topologyRevision = _scene.topologyRevision;
+        final layoutTicket = _scene.snapshot.layout?.ticket;
+        final outcome = _scene.layoutOutcome;
         binding.addPostFrameCallback((_) {
-          _deferredNotifyPending = false;
-          if (!hasListeners) {
+          if (_deferredNotifyGeneration == generation) {
+            _deferredNotifyGeneration = null;
+          }
+          if (_disposed ||
+              _transitionsPaused ||
+              generation != _publicationGeneration ||
+              topologyRevision != _scene.topologyRevision ||
+              layoutTicket != _scene.snapshot.layout?.ticket ||
+              !identical(outcome, _scene.layoutOutcome) ||
+              !hasListeners) {
             return;
           }
           super.notifyListeners();
@@ -1140,8 +1218,4 @@ class GraphController<N, E> with ChangeNotifier {
     _cameraRevision.dispose();
     super.dispose();
   }
-
-  bool _hasNode(N node) => _nodes.contains(node);
-
-  bool _hasEdge(E edge) => _edges.contains(edge);
 }

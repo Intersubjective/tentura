@@ -1,6 +1,4 @@
 import 'package:flutter/widgets.dart';
-import 'package:force_directed_graphview/src/model/edge.dart';
-import 'package:force_directed_graphview/src/model/node.dart';
 
 /// Interface for painting edges.
 abstract interface class EdgePainter<N, E> {
@@ -14,13 +12,15 @@ abstract interface class EdgePainter<N, E> {
 }
 
 /// Interface for painting animated edges.
-abstract interface class AnimatedEdgePainter<N, E> implements EdgePainter<N, E> {
+abstract interface class AnimatedEdgePainter<N, E>
+    implements EdgePainter<N, E> {
   /// Animation used to paint the edge.
   Animation<double> get animation;
 }
 
 /// Interface for edges that repaint when [repaint] notifies.
-abstract interface class RepaintingEdgePainter<N, E> implements EdgePainter<N, E> {
+abstract interface class RepaintingEdgePainter<N, E>
+    implements EdgePainter<N, E> {
   /// Notifier that triggers repaints when the edge appearance changes.
   Listenable get repaint;
 }

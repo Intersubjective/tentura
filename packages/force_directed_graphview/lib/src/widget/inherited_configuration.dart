@@ -17,10 +17,10 @@ class InheritedConfiguration extends InheritedWidget {
   final GraphViewConfiguration configuration;
 
   /// { @nodoc }
-  final GraphController controller;
+  final GraphController<dynamic, dynamic> controller;
 
   /// { @nodoc }
-  static GraphController controllerOf(BuildContext context) {
+  static GraphController<dynamic, dynamic> controllerOf(BuildContext context) {
     return context
         .dependOnInheritedWidgetOfExactType<InheritedConfiguration>()!
         .controller;

@@ -87,7 +87,7 @@ void main() {
     await pumpHarness(
       tester,
       controller,
-      algorithm: const FruchtermanReingoldSceneLayoutAlgorithm(iterations: 1),
+      algorithm: const FruchtermanReingoldSceneLayoutAlgorithm(iterations: 10),
       transitionDuration: const Duration(milliseconds: 400),
     );
 
@@ -96,6 +96,9 @@ void main() {
     final settledA = testNodePosition(controller, a);
 
     testAddNode(controller, b);
+    for (var i = 0; i < 40 && !controller.isLayoutTransitioning; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 80));
     expect(controller.isLayoutTransitioning, isTrue);

@@ -60,7 +60,7 @@ class _LabelsLayoutDelegate extends MultiChildLayoutDelegate {
 
   final GraphSceneSnapshot<Object?, Object?> snapshot;
   final Map<GraphNodeId, Widget> labels;
-  final LabelBuilder labelBuilder;
+  final LabelBuilder<dynamic> labelBuilder;
 
   @override
   void performLayout(Size size) {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 
+import 'support/fixed_scene_layout.dart';
 import 'support/int_graph_controller.dart';
 
 void main() {
@@ -16,9 +17,10 @@ void main() {
         home: GraphView<Node<int>, Edge<Node<int>, void>>(
           controller: controller,
           canvasSize: const GraphCanvasSize.fixed(Size(500, 500)),
-          layoutAlgorithm: const FruchtermanReingoldSceneLayoutAlgorithm(
-            iterations: 1,
-          ),
+          layoutAlgorithm: FixedSceneLayoutAlgorithm({
+            '1': ScenePoint(x: 100, y: 100),
+            '2': ScenePoint(x: 300, y: 300),
+          }),
           layoutTransitionDuration: const Duration(milliseconds: 300),
           nodeBuilder: (context, node) => const SizedBox.shrink(),
         ),
