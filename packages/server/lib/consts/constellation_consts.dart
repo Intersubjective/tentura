@@ -4,6 +4,9 @@ export 'package:tentura_root/domain/constellation/constellation_geometry.dart';
 const kConstellationPeerCap = 200;
 const kConstellationRequestCap = 150;
 
+/// Candidates examined per readability batch of the discoverable keyset scan.
+const kConstellationDiscoverableScanBatch = kConstellationRequestCap + 1;
+
 /// Max characters of a Post's root message shown on its field card.
 const kConstellationPostExcerptLength = 140;
 

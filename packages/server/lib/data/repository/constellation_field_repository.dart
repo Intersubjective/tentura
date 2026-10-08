@@ -3,6 +3,7 @@ import 'package:injectable/injectable.dart';
 import 'package:meta/meta.dart';
 import 'package:postgres/postgres.dart' show Type, TypedValue;
 
+import 'package:tentura_server/domain/constellation/constellation_field_selection.dart';
 import 'package:tentura_server/domain/entity/constellation_field.dart';
 import 'package:tentura_server/domain/entity/gql_public/image_public_record.dart';
 import 'package:tentura_server/domain/port/constellation_field_repository_port.dart';
@@ -208,9 +209,7 @@ WHERE b.user_id <> \$1
   AND b.is_discoverable
   AND b.kind = 0
   AND b.status IN (0, 7, 8)
-  AND b.published_at IS NOT NULL
-  AND NOT public.block_hides(\$1, b.user_id)
-  AND public.beacon_can_read_content(b.id, \$1)
+  AND ${constellationBeaconContentReadableSql(viewerParam: r'$1', beaconAlias: 'b')}
 ORDER BY b.user_id, b.id
 LIMIT \$3
 ''',

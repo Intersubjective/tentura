@@ -403,31 +403,73 @@ ORDER BY b.id
             beaconAlias: 'b',
           )
         : null;
-    final rows = await _database.customSelect(
-      '''
-SELECT $constellationRequestSelectColumns
+    final statusVariable = Variable(TypedValue(Type.integerArray, statusArray));
+    final excludedVariable = Variable(
+      TypedValue(Type.textArray, excludeBeaconIds.toList()..sort()),
+    );
+    final peersVariable = Variable(TypedValue(Type.textArray, visiblePeerIds));
+
+    // Keyset scan over `(user_id, id)`: each batch of candidates passing the
+    // cheap row predicates is checked for readability set-wise, and the key
+    // advances past every examined candidate, readable or not, so each one is
+    // asked about at most once and the scan stops at cap + 1 eligible rows.
+    final eligible = <ConstellationRequestRecord>[];
+    String? lastUserId;
+    String? lastId;
+    while (eligible.length <= cap) {
+      final candidates = await _database.customSelect(
+        '''
+SELECT b.user_id AS user_id, b.id AS id
 FROM public.beacon b
-LEFT JOIN public.image cover ON cover.id = b.cover_thumb_image_id
 WHERE b.user_id = ANY(\$2::text[])
   AND b.is_discoverable
   AND b.kind = 0
   AND b.status = ANY(\$3::int[])
-  AND ${constellationBeaconContentReadableSql(viewerParam: r'$1', beaconAlias: 'b')}
+  AND b.published_at IS NOT NULL
+  AND NOT public.block_hides(\$1, b.user_id)
   AND NOT (b.id = ANY(\$4::text[]))
   ${participation == null ? '' : 'AND ($participation)'}
+  ${lastId == null ? '' : r'AND (b.user_id, b.id) > ($6, $7)'}
 ORDER BY b.user_id, b.id
 LIMIT \$5
 ''',
-      variables: [
-        Variable.withString(viewerId),
-        Variable(TypedValue(Type.textArray, visiblePeerIds)),
-        Variable(TypedValue(Type.integerArray, statusArray)),
-        Variable(
-          TypedValue(Type.textArray, excludeBeaconIds.toList()..sort()),
-        ),
-        Variable.withInt(cap + 1),
-      ],
-    ).get();
-    return rows.map(readConstellationRequestRow).toList(growable: false);
+        variables: [
+          Variable.withString(viewerId),
+          peersVariable,
+          statusVariable,
+          excludedVariable,
+          Variable.withInt(kConstellationDiscoverableScanBatch),
+          if (lastId != null) ...[
+            Variable.withString(lastUserId!),
+            Variable.withString(lastId),
+          ],
+        ],
+      ).get();
+      if (candidates.isEmpty) {
+        break;
+      }
+      final batchIds = [for (final row in candidates) row.read<String>('id')];
+      lastUserId = candidates.last.read<String>('user_id');
+      lastId = batchIds.last;
+
+      final rows = await _database.customSelect(
+        '''
+SELECT $constellationRequestSelectColumns
+FROM public.beacon b
+LEFT JOIN public.image cover ON cover.id = b.cover_thumb_image_id
+WHERE b.id IN (SELECT public.beacon_readable_ids(\$1, \$2::text[]))
+ORDER BY b.user_id, b.id
+''',
+        variables: [
+          Variable.withString(viewerId),
+          Variable(TypedValue(Type.textArray, batchIds)),
+        ],
+      ).get();
+      eligible.addAll(rows.map(readConstellationRequestRow));
+      if (candidates.length < kConstellationDiscoverableScanBatch) {
+        break;
+      }
+    }
+    return eligible.length > cap ? eligible.sublist(0, cap + 1) : eligible;
   }
 }
