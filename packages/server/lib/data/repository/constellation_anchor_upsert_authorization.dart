@@ -39,8 +39,8 @@ Future<bool> _personAuthorized(
 SELECT 1 AS ok
 WHERE $3::text <> $1::text
   AND EXISTS (
-    SELECT 1 FROM public.person_visible_peers_symmetric($1, $2) p
-    WHERE p.peer_id::text = $3
+    SELECT 1
+    WHERE $3 = ANY(public.person_visible_peer_ids_tx($1, $2))
   )
   AND NOT public.block_hides($1, $3)
   AND NOT public.block_hides($3, $1)

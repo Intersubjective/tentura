@@ -288,6 +288,12 @@ class TenturaDb extends _$TenturaDb {
     });
   }
 
+  /// Makes the rest of the current transaction keep its first visible-set
+  /// computation per (viewer, context); see m0230.
+  Future<void> freezeVisibilityMemo() => customStatement(
+    "SELECT set_config('tentura_visibility.frozen', 'on', true)",
+  );
+
   Future<T> withMutatingSystem<T>(Future<T> Function() action) {
     final current = Zone.current[_mutatingTransactionZoneKey];
     if (current is _MutatingTransactionContext && identical(current.db, this)) {

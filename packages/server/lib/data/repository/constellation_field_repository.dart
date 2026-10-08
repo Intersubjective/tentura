@@ -77,18 +77,18 @@ final class ConstellationFieldRepository
     required String context,
     required ConstellationFieldReadParams params,
   }) {
-    return _database.withReadSnapshot(
-      () =>
-          ConstellationFieldSnapshotReader(
-            _database,
-            _profiles,
-            snapshotOpenProbe: _snapshotOpenProbe,
-          ).read(
-            viewerId: viewerId,
-            context: context,
-            params: params,
-          ),
-    );
+    return _database.withReadSnapshot(() async {
+      await _database.freezeVisibilityMemo();
+      return ConstellationFieldSnapshotReader(
+        _database,
+        _profiles,
+        snapshotOpenProbe: _snapshotOpenProbe,
+      ).read(
+        viewerId: viewerId,
+        context: context,
+        params: params,
+      );
+    });
   }
 
   @override

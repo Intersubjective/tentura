@@ -74,6 +74,7 @@ WHERE viewer_id = $1
     _assertValidMutationTarget(viewerId, target);
     _assertValidPosition(position);
 
+    await _db.freezeVisibilityMemo();
     await _lockViewerCursor(viewerId);
 
     final authorized = await isConstellationAnchorUpsertAuthorized(
