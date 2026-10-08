@@ -12,6 +12,7 @@ import 'package:force_directed_graphview/src/scene/scene_transition.dart';
 @immutable
 final class GraphSceneSnapshot<N, E> {
   GraphSceneSnapshot._({
+    required this.sceneRevision,
     required this.topology,
     this.layout,
     required this.presentation,
@@ -21,6 +22,7 @@ final class GraphSceneSnapshot<N, E> {
 
   factory GraphSceneSnapshot({
     required GraphTopology<N, E> topology,
+    int sceneRevision = 0,
     SceneLayout? layout,
     ScenePresentation? presentation,
     SceneTransition? transition,
@@ -28,12 +30,15 @@ final class GraphSceneSnapshot<N, E> {
   }) =>
       GraphSceneSnapshot._(
         topology: topology,
+        sceneRevision: sceneRevision,
         layout: layout,
         presentation: presentation ?? ScenePresentation(),
         transition: transition,
         seedPositions: copyValidatedScenePointMap(seedPositions),
       );
 
+  /// Scene revision captured atomically with this geometry.
+  final int sceneRevision;
   final GraphTopology<N, E> topology;
   final SceneLayout? layout;
   final ScenePresentation presentation;
@@ -57,6 +62,7 @@ final class GraphSceneSnapshot<N, E> {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is GraphSceneSnapshot<N, E> &&
+          sceneRevision == other.sceneRevision &&
           topology == other.topology &&
           layout == other.layout &&
           presentation == other.presentation &&
@@ -65,6 +71,7 @@ final class GraphSceneSnapshot<N, E> {
 
   @override
   int get hashCode => Object.hash(
+        sceneRevision,
         topology,
         layout,
         presentation,

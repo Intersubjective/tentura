@@ -132,6 +132,9 @@ class GraphController<N, E> with ChangeNotifier {
   /// Increments on every camera transform change (pan/zoom/fit/jump).
   ValueListenable<int> get cameraRevision => _cameraRevision;
 
+  /// Revision of the scene captured by [renderSnapshot].
+  int get sceneRevision => _scene.sceneRevision;
+
   /// Current uniform camera scale; 1.0 before a view is attached.
   double get cameraScale =>
       _transformationController?.value.getMaxScaleOnAxis() ?? 1.0;

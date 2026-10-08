@@ -779,7 +779,9 @@ class _ConstellationBodyState extends State<ConstellationBody> {
             final frame = _frameHolder.frame;
             final controller = cubit.graphController;
             if (frame == null ||
-                !identical(frame.snapshot, controller.renderSnapshot) ||
+                (frame.snapshot as GraphSceneSnapshot<NodeDetails, EdgeDetails>)
+                        .sceneRevision !=
+                    controller.sceneRevision ||
                 frame.cameraRevision != controller.cameraRevision.value) {
               return null;
             }

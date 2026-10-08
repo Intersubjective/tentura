@@ -194,6 +194,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   /// One-shot algorithm for an owned layout request (tests); not used after recovery.
   SceneLayoutAlgorithm? _ephemeralOwnedLayoutAlgorithm;
 
+  int _constellationLayoutAlgorithmRevision = -1;
+  ConstellationSceneLayoutAlgorithm? _constellationLayoutAlgorithm;
+
   int _layoutHandoffGeneration = 0;
 
   Set<String> _composingCandidateIds = const {};
@@ -284,7 +287,13 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       constellationSceneLayoutAlgorithm;
 
   ConstellationSceneLayoutAlgorithm get constellationSceneLayoutAlgorithm {
-    return ConstellationSceneLayoutAlgorithm(
+    final cached = _constellationLayoutAlgorithm;
+    if (cached != null &&
+        _constellationLayoutAlgorithmRevision == state.graphRevision) {
+      return cached;
+    }
+    _constellationLayoutAlgorithmRevision = state.graphRevision;
+    return _constellationLayoutAlgorithm = ConstellationSceneLayoutAlgorithm(
       egoId: layoutEgoId.isEmpty ? _viewer.id : layoutEgoId,
       paths:
           layoutPaths ??

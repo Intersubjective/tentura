@@ -29,6 +29,7 @@ class GraphSceneController<N, E> with ChangeNotifier {
 
   GraphTopology<N, E> _topology;
   var _topologyRevision = 0;
+  var _sceneRevision = 0;
   SceneLayout? _layout;
   var _layoutRevision = 0;
   ScenePresentation _presentation = ScenePresentation();
@@ -52,7 +53,11 @@ class GraphSceneController<N, E> with ChangeNotifier {
 
   int get topologyRevision => _topologyRevision;
 
+  /// Advances when scene state is committed; snapshot reads leave it unchanged.
+  int get sceneRevision => _sceneRevision;
+
   GraphSceneSnapshot<N, E> get snapshot => GraphSceneSnapshot<N, E>(
+        sceneRevision: _sceneRevision,
         topology: _topology,
         layout: _layout,
         presentation: _presentation,
@@ -673,6 +678,7 @@ class GraphSceneController<N, E> with ChangeNotifier {
     if (_disposed) {
       return;
     }
+    _sceneRevision++;
     _notifying = true;
     try {
       notifyListeners();
