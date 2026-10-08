@@ -147,3 +147,52 @@ Converted client `ConstellationAnchorUpsertResult` and `ConstellationAnchorDelet
 **Full client regression.** Alloy subsequently ran `cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 45m -- flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env`: exit 0, **5170 passed, 2 skipped**, final runner time 4m39s, `All tests passed!`. This is the broadest relevant regression suite for this client port conversion.
 
 **Deviations and follow-ups.** Local codegen initially failed because the sandbox's Flutter launcher could not write SDK cache files and the cached AOT generator could not create a stream file descriptor; Alloy's successful codegen and acceptance run resolved that verification block. No new test is specified for U06; existing constellation tests are its acceptance suite. The task-specific checkout and git instructions override the plan's feature-branch and commit steps: work stays on main, and Alloy owns commits and tracking. No remaining U06 implementation work.
+
+## UNIT U41 — complete (part 3/3: perf baseline and calibrated limits) — 2026-10-08
+
+Parts 1/2 added the recorder and the fixture matrix (`packages/server/test/perf/`). Part 3 measures today's server end to end and freezes the budgets. New script: `scripts/perf/constellation_baseline.py` (reuses `constellation_gql_bench.py`; writes `packages/server/build/perf/u41_<dataset>.json`, gitignored).
+
+### Methodology
+
+- **Reference machine:** the local development host: Intel i5-12600K (12 threads), 61 GB RAM, load average ≈ 2 from unrelated background work. PostgreSQL 17.11 with pgmer2 0.9.1 and **MeritRank 0.12.0** (snapshots; `WALKS_CACHE_SIZE=300`, `SNAPSHOT_STALENESS=2`, `NUM_WALKS=1000`, on-demand walks 10 000), both in docker compose. The 0.11 numbers of runs 1–4 are not used.
+- **Server:** `scripts/perf/run_server_db.sh <db>`, `DEBUG_MODE=true` (one web worker, JIT). Absolute numbers are pessimistic against a release build. `TRUST_SWEEP_TIME_BUDGET_MINUTES=0` keeps the startup trust sweep from pruning the synthetic edges.
+- **Datasets:** `tentura_perfsynth`, rebuilt from a fresh dev copy with `scripts/perf/constellation_synth.sql` (89 475 MR edges, 14 018 synthetic requests; the heavy viewer sees about 1 000 mutual peers, the FULL read returns the production caps of 201 people and 150 requests, 76 KB), and `tentura_devcopy` (real dev data, 675 MR edges, 78 people, 209 edges, 39 KB). `mr_edgelist()` was checked to be non-empty before each run, and the `postgres` graph was restored afterwards.
+- **Latency:** wall-clock on loopback from the client's request to the end of the response body, so it covers admission, the transaction and response encoding. The operations are `constellationField` (FULL, ANCHORS) and the existing `constellationAnchorUpsert` / `constellationAnchorDelete` for a person anchor.
+- **Warm:** one viewer, 5+ warm-up calls, then n = 60 repetitions per operation (upsert and delete alternate on the same person).
+- **Cold:** the MeritRank peer-frame cache is emptied right before the call (`mr_reset(); meritrank_init()`, the state after an MR restart); n = 30 repetitions per operation, rotating over 30 viewers on the dense dataset (one viewer on the dev copy). PostgreSQL buffers and the JIT stay warm; there is no OS-cache flush. Delete is timed after an MR reset too, although it makes no MR call.
+- **Uncertainty:** the p95 is the linearly interpolated 95th percentile of the samples; its interval is a 95 % percentile bootstrap (5 000 resamples, fixed seed). Cold samples are nearly deterministic (MR frame sampling dominates), so their intervals are tight; the warm ANCHORS and upsert intervals are wide because a few GC or scheduling outliers set the p95.
+
+### Baseline
+
+| Operation | Dataset | cold p50 | cold p95 | cold p95 95% CI | warm p50 | warm p95 | warm p95 95% CI |
+|---|---|---|---|---|---|---|---|
+| FULL | dense, V ≈ 1000, C ≈ 10k | 647.7 ms | 676.1 ms | [668.6, 679.7] | 156.1 ms | 177.3 ms | [164.3, 187.8] |
+| ANCHORS | dense, V ≈ 1000, C ≈ 10k | 516.6 ms | 535.3 ms | [531.3, 536.5] | 21.0 ms | 37.9 ms | [30.4, 49.0] |
+| person upsert | dense, V ≈ 1000, C ≈ 10k | 515.4 ms | 533.6 ms | [525.5, 543.2] | 15.0 ms | 31.3 ms | [21.1, 35.7] |
+| delete | dense, V ≈ 1000, C ≈ 10k | 12.5 ms | 19.2 ms | [17.4, 21.2] | 9.5 ms | 18.4 ms | [13.6, 23.4] |
+| FULL | dev copy, V = 78 | 76.7 ms | 91.1 ms | [83.0, 132.8] | 50.9 ms | 65.5 ms | [59.2, 67.5] |
+| ANCHORS | dev copy, V = 78 | 37.2 ms | 51.3 ms | [42.6, 81.2] | 9.7 ms | 13.1 ms | [12.1, 14.6] |
+| person upsert | dev copy, V = 78 | 41.2 ms | 65.7 ms | [57.3, 76.6] | 12.5 ms | 18.3 ms | [14.7, 19.4] |
+| delete | dev copy, V = 78 | 9.7 ms | 26.4 ms | [15.5, 31.3] | 8.8 ms | 12.6 ms | [11.7, 14.7] |
+
+**Reading.**
+- With MeritRank 0.12 snapshots the dense case no longer needs a walks cache sized to the working set: warm FULL is about 156 ms (0.11 with cache 1 200: 154 ms; 0.11 with cache 200: 7.2 s), ANCHORS 21 ms (18 ms), upsert 15 ms (47 ms).
+- The remaining cost is the cold MR read: about 0.5 s of frame sampling on the dense graph, paid by every visibility-dependent operation after an MR restart or for a viewer whose frames were dirtied. FULL pays about 130 ms more on top (profiles, requests, edges). Delete has no visibility check and is unaffected.
+- On real-data scale (dev copy) every operation is well inside the proposed targets, warm and cold.
+- **Not done here:** the real-data baseline on **dev** with `pg_stat_statements` / `auto_explain` needs the owner (no agent SSH). It is a follow-up and does not change the frozen numbers unless it contradicts them. There is no batch endpoint before U13, so 64-op apply was not measured.
+
+### Calibrated frozen budgets
+
+These budgets are **frozen before any optimisation** (U42–U48, U13) and calibrated against the baseline above, on the dense dataset (the plan's worst case) and the reference machine. They replace the proposed ARCH §7.6 table (25/100, 100/300, 40/150, 100/300). Rule: p50 = 1.25 × measured p50, p95 = 1.25 × the upper end of the measured p95 interval, rounded up to a multiple of 5 ms below 100 ms and of 25 ms above. A later unit that cannot meet a budget records a deviation in this journal; it never edits the budget.
+
+| Operation | Frozen p50 | Frozen p95 | Proposed §7.6 | Calibrated from the baseline |
+|---|---|---|---|---|
+| FULL (warm MR) | 200 ms | 250 ms | 100 ms / 300 ms | warm p50 156.1 ms; p95 177.3 ms, interval up to 187.8 ms |
+| FULL (empty MR peer cache) | 825 ms | 850 ms | none | p50 647.7 ms; p95 676.1 ms, interval up to 679.7 ms |
+| ANCHORS (warm MR) | 30 ms | 65 ms | 40 ms / 150 ms | warm p50 21.0 ms; p95 37.9 ms, interval up to 49.0 ms |
+| ANCHORS (empty MR peer cache) | 650 ms | 675 ms | none | p50 516.6 ms; p95 535.3 ms, interval up to 536.5 ms |
+| 1-op apply (warm MR) | 30 ms | 70 ms | 25 ms / 100 ms | today's person upsert: p50 15.0 ms, p95 31.3 ms, interval up to 35.7 ms, plus one delete-class write allowance (p50 9.5 ms, interval up to 23.4 ms) for the cursor, watermark and op-log writes |
+| 64-op apply (warm MR) | 100 ms | 300 ms | 100 ms / 300 ms | carried forward, not calibrated: no batch endpoint exists before U13, and 64 serial upserts would cost about 960 ms (64 × 15.0 ms), so this budget is reachable only through U13's shared visibility memo; U13's perf gate is its first measurement |
+| cursor-hold p95 | n/a | 50 ms | 50 ms | no cursor lock exists before U13; today's whole upsert transaction p95 interval is up to 35.7 ms, an upper bound on any hold |
+
+Serialisation retries stay under 1 % when healthy. The dev-copy baseline (e.g. FULL warm p50 50.9 ms, p95 65.5 ms) is well inside these budgets and is not a gate.
