@@ -16,18 +16,28 @@ final class PerfFixtureSeed {
 final class PerfFixture {
   /// Sparse trust: besides the viewer's own edges, each peer is linked
   /// reciprocally only to the next peer on a ring.
-  const PerfFixture.sparseTrust({required this.visibleUsers});
+  const PerfFixture.sparseTrust({required this.visibleUsers})
+    : _dense = false;
+
+  /// Dense trust: every ordered pair of visible users is linked.
+  const PerfFixture.denseTrust({required this.visibleUsers}) : _dense = true;
 
   final int visibleUsers;
 
-  String get name => 'v${visibleUsers}_sparse';
+  final bool _dense;
+
+  String get name => 'v${visibleUsers}_${_dense ? 'dense' : 'sparse'}';
 
   /// Inserts the users and puts the trust edges into MeritRank, which is where
   /// visibility reads them from. Needs the `pgmer2` extension on [writer].
+  ///
+  /// MeritRank is one service shared by every database, so the graph is reset
+  /// first: edges left by an earlier fixture would otherwise be timed too.
   Future<PerfFixtureSeed> seed(Connection writer) async {
     if (visibleUsers < 3) {
       throw ArgumentError.value(visibleUsers, 'visibleUsers', 'must be >= 3');
     }
+    await writer.execute('SELECT mr_reset()');
     await writer.execute(
       Sql.named('''
 INSERT INTO public."user" (id, display_name, public_key)
@@ -36,6 +46,38 @@ FROM generate_series(0, @count::int - 1) n
 '''),
       parameters: {'count': visibleUsers},
     );
+    if (_dense) {
+      await _putDenseEdges(writer);
+    } else {
+      await _putSparseEdges(writer);
+    }
+    return PerfFixtureSeed(
+      viewerId: _userId(0),
+      peerIds: [for (var n = 1; n < visibleUsers; n++) _userId(n)],
+    );
+  }
+
+  /// A million `mr_put_edge` RPCs would dominate the run, so the complete
+  /// graph goes in with one `mr_bulk_load_edges`, which replaces the graph it
+  /// is given rather than adding to it.
+  Future<void> _putDenseEdges(Connection writer) => writer.execute(
+    Sql.named('''
+SELECT mr_bulk_load_edges(
+  array_agg(e.src), array_agg(e.dst),
+  array_agg(0.75::double precision), array_agg(0::bigint),
+  array_agg(''::text), 120000::bigint)
+FROM (
+  SELECT 'Upf' || lpad(a::text, 9, '0') AS src,
+         'Upf' || lpad(b::text, 9, '0') AS dst
+  FROM generate_series(0, @count::int - 1) a,
+       generate_series(0, @count::int - 1) b
+  WHERE a <> b
+) e
+'''),
+    parameters: {'count': visibleUsers},
+  );
+
+  Future<void> _putSparseEdges(Connection writer) async {
     await writer.execute(
       Sql.named('''
 SELECT mr_put_edge(e.src, e.dst, 0.75::double precision, ''::text, 0)
@@ -60,10 +102,6 @@ FROM (
 ) e
 '''),
       parameters: {'count': visibleUsers},
-    );
-    return PerfFixtureSeed(
-      viewerId: _userId(0),
-      peerIds: [for (var n = 1; n < visibleUsers; n++) _userId(n)],
     );
   }
 }
