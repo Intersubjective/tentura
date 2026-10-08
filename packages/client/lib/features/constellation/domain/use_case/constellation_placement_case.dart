@@ -150,7 +150,7 @@ final class ConstellationPlacementCase extends UseCaseBase {
     }
   }
 
-  /// Drops an unsent or rejected write; an in-flight one is dropped on settle.
+  /// Drops an unsent or rejected write; unresolved writes settle before undoing.
   void discard(ConstellationAnchorTarget target) {
     if (_disposed) return;
     _syncGeneration();
@@ -160,7 +160,8 @@ final class ConstellationPlacementCase extends UseCaseBase {
     final PlacementTargetState next;
     if (state.latestPending != null) {
       next = state.copyWith(latestPending: null);
-    } else if (inFlight?.status == PlacementSlotStatus.inFlight) {
+    } else if (inFlight?.status == PlacementSlotStatus.inFlight ||
+        inFlight?.status == PlacementSlotStatus.commitUnknown) {
       next = state.copyWith(
         inFlight: inFlight!.copyWith(discardOnSettle: true),
       );
@@ -174,6 +175,11 @@ final class ConstellationPlacementCase extends UseCaseBase {
       targets[target] = next;
     }
     _emit(_state.copyWith(targets: targets));
+    if (inFlight?.status == PlacementSlotStatus.commitUnknown &&
+        next.inFlight?.discardOnSettle == true) {
+      _dueIds.add(inFlight!.op.clientOpId);
+      _kick();
+    }
   }
 
   void _enqueue(List<PlacementOp> ops) {
@@ -438,7 +444,7 @@ final class ConstellationPlacementCase extends UseCaseBase {
           target.latestPending ??
           (slot.discardOnSettle
               ? (rejected ? null : _compensation(slot, outcome))
-              : rejected
+              : rejected && slot.op.ifRevision == null
               ? slot.copyWith(
                   status: PlacementSlotStatus.rejected,
                   reasonCode: outcome.reason,
