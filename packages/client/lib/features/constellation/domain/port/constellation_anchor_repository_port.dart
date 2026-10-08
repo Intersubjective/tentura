@@ -1,23 +1,24 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
-class ConstellationAnchorUpsertResult {
-  const ConstellationAnchorUpsertResult({
-    required this.anchor,
-    required this.revision,
-  });
+part 'constellation_anchor_repository_port.freezed.dart';
 
-  final ConstellationAnchor anchor;
-  final ConstellationAnchorRevision revision;
+@freezed
+abstract class ConstellationAnchorUpsertResult
+    with _$ConstellationAnchorUpsertResult {
+  const factory ConstellationAnchorUpsertResult({
+    required ConstellationAnchor anchor,
+    required ConstellationAnchorRevision revision,
+  }) = _ConstellationAnchorUpsertResult;
 }
 
-class ConstellationAnchorDeleteResult {
-  const ConstellationAnchorDeleteResult({
-    required this.target,
-    required this.revision,
-  });
-
-  final ConstellationAnchorTarget target;
-  final ConstellationAnchorRevision revision;
+@freezed
+abstract class ConstellationAnchorDeleteResult
+    with _$ConstellationAnchorDeleteResult {
+  const factory ConstellationAnchorDeleteResult({
+    required ConstellationAnchorTarget target,
+    required ConstellationAnchorRevision revision,
+  }) = _ConstellationAnchorDeleteResult;
 }
 
 abstract interface class ConstellationAnchorRepositoryPort {
