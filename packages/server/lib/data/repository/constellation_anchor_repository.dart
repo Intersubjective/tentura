@@ -1,19 +1,295 @@
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
+import 'package:get_it/get_it.dart';
 import 'package:injectable/injectable.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/port/constellation_anchor_repository_port.dart';
+import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 import 'package:tentura_server/utils/id.dart';
 
 import '../database/postgres_serialization_retry.dart';
 import '../database/tentura_db.dart' hide ConstellationAnchor;
+import 'constellation_anchor_projection_reader.dart';
 import 'constellation_anchor_upsert_authorization.dart';
 
 @LazySingleton(as: ConstellationAnchorRepositoryPort)
-class ConstellationAnchorRepository implements ConstellationAnchorRepositoryPort {
-  ConstellationAnchorRepository(this._db);
+class ConstellationAnchorRepository
+    implements ConstellationAnchorRepositoryPort {
+  ConstellationAnchorRepository(this._db, [this._profiles]);
+
+  @FactoryMethod()
+  ConstellationAnchorRepository.injected(
+    this._db,
+    UserProfileBatchLookup profiles,
+  ) : _profiles = profiles;
 
   final TenturaDb _db;
+  final UserProfileBatchLookup? _profiles;
+
+  @override
+  Future<AnchorApplyBatchResult> applyBatch({
+    required String viewerId,
+    required List<AnchorApplyOp> ops,
+    required AnchorApplyParams params,
+  }) => _db.withMutatingRepeatableRead(viewerId, () async {
+    final before = await _lockViewerCursor(viewerId);
+    await _prepareBatchVisibility(viewerId, params.context);
+    final results = <AnchorApplyOpResult>[];
+    for (final op in ops) {
+      final fingerprint = _opFingerprint(op);
+      final recorded = await _db
+          .customSelect(
+            r'''
+SELECT fingerprint = decode($3, 'hex') AS same_fingerprint,
+       result::text AS result
+FROM public.constellation_anchor_op_log
+WHERE viewer_id = $1 AND client_op_id = $2
+''',
+            variables: [
+              Variable<String>(viewerId),
+              Variable<String>(op.clientOpId),
+              Variable<String>(fingerprint),
+            ],
+          )
+          .getSingleOrNull();
+      if (recorded != null) {
+        results.add(
+          recorded.read<bool>('same_fingerprint')
+              ? _recordedResult(op.clientOpId, recorded.read<String>('result'))
+              : _rejected(op, 'op_id_reused'),
+        );
+        continue;
+      }
+      final result = await _applyBatchOp(viewerId, params.context, op);
+      await _recordBatchOp(viewerId, op, fingerprint, result);
+      results.add(result);
+    }
+    final projection =
+        await ConstellationAnchorProjectionReader(
+          _db,
+          _profiles ?? GetIt.I<UserProfileBatchLookup>(),
+        ).read(
+          viewerId: viewerId,
+          context: params.context,
+          filters: params.filters,
+        );
+    return AnchorApplyBatchResult(
+      beforeRevision: before.revision,
+      afterRevision: projection.revision,
+      results: results,
+      projection: projection,
+    );
+  });
+
+  Future<void> _prepareBatchVisibility(String viewerId, String context) async {
+    await _db.freezeVisibilityMemo();
+    // Seed the existing frozen memo from the service directly. Unlike the
+    // fail-closed read helper, a service error must abort the entire batch.
+    await _db.customStatement(
+      r'''
+SELECT set_config(
+  'tentura_visibility.p' || md5(trim($1::text) || chr(31) || $2::text),
+  coalesce((SELECT epoch FROM public.mr_publish_epoch WHERE id = true), 0)::text
+    || ':' || public.direct_trust_current_version()::text || ':'
+    || coalesce(array_agg(s.peer_id ORDER BY s.peer_id), '{}'::text[])::text,
+  true
+)
+FROM public.person_visible_peers_symmetric($1, $2) s
+''',
+      [viewerId, context],
+    );
+  }
+
+  String _opFingerprint(AnchorApplyOp op) {
+    final position = op.position;
+    return sha256
+        .convert(
+          utf8.encode(
+            jsonEncode([
+              op.kind.wireValue,
+              op.target.kind.wireValue,
+              op.target.id,
+              if (position == null)
+                null
+              else
+                [
+                  position.xUnits.toString(),
+                  position.yUnits.toString(),
+                  position.coordinateSpaceVersion,
+                ],
+              op.ifRevision?.toDecimalString(),
+            ]),
+          ),
+        )
+        .toString();
+  }
+
+  AnchorApplyOpResult _rejected(AnchorApplyOp op, String reason) =>
+      AnchorApplyOpResult(
+        clientOpId: op.clientOpId,
+        status: AnchorOpStatus.rejected,
+        reason: reason,
+      );
+
+  Future<AnchorApplyOpResult> _applyBatchOp(
+    String viewerId,
+    String context,
+    AnchorApplyOp op,
+  ) async {
+    if (validateConstellationAnchorTarget(target: op.target, viewerId: viewerId)
+        is! ConstellationAnchorTargetValid) {
+      return _rejected(op, 'invalid_target');
+    }
+    final position = op.position;
+    if (op.kind == AnchorOpKind.upsert) {
+      if (position == null) return _rejected(op, 'invalid_coordinates');
+      final validation = ConstellationAnchorPosition.validate(
+        xUnits: position.xUnits,
+        yUnits: position.yUnits,
+        coordinateSpaceVersion: position.coordinateSpaceVersion,
+      );
+      if (validation is ConstellationAnchorPositionInvalid) {
+        final reason = switch (validation.reason) {
+          ConstellationAnchorPositionInvalidReason.unsupportedCoordinateSpace =>
+            'unsupported_coordinate_space',
+          ConstellationAnchorPositionInvalidReason.nonFinite ||
+          ConstellationAnchorPositionInvalidReason.outOfRange =>
+            'invalid_coordinates',
+        };
+        return _rejected(op, reason);
+      }
+      if (!await isConstellationAnchorUpsertAuthorized(
+        _db,
+        viewerId: viewerId,
+        context: context,
+        target: op.target,
+      )) {
+        return _rejected(op, 'target_unavailable');
+      }
+    }
+    if (op.ifRevision != null) {
+      final row = await _db
+          .customSelect(
+            r'''
+SELECT revision FROM public.constellation_anchor_target_watermark
+WHERE viewer_id = $1 AND target_kind = $2 AND target_id = $3
+''',
+            variables: [
+              Variable<String>(viewerId),
+              Variable<String>(op.target.kind.wireValue),
+              Variable<String>(op.target.id),
+            ],
+          )
+          .getSingleOrNull();
+      final revision = row == null
+          ? ConstellationAnchorRevision.zero
+          : ConstellationAnchorRevision(row.read<BigInt>('revision'));
+      if (op.ifRevision != revision) return _rejected(op, 'conflict');
+    }
+    if (op.kind == AnchorOpKind.upsert) {
+      final updated = await _updateExistingAnchor(
+        viewerId: viewerId,
+        target: op.target,
+        position: position!,
+      );
+      if (updated == null) {
+        await _insertAnchor(
+          viewerId: viewerId,
+          target: op.target,
+          position: position,
+        );
+      }
+    } else {
+      final deleted = await _deleteExistingAnchor(
+        viewerId: viewerId,
+        target: op.target,
+      );
+      if (deleted == null) await _incrementCursor(viewerId);
+    }
+    final watermark = await _readLockedWatermark(viewerId);
+    await _db.customStatement(
+      r'''
+INSERT INTO public.constellation_anchor_target_watermark
+  (viewer_id, target_kind, target_id, revision)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT (viewer_id, target_kind, target_id)
+DO UPDATE SET revision = EXCLUDED.revision
+''',
+      [
+        viewerId,
+        op.target.kind.wireValue,
+        op.target.id,
+        watermark.revision.value,
+      ],
+    );
+    return AnchorApplyOpResult(
+      clientOpId: op.clientOpId,
+      status: AnchorOpStatus.ok,
+      resultingTargetRevision: watermark.revision,
+      position: op.kind == AnchorOpKind.upsert ? position : null,
+    );
+  }
+
+  Future<void> _recordBatchOp(
+    String viewerId,
+    AnchorApplyOp op,
+    String fingerprint,
+    AnchorApplyOpResult result,
+  ) async {
+    final position = result.position;
+    final revision = result.resultingTargetRevision;
+    final payload = jsonEncode({
+      'status': result.status.wireValue,
+      if (result.reason != null) 'reason': result.reason,
+      if (revision != null) 'revision': revision.toDecimalString(),
+      if (position != null)
+        'position': [
+          position.xUnits,
+          position.yUnits,
+          position.coordinateSpaceVersion,
+        ],
+    });
+    await _db.customStatement(
+      r'''
+INSERT INTO public.constellation_anchor_op_log
+  (viewer_id, client_op_id, fingerprint, result, revision)
+VALUES ($1, $2, decode($3, 'hex'), $4::jsonb, $5)
+''',
+      [
+        viewerId,
+        op.clientOpId,
+        fingerprint,
+        payload,
+        (revision ?? await readWatermark(viewerId)).value,
+      ],
+    );
+  }
+
+  AnchorApplyOpResult _recordedResult(String clientOpId, String payload) {
+    final result = jsonDecode(payload) as Map<String, dynamic>;
+    final position = result['position'] as List<dynamic>?;
+    final revision = result['revision'] as String?;
+    return AnchorApplyOpResult(
+      clientOpId: clientOpId,
+      status: result['status'] == AnchorOpStatus.ok.wireValue
+          ? AnchorOpStatus.ok
+          : AnchorOpStatus.rejected,
+      reason: result['reason'] as String?,
+      resultingTargetRevision: revision == null
+          ? null
+          : ConstellationAnchorRevision(BigInt.parse(revision)),
+      position: position == null
+          ? null
+          : ConstellationAnchorPosition(
+              xUnits: (position[0] as num).toDouble(),
+              yUnits: (position[1] as num).toDouble(),
+              coordinateSpaceVersion: position[2] as int,
+            ),
+    );
+  }
 
   @override
   Future<ConstellationAnchorUpsertResult> upsertAnchor({

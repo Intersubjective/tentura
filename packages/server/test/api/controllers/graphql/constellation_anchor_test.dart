@@ -379,6 +379,13 @@ final class _RecordingAnchorRepository implements ConstellationAnchorRepositoryP
   Object? upsertError;
 
   @override
+  Future<AnchorApplyBatchResult> applyBatch({
+    required String viewerId,
+    required List<AnchorApplyOp> ops,
+    required AnchorApplyParams params,
+  }) => throw StateError('Legacy mutations must not call the batch API');
+
+  @override
   Future<ConstellationAnchorUpsertResult> upsertAnchor({
     required String viewerId,
     required String context,

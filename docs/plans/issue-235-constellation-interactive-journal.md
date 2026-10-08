@@ -196,3 +196,47 @@ These budgets are **frozen before any optimisation** (U42–U48, U13) and calibr
 | cursor-hold p95 | n/a | 50 ms | 50 ms | no cursor lock exists before U13; today's whole upsert transaction p95 interval is up to 35.7 ms, an upper bound on any hold |
 
 Serialisation retries stay under 1 % when healthy. The dev-copy baseline (e.g. FULL warm p50 50.9 ms, p95 65.5 ms) is well inside these budgets and is not a gate.
+
+## UNIT U13 — partial — 2026-10-08
+
+**Part 1/3: batch contract, repository core and envelope validation.** The implementation already present in this checkout adds `ConstellationAnchorRepositoryPort.applyBatch` and its operation/result DTOs, and `ConstellationAnchorCase.apply` rejects more than 64 operations, duplicate operation ids or targets, and UPSERTs without positions before repository I/O. The repository uses U11's mutating repeatable-read transaction, locks the viewer cursor, processes operations in input order, replays matching fingerprints without writes, rejects reused ids and revision conflicts, authorizes writes, and persists target watermarks and minimal op-log results. It obtains the final projection through the U12 reader. The existing GraphQL test double and generated Mockito mocks implement the extended port. This retry preserves that implementation and those generated files.
+
+**Test correction.** The task-authored PG fixture explicitly supplied `scores: const []` although `UserPublicRecord` already defaults to that value. This redundant argument adds an `avoid_redundant_argument_values` diagnostic and violates the required analyzer baseline. Removed only that argument from `test/data/repository/constellation_anchor_apply_batch_pg_test.dart`; fixture values, test cases and assertions are unchanged. No analyzer baseline was raised.
+
+**Verification in this retry** (wrapped and serial, repository root `/home/vader/MY_SRC/tentura`):
+
+| Check | Result | Log |
+|---|---|---|
+| Required `constellation_anchor_batch_validation_test.dart` command | Exit 0; **13 passed**, including the domain-to-port boundary assertion | `/tmp/tentura-u13-part1-verification/validation.log` |
+| Required `constellation_anchor_apply_batch_pg_test.dart` command, `TENTURA_PG_TESTS_REQUIRED=1`, `-j 1` | Exit 1 during loading: PostgreSQL is unreachable from this sandbox; **no PG tests passed or were skipped** | `/tmp/tentura-u13-part1-verification/pg.log` |
+| `scripts/check-analyze-baseline.sh packages/server` | Exit 0; **1876 unique diagnostics <= baseline 1876**, no analyzer errors or telemetry-write failure | `/tmp/tentura-u13-part1-verification/analyze.log` |
+| Server regression `--exclude-tags pg --reporter expanded` | Exit 1; **2351 passed, 5 skipped, 19 failed** | `/tmp/tentura-u13-part1-verification/non-pg.log` |
+| `scripts/check-custom-lints.sh packages/server` | Exit 0; **0 custom diagnostics <= baseline 0** | `/tmp/tentura-u13-part1-verification/custom-lints.log` |
+| `test/api/controllers/graphql/constellation_anchor_test.dart` | Exit 0; **15 passed** | `/tmp/tentura-u13-part1-verification/graphql.log` |
+
+The analyzer and custom-lint commands used the native SDK directory `/home/vader/development/flutter/bin/cache/dart-sdk/bin` first on `PATH`, `DASH__SUPPRESS_ANALYTICS=true`, and writable `DART_DATA_HOME`, `XDG_CONFIG_HOME` and `XDG_STATE_HOME` directories under `/tmp/tentura-u13-part1-verification`. Test commands used the existing `test.dart-3.13.0.snapshot` with `--disable-dart-dev`. All commands ran through `scripts/run_with_test_cleanup.sh`; the two required test commands were unchanged. The standalone domain import search remained empty, and `git diff --check` passed.
+
+The non-PG failures include Sentry/public-package DNS failures, denied localhost PostgreSQL connections, Flutter SDK cache writes rejected by the sandbox, a cleanup-sweep dead-owner assertion, and nested perf-runner failures/timeouts. These results do not establish a green non-PG regression run, and the PG correctness suite still requires re-verification with PostgreSQL access. No unrelated implementation, test assertion, skip condition or baseline was changed to overcome these restrictions.
+
+**Deferred work.** Part 2 owns ARCH §4.4/§7.5–7.6's preparation before the cursor lock, batch-loading dedupe rows and watermarks, shared visibility authorization, and projection assembly from prepared inputs covering existing anchors, requested targets and holder/support closure. Part 3 owns the measured 2/4/8-tab contention gate, retry exhaustion and wasted-preparation measurements, the conditional lock-first fallback, actual MR RPC counts, and latency/cursor-hold/EXPLAIN/WAL gates against U41's frozen budgets. No performance or full-U13 acceptance is claimed here.
+
+**Executor deviation.** The task-specific checkout and git instructions override the plan's feature-branch and commit steps: work remains in place on `main`; Alloy owns tracking, commits and full-suite verification. No task-tracking commands, staging, commits or full project suite were run.
+
+## UNIT U13 — blocked — 2026-10-08
+
+**Part 1/3 PG verification retry (`tentura-s7gl.14`).** No implementation or test changes this iteration. The requested PostgreSQL-accessible verifier environment is not available through this session's tools: shell commands run with restricted networking and a read-only installed Flutter SDK. The literal required command encountered SDK cache write errors before tests ran. With the native cached Dart SDK first on `PATH` and writable analytics directories under `/tmp/tentura-u13-part1-pg-retry`, the required command's Bash body ran unchanged:
+
+```bash
+./scripts/run_with_test_cleanup.sh --timeout 30m -- bash -c 'cd packages/server && TENTURA_PG_TESTS_REQUIRED=1 dart test test/data/repository/constellation_anchor_apply_batch_pg_test.dart --tags mr -j 1'
+```
+
+**Verified results:**
+
+| Check | Result | Log |
+|---|---|---|
+| Required command with native SDK on `PATH` | Exit 1 before test loading: pub.dev advisory lookup failed (`SocketException: Failed host lookup: 'pub.dev'`) | `/tmp/tentura-u13-part1-pg-retry/required-pg.log` |
+| Same file, `--tags mr -j 1`, `TENTURA_PG_TESTS_REQUIRED=1`, using the existing cached `test.dart-3.13.0.snapshot` through the cleanup wrapper with a 30m timeout | Exit 1 during loading: `Postgres required (TENTURA_PG_TESTS_REQUIRED=1) but not reachable` at `test/support/disposable_pg_target.dart:333`; **0 PG tests passed, 0 skipped** | `/tmp/tentura-u13-part1-pg-retry/cached-pg.log` |
+
+A direct TCP connection probe to `127.0.0.1:5432` returned `PermissionError: [Errno 1] Operation not permitted`, confirming the sandbox connection restriction. The commands were invoked sequentially; the wrapper reported another active wrapped run and skipped its cleanup sweep. No assertion, skip condition or analyzer baseline was changed. No part-2 performance work, full MR suite, tracking commands or git mutations were run; tests edited: none in this iteration.
+
+**Follow-up:** Alloy must run the required command in a verifier with PostgreSQL and MeritRank access. This retry reached no PG acceptance assertions and cannot establish a green batch correctness result; part 1 remains blocked on that verification.

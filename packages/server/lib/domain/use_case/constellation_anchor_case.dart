@@ -17,6 +17,35 @@ final class ConstellationAnchorCase extends UseCaseBase {
 
   final ConstellationAnchorRepositoryPort _repository;
 
+  Future<AnchorApplyBatchResult> apply({
+    required String viewerId,
+    required List<AnchorApplyOp> ops,
+    required AnchorApplyParams params,
+  }) async {
+    if (ops.length > 64) {
+      throw ConstellationException(
+        constellationCode: ConstellationExceptionCode.invalidTarget,
+        description: 'An anchor batch may contain at most 64 operations',
+      );
+    }
+    final opIds = <String>{};
+    final targets = <ConstellationAnchorTarget>{};
+    for (final op in ops) {
+      if (!opIds.add(op.clientOpId) || !targets.add(op.target)) {
+        throw ConstellationException(
+          constellationCode: ConstellationExceptionCode.invalidTarget,
+          description: 'Duplicate anchor operation id or target',
+        );
+      }
+      if (op.kind == AnchorOpKind.upsert && op.position == null) {
+        throw ConstellationException(
+          constellationCode: ConstellationExceptionCode.invalidCoordinates,
+        );
+      }
+    }
+    return _repository.applyBatch(viewerId: viewerId, ops: ops, params: params);
+  }
+
   Future<ConstellationAnchorUpsertResult> upsert({
     required String viewerId,
     required String targetKindWire,
@@ -96,7 +125,8 @@ final class ConstellationAnchorCase extends UseCaseBase {
       case ConstellationAnchorPositionInvalid(:final reason):
         throw ConstellationException(
           constellationCode: switch (reason) {
-            ConstellationAnchorPositionInvalidReason.unsupportedCoordinateSpace =>
+            ConstellationAnchorPositionInvalidReason
+                .unsupportedCoordinateSpace =>
               ConstellationExceptionCode.unsupportedCoordinateSpace,
             ConstellationAnchorPositionInvalidReason.nonFinite ||
             ConstellationAnchorPositionInvalidReason.outOfRange =>

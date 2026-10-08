@@ -203,6 +203,7 @@ class MockBeaconRepositoryPort extends _i1.Mock
                   #isDiscoverable: isDiscoverable,
                   #kind: kind,
                   #forwardPolicy: forwardPolicy,
+                  #clientOpId: clientOpId,
                 }),
               ),
             ),
@@ -530,6 +531,31 @@ class MockBeaconRepositoryPort extends _i1.Mock
               #startAt: startAt,
               #endAt: endAt,
               #isDiscoverable: isDiscoverable,
+            }),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<List<String>> postMemberUserIds(String? beaconId) =>
+      (super.noSuchMethod(
+            Invocation.method(#postMemberUserIds, [beaconId]),
+            returnValue: _i3.Future<List<String>>.value(<String>[]),
+          )
+          as _i3.Future<List<String>>);
+
+  @override
+  _i3.Future<void> convertPostMembers({
+    required String? beaconId,
+    required String? authorId,
+    required Set<String>? helperIds,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#convertPostMembers, [], {
+              #beaconId: beaconId,
+              #authorId: authorId,
+              #helperIds: helperIds,
             }),
             returnValue: _i3.Future<void>.value(),
             returnValueForMissingStub: _i3.Future<void>.value(),
