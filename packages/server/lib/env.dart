@@ -160,6 +160,8 @@ class Env {
 
     // Meritrank service
     Duration? meritrankCalculateTimeout,
+    int? meritrankWalksCacheSize,
+    int? meritrankSnapshotsMb,
     double? forwardNoEffectCount,
     Duration? forwardMinOpportunity,
     Duration? trustSweepInterval,
@@ -414,6 +416,14 @@ class Env {
            Duration(
              minutes: int.tryParse(_env['MR_CALCULATE_TIMEOUT'] ?? '') ?? 10,
            ),
+       meritrankWalksCacheSize =
+           meritrankWalksCacheSize ??
+           int.tryParse(_env['MERITRANK_WALKS_CACHE_SIZE'] ?? '') ??
+           300,
+       meritrankSnapshotsMb =
+           meritrankSnapshotsMb ??
+           int.tryParse(_env['MERITRANK_SNAPSHOTS_MB'] ?? '') ??
+           256,
        forwardNoEffectCount =
            forwardNoEffectCount ??
            double.tryParse(_env['FORWARD_NO_EFFECT_COUNT'] ?? '') ??
@@ -789,6 +799,13 @@ class Env {
 
   // Meritrank service
   final Duration meritrankCalculateTimeout;
+
+  /// Mirrors the MeritRank service's `MERITRANK_WALKS_CACHE_SIZE` (0 means
+  /// unlimited), so `/health` can compare it with the active readers.
+  final int meritrankWalksCacheSize;
+
+  /// Mirrors the MeritRank service's `MERITRANK_SNAPSHOTS_MB` (process-wide).
+  final int meritrankSnapshotsMb;
 
   final double forwardNoEffectCount;
 

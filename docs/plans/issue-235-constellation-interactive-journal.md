@@ -240,3 +240,89 @@ The non-PG failures include Sentry/public-package DNS failures, denied localhost
 A direct TCP connection probe to `127.0.0.1:5432` returned `PermissionError: [Errno 1] Operation not permitted`, confirming the sandbox connection restriction. The commands were invoked sequentially; the wrapper reported another active wrapped run and skipped its cleanup sweep. No assertion, skip condition or analyzer baseline was changed. No part-2 performance work, full MR suite, tracking commands or git mutations were run; tests edited: none in this iteration.
 
 **Follow-up:** Alloy must run the required command in a verifier with PostgreSQL and MeritRank access. This retry reached no PG acceptance assertions and cannot establish a green batch correctness result; part 1 remains blocked on that verification.
+
+## UNIT U47 — partial — 2026-10-08
+
+**Settings and acceptance target.** MeritRank 0.12.0 on `tentura_perfsynth`,
+heavy viewer V ~ 1000, `MERITRANK_WALKS_CACHE_SIZE=300`,
+`MERITRANK_ON_DEMAND_NUM_WALKS=10000`, `MERITRANK_SNAPSHOT_STALENESS=2`.
+The frozen U41 FULL warm p95 budget is 250 ms; the warm MR p95 limit is
+100 ms. Acceptance requires a read-only run and a run with one write per
+100 reads.
+
+**Existing evidence, not a new acceptance run.** U45's viewer
+`Uf00000001729` (985 peers) had these single-call measurements:
+
+- Cold `mr_mutual_scores`: 525.9 ms.
+- Warm `mr_mutual_scores` repeat: 23.3 ms; no p95 distribution was measured.
+
+U41 measured warm FULL p95 177.3 ms (60 samples) and cold FULL
+p95 676.1 ms on the same dense dataset and compose settings. The plan's
+2026-10-06 deployment record reports MR process memory 542 MiB on dev;
+this is not a memory measurement of the perfsynth acceptance run.
+
+**Changes.** `docs/production-deploy.md` now documents walks-cache memory,
+the process-wide snapshot budget, the active-reader cache rule and the
+health fields. The health controller distinguishes unknown snapshot
+pressure (`null`) from measured pressure (`true` or `false`); the current
+pgmer2 interface supplies no snapshot-usage counter.
+
+**Blocked acceptance measurement.** This executor cannot access the Docker
+socket (`docker ps`: permission denied at `/var/run/docker.sock`) or connect
+to PostgreSQL (`127.0.0.1:5432`: `PermissionError: [Errno 1] Operation not
+permitted`). No new benchmark was run. Warm `mr_mutual_scores` p95,
+FULL p95 with one write per 100 reads and perfsynth MR memory remain
+unmeasured. Run the benchmark in the infrastructure-enabled verifier and
+append its cold/warm measurements, sample counts, write-mix results and
+container memory here before marking U47 complete.
+
+**Focused verification.** Serial cleanup-wrapped execution of the unchanged
+two acceptance test files: health controller 8/8 passed; documentation and
+journal 7/10 passed. The three remaining failures require the unmeasured
+warm MR p95 and write-mix FULL p95. The cached Dart 3.13 test executable was
+used because the normal launcher encounters read-only SDK/cache state and
+an unavailable pub.dev lookup in this sandbox. Logs:
+`/tmp/tentura-u47-final-tests.log`. Server custom lints passed (0, baseline
+0); the server analyzer baseline passed (1876 unique diagnostics, baseline
+1876); formatting and `git diff --check` passed. Tests edited: none. No full
+suite, task-tracking commands or git mutations were run.
+
+## UNIT U47 — complete (acceptance run) — 2026-10-08
+
+**Setup.** Local compose: MeritRank 0.12.0 (`vbulavintsev/meritrank-service:v0.12.0`), `postgres-tentura` v0.9.1. The running local MR container already had the required settings (`docker inspect meritrank`): `MERITRANK_WALKS_CACHE_SIZE=300`, `MERITRANK_ON_DEMAND_NUM_WALKS=10000`, `MERITRANK_SNAPSHOT_STALENESS=2`, `MERITRANK_NUM_WALKS=1000`, alpha 0.85, as in `compose.dev.yaml`. It was **not recreated**; no container setting was changed. Database `tentura_perfsynth` (89 475 MR edges, checked before and after), server from `scripts/perf/run_server_db.sh tentura_perfsynth` (`DEBUG_MODE=true`, one JIT worker, `TRUST_SWEEP_TIME_BUDGET_MINUTES=0`), same reference machine as U41. Heavy viewer `U66728b9dba8d` (`perf-heavy@test.tentura.local`), V ≈ 1000: `mr_mutual_scores` returns 1 025 rows; the FULL read returns the caps (201 people, 150 requests, 63 edges, 76 KB). Script: a scratch harness reusing `scripts/perf/constellation_gql_bench.py` and the U41 percentile/bootstrap helpers; raw report `packages/server/build/perf/u47_perfsynth.json` (gitignored).
+
+**Method.**
+- `mr_mutual_scores` timed inside PostgreSQL (`clock_timestamp()` around each call in a `DO` block, so no client overhead). Warm: 20 warm-up calls, then n = 200. Cold: n = 20, `mr_reset(); meritrank_init()` before each call.
+- FULL timed over the API as in U41 (loopback wall clock to the end of the body). Warm: 10 warm-up calls, then n = 300. Cold: n = 30, MR reset before each, rotating over the heavy viewer and `perf-synth-1..29`.
+- Write mix: 1 000 FULL reads of the heavy viewer with one write after every 99 reads (10 writes, 1 write per 100 reads). A write is `mr_put_edge` on an existing edge with a changed weight, so the MR graph and walks change; two variants: edges whose source is a mutual peer of the heavy viewer, and the heavy viewer's own outgoing edges (dirties its own frame). The writes go to MeritRank only; no `tentura_perfsynth` row was written. The graph was reloaded from the database afterwards (`mr_reset(); meritrank_init()`, 89 475 edges, original weights checked).
+- p95 is the interpolated 95th percentile with a 95 % bootstrap interval (5 000 resamples), as in U41. MR memory from `docker stats` sampled every 2 s for the whole run (93 samples).
+
+**Results.**
+
+| Measurement | n | p50 | p95 | p95 95% CI | max |
+|---|---|---|---|---|---|
+| cold `mr_mutual_scores`, heavy viewer | 20 | 502.3 ms | 531.1 ms | [507.5, 540.6] | 540.6 ms |
+| warm `mr_mutual_scores`, heavy viewer | 200 | 1.2 ms | 2.0 ms | [1.7, 2.2] | 4.5 ms |
+| warm `mr_mutual_scores` after both write mixes | 100 | 1.2 ms | 1.7 ms | [1.5, 1.9] | 3.0 ms |
+| cold FULL (empty MR peer cache) | 30 | 586.6 ms | 609.1 ms | [599.0, 619.1] | 619.1 ms |
+| warm FULL, read-only | 300 | 92.8 ms | 110.0 ms | [108.1, 113.5] | 139.7 ms |
+| FULL, 1 write per 100 reads, peer edges | 1000 | 90.7 ms | 106.8 ms | [105.0, 110.6] | 154.2 ms |
+| FULL, 1 write per 100 reads, viewer's own edges | 1000 | 89.0 ms | 107.8 ms | [104.5, 109.9] | 151.8 ms |
+
+Acceptance lines (one fact per line):
+- Cold mr_mutual_scores (heavy viewer, empty peer cache): p50 502.3 ms, worst 540.6 ms.
+- Warm mr_mutual_scores p95 2.0 ms (n = 200; limit 100 ms).
+- Warm FULL p95 110.0 ms read-only (n = 300; frozen U41 FULL (warm MR) p95 budget 250 ms).
+- FULL p95 with 1 write per 100 reads: 106.8 ms with peer-edge writes and 107.8 ms with the viewer's own edges (n = 1000 each; budget 250 ms).
+- MR process memory during the run: median 87.2 MiB, peak 101.1 MiB (`docker stats`), back to 36.5 MiB right after the final graph reload.
+
+**Reading.**
+- Both acceptance limits hold with wide margins: warm MR p95 is 50× under 100 ms, and FULL p95 is under half the frozen 250 ms, with and without writes. The read right after a write was 87–127 ms; a direct `mr_mutual_scores` right after a write to the viewer's own edge took 27.7 ms, then 2.6–2.8 ms (the write took effect: the edge weight read back changed).
+- Warm FULL is faster than the U41 baseline (p50 92.8 vs 156.1 ms) because U42/U46 landed in between; U41's frozen budgets are unchanged.
+- The cold cost is still about 0.5 s of MR frame sampling per viewer after an MR restart (U48 stays optional).
+- MR memory here is small because local `MERITRANK_NUM_WALKS=1000` and only a few viewers hold frames; dev (`NUM_WALKS=10000`, 202 active readers) uses 542 MiB. Size hosts by the rule in `docs/production-deploy.md`, not by this figure.
+- The live `/health` on perfsynth reports `activeReaders` 3000 and `walksCacheOverCapacity: true`: the synthetic dataset stamps every synthetic user's presence as recent. That is the signal working on that data, not a real-traffic estimate.
+
+**Review changes.** `/health` now bounds the MR status read at 1 s (`kHealthStatusTimeout`; the compose healthcheck timeout is 3 s and the read shares the worker's single DB connection), with tests for a hanging status read and for unknown snapshot usage (`snapshotPressure: null`). Docs updated to match.
+
+**Local stack.** Nothing was recreated or reconfigured. The MR graph was left as found (the `tentura_perfsynth` graph, which the already-running perfsynth server uses).

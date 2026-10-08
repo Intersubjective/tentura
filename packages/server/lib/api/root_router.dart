@@ -13,6 +13,7 @@ import 'controllers/auth_google_controller.dart';
 import 'controllers/firebase_sw_controller.dart';
 import 'controllers/websocket_controller.dart';
 import 'controllers/graphiql_controller.dart';
+import 'controllers/health_controller.dart';
 import 'controllers/graphql_controller.dart';
 import 'controllers/invite_accept_existing_controller.dart';
 import 'controllers/invite_preview_controller.dart';
@@ -32,6 +33,7 @@ class RootRouter {
     this._wsController,
     this._graphqlController,
     this._graphiqlController,
+    this._healthController,
     this._firebaseSwController,
     this._roomAttachmentDownloadController,
     this._invitePreviewController,
@@ -56,6 +58,8 @@ class RootRouter {
   final GraphqlController _graphqlController;
 
   final GraphiqlController _graphiqlController;
+
+  final HealthController _healthController;
 
   final FirebaseSwController _firebaseSwController;
 
@@ -104,7 +108,7 @@ class RootRouter {
         ),
       )
       ..use(sentryRequestTracing(env: _env))
-      ..get('/health', () => 'I`m fine!')
+      ..get('/health', _healthController.handler)
       ..get('/graphiql', _graphiqlController.handler)
       ..get(kPathFirebaseSwJs, _firebaseSwController.handler)
       ..get(kPathWebSocketEndpoint, _wsController.handler)

@@ -203,6 +203,46 @@ services:
 
 ---
 
+### MeritRank memory budget and monitoring
+
+MeritRank 0.12.0 serves reverse scores for absent or evicted peers from
+snapshots, so the walks cache must cover active readers rather than every
+peer in a reader's visible set.
+
+- The walks cache must be at least the number of active readers, with headroom;
+  never lower `MERITRANK_WALKS_CACHE_SIZE=300` below that population (202 at
+  rollout).
+- At 10k walks, the walks cache costs about 1 MB per cached frame; account for
+  both buffer copies, graph storage and runtime overhead when sizing the host.
+- `MERITRANK_SNAPSHOTS_MB` defaults to 256 MiB, a process-wide reverse-score
+  snapshot budget shared by both buffer copies; 0 disables snapshots.
+- Compose also ships `MERITRANK_ON_DEMAND_NUM_WALKS=10000` and
+  `MERITRANK_SNAPSHOT_STALENESS=2`; the latter is a heuristic tolerance, not
+  a strict freshness guarantee.
+
+Put host-specific tuning in `compose.override.yaml`. Mirror the effective
+`MERITRANK_WALKS_CACHE_SIZE` and `MERITRANK_SNAPSHOTS_MB` settings in the
+`tentura` service environment so its health report uses the same limits.
+
+`GET /health` remains a liveness probe (HTTP 200, `status: "ok"`). Its
+`meritrank` object reports `walksCacheSize`, `activeReaders` (presence within
+the last 24 hours), `walksCacheOverCapacity`, `snapshotBytes`,
+`snapshotBudgetBytes` and `snapshotPressure`. Over-capacity means active
+readers exceed a bounded cache; snapshot pressure means measured usage is at
+or above the snapshot budget. A status read that fails or takes longer than
+1 s reports `available: false`, so the probe never waits on a busy DB
+connection.
+The current pgmer2 interface does not expose service snapshot usage, so the
+production repository reports `snapshotBytes: null` and
+`snapshotPressure: null` rather than claiming spare capacity. `available`
+describes the status read, not an independent probe of the MR service.
+Check the MeritRank container's memory and logs alongside this signal:
+
+```bash
+docker stats --no-stream meritrank
+docker compose -f compose.prod.yaml -f compose.override.yaml logs --tail=100 meritrank
+```
+
 ## 6. First deploy — start the stack
 
 ```bash
