@@ -30,6 +30,8 @@ abstract class PlacementSlot with _$PlacementSlot {
     required PlacementSlotStatus status,
     @Default(0) int attempts,
     String? reasonCode,
+    // The user discarded this write while it was in flight.
+    @Default(false) bool discardOnSettle,
     ConstellationAnchor? preOpConfirmed,
     // Dispatch time; absent until the slot is sent.
     DateTime? inFlightSince,

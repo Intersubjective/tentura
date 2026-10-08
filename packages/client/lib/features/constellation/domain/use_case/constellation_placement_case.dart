@@ -109,6 +109,73 @@ final class ConstellationPlacementCase extends UseCaseBase {
     ]);
   }
 
+  /// A rejection is resent as a new write; an unknown outcome replays its id.
+  void retry(ConstellationAnchorTarget target) {
+    if (_disposed) return;
+    _syncGeneration();
+    final state = _state.targets[target];
+    final pending = state?.latestPending;
+    if (pending != null && pending.status == PlacementSlotStatus.rejected) {
+      final op = pending.op;
+      final fresh = switch (op) {
+        PlacementUpsert() => op.copyWith(
+          clientOpId: _uuid.v4(),
+          clusterId: _uuid.v4(),
+        ),
+        PlacementDelete() => op.copyWith(
+          clientOpId: _uuid.v4(),
+          clusterId: _uuid.v4(),
+        ),
+      };
+      _emit(
+        _state.copyWith(
+          targets: {
+            ..._state.targets,
+            target: state!.copyWith(
+              latestPending: PlacementSlot(
+                op: fresh,
+                status: PlacementSlotStatus.queued,
+              ),
+            ),
+          },
+        ),
+      );
+      _kick();
+      return;
+    }
+    final unknown = state?.inFlight;
+    if (unknown?.status == PlacementSlotStatus.commitUnknown) {
+      _dueIds.add(unknown!.op.clientOpId);
+      _kick();
+    }
+  }
+
+  /// Drops an unsent or rejected write; an in-flight one is dropped on settle.
+  void discard(ConstellationAnchorTarget target) {
+    if (_disposed) return;
+    _syncGeneration();
+    final state = _state.targets[target];
+    if (state == null) return;
+    final inFlight = state.inFlight;
+    final PlacementTargetState next;
+    if (state.latestPending != null) {
+      next = state.copyWith(latestPending: null);
+    } else if (inFlight?.status == PlacementSlotStatus.inFlight) {
+      next = state.copyWith(
+        inFlight: inFlight!.copyWith(discardOnSettle: true),
+      );
+    } else {
+      return;
+    }
+    final targets = Map.of(_state.targets);
+    if (next.inFlight == null && next.latestPending == null) {
+      targets.remove(target);
+    } else {
+      targets[target] = next;
+    }
+    _emit(_state.copyWith(targets: targets));
+  }
+
   void _enqueue(List<PlacementOp> ops) {
     if (_disposed) return;
     _syncGeneration();
@@ -366,9 +433,12 @@ final class ConstellationPlacementCase extends UseCaseBase {
       final slot = target.inFlight;
       final outcome = results[slot?.op.clientOpId];
       if (slot == null || outcome == null) continue;
+      final rejected = outcome.status == ConstellationAnchorOpStatus.rejected;
       final pending =
           target.latestPending ??
-          (outcome.status == ConstellationAnchorOpStatus.rejected
+          (slot.discardOnSettle
+              ? (rejected ? null : _compensation(slot, outcome))
+              : rejected
               ? slot.copyWith(
                   status: PlacementSlotStatus.rejected,
                   reasonCode: outcome.reason,
@@ -384,6 +454,36 @@ final class ConstellationPlacementCase extends UseCaseBase {
       }
     }
     _emit(_state.copyWith(targets: targets));
+  }
+
+  /// Undoes a confirmed write the user discarded while it was in flight.
+  PlacementSlot? _compensation(
+    PlacementSlot slot,
+    ConstellationAnchorOpResult outcome,
+  ) {
+    final baseline = slot.preOpConfirmed;
+    final target = slot.op.target;
+    final ifRevision = outcome.resultingTargetRevision;
+    final PlacementOp op;
+    if (baseline != null) {
+      op = PlacementOp.upsert(
+        clientOpId: _uuid.v4(),
+        clusterId: _uuid.v4(),
+        target: target,
+        position: baseline.position,
+        ifRevision: ifRevision,
+      );
+    } else if (slot.op is PlacementUpsert) {
+      op = PlacementOp.delete(
+        clientOpId: _uuid.v4(),
+        clusterId: _uuid.v4(),
+        target: target,
+        ifRevision: ifRevision,
+      );
+    } else {
+      return null;
+    }
+    return PlacementSlot(op: op, status: PlacementSlotStatus.queued);
   }
 
   void _emit(PlacementOutboxState state) {
