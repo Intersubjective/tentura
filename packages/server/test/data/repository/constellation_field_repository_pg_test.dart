@@ -1,4 +1,4 @@
-@Tags(['pg', 'mr'])
+@Tags(['pg'])
 library;
 
 import 'dart:io';
@@ -201,6 +201,12 @@ ON CONFLICT (beacon_id, user_id) DO NOTHING
     });
   }
 
+  group('ConstellationFieldRepository pg plain slice', () {
+    test('runs against an isolated disposable database', () async {
+      await assertCurrentDatabase();
+    }, skip: skipReason);
+  });
+
   group('ConstellationFieldRepository', () {
     test('repository ordering is stable under shuffled fixture insert order',
         () async {
@@ -395,7 +401,7 @@ WHERE id = 'Bstartat001'
 
       expect(sw.elapsedMilliseconds, lessThan(5000));
     }, skip: skipReason);
-  });
+  }, tags: ['mr']);
 
   group('ConstellationFieldSnapshot P03', () {
     test('runs against disposable database name', () async {
@@ -783,7 +789,7 @@ WHERE id = 'Bstartat001'
       expect(snapshot.anchorProjection.pinnedRequests.single.status, 5);
       expect(snapshot.anchorProjection.serverFilteredBeaconIds, isEmpty);
     }, skip: skipReason);
-  });
+  }, tags: ['mr']);
 
   group('Posts and member webs', () {
     const author = 'Ucfpostauth1';
@@ -1071,7 +1077,7 @@ INSERT INTO public.beacon_pinned (user_id, beacon_id) VALUES ('$egoId', '$id')
 
       expect(snapshot.anchorProjection.pinnedRequests.single.kind, 0);
     }, skip: skipReason);
-  });
+  }, tags: ['mr']);
 }
 
 final class _DisposablePgTarget {

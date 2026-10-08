@@ -8,7 +8,6 @@
       "mr",
       "-j",
       "1",
-      "test/data/repository/constellation_field_connection_age_pg_test.dart",
       "test/data/repository/constellation_field_repository_pg_test.dart"
     ]
   }

@@ -3,12 +3,14 @@ import 'dart:io';
 
 import 'package:test/test.dart';
 
-/// MeritRank-backed constellation-field repository PostgreSQL suites that the
+/// MeritRank-backed constellation-field repository PostgreSQL suite that the
 /// required check must run with `dart test --tags mr -j 1`.
-const _suites = <String>[
-  'test/data/repository/constellation_field_connection_age_pg_test.dart',
-  'test/data/repository/constellation_field_repository_pg_test.dart',
-];
+const _mrSuite =
+    'test/data/repository/constellation_field_repository_pg_test.dart';
+
+/// Connection-age suite stays on the plain pg slice only (no MeritRank).
+const _pgPlainSuite =
+    'test/data/repository/constellation_field_connection_age_pg_test.dart';
 
 /// In-repo Alloy required-verification registry entry for this check.
 const _verificationRegistryPath = 'scripts/alloy-required-verification-checks.json';
@@ -128,16 +130,33 @@ void main() {
     expect(mrBlockText, matches(RegExp(r'j\s*1', caseSensitive: false)));
   });
 
-  for (final path in _suites) {
-    final name = path.split('/').last;
-
-    test('$name stays tagged pg and mr so mr selectors can reach it', () {
+  test(
+    '${_pgPlainSuite.split('/').last} stays pg-tagged without library mr',
+    () {
       expect(
-        _declaredTags(File('${_serverPackage.path}/$path')),
-        containsAll(<String>['pg', 'mr']),
+        _declaredTags(File('${_serverPackage.path}/$_pgPlainSuite')),
+        contains('pg'),
       );
-    });
-  }
+      expect(
+        _declaredTags(File('${_serverPackage.path}/$_pgPlainSuite')),
+        isNot(contains('mr')),
+      );
+    },
+  );
+
+  test(
+    '${_mrSuite.split('/').last} library stays pg-tagged for the plain slice',
+    () {
+      expect(
+        _declaredTags(File('${_serverPackage.path}/$_mrSuite')),
+        contains('pg'),
+      );
+      expect(
+        _declaredTags(File('${_serverPackage.path}/$_mrSuite')),
+        isNot(contains('mr')),
+      );
+    },
+  );
 
   group('constellation-field MeritRank PostgreSQL required verification', () {
     late Map<String, Object?> entry;
@@ -165,9 +184,8 @@ void main() {
         expect(argv.first, 'test');
         expect(argv[argv.indexOf('--tags') + 1], 'mr');
         expect(argv[argv.indexOf('-j') + 1], '1');
-        for (final suite in _suites) {
-          expect(argv, contains(suite));
-        }
+        expect(argv, contains(_mrSuite));
+        expect(argv, isNot(contains(_pgPlainSuite)));
         expect(cwd, _serverPackagePathSuffix);
       },
     );
@@ -192,13 +210,11 @@ void main() {
         workingDirectory: workdir.path,
         argv: argv,
       ).then((paths) {
-        for (final suite in _suites) {
-          expect(
-            paths.any((p) => p.endsWith(suite)),
-            isTrue,
-            reason: 'expected suite path ending with $suite in $paths',
-          );
-        }
+        expect(
+          paths.any((p) => p.endsWith(_mrSuite)),
+          isTrue,
+          reason: 'expected suite path ending with $_mrSuite in $paths',
+        );
       });
     });
   });

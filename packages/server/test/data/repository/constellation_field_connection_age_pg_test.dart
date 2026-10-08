@@ -1,4 +1,4 @@
-@Tags(['pg', 'mr'])
+@Tags(['pg'])
 library;
 
 import 'package:injectable/injectable.dart' show Environment;
