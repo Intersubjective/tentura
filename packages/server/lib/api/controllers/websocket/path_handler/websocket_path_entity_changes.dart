@@ -9,7 +9,10 @@ base mixin WebsocketPathEntityChanges on WebsocketSessionHandlerBase {
   static const _forwardedExtrasByKind = <String, Set<String>>{
     'room_seen_peer': {'seen_user_id', 'last_seen_at'},
     'people_seen': {'last_seen_at'},
+    'constellation_anchor': {'revision'},
   };
+
+  static final _decimalRevision = RegExp(r'^[0-9]+$');
 
   Future<void> fanOutEntityChange(Map<String, dynamic> data) async {
     final userIds = data['user_ids'];
@@ -34,12 +37,20 @@ base mixin WebsocketPathEntityChanges on WebsocketSessionHandlerBase {
 
     final forwardedExtras = _forwardedExtrasByKind[entity];
     if (forwardedExtras != null) {
-      final seenUserId = data['seen_user_id'];
-      final lastSeenAt = data['last_seen_at'];
-      if ((forwardedExtras.contains('seen_user_id') &&
-              (seenUserId is! String || seenUserId.isEmpty)) ||
-          lastSeenAt is! String ||
-          DateTime.tryParse(lastSeenAt) == null) {
+      final bool valid;
+      if (entity == 'constellation_anchor') {
+        final revision = data['revision'];
+        valid = revision is String && _decimalRevision.hasMatch(revision);
+      } else {
+        final seenUserId = data['seen_user_id'];
+        final lastSeenAt = data['last_seen_at'];
+        valid =
+            (!forwardedExtras.contains('seen_user_id') ||
+                (seenUserId is String && seenUserId.isNotEmpty)) &&
+            lastSeenAt is String &&
+            DateTime.tryParse(lastSeenAt) != null;
+      }
+      if (!valid) {
         logger.warning(
           '[RealtimeFanout] realtime_event=malformed_payload reason=$entity',
         );

@@ -104,6 +104,7 @@ void main() {
           'event': 'update',
           'actor_user_id': _actorId,
           'user_ids': [_actorId],
+          'revision': '1',
         });
 
         expect(actorSessionOne.sent, hasLength(1));
@@ -119,7 +120,7 @@ void main() {
         expect(payload.containsKey('target'), isFalse);
         expect(payload.containsKey('position'), isFalse);
         expect(payload.containsKey('title'), isFalse);
-        expect(payload.containsKey('revision'), isFalse);
+        expect(payload['revision'], '1');
         expect(payload.containsKey('user_ids'), isFalse);
       },
     );
@@ -145,6 +146,7 @@ void main() {
           'event': 'insert',
           'actor_user_id': _actorId,
           'user_ids': [_actorId],
+          'revision': '1',
         });
 
         expect(actorSessionOne.sent, hasLength(1));
@@ -862,6 +864,170 @@ void main() {
           },
         );
       }
+    });
+
+    group('constellation_anchor fan-out extras', () {
+      const viewerId = _affectedId;
+
+      Map<String, dynamic> anchorNotification(Map<String, dynamic> extras) => {
+        'entity': 'constellation_anchor',
+        'id': viewerId,
+        'event': 'update',
+        'actor_user_id': viewerId,
+        'user_ids': [viewerId],
+        ...extras,
+      };
+
+      test('forwards a decimal revision string', () async {
+        final dependencies = _Dependencies();
+        final handler = _EntityChangeHarness(Env(), dependencies);
+        final session = _RecordingSession();
+        await dependencies.authenticate(handler, session, viewerId);
+        session.sent.clear();
+
+        await handler.fanOutEntityChange(
+          anchorNotification({'revision': '9223372036854775807'}),
+        );
+
+        expect(session.sent, hasLength(1));
+        final payload =
+            (jsonDecode(session.sent.single! as String) as Map)['payload']
+                as Map;
+        expect(payload['entity'], 'constellation_anchor');
+        expect(payload['id'], viewerId);
+        expect(payload['revision'], '9223372036854775807');
+      });
+
+      test('forwards revision zero', () async {
+        final dependencies = _Dependencies();
+        final handler = _EntityChangeHarness(Env(), dependencies);
+        final session = _RecordingSession();
+        await dependencies.authenticate(handler, session, viewerId);
+        session.sent.clear();
+
+        await handler.fanOutEntityChange(anchorNotification({'revision': '0'}));
+
+        expect(session.sent, hasLength(1));
+        final payload =
+            (jsonDecode(session.sent.single! as String) as Map)['payload']
+                as Map;
+        expect(payload['revision'], '0');
+      });
+
+      test('does not require or forward seen timestamps', () async {
+        final dependencies = _Dependencies();
+        final handler = _EntityChangeHarness(Env(), dependencies);
+        final session = _RecordingSession();
+        await dependencies.authenticate(handler, session, viewerId);
+        session.sent.clear();
+
+        await handler.fanOutEntityChange(
+          anchorNotification({
+            'revision': '12',
+            'last_seen_at': '2026-06-15T12:00:00.000Z',
+            'seen_user_id': 'Ugggggggggggg',
+          }),
+        );
+
+        expect(session.sent, hasLength(1));
+        final payload =
+            (jsonDecode(session.sent.single! as String) as Map)['payload']
+                as Map;
+        expect(payload['revision'], '12');
+        expect(payload.containsKey('last_seen_at'), isFalse);
+        expect(payload.containsKey('seen_user_id'), isFalse);
+      });
+
+      for (final entry in <String, Map<String, dynamic>>{
+        'missing': {},
+        'null': {'revision': null},
+        'empty': {'revision': ''},
+        'non-numeric': {'revision': 'abc'},
+        'negative': {'revision': '-1'},
+        'fractional': {'revision': '1.5'},
+        'padded with whitespace': {'revision': ' 7 '},
+        'a JSON number': {'revision': 7},
+      }.entries) {
+        test('drops frame and logs when revision is ${entry.key}', () async {
+          final records = <LogRecord>[];
+          Logger('EntityChangeHarness').onRecord.listen(records.add);
+          final dependencies = _Dependencies();
+          final handler = _EntityChangeHarness(Env(), dependencies);
+          final session = _RecordingSession();
+          await dependencies.authenticate(handler, session, viewerId);
+          session.sent.clear();
+
+          await handler.fanOutEntityChange(anchorNotification(entry.value));
+
+          expect(session.sent, isEmpty);
+          expect(
+            records.where(
+              (record) =>
+                  record.message.contains('realtime_event=malformed_payload') &&
+                  record.message.contains('reason=constellation_anchor'),
+            ),
+            hasLength(1),
+          );
+        });
+      }
+    });
+
+    group('constellation_field fan-out', () {
+      test('forwards a payload-free hint to every listed viewer', () async {
+        final dependencies = _Dependencies();
+        final handler = _EntityChangeHarness(Env(), dependencies);
+        final first = _RecordingSession();
+        final second = _RecordingSession();
+        final unlisted = _RecordingSession();
+        await dependencies.authenticate(handler, first, _firstId);
+        await dependencies.authenticate(handler, second, _secondId);
+        await dependencies.authenticate(handler, unlisted, _unauthorizedId);
+        for (final s in [first, second, unlisted]) {
+          s.sent.clear();
+        }
+
+        await handler.fanOutEntityChange({
+          'entity': 'constellation_field',
+          'id': 'global',
+          'event': 'update',
+          'user_ids': [_firstId, _secondId],
+        });
+
+        expect(first.sent, hasLength(1));
+        expect(second.sent, hasLength(1));
+        expect(unlisted.sent, isEmpty);
+        final payload =
+            (jsonDecode(first.sent.single! as String) as Map)['payload']
+                as Map;
+        expect(payload['entity'], 'constellation_field');
+        expect(payload['id'], 'global');
+        expect(payload['event'], 'update');
+        expect(payload.containsKey('revision'), isFalse);
+        expect(payload.containsKey('last_seen_at'), isFalse);
+        expect(payload.containsKey('seen_user_id'), isFalse);
+      });
+
+      test('does not validate or forward a stray revision', () async {
+        final dependencies = _Dependencies();
+        final handler = _EntityChangeHarness(Env(), dependencies);
+        final session = _RecordingSession();
+        await dependencies.authenticate(handler, session, _affectedId);
+        session.sent.clear();
+
+        await handler.fanOutEntityChange({
+          'entity': 'constellation_field',
+          'id': 'global',
+          'event': 'update',
+          'user_ids': [_affectedId],
+          'revision': 'not-a-revision',
+        });
+
+        expect(session.sent, hasLength(1));
+        final payload =
+            (jsonDecode(session.sent.single! as String) as Map)['payload']
+                as Map;
+        expect(payload.containsKey('revision'), isFalse);
+      });
     });
   });
 }
