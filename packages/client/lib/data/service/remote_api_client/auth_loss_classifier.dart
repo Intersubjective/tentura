@@ -1,6 +1,7 @@
 import 'dart:async';
 
-import 'package:ferry/ferry.dart' as gql
+import 'package:ferry/ferry.dart'
+    as gql
     show ResponseFormatException, ServerException;
 import 'package:gql_exec/gql_exec.dart';
 
@@ -17,7 +18,7 @@ Never throwClassifiedRemoteFailure(Object? error) {
   throw mapRemoteFailure(error);
 }
 
-Object mapRemoteFailure(Object? error) {
+Exception mapRemoteFailure(Object? error) {
   // Already a classified domain exception. The link layer re-wraps anything an
   // earlier link throws (e.g. ErrorLink throwing RemoteApiException after a
   // 200-with-errors response) into a gql.ServerException; once we unwrap that
@@ -59,7 +60,7 @@ Object mapRemoteFailure(Object? error) {
     if (_isGraphQlAuthLoss(error)) {
       return const AuthSessionLostException();
     }
-    return _remoteApiOrUnknown(error.message);
+    return _retryLater([error]) ?? _remoteApiOrUnknown(error.message);
   }
   if (error is List<GraphQLError>) {
     for (final e in error) {
@@ -69,7 +70,7 @@ Object mapRemoteFailure(Object? error) {
     }
     final first = error.isEmpty ? null : error.first;
     if (first != null) {
-      return _remoteApiOrUnknown(first.message);
+      return _retryLater(error) ?? _remoteApiOrUnknown(first.message);
     }
   }
   // gql ServerException (incl. gql_http_link's HttpLinkServerException) is
@@ -163,7 +164,7 @@ bool _looksLikeConnectivityFailure(String message) {
 /// Maps a gql [ServerException] to a domain exception, or returns `null` when
 /// it represents a genuine transport failure (no status, no parsed response)
 /// that should be treated as a connectivity problem by the caller.
-Object? _mapServerException(gql.ServerException error) {
+Exception? _mapServerException(gql.ServerException error) {
   final status = error.statusCode;
   final errors = error.parsedResponse?.errors;
 
@@ -176,7 +177,7 @@ Object? _mapServerException(gql.ServerException error) {
     }
     final joined = errors.map((e) => e.message.trim()).join('; ');
     final detail = status == null ? joined : 'HTTP $status: $joined';
-    return _remoteApiOrUnknown(detail);
+    return _retryLater(errors) ?? _remoteApiOrUnknown(detail);
   }
 
   // No GraphQL errors, but the server answered with a status code.
@@ -198,6 +199,18 @@ Object? _mapServerException(gql.ServerException error) {
   }
 
   // No status, no parsed response, nothing wrapped: a genuine transport failure.
+  return null;
+}
+
+RemoteApiRetryLaterException? _retryLater(List<GraphQLError> errors) {
+  for (final error in errors) {
+    final delay = error.extensions?['retryAfterMs'];
+    if (error.extensions?['code'] == 'RETRY_LATER' &&
+        delay is int &&
+        delay > 0) {
+      return RemoteApiRetryLaterException(Duration(milliseconds: delay));
+    }
+  }
   return null;
 }
 

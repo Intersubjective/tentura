@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
+import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura/domain/port/clock_port.dart';
 import 'package:tentura/domain/port/wake_up_port.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
@@ -65,6 +66,7 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
             RealtimeEntityKind.participant,
             RealtimeEntityKind.roomMessage,
             RealtimeEntityKind.roomSeen,
+            RealtimeEntityKind.constellationField,
           })
           .listen(_onFieldChange),
       _realtimeSyncCase
@@ -105,6 +107,7 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
   WakeUpHandle? _timer;
   DateTime? _dueAt;
   DateTime? _lastFullAt;
+  DateTime? _retryNotBefore;
   _FullFlight? _fullInFlight;
   var _queued = false;
   var _queuedUrgent = false;
@@ -183,6 +186,7 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
     _queued = false;
     _queuedUrgent = false;
     _lastFullAt = null;
+    _retryNotBefore = null;
     _schedule();
   }
 
@@ -192,16 +196,10 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
       _markStale();
       return Future<void>.value();
     }
-    if (reason == ConstellationRefreshReason.load) {
-      _cancelTimer();
-      return _dispatch(queueIfBusy: false);
-    }
-    // A catch-up resyncs after a gap (e.g. reconnect): it replaces the
-    // ANCHORS read the anchor case used to issue at once, so it is not
-    // debounced. A read already in flight may have missed the gap: queue one.
-    if (reason == ConstellationRefreshReason.catchUp) {
-      _cancelTimer();
-      return _dispatch(queueIfBusy: true);
+    if (reason == ConstellationRefreshReason.load ||
+        reason == ConstellationRefreshReason.resume ||
+        reason == ConstellationRefreshReason.catchUp) {
+      return _dispatch();
     }
     _schedule();
     return Future<void>.value();
@@ -243,6 +241,7 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
     _queuedUrgent = false;
     _staleWhileHidden = false;
     _lastFullAt = null;
+    _retryNotBefore = null;
     _fullInFlight = null;
     _emit(
       ConstellationFieldStoreState(
@@ -268,7 +267,7 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
     }
     if (_staleWhileHidden) {
       _staleWhileHidden = false;
-      _schedule();
+      unawaited(_dispatch());
     }
   }
 
@@ -287,6 +286,7 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
     };
     _schedule(
       urgent: switch (change.kind) {
+        RealtimeEntityKind.constellationField => false,
         RealtimeEntityKind.roomMessage || RealtimeEntityKind.roomSeen =>
           fieldBeaconIds.contains(change.aggregateId),
         _ => true,
@@ -324,7 +324,7 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
   /// [kLazyFieldRefreshInterval] for changes that do not touch the field).
   /// A pending refresh is only ever moved earlier, so a steady event stream
   /// cannot postpone it forever.
-  void _schedule({bool urgent = true}) {
+  void _schedule({bool urgent = true, bool immediate = false}) {
     if (!_canFetch) {
       _markStale();
       return;
@@ -335,11 +335,18 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
       return;
     }
     final now = _clock.now();
-    final spacing = urgent ? _urgentSpacing : kLazyFieldRefreshInterval;
+    final spacing = urgent
+        ? _urgentSpacing
+        : kLazyFieldRefreshInterval +
+              Duration(milliseconds: _accountId.hashCode.abs() % 3001);
     final last = _lastFullAt;
-    var dueAt = now.add(_debounce);
-    if (last != null && last.add(spacing).isAfter(dueAt)) {
+    var dueAt = immediate ? now : now.add(_debounce);
+    if (!immediate && last != null && last.add(spacing).isAfter(dueAt)) {
       dueAt = last.add(spacing);
+    }
+    final retryNotBefore = _retryNotBefore;
+    if (retryNotBefore != null && retryNotBefore.isAfter(dueAt)) {
+      dueAt = retryNotBefore;
     }
     final pending = _dueAt;
     if (_timer != null && pending != null && !pending.isAfter(dueAt)) {
@@ -351,7 +358,8 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
       _timer = null;
       _dueAt = null;
       if (_canFetch) {
-        unawaited(_dispatch(queueIfBusy: true));
+        // Coalesce queued hints before starting the deadline's FULL.
+        unawaited(Future<void>.microtask(_dispatch));
       } else {
         _markStale();
       }
@@ -364,14 +372,21 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
     _dueAt = null;
   }
 
-  Future<void> _dispatch({required bool queueIfBusy}) {
+  Future<void> _dispatch() {
+    if (!_canFetch) {
+      _markStale();
+      return Future<void>.value();
+    }
     final busy = _fullInFlight;
     if (busy != null && busy.paramsGeneration == _paramsGeneration) {
-      if (queueIfBusy) {
-        _queued = true;
-      }
       return busy.future;
     }
+    final retryNotBefore = _retryNotBefore;
+    if (retryNotBefore != null && _clock.now().isBefore(retryNotBefore)) {
+      _schedule(immediate: true);
+      return Future<void>.value();
+    }
+    _cancelTimer();
     return _startFull();
   }
 
@@ -397,7 +412,7 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
             final urgent = _queuedUrgent;
             _queued = false;
             _queuedUrgent = false;
-            _schedule(urgent: urgent);
+            _schedule(urgent: urgent, immediate: _retryNotBefore != null);
           }
         });
     _fullInFlight = flight;
@@ -420,6 +435,7 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
         return;
       }
       _lastAppliedReadSeq = readSeq;
+      _retryNotBefore = null;
       // FULL freshness follows read order; the anchor layer only follows
       // anchor revision.
       final incoming = field.resolvedAnchorProjection.revision;
@@ -436,6 +452,12 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
         ),
       );
     } on Object catch (error, stackTrace) {
+      if (error is RemoteApiRetryLaterException &&
+          generation == _state.generation &&
+          paramsGeneration == _paramsGeneration) {
+        _retryNotBefore = _clock.now().add(error.retryAfter);
+        _queued = true;
+      }
       logger.warning('Constellation FULL refresh failed', error, stackTrace);
     }
   }

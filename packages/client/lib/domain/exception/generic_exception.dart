@@ -49,3 +49,16 @@ final class RemoteApiException extends GenericException {
   @override
   String get toRu => message;
 }
+
+/// Server admission backoff, preserved across the transport boundary.
+final class RemoteApiRetryLaterException extends GenericException {
+  const RemoteApiRetryLaterException(this.retryAfter);
+
+  final Duration retryAfter;
+
+  @override
+  String get toEn => 'RETRY_LATER';
+
+  @override
+  String get toRu => toEn;
+}
