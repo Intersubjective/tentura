@@ -271,12 +271,20 @@ class _CameraGatedInteractiveViewer extends StatefulWidget {
 
 class _CameraGatedInteractiveViewerState
     extends State<_CameraGatedInteractiveViewer> {
+  final _viewerKey = GlobalKey();
   var _cameraGated = false;
+  var _zoomGated = false;
+
+  Offset? _globalToViewportLocal(Offset global) {
+    final box = _viewerKey.currentContext?.findRenderObject();
+    return box is RenderBox && box.hasSize ? box.globalToLocal(global) : null;
+  }
 
   @override
   void initState() {
     super.initState();
     _cameraGated = widget.controller.isCameraGated;
+    _zoomGated = widget.controller.isCameraZoomGated;
     widget.controller.addListener(_onControllerChanged);
   }
 
@@ -286,6 +294,7 @@ class _CameraGatedInteractiveViewerState
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller.removeListener(_onControllerChanged);
       _cameraGated = widget.controller.isCameraGated;
+      _zoomGated = widget.controller.isCameraZoomGated;
       widget.controller.addListener(_onControllerChanged);
     }
   }
@@ -298,14 +307,18 @@ class _CameraGatedInteractiveViewerState
 
   void _onControllerChanged() {
     final gated = widget.controller.isCameraGated;
-    if (gated == _cameraGated || !mounted) {
+    final zoomGated = widget.controller.isCameraZoomGated;
+    if ((gated == _cameraGated && zoomGated == _zoomGated) || !mounted) {
       return;
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || gated == _cameraGated) {
+      if (!mounted || (gated == _cameraGated && zoomGated == _zoomGated)) {
         return;
       }
-      setState(() => _cameraGated = gated);
+      setState(() {
+        _cameraGated = gated;
+        _zoomGated = zoomGated;
+      });
     });
   }
 
@@ -313,13 +326,18 @@ class _CameraGatedInteractiveViewerState
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        widget.controller._onLayoutConstraintsChanged(constraints.biggest);
+        widget.controller
+          .._globalToViewportLocal = _globalToViewportLocal
+          .._onLayoutConstraintsChanged(constraints.biggest);
         return InteractiveViewer.builder(
+          key: _viewerKey,
           transformationController: widget.transformationController,
           maxScale: widget.maxScale,
           minScale: widget.minScale,
           panEnabled: !_cameraGated,
-          scaleEnabled: !_cameraGated,
+          // Wheel and trackpad zoom stay live during a node drag; the drag
+          // re-projects its grab point on every camera change.
+          scaleEnabled: !_zoomGated,
           builder: (context, viewport) {
             widget.controller._updateViewport(viewport);
             return const NodeDragGesture(

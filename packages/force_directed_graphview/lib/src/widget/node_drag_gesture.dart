@@ -41,12 +41,17 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
   GraphPresentationToken? _captureToken;
   int? _capturePointer;
   Offset _grabOffset = Offset.zero;
+  // Pointer of the capture in global coordinates and the camera scale at which
+  // [_grabOffset] was measured; the camera may move while the pointer stays.
+  Offset? _grabGlobal;
+  double _grabScale = 1;
 
   var _scaleBlocked = false;
   late GraphController<dynamic, dynamic> _controller;
   late GraphViewConfiguration _configuration;
   GraphController<dynamic, dynamic>? _registeredAbortController;
   late final VoidCallback _abortGestures = _abortActiveGestures;
+  late final VoidCallback _syncCamera = _reprojectCapture;
 
   @override
   void didChangeDependencies() {
@@ -55,9 +60,12 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     _configuration = InheritedConfiguration.configurationOf(context);
     if (!identical(_registeredAbortController, nextController)) {
       _registeredAbortController
-          ?.unregisterGestureLifecycleAbort(_abortGestures);
+        ?..unregisterGestureLifecycleAbort(_abortGestures)
+        ..unregisterGestureCameraSync(_syncCamera);
       _registeredAbortController = nextController;
-      nextController.registerGestureLifecycleAbort(_abortGestures);
+      nextController
+        ..registerGestureLifecycleAbort(_abortGestures)
+        ..registerGestureCameraSync(_syncCamera);
     }
     _controller = nextController;
   }
@@ -65,10 +73,28 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
   @override
   void dispose() {
     _cancelCanvasPress();
-    _registeredAbortController?.unregisterGestureLifecycleAbort(_abortGestures);
+    _registeredAbortController
+      ?..unregisterGestureLifecycleAbort(_abortGestures)
+      ..unregisterGestureCameraSync(_syncCamera);
     _registeredAbortController = null;
     _releaseCapture(notifyCancel: true);
     super.dispose();
+  }
+
+  /// Keeps the dragged node under the stationary pointer after the camera or
+  /// the view origin moved without the pointer.
+  void _reprojectCapture() {
+    final global = _grabGlobal;
+    if (_capturedNodeId == null || global == null) {
+      return;
+    }
+    final scene = _controller.globalToScene(global);
+    if (scene == null) {
+      return;
+    }
+    final scale = _controller.cameraScale;
+    _grabOffset *= _grabScale / scale;
+    _updateCapturedPosition(scene, global: global);
   }
 
   void _abortActiveGestures() {
@@ -273,7 +299,12 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
       if (event.pointer != _capturePointer) {
         return;
       }
-      _updateCapturedPosition(event.localPosition);
+      // A pointer keeps the hit-test transforms of its press, which go stale
+      // when the camera or the view origin moves mid-drag.
+      _updateCapturedPosition(
+        _controller.globalToScene(event.position) ?? event.localPosition,
+        global: event.position,
+      );
       return;
     }
 
@@ -456,7 +487,8 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     _capturedNodeId = nodeId;
     _capturePointer = pointer;
     _grabOffset = downScene - centre;
-    _controller.setCameraInteractionGated(true);
+    _grabScale = _controller.cameraScale;
+    _controller.setCameraInteractionGated(true, zoomLive: true);
 
     try {
       final payload = _controller.nodePayloadForId(nodeId);
@@ -469,12 +501,21 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     }
   }
 
-  void _updateCapturedPosition(Offset scenePosition) {
+  void _updateCapturedPosition(Offset scenePosition, {Offset? global}) {
     final nodeId = _capturedNodeId;
     if (nodeId == null) {
       return;
     }
 
+    // The painted transform lags a camera change, so a re-projection passes
+    // the pointer's known global position instead of deriving it.
+    final box = context.findRenderObject();
+    if (global != null) {
+      _grabGlobal = global;
+    } else if (box is RenderBox && box.hasSize) {
+      _grabGlobal = box.localToGlobal(scenePosition);
+    }
+    _grabScale = _controller.cameraScale;
     var centre = scenePosition - _grabOffset;
     final payload = _controller.nodePayloadForId(nodeId);
     if (payload == null) {
@@ -513,6 +554,7 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     _captureToken = null;
     _capturePointer = null;
     _grabOffset = Offset.zero;
+    _grabGlobal = null;
 
     try {
       if (payload != null && position != null) {
@@ -531,6 +573,7 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     _captureToken = null;
     _capturePointer = null;
     _grabOffset = Offset.zero;
+    _grabGlobal = null;
 
     if (nodeId == null) {
       return;

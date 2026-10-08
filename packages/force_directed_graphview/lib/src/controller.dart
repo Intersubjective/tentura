@@ -39,7 +39,6 @@ class GraphController<N, E> with ChangeNotifier {
   TransformationController? _transformationController;
   final ValueNotifier<int> _cameraRevision = ValueNotifier<int>(0);
   GraphCanvasSize? _size;
-  Size? _lastViewportSceneSize;
   Size? _lastLayoutConstraints;
 
   Size? _currentSize;
@@ -48,6 +47,7 @@ class GraphController<N, E> with ChangeNotifier {
   var _relayoutInvocationCount = 0;
   GraphLayoutTicket? _lastHandledLayoutSuccessTicket;
   var _cameraGated = false;
+  var _zoomLiveWhileGated = false;
   Ticker? _ticker;
   Map<GraphNodeId, ScenePoint>? _transitionFrom;
   Map<GraphNodeId, ScenePoint>? _transitionTarget;
@@ -55,6 +55,8 @@ class GraphController<N, E> with ChangeNotifier {
   GraphLayoutTicket? _transitionLayoutTicket;
   Object? _viewOwner;
   VoidCallback? _gestureAbortCallback;
+  VoidCallback? _gestureCameraSyncCallback;
+  Offset? Function(Offset global)? _globalToViewportLocal;
   Duration _transitionDuration = Duration.zero;
   Curve _transitionCurve = Curves.easeOutCubic;
   double _minScale = 0.5;
@@ -106,6 +108,10 @@ class GraphController<N, E> with ChangeNotifier {
   /// True while a node drag owns the pointer sequence and camera pan/zoom
   /// should stay disabled.
   bool get isCameraGated => _cameraGated;
+
+  /// True while the gate also blocks wheel/trackpad zoom; a node drag keeps
+  /// zoom live and re-projects its grab point instead.
+  bool get isCameraZoomGated => _cameraGated && !_zoomLiveWhileGated;
 
   /// Stable node id resolver required for scene topology.
   GraphNodeIdResolver<N> get nodeIdOf => _nodeIdOf;
@@ -453,7 +459,6 @@ class GraphController<N, E> with ChangeNotifier {
     bool resetScale = false,
     EdgeInsets viewportInsets = EdgeInsets.zero,
   }) {
-    _abortActiveGesturesIfCameraGated();
     final controller = _transformationController;
     final pixel = _viewportPixelSize;
     if (controller == null || pixel == null) {
@@ -484,7 +489,6 @@ class GraphController<N, E> with ChangeNotifier {
       throw ArgumentError.value(factor, 'factor', 'Factor must be > 0');
     }
 
-    _abortActiveGesturesIfCameraGated();
     final controller = _transformationController;
     final viewport = _actualViewport;
     if (controller == null || viewport == null) {
@@ -516,7 +520,6 @@ class GraphController<N, E> with ChangeNotifier {
     EdgeInsets viewportInsets = EdgeInsets.zero,
     double? maxScale,
   }) {
-    _abortActiveGesturesIfCameraGated();
     final transformation = _transformationController;
     final pixel = _viewportPixelSize;
     if (transformation == null || pixel == null) {
@@ -562,7 +565,16 @@ class GraphController<N, E> with ChangeNotifier {
     return usable;
   }
 
-  void _onCameraChanged() => _cameraRevision.value++;
+  void _onCameraChanged() {
+    _cameraRevision.value++;
+    _syncGestureCamera();
+  }
+
+  void _syncGestureCamera() {
+    if (_cameraGated) {
+      _gestureCameraSyncCallback?.call();
+    }
+  }
 
   void _bindTransformationController(TransformationController controller) {
     if (identical(_transformationController, controller)) {
@@ -744,11 +756,13 @@ class GraphController<N, E> with ChangeNotifier {
     _layoutTransitionCapture = null;
   }
 
-  void _setCameraGated(bool gated) {
-    if (_cameraGated == gated) {
+  void _setCameraGated(bool gated, {bool zoomLive = false}) {
+    final liveZoom = gated && zoomLive;
+    if (_cameraGated == gated && _zoomLiveWhileGated == liveZoom) {
       return;
     }
     _cameraGated = gated;
+    _zoomLiveWhileGated = liveZoom;
     notifyListeners();
   }
 
@@ -761,7 +775,11 @@ class GraphController<N, E> with ChangeNotifier {
   }
 
   /// Gates or releases camera pan/zoom for an active node-drag sequence.
-  void setCameraInteractionGated(bool gated) => _setCameraGated(gated);
+  ///
+  /// [zoomLive] keeps wheel/trackpad zoom enabled while gated; only the node
+  /// drag, which re-projects its grab point, sets it.
+  void setCameraInteractionGated(bool gated, {bool zoomLive = false}) =>
+      _setCameraGated(gated, zoomLive: zoomLive);
 
   void _onTransitionTick(Duration elapsed) {
     final from = _transitionFrom;
@@ -873,14 +891,33 @@ class GraphController<N, E> with ChangeNotifier {
     }
   }
 
-  void _abortActiveGestures() {
-    _gestureAbortCallback?.call();
+  /// Wired by [NodeDragGesture]; not for app callers.
+  ///
+  /// [sync] runs whenever the camera moves while a node drag owns the
+  /// pointer, so the drag can re-project the grab point.
+  void registerGestureCameraSync(VoidCallback sync) {
+    _gestureCameraSyncCallback = sync;
   }
 
-  void _abortActiveGesturesIfCameraGated() {
-    if (_cameraGated) {
-      _abortActiveGestures();
+  /// Wired by [NodeDragGesture]; not for app callers.
+  void unregisterGestureCameraSync(VoidCallback sync) {
+    if (identical(_gestureCameraSyncCallback, sync)) {
+      _gestureCameraSyncCallback = null;
     }
+  }
+
+  /// Converts a global pointer position to canvas/scene space, or null before
+  /// a view is attached.
+  ///
+  /// Uses the current camera, so it is valid right after a camera change,
+  /// before the next frame repaints. Wired for [NodeDragGesture].
+  Offset? globalToScene(Offset global) {
+    final local = _globalToViewportLocal?.call(global);
+    return local == null ? null : viewportLocalToScene(local);
+  }
+
+  void _abortActiveGestures() {
+    _gestureAbortCallback?.call();
   }
 
   void _abortViewGesturesForOwner(Object viewOwner) {
@@ -899,9 +936,10 @@ class GraphController<N, E> with ChangeNotifier {
     _clearInteractionPresentationIfGated();
     _viewOwner = null;
     _gestureAbortCallback = null;
+    _gestureCameraSyncCallback = null;
+    _globalToViewportLocal = null;
     _setCameraGated(false);
     _lastLayoutConstraints = null;
-    _lastViewportSceneSize = null;
     _detachTransitionTicker();
   }
 
@@ -915,8 +953,9 @@ class GraphController<N, E> with ChangeNotifier {
   void _onLayoutConstraintsChanged(Size constraints) {
     if (_lastLayoutConstraints != null &&
         _lastLayoutConstraints != constraints) {
-      _abortActiveGestures();
-      _clearInteractionPresentationIfGated();
+      // The view origin may move with the resize, which only settles in
+      // layout: re-project the grab point once it has.
+      WidgetsBinding.instance.addPostFrameCallback((_) => _syncGestureCamera());
     }
     _lastLayoutConstraints = constraints;
   }
@@ -975,20 +1014,9 @@ class GraphController<N, E> with ChangeNotifier {
 
   void _updateViewport(Quad viewport) {
     final rect = viewport.toRect();
-    final sceneSize = Size(rect.width, rect.height);
-    if (_lastViewportSceneSize != null && _lastViewportSceneSize != sceneSize) {
-      _abortActiveGestures();
-    }
-    _lastViewportSceneSize = sceneSize;
     _actualViewport = rect;
     final scale = _transformationController?.value.getMaxScaleOnAxis() ?? 1.0;
-    final previousPixel = _viewportPixelSize;
     _viewportPixelSize = Size(rect.width * scale, rect.height * scale);
-    if (previousPixel != null &&
-        (previousPixel.width != _viewportPixelSize!.width ||
-            previousPixel.height != _viewportPixelSize!.height)) {
-      _abortActiveGestures();
-    }
     final actualViewport = rect;
     final newEffectiveViewport = switch (_lazyBuilding) {
       LazyBuildingViewport(scale: final scale) => actualViewport.scale(scale),
@@ -1051,6 +1079,7 @@ class GraphController<N, E> with ChangeNotifier {
     );
     _scene.clearAllPresentationOverrides();
     _cameraGated = false;
+    _zoomLiveWhileGated = false;
     _lastHandledLayoutSuccessTicket = null;
     _transitionFrom = null;
     _transitionTarget = null;

@@ -335,7 +335,7 @@ void main() {
     _logMemory('after unmount');
   });
 
-  testWidgets('viewport resize aborts active capture', (tester) async {
+  testWidgets('viewport resize keeps active capture alive', (tester) async {
     _logMemory('before resize');
     final controller = testIntIntGraphController();
     var cancelled = false;
@@ -391,11 +391,14 @@ void main() {
     controller.handleLayoutConstraintsChangedForTesting(const Size(900, 700));
     await tester.pump();
 
-    expect(cancelled, isTrue);
-    expect(controller.renderSnapshot.presentation.overrides, isEmpty);
-    expect(controller.isCameraGated, isFalse);
+    expect(cancelled, isFalse);
+    expect(controller.renderSnapshot.presentation.overrides, isNotEmpty);
+    expect(controller.isCameraGated, isTrue);
 
     await gesture.up();
+    await tester.pump();
+    expect(cancelled, isFalse);
+    expect(controller.isCameraGated, isFalse);
     controller.dispose();
     _logMemory('after resize');
   });
@@ -429,7 +432,7 @@ void main() {
     _logMemory('after throwing start');
   });
 
-  testWidgets('programmatic camera move during capture cancels drag', (tester) async {
+  testWidgets('programmatic camera move during capture keeps drag alive', (tester) async {
     _logMemory('before programmatic camera');
     final controller = testIntIntGraphController();
     var cancelled = false;
@@ -453,10 +456,13 @@ void main() {
     controller.jumpToCenter();
     await tester.pump();
 
-    expect(cancelled, isTrue);
-    expect(controller.isCameraGated, isFalse);
+    expect(cancelled, isFalse);
+    expect(controller.isCameraGated, isTrue);
 
     await gesture.up();
+    await tester.pump();
+    expect(cancelled, isFalse);
+    expect(controller.isCameraGated, isFalse);
     controller.dispose();
     _logMemory('after programmatic camera');
   });
