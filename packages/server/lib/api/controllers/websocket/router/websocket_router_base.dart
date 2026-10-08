@@ -48,6 +48,7 @@ base class WebsocketRouterBase extends WebsocketSessionHandlerBase
   late final StreamSubscription<PgNotificationRecovery> _recoverySubscription;
 
   Future<void> dispose() async {
+    disposeEntityChanges();
     await _entityChangeSubscription.cancel();
     await _recoverySubscription.cancel();
   }

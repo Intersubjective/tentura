@@ -134,6 +134,7 @@ class Env {
     String? bindAddress,
     int? listenWebPort,
     bool? realtimeActorEchoEnabled,
+    Duration? constellationFieldBroadcastWindow,
     bool? attentionV1ShadowEnabled,
     String? minClientVersion,
 
@@ -358,6 +359,15 @@ class Env {
            realtimeActorEchoEnabled ??
            resolveRealtimeActorEchoEnabled(
              _env['REALTIME_ACTOR_ECHO_ENABLED'],
+           ),
+       constellationFieldBroadcastWindow =
+           constellationFieldBroadcastWindow ??
+           Duration(
+             seconds:
+                 int.tryParse(
+                   _env['CONSTELLATION_FIELD_BROADCAST_WINDOW_SECONDS'] ?? '',
+                 ) ??
+                 30,
            ),
        attentionV1ShadowEnabled =
            attentionV1ShadowEnabled ??
@@ -706,6 +716,9 @@ class Env {
 
   /// Defaults on for cross-device convergence; false is a compatibility gate.
   final bool realtimeActorEchoEnabled;
+
+  /// Coalescing interval for payload-free global constellation field hints.
+  final Duration constellationFieldBroadcastWindow;
 
   /// QA-only T-07 parity telemetry. It has no product behavior effect.
   final bool attentionV1ShadowEnabled;

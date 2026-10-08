@@ -1030,6 +1030,138 @@ void main() {
       });
     });
   });
+  group('global constellation field broadcast', () {
+    late _Dependencies dependencies;
+    late _FakePgNotificationConnector connector;
+    late WebsocketRouterBase router;
+
+    // Exercise the real default 30-second window without adding a new clock
+    // seam to implementation code. Allow one second for timer scheduling.
+    const broadcastDeadline = Duration(seconds: 31);
+    const marker = {
+      'entity': 'constellation_field',
+      'id': 'global',
+      'event': 'update',
+      'user_ids': <String>[],
+    };
+
+    setUp(() async {
+      dependencies = _Dependencies();
+      connector = _FakePgNotificationConnector();
+      final notifications = await PgNotificationService.createForTesting(
+        Env.test(),
+        connector,
+      );
+      router = WebsocketRouterBase(
+        Env.test(),
+        Logger('GlobalConstellationFieldBroadcastTest'),
+        dependencies.authCase,
+        dependencies.userPresenceCase,
+        dependencies.friendshipLookup,
+        dependencies.coParticipantLookup,
+        dependencies.roomMessageSnapshotLookup,
+        dependencies.qaRealtimeSocketGate,
+        notifications,
+      );
+      addTearDown(() async {
+        for (final session in router.authenticatedSessions) {
+          router.removeSession(session);
+        }
+        await router.dispose();
+        await notifications.dispose();
+      });
+    });
+
+    test(
+      '100 markers in one window deliver one hint to every authenticated socket',
+      () async {
+        final firstTab = _RecordingSession();
+        final secondTab = _RecordingSession();
+        final otherViewer = _RecordingSession();
+        final unauthenticated = _RecordingSession();
+        await dependencies.authenticate(router, firstTab, _firstId);
+        await dependencies.authenticate(router, secondTab, _firstId);
+        await dependencies.authenticate(router, otherViewer, _secondId);
+        final authenticated = [firstTab, secondTab, otherViewer];
+        for (final session in authenticated) {
+          session.sent.clear();
+        }
+        // Leave this socket connected to the router without authenticating it.
+        await router.onPing(unauthenticated, const {'type': 'ping'});
+
+        for (var i = 0; i < 100; i++) {
+          connector.publish(jsonEncode(marker));
+        }
+        await Future<void>.delayed(broadcastDeadline);
+
+        for (final session in authenticated) {
+          expect(
+            session.sent,
+            hasLength(1),
+            reason:
+                '100 global markers must coalesce into one broadcast, '
+                'including every tab of the same viewer',
+          );
+          final frame = jsonDecode(session.sent.single! as String) as Map;
+          expect(frame['type'], 'subscription');
+          expect(frame['path'], 'entity_changes');
+          expect(frame['payload'], {
+            'entity': 'constellation_field',
+            'id': 'global',
+            'event': 'update',
+            'actor_user_id': null,
+          });
+        }
+        expect(unauthenticated.sent, isEmpty);
+      },
+      timeout: const Timeout(Duration(minutes: 1)),
+    );
+
+    test(
+      'broadcast to 1000 sockets yields to an event-loop timer between batches',
+      () async {
+        var delivered = 0;
+        int? deliveredAtYield;
+        final sessions = List.generate(1000, (_) => _BatchRecordingSession());
+        for (final session in sessions) {
+          await dependencies.authenticate(router, session, _firstId);
+          session.sent.clear();
+          session.onSend = () {
+            delivered++;
+            if (delivered == 1) {
+              Timer.run(() => deliveredAtYield = delivered);
+            }
+          };
+        }
+
+        connector.publish(jsonEncode(marker));
+        await Future<void>.delayed(broadcastDeadline);
+
+        expect(delivered, sessions.length);
+        for (final session in sessions) {
+          expect(session.sent, hasLength(1));
+        }
+        expect(
+          deliveredAtYield,
+          allOf(isNotNull, greaterThan(0), lessThan(sessions.length)),
+          reason:
+              'An event-loop timer queued by the first send must run before '
+              'the final socket receives the hint',
+        );
+      },
+      timeout: const Timeout(Duration(minutes: 2)),
+    );
+  });
+}
+
+final class _BatchRecordingSession extends _RecordingSession {
+  void Function()? onSend;
+
+  @override
+  void send(Object? data) {
+    super.send(data);
+    onSend?.call();
+  }
 }
 
 Future<void> _waitUntil(

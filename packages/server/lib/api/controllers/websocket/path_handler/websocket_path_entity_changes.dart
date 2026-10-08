@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import '../session/websocket_session_handler_base.dart';
@@ -13,6 +14,56 @@ base mixin WebsocketPathEntityChanges on WebsocketSessionHandlerBase {
   };
 
   static final _decimalRevision = RegExp(r'^[0-9]+$');
+
+  Timer? _globalFieldBroadcastTimer;
+  int _globalFieldDirtyGeneration = 0;
+  bool _entityChangesDisposed = false;
+
+  void disposeEntityChanges() {
+    _entityChangesDisposed = true;
+    _globalFieldBroadcastTimer?.cancel();
+  }
+
+  void _scheduleGlobalFieldBroadcast() {
+    if (_entityChangesDisposed || _globalFieldBroadcastTimer != null) return;
+    _globalFieldBroadcastTimer = Timer(
+      env.constellationFieldBroadcastWindow,
+      () => unawaited(_broadcastGlobalField()),
+    );
+  }
+
+  Future<void> _broadcastGlobalField() async {
+    final generation = _globalFieldDirtyGeneration;
+    final message = jsonEncode({
+      'type': 'subscription',
+      'path': 'entity_changes',
+      'payload': {
+        'entity': 'constellation_field',
+        'id': 'global',
+        'event': 'update',
+        'actor_user_id': null,
+      },
+    });
+    final sessions = authenticatedSessions;
+    try {
+      for (var i = 0; i < sessions.length; i++) {
+        if (_entityChangesDisposed) return;
+        sessions[i].send(message);
+        if ((i + 1) % 100 == 0 && i + 1 < sessions.length) {
+          await Future<void>.delayed(Duration.zero);
+        }
+      }
+    } catch (e) {
+      logger.severe(
+        '[RealtimeFanout] realtime_event=global_field_failure error=$e',
+      );
+    } finally {
+      _globalFieldBroadcastTimer = null;
+      if (_globalFieldDirtyGeneration > generation) {
+        _scheduleGlobalFieldBroadcast();
+      }
+    }
+  }
 
   Future<void> fanOutEntityChange(Map<String, dynamic> data) async {
     final userIds = data['user_ids'];
@@ -61,6 +112,14 @@ base mixin WebsocketPathEntityChanges on WebsocketSessionHandlerBase {
     final childId = rawMessageId is String && rawMessageId.isNotEmpty
         ? rawMessageId
         : null;
+    if (entity == 'constellation_field' &&
+        aggregateId == 'global' &&
+        event == 'update' &&
+        userIds.isEmpty) {
+      _globalFieldDirtyGeneration++;
+      _scheduleGlobalFieldBroadcast();
+      return;
+    }
 
     final seen = <String>{};
     final sentSessions = <WebSocketSession>{};
@@ -71,9 +130,7 @@ base mixin WebsocketPathEntityChanges on WebsocketSessionHandlerBase {
           !kRealtimeAlwaysEchoKinds.contains(entity)) {
         continue;
       }
-      for (final session in getSessionsByUserId(userId)) {
-        sentSessions.add(session);
-      }
+      sentSessions.addAll(getSessionsByUserId(userId));
     }
     if (sentSessions.isEmpty) {
       return;

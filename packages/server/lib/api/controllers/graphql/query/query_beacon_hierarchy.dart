@@ -122,7 +122,7 @@ final class QueryBeaconHierarchy extends GqlNodeBase {
   int _resolveFirst(Map<String, dynamic> args) {
     final raw = _first.fromArgs(args) ?? 20;
     if (raw < 1 || raw > 50) {
-      throw UnspecifiedException(
+      throw const UnspecifiedException(
         description: 'first must be between 1 and 50',
       );
     }

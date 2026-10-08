@@ -1,8 +1,8 @@
 // Cost of the deferred anchor/cursor notification triggers (plan U15): commit
 // latency with and without them, transaction-body vs COMMIT latency under
 // concurrent notifying commits, and the backlog of a slow LISTEN consumer.
-// pg-only: the triggers need no MeritRank graph.
-@Tags(['perf', 'pg'])
+// The mr tag keeps timings out of plain pg runs; no MeritRank graph is needed.
+@Tags(['perf', 'pg', 'mr'])
 library;
 
 import 'dart:convert';
