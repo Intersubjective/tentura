@@ -26,11 +26,22 @@ Future<T> withPostgresDeadlockOrSerializationRetry<T>(
 }
 
 bool isPostgresDeadlockOrSerializationFailure(Object error) {
+  if (error is PostgresSnapshotUnavailableException) return true;
   if (error is ServerException) {
     final code = error.code;
     return code == '40P01' || code == '40001';
   }
   return false;
+}
+
+/// A snapshot dependency failed transiently; retry the entire transaction.
+class PostgresSnapshotUnavailableException implements Exception {
+  const PostgresSnapshotUnavailableException(this.cause);
+
+  final Object cause;
+
+  @override
+  String toString() => 'PostgresSnapshotUnavailableException: $cause';
 }
 
 /// Thrown when [withPostgresBoundedRetry] runs out of its end-to-end time

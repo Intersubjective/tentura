@@ -10,6 +10,28 @@ import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 import '../database/tentura_db.dart' hide ConstellationAnchor;
 import 'constellation_field_repository.dart';
 
+/// Snapshot inputs shared by authorization and post-write hydration.
+final class PreparedConstellationAnchors {
+  const PreparedConstellationAnchors({
+    required this.visiblePeerIds,
+    required this.beacons,
+    required this.edges,
+    required this.profiles,
+  });
+
+  final List<String> visiblePeerIds;
+  final List<ConstellationRequestRecord> beacons;
+  final List<ConstellationEdgeRecord> edges;
+  final List<ConstellationPeerRecord> profiles;
+
+  bool authorizes(ConstellationAnchorTarget target) => switch (target.kind) {
+    ConstellationAnchorTargetKind.person => visiblePeerIds.contains(target.id),
+    ConstellationAnchorTargetKind.beacon => beacons.any(
+      (b) => b.id == target.id && isKnownConstellationBeaconStatus(b.status),
+    ),
+  };
+}
+
 /// Builds [ConstellationAnchorProjection] using only the caller's current
 /// transaction (read snapshot or mutating repeatable read), so it sees the
 /// caller's own uncommitted anchor writes.
@@ -21,6 +43,101 @@ final class ConstellationAnchorProjectionReader {
 
   ConstellationFieldRepository get _repo =>
       ConstellationFieldRepository(_database, _profiles);
+
+  Future<PreparedConstellationAnchors> prepare({
+    required String viewerId,
+    required String context,
+    required ConstellationFieldMembershipFilters filters,
+    required Iterable<ConstellationAnchorTarget> upsertTargets,
+  }) async {
+    final visible = await visiblePeers(viewerId: viewerId, context: context);
+    final existing = await _loadAuthorizedAnchors(
+      viewerId: viewerId,
+      visiblePeerIds: visible,
+      authorize: false,
+    );
+    final targets = {...existing.map((a) => a.target), ...upsertTargets};
+    final beaconIds = targets
+        .whereType<ConstellationAnchorBeaconTarget>()
+        .map((t) => t.id)
+        .toList();
+    final beacons = beaconIds.isEmpty
+        ? const <ConstellationRequestRecord>[]
+        : await _pinnedBeaconRecords(viewerId: viewerId, beaconIds: beaconIds);
+    final edges = await _repo.trustEdges(
+      viewerId: viewerId,
+      context: context,
+      nodeIds: {...visible, viewerId},
+    );
+    final pinnedPeerIds = {
+      for (final target in targets)
+        if (target is ConstellationAnchorPersonTarget &&
+            visible.contains(target.id))
+          target.id,
+    };
+    final holderIds = {
+      ...pinnedPeerIds,
+      for (final beacon in beacons)
+        if (classifyAuthorizedPinnedBeacon(
+              status: beacon.status,
+              showClosed: filters.showClosed,
+              participatedOnly: filters.participatedOnly,
+              viewerParticipates: beacon.viewerParticipates ?? beacon.isMine,
+            ) ==
+            ConstellationPinnedBeaconLayer.visiblePinned)
+          beacon.authorId,
+    };
+    final closure = _supportClosure(
+      viewerId: viewerId,
+      visiblePeerIds: visible,
+      pinnedPeerIds: pinnedPeerIds,
+      holderIds: holderIds,
+      edges: edges,
+    );
+    final profiles = await _repo.peerProfiles(
+      ids: {
+        ...holderIds,
+        ...closure.supportPeerIds,
+      },
+    );
+    return PreparedConstellationAnchors(
+      visiblePeerIds: visible,
+      beacons: beacons,
+      edges: edges,
+      profiles: profiles,
+    );
+  }
+
+  Future<ConstellationAnchorProjection> readPrepared({
+    required String viewerId,
+    required String context,
+    required ConstellationFieldMembershipFilters filters,
+    required PreparedConstellationAnchors prepared,
+  }) async {
+    final rows = await _loadAuthorizedAnchors(
+      viewerId: viewerId,
+      visiblePeerIds: prepared.visiblePeerIds,
+      authorize: false,
+    );
+    final readableBeacons = prepared.beacons.map((b) => b.id).toSet();
+    return _buildAnchorProjection(
+      viewerId: viewerId,
+      context: context,
+      filters: filters,
+      watermark: await _readWatermark(viewerId),
+      anchorRows: rows
+          .where(
+            (a) => a.target.kind == ConstellationAnchorTargetKind.person
+                ? prepared.visiblePeerIds.contains(a.target.id)
+                : readableBeacons.contains(a.target.id),
+          )
+          .toList(),
+      visiblePeerIds: prepared.visiblePeerIds,
+      trustEdges: () async => prepared.edges,
+      peerProfiles: (_) async => prepared.profiles,
+      preparedBeacons: prepared.beacons,
+    );
+  }
 
   Future<ConstellationAnchorProjection> read({
     required String viewerId,
@@ -101,6 +218,7 @@ WHERE viewer_id = $1
   Future<List<ConstellationAnchor>> _loadAuthorizedAnchors({
     required String viewerId,
     required List<String> visiblePeerIds,
+    bool authorize = true,
   }) async {
     final beaconReadable = constellationBeaconContentReadableSql(
       viewerParam: r'$1',
@@ -120,8 +238,9 @@ SELECT
 FROM public.constellation_anchor ca
 -- Join (not EXISTS): an EXISTS here gets planned as a hashed SubPlan that
 -- runs beacon_can_read_content over every beacon in the table (12s+ on dev).
-LEFT JOIN public.beacon b ON b.id = ca.beacon_id
+${authorize ? 'LEFT JOIN public.beacon b ON b.id = ca.beacon_id' : ''}
 WHERE ca.viewer_id = \$1
+${authorize ? '''
   AND (
     -- Visible peers exclude the viewer and blocks in either direction.
     ca.person_id = ANY(\$2::text[])
@@ -129,12 +248,12 @@ WHERE ca.viewer_id = \$1
       b.id IS NOT NULL
       AND $beaconReadable
     )
-  )
+  )''' : ''}
 ORDER BY ca.placed_at, COALESCE(ca.beacon_id, ca.person_id)
 ''',
           variables: [
             Variable.withString(viewerId),
-            Variable(TypedValue(Type.textArray, visiblePeerIds)),
+            if (authorize) Variable(TypedValue(Type.textArray, visiblePeerIds)),
           ],
         )
         .get();
@@ -174,6 +293,7 @@ ORDER BY ca.placed_at, COALESCE(ca.beacon_id, ca.person_id)
     required Future<List<ConstellationEdgeRecord>> Function() trustEdges,
     required Future<List<ConstellationPeerRecord>> Function(Set<String> ids)
     peerProfiles,
+    List<ConstellationRequestRecord>? preparedBeacons,
   }) async {
     if (anchorRows.isEmpty) {
       return ConstellationAnchorProjection(
@@ -196,12 +316,14 @@ ORDER BY ca.placed_at, COALESCE(ca.beacon_id, ca.person_id)
         if (anchor.target case ConstellationAnchorBeaconTarget(:final id)) id,
     ];
 
-    final pinnedBeaconRecords = beaconIds.isEmpty
-        ? const <ConstellationRequestRecord>[]
-        : await _pinnedBeaconRecords(
-            viewerId: viewerId,
-            beaconIds: beaconIds,
-          );
+    final pinnedBeaconRecords =
+        preparedBeacons ??
+        (beaconIds.isEmpty
+            ? const <ConstellationRequestRecord>[]
+            : await _pinnedBeaconRecords(
+                viewerId: viewerId,
+                beaconIds: beaconIds,
+              ));
 
     final byBeaconId = {
       for (final record in pinnedBeaconRecords) record.id: record,
@@ -252,34 +374,16 @@ ORDER BY ca.placed_at, COALESCE(ca.beacon_id, ca.person_id)
     // join the viewer and visible peers.
     final pathEdges = await trustEdges();
 
-    final resolution = resolveConstellationPaths(
-      egoId: viewerId,
-      visiblePeerIds: {...visiblePeerIds, ...pathHolderIds},
+    final closure = _supportClosure(
+      viewerId: viewerId,
+      visiblePeerIds: visiblePeerIds,
+      pinnedPeerIds: pinnedPeerIds.toSet(),
       holderIds: pathHolderIds,
-      edges: [
-        for (final edge in pathEdges)
-          (src: edge.src, dst: edge.dst, tier: edge.tier),
-      ],
+      edges: pathEdges,
     );
-
-    final ringResidualPeerIds = resolution.ring.difference({
-      viewerId,
-      ...pinnedPeerIds,
-    });
-
-    final supportPeerIds = {
-      ...resolution.keep.difference({
-        viewerId,
-        ...pinnedPeerIds,
-      }),
-      ...ringResidualPeerIds,
-    }.toList()..sort();
-
-    final profileIds = {
-      ...pinnedPeerIds,
-      ...supportPeerIds,
-      ...pinnedRequests.map((r) => r.authorId),
-    };
+    final resolution = closure.resolution;
+    final supportPeerIds = closure.supportPeerIds.toList()..sort();
+    final profileIds = {...pathHolderIds, ...supportPeerIds};
     final profiles = await peerProfiles(profileIds);
     final profileById = {for (final p in profiles) p.id: p};
 
@@ -321,6 +425,32 @@ ORDER BY ca.placed_at, COALESCE(ca.beacon_id, ca.person_id)
       supportEdges: supportEdges,
       serverFilteredBeaconIds: uniqueFilterHidden,
       serverFilteredBeaconCount: uniqueFilterHidden.length,
+    );
+  }
+
+  static ({ConstellationPathResolution resolution, Set<String> supportPeerIds})
+  _supportClosure({
+    required String viewerId,
+    required List<String> visiblePeerIds,
+    required Set<String> pinnedPeerIds,
+    required Set<String> holderIds,
+    required List<ConstellationEdgeRecord> edges,
+  }) {
+    final resolution = resolveConstellationPaths(
+      egoId: viewerId,
+      visiblePeerIds: {...visiblePeerIds, ...holderIds},
+      holderIds: holderIds,
+      edges: [
+        for (final edge in edges)
+          (src: edge.src, dst: edge.dst, tier: edge.tier),
+      ],
+    );
+    return (
+      resolution: resolution,
+      supportPeerIds: {
+        ...resolution.keep.difference({viewerId, ...pinnedPeerIds}),
+        ...resolution.ring.difference({viewerId, ...pinnedPeerIds}),
+      },
     );
   }
 
