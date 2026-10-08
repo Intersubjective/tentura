@@ -128,6 +128,12 @@ final class _HarnessAnchorRepository
   Set<ConstellationAnchorTarget> failTargets = {};
 
   @override
+  Future<ConstellationAnchorApplyResult> apply({
+    required List<ConstellationAnchorApplyOp> ops,
+    required ConstellationFieldMembershipFilters params,
+  }) => throw UnimplementedError();
+
+  @override
   Future<ConstellationAnchorUpsertResult> upsert({
     required ConstellationAnchorTarget target,
     required ConstellationAnchorPosition position,

@@ -263,6 +263,21 @@
       ]
     },
     {
+      "wireKind": "constellation_field",
+      "acceptedWireKinds": ["constellation_field"],
+      "clientKind": "constellationField",
+      "genericTriggerArgs": ["constellation_field"],
+      "specializedPublishers": [
+        "notify_constellation_field_global",
+        "notify_constellation_field_block"
+      ],
+      "impacts": ["constellation_field"],
+      "tests": [
+        "packages/client/test/data/service/invalidation_service_constellation_revision_test.dart",
+        "packages/server/test/data/database/constellation_field_hint_producers_pg_test.dart"
+      ]
+    },
+    {
       "wireKind": "invite_seed_prompt",
       "acceptedWireKinds": ["invite_seed_prompt"],
       "clientKind": "inviteSeedPrompt",

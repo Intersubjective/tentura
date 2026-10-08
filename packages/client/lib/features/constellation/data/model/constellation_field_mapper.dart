@@ -6,6 +6,7 @@ import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../../domain/entity/constellation_anchor_projection.dart';
 import '../../domain/entity/constellation_field.dart';
 import '../gql/_g/beacon_member_webs.data.gql.dart';
+import '../gql/_g/constellation_anchors_apply.data.gql.dart';
 import '../gql/_g/constellation_anchors_fetch.data.gql.dart';
 import '../gql/_g/constellation_field_fetch.data.gql.dart';
 
@@ -279,6 +280,73 @@ ConstellationAnchorProjection _mapAnchorsFetchAnchorProjection(
   revision: _parseRevision(projection.revision),
   anchors: [
     for (final anchor in projection.anchors) _mapAnchorsFetchAnchor(anchor),
+  ],
+  pinnedPeers: [
+    for (final peer in projection.pinnedPeers)
+      _mapPersonFields(
+        id: peer.id,
+        displayName: peer.displayName,
+        handle: peer.handle,
+        image: peer.image as ImageModelV2?,
+      ),
+  ],
+  pinnedRequests: [
+    for (final request in projection.pinnedRequests)
+      _mapRequestFields(
+        id: request.id,
+        authorId: request.authorId,
+        title: request.title,
+        status: request.status,
+        needs: request.needs,
+        primaryNeedSlug: request.primaryNeedSlug,
+        startAt: request.startAt,
+        endAt: request.endAt,
+        addressLabel: request.addressLabel,
+        hasCoordinates: request.hasCoordinates,
+        isMine: request.isMine,
+        viewerHasActiveHelpOffer: request.viewerHasActiveHelpOffer,
+        viewerIsRoomParticipant: request.viewerIsRoomParticipant,
+        viewerHasForwardEdge: request.viewerHasForwardEdge,
+        helpOfferCount: request.helpOfferCount,
+        coverSource: request.coverSource,
+        coverThumb: request.coverThumb as ImageModelV2?,
+      ),
+  ],
+  supportPeers: [
+    for (final peer in projection.supportPeers)
+      _mapPersonFields(
+        id: peer.id,
+        displayName: peer.displayName,
+        handle: peer.handle,
+        image: peer.image as ImageModelV2?,
+      ),
+  ],
+  supportEdges: [
+    for (final edge in projection.supportEdges)
+      _mapEdgeFields(src: edge.src, dst: edge.dst, tier: edge.tier),
+  ],
+  serverFilteredBeaconIds: projection.serverFilteredBeaconIds.toList(
+    growable: false,
+  ),
+  serverFilteredBeaconCount: projection.serverFilteredBeaconCount,
+);
+
+ConstellationAnchorProjection mapApplyAnchorProjection(
+  GConstellationAnchorsApplyData_constellationAnchorsApply_anchorProjection
+  projection,
+) => ConstellationAnchorProjection(
+  revision: _parseRevision(projection.revision),
+  anchors: [
+    for (final anchor in projection.anchors)
+      _mapWireAnchor(
+        targetKind: anchor.targetKind,
+        targetId: anchor.targetId,
+        xUnits: anchor.xUnits,
+        yUnits: anchor.yUnits,
+        coordinateSpaceVersion: anchor.coordinateSpaceVersion,
+        revision: anchor.revision,
+        placedAt: anchor.placedAt,
+      ),
   ],
   pinnedPeers: [
     for (final peer in projection.pinnedPeers)

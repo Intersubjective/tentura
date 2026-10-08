@@ -3863,6 +3863,7 @@ type mutation_root {
   complaintCreate(details: String!, email: String!, id: String!, type: String!): Boolean!
   constellationAnchorDelete(targetId: String!, targetKind: v2_ConstellationAnchorTargetKind!): v2_ConstellationAnchorDeleteResult!
   constellationAnchorUpsert(coordinateSpaceVersion: Int!, targetId: String!, targetKind: v2_ConstellationAnchorTargetKind!, xUnits: Float!, yUnits: Float!): v2_ConstellationAnchorUpsertResult!
+  constellationAnchorsApply(ops: [v2_ConstellationAnchorOpInput!]!, participatedOnly: Boolean!, showClosed: Boolean!): v2_ConstellationAnchorsApplyResult!
   contactDelete(subjectUserId: String!): Boolean!
   contactSet(contactName: String!, subjectUserId: String!): Boolean!
   declineHelpOffer(id: String!, offerUserId: String!, reason: String!): v2_BeaconStatusResult!
@@ -8063,6 +8064,38 @@ type v2_ConstellationAnchorDeleteResult {
   targetKind: v2_ConstellationAnchorTargetKind!
 }
 
+input v2_ConstellationAnchorOpInput {
+  clientOpId: String!
+  ifRevision: String
+  kind: v2_ConstellationAnchorOpKind!
+  position: v2_ConstellationAnchorPositionInput
+  targetId: String!
+  targetKind: v2_ConstellationAnchorTargetKind!
+}
+
+enum v2_ConstellationAnchorOpKind {
+  DELETE
+  UPSERT
+}
+
+type v2_ConstellationAnchorOpResult {
+  clientOpId: String!
+  reason: String
+  resultingTargetRevision: String
+  status: v2_ConstellationAnchorOpStatus!
+}
+
+enum v2_ConstellationAnchorOpStatus {
+  OK
+  REJECTED
+}
+
+input v2_ConstellationAnchorPositionInput {
+  coordinateSpaceVersion: Int!
+  xUnits: Float!
+  yUnits: Float!
+}
+
 type v2_ConstellationAnchorProjection {
   anchors: [v2_ConstellationAnchor!]!
   pinnedPeers: [v2_ConstellationPeer!]!
@@ -8082,6 +8115,13 @@ enum v2_ConstellationAnchorTargetKind {
 type v2_ConstellationAnchorUpsertResult {
   anchor: v2_ConstellationAnchor!
   revision: String!
+}
+
+type v2_ConstellationAnchorsApplyResult {
+  afterRevision: String!
+  anchorProjection: v2_ConstellationAnchorProjection!
+  beforeRevision: String!
+  results: [v2_ConstellationAnchorOpResult!]!
 }
 
 type v2_ConstellationEdge {

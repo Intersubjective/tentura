@@ -29,6 +29,7 @@ enum RealtimeEntityKind {
   notification,
   beaconHierarchy,
   constellationAnchor,
+  constellationField,
   inviteSeedPrompt,
   ;
 
@@ -56,6 +57,7 @@ enum RealtimeEntityKind {
     'notification' => RealtimeEntityKind.notification,
     'beacon_hierarchy' => RealtimeEntityKind.beaconHierarchy,
     'constellation_anchor' => RealtimeEntityKind.constellationAnchor,
+    'constellation_field' => RealtimeEntityKind.constellationField,
     'invite_seed_prompt' => RealtimeEntityKind.inviteSeedPrompt,
     _ => null,
   };
@@ -82,5 +84,7 @@ abstract class RealtimeEntityChange with _$RealtimeEntityChange {
     RealtimeSeenPeer? seenPeer,
   /// Author/steward People-surface watermark from WS `people_seen` `last_seen_at`.
     DateTime? peopleSeenAt,
+  /// Commit revision from WS `constellation_anchor` `revision`; null when absent or malformed.
+    BigInt? revision,
   }) = _RealtimeEntityChange;
 }

@@ -104,6 +104,12 @@ final class _HarnessFieldRepository implements ConstellationRepositoryPort {
 final class _HarnessAnchorRepository
     implements ConstellationAnchorRepositoryPort {
   @override
+  Future<ConstellationAnchorApplyResult> apply({
+    required List<ConstellationAnchorApplyOp> ops,
+    required ConstellationFieldMembershipFilters params,
+  }) => throw UnimplementedError();
+
+  @override
   Future<ConstellationAnchorUpsertResult> upsert({
     required ConstellationAnchorTarget target,
     required ConstellationAnchorPosition position,

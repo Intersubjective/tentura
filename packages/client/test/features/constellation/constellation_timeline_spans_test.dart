@@ -26,6 +26,12 @@ final class _Anchors implements ConstellationAnchorRepositoryPort {
   ConstellationAnchor? anchor;
 
   @override
+  Future<ConstellationAnchorApplyResult> apply({
+    required List<ConstellationAnchorApplyOp> ops,
+    required ConstellationFieldMembershipFilters params,
+  }) => throw UnimplementedError();
+
+  @override
   Future<ConstellationAnchorUpsertResult> upsert({
     required ConstellationAnchorTarget target,
     required ConstellationAnchorPosition position,

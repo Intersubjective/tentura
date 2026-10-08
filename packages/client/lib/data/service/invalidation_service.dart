@@ -198,9 +198,19 @@ class InvalidationService implements RealtimeSyncPort {
         roomMessagePaint: paint,
         seenPeer: seenPeer,
         peopleSeenAt: peopleSeenAt,
+        revision: kind == RealtimeEntityKind.constellationAnchor
+            ? _parseRevision(payload['revision'])
+            : null,
       ),
     );
   }
+
+  static final _decimalRevision = RegExp(r'^[0-9]+$');
+
+  static BigInt? _parseRevision(Object? raw) =>
+      raw is String && _decimalRevision.hasMatch(raw)
+      ? BigInt.parse(raw)
+      : null;
 
   void _onServerControl(Map<String, dynamic> message) {
     final payload = _normalizeJsonObject(message['payload']);
