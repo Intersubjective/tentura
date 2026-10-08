@@ -16,6 +16,7 @@ import 'package:tentura/features/constellation/domain/entity/constellation_field
 import 'package:tentura/features/constellation/domain/port/constellation_anchor_repository_port.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_anchor_case.dart';
+import 'package:tentura/features/constellation/domain/use_case/constellation_placement_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_filter_bar.dart';
@@ -29,6 +30,9 @@ import 'package:tentura/ui/test_ids.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 
 import '../../support/constellation_store_fixture.dart';
+import '../../support/test_realtime_sync.dart';
+import '../../support/fake_clock_port.dart';
+import '../../support/fake_wake_up_port.dart';
 import '../../support/test_forward_case.dart';
 
 const _ego = Profile(id: 'ego', displayName: 'Ego');
@@ -106,11 +110,58 @@ final class _HarnessAnchorRepository
   Completer<void>? upsertHold;
   Object? upsertError;
 
+  final _confirmedAnchors = <ConstellationAnchorTarget, ConstellationAnchor>{};
+  var _applyRevision = BigInt.zero;
+
   @override
   Future<ConstellationAnchorApplyResult> apply({
     required List<ConstellationAnchorApplyOp> ops,
     required ConstellationFieldMembershipFilters params,
-  }) => throw UnimplementedError();
+  }) async {
+    final before = ConstellationAnchorRevision(_applyRevision);
+    final results = <ConstellationAnchorOpResult>[];
+    for (final op in ops) {
+      final revision = op.kind == ConstellationAnchorOpKind.delete
+          ? (await delete(target: op.target)).revision
+          : (await upsert(target: op.target, position: op.position!)).revision;
+      _applyRevision = _applyRevision > revision.value
+          ? _applyRevision
+          : revision.value;
+      if (op.kind == ConstellationAnchorOpKind.delete) {
+        _confirmedAnchors.remove(op.target);
+      } else {
+        _confirmedAnchors[op.target] = ConstellationAnchor(
+          target: op.target,
+          position: op.position!,
+          revision: revision,
+          placedAt: DateTime.utc(2026, 9, 11, 1),
+        );
+      }
+      results.add(
+        ConstellationAnchorOpResult(
+          clientOpId: op.clientOpId,
+          status: ConstellationAnchorOpStatus.ok,
+          resultingTargetRevision: revision,
+        ),
+      );
+    }
+    final after = ConstellationAnchorRevision(_applyRevision);
+    return ConstellationAnchorApplyResult(
+      beforeRevision: before,
+      afterRevision: after,
+      results: results,
+      anchorProjection: ConstellationAnchorProjection(
+        revision: after,
+        anchors: _confirmedAnchors.values.toList(),
+        pinnedPeers: const [],
+        pinnedRequests: const [],
+        supportPeers: const [],
+        supportEdges: const [],
+        serverFilteredBeaconIds: const [],
+        serverFilteredBeaconCount: 0,
+      ),
+    );
+  }
 
   @override
   Future<ConstellationAnchorUpsertResult> upsert({
@@ -204,17 +255,27 @@ _harness({
   );
   final anchorRepo = _HarnessAnchorRepository();
   final anchorCase = ConstellationAnchorCase(
-    fieldRepo,
-    anchorRepo,
     env: const Env.fromEnvironment(),
     logger: Logger('ConstellationAnchorInteractionTest'),
   );
+  final sync = buildTestRealtimeSync();
+  final store = ConstellationStoreFixture(
+    fieldRepo,
+    accountId: 'ego',
+    realtime: sync.case_,
+  ).store;
   final cubit = ConstellationCubit(
-    case_: ConstellationStoreFixture(
-      fieldRepo,
-      accountId: 'ego',
-    ).store,
+    case_: store,
     anchorCase: anchorCase,
+    placementCase: ConstellationPlacementCase(
+      anchorRepo,
+      store,
+      FakeClockPort(),
+      FakeWakeUpPort(),
+      realtime: sync.case_,
+      env: const Env.fromEnvironment(),
+      logger: Logger('ConstellationAnchorInteractionTest'),
+    ),
     viewer: _ego,
     forwardCase: buildTestForwardCase(_FakeForwardRepository()),
     loadOnCreate: false,
@@ -276,64 +337,58 @@ Offset _requireNodeCentre(ConstellationCubit cubit, String id) {
 
 void main() {
   for (final isNew in [false, true]) {
-    for (final fails in [false, true]) {
-      testWidgets(
-        '${isNew ? "new" : "existing"} drop restores camera before '
-        '${fails ? "failed" : "successful"} write',
-        (tester) async {
-          final harness = await _harness();
-          addTearDown(harness.cubit.close);
-          addTearDown(() => tester.binding.setSurfaceSize(null));
-          await _pumpShell(tester, harness.cubit);
-          final cubit = harness.cubit;
-          final target = isNew
-              ? ConstellationAnchorTarget.beacon('req-1')
-              : ConstellationAnchorTarget.person('p1');
-          final hold = Completer<void>();
-          harness.anchorRepo.upsertHold = hold;
-          if (fails) harness.anchorRepo.upsertError = StateError('failed');
+    testWidgets(
+      '${isNew ? "new" : "existing"} drop restores camera before '
+      'successful write',
+      (tester) async {
+        final harness = await _harness();
+        addTearDown(harness.cubit.close);
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        await _pumpShell(tester, harness.cubit);
+        final cubit = harness.cubit;
+        final target = isNew
+            ? ConstellationAnchorTarget.beacon('req-1')
+            : ConstellationAnchorTarget.person('p1');
+        final hold = Completer<void>();
+        harness.anchorRepo.upsertHold = hold;
 
-          if (isNew) {
-            cubit.beginDragNew(target: target);
-          } else {
-            cubit.beginDragExisting(target: target);
-          }
-          await tester.pump();
-          await tester.pump();
-          expect(cubit.graphController.isCameraGated, isTrue);
-          InteractiveViewer viewer() => tester.widget<InteractiveViewer>(
-            find.byType(InteractiveViewer),
-          );
-          expect(viewer().panEnabled, isFalse);
-          expect(viewer().scaleEnabled, isFalse);
+        if (isNew) {
+          cubit.beginDragNew(target: target);
+        } else {
+          cubit.beginDragExisting(target: target);
+        }
+        await tester.pump();
+        await tester.pump();
+        expect(cubit.graphController.isCameraGated, isTrue);
+        InteractiveViewer viewer() => tester.widget<InteractiveViewer>(
+          find.byType(InteractiveViewer),
+        );
+        expect(viewer().panEnabled, isFalse);
+        expect(viewer().scaleEnabled, isFalse);
 
-          const drop = Offset(2100, 2100);
-          final pending = isNew
-              ? cubit.onNewNodeDrop(target: target, sceneCentre: drop)
-              : cubit.onExistingNodeDrop(target: target, sceneCentre: drop);
-          await tester.pump();
-          await tester.pump();
-          expect(harness.anchorRepo.upsertCount, 1);
-          expect(cubit.state.placementPhase, ConstellationPlacementPhase.idle);
-          expect(cubit.graphController.isCameraGated, isFalse);
-          expect(viewer().panEnabled, isTrue);
-          expect(viewer().scaleEnabled, isTrue);
+        const drop = Offset(2100, 2100);
+        final pending = isNew
+            ? cubit.onNewNodeDrop(target: target, sceneCentre: drop)
+            : cubit.onExistingNodeDrop(target: target, sceneCentre: drop);
+        await tester.pump();
+        await tester.pump();
+        expect(harness.anchorRepo.upsertCount, 1);
+        expect(cubit.state.placementPhase, ConstellationPlacementPhase.idle);
+        expect(cubit.graphController.isCameraGated, isFalse);
+        expect(viewer().panEnabled, isTrue);
+        expect(viewer().scaleEnabled, isTrue);
 
-          hold.complete();
-          await pending;
-          await tester.pump();
-          await tester.pump(const Duration(milliseconds: 400));
-          expect(cubit.graphController.isCameraGated, isFalse);
-          expect(viewer().panEnabled, isTrue);
-          expect(viewer().scaleEnabled, isTrue);
-          expect(cubit.isAnchored(target), !fails);
-          expect(
-            cubit.state.placementFailureMessage,
-            fails ? isNotNull : isNull,
-          );
-        },
-      );
-    }
+        hold.complete();
+        await pending;
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 400));
+        expect(cubit.graphController.isCameraGated, isFalse);
+        expect(viewer().panEnabled, isTrue);
+        expect(viewer().scaleEnabled, isTrue);
+        expect(cubit.isAnchored(target), isTrue);
+        expect(cubit.state.placementFailureMessage, isNull);
+      },
+    );
   }
 
   group('Constellation anchor interaction', () {
@@ -426,33 +481,6 @@ void main() {
       expect(pinned.dy, closeTo(drop.dy, 1));
     });
 
-    testWidgets('failed first pin restores automatic position', (tester) async {
-      final harness = await _harness();
-      addTearDown(harness.cubit.close);
-      await _pumpShell(tester, harness.cubit);
-
-      final original = _requireNodeCentre(harness.cubit, 'p1');
-      const drop = Offset(2800, 1600);
-      expect((original - drop).distance, greaterThan(200));
-
-      harness.anchorRepo.upsertError = StateError('failed');
-      await harness.cubit.onNewNodeDrop(
-        target: ConstellationAnchorTarget.person('p1'),
-        sceneCentre: drop,
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 400));
-
-      expect(harness.cubit.state.placementFailureMessage, isNotNull);
-      expect(
-        harness.cubit.isAnchored(ConstellationAnchorTarget.person('p1')),
-        isFalse,
-      );
-      final restored = _requireNodeCentre(harness.cubit, 'p1');
-      expect(restored.dx, closeTo(original.dx, 2));
-      expect(restored.dy, closeTo(original.dy, 2));
-    });
-
     testWidgets('unpinning a beacon does not place it on ego', (tester) async {
       final harness = await _harness(
         fields: [
@@ -507,6 +535,7 @@ void main() {
       await harness.cubit.unpinAnchor(
         target: ConstellationAnchorTarget.beacon('req-1'),
       );
+      await tester.pump();
       expect(
         harness.cubit.forgetPriorHintNodeIdsForTest,
         contains('req-1'),

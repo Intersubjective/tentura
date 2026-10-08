@@ -23,7 +23,9 @@ import '../../domain/entity/constellation_anchor_projection.dart';
 import '../../domain/entity/constellation_field.dart';
 import '../util/layout_geometry_adapters.dart';
 import '../../domain/use_case/constellation_member_webs_case.dart';
+import '../../domain/entity/placement_outbox.dart';
 import '../../domain/use_case/constellation_anchor_case.dart';
+import '../../domain/use_case/constellation_placement_case.dart';
 import '../../domain/use_case/constellation_field_store_case.dart';
 import '../../../graph/domain/entity/edge_details.dart';
 import '../../../graph/domain/entity/node_details.dart';
@@ -129,6 +131,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     required ConstellationFieldStoreCase case_,
     required Profile viewer,
     this._anchorCase,
+    this._placementCase,
     this._memberWebsCase,
     ForwardCase? forwardCase,
     bool loadOnCreate = true,
@@ -149,6 +152,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   final ConstellationFieldStoreCase _case;
   final ConstellationAnchorCase? _anchorCase;
+  final ConstellationPlacementCase? _placementCase;
   final ConstellationMemberWebsCase? _memberWebsCase;
   final Profile _viewer;
 
@@ -169,14 +173,11 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   String? _draggingNodeId;
   Set<GraphNodeId> _placementHandoffGraphIds = {};
 
-  /// Bumped when a new drag starts. A write outcome tagged with an older
-  /// value arrives after the user already began another placement and must
-  /// not reset that placement's phase, target or presentations (#235).
-  int _placementSeq = 0;
+  int _writeCount = 0;
 
-  /// Writes whose outcome has not been applied yet (mutation or recovery
-  /// read still in flight).
-  int _outstandingWrites = 0;
+  /// A dropped placement is with the outbox and the store has not published
+  /// its settlement yet; its presentation holds must survive a cancel.
+  bool _placementAwaitingStore = false;
   final Set<GraphNodeId> _placementClusterGraphIds = {};
   final Map<GraphNodeId, ConstellationAnchorTarget> _placementClusterTargets =
       {};
@@ -275,11 +276,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   Set<String> get forgetPriorHintNodeIdsForTest => _forgetPriorHintNodeIds;
 
   @visibleForTesting
-  // ignore: invalid_use_of_visible_for_testing_member
-  int get writeCount => _anchorCase?.writeCount ?? 0;
+  int get writeCount => _writeCount;
 
-  bool get placementActionsEnabled =>
-      state.placementActionsEnabled && !(_anchorCase?.hasPendingWrite ?? false);
+  bool get placementActionsEnabled => state.placementActionsEnabled;
 
   SceneLayoutAlgorithm get graphSceneLayoutAlgorithm =>
       _ephemeralOwnedLayoutAlgorithm ??
@@ -512,6 +511,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   void _applyLoadedField(ConstellationField field) {
     _lastAppliedStoreField = field;
+    _placementAwaitingStore = false;
     final labelBudget = _currentLabelBudget();
     final adopted =
         _anchorCase?.adoptConfirmedProjection(
@@ -526,6 +526,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     final deferTargets = _shouldDeferPlacementRefresh()
         ? _deferredRefreshTargetsForPresentation()
         : const <ConstellationAnchorTarget>{};
+    if (deferTargets.isEmpty) _noteDisappearedAnchors(confirmedProjection);
     final presentationField = deferTargets.isEmpty
         ? loadedField
         : loadedField.copyWith(
@@ -616,7 +617,6 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       return;
     }
     _suppressLateGestureEnd = false;
-    _placementSeq++;
     _draggingNodeId = target.graphNodeId;
     _beginClusterDragPresentation(target);
     graphController.setCameraInteractionGated(true);
@@ -635,7 +635,6 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       return;
     }
     _suppressLateGestureEnd = false;
-    _placementSeq++;
     _draggingNodeId = target.graphNodeId;
     _beginClusterDragPresentation(target);
     graphController.setCameraInteractionGated(true);
@@ -1043,7 +1042,6 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
             ConstellationAnchorPosition position,
           })
         >[];
-    final companionTitles = <String, String>{};
     final droppedCompanionGraphIds = <GraphNodeId>[];
     for (final entry in _placementClusterTargets.entries) {
       if (entry.key == parentGraphId) {
@@ -1063,10 +1061,6 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         target: companionTarget,
         position: constellationPointToV1Anchor((x: centre.dx, y: centre.dy)),
       ));
-      final request = requestById(companionTarget.id);
-      if (request != null) {
-        companionTitles[companionTarget.id] = request.title;
-      }
     }
     for (final graphId in droppedCompanionGraphIds) {
       graphController.clearPresentationForNodeId(graphId);
@@ -1076,17 +1070,14 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
     _placementClusterGraphIds.add(parentGraphId);
     _placementClusterTargets.putIfAbsent(parentGraphId, () => target);
-    final placedGraphIds = Set<GraphNodeId>.from(_placementClusterGraphIds);
     // Keep holds of an earlier drop whose write has not settled yet.
     _placementHandoffGraphIds = {
       ..._placementHandoffGraphIds,
-      ...placedGraphIds,
+      ..._placementClusterGraphIds,
     };
     _draggingNodeId = null;
-    // The pointer drag has ended; the write may still be pending or fail.
-    // Dragging re-enables as soon as the mutation lands
-    // ([placementActionsEnabled] also checks the case's write slot), without
-    // waiting for the recovery read (#235).
+    // The pointer drag has ended; the outbox owns the write from here, so
+    // dragging re-enables at once.
     graphController.setCameraInteractionGated(false);
     emit(
       state.copyWith(
@@ -1096,13 +1087,11 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       ),
     );
     if (!kReleaseMode) ConstellationPerf.finishSpan(draggableSpan);
-    await _submitUpsert(
+    _submitUpsert(
       ackSpan: ackSpan,
       target: target,
       position: position,
       companions: companions,
-      companionTitles: companionTitles,
-      placedGraphIds: placedGraphIds,
     );
   }
 
@@ -1188,23 +1177,15 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         placementActionsEnabled: false,
       ),
     );
-    await _submitUpsert(target: target, position: position);
+    _submitUpsert(target: target, position: position);
   }
 
   Future<void> unpinAnchor({required ConstellationAnchorTarget target}) async {
-    if (isClosed || !placementActionsEnabled || _anchorCase == null) {
+    if (isClosed || !placementActionsEnabled || _placementCase == null) {
       return;
     }
-    emit(state.copyWith(placementActionsEnabled: false));
-    final outcome = await _anchorCase.deleteAnchor(
-      target: target,
-      generation: _anchorCase.lifecycleToken,
-      membershipFilters: state.membershipFilters,
-    );
-    if (isClosed) {
-      return;
-    }
-    await _applyWriteOutcome(outcome);
+    _writeCount++;
+    _placementCase.unpin(target);
   }
 
   void cancelPlacement({bool suppressLateGestureEnd = true}) {
@@ -1226,7 +1207,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _cancelUnsentPlacement(write: false);
   }
 
-  Future<void> _submitUpsert({
+  /// Hands the placement to the outbox; the store publishes its settlement.
+  void _submitUpsert({
     required ConstellationAnchorTarget target,
     required ConstellationAnchorPosition position,
     TimelineTask? ackSpan,
@@ -1238,130 +1220,57 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         >
         companions =
         const [],
-    Map<String, String> companionTitles = const {},
-    Set<GraphNodeId> placedGraphIds = const {},
-  }) async {
-    if (_anchorCase == null) {
+  }) {
+    if (_placementCase == null) {
       return;
     }
-    final placementSeq = _placementSeq;
-    _outstandingWrites++;
-    final ConstellationAnchorWriteOutcome outcome;
-    try {
-      outcome = companions.isEmpty
-          ? await _anchorCase.upsert(
-              target: target,
-              position: position,
-              generation: _anchorCase.lifecycleToken,
-              membershipFilters: state.membershipFilters,
-            )
-          : await _anchorCase.upsertAll(
-              parentTarget: target,
-              parentPosition: position,
-              companions: companions,
-              companionTitles: companionTitles,
-              generation: _anchorCase.lifecycleToken,
-              membershipFilters: state.membershipFilters,
-            );
-    } finally {
-      if (!kReleaseMode) ConstellationPerf.finishSpan(ackSpan);
-      _outstandingWrites--;
+    _writeCount++;
+    _placementAwaitingStore = true;
+    _placementCase.place(
+      parent: target,
+      position: position,
+      companions: companions,
+    );
+    if (!kReleaseMode) {
+      _finishAckSpanOnSettlement(ackSpan, {
+        target,
+        for (final companion in companions) companion.target,
+      });
     }
     if (isClosed) {
       return;
     }
-    await _applyWriteOutcome(
-      outcome,
-      placementSeq: placementSeq,
-      placedGraphIds: placedGraphIds,
+    emit(
+      state.copyWith(
+        placementPhase: ConstellationPlacementPhase.idle,
+        activePlacementTarget: null,
+        deferredRefreshTargets: {},
+        placementFailureMessage: null,
+        placementActionsEnabled: true,
+      ),
     );
   }
 
-  Future<void> _applyWriteOutcome(
-    ConstellationAnchorWriteOutcome outcome, {
-    int? placementSeq,
-    Set<GraphNodeId> placedGraphIds = const {},
-  }) async {
-    if (placementSeq != null && placementSeq != _placementSeq) {
-      await _applySupersededWriteOutcome(outcome, placedGraphIds);
+  /// Ends the drop-to-ack span once the outbox has settled these targets.
+  void _finishAckSpanOnSettlement(
+    TimelineTask? ackSpan,
+    Set<ConstellationAnchorTarget> targets,
+  ) {
+    if (ackSpan == null) {
       return;
     }
-    switch (outcome.kind) {
-      case ConstellationAnchorWriteOutcomeKind.succeeded:
-        _noteDisappearedAnchors(outcome.projection);
-        await _mergeConfirmedProjection(outcome.projection);
-        emit(
-          state.copyWith(
-            placementPhase: ConstellationPlacementPhase.idle,
-            activePlacementTarget: null,
-            deferredRefreshTargets: {},
-            placementFailureMessage: null,
-            syncPending: _anchorCase?.syncPending ?? false,
-            placementActionsEnabled: true,
+    bool settled(PlacementOutboxState outbox) => targets.every((target) {
+      final slots = outbox.targets[target];
+      return slots?.inFlight == null && slots?.latestPending == null;
+    });
+    unawaited(
+      _placementCase!.changes
+          .firstWhere(settled)
+          .then<void>(
+            (_) => ConstellationPerf.finishSpan(ackSpan),
+            onError: (Object _) => ConstellationPerf.finishSpan(ackSpan),
           ),
-        );
-        _reconcileLayout();
-      case ConstellationAnchorWriteOutcomeKind.failed:
-        _noteDisappearedAnchors(outcome.projection);
-        _clearClusterPresentationsKeepingEarlierHolds();
-        await _mergeConfirmedProjection(outcome.projection);
-        emit(
-          state.copyWith(
-            placementPhase: ConstellationPlacementPhase.idle,
-            activePlacementTarget: null,
-            deferredRefreshTargets: {},
-            placementFailureMessage: outcome.failureMessage,
-            syncPending: _anchorCase?.syncPending ?? false,
-            placementActionsEnabled: true,
-          ),
-        );
-        _reconcileLayout();
-      case ConstellationAnchorWriteOutcomeKind.staleResponseDiscarded:
-        _clearClusterPresentationsKeepingEarlierHolds();
-        emit(
-          state.copyWith(
-            placementPhase: ConstellationPlacementPhase.idle,
-            activePlacementTarget: null,
-            deferredRefreshTargets: {},
-            placementActionsEnabled: true,
-          ),
-        );
-    }
-  }
-
-  /// Clears the current cluster's presentations but keeps the holds of an
-  /// earlier drop whose own outcome has not been applied yet.
-  void _clearClusterPresentationsKeepingEarlierHolds() {
-    final earlierHolds = _placementHandoffGraphIds.difference(
-      _placementClusterGraphIds,
     );
-    _clearClusterPresentations();
-    _placementHandoffGraphIds = earlierHolds;
-  }
-
-  /// The outcome of a write the user has since followed with another drag:
-  /// adopt its data like a refresh hint (deferred while that placement is
-  /// active) and leave the newer placement's state alone.
-  Future<void> _applySupersededWriteOutcome(
-    ConstellationAnchorWriteOutcome outcome,
-    Set<GraphNodeId> placedGraphIds,
-  ) async {
-    if (outcome.kind != ConstellationAnchorWriteOutcomeKind.succeeded) {
-      for (final graphId in placedGraphIds) {
-        if (_placementClusterGraphIds.contains(graphId)) {
-          continue;
-        }
-        graphController.clearPresentationForNodeId(graphId);
-        _placementHandoffGraphIds.remove(graphId);
-      }
-    }
-    await _onAnchorRefreshHint();
-    if (isClosed) {
-      return;
-    }
-    if (outcome.kind == ConstellationAnchorWriteOutcomeKind.failed) {
-      emit(state.copyWith(placementFailureMessage: outcome.failureMessage));
-    }
   }
 
   void _noteDisappearedAnchors(ConstellationAnchorProjection? incoming) {
@@ -1391,41 +1300,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (target == null) {
       return false;
     }
-    return state.hasPendingPlacementWrite ||
-        (_anchorCase?.hasPendingWrite ?? false);
-  }
-
-  Future<void> _onAnchorRefreshHint() async {
-    if (isClosed || _anchorCase == null) {
-      return;
-    }
-    final deferPresentation = _shouldDeferPlacementRefresh();
-    final deferTargets = deferPresentation
-        ? _deferredRefreshTargetsForPresentation()
-        : const <ConstellationAnchorTarget>{};
-    await _mergeConfirmedProjection(
-      _anchorCase.confirmedProjection,
-      deferTargets: deferTargets,
-    );
-    if (isClosed) {
-      return;
-    }
-    if (deferPresentation) {
-      emit(
-        state.copyWith(
-          deferredRefreshTargets: deferTargets,
-          syncPending: _anchorCase.syncPending,
-        ),
-      );
-      return;
-    }
-    emit(
-      state.copyWith(
-        deferredRefreshTargets: {},
-        syncPending: _anchorCase.syncPending,
-      ),
-    );
-    _reconcileLayout();
+    return state.hasPendingPlacementWrite;
   }
 
   Set<ConstellationAnchorTarget> _deferredRefreshTargetsForPresentation() {
@@ -1436,7 +1311,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (active != null) {
       return {active};
     }
-    return _anchorCase?.pendingWriteTargets ?? const {};
+    return const {};
   }
 
   ConstellationAnchorProjection _presentationProjection(
@@ -1552,9 +1427,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     bool suppressLateGestureEnd = true,
     bool force = false,
   }) {
-    if (!force &&
-        ((_anchorCase?.hasPendingWrite ?? false) ||
-            (_outstandingWrites > 0 && !state.hasPendingPlacementWrite))) {
+    if (!force && _placementAwaitingStore && !state.hasPendingPlacementWrite) {
       return;
     }
     if (suppressLateGestureEnd) {
@@ -1847,9 +1720,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       _footprintMetrics;
 
   bool get _placementBusy =>
-      state.hasPendingPlacementWrite ||
-      (_anchorCase?.hasPendingWrite ?? false) ||
-      _draggingNodeId != null;
+      state.hasPendingPlacementWrite || _draggingNodeId != null;
 
   Map<String, ConstellationFootprint> _layoutFootprintsForNodes({
     required ConstellationLabelDisplayPlan plan,
@@ -2002,8 +1873,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     final liftCluster =
         _placementClusterGraphIds.isNotEmpty &&
         (state.placementPhase == ConstellationPlacementPhase.draggingExisting ||
-            state.placementPhase == ConstellationPlacementPhase.draggingNew ||
-            (_anchorCase?.hasPendingWrite ?? false));
+            state.placementPhase == ConstellationPlacementPhase.draggingNew);
     if (liftCluster) {
       final active = state.activePlacementTarget;
       final parentGraphId = active == null
@@ -2639,17 +2509,13 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     droppedHolderIds = composition.droppedHolderIds;
     _reconcileSelection(composition);
     _reconcileLayout(
-      deferAutomaticReflow:
-          state.hasPendingPlacementWrite ||
-          (_anchorCase?.hasPendingWrite ?? false),
+      deferAutomaticReflow: state.hasPendingPlacementWrite,
     );
   }
 
   void _reconcileLayout({bool deferAutomaticReflow = false}) {
     if (deferAutomaticReflow &&
-        (state.hasPendingPlacementWrite ||
-            (_anchorCase?.hasPendingWrite ?? false) ||
-            _draggingNodeId != null)) {
+        (state.hasPendingPlacementWrite || _draggingNodeId != null)) {
       return;
     }
     _layoutReconciliationCount++;
@@ -3055,8 +2921,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         );
         _composerPlacedPersonIds.add(added[i]);
       }
-      if (!state.hasPendingPlacementWrite &&
-          !(_anchorCase?.hasPendingWrite ?? false)) {
+      if (!state.hasPendingPlacementWrite) {
         final anchors = constellationAnchorsByNodeId(
           state.confirmedProjection?.anchors ?? const <ConstellationAnchor>[],
         );

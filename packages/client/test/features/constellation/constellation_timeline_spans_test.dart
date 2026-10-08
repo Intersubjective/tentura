@@ -12,6 +12,7 @@ import 'package:tentura/features/constellation/domain/entity/constellation_field
 import 'package:tentura/features/constellation/domain/port/constellation_anchor_repository_port.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_anchor_case.dart';
+import 'package:tentura/features/constellation/domain/use_case/constellation_placement_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:vm_service/vm_service_io.dart';
@@ -19,7 +20,10 @@ import 'package:vm_service/vm_service_io.dart';
 import '../../support/test_realtime_sync.dart';
 import 'fixtures/constellation_reference_fixture.dart';
 
+import '../../support/constellation_apply_via_writes.dart';
 import '../../support/constellation_store_fixture.dart';
+import '../../support/fake_clock_port.dart';
+import '../../support/fake_wake_up_port.dart';
 
 final class _Anchors implements ConstellationAnchorRepositoryPort {
   final ack = Completer<void>();
@@ -29,7 +33,7 @@ final class _Anchors implements ConstellationAnchorRepositoryPort {
   Future<ConstellationAnchorApplyResult> apply({
     required List<ConstellationAnchorApplyOp> ops,
     required ConstellationFieldMembershipFilters params,
-  }) => throw UnimplementedError();
+  }) => applyViaWrites(this, ops);
 
   @override
   Future<ConstellationAnchorUpsertResult> upsert({
@@ -133,17 +137,27 @@ void main() {
       final field = _Field(anchors);
       final sync = buildTestRealtimeSync();
       final anchorCase = ConstellationAnchorCase(
+        env: const Env.fromEnvironment(),
+        logger: Logger('TimelineSpanFixture'),
+      );
+      final store = ConstellationStoreFixture(
         field,
+        accountId: 'ego',
+        realtime: sync.case_,
+      ).store;
+      final placementCase = ConstellationPlacementCase(
         anchors,
+        store,
+        FakeClockPort(),
+        FakeWakeUpPort(),
+        realtime: sync.case_,
         env: const Env.fromEnvironment(),
         logger: Logger('TimelineSpanFixture'),
       );
       final cubit = ConstellationCubit(
-        case_: ConstellationStoreFixture(
-          field,
-          accountId: 'ego',
-        ).store,
+        case_: store,
         anchorCase: anchorCase,
+        placementCase: placementCase,
         viewer: kRefEgo,
         loadOnCreate: false,
       );
@@ -151,6 +165,7 @@ void main() {
         if (!anchors.ack.isCompleted) anchors.ack.complete();
         await cubit.close();
         await anchorCase.dispose();
+        await placementCase.dispose();
         await sync.port.dispose();
       });
       await cubit.load();

@@ -13,6 +13,7 @@ import 'package:tentura/features/constellation/domain/entity/constellation_field
 import 'package:tentura/features/constellation/domain/port/constellation_anchor_repository_port.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_anchor_case.dart';
+import 'package:tentura/features/constellation/domain/use_case/constellation_placement_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/utils/constellation_graph_scene.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
@@ -26,7 +27,10 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 
+import '../../support/constellation_apply_via_writes.dart';
 import '../../support/constellation_store_fixture.dart';
+import '../../support/fake_clock_port.dart';
+import '../../support/fake_wake_up_port.dart';
 import '../../support/test_forward_case.dart';
 
 const _ego = Profile(id: 'ego', displayName: 'Ego');
@@ -89,7 +93,7 @@ final class _HarnessAnchorRepository
   Future<ConstellationAnchorApplyResult> apply({
     required List<ConstellationAnchorApplyOp> ops,
     required ConstellationFieldMembershipFilters params,
-  }) => throw UnimplementedError();
+  }) => applyViaWrites(this, ops);
 
   @override
   Future<ConstellationAnchorUpsertResult> upsert({
@@ -146,14 +150,23 @@ Future<ConstellationCubit> _loadedCubitForField(
   ConstellationField field,
 ) async {
   final sync = buildTestRealtimeSync();
+  final store = ConstellationStoreFixture(
+    _HarnessFieldRepository(field),
+    accountId: 'ego',
+    realtime: sync.case_,
+  ).store;
   final cubit = ConstellationCubit(
-    case_: ConstellationStoreFixture(
-      _HarnessFieldRepository(field),
-      accountId: 'ego',
-    ).store,
+    case_: store,
     anchorCase: ConstellationAnchorCase(
-      _HarnessFieldRepository(field),
+      env: const Env.fromEnvironment(),
+      logger: Logger('ConstellationSceneHandoffTest'),
+    ),
+    placementCase: ConstellationPlacementCase(
       _HarnessAnchorRepository(),
+      store,
+      FakeClockPort(),
+      FakeWakeUpPort(),
+      realtime: sync.case_,
       env: const Env.fromEnvironment(),
       logger: Logger('ConstellationSceneHandoffTest'),
     ),

@@ -17,6 +17,7 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 
 import '../../domain/use_case/constellation_member_webs_case.dart';
 import '../../domain/use_case/constellation_anchor_case.dart';
+import '../../domain/use_case/constellation_placement_case.dart';
 import '../../domain/use_case/constellation_field_store_case.dart';
 import '../util/layout_geometry_adapters.dart';
 import '../../domain/radius_recipient_selection.dart';
@@ -55,6 +56,7 @@ class ConstellationScreen extends StatefulWidget implements AutoRouteWrapper {
           create: (_) => ConstellationCubit(
             case_: GetIt.I<ConstellationFieldStoreCase>(),
             anchorCase: GetIt.I<ConstellationAnchorCase>(),
+            placementCase: GetIt.I<ConstellationPlacementCase>(),
             memberWebsCase: GetIt.I<ConstellationMemberWebsCase>(),
             viewer: viewer,
           ),

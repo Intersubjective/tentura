@@ -233,8 +233,6 @@ Future<ConstellationCubit> _loadedCubit(WidgetTester tester) async {
     ).store,
     viewer: _ego,
     anchorCase: ConstellationAnchorCase(
-      _HarnessFieldRepository(),
-      _HarnessAnchorRepository(),
       env: const Env.fromEnvironment(),
       logger: Logger('ConstellationLayoutFailureRecoveryTest'),
     ),
