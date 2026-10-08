@@ -8,6 +8,7 @@ import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/port/constellation_anchor_repository_port.dart';
+import 'package:tentura_server/domain/port/constellation_db_admission_port.dart';
 import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 import 'package:tentura_server/utils/id.dart';
 
@@ -40,7 +41,7 @@ class ConstellationAnchorRepository
   /// commit of a competing tab can cost the waiters one attempt.
   static const int applyBatchMaxAttempts = 10;
 
-  ConstellationAnchorRepository(this._db, [this._profiles])
+  ConstellationAnchorRepository(this._db, [this._profiles, this._admission])
     : lockFirstOrder = lockFirst;
 
   /// Runs `applyBatch` in the given order whatever [lockFirst] says, for the
@@ -49,23 +50,38 @@ class ConstellationAnchorRepository
     this._db,
     UserProfileBatchLookup profiles, {
     required this.lockFirstOrder,
-  }) : _profiles = profiles;
+  }) : _profiles = profiles,
+       _admission = null;
 
   @FactoryMethod()
   ConstellationAnchorRepository.injected(
     this._db,
     UserProfileBatchLookup profiles,
+    ConstellationDbAdmissionPort admission,
   ) : _profiles = profiles,
+      _admission = admission,
       lockFirstOrder = lockFirst;
 
   final TenturaDb _db;
   final UserProfileBatchLookup? _profiles;
+  final ConstellationDbAdmissionPort? _admission;
 
   /// Whether this instance takes the viewer's batch lock before preparing.
   final bool lockFirstOrder;
 
   @override
   Future<AnchorApplyBatchResult> applyBatch({
+    required String viewerId,
+    required List<AnchorApplyOp> ops,
+    required AnchorApplyParams params,
+  }) => _admission == null
+      ? _applyBatchInTx(viewerId: viewerId, ops: ops, params: params)
+      : _admission.run(
+          ConstellationDbWorkKind.apply,
+          () => _applyBatchInTx(viewerId: viewerId, ops: ops, params: params),
+        );
+
+  Future<AnchorApplyBatchResult> _applyBatchInTx({
     required String viewerId,
     required List<AnchorApplyOp> ops,
     required AnchorApplyParams params,

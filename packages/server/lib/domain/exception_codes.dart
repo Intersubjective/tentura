@@ -205,6 +205,7 @@ enum ConstellationExceptionCode {
   invalidCoordinates,
   unsupportedCoordinateSpace,
   targetUnavailable,
+  retryLater,
 }
 
 class ConstellationExceptionCodes extends ExceptionCodes {

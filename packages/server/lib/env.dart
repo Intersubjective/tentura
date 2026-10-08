@@ -135,6 +135,7 @@ class Env {
     int? listenWebPort,
     bool? realtimeActorEchoEnabled,
     Duration? constellationFieldBroadcastWindow,
+    double? constellationDbRefreshShare,
     bool? attentionV1ShadowEnabled,
     String? minClientVersion,
 
@@ -360,6 +361,10 @@ class Env {
            resolveRealtimeActorEchoEnabled(
              _env['REALTIME_ACTOR_ECHO_ENABLED'],
            ),
+       constellationDbRefreshShare =
+           constellationDbRefreshShare ??
+           double.tryParse(_env['CONSTELLATION_DB_REFRESH_SHARE'] ?? '') ??
+           0.3,
        constellationFieldBroadcastWindow =
            constellationFieldBroadcastWindow ??
            Duration(
@@ -526,8 +531,12 @@ class Env {
         );
   }
 
-  Env.dev()
+  Env.dev({double? constellationDbRefreshShare})
     : this(
+        constellationDbRefreshShare: constellationDbRefreshShare,
+        serverUri: kServerName.isEmpty
+            ? Uri.parse('http://localhost:2080')
+            : null,
         environment: Environment.dev,
         isDebugModeOn: true,
         logLevel: Level.ALL,
@@ -719,6 +728,10 @@ class Env {
 
   /// Coalescing interval for payload-free global constellation field hints.
   final Duration constellationFieldBroadcastWindow;
+
+  /// Share of constellation DB admissions reserved for refresh (ANCHORS/FULL)
+  /// work while interactive writes are waiting.
+  final double constellationDbRefreshShare;
 
   /// QA-only T-07 parity telemetry. It has no product behavior effect.
   final bool attentionV1ShadowEnabled;

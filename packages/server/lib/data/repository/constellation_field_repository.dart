@@ -6,6 +6,7 @@ import 'package:postgres/postgres.dart' show Type, TypedValue;
 import 'package:tentura_server/domain/constellation/constellation_field_selection.dart';
 import 'package:tentura_server/domain/entity/constellation_field.dart';
 import 'package:tentura_server/domain/entity/gql_public/image_public_record.dart';
+import 'package:tentura_server/domain/port/constellation_db_admission_port.dart';
 import 'package:tentura_server/domain/port/constellation_field_repository_port.dart';
 import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 
@@ -65,10 +66,20 @@ final class ConstellationFieldRepository
     @ignoreParam
     @visibleForTesting
     Future<void> Function(TenturaDb db)? snapshotOpenProbe,
-  }) : _snapshotOpenProbe = snapshotOpenProbe;
+  }) : _admission = null,
+       _snapshotOpenProbe = snapshotOpenProbe;
+
+  @FactoryMethod()
+  ConstellationFieldRepository.injected(
+    this._database,
+    this._profiles,
+    ConstellationDbAdmissionPort admission,
+  ) : _admission = admission,
+      _snapshotOpenProbe = null;
 
   final TenturaDb _database;
   final UserProfileBatchLookup _profiles;
+  final ConstellationDbAdmissionPort? _admission;
   final Future<void> Function(TenturaDb db)? _snapshotOpenProbe;
 
   @override
@@ -77,6 +88,21 @@ final class ConstellationFieldRepository
     required String context,
     required ConstellationFieldReadParams params,
   }) {
+    final admission = _admission;
+    if (admission == null) {
+      return _readSnapshotInTx(viewerId, context, params);
+    }
+    return admission.run(
+      ConstellationDbWorkKind.full,
+      () => _readSnapshotInTx(viewerId, context, params),
+    );
+  }
+
+  Future<ConstellationFieldSnapshot> _readSnapshotInTx(
+    String viewerId,
+    String context,
+    ConstellationFieldReadParams params,
+  ) {
     return _database.withReadSnapshot(() async {
       await _database.freezeVisibilityMemo();
       return ConstellationFieldSnapshotReader(

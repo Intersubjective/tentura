@@ -620,10 +620,28 @@ final class ConstellationException extends ExceptionBase {
   ConstellationException({
     required ConstellationExceptionCode constellationCode,
     String? description,
+    this.retryAfter,
   }) : super(
          code: ConstellationExceptionCodes(constellationCode),
          description: description ?? _constellationDescription(constellationCode),
        );
+
+  /// Backoff hint for [ConstellationExceptionCode.retryLater].
+  final Duration? retryAfter;
+
+  @override
+  Map<String, Object> get toMap {
+    final map = super.toMap;
+    final hint = retryAfter;
+    if (hint == null) return map;
+    return {
+      ...map,
+      'extensions': {
+        ...map['extensions']! as Map<String, Object>,
+        'retryAfterMs': hint.inMilliseconds,
+      },
+    };
+  }
 }
 
 String _constellationDescription(ConstellationExceptionCode code) =>
@@ -636,4 +654,6 @@ String _constellationDescription(ConstellationExceptionCode code) =>
         'Unsupported coordinate space',
       ConstellationExceptionCode.targetUnavailable =>
         'Constellation anchor target unavailable',
+      ConstellationExceptionCode.retryLater =>
+        'Constellation database busy, retry later',
     };
