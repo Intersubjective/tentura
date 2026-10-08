@@ -46,6 +46,59 @@ final class ConstellationAnchorCase extends UseCaseBase {
     return _repository.applyBatch(viewerId: viewerId, ops: ops, params: params);
   }
 
+  /// Parses one wire-level batch operation; a missing UPSERT position is
+  /// rejected later by [apply].
+  AnchorApplyOp parseOp({
+    required String viewerId,
+    required String clientOpId,
+    required String kindWire,
+    required String targetKindWire,
+    required String targetId,
+    double? xUnits,
+    double? yUnits,
+    int? coordinateSpaceVersion,
+    String? ifRevisionWire,
+  }) {
+    final kind = AnchorOpKind.values.where((k) => k.wireValue == kindWire);
+    if (kind.isEmpty) {
+      throw ConstellationException(
+        constellationCode: ConstellationExceptionCode.invalidTarget,
+      );
+    }
+    final target = _parseTarget(
+      viewerId: viewerId,
+      targetKindWire: targetKindWire,
+      targetId: targetId,
+    );
+    final ConstellationAnchorRevision? ifRevision;
+    if (ifRevisionWire == null) {
+      ifRevision = null;
+    } else {
+      final parsed = ConstellationAnchorRevision.parseDecimalString(
+        ifRevisionWire,
+      );
+      if (parsed is! ConstellationAnchorRevisionParsed) {
+        throw ConstellationException(
+          constellationCode: ConstellationExceptionCode.invalidTarget,
+        );
+      }
+      ifRevision = parsed.revision;
+    }
+    return AnchorApplyOp(
+      clientOpId: clientOpId,
+      kind: kind.single,
+      target: target,
+      position: xUnits == null || yUnits == null || coordinateSpaceVersion == null
+          ? null
+          : _parsePosition(
+              xUnits: xUnits,
+              yUnits: yUnits,
+              coordinateSpaceVersion: coordinateSpaceVersion,
+            ),
+      ifRevision: ifRevision,
+    );
+  }
+
   Future<ConstellationAnchorUpsertResult> upsert({
     required String viewerId,
     required String targetKindWire,

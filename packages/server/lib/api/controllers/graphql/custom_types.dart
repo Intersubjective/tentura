@@ -37,6 +37,12 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeConstellationAnchorProjection,
   gqlTypeConstellationAnchorUpsertResult,
   gqlTypeConstellationAnchorDeleteResult,
+  gqlEnumConstellationAnchorOpKind,
+  gqlEnumConstellationAnchorOpStatus,
+  gqlInputConstellationAnchorPosition,
+  gqlInputConstellationAnchorOp,
+  gqlTypeConstellationAnchorOpResult,
+  gqlTypeConstellationAnchorsApplyResult,
   gqlTypeConstellationField,
   gqlTypeMutualScore,
   gqlTypeImagePublic,
@@ -1011,6 +1017,80 @@ final gqlTypeConstellationAnchorDeleteResult =
         ),
         field('targetId', graphQLString.nonNullable()),
         field('revision', graphQLString.nonNullable()),
+      ]);
+
+final gqlEnumConstellationAnchorOpKind = enumTypeFromStrings(
+  'ConstellationAnchorOpKind',
+  const ['UPSERT', 'DELETE'],
+);
+
+final gqlEnumConstellationAnchorOpStatus = enumTypeFromStrings(
+  'ConstellationAnchorOpStatus',
+  const ['OK', 'REJECTED'],
+);
+
+final gqlInputConstellationAnchorPosition = GraphQLInputObjectType(
+  'ConstellationAnchorPositionInput',
+  inputFields: [
+    GraphQLInputObjectField('xUnits', graphQLFloat.nonNullable()),
+    GraphQLInputObjectField('yUnits', graphQLFloat.nonNullable()),
+    GraphQLInputObjectField('coordinateSpaceVersion', graphQLInt.nonNullable()),
+  ],
+);
+
+/// `position` is optional at the schema level so a missing UPSERT position
+/// surfaces as a typed ConstellationException, not a coercion error.
+final gqlInputConstellationAnchorOp = GraphQLInputObjectType(
+  'ConstellationAnchorOpInput',
+  inputFields: [
+    GraphQLInputObjectField('clientOpId', graphQLString.nonNullable()),
+    GraphQLInputObjectField(
+      'kind',
+      gqlEnumConstellationAnchorOpKind.nonNullable(),
+    ),
+    GraphQLInputObjectField(
+      'targetKind',
+      gqlEnumConstellationAnchorTargetKind.nonNullable(),
+    ),
+    GraphQLInputObjectField('targetId', graphQLString.nonNullable()),
+    GraphQLInputObjectField('position', gqlInputConstellationAnchorPosition),
+    GraphQLInputObjectField('ifRevision', graphQLString),
+  ],
+);
+
+final gqlTypeConstellationAnchorOpResult =
+    GraphQLObjectType(
+        'ConstellationAnchorOpResult',
+        null,
+      )
+      ..fields.addAll([
+        field('clientOpId', graphQLString.nonNullable()),
+        field(
+          'status',
+          gqlEnumConstellationAnchorOpStatus.nonNullable(),
+        ),
+        field('reason', graphQLString),
+        field('resultingTargetRevision', graphQLString),
+      ]);
+
+final gqlTypeConstellationAnchorsApplyResult =
+    GraphQLObjectType(
+        'ConstellationAnchorsApplyResult',
+        null,
+      )
+      ..fields.addAll([
+        field('beforeRevision', graphQLString.nonNullable()),
+        field('afterRevision', graphQLString.nonNullable()),
+        field(
+          'results',
+          GraphQLListType(
+            gqlTypeConstellationAnchorOpResult.nonNullable(),
+          ).nonNullable(),
+        ),
+        field(
+          'anchorProjection',
+          gqlTypeConstellationAnchorProjection.nonNullable(),
+        ),
       ]);
 
 /// Full constellation field snapshot for the JWT viewer.

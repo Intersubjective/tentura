@@ -76,6 +76,25 @@ Map<String, dynamic> constellationAnchorDeleteResultToGqlMap(
   'revision': result.watermark.revision.toDecimalString(),
 };
 
+Map<String, dynamic> constellationAnchorsApplyResultToGqlMap(
+  AnchorApplyBatchResult result,
+) => {
+  'beforeRevision': result.beforeRevision.toDecimalString(),
+  'afterRevision': result.afterRevision.toDecimalString(),
+  'results': result.results
+      .map(
+        (r) => {
+          'clientOpId': r.clientOpId,
+          'status': r.status.wireValue,
+          'reason': r.reason,
+          'resultingTargetRevision': r.resultingTargetRevision
+              ?.toDecimalString(),
+        },
+      )
+      .toList(growable: false),
+  'anchorProjection': constellationAnchorProjectionToGqlMap(result.projection),
+};
+
 Map<String, dynamic> _peerToGqlMap(ConstellationPeerRecord peer) => {
   'id': peer.id,
   'displayName': peer.displayName,
