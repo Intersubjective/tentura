@@ -15,6 +15,7 @@ import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../../support/constellation_store_fixture.dart';
 import '../../support/fake_clock_port.dart';
 import '../../support/fake_wake_up_port.dart';
+import '../../support/test_realtime_sync.dart';
 
 // Contract for the account-owned write use case (architecture section 5.1):
 // place accepts a parent target, position, and target/position companion records;
@@ -219,6 +220,7 @@ void main() {
       fixture.store,
       clock,
       wakeUp,
+      realtime: buildTestRealtimeSync().case_,
       env: const Env.fromEnvironment(),
       logger: Logger('ConstellationPlacementCaseTest'),
     );

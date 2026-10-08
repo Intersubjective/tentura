@@ -70,9 +70,7 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
       _realtimeSyncCase
           .changesFor(const {RealtimeEntityKind.constellationAnchor})
           .listen(_onAnchorChange),
-      _realtimeSyncCase.catchUps.listen(
-        (_) => unawaited(requestRefresh(ConstellationRefreshReason.catchUp)),
-      ),
+      _realtimeSyncCase.catchUps.listen((_) => unawaited(_onCatchUp())),
     ];
   }
 
@@ -115,6 +113,9 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
   Future<void>? _anchorsInFlight;
   var _anchorsQueued = false;
 
+  /// Pending account-owned replays a catch-up read must wait for, if any.
+  Future<void>? Function()? _catchUpHold;
+
   Stream<ConstellationFieldStoreState> get changes => _changes.stream;
 
   ConstellationFieldStoreState get current => _state;
@@ -130,6 +131,10 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
     if (params != null && params != _params) return;
     _applyAnchors(result.anchorProjection);
   }
+
+  /// Defer the catch-up read until the writer's replay has been dispatched.
+  // ignore: use_setters_to_change_properties -- a hook, not a property
+  void holdCatchUpReads(Future<void>? Function()? hold) => _catchUpHold = hold;
 
   bool get _visible => _browserVisible && _leases.any((l) => l.visible);
 
@@ -203,6 +208,14 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
       await subscription.cancel();
     }
     await _changes.close();
+  }
+
+  Future<void> _onCatchUp() async {
+    // Writers hearing the same catch-up register their replay first.
+    await Future<void>.value();
+    final hold = _catchUpHold?.call();
+    if (hold != null) await hold;
+    await requestRefresh(ConstellationRefreshReason.catchUp);
   }
 
   void _emit(ConstellationFieldStoreState state) {
