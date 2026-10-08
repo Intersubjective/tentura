@@ -9,7 +9,10 @@ import 'package:postgres/postgres.dart';
 import 'package:tentura_server/api/controllers/graphql/mappers/constellation_gql_maps.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
+import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
+import 'package:tentura_server/data/repository/constellation_anchor_repository.dart';
 import 'package:tentura_server/data/repository/constellation_field_repository.dart';
+import 'package:tentura_server/domain/port/constellation_anchor_repository_port.dart';
 import 'package:tentura_server/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura_server/domain/entity/gql_public/mutual_score_record.dart';
 import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart';
@@ -56,6 +59,9 @@ final class PerfCaseRun {
   final TenturaDb db;
   final PerfFixtureSeed seed;
 
+  late final ConstellationAnchorRepository anchorRepository =
+      ConstellationAnchorRepository(db, _ProfileLookup());
+
   late final ConstellationFieldCase fieldCase = ConstellationFieldCase(
     ConstellationFieldRepository(db, _ProfileLookup()),
     env: Env(environment: Environment.test),
@@ -70,6 +76,14 @@ final class PerfCaseRun {
 }
 
 typedef PerfCaseSeed = Future<PerfFixtureSeed> Function(Connection writer);
+
+/// Totals read back from the database after the attempts, merged into the
+/// report next to the recorder's own metrics.
+typedef PerfCaseExtras =
+    Future<Map<String, Object?>> Function(
+      Connection writer,
+      PerfFixtureSeed seed,
+    );
 typedef PerfCaseWork =
     Future<void> Function(PerfCaseRun run, PerfAttemptScope scope, int attempt);
 
@@ -85,6 +99,9 @@ final class PerfFixtureCase {
     this.requiresMeritRank = false,
     this.injectsFailures = false,
     this.explains = const [],
+    this.meterProductionCursorHold = false,
+    this.warmUp,
+    this.extras,
   });
 
   /// Report file name: `build/perf/<name>.json`.
@@ -102,6 +119,16 @@ final class PerfFixtureCase {
   /// `EXPLAIN (ANALYZE, BUFFERS, WAL)` captures kept in the report.
   final List<({String label, String sql, bool mutating})> explains;
 
+  /// Whether the work calls repository code that takes the viewer cursor lock
+  /// itself, so the meter times that lock's hold.
+  final bool meterProductionCursorHold;
+
+  /// Unmetered work before the first attempt, to run against warm caches.
+  final PerfCaseWork? warmUp;
+
+  /// Database-derived totals added to the report after the attempts.
+  final PerfCaseExtras? extras;
+
   /// Creates the fixture's rows (and MeritRank edges) through the writer.
   final PerfCaseSeed seeder;
 
@@ -118,7 +145,8 @@ final class PerfFixtureCase {
     required int attempts,
   }) async {
     final target = session.target;
-    final meter = PerfDbMeter();
+    final meter = PerfDbMeter()
+      ..meterProductionCursorHold = meterProductionCursorHold;
     final db = TenturaDb.forTest(
       database: PgDatabase.opened(
         meter.instrument(
@@ -139,12 +167,17 @@ final class PerfFixtureCase {
         meter: meter,
         probeConnection: session.writer,
       );
+      await warmUp?.call(run, PerfAttemptScope.unmetered(db), 0);
       for (var i = 0; i < attempts; i++) {
         try {
           await recorder.attempt((scope) => worker(run, scope, i));
         } on Object {
           if (!injectsFailures) rethrow;
         }
+      }
+      final totals = extras;
+      if (totals != null) {
+        recorder.report.extras.addAll(await totals(session.writer, seed));
       }
       for (final explain in explains) {
         await recorder.captureExplain(
@@ -197,7 +230,8 @@ abstract final class PerfFixtureMatrix {
     ],
     for (final c in discoverableCandidates) _candidatesCase(c),
     for (final a in anchors) _anchorsCase(a),
-    for (final b in batchSizes) _batchCase(b),
+    for (final b in batchSizes)
+      if (b == 16) _batchCase(b) else _applyBatchCase(b),
     _agedLogsCase,
     _rejectionRatioCase,
     _multiWorkerTabsCase,
@@ -255,7 +289,8 @@ PerfFixtureCase _trustCase(PerfFixture fixture, String kind) =>
 /// RPC each.
 PerfFixtureCase _fallbackCase(String population, int users) =>
     PerfFixtureCase._(
-      name: 'fallback_${population == 'fallback' ? 'score' : population}'
+      name:
+          'fallback_${population == 'fallback' ? 'score' : population}'
           '_u$users',
       family: PerfFixtureFamily.fallbackScore,
       parameters: {
@@ -317,7 +352,8 @@ FROM (
 
 const _candidateCap = 1000;
 
-const _candidateScanSql = '''
+const _candidateScanSql =
+    '''
 SELECT b.id, b.user_id
 FROM public.beacon b
 WHERE b.is_discoverable
@@ -412,6 +448,160 @@ PerfFixtureCase _batchCase(int batch) => PerfFixtureCase._(
     }),
   ),
 );
+
+/// Production `ConstellationAnchorRepository.applyBatch` on the dense
+/// 1000-user MeritRank fixture: every attempt upserts [batch] visible peers
+/// through the real prepare, lock, apply and projection path, then encodes the
+/// response. Failed attempts stay in the latency percentiles.
+PerfFixtureCase _applyBatchCase(int batch) {
+  const viewer = 'Upf000000000';
+  final people = [
+    for (var i = 1; i <= batch; i++) 'Upf${i.toString().padLeft(9, '0')}',
+  ];
+  final peerArray = "ARRAY[${people.map((p) => "'$p'").join(', ')}]::text[]";
+  return PerfFixtureCase._(
+    name: 'apply_batch_b$batch',
+    family: PerfFixtureFamily.batches,
+    parameters: {
+      'operation': 'applyBatch',
+      'batch': batch,
+      'visibleUsers': 1000,
+      'trust': 'dense',
+      'temperature': 'warm',
+      'costKind': 'meaningful-write',
+      'latencyScope': 'admission-through-response-encoding',
+      'failedAttemptsIncluded': true,
+    },
+    requiresMeritRank: true,
+    meterProductionCursorHold: true,
+    explains: [
+      (
+        label: 'anchor_upsert',
+        sql:
+            'UPDATE public.constellation_anchor SET x_units = 2, y_units = 2 '
+            "WHERE viewer_id = '$viewer' AND person_id = ANY($peerArray)",
+        mutating: true,
+      ),
+      (
+        label: 'cursor_increment',
+        sql:
+            'UPDATE public.constellation_anchor_cursor '
+            "SET revision = revision + 1 WHERE viewer_id = '$viewer'",
+        mutating: true,
+      ),
+      (
+        label: 'target_watermark',
+        sql:
+            'INSERT INTO public.constellation_anchor_target_watermark '
+            '(viewer_id, target_kind, target_id, revision) '
+            "SELECT '$viewer', 'person', p, 1 FROM unnest($peerArray) p "
+            'ON CONFLICT (viewer_id, target_kind, target_id) '
+            'DO UPDATE SET revision = EXCLUDED.revision',
+        mutating: true,
+      ),
+      (
+        label: 'op_log_insert',
+        sql:
+            'INSERT INTO public.constellation_anchor_op_log '
+            '(viewer_id, client_op_id, fingerprint, result, revision) '
+            "SELECT '$viewer', 'explain-' || n, "
+            "decode(repeat('ab', 32), 'hex'), '{\"status\":\"OK\"}'::jsonb, 1 "
+            'FROM generate_series(1, $batch) n',
+        mutating: true,
+      ),
+    ],
+    seeder: (writer) async {
+      final seed = await const PerfFixture.denseTrust(
+        visibleUsers: 1000,
+      ).seed(writer);
+      // The batch must name peers MeritRank lets the viewer see; which of the
+      // dense peers those are is the service's choice, so ask it.
+      final visible = await writer.execute(
+        Sql.named(
+          'SELECT peer_id FROM public.person_visible_peers_symmetric(@viewer, '
+          "'') ORDER BY peer_id",
+        ),
+        parameters: {'viewer': seed.viewerId},
+      );
+      final peers = [for (final row in visible) row.first! as String];
+      if (peers.length < batch) {
+        throw StateError(
+          'dense fixture shows ${peers.length} visible peers, need $batch',
+        );
+      }
+      return PerfFixtureSeed(viewerId: seed.viewerId, peerIds: peers);
+    },
+    // Warm as in the U41 calibration: a production read warms the
+    // MeritRank graph, then unmetered calls of the measured operation itself
+    // warm the plan caches and the pinned rows (their op-log rows carry the
+    // `perf-w` prefix and are not counted as measured operations).
+    warmUp: (run, scope, _) async {
+      await _fullRead(run, scope);
+      for (var w = 0; w < _applyBatchWarmUpCalls; w++) {
+        await _applyBatchAttempt(run, batch, 'perf-w$batch-a$w', w);
+      }
+    },
+    worker: (run, scope, attempt) => scope.execution(
+      () => _applyBatchAttempt(run, batch, 'perf-b$batch-a$attempt', attempt),
+    ),
+    extras: (writer, seed) async {
+      final rows = await writer.execute(
+        Sql.named('''
+SELECT count(*)::int, coalesce(sum(pg_column_size(log)), 0)::bigint
+FROM public.constellation_anchor_op_log log
+WHERE viewer_id = @viewer AND result->>'status' = 'OK'
+  AND client_op_id LIKE 'perf-b%'
+'''),
+        parameters: {'viewer': seed.viewerId},
+      );
+      final count = int.parse(rows.single[0].toString());
+      return {
+        'warmUpCalls': _applyBatchWarmUpCalls,
+        'writeAmplification': {
+          'acceptedOperations': count,
+          'opLogRows': count,
+          'opLogTupleBytes': int.parse(rows.single[1].toString()),
+        },
+      };
+    },
+  );
+}
+
+/// U41's warm baseline ran 5+ warm-up calls of each measured operation.
+const _applyBatchWarmUpCalls = 5;
+
+/// One production `applyBatch` of [batch] upserts, then the response encoding.
+Future<void> _applyBatchAttempt(
+  PerfCaseRun run,
+  int batch,
+  String opPrefix,
+  int attempt,
+) async {
+  final result = await run.anchorRepository.applyBatch(
+    viewerId: run.seed.viewerId,
+    ops: [
+      for (var i = 0; i < batch; i++)
+        AnchorApplyOp(
+          clientOpId: '$opPrefix-$i',
+          kind: AnchorOpKind.upsert,
+          target: ConstellationAnchorTarget.person(run.seed.peerIds[i]),
+          position: ConstellationAnchorPosition(
+            xUnits: ((attempt + i) % 9) - 4.0,
+            yUnits: ((attempt * 3 + i) % 9) - 4.0,
+            coordinateSpaceVersion: 1,
+          ),
+        ),
+    ],
+    params: const AnchorApplyParams(
+      context: '',
+      filters: ConstellationFieldMembershipFilters.defaults,
+    ),
+  );
+  if (result.results.any((r) => r.status != AnchorOpStatus.ok)) {
+    throw StateError('applyBatch rejected an op of the fixture batch');
+  }
+  jsonEncode(constellationAnchorProjectionToGqlMap(result.projection));
+}
 
 const _agedLogDays = 30;
 const _agedLogRows = 20000;
@@ -530,7 +720,8 @@ WHERE i <= @rejected::int
             )
             .getSingleOrNull();
         // Every operation carries base revision 1.
-        if (watermark != null && watermark.read<BigInt>('revision') >= BigInt.one) {
+        if (watermark != null &&
+            watermark.read<BigInt>('revision') >= BigInt.one) {
           rejected++;
           continue;
         }
@@ -598,17 +789,19 @@ final _trustChurnCase = PerfFixtureCase._(
   // Rewrite edges of the peer ring, then read the field they changed.
   worker: (run, scope, attempt) async {
     await scope.execution(
-      () => run.db.customSelect(
-        'SELECT mr_put_edge( '
-        "'Upf' || lpad(n::text, 9, '0'), "
-        "'Upf' || lpad((n % 99 + 1)::text, 9, '0'), "
-        r"$1::double precision, ''::text, 0) AS edge "
-        r'FROM generate_series(1, $2::int) n',
-        variables: [
-          Variable.withReal(attempt.isEven ? 0.5 : 0.9),
-          Variable.withInt(_churnEdges),
-        ],
-      ).get(),
+      () => run.db
+          .customSelect(
+            'SELECT mr_put_edge( '
+            "'Upf' || lpad(n::text, 9, '0'), "
+            "'Upf' || lpad((n % 99 + 1)::text, 9, '0'), "
+            r"$1::double precision, ''::text, 0) AS edge "
+            r'FROM generate_series(1, $2::int) n',
+            variables: [
+              Variable.withReal(attempt.isEven ? 0.5 : 0.9),
+              Variable.withInt(_churnEdges),
+            ],
+          )
+          .get(),
     );
     await _fullRead(run, scope);
   },

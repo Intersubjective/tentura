@@ -49,8 +49,11 @@ final class ConstellationAnchorProjectionReader {
     required String context,
     required ConstellationFieldMembershipFilters filters,
     required Iterable<ConstellationAnchorTarget> upsertTargets,
+    List<String>? visiblePeerIds,
   }) async {
-    final visible = await visiblePeers(viewerId: viewerId, context: context);
+    final visible =
+        visiblePeerIds ??
+        await visiblePeers(viewerId: viewerId, context: context);
     final existing = await _loadAuthorizedAnchors(
       viewerId: viewerId,
       visiblePeerIds: visible,
@@ -113,6 +116,7 @@ final class ConstellationAnchorProjectionReader {
     required String context,
     required ConstellationFieldMembershipFilters filters,
     required PreparedConstellationAnchors prepared,
+    ConstellationAnchorRevision? revision,
   }) async {
     final rows = await _loadAuthorizedAnchors(
       viewerId: viewerId,
@@ -124,7 +128,7 @@ final class ConstellationAnchorProjectionReader {
       viewerId: viewerId,
       context: context,
       filters: filters,
-      watermark: await _readWatermark(viewerId),
+      watermark: revision ?? await _readWatermark(viewerId),
       anchorRows: rows
           .where(
             (a) => a.target.kind == ConstellationAnchorTargetKind.person
@@ -456,26 +460,35 @@ ORDER BY ca.placed_at, COALESCE(ca.beacon_id, ca.person_id)
 
   /// Reads the transaction's visibility memo, so later SQL in the same
   /// snapshot (`beacon_can_read_content`, `constellation_trust_edges`) reuses
-  /// it. `block_hides` checks both directions.
+  /// it. Blocks hide in both directions, as in `block_hides`; the predicate
+  /// is an anti-join because `block_hides` is never inlined and costs a
+  /// function call per visible peer (~20 ms at V ≈ 1,000).
   Future<List<String>> visiblePeers({
     required String viewerId,
     required String context,
   }) async {
-    final rows = await _database
+    final row = await _database
         .customSelect(
           r'''
-SELECT p.peer_id
-FROM unnest(public.person_visible_peer_ids_tx($1, $2)) AS p(peer_id)
-WHERE NOT public.block_hides($1, p.peer_id)
-ORDER BY p.peer_id
+WITH blocked AS (
+  SELECT ub.blocked_id AS id FROM public.user_block ub WHERE ub.blocker_id = $1
+  UNION
+  SELECT ub.blocker_id FROM public.user_block ub WHERE ub.blocked_id = $1
+)
+SELECT ARRAY(
+  SELECT p.peer_id
+  FROM unnest(public.person_visible_peer_ids_tx($1, $2)) AS p(peer_id)
+  WHERE NOT EXISTS (SELECT 1 FROM blocked b WHERE b.id = p.peer_id)
+  ORDER BY p.peer_id
+) AS peer_ids
 ''',
           variables: [
             Variable.withString(viewerId),
             Variable.withString(context),
           ],
         )
-        .get();
-    return [for (final row in rows) row.read<String>('peer_id')];
+        .getSingle();
+    return row.read<List<dynamic>>('peer_ids').cast<String>();
   }
 
   Future<List<ConstellationRequestRecord>> _pinnedBeaconRecords({

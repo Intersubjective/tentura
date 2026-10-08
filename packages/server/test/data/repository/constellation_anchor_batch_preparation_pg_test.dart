@@ -127,8 +127,11 @@ Future<void> main() async {
     );
     expect(profiles.loads.single.isolation, 'repeatable read');
     expect(profiles.loads.single.readOnly, 'off');
+    // The op-log rows are written in one server-side call (m0231).
     final writes = sql.statements.lastIndexWhere(
-      (q) => q.contains('insert into public.constellation_anchor_op_log'),
+      (q) =>
+          q.contains('insert into public.constellation_anchor_op_log') ||
+          q.contains('public.constellation_anchor_apply_ops('),
     );
     expect(writes, greaterThan(lock));
     expect(

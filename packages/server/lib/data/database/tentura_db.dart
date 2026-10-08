@@ -240,13 +240,14 @@ class TenturaDb extends _$TenturaDb {
   }
 
   /// Like [withMutatingUser] but in a REPEATABLE READ READ WRITE transaction,
-  /// retried as a whole on 40001/40P01 (max 3 attempts, jittered backoff
-  /// slept after rollback with the connection released, bounded by
+  /// retried as a whole on 40001/40P01 (at most [maxAttempts], jittered
+  /// backoff slept after rollback with the connection released, bounded by
   /// [deadline]).
   Future<T> withMutatingRepeatableRead<T>(
     String userId,
     Future<T> Function() action, {
     Duration deadline = const Duration(seconds: 5),
+    int maxAttempts = 3,
     Future<void> Function(Duration)? sleep,
   }) {
     final current = Zone.current[_mutatingTransactionZoneKey];
@@ -273,6 +274,7 @@ class TenturaDb extends _$TenturaDb {
         );
       }),
       deadline: deadline,
+      maxAttempts: maxAttempts,
       sleep: sleep,
     );
   }

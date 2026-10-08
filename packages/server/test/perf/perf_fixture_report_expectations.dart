@@ -85,3 +85,21 @@ void expectScenarioEvidence(PerfFixtureCase c, Map<String, dynamic> json) {
     );
   }
 }
+
+/// The JSON object [key] of a perf [report].
+Map<String, Object?> reportObject(Map<String, Object?> report, String key) {
+  expect(
+    report[key],
+    isA<Map<String, Object?>>(),
+    reason: 'Missing $key metrics',
+  );
+  return report[key]! as Map<String, Object?>;
+}
+
+/// The finite number [key] of a perf [report] object.
+num reportNumber(Map<String, Object?> report, String key) {
+  expect(report[key], isA<num>(), reason: 'Missing numeric $key metric');
+  final value = report[key]! as num;
+  expect(value.isFinite, isTrue, reason: '$key must be finite');
+  return value;
+}

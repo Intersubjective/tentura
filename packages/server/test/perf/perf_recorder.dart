@@ -26,6 +26,10 @@ final class _AttemptState {
   Duration cursorWait = Duration.zero;
   Duration cursorHold = Duration.zero;
   bool usedExecutionScope = false;
+
+  /// Running while the production cursor `FOR UPDATE` is held by the open
+  /// transaction (see [PerfDbMeter.meterProductionCursorHold]).
+  Stopwatch? cursorHoldClock;
 }
 
 _AttemptState? get _currentAttempt =>
@@ -49,6 +53,16 @@ final class PerfDbMeter extends QueryInterceptor {
   final _transactions = Expando<(_AttemptState, Stopwatch)>('perf.tx');
 
   pg.Session? _session;
+
+  /// Meters the cursor hold of repository code that locks the viewer cursor
+  /// itself: from the `constellation_anchor_cursor ... FOR UPDATE` statement
+  /// to the end of its transaction.
+  bool meterProductionCursorHold = false;
+
+  static final _cursorLockStatement = RegExp(
+    r'constellation_anchor_cursor\s+WHERE\s+viewer_id\s*=\s*\$1\s+FOR UPDATE',
+    caseSensitive: false,
+  );
 
   /// Wraps [session] so the time spent executing on it is measured.
   pg.Session instrument(pg.Session session) =>
@@ -80,6 +94,17 @@ final class PerfDbMeter extends QueryInterceptor {
     if (state == null) return run();
     state.queryCount++;
     return _metered(state, run);
+  }
+
+  Future<T> _cursorAware<T>(String statement, Future<T> Function() run) async {
+    final result = await _statement(run);
+    final state = _currentAttempt;
+    if (meterProductionCursorHold &&
+        state != null &&
+        _cursorLockStatement.hasMatch(statement)) {
+      state.cursorHoldClock = Stopwatch()..start();
+    }
+    return result;
   }
 
   Future<T> _metered<T>(_AttemptState state, Future<T> Function() run) async {
@@ -131,6 +156,11 @@ final class PerfDbMeter extends QueryInterceptor {
       if (state == null) return await end();
       await _metered(state, end);
     } finally {
+      final holding = state?.cursorHoldClock;
+      if (holding != null) {
+        state!.cursorHold += holding.elapsed;
+        state.cursorHoldClock = null;
+      }
       if (tracked != null) {
         final (owner, clock) = tracked;
         owner.txAge = Duration(
@@ -152,7 +182,10 @@ final class PerfDbMeter extends QueryInterceptor {
     QueryExecutor executor,
     String statement,
     List<Object?> args,
-  ) => _statement(() => super.runCustom(executor, statement, args));
+  ) => _cursorAware(
+    statement,
+    () => super.runCustom(executor, statement, args),
+  );
 
   @override
   Future<int> runInsert(
@@ -180,7 +213,10 @@ final class PerfDbMeter extends QueryInterceptor {
     QueryExecutor executor,
     String statement,
     List<Object?> args,
-  ) => _statement(() => super.runSelect(executor, statement, args));
+  ) => _cursorAware(
+    statement,
+    () => super.runSelect(executor, statement, args),
+  );
 }
 
 /// Forwards to [_inner], adding the time spent in `execute` to the attempt
@@ -227,6 +263,9 @@ final class _InstrumentedSession implements pg.Session {
 /// recorder cannot see on its own.
 final class PerfAttemptScope {
   PerfAttemptScope._(this._db, this._state);
+
+  /// A scope whose measurements are discarded, for warm-up work.
+  PerfAttemptScope.unmetered(TenturaDb db) : this._(db, _AttemptState());
 
   final TenturaDb _db;
   final _AttemptState _state;

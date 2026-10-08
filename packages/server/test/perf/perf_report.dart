@@ -105,6 +105,9 @@ final class PerfReport {
   final Map<String, Object?> parameters;
   WalAttribution walAttribution;
 
+  /// Fixture-specific totals merged into the report (e.g. write amplification).
+  final extras = <String, Object?>{};
+
   final _attempts = <PerfAttempt>[];
   final _explains = <PerfExplainCapture>[];
 
@@ -137,6 +140,7 @@ final class PerfReport {
         'max': _attempts.fold<int>(0, (m, a) => max(m, a.lockWaiters)),
       },
       'explain': [for (final e in _explains) e.toJson()],
+      ...extras,
     };
   }
 

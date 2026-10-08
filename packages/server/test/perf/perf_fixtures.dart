@@ -57,6 +57,18 @@ FROM generate_series(0, @count::int - 1) n
     );
   }
 
+  /// Replaces the MeritRank graph with this fixture's edges again, which
+  /// also empties MeritRank's peer-frame cache: the next visibility read is
+  /// cold. The users must already exist.
+  Future<void> reloadMeritRankGraph(Connection writer) async {
+    await writer.execute('SELECT mr_reset()');
+    if (_dense) {
+      await _putDenseEdges(writer);
+    } else {
+      await _putSparseEdges(writer);
+    }
+  }
+
   /// A million `mr_put_edge` RPCs would dominate the run, so the complete
   /// graph goes in with one `mr_bulk_load_edges`, which replaces the graph it
   /// is given rather than adding to it.
