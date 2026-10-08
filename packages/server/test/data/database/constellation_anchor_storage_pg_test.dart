@@ -323,7 +323,7 @@ WHERE viewer_id = '$viewerA' AND person_id = '$personP'
       expect(c.anchor.placedAt.isAfter(a.anchor.placedAt), isTrue);
     });
 
-    test('delete existing row emits one lowercase delete notification', () async {
+    test('delete existing row emits one canonical update notification', () async {
       await repository.upsertAnchor(
         viewerId: viewerA,
         context: kConstellationContext,
@@ -337,12 +337,12 @@ WHERE viewer_id = '$viewerA' AND person_id = '$personP'
       );
       await _waitUntil(() => anchorNotifications().isNotEmpty);
       expect(anchorNotifications().length, 1);
-      expect(anchorNotifications().single['event'], 'delete');
+      expect(anchorNotifications().single['event'], 'update');
       expect(anchorNotifications().single['id'], viewerA);
       expect(anchorNotifications().single['user_ids'], [viewerA]);
     });
 
-    test('absent-key delete increments cursor once and emits one delete', () async {
+    test('absent-key delete increments cursor once and emits one update', () async {
       final before = await repository.readWatermark(viewerA);
       expect(before.value, BigInt.zero);
       notifications.clear();
@@ -412,7 +412,7 @@ SELECT count(*)::int FROM public.constellation_anchor WHERE viewer_id = '$viewer
       final revAfter = await repository.readWatermark(viewerA);
       expect(revAfter.value, greaterThan(revBefore.value));
       expect(anchorNotifications().length, 1);
-      expect(anchorNotifications().single['event'], 'delete');
+      expect(anchorNotifications().single['event'], 'update');
     });
 
     test('target person cascade removes anchor without double cursor bump', () async {
@@ -479,7 +479,7 @@ WHERE viewer_id = '$viewerA' AND person_id = '$personP'
     );
 
     test(
-      'person and beacon anchors each emit one delete notification on row cascade',
+      'person and beacon anchors each emit one update notification on row cascade',
       () async {
         const extraBeacon = 'Bcaanchorbeac02';
         await seedBeacon(extraBeacon, personQ);
@@ -498,7 +498,7 @@ WHERE viewer_id = '$viewerA' AND person_id = '$personP'
         // Wait for the two upsert notifications to be delivered before
         // clearing: clear() does not flush what Postgres has not yet sent, so
         // under load a late upsert lands after the clear and fails the
-        // every(event == 'delete') assertion below.
+        // every(event == 'update') assertion below.
         await _waitUntil(() => anchorNotifications().length >= 2);
         notifications.clear();
         await writer.execute('''
@@ -511,7 +511,7 @@ WHERE viewer_id = '$viewerA' AND beacon_id = '$extraBeacon'
 ''');
         await _waitUntil(() => anchorNotifications().length >= 2);
         expect(
-          anchorNotifications().every((m) => m['event'] == 'delete'),
+          anchorNotifications().every((m) => m['event'] == 'update'),
           isTrue,
         );
         expect(

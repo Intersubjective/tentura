@@ -130,7 +130,7 @@ WHERE viewer_id = $1
       );
     }
 
-    final watermark = await _incrementCursorAndPublishAbsentDelete(viewerId);
+    final watermark = await _incrementCursor(viewerId);
     return ConstellationAnchorDeleteResult(
       target: target,
       watermark: watermark,
@@ -353,7 +353,7 @@ RETURNING person_id, beacon_id
     return target;
   }
 
-  Future<ConstellationAnchorWatermark> _incrementCursorAndPublishAbsentDelete(
+  Future<ConstellationAnchorWatermark> _incrementCursor(
     String viewerId,
   ) async {
     final row = await _db
@@ -367,17 +367,6 @@ RETURNING revision
           variables: [Variable<String>(viewerId)],
         )
         .getSingle();
-    await _db.customStatement(
-      r'''
-SELECT public.emit_realtime_entity_change_strict(
-  'constellation_anchor',
-  $1,
-  'delete',
-  ARRAY[$1]::text[]
-)
-''',
-      [viewerId],
-    );
     return ConstellationAnchorWatermark(
       ConstellationAnchorRevision(row.read<BigInt>('revision')),
     );

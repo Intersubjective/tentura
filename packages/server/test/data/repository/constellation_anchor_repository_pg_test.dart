@@ -429,7 +429,7 @@ WHERE viewer_id = '$viewer' AND beacon_id = '$beacon'
         expect(anchorRows.single.single, 0);
         await _settleNotifications();
         expect(anchorNotifications().length, 1);
-        expect(anchorNotifications().single['event'], 'delete');
+        expect(anchorNotifications().single['event'], 'update');
       },
       timeout: const Timeout(Duration(seconds: 30)),
     );
