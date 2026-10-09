@@ -383,30 +383,115 @@ ConstellationLayout computeConstellationPlacedLayout({
     recordPlacedObstacle(nodeId, chosen.point);
   }
 
+  int personRing(String personId) =>
+      input.paths.depth[personId] ??
+      (input.paths.ring.contains(personId)
+          ? input.maxHops + 1
+          : input.maxHops);
+
+  // Stability contract (I3): a free node whose inputs are unchanged and that
+  // overlaps nothing already placed keeps its previous spot. Every such node
+  // is placed before any other free node, so changed or new nodes can never
+  // take its place.
+  final prior = input.priorHints;
+  void hardKeepFreeNodes(Iterable<String> nodeIds, {required bool requests}) {
+    if (prior == null || prior.viewportClass != input.viewportClass) {
+      return;
+    }
+    for (final nodeId in nodeIds) {
+      final hint = prior.positions[nodeId];
+      if (hint == null ||
+          positions.containsKey(nodeId) ||
+          (!requests && ideals[nodeId] == null)) {
+        continue;
+      }
+      final size = _sizeFor(nodeId, input.nodeSizes);
+      final footprint = requests
+          ? (input.footprints[nodeId] ?? _symmetricBodyFootprint(size))
+          : null;
+      if (!_priorHintEligible(
+        nodeId: nodeId,
+        hint: hint,
+        size: footprint == null
+            ? size
+            : (
+                width: footprint.left + footprint.right,
+                height: footprint.top + footprint.bottom,
+              ),
+        paths: input.paths,
+        priorRing: prior.ring[nodeId],
+      )) {
+        continue;
+      }
+      if (requests) {
+        final authorId = _requestAuthorForHintSkip(
+          nodeId: nodeId,
+          egoId: input.egoId,
+          egoOwnRequestIds: input.egoOwnRequestIds,
+          satelliteRequestIdsByAuthor: input.satelliteRequestIdsByAuthor,
+          requestAuthorById: input.requestAuthorById,
+        );
+        if (authorId != null &&
+            prior.positions.containsKey(authorId) &&
+            (!positions.containsKey(authorId) ||
+                _authorSeatMovedSincePrior(
+                  authorId: authorId,
+                  placed: positions,
+                  priorHints: prior,
+                ))) {
+          continue;
+        }
+      }
+      final overlap = footprint != null
+          ? _totalObstacleIntersectionArea(
+              candidate: hint,
+              footprint: footprint,
+              spacing: input.spacing,
+              obstacles: obstacles,
+            )
+          : _totalIntersectionArea(
+              candidate: hint,
+              size: size,
+              spacing: input.spacing,
+              placed: positions,
+              placedSizes: input.nodeSizes,
+            );
+      if (overlap > 0) {
+        continue;
+      }
+      positions[nodeId] = hint;
+      if (requests) {
+        final priorRing = prior.ring[nodeId];
+        if (priorRing != null) {
+          ring[nodeId] = priorRing;
+        }
+      } else {
+        ring[nodeId] = personRing(nodeId);
+      }
+      recordPlacedObstacle(nodeId, hint);
+    }
+  }
+
+  hardKeepFreeNodes(supportPeople, requests: false);
+  hardKeepFreeNodes(automaticPeople, requests: false);
+  hardKeepFreeNodes(automaticRequests, requests: true);
+
   for (final personId in supportPeople) {
     final ideal = ideals[personId];
-    if (ideal == null) {
+    if (ideal == null || positions.containsKey(personId)) {
       continue;
     }
     placeAutomatic(personId, ideal);
-    ring[personId] =
-        input.paths.depth[personId] ??
-        (input.paths.ring.contains(personId)
-            ? input.maxHops + 1
-            : input.maxHops);
+    ring[personId] = personRing(personId);
   }
 
   for (final personId in automaticPeople) {
     final ideal = ideals[personId];
-    if (ideal == null) {
+    if (ideal == null || positions.containsKey(personId)) {
       continue;
     }
     placeAutomatic(personId, ideal);
-    ring[personId] =
-        input.paths.depth[personId] ??
-        (input.paths.ring.contains(personId)
-            ? input.maxHops + 1
-            : input.maxHops);
+    ring[personId] = personRing(personId);
   }
 
   // Request fans from placed author seats (not pre-placement ideals), so
@@ -434,7 +519,7 @@ ConstellationLayout computeConstellationPlacedLayout({
 
   for (final requestId in automaticRequests) {
     final ideal = requestIdeals[requestId];
-    if (ideal == null) {
+    if (ideal == null || positions.containsKey(requestId)) {
       continue;
     }
     placeAutomatic(requestId, ideal);

@@ -625,3 +625,11 @@ Extracted `ConstellationInteractionController` (`features/constellation/ui/scene
 **Tests.** No new tests: `constellation_anchor_interaction_test.dart` and `constellation_anchor_cubit_test.dart` pass unchanged. The TDD gate tests that asserted field absence/file layout were removed (layout assertions must not land on main).
 
 **Verification** (wrapped, serial): `constellation_anchor_interaction_test` + `constellation_anchor_cubit_test` 42 passed; `check-custom-lints.sh packages/client` 24 ≤ 24; `check-analyze-baseline.sh packages/client` 2080 ≤ 2085 (baseline lowered to 2080).
+
+## UNIT U30 — partial — 2026-10-09
+
+Part 1/2 (domain layout stability, I3). `computeConstellationPlacedLayout` now hard-keeps free nodes before placing any other free node: a person or Request with a prior-hint position, unchanged ring/viewport class, valid envelope, an unmoved author seat (Requests) and no overlap with what is already placed keeps its previous spot. Anchored/pending nodes stay fixed (unchanged path). Changed or overlapped nodes, and newcomers, fall through to the existing candidate search (hint first, then ideal and its rings) against the obstacles, so newcomers land in free space. Part 2 (no layout on selection/highlight/label budget) is not done here.
+
+**Tests.** `constellation_layout_positional_stability_test.dart` (seeded 200-case property tests, anchored and unsaved-placement variants, grown-Request displacement, unchanged-input reproduction) 7/7.
+
+**Verification** (wrapped, serial): `test/features/constellation test/features/graph` 960 passed, 1 skipped; `dart analyze` on the touched file clean. Deviation: no separate hint-centred minimum-displacement ring search was added; displaced nodes use the existing hint-first candidate order.
