@@ -86,6 +86,17 @@ if ! curl -sf -m 3 http://127.0.0.1:2080/health >/dev/null 2>&1; then
 fi
 log "tentura-server OK (:2080)"
 
+# A reused server may predate the current build; /health cannot tell. Placement
+# apply needs ConstellationAnchorOpInput, so refuse a server whose GraphQL schema
+# lacks it (or cannot be introspected) rather than fail every apply mid-run.
+if ! curl -sf -m 10 http://127.0.0.1:2080/api/v2/graphql \
+  -H 'Content-Type: application/json' \
+  -d '{"query":"{ __type(name: \"ConstellationAnchorOpInput\") { name } }"}' \
+  | jq -e '.data.__type.name == "ConstellationAnchorOpInput"' >/dev/null 2>&1; then
+  die "tentura-server schema is outdated or cannot be verified (no ConstellationAnchorOpInput on :2080/api/v2/graphql) — restart it from the current build (stop the server on :2080 and rerun)"
+fi
+log "tentura-server schema OK (ConstellationAnchorOpInput)"
+
 # sanity: QA bootstrap endpoint answers (fails fast on token/env mismatch)
 curl -sf -m 10 http://127.0.0.1:2080/_qa/integration/bootstrap \
   -H "Authorization: Bearer $QA_AUTH_TOKEN" -H 'Content-Type: application/json' \

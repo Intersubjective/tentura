@@ -63,6 +63,7 @@ case "$url" in
     [[ "$current_pub" == "$example_pub" ]] && exit 22
     exit 0
     ;;
+  */api/v2/graphql) echo "{\"data\":{\"__type\":{\"name\":\"ConstellationAnchorOpInput\"},\"__schema\":{\"mutationType\":{\"fields\":[{\"name\":\"constellationAnchorsApply\"}]}}}}"; exit 0 ;;
   *) exit 0 ;;
 esac'
 
