@@ -535,7 +535,6 @@ void main() {
       await harness.cubit.unpinAnchor(
         target: ConstellationAnchorTarget.beacon('req-1'),
       );
-      await tester.pump();
       expect(
         harness.cubit.forgetPriorHintNodeIdsForTest,
         contains('req-1'),

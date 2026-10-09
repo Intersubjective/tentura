@@ -20,6 +20,7 @@ import '../../domain/entity/constellation_field.dart';
 import '../util/layout_geometry_adapters.dart';
 import '../../domain/use_case/constellation_member_webs_case.dart';
 import '../../domain/entity/placement_outbox.dart';
+import '../../domain/placement_overlay.dart';
 import '../../domain/use_case/constellation_anchor_case.dart';
 import '../../domain/use_case/constellation_placement_case.dart';
 import '../../domain/use_case/constellation_field_store_case.dart';
@@ -125,6 +126,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _anchorLifecycleToken = _anchorCase?.activate(viewerAccountId: viewer.id);
     _storeLease = _case.lease();
     _storeSub = _case.changes.listen(_onStoreChanged);
+    _placementSub = _placementCase?.changes.listen(_onPlacementChanged);
     // ignore: invalid_use_of_visible_for_testing_member
     graphController.scene.addListener(_onGraphSceneLayoutOutcomeChanged);
     if (loadOnCreate) {
@@ -146,6 +148,11 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   late final StoreLease _storeLease;
   StreamSubscription<ConstellationFieldStoreState>? _storeSub;
+  StreamSubscription<PlacementOutboxState>? _placementSub;
+
+  /// Field (confirmed anchors plus unresolved placement intent) last composed;
+  /// an update that leaves its layout inputs unchanged does not re-lay out.
+  ConstellationField? _lastPresentationField;
   ConstellationField? _lastAppliedStoreField;
   final ConstellationPresentationComposer _composePresentation;
   int? _anchorLifecycleToken;
@@ -275,6 +282,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     // tests then never deliver the state stream's done event).
     unawaited(_storeSub?.cancel());
     _storeSub = null;
+    unawaited(_placementSub?.cancel());
+    _placementSub = null;
     _clearClusterPresentations();
     _finishDropReflowSpans();
     // ignore: invalid_use_of_visible_for_testing_member
@@ -464,14 +473,21 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         ? _deferredRefreshTargetsForPresentation()
         : const <ConstellationAnchorTarget>{};
     if (deferTargets.isEmpty) _noteDisappearedAnchors(confirmedProjection);
-    final presentationField = deferTargets.isEmpty
-        ? loadedField
-        : loadedField.copyWith(
-            anchorProjection: _presentationProjection(
-              confirmedProjection,
-              deferTargets: deferTargets,
+    final presentationField = _desiredField(
+      deferTargets.isEmpty
+          ? loadedField
+          : loadedField.copyWith(
+              anchorProjection: _presentationProjection(
+                confirmedProjection,
+                deferTargets: deferTargets,
+              ),
             ),
-          );
+    );
+    final unchangedLayout = _sameLayoutInputs(
+      _lastPresentationField,
+      presentationField,
+    );
+    _lastPresentationField = presentationField;
     final composition = kReleaseMode
         ? _composePresentation(
             viewerId: _viewer.id,
@@ -513,7 +529,78 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     );
     droppedHolderIds = composition.droppedHolderIds;
     _reconcileSelection(composition);
-    if (deferTargets.isEmpty) _reconcileLayout();
+    if (deferTargets.isEmpty && !unchangedLayout) _reconcileLayout();
+  }
+
+  /// The field with unresolved placement intent laid over its confirmed anchors.
+  ConstellationField _desiredField(ConstellationField field) {
+    final placement = _placementCase;
+    if (placement == null) return field;
+    return field.copyWith(
+      anchorProjection: desiredAnchorProjection(
+        field.resolvedAnchorProjection,
+        placement.current,
+        now: DateTime.now(),
+      ).projection,
+    );
+  }
+
+  /// Whether laying out [next] would give the scene nothing new over [previous].
+  bool _sameLayoutInputs(
+    ConstellationField? previous,
+    ConstellationField next,
+  ) {
+    if (previous == null || state.composition == null) return false;
+    final before = previous.resolvedAnchorProjection;
+    final after = next.resolvedAnchorProjection;
+    return previous.copyWith(anchorProjection: null) ==
+            next.copyWith(anchorProjection: null) &&
+        listEquals(before.pinnedPeers, after.pinnedPeers) &&
+        listEquals(before.pinnedRequests, after.pinnedRequests) &&
+        listEquals(before.supportPeers, after.supportPeers) &&
+        listEquals(before.supportEdges, after.supportEdges) &&
+        listEquals(before.serverFilteredBeaconIds, after.serverFilteredBeaconIds) &&
+        before.serverFilteredBeaconCount == after.serverFilteredBeaconCount &&
+        before.anchors.length == after.anchors.length &&
+        {for (final a in before.anchors) a.target: a.position}.entries.every(
+          (entry) =>
+              after.anchors.any(
+                (a) => a.target == entry.key && a.position == entry.value,
+              ),
+        );
+  }
+
+  /// Unresolved placement intent is composed before the server answers.
+  void _onPlacementChanged(PlacementOutboxState _) {
+    final field = state.field;
+    if (isClosed || field == null) return;
+    // A store publication still queued reads the outbox itself when it lands.
+    if (!identical(_case.current.field, _lastAppliedStoreField)) return;
+    final presentationField = _desiredField(field);
+    if (_sameLayoutInputs(_lastPresentationField, presentationField)) return;
+    _lastPresentationField = presentationField;
+    _noteDisappearedAnchors(presentationField.resolvedAnchorProjection);
+    final composition = _composePresentation(
+      viewerId: _viewer.id,
+      field: _composerField(presentationField),
+      localFilters: state.filters,
+      asOfUtc: state.loadedAt ?? field.loadedAt,
+      labelBudget: _currentLabelBudget(),
+      expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
+      selectedRequestWebs: _selectedRequestWebs,
+      extraKeptPeerIds: _extraKeptPeerIds,
+    );
+    emit(
+      state.copyWith(
+        composition: composition,
+        paths: composition.paths,
+        keptPeerIds: composition.keptPeerIds,
+        capped: composition.renderBudgetCapped,
+      ),
+    );
+    droppedHolderIds = composition.droppedHolderIds;
+    _reconcileSelection(composition);
+    _reconcileLayout(deferAutomaticReflow: true);
   }
 
   String get viewerId => _viewer.id;

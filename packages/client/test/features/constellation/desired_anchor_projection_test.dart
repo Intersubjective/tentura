@@ -172,6 +172,33 @@ void main() {
       expect(confirmed.anchors, hasLength(3));
     });
 
+    test('a delete also drops the pinned entity of its exact target kind', () {
+      final confirmed = _confirmed([_anchor(_person), _anchor(_beacon)]);
+
+      ConstellationAnchorProjection desiredAfter(
+        ConstellationAnchorTarget target,
+      ) => desiredAnchorProjection(
+        confirmed,
+        _outbox({
+          target: PlacementTargetState(
+            latestPending: PlacementSlot(
+              op: _delete(target),
+              status: PlacementSlotStatus.queued,
+            ),
+          ),
+        }),
+        now: clock.now(),
+      ).projection;
+
+      final personUnpinned = desiredAfter(_person);
+      expect(personUnpinned.pinnedPeers, isEmpty);
+      expect(personUnpinned.pinnedRequests, confirmed.pinnedRequests);
+
+      final beaconUnpinned = desiredAfter(_beacon);
+      expect(beaconUnpinned.pinnedRequests, isEmpty);
+      expect(beaconUnpinned.pinnedPeers, confirmed.pinnedPeers);
+    });
+
     test('upserts and deletes are overlaid together across targets', () {
       final result = desiredAnchorProjection(
         _confirmed([_anchor(_person), _anchor(_beacon)]),

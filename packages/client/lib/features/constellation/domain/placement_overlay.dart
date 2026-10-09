@@ -17,6 +17,7 @@ desiredAnchorProjection(
     for (final anchor in confirmed.anchors) anchor.target: anchor,
   };
   final unsaved = <ConstellationAnchorTarget>{};
+  final unpinned = <ConstellationAnchorTarget>{};
 
   for (final entry in outbox.targets.entries) {
     final state = entry.value;
@@ -49,6 +50,7 @@ desiredAnchorProjection(
         );
       case PlacementDelete():
         anchors.remove(op.target);
+        unpinned.add(op.target);
       case null:
         break;
     }
@@ -58,8 +60,18 @@ desiredAnchorProjection(
     projection: ConstellationAnchorProjection(
       revision: confirmed.revision,
       anchors: List.unmodifiable(anchors.values),
-      pinnedPeers: confirmed.pinnedPeers,
-      pinnedRequests: confirmed.pinnedRequests,
+      // An unpin also drops the entity the pin carried, as the server's
+      // acknowledged projection does, so the ack changes no layout input.
+      pinnedPeers: [
+        for (final peer in confirmed.pinnedPeers)
+          if (!unpinned.contains(ConstellationAnchorTarget.person(peer.id)))
+            peer,
+      ],
+      pinnedRequests: [
+        for (final request in confirmed.pinnedRequests)
+          if (!unpinned.contains(ConstellationAnchorTarget.beacon(request.id)))
+            request,
+      ],
       supportPeers: confirmed.supportPeers,
       supportEdges: confirmed.supportEdges,
       serverFilteredBeaconIds: confirmed.serverFilteredBeaconIds,
