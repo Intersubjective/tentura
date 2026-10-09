@@ -689,3 +689,26 @@ Reconcile time at N = 600 is lower than the baseline in both rows (about 4× pla
 **Tests.** New `test/features/constellation/domain/spatial_index_test.dart` (6).
 
 **Deviations / follow-ups.** Part 2 remains: benchmark-only sweep-and-prune, grid and AABB implementations under `test/bench/`, and the D6 decision record.
+
+## UNIT U36 — complete — 2026-10-09 (tentura-s7gl.69, part 2/2)
+
+**Changed.** Benchmark-only sweep-and-prune, uniform grid (128-unit cells), and dynamic AABB tree (greedy perimeter insertion) implement the existing pure-domain `SpatialIndex` port under `packages/client/test/bench/`. Production retains its current index until U39. `dart run test/bench/spatial_index_bench.dart` writes `build/bench/spatial_index.json`: four algorithms, N=100/300/600/1000, K=66, full, incremental (1–10 distinct changed items), and build-plus-invalidate (192 cases). Seed 235 produces mixed node/label footprints (72×72, 144×56, 196×36, 96×112) on a jittered field. Each index is warmed before measurement; preparation is untimed. Full and incremental totals include maintenance and clock/inter-phase overhead; build-plus-invalidate measures inserting and removing all N items.
+
+**D6 decision.** Report: `packages/client/build/bench/spatial_index.json`. SHA-256: cdc9b7f35724deaefc6d94b817ec04846d0d401acdf6ff528f9a8789134a2e8e. Single warmed Dart VM run on Dart 3.13.0; timings use fractional microseconds from stopwatch ticks, not browser frame budgets. The authoritative N=300 comparison uses changed=10 for every incremental row.
+
+| Algorithm | N | Changed | Full total (us) | Incremental total (us) | Build-plus-invalidate total (us) | Full gain | Incremental gain |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| brute_force | 300 | 10 | 56089.696 | 1674.001 | 31.103 | 0.0% | 0.0% |
+| sap | 300 | 10 | 42394.372 | 831.649 | 353.698 | 24.4% | 50.3% |
+| grid | 300 | 10 | 15225.425 | 252.185 | 316.906 | 72.9% | 84.9% |
+| dynamic_aabb | 300 | 10 | 21598.891 | 241.755 | 290.541 | 61.5% | 85.6% |
+
+Rule: keep brute force unless an alternative wins full **or** incremental total cost by at least 30% at N=300, including maintenance. The separate build-plus-invalidate workload is reported, not added a second time to full/incremental totals.
+
+**Choice: grid.**
+
+It has the lowest full total among qualifying candidates and also exceeds the incremental threshold. Its higher standalone maintenance cost is included in the workload totals.
+
+**Tests.** All 3 benchmark acceptance tests pass through the cleanup wrapper (Dart SDK executable and cached test runner, avoiding the read-only Flutter launcher and online dependency resolution). Custom-lint verification could not complete: analyzer plugin setup requires a pub.dev download blocked by the sandbox. The Dart analyzer reports 2,080 diagnostics (the checked-in baseline), with none under `test/bench/`; the Flutter baseline script is blocked by read-only SDK cache and telemetry writes. The execution probe checks distinct implementations against the brute-force overlap oracle, all 192 timed workloads, operation counts, injected-clock phase durations, and end-to-end totals. Fresh-report and report-linked journal acceptance checks cover the JSON and decision table.
+
+**Deviations / follow-ups.** Corrected this task's acceptance test from full AND incremental to full OR incremental: the previous condition contradicted the U36 plan's explicit rule. Removed redundant raw-string prefixes from the task test and its compile stub without changing string contents, bringing analyzer diagnostics back to the existing baseline. No assertion is skipped; report linkage, workload coverage, and threshold checks remain. U39 owns conditional production adoption and its randomized equivalence verification.
