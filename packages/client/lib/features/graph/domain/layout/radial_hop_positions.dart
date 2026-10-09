@@ -6,10 +6,10 @@ import 'package:tentura/features/constellation/domain/layout/layout_geometry.dar
 /// Fixed margin for clamping positions when node sizes are unknown.
 const double kLayoutClampMargin = 80;
 
-/// Padding added to the largest child diameter when deriving [minChord].
+/// Padding added to the largest child diameter when deriving `minChord`.
 const double kFanSizePadding = 24;
 
-/// Soft cap on local-fan radius as a multiple of [ringGap].
+/// Soft cap on local-fan radius as a multiple of `ringGap`.
 const double kFanRadiusMultiplier = 3;
 
 /// Default forward-cone width for local fan (120°).
@@ -79,8 +79,8 @@ RadialHopLayout computeRadialHopLayout({
   }
 
   final maxDepth = depth.values.fold(0, math.max);
-  final disconnected = nodeIds.where((id) => !visited.contains(id)).toList();
-  disconnected.sort();
+  final disconnected = nodeIds.where((id) => !visited.contains(id)).toList()
+    ..sort();
   for (final id in disconnected) {
     depth[id] = maxDepth + 1;
     parent[id] = rootId;
@@ -108,8 +108,7 @@ RadialHopLayout computeRadialHopLayout({
 
   void assignSectors(String id, double start, double end) {
     angle[id] = (start + end) / 2;
-    final childList = List<String>.from(children[id] ?? const []);
-    childList.sort();
+    final childList = List<String>.from(children[id] ?? const [])..sort();
     final totalSubtree = childList
         .map((child) => subtreeSize[child]!)
         .fold<int>(0, (sum, size) => sum + size);
@@ -305,9 +304,32 @@ Map<String, LPoint> localFanPositions({
   double maxFanRadians = kDefaultMaxFanRadians,
   double? minChord,
   double? rMax,
-}) {
+}) => Map.fromEntries(
+  localFanPositionEntries(
+    parentPos: parentPos,
+    direction: direction,
+    childIds: childIds,
+    canvasSize: canvasSize,
+    ringGap: ringGap,
+    maxFanRadians: maxFanRadians,
+    minChord: minChord,
+    rMax: rMax,
+  ),
+);
+
+/// The same deterministic fan as [localFanPositions], evaluated per child.
+Iterable<MapEntry<String, LPoint>> localFanPositionEntries({
+  required LPoint parentPos,
+  required LPoint direction,
+  required List<String> childIds,
+  required LSize canvasSize,
+  double ringGap = 170,
+  double maxFanRadians = kDefaultMaxFanRadians,
+  double? minChord,
+  double? rMax,
+}) sync* {
   if (childIds.isEmpty) {
-    return {};
+    return;
   }
 
   final directionSquared =
@@ -321,16 +343,18 @@ Map<String, LPoint> localFanPositions({
   }
   final baseAngle = math.atan2(unit.y, unit.x);
   final n = childIds.length;
-  final positions = <String, LPoint>{};
   final effectiveMinChord = minChord ?? amenityChordForRingGap(ringGap);
   final effectiveRMax = rMax ?? ringGap * kFanRadiusMultiplier;
 
   if (n == 1) {
-    positions[childIds.single] = clampLayoutPosition(
-      (x: parentPos.x + unit.x * ringGap, y: parentPos.y + unit.y * ringGap),
-      canvasSize,
+    yield MapEntry(
+      childIds.single,
+      clampLayoutPosition(
+        (x: parentPos.x + unit.x * ringGap, y: parentPos.y + unit.y * ringGap),
+        canvasSize,
+      ),
     );
-    return positions;
+    return;
   }
 
   final geometry = computeLocalFanGeometry(
@@ -343,15 +367,17 @@ Map<String, LPoint> localFanPositions({
   final start = baseAngle - geometry.span / 2;
   for (var i = 0; i < n; i++) {
     final angle = start + geometry.step * i;
-    positions[childIds[i]] = clampLayoutPosition(
-      (
-        x: parentPos.x + math.cos(angle) * geometry.radius,
-        y: parentPos.y + math.sin(angle) * geometry.radius,
+    yield MapEntry(
+      childIds[i],
+      clampLayoutPosition(
+        (
+          x: parentPos.x + math.cos(angle) * geometry.radius,
+          y: parentPos.y + math.sin(angle) * geometry.radius,
+        ),
+        canvasSize,
       ),
-      canvasSize,
     );
   }
-  return positions;
 }
 
 Map<String, List<String>> _buildUndirectedAdjacency(
