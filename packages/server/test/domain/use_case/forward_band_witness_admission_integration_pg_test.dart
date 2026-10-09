@@ -59,6 +59,8 @@ Future<void> main() async {
   group('ForwardBandCase witness admission integration (G3a)', () {
     late Connection writer;
     late TenturaDb database;
+    var databaseReady = false;
+    var writerReady = false;
     late Env env;
     late Logger logger;
     late MeritrankRepository meritRank;
@@ -78,11 +80,13 @@ Future<void> main() async {
       await writer.execute('SET check_function_bodies = false');
       await writer.execute('CREATE EXTENSION IF NOT EXISTS pgcrypto');
       await writer.execute('CREATE EXTENSION IF NOT EXISTS pgmer2');
+      writerReady = true;
       await migrateDbSchema(writer);
 
       env = target.databaseEnv;
       logger = Logger('ForwardBandWitnessAdmissionG3aPgTest');
       database = TenturaDb(env);
+      databaseReady = true;
 
       meritRank = MeritrankRepository(database);
       witnessWindowRepo = WitnessWindowRepository(database);
@@ -143,8 +147,8 @@ Future<void> main() async {
     });
 
     tearDownAll(() async {
-      await database.close();
-      await writer.close();
+      if (databaseReady) await database.close();
+      if (writerReady) await writer.close();
       await target.drop();
     });
 
