@@ -9,13 +9,14 @@ import 'dart:io';
 
 import 'package:test/test.dart';
 
+import '../fixtures/layout_work_gate.dart';
 import '../fixtures/resumable_layout_probe.dart';
 
 void main() {
   group('bounded constellation layout units', () {
     test(
-      'records startup and every full and incremental unit within '
-      '0.5 milliseconds at 1000 nodes',
+      'records wall times as information and gates every full and '
+      'incremental unit on counted work at 1000 nodes',
       () async {
         final measured = await runResumableLayoutProbe('benchmark');
         final report = File('build/bench/constellation_layout_job.json');
@@ -31,7 +32,6 @@ void main() {
         expect(decoded['clock'], 'Stopwatch.elapsedTicks');
         expect(decoded['clockFrequency'], greaterThan(0));
         final cases = decoded['cases'] as List<dynamic>;
-        final workByMode = <String, List<List<num>>>{};
         expect(cases, hasLength(6));
         expect(
           {
@@ -65,32 +65,41 @@ void main() {
           expect(row['workCount'], timings.length + 1);
           final maximumWork = allWork.reduce((a, b) => a > b ? a : b);
           expect(row['maxWorkMicros'], maximumWork);
-          (workByMode[row['mode'] as String] ??= []).add(allWork);
         }
-        // Gate on every observed startup and step duration. Raw samples stay
-        // in the report, including scheduling and collector pauses.
-        final maxima = <String, num>{};
+        // Wall times above are report-only: host stalls make them flap. The
+        // gate is the deterministic per-step work count.
+        final maxima = <String, int>{};
+        final workByMode = <String, List<List<int>>>{};
+        final boundByMode = <String, int>{};
+        for (final value in cases) {
+          final row = value as Map<String, dynamic>;
+          final stepWork = (row['stepWork'] as List<dynamic>).cast<int>();
+          expect(stepWork.length, row['unitCount']);
+          expect(row['maxStepWork'], stepWork.reduce((a, b) => a > b ? a : b));
+          (workByMode[row['mode'] as String] ??= []).add(stepWork);
+          boundByMode[row['mode'] as String] = row['unitWorkBound'] as int;
+        }
         for (final entry in workByMode.entries) {
           final samples = entry.value;
           expect(samples, hasLength(3));
-          final length = samples.first.length;
-          expect(samples.map((work) => work.length), everyElement(length));
-          final worst = samples
+          // Counted work is deterministic: every sample repeats exactly.
+          expect(samples[1], samples[0], reason: '${entry.key} sample 1');
+          expect(samples[2], samples[0], reason: '${entry.key} sample 2');
+          for (final stepWork in samples) {
+            expectStepWorkWithinBound(
+              stepWork,
+              bound: boundByMode[entry.key]!,
+              label: entry.key,
+            );
+          }
+          maxima[entry.key] = samples
               .expand((work) => work)
               .reduce((a, b) => a > b ? a : b);
-          maxima[entry.key] = worst;
-          expect(
-            worst,
-            lessThanOrEqualTo(500),
-            reason:
-                '${entry.key} worst startup or step unit across samples: '
-                '$worst microseconds',
-          );
         }
         report.writeAsStringSync(
           const JsonEncoder.withIndent(
             '  ',
-          ).convert({...measured, 'maxWorkMicrosByMode': maxima}),
+          ).convert({...measured, 'maxStepWorkByMode': maxima}),
         );
       },
       timeout: const Timeout(Duration(minutes: 10)),

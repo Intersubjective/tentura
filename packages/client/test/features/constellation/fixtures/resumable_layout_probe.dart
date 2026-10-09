@@ -508,6 +508,7 @@ Map<String, Object> benchmark() {
       watch.stop();
       final startMicros = watch.elapsedTicks * 1000000 / watch.frequency;
       var count = 0;
+      final stepWork = <int>[];
       bool done;
       do {
         watch.reset();
@@ -515,6 +516,7 @@ Map<String, Object> benchmark() {
         done = job.step(1);
         watch.stop();
         check(count < scratch.length, 'Measured job must converge');
+        stepWork.add(job.lastStepWork);
         scratch[count++] = watch.elapsedTicks * 1000000 / watch.frequency;
       } while (!done);
       final result = job.result;
@@ -536,6 +538,9 @@ Map<String, Object> benchmark() {
         'maxWorkMicros': workTimings.reduce((a, b) => a > b ? a : b),
         'unitCount': timings.length,
         'unitMicros': timings,
+        'unitWorkBound': job.unitWorkBound,
+        'stepWork': stepWork,
+        'maxStepWork': stepWork.reduce((a, b) => a > b ? a : b),
         'maxUnitMicros': timings.reduce((a, b) => a > b ? a : b),
       });
     }

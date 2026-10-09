@@ -1,6 +1,7 @@
 import 'dart:collection';
 
 import '../constellation_layout.dart';
+import 'layout_geometry.dart';
 import 'spatial_index.dart';
 
 typedef LayoutInput = ConstellationPlacedLayoutInput;
@@ -8,6 +9,12 @@ typedef LayoutInput = ConstellationPlacedLayoutInput;
 /// Checkpoints per unit: small enough to stay far below 0.5 ms at N=1000,
 /// large enough that a full job is not millions of units.
 const _checkpointsPerUnit = 8;
+
+/// Largest counted work (checkpoints plus index operations) one `step(1)` may
+/// do. Calibrated from the real full and incremental jobs at N=1000, with
+/// headroom below 2x the observed maximum; a unit walking every node counts
+/// far more. Counted work is deterministic, unlike wall time.
+const _unitWorkBound = 24;
 
 /// Published geometry and the dependencies used to compute it.
 final class LayoutResult {
@@ -28,6 +35,13 @@ abstract interface class LayoutJob {
   /// Available only after completion; discarding an unfinished job publishes
   /// nothing and never mutates the previous result.
   LayoutResult get result;
+
+  /// Counted work of the latest [step] call: checkpoints advanced plus
+  /// spatial-index operations. Depends only on the inputs, never on the clock.
+  int get lastStepWork;
+
+  /// Calibrated upper bound for [lastStepWork] of a one-unit step.
+  int get unitWorkBound;
 }
 
 /// Pure, deterministic layout with deferred planning and bounded work units.
@@ -47,6 +61,8 @@ final class _ConstellationLayoutJob implements LayoutJob {
   final LayoutInput _next;
   final SpatialIndex Function() _newIndex;
   late final Iterator<void> _steps = _run().iterator;
+  int _work = 0;
+  int _lastStepWork = 0;
   late final LayoutResult _result;
   bool _done = false;
 
@@ -57,18 +73,32 @@ final class _ConstellationLayoutJob implements LayoutJob {
   }
 
   @override
+  int get lastStepWork => _lastStepWork;
+
+  @override
+  int get unitWorkBound => _unitWorkBound;
+
+  @override
   bool step(int units) {
-    if (_done) return true;
-    for (var unit = 0; unit < units; unit++) {
-      for (var i = 0; i < _checkpointsPerUnit; i++) {
-        if (!_steps.moveNext()) {
-          _done = true;
-          return true;
+    _work = 0;
+    try {
+      if (_done) return true;
+      for (var unit = 0; unit < units; unit++) {
+        for (var i = 0; i < _checkpointsPerUnit; i++) {
+          _work++;
+          if (!_steps.moveNext()) {
+            _done = true;
+            return true;
+          }
         }
       }
+      return false;
+    } finally {
+      _lastStepWork = _work;
     }
-    return false;
   }
+
+  SpatialIndex _countedIndex() => _CountingIndex(_newIndex(), () => _work++);
 
   Iterable<void> _run() sync* {
     final previous = _previous;
@@ -137,7 +167,7 @@ final class _ConstellationLayoutJob implements LayoutJob {
     }
     yield* constellationPlacedLayoutSteps(
       input: input,
-      newIndex: _newIndex,
+      newIndex: _countedIndex,
       unchangedNodeIds: unchanged,
       onComplete: (layout) => _result = LayoutResult._(layout, _next),
     );
@@ -161,5 +191,34 @@ Iterable<void> _resolveAuthors(
   for (final id in input.egoOwnRequestIds) {
     authors[id] = input.egoId;
     yield null;
+  }
+}
+
+/// Counts every index operation so index-heavy units show up in the work gate.
+final class _CountingIndex implements SpatialIndex {
+  _CountingIndex(this._inner, this._count);
+
+  final SpatialIndex _inner;
+  final void Function() _count;
+
+  @override
+  int get length => _inner.length;
+
+  @override
+  void insert(String id, LRect rect) {
+    _count();
+    _inner.insert(id, rect);
+  }
+
+  @override
+  bool remove(String id) {
+    _count();
+    return _inner.remove(id);
+  }
+
+  @override
+  List<String> queryOverlaps(LRect rect, {String? exceptId}) {
+    _count();
+    return _inner.queryOverlaps(rect, exceptId: exceptId);
   }
 }
