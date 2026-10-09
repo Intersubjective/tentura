@@ -12,6 +12,7 @@ import 'package:tentura/features/constellation/domain/port/constellation_anchor_
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_anchor_case.dart';
 
+import '../../support/constellation_apply_via_writes.dart';
 import '../../support/test_realtime_sync.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_field_store_case.dart';
 
@@ -82,7 +83,7 @@ final class _FakeFieldRepository implements ConstellationRepositoryPort {
   }
 }
 
-final class _FakeAnchorRepository implements ConstellationAnchorRepositoryPort {
+final class _FakeAnchorRepository implements ConstellationWriteFake {
   Completer<void> upsertGate = Completer<void>()..complete();
   Completer<void> deleteGate = Completer<void>()..complete();
   int upsertCount = 0;

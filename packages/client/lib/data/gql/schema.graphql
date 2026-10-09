@@ -3861,8 +3861,6 @@ type mutation_root {
   closureSkip(beaconId: String!, expectedEpoch: Int!): Boolean!
   closureToggleSupport(beaconId: String!, expectedEpoch: Int!, on: Boolean!, targetId: String!): v2_ClosureToggleResult!
   complaintCreate(details: String!, email: String!, id: String!, type: String!): Boolean!
-  constellationAnchorDelete(targetId: String!, targetKind: v2_ConstellationAnchorTargetKind!): v2_ConstellationAnchorDeleteResult!
-  constellationAnchorUpsert(coordinateSpaceVersion: Int!, targetId: String!, targetKind: v2_ConstellationAnchorTargetKind!, xUnits: Float!, yUnits: Float!): v2_ConstellationAnchorUpsertResult!
   constellationAnchorsApply(ops: [v2_ConstellationAnchorOpInput!]!, participatedOnly: Boolean!, showClosed: Boolean!): v2_ConstellationAnchorsApplyResult!
   contactDelete(subjectUserId: String!): Boolean!
   contactSet(contactName: String!, subjectUserId: String!): Boolean!
@@ -8058,12 +8056,6 @@ type v2_ConstellationAnchor {
   yUnits: Float!
 }
 
-type v2_ConstellationAnchorDeleteResult {
-  revision: String!
-  targetId: String!
-  targetKind: v2_ConstellationAnchorTargetKind!
-}
-
 input v2_ConstellationAnchorOpInput {
   clientOpId: String!
   ifRevision: String
@@ -8110,11 +8102,6 @@ type v2_ConstellationAnchorProjection {
 enum v2_ConstellationAnchorTargetKind {
   BEACON
   PERSON
-}
-
-type v2_ConstellationAnchorUpsertResult {
-  anchor: v2_ConstellationAnchor!
-  revision: String!
 }
 
 type v2_ConstellationAnchorsApplyResult {

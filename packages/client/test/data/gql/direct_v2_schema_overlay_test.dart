@@ -61,19 +61,13 @@ void main() {
       expect(
         schema,
         contains(
-          'constellationAnchorUpsert(coordinateSpaceVersion: Int!, '
-          'targetId: String!, targetKind: v2_ConstellationAnchorTargetKind!, '
-          'xUnits: Float!, yUnits: Float!): v2_ConstellationAnchorUpsertResult!',
+          'constellationAnchorsApply(ops: [v2_ConstellationAnchorOpInput!]!, '
+          'participatedOnly: Boolean!, showClosed: Boolean!): '
+          'v2_ConstellationAnchorsApplyResult!',
         ),
       );
-      expect(
-        schema,
-        contains(
-          'constellationAnchorDelete(targetId: String!, '
-          'targetKind: v2_ConstellationAnchorTargetKind!): '
-          'v2_ConstellationAnchorDeleteResult!',
-        ),
-      );
+      expect(schema, isNot(contains('constellationAnchorUpsert(')));
+      expect(schema, isNot(contains('constellationAnchorDelete(')));
     },
   );
 

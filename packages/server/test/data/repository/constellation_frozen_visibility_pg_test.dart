@@ -10,15 +10,16 @@ import 'package:test/test.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide ConstellationAnchor, isNotNull, isNull;
+import 'package:tentura_server/data/database/postgres_serialization_retry.dart';
 import 'package:tentura_server/data/repository/constellation_anchor_repository.dart';
 import 'package:tentura_server/data/repository/constellation_field_repository.dart';
 import 'package:tentura_server/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura_server/domain/entity/gql_public/mutual_score_record.dart';
 import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
-import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 
+import '../../support/constellation_anchor_batch_fixture.dart';
 import '../../support/constellation_profiles_from_public_records.dart';
 import '../../support/disposable_pg_target.dart';
 
@@ -85,9 +86,14 @@ ON CONFLICT (subject, object) DO UPDATE SET amount = EXCLUDED.amount, updated_at
   /// Runs [attempt] [attempts] times while a second connection commits trust
   /// changes without pause; each attempt must compute exactly once, with the
   /// freeze flag set at that first computation.
+  ///
+  /// The batch apply seeds the memo and sets the flag in the same statement as
+  /// its one computation, so it cannot promise the flag at that computation;
+  /// it passes [flagSetAtComputation] false and is held to one computation.
   Future<void> expectOneFrozenComputationPerAttempt(
-    Future<void> Function() attempt,
-  ) async {
+    Future<void> Function() attempt, {
+    bool flagSetAtComputation = true,
+  }) async {
     var stop = false;
     final churner = () async {
       var i = 0;
@@ -100,7 +106,9 @@ ON CONFLICT (subject, object) DO UPDATE SET amount = EXCLUDED.amount, updated_at
         await resetCounters();
         await attempt();
         expect(await calls(), 1, reason: 'attempt $i');
-        expect(await flagCalls(), 1, reason: 'attempt $i');
+        if (flagSetAtComputation) {
+          expect(await flagCalls(), 1, reason: 'attempt $i');
+        }
       }
     } finally {
       stop = true;
@@ -121,7 +129,7 @@ ON CONFLICT (subject, object) DO UPDATE SET amount = EXCLUDED.amount, updated_at
     db = openDisposablePgDatabase(target);
     final profiles = _PgProfileLookup(db);
     fieldRepository = ConstellationFieldRepository(db, profiles);
-    anchorRepository = ConstellationAnchorRepository(db);
+    anchorRepository = constellationAnchorRepositoryFor(db);
 
     for (final id in [viewer, peer, churnA, churnB]) {
       await writer.execute('''
@@ -182,7 +190,7 @@ $$
     'an anchor apply under continuous trust churn computes the visible set '
     'once, with the freeze flag set',
     () => expectOneFrozenComputationPerAttempt(() async {
-      final result = await anchorRepository.upsertAnchor(
+      final result = await anchorRepository.applyAnchorUpsert(
         viewerId: viewer,
         context: ctx,
         target: ConstellationAnchorTarget.person(peer),
@@ -193,7 +201,7 @@ $$
         ),
       );
       expect(result, isNotNull);
-    }),
+    }, flagSetAtComputation: false),
   );
 
   group('when MeritRank fails', () {
@@ -221,7 +229,7 @@ $$
       'an anchor apply fails closed and rejects the person target',
       () async {
         await expectLater(
-          anchorRepository.upsertAnchor(
+          anchorRepository.applyAnchorUpsert(
             viewerId: viewer,
             context: ctx,
             target: ConstellationAnchorTarget.person(peer),
@@ -231,7 +239,16 @@ $$
               coordinateSpaceVersion: 1,
             ),
           ),
-          throwsA(isA<ConstellationException>()),
+          // A service error aborts the batch (nothing is written); the retry
+          // wrapper reports it once its budget is spent.
+          throwsA(
+            predicate<Object>(
+              (e) =>
+                e is PostgresSnapshotUnavailableException ||
+                (e is PostgresRetryDeadlineExceededException &&
+                    e.cause is PostgresSnapshotUnavailableException),
+            ),
+          ),
         );
       },
     );

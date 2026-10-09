@@ -355,20 +355,6 @@ final class _RecordingAnchorRepository
   }
 
   @override
-  Future<ConstellationAnchorUpsertResult> upsertAnchor({
-    required String viewerId,
-    required String context,
-    required ConstellationAnchorTarget target,
-    required ConstellationAnchorPosition position,
-  }) => throw StateError('A batch must use applyBatch on the port.');
-
-  @override
-  Future<ConstellationAnchorDeleteResult> deleteAnchor({
-    required String viewerId,
-    required ConstellationAnchorTarget target,
-  }) => throw StateError('A batch must use applyBatch on the port.');
-
-  @override
   Future<ConstellationAnchorRevision> readWatermark(String viewerId) =>
       throw StateError('The batch result supplies its revisions.');
 }

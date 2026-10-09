@@ -21,10 +21,10 @@ import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura_server/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura_server/domain/port/constellation_anchor_repository_port.dart';
-import 'package:tentura_server/data/repository/constellation_anchor_repository.dart';
 import 'package:tentura_server/domain/use_case/constellation_field_case.dart';
 import 'package:tentura_server/env.dart';
 
+import '../../support/constellation_anchor_batch_fixture.dart';
 import '../../support/constellation_profiles_from_public_records.dart';
 
 Future<void> main() async {
@@ -105,7 +105,7 @@ ON CONFLICT (beacon_id, user_id) DO NOTHING
     double x = 0,
     double y = 0,
   }) =>
-      anchorRepository.upsertAnchor(
+      anchorRepository.applyAnchorUpsert(
         viewerId: egoId,
         context: ctx,
         target: ConstellationAnchorTarget.beacon(beaconId),
@@ -121,7 +121,7 @@ ON CONFLICT (beacon_id, user_id) DO NOTHING
     double x = 0,
     double y = 0,
   }) =>
-      anchorRepository.upsertAnchor(
+      anchorRepository.applyAnchorUpsert(
         viewerId: egoId,
         context: ctx,
         target: ConstellationAnchorTarget.person(personId),
@@ -175,7 +175,7 @@ ON CONFLICT (beacon_id, user_id) DO NOTHING
       await migrateDbSchema(writer);
       db = TenturaDb(target.databaseEnv);
       repository = ConstellationFieldRepository(db, _PgProfileLookup(db));
-      anchorRepository = ConstellationAnchorRepository(db);
+      anchorRepository = constellationAnchorRepositoryFor(db);
       case_ = ConstellationFieldCase(
         repository,
         env: Env(environment: Environment.test),
@@ -446,7 +446,7 @@ WHERE id = 'Bstartat001'
       const peer = 'Ucfp03lonely';
       await insertUser(peer);
       await reciprocalTrust(egoId, peer);
-      await anchorRepository.upsertAnchor(
+      await anchorRepository.applyAnchorUpsert(
         viewerId: egoId,
         context: ctx,
         target: ConstellationAnchorTarget.person(peer),
@@ -472,7 +472,7 @@ WHERE id = 'Bstartat001'
         isDiscoverable: false,
       );
       await insertHelpOffer(beaconId: 'Bp03hidden', userId: egoId);
-      await anchorRepository.upsertAnchor(
+      await anchorRepository.applyAnchorUpsert(
         viewerId: egoId,
         context: ctx,
         target: ConstellationAnchorTarget.beacon('Bp03hidden'),
@@ -492,7 +492,7 @@ WHERE id = 'Bstartat001'
       const peer = 'Ucfp03block';
       await insertUser(peer);
       await reciprocalTrust(egoId, peer);
-      await anchorRepository.upsertAnchor(
+      await anchorRepository.applyAnchorUpsert(
         viewerId: egoId,
         context: ctx,
         target: ConstellationAnchorTarget.person(peer),
@@ -535,7 +535,7 @@ WHERE id = 'Bstartat001'
       await reciprocalTrust(egoId, author);
       await insertBeacon(id: 'Bp03wrap', authorId: author, status: 5);
       await insertHelpOffer(beaconId: 'Bp03wrap', userId: egoId);
-      await anchorRepository.upsertAnchor(
+      await anchorRepository.applyAnchorUpsert(
         viewerId: egoId,
         context: ctx,
         target: ConstellationAnchorTarget.beacon('Bp03wrap'),
@@ -557,7 +557,7 @@ WHERE id = 'Bstartat001'
       await insertUser(peer);
       await reciprocalTrust(egoId, peer);
       await db.customStatement('TRUNCATE public.person_mutual_visibility_cache');
-      await anchorRepository.upsertAnchor(
+      await anchorRepository.applyAnchorUpsert(
         viewerId: egoId,
         context: ctx,
         target: ConstellationAnchorTarget.person(peer),

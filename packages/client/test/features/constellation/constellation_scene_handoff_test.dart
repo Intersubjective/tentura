@@ -88,7 +88,7 @@ final class _HarnessFieldRepository implements ConstellationRepositoryPort {
 }
 
 final class _HarnessAnchorRepository
-    implements ConstellationAnchorRepositoryPort {
+    implements ConstellationWriteFake {
   @override
   Future<ConstellationAnchorApplyResult> apply({
     required List<ConstellationAnchorApplyOp> ops,

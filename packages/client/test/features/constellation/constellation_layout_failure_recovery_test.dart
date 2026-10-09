@@ -22,6 +22,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
 
+import '../../support/constellation_apply_via_writes.dart';
 import '../../support/constellation_store_fixture.dart';
 import '../../support/test_forward_case.dart';
 
@@ -102,7 +103,7 @@ final class _HarnessFieldRepository implements ConstellationRepositoryPort {
 }
 
 final class _HarnessAnchorRepository
-    implements ConstellationAnchorRepositoryPort {
+    implements ConstellationWriteFake {
   @override
   Future<ConstellationAnchorApplyResult> apply({
     required List<ConstellationAnchorApplyOp> ops,

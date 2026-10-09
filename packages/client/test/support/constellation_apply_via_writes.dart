@@ -5,7 +5,7 @@ import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 /// Answers a batched `apply` from a fake repository's single-target writes,
 /// so a harness that models upsert/delete latency also serves the outbox.
 Future<ConstellationAnchorApplyResult> applyViaWrites(
-  ConstellationAnchorRepositoryPort repository,
+  ConstellationWriteFake repository,
   List<ConstellationAnchorApplyOp> ops,
 ) async {
   final anchors = <ConstellationAnchor>[];
@@ -45,4 +45,35 @@ Future<ConstellationAnchorApplyResult> applyViaWrites(
       serverFilteredBeaconCount: 0,
     ),
   );
+}
+
+/// Fixture-only single-target hooks used to model latency and failures inside
+/// batch responses. These are not part of the production repository protocol.
+abstract interface class ConstellationWriteFake
+    implements ConstellationAnchorRepositoryPort {
+  Future<ConstellationAnchorUpsertResult> upsert({
+    required ConstellationAnchorTarget target,
+    required ConstellationAnchorPosition position,
+  });
+  Future<ConstellationAnchorDeleteResult> delete({
+    required ConstellationAnchorTarget target,
+  });
+}
+
+class ConstellationAnchorUpsertResult {
+  const ConstellationAnchorUpsertResult({
+    required this.anchor,
+    required this.revision,
+  });
+  final ConstellationAnchor anchor;
+  final ConstellationAnchorRevision revision;
+}
+
+class ConstellationAnchorDeleteResult {
+  const ConstellationAnchorDeleteResult({
+    required this.target,
+    required this.revision,
+  });
+  final ConstellationAnchorTarget target;
+  final ConstellationAnchorRevision revision;
 }

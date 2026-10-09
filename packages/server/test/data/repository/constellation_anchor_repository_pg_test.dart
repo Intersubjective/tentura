@@ -11,10 +11,12 @@ import 'package:tentura_server/consts/constellation_consts.dart';
 import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/data/database/tentura_db.dart' hide ConstellationAnchor;
 import 'package:tentura_server/data/repository/constellation_anchor_repository.dart';
+import 'package:tentura_server/data/database/postgres_serialization_retry.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
 import '../database/constellation_anchor_pg_retry_probe.dart';
 
+import '../../support/constellation_anchor_batch_fixture.dart';
 import '../../support/disposable_pg_target.dart';
 
 Future<void> main() async {
@@ -103,8 +105,8 @@ ON CONFLICT (subject, object) DO UPDATE SET amount = EXCLUDED.amount
 
       db1 = TenturaDb(target.databaseEnv);
       db2 = TenturaDb(target.databaseEnv);
-      repo1 = ConstellationAnchorRepository(db1);
-      repo2 = ConstellationAnchorRepository(db2);
+      repo1 = constellationAnchorRepositoryFor(db1);
+      repo2 = constellationAnchorRepositoryFor(db2);
     });
 
     setUp(() async {
@@ -136,13 +138,13 @@ ON CONFLICT (id) DO NOTHING
 
     test('same-target concurrent upserts settle with last-write-wins ordering', () async {
       final results = await Future.wait([
-        repo1.upsertAnchor(
+        repo1.applyAnchorUpsert(
           viewerId: viewer,
         context: kConstellationContext,
           target: ConstellationAnchorTarget.person(person),
           position: pos(1, 1),
         ),
-        repo2.upsertAnchor(
+        repo2.applyAnchorUpsert(
           viewerId: viewer,
         context: kConstellationContext,
           target: ConstellationAnchorTarget.person(person),
@@ -165,13 +167,13 @@ WHERE viewer_id = '$viewer' AND person_id = '$person'
     });
 
     test('delete-vs-move on different targets serializes under one cursor', () async {
-      await repo1.upsertAnchor(
+      await repo1.applyAnchorUpsert(
         viewerId: viewer,
         context: kConstellationContext,
         target: ConstellationAnchorTarget.person(person),
         position: pos(1, 1),
       );
-      await repo1.upsertAnchor(
+      await repo1.applyAnchorUpsert(
         viewerId: viewer,
         context: kConstellationContext,
         target: ConstellationAnchorTarget.beacon(beacon),
@@ -179,11 +181,11 @@ WHERE viewer_id = '$viewer' AND person_id = '$person'
       );
 
       await Future.wait([
-        repo1.deleteAnchor(
+        repo1.applyAnchorDelete(
           viewerId: viewer,
           target: ConstellationAnchorTarget.person(person),
         ),
-        repo2.upsertAnchor(
+        repo2.applyAnchorUpsert(
           viewerId: viewer,
         context: kConstellationContext,
           target: ConstellationAnchorTarget.beacon(beacon),
@@ -206,13 +208,13 @@ WHERE viewer_id = '$viewer' AND beacon_id = '$beacon'
     test(
       'beacon cascade delete concurrent with person upsert completes via retry',
       () async {
-        await repo1.upsertAnchor(
+        await repo1.applyAnchorUpsert(
           viewerId: viewer,
         context: kConstellationContext,
           target: ConstellationAnchorTarget.beacon(beacon),
           position: pos(1, 1),
         );
-        await repo1.upsertAnchor(
+        await repo1.applyAnchorUpsert(
           viewerId: viewer,
         context: kConstellationContext,
           target: ConstellationAnchorTarget.person(person),
@@ -221,7 +223,7 @@ WHERE viewer_id = '$viewer' AND beacon_id = '$beacon'
 
         await Future.wait([
           writer.execute("DELETE FROM public.beacon WHERE id = '$beacon'"),
-          repo2.upsertAnchor(
+          repo2.applyAnchorUpsert(
             viewerId: viewer,
         context: kConstellationContext,
             target: ConstellationAnchorTarget.person(person),
@@ -257,19 +259,19 @@ VALUES ('$viewer', '$extraPerson', 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:
        ('$extraPerson', '$viewer', 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
 ON CONFLICT (subject, object) DO UPDATE SET amount = EXCLUDED.amount
 ''');
-        await repo1.upsertAnchor(
+        await repo1.applyAnchorUpsert(
           viewerId: viewer,
         context: kConstellationContext,
           target: ConstellationAnchorTarget.person(person),
           position: pos(1, 1),
         );
-        await repo1.upsertAnchor(
+        await repo1.applyAnchorUpsert(
           viewerId: viewer,
         context: kConstellationContext,
           target: ConstellationAnchorTarget.beacon(beacon),
           position: pos(1, 1),
         );
-        await repo1.upsertAnchor(
+        await repo1.applyAnchorUpsert(
           viewerId: viewer,
         context: kConstellationContext,
           target: ConstellationAnchorTarget.person(extraPerson),
@@ -280,7 +282,7 @@ ON CONFLICT (subject, object) DO UPDATE SET amount = EXCLUDED.amount
           writer.execute(
             "DELETE FROM public.\"user\" WHERE id = '$extraPerson'",
           ),
-          repo2.upsertAnchor(
+          repo2.applyAnchorUpsert(
             viewerId: viewer,
         context: kConstellationContext,
             target: ConstellationAnchorTarget.beacon(beacon),
@@ -305,7 +307,7 @@ WHERE viewer_id = '$viewer' AND person_id = '$extraPerson'
     test(
       'repository upsert retries once after SQLSTATE 40P01 post-mutation rollback',
       () async {
-        await repo1.upsertAnchor(
+        await repo1.applyAnchorUpsert(
           viewerId: viewer,
         context: kConstellationContext,
           target: ConstellationAnchorTarget.person(person),
@@ -319,7 +321,7 @@ WHERE viewer_id = '$viewer' AND person_id = '$extraPerson'
         );
         await resetConstellationAnchorDeadlockProbe(writer);
 
-        final result = await repo2.upsertAnchor(
+        final result = await repo2.applyAnchorUpsert(
           viewerId: viewer,
         context: kConstellationContext,
           target: ConstellationAnchorTarget.person(person),
@@ -343,7 +345,7 @@ WHERE viewer_id = '$viewer' AND person_id = '$extraPerson'
     test(
       'repository upsert retry exhaustion surfaces 40P01 with no partial commit',
       () async {
-        await repo1.upsertAnchor(
+        await repo1.applyAnchorUpsert(
           viewerId: viewer,
         context: kConstellationContext,
           target: ConstellationAnchorTarget.person(person),
@@ -358,7 +360,7 @@ WHERE viewer_id = '$viewer' AND person_id = '$extraPerson'
         await resetConstellationAnchorDeadlockProbe(writer);
 
         await expectLater(
-          repo2.upsertAnchor(
+          repo2.applyAnchorUpsert(
             viewerId: viewer,
         context: kConstellationContext,
             target: ConstellationAnchorTarget.person(person),
@@ -366,14 +368,19 @@ WHERE viewer_id = '$viewer' AND person_id = '$extraPerson'
           ),
           throwsA(
             predicate<Object>(
-              (e) => isServerExceptionSqlState(e, '40P01'),
+              // The batch path retries up to its attempt/deadline budget, then
+              // surfaces either the last 40P01 or the deadline wrapper of it.
+              (e) => isServerExceptionSqlState(
+                e is PostgresRetryDeadlineExceededException ? e.cause as Object : e,
+                '40P01',
+              ),
             ),
           ),
         );
 
         expect(
           await readConstellationAnchorDeadlockProbeMutationSeq(writer),
-          2,
+          greaterThanOrEqualTo(2),
         );
         final row = await writer.execute('''
 SELECT x_units::float8, revision::bigint
@@ -397,7 +404,7 @@ WHERE viewer_id = '$viewer' AND person_id = '$person'
     test(
       'repository deleteAnchor retries once after SQLSTATE 40P01 on row delete',
       () async {
-        await repo1.upsertAnchor(
+        await repo1.applyAnchorUpsert(
           viewerId: viewer,
         context: kConstellationContext,
           target: ConstellationAnchorTarget.beacon(beacon),
@@ -411,7 +418,7 @@ WHERE viewer_id = '$viewer' AND person_id = '$person'
         );
         await resetConstellationAnchorDeadlockProbe(writer);
 
-        await repo2.deleteAnchor(
+        await repo2.applyAnchorDelete(
           viewerId: viewer,
           target: ConstellationAnchorTarget.beacon(beacon),
         );

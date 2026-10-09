@@ -1,4 +1,4 @@
-@Tags(['pg'])
+@Tags(['pg', 'mr'])
 library;
 
 import 'dart:async';
@@ -12,6 +12,7 @@ import 'package:tentura_server/data/database/tentura_db.dart'
     hide ConstellationAnchor;
 import 'package:tentura_server/data/repository/constellation_anchor_repository.dart';
 
+import '../../support/constellation_anchor_batch_fixture.dart';
 import '../../support/disposable_pg_target.dart';
 
 /// Constellation anchor realtime hints are emitted by deferred constraint
@@ -108,7 +109,10 @@ VALUES
     );
 
     setUpAll(() async {
-      session = await setUpDisposablePgWriter(target: target);
+      session = await setUpDisposablePgWriter(
+        target: target,
+        createPgmer2Extension: true,
+      );
       writer = session.writer;
 
       Future<void> user(String id) => writer.execute('''
@@ -183,7 +187,7 @@ $$
       await settle();
 
       db = TenturaDb(target.databaseEnv);
-      repo = ConstellationAnchorRepository(db);
+      repo = constellationAnchorRepositoryFor(db);
     });
 
     setUp(() async {
@@ -269,7 +273,7 @@ WHERE viewer_id = '$viewer' AND beacon_id = '$beacon'
       () async {
         final before = await cursorRevision(viewer);
 
-        final result = await repo.deleteAnchor(
+        final result = await repo.applyAnchorDelete(
           viewerId: viewer,
           target: ConstellationAnchorTarget.person(person),
         );

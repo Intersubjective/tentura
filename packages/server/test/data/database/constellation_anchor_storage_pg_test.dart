@@ -14,6 +14,7 @@ import 'package:tentura_server/data/repository/constellation_anchor_repository.d
 import 'package:tentura_server/data/repository/read_snapshot_unit_of_work.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
+import '../../support/constellation_anchor_batch_fixture.dart';
 import '../../support/disposable_pg_target.dart';
 
 Future<void> main() async {
@@ -124,7 +125,7 @@ ON CONFLICT (id) DO NOTHING
       notifications.clear();
 
       db = openDisposablePgDatabase(target);
-      repository = ConstellationAnchorRepository(db);
+      repository = constellationAnchorRepositoryFor(db);
       readSnapshots = ReadSnapshotUnitOfWork(db);
 
       for (final id in [viewerA, viewerB, personP, personQ]) {
@@ -242,13 +243,13 @@ INSERT INTO public.constellation_anchor (
 
     test('owner isolation: viewers do not share anchor rows', () async {
       final p = pos(1, 1);
-      await repository.upsertAnchor(
+      await repository.applyAnchorUpsert(
         viewerId: viewerA,
         context: kConstellationContext,
         target: ConstellationAnchorTarget.person(personP),
         position: p,
       );
-      await repository.upsertAnchor(
+      await repository.applyAnchorUpsert(
         viewerId: viewerB,
         context: kConstellationContext,
         target: ConstellationAnchorTarget.person(personP),
@@ -266,7 +267,7 @@ WHERE person_id = '$personP' ORDER BY viewer_id
     test(
       'upsert move preserves anchor id and bumps account revision monotonically',
       () async {
-        await repository.upsertAnchor(
+        await repository.applyAnchorUpsert(
           viewerId: viewerA,
         context: kConstellationContext,
           target: ConstellationAnchorTarget.person(personP),
@@ -278,7 +279,7 @@ WHERE viewer_id = '$viewerA' AND person_id = '$personP'
 ''');
         final anchorId = idAfterInsert.single.single as String;
         notifications.clear();
-        final second = await repository.upsertAnchor(
+        final second = await repository.applyAnchorUpsert(
           viewerId: viewerA,
         context: kConstellationContext,
           target: ConstellationAnchorTarget.person(personP),
@@ -300,19 +301,19 @@ WHERE viewer_id = '$viewerA' AND person_id = '$personP'
     );
 
     test('placed_at is strictly increasing across rapid moves', () async {
-      final a = await repository.upsertAnchor(
+      final a = await repository.applyAnchorUpsert(
         viewerId: viewerA,
         context: kConstellationContext,
         target: ConstellationAnchorTarget.person(personP),
         position: pos(1, 1),
       );
-      final b = await repository.upsertAnchor(
+      final b = await repository.applyAnchorUpsert(
         viewerId: viewerA,
         context: kConstellationContext,
         target: ConstellationAnchorTarget.person(personQ),
         position: pos(2, 2),
       );
-      final c = await repository.upsertAnchor(
+      final c = await repository.applyAnchorUpsert(
         viewerId: viewerA,
         context: kConstellationContext,
         target: ConstellationAnchorTarget.person(personP),
@@ -324,14 +325,14 @@ WHERE viewer_id = '$viewerA' AND person_id = '$personP'
     });
 
     test('delete existing row emits one canonical update notification', () async {
-      await repository.upsertAnchor(
+      await repository.applyAnchorUpsert(
         viewerId: viewerA,
         context: kConstellationContext,
         target: ConstellationAnchorTarget.person(personP),
         position: pos(1, 1),
       );
       await clearAfterDelivery();
-      await repository.deleteAnchor(
+      await repository.applyAnchorDelete(
         viewerId: viewerA,
         target: ConstellationAnchorTarget.person(personP),
       );
@@ -346,7 +347,7 @@ WHERE viewer_id = '$viewerA' AND person_id = '$personP'
       final before = await repository.readWatermark(viewerA);
       expect(before.value, BigInt.zero);
       notifications.clear();
-      final result = await repository.deleteAnchor(
+      final result = await repository.applyAnchorDelete(
         viewerId: viewerA,
         target: ConstellationAnchorTarget.person(personP),
       );
@@ -360,7 +361,7 @@ SELECT count(*)::int FROM public.constellation_anchor WHERE viewer_id = '$viewer
     });
 
     test('aborted transaction emits no notification and rolls back cursor', () async {
-      await repository.upsertAnchor(
+      await repository.applyAnchorUpsert(
         viewerId: viewerA,
         context: kConstellationContext,
         target: ConstellationAnchorTarget.person(personP),
@@ -395,7 +396,7 @@ WHERE viewer_id = '$viewerA' AND person_id = '$personP'
     });
 
     test('target beacon cascade removes anchor without double cursor bump', () async {
-      await repository.upsertAnchor(
+      await repository.applyAnchorUpsert(
         viewerId: viewerA,
         context: kConstellationContext,
         target: ConstellationAnchorTarget.beacon(beaconB),
@@ -416,7 +417,7 @@ SELECT count(*)::int FROM public.constellation_anchor WHERE viewer_id = '$viewer
     });
 
     test('target person cascade removes anchor without double cursor bump', () async {
-      await repository.upsertAnchor(
+      await repository.applyAnchorUpsert(
         viewerId: viewerA,
         context: kConstellationContext,
         target: ConstellationAnchorTarget.person(personQ),
@@ -437,7 +438,7 @@ SELECT count(*)::int FROM public.constellation_anchor WHERE viewer_id = '$viewer
     });
 
     test('viewer delete removes cursor and anchors without recreate', () async {
-      await repository.upsertAnchor(
+      await repository.applyAnchorUpsert(
         viewerId: viewerB,
         context: kConstellationContext,
         target: ConstellationAnchorTarget.person(personP),
@@ -459,7 +460,7 @@ SELECT count(*)::int FROM public.constellation_anchor WHERE viewer_id = '$viewer
     test(
       'anchor row delete with cursor already removed emits no notification',
       () async {
-        await repository.upsertAnchor(
+        await repository.applyAnchorUpsert(
           viewerId: viewerA,
         context: kConstellationContext,
           target: ConstellationAnchorTarget.person(personP),
@@ -483,13 +484,13 @@ WHERE viewer_id = '$viewerA' AND person_id = '$personP'
       () async {
         const extraBeacon = 'Bcaanchorbeac02';
         await seedBeacon(extraBeacon, personQ);
-        await repository.upsertAnchor(
+        await repository.applyAnchorUpsert(
           viewerId: viewerA,
         context: kConstellationContext,
           target: ConstellationAnchorTarget.person(personP),
           position: pos(1, 1),
         );
-        await repository.upsertAnchor(
+        await repository.applyAnchorUpsert(
           viewerId: viewerA,
         context: kConstellationContext,
           target: ConstellationAnchorTarget.beacon(extraBeacon),

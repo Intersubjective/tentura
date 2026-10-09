@@ -91,13 +91,10 @@ void main() {
       );
     });
 
-    test('keeps the single-anchor mutations until they are retired', () {
+    test('exposes only the batch mutation', () {
       expect(
         mutation.all.map((f) => f.name),
-        containsAll([
-          'constellationAnchorUpsert',
-          'constellationAnchorDelete',
-        ]),
+        orderedEquals(['constellationAnchorsApply']),
       );
     });
   });
@@ -431,20 +428,6 @@ final class _RecordingBatchRepository
       ),
     );
   }
-
-  @override
-  Future<ConstellationAnchorUpsertResult> upsertAnchor({
-    required String viewerId,
-    required String context,
-    required ConstellationAnchorTarget target,
-    required ConstellationAnchorPosition position,
-  }) => throw StateError('The batch mutation must not call single upsert');
-
-  @override
-  Future<ConstellationAnchorDeleteResult> deleteAnchor({
-    required String viewerId,
-    required ConstellationAnchorTarget target,
-  }) => throw StateError('The batch mutation must not call single delete');
 
   @override
   Future<ConstellationAnchorRevision> readWatermark(String viewerId) async =>

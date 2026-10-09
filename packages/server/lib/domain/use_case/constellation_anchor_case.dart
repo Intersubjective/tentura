@@ -1,5 +1,4 @@
 import 'package:injectable/injectable.dart';
-import 'package:tentura_server/consts/constellation_consts.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
@@ -88,7 +87,8 @@ final class ConstellationAnchorCase extends UseCaseBase {
       clientOpId: clientOpId,
       kind: kind.single,
       target: target,
-      position: xUnits == null || yUnits == null || coordinateSpaceVersion == null
+      position:
+          xUnits == null || yUnits == null || coordinateSpaceVersion == null
           ? null
           : _parsePosition(
               xUnits: xUnits,
@@ -96,48 +96,6 @@ final class ConstellationAnchorCase extends UseCaseBase {
               coordinateSpaceVersion: coordinateSpaceVersion,
             ),
       ifRevision: ifRevision,
-    );
-  }
-
-  Future<ConstellationAnchorUpsertResult> upsert({
-    required String viewerId,
-    required String targetKindWire,
-    required String targetId,
-    required double xUnits,
-    required double yUnits,
-    required int coordinateSpaceVersion,
-  }) {
-    final target = _parseTarget(
-      viewerId: viewerId,
-      targetKindWire: targetKindWire,
-      targetId: targetId,
-    );
-    final position = _parsePosition(
-      xUnits: xUnits,
-      yUnits: yUnits,
-      coordinateSpaceVersion: coordinateSpaceVersion,
-    );
-    return _repository.upsertAnchor(
-      viewerId: viewerId,
-      context: kConstellationContext,
-      target: target,
-      position: position,
-    );
-  }
-
-  Future<ConstellationAnchorDeleteResult> delete({
-    required String viewerId,
-    required String targetKindWire,
-    required String targetId,
-  }) {
-    final target = _parseTarget(
-      viewerId: viewerId,
-      targetKindWire: targetKindWire,
-      targetId: targetId,
-    );
-    return _repository.deleteAnchor(
-      viewerId: viewerId,
-      target: target,
     );
   }
 

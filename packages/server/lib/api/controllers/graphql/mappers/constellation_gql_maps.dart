@@ -61,21 +61,6 @@ Map<String, dynamic> constellationAnchorToGqlMap(ConstellationAnchor anchor) =>
       'placedAt': anchor.placedAt.toIso8601String(),
     };
 
-Map<String, dynamic> constellationAnchorUpsertResultToGqlMap(
-  ConstellationAnchorUpsertResult result,
-) => {
-  'anchor': constellationAnchorToGqlMap(result.anchor),
-  'revision': result.watermark.revision.toDecimalString(),
-};
-
-Map<String, dynamic> constellationAnchorDeleteResultToGqlMap(
-  ConstellationAnchorDeleteResult result,
-) => {
-  'targetKind': result.target.kind.wireValue,
-  'targetId': result.target.id,
-  'revision': result.watermark.revision.toDecimalString(),
-};
-
 Map<String, dynamic> constellationAnchorsApplyResultToGqlMap(
   AnchorApplyBatchResult result,
 ) => {

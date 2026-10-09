@@ -95,24 +95,25 @@ void main() {
         constellationFieldCase: fieldCase,
       ).constellationField;
       final argNames = field.inputs.map((i) => i.name).toSet();
-      expect(argNames, containsAll(['showClosed', 'participatedOnly', 'projection']));
+      expect(
+        argNames,
+        containsAll(['showClosed', 'participatedOnly', 'projection']),
+      );
       expect(argNames, isNot(contains('context')));
 
       final mutationNames = mutation.all.map((f) => f.name).toSet();
       expect(
         mutationNames,
-        containsAll(['constellationAnchorUpsert', 'constellationAnchorDelete']),
+        equals({'constellationAnchorsApply'}),
       );
 
-      final upsert = mutation.constellationAnchorUpsert;
+      final apply = mutation.constellationAnchorsApply;
       expect(
-        upsert.inputs.map((i) => i.name).toSet(),
+        apply.inputs.map((i) => i.name).toSet(),
         containsAll([
-          'targetKind',
-          'targetId',
-          'xUnits',
-          'yUnits',
-          'coordinateSpaceVersion',
+          'ops',
+          'showClosed',
+          'participatedOnly',
         ]),
       );
       expect(query.all.map((f) => f.name), contains('constellationField'));
@@ -200,8 +201,8 @@ void main() {
     });
 
     test('mutation uses jwt.sub only', () async {
-      anchorRepo.upsertResult = _sampleUpsertResult(peer);
-      await mutation.constellationAnchorUpsert.resolve!(null, {
+      anchorRepo.batchResult = _sampleBatchResult(peer);
+      await _resolveOp(mutation, 'UPSERT', {
         ...auth,
         'viewerId': 'attacker',
         'targetKind': 'PERSON',
@@ -217,7 +218,7 @@ void main() {
   group('domain error codes', () {
     test('ego person upsert is invalidTarget 1700', () {
       expect(
-        () => mutation.constellationAnchorUpsert.resolve!(null, {
+        () => _resolveOp(mutation, 'UPSERT', {
           ...auth,
           'targetKind': 'PERSON',
           'targetId': viewer,
@@ -234,7 +235,7 @@ void main() {
 
     test('empty target id delete is invalidTarget 1700', () {
       expect(
-        () => mutation.constellationAnchorDelete.resolve!(null, {
+        () => _resolveOp(mutation, 'DELETE', {
           ...auth,
           'targetKind': 'PERSON',
           'targetId': '',
@@ -245,7 +246,7 @@ void main() {
 
     test('out of range coordinates are invalidCoordinates 1701', () {
       expect(
-        () => mutation.constellationAnchorUpsert.resolve!(null, {
+        () => _resolveOp(mutation, 'UPSERT', {
           ...auth,
           'targetKind': 'PERSON',
           'targetId': peer,
@@ -259,7 +260,7 @@ void main() {
 
     test('unsupported coordinate space is 1702', () {
       expect(
-        () => mutation.constellationAnchorUpsert.resolve!(null, {
+        () => _resolveOp(mutation, 'UPSERT', {
           ...auth,
           'targetKind': 'PERSON',
           'targetId': peer,
@@ -276,7 +277,7 @@ void main() {
         constellationCode: ConstellationExceptionCode.targetUnavailable,
       );
       await expectLater(
-        mutation.constellationAnchorUpsert.resolve!(null, {
+        _resolveOp(mutation, 'UPSERT', {
           ...auth,
           'targetKind': 'PERSON',
           'targetId': peer,
@@ -304,44 +305,46 @@ void main() {
 
   group('mutations', () {
     test('idempotent delete returns target and revision', () async {
-      anchorRepo.deleteResult = ConstellationAnchorDeleteResult(
-        target: ConstellationAnchorTarget.person(peer),
-        watermark: ConstellationAnchorWatermark(
-          ConstellationAnchorRevision(BigInt.from(4)),
-        ),
-      );
+      anchorRepo.batchResult = _sampleBatchResult(peer, delete: true);
       final result =
-          await mutation.constellationAnchorDelete.resolve!(null, {
+          await _resolveOp(mutation, 'DELETE', {
                 ...auth,
                 'targetKind': 'PERSON',
                 'targetId': peer,
               })
               as Map<String, dynamic>;
-      expect(result['targetKind'], 'PERSON');
-      expect(result['targetId'], peer);
-      expect(result['revision'], '4');
+      final opResult = (result['results'] as List).single as Map;
+      expect(opResult['clientOpId'], 'test-op');
+      expect(opResult['status'], 'OK');
+      expect(opResult['resultingTargetRevision'], '4');
+      expect(result['afterRevision'], '4');
     });
 
-    test('upsert returns authoritative anchor and watermark revision', () async {
-      anchorRepo.upsertResult = _sampleUpsertResult(peer);
-      final result =
-          await mutation.constellationAnchorUpsert.resolve!(null, {
-                ...auth,
-                'targetKind': 'PERSON',
-                'targetId': peer,
-                'xUnits': 1.5,
-                'yUnits': -2.0,
-                'coordinateSpaceVersion': kConstellationCoordinateSpaceVersionV1,
-              })
-              as Map<String, dynamic>;
-      final anchor = result['anchor'] as Map<String, dynamic>;
-      expect(anchor['targetKind'], 'PERSON');
-      expect(anchor['targetId'], peer);
-      expect(anchor['xUnits'], 1.5);
-      expect(anchor['yUnits'], -2.0);
-      expect(anchor['revision'], '9');
-      expect(result['revision'], '10');
-    });
+    test(
+      'upsert returns authoritative anchor and watermark revision',
+      () async {
+        anchorRepo.batchResult = _sampleBatchResult(peer);
+        final result =
+            await _resolveOp(mutation, 'UPSERT', {
+                  ...auth,
+                  'targetKind': 'PERSON',
+                  'targetId': peer,
+                  'xUnits': 1.5,
+                  'yUnits': -2.0,
+                  'coordinateSpaceVersion':
+                      kConstellationCoordinateSpaceVersionV1,
+                })
+                as Map<String, dynamic>;
+        final projection = result['anchorProjection'] as Map<String, dynamic>;
+        final anchor = (projection['anchors'] as List).single as Map;
+        expect(anchor['targetKind'], 'PERSON');
+        expect(anchor['targetId'], peer);
+        expect(anchor['xUnits'], 1.5);
+        expect(anchor['yUnits'], -2.0);
+        expect(anchor['revision'], '9');
+        expect(result['afterRevision'], '10');
+      },
+    );
   });
 }
 
@@ -355,27 +358,76 @@ ConstellationFieldSnapshot _emptySnapshot() => ConstellationFieldSnapshot(
   requestsCapped: false,
 );
 
-ConstellationAnchorUpsertResult _sampleUpsertResult(String peerId) =>
-    ConstellationAnchorUpsertResult(
-      anchor: ConstellationAnchor(
-        target: ConstellationAnchorTarget.person(peerId),
-        position: const ConstellationAnchorPosition(
-          xUnits: 1.5,
-          yUnits: -2,
-          coordinateSpaceVersion: kConstellationCoordinateSpaceVersionV1,
-        ),
-        revision: ConstellationAnchorRevision(BigInt.from(9)),
-        placedAt: DateTime.utc(2026, 1, 2),
-      ),
-      watermark: ConstellationAnchorWatermark(
-        ConstellationAnchorRevision(BigInt.from(10)),
-      ),
-    );
+dynamic _resolveOp(
+  MutationConstellationAnchor mutation,
+  String kind,
+  Map<String, dynamic> args,
+) => mutation.constellationAnchorsApply.resolve!(null, {
+  ...args,
+  'showClosed': false,
+  'participatedOnly': false,
+  'ops': [
+    {
+      'clientOpId': 'test-op',
+      'kind': kind,
+      'targetKind': args['targetKind'],
+      'targetId': args['targetId'],
+      if (kind == 'UPSERT')
+        'position': {
+          'xUnits': args['xUnits'],
+          'yUnits': args['yUnits'],
+          'coordinateSpaceVersion': args['coordinateSpaceVersion'],
+        },
+    },
+  ],
+});
 
-final class _RecordingAnchorRepository implements ConstellationAnchorRepositoryPort {
+AnchorApplyBatchResult _sampleBatchResult(
+  String peerId, {
+  bool delete = false,
+}) {
+  final revision = ConstellationAnchorRevision(BigInt.from(delete ? 4 : 10));
+  return AnchorApplyBatchResult(
+    beforeRevision: ConstellationAnchorRevision.zero,
+    afterRevision: revision,
+    results: [
+      AnchorApplyOpResult(
+        clientOpId: 'test-op',
+        status: AnchorOpStatus.ok,
+        resultingTargetRevision: delete
+            ? revision
+            : ConstellationAnchorRevision(BigInt.from(9)),
+      ),
+    ],
+    projection: ConstellationAnchorProjection(
+      revision: revision,
+      anchors: [
+        if (!delete)
+          ConstellationAnchor(
+            target: ConstellationAnchorTarget.person(peerId),
+            position: const ConstellationAnchorPosition(
+              xUnits: 1.5,
+              yUnits: -2,
+              coordinateSpaceVersion: kConstellationCoordinateSpaceVersionV1,
+            ),
+            revision: ConstellationAnchorRevision(BigInt.from(9)),
+            placedAt: DateTime.utc(2026, 1, 2),
+          ),
+      ],
+      pinnedPeers: const [],
+      pinnedRequests: const [],
+      supportPeers: const [],
+      supportEdges: const [],
+      serverFilteredBeaconIds: const [],
+      serverFilteredBeaconCount: 0,
+    ),
+  );
+}
+
+final class _RecordingAnchorRepository
+    implements ConstellationAnchorRepositoryPort {
   String? lastUpsertViewerId;
-  ConstellationAnchorUpsertResult? upsertResult;
-  ConstellationAnchorDeleteResult? deleteResult;
+  AnchorApplyBatchResult? batchResult;
   Object? upsertError;
 
   @override
@@ -383,35 +435,19 @@ final class _RecordingAnchorRepository implements ConstellationAnchorRepositoryP
     required String viewerId,
     required List<AnchorApplyOp> ops,
     required AnchorApplyParams params,
-  }) => throw StateError('Legacy mutations must not call the batch API');
-
-  @override
-  Future<ConstellationAnchorUpsertResult> upsertAnchor({
-    required String viewerId,
-    required String context,
-    required ConstellationAnchorTarget target,
-    required ConstellationAnchorPosition position,
   }) async {
     lastUpsertViewerId = viewerId;
-    if (upsertError != null) {
-      throw upsertError!;
-    }
-    return upsertResult!;
+    if (upsertError != null) throw upsertError!;
+    return batchResult!;
   }
-
-  @override
-  Future<ConstellationAnchorDeleteResult> deleteAnchor({
-    required String viewerId,
-    required ConstellationAnchorTarget target,
-  }) async =>
-      deleteResult!;
 
   @override
   Future<ConstellationAnchorRevision> readWatermark(String viewerId) async =>
       ConstellationAnchorRevision.zero;
 }
 
-final class _RecordingFieldRepository implements ConstellationFieldRepositoryPort {
+final class _RecordingFieldRepository
+    implements ConstellationFieldRepositoryPort {
   ConstellationFieldSnapshot? snapshot;
   String? lastViewerId;
   ConstellationProjection? lastProjection;
@@ -434,34 +470,29 @@ final class _RecordingFieldRepository implements ConstellationFieldRepositoryPor
     required String viewerId,
     required String context,
     required int cap,
-  }) async =>
-      (ids: <String>{}, capped: false);
+  }) async => (ids: <String>{}, capped: false);
 
   @override
   Future<List<ConstellationEdgeRecord>> trustEdges({
     required String viewerId,
     required String context,
     required Set<String> nodeIds,
-  }) async =>
-      const [];
+  }) async => const [];
 
   @override
   Future<List<ConstellationRequestRecord>> ownRequests({
     required String viewerId,
-  }) async =>
-      const [];
+  }) async => const [];
 
   @override
   Future<List<ConstellationRequestRecord>> discoverableRequests({
     required String viewerId,
     required String context,
     required int cap,
-  }) async =>
-      const [];
+  }) async => const [];
 
   @override
   Future<List<ConstellationPeerRecord>> peerProfiles({
     required Set<String> ids,
-  }) async =>
-      const [];
+  }) async => const [];
 }

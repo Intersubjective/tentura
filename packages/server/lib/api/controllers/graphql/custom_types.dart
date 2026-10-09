@@ -35,8 +35,6 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlEnumConstellationAnchorTargetKind,
   gqlTypeConstellationAnchor,
   gqlTypeConstellationAnchorProjection,
-  gqlTypeConstellationAnchorUpsertResult,
-  gqlTypeConstellationAnchorDeleteResult,
   gqlEnumConstellationAnchorOpKind,
   gqlEnumConstellationAnchorOpStatus,
   gqlInputConstellationAnchorPosition,
@@ -993,30 +991,6 @@ final gqlTypeConstellationAnchorProjection =
           GraphQLListType(graphQLString.nonNullable()).nonNullable(),
         ),
         field('serverFilteredBeaconCount', graphQLInt.nonNullable()),
-      ]);
-
-final gqlTypeConstellationAnchorUpsertResult =
-    GraphQLObjectType(
-        'ConstellationAnchorUpsertResult',
-        null,
-      )
-      ..fields.addAll([
-        field('anchor', gqlTypeConstellationAnchor.nonNullable()),
-        field('revision', graphQLString.nonNullable()),
-      ]);
-
-final gqlTypeConstellationAnchorDeleteResult =
-    GraphQLObjectType(
-        'ConstellationAnchorDeleteResult',
-        null,
-      )
-      ..fields.addAll([
-        field(
-          'targetKind',
-          gqlEnumConstellationAnchorTargetKind.nonNullable(),
-        ),
-        field('targetId', graphQLString.nonNullable()),
-        field('revision', graphQLString.nonNullable()),
       ]);
 
 final gqlEnumConstellationAnchorOpKind = enumTypeFromStrings(

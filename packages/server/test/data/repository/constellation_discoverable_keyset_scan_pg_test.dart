@@ -17,6 +17,7 @@ import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart'
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 
+import '../../support/constellation_anchor_batch_fixture.dart';
 import '../../support/constellation_profiles_from_public_records.dart';
 import '../../support/disposable_pg_target.dart';
 
@@ -229,7 +230,7 @@ $$
     writer = session.writer;
     db = openDisposablePgDatabase(target);
     repository = ConstellationFieldRepository(db, _PgProfileLookup(db));
-    anchorRepository = ConstellationAnchorRepository(db);
+    anchorRepository = constellationAnchorRepositoryFor(db);
     await installReadabilityProbe();
   });
 
@@ -454,7 +455,7 @@ $$
         'not use up a cap slot', () async {
       await insertPeer('Ucdkauth01');
       await insertRequests(author: 'Ucdkauth01', tag: 'a', count: cap + 1);
-      await anchorRepository.upsertAnchor(
+      await anchorRepository.applyAnchorUpsert(
         viewerId: viewer,
         context: ctx,
         target: ConstellationAnchorTarget.beacon('Ba0001'),

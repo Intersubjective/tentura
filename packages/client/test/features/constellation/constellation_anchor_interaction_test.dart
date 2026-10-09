@@ -29,6 +29,7 @@ import 'package:tentura/ui/test_ids.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
 
+import '../../support/constellation_apply_via_writes.dart';
 import '../../support/constellation_store_fixture.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../support/fake_clock_port.dart';
@@ -103,7 +104,7 @@ final class _HarnessFieldRepository implements ConstellationRepositoryPort {
 }
 
 final class _HarnessAnchorRepository
-    implements ConstellationAnchorRepositoryPort {
+    implements ConstellationWriteFake {
   int upsertCount = 0;
   int deleteCount = 0;
   ConstellationAnchorPosition? lastPosition;

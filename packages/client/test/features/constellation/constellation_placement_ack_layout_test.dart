@@ -11,6 +11,7 @@ import 'package:tentura/features/constellation/domain/use_case/constellation_pla
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
+import '../../support/constellation_apply_via_writes.dart';
 import '../../support/constellation_store_fixture.dart';
 import '../../support/fake_clock_port.dart';
 import '../../support/fake_wake_up_port.dart';
@@ -49,7 +50,7 @@ final class _FieldRepository implements ConstellationRepositoryPort {
 }
 
 /// Holds every apply until the test acknowledges it, like a slow server.
-final class _AnchorRepository implements ConstellationAnchorRepositoryPort {
+final class _AnchorRepository implements ConstellationWriteFake {
   _AnchorRepository(this._confirmedBase);
 
   final ConstellationAnchorProjection _confirmedBase;

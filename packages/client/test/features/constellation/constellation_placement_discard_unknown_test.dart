@@ -12,6 +12,7 @@ import 'package:tentura/features/constellation/domain/use_case/constellation_fie
 import 'package:tentura/features/constellation/domain/use_case/constellation_placement_case.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
+import '../../support/constellation_apply_via_writes.dart';
 import '../../support/constellation_store_fixture.dart';
 import '../../support/fake_clock_port.dart';
 import '../../support/fake_wake_up_port.dart';
@@ -74,7 +75,7 @@ final class _ApplyCall {
 }
 
 /// Holds every response until the test settles or fails the call.
-final class _AnchorRepository implements ConstellationAnchorRepositoryPort {
+final class _AnchorRepository implements ConstellationWriteFake {
   final calls = <_ApplyCall>[];
   final confirmed = <ConstellationAnchorTarget, ConstellationAnchor>{};
   int revision = 0;

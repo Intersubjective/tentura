@@ -16,6 +16,7 @@ import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart'
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 
+import '../../support/constellation_anchor_batch_fixture.dart';
 import '../../support/constellation_profiles_from_public_records.dart';
 import '../../support/disposable_pg_target.dart';
 
@@ -109,7 +110,7 @@ VALUES ('$beaconId', '$viewer', 'offer', 0, '2026-01-01T00:00:00Z', '2026-01-01T
 ON CONFLICT (beacon_id, user_id) DO NOTHING
 ''');
 
-  Future<void> pinBeacon(String id, double x) => anchorRepository.upsertAnchor(
+  Future<void> pinBeacon(String id, double x) => anchorRepository.applyAnchorUpsert(
     viewerId: viewer,
     context: ctx,
     target: ConstellationAnchorTarget.beacon(id),
@@ -193,7 +194,7 @@ $$
     db = openDisposablePgDatabase(target);
     profiles = _RecordingProfileLookup(db);
     fieldRepository = ConstellationFieldRepository(db, profiles);
-    anchorRepository = ConstellationAnchorRepository(db);
+    anchorRepository = constellationAnchorRepositoryFor(db);
 
     await restoreReadabilityFunction();
     await writer.execute(

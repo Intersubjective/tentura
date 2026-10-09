@@ -16,6 +16,7 @@ import 'package:tentura/features/constellation/domain/use_case/constellation_pla
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
+import '../../support/constellation_apply_via_writes.dart';
 import '../../support/constellation_store_fixture.dart';
 import '../../support/fake_clock_port.dart';
 import '../../support/fake_wake_up_port.dart';
@@ -53,7 +54,7 @@ final class _FieldRepository implements ConstellationRepositoryPort {
 
 /// A server that answers only when told to: every write stays in flight until
 /// [acknowledgeAll].
-final class _HeldAnchorRepository implements ConstellationAnchorRepositoryPort {
+final class _HeldAnchorRepository implements ConstellationWriteFake {
   final applyCalls = <List<ConstellationAnchorApplyOp>>[];
   final _replies = <Completer<ConstellationAnchorApplyResult>>[];
 

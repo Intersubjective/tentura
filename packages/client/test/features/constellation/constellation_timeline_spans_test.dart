@@ -25,7 +25,7 @@ import '../../support/constellation_store_fixture.dart';
 import '../../support/fake_clock_port.dart';
 import '../../support/fake_wake_up_port.dart';
 
-final class _Anchors implements ConstellationAnchorRepositoryPort {
+final class _Anchors implements ConstellationWriteFake {
   final ack = Completer<void>();
   ConstellationAnchor? anchor;
 

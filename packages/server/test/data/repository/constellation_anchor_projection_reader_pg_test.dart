@@ -16,6 +16,7 @@ import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart'
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 
+import '../../support/constellation_anchor_batch_fixture.dart';
 import '../../support/constellation_profiles_from_public_records.dart';
 import '../../support/disposable_pg_target.dart';
 
@@ -82,7 +83,7 @@ ON CONFLICT (beacon_id, user_id) DO NOTHING
 ''');
 
   Future<void> pin(ConstellationAnchorTarget target, double x, double y) =>
-      anchorRepository.upsertAnchor(
+      anchorRepository.applyAnchorUpsert(
         viewerId: viewer,
         context: ctx,
         target: target,
@@ -141,7 +142,7 @@ ON CONFLICT (beacon_id, user_id) DO NOTHING
     db = openDisposablePgDatabase(target);
     final profiles = _PgProfileLookup(db);
     fieldRepository = ConstellationFieldRepository(db, profiles);
-    anchorRepository = ConstellationAnchorRepository(db);
+    anchorRepository = constellationAnchorRepositoryFor(db);
     reader = ConstellationAnchorProjectionReader(db, profiles);
   });
 

@@ -17,6 +17,7 @@ import 'package:tentura/features/constellation/domain/use_case/constellation_pla
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 
+import '../../support/constellation_apply_via_writes.dart';
 import '../../support/test_realtime_sync.dart';
 
 import '../../support/constellation_store_fixture.dart';
@@ -115,7 +116,7 @@ final class _HarnessFieldRepository implements ConstellationRepositoryPort {
 }
 
 final class _HarnessAnchorRepository
-    implements ConstellationAnchorRepositoryPort {
+    implements ConstellationWriteFake {
   Completer<void> upsertGate = Completer<void>()..complete();
   Completer<void> deleteGate = Completer<void>()..complete();
   int upsertCount = 0;

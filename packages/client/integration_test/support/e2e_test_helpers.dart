@@ -11,8 +11,7 @@ import 'package:tentura/data/gql/_g/user_subscribe.req.gql.dart';
 import 'package:tentura/features/beacon/data/gql/_g/beacon_create.req.gql.dart';
 import 'package:tentura/features/beacon/data/gql/_g/beacon_delete_by_id.req.gql.dart';
 import 'package:tentura/features/closure/data/gql/_g/beacon_close.req.gql.dart';
-import 'package:tentura/features/constellation/data/gql/_g/constellation_anchor_delete.req.gql.dart';
-import 'package:tentura/features/constellation/data/gql/_g/constellation_anchor_upsert.req.gql.dart';
+import 'package:tentura/features/constellation/data/gql/_g/constellation_anchors_apply.req.gql.dart';
 import 'package:tentura/features/constellation/data/gql/_g/constellation_anchors_fetch.req.gql.dart';
 import 'package:tentura/features/beacon/data/gql/_g/post_publish.req.gql.dart';
 import 'package:tentura/features/beacon_threads/data/gql/_g/participant_room_access.req.gql.dart';
@@ -2025,44 +2024,69 @@ Future<Map<String, dynamic>> upsertConstellationAnchor({
   required double yUnits,
   int coordinateSpaceVersion = 1,
 }) async {
-  final response = await _postGraphQlRequest(
-    GConstellationAnchorUpsertReq(
-      (b) => b.vars
+  final result = await _applyConstellationAnchorOp(
+    Gv2_ConstellationAnchorOpInput((b) {
+      b
+        ..clientOpId = uniqueRunId('anchor-upsert')
+        ..kind = Gv2_ConstellationAnchorOpKind.UPSERT
         ..targetKind = Gv2_ConstellationAnchorTargetKind.valueOf(targetKind)
-        ..targetId = targetId
+        ..targetId = targetId;
+      b.position
         ..xUnits = xUnits
         ..yUnits = yUnits
-        ..coordinateSpaceVersion = coordinateSpaceVersion,
-    ),
+        ..coordinateSpaceVersion = coordinateSpaceVersion;
+    }),
   );
-  final errors = response['errors'];
-  if (errors != null) {
-    throw StateError('constellationAnchorUpsert failed: $errors');
-  }
-  final data = response['data'] as Map<String, dynamic>?;
-  final result = data?['constellationAnchorUpsert'] as Map<String, dynamic>?;
-  final anchor = result?['anchor'] as Map<String, dynamic>?;
-  if (anchor == null) {
-    throw StateError('constellationAnchorUpsert returned no anchor: $response');
-  }
-  return anchor;
+  final projection = result['anchorProjection'] as Map<String, dynamic>;
+  return (projection['anchors'] as List)
+      .cast<Map<String, dynamic>>()
+      .singleWhere(
+        (anchor) =>
+            anchor['targetKind'] == targetKind &&
+            anchor['targetId'] == targetId,
+      );
 }
 
 Future<void> deleteConstellationAnchor({
   required String targetKind,
   required String targetId,
 }) async {
-  final response = await _postGraphQlRequest(
-    GConstellationAnchorDeleteReq(
-      (b) => b.vars
+  await _applyConstellationAnchorOp(
+    Gv2_ConstellationAnchorOpInput(
+      (b) => b
+        ..clientOpId = uniqueRunId('anchor-delete')
+        ..kind = Gv2_ConstellationAnchorOpKind.DELETE
         ..targetKind = Gv2_ConstellationAnchorTargetKind.valueOf(targetKind)
         ..targetId = targetId,
     ),
   );
+}
+
+Future<Map<String, dynamic>> _applyConstellationAnchorOp(
+  Gv2_ConstellationAnchorOpInput op,
+) async {
+  final response = await _postGraphQlRequest(
+    GConstellationAnchorsApplyReq(
+      (b) => b.vars
+        ..ops.replace([op])
+        ..showClosed = false
+        ..participatedOnly = false,
+    ),
+  );
   final errors = response['errors'];
   if (errors != null) {
-    throw StateError('constellationAnchorDelete failed: $errors');
+    throw StateError('constellationAnchorsApply failed: $errors');
   }
+  final data = response['data'] as Map<String, dynamic>?;
+  final result = data?['constellationAnchorsApply'] as Map<String, dynamic>?;
+  if (result == null) {
+    throw StateError('constellationAnchorsApply returned no result: $response');
+  }
+  final opResult = (result['results'] as List).single as Map<String, dynamic>;
+  if (opResult['clientOpId'] != op.clientOpId || opResult['status'] != 'OK') {
+    throw StateError('constellationAnchorsApply rejected operation: $opResult');
+  }
+  return result;
 }
 
 Future<String> createPublishedBeacon({
