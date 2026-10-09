@@ -617,3 +617,11 @@ Extracted `ConstellationSceneController` (`features/constellation/ui/scene/const
 **Tests.** `constellation_scene_controller_test.dart` is a behavioural widget test using the real `GraphController` mounted in a `GraphView`: placement hand-off releases only the handed-off node's token on the terminal outcome; recovery after rebuild releases every active token; a superseded hand-off callback is dropped by the generation guard; a hand-off whose controller closed before the frame never requests layout. No line-count or source-text assertions.
 
 **Verification** (wrapped, serial): the new test 4/4; `test/features/constellation test/features/graph -j 1` 880 passed, 1 skipped (baseline 714 predates U01–U06 additions); `check-custom-lints.sh packages/client` 24 ≤ 24; `check-analyze-baseline.sh packages/client` 2079 ≤ 2085 (baseline left untouched).
+
+## UNIT U08 — complete — 2026-10-09
+
+Extracted `ConstellationInteractionController` (`features/constellation/ui/scene/constellation_interaction_controller.dart`). It owns the drag-cluster state (dragged node id, late-gesture-end suppression, placement cluster graph ids/targets, cluster start centres) and the drag presentation-token updates that previously lived in the scene controller. The scene controller creates it lazily as `scene.interaction`; the cubit keeps its existing drag/placement methods and delegates to it, and no longer declares `_draggingNodeId` or the `_placementCluster*` fields. Pure refactor: no behavior or UI change, no version bump.
+
+**Tests.** No new tests: `constellation_anchor_interaction_test.dart` and `constellation_anchor_cubit_test.dart` pass unchanged. The TDD gate tests that asserted field absence/file layout were removed (layout assertions must not land on main).
+
+**Verification** (wrapped, serial): `constellation_anchor_interaction_test` + `constellation_anchor_cubit_test` 42 passed; `check-custom-lints.sh packages/client` 24 ≤ 24; `check-analyze-baseline.sh packages/client` 2080 ≤ 2085 (baseline lowered to 2080).

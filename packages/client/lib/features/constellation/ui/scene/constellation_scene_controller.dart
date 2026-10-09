@@ -8,7 +8,6 @@ import 'package:tentura/domain/entity/profile.dart';
 import '../../domain/constellation_anchor_composition.dart';
 import '../../domain/constellation_consts.dart';
 import '../../domain/constellation_layout.dart';
-import '../../domain/constellation_drag_cluster.dart';
 import 'package:tentura_root/domain/constellation/constellation_path_resolution.dart';
 import '../../domain/constellation_post_fade.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
@@ -19,6 +18,7 @@ import '../../../graph/ui/utils/graph_scene_ids.dart';
 import '../../../graph/ui/utils/tentura_layout_algorithms.dart';
 import '../utils/constellation_graph_scene.dart';
 import '../util/constellation_perf.dart';
+import 'constellation_interaction_controller.dart';
 
 enum ConstellationEdgeKind {
   tier1Path,
@@ -83,10 +83,6 @@ class ConstellationSceneController {
   Map<String, ConstellationFootprint> layoutFootprints = const {};
 
   Set<GraphNodeId> _placementHandoffGraphIds = {};
-  final Set<GraphNodeId> placementClusterGraphIds = {};
-  final Map<GraphNodeId, ConstellationAnchorTarget> placementClusterTargets =
-      {};
-  final Map<GraphNodeId, Offset> clusterStartCentres = {};
 
   bool awaitingLayoutOutcome = false;
   bool scheduleLayoutRecoveryAfterRebuild = false;
@@ -99,6 +95,9 @@ class ConstellationSceneController {
 
   int _constellationLayoutAlgorithmRevision = -1;
   ConstellationSceneLayoutAlgorithm? _constellationLayoutAlgorithm;
+
+  late final ConstellationInteractionController interaction =
+      ConstellationInteractionController(this);
 
   Set<GraphNodeId> get placementHandoffGraphIds => _placementHandoffGraphIds;
 
@@ -215,7 +214,7 @@ class ConstellationSceneController {
           releaseOnTerminal.add(token);
         }
       }
-      clearPlacementClusterState();
+      interaction.clearPlacementClusterState();
     }
     awaitingLayoutOutcome = true;
     requestLayout(
@@ -717,192 +716,6 @@ class ConstellationSceneController {
     );
   }
 
-  // Drag presentation.
-
-  void clearPlacementClusterState() {
-    placementClusterGraphIds.clear();
-    placementClusterTargets.clear();
-    clusterStartCentres.clear();
-  }
-
-  void clearClusterPresentations() {
-    for (final graphId in placementClusterGraphIds) {
-      graphController.clearPresentationForNodeId(graphId);
-    }
-    clearPlacementClusterState();
-    clearPlacementHandoffGraphIds();
-  }
-
-  void updateDragPresentation(
-    ConstellationAnchorTarget target,
-    Offset sceneCentre,
-  ) {
-    final parentGraphId = constellationGraphNodeIdForTarget(target);
-    if (placementClusterGraphIds.isEmpty) {
-      updateSingleNodePresentation(parentGraphId, sceneCentre);
-      return;
-    }
-    final parentStart = clusterStartCentres[parentGraphId];
-    if (parentStart == null) {
-      return;
-    }
-    final limited = constellationLimitClusterDelta(
-      parentStart: (x: parentStart.dx, y: parentStart.dy),
-      proposedParent: (x: sceneCentre.dx, y: sceneCentre.dy),
-      companionStarts: companionClusterStarts(parentGraphId),
-    );
-    final updates = <GraphPresentationToken, Offset>{};
-    for (final graphId in placementClusterGraphIds) {
-      final start = clusterStartCentres[graphId];
-      if (start == null) {
-        continue;
-      }
-      final centre = Offset(
-        start.dx + limited.x,
-        start.dy + limited.y,
-      );
-      final token = graphController.activePresentationTokenForNode(graphId);
-      if (token != null) {
-        updates[token] = centre;
-      } else {
-        graphController.beginNodePresentationDragForId(graphId, centre);
-      }
-    }
-    if (updates.isNotEmpty) {
-      graphController.updateNodePresentationDrags(updates);
-    }
-  }
-
-  Offset clampClusterDragPosition(
-    ConstellationAnchorTarget? target,
-    NodeDetails node,
-    Offset proposed,
-  ) {
-    if (target == null || placementClusterGraphIds.isEmpty) {
-      return proposed;
-    }
-    final parentGraphId = constellationGraphNodeIdForTarget(target);
-    if (tenturaGraphNodeId(node) != parentGraphId) {
-      return proposed;
-    }
-    final parentStart = clusterStartCentres[parentGraphId];
-    if (parentStart == null) {
-      return proposed;
-    }
-    final limited = constellationLimitClusterDelta(
-      parentStart: (x: parentStart.dx, y: parentStart.dy),
-      proposedParent: (x: proposed.dx, y: proposed.dy),
-      companionStarts: companionClusterStarts(parentGraphId),
-    );
-    return Offset(
-      parentStart.dx + limited.x,
-      parentStart.dy + limited.y,
-    );
-  }
-
-  void beginClusterDragPresentation(
-    ConstellationAnchorTarget target, {
-    required ConstellationField? field,
-    required ConstellationComposedPresentation? composition,
-    required List<ConstellationAnchor> fallbackAnchors,
-  }) {
-    clearPlacementClusterState();
-    _beginDragPresentation(target);
-    final parentGraphId = constellationGraphNodeIdForTarget(target);
-    placementClusterGraphIds.add(parentGraphId);
-    placementClusterTargets[parentGraphId] = target;
-    _recordClusterStartCentre(parentGraphId, fallbackAnchors);
-    if (target.kind == ConstellationAnchorTargetKind.person) {
-      _addPersonDragCompanions(
-        authorId: target.id,
-        field: field,
-        composition: composition,
-        fallbackAnchors: fallbackAnchors,
-      );
-    }
-  }
-
-  void _addPersonDragCompanions({
-    required String authorId,
-    required ConstellationField? field,
-    required ConstellationComposedPresentation? composition,
-    required List<ConstellationAnchor> fallbackAnchors,
-  }) {
-    if (field == null || composition == null) {
-      return;
-    }
-    final pinnedBeaconIds = constellationPinnedBeaconIds(
-      composition.anchorOverlay.anchors,
-    );
-    final satellites = constellationAuthorSatellites(
-      authorId: authorId,
-      fieldRequests: field.requests,
-      overlayPinnedRequests: composition.anchorOverlay.pinnedRequests,
-      pinnedBeaconIds: pinnedBeaconIds,
-    );
-    final onGraphRequestIds = <String>{
-      for (final graphId
-          in graphController.renderSnapshot.topology.nodesById.keys)
-        if (graphId.startsWith('${TenturaGraphNodeKind.fieldRequest}:'))
-          tenturaLayoutDomainId(graphId),
-    };
-    final companionIds = satellites.pinnedIds
-        .intersection(displayedRequestIds)
-        .intersection(onGraphRequestIds);
-    for (final requestId in companionIds) {
-      final companionTarget = ConstellationAnchorTarget.beacon(requestId);
-      final graphId = constellationGraphNodeIdForTarget(companionTarget);
-      if (graphController.nodePayloadForId(graphId) == null) {
-        continue;
-      }
-      placementClusterGraphIds.add(graphId);
-      placementClusterTargets[graphId] = companionTarget;
-      _recordClusterStartCentre(graphId, fallbackAnchors);
-      final start = clusterStartCentres[graphId];
-      if (start != null &&
-          graphController.activePresentationTokenForNode(graphId) == null) {
-        graphController.beginNodePresentationDragForId(graphId, start);
-      }
-    }
-  }
-
-  void _recordClusterStartCentre(
-    GraphNodeId graphId,
-    List<ConstellationAnchor> fallbackAnchors,
-  ) {
-    final point = graphController.renderSnapshot.resolvePosition(graphId);
-    if (point != null) {
-      clusterStartCentres[graphId] = Offset(point.x, point.y);
-      return;
-    }
-    final target = placementClusterTargets[graphId];
-    if (target == null) {
-      return;
-    }
-    for (final anchor in fallbackAnchors) {
-      if (anchor.target != target) {
-        continue;
-      }
-      final fallback = constellationV1AnchorToPoint(anchor.position);
-      clusterStartCentres[graphId] = Offset(fallback.x, fallback.y);
-      return;
-    }
-  }
-
-  Iterable<ConstellationPoint> companionClusterStarts(
-    GraphNodeId parentGraphId,
-  ) sync* {
-    for (final graphId in placementClusterGraphIds) {
-      if (graphId == parentGraphId) {
-        continue;
-      }
-      final start = clusterStartCentres[graphId];
-      if (start != null) {
-        yield (x: start.dx, y: start.dy);
-      }
-    }
-  }
-
   void updateSingleNodePresentation(GraphNodeId graphId, Offset sceneCentre) {
     if (graphController.nodePayloadForId(graphId) == null) {
       return;
@@ -912,24 +725,6 @@ class ConstellationSceneController {
       graphController.updateNodePresentationDrag(token, sceneCentre);
     } else {
       graphController.beginNodePresentationDragForId(graphId, sceneCentre);
-    }
-  }
-
-  void _beginDragPresentation(ConstellationAnchorTarget target) {
-    final graphId = constellationGraphNodeIdForTarget(target);
-    final node = graphController.nodePayloadForId(graphId);
-    if (node == null) {
-      return;
-    }
-    final point = graphController.renderSnapshot.resolvePosition(graphId);
-    if (point == null) {
-      return;
-    }
-    if (graphController.activePresentationTokenForNode(graphId) == null) {
-      graphController.beginNodePresentationDragForId(
-        graphId,
-        Offset(point.x, point.y),
-      );
     }
   }
 
@@ -1041,12 +836,12 @@ class ConstellationSceneController {
       return ConstellationAnchor.comparePaintOrder(anchorA, anchorB);
     });
     final ordered = [...unanchored, ...anchored];
-    if (placementClusterGraphIds.isNotEmpty && dragging) {
+    if (interaction.placementClusterGraphIds.isNotEmpty && dragging) {
       final parentGraphId = activeTarget == null
           ? null
           : constellationGraphNodeIdForTarget(activeTarget);
       final clusterNodes = <NodeDetails>[];
-      for (final graphId in placementClusterGraphIds) {
+      for (final graphId in interaction.placementClusterGraphIds) {
         final domainId = tenturaLayoutDomainId(graphId);
         final node = ordered.where((n) => n.id == domainId).firstOrNull;
         if (node != null) {
