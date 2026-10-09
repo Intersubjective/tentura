@@ -44,6 +44,11 @@ final class ConstellationAnchorProjectionReader {
   ConstellationFieldRepository get _repo =>
       ConstellationFieldRepository(_database, _profiles);
 
+  /// Content readability of every pinned Request this transaction has decided,
+  /// so later queries in the same transaction do not ask
+  /// `beacon_can_read_content` again.
+  final pinnedBeaconReadability = <String, bool>{};
+
   Future<PreparedConstellationAnchors> prepare({
     required String viewerId,
     required String context,
@@ -239,31 +244,35 @@ SELECT
   ca.coordinate_space_version,
   ca.revision::text AS revision,
   ca.placed_at
+${authorize ? ', (b.id IS NOT NULL AND $beaconReadable) AS beacon_readable' : ''}
 FROM public.constellation_anchor ca
 -- Join (not EXISTS): an EXISTS here gets planned as a hashed SubPlan that
 -- runs beacon_can_read_content over every beacon in the table (12s+ on dev).
 ${authorize ? 'LEFT JOIN public.beacon b ON b.id = ca.beacon_id' : ''}
 WHERE ca.viewer_id = \$1
-${authorize ? '''
-  AND (
-    -- Visible peers exclude the viewer and blocks in either direction.
-    ca.person_id = ANY(\$2::text[])
-    OR (
-      b.id IS NOT NULL
-      AND $beaconReadable
-    )
-  )''' : ''}
 ORDER BY ca.placed_at, COALESCE(ca.beacon_id, ca.person_id)
 ''',
-          variables: [
-            Variable.withString(viewerId),
-            if (authorize) Variable(TypedValue(Type.textArray, visiblePeerIds)),
-          ],
+          variables: [Variable.withString(viewerId)],
         )
         .get();
 
+    // Visible peers exclude the viewer and blocks in either direction.
+    final visible = authorize ? visiblePeerIds.toSet() : const <String>{};
+    final authorized = authorize
+        ? [
+            for (final row in rows)
+              if (row.readNullable<String>('person_id') != null
+                  ? visible.contains(row.read<String>('person_id'))
+                  : _rememberReadability(
+                      row.read<String>('beacon_id'),
+                      row.readNullable<bool>('beacon_readable') ?? false,
+                    ))
+                row,
+          ]
+        : rows;
+
     return [
-      for (final row in rows)
+      for (final row in authorized)
         ConstellationAnchor(
           target: row.readNullable<String>('person_id') != null
               ? ConstellationAnchorTarget.person(
@@ -286,6 +295,9 @@ ORDER BY ca.placed_at, COALESCE(ca.beacon_id, ca.person_id)
         ),
     ];
   }
+
+  bool _rememberReadability(String beaconId, bool readable) =>
+      pinnedBeaconReadability[beaconId] = readable;
 
   Future<ConstellationAnchorProjection> _buildAnchorProjection({
     required String viewerId,
@@ -327,6 +339,9 @@ ORDER BY ca.placed_at, COALESCE(ca.beacon_id, ca.person_id)
             : await _pinnedBeaconRecords(
                 viewerId: viewerId,
                 beaconIds: beaconIds,
+                readabilityKnown: beaconIds.every(
+                  (id) => pinnedBeaconReadability[id] ?? false,
+                ),
               ));
 
     final byBeaconId = {
@@ -494,6 +509,7 @@ SELECT ARRAY(
   Future<List<ConstellationRequestRecord>> _pinnedBeaconRecords({
     required String viewerId,
     required List<String> beaconIds,
+    bool readabilityKnown = false,
   }) async {
     final participation = constellationViewerParticipatesSql(
       viewerParam: r'$1',
@@ -507,7 +523,7 @@ SELECT $constellationRequestSelectColumns
 FROM public.beacon b
 LEFT JOIN public.image cover ON cover.id = b.cover_thumb_image_id
 WHERE b.id = ANY(\$2::text[])
-  AND ${constellationBeaconContentReadableSql(viewerParam: r'$1', beaconAlias: 'b')}
+  ${readabilityKnown ? '' : 'AND ${constellationBeaconContentReadableSql(viewerParam: r'$1', beaconAlias: 'b')}'}
 ORDER BY b.id
 ''',
           variables: [

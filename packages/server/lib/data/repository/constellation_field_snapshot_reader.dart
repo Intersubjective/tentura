@@ -211,6 +211,16 @@ final class ConstellationFieldSnapshotReader {
     required String viewerId,
     required List<String> visiblePeerIds,
   }) async {
+    // Pinned Requests were already checked when the anchors were read.
+    final known = _anchors.pinnedBeaconReadability;
+    final readable = [
+      for (final e in known.entries)
+        if (e.value) e.key,
+    ];
+    final unreadable = [
+      for (final e in known.entries)
+        if (!e.value) e.key,
+    ];
     final postRows = await _database
         .customSelect(
           '''
@@ -227,7 +237,11 @@ FROM public.beacon b
 LEFT JOIN public.beacon_room_message root ON root.id = b.post_root_message_id
 WHERE b.kind = 1
   AND b.status = 0
-  AND ${constellationBeaconContentReadableSql(viewerParam: r'$1', beaconAlias: 'b')}
+  AND CASE
+    WHEN b.id = ANY(\$3::text[]) THEN true
+    WHEN b.id = ANY(\$4::text[]) THEN false
+    ELSE ${constellationBeaconContentReadableSql(viewerParam: r'$1', beaconAlias: 'b')}
+  END
   AND (
     b.user_id = \$1
     OR EXISTS (
@@ -249,6 +263,8 @@ ORDER BY last_activity_at DESC, b.id
           variables: [
             Variable.withString(viewerId),
             Variable.withInt(kConstellationPostExcerptLength),
+            Variable(TypedValue(Type.textArray, [...readable]..sort())),
+            Variable(TypedValue(Type.textArray, [...unreadable]..sort())),
           ],
         )
         .get();
