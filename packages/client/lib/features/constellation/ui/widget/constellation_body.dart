@@ -43,6 +43,7 @@ import 'constellation_request_label.dart';
 import 'constellation_request_preview_sheet.dart';
 import 'constellation_post_preview_sheet.dart';
 import 'constellation_text_view.dart';
+import 'constellation_placement_marker_layer.dart';
 import 'constellation_viewport_overlay.dart';
 
 class _CancelPlacementIntent extends Intent {
@@ -900,6 +901,9 @@ class _ConstellationBodyState extends State<ConstellationBody> {
             cubit: cubit,
             frameHolder: _frameHolder,
           ),
+        ),
+        Positioned.fill(
+          child: ConstellationPlacementMarkerLayer(cubit: cubit),
         ),
         // The handle paints before the sheet below, so panning the circle
         // under the sheet does not draw the handle on top of it.

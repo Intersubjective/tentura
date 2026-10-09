@@ -1573,6 +1573,22 @@
   "@constellationPinMarkerSemantics": {
     "context": "ConstellationRequestStatusMarker"
   },
+  "constellationPlacementNotSaved": "Не сохранено — проблема на сервере",
+  "@constellationPlacementNotSaved": {
+    "context": "Badge on a constellation node whose new position the server did not store"
+  },
+  "constellationPlacementRetry": "Повторить",
+  "@constellationPlacementRetry": {
+    "context": "Action on the not-saved badge: send the position to the server again"
+  },
+  "constellationPlacementDiscard": "Отменить моё перемещение",
+  "@constellationPlacementDiscard": {
+    "context": "Action on the not-saved badge: drop the unsaved position and return the node to its saved place"
+  },
+  "constellationPlacementSaving": "Сохраняем…",
+  "@constellationPlacementSaving": {
+    "context": "Cue on a constellation node whose new position is still being sent to the server"
+  },
   "graphLegendConstellationRequestStatusTitle": "Статус запроса",
   "@graphLegendConstellationRequestStatusTitle": {
     "description": "Constellation legend section for request lifecycle markers"

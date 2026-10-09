@@ -1618,6 +1618,22 @@
   "@constellationPinMarkerSemantics": {
     "context": "ConstellationRequestStatusMarker"
   },
+  "constellationPlacementNotSaved": "Not saved — server problem",
+  "@constellationPlacementNotSaved": {
+    "context": "Badge on a constellation node whose new position the server did not store"
+  },
+  "constellationPlacementRetry": "Retry",
+  "@constellationPlacementRetry": {
+    "context": "Action on the not-saved badge: send the position to the server again"
+  },
+  "constellationPlacementDiscard": "Discard my move",
+  "@constellationPlacementDiscard": {
+    "context": "Action on the not-saved badge: drop the unsaved position and return the node to its saved place"
+  },
+  "constellationPlacementSaving": "Saving…",
+  "@constellationPlacementSaving": {
+    "context": "Cue on a constellation node whose new position is still being sent to the server"
+  },
   "graphLegendConstellationRequestStatusTitle": "Request status",
   "@graphLegendConstellationRequestStatusTitle": {
     "description": "Constellation legend section for request lifecycle markers"

@@ -3,6 +3,51 @@ import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'entity/constellation_anchor_projection.dart';
 import 'entity/placement_outbox.dart';
 
+/// How long a write may stay in flight before the user is told it is saving.
+const kPlacementSavingCueDelay = Duration(seconds: 1);
+
+/// What the user is told about a node whose placement is not yet saved.
+enum PlacementCue { saving, notSaved }
+
+PlacementCue? _cueFor(PlacementSlot slot, DateTime now) =>
+    switch (slot.status) {
+      PlacementSlotStatus.rejected => PlacementCue.notSaved,
+      PlacementSlotStatus.commitUnknown =>
+        slot.attempts >= 3 ? PlacementCue.notSaved : null,
+      PlacementSlotStatus.inFlight =>
+        // A discarded write is told at once: the user has already decided.
+        slot.discardOnSettle ||
+                (slot.inFlightSince != null &&
+                    now.difference(slot.inFlightSince!) >
+                        kPlacementSavingCueDelay)
+            ? PlacementCue.saving
+            : null,
+      PlacementSlotStatus.queued => null,
+    };
+
+/// The cue per target, and how long until an in-flight write earns its cue.
+({Map<ConstellationAnchorTarget, PlacementCue> cues, Duration? nextChange})
+placementCues(PlacementOutboxState outbox, {required DateTime now}) {
+  final cues = <ConstellationAnchorTarget, PlacementCue>{};
+  Duration? nextChange;
+  for (final entry in outbox.targets.entries) {
+    for (final slot in [entry.value.inFlight, entry.value.latestPending]) {
+      if (slot == null) continue;
+      final cue = _cueFor(slot, now);
+      if (cue == null) {
+        final since = slot.inFlightSince;
+        if (slot.status == PlacementSlotStatus.inFlight && since != null) {
+          final wait = since.add(kPlacementSavingCueDelay).difference(now);
+          if (nextChange == null || wait < nextChange) nextChange = wait;
+        }
+      } else if (cues[entry.key] != PlacementCue.notSaved) {
+        cues[entry.key] = cue;
+      }
+    }
+  }
+  return (cues: cues, nextChange: nextChange);
+}
+
 /// Overlays unresolved intent without changing server-confirmed coverage.
 ({
   ConstellationAnchorProjection projection,
@@ -25,14 +70,7 @@ desiredAnchorProjection(
       if (slot == null) {
         continue;
       }
-      final needsCue = switch (slot.status) {
-        PlacementSlotStatus.rejected => true,
-        PlacementSlotStatus.commitUnknown => slot.attempts >= 3,
-        PlacementSlotStatus.inFlight =>
-          slot.inFlightSince != null &&
-              now.difference(slot.inFlightSince!) > const Duration(seconds: 1),
-        PlacementSlotStatus.queued => false,
-      };
+      final needsCue = _cueFor(slot, now) != null;
       if (needsCue) {
         unsaved.add(entry.key);
       }

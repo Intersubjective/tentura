@@ -166,6 +166,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   /// A dropped placement is with the outbox and the store has not published
   /// its settlement yet; its presentation holds must survive a cancel.
   bool _placementAwaitingStore = false;
+
+  /// The outbox changed since the scene was last rebuilt, so the next rebuild
+  /// lays out without waiting a frame and the node starts moving at once.
+  bool _placementChangePending = false;
   ConstellationLayoutPriorHints? _layoutPriorHints;
   Set<String> _forgetPriorHintNodeIds = {};
   bool _layoutRecoveryAttempted = false;
@@ -525,7 +529,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     );
     droppedHolderIds = composition.droppedHolderIds;
     _reconcileSelection(composition);
-    if (deferTargets.isEmpty && !unchangedLayout) _reconcileLayout();
+    if (deferTargets.isEmpty && !unchangedLayout) {
+      _reconcileLayout(immediateHandoff: _placementChangePending);
+    }
   }
 
   /// The field with unresolved placement intent laid over its confirmed anchors.
@@ -568,6 +574,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   /// Unresolved placement intent is composed before the server answers.
   void _onPlacementChanged(PlacementOutboxState _) {
+    _placementChangePending = true;
     final field = state.field;
     if (isClosed || field == null) return;
     // A store publication still queued reads the outbox itself when it lands.
@@ -596,7 +603,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     );
     droppedHolderIds = composition.droppedHolderIds;
     _reconcileSelection(composition);
-    _reconcileLayout(deferAutomaticReflow: true);
+    _reconcileLayout(deferAutomaticReflow: true, immediateHandoff: true);
   }
 
   String get viewerId => _viewer.id;
@@ -1025,6 +1032,24 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
     _writeCount++;
     _placementCase.unpin(target);
+  }
+
+  /// Fires whenever a placement write changes state; empty without a case.
+  Stream<PlacementOutboxState> get placementChanges =>
+      _placementCase?.changes ?? const Stream.empty();
+
+  /// Nodes whose placement write the user should be told about.
+  ({Map<ConstellationAnchorTarget, PlacementCue> cues, Duration? nextChange})
+  get placementCues =>
+      _placementCase?.cues ??
+      (cues: const <ConstellationAnchorTarget, PlacementCue>{}, nextChange: null);
+
+  void retryPlacement(ConstellationAnchorTarget target) {
+    if (!isClosed) _placementCase?.retry(target);
+  }
+
+  void discardPlacement(ConstellationAnchorTarget target) {
+    if (!isClosed) _placementCase?.discard(target);
   }
 
   void cancelPlacement({bool suppressLateGestureEnd = true}) {
@@ -2177,15 +2202,23 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     );
   }
 
-  void _reconcileLayout({bool deferAutomaticReflow = false}) {
+  void _reconcileLayout({
+    bool deferAutomaticReflow = false,
+    bool immediateHandoff = false,
+  }) {
     if (deferAutomaticReflow &&
         (state.hasPendingPlacementWrite ||
             _interaction.draggingNodeId != null)) {
       return;
     }
     _layoutReconciliationCount++;
+    _immediateHandoff = immediateHandoff;
+    _placementChangePending = false;
     _scene.rebuild(_buildGraphScene);
+    _immediateHandoff = false;
   }
+
+  bool _immediateHandoff = false;
 
   void _buildGraphScene() {
     final field = state.field == null ? null : _composerField(state.field!);
@@ -2245,6 +2278,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _scene.scheduleLayoutHandoff(
       isClosed: () => isClosed,
       algorithm: () => graphSceneLayoutAlgorithm,
+      immediate: _immediateHandoff,
     );
   }
 

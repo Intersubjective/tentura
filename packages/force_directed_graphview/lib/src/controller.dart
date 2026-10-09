@@ -49,6 +49,8 @@ class GraphController<N, E> with ChangeNotifier {
   var _cameraGated = false;
   var _zoomLiveWhileGated = false;
   Ticker? _ticker;
+  TickerProvider? _tickerVsync;
+  SceneLayoutAlgorithm? _requestedAlgorithm;
   Map<GraphNodeId, ScenePoint>? _transitionFrom;
   Map<GraphNodeId, ScenePoint>? _transitionTarget;
   Map<GraphNodeId, ScenePoint>? _layoutTransitionCapture;
@@ -256,6 +258,7 @@ class GraphController<N, E> with ChangeNotifier {
       return null;
     }
 
+    _requestedAlgorithm = currentAlgorithm;
     _layoutTransitionCapture = _captureDisplayedPositions();
     _relayoutInvocationCount++;
     _relayoutInFlight = true;
@@ -1100,8 +1103,8 @@ class GraphController<N, E> with ChangeNotifier {
     _transitionCurve = transitionCurve;
     _minScale = minScale;
     _maxScale = maxScale;
-    _ticker?.dispose();
-    _ticker = vsync.createTicker(_onTransitionTick);
+    final previousSize = _currentSize;
+    final topologyRevision = _scene.topologyRevision;
 
     _lazyBuilding = lazyBuilding;
     _bindTransformationController(transformationController);
@@ -1109,7 +1112,20 @@ class GraphController<N, E> with ChangeNotifier {
     _size = size;
     _currentSize = _size?.resolve(nodeSizes: _nodes.map(_nodeSizeOf));
     _applyTopologyFromController();
-    _requestSceneLayout();
+
+    // A layout already requested with this algorithm, size and topology is not
+    // repeated: repeating it would restart the transition it is running.
+    final layoutCurrent = identical(algorithm, _requestedAlgorithm) &&
+        previousSize == _currentSize &&
+        topologyRevision == _scene.topologyRevision &&
+        (_scene.layoutOutcome is GraphLayoutOutcomeRunning ||
+            _scene.layoutOutcome is GraphLayoutOutcomeSucceeded);
+    if (!layoutCurrent || _ticker == null || !identical(_tickerVsync, vsync)) {
+      _ticker?.dispose();
+      _tickerVsync = vsync;
+      _ticker = vsync.createTicker(_onTransitionTick);
+    }
+    if (!layoutCurrent) _requestSceneLayout();
   }
 
   void _updateViewport(Quad viewport) {

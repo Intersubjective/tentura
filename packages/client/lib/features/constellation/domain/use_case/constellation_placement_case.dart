@@ -10,6 +10,7 @@ import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:uuid/uuid.dart';
 
 import '../entity/placement_outbox.dart';
+import '../placement_overlay.dart';
 import '../port/constellation_anchor_repository_port.dart';
 import 'constellation_field_store_case.dart';
 
@@ -68,6 +69,10 @@ final class ConstellationPlacementCase extends UseCaseBase {
 
   PlacementOutboxState get current => _state;
   Stream<PlacementOutboxState> get changes => _changes.stream;
+
+  /// Writes the user should be told about, as of the case's own clock.
+  ({Map<ConstellationAnchorTarget, PlacementCue> cues, Duration? nextChange})
+  get cues => placementCues(_state, now: _clock.now());
 
   void place({
     required ConstellationAnchorTarget parent,

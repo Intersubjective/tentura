@@ -189,14 +189,22 @@ class ConstellationSceneController {
   void scheduleLayoutHandoff({
     required bool Function() isClosed,
     required SceneLayoutAlgorithm Function() algorithm,
+    bool immediate = false,
   }) {
     final handoffGeneration = ++layoutHandoffGeneration;
-    runAfterNextFrame(() {
+    void handoff() {
       if (isClosed() || handoffGeneration != layoutHandoffGeneration) {
         return;
       }
       _requestLayoutHandoff(algorithm);
-    });
+    }
+
+    // A scene that is already laid out has nothing to wait a frame for.
+    if (immediate && graphController.canLayout) {
+      handoff();
+    } else {
+      runAfterNextFrame(handoff);
+    }
   }
 
   void _requestLayoutHandoff(SceneLayoutAlgorithm Function() algorithm) {
