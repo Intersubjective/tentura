@@ -276,7 +276,9 @@ WHERE memo.frozen = 'on' AND memo.seeded IS NOT NULL
       return row.read<List<dynamic>>('visible').cast<String>();
     } on ServerException catch (error) {
       if (isPostgresDeadlockOrSerializationFailure(error)) rethrow;
+      // 57014: the transaction's request budget cancelled a stuck MeritRank call.
       if (error.code?.startsWith('08') != true &&
+          error.code != '57014' &&
           error.code != 'XX000' &&
           error.code != 'P0001') {
         rethrow;

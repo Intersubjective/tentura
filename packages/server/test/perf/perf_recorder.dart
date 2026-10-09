@@ -73,22 +73,6 @@ final class PerfDbMeter extends QueryInterceptor {
   pg.Session get session =>
       _session ?? (throw StateError('PerfDbMeter.instrument was not called'));
 
-  /// `mr_rpc_attempts()` of the backend behind the instrumented session: a
-  /// per-backend counter, so only that backend's own reads see its RPCs. The
-  /// database is meant to run on a single pooled connection.
-  Future<int> connectorRpcAttempts() async {
-    final session = _session;
-    if (session == null) return 0;
-    try {
-      final rows = await session.execute('SELECT mr_rpc_attempts()');
-      return (rows.first.first! as num).toInt();
-    } on pg.ServerException catch (e) {
-      // undefined_function: pgmer2 is not installed in this database.
-      if (e.code == '42883') return 0;
-      rethrow;
-    }
-  }
-
   Future<T> _statement<T>(Future<T> Function() run) async {
     final state = _currentAttempt;
     if (state == null) return run();
@@ -340,7 +324,11 @@ final class PerfRecorder {
     var polling = true;
 
     await wal.start();
-    final rpcBefore = await meter.connectorRpcAttempts();
+    // Read through the database, so it queues for the connection like the
+    // attempt's own statements: started here but not awaited, it still runs
+    // ahead of them without hiding the attempt's connection wait.
+    final rpcBefore = _connectorRpcAttempts();
+    unawaited(rpcBefore.then<void>((_) {}, onError: (Object _) {}));
     final poller = () async {
       try {
         while (polling) {
@@ -369,7 +357,8 @@ final class PerfRecorder {
       latency.stop();
       polling = false;
       await poller;
-      final rpcAfter = await meter.connectorRpcAttempts();
+      final rpcBeforeCount = await rpcBefore;
+      final rpcAfter = await _connectorRpcAttempts();
       final walMeasurement = await wal.stop();
       if (walMeasurement.attribution == WalAttribution.clusterTotal) {
         report.walAttribution = WalAttribution.clusterTotal;
@@ -391,7 +380,9 @@ final class PerfRecorder {
           failed: failed,
           queryCount: state.queryCount,
           // A backend swapped out mid-attempt restarts its counter.
-          connectorRpcs: rpcAfter >= rpcBefore ? rpcAfter - rpcBefore : rpcAfter,
+          connectorRpcs: rpcAfter >= rpcBeforeCount
+              ? rpcAfter - rpcBeforeCount
+              : rpcAfter,
           cursorWait: state.cursorWait,
           cursorHold: state.cursorHold,
           connectionQueueTime: state.queueTime,
@@ -401,6 +392,19 @@ final class PerfRecorder {
           lockWaiters: lockWaiters,
         ),
       );
+    }
+  }
+
+  /// The database's own `mrRpcAttempts()`, the API the RPC-count gate of the
+  /// constellation transactions reads; a per-backend counter, so the database
+  /// is meant to run on a single pooled connection.
+  Future<int> _connectorRpcAttempts() async {
+    try {
+      return await db.mrRpcAttempts();
+    } on pg.ServerException catch (e) {
+      // undefined_function: pgmer2 is not installed in this database.
+      if (e.code == '42883') return 0;
+      rethrow;
     }
   }
 

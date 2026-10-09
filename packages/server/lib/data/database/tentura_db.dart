@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' show max;
 
 import 'package:drift/drift.dart';
 import 'package:postgres/postgres.dart';
@@ -205,6 +206,16 @@ class TenturaDb extends _$TenturaDb {
     return current is _MutatingTransactionContext && identical(current.db, this);
   }
 
+  /// The connector's per-backend `mr_rpc_attempts()` counter on the connection
+  /// this database runs on (readable inside an open transaction), so the
+  /// RPC-count gate can take deltas around a transaction or batch.
+  Future<int> mrRpcAttempts() async {
+    final row = await customSelect(
+      'SELECT public.mr_rpc_attempts() AS attempts',
+    ).getSingle();
+    return row.read<int>('attempts');
+  }
+
   /// Runs [action] in a transaction with `tentura.mutating_user_id` set to
   /// [userId]. Realtime publishers attach this actor context to invalidations;
   /// router compatibility policy, not this transaction boundary, decides
@@ -242,7 +253,9 @@ class TenturaDb extends _$TenturaDb {
   /// Like [withMutatingUser] but in a REPEATABLE READ READ WRITE transaction,
   /// retried as a whole on 40001/40P01 (at most [maxAttempts], jittered
   /// backoff slept after rollback with the connection released, bounded by
-  /// [deadline]).
+  /// [deadline]). Each attempt's statements are bounded by the request budget
+  /// through a transaction-local `statement_timeout`: [deadline] on the first
+  /// attempt, what is left of it on a retry.
   Future<T> withMutatingRepeatableRead<T>(
     String userId,
     Future<T> Function() action, {
@@ -254,14 +267,19 @@ class TenturaDb extends _$TenturaDb {
     if (current is _MutatingTransactionContext && identical(current.db, this)) {
       return withMutatingUser(userId, action);
     }
+    final clock = Stopwatch()..start();
+    var attempt = 0;
     return withPostgresBoundedRetry(
       () => transaction(() async {
+        final budget = attempt++ == 0 ? deadline : deadline - clock.elapsed;
+        final budgetMs = max(1, budget.inMilliseconds);
         await customStatement(
           'SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ WRITE',
         );
         await customStatement(
-          r"SELECT set_config('tentura.mutating_user_id', $1, true)",
-          [userId],
+          r"SELECT set_config('tentura.mutating_user_id', $1, true), "
+          r"set_config('statement_timeout', $2, true)",
+          [userId, '$budgetMs'],
         );
         return runZoned(
           action,
