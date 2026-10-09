@@ -447,6 +447,12 @@ class GraphSceneController<N, E> with ChangeNotifier {
     return ticket;
   }
 
+  /// Cancels the layout job in flight, if any, so it publishes nothing.
+  bool cancelActiveLayout() {
+    final ticket = _activeTicket;
+    return ticket != null && cancelLayout(ticket);
+  }
+
   bool cancelLayout(GraphLayoutTicket ticket) {
     _assertLive();
     if (_activeTicket != ticket) {

@@ -31,6 +31,13 @@ class ConstellationInteractionController {
       {};
   final Map<GraphNodeId, Offset> clusterStartCentres = {};
 
+  /// Entering `dragging` (ARCH §5.4): freezes the committed scene.
+  void beginDragging(String nodeId) {
+    suppressLateGestureEnd = false;
+    draggingNodeId = nodeId;
+    _scene.freeze();
+  }
+
   void clearPlacementClusterState() {
     placementClusterGraphIds.clear();
     placementClusterTargets.clear();

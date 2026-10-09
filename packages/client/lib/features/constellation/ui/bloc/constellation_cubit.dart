@@ -642,8 +642,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (isClosed) {
       return;
     }
-    _interaction.suppressLateGestureEnd = false;
-    _interaction.draggingNodeId = target.graphNodeId;
+    _interaction.beginDragging(target.graphNodeId);
     _beginClusterDragPresentation(target);
     graphController.setCameraInteractionGated(true);
     emit(
@@ -659,8 +658,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (isClosed) {
       return;
     }
-    _interaction.suppressLateGestureEnd = false;
-    _interaction.draggingNodeId = target.graphNodeId;
+    _interaction.beginDragging(target.graphNodeId);
     _beginClusterDragPresentation(target);
     graphController.setCameraInteractionGated(true);
     emit(
@@ -927,6 +925,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     // The pointer drag has ended; the outbox owns the write from here, so
     // dragging re-enables at once.
     graphController.setCameraInteractionGated(false);
+    _scene.releaseFreeze();
     emit(
       state.copyWith(
         placementPhase: ConstellationPlacementPhase.idle,
@@ -1302,6 +1301,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       _clearClusterPresentations();
     }
     graphController.setCameraInteractionGated(false);
+    _scene.releaseFreeze();
     emit(
       state.copyWith(
         placementPhase: ConstellationPlacementPhase.idle,

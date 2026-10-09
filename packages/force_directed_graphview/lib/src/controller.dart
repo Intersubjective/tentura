@@ -247,14 +247,18 @@ class GraphController<N, E> with ChangeNotifier {
     );
   }
 
-  /// Requests scene layout for the current topology and algorithm.
+  /// Requests scene layout for the current topology and algorithm; ignored
+  /// (returns null) while transitions are paused.
   GraphLayoutTicket? requestSceneLayout({
     Set<GraphPresentationToken> releaseOnTerminal = const {},
     SceneLayoutAlgorithm? algorithm,
   }) {
     final currentAlgorithm = algorithm ?? _currentAlgorithm;
     final currentSize = _currentSize;
-    if (currentAlgorithm == null || currentSize == null || _nodes.isEmpty) {
+    if (_transitionsPaused ||
+        currentAlgorithm == null ||
+        currentSize == null ||
+        _nodes.isEmpty) {
       return null;
     }
 
@@ -273,6 +277,9 @@ class GraphController<N, E> with ChangeNotifier {
       releaseOnTerminal: releaseOnTerminal,
     );
   }
+
+  /// Cancels the layout job in flight, if any; it publishes nothing.
+  bool cancelSceneLayout() => _scene.cancelActiveLayout();
 
   /// Active presentation drag token for [id], if any.
   GraphPresentationToken? activePresentationTokenForNode(GraphNodeId id) =>
@@ -860,7 +867,7 @@ class GraphController<N, E> with ChangeNotifier {
     }
     _cameraGated = gated;
     _zoomLiveWhileGated = liveZoom;
-    notifyListeners();
+    _notify(heldWhilePaused: false);
   }
 
   /// Stops an in-progress layout transition without relayout.
@@ -1182,8 +1189,11 @@ class GraphController<N, E> with ChangeNotifier {
   var _disposed = false;
 
   @override
-  void notifyListeners() {
-    if (_disposed || _transitionsPaused) return;
+  void notifyListeners() => _notify(heldWhilePaused: true);
+
+  /// Pausing transitions holds back scene publications, not the camera gate.
+  void _notify({required bool heldWhilePaused}) {
+    if (_disposed || (heldWhilePaused && _transitionsPaused)) return;
     final SchedulerBinding? binding = _schedulerBindingOrNull();
     if (binding != null) {
       final phase = binding.schedulerPhase;
@@ -1202,7 +1212,7 @@ class GraphController<N, E> with ChangeNotifier {
             _deferredNotifyGeneration = null;
           }
           if (_disposed ||
-              _transitionsPaused ||
+              (heldWhilePaused && _transitionsPaused) ||
               generation != _publicationGeneration ||
               topologyRevision != _scene.topologyRevision ||
               layoutTicket != _scene.snapshot.layout?.ticket ||

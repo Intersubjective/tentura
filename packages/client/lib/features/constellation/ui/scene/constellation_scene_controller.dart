@@ -19,6 +19,7 @@ import '../../../graph/ui/utils/tentura_layout_algorithms.dart';
 import '../utils/constellation_graph_scene.dart';
 import '../util/constellation_perf.dart';
 import 'constellation_interaction_controller.dart';
+import 'scene_update_gate.dart';
 
 enum ConstellationEdgeKind {
   tier1Path,
@@ -31,6 +32,11 @@ enum ConstellationEdgeKind {
 }
 
 const kConstellationLayoutMaxHops = 3;
+
+typedef _LayoutRequest = ({
+  Set<GraphPresentationToken> releaseOnTerminal,
+  SceneLayoutAlgorithm algorithm,
+});
 
 void runAfterNextFrame(void Function() callback) {
   if (BindingBase.debugBindingType() != null) {
@@ -98,6 +104,45 @@ class ConstellationSceneController {
 
   late final ConstellationInteractionController interaction =
       ConstellationInteractionController(this);
+
+  late final SceneUpdateGate _updateGate = SceneUpdateGate(
+    onApply: _applyGatedInput,
+  );
+
+  /// The committed scene is frozen (a node is being dragged); layout requests
+  /// are held until [releaseFreeze].
+  bool get isFrozen => _updateGate.isFrozen;
+
+  /// Freezes the committed scene: displayed geometry stops where it is, the
+  /// layout job in flight is invalidated and later requests are held.
+  void freeze() {
+    if (_updateGate.isFrozen) {
+      return;
+    }
+    _updateGate.freeze();
+    graphController
+      ..pauseTransitions()
+      ..cancelSceneLayout();
+  }
+
+  void releaseFreeze() {
+    if (!_updateGate.isFrozen) {
+      return;
+    }
+    graphController.resumeTransitions();
+    _updateGate.release();
+  }
+
+  void _applyGatedInput(SceneInputSource source, Object input) {
+    if (source != SceneInputSource.transition) {
+      return;
+    }
+    final request = input as _LayoutRequest;
+    graphController.requestSceneLayout(
+      releaseOnTerminal: request.releaseOnTerminal,
+      algorithm: request.algorithm,
+    );
+  }
 
   Set<GraphNodeId> get placementHandoffGraphIds => _placementHandoffGraphIds;
 
@@ -180,10 +225,10 @@ class ConstellationSceneController {
     required Set<GraphPresentationToken> releaseOnTerminal,
     required SceneLayoutAlgorithm algorithm,
   }) {
-    graphController.requestSceneLayout(
+    _updateGate.submit(SceneInputSource.transition, (
       releaseOnTerminal: releaseOnTerminal,
       algorithm: algorithm,
-    );
+    ));
   }
 
   void scheduleLayoutHandoff({
