@@ -5439,6 +5439,15 @@
   "@beaconRoomMessageEdited": {
     "description": "Shown next to the message time when the message text was edited"
   },
+  "beaconRoomMessageEditedAt": "Edited at {time}",
+  "@beaconRoomMessageEditedAt": {
+    "description": "Tooltip on the edited marker of a chat message; time is the edit time",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
   "beaconRoomBlockerTitleHint": "Blocker title",
   "beaconRoomNeedInfoPickTarget": "Who is this for?",
   "beaconPeopleSectionTitle": "People & roles",

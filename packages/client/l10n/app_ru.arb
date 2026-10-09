@@ -5157,6 +5157,7 @@
   "beaconRoomDeleteMessageConfirmBody": "Это сообщение будет удалено без возможности восстановления.",
   "beaconRoomDeleteMessageConfirmAction": "Удалить",
   "beaconRoomMessageEdited": "Изменено",
+  "beaconRoomMessageEditedAt": "Изменено в {time}",
   "beaconRoomBlockerTitleHint": "Заголовок блокера",
   "beaconRoomNeedInfoPickTarget": "Кому адресовано?",
   "beaconPeopleSectionTitle": "Люди и роли",

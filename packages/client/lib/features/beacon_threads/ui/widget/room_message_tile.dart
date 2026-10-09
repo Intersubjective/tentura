@@ -34,6 +34,7 @@ import 'package:tentura/features/beacon_threads/ui/widget/room_attachment_widget
 import 'package:tentura/features/beacon_threads/ui/widget/room_baton_card.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_closure_story_card.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_bubble_measure.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/room_message_date_line.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_fact_quote.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_receipt_glyph.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_reply_quote.dart';
@@ -887,9 +888,20 @@ class RoomMessageTile extends StatelessWidget {
         ? l10n.beaconRoomMessageEdited
         : null;
     final dateLine = [
-      _formatMessageTime(message.editedAt ?? message.createdAt),
+      _formatMessageTime(message.createdAt),
       ?editedSuffix,
     ].join(' · ');
+    final editedAt = message.editedAt;
+    final dateLineWidget = editedAt == null
+        ? null
+        : RoomMessageEditedDateLine(
+            time: _formatMessageTime(message.createdAt),
+            suffix: l10n.beaconRoomMessageEdited,
+            tooltip: l10n.beaconRoomMessageEditedAt(
+              _formatMessageTime(editedAt),
+            ),
+            style: theme.textTheme.labelSmall,
+          );
     final useInlineMeta = shouldUseInlineTrailingMeta(
       hasDisplayText: display.isNotEmpty,
       reactionCounts: message.reactionCounts,
@@ -958,6 +970,7 @@ class RoomMessageTile extends StatelessWidget {
           ? null
           : _coordinationItemTap(context, linkedCoord),
       editedSuffix: editedSuffix,
+      dateLineWidget: dateLineWidget,
       hideTimestamp: useInlineMeta,
       receipt: ownReceipt,
     );
@@ -1095,6 +1108,7 @@ class RoomMessageTile extends StatelessWidget {
                     explicitSpans: explicitMentionSpans,
                     explicitMentionStyle: explicitMentionStyle,
                     trailingGlyph: inlineReceiptGlyph,
+                    dateLineWidget: dateLineWidget,
                   )
                 : explicitMentionSpans.isNotEmpty
                 ? TenturaSelectionArea(
@@ -1902,6 +1916,7 @@ class _MessageLifecycleFooter extends StatelessWidget {
     required this.onToggleReaction,
     required this.onOpenItem,
     required this.editedSuffix,
+    required this.dateLineWidget,
     this.hideTimestamp = false,
     this.receipt,
   });
@@ -1920,6 +1935,7 @@ class _MessageLifecycleFooter extends StatelessWidget {
   final Future<void> Function(String messageId, String emoji)? onToggleReaction;
   final VoidCallback? onOpenItem;
   final String? editedSuffix;
+  final Widget? dateLineWidget;
   final bool hideTimestamp;
   final RoomMessageReceipt? receipt;
 
@@ -2134,9 +2150,7 @@ class _MessageLifecycleFooter extends StatelessWidget {
     final dateLine = hideTimestamp
         ? null
         : [
-            RoomMessageTile._formatMessageTime(
-              message.editedAt ?? message.createdAt,
-            ),
+            RoomMessageTile._formatMessageTime(message.createdAt),
             if (editedSuffix != null) editedSuffix,
           ].join(' · ');
 
@@ -2233,18 +2247,20 @@ class _MessageLifecycleFooter extends StatelessWidget {
                   Padding(
                     padding: EdgeInsets.only(left: tokens.iconTextGap / 2),
                     child: receipt == null
-                        ? Text(
-                            dateLine,
-                            style: textTheme.labelSmall,
-                          )
+                        ? dateLineWidget ??
+                              Text(
+                                dateLine,
+                                style: textTheme.labelSmall,
+                              )
                         : Row(
                             mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
-                              Text(
-                                dateLine,
-                                style: textTheme.labelSmall,
-                              ),
+                              dateLineWidget ??
+                                  Text(
+                                    dateLine,
+                                    style: textTheme.labelSmall,
+                                  ),
                               SizedBox(width: tokens.iconTextGap / 2),
                               RoomMessageReceiptGlyph(receipt: receipt!),
                             ],

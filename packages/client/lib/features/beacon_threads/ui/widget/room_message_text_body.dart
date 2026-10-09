@@ -21,6 +21,7 @@ class RoomMessageTextBody extends StatelessWidget {
     this.explicitMentionStyle,
     this.textAlign = TextAlign.start,
     this.trailingGlyph,
+    this.dateLineWidget,
     super.key,
   });
 
@@ -34,6 +35,10 @@ class RoomMessageTextBody extends StatelessWidget {
   final TextStyle? Function(String userId)? explicitMentionStyle;
   final TextAlign textAlign;
   final Widget? trailingGlyph;
+
+  /// Replaces the plain [dateLine] text when the line needs a richer widget
+  /// (e.g. a tooltip on the edited suffix); [dateLine] still drives layout.
+  final Widget? dateLineWidget;
 
   @override
   Widget build(BuildContext context) {
@@ -78,24 +83,26 @@ class RoomMessageTextBody extends StatelessWidget {
             end: 0,
             bottom: 0,
             child: trailingGlyph == null
-                ? Text(
-                    dateLine,
-                    style: metaStyle,
-                    textDirection: textDirection,
-                    textScaler: textScaler,
-                    locale: locale,
-                  )
-                : Row(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
+                ? dateLineWidget ??
                       Text(
                         dateLine,
                         style: metaStyle,
                         textDirection: textDirection,
                         textScaler: textScaler,
                         locale: locale,
-                      ),
+                      )
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      dateLineWidget ??
+                          Text(
+                            dateLine,
+                            style: metaStyle,
+                            textDirection: textDirection,
+                            textScaler: textScaler,
+                            locale: locale,
+                          ),
                       SizedBox(width: context.tt.tightGap),
                       trailingGlyph!,
                     ],
