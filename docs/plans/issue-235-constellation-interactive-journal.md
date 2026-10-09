@@ -798,3 +798,106 @@ Compared against the actual pre-task commit **`6c7604eee99c7215eac885088b840ae6d
 **Changed.** `FrameSliceScheduler` (`lib/ui/utils/frame_slice_scheduler.dart`) gains `cancelJob(onComplete)`, which cancels only if that job is still current, so a stale stream cannot cancel its replacement. `ConstellationSceneLayoutAlgorithm` takes an optional `slicer`; with one, `layout()` builds a resumable `LayoutJob` (`ConstellationLayoutEngine`, brute-force index), starts it on the scheduler, and emits one terminal frame on completion. A newer layout calls `start`, which cancels the older job; cancelling the stream calls `cancelJob`. Without a slicer the synchronous path is unchanged (`_prepare` is shared by both). `ConstellationSceneController` takes the slicer, passes it into its algorithm and exposes `dispose()`, which `ConstellationCubit.close()` calls. `ConstellationScreen` builds the scheduler from DI `ClockPort` and `WakeUpPort` plus an `AdaptiveSliceController` (100 µs initial unit cost). No generated DI change was needed. Label placement is not wired: it is conditional on the U35 result, which does not require it.
 
 **Tests.** New `constellation_scene_sliced_layout_test.dart`: completion publishes the result; a newer request cancels the older job (it emits nothing). Tests edited: none (new file only).
+
+## UNIT U44 — done (part 2/2: trust-edge EXPLAIN evidence) — 2026-10-09 (tentura-s7gl.78)
+
+No truncation of visibility, anchors or support paths is introduced by this unit: no query, cap or migration changed; only the perf harness gained a capture.
+
+**Harness.** The trust cases of the perf matrix (`test/perf/perf_fixture_matrix.dart`) now capture `constellation_trust_edges` for the viewer plus its complete unblocked visible set (the node set FULL and ANCHORS pass, built as `ConstellationAnchorProjectionReader.visiblePeers` builds it). The capture is `EXPLAIN (ANALYZE, BUFFERS, WAL, FORMAT JSON)`, labelled `trust_edges`, stored under `.explain` of `build/perf/<fixture>.json`. The trust fixtures load their edges into MeritRank only, which would leave the trust tables empty and the plan reading nothing. After the timed attempts, the hook therefore mirrors the fixture's MeritRank edges into `user_trust_edge` (positive weight, relationship notify suppressed) and analyses the trust tables. Latencies are unaffected. With literal arguments the planner inlines the SQL function, so the plan shows its table scans. Earlier sandboxed attempts at this unit (same day) could not reach PostgreSQL. This run was local (docker `postgres-tentura:v0.9.1` and `meritrank-service:v0.12.0`, serial, nothing else running).
+
+**EXPLAIN, harness dense V = 1000 fixture.** This is the `constellation_trust_edges` plan on the dense V = 1000 fixture (`v1000_dense`, every ordered pair of the 1,000 users trusted, 999,000 `user_trust_edge` rows, 993 visible peers + viewer as node ids), from `scripts/run_with_test_cleanup.sh -- dart test test/perf/perf_fixture_matrix_meritrank_pg_test.dart --tags perf -j 1 --plain-name 'v1000_dense writes'`. The JSON is PostgreSQL's output with each node trimmed to the fields below (values unchanged; costs, widths, output lists and zero WAL counters dropped):
+
+```json
+[{"Planning Time": 1.813, "Execution Time": 2975.27, "Plan":
+ {"Node Type": "Sort", "Actual Total Time": 2951.46, "Actual Rows": 987042, "Actual Loops": 1, "Sort Method": "external merge", "Shared Hit Blocks": 14288, "Shared Read Blocks": 0, "Temp Written Blocks": 21402, "Plans": [
+   {"Node Type": "Append", "Actual Total Time": 1299.123, "Actual Rows": 987042, "Actual Loops": 1, "Shared Hit Blocks": 14285, "Shared Read Blocks": 0, "Temp Written Blocks": 12207, "Plans": [
+     {"Node Type": "Result", "Actual Total Time": 0.002, "Actual Rows": 1, "Actual Loops": 1, "Shared Hit Blocks": 0, "Shared Read Blocks": 0, "Temp Written Blocks": 0},
+     {"Node Type": "ProjectSet", "Actual Total Time": 4.856, "Actual Rows": 993, "Actual Loops": 1, "Shared Hit Blocks": 9, "Shared Read Blocks": 0, "Temp Written Blocks": 0, "Plans": [
+       {"Node Type": "CTE Scan", "CTE Name": "viewer", "Actual Total Time": 0.001, "Actual Rows": 1, "Actual Loops": 1, "Filter": "(id IS NOT NULL)", "Rows Removed by Filter": 0, "Shared Hit Blocks": 0, "Shared Read Blocks": 0, "Temp Written Blocks": 0}
+     ]},
+     {"Node Type": "Aggregate", "Actual Total Time": 5.747, "Actual Rows": 994, "Actual Loops": 1, "Shared Hit Blocks": 13, "Shared Read Blocks": 0, "Temp Written Blocks": 0, "Plans": [
+       {"Node Type": "Nested Loop", "Join Type": "Inner", "Actual Total Time": 5.493, "Actual Rows": 994, "Actual Loops": 1, "Shared Hit Blocks": 13, "Shared Read Blocks": 0, "Temp Written Blocks": 0, "Plans": [
+         {"Node Type": "CTE Scan", "CTE Name": "viewer", "Actual Total Time": 0.004, "Actual Rows": 1, "Actual Loops": 1, "Filter": "(id IS NOT NULL)", "Rows Removed by Filter": 0, "Shared Hit Blocks": 0, "Shared Read Blocks": 0, "Temp Written Blocks": 0},
+         {"Node Type": "Function Scan", "Function Name": "unnest", "Actual Total Time": 0.229, "Actual Rows": 994, "Actual Loops": 1, "Filter": "((NOT (ANY (n = (hashed SubPlan 4).col1))) AND (NULLIF(TRIM(BOTH FROM COALESCE(n, ''::text)), ''::text) IS NOT NULL))", "Rows Removed by Filter": 0, "Shared Hit Blocks": 4, "Shared Read Blocks": 0, "Temp Written Blocks": 0, "Plans": [
+           {"Node Type": "Unique", "Actual Total Time": 0.026, "Actual Rows": 0, "Actual Loops": 1, "Shared Hit Blocks": 4, "Shared Read Blocks": 0, "Temp Written Blocks": 0, "Plans": [
+             {"Node Type": "Sort", "Actual Total Time": 0.025, "Actual Rows": 0, "Actual Loops": 1, "Sort Method": "quicksort", "Shared Hit Blocks": 4, "Shared Read Blocks": 0, "Temp Written Blocks": 0, "Plans": [
+               {"Node Type": "Append", "Actual Total Time": 0.016, "Actual Rows": 0, "Actual Loops": 1, "Shared Hit Blocks": 4, "Shared Read Blocks": 0, "Temp Written Blocks": 0, "Plans": [
+                 {"Node Type": "Nested Loop", "Join Type": "Inner", "Actual Total Time": 0.009, "Actual Rows": 0, "Actual Loops": 1, "Shared Hit Blocks": 2, "Shared Read Blocks": 0, "Temp Written Blocks": 0, "Plans": [
+                   {"Node Type": "CTE Scan", "CTE Name": "viewer", "Actual Total Time": 0.001, "Actual Rows": 1, "Actual Loops": 1, "Shared Hit Blocks": 0, "Shared Read Blocks": 0, "Temp Written Blocks": 0},
+                   {"Node Type": "Bitmap Heap Scan", "Relation Name": "user_block", "Actual Total Time": 0.007, "Actual Rows": 0, "Actual Loops": 1, "Shared Hit Blocks": 2, "Shared Read Blocks": 0, "Temp Written Blocks": 0, "Plans": [
+                     {"Node Type": "Bitmap Index Scan", "Index Name": "user_block_origin_idx", "Actual Total Time": 0.002, "Actual Rows": 0, "Actual Loops": 1, "Index Cond": "(blocker_id = v_1.id)", "Shared Hit Blocks": 2, "Shared Read Blocks": 0, "Temp Written Blocks": 0}
+                   ]}
+                 ]},
+                 {"Node Type": "Nested Loop", "Join Type": "Inner", "Actual Total Time": 0.006, "Actual Rows": 0, "Actual Loops": 1, "Shared Hit Blocks": 2, "Shared Read Blocks": 0, "Temp Written Blocks": 0, "Plans": [
+                   {"Node Type": "CTE Scan", "CTE Name": "viewer", "Actual Total Time": 0.001, "Actual Rows": 1, "Actual Loops": 1, "Shared Hit Blocks": 0, "Shared Read Blocks": 0, "Temp Written Blocks": 0},
+                   {"Node Type": "Bitmap Heap Scan", "Relation Name": "user_block", "Actual Total Time": 0.004, "Actual Rows": 0, "Actual Loops": 1, "Shared Hit Blocks": 2, "Shared Read Blocks": 0, "Temp Written Blocks": 0, "Plans": [
+                     {"Node Type": "Bitmap Index Scan", "Index Name": "user_block_reverse_idx", "Actual Total Time": 0.001, "Actual Rows": 0, "Actual Loops": 1, "Index Cond": "(blocked_id = v_2.id)", "Shared Hit Blocks": 2, "Shared Read Blocks": 0, "Temp Written Blocks": 0}
+                   ]}
+                 ]}
+               ]}
+             ]}
+           ]}
+         ]},
+         {"Node Type": "CTE Scan", "CTE Name": "visible", "Actual Total Time": 4.94, "Actual Rows": 993, "Actual Loops": 1, "Shared Hit Blocks": 9, "Shared Read Blocks": 0, "Temp Written Blocks": 0}
+       ]}
+     ]},
+     {"Node Type": "Nested Loop", "Join Type": "Anti", "Actual Total Time": 5.698, "Actual Rows": 0, "Actual Loops": 1, "Shared Hit Blocks": 13, "Shared Read Blocks": 0, "Temp Written Blocks": 0, "Plans": [
+       {"Node Type": "Nested Loop", "Join Type": "Anti", "Actual Total Time": 5.697, "Actual Rows": 0, "Actual Loops": 1, "Shared Hit Blocks": 13, "Shared Read Blocks": 0, "Temp Written Blocks": 0, "Plans": [
+         {"Node Type": "Hash Join", "Join Type": "Inner", "Actual Total Time": 5.695, "Actual Rows": 0, "Actual Loops": 1, "Hash Cond": "(b_1.id = vu.object)", "Shared Hit Blocks": 13, "Shared Read Blocks": 0, "Temp Written Blocks": 0, "Plans": [
+           {"Node Type": "CTE Scan", "CTE Name": "allowed", "Actual Total Time": 5.67, "Actual Rows": 1, "Actual Loops": 1, "Shared Hit Blocks": 13, "Shared Read Blocks": 0, "Temp Written Blocks": 0},
+           {"Node Type": "Hash", "Actual Total Time": 0.013, "Actual Rows": 0, "Actual Loops": 1, "Shared Hit Blocks": 0, "Shared Read Blocks": 0, "Temp Written Blocks": 0, "Plans": [
+             {"Node Type": "Hash Join", "Join Type": "Inner", "Actual Total Time": 0.012, "Actual Rows": 0, "Actual Loops": 1, "Hash Cond": "(a_1.id = vu.subject)", "Shared Hit Blocks": 0, "Shared Read Blocks": 0, "Temp Written Blocks": 0, "Plans": [
+               {"Node Type": "CTE Scan", "CTE Name": "allowed", "Actual Total Time": 0.0, "Actual Rows": 0, "Actual Loops": 0, "Shared Hit Blocks": 0, "Shared Read Blocks": 0, "Temp Written Blocks": 0},
+               {"Node Type": "Hash", "Actual Total Time": 0.003, "Actual Rows": 0, "Actual Loops": 1, "Shared Hit Blocks": 0, "Shared Read Blocks": 0, "Temp Written Blocks": 0, "Plans": [
+                 {"Node Type": "Seq Scan", "Relation Name": "vote_user", "Actual Total Time": 0.002, "Actual Rows": 0, "Actual Loops": 1, "Filter": "((amount > 0) AND (subject <> object))", "Rows Removed by Filter": 0, "Shared Hit Blocks": 0, "Shared Read Blocks": 0, "Temp Written Blocks": 0}
+               ]}
+             ]}
+           ]}
+         ]},
+         {"Node Type": "Index Only Scan", "Index Name": "user_block_reverse_idx", "Relation Name": "user_block", "Actual Total Time": 0.0, "Actual Rows": 0, "Actual Loops": 0, "Index Cond": "((blocked_id = vu.object) AND (blocker_id = vu.subject))", "Shared Hit Blocks": 0, "Shared Read Blocks": 0, "Temp Written Blocks": 0}
+       ]},
+       {"Node Type": "Index Only Scan", "Index Name": "user_block_reverse_idx", "Relation Name": "user_block", "Actual Total Time": 0.0, "Actual Rows": 0, "Actual Loops": 0, "Index Cond": "((blocked_id = vu.subject) AND (blocker_id = vu.object))", "Shared Hit Blocks": 0, "Shared Read Blocks": 0, "Temp Written Blocks": 0}
+     ]},
+     {"Node Type": "CTE Scan", "CTE Name": "t1", "Actual Total Time": 5.693, "Actual Rows": 0, "Actual Loops": 1, "Shared Hit Blocks": 13, "Shared Read Blocks": 0, "Temp Written Blocks": 0},
+     {"Node Type": "Hash Join", "Join Type": "Anti", "Actual Total Time": 1259.342, "Actual Rows": 987042, "Actual Loops": 1, "Hash Cond": "((e.subject = t1_1.src) AND (e.object = t1_1.dst))", "Shared Hit Blocks": 14272, "Shared Read Blocks": 0, "Temp Written Blocks": 12207, "Plans": [
+       {"Node Type": "Hash Join", "Join Type": "Right Anti", "Actual Total Time": 1179.13, "Actual Rows": 987042, "Actual Loops": 1, "Hash Cond": "((ub_1.blocker_id = e.object) AND (ub_1.blocked_id = e.subject))", "Shared Hit Blocks": 14272, "Shared Read Blocks": 0, "Temp Written Blocks": 12207, "Plans": [
+         {"Node Type": "Seq Scan", "Relation Name": "user_block", "Actual Total Time": 0.01, "Actual Rows": 0, "Actual Loops": 1, "Shared Hit Blocks": 0, "Shared Read Blocks": 0, "Temp Written Blocks": 0},
+         {"Node Type": "Hash", "Actual Total Time": 978.07, "Actual Rows": 987042, "Actual Loops": 1, "Shared Hit Blocks": 14272, "Shared Read Blocks": 0, "Temp Written Blocks": 10952, "Plans": [
+           {"Node Type": "Hash Join", "Join Type": "Right Anti", "Actual Total Time": 756.864, "Actual Rows": 987042, "Actual Loops": 1, "Hash Cond": "((ub.blocker_id = e.subject) AND (ub.blocked_id = e.object))", "Shared Hit Blocks": 14272, "Shared Read Blocks": 0, "Temp Written Blocks": 6102, "Plans": [
+             {"Node Type": "Seq Scan", "Relation Name": "user_block", "Actual Total Time": 0.015, "Actual Rows": 0, "Actual Loops": 1, "Shared Hit Blocks": 0, "Shared Read Blocks": 0, "Temp Written Blocks": 0},
+             {"Node Type": "Hash", "Actual Total Time": 528.906, "Actual Rows": 987042, "Actual Loops": 1, "Shared Hit Blocks": 14272, "Shared Read Blocks": 0, "Temp Written Blocks": 4847, "Plans": [
+               {"Node Type": "Hash Join", "Join Type": "Inner", "Actual Total Time": 341.374, "Actual Rows": 987042, "Actual Loops": 1, "Hash Cond": "(e.object = b.id)", "Shared Hit Blocks": 14272, "Shared Read Blocks": 0, "Temp Written Blocks": 0, "Plans": [
+                 {"Node Type": "Hash Join", "Join Type": "Inner", "Actual Total Time": 218.071, "Actual Rows": 993006, "Actual Loops": 1, "Hash Cond": "(e.subject = a.id)", "Shared Hit Blocks": 14272, "Shared Read Blocks": 0, "Temp Written Blocks": 0, "Plans": [
+                   {"Node Type": "Seq Scan", "Relation Name": "user_trust_edge", "Actual Total Time": 108.128, "Actual Rows": 999000, "Actual Loops": 1, "Filter": "((prev_sent_weight > '0'::double precision) AND (subject <> object))", "Rows Removed by Filter": 0, "Shared Hit Blocks": 14272, "Shared Read Blocks": 0, "Temp Written Blocks": 0},
+                   {"Node Type": "Hash", "Actual Total Time": 0.13, "Actual Rows": 994, "Actual Loops": 1, "Shared Hit Blocks": 0, "Shared Read Blocks": 0, "Temp Written Blocks": 0, "Plans": [
+                     {"Node Type": "CTE Scan", "CTE Name": "allowed", "Actual Total Time": 0.04, "Actual Rows": 994, "Actual Loops": 1, "Shared Hit Blocks": 0, "Shared Read Blocks": 0, "Temp Written Blocks": 0}
+                   ]}
+                 ]},
+                 {"Node Type": "Hash", "Actual Total Time": 0.308, "Actual Rows": 994, "Actual Loops": 1, "Shared Hit Blocks": 0, "Shared Read Blocks": 0, "Temp Written Blocks": 0, "Plans": [
+                   {"Node Type": "CTE Scan", "CTE Name": "allowed", "Actual Total Time": 0.216, "Actual Rows": 994, "Actual Loops": 1, "Shared Hit Blocks": 0, "Shared Read Blocks": 0, "Temp Written Blocks": 0}
+                 ]}
+               ]}
+             ]}
+           ]}
+         ]}
+       ]},
+       {"Node Type": "Hash", "Actual Total Time": 0.002, "Actual Rows": 0, "Actual Loops": 1, "Shared Hit Blocks": 0, "Shared Read Blocks": 0, "Temp Written Blocks": 0, "Plans": [
+         {"Node Type": "CTE Scan", "CTE Name": "t1", "Actual Total Time": 0.001, "Actual Rows": 0, "Actual Loops": 1, "Shared Hit Blocks": 0, "Shared Read Blocks": 0, "Temp Written Blocks": 0}
+       ]}
+     ]}
+   ]}
+ ]}
+}]
+```
+
+Reading: `user_trust_edge` is a Seq Scan returning 999,000 rows in 108 ms, and the hash join on `allowed` keeps 993,006 of them, so 99.4 % of the table is needed. No index can beat a sequential read at that selectivity. `vote_user` is empty here; the four `user_block` anti-joins read empty relations. The 2.98 s total is output-bound: 987,042 edges go through hash joins (~1.2 s), then the `ORDER BY` sort spills to disk (external merge, ~1.65 s). The run's FULL latency p95 of 2,585 ms (p50 36 ms, 3 attempts) matches this. It is the cost of a complete trust graph over 1,000 nodes, not of a missing access path.
+
+**EXPLAIN, perfsynth dense V ≈ 1000 dataset** (fresh copy `tentura_u44b_perfsynth_copy` of `tentura_perfsynth`, migrated to `0233`, MR 89,495 edges, heavy viewer `U66728b9dba8d`, 1,000 visible peers): 28 edges, planning 5.1 ms, execution 18.2 ms (repeat run; first 22.5 ms). The plan uses `user_trust_edge_object_idx` (Index Scan, 1,001 loops, 60 rows kept, 29 removed per loop by `prev_sent_weight > 0`, 30,651 buffer hits, ~9 ms). The rest is mostly the visible-set CTE (~9.5 ms, one MR round trip). The filtered rows exist only because `scripts/perf/constellation_synth.sql` writes `trust_w`/`target_w` but leaves `prev_sent_weight` at 0, so 88,802 of the 89,433 rows are non-positive. On real data (`tentura_devcopy`), 611 of 613 rows are positive. A partial index `WHERE prev_sent_weight > 0` would only fix that dataset artifact.
+
+**Index decision.** The EXPLAIN plans show no index or migration is needed. On the dense fixture the trust table is read almost entirely (seq scan is optimal). On perfsynth the existing `user_trust_edge_object_idx` and primary key already serve the per-node probes. The two-row `user_block` is seq-scanned there; on the dense fixture its probes use `user_block_reverse_idx`. No migration was added.
+
+**ANCHORS p95.** Warm ANCHORS p95 on the dense, V ≈ 1000, C ≈ 10k perfsynth dataset: measured 22.4 ms (p50 18.1 ms, 95 % CI [20.1, 23.9] ms, n = 60) vs baseline 37.9 ms (U41 warm p95, CI [30.4, 49.0] ms). The frozen budget (p95 65 ms) is met. This used U41's method and viewers: `scripts/perf/constellation_baseline.py --warm-n 60 --cold-n 30` against the server running on the copy (`scripts/perf/run_server_db.sh`), output in `build/perf/u44_perfsynth.json`. Cold ANCHORS p95 was 613.7 ms (p50 577.4 ms), against U41's 535.3 ms. Cold is MR frame sampling after `mr_reset(); meritrank_init()` and is outside this unit. Also measured in the same run: warm FULL p95 101.8 ms (U41 177.3 ms).
+
+**Measurement caveat.** The server ran with `TRUST_SWEEP_TIME_BUDGET_MINUTES=0`. A first attempt on another copy (`tentura_u44_perfsynth_copy`) ran the boot trust sweep (`trust_project_pair` over the synthetic pairs), which dropped the heavy viewer's visible set from 1,000 to 73 peers. That run was aborted and not used. Both copies are left in place (no database was dropped). MR was restored to the `postgres` database graph afterwards.
+
+**Tests.** `test/architecture/constellation_trust_edge_explain_evidence_journal_test.dart` (new, from the Alloy TDD loop) checks this section. No test was edited or removed.

@@ -89,6 +89,18 @@ typedef PerfCaseExtras =
 typedef PerfCaseWork =
     Future<void> Function(PerfCaseRun run, PerfAttemptScope scope, int attempt);
 
+/// An `EXPLAIN` capture of [PerfFixtureCase.explains].
+typedef PerfExplainSpec = ({String label, String sql, bool mutating});
+
+/// `EXPLAIN` captures whose SQL depends on the seeded data (MeritRank's
+/// choice of visible peers, for one), built through the writer after the
+/// timed attempts.
+typedef PerfSeededExplains =
+    Future<List<PerfExplainSpec>> Function(
+      Connection writer,
+      PerfFixtureSeed seed,
+    );
+
 /// One fixture of the matrix: how to seed it, the work its attempts measure
 /// and the parameters its report echoes.
 final class PerfFixtureCase {
@@ -101,6 +113,7 @@ final class PerfFixtureCase {
     this.requiresMeritRank = false,
     this.injectsFailures = false,
     this.explains = const [],
+    this.seededExplains,
     this.meterProductionCursorHold = false,
     this.warmUp,
     this.extras,
@@ -119,7 +132,11 @@ final class PerfFixtureCase {
   final bool injectsFailures;
 
   /// `EXPLAIN (ANALYZE, BUFFERS, WAL)` captures kept in the report.
-  final List<({String label, String sql, bool mutating})> explains;
+  final List<PerfExplainSpec> explains;
+
+  /// More captures, built from the seeded database after the attempts and
+  /// [extras]; whatever they write is not seen by the timed attempts.
+  final PerfSeededExplains? seededExplains;
 
   /// Whether the work calls repository code that takes the viewer cursor lock
   /// itself, so the meter times that lock's hold.
@@ -181,7 +198,11 @@ final class PerfFixtureCase {
       if (totals != null) {
         recorder.report.extras.addAll(await totals(session.writer, seed));
       }
-      for (final explain in explains) {
+      final seeded = seededExplains;
+      for (final explain in [
+        ...explains,
+        if (seeded != null) ...await seeded(session.writer, seed),
+      ]) {
         await recorder.captureExplain(
           label: explain.label,
           sql: explain.sql,
@@ -282,8 +303,76 @@ PerfFixtureCase _trustCase(PerfFixture fixture, String kind) =>
       parameters: {'visibleUsers': fixture.visibleUsers, 'trust': kind},
       requiresMeritRank: true,
       seeder: fixture.seed,
+      seededExplains: _trustEdgeExplains,
       worker: (run, scope, _) => _fullRead(run, scope),
     );
+
+/// The trust-edge read of FULL and ANCHORS: `constellation_trust_edges` over
+/// the viewer and its complete, unblocked visible set, as
+/// `ConstellationAnchorProjectionReader.visiblePeers` computes it (issue #235
+/// U44).
+///
+/// The trust fixtures put their edges into MeritRank only, so the trust
+/// tables would be empty and the plan would read nothing. After the timed
+/// attempts the MeritRank edges among the fixture users are therefore
+/// mirrored into `user_trust_edge` with a positive weight and both trust
+/// tables are analysed, so the plan reads one trust row per fixture edge.
+/// The arguments are literals, so the planner inlines the SQL function and
+/// the plan shows its scans of `user_trust_edge`, `vote_user` and
+/// `user_block`.
+Future<List<PerfExplainSpec>> _trustEdgeExplains(
+  Connection writer,
+  PerfFixtureSeed seed,
+) async {
+  await writer.runTx((tx) async {
+    // A bulk fixture load, not a relationship change clients must hear of.
+    await tx.execute(
+      "SELECT set_config('tentura.suppress_relationship_notify', '1', true)",
+    );
+    await tx.execute('''
+INSERT INTO public.user_trust_edge (subject, object, prev_sent_weight, trust_w)
+SELECT e.src, e.dst, e.weight, e.weight
+FROM mr_edgelist() e
+WHERE e.src LIKE 'Upf%' AND e.dst LIKE 'Upf%' AND e.src <> e.dst
+  AND e.weight > 0
+ON CONFLICT (subject, object) DO NOTHING
+''');
+  });
+  await writer.execute('ANALYZE public.user_trust_edge, public.vote_user');
+  final visible = await writer.execute(
+    Sql.named('''
+WITH blocked AS (
+  SELECT ub.blocked_id AS id FROM public.user_block ub
+  WHERE ub.blocker_id = @viewer
+  UNION
+  SELECT ub.blocker_id FROM public.user_block ub WHERE ub.blocked_id = @viewer
+)
+SELECT p.peer_id
+FROM unnest(public.person_visible_peer_ids_tx(@viewer, '')) AS p(peer_id)
+WHERE NOT EXISTS (SELECT 1 FROM blocked b WHERE b.id = p.peer_id)
+ORDER BY p.peer_id
+'''),
+    parameters: {'viewer': seed.viewerId},
+  );
+  final nodeIds = {
+    seed.viewerId,
+    for (final row in visible) row.first! as String,
+  }.toList()..sort();
+  if (nodeIds.length < 2) {
+    throw StateError('the viewer sees no peer; the trust-edge plan is empty');
+  }
+  final viewer = "'${seed.viewerId}'::text";
+  final array = "ARRAY[${nodeIds.map((id) => "'$id'").join(', ')}]::text[]";
+  return [
+    (
+      label: 'trust_edges',
+      sql:
+          'SELECT src, dst, tier FROM public.constellation_trust_edges('
+          "$viewer, '', $array) ORDER BY src, dst, tier",
+      mutating: false,
+    ),
+  ];
+}
 
 /// A 100-user sparse field plus [users] more peers the viewer trusts. A
 /// `reciprocal` peer trusts back, so visibility needs no further MeritRank
