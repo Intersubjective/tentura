@@ -816,17 +816,17 @@ Future<Map<String, dynamic>> _runFieldSuite(
   Connection conn,
   List<String> nodeIds,
 ) async {
-  final peerSql = '''
+  const peerSql = '''
 SELECT peer_id::text
 FROM public.person_visible_peers_symmetric(@viewer, '')
 ORDER BY peer_id
 LIMIT 200
 ''';
-  final edgesSql = '''
+  const edgesSql = '''
 SELECT src, dst, tier
 FROM public.constellation_trust_edges(@viewer, '', @nodeIds::text[])
 ''';
-  final ownReqSql = '''
+  const ownReqSql = '''
 SELECT b.id, b.user_id, b.title, b.status
 FROM public.beacon b
 WHERE b.user_id = @viewer
@@ -835,7 +835,7 @@ WHERE b.user_id = @viewer
 ORDER BY b.updated_at DESC
 LIMIT 150
 ''';
-  final discoverSql = '''
+  const discoverSql = '''
 SELECT b.id, b.user_id, b.title, b.status
 FROM public.person_visible_peers_symmetric(@viewer, '') p
 INNER JOIN public.beacon b ON b.user_id = p.peer_id
@@ -848,7 +848,7 @@ WHERE b.user_id <> @viewer
 ORDER BY b.updated_at DESC
 LIMIT 150
 ''';
-  final profilesSql = '''
+  const profilesSql = '''
 SELECT u.id, u.display_name, u.handle
 FROM public."user" u
 WHERE u.id = ANY(@ids::text[])
