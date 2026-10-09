@@ -129,6 +129,7 @@ class ThreadHostCubit extends Cubit<ThreadHostState> {
 
   @override
   Future<void> close() async {
+    if (isClosed) return;
     final generation = state.selectionGeneration + 1;
     emit(state.copyWith(selectionGeneration: generation));
     await _switchTail;

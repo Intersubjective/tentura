@@ -1523,9 +1523,12 @@ class RoomCubit extends Cubit<RoomState> {
     _pendingLocalDeleteIds.clear();
     _activeMessageRefreshOverlay = null;
     _presenceRepository.unwatch('room:${state.beaconId}');
-    await _refreshSub.cancel();
-    await _catchUpsSub.cancel();
-    await _itemSyncSub?.cancel();
+    // Not awaited: a cancel() with no teardown work returns a root-zone
+    // completed future, and awaiting it never resumes under a widget-test
+    // fake clock, which left close() (and the host awaiting it) pending.
+    unawaited(_refreshSub.cancel());
+    unawaited(_catchUpsSub.cancel());
+    unawaited(_itemSyncSub?.cancel());
     // close() is not a read: flush only when the last bottom-of-list callback
     // happened after the last inbound message arrived.
     final atBottomSince = _atBottomSince;
