@@ -143,13 +143,20 @@ def is_wrapper(blob: bytes) -> bool:
         for arg in blob.split(b"\0")
     )
 
+def is_shell_launcher(blob: bytes) -> bool:
+    # `bash -c "<wrapper> ... flutter_tester ..."` carries the tester's path in
+    # its command text only; killing it would take the launching shell (and its
+    # exit status) down with the sweep (tentura-ux9e).
+    argv0 = blob.split(b"\0", 1)[0].rsplit(b"/", 1)[-1]
+    return argv0 in (b"bash", b"sh", b"dash", b"zsh")
+
 victims = []
 for p in pathlib.Path("/proc").iterdir():
     if not p.name.isdigit():
         continue
     pid = p.name
     blob = cmd(pid)
-    if is_wrapper(blob):
+    if is_wrapper(blob) or is_shell_launcher(blob):
         continue
     if b"flutter_tester" in blob and not owned_by_test_runner(pid):
         victims.append(int(pid))
