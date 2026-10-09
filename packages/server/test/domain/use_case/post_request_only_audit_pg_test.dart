@@ -4,6 +4,7 @@ library;
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:postgres/postgres.dart';
+import 'package:tentura_server/domain/entity/constellation_field.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_root/domain/entity/beacon_status.dart';
@@ -77,6 +78,7 @@ import 'package:tentura_server/domain/use_case/transactional_attention_case.dart
 import 'package:tentura_server/env.dart';
 
 import '../../support/beacon_not_request_matcher.dart';
+import '../../support/constellation_profiles_from_public_records.dart';
 import '../../support/disposable_pg_target.dart';
 import '../../support/pg_test_public_keys.dart';
 
@@ -807,6 +809,11 @@ final class _Harness {
 }
 
 final class _NoProfiles implements UserProfileBatchLookup {
+  @override
+  Future<Map<String, ConstellationPeerRecord>> constellationProfilesByIds(
+    Iterable<String> ids,
+  ) => constellationProfilesFromRecords(this, ids);
+
   @override
   Future<Map<String, UserEntity>> userEntitiesByIds(
     Iterable<String> ids,

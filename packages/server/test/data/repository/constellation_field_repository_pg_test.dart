@@ -25,6 +25,8 @@ import 'package:tentura_server/data/repository/constellation_anchor_repository.d
 import 'package:tentura_server/domain/use_case/constellation_field_case.dart';
 import 'package:tentura_server/env.dart';
 
+import '../../support/constellation_profiles_from_public_records.dart';
+
 Future<void> main() async {
   final target = _DisposablePgTarget.fromEnvironment();
   final reachable = await _canConnect(target.adminEnv);
@@ -1165,6 +1167,11 @@ Future<bool> _canConnect(Env env) async {
 
 /// Avoids GetIt-backed presence mapping in pg tests.
 final class _PgProfileLookup implements UserProfileBatchLookup {
+  @override
+  Future<Map<String, ConstellationPeerRecord>> constellationProfilesByIds(
+    Iterable<String> ids,
+  ) => constellationProfilesFromRecords(this, ids);
+
   _PgProfileLookup(this._database);
 
   final TenturaDb _database;

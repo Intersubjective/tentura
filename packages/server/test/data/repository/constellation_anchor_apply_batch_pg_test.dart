@@ -12,6 +12,7 @@ import 'package:tentura_server/data/database/tentura_db.dart'
 import 'package:tentura_server/data/repository/constellation_anchor_repository.dart';
 import 'package:tentura_server/data/repository/constellation_field_repository.dart';
 import 'package:tentura_server/domain/entity/constellation_anchor_projection.dart';
+import 'package:tentura_server/domain/entity/constellation_field.dart';
 import 'package:tentura_server/domain/entity/gql_public/mutual_score_record.dart';
 import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
@@ -19,6 +20,7 @@ import 'package:tentura_server/domain/port/constellation_anchor_repository_port.
 import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 import 'package:test/test.dart';
 
+import '../../support/constellation_profiles_from_public_records.dart';
 import '../../support/disposable_pg_target.dart';
 import '../../support/pg_wait.dart';
 
@@ -1205,6 +1207,11 @@ List<Object> _resultValues(AnchorApplyBatchResult batch) => [
 // Same real-DB profile adapter used by the projection-reader tests: the batch
 // and independent ANCHORS read resolve profiles from the same disposable DB.
 final class _PgProfileLookup implements UserProfileBatchLookup {
+  @override
+  Future<Map<String, ConstellationPeerRecord>> constellationProfilesByIds(
+    Iterable<String> ids,
+  ) => constellationProfilesFromRecords(this, ids);
+
   _PgProfileLookup(this._database);
 
   final TenturaDb _database;

@@ -259,20 +259,10 @@ LIMIT \$3
     }
 
     final sortedIds = ids.toList()..sort();
-    final profiles = await _profiles.userPublicRecordsByIds(
-      ids: sortedIds,
-      reciprocalPeerIds: const {},
-    );
+    final profiles = await _profiles.constellationProfilesByIds(sortedIds);
 
     return [
-      for (final id in sortedIds)
-        if (profiles[id] case final profile?)
-          ConstellationPeerRecord(
-            id: profile.id,
-            displayName: profile.displayName,
-            handle: profile.handle,
-            image: profile.image,
-          ),
+      for (final id in sortedIds) ?profiles[id],
     ];
   }
 }

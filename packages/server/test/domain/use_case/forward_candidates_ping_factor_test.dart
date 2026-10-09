@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
+import 'package:tentura_server/domain/entity/constellation_field.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/domain/entity/forward_candidate_peer_row.dart';
@@ -11,6 +12,8 @@ import 'package:tentura_server/domain/port/person_visibility_repository_port.dar
 import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 import 'package:tentura_server/domain/use_case/forward_candidates_case.dart';
 import 'package:tentura_server/env.dart';
+
+import '../../support/constellation_profiles_from_public_records.dart';
 
 /// B3 "I pinged them" display factor:
 /// displayed score × (1 − min(0.8, Σ 2^(−age_days))) over the viewer's own
@@ -265,6 +268,11 @@ class _FakePeers implements ForwardCandidatesRepositoryPort {
 }
 
 class _Profiles implements UserProfileBatchLookup {
+  @override
+  Future<Map<String, ConstellationPeerRecord>> constellationProfilesByIds(
+    Iterable<String> ids,
+  ) => constellationProfilesFromRecords(this, ids);
+
   @override
   Future<Map<String, UserEntity>> userEntitiesByIds(
     Iterable<String> ids,

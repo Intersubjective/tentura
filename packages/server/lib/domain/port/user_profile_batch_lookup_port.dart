@@ -1,3 +1,4 @@
+import 'package:tentura_server/domain/entity/constellation_field.dart';
 import 'package:tentura_server/domain/entity/gql_public/mutual_score_record.dart';
 import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
@@ -13,4 +14,10 @@ abstract interface class UserProfileBatchLookup {
     Set<String> viewerTrustsPeerIds = const {},
     Map<String, MutualScoreRecord> scoresByPeerId = const {},
   });
+
+  /// Name, handle and image only (one query); same values as
+  /// [userPublicRecordsByIds] returns for those fields.
+  Future<Map<String, ConstellationPeerRecord>> constellationProfilesByIds(
+    Iterable<String> ids,
+  );
 }

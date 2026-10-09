@@ -1,6 +1,8 @@
 import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
+import 'package:postgres/postgres.dart' show Type, TypedValue;
 
+import 'package:tentura_server/domain/entity/constellation_field.dart';
 import 'package:tentura_server/domain/entity/gql_public/image_public_record.dart';
 import 'package:tentura_server/domain/entity/gql_public/mutual_score_record.dart';
 import 'package:tentura_server/domain/entity/gql_public/user_availability_record.dart';
@@ -14,6 +16,7 @@ import '../database/tentura_db.dart';
 import '../mapper/user_availability_mapper.dart';
 import '../mapper/user_mapper.dart';
 import '../mapper/user_presence_mapper.dart';
+import 'constellation_field_repository.dart' show readCustomSelectTimestamptz;
 
 @LazySingleton(as: UserProfileBatchLookup)
 class DriftUserProfileBatchLookup implements UserProfileBatchLookup {
@@ -91,6 +94,64 @@ class DriftUserProfileBatchLookup implements UserProfileBatchLookup {
           ),
         ),
     };
+  }
+
+  @override
+  Future<Map<String, ConstellationPeerRecord>> constellationProfilesByIds(
+    Iterable<String> ids,
+  ) async {
+    final idList = _distinctNonEmptyIds(ids)..sort();
+    if (idList.isEmpty) {
+      return {};
+    }
+
+    final rows = await _database
+        .customSelect(
+          r'''
+SELECT
+  u.id,
+  u.display_name,
+  u.handle,
+  i.id::text AS image_id,
+  i.hash AS image_hash,
+  i.height AS image_height,
+  i.width AS image_width,
+  i.author_id AS image_author_id,
+  i.created_at AS image_created_at
+FROM public."user" u
+LEFT JOIN public.image i ON i.id = u.image_id
+WHERE u.id = ANY($1::text[])
+''',
+          variables: [Variable(TypedValue(Type.textArray, idList))],
+        )
+        .get();
+
+    return {
+      for (final row in rows)
+        row.read<String>('id'): _constellationPeer(row),
+    };
+  }
+
+  static ConstellationPeerRecord _constellationPeer(QueryRow row) {
+    final imageId = row.readNullable<String>('image_id');
+    final handle = (row.readNullable<String>('handle') ?? '').trim();
+    return ConstellationPeerRecord(
+      id: row.read<String>('id'),
+      displayName: row.read<String>('display_name'),
+      handle: handle.isEmpty ? null : handle,
+      image: imageId == null
+          ? null
+          : ImagePublicRecord(
+              id: imageId,
+              hash: row.read<String>('image_hash'),
+              height: row.read<int>('image_height'),
+              width: row.read<int>('image_width'),
+              authorId: row.read<String>('image_author_id'),
+              createdAt: readCustomSelectTimestamptz(
+                row.data['image_created_at'],
+              )!,
+            ),
+    );
   }
 
   Future<Map<UuidValue, Image>> _imagesByUuidForUsers(List<User> users) async {

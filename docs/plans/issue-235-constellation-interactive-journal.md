@@ -633,3 +633,22 @@ Part 1/2 (domain layout stability, I3). `computeConstellationPlacedLayout` now h
 **Tests.** `constellation_layout_positional_stability_test.dart` (seeded 200-case property tests, anchored and unsaved-placement variants, grown-Request displacement, unchanged-input reproduction) 7/7.
 
 **Verification** (wrapped, serial): `test/features/constellation test/features/graph` 960 passed, 1 skipped; `dart analyze` on the touched file clean. Deviation: no separate hint-centred minimum-displacement ring search was added; displaced nodes use the existing hint-first candidate order.
+
+## UNIT U18 — complete — 2026-10-09 (tentura-s7gl.19)
+
+**Changed.** `UserProfileBatchLookup.constellationProfilesByIds(ids)` (port and `DriftUserProfileBatchLookup`) returns `ConstellationPeerRecord`s (name, trimmed handle or null, image) from one `user LEFT JOIN image … WHERE id = ANY($1::text[])` statement. It issues no SQL for an empty or all-blank id set. `ConstellationFieldRepository.peerProfiles` now calls it instead of `userPublicRecordsByIds` (4 queries: users, images, availability, presence), so the FULL snapshot reader and the ANCHORS projection reader (both go through `peerProfiles`) get the lean path. Test doubles of the port gained the method through `test/support/constellation_profiles_from_public_records.dart` (adapts a fake's `userPublicRecordsByIds`).
+
+**Tests.** `constellation_profile_lookup_pg_test.dart` 7/7: id/name/handle/image (id, hash, height, width, author, createdAt) parity with `userPublicRecordsByIds` over users with image, handle, blank (`'   '`), empty and padded handles, no image, and images shared by several users; unknown, empty and duplicate ids; exactly one SQL statement (recorded through a Drift `QueryInterceptor`, all hooks) for a mixed batch, a batch with no images, and for `ConstellationFieldRepository.peerProfiles`; no statement for an empty set.
+
+**Before/after (profile lookup, the only part U18 changes).** Method: a throwaway pg test (deleted afterwards) on the disposable database, 1000 users (half with a handle, half with an image), the real `DriftUserProfileBatchLookup`, 10 warm-up and 200 timed calls per variant, p50/p95 of wall time per call, serial and wrapped; three runs, the last run shown with the range over the three in brackets. "before" = `userPublicRecordsByIds` (the 4-query path `peerProfiles` used), "after" = `constellationProfilesByIds`.
+
+| Set | Shape | before p50 | before p95 | after p50 | after p95 |
+|---|---|---|---|---|---|
+| 201 ids | FULL (production cap of 201 people) | 10.8 ms [10.0–10.8] | 15.3 ms [15.3–28.0] | 1.9 ms [1.9–2.5] | 2.7 ms [2.7–10.0] |
+| 40 ids | ANCHORS (anchored and supporting peers) | 4.4 ms [4.2–4.5] | 7.1 ms [7.1–8.5] | 0.7 ms [0.6–0.7] | 1.3 ms [0.9–1.3] |
+
+The profile step is about 5× faster at p50 on both shapes. The end-to-end FULL and ANCHORS figures of U41 (warm 156/21 ms dense, 51/10 ms dev copy) were not re-run: they need the perfsynth/devcopy databases and a running server, and the in-repo perf smoke tests use a fake profile lookup, so they cannot show this change. The expected end-to-end gain is the difference above (about 9 ms FULL, 4 ms ANCHORS on a warm lookup); re-measure with `scripts/perf/constellation_baseline.py` when U41's datasets are available.
+
+**Verification** (wrapped, serial): the profile-lookup pg file 7/7, including the single-statement `--plain-name` check; `check-custom-lints.sh packages/server` 0 ≤ 0; `check-analyze-baseline.sh packages/server` 1876 ≤ 1876 (the first run was 1877: an `if`-case collection element, replaced with `?profiles[id]`); the three perf files (`constellation_full_perf_smoke`, `discoverable_candidates_perf`, `constellation_apply_batch_contention`) pass. The 8-tab contention case failed once in one combined run and passed on the immediate rerun alone and in a second combined run; it exercises `applyBatch` retries (it does not call the profile lookup) and is timing-sensitive.
+
+**Deviations.** No migration or index was needed. Tests edited: the port's test doubles in 19 existing test files (added the new method only).

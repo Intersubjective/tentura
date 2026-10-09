@@ -5,6 +5,7 @@ import 'dart:convert';
 
 import 'package:drift_postgres/drift_postgres.dart';
 import 'package:postgres/postgres.dart';
+import 'package:tentura_server/domain/entity/constellation_field.dart';
 import 'package:test/test.dart';
 import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
@@ -16,6 +17,7 @@ import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart'
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 
+import '../../support/constellation_profiles_from_public_records.dart';
 import '../../support/disposable_pg_target.dart';
 import '../../support/pg_test_public_keys.dart';
 
@@ -576,6 +578,11 @@ final class _SnapshotQueryPlans extends QueryInterceptor {
 }
 
 final class _Profiles implements UserProfileBatchLookup {
+  @override
+  Future<Map<String, ConstellationPeerRecord>> constellationProfilesByIds(
+    Iterable<String> ids,
+  ) => constellationProfilesFromRecords(this, ids);
+
   @override
   Future<Map<String, UserEntity>> userEntitiesByIds(
     Iterable<String> ids,

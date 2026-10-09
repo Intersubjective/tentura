@@ -17,6 +17,7 @@ import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart'
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 
+import '../../support/constellation_profiles_from_public_records.dart';
 import '../../support/disposable_pg_target.dart';
 
 /// The discoverable-Request section of the constellation FULL snapshot: peers'
@@ -580,6 +581,11 @@ $$
 }
 
 final class _PgProfileLookup implements UserProfileBatchLookup {
+  @override
+  Future<Map<String, ConstellationPeerRecord>> constellationProfilesByIds(
+    Iterable<String> ids,
+  ) => constellationProfilesFromRecords(this, ids);
+
   _PgProfileLookup(this._database);
 
   final TenturaDb _database;

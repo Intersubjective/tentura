@@ -10,6 +10,7 @@ import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
 import 'package:postgres/postgres.dart';
+import 'package:tentura_server/domain/entity/constellation_field.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/api/controllers/graphql/mappers/constellation_gql_maps.dart';
@@ -24,6 +25,7 @@ import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 import 'package:tentura_server/domain/use_case/constellation_field_case.dart';
 import 'package:tentura_server/env.dart';
 
+import '../support/constellation_profiles_from_public_records.dart';
 import '../support/disposable_pg_target.dart';
 import 'perf_fixtures.dart';
 import 'perf_recorder.dart';
@@ -515,6 +517,11 @@ int _beaconRowsRead(List<Object?> plan) {
 }
 
 final class _EmptyProfileLookup implements UserProfileBatchLookup {
+  @override
+  Future<Map<String, ConstellationPeerRecord>> constellationProfilesByIds(
+    Iterable<String> ids,
+  ) => constellationProfilesFromRecords(this, ids);
+
   @override
   Future<Map<String, UserEntity>> userEntitiesByIds(
     Iterable<String> ids,

@@ -4,6 +4,7 @@ library;
 import 'dart:async';
 
 import 'package:postgres/postgres.dart';
+import 'package:tentura_server/domain/entity/constellation_field.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
@@ -18,6 +19,7 @@ import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 
+import '../../support/constellation_profiles_from_public_records.dart';
 import '../../support/disposable_pg_target.dart';
 
 /// The constellation FULL read and the anchor apply transaction freeze the
@@ -238,6 +240,11 @@ $$
 
 /// Avoids GetIt-backed presence mapping in pg tests.
 final class _PgProfileLookup implements UserProfileBatchLookup {
+  @override
+  Future<Map<String, ConstellationPeerRecord>> constellationProfilesByIds(
+    Iterable<String> ids,
+  ) => constellationProfilesFromRecords(this, ids);
+
   _PgProfileLookup(this._database);
 
   final TenturaDb _database;
