@@ -681,3 +681,11 @@ Reconcile time at N = 600 is lower than the baseline in both rows (about 4× pla
 **Verification** (wrapped, serial): PT `force_directed_graphview` 167 passed; `test/features/constellation` 752 passed; `check-custom-lints.sh packages/client` 24 ≤ 24; `check-analyze-baseline.sh packages/client` 2080 ≤ 2080 (first run 2081: one `avoid_escaping_inner_quotes` in the new test name, fixed by switching the string to double quotes); `force_directed_graphview` has no entry in `scripts/analyze-baseline.txt`.
 
 **Deviations / follow-ups.** None. No existing tests were edited.
+
+## UNIT U36 — partial — 2026-10-09 (tentura-s7gl.37, part 1/2)
+
+**Changed.** New pure-domain `features/constellation/domain/layout/spatial_index.dart`: `SpatialIndex` (`insert`, `remove`, `queryOverlaps`, `length`) and `BruteForceIndex` (insertion-ordered linear scan, strict overlap, optional `exceptId`).
+
+**Tests.** New `test/features/constellation/domain/spatial_index_test.dart` (6).
+
+**Deviations / follow-ups.** Part 2 remains: benchmark-only sweep-and-prune, grid and AABB implementations under `test/bench/`, and the D6 decision record.
