@@ -774,6 +774,24 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _recomposeAndLayout();
   }
 
+  /// Follows the composer's circle: moves the draft node and redraws the
+  /// selection through the interaction layer only — no recomposition, no
+  /// layout.
+  void followComposer({
+    required Offset draftCentre,
+    required Set<String> selectedIds,
+  }) {
+    if (isClosed || !state.isComposing) {
+      return;
+    }
+    _composingDraftCentre = draftCentre;
+    _scene.placeDraftNode(draftCentre);
+    if (!setEquals(_composingSelectedIds, selectedIds)) {
+      _composingSelectedIds = selectedIds;
+      _rebuildGraphWithoutLayout();
+    }
+  }
+
   /// Leaves the composing phase: removes the draft node and its edges and
   /// restores the regular composition.
   void exitComposing() {

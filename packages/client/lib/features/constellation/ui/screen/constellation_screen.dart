@@ -9,6 +9,9 @@ import 'package:tentura/features/home/ui/widget/home_account_avatar_button.dart'
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
+import 'package:force_directed_graphview/force_directed_graphview.dart';
+import 'package:tentura/features/graph/domain/entity/edge_details.dart';
+import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -104,9 +107,18 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
   StackRouter? _rootRouter;
   TabsRouter? _homeTabs;
 
+  /// Whether the field is already in the composing phase for the composer.
+  bool _composing = false;
+
+  late final GraphController<NodeDetails, EdgeDetails> _graphController;
+
   @override
   void initState() {
     super.initState();
+    // People positions reach the composer from the interaction layer, so a
+    // drag or a layout move never recomposes the field.
+    _graphController = context.read<ConstellationCubit>().graphController
+      ..addListener(_syncComposerPersonPositions);
     _focusRequest.pending.addListener(_takeFocusRequest);
     WidgetsBinding.instance.addPostFrameCallback((_) => _takeFocusRequest());
   }
@@ -128,6 +140,7 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
 
   @override
   void dispose() {
+    _graphController.removeListener(_syncComposerPersonPositions);
     _rootRouter?.removeListener(_syncVisibility);
     _homeTabs?.removeListener(_syncVisibility);
     _focusRequest.pending.removeListener(_takeFocusRequest);
@@ -145,6 +158,21 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
         tabs.activeIndex == HomeTabSpec.forTab(HomeTab.constellation).index;
     final homeOnTop = root == null || root.current.name == HomeRoute.name;
     context.read<ConstellationCubit>().setVisible(tabActive && homeOnTop);
+  }
+
+  void _syncComposerPersonPositions() {
+    if (!mounted) return;
+    final composer = maybeConstellationComposer(context);
+    final snapshot = _graphController.renderSnapshot;
+    if (composer == null || composer.isClosed || composer.createCubit == null) {
+      return;
+    }
+    composer.updatePersonPositions({
+      for (final entry in snapshot.topology.nodesById.entries)
+        if (entry.value.payload case FieldPersonNode(:final id))
+          if (snapshot.resolvePosition(entry.key) case final position?)
+            id: Offset(position.x, position.y),
+    });
   }
 
   /// Focuses a beacon another screen asked for, once the field is loaded.
@@ -186,9 +214,15 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
         if (composer != null)
           BlocListener<ConstellationComposerCubit, RadiusRecipientSelection>(
             bloc: composer,
+            // The scene is recomposed only when the session starts or ends or
+            // who can be addressed changes; a moving circle or person is not.
+            listenWhen: (prev, curr) =>
+                _composing != (composer.createCubit != null) ||
+                !setEquals(prev.eligible, curr.eligible),
             listener: (context, selection) {
               final constellation = context.read<ConstellationCubit>();
-              if (composer.createCubit == null) {
+              _composing = composer.createCubit != null;
+              if (!_composing) {
                 constellation.exitComposing();
                 unawaited(constellation.load());
               } else {
@@ -200,6 +234,24 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
                 );
               }
             },
+          ),
+        if (composer != null)
+          BlocListener<ConstellationComposerCubit, RadiusRecipientSelection>(
+            bloc: composer,
+            listenWhen: (prev, curr) =>
+                prev.center != curr.center ||
+                !setEquals(prev.selected, curr.selected),
+            listener: (context, selection) =>
+                context.read<ConstellationCubit>().followComposer(
+                  draftCentre: selection.center.offset,
+                  selectedIds: selection.selected,
+                ),
+          ),
+        if (composer != null)
+          BlocListener<ConstellationCubit, ConstellationState>(
+            listenWhen: (prev, curr) =>
+                !identical(prev.field, curr.field) && curr.isComposing,
+            listener: (context, _) => composer.refreshPeople(),
           ),
         BlocListener<ConstellationCubit, ConstellationState>(
           listenWhen: (prev, curr) =>

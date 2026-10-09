@@ -55,9 +55,6 @@ class ConstellationComposerHandoff {
   }
 }
 
-/// How often the composer re-reads who can be addressed.
-const _peopleRefresh = Duration(seconds: 4);
-
 /// Owns the graph composer: recipient selection, the draft position and the
 /// lazily created server draft with its embedded [ForwardCubit].
 ///
@@ -93,8 +90,6 @@ class ConstellationComposerCubit extends Cubit<RadiusRecipientSelection> {
   Function()?
   peopleSnapshot;
 
-  Timer? _peopleTimer;
-
   BeaconCreateCubit? _createCubit;
 
   Future<void>? _creating;
@@ -116,7 +111,6 @@ class ConstellationComposerCubit extends Cubit<RadiusRecipientSelection> {
   void start(BeaconKind kind, Offset scenePos) {
     _kind = kind;
     _cancelled = false;
-    _peopleTimer?.cancel();
     _createCubit = createCubitFactory(kind);
     final base = state.withCenter(scenePos.lPoint);
     emit(
@@ -131,9 +125,18 @@ class ConstellationComposerCubit extends Cubit<RadiusRecipientSelection> {
     if (peopleSnapshot != null) unawaited(_loadPeople(_createCubit!));
   }
 
-  /// Reads the people now and again while the session lasts: who is reachable
-  /// can change after the composer opens. Later reads keep the circle and the
-  /// manual overrides.
+  /// Re-reads who can be addressed, keeping the circle and the manual
+  /// overrides. Called when the field changes while the composer is open.
+  void refreshPeople() {
+    final session = _createCubit;
+    if (peopleSnapshot == null || session == null || _cancelled || isClosed) {
+      return;
+    }
+    unawaited(_loadPeople(session, first: false));
+  }
+
+  /// Reads the people once. Who is reachable can change after the composer
+  /// opens; [refreshPeople] picks that up.
   Future<void> _loadPeople(
     BeaconCreateCubit session, {
     bool first = true,
@@ -176,10 +179,6 @@ class ConstellationComposerCubit extends Cubit<RadiusRecipientSelection> {
       );
       _push();
     }
-    _peopleTimer = Timer(
-      _peopleRefresh,
-      () => unawaited(_loadPeople(session, first: false)),
-    );
   }
 
   void moveDraft(Offset scenePos) {
@@ -258,7 +257,6 @@ class ConstellationComposerCubit extends Cubit<RadiusRecipientSelection> {
   /// the sheet and the circle disappear.
   Future<void> finish() async {
     if (isClosed) return;
-    _peopleTimer?.cancel();
     final forward = forwardCubit;
     final create = _createCubit;
     forwardCubit = null;
@@ -280,7 +278,6 @@ class ConstellationComposerCubit extends Cubit<RadiusRecipientSelection> {
   Future<void> cancel() async {
     if (_cancelled) return;
     _cancelled = true;
-    _peopleTimer?.cancel();
     await _creating;
     final create = _createCubit;
     if (create != null && (create.state.draftId?.isNotEmpty ?? false)) {
@@ -330,7 +327,6 @@ class ConstellationComposerCubit extends Cubit<RadiusRecipientSelection> {
 
   @override
   Future<void> close() async {
-    _peopleTimer?.cancel();
     await forwardCubit?.close();
     await _createCubit?.close();
     return super.close();
