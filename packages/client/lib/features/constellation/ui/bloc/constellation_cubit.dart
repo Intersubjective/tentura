@@ -293,6 +293,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     // ignore: invalid_use_of_visible_for_testing_member
     graphController.scene.removeListener(_onGraphSceneLayoutOutcomeChanged);
     _anchorCase?.deactivate(token: _anchorLifecycleToken);
+    _scene.dispose();
     return super.close();
   }
 

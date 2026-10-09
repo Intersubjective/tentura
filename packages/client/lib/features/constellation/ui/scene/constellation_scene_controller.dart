@@ -16,6 +16,8 @@ import '../../../graph/domain/entity/edge_details.dart';
 import '../../../graph/domain/entity/node_details.dart';
 import '../../../graph/ui/utils/graph_scene_ids.dart';
 import '../../../graph/ui/utils/tentura_layout_algorithms.dart';
+import 'package:tentura/ui/utils/frame_slice_scheduler.dart';
+
 import '../utils/constellation_graph_scene.dart';
 import '../util/constellation_perf.dart';
 import 'constellation_interaction_controller.dart';
@@ -50,6 +52,13 @@ void runAfterNextFrame(void Function() callback) {
 /// the layout inputs derived from the last build and the layout hand-off.
 /// It holds no cubit state; the cubit passes everything it needs per call.
 class ConstellationSceneController {
+  ConstellationSceneController({this._slicer});
+
+  final FrameSliceScheduler? _slicer;
+
+  /// Cancels the layout job in flight and releases the scheduler.
+  void dispose() => _slicer?.dispose();
+
   late final GraphController<NodeDetails, EdgeDetails> graphController =
       GraphController(
         nodeIdOf: tenturaGraphNodeId,
@@ -207,6 +216,7 @@ class ConstellationSceneController {
       anchorByNodeId: layoutAnchorByNodeId,
       forgetPriorHintNodeIds: forgetPriorHintNodeIds,
       footprints: layoutFootprints,
+      slicer: _slicer,
     );
   }
 

@@ -16,6 +16,10 @@ import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/profile_view/domain/use_case/profile_view_case.dart';
+import 'package:tentura/domain/port/clock_port.dart';
+import 'package:tentura/domain/port/wake_up_port.dart';
+import 'package:tentura/domain/scheduling/adaptive_slice_controller.dart';
+import 'package:tentura/ui/utils/frame_slice_scheduler.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
 import '../../domain/use_case/constellation_member_webs_case.dart';
@@ -26,6 +30,7 @@ import '../util/layout_geometry_adapters.dart';
 import '../../domain/radius_recipient_selection.dart';
 import '../bloc/constellation_composer_cubit.dart';
 import '../bloc/constellation_cubit.dart';
+import '../scene/constellation_scene_controller.dart';
 import '../util/constellation_focus_request.dart';
 import '../widget/constellation_camera_controls.dart';
 import '../widget/constellation_app_bar.dart';
@@ -62,6 +67,15 @@ class ConstellationScreen extends StatefulWidget implements AutoRouteWrapper {
             placementCase: GetIt.I<ConstellationPlacementCase>(),
             memberWebsCase: GetIt.I<ConstellationMemberWebsCase>(),
             viewer: viewer,
+            scene: ConstellationSceneController(
+              slicer: FrameSliceScheduler(
+                clock: GetIt.I<ClockPort>(),
+                wakeUpPort: GetIt.I<WakeUpPort>(),
+                controller: AdaptiveSliceController(
+                  initialUnitCost: const Duration(microseconds: 100),
+                ),
+              ),
+            ),
           ),
           child: MultiBlocProvider(
             providers: [

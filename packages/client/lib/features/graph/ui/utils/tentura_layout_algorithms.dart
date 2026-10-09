@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:collection/collection.dart';
@@ -10,7 +11,10 @@ import '../../domain/layout/radial_hop_positions.dart';
 import 'graph_scene_ids.dart';
 import 'package:tentura/features/constellation/domain/constellation_anchor_composition.dart';
 import 'package:tentura/features/constellation/domain/constellation_layout.dart';
+import 'package:tentura/features/constellation/domain/layout/constellation_layout_engine.dart';
 import 'package:tentura/features/constellation/domain/layout/layout_geometry.dart';
+import 'package:tentura/features/constellation/domain/layout/spatial_index.dart';
+import 'package:tentura/ui/utils/frame_slice_scheduler.dart';
 import 'package:tentura_root/domain/constellation/constellation_path_resolution.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
@@ -285,6 +289,7 @@ final class ConstellationSceneLayoutAlgorithm implements SceneLayoutAlgorithm {
     this.footprints = const {},
     this.spacing = 16,
     this.viewportClass = ConstellationViewportClass.expanded,
+    this.slicer,
   });
 
   final String egoId;
@@ -305,8 +310,48 @@ final class ConstellationSceneLayoutAlgorithm implements SceneLayoutAlgorithm {
   final double spacing;
   final ConstellationViewportClass viewportClass;
 
+  /// When set, the layout runs as a resumable job in frame slices instead of
+  /// one synchronous pass. Not part of the algorithm's identity.
+  final FrameSliceScheduler? slicer;
+
   @override
-  Stream<GraphLayoutFrame> layout(GraphLayoutRequest request) async* {
+  Stream<GraphLayoutFrame> layout(GraphLayoutRequest request) {
+    final slicer = this.slicer;
+    if (slicer == null || request.nodeIds.isEmpty) {
+      return _layoutSync(request);
+    }
+    final controller = StreamController<GraphLayoutFrame>();
+    final prepared = _prepare(request);
+    final job = ConstellationLayoutEngine(
+      newIndex: BruteForceIndex.new,
+    ).start(null, prepared.input);
+    void onComplete() {
+      if (controller.isClosed) return;
+      controller
+        ..add(
+          _frame(
+            request,
+            _constellationPositionsFromDomainMap(
+              graphIdByDomain: prepared.graphIdByDomain,
+              domainPositions: job.result.positions,
+              request: request,
+            ),
+          ),
+        )
+        ..close();
+    }
+
+    controller
+      ..onListen = () {
+        slicer.start(step: job.step, onComplete: onComplete);
+      }
+      ..onCancel = () {
+        slicer.cancelJob(onComplete);
+      };
+    return controller.stream;
+  }
+
+  Stream<GraphLayoutFrame> _layoutSync(GraphLayoutRequest request) async* {
     final positions = kReleaseMode
         ? _computePositions(request)
         : ConstellationPerf.timeSync(
@@ -320,9 +365,22 @@ final class ConstellationSceneLayoutAlgorithm implements SceneLayoutAlgorithm {
     if (request.nodeIds.isEmpty) {
       return const {};
     }
+    final prepared = _prepare(request);
+    return _constellationPositionsFromDomainMap(
+      graphIdByDomain: prepared.graphIdByDomain,
+      domainPositions: computeConstellationPlacedLayout(
+        input: prepared.input,
+      ).positions,
+      request: request,
+    );
+  }
 
+  ({
+    Map<String, GraphNodeId> graphIdByDomain,
+    ConstellationPlacedLayoutInput input,
+  })
+  _prepare(GraphLayoutRequest request) {
     final graphIdByDomain = tenturaGraphIdsByDomainId(request.nodeIds);
-    final mergedHints = _mergePriorHints(request);
     final sizes = <String, ConstellationSize>{
       ...nodeSizes,
       for (final entry in graphIdByDomain.entries)
@@ -331,16 +389,26 @@ final class ConstellationSceneLayoutAlgorithm implements SceneLayoutAlgorithm {
           height: request.nodesById[entry.value]!.size.height,
         ),
     };
-
-    final domainPositions = _computeConstellationDomainPositions(
-      priorHints: mergedHints,
-      nodeSizes: sizes,
-    );
-
-    return _constellationPositionsFromDomainMap(
+    return (
       graphIdByDomain: graphIdByDomain,
-      domainPositions: domainPositions,
-      request: request,
+      input: (
+        egoId: egoId,
+        paths: paths,
+        automaticKeptPeerIds: keptPeerIds,
+        pinnedPersonIds: pinnedPersonIds,
+        pinnedRequestIds: pinnedRequestIds,
+        supportPersonIds: supportPersonIds,
+        anchorByNodeId: anchorByNodeId,
+        priorHints: _mergePriorHints(request),
+        nodeSizes: sizes,
+        satelliteRequestIdsByAuthor: visibleRequestsByAuthor,
+        requestAuthorById: const {},
+        egoOwnRequestIds: egoOwnRequestIds,
+        spacing: spacing,
+        maxHops: maxHops,
+        viewportClass: viewportClass,
+        footprints: footprints,
+      ),
     );
   }
 
@@ -405,33 +473,6 @@ final class ConstellationSceneLayoutAlgorithm implements SceneLayoutAlgorithm {
       );
     }
     return result;
-  }
-
-  Map<String, LPoint> _computeConstellationDomainPositions({
-    ConstellationLayoutPriorHints? priorHints,
-    required Map<String, ConstellationSize> nodeSizes,
-  }) {
-    final computed = computeConstellationPlacedLayout(
-      input: (
-        egoId: egoId,
-        paths: paths,
-        automaticKeptPeerIds: keptPeerIds,
-        pinnedPersonIds: pinnedPersonIds,
-        pinnedRequestIds: pinnedRequestIds,
-        supportPersonIds: supportPersonIds,
-        anchorByNodeId: anchorByNodeId,
-        priorHints: priorHints,
-        nodeSizes: nodeSizes,
-        satelliteRequestIdsByAuthor: visibleRequestsByAuthor,
-        requestAuthorById: const {},
-        egoOwnRequestIds: egoOwnRequestIds,
-        spacing: spacing,
-        maxHops: maxHops,
-        viewportClass: viewportClass,
-        footprints: footprints,
-      ),
-    );
-    return computed.positions;
   }
 
   ConstellationLayoutPriorHints? _mergePriorHints(GraphLayoutRequest request) {
