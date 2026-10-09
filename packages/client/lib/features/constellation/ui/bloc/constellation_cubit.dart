@@ -1611,6 +1611,18 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     return anchors.any((anchor) => anchor.target == target);
   }
 
+  /// Re-lays out the nodes the user has not placed as a fresh plan, with no
+  /// session inertia to stay close to. Anchored nodes keep their stored
+  /// positions (the anchors, not prior hints, fix them); nothing is written.
+  void rearrangeFreeNodes() {
+    if (isClosed || state.composition == null) return;
+    _forgetPriorHintNodeIds = {
+      for (final node in graphController.nodes)
+        tenturaLayoutDomainId(tenturaGraphNodeId(node)),
+    };
+    _reconcileLayout(immediateHandoff: true);
+  }
+
   bool canPinTarget(ConstellationAnchorTarget target) {
     if (isAnchored(target)) {
       return true;

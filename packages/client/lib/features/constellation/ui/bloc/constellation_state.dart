@@ -67,6 +67,10 @@ abstract class ConstellationState extends StateBase with _$ConstellationState {
   ConstellationAnchorProjection? get confirmedProjection =>
       field?.resolvedAnchorProjection;
 
+  /// Whether the user has placed any node in this field, confirmed or pending.
+  bool get hasUserPlacements =>
+      composition?.anchorOverlay.anchors.isNotEmpty ?? false;
+
   bool get hasPendingPlacementWrite =>
       placementPhase == ConstellationPlacementPhase.draggingExisting ||
       placementPhase == ConstellationPlacementPhase.draggingNew;

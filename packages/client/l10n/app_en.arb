@@ -1324,6 +1324,11 @@
     "description": "Tooltip for the Field map control that fits every visible node into view",
     "context": "ConstellationScreen"
   },
+  "constellationRearrange": "Re-arrange",
+  "@constellationRearrange": {
+    "description": "Tooltip for the Field map control that re-lays out the nodes the user has not placed by hand",
+    "context": "ConstellationScreen"
+  },
   "constellationNavLabel": "Field",
   "@constellationNavLabel": {
     "description": "Side-nav / accessibility label for the Field tab (bottom bar is icon-only)",

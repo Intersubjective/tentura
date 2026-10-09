@@ -52,7 +52,8 @@ class ConstellationCameraControls extends StatelessWidget {
 
     return BlocBuilder<ConstellationCubit, ConstellationState>(
       buildWhen: (previous, current) =>
-          previous.placementPhase != current.placementPhase,
+          previous.placementPhase != current.placementPhase ||
+          previous.hasUserPlacements != current.hasUserPlacements,
       builder: (context, state) {
         final enabled =
             state.placementPhase == ConstellationPlacementPhase.idle;
@@ -82,6 +83,19 @@ class ConstellationCameraControls extends StatelessWidget {
               icon: const Icon(Icons.my_location),
               constraints: buttonSize,
             ),
+            if (state.hasUserPlacements) ...[
+              SizedBox(height: tt.tightGap * 2),
+              IconButton.filledTonal(
+                key: TestIds.key(TestIds.constellationRearrange),
+                tooltip: l10n.constellationRearrange,
+                onPressed: enabled ? cubit.rearrangeFreeNodes : null,
+                icon: Icon(
+                  Icons.auto_fix_high,
+                  semanticLabel: l10n.constellationRearrange,
+                ),
+                constraints: buttonSize,
+              ),
+            ],
           ],
         );
       },

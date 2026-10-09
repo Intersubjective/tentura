@@ -204,6 +204,7 @@ abstract final class TestIds {
       'constellation.request_status_marker';
   static const constellationPinMarker = 'constellation.pin_marker';
   static const constellationFitAll = 'constellation.camera.fit_all';
+  static const constellationRearrange = 'constellation.camera.rearrange';
   static const constellationCenterOnMe = 'constellation.camera.center_on_me';
   static const myWorkFindWaysToHelp = 'my_work.find_ways_to_help';
 
