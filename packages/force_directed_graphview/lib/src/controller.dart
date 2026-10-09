@@ -308,12 +308,15 @@ class GraphController<N, E> with ChangeNotifier {
       for (final edge in targetEdges) _edgeIdOf(edge): edge,
     };
 
-    _nodes.removeWhere((node) => !targetNodesById.containsKey(_nodeIdOf(node)));
+    final existingNodesById = <GraphNodeId, N>{};
+    _nodes.removeWhere((node) {
+      final id = _nodeIdOf(node);
+      if (!targetNodesById.containsKey(id)) return true;
+      existingNodesById.putIfAbsent(id, () => node);
+      return false;
+    });
     for (final entry in targetNodesById.entries) {
-      final existing = _nodes
-          .cast<N?>()
-          .where((node) => node != null && _nodeIdOf(node) == entry.key)
-          .firstOrNull;
+      final existing = existingNodesById[entry.key];
       if (existing == null) {
         _nodes.add(entry.value);
       } else if (existing != entry.value) {
@@ -322,12 +325,15 @@ class GraphController<N, E> with ChangeNotifier {
       }
     }
 
-    _edges.removeWhere((edge) => !targetEdgesById.containsKey(_edgeIdOf(edge)));
+    final existingEdgesById = <GraphEdgeId, E>{};
+    _edges.removeWhere((edge) {
+      final id = _edgeIdOf(edge);
+      if (!targetEdgesById.containsKey(id)) return true;
+      existingEdgesById.putIfAbsent(id, () => edge);
+      return false;
+    });
     for (final entry in targetEdgesById.entries) {
-      final existing = _edges
-          .cast<E?>()
-          .where((edge) => edge != null && _edgeIdOf(edge) == entry.key)
-          .firstOrNull;
+      final existing = existingEdgesById[entry.key];
       if (existing == null) {
         _edges.add(entry.value);
       } else if (existing != entry.value) {

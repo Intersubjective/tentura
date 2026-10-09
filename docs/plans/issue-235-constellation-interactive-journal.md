@@ -662,3 +662,22 @@ The profile step is about 5× faster at p50 on both shapes. The end-to-end FULL 
 **Verification** (wrapped, serial): `test/features/constellation` passes; full client suite 5395 passed; `check-custom-lints.sh packages/client` 24 ≤ 24; `check-analyze-baseline.sh packages/client` 2080 ≤ 2080.
 
 **Deviations / follow-ups.** None. No existing tests were edited.
+
+## UNIT U33 — complete — 2026-10-09 (tentura-s7gl.34)
+
+**Changed.** `GraphController._replaceNodeAndEdgeSets` (`packages/force_directed_graphview/lib/src/controller.dart`) no longer rescans `_nodes` / `_edges` once per target id: the surviving members are indexed by id in the same pass that removes the stale ones, and each target is matched through that map. `ConstellationCubit._profileFromPeer` no longer scans the field's edges twice per peer: the tier-1 edges touching the viewer are indexed once per loaded field (keyed by field identity) into two id sets.
+
+**Reconcile at N = 600** (600 nodes + 599 edges, payload replaced in reverse order, min of five runs, VM, wall-clock on the dev machine; relative reference only). U01 recorded no reconcile figure, so the baseline is the same reconcile run against the pre-U33 `controller.dart` (HEAD) with a throwaway timing test (not committed):
+
+| Id resolver cost | before (U01 baseline) | after U33 |
+|---|---|---|
+| plain | 8.5 ms | 2.2 ms |
+| 2 µs per call (stands in for app code) | 740.2 ms | 11.4 ms |
+
+Reconcile time at N = 600 is lower than the baseline in both rows (about 4× plain, about 65× costed). Id resolver calls per reconcile at N = 600 went from about 183k to under the 7.2k budget; profiling 200 peers went from about 158k edge reads to a bounded count (tests below).
+
+**Tests.** New: `packages/force_directed_graphview/test/reconcile_topology_id_lookup_test.dart` (5: linear id-lookup counts for an unchanged and a fully replaced topology, payload/addition/removal and edge rewiring semantics, wall-clock budget with costed resolvers) and `packages/client/test/features/constellation/constellation_peer_profile_edge_lookup_test.dart` (4: bounded edge reads per peer while keeping each peer's own trust flags, and no per-peer scan on load).
+
+**Verification** (wrapped, serial): PT `force_directed_graphview` 167 passed; `test/features/constellation` 752 passed; `check-custom-lints.sh packages/client` 24 ≤ 24; `check-analyze-baseline.sh packages/client` 2080 ≤ 2080 (first run 2081: one `avoid_escaping_inner_quotes` in the new test name, fixed by switching the string to double quotes); `force_directed_graphview` has no entry in `scripts/analyze-baseline.txt`.
+
+**Deviations / follow-ups.** None. No existing tests were edited.

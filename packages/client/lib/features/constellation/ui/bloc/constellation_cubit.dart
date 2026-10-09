@@ -2394,6 +2394,11 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     );
   }
 
+  // Explicit-trust ids touching the viewer, indexed once per loaded field.
+  ConstellationField? _viewerEdgesSource;
+  final _viewerTrustsIds = <String>{};
+  final _trustsViewerIds = <String>{};
+
   /// [Profile.isMutuallyVisible] (and the "closed eye" copy it drives in the
   /// reused [GraphPersonContextPanel]) is derived from the *old*,
   /// per-direction trust/MeritRank fields (`myVote`, `subjectExplicitlyTrustsViewer`,
@@ -2418,13 +2423,19 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   /// [GraphPersonContextCubit] swaps in the server profile on selection, which
   /// carries the real visibility flags.
   Profile _profileFromPeer(ConstellationPerson peer) {
-    final edges = state.field?.edges ?? const <ConstellationTrustEdgeEntity>[];
-    final viewerTrustsSubject = edges.any(
-      (e) => e.tier == 1 && e.src == _viewer.id && e.dst == peer.id,
-    );
-    final subjectTrustsViewer = edges.any(
-      (e) => e.tier == 1 && e.src == peer.id && e.dst == _viewer.id,
-    );
+    final field = state.field;
+    if (!identical(field, _viewerEdgesSource)) {
+      _viewerEdgesSource = field;
+      _viewerTrustsIds.clear();
+      _trustsViewerIds.clear();
+      for (final e in field?.edges ?? const <ConstellationTrustEdgeEntity>[]) {
+        if (e.tier != 1) continue;
+        if (e.src == _viewer.id) _viewerTrustsIds.add(e.dst);
+        if (e.dst == _viewer.id) _trustsViewerIds.add(e.src);
+      }
+    }
+    final viewerTrustsSubject = _viewerTrustsIds.contains(peer.id);
+    final subjectTrustsViewer = _trustsViewerIds.contains(peer.id);
     return Profile(
       id: peer.id,
       displayName: peer.displayName ?? '',
