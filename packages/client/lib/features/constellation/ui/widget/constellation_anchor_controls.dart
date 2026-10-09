@@ -24,7 +24,6 @@ class ConstellationAnchorTargetButton extends StatelessWidget {
     return BlocBuilder<ConstellationCubit, ConstellationState>(
       buildWhen: (previous, current) =>
           previous.placementPhase != current.placementPhase ||
-          previous.placementActionsEnabled != current.placementActionsEnabled ||
           previous.graphRevision != current.graphRevision ||
           previous.field != current.field ||
           previous.composition != current.composition,
@@ -32,8 +31,7 @@ class ConstellationAnchorTargetButton extends StatelessWidget {
         final cubit = context.read<ConstellationCubit>();
         final l10n = L10n.of(context)!;
         final anchored = cubit.isAnchored(target);
-        final enabled =
-            cubit.placementActionsEnabled && cubit.canPinTarget(target);
+        final enabled = cubit.canPinTarget(target);
         final onPressed = enabled
             ? () {
                 if (anchored) {

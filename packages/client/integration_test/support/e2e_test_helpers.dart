@@ -1706,7 +1706,7 @@ Future<void> pinConstellationPersonFromMap(
     tester,
     () {
       final cubit = readConstellationCubit(tester);
-      if (!cubit.placementActionsEnabled || !cubit.canPinTarget(target)) {
+      if (!cubit.canPinTarget(target)) {
         return false;
       }
       if (!finderHasMatch(pinButton)) {
@@ -1741,7 +1741,11 @@ Future<void> pinConstellationPersonFromMap(
   }
   await pumpUntil(
     tester,
-    () => readConstellationCubit(tester).isAnchored(target),
+    () =>
+        readConstellationCubit(tester).state.confirmedProjection?.anchors.any(
+          (anchor) => anchor.target == target,
+        ) ??
+        false,
     label: 'person anchor confirmed in cubit',
     timeout: const Duration(seconds: 30),
   );
@@ -1789,11 +1793,6 @@ Future<void> pinConstellationRequestFromText(
     of: requestRow,
     matching: find.byKey(TestIds.key(TestIds.constellationPinTarget)),
   );
-  await pumpUntil(
-    tester,
-    () => readConstellationCubit(tester).placementActionsEnabled,
-    label: 'constellation placement actions enabled',
-  );
   await tapConstellationControl(tester, pinButton);
   final target = ConstellationAnchorTarget.beacon(requestId);
   await pumpUntil(
@@ -1837,11 +1836,6 @@ Future<void> unpinConstellationTarget(
       find.byKey(Key('constellation.text.request.${target.id}')),
     );
   }
-  await pumpUntil(
-    tester,
-    () => readConstellationCubit(tester).placementActionsEnabled,
-    label: 'placement actions enabled before unpin',
-  );
   final unpin = switch (target.kind) {
     ConstellationAnchorTargetKind.person => find.descendant(
         of: find.byKey(TestIds.key(TestIds.graphPersonContextPanel)),
@@ -1857,7 +1851,7 @@ Future<void> unpinConstellationTarget(
     tester,
     () {
       final cubit = readConstellationCubit(tester);
-      if (!cubit.placementActionsEnabled || !cubit.isAnchored(target)) {
+      if (!cubit.isAnchored(target)) {
         return false;
       }
       if (!finderHasMatch(unpin)) {

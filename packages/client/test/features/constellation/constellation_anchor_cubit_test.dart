@@ -469,8 +469,6 @@ void main() {
           ),
         );
         await Future<void>.delayed(const Duration(milliseconds: 30));
-
-        expect(harness.cubit.state.deferredRefreshTargets, {target, companion});
         expect(
           harness.cubit.state.confirmedProjection!.revision.value,
           BigInt.two,
@@ -524,7 +522,6 @@ void main() {
       );
       addTearDown(harness.cubit.close);
       final target = ConstellationAnchorTarget.person('p2');
-      final companion = ConstellationAnchorTarget.beacon('B2');
       harness.cubit.beginDragNew(target: target);
 
       harness.fieldRepo.fields.add(
@@ -548,8 +545,6 @@ void main() {
         ),
       );
       await Future<void>.delayed(const Duration(milliseconds: 30));
-
-      expect(harness.cubit.state.deferredRefreshTargets, {target, companion});
       expect(
         harness.cubit.state.confirmedProjection!.revision.value,
         BigInt.two,

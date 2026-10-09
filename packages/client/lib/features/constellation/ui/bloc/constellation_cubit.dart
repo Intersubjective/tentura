@@ -253,8 +253,6 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   @visibleForTesting
   int get writeCount => _writeCount;
 
-  bool get placementActionsEnabled => state.placementActionsEnabled;
-
   SceneLayoutAlgorithm get graphSceneLayoutAlgorithm =>
       _scene.layoutAlgorithm(
         graphRevision: state.graphRevision,
@@ -470,7 +468,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         ? field
         : field.copyWith(anchorProjection: confirmedProjection);
     final deferTargets = _shouldDeferPlacementRefresh()
-        ? _deferredRefreshTargetsForPresentation()
+        ? _draggedTargetsForPresentation()
         : const <ConstellationAnchorTarget>{};
     if (deferTargets.isEmpty) _noteDisappearedAnchors(confirmedProjection);
     final presentationField = _desiredField(
@@ -523,8 +521,6 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         capped: composition.renderBudgetCapped,
         loadError: null,
         syncPending: _anchorCase?.syncPending ?? false,
-        deferredRefreshTargets: deferTargets,
-        placementActionsEnabled: true,
       ),
     );
     droppedHolderIds = composition.droppedHolderIds;
@@ -626,7 +622,6 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         paths: null,
         placementPhase: ConstellationPlacementPhase.idle,
         activePlacementTarget: null,
-        deferredRefreshTargets: {},
         placementFailureMessage: null,
         syncPending: false,
       ),
@@ -637,7 +632,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   void beginDragExisting({
     required ConstellationAnchorTarget target,
   }) {
-    if (isClosed || !placementActionsEnabled) {
+    if (isClosed) {
       return;
     }
     _interaction.suppressLateGestureEnd = false;
@@ -649,13 +644,12 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         placementPhase: ConstellationPlacementPhase.draggingExisting,
         activePlacementTarget: target,
         placementFailureMessage: null,
-        placementActionsEnabled: false,
       ),
     );
   }
 
   void beginDragNew({required ConstellationAnchorTarget target}) {
-    if (isClosed || !placementActionsEnabled) {
+    if (isClosed) {
       return;
     }
     _interaction.suppressLateGestureEnd = false;
@@ -667,7 +661,6 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         placementPhase: ConstellationPlacementPhase.draggingNew,
         activePlacementTarget: target,
         placementFailureMessage: null,
-        placementActionsEnabled: false,
       ),
     );
   }
@@ -931,7 +924,6 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       state.copyWith(
         placementPhase: ConstellationPlacementPhase.idle,
         activePlacementTarget: target,
-        placementActionsEnabled: true,
       ),
     );
     if (!kReleaseMode) ConstellationPerf.finishSpan(draggableSpan);
@@ -996,7 +988,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   }
 
   Future<void> pinFromText({required ConstellationAnchorTarget target}) async {
-    if (isClosed || !placementActionsEnabled) {
+    if (isClosed) {
       return;
     }
     final composition = state.composition;
@@ -1022,14 +1014,13 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     emit(
       state.copyWith(
         activePlacementTarget: target,
-        placementActionsEnabled: false,
       ),
     );
     _submitUpsert(target: target, position: position);
   }
 
   Future<void> unpinAnchor({required ConstellationAnchorTarget target}) async {
-    if (isClosed || !placementActionsEnabled || _placementCase == null) {
+    if (isClosed || _placementCase == null) {
       return;
     }
     _writeCount++;
@@ -1092,9 +1083,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       state.copyWith(
         placementPhase: ConstellationPlacementPhase.idle,
         activePlacementTarget: null,
-        deferredRefreshTargets: {},
         placementFailureMessage: null,
-        placementActionsEnabled: true,
       ),
     );
   }
@@ -1151,7 +1140,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     return state.hasPendingPlacementWrite;
   }
 
-  Set<ConstellationAnchorTarget> _deferredRefreshTargetsForPresentation() {
+  Set<ConstellationAnchorTarget> _draggedTargetsForPresentation() {
     if (_interaction.placementClusterTargets.isNotEmpty) {
       return _interaction.placementClusterTargets.values.toSet();
     }
@@ -1292,8 +1281,6 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       state.copyWith(
         placementPhase: ConstellationPlacementPhase.idle,
         activePlacementTarget: null,
-        deferredRefreshTargets: {},
-        placementActionsEnabled: true,
         placementFailureMessage: null,
       ),
     );
@@ -1457,7 +1444,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (next == _appliedLabelBudget || state.field == null) {
       return;
     }
-    if (_placementBusy) {
+    if (state.hasPendingPlacementWrite ||
+        _interaction.draggingNodeId != null) {
       _labelBudgetRecomposePending = true;
       return;
     }
@@ -1481,9 +1469,6 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   @visibleForTesting
   ConstellationFootprintMetrics? get footprintMetricsForTest =>
       _footprintMetrics;
-
-  bool get _placementBusy =>
-      state.hasPendingPlacementWrite || _interaction.draggingNodeId != null;
 
   ConstellationLabelBudget _currentLabelBudget() {
     final budget = constellationLabelBudget(
@@ -1565,12 +1550,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       };
 
   bool canDragNode(NodeDetails node) {
-    if (anchorTargetForNode(node) == null) {
-      return false;
-    }
-    return placementActionsEnabled ||
-        state.placementPhase == ConstellationPlacementPhase.draggingExisting ||
-        state.placementPhase == ConstellationPlacementPhase.draggingNew;
+    return anchorTargetForNode(node) != null;
   }
 
   List<GraphNodeId> orderedNodeIdsForPaint() {
