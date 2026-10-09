@@ -1438,7 +1438,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         _selectionAddsMembers(requestId)) {
       _recomposeAndLayout();
     } else {
-      _scene.rebuild(_buildGraphScene);
+      _scene.rebuild(_rebuildGraphWithoutLayout);
     }
   }
 
@@ -2064,7 +2064,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
             _selectionAddsMembers(previousRequestId))) {
       _recomposeAndLayout();
     } else {
-      _scene.rebuild(_buildGraphScene);
+      _scene.rebuild(_rebuildGraphWithoutLayout);
     }
   }
 
@@ -2296,7 +2296,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   bool _immediateHandoff = false;
 
-  void _buildGraphScene() {
+  /// Selection only changes which edges are drawn; it never moves nodes.
+  void _rebuildGraphWithoutLayout() => _buildGraphScene(layout: false);
+
+  void _buildGraphScene({bool layout = true}) {
     final field = state.field == null ? null : _composerField(state.field!);
     final paths = state.paths;
     final composition = state.composition;
@@ -2349,6 +2352,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
                   const <ConstellationAnchor>[],
         draftCentre: _composingDraftCentre,
       );
+      return;
+    }
+    if (!layout) {
       return;
     }
     _scene.scheduleLayoutHandoff(
