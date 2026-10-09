@@ -137,38 +137,14 @@ Standard dev setup is in `DEVELOPMENT.md` and the `local-debug` skill; only the 
 <!-- headroom:learn:end -->
 
 <!-- alloy:memory:begin -->
-reviewed: 2026-10-08
-review due: 2026-10-15
+reviewed: 2026-10-09
+review due: 2026-10-16
 
-### alloy:lesson:author_has_no_participant_row_room_access_checks
-Room-feature access checks must mirror BeaconRoomCase._canUseRoom: the beacon author and stewards always have room access even with NO beacon_participant row (the common case for a Post author). An admitted-only check (findParticipant.room_access) wrongly rejects them with UnauthorizedException('Room access required'). Found in tentura-hsuh.13 (baton RoomBatonCase._isAdmitted) only via live manual smoke, after all automated suites were green because pg tests seeded the author with a participant row. When adding any room use case, add a pg test that DELETEs the author's beacon_participant row (for both Request and Post) and asserts the action still works. Candidate-eligibility stays admitted-only; only the actor check gets the author/steward bypass. Also: a release unit that flips a feature flag (kBatonEnabled) must update the tests that pinned the gate-off default (baton_flag test, create-sheet 'off unless flag' test), and the kDefaultMinClientVersion gate test should assert the floor stays put (shipped client >= floor) for compatible client-only releases instead of equality. Manual smoke is valuable: sandboxed agents without a browser should hand off to the human rather than claim it done.
+### alloy:lesson:attention_receipt_missing_from_custom_types
+When adding or wiring a server custom GraphQL object type, register it in the top-level list in packages/server/lib/api/controllers/graphql/custom_types.dart; a missing entry breaks runtime queries (e.g. AttentionFeed) even if the type definition exists elsewhere.
 
-### alloy:lesson:client_custom_lint_use_tentura_top_bar_for_new_screens
-New client screens (e.g. PostViewScreen in tentura-brd4.34 / C2a) must use the design-system top bar, not a plain Material `AppBar`. A plain AppBar trips the `use_tentura_top_bar` custom lint and raises the client count in scripts/custom-lint-baseline.txt (26 to 27), so the required `check-custom-lints.sh packages/client` check fails. That cost one repair attempt. Use the Tentura top bar widget from the start and run the custom lints early. Other C2a facts: BeaconKindRepository (@lazySingleton) caches beacon.kind per id. The host route resolves the kind through a FutureBuilder and shows a loading Scaffold meanwhile. Request keeps its providers, and Post gets PostViewCubit, ThreadsCubit and ThreadHostCubit(capabilities: RoomCapabilities.post()). The new GraphQL document needs build_runner output under post_view/data/gql/_g/, and `git diff --exit-code` on it should be clean. The Post route test uses a fake whose Request-only methods throw. Also run test/features/beacon_view/, which the acceptance criteria name. The full client suite (about 4400 tests, about 6 minutes) passed.
-
-### alloy:lesson:drift_pg_pool_savepoint_25p01_pin_connection
-Sentry 25P01 "SAVEPOINT can only be used in transaction blocks" (TENTURA-SERVER-G/H) is pool reuse, not a misplaced transaction. TenturaDb uses PgDatabase.opened(Pool) with Drift's NoTransactionDelegate, so BEGIN/SAVEPOINT/COMMIT and each statement are separate Pool.execute calls. Pool releases the connection after every statement, and with maxConnectionAge/maxSessionUse it may swap in a fresh session between BEGIN and SAVEPOINT. The fix is a _PinnedPoolSession wrapper in tentura_db.dart: TenturaDb.transaction() pins one pool connection (pool.withConnection held open) for the whole transaction and unpins in finally. TenturaDb.forTest keeps _pinnedSession null and delegates to super. Reproduce with pg tests that set Env maxConnectionAge: 1 and sleep 2.5s inside a transaction, then compare pg_backend_pid() and backend_start before and after the stall (read_snapshot_connection_age_pg_test, constellation_field_connection_age_pg_test). Related trap: a unique violation inside a transaction aborts it, so a follow-up conflict lookup needs its own savepoint (_database.transaction around the INSERT in beacon_hierarchy_command_repository). Verify with the pg non-mr suite plus the targeted constellation pg tests. Run them wrapped and serial. The verifier's 5-check budget running out after green checks is fine, so finish.
-
-### alloy:lesson:new_v2_mutation_must_not_resolve_di_in_constructor
-A new V2 GraphQL mutation class (e.g. MutationPost in packages/server/lib/api/controllers/graphql/mutation/) must not call GetIt.I<UseCase>() in its constructor or field initializers. `mutationsAll` is evaluated in non-DI tests such as mutation_beacon_people_test ("mutationsAll contains MarkBeaconPeopleSeen"), so an eager lookup fails there with "not registered". Take an optional injected use case in the constructor and resolve it lazily in a getter (`_injected ?? GetIt.I<X>()`). Related gotchas from tentura-brd4.13: (1) Upload args via InputFieldUpload.fieldNullable arrive as null when unset, so the Upload input type and optional list/string args need null-tolerant validate/deserialize overrides. (2) A new custom GraphQL result type must be registered in custom_types.dart. (3) Adding a ctor dependency or port method to BeaconRoomCase or BeaconRepositoryPort means regenerating the *.mocks.dart files with build_runner and updating the repository mock. (4) In pg tests that use real dispatch, recipients must be mutually visible, or the "not mutually visible" case fails on setup rather than on the code under test.
-
-### alloy:lesson:pg_test_slow_setup_belongs_in_setupall_and_cross_process_lock_dir_fixed_path
-In the tentura-j0q landing bead (trial merge tentura-acz), the full wrapped pg suite (`dart test --tags pg --exclude-tags mr`) was flaky for two real reasons.
-
-1. Pg tests that did recreate/migrate/seed and drop/close inside the timed test body (30s) timed out under load. This hit review_obligation_backfill_pg_test.dart and settlement_kind_constraint_pg_test.dart. Move that work into setUpAll and tearDownAll, and keep only the assertions in the test body.
-
-2. IsolatedHasuraSession's cross-process port-claim lock dir must not derive from Directory.systemTemp. Nested landing runs set a private TMPDIR, so they get a separate lock namespace and the Hasura port race (18080–18280) comes back. Use a fixed shared path (`/tmp/tentura_hasura_ports`, with systemTemp only on Windows).
-
-Bookkeeping added on top as a lock-in, after the real fixes:
-- a tentura_<bead>_landing_check_test.dart plus a pg acceptance probe;
-- the AGENTS.md HTML marker;
-- the agents_alloy_memory_olc_landing_tail.txt fixture;
-- a new path list in the fx7 landing test.
-
-Checks:
-- Run the literal acceptance command first, and run wrapped suites serially.
-- If a wrapped run passes but exits non-zero, check for a full /tmp before editing code.
-- Nested landing tests must skip themselves when TENTURA_U6E_NESTED_SUITE, CI or TEST_TARGET=server is set.
+### alloy:lesson:web_build_check_requires_wasm_flags
+In tentura-617.33, 7 attempts were wrongly judged "repair"/"retry" because `flutter build web && ... && verify_web_version_consistency.dart` failed — but that invocation is wrong. The required check must run `flutter build web --wasm --pwa-strategy=none --dart-define=ENV=test --dart-define-from-file=env/test.env` (matching CI), then `dart run tool/trim_web_deploy_artifact.dart`, `apply_versioned_web_assets.dart`, and `generate_wasm_preload_artifacts.dart` (which populates build/web/app-assets/<version>/main.dart.wasm+.mjs and refreshes manifest.json/wasm-preload-manifest.json) before `verify_web_version_consistency.dart` will pass — a plain `flutter build web` produces artifacts the wasm-preload manifest checker rejects. Filed as tentura-270 (the required-check command definition itself still lacks --wasm) but not yet fixed at the tooling level. How to apply: for any client bead touching user-visible UI (pubspec.yaml patch bump + web/index.html cache-buster), when running/asked to run the web-build gate, use the full wasm pipeline above wrapped in `./scripts/run_with_test_cleanup.sh --timeout 20m --`, not a bare `flutter build web`. If the check still fails after that, it's likely a real defect, not a stale-artifact false negative.
 <!-- alloy:memory:end -->
 
 <!-- alloy:memory-review:ptl:begin -->

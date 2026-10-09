@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:developer' show TimelineTask;
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
@@ -10,14 +9,11 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/forward/domain/use_case/forward_case.dart';
 
 import '../../domain/constellation_anchor_composition.dart';
-import '../../domain/constellation_consts.dart';
 import '../../domain/constellation_density.dart';
 import '../../domain/constellation_filters.dart';
 import '../../domain/constellation_layout.dart';
 import '../../domain/constellation_drag_cluster.dart';
-import 'package:tentura_root/domain/constellation/constellation_path_resolution.dart';
 import '../../domain/constellation_pin_position.dart';
-import '../../domain/constellation_post_fade.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../../domain/entity/constellation_anchor_projection.dart';
 import '../../domain/entity/constellation_field.dart';
@@ -32,32 +28,15 @@ import '../../../graph/domain/entity/node_details.dart';
 import '../../../graph/ui/utils/graph_scene_ids.dart';
 import '../../../graph/ui/utils/tentura_layout_algorithms.dart';
 import '../utils/constellation_graph_scene.dart';
+import '../scene/constellation_scene_controller.dart';
 import '../util/constellation_perf.dart';
 import 'constellation_state.dart';
 
 export 'package:flutter_bloc/flutter_bloc.dart';
 
+export '../scene/constellation_scene_controller.dart'
+    show ConstellationEdgeKind, kConstellationLayoutMaxHops;
 export 'constellation_state.dart';
-
-enum ConstellationEdgeKind {
-  tier1Path,
-  tier2Path,
-  attachment,
-  ringStub,
-  webForwarded,
-  webInside,
-  draftRecipient,
-}
-
-const kConstellationLayoutMaxHops = 3;
-
-void _runAfterNextFrame(void Function() callback) {
-  if (BindingBase.debugBindingType() != null) {
-    WidgetsBinding.instance.addPostFrameCallback((_) => callback());
-  } else {
-    callback();
-  }
-}
 
 /// Server `HelpOfferCoordinationExceptionCode.offerKindChanged` wire code.
 const kOfferKindChangedCoordinationCode = 1516;
@@ -136,7 +115,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     ForwardCase? forwardCase,
     bool loadOnCreate = true,
     this._composePresentation = composeConstellationPresentation,
-  }) : _case = case_,
+    ConstellationSceneController? scene,
+  }) : _scene = scene ?? ConstellationSceneController(),
+        _case = case_,
        _viewer = viewer,
        _forwardCaseOverride = forwardCase,
        super(const ConstellationState()) {
@@ -171,34 +152,25 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   List<TimelineTask>? _dropReflowSpans;
   bool _suppressLateGestureEnd = false;
   String? _draggingNodeId;
-  Set<GraphNodeId> _placementHandoffGraphIds = {};
+  final ConstellationSceneController _scene;
 
   int _writeCount = 0;
 
   /// A dropped placement is with the outbox and the store has not published
   /// its settlement yet; its presentation holds must survive a cancel.
   bool _placementAwaitingStore = false;
-  final Set<GraphNodeId> _placementClusterGraphIds = {};
-  final Map<GraphNodeId, ConstellationAnchorTarget> _placementClusterTargets =
-      {};
-  final Map<GraphNodeId, Offset> _clusterStartCentres = {};
   ConstellationLayoutPriorHints? _layoutPriorHints;
   Set<String> _forgetPriorHintNodeIds = {};
-  bool _awaitingConstellationLayoutOutcome = false;
   bool _layoutRecoveryAttempted = false;
   bool _dispatchingLayoutRecovery = false;
-  bool _scheduleLayoutRecoveryAfterRebuild = false;
 
   @visibleForTesting
-  SceneLayoutAlgorithm? testSceneLayoutAlgorithmOverride;
+  SceneLayoutAlgorithm? get testSceneLayoutAlgorithmOverride =>
+      _scene.testSceneLayoutAlgorithmOverride;
 
-  /// One-shot algorithm for an owned layout request (tests); not used after recovery.
-  SceneLayoutAlgorithm? _ephemeralOwnedLayoutAlgorithm;
-
-  int _constellationLayoutAlgorithmRevision = -1;
-  ConstellationSceneLayoutAlgorithm? _constellationLayoutAlgorithm;
-
-  int _layoutHandoffGeneration = 0;
+  @visibleForTesting
+  set testSceneLayoutAlgorithmOverride(SceneLayoutAlgorithm? value) =>
+      _scene.testSceneLayoutAlgorithmOverride = value;
 
   Set<String> _composingCandidateIds = const {};
   String? _selectedRequestMemberId;
@@ -220,44 +192,40 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   ForwardCase get _forwardCase =>
       _forwardCaseOverride ?? GetIt.I<ForwardCase>();
 
-  late final GraphController<NodeDetails, EdgeDetails> graphController =
-      GraphController(
-        nodeIdOf: tenturaGraphNodeId,
-        edgeIdOf: (edge) => constellationEdgeIdForEdge(edge, edgeKinds.keys),
-        nodeSizeOf: (node) => node.size,
-        nodeSimulationFixedOf: (node) => node.pinned,
-        edgeSourceOf: (edge) => edge.source,
-        edgeDestinationOf: (edge) => edge.destination,
-      );
+  GraphController<NodeDetails, EdgeDetails> get graphController =>
+      _scene.graphController;
 
-  final Map<GraphEdgeId, ConstellationEdgeKind> edgeKinds = {};
+  Map<GraphEdgeId, ConstellationEdgeKind> get edgeKinds => _scene.edgeKinds;
 
-  /// O(1) kind lookup for edge painting keyed by [EdgeDetails.semanticId] (`src->dst#kind`).
-  final Map<String, ConstellationEdgeKind> edgeKindByPair = {};
+  Map<String, ConstellationEdgeKind> get edgeKindByPair =>
+      _scene.edgeKindByPair;
 
-  /// Opacity per drawn Post id (1 until 48 h, 0.25 at 72 h).
-  Map<String, double> postFadeById = const {};
+  Map<String, double> get postFadeById => _scene.postFadeById;
 
-  /// Opacity per Post web, keyed by [EdgeDetails.semanticId].
-  final Map<String, double> edgeFadeBySemanticId = {};
+  Map<String, double> get edgeFadeBySemanticId => _scene.edgeFadeBySemanticId;
 
-  /// «+N» chip count per drawn Post: hidden reach plus capped members.
-  Map<String, int> postOverflowCountByPostId = const {};
+  Map<String, int> get postOverflowCountByPostId =>
+      _scene.postOverflowCountByPostId;
 
-  String layoutEgoId = '';
-  Map<String, List<String>> layoutVisibleRequestsByAuthor = const {};
-  Set<String> layoutEgoOwnRequestIds = const {};
-  Set<String> layoutPinnedPersonIds = const {};
-  Set<String> layoutPinnedRequestIds = const {};
-  Set<String> layoutSupportPersonIds = const {};
-  Map<String, ConstellationAnchorPosition> layoutAnchorByNodeId = const {};
-  Set<String> layoutKeptPeerIds = const {};
-  ConstellationPathResolution? layoutPaths;
+  String get layoutEgoId => _scene.layoutEgoId;
+
+  Map<String, List<String>> get layoutVisibleRequestsByAuthor =>
+      _scene.layoutVisibleRequestsByAuthor;
+
+  Set<String> get layoutEgoOwnRequestIds => _scene.layoutEgoOwnRequestIds;
+
+  Set<String> get displayedRequestIds => _scene.displayedRequestIds;
+
+  Map<String, int> get overflowHiddenCountByAuthor =>
+      _scene.overflowHiddenCountByAuthor;
+
+  Map<String, int> get expandedExtraCountByAuthor =>
+      _scene.expandedExtraCountByAuthor;
+
+  Map<String, ConstellationFootprint> get layoutFootprints =>
+      _scene.layoutFootprints;
+
   Set<String> droppedHolderIds = const {};
-  Set<String> displayedRequestIds = const {};
-  Map<String, int> overflowHiddenCountByAuthor = const {};
-  Map<String, int> expandedExtraCountByAuthor = const {};
-  Map<String, ConstellationFootprint> layoutFootprints = const {};
   final Set<String> expandedSatelliteAuthorIds = {};
 
   Size _labelBudgetViewport = const Size(1200, 900);
@@ -281,42 +249,22 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   bool get placementActionsEnabled => state.placementActionsEnabled;
 
   SceneLayoutAlgorithm get graphSceneLayoutAlgorithm =>
-      _ephemeralOwnedLayoutAlgorithm ??
-      testSceneLayoutAlgorithmOverride ??
-      constellationSceneLayoutAlgorithm;
+      _scene.layoutAlgorithm(
+        graphRevision: state.graphRevision,
+        viewerId: _viewer.id,
+        statePaths: state.paths,
+        stateKeptPeerIds: state.keptPeerIds,
+        forgetPriorHintNodeIds: _forgetPriorHintNodeIds,
+      );
 
-  ConstellationSceneLayoutAlgorithm get constellationSceneLayoutAlgorithm {
-    final cached = _constellationLayoutAlgorithm;
-    if (cached != null &&
-        _constellationLayoutAlgorithmRevision == state.graphRevision) {
-      return cached;
-    }
-    _constellationLayoutAlgorithmRevision = state.graphRevision;
-    return _constellationLayoutAlgorithm = ConstellationSceneLayoutAlgorithm(
-      egoId: layoutEgoId.isEmpty ? _viewer.id : layoutEgoId,
-      paths:
-          layoutPaths ??
-          state.paths ??
-          resolveConstellationPaths(
-            egoId: _viewer.id,
-            visiblePeerIds: const {},
-            holderIds: {_viewer.id},
-            edges: const [],
-          ),
-      keptPeerIds: layoutKeptPeerIds.isEmpty
-          ? state.keptPeerIds
-          : layoutKeptPeerIds,
-      maxHops: kConstellationLayoutMaxHops,
-      visibleRequestsByAuthor: layoutVisibleRequestsByAuthor,
-      egoOwnRequestIds: layoutEgoOwnRequestIds,
-      pinnedPersonIds: layoutPinnedPersonIds,
-      pinnedRequestIds: layoutPinnedRequestIds,
-      supportPersonIds: layoutSupportPersonIds,
-      anchorByNodeId: layoutAnchorByNodeId,
-      forgetPriorHintNodeIds: _forgetPriorHintNodeIds,
-      footprints: layoutFootprints,
-    );
-  }
+  ConstellationSceneLayoutAlgorithm get constellationSceneLayoutAlgorithm =>
+      _scene.constellationAlgorithm(
+        graphRevision: state.graphRevision,
+        viewerId: _viewer.id,
+        statePaths: state.paths,
+        stateKeptPeerIds: state.keptPeerIds,
+        forgetPriorHintNodeIds: _forgetPriorHintNodeIds,
+      );
 
   @override
   Future<void> close() async {
@@ -356,8 +304,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
     _layoutRecoveryAttempted = false;
     emit(state.copyWith(graphLayoutFailureMessage: null));
-    _awaitingConstellationLayoutOutcome = true;
-    _scheduleLayoutRecoveryAfterRebuild = true;
+    _scene.awaitingLayoutOutcome = true;
+    _scene.scheduleLayoutRecoveryAfterRebuild = true;
     _reconcileLayout();
   }
 
@@ -373,24 +321,24 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     SceneLayoutAlgorithm? algorithm,
     bool bumpGraphRevision = true,
   }) {
-    _ephemeralOwnedLayoutAlgorithm = algorithm;
-    _awaitingConstellationLayoutOutcome = true;
-    _scheduleLayoutRecoveryAfterRebuild = false;
+    _scene.ephemeralOwnedLayoutAlgorithm = algorithm;
+    _scene.awaitingLayoutOutcome = true;
+    _scene.scheduleLayoutRecoveryAfterRebuild = false;
     if (isClosed) {
       return;
     }
     if (bumpGraphRevision) {
       emit(state.copyWith(graphRevision: state.graphRevision + 1));
     }
-    _runAfterNextFrame(() {
+    runAfterNextFrame(() {
       if (isClosed ||
-          _ephemeralOwnedLayoutAlgorithm == null ||
+          _scene.ephemeralOwnedLayoutAlgorithm == null ||
           state.graphLayoutFailureMessage != null) {
         return;
       }
-      _awaitingConstellationLayoutOutcome = true;
-      graphController.requestSceneLayout(
-        releaseOnTerminal: _activePresentationReleaseTokens(),
+      _scene.awaitingLayoutOutcome = true;
+      _scene.requestLayout(
+        releaseOnTerminal: _scene.activePresentationReleaseTokens(),
         algorithm: graphSceneLayoutAlgorithm,
       );
     });
@@ -405,10 +353,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (outcome is GraphLayoutOutcomeRunning) {
       return;
     }
-    if (!_awaitingConstellationLayoutOutcome) {
+    if (!_scene.awaitingLayoutOutcome) {
       return;
     }
-    _awaitingConstellationLayoutOutcome = false;
+    _scene.awaitingLayoutOutcome = false;
 
     if (!kReleaseMode &&
         (outcome is GraphLayoutOutcomeSucceeded ||
@@ -433,13 +381,13 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
     final presentation = graphController.renderSnapshot.presentation;
     if (presentation.holds.isNotEmpty || presentation.overrides.isNotEmpty) {
-      _ephemeralOwnedLayoutAlgorithm = null;
+      _scene.ephemeralOwnedLayoutAlgorithm = null;
       return;
     }
 
     if (_layoutRecoveryAttempted) {
-      _layoutHandoffGeneration++;
-      _scheduleLayoutRecoveryAfterRebuild = false;
+      _scene.layoutHandoffGeneration++;
+      _scene.scheduleLayoutRecoveryAfterRebuild = false;
       emit(
         state.copyWith(
           graphLayoutFailureMessage: kConstellationGraphLayoutFailureMessage,
@@ -449,7 +397,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
 
     _layoutRecoveryAttempted = true;
-    _ephemeralOwnedLayoutAlgorithm = null;
+    _scene.ephemeralOwnedLayoutAlgorithm = null;
     unawaited(_recoverGraphLayoutFromConfirmedProjection());
   }
 
@@ -466,20 +414,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (isClosed) {
       return;
     }
-    _scheduleLayoutRecoveryAfterRebuild = true;
-    _awaitingConstellationLayoutOutcome = true;
+    _scene.scheduleLayoutRecoveryAfterRebuild = true;
+    _scene.awaitingLayoutOutcome = true;
     _reconcileLayout();
-  }
-
-  Set<GraphPresentationToken> _activePresentationReleaseTokens() {
-    final releaseOnTerminal = <GraphPresentationToken>{};
-    for (final id in graphController.renderSnapshot.topology.nodesById.keys) {
-      final token = graphController.activePresentationTokenForNode(id);
-      if (token != null) {
-        releaseOnTerminal.add(token);
-      }
-    }
-    return releaseOnTerminal;
   }
 
   Future<void> load() async {
@@ -759,22 +696,6 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   }
 
   /// Places the draft node, which is not in the anchor set, at a fixed centre.
-  void _placeDraftNode() {
-    const draftGraphId = 'fd:${FieldDraftNode.draftId}';
-    if (graphController.nodePayloadForId(draftGraphId) == null) {
-      return;
-    }
-    final token = graphController.activePresentationTokenForNode(draftGraphId);
-    if (token != null) {
-      graphController.updateNodePresentationDrag(token, _composingDraftCentre);
-      return;
-    }
-    graphController.beginNodePresentationDragForId(
-      draftGraphId,
-      _composingDraftCentre,
-    );
-  }
-
   void updateDragPresentation({
     required String nodeId,
     required Offset sceneCentre,
@@ -786,186 +707,26 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (target == null) {
       return;
     }
-    final parentGraphId = constellationGraphNodeIdForTarget(target);
-    if (_placementClusterGraphIds.isEmpty) {
-      _updateSingleNodePresentation(parentGraphId, sceneCentre);
-      return;
-    }
-    final parentStart = _clusterStartCentres[parentGraphId];
-    if (parentStart == null) {
-      return;
-    }
-    final limited = constellationLimitClusterDelta(
-      parentStart: (x: parentStart.dx, y: parentStart.dy),
-      proposedParent: (x: sceneCentre.dx, y: sceneCentre.dy),
-      companionStarts: _companionClusterStarts(parentGraphId),
-    );
-    final updates = <GraphPresentationToken, Offset>{};
-    for (final graphId in _placementClusterGraphIds) {
-      final start = _clusterStartCentres[graphId];
-      if (start == null) {
-        continue;
-      }
-      final centre = Offset(
-        start.dx + limited.x,
-        start.dy + limited.y,
+    _scene.updateDragPresentation(target, sceneCentre);
+  }
+
+  Offset clampClusterDragPosition(NodeDetails node, Offset proposed) =>
+      _scene.clampClusterDragPosition(
+        state.activePlacementTarget,
+        node,
+        proposed,
       );
-      final token = graphController.activePresentationTokenForNode(graphId);
-      if (token != null) {
-        updates[token] = centre;
-      } else {
-        graphController.beginNodePresentationDragForId(graphId, centre);
-      }
-    }
-    if (updates.isNotEmpty) {
-      graphController.updateNodePresentationDrags(updates);
-    }
-  }
 
-  Offset clampClusterDragPosition(NodeDetails node, Offset proposed) {
-    final target = state.activePlacementTarget;
-    if (target == null || _placementClusterGraphIds.isEmpty) {
-      return proposed;
-    }
-    final parentGraphId = constellationGraphNodeIdForTarget(target);
-    if (tenturaGraphNodeId(node) != parentGraphId) {
-      return proposed;
-    }
-    final parentStart = _clusterStartCentres[parentGraphId];
-    if (parentStart == null) {
-      return proposed;
-    }
-    final limited = constellationLimitClusterDelta(
-      parentStart: (x: parentStart.dx, y: parentStart.dy),
-      proposedParent: (x: proposed.dx, y: proposed.dy),
-      companionStarts: _companionClusterStarts(parentGraphId),
-    );
-    return Offset(
-      parentStart.dx + limited.x,
-      parentStart.dy + limited.y,
-    );
-  }
-
-  void _beginClusterDragPresentation(ConstellationAnchorTarget target) {
-    _clearPlacementClusterState();
-    _beginDragPresentation(target);
-    final parentGraphId = constellationGraphNodeIdForTarget(target);
-    _placementClusterGraphIds.add(parentGraphId);
-    _placementClusterTargets[parentGraphId] = target;
-    _recordClusterStartCentre(parentGraphId);
-    if (target.kind == ConstellationAnchorTargetKind.person) {
-      _addPersonDragCompanions(authorId: target.id);
-    }
-  }
-
-  void _addPersonDragCompanions({required String authorId}) {
-    final field = state.field;
-    final composition = state.composition;
-    if (field == null || composition == null) {
-      return;
-    }
-    final pinnedBeaconIds = constellationPinnedBeaconIds(
-      composition.anchorOverlay.anchors,
-    );
-    final satellites = constellationAuthorSatellites(
-      authorId: authorId,
-      fieldRequests: field.requests,
-      overlayPinnedRequests: composition.anchorOverlay.pinnedRequests,
-      pinnedBeaconIds: pinnedBeaconIds,
-    );
-    final onGraphRequestIds = <String>{
-      for (final graphId
-          in graphController.renderSnapshot.topology.nodesById.keys)
-        if (graphId.startsWith('${TenturaGraphNodeKind.fieldRequest}:'))
-          tenturaLayoutDomainId(graphId),
-    };
-    final companionIds = satellites.pinnedIds
-        .intersection(displayedRequestIds)
-        .intersection(onGraphRequestIds);
-    for (final requestId in companionIds) {
-      final companionTarget = ConstellationAnchorTarget.beacon(requestId);
-      final graphId = constellationGraphNodeIdForTarget(companionTarget);
-      if (graphController.nodePayloadForId(graphId) == null) {
-        continue;
-      }
-      _placementClusterGraphIds.add(graphId);
-      _placementClusterTargets[graphId] = companionTarget;
-      _recordClusterStartCentre(graphId);
-      final start = _clusterStartCentres[graphId];
-      if (start != null &&
-          graphController.activePresentationTokenForNode(graphId) == null) {
-        graphController.beginNodePresentationDragForId(graphId, start);
-      }
-    }
-  }
-
-  void _recordClusterStartCentre(GraphNodeId graphId) {
-    final point = graphController.renderSnapshot.resolvePosition(graphId);
-    if (point != null) {
-      _clusterStartCentres[graphId] = Offset(point.x, point.y);
-      return;
-    }
-    final target = _placementClusterTargets[graphId];
-    if (target == null) {
-      return;
-    }
-    final anchors = [
-      ...?state.composition?.anchorOverlay.anchors,
-      ...?state.confirmedProjection?.anchors,
-    ];
-    for (final anchor in anchors) {
-      if (anchor.target != target) {
-        continue;
-      }
-      final fallback = constellationV1AnchorToPoint(anchor.position);
-      _clusterStartCentres[graphId] = Offset(fallback.x, fallback.y);
-      return;
-    }
-  }
-
-  Iterable<ConstellationPoint> _companionClusterStarts(
-    GraphNodeId parentGraphId,
-  ) sync* {
-    for (final graphId in _placementClusterGraphIds) {
-      if (graphId == parentGraphId) {
-        continue;
-      }
-      final start = _clusterStartCentres[graphId];
-      if (start != null) {
-        yield (x: start.dx, y: start.dy);
-      }
-    }
-  }
-
-  void _updateSingleNodePresentation(GraphNodeId graphId, Offset sceneCentre) {
-    if (graphController.nodePayloadForId(graphId) == null) {
-      return;
-    }
-    final token = graphController.activePresentationTokenForNode(graphId);
-    if (token != null) {
-      graphController.updateNodePresentationDrag(token, sceneCentre);
-    } else {
-      graphController.beginNodePresentationDragForId(graphId, sceneCentre);
-    }
-  }
-
-  void _beginDragPresentation(ConstellationAnchorTarget target) {
-    final graphId = constellationGraphNodeIdForTarget(target);
-    final node = graphController.nodePayloadForId(graphId);
-    if (node == null) {
-      return;
-    }
-    final point = graphController.renderSnapshot.resolvePosition(graphId);
-    if (point == null) {
-      return;
-    }
-    if (graphController.activePresentationTokenForNode(graphId) == null) {
-      graphController.beginNodePresentationDragForId(
-        graphId,
-        Offset(point.x, point.y),
+  void _beginClusterDragPresentation(ConstellationAnchorTarget target) =>
+      _scene.beginClusterDragPresentation(
+        target,
+        field: state.field,
+        composition: state.composition,
+        fallbackAnchors: [
+          ...?state.composition?.anchorOverlay.anchors,
+          ...?state.confirmedProjection?.anchors,
+        ],
       );
-    }
-  }
 
   void _finishDropReflowSpans() {
     if (kReleaseMode) return;
@@ -1017,7 +778,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
     _holdDropPresentation(target: target, sceneCentre: sceneCentre);
     final parentGraphId = constellationGraphNodeIdForTarget(target);
-    final parentStart = _clusterStartCentres[parentGraphId];
+    final parentStart = _scene.clusterStartCentres[parentGraphId];
     final parentNode = graphController.nodePayloadForId(parentGraphId);
     final dropCentre = parentStart == null || parentNode is! NodeDetails
         ? sceneCentre
@@ -1043,7 +804,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
           })
         >[];
     final droppedCompanionGraphIds = <GraphNodeId>[];
-    for (final entry in _placementClusterTargets.entries) {
+    for (final entry in _scene.placementClusterTargets.entries) {
       if (entry.key == parentGraphId) {
         continue;
       }
@@ -1051,7 +812,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         droppedCompanionGraphIds.add(entry.key);
         continue;
       }
-      final start = _clusterStartCentres[entry.key];
+      final start = _scene.clusterStartCentres[entry.key];
       if (start == null) {
         continue;
       }
@@ -1064,17 +825,14 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
     for (final graphId in droppedCompanionGraphIds) {
       graphController.clearPresentationForNodeId(graphId);
-      _placementClusterGraphIds.remove(graphId);
-      _placementClusterTargets.remove(graphId);
-      _clusterStartCentres.remove(graphId);
+      _scene.placementClusterGraphIds.remove(graphId);
+      _scene.placementClusterTargets.remove(graphId);
+      _scene.clusterStartCentres.remove(graphId);
     }
-    _placementClusterGraphIds.add(parentGraphId);
-    _placementClusterTargets.putIfAbsent(parentGraphId, () => target);
+    _scene.placementClusterGraphIds.add(parentGraphId);
+    _scene.placementClusterTargets.putIfAbsent(parentGraphId, () => target);
     // Keep holds of an earlier drop whose write has not settled yet.
-    _placementHandoffGraphIds = {
-      ..._placementHandoffGraphIds,
-      ..._placementClusterGraphIds,
-    };
+    _scene.addPlacementHandoffGraphIds(_scene.placementClusterGraphIds);
     _draggingNodeId = null;
     // The pointer drag has ended; the outbox owns the write from here, so
     // dragging re-enables at once.
@@ -1110,11 +868,11 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (graphController.nodePayloadForId(parentGraphId) == null) {
       return;
     }
-    if (_placementClusterGraphIds.isEmpty) {
-      _updateSingleNodePresentation(parentGraphId, sceneCentre);
+    if (_scene.placementClusterGraphIds.isEmpty) {
+      _scene.updateSingleNodePresentation(parentGraphId, sceneCentre);
       return;
     }
-    final parentStart = _clusterStartCentres[parentGraphId];
+    final parentStart = _scene.clusterStartCentres[parentGraphId];
     if (parentStart == null) {
       return;
     }
@@ -1123,11 +881,11 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     final limited = constellationLimitClusterDelta(
       parentStart: (x: parentStart.dx, y: parentStart.dy),
       proposedParent: (x: dropCentre.dx, y: dropCentre.dy),
-      companionStarts: _companionClusterStarts(parentGraphId),
+      companionStarts: _scene.companionClusterStarts(parentGraphId),
     );
     final updates = <GraphPresentationToken, Offset>{};
-    for (final graphId in _placementClusterGraphIds) {
-      final start = _clusterStartCentres[graphId];
+    for (final graphId in _scene.placementClusterGraphIds) {
+      final start = _scene.clusterStartCentres[graphId];
       if (start == null) {
         continue;
       }
@@ -1304,8 +1062,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   }
 
   Set<ConstellationAnchorTarget> _deferredRefreshTargetsForPresentation() {
-    if (_placementClusterTargets.isNotEmpty) {
-      return _placementClusterTargets.values.toSet();
+    if (_scene.placementClusterTargets.isNotEmpty) {
+      return _scene.placementClusterTargets.values.toSet();
     }
     final active = state.activePlacementTarget;
     if (active != null) {
@@ -1460,7 +1218,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   }
 
   void _clearDragPresentation(String nodeId) {
-    if (_placementClusterGraphIds.isNotEmpty) {
+    if (_scene.placementClusterGraphIds.isNotEmpty) {
       _clearClusterPresentations();
       return;
     }
@@ -1470,22 +1228,12 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         : constellationGraphNodeIdForDomain(nodeId);
     graphController.clearPresentationForNodeId(graphId);
     _draggingNodeId = null;
-    _placementHandoffGraphIds = {};
-  }
-
-  void _clearPlacementClusterState() {
-    _placementClusterGraphIds.clear();
-    _placementClusterTargets.clear();
-    _clusterStartCentres.clear();
+    _scene.clearPlacementHandoffGraphIds();
   }
 
   void _clearClusterPresentations() {
-    for (final graphId in _placementClusterGraphIds) {
-      graphController.clearPresentationForNodeId(graphId);
-    }
-    _clearPlacementClusterState();
+    _scene.clearClusterPresentations();
     _draggingNodeId = null;
-    _placementHandoffGraphIds = {};
   }
 
   void selectRequest(String? requestId) {
@@ -1511,7 +1259,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         _selectionAddsMembers(requestId)) {
       _recomposeAndLayout();
     } else {
-      _rebuildGraph();
+      _scene.rebuild(_buildGraphScene);
     }
   }
 
@@ -1572,44 +1320,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   }
 
   void fitWholeField({required EdgeInsets insets}) {
-    if (!graphController.canLayout ||
-        state.placementPhase != ConstellationPlacementPhase.idle) {
+    if (state.placementPhase != ConstellationPlacementPhase.idle) {
       return;
     }
-    final snapshot = graphController.renderSnapshot;
-    Rect? bounds;
-    for (final entry in snapshot.topology.nodesById.entries) {
-      final graphId = entry.key;
-      final point = snapshot.resolvePosition(graphId);
-      if (point == null) {
-        continue;
-      }
-      final centre = (x: point.x, y: point.y);
-      final sceneNode = entry.value;
-      final nodeBounds = constellationPlacedNodeBounds(
-        centre: centre,
-        footprint: layoutFootprints[graphId],
-        size: (
-          width: sceneNode.size.width,
-          height: sceneNode.size.height,
-        ),
-      );
-      final rect = Rect.fromLTRB(
-        nodeBounds.left,
-        nodeBounds.top,
-        nodeBounds.right,
-        nodeBounds.bottom,
-      );
-      bounds = bounds == null ? rect : bounds.expandToInclude(rect);
-    }
-    if (bounds == null) {
-      return;
-    }
-    graphController.fitToRect(
-      bounds,
-      viewportInsets: insets,
-      maxScale: 1,
-    );
+    _scene.fitWholeField(insets);
   }
 
   /// Selects [beaconId] (a Request or a Post) and centres the camera on its
@@ -1620,58 +1334,17 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       return;
     }
     selectRequest(beaconId);
-    if (!graphController.canLayout ||
-        state.placementPhase != ConstellationPlacementPhase.idle) {
+    if (state.placementPhase != ConstellationPlacementPhase.idle) {
       return;
     }
-    for (final candidate
-        in graphController.renderSnapshot.topology.nodesById.values) {
-      final payload = candidate.payload;
-      if (payload is! FieldBeaconNode ||
-          (payload.request?.id ?? payload.post?.id) != beaconId) {
-        continue;
-      }
-      final point = graphController.renderSnapshot.resolvePosition(
-        tenturaGraphNodeId(payload),
-      );
-      if (point != null) {
-        graphController.jumpToPosition(
-          Offset(point.x, point.y),
-          viewportInsets: insets,
-        );
-      }
-      return;
-    }
+    _scene.centreOnBeacon(beaconId, insets);
   }
 
   void centerOnEgo({required EdgeInsets insets}) {
-    if (!graphController.canLayout ||
-        state.placementPhase != ConstellationPlacementPhase.idle) {
+    if (state.placementPhase != ConstellationPlacementPhase.idle) {
       return;
     }
-    NodeDetails? egoNode;
-    for (final candidate
-        in graphController.renderSnapshot.topology.nodesById.values) {
-      final payload = candidate.payload;
-      if (payload is FieldPersonNode && payload.person.id == _viewer.id) {
-        egoNode = payload;
-        break;
-      }
-    }
-    if (egoNode == null) {
-      return;
-    }
-    final point = graphController.renderSnapshot.resolvePosition(
-      tenturaGraphNodeId(egoNode),
-    );
-    if (point == null) {
-      return;
-    }
-    graphController.jumpToPosition(
-      Offset(point.x, point.y),
-      resetScale: true,
-      viewportInsets: insets,
-    );
+    _scene.centreOnEgo(_viewer.id, insets);
   }
 
   void updateLabelBudgetContext({
@@ -1706,10 +1379,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       return;
     }
     _footprintMetrics = metrics;
-    if (_ephemeralOwnedLayoutAlgorithm != null || _dispatchingLayoutRecovery) {
+    if (_scene.ephemeralOwnedLayoutAlgorithm != null || _dispatchingLayoutRecovery) {
       return;
     }
-    if (_awaitingConstellationLayoutOutcome) {
+    if (_scene.awaitingLayoutOutcome) {
       return;
     }
     _reconcileLayout(deferAutomaticReflow: true);
@@ -1721,37 +1394,6 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   bool get _placementBusy =>
       state.hasPendingPlacementWrite || _draggingNodeId != null;
-
-  Map<String, ConstellationFootprint> _layoutFootprintsForNodes({
-    required ConstellationLabelDisplayPlan plan,
-    required Set<String> personIds,
-    required Set<String> requestIds,
-  }) {
-    final metrics = _footprintMetrics;
-    if (metrics == null) {
-      return const {};
-    }
-    final footprints = <String, ConstellationFootprint>{};
-    for (final id in personIds) {
-      footprints[id] = constellationNodeFootprint(
-        kind: ConstellationFootprintKind.person,
-        bodySize: 40,
-        hasAuthorChip:
-            plan.overflowHiddenCountByAuthor.containsKey(id) ||
-            plan.expandedExtraCountByAuthor.containsKey(id),
-        metrics: metrics,
-      );
-    }
-    for (final id in requestIds) {
-      footprints[id] = constellationNodeFootprint(
-        kind: ConstellationFootprintKind.request,
-        bodySize: 36,
-        hasAuthorChip: false,
-        metrics: metrics,
-      );
-    }
-    return footprints;
-  }
 
   ConstellationLabelBudget _currentLabelBudget() {
     final budget = constellationLabelBudget(
@@ -1845,64 +1487,16 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     return orderedNodesForPaint().map(tenturaGraphNodeId).toList();
   }
 
-  List<NodeDetails> orderedNodesForPaint() {
-    final nodes = graphController.nodes.whereType<NodeDetails>().toList();
-    if (nodes.isEmpty) {
-      return nodes;
-    }
-    final anchors = [
+  List<NodeDetails> orderedNodesForPaint() => _scene.orderedNodesForPaint(
+    anchors: [
       ...?state.composition?.anchorOverlay.anchors,
       ...?state.confirmedProjection?.anchors,
-    ];
-    final anchorByNodeId = constellationAnchorsByNodeId(anchors);
-    final anchored = <NodeDetails>[];
-    final unanchored = <NodeDetails>[];
-    for (final node in nodes) {
-      if (anchorByNodeId.containsKey(node.id)) {
-        anchored.add(node);
-      } else {
-        unanchored.add(node);
-      }
-    }
-    anchored.sort((a, b) {
-      final anchorA = anchorByNodeId[a.id]!;
-      final anchorB = anchorByNodeId[b.id]!;
-      return ConstellationAnchor.comparePaintOrder(anchorA, anchorB);
-    });
-    final ordered = [...unanchored, ...anchored];
-    final liftCluster =
-        _placementClusterGraphIds.isNotEmpty &&
-        (state.placementPhase == ConstellationPlacementPhase.draggingExisting ||
-            state.placementPhase == ConstellationPlacementPhase.draggingNew);
-    if (liftCluster) {
-      final active = state.activePlacementTarget;
-      final parentGraphId = active == null
-          ? null
-          : constellationGraphNodeIdForTarget(active);
-      final clusterNodes = <NodeDetails>[];
-      for (final graphId in _placementClusterGraphIds) {
-        final domainId = tenturaLayoutDomainId(graphId);
-        final node = ordered.where((n) => n.id == domainId).firstOrNull;
-        if (node != null) {
-          ordered.remove(node);
-          clusterNodes.add(node);
-        }
-      }
-      clusterNodes.sort((a, b) {
-        if (parentGraphId == null) {
-          return 0;
-        }
-        final aIsParent = tenturaGraphNodeId(a) == parentGraphId;
-        final bIsParent = tenturaGraphNodeId(b) == parentGraphId;
-        if (aIsParent == bIsParent) {
-          return 0;
-        }
-        return aIsParent ? 1 : -1;
-      });
-      ordered.addAll(clusterNodes);
-    }
-    return ordered;
-  }
+    ],
+    activeTarget: state.activePlacementTarget,
+    dragging:
+        state.placementPhase == ConstellationPlacementPhase.draggingExisting ||
+        state.placementPhase == ConstellationPlacementPhase.draggingNew,
+  );
 
   bool get isFilteredResultEmpty {
     final field = state.field;
@@ -2298,7 +1892,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
             _selectionAddsMembers(previousRequestId))) {
       _recomposeAndLayout();
     } else {
-      _rebuildGraph();
+      _scene.rebuild(_buildGraphScene);
     }
   }
 
@@ -2519,36 +2113,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       return;
     }
     _layoutReconciliationCount++;
-    _rebuildGraph();
-  }
-
-  /// The peer an ego edge may lead to: the first hop on the path to
-  /// [focusPersonId], or the person itself when it hangs on the ring.
-  Set<String> _egoEdgeTargets({
-    required ConstellationPathResolution paths,
-    required String? focusPersonId,
-  }) {
-    if (focusPersonId == null || focusPersonId == _viewer.id) {
-      return const {};
-    }
-    var current = focusPersonId;
-    final seen = <String>{};
-    while (seen.add(current)) {
-      final parentId = paths.parent[current];
-      if (parentId == null || parentId == _viewer.id) {
-        break;
-      }
-      current = parentId;
-    }
-    return {current};
-  }
-
-  void _rebuildGraph() {
-    if (kReleaseMode) {
-      _buildGraphScene();
-      return;
-    }
-    ConstellationPerf.timeSync('scene.build', _buildGraphScene);
+    _scene.rebuild(_buildGraphScene);
   }
 
   void _buildGraphScene() {
@@ -2556,28 +2121,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     final paths = state.paths;
     final composition = state.composition;
     if (field == null || paths == null) {
-      graphController.clear();
-      edgeKinds.clear();
-      edgeKindByPair.clear();
-      edgeFadeBySemanticId.clear();
-      postFadeById = const {};
-      postOverflowCountByPostId = const {};
-      overflowHiddenCountByAuthor = const {};
-      expandedExtraCountByAuthor = const {};
+      _scene.clear();
       return;
-    }
-
-    final peersById = {
-      for (final peer in field.peers) peer.id: peer,
-    };
-    final overlay = composition?.anchorOverlay;
-    if (overlay != null) {
-      for (final peer in overlay.pinnedPeers) {
-        peersById.putIfAbsent(peer.id, () => peer);
-      }
-      for (final peer in overlay.supportPeers) {
-        peersById.putIfAbsent(peer.id, () => peer);
-      }
     }
     final ConstellationLabelDisplayPlan plan;
     if (composition != null) {
@@ -2592,390 +2137,43 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         pinnedRequestIds: const {},
       );
     }
-    final drawnRequestIds = plan.drawnRequestIds;
-
-    final requestsById = {
-      for (final request in field.requests) request.id: request,
-    };
-    if (overlay != null) {
-      for (final request in overlay.pinnedRequests) {
-        requestsById.putIfAbsent(request.id, () => request);
-      }
-    }
-    final drawnRequests = [
-      for (final id in drawnRequestIds) ?requestsById[id],
-    ]..sort((a, b) => a.id.compareTo(b.id));
-
-    layoutEgoId = _viewer.id;
-    layoutPaths = paths;
-    layoutKeptPeerIds = state.keptPeerIds;
-    final anchors = overlay?.anchors ?? const <ConstellationAnchor>[];
-    // Hard pins only: ids with an anchor coordinate. Peers listed as pinned
-    // without a person anchor must not block automatic placement.
-    layoutPinnedPersonIds = {
-      for (final anchor in anchors)
-        if (anchor.target.kind == ConstellationAnchorTargetKind.person)
-          anchor.target.id,
-    };
-    layoutPinnedRequestIds = {
-      for (final anchor in anchors)
-        if (anchor.target.kind == ConstellationAnchorTargetKind.beacon)
-          anchor.target.id,
-    };
-    layoutSupportPersonIds = {
-      if (overlay != null)
-        for (final peer in overlay.supportPeers) peer.id,
-    };
-    layoutAnchorByNodeId = {
-      for (final entry in constellationAnchorsByNodeId(anchors).entries)
-        entry.key: entry.value.position,
-    };
-    final drawnSatellites = constellationDrawnSatellites(
-      plan,
-      hardPinnedRequestIds: layoutPinnedRequestIds,
-    );
-    layoutVisibleRequestsByAuthor = drawnSatellites.byAuthor;
-    layoutEgoOwnRequestIds = drawnSatellites.egoOwn;
-    displayedRequestIds = plan.drawnRequestIds;
-    overflowHiddenCountByAuthor = plan.overflowHiddenCountByAuthor;
-    expandedExtraCountByAuthor = plan.expandedExtraCountByAuthor;
-
-    final personIdsForFootprints = {
-      _viewer.id,
-      ...layoutKeptPeerIds,
-      ...layoutPinnedPersonIds,
-      ...layoutSupportPersonIds,
-    };
-    final requestIdsForFootprints = {
-      ...drawnSatellites.byAuthor.values.expand((ids) => ids),
-      ...drawnSatellites.egoOwn,
-      ...layoutPinnedRequestIds,
-    };
-    layoutFootprints = _layoutFootprintsForNodes(
-      plan: plan,
-      personIds: personIdsForFootprints,
-      requestIds: requestIdsForFootprints,
-    );
-
-    final nodes = <NodeDetails>{};
-    final edges = <EdgeDetails>{};
-    edgeKinds.clear();
-    edgeKindByPair.clear();
-    edgeFadeBySemanticId.clear();
-
-    nodes.add(
-      FieldPersonNode(
-        person: _viewer,
-        ring: 0,
-        isKept: true,
-      ),
-    );
-
-    final keptSorted = state.keptPeerIds.toList()..sort();
-    for (final peerId in keptSorted) {
-      final peer = peersById[peerId];
-      if (peer == null) {
-        continue;
-      }
-      final ring = paths.ring.contains(peerId)
-          ? kConstellationLayoutMaxHops + 1
-          : paths.depth[peerId] ?? kConstellationLayoutMaxHops;
-      nodes.add(
-        FieldPersonNode(
-          person: _profileFromPeer(peer),
-          ring: ring,
-          isKept: paths.keep.contains(peerId),
-        ),
-      );
-    }
-
-    for (final request in drawnRequests) {
-      nodes.add(FieldBeaconNode(request: request));
-    }
-    final drawnPosts = [
-      for (final spec in composition?.beaconNodes ?? const <LayoutNodeSpec>[])
-        if (spec.post != null && drawnRequestIds.contains(spec.id))
-          FieldBeaconNode(post: spec.post, pinned: spec.pinned),
-    ];
-    nodes.addAll(drawnPosts);
-
-    final composing = state.isComposing;
-    if (composing) {
-      nodes.add(const FieldDraftNode());
-    }
-
-    final nodeById = {for (final node in nodes) node.id: node};
-
-    void addEdge({
-      required String srcId,
-      required String dstId,
-      required ConstellationEdgeKind kind,
-      double? fade,
-    }) {
-      final src = nodeById[srcId];
-      final dst = nodeById[dstId];
-      if (src == null || dst == null) {
-        return;
-      }
-      final edge = EdgeDetails(
-        source: src,
-        destination: dst,
-        color: Colors.transparent,
-        strokeWidth: switch (kind) {
-          ConstellationEdgeKind.tier1Path => 2,
-          ConstellationEdgeKind.tier2Path => 2,
-          ConstellationEdgeKind.attachment => 1.5,
-          ConstellationEdgeKind.ringStub => 1.5,
-          ConstellationEdgeKind.webForwarded ||
-          ConstellationEdgeKind.webInside ||
-          ConstellationEdgeKind.draftRecipient => 1.5,
-        },
-        semanticId:
-            '${tenturaGraphNodeId(src)}->${tenturaGraphNodeId(dst)}#${kind.name}',
-      );
-      edges.add(edge);
-      edgeKinds[constellationSceneEdgeId(
-            kindName: kind.name,
-            source: src,
-            destination: dst,
-          )] =
-          kind;
-      assert(!edgeKindByPair.containsKey(edge.semanticId));
-      edgeKindByPair[edge.semanticId] = kind;
-      if (fade != null) {
-        edgeFadeBySemanticId[edge.semanticId] = fade;
-      }
-    }
-
-    // Edges from ego fan out to every first-hop peer and crowd the field, so
-    // only the one leading to the selected person (or the selected Beacon's
-    // author) is drawn.
-    final egoEdgeTargets = _egoEdgeTargets(
+    final built = _scene.buildGraphScene(
+      viewer: _viewer,
+      field: field,
       paths: paths,
-      focusPersonId:
-          state.selectedPersonId ?? nodeById[state.selectedRequestId]?.userId,
+      composition: composition,
+      plan: plan,
+      keptPeerIds: state.keptPeerIds,
+      selectedPersonId: state.selectedPersonId,
+      selectedRequestId: state.selectedRequestId,
+      loadedAt: state.loadedAt,
+      isComposing: state.isComposing,
+      composingSelectedIds: _composingSelectedIds,
+      requestWebsById: _requestWebsById,
+      footprintMetrics: _footprintMetrics,
+      profileFromPeer: _profileFromPeer,
     );
-
-    for (final child in paths.keep.intersection(state.keptPeerIds)) {
-      final parentId = paths.parent[child];
-      if (parentId == null ||
-          (parentId == _viewer.id && !egoEdgeTargets.contains(child))) {
-        continue;
-      }
-      final tier = paths.parentTier[child] ?? 1;
-      addEdge(
-        srcId: parentId,
-        dstId: child,
-        kind: tier == 1
-            ? ConstellationEdgeKind.tier1Path
-            : ConstellationEdgeKind.tier2Path,
-      );
-    }
-
-    for (final ringPeer in paths.ring.intersection(
-      state.keptPeerIds.intersection(egoEdgeTargets),
-    )) {
-      addEdge(
-        srcId: _viewer.id,
-        dstId: ringPeer,
-        kind: ConstellationEdgeKind.ringStub,
-      );
-    }
-
-    for (final request in drawnRequests) {
-      addEdge(
-        srcId: request.authorId,
-        dstId: request.id,
-        kind: ConstellationEdgeKind.attachment,
-      );
-    }
-
-    final asOf = (state.loadedAt ?? field.loadedAt).toUtc();
-    final postFade = <String, double>{};
-    final postOverflow = <String, int>{};
-    for (final node in drawnPosts) {
-      final post = node.post!;
-      final fade = constellationPostFade(
-        lastActivityAt: post.lastActivityAt.toUtc(),
-        asOfUtc: asOf,
-      );
-      postFade[post.id] = fade;
-      addEdge(
-        srcId: post.authorId,
-        dstId: post.id,
-        kind: ConstellationEdgeKind.attachment,
-      );
-      var visibleMembers = 0;
-      var placedMembers = 0;
-      final selected = state.selectedRequestId == post.id;
-      for (final web in field.memberWebs) {
-        if (web.beaconId != post.id) {
-          continue;
-        }
-        if (web.personId != _viewer.id &&
-            !peersById.containsKey(web.personId)) {
-          continue;
-        }
-        visibleMembers++;
-        if (!nodeById.containsKey(web.personId)) {
-          continue;
-        }
-        placedMembers++;
-        if (!selected) {
-          continue;
-        }
-        addEdge(
-          srcId: post.id,
-          dstId: web.personId,
-          kind: web.state == ConstellationMemberWebState.inside
-              ? ConstellationEdgeKind.webInside
-              : ConstellationEdgeKind.webForwarded,
-          fade: fade,
-        );
-      }
-      final count = constellationPostOverflowCount(
-        hiddenReachCount: post.hiddenReachCount,
-        visibleMemberCount: visibleMembers,
-        placedMemberCount: placedMembers,
-      );
-      if (count > 0) {
-        postOverflow[post.id] = count;
-      }
-    }
-    final selectedRequestId = state.selectedRequestId;
-    if (selectedRequestId != null &&
-        drawnRequestIds.contains(selectedRequestId)) {
-      final webs =
-          _requestWebsById[selectedRequestId] ??
-          const <ConstellationMemberWeb>[];
-      for (final web in webs) {
-        if (web.personId != _viewer.id &&
-            !peersById.containsKey(web.personId)) {
-          continue;
-        }
-        addEdge(
-          srcId: selectedRequestId,
-          dstId: web.personId,
-          kind: web.state == ConstellationMemberWebState.inside
-              ? ConstellationEdgeKind.webInside
-              : ConstellationEdgeKind.webForwarded,
-        );
-      }
-    }
-    postFadeById = postFade;
-    postOverflowCountByPostId = postOverflow;
-
-    if (composing) {
-      for (final personId in _composingSelectedIds) {
-        addEdge(
-          srcId: FieldDraftNode.draftId,
-          dstId: personId,
-          kind: ConstellationEdgeKind.draftRecipient,
-        );
-      }
-    }
-
-    final previousNodeIds = graphController
-        .renderSnapshot
-        .topology
-        .nodesById
-        .keys
-        .toSet();
-    graphController.reconcileTopology(
-      nodes,
-      edges,
-      requestLayout: false,
-      layoutOnTopologyChange: false,
-    );
+    final nodes = built.nodes;
+    final previousNodeIds = built.previousNodeIds;
     emit(state.copyWith(graphRevision: state.graphRevision + 1));
-    if (composing) {
-      final added =
-          nodes
-              .whereType<FieldPersonNode>()
-              .map((node) => node.graphNodeId)
-              .where((id) => !previousNodeIds.contains(id))
-              .toList()
-            ..sort();
-      final egoPoint = graphController.renderSnapshot.resolvePosition(
-        'fp:$viewerId',
+    if (state.isComposing) {
+      _scene.placeComposerNodes(
+        nodes: nodes,
+        previousNodeIds: previousNodeIds,
+        viewerId: viewerId,
+        placedPersonIds: _composerPlacedPersonIds,
+        personPositions: _composerPersonPositions,
+        confirmedAnchors: state.hasPendingPlacementWrite
+            ? null
+            : state.confirmedProjection?.anchors ??
+                  const <ConstellationAnchor>[],
+        draftCentre: _composingDraftCentre,
       );
-      final center = egoPoint == null
-          ? const Offset(kConstellationCanvasCentre, kConstellationCanvasCentre)
-          : Offset(egoPoint.x, egoPoint.y);
-      final firstSlot = _composerPlacedPersonIds.length;
-      for (var i = 0; i < added.length; i++) {
-        var slot = firstSlot + i;
-        var ring = 1;
-        while (slot >= 12 * ring) {
-          slot -= 12 * ring;
-          ring++;
-        }
-        final angle = 2 * math.pi * slot / (12 * ring);
-        graphController.beginNodePresentationDragForId(
-          added[i],
-          center +
-              Offset(
-                math.cos(angle) * ring * kConstellationRingUnitPixels,
-                math.sin(angle) * ring * kConstellationRingUnitPixels,
-              ),
-        );
-        _composerPlacedPersonIds.add(added[i]);
-      }
-      if (!state.hasPendingPlacementWrite) {
-        final anchors = constellationAnchorsByNodeId(
-          state.confirmedProjection?.anchors ?? const <ConstellationAnchor>[],
-        );
-        for (final node in nodes.whereType<FieldPersonNode>()) {
-          final id = node.graphNodeId;
-          final anchor = anchors[id];
-          final point = anchor == null
-              ? null
-              : constellationV1AnchorToPoint(anchor.position);
-          final current = graphController.renderSnapshot.resolvePosition(id);
-          final position = point != null
-              ? Offset(point.x, point.y)
-              : _composerPersonPositions[id] ??
-                    (current == null ? null : Offset(current.x, current.y));
-          if (position != null) {
-            _composerPersonPositions[id] = position;
-            _composerPlacedPersonIds.add(id);
-            _updateSingleNodePresentation(id, position);
-          }
-        }
-      }
-      _placeDraftNode();
       return;
     }
-    final handoffGeneration = ++_layoutHandoffGeneration;
-    _runAfterNextFrame(() {
-      if (isClosed || handoffGeneration != _layoutHandoffGeneration) {
-        return;
-      }
-      _requestConstellationLayoutHandoff();
-    });
-  }
-
-  void _requestConstellationLayoutHandoff() {
-    final handoffGraphIds = _placementHandoffGraphIds;
-    _placementHandoffGraphIds = {};
-    final recovery = _scheduleLayoutRecoveryAfterRebuild;
-    _scheduleLayoutRecoveryAfterRebuild = false;
-    final releaseOnTerminal = <GraphPresentationToken>{};
-    if (recovery) {
-      releaseOnTerminal.addAll(_activePresentationReleaseTokens());
-    } else if (handoffGraphIds.isNotEmpty) {
-      for (final graphId in handoffGraphIds) {
-        final token = graphController.activePresentationTokenForNode(graphId);
-        if (token != null) {
-          releaseOnTerminal.add(token);
-        }
-      }
-      _clearPlacementClusterState();
-    }
-    _awaitingConstellationLayoutOutcome = true;
-    graphController.requestSceneLayout(
-      releaseOnTerminal: releaseOnTerminal,
-      algorithm: graphSceneLayoutAlgorithm,
+    _scene.scheduleLayoutHandoff(
+      isClosed: () => isClosed,
+      algorithm: () => graphSceneLayoutAlgorithm,
     );
   }
 
