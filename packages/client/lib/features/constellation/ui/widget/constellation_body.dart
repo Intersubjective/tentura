@@ -70,7 +70,8 @@ class ConstellationBody extends StatefulWidget {
   State<ConstellationBody> createState() => _ConstellationBodyState();
 }
 
-class _ConstellationBodyState extends State<ConstellationBody> {
+class _ConstellationBodyState extends State<ConstellationBody>
+    with WidgetsBindingObserver {
   Size? _lastLabelBudgetViewport;
   double? _lastLabelBudgetTextScale;
   (Brightness, Locale, double)? _lastFootprintSyncKey;
@@ -93,13 +94,23 @@ class _ConstellationBodyState extends State<ConstellationBody> {
       ConstellationDetailLevel.normal,
     );
     _graphController.cameraRevision.addListener(_onCamera);
+    WidgetsBinding.instance.addObserver(this);
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _graphController.cameraRevision.removeListener(_onCamera);
     if (!kReleaseMode) ConstellationPerf.stopFrameReporting();
     super.dispose();
+  }
+
+  /// A hidden tab loses the pointer, so a drag in progress ends as a cancel.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.hidden) {
+      context.read<ConstellationCubit>().onTabHidden();
+    }
   }
 
   // Only the pin badge is zoom-gated; rebuild solely on detail-level change.
@@ -372,7 +383,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
               'Coverage changed. Choose how you want to help.',
             );
             final refreshed = cubit.requestById(request.id) ?? request;
-            return await _runOfferFlow(
+            return _runOfferFlow(
               context,
               cubit,
               refreshed,
@@ -384,7 +395,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
               context,
               'Could not submit your offer. Try again.',
             );
-            return await _runOfferFlow(
+            return _runOfferFlow(
               context,
               cubit,
               request,
@@ -421,8 +432,9 @@ class _ConstellationBodyState extends State<ConstellationBody> {
           onToggleRequestsExpanded: () =>
               cubit.togglePersonRequestsExpanded(personId),
           onDiscoverableRequestTap: (request) {
-            cubit.selectPerson(null);
-            cubit.selectRequest(request.id);
+            cubit
+              ..selectPerson(null)
+              ..selectRequest(request.id);
           },
           footer: ConstellationAnchorTargetButton(
             target: ConstellationAnchorTarget.person(personId),
@@ -1190,8 +1202,9 @@ void _syncComposerPersonPositions(
   if (composer == null ||
       composer.isClosed ||
       cubit.isClosed ||
-      composer.createCubit == null)
+      composer.createCubit == null) {
     return;
+  }
   composer.updatePersonPositions({
     for (final entry
         in cubit.graphController.renderSnapshot.topology.nodesById.entries)

@@ -163,13 +163,15 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   int _writeCount = 0;
 
+  /// A store publication or an outbox change arrived while the scene was
+  /// frozen; the release applies them together in one compose and layout.
+  bool _storeInputHeld = false;
+  bool _outboxInputHeld = false;
+
   /// A dropped placement is with the outbox and the store has not published
   /// its settlement yet; its presentation holds must survive a cancel.
   bool _placementAwaitingStore = false;
 
-  /// The outbox changed since the scene was last rebuilt, so the next rebuild
-  /// lays out without waiting a frame and the node starts moving at once.
-  bool _placementChangePending = false;
   ConstellationLayoutPriorHints? _layoutPriorHints;
   Set<String> _forgetPriorHintNodeIds = {};
   bool _layoutRecoveryAttempted = false;
@@ -306,7 +308,14 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       if (state.field != null) onAccountChanged();
       return;
     }
-    if (!identical(field, _lastAppliedStoreField)) _applyLoadedField(field);
+    if (identical(field, _lastAppliedStoreField)) return;
+    if (_scene.isFrozen) {
+      // The data is current; composing and laying it out wait for the release.
+      _storeInputHeld = true;
+      emit(state.copyWith(field: _adoptStoreField(field)));
+      return;
+    }
+    _applyLoadedField(field);
   }
 
   void retryGraphLayoutAfterFailure() {
@@ -461,16 +470,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _lastAppliedStoreField = field;
     _placementAwaitingStore = false;
     final labelBudget = _currentLabelBudget();
-    final adopted =
-        _anchorCase?.adoptConfirmedProjection(
-          field.resolvedAnchorProjection,
-        ) ??
-        true;
-    final confirmedProjection =
-        _anchorCase?.confirmedProjection ?? field.resolvedAnchorProjection;
-    final loadedField = adopted
-        ? field
-        : field.copyWith(anchorProjection: confirmedProjection);
+    final loadedField = _adoptStoreField(field);
+    final confirmedProjection = loadedField.resolvedAnchorProjection;
     final deferTargets = _shouldDeferPlacementRefresh()
         ? _draggedTargetsForPresentation()
         : const <ConstellationAnchorTarget>{};
@@ -530,8 +531,22 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     droppedHolderIds = composition.droppedHolderIds;
     _reconcileSelection(composition);
     if (deferTargets.isEmpty && !unchangedLayout) {
-      _reconcileLayout(immediateHandoff: _placementChangePending);
+      _reconcileLayout(immediateHandoff: true);
     }
+  }
+
+  /// [field] with the anchors the anchor case holds as confirmed.
+  ConstellationField _adoptStoreField(ConstellationField field) {
+    final adopted =
+        _anchorCase?.adoptConfirmedProjection(
+          field.resolvedAnchorProjection,
+        ) ??
+        true;
+    final confirmedProjection =
+        _anchorCase?.confirmedProjection ?? field.resolvedAnchorProjection;
+    return adopted
+        ? field
+        : field.copyWith(anchorProjection: confirmedProjection);
   }
 
   /// The field with unresolved placement intent laid over its confirmed anchors.
@@ -574,7 +589,15 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   /// Unresolved placement intent is composed before the server answers.
   void _onPlacementChanged(PlacementOutboxState _) {
-    _placementChangePending = true;
+    if (isClosed || state.field == null) return;
+    if (_scene.isFrozen) {
+      _outboxInputHeld = true;
+      return;
+    }
+    _composeOutboxChange();
+  }
+
+  void _composeOutboxChange() {
     final field = state.field;
     if (isClosed || field == null) return;
     // A store publication still queued reads the outbox itself when it lands.
@@ -615,6 +638,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       return;
     }
     if (state.isComposing) exitComposing();
+    _storeInputHeld = false;
+    _outboxInputHeld = false;
     _cancelUnsentPlacement(write: false, force: true);
     final generation =
         _anchorCase?.onAccountChanged() ?? state.loadGeneration + 1;
@@ -761,9 +786,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (token != null) {
       graphController.cancelNodePresentationDrag(token);
     }
-    for (final id in _composerPlacedPersonIds) {
-      graphController.clearPresentationForNodeId(id);
-    }
+    _composerPlacedPersonIds.forEach(graphController.clearPresentationForNodeId);
     _composerPlacedPersonIds.clear();
     _composerPersonPositions.clear();
     _composingCandidateIds = const {};
@@ -861,6 +884,11 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (isClosed || _interaction.suppressLateGestureEnd) {
       return;
     }
+    if (_isRevokedWhileHeld(target)) {
+      // The viewer can no longer see the node, so the drop is not written.
+      _cancelUnsentPlacement(write: false, suppressLateGestureEnd: false);
+      return;
+    }
     _holdDropPresentation(target: target, sceneCentre: sceneCentre);
     final parentGraphId = constellationGraphNodeIdForTarget(target);
     final parentStart = _interaction.clusterStartCentres[parentGraphId];
@@ -925,7 +953,6 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     // The pointer drag has ended; the outbox owns the write from here, so
     // dragging re-enables at once.
     graphController.setCameraInteractionGated(false);
-    _scene.releaseFreeze();
     emit(
       state.copyWith(
         placementPhase: ConstellationPlacementPhase.idle,
@@ -939,6 +966,51 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       position: position,
       companions: companions,
     );
+    // The placement is with the outbox first; the release then composes it
+    // together with whatever was held during the drag.
+    if (_releaseFreeze() && _placementCase != null) {
+      _placementAwaitingStore = true;
+    }
+  }
+
+  /// Whether a store publication held during the drag no longer has [target]
+  /// on the viewer's field.
+  bool _isRevokedWhileHeld(ConstellationAnchorTarget target) {
+    final field = _case.current.field;
+    if (!_storeInputHeld || field == null) return false;
+    final projection = field.resolvedAnchorProjection;
+    return switch (target.kind) {
+      ConstellationAnchorTargetKind.person =>
+        !field.peers.any((p) => p.id == target.id) &&
+            !projection.pinnedPeers.any((p) => p.id == target.id),
+      ConstellationAnchorTargetKind.beacon =>
+        !field.requests.any((r) => r.id == target.id) &&
+            !field.posts.any((p) => p.id == target.id) &&
+            !projection.pinnedRequests.any((r) => r.id == target.id),
+    };
+  }
+
+  /// Leaves the freeze and applies the inputs held during it in one compose
+  /// and layout; returns whether there were any.
+  bool _releaseFreeze() {
+    _scene.releaseFreeze();
+    final storeHeld = _storeInputHeld;
+    final outboxHeld = _outboxInputHeld;
+    _storeInputHeld = false;
+    _outboxInputHeld = false;
+    if (isClosed) return false;
+    final field = _case.current.field;
+    if (storeHeld &&
+        field != null &&
+        !identical(field, _lastAppliedStoreField)) {
+      _applyLoadedField(field);
+    } else if (outboxHeld || storeHeld) {
+      _composeOutboxChange();
+    } else {
+      return false;
+    }
+    _labelBudgetRecomposePending = false;
+    return true;
   }
 
   Future<void> onNewNodeDrop({
@@ -1064,11 +1136,14 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   void onRouteLeave() => cancelPlacement();
 
   void onPointerCancelDuringDrag() {
-    if (isClosed) {
+    if (isClosed || _interaction.draggingNodeId == null) {
       return;
     }
     _cancelUnsentPlacement(write: false);
   }
+
+  /// A hidden tab loses its pointer: a drag in progress ends as a cancel.
+  void onTabHidden() => onPointerCancelDuringDrag();
 
   /// Hands the placement to the outbox; the store publishes its settlement.
   void _submitUpsert({
@@ -1301,7 +1376,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       _clearClusterPresentations();
     }
     graphController.setCameraInteractionGated(false);
-    _scene.releaseFreeze();
+    final wasFrozen = _scene.isFrozen;
     emit(
       state.copyWith(
         placementPhase: ConstellationPlacementPhase.idle,
@@ -1309,13 +1384,14 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         placementFailureMessage: null,
       ),
     );
-    if (!write) {
-      if (_labelBudgetRecomposePending) {
-        _labelBudgetRecomposePending = false;
-        _recomposeAndLayout();
-      } else {
-        _reconcileLayout();
-      }
+    if (_releaseFreeze() || write) return;
+    if (_labelBudgetRecomposePending) {
+      _labelBudgetRecomposePending = false;
+      _recomposeAndLayout();
+    } else if (!wasFrozen || state.isComposing) {
+      // A composer drag has no layout run to wait for, but its nodes are
+      // placed again by the rebuild.
+      _reconcileLayout();
     }
   }
 
@@ -1334,8 +1410,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   }
 
   void _clearClusterPresentations() {
-    _interaction.clearClusterPresentations();
-    _interaction.draggingNodeId = null;
+    _interaction
+      ..clearClusterPresentations()
+      ..draggingNodeId = null;
   }
 
   void selectRequest(String? requestId) {
@@ -2213,7 +2290,6 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
     _layoutReconciliationCount++;
     _immediateHandoff = immediateHandoff;
-    _placementChangePending = false;
     _scene.rebuild(_buildGraphScene);
     _immediateHandoff = false;
   }

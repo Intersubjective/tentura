@@ -476,7 +476,6 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     _pendingLastScene = null;
     _pendingKind = null;
 
-    _controller.stopLayoutAnimationForInteraction();
     final pass = _captureDragPassSnapshot();
     final point = pass.snapshot.resolvePosition(nodeId);
     if (point == null) {
@@ -495,6 +494,9 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
       if (payload != null) {
         _configuration.onNodeDragStart?.call(payload, centre);
       }
+      // After the start callback, so an app that pauses transitions there
+      // keeps their destinations.
+      _controller.stopLayoutAnimationForInteraction();
     } catch (_) {
       _releaseCapture(notifyCancel: true);
       rethrow;

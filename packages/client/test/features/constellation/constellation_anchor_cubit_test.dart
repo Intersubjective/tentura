@@ -473,6 +473,8 @@ void main() {
           harness.cubit.state.confirmedProjection!.revision.value,
           BigInt.two,
         );
+        // The scene is frozen while the node is held: nothing is composed or
+        // laid out until the drag ends.
         expect(
           harness.cubit.state.composition!.anchorOverlay.anchors
               .singleWhere((anchor) => anchor.target.id == 'p1')
@@ -485,7 +487,7 @@ void main() {
               .singleWhere((anchor) => anchor.target.id == 'p2')
               .position
               .xUnits,
-          5,
+          2,
         );
         expect(
           harness.cubit.state.composition!.anchorOverlay.anchors
@@ -495,6 +497,27 @@ void main() {
           1.5,
         );
         expect(harness.cubit.layoutReconciliationCount, reconciliations);
+
+        harness.cubit.cancelPlacement();
+        final released = harness.cubit.state.composition!.anchorOverlay.anchors;
+        expect(
+          released.singleWhere((anchor) => anchor.target.id == 'p1')
+              .position
+              .xUnits,
+          3,
+        );
+        expect(
+          released.singleWhere((anchor) => anchor.target.id == 'p2')
+              .position
+              .xUnits,
+          5,
+        );
+        expect(
+          released.singleWhere((anchor) => anchor.target == companion)
+              .position
+              .xUnits,
+          9,
+        );
       },
     );
 

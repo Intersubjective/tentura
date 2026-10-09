@@ -174,10 +174,13 @@ class GraphSceneController<N, E> with ChangeNotifier {
     _commit();
   }
 
+  /// [keepLayoutTransition] leaves the displayed interpolation of the other
+  /// nodes in place instead of settling them on their layout positions.
   GraphPresentationToken beginPresentation(
     GraphNodeId id,
-    ScenePoint position,
-  ) {
+    ScenePoint position, {
+    bool keepLayoutTransition = false,
+  }) {
     _assertLive();
     _assertNotNotifying();
     assertNonEmptyGraphId(id, 'id');
@@ -199,7 +202,7 @@ class GraphSceneController<N, E> with ChangeNotifier {
       paintOrder: _presentation.paintOrder,
       holds: _presentation.holds,
     );
-    _transition = null;
+    if (!keepLayoutTransition) _transition = null;
     _commit();
     return token;
   }

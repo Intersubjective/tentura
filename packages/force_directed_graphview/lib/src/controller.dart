@@ -431,6 +431,7 @@ class GraphController<N, E> with ChangeNotifier {
     return _scene.beginPresentation(
       id,
       ScenePoint(x: position.dx, y: position.dy),
+      keepLayoutTransition: _transitionsPaused,
     );
   }
 
@@ -845,6 +846,8 @@ class GraphController<N, E> with ChangeNotifier {
   }
 
   void _freezeLayoutTransitionAtDisplay() {
+    // A paused transition keeps its destinations for [resumeTransitions].
+    if (_transitionsPaused) return;
     _ticker?.stop();
     if (_transitionFrom != null ||
         _transitionTarget != null ||
