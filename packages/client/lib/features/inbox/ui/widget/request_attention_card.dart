@@ -517,7 +517,7 @@ class RequestAttentionCard extends StatelessWidget {
         label: l10n.labelForward,
         onPressed: onForward,
       ),
-    if (onFollow != null)
+    if (onFollow != null && beacon.isRequest)
       TenturaTextAction(
         key: followKey,
         label: l10n.beaconHeaderWatch,

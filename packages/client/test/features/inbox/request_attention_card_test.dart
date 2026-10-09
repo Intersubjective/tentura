@@ -6,6 +6,7 @@ import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/request_attention_predicate.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/capability/ui/widget/forward_capability_chips.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
@@ -120,8 +121,9 @@ RequestAttentionCard _pinnedCard({
   // Deliberately non-none: "the pinned variant shows no chip" must be a
   // decision the variant makes, not the absence of a relation to show.
   RequestAttentionRelation relation = RequestAttentionRelation.helping,
+  Beacon? beacon,
 }) => RequestAttentionCard(
-  beacon: _beacon,
+  beacon: beacon ?? _beacon,
   relation: relation,
   variant: RequestAttentionCardVariant.pinned,
   facts: const RequestAttentionFacts(
@@ -403,6 +405,21 @@ void main() {
     await tester.tap(find.text('Не могу помочь'));
     await tester.pumpAndSettle();
     expect(declined, 1);
+  });
+
+  testWidgets('a post card has no follow action (#247)', (tester) async {
+    await tester.pumpWidget(
+      _host(
+        _pinnedCard(
+          actors: {'u1': _bai},
+          beacon: _beacon.copyWith(kind: BeaconKind.post),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(RequestAttentionCard), findsOneWidget);
+    expect(find.byKey(RequestAttentionCard.followKey), findsNothing);
   });
 
   testWidgets('the pinned card offers help, forward and follow', (

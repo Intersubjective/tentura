@@ -728,7 +728,9 @@ class _PinnedRequestCard extends StatelessWidget {
           onForward: model.allowsForward
               ? () => unawaited(inboxForwardItem(context, item))
               : null,
-          onFollow: () => unawaited(inboxCubit.setWatching(beaconId)),
+          onFollow: model.beacon.isRequest
+              ? () => unawaited(inboxCubit.setWatching(beaconId))
+              : null,
           onCantHelp: cantHelp,
         ),
       ),
