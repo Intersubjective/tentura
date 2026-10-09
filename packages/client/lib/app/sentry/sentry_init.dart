@@ -12,6 +12,12 @@ const sentryEnvironment = String.fromEnvironment(
 const sentryRelease = String.fromEnvironment('SENTRY_RELEASE');
 const sentryDist = String.fromEnvironment('SENTRY_DIST');
 
+/// Expected UX / network errors are not Sentry issues: `No Internet connection`
+/// (offline), `Description is required` (validation), `Id not found` (missing
+/// id) and screen-load diagnostics with `kind=network`. They are dropped in
+/// `beforeSend` and at the `reportUserFacingError` / `reportSentryMessage`
+/// seams; the full rules live in `sentry_benign_filter.dart`. Real failures
+/// still report.
 void configureSentryOptions(SentryFlutterOptions options) {
   options
     ..dsn = sentryDsn

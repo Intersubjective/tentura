@@ -87,6 +87,7 @@ bool isBenignSentryEvent(SentryEvent event, Hint hint) {
   for (final ex in exceptions) {
     final type = ex.type ?? '';
     if (type.contains('ConnectionUplinkException') ||
+        type.contains('SocketException') ||
         type.contains('AuthSessionLostException') ||
         type.contains('AuthenticationNoKeyException')) {
       return true;
@@ -192,7 +193,56 @@ bool _isUnlaidOutHitTest({
       metaBlob.contains('pointer data packet');
 }
 
+/// Expected-error rules (TENTURA-CLIENT-38 / -35 / -33 / -3C): these are shown
+/// to the user (snackbar / screen-load panel) and must not become issues.
+///
+/// * `No Internet connection` — offline, [ConnectionUplinkException] text.
+/// * `Description is required` — GraphQL validation (business) error.
+/// * `Id not found: [<id>]` — expected not-found for a missing / deleted id.
+/// * `[<label>] load failed ... kind=network` — screen-load diagnostic for an
+///   offline / timeout failure (see `logScreenLoadError`). A screen-load
+///   message of another kind is dropped only when its `error=` / `detail=`
+///   line is one of the expected texts above; `kind=server` etc. still report.
+///
+/// The three texts match only when they are the whole exception text
+/// (optionally behind `Exception: ` / `label: ` prefixes), so a programming
+/// error that merely quotes them (`StateError('... Id not found ...')`) is
+/// still a real fatal.
+final _expectedErrorText = RegExp(
+  r'^(?:[^:\n]{1,64}: )*'
+  '(?:No Internet connection|Description is required|'
+  r'Id not found: \[[^\]\n]*\])\.?$',
+);
+
+final _screenLoadMessage = RegExp(r'^\[[^\]\n]+\] load failed\b');
+
+final _screenLoadKind = RegExp(r'(?:^|\s)kind=(\w+)');
+
+bool _isExpectedErrorText(String text) =>
+    _expectedErrorText.hasMatch(text.trim());
+
+bool _isExpectedScreenLoadMessage(String text) {
+  if (!_screenLoadMessage.hasMatch(text)) {
+    return false;
+  }
+  if (_screenLoadKind.firstMatch(text)?.group(1) == 'network') {
+    return true;
+  }
+  for (final line in text.split('\n')) {
+    for (final prefix in const ['detail=', 'error=']) {
+      if (line.startsWith(prefix) &&
+          _isExpectedErrorText(line.substring(prefix.length))) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 bool isBenignSentryExceptionText(String text) {
+  if (_isExpectedErrorText(text) || _isExpectedScreenLoadMessage(text)) {
+    return true;
+  }
   final lower = text.toLowerCase();
   if (lower.contains('socketexception')) {
     return true;
