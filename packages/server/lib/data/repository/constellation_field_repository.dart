@@ -102,7 +102,18 @@ final class ConstellationFieldRepository
     String viewerId,
     String context,
     ConstellationFieldReadParams params,
-  ) {
+  ) async {
+    // The snapshot is READ ONLY, so it can serve the stored visible set but
+    // not fill it: store it first, in its own transaction (m0235).
+    await _database
+        .customSelect(
+          'SELECT public.person_visible_peer_ids_tx(\$1, \$2) AS ids',
+          variables: [
+            Variable.withString(viewerId),
+            Variable.withString(context),
+          ],
+        )
+        .get();
     return _database.withReadSnapshot(() async {
       await _database.freezeVisibilityMemo();
       return ConstellationFieldSnapshotReader(

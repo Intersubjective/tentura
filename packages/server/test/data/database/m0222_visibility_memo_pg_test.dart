@@ -106,7 +106,15 @@ $$
     await trust(peer, viewer);
   });
 
-  setUp(resetSymmetricCalls);
+  // These tests count computations, so each starts from an empty cross-request
+  // cache (m0235); only the transaction-local memo is under test.
+  Future<void> clearVisibleSetCache() =>
+      writer.execute('DELETE FROM public.person_visible_set_cache');
+
+  setUp(() async {
+    await resetSymmetricCalls();
+    await clearVisibleSetCache();
+  });
 
   tearDownAll(() async {
     await conn.close();
@@ -197,6 +205,7 @@ ON CONFLICT (subject, object) DO UPDATE SET amount = EXCLUDED.amount
 
   test('the memo does not outlive its transaction', () async {
     for (var i = 0; i < 3; i++) {
+      await clearVisibleSetCache();
       await conn.execute('BEGIN');
       try {
         expect(await visible(viewer, stranger), isFalse);
