@@ -1311,3 +1311,101 @@ D8 report SHA-256:
 
 - **Test-only knob.** `test/perf/constellation_d8_load_pg_test.dart` now takes `TENTURA_D8_LEVELS` (comma-separated `load`/`capacity`). When it is unset, both levels run as before, load first. A report carries only the chosen levels' `<level>Evidence`, and the write-evidence checks run on each emitted level.
 - No other file changed. No test was weakened.
+
+## U50 Server ack-only apply without visibility authorization (tentura-jxtr)
+
+**Landed.** `applyBatch` returns only the acknowledgement (before/after revision, per-op results with the stored row and `replayed`). It does no projection, visibility or MeritRank work. A batched existence query rejects missing `user` / `beacon` targets per op with `target_not_found`. The prepare-first path and its flag are gone: `rg "readPrepared|_prepareBatchVisibility"` on `constellation_anchor_repository.dart` is empty. The mutation lost `context`, `showClosed` and `participatedOnly`.
+
+**Tests removed or rewritten (contract change, ARCH rev 10, not a weakening).**
+- `constellation_anchor_batch_preparation_pg_test.dart`: the fixture preflight that required U fallback RPCs from `person_visible_peers_symmetric` is removed, because apply makes no visibility RPCs and the 0-delta assertion during trust churn is the new contract. The hidden-pin test no longer asserts beacon readability is prepared before the cursor lock. It now asserts the pin is stored.
+- `constellation_anchor_apply_batch_pg_test.dart`: two tests used `?` placeholders in `customStatement` (a syntax error under drift_postgres). They now use inline literals like the rest of the file.
+- Earlier in this task: projection-equality, visibility-rejection, MR RPC = 1 + U and degraded-MR-abort assertions were removed or rewritten across the apply tests (see the diff).
+
+**Verification (wrapped, serial).** The ack-only GraphQL test (4) and ack-only pg test (14) pass. The GraphQL and domain constellation tests pass (47). The batch, mr_stall and preparation pg tests pass together (40). Custom lints: 0 (baseline 0).
+
+**Analyzer baseline.** `check-analyze-baseline.sh packages/server` reports 1877 against 1876. Every file changed by U50 has fewer analyzer issues than at HEAD, so the excess comes from elsewhere in the tree.
+
+**Fixtures re-run locally** (`perf_fixture_matrix_meritrank_pg_test.dart --tags perf`, `TENTURA_PERF_MATRIX_ATTEMPTS=10`, V = 1000 dense, warm, 0 failed attempts), `build/perf/apply_batch_b{1,64}.json`:
+
+| fixture | p50 ms | p95 ms | cursor hold p95 ms |
+|---|---|---|---|
+| `apply_batch_b1` | 15.686 | 19.414 | 10.325 |
+| `apply_batch_b64` | 26.697 | 62.303 | 42.99 |
+
+Ten attempts, not the release-gate 30. The U53 write re-measure owns the D8 figure.
+
+## UNIT U50 — partial — 2026-10-10T18:07:00Z (tentura-jxtr contention repair)
+
+**Test correction permitted by the acceptance criteria.** The task-written
+four-tab assertion still timed the interval between the batch and cursor locks
+as "wasted projection preparation". That interval includes ordinary database
+setup and lock overhead even when the write performs no projection work. U50
+explicitly retires this metric. Replaced it with an assertion that no actual
+visibility/projection queries execute (`person_visible_*`,
+`constellation_trust_edges`, or `beacon_can_read_content`), counting attempted
+queries even outside transactions and in transactions that roll back. Removed
+the obsolete timing fields; kept transaction, cursor, op-log, and cascade
+integrity assertions. This repair changes only the contention test and this
+journal; the existing U50 implementation is preserved.
+
+**Verification (wrapped and serial).** Used the direct SDK/test snapshot from
+the task because the `dart` launcher tries to write the read-only Flutter SDK
+cache. The three constellation GraphQL files and three domain/use-case files
+passed: **76 tests**, including the four ack-only GraphQL checks
+(`/tmp/tentura-jxtr-unit.log`). Formatting reported no changes and
+`git diff --check` passed;
+`readPrepared|_prepareBatchVisibility` still has no matches in the anchor
+repository. The required three-file batch/preparation/contention run and the
+ack-only pg run could not reach assertions: PostgreSQL socket creation is
+denied by the sandbox (`SocketException`, OS error 1, port 5432;
+`/tmp/tentura-jxtr-after.log`, `/tmp/tentura-jxtr-ack-pg.log`).
+
+**Lint and fixture limits.** Attempted the server custom-lint and analyzer
+baseline scripts through the cleanup wrapper. Analyzer plugin setup cannot
+resolve `analysis_server_plugin` from `pub.dev`, and Dart telemetry also tries
+to write a read-only user cache. Both gates therefore failed to complete; the
+final analyzer output has no diagnostics for the changed contention file
+(`/tmp/tentura-jxtr-lints-final.log`, `/tmp/tentura-jxtr-analyze.log`). Attempted
+the `apply_batch_b1`/`apply_batch_b64` fixtures with
+`TENTURA_PG_TESTS_REQUIRED=1` and `--plain-name='apply_batch_b'`. The existing
+MeritRank fixture runner nevertheless skipped both for unreachable PostgreSQL
+and exited 0 (`/tmp/tentura-jxtr-fixtures.log`): no fresh fixture measurements
+were produced. Its bypass of required PostgreSQL mode is reported separately,
+outside this repair. PostgreSQL, lint gates, and fresh performance measurements
+remain unverified; no full suite or commit was run.
+
+## UNIT U50 — partial — 2026-10-10T18:14:46Z (required PostgreSQL fixture-mode repair)
+
+**Permitted test-setup correction (tentura-ncyw, now in scope).** Both perf
+matrix runners used `canReachPostgresAdmin` directly and skipped unreachable
+PostgreSQL even with `TENTURA_PG_TESTS_REQUIRED=1`. Replaced those checks with
+the existing `pgSkipReason` helper in `perf_fixture_matrix_meritrank_pg_test.dart`
+and `perf_fixture_matrix_pg_only_pg_test.dart`. Required mode now fails;
+optional mode retains the shared helper's skip policy. No measurement or
+integrity assertion changed, and no MeritRank code changed.
+
+**Regression evidence.** Before the correction, the required
+`apply_batch_b1`/`apply_batch_b64` run skipped both cases and exited 0
+(`/tmp/tentura-jxtr-fixture-before.log`). Afterward it exits 1 with
+`Postgres required (TENTURA_PG_TESTS_REQUIRED=1) but not reachable`
+(`/tmp/tentura-jxtr-fixture-after.log`). The pg-only runner also fails instead
+of skipping in required mode (`/tmp/tentura-jxtr-fixture-pg-only-required.log`).
+
+**Verification.** Wrapped direct-SDK runs: ack-only GraphQL plus perf matrix
+unit tests passed **39 tests** (`/tmp/tentura-jxtr-fixture-unit.log`), and the
+existing `pgSkipReason` tests passed **3 tests**
+(`/tmp/tentura-jxtr-pg-helper.log`). Formatting made no changes and
+`git diff --check` passed. The forbidden write-path preparation symbols still
+have no matches in `constellation_anchor_repository.dart`.
+
+**Remaining gates.** The required batch/preparation/contention command was
+re-run serially, but PostgreSQL socket creation is denied by the sandbox
+(`Operation not permitted`, port 5432;
+`/tmp/tentura-jxtr-pg-regression.log`). The ack-only pg tests cannot reach
+assertions for the same reason. No fresh b1/b64 fixture measurements were
+produced. Custom-lint and analyzer-baseline checks failed to complete: analyzer
+plugin setup cannot download `analysis_server_plugin` from `pub.dev`, and
+telemetry writes to a read-only user cache
+(`/tmp/tentura-jxtr-fixture-lints.log`,
+`/tmp/tentura-jxtr-fixture-analyze.log`). Neither analyzer output lists a
+diagnostic for the two changed runner files. No full suite or commit was run.

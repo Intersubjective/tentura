@@ -1,107 +1,54 @@
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
-import 'package:get_it/get_it.dart';
 import 'package:injectable/injectable.dart';
 import 'package:postgres/postgres.dart' show ServerException, Type, TypedValue;
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura_server/domain/port/constellation_anchor_repository_port.dart';
 import 'package:tentura_server/domain/port/constellation_db_admission_port.dart';
-import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 import 'package:tentura_server/utils/id.dart';
 
 import '../database/postgres_serialization_retry.dart';
 import '../database/tentura_db.dart' hide ConstellationAnchor;
-import 'constellation_anchor_projection_reader.dart';
 
 @LazySingleton(as: ConstellationAnchorRepositoryPort)
 class ConstellationAnchorRepository
     implements ConstellationAnchorRepositoryPort {
-  /// Release order of `applyBatch` (ARCH §4.4), chosen by the U13 contention
-  /// gate: 2/4/8 tabs of one viewer, lock-first if exhausted retries exceed
-  /// 1 % or wasted preparation exceeds 20 % of DB time at 4 tabs.
-  ///
-  /// - false (prepare-first): visibility, trust edges and profiles are
-  ///   prepared, then the cursor is locked. A writer that commits in between
-  ///   makes the lock fail with 40001 and the preparation is wasted.
-  /// - true (lock-first): the viewer's batch lock is taken first. A batch that
-  ///   had to wait for it holds a snapshot older than the holder's commit, so
-  ///   it fails right there, before any preparation, and retries. The cursor
-  ///   row is still locked only for the write window, so its hold does not
-  ///   grow with preparation.
-  ///
-  /// Both orders use the same repeatable-read transaction and bounded retry.
-  static const bool lockFirst = true;
-
-  /// Attempts of one `applyBatch` transaction (within the 5 s deadline). A
-  /// same-viewer conflict costs one wait in lock-first order, and every
-  /// commit of a competing tab can cost the waiters one attempt.
+  /// Attempts within the existing five-second transaction retry budget.
   static const int applyBatchMaxAttempts = 10;
 
-  ConstellationAnchorRepository(this._db, [this._profiles, this._admission])
-    : lockFirstOrder = lockFirst;
-
-  /// Runs `applyBatch` in the given order whatever [lockFirst] says, for the
-  /// contention measurement.
-  ConstellationAnchorRepository.withLockOrder(
-    this._db,
-    UserProfileBatchLookup profiles, {
-    required this.lockFirstOrder,
-  }) : _profiles = profiles,
-       _admission = null;
+  ConstellationAnchorRepository(this._db, [this._admission]);
 
   @FactoryMethod()
   ConstellationAnchorRepository.injected(
     this._db,
-    UserProfileBatchLookup profiles,
     ConstellationDbAdmissionPort admission,
-  ) : _profiles = profiles,
-      _admission = admission,
-      lockFirstOrder = lockFirst;
+  ) : _admission = admission;
 
   final TenturaDb _db;
-  final UserProfileBatchLookup? _profiles;
   final ConstellationDbAdmissionPort? _admission;
-
-  /// Whether this instance takes the viewer's batch lock before preparing.
-  final bool lockFirstOrder;
 
   @override
   Future<AnchorApplyBatchResult> applyBatch({
     required String viewerId,
     required List<AnchorApplyOp> ops,
-    required AnchorApplyParams params,
   }) => _admission == null
-      ? _applyBatchInTx(viewerId: viewerId, ops: ops, params: params)
+      ? _applyBatchInTx(viewerId: viewerId, ops: ops)
       : _admission.run(
           ConstellationDbWorkKind.apply,
-          () => _applyBatchInTx(viewerId: viewerId, ops: ops, params: params),
+          () => _applyBatchInTx(viewerId: viewerId, ops: ops),
         );
 
   Future<AnchorApplyBatchResult> _applyBatchInTx({
     required String viewerId,
     required List<AnchorApplyOp> ops,
-    required AnchorApplyParams params,
   }) => _db.withMutatingRepeatableRead(
     viewerId,
     maxAttempts: applyBatchMaxAttempts,
     () async {
-      if (lockFirstOrder) await _lockViewerBatch(viewerId);
-      final visible = await _prepareBatchVisibility(viewerId, params.context);
-      final reader = ConstellationAnchorProjectionReader(
-        _db,
-        _profiles ?? GetIt.I<UserProfileBatchLookup>(),
-      );
-      final prepared = await reader.prepare(
-        viewerId: viewerId,
-        context: params.context,
-        filters: params.filters,
-        upsertTargets: ops
-            .where((op) => op.kind == AnchorOpKind.upsert)
-            .map((op) => op.target),
-        visiblePeerIds: visible,
-      );
+      await _lockViewerBatch(viewerId);
       final before = await _lockViewerCursor(viewerId);
+      final existingTargets = await _existingUpsertTargets(ops);
       final recordedRows = await _db
           .customSelect(
             r'''
@@ -179,7 +126,7 @@ WHERE viewer_id = $1 AND (target_kind, target_id) IN (
         final rejection = _batchOpRejection(
           viewerId,
           op,
-          authorized: prepared.authorizes(op.target),
+          targetExists: existingTargets.contains(op.target),
           targetRevision:
               watermarks[(op.target.kind.wireValue, op.target.id)] ??
               ConstellationAnchorRevision.zero,
@@ -208,80 +155,147 @@ WHERE viewer_id = $1 AND (target_kind, target_id) IN (
         );
         results.add(result);
       }
-      await writes.flush(_db);
-      final projection = await reader.readPrepared(
-        viewerId: viewerId,
-        context: params.context,
-        filters: params.filters,
-        prepared: prepared,
-        revision: ConstellationAnchorRevision(revision),
-      );
+      try {
+        await writes.flush(_db);
+      } on ServerException catch (error) {
+        // A target deleted after our snapshot may fail the FK check. Roll
+        // back the whole batch and recheck existence in a fresh snapshot.
+        if (error.code != '23503' ||
+            !const {
+              'constellation_anchor_person_id_fkey',
+              'constellation_anchor_beacon_id_fkey',
+            }.contains(error.constraintName)) {
+          rethrow;
+        }
+        throw PostgresSnapshotUnavailableException(error);
+      }
+      final anchors = await _storedAnchors(viewerId, [
+        for (final (i, result) in results.indexed)
+          if (result.status == AnchorOpStatus.ok &&
+              ops[i].kind == AnchorOpKind.upsert)
+            ops[i].target,
+      ]);
       return AnchorApplyBatchResult(
         beforeRevision: before.revision,
-        afterRevision: projection.revision,
-        results: results,
-        projection: projection,
+        afterRevision: ConstellationAnchorRevision(revision),
+        results: [
+          for (final (i, result) in results.indexed)
+            AnchorApplyOpResult(
+              clientOpId: result.clientOpId,
+              status: result.status,
+              reason: result.reason,
+              resultingTargetRevision: result.resultingTargetRevision,
+              position: result.position,
+              replayed: result.replayed,
+              anchor:
+                  result.status == AnchorOpStatus.ok &&
+                      ops[i].kind == AnchorOpKind.upsert
+                  ? anchors[ops[i].target]
+                  : null,
+            ),
+        ],
       );
     },
   );
 
-  /// Freezes the transaction's visibility memo and seeds it from the service
-  /// directly, returning the viewer's visible peers without blocks in either
-  /// direction (as `block_hides`) — one statement and one MeritRank call.
-  /// Unlike the fail-closed memo helper, a service error aborts the batch.
-  Future<List<String>> _prepareBatchVisibility(
-    String viewerId,
-    String context,
+  Future<Set<ConstellationAnchorTarget>> _existingUpsertTargets(
+    List<AnchorApplyOp> ops,
   ) async {
-    try {
-      final row = await _db
-          .customSelect(
-            r'''
-WITH s AS (
-  SELECT coalesce(array_agg(v.peer_id ORDER BY v.peer_id), '{}'::text[]) AS ids
-  FROM public.person_visible_peers_symmetric($1, $2) v
-),
-memo AS (
-  SELECT
-    set_config('tentura_visibility.frozen', 'on', true) AS frozen,
-    set_config(
-      'tentura_visibility.p' || md5(trim($1::text) || chr(31) || $2::text),
-      coalesce((SELECT epoch FROM public.mr_publish_epoch WHERE id = true), 0)::text
-        || ':' || public.direct_trust_current_version()::text || ':'
-        || s.ids::text,
-      true
-    ) AS seeded
-  FROM s
-),
-blocked AS (
-  SELECT ub.blocked_id AS id FROM public.user_block ub WHERE ub.blocker_id = $1
-  UNION
-  SELECT ub.blocker_id FROM public.user_block ub WHERE ub.blocked_id = $1
-)
-SELECT ARRAY(
-  SELECT p.peer_id
-  FROM unnest(s.ids) AS p(peer_id)
-  WHERE NOT EXISTS (SELECT 1 FROM blocked b WHERE b.id = p.peer_id)
-  ORDER BY p.peer_id
-) AS visible
-FROM s, memo
-WHERE memo.frozen = 'on' AND memo.seeded IS NOT NULL
-''',
-            variables: [Variable<String>(viewerId), Variable<String>(context)],
-          )
-          .getSingle();
-      return row.read<List<dynamic>>('visible').cast<String>();
-    } on ServerException catch (error) {
-      if (isPostgresDeadlockOrSerializationFailure(error)) rethrow;
-      // 57014: the transaction's request budget cancelled a stuck MeritRank call.
-      if (error.code?.startsWith('08') != true &&
-          error.code != '57014' &&
-          error.code != 'XX000' &&
-          error.code != 'P0001') {
-        rethrow;
-      }
-      throw PostgresSnapshotUnavailableException(error);
+    final targets = [
+      for (final op in ops)
+        if (op.kind == AnchorOpKind.upsert) op.target,
+    ];
+    if (targets.isEmpty) return {};
+    final rows = await _db
+        .customSelect(
+          r'''
+        WITH targets AS (
+          SELECT * FROM unnest($1::text[], $2::text[]) AS t(kind, id)
+        )
+        SELECT t.kind, t.id FROM targets t
+        JOIN public."user" u ON u.id = t.id WHERE t.kind = 'PERSON'
+        UNION ALL
+        SELECT t.kind, t.id FROM targets t
+        JOIN public.beacon b ON b.id = t.id WHERE t.kind = 'BEACON'
+      ''',
+          variables: [
+            Variable(
+              TypedValue(
+                Type.textArray,
+                targets.map((t) => t.kind.wireValue).toList(),
+              ),
+            ),
+            Variable(
+              TypedValue(Type.textArray, targets.map((t) => t.id).toList()),
+            ),
+          ],
+        )
+        .get();
+    return {
+      for (final row in rows)
+        if (row.read<String>('kind') == 'PERSON')
+          ConstellationAnchorTarget.person(row.read<String>('id'))
+        else
+          ConstellationAnchorTarget.beacon(row.read<String>('id')),
+    };
+  }
+
+  Future<Map<ConstellationAnchorTarget, ConstellationAnchor>> _storedAnchors(
+    String viewerId,
+    List<ConstellationAnchorTarget> targets,
+  ) async {
+    if (targets.isEmpty) return {};
+    final rows = await _db
+        .customSelect(
+          r'''
+        SELECT person_id, beacon_id, x_units, y_units,
+               coordinate_space_version, revision::text AS revision,
+               placed_at::text AS placed_at
+        FROM public.constellation_anchor
+        WHERE viewer_id = $1
+          AND (person_id = ANY($2::text[]) OR beacon_id = ANY($3::text[]))
+      ''',
+          variables: [
+            Variable<String>(viewerId),
+            Variable(
+              TypedValue(Type.textArray, [
+                for (final t in targets)
+                  if (t.kind == ConstellationAnchorTargetKind.person) t.id,
+              ]),
+            ),
+            Variable(
+              TypedValue(Type.textArray, [
+                for (final t in targets)
+                  if (t.kind == ConstellationAnchorTargetKind.beacon) t.id,
+              ]),
+            ),
+          ],
+        )
+        .get();
+    final anchors = <ConstellationAnchorTarget, ConstellationAnchor>{};
+    for (final row in rows) {
+      final personId = row.readNullable<String>('person_id');
+      final target = personId != null
+          ? ConstellationAnchorTarget.person(personId)
+          : ConstellationAnchorTarget.beacon(row.read<String>('beacon_id'));
+      anchors[target] = ConstellationAnchor(
+        target: target,
+        position: ConstellationAnchorPosition(
+          xUnits: row.read<double>('x_units'),
+          yUnits: row.read<double>('y_units'),
+          coordinateSpaceVersion: row.read<int>('coordinate_space_version'),
+        ),
+        revision: switch (ConstellationAnchorRevision.parseDecimalString(
+          row.read<String>('revision'),
+        )) {
+          ConstellationAnchorRevisionParsed(:final revision) => revision,
+          ConstellationAnchorRevisionMalformed() =>
+            ConstellationAnchorRevision.zero,
+        },
+        placedAt: DateTime.parse(row.read<String>('placed_at')).toUtc(),
+      );
     }
+    return anchors;
   }
 
   String _opFingerprint(AnchorApplyOp op) {
@@ -319,7 +333,7 @@ WHERE memo.frozen = 'on' AND memo.seeded IS NOT NULL
   AnchorApplyOpResult? _batchOpRejection(
     String viewerId,
     AnchorApplyOp op, {
-    required bool authorized,
+    required bool targetExists,
     required ConstellationAnchorRevision targetRevision,
   }) {
     if (validateConstellationAnchorTarget(target: op.target, viewerId: viewerId)
@@ -344,8 +358,8 @@ WHERE memo.frozen = 'on' AND memo.seeded IS NOT NULL
         };
         return _rejected(op, reason);
       }
-      if (!authorized) {
-        return _rejected(op, 'target_unavailable');
+      if (!targetExists) {
+        return _rejected(op, 'target_not_found');
       }
     }
     if (op.ifRevision != null && op.ifRevision != targetRevision) {
@@ -377,6 +391,7 @@ WHERE memo.frozen = 'on' AND memo.seeded IS NOT NULL
     final revision = result['revision'] as String?;
     return AnchorApplyOpResult(
       clientOpId: clientOpId,
+      replayed: true,
       status: result['status'] == AnchorOpStatus.ok.wireValue
           ? AnchorOpStatus.ok
           : AnchorOpStatus.rejected,

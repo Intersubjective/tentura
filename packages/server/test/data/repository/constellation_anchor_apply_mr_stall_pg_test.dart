@@ -2,55 +2,21 @@
 library;
 
 import 'package:drift_postgres/drift_postgres.dart';
-import 'package:postgres/postgres.dart' show Connection, ServerException;
+import 'package:postgres/postgres.dart' show Connection;
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura_server/consts/constellation_consts.dart';
-import 'package:tentura_server/data/database/postgres_serialization_retry.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide ConstellationAnchor, isNotNull, isNull;
 import 'package:tentura_server/data/repository/constellation_anchor_repository.dart';
 import 'package:tentura_server/domain/entity/constellation_anchor_projection.dart';
-import 'package:tentura_server/domain/entity/constellation_field.dart';
-import 'package:tentura_server/domain/entity/gql_public/mutual_score_record.dart';
-import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart';
-import 'package:tentura_server/domain/entity/user_entity.dart';
-import 'package:tentura_server/domain/exception.dart';
-import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/port/constellation_anchor_repository_port.dart';
-import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 import 'package:test/test.dart';
 
-import '../../support/constellation_profiles_from_public_records.dart';
 import '../../support/disposable_pg_target.dart';
 import '../../support/meritrank_blackhole.dart';
 
-/// An `applyBatch` whose MeritRank call never answers (a blackholed peer)
-/// fails with a retryable error within the request budget and leaves the
-/// connection reusable; a MeritRank that fails fast is retryable too, and is
-/// never recorded as a rejection of the batch's ops.
-///
-/// Two stalls are covered, and they prove different things:
-///  - a real blackhole: the MeritRank service is paused, so the pgmer2
-///    connector inside `mr_mutual_scores` blocks in its receive wait. This is
-///    the acceptance scenario; it needs docker control of the MeritRank
-///    container. Where docker is unavailable it is skipped with the reason,
-///    unless `TENTURA_PG_TESTS_REQUIRED=1`, which makes the suite fail to
-///    load instead (so a required run can never pass without it).
-///  - a backend stall: a `pg_sleep` inside the visibility function the batch
-///    calls. It proves only that the transaction-local `statement_timeout`
-///    bounds a blocking statement and that the cancel is surfaced as
-///    retryable; it does NOT exercise the connector's wait.
-///
-/// Both stalls are injected by wrapping `public.person_visible_peers_symmetric`
-/// (the connector-backed visibility function the batch computes visibility
-/// with). That coupling is intentional; a counter that survives the batch's
-/// rollback proves the wrapper was reached, so a batch that stops calling that
-/// function fails the tests with a message saying so rather than for the wrong
-/// reason.
-///
-/// The request budget is the interactive 5 s deadline of `applyBatch`
-/// (`withMutatingRepeatableRead`'s default); no repository member is read for
-/// it.
+/// Anchor writes remain independent of stalled or unavailable visibility RPCs.
+/// The live connector blackhole probe is shared with the read-budget tests.
 Future<void> main() async {
   final target = DisposablePgTarget.fromNamedEnvironment(
     envVarName: 'TENTURA_CONSTELLATION_APPLY_MR_STALL_TEST_DB',
@@ -64,7 +30,7 @@ Future<void> main() async {
 
   const viewer = 'Ustallviewer0001';
   const peer = 'Ustallpeer000001';
-  const params = AnchorApplyParams(
+  const params = (
     context: kConstellationContext,
     filters: ConstellationFieldMembershipFilters.defaults,
   );
@@ -93,8 +59,10 @@ Future<void> main() async {
     ),
   ];
 
-  Future<AnchorApplyBatchResult> apply() =>
-      repository.applyBatch(viewerId: viewer, ops: ops, params: params);
+  Future<AnchorApplyBatchResult> apply() => repository.applyBatch(
+    viewerId: viewer,
+    ops: ops,
+  );
 
   Future<int> statementTimeoutMs() async {
     final row = await db.customSelect('''
@@ -112,15 +80,15 @@ SELECT (extract(epoch FROM current_setting('statement_timeout')::interval)
     return (row.single! as num).toInt();
   }
 
-  Future<void> expectNothingRecorded() async {
+  Future<void> expectRecorded() async {
     final logs = await fixture.writer.execute(
       'SELECT count(*) FROM public.constellation_anchor_op_log',
     );
     final anchors = await fixture.writer.execute(
       'SELECT count(*) FROM public.constellation_anchor',
     );
-    expect(logs.single.single, 0, reason: 'No op may be logged.');
-    expect(anchors.single.single, 0, reason: 'No anchor may be written.');
+    expect(logs.single.single, 1, reason: 'The accepted op is logged once.');
+    expect(anchors.single.single, 1, reason: 'The accepted anchor is stored.');
   }
 
   Future<int> backendPid() async =>
@@ -139,7 +107,9 @@ SELECT (extract(epoch FROM current_setting('statement_timeout')::interval)
     db = TenturaDb.forTest(
       database: PgDatabase.opened(backend, enableMigrations: false),
     );
-    repository = ConstellationAnchorRepository(db, _Profiles(db));
+    repository = ConstellationAnchorRepository(
+      db,
+    );
     final writer = fixture.writer;
     // `sleep` blocks the visibility function, `fail` makes it raise at once
     // the way a connector error does; no row means it behaves normally.
@@ -237,16 +207,16 @@ INSERT INTO public.constellation_anchor_cursor (viewer_id) VALUES ('$viewer')
         final result = await apply();
         expect(result.results.single.status, AnchorOpStatus.ok);
 
+        expect(await visibilityComputations(), 0);
         final seen = await fixture.writer.execute(
           'SELECT DISTINCT timeout_ms FROM public.apply_mr_stall_seen_timeout',
         );
-        expect(
-          seen.map((row) => (row.single! as num).toInt()),
-          [budget.inMilliseconds],
-          reason:
-              'Every visibility computation of the batch transaction '
-              'must see current_setting(statement_timeout) == the budget.',
+        expect(seen, isEmpty);
+        final inTransaction = await db.withMutatingRepeatableRead(
+          viewer,
+          statementTimeoutMs,
         );
+        expect(inTransaction, budget.inMilliseconds);
         expect(
           await statementTimeoutMs(),
           connectionWide,
@@ -255,63 +225,49 @@ INSERT INTO public.constellation_anchor_cursor (viewer_id) VALUES ('$viewer')
       },
     );
 
-    Future<void> expectRetryableWithinBudget({
+    Future<void> expectAckWithinBudget({
       required Future<void> Function() stall,
       required Future<void> Function() recover,
     }) async {
       final pidBefore = await backendPid();
-
+      final attemptsBefore = await db.mrRpcAttempts();
       final clock = Stopwatch();
-      Object? failure;
+      late AnchorApplyBatchResult result;
       await stall();
       try {
         clock.start();
-        await apply();
-      } on Object catch (error) {
-        failure = error;
+        result = await apply();
       } finally {
         clock.stop();
         await recover();
       }
-
-      expect(
-        await visibilityComputations(),
-        greaterThanOrEqualTo(1),
-        reason:
-            'The batch never reached public.person_visible_peers_symmetric, '
-            'so the stall was not exercised: this test injects its stall '
-            'there on purpose (see the file comment).',
-      );
-      expect(
-        failure,
-        isNotNull,
-        reason: 'The stalled apply must fail, not wait out the stall.',
-      );
+      expect(result.results.single.status, AnchorOpStatus.ok);
+      expect(result.results.single.replayed, isFalse);
+      expect(result.results.single.anchor!.position, ops.single.position);
+      expect(await visibilityComputations(), 0);
+      expect(await db.mrRpcAttempts() - attemptsBefore, 0);
       expect(
         clock.elapsed,
         lessThanOrEqualTo(budget + const Duration(milliseconds: 100)),
       );
-      expect(failure, _isRetryableStatementCancel);
-
-      // Degraded MeritRank is never a recorded rejection or a partial write.
-      await expectNothingRecorded();
-
-      // The connection is reusable: same backend, no transaction left behind,
-      // and the same request succeeds once MeritRank answers again.
+      await expectRecorded();
       expect(backend.isOpen, isTrue);
       expect(await backendPid(), pidBefore);
-      final recovered = await apply();
-      expect(recovered.results.single.status, AnchorOpStatus.ok);
-      expect(recovered.beforeRevision, ConstellationAnchorRevision.zero);
+      final replayed = await apply();
+      expect(replayed.results.single.status, AnchorOpStatus.ok);
+      expect(replayed.results.single.replayed, isTrue);
+      expect(replayed.results.single.anchor, result.results.single.anchor);
+      expect(replayed.beforeRevision, result.afterRevision);
+      expect(replayed.afterRevision, result.afterRevision);
     }
 
     test(
-      'a blackholed MeritRank service during apply ends in a retryable error '
+      'a blackholed MeritRank service leaves apply successful '
       'within the budget plus 100 ms and leaves the connection reusable',
       () async {
         final hole = blackhole!;
         addTearDown(hole.release);
-        await expectRetryableWithinBudget(
+        await expectAckWithinBudget(
           stall: hole.engage,
           recover: hole.release,
         );
@@ -321,10 +277,10 @@ INSERT INTO public.constellation_anchor_cursor (viewer_id) VALUES ('$viewer')
     );
 
     test(
-      'a blocking backend statement during apply is cancelled at the budget '
-      'as a retryable error and leaves the connection reusable',
+      'a stalled visibility function leaves apply successful '
+      'within budget and leaves the connection reusable',
       () async {
-        await expectRetryableWithinBudget(
+        await expectAckWithinBudget(
           stall: () => fixture.writer.execute(
             "INSERT INTO public.apply_mr_stall VALUES ('sleep')",
           ),
@@ -338,46 +294,37 @@ INSERT INTO public.constellation_anchor_cursor (viewer_id) VALUES ('$viewer')
 
   group('applyBatch with a degraded MeritRank', () {
     test(
-      'a MeritRank call that fails fast is a retryable error, not a recorded '
-      'rejection, and a later apply succeeds',
+      'a failing visibility service leaves apply successful and replayable',
       () async {
+        final before = await db.mrRpcAttempts();
         await fixture.writer.execute(
           "INSERT INTO public.apply_mr_stall VALUES ('fail')",
         );
-        Object? failure;
-        AnchorApplyBatchResult? result;
-        try {
-          result = await apply();
-        } on Object catch (error) {
-          failure = error;
-        }
-
-        expect(
-          result,
-          isNull,
-          reason: 'A degraded MeritRank must not produce a batch result '
-              '(a rejected op would be recorded as final).',
-        );
-        expect(failure, _isRetryable);
-        expect(await visibilityComputations(), greaterThanOrEqualTo(1));
-        await expectNothingRecorded();
-
+        final result = await apply();
+        expect(result.results.single.status, AnchorOpStatus.ok);
+        expect(result.results.single.replayed, isFalse);
+        expect(await visibilityComputations(), 0);
+        expect(await db.mrRpcAttempts() - before, 0);
+        await expectRecorded();
         await fixture.writer.execute('DELETE FROM public.apply_mr_stall');
         final recovered = await apply();
         expect(recovered.results.single.status, AnchorOpStatus.ok);
+        expect(recovered.results.single.replayed, isTrue);
+        expect(recovered.afterRevision, result.afterRevision);
       },
     );
 
     test(
-      'a peer MeritRank genuinely does not show the viewer is a recorded '
-      'rejection, unlike a degraded MeritRank',
+      'a non-visible peer can be pinned without consulting MeritRank',
       () async {
         await fixture.writer.execute('DELETE FROM public.vote_user');
         await fixture.writer.execute('SELECT public.mr_reset()');
 
         final result = await apply();
 
-        expect(result.results.single.status, AnchorOpStatus.rejected);
+        expect(result.results.single.status, AnchorOpStatus.ok);
+        expect(result.results.single.reason, isNull);
+        expect(await visibilityComputations(), 0);
         final logs = await fixture.writer.execute(
           'SELECT count(*) FROM public.constellation_anchor_op_log',
         );
@@ -385,101 +332,4 @@ INSERT INTO public.constellation_anchor_cursor (viewer_id) VALUES ('$viewer')
       },
     );
   });
-}
-
-/// The causes a batch failure carries through the retry wrappers, outermost
-/// first.
-Iterable<Object> _causes(Object error) sync* {
-  Object? current = error;
-  while (current != null) {
-    yield current;
-    current = switch (current) {
-      PostgresSnapshotUnavailableException(:final cause) => cause,
-      PostgresRetryDeadlineExceededException(:final cause) => cause,
-      _ => null,
-    };
-  }
-}
-
-final Matcher _isTypedRetryLater = isA<ConstellationException>().having(
-  (e) => e.code,
-  'code',
-  isA<ConstellationExceptionCodes>().having(
-    (c) => c.exceptionCode,
-    'exceptionCode',
-    ConstellationExceptionCode.retryLater,
-  ),
-);
-
-/// The retryable-error contract of an apply whose MeritRank failed: a typed
-/// RETRY_LATER, or the retry-the-whole-transaction signal of
-/// `withMutatingRepeatableRead`. A raw database error does not qualify.
-final Matcher _isRetryable = anyOf(
-  _isTypedRetryLater,
-  isA<PostgresSnapshotUnavailableException>(),
-  isA<PostgresRetryDeadlineExceededException>(),
-);
-
-/// The contract of an apply whose MeritRank never answers: the batch
-/// transaction's statement was cancelled at the request budget (SQLSTATE
-/// 57014, query_canceled) and that is surfaced as retryable - either the typed
-/// RETRY_LATER or a retry signal that keeps the cancellation as its cause. A
-/// deadlock or serialization failure is not a cancellation at the budget.
-final Matcher _isRetryableStatementCancel = anyOf(
-  _isTypedRetryLater,
-  allOf(
-    _isRetryable,
-    predicate<Object>(
-      (error) => _causes(error).any(
-        (cause) => cause is ServerException && cause.code == '57014',
-      ),
-      'a retryable error caused by a 57014 statement cancellation',
-    ),
-  ),
-);
-
-final class _Profiles implements UserProfileBatchLookup {
-  @override
-  Future<Map<String, ConstellationPeerRecord>> constellationProfilesByIds(
-    Iterable<String> ids,
-  ) => constellationProfilesFromRecords(this, ids);
-
-  _Profiles(this.db);
-
-  final TenturaDb db;
-
-  @override
-  Future<Map<String, UserEntity>> userEntitiesByIds(
-    Iterable<String> ids,
-  ) async {
-    final users = await db.managers.users
-        .filter((u) => u.id.isIn(ids.toSet()))
-        .get();
-    return {
-      for (final u in users)
-        u.id: UserEntity(id: u.id, displayName: u.displayName),
-    };
-  }
-
-  @override
-  Future<Map<String, UserPublicRecord>> userPublicRecordsByIds({
-    required Iterable<String> ids,
-    required Set<String> reciprocalPeerIds,
-    Set<String> trustsViewerPeerIds = const {},
-    Set<String> viewerTrustsPeerIds = const {},
-    Map<String, MutualScoreRecord> scoresByPeerId = const {},
-  }) async {
-    final users = await userEntitiesByIds(ids);
-    return {
-      for (final u in users.values)
-        u.id: UserPublicRecord(
-          id: u.id,
-          displayName: u.displayName,
-          description: u.description,
-          isMutualFriend: reciprocalPeerIds.contains(u.id),
-          subjectExplicitlyTrustsViewer: trustsViewerPeerIds.contains(u.id),
-          userAvailability: null,
-        ),
-    };
-  }
 }

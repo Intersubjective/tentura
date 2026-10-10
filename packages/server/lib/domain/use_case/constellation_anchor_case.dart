@@ -19,7 +19,6 @@ final class ConstellationAnchorCase extends UseCaseBase {
   Future<AnchorApplyBatchResult> apply({
     required String viewerId,
     required List<AnchorApplyOp> ops,
-    required AnchorApplyParams params,
   }) async {
     if (ops.length > 64) {
       throw ConstellationException(
@@ -42,7 +41,7 @@ final class ConstellationAnchorCase extends UseCaseBase {
         );
       }
     }
-    return _repository.applyBatch(viewerId: viewerId, ops: ops, params: params);
+    return _repository.applyBatch(viewerId: viewerId, ops: ops);
   }
 
   /// Parses one wire-level batch operation; a missing UPSERT position is

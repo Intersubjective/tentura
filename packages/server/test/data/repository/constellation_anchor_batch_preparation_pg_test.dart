@@ -7,7 +7,6 @@ import 'package:drift_postgres/drift_postgres.dart';
 import 'package:postgres/postgres.dart' show Connection, Session;
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura_server/consts/constellation_consts.dart';
-import 'package:tentura_server/data/database/postgres_serialization_retry.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide ConstellationAnchor, isNotNull, isNull;
 import 'package:tentura_server/data/repository/constellation_anchor_repository.dart';
@@ -46,7 +45,7 @@ Future<void> main() async {
   final peers = [
     for (var i = 0; i < 64; i++) 'Ubatchprep${i.toString().padLeft(4, '0')}',
   ];
-  const params = AnchorApplyParams(
+  const params = (
     context: kConstellationContext,
     filters: ConstellationFieldMembershipFilters.defaults,
   );
@@ -72,14 +71,30 @@ Future<void> main() async {
         ifRevision: ConstellationAnchorRevision.zero,
       );
 
+  var writeStatements = <String>[];
+  var writeProfileLoads = 0;
   Future<AnchorApplyBatchResult> apply(
     List<AnchorApplyOp> ops, {
-    AnchorApplyParams projectionParams = params,
-  }) => repository.applyBatch(
+    ({String context, ConstellationFieldMembershipFilters filters})
+        projectionParams =
+        params,
+  }) async {
+    final result = await repository.applyBatch(viewerId: viewer, ops: ops);
+    writeStatements = List.of(sql.statements);
+    writeProfileLoads = profiles.loads.length;
+    return result;
+  }
+
+  Future<ConstellationAnchorProjection> freshAnchors({
+    String context = kConstellationContext,
+  }) async => (await fields.readSnapshot(
     viewerId: viewer,
-    ops: ops,
-    params: projectionParams,
-  );
+    context: context,
+    params: (
+      filters: params.filters,
+      projection: ConstellationProjection.anchors,
+    ),
+  )).anchorProjection;
 
   Future<int> rpcCount() async =>
       ((await backend.execute('SELECT public.mr_rpc_attempts()')).single.single!
@@ -92,43 +107,41 @@ Future<void> main() async {
   }
 
   Future<void> expectFreshProjection(AnchorApplyBatchResult result) async {
-    final snapshot = await fields.readSnapshot(
+    final anchors = await freshAnchors();
+    final full = await fields.readSnapshot(
       viewerId: viewer,
       context: params.context,
       params: (
-        filters: ConstellationFieldMembershipFilters.defaults,
-        projection: ConstellationProjection.anchors,
+        filters: params.filters,
+        projection: ConstellationProjection.full,
       ),
     );
-    expect(result.projection.revision, result.afterRevision);
-    expect(snapshot.anchorProjection, result.projection);
+    expect(anchors, full.anchorProjection);
+    expect(
+      anchors.revision.value,
+      greaterThanOrEqualTo(result.afterRevision.value),
+    );
   }
 
-  void expectPreparedBeforeLock({required Set<String> requiredProfiles}) {
-    final lock = sql.statements.indexWhere(_isCursorLock);
+  void expectWriteWithoutPreparation({required Set<String> requiredProfiles}) {
+    final lock = writeStatements.indexWhere(_isCursorLock);
     expect(lock, greaterThanOrEqualTo(0));
-    final preparation = sql.statements.take(lock).toList();
     expect(
-      preparation.any((q) => q.contains('person_visible_')),
-      isTrue,
-      reason: 'Visibility must be prepared inside RR before cursor FOR UPDATE.',
+      writeStatements.where((q) => q.contains('person_visible_')),
+      isEmpty,
     );
     expect(
-      preparation.any((q) => q.contains('constellation_trust_edges')),
-      isTrue,
-      reason:
-          'The potential holder/support closure needs prepared trust edges.',
+      writeStatements.where((q) => q.contains('constellation_trust_edges')),
+      isEmpty,
     );
-    expect(profiles.loads, hasLength(1));
-    expect(profiles.loads.single.ids, requiredProfiles);
-    expect(
-      profiles.loads.single.statementIndex,
-      lessThan(lock),
-      reason:
-          'Only required profiles are batch-fetched before the cursor lock.',
-    );
-    expect(profiles.loads.single.isolation, 'repeatable read');
-    expect(profiles.loads.single.readOnly, 'off');
+    expect(writeProfileLoads, 0);
+    expect(profiles.loads, isNotEmpty);
+    for (final load in profiles.loads) {
+      expect(load.ids, requiredProfiles);
+      expect(load.statementIndex, greaterThan(lock));
+      expect(load.isolation, 'repeatable read');
+      expect(load.readOnly, 'on');
+    }
     // The op-log rows are written in one server-side call (m0231).
     final writes = sql.statements.lastIndexWhere(
       (q) =>
@@ -168,7 +181,9 @@ Future<void> main() async {
       ).interceptWith(sql),
     );
     profiles = _Profiles(db, sql);
-    repository = ConstellationAnchorRepository(db, profiles);
+    repository = ConstellationAnchorRepository(
+      db,
+    );
     fields = ConstellationFieldRepository(db, profiles);
     await fixture.writer.execute(
       'CREATE TABLE public.batch_prepare_mr_outage (active boolean)',
@@ -247,9 +262,9 @@ INSERT INTO public.constellation_anchor_cursor (viewer_id) VALUES ('$viewer')
     clearObservations();
   });
 
-  group('anchor batch projection preparation', () {
+  group('anchor batch acknowledgement and independent reads', () {
     test(
-      'first pins prepare requested people and beacon records before locking',
+      'first pins write without preparing people or beacon profiles',
       () async {
         final result = await apply([
           pin('first-person', ConstellationAnchorTarget.person(peers[1])),
@@ -262,23 +277,28 @@ INSERT INTO public.constellation_anchor_cursor (viewer_id) VALUES ('$viewer')
           result.results.map((r) => r.status),
           everyElement(AnchorOpStatus.ok),
         );
-        expect(result.projection.pinnedPeers.map((p) => p.id), [peers[1]]);
-        expect(result.projection.pinnedRequests.map((b) => b.id), [openBeacon]);
-        expectPreparedBeforeLock(requiredProfiles: {peers.first, peers[1]});
+        expect((await freshAnchors()).pinnedPeers.map((p) => p.id), [peers[1]]);
+        expect((await freshAnchors()).pinnedRequests.map((b) => b.id), [
+          openBeacon,
+        ]);
+        expectWriteWithoutPreparation(
+          requiredProfiles: {peers.first, peers[1]},
+        );
         final lock = sql.statements.indexWhere(_isCursorLock);
         expect(
           sql.statements
               .take(lock)
               .any((q) => q.contains('from public.beacon ')),
-          isTrue,
-          reason: 'First-pin beacon readability and records must be prepared.',
+          isFalse,
+          reason:
+              'Beacon existence is checked after the cursor lock; readability is read-only.',
         );
         await expectFreshProjection(result);
       },
     );
 
     test(
-      'filter-hidden pins prepare readability without hydrating unrelated people',
+      'filter-hidden pins are stored without hydrating unrelated people',
       () async {
         final result = await apply([
           pin(
@@ -288,21 +308,11 @@ INSERT INTO public.constellation_anchor_cursor (viewer_id) VALUES ('$viewer')
         ]);
         expect(result.results.single.status, AnchorOpStatus.ok);
         expect(
-          result.projection.anchors.single.target,
+          (await freshAnchors()).anchors.single.target,
           ConstellationAnchorTarget.beacon(closedBeacon),
         );
-        expect(result.projection.pinnedRequests, isEmpty);
-        expect(result.projection.serverFilteredBeaconIds, [closedBeacon]);
-        // Even a hidden pin needs prepared readability, but no person profile.
-        final lock = sql.statements.indexWhere(_isCursorLock);
-        expect(
-          sql.statements
-              .take(lock)
-              .any((q) => q.contains('from public.beacon ')),
-          isTrue,
-          reason:
-              'Filter-hidden targets must be part of preparation before lock.',
-        );
+        expect((await freshAnchors()).pinnedRequests, isEmpty);
+        expect((await freshAnchors()).serverFilteredBeaconIds, [closedBeacon]);
         expect(profiles.loads.expand((load) => load.ids), isEmpty);
         await expectFreshProjection(result);
       },
@@ -344,9 +354,11 @@ SELECT public.mr_put_edge('$src', '$dst', 0.75::double precision, '${params.cont
           result.results.map((r) => r.status),
           everyElement(AnchorOpStatus.ok),
         );
-        expect(result.projection.anchors, hasLength(3));
-        expect(result.projection.supportPeers.map((p) => p.id), [peers[1]]);
-        expectPreparedBeforeLock(
+        expect((await freshAnchors()).anchors, hasLength(3));
+        expect((await freshAnchors()).supportPeers.map((p) => p.id), [
+          peers[1],
+        ]);
+        expectWriteWithoutPreparation(
           requiredProfiles: {peers[0], peers[1], peers[2]},
         );
         await expectFreshProjection(result);
@@ -420,31 +432,6 @@ SELECT
               reason: 'Reciprocal SQL trust must not bypass fallback scores.',
             );
           }
-          // Preflight on another backend proves the fixture really needs U
-          // score calls. Its RPCs cannot populate the batch backend's memo or
-          // contaminate that backend's measured mr_rpc_attempts() delta.
-          final fixtureBefore =
-              ((await fixture.writer.execute(
-                        'SELECT public.mr_rpc_attempts()',
-                      )).single.single!
-                      as num)
-                  .toInt();
-          final visible = await fixture.writer.execute('''
-SELECT peer_id FROM public.person_visible_peers_symmetric('$viewer', '$context')
-''');
-          final fixtureAfter =
-              ((await fixture.writer.execute(
-                        'SELECT public.mr_rpc_attempts()',
-                      )).single.single!
-                      as num)
-                  .toInt();
-          expect(visible.map((row) => row.single), containsAll(peers));
-          expect(
-            fixtureAfter - fixtureBefore,
-            1 + fallbackCount,
-            reason: 'The real fixture must exercise exactly U fallback RPCs.',
-          );
-
           clearObservations();
           var stop = false;
           var commits = 0;
@@ -497,7 +484,7 @@ SELECT public.mr_put_edge('$viewer', '$churnA', $amount::double precision, '$con
                 for (var i = 0; i < peers.length; i++)
                   pin('person-$i', ConstellationAnchorTarget.person(peers[i])),
               ],
-              projectionParams: AnchorApplyParams(
+              projectionParams: (
                 context: context,
                 filters: params.filters,
               ),
@@ -518,13 +505,12 @@ SELECT public.mr_put_edge('$viewer', '$churnA', $amount::double precision, '$con
             result.results.map((r) => r.status),
             everyElement(AnchorOpStatus.ok),
           );
-          expect(result.projection.anchors, hasLength(64));
+          expect((await freshAnchors(context: context)).anchors, hasLength(64));
           expect(
             after - before,
-            1 + fallbackCount,
+            0,
             reason:
-                'One shared visible set plus U real fallback-score RPCs, '
-                'regardless of relevant trust churn or operation count.',
+                'Writes make no visibility or fallback-score RPCs, even during trust churn.',
           );
           final dedupe = sql.statements
               .where(
@@ -551,7 +537,7 @@ SELECT public.mr_put_edge('$viewer', '$churnA', $amount::double precision, '$con
           final lock = sql.statements.indexWhere(_isCursorLock);
           expect(sql.statements.indexOf(dedupe.single), greaterThan(lock));
           expect(sql.statements.indexOf(watermarks.single), greaterThan(lock));
-          expectPreparedBeforeLock(requiredProfiles: peers.toSet());
+          expectWriteWithoutPreparation(requiredProfiles: peers.toSet());
         });
       }
     }
@@ -648,18 +634,17 @@ WHERE viewer_id = '$viewer'
             );
             if (mutation == 'anchor placement') {
               expect(
-                result.projection.anchors.map((a) => a.target.id),
+                (await freshAnchors()).anchors.map((a) => a.target.id),
                 containsAll([peers[0], peers[1], peers[2]]),
               );
             } else {
               expect(
-                result.projection.anchors.map((a) => a.target.id),
+                (await freshAnchors()).anchors.map((a) => a.target.id),
                 isNot(contains(peers.first)),
               );
             }
             expect(result.results.single.status, AnchorOpStatus.ok);
-            // Inspect every discarded attempt too: prepare-before-lock cannot
-            // be satisfied only after retrying an originally lock-first attempt.
+            // Inspect every discarded attempt too: none may prepare visibility.
             final firstLock = sql.statements.indexWhere(_isCursorLock);
             expect(
               sql.statements
@@ -667,8 +652,8 @@ WHERE viewer_id = '$viewer'
                   .any(
                     (q) => q.contains('person_visible_'),
                   ),
-              isTrue,
-              reason: 'The initial attempt must also prepare before lock.',
+              isFalse,
+              reason: 'No attempt may prepare visibility before locking.',
             );
             await expectFreshProjection(result);
           } finally {
@@ -682,7 +667,7 @@ WHERE viewer_id = '$viewer'
   });
 
   test(
-    'MeritRank outage aborts preparation before locking and leaves ids retryable',
+    'MeritRank outage does not affect writes or replay',
     () async {
       final ops = [
         pin(
@@ -693,62 +678,35 @@ WHERE viewer_id = '$viewer'
       await fixture.writer.execute(
         'INSERT INTO public.batch_prepare_mr_outage VALUES (true)',
       );
-      // Verify the real memo's fail-closed path, rather than simulating an empty
-      // authorized population in the repository itself.
-      final closed = await fixture.writer.execute('''
-SELECT cardinality(public.person_visible_peer_ids_tx('$viewer', '${params.context}'))
-''');
-      expect(closed.single.single, 0);
-      // Use the same retryability signal as withMutatingRepeatableRead.
-      // An arbitrary exception (including an unclassified service failure)
-      // must not satisfy the retryable-error contract. A bounded retry that
-      // exhausts its deadline must retain a classified retryable cause.
-      await expectLater(
-        apply(ops),
-        throwsA(
-          anyOf(
-            predicate<Object>(
-              isPostgresDeadlockOrSerializationFailure,
-              'an error recognized by the batch transaction retry classifier',
-            ),
-            isA<PostgresRetryDeadlineExceededException>().having(
-              (error) => error.cause,
-              'retryable cause',
-              predicate<Object?>(
-                (cause) =>
-                    cause != null &&
-                    isPostgresDeadlockOrSerializationFailure(cause),
-                'a classified retryable error',
-              ),
-            ),
-          ),
-        ),
+      final before = await rpcCount();
+      final accepted = await apply(ops);
+      expect(await rpcCount() - before, 0);
+      expect(accepted.results.single.status, AnchorOpStatus.ok);
+      expect(accepted.results.single.replayed, isFalse);
+      expect(accepted.results.single.anchor!.target, ops.single.target);
+      expect(sql.statements.any(_isCursorLock), isTrue);
+      expect(
+        sql.statements.where((q) => q.contains('person_visible_')),
+        isEmpty,
       );
-      final lockedDuringOutage = sql.statements.any(_isCursorLock);
+      expect(profiles.loads, isEmpty);
       final logs = await fixture.writer.execute(
         'SELECT count(*) FROM public.constellation_anchor_op_log',
       );
       final anchors = await fixture.writer.execute(
         'SELECT count(*) FROM public.constellation_anchor',
       );
-      final revision = await fixture.writer.execute('''
-SELECT revision FROM public.constellation_anchor_cursor WHERE viewer_id = '$viewer'
-''');
-      expect(logs.single.single, 0);
-      expect(anchors.single.single, 0);
-      expect((revision.single.single! as num).toInt(), 0);
+      expect(logs.single.single, 1);
+      expect(anchors.single.single, 1);
       await fixture.writer.execute(
         'DELETE FROM public.batch_prepare_mr_outage',
       );
-      final recovered = await apply(ops);
-      expect(recovered.results.single.status, AnchorOpStatus.ok);
-      expect(recovered.beforeRevision, ConstellationAnchorRevision.zero);
-      expect(
-        lockedDuringOutage,
-        isFalse,
-        reason:
-            'Degraded MR must abort preparation before taking the cursor lock.',
-      );
+      final replay = await apply(ops);
+      expect(replay.results.single.status, AnchorOpStatus.ok);
+      expect(replay.results.single.replayed, isTrue);
+      expect(replay.results.single.anchor, accepted.results.single.anchor);
+      expect(replay.beforeRevision, accepted.afterRevision);
+      expect(replay.afterRevision, accepted.afterRevision);
     },
   );
 }

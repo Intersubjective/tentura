@@ -110,11 +110,7 @@ void main() {
       final apply = mutation.constellationAnchorsApply;
       expect(
         apply.inputs.map((i) => i.name).toSet(),
-        containsAll([
-          'ops',
-          'showClosed',
-          'participatedOnly',
-        ]),
+        equals({'ops'}),
       );
       expect(query.all.map((f) => f.name), contains('constellationField'));
     });
@@ -123,7 +119,7 @@ void main() {
       fieldRepo.snapshot = _emptySnapshot();
       final result = await _execute(
         graphQL: graphQL,
-        document: r'''
+        document: '''
           query ConstellationFieldFetch {
             constellationField {
               context
@@ -150,7 +146,7 @@ void main() {
       fieldRepo.snapshot = _emptySnapshot();
       await _execute(
         graphQL: graphQL,
-        document: r'''
+        document: '''
           query ConstellationAnchorsFetch {
             constellationField(projection: ANCHORS) {
               peers { id }
@@ -168,7 +164,7 @@ void main() {
       await expectLater(
         _execute(
           graphQL: graphQL,
-          document: r'''
+          document: '''
             query Bad {
               constellationField(projection: NOT_A_MODE) { loadedAt }
             }
@@ -335,8 +331,13 @@ void main() {
                       kConstellationCoordinateSpaceVersionV1,
                 })
                 as Map<String, dynamic>;
-        final projection = result['anchorProjection'] as Map<String, dynamic>;
-        final anchor = (projection['anchors'] as List).single as Map;
+        expect(
+          result.keys,
+          unorderedEquals(['beforeRevision', 'afterRevision', 'results']),
+        );
+        final opResult = (result['results'] as List).single as Map;
+        final anchor = opResult['anchor'] as Map;
+        expect(opResult['replayed'], isFalse);
         expect(anchor['targetKind'], 'PERSON');
         expect(anchor['targetId'], peer);
         expect(anchor['xUnits'], 1.5);
@@ -397,30 +398,21 @@ AnchorApplyBatchResult _sampleBatchResult(
         resultingTargetRevision: delete
             ? revision
             : ConstellationAnchorRevision(BigInt.from(9)),
+        anchor: delete
+            ? null
+            : ConstellationAnchor(
+                target: ConstellationAnchorTarget.person(peerId),
+                position: const ConstellationAnchorPosition(
+                  xUnits: 1.5,
+                  yUnits: -2,
+                  coordinateSpaceVersion:
+                      kConstellationCoordinateSpaceVersionV1,
+                ),
+                revision: ConstellationAnchorRevision(BigInt.from(9)),
+                placedAt: DateTime.utc(2026),
+              ),
       ),
     ],
-    projection: ConstellationAnchorProjection(
-      revision: revision,
-      anchors: [
-        if (!delete)
-          ConstellationAnchor(
-            target: ConstellationAnchorTarget.person(peerId),
-            position: const ConstellationAnchorPosition(
-              xUnits: 1.5,
-              yUnits: -2,
-              coordinateSpaceVersion: kConstellationCoordinateSpaceVersionV1,
-            ),
-            revision: ConstellationAnchorRevision(BigInt.from(9)),
-            placedAt: DateTime.utc(2026, 1, 2),
-          ),
-      ],
-      pinnedPeers: const [],
-      pinnedRequests: const [],
-      supportPeers: const [],
-      supportEdges: const [],
-      serverFilteredBeaconIds: const [],
-      serverFilteredBeaconCount: 0,
-    ),
   );
 }
 
@@ -434,7 +426,6 @@ final class _RecordingAnchorRepository
   Future<AnchorApplyBatchResult> applyBatch({
     required String viewerId,
     required List<AnchorApplyOp> ops,
-    required AnchorApplyParams params,
   }) async {
     lastUpsertViewerId = viewerId;
     if (upsertError != null) throw upsertError!;

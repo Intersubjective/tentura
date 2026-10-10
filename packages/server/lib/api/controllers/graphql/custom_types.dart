@@ -566,18 +566,17 @@ final gqlTypeBeaconParticipantRow =
       ]);
 
 /// Peer read watermark for BeaconRoomReadWatermarks (V2 only).
-final gqlTypeRoomReadWatermark =
-    GraphQLObjectType('v2_RoomReadWatermark', null)
-      ..fields.addAll([
-        field('userId', graphQLString.nonNullable()),
-        field('lastSeenAt', graphQLString.nonNullable()),
-        field('userTitle', graphQLString.nonNullable()),
-        field('userHasPicture', graphQLBoolean.nonNullable()),
-        field('userImageId', graphQLString.nonNullable()),
-        field('userBlurHash', graphQLString.nonNullable()),
-        field('userPicHeight', graphQLInt.nonNullable()),
-        field('userPicWidth', graphQLInt.nonNullable()),
-      ]);
+final gqlTypeRoomReadWatermark = GraphQLObjectType('v2_RoomReadWatermark', null)
+  ..fields.addAll([
+    field('userId', graphQLString.nonNullable()),
+    field('lastSeenAt', graphQLString.nonNullable()),
+    field('userTitle', graphQLString.nonNullable()),
+    field('userHasPicture', graphQLBoolean.nonNullable()),
+    field('userImageId', graphQLString.nonNullable()),
+    field('userBlurHash', graphQLString.nonNullable()),
+    field('userPicHeight', graphQLInt.nonNullable()),
+    field('userPicWidth', graphQLInt.nonNullable()),
+  ]);
 
 /// `beacon_fact_card` projection for BeaconFactCardList (V2 only).
 final gqlTypeBeaconFactCardRow = GraphQLObjectType('BeaconFactCardRow', null)
@@ -1045,6 +1044,8 @@ final gqlTypeConstellationAnchorOpResult =
         ),
         field('reason', graphQLString),
         field('resultingTargetRevision', graphQLString),
+        field('anchor', gqlTypeConstellationAnchor),
+        field('replayed', graphQLBoolean.nonNullable()),
       ]);
 
 final gqlTypeConstellationAnchorsApplyResult =
@@ -1060,10 +1061,6 @@ final gqlTypeConstellationAnchorsApplyResult =
           GraphQLListType(
             gqlTypeConstellationAnchorOpResult.nonNullable(),
           ).nonNullable(),
-        ),
-        field(
-          'anchorProjection',
-          gqlTypeConstellationAnchorProjection.nonNullable(),
         ),
       ]);
 
@@ -1819,12 +1816,10 @@ final gqlTypeClosureResult =
         field('story', graphQLString),
       ]);
 
-final gqlTypeClosureToggleResult =
-    GraphQLObjectType(
-        'ClosureToggleResult',
-        null,
-      )
-      ..fields.add(field('released', graphQLString));
+final gqlTypeClosureToggleResult = GraphQLObjectType(
+  'ClosureToggleResult',
+  null,
+)..fields.add(field('released', graphQLString));
 
 /// Open Post conversation preview for the authenticated viewer.
 final gqlTypePostSummary = GraphQLObjectType('PostSummary', null)

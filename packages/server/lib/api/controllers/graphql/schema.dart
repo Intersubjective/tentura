@@ -10,7 +10,7 @@ import 'query/_queries_all.dart';
 
 export 'package:graphql_schema2/graphql_schema2.dart';
 
-GraphQL get graphqlSchema => _NullSafeGraphQL(
+GraphQL get graphqlSchema => TenturaGraphQL(
   GraphQLSchema(
     queryType: GraphQLObjectType('Query', 'Query root')
       ..fields.addAll(queriesAll),
@@ -48,8 +48,8 @@ GraphQLType<dynamic, dynamic>? resolveStitchedV2Type(
 /// `v2_Coordinates` → `Coordinates`). Server types stay unprefixed so Hasura
 /// remote-schema stitching still produces a single `v2_` layer — do not
 /// rename those inputs to `v2_*` on the server.
-class _NullSafeGraphQL extends GraphQL {
-  _NullSafeGraphQL(super.schema, {super.customTypes});
+class TenturaGraphQL extends GraphQL {
+  TenturaGraphQL(super.schema, {super.customTypes});
 
   /// Prefer stock lookup (keeps introspection types like `__Type`). Only when
   /// that fails for a Hasura-stitched `v2_*` name, fall back to the bare
@@ -90,12 +90,20 @@ class _NullSafeGraphQL extends GraphQL {
         field.field?.fieldName.alias?.name ?? field.field?.fieldName.name;
     final desiredField = objectType.fields.firstWhere(
       (f) => f.name == fieldName,
-      orElse:
-          () => throw FormatException(
-            '${objectType.name} has no field named "$fieldName".',
-          ),
+      orElse: () => throw FormatException(
+        '${objectType.name} has no field named "$fieldName".',
+      ),
     );
     final argumentDefinitions = desiredField.inputs;
+    if (argumentValues != null) {
+      for (final argument in argumentValues) {
+        if (!argumentDefinitions.any((input) => input.name == argument.name)) {
+          throw GraphQLException.fromMessage(
+            'Unknown argument "${argument.name}" on field "$fieldName".',
+          );
+        }
+      }
+    }
 
     for (final argumentDefinition in argumentDefinitions) {
       final argumentName = argumentDefinition.name;
@@ -166,8 +174,7 @@ class _NullSafeGraphQL extends GraphQL {
           final err = argumentValue.value.span?.start;
           final locations = <GraphExceptionErrorLocation>[];
           if (err != null) {
-            locations
-                .add(GraphExceptionErrorLocation.fromSourceLocation(err));
+            locations.add(GraphExceptionErrorLocation.fromSourceLocation(err));
           }
 
           throw GraphQLException(<GraphQLExceptionError>[

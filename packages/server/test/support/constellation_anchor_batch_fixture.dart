@@ -1,10 +1,6 @@
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
-import 'package:tentura_server/consts/constellation_consts.dart';
 import 'package:tentura_server/data/database/tentura_db.dart' show TenturaDb;
 import 'package:tentura_server/data/repository/constellation_anchor_repository.dart';
-import 'package:tentura_server/data/repository/user_availability_repository.dart';
-import 'package:tentura_server/data/repository/user_profile_batch_lookup.dart';
-import 'package:tentura_server/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura_server/domain/port/constellation_anchor_repository_port.dart';
 import 'package:tentura_server/utils/id.dart';
 import 'package:test/test.dart';
@@ -14,7 +10,6 @@ import 'package:test/test.dart';
 ConstellationAnchorRepository constellationAnchorRepositoryFor(TenturaDb db) =>
     ConstellationAnchorRepository(
       db,
-      DriftUserProfileBatchLookup(db, UserAvailabilityRepository(db)),
     );
 
 /// Seeds anchors through the retained batch protocol while keeping storage and
@@ -37,10 +32,6 @@ extension ConstellationAnchorBatchFixture on ConstellationAnchorRepositoryPort {
           position: position,
         ),
       ],
-      params: AnchorApplyParams(
-        context: context,
-        filters: ConstellationFieldMembershipFilters.defaults,
-      ),
     );
     expect(
       result.results.single.status,
@@ -48,7 +39,7 @@ extension ConstellationAnchorBatchFixture on ConstellationAnchorRepositoryPort {
       reason: result.results.single.reason,
     );
     return (
-      anchor: result.projection.anchors.singleWhere((a) => a.target == target),
+      anchor: result.results.single.anchor!,
       watermark: ConstellationAnchorWatermark(result.afterRevision),
     );
   }
@@ -69,10 +60,6 @@ extension ConstellationAnchorBatchFixture on ConstellationAnchorRepositoryPort {
           target: target,
         ),
       ],
-      params: const AnchorApplyParams(
-        context: kConstellationContext,
-        filters: ConstellationFieldMembershipFilters.defaults,
-      ),
     );
     expect(
       result.results.single.status,

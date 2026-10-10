@@ -62,7 +62,9 @@ final class PerfCaseRun {
   final PerfFixtureSeed seed;
 
   late final ConstellationAnchorRepository anchorRepository =
-      ConstellationAnchorRepository(db, _ProfileLookup());
+      ConstellationAnchorRepository(
+        db,
+      );
 
   late final ConstellationFieldCase fieldCase = ConstellationFieldCase(
     ConstellationFieldRepository(db, _ProfileLookup()),
@@ -712,15 +714,11 @@ Future<void> _applyBatchAttempt(
           ),
         ),
     ],
-    params: const AnchorApplyParams(
-      context: '',
-      filters: ConstellationFieldMembershipFilters.defaults,
-    ),
   );
   if (result.results.any((r) => r.status != AnchorOpStatus.ok)) {
     throw StateError('applyBatch rejected an op of the fixture batch');
   }
-  jsonEncode(constellationAnchorProjectionToGqlMap(result.projection));
+  jsonEncode(constellationAnchorsApplyResultToGqlMap(result));
 }
 
 const _agedLogDays = 30;

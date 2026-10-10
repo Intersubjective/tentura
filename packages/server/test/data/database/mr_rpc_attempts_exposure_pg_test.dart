@@ -102,7 +102,7 @@ Future<void> main() async {
   group('RPC-count gate around applyBatch', () {
     const viewer = 'Urpcgateviewer001';
     const peer = 'Urpcgatepeer00001';
-    const params = AnchorApplyParams(
+    const params = (
       context: kConstellationContext,
       filters: ConstellationFieldMembershipFilters.defaults,
     );
@@ -153,7 +153,9 @@ INSERT INTO public.constellation_anchor_cursor (viewer_id) VALUES ('$viewer')
                     as num)
                 .toInt();
 
-        final repository = ConstellationAnchorRepository(db, _Profiles(db));
+        final repository = ConstellationAnchorRepository(
+          db,
+        );
         final apiBefore = await db.mrRpcAttempts();
         final backendBefore = await backendAttempts();
         final result = await repository.applyBatch(
@@ -171,7 +173,6 @@ INSERT INTO public.constellation_anchor_cursor (viewer_id) VALUES ('$viewer')
               ifRevision: ConstellationAnchorRevision.zero,
             ),
           ],
-          params: params,
         );
         final apiDelta = await db.mrRpcAttempts() - apiBefore;
         final backendDelta = await backendAttempts() - backendBefore;
@@ -179,8 +180,8 @@ INSERT INTO public.constellation_anchor_cursor (viewer_id) VALUES ('$viewer')
         expect(result.results.single.status, AnchorOpStatus.ok);
         expect(
           backendDelta,
-          greaterThanOrEqualTo(1),
-          reason: 'An apply on a fresh transaction must reach MeritRank.',
+          0,
+          reason: 'Anchor writes must not reach MeritRank.',
         );
         expect(
           apiDelta,

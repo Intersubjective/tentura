@@ -1,4 +1,3 @@
-import 'package:graphql_schema2/graphql_schema2.dart';
 import 'package:graphql_server2/graphql_server2.dart';
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
@@ -8,8 +7,8 @@ import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura_server/api/controllers/graphql/custom_types.dart';
 import 'package:tentura_server/api/controllers/graphql/input/_input_types.dart';
 import 'package:tentura_server/api/controllers/graphql/mutation/mutation_constellation_anchor.dart';
+import 'package:tentura_server/api/controllers/graphql/schema.dart';
 import 'package:tentura_server/consts/constellation_consts.dart';
-import 'package:tentura_server/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
@@ -63,7 +62,7 @@ void main() {
         logger: logger,
       ),
     );
-    graphQL = GraphQL(
+    graphQL = TenturaGraphQL(
       GraphQLSchema(
         queryType: GraphQLObjectType('Query', 'Query root')
           ..fields.add(
@@ -77,7 +76,7 @@ void main() {
   });
 
   group('batch anchor mutation schema', () {
-    test('is registered with the ops list and projection arguments', () {
+    test('is registered with only the ops list', () {
       expect(
         mutation.all.map((f) => f.name),
         contains('constellationAnchorsApply'),
@@ -87,7 +86,7 @@ void main() {
           .toSet();
       expect(
         argNames,
-        containsAll(['ops', 'showClosed', 'participatedOnly']),
+        equals({'ops'}),
       );
     });
 
@@ -103,13 +102,9 @@ void main() {
     const document = r'''
       mutation ConstellationAnchorsApply(
         $ops: [ConstellationAnchorOpInput!]!
-        $showClosed: Boolean!
-        $participatedOnly: Boolean!
       ) {
         constellationAnchorsApply(
           ops: $ops
-          showClosed: $showClosed
-          participatedOnly: $participatedOnly
         ) {
           beforeRevision
           afterRevision
@@ -118,11 +113,8 @@ void main() {
             status
             reason
             resultingTargetRevision
-          }
-          anchorProjection {
-            revision
-            anchors { targetKind targetId xUnits yUnits revision }
-            serverFilteredBeaconCount
+            replayed
+            anchor { targetKind targetId xUnits yUnits revision }
           }
         }
       }
@@ -130,8 +122,6 @@ void main() {
 
     Future<Map<String, dynamic>> run({
       required List<Map<String, dynamic>> ops,
-      bool showClosed = false,
-      bool participatedOnly = false,
     }) async {
       final data =
           await graphQL.parseAndExecute(
@@ -139,8 +129,6 @@ void main() {
                 operationName: 'ConstellationAnchorsApply',
                 variableValues: {
                   'ops': ops,
-                  'showClosed': showClosed,
-                  'participatedOnly': participatedOnly,
                 },
                 globalVariables: const {
                   kGlobalInputQueryJwt: JwtEntity(sub: viewer),
@@ -164,26 +152,36 @@ void main() {
         'status': 'OK',
         'reason': null,
         'resultingTargetRevision': '4',
+        'replayed': false,
+        'anchor': {
+          'targetKind': 'PERSON',
+          'targetId': peerA,
+          'xUnits': 1.5,
+          'yUnits': -2.0,
+          'revision': '4',
+        },
       });
       expect(results[1], {
         'clientOpId': 'op-2',
         'status': 'REJECTED',
         'reason': 'stale',
         'resultingTargetRevision': null,
+        'replayed': false,
+        'anchor': null,
       });
     });
 
-    test('returns the complete anchor projection at the after revision', () async {
+    test('returns the stored anchor without a projection', () async {
       final result = await run(
         ops: [_upsertOp('op-1', peerA), _deleteOp('op-2', peerB)],
       );
-
-      final projection = result['anchorProjection'] as Map<String, dynamic>;
-      expect(projection['revision'], '5');
-      expect(projection['serverFilteredBeaconCount'], 0);
-      final anchors = projection['anchors'] as List<dynamic>;
-      expect(anchors, hasLength(1));
-      expect(anchors.single, {
+      expect(result.keys.toSet(), {
+        'beforeRevision',
+        'afterRevision',
+        'results',
+      });
+      final results = result['results'] as List<dynamic>;
+      expect((results.first as Map)['anchor'], {
         'targetKind': 'PERSON',
         'targetId': peerA,
         'xUnits': 1.5,
@@ -195,15 +193,16 @@ void main() {
     test('hands parsed operations to the port under the JWT viewer', () async {
       await run(
         ops: [_upsertOp('op-1', peerA), _deleteOp('op-2', peerB)],
-        showClosed: true,
-        participatedOnly: true,
       );
 
       expect(repository.batchCalls, 1);
       expect(repository.lastViewerId, viewer);
       final ops = repository.lastOps!;
       expect(ops.map((o) => o.clientOpId), ['op-1', 'op-2']);
-      expect(ops.map((o) => o.kind), [AnchorOpKind.upsert, AnchorOpKind.delete]);
+      expect(ops.map((o) => o.kind), [
+        AnchorOpKind.upsert,
+        AnchorOpKind.delete,
+      ]);
       expect(ops[0].target, ConstellationAnchorTarget.person(peerA));
       expect(ops[0].position?.xUnits, 1.5);
       expect(ops[0].position?.yUnits, -2.0);
@@ -212,23 +211,22 @@ void main() {
       expect(ops[1].ifRevision, isNull);
     });
 
-    test('forwards projection filters and pins the context server side', () async {
-      await run(
-        ops: [_upsertOp('op-1', peerA)],
-        showClosed: true,
-        participatedOnly: true,
-      );
-
-      final params = repository.lastParams!;
-      expect(params.context, kConstellationContext);
-      expect(
-        params.filters,
-        const ConstellationFieldMembershipFilters(
-          showClosed: true,
-          participatedOnly: true,
-        ),
-      );
-    });
+    for (final argument in ['context', 'showClosed', 'participatedOnly']) {
+      test('rejects removed $argument argument', () async {
+        await expectLater(
+          graphQL.parseAndExecute(
+            'mutation { constellationAnchorsApply(ops: [], $argument: '
+            '${argument == 'context' ? '"test"' : 'true'}) '
+            '{ beforeRevision } }',
+            globalVariables: const {
+              kGlobalInputQueryJwt: JwtEntity(sub: viewer),
+            },
+          ),
+          throwsA(isA<GraphQLException>()),
+        );
+        expect(repository.batchCalls, 0);
+      });
+    }
 
     test('parses ifRevision as a target revision precondition', () async {
       await run(
@@ -376,7 +374,6 @@ final class _RecordingBatchRepository
   int batchCalls = 0;
   String? lastViewerId;
   List<AnchorApplyOp>? lastOps;
-  AnchorApplyParams? lastParams;
 
   static final _peerAAnchor = ConstellationAnchor(
     target: ConstellationAnchorTarget.person('U_anchors_apply_peer_a'),
@@ -393,12 +390,10 @@ final class _RecordingBatchRepository
   Future<AnchorApplyBatchResult> applyBatch({
     required String viewerId,
     required List<AnchorApplyOp> ops,
-    required AnchorApplyParams params,
   }) async {
     batchCalls++;
     lastViewerId = viewerId;
     lastOps = List.of(ops);
-    lastParams = params;
     return AnchorApplyBatchResult(
       beforeRevision: ConstellationAnchorRevision(BigInt.from(3)),
       afterRevision: ConstellationAnchorRevision(BigInt.from(5)),
@@ -408,6 +403,7 @@ final class _RecordingBatchRepository
           status: AnchorOpStatus.ok,
           resultingTargetRevision: ConstellationAnchorRevision(BigInt.from(4)),
           position: _peerAAnchor.position,
+          anchor: _peerAAnchor,
         ),
         if (ops.length > 1)
           AnchorApplyOpResult(
@@ -416,16 +412,6 @@ final class _RecordingBatchRepository
             reason: 'stale',
           ),
       ],
-      projection: ConstellationAnchorProjection(
-        revision: ConstellationAnchorRevision(BigInt.from(5)),
-        anchors: [_peerAAnchor],
-        pinnedPeers: const [],
-        pinnedRequests: const [],
-        supportPeers: const [],
-        supportEdges: const [],
-        serverFilteredBeaconIds: const [],
-        serverFilteredBeaconCount: 0,
-      ),
     );
   }
 

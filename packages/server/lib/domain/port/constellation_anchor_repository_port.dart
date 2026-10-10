@@ -1,5 +1,4 @@
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
-import 'package:tentura_server/domain/entity/constellation_anchor_projection.dart';
 
 enum AnchorOpKind {
   upsert('UPSERT'),
@@ -33,13 +32,6 @@ class AnchorApplyOp {
   final ConstellationAnchorRevision? ifRevision;
 }
 
-class AnchorApplyParams {
-  const AnchorApplyParams({required this.context, required this.filters});
-
-  final String context;
-  final ConstellationFieldMembershipFilters filters;
-}
-
 class AnchorApplyOpResult {
   const AnchorApplyOpResult({
     required this.clientOpId,
@@ -47,6 +39,8 @@ class AnchorApplyOpResult {
     this.reason,
     this.resultingTargetRevision,
     this.position,
+    this.anchor,
+    this.replayed = false,
   });
 
   final String clientOpId;
@@ -54,6 +48,8 @@ class AnchorApplyOpResult {
   final String? reason;
   final ConstellationAnchorRevision? resultingTargetRevision;
   final ConstellationAnchorPosition? position;
+  final ConstellationAnchor? anchor;
+  final bool replayed;
 }
 
 class AnchorApplyBatchResult {
@@ -61,13 +57,11 @@ class AnchorApplyBatchResult {
     required this.beforeRevision,
     required this.afterRevision,
     required this.results,
-    required this.projection,
   });
 
   final ConstellationAnchorRevision beforeRevision;
   final ConstellationAnchorRevision afterRevision;
   final List<AnchorApplyOpResult> results;
-  final ConstellationAnchorProjection projection;
 }
 
 /// Account watermark after an anchor mutation (C3).
@@ -81,7 +75,6 @@ abstract interface class ConstellationAnchorRepositoryPort {
   Future<AnchorApplyBatchResult> applyBatch({
     required String viewerId,
     required List<AnchorApplyOp> ops,
-    required AnchorApplyParams params,
   });
 
   /// Read-only cursor revision; returns revision zero when no cursor row exists.

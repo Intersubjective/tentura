@@ -1,5 +1,5 @@
 // applyBatch contention gate (ARCH §4.4 / §7.6): 2/4/8 concurrent tabs of one
-// viewer write through the production repository in both lock orders.
+// viewer write through the production repository in lock-first order (U50).
 @Tags(['perf', 'pg', 'mr'])
 library;
 
@@ -14,38 +14,19 @@ import 'package:tentura_server/data/database/postgres_serialization_retry.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide ConstellationAnchor, isNotNull, isNull;
 import 'package:tentura_server/data/repository/constellation_anchor_repository.dart';
-import 'package:tentura_server/domain/entity/constellation_anchor_projection.dart';
-import 'package:tentura_server/domain/entity/constellation_field.dart';
-import 'package:tentura_server/domain/entity/gql_public/mutual_score_record.dart';
-import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart';
-import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/port/constellation_anchor_repository_port.dart';
-import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 import 'package:test/test.dart';
 
-import '../support/constellation_profiles_from_public_records.dart';
 import '../support/disposable_pg_target.dart';
 import 'perf_fixtures.dart';
-
-/// Gate thresholds at four tabs (plan U13): above either, the repository
-/// switches to lock-first order.
-const _exhaustionLimitPercent = 1.0;
-const _wastedPreparationLimitPercent = 20.0;
 
 /// Sustained writes per tab: alternating 1-op and 16-op batches.
 const _callsPerTab = 30;
 const _cascadeDeletes = 8;
 const _cascadeSpacing = Duration(milliseconds: 25);
 
-const _params = AnchorApplyParams(
-  context: '',
-  filters: ConstellationFieldMembershipFilters.defaults,
-);
-
 final class _Attempt {
   final Stopwatch clock = Stopwatch()..start();
-  Duration? batchLockEnd;
-  Duration? cursorLockStart;
 }
 
 final class _Stats {
@@ -55,25 +36,24 @@ final class _Stats {
   int completedCalls = 0;
   int exhaustedCalls = 0;
   int acceptedOps = 0;
+  int projectionQueries = 0;
   Duration dbTime = Duration.zero;
-  Duration preparationTime = Duration.zero;
-  Duration wastedPreparation = Duration.zero;
   final callLatenciesMs = <double>[];
   final exhaustionErrors = <String>{};
 }
 
-/// Times each transaction attempt of one tab (one connection, so one
-/// transaction at a time) and splits off its preparation: from the start (or,
-/// in lock-first order, from the viewer batch lock) to the cursor lock.
-/// Preparation of a rolled-back attempt is wasted.
+/// Times each transaction attempt and counts actual projection preparation
+/// queries, including those in rolled-back attempts. U50 retires the interval
+/// between the batch and cursor locks as a proxy for preparation work.
 final class _ContentionMeter extends QueryInterceptor {
   _ContentionMeter(this.stats);
 
   final _Stats stats;
   _Attempt? _attempt;
 
-  static final _cursorLock = RegExp(
-    r'constellation_anchor_cursor\s+WHERE\s+viewer_id\s*=\s*\$1\s+FOR UPDATE',
+  static final _projectionQuery = RegExp(
+    '(?:person_visible_[a-z_]+|constellation_trust_edges|'
+    r'beacon_can_read_content)\s*\(',
     caseSensitive: false,
   );
 
@@ -107,29 +87,19 @@ final class _ContentionMeter extends QueryInterceptor {
     if (attempt == null) return;
     _attempt = null;
     final total = attempt.clock.elapsed;
-    final preparation =
-        (attempt.cursorLockStart ?? total) -
-        (attempt.batchLockEnd ?? Duration.zero);
     stats.dbTime += total;
-    stats.preparationTime += preparation;
     if (committed) {
       stats.committed++;
     } else {
       stats.rolledBack++;
-      stats.wastedPreparation += preparation;
     }
   }
 
-  Future<T> _observe<T>(String statement, Future<T> Function() run) async {
-    final attempt = _attempt;
-    if (attempt == null) return run();
-    final isBatchLock = statement.contains('constellation_anchor_apply:');
-    if (_cursorLock.hasMatch(statement)) {
-      attempt.cursorLockStart ??= attempt.clock.elapsed;
+  Future<T> _observe<T>(String statement, Future<T> Function() run) {
+    if (_projectionQuery.hasMatch(statement)) {
+      stats.projectionQueries++;
     }
-    final result = await run();
-    if (isBatchLock) attempt.batchLockEnd = attempt.clock.elapsed;
-    return result;
+    return run();
   }
 
   @override
@@ -145,35 +115,6 @@ final class _ContentionMeter extends QueryInterceptor {
     String statement,
     List<Object?> args,
   ) => _observe(statement, () => super.runSelect(executor, statement, args));
-}
-
-final class _Profiles implements UserProfileBatchLookup {
-  @override
-  Future<Map<String, ConstellationPeerRecord>> constellationProfilesByIds(
-    Iterable<String> ids,
-  ) => constellationProfilesFromRecords(this, ids);
-
-  @override
-  Future<Map<String, UserEntity>> userEntitiesByIds(
-    Iterable<String> ids,
-  ) async => {};
-
-  @override
-  Future<Map<String, UserPublicRecord>> userPublicRecordsByIds({
-    required Iterable<String> ids,
-    required Set<String> reciprocalPeerIds,
-    Set<String> trustsViewerPeerIds = const {},
-    Set<String> viewerTrustsPeerIds = const {},
-    Map<String, MutualScoreRecord> scoresByPeerId = const {},
-  }) async => {
-    for (final id in ids)
-      id: UserPublicRecord(
-        id: id,
-        displayName: id,
-        description: '',
-        userAvailability: null,
-      ),
-  };
 }
 
 double _percentile(List<double> values, double p) {
@@ -287,10 +228,11 @@ void main() {
       _ContentionMeter(_Stats()),
     );
     try {
-      await ConstellationAnchorRepository(setupDb, _Profiles()).applyBatch(
+      await ConstellationAnchorRepository(
+        setupDb,
+      ).applyBatch(
         viewerId: viewer,
         ops: batch('$runId-pin', cascade, 0),
-        params: _params,
       );
     } finally {
       await setupDb.close();
@@ -310,11 +252,7 @@ void main() {
     final wall = Stopwatch()..start();
     try {
       Future<void> tab(int t) async {
-        final repository = ConstellationAnchorRepository.withLockOrder(
-          dbs[t],
-          _Profiles(),
-          lockFirstOrder: lockFirst,
-        );
+        final repository = ConstellationAnchorRepository(dbs[t]);
         for (var c = 0; c < _callsPerTab; c++) {
           final size = c.isEven ? 1 : 16;
           final start = (t * 7 + c * 3) % (64 - size);
@@ -328,7 +266,6 @@ void main() {
             final result = await repository.applyBatch(
               viewerId: viewer,
               ops: ops,
-              params: _params,
             );
             stats.completedCalls++;
             stats.acceptedOps += result.results
@@ -384,13 +321,12 @@ void main() {
 
     final calls = tabs * _callsPerTab;
     final dbMs = stats.dbTime.inMicroseconds / 1000;
-    final wastedMs = stats.wastedPreparation.inMicroseconds / 1000;
     final report = <String, Object?>{
       'fixture': 'apply_batch_contention_${scenario}_${tabs}tabs_$order',
       'parameters': {
         'tabs': tabs,
         'order': order,
-        'repositoryFlag': 'ConstellationAnchorRepository.lockFirst',
+        'writeOrder': 'lock-first',
         'flagValue': lockFirst,
         'visibleUsers': 1000,
         'trust': 'dense',
@@ -413,11 +349,7 @@ void main() {
         'exhaustionErrors': stats.exhaustionErrors.toList()..sort(),
         'exhaustionPercent': _round(stats.exhaustedCalls / calls * 100),
         'dbTimeMs': _round(dbMs),
-        'preparationMs': _round(stats.preparationTime.inMicroseconds / 1000),
-        'wastedPreparationMs': _round(wastedMs),
-        'wastedPreparationPercent': _round(
-          dbMs == 0 ? 0 : wastedMs / dbMs * 100,
-        ),
+        'projectionQueries': stats.projectionQueries,
         'cascadedAnchors': cascaded,
         'acceptedOps': stats.acceptedOps,
         'wallMs': wall.elapsedMilliseconds,
@@ -443,7 +375,7 @@ void main() {
 
   group('applyBatch contention gate', () {
     for (final cold in [true, false]) {
-      for (final lockFirst in [false, true]) {
+      for (final lockFirst in [true]) {
         for (final tabs in [2, 4, 8]) {
           test(
             '$tabs tabs of one viewer, ${cold ? 'cold' : 'warm'}, '
@@ -462,25 +394,14 @@ void main() {
       }
     }
 
-    test('the release lock order is the one the four-tab gate selects', () {
-      // Decide from unrounded totals: exhausted calls over all calls (stricter
-      // than over all attempted transactions) and wasted preparation over DB
-      // time, in either scenario of the four-tab prepare-first run.
-      var requiresLockFirst = false;
+    test('four-tab writes do no projection preparation queries', () {
       for (final scenario in ['cold', 'warm']) {
-        final initial = reports['$scenario/4/false'];
-        expect(initial, isNotNull, reason: '$scenario prepare-first run');
-        final c = initial!['contention']! as Map<String, Object?>;
-        final calls = c['calls']! as num;
-        final dbMs = c['dbTimeMs']! as num;
-        requiresLockFirst =
-            requiresLockFirst ||
-            (c['exhaustedRetries']! as num) / calls * 100 >
-                _exhaustionLimitPercent ||
-            (c['wastedPreparationMs']! as num) / dbMs * 100 >
-                _wastedPreparationLimitPercent;
+        final measured = reports['$scenario/4/true'];
+        expect(measured, isNotNull, reason: '$scenario lock-first run');
+        final c = measured!['contention']! as Map<String, Object?>;
+        expect(c['calls'], greaterThan(0));
+        expect(c['projectionQueries'], 0);
       }
-      expect(ConstellationAnchorRepository.lockFirst, requiresLockFirst);
     });
   });
 }

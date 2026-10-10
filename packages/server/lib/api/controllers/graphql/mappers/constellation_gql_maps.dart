@@ -74,10 +74,13 @@ Map<String, dynamic> constellationAnchorsApplyResultToGqlMap(
           'reason': r.reason,
           'resultingTargetRevision': r.resultingTargetRevision
               ?.toDecimalString(),
+          'anchor': r.anchor == null
+              ? null
+              : constellationAnchorToGqlMap(r.anchor!),
+          'replayed': r.replayed,
         },
       )
       .toList(growable: false),
-  'anchorProjection': constellationAnchorProjectionToGqlMap(result.projection),
 };
 
 Map<String, dynamic> _peerToGqlMap(ConstellationPeerRecord peer) => {
@@ -125,7 +128,9 @@ Map<String, dynamic> _postToGqlMap(ConstellationPostRecord post) => {
   'hiddenReachCount': post.hiddenReachCount,
 };
 
-Map<String, dynamic> constellationMemberWebToGqlMap(ConstellationMemberWebRecord web) => {
+Map<String, dynamic> constellationMemberWebToGqlMap(
+  ConstellationMemberWebRecord web,
+) => {
   'beaconId': web.beaconId,
   'personId': web.personId,
   'state': web.state.name.toUpperCase(),

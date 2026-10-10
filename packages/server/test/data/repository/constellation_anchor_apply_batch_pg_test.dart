@@ -49,7 +49,7 @@ Future<void> main() async {
   const unavailablePeer = 'Ucabatchhide01';
   const openBeacon = 'Bcabatchopen01';
   const closedBeacon = 'Bcabatchclos01';
-  const params = AnchorApplyParams(
+  const params = (
     context: kConstellationContext,
     filters: ConstellationFieldMembershipFilters.defaults,
   );
@@ -93,16 +93,19 @@ Future<void> main() async {
   Future<AnchorApplyBatchResult> apply(
     List<AnchorApplyOp> ops, {
     String viewerId = viewer,
-    AnchorApplyParams projectionParams = params,
+    ({String context, ConstellationFieldMembershipFilters filters})
+        projectionParams =
+        params,
   }) => repository.applyBatch(
     viewerId: viewerId,
     ops: ops,
-    params: projectionParams,
   );
 
   Future<ConstellationAnchorProjection> freshAnchors({
     String viewerId = viewer,
-    AnchorApplyParams projectionParams = params,
+    ({String context, ConstellationFieldMembershipFilters filters})
+        projectionParams =
+        params,
   }) async => (await fields.readSnapshot(
     viewerId: viewerId,
     context: projectionParams.context,
@@ -115,15 +118,33 @@ Future<void> main() async {
   Future<void> expectFreshProjection(
     AnchorApplyBatchResult result, {
     String viewerId = viewer,
-    AnchorApplyParams projectionParams = params,
+    ({String context, ConstellationFieldMembershipFilters filters})
+        projectionParams =
+        params,
   }) async {
-    final fresh = await freshAnchors(
+    for (final op in result.results) {
+      if (op.anchor != null && !op.replayed) {
+        expect(op.anchor!.revision, op.resultingTargetRevision);
+        expect(op.anchor!.position, op.position);
+      }
+    }
+    final anchors = await freshAnchors(
       viewerId: viewerId,
       projectionParams: projectionParams,
     );
-    expect(result.projection.revision, result.afterRevision);
-    expect(fresh.revision, result.afterRevision);
-    expect(result.projection, fresh);
+    final full = await fields.readSnapshot(
+      viewerId: viewerId,
+      context: projectionParams.context,
+      params: (
+        filters: projectionParams.filters,
+        projection: ConstellationProjection.full,
+      ),
+    );
+    expect(anchors, full.anchorProjection);
+    expect(
+      anchors.revision.value,
+      greaterThanOrEqualTo(result.afterRevision.value),
+    );
   }
 
   Future<void> reciprocalTrust(String a, String b) => db.customStatement('''
@@ -324,7 +345,9 @@ END;
 $probe$
 ''');
     final profiles = _PgProfileLookup(db);
-    repository = ConstellationAnchorRepository(db, profiles);
+    repository = ConstellationAnchorRepository(
+      db,
+    );
     fields = ConstellationFieldRepository(db, profiles);
   });
 
@@ -422,7 +445,7 @@ VALUES ('$viewer', '$firstPeer', '$firstPeer')
         expect(replay.beforeRevision, currentRevision);
         expect(replay.afterRevision, currentRevision);
         expect(await databaseState(), beforeReplay);
-        expect(replay.projection.pinnedPeers, isEmpty);
+        expect((await freshAnchors()).pinnedPeers, isEmpty);
         await expectFreshProjection(replay);
       },
     );
@@ -444,24 +467,31 @@ VALUES ('$viewer', '$firstPeer', '$firstPeer')
         expect(replay.afterRevision, current);
         expect(_resultValues(replay), _resultValues(first));
         expect(replay.results.single.position, position(1, -1));
-        expect(replay.projection.anchors.single.position, position(2, 3));
+        expect((await freshAnchors()).anchors.single.position, position(2, 3));
         expect(await databaseState(), beforeReplay);
         await expectFreshProjection(replay);
       },
     );
 
     test(
-      'replays a recorded rejection even after authorization changes',
+      'replays a missing-target rejection even after the target is created',
       () async {
         final op = upsert(
           'unavailable-placement',
           ConstellationAnchorTarget.person(unavailablePeer),
         );
+        await db.customStatement(
+          'DELETE FROM public."user" WHERE id = \'$unavailablePeer\'',
+        );
         final rejected = await apply([op]);
         expect(rejected.results.single.status, AnchorOpStatus.rejected);
-        expect(rejected.results.single.reason, 'target_unavailable');
+        expect(rejected.results.single.reason, 'target_not_found');
         expect(rejected.afterRevision, rejected.beforeRevision);
-        await db.customStatement('DELETE FROM public.user_block');
+        await db.customStatement(
+          'INSERT INTO public."user" (id, display_name, public_key) '
+          "VALUES ('$unavailablePeer', '$unavailablePeer', "
+          "'pk-$unavailablePeer')",
+        );
         final beforeReplay = await databaseState();
 
         final replay = await apply([op]);
@@ -469,7 +499,7 @@ VALUES ('$viewer', '$firstPeer', '$firstPeer')
         expect(_resultValues(replay), _resultValues(rejected));
         expect(replay.afterRevision, rejected.afterRevision);
         expect(await databaseState(), beforeReplay);
-        expect(replay.projection.anchors, isEmpty);
+        expect((await freshAnchors()).anchors, isEmpty);
         final newlyAuthorized = await apply([
           upsert('authorized-new-id', op.target),
         ]);
@@ -564,8 +594,11 @@ VALUES ('$viewer', '$firstPeer', '$firstPeer')
 
   group('anchor batch conditional target revisions', () {
     test(
-      'checks target authorization before a mismatched conditional revision',
+      'checks target existence before a mismatched conditional revision',
       () async {
+        await db.customStatement(
+          'DELETE FROM public."user" WHERE id = \'$unavailablePeer\'',
+        );
         final before = await repository.readWatermark(viewer);
         final result = await apply([
           upsert(
@@ -576,15 +609,15 @@ VALUES ('$viewer', '$firstPeer', '$firstPeer')
         ]);
 
         expect(result.results.single.status, AnchorOpStatus.rejected);
-        expect(result.results.single.reason, 'target_unavailable');
+        expect(result.results.single.reason, 'target_not_found');
         expect(result.beforeRevision, before);
         expect(result.afterRevision, before);
-        expect(result.projection.anchors, isEmpty);
+        expect((await freshAnchors()).anchors, isEmpty);
         final logged = (await opLog()).single;
         expect(logged['id'], 'unavailable-with-stale-revision');
         expect(
           (logged['result']! as Map<String, dynamic>)['reason'],
-          'target_unavailable',
+          'target_not_found',
         );
         await expectFreshProjection(result);
       },
@@ -604,7 +637,7 @@ VALUES ('$viewer', '$firstPeer', '$firstPeer')
       expect(rejected.results.single.status, AnchorOpStatus.rejected);
       expect(rejected.results.single.reason, 'conflict');
       expect(rejected.afterRevision, first.afterRevision);
-      expect(rejected.projection.anchors.single.position, position(1, -1));
+      expect((await freshAnchors()).anchors.single.position, position(1, -1));
       expect(
         (await opLog()).map((row) => row['id']),
         contains('stale-compensation'),
@@ -664,7 +697,7 @@ VALUES ('$viewer', '$firstPeer', '$firstPeer')
           removed.results.single.resultingTargetRevision,
           removed.afterRevision,
         );
-        expect(removed.projection.anchors, isEmpty);
+        expect((await freshAnchors()).anchors, isEmpty);
         final watermark = await session.writer.execute('''
 SELECT revision::text FROM public.constellation_anchor_target_watermark
 WHERE viewer_id = '$viewer' AND target_kind = 'PERSON' AND target_id = '$firstPeer'
@@ -713,7 +746,7 @@ WHERE viewer_id = '$viewer' AND target_kind = 'PERSON' AND target_id = '$firstPe
           ),
         ]);
         expect(restored.results.single.status, AnchorOpStatus.ok);
-        expect(restored.projection.anchors.single.position, position(2, -1));
+        expect((await freshAnchors()).anchors.single.position, position(2, -1));
         await expectFreshProjection(restored);
       },
     );
@@ -730,8 +763,8 @@ WHERE viewer_id = '$viewer' AND target_kind = 'PERSON' AND target_id = '$firstPe
       final result = await apply([
         upsert('accepted-person', ConstellationAnchorTarget.person(firstPeer)),
         upsert(
-          'unavailable-person',
-          ConstellationAnchorTarget.person(unavailablePeer),
+          'missing-person',
+          ConstellationAnchorTarget.person('Ucabatchmiss01'),
           ifRevision: ConstellationAnchorRevision(BigInt.from(99)),
         ),
         upsert(
@@ -745,7 +778,7 @@ WHERE viewer_id = '$viewer' AND target_kind = 'PERSON' AND target_id = '$firstPe
 
       expect(result.results.map((r) => r.clientOpId), [
         'accepted-person',
-        'unavailable-person',
+        'missing-person',
         'conflicting-person',
         'accepted-beacon',
       ]);
@@ -757,7 +790,7 @@ WHERE viewer_id = '$viewer' AND target_kind = 'PERSON' AND target_id = '$firstPe
       ]);
       expect(result.results.map((r) => r.reason), [
         null,
-        'target_unavailable',
+        'target_not_found',
         'conflict',
         null,
       ]);
@@ -771,7 +804,7 @@ WHERE viewer_id = '$viewer' AND target_kind = 'PERSON' AND target_id = '$firstPe
         seeded.afterRevision.value + BigInt.one,
       );
       expect(result.results.last.resultingTargetRevision, result.afterRevision);
-      expect(result.projection.anchors, hasLength(3));
+      expect((await freshAnchors()).anchors, hasLength(3));
       expect(await opLog(), hasLength(5));
       await expectFreshProjection(result);
     });
@@ -902,7 +935,7 @@ WHERE viewer_id = '$viewer' AND person_id = '$firstPeer'
         );
         expect(run.result.results.single.status, AnchorOpStatus.ok);
         final projected = {
-          for (final anchor in run.result.projection.anchors)
+          for (final anchor in (await freshAnchors()).anchors)
             anchor.target: anchor.position,
         };
         expect(
@@ -966,7 +999,7 @@ INSERT INTO public.user_block (blocker_id, blocked_id, origin_id)
 VALUES ('$viewer', '$firstPeer', '$firstPeer')
 ''');
                 await tx.execute(
-              "DELETE FROM public.beacon WHERE id = '$openBeacon'",
+                  "DELETE FROM public.beacon WHERE id = '$openBeacon'",
                 );
               }
             },
@@ -975,25 +1008,29 @@ VALUES ('$viewer', '$firstPeer', '$firstPeer')
           expect(run.result.beforeRevision, run.beforeReleaseRevision);
           expect(
             run.result.afterRevision.value,
-            run.beforeReleaseRevision.value + BigInt.one,
+            run.beforeReleaseRevision.value +
+                BigInt.from(revokeWithUserDeletion ? 1 : 2),
           );
           expect(run.result.results.map((r) => r.status), [
-            AnchorOpStatus.rejected,
+            if (revokeWithUserDeletion)
+              AnchorOpStatus.rejected
+            else
+              AnchorOpStatus.ok,
             AnchorOpStatus.ok,
           ]);
           expect(run.result.results.map((r) => r.reason), [
-            'target_unavailable',
+            if (revokeWithUserDeletion) 'target_not_found' else null,
             null,
           ]);
           expect(
-            run.result.projection.anchors.map((a) => a.target),
+            (await freshAnchors()).anchors.map((a) => a.target),
             [ConstellationAnchorTarget.person(secondPeer)],
           );
-          expect(run.result.projection.pinnedPeers.map((p) => p.id), [
+          expect((await freshAnchors()).pinnedPeers.map((p) => p.id), [
             secondPeer,
           ]);
-          expect(run.result.projection.pinnedRequests, isEmpty);
-          expect(run.result.projection.serverFilteredBeaconIds, isEmpty);
+          expect((await freshAnchors()).pinnedRequests, isEmpty);
+          expect((await freshAnchors()).serverFilteredBeaconIds, isEmpty);
           final beaconRows = await session.writer.execute('''
 SELECT count(*)::int FROM public.constellation_anchor
 WHERE viewer_id = '$viewer' AND beacon_id = '$openBeacon'
@@ -1012,7 +1049,7 @@ WHERE viewer_id = '$viewer' AND beacon_id = '$openBeacon'
 
   group('anchor batch visibility service recovery', () {
     test(
-      'aborts on an MR outage without recording results and accepts the same ids after recovery',
+      'writes during an MR outage and replays the same ids after recovery',
       () async {
         final seeded = await apply([
           upsert(
@@ -1020,7 +1057,6 @@ WHERE viewer_id = '$viewer' AND beacon_id = '$openBeacon'
             ConstellationAnchorTarget.person(firstPeer),
           ),
         ]);
-        final before = await databaseState();
         final ops = [
           delete('outage-delete', ConstellationAnchorTarget.person(firstPeer)),
           upsert(
@@ -1031,22 +1067,40 @@ WHERE viewer_id = '$viewer' AND beacon_id = '$openBeacon'
         await session.writer.execute(
           'INSERT INTO anchor_batch_probe.visibility_outage VALUES (true)',
         );
+        late AnchorApplyBatchResult duringOutage;
         try {
-          // No error type is prescribed for this transport-level transient
-          // failure. Retrying the identical ids after recovery proves it is
-          // recoverable rather than a terminal recorded rejection.
-          await expectLater(apply(ops), throwsA(isA<Exception>()));
-          expect(await databaseState(), before);
-          expect((await opLog()).map((row) => row['id']), [
-            'seed-before-outage',
-          ]);
+          duringOutage = await apply(ops);
+          expect(
+            duringOutage.results.map((r) => r.status),
+            everyElement(AnchorOpStatus.ok),
+          );
+          expect(
+            duringOutage.results.map((r) => r.replayed),
+            everyElement(isFalse),
+          );
+          expect(duringOutage.beforeRevision, seeded.afterRevision);
+          expect(
+            duringOutage.afterRevision.value,
+            seeded.afterRevision.value + BigInt.from(2),
+          );
+          expect(
+            (await opLog()).map((row) => row['id']),
+            containsAll([
+              'seed-before-outage',
+              'outage-delete',
+              'outage-placement',
+            ]),
+          );
         } finally {
           await session.writer.execute(
             'DELETE FROM anchor_batch_probe.visibility_outage',
           );
         }
 
+        final beforeReplay = await databaseState();
         final recovered = await apply(ops);
+        expect(await databaseState(), beforeReplay);
+        expect(recovered.results.map((r) => r.replayed), everyElement(isTrue));
 
         expect(recovered.results.map((r) => r.clientOpId), [
           'outage-delete',
@@ -1056,13 +1110,13 @@ WHERE viewer_id = '$viewer' AND beacon_id = '$openBeacon'
           AnchorOpStatus.ok,
           AnchorOpStatus.ok,
         ]);
-        expect(recovered.beforeRevision, seeded.afterRevision);
+        expect(recovered.beforeRevision, duringOutage.afterRevision);
         expect(
           recovered.afterRevision.value,
-          seeded.afterRevision.value + BigInt.from(2),
+          duringOutage.afterRevision.value,
         );
         expect(
-          recovered.projection.anchors.single.target,
+          (await freshAnchors()).anchors.single.target,
           ConstellationAnchorTarget.person(secondPeer),
         );
         expect(await opLog(), hasLength(3));
@@ -1071,7 +1125,7 @@ WHERE viewer_id = '$viewer' AND beacon_id = '$openBeacon'
     );
   });
 
-  group('anchor batch complete projection at the final revision', () {
+  group('independent anchor reads after batch writes', () {
     test(
       'includes existing anchors and first pins in the fresh ANCHORS projection',
       () async {
@@ -1090,12 +1144,14 @@ WHERE viewer_id = '$viewer' AND beacon_id = '$openBeacon'
           result.results.every((r) => r.status == AnchorOpStatus.ok),
           isTrue,
         );
-        expect(result.projection.anchors, hasLength(3));
-        expect(result.projection.pinnedPeers.map((p) => p.id).toSet(), {
+        expect((await freshAnchors()).anchors, hasLength(3));
+        expect((await freshAnchors()).pinnedPeers.map((p) => p.id).toSet(), {
           firstPeer,
           secondPeer,
         });
-        expect(result.projection.pinnedRequests.map((r) => r.id), [openBeacon]);
+        expect((await freshAnchors()).pinnedRequests.map((r) => r.id), [
+          openBeacon,
+        ]);
         await expectFreshProjection(result);
       },
     );
@@ -1108,14 +1164,14 @@ WHERE viewer_id = '$viewer' AND beacon_id = '$openBeacon'
         ]);
 
         expect(result.results.single.status, AnchorOpStatus.ok);
-        expect(result.projection.anchors, hasLength(1));
+        expect((await freshAnchors()).anchors, hasLength(1));
         expect(
-          result.projection.anchors.single.target,
+          (await freshAnchors()).anchors.single.target,
           ConstellationAnchorTarget.beacon(closedBeacon),
         );
-        expect(result.projection.pinnedRequests, isEmpty);
-        expect(result.projection.serverFilteredBeaconIds, [closedBeacon]);
-        expect(result.projection.serverFilteredBeaconCount, 1);
+        expect((await freshAnchors()).pinnedRequests, isEmpty);
+        expect((await freshAnchors()).serverFilteredBeaconIds, [closedBeacon]);
+        expect((await freshAnchors()).serverFilteredBeaconCount, 1);
         final stored = await session.writer.execute('''
 SELECT count(*)::int FROM public.constellation_anchor
 WHERE viewer_id = '$viewer' AND beacon_id = '$closedBeacon'
@@ -1126,9 +1182,9 @@ WHERE viewer_id = '$viewer' AND beacon_id = '$closedBeacon'
     );
 
     test(
-      'uses the requested filters when returning or replaying a projection',
+      'uses requested filters on independent reads after replay',
       () async {
-        const showClosedParticipated = AnchorApplyParams(
+        const showClosedParticipated = (
           context: kConstellationContext,
           filters: ConstellationFieldMembershipFilters(
             showClosed: true,
@@ -1150,10 +1206,20 @@ WHERE viewer_id = '$viewer' AND beacon_id = '$closedBeacon'
         expect(_resultValues(replay), _resultValues(first));
         expect(replay.afterRevision, first.afterRevision);
         expect(await databaseState(), beforeReplay);
-        expect(replay.projection.pinnedRequests.map((r) => r.id), [
-          closedBeacon,
-        ]);
-        expect(replay.projection.serverFilteredBeaconIds, [openBeacon]);
+        expect(
+          (await freshAnchors(
+            projectionParams: showClosedParticipated,
+          )).pinnedRequests.map((r) => r.id),
+          [
+            closedBeacon,
+          ],
+        );
+        expect(
+          (await freshAnchors(
+            projectionParams: showClosedParticipated,
+          )).serverFilteredBeaconIds,
+          [openBeacon],
+        );
         await expectFreshProjection(
           replay,
           projectionParams: showClosedParticipated,

@@ -4,8 +4,6 @@ import 'dart:isolate';
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
-import 'package:tentura_server/consts/constellation_consts.dart';
-import 'package:tentura_server/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/constellation_anchor_repository_port.dart';
 import 'package:tentura_server/domain/use_case/constellation_anchor_case.dart';
@@ -16,13 +14,6 @@ import 'package:test/test.dart';
 // port. Until that contract exists, this file must fail to load, not skip.
 void main() {
   const viewer = 'Ubatchviewer';
-  const params = AnchorApplyParams(
-    context: kConstellationContext,
-    filters: ConstellationFieldMembershipFilters(
-      showClosed: true,
-      participatedOnly: true,
-    ),
-  );
   late _RecordingAnchorRepository repository;
   late ConstellationAnchorCase case_;
 
@@ -39,7 +30,10 @@ void main() {
 
   Future<void> expectInvalidEnvelope(List<AnchorApplyOp> ops) async {
     await expectLater(
-      case_.apply(viewerId: viewer, ops: ops, params: params),
+      case_.apply(
+        viewerId: viewer,
+        ops: ops,
+      ),
       throwsA(isA<ConstellationException>()),
     );
     expect(repository.batchCalls, 0, reason: 'Reject before repository IO.');
@@ -68,14 +62,11 @@ void main() {
       final result = await case_.apply(
         viewerId: viewer,
         ops: ops,
-        params: params,
       );
 
       expect(repository.batchCalls, 1);
       expect(repository.lastViewerId, viewer);
       _expectEquivalentOps(repository.lastOps, ops);
-      expect(repository.lastParams?.context, params.context);
-      expect(repository.lastParams?.filters, params.filters);
       _expectEquivalentBatchResult(result, repository.result);
     });
 
@@ -156,7 +147,6 @@ void main() {
       final result = await case_.apply(
         viewerId: viewer,
         ops: ops,
-        params: params,
       );
 
       expect(repository.batchCalls, 1);
@@ -181,7 +171,6 @@ void main() {
       final result = await case_.apply(
         viewerId: viewer,
         ops: ops,
-        params: params,
       );
 
       expect(repository.batchCalls, 1);
@@ -198,7 +187,10 @@ void main() {
           target: ConstellationAnchorTarget.beacon('shared-id'),
         ),
       ];
-      await case_.apply(viewerId: viewer, ops: ops, params: params);
+      await case_.apply(
+        viewerId: viewer,
+        ops: ops,
+      );
 
       expect(repository.batchCalls, 1);
       _expectEquivalentOps(repository.lastOps, ops);
@@ -294,7 +286,6 @@ void _expectEquivalentBatchResult(
 ) {
   expect(actual.beforeRevision, expected.beforeRevision);
   expect(actual.afterRevision, expected.afterRevision);
-  expect(actual.projection, expected.projection);
   expect(
     [
       for (final result in actual.results)
@@ -304,6 +295,8 @@ void _expectEquivalentBatchResult(
           result.reason,
           result.resultingTargetRevision,
           result.position,
+          result.anchor,
+          result.replayed,
         ),
     ],
     [
@@ -314,6 +307,8 @@ void _expectEquivalentBatchResult(
           result.reason,
           result.resultingTargetRevision,
           result.position,
+          result.anchor,
+          result.replayed,
         ),
     ],
   );
@@ -325,32 +320,19 @@ final class _RecordingAnchorRepository
     beforeRevision: ConstellationAnchorRevision(BigInt.from(3)),
     afterRevision: ConstellationAnchorRevision(BigInt.from(4)),
     results: const [],
-    projection: ConstellationAnchorProjection(
-      revision: ConstellationAnchorRevision(BigInt.from(4)),
-      anchors: const [],
-      pinnedPeers: const [],
-      pinnedRequests: const [],
-      supportPeers: const [],
-      supportEdges: const [],
-      serverFilteredBeaconIds: const [],
-      serverFilteredBeaconCount: 0,
-    ),
   );
   int batchCalls = 0;
   String? lastViewerId;
   List<AnchorApplyOp>? lastOps;
-  AnchorApplyParams? lastParams;
 
   @override
   Future<AnchorApplyBatchResult> applyBatch({
     required String viewerId,
     required List<AnchorApplyOp> ops,
-    required AnchorApplyParams params,
   }) async {
     batchCalls++;
     lastViewerId = viewerId;
     lastOps = List.of(ops);
-    lastParams = params;
     return result;
   }
 

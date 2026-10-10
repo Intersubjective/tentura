@@ -17,11 +17,8 @@ Future<void> main() async {
     envVarName: 'TENTURA_PERF_MATRIX_PG_ONLY_TEST_DB',
     defaultNamePrefix: 'tentura_test_perf_matrix_pg',
   );
-  final reachable = await canReachPostgresAdmin(target);
+  final skipReason = await pgSkipReason(target);
   final attempts = perfMatrixAttempts();
-  final skipReason = reachable
-      ? false
-      : 'Postgres admin database not reachable for perf matrix test';
 
   group('pg-only perf fixture matrix cases', () {
     test('are the cases that do not require MeritRank', () {

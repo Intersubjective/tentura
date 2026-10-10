@@ -399,7 +399,6 @@ Future<void> _workerMain(_WorkerArgs args) async {
   );
   final anchors = ConstellationAnchorRepository.injected(
     db,
-    profiles,
     admission,
   );
   final computations = Expando<_Computation>();
@@ -526,14 +525,10 @@ Future<void> _workerMain(_WorkerArgs args) async {
               ),
             ),
           ],
-          params: const AnchorApplyParams(
-            context: kConstellationContext,
-            filters: ConstellationFieldMembershipFilters.defaults,
-          ),
         ),
         zoneValues: {_probeKey: probe},
       );
-      jsonEncode(constellationAnchorProjectionToGqlMap(result.projection));
+      jsonEncode(constellationAnchorsApplyResultToGqlMap(result));
       toMain.send({
         'type': 'writeDone',
         'req': message['req'],
