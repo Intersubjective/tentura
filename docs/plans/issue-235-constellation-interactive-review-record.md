@@ -156,7 +156,7 @@ The owner gave binding decisions after the U26 D8 run (journal, U26 part 2/3, lo
 - **D15** (a later owner message the same day; it replaces the part of D11 under which reads hid pins on targets that are no longer visible). **A pin beats MeritRank and friendship visibility, but does not beat bans.**
   - A pinned person stays on the map with their profile even after losing visibility. A block in either direction hides them.
   - They get no satellites unless the normal read rules show one of their Requests, and no path, because trust edges join visible peers only.
-  - A pinned Request is shown even without access, only as a "no access" placeholder (lock marker, no content, Unpin only); access itself stays with the read wall. Deleted, unpublished, cancelled or blocked Requests are not shown.
+  - A pinned Request is never dropped silently: it is shown with a state mark (closed, wrapping up, cancelled, unpublished) or as a "No access" / "Unpublished" / "Deleted" placeholder (lock marker, no content, Unpin only); access itself stays with the read wall. A hard-deleted target leaves a tombstone (U55).
   - Today's reader drops person anchors outside the visible set (`constellation_anchor_projection_reader.dart:259-269`, `:138-142`). U54 changes that.
 - **D14.** A timeout notice for lazy writes (15 s, tied to `kRequestTimeout` and the server's 10 s queue deadline plus 5 s RR deadline). It complements D1.
 
@@ -189,6 +189,7 @@ Together these set a collaborative-editor consistency bar: every response provab
 
 **Open for the owner**
 - The 15 s `kLazyWriteAckTimeout` default, which equals `kRequestTimeout`.
-- **Requests and the read wall (answered 2026-10-10):** the pin shows the node but never grants access; without access the node is a "no access" placeholder (see ARCH §5.10).
+- **Requests and the read wall (answered 2026-10-10):** the pin shows the node but never grants access; the node is always drawn with a state mark or as a placeholder (least surprise), see ARCH §5.10.
+- **Blocks:** should a pinned target that the viewer blocked show a "Blocked" mark instead of disappearing? Default: hide in both directions.
 - Whether the profile screen's trust toggle should follow D13 too. Rev 10 limits D13 to the graph person context.
 - Whether the 70 ms 1-op budget stands for the ack-only write once U53 re-measures it.

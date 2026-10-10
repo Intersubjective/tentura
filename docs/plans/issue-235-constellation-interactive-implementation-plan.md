@@ -587,27 +587,35 @@ P2 can run in parallel with P1, because it only touches the server.
 
 ### U54 Pinned persons outside the visible set (ARCH §5.10; D15)
 - Server, `data/repository/constellation_anchor_projection_reader.dart`:
-  - `_loadAuthorizedAnchors` (`:227-297`) keeps person anchors regardless of the visible set and drops them only on a block in either direction (the blocked-CTE predicate, `constellation_anchor_repository.dart:256-260`). Request anchors: readable Requests as today (`:232-235`, `:266-269`); a published, non-cancelled Request the read wall denies comes back as a **placeholder record** (`accessible: false`, anchor and id only, no content); deleted, unpublished, cancelled or blocked-either-direction Requests produce no record (ARCH §5.10).
+  - `_loadAuthorizedAnchors` (`:227-297`) keeps person anchors regardless of the visible set and drops them only on a block in either direction (the blocked-CTE predicate, `constellation_anchor_repository.dart:256-260`). Request anchors are never dropped silently: the reader returns a record with an explicit `pinState` (`normal`, `closed`, `wrappingUp`, `cancelled`, `unpublished`, `noAccess`, `deleted`, `tombstone`); the readable states keep the full record, the placeholder states (`noAccess`, `unpublished` for a non-author, `deleted`, `tombstone`) carry the anchor and id only, no content; only a block in either direction produces no record (ARCH §5.10)..
   - Remove the visibility filter on person anchors in `readPrepared` (`:138-142`) and in `prepare`'s holder set (`:80-85`). Both remain only for reads once U50 lands.
   - Trust edges and the support closure still join only the viewer and visible peers (`:75-79`, `:392-402`). Profiles are fetched by id for every pinned person (`:405-412`).
   - The pinned peer record gains `visible: bool`. Server entity, GraphQL type and client mapper are updated, plus the FULL snapshot reader where it embeds the anchor projection.
 - Client:
   - `composeConstellationPresentation` keeps non-visible pinned persons as kept peers (`constellation_anchor_composition.dart:206-208`, `:283-303`), and `resolveAndCapConstellation` (`constellation_cap_policy.dart:10-89`) never drops them;
   - a pinned person with `visible: false` is drawn at the pin with no path, no residual stub and no satellites (ARCH §5.10);
-  - a pinned Request placeholder (`accessible: false`) is drawn at the pin with the pin glyph, a lock marker and the generic label "No access" (l10n en/ru), with an explanation sheet whose only action is Unpin; it never navigates into the Request or its Chat and has no satellites. Skill: `material-3-flutter`.
+  - pinned Requests are always drawn with a state mark (`closed`, `wrappingUp`, `cancelled`, `unpublished` keep their title and show a badge even when the field filter hides non-active Requests; the filter counter and clear-filter action stay) or as a placeholder (lock marker; labels "No access", "Unpublished", "Deleted", "Account deleted" in l10n en/ru; no title, no satellites) with an explanation sheet whose only action is Unpin; a placeholder never navigates into the Request or its Chat. Skill: `material-3-flutter`.
   - `docs/features/constellation.md` gets one sentence under "Pinned placement and request state" when this lands, and its sentence that cancelled, deleted, unpublished, blocked and otherwise unreadable Requests never show is corrected (unreadable-by-permission Requests show as a "no access" placeholder).
 - **Tests first:**
   - pg: a pinned person who lost visibility (trust withdrawn; MR epoch change) is returned by ANCHORS and FULL with `visible: false` and a profile;
   - pg: a block in either direction hides them, and unblocking shows them again;
   - pg: unpin removes them;
-  - pg: a pinned Request that loses read access comes back as a placeholder (`accessible: false`) with no title, state, author or other content; access restored → the full record again;
-  - pg: a pinned Request that is deleted, unpublished, cancelled or blocked in either direction produces no record;
-  - widget: the placeholder shows the lock marker and "No access", opens the explanation sheet, offers only Unpin, and never navigates;
+  - pg: a pinned Request that loses read access comes back as `pinState: noAccess` with no title, state details, author or other content; access restored → the full record again;
+  - pg: a pinned Request that is cancelled/closed/unpublished-by-author comes back readable with its state; unpublished-by-other and hard-deleted (via U55 tombstone) come back as placeholders with that state; none of them disappears; only a block in either direction produces no record;
+  - widget: each state shows its mark; the placeholder shows the lock marker and the right label, opens the explanation sheet, offers only Unpin and never navigates;
   - pg: the non-visible person's Requests are not added to the field;
   - pg: trust edges contain no edge to the non-visible person;
   - domain and widget: the node is drawn at its pin with no path and no stub, survives the peer cap at N = 300, and has no satellites.
 - **Acceptance:** ST (with pg) and CT constellation green; LINT clean; the journal records that a pinned Request shows as a "no access" placeholder and never grants content access (owner decision 2026-10-10).
-- **Depends:** U12, U50 (the reader is read-only after U50), U51. Gates U26.
+- **Depends:** U12, U50 (the reader is read-only after U50), U51, U55 (tombstones). Gates U26.
+
+### U55 Tombstones for deleted pin targets (ARCH §5.10; D15, least surprise)
+- Today `constellation_anchor.beacon_id` and `person_id` reference `beacon(id)` / `"user"(id)` with `ON DELETE CASCADE` (`m0193.dart:7750-7762`), so a hard-deleted Request or deleted account removes the pin silently.
+- New registered migration (next free number; never edit shipped migrations): a deleted target leaves the anchor row as a **tombstone** (keeps viewer, kind, position, `placed_at`, the target id as text and a `tombstone_at`/state marker) instead of cascading; the FK/check design is the unit's first deliverable (e.g. nullable FK with `ON DELETE SET NULL` plus stored target id and kind, and the target-kind check relaxed accordingly). A tombstone bumps the viewer's cursor revision and fires the deferred anchor hint like any anchor change, so open clients learn of it.
+- Reads return `pinState: tombstone` (placeholder: id and kind only); unpin deletes the tombstone; re-pinning the same id is impossible (target gone). The viewer's own account deletion still cascades everything.
+- **Tests first (pg):** hard-delete a pinned Request → tombstone, position kept, cursor bumped, hint emitted; delete a pinned person's account → tombstone; unpin removes it; apply on a tombstoned id → `target_not_found`; the old cascade expectations in the anchor schema tests are rewritten with the reason recorded in the journal (contract change).
+- **Acceptance:** ST (with pg) green; migration registered and idempotent; LINT clean.
+- **Depends:** U50. Gates U54 and U26.
 
 ## Dependency graph (for beads)
 
@@ -624,7 +632,8 @@ U00 → U41 ; U41 → U13, U15, U17, U18 (perf gates) ; U41,U12 → U42, U44 ; U
 U43 → U26 ; U42,U44 → U26 ; U45 → U26 ; U46 → U13 ; U41 → U46 ; U42,U44 → U40
 U41 → U47 ; U47 → U26 ; U47 → U48 (optional)
 U13,U14,U15 → U50 ; U50,U21,U23,U24,U25 → U51 ; U04,U51 → U52 ; U50,U41 → U53
-U12,U50,U51 → U54
-U50,U51,U52,U53,U54 → U26
+U12,U50,U51,U55 → U54
+U50 → U55
+U50,U51,U52,U53,U54,U55 → U26
 all → U40
 ```
