@@ -137,11 +137,11 @@ Standard dev setup is in `DEVELOPMENT.md` and the `local-debug` skill; only the 
 <!-- headroom:learn:end -->
 
 <!-- alloy:memory:begin -->
-reviewed: 2026-10-09
-review due: 2026-10-16
+reviewed: 2026-10-10
+review due: 2026-10-17
 
-### alloy:lesson:attention_receipt_missing_from_custom_types
-When adding or wiring a server custom GraphQL object type, register it in the top-level list in packages/server/lib/api/controllers/graphql/custom_types.dart; a missing entry breaks runtime queries (e.g. AttentionFeed) even if the type definition exists elsewhere.
+### alloy:lesson:author_has_no_participant_row_room_access_checks
+Room-feature access checks must mirror BeaconRoomCase._canUseRoom: the beacon author and stewards always have room access even with NO beacon_participant row (the common case for a Post author). An admitted-only check (findParticipant.room_access) wrongly rejects them with UnauthorizedException('Room access required'). Found in tentura-hsuh.13 (baton RoomBatonCase._isAdmitted) only via live manual smoke, after all automated suites were green because pg tests seeded the author with a participant row. When adding any room use case, add a pg test that DELETEs the author's beacon_participant row (for both Request and Post) and asserts the action still works. Candidate-eligibility stays admitted-only; only the actor check gets the author/steward bypass. Also: a release unit that flips a feature flag (kBatonEnabled) must update the tests that pinned the gate-off default (baton_flag test, create-sheet 'off unless flag' test), and the kDefaultMinClientVersion gate test should assert the floor stays put (shipped client >= floor) for compatible client-only releases instead of equality. Manual smoke is valuable: sandboxed agents without a browser should hand off to the human rather than claim it done.
 
 ### alloy:lesson:web_build_check_requires_wasm_flags
 In tentura-617.33, 7 attempts were wrongly judged "repair"/"retry" because `flutter build web && ... && verify_web_version_consistency.dart` failed — but that invocation is wrong. The required check must run `flutter build web --wasm --pwa-strategy=none --dart-define=ENV=test --dart-define-from-file=env/test.env` (matching CI), then `dart run tool/trim_web_deploy_artifact.dart`, `apply_versioned_web_assets.dart`, and `generate_wasm_preload_artifacts.dart` (which populates build/web/app-assets/<version>/main.dart.wasm+.mjs and refreshes manifest.json/wasm-preload-manifest.json) before `verify_web_version_consistency.dart` will pass — a plain `flutter build web` produces artifacts the wasm-preload manifest checker rejects. Filed as tentura-270 (the required-check command definition itself still lacks --wasm) but not yet fixed at the tooling level. How to apply: for any client bead touching user-visible UI (pubspec.yaml patch bump + web/index.html cache-buster), when running/asked to run the web-build gate, use the full wasm pipeline above wrapped in `./scripts/run_with_test_cleanup.sh --timeout 20m --`, not a bare `flutter build web`. If the check still fails after that, it's likely a real defect, not a stale-artifact false negative.

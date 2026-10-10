@@ -190,7 +190,7 @@ void main() {
   /// R7 — §6 and D09: "Dot and number are independent: a Request with both
   /// shows both, and a tab shows its dot whether or not it also shows a
   /// number." The navbar used to return as soon as it had a number.
-  testWidgets('shows the dot and the number together', (tester) async {
+  testWidgets('draws only the count badge when the dot and the number both apply', (tester) async {
     // CHANGES IN U15R-d: §6 `my desk.dot` is its own field; the unread total
     // beside it included obligations and never was the dot's rule.
     // CHANGES IN U15R-e: and the number beside the dot is `my desk.count`.
@@ -209,10 +209,12 @@ void main() {
 
     expect(find.byKey(MyWorkNavbarItem.countKey), findsOneWidget);
     expect(_badgeLabelText(tester), '2');
+    // The count badge already signals attention, so the dot is not drawn
+    // beside it; the Semantics label (nav_unread_dot_position_test) keeps both.
     expect(
       find.byKey(MyWorkNavbarItem.dotKey),
-      findsOneWidget,
-      reason: 'the dot does not hide behind the number (§6, D09)',
+      findsNothing,
+      reason: 'the count badge stands alone when the dot would also show',
     );
     await tester.pumpWidget(const SizedBox.shrink());
     unawaited(home.close());

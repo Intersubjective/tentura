@@ -19,8 +19,8 @@ typedef _MyWorkNavBadgeView = ({
 /// level down in `RequestAttentionIndicators`, and a tab that disagreed with
 /// the cards under it is the M1 failure in miniature.
 ///
-/// The two slots are placed apart rather than stacked: the number keeps the
-/// conventional trailing corner, the dot takes the leading one.
+/// Both are announced, but when the number is shown it is the only badge
+/// drawn; the dot takes the same top-end corner as on every other nav tab.
 class MyWorkNavbarItem extends StatelessWidget {
   const MyWorkNavbarItem({super.key, this.selected = false});
 
@@ -43,10 +43,11 @@ class MyWorkNavbarItem extends StatelessWidget {
         final count = view.obligationCount;
         Widget badged = Icon(selected ? Icons.work : Icons.work_outline);
 
-        if (view.showUnreadDot) {
+        // The count badge already signals attention, so the dot is drawn only
+        // when it stands alone; the Semantics label below still states both.
+        if (view.showUnreadDot && !view.showObligationBadge) {
           badged = Badge(
             key: dotKey,
-            alignment: AlignmentDirectional.topStart,
             isLabelVisible: true,
             backgroundColor: scheme.primary,
             child: badged,

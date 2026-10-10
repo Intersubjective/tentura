@@ -582,7 +582,7 @@ void main() {
     // are live", asserting the dot was suppressed). That came from the U14c
     // brief's paraphrase, not from the contract: §6 and D09 both say the dot
     // and the number are independent and appear together (R7).
-    testWidgets('the dot and the number appear together', (
+    testWidgets('only the count badge is drawn when the dot and the number both apply', (
       tester,
     ) async {
       // CHANGES IN U15R-d: both dots are §6 fields now.
@@ -595,7 +595,7 @@ void main() {
 
       expect(find.text('3'), findsOneWidget);
       expect(find.byKey(MyWorkNavbarItem.countKey), findsOneWidget);
-      expect(find.byKey(MyWorkNavbarItem.dotKey), findsOneWidget);
+      expect(find.byKey(MyWorkNavbarItem.dotKey), findsNothing);
       expect(
         find.bySemanticsLabel(
           RegExp(lookupL10n(const Locale('en')).myWorkNavBadgeObligations(3)),
