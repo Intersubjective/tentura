@@ -587,7 +587,7 @@ P2 can run in parallel with P1, because it only touches the server.
 
 ### U54 Pinned persons outside the visible set (ARCH §5.10; D15)
 - Server, `data/repository/constellation_anchor_projection_reader.dart`:
-  - `_loadAuthorizedAnchors` (`:227-297`) keeps person anchors regardless of the visible set and drops them only on a block in either direction (the blocked-CTE predicate, `constellation_anchor_repository.dart:256-260`). Request anchors are never dropped silently: the reader returns a record with an explicit `pinState` (`normal`, `closed`, `wrappingUp`, `cancelled`, `unpublished`, `noAccess`, `deleted`, `tombstone`); the readable states keep the full record, the placeholder states (`noAccess`, `unpublished` for a non-author, `deleted`, `tombstone`) carry the anchor and id only, no content; only a block in either direction produces no record (ARCH §5.10)..
+  - `_loadAuthorizedAnchors` (`:227-297`) keeps person anchors regardless of the visible set and drops them only when the other side blocked the viewer; a block by the viewer keeps them with `pinState: blockedByMe` (the blocked-CTE predicate of `constellation_anchor_repository.dart:256-260`, split by direction). Request anchors are never dropped silently: the reader returns a record with an explicit `pinState` (`normal`, `closed`, `wrappingUp`, `cancelled`, `unpublished`, `noAccess`, `deleted`, `tombstone`); the readable states keep the full record, the placeholder states (`noAccess`, `unpublished` for a non-author, `deleted`, `tombstone`) carry the anchor and id only, no content; only a block by the other side produces no record (ARCH §5.10)..
   - Remove the visibility filter on person anchors in `readPrepared` (`:138-142`) and in `prepare`'s holder set (`:80-85`). Both remain only for reads once U50 lands.
   - Trust edges and the support closure still join only the viewer and visible peers (`:75-79`, `:392-402`). Profiles are fetched by id for every pinned person (`:405-412`).
   - The pinned peer record gains `visible: bool`. Server entity, GraphQL type and client mapper are updated, plus the FULL snapshot reader where it embeds the anchor projection.
@@ -598,10 +598,11 @@ P2 can run in parallel with P1, because it only touches the server.
   - `docs/features/constellation.md` gets one sentence under "Pinned placement and request state" when this lands, and its sentence that cancelled, deleted, unpublished, blocked and otherwise unreadable Requests never show is corrected (unreadable-by-permission Requests show as a "no access" placeholder).
 - **Tests first:**
   - pg: a pinned person who lost visibility (trust withdrawn; MR epoch change) is returned by ANCHORS and FULL with `visible: false` and a profile;
-  - pg: a block in either direction hides them, and unblocking shows them again;
+  - pg: a block by the other side hides them; a block by the viewer returns them with `pinState: blockedByMe` and their profile (Request by a blocked author: placeholder, no content); unblocking restores the normal record;
+  - widget: a `blockedByMe` node shows the "Blocked" mark and its sheet offers Unblock and Unpin (l10n en/ru);
   - pg: unpin removes them;
   - pg: a pinned Request that loses read access comes back as `pinState: noAccess` with no title, state details, author or other content; access restored → the full record again;
-  - pg: a pinned Request that is cancelled/closed/unpublished-by-author comes back readable with its state; unpublished-by-other and hard-deleted (via U55 tombstone) come back as placeholders with that state; none of them disappears; only a block in either direction produces no record;
+  - pg: a pinned Request that is cancelled/closed/unpublished-by-author comes back readable with its state; unpublished-by-other and hard-deleted (via U55 tombstone) come back as placeholders with that state; none of them disappears; only a block by the other side produces no record;
   - widget: each state shows its mark; the placeholder shows the lock marker and the right label, opens the explanation sheet, offers only Unpin and never navigates;
   - pg: the non-visible person's Requests are not added to the field;
   - pg: trust edges contain no edge to the non-visible person;

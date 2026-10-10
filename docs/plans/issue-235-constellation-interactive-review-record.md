@@ -154,7 +154,7 @@ The owner gave binding decisions after the U26 D8 run (journal, U26 part 2/3, lo
 - **D12.** No support-closure loading on pin. The path may change at the next normal read.
 - **D13.** Trust changes made through the graph are speculative and lazy too: no loading state, no re-read.
 - **D15** (a later owner message the same day; it replaces the part of D11 under which reads hid pins on targets that are no longer visible). **A pin beats MeritRank and friendship visibility, but does not beat bans.**
-  - A pinned person stays on the map with their profile even after losing visibility. A block in either direction hides them.
+  - A pinned person stays on the map with their profile even after losing visibility. A block by the other side hides them; a block by the pinner shows them with a "Blocked" mark.
   - They get no satellites unless the normal read rules show one of their Requests, and no path, because trust edges join visible peers only.
   - A pinned Request is never dropped silently: it is shown with a state mark (closed, wrapping up, cancelled, unpublished) or as a "No access" / "Unpublished" / "Deleted" placeholder (lock marker, no content, Unpin only); access itself stays with the read wall. A hard-deleted target leaves a tombstone (U55).
   - Today's reader drops person anchors outside the visible set (`constellation_anchor_projection_reader.dart:259-269`, `:138-142`). U54 changes that.
@@ -174,14 +174,14 @@ Together these set a collaborative-editor consistency bar: every response provab
 - **Pinned records.** Rows used to arrive in the ack projection. Now the client captures the record it drew (from the field or the composer) when the user grabs the node.
 - **D1 and trust.** A failed placement stays put with "not saved" (unchanged). A failed trust toggle **reverts** with a Retry snackbar instead of staying "not saved": a toggle that shows trust the server has not stored is a claim about a relationship, not a presentation choice.
 - **D5 and I2.** The ack changes confirmed state, not desired state, so it is invisible during and after a drag. The notice is chrome and may appear mid-drag.
-- **R5.** A read that drops a pin on a blocked person or an unreadable Request is not a lost local intent: the slot settled earlier. A person who only lost visibility is not dropped (D15).
+- **R5.** A read that drops a pin on a person (or Request author) who blocked the viewer is not a lost local intent: the slot settled earlier. A person who only lost visibility is not dropped (D15).
 - **Residual-ring wording.** A non-visible pinned person is drawn with no path and no "Wider network reach" stub, because that legend states that the peer is visible (`docs/features/constellation.md:75`).
 - **§7.3.** An own trust change gets no special refresh. The existing global hint and the D8 lazy refresh deliver its consequences.
 - **Degraded visibility ≠ empty** (round 4 #2, ARCH §4.4). This no longer applies to writes, because apply has no MR dependency. It still applies to reads.
 
 **Risks accepted by the owner**
 - A newly pinned node's support path is stale until the next normal read, and may change then.
-- A pinned person's name and avatar stay visible to the pinner after visibility is lost. The pinner already knew them, and blocks still hide them. A misbehaving client could pin a person it never saw and learn their profile by id; this falls under the deferred hardening.
+- A pinned person's name and avatar stay visible to the pinner after visibility is lost. The pinner already knew them, a block by the other side still hides them, and a block by the pinner shows them with a "Blocked" mark. A misbehaving client could pin a person it never saw and learn their profile by id; this falls under the deferred hardening.
 - Pinned Requests that stopped being readable stay stored and are hidden by reads.
 - The server checks no visibility or blocks on writes. `target_not_found` reveals only row existence for an id the client already holds.
 - Reliability is reduced in favour of interactivity. The client shows unacknowledged writes as confirmed, and a failed trust change is visibly reverted after the fact.
@@ -190,6 +190,6 @@ Together these set a collaborative-editor consistency bar: every response provab
 **Open for the owner**
 - The 15 s `kLazyWriteAckTimeout` default, which equals `kRequestTimeout`.
 - **Requests and the read wall (answered 2026-10-10):** the pin shows the node but never grants access; the node is always drawn with a state mark or as a placeholder (least surprise), see ARCH §5.10.
-- **Blocks:** should a pinned target that the viewer blocked show a "Blocked" mark instead of disappearing? Default: hide in both directions.
+- **Blocks (answered 2026-10-10):** a block by the pinner shows the pinned node with a "Blocked" mark; a block by the other side hides it.
 - Whether the profile screen's trust toggle should follow D13 too. Rev 10 limits D13 to the graph person context.
 - Whether the 70 ms 1-op budget stands for the ack-only write once U53 re-measures it.
