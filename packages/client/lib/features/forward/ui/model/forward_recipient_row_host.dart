@@ -186,7 +186,7 @@ ForwardRecipientLine2 computeForwardRecipientLine2({
       case AvailabilityView.paused:
         if (forwardRecipientPauseReplacesRelation(candidate.involvement)) {
           final resumeOn = candidate.profile.availability.resumeOn;
-          assert(resumeOn != null);
+          assert(resumeOn != null, 'paused availability must carry resumeOn');
           return ForwardRecipientLine2(
             presenceOrAvailabilityLine: l10n.availabilityPausedUntil(
               availabilityWhenLabel(l10n, resumeOn!, todayUtc),
