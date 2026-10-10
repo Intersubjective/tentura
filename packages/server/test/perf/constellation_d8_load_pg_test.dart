@@ -11,6 +11,7 @@ import 'package:test/test.dart';
 import '../support/disposable_pg_target.dart';
 import 'constellation_d8_load_harness.dart';
 import 'constellation_d8_load_model.dart';
+import 'constellation_d8_write_evidence_expectations.dart';
 
 /// D8 load test (#235 U26): publication burst, reconnect burst and concurrent
 /// tabs at the owner-declared population (1,000 active sessions), each run at
@@ -155,6 +156,18 @@ Future<void> main() async {
         );
         await file.parent.create(recursive: true);
         await file.writeAsString(jsonEncode(report));
+        // Check the actual emitted artifact, including per-write worker clock
+        // endpoints, unfinished accounting and the measured sample count. A
+        // model-only fix cannot satisfy these checks while the harness drops
+        // late responses or keeps producing only 21 completed write samples.
+        final emitted =
+            jsonDecode(await file.readAsString()) as Map<String, Object?>;
+        for (final key in ['loadEvidence', 'capacityEvidence']) {
+          expectD8WriteEvidence(
+            emitted[key]! as Map<String, Object?>,
+            requireMinimumSamples: !smoke,
+          );
+        }
         stdout
           ..writeln('D8 ${scenario.label} load: ${jsonEncode(load['summary'])}')
           ..writeln(
@@ -164,7 +177,8 @@ Future<void> main() async {
 
         for (final evidence in [load, capacity]) {
           expect(evidence['sessions'], hasLength(sessions));
-          expect(evidence['completedRefreshes'], isNotEmpty);
+          // A scaled-down smoke run may finish before any refresh completes.
+          if (!smoke) expect(evidence['completedRefreshes'], isNotEmpty);
           expect(evidence['publications'], isNotEmpty);
           expect(evidence['deployment'], same(deployment));
         }

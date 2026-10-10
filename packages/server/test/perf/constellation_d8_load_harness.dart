@@ -12,8 +12,10 @@
 //   `env.constellationFieldBroadcastWindow`, re-armed when markers arrived).
 //
 // Not exercised: HTTP/WebSocket framing, GraphQL parsing and auth. A measuring
-// decorator around the scheduler records admission and execution times; it
-// adds two clock reads per transaction and changes no decision.
+// decorator around the scheduler and a measuring `TenturaDb` subclass record
+// admission, scheduler dispatch, Drift lane acquisition, the MeritRank
+// visible-set statement, the statement span and execution end; they add clock
+// reads only and change no decision.
 
 import 'dart:async';
 import 'dart:convert';
@@ -56,7 +58,20 @@ typedef D8PgTarget = ({
   String password,
 });
 
+/// A smoke run (`TENTURA_D8_SMOKE_SCALE` < 1) compresses the server's field
+/// broadcast window with the timeline; otherwise the 30 s default would outlast
+/// the whole compressed window and no FULL could ever be requested.
+Duration? _smokeBroadcastWindow() {
+  final scale = double.tryParse(
+    Platform.environment['TENTURA_D8_SMOKE_SCALE'] ?? '',
+  );
+  return scale == null || scale >= 1
+      ? null
+      : Duration(milliseconds: (30000 * scale).round());
+}
+
 Env _envFor(D8PgTarget pg) => Env(
+  constellationFieldBroadcastWindow: _smokeBroadcastWindow(),
   environment: Environment.test,
   pgHost: pg.host,
   pgPort: pg.port,
@@ -228,8 +243,27 @@ final class _Computation {
 
   final String id;
   final double admittedMs;
+
+  /// Scheduler dispatch, BEFORE the body asks Drift for the lane.
   double? startedMs;
   double? executedMs;
+
+  /// First moment the body's transaction owns the Drift lane.
+  double? laneAcquiredMs;
+  double? meritRankStartedMs;
+  double? meritRankCompletedMs;
+
+  /// First to last statement of the transaction (contains the MR statement).
+  double? dbStartedMs;
+  double? dbCompletedMs;
+
+  void statementStarted() {
+    if (laneAcquiredMs != null) dbStartedMs ??= _nowMs();
+  }
+
+  void statementCompleted() {
+    if (dbStartedMs != null) dbCompletedMs = _nowMs();
+  }
 }
 
 final class _Probe {
@@ -253,15 +287,96 @@ final class _TimedAdmission implements ConstellationDbAdmissionPort {
     );
     final probe = Zone.current[_probeKey];
     if (probe is _Probe) probe.computation = computation;
+    // A queued body is started from whichever zone releases the lane, so
+    // re-enter the caller's zone for `_TimedDb` to find this computation.
+    final callerZone = Zone.current;
     return _inner.run(kind, () async {
       computation.startedMs = _nowMs();
       try {
-        return await body();
+        return await callerZone.run(body);
       } finally {
         computation.executedMs = _nowMs();
       }
     });
   }
+}
+
+/// `TenturaDb` that stamps the current computation (found through the zone
+/// the production code runs in) when its transaction gets the lane and around
+/// its statements. It issues the same statements as the production class.
+final class _TimedDb extends TenturaDb {
+  _TimedDb(super.env);
+
+  static _Computation? get _computation {
+    final probe = Zone.current[_probeKey];
+    return probe is _Probe ? probe.computation : null;
+  }
+
+  @override
+  Future<T> transaction<T>(
+    Future<T> Function() action, {
+    bool requireNew = false,
+  }) {
+    final computation = _computation;
+    return super.transaction(() {
+      computation?.laneAcquiredMs ??= _nowMs();
+      return action();
+    }, requireNew: requireNew);
+  }
+
+  @override
+  Future<void> customStatement(String statement, [List<dynamic>? args]) async {
+    final computation = _computation?..statementStarted();
+    try {
+      await super.customStatement(statement, args);
+    } finally {
+      computation?.statementCompleted();
+    }
+  }
+
+  @override
+  Selectable<QueryRow> customSelect(
+    String query, {
+    List<Variable> variables = const [],
+    Set<ResultSetImplementation<dynamic, dynamic>> readsFrom = const {},
+  }) {
+    final select = super.customSelect(
+      query,
+      variables: variables,
+      readsFrom: readsFrom,
+    );
+    final computation = _computation;
+    return computation == null
+        ? select
+        : _TimedSelect(
+            select,
+            computation,
+            meritRank: query.contains('person_visible_peers_symmetric'),
+          );
+  }
+}
+
+final class _TimedSelect extends Selectable<QueryRow> {
+  _TimedSelect(this._select, this._computation, {required this.meritRank});
+
+  final Selectable<QueryRow> _select;
+  final _Computation _computation;
+  final bool meritRank;
+
+  @override
+  Future<List<QueryRow>> get() async {
+    _computation.statementStarted();
+    if (meritRank) _computation.meritRankStartedMs ??= _nowMs();
+    try {
+      return await _select.get();
+    } finally {
+      if (meritRank) _computation.meritRankCompletedMs = _nowMs();
+      _computation.statementCompleted();
+    }
+  }
+
+  @override
+  Stream<List<QueryRow>> watch() => _select.watch();
 }
 
 typedef _WorkerArgs = ({SendPort toMain, int worker, D8PgTarget pg});
@@ -270,7 +385,7 @@ Future<void> _workerMain(_WorkerArgs args) async {
   final worker = args.worker;
   final toMain = args.toMain;
   final env = _envFor(args.pg);
-  final db = TenturaDb(env);
+  final db = _TimedDb(env);
   final profiles = DriftUserProfileBatchLookup(
     db,
     UserAvailabilityRepository(db),
@@ -328,6 +443,11 @@ Future<void> _workerMain(_WorkerArgs args) async {
     'admittedMs': c?.admittedMs,
     'startedMs': c?.startedMs,
     'executedMs': c?.executedMs,
+    'laneAcquiredMs': c?.laneAcquiredMs,
+    'meritRankStartedMs': c?.meritRankStartedMs,
+    'meritRankCompletedMs': c?.meritRankCompletedMs,
+    'dbStartedMs': c?.dbStartedMs,
+    'dbCompletedMs': c?.dbCompletedMs,
   };
 
   Future<void> full(Map<String, Object?> message) async {
@@ -502,6 +622,13 @@ final class _Recording {
   final publications = <Map<String, Object?>>[];
   final writes = <Map<String, Object?>>[];
   final failedWrites = <Map<String, Object?>>[];
+
+  /// Writes dispatched in the window, until their response arrives.
+  final outstandingWrites = <int, Map<String, Object?>>{};
+
+  /// Writes whose response came after the window's end.
+  final unfinishedWrites = <Map<String, Object?>>[];
+  int writeRequests = 0;
   final reconnects = <Map<String, Object?>>[];
   final hints = <Map<String, Object?>>[];
   int fullRequests = 0;
@@ -702,32 +829,47 @@ final class D8Harness {
     final worker = _random.nextInt(_workers.length);
     final seq = ++_writeSeq;
     final admittedAt = _nowMs();
+    final open = _recording;
+    final recording = open != null && open.covers(admittedAt) ? open : null;
+    final dispatched = {
+      'sessionId': candidates.spec.sessionId,
+      'viewerId': candidates.spec.viewerId,
+      'workerId': worker,
+      'admittedAtMs': admittedAt,
+    };
+    if (recording != null) {
+      recording.writeRequests++;
+      recording.outstandingWrites[req] = dispatched;
+    }
     _pending[req] = (reply) {
       final completedAt = _nowMs();
-      final current = _recording;
-      if (current == null ||
-          !current.covers(admittedAt) ||
-          completedAt > current.endMs) {
-        return;
-      }
+      if (recording == null) return;
+      recording.outstandingWrites.remove(req);
       final record = {
-        'sessionId': candidates.spec.sessionId,
-        'viewerId': candidates.spec.viewerId,
-        'workerId': worker,
+        ...dispatched,
         'computationId': reply['computationId'],
-        'admittedAtMs': admittedAt,
         'receivedAtMs': reply['receivedMs'],
         'schedulerAdmittedAtMs': reply['admittedMs'],
         'startedAtMs': reply['startedMs'],
+        'laneAcquiredAtMs': reply['laneAcquiredMs'],
+        'meritRankStartedAtMs': reply['meritRankStartedMs'],
+        'meritRankCompletedAtMs': reply['meritRankCompletedMs'],
+        'dbStartedAtMs': reply['dbStartedMs'],
+        'dbCompletedAtMs': reply['dbCompletedMs'],
         'executionCompletedAtMs': reply['executedMs'],
         'encodedAtMs': reply['encodedMs'],
         'completedAtMs': completedAt,
         'status': reply['status'],
         if (reply['ok'] != true) 'error': reply['error'],
       };
+      if (completedAt > recording.endMs) {
+        // Answered after the window: not a sample of it, but not lost either.
+        recording.unfinishedWrites.add(record);
+        return;
+      }
       (reply['ok'] == true && reply['startedMs'] != null
-              ? current.writes
-              : current.failedWrites)
+              ? recording.writes
+              : recording.failedWrites)
           .add(record);
     };
     _port(worker).send({
@@ -815,16 +957,18 @@ final class D8Harness {
   }
 
   Future<void> _settle() async {
-    await _until(() => _idle, const Duration(minutes: 10));
-    final lastDispatch = _sessions
-        .map((s) => s.policy.lastFullAtMs ?? 0)
-        .reduce(max);
-    final ready =
-        lastDispatch + D8ClientPolicy.lazySpacingMs + 3001 + 500 - _nowMs();
-    if (ready > 0) {
+    // A FULL still pending from a late hint moves `lastDispatch` while waiting,
+    // so recompute until nothing is in flight and the last spacing has passed.
+    while (true) {
+      await _until(() => _idle, const Duration(minutes: 10));
+      final lastDispatch = _sessions
+          .map((s) => s.policy.lastFullAtMs ?? 0)
+          .reduce(max);
+      final ready =
+          lastDispatch + D8ClientPolicy.lazySpacingMs + 3001 + 500 - _nowMs();
+      if (ready <= 0) return;
       await Future<void>.delayed(Duration(milliseconds: ready.ceil()));
     }
-    await _until(() => _idle, const Duration(minutes: 10));
   }
 
   /// Runs one level of [scenario] and returns its evidence.
@@ -849,6 +993,24 @@ final class D8Harness {
           publishing = publishing.then((_) => _publish());
           publications.add(publishing);
         }),
+      );
+    }
+    // The read-driven cadence (one write per d8ReadsPerWrite FULLs) can leave a
+    // scenario short of a meaningful p95: top it up to d8WriteMinimumSamples + 2
+    // dispatches, spread over the first 90 % of the window so they can finish.
+    // Smoke runs (scale < 1) skip it: their short windows cannot absorb the
+    // extra writes without starving the FULLs they exist to exercise.
+    final floorWrites = scale < 1 ? 0 : d8WriteMinimumSamples + 2;
+    for (var i = 1; i <= floorWrites; i++) {
+      timers.add(
+        Timer(
+          Duration(
+            microseconds: (plan.durationMs * 900 * i / floorWrites).round(),
+          ),
+          () {
+            if (recording.writeRequests < i) _sendWrite(_sessions.first);
+          },
+        ),
       );
     }
     final disconnectAt = plan.disconnectAtMs;
@@ -887,7 +1049,24 @@ final class D8Harness {
     await Future.wait(publications);
     _recording = null;
     await _settle();
-    return _evidence(scenario, level, plan, recording, deployment, scale);
+    // Dispatched in the window and not answered by its end (still outstanding,
+    // or answered late): reported, never silently dropped.
+    final window = <String, Object?>{
+      'unfinishedWrites': [
+        ...recording.unfinishedWrites,
+        ...recording.outstandingWrites.values,
+      ],
+      'writeRequests': recording.writeRequests,
+    };
+    return _evidence(
+      scenario,
+      level,
+      plan,
+      recording,
+      deployment,
+      scale,
+      window,
+    );
   }
 
   Map<String, Object?> _evidence(
@@ -897,6 +1076,7 @@ final class D8Harness {
     _Recording r,
     Map<String, Object?> deployment,
     double scale,
+    Map<String, Object?> window,
   ) {
     final publications = [
       for (final p in r.publications)
@@ -989,6 +1169,11 @@ final class D8Harness {
         'receivedAtMs',
         'schedulerAdmittedAtMs',
         'startedAtMs',
+        'laneAcquiredAtMs',
+        'meritRankStartedAtMs',
+        'meritRankCompletedAtMs',
+        'dbStartedAtMs',
+        'dbCompletedAtMs',
         'executionCompletedAtMs',
         'encodedAtMs',
         'completedAtMs',
@@ -1009,6 +1194,11 @@ final class D8Harness {
       'reconnects': reconnects,
       'writes': [for (final w in r.writes) relWrite(w)],
       'failedWrites': [for (final w in r.failedWrites) relWrite(w)],
+      'unfinishedWrites': [
+        for (final w
+            in window['unfinishedWrites']! as List<Map<String, Object?>>)
+          relWrite(w),
+      ],
       'failedRefreshes': [
         for (final f in r.failedRefreshes)
           {
@@ -1020,6 +1210,7 @@ final class D8Harness {
       'hints': r.hints,
       'counters': {
         'fullRequests': r.fullRequests,
+        'writeRequests': window['writeRequests'],
         'followerResponses': r.followers,
         'retryLaterResponses': r.failedRefreshes
             .where((f) => f['retryAfterMs'] != null)

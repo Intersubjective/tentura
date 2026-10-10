@@ -23,6 +23,24 @@ const d8WriteP95BudgetMs = 70.0;
 /// One write per this many FULL requests, as the U47 / U26 acceptance states.
 const d8ReadsPerWrite = 100;
 
+/// Completed writes a scenario needs before its nearest-rank p95 means
+/// anything (with fewer, the p95 is just the slowest write).
+const d8WriteMinimumSamples = 30;
+
+/// Write latency components: the recorded clock endpoints each is measured
+/// between. `startedAtMs` is the scheduler's dispatch BEFORE the Drift lane,
+/// `laneAcquiredAtMs` the first moment the transaction owns the lane. The MR
+/// call is the visible-set statement; the DB span runs from the first to the
+/// last statement of the transaction, so it contains the MR call.
+const d8WriteComponents = {
+  'MainToWorker': ('admittedAtMs', 'receivedAtMs'),
+  'AdmissionWait': ('schedulerAdmittedAtMs', 'startedAtMs'),
+  'LaneWait': ('startedAtMs', 'laneAcquiredAtMs'),
+  'MeritRank': ('meritRankStartedAtMs', 'meritRankCompletedAtMs'),
+  'Db': ('dbStartedAtMs', 'dbCompletedAtMs'),
+  'Execution': ('laneAcquiredAtMs', 'executionCompletedAtMs'),
+};
+
 enum D8Scenario {
   publicationBurst('publication burst', 'publication_burst'),
   reconnectBurst('reconnect burst', 'reconnect_burst'),
@@ -216,7 +234,8 @@ final class D8ClientPolicy {
 /// from each publication (or from reconnecting, for one missed while offline)
 /// until the session's first FULL of that generation or newer that started
 /// after it; queue age is admission to execution; write latency is request to
-/// response.
+/// response, over the writes answered within the window. A write without a
+/// response by the window's end is counted as unfinished, never sampled.
 final class D8RunSummary {
   const D8RunSummary({
     required this.durationMs,
@@ -229,6 +248,9 @@ final class D8RunSummary {
     required this.writes,
     required this.writeP50Ms,
     required this.writeP95Ms,
+    required this.writeComponentsMs,
+    required this.unfinishedWrites,
+    required this.failedWrites,
     required this.writesWithoutOutstandingRefresh,
     required this.peakFullPerSecond10s,
   });
@@ -245,6 +267,16 @@ final class D8RunSummary {
   final int writes;
   final double writeP50Ms;
   final double writeP95Ms;
+
+  /// Per [d8WriteComponents] name, the (p50, p95) of that component's
+  /// per-write duration over the completed writes that recorded both endpoints.
+  final Map<String, (double, double)> writeComponentsMs;
+
+  /// Writes dispatched in the window that had no response by its end.
+  final int unfinishedWrites;
+
+  /// Writes answered within the window with an error.
+  final int failedWrites;
   final int writesWithoutOutstandingRefresh;
 
   /// Most FULLs completed in any 10 s bucket, per second.
@@ -253,7 +285,10 @@ final class D8RunSummary {
   bool get freshnessHolds =>
       unacknowledged == 0 && maxStalenessMs <= d8StalenessMs;
 
-  bool get writesHold => writes > 0 && writeP95Ms <= d8WriteP95BudgetMs;
+  bool get writesHold =>
+      writes >= d8WriteMinimumSamples &&
+      unfinishedWrites == 0 &&
+      writeP95Ms <= d8WriteP95BudgetMs;
 
   Map<String, Object?> toJson() => {
     'durationMs': durationMs,
@@ -267,6 +302,12 @@ final class D8RunSummary {
     'writes': writes,
     'writeP50Ms': writeP50Ms,
     'writeP95Ms': writeP95Ms,
+    for (final entry in writeComponentsMs.entries) ...{
+      'write${entry.key}P50Ms': entry.value.$1,
+      'write${entry.key}P95Ms': entry.value.$2,
+    },
+    'unfinishedWrites': unfinishedWrites,
+    'failedWrites': failedWrites,
     'writesWithoutOutstandingRefresh': writesWithoutOutstandingRefresh,
     'freshnessHolds': freshnessHolds,
     'writesHold': writesHold,
@@ -344,7 +385,18 @@ D8RunSummary summarizeD8Run(Map<String, Object?> evidence) {
     buckets[bucket] = (buckets[bucket] ?? 0) + 1;
   }
 
-  final writes = _list(evidence, 'writes');
+  // A response after the deadline is not a sample of this window.
+  final answered = _list(evidence, 'writes');
+  final writes = [
+    for (final w in answered)
+      if (_num(w, 'completedAtMs') <= duration) w,
+  ];
+  final unfinished =
+      (evidence['unfinishedWrites'] as List<Object?>? ?? const []).length +
+      answered.length -
+      writes.length;
+  final failed =
+      (evidence['failedWrites'] as List<Object?>? ?? const []).length;
   final writeMs = [
     for (final w in writes) _num(w, 'completedAtMs') - _num(w, 'admittedAtMs'),
   ];
@@ -370,6 +422,22 @@ D8RunSummary summarizeD8Run(Map<String, Object?> evidence) {
     writes: writes.length,
     writeP50Ms: nearestRankPercentile(writeMs, 0.50),
     writeP95Ms: nearestRankPercentile(writeMs, 0.95),
+    writeComponentsMs: {
+      for (final MapEntry(key: name, value: (from, to))
+          in d8WriteComponents.entries)
+        name: () {
+          final durations = [
+            for (final w in writes)
+              if (w[from] != null && w[to] != null) _num(w, to) - _num(w, from),
+          ];
+          return (
+            nearestRankPercentile(durations, 0.50),
+            nearestRankPercentile(durations, 0.95),
+          );
+        }(),
+    },
+    unfinishedWrites: unfinished,
+    failedWrites: failed,
     writesWithoutOutstandingRefresh: unloaded,
     peakFullPerSecond10s: buckets.isEmpty
         ? 0
