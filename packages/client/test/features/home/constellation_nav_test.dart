@@ -419,7 +419,7 @@ void main() {
       expect(circles, findsNothing);
 
       final glyphCenter = tester.getCenter(find.byIcon(TenturaIcons.graph));
-      final workCenter = tester.getCenter(find.text('Work'));
+      final workCenter = tester.getCenter(find.text('Requests'));
       final fieldLabel = tester.getCenter(find.text('Field'));
       // Same vertical rhythm as its neighbours.
       expect(fieldLabel.dy, closeTo(workCenter.dy, 1));

@@ -50,7 +50,7 @@ void main() {
       [
         for (final d in _rail(tester).destinations) ((d.label as Text).data),
       ],
-      ['Work', 'Posts', 'Activity', 'Field', 'People'],
+      ['Requests', 'Posts', 'Activity', 'Field', 'People'],
     );
     expect(_rail(tester).selectedIndex, 1);
     expect(_avatar(tester).selected, isFalse);

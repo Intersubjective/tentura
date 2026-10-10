@@ -629,7 +629,7 @@
       }
     }
   },
-  "beaconSendConfirmationFailed": "The request was published but delivery failed. Open it from Work to send again.",
+  "beaconSendConfirmationFailed": "The request was published but delivery failed. Open it from Requests to send again.",
   "@beaconSendConfirmationFailed": {
     "context": "BeaconCreateScreen"
   },
@@ -1289,7 +1289,7 @@
   "@inbox": {
     "context": "HomeScreen"
   },
-  "myWork": "Work",
+  "myWork": "Requests",
   "@myWork": {
     "context": "HomeScreen"
   },
@@ -3248,7 +3248,7 @@
   "@myWorkEmptyActiveTitle": {
     "context": "MyWorkScreen"
   },
-  "myWorkEmptyActiveBody": "Work shows requests you authored or offered help on. Requests others forward to you appear in Activity.",
+  "myWorkEmptyActiveBody": "Requests shows requests you authored or offered help on. Requests others forward to you appear in Activity.",
   "@myWorkEmptyActiveBody": {
     "context": "MyWorkScreen"
   },
@@ -4604,7 +4604,7 @@
   "beaconNeedsMoreHelpRevertConfirm": "Need more help",
   "beaconReviewCloseNowBlocked": "Close now is available when every required reviewer has finished or skipped.",
   "beaconDeleteBlockedTitle": "Cannot delete",
-  "beaconDeleteBlockedBody": "This request had acknowledged helpers. Archive it from My desk instead.",
+  "beaconDeleteBlockedBody": "This request had acknowledged helpers. Archive it from Requests instead.",
   "beaconDeleteDraftTitle": "Delete draft?",
   "beaconDeleteDraftBody": "This permanently removes the draft and its images.",
   "beaconDeleteOpenTitle": "Delete request?",
@@ -5753,7 +5753,7 @@
   "helpOfferHideCategories": "Hide categories",
   "helpOfferSearchEmpty": "No match — try Other or keep text only",
   "forwardViewInvitations": "View invitations",
-  "inboxViewMyWork": "Open Work",
+  "inboxViewMyWork": "Open Requests",
   "logoutConfirmTitle": "Log out?",
   "logoutConfirmBody": "You’ll need to sign in again to use Tentura on this device.",
   "capabilityCueHelpOffered": "Offered help: {tags}",

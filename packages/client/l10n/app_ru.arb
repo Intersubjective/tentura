@@ -626,7 +626,7 @@
       }
     }
   },
-  "beaconSendConfirmationFailed": "Запрос опубликован, но доставка не удалась. Откройте его в «Делах», чтобы отправить снова.",
+  "beaconSendConfirmationFailed": "Запрос опубликован, но доставка не удалась. Откройте его в «Запросах», чтобы отправить снова.",
   "@beaconSendConfirmationFailed": {
     "context": "BeaconCreateScreen"
   },
@@ -1248,7 +1248,7 @@
   "@inbox": {
     "context": "HomeScreen"
   },
-  "myWork": "Дела",
+  "myWork": "Запросы",
   "@myWork": {
     "context": "HomeScreen"
   },
@@ -3151,7 +3151,7 @@
   "@myWorkEmptyActiveTitle": {
     "context": "MyWorkScreen"
   },
-  "myWorkEmptyActiveBody": "«Дела» — запросы, которые вы создали или на которых предложили помощь. Пересланные вам запросы — в «Активности».",
+  "myWorkEmptyActiveBody": "«Запросы» — запросы, которые вы создали или на которых предложили помощь. Пересланные вам запросы — в «Активности».",
   "@myWorkEmptyActiveBody": {
     "context": "MyWorkScreen"
   },
@@ -4473,7 +4473,7 @@
   "beaconNeedsMoreHelpRevertConfirm": "Нужна ещё помощь",
   "beaconReviewCloseNowBlocked": "«Закрыть сейчас» доступно, когда каждый обязательный рецензент завершил или пропустил отзыв.",
   "beaconDeleteBlockedTitle": "Нельзя удалить",
-  "beaconDeleteBlockedBody": "У этого запроса были подтверждённые помощники. Архивируйте его в «Делах».",
+  "beaconDeleteBlockedBody": "У этого запроса были подтверждённые помощники. Архивируйте его в «Запросах».",
   "beaconDeleteDraftTitle": "Удалить черновик?",
   "beaconDeleteDraftBody": "Черновик и его изображения будут удалены безвозвратно.",
   "beaconDeleteOpenTitle": "Удалить запрос?",
@@ -5427,7 +5427,7 @@
   "helpOfferHideCategories": "Скрыть категории",
   "helpOfferSearchEmpty": "Ничего не найдено — выберите «Другое» или оставьте только текст",
   "forwardViewInvitations": "Открыть приглашения",
-  "inboxViewMyWork": "Открыть «Дела»",
+  "inboxViewMyWork": "Открыть «Запросы»",
   "logoutConfirmTitle": "Выйти?",
   "logoutConfirmBody": "Чтобы снова пользоваться Tentura на этом устройстве, потребуется войти в аккаунт.",
   "capabilityCueHelpOffered": "Предложил помощь: {tags}",
