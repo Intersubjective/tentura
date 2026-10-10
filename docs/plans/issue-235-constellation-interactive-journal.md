@@ -1450,3 +1450,22 @@ the five rewritten pg files; custom lints; non-pg `test/api` and `test/domain`
 **Verification.** Runs were wrapped and serial. The standard Flutter launcher failed writing its read-only SDK cache. A temporary launcher in `/tmp/u52-tool-bin` used the cached Flutter snapshot with analytics suppressed; the two regression files and then `test/features/graph test/features/constellation` still failed to load because this sandbox denies binding the Flutter tester's localhost server socket (`127.0.0.1:0`, errno 1). No test assertions executed; no green CT claim. Client analyzer-baseline failed on restricted dependency resolution, and its no-pub retry failed on writes to the read-only telemetry file. The custom-lint run reported no analyzer errors, but plugin setup failed to download `analysis_server_plugin` from pub.dev; its 2045 diagnostics are not a valid LINT pass. Two newly introduced nullable-cast notices in the tests were corrected afterward. Formatting of the four touched Dart files, `git diff --check`, terminology validation, and absence of `trustLoading` under the graph implementation passed.
 
 **Outstanding.** Alloy must rerun graph/constellation CT, client analyzer-baseline/custom lints, and full client regression with writable SDK/tool state and localhost sockets available. The full client suite and git/task tracking were left to Alloy as explicitly instructed. No out-of-scope code defects identified.
+
+## UNIT U26 — blocked (part 2/3: D8 publication burst re-measured after U50, local) — 2026-10-11
+
+**What changed since the first local run.** U50 (`0fc8f0fcd`): `applyBatch` is ack-only (no visibility, no MeritRank call, no trust edges or profiles, no projection in the response), U51 and U52 (client side) and F1 (one transaction per DB lane) are in HEAD `aba8a4545`. Same machine (i5-12600K, 16 workers, local MeritRank 0.12.0 / postgres-tentura v0.9.1 containers, `MERITRANK_WALKS_CACHE_SIZE=300`), same scenario and level (`publication_burst`, load level, 1,000 sessions, 41 writes). Raw report and Postgres activity samples: `packages/server/build/perf/u26_local/cache300-load-u50/` (SHA-256 in `SHA256SUMS`). Command: `.local/d8-run/d8_all2.sh` with `CACHES=300 SCEN=publication_burst LEVELS=load SAMPLE_ACTIVITY=1`.
+
+| Metric | Before U50 (`cache300-load`) | After U50 (`cache300-load-u50`) |
+|---|---|---|
+| FULL/s (window), max staleness, unacknowledged | 3.3, 89.8 s, 0 | 3.3, 89.0 s, 0 |
+| Write p50 / p95 (admission to response) | 2,573 / 4,587 ms | **279 / 777 ms** |
+| Database part of a write, p50 / p95 | 1,445 / 2,323 ms | **24 / 105 ms** |
+| After-database part, p50 / p95 | 961 / 1,495 ms | **6 / 11 ms** |
+| MeritRank part of a write | 12 / 19 ms | none (no call) |
+| Lane wait p95 | 9 ms | 16 ms |
+| Scheduler admission wait p95 | 636 ms | 716 ms |
+| Main-to-worker hop p95 | 334 ms | 380 ms |
+
+**Reading.** The write itself is now cheap: execution p95 is 112 ms and the database part p50 is 24 ms. Freshness and acknowledgement still hold. What remains of the write p95 (777 ms against the 70 ms budget) is waiting, not work: about 0.7 s in the scheduler admission queue behind an in-flight FULL (one transaction per DB lane, FULL lane hold p50 about 0.65 s, not preemptible) and about 0.4 s for the main-to-worker hop, which on this host includes the load generator sharing the processes. `writesHold` is still false, so the release gate stays **blocked** on the 70 ms write budget as defined (end-to-end). The capacity level was not run (the write metric did not pass).
+
+**Options for the owner** (no MeritRank code is involved): (a) judge the write budget on execution (112 ms p95 here, 24 ms p50) and track admission wait separately; (b) give writes their own reserved connection or lane so they do not queue behind a FULL (ARCH §7.6 warns against raising the pool before transaction affinity is settled; this needs a design); (c) lower the FULL hold (cheaper reads). Test-side: the D8 write-evidence expectations now accept the absent MeritRank component after U50.

@@ -55,6 +55,13 @@ void expectD8WriteEvidence(
     // These are relative times, not worker epoch timestamps accidentally left
     // untouched by relWrite. Each component must expose both clock endpoints.
     for (final endpoints in d8WriteComponentEndpoints.values) {
+      // Since U50 an apply makes no MeritRank call, so that component has no
+      // clock endpoints; every other component must expose both.
+      if (endpoints.$1.startsWith('meritRank') &&
+          write[endpoints.$1] == null &&
+          write[endpoints.$2] == null) {
+        continue;
+      }
       for (final key in [endpoints.$1, endpoints.$2]) {
         expect(write, contains(key), reason: 'completed write lacks $key');
         expect(write[key], inInclusiveRange(0, duration));
@@ -65,14 +72,16 @@ void expectD8WriteEvidence(
       write['laneAcquiredAtMs'],
       greaterThanOrEqualTo(write['startedAtMs']!),
     );
-    expect(
-      write['meritRankStartedAtMs'],
-      greaterThanOrEqualTo(write['laneAcquiredAtMs']!),
-    );
-    expect(
-      write['meritRankCompletedAtMs'],
-      lessThanOrEqualTo(write['executionCompletedAtMs']!),
-    );
+    if (write['meritRankStartedAtMs'] != null) {
+      expect(
+        write['meritRankStartedAtMs'],
+        greaterThanOrEqualTo(write['laneAcquiredAtMs']!),
+      );
+      expect(
+        write['meritRankCompletedAtMs'],
+        lessThanOrEqualTo(write['executionCompletedAtMs']!),
+      );
+    }
     expect(
       write['dbStartedAtMs'],
       greaterThanOrEqualTo(write['laneAcquiredAtMs']!),
