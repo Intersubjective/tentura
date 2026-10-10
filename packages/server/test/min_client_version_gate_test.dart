@@ -101,10 +101,11 @@ void main() {
       );
     });
 
-    test('compatible baton release preserves the existing cutover floor', () {
-      // Baton enables an already compatible wire contract. Its client-only
-      // release must not force otherwise compatible 7.31.0 clients to update.
-      expect(kDefaultMinClientVersion, '7.31.0');
+    test('constellation anchor protocol release raises the cutover floor', () {
+      // #235 removed constellationAnchorUpsert/Delete and changed the
+      // constellationAnchorsApply result (ack only), so older clients cannot
+      // talk to this server: the floor is the release that ships both sides.
+      expect(kDefaultMinClientVersion, '7.34.0');
       expect(
         _compare(_shippedClientVersion(), kDefaultMinClientVersion),
         greaterThanOrEqualTo(0),
