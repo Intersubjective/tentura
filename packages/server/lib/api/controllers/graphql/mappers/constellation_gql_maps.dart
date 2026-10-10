@@ -86,6 +86,7 @@ Map<String, dynamic> constellationAnchorsApplyResultToGqlMap(
 Map<String, dynamic> _peerToGqlMap(ConstellationPeerRecord peer) => {
   'id': peer.id,
   'pinState': peer.pinState,
+  'visible': peer.visible,
   'displayName': peer.displayName,
   'handle': peer.handle,
   'image': peer.image == null ? null : imagePublicToGqlMap(peer.image!),

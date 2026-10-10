@@ -74,6 +74,7 @@ query ConstellationFieldFetch(
       }
       pinnedPeers {
         id
+        visible
         displayName
         handle
         image {

@@ -42,6 +42,9 @@ abstract class ConstellationPerson with _$ConstellationPerson {
     String? displayName,
     String? handle,
     ImageEntity? image,
+
+    /// False for a pinned person outside the viewer's visible set.
+    @Default(true) bool visible,
   }) = _ConstellationPerson;
 }
 

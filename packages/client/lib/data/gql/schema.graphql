@@ -8147,6 +8147,7 @@ type v2_ConstellationPeer {
   handle: String
   id: String!
   image: v2_image
+  visible: Boolean!
 }
 
 type v2_ConstellationPost {

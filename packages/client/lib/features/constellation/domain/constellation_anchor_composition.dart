@@ -206,6 +206,12 @@ ConstellationComposedPresentation composeConstellationPresentation({
   final pinnedPeerIds = {
     for (final peer in projection.pinnedPeers) peer.id,
   };
+  // A pinned person outside the visible set has no trust path: never a path
+  // holder, so no stub; it is drawn at its pin only.
+  final pathPinnedPeerIds = {
+    for (final peer in projection.pinnedPeers)
+      if (peer.visible) peer.id,
+  };
   final pinnedRequestById = {
     for (final request in projection.pinnedRequests) request.id: request,
   };
@@ -268,7 +274,7 @@ ConstellationComposedPresentation composeConstellationPresentation({
     for (final web in selectedRequestWebs) web.personId,
     ...automatic.requests.map((request) => request.authorId),
     ...anchorOverlay.pinnedRequests.map((request) => request.authorId),
-    ...pinnedPeerIds,
+    ...pathPinnedPeerIds,
   };
 
   final mergedEdges = [
@@ -378,7 +384,8 @@ ConstellationAnchorOverlay _overlayForVisiblePins({
   ]..sort((a, b) => a.id.compareTo(b.id));
 
   final pathHolderIds = {
-    ...pinnedPeerIds,
+    for (final peer in projection.pinnedPeers)
+      if (peer.visible) peer.id,
     for (final request in visiblePinnedRequests) request.authorId,
   };
 

@@ -89,8 +89,10 @@ ConstellationPerson _mapPersonFields({
   String? displayName,
   String? handle,
   ImageModelV2? image,
+  bool visible = true,
 }) => ConstellationPerson(
   id: id,
+  visible: visible,
   displayName: displayName,
   handle: handle,
   image: image?.asEntity,
@@ -228,6 +230,7 @@ ConstellationAnchorProjection _mapFieldFetchAnchorProjection(
     for (final peer in projection.pinnedPeers)
       _mapPersonFields(
         id: peer.id,
+        visible: peer.visible,
         displayName: peer.displayName,
         handle: peer.handle,
         image: peer.image as ImageModelV2?,
@@ -285,6 +288,7 @@ ConstellationAnchorProjection _mapAnchorsFetchAnchorProjection(
     for (final peer in projection.pinnedPeers)
       _mapPersonFields(
         id: peer.id,
+        visible: peer.visible,
         displayName: peer.displayName,
         handle: peer.handle,
         image: peer.image as ImageModelV2?,

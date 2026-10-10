@@ -1,13 +1,10 @@
 @Tags(['bench'])
 library;
 
-// Pure domain benchmarks use the workspace's transitive test dependency.
-// ignore_for_file: depend_on_referenced_packages
-
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:test/test.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 import '../fixtures/layout_work_gate.dart';
 import '../fixtures/resumable_layout_probe.dart';

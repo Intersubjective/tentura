@@ -79,6 +79,7 @@ class ConstellationPeerRecord {
     this.handle,
     this.image,
     this.pinState,
+    this.visible = true,
   });
 
   /// Placeholder for a pinned person whose account was deleted.
@@ -86,7 +87,8 @@ class ConstellationPeerRecord {
     : displayName = null,
       handle = null,
       image = null,
-      pinState = kConstellationPinStateTombstone;
+      pinState = kConstellationPinStateTombstone,
+      visible = true;
 
   final String id;
   final String? displayName;
@@ -96,10 +98,24 @@ class ConstellationPeerRecord {
   /// Null for a live target, [kConstellationPinStateTombstone] when deleted.
   final String? pinState;
 
+  /// False for a pinned person outside the viewer's visible peer set.
+  final bool visible;
+
+  ConstellationPeerRecord withVisible({required bool visible}) =>
+      ConstellationPeerRecord(
+        id: id,
+        displayName: displayName,
+        handle: handle,
+        image: image,
+        pinState: pinState,
+        visible: visible,
+      );
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is ConstellationPeerRecord &&
+          other.visible == visible &&
           other.id == id &&
           other.displayName == displayName &&
           other.handle == handle &&
@@ -107,7 +123,7 @@ class ConstellationPeerRecord {
           other.pinState == pinState;
 
   @override
-  int get hashCode => Object.hash(id, displayName, handle, image, pinState);
+  int get hashCode => Object.hash(id, displayName, handle, image, pinState, visible);
 }
 
 @immutable

@@ -79,9 +79,7 @@ final class ConstellationAnchorProjectionReader {
     );
     final pinnedPeerIds = {
       for (final target in targets)
-        if (target is ConstellationAnchorPersonTarget &&
-            visible.contains(target.id))
-          target.id,
+        if (target is ConstellationAnchorPersonTarget) target.id,
     };
     final holderIds = {
       ...pinnedPeerIds,
@@ -129,6 +127,7 @@ final class ConstellationAnchorProjectionReader {
       authorize: false,
     );
     final readableBeacons = prepared.beacons.map((b) => b.id).toSet();
+    final blocked = await _blockedPeerIds(viewerId);
     return _buildAnchorProjection(
       viewerId: viewerId,
       context: context,
@@ -137,7 +136,7 @@ final class ConstellationAnchorProjectionReader {
       anchorRows: rows
           .where(
             (a) => a.target.kind == ConstellationAnchorTargetKind.person
-                ? prepared.visiblePeerIds.contains(a.target.id)
+                ? !blocked.contains(a.target.id)
                 : readableBeacons.contains(a.target.id),
           )
           .toList(),
@@ -256,13 +255,16 @@ ORDER BY ca.placed_at, COALESCE(ca.beacon_id, ca.person_id)
         )
         .get();
 
-    // Visible peers exclude the viewer and blocks in either direction.
-    final visible = authorize ? visiblePeerIds.toSet() : const <String>{};
+    // A pinned person stays unless blocked in either direction, even when
+    // outside the visible peer set.
+    final blocked = authorize
+        ? await _blockedPeerIds(viewerId)
+        : const <String>{};
     final authorized = authorize
         ? [
             for (final row in rows)
               if (row.readNullable<String>('person_id') != null
-                  ? visible.contains(row.read<String>('person_id'))
+                  ? !blocked.contains(row.read<String>('person_id'))
                   : _rememberReadability(
                       row.read<String>('beacon_id'),
                       row.readNullable<bool>('beacon_readable') ?? false,
@@ -330,6 +332,21 @@ WHERE viewer_id = $1 AND tombstone_at IS NOT NULL
           placedAt: DateTime.parse(row.read<String>('placed_at')).toUtc(),
         ),
     ];
+  }
+
+  /// People blocked by or blocking the viewer.
+  Future<Set<String>> _blockedPeerIds(String viewerId) async {
+    final rows = await _database
+        .customSelect(
+          r'''
+SELECT ub.blocked_id AS id FROM public.user_block ub WHERE ub.blocker_id = $1
+UNION
+SELECT ub.blocker_id FROM public.user_block ub WHERE ub.blocked_id = $1
+''',
+          variables: [Variable.withString(viewerId)],
+        )
+        .get();
+    return {for (final row in rows) row.read<String>('id')};
   }
 
   bool _rememberReadability(String beaconId, bool readable) =>
@@ -451,9 +468,11 @@ WHERE viewer_id = $1 AND tombstone_at IS NOT NULL
     final profiles = await peerProfiles(profileIds);
     final profileById = {for (final p in profiles) p.id: p};
 
+    final visibleSet = visiblePeerIds.toSet();
     final pinnedPeers = [
       for (final id in pinnedPeerIds..sort())
-        profileById[id] ?? ConstellationPeerRecord(id: id, displayName: id),
+        (profileById[id] ?? ConstellationPeerRecord(id: id, displayName: id))
+            .withVisible(visible: visibleSet.contains(id)),
       for (final a in tombstoned)
         if (a.target is ConstellationAnchorPersonTarget)
           ConstellationPeerRecord.tombstone(a.target.id),

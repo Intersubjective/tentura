@@ -853,6 +853,7 @@ final gqlTypeConstellationPeer =
         field('handle', graphQLString),
         field('image', gqlTypeImagePublic),
         field('pinState', graphQLString),
+        field('visible', graphQLBoolean.nonNullable()),
       ]);
 
 /// Two-tier trust edge between constellation peers (ids + tier only).
