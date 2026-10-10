@@ -1148,3 +1148,166 @@ The U45 tests ran directly on the host against `127.0.0.1:55432`, with `TENTURA_
 - `perf_tag_default_exclusion_test` passes.
 - `perf_suite_runner_test` has one failure that predates this change. It is "a pg-only suite never touches the MeritRank graph", raised by `person_visible_set_cache_warm_full_perf_pg_test.dart` from `4ec50cfe9`.
 - Tests edited: none weakened.
+
+## UNIT U26 — blocked (part 2/3: D8 capacity measured locally) — 2026-10-10
+
+**Verdict: release gate BLOCKED for the measured scenario (publication burst).** The failing metric is write p95: 4.6–4.9 s against the frozen 70 ms budget. Freshness holds: max staleness was 89–90 s against 300 s, with every session × publication pair acknowledged. The cause is the cost of the write path itself at V ≈ 1,000 visible peers. It is not MeritRank, its walk cache, lock waits or the scheduler. Raising `MERITRANK_WALKS_CACHE_SIZE` changes nothing measurable.
+
+**Scope (owner decision, 2026-10-10).** Only `publication_burst` was measured, and only at the `load` level. `reconnect_burst` and `concurrent_tabs` were not re-run locally. On the dev host all three scenarios showed the same write behaviour (p95 16.5–17.3 s; previous entry), so one scenario is the evidence for the write failure. The `capacity` level was not run. The owner's rule was to run it only for the first configuration that passes the write and staleness metrics, and none did. Cache size 2000 was not run either: cache 1000 did not change the write p95, and the owner stopped the size sweep there.
+
+### Host and code
+
+- **Machine:** the owner's workstation, 12th Gen Intel Core i5-12600K, `nproc` 16 (10 cores: 6P with HT + 4E), 61.5 GiB RAM, 15 GiB swap. This is the U41 reference CPU class (the U41 notes say 12 threads; `nproc` here is 16).
+- **Commit:** `d242e9fed` (main), which includes j5f5 (`f995c563e`), fz1w (`e7921527e`) and 953a (`d242e9fed`). The tree was clean apart from the test knob below.
+- **Load before each run:** 1-min load average 1.6–2.0, with the owner's idle desktop and dev stack running. The peak 1-min load during a run was 7.6–8.4. Host CPU was sampled every second in the instrumented run: p50 10 %, p90 63 %, max 78 %, and never at or above 90 %. The machine was not saturated, and nothing else heavy ran during the measurements.
+- **The 1,000-session generator shares the machine with the server under test.** It runs in the harness main isolate, in the same process as the 16 worker isolates.
+- **Workers: W = 16** (`TENTURA_D8_WORKERS` default = `Platform.numberOfProcessors`, matching the server's `WORKERS_COUNT` default). The dev run had W = 2. Locally, 16 isolates each hold one DB lane, so up to 16 FULLs and writes are in flight at once (13–15 FULLs were in flight when a typical write started). The contention picture is therefore different from dev: there, 2 lanes queued behind each other; here, many lanes run in parallel inside one Dart isolate group. The report records `scheduler.maxConcurrent = 1` per worker (j5f5 is in effect), a 10 s queue deadline, a 0.3 refresh share and `RETRY_LATER` after 2 s.
+- **953a cadence verified.** The client has `kLazyFieldRefreshInterval = Duration(minutes: 5)` (`constellation_field_store_case.dart:26`). The model has `D8ClientPolicy.lazySpacingMs = d8StalenessMs` (300 s). In the plan, load bursts are 5 min apart (4 bursts, 1,205 s window) and capacity bursts are 5 min apart (7 bursts). In the run, each burst produced exactly 1,000 FULLs (4,000 per load window).
+
+### Stack (separate perf containers; the owner's `postgres`/`meritrank` were not touched)
+
+- `perf-local-meritrank-<size>` runs `vbulavintsev/meritrank-service:v0.12.0` with the `compose.prod.yaml` environment: `NUM_WALKS=1000`, `ZERO_OPINION_FACTOR=0.02`, `ALPHA=0.85`, `ON_DEMAND_NUM_WALKS=10000`, `SNAPSHOT_STALENESS=2`. Only `WALKS_CACHE_SIZE` varied (300, 1000).
+- `perf-local-postgres-<size>` runs `vbulavintsev/postgres-tentura:v0.9.1` with the `compose.prod.yaml` command flags, `MERITRANK_SERVICE_URL=tcp://perf-local-meritrank-<size>:8080` and `MERITRANK_RECV_TIMEOUT_MSEC=10000`. Its port is bound to `127.0.0.1:55433`, on its own network `perf-local-net`.
+- A fresh container pair was created for each run and removed afterwards (`docker rm -f -v`). The network was removed at the end.
+- The instrumented rerun added `-c log_lock_waits=on -c auto_explain.log_min_duration=500`. It also sampled `pg_stat_activity` every second (non-idle client backends: state, wait event, transaction and query age, query text).
+
+### Commands (from `packages/server`)
+
+```
+POSTGRES_PORT=55433 TENTURA_PG_TESTS_REQUIRED=1 TENTURA_PERF_MATRIX_ATTEMPTS=30 \
+  ../../scripts/run_with_test_cleanup.sh --timeout 2h -- dart test test/perf/perf_fixture_matrix_pg_only_pg_test.dart --tags perf -j 1
+# same for test/perf/perf_fixture_matrix_meritrank_pg_test.dart
+POSTGRES_PORT=55433 TENTURA_PG_TESTS_REQUIRED=1 TENTURA_D8_SCENARIOS=publication_burst TENTURA_D8_LEVELS=load \
+  TENTURA_D8_DEPLOYMENT_FILE=<run dir>/publication_burst.deployment.json \
+  ../../scripts/run_with_test_cleanup.sh --timeout 150m -- dart test test/perf/constellation_d8_load_pg_test.dart --tags perf -j 1
+```
+
+All runs were serial. A first, broader run (all three scenarios, both levels) was stopped by the owner's scope change after about 20 minutes, before it wrote any report. Its partial logs are in `aborted_full_matrix_run/` and are not evidence.
+
+### U41 fixtures (stack with cache 300, 30 attempts each): 27 of 28 within their frozen p95
+
+Nearest-rank p95. The CI is the report's 95 % bootstrap. The budgets and the "within" rule (latency p95 ≤ budget, cursor-hold p95 ≤ 50 ms) are the U41 frozen table used in the dev entry. Reports are in `build/perf/u26_local/fixtures/`.
+
+| Fixture | Operation | Samples | p50 ms | p95 ms | p95 CI | Cursor-hold p95 ms | Budget p95 ms | Within |
+|---|---|---|---|---|---|---|---|---|
+| `v100_sparse` | FULL | 30 | 30.7 | 77.5 | 51.3–97.2 | 0.0 | 250 | yes |
+| `v100_dense` | FULL | 30 | 14.0 | 63.3 | 41.2–67.8 | 0.0 | 250 | yes |
+| `v300_sparse` | FULL | 30 | 14.6 | 42.1 | 36.2–135.4 | 0.0 | 250 | yes |
+| `v300_dense` | FULL | 30 | 12.2 | 51.2 | 15.6–195.5 | 0.0 | 250 | yes |
+| `v1000_sparse` | FULL | 30 | 13.3 | 17.4 | 14.9–445.1 | 0.0 | 250 | yes |
+| `v1000_dense` | FULL | 30 | 15.2 | 59.0 | 25.1–1575.5 | 0.0 | 250 | yes |
+| `fallback_reciprocal_u0` | FULL | 30 | 13.1 | 54.9 | 39.2–55.2 | 0.0 | 250 | yes |
+| `fallback_score_u0` | FULL | 30 | 10.3 | 46.0 | 33.6–57.6 | 0.0 | 250 | yes |
+| `fallback_reciprocal_u10` | FULL | 30 | 13.1 | 50.1 | 40.7–55.8 | 0.0 | 250 | yes |
+| `fallback_score_u10` | FULL | 30 | 10.6 | 26.8 | 13.0–61.4 | 0.0 | 250 | yes |
+| `fallback_reciprocal_u100` | FULL | 30 | 29.8 | 59.6 | 40.9–98.7 | 0.0 | 250 | yes |
+| `fallback_score_u100` | FULL | 30 | 11.8 | 46.8 | 31.5–86.7 | 0.0 | 250 | yes |
+| `fallback_reciprocal_u1000` | FULL | 30 | 23.6 | 44.0 | 29.0–511.0 | 0.0 | 250 | yes |
+| `fallback_score_u1000` | FULL | 30 | 18.4 | 55.2 | 35.3–402.9 | 0.0 | 250 | yes |
+| `candidates_c100` | FULL | 30 | 30.3 | 35.5 | 34.3–37.0 | 0.0 | 250 | yes |
+| `candidates_c1000` | FULL | 30 | 32.0 | 35.4 | 34.3–37.2 | 0.0 | 250 | yes |
+| `candidates_c10000` | FULL | 30 | 34.0 | 39.8 | 37.2–42.5 | 0.0 | 250 | yes |
+| `scenario_trust_churn` | FULL | 30 | 11.0 | 41.8 | 28.5–49.3 | 0.0 | 250 | yes |
+| `anchors_a0` | ANCHORS | 30 | 37.8 | 44.8 | 40.9–47.2 | 0.0 | 65 | yes |
+| `anchors_a20` | ANCHORS | 30 | 40.0 | 50.7 | 44.0–51.4 | 0.0 | 65 | yes |
+| `anchors_a200` | ANCHORS | 30 | 40.5 | 49.9 | 45.8–59.1 | 0.0 | 65 | yes |
+| `apply_batch_b1` | 1-op apply | 30 | 21.3 | 45.5 | 30.5–55.1 | 5.9 | 70 | yes |
+| `scenario_aged_logs` | 1-op apply | 30 | 36.8 | 47.5 | 46.3–50.4 | 0.0 | 70 | yes |
+| `scenario_multi_worker_tabs` | 1-op apply | 30 | 131.7 | 163.0 | 141.5–167.8 | 0.0 | 70 | **no** |
+| `scenario_failure_injection` | 1-op apply | 30 | 44.4 | 60.0 | 57.6–63.3 | 0.0 | 70 | yes |
+| `batch_b16` | 64-op apply | 30 | 48.9 | 61.2 | 56.1–66.0 | 0.0 | 300 | yes |
+| `apply_batch_b64` | 64-op apply | 30 | 28.2 | 56.8 | 42.8–77.6 | 21.4 | 300 | yes |
+| `scenario_rejection_ratio` | 64-op apply | 30 | 83.9 | 121.8 | 103.1–137.0 | 0.0 | 300 | yes |
+
+- The only miss is `scenario_multi_worker_tabs` (163 ms, budget 70 ms). It is the pg-only proxy of four tabs on one cursor lock, and it also missed on dev (281 ms) and on the earlier local 3-attempt report (128.5 ms).
+- The three `anchors_*`, `scenario_aged_logs` and `scenario_failure_injection` fail on the 2-vCPU dev host but pass here. Those dev misses were host speed.
+
+### D8 publication burst, load level (1,000 sessions, 1 tab each, W = 16)
+
+| MR `WALKS_CACHE_SIZE` | Completed FULLs | FULL/s (window) | Headroom vs 3.33 | Peak FULL/s (10 s) | Burst FULL/s (1,000 FULLs ÷ burst span) | Max staleness s | p95 staleness s | Unack. | Max queue age s | `RETRY_LATER` | Writes (unfinished) | Write p50 / p95 ms | MR container memory (max) | Report |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 300 | 4000 | 3.32 | n/a (demand-bound) | 19.9 | 16.8–18.8 | 89.8 | 79.8 | 0 | 10.0 | 1751 | 41 (0) | 2573 / 4587 | 606 MiB | `cache300-load/d8_publication_burst.json` |
+| 1000 | 4000 | 3.32 | n/a (demand-bound) | 20.1 | 17.0–18.4 | 89.1 | 80.9 | 0 | 10.0 | 1779 | 41 (0) | 2393 / 4943 | 854 MiB | `cache1000-load/d8_publication_burst.json` |
+| 300, instrumented | 4000 | 3.32 | n/a (demand-bound) | 19.4 | 16.8–18.5 | 89.7 | 81.0 | 0 | 10.0 | 1807 | 41 (0) | 3087 / 4817 | 605 MiB | `cache300-load-instrumented/d8_publication_burst.json` |
+
+- **Reading the throughput columns.** At the 5-min cadence, the load level offers exactly D8 demand. The completed FULL/s over the window is therefore about 3.32 by construction and is not a headroom figure. The sustained `capacity`-level number was not measured, as explained under Scope. The burst figures show how fast the server drains a hint burst: 1,000 FULLs in 53–59 s, about 17–19 FULL/s, against the 4.33 FULL/s threshold. This is indicative only; it is not the capacity-level evidence the gate asks for.
+- **Other run facts.** perf-local postgres peaked at about 257 MiB. FULL lane hold was p50 650–670 ms and p95 860–900 ms, for a 135 KB response.
+- **MeritRank warnings.** MeritRank logged no "A read needs N peer frames but MERITRANK_WALKS_CACHE_SIZE is M" warning in any run, at either 300 or 1000. Its log contains only the startup notices that `SCORES_CACHE_*` are ignored.
+
+**Write decomposition (fz1w fields; p50 / p95 ms).**
+
+| Cache | Main→worker | Admission wait | Lane wait | MeritRank statement | DB span (first → last statement) | Execution (lane → end) |
+|---|---|---|---|---|---|---|
+| 300 | 0.1 / 348 | 47 / 636 | 1.3 / 8.8 | 12.0 / 19.5 | 1445 / 2323 | 2257 / 4077 |
+| 1000 | 5.7 / 389 | 45 / 672 | 1.2 / 10.6 | 12.6 / 21.8 | 1407 / 2782 | 2180 / 4281 |
+| 300, instrumented | 0.1 / 362 | 94 / 778 | 1.9 / 9.6 | 11.6 / 23.3 | 1401 / 2583 | 2312 / 4390 |
+
+### What the decomposition says about the cause
+
+- **Not MeritRank or its cache.**
+  - The write's MR statement (the visible-set call) costs 12 ms p50 and 20–23 ms p95. Raising the cache from 300 to 1000 moved write p95 from 4.59 s to 4.94 s, which is noise.
+  - No read hit the over-capacity path: no MR warning was logged.
+  - The hypothesis that every FULL does a cold MR read at cache 300 is not supported on this dataset. The cache costs about 250 MiB more MR memory at 1000 than at 300, for no gain.
+  - The MR double-buffer replay (`state_manager.rs` copy_a/copy_b) does not appear as a write cost either. It could only show in the MR statement, which is about 12 ms. A FULL's visible-set statements average 18–32 ms (`pg_stat_statements`).
+- **Not the scheduler or the lane.** Lane wait is p95 about 10 ms. Admission wait is p95 640–780 ms, about 15 % of the write p95. Main→worker is p95 about 350–390 ms: the main isolate also runs the 1,000-session generator.
+- **Not lock waits or Postgres I/O.**
+  - With `log_lock_waits=on` there were 0 lock-wait log lines.
+  - In 2,884 `pg_stat_activity` samples of non-idle client backends:
+    - 2,152 were `idle in transaction` with `Client/ClientRead`, i.e. Postgres waiting for the Dart side to send the next statement;
+    - 704 were active with no wait event (on CPU);
+    - 2 were `IO/WalSync`;
+    - none were `Lock`.
+  - The write transactions seen in the samples were all `idle in transaction / ClientRead` after the cursor read.
+  - `auto_explain` (≥ 500 ms) caught only the seed inserts and 32 cold `person_visible_peer_ids_tx` calls during warm-up, none inside the measured window.
+- **The time is in the write path itself, on the worker isolate, at V ≈ 1,000.**
+  - A 1-op `applyBatch` rebuilds the whole anchor projection for the viewer: `ConstellationAnchorProjectionReader.prepare` loads trust edges over all ~1,000 visible peers (`constellation_trust_edges`, mean 89–90 ms in Postgres, the top statement by total time) plus profiles and the support closure, then `readPrepared` builds the projection.
+  - **With no FULL in flight** (4–5 writes per run): write total 495–717 ms. That is MR 6–7 ms, 317–437 ms from the MR statement to the last statement, and 159–265 ms from the last statement to the end of execution (commit plus the Dart projection build).
+  - **With 13–15 FULLs in flight** (the other 36–37 writes): the same phases stretch to p50 1.5 s and 0.8–1.0 s (total p50 2.7–3.3 s).
+  - The host was not CPU-saturated during this. The likely amplifier is that all 16 worker isolates share one Dart isolate group (as the production server's `Isolate.spawn` workers do), so they share the heap and its GC pauses. This was not root-caused.
+  - **The unloaded write is already 7–10× over the 70 ms budget.** The U41 `apply_batch_b1` fixture (45.5 ms here) measures a small field, not the D8 V ≈ 1,000 dataset.
+
+### Compared with the dev run (2 vCPU, W = 2, 30 s lazy cadence)
+
+| | Dev (previous entry) | Local (this entry) |
+|---|---|---|
+| Max staleness | 545 s | 90 s |
+| Unacknowledged pairs (load) | 1,380 | 0 |
+| Write p95 | 16.8 s | 4.6–4.9 s |
+| Writes per run | 16–21 | 41 |
+
+- Freshness is fixed on this machine class by the combined effect of the 5-min cadence (953a), W = 16 and the faster CPU. j5f5 removed the FIFO parking (lane wait about 10 ms).
+- The write p95 failure remains. It fails for a different reason than dev's lane/CPU starvation: the per-write projection cost at V ≈ 1,000, amplified by concurrent FULLs.
+
+### Recommendation
+
+- **`MERITRANK_WALKS_CACHE_SIZE`: keep 300.** `compose.prod.yaml` line 138 (`'MERITRANK_WALKS_CACHE_SIZE=300'`) should not change on this evidence. At 1000 it costs about +250 MiB (606 → 854 MiB peak) and gives no measurable gain on the D8 dataset. Revisit only if MR logs the over-capacity warning on real data. No file was changed.
+- **The blocker is the 1-op write path at V ≈ 1,000, or the 70 ms budget for it.** The owner must decide either to:
+  - make the interactive write not rebuild the full projection (for example, return only the changed anchors and watermark, and leave the trust-edge, support-closure and profile reload to the next FULL); or
+  - re-baseline the 1-op apply budget for V ≈ 1,000.
+
+  This is a recommendation only. No production or MeritRank code was changed.
+- **Before release, run the `capacity` level once on the configuration that passes**, for the sustained FULL/s and 30 % headroom figure (≥ 4.33 FULL/s).
+
+### Residual risks
+
+- `reconnect_burst` and `concurrent_tabs` were not re-measured locally. The capacity level was not measured at all, so the 30 % headroom is unproven. The burst drain rate of 17–19 FULL/s is indicative only.
+- The generator shares the process and CPU with the 16 workers. The main→worker p95 of about 350 ms is partly generator cost, which a separate client host would not pay.
+- The isolate-group GC explanation for the loaded stretch is an inference from "Postgres waits on the client while the host CPU is not saturated". It was not profiled.
+- Production host size is still undeclared. These numbers hold for a 16-thread i5-12600K with W = 16, not for the 2-vCPU dev host.
+
+### Evidence
+
+`packages/server/build/perf/u26_local/` (gitignored) holds, with `SHA256SUMS` covering 70 files:
+- `fixtures/` (28 reports);
+- `cache300-load/`, `cache1000-load/` and `cache300-load-instrumented/`, each with the report, run log, host and load record, docker stats, MR and Postgres logs, and `pg_stat_statements` (the cache-300 baseline lacks it: the view was not created in that container). The instrumented run also has `pg_stat_activity` and CPU samples;
+- `logs/`.
+
+D8 report SHA-256:
+- cache 300: `503aa8999286ba5b6799fdffc133cef33ff7d191b1748e3b3fe28fc6c087951e`;
+- cache 1000: `cea474e77553e06621833e63bb38024ec600a4e76d96239d292c28d050a532d1`;
+- cache 300 instrumented: `afd55fba2f2e4add196ce2e205c7a4da2871ac2a0438f6881b31b7c884c36655`.
+
+### Changes
+
+- **Test-only knob.** `test/perf/constellation_d8_load_pg_test.dart` now takes `TENTURA_D8_LEVELS` (comma-separated `load`/`capacity`). When it is unset, both levels run as before, load first. A report carries only the chosen levels' `<level>Evidence`, and the write-evidence checks run on each emitted level.
+- No other file changed. No test was weakened.

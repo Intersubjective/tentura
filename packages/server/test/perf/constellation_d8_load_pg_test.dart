@@ -22,6 +22,9 @@ import 'constellation_d8_write_evidence_expectations.dart';
 /// A measurement, not a gate: the journal reads the verdict off the report.
 /// Each scenario takes about 25 minutes. Environment:
 /// * `TENTURA_D8_SCENARIOS`: comma-separated slugs (default: all three);
+/// * `TENTURA_D8_LEVELS`: comma-separated levels to run (`load`,
+///   `capacity`; default: both, load first). A report then carries only the
+///   chosen levels' evidence;
 /// * `TENTURA_D8_WORKERS`: worker isolates (default: processors, as the
 ///   server's `WORKERS_COUNT` default);
 /// * `TENTURA_D8_DEPLOYMENT_FILE`: JSON facts about the deployment under test
@@ -43,6 +46,13 @@ Future<void> main() async {
   final scenarios = selected.isEmpty
       ? D8Scenario.values
       : [for (final slug in selected.split(',')) D8Scenario.fromSlug(slug)];
+  final selectedLevels = (environment['TENTURA_D8_LEVELS'] ?? '').trim();
+  final levels = selectedLevels.isEmpty
+      ? D8Level.values
+      : [
+          for (final name in selectedLevels.split(','))
+            D8Level.values.byName(name.trim()),
+        ];
   final workers =
       int.tryParse(environment['TENTURA_D8_WORKERS'] ?? '') ??
       Platform.numberOfProcessors;
@@ -98,8 +108,7 @@ Future<void> main() async {
           sessions: d8SessionSpecs(scenario, workers, sessions: sessions),
           dataset: dataset,
         );
-        final Map<String, Object?> load;
-        final Map<String, Object?> capacity;
+        final evidenceByLevel = <D8Level, Map<String, Object?>>{};
         final Map<String, Object?> warmUp;
         final List<Map<String, Object?>> workerTotals;
         // Identical for both levels: same process, database and settings.
@@ -119,18 +128,15 @@ Future<void> main() async {
         };
         try {
           warmUp = await harness.warmUp(scale: scale);
-          load = await harness.run(
-            scenario,
-            D8Level.load,
-            deployment,
-            scale: scale,
-          );
-          capacity = await harness.run(
-            scenario,
-            D8Level.capacity,
-            deployment,
-            scale: scale,
-          );
+          for (final level in D8Level.values) {
+            if (!levels.contains(level)) continue;
+            evidenceByLevel[level] = await harness.run(
+              scenario,
+              level,
+              deployment,
+              scale: scale,
+            );
+          }
         } finally {
           workerTotals = await harness.close();
         }
@@ -148,8 +154,9 @@ Future<void> main() async {
           },
           'warmUp': warmUp,
           'workerTotals': workerTotals,
-          'loadEvidence': load,
-          'capacityEvidence': capacity,
+          for (final MapEntry(key: level, value: evidence)
+              in evidenceByLevel.entries)
+            '${level.name}Evidence': evidence,
         };
         final file = File(
           'build/perf/d8_${scenario.slug}${smoke ? '_smoke' : ''}.json',
@@ -162,20 +169,23 @@ Future<void> main() async {
         // late responses or keeps producing only 21 completed write samples.
         final emitted =
             jsonDecode(await file.readAsString()) as Map<String, Object?>;
-        for (final key in ['loadEvidence', 'capacityEvidence']) {
+        for (final level in evidenceByLevel.keys) {
+          final key = '${level.name}Evidence';
           expectD8WriteEvidence(
             emitted[key]! as Map<String, Object?>,
             requireMinimumSamples: !smoke,
           );
         }
-        stdout
-          ..writeln('D8 ${scenario.label} load: ${jsonEncode(load['summary'])}')
-          ..writeln(
-            'D8 ${scenario.label} capacity: '
-            '${jsonEncode(capacity['summary'])}',
+        for (final MapEntry(key: level, value: evidence)
+            in evidenceByLevel.entries) {
+          stdout.writeln(
+            'D8 ${scenario.label} ${level.name}: '
+            '${jsonEncode(evidence['summary'])}',
           );
+        }
 
-        for (final evidence in [load, capacity]) {
+        expect(evidenceByLevel, isNotEmpty);
+        for (final evidence in evidenceByLevel.values) {
           expect(evidence['sessions'], hasLength(sessions));
           // A scaled-down smoke run may finish before any refresh completes.
           if (!smoke) expect(evidence['completedRefreshes'], isNotEmpty);
