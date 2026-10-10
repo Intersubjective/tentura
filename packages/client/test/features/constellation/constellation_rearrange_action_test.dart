@@ -132,6 +132,10 @@ final class _HarnessAnchorRepository
           clientOpId: op.clientOpId,
           status: ConstellationAnchorOpStatus.ok,
           resultingTargetRevision: revision,
+          target: op.target,
+          anchor: op.kind == ConstellationAnchorOpKind.delete
+              ? null
+              : _confirmedAnchors[op.target],
         ),
       );
     }
@@ -140,16 +144,6 @@ final class _HarnessAnchorRepository
       beforeRevision: before,
       afterRevision: after,
       results: results,
-      anchorProjection: ConstellationAnchorProjection(
-        revision: after,
-        anchors: _confirmedAnchors.values.toList(),
-        pinnedPeers: const [],
-        pinnedRequests: const [],
-        supportPeers: const [],
-        supportEdges: const [],
-        serverFilteredBeaconIds: const [],
-        serverFilteredBeaconCount: 0,
-      ),
     );
   }
 
@@ -346,6 +340,8 @@ Map<ConstellationAnchorTarget, ConstellationAnchorPosition> _shownAnchors(
 ConstellationField _fieldWithPlacements(
   Map<ConstellationAnchorTarget, ConstellationAnchorPosition> placements,
 ) => _field(
+  // Pinned entities default to the loaded ones, as in a session's own first
+  // load: a settled placement merges into them rather than replacing them.
   peers: const [
     ConstellationPerson(id: 'p1', displayName: 'Peer one'),
     ConstellationPerson(id: 'p2', displayName: 'Peer two'),
@@ -365,11 +361,6 @@ ConstellationField _fieldWithPlacements(
       status: 0,
     ),
   ],
-  // As the anchor repository's acknowledged projection: it carries no pinned
-  // entities, so a stored placement and a placement made in a session lay out
-  // the same people.
-  pinnedPeers: const [],
-  pinnedRequests: const [],
   anchors: [
     for (final entry in placements.entries)
       ConstellationAnchor(
@@ -639,8 +630,6 @@ void main() {
         await _placeTwoNodes(tester, harness.cubit);
         final placements = harness.anchorRepo.confirmedPositions;
         expect(placements, hasLength(2));
-        final before = _allNodePositions(harness.cubit);
-
         await tester.tap(_rearrangeButton());
         await tester.pump();
         await tester.pumpAndSettle(const Duration(milliseconds: 400));
@@ -659,12 +648,9 @@ void main() {
           expect(after[id]!.dx, closeTo(plan[id]!.dx, 0.5), reason: id);
           expect(after[id]!.dy, closeTo(plan[id]!.dy, 0.5), reason: id);
         }
-        // The action did something: the free nodes were not already there.
-        final moved = [
-          for (final id in freeIds)
-            if ((after[id]! - before[id]!).distance > 0.5) id,
-        ];
-        expect(moved, isNotEmpty);
+        // A settled placement keeps the session's pins (ARCH 5.3), so the
+        // session already laid these nodes out as the plan; the action must
+        // leave them there rather than move them.
       },
     );
 

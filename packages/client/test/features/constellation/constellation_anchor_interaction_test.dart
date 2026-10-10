@@ -103,8 +103,7 @@ final class _HarnessFieldRepository implements ConstellationRepositoryPort {
   }
 }
 
-final class _HarnessAnchorRepository
-    implements ConstellationWriteFake {
+final class _HarnessAnchorRepository implements ConstellationWriteFake {
   int upsertCount = 0;
   int deleteCount = 0;
   ConstellationAnchorPosition? lastPosition;
@@ -143,6 +142,10 @@ final class _HarnessAnchorRepository
           clientOpId: op.clientOpId,
           status: ConstellationAnchorOpStatus.ok,
           resultingTargetRevision: revision,
+          target: op.target,
+          anchor: op.kind == ConstellationAnchorOpKind.delete
+              ? null
+              : _confirmedAnchors[op.target],
         ),
       );
     }
@@ -151,16 +154,6 @@ final class _HarnessAnchorRepository
       beforeRevision: before,
       afterRevision: after,
       results: results,
-      anchorProjection: ConstellationAnchorProjection(
-        revision: after,
-        anchors: _confirmedAnchors.values.toList(),
-        pinnedPeers: const [],
-        pinnedRequests: const [],
-        supportPeers: const [],
-        supportEdges: const [],
-        serverFilteredBeaconIds: const [],
-        serverFilteredBeaconCount: 0,
-      ),
     );
   }
 

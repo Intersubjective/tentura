@@ -25,6 +25,10 @@ export '../entity/constellation_projection_params.dart';
 /// field at most once per window. The D8 load model pins its own copy to this.
 const kLazyFieldRefreshInterval = Duration(minutes: 5);
 
+/// ARCH 5.9: an anchor write unacknowledged this long after its first
+/// dispatch is reported once as overdue.
+const kLazyWriteAckTimeout = Duration(seconds: 15);
+
 enum ConstellationRefreshReason {
   /// Explicit load: dispatched at once, sharing an in-flight read.
   load,
@@ -131,15 +135,81 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
   ConstellationFieldStoreState get current => _state;
   ConstellationProjectionParams get projectionParams => _params;
 
-  /// Settle operation slots before publishing their complete confirmed view.
+  /// Settle operation slots, then merge the acknowledged rows (ARCH 5.3).
+  ///
+  /// Executed OK upserts replace their anchor row and bring the record
+  /// captured at grab time; executed deletes drop the row and its record.
+  /// Replayed and rejected results merge nothing, nor does an ack for
+  /// obsolete [params]. Coverage advances only when the batch directly
+  /// followed the covered revision.
   void settle(
     ConstellationAnchorApplyResult result,
     void Function() settleSlots, {
     ConstellationProjectionParams? params,
+    Iterable<ConstellationPerson> capturedPeers = const [],
+    Iterable<ConstellationRequest> capturedRequests = const [],
   }) {
     settleSlots();
     if (params != null && params != _params) return;
-    _applyAnchors(result.anchorProjection);
+    final field =
+        _state.field ??
+        ConstellationField(
+          loadedAt: _clock.now(),
+          context: _params.context,
+        );
+    final held = field.resolvedAnchorProjection;
+    final anchors = {for (final a in held.anchors) a.target: a};
+    final peers = {for (final p in held.pinnedPeers) p.id: p};
+    final requests = {for (final r in held.pinnedRequests) r.id: r};
+    final peerRecords = {for (final p in capturedPeers) p.id: p};
+    final requestRecords = {for (final r in capturedRequests) r.id: r};
+    for (final op in result.results) {
+      if (op.status != ConstellationAnchorOpStatus.ok || op.replayed) continue;
+      final anchor = op.anchor;
+      final target = anchor?.target ?? op.target;
+      if (target == null) continue;
+      if (anchor == null) {
+        anchors.remove(target);
+        switch (target.kind) {
+          case ConstellationAnchorTargetKind.person:
+            peers.remove(target.id);
+          case ConstellationAnchorTargetKind.beacon:
+            requests.remove(target.id);
+        }
+        continue;
+      }
+      anchors[target] = anchor;
+      switch (target.kind) {
+        case ConstellationAnchorTargetKind.person:
+          final record = peerRecords[target.id];
+          if (record != null) peers[target.id] = record;
+        case ConstellationAnchorTargetKind.beacon:
+          final record = requestRecords[target.id];
+          if (record != null) requests[target.id] = record;
+      }
+    }
+    final advance =
+        result.beforeRevision.compareTo(_state.coveredRevision) == 0;
+    _emit(
+      ConstellationFieldStoreState(
+        field: field.copyWith(
+          anchorProjection: ConstellationAnchorProjection(
+            revision: advance ? result.afterRevision : held.revision,
+            anchors: anchors.values.toList(growable: false),
+            pinnedPeers: peers.values.toList(growable: false),
+            pinnedRequests: requests.values.toList(growable: false),
+            supportPeers: held.supportPeers,
+            supportEdges: held.supportEdges,
+            serverFilteredBeaconIds: held.serverFilteredBeaconIds,
+            serverFilteredBeaconCount: held.serverFilteredBeaconCount,
+          ),
+        ),
+        coveredRevision: advance
+            ? result.afterRevision
+            : _state.coveredRevision,
+        generation: _state.generation,
+      ),
+    );
   }
 
   /// Defer the catch-up read until the writer's replay has been dispatched.

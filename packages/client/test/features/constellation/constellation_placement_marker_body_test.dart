@@ -107,7 +107,6 @@ final class _AnchorRepository implements ConstellationWriteFake {
               reason: 'target_unavailable',
             ),
         ],
-        anchorProjection: _confirmed,
       ),
     );
   }
@@ -282,18 +281,10 @@ ConstellationAnchorApplyResult _acknowledged(
       clientOpId: call.ops.single.clientOpId,
       status: ConstellationAnchorOpStatus.ok,
       resultingTargetRevision: ConstellationAnchorRevision(BigInt.two),
+      target: call.ops.single.target,
+      anchor: _anchor(call.ops.single.position!, 2),
     ),
   ],
-  anchorProjection: ConstellationAnchorProjection(
-    revision: ConstellationAnchorRevision(BigInt.two),
-    anchors: [_anchor(call.ops.single.position!, 2)],
-    pinnedPeers: harness.cubit.state.confirmedProjection!.pinnedPeers,
-    pinnedRequests: harness.cubit.state.confirmedProjection!.pinnedRequests,
-    supportPeers: const [],
-    supportEdges: const [],
-    serverFilteredBeaconIds: const [],
-    serverFilteredBeaconCount: 0,
-  ),
 );
 
 void main() {

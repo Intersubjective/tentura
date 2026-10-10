@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:injectable/injectable.dart';
+import 'package:tentura/domain/entity/lazy_write_notice.dart';
 import 'package:tentura/domain/port/clock_port.dart';
 import 'package:tentura/domain/port/wake_up_port.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
@@ -9,6 +10,7 @@ import 'package:tentura/domain/use_case/use_case_base.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:uuid/uuid.dart';
 
+import '../entity/constellation_field.dart';
 import '../entity/placement_outbox.dart';
 import '../placement_overlay.dart';
 import '../port/constellation_anchor_repository_port.dart';
@@ -52,7 +54,12 @@ final class ConstellationPlacementCase extends UseCaseBase {
   final _random = Random();
   late final List<StreamSubscription<Object?>> _subscriptions;
   final _changes = StreamController<PlacementOutboxState>.broadcast();
+  final _notices = StreamController<LazyWriteNotice>.broadcast();
   PlacementOutboxState _state;
+
+  /// One timer per first dispatch; a retry never adds one.
+  final _overdueHandles = <WakeUpHandle>{};
+  var _noticeRaised = false;
   bool _flushing = false;
   bool _disposed = false;
 
@@ -70,6 +77,9 @@ final class ConstellationPlacementCase extends UseCaseBase {
   PlacementOutboxState get current => _state;
   Stream<PlacementOutboxState> get changes => _changes.stream;
 
+  /// One event per overdue-acknowledgement episode (ARCH 5.9).
+  Stream<LazyWriteNotice> get lazyWriteNotices => _notices.stream;
+
   /// Writes the user should be told about, as of the case's own clock.
   ({Map<ConstellationAnchorTarget, PlacementCue> cues, Duration? nextChange})
   get cues => placementCues(_state, now: _clock.now());
@@ -84,11 +94,30 @@ final class ConstellationPlacementCase extends UseCaseBase {
       })
     >
     companions,
+    ConstellationPerson? grabbedPerson,
+    ConstellationRequest? grabbedRequest,
   }) {
     final positions = {parent: position};
     for (final companion in companions) {
       positions[companion.target] = companion.position;
     }
+    final field = _store.current.field;
+    final projection = field?.resolvedAnchorProjection;
+    final people = {
+      for (final p in [
+        ...?field?.peers,
+        ...?projection?.pinnedPeers,
+        ...?projection?.supportPeers,
+      ])
+        p.id: p,
+    };
+    final requests = {
+      for (final r in [
+        ...?field?.requests,
+        ...?projection?.pinnedRequests,
+      ])
+        r.id: r,
+    };
     if (positions.length > _batchCap) {
       throw ArgumentError.value(positions.length, 'cluster size', 'Maximum 64');
     }
@@ -100,6 +129,15 @@ final class ConstellationPlacementCase extends UseCaseBase {
           clusterId: clusterId,
           target: entry.key,
           position: entry.value,
+          capturedPerson: entry.key.kind == ConstellationAnchorTargetKind.person
+              ? (entry.key == parent ? grabbedPerson : null) ??
+                    people[entry.key.id]
+              : null,
+          capturedRequest:
+              entry.key.kind == ConstellationAnchorTargetKind.beacon
+              ? (entry.key == parent ? grabbedRequest : null) ??
+                    requests[entry.key.id]
+              : null,
         ),
     ]);
   }
@@ -298,6 +336,9 @@ final class ConstellationPlacementCase extends UseCaseBase {
                 );
         }
         _emit(_state.copyWith(targets: targets));
+        if (!retry) {
+          _watchOverdue({for (final slot in batch) slot.op.clientOpId});
+        }
         try {
           final result = await _repository.apply(
             ops: [for (final slot in batch) _applyOp(slot.op)],
@@ -305,7 +346,21 @@ final class ConstellationPlacementCase extends UseCaseBase {
           );
           // A completion for a previous account must not reach the store.
           if (!_isLive(token)) return;
-          _store.settle(result, () => _settleSlots(result), params: params);
+          final captured = [
+            for (final slot in batch)
+              if (slot.op case final PlacementUpsert op) op,
+          ];
+          _store.settle(
+            result,
+            () => _settleSlots(result),
+            params: params,
+            capturedPeers: [
+              for (final op in captured) ?op.capturedPerson,
+            ],
+            capturedRequests: [
+              for (final op in captured) ?op.capturedRequest,
+            ],
+          );
         } on Object catch (error, stackTrace) {
           if (!_isLive(token)) return;
           // A transport failure cannot prove that the write was rejected.
@@ -333,6 +388,30 @@ final class ConstellationPlacementCase extends UseCaseBase {
         _flushing = false;
       }
     }
+  }
+
+  /// Raises one notice if any of [ids] is still unacknowledged at the timeout.
+  void _watchOverdue(Set<String> ids) {
+    late final WakeUpHandle handle;
+    handle = _wakeUp.schedule(kLazyWriteAckTimeout, () {
+      _overdueHandles.remove(handle);
+      if (_disposed || _noticeRaised) return;
+      final overdue = _state.targets.values.any(
+        (target) => ids.contains(target.inFlight?.op.clientOpId),
+      );
+      if (!overdue) return;
+      _noticeRaised = true;
+      _notices.add(const LazyWriteNotice());
+    });
+    _overdueHandles.add(handle);
+  }
+
+  void _cancelOverdue() {
+    for (final handle in _overdueHandles) {
+      handle.cancel();
+    }
+    _overdueHandles.clear();
+    _noticeRaised = false;
   }
 
   bool get _hasUnknown => _state.targets.values.any(
@@ -412,6 +491,7 @@ final class ConstellationPlacementCase extends UseCaseBase {
     _retryHandle = null;
     _replayScheduled = false;
     _dueIds.clear();
+    _cancelOverdue();
     _loopToken = null;
     _flushing = false;
     _replayBarrier?.complete();
@@ -499,6 +579,10 @@ final class ConstellationPlacementCase extends UseCaseBase {
 
   void _emit(PlacementOutboxState state) {
     _state = state;
+    // The episode ends once nothing is left unacknowledged.
+    if (state.targets.values.every((t) => t.inFlight == null)) {
+      _noticeRaised = false;
+    }
     _changes.add(state);
   }
 
@@ -506,6 +590,7 @@ final class ConstellationPlacementCase extends UseCaseBase {
     _disposed = true;
     _retryHandle?.cancel();
     _retryHandle = null;
+    _cancelOverdue();
     _replayBarrier?.complete();
     _replayBarrier = null;
     _store.holdCatchUpReads(null);
@@ -513,5 +598,6 @@ final class ConstellationPlacementCase extends UseCaseBase {
       await subscription.cancel();
     }
     await _changes.close();
+    await _notices.close();
   }
 }

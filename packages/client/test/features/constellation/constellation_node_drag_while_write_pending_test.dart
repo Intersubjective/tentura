@@ -108,28 +108,12 @@ final class _AnchorRepository implements ConstellationWriteFake {
               clientOpId: op.clientOpId,
               status: ConstellationAnchorOpStatus.ok,
               resultingTargetRevision: revision,
+              target: op.target,
+              anchor: op.kind == ConstellationAnchorOpKind.delete
+                  ? null
+                  : anchors[op.target],
             ),
         ],
-        anchorProjection: ConstellationAnchorProjection(
-          revision: revision,
-          anchors: anchors.values.toList(),
-          pinnedPeers: [
-            for (final peer in _confirmedBase.pinnedPeers)
-              if (!deleted.contains(ConstellationAnchorTarget.person(peer.id)))
-                peer,
-          ],
-          pinnedRequests: [
-            for (final request in _confirmedBase.pinnedRequests)
-              if (!deleted.contains(
-                ConstellationAnchorTarget.beacon(request.id),
-              ))
-                request,
-          ],
-          supportPeers: _confirmedBase.supportPeers,
-          supportEdges: _confirmedBase.supportEdges,
-          serverFilteredBeaconIds: _confirmedBase.serverFilteredBeaconIds,
-          serverFilteredBeaconCount: _confirmedBase.serverFilteredBeaconCount,
-        ),
       ),
     );
   }
@@ -325,8 +309,14 @@ void main() {
           ConstellationPlacementPhase.draggingNew,
         );
         expect(cubit.state.activePlacementTarget, _freePerson);
-        expect(cubit.graphController.getPositionOrNullForId('fp:am'), droppedAt);
-        expect(cubit.graphController.getPositionOrNullForId('fp:in'), draggedAt);
+        expect(
+          cubit.graphController.getPositionOrNullForId('fp:am'),
+          droppedAt,
+        );
+        expect(
+          cubit.graphController.getPositionOrNullForId('fp:in'),
+          draggedAt,
+        );
         expect(_camera(cubit), cameraBefore);
 
         await gesture.up();

@@ -129,6 +129,10 @@ final class _AnchorRepository implements ConstellationWriteFake {
           clientOpId: op.clientOpId,
           status: ConstellationAnchorOpStatus.ok,
           resultingTargetRevision: _revision(revision),
+          target: op.target,
+          anchor: op.kind == ConstellationAnchorOpKind.delete
+              ? null
+              : confirmed[op.target],
         ),
       );
     }
@@ -137,7 +141,6 @@ final class _AnchorRepository implements ConstellationWriteFake {
         beforeRevision: _revision(before),
         afterRevision: _revision(revision),
         results: results,
-        anchorProjection: _projection(revision, confirmed.values),
       ),
     );
   }

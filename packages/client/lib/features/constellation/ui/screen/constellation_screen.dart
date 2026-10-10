@@ -6,6 +6,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:tentura/app/router/home_tab_branches.dart';
 import 'package:tentura/app/router/root_router.gr.dart';
 import 'package:tentura/features/home/ui/widget/home_account_avatar_button.dart';
+import 'package:tentura/ui/widget/lazy_write_timeout_notice.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
@@ -292,10 +293,13 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
           ),
           account: homeTopBarAccount(context),
         ),
-        body: TenturaFullBleed(
-          child: ConstellationBody(
-            legendExpanded: _legendExpanded,
-            onToggleLegend: _toggleLegend,
+        body: LazyWriteTimeoutNotice(
+          notices: context.read<ConstellationCubit>().lazyWriteNotices,
+          child: TenturaFullBleed(
+            child: ConstellationBody(
+              legendExpanded: _legendExpanded,
+              onToggleLegend: _toggleLegend,
+            ),
           ),
         ),
       ),

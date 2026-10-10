@@ -6493,5 +6493,6 @@
   "composerEmojiButtonTooltip": "Эмодзи",
   "emojiPickerSearchHint": "Поиск эмодзи",
   "emojiPickerNoRecents": "Здесь появятся эмодзи, которые вы используете",
-  "settingsDebugPerformanceHud": "Показатели производительности"
+  "settingsDebugPerformanceHud": "Показатели производительности",
+  "lazyWriteAckOverdue": "Изменения ещё сохраняются. Они остаются на экране и будут отправлены, как только позволит связь."
 }

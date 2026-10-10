@@ -1,6 +1,8 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
+import 'constellation_field.dart';
+
 part 'placement_outbox.freezed.dart';
 
 @freezed
@@ -11,6 +13,9 @@ sealed class PlacementOp with _$PlacementOp {
     required ConstellationAnchorTarget target,
     required ConstellationAnchorPosition position,
     ConstellationAnchorRevision? ifRevision,
+    // Record of the grabbed node, kept for the confirmed view; never sent.
+    ConstellationPerson? capturedPerson,
+    ConstellationRequest? capturedRequest,
   }) = PlacementUpsert;
 
   const factory PlacementOp.delete({

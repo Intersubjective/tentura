@@ -115,8 +115,7 @@ final class _HarnessFieldRepository implements ConstellationRepositoryPort {
   }
 }
 
-final class _HarnessAnchorRepository
-    implements ConstellationWriteFake {
+final class _HarnessAnchorRepository implements ConstellationWriteFake {
   Completer<void> upsertGate = Completer<void>()..complete();
   Completer<void> deleteGate = Completer<void>()..complete();
   int upsertCount = 0;
@@ -163,6 +162,10 @@ final class _HarnessAnchorRepository
           clientOpId: op.clientOpId,
           status: ConstellationAnchorOpStatus.ok,
           resultingTargetRevision: revision,
+          target: op.target,
+          anchor: op.kind == ConstellationAnchorOpKind.delete
+              ? null
+              : _confirmedAnchors[op.target],
         ),
       );
     }
@@ -171,16 +174,6 @@ final class _HarnessAnchorRepository
       beforeRevision: before,
       afterRevision: after,
       results: results,
-      anchorProjection: ConstellationAnchorProjection(
-        revision: after,
-        anchors: _confirmedAnchors.values.toList(),
-        pinnedPeers: const [],
-        pinnedRequests: const [],
-        supportPeers: const [],
-        supportEdges: const [],
-        serverFilteredBeaconIds: const [],
-        serverFilteredBeaconCount: 0,
-      ),
     );
   }
 
@@ -502,19 +495,22 @@ void main() {
         harness.cubit.cancelPlacement();
         final released = harness.cubit.state.composition!.anchorOverlay.anchors;
         expect(
-          released.singleWhere((anchor) => anchor.target.id == 'p1')
+          released
+              .singleWhere((anchor) => anchor.target.id == 'p1')
               .position
               .xUnits,
           3,
         );
         expect(
-          released.singleWhere((anchor) => anchor.target.id == 'p2')
+          released
+              .singleWhere((anchor) => anchor.target.id == 'p2')
               .position
               .xUnits,
           5,
         );
         expect(
-          released.singleWhere((anchor) => anchor.target == companion)
+          released
+              .singleWhere((anchor) => anchor.target == companion)
               .position
               .xUnits,
           9,

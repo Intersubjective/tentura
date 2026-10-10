@@ -33,10 +33,7 @@ final class ConstellationAnchorRepository
   }) => _remoteApiService
       .request(
         GConstellationAnchorsApplyReq((b) {
-          b.vars
-            ..ops.replace([for (final op in ops) _opToWire(op)])
-            ..showClosed = params.showClosed
-            ..participatedOnly = params.participatedOnly;
+          b.vars.ops.replace([for (final op in ops) _opToWire(op)]);
         }),
       )
       .firstWhere((response) => response.dataSource == DataSource.Link)
@@ -44,7 +41,7 @@ final class ConstellationAnchorRepository
         final payload = response
             .dataOrThrow(label: 'ConstellationAnchorsApply')
             .constellationAnchorsApply;
-        return mapApplyResult(payload);
+        return mapApplyResult(payload, ops);
       });
 
   static Gv2_ConstellationAnchorOpInput _opToWire(
@@ -72,26 +69,34 @@ final class ConstellationAnchorRepository
 
   static ConstellationAnchorApplyResult mapApplyResult(
     GConstellationAnchorsApplyData_constellationAnchorsApply payload,
-  ) => ConstellationAnchorApplyResult(
-    beforeRevision: _parseRevision(payload.beforeRevision),
-    afterRevision: _parseRevision(payload.afterRevision),
-    results: [
-      for (final result in payload.results)
-        ConstellationAnchorOpResult(
-          clientOpId: result.clientOpId,
-          status: switch (result.status) {
-            Gv2_ConstellationAnchorOpStatus.OK =>
-              ConstellationAnchorOpStatus.ok,
-            _ => ConstellationAnchorOpStatus.rejected,
-          },
-          reason: result.reason,
-          resultingTargetRevision: result.resultingTargetRevision == null
-              ? null
-              : _parseRevision(result.resultingTargetRevision!),
-        ),
-    ],
-    anchorProjection: mapApplyAnchorProjection(payload.anchorProjection),
-  );
+    List<ConstellationAnchorApplyOp> ops,
+  ) {
+    final targets = {for (final op in ops) op.clientOpId: op.target};
+    return ConstellationAnchorApplyResult(
+      beforeRevision: _parseRevision(payload.beforeRevision),
+      afterRevision: _parseRevision(payload.afterRevision),
+      results: [
+        for (final result in payload.results)
+          ConstellationAnchorOpResult(
+            clientOpId: result.clientOpId,
+            status: switch (result.status) {
+              Gv2_ConstellationAnchorOpStatus.OK =>
+                ConstellationAnchorOpStatus.ok,
+              _ => ConstellationAnchorOpStatus.rejected,
+            },
+            reason: result.reason,
+            resultingTargetRevision: result.resultingTargetRevision == null
+                ? null
+                : _parseRevision(result.resultingTargetRevision!),
+            target: targets[result.clientOpId],
+            anchor: result.anchor == null
+                ? null
+                : mapApplyAnchor(result.anchor!),
+            replayed: result.replayed,
+          ),
+      ],
+    );
+  }
 
   static ConstellationAnchorRevision _parseRevision(String wire) {
     final parsed = ConstellationAnchorRevision.parseDecimalString(wire);

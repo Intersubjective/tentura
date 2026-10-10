@@ -27,20 +27,7 @@ Map<String, Object?> _applyPayload() => {
       'status': 'OK',
       'reason': null,
       'resultingTargetRevision': '9007199254740992',
-    },
-    {
-      '__typename': 'v2_ConstellationAnchorOpResult',
-      'clientOpId': 'op-delete',
-      'status': 'REJECTED',
-      'reason': 'stale_revision',
-      'resultingTargetRevision': null,
-    },
-  ],
-  'anchorProjection': {
-    '__typename': 'v2_ConstellationAnchorProjection',
-    'revision': '9007199254740993',
-    'anchors': [
-      {
+      'anchor': {
         '__typename': 'v2_ConstellationAnchor',
         'targetKind': 'PERSON',
         'targetId': 'peer-a',
@@ -50,14 +37,18 @@ Map<String, Object?> _applyPayload() => {
         'revision': '9007199254740992',
         'placedAt': '2026-09-09T11:00:00.000Z',
       },
-    ],
-    'pinnedPeers': <Object?>[],
-    'pinnedRequests': <Object?>[],
-    'supportPeers': <Object?>[],
-    'supportEdges': <Object?>[],
-    'serverFilteredBeaconIds': ['B_hidden'],
-    'serverFilteredBeaconCount': 1,
-  },
+      'replayed': false,
+    },
+    {
+      '__typename': 'v2_ConstellationAnchorOpResult',
+      'clientOpId': 'op-delete',
+      'status': 'REJECTED',
+      'reason': 'stale_revision',
+      'resultingTargetRevision': null,
+      'anchor': null,
+      'replayed': false,
+    },
+  ],
 };
 
 ConstellationAnchorApplyOp _upsertOp({String? ifRevision}) =>
@@ -98,17 +89,15 @@ void _expectMappedResult(ConstellationAnchorApplyResult result) {
   expect(rejected.reason, 'stale_revision');
   expect(rejected.resultingTargetRevision, isNull);
 
-  final projection = result.anchorProjection;
-  expect(projection.revision.value, BigInt.parse('9007199254740993'));
-  expect(projection.anchors, hasLength(1));
-  final anchor = projection.anchors.single;
+  expect(accepted.target, ConstellationAnchorTarget.person('peer-a'));
+  expect(accepted.replayed, isFalse);
+  final anchor = accepted.anchor!;
   expect(anchor.target, ConstellationAnchorTarget.person('peer-a'));
   expect(anchor.position.xUnits, 1.5);
   expect(anchor.position.yUnits, -2.25);
   expect(anchor.revision.value, BigInt.parse('9007199254740992'));
   expect(anchor.placedAt, DateTime.utc(2026, 9, 9, 11));
-  expect(projection.serverFilteredBeaconIds, ['B_hidden']);
-  expect(projection.serverFilteredBeaconCount, 1);
+  expect(rejected.anchor, isNull);
 }
 
 void main() {
@@ -141,7 +130,7 @@ void main() {
 
   group('anchors apply client document', () {
     test('is a mutation named ConstellationAnchorsApply selecting the '
-        'revisions, per-op results and the full anchor projection', () {
+        'revisions and the per-op results with the stored anchor row', () {
       final document = File(
         'lib/features/constellation/data/gql/constellation_anchors_apply.graphql',
       ).readAsStringSync();
@@ -155,11 +144,12 @@ void main() {
         'status',
         'reason',
         'resultingTargetRevision',
-        'anchorProjection',
-        'serverFilteredBeaconIds',
+        'anchor',
+        'replayed',
       ]) {
         expect(document, contains(field), reason: field);
       }
+      expect(document, isNot(contains('anchorProjection')));
     });
   });
 
@@ -221,10 +211,13 @@ void main() {
     });
 
     test('sends ops in order with wire kinds, positions and ifRevision to the '
-        'V2 endpoint together with the projection params', () {
+        'V2 endpoint', () {
       return withRepository((repository) async {
         await repository.apply(
-          ops: [_upsertOp(ifRevision: '9007199254740991'), _deleteOp()],
+          ops: [
+            _upsertOp(ifRevision: '9007199254740991'),
+            _deleteOp(),
+          ],
           params: const ConstellationFieldMembershipFilters(
             showClosed: true,
             participatedOnly: true,
@@ -236,8 +229,7 @@ void main() {
         final body = graphqlBodies.single;
         expect(body['operationName'], 'ConstellationAnchorsApply');
         final variables = body['variables']! as Map<String, dynamic>;
-        expect(variables['showClosed'], isTrue);
-        expect(variables['participatedOnly'], isTrue);
+        expect(variables.keys, ['ops']);
 
         final ops = (variables['ops']! as List).cast<Map<String, dynamic>>();
         expect(ops, hasLength(2));

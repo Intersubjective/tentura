@@ -1,15 +1,5 @@
-# import '/data/gql/image_model_v2.graphql'
-
-mutation ConstellationAnchorsApply(
-  $ops: [v2_ConstellationAnchorOpInput!]!
-  $showClosed: Boolean! = false
-  $participatedOnly: Boolean! = false
-) {
-  constellationAnchorsApply(
-    ops: $ops
-    showClosed: $showClosed
-    participatedOnly: $participatedOnly
-  ) {
+mutation ConstellationAnchorsApply($ops: [v2_ConstellationAnchorOpInput!]!) {
+  constellationAnchorsApply(ops: $ops) {
     beforeRevision
     afterRevision
     results {
@@ -17,10 +7,7 @@ mutation ConstellationAnchorsApply(
       status
       reason
       resultingTargetRevision
-    }
-    anchorProjection {
-      revision
-      anchors {
+      anchor {
         targetKind
         targetId
         xUnits
@@ -29,50 +16,7 @@ mutation ConstellationAnchorsApply(
         revision
         placedAt
       }
-      pinnedPeers {
-        id
-        displayName
-        handle
-        image {
-          ...ImageModelV2
-        }
-      }
-      pinnedRequests {
-        id
-        authorId
-        title
-        status
-        needs
-        primaryNeedSlug
-        startAt
-        endAt
-        addressLabel
-        hasCoordinates
-        isMine
-        viewerHasActiveHelpOffer
-        viewerIsRoomParticipant
-        viewerHasForwardEdge
-        helpOfferCount
-        coverSource
-        coverThumb {
-          ...ImageModelV2
-        }
-      }
-      supportPeers {
-        id
-        displayName
-        handle
-        image {
-          ...ImageModelV2
-        }
-      }
-      supportEdges {
-        src
-        dst
-        tier
-      }
-      serverFilteredBeaconIds
-      serverFilteredBeaconCount
+      replayed
     }
   }
 }

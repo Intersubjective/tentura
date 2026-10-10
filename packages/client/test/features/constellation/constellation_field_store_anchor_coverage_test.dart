@@ -70,14 +70,23 @@ ConstellationField _field(ConstellationAnchorProjection projection) =>
       anchorProjection: projection,
     );
 
+/// The minimal acknowledgement of a batch that upserted [projection]'s rows.
 ConstellationAnchorApplyResult _applyResult(
   int before,
   ConstellationAnchorProjection projection,
 ) => ConstellationAnchorApplyResult(
   beforeRevision: _revision(before),
   afterRevision: projection.revision,
-  results: const [],
-  anchorProjection: projection,
+  results: [
+    for (final anchor in projection.anchors)
+      ConstellationAnchorOpResult(
+        clientOpId: 'op-${anchor.target.id}',
+        status: ConstellationAnchorOpStatus.ok,
+        resultingTargetRevision: anchor.revision,
+        target: anchor.target,
+        anchor: anchor,
+      ),
+  ],
 );
 
 /// Serves whatever the "server" holds at the moment a read starts, and can
@@ -250,27 +259,13 @@ void main() {
   });
 
   group('writes from another session around our own write', () {
-    test('the other write lands before ours: its echo is ignored and no '
-        'row is lost', () async {
-      await buildLoaded();
-      // B is written by another tab at 6, then our write A commits at 7, so
-      // our ack already carries both rows.
-      final both = _projection(7, [_anchor('b', 6), _anchor('a', 7)]);
-
-      store.settle(_applyResult(5, both), () {});
-      anchorHint(6);
-      anchorHint(7);
-      await advance(const Duration(seconds: 10));
-
-      expect(server.calls, isEmpty);
-      expect(store.current.coveredRevision, _revision(7));
-      expect(heldTargets(), [_target('b'), _target('a')]);
-    });
-
     test('the other write lands after ours: one resync brings it in and '
         'keeps ours', () async {
       await buildLoaded();
-      store.settle(_applyResult(5, _projection(6, [_anchor('a', 6)])), () {});
+      store.settle(
+        _applyResult(5, _projection(6, [_anchor('a', 6)])),
+        () {},
+      );
       server
         ..serverRevision = 7
         ..serverAnchors = [_anchor('a', 6), _anchor('b', 7)];
@@ -283,97 +278,55 @@ void main() {
       expect(store.current.coveredRevision, _revision(7));
       expect(heldTargets(), [_target('a'), _target('b')]);
     });
-
-    test('a resync read started before our ack and finishing after it '
-        'cannot drop our row', () async {
-      await buildLoaded();
-      server
-        ..serverRevision = 6
-        ..serverAnchors = [_anchor('b', 6)]
-        ..gate = Completer<void>();
-
-      anchorHint(6);
-      await advance(const Duration(seconds: 1));
-      expect(server.count(ConstellationProjection.anchors), 1);
-
-      store.settle(
-        _applyResult(6, _projection(7, [_anchor('b', 6), _anchor('a', 7)])),
-        () {},
-      );
-      server.release();
-      await advance(const Duration(seconds: 10));
-
-      expect(store.current.coveredRevision, _revision(7));
-      expect(heldTargets(), [_target('b'), _target('a')]);
-      expect(server.count(ConstellationProjection.anchors), 1);
-    });
   });
 
   group('hints that arrive while a read is in flight', () {
-    test('one the settled read already covers causes no further read', () async {
-      await buildLoaded();
-      server
-        ..serverRevision = 6
-        ..serverAnchors = [_anchor('b', 6)]
-        ..gate = Completer<void>();
+    test(
+      'one the settled read already covers causes no further read',
+      () async {
+        await buildLoaded();
+        server
+          ..serverRevision = 6
+          ..serverAnchors = [_anchor('b', 6)]
+          ..gate = Completer<void>();
 
-      anchorHint(6);
-      await advance(const Duration(seconds: 1));
-      anchorHint(6);
-      await advance(const Duration(seconds: 1));
-      server.release();
-      await advance(const Duration(seconds: 10));
+        anchorHint(6);
+        await advance(const Duration(seconds: 1));
+        anchorHint(6);
+        await advance(const Duration(seconds: 1));
+        server.release();
+        await advance(const Duration(seconds: 10));
 
-      expect(server.count(ConstellationProjection.anchors), 1);
-      expect(store.current.coveredRevision, _revision(6));
-    });
+        expect(server.count(ConstellationProjection.anchors), 1);
+        expect(store.current.coveredRevision, _revision(6));
+      },
+    );
 
-    test('one the settled read does not cover causes exactly one more read',
-        () async {
-      await buildLoaded();
-      server
-        ..serverRevision = 6
-        ..serverAnchors = [_anchor('b', 6)]
-        ..gate = Completer<void>();
+    test(
+      'one the settled read does not cover causes exactly one more read',
+      () async {
+        await buildLoaded();
+        server
+          ..serverRevision = 6
+          ..serverAnchors = [_anchor('b', 6)]
+          ..gate = Completer<void>();
 
-      anchorHint(6);
-      await advance(const Duration(seconds: 1));
-      // The read in flight snapshotted revision 6; this commit is newer.
-      anchorHint(7);
-      await advance(const Duration(seconds: 1));
-      server
-        ..serverRevision = 7
-        ..serverAnchors = [_anchor('b', 6), _anchor('c', 7)];
-      server.release();
-      await advance(const Duration(seconds: 10));
+        anchorHint(6);
+        await advance(const Duration(seconds: 1));
+        // The read in flight snapshotted revision 6; this commit is newer.
+        anchorHint(7);
+        await advance(const Duration(seconds: 1));
+        server
+          ..serverRevision = 7
+          ..serverAnchors = [_anchor('b', 6), _anchor('c', 7)];
+        server.release();
+        await advance(const Duration(seconds: 10));
 
-      expect(server.count(ConstellationProjection.anchors), 2);
-      expect(store.current.coveredRevision, _revision(7));
-      expect(heldTargets(), [_target('b'), _target('c')]);
-    });
-
-    test('an echo of the write whose ack is settled meanwhile is ignored',
-        () async {
-      await buildLoaded();
-      server
-        ..serverRevision = 6
-        ..serverAnchors = [_anchor('b', 6)]
-        ..gate = Completer<void>();
-
-      anchorHint(6);
-      await advance(const Duration(seconds: 1));
-      anchorHint(7);
-      store.settle(
-        _applyResult(6, _projection(7, [_anchor('b', 6), _anchor('a', 7)])),
-        () {},
-      );
-      server.release();
-      await advance(const Duration(seconds: 10));
-
-      expect(server.count(ConstellationProjection.anchors), 1);
-      expect(store.current.coveredRevision, _revision(7));
-      expect(heldTargets(), [_target('b'), _target('a')]);
-    });
+        expect(server.count(ConstellationProjection.anchors), 2);
+        expect(store.current.coveredRevision, _revision(7));
+        expect(heldTargets(), [_target('b'), _target('c')]);
+      },
+    );
 
     test('one covered by an in-flight FULL causes no ANCHORS read', () async {
       await buildLoaded();

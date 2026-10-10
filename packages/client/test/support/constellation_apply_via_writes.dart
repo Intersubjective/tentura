@@ -1,4 +1,3 @@
-import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_anchor_repository_port.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
@@ -27,6 +26,10 @@ Future<ConstellationAnchorApplyResult> applyViaWrites(
         clientOpId: op.clientOpId,
         status: ConstellationAnchorOpStatus.ok,
         resultingTargetRevision: revision,
+        target: op.target,
+        anchor: op.kind == ConstellationAnchorOpKind.delete
+            ? null
+            : anchors.last,
       ),
     );
   }
@@ -34,16 +37,6 @@ Future<ConstellationAnchorApplyResult> applyViaWrites(
     beforeRevision: ConstellationAnchorRevision.zero,
     afterRevision: revision,
     results: results,
-    anchorProjection: ConstellationAnchorProjection(
-      revision: revision,
-      anchors: anchors,
-      pinnedPeers: const [],
-      pinnedRequests: const [],
-      supportPeers: const [],
-      supportEdges: const [],
-      serverFilteredBeaconIds: const [],
-      serverFilteredBeaconCount: 0,
-    ),
   );
 }
 

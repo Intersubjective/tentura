@@ -7832,5 +7832,9 @@
   "@emojiPickerNoRecents": {
     "context": "Empty Recently used tab of the emoji picker"
   },
-  "settingsDebugPerformanceHud": "Performance overlay"
+  "settingsDebugPerformanceHud": "Performance overlay",
+  "lazyWriteAckOverdue": "Still saving your changes. They stay on screen and will be sent when the connection allows.",
+  "@lazyWriteAckOverdue": {
+    "context": "Snackbar when a pin or move has not been acknowledged by the server for 15 seconds"
+  }
 }

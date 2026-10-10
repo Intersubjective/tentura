@@ -6,6 +6,7 @@ import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:get_it/get_it.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/entity/lazy_write_notice.dart';
 import 'package:tentura/features/forward/domain/use_case/forward_case.dart';
 
 import '../../domain/constellation_anchor_composition.dart';
@@ -1127,6 +1128,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   /// Fires whenever a placement write changes state; empty without a case.
   Stream<PlacementOutboxState> get placementChanges =>
       _placementCase?.changes ?? const Stream.empty();
+
+  /// One event per overdue placement acknowledgement; empty without a case.
+  Stream<LazyWriteNotice> get lazyWriteNotices =>
+      _placementCase?.lazyWriteNotices ?? const Stream.empty();
 
   /// Nodes whose placement write the user should be told about.
   ({Map<ConstellationAnchorTarget, PlacementCue> cues, Duration? nextChange})

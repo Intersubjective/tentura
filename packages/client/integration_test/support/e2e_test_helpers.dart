@@ -2067,10 +2067,7 @@ Future<Map<String, dynamic>> _applyConstellationAnchorOp(
 ) async {
   final response = await _postGraphQlRequest(
     GConstellationAnchorsApplyReq(
-      (b) => b.vars
-        ..ops.replace([op])
-        ..showClosed = false
-        ..participatedOnly = false,
+      (b) => b.vars.ops.replace([op]),
     ),
   );
   final errors = response['errors'];

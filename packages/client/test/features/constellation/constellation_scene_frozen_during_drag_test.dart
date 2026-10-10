@@ -74,18 +74,17 @@ final class _HeldAnchorRepository implements ConstellationWriteFake {
                 clientOpId: op.clientOpId,
                 status: ConstellationAnchorOpStatus.ok,
                 resultingTargetRevision: revision,
+                target: op.target,
+                anchor: op.kind == ConstellationAnchorOpKind.delete
+                    ? null
+                    : ConstellationAnchor(
+                        target: op.target,
+                        position: op.position!,
+                        revision: revision,
+                        placedAt: DateTime.utc(2026, 10, 8),
+                      ),
               ),
           ],
-          anchorProjection: ConstellationAnchorProjection(
-            revision: revision,
-            anchors: const [],
-            pinnedPeers: const [],
-            pinnedRequests: const [],
-            supportPeers: const [],
-            supportEdges: const [],
-            serverFilteredBeaconIds: const [],
-            serverFilteredBeaconCount: 0,
-          ),
         ),
       );
     }
@@ -139,7 +138,10 @@ final class _FixedSpotsAlgorithm implements SceneLayoutAlgorithm {
       sequence: 0,
       positions: {
         for (final id in request.nodeIds)
-          id: ScenePoint(x: 120.0 + shift + 70 * index, y: 90.0 + shift + 45 * index++),
+          id: ScenePoint(
+            x: 120.0 + shift + 70 * index,
+            y: 90.0 + shift + 45 * index++,
+          ),
       },
       isTerminal: true,
     );
@@ -207,7 +209,8 @@ Future<void> _settleFrames(WidgetTester tester) async {
 /// Where each committed node is drawn, leaving out the node being dragged.
 Map<String, Offset?> _committedPositions(ConstellationCubit cubit) => {
   for (final id in cubit.graphController.renderSnapshot.topology.nodesById.keys)
-    if (id != _freePerson.graphNodeId) id: cubit.graphController.getPositionOrNullForId(id),
+    if (id != _freePerson.graphNodeId)
+      id: cubit.graphController.getPositionOrNullForId(id),
 };
 
 /// The committed scene must really have laid-out nodes, or "nothing moved"
@@ -242,7 +245,11 @@ void main() {
         await tester.pump();
         final positions = _committedPositions(cubit);
         _expectLaidOut(positions);
-        final nodeIds = cubit.graphController.renderSnapshot.topology.nodesById
+        final nodeIds = cubit
+            .graphController
+            .renderSnapshot
+            .topology
+            .nodesById
             .keys
             .toSet();
 

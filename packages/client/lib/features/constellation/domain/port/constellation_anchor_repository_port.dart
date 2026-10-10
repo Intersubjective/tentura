@@ -29,6 +29,12 @@ abstract class ConstellationAnchorOpResult with _$ConstellationAnchorOpResult {
     required ConstellationAnchorOpStatus status,
     String? reason,
     ConstellationAnchorRevision? resultingTargetRevision,
+    // The op's target, as sent.
+    ConstellationAnchorTarget? target,
+    // Stored row of an executed upsert.
+    ConstellationAnchor? anchor,
+    // The recorded result of an earlier execution; never merged.
+    @Default(false) bool replayed,
   }) = _ConstellationAnchorOpResult;
 }
 
@@ -39,7 +45,6 @@ abstract class ConstellationAnchorApplyResult
     required ConstellationAnchorRevision beforeRevision,
     required ConstellationAnchorRevision afterRevision,
     required List<ConstellationAnchorOpResult> results,
-    required ConstellationAnchorProjection anchorProjection,
   }) = _ConstellationAnchorApplyResult;
 }
 

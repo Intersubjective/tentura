@@ -134,6 +134,10 @@ final class _AnchorRepository implements ConstellationWriteFake {
           clientOpId: op.clientOpId,
           status: ConstellationAnchorOpStatus.ok,
           resultingTargetRevision: _revision(revision),
+          target: op.target,
+          anchor: op.kind == ConstellationAnchorOpKind.delete
+              ? null
+              : confirmed[op.target],
         ),
       );
     }
@@ -142,7 +146,6 @@ final class _AnchorRepository implements ConstellationWriteFake {
         beforeRevision: _revision(before),
         afterRevision: _revision(revision),
         results: results,
-        anchorProjection: _projection(revision, confirmed.values),
       ),
     );
   }
@@ -162,17 +165,25 @@ final class _AnchorRepository implements ConstellationWriteFake {
 /// Fake wake-ups that also remember every requested delay.
 final class _RecordingWakeUpPort implements WakeUpPort {
   final inner = FakeWakeUpPort();
+
+  /// Acknowledgement-timeout timers share the port but are not retries.
+  final _overdue = FakeWakeUpPort();
   final delays = <Duration>[];
 
   int get pendingCount => inner.pendingCount;
 
   @override
   WakeUpHandle schedule(Duration delay, void Function() callback) {
+    if (delay == kLazyWriteAckTimeout)
+      return _overdue.schedule(delay, callback);
     delays.add(delay);
     return inner.schedule(delay, callback);
   }
 
-  void elapse(Duration by) => inner.elapse(by);
+  void elapse(Duration by) {
+    inner.elapse(by);
+    _overdue.elapse(by);
+  }
 }
 
 Future<void> _drain() async {

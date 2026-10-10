@@ -226,7 +226,7 @@ void main() {
       );
       final fieldReads = repository.fetches;
 
-      // The server hints that the field changed; the lazy window then lets the
+      // The server hints that the field changed; the lazy window (5 min) then lets the
       // store read it in full while the composer is open.
       peers = const ['a', 'b'];
       store.realtime.emitChange(
@@ -238,9 +238,10 @@ void main() {
         ),
       );
       await tester.pump();
-      store.clock.advance(const Duration(seconds: 40));
-      store.wakeUp.elapse(const Duration(seconds: 40));
-      await tester.pump(const Duration(seconds: 40));
+      const window = Duration(minutes: 5, seconds: 4);
+      store.clock.advance(window);
+      store.wakeUp.elapse(window);
+      await tester.pump(window);
       await tester.pumpAndSettle();
 
       expect(

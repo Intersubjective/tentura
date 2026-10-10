@@ -61,8 +61,7 @@ void main() {
       expect(
         schema,
         contains(
-          'constellationAnchorsApply(ops: [v2_ConstellationAnchorOpInput!]!, '
-          'participatedOnly: Boolean!, showClosed: Boolean!): '
+          'constellationAnchorsApply(ops: [v2_ConstellationAnchorOpInput!]!): '
           'v2_ConstellationAnchorsApplyResult!',
         ),
       );
