@@ -587,23 +587,26 @@ P2 can run in parallel with P1, because it only touches the server.
 
 ### U54 Pinned persons outside the visible set (ARCH §5.10; D15)
 - Server, `data/repository/constellation_anchor_projection_reader.dart`:
-  - `_loadAuthorizedAnchors` (`:227-297`) keeps person anchors regardless of the visible set and drops them only on a block in either direction (the blocked-CTE predicate, `constellation_anchor_repository.dart:256-260`). Request anchors keep the read wall (`:232-235`, `:266-269`).
+  - `_loadAuthorizedAnchors` (`:227-297`) keeps person anchors regardless of the visible set and drops them only on a block in either direction (the blocked-CTE predicate, `constellation_anchor_repository.dart:256-260`). Request anchors: readable Requests as today (`:232-235`, `:266-269`); a published, non-cancelled Request the read wall denies comes back as a **placeholder record** (`accessible: false`, anchor and id only, no content); deleted, unpublished, cancelled or blocked-either-direction Requests produce no record (ARCH §5.10).
   - Remove the visibility filter on person anchors in `readPrepared` (`:138-142`) and in `prepare`'s holder set (`:80-85`). Both remain only for reads once U50 lands.
   - Trust edges and the support closure still join only the viewer and visible peers (`:75-79`, `:392-402`). Profiles are fetched by id for every pinned person (`:405-412`).
   - The pinned peer record gains `visible: bool`. Server entity, GraphQL type and client mapper are updated, plus the FULL snapshot reader where it embeds the anchor projection.
 - Client:
   - `composeConstellationPresentation` keeps non-visible pinned persons as kept peers (`constellation_anchor_composition.dart:206-208`, `:283-303`), and `resolveAndCapConstellation` (`constellation_cap_policy.dart:10-89`) never drops them;
   - a pinned person with `visible: false` is drawn at the pin with no path, no residual stub and no satellites (ARCH §5.10);
-  - `docs/features/constellation.md` gets one sentence under "Pinned placement and request state" when this lands.
+  - a pinned Request placeholder (`accessible: false`) is drawn at the pin with the pin glyph, a lock marker and the generic label "No access" (l10n en/ru), with an explanation sheet whose only action is Unpin; it never navigates into the Request or its Chat and has no satellites. Skill: `material-3-flutter`.
+  - `docs/features/constellation.md` gets one sentence under "Pinned placement and request state" when this lands, and its sentence that cancelled, deleted, unpublished, blocked and otherwise unreadable Requests never show is corrected (unreadable-by-permission Requests show as a "no access" placeholder).
 - **Tests first:**
   - pg: a pinned person who lost visibility (trust withdrawn; MR epoch change) is returned by ANCHORS and FULL with `visible: false` and a profile;
   - pg: a block in either direction hides them, and unblocking shows them again;
   - pg: unpin removes them;
-  - pg: a pinned Request that becomes unreadable, deleted, unpublished or blocked disappears;
+  - pg: a pinned Request that loses read access comes back as a placeholder (`accessible: false`) with no title, state, author or other content; access restored → the full record again;
+  - pg: a pinned Request that is deleted, unpublished, cancelled or blocked in either direction produces no record;
+  - widget: the placeholder shows the lock marker and "No access", opens the explanation sheet, offers only Unpin, and never navigates;
   - pg: the non-visible person's Requests are not added to the field;
   - pg: trust edges contain no edge to the non-visible person;
   - domain and widget: the node is drawn at its pin with no path and no stub, survives the peer cap at N = 300, and has no satellites.
-- **Acceptance:** ST (with pg) and CT constellation green; LINT clean; the owner's answer to the Request read-wall question is recorded in the journal (default: no override).
+- **Acceptance:** ST (with pg) and CT constellation green; LINT clean; the journal records that a pinned Request shows as a "no access" placeholder and never grants content access (owner decision 2026-10-10).
 - **Depends:** U12, U50 (the reader is read-only after U50), U51. Gates U26.
 
 ## Dependency graph (for beads)
