@@ -914,3 +914,23 @@ Reading: `user_trust_edge` is a Seq Scan returning 999,000 rows in 108 ms, and t
 **Repair rerun (2026-10-10).** The exact required wrapped, serial acceptance check exited 1: 2 passed, 35 failed; log: `/tmp/tentura-s7gl61-capacity-current.log`. Docker inspection again returned permission denied. Existing `build/perf/scenario_multi_worker_tabs.json` contains neither `loadEvidence` nor `capacityEvidence`, so it cannot establish completed-refresh throughput or sustainable D8 capacity. U45 acceptance and target-deployment measurement remain prerequisites; no implementation or test change can replace this missing evidence.
 
 **Analyzer repair (2026-10-10).** Changed five fixed SQL strings in `tool/constellation_read_wall_benchmark.dart` from `final` to `const`, removing five informational diagnostics without changing the queries or tests. The wrapped server analyzer-baseline check exits 0 at 1,876 unique issues (baseline 1,876); log: `/tmp/tentura-s7gl61-analyze-verified.log`. Verification is limited: the analyzer reports plugin initialization failure because its dependency fetch cannot reach pub.dev; the separate custom-lint check correctly exits 1, while the existing analyzer-baseline script accepts that plugin failure. Neither gate was modified. The prescribed wrapped, serial release-capacity acceptance rerun remains 2 passed, 35 failed; log: `/tmp/tentura-s7gl61-const-repair-acceptance.log`. The release stop gate remains in effect.
+
+## UNIT U48 — complete (part 1/2: cold first-read build decision) — 2026-10-10 (tentura-s7gl.49)
+
+**Gate.** U48 (the cross-request visible-set cache and its `trust_generation` counter) is optional: build it only if the cold first-read cost still matters on MeritRank 0.12 after U47. No migration, table or code was added.
+
+**Setup.** Same stack as the U47 acceptance run: MeritRank 0.12.0 (`vbulavintsev/meritrank-service:v0.12.0`, `MERITRANK_WALKS_CACHE_SIZE=300`, `MERITRANK_ON_DEMAND_NUM_WALKS=10000`, `MERITRANK_SNAPSHOT_STALENESS=2`), `tentura_perfsynth`, heavy viewer `U66728b9dba8d` (1 003 mutual-score rows). `mr_mutual_scores` was timed inside PostgreSQL (`clock_timestamp()` around the call in a `DO` block), n = 20, `mr_reset(); meritrank_init()` before each call. The graph was left loaded by the last `meritrank_init()`; no row was written.
+
+**Re-measurement.**
+- Re-measured the cold first read on MeritRank 0.12 (heavy viewer, empty peer cache, n = 20): p50 501.4 ms, p95 514.3 ms, min 484.5 ms, max 523.4 ms.
+- Only the MR score call was re-measured now; the end-to-end cold FULL read (586.6 ms p50 on the same stack) is the acceptance figure already recorded above and was not repeated.
+
+**Reading.**
+- The cold first read is about 0.5 s, not the 2–2.4 s the plan assumed when it made U48 conditional; MeritRank 0.12 snapshots removed most of that cost.
+- A cold read only follows an MR restart; a write that dirties walks does not cause one (FULL p95 107 ms with 1 write per 100 reads, recorded above).
+- The cache would still pay the cold first read once per viewer and MR epoch, so it would not remove the 0.5 s, only repeat reads after it, which are already about 93 ms warm FULL p50.
+- The cost is a migration, a counter bumped by every trust, block and relationship change, and a cache table whose staleness risk is the hard part of ARCH §7.4a.
+
+- **Decision:** no-build — cold first read is about 0.5 s on 0.12, warm FULL p95 is under half its frozen budget, and the cache would not remove the cold cost.
+
+The owner can close this bead and part 2 as not needed. The `trust_generation` pg tests are required only on a `build` decision, so none were written. Tests edited: none.
