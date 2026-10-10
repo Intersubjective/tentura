@@ -25,6 +25,30 @@ double nearestRankPercentile(List<double> samples, double p) {
   return sorted[rank - 1];
 }
 
+/// 95 % percentile-bootstrap interval of the nearest-rank p95 of [samples]
+/// ([resamples] resamples, fixed [seed], so a report is reproducible from its
+/// samples); `[0, 0]` when there are none.
+List<double> bootstrapP95Interval(
+  List<double> samples, {
+  int resamples = 5000,
+  int seed = 235,
+}) {
+  if (samples.isEmpty) return const [0, 0];
+  final random = Random(seed);
+  final estimates = <double>[];
+  final resample = List<double>.filled(samples.length, 0);
+  for (var r = 0; r < resamples; r++) {
+    for (var i = 0; i < samples.length; i++) {
+      resample[i] = samples[random.nextInt(samples.length)];
+    }
+    estimates.add(nearestRankPercentile(resample, 0.95));
+  }
+  return [
+    nearestRankPercentile(estimates, 0.025),
+    nearestRankPercentile(estimates, 0.975),
+  ];
+}
+
 /// One measured attempt: admission through response encoding, successful or
 /// not. [execution] is the part spent in the work under test itself.
 final class PerfAttempt {
@@ -126,10 +150,10 @@ final class PerfReport {
         'failed': failed,
         'succeeded': _attempts.length - failed,
       },
-      'latencyMs': _durations((a) => a.latency),
-      'executionMs': _durations((a) => a.execution),
+      'latencyMs': _durations((a) => a.latency, interval: true),
+      'executionMs': _durations((a) => a.execution, interval: true),
       'cursorWaitMs': _durations((a) => a.cursorWait),
-      'cursorHoldMs': _durations((a) => a.cursorHold),
+      'cursorHoldMs': _durations((a) => a.cursorHold, interval: true),
       'connectionQueueMs': _durations((a) => a.connectionQueueTime),
       'txAgeMs': _durations((a) => a.txAge),
       'queryCount': _counter((a) => a.queryCount),
@@ -140,9 +164,20 @@ final class PerfReport {
         'max': _attempts.fold<int>(0, (m, a) => max(m, a.lockWaiters)),
       },
       'explain': [for (final e in _explains) e.toJson()],
+      // Raw per-attempt samples in attempt order, so percentiles and their
+      // intervals can be recomputed from the report alone.
+      'samplesMs': {
+        'latency': _samples((a) => a.latency),
+        'execution': _samples((a) => a.execution),
+        'cursorHold': _samples((a) => a.cursorHold),
+      },
       ...extras,
     };
   }
+
+  List<double> _samples(Duration Function(PerfAttempt) pick) => [
+    for (final a in _attempts) pick(a).inMicroseconds / 1000,
+  ];
 
   /// Writes `<fixture>.json` into [directory], creating it when needed.
   Future<File> writeTo(Directory directory) async {
@@ -154,11 +189,15 @@ final class PerfReport {
     return file;
   }
 
-  Map<String, Object?> _durations(Duration Function(PerfAttempt) pick) {
-    final ms = [for (final a in _attempts) pick(a).inMicroseconds / 1000];
+  Map<String, Object?> _durations(
+    Duration Function(PerfAttempt) pick, {
+    bool interval = false,
+  }) {
+    final ms = _samples(pick);
     return {
       'p50': nearestRankPercentile(ms, 0.50),
       'p95': nearestRankPercentile(ms, 0.95),
+      if (interval) 'p95Ci95': bootstrapP95Interval(ms),
     };
   }
 

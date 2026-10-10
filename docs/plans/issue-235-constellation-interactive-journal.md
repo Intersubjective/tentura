@@ -934,3 +934,217 @@ Reading: `user_trust_edge` is a Seq Scan returning 999,000 rows in 108 ms, and t
 - **Decision:** no-build — cold first read is about 0.5 s on 0.12, warm FULL p95 is under half its frozen budget, and the cache would not remove the cold cost.
 
 The owner can close this bead and part 2 as not needed. The `trust_generation` pg tests are required only on a `build` decision, so none were written. Tests edited: none.
+
+## UNIT U26 — blocked (part 2/3: server perf gate and D8 load test, measured on the dev host) — 2026-10-10
+
+**Verdict: release gate BLOCKED. No release.** On the dev host, with the deployed images and the repo's pinned settings, the server completes about 3.0–3.9 FULL/s at the D8 population. D8 demand is 3.33 FULL/s, and the gate needs at least 4.33 FULL/s (30 % headroom). Measured headroom is −10 % to +18 %. Maximum staleness was 527–605 s against the 300 s bound. Write p95 was 16.5–17.3 s against 70 ms. Six of the 28 U41 fixtures are also over their frozen p95. Every failing row below links its JSON report.
+
+**D8 (owner-confirmed, ARCH §0, 2026-10-06):** 1,000 active sessions, global invalidation staleness at most 5 min while the field is visible. D8 demand = 1000 / 300 s = 3.33 FULL/s.
+
+### Where it ran, and what was tested
+
+- **Target environment (dev host `tentura-dev`).** 2 vCPU, 7.7 GiB RAM, x86_64, no swap. The live stack shares the host and was idle.
+- **Deployed versions (read-only `docker ps` / `docker inspect`, 2026-10-10).**
+  - `postgres` runs `vbulavintsev/postgres-tentura:v0.9.1` (`sha256:698db471…`): PostgreSQL 17.11, `pgmer2` 0.9.1.
+  - `meritrank` runs `vbulavintsev/meritrank-service:v0.12.0` (`sha256:6f68dd7b…`).
+  - `tentura` runs `ghcr.io/intersubjective/tentura:latest`, built 2026-10-06, live schema `0224`. It is not HEAD.
+  - All six live containers started on 2026-10-07T00:04Z.
+- **U47 settings, pinned and deployed (verified in the running `meritrank` container):** `MERITRANK_WALKS_CACHE_SIZE=300`, `MERITRANK_ON_DEMAND_NUM_WALKS=10000`, `MERITRANK_SNAPSHOT_STALENESS=2`. These match `compose.prod.yaml`, so the U47 part of the acceptance is met in the target deployment.
+- **Where dev's settings differ from the repo** (dev host override):
+  - `MERITRANK_NUM_WALKS=10000` (repo: 1000);
+  - `MERITRANK_ALPHA=0.15` (repo: 0.85);
+  - `shared_buffers=256MB`, `max_connections=200` and stricter logging.
+- **U45's `MERITRANK_RECV_TIMEOUT_MSEC=10000` is NOT deployed on dev.** The live `postgres` container still has 60000.
+- **Tested stack.** A separate compose project, `tentura-perf`, in its own directory, with its own network, a fresh data directory and one port bound to 127.0.0.1 only.
+  - Containers: `perf-postgres` (mem_limit 2 GB), `perf-meritrank` (1 GB) and a runner container (1 GB). Total: 4 GB.
+  - Images: the same as live (`postgres-tentura:v0.9.1`, `meritrank-service:v0.12.0`).
+  - Settings: exactly repo HEAD `compose.prod.yaml`, i.e. the release configuration. That includes the U47 values above, `MERITRANK_NUM_WALKS=1000`, alpha 0.85 and `MERITRANK_RECV_TIMEOUT_MSEC=10000`.
+- **Server code.** `packages/server/lib` at `4ec50cfe9`, unmodified, AOT-compiled (`dart compile exe`) into the test executables. The runner ran them in the perf network.
+
+### U45 and U47 status
+
+- **U47: acceptance met.** See the 2026-10-08 U47 acceptance run; the settings are deployed as listed above.
+- **U45: code and tests accepted on this deployment; not deployed.** Part 2 (`d2fd766ba`, bead tentura-s7gl.79, closed 2026-10-09) never got its own journal entry. This run executed its tests against the isolated stack with `TENTURA_PG_TESTS_REQUIRED=1`. The real blackhole is a `docker pause` of `perf-meritrank`, through a shim that refuses any other container. All passed with 0 skipped:
+  - `constellation_anchor_apply_mr_stall_pg_test` 5/5. A blackholed MR during apply gives a retryable error within budget + 100 ms, and the connection stays reusable. A blocking statement is cancelled at the 5 s budget. A fast MR failure is retryable and is not recorded as a rejection.
+  - `mutating_repeatable_read_statement_timeout_pg_test` 6/6.
+  - `mr_rpc_attempts_exposure_pg_test` 5/5.
+  - `perf_recorder_rpc_attempts_source_pg_test` 2/2.
+- **Not accepted for U45: the deployment.** The live dev `postgres` still has `MERITRANK_RECV_TIMEOUT_MSEC=60000`, and the live `tentura` image predates U45 part 2. "U45's verified connector build is deployed in the target environment" is therefore false today. It becomes true on the next deploy of HEAD.
+
+### U41 fixtures against the frozen budgets
+
+**Method.**
+- Matrix suites `perf_fixture_matrix_pg_only_pg_test` and `perf_fixture_matrix_meritrank_pg_test`, with `TENTURA_PERF_MATRIX_ATTEMPTS=30`. That is 30 metered attempts per fixture; the default is 3. Run serially in the runner container, next to the database.
+- Latency runs from admission through response encoding. Failed attempts are included (`scenario_failure_injection`: 15 of 30 failed by design). Execution is reported separately.
+- p95 is the nearest-rank p95. The p95 CI is a 95 % percentile bootstrap: 5,000 resamples, seed 235, computed from the raw samples now kept in each report (`samplesMs`).
+- Operation mapping and budgets are the U41 frozen table: FULL 250, ANCHORS 65, 1-op apply 70, 64-op apply 300, cursor-hold p95 50.
+- The budgets were calibrated on the U41 reference machine (i5-12600K, 12 threads). This host is not that machine. On the reference machine the same executable gave `candidates_c100` p50 29.5 ms; here it gave 64.7 ms, with a server-side execution of 0.26 ms. The fixtures' per-attempt client cost roughly doubles on this host.
+
+| Fixture | Operation | Samples | p95 ms | Execution p95 ms | p95 CI | Cursor-hold p95 ms | Budget p95 ms | Within | Report |
+|---|---|---|---|---|---|---|---|---|---|
+| `v100_sparse` | FULL (warm MR) | 30 | 33.435 | 33.181 | 25.1–106.0 | 0.000 | 250 | yes | `build/perf/u26_dev/v100_sparse.json` |
+| `v100_dense` | FULL (warm MR) | 30 | 31.910 | 31.662 | 25.2–146.1 | 0.000 | 250 | yes | `build/perf/u26_dev/v100_dense.json` |
+| `v300_sparse` | FULL (warm MR) | 30 | 36.462 | 36.114 | 27.7–251.1 | 0.000 | 250 | yes | `build/perf/u26_dev/v300_sparse.json` |
+| `v300_dense` | FULL (warm MR) | 30 | 35.086 | 34.773 | 26.1–383.3 | 0.000 | 250 | yes | `build/perf/u26_dev/v300_dense.json` |
+| `v1000_sparse` | FULL (warm MR) | 30 | 48.224 | 47.882 | 38.5–858.8 | 0.000 | 250 | yes | `build/perf/u26_dev/v1000_sparse.json` |
+| `v1000_dense` | FULL (warm MR) | 30 | 49.958 | 49.414 | 35.5–4172.8 | 0.000 | 250 | yes | `build/perf/u26_dev/v1000_dense.json` |
+| `fallback_reciprocal_u0` | FULL (warm MR) | 30 | 28.134 | 27.949 | 20.4–126.1 | 0.000 | 250 | yes | `build/perf/u26_dev/fallback_reciprocal_u0.json` |
+| `fallback_score_u0` | FULL (warm MR) | 30 | 25.639 | 25.437 | 22.0–105.7 | 0.000 | 250 | yes | `build/perf/u26_dev/fallback_score_u0.json` |
+| `fallback_reciprocal_u10` | FULL (warm MR) | 30 | 25.512 | 25.170 | 24.4–121.8 | 0.000 | 250 | yes | `build/perf/u26_dev/fallback_reciprocal_u10.json` |
+| `fallback_score_u10` | FULL (warm MR) | 30 | 45.867 | 45.593 | 31.5–135.3 | 0.000 | 250 | yes | `build/perf/u26_dev/fallback_score_u10.json` |
+| `fallback_reciprocal_u100` | FULL (warm MR) | 30 | 27.357 | 26.457 | 25.1–181.4 | 0.000 | 250 | yes | `build/perf/u26_dev/fallback_reciprocal_u100.json` |
+| `fallback_score_u100` | FULL (warm MR) | 30 | 33.963 | 33.477 | 24.9–178.1 | 0.000 | 250 | yes | `build/perf/u26_dev/fallback_score_u100.json` |
+| `fallback_reciprocal_u1000` | FULL (warm MR) | 30 | 66.132 | 65.237 | 55.5–1025.2 | 0.000 | 250 | yes | `build/perf/u26_dev/fallback_reciprocal_u1000.json` |
+| `fallback_score_u1000` | FULL (warm MR) | 30 | 70.092 | 69.577 | 48.3–872.9 | 0.000 | 250 | yes | `build/perf/u26_dev/fallback_score_u1000.json` |
+| `candidates_c100` | FULL (warm MR) | 30 | 79.098 | 79.092 | 70.5–84.1 | 0.000 | 250 | yes | `build/perf/u26_dev/candidates_c100.json` |
+| `candidates_c1000` | FULL (warm MR) | 30 | 90.534 | 90.528 | 78.3–118.9 | 0.000 | 250 | yes | `build/perf/u26_dev/candidates_c1000.json` |
+| `candidates_c10000` | FULL (warm MR) | 30 | 113.989 | 113.983 | 77.8–148.8 | 0.000 | 250 | yes | `build/perf/u26_dev/candidates_c10000.json` |
+| `anchors_a0` | ANCHORS (warm MR) | 30 | 95.298 | 95.294 | 82.4–109.8 | 0.000 | 65 | **no** | `build/perf/u26_dev/anchors_a0.json` |
+| `anchors_a20` | ANCHORS (warm MR) | 30 | 100.906 | 100.900 | 85.0–127.8 | 0.000 | 65 | **no** | `build/perf/u26_dev/anchors_a20.json` |
+| `anchors_a200` | ANCHORS (warm MR) | 30 | 102.615 | 102.610 | 90.1–107.3 | 0.000 | 65 | **no** | `build/perf/u26_dev/anchors_a200.json` |
+| `apply_batch_b1` | 1-op apply (warm MR) | 30 | 44.482 | 44.477 | 39.0–45.8 | 8.509 | 70 | yes | `build/perf/u26_dev/apply_batch_b1.json` |
+| `batch_b16` | 64-op apply (warm MR) | 30 | 104.262 | 104.258 | 97.5–114.4 | 0.000 | 300 | yes | `build/perf/u26_dev/batch_b16.json` |
+| `apply_batch_b64` | 64-op apply (warm MR) | 30 | 77.554 | 77.549 | 68.5–80.2 | 36.744 | 300 | yes | `build/perf/u26_dev/apply_batch_b64.json` |
+| `scenario_aged_logs` | 1-op apply (warm MR) | 30 | 85.331 | 85.325 | 80.4–89.5 | 0.000 | 70 | **no** | `build/perf/u26_dev/scenario_aged_logs.json` |
+| `scenario_rejection_ratio` | 64-op apply (warm MR) | 30 | 199.390 | 199.385 | 189.1–233.2 | 0.000 | 300 | yes | `build/perf/u26_dev/scenario_rejection_ratio.json` |
+| `scenario_multi_worker_tabs` | 1-op apply (warm MR) | 30 | 280.786 | 280.781 | 261.4–283.3 | 0.000 | 70 | **no** | `build/perf/u26_dev/scenario_multi_worker_tabs.json` |
+| `scenario_trust_churn` | FULL (warm MR) | 30 | 33.252 | 33.071 | 29.9–122.2 | 0.000 | 250 | yes | `build/perf/u26_dev/scenario_trust_churn.json` |
+| `scenario_failure_injection` | 1-op apply (warm MR) | 30 | 129.980 | 129.972 | 104.4–134.3 | 0.000 | 70 | **no** | `build/perf/u26_dev/scenario_failure_injection.json` |
+
+**Reading the fixtures.**
+- **Production paths are within budget.** `apply_batch_b1` is 44.5 ms (hold 8.5 ms). `apply_batch_b64` is 77.6 ms (hold 36.7 ms). The FULL trust, fallback and candidate fixtures stay under 115 ms.
+- **The over-budget rows are the pg-only raw-SQL proxies**, not production code:
+  - the ANCHORS read plus one placement under the cursor lock;
+  - the aged-log probe;
+  - four tabs on one cursor lock;
+  - every other attempt timing out.
+- **`scenario_multi_worker_tabs` misses its budget on the reference machine as well:** the local 3-attempt report has p95 128.5 ms.
+- **The trust fixtures' FULL has no Requests and uses a stub profile lookup.** It is far cheaper than the D8 dataset's FULL below.
+
+### D8 load test
+
+**Harness.** New: `test/perf/constellation_d8_load_{model,harness,pg_test}.dart`.
+- **Server side.** W = 2 worker isolates, the server's `WORKERS_COUNT` default on this 2-vCPU host. Each worker runs the production path:
+  - `TenturaDb(env)` on one pinned connection, and `ConstellationDbScheduler.fromEnv` with the production config: 2 concurrent, 1,000 queued, 10 s queue deadline, 30 % refresh share, `RETRY_LATER` after 2 s;
+  - `ConstellationFieldRepository.injected`, with the isolate-scoped single-flight of `ConstellationFieldCase`;
+  - `ConstellationAnchorRepository.injected` (lock-first `applyBatch`) and `DriftUserProfileBatchLookup`;
+  - the GraphQL mapping and JSON encoding;
+  - its own `PgNotificationService` LISTEN, plus the `WebsocketPathEntityChanges` dirty-generation broadcast: one hint per 30 s window.
+- **Client side.** 1,000 sessions follow the client `ConstellationFieldStoreCase` policy:
+  - a global hint is non-urgent: 220 ms debounce, and no sooner than 30 s + 0–3 s jitter after the last FULL dispatch;
+  - a load or reconnect catch-up dispatches immediately;
+  - `RETRY_LATER` is honoured.
+- **Publications.** A publication is a real trust change: an `UPDATE` of a `user_trust_edge` row plus `mr_put_edge` in one transaction. Its statement trigger emits the global `constellation_field` marker at commit.
+- **Writes.** One 1-op anchor `applyBatch` per 100 completed FULL reads, on a random worker. The first attempt counted `RETRY_LATER` responses as reads, so its writes outnumbered the plan's 1 per 100. It is discarded, kept only as `d8_publication_burst.try1-writes-per-request.json.bak` on the host.
+- **Not exercised:** HTTP/WebSocket framing, GraphQL parsing and auth. A measuring decorator records scheduler admission and execution times; it changes no decision.
+- **Dataset.** The `tentura_perfsynth` shape on a fresh schema: 3,000 users in 3 clusters with ~15 random reciprocal in-cluster pairs each, mirrored into MeritRank by `meritrank_init()`, and 14,000 open discoverable Requests. Each viewer sees about 1,000 peers.
+  - Publication and reconnect bursts: 1,000 distinct viewers, one tab each.
+  - Concurrent tabs: 500 viewers with 2 tabs each.
+- **Warm-up (not measured).** All sessions open over 60 s and complete their initial FULL. That took 210–281 s for 1,000 sessions. The harness then waits until every session's lazy spacing has passed.
+
+**Levels.** Both levels ran in the same process, on the same database and settings; `deployment` is identical in both.
+- `load`: 4 bursts of 5 trust changes, 80 s apart.
+- `capacity`: a burst every 30 s for 300 s, the most the client policy can ask for (≈ 31.7 FULL/s offered).
+- Each level then runs a full 300 s window after its last publication: 545 s for `load`, 605 s for `capacity`.
+- Reconnect burst: all 1,000 sessions drop their WebSocket at 40 s and reconnect at once at 120 s, missing one burst. At the capacity level they drop at 95 s and reconnect at 155 s, missing two bursts.
+
+| Scenario | Sessions | Workers | Tabs per viewer | Duration ms | Completed FULLs | FULL/s | Capacity FULL/s | Max staleness ms | Max queue age ms | Write p95 ms | Report |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| publication burst | 1000 | 2 | 1 | 545000 | 1705 | 3.128440 | 3.079339 | 544650.117 | 10019.438 | 16844.909 | `build/perf/u26_dev/d8_publication_burst.json` |
+| reconnect burst | 1000 | 2 | 1 | 545000 | 1683 | 3.088073 | 3.009917 | 544468.473 | 10018.161 | 16725.478 | `build/perf/u26_dev/d8_reconnect_burst.json` |
+| concurrent tabs | 1000 | 2 | 2 | 545000 | 2106 | 3.864220 | 3.922314 | 527066.606 | 10020.440 | 16849.233 | `build/perf/u26_dev/d8_concurrent_tabs.json` |
+
+**Capacity runs.** Same deployment.
+
+| Scenario (capacity level) | Duration ms | Completed FULLs | FULL/s | Peak FULL/s (10 s) | Max staleness ms | Unacknowledged (session × publication) | Write p95 ms | Writes |
+|---|---|---|---|---|---|---|---|---|
+| publication burst | 605000 | 1863 | 3.079 | 4.0 | 604841.2 | 6186 | 16842.0 | 18 |
+| reconnect burst | 605000 | 1821 | 3.010 | 3.8 | 604596.0 | 9462 | 17316.2 | 18 |
+| concurrent tabs | 605000 | 2373 | 3.922 | 5.9 | 592794.2 | 0 | 16500.0 | 23 |
+
+**What failed, against D8 demand of 3.33 FULL/s:**
+- **Throughput.** Load-level throughput is 3.09–3.86 FULL/s. Two of three scenarios fall below D8 demand itself.
+- **Headroom.** The gate needs 4.33 FULL/s. Sustained capacity is 3.01–3.92 FULL/s (headroom −9.7 %, −7.6 %, +17.7 %).
+- **Freshness.** Even at the load level, sessions miss the 300 s bound. Unacknowledged session × publication pairs: 1,380 (publication burst) and 2,085 (reconnect burst). Concurrent tabs acknowledged everything, but its maximum age was 527 s.
+- **Writes.** Write p95 is about 16.8 s against 70 ms.
+- **Write count.** The load runs completed 16–21 writes. That is fewer than the 30 an evidence reader needs for a p95, because only about 1,700–2,100 reads completed. The writes did run while refresh work was outstanding.
+
+**Why.**
+- **The server saturates at about 4–6 FULL/s on this host.** The busiest 10 s bucket peaked at 4.1–5.9 FULL/s.
+- **A FULL on this dataset is slow here.** It holds an admitted slot for 1.0–1.1 s (p50; p95 1.3–1.4 s), and returns 138 KB.
+- **The time is spent mostly outside PostgreSQL:**
+  - PostgreSQL itself spent about 260 ms per FULL: `constellation_trust_edges` mean 177 ms, plus the visible-set, Requests and posts reads.
+  - The two worker isolates used about one full vCPU, and PostgreSQL and MeritRank shared the other.
+- **Each burst asks for 1,000 FULLs within a few seconds of the hint.** With a 10 s queue deadline, most of them get `RETRY_LATER` (26,000–35,000 per run) and retry every 2 s.
+- **That makes the queue age pinned at the 10 s deadline.** Completed refreshes spent up to 10.0 s queued; the rest timed out and retried.
+- **Writes are slow even though they are cheap in the database.** A write waited 0.03–0.65 s for admission. It then spent 1.3–16.3 s inside its admitted body, while its own statements cost about 20–40 ms (pg_stat_statements means). The time goes to the worker's single connection and CPU behind admitted FULLs. The 16 s cases were not root-caused.
+- **Single-flight ran but did not keep up.** 529 and 549 follower joins in the two tabs runs. Retries after `RETRY_LATER` produced up to 4 computations per (viewer, generation), more than min(W, tabs) = 2.
+- **Reconnect catch-up was slow.** After the reconnect, p50 time to a current FULL was 214 s (load) and 305 s (capacity). 103 and 172 sessions never caught up within the run.
+
+**What this does and does not prove.**
+- It proves the HEAD server, on the deployed images with the release settings, cannot carry D8 on a 2-vCPU host. That host also has to run PostgreSQL and MeritRank.
+- It says nothing about a larger production host. The fixture budgets were frozen on a 12-thread reference machine, and production sizing is not declared anywhere.
+- Before any release, the owner needs to decide one of:
+  - declare the production host size and re-run this suite there;
+  - reduce FULL cost (trust-edge query, payload);
+  - change the refresh policy. The client currently refreshes at most every ~30 s, not once per D8 window as ARCH §7.3 assumed. A publication stream of one per 30 s therefore asks for ≈ 33 FULL/s at 1,000 sessions, not 3.3.
+
+**Live stack untouched.**
+- Before: read-only `pg_dump -Fc` to `/root/backups/tentura-dev-live-20261010T082854Z.dump` (1,041,602 B, SHA-256 `f6d65797c60d12bf7fde5a1cbf02b5f76c4c30b2da29c34b83718f563ac1de2a`, `pg_restore -l` lists 1,030 entries). `select count(*) from "user"` returned 329.
+- After cleanup: the same six container ids, the same 2026-10-07 start times, 0 restarts. `"user"` = 329, schema `0224`. The dump checksum is unchanged and it still lists.
+- The perf project was torn down (`docker compose -p tentura-perf down -v`) and its directory removed. No image was added or removed on the host.
+
+**Commands (from `packages/server`).** Every executable listed here is compiled with:
+
+```
+dart compile exe <test file> -o <name>.exe
+```
+
+| Executable | Test file |
+|---|---|
+| `matrix_pg.exe` | `test/perf/perf_fixture_matrix_pg_only_pg_test.dart` |
+| `matrix_mr.exe` | `test/perf/perf_fixture_matrix_meritrank_pg_test.dart` |
+| `d8_load.exe` | `test/perf/constellation_d8_load_pg_test.dart` |
+| `u45_*.exe` | the four U45 test files above |
+
+On the host, each executable runs in a container on the perf network:
+
+```
+docker run --rm --network tentura-perf-net --memory 1g -v <run dir>:/work -w /work \
+  -e POSTGRES_HOST=perf-postgres -e POSTGRES_PORT=5432 -e POSTGRES_PASSWORD \
+  <env> --entrypoint /work/bin/<exe> badouralix/curl-jq:ubuntu
+```
+
+The `<env>` per run:
+
+| Run | Environment |
+|---|---|
+| Fixtures | `TENTURA_PERF_MATRIX_ATTEMPTS=30` |
+| D8 | `TENTURA_D8_SCENARIOS=<publication_burst\|reconnect_burst\|concurrent_tabs>` and `TENTURA_D8_DEPLOYMENT_FILE` |
+
+The U45 tests ran directly on the host against `127.0.0.1:55432`, with `TENTURA_PG_TESTS_REQUIRED=1`, `TENTURA_MERITRANK_CONTAINER=perf-meritrank` and the docker shim. The runner refused to start a run while the host load average was 1.5 or more, or while any live container was down.
+
+**Evidence.**
+- Reports are kept in two places:
+  - locally, in `packages/server/build/perf/u26_dev/` (gitignored), with `SHA256SUMS`;
+  - on the host, in `/root/backups/u26_dev_results/` with the run logs.
+- SHA-256 of the D8 reports:
+  - `d8_publication_burst.json` `806ca068180a0d4d9789eb31fa905cb95ee5e9ec2e8ce14d28890c2874bedee7`
+  - `d8_reconnect_burst.json` `67befb321da665b987031aad8bfa94c082fac6ed680546bf6e0b4031b7d62fa5`
+  - `d8_concurrent_tabs.json` `05927178a159fc32ccbe46265badf86f79824c27df2d09b9a0b2dd9de537e698`
+- Each D8 report holds every event record:
+  - sessions, publications, completed refreshes and requests;
+  - reconnects, writes, failed refreshes and writes, and hints;
+  - in both `loadEvidence` and `capacityEvidence`.
+
+**Changes (tests and tools only; no production code).**
+- `PerfReport` now keeps raw samples and a bootstrap p95 interval.
+- The matrix suites take `TENTURA_PERF_MATRIX_ATTEMPTS` and `TENTURA_PERF_MATRIX_CASES`.
+- New D8 model, harness and pg test, plus a pure unit test of the client policy and the metrics.
+
+**Tests.**
+- `constellation_d8_load_model_test` + `perf_report_test`: 34/34.
+- `perf_fixture_matrix_test`: 35/35.
+- `perf_tag_default_exclusion_test` passes.
+- `perf_suite_runner_test` has one failure that predates this change. It is "a pg-only suite never touches the MeritRank graph", raised by `person_visible_set_cache_warm_full_perf_pg_test.dart` from `4ec50cfe9`.
+- Tests edited: none weakened.

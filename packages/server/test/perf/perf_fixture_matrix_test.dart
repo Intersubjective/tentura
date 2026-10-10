@@ -345,4 +345,25 @@ void main() {
       expect(PerfFixtureMatrix.missingReports(dir), contains(first.name));
     });
   });
+
+  group('perf matrix run selection', () {
+    test('attempts default to 3 and follow the environment', () {
+      expect(perfMatrixAttempts(const {}), 3);
+      expect(perfMatrixAttempts(const {perfMatrixAttemptsEnvVar: '30'}), 30);
+      expect(
+        () => perfMatrixAttempts(const {perfMatrixAttemptsEnvVar: '0'}),
+        throwsArgumentError,
+      );
+    });
+
+    test('an empty selection runs every case, a list only those', () {
+      final first = PerfFixtureMatrix.cases.first;
+      final last = PerfFixtureMatrix.cases.last;
+      final only = {perfMatrixCasesEnvVar: ' ${first.name} ,other'};
+
+      expect(perfMatrixCaseSelected(last, const {}), isTrue);
+      expect(perfMatrixCaseSelected(first, only), isTrue);
+      expect(perfMatrixCaseSelected(last, only), isFalse);
+    });
+  });
 }

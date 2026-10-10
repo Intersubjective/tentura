@@ -271,6 +271,35 @@ abstract final class PerfFixtureMatrix {
   ];
 }
 
+/// Measured attempts per matrix case, from `TENTURA_PERF_MATRIX_ATTEMPTS`.
+///
+/// The default (3) only proves every case writes its report. A release perf
+/// gate (#235 U26) sets 30 or more, enough for a p95 with an interval.
+int perfMatrixAttempts([Map<String, String>? environment]) {
+  final raw = (environment ?? Platform.environment)[perfMatrixAttemptsEnvVar];
+  if (raw == null || raw.trim().isEmpty) return 3;
+  final attempts = int.tryParse(raw.trim());
+  if (attempts == null || attempts < 1) {
+    throw ArgumentError.value(raw, perfMatrixAttemptsEnvVar, 'must be >= 1');
+  }
+  return attempts;
+}
+
+const perfMatrixAttemptsEnvVar = 'TENTURA_PERF_MATRIX_ATTEMPTS';
+
+/// Optional comma-separated case names (`TENTURA_PERF_MATRIX_CASES`); unset
+/// or empty runs every case. Lets a rerun repeat one case without the rest.
+bool perfMatrixCaseSelected(
+  PerfFixtureCase c, [
+  Map<String, String>? environment,
+]) {
+  final raw = (environment ?? Platform.environment)[perfMatrixCasesEnvVar];
+  if (raw == null || raw.trim().isEmpty) return true;
+  return raw.split(',').map((n) => n.trim()).contains(c.name);
+}
+
+const perfMatrixCasesEnvVar = 'TENTURA_PERF_MATRIX_CASES';
+
 bool _isFullReport(File file, PerfFixtureCase c) {
   if (!file.existsSync()) return false;
   try {

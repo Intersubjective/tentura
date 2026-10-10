@@ -18,6 +18,7 @@ Future<void> main() async {
     defaultNamePrefix: 'tentura_test_perf_matrix_pg',
   );
   final reachable = await canReachPostgresAdmin(target);
+  final attempts = perfMatrixAttempts();
   final skipReason = reachable
       ? false
       : 'Postgres admin database not reachable for perf matrix test';
@@ -43,13 +44,13 @@ Future<void> main() async {
           final file = await c.record(
             session: session,
             seed: seed,
-            attempts: 3,
+            attempts: attempts,
           );
 
-          expectReportWritten(c, written: file, minAttempts: 3);
+          expectReportWritten(c, written: file, minAttempts: attempts);
         },
         timeout: const Timeout(Duration(minutes: 30)),
-        skip: skipReason,
+        skip: perfMatrixCaseSelected(c) ? skipReason : 'not selected',
       );
     }
   });

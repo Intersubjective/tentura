@@ -212,5 +212,34 @@ void main() {
     test('the default output directory is build/perf', () {
       expect(PerfReport.defaultOutputDirectory.path, 'build/perf');
     });
+
+    test('keeps the raw samples and a p95 interval around the p95', () {
+      final report = PerfReport(fixture: 'unit_fixture');
+      for (var i = 1; i <= 40; i++) {
+        report.add(_attempt(latencyMs: i, executionMs: i ~/ 2));
+      }
+
+      final json = report.toJson();
+      final samples = _section(json, 'samplesMs');
+      final latency = _section(json, 'latencyMs');
+      final interval = (latency['p95Ci95']! as List<Object?>).cast<double>();
+
+      expect(samples['latency'], [for (var i = 1; i <= 40; i++) i.toDouble()]);
+      expect(samples['execution'], hasLength(40));
+      expect(interval, hasLength(2));
+      expect(interval.first, lessThanOrEqualTo(latency['p95']! as double));
+      expect(interval.last, greaterThanOrEqualTo(latency['p95']! as double));
+      expect(interval.last, lessThanOrEqualTo(40));
+    });
+  });
+
+  group('bootstrapP95Interval', () {
+    test('is reproducible and collapses on constant samples', () {
+      final samples = [for (var i = 0; i < 30; i++) (i * 7 % 13).toDouble()];
+
+      expect(bootstrapP95Interval(samples), bootstrapP95Interval(samples));
+      expect(bootstrapP95Interval([5, 5, 5]), [5, 5]);
+      expect(bootstrapP95Interval([]), [0, 0]);
+    });
   });
 }
