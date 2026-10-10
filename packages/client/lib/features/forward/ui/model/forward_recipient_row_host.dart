@@ -111,6 +111,25 @@ ForwardRecipientLine2 computeForwardRecipientLine2({
   TenturaTone? tierEvidenceTone,
   bool showPresenceLine = true,
 }) {
+  // A paused person cannot be picked; say why even where a tier label or
+  // the suppressed exploration line would otherwise take the slot.
+  if (host.showsAvailability &&
+      candidate.isReachable &&
+      !forwardRecipientAlreadyIneligibleInvolvement(candidate.involvement) &&
+      forwardRecipientPauseReplacesRelation(candidate.involvement) &&
+      candidate.profile.availability.effectiveOn(todayUtc) ==
+          AvailabilityView.paused) {
+    final resumeOn = candidate.profile.availability.resumeOn;
+    assert(resumeOn != null);
+    return ForwardRecipientLine2(
+      presenceOrAvailabilityLine: l10n.availabilityPausedUntil(
+        availabilityWhenLabel(l10n, resumeOn!, todayUtc),
+      ),
+      presenceOrAvailabilityTone: TenturaTone.neutral,
+      presenceOrAvailabilityUsesStatusText: true,
+    );
+  }
+
   if (tierEvidenceLabel != null) {
     return ForwardRecipientLine2(
       tierEvidenceLabel: tierEvidenceLabel,

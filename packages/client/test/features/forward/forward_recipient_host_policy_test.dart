@@ -709,6 +709,72 @@ void main() {
       );
     });
 
+    for (final band in [
+      (name: 'tier label', tier: 'Band evidence', presence: true),
+      (name: 'exploration', tier: null, presence: false),
+    ]) {
+      testWidgets('pickerBand ${band.name}: paused row says why, disabled', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: L10n.localizationsDelegates,
+            supportedLocales: L10n.supportedLocales,
+            theme: TenturaTheme.light(),
+            home: BlocProvider<ProfileCubit>.value(
+              value: _MockProfileCubit(),
+              child: Scaffold(
+                body: Column(
+                  children: [
+                    ForwardRecipientRow(
+                      host: ForwardRecipientRowHost.pickerBand,
+                      candidate: _candidate(
+                        id: 'Paused User',
+                        availability: Availability(resumeOn: _resumeOn),
+                      ),
+                      isSelected: false,
+                      onToggle: () {},
+                      tierEvidenceLabel: band.tier,
+                      showPresenceLine: band.presence,
+                      todayUtc: _todayUtc,
+                    ),
+                    ForwardRecipientRow(
+                      host: ForwardRecipientRowHost.pickerBand,
+                      candidate: _candidate(id: 'Open User'),
+                      isSelected: false,
+                      onToggle: () {},
+                      tierEvidenceLabel: band.tier,
+                      showPresenceLine: band.presence,
+                      todayUtc: _todayUtc,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(
+          find.textContaining('Not taking new requests until'),
+          findsOneWidget,
+        );
+        final paused = tester.widget<InkWell>(
+          find
+              .descendant(
+                of: find.byKey(
+                  TestIds.key(
+                    TestIds.forwardRecipientCheckbox('Paused User'),
+                  ),
+                ),
+                matching: find.byType(InkWell),
+              )
+              .first,
+        );
+        expect(paused.onTap, isNull);
+      });
+    }
+
     testWidgets('lineagePreview hides availability', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
