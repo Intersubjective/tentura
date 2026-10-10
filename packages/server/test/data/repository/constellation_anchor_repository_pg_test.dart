@@ -9,7 +9,8 @@ import 'package:test/test.dart';
 
 import 'package:tentura_server/consts/constellation_consts.dart';
 import 'package:tentura_server/data/database/migration/_migrations.dart';
-import 'package:tentura_server/data/database/tentura_db.dart' hide ConstellationAnchor;
+import 'package:tentura_server/data/database/tentura_db.dart'
+    hide ConstellationAnchor;
 import 'package:tentura_server/data/repository/constellation_anchor_repository.dart';
 import 'package:tentura_server/data/database/postgres_serialization_retry.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
@@ -17,6 +18,7 @@ import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../database/constellation_anchor_pg_retry_probe.dart';
 
 import '../../support/constellation_anchor_batch_fixture.dart';
+import '../../support/constellation_anchor_tombstone_fixture.dart';
 import '../../support/disposable_pg_target.dart';
 
 Future<void> main() async {
@@ -24,10 +26,7 @@ Future<void> main() async {
     envVarName: 'TENTURA_CONSTELLATION_ANCHOR_REPO_TEST_DB',
     defaultNamePrefix: 'tentura_test_carepo',
   );
-  final reachable = await canReachPostgresAdmin(target);
-  final skipReason = reachable
-      ? false
-      : 'Postgres admin database not reachable for disposable test target';
+  final skipReason = await pgSkipReason(target);
 
   group('constellation anchor repository concurrency', () {
     late Connection writer;
@@ -136,96 +135,110 @@ ON CONFLICT (id) DO NOTHING
       await target.drop();
     });
 
-    test('same-target concurrent upserts settle with last-write-wins ordering', () async {
-      final results = await Future.wait([
-        repo1.applyAnchorUpsert(
-          viewerId: viewer,
-        context: kConstellationContext,
-          target: ConstellationAnchorTarget.person(person),
-          position: pos(1, 1),
-        ),
-        repo2.applyAnchorUpsert(
-          viewerId: viewer,
-        context: kConstellationContext,
-          target: ConstellationAnchorTarget.person(person),
-          position: pos(2, 2),
-        ),
-      ]);
-      final row = await writer.execute('''
+    test(
+      'same-target concurrent upserts settle with last-write-wins ordering',
+      () async {
+        final results = await Future.wait([
+          repo1.applyAnchorUpsert(
+            viewerId: viewer,
+            context: kConstellationContext,
+            target: ConstellationAnchorTarget.person(person),
+            position: pos(1, 1),
+          ),
+          repo2.applyAnchorUpsert(
+            viewerId: viewer,
+            context: kConstellationContext,
+            target: ConstellationAnchorTarget.person(person),
+            position: pos(2, 2),
+          ),
+        ]);
+        final row = await writer.execute('''
 SELECT x_units::float8, y_units::float8, revision
 FROM public.constellation_anchor
 WHERE viewer_id = '$viewer' AND person_id = '$person'
 ''');
-      expect(row.length, 1);
-      final revRaw = row.single[2];
-      final rev = revRaw is BigInt ? revRaw : BigInt.from(revRaw as int);
-      expect(rev, greaterThan(BigInt.zero));
-      final maxResultRev = results
-          .map((r) => r.anchor.revision.value)
-          .reduce((a, b) => a > b ? a : b);
-      expect(maxResultRev, rev);
-    });
-
-    test('delete-vs-move on different targets serializes under one cursor', () async {
-      await repo1.applyAnchorUpsert(
-        viewerId: viewer,
-        context: kConstellationContext,
-        target: ConstellationAnchorTarget.person(person),
-        position: pos(1, 1),
-      );
-      await repo1.applyAnchorUpsert(
-        viewerId: viewer,
-        context: kConstellationContext,
-        target: ConstellationAnchorTarget.beacon(beacon),
-        position: pos(3, 3),
-      );
-
-      await Future.wait([
-        repo1.applyAnchorDelete(
-          viewerId: viewer,
-          target: ConstellationAnchorTarget.person(person),
-        ),
-        repo2.applyAnchorUpsert(
-          viewerId: viewer,
-        context: kConstellationContext,
-          target: ConstellationAnchorTarget.beacon(beacon),
-          position: pos(4, 4),
-        ),
-      ]);
-
-      final personRows = await writer.execute('''
-SELECT count(*)::int FROM public.constellation_anchor
-WHERE viewer_id = '$viewer' AND person_id IS NOT NULL
-''');
-      expect(personRows.single.single, 0);
-      final beaconRow = await writer.execute('''
-SELECT x_units::float8 FROM public.constellation_anchor
-WHERE viewer_id = '$viewer' AND beacon_id = '$beacon'
-''');
-      expect(beaconRow.single.single, 4.0);
-    });
+        expect(row.length, 1);
+        final revRaw = row.single[2];
+        final rev = revRaw is BigInt ? revRaw : BigInt.from(revRaw as int);
+        expect(rev, greaterThan(BigInt.zero));
+        final maxResultRev = results
+            .map((r) => r.anchor.revision.value)
+            .reduce((a, b) => a > b ? a : b);
+        expect(maxResultRev, rev);
+      },
+    );
 
     test(
-      'beacon cascade delete concurrent with person upsert completes via retry',
+      'delete-vs-move on different targets serializes under one cursor',
       () async {
         await repo1.applyAnchorUpsert(
           viewerId: viewer,
-        context: kConstellationContext,
+          context: kConstellationContext,
+          target: ConstellationAnchorTarget.person(person),
+          position: pos(1, 1),
+        );
+        await repo1.applyAnchorUpsert(
+          viewerId: viewer,
+          context: kConstellationContext,
+          target: ConstellationAnchorTarget.beacon(beacon),
+          position: pos(3, 3),
+        );
+
+        await Future.wait([
+          repo1.applyAnchorDelete(
+            viewerId: viewer,
+            target: ConstellationAnchorTarget.person(person),
+          ),
+          repo2.applyAnchorUpsert(
+            viewerId: viewer,
+            context: kConstellationContext,
+            target: ConstellationAnchorTarget.beacon(beacon),
+            position: pos(4, 4),
+          ),
+        ]);
+
+        final personRows = await writer.execute('''
+SELECT count(*)::int FROM public.constellation_anchor
+WHERE viewer_id = '$viewer' AND person_id IS NOT NULL
+''');
+        expect(personRows.single.single, 0);
+        final beaconRow = await writer.execute('''
+SELECT x_units::float8 FROM public.constellation_anchor
+WHERE viewer_id = '$viewer' AND beacon_id = '$beacon'
+''');
+        expect(beaconRow.single.single, 4.0);
+      },
+    );
+
+    test(
+      'target deletion retains the Request pin while a concurrent person placement completes',
+      () async {
+        await repo1.applyAnchorUpsert(
+          viewerId: viewer,
+          context: kConstellationContext,
           target: ConstellationAnchorTarget.beacon(beacon),
           position: pos(1, 1),
         );
         await repo1.applyAnchorUpsert(
           viewerId: viewer,
-        context: kConstellationContext,
+          context: kConstellationContext,
           target: ConstellationAnchorTarget.person(person),
           position: pos(1, 1),
         );
 
+        final before = await readStoredConstellationAnchors(
+          writer,
+          viewerId: viewer,
+        );
+        final requestBefore = before.singleWhere(
+          (row) => row['beacon_id'] == beacon,
+        );
+        final revisionBefore = await repo1.readWatermark(viewer);
         await Future.wait([
           writer.execute("DELETE FROM public.beacon WHERE id = '$beacon'"),
           repo2.applyAnchorUpsert(
             viewerId: viewer,
-        context: kConstellationContext,
+            context: kConstellationContext,
             target: ConstellationAnchorTarget.person(person),
             position: pos(2, 2),
           ),
@@ -234,7 +247,20 @@ WHERE viewer_id = '$viewer' AND beacon_id = '$beacon'
         final anchors = await writer.execute('''
 SELECT count(*)::int FROM public.constellation_anchor WHERE viewer_id = '$viewer'
 ''');
-        expect(anchors.single.single, 1);
+        expect(anchors.single.single, 2);
+        final retained = await readStoredConstellationAnchors(
+          writer,
+          viewerId: viewer,
+        );
+        expectRetainedPinTombstone(
+          retained.singleWhere((row) => row['id'] == requestBefore['id']),
+          requestBefore,
+          ConstellationAnchorTarget.beacon(beacon),
+        );
+        expect(
+          (await repo1.readWatermark(viewer)).value,
+          revisionBefore.value + BigInt.two,
+        );
         final personRow = await writer.execute('''
 SELECT x_units::float8 FROM public.constellation_anchor
 WHERE viewer_id = '$viewer' AND person_id = '$person'
@@ -245,7 +271,7 @@ WHERE viewer_id = '$viewer' AND person_id = '$person'
     );
 
     test(
-      'person cascade delete concurrent with beacon upsert completes via retry',
+      'target deletion retains the person pin while a concurrent Request placement completes',
       () async {
         const extraPerson = 'Ucarepopeer02';
         await writer.execute('''
@@ -261,30 +287,38 @@ ON CONFLICT (subject, object) DO UPDATE SET amount = EXCLUDED.amount
 ''');
         await repo1.applyAnchorUpsert(
           viewerId: viewer,
-        context: kConstellationContext,
+          context: kConstellationContext,
           target: ConstellationAnchorTarget.person(person),
           position: pos(1, 1),
         );
         await repo1.applyAnchorUpsert(
           viewerId: viewer,
-        context: kConstellationContext,
+          context: kConstellationContext,
           target: ConstellationAnchorTarget.beacon(beacon),
           position: pos(1, 1),
         );
         await repo1.applyAnchorUpsert(
           viewerId: viewer,
-        context: kConstellationContext,
+          context: kConstellationContext,
           target: ConstellationAnchorTarget.person(extraPerson),
           position: pos(0, 0),
         );
 
+        final before = await readStoredConstellationAnchors(
+          writer,
+          viewerId: viewer,
+        );
+        final personBefore = before.singleWhere(
+          (row) => row['person_id'] == extraPerson,
+        );
+        final revisionBefore = await repo1.readWatermark(viewer);
         await Future.wait([
           writer.execute(
             "DELETE FROM public.\"user\" WHERE id = '$extraPerson'",
           ),
           repo2.applyAnchorUpsert(
             viewerId: viewer,
-        context: kConstellationContext,
+            context: kConstellationContext,
             target: ConstellationAnchorTarget.beacon(beacon),
             position: pos(5, 5),
           ),
@@ -299,7 +333,22 @@ WHERE viewer_id = '$viewer' AND beacon_id = '$beacon'
 SELECT count(*)::int FROM public.constellation_anchor
 WHERE viewer_id = '$viewer' AND person_id = '$extraPerson'
 ''');
+        // The live FK is cleared while the original placement remains stored.
         expect(extraRows.single.single, 0);
+        final retained = await readStoredConstellationAnchors(
+          writer,
+          viewerId: viewer,
+        );
+        expect(retained, hasLength(3));
+        expectRetainedPinTombstone(
+          retained.singleWhere((row) => row['id'] == personBefore['id']),
+          personBefore,
+          ConstellationAnchorTarget.person(extraPerson),
+        );
+        expect(
+          (await repo1.readWatermark(viewer)).value,
+          revisionBefore.value + BigInt.two,
+        );
       },
       timeout: const Timeout(Duration(seconds: 30)),
     );
@@ -309,7 +358,7 @@ WHERE viewer_id = '$viewer' AND person_id = '$extraPerson'
       () async {
         await repo1.applyAnchorUpsert(
           viewerId: viewer,
-        context: kConstellationContext,
+          context: kConstellationContext,
           target: ConstellationAnchorTarget.person(person),
           position: pos(1, 1),
         );
@@ -323,7 +372,7 @@ WHERE viewer_id = '$viewer' AND person_id = '$extraPerson'
 
         final result = await repo2.applyAnchorUpsert(
           viewerId: viewer,
-        context: kConstellationContext,
+          context: kConstellationContext,
           target: ConstellationAnchorTarget.person(person),
           position: pos(7, 7),
         );
@@ -347,7 +396,7 @@ WHERE viewer_id = '$viewer' AND person_id = '$extraPerson'
       () async {
         await repo1.applyAnchorUpsert(
           viewerId: viewer,
-        context: kConstellationContext,
+          context: kConstellationContext,
           target: ConstellationAnchorTarget.person(person),
           position: pos(1, 1),
         );
@@ -362,7 +411,7 @@ WHERE viewer_id = '$viewer' AND person_id = '$extraPerson'
         await expectLater(
           repo2.applyAnchorUpsert(
             viewerId: viewer,
-        context: kConstellationContext,
+            context: kConstellationContext,
             target: ConstellationAnchorTarget.person(person),
             position: pos(8, 8),
           ),
@@ -371,7 +420,9 @@ WHERE viewer_id = '$viewer' AND person_id = '$extraPerson'
               // The batch path retries up to its attempt/deadline budget, then
               // surfaces either the last 40P01 or the deadline wrapper of it.
               (e) => isServerExceptionSqlState(
-                e is PostgresRetryDeadlineExceededException ? e.cause as Object : e,
+                e is PostgresRetryDeadlineExceededException
+                    ? e.cause as Object
+                    : e,
                 '40P01',
               ),
             ),
@@ -406,7 +457,7 @@ WHERE viewer_id = '$viewer' AND person_id = '$person'
       () async {
         await repo1.applyAnchorUpsert(
           viewerId: viewer,
-        context: kConstellationContext,
+          context: kConstellationContext,
           target: ConstellationAnchorTarget.beacon(beacon),
           position: pos(1, 1),
         );
@@ -446,4 +497,3 @@ WHERE viewer_id = '$viewer' AND beacon_id = '$beacon'
 Future<void> _settleNotifications() async {
   await Future<void>.delayed(const Duration(milliseconds: 50));
 }
-

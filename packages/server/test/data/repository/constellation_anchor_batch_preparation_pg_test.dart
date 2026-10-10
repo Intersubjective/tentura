@@ -6,6 +6,7 @@ import 'dart:async';
 import 'package:drift_postgres/drift_postgres.dart';
 import 'package:postgres/postgres.dart' show Connection, Session;
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
+import 'package:tentura_server/api/controllers/graphql/mappers/constellation_gql_maps.dart';
 import 'package:tentura_server/consts/constellation_consts.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide ConstellationAnchor, isNotNull, isNull;
@@ -21,6 +22,7 @@ import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 import 'package:test/test.dart';
 
 import '../../support/constellation_profiles_from_public_records.dart';
+import '../../support/constellation_anchor_tombstone_fixture.dart';
 import '../../support/disposable_pg_target.dart';
 import '../../support/pg_wait.dart';
 
@@ -547,14 +549,21 @@ SELECT public.mr_put_edge('$viewer', '$churnA', $amount::double precision, '$con
     for (final mutation in [
       'anchor placement',
       'visibility revocation',
-      'cascade deletion',
+      'target deletion',
     ]) {
       test(
-        '$mutation retries the prepared snapshot and returns final rows',
+        mutation == 'target deletion'
+            ? 'deleted person retains a tombstone when a concurrent placement retries its snapshot'
+            : '$mutation retries the prepared snapshot and returns final rows',
         () async {
           await apply([
             pin('seed-pin', ConstellationAnchorTarget.person(peers.first)),
           ]);
+          final original = await readStoredConstellationAnchors(
+            fixture.writer,
+            viewerId: viewer,
+          );
+          expect(original, hasLength(1));
           clearObservations();
           Future<AnchorApplyBatchResult>? pending;
           Object? batchError;
@@ -606,7 +615,7 @@ VALUES ('CAbatchforeign01', '$viewer', '${peers[2]}', 7, 8, 1, 0, 'epoch')
 INSERT INTO public.user_block (blocker_id, blocked_id, origin_id)
 VALUES ('$viewer', '${peers.first}', '$viewer')
 ''');
-                case 'cascade deletion':
+                case 'target deletion':
                   // A live owned Request would trip beacon_owner_or_deleted_ck.
                   await tx.execute(
                     "DELETE FROM public.beacon WHERE user_id = '${peers.first}'",
@@ -637,6 +646,45 @@ WHERE viewer_id = '$viewer'
                 (await freshAnchors()).anchors.map((a) => a.target.id),
                 containsAll([peers[0], peers[1], peers[2]]),
               );
+            } else if (mutation == 'target deletion') {
+              // Placements belong to the viewer: target deletion preserves the
+              // pin as a tombstone instead of removing it from the new snapshot.
+              final snapshot = await freshAnchors();
+              expect(
+                snapshot.anchors.map((anchor) => anchor.target),
+                unorderedEquals([
+                  ConstellationAnchorTarget.person(peers.first),
+                  ConstellationAnchorTarget.person(peers[1]),
+                ]),
+              );
+              final retained = await readStoredConstellationAnchors(
+                fixture.writer,
+                viewerId: viewer,
+              );
+              expect(retained, hasLength(2));
+              expectRetainedPinTombstone(
+                retained.singleWhere(
+                  (row) => row['id'] == original.single['id'],
+                ),
+                original.single,
+                ConstellationAnchorTarget.person(peers.first),
+              );
+              final wire = constellationAnchorProjectionToGqlMap(snapshot);
+              final placeholder = (wire['pinnedPeers'] as List<dynamic>)
+                  .cast<Map<String, dynamic>>()
+                  .singleWhere((record) => record['id'] == peers.first);
+              expect(placeholder['pinState'], 'tombstone');
+              const identityFields = {'id', 'kind', 'targetKind', 'pinState'};
+              for (final entry in placeholder.entries) {
+                if (!identityFields.contains(entry.key)) {
+                  expect(
+                    entry.value,
+                    isNull,
+                    reason:
+                        'A deleted person placeholder must not expose ${entry.key}',
+                  );
+                }
+              }
             } else {
               expect(
                 (await freshAnchors()).anchors.map((a) => a.target.id),

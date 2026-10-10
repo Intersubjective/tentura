@@ -85,6 +85,7 @@ Map<String, dynamic> constellationAnchorsApplyResultToGqlMap(
 
 Map<String, dynamic> _peerToGqlMap(ConstellationPeerRecord peer) => {
   'id': peer.id,
+  'pinState': peer.pinState,
   'displayName': peer.displayName,
   'handle': peer.handle,
   'image': peer.image == null ? null : imagePublicToGqlMap(peer.image!),
@@ -96,28 +97,34 @@ Map<String, dynamic> _edgeToGqlMap(ConstellationEdgeRecord edge) => {
   'tier': edge.tier,
 };
 
-Map<String, dynamic> _requestToGqlMap(ConstellationRequestRecord request) => {
-  'id': request.id,
-  'authorId': request.authorId,
-  'title': request.title,
-  'status': request.status,
-  'needs': request.needs,
-  'primaryNeedSlug': request.primaryNeedSlug,
-  'startAt': request.startAt?.toIso8601String(),
-  'endAt': request.endAt?.toIso8601String(),
-  'addressLabel': request.addressLabel,
-  'hasCoordinates': request.hasCoordinates,
-  'isMine': request.isMine,
-  'viewerHasActiveHelpOffer': request.viewerHasActiveHelpOffer,
-  'viewerIsRoomParticipant': request.viewerIsRoomParticipant,
-  'viewerHasForwardEdge': request.viewerHasForwardEdge,
-  'helpOfferCount': request.helpOfferCount,
-  'kind': request.kind,
-  'coverSource': request.coverSource,
-  'coverThumb': request.coverThumb == null
-      ? null
-      : imagePublicToGqlMap(request.coverThumb!),
-};
+Map<String, dynamic> _requestToGqlMap(ConstellationRequestRecord request) =>
+    request.pinState != null
+    ? {'id': request.id, 'pinState': request.pinState}
+    : _liveRequestToGqlMap(request);
+
+Map<String, dynamic> _liveRequestToGqlMap(ConstellationRequestRecord request) =>
+    {
+      'id': request.id,
+      'authorId': request.authorId,
+      'title': request.title,
+      'status': request.status,
+      'needs': request.needs,
+      'primaryNeedSlug': request.primaryNeedSlug,
+      'startAt': request.startAt?.toIso8601String(),
+      'endAt': request.endAt?.toIso8601String(),
+      'addressLabel': request.addressLabel,
+      'hasCoordinates': request.hasCoordinates,
+      'isMine': request.isMine,
+      'viewerHasActiveHelpOffer': request.viewerHasActiveHelpOffer,
+      'viewerIsRoomParticipant': request.viewerIsRoomParticipant,
+      'viewerHasForwardEdge': request.viewerHasForwardEdge,
+      'helpOfferCount': request.helpOfferCount,
+      'kind': request.kind,
+      'coverSource': request.coverSource,
+      'coverThumb': request.coverThumb == null
+          ? null
+          : imagePublicToGqlMap(request.coverThumb!),
+    };
 
 Map<String, dynamic> _postToGqlMap(ConstellationPostRecord post) => {
   'id': post.id,

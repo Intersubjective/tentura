@@ -852,6 +852,7 @@ final gqlTypeConstellationPeer =
         field('displayName', graphQLString),
         field('handle', graphQLString),
         field('image', gqlTypeImagePublic),
+        field('pinState', graphQLString),
       ]);
 
 /// Two-tier trust edge between constellation peers (ids + tier only).
@@ -874,26 +875,27 @@ final gqlTypeConstellationRequest =
       )
       ..fields.addAll([
         field('id', graphQLString.nonNullable()),
-        field('authorId', graphQLString.nonNullable()),
-        field('title', graphQLString.nonNullable()),
-        field('status', graphQLInt.nonNullable()),
+        field('authorId', graphQLString),
+        field('title', graphQLString),
+        field('status', graphQLInt),
         field(
           'needs',
-          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+          GraphQLListType(graphQLString.nonNullable()),
         ),
         field('primaryNeedSlug', graphQLString),
         field('startAt', graphQLString),
         field('endAt', graphQLString),
         field('addressLabel', graphQLString),
-        field('hasCoordinates', graphQLBoolean.nonNullable()),
-        field('isMine', graphQLBoolean.nonNullable()),
-        field('viewerHasActiveHelpOffer', graphQLBoolean.nonNullable()),
-        field('viewerIsRoomParticipant', graphQLBoolean.nonNullable()),
-        field('viewerHasForwardEdge', graphQLBoolean.nonNullable()),
-        field('helpOfferCount', graphQLInt.nonNullable()),
-        field('kind', graphQLInt.nonNullable()),
-        field('coverSource', graphQLInt.nonNullable()),
+        field('hasCoordinates', graphQLBoolean),
+        field('isMine', graphQLBoolean),
+        field('viewerHasActiveHelpOffer', graphQLBoolean),
+        field('viewerIsRoomParticipant', graphQLBoolean),
+        field('viewerHasForwardEdge', graphQLBoolean),
+        field('helpOfferCount', graphQLInt),
+        field('kind', graphQLInt),
+        field('coverSource', graphQLInt),
         field('coverThumb', gqlTypeImagePublic),
+        field('pinState', graphQLString),
       ]);
 
 final gqlEnumConstellationMemberWebState = enumTypeFromStrings(

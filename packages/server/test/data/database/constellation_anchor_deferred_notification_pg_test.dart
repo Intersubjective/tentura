@@ -13,6 +13,7 @@ import 'package:tentura_server/data/database/tentura_db.dart'
 import 'package:tentura_server/data/repository/constellation_anchor_repository.dart';
 
 import '../../support/constellation_anchor_batch_fixture.dart';
+import '../../support/constellation_anchor_tombstone_fixture.dart';
 import '../../support/disposable_pg_target.dart';
 
 /// Constellation anchor realtime hints are emitted by deferred constraint
@@ -23,10 +24,7 @@ Future<void> main() async {
     envVarName: 'TENTURA_CONSTELLATION_ANCHOR_DEFERRED_NOTIFY_TEST_DB',
     defaultNamePrefix: 'tentura_test_cadefnotify',
   );
-  final reachable = await canReachPostgresAdmin(target);
-  final skipReason = reachable
-      ? false
-      : 'Postgres admin database not reachable for disposable test target';
+  final skipReason = await pgSkipReason(target);
 
   group('constellation anchor deferred notifications', () {
     late DisposablePgWriterSession session;
@@ -194,7 +192,7 @@ $$
       await writer.execute('''
 TRUNCATE public.constellation_anchor, public.constellation_anchor_cursor CASCADE
 ''');
-      // Tests that cascade-delete users or beacons must not poison later ones.
+      // Tests that delete target users or beacons must not poison later ones.
       await writer.execute('''
 INSERT INTO public."user" (id, display_name, public_key, created_at, updated_at)
 SELECT id, id, 'pk-' || id, now(), now()
@@ -291,50 +289,66 @@ WHERE viewer_id = '$viewer' AND beacon_id = '$beacon'
     );
 
     test(
-      'cascade deleting several anchors in one statement delivers one hint',
+      'deleting several pinned targets retains tombstones and delivers one committed hint',
       () async {
         await writer.runTx((tx) async {
           await insertAnchor(tx, viewerId: viewer, beaconTarget: beacon);
-          await insertAnchor(
-            tx,
-            viewerId: viewer,
-            personTarget: personId(0),
-          );
-          await insertAnchor(
-            tx,
-            viewerId: viewer,
-            personTarget: personId(1),
-          );
+          await insertAnchor(tx, viewerId: viewer, personTarget: personId(0));
+          await insertAnchor(tx, viewerId: viewer, personTarget: personId(1));
         });
+        final original = await readStoredConstellationAnchors(
+          writer,
+          viewerId: viewer,
+        );
+        expect(original, hasLength(3));
+        final beforeRevision = await cursorRevision(viewer);
         await settle();
         notifications.clear();
         await writer.execute('TRUNCATE public.anchor_publisher_probe');
 
         await writer.runTx((tx) async {
-          await tx.execute(
-            '''
+          await tx.execute('''
 DELETE FROM public."user"
 WHERE id IN ('${personId(0)}', '${personId(1)}')
-''',
-          );
+''');
           await tx.execute("DELETE FROM public.beacon WHERE id = '$beacon'");
         });
         await settle();
-
         final committed = await cursorRevision(viewer);
+        expect(committed, beforeRevision + BigInt.from(3));
         final hints = anchorHints(viewer);
         expect(hints, hasLength(1));
         expect(hints.single['event'], 'update');
+        expect(hints.single['id'], viewer);
+        expect(hints.single['user_ids'], [viewer]);
         expect(hints.single['revision'], committed.toString());
         expect(await publisherCalls(viewer), 1);
+        expect(await publisherCalls(), 1);
 
-        final left = await writer.execute(
-          '''
-SELECT count(*)::int FROM public.constellation_anchor
-WHERE viewer_id = '$viewer'
-''',
+        final retained = await readStoredConstellationAnchors(
+          writer,
+          viewerId: viewer,
         );
-        expect(left.single.single, 0);
+        expect(retained, hasLength(3));
+        // The viewer owns the placements; target deletion changes their state.
+        for (final pinTarget in [
+          ConstellationAnchorTarget.beacon(beacon),
+          ConstellationAnchorTarget.person(personId(0)),
+          ConstellationAnchorTarget.person(personId(1)),
+        ]) {
+          final fkColumn =
+              pinTarget.kind == ConstellationAnchorTargetKind.beacon
+              ? 'beacon_id'
+              : 'person_id';
+          final before = original.singleWhere(
+            (row) => row[fkColumn] == pinTarget.id,
+          );
+          expectRetainedPinTombstone(
+            retained.singleWhere((row) => row['id'] == before['id']),
+            before,
+            pinTarget,
+          );
+        }
       },
     );
 

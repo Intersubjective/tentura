@@ -15,19 +15,29 @@ import 'package:tentura_server/data/repository/read_snapshot_unit_of_work.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
 import '../../support/constellation_anchor_batch_fixture.dart';
+import '../../support/constellation_anchor_tombstone_fixture.dart';
 import '../../support/disposable_pg_target.dart';
+
+void _expectRetainedPinPlacement(
+  Result original,
+  Result remaining,
+  ConstellationAnchorTarget target,
+) {
+  final before =
+      jsonDecode(original.single.single! as String) as Map<String, dynamic>;
+  final after =
+      jsonDecode(remaining.single.single! as String) as Map<String, dynamic>;
+  expectRetainedPinTombstone(after, before, target);
+}
 
 Future<void> main() async {
   final target = DisposablePgTarget.fromNamedEnvironment(
     envVarName: 'TENTURA_CONSTELLATION_ANCHOR_TEST_DB',
     defaultNamePrefix: 'tentura_test_ca_anchor',
   );
-  final reachable = await canReachPostgresAdmin(target);
-  final skipReason = reachable
-      ? false
-      : 'Postgres admin database not reachable for disposable test target';
+  final skipReason = await pgSkipReason(target);
 
-  group('constellation anchor storage P02', () {
+  group('constellation anchor storage', () {
     late DisposablePgWriterSession session;
     late Connection writer;
     late Connection listener;
@@ -100,7 +110,7 @@ ON CONFLICT (id) DO NOTHING
     }
 
     setUpAll(() async {
-      if (skipReason != false) {
+      if (skipReason != null) {
         return;
       }
       session = await setUpDisposablePgWriter(
@@ -155,7 +165,7 @@ TRUNCATE public.constellation_anchor, public.constellation_anchor_cursor CASCADE
     });
 
     tearDownAll(() async {
-      if (skipReason != false) {
+      if (skipReason != null) {
         return;
       }
       await notificationSubscription.cancel();
@@ -216,11 +226,13 @@ SELECT count(*)::int FROM public.constellation_anchor WHERE viewer_id = '$viewer
       expect(count.single.single, 3);
     });
 
-    test('partial unique indexes enforce one anchor per viewer target', () async {
-      await writer.execute('''
+    test(
+      'partial unique indexes enforce one anchor per viewer target',
+      () async {
+        await writer.execute('''
 INSERT INTO public.constellation_anchor_cursor (viewer_id) VALUES ('$viewerA')
 ''');
-      await writer.execute('''
+        await writer.execute('''
 INSERT INTO public.constellation_anchor (
   id, viewer_id, person_id, x_units, y_units,
   coordinate_space_version, revision, placed_at
@@ -228,8 +240,8 @@ INSERT INTO public.constellation_anchor (
   'CAuniq01', '$viewerA', '$personP', 1, 1, 1, 1, now()
 )
 ''');
-      await expectLater(
-        writer.execute('''
+        await expectLater(
+          writer.execute('''
 INSERT INTO public.constellation_anchor (
   id, viewer_id, person_id, x_units, y_units,
   coordinate_space_version, revision, placed_at
@@ -237,9 +249,10 @@ INSERT INTO public.constellation_anchor (
   'CAuniq02', '$viewerA', '$personP', 2, 2, 1, 2, now()
 )
 '''),
-        throwsA(isA<ServerException>()),
-      );
-    });
+          throwsA(isA<ServerException>()),
+        );
+      },
+    );
 
     test('owner isolation: viewers do not share anchor rows', () async {
       final p = pos(1, 1);
@@ -269,7 +282,7 @@ WHERE person_id = '$personP' ORDER BY viewer_id
       () async {
         await repository.applyAnchorUpsert(
           viewerId: viewerA,
-        context: kConstellationContext,
+          context: kConstellationContext,
           target: ConstellationAnchorTarget.person(personP),
           position: pos(1, 1),
         );
@@ -281,7 +294,7 @@ WHERE viewer_id = '$viewerA' AND person_id = '$personP'
         notifications.clear();
         final second = await repository.applyAnchorUpsert(
           viewerId: viewerA,
-        context: kConstellationContext,
+          context: kConstellationContext,
           target: ConstellationAnchorTarget.person(personP),
           position: pos(3, 3),
         );
@@ -324,118 +337,170 @@ WHERE viewer_id = '$viewerA' AND person_id = '$personP'
       expect(c.anchor.placedAt.isAfter(a.anchor.placedAt), isTrue);
     });
 
-    test('delete existing row emits one canonical update notification', () async {
-      await repository.applyAnchorUpsert(
-        viewerId: viewerA,
-        context: kConstellationContext,
-        target: ConstellationAnchorTarget.person(personP),
-        position: pos(1, 1),
-      );
-      await clearAfterDelivery();
-      await repository.applyAnchorDelete(
-        viewerId: viewerA,
-        target: ConstellationAnchorTarget.person(personP),
-      );
-      await _waitUntil(() => anchorNotifications().isNotEmpty);
-      expect(anchorNotifications().length, 1);
-      expect(anchorNotifications().single['event'], 'update');
-      expect(anchorNotifications().single['id'], viewerA);
-      expect(anchorNotifications().single['user_ids'], [viewerA]);
-    });
+    test(
+      'delete existing row emits one canonical update notification',
+      () async {
+        await repository.applyAnchorUpsert(
+          viewerId: viewerA,
+          context: kConstellationContext,
+          target: ConstellationAnchorTarget.person(personP),
+          position: pos(1, 1),
+        );
+        await clearAfterDelivery();
+        await repository.applyAnchorDelete(
+          viewerId: viewerA,
+          target: ConstellationAnchorTarget.person(personP),
+        );
+        await _waitUntil(() => anchorNotifications().isNotEmpty);
+        expect(anchorNotifications().length, 1);
+        expect(anchorNotifications().single['event'], 'update');
+        expect(anchorNotifications().single['id'], viewerA);
+        expect(anchorNotifications().single['user_ids'], [viewerA]);
+      },
+    );
 
-    test('absent-key delete increments cursor once and emits one update', () async {
-      final before = await repository.readWatermark(viewerA);
-      expect(before.value, BigInt.zero);
-      notifications.clear();
-      final result = await repository.applyAnchorDelete(
-        viewerId: viewerA,
-        target: ConstellationAnchorTarget.person(personP),
-      );
-      expect(result.watermark.revision.value, BigInt.one);
-      await _waitUntil(() => anchorNotifications().isNotEmpty);
-      expect(anchorNotifications().length, 1);
-      final rows = await writer.execute('''
+    test(
+      'absent-key delete increments cursor once and emits one update',
+      () async {
+        final before = await repository.readWatermark(viewerA);
+        expect(before.value, BigInt.zero);
+        notifications.clear();
+        final result = await repository.applyAnchorDelete(
+          viewerId: viewerA,
+          target: ConstellationAnchorTarget.person(personP),
+        );
+        expect(result.watermark.revision.value, BigInt.one);
+        await _waitUntil(() => anchorNotifications().isNotEmpty);
+        expect(anchorNotifications().length, 1);
+        final rows = await writer.execute('''
 SELECT count(*)::int FROM public.constellation_anchor WHERE viewer_id = '$viewerA'
 ''');
-      expect(rows.single.single, 0);
-    });
+        expect(rows.single.single, 0);
+      },
+    );
 
-    test('aborted transaction emits no notification and rolls back cursor', () async {
-      await repository.applyAnchorUpsert(
-        viewerId: viewerA,
-        context: kConstellationContext,
-        target: ConstellationAnchorTarget.person(personP),
-        position: pos(1, 1),
-      );
-      await clearAfterDelivery();
-      await expectLater(
-        db.withMutatingUser(viewerA, () async {
-          await db.customStatement('''
+    test(
+      'aborted transaction emits no notification and rolls back cursor',
+      () async {
+        await repository.applyAnchorUpsert(
+          viewerId: viewerA,
+          context: kConstellationContext,
+          target: ConstellationAnchorTarget.person(personP),
+          position: pos(1, 1),
+        );
+        await clearAfterDelivery();
+        await expectLater(
+          db.withMutatingUser(viewerA, () async {
+            await db.customStatement(
+              '''
 INSERT INTO public.constellation_anchor_cursor (viewer_id)
 VALUES (\$1) ON CONFLICT DO NOTHING
-''', [viewerA]);
-          await db.customStatement('''
+''',
+              [viewerA],
+            );
+            await db.customStatement(
+              '''
 SELECT viewer_id FROM public.constellation_anchor_cursor
 WHERE viewer_id = \$1 FOR UPDATE
-''', [viewerA]);
-          await db.customStatement('''
+''',
+              [viewerA],
+            );
+            await db.customStatement(
+              '''
 UPDATE public.constellation_anchor
 SET x_units = 9 WHERE viewer_id = \$1 AND person_id = \$2
-''', [viewerA, personP]);
-          throw StateError('abort');
-        }),
-        throwsA(isA<StateError>()),
-      );
-      await _settle();
-      expect(anchorNotifications(), isEmpty);
-      final coord = await writer.execute('''
+''',
+              [viewerA, personP],
+            );
+            throw StateError('abort');
+          }),
+          throwsA(isA<StateError>()),
+        );
+        await _settle();
+        expect(anchorNotifications(), isEmpty);
+        final coord = await writer.execute('''
 SELECT x_units::float8 FROM public.constellation_anchor
 WHERE viewer_id = '$viewerA' AND person_id = '$personP'
 ''');
-      expect(coord.single.single, 1.0);
-    });
+        expect(coord.single.single, 1.0);
+      },
+    );
 
-    test('target beacon cascade removes anchor without double cursor bump', () async {
-      await repository.applyAnchorUpsert(
-        viewerId: viewerA,
-        context: kConstellationContext,
-        target: ConstellationAnchorTarget.beacon(beaconB),
-        position: pos(1, 1),
-      );
-      final revBefore = await repository.readWatermark(viewerA);
-      await clearAfterDelivery();
-      await writer.execute("DELETE FROM public.beacon WHERE id = '$beaconB'");
-      await _settle();
-      final remaining = await writer.execute('''
-SELECT count(*)::int FROM public.constellation_anchor WHERE viewer_id = '$viewerA'
+    // Pins belong to their viewer (D15): deleting the target now preserves a
+    // tombstone instead of silently cascading away the viewer's placement.
+    test(
+      'deleting a pinned Request preserves its placement as a tombstone',
+      () async {
+        await repository.applyAnchorUpsert(
+          viewerId: viewerA,
+          context: kConstellationContext,
+          target: ConstellationAnchorTarget.beacon(beaconB),
+          position: pos(1, 1),
+        );
+        final revBefore = await repository.readWatermark(viewerA);
+        final original = await writer.execute('''
+SELECT to_jsonb(a)::text FROM public.constellation_anchor a WHERE viewer_id = '$viewerA'
 ''');
-      expect(remaining.single.single, 0);
-      final revAfter = await repository.readWatermark(viewerA);
-      expect(revAfter.value, greaterThan(revBefore.value));
-      expect(anchorNotifications().length, 1);
-      expect(anchorNotifications().single['event'], 'update');
-    });
+        await clearAfterDelivery();
+        await writer.execute("DELETE FROM public.beacon WHERE id = '$beaconB'");
+        await _settle();
+        final remaining = await writer.execute('''
+SELECT to_jsonb(a)::text FROM public.constellation_anchor a WHERE viewer_id = '$viewerA'
+''');
+        expect(remaining, hasLength(1));
+        _expectRetainedPinPlacement(
+          original,
+          remaining,
+          ConstellationAnchorTarget.beacon(beaconB),
+        );
+        final revAfter = await repository.readWatermark(viewerA);
+        expect(revAfter.value, revBefore.value + BigInt.one);
+        expect(anchorNotifications().length, 1);
+        expect(anchorNotifications().single['event'], 'update');
+        expect(
+          anchorNotifications().single['revision'],
+          revAfter.toDecimalString(),
+        );
+      },
+    );
 
-    test('target person cascade removes anchor without double cursor bump', () async {
-      await repository.applyAnchorUpsert(
-        viewerId: viewerA,
-        context: kConstellationContext,
-        target: ConstellationAnchorTarget.person(personQ),
-        position: pos(1, 1),
-      );
-      final revBefore = await repository.readWatermark(viewerA);
-      notifications.clear();
-      await writer.execute(
-        "DELETE FROM public.\"user\" WHERE id = '$personQ'",
-      );
-      await _settle();
-      final remaining = await writer.execute('''
-SELECT count(*)::int FROM public.constellation_anchor WHERE viewer_id = '$viewerA'
+    test(
+      'deleting a pinned person preserves its placement as a tombstone',
+      () async {
+        await repository.applyAnchorUpsert(
+          viewerId: viewerA,
+          context: kConstellationContext,
+          target: ConstellationAnchorTarget.person(personQ),
+          position: pos(1, 1),
+        );
+        final revBefore = await repository.readWatermark(viewerA);
+        final original = await writer.execute('''
+SELECT to_jsonb(a)::text FROM public.constellation_anchor a WHERE viewer_id = '$viewerA'
 ''');
-      expect(remaining.single.single, 0);
-      final revAfter = await repository.readWatermark(viewerA);
-      expect(revAfter.value, greaterThan(revBefore.value));
-    });
+        await clearAfterDelivery();
+        await writer.execute(
+          "DELETE FROM public.\"user\" WHERE id = '$personQ'",
+        );
+        await _settle();
+        final remaining = await writer.execute('''
+SELECT to_jsonb(a)::text FROM public.constellation_anchor a WHERE viewer_id = '$viewerA'
+''');
+        expect(remaining, hasLength(1));
+        _expectRetainedPinPlacement(
+          original,
+          remaining,
+          ConstellationAnchorTarget.person(personQ),
+        );
+        final revAfter = await repository.readWatermark(viewerA);
+        expect(revAfter.value, revBefore.value + BigInt.one);
+        expect(anchorNotifications(), hasLength(1));
+        expect(anchorNotifications().single['event'], 'update');
+        expect(
+          anchorNotifications().single['revision'],
+          revAfter.toDecimalString(),
+        );
+      },
+    );
 
     test('viewer delete removes cursor and anchors without recreate', () async {
       await repository.applyAnchorUpsert(
@@ -462,7 +527,7 @@ SELECT count(*)::int FROM public.constellation_anchor WHERE viewer_id = '$viewer
       () async {
         await repository.applyAnchorUpsert(
           viewerId: viewerA,
-        context: kConstellationContext,
+          context: kConstellationContext,
           target: ConstellationAnchorTarget.person(personP),
           position: pos(1, 1),
         );
@@ -486,13 +551,13 @@ WHERE viewer_id = '$viewerA' AND person_id = '$personP'
         await seedBeacon(extraBeacon, personQ);
         await repository.applyAnchorUpsert(
           viewerId: viewerA,
-        context: kConstellationContext,
+          context: kConstellationContext,
           target: ConstellationAnchorTarget.person(personP),
           position: pos(1, 1),
         );
         await repository.applyAnchorUpsert(
           viewerId: viewerA,
-        context: kConstellationContext,
+          context: kConstellationContext,
           target: ConstellationAnchorTarget.beacon(extraBeacon),
           position: pos(2, 2),
         );
@@ -522,23 +587,30 @@ WHERE viewer_id = '$viewerA' AND beacon_id = '$extraBeacon'
       },
     );
 
-    test('withReadSnapshot uses repeatable read readonly transaction', () async {
-      String? isolation;
-      String? readOnly;
-      await readSnapshots.withReadSnapshot(() async {
-        final iso = await db.customSelect(
-          "SELECT current_setting('transaction_isolation') AS v",
-        ).getSingle();
-        final ro = await db.customSelect(
-          "SELECT current_setting('transaction_read_only') AS v",
-        ).getSingle();
-        isolation = iso.read<String>('v');
-        readOnly = ro.read<String>('v');
-        return null;
-      });
-      expect(isolation, contains('repeatable read'));
-      expect(readOnly, 'on');
-    });
+    test(
+      'withReadSnapshot uses repeatable read readonly transaction',
+      () async {
+        String? isolation;
+        String? readOnly;
+        await readSnapshots.withReadSnapshot(() async {
+          final iso = await db
+              .customSelect(
+                "SELECT current_setting('transaction_isolation') AS v",
+              )
+              .getSingle();
+          final ro = await db
+              .customSelect(
+                "SELECT current_setting('transaction_read_only') AS v",
+              )
+              .getSingle();
+          isolation = iso.read<String>('v');
+          readOnly = ro.read<String>('v');
+          return null;
+        });
+        expect(isolation, contains('repeatable read'));
+        expect(readOnly, 'on');
+      },
+    );
 
     test('readWatermark returns zero without creating cursor row', () async {
       final watermark = await readSnapshots.withReadSnapshot(
@@ -550,7 +622,6 @@ SELECT count(*)::int FROM public.constellation_anchor_cursor WHERE viewer_id = '
 ''');
       expect(rows.single.single, 0);
     });
-
 
     test(
       'readonly visibility cache miss does not write cache rows',

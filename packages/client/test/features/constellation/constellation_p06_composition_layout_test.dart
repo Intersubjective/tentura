@@ -96,13 +96,13 @@ void main() {
       final projection = ConstellationAnchorProjection(
         revision: ConstellationAnchorRevision.zero,
         anchors: [_personAnchor('pinned-a', 1, 1), _personAnchor('pinned-b', -1, 0)],
-        pinnedPeers: [
+        pinnedPeers: const [
           ConstellationPerson(id: 'pinned-a'),
           ConstellationPerson(id: 'pinned-b'),
         ],
         pinnedRequests: const [],
-        supportPeers: [ConstellationPerson(id: 'support-x')],
-        supportEdges: [
+        supportPeers: const [ConstellationPerson(id: 'support-x')],
+        supportEdges: const [
           ConstellationTrustEdgeEntity(src: _ego, dst: 'support-x', tier: 1),
           ConstellationTrustEdgeEntity(src: 'support-x', dst: 'pinned-a', tier: 1),
         ],
@@ -135,7 +135,7 @@ void main() {
     });
 
     test('pinned requests bypass label density budget', () {
-      final prolificAuthor = 'author-heavy';
+      const prolificAuthor = 'author-heavy';
       final automaticRequests = [
         for (var i = 0; i < 20; i++)
           ConstellationRequest(
@@ -149,7 +149,7 @@ void main() {
         revision: ConstellationAnchorRevision.zero,
         anchors: [_beaconAnchor('pinned-req', 2, 2)],
         pinnedPeers: const [],
-        pinnedRequests: [
+        pinnedRequests: const [
           ConstellationRequest(
             id: 'pinned-req',
             authorId: prolificAuthor,
@@ -157,8 +157,8 @@ void main() {
             status: 0,
           ),
         ],
-        supportPeers: [ConstellationPerson(id: prolificAuthor)],
-        supportEdges: [
+        supportPeers: const [ConstellationPerson(id: prolificAuthor)],
+        supportEdges: const [
           ConstellationTrustEdgeEntity(src: _ego, dst: prolificAuthor, tier: 1),
         ],
         serverFilteredBeaconIds: const [],
@@ -168,7 +168,7 @@ void main() {
       final composed = composeConstellationPresentation(
         viewerId: _ego,
         field: _fieldWithPins(
-          automaticPeers: [ConstellationPerson(id: prolificAuthor)],
+          automaticPeers: [const ConstellationPerson(id: prolificAuthor)],
           automaticRequests: automaticRequests,
           projection: projection,
         ),
@@ -318,11 +318,11 @@ void main() {
         revision: ConstellationAnchorRevision.zero,
         anchors: [_beaconAnchor('B1', 0, 0)],
         pinnedPeers: const [],
-        pinnedRequests: [
+        pinnedRequests: const [
           ConstellationRequest(id: 'B1', authorId: 'author', title: 'Pinned', status: 0),
         ],
-        supportPeers: [ConstellationPerson(id: 'author')],
-        supportEdges: [
+        supportPeers: const [ConstellationPerson(id: 'author')],
+        supportEdges: const [
           ConstellationTrustEdgeEntity(src: _ego, dst: 'author', tier: 1),
         ],
         serverFilteredBeaconIds: const [],
@@ -331,9 +331,9 @@ void main() {
       final composed = composeConstellationPresentation(
         viewerId: _ego,
         field: _fieldWithPins(
-          automaticPeers: [ConstellationPerson(id: 'author')],
+          automaticPeers: [const ConstellationPerson(id: 'author')],
           automaticRequests: [
-            ConstellationRequest(id: 'B2', authorId: 'author', title: 'Auto', status: 0),
+            const ConstellationRequest(id: 'B2', authorId: 'author', title: 'Auto', status: 0),
           ],
           projection: projection,
         ),
@@ -358,7 +358,7 @@ void main() {
           _beaconAnchor('B-visible', 2, 2),
         ],
         pinnedPeers: const [],
-        pinnedRequests: [
+        pinnedRequests: const [
           ConstellationRequest(
             id: 'B-hidden',
             authorId: 'author-hidden',
@@ -373,12 +373,12 @@ void main() {
             status: 0,
           ),
         ],
-        supportPeers: [
+        supportPeers: const [
           ConstellationPerson(id: 'author-hidden'),
           ConstellationPerson(id: 'author-visible'),
           ConstellationPerson(id: 'bridge'),
         ],
-        supportEdges: [
+        supportEdges: const [
           ConstellationTrustEdgeEntity(src: _ego, dst: 'bridge', tier: 1),
           ConstellationTrustEdgeEntity(src: 'bridge', dst: 'author-hidden', tier: 1),
           ConstellationTrustEdgeEntity(src: _ego, dst: 'author-visible', tier: 1),
@@ -425,7 +425,7 @@ void main() {
         revision: ConstellationAnchorRevision.zero,
         anchors: [_beaconAnchor('B-pin', 1, 1)],
         pinnedPeers: const [],
-        pinnedRequests: [
+        pinnedRequests: const [
           ConstellationRequest(
             id: 'B-pin',
             authorId: 'author-capped',
@@ -433,8 +433,8 @@ void main() {
             status: 0,
           ),
         ],
-        supportPeers: [ConstellationPerson(id: 'author-capped')],
-        supportEdges: [
+        supportPeers: const [ConstellationPerson(id: 'author-capped')],
+        supportEdges: const [
           ConstellationTrustEdgeEntity(src: _ego, dst: 'author-capped', tier: 1),
         ],
         serverFilteredBeaconIds: const [],
@@ -465,7 +465,7 @@ void main() {
   });
 
   group('computeConstellationPlacedLayout', () {
-    ConstellationPathResolution _simplePaths() {
+    ConstellationPathResolution simplePaths() {
       return resolveConstellationPaths(
         egoId: _ego,
         visiblePeerIds: {'peer-a', 'peer-b'},
@@ -475,7 +475,7 @@ void main() {
     }
 
     test('person and beacon anchors stay independent hard positions', () {
-      final paths = _simplePaths();
+      final paths = simplePaths();
       final layout = computeConstellationPlacedLayout(
         input: (
           egoId: _ego,
@@ -485,12 +485,12 @@ void main() {
           pinnedRequestIds: {'B1'},
           supportPersonIds: const {},
           anchorByNodeId: {
-            'peer-b': ConstellationAnchorPosition(
+            'peer-b': const ConstellationAnchorPosition(
               xUnits: 4,
               yUnits: -3,
               coordinateSpaceVersion: kConstellationCoordinateSpaceVersionV1,
             ),
-            'B1': ConstellationAnchorPosition(
+            'B1': const ConstellationAnchorPosition(
               xUnits: -2,
               yUnits: 5,
               coordinateSpaceVersion: kConstellationCoordinateSpaceVersionV1,
@@ -511,7 +511,7 @@ void main() {
       expect(
         layout.positions['peer-b'],
         constellationV1AnchorToPoint(
-          ConstellationAnchorPosition(
+          const ConstellationAnchorPosition(
             xUnits: 4,
             yUnits: -3,
             coordinateSpaceVersion: kConstellationCoordinateSpaceVersionV1,
@@ -521,7 +521,7 @@ void main() {
       expect(
         layout.positions['B1'],
         constellationV1AnchorToPoint(
-          ConstellationAnchorPosition(
+          const ConstellationAnchorPosition(
             xUnits: -2,
             yUnits: 5,
             coordinateSpaceVersion: kConstellationCoordinateSpaceVersionV1,
@@ -531,7 +531,7 @@ void main() {
     });
 
     test('unpinned beacon of a pinned author is not placed on ego', () {
-      final paths = _simplePaths();
+      final paths = simplePaths();
       const personAnchor = ConstellationAnchorPosition(
         xUnits: 4,
         yUnits: 0,
@@ -579,7 +579,7 @@ void main() {
     });
 
     test('unpinned beacon of an automatic author is not placed on ego', () {
-      final paths = _simplePaths();
+      final paths = simplePaths();
       final layout = computeConstellationPlacedLayout(
         input: (
           egoId: _ego,
@@ -618,7 +618,7 @@ void main() {
       final layout = computeConstellationPlacedLayout(
         input: (
           egoId: _ego,
-          paths: _simplePaths(),
+          paths: simplePaths(),
           automaticKeptPeerIds: const {},
           pinnedPersonIds: {'p1', 'p2'},
           pinnedRequestIds: const {},
@@ -651,7 +651,7 @@ void main() {
     });
 
     test('topology change keeps pinned coordinates', () {
-      final anchor = const ConstellationAnchorPosition(
+      const anchor = ConstellationAnchorPosition(
         xUnits: 3,
         yUnits: -4,
         coordinateSpaceVersion: kConstellationCoordinateSpaceVersionV1,
@@ -704,7 +704,7 @@ void main() {
     test('layout is repeatable for identical input', () {
       final input = (
         egoId: _ego,
-        paths: _simplePaths(),
+        paths: simplePaths(),
         automaticKeptPeerIds: {'peer-a'},
         pinnedPersonIds: const <String>{},
         pinnedRequestIds: const <String>{},
@@ -923,8 +923,8 @@ void main() {
     });
 
     test('prior hint applies only when viewport class matches', () {
-      final paths = _simplePaths();
-      final hintPoint = (x: 2200.0, y: 2100.0);
+      final paths = simplePaths();
+      const hintPoint = (x: 2200.0, y: 2100.0);
       final withHint = computeConstellationPlacedLayout(
         input: (
           egoId: _ego,
@@ -989,10 +989,10 @@ void main() {
           edges: [(src: _ego, dst: 'peer-a', tier: 1)],
         );
         // Prior session: author near ego ring, satellite just outside author.
-        final priorAuthor = (x: 2048.0 + 170.0, y: 2048.0);
-        final priorSatellite = (x: 2048.0 + 170.0 + 56.0, y: 2048.0);
+        const priorAuthor = (x: 2048.0 + 170.0, y: 2048.0);
+        const priorSatellite = (x: 2048.0 + 170.0 + 56.0, y: 2048.0);
         // Author now hard-pinned far away (xUnits=5 → 2048+850).
-        final pinnedAuthorPos = ConstellationAnchorPosition(
+        const pinnedAuthorPos = ConstellationAnchorPosition(
           xUnits: 5,
           yUnits: 0,
           coordinateSpaceVersion: kConstellationCoordinateSpaceVersionV1,
@@ -1056,7 +1056,7 @@ void main() {
           holderIds: {_ego, 'peer-a'},
           edges: [(src: _ego, dst: 'peer-a', tier: 1)],
         );
-        final authorPos = ConstellationAnchorPosition(
+        const authorPos = ConstellationAnchorPosition(
           xUnits: 2,
           yUnits: 0,
           coordinateSpaceVersion: kConstellationCoordinateSpaceVersionV1,
@@ -1112,12 +1112,12 @@ void main() {
       final composed = composeConstellationPresentation(
         viewerId: _ego,
         field: _fieldWithPins(
-          automaticPeers: [ConstellationPerson(id: 'peer-a')],
+          automaticPeers: [const ConstellationPerson(id: 'peer-a')],
           automaticRequests: const [],
           projection: ConstellationAnchorProjection(
             revision: ConstellationAnchorRevision.zero,
             anchors: [_personAnchor('peer-a', 2, -1)],
-            pinnedPeers: [ConstellationPerson(id: 'peer-a')],
+            pinnedPeers: const [ConstellationPerson(id: 'peer-a')],
             pinnedRequests: const [],
             supportPeers: const [],
             supportEdges: const [],
@@ -1153,18 +1153,18 @@ void main() {
     });
 
     test('density-excluded beacon gets fallback without moving other nodes', () {
-      final author = 'author-a';
-      final hiddenBeacon = 'B-z-hidden';
+      const author = 'author-a';
+      const hiddenBeacon = 'B-z-hidden';
       final field = _fieldWithPins(
-        automaticPeers: [ConstellationPerson(id: author)],
+        automaticPeers: [const ConstellationPerson(id: author)],
         automaticRequests: [
-          ConstellationRequest(
+          const ConstellationRequest(
             id: 'B-a-visible',
             authorId: author,
             title: 'Visible on map',
             status: 0,
           ),
-          ConstellationRequest(
+          const ConstellationRequest(
             id: hiddenBeacon,
             authorId: author,
             title: 'Hidden by density',
@@ -1201,7 +1201,6 @@ void main() {
         },
         spacing: _spacing,
         viewportClass: ConstellationViewportClass.compact,
-        footprints: const <String, ConstellationFootprint>{},
       );
 
       final beforeLayout = computeConstellationPlacedLayout(input: layoutInput);

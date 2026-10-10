@@ -68,6 +68,9 @@ class ConstellationMemberWebRecord {
   final ConstellationMemberWebState state;
 }
 
+/// Wire value of `pinState` for a pin whose target was deleted.
+const kConstellationPinStateTombstone = 'tombstone';
+
 @immutable
 class ConstellationPeerRecord {
   const ConstellationPeerRecord({
@@ -75,12 +78,23 @@ class ConstellationPeerRecord {
     this.displayName,
     this.handle,
     this.image,
+    this.pinState,
   });
+
+  /// Placeholder for a pinned person whose account was deleted.
+  const ConstellationPeerRecord.tombstone(this.id)
+    : displayName = null,
+      handle = null,
+      image = null,
+      pinState = kConstellationPinStateTombstone;
 
   final String id;
   final String? displayName;
   final String? handle;
   final ImagePublicRecord? image;
+
+  /// Null for a live target, [kConstellationPinStateTombstone] when deleted.
+  final String? pinState;
 
   @override
   bool operator ==(Object other) =>
@@ -89,10 +103,11 @@ class ConstellationPeerRecord {
           other.id == id &&
           other.displayName == displayName &&
           other.handle == handle &&
-          other.image == image;
+          other.image == image &&
+          other.pinState == pinState;
 
   @override
-  int get hashCode => Object.hash(id, displayName, handle, image);
+  int get hashCode => Object.hash(id, displayName, handle, image, pinState);
 }
 
 @immutable
@@ -141,7 +156,30 @@ class ConstellationRequestRecord {
     this.coverSource = 0,
     this.coverThumb,
     this.viewerParticipates,
+    this.pinState,
   });
+
+  /// Placeholder for a pinned Request that was deleted: identity only.
+  const ConstellationRequestRecord.tombstone(this.id)
+    : authorId = '',
+      title = '',
+      status = 0,
+      needs = const [],
+      primaryNeedSlug = null,
+      startAt = null,
+      endAt = null,
+      addressLabel = null,
+      hasCoordinates = false,
+      isMine = false,
+      viewerHasActiveHelpOffer = false,
+      viewerIsRoomParticipant = false,
+      viewerHasForwardEdge = false,
+      helpOfferCount = 0,
+      kind = 0,
+      coverSource = 0,
+      coverThumb = null,
+      viewerParticipates = null,
+      pinState = kConstellationPinStateTombstone;
 
   final String id;
   final String authorId;
@@ -166,6 +204,9 @@ class ConstellationRequestRecord {
   /// When set (pinned batch load), full C2 participation predicate; otherwise null.
   final bool? viewerParticipates;
 
+  /// Null for a live Request, [kConstellationPinStateTombstone] when deleted.
+  final String? pinState;
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -188,7 +229,8 @@ class ConstellationRequestRecord {
           other.kind == kind &&
           other.coverSource == coverSource &&
           other.coverThumb == coverThumb &&
-          other.viewerParticipates == viewerParticipates;
+          other.viewerParticipates == viewerParticipates &&
+          other.pinState == pinState;
 
   @override
   int get hashCode => Object.hashAll([
@@ -211,6 +253,7 @@ class ConstellationRequestRecord {
     coverSource,
     coverThumb,
     viewerParticipates,
+    pinState,
   ]);
 }
 

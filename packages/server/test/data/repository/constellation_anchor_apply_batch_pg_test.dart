@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'package:postgres/postgres.dart'
     show Connection, ServerException, Session;
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
+import 'package:tentura_server/api/controllers/graphql/mappers/constellation_gql_maps.dart';
 import 'package:tentura_server/consts/constellation_consts.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide ConstellationAnchor, isNotNull, isNull;
@@ -20,6 +21,7 @@ import 'package:tentura_server/domain/port/constellation_anchor_repository_port.
 import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 import 'package:test/test.dart';
 
+import '../../support/constellation_anchor_tombstone_fixture.dart';
 import '../../support/constellation_profiles_from_public_records.dart';
 import '../../support/disposable_pg_target.dart';
 import '../../support/pg_wait.dart';
@@ -962,14 +964,24 @@ WHERE viewer_id = '$viewer' AND person_id = '$firstPeer'
     for (final revokeWithUserDeletion in [false, true]) {
       test(
         revokeWithUserDeletion
-            ? 'retries concurrent person deletion and omits cascaded person and beacon anchors'
-            : 'retries concurrent visibility revocation and beacon cascade deletion',
+            ? 'target deletions retain tombstones during concurrent person deletion and placement'
+            : 'target deletions retain tombstones during concurrent visibility revocation and placement',
         () async {
           await apply([
             upsert('seed-person', ConstellationAnchorTarget.person(firstPeer)),
             upsert('seed-beacon', ConstellationAnchorTarget.beacon(openBeacon)),
           ]);
 
+          final pinnedBefore = await readStoredConstellationAnchors(
+            session.writer,
+            viewerId: viewer,
+          );
+          final requestBefore = pinnedBefore.singleWhere(
+            (row) => row['beacon_id'] == openBeacon,
+          );
+          final personBefore = pinnedBefore.singleWhere(
+            (row) => row['person_id'] == firstPeer,
+          );
           final run = await applyWhileCursorLocked(
             [
               upsert(
@@ -985,8 +997,8 @@ WHERE viewer_id = '$viewer' AND person_id = '$firstPeer'
             ],
             foreignMutation: (tx) async {
               if (revokeWithUserDeletion) {
-                // beacon.user_id is SET NULL on user delete, which the
-                // owner-or-deleted check forbids, so the beacon goes first.
+                // Both pinned targets are explicitly deleted. Account deletion
+                // alone clears beacon.user_id and does not tombstone a Request.
                 await tx.execute(
                   "DELETE FROM public.beacon WHERE user_id = '$firstPeer'",
                 );
@@ -1022,15 +1034,69 @@ VALUES ('$viewer', '$firstPeer', '$firstPeer')
             if (revokeWithUserDeletion) 'target_not_found' else null,
             null,
           ]);
+          final snapshot = await freshAnchors();
           expect(
-            (await freshAnchors()).anchors.map((a) => a.target),
-            [ConstellationAnchorTarget.person(secondPeer)],
+            snapshot.anchors.map((a) => a.target),
+            unorderedEquals([
+              if (revokeWithUserDeletion)
+                ConstellationAnchorTarget.person(firstPeer),
+              ConstellationAnchorTarget.person(secondPeer),
+              ConstellationAnchorTarget.beacon(openBeacon),
+            ]),
           );
-          expect((await freshAnchors()).pinnedPeers.map((p) => p.id), [
-            secondPeer,
-          ]);
-          expect((await freshAnchors()).pinnedRequests, isEmpty);
-          expect((await freshAnchors()).serverFilteredBeaconIds, isEmpty);
+          expect(
+            snapshot.pinnedPeers.map((p) => p.id),
+            unorderedEquals([
+              if (revokeWithUserDeletion) firstPeer,
+              secondPeer,
+            ]),
+          );
+          expect(snapshot.pinnedRequests.map((r) => r.id), [openBeacon]);
+          expect(snapshot.serverFilteredBeaconIds, isEmpty);
+          final wire = constellationAnchorProjectionToGqlMap(snapshot);
+          final requestRecord =
+              (wire['pinnedRequests'] as List<dynamic>).single
+                  as Map<String, dynamic>;
+          expect(requestRecord['id'], openBeacon);
+          final placeholders = [
+            requestRecord,
+            if (revokeWithUserDeletion)
+              (wire['pinnedPeers'] as List<dynamic>)
+                  .cast<Map<String, dynamic>>()
+                  .singleWhere((record) => record['id'] == firstPeer),
+          ];
+          const identityFields = {'id', 'kind', 'targetKind', 'pinState'};
+          for (final placeholder in placeholders) {
+            expect(placeholder['pinState'], 'tombstone');
+            for (final entry in placeholder.entries) {
+              if (!identityFields.contains(entry.key)) {
+                expect(
+                  entry.value,
+                  isNull,
+                  reason:
+                      'A deleted target placeholder must not expose ${entry.key}',
+                );
+              }
+            }
+          }
+          final retained = await readStoredConstellationAnchors(
+            session.writer,
+            viewerId: viewer,
+          );
+          expect(retained, hasLength(3));
+          expectRetainedPinTombstone(
+            retained.singleWhere((row) => row['id'] == requestBefore['id']),
+            requestBefore,
+            ConstellationAnchorTarget.beacon(openBeacon),
+          );
+          if (revokeWithUserDeletion) {
+            expectRetainedPinTombstone(
+              retained.singleWhere((row) => row['id'] == personBefore['id']),
+              personBefore,
+              ConstellationAnchorTarget.person(firstPeer),
+            );
+          }
+          // This checks cleared live FKs; the retained-row checks forbid losing pins.
           final beaconRows = await session.writer.execute('''
 SELECT count(*)::int FROM public.constellation_anchor
 WHERE viewer_id = '$viewer' AND beacon_id = '$openBeacon'

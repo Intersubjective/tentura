@@ -249,7 +249,7 @@ FROM public.constellation_anchor ca
 -- Join (not EXISTS): an EXISTS here gets planned as a hashed SubPlan that
 -- runs beacon_can_read_content over every beacon in the table (12s+ on dev).
 ${authorize ? 'LEFT JOIN public.beacon b ON b.id = ca.beacon_id' : ''}
-WHERE ca.viewer_id = \$1
+WHERE ca.viewer_id = \$1 AND ca.tombstone_at IS NULL
 ORDER BY ca.placed_at, COALESCE(ca.beacon_id, ca.person_id)
 ''',
           variables: [Variable.withString(viewerId)],
@@ -296,6 +296,42 @@ ORDER BY ca.placed_at, COALESCE(ca.beacon_id, ca.person_id)
     ];
   }
 
+  /// Pins whose target was deleted: identity and placement only.
+  Future<List<ConstellationAnchor>> _loadTombstones(String viewerId) async {
+    final rows = await _database
+        .customSelect(
+          r'''
+SELECT target_id, target_kind, x_units, y_units, coordinate_space_version,
+       revision::text AS revision, placed_at
+FROM public.constellation_anchor
+WHERE viewer_id = $1 AND tombstone_at IS NOT NULL
+''',
+          variables: [Variable.withString(viewerId)],
+        )
+        .get();
+    return [
+      for (final row in rows)
+        ConstellationAnchor(
+          target: row.read<String>('target_kind') == 'PERSON'
+              ? ConstellationAnchorTarget.person(row.read<String>('target_id'))
+              : ConstellationAnchorTarget.beacon(row.read<String>('target_id')),
+          position: ConstellationAnchorPosition(
+            xUnits: row.read<double>('x_units'),
+            yUnits: row.read<double>('y_units'),
+            coordinateSpaceVersion: row.read<int>('coordinate_space_version'),
+          ),
+          revision: switch (ConstellationAnchorRevision.parseDecimalString(
+            row.read<String>('revision'),
+          )) {
+            ConstellationAnchorRevisionParsed(:final revision) => revision,
+            ConstellationAnchorRevisionMalformed() =>
+              ConstellationAnchorRevision.zero,
+          },
+          placedAt: DateTime.parse(row.read<String>('placed_at')).toUtc(),
+        ),
+    ];
+  }
+
   bool _rememberReadability(String beaconId, bool readable) =>
       pinnedBeaconReadability[beaconId] = readable;
 
@@ -311,12 +347,21 @@ ORDER BY ca.placed_at, COALESCE(ca.beacon_id, ca.person_id)
     peerProfiles,
     List<ConstellationRequestRecord>? preparedBeacons,
   }) async {
+    final tombstoned = await _loadTombstones(viewerId);
     if (anchorRows.isEmpty) {
       return ConstellationAnchorProjection(
         revision: watermark,
-        anchors: const [],
-        pinnedPeers: const [],
-        pinnedRequests: const [],
+        anchors: tombstoned..sort(ConstellationAnchor.comparePaintOrder),
+        pinnedPeers: [
+          for (final a in tombstoned)
+            if (a.target is ConstellationAnchorPersonTarget)
+              ConstellationPeerRecord.tombstone(a.target.id),
+        ],
+        pinnedRequests: [
+          for (final a in tombstoned)
+            if (a.target is ConstellationAnchorBeaconTarget)
+              ConstellationRequestRecord.tombstone(a.target.id),
+        ],
         supportPeers: const [],
         supportEdges: const [],
         serverFilteredBeaconIds: const [],
@@ -324,7 +369,7 @@ ORDER BY ca.placed_at, COALESCE(ca.beacon_id, ca.person_id)
       );
     }
 
-    final anchors = [...anchorRows]
+    final anchors = [...anchorRows, ...tombstoned]
       ..sort(ConstellationAnchor.comparePaintOrder);
 
     final beaconIds = [
@@ -409,9 +454,17 @@ ORDER BY ca.placed_at, COALESCE(ca.beacon_id, ca.person_id)
     final pinnedPeers = [
       for (final id in pinnedPeerIds..sort())
         profileById[id] ?? ConstellationPeerRecord(id: id, displayName: id),
+      for (final a in tombstoned)
+        if (a.target is ConstellationAnchorPersonTarget)
+          ConstellationPeerRecord.tombstone(a.target.id),
     ];
 
     pinnedRequests.sort((a, b) => a.id.compareTo(b.id));
+    pinnedRequests.addAll([
+      for (final a in tombstoned)
+        if (a.target is ConstellationAnchorBeaconTarget)
+          ConstellationRequestRecord.tombstone(a.target.id),
+    ]);
 
     final supportPeers = [
       for (final id in supportPeerIds)

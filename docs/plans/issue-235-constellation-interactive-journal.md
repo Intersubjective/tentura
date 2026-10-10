@@ -1409,3 +1409,33 @@ telemetry writes to a read-only user cache
 (`/tmp/tentura-jxtr-fixture-lints.log`,
 `/tmp/tentura-jxtr-fixture-analyze.log`). Neither analyzer output lists a
 diagnostic for the two changed runner files. No full suite or commit was run.
+
+## UNIT U55 — complete — 2026-10-10 (tentura-181w)
+
+**What landed.** Migration `m0236` (registered in `_migrations.dart`) makes a
+deleted pin target leave a tombstone instead of silently cascading the pin
+away. `constellation_anchor` gains `target_id`, `target_kind` and
+`tombstone_at`; existing rows are backfilled with user triggers disabled so no
+cursor revision moves. The `beacon_id` / `person_id` FKs change from
+`ON DELETE CASCADE` to `ON DELETE SET NULL`, and a new CHECK allows either one
+live target with no tombstone, or no live target with a tombstone. The revision
+trigger `bump_constellation_anchor_revision` recognises the SET NULL update,
+stamps `tombstone_at`, keeps position and `placed_at`, and advances the
+viewer's cursor once, which fires the deferred anchor hint. A unique index on
+`(viewer_id, target_kind, target_id)` keeps the target identity unique, so
+apply on a tombstoned id returns `target_not_found`. Unpin deletes the row.
+Every statement is replay-safe. Reads (`constellation_anchor_projection_reader`,
+`constellation_field`, GraphQL maps/types) return `pinState` tombstone with id
+and kind only, so the GraphQL placement fields are now nullable.
+
+**Rewritten cascade expectations.** The storage, deferred-notification,
+apply-batch, batch-preparation and repository pg tests used to assert that
+deleting a Request or account removed the pin. The pin now survives as a
+tombstone (owner principle: a pinned object never silently vanishes, ARCH D15),
+so those assertions now expect the tombstone, the bumped cursor and the hint.
+No other assertion was loosened. New tests: tombstone and tombstone-migration pg
+tests plus `constellation_anchor_tombstone_fixture.dart`.
+
+**Verification.** Wrapped serial pg runs of the two gating tombstone tests and
+the five rewritten pg files; custom lints; non-pg `test/api` and `test/domain`
+(see the final run). No MeritRank code changed.
