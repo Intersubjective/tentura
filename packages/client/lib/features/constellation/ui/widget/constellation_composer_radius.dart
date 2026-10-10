@@ -166,26 +166,31 @@ class ConstellationComposerHandle extends StatelessWidget {
               return const SizedBox.shrink();
             }
             final at = _handleAt(hit);
-            return IgnorePointer(
-              child: Stack(
-                children: [
-                  Positioned(
-                    left: at.dx - hit / 2,
-                    top: at.dy - hit / 2,
-                    width: hit,
-                    height: hit,
-                    child: Center(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: scheme.primary,
-                          shape: BoxShape.circle,
+            return Stack(
+              children: [
+                Positioned(
+                  left: at.dx - hit / 2,
+                  top: at.dy - hit / 2,
+                  width: hit,
+                  height: hit,
+                  // Hover affordance only; presses still reach the recognizers
+                  // above, and touch has no hover.
+                  child: MouseRegion(
+                    cursor: SystemMouseCursors.resizeLeftRight,
+                    child: IgnorePointer(
+                      child: Center(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: scheme.primary,
+                            shape: BoxShape.circle,
+                          ),
+                          child: SizedBox.square(dimension: tt.iconSize),
                         ),
-                        child: SizedBox.square(dimension: tt.iconSize),
                       ),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             );
           },
         ),

@@ -2,7 +2,9 @@
 // (pre-existing), a press anywhere else inside the circle drags the draft
 // centre itself (ConstellationComposerCubit.moveDraft).
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -372,6 +374,100 @@ void main() {
 
       expect(composer.selection.center, beforeCentre);
       expect(composer.selection.radius, isNot(beforeRadius));
+    },
+  );
+
+  testWidgets(
+    'hovering the rim handle with a mouse shows a resize cursor',
+    (tester) async {
+      final cubit = await _loadCubit();
+      final composer = _buildComposerCubit();
+      addTearDown(cubit.close);
+      addTearDown(composer.close);
+
+      const size = Size(1200, 900);
+      await tester.binding.setSurfaceSize(size);
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('en'),
+          theme: TenturaTheme.light(),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          home: MediaQuery(
+            data: const MediaQueryData(size: size),
+            child: TenturaResponsiveScope(
+              child: MultiBlocProvider(
+                providers: [
+                  BlocProvider<ConstellationCubit>.value(value: cubit),
+                  BlocProvider<ConstellationComposerCubit>.value(
+                    value: composer,
+                  ),
+                  BlocProvider<GraphPersonContextCubit>(
+                    create: (_) => _StubContextCubit(),
+                  ),
+                  BlocProvider<ScreenCubit>(
+                    create: (_) => ScreenCubit(FakeUiEffectPort()),
+                  ),
+                ],
+                child: ConstellationBody(
+                  legendExpanded: false,
+                  onToggleLegend: () {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      composer.start(
+        BeaconKind.post,
+        cubit.graphController.viewportLocalToScene(const Offset(600, 450)),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      final handleFinder = find.byType(ConstellationComposerHandle);
+      final handleOrigin = tester.getTopLeft(handleFinder);
+      final handleBox = tester
+          .widgetList<Positioned>(
+            find.descendant(
+              of: handleFinder,
+              matching: find.byType(Positioned),
+            ),
+          )
+          .first;
+      final handleLocal = Offset(
+        handleBox.left! + handleBox.width! / 2,
+        handleBox.top! + handleBox.height! / 2,
+      );
+      final regions = tester.widgetList<MouseRegion>(
+        find.descendant(
+          of: handleFinder,
+          matching: find.byType(MouseRegion),
+        ),
+      );
+      expect(
+        regions.map((r) => r.cursor),
+        contains(SystemMouseCursors.resizeLeftRight),
+      );
+
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      addTearDown(mouse.removePointer);
+      await mouse.addPointer(location: const Offset(5, 5));
+      await tester.pump();
+      expect(
+        RendererBinding.instance.mouseTracker.debugDeviceActiveCursor(1),
+        isNot(SystemMouseCursors.resizeLeftRight),
+      );
+      await mouse.moveTo(handleOrigin + handleLocal);
+      await tester.pump();
+      expect(
+        RendererBinding.instance.mouseTracker.debugDeviceActiveCursor(1),
+        SystemMouseCursors.resizeLeftRight,
+      );
     },
   );
 }
