@@ -192,6 +192,74 @@ class _AbsenceProbeList extends StatelessWidget {
 void main() {
   group('Constellation density and filter widgets', () {
     testWidgets(
+      'filter sections: label gap is rowGap, unspecified in the Wrap',
+      (
+        tester,
+      ) async {
+        final cubit = await _loadCubit(
+          _baseField(
+            peers: [const ConstellationPerson(id: 'a', displayName: 'Ann')],
+            edges: [
+              const ConstellationTrustEdgeEntity(src: 'ego', dst: 'a', tier: 1),
+            ],
+            requests: [
+              const ConstellationRequest(
+                id: 'req-a',
+                authorId: 'a',
+                title: 'Need tools',
+                status: 0,
+                needs: ['tools'],
+              ),
+            ],
+          ),
+        );
+        await _pumpHarness(tester, cubit: cubit, width: 390, textScale: 1);
+        final context = tester.element(
+          find.byKey(const Key('constellation.filter_bar')),
+        );
+        final rowGap = context.tt.rowGap;
+        final l10n = L10n.of(context)!;
+
+        for (final (label, firstChip, unspecified) in [
+          (
+            l10n.constellationFilterCapability,
+            'constellation.filter.capability.tools',
+            'constellation.filter.capability.unspecified',
+          ),
+          (
+            l10n.constellationFilterLocation,
+            'constellation.filter.location.any',
+            'constellation.filter.location.unspecified',
+          ),
+          (
+            l10n.constellationFilterTiming,
+            'constellation.filter.timing.any',
+            'constellation.filter.timing.undated',
+          ),
+        ]) {
+          final labelRect = tester.getRect(find.text(label));
+          final wrap = find.ancestor(
+            of: find.byKey(Key(firstChip)),
+            matching: find.byType(Wrap),
+          );
+          expect(
+            tester.getTopLeft(wrap.first).dy - labelRect.bottom,
+            closeTo(rowGap, 0.5),
+            reason: label,
+          );
+          expect(
+            find.descendant(
+              of: wrap.first,
+              matching: find.byKey(Key(unspecified)),
+            ),
+            findsOneWidget,
+            reason: label,
+          );
+        }
+      },
+    );
+
+    testWidgets(
       'compact and expanded layouts keep controls readable at text scales',
       (tester) async {
         for (final width in [390.0, 900.0]) {

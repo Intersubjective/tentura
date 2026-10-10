@@ -397,7 +397,7 @@ class _CapabilityFilters extends StatelessWidget {
           l10n.constellationFilterCapability,
           style: Theme.of(context).textTheme.labelLarge,
         ),
-        SizedBox(height: tt.tightGap),
+        SizedBox(height: tt.rowGap),
         Wrap(
           spacing: tt.tightGap,
           runSpacing: tt.tightGap,
@@ -445,7 +445,7 @@ class _LocationFilters extends StatelessWidget {
           l10n.constellationFilterLocation,
           style: Theme.of(context).textTheme.labelLarge,
         ),
-        SizedBox(height: tt.tightGap),
+        SizedBox(height: tt.rowGap),
         Wrap(
           spacing: tt.tightGap,
           runSpacing: tt.tightGap,
@@ -491,7 +491,7 @@ class _TimingFilters extends StatelessWidget {
           l10n.constellationFilterTiming,
           style: Theme.of(context).textTheme.labelLarge,
         ),
-        SizedBox(height: tt.tightGap),
+        SizedBox(height: tt.rowGap),
         Wrap(
           spacing: tt.tightGap,
           runSpacing: tt.tightGap,
