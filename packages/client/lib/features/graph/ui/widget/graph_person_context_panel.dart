@@ -380,15 +380,22 @@ class _VisibilitySection extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Tooltip(
-          message: eyeTooltip,
-          child: Icon(
-            eyeOpen ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-            size: tt.iconSize,
-            color: theme.colorScheme.onSurfaceVariant,
+        // Same leading column as TrustToggleLine's icon (#262).
+        SizedBox.square(
+          dimension: kMinInteractiveDimension,
+          child: Center(
+            child: Tooltip(
+              message: eyeTooltip,
+              child: Icon(
+                eyeOpen
+                    ? Icons.visibility_outlined
+                    : Icons.visibility_off_outlined,
+                size: tt.iconSize,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
           ),
         ),
-        SizedBox(width: tt.iconTextGap),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

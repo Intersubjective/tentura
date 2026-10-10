@@ -287,6 +287,36 @@ void main() {
       expect(find.text(l10n.profile), findsOneWidget);
     });
 
+    testWidgets('visibility eye and trust icon share a leading column', (
+      tester,
+    ) async {
+      final graphCubit = _StubGraphCubit(
+        initial: const GraphState(
+          me: Profile(id: 'U-me', displayName: 'Me'),
+          focus: 'U-peer',
+        ),
+      );
+      await _pumpPanel(
+        tester,
+        profile: const Profile(id: 'U-peer', displayName: 'Peer'),
+        graphState: graphCubit.state,
+        graphCubit: graphCubit,
+      );
+      final eye = find.byIcon(Icons.visibility_off_outlined);
+      final person = find.byIcon(Icons.person_outline);
+      expect(eye, findsOneWidget);
+      expect(person, findsWidgets);
+      final eyeColumn = tester.getRect(
+        find.ancestor(of: eye, matching: find.byType(SizedBox)).first,
+      );
+      final trustColumn = tester.getRect(
+        find.ancestor(of: person.first, matching: find.byType(SizedBox)).first,
+      );
+      expect(eyeColumn.left, trustColumn.left);
+      expect(eyeColumn.width, trustColumn.width);
+      expect(tester.getRect(eye).left, tester.getRect(person.first).left);
+    });
+
     testWidgets('trust toggle: on trusts, off asks to confirm first', (
       tester,
     ) async {
