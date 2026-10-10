@@ -128,8 +128,7 @@ void main() {
     );
 
     await tester.tap(find.text('open-create'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50));
+    await tester.pumpAndSettle();
     expect(find.byType(BeaconCreateScreen), findsOneWidget);
 
     await tester.tap(
@@ -138,8 +137,7 @@ void main() {
         matching: find.byIcon(Icons.close),
       ),
     );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
 
     expect(find.byType(BeaconCreateScreen), findsNothing);
     expect(returned, {'outside-radius'});

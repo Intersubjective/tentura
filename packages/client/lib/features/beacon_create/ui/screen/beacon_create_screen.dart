@@ -398,7 +398,6 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
                 )
               : AutoLeadingWithFallback(
                   fallbackPath: kPathMyWork,
-                  closeWhenCanPop: true,
                   onPressed: () => unawaited(_leaveForm()),
                 ),
           trailingIsIcon: false,
@@ -430,6 +429,11 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
                 ),
               ),
           actions: [
+            IconButton(
+              icon: Icon(Icons.close, semanticLabel: l10n.buttonClose),
+              tooltip: l10n.buttonClose,
+              onPressed: () => unawaited(_leaveForm()),
+            ),
             if (!isRecipients && widget.convertFromPostId.isEmpty)
               BlocBuilder<BeaconCreateCubit, BeaconCreateState>(
                 bloc: _beaconCreateCubit,
