@@ -243,6 +243,51 @@ docker stats --no-stream meritrank
 docker compose -f compose.prod.yaml -f compose.override.yaml logs --tail=100 meritrank
 ```
 
+### Query observability with pg_stat_statements
+
+The prod `postgres` service preloads `pg_stat_statements` and `auto_explain`
+(`compose.prod.yaml`): all statements are tracked with I/O timing, statements
+slower than 1 s are logged, and `auto_explain` logs the plan (with `ANALYZE`
+and buffers) of statements slower than 2 s. The extension itself is created by
+a schema migration, so it exists after the first deploy that runs it.
+
+Open a psql shell:
+
+```bash
+docker compose -f compose.prod.yaml exec postgres psql -U postgres
+```
+
+Top queries by total time, worst single call, and call count:
+
+```sql
+SELECT calls, round(total_exec_time::numeric, 1) AS total_ms,
+       round(mean_exec_time::numeric, 2) AS mean_ms,
+       round(max_exec_time::numeric, 1) AS max_ms, left(query, 120) AS query
+FROM pg_stat_statements ORDER BY total_exec_time DESC LIMIT 20;
+
+SELECT calls, round(max_exec_time::numeric, 1) AS max_ms, left(query, 120) AS query
+FROM pg_stat_statements ORDER BY max_exec_time DESC LIMIT 20;
+
+SELECT calls, round(total_exec_time::numeric, 1) AS total_ms, left(query, 120) AS query
+FROM pg_stat_statements ORDER BY calls DESC LIMIT 20;
+```
+
+Counters accumulate since the last reset. Clear them before measuring a
+specific change:
+
+```sql
+SELECT pg_stat_statements_reset();
+```
+
+`auto_explain` plans and slow-statement lines go to the postgres container log,
+which the compose file ships to journald:
+
+```bash
+journalctl CONTAINER_NAME=postgres --since "1 hour ago" | grep -A40 'duration:'
+```
+
+Changing these settings needs a postgres restart (`shared_preload_libraries`).
+
 ## 6. First deploy — start the stack
 
 ```bash

@@ -81,6 +81,24 @@ services:
     hostname: postgres
     container_name: postgres
     image: vbulavintsev/postgres-tentura:v0.9.1
+    # Query observability (docs/production-deploy.md, "Query observability
+    # with pg_stat_statements"). The host dev override keeps stricter values.
+    command:
+      - postgres
+      - -c
+      - shared_preload_libraries=pg_stat_statements,auto_explain
+      - -c
+      - pg_stat_statements.track=all
+      - -c
+      - track_io_timing=on
+      - -c
+      - log_min_duration_statement=1000
+      - -c
+      - auto_explain.log_min_duration=2000
+      - -c
+      - auto_explain.log_analyze=on
+      - -c
+      - auto_explain.log_buffers=on
     # No host ports: reachable only from services on `backend`.
     depends_on:
       meritrank:
