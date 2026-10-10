@@ -116,17 +116,15 @@ class GraphPersonContextPanel extends StatelessWidget {
           child: TrustToggleLine(
             trusts: profile.viewerExplicitlyTrustsSubject,
             switchKey: TestIds.key(TestIds.graphPersonContextTrust),
-            onChanged: contextState.trustLoading
-                ? null
-                : (on) => on
-                      ? unawaited(contextCubit.trustSelected())
-                      : unawaited(
-                          FriendRemoveDialog.show(
-                            context,
-                            profile: profile,
-                            onRemove: contextCubit.untrustSelected,
-                          ),
-                        ),
+            onChanged: (on) => on
+                ? unawaited(contextCubit.trustSelected())
+                : unawaited(
+                    FriendRemoveDialog.show(
+                      context,
+                      profile: profile,
+                      onRemove: contextCubit.untrustSelected,
+                    ),
+                  ),
           ),
         ),
         _VisibilitySection(
@@ -156,15 +154,6 @@ class GraphPersonContextPanel extends StatelessWidget {
           contextCubit: contextCubit,
           onExpand: onExpand,
         ),
-        if (contextState.trustError != null) ...[
-          SizedBox(height: tt.rowGap),
-          Text(
-            contextState.trustError.toString(),
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: scheme.error,
-            ),
-          ),
-        ],
       ],
     );
 

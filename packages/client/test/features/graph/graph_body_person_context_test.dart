@@ -23,25 +23,13 @@ import 'package:tentura/features/graph/ui/widget/graph_node_widget.dart';
 import 'package:tentura/features/graph/ui/widget/graph_scaffold.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
-import 'package:logging/logging.dart';
 
-import 'package:tentura/domain/contacts/contact_name_store.dart';
-import 'package:tentura/domain/entity/likable.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
-import 'package:tentura/domain/port/capability_repository_port.dart';
-import 'package:tentura/env.dart';
-import 'package:tentura/features/contacts/domain/use_case/contacts_case.dart';
-import 'package:tentura/features/like/data/repository/like_remote_repository.dart';
-import 'package:tentura/features/profile_view/domain/use_case/profile_view_case.dart';
-
-import '../../support/fake_person_shared_context_port.dart';
-import '../../support/test_realtime_sync.dart';
-import '../auth/auth_test_helpers.dart';
-import '../contacts/contacts_case_test.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
+import '../../support/graph_trust_write_fixture.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 
 class _WidgetTestGraphSource implements GraphSourceRepository {
@@ -96,54 +84,6 @@ class _FakeProfileCubit extends Mock implements ProfileCubit {
 
   @override
   Stream<ProfileState> get stream => Stream<ProfileState>.value(state);
-}
-
-class _FakeCapabilityRepository implements CapabilityRepositoryPort {
-  @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      throw UnimplementedError('${invocation.memberName}');
-}
-
-ProfileViewCase _profileViewCase() {
-  final profiles = _FakeProfileRepository();
-  final authLocal = StreamingAuthLocal();
-  final realtime = buildTestRealtimeSync();
-  final authCase = buildTestAuthCase(authLocal, EmptyAuthRemote());
-  final contactsCase = ContactsCase(
-    FakeContactsRepository(),
-    authCase,
-    ContactNameStore(),
-    realtime.case_,
-    env: const Env(),
-    logger: Logger('test'),
-  );
-  return ProfileViewCase(
-    profiles,
-    _ControllableLikeRepository(),
-    _FakeCapabilityRepository(),
-    contactsCase,
-    realtime.case_,
-    FakePersonSharedContextPort(),
-    env: const Env(),
-    logger: Logger('test'),
-  );
-}
-
-final class _ControllableLikeRepository implements LikeRemoteRepository {
-  final _changes = StreamController<RepositoryEvent<Likable>>.broadcast();
-
-  @override
-  Stream<RepositoryEvent<Likable>> get changes => _changes.stream;
-
-  @override
-  Future<T> setLike<T extends Likable>(T entity, {required int amount}) async =>
-      entity;
-
-  @override
-  Future<void> dispose() => _changes.close();
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _TrackingForwardsCubit extends Cubit<GraphState> implements GraphCubit {
@@ -312,13 +252,16 @@ _pumpTrustGraphBody(
     effects: FakeUiEffectPort(),
   );
   graphCubit.emit(graphCubit.state.copyWith(isAnimated: false));
-  final contextCubit = GraphPersonContextCubit(
-    profileViewCase: _profileViewCase(),
+  final trustFixture = GraphTrustWriteFixture(
+    profileRepository: _FakeProfileRepository(),
+  );
+  final contextCubit = trustFixture.createCubit(
+    profileViewCase: trustFixture.profileViewCase,
     viewerId: _me.id,
     onProfilePatched: graphCubit.patchLoadedProfile,
   );
   addTearDown(graphCubit.close);
-  addTearDown(contextCubit.close);
+  addTearDown(trustFixture.dispose);
 
   await tester.pumpWidget(
     MaterialApp(
@@ -338,9 +281,9 @@ _pumpTrustGraphBody(
               BlocProvider<ScreenCubit>(create: (_) => ScreenCubit.local()),
               BlocProvider<ProfileCubit>.value(value: _FakeProfileCubit()),
             ],
-            child: GraphScaffold(
+            child: const GraphScaffold(
               personContextEnabled: true,
-              title: const Text('Graph'),
+              title: Text('Graph'),
             ),
           ),
         ),
@@ -365,6 +308,24 @@ _pumpTrustGraphBody(
 
 void main() {
   group('GraphBody person context', () {
+    testWidgets('trust toggle shows the new value while the write is pending', (
+      tester,
+    ) async {
+      await _pumpTrustGraphBody(
+        tester,
+        size: const Size(900, 600),
+        pages: {
+          null: {_e('Ume', 'Ub')},
+        },
+      );
+      await _tapPeerNode(tester, userId: 'Ub');
+      final toggle = find.byKey(TestIds.key(TestIds.graphPersonContextTrust));
+      await tester.tap(toggle);
+      await tester.pump();
+      expect(tester.widget<Switch>(toggle).value, isTrue);
+      expect(tester.widget<Switch>(toggle).onChanged, isNotNull);
+    });
+
     testWidgets('new node selection opens panel without profile refetch', (
       tester,
     ) async {
@@ -569,7 +530,6 @@ void main() {
               child: GraphBody(
                 legendExpanded: false,
                 onToggleLegend: () {},
-                personContextEnabled: false,
               ),
             ),
           ),

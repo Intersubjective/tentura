@@ -27,6 +27,7 @@ import 'package:tentura/features/profile_view/domain/use_case/profile_view_case.
 import 'package:tentura/ui/model/person_action_policy.dart';
 
 import '../../support/fake_person_shared_context_port.dart';
+import '../../support/graph_trust_write_fixture.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../auth/auth_test_helpers.dart';
@@ -87,9 +88,9 @@ void main() {
     tearDown(() => harness.dispose());
 
     test(
-      'successful trust patches graph and panel from authoritative profile',
+      'trust patches graph and panel without refreshing visibility',
       () async {
-        final alice = _alice(rScore: 1);
+        final alice = _alice(rScore: 1, trustsViewer: true);
         await harness.loadGraph(alice: alice, bob: _bob());
         harness
           ..profiles.refetchResult = _alice(
@@ -100,8 +101,11 @@ void main() {
           ..likes.mutationResult = _alice(myVote: 1);
 
         harness.contextCubit.selectProfile(alice, intentional: true);
+        await _settle();
+        final readsBefore = harness.profiles.fetchCalls;
         await harness.contextCubit.trustSelected();
         await _settle();
+        expect(harness.profiles.fetchCalls, readsBefore);
 
         final node = _liveNode(harness.graphCubit, 'Ualice') as UserNode;
         expect(node.user.myVote, 1);
@@ -114,7 +118,6 @@ void main() {
           isBlocked: false,
         );
         expect(policy.primaryAction, PersonPrimaryAction.sendRequest);
-        expect(harness.contextCubit.state.trustLoading, isFalse);
         expect(harness.contextCubit.state.trustError, isNull);
       },
     );
@@ -154,6 +157,7 @@ void main() {
         ..likes.mutationResult = _alice(myVote: 1);
 
       harness.contextCubit.selectProfile(alice, intentional: true);
+      await _settle();
       await harness.contextCubit.trustSelected();
       await _settle();
 
@@ -168,7 +172,7 @@ void main() {
     });
 
     test('subject-only → mutual trust enables Send primary', () async {
-      final alice = _alice(rScore: 1);
+      final alice = _alice(rScore: 1, trustsViewer: true);
       await harness.loadGraph(alice: alice, bob: _bob());
       harness
         ..profiles.refetchResult = _alice(
@@ -179,6 +183,7 @@ void main() {
         ..likes.mutationResult = _alice(myVote: 1, rScore: 1);
 
       harness.contextCubit.selectProfile(alice, intentional: true);
+      await _settle();
       await harness.contextCubit.trustSelected();
       await _settle();
 
@@ -225,18 +230,18 @@ void main() {
         harness.graphCubit.selectNode(_liveNode(harness.graphCubit, 'Ualice'));
         await _settle();
 
-        final fetchCompleter = Completer<Profile>();
-        harness.profiles.pendingFetch = fetchCompleter;
+        final writeCompleter = Completer<Profile>();
+        harness.likes.pendingAddFriend = writeCompleter;
 
         harness.contextCubit.selectProfile(alice, intentional: true);
+        await _settle();
         final trustFuture = harness.contextCubit.trustSelected();
-        expect(harness.contextCubit.state.trustLoading, isTrue);
+        expect(harness.contextCubit.state.selectedProfile!.myVote, 1);
 
         harness.contextCubit.selectProfile(bob, intentional: true);
         expect(harness.contextCubit.state.selectedProfile!.id, 'Ubob');
-        expect(harness.contextCubit.state.trustLoading, isFalse);
 
-        fetchCompleter.complete(_alice(myVote: 1));
+        writeCompleter.complete(_alice(myVote: 1));
         await expectLater(trustFuture, completes);
         await _settle();
 
@@ -253,37 +258,38 @@ void main() {
       final bob = _bob();
       await harness.loadGraph(alice: alice, bob: bob);
 
-      final fetchCompleter = Completer<Profile>();
-      harness.profiles.pendingFetch = fetchCompleter;
+      final writeCompleter = Completer<Profile>();
+      harness.likes.pendingAddFriend = writeCompleter;
 
       harness.contextCubit.selectProfile(alice, intentional: true);
+      await _settle();
       final trustFuture = harness.contextCubit.trustSelected();
 
       harness.contextCubit.selectProfile(bob, intentional: true);
 
       await Future<void>.delayed(const Duration(milliseconds: 10));
-      fetchCompleter.completeError(StateError('alice failed'));
+      writeCompleter.completeError(StateError('alice failed'));
       await expectLater(trustFuture, completes);
       await _settle();
 
       expect(harness.contextCubit.state.selectedProfile!.id, 'Ubob');
       expect(harness.contextCubit.state.trustError, isNull);
-      expect(harness.contextCubit.state.trustLoading, isFalse);
     });
 
     test('close during trust request causes no emit-after-close', () async {
       final alice = _alice();
       await harness.loadGraph(alice: alice, bob: _bob());
 
-      final fetchCompleter = Completer<Profile>();
-      harness.profiles.pendingFetch = fetchCompleter;
+      final writeCompleter = Completer<Profile>();
+      harness.likes.pendingAddFriend = writeCompleter;
 
       harness.contextCubit.selectProfile(alice, intentional: true);
+      await _settle();
       final trustFuture = harness.contextCubit.trustSelected();
       final lastState = harness.contextCubit.state;
 
       await harness.contextCubit.close();
-      fetchCompleter.complete(_alice(myVote: 1));
+      writeCompleter.complete(_alice(myVote: 1));
       await expectLater(trustFuture, completes);
       await _settle();
 
@@ -338,8 +344,11 @@ void main() {
 
       expect(harness.contextCubit.state.selectedProfile, isNull);
       expect(harness.contextCubit.state.dismissedFocusId, isNull);
-      expect(harness.contextCubit.state.trustLoading, isFalse);
       expect(harness.contextCubit.state.trustError, isNull);
+      expect(
+        () => (harness.contextCubit.state as dynamic).trustLoading,
+        throwsNoSuchMethodError,
+      );
     });
   });
 }
@@ -348,6 +357,10 @@ final class _Harness {
   _Harness() {
     profiles = _FakeProfileRepository();
     likes = _ControllableLikeRepository(profiles);
+    trustFixture = GraphTrustWriteFixture(
+      profileRepository: profiles,
+      likeRepository: likes,
+    );
     final realtime = buildTestRealtimeSync();
     realtimePort = realtime.port;
     realtimeCase = realtime.case_;
@@ -375,6 +388,7 @@ final class _Harness {
   final authLocal = StreamingAuthLocal();
   final contactsRepository = FakeContactsRepository();
   final contactStore = ContactNameStore();
+  late final GraphTrustWriteFixture trustFixture;
   late final _FakeProfileRepository profiles;
   late final _ControllableLikeRepository likes;
   final capabilities = _FakeCapabilityRepository();
@@ -412,7 +426,7 @@ final class _Harness {
       profileRepository: _GraphProfileRepository(profiles.byId),
       effects: FakeUiEffectPort(),
     );
-    contextCubit = GraphPersonContextCubit(
+    contextCubit = trustFixture.createCubit(
       profileViewCase: case_,
       viewerId: _me.id,
       onProfilePatched: graphCubit.patchLoadedProfile,
@@ -425,6 +439,7 @@ final class _Harness {
       await contextCubit.close();
     }
     await graphCubit.close();
+    await trustFixture.dispose();
     await contactsCase.dispose();
     await realtimePort.dispose();
     await contactStore.dispose();
@@ -549,7 +564,7 @@ class _FakeProfileRepository implements ProfileRepositoryPort {
 
 final class _ControllableLikeRepository implements LikeRemoteRepository {
   final _changes = StreamController<RepositoryEvent<Likable>>.broadcast();
-  Profile mutationResult = Profile(id: 'Ualice');
+  Profile mutationResult = const Profile(id: 'Ualice');
   Completer<Profile>? pendingAddFriend;
   final _FakeProfileRepository profiles;
 
@@ -562,7 +577,7 @@ final class _ControllableLikeRepository implements LikeRemoteRepository {
   Future<T> setLike<T extends Likable>(T entity, {required int amount}) async {
     profiles.authoritativeOnNextFetch = true;
     if (pendingAddFriend != null) {
-      return pendingAddFriend!.future as T;
+      return (await pendingAddFriend!.future) as T;
     }
     return mutationResult as T;
   }

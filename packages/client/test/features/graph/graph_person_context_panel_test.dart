@@ -10,6 +10,8 @@ import 'package:tentura/features/graph/domain/entity/graph_mode.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_cubit.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
+import 'package:tentura/domain/entity/lazy_write_notice.dart';
+import 'package:tentura/features/graph/domain/use_case/graph_trust_write_case.dart';
 
 import 'scene_layout_test_support.dart';
 import 'package:tentura/features/graph/ui/widget/graph_person_context_panel.dart';
@@ -57,6 +59,12 @@ class _StubGraphCubit extends Cubit<GraphState> implements GraphCubit {
 
 class _StubContextCubit extends Cubit<GraphPersonContextState>
     implements GraphPersonContextCubit {
+  @override
+  Stream<LazyWriteNotice> get lazyWriteNotices => const Stream.empty();
+
+  @override
+  Future<void> retryTrust([GraphTrustRevert? revert]) async {}
+
   _StubContextCubit([GraphPersonContextState? initial])
     : super(initial ?? const GraphPersonContextState());
 

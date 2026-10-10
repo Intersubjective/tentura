@@ -14,9 +14,14 @@ import 'package:tentura/domain/attention/port/attention_reconcile_port.dart';
 import 'package:tentura/domain/port/beacon_image_port.dart';
 import 'package:tentura/domain/port/beacon_write_port.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
+import 'package:tentura/features/like/data/repository/like_remote_repository.dart';
+import 'package:tentura/features/like/domain/port/like_write_port.dart';
 
 @module
 abstract class RegisterModule {
+  @singleton
+  LikeWritePort likeWritePort(LikeRemoteRepository repository) => repository;
+
   @singleton
   AuthRemoteClient authRemoteClient(RemoteApiService service) => service;
 

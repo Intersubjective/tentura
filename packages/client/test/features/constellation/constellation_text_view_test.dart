@@ -13,6 +13,8 @@ import 'package:tentura/features/constellation/ui/widget/constellation_app_bar.d
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_text_view.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
+import 'package:tentura/domain/entity/lazy_write_notice.dart';
+import 'package:tentura/features/graph/domain/use_case/graph_trust_write_case.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
@@ -22,6 +24,12 @@ import '../../support/constellation_store_fixture.dart';
 
 class _StubContextCubit extends Cubit<GraphPersonContextState>
     implements GraphPersonContextCubit {
+  @override
+  Stream<LazyWriteNotice> get lazyWriteNotices => const Stream.empty();
+
+  @override
+  Future<void> retryTrust([GraphTrustRevert? revert]) async {}
+
   _StubContextCubit() : super(const GraphPersonContextState());
 
   @override

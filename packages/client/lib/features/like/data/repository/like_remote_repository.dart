@@ -8,11 +8,12 @@ import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/data/repository/remote_repository.dart';
 
 import '../../domain/exception.dart';
+import '../../domain/port/like_write_port.dart';
 import '../gql/_g/like_beacon_by_id.req.gql.dart';
 import '../gql/_g/like_user_by_id.req.gql.dart';
 
 @Singleton(env: [Environment.dev, Environment.prod])
-class LikeRemoteRepository extends RemoteRepository {
+class LikeRemoteRepository extends RemoteRepository implements LikeWritePort {
   LikeRemoteRepository({
     required super.remoteApiService,
     required super.log,
@@ -25,6 +26,7 @@ class LikeRemoteRepository extends RemoteRepository {
   @disposeMethod
   Future<void> dispose() => _controller.close();
 
+  @override
   Future<T> setLike<T extends Likable>(T entity, {required int amount}) async {
     switch (entity) {
       case final Beacon e:
@@ -52,10 +54,9 @@ class LikeRemoteRepository extends RemoteRepository {
   }) async {
     final data = await requestDataOnlineOrThrow(
       GLikeBeaconByIdReq(
-        (b) =>
-            b
-              ..vars.amount = amount
-              ..vars.beacon_id = beaconId,
+        (b) => b
+          ..vars.amount = amount
+          ..vars.beacon_id = beaconId,
       ),
       label: _label,
     );
@@ -67,10 +68,9 @@ class LikeRemoteRepository extends RemoteRepository {
   Future<int> _likeUser({required String userId, required int amount}) async {
     final data = await requestDataOnlineOrThrow(
       GUserVoteReq(
-        (b) =>
-            b.vars
-              ..objectId = userId
-              ..amount = amount,
+        (b) => b.vars
+          ..objectId = userId
+          ..amount = amount,
       ),
       label: _label,
     );

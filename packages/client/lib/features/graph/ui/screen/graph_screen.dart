@@ -9,6 +9,8 @@ import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
 
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/profile_view/domain/use_case/profile_view_case.dart';
+import 'package:tentura/features/graph/domain/use_case/graph_trust_write_case.dart';
+import 'package:tentura/features/graph/ui/widget/graph_trust_write_notices.dart';
 
 import '../bloc/graph_cubit.dart';
 import '../bloc/graph_person_context_cubit.dart';
@@ -37,6 +39,7 @@ class GraphScreen extends StatelessWidget implements AutoRouteWrapper {
           final graphCubit = context.read<GraphCubit>();
           return GraphPersonContextCubit(
             profileViewCase: GetIt.I<ProfileViewCase>(),
+            trustWriteCase: GetIt.I<GraphTrustWriteCase>(),
             viewerId: graphCubit.state.me.id,
             onProfilePatched: graphCubit.patchLoadedProfile,
           );
@@ -49,10 +52,12 @@ class GraphScreen extends StatelessWidget implements AutoRouteWrapper {
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
-    return GraphScaffold(
-      personContextEnabled: true,
-      leading: const AutoLeadingWithFallback(fallbackPath: kPathHome),
-      title: Text(l10n.graphView),
+    return GraphTrustWriteNotices(
+      child: GraphScaffold(
+        personContextEnabled: true,
+        leading: const AutoLeadingWithFallback(fallbackPath: kPathHome),
+        title: Text(l10n.graphView),
+      ),
     );
   }
 }

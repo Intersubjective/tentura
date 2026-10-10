@@ -151,7 +151,6 @@ class GraphBodyState extends State<GraphBody>
       buildWhen: (previous, current) =>
           previous.selectedProfile != current.selectedProfile ||
           previous.dismissedFocusId != current.dismissedFocusId ||
-          previous.trustLoading != current.trustLoading ||
           previous.trustError != current.trustError,
       builder: (context, contextState) => BlocConsumer<GraphCubit, GraphState>(
         listenWhen: (previous, current) => previous.focus != current.focus,

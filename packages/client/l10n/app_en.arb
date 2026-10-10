@@ -7836,5 +7836,7 @@
   "lazyWriteAckOverdue": "Still saving your changes. They stay on screen and will be sent when the connection allows.",
   "@lazyWriteAckOverdue": {
     "context": "Snackbar when a pin or move has not been acknowledged by the server for 15 seconds"
-  }
+  },
+  "graphTrustNotSaved": "Trust change not saved",
+  "graphTrustRetry": "Retry"
 }

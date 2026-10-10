@@ -9,7 +9,6 @@ abstract class GraphPersonContextState with _$GraphPersonContextState {
   const factory GraphPersonContextState({
     Profile? selectedProfile,
     String? dismissedFocusId,
-    @Default(false) bool trustLoading,
     Object? trustError,
     @Default(0) int selectionSequence,
   }) = _GraphPersonContextState;

@@ -17,6 +17,8 @@ import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/profile_view/domain/use_case/profile_view_case.dart';
+import 'package:tentura/features/graph/domain/use_case/graph_trust_write_case.dart';
+import 'package:tentura/features/graph/ui/widget/graph_trust_write_notices.dart';
 import 'package:tentura/domain/port/clock_port.dart';
 import 'package:tentura/domain/port/wake_up_port.dart';
 import 'package:tentura/domain/scheduling/adaptive_slice_controller.dart';
@@ -83,6 +85,7 @@ class ConstellationScreen extends StatefulWidget implements AutoRouteWrapper {
               BlocProvider(
                 create: (context) => GraphPersonContextCubit(
                   profileViewCase: GetIt.I<ProfileViewCase>(),
+                  trustWriteCase: GetIt.I<GraphTrustWriteCase>(),
                   viewerId: viewer.id,
                 ),
               ),
@@ -293,12 +296,14 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
           ),
           account: homeTopBarAccount(context),
         ),
-        body: LazyWriteTimeoutNotice(
-          notices: context.read<ConstellationCubit>().lazyWriteNotices,
-          child: TenturaFullBleed(
-            child: ConstellationBody(
-              legendExpanded: _legendExpanded,
-              onToggleLegend: _toggleLegend,
+        body: GraphTrustWriteNotices(
+          child: LazyWriteTimeoutNotice(
+            notices: context.read<ConstellationCubit>().lazyWriteNotices,
+            child: TenturaFullBleed(
+              child: ConstellationBody(
+                legendExpanded: _legendExpanded,
+                onToggleLegend: _toggleLegend,
+              ),
             ),
           ),
         ),
