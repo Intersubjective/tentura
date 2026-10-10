@@ -21,7 +21,9 @@ import '../port/constellation_repository_port.dart';
 export '../entity/constellation_field_store_state.dart';
 export '../entity/constellation_projection_params.dart';
 
-const kLazyFieldRefreshInterval = Duration(seconds: 30);
+/// D8 staleness window (ARCH 7.3): global invalidations refresh a visible
+/// field at most once per window. The D8 load model pins its own copy to this.
+const kLazyFieldRefreshInterval = Duration(minutes: 5);
 
 enum ConstellationRefreshReason {
   /// Explicit load: dispatched at once, sharing an in-flight read.

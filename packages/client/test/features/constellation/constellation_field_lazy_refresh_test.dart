@@ -18,8 +18,15 @@ import '../../support/fake_clock_port.dart';
 import '../../support/fake_wake_up_port.dart';
 import '../../support/test_realtime_sync.dart';
 
-const _lazyWindow = Duration(seconds: 30);
-const _globalStalenessBound = Duration(minutes: 5);
+/// Global field hints refresh a visible field once per D8 staleness window
+/// (5 min) plus a small per-account jitter.
+const _lazyWindow = Duration(minutes: 5);
+
+/// Generous bound on the per-account jitter added to [_lazyWindow].
+const _jitterAllowance = Duration(seconds: 30);
+
+/// Long enough for a pending global refresh to be due, whatever the jitter.
+final _globalStalenessBound = _lazyWindow + _jitterAllowance;
 
 void main() {
   late _RefreshHarness h;
@@ -38,14 +45,15 @@ void main() {
         final initialReads = h.repository.calls.length;
         final lastFullAt = h.repository.calls.last.at;
 
-        // Fifty hints in each of ten consecutive 30 s windows. Keep checking
-        // the count while traffic continues, rather than only after it stops.
-        for (var window = 0; window < 10; window++) {
+        // Fifty hints in each of three consecutive five-minute windows. Keep
+        // checking the count while traffic continues, not only after it stops.
+        const hintSpacing = Duration(seconds: 6);
+        for (var window = 0; window < 3; window++) {
           final windowStart = h.clock.now();
           final windowEnd = windowStart.add(_lazyWindow);
           for (var hint = 0; hint < 50; hint++) {
             h.fieldHint();
-            await h.advance(const Duration(milliseconds: 600));
+            await h.advance(hintSpacing);
             final readsInWindow = h.repository.calls
                 .skip(initialReads)
                 .where(
@@ -67,7 +75,7 @@ void main() {
           h.repository.calls.length,
           greaterThan(initialReads),
           reason:
-              'A continuously stale visible field must refresh within five minutes.',
+              'A continuously stale visible field must refresh within a window.',
         );
         // Let an invalidation newer than the last dispatched FULL settle too.
         await h.advance(_globalStalenessBound);
@@ -82,6 +90,25 @@ void main() {
           expect(read.projection, ConstellationProjection.full);
           previousFullAt = read.at;
         }
+      },
+    );
+
+    test(
+      'one visible hint dispatches its FULL after the window, not before',
+      () async {
+        await h.load();
+        final initialReads = h.repository.calls.length;
+        final hintedAt = h.clock.now();
+
+        h.fieldHint();
+        await h.advance(_lazyWindow - const Duration(seconds: 1));
+        expect(h.repository.calls, hasLength(initialReads));
+
+        await h.advance(const Duration(seconds: 1) + _jitterAllowance);
+        expect(h.repository.calls, hasLength(initialReads + 1));
+        final read = h.repository.calls.last;
+        expect(read.at.difference(hintedAt), greaterThanOrEqualTo(_lazyWindow));
+        expect(read.projection, ConstellationProjection.full);
       },
     );
 

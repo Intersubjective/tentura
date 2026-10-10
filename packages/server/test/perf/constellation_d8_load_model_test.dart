@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:test/test.dart';
 
 import 'constellation_d8_load_model.dart';
@@ -15,7 +17,7 @@ final class _FakeTime {
     return (cancel: () => _cancelled.add(id));
   }
 
-  void advance(double toMs) {
+  void advanceTo(double toMs) {
     while (true) {
       final due = [
         for (final t in _timers)
@@ -118,25 +120,25 @@ void main() {
       final p = _policy();
 
       p.policy.onHint();
-      p.time.advance(219);
+      p.time.advanceTo(219);
       expect(p.starts, isEmpty);
-      p.time.advance(220);
+      p.time.advanceTo(220);
 
       expect(p.starts, [220]);
     });
 
-    test('a hint soon after a FULL waits for 30 s plus jitter', () {
+    test('a hint soon after a FULL waits for the window plus jitter', () {
       final p = _policy(jitterMs: 1500);
       p.policy.onLoadOrCatchUp();
       p.policy.onFullCompleted(ok: true);
 
-      p.time.advance(5000);
+      p.time.advanceTo(5000);
       p.policy.onHint();
-      p.time.advance(31499);
+      p.time.advanceTo(d8StalenessMs + 1499);
       expect(p.starts, [0]);
-      p.time.advance(31500);
+      p.time.advanceTo(d8StalenessMs + 1500);
 
-      expect(p.starts, [0, 31500]);
+      expect(p.starts, [0, d8StalenessMs + 1500]);
     });
 
     test('a hint during a FULL queues exactly one more, spaced', () {
@@ -146,22 +148,22 @@ void main() {
       p.policy
         ..onHint()
         ..onHint();
-      p.time.advance(1000);
+      p.time.advanceTo(1000);
       p.policy.onFullCompleted(ok: true);
-      p.time.advance(100000);
+      p.time.advanceTo(d8StalenessMs + 100000);
 
-      expect(p.starts, [0, 30000]);
+      expect(p.starts, [0, d8StalenessMs]);
     });
 
     test('RETRY_LATER is retried once its not-before passes', () {
       final p = _policy();
       p.policy.onLoadOrCatchUp();
 
-      p.time.advance(100);
+      p.time.advanceTo(100);
       p.policy.onFullCompleted(ok: false, retryAfterMs: 2000);
-      p.time.advance(2099);
+      p.time.advanceTo(2099);
       expect(p.starts, [0]);
-      p.time.advance(2100);
+      p.time.advanceTo(2100);
 
       expect(p.starts, [0, 2100]);
       expect(p.policy.retryNotBeforeMs, 2100);
@@ -180,6 +182,94 @@ void main() {
       p.policy.onLoadOrCatchUp();
       expect(p.starts, [0, 0]);
     });
+  });
+
+  group('D8 client policy lazy cadence', () {
+    test('lazy spacing is the D8 staleness window', () {
+      expect(D8ClientPolicy.lazySpacingMs, d8StalenessMs);
+      expect(d8StalenessMs, const Duration(minutes: 5).inMilliseconds);
+    });
+
+    // The simulated sessions must follow the real client's cadence. The client
+    // package cannot be imported here, so its constant is read from source.
+    test('lazy spacing equals the client lazy field refresh interval', () {
+      final source = File(
+        '../client/lib/features/constellation/domain/use_case/'
+        'constellation_field_store_case.dart',
+      ).readAsStringSync();
+      final declaration = RegExp(
+        r'const kLazyFieldRefreshInterval\s*=\s*Duration\(([^)]*)\)',
+      ).firstMatch(source);
+      expect(declaration, isNotNull, reason: 'client constant not found');
+
+      var clientMs = 0;
+      for (final part in declaration!.group(1)!.split(',')) {
+        final named = RegExp(r'(\w+)\s*:\s*(\d+)').firstMatch(part);
+        if (named == null) continue;
+        final value = int.parse(named.group(2)!);
+        clientMs += switch (named.group(1)) {
+          'minutes' => value * 60000,
+          'seconds' => value * 1000,
+          'milliseconds' => value,
+          _ => fail('unsupported Duration argument ${named.group(1)}'),
+        };
+      }
+
+      expect(D8ClientPolicy.lazySpacingMs, clientMs);
+    });
+
+    test('a catch-up still dispatches at once inside the window', () {
+      final p = _policy();
+      p.policy.onLoadOrCatchUp();
+      p.policy.onFullCompleted(ok: true);
+
+      p.time.advanceTo(10000);
+      p.policy.onLoadOrCatchUp();
+
+      expect(p.starts, [0, 10000]);
+    });
+
+    test('a steady hint stream asks for one FULL per window', () {
+      final p = _policy();
+      p.policy.onLoadOrCatchUp();
+      p.policy.onFullCompleted(ok: true);
+
+      for (var t = 1000; t <= 2 * d8StalenessMs; t += 1000) {
+        p.time.advanceTo(t.toDouble());
+        p.policy.onHint();
+        p.time.advanceTo(t + 300.0);
+        if (p.policy.inFlight) p.policy.onFullCompleted(ok: true);
+      }
+
+      expect(p.starts, [0, d8StalenessMs, 2 * d8StalenessMs]);
+    });
+  });
+
+  group('D8 plans follow the client lazy cadence', () {
+    // A session refreshes on a global hint at most once per staleness window, so a
+    // plan with bursts closer than that would model more refresh rounds (and
+    // FULL/s) than the real client can ask for.
+    for (final scenario in D8Scenario.values) {
+      for (final level in D8Level.values) {
+        test('${scenario.label} ${level.name} bursts are one staleness window '
+            'apart', () {
+          final plan = d8PlanFor(scenario, level);
+          final burstStarts = [
+            for (var i = 0; i < plan.publicationsAtMs.length; i += d8BurstSize)
+              plan.publicationsAtMs[i],
+          ];
+
+          expect(burstStarts.length, greaterThan(1));
+          for (var i = 1; i < burstStarts.length; i++) {
+            expect(
+              burstStarts[i] - burstStarts[i - 1],
+              greaterThanOrEqualTo(d8StalenessMs),
+              reason: 'burst $i follows burst ${i - 1} too closely',
+            );
+          }
+        });
+      }
+    }
   });
 
   group('D8 run summary', () {

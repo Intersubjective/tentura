@@ -57,9 +57,9 @@ enum D8Scenario {
       values.singleWhere((s) => s.slug == slug.trim());
 }
 
-/// `load`: four publication bursts 80 s apart (each session refreshes once
-/// per burst). `capacity`: a burst every 30 s for 5 minutes, the most the
-/// client policy can request (one FULL per session per ~30–33 s).
+/// `load`: four publication bursts one staleness window apart (each session
+/// refreshes once per burst). `capacity`: a burst every window for 30 minutes,
+/// the most the client policy can request (one FULL per session per window).
 enum D8Level { load, capacity }
 
 /// A scenario timeline in milliseconds from the run's start (t0 = the first
@@ -96,8 +96,8 @@ const d8BurstSpacingMs = 1000;
 D8Plan d8PlanFor(D8Scenario scenario, D8Level level, {double scale = 1}) {
   int at(int ms) => (ms * scale).round();
   final bursts = switch (level) {
-    D8Level.load => const [0, 80000, 160000, 240000],
-    D8Level.capacity => [for (var t = 0; t <= 300000; t += 30000) t],
+    D8Level.load => [for (var i = 0; i < 4; i++) i * d8StalenessMs],
+    D8Level.capacity => [for (var i = 0; i < 7; i++) i * d8StalenessMs],
   };
   final publications = [
     for (final start in bursts)
@@ -110,8 +110,8 @@ D8Plan d8PlanFor(D8Scenario scenario, D8Level level, {double scale = 1}) {
     durationMs: publications.last + at(d8StalenessMs + 1000),
     // Offline across one burst (load) or two (capacity), then every session
     // reconnects at once and catches up.
-    disconnectAtMs: reconnect ? at(load ? 40000 : 95000) : null,
-    reconnectAtMs: reconnect ? at(load ? 120000 : 155000) : null,
+    disconnectAtMs: reconnect ? at(load ? 150000 : 450000) : null,
+    reconnectAtMs: reconnect ? at(load ? 450000 : 750000) : null,
   );
 }
 
@@ -130,7 +130,7 @@ typedef D8TimerHandle = ({void Function() cancel});
 /// The FULL scheduling of the client `ConstellationFieldStoreCase`
 /// (packages/client .../constellation_field_store_case.dart) for a visible
 /// field: global field hints are non-urgent (220 ms debounce, never sooner
-/// than 30 s plus per-account jitter after the previous FULL dispatch); a
+/// than the D8 window (5 min) plus per-account jitter after the previous FULL dispatch); a
 /// load or catch-up dispatches at once (joining a FULL in flight); a hint
 /// during a FULL queues one more; RETRY_LATER is honoured as a not-before.
 final class D8ClientPolicy {
@@ -143,7 +143,7 @@ final class D8ClientPolicy {
 
   static const debounceMs = 220;
   static const urgentSpacingMs = 2000;
-  static const lazySpacingMs = 30000;
+  static const lazySpacingMs = d8StalenessMs;
 
   final int jitterMs;
   final double Function() nowMs;

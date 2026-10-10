@@ -7,7 +7,6 @@ import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
-import 'package:tentura/features/constellation/domain/use_case/constellation_field_store_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 
 import '../../support/test_realtime_sync.dart';
@@ -16,6 +15,11 @@ import '../../support/constellation_store_fixture.dart';
 
 /// #234: realtime-driven FULL refetches were issued for every room event of
 /// any Request, every 220 ms, also while the tab was hidden.
+/// A global (non-urgent) hint refreshes a visible field once per D8 staleness
+/// window (5 min) plus a small per-account jitter.
+const _stalenessWindow = Duration(minutes: 5);
+const _jitterAllowance = Duration(seconds: 30);
+
 final class _CountingRepository implements ConstellationRepositoryPort {
   int fetchCount = 0;
 
@@ -123,7 +127,10 @@ void main() {
       async.elapse(const Duration(seconds: 5));
       expect(repository.fetchCount, 1);
 
-      async.elapse(kLazyFieldRefreshInterval);
+      async.elapse(_stalenessWindow - const Duration(seconds: 6));
+      expect(repository.fetchCount, 1, reason: 'still inside the window');
+
+      async.elapse(const Duration(seconds: 7) + _jitterAllowance);
       expect(repository.fetchCount, 2);
 
       emit(RealtimeEntityKind.roomMessage, 'on-map');

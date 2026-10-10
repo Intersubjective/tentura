@@ -31,6 +31,10 @@ import '../../support/test_realtime_sync.dart';
 /// * `current` / `changes` expose a `ConstellationFieldStoreState` with
 ///   `field`, `coveredRevision` and `generation`.
 
+/// Global (non-urgent) hints refresh a visible field once per D8 staleness
+/// window (5 min) plus a small per-account jitter.
+const _stalenessWindow = Duration(minutes: 5);
+
 ConstellationAnchorRevision _revision(int value) =>
     ConstellationAnchorRevision(BigInt.from(value));
 
@@ -406,6 +410,40 @@ void main() {
 
       final extra = repository.calls.length - fetchesBefore;
       expect(extra, inInclusiveRange(4, 7));
+    });
+
+    test(
+      'a global hint waits for the staleness window before its FULL',
+      () async {
+        await build((_, _) async => _field(postId: 'p1'));
+        store.lease();
+        await load();
+        final fetchesBefore = repository.calls.length;
+
+        hint(RealtimeEntityKind.roomMessage, 'elsewhere');
+        await advance(_stalenessWindow - const Duration(seconds: 1));
+        expect(repository.calls, hasLength(fetchesBefore));
+
+        await advance(_stalenessWindow);
+        expect(repository.calls, hasLength(fetchesBefore + 1));
+        expect(repository.calls.last.projection, ConstellationProjection.full);
+      },
+    );
+
+    test('an urgent hint is not held back by a pending global hint', () async {
+      await build((_, _) async => _field(postId: 'p1'));
+      store.lease();
+      await load();
+      final fetchesBefore = repository.calls.length;
+
+      hint(RealtimeEntityKind.roomMessage, 'elsewhere');
+      await advance(const Duration(seconds: 30));
+      expect(repository.calls, hasLength(fetchesBefore));
+
+      hint(RealtimeEntityKind.beacon, 'p1');
+      await advance(const Duration(seconds: 5));
+
+      expect(repository.calls, hasLength(fetchesBefore + 1));
     });
   });
 
