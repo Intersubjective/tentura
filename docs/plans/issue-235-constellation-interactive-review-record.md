@@ -142,3 +142,53 @@ The owner asked whether, after warm-up, reverse scores come from a cache.
 - **Resolution:**
   - ARCH rev 9: §7.4a becomes optional; the walks-cache sizing rule is added to §7.5.
   - Plan rev 5: U47 = config sizing (release precondition); U48 optional. The MR generation-checked reverse-score cache is done separately in `meritrank-rust`, outside this plan.
+
+## Rev 10 (owner decisions 2026-10-10)
+
+The owner gave binding decisions after the U26 D8 run (journal, U26 part 2/3, local) blocked the release on write p95: 4.6–4.9 s loaded against 70 ms, and 495–717 ms for an unloaded 1-op write at V ≈ 1,000. Most of that time was the in-transaction projection: trust edges over the whole visible set, profiles, the support closure, and the Dart projection build. They are recorded as ARCH **D9–D15** (D6–D8 were already taken). Plan rev 6 adds U50–U54.
+
+**Decisions**
+- **D9, priorities.** Interactivity first, reliability second, other users' updates third. Chat is the exception: there, update speed matters. Constellation is not a collaborative editor.
+- **D10.** Anchor writes are speculative and lazy. The server's answer is a minimal acknowledgement: per-op results, the stored row of each upsert and a `replayed` flag. There is no projection, and no read follows a write on the happy path.
+- **D11.** No server-side visibility authorization for pin targets. The write keeps its locks, dedupe, `ifRevision`, watermarks, op log, flush and hint, plus a per-op existence and shape check that never rolls back the batch.
+- **D12.** No support-closure loading on pin. The path may change at the next normal read.
+- **D13.** Trust changes made through the graph are speculative and lazy too: no loading state, no re-read.
+- **D15** (a later owner message the same day; it replaces the part of D11 under which reads hid pins on targets that are no longer visible). **A pin beats MeritRank and friendship visibility, but does not beat bans.**
+  - A pinned person stays on the map with their profile even after losing visibility. A block in either direction hides them.
+  - They get no satellites unless the normal read rules show one of their Requests, and no path, because trust edges join visible peers only.
+  - Pinned Requests keep the read wall.
+  - Today's reader drops person anchors outside the visible set (`constellation_anchor_projection_reader.dart:259-269`, `:138-142`). U54 changes that.
+- **D14.** A timeout notice for lazy writes (15 s, tied to `kRequestTimeout` and the server's 10 s queue deadline plus 5 s RR deadline). It complements D1.
+
+**Origin of the removed requirement.** The rule that `anchorProjection` must be the **complete** projection at `afterRevision`, equal to a fresh ANCHORS read, and the rule "no cheap-response fast path in v1" were not owner requirements. The adversarial review rounds introduced them:
+- **Round 1 #8** ("a touched-target delta can't maintain support paths"): Claude resolved it by returning the full in-tx projection instead of a delta.
+- **Round 2 #4** ("coverage still had delta semantics; projection is parameter-dependent"): the complete projection now replaced anchors and advanced coverage, and projection params were sent on the mutation.
+- **Round 3 #3** ("no safe position-only cheap response"): the complete projection was retained, and any cheaper scheme was deferred behind the §7.4 baselines.
+
+Round 4 #7 (preparing new pins and the support closure) and the prepare-first contention gate (round 4 #1) followed from the same choice.
+
+Together these set a collaborative-editor consistency bar: every response provably equals a fresh read. D9 explicitly rejects that bar for this product. The rev 10 design also meets I5 and I6 better: "drop to persisted: one request, no follow-up read" now holds with no projection work. The equality idea survives only where two reads must agree, namely ANCHORS against the anchor part of FULL (U12's reader parity).
+
+**Resolution of the conflicts with the earlier text**
+- **Coverage without a projection.** An ack advances `coveredRevision` only when `beforeRevision == coveredRevision`. The cursor lock makes that sufficient. Otherwise the rows are merged without advancing coverage, and the existing single ANCHORS resync handles the gap. The happy path makes no read; another writer in between costs one (F5).
+- **Pinned records.** Rows used to arrive in the ack projection. Now the client captures the record it drew (from the field or the composer) when the user grabs the node.
+- **D1 and trust.** A failed placement stays put with "not saved" (unchanged). A failed trust toggle **reverts** with a Retry snackbar instead of staying "not saved": a toggle that shows trust the server has not stored is a claim about a relationship, not a presentation choice.
+- **D5 and I2.** The ack changes confirmed state, not desired state, so it is invisible during and after a drag. The notice is chrome and may appear mid-drag.
+- **R5.** A read that drops a pin on a blocked person or an unreadable Request is not a lost local intent: the slot settled earlier. A person who only lost visibility is not dropped (D15).
+- **Residual-ring wording.** A non-visible pinned person is drawn with no path and no "Wider network reach" stub, because that legend states that the peer is visible (`docs/features/constellation.md:75`).
+- **§7.3.** An own trust change gets no special refresh. The existing global hint and the D8 lazy refresh deliver its consequences.
+- **Degraded visibility ≠ empty** (round 4 #2, ARCH §4.4). This no longer applies to writes, because apply has no MR dependency. It still applies to reads.
+
+**Risks accepted by the owner**
+- A newly pinned node's support path is stale until the next normal read, and may change then.
+- A pinned person's name and avatar stay visible to the pinner after visibility is lost. The pinner already knew them, and blocks still hide them. A misbehaving client could pin a person it never saw and learn their profile by id; this falls under the deferred hardening.
+- Pinned Requests that stopped being readable stay stored and are hidden by reads.
+- The server checks no visibility or blocks on writes. `target_not_found` reveals only row existence for an id the client already holds.
+- Reliability is reduced in favour of interactivity. The client shows unacknowledged writes as confirmed, and a failed trust change is visibly reverted after the fact.
+- Leak and oracle hardening stays **deferred** per project policy. This revision neither adds nor tests such hardening.
+
+**Open for the owner**
+- The 15 s `kLazyWriteAckTimeout` default, which equals `kRequestTimeout`.
+- **Requests and the read wall:** should a pin also override the read wall for Requests? The default assumption is **no**.
+- Whether the profile screen's trust toggle should follow D13 too. Rev 10 limits D13 to the graph person context.
+- Whether the 70 ms 1-op budget stands for the ack-only write once U53 re-measures it.

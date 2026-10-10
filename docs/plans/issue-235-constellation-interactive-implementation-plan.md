@@ -1,9 +1,11 @@
 # Constellation always-interactive: implementation plan (issue #235)
 
-Status: **rev 5**, 2026-10-06. Derived from `issue-235-constellation-interactive-architecture.md` **rev 9**, which is binding. Rev 5 (measurement run 4): U47 becomes walks-cache sizing (Tentura config, release precondition), and U48 becomes optional. A MeritRank generation-checked reverse-score cache is done separately in `meritrank-rust`, outside this plan. D8 is confirmed. Rev 4 rewrites U45 as adoption of the shipped connector (pgmer2 0.8.3), adds U47 (MR score performance, external) and U48 (cross-request visible-set cache), and points U41 at the prepared local datasets.
+Status: **rev 6**, 2026-10-10. Derived from `issue-235-constellation-interactive-architecture.md` **rev 10**, which is binding. Rev 6 applies owner decisions **D9–D15** (speculative lazy writes, ack-only apply without visibility authorization, no support-closure fetch on pin, speculative graph trust changes, timeout notice, pin beats visibility but not blocks). It adds units **U50–U54** and amends U13, U21–U26, U29, U40, U41 and U46; each amendment is marked **Rev 6** in place, and the summary is under "Rev 6 additions" below.
+
+Rev 5 (2026-10-06) (measurement run 4): U47 becomes walks-cache sizing (Tentura config, release precondition), and U48 becomes optional. A MeritRank generation-checked reverse-score cache is done separately in `meritrank-rust`, outside this plan. D8 is confirmed. Rev 4 rewrites U45 as adoption of the shipped connector (pgmer2 0.8.3), adds U47 (MR score performance, external) and U48 (cross-request visible-set cache), and points U41 at the prepared local datasets.
 
 - Rev 2 added the server-performance units U41–U44, plus perf gates.
-- Rev 3 adds U45 (MR connector deadlines, in the `meritrank-rust` repo) and U46 (frozen RR visibility memo), and tightens U09, U10, U11, U13, U15, U21, U23, U26, U41, U42 and U43. Cited as **ARCH §x**; owner decisions are **D1–D7**, invariants **I1–I6** and outbox rules **R1–R9**.
+- Rev 3 adds U45 (MR connector deadlines, in the `meritrank-rust` repo) and U46 (frozen RR visibility memo), and tightens U09, U10, U11, U13, U15, U21, U23, U26, U41, U42 and U43. Cited as **ARCH §x**; owner decisions are **D1–D15** (D9–D15 since rev 6), invariants **I1–I6** and outbox rules **R1–R9**.
 
 Review history is in `issue-235-constellation-interactive-review-record.md`. Execution journal: `issue-235-constellation-interactive-journal.md`, created by U00.
 
@@ -51,6 +53,7 @@ A unit whose acceptance can't be met stops and records **blocked** with the evid
 | P4 | U27–U33 | Interaction, freeze, layout stability, Re-arrange | U26 (U27–U28 may start after P1) |
 | P5 | U34–U35 | Render layering | U26 (D3), U28 |
 | P6 | U36–U40 | Layout engine, adaptive slicing, acceleration, final acceptance | U30; U40 depends on all |
+| P7 (rev 6) | U50–U54 | Ack-only apply, speculative client writes (anchors and trust), timeout notice, perf realism and D8 write re-measure, pinned persons outside the visible set | U13, U21, U23; U53 and U54 gate U26 |
 
 P2 can run in parallel with P1, because it only touches the server.
 
@@ -199,10 +202,11 @@ P2 can run in parallel with P1, because it only touches the server.
   - an MR outage during a batch → retryable error, no op-log row;
   - **perf (U41 fixtures, tag `perf`):** 1-op and 64-op apply p50/p95 plus cursor-hold p95 recorded against the ARCH §7.6 targets; EXPLAIN (ANALYZE, BUFFERS, WAL) saved for the mutation queries; WAL/op and tuple bytes per op-log row recorded.
 - **Acceptance:** the server domain imports ports only (`rg "package:tentura_server/data/repository" packages/server/lib/domain` is empty).
+- **Rev 6:** the projection, prepare-before-lock, visibility authorization, MR RPC count gate and degraded-MR abort are **superseded by U50** (ARCH §4.4, §7.1 rev 10). The landed parts that stay: RR transaction, cursor lock, dedupe, watermarks, `ifRevision`, op log, batched flush, envelope validation, lock-first order.
 
 ### U14 GraphQL `constellationAnchorsApply`
 - Input types `input_field_constellation_anchor_op.dart` (the `InputField*` list pattern; no `.nonNullable()` on list types), output types in `custom_types.dart`, mapper in `constellation_gql_maps.dart`, mutation registered in `_mutations_all.dart`.
-- Projection params come as arguments (ARCH §7.1).
+- Projection params come as arguments (ARCH §7.1). **Rev 6:** U50 removes them and the projection from the schema.
 - The **old upsert/delete stay** until U26.
 - **Tests:** a GraphQL controller test for argument parsing, null-safety and error mapping.
 
@@ -255,6 +259,7 @@ P2 can run in parallel with P1, because it only touches the server.
   - promotion: an exhausted unknown blocks only its target;
   - R8: logout mid-flight → no further requests;
   - I5: `place` → exactly one apply and zero ANCHORS fetches.
+- **Rev 6:** settlement consumes the minimal ack (U51); the D14 overdue event is added by U51.
 
 ### U22 Retry, Discard, compensation (R7)
 - Retry of a rejection uses a new id; retry of unknown keeps the id.
@@ -263,7 +268,7 @@ P2 can run in parallel with P1, because it only touches the server.
 - **Tests:** every branch above with a fake repository, plus the conflict reject → dropped.
 
 ### U23 Store coverage, echo suppression, field hints
-- `coveredRevision`: a complete projection at ≥ covered replaces anchors (from an ack or a read).
+- `coveredRevision`: a complete projection at ≥ covered replaces anchors (from a read). **Rev 6:** an ack no longer carries a projection; it merges rows and advances coverage only when `beforeRevision == coveredRevision` (U51, ARCH §5.3).
 - Echo ≤ covered → ignored. An uncovered hint (including +1) → one coalesced ANCHORS resync. Hints buffered while a request is in flight are evaluated after settlement.
 - `constellation_field` hints are non-urgent and **lazy (D8)**: they mark the field stale, refresh at most once per D8 window while visible, and refresh immediately on tab return or opening Constellation. They always request FULL.
 - **Refresh scheduling (ARCH §5.3):**
@@ -272,7 +277,7 @@ P2 can run in parallel with P1, because it only touches the server.
   - an in-flight FULL satisfies coalesced triggers unless a newer invalidation arrived;
   - visibility is re-checked at dispatch.
 - **Tests:**
-  - F5 in both orders; echo suppression; +1 resync; buffered hint;
+  - F5 in both orders (rev 6 semantics, U51); echo suppression; +1 resync; buffered hint;
   - global hints are lazy: 50 hints while visible → ≤ 1 FULL per window; hidden → 0; tab return → 1;
   - a field hint is never suppressed by coverage;
   - `RETRY_LATER` with repeated hints never fires early;
@@ -286,6 +291,7 @@ P2 can run in parallel with P1, because it only touches the server.
   - widget: drag B while A's apply is pending → B drags and the camera doesn't move;
   - the ack causes no relayout (counter);
   - port the interim `67ee9fa53` tests to the new model.
+- **Rev 6:** the ack no longer delivers pinned records or support data. The scene must draw a new pin from the record captured at grab time, with no support fetch (D12, U51); "the ack causes no relayout" now also covers a pin of a composer-only person.
 - **Acceptance:** `rg "placementActionsEnabled|hasPendingWrite" packages/client/lib` is empty.
 
 ### U25 Failure UX: placement marker (D1)
@@ -294,6 +300,7 @@ P2 can run in parallel with P1, because it only touches the server.
 - Gesture affordances per the cross-platform rule: secondary-tap and hover toolbar, never long-press only.
 - **Tests (widget, structural):** the marker appears on rejected and on exhausted unknown; Retry and Discard call the case; Discard animates to confirmed.
 - **Skill:** `material-3-flutter`.
+- **Rev 6:** the rejection reason for a missing target is `target_not_found` (was `target_unavailable`); the marker copy is unchanged. The D14 notice is a separate snackbar (U51), not part of the marker.
 
 ### U26 Release gate: protocol switch
 - **Server:** remove `constellationAnchorUpsert` / `constellationAnchorDelete` and their port and repository paths; raise `kDefaultMinClientVersion`.
@@ -301,10 +308,11 @@ P2 can run in parallel with P1, because it only touches the server.
   - remove the old upsert/delete gql, repository methods and routing entries (`build_client.dart:267-268`);
   - bump `pubspec.yaml` semver plus `web/index.html` `flutter_bootstrap.js?v=` (run the app once and check `git status`).
 - Web e2e (`scripts/run_client_integration_web_local.sh`, unwrapped per AGENTS.md):
-  - drag A, then immediately drag B → both persisted, no camera pan;
-  - kill the network during a drop → marker; restore → Retry persists.
-- **Preconditions:** the owner confirms D8 in the journal. U45's verified connector build is deployed in the target environment.
-- **Server perf gate:** U41's fixtures run against ARCH §7.6. Any p95 over target → blocked with evidence (no release). A load test of publication burst, reconnect burst and concurrent tabs at the **D8 declared population** sustains the D8 staleness bound and write p95 with ≥ 30% headroom, including completed refresh throughput and maximum staleness, not just a bounded queue.
+  - drag A, then immediately drag B → both persisted, no camera pan; **rev 6:** exactly one apply per drop and **zero** ANCHORS/FULL requests after it (network log), and A and B stay where dropped across a reload;
+  - kill the network during a drop → the node stays put, the D14 notice appears after 15 s, the marker after exhausted retries; restore → Retry persists;
+  - **rev 6:** toggle trust on a person from the Constellation person context → the toggle flips at once with no loading state, one trust write and no profile or field read follows.
+- **Preconditions:** the owner confirms D8 in the journal. U45's verified connector build is deployed in the target environment. **Rev 6:** U50–U53 have landed.
+- **Server perf gate:** U41's fixtures run against ARCH §7.6. Any p95 over target → blocked with evidence (no release). **Rev 6:** the write rows are measured on the U50 ack-only write, with the U53 fixture realism, and the D8 write p95 comes from U53. A load test of publication burst, reconnect burst and concurrent tabs at the **D8 declared population** sustains the D8 staleness bound and write p95 with ≥ 30% headroom, including completed refresh throughput and maximum staleness, not just a bounded queue.
 - **Acceptance:** full client CT, ST (with pg), LINT for both packages, e2e green, server perf gate green. The journal records the version numbers.
 
 ## P4 Interaction, freeze, stability
@@ -340,6 +348,7 @@ P2 can run in parallel with P1, because it only touches the server.
   - each release path fires once;
   - tab hidden mid-drag = cancel;
   - visibility revoked mid-drag is applied on release.
+- **Rev 6:** an ack arriving mid-drag is coalesced like any store input and changes nothing visible on release (it changes confirmed, not desired). The D14 snackbar is chrome: it may appear mid-drag, and the test asserts zero committed movement and an uninterrupted drag (U51).
 
 ### U30 Layout stability contract (I3)
 - The layout input includes the previous result. Free nodes with unchanged inputs and no new overlap are hard-kept. Changed or overlapped nodes get a minimum-displacement search from the old spot. New nodes go into free space. Nodes with unresolved intent are fixed.
@@ -406,7 +415,7 @@ P2 can run in parallel with P1, because it only touches the server.
 - Otherwise, record "brute force retained" and close.
 
 ### U40 Final acceptance
-- **Server:** re-run the U41 suite; record the final p50/p95, MR RPCs per op, WAL/op, op-log growth per 1k ops, aggregate FULL rate under the publication burst, and listener → WS latency.
+- **Server:** re-run the U41 suite; record the final p50/p95, MR RPCs per op (**0 for apply since rev 6**), WAL/op, op-log growth per 1k ops, aggregate FULL rate under the publication burst, listener → WS latency, and the D8 write p95 on the ack-only write (U53).
 - **Profile web benchmark** at N = 100/300/600, recorded in the journal. I4: drag frame and pan frame under 8 ms each; no task over 50 ms across drop → ack → reflow.
 - **Web e2e:** the full drag, refresh-mid-drag, failure, Re-arrange and composer flows.
 - Full CT, PT, ST (with pg) and LINT for both packages.
@@ -442,6 +451,7 @@ P2 can run in parallel with P1, because it only touches the server.
   - EXPLAIN JSON kept, mutating EXPLAIN rolled back;
   - `pg` and `mr` fixtures serialised separately through the wrapper.
 - **Acceptance:** the suite runs through the wrapper and writes JSON for every fixture; the journal contains baseline numbers and calibrated, frozen budgets.
+- **Rev 6:** the trust fixtures mirror edges into `user_trust_edge` only after the timed attempts (`test/perf/perf_fixture_matrix.dart:344-370`); U53 moves the mirroring before timing.
 
 ### U42 Discoverable candidates: partial index plus keyset scan (#233)
 - A new migration (next free number after U17's), adding a partial index on `(user_id, id)` matching the kind, publication, discoverability and lifecycle predicates. Benchmark it against `m0193.dart:6567`.
@@ -490,7 +500,7 @@ P2 can run in parallel with P1, because it only touches the server.
 - **Tests (Tentura pg/mr):** an MR blackhole during apply → retryable error within the budget + 100 ms, with the connection reusable after rollback. `mr_rpc_attempts()` deltas feed the U13 RPC-count gate.
 
 ### U46 Frozen RR visibility memo
-- A new migration (next free number): `person_visible_peer_ids_tx` honours a tx-local `tentura_visibility.frozen` flag. Once set, after the first computation the memo ignores later stamp changes (`m0222.dart:104-119`). Constellation read and apply transactions set it. Trust-mutating transactions never do.
+- A new migration (next free number): `person_visible_peer_ids_tx` honours a tx-local `tentura_visibility.frozen` flag. Once set, after the first computation the memo ignores later stamp changes (`m0222.dart:104-119`). Constellation read and apply transactions set it. Trust-mutating transactions never do. **Rev 6:** apply no longer computes visibility (U50), so only read transactions need it.
 - **Tests (pg):** a second connection commits trust changes continuously while FULL or apply runs → exactly one computation per (viewer, context) per successful attempt; a trust-mutating tx still invalidates; the failure-empty path is unchanged (fail closed).
 
 ### U47 MR walks cache + snapshots (MeritRank 0.12)
@@ -514,6 +524,88 @@ P2 can run in parallel with P1, because it only touches the server.
   - parity with uncached visibility.
 - **Perf:** on `tentura_perfsynth` a warm FULL p95 ≤ the ARCH §7.6 budget, with exactly 0 MR RPCs on a warm hit (`mr_rpc_attempts()` delta).
 
+## Rev 6 additions: speculative lazy writes (ARCH rev 10, D9–D14)
+
+**Summary of amended units.** U13 (projection, visibility and MR parts superseded by U50), U14 (args), U21 (ack settlement), U23 (coverage from the ack), U24 (no ack-delivered pinned records), U25 (reason code), U26 (e2e wording, perf gate source, preconditions), U29 (ack and snackbar during a drag), U40 (acceptance numbers), U41 (fixture realism), U46 (reads only). Units that already landed are not reopened; U50–U54 carry the changes.
+
+### U50 Server ack-only apply without visibility authorization (ARCH §4.4, §7.1 rev 10; D10, D11)
+- `ConstellationAnchorRepository.applyBatch` (`data/repository/constellation_anchor_repository.dart:81-226`):
+  - remove `_prepareBatchVisibility` (`:90`, `:232-285`), `reader.prepare` (`:95`) and `reader.readPrepared` (`:212`) from the write path;
+  - keep lock-first (batch lock, cursor `FOR UPDATE`), the batched dedupe and watermark lookups (`:105-157`), the per-op decision loop and the single flush (`:211`);
+  - add one batched existence query for the upsert targets (`user` / `beacon` ids, matching the FKs at `m0193.dart:7752-7763`) → per-op `REJECTED(target_not_found)`;
+  - drop the `authorized` branch of `_batchOpRejection` (`:347-349`) and the `target_unavailable` reason;
+  - return `AnchorApplyBatchResult(beforeRevision, afterRevision, results)` with no projection; each OK upsert result carries the stored row (position, revision, `placedAt`), and each result a `replayed` flag (true for a recorded result, `:168-177`).
+- Remove the prepare-first path and its flag (`lockFirst` / `lockFirstOrder`, `:34-67`, `:89`); the contention gate's "wasted preparation" metric is retired.
+- Port, server case and GraphQL: `AnchorApplyBatchResult` loses `projection`; `ConstellationAnchorsApplyResult` loses `anchorProjection`; the mutation loses `context`, `showClosed`, `participatedOnly`; `ConstellationAnchorOpResult` gains `replayed: Boolean!` and returns the stored `anchor`.
+- The op log is unchanged (minimal result, R9); `replayed` is derived, never stored.
+- **Tests first (pg):**
+  - the response has no projection fields (GraphQL controller test) and the mutation rejects the removed arguments;
+  - a pin on a person who is not visible to the viewer → OK, stored (what reads show is U54); a blocked person → OK, stored;
+  - a missing person or Request id → `target_not_found` for that op; the other ops in the batch commit;
+  - a target deleted by a concurrent transaction after the snapshot → whole-tx retry → `target_not_found`, no FK error escapes;
+  - replay → recorded result with `replayed: true`, no revision bump; reused id with a different payload → `op_id_reused`;
+  - MR stopped (or a blackholed MR URL) → apply still succeeds within budget; `mr_rpc_attempts()` delta per apply = 0;
+  - the U13 cases that remain valid (mixed accept/reject, `ifRevision` conflict, DB error → full rollback, one deferred hint per batch) still pass.
+- Remove or rewrite the U13 tests that assert projection equality, visibility rejection, MR RPC = 1 + U and degraded-MR abort; record each removed test in the journal with the rev 10 reason. This is a contract change, not a weakened test.
+- **Acceptance:** ST constellation (with pg) green; LINT clean; `rg "readPrepared|_prepareBatchVisibility" packages/server/lib/data/repository/constellation_anchor_repository.dart` is empty; the U41 `apply_batch_b1` / `apply_batch_b64` fixtures re-run and recorded.
+- **Depends:** U13, U14, U15. Ships in the U26 release with U51 (wire change; no legacy client, `kDefaultMinClientVersion` raised once).
+
+### U51 Client speculative anchor confirmation, no support fetch, timeout notice (ARCH §5.1–5.3, §5.9; D10, D12, D14)
+- Wire: refresh the schema, update `constellation_anchors_apply.graphql` to select only the ack fields, drop the params from `ConstellationAnchorRepository.apply`; mapper for `replayed` and the stored anchor row.
+- Port DTO: `ConstellationAnchorApplyResult` (`domain/port/constellation_anchor_repository_port.dart:36-44`) loses `anchorProjection`; `ConstellationAnchorOpResult` (`:26-33`) gains `anchor` and `replayed`.
+- `ConstellationPlacementCase.place` captures the grabbed node's record (field or composer snapshot) on the slot; it is never sent.
+- Store: replace `settle`'s `_applyAnchors(result.anchorProjection)` (`constellation_field_store_case.dart:135-143`, called from `constellation_placement_case.dart:308`) with the ARCH §5.3 ack merge: settle slots; merge executed OK rows plus captured records; skip `replayed`; advance `coveredRevision` to `afterRevision` only when `beforeRevision == coveredRevision`; merge nothing for obsolete params. No fetch of any kind.
+- `kLazyWriteAckTimeout = Duration(seconds: 15)` (ARCH §5.9) next to `kLazyFieldRefreshInterval` (`constellation_field_store_case.dart:26`). The placement case emits one `LazyWriteNotice` per overdue episode, measured from each op's first dispatch via `ClockPort` / `WakeUpPort`.
+- UI: `lib/ui/widget/lazy_write_timeout_notice.dart` shows the design-system snackbar; l10n `lazyWriteAckOverdue` (en, ru); the Constellation screen subscribes. Skill: `material-3-flutter`.
+- **Tests first:**
+  - domain: ack with `before == covered` → coverage = after, echo ignored, zero ANCHORS/FULL; ack with a gap → rows merged, coverage unchanged, echo → exactly one ANCHORS resync; replayed OK → settled, not merged; obsolete params → settled, nothing merged; DELETE ack removes the row and its pinned record;
+  - domain: pin of a field person and of a composer-only person → the record is in confirmed after settlement, and no support peers/edges are requested (fake repository counts zero reads);
+  - domain (fake clock): no ack at 14.9 s → no notice; at 15 s → one notice; three overdue ops in one burst → one notice; a retry does not restart the timer; an ack at 10 s → no notice;
+  - widget: the notice appears during a drag with zero committed node movement and the drag continuing (extends U29);
+  - F5 in both orders with no lost row (rewrites the U23 F5 tests).
+- **Acceptance:** CT constellation green; `rg "anchorProjection" packages/client/lib/features/constellation/domain/port` is empty; LINT clean.
+- **Depends:** U50 (wire), U21, U23, U24, U25.
+
+### U52 Speculative trust change through the graph, timeout notice (ARCH §5.8, §5.9; D13, D14)
+- New `features/graph/domain/use_case/graph_trust_write_case.dart` (`@singleton`, `UseCaseBase`, account-scoped via the account port, memory only): one latest-wins slot per peer; one request in flight per peer; R4 retry schedule (same absolute amount, which is idempotent); `LazyWriteNotice` after `kLazyWriteAckTimeout`; generation reset on account change.
+- The write calls the like repository's `setLike` (as `profile_view_case.dart:117` does) **without** the `fetchById` re-read (`:118`). `ProfileViewCase.addFriend` / `removeFriend` stay unchanged for the profile screen.
+- `GraphPersonContextCubit._setTrust` (`graph_person_context_cubit.dart:113-152`) delegates to the case: it patches `selectedProfile` speculatively (and calls `onProfilePatched`, `graph_screen.dart:41`, with the speculative profile), emits no `trustLoading`, and on a definitive rejection or exhausted retry reverts to the last acknowledged profile and shows the "Trust change not saved" snackbar with Retry. l10n `graphTrustNotSaved`, `graphTrustRetry` (en, ru). Skill: `material-3-flutter`.
+- No graph, field or profile read is triggered by the write. The field consequences come from the existing lazy global hint (ARCH §7.3).
+- **Tests first:**
+  - domain: toggle → overlay immediately; exactly one `setLike`, zero `fetchById`; toggle, toggle back before the ack → one in flight plus one pending, final value wins, an equal value is not resent; transport failure → retries with the same amount; rejection → revert plus notice; exhausted → revert plus notice; logout mid-flight → cleared, no further request;
+  - domain (fake clock): overdue → one notice at 15 s;
+  - widget (Constellation and graph screen): the toggle flips with no progress indicator; on failure it flips back and the Retry snackbar re-issues the intended value.
+- **Acceptance:** CT graph and constellation green; the `trustLoading` state field is removed (`rg "trustLoading" packages/client/lib/features/graph` is empty); LINT clean.
+- **Depends:** U04 (ports), U51 (shared notice widget and constant).
+
+### U53 Perf fixture realism and D8 write re-measure (ARCH §7.6 rev 10)
+- `test/perf/perf_fixture_matrix.dart`: mirror the MeritRank fixture edges into `user_trust_edge` **before** the timed attempts (today after them, `:344-370`), for every trust fixture including `apply_batch_*`, so FULL and ANCHORS read realistic trust tables. Re-run U41 and record the new read numbers; recalibrate a read budget only with owner approval.
+- Re-measure the D8 `publication_burst` load level (U26 part 2/3 setup, same host class) on the U50 write. Record the write decomposition (fz1w fields) and the write p95 against the 70 ms budget; then run the `capacity` level once on the first configuration that passes, as U26 part 2/3 recommends.
+- **Tests first:** a fixture test asserting that `user_trust_edge` row count equals the mirrored MR edge count before the first timed attempt.
+- **Acceptance:** the journal records fixture reads, D8 write p95, staleness and capacity-level FULL/s with ≥ 30% headroom, or a blocked entry with evidence.
+- **Depends:** U50, U41. Gates U26.
+
+### U54 Pinned persons outside the visible set (ARCH §5.10; D15)
+- Server, `data/repository/constellation_anchor_projection_reader.dart`:
+  - `_loadAuthorizedAnchors` (`:227-297`) keeps person anchors regardless of the visible set and drops them only on a block in either direction (the blocked-CTE predicate, `constellation_anchor_repository.dart:256-260`). Request anchors keep the read wall (`:232-235`, `:266-269`).
+  - Remove the visibility filter on person anchors in `readPrepared` (`:138-142`) and in `prepare`'s holder set (`:80-85`). Both remain only for reads once U50 lands.
+  - Trust edges and the support closure still join only the viewer and visible peers (`:75-79`, `:392-402`). Profiles are fetched by id for every pinned person (`:405-412`).
+  - The pinned peer record gains `visible: bool`. Server entity, GraphQL type and client mapper are updated, plus the FULL snapshot reader where it embeds the anchor projection.
+- Client:
+  - `composeConstellationPresentation` keeps non-visible pinned persons as kept peers (`constellation_anchor_composition.dart:206-208`, `:283-303`), and `resolveAndCapConstellation` (`constellation_cap_policy.dart:10-89`) never drops them;
+  - a pinned person with `visible: false` is drawn at the pin with no path, no residual stub and no satellites (ARCH §5.10);
+  - `docs/features/constellation.md` gets one sentence under "Pinned placement and request state" when this lands.
+- **Tests first:**
+  - pg: a pinned person who lost visibility (trust withdrawn; MR epoch change) is returned by ANCHORS and FULL with `visible: false` and a profile;
+  - pg: a block in either direction hides them, and unblocking shows them again;
+  - pg: unpin removes them;
+  - pg: a pinned Request that becomes unreadable, deleted, unpublished or blocked disappears;
+  - pg: the non-visible person's Requests are not added to the field;
+  - pg: trust edges contain no edge to the non-visible person;
+  - domain and widget: the node is drawn at its pin with no path and no stub, survives the peer cap at N = 300, and has no satellites.
+- **Acceptance:** ST (with pg) and CT constellation green; LINT clean; the owner's answer to the Request read-wall question is recorded in the journal (default: no override).
+- **Depends:** U12, U50 (the reader is read-only after U50), U51. Gates U26.
+
 ## Dependency graph (for beads)
 
 ```
@@ -528,5 +620,8 @@ U30 → U36 → U37 → U38 → U39
 U00 → U41 ; U41 → U13, U15, U17, U18 (perf gates) ; U41,U12 → U42, U44 ; U17 → U43
 U43 → U26 ; U42,U44 → U26 ; U45 → U26 ; U46 → U13 ; U41 → U46 ; U42,U44 → U40
 U41 → U47 ; U47 → U26 ; U47 → U48 (optional)
+U13,U14,U15 → U50 ; U50,U21,U23,U24,U25 → U51 ; U04,U51 → U52 ; U50,U41 → U53
+U12,U50,U51 → U54
+U50,U51,U52,U53,U54 → U26
 all → U40
 ```

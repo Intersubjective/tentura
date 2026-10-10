@@ -1,11 +1,14 @@
 # Constellation: always-interactive architecture (issue #235 and beyond)
 
-Status: **architecture, rev 9**, 2026-10-06. Rev 9: measurement run 4 traced the dense-scale cost to MR walks-cache thrash (`MERITRANK_WALKS_CACHE_SIZE=200` < working set). §7.4a is downgraded to optional. Rev 8 adds: D8 confirmed by the owner; measurement runs 2–3 (dev copy and synthetic dense data); the visible-set cache promoted to required (§7.4a); the MR connector deadline shipped upstream (pgmer2 0.8.3).
+Status: **architecture, rev 10**, 2026-10-10. Rev 10 records owner decisions **D9–D15** (§0). The product priority is interactivity first, reliability second and other users' updates third (Chat excepted). Anchor writes and trust changes made through the graph become **speculative and lazy**: the client applies them at once, treats them as confirmed, and the server answers with a **minimal acknowledgement** (per-op results only). The apply response no longer carries an anchor projection, the server no longer authorizes pin targets by visibility (reads still filter them), and a pin no longer loads its support closure. A pin also **beats MeritRank and friendship visibility but not blocks** (D15): a pinned person stays on the map after losing visibility, unless a block exists in either direction; pinned Requests keep the read wall. A lazy write whose acknowledgement is late raises a timeout notice (§5.9). The rev 4–6 requirement that every apply response equals a fresh ANCHORS read is removed; its origin and the accepted risks are in the review record, "Rev 10". This also removes the write-path cost that blocked the U26 D8 gate (journal, U26 part 2/3, local run: 495–717 ms per unloaded 1-op write at V ≈ 1,000).
+
+Rev 9 (2026-10-06): measurement run 4 traced the dense-scale cost to MR walks-cache thrash (`MERITRANK_WALKS_CACHE_SIZE=200` < working set). §7.4a is downgraded to optional. Rev 8 adds: D8 confirmed by the owner; measurement runs 2–3 (dev copy and synthetic dense data); the visible-set cache promoted to required (§7.4a); the MR connector deadline shipped upstream (pgmer2 0.8.3).
 
 - Rev 1/2 (commit `3795be0c6`): proposal plus the owner's decisions.
 - Rev 3: layer-mapped architecture.
 - Rev 4 and rev 5: apply review rounds 1 and 2 (codex `gpt-6.1-sol`, high).
 - Rev 6+: server-performance review rounds 3 and 4.
+- Rev 10: owner decisions D9–D15 (speculative lazy writes, ack-only apply, pin beats visibility but not blocks).
 - Every finding and its resolution is in `issue-235-constellation-interactive-review-record.md`.
 - Implementation plan: `issue-235-constellation-interactive-implementation-plan.md`.
 
@@ -25,6 +28,13 @@ Related: #231, #232, #233, #234, #235. The interim fix `67ee9fa53` releases the 
 | D6 | Acceleration structures are chosen by benchmark; nothing is built unless it measurably wins, including build and invalidation cost. |
 | D7 | Adaptive time slicing: an AIMD batch controller with a 4 ms setpoint and a hard cap. |
 | D8 | **Capacity and freshness contract (confirmed by the owner 2026-10-06).** Declared population: **1,000** concurrently active sessions. Staleness bound for *global* invalidations (trust and MR publication): **≤ 5 min**, refreshed lazily while the field is visible (§7.3). Targeted invalidations (own Requests, anchors, blocks) keep their current freshness. |
+| D9 | **Priorities (2026-10-10).** Constellation is not a collaborative editor. Order: (1) interactivity, (2) reliability, (3) updates from other users. Chat is the exception: there, update speed matters. When rules conflict, the higher priority wins. |
+| D10 | **Speculative, lazy anchor writes.** The client applies a pin, unpin or move at once from `desiredAnchorProjection` plus the outbox, treats it as confirmed and sends it lazily. The server answers with a **minimal acknowledgement**: per-op results, optionally the stored anchor row (`placedAt`, revision) of each upsert and a `replayed` flag, nothing more. No anchor projection in the apply response, and no follow-up read after a write on the happy path (§7.1, §5.3). |
+| D11 | **No server-side visibility authorization for pin targets.** "What I see I can pin" is a client rule. A pin may outlive the target's visibility; what reads then show is D15. The server keeps the batch and cursor locks, `clientOpId` dedupe, `ifRevision`, watermarks, op log, flush and deferred hint, plus a cheap per-op existence and shape check that rejects **per op** and never rolls back the batch (§7.1). |
+| D12 | **No support-closure loading on pin.** After a pin the client draws the node where the user put it and fetches no support peers, edges or profiles for its path. The path may change at the next normal FULL or ANCHORS read, which still computes the closure. |
+| D13 | **Speculative trust changes through the graph.** The person context (`GraphPersonContextCubit`) applies the new trust at once, shows it as confirmed and sends the write lazily. No graph or profile re-read follows; visibility and score consequences arrive with the next normal refresh (D8). The server reply is a minimal acknowledgement (§5.8). |
+| D14 | **Timeout notice.** If the acknowledgement of a lazy write (anchor batch or trust change) has not arrived within `kLazyWriteAckTimeout` (15 s), the user gets a non-blocking notice that describes the situation. It complements D1: a failed placement still stays put with "not saved", Retry and Discard my move; a failed trust change reverts with Retry (§5.8, §5.9). |
+| D15 | **A pin beats MeritRank and friendship visibility, but not blocks** (2026-10-10; replaces the part of D11 under which reads hid pins on no-longer-visible targets). A pinned **person** stays on the map at the pinned position, with name and avatar from the profile, even when `person_visible_peers_symmetric` no longer lists them. They are hidden only while a block exists in either direction (the same predicate as today's blocked CTE, `constellation_anchor_repository.dart:256-260`). Pinning a person does not pin their Requests: a non-visible pinned person is a bare node without satellites, unless the normal Request read rules show a Request. A pinned **Request** keeps the read wall (`beacon_can_read_content` and its permissions): an unreadable, deleted, unpublished or blocked Request is never shown. Whether a pin should also override the read wall is an **open owner question**; the default is no (§5.10). |
 
 ## 1. Problem and invariants
 
@@ -36,8 +46,8 @@ After a drop, the next drag panned the camera until the anchor write *and* a ful
 - **I4. Frame budget (N = 300, web profile build, mid-range laptop).**
   - drag frame and pan/zoom frame: under 8 ms of UI-thread work each;
   - no task over 50 ms anywhere in the drop → ack → reflow pipeline.
-- **I5. Drop to next drag possible: 0 frames.** Drop to persisted: one request, with no follow-up read on the happy path.
-- **I6. One network effect per user intent.** A cluster drop is one request. Your own echo is never refetched. A write needs no recovery read. Reads are single-flight and coalesced, and they pause while the tab is hidden.
+- **I5. Drop to next drag possible: 0 frames.** Drop to persisted: one request, with no follow-up read on the happy path. Since rev 10 that request is an ack-only write (D10), so "persisted" costs no projection work.
+- **I6. One network effect per user intent.** A cluster drop is one request, and so is a trust change made through the graph (D13). Your own echo is never refetched. A write needs no recovery read. Reads are single-flight and coalesced, and they pause while the tab is hidden.
   - Versioned "not modified" reads are **deferred** (§7.4). They are not required to meet I6.
 
 ## 2. Current state (verified 2026-10-06)
@@ -131,11 +141,13 @@ Client paths are relative to `packages/client/lib/features/constellation/` unles
 |---|---|---|---|
 | `PlacementOp`, `PlacementSlot`, `PlacementTargetState`, `PlacementOutboxState` | `domain/entity/placement_outbox.dart` (new) | Freezed | §5.1 |
 | `desiredAnchorProjection(confirmed, outbox)` | `domain/placement_overlay.dart` (new) | Pure function | §5.2 |
-| `ConstellationAnchorApplyResult` | `domain/port/constellation_anchor_repository_port.dart` (extended) | Freezed port DTOs | `beforeRevision`, `afterRevision`, per-op results, full `anchorProjection` (§7.1) |
+| `ConstellationAnchorApplyResult` | `domain/port/constellation_anchor_repository_port.dart` (extended) | Freezed port DTOs | Minimal ack (D10): `beforeRevision`, `afterRevision`, per-op results (`clientOpId`, status, reason, `resultingTargetRevision`, stored `anchor` row for an OK upsert, `replayed`). **No `anchorProjection`** since rev 10; today's field is at `:42` and is removed (§7.1) |
 | `ConstellationFieldStoreState` | `domain/entity/constellation_field_store_state.dart` (new) | Freezed | Confirmed field, anchor projection, `coveredRevision`, generation |
 | `ConstellationFieldStoreCase` | `domain/use_case/constellation_field_store_case.dart` (split from FC and the read half of AC) | Use case, `UseCaseBase`, `@singleton` | §5.3 |
 | `ConstellationPlacementCase` | `domain/use_case/constellation_placement_case.dart` (split from the write half of AC) | Use case, `UseCaseBase`, `@singleton` | §5.1 |
 | `ConstellationMemberWebsCase` | `domain/use_case/constellation_member_webs_case.dart` (new) | Use case | Wraps the existing port |
+| `GraphTrustWriteCase` | `features/graph/domain/use_case/graph_trust_write_case.dart` (new) | Use case, `@singleton`, account-scoped contents | Speculative lazy trust writes, one latest-wins slot per peer, memory only (D4, D13, §5.8) |
+| `LazyWriteNotice` stream | exposed by `ConstellationPlacementCase` and `GraphTrustWriteCase` | Domain event | Emitted once per overdue episode after `kLazyWriteAckTimeout` (D14, §5.9) |
 | `ForwardCase.offerHelp` | `features/forward/domain/use_case/forward_case.dart` (extended) | Use case | The cubit stops calling `ForwardRepository` (C:719, C:2268) |
 | `ConstellationLayoutEngine` | `domain/layout/constellation_layout_engine.dart` (split from `constellation_layout.dart`) | Pure | §5.5 |
 | `SpatialIndex` with `BruteForceIndex` and benchmark winners | `domain/layout/spatial_index.dart` (new) | Pure | D6 |
@@ -164,7 +176,7 @@ Old-account operations are never sent or retried under the replacement account's
 | Component | Path | Change |
 |---|---|---|
 | `ConstellationAnchorRepository` | `data/repository/constellation_anchor_repository.dart` | `apply(List<PlacementOp>)` → `ConstellationAnchorApplyResult`. The old upsert/delete are removed in the same release. |
-| GraphQL | `data/gql/constellation_anchors_apply.graphql` (new) | Codegen via `build_runner` |
+| GraphQL | `data/gql/constellation_anchors_apply.graphql` (new) | Codegen via `build_runner`. Rev 10: selects only the ack fields; no projection, no projection-param arguments (§7.1) |
 | Routing | `lib/data/service/remote_api_client/build_client.dart` | Add `ConstellationAnchorsApply` to `_tenturaDirectOperationNames`, and remove `ConstellationAnchorUpsert` / `ConstellationAnchorDelete` |
 | Realtime decode | The realtime WS mapper | Decode `revision` and the `constellation_field` kind |
 | Mappers | `data/model/` | Ferry → domain via `toEntity()` |
@@ -180,6 +192,7 @@ Old-account operations are never sent or retried under the replacement account's
 | `ConstellationInteractionController` | `ui/scene/constellation_interaction_controller.dart` (new) | Gesture state machine, drag cluster, camera capture, §5.4 |
 | `FrameSliceScheduler` | `lib/ui/utils/frame_slice_scheduler.dart` (new) | Drives resumable domain work with `Stopwatch` plus `SchedulerBinding`, §5.6 |
 | `ConstellationPlacementMarker` | `ui/widget/constellation_placement_marker.dart` (new) | "Not saved" / "saving…" marker, Retry/Discard; design-system tokens, l10n strings |
+| Lazy-write timeout notice | `lib/ui/widget/lazy_write_timeout_notice.dart` (new; shared by Constellation and the graph screen) | Listens to the `LazyWriteNotice` streams and shows the design-system snackbar (D14, §5.9) |
 | Re-arrange | `ui/widget/constellation_camera_controls.dart` | Visible when `hasUserPlacements` (D2) |
 | Composer | `ui/screen/constellation_screen.dart` | Composer `BlocListener` gets a `listenWhen`. Composer positions go through the interaction controller's per-node listenables. |
 | `force_directed_graphview` | `packages/force_directed_graphview/lib/src/**` | Generic UI package changes, §5.7. No Tentura imports. |
@@ -194,29 +207,30 @@ Paths are relative to `packages/server/lib/`.
 | Inputs and outputs | `api/controllers/graphql/input/input_field_constellation_anchor_op.dart` (new), `custom_types.dart` | API | `InputField*` list pattern; never `.nonNullable()` on a list type |
 | `ConstellationAnchorCase.apply` | `domain/use_case/constellation_anchor_case.dart` | Use case | Envelope validation (count, duplicate ids, duplicate targets); depends on the port only |
 | `ConstellationAnchorRepositoryPort.applyBatch` | `domain/port/constellation_anchor_repository_port.dart` | Port | → `AnchorApplyBatchResult` |
-| `ConstellationAnchorRepository.applyBatch` | `data/repository/constellation_anchor_repository.dart` | Data | One **REPEATABLE READ, READ WRITE** transaction, configured before its first query, with the mutating-user context preserved. Inside it, in order:
-1. **Prepare** visibility and geometry-independent projection inputs *before* taking the cursor lock: visible set (one memoised computation per viewer and context), trust edges, profiles, pinned-beacon readability.
-2. Cursor `FOR UPDATE`.
-3. **Batch-loaded** dedupe records and target watermarks (one query each).
-4. Per-op authorization from the **shared memoised visibility** plus current block predicates, in input order. Today `constellation_anchor_upsert_authorization.dart:42` calls `person_visible_peers_symmetric` per op and bypasses the memo.
-5. Conditional writes, watermarks, op log.
-6. Final projection assembled from the prepared inputs.
+| `ConstellationAnchorRepository.applyBatch` | `data/repository/constellation_anchor_repository.dart` | Data | One **REPEATABLE READ, READ WRITE** transaction, configured before its first query, with the mutating-user context preserved. **Rev 10 (D10, D11): ack-only, no visibility authorization, no projection.** Inside it, in order:
+1. Batch lock and cursor `FOR UPDATE` first (lock-first, the U13 release configuration). Nothing expensive runs before the lock any more, so prepare-first and its contention gate are retired.
+2. **Batch-loaded** dedupe records, target watermarks and target existence (one query each; existence is a `user`/`beacon` id lookup for the upsert targets, matching the FKs `constellation_anchor_person_id_fkey` / `constellation_anchor_beacon_id_fkey`, `m0193.dart:7752-7763`).
+3. Per op, in input order: shape check (today's `_batchOpRejection`, `constellation_anchor_repository.dart:319-355`, minus the `authorized` branch at `:347`), existence check → `REJECTED(target_not_found)`, `ifRevision` check.
+4. Conditional writes, watermarks, op log (one flush).
+5. Return the ack: `beforeRevision`, `afterRevision`, per-op results with the stored anchor row of each OK upsert and a `replayed` flag.
 
-**Contention policy.** Under RR, another writer committing a cursor change after our snapshot makes `FOR UPDATE` fail with `40001`, and the prepared work is wasted. Same-viewer concurrency is bounded by the client outbox (one in-flight request per tab), so collisions need several tabs or devices of one person writing at once. **Prepare-first is the default**, gated by a contention benchmark (2/4/8 concurrent tabs, sustained writes, cold preparation, cascades) that measures attempted vs completed transactions and exhausted retries. If the gate fails, the repository switches to **lock-first** (cursor `FOR UPDATE` as the first statement): failures become cheap, at the cost of a longer hold. A cross-isolate per-viewer writer queue was rejected as disproportionate (review record, round 4 #1).
+No MR call, visible-set computation, trust-edge, profile or support-closure work runs on the write path: today's `_prepareBatchVisibility` (`:90`, `:232-285`), `reader.prepare` (`:95`) and `reader.readPrepared` (`:212`) are removed from `applyBatch`.
 
-**Prepared inputs** cover the existing anchors **plus all requested upsert targets**. The potential holder/support closure is computed from the prepared trust edges, and only the required profiles and beacon records are batch-fetched. Readability is cached by beacon id for both authorization and hydration. After the lock and the writes, the final anchor rows are re-read and the complete projection is assembled from the prepared inputs.
+**Contention policy.** The cursor lock serialises one viewer's writers; with no preparation, a lost `40001` race wastes only the lookups. Same-viewer concurrency stays bounded by the client outbox (one in-flight request per tab). The rev 7 prepare-first/lock-first gate (review record, round 4 #1) no longer applies.
 
-**Degraded visibility ≠ empty visibility.** m0222 fails closed to an empty set when MR is unavailable. For `applyBatch` such a result is a **transient error**: the batch aborts with a retryable error, the client sees `commitUnknown`, and it is **never** recorded as an op-log rejection.
+**Existence races.** A target deleted by a transaction that commits after our snapshot surfaces as a serialization failure on the FK check, so the whole transaction is retried and the retry rejects that op as `target_not_found`. An FK violation is never allowed to abort the batch on the happy path: existence is checked first in the same snapshot.
 
-The whole transaction is retried on serialization failure or deadlock, and any failure discards all prepared inputs. Backoff runs after rollback and outside the DB connection. Retries use bounded jitter with an end-to-end deadline; today's helper retries once, immediately (`data/database/postgres_serialization_retry.dart:8`). An existing anchor alone never authorizes a move after visibility revocation. A new `TenturaDb.withMutatingRepeatableRead` wrapper is needed, because `withMutatingUser` (`tentura_db.dart:194`) sets no isolation level and `withReadSnapshot` is read-only. |
-| Anchor projection reader | `data/repository/constellation_anchor_projection_reader.dart` (new; the anchor half extracted from SR) | Data helper | Shared by ANCHORS reads and `applyBatch`; reuses the tx's m0222 memo |
+**Degraded visibility no longer matters to writes.** Rev 7 treated m0222's fail-closed empty visible set as a transient apply error. Since apply has no visibility dependency, an MR outage cannot fail or slow a write, and the MR call budget (U45) bounds reads only.
+
+The whole transaction is retried on serialization failure or deadlock. Backoff runs after rollback and outside the DB connection, with bounded jitter and an end-to-end deadline (`TenturaDb.withMutatingRepeatableRead`, `tentura_db.dart:281-316`, default deadline 5 s). Its retries are server-internal; the client sees a single response or a transport timeout (§5.9). An existing anchor needs no visibility to be moved after rev 10; reads decide whether it is shown (D15, §5.10). |
+| Anchor projection reader | `data/repository/constellation_anchor_projection_reader.dart` (new; the anchor half extracted from SR) | Data helper | Used by ANCHORS and FULL reads only since rev 10 (`applyBatch` no longer calls it); reuses the tx's m0222 memo. Rev 10 (D15): person anchors are kept regardless of visibility and filtered by blocks only; Request anchors keep the read wall (§5.10) |
 | Migrations `m0224`–`m0226` | `data/database/migration/m0224.dart` … `m0226.dart` (new), each registered in `_migrations.dart` (part list plus registry) | SQL | m0224: tables `constellation_anchor_op_log` and `constellation_anchor_target_watermark`. m0225: deferred anchor and cursor NOTIFY triggers with a canonical envelope. m0226: field-hint producers (§7.3). m0193 is left unchanged. |
 | Realtime fan-out | `api/controllers/websocket/path_handler/websocket_path_entity_changes.dart` | API | Extra validation refactored **per kind**: today it assumes seen timestamps (`:35-46`). Explicitly forwards `revision` for `constellation_anchor`, and forwards the `constellation_field` kind. |
 | Dart absent-delete notify | `constellation_anchor_repository.dart:356-384` | Data | **Removed.** The cursor trigger covers it. |
 | Lean profiles | `data/repository/user_profile_batch_lookup.dart` | Data | One-query name, handle and image |
 | Version gate | `env.dart` `kDefaultMinClientVersion` | Config | Raised together with the client semver and the web cache-buster |
 
-Authorization and read filtering keep their semantics. Leak and oracle hardening stays deferred per project policy, and this plan neither fixes nor regresses it.
+Read filtering keeps its semantics. **Write authorization changes in rev 10 (D11):** the server no longer checks pin targets against visibility or blocks, so a write can store a pin on a target the viewer cannot see. Reads apply D15: a pinned person is shown unless blocked in either direction, and a pinned Request only if readable (§5.10). The per-op `target_not_found` rejection reveals only row existence, which an id the client already holds implies anyway. Leak and oracle hardening stays deferred per project policy (review record, "Rev 10").
 
 ## 5. Component contracts
 
@@ -266,18 +280,20 @@ Public API: `changes`, `current`, `place(parent, position, companions)`, `unpin(
   - Last-writer-wins removes superseded targets from unsent clusters.
   - The server cap is 64 ops, and the domain drag-cluster policy limits a cluster to 64 targets, so a cluster always fits.
 - **R3. Settlement**, by `clientOpId`, published atomically with the confirmed adoption in one store transition (§5.3):
-  - `ok`: the slot is removed, and the row reaches confirmed through the store.
+  - `ok`: the slot is removed, and the acked row (or, for a DELETE, the removal) is merged into confirmed by the store (D10). Nothing is fetched.
   - `rejected`: the status becomes `rejected` with `reasonCode`. The node stays put (D1).
 - **R4. Transport error or timeout.**
   - In-flight slots become `commitUnknown`: the write may have committed.
   - Automatic retry resends the **same `clientOpId`s** with jittered exponential backoff (1 s → 30 s). Server deduplication makes the replay safe (R9).
   - After 3 attempts the slot stays `commitUnknown`. The marker shows "not saved" (D1) and Retry continues manually.
   - Catch-up or reconnect triggers an immediate retry.
+  - Independently of the retry schedule, an op whose ack is still missing `kLazyWriteAckTimeout` after its **first** dispatch raises the D14 notice (§5.9). The notice changes no slot state.
 - **R5. Refresh never removes local intent.**
   - A refresh, a missing row or a filtered row is not deletion evidence.
   - Slots are removed only by matching settlement, explicit Discard, or an account or generation reset.
-  - A server-confirmed unavailable target (rejected `target_unavailable`) keeps the local placement with the D1 marker and cannot recreate a deleted entity.
+  - A server-confirmed missing target (rejected `target_not_found`, rev 10; `target_unavailable` before) keeps the local placement with the D1 marker and cannot recreate a deleted entity.
 - **R6. Coverage and echo suppression** (implemented in the store, §5.3):
+  - an ack advances `coveredRevision` to `afterRevision` only when `beforeRevision == coveredRevision` (rev 10), so on the happy path the own echo is covered;
   - an echo is ignored only when its `revision ≤ coveredRevision`;
   - any uncovered hint triggers one coalesced ANCHORS resync, including exactly `coveredRevision + 1`;
   - hints that arrive while a request is in flight are buffered and evaluated after settlement.
@@ -308,7 +324,7 @@ Public API: `changes`, `current`, `place(parent, position, companions)`, `unpin(
 
 `desiredAnchorProjection(confirmed, outbox)` overlays unresolved upserts and removes unresolved deletes. It also returns a side map `unsaved: Set<target>` covering `rejected`, `commitUnknown` with attempts ≥ 3, and anything in flight longer than 1 s (for the "saving…" cue).
 
-Pinned records for a new pin come from the field snapshot (the node was on the field to be dragged) or from the ack's anchor projection. No other code path reads `confirmed` for presentation.
+Pinned records for a new pin come from the record the client drew when the user grabbed the node: the field snapshot, or the composer snapshot for a person absent from the normal field. Since rev 10 the ack carries no projection, so `place` captures that record on the slot (client-only, never sent) and the store copies it into `pinnedPeers` / `pinnedRequests` on settlement. **No support peers, edges or profiles are fetched for the new pin (D12):** the node is drawn where it was dropped, with whatever path data the field already holds, until the next normal read. No other code path reads `confirmed` for presentation.
 
 ### 5.3 `ConstellationFieldStoreCase`: the one owner of server state
 
@@ -317,11 +333,13 @@ API: `lease()` returns a `StoreLease` (screen activation; disposing the lease de
 - **Account generation.** The store owns `(accountId, generation)`. The generation changes only on account replacement or logout; screen leases don't touch it. The placement case subscribes to it.
 - **Single-flight refresh.** All triggers coalesce: realtime hint kinds, catch-up, resume, filters, preflight. The current debounce and spacing policy (220 ms / 2 s / 30 s) moves here. Catch-up yields **one** FULL. Hidden tabs fetch nothing, ANCHORS included.
 - **Params binding.** Every projection is bound to `(account, generation, ConstellationProjectionParams)`. The batch request carries the current params. Results computed for obsolete params still settle their op ids, but their projection is ignored.
-- **Coverage revision (R6).**
-  - `coveredRevision` is the revision of the newest **complete** anchor projection held for the current params.
-  - A batch result's complete projection at `afterRevision ≥ coveredRevision` **replaces** confirmed anchors and advances coverage directly. `beforeRevision` is diagnostic only, not a resync condition.
-  - Per-op replay results (historical) settle ids but never overwrite the returned current projection.
-  - An ANCHORS or FULL projection at revision ≥ current does the same.
+- **Coverage revision (R6), rev 10.**
+  - `coveredRevision` is the revision up to which confirmed **anchor rows** are known to be complete for the current params. Hydration (pinned records, support peers and edges) is not part of coverage; it is refreshed by the next normal read (D12).
+  - **Ack merge.** `settle(ack, settleSlots)` settles slots, then merges each executed OK op into confirmed anchors: an upsert inserts or replaces the acked row (plus the slot's captured record, §5.2), a delete removes the target and its pinned record. Results flagged `replayed` are historical: they settle ids but are never merged.
+  - **Coverage from an ack.** If `beforeRevision == coveredRevision`, confirmed was complete at `beforeRevision` and the cursor lock guarantees that only this batch's ops lie between `beforeRevision` and `afterRevision`, so coverage advances to `afterRevision` and the own echo is ignored. Otherwise (a foreign write from another tab or device is in between) the rows are merged but coverage stays put; the echo or foreign hint is then uncovered and triggers the usual single coalesced ANCHORS resync. `beforeRevision` is therefore a coverage condition again, but never a fetch trigger by itself.
+  - Params: an ack for obsolete params settles ids and merges nothing (a params change already reset coverage to zero, `constellation_field_store_case.dart:170-186`).
+  - An ANCHORS or FULL projection at revision ≥ `coveredRevision` **replaces** confirmed anchors and their hydration and advances coverage, as today (`_applyAnchors`, `constellation_field_store_case.dart:515-532`). It may drop a pin whose target is blocked or, for a Request, no longer readable (D15); a settled pin has no slot left, so this is not a lost local intent (R5). A pinned person who only lost visibility stays.
+  - Today's `settle` (`constellation_field_store_case.dart:135-143`) calls `_applyAnchors(result.anchorProjection)` from `ConstellationPlacementCase._flush` (`constellation_placement_case.dart:308`); rev 10 replaces that call with the ack merge above.
 - **Independent merge.**
   - FULL's non-anchor data (peers, requests, posts, edges) has its own **read sequence**: the newest issued FULL for the current params wins, whatever its anchor revision.
   - Anchor revision never establishes field freshness.
@@ -439,18 +457,59 @@ On web, all of this runs on the UI thread. A native isolate path is out of scope
    - The cached `Picture` excludes edges handled by the live painter (dragged and animating endpoints). It is invalidated by geometry revision and style, and replaced pictures are disposed.
    - Camera scale goes through the canvas transform. `Paint` objects are reused.
 
+### 5.8 Speculative trust changes through the graph (D13)
+
+**Today.** `GraphPersonContextCubit._setTrust` (`features/graph/ui/bloc/graph_person_context_cubit.dart:113-152`) emits `trustLoading`, awaits `ProfileViewCase.addFriend` / `removeFriend`, and patches the profile from the result. Those call `_setRelationship` (`features/profile_view/domain/use_case/profile_view_case.dart:112-120`), which writes `setLike` and then **re-reads** the profile (`fetchById`, `:118`). The graph screen forwards the result through `onProfilePatched` (`graph_screen.dart:38-42`).
+
+**Rev 10.** A new `GraphTrustWriteCase` (§4.1) owns trust writes started from the graph person context (Constellation and the graph screen). The profile screen keeps its current flow; changing it is out of scope.
+- `setTrust(peer, add)` updates a local overlay at once: the cubit shows the new toggle state and patches the profile speculatively (my vote / edge), with no loading state. Layout and visibility do not change locally.
+- The write is `setLike` with an absolute amount (1 or 0, `profile_view_case.dart:107-117`). Setting an absolute value is idempotent, so no op log is needed: a replay after a transport failure is safe.
+- One latest-wins slot per peer, one request in flight per peer; a newer toggle replaces the pending value, and a value equal to the in-flight one is not resent.
+- The server's answer is the minimal acknowledgement of the existing mutation. **No `fetchById`, no graph or field re-read.** Visibility and score consequences arrive with the next normal refresh: the trust change already emits the global `constellation_field` hint (§7.3), handled lazily like any other (D8). There is no special early refresh for one's own trust change.
+- **Failure rule (the D1 equivalent).** A transport failure or timeout retries automatically with the R4 schedule (1 s → 30 s, 3 attempts). A definitive rejection or an exhausted retry **reverts the toggle to the last acknowledged state** and shows a snackbar "Trust change not saved" with **Retry**, which re-issues the user's intended value. A toggle is not kept in a "not saved" state, because a trust state shown but not stored is a claim about a relationship, unlike a node position.
+- Lifetime follows R8: account-owned contents, cleared on account replacement or logout without writes; stale completions are dropped.
+- The overdue notice of §5.9 applies after `kLazyWriteAckTimeout`.
+
+### 5.9 Lazy-write timeout notice (D14)
+
+- **Constant.** `kLazyWriteAckTimeout = Duration(seconds: 15)`, a client config constant next to the other constellation timing constants. It equals the client transport timeout `kRequestTimeout = 15` s (`lib/consts.dart:61`, used at `packages/client/lib/data/service/remote_api_service.dart:35`), and it is no shorter than the server's own bound on a write: the admission queue deadline of 10 s (`constellation_db_scheduler.dart:17`) plus the ack-only transaction, itself capped by the 5 s RR deadline (`tentura_db.dart:284`). So the notice never fires while the first attempt can still be answered normally, and it fires at the moment that attempt is declared `commitUnknown`.
+- **When.** Measured from an op's **first** dispatch, not per retry. All ops that become overdue together raise **one** notice per episode (a burst of overdue writes is one notice). An ack that arrives later dismisses nothing retroactively: it settles as usual, and a pending notice for that episode is withdrawn if it has not been shown.
+- **What.** A non-blocking design-system snackbar (not a dialog: D9 puts interactivity first). Copy describes the situation: the change is shown but the server has not confirmed it yet, and the app keeps trying. For placements it points to the "not saved" marker once retries are exhausted (D1). l10n keys `lazyWriteAckOverdue` and, for trust, `graphTrustNotSaved` / `graphTrustRetry`.
+- **Freeze.** The snackbar is chrome, not scene: it may appear during a drag, moves no node and never takes the pointer (I1, I2).
+- The notice is a UI concern fed by a domain event; no state machine of R1–R9 depends on it.
+
+### 5.10 Pinned targets outside the visible set (D15)
+
+**Today.** `ConstellationAnchorProjectionReader._loadAuthorizedAnchors` (`packages/server/lib/data/repository/constellation_anchor_projection_reader.dart:227-297`) keeps a person anchor only if the person is in the visible set (`:259-269`, `visible.contains(person_id)`; the visible set already excludes blocks both ways). `readPrepared` (`:119-149`) filters the same way (`:138-142`), and `prepare` keeps only visible pinned persons as holders (`:80-85`).
+
+**Rev 10, server read path (ANCHORS and FULL).**
+- Person anchors are kept **regardless of visibility** and dropped only when a block exists in either direction (`user_block`, blocker or blocked = viewer: the predicate of the blocked CTE, `constellation_anchor_repository.dart:256-260`). A deleted user is already gone through the FK cascade.
+- Request anchors are unchanged: the read wall (`constellationBeaconContentReadableSql`, `:232-235`, plus the status and filter classification, `:361-381`) decides.
+- `trustEdges` and the support closure keep joining only the viewer and visible peers (`:75-79`, `:392-402`). A pinned person outside the visible set therefore has no edges and lands in the `ring` of `resolveConstellationPaths`, as holders outside the visible set always did (comment at `:392-393`).
+- Profiles of pinned persons are fetched **by id whether or not they are visible** (`peerProfiles`, `:405-412`, which already looks up `pathHolderIds` by id).
+- Each pinned peer record carries `visible: bool` (in the viewer's visible set or not), so the client can draw it correctly without its own visibility data.
+- A non-visible pinned person's Requests are not added: Request membership in the field still comes from the normal discoverable read.
+
+**Rev 10, client.**
+- `composeConstellationPresentation` already treats `projection.pinnedPeers` as visible and kept (`constellation_anchor_composition.dart:206-208`, `:283-303`); this must hold for non-visible pinned persons too. The peer cap (`resolveAndCapConstellation`, `constellation_cap_policy.dart:10-89`) keeps them through the pinned budget exemption and never charges or drops them.
+- `desiredAnchorProjection` (`placement_overlay.dart:56-119`) needs no change; it never filtered by visibility.
+- **Drawing rule (the simplest consistent one).** A pinned person with `visible: false` is drawn at the pinned position with the pin glyph and **no path and no "Wider network reach" stub**: the residual-ring stub states "peer is visible, path not drawn" (`docs/features/constellation.md:65,75`), which would be false here. It has no satellites unless a Request of theirs is pinned and readable. Labels, tap and the person context work as for any person.
+- Unpin removes the node as usual. If it was not visible, it does not come back on the automatic layer.
+
+**Open owner question.** Should a pin also override the read wall for **Requests** (show an unreadable pinned Request)? Default: **no**. The read wall is a permission, not a visibility heuristic.
+
 ## 6. Data flows
 
 ### F1. Drop (happy path)
 1. `up`, then the interaction controller emits `PlaceIntent(cluster)`.
 2. `place` fills `latestPending` and emits. The gate is released once, with the combined input.
 3. The scene controller composes (memoised) and starts one layout job (incremental: dropped nodes fixed, overlapped neighbours re-placed). The job runs in slices, then `animateTo` moves only the changed nodes.
-4. The flush sends `apply` (one request). On the ack, the store settles in one transition: confirmed rows plus slot removal. Desired state is unchanged, so nothing changes visually and no layout runs.
-5. The echo arrives with `revision ≤ coveredRevision`, so it is ignored.
+4. The flush sends `apply` (one request). On the minimal ack, the store settles in one transition: the acked rows are merged into confirmed and the slots are removed (§5.3). Desired state is unchanged, so nothing changes visually and no layout runs. Nothing is fetched, and no support closure is loaded for a new pin (D12).
+5. With `beforeRevision == coveredRevision`, coverage advanced to `afterRevision`, so the echo (`revision ≤ coveredRevision`) is ignored.
 
 ### F2. Failure
 - **Reject:** `rejected`, marker shown.
-- **Timeout:** `commitUnknown`, auto-retry with the same ids; after 3 attempts the marker shows.
+- **Timeout:** `commitUnknown`, auto-retry with the same ids; after 3 attempts the marker shows. After `kLazyWriteAckTimeout` from first dispatch, one notice (§5.9).
 - The node never moves.
 - **Retry** resends. **Discard** follows R7.
 
@@ -461,7 +520,7 @@ Coalesced in the gate, and nothing is drawn. On release: one combined compose, p
 The pointer always claims the node. The new op becomes `latestPending` for its target; the in-flight slot settles independently (R1).
 
 ### F5. Another tab writes B while this tab writes A
-A's result carries the **complete** projection at `afterRevision`, which already includes B because the server serialises both writes on the cursor. It replaces confirmed anchors and advances coverage. B's hint (`revision ≤ coveredRevision`) is then ignored. If B commits after A, B's hint is uncovered and triggers one ANCHORS resync.
+The cursor serialises both writes. If B commits first, A's ack has `beforeRevision > coveredRevision`: A's rows are merged, coverage stays, and the uncovered hint (B's or A's echo) triggers one ANCHORS resync that brings B in. If B commits after A, A's ack advances coverage (`beforeRevision == coveredRevision`), and B's hint is uncovered and triggers one ANCHORS resync. No row is lost in either order; the multi-writer case costs one read, the single-writer happy path none (D9).
 
 ### F6. Catch-up or reconnect
 One FULL. `commitUnknown` slots retry immediately.
@@ -480,6 +539,9 @@ The outbox settles in the background. The next screen lease picks up the current
 ### F10. Re-arrange
 A full plan with a stable seed. No server write: free-node positions aren't persisted.
 
+### F11. Trust change through the graph (D13)
+Toggle → the overlay shows the new state at once → one lazy `setLike` → minimal ack → slot removed. No re-read. The global field hint it produces is handled lazily (D8), and the next normal FULL brings the visibility and score consequences. Failure: retries, then the toggle reverts with a Retry snackbar (§5.8).
+
 ## 7. Server protocol
 
 ### 7.1 Batch mutation
@@ -492,37 +554,31 @@ input ConstellationAnchorOpInput {
   ifRevision: String                                             # compensation only (target watermark)
 }
 type ConstellationAnchorOpResult { clientOpId: String!  status: ConstellationAnchorOpStatus!  # OK | REJECTED
-  reason: String  anchor: ConstellationAnchor
-  resultingTargetRevision: String }                                # for every OK, DELETE included
-type ConstellationAnchorsApplyResult {
+  reason: String  replayed: Boolean!
+  anchor: ConstellationAnchor                                    # stored row (position, revision, placedAt) of an OK upsert
+  resultingTargetRevision: String }                              # for every OK, DELETE included
+type ConstellationAnchorsApplyResult {                           # the minimal acknowledgement (D10)
   beforeRevision: String!  afterRevision: String!
   results: [ConstellationAnchorOpResult!]!
-  anchorProjection: ConstellationAnchorProjection!   # same shape as the ANCHORS read, computed in-tx
 }
-mutation constellationAnchorsApply(ops: [ConstellationAnchorOpInput!]!,
-    context: String!, showClosed: Boolean!, participatedOnly: Boolean!): ConstellationAnchorsApplyResult!
-# projection params are sent so the returned projection matches the client's current params
+mutation constellationAnchorsApply(ops: [ConstellationAnchorOpInput!]!): ConstellationAnchorsApplyResult!
+# rev 10: no anchorProjection, and no projection-param arguments (context, showClosed, participatedOnly)
 ```
 
 **Envelope.** At most 64 ops. Duplicate `clientOpId`s or duplicate targets in one envelope are rejected before execution.
 
 **Per op**, in input order:
 1. dedupe lookup;
-2. authorization;
+2. shape check (target kind and id, coordinates, coordinate space) and existence check (`REJECTED(target_not_found)`). **No visibility or block authorization (D11).**
 3. `ifRevision` check;
 4. write;
 5. op-log row.
 
-Authorization, validation and conflict rejections are per op. An unexpected database error rolls back the whole accepted set (transport error → `commitUnknown`). The transaction is REPEATABLE READ, READ WRITE, retried whole on serialization failure (§4.4). Its single snapshot makes the in-tx projection coherent. pg tests cover concurrent visibility changes, cascade deletes and concurrent anchor writes.
+Validation, existence and conflict rejections are per op and never roll back the batch. An unexpected database error rolls back the whole accepted set (transport error → `commitUnknown`). The transaction is REPEATABLE READ, READ WRITE, retried whole on serialization failure (§4.4). pg tests cover existence races, cascade deletes and concurrent anchor writes.
 
-**Returned projection.** `anchorProjection` is the **complete** anchor projection at `afterRevision`, so client-side delta closure isn't needed. Its correctness test: it equals a fresh ANCHORS read at the same revision. An anchor ack never manufactures a FULL field version.
+**Returned result.** Only the acknowledgement: before and after cursor revisions and the per-op results, each carrying the stored row of an OK upsert and whether it was replayed. A replayed result is the recorded minimal result (R9). The client merges executed rows into confirmed state (§5.3); nothing in the response is a projection, so an anchor ack never manufactures a FULL field version or an ANCHORS equivalent.
 
-**No cheap-response fast path in v1.** "Position-only" moves don't prove unchanged support paths, readability or profiles. A cheaper response would need:
-- an authenticated, params-bound baseline;
-- proof that every reused component is still valid;
-- `baseRevision` → `afterRevision` changes that include foreign writes and deletions, with coverage advancing only when applied to that exact baseline.
-
-That depends on the deferred §7.4 dependency generations. Until then, the complete projection stays, and the cost is cut by **transaction-local reuse** (§4.4 step 1) instead.
+**Why no projection (rev 10).** Revs 4–6 required `anchorProjection` to be the complete projection at `afterRevision`, provably equal to a fresh ANCHORS read, and rejected any cheaper response ("no cheap-response fast path in v1"). That bar came from the adversarial review rounds (review record: round 1 #8, round 2 #4, round 3 #3), and it is a collaborative-editor bar: every response provably equal to a fresh read. D9 rejects it for this product. Its cost was measured: an unloaded 1-op write at V ≈ 1,000 took 495–717 ms, mostly projection preparation and assembly (journal, U26 part 2/3 local run). The ack-only write meets I5 and I6 more directly. The equality idea survives only where two reads must agree: the ANCHORS projection must equal the anchor part of FULL at the same revision and params (U12's reader parity).
 
 ### 7.2 Notifications
 
@@ -554,6 +610,7 @@ Explicit producers are added in m0226 and the server layer map:
 - Release requires load tests: publication bursts, reconnect bursts and concurrent tabs. Record aggregate FULL rate, queue age and maximum refresh staleness, with capacity for the declared active-session population plus at least 30% headroom.
 - Field hints always request FULL.
 - Tests: a trust change alters a third viewer's field; visibility is revoked during a drag (buffered by the freeze, applied on release).
+- **Own trust changes (rev 10, D13).** A trust change made through the graph produces the same global hint for its author. The author's client applies its own toggle speculatively and gets the field consequences from the lazy refresh like everyone else; no producer or client path special-cases the author.
 
 ### 7.4 Deferred: versioned reads (`ifVersion` / `notModified`) and cross-request caches
 
@@ -606,7 +663,7 @@ These are **not in this plan's implementation scope**. A separate design must me
    - Benchmark joins on the existing pair indexes, with EXPLAIN evidence before adding indexes.
    - Never silently truncate visibility, anchors or support paths.
 
-**MR RPCs.** At most one `mr_mutual_scores` plus U fallback scores per distinct (viewer, context) per transaction, never per op. Fallback scores are batched where MR supports it.
+**MR RPCs.** At most one `mr_mutual_scores` plus U fallback scores per distinct (viewer, context) per read transaction, never per op. Fallback scores are batched where MR supports it. Since rev 10 an anchor apply makes **zero** MR RPCs (D11).
 
 **Measured 2026-10-06** (`issue-235-constellation-interactive-measurements.md`, local MR v0.11.1 + postgres-tentura v0.8.2):
 - an MR RPC now costs **0.02–0.62 ms**, vs the ~88 ms Nagle stall of #231;
@@ -658,6 +715,8 @@ Tests: blackhole, stalled write, trickled response, recovery. Count actual netwo
   | FULL | 100 ms | 300 ms |
 
   - Cursor-hold p95 ≤ 50 ms. Serialization retries under 1% when healthy.
+  - **Rev 10.** The apply rows (and the calibrated U41 1-op budget of 30 ms p50 / 70 ms p95, journal U41 part 3/3) now apply to the **ack-only** write: lookups, existence, writes, op log, no projection. The D8 write p95 is re-measured on that write (plan U53).
+  - **Fixture realism.** The U41 trust fixtures seed MeritRank only and mirror edges into `user_trust_edge` only *after* the timed attempts (`test/perf/perf_fixture_matrix.dart:344-370`), so timed reads saw empty trust tables; `apply_batch_*` measured 45 ms against 495–717 ms on the D8 dataset. The fixtures must mirror trust edges into `user_trust_edge` **before** timing so the READ path (FULL, ANCHORS) is realistic (U53). The write path no longer reads trust edges.
   - Batch latency and amortised per-op cost are reported separately.
 - **Measured per query family** (candidates, anchors, trust edges, mutation):
   - EXPLAIN (ANALYZE, BUFFERS, WAL);
@@ -706,13 +765,16 @@ All tests are structural; there are no goldens. Suites run serially through `scr
 | I2 | Widget: store plus outbox emissions and a running transition during a drag → no committed node moves until release; then one compose, one plan, one transition. Cancel, lost capture and tab hidden each release exactly once. Resize mid-drag continues. |
 | I3 | Domain property test: random diffs not touching X → X unchanged. Domain: a refresh missing a row doesn't remove a slot. Widget: failure → node stays with marker; Discard → animates to confirmed. |
 | I4 | Profile web benchmark N = 100/300/600: drag frame, pan frame, longest task across drop→ack→reflow. Domain: AIMD convergence with a step change in unit cost; the scheduler never exceeds one slice per frame. |
-| I5 | Domain: `place` → one `apply`, zero ANCHORS fetches; the ack causes no desired-state change. |
-| I6 | Domain: cluster → one request; echo ≤ covered → no fetch; covered + 1 uncovered → one resync; hints buffered during in-flight. |
+| I5 | Domain: `place` → one `apply`, zero ANCHORS or FULL fetches; the ack causes no desired-state change and no support-closure fetch (D12). |
+| I6 | Domain: cluster → one request; ack with `beforeRevision == coveredRevision` → coverage = `afterRevision`, own echo → no fetch; ack with a gap → rows merged, coverage unchanged, echo → one resync; covered + 1 uncovered → one resync; hints buffered during in-flight. A graph trust toggle → one write, zero reads (D13). |
 | R1 | Domain: A→B on one target with A ok / rejected / timeout → B's slot and position untouched. |
 | R2 | Domain: queue over 64 ops → batches cut at cluster boundaries; maximum cluster; overlapping clusters with last-writer-wins. |
 | R4/R7/R9 | Server pg: replaying the same op id → recorded result, no revision bump; same id with a different fingerprint → reject; `ifRevision` mismatch → `REJECTED(conflict)`. Domain: Discard on `commitUnknown` → resolve, then compensate or drop. |
-| §5.3 F5 | Domain: concurrent foreign write before A → A's complete projection includes it, no resync; after A → uncovered hint → one resync; no lost row in either order. |
-| §7.1 | Server pg: `anchorProjection` equals a fresh ANCHORS read at `afterRevision`; mixed accept/reject; a DB error rolls back all. |
+| §5.3 F5 | Domain: concurrent foreign write before A → A's rows merged, coverage unchanged, one resync brings B; after A → coverage advanced, B's uncovered hint → one resync; no lost row in either order. Replayed results settle but don't merge. |
+| §7.1 | Server pg: the response contains only the ack fields; mixed accept/reject; missing person or Request → per-op `target_not_found`, the rest of the batch commits; a target deleted concurrently → whole-tx retry → per-op reject; a pin on a peer who is not (or no longer) visible → OK and stored; a DB error rolls back all; MR RPC count per apply = 0; with MR down, apply still succeeds. |
+| D13 | Domain: toggle → overlay at once, one `setLike`, no `fetchById`; latest-wins per peer; transport failure → retries; rejection or exhaustion → revert to the last acked state plus a Retry notice; logout clears without writes. Widget: no loading state on toggle. |
+| D15 | Server pg: a pinned person who lost visibility (trust withdrawn, MR epoch change) is still returned by ANCHORS and FULL with `visible: false` and their profile; a block in either direction hides them; unpin removes them; a pinned Request that becomes unreadable (or deleted, unpublished, blocked) disappears; the non-visible person's Requests are not added. Client: the node is drawn at its pin with no path and no residual stub, survives the peer cap, and has no satellites. |
+| D14 | Domain (fake clock): no ack by 15 s from first dispatch → exactly one notice per episode, retries not counted; an ack before 15 s → none. Widget: the snackbar shows during a drag without moving nodes or taking the pointer. |
 | §7.2 | Server pg: one delivered hint per committed batch (mixed ops, absent delete, cascade) carrying the commit revision; rollback delivers none. Client: WS revision decoded, highest kept. |
 | R1 promotion | Domain: successor dispatch after predecessor ok / rejected / unknown-resolved; an exhausted unknown blocks only its target; Retry of a rejected op uses a new id. |
 | R7 compensation | Server pg: watermark survives delete; `ifRevision` mismatch → conflict. Domain: Discard on unknown → replay → compensate or drop; a dispatched compensation settles before its successor. |
@@ -720,7 +782,7 @@ All tests are structural; there are no goldens. Suites run serially through `scr
 | §5.3 params | Domain: a result for obsolete params settles ids but doesn't replace anchors; FULL ordering is by read sequence, not anchor revision. |
 | §5.4 freeze | Package: freeze between layout acceptance and its queued callback → no publication; pause/resume keeps destinations. |
 | §7.3 | Server pg: trust/MR publication emits a global field hint; block emits to both parties. Client: global hint is spaced and jittered. Server: dirty-generation coalescing broadcasts at most once per window; admission returns `RETRY_LATER` over the limit; same-(viewer, params) FULLs share one computation. |
-| §7.5–7.6 | Tagged server perf fixtures (V = 100/300/1000, sparse and dense trust, C = 100/1k/10k candidates, A = 0/20/200, batches of 1/16/64; reciprocal and fallback-score populations; cold and warm runs; real MR latency). Budgets per §7.6. MR RPC count per apply = 1 + U per context. Deferred callbacks call the publisher once per viewer per tx. Load test of publication and reconnect bursts. |
+| §7.5–7.6 | Tagged server perf fixtures (V = 100/300/1000, sparse and dense trust, C = 100/1k/10k candidates, A = 0/20/200, batches of 1/16/64; reciprocal and fallback-score populations; cold and warm runs; real MR latency; trust edges mirrored into `user_trust_edge` before timing). Budgets per §7.6. MR RPC count per apply = 0 (rev 10; was 1 + U per context). Deferred callbacks call the publisher once per viewer per tx. Load test of publication and reconnect bursts. |
 
 ## 10. Risks
 
@@ -736,4 +798,5 @@ All tests are structural; there are no goldens. Suites run serially through `scr
 - **Deferred trigger semantics.** The NOTIFY fires at commit, after the tx's writes. pg tests pin the delivered payload, and the realtime fan-out code is unchanged apart from the extra field.
 - **Idle-task starvation on web.** Handled by the independent wake-up plus job token (§5.6).
 - **MR walks-cache sizing** (run 4). With `MERITRANK_WALKS_CACHE_SIZE` below the largest visible set, dense viewers pay about 6 s per read. Keep the cache ≥ largest visible set + 1, within the host memory budget. The connector deadline must stay above the **cold** first-read cost (about 2.4 s at V ≈ 1,000) or visibility fails closed for exactly the heaviest users on their first read.
+- **Rev 10 accepted risks (D9–D15, owner decision 2026-10-10).** A newly pinned node's support path is stale until the next normal read and may change then. A pinned person stays drawn, with name and avatar, after losing visibility; blocks still hide them. Pinned Requests that stopped being readable stay stored and hidden. The server does not check visibility on writes. Reliability is traded for interactivity: the client shows unacknowledged writes as confirmed, and a failed trust change is visibly reverted. Details: review record, "Rev 10".
 - **Purity refactor of layout and composition** touches tested code. Do it as a mechanical type swap first (adapters at the boundary), with the existing tests as the oracle.
