@@ -1,6 +1,16 @@
 import 'dart:async';
 import 'dart:math' show max;
 
+import 'package:drift/backends.dart'
+    show
+        DatabaseDelegate,
+        DbVersionDelegate,
+        DelegatedDatabase,
+        NoVersionDelegate,
+        QueryDelegate,
+        QueryResult,
+        SupportedTransactionDelegate,
+        TransactionDelegate;
 import 'package:drift/drift.dart';
 import 'package:postgres/postgres.dart';
 import 'package:injectable/injectable.dart';
@@ -153,24 +163,36 @@ class TenturaDb extends _$TenturaDb {
     // statements (maxConnectionAge / maxSessionUse). That put SAVEPOINT on a
     // fresh session outside the transaction (25P01: TENTURA-SERVER-G/H).
     // _PinnedPoolSession holds one pool connection for a whole transaction.
+    // With DRIFT_TRANSACTION_PINNED_POOL_ENABLED (spike #227) the executor
+    // itself leases a connection per transaction, so the pool may be larger.
     : this._(
-        _PinnedPoolSession(
-          Pool<dynamic>.withEndpoints(
-            [env.pgEndpoint],
-            settings: env.pgPoolSettings,
-          ),
+        Pool<dynamic>.withEndpoints(
+          [env.pgEndpoint],
+          settings: env.pgPoolSettings,
         ),
         env,
       );
 
-  TenturaDb._(_PinnedPoolSession session, Env env)
+  TenturaDb._(Pool<dynamic> pool, Env env)
+    : this._session(
+        env.driftTransactionPinnedPoolEnabled ? null : _PinnedPoolSession(pool),
+        pool,
+        env,
+      );
+
+  TenturaDb._session(_PinnedPoolSession? session, Pool<dynamic> pool, Env env)
     : _pinnedSession = session,
       super(
-        PgDatabase.opened(
-          session,
-          enableMigrations: false,
-          logStatements: env.isDebugModeOn,
-        ),
+        session == null
+            ? _TransactionPinnedPgDatabase(
+                pool,
+                logStatements: env.isDebugModeOn,
+              )
+            : PgDatabase.opened(
+                session,
+                enableMigrations: false,
+                logStatements: env.isDebugModeOn,
+              ),
       );
 
   TenturaDb.forTest({required QueryExecutor database})
@@ -223,7 +245,7 @@ class TenturaDb extends _$TenturaDb {
   Future<T> withMutatingUser<T>(
     String userId,
     Future<T> Function() action,
-  ) {
+  ) async {
     final current = Zone.current[_mutatingTransactionZoneKey];
     if (current is _MutatingTransactionContext && identical(current.db, this)) {
       if (current.actorUserId != userId) {
@@ -452,4 +474,108 @@ final class _PinnedPoolSession implements Session {
     if (error != null) Error.throwWithStackTrace(error, trace!);
     return result!;
   }
+}
+
+/// Spike (#227): a Postgres [DelegatedDatabase] whose transactions each lease
+/// one pooled connection ([Connection.runTx]) and run nested transactions as
+/// savepoints on it, so a multi-connection pool cannot split a transaction.
+final class _TransactionPinnedPgDatabase extends DelegatedDatabase {
+  _TransactionPinnedPgDatabase(Pool<dynamic> pool, {super.logStatements})
+    : super(_TransactionPinnedDelegate(pool), isSequential: true);
+
+  @override
+  SqlDialect get dialect => SqlDialect.postgres;
+}
+
+final class _TransactionPinnedDelegate extends DatabaseDelegate {
+  _TransactionPinnedDelegate(Pool<dynamic> pool)
+    : _root = PgDatabase.opened(
+        _PinnedPoolSession(pool),
+        enableMigrations: false,
+      ).delegate,
+      transactionDelegate = _PinnedTransactionDelegate(pool);
+
+  final DatabaseDelegate _root;
+
+  @override
+  final TransactionDelegate transactionDelegate;
+
+  @override
+  final DbVersionDelegate versionDelegate = const NoVersionDelegate();
+
+  @override
+  Future<bool> get isOpen async => await _root.isOpen;
+
+  @override
+  Future<void> open(QueryExecutorUser user) => _root.open(user);
+
+  @override
+  Future<void> close() => _root.close();
+
+  @override
+  Future<void> runBatched(BatchedStatements statements) =>
+      _root.runBatched(statements);
+
+  @override
+  Future<void> runCustom(String statement, List<Object?> args) =>
+      _root.runCustom(statement, args);
+
+  @override
+  Future<int> runInsert(String statement, List<Object?> args) =>
+      _root.runInsert(statement, args);
+
+  @override
+  Future<int> runUpdate(String statement, List<Object?> args) =>
+      _root.runUpdate(statement, args);
+
+  @override
+  Future<QueryResult> runSelect(String statement, List<Object?> args) =>
+      _root.runSelect(statement, args);
+}
+
+final class _PinnedTransactionDelegate extends SupportedTransactionDelegate {
+  _PinnedTransactionDelegate(this._pool);
+
+  final Pool<dynamic> _pool;
+  var _savepoints = 0;
+
+  @override
+  Future<void> startTransaction(Future<void> Function(QueryDelegate) run) =>
+      _pool.withConnection(
+        (connection) => connection.runTx((tx) async {
+          final delegate = PgDatabase.opened(
+            tx,
+            enableMigrations: false,
+          ).delegate;
+          await delegate.open(const _NoopExecutorUser());
+          await run(delegate);
+        }),
+      );
+
+  @override
+  Future<void> Function(
+    QueryDelegate outer,
+    Future<void> Function(QueryDelegate) block,
+  )
+  get startNested => (outer, block) async {
+    final name = 'tentura_sp_${_savepoints++}';
+    await outer.runCustom('SAVEPOINT $name', const []);
+    try {
+      await block(outer);
+    } catch (_) {
+      await outer.runCustom('ROLLBACK TO SAVEPOINT $name', const []);
+      rethrow;
+    }
+    await outer.runCustom('RELEASE SAVEPOINT $name', const []);
+  };
+}
+
+final class _NoopExecutorUser implements QueryExecutorUser {
+  const _NoopExecutorUser();
+
+  @override
+  int get schemaVersion => 1;
+
+  @override
+  Future<void> beforeOpen(QueryExecutor executor, OpeningDetails details) async {}
 }

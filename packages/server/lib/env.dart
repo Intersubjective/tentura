@@ -20,6 +20,10 @@ bool resolveRealtimeActorEchoEnabled(String? value) =>
 bool resolveAttentionV1ShadowEnabled(String? value) =>
     value?.trim().toLowerCase() == 'true';
 
+/// Opt-in spike (#227): pin one pooled connection per Drift transaction.
+bool resolveDriftTransactionPinnedPoolEnabled(String? value) =>
+    value?.trim().toLowerCase() == 'true';
+
 String? _nonEmptyEnv(String? value) {
   final trimmed = value?.trim();
   if (trimmed == null || trimmed.isEmpty) return null;
@@ -137,6 +141,7 @@ class Env {
     Duration? constellationFieldBroadcastWindow,
     double? constellationDbRefreshShare,
     bool? attentionV1ShadowEnabled,
+    bool? driftTransactionPinnedPoolEnabled,
     String? minClientVersion,
 
     // Postgres
@@ -373,6 +378,11 @@ class Env {
                    _env['CONSTELLATION_FIELD_BROADCAST_WINDOW_SECONDS'] ?? '',
                  ) ??
                  30,
+           ),
+       driftTransactionPinnedPoolEnabled =
+           driftTransactionPinnedPoolEnabled ??
+           resolveDriftTransactionPinnedPoolEnabled(
+             _env['DRIFT_TRANSACTION_PINNED_POOL_ENABLED'],
            ),
        attentionV1ShadowEnabled =
            attentionV1ShadowEnabled ??
@@ -736,6 +746,9 @@ class Env {
   /// QA-only T-07 parity telemetry. It has no product behavior effect.
   final bool attentionV1ShadowEnabled;
 
+  /// Default off. When on, [pgPoolSettings] honors [pgMaxConnectionCount].
+  final bool driftTransactionPinnedPoolEnabled;
+
   /// Minimum Tentura client semver required; `0.0.0` disables the check.
   final String minClientVersion;
 
@@ -807,7 +820,9 @@ class Env {
     // Always 1 for Drift (TENTURA-SERVER-H). POSTGRES_MAXCONN is retained for
     // ops visibility but must not open a multi-connection pool under
     // NoTransactionDelegate — see packages/server/WORKAROUNDS.md §4.
-    maxConnectionCount: 1,
+    maxConnectionCount: driftTransactionPinnedPoolEnabled
+        ? pgMaxConnectionCount
+        : 1,
     maxSessionUse: Duration(seconds: pgMaxConnectionAge),
     sslMode: pgEndpointSettings.sslMode,
     onOpen: (connection) async {
