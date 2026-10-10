@@ -141,9 +141,10 @@ void main() {
     test('a suite is in the MeritRank phase exactly when it needs a '
         'MeritRank graph', () async {
       for (final line in await planLines()) {
-        final needsMeritRank = source(
-          suiteOf(line),
-        ).contains('createPgmer2Extension: true');
+        final text = source(suiteOf(line));
+        final needsMeritRank =
+            text.contains('createPgmer2Extension: true') ||
+            text.contains('mr_edgelist(');
 
         expect(line.startsWith('mr: '), needsMeritRank, reason: line);
       }

@@ -19,13 +19,13 @@ WRAPPER="$ROOT/scripts/run_with_test_cleanup.sh"
 OUTPUT_DIR="build/perf"
 
 # A perf suite declares `@Tags(['perf', ...])` as its first non-comment line;
-# it needs MeritRank exactly when it creates the pgmer2 extension.
+# it needs MeritRank when it creates the pgmer2 extension or queries its graph.
 suites_of_phase() {
   local phase="$1" file name needs
   for file in "$SERVER"/test/perf/*_test.dart; do
     awk '/^\/\// { next } { exit !/^@Tags\(\[.*perf/ }' "$file" || continue
     needs=pg
-    grep -q 'createPgmer2Extension: true' "$file" && needs=mr
+    grep -Eq 'createPgmer2Extension: true|mr_edgelist\(' "$file" && needs=mr
     [[ "$needs" == "$phase" ]] || continue
     name="$(basename "$file")"
     echo "$name"

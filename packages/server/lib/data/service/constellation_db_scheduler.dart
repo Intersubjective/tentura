@@ -21,6 +21,7 @@ class ConstellationDbSchedulerConfig {
 
   factory ConstellationDbSchedulerConfig.fromEnv(Env env) =>
       ConstellationDbSchedulerConfig(
+        maxConcurrent: env.pgPoolSettings.maxConnectionCount!,
         reservedRefreshShare: env.constellationDbRefreshShare,
       );
 
