@@ -352,6 +352,16 @@ class _ProfileSecondaryActions extends StatelessWidget {
     final screenCubit = context.read<ScreenCubit>();
     final children = <Widget>[];
 
+    if (policy.canDirectSendRequest) {
+      children.add(
+        OutlinedButton.icon(
+          onPressed: () => screenCubit.showForwardToPerson(profile.id),
+          icon: const Icon(Icons.forward_outlined),
+          label: Text(l10n.forwardBeaconTitle),
+        ),
+      );
+    }
+
     if (policy.primaryAction == PersonPrimaryAction.none &&
         policy.showRequestOptions &&
         profile.viewerExplicitlyTrustsSubject) {
