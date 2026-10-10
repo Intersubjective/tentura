@@ -18,6 +18,17 @@
 # in packages/client). Caddy is NOT in the test data path — only the compose
 # infra and tentura-server are required. See docs/local-integration-tests.md.
 #
+# Optional env knobs:
+#   TENTURA_WEB_CHROME_NO_SANDBOX=1  pass --web-browser-flag=--no-sandbox to
+#       flutter drive. Needed inside Alloy's per-bead bwrap sandbox, whose
+#       mounts are nosuid: Chrome's default setuid sandbox then aborts with
+#       "SUID sandbox helper binary was found, but is not configured correctly".
+#       Off by default; normal runs are unchanged. The leftover-Chrome cleanup
+#       matches the --user-data-dir command-line pattern; the sandbox has a
+#       private /tmp but shares the host's pids (no --unshare-pid), so a
+#       Chrome that was already running before this runner started is still
+#       recorded as pre-existing and left alone.
+#
 # Requirements: .env at repo root with QA_AUTH_ENABLED=true, QA_AUTH_TOKEN,
 # QA_SIMPLE_LOGIN_MODE=true (see .env.example); google-chrome; docker compose.
 set -euo pipefail
@@ -179,6 +190,11 @@ else
     < <(find "$CLIENT_DIR/integration_test" -maxdepth 1 -name '*_test.dart' | sort)
 fi
 
+DRIVE_BROWSER_FLAGS=()
+if [[ "${TENTURA_WEB_CHROME_NO_SANDBOX:-}" == "1" ]]; then
+  DRIVE_BROWSER_FLAGS+=(--web-browser-flag=--no-sandbox)
+fi
+
 cd "$CLIENT_DIR"
 FAILED=()
 for target in "${TARGETS[@]}"; do
@@ -197,6 +213,7 @@ for target in "${TARGETS[@]}"; do
     --target="$target" \
     -d web-server \
     --browser-name=chrome \
+    ${DRIVE_BROWSER_FLAGS[@]+"${DRIVE_BROWSER_FLAGS[@]}"} \
     --browser-dimension="$browser_dimension" \
     --dart-define-from-file=env/integration-web.env \
     --dart-define=QA_AUTH_TOKEN="$QA_AUTH_TOKEN" \

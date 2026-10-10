@@ -46,6 +46,9 @@ It time-bounds the command, SIGKILLs hung descendants, and deletes
 unreferenced `/tmp/flutter_tools.*` + `/tmp/dart_test.kernel.*` (those live
 on a RAM tmpfs). CI does **not** use it (ephemeral runners). Do not wrap
 `flutter run` or `scripts/run_client_integration_web_local.sh`.
+Inside the Alloy bwrap sandbox (nosuid mounts) Chrome's setuid sandbox aborts;
+run the web e2e runner with `TENTURA_WEB_CHROME_NO_SANDBOX=1` to pass
+`--web-browser-flag=--no-sandbox` to `flutter drive` (off by default).
 
 ```bash
 # sweep leftovers from a killed agent, no new tests
