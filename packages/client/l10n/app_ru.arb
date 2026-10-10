@@ -335,6 +335,10 @@
   "@invitationScreenTitle": {
     "context": "InvitationScreen"
   },
+  "invitationsSectionSubtitle": "Ваши приглашения — ссылки, которые вы создали",
+  "@invitationsSectionSubtitle": {
+    "context": "FriendsScreen"
+  },
   "friendsTitle": "Доверенные",
   "@friendsTitle": {
     "context": "FriendsScreen"

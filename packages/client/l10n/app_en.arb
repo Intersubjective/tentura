@@ -335,6 +335,10 @@
   "@invitationScreenTitle": {
     "context": "InvitationScreen"
   },
+  "invitationsSectionSubtitle": "Your invites — links you created",
+  "@invitationsSectionSubtitle": {
+    "context": "FriendsScreen"
+  },
   "friendsTitle": "Trusted",
   "@friendsTitle": {
     "context": "FriendsScreen"

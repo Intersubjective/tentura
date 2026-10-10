@@ -406,6 +406,17 @@ class _InvitesTabBody extends StatelessWidget {
           ],
         ),
         SizedBox(height: tt.tightGap),
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: Text(
+            l10n.invitationsSectionSubtitle,
+            key: const Key('Friends.InvitesSubtitle'),
+            style: TenturaText.bodySmall(
+              Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+        SizedBox(height: tt.tightGap),
         Expanded(
           child: RefreshIndicator.adaptive(
             onRefresh: invitationCubit.fetch,

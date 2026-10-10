@@ -301,5 +301,42 @@ void main() {
         ['$kPathGraph/$accountId'],
       );
     });
+
+    for (final entry in {
+      'en': 'Your invites — links you created',
+      'ru': 'Ваши приглашения — ссылки, которые вы создали',
+    }.entries) {
+      testWidgets('Invitations tab explains the section (${entry.key})', (
+        tester,
+      ) async {
+        final profileCubit = _MockProfileCubit(
+          const Profile(id: 'account-1', displayName: 'Me'),
+        );
+        await tester.binding.setSurfaceSize(const Size(360, 800));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: TenturaTheme.light(),
+            locale: Locale(entry.key),
+            localizationsDelegates: L10n.localizationsDelegates,
+            supportedLocales: L10n.supportedLocales,
+            home: MultiBlocProvider(
+              providers: [
+                BlocProvider<ScreenCubit>.value(value: screenCubit),
+                BlocProvider<ProfileCubit>.value(value: profileCubit),
+              ],
+              child: const FriendsScreen(),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.fling(find.byType(TabBarView), const Offset(-400, 0), 1000);
+        await tester.pumpAndSettle();
+
+        expect(find.text(entry.value), findsOneWidget);
+      });
+    }
   });
 }
