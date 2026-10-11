@@ -119,11 +119,16 @@ abstract class BeaconRoomRepositoryPort {
     required String mutatingUserId,
   });
 
+  /// Admits [offerUserId] with [authorUserId] (the confirming author, author
+  /// or steward) recorded as the join actor. Runs in a mutating unit for
+  /// [mutatingUserId] (default: [authorUserId]); pass the authenticated actor
+  /// when it differs from the confirming author (Arch §5.3).
   Future<void> inviteOfferUserToBeaconRoom({
     required String beaconId,
     required String offerUserId,
     required String authorUserId,
     String admissionReason = 'accept',
+    String? mutatingUserId,
   });
 
   Future<bool> isBeaconAuthor({

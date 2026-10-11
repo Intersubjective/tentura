@@ -474,6 +474,7 @@ final class CommitmentGatesHarness {
       _coordinationRepo.acceptHelpOffer(
         beaconId: anyNamed('beaconId'),
         offerUserId: anyNamed('offerUserId'),
+        confirmingAuthorId: anyNamed('confirmingAuthorId'),
         actorUserId: anyNamed('actorUserId'),
       ),
     ).thenAnswer(

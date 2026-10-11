@@ -1238,6 +1238,10 @@ RETURNING *
   });
 
   /// Author coordination: admit helper into beacon Room (creates participant row when absent).
+  ///
+  /// [authorUserId] is the confirming author, recorded as the join actor. The
+  /// write runs in a mutating unit for [mutatingUserId] (default:
+  /// [authorUserId]); see [_admitOfferUserToBeaconRoom].
   @override
   Future<void> inviteOfferUserToBeaconRoom({
     required String beaconId,
@@ -1245,65 +1249,81 @@ RETURNING *
     required String authorUserId,
     String admissionReason = BeaconRoomAdmissionReason.accept,
     int participantStatus = BeaconParticipantStatusBits.committed,
+    String? mutatingUserId,
+  }) => _db.withMutatingUser(
+    mutatingUserId ?? authorUserId,
+    () => _admitOfferUserToBeaconRoom(
+      beaconId: beaconId,
+      offerUserId: offerUserId,
+      confirmingAuthorId: authorUserId,
+      admissionReason: admissionReason,
+      participantStatus: participantStatus,
+    ),
+  );
+
+  /// Actor-explicit body of [inviteOfferUserToBeaconRoom] (Arch §5.3): admits
+  /// [offerUserId] with [confirmingAuthorId] recorded as the join actor, in
+  /// the caller's mutating unit. It opens no mutating unit of its own.
+  Future<void> _admitOfferUserToBeaconRoom({
+    required String beaconId,
+    required String offerUserId,
+    required String confirmingAuthorId,
+    String admissionReason = BeaconRoomAdmissionReason.accept,
+    int participantStatus = BeaconParticipantStatusBits.committed,
   }) async {
-    await _db.withMutatingUser(authorUserId, () async {
-      final existing = await findParticipant(
-        beaconId: beaconId,
-        userId: offerUserId,
+    final existing = await findParticipant(
+      beaconId: beaconId,
+      userId: offerUserId,
+    );
+    final isPostMember = existing?.role == BeaconParticipantRoleBits.addressee;
+    final isAdmittedAddressee =
+        existing?.roomAccess == RoomAccessBits.admitted &&
+        existing?.role == BeaconParticipantRoleBits.addressee;
+    if (existing?.roomAccess == RoomAccessBits.admitted &&
+        !isAdmittedAddressee) {
+      return;
+    }
+    if (existing == null) {
+      await _db.managers.beaconParticipants.create(
+        (o) => o(
+          createdAt: const Value.absent(),
+          updatedAt: const Value.absent(),
+          id: generateId('P'),
+          beaconId: beaconId,
+          userId: offerUserId,
+          role: BeaconParticipantRoleBits.helper,
+          status: Value(participantStatus),
+          roomAccess: const Value(RoomAccessBits.admitted),
+        ),
       );
-      final isPostMember =
-          existing?.role == BeaconParticipantRoleBits.addressee;
-      final isAdmittedAddressee =
-          existing?.roomAccess == RoomAccessBits.admitted &&
-          existing?.role == BeaconParticipantRoleBits.addressee;
-      if (existing?.roomAccess == RoomAccessBits.admitted &&
-          !isAdmittedAddressee) {
-        return;
-      }
-      if (existing == null) {
-        await _db.managers.beaconParticipants.create(
-          (o) => o(
-            createdAt: const Value.absent(),
-            updatedAt: const Value.absent(),
-            id: generateId('P'),
-            beaconId: beaconId,
-            userId: offerUserId,
-            role: BeaconParticipantRoleBits.helper,
-            status: Value(participantStatus),
-            roomAccess: const Value(RoomAccessBits.admitted),
-          ),
-        );
-      } else {
-        await _db.managers.beaconParticipants
-            .filter(
-              (r) => r.beaconId.id(beaconId) & r.userId.id(offerUserId),
-            )
-            .update(
-              (o) => o(
-                roomAccess: const Value(RoomAccessBits.admitted),
-                status: Value(participantStatus),
-                role:
-                    isAdmittedAddressee ||
-                        (isPostMember &&
-                            participantStatus ==
-                                BeaconParticipantStatusBits.admitted)
-                    ? const Value(BeaconParticipantRoleBits.helper)
-                    : const Value.absent(),
-                updatedAt: Value(PgDateTime(DateTime.timestamp())),
-              ),
-            );
-      }
-      if (isAdmittedAddressee) {
-        return;
-      }
-      await recordBeaconRoomParticipantJoined(
-        db: _db,
-        beaconId: beaconId,
-        joinedUserId: offerUserId,
-        actorUserId: authorUserId,
-        admissionReason: admissionReason,
-      );
-    });
+    } else {
+      await _db.managers.beaconParticipants
+          .filter((r) => r.beaconId.id(beaconId) & r.userId.id(offerUserId))
+          .update(
+            (o) => o(
+              roomAccess: const Value(RoomAccessBits.admitted),
+              status: Value(participantStatus),
+              role:
+                  isAdmittedAddressee ||
+                      (isPostMember &&
+                          participantStatus ==
+                              BeaconParticipantStatusBits.admitted)
+                  ? const Value(BeaconParticipantRoleBits.helper)
+                  : const Value.absent(),
+              updatedAt: Value(PgDateTime(DateTime.timestamp())),
+            ),
+          );
+    }
+    if (isAdmittedAddressee) {
+      return;
+    }
+    await recordBeaconRoomParticipantJoined(
+      db: _db,
+      beaconId: beaconId,
+      joinedUserId: offerUserId,
+      actorUserId: confirmingAuthorId,
+      admissionReason: admissionReason,
+    );
   }
 
   /// Author coordination: revoke Room access for this helper (`room_access = none`).

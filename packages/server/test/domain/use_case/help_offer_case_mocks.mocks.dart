@@ -1046,12 +1046,14 @@ class MockCoordinationRepositoryPort extends _i1.Mock
   acceptHelpOffer({
     required String? beaconId,
     required String? offerUserId,
+    required String? confirmingAuthorId,
     required String? actorUserId,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#acceptHelpOffer, [], {
               #beaconId: beaconId,
               #offerUserId: offerUserId,
+              #confirmingAuthorId: confirmingAuthorId,
               #actorUserId: actorUserId,
             }),
             returnValue:
@@ -2244,6 +2246,7 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
     required String? offerUserId,
     required String? authorUserId,
     String? admissionReason = 'accept',
+    String? mutatingUserId,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#inviteOfferUserToBeaconRoom, [], {
@@ -2251,6 +2254,7 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
               #offerUserId: offerUserId,
               #authorUserId: authorUserId,
               #admissionReason: admissionReason,
+              #mutatingUserId: mutatingUserId,
             }),
             returnValue: _i3.Future<void>.value(),
             returnValueForMissingStub: _i3.Future<void>.value(),

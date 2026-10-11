@@ -187,6 +187,7 @@ void main() {
         coordinationRepo.acceptHelpOffer(
           beaconId: beaconId,
           offerUserId: helperId,
+          confirmingAuthorId: authorId,
           actorUserId: authorId,
         ),
       ).thenAnswer(
@@ -225,6 +226,7 @@ void main() {
         coordinationRepo.acceptHelpOffer(
           beaconId: beaconId,
           offerUserId: helperId,
+          confirmingAuthorId: stewardId,
           actorUserId: stewardId,
         ),
       ).thenAnswer(
@@ -261,6 +263,7 @@ void main() {
         coordinationRepo.acceptHelpOffer(
           beaconId: beaconId,
           offerUserId: helperId,
+          confirmingAuthorId: authorId,
           actorUserId: authorId,
         ),
       ).thenAnswer(

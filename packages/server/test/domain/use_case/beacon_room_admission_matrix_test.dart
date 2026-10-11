@@ -218,6 +218,7 @@ void main() {
             coordinationRepo.acceptHelpOffer(
               beaconId: _beaconId,
               offerUserId: _helperId,
+              confirmingAuthorId: _authorId,
               actorUserId: _authorId,
             ),
           ).thenAnswer((_) async {
@@ -628,6 +629,7 @@ void main() {
             coordinationRepo.acceptHelpOffer(
               beaconId: _beaconId,
               offerUserId: _helperId,
+              confirmingAuthorId: _authorId,
               actorUserId: _authorId,
             ),
           ).thenAnswer(
@@ -646,6 +648,7 @@ void main() {
             coordinationRepo.acceptHelpOffer(
               beaconId: _beaconId,
               offerUserId: _helperId,
+              confirmingAuthorId: _authorId,
               actorUserId: _authorId,
             ),
           ).called(1);
@@ -718,6 +721,7 @@ void main() {
           coordinationRepo.acceptHelpOffer(
             beaconId: anyNamed('beaconId'),
             offerUserId: anyNamed('offerUserId'),
+            confirmingAuthorId: anyNamed('confirmingAuthorId'),
             actorUserId: anyNamed('actorUserId'),
           ),
         );
@@ -739,6 +743,7 @@ void main() {
           coordinationRepo.acceptHelpOffer(
             beaconId: anyNamed('beaconId'),
             offerUserId: anyNamed('offerUserId'),
+            confirmingAuthorId: anyNamed('confirmingAuthorId'),
             actorUserId: anyNamed('actorUserId'),
           ),
         );

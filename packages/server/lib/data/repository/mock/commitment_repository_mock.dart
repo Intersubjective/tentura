@@ -17,6 +17,7 @@ class CommitmentRepositoryMock implements CommitmentRepositoryPort {
     required String actorUserId,
     required CommitmentEventKind kind,
     String? reason,
+    String? mutatingUserId,
   }) => Future.value();
 
   @override

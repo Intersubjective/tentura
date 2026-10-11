@@ -28,6 +28,7 @@ class CoordinationRepositoryMock implements CoordinationRepositoryPort {
   Future<({BeaconStatus status, DateTime? statusChangedAt})> acceptHelpOffer({
     required String beaconId,
     required String offerUserId,
+    required String confirmingAuthorId,
     required String actorUserId,
   }) => Future.value(_openStatus);
 

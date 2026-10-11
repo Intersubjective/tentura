@@ -10,9 +10,14 @@ abstract class CoordinationRepositoryPort {
     required int responseType,
   });
 
+  /// Accept admission rows (Arch §5.3 steps b–d): coordination `useful`, room
+  /// admission and the `accept` admission event, with [confirmingAuthorId]
+  /// (author or steward) recorded as the author/actor. Runs in a mutating
+  /// unit for [actorUserId], the authenticated actor, which may be the helper.
   Future<({BeaconStatus status, DateTime? statusChangedAt})> acceptHelpOffer({
     required String beaconId,
     required String offerUserId,
+    required String confirmingAuthorId,
     required String actorUserId,
   });
 

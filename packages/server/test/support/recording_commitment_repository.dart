@@ -57,6 +57,7 @@ final class RecordingCommitmentRepository extends Fake
     required String actorUserId,
     required CommitmentEventKind kind,
     String? reason,
+    String? mutatingUserId,
   }) async {
     recordCalls.add(
       (
@@ -116,6 +117,7 @@ final class NoOpCommitmentRepository extends Fake
     required String actorUserId,
     required CommitmentEventKind kind,
     String? reason,
+    String? mutatingUserId,
   }) async {}
 
   @override

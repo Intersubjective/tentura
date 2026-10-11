@@ -134,25 +134,27 @@ class CoordinationRepository implements CoordinationRepositoryPort {
   Future<({BeaconStatus status, DateTime? statusChangedAt})> acceptHelpOffer({
     required String beaconId,
     required String offerUserId,
+    required String confirmingAuthorId,
     required String actorUserId,
   }) => _database.withMutatingUser(actorUserId, () async {
     await _upsertResponseRaw(
       beaconId: beaconId,
       offerUserId: offerUserId,
-      actorUserId: actorUserId,
+      actorUserId: confirmingAuthorId,
       responseType: CoordinationResponseType.useful.smallintValue,
     );
     await _beaconRoomRepository.inviteOfferUserToBeaconRoom(
       beaconId: beaconId,
       offerUserId: offerUserId,
-      authorUserId: actorUserId,
+      authorUserId: confirmingAuthorId,
       admissionReason: BeaconRoomAdmissionReason.accept,
+      mutatingUserId: actorUserId,
     );
     await insertHelpOfferAdmissionEvent(
       _database,
       beaconId: beaconId,
       offerUserId: offerUserId,
-      actorUserId: actorUserId,
+      actorUserId: confirmingAuthorId,
       action: HelpOfferAdmissionAction.accept,
     );
     return _snapshotAfterAdmissionAction(beaconId);

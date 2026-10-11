@@ -48,8 +48,9 @@ class CommitmentRepository implements CommitmentRepositoryPort {
     required String actorUserId,
     required CommitmentEventKind kind,
     String? reason,
+    String? mutatingUserId,
   }) => _database.withMutatingUser(
-    actorUserId,
+    mutatingUserId ?? actorUserId,
     () async {
       await insertCommitmentEvent(
         _database,

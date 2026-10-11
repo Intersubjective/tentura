@@ -21,6 +21,7 @@ import 'package:tentura_server/domain/port/attention_system_settlement_port.dart
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/user_block_repository_port.dart';
+import 'package:tentura_server/domain/use_case/admission_operation.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/closure_case.dart';
 import 'package:tentura_server/domain/use_case/commitment_query_case.dart';
@@ -51,7 +52,14 @@ final class CoordinationCase extends UseCaseBase {
        _attention = attention,
        _attentionSystemSettlement = attentionSystemSettlement,
        _closureCase = closureCase,
-       _guard = guard;
+       _guard = guard,
+       _admission = AdmissionOperation(
+         _helpOfferRepository,
+         _coordinationRepository,
+         _commitmentRepository,
+         closureCase,
+         attentionSystemSettlement,
+       );
 
   final BeaconRepositoryPort _beaconRepository;
   final HelpOfferRepositoryPort _helpOfferRepository;
@@ -66,6 +74,7 @@ final class CoordinationCase extends UseCaseBase {
   final BeaconAccessGuard _guard;
   final ClosureCase? _closureCase;
   final BeaconHierarchyRepositoryPort _hierarchyRepository;
+  final AdmissionOperation _admission;
 
   Future<BeaconEntity> _ensureAuthorOrSteward({
     required String beaconId,
@@ -371,33 +380,20 @@ final class CoordinationCase extends UseCaseBase {
       actorUserId: actorUserId,
       action: (transaction) async {
         await _hierarchyRepository.lockMutationScope();
-        final snap = await _coordinationRepository.acceptHelpOffer(
-          beaconId: beaconId,
-          offerUserId: offerUserId,
-          actorUserId: actorUserId,
-        );
-        await _recordAcknowledgedIfTransition(
-          beaconId: beaconId,
-          userId: offerUserId,
-          actorUserId: actorUserId,
-        );
-        await _closureCase?.recordApprovalEdge(
-          beaconId: beaconId,
+        // The actor (author or steward) is the confirming author; the offer
+        // checked above is the helper's confirmation, so step (a) is a no-op.
+        final snap = await _admission.admitWithConfirmations(
+          beacon: beacon,
           helperId: offerUserId,
-          authorId: beacon.author.id,
-        );
-        await transaction.record(
-          await _attentionIntents!.offerAccepted(
+          confirmingAuthorId: actorUserId,
+          actorId: actorUserId,
+          transaction: transaction,
+          attention: () => _attentionIntents!.offerAccepted(
             receiverId: offerUserId,
             beaconId: beaconId,
             actorUserId: actorUserId,
             sourceEventKey: 'admission:${generateId('A')}',
           ),
-        );
-        await _attentionSystemSettlement?.settleAuthorHelpOfferSubmitted(
-          beaconId: beaconId,
-          authorAccountId: beacon.author.id,
-          helpOffererUserId: offerUserId,
         );
         return _statusResult(beaconId, snap);
       },

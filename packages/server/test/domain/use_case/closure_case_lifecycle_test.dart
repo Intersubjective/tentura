@@ -1098,6 +1098,7 @@ final class _LoggingCommitments implements CommitmentRepositoryPort {
     required String actorUserId,
     required CommitmentEventKind kind,
     String? reason,
+    String? mutatingUserId,
   }) {
     if (kind == CommitmentEventKind.unansweredAtClose) {
       _log.add('unansweredAtClose');
