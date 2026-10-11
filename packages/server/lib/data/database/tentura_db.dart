@@ -377,14 +377,24 @@ final class _PinnedPoolSession implements Session {
   Future<void>? _pinning;
   int _pins = 0;
 
-  /// While a pin is being acquired a statement must wait for it: going to the
-  /// pool instead would queue behind the pinned connection while holding
-  /// Drift's executor lock that the pinning transaction needs (deadlock).
-  Future<Session> _session() async {
-    if (_pins > 0) {
-      await _pinning;
-    }
-    return _pinned ?? _pool;
+  /// Runs a statement on the pinned connection or on the pool.
+  ///
+  /// The choice and the pool request happen in one synchronous step. While a
+  /// pin is being acquired the statement waits for it and then decides again:
+  /// by then that pin may be released, or another one may be on its way.
+  /// Going to the pool after an await could queue this statement, which holds
+  /// Drift's executor lock, behind a pin whose transaction waits for that
+  /// lock: a deadlock until the pool's connect timeout (TENTURA-SERVER-V/W).
+  Future<T> _route<T>(
+    Future<T> Function(Session pinned) onPinned,
+    Future<T> Function() onPool,
+  ) {
+    if (_pins == 0) return onPool();
+    final pinned = _pinned;
+    if (pinned != null) return onPinned(pinned);
+    return _pinning!
+        .then<void>((_) {}, onError: (Object _) {})
+        .then((_) => _route(onPinned, onPool));
   }
 
   Future<void> pin() async {
@@ -430,8 +440,10 @@ final class _PinnedPoolSession implements Session {
   Future<void> get closed => _pool.closed;
 
   @override
-  Future<Statement> prepare(Object query) async =>
-      (await _session()).prepare(query);
+  Future<Statement> prepare(Object query) => _route(
+    (pinned) => pinned.prepare(query),
+    () => _pool.prepare(query),
+  );
 
   @override
   Future<Result> execute(
@@ -441,28 +453,21 @@ final class _PinnedPoolSession implements Session {
     QueryMode? queryMode,
     Duration? timeout,
   }) {
-    // The pin check and the pool request must happen in one synchronous step.
-    // An await between them lets a transaction pin the only connection, and
-    // this statement, holding Drift's executor lock that the transaction
-    // waits for, then waits on the pool until its connect timeout
-    // (TENTURA-SERVER-V/W).
-    if (_pins > 0) {
-      return _session().then(
-        (session) => session.execute(
-          query,
-          parameters: parameters,
-          ignoreRows: ignoreRows,
-          queryMode: queryMode,
-          timeout: timeout,
-        ),
-      );
-    }
-    return _executeOnPool(
-      query,
-      parameters: parameters,
-      ignoreRows: ignoreRows,
-      queryMode: queryMode,
-      timeout: timeout,
+    return _route(
+      (pinned) => pinned.execute(
+        query,
+        parameters: parameters,
+        ignoreRows: ignoreRows,
+        queryMode: queryMode,
+        timeout: timeout,
+      ),
+      () => _executeOnPool(
+        query,
+        parameters: parameters,
+        ignoreRows: ignoreRows,
+        queryMode: queryMode,
+        timeout: timeout,
+      ),
     );
   }
 

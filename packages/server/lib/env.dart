@@ -24,6 +24,9 @@ bool resolveAttentionV1ShadowEnabled(String? value) =>
 bool resolveDriftTransactionPinnedPoolEnabled(String? value) =>
     value?.trim().toLowerCase() == 'true';
 
+/// How much longer than the statement bound a request waits for the pool.
+const _pgPoolWaitMargin = Duration(seconds: 5);
+
 String? _nonEmptyEnv(String? value) {
   final trimmed = value?.trim();
   if (trimmed == null || trimmed.isEmpty) return null;
@@ -824,6 +827,13 @@ class Env {
         ? pgMaxConnectionCount
         : 1,
     maxSessionUse: Duration(seconds: pgMaxConnectionAge),
+    // A request waits for the pool behind whatever statement holds it, so the
+    // wait must outlast that statement's bound. With the package's 15 s
+    // default, a 15–30 s statement failed every transaction queued behind it
+    // with "Failed to acquire pool lock".
+    connectTimeout: pgStatementTimeoutMs > 0
+        ? Duration(milliseconds: pgStatementTimeoutMs) + _pgPoolWaitMargin
+        : null,
     sslMode: pgEndpointSettings.sslMode,
     onOpen: (connection) async {
       await connection.execute('SET statement_timeout = $pgStatementTimeoutMs');

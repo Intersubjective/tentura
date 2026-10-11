@@ -15,5 +15,17 @@ void main() {
     test('zero disables the bound', () {
       expect(Env(pgStatementTimeoutMs: 0).pgStatementTimeoutMs, 0);
     });
+
+    test('the pool wait outlasts the statement bound', () {
+      for (final ms in [200, 30000]) {
+        final env = Env(pgStatementTimeoutMs: ms);
+        expect(
+          env.pgPoolSettings.connectTimeout,
+          greaterThan(Duration(milliseconds: ms)),
+          reason: 'a request queued behind a $ms ms statement must not time '
+              'out on the pool first',
+        );
+      }
+    });
   });
 }
