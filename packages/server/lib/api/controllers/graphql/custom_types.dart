@@ -116,6 +116,9 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypePostBudInviteeResult,
   gqlTypePostBudResult,
   gqlTypePostBudInviteCandidate,
+  gqlEnumAuthorInviteStatus,
+  gqlTypeAuthorInviteCreateResult,
+  gqlTypeAuthorInviteResult,
 ];
 
 /// Account notification preferences (channel × category matrix + controls).
@@ -1902,3 +1905,35 @@ final gqlTypePostBudInviteCandidate =
         field('viaUserId', graphQLString),
         field('hasWritten', graphQLBoolean.nonNullable()),
       ]);
+
+// Author-invite lifecycle (plan C4, Arch §5).
+
+/// `beacon_author_invite.status` by name.
+final gqlEnumAuthorInviteStatus = enumTypeFromStrings(
+  'AuthorInviteStatus',
+  const [
+    'pending',
+    'accepted',
+    'declined',
+    'withdrawn',
+    'expired',
+    'superseded',
+  ],
+);
+
+/// `beaconAuthorInviteCreate`: the outcome (plan §0 enum) and, when
+/// `invited`, the new invite id.
+final gqlTypeAuthorInviteCreateResult =
+    GraphQLObjectType('AuthorInviteCreateResult', null)
+      ..fields.addAll([
+        field('outcome', gqlEnumPostBudInviteOutcome.nonNullable()),
+        field('inviteId', graphQLString),
+      ]);
+
+/// Accept / decline / withdraw: the invite after the transition.
+final gqlTypeAuthorInviteResult = GraphQLObjectType('AuthorInviteResult', null)
+  ..fields.addAll([
+    field('inviteId', graphQLString.nonNullable()),
+    field('beaconId', graphQLString.nonNullable()),
+    field('status', gqlEnumAuthorInviteStatus.nonNullable()),
+  ]);

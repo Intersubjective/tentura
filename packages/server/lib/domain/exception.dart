@@ -397,8 +397,7 @@ final class BeaconSourceAlreadyPromotedException extends ExceptionBase {
     'extensions': {
       'code': '${code.codeNumber}',
       'path': path,
-      if (existingChildBeaconId != null)
-        'beaconId': existingChildBeaconId!,
+      'beaconId': ?existingChildBeaconId,
     },
   };
 }
@@ -550,6 +549,42 @@ final class PostNotOpenException extends ExceptionBase {
     : super(
         code: const BeaconExceptionCodes(BeaconExceptionCode.postNotOpen),
         description: description ?? 'The Post is not open',
+      );
+}
+
+/// No author invite with this id for this actor (Arch §5). Also used when the
+/// actor is neither the invitee nor the inviter, so the id leaks nothing.
+final class AuthorInviteNotFoundException extends ExceptionBase {
+  const AuthorInviteNotFoundException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(
+          BeaconExceptionCode.authorInviteNotFound,
+        ),
+        description: description ?? 'Author invite not found',
+      );
+}
+
+/// The author invite is no longer pending (declined, withdrawn, expired or
+/// superseded), so it can no longer be answered.
+final class AuthorInviteNotPendingException extends ExceptionBase {
+  const AuthorInviteNotPendingException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(
+          BeaconExceptionCode.authorInviteNotPending,
+        ),
+        description: description ?? 'The invitation is no longer pending',
+      );
+}
+
+/// The invited Request is not open: it is in review (which may reopen, so the
+/// invite stays pending) or otherwise not in the open family.
+final class AuthorInviteRequestNotOpenException extends ExceptionBase {
+  const AuthorInviteRequestNotOpenException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(
+          BeaconExceptionCode.authorInviteRequestNotOpen,
+        ),
+        description: description ?? 'The Request is not open',
       );
 }
 

@@ -18,6 +18,8 @@ import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/policy/beacon_kind_policy.dart';
 import 'package:tentura_server/domain/port/attention_system_settlement_port.dart';
+import 'package:tentura_server/domain/port/author_invite_port.dart';
+import 'package:tentura_server/domain/entity/author_invite.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/user_block_repository_port.dart';
@@ -45,10 +47,12 @@ final class CoordinationCase extends UseCaseBase {
     TransactionalAttentionCase? attention,
     AttentionSystemSettlementPort? attentionSystemSettlement,
     ClosureCase? closureCase,
+    AuthorInvitePort? authorInvites,
     required BeaconAccessGuard guard,
     required super.env,
     required super.logger,
-  }) : _attentionIntents = attentionIntents,
+  }) : _authorInvites = authorInvites,
+       _attentionIntents = attentionIntents,
        _attention = attention,
        _attentionSystemSettlement = attentionSystemSettlement,
        _closureCase = closureCase,
@@ -75,6 +79,7 @@ final class CoordinationCase extends UseCaseBase {
   final ClosureCase? _closureCase;
   final BeaconHierarchyRepositoryPort _hierarchyRepository;
   final AdmissionOperation _admission;
+  final AuthorInvitePort? _authorInvites;
 
   Future<BeaconEntity> _ensureAuthorOrSteward({
     required String beaconId,
@@ -395,8 +400,40 @@ final class CoordinationCase extends UseCaseBase {
             sourceEventKey: 'admission:${generateId('A')}',
           ),
         );
+        await _supersedePendingInvite(
+          beaconId: beaconId,
+          helperId: offerUserId,
+          actorUserId: actorUserId,
+        );
         return _statusResult(beaconId, snap);
       },
+    );
+  }
+
+  /// Budding (Arch §5.4): the author accepted an ordinary offer from a
+  /// pending invitee, so the invite is superseded (the N5 slot frees) and the
+  /// invitee's `authorInviteReceived` receipt is cleared.
+  Future<void> _supersedePendingInvite({
+    required String beaconId,
+    required String helperId,
+    required String actorUserId,
+  }) async {
+    final invites = _authorInvites;
+    if (invites == null) return;
+    final pending = await invites.fetchPending(
+      beaconId: beaconId,
+      inviteeId: helperId,
+    );
+    if (pending == null) return;
+    final ended = await invites.resolve(
+      inviteId: pending.id,
+      status: AuthorInviteStatus.superseded,
+      resolvedBy: actorUserId,
+    );
+    if (ended == null) return;
+    await _attentionSystemSettlement?.clearAuthorInviteReceived(
+      beaconId: beaconId,
+      inviteeId: helperId,
     );
   }
 

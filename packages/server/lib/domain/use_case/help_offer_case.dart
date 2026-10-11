@@ -8,10 +8,15 @@ import 'package:tentura_server/domain/port/commitment_repository_port.dart';
 import 'package:tentura_server/domain/port/inbox_repository_port.dart';
 import 'package:tentura_server/domain/coordination/help_type.dart';
 import 'package:tentura_server/domain/coordination/withdraw_reason.dart';
+import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/policy/beacon_kind_policy.dart';
 import 'package:tentura_server/domain/port/attention_system_settlement_port.dart';
+import 'package:tentura_server/domain/port/author_invite_port.dart';
+import 'package:tentura_server/domain/port/coordination_repository_port.dart';
+import 'package:tentura_server/domain/entity/author_invite.dart';
+import 'package:tentura_server/domain/use_case/admission_operation.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/closure_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
@@ -35,13 +40,26 @@ final class HelpOfferCase extends UseCaseBase {
     TransactionalAttentionCase? attention,
     AttentionSystemSettlementPort? attentionSystemSettlement,
     ClosureCase? closureCase,
+    AuthorInvitePort? authorInvites,
+    CoordinationRepositoryPort? coordinationRepository,
     required super.env,
     required super.logger,
   }) : _roomRepository = roomRepository,
        _attentionIntents = attentionIntents,
        _attention = attention,
        _attentionSystemSettlement = attentionSystemSettlement,
-       _closureCase = closureCase;
+       _closureCase = closureCase,
+       _authorInvites = authorInvites,
+       _inviteAdmission =
+           authorInvites == null || coordinationRepository == null
+           ? null
+           : AdmissionOperation(
+               _helpOfferRepository,
+               coordinationRepository,
+               _commitmentRepository,
+               closureCase,
+               attentionSystemSettlement,
+             );
 
   final BeaconRoomRepositoryPort _roomRepository;
   final HelpOfferRepositoryPort _helpOfferRepository;
@@ -54,6 +72,11 @@ final class HelpOfferCase extends UseCaseBase {
   final AttentionSystemSettlementPort? _attentionSystemSettlement;
   final BeaconAccessGuard _guard;
   final ClosureCase? _closureCase;
+
+  /// Budding supersede (Arch §5.4): set only when both the invite port and
+  /// the coordination repository are wired.
+  final AuthorInvitePort? _authorInvites;
+  final AdmissionOperation? _inviteAdmission;
 
   Future<void> offerHelp({
     required String beaconId,
@@ -83,9 +106,20 @@ final class HelpOfferCase extends UseCaseBase {
         description: 'Viewer cannot read request content',
       );
     }
+    // A pending author invite turns the offer into an accept (Arch §5.4);
+    // its locks (hierarchy, Post) come before the Request row (Arch §4.1).
+    final pendingInvite = _inviteAdmission == null
+        ? null
+        : await _authorInvites!.fetchPending(
+            beaconId: beaconId,
+            inviteeId: userId,
+          );
     await _attention!.runAction<void>(
       actorUserId: userId,
       action: (transaction) async {
+        if (pendingInvite != null) {
+          await _authorInvites!.lockScope(pendingInvite.sourcePostId);
+        }
         await _beaconRepository.runInBeaconStateTransaction(
           beaconId: beaconId,
           userId: userId,
@@ -150,6 +184,12 @@ final class HelpOfferCase extends UseCaseBase {
               permissibleKind: permissibleKind,
             );
             final offerKind = permissibleKind;
+            final invite = pendingInvite == null
+                ? null
+                : await _authorInvites!.lockPendingUnblocked(
+                    beaconId: beaconId,
+                    inviteeId: userId,
+                  );
             await _helpOfferRepository.upsert(
               beaconId: beaconId,
               userId: userId,
@@ -168,6 +208,14 @@ final class HelpOfferCase extends UseCaseBase {
               beaconId: beaconId,
               helpTypes: helpTypes,
             );
+            if (invite != null) {
+              await _admitInvitee(
+                beacon: lockedBeacon,
+                invite: invite,
+                transaction: transaction,
+              );
+              return;
+            }
             final intents = _attentionIntents;
             if (intents == null) return;
             await transaction.record(
@@ -183,6 +231,39 @@ final class HelpOfferCase extends UseCaseBase {
           },
         );
       },
+    );
+  }
+
+  /// Supersede (Arch §5.4): the invitee offered while the author's invite is
+  /// pending, so both confirmations exist. The offer is admitted through the
+  /// shared operation with the inviter as the confirming author, no
+  /// `helpOfferSubmitted` obligation is created, and the invite is accepted.
+  Future<void> _admitInvitee({
+    required BeaconEntity beacon,
+    required AuthorInvite invite,
+    required AttentionTransaction transaction,
+  }) async {
+    await _inviteAdmission!.admitWithConfirmations(
+      beacon: beacon,
+      helperId: invite.inviteeId,
+      confirmingAuthorId: invite.inviterId,
+      actorId: invite.inviteeId,
+      transaction: transaction,
+      attention: () => _attentionIntents!.authorInviteAccepted(
+        beaconId: beacon.id,
+        inviterUserId: invite.inviterId,
+        inviteeUserId: invite.inviteeId,
+        sourceEventKey: 'author_invite_accepted:${invite.id}',
+      ),
+    );
+    await _authorInvites!.resolve(
+      inviteId: invite.id,
+      status: AuthorInviteStatus.accepted,
+      resolvedBy: invite.inviteeId,
+    );
+    await _attentionSystemSettlement?.clearAuthorInviteReceived(
+      beaconId: beacon.id,
+      inviteeId: invite.inviteeId,
     );
   }
 

@@ -350,6 +350,18 @@ void main() {
           () => throwIfBeaconHierarchyError(1332, null),
           throwsA(isA<PostNotOpenException>()),
         );
+        expect(
+          () => throwIfBeaconHierarchyError(1333, null),
+          throwsA(isA<AuthorInviteNotFoundException>()),
+        );
+        expect(
+          () => throwIfBeaconHierarchyError(1334, null),
+          throwsA(isA<AuthorInviteNotPendingException>()),
+        );
+        expect(
+          () => throwIfBeaconHierarchyError(1335, null),
+          throwsA(isA<AuthorInviteRequestNotOpenException>()),
+        );
       },
     );
 

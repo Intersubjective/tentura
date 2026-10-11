@@ -222,6 +222,12 @@ class PostBudCase {
           warm: candidate.warm,
           note: note,
         );
+        if (inviteId == null) {
+          // The facts above are read under the Post lock, so the slot can
+          // only be taken by this same bud; keep the outcome honest anyway.
+          outcomes[inviteeId] = PostBudInviteOutcome.alreadyInvited;
+          continue;
+        }
         await stage.transaction.record(
           await _intents.authorInviteReceived(
             beaconId: child.id,

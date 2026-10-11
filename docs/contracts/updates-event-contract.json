@@ -4,9 +4,7 @@
     "obligationEnded",
     "batonAsked",
     "batonTaken",
-    "batonAllAnswered",
-    "authorInviteAccepted",
-    "authorInviteDeclined"
+    "batonAllAnswered"
   ],
   "eventTypes": [
     {
@@ -179,19 +177,19 @@
     },
     {
       "eventType": "authorInviteAccepted",
-      "producer": "none (no live producer yet; wired in C3/C4, see docs/plans/post-request-budding-implementation-plan.md)",
+      "producer": "AuthorInviteCase.accept",
       "recipientCategory": "author_inviter",
       "destinationFamily": "beacon_people_offer",
       "muteability": "standard",
-      "coveringTest": "packages/server/test/domain/attention/author_invite_attention_policy_test.dart"
+      "coveringTest": "packages/server/test/domain/use_case/author_invite_case_pg_test.dart"
     },
     {
       "eventType": "authorInviteDeclined",
-      "producer": "none (no live producer yet; wired in C3/C4, see docs/plans/post-request-budding-implementation-plan.md)",
+      "producer": "AuthorInviteCase.decline",
       "recipientCategory": "author_inviter",
       "destinationFamily": "beacon_people_offer",
       "muteability": "standard",
-      "coveringTest": "packages/server/test/domain/attention/author_invite_attention_policy_test.dart"
+      "coveringTest": "packages/server/test/domain/use_case/author_invite_case_pg_test.dart"
     }
   ],
   "producers": [
@@ -469,6 +467,38 @@
       "destinationFamily": "beacon",
       "muteability": "standard",
       "coveringTest": "packages/server/test/domain/use_case/post_bud_case_pg_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/author_invite_case.dart",
+      "eventType": "authorInviteReceived",
+      "recipientCategory": "author_invitee",
+      "destinationFamily": "beacon",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/author_invite_case_pg_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/author_invite_case.dart",
+      "eventType": "authorInviteAccepted",
+      "recipientCategory": "author_inviter",
+      "destinationFamily": "beacon_people_offer",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/author_invite_case_pg_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/author_invite_case.dart",
+      "eventType": "authorInviteDeclined",
+      "recipientCategory": "author_inviter",
+      "destinationFamily": "beacon_people_offer",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/author_invite_case_pg_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/help_offer_case.dart",
+      "eventType": "authorInviteAccepted",
+      "recipientCategory": "author_inviter",
+      "destinationFamily": "beacon_people_offer",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/author_invite_case_pg_test.dart"
     },
     {
       "useCase": "packages/server/lib/domain/use_case/forward_case.dart",
@@ -1608,7 +1638,7 @@
           "headlineTreatment": "beacon",
           "coalescible": true,
           "producerTests": [
-            "packages/server/test/domain/attention/author_invite_attention_policy_test.dart"
+            "packages/server/test/domain/use_case/author_invite_case_pg_test.dart"
           ],
           "transitionTests": []
         }
@@ -1632,7 +1662,7 @@
           "headlineTreatment": "beacon",
           "coalescible": true,
           "producerTests": [
-            "packages/server/test/domain/attention/author_invite_attention_policy_test.dart"
+            "packages/server/test/domain/use_case/author_invite_case_pg_test.dart"
           ],
           "transitionTests": []
         }

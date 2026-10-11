@@ -96,7 +96,7 @@ ON CONFLICT DO NOTHING
   );
 
   @override
-  Future<String> insertInvite({
+  Future<String?> insertInvite({
     required String beaconId,
     required String inviterId,
     required String inviteeId,
@@ -122,6 +122,7 @@ SELECT $1, $2, $3, $4, $5,
    ORDER BY e.created_at DESC, e.id DESC
    LIMIT 1),
   $6, $7
+ON CONFLICT DO NOTHING
 RETURNING id
 ''',
           variables: [
@@ -134,8 +135,71 @@ RETURNING id
             Variable<String>(note),
           ],
         )
-        .getSingle();
-    return rows.read<String>('id');
+        .getSingleOrNull();
+    return rows?.read<String>('id');
+  }
+
+  @override
+  Future<PostBudInviteCandidate?> laterInviteCandidate({
+    required String childId,
+    required String postId,
+    required String inviterId,
+    required String inviteeId,
+  }) async {
+    final row = await _database
+        .customSelect(
+          r'''
+SELECT
+  (p.user_id = $4
+     OR EXISTS (
+       SELECT 1 FROM public.post_first_response fr
+       WHERE fr.beacon_id = p.id AND fr.user_id = $4)) AS warm,
+  (CASE
+     WHEN public.block_hides($3, $4) OR public.block_hides(p.user_id, $4)
+       THEN 2
+     WHEN EXISTS (
+       SELECT 1 FROM public.user_availability ua
+       WHERE ua.user_id = $4
+         AND ua.resume_on > public.utc_today()) THEN 4
+     WHEN EXISTS (
+       SELECT 1 FROM public.beacon_author_invite i
+       WHERE i.status = 0
+         AND i.invitee_id = $4
+         AND (i.beacon_id = $1
+              OR (i.inviter_id = $3 AND i.source_post_id = p.id))) THEN 5
+     ELSE 0
+   END)::smallint AS reason
+FROM public.beacon_bud_observer o
+JOIN public.beacon p ON p.id = $2
+WHERE o.beacon_id = $1 AND o.user_id = $4 AND o.user_id <> $3
+''',
+          variables: [
+            Variable.withString(childId),
+            Variable.withString(postId),
+            Variable.withString(inviterId),
+            Variable.withString(inviteeId),
+          ],
+        )
+        .getSingleOrNull();
+    if (row == null) return null;
+    final warm = row.read<bool>('warm');
+    final reason = PostBudInviteReason.fromCode(row.read<int>('reason'));
+    final visible = warm || reason != PostBudInviteReason.eligible
+        ? const <String>{}
+        : await _personVisibility.personVisiblePeerIds(
+            viewerId: inviterId,
+            peerIds: [inviteeId],
+            context: '',
+          );
+    return _candidate(
+      userId: inviteeId,
+      warm: warm,
+      reason: reason,
+      hasWritten: false,
+      pretick: false,
+      viaUserId: null,
+      visible: visible,
+    );
   }
 
   static PostBudInviteCandidate _candidate({

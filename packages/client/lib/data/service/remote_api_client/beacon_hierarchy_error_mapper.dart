@@ -31,5 +31,11 @@ void throwIfBeaconHierarchyError(int? code, Map<String, dynamic>? extensions) {
       throw const BudSourceNotOwnMessageException();
     case PostNotOpenException.codeNumber:
       throw const PostNotOpenException();
+    case AuthorInviteNotFoundException.codeNumber:
+      throw const AuthorInviteNotFoundException();
+    case AuthorInviteNotPendingException.codeNumber:
+      throw const AuthorInviteNotPendingException();
+    case AuthorInviteRequestNotOpenException.codeNumber:
+      throw const AuthorInviteRequestNotOpenException();
   }
 }

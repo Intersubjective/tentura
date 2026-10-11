@@ -2,6 +2,8 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/attention_dispatch_port.dart';
+import 'package:tentura_server/domain/port/attention_system_settlement_port.dart';
+import 'package:tentura_server/domain/port/author_invite_port.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
 import 'package:tentura_server/domain/port/capability_evidence_port.dart';
@@ -44,13 +46,17 @@ final class UserBlockCase extends UseCaseBase {
     AttentionDispatchPort? attentionDispatch,
     WitnessWindowPort? witnessWindow,
     ClosureCase? closureCase,
+    AuthorInvitePort? authorInvites,
+    AttentionSystemSettlementPort? attentionSystemSettlement,
     required super.env,
     required super.logger,
   }) : _trustLedger = trustLedger,
        _attentionIntents = attentionIntents,
        _attentionDispatch = attentionDispatch,
        _witnessWindow = witnessWindow,
-       _closureCase = closureCase;
+       _closureCase = closureCase,
+       _authorInvites = authorInvites,
+       _attentionSystemSettlement = attentionSystemSettlement;
 
   final MutatingUnitOfWorkPort _unitOfWork;
   final UserBlockRepositoryPort _blocks;
@@ -68,6 +74,8 @@ final class UserBlockCase extends UseCaseBase {
   final AttentionDispatchPort? _attentionDispatch;
   final WitnessWindowPort? _witnessWindow;
   final ClosureCase? _closureCase;
+  final AuthorInvitePort? _authorInvites;
+  final AttentionSystemSettlementPort? _attentionSystemSettlement;
 
   Future<void> block({
     required String blockerId,
@@ -164,8 +172,27 @@ final class UserBlockCase extends UseCaseBase {
 
   Future<void> _cleanupDirectPair(String blockerId, String blockedId) async {
     await _withdrawPendingHelpOffers(blockerId, blockedId);
+    await _withdrawPendingAuthorInvites(blockerId, blockedId);
     await _cancelForwardEdgesBetween(blockerId, blockedId);
     await _deleteContactsBetween(blockerId, blockedId);
+  }
+
+  /// Budding (Arch §5.4): pending author invites between the pair become
+  /// withdrawn and the invitee's `authorInviteReceived` receipt is cleared.
+  /// Their delivery edges are cancelled with the other edges between the pair.
+  Future<void> _withdrawPendingAuthorInvites(
+    String blockerId,
+    String blockedId,
+  ) async {
+    final invites = _authorInvites;
+    if (invites == null) return;
+    final ended = await invites.withdrawPendingBetween(blockerId, blockedId);
+    for (final invite in ended) {
+      await _attentionSystemSettlement?.clearAuthorInviteReceived(
+        beaconId: invite.beaconId,
+        inviteeId: invite.inviteeId,
+      );
+    }
   }
 
   Future<void> _withdrawPendingHelpOffers(

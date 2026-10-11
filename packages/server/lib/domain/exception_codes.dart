@@ -105,6 +105,9 @@ enum BeaconExceptionCode {
   postChildRequiresBud, // 1330
   budSourceNotOwnMessage, // 1331
   postNotOpen, // 1332
+  authorInviteNotFound, // 1333
+  authorInviteNotPending, // 1334
+  authorInviteRequestNotOpen, // 1335
 }
 
 class BeaconExceptionCodes extends ExceptionCodes {

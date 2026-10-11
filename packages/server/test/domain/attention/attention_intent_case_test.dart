@@ -237,6 +237,28 @@ void main() {
             sourceEventKey: eventKey,
           ),
         ),
+        (
+          eventType: AttentionEventType.authorInviteAccepted,
+          legacyKind: 'authorInviteAccepted',
+          recipient: author,
+          build: (intents) => intents.authorInviteAccepted(
+            beaconId: beacon,
+            inviterUserId: author,
+            inviteeUserId: actor,
+            sourceEventKey: eventKey,
+          ),
+        ),
+        (
+          eventType: AttentionEventType.authorInviteDeclined,
+          legacyKind: 'authorInviteDeclined',
+          recipient: author,
+          build: (intents) => intents.authorInviteDeclined(
+            beaconId: beacon,
+            inviterUserId: author,
+            inviteeUserId: actor,
+            sourceEventKey: eventKey,
+          ),
+        ),
       ];
 
   group('migrated producer intent projection', () {

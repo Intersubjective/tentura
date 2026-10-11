@@ -112,3 +112,26 @@ final class PostNotOpenException extends BeaconHierarchyException {
 
   static const codeNumber = 1332;
 }
+
+/// No author invite with this id for the caller.
+final class AuthorInviteNotFoundException extends BeaconHierarchyException {
+  const AuthorInviteNotFoundException([super.message]);
+
+  static const codeNumber = 1333;
+}
+
+/// The author invite is no longer pending (declined, withdrawn, expired or
+/// superseded).
+final class AuthorInviteNotPendingException extends BeaconHierarchyException {
+  const AuthorInviteNotPendingException([super.message]);
+
+  static const codeNumber = 1334;
+}
+
+/// The invited Request is not open (for example, it is in review).
+final class AuthorInviteRequestNotOpenException
+    extends BeaconHierarchyException {
+  const AuthorInviteRequestNotOpenException([super.message]);
+
+  static const codeNumber = 1335;
+}

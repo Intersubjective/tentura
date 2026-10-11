@@ -111,8 +111,6 @@ const _pendingProducerEventTypes = <String>[
   'batonAsked',
   'batonTaken',
   'batonAllAnswered',
-  'authorInviteAccepted',
-  'authorInviteDeclined',
 ];
 
 const _expectedEventTypes = <Map<String, String>>[
@@ -313,23 +311,21 @@ const _expectedEventTypes = <Map<String, String>>[
   },
   {
     'eventType': 'authorInviteAccepted',
-    'producer':
-        'none (no live producer yet; wired in C3/C4, see docs/plans/post-request-budding-implementation-plan.md)',
+    'producer': 'AuthorInviteCase.accept',
     'recipientCategory': 'author_inviter',
     'destinationFamily': 'beacon_people_offer',
     'muteability': 'standard',
     'coveringTest':
-        'packages/server/test/domain/attention/author_invite_attention_policy_test.dart',
+        'packages/server/test/domain/use_case/author_invite_case_pg_test.dart',
   },
   {
     'eventType': 'authorInviteDeclined',
-    'producer':
-        'none (no live producer yet; wired in C3/C4, see docs/plans/post-request-budding-implementation-plan.md)',
+    'producer': 'AuthorInviteCase.decline',
     'recipientCategory': 'author_inviter',
     'destinationFamily': 'beacon_people_offer',
     'muteability': 'standard',
     'coveringTest':
-        'packages/server/test/domain/attention/author_invite_attention_policy_test.dart',
+        'packages/server/test/domain/use_case/author_invite_case_pg_test.dart',
   },
 ];
 
