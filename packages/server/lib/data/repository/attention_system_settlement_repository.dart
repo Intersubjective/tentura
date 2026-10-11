@@ -3,6 +3,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura_server/domain/port/attention_system_settlement_port.dart';
 
 import '../database/tentura_db.dart';
+import 'attention_dismissible_sql.dart';
 
 @Singleton(as: AttentionSystemSettlementPort)
 class AttentionSystemSettlementRepository
@@ -112,7 +113,7 @@ WHERE outbox.occurrence_id = occ.id
     required String beaconId,
     required String inviteeId,
   }) => _database.customUpdate(
-    r"""
+    '''
 UPDATE public.notification_outbox AS outbox
 SET
   cleared_at = now(),
@@ -120,12 +121,11 @@ SET
   seen_at = COALESCE(outbox.seen_at, now())
 FROM public.attention_occurrence AS occ
 WHERE outbox.occurrence_id = occ.id
-  AND occ.event_type = $3
-  AND outbox.beacon_id = $1
-  AND outbox.account_id = $2
-  AND NOT outbox.requires_action
-  AND outbox.cleared_at IS NULL
-""",
+  AND occ.event_type = \$3
+  AND outbox.beacon_id = \$1
+  AND outbox.account_id = \$2
+  AND ${AttentionDismissibleSql.activeOptional('outbox')}
+''',
     variables: [
       Variable<String>(beaconId),
       Variable<String>(inviteeId),
