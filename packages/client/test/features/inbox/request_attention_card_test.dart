@@ -803,6 +803,53 @@ void main() {
       expect(cleared, ['m2', 'm1']);
     });
 
+    testWidgets('an author invite and its answers speak in the «вам» zone '
+        '(budding)', (tester) async {
+      for (final (kind, key, line) in const [
+        (
+          'authorInviteReceived',
+          'author_invite_received',
+          'Глеб зовёт вас помочь',
+        ),
+        (
+          'authorInviteAccepted',
+          'author_invite_accepted',
+          'Глеб принял(а) приглашение',
+        ),
+        ('authorInviteDeclined', 'author_invite_declined', 'Глеб не сможет'),
+      ]) {
+        await tester.pumpWidget(
+          _host(
+            grouped(
+              events: [
+                _event(
+                  id: kind,
+                  kind: kind,
+                  presentationKey: key,
+                  actorUserId: 'u2',
+                  personal: true,
+                  createdAt: now.subtract(const Duration(hours: 1)),
+                ),
+              ],
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text(line), findsOneWidget, reason: kind);
+        expect(
+          find.byKey(RequestAttentionCard.forYouIndicatorKey),
+          findsOneWidget,
+          reason: kind,
+        );
+        expect(
+          find.byKey(RequestAttentionCard.changeLineKey),
+          findsNothing,
+          reason: kind,
+        );
+      }
+    });
+
     testWidgets('only general updates: the dot, no «вам» zone', (tester) async {
       await tester.pumpWidget(_host(grouped(events: [status])));
       await tester.pumpAndSettle();

@@ -7961,6 +7961,33 @@
       }
     }
   },
+  "attentionCardInviteReceived": "{name} asks you to help",
+  "@attentionCardInviteReceived": {
+    "context": "For You Request card (#189), author invite (budding)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "attentionCardInviteAccepted": "{name} accepted your invite",
+  "@attentionCardInviteAccepted": {
+    "context": "For You Request card (#189), author invite (budding)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "attentionCardInviteDeclined": "{name} can't make it",
+  "@attentionCardInviteDeclined": {
+    "context": "For You Request card (#189), author invite (budding)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "attentionCardBlockerOnYourItem": "Blocker on your item: {title}",
   "@attentionCardBlockerOnYourItem": {
     "context": "For You Request card (#189)",

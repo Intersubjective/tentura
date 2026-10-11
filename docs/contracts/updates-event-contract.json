@@ -1616,7 +1616,10 @@
           "producerTests": [
             "packages/server/test/domain/use_case/post_bud_case_pg_test.dart"
           ],
-          "transitionTests": []
+          "transitionTests": [],
+          "personal": true,
+          "stateLike": false,
+          "ownDutyReminder": false
         }
       ]
     },
@@ -1640,7 +1643,10 @@
           "producerTests": [
             "packages/server/test/domain/use_case/author_invite_case_pg_test.dart"
           ],
-          "transitionTests": []
+          "transitionTests": [],
+          "personal": true,
+          "stateLike": false,
+          "ownDutyReminder": false
         }
       ]
     },
@@ -1664,7 +1670,10 @@
           "producerTests": [
             "packages/server/test/domain/use_case/author_invite_case_pg_test.dart"
           ],
-          "transitionTests": []
+          "transitionTests": [],
+          "personal": true,
+          "stateLike": false,
+          "ownDutyReminder": false
         }
       ]
     }

@@ -395,6 +395,8 @@ class AttentionPolicy {
     AttentionRecipientReason.batonCandidate,
     AttentionRecipientReason.postAuthor,
     AttentionRecipientReason.affectedParticipant,
+    AttentionRecipientReason.authorInvitee,
+    AttentionRecipientReason.authorInviter,
   };
 
   /// #189 — whether this event type can be personal at all. State changes,
@@ -415,7 +417,10 @@ class AttentionPolicy {
     AttentionEventType.commitmentAccepted ||
     AttentionEventType.commitmentCancelled ||
     AttentionEventType.commitmentRedirected ||
-    AttentionEventType.batonAsked => true,
+    AttentionEventType.batonAsked ||
+    AttentionEventType.authorInviteReceived ||
+    AttentionEventType.authorInviteAccepted ||
+    AttentionEventType.authorInviteDeclined => true,
     AttentionEventType.helpOfferSubmitted ||
     AttentionEventType.requestStatusChanged ||
     AttentionEventType.beaconHierarchyStatusChanged ||

@@ -497,6 +497,9 @@ class RequestAttentionCard extends StatelessWidget {
       'offerAccepted' => l10n.attentionCardOfferAccepted(name),
       'offerDeclined' => l10n.attentionCardOfferDeclined(name),
       'postFirstResponse' => l10n.attentionCardPostFirstReply(name),
+      'authorInviteReceived' => l10n.attentionCardInviteReceived(name),
+      'authorInviteAccepted' => l10n.attentionCardInviteAccepted(name),
+      'authorInviteDeclined' => l10n.attentionCardInviteDeclined(name),
       'blockerOpened' when words.isNotEmpty =>
         l10n.attentionCardBlockerOnYourItem(words),
       _ => null,

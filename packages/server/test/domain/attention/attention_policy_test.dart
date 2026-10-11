@@ -65,6 +65,29 @@ void main() {
       );
     });
 
+    test('an author invite and its answer are personal', () {
+      expect(
+        payloadFor(
+          AttentionEventType.authorInviteReceived,
+          {AttentionRecipientReason.authorInvitee},
+        )['personal'],
+        isTrue,
+      );
+      for (final answer in [
+        AttentionEventType.authorInviteAccepted,
+        AttentionEventType.authorInviteDeclined,
+      ]) {
+        expect(
+          payloadFor(answer, {
+            AttentionRecipientReason.authorInviter,
+          })['personal'],
+          isTrue,
+          reason: answer.name,
+        );
+        expect(policy.isStateLike(answer), isFalse, reason: answer.name);
+      }
+    });
+
     test('a status change is never personal', () {
       expect(
         payloadFor(
