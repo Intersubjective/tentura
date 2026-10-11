@@ -7,7 +7,14 @@ import 'package:mockito/mockito.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/attention/attention_actor_profiles_case.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
+import 'package:tentura/domain/entity/author_invite.dart';
+import 'package:tentura/domain/use_case/author_invite_case.dart';
+import 'package:tentura/features/beacon/domain/beacon_hierarchy_exception.dart';
+import 'package:tentura/features/inbox/ui/widget/activity_invite_card.dart';
+import 'package:tentura/ui/effect/ui_effect.dart';
+import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
@@ -42,6 +49,8 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
 import '../../support/test_realtime_sync.dart';
+import '../../ui/effect/fake_ui_effect_port.dart';
+import 'author_invite_test_support.dart';
 import '../block/support/controllable_block_case.dart';
 import '../updates/support/noop_invite_setup_port.dart';
 import 'activity_offers_test_support.dart';
@@ -333,6 +342,9 @@ Future<_Boot> _boot({
   required FakeInboxRepository inboxRepo,
   required _FeedAttentionRepo attentionRepo,
   InviteAcceptedSetupPort? setup,
+  AuthorInviteCase? authorInviteCase,
+  AttentionActorProfilesCase? actorProfiles,
+  UiEffectPort? effects,
 }) async {
   final accounts = _Accounts();
   final sync = buildTestRealtimeSync();
@@ -355,7 +367,9 @@ Future<_Boot> _boot({
     inboxCase: inboxCase,
     attentionCase: attention,
     pageSize: 20,
-    actorProfiles: buildNoopAttentionActorProfiles(),
+    actorProfiles: actorProfiles ?? buildNoopAttentionActorProfiles(),
+    authorInviteCase: authorInviteCase,
+    effects: effects,
   );
   await offers.loadFirst();
   final stream = UpdatesFeedCubit(
@@ -497,7 +511,8 @@ void main() {
       expect(
         find.byType(RequestAttentionTimelineSheet),
         findsOneWidget,
-        reason: 'every attention surface reaches §9\'s timeline, not a route '
+        reason:
+            'every attention surface reaches §9\'s timeline, not a route '
             'of its own',
       );
       final sheet = tester.widget<RequestAttentionTimelineSheet>(
@@ -955,11 +970,16 @@ void main() {
     );
     addTearDown(boot.dispose);
 
-    await _pumpStreamView(tester, boot: boot, logicalSize: const Size(360, 900));
+    await _pumpStreamView(
+      tester,
+      boot: boot,
+      logicalSize: const Size(360, 900),
+    );
 
     expect(find.byType(RequestAttentionCard), findsOneWidget);
     expect(
-      tester.widget<RequestAttentionCard>(find.byType(RequestAttentionCard))
+      tester
+          .widget<RequestAttentionCard>(find.byType(RequestAttentionCard))
           .relation,
       RequestAttentionRelation.following,
     );
@@ -981,7 +1001,8 @@ void main() {
           itemKind: AttentionItemKind.requestActivity,
           eventTotal: 4,
           provenanceJson: _provenanceJson(
-            note: 'Ты же с этим возился когда-то, глянь пожалуйста, '
+            note:
+                'Ты же с этим возился когда-то, глянь пожалуйста, '
                 'там совсем немного работы осталось',
           ),
           eventsPreview: [
@@ -1159,6 +1180,131 @@ void main() {
       findsNothing,
       reason: 'no explicit sweep ran here, so there is no number to claim',
     );
+  });
+
+  group('«Для вас» invite card (plan D3)', () {
+    const inviter = Profile(id: 'Uinviter', displayName: 'Oleg');
+
+    Future<({_Boot boot, FakeAuthorInvitePort port, FakeUiEffectPort effects})>
+    bootWithInvite() async {
+      final inboxRepo = FakeInboxRepository();
+      final attentionRepo = _FeedAttentionRepo(firstPage: const []);
+      final items = [_offerItem('B-invite'), _offerItem('B-plain')];
+      wireActivityOffersV2(
+        inbox: inboxRepo,
+        attention: attentionRepo,
+        items: items,
+      );
+      attentionRepo.offerRows = [
+        for (final item in items)
+          activityOfferSortRow(item).copyWith(
+            inviteId: item.beaconId == 'B-invite' ? 'I1' : null,
+          ),
+      ];
+      final port = FakeAuthorInvitePort()
+        ..pending = [
+          PendingAuthorInvite(
+            id: 'I1',
+            beaconId: 'B-invite',
+            beaconTitle: 'Offer B-invite',
+            inviterId: inviter.id,
+            createdAt: DateTime.utc(2026, 10, 11),
+            note: 'You have a ladder',
+          ),
+        ];
+      final effects = FakeUiEffectPort();
+      final boot = await _boot(
+        inboxRepo: inboxRepo,
+        attentionRepo: attentionRepo,
+        authorInviteCase: buildAuthorInviteCase(port),
+        actorProfiles: buildActorProfiles(const [inviter]),
+        effects: effects,
+      );
+      return (boot: boot, port: port, effects: effects);
+    }
+
+    final inviteCard = find.byType(ActivityInviteCard);
+
+    testWidgets('a row with inviteId renders the invite card', (tester) async {
+      final (:boot, :port, :effects) = await bootWithInvite();
+      addTearDown(boot.dispose);
+      await _pumpStreamView(
+        tester,
+        boot: boot,
+        logicalSize: const Size(360, 1600),
+      );
+
+      expect(inviteCard, findsOneWidget);
+      expect(find.text('Oleg invites you to help'), findsOneWidget);
+      expect(find.text('You have a ladder'), findsOneWidget);
+      expect(find.text('Accept'), findsOneWidget);
+      expect(find.text("Can't make it"), findsOneWidget);
+      // The other pinned row keeps the ordinary Request card.
+      expect(find.byType(RequestAttentionCard), findsOneWidget);
+      expect(find.textContaining('Offer B-plain'), findsOneWidget);
+    });
+
+    testWidgets('«Accept» answers the invite and the row leaves the zone', (
+      tester,
+    ) async {
+      final (:boot, :port, :effects) = await bootWithInvite();
+      addTearDown(boot.dispose);
+      await _pumpStreamView(
+        tester,
+        boot: boot,
+        logicalSize: const Size(360, 1600),
+      );
+
+      await tester.tap(find.byKey(const Key('ActivityInviteCard.Accept')));
+      await _pumpFrames(tester);
+
+      expect(port.accepted, ['I1']);
+      expect(inviteCard, findsNothing);
+      expect(find.textContaining('Offer B-plain'), findsOneWidget);
+    });
+
+    testWidgets('a refused accept puts the invite card back', (tester) async {
+      final (:boot, :port, :effects) = await bootWithInvite();
+      addTearDown(boot.dispose);
+      port.error = const AuthorInviteNotPendingException('withdrawn');
+      await _pumpStreamView(
+        tester,
+        boot: boot,
+        logicalSize: const Size(360, 1600),
+      );
+
+      await tester.tap(find.byKey(const Key('ActivityInviteCard.Accept')));
+      await _pumpFrames(tester);
+
+      expect(inviteCard, findsOneWidget);
+      expect(effects.emitted.whereType<ShowError>(), hasLength(1));
+    });
+
+    testWidgets('«Can\'t make it» goes through the decline dialog', (
+      tester,
+    ) async {
+      final (:boot, :port, :effects) = await bootWithInvite();
+      addTearDown(boot.dispose);
+      await _pumpStreamView(
+        tester,
+        boot: boot,
+        logicalSize: const Size(360, 1600),
+      );
+
+      await tester.tap(find.byKey(const Key('ActivityInviteCard.Decline')));
+      await _pumpFrames(tester);
+      expect(find.byType(AlertDialog), findsOneWidget);
+      await tester.enterText(find.byType(TextField), 'Away that weekend');
+      await tester.tap(find.text(L10nEn().buttonOk));
+      await _pumpFrames(tester);
+
+      expect(port.declined, ['I1']);
+      expect(inviteCard, findsNothing);
+      expect(
+        boot.inboxRepo.lastSetStatus?.rejectionMessage,
+        'Away that weekend',
+      );
+    });
   });
 }
 

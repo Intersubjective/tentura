@@ -1,4 +1,5 @@
 import 'package:tentura/domain/attention/entity/activity_offer_beacon_meta.dart';
+import 'package:tentura/domain/entity/author_invite.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
@@ -26,6 +27,18 @@ abstract class ActivityOffersState extends StateBase with _$ActivityOffersState 
     Map<String, ActivityOfferBeaconMeta> eventsByBeacon,
     @Default(<String, Profile>{}) Map<String, Profile> actors,
     String? offersNextCursor,
+
+    /// Plan D3: the viewer's pending author invite per pinned Request (from
+    /// the zone rows' `inviteId`). A row listed here renders the invite card.
+    @Default(<String, String>{}) Map<String, String> inviteIdByBeacon,
+
+    /// Invite details (inviter, note) by invite id, from
+    /// `myPendingAuthorInvites`; best-effort, the card renders without them.
+    @Default(<String, PendingAuthorInvite>{})
+    Map<String, PendingAuthorInvite> invites,
+
+    /// Inviter profiles by user id, for the invite card.
+    @Default(<String, Profile>{}) Map<String, Profile> inviters,
     @Default(StateIsLoading()) StateStatus status,
   }) = _ActivityOffersState;
 

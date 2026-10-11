@@ -6600,5 +6600,15 @@
       }
     }
   },
-  "postClosedMarker": "закрыт"
+  "postClosedMarker": "закрыт",
+  "inviteCardTitle": "{name} зовёт вас помочь",
+  "@inviteCardTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "inviteAccept": "Принять",
+  "inviteDecline": "Не смогу"
 }

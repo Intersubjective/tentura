@@ -8211,5 +8211,22 @@
   "postClosedMarker": "closed",
   "@postClosedMarker": {
     "description": "Marker on a closed Post in Conversations."
+  },
+  "inviteCardTitle": "{name} invites you to help",
+  "@inviteCardTitle": {
+    "description": "Activity «For you» invite card title (an author invite on a Request).",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "inviteAccept": "Accept",
+  "@inviteAccept": {
+    "description": "Activity invite card: accept the author invite."
+  },
+  "inviteDecline": "Can't make it",
+  "@inviteDecline": {
+    "description": "Activity invite card: decline the author invite."
   }
 }

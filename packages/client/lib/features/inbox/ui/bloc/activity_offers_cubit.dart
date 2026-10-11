@@ -8,9 +8,13 @@ import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/activity_offer_sort_row.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/use_case/author_invite_case.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
+import 'package:tentura/ui/effect/ui_effect.dart';
+import 'package:tentura/ui/effect/ui_effect_port.dart';
 
 import '../../domain/entity/inbox_item.dart';
+import '../../domain/enum.dart';
 import '../../domain/use_case/inbox_case.dart';
 import 'activity_offers_state.dart';
 
@@ -24,8 +28,12 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
     InboxCase? inboxCase,
     AttentionCase? attentionCase,
     AttentionActorProfilesCase? actorProfiles,
+    AuthorInviteCase? authorInviteCase,
+    UiEffectPort? effects,
     int pageSize = 20,
-  }) : _userId = userId,
+  }) : _inviteCaseOverride = authorInviteCase,
+       _effectsOverride = effects,
+       _userId = userId,
        _inboxCase = inboxCase ?? GetIt.I<InboxCase>(),
        _attention = attentionCase ?? GetIt.I<AttentionCase>(),
        _actorProfiles =
@@ -60,6 +68,17 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
   final InboxCase _inboxCase;
   final AttentionCase _attention;
   final AttentionActorProfilesCase _actorProfiles;
+
+  // Resolved lazily: only a zone holding an invite row needs them.
+  final AuthorInviteCase? _inviteCaseOverride;
+  final UiEffectPort? _effectsOverride;
+
+  AuthorInviteCase get _invites =>
+      _inviteCaseOverride ?? GetIt.I<AuthorInviteCase>();
+
+  UiEffectPort get _effects => _effectsOverride ?? GetIt.I<UiEffectPort>();
+
+  int _invitesGeneration = 0;
   final StreamController<String> _demotedController;
   final _heldBackItems = <String, InboxItem>{};
   final _deskRelevantTimers = <String, Timer>{};
@@ -111,8 +130,12 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
         nextCursor != null &&
         nextCursor.isNotEmpty;
     final eventsByBeacon = _attention.activityOfferGroupsSnapshot;
+    final inviteIds = pageFailed
+        ? state.inviteIdByBeacon
+        : _inviteIdsOf(resolvedPage?.items ?? const []);
     emit(
       state.copyWith(
+        inviteIdByBeacon: inviteIds,
         items: pageFailed ? state.items : page,
         totalCount: pageFailed ? state.totalCount : resolvedPage?.totalCount,
         countLoadFailed: false,
@@ -127,6 +150,7 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
     if (!pageFailed) {
       unawaited(_refreshUnseenDots());
       unawaited(_hydrateActors(eventsByBeacon));
+      unawaited(_hydrateInvites());
     }
   }
 
@@ -157,6 +181,10 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
       emit(
         state.copyWith(
           items: merged,
+          inviteIdByBeacon: {
+            ...state.inviteIdByBeacon,
+            ..._inviteIdsOf(offerPage.items),
+          },
           eventsByBeacon: eventsByBeacon,
           offersNextCursor: nextCursor,
           hasMore: nextCursor != null && nextCursor.isNotEmpty,
@@ -165,9 +193,113 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
       );
       unawaited(_refreshUnseenDots());
       unawaited(_hydrateActors(eventsByBeacon));
+      unawaited(_hydrateInvites());
     } catch (_) {
       if (isClosed) return;
       emit(state.copyWith(loadingMore: false, pageLoadFailed: true));
+    }
+  }
+
+  /// «Принять» on the invite card (plan D3). The row leaves the pinned zone
+  /// at once — the Request is now in the viewer's scope — and comes back,
+  /// with its invite, if the server refuses (expired, withdrawn, …).
+  Future<void> acceptInvite(String beaconId) => _answerInvite(
+    beaconId,
+    (inviteId) => _invites.accept(inviteId),
+  );
+
+  /// «Не смогу» on the invite card: the existing decline (the rejection
+  /// dialog's optional note is kept on the inbox row, as for any decline).
+  Future<void> declineInvite(String beaconId, {String message = ''}) =>
+      _answerInvite(beaconId, (inviteId) async {
+        await _invites.decline(inviteId);
+        if (message.isEmpty) return;
+        try {
+          // The decline already set the inbox row to declined; this only
+          // records the note, the way «Не могу помочь» does.
+          await _inboxCase.setStatus(
+            beaconId: beaconId,
+            status: InboxItemStatus.rejected,
+            rejectionMessage: message,
+          );
+        } on Object {
+          // The decline itself succeeded; the note is best-effort.
+        }
+      });
+
+  Future<void> _answerInvite(
+    String beaconId,
+    Future<void> Function(String inviteId) send,
+  ) async {
+    final inviteId = state.inviteIdByBeacon[beaconId];
+    if (inviteId == null) return;
+    final index = state.items.indexWhere((e) => e.beaconId == beaconId);
+    final item = index < 0 ? null : state.items[index];
+    emit(
+      state.copyWith(
+        items: [
+          for (final e in state.items)
+            if (e.beaconId != beaconId) e,
+        ],
+        inviteIdByBeacon: {...state.inviteIdByBeacon}..remove(beaconId),
+      ),
+    );
+    try {
+      await send(inviteId);
+    } on Object catch (error) {
+      if (isClosed) return;
+      // Roll the optimistic removal back: the row and its invite return
+      // where they were.
+      final items = [...state.items];
+      if (item != null && !items.any((e) => e.beaconId == beaconId)) {
+        items.insert(index.clamp(0, items.length), item);
+      }
+      emit(
+        state.copyWith(
+          items: items,
+          inviteIdByBeacon: {...state.inviteIdByBeacon, beaconId: inviteId},
+        ),
+      );
+      _effects.emit(ShowError(error));
+      return;
+    }
+    if (isClosed) return;
+    _attention.forgetOfferGroup(beaconId);
+    emit(
+      state.copyWith(
+        invites: {...state.invites}..remove(inviteId),
+        eventsByBeacon: _attention.activityOfferGroupsSnapshot,
+      ),
+    );
+    unawaited(_refreshOpenForwardsCount());
+  }
+
+  static Map<String, String> _inviteIdsOf(List<ActivityOfferSortRow> rows) => {
+    for (final row in rows)
+      if (row.inviteId case final inviteId? when inviteId.isNotEmpty)
+        row.beaconId: inviteId,
+  };
+
+  /// Inviter and note for the invite rows; best-effort, like actor avatars.
+  Future<void> _hydrateInvites() async {
+    final wanted = state.inviteIdByBeacon.values.toSet();
+    if (wanted.isEmpty) return;
+    final generation = ++_invitesGeneration;
+    try {
+      final pending = await _invites.myPending();
+      if (isClosed || generation != _invitesGeneration) return;
+      final invites = {
+        for (final invite in pending)
+          if (wanted.contains(invite.id)) invite.id: invite,
+      };
+      emit(state.copyWith(invites: {...state.invites, ...invites}));
+      final inviterIds = {for (final i in invites.values) i.inviterId};
+      if (inviterIds.isEmpty) return;
+      final resolved = await _actorProfiles.resolve(inviterIds);
+      if (isClosed || generation != _invitesGeneration) return;
+      emit(state.copyWith(inviters: {...state.inviters, ...resolved}));
+    } on Object {
+      // The card renders without inviter and note.
     }
   }
 

@@ -11,6 +11,7 @@ import 'package:tentura/domain/attention/entity/attention_clear.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/for_you_stream_entries.dart';
+import 'package:tentura/domain/entity/author_invite.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_cubit.dart';
 import 'package:tentura/features/updates/domain/entity/prompt_projection.dart';
@@ -31,6 +32,7 @@ import '../../domain/entity/inbox_item.dart';
 import '../bloc/activity_offers_cubit.dart';
 import '../../domain/entity/inbox_provenance.dart';
 import 'inbox_card_actions.dart';
+import 'activity_invite_card.dart';
 import 'rejection_dialog.dart';
 import 'post_attention_row.dart';
 import 'request_attention_card.dart';
@@ -556,15 +558,27 @@ class _ActivityStreamScrollBody extends StatelessWidget {
               final showDot =
                   offersState.unseenQueryComplete &&
                   offersState.unseenBeaconIds.contains(item.beaconId);
+              final inviteId = offersState.inviteIdByBeacon[item.beaconId];
+              final invite = inviteId == null
+                  ? null
+                  : offersState.invites[inviteId];
               return KeyedSubtree(
                 key: ValueKey('offer-${item.beaconId}'),
-                child: _PinnedRequestCard(
-                  item: item,
-                  inboxCubit: inboxCubit,
-                  showUnseenDot: showDot,
-                  eventsMeta: offersState.eventsByBeacon[item.beaconId],
-                  actors: offersState.actors,
-                ),
+                child: inviteId != null
+                    ? _PinnedInviteCard(
+                        item: item,
+                        invite: invite,
+                        inviter: invite == null
+                            ? null
+                            : offersState.inviters[invite.inviterId],
+                      )
+                    : _PinnedRequestCard(
+                        item: item,
+                        inboxCubit: inboxCubit,
+                        showUnseenDot: showDot,
+                        eventsMeta: offersState.eventsByBeacon[item.beaconId],
+                        actors: offersState.actors,
+                      ),
               );
             }
             final exitEntry = exitingOffers.entries.elementAt(
@@ -659,6 +673,52 @@ class _ActivityStreamScrollBody extends StatelessWidget {
         controller: scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: slivers,
+      ),
+    );
+  }
+}
+
+/// A pinned row that carries the viewer's pending author invite (plan D3):
+/// the invite card instead of the Request card. «Не смогу» goes through the
+/// same rejection dialog as «Не могу помочь».
+class _PinnedInviteCard extends StatelessWidget {
+  const _PinnedInviteCard({required this.item, this.invite, this.inviter});
+
+  final InboxItem item;
+  final PendingAuthorInvite? invite;
+  final Profile? inviter;
+
+  @override
+  Widget build(BuildContext context) {
+    final offers = context.read<ActivityOffersCubit>();
+    final beaconId = item.beaconId;
+    final beaconTitle = item.beacon?.title.trim() ?? '';
+
+    Future<void> decline() async {
+      final message = await showRejectionDialog(context);
+      if (!context.mounted || message == null) return;
+      await offers.declineInvite(beaconId, message: message);
+    }
+
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: context.tt.listRowPadding.left,
+        vertical: context.tt.tightGap,
+      ),
+      child: ActivityInviteCard(
+        beaconId: beaconId,
+        requestTitle: beaconTitle.isNotEmpty
+            ? beaconTitle
+            : invite?.beaconTitle ?? '',
+        inviter: inviter,
+        note: invite?.note ?? '',
+        onOpen: () => unawaited(
+          context.router.push(
+            BeaconViewRoute(id: beaconId, entry: kBeaconEntryInbox),
+          ),
+        ),
+        onAccept: () => unawaited(offers.acceptInvite(beaconId)),
+        onDecline: () => unawaited(decline()),
       ),
     );
   }
