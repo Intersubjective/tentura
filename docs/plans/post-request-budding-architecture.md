@@ -1,6 +1,6 @@
 # Budding a Request from a Post — architecture
 
-**Status:** rev 2 (2026-10-11), Astra review applied (§14). Not an implementation plan.
+**Status:** rev 2.1 (2026-10-11). Astra review applied (§14); rev 2.1 folds in the plan-level review (implementation plan §9). Not an implementation plan.
 **Product design (decisions, Russian):** [`post-request-budding-design.md`](post-request-budding-design.md) — D1–D7, N1–N6.
 This document turns those decisions into an architecture. It does not re-open them.
 **Supersedes:** the in-place Post → Request conversion (`beaconConvertToRequest`, kind 1 → 0;
@@ -103,6 +103,7 @@ beacon_author_invite(
   warm boolean,                -- invitee ∈ post_first_response(source_post_id) or Post author
   note text NULL,              -- visible to inviter + invitee only
   status smallint,             -- 0 pending, 1 accepted, 2 declined, 3 withdrawn, 4 expired, 5 superseded
+  -- source_post_id is NULL for repair invites (§10.2)
   created_at, resolved_at, resolved_by)
 UNIQUE (inviter_id, invitee_id, source_post_id) WHERE status = 0     -- N5
 UNIQUE (beacon_id, invitee_id) WHERE status = 0
@@ -137,11 +138,11 @@ queries only). Named to avoid the existing `invitation` table.
 
 ### 2.6 Bud command record
 
-`beacon_bud_command(client_command_id, actor_id, input_hash, result jsonb, created_at,
-PRIMARY KEY (actor_id, client_command_id))` — full normalised input (content, invitees + notes,
-`isDiscoverable`, `closePost`) and the full result (child id, per-invitee outcome). Replay returns
-the stored result before any eligibility check and without effects. (May be folded into the existing
-child-command idempotency table if it can carry a jsonb result — implementer's choice, one table.)
+One idempotency table: the existing `beacon_child_commands` (PK `(actor_user_id, client_command_id)`)
+gains `bud_input_hash` (full normalised input: content, invitees + notes, `isDiscoverable`,
+`closePost`), `bud_result jsonb` (child id, per-invitee outcome) and `anchor_inherited_at`. Replay
+runs right after the global lock and **before** any parent assert, so it also works after
+`closePost`.
 
 ## 3. Access model
 
@@ -174,7 +175,7 @@ U is invitable on child C (parent Post P) iff, evaluated under the locks of §4.
 - U is not availability-paused (else outcome `recipientPaused`);
 - N5 slot free.
 
-Later invites from the child's People tab: only for C's snapshot observers, same rules. Everyone else:
+Later invites from the child's People tab (`beaconAuthorInviteCreate`): only for C's snapshot observers, same rules. Everyone else:
 ordinary forward (a direct author forward is **not** a confirmation).
 
 ### 3.4 Realtime
@@ -202,20 +203,25 @@ false), `invitees: [{userId, note?}]`, `closePost`.
 One transaction:
 0. Replay check on `beacon_bud_command` (§2.6).
 1. Locks per §4.1; assert §3.1.
-2. **Shared publication pipeline** (the one behind `beaconChildCreate` + `beaconPublish`), extended
-   with a Post-parent stage that, inside the same transaction:
+2. **Shared publication pipeline**, entered through `createChildUnderPost` (`beaconChildCreate` on a
+   Post parent is refused). For a Post parent it keeps the client's title/description (no override
+   from the source body) and takes `isDiscoverable` (default false; the column default is true).
+   A Post-parent stage then, inside the same transaction:
    a. writes `beacon_bud_observer` (§2.1);
    b. for each invitee: assert §3.3; create the delivery edge author → U on the child via
       `ForwardEdgeRepository.createBatch` (no parent edge; `contact_sweep_exempt = warm`); set U's
       `inbox_item` to `status 0` and clear `tombstone_dismissed_at` (explicit re-pin, because the
       insert trigger keeps an existing status); insert `beacon_author_invite`;
    c. inserts the **single** `childCreated` notice with payload `{childBeaconId, sourceMessageId,
-      invitedCount}` — visible to everyone in the Post (N6) — and **no** attention receipts for a
+      title, invitedCount}` (title snapshot: non-observers cannot read the child) — visible to everyone in the Post (N6) — and **no** attention receipts for a
       Post parent;
    d. emits `authorInviteReceived` per created invite (optional update, Activity «Для вас», N4).
 3. If `closePost`: Post status 6 + closed notice.
 4. Store the result in `beacon_bud_command`.
-5. After commit: enqueue the anchor-inheritance task (§8.1).
+5. Budder's own anchor inherited synchronously; other viewers via the sweep (§8.1).
+
+Hierarchy lifecycle deliveries whose **target** is a Post insert the notice row but emit no attention
+(no pushes to live Post members, design §5.5).
 
 Per-invitee failure (`notEligible`, `alreadyInvitedFromThisPost`, `recipientPaused`, `blocked`) does
 not fail the bud; it is part of the stored result.
@@ -255,9 +261,9 @@ active offer) delegates to the same operation. One code path, two entry points.
   confirmations exist → the offer is admitted through §5.3 and the invite becomes `accepted`. If the
   author accepts an ordinary offer from a pending invitee, the invite becomes `superseded (5)`.
   Either way the N5 slot frees.
-- **Expiry:** when the child leaves open-family (close / cancel / delete), pending invites → `expired`
-  **and** their delivery edges' contacts are resolved without noisy evidence in the same transaction
-  (the sweep does not exclude terminal Requests today). Block cleanup → `withdrawn`.
+- **Expiry:** one `AFTER UPDATE OF status` trigger on `beacon`: when a `kind = 0` beacon leaves
+  open-family, pending invites → `expired` and their delivery edges' contacts are resolved without
+  noisy evidence in the same transaction (the sweep does not exclude terminal Requests today). Block cleanup → `withdrawn`.
 
 ### 5.5 Two-confirmation rule elsewhere (#283)
 
@@ -296,9 +302,12 @@ Per-helper provenance, anchored to the accepted invite:
 
 ## 8. Constellation
 
-### 8.1 Anchor inheritance (after commit)
+### 8.1 Anchor inheritance
 
-A task `anchor_inherit_bud(child, post)` iterates viewers in `viewer_id` order who have a live Post
+There is no after-commit task mechanism (`TaskRepository` supports only image hashing). The budder's
+own anchor is inherited synchronously in the bud transaction (same actor). For other viewers a
+periodic sweep in `task_worker_case.dart` claims `beacon_child_commands` rows with a `bud_result`
+and NULL `anchor_inherited_at` and iterates viewers in `viewer_id` order who have a live Post
 anchor and can read the child; for each, applies an **insert-if-absent** child anchor through the
 existing apply machinery in that viewer's scope (op id `bud:<child>:<viewer>`, replay-safe; never
 overwrites a child anchor the viewer already moved). Coordinates: the Post's if `closePost`, else a
@@ -338,8 +347,9 @@ their tests. Keep the kind-4 constant + renderer for historical rows.
 
 ### 10.2 Repair of converted Requests (#284)
 
-Scope: `kind = 0` beacons with a kind-4 system row. Audit each admitted non-author, non-steward
-participant from commitment + admission history:
+Scope: every open-family `kind = 0` beacon with an admitted non-author, non-steward participant
+without an `acknowledged` event (converted Requests and historical `BeaconRoomAdmit` admits). Audit
+each from commitment + admission history:
 - has an `acknowledged` event (with or without later exit) → leave as is (history is consistent);
 - has an active offer but no acknowledgement → keep the offer, **revert room access** to the
   ordinary "offer pending" state; the author decides as for any offer;
@@ -388,6 +398,9 @@ child survives (soft delete, non-cascading).
 
 - rev 1 (2026-10-11): initial architecture from design rev 1.4 and code research.
 - rev 2 (2026-10-11): Astra review applied (§14).
+- rev 2.1 (2026-10-11): plan-level review folded in (single idempotency table, Post content kept,
+  discoverable default, notice title, lifecycle attention suppression, later-invite mutation,
+  expiry trigger, anchor sweep, repair scope).
 
 ## 14. Astra review (gpt-6-astra, high, read-only) — disposition
 
