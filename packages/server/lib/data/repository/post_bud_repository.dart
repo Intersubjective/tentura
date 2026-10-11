@@ -74,6 +74,70 @@ ORDER BY f.user_id
     ];
   }
 
+  @override
+  Future<int> writeObservers({
+    required String childId,
+    required String postId,
+    required String budderId,
+  }) => _database.customUpdate(
+    r'''
+INSERT INTO public.beacon_bud_observer (beacon_id, user_id)
+SELECT $1, m.user_id
+FROM public.post_effective_members($2) m
+WHERE m.user_id <> $3
+  AND NOT public.block_hides($3, m.user_id)
+ON CONFLICT DO NOTHING
+''',
+    variables: [
+      Variable.withString(childId),
+      Variable.withString(postId),
+      Variable.withString(budderId),
+    ],
+  );
+
+  @override
+  Future<String> insertInvite({
+    required String beaconId,
+    required String inviterId,
+    required String inviteeId,
+    required String sourcePostId,
+    required String? forwardEdgeId,
+    required bool warm,
+    String? note,
+  }) async {
+    final rows = await _database
+        .customSelect(
+          r'''
+INSERT INTO public.beacon_author_invite
+  (beacon_id, inviter_id, invitee_id, source_post_id, forward_edge_id,
+   arrival_post_edge_id, warm, note)
+SELECT $1, $2, $3, $4, $5,
+  (SELECT e.id
+   FROM public.beacon_forward_edge e
+   JOIN public.beacon p ON p.id = e.beacon_id
+   WHERE e.beacon_id = $4
+     AND e.recipient_id = $3
+     AND e.cancelled_at IS NULL
+     AND p.user_id <> $3
+   ORDER BY e.created_at DESC, e.id DESC
+   LIMIT 1),
+  $6, $7
+RETURNING id
+''',
+          variables: [
+            Variable.withString(beaconId),
+            Variable.withString(inviterId),
+            Variable.withString(inviteeId),
+            Variable.withString(sourcePostId),
+            Variable<String>(forwardEdgeId),
+            Variable.withBool(warm),
+            Variable<String>(note),
+          ],
+        )
+        .getSingle();
+    return rows.read<String>('id');
+  }
+
   static PostBudInviteCandidate _candidate({
     required String userId,
     required bool warm,

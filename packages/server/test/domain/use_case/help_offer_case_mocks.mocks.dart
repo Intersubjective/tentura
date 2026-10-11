@@ -1333,6 +1333,7 @@ class MockForwardEdgeRepositoryPort extends _i1.Mock
     String? context,
     String? parentEdgeId,
     _i3.Future<void> Function()? onAfterEdgesInserted,
+    bool Function(String)? sweepExemptFor,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#createBatch, [], {
@@ -1344,6 +1345,7 @@ class MockForwardEdgeRepositoryPort extends _i1.Mock
               #context: context,
               #parentEdgeId: parentEdgeId,
               #onAfterEdgesInserted: onAfterEdgesInserted,
+              #sweepExemptFor: sweepExemptFor,
             }),
             returnValue: _i3.Future<_i5.ForwardBatchCreateResult>.value(
               _FakeForwardBatchCreateResult_3(
@@ -1357,6 +1359,7 @@ class MockForwardEdgeRepositoryPort extends _i1.Mock
                   #context: context,
                   #parentEdgeId: parentEdgeId,
                   #onAfterEdgesInserted: onAfterEdgesInserted,
+                  #sweepExemptFor: sweepExemptFor,
                 }),
               ),
             ),
@@ -1690,6 +1693,21 @@ class MockInboxRepositoryPort extends _i1.Mock
             Invocation.method(#markForwardCancelledForRecipient, [], {
               #beaconId: beaconId,
               #recipientId: recipientId,
+            }),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> repinForAuthorInvite({
+    required String? userId,
+    required String? beaconId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#repinForAuthorInvite, [], {
+              #userId: userId,
+              #beaconId: beaconId,
             }),
             returnValue: _i3.Future<void>.value(),
             returnValueForMissingStub: _i3.Future<void>.value(),

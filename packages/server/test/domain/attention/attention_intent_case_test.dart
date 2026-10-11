@@ -224,6 +224,19 @@ void main() {
             sourceEventKey: eventKey,
           ),
         ),
+        (
+          eventType: AttentionEventType.authorInviteReceived,
+          legacyKind: 'authorInviteReceived',
+          recipient: target,
+          build: (intents) => intents.authorInviteReceived(
+            beaconId: beacon,
+            inviteId: 'invite',
+            inviterUserId: actor,
+            inviteeUserId: target,
+            note: 'You have a van',
+            sourceEventKey: eventKey,
+          ),
+        ),
       ];
 
   group('migrated producer intent projection', () {
@@ -247,6 +260,9 @@ void main() {
           switch (fixture.eventType) {
             AttentionEventType.coordinationChanged => startsWith(
               'v1|coordination_changed|',
+            ),
+            AttentionEventType.authorInviteReceived => startsWith(
+              'v1|authorInviteReceived|',
             ),
             _ => startsWith('v1|none|'),
           },
@@ -568,5 +584,4 @@ void main() {
       });
     });
   });
-
 }

@@ -30,6 +30,7 @@ import 'query_trust_preference.dart';
 import 'query_user_block.dart';
 import 'query_version.dart';
 import 'query_post.dart';
+import 'query_post_bud.dart';
 
 List<GraphQLObjectField<dynamic, dynamic>> get queriesAll => [
   ...QueryAttention().all,
@@ -41,6 +42,7 @@ List<GraphQLObjectField<dynamic, dynamic>> get queriesAll => [
   ...QueryBeaconMemberWebs().all,
   ...QueryBeaconRoom().all,
   ...QueryPost().all,
+  ...QueryPostBud().all,
   ...QueryCapability().all,
   ...QueryCapabilityProjection().all,
   ...QueryInviteSeedPrompt().all,

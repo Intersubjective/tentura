@@ -23,6 +23,9 @@ abstract class ForwardEdgeRepositoryPort {
   });
 
   /// Returns created edges and availability-skipped recipient ids for this batch.
+  ///
+  /// [sweepExemptFor] sets `contact_sweep_exempt` per recipient (warm bud
+  /// invites, Arch §2.5); default false.
   Future<ForwardBatchCreateResult> createBatch({
     required String beaconId,
     required String senderId,
@@ -32,6 +35,7 @@ abstract class ForwardEdgeRepositoryPort {
     String? context,
     String? parentEdgeId,
     Future<void> Function()? onAfterEdgesInserted,
+    bool Function(String recipientId)? sweepExemptFor,
   });
 
   Future<List<ForwardEdgeEntity>> fetchByBeaconId(String beaconId);

@@ -52,4 +52,10 @@ class InboxRepositoryMock implements InboxRepositoryPort {
     required String beaconId,
     required String recipientId,
   }) => Future.value();
+
+  @override
+  Future<void> repinForAuthorInvite({
+    required String userId,
+    required String beaconId,
+  }) => Future.value();
 }

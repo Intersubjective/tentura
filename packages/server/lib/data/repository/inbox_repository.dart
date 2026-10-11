@@ -133,6 +133,25 @@ class InboxRepository implements InboxRepositoryPort {
       );
 
   @override
+  Future<void> repinForAuthorInvite({
+    required String userId,
+    required String beaconId,
+  }) => _database.customUpdate(
+    r'''
+UPDATE public.inbox_item
+SET status = 0,
+    rejection_message = '',
+    tombstone_dismissed_at = NULL
+WHERE user_id = $1
+  AND beacon_id = $2
+  AND status NOT IN (3, 4)
+  AND (status <> 0 OR tombstone_dismissed_at IS NOT NULL)
+''',
+    variables: [Variable.withString(userId), Variable.withString(beaconId)],
+    updates: {_database.inboxItems},
+  );
+
+  @override
   Future<void> markForwardCancelledForRecipient({
     required String beaconId,
     required String recipientId,

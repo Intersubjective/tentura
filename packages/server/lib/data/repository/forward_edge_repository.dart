@@ -111,6 +111,7 @@ class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
     String? context,
     String? parentEdgeId,
     Future<void> Function()? onAfterEdgesInserted,
+    bool Function(String recipientId)? sweepExemptFor,
   }) => _database.withMutatingUser(senderId, () async {
     final seen = <String>{};
     final orderedUniqueRecipients = <String>[];
@@ -140,6 +141,7 @@ class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
         context: context,
         parentEdgeId: parentEdgeId,
         batchId: batchId,
+        sweepExempt: sweepExemptFor?.call(recipientId) ?? false,
       );
       final existing = await findActiveEdge(
         beaconId: beaconId,
@@ -405,6 +407,7 @@ WHERE sender_id = $1
     String? context,
     String? parentEdgeId,
     String? batchId,
+    bool sweepExempt = false,
   }) async {
     await _database.customInsert(
       r'''
@@ -416,7 +419,8 @@ INSERT INTO public.beacon_forward_edge (
   note,
   context,
   parent_edge_id,
-  batch_id
+  batch_id,
+  contact_sweep_exempt
 )
 SELECT
   $1,
@@ -426,7 +430,8 @@ SELECT
   $5,
   $6,
   $7,
-  $8
+  $8,
+  $9
 WHERE NOT EXISTS (
   SELECT 1
   FROM public.beacon_forward_edge e
@@ -453,6 +458,7 @@ DO NOTHING
         Variable(context),
         Variable(parentEdgeId),
         Variable(batchId),
+        Variable.withBool(sweepExempt),
       ],
       updates: {_database.beaconForwardEdges},
     );

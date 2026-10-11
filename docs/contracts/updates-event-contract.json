@@ -5,7 +5,6 @@
     "batonAsked",
     "batonTaken",
     "batonAllAnswered",
-    "authorInviteReceived",
     "authorInviteAccepted",
     "authorInviteDeclined"
   ],
@@ -172,11 +171,11 @@
     },
     {
       "eventType": "authorInviteReceived",
-      "producer": "none (no live producer yet; wired in C3/C4, see docs/plans/post-request-budding-implementation-plan.md)",
+      "producer": "PostBudCase.budFromPost",
       "recipientCategory": "author_invitee",
       "destinationFamily": "beacon",
       "muteability": "standard",
-      "coveringTest": "packages/server/test/domain/attention/author_invite_attention_policy_test.dart"
+      "coveringTest": "packages/server/test/domain/use_case/post_bud_case_pg_test.dart"
     },
     {
       "eventType": "authorInviteAccepted",
@@ -462,6 +461,14 @@
       "destinationFamily": "profile",
       "muteability": "standard",
       "coveringTest": "packages/server/test/domain/use_case/credential_auth_case_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/post_bud_case.dart",
+      "eventType": "authorInviteReceived",
+      "recipientCategory": "author_invitee",
+      "destinationFamily": "beacon",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/post_bud_case_pg_test.dart"
     },
     {
       "useCase": "packages/server/lib/domain/use_case/forward_case.dart",
@@ -1577,7 +1584,7 @@
           "headlineTreatment": "beacon",
           "coalescible": false,
           "producerTests": [
-            "packages/server/test/domain/attention/author_invite_attention_policy_test.dart"
+            "packages/server/test/domain/use_case/post_bud_case_pg_test.dart"
           ],
           "transitionTests": []
         }

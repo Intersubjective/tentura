@@ -111,7 +111,6 @@ const _pendingProducerEventTypes = <String>[
   'batonAsked',
   'batonTaken',
   'batonAllAnswered',
-  'authorInviteReceived',
   'authorInviteAccepted',
   'authorInviteDeclined',
 ];
@@ -305,13 +304,12 @@ const _expectedEventTypes = <Map<String, String>>[
   },
   {
     'eventType': 'authorInviteReceived',
-    'producer':
-        'none (no live producer yet; wired in C3/C4, see docs/plans/post-request-budding-implementation-plan.md)',
+    'producer': 'PostBudCase.budFromPost',
     'recipientCategory': 'author_invitee',
     'destinationFamily': 'beacon',
     'muteability': 'standard',
     'coveringTest':
-        'packages/server/test/domain/attention/author_invite_attention_policy_test.dart',
+        'packages/server/test/domain/use_case/post_bud_case_pg_test.dart',
   },
   {
     'eventType': 'authorInviteAccepted',

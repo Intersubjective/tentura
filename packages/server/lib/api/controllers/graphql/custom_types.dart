@@ -111,6 +111,11 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeClosureState,
   gqlTypeClosureResult,
   gqlTypeClosureToggleResult,
+  gqlEnumPostBudInviteOutcome,
+  gqlInputPostBudInvitee,
+  gqlTypePostBudInviteeResult,
+  gqlTypePostBudResult,
+  gqlTypePostBudInviteCandidate,
 ];
 
 /// Account notification preferences (channel × category matrix + controls).
@@ -1844,3 +1849,56 @@ final gqlTypePostSummary = GraphQLObjectType('PostSummary', null)
     // `beacon.status` smallint: 0 open, 6 closed by budding.
     field('status', graphQLInt.nonNullable()),
   ]);
+
+// Budding a Request from a Post (plan C3, Arch §4.2).
+
+/// `PostBudInviteOutcome` (plan §0). In `postBudInviteCandidates`,
+/// `invited` means «can be invited now».
+final gqlEnumPostBudInviteOutcome = enumTypeFromStrings(
+  'PostBudInviteOutcome',
+  const [
+    'invited',
+    'notEligible',
+    'alreadyInvited',
+    'recipientPaused',
+    'blocked',
+  ],
+);
+
+final gqlInputPostBudInvitee = GraphQLInputObjectType(
+  'PostBudInviteeInput',
+  inputFields: [
+    GraphQLInputObjectField('userId', graphQLString.nonNullable()),
+    GraphQLInputObjectField('note', graphQLString),
+  ],
+);
+
+final gqlTypePostBudInviteeResult =
+    GraphQLObjectType('PostBudInviteeResult', null)
+      ..fields.addAll([
+        field('userId', graphQLString.nonNullable()),
+        field('outcome', gqlEnumPostBudInviteOutcome.nonNullable()),
+      ]);
+
+/// `outcome`: `created` | `alreadyPromoted` (the stored bud result, also on
+/// replay).
+final gqlTypePostBudResult = GraphQLObjectType('PostBudResult', null)
+  ..fields.addAll([
+    field('outcome', graphQLString.nonNullable()),
+    field('childBeaconId', graphQLString),
+    field(
+      'invitees',
+      GraphQLListType(gqlTypePostBudInviteeResult.nonNullable()).nonNullable(),
+    ),
+  ]);
+
+final gqlTypePostBudInviteCandidate =
+    GraphQLObjectType('PostBudInviteCandidate', null)
+      ..fields.addAll([
+        field('userId', graphQLString.nonNullable()),
+        field('warm', graphQLBoolean.nonNullable()),
+        field('outcome', gqlEnumPostBudInviteOutcome.nonNullable()),
+        field('pretick', graphQLBoolean.nonNullable()),
+        field('viaUserId', graphQLString),
+        field('hasWritten', graphQLBoolean.nonNullable()),
+      ]);

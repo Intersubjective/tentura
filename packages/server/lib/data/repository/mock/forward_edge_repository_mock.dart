@@ -47,6 +47,7 @@ class ForwardEdgeRepositoryMock implements ForwardEdgeRepositoryPort {
     String? context,
     String? parentEdgeId,
     Future<void> Function()? onAfterEdgesInserted,
+    bool Function(String recipientId)? sweepExemptFor,
   }) => Future.value(
     const ForwardBatchCreateResult(
       createdEdges: [],

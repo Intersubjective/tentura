@@ -14,4 +14,26 @@ abstract interface class PostBudPort {
     required String postId,
     required String budderId,
   });
+
+  /// Writes the observers snapshot of the budded Request [childId]
+  /// (Arch §2.1): `E(postId)` minus [budderId] and minus users blocked with
+  /// [budderId]. Written once; returns the number of rows written.
+  Future<int> writeObservers({
+    required String childId,
+    required String postId,
+    required String budderId,
+  });
+
+  /// Inserts a pending author invite into [beaconId] (Arch §2.2) and returns
+  /// its id. `arrival_post_edge_id` is the invitee's latest active inbound
+  /// edge on [sourcePostId] (NULL for the Post author).
+  Future<String> insertInvite({
+    required String beaconId,
+    required String inviterId,
+    required String inviteeId,
+    required String sourcePostId,
+    required String? forwardEdgeId,
+    required bool warm,
+    String? note,
+  });
 }

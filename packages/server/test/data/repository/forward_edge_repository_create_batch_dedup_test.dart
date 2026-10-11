@@ -32,6 +32,8 @@ Future<void> main() async {
         skipReason = 'm0100 schema (bfe_active_unique) missing';
       } else if (!await _hasUserAvailabilityTable(probe)) {
         skipReason = 'm0148 schema (user_availability) missing';
+      } else if (!await _hasContactSweepExemptColumn(probe)) {
+        skipReason = 'm0239 schema (contact_sweep_exempt) missing';
       }
     } finally {
       await probe.close();
@@ -396,6 +398,20 @@ Future<bool> _hasUserAvailabilityTable(TenturaDb db) async {
 SELECT 1
 FROM information_schema.tables
 WHERE table_schema = 'public' AND table_name = 'user_availability'
+LIMIT 1
+''',
+  ).get();
+  return rows.isNotEmpty;
+}
+
+Future<bool> _hasContactSweepExemptColumn(TenturaDb db) async {
+  final rows = await db.customSelect(
+    '''
+SELECT 1
+FROM information_schema.columns
+WHERE table_schema = 'public'
+  AND table_name = 'beacon_forward_edge'
+  AND column_name = 'contact_sweep_exempt'
 LIMIT 1
 ''',
   ).get();

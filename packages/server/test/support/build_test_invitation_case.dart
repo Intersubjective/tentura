@@ -92,6 +92,7 @@ class _NoopForwardEdgeRepositoryPort implements ForwardEdgeRepositoryPort {
     String? context,
     String? parentEdgeId,
     Future<void> Function()? onAfterEdgesInserted,
+    bool Function(String recipientId)? sweepExemptFor,
   }) => _d.createBatch(
     beaconId: beaconId,
     senderId: senderId,
@@ -101,6 +102,7 @@ class _NoopForwardEdgeRepositoryPort implements ForwardEdgeRepositoryPort {
     context: context,
     parentEdgeId: parentEdgeId,
     onAfterEdgesInserted: onAfterEdgesInserted,
+    sweepExemptFor: sweepExemptFor,
   );
 
   @override

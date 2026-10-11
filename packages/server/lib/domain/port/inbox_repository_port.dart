@@ -37,4 +37,13 @@ abstract class InboxRepositoryPort {
     required String beaconId,
     required String recipientId,
   });
+
+  /// Pins [beaconId] in [userId]'s «Для вас» after an author invite: status
+  /// 0 and `tombstone_dismissed_at` cleared. The forward-insert trigger keeps
+  /// an existing row's status, so the invite re-pins explicitly. Tombstone
+  /// rows (status 3/4) are immutable and stay as they are.
+  Future<void> repinForAuthorInvite({
+    required String userId,
+    required String beaconId,
+  });
 }
