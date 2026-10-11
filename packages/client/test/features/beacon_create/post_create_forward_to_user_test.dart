@@ -1,25 +1,22 @@
 // Opening «Новый пост» from a profile (`/post/new?forward_to=<user id>`)
 // pre-selects that user as the recipient on the screen's shared ForwardCubit:
-// the «Кому» row names them and ➤ publishes to them without any picking.
+// after «Далее: получатели» they are already chosen, so «Отправить (1)»
+// publishes to them without any picking.
 // The route wrapper (`PostCreateScreen.wrappedRoute`) builds the cubits from
 // GetIt, so this runs the real ForwardCubit over a fake ForwardCase.
 
 import 'dart:async';
 import 'dart:io';
 
-import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/enums.dart';
 
 import 'package:tentura/app/router/root_router.dart';
-import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/contacts/contact_name_store.dart';
-import 'package:tentura/domain/entity/availability.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -42,8 +39,6 @@ import 'package:tentura/ui/bloc/presence_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/test_ids.dart';
-import 'package:tentura/ui/widget/basic_chat_body.dart';
 
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
@@ -148,7 +143,20 @@ class _PresenceCubit extends Mock implements PresenceCubit {
   Stream<Map<String, UserPresenceStatus>> get stream => const Stream.empty();
 }
 
-class _Router extends Mock implements StackRouter {}
+class _Router extends Mock implements StackRouter {
+  /// Where a published Post sent the user.
+  final pushed = <PageRouteInfo>[];
+
+  @override
+  Future<T?> popAndPush<T extends Object?, TO extends Object?>(
+    PageRouteInfo route, {
+    TO? result,
+    OnNavigationFailure? onFailure,
+  }) async {
+    pushed.add(route);
+    return null;
+  }
+}
 
 class _RecordingPostPublishPort implements PostPublishPort {
   final recipients = <Set<String>>[];
@@ -289,6 +297,14 @@ class _TestRouter extends RootStackRouter {
   @override
   List<AutoRoute> get routes => [
     AutoRoute(page: PostCreateRoute.page, path: kPathPostNew),
+    // Where a published Post lands; a stand-in, not the real screen.
+    AutoRoute(
+      page: PageInfo(
+        BeaconViewRoute.name,
+        builder: (_) => const Text('beacon-view'),
+      ),
+      path: '/beacon/:id',
+    ),
   ];
 }
 
@@ -324,67 +340,67 @@ Future<_RecordingPostPublishPort> _pumpDeepLink(
   return port;
 }
 
-Finder get _composerField => find.descendant(
-  of: find.byType(BeaconRoomComposer),
-  matching: find.byType(TextField),
-);
+Finder get _textField => find.byKey(PostCreateScreen.textFieldKey);
 
-Finder get _sendButton => find.byKey(TestIds.key(TestIds.roomMessageSend));
+Future<void> _pumpABit(WidgetTester tester) async {
+  for (var i = 0; i < 10; i++) {
+    await tester.pump(const Duration(milliseconds: 50));
+  }
+}
 
-bool _sendEnabled(WidgetTester tester) =>
-    tester.widget<IconButton>(_sendButton).onPressed != null;
+/// Types the Post and steps to «Получатели».
+Future<void> _writeAndGoToRecipients(WidgetTester tester) async {
+  await tester.enterText(_textField, 'Привет!');
+  await tester.pump(const Duration(milliseconds: 100));
+  await tester.tap(find.byKey(PostCreateScreen.nextButtonKey));
+  await _pumpABit(tester);
+}
 
 void main() {
   group('opening «Новый пост» for a specific user', () {
-    testWidgets('names that user in the «Кому» row', (tester) async {
+    testWidgets('has that user chosen on the recipients step', (tester) async {
       await _pumpScreen(tester, forwardToUserId: 'U-target');
 
+      await _writeAndGoToRecipients(tester);
+
       expect(find.textContaining('Target'), findsWidgets);
-    });
-
-    testWidgets('lets ➤ publish to that user without picking anyone', (
-      tester,
-    ) async {
-      final port = await _pumpScreen(tester, forwardToUserId: 'U-target');
-
-      await tester.enterText(_composerField, 'Привет!');
-      await tester.pump(const Duration(milliseconds: 100));
-      expect(_sendEnabled(tester), isTrue);
-
-      await tester.tap(_sendButton);
-      for (var i = 0; i < 10; i++) {
-        await tester.pump(const Duration(milliseconds: 50));
-      }
-
-      expect(port.recipients, [
-        {'U-target'},
-      ]);
+      expect(find.text('Отправить (1)'), findsOneWidget);
     });
 
     testWidgets(
-      'without a forward-to user nobody is pre-selected, but ➤ still '
-      'publishes to no one',
-      (tester) async {
-        final port = await _pumpScreen(tester, forwardToUserId: '');
+      'lets «Отправить» publish to that user without picking anyone',
+      (
+        tester,
+      ) async {
+        final port = await _pumpScreen(tester, forwardToUserId: 'U-target');
 
-        await tester.enterText(_composerField, 'Привет!');
-        await tester.pump(const Duration(milliseconds: 100));
+        await _writeAndGoToRecipients(tester);
+        await tester.tap(find.text('Отправить (1)'));
+        await _pumpABit(tester);
 
-        expect(_sendEnabled(tester), isTrue);
-        await tester.tap(_sendButton);
-        for (var i = 0; i < 10; i++) {
-          await tester.pump(const Duration(milliseconds: 50));
-        }
-        expect(port.recipients, [<String>{}]);
+        expect(port.recipients, [
+          {'U-target'},
+        ]);
       },
     );
+
+    testWidgets('without a forward-to user nobody is pre-selected', (
+      tester,
+    ) async {
+      final port = await _pumpScreen(tester, forwardToUserId: '');
+
+      await _writeAndGoToRecipients(tester);
+
+      expect(find.text('Выберите получателей'), findsOneWidget);
+      expect(port.recipients, isEmpty);
+    });
   });
 
   group('deep link /post/new', () {
     // The user id is carried under the repo's `forward_to` query key (like the
     // Request form) and, spelled out, as `forwardToUserId`; both keys carry the
     // same id so the test does not depend on which one the route declares.
-    final query = '$kQueryBeaconForwardTo=U-target&forwardToUserId=U-target';
+    const query = '$kQueryBeaconForwardTo=U-target&forwardToUserId=U-target';
 
     testWidgets('opens the Post create screen with the user pre-selected', (
       tester,
@@ -392,36 +408,25 @@ void main() {
       final port = await _pumpDeepLink(tester, '$kPathPostNew?$query');
 
       expect(find.byType(PostCreateScreen), findsOneWidget);
-      expect(find.textContaining('Target'), findsWidgets);
+      await _writeAndGoToRecipients(tester);
+      await tester.tap(find.text('Отправить (1)'));
+      await _pumpABit(tester);
 
-      await tester.enterText(_composerField, 'Привет!');
-      await tester.pump(const Duration(milliseconds: 100));
-      await tester.tap(_sendButton);
-      for (var i = 0; i < 10; i++) {
-        await tester.pump(const Duration(milliseconds: 50));
-      }
       expect(port.recipients, [
         {'U-target'},
       ]);
+      expect(find.text('beacon-view'), findsOneWidget);
     });
 
-    testWidgets(
-      'without a query opens an empty recipient list, but ➤ still publishes '
-      'to no one',
-      (tester) async {
-        final port = await _pumpDeepLink(tester, kPathPostNew);
+    testWidgets('without a query opens with nobody chosen', (tester) async {
+      final port = await _pumpDeepLink(tester, kPathPostNew);
 
-        expect(find.byType(PostCreateScreen), findsOneWidget);
-        await tester.enterText(_composerField, 'Привет!');
-        await tester.pump(const Duration(milliseconds: 100));
-        expect(_sendEnabled(tester), isTrue);
-        await tester.tap(_sendButton);
-        for (var i = 0; i < 10; i++) {
-          await tester.pump(const Duration(milliseconds: 50));
-        }
-        expect(port.recipients, [<String>{}]);
-      },
-    );
+      expect(find.byType(PostCreateScreen), findsOneWidget);
+      await _writeAndGoToRecipients(tester);
+
+      expect(find.text('Выберите получателей'), findsOneWidget);
+      expect(port.recipients, isEmpty);
+    });
 
     test('is registered in the app router at kPathPostNew', () {
       final source = File('lib/app/router/root_router.dart').readAsStringSync();

@@ -1,4 +1,4 @@
 # Ratcheting analyze issue counts (may only go down). See check-analyze-baseline.sh.
-packages/client 2080
+packages/client 2036
 packages/server 1874
 packages/client:lib/features/beacon_view 2

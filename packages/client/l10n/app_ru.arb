@@ -6293,11 +6293,9 @@
       }
     }
   },
-  "postCreateRecipients": "Кому: {names}",
-  "postCreateRecipientsCount": "Кому: {count, plural, one{{count} человек} few{{count} человека} many{{count} человек} other{{count} человека}}",
-  "postCreateRecipientsEmpty": "Кому: выберите получателей",
   "postCreateAllowForwarding": "Можно пересылать",
-  "postCreateEmptyHint": "Напишите, с чего начать разговор. Это и будет пост.",
+  "postCreateTextHint": "О чём ваш пост?",
+  "postCreateSendToCount": "Отправить ({count})",
   "postCreateDiscardTitle": "Удалить черновик?",
   "postCreateDiscardBody": "Пост ещё не отправлен. Текст и фото не сохранятся.",
   "postCreateNeedHelp": "Нужна помощь? Создать запрос ›",

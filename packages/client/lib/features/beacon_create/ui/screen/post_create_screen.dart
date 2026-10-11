@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
@@ -8,20 +9,19 @@ import 'package:tentura/data/repository/clipboard_image_repository.dart';
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
-import 'package:tentura/domain/entity/beacon_participant.dart';
-import 'package:tentura/domain/entity/room_pending_upload.dart';
-import 'package:tentura/features/beacon_threads/domain/entity/committed_mention.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/features/forward/ui/widget/forward_recipient_picker.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/widget/basic_chat_body.dart';
+import 'package:tentura/ui/widget/pending_attachments.dart';
 
 import '../bloc/beacon_create_cubit.dart';
 
-/// «Новый пост»: an empty room. A Post has no form — the first message the
-/// author writes is the Post, sent to the people chosen in «Кому».
+/// «Новый пост»: a short form in two steps, like a simplified Request form.
+/// First the Post itself — text, photos and files, whether it may be
+/// forwarded; then «Получатели», where «Отправить» publishes it to the people
+/// chosen.
 @RoutePage()
 class PostCreateScreen extends StatefulWidget implements AutoRouteWrapper {
   const PostCreateScreen({
@@ -40,6 +40,12 @@ class PostCreateScreen extends StatefulWidget implements AutoRouteWrapper {
 
   final void Function(Set<String>, Map<String, String>)? onRecipientsChanged;
   final VoidCallback? onPublished;
+
+  /// The Post text field on the first step.
+  static const textFieldKey = Key('PostCreate.Text');
+
+  /// «Далее: получатели» on the first step.
+  static const nextButtonKey = Key('PostCreate.Next');
 
   @override
   State<PostCreateScreen> createState() => _PostCreateScreenState();
@@ -63,29 +69,69 @@ class PostCreateScreen extends StatefulWidget implements AutoRouteWrapper {
   );
 }
 
-class _PostCreateScreenState extends State<PostCreateScreen> {
+class _PostCreateScreenState extends State<PostCreateScreen>
+    with PendingAttachmentsMixin {
   late final BeaconCreateCubit _createCubit;
 
+  final _text = TextEditingController();
+  late final _textFocus = FocusNode(onKeyEvent: _onTextKey);
+
+  var _onRecipientsStep = false;
   var _forwardable = true;
   var _hasContent = false;
+
+  @override
+  ImageRepository get attachmentImageRepository => GetIt.I<ImageRepository>();
+
+  @override
+  ClipboardImageRepository get attachmentClipboardRepository =>
+      GetIt.I<ClipboardImageRepository>();
+
+  @override
+  void onPendingUploadsChanged() => _reportContent();
 
   @override
   void initState() {
     super.initState();
     _createCubit = context.read<BeaconCreateCubit>();
+    _text.addListener(_reportContent);
   }
 
   @override
   void dispose() {
     // A draft not yet made must not outlive the screen.
     _createCubit.postContentChanged(hasContent: false);
+    _text.dispose();
+    _textFocus.dispose();
     super.dispose();
   }
 
-  void _onContentChanged(bool hasContent) {
+  void _reportContent() {
+    final hasContent =
+        _text.text.trim().isNotEmpty || pendingUploads.isNotEmpty;
+    if (hasContent == _hasContent || !mounted) return;
     _createCubit.postContentChanged(hasContent: hasContent);
-    if (mounted) setState(() => _hasContent = hasContent);
+    setState(() => _hasContent = hasContent);
   }
+
+  /// Ctrl/Cmd+V also attaches a copied image; the field still pastes text.
+  KeyEventResult _onTextKey(FocusNode node, KeyEvent event) {
+    if (event is KeyDownEvent &&
+        event.logicalKey == LogicalKeyboardKey.keyV &&
+        isPasteShortcutPressed() &&
+        !_createCubit.state.isLoading) {
+      unawaited(pasteImageAttachment(fromKeyboard: true));
+    }
+    return KeyEventResult.ignored;
+  }
+
+  void _showRecipients() {
+    if (!_hasContent) return;
+    _textFocus.unfocus();
+    setState(() => _onRecipientsStep = true);
+  }
+
+  void _showForm() => setState(() => _onRecipientsStep = false);
 
   Future<void> _close() async {
     final l10n = L10n.of(context)!;
@@ -117,127 +163,87 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
     }
   }
 
-  Future<void> _pickRecipients() => showTenturaAdaptiveSheet<void>(
-    context: context,
-    builder: (sheetContext) => BlocProvider.value(
-      value: context.read<ForwardCubit>(),
-      child: ForwardRecipientPicker(
-        beaconId: '',
-        embedded: true,
-        sendEnabled: true,
-        onSendPressed: () => Navigator.of(sheetContext).pop(),
-      ),
-    ),
-  );
-
-  Future<bool> _send(
-    String body,
-    List<RoomPendingUpload> uploads,
-    List<CommittedMention> mentions,
-  ) async {
+  Future<void> _send() async {
     final cubit = _createCubit;
     final sent = await cubit.publishPost(
-      body: body,
-      mentions: mentions,
+      body: _text.text,
+      mentions: const [],
       forwardCubit: context.read<ForwardCubit>(),
       forwardPolicy: _forwardable
           ? BeaconForwardPolicyValue.open
           : BeaconForwardPolicyValue.closed,
-      attachments: uploads,
+      attachments: List.of(pendingUploads),
     );
     final id = cubit.state.draftId;
     if (sent && mounted && id != null) {
       widget.onPublished?.call();
       await context.router.popAndPush(BeaconViewRoute(id: id));
     }
-    return sent;
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
-    final tt = context.tt;
+    final onRecipients = _onRecipientsStep;
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) unawaited(_close());
+        if (didPop) return;
+        if (_onRecipientsStep) {
+          _showForm();
+        } else {
+          unawaited(_close());
+        }
       },
       child: Scaffold(
         appBar: TenturaTopBar.of(
           context,
-          title: Text(l10n.postsTabNewPost),
-          leading: IconButton(
-            icon: const Icon(Icons.close),
-            tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
-            onPressed: () => unawaited(_close()),
+          title: Text(
+            onRecipients ? l10n.beaconRecipients : l10n.postsTabNewPost,
           ),
-          actions: [
-            PopupMenuButton<void>(
-              icon: const Icon(Icons.more_vert),
-              tooltip: MaterialLocalizations.of(context).showMenuTooltip,
-              itemBuilder: (_) => [
-                PopupMenuItem<void>(
-                  onTap: () => context.read<ScreenCubit>().showBeaconCreate(),
-                  child: Text(l10n.postCreateNeedHelp),
+          leading: onRecipients
+              ? IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+                  onPressed: _showForm,
+                )
+              : IconButton(
+                  icon: const Icon(Icons.close),
+                  tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+                  onPressed: () => unawaited(_close()),
                 ),
-              ],
-            ),
+          actions: [
+            if (onRecipients)
+              IconButton(
+                icon: const Icon(Icons.close),
+                tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+                onPressed: () => unawaited(_close()),
+              )
+            else
+              PopupMenuButton<void>(
+                icon: const Icon(Icons.more_vert),
+                tooltip: MaterialLocalizations.of(context).showMenuTooltip,
+                itemBuilder: (_) => [
+                  PopupMenuItem<void>(
+                    onTap: () => context.read<ScreenCubit>().showBeaconCreate(),
+                    child: Text(l10n.postCreateNeedHelp),
+                  ),
+                ],
+              ),
           ],
           progress: BlocSelector<BeaconCreateCubit, BeaconCreateState, bool>(
             selector: (state) => state.isLoading,
             builder: TenturaTopBar.loadingBar,
           ),
         ),
+        bottomNavigationBar: onRecipients ? null : _nextBar(context, l10n),
         body: SafeArea(
           child: TenturaContentColumn(
-            child: BlocBuilder<ForwardCubit, ForwardState>(
-              buildWhen: (p, c) =>
-                  p.selectedIds != c.selectedIds ||
-                  p.candidates != c.candidates,
-              builder: (context, forward) => Column(
-                children: [
-                  ListTile(
-                    title: Text(_recipientsLabel(l10n, forward)),
-                    trailing: const Icon(Icons.edit_outlined),
-                    onTap: () => unawaited(_pickRecipients()),
-                  ),
-                  SwitchListTile(
-                    title: Text(l10n.postCreateAllowForwarding),
-                    subtitle: Text(
-                      _forwardable
-                          ? l10n.postCreateForwardingOnHint
-                          : l10n.postCreateForwardingOffHint,
-                    ),
-                    value: _forwardable,
-                    onChanged: (value) => setState(() => _forwardable = value),
-                  ),
-                  Expanded(
-                    child: BasicChatBody(
-                      messages: const [],
-                      myProfile: context.read<ProfileCubit>().state.profile,
-                      participants: _mentionable(forward),
-                      isLoading: false,
-                      onSend: (body, uploads) => _send(body, uploads, const []),
-                      onSendWithMentions: _send,
-                      imageRepository: GetIt.I<ImageRepository>(),
-                      clipboardImageRepository:
-                          GetIt.I<ClipboardImageRepository>(),
-                      composerSendEnabled: _hasContent,
-                      onComposerContentChanged: _onContentChanged,
-                      emptyPlaceholder: Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(tt.sectionGap),
-                          child: Text(
-                            l10n.postCreateEmptyHint,
-                            textAlign: TextAlign.center,
-                            style: TenturaText.body(tt.textMuted),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+            child: BlocSelector<BeaconCreateCubit, BeaconCreateState, bool>(
+              selector: (state) => state.isLoading,
+              builder: (context, busy) => onRecipients
+                  ? _recipientsStep(context, l10n, busy: busy)
+                  : _formStep(context, l10n, busy: busy),
             ),
           ),
         ),
@@ -245,36 +251,141 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
     );
   }
 
-  static String _recipientsLabel(L10n l10n, ForwardState forward) {
-    final selected = forward.selectedIds;
-    if (selected.isEmpty) return l10n.postCreateRecipientsEmpty;
-    final names = [
-      for (final candidate in forward.candidates)
-        if (selected.contains(candidate.id)) candidate.displayName,
-    ];
-    return names.isEmpty
-        ? l10n.postCreateRecipientsCount(selected.length)
-        : l10n.postCreateRecipients(names.join(', '));
+  Widget _formStep(BuildContext context, L10n l10n, {required bool busy}) {
+    final tt = context.tt;
+    final canAttach = !busy && remainingAttachmentSlots > 0;
+    return ListView(
+      padding: EdgeInsets.symmetric(
+        horizontal: tt.screenHPadding,
+        vertical: tt.sectionGap,
+      ),
+      children: [
+        TextField(
+          key: PostCreateScreen.textFieldKey,
+          controller: _text,
+          focusNode: _textFocus,
+          enabled: !busy,
+          autofocus: true,
+          minLines: 6,
+          maxLines: null,
+          keyboardType: TextInputType.multiline,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: InputDecoration(
+            hintText: l10n.postCreateTextHint,
+            border: const OutlineInputBorder(),
+          ),
+        ),
+        if (pendingUploads.isNotEmpty) ...[
+          SizedBox(height: tt.rowGap),
+          Wrap(
+            spacing: tt.rowGap,
+            runSpacing: tt.rowGap,
+            children: [
+              for (var i = 0; i < pendingUploads.length; i++)
+                PendingAttachmentPreview(
+                  upload: pendingUploads[i],
+                  onRemove: busy ? null : () => removePendingUpload(i),
+                ),
+            ],
+          ),
+        ],
+        SizedBox(height: tt.tightGap),
+        Wrap(
+          spacing: tt.rowGap,
+          children: [
+            TextButton.icon(
+              onPressed: canAttach
+                  ? () => unawaited(pickImageAttachments())
+                  : null,
+              icon: const Icon(Icons.photo_outlined),
+              label: Text(l10n.beaconRoomAttachPickImages),
+            ),
+            TextButton.icon(
+              onPressed: canAttach
+                  ? () => unawaited(pickFileAttachments())
+                  : null,
+              icon: const Icon(Icons.attach_file_rounded),
+              label: Text(l10n.beaconRoomAttachPickFiles),
+            ),
+            TextButton.icon(
+              onPressed: canAttach
+                  ? () => unawaited(pasteImageAttachment())
+                  : null,
+              icon: const Icon(Icons.content_paste_rounded),
+              label: Text(l10n.beaconRoomAttachPasteImage),
+            ),
+          ],
+        ),
+        SizedBox(height: tt.rowGap),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: Text(l10n.postCreateAllowForwarding),
+          subtitle: Text(
+            _forwardable
+                ? l10n.postCreateForwardingOnHint
+                : l10n.postCreateForwardingOffHint,
+          ),
+          value: _forwardable,
+          onChanged: busy
+              ? null
+              : (value) => setState(() => _forwardable = value),
+        ),
+      ],
+    );
   }
 
-  /// The people a Post is sent to are who the author can @mention in it.
-  static List<BeaconParticipant> _mentionable(ForwardState forward) {
-    final epoch = DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
-    return [
-      for (final candidate in forward.candidates)
-        if (forward.selectedIds.contains(candidate.id))
-          BeaconParticipant(
-            id: candidate.id,
-            beaconId: '',
-            userId: candidate.id,
-            role: 0,
-            status: 0,
-            roomAccess: 0,
-            createdAt: epoch,
-            updatedAt: epoch,
-            userTitle: candidate.displayName,
-            handle: candidate.profile.handle,
+  Widget _recipientsStep(
+    BuildContext context,
+    L10n l10n, {
+    required bool busy,
+  }) => Padding(
+    padding: EdgeInsets.symmetric(horizontal: context.tt.screenHPadding),
+    child: BlocSelector<ForwardCubit, ForwardState, bool>(
+      selector: (state) => state.selectedIds.isNotEmpty,
+      builder: (context, hasRecipients) => ForwardRecipientPicker(
+        beaconId: '',
+        embedded: true,
+        sendEnabled: hasRecipients && !busy,
+        externalActionLoading: busy,
+        sendLabel: l10n.postCreateSendToCount,
+        promptUncoveredNotes: false,
+        onSendPressed: () => unawaited(_send()),
+      ),
+    ),
+  );
+
+  /// «Далее: получатели», sitting in the form's column like the Request form.
+  Widget _nextBar(BuildContext context, L10n l10n) {
+    final tt = context.tt;
+    return Material(
+      color: tt.surface,
+      child: SafeArea(
+        child: Center(
+          heightFactor: 1,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: tt.contentMaxWidth ?? double.infinity,
+            ),
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                tt.screenHPadding,
+                tt.cardPadding.top,
+                tt.screenHPadding,
+                tt.sectionGap,
+              ),
+              child: SizedBox(
+                height: tt.buttonHeight,
+                width: double.infinity,
+                child: FilledButton(
+                  key: PostCreateScreen.nextButtonKey,
+                  onPressed: _hasContent ? _showRecipients : null,
+                  child: Text(l10n.beaconCreateNextRecipients),
+                ),
+              ),
+            ),
           ),
-    ];
+        ),
+      ),
+    );
   }
 }

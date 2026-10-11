@@ -1,19 +1,18 @@
-// «Новый пост» is an empty room: ✕ + «Новый пост», a «Кому» row that opens the
-// recipient picker on the shared ForwardCubit, the «Можно пересылать» switch
-// (on by default), an empty-room hint and the room composer. ➤ stays disabled
-// until there is text or an attachment; recipients are optional — a Post sent
-// without any stays visible only to its author. Closing an untouched screen
-// makes no server call, closing one with content asks «Удалить черновик?»
-// first.
-// UI copy is asserted verbatim in Russian (docs/plans/post-ux-mockups.md, M3).
+// «Новый пост» is a two-step form, like a simplified Request form. Step one:
+// ✕ + «Новый пост», the text field, «Фото» / «Файлы» / «Вставить изображение»
+// and the «Можно пересылать» switch (on by default); «Далее: получатели»
+// stays disabled until there is text or an attachment. Step two,
+// «Получатели»: the recipient picker on the shared ForwardCubit, whose
+// «Отправить (N)» publishes the Post once someone is chosen. Closing an
+// untouched screen makes no server call, closing one with content asks
+// «Удалить черновик?» first.
+// UI copy is asserted verbatim in Russian.
 
 import 'dart:typed_data';
 
-import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/enums.dart';
 
@@ -37,8 +36,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/test_ids.dart';
-import 'package:tentura/ui/widget/basic_chat_body.dart';
+import 'package:tentura/ui/widget/pending_attachments.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'fake_beacon_ports.dart';
@@ -235,7 +233,11 @@ Future<_Harness> _pumpPostCreate(
     embedded: true,
     effects: effects,
     debugSkipInitialLoad: true,
-    debugInitialState: ForwardState(beaconId: '', selectedIds: recipients),
+    debugInitialState: ForwardState(
+      beaconId: '',
+      selectedIds: recipients,
+      candidatesLoad: const ForwardCandidatesReady(),
+    ),
   );
   addTearDown(forward.close);
 
@@ -312,22 +314,22 @@ Future<void> _settle(WidgetTester tester) async {
   }
 }
 
-Finder get _composerField => find.descendant(
-  of: find.byType(BeaconRoomComposer),
-  matching: find.byType(TextField),
-);
+Finder get _textField => find.byKey(PostCreateScreen.textFieldKey);
 
-Finder get _sendButton => find.byKey(TestIds.key(TestIds.roomMessageSend));
+Finder get _nextButton => find.byKey(PostCreateScreen.nextButtonKey);
 
-bool _sendEnabled(WidgetTester tester) =>
-    tester.widget<IconButton>(_sendButton).onPressed != null;
+bool _nextEnabled(WidgetTester tester) =>
+    tester.widget<FilledButton>(_nextButton).onPressed != null;
 
-/// Attaches the clipboard photo to the composer with Ctrl+V.
+/// «Отправить (N)» on the recipients step.
+Finder _sendButton(int count) => find.text('Отправить ($count)');
+
+/// Attaches the clipboard photo to the Post with Ctrl+V in the text field.
 Future<void> _pastePhoto(
   WidgetTester tester, {
   int expectedPreviews = 1,
 }) async {
-  await tester.tap(_composerField);
+  await tester.tap(_textField);
   await tester.pump();
   await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
   await tester.sendKeyEvent(LogicalKeyboardKey.keyV);
@@ -335,12 +337,26 @@ Future<void> _pastePhoto(
   await _settle(tester);
   expect(
     find.descendant(
-      of: find.byType(BeaconRoomComposer),
+      of: find.byType(PendingAttachmentPreview),
       matching: find.byType(Image),
     ),
     findsNWidgets(expectedPreviews),
     reason: 'the pasted photo is a pending attachment',
   );
+}
+
+/// «Далее: получатели».
+Future<void> _goToRecipients(WidgetTester tester) async {
+  await tester.tap(_nextButton);
+  await _settle(tester);
+  expect(find.byType(ForwardRecipientPicker), findsOneWidget);
+}
+
+/// Steps to «Получатели» and presses «Отправить ([count])».
+Future<void> _send(WidgetTester tester, {required int count}) async {
+  await _goToRecipients(tester);
+  await tester.tap(_sendButton(count));
+  await _settle(tester);
 }
 
 /// Gives the screen time to persist a server draft for freshly added content.
@@ -370,157 +386,159 @@ void main() {
     expect(find.byType(PostCreateScreen), findsNothing);
   });
 
-  group('Post create screen layout', () {
+  group('the Post step', () {
     testWidgets(
-      'shows the title, the «Кому» row, the empty hint and the composer',
-      (
-        tester,
-      ) async {
+      'shows the title, the text field, attachment actions and «Далее»',
+      (tester) async {
         await _pumpPostCreate(tester);
 
-        expect(find.byType(PostCreateScreen), findsOneWidget);
         expect(find.text('Новый пост'), findsOneWidget);
-        expect(find.textContaining('Кому'), findsWidgets);
+        expect(_textField, findsOneWidget);
+        expect(find.text('О чём ваш пост?'), findsOneWidget);
+        expect(find.text('Фото'), findsOneWidget);
+        expect(find.text('Файлы'), findsOneWidget);
+        expect(find.text('Вставить изображение'), findsOneWidget);
+        expect(find.text('Далее: получатели'), findsOneWidget);
         expect(
-          find.text('Напишите, с чего начать разговор. Это и будет пост.'),
-          findsOneWidget,
+          find.byType(ForwardRecipientPicker),
+          findsNothing,
+          reason: 'recipients come after the Post is written',
         );
-        expect(find.byType(BasicChatBody), findsOneWidget);
-        expect(_composerField, findsOneWidget);
       },
     );
 
     testWidgets('«Можно пересылать» is on by default', (tester) async {
       await _pumpPostCreate(tester);
 
-      expect(find.text('Можно пересылать'), findsOneWidget);
       final toggle = find.ancestor(
         of: find.text('Можно пересылать'),
         matching: find.byType(SwitchListTile),
       );
-      final switchWidget = toggle.evaluate().isNotEmpty
-          ? tester.widget<SwitchListTile>(toggle).value
-          : tester.widget<Switch>(find.byType(Switch)).value;
-      expect(switchWidget, isTrue);
+      expect(tester.widget<SwitchListTile>(toggle).value, isTrue);
     });
 
-    testWidgets(
-      'tapping «Кому» opens the recipient picker on the same ForwardCubit',
-      (
-        tester,
-      ) async {
-        await _pumpPostCreate(tester);
-
-        await tester.tap(find.textContaining('Кому').first);
-        await _settle(tester);
-
-        expect(find.byType(ForwardRecipientPicker), findsOneWidget);
-        expect(
-          tester
-              .widget<ForwardRecipientPicker>(
-                find.byType(ForwardRecipientPicker),
-              )
-              .embedded,
-          isTrue,
-        );
-      },
-    );
-  });
-
-  group('➤ send', () {
-    testWidgets('is disabled while nothing is typed, even with recipients', (
-      tester,
-    ) async {
+    testWidgets('«Далее» is disabled while nothing is typed', (tester) async {
       await _pumpPostCreate(tester, recipients: {'Umaria'});
 
-      expect(_sendEnabled(tester), isFalse);
+      expect(_nextEnabled(tester), isFalse);
     });
 
+    testWidgets('«Далее» stays disabled for whitespace-only text', (
+      tester,
+    ) async {
+      await _pumpPostCreate(tester);
+
+      await tester.enterText(_textField, '   ');
+      await _settle(tester);
+
+      expect(_nextEnabled(tester), isFalse);
+    });
+
+    testWidgets('«Далее» is enabled with text', (tester) async {
+      await _pumpPostCreate(tester);
+
+      await tester.enterText(_textField, 'Кто в субботу на велопрогулку?');
+      await _settle(tester);
+
+      expect(_nextEnabled(tester), isTrue);
+    });
+
+    testWidgets('«Далее» is enabled with only a photo, which can be removed', (
+      tester,
+    ) async {
+      await _pumpPostCreate(tester);
+
+      await _pastePhoto(tester);
+      expect(_nextEnabled(tester), isTrue);
+
+      await tester.tap(
+        find.descendant(
+          of: find.byType(PendingAttachmentPreview),
+          matching: find.byIcon(Icons.close),
+        ),
+      );
+      await _settle(tester);
+
+      expect(find.byType(PendingAttachmentPreview), findsNothing);
+      expect(_nextEnabled(tester), isFalse);
+    });
+  });
+
+  group('the recipients step', () {
     testWidgets(
-      'is enabled with text but without recipients, and publishes to no one',
+      'opens the embedded picker on the same ForwardCubit, and ← brings the '
+      'Post back as written',
       (tester) async {
         final h = await _pumpPostCreate(tester);
+        await tester.enterText(_textField, 'Кто в субботу на велопрогулку?');
+        await _settle(tester);
 
-        await tester.enterText(
-          _composerField,
+        await _goToRecipients(tester);
+
+        expect(find.text('Получатели'), findsOneWidget);
+        final picker = tester.widget<ForwardRecipientPicker>(
+          find.byType(ForwardRecipientPicker),
+        );
+        expect(picker.embedded, isTrue);
+        expect(picker.promptUncoveredNotes, isFalse);
+        expect(_textField, findsNothing);
+
+        await tester.tap(find.byIcon(Icons.arrow_back));
+        await _settle(tester);
+
+        expect(find.text('Новый пост'), findsOneWidget);
+        expect(
+          tester.widget<TextField>(_textField).controller!.text,
           'Кто в субботу на велопрогулку?',
         );
-        await _settle(tester);
-
-        expect(_sendEnabled(tester), isTrue);
-        await tester.tap(_sendButton);
-        await _settle(tester);
-        expect(h.port.bodies, ['Кто в субботу на велопрогулку?']);
-        expect(h.port.recipients.single, isEmpty);
+        expect(h.port.bodies, isEmpty);
       },
     );
 
-    testWidgets('is enabled with recipients and text, and publishes once', (
+    testWidgets('cannot send before anyone is chosen', (tester) async {
+      final h = await _pumpPostCreate(tester);
+      await tester.enterText(_textField, 'Кто в субботу на велопрогулку?');
+      await _settle(tester);
+
+      await _goToRecipients(tester);
+
+      expect(find.textContaining('Отправить ('), findsNothing);
+      expect(find.text('Выберите получателей'), findsOneWidget);
+      await tester.tap(find.text('Выберите получателей'));
+      await _settle(tester);
+      expect(h.port.bodies, isEmpty);
+    });
+
+    testWidgets('«Отправить» publishes the Post once to the chosen people', (
       tester,
     ) async {
       final h = await _pumpPostCreate(tester, recipients: {'Umaria', 'Uoleg'});
-
-      await tester.enterText(_composerField, 'Кто в субботу на велопрогулку?');
+      await tester.enterText(_textField, 'Кто в субботу на велопрогулку?');
       await _settle(tester);
-      expect(_sendEnabled(tester), isTrue);
 
-      await tester.tap(_sendButton);
-      await _settle(tester);
+      await _send(tester, count: 2);
 
       expect(h.port.bodies, ['Кто в субботу на велопрогулку?']);
       expect(h.port.recipients.single, {'Umaria', 'Uoleg'});
       expect(h.port.policies.single, BeaconForwardPolicyValue.open);
+      expect(
+        find.text('Отправить без общей заметки'),
+        findsNothing,
+        reason: 'a Post is not asked for a forward note',
+      );
     });
 
-    testWidgets('is disabled with recipients and whitespace-only text', (
-      tester,
-    ) async {
+    testWidgets('a photo-only Post publishes the photo', (tester) async {
       final h = await _pumpPostCreate(tester, recipients: {'Umaria'});
 
-      await tester.enterText(_composerField, '   ');
-      await _settle(tester);
+      await _pastePhoto(tester);
+      await _send(tester, count: 1);
 
-      expect(_sendEnabled(tester), isFalse);
-      expect(h.port.bodies, isEmpty);
+      expect(h.port.bodies, hasLength(1));
+      expect(h.port.bodies.single.trim(), isEmpty);
+      expect(h.port.inlineAttachments, ['photo-1.png']);
+      expect(h.port.recipients.single, {'Umaria'});
     });
-
-    testWidgets(
-      'is enabled with an attachment but without recipients, and publishes '
-      'to no one',
-      (tester) async {
-        final h = await _pumpPostCreate(tester);
-
-        await _pastePhoto(tester);
-
-        expect(_sendEnabled(tester), isTrue);
-        await tester.tap(_sendButton);
-        await _settle(tester);
-
-        expect(h.port.bodies, hasLength(1));
-        expect(h.port.recipients.single, isEmpty);
-      },
-    );
-
-    testWidgets(
-      'is enabled with recipients and an attachment but no text, and publishes the photo',
-      (
-        tester,
-      ) async {
-        final h = await _pumpPostCreate(tester, recipients: {'Umaria'});
-        expect(_sendEnabled(tester), isFalse);
-
-        await _pastePhoto(tester);
-
-        expect(_sendEnabled(tester), isTrue);
-        await tester.tap(_sendButton);
-        await _settle(tester);
-
-        expect(h.port.bodies, hasLength(1));
-        expect(h.port.bodies.single.trim(), isEmpty);
-        expect(h.port.inlineAttachments, ['photo-1.png']);
-        expect(h.port.recipients.single, {'Umaria'});
-      },
-    );
 
     testWidgets('switching «Можно пересылать» off publishes a closed Post', (
       tester,
@@ -529,10 +547,9 @@ void main() {
 
       await tester.tap(find.text('Можно пересылать'));
       await _settle(tester);
-      await tester.enterText(_composerField, 'Только для вас');
+      await tester.enterText(_textField, 'Только для вас');
       await _settle(tester);
-      await tester.tap(_sendButton);
-      await _settle(tester);
+      await _send(tester, count: 1);
 
       expect(h.port.policies.single, BeaconForwardPolicyValue.closed);
     });
@@ -559,7 +576,7 @@ void main() {
       'with text typed it asks «Удалить черновик?» and keeps the screen on cancel',
       (tester) async {
         final h = await _pumpPostCreate(tester, recipients: {'Umaria'});
-        await tester.enterText(_composerField, 'Черновик поста');
+        await tester.enterText(_textField, 'Черновик поста');
         await _letDraftSave(tester);
 
         await tester.tap(_closeControl);
@@ -582,11 +599,9 @@ void main() {
 
     testWidgets(
       'confirming discards the draft the screen created for the typed text',
-      (
-        tester,
-      ) async {
+      (tester) async {
         final h = await _pumpPostCreate(tester, recipients: {'Umaria'});
-        await tester.enterText(_composerField, 'Черновик поста');
+        await tester.enterText(_textField, 'Черновик поста');
         await _letDraftSave(tester);
 
         await tester.tap(_closeControl);
@@ -630,6 +645,18 @@ void main() {
         expect(h.write.deletedIds, ['server-beacon']);
       },
     );
+
+    testWidgets('✕ on the recipients step asks too', (tester) async {
+      await _pumpPostCreate(tester, recipients: {'Umaria'});
+      await tester.enterText(_textField, 'Черновик поста');
+      await _settle(tester);
+      await _goToRecipients(tester);
+
+      await tester.tap(_closeControl);
+      await _settle(tester);
+
+      expect(find.text('Удалить черновик?'), findsOneWidget);
+    });
   });
 
   group('overflow', () {
@@ -661,43 +688,41 @@ void main() {
     Future<void> sendWithPhotos(
       WidgetTester tester, {
       required int photos,
+      required int recipients,
     }) async {
-      await tester.enterText(_composerField, 'Кто в субботу на велопрогулку?');
+      await tester.enterText(_textField, 'Кто в субботу на велопрогулку?');
       for (var i = 0; i < photos; i++) {
         await _pastePhoto(tester, expectedPreviews: i + 1);
       }
-      await tester.tap(_sendButton);
+      await _send(tester, count: recipients);
+    }
+
+    String postText(WidgetTester tester) =>
+        tester.widget<TextField>(_textField).controller!.text;
+
+    Future<void> backToPost(WidgetTester tester) async {
+      await tester.tap(find.byIcon(Icons.arrow_back));
       await _settle(tester);
     }
 
-    String composerText(WidgetTester tester) =>
-        tester.widget<TextField>(_composerField).controller!.text;
-
     testWidgets(
-      'after a network error the user can press ➤ again with the same content',
-      (
-        tester,
-      ) async {
+      'after a network error the user can press «Отправить» again with the '
+      'same content',
+      (tester) async {
         final h = await _pumpPostCreate(
           tester,
           recipients: {'Umaria', 'Uoleg'},
         );
         h.port.publishErrors.add(Exception('network down'));
 
-        await sendWithPhotos(tester, photos: 2);
+        await sendWithPhotos(tester, photos: 2, recipients: 2);
 
         expect(h.port.signatures, hasLength(1));
         expect(h.effects.emitted.whereType<ShowError>(), isNotEmpty);
         expect(find.byType(PostCreateScreen), findsOneWidget);
-        expect(
-          composerText(tester),
-          'Кто в субботу на велопрогулку?',
-          reason: 'the typed text is kept for the retry',
-        );
-        expect(_sendEnabled(tester), isTrue);
         expect(h.port.uploads, isEmpty);
 
-        await tester.tap(_sendButton);
+        await tester.tap(_sendButton(2));
         await _settle(tester);
 
         expect(h.port.signatures, hasLength(2));
@@ -712,26 +737,30 @@ void main() {
       },
     );
 
-    testWidgets('after a failed photo upload ➤ retries only that photo', (
-      tester,
-    ) async {
+    testWidgets('the Post keeps its text after a failed send', (tester) async {
+      final h = await _pumpPostCreate(tester, recipients: {'Umaria'});
+      h.port.publishErrors.add(Exception('network down'));
+
+      await sendWithPhotos(tester, photos: 1, recipients: 1);
+      await backToPost(tester);
+
+      expect(postText(tester), 'Кто в субботу на велопрогулку?');
+      expect(find.byType(PendingAttachmentPreview), findsOneWidget);
+    });
+
+    testWidgets('after a failed photo upload «Отправить» retries only that '
+        'photo', (tester) async {
       final h = await _pumpPostCreate(tester, recipients: {'Umaria'});
       h.port.failUploadOnce.add('photo-2.png');
 
-      await sendWithPhotos(tester, photos: 2);
+      await sendWithPhotos(tester, photos: 2, recipients: 1);
 
       expect(h.port.signatures, hasLength(1));
       expect(h.port.inlineAttachments, ['photo-1.png']);
       expect(h.port.uploads, ['photo-2.png']);
       expect(h.effects.emitted.whereType<ShowError>(), isNotEmpty);
-      expect(
-        composerText(tester),
-        'Кто в субботу на велопрогулку?',
-        reason: 'the composer keeps its content until the whole send succeeds',
-      );
-      expect(_sendEnabled(tester), isTrue);
 
-      await tester.tap(_sendButton);
+      await tester.tap(_sendButton(1));
       await _settle(tester);
 
       expect(
