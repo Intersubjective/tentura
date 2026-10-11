@@ -1,6 +1,6 @@
 # Budding a Request from a Post — architecture
 
-**Status:** rev 2.1 (2026-10-11). Astra review applied (§14); rev 2.1 folds in the plan-level review (implementation plan §9). Not an implementation plan.
+**Status:** rev 2.2 (2026-10-11). Astra review applied (§14); rev 2.1–2.2 fold in the plan-level reviews (implementation plan §9, §10). Not an implementation plan.
 **Product design (decisions, Russian):** [`post-request-budding-design.md`](post-request-budding-design.md) — D1–D7, N1–N6.
 This document turns those decisions into an architecture. It does not re-open them.
 **Supersedes:** the in-place Post → Request conversion (`beaconConvertToRequest`, kind 1 → 0;
@@ -34,10 +34,10 @@ the existing machinery it rides on and the smallest seam it needs.
    deadline-less, so engage/decline accounting still works.
 6. **N5:** one pending invite per (inviter, invitee, source Post).
 7. **D4 route credit:** per-helper provenance anchored to the accepted invite's arrival edge in the
-   Post; only that chain earns credit; the delivery edge is structural only.
+   Post; only that chain earns credit (the delivery edge is sent by the author and earns nothing).
 8. **Post fate:** stays open by default; optional close → new Post status **closed (6)**, read-only,
    still listed, off the field.
-9. **Field:** anchor inheritance runs as an after-commit task (insert-if-absent); `grewFrom` edge.
+9. **Field:** anchor inheritance runs in a periodic sweep, nudged after the bud commits (insert-if-absent); `grewFrom` edge.
 10. **Removal/repair:** conversion removed, `kind` immutable; converted Requests repaired from
     commitment history (#284) — helpers without their own confirmation become **pending invitees**;
     `BeaconRoomAdmit` gets the two-confirmation rule (#283); promotion-source deletion fixed by
@@ -66,7 +66,7 @@ the existing machinery it rides on and the smallest seam it needs.
 | Forward cancel | `ForwardCase` cancel refuses read / forwarded-on / offered edges (`forward_case.dart:82`) | Not a withdrawal mechanism (§5.4) |
 | Route credit | `selectArrivalEdge` (`closure_repository.dart:785`), `routingSource` (`:905`, attribution `:931`), `ForwardCausalGraphBuilder` (all inbound paths `:74`, missing parent rejected `:49`) | **Change**: per-helper provenance (§7) |
 | Post lists | `post_my_posts` status 0 only (m0215:41), `postSummary` uses it (`beacon_repository.dart:74`), `PostSummary` DTO (client `post_summary.dart:6`) | **Change** for closed Posts (§2.3) |
-| Anchors | `constellation_anchor` (m0236), viewer-scoped apply with lock/cursor/op log (`constellation_anchor_repository.dart:45`) | **Reuse** via an after-commit task (§8.1) |
+| Anchors | `constellation_anchor` (m0236), viewer-scoped apply with lock/cursor/op log (`constellation_anchor_repository.dart:45`) | **Reuse** via a periodic sweep (§8.1) |
 
 ## 2. Data model
 
@@ -201,8 +201,8 @@ Input: `postId`, `sourceMessageId`, `clientCommandId`, Request draft content (`i
 false), `invitees: [{userId, note?}]`, `closePost`.
 
 One transaction:
-0. Replay check on `beacon_bud_command` (§2.6).
-1. Locks per §4.1; assert §3.1.
+0. Global lock, then the replay check on `beacon_child_commands` (§2.6), before any parent assert.
+1. Remaining locks per §4.1; assert §3.1.
 2. **Shared publication pipeline**, entered through `createChildUnderPost` (`beaconChildCreate` on a
    Post parent is refused). For a Post parent it keeps the client's title/description (no override
    from the source body) and takes `isDiscoverable` (default false; the column default is true).
@@ -217,13 +217,13 @@ One transaction:
       Post parent;
    d. emits `authorInviteReceived` per created invite (optional update, Activity «Для вас», N4).
 3. If `closePost`: Post status 6 + closed notice.
-4. Store the result in `beacon_bud_command`.
-5. Budder's own anchor inherited synchronously; other viewers via the sweep (§8.1).
+4. Store the result in `beacon_child_commands.bud_result` (hash in `normalized_input_hash`, `bud:` prefix).
+5. After commit, nudge the anchor sweep (§8.1); no anchor work inside the bud transaction.
 
 Hierarchy lifecycle deliveries whose **target** is a Post insert the notice row but emit no attention
 (no pushes to live Post members, design §5.5).
 
-Per-invitee failure (`notEligible`, `alreadyInvitedFromThisPost`, `recipientPaused`, `blocked`) does
+Per-invitee failure (`PostBudInviteOutcome`: `notEligible`, `alreadyInvited`, `recipientPaused`, `blocked`) does
 not fail the bud; it is part of the stored result.
 
 ## 5. Invitation lifecycle
@@ -261,33 +261,10 @@ active offer) delegates to the same operation. One code path, two entry points.
   confirmations exist → the offer is admitted through §5.3 and the invite becomes `accepted`. If the
   author accepts an ordinary offer from a pending invitee, the invite becomes `superseded (5)`.
   Either way the N5 slot frees.
-- **Expiry:** one `AFTER UPDATE OF status` trigger on `beacon`: when a `kind = 0` beacon leaves
-  open-family, pending invites → `expired` and their delivery edges' contacts are resolved without
-  noisy evidence in the same transaction (the sweep does not exclude terminal Requests today). Block cleanup → `withdrawn`.
-
-### 5.5 Two-confirmation rule elsewhere (#283)
-
-`BeaconRoomCase.admit` on `kind = 0` requires an active offer from the target, honours blocks and calls
-§5.3 — or is removed if no client surface needs it. Direct author forwards unchanged.
-
-### 5.6 Attention catalog
-
-New `AttentionEventType`s `authorInviteReceived`, `authorInviteAccepted`, `authorInviteDeclined`
-(author-side optional update, no push), declared in `AttentionEventTypeCatalog.assertDeclared`
-(`attention_models.dart:18`), policy switches, `NotificationKind`, the updates contract
-(`docs/contracts/updates-event-contract.json`) and the client classification.
-
-## 6. Noisy-contact interaction
-
-| Invite | Deadline | Ignore | Decline | Accept |
-|---|---|---|---|---|
-| Warm | set | **exempt** from the sweep | declined, no evidence | engaged |
-| Cold | set | noisy evidence written (published only if the wall is enabled) | declined, no evidence | engaged |
-| Expired (child terminal) | — | resolved, no evidence | — | — |
-
-## 7. Route credit across the Post (D4)
-
-Per-helper provenance, anchored to the accepted invite:
+- **Expiry:** one `AFTER UPDATE OF status` trigger on `beacon`: when a `kind = 0` beacon goes
+  **terminal** (`{1, 2, 6}`), pending invites → `expired`, their delivery edges' contacts are resolved
+  without noisy evidence and their receipts are cleared, in the same transaction. Review (5) does not
+  expire invites (it can reopen); accept is refused while in review.
 - **Approval credit:** for a helper admitted via an invite, the arrival edge is
   `arrival_post_edge_id`; credit to its sender unless it is the Request author or the helper
   (existing skip rules). NULL arrival (Post author, or arrival lost) → no approval credit.
@@ -295,8 +272,11 @@ Per-helper provenance, anchored to the accepted invite:
   `parent_edge_id` from `arrival_post_edge_id` inside the Post (edges created before the child's
   `published_at`, not cancelled before it), with its forward attributions loaded from the Post's
   batches, plus the helper's own child-side chain as usual. Other Post paths do not count.
-- The invite **delivery edge** stays in the child's edge map as a structural root (onward forwards
-  from the invitee reference it), flagged non-crediting; the builder's root rule accepts it.
+- The invite **delivery edge** stays in the child's edge map as the root of onward forwards from the
+  invitee; it is sent by the Request author, so it earns nothing (no flag needed).
+- The Post chain enters closure routing as a per-helper extra segment with its own root sender (the
+  Post author) and cutoff (the child's `published_at`), inside the same budget. Scope: invites with a
+  `source_post_id`; repair invites (§10.2) keep today's routing.
 - Reuse the existing normaliser and budgets; tests: unrelated Post paths, cancelled Post edges, later
   invites, onward forwards from an invitee.
 
@@ -304,10 +284,11 @@ Per-helper provenance, anchored to the accepted invite:
 
 ### 8.1 Anchor inheritance
 
-There is no after-commit task mechanism (`TaskRepository` supports only image hashing). The budder's
-own anchor is inherited synchronously in the bud transaction (same actor). For other viewers a
-periodic sweep in `task_worker_case.dart` claims `beacon_child_commands` rows with a `bud_result`
-and NULL `anchor_inherited_at` and iterates viewers in `viewer_id` order who have a live Post
+There is no after-commit task mechanism (`TaskRepository` supports only image hashing), and anchor
+writes go through the constellation scheduler in their own viewer-scoped transactions, so nothing runs
+inside the bud transaction. A periodic sweep in `task_worker_case.dart` (nudged after the bud commits)
+selects, without a row lock, `beacon_child_commands` rows with a `bud_result`, `result_state = 0` and
+NULL `anchor_inherited_at`, and iterates viewers (budder included), each in its own transaction, in `viewer_id` order who have a live Post
 anchor and can read the child; for each, applies an **insert-if-absent** child anchor through the
 existing apply machinery in that viewer's scope (op id `bud:<child>:<viewer>`, replay-safe; never
 overwrites a child anchor the viewer already moved). Coordinates: the Post's if `closePost`, else a
@@ -362,8 +343,9 @@ each from commitment + admission history:
 ### 10.3 Promotion source deletion
 
 Allow a **published** promotion to keep its child/parent identity after its source message is
-deleted: relax `beacon_promotions_source_general_ck` to require a non-null source only for
-unpublished rows (published rows may detach to NULL via the existing FK). The footer disappears with
+deleted: drop `beacon_promotions_source_general_ck` (it forbids NULL sources on published rows; the
+existing FK already sets the source to NULL on delete, and unpublished NULL rows are legal today).
+`publishDraft` keeps rejecting a draft whose source is gone. The footer disappears with
 the message; the child keeps its parent. Root-message deletion keeps deleting the Post (R4-3); the
 child survives (soft delete, non-cascading).
 
@@ -398,6 +380,8 @@ child survives (soft delete, non-cascading).
 
 - rev 1 (2026-10-11): initial architecture from design rev 1.4 and code research.
 - rev 2 (2026-10-11): Astra review applied (§14).
+- rev 2.2 (2026-10-11): third review folded in (anchor sweep without in-transaction work, terminal-only
+  expiry, extra routing segments, single hash column, A1 drops the check).
 - rev 2.1 (2026-10-11): plan-level review folded in (single idempotency table, Post content kept,
   discoverable default, notice title, lifecycle attention suppression, later-invite mutation,
   expiry trigger, anchor sweep, repair scope).

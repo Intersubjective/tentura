@@ -1,14 +1,15 @@
 # Budding a Request from a Post — step-by-step implementation plan
 
-**Status:** rev 2 (2026-10-11). Rev 2 applies the second review (25 findings, §9). The reviewer was
-an independent Opus subagent, standing in for Astra, whose codex quota ran out.
+**Status:** rev 3 (2026-10-11). Rev 2 applied the second review (25 findings, §9); rev 3 applies the
+third review (17 findings, §10). Reviewers: independent Opus subagents, standing in for Astra, whose
+codex quota ran out.
 **Baseline:** `main` at `e46d59b7f` (latest migration `m0236`). The plan docs live on branch
 `docs/post-request-budding`.
 **For:** an implementer (human or model) who follows units literally, test-first, one unit at a time.
 Each unit lists its goal, files, the tests to write **first**, the steps, and "done when".
 
 **Sources of truth (read before any unit):**
-1. [`post-request-budding-architecture.md`](post-request-budding-architecture.md) rev 2.1. "Arch §N" points there.
+1. [`post-request-budding-architecture.md`](post-request-budding-architecture.md) rev 2.2. "Arch §N" points there.
 2. [`post-request-budding-design.md`](post-request-budding-design.md): owner decisions D1–D7 and N1–N6 (in Russian).
 3. [`post-implementation-steps.md`](post-implementation-steps.md) **§0 (rules for every unit) applies verbatim.** It covers:
    - conventions;
@@ -92,7 +93,7 @@ If a step contradicts the architecture, stop and report; do not guess. Line numb
 | C4 | Invite lifecycle: create (later invites), accept, decline, withdraw, supersede, expiry | A2, C3 |
 | C6 | Invite read projections + «Для вас» card data | C4 |
 | C7 | Route credit provenance | C4 |
-| C8 | Constellation: `parentBeaconId`, anchor inheritance (sync for the budder + sweep) | C3 |
+| C8 | Constellation: `parentBeaconId`, anchor inheritance sweep | C3 |
 | C9 | Concurrency suite | C3–C5 |
 | D0 | Gate + client schema/gql/data layer | C3–C8 |
 | D1 | Bud flow UI | D0 |
@@ -148,8 +149,9 @@ Today the check is `(source_message_id IS NOT NULL) OR (published_at IS NULL)` (
    - Compare on kind, user, actor and role columns only. Exclude ids and timestamps.
    - **Attention receipts are out of scope** for this comparison: offer+accept creates and settles `helpOfferSubmitted` and sends `offerAccepted`, and invite accept will differ.
    - Write it against the current code first. It must fail if any one of the listed rows is missing; prove this with a deliberately broken run in your scratch branch, not in the committed test.
-2. Calling the operation with actor = helper and `confirmingAuthorId = author`, inside one `withMutatingUser(helper)` unit, produces the same row set. It must not raise `Nested mutating actor mismatch` (`tentura_db.dart:256-263`).
-3. Existing suites keep passing: `coordination_case_test.dart`, `help_offer_case_test.dart`, `beacon_room_admission_matrix_test.dart`, and the closure tests that read commitment facts.
+2. Steward case: a steward accepts → the same row set with `author_user_id = steward`.
+3. Calling the operation with actor = helper and `confirmingAuthorId = author`, inside one `withMutatingUser(helper)` unit, produces the same row set. It must not raise `Nested mutating actor mismatch` (`tentura_db.dart:256-263`).
+4. Existing suites keep passing: `coordination_case_test.dart`, `help_offer_case_test.dart`, `beacon_room_admission_matrix_test.dart`, and the closure tests that read commitment facts.
 
 **Steps:**
 - Add `AdmissionOperation.admitWithConfirmations({beaconId, helperId, confirmingAuthorId, actorId, attention})`. In order:
@@ -161,8 +163,8 @@ Today the check is `(source_message_id IS NOT NULL) OR (published_at IS NULL)` (
   - (f) `recordApprovalEdge`;
   - (g) settle the author's `helpOfferSubmitted` obligation if one exists;
   - (h) emit the attention intent the **caller** supplies (`offerAccepted` for `acceptHelpOffer`; `authorInviteAccepted` for C4).
-- It is idempotent when the helper is already acknowledged.
-- `CoordinationCase.acceptHelpOffer` keeps its pre-checks (`_prepareAdmissionAction`, :163-191) and delegates. Step (a) is a no-op there.
+- It is **not idempotent**: step (d) only appends, exactly as today (`coordination_repository.dart:151-157`). Callers own idempotency (C4 locks the invite row and short-circuits on `status = 1`).
+- `CoordinationCase.acceptHelpOffer` keeps its pre-checks (`_prepareAdmissionAction`, :163-191) and delegates with `confirmingAuthorId = actorUserId` (author **or steward**, as `:363-367` allows). The approval edge keeps `beacon.author.id`. Step (a) is a no-op there.
 
 **Done when:** the characterization test and the listed suites pass.
 
@@ -199,16 +201,16 @@ The commit closes #283.
 
 **SQL (Arch §2):**
 - `beacon_bud_observer(beacon_id, user_id, created_at)`:
-  - PK `(beacon_id, user_id)`; FK to beacon `ON DELETE CASCADE`; FK to user;
+  - PK `(beacon_id, user_id)`; FK to beacon `ON DELETE CASCADE`; FK to user `ON DELETE CASCADE` (users are hard-deleted, `user_repository.dart:898`);
   - index `(user_id, beacon_id)`.
 - `beacon_author_invite` as in Arch §2.2:
   - `source_post_id` is **nullable** (repair invites in E2 have none);
-  - FK `forward_edge_id ON DELETE SET NULL`;
+  - FKs: `beacon_id`, `inviter_id`, `invitee_id` `ON DELETE CASCADE`; `resolved_by ON DELETE SET NULL`; `forward_edge_id ON DELETE SET NULL`; `arrival_post_edge_id` has **no FK** (it is immutable provenance; an FK `SET NULL` would collide with the immutability trigger);
   - CHECK `status BETWEEN 0 AND 5`;
   - partial unique indexes `(inviter_id, invitee_id, source_post_id) WHERE status = 0 AND source_post_id IS NOT NULL` and `(beacon_id, invitee_id) WHERE status = 0`;
   - indexes `(invitee_id) WHERE status = 0`, `(beacon_id, status)` and `(forward_edge_id)`;
   - a BEFORE UPDATE trigger that rejects changes to `beacon_id, inviter_id, invitee_id, source_post_id, arrival_post_edge_id, warm`.
-- `beacon_child_commands` (m0193:4932) gets `bud_input_hash text NULL`, `bud_result jsonb NULL` and `anchor_inherited_at timestamptz NULL`. This is the one idempotency table (Arch §2.6). There is no separate bud table.
+- `beacon_child_commands` (m0193:4932) gets `bud_result jsonb NULL` and `anchor_inherited_at timestamptz NULL`, plus a partial index `(created_at) WHERE bud_result IS NOT NULL AND anchor_inherited_at IS NULL`. This is the one idempotency table (Arch §2.6). There is no separate bud table and no second hash column: the bud hash goes into the existing `normalized_input_hash` with a `bud:` prefix, which `findCommand` and `recordCreateOutcome` already compare (`beacon_hierarchy_command_repository.dart:84-90`), so a `clientCommandId` reused across the two endpoints conflicts naturally.
 - `beacon_forward_edge.contact_sweep_exempt boolean NOT NULL DEFAULT false`.
 - `beacon_post_shape_ck`: Post statuses `{0, 2, 3, 6}`.
 - No Hasura tracking for the new table and columns. Add `beacon_bud_observer` and `beacon_author_invite` to the "untracked tables" architecture test list (`test/architecture/hasura_metadata_closure_tables_untracked_test.dart`).
@@ -259,7 +261,7 @@ Use bond or reciprocal-explicit-trust fixtures for the positive cold case and a 
 - tests.
 
 **Change (Arch §3.2):**
-- **contextChild** (bit 64; `cand` in readable_ids): when the immediate parent has `kind = 1`, require `EXISTS beacon_bud_observer(child, viewer)` instead of live parent membership. The parent must still not be in status 2 or 3.
+- **contextChild** (bit 64; `cand` in readable_ids): when the immediate parent has `kind = 1`, require `EXISTS beacon_bud_observer(child, viewer)` instead of live parent membership. The parent must still not be in status 2 or 3, and `NOT block_hides(post_author, viewer)` applies (today's contextChild applies the parent-author block, m0193:683). In `beacon_readable_ids` the `cand` CTE has no parent kind (m0226:14-18): join `beacon parent ON parent.id = c.parent_beacon_id` for this branch.
 - **contextAncestor** (bit 128): the **target** must be a Request.
   - In `beacon_can_read_content` and `beacon_access_reasons`, add `b.kind = 0` to the ancestor branch (the `a.ancestor_id = b.id` join, m0193:451-470).
   - In `beacon_readable_ids` (m0226), add `kind` to `cand` and require `c.kind = 0` in the `member_ancestors` branch.
@@ -282,7 +284,7 @@ Also run the existing readable-ids consistency and perf tests.
 
 **Files:** a migration redefining the hierarchy recipient function (m0193:3925-3990, CTE `parent_linked` at :3950-3970), and a pg test.
 
-**Change.** When the **owner's** parent has `kind = 1`, replace `parent_linked` with the owner's `beacon_bud_observer` rows minus `block_hides(owner_author, u)`. The block and parent-deletion paths pass former recipients through the existing `p_extra_user_ids`. Emits whose owner is the Post itself (m0193:2613, 2643) are unchanged.
+**Change.** When the **owner's** parent has `kind = 1`, replace `parent_linked` with the owner's `beacon_bud_observer` rows minus `block_hides(owner_author, u)`. The observer CTE keeps `parent.status NOT IN (2,3)`, matching the read wall. The block path passes former recipients through the existing `p_extra_user_ids` (m0193:2557). The parent-deletion path passes no extras today (m0193:2668-2676); this is an **accepted gap** (former observers refetch on their next read and the wall answers) — pin it with a test. Emits whose owner is the Post itself (m0193:2613, 2643) are unchanged.
 
 **Tests first (pg):**
 - a later Post member gets no child hint;
@@ -294,14 +296,15 @@ Also run the existing readable-ids consistency and perf tests.
 **Files:** `forward_edge_repository.dart` `claimIgnoredContacts` (:508-542), a migration with `contact_resolve_without_evidence(p_edge text)`, and pg tests.
 
 **Change:**
-- The sweep adds `AND NOT e.contact_sweep_exempt`.
+- The sweep adds `AND NOT f.contact_sweep_exempt` **inside the inner subquery `f`** (the one with the deadline `ORDER BY` and `LIMIT $1`, `forward_edge_repository.dart:514-526`). On the outer `e` the never-resolved exempt rows would keep filling the LIMIT and starve the sweep.
 - The new function resolves an unresolved contact edge the way `contact_edge_on_cancel` does (resolved, outcome NULL) and writes no evidence.
 
 **Tests first (pg):**
 - an exempt edge past its deadline → no noisy evidence;
 - exempt edge + help offer → engaged;
 - exempt edge + inbox decline → declined;
-- the resolve function on a past-deadline edge before the sweep → the sweep skips it.
+- the resolve function on a past-deadline edge before the sweep → the sweep skips it;
+- more than `limit` old exempt rows plus one younger non-exempt row → the non-exempt row is swept.
 
 ## 4. Server use cases
 
@@ -320,12 +323,12 @@ Also run the existing readable-ids consistency and perf tests.
 - **`createChild` with a Post parent** throws `PostChildRequiresBudException` **before** any status check. Update the order in `post_request_only_audit_pg_test.dart:324-336` accordingly.
 - **New case method `createChildUnderPost(...)`.** It shares the internals of `createChild` and is the only Post entry point; C3 calls it. It:
   - runs the Post asserts (Arch §3.1): parent `kind = 1, status = 0`; actor ∈ `E(P)`; `sourceMessageId` required; `source.author_id = actor`;
-  - takes the `PostLockPort` locks after the global lock;
+  - calls `PostLockPort.lockForPostMutation(post)` right after `lockMutationScope` and **before** `_lockCreateScope` (`beacon_child_create_case.dart:164`; advisory xact locks are re-entrant, so the repeated global lock is harmless);
   - **keeps the client's title and description** (no override from the source body);
   - accepts `isDiscoverable` (default `false`; `createChildBeacon` gains the parameter, because the column default is `true`, m0193:857). This parameter is part of the input hash;
   - accepts a `PostParentStage` callback that runs inside the transaction after publish (C3 supplies it).
 - **Notice and attention.** For a Post parent the `childCreated` notice payload adds `title` (a snapshot) and `invitedCount`, and **no** attention receipts are emitted. Hierarchy lifecycle deliveries whose **target** has `kind = 1` insert the notice row but emit **no** attention.
-- **Replay** for `createChildUnderPost` happens right after the global lock and **before** any parent assert. It returns the stored `bud_result`, so it also works after `closePost`.
+- **Replay** for `createChildUnderPost` happens right after the global lock and **before** any parent assert. It returns the stored `bud_result`, so it also works after `closePost`. The already-promoted path (`_recordAndReturnAlreadyPromoted`, `result_state = 2`, :195-205, :357-377) also stores a `bud_result`: `{outcome: alreadyPromoted, childBeaconId: <id if readable, else null>, invitees: []}`.
 
 **Tests first (pg):**
 - each guard through `createChildUnderPost`;
@@ -347,7 +350,8 @@ Also run the existing readable-ids consistency and perf tests.
 - `authorInviteReceived` → the invitee. Optional update, Activity, collapse key per beacon; push allowed, as for `relayReceived`.
 - `authorInviteAccepted` → the inviter. Optional update, no push.
 - `authorInviteDeclined` → the inviter. Optional update, no push.
-- Withdraw, expiry and supersede are **settlements** of the invitee's `authorInviteReceived` receipt via the `AttentionSystemSettlementPort` pattern. They are not visible events and have no copy.
+- Accept, decline, withdraw, supersede, expiry and block cleanup **clear** the invitee's `authorInviteReceived` receipt. That is not a visible event and has no copy. The port today only settles `helpOfferSubmitted` obligations (`attention_system_settlement_port.dart:1-27`), and optional receipts are governed by `cleared_at` (`attention_dismissible_sql.dart:94-95`): add `AttentionSystemSettlementPort.clearAuthorInviteReceived(beaconId, inviteeId)`, which sets `cleared_at` and `seen_at`. C4's use cases call it; the C4 expiry trigger clears in SQL.
+- **No duplicate card.** In «Для вас» the `authorInviteReceived` receipt folds into the pinned inbox row for the same beacon; the D3 card is the only visible row.
 
 **Tests first:** the catalog and contract tests fail on undeclared kinds; policy unit tests check recipients and `requiresAction = false`.
 
@@ -363,9 +367,11 @@ Also run the existing readable-ids consistency and perf tests.
 - `PostCloseOperation`.
 
 **Behaviour:**
-- **`PostCloseOperation.closeForBud(post, child, title)`.** Sets status 6 through `recordBeaconStatusTransition` **without** `recordEligibleSourceTransition` (otherwise the child would get a «parent closed» notice), then inserts the kind-5 notice. On a closed Post:
-  - writes are rejected: send, edit, react, poll, forward, leave/return, budding, and deleting non-root messages;
-  - root delete / Post delete (6→2) **is allowed** (`beacon_status_transition.dart:62`). The child survives.
+- **`PostCloseOperation.closeForBud(post, child, title)`.** Sets status 6 (= `BeaconStatus.closed`) through `recordBeaconStatusTransition` **without** `recordEligibleSourceTransition` (otherwise the child would get a «parent closed» notice), then inserts the kind-5 notice.
+- **Most writes are already rejected for status 6:** send, edit, react, poll, baton and fact cards (`beacon_room_lifecycle_write_policy.dart:10`, `polling_case.dart:78`), and forward via `allowsForward` (`forward_case.dart:375`). These get tests only.
+- **New guards only for:** leave/return, budding, and deleting non-root messages.
+- **Root delete on a closed Post.** Today `deleteMessage` runs `_guardMessageMutation` (`beacon_room_case.dart:1313`) before the Post-root branch (:1314-1320), so it would be refused. Move the Post-root branch **above** the lifecycle guard, for `kind = 1` only. The author can then delete the Post (6→2, `beacon_status_transition.dart:62`); the child survives.
+- `PostSummary.status` maps to `BeaconStatus`.
 
 **Tests first:**
 - `closeForBud` tested directly;
@@ -405,9 +411,8 @@ Also run the existing readable-ids consistency and perf tests.
      - `arrival_post_edge_id` = U's latest active inbound edge on the Post (NULL for the Post author);
      - insert the invite and emit `authorInviteReceived`;
    - (c) the notice with `title` and `invitedCount`;
-   - (d) the budder's own anchor inherit (C8 function; same actor, synchronous).
 6. If `closePost`: `PostCloseOperation.closeForBud`.
-7. Store `bud_input_hash` + `bud_result`. `anchor_inherited_at` stays NULL; the C8 sweep handles other viewers.
+7. Store `bud_result` (the hash goes into `normalized_input_hash` with the `bud:` prefix). `anchor_inherited_at` stays NULL. After commit, nudge the C8 sweep (same pattern as `_publisher.nudge()`). No anchor work inside the bud transaction (C8).
 
 **Tests first (pg, real attention dispatch):**
 - the happy path writes: child parent; observers; invites; edges with per-recipient exempt flags; the inbox row pinned in «Для вас» (`eligiblePinned`); one notice with title and count; zero receipts to non-invited members;
@@ -431,25 +436,28 @@ Also run the existing readable-ids consistency and perf tests.
 
 **Behaviour (Arch §5):**
 - **Create (later invites, Arch §3.3).**
-  - Child author only. The target must be a snapshot observer and eligible under the B2/§3.3 rules.
-  - Forward edge author → U, re-pin, insert the invite, `authorInviteReceived`.
-  - If an active author → U edge already exists, reuse it (`createBatch` dedupes) and set `forward_edge_id` to it.
+  - Child author only. Takes `PostLockPort` on `source_post_id` (lock-order step 2) before the child, so N5 cannot race a concurrent bud from the same Post.
+  - The target must be a snapshot observer and eligible under the B2/§3.3 rules.
+  - Forward edge author → U via `createBatch`. It does not return the id of an edge it reused (`forward_edge_repository.dart:144-157`), so call `findActiveEdge` afterwards and set `forward_edge_id` to it.
+  - If warm: `UPDATE … SET contact_sweep_exempt = true` on that edge (a reused ordinary edge is not exempt; otherwise I8 breaks).
+  - Re-pin the inbox row; insert the invite with `INSERT … ON CONFLICT DO NOTHING` on the N5 index predicate — no row inserted → `alreadyInvited`; `authorInviteReceived`.
 - **Accept.**
   - Locks, then re-validate.
   - `AdmissionOperation.admitWithConfirmations(actor = invitee, confirmingAuthorId = inviter, attention = authorInviteAccepted)`.
-  - The invite becomes accepted. Idempotent.
-- **Decline.** The inbox decline path (`status = 2`), the invite becomes declined, `authorInviteDeclined`.
+  - The invite becomes accepted; the receipt is cleared. Idempotent: the locked invite with `status = 1` returns the accepted result without calling the operation again.
+- **Decline.** The inbox decline path (`status = 2`), the invite becomes declined, the receipt is cleared, `authorInviteDeclined`.
 - **Withdraw** (author).
   - The invite becomes withdrawn and the received receipt is settled.
   - Cancel the edge only if `ForwardCase` cancel rules allow (`forward_case.dart:82`); otherwise it stays as an ordinary forward.
 - **Supersede.**
-  - The invitee calls `offerHelp` with a pending invite → admit via the operation; the invite becomes accepted.
+  - In `offerHelp`, **before** the offer insert, a pending invite for (beacon, helper) branches to `admitWithConfirmations(attention = authorInviteAccepted)`; no `helpOfferSubmitted` obligation is created; the invite becomes accepted.
   - The author accepts an ordinary offer from a pending invitee → the invite becomes superseded and is settled.
-- **Expiry: one place.** An `AFTER UPDATE OF status ON beacon` trigger fires when a `kind = 0` beacon leaves the open family `{0, 7, 8}`. In the same transaction it:
+- **Expiry: one place.** An `AFTER UPDATE OF status ON beacon` trigger fires when a `kind = 0` beacon goes **terminal**: `NEW.status IN (1, 2, 6) AND OLD.status NOT IN (1, 2, 6)`. In the same transaction it:
   - expires the beacon's pending invites;
-  - calls `contact_resolve_without_evidence` on their edges.
+  - calls `contact_resolve_without_evidence` on their edges;
+  - clears their `authorInviteReceived` receipts (`cleared_at`).
 
-  The use case settles the receipts lazily: the card is gone anyway, because the inbox tombstone moves `inbox_item` out of status 0.
+  **Review (status 5) does not expire invites**, because review can reopen (5→0/7/8 re-pins inbox rows, `m0213.dart:106-121`). Accept re-validates `isOpenFamily` and returns a typed error while the Request is in review.
 - **Block cleanup.** Pending invites between the pair become withdrawn.
 
 **Tests first:**
@@ -459,7 +467,10 @@ Also run the existing readable-ids consistency and perf tests.
 - decline → no evidence;
 - withdrawing a read edge leaves the edge, and the invite can no longer be accepted;
 - supersede, both directions;
-- expiry through each entry point (`closure_case.dart:150`, `closure_finalize_case.dart:101`, `beacon_case.dart:905` cancel, `beacon_case.dart:1048` delete, `user_erasure_case.dart:72`) → pending invites expired and no noisy evidence after the sweep (**I8**);
+- 0→5→7 keeps the invite pending; accept during review → a typed error;
+- expiry through each terminal entry point (`closure_case.dart:150`, `closure_finalize_case.dart:101`, `beacon_case.dart:905` cancel, `beacon_case.dart:1048` delete, `user_erasure_case.dart:72`) → pending invites expired, receipts cleared, and no noisy evidence after the sweep (**I8**);
+- a later invite that reuses an ordinary edge makes it exempt when warm;
+- supersede via `offerHelp` creates no author obligation;
 - after accept, Cancel and Delete are refused (`everAcknowledged`);
 - a later invite after a decline re-pins the inbox row.
 
@@ -480,12 +491,16 @@ Also run the existing readable-ids consistency and perf tests.
 
 **Files:** `closure_repository.dart` (`selectArrivalEdge` :785, `routingSource` :905, attribution :931), `closure_case.dart:860-886`, `closure_finalize_case.dart:238-261`, `forward_causal_graph_builder.dart` (root rule :42-49, inbound traversal :74), and the env knob.
 
-**Behaviour (Arch §7).** For a helper with an **accepted** invite:
+**Scope.** Only invites with `source_post_id IS NOT NULL`. E2 repair invites (NULL source) keep today's `selectArrivalEdge` and routing, so no existing credit is lost.
+
+**Input change.** `RoutingInput` today has one `authorId`, one edge list and one `seedOfferAt` per helper (`closure_finalize_case.dart:250-260`), and the builder accepts a root only when `senderId == authorId` (`forward_causal_graph_builder.dart:42-47`). Extend it with per-helper `extraSegments: [{edges, attributionByBatch, rootSenderId, cutoffAt}]`. The builder accepts a segment root when `senderId == rootSenderId`; the segment is settled inside the **same** `rho*B` budget (state this in a code comment and pin it with a test).
+
+**Behaviour (Arch §7).** For a helper with an **accepted** Post invite:
 - **Approval arrival** = `arrival_post_edge_id`.
 - **Closure causal input** for that helper:
-  - the Post segment: walk `parent_edge_id` from the arrival edge inside the Post, keeping edges created before the child's `published_at` and not cancelled before it, with attributions from the Post's batches. The segment's root sender is the **Post** author;
+  - one `extraSegment`: walk `parent_edge_id` from the arrival edge inside the Post, keeping edges created before the child's `published_at` (`cutoffAt`) and not cancelled before it, with attributions from the Post's batches; `rootSenderId` = the **Post** author;
   - the helper's child-side chain, as usual.
-- The delivery edge is a structural root that earns no credit.
+- The delivery edge is sent by the Request author, so it already earns nothing; no flag is needed.
 - **Superseded** invites (status 5) do not use the Post arrival: the helper arrived through an ordinary offer.
 - With the flag off, behaviour is today's.
 
@@ -495,6 +510,8 @@ Also run the existing readable-ids consistency and perf tests.
 - a cancelled Post edge is excluded;
 - C forwards the child onward to E and E helps → the chain via the delivery-edge root works, and the delivery edge earns nothing (**I9**);
 - the budder sits in the Post chain (non-author bud) → the budder earns nothing as the sender of the delivery;
+- the shared budget: a helper with a Post segment gets the same total as without one;
+- an E2 repair invitee keeps today's credit;
 - flag off → no cross-beacon credit.
 
 ### C8 — Constellation
@@ -507,13 +524,17 @@ Also run the existing readable-ids consistency and perf tests.
   - a periodic sweep in `task_worker_case.dart` (same pattern as the contact sweep at :228-237, throttle 10 s).
 
 **Behaviour:**
-- **`AnchorInheritOperation.inherit(child, post, viewer)`.** Insert-if-absent of a child anchor at the Post's anchor coordinates: offset by a fixed vector if the Post is open, the same position if it is closed. It uses the existing apply machinery in that viewer's scope with op id `bud:<child>:<viewer>`.
-- **Synchronous for the budder** inside C3 (same actor).
-- **The sweep** claims `beacon_child_commands` rows with `bud_result IS NOT NULL AND anchor_inherited_at IS NULL` (`FOR UPDATE SKIP LOCKED`). For each, it iterates viewers in `viewer_id` order who have a live Post anchor and can read the child, runs a per-viewer mutating unit for each, then sets `anchor_inherited_at`.
+- **`AnchorInheritOperation.inherit(child, post, viewer)`.** Insert-if-absent of a child anchor at the Post's anchor coordinates: offset by a fixed vector if the Post is open, the same position if it is closed. It calls the existing `applyBatch`, which runs its own viewer-scoped transaction through the constellation scheduler (`constellation_anchor_repository.dart:32-40`), with op id `bud:<child>:<viewer>`.
+- **Nothing runs inside the bud transaction.** A synchronous call would hold the global hierarchy lock while waiting on the scheduler (max 2 concurrent, 10 s queue deadline). The budder is handled by the sweep like every other viewer; C3 nudges the sweep after commit.
+- **The sweep, without a long-lived row lock** (a held claim transaction would make each per-viewer `applyBatch` nest under a different actor and throw, `tentura_db.dart:256-263, 295-297`):
+  1. select up to N rows with `bud_result IS NOT NULL AND result_state = 0 AND anchor_inherited_at IS NULL`, no lock (B1 partial index);
+  2. for each row, iterate viewers in `viewer_id` order who have a live Post anchor and can read the child (budder included), each in its **own** transaction; repeating is safe, because the op log replays `bud:<child>:<viewer>`;
+  3. a final short transaction sets `anchor_inherited_at` `WHERE anchor_inherited_at IS NULL`.
 
 **Tests first (pg):**
-- the budder's anchor exists right after the mutation;
-- another viewer's anchor appears after one sweep run;
+- after one sweep run, both the budder's and another viewer's anchors exist;
+- an already-promoted command row (`result_state = 2`) is never swept;
+- two concurrent sweep runs produce one anchor per viewer;
 - a viewer who already anchored the child keeps theirs;
 - a second sweep run is a no-op;
 - a non-reader gets nothing;
@@ -530,7 +551,8 @@ Also run the existing readable-ids consistency and perf tests.
 - bud ∥ block(budder, invitee);
 - bud ∥ the invitee leaves the Post;
 - bud ∥ Post close;
-- withdraw ∥ accept.
+- withdraw ∥ accept;
+- later invite ∥ bud from the same Post (N5).
 
 No deadlocks (with a statement timeout set). Invariants I1, I2 and I6 hold after each race.
 
@@ -557,10 +579,10 @@ No deadlocks (with a statement timeout set). Invariants I1, I2 and I6 hold after
 Invoke the `material-3-flutter` skill first.
 
 - **Entry points.**
-  - Room message action «Оформить запрос» on the user's own messages. `RoomCapabilities.post()` sets `childPromotion` with an `isOwnMessage` predicate. Use secondary-tap plus a visible action, never long-press alone.
+  - Room message action «Оформить запрос» on the user's own messages. `RoomCapabilities.post()` is a `const` constructor (`room_host.dart:37`), so add a bool flag `childPromotionOwnOnly`; the message tile evaluates `isOwnMessage`. Use secondary-tap plus a visible action, never long-press alone.
   - Post ⋯ menu entry: the author goes to the root; others go to a source picker listing their own eligible messages.
 - **`BeaconCreateScreen` in child mode with a Post parent.** Reuse `BeaconCreateRoute(parentBeaconId:, sourceMessageId:)`; the cubit detects a Post parent.
-  - Prefill via the generalised `PostConversionCase.prefill`, renamed to `MessagePrefillCase`: title = first line, description = the rest. No cover suggestion, because the pipeline takes no cover.
+  - Prefill via the generalised `PostConversionCase.prefill`, renamed to `MessagePrefillCase` (update both callers; the conversion flow still uses it until E1): title = first line, description = the rest. No cover suggestion, because the pipeline takes no cover.
   - The invite step uses `postBudInviteCandidates`:
     - writers first; ineligible members hidden; pretick applied; «через X» from `viaUserId`;
     - a warning above 5 ticked; a per-invitee note.
@@ -632,16 +654,18 @@ One unit for client and server together, so `main` never has a client calling a 
 **Scope.** Every open-family `kind = 0` beacon with an admitted non-author, non-steward participant who has no `acknowledged` commitment event. That covers converted Requests (kind-4 row) and historical `BeaconRoomAdmit` admits. Beacons in status 5 or terminal are **not modified** and are only listed in the report.
 
 **Classes:**
-- **Offer without an ack.** Keep the offer and revert room access to the ordinary pending state. The author obligation stays or is created.
+- **Offer without an ack.** Keep the offer and revert room access to the ordinary pending state. The author obligation is kept if present (a migration cannot create one).
 - **No own confirmation.**
-  - Remove room access and insert a pending `beacon_author_invite`: `inviter_id` = the beacon author, `source_post_id` NULL, `arrival_post_edge_id` NULL, `warm = true`, `forward_edge_id` = the person's latest active inbound edge on the beacon, or NULL.
-  - Upsert `inbox_item(user, beacon)` with status 0.
+  - Remove room access. For role-6 (addressee) rows **delete** the participant row; otherwise `inviteOfferUserToBeaconRoom` would keep role 6 on accept (`beacon_room_repository.dart:1287-1330`).
+  - Insert a pending `beacon_author_invite`: `inviter_id` = the beacon author, `source_post_id` NULL, `arrival_post_edge_id` NULL, `warm = true`.
+  - `forward_edge_id` = the person's latest active inbound edge on the beacon. **If none exists, insert one author → U with `contact_sweep_exempt = true`.** Without it the person cannot read the (non-discoverable) beacon, `eligiblePinned` (requires `beacon_can_read_content`, `attention_dismissible_sql.dart:73`) hides the invite forever, and the invite holds the `(beacon_id, invitee_id)` slot.
+  - The forward-insert trigger creates or updates the inbox row; set its `status = 0`.
   - **No notification**: a migration cannot dispatch attention. The «Для вас» pin is the only surface.
 - **Acknowledged at least once.** Untouched.
 
 Write a report (`RAISE NOTICE` with counts per class plus the list of skipped review/terminal beacons).
 
-**Tests first (pg):** fixtures for each class and for status 5 / closed. After the migration the I1 audit passes over all open-family `kind = 0` beacons.
+**Tests first (pg):** fixtures for each class and for status 5 / closed; a repaired invitee with no prior edge can read the beacon, sees the pinned row, and accepting yields role helper. After the migration the I1 audit passes over all open-family `kind = 0` beacons.
 
 The commit closes #284.
 
@@ -677,6 +701,7 @@ The commit closes #284.
 
 - rev 1 (2026-10-11): initial plan from architecture rev 2.
 - rev 2 (2026-10-11): second review applied (§9).
+- rev 3 (2026-10-11): third review applied (§10).
 
 ## 9. Second review — disposition
 
@@ -709,3 +734,27 @@ The reviewer was an independent Opus subagent, used as the fallback because Astr
 | 23 | minor | E1 must keep the forward-policy rule | E1 keeps it + test |
 | 24 | minor | C2 withdraw as settlement; C9 races | C2 settlements; C9 two more races |
 | 25 | minor | A3 doesn't need A2 | Dependency removed |
+
+## 10. Third review — disposition
+
+The reviewer was an independent Opus 5.5 subagent (read-only).
+
+| # | Sev | Finding | Disposition |
+|---|---|---|---|
+| 1 | blocker | C8 sweep held a row lock while running per-viewer mutating units (nested actor mismatch) | C8: unlocked select → per-viewer own transaction (op-log replay) → final marker transaction; B1 partial index |
+| 2 | major | Synchronous budder anchor waits on the constellation scheduler under the global hierarchy lock | Removed from C3; the sweep handles the budder; nudge after commit |
+| 3 | major | Expiry on 0→5 is wrong: review can reopen | C4 trigger on terminal `{1, 2, 6}` only; accept refused during review; tests |
+| 4 | major | The settlement port only handles `helpOfferSubmitted`; no owner for clearing receipts | C2 `clearAuthorInviteReceived`; callers enumerated; no duplicate card |
+| 5 | major | Root delete on a closed Post is blocked by the lifecycle guard; many guards already exist | C5 moves the Post-root branch above the guard; new guards only where missing |
+| 6 | major | The exempt filter on the outer alias starves the sweep | B5 filter inside subquery `f`; starvation test |
+| 7 | major | The already-promoted outcome has no bud result; the sweep could anchor someone else's child | C1 stores an alreadyPromoted `bud_result`; C8 filters `result_state = 0`; hash in `normalized_input_hash` |
+| 8 | major | `RoutingInput` can't express per-helper Post segments | C7 `extraSegments` with their own root sender and cutoff, shared budget; scoped to Post invites |
+| 9 | major | E2 invitees without an inbound edge can't read, see or accept | E2 inserts an exempt author → U edge; role-6 rows deleted; obligation "kept if present" |
+| 10 | major | A2 "idempotent" contradicts today's behaviour; steward accept | A2 not idempotent (C4 owns it); `confirmingAuthorId = actor`; steward test |
+| 11 | major | Later-invite edge reuse, warm flag, N5 race | C4 `findActiveEdge`, exempt when warm, Post lock, `ON CONFLICT DO NOTHING`; C9 race |
+| 12 | minor | C1 lock order unstated | `lockForPostMutation` after `lockMutationScope`, before `_lockCreateScope` |
+| 13 | minor | FKs on hard-deleted users; immutable column with an FK | B1 FK actions; `arrival_post_edge_id` without FK |
+| 14 | minor | B3/B4 details (cand join, author block, deletion extras) | Spelled out; parent-deletion extras are an accepted, tested gap |
+| 15 | minor | The architecture contradicts the plan in five places | Arch rev 2.2 |
+| 16 | minor | Supersede via `offerHelp`: attention unspecified | Branch before the offer insert; no obligation; test |
+| 17 | minor | `RoomCapabilities` is const; the prefill rename breaks conversion | A flag + tile check; update both callers |
