@@ -256,8 +256,8 @@ VALUES ('Bm0209ck00013', '$_author', 'Parent request', 'd', $_statusOpen, now())
         );
       });
 
-      test('a post is rejected in every status outside open, deleted and '
-          'draft', () async {
+      test('a post is rejected in every status outside open, deleted, '
+          'draft and closed', () async {
         const statuses = {1: 'cancelled', 5: 'review', 7: 'more', 8: 'enough'};
         for (final entry in statuses.entries) {
           await expectLater(
@@ -272,11 +272,9 @@ VALUES ('Bm0209ck00013', '$_author', 'Parent request', 'd', $_statusOpen, now())
         }
       });
 
-      test('a post in a closed status is rejected', () async {
-        await expectLater(
-          _insertPost(writer, 'Bm0209ck00006', status: _statusClosed),
-          _throwsCheckViolation,
-        );
+      // m0239 (post budding) admits the closed status 6 for Posts.
+      test('a post may be closed since m0239', () async {
+        await _insertPost(writer, 'Bm0209ck00006', status: _statusClosed);
       });
 
       test('a post may be open, draft or deleted', () async {
