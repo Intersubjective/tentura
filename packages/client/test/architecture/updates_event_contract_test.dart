@@ -51,6 +51,10 @@ const _runtimeAttentionEventTypes = <String>[
   'batonAsked',
   'batonTaken',
   'batonAllAnswered',
+  // Post→Request budding: author invitations.
+  'authorInviteReceived',
+  'authorInviteAccepted',
+  'authorInviteDeclined',
 ];
 
 const _classificationVariantKeys = {
@@ -86,6 +90,7 @@ const _headlineTreatments = {'beacon', 'user', 'system'};
 /// note-bearing forward variant must never coalesce.
 const _nonCoalescibleVariants = {
   ('relayReceived', 'reason:forwardRecipient'),
+  ('authorInviteReceived', 'reason:authorInvitee'),
 };
 
 const _bumpingOrderingEffects = {'promote_on_obligation', 'bump'};
@@ -106,6 +111,9 @@ const _pendingProducerEventTypes = <String>[
   'batonAsked',
   'batonTaken',
   'batonAllAnswered',
+  'authorInviteReceived',
+  'authorInviteAccepted',
+  'authorInviteDeclined',
 ];
 
 const _expectedEventTypes = <Map<String, String>>[
@@ -258,8 +266,7 @@ const _expectedEventTypes = <Map<String, String>>[
   },
   {
     'eventType': 'postFirstResponse',
-    'producer':
-        'BeaconRoomCase.createMessage|BeaconRoomCase.reactionToggle',
+    'producer': 'BeaconRoomCase.createMessage|BeaconRoomCase.reactionToggle',
     'recipientCategory': 'post_author',
     'destinationFamily': 'beacon_room_message',
     'muteability': 'standard',
@@ -295,6 +302,36 @@ const _expectedEventTypes = <Map<String, String>>[
     'muteability': 'standard',
     'coveringTest':
         'packages/server/test/domain/use_case/room_baton_case_pg_test.dart',
+  },
+  {
+    'eventType': 'authorInviteReceived',
+    'producer':
+        'none (no live producer yet; wired in C3/C4, see docs/plans/post-request-budding-implementation-plan.md)',
+    'recipientCategory': 'author_invitee',
+    'destinationFamily': 'beacon',
+    'muteability': 'standard',
+    'coveringTest':
+        'packages/server/test/domain/attention/author_invite_attention_policy_test.dart',
+  },
+  {
+    'eventType': 'authorInviteAccepted',
+    'producer':
+        'none (no live producer yet; wired in C3/C4, see docs/plans/post-request-budding-implementation-plan.md)',
+    'recipientCategory': 'author_inviter',
+    'destinationFamily': 'beacon_people_offer',
+    'muteability': 'standard',
+    'coveringTest':
+        'packages/server/test/domain/attention/author_invite_attention_policy_test.dart',
+  },
+  {
+    'eventType': 'authorInviteDeclined',
+    'producer':
+        'none (no live producer yet; wired in C3/C4, see docs/plans/post-request-budding-implementation-plan.md)',
+    'recipientCategory': 'author_inviter',
+    'destinationFamily': 'beacon_people_offer',
+    'muteability': 'standard',
+    'coveringTest':
+        'packages/server/test/domain/attention/author_invite_attention_policy_test.dart',
   },
 ];
 
@@ -369,7 +406,11 @@ void main() {
         )
         .map((entry) => entry['eventType'])
         .toSet();
-    expect(safeTerminalEvents, {'offerDeclined', 'offerRemoved', 'commitmentReleased'});
+    expect(safeTerminalEvents, {
+      'offerDeclined',
+      'offerRemoved',
+      'commitmentReleased',
+    });
     expect(
       _pendingProducerEventTypes,
       isNot(contains('inviteAccepted')),
@@ -384,14 +425,14 @@ void main() {
         .toList(growable: false);
 
     final byType = {
-      for (final entry in classifications)
-        entry['eventType']! as String: entry,
+      for (final entry in classifications) entry['eventType']! as String: entry,
     };
 
     expect(
       byType.keys.toSet(),
       _runtimeAttentionEventTypes.toSet(),
-      reason: 'each runtime enum value must have exactly one classification row',
+      reason:
+          'each runtime enum value must have exactly one classification row',
     );
 
     final unverifiedGaps = <String>[];

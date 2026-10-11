@@ -57,6 +57,9 @@ abstract final class AttentionEventTypeCatalog {
       case AttentionEventType.batonAsked:
       case AttentionEventType.batonTaken:
       case AttentionEventType.batonAllAnswered:
+      case AttentionEventType.authorInviteReceived:
+      case AttentionEventType.authorInviteAccepted:
+      case AttentionEventType.authorInviteDeclined:
         return;
     }
   }
@@ -111,6 +114,15 @@ enum AttentionEventType {
   batonAsked,
   batonTaken,
   batonAllAnswered,
+
+  /// Post→Request budding (Arch §5.6, plan C2). The author of a Request
+  /// budded from a Post asks a Post member to help; the invitee answers.
+  /// All three are optional updates (`requiresAction = false`). Only
+  /// [authorInviteReceived] may push; ending an invitation clears it through
+  /// `AttentionSystemSettlementPort.clearAuthorInviteReceived`.
+  authorInviteReceived,
+  authorInviteAccepted,
+  authorInviteDeclined,
 }
 
 extension AttentionEventTypeScope on AttentionEventType {
@@ -148,6 +160,12 @@ enum AttentionRecipientReason {
 
   /// The baton's author, told that everyone answered.
   batonAuthor,
+
+  /// A person the Request author invited to help (budding, plan C2).
+  authorInvitee,
+
+  /// The person who sent an author invitation, told the invitee's answer.
+  authorInviter,
 }
 
 extension AttentionRecipientReasonScope on AttentionRecipientReason {

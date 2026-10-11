@@ -189,7 +189,10 @@ void main() {
       );
 
       expect(projection.presentationPayload['excerpt'], '');
-      expect(projection.presentationPayload.containsKey('beaconTitle'), isFalse);
+      expect(
+        projection.presentationPayload.containsKey('beaconTitle'),
+        isFalse,
+      );
     });
 
     test('toStatus carries a real status name only', () {
@@ -284,28 +287,31 @@ void main() {
     },
   );
 
-  test('beaconTitle is included only when recipient can read beacon content', () {
-    final entitled = policy.project(
-      eventType: AttentionEventType.commitmentAccepted,
-      recipientId: 'recipient',
-      recipientReasons: const {AttentionRecipientReason.targetOfAsk},
-      role: _baseRole.copyWith(beaconTitle: 'Garden cleanup'),
-    );
-    final restricted = policy.project(
-      eventType: AttentionEventType.offerDeclined,
-      recipientId: 'removed-helper',
-      recipientReasons: const {
-        AttentionRecipientReason.affectedParticipant,
-      },
-      role: _baseRole.copyWith(
-        canReadBeaconContent: false,
-        beaconTitle: 'Garden cleanup',
-      ),
-    );
+  test(
+    'beaconTitle is included only when recipient can read beacon content',
+    () {
+      final entitled = policy.project(
+        eventType: AttentionEventType.commitmentAccepted,
+        recipientId: 'recipient',
+        recipientReasons: const {AttentionRecipientReason.targetOfAsk},
+        role: _baseRole.copyWith(beaconTitle: 'Garden cleanup'),
+      );
+      final restricted = policy.project(
+        eventType: AttentionEventType.offerDeclined,
+        recipientId: 'removed-helper',
+        recipientReasons: const {
+          AttentionRecipientReason.affectedParticipant,
+        },
+        role: _baseRole.copyWith(
+          canReadBeaconContent: false,
+          beaconTitle: 'Garden cleanup',
+        ),
+      );
 
-    expect(entitled.presentationPayload['beaconTitle'], 'Garden cleanup');
-    expect(restricted.presentationPayload, isNot(contains('beaconTitle')));
-  });
+      expect(entitled.presentationPayload['beaconTitle'], 'Garden cleanup');
+      expect(restricted.presentationPayload, isNot(contains('beaconTitle')));
+    },
+  );
 
   test('beacon-scoped attention requires a semantic relationship', () {
     expect(
@@ -367,7 +373,10 @@ _fixtureFor(String eventName) => switch (eventName) {
     reasons: const {AttentionRecipientReason.authorOfBeacon},
     role: _baseRole,
   ),
-  'offerAccepted' || 'offerDeclined' || 'offerRemoved' || 'commitmentReleased' => (
+  'offerAccepted' ||
+  'offerDeclined' ||
+  'offerRemoved' ||
+  'commitmentReleased' => (
     reasons: const {AttentionRecipientReason.affectedParticipant},
     role: _baseRole,
   ),
@@ -416,6 +425,14 @@ _fixtureFor(String eventName) => switch (eventName) {
   ),
   'batonAllAnswered' => (
     reasons: const {AttentionRecipientReason.batonAuthor},
+    role: _baseRole,
+  ),
+  'authorInviteReceived' => (
+    reasons: const {AttentionRecipientReason.authorInvitee},
+    role: _baseRole,
+  ),
+  'authorInviteAccepted' || 'authorInviteDeclined' => (
+    reasons: const {AttentionRecipientReason.authorInviter},
     role: _baseRole,
   ),
   _ => throw StateError('No policy fixture for $eventName'),

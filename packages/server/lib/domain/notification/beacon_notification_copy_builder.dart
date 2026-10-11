@@ -210,6 +210,22 @@ class BeaconNotificationCopyBuilder {
             ? 'Все ответили на ваше «Кто возьмётся?»'
             : "Everyone answered your «Who'll take it?»",
       ),
+      NotificationKind.authorInviteReceived => (
+        actor,
+        excerpt.isNotEmpty
+            ? excerpt
+            : ru
+            ? '$actor зовёт вас помочь'
+            : '$actor asks you to help',
+      ),
+      NotificationKind.authorInviteAccepted => (
+        actor,
+        ru ? '$actor принял(а) приглашение' : '$actor accepted your invitation',
+      ),
+      NotificationKind.authorInviteDeclined => (
+        actor,
+        ru ? '$actor не сможет помочь' : "$actor can't help",
+      ),
       NotificationKind.staleRemind => (
         'Still needs attention',
         _bodyWithRequest(
@@ -332,7 +348,10 @@ class BeaconNotificationCopyBuilder {
       NotificationKind.commitmentDeclined ||
       NotificationKind.commitmentRemoved ||
       NotificationKind.commitmentReleased => peopleUrl,
-      NotificationKind.newRelay => genericUrl,
+      NotificationKind.newRelay ||
+      NotificationKind.authorInviteReceived => genericUrl,
+      NotificationKind.authorInviteAccepted ||
+      NotificationKind.authorInviteDeclined => peopleUrl,
       NotificationKind.inviteAccepted => '/#/',
       NotificationKind.roomAccess ||
       NotificationKind.needsMe ||

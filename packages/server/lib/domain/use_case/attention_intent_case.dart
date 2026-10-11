@@ -460,6 +460,136 @@ class AttentionIntentCase {
     reason: AttentionRecipientReason.batonAuthor,
   );
 
+  /// Post→Request budding (Arch §5.6, plan C2): [inviterUserId] invites
+  /// [inviteeUserId] to help on the child Request [beaconId].
+  ///
+  /// An optional update in Activity, push allowed (like [relayReceived]).
+  /// Invitations to one Request share a collapse family, so a burst of them
+  /// is one notification. The invite note travels as the excerpt; the receipt
+  /// names the invite as its target entity.
+  Future<AttentionDispatchIntent> authorInviteReceived({
+    required String beaconId,
+    required String inviteId,
+    required String inviterUserId,
+    required String inviteeUserId,
+    required String sourceEventKey,
+    String note = '',
+  }) => _authorInvite(
+    eventType: AttentionEventType.authorInviteReceived,
+    kind: NotificationKind.authorInviteReceived,
+    beaconId: beaconId,
+    actorUserId: inviterUserId,
+    recipientId: inviteeUserId,
+    reason: AttentionRecipientReason.authorInvitee,
+    targetEntityId: inviteId,
+    sourceEventKey: sourceEventKey,
+    collapseKey: AttentionCollapseKey.family(
+      AttentionEventType.authorInviteReceived.name,
+      [beaconId],
+    ),
+    channelEligible: true,
+    excerpt: note,
+  );
+
+  /// The inviter hears that [inviteeUserId] accepted. In-app only.
+  Future<AttentionDispatchIntent> authorInviteAccepted({
+    required String beaconId,
+    required String inviterUserId,
+    required String inviteeUserId,
+    required String sourceEventKey,
+  }) => _authorInvite(
+    eventType: AttentionEventType.authorInviteAccepted,
+    kind: NotificationKind.authorInviteAccepted,
+    beaconId: beaconId,
+    actorUserId: inviteeUserId,
+    recipientId: inviterUserId,
+    reason: AttentionRecipientReason.authorInviter,
+    targetEntityId: inviteeUserId,
+    sourceEventKey: sourceEventKey,
+    collapseKey: AttentionCollapseKey.none(sourceEventKey),
+    channelEligible: false,
+  );
+
+  /// The inviter hears that [inviteeUserId] declined. In-app only.
+  Future<AttentionDispatchIntent> authorInviteDeclined({
+    required String beaconId,
+    required String inviterUserId,
+    required String inviteeUserId,
+    required String sourceEventKey,
+  }) => _authorInvite(
+    eventType: AttentionEventType.authorInviteDeclined,
+    kind: NotificationKind.authorInviteDeclined,
+    beaconId: beaconId,
+    actorUserId: inviteeUserId,
+    recipientId: inviterUserId,
+    reason: AttentionRecipientReason.authorInviter,
+    targetEntityId: inviteeUserId,
+    sourceEventKey: sourceEventKey,
+    collapseKey: AttentionCollapseKey.none(sourceEventKey),
+    channelEligible: false,
+  );
+
+  Future<AttentionDispatchIntent> _authorInvite({
+    required AttentionEventType eventType,
+    required NotificationKind kind,
+    required String beaconId,
+    required String actorUserId,
+    required String recipientId,
+    required AttentionRecipientReason reason,
+    required String targetEntityId,
+    required String sourceEventKey,
+    required String collapseKey,
+    required bool channelEligible,
+    String excerpt = '',
+  }) async {
+    final blocked =
+        recipientId.isEmpty ||
+        recipientId == actorUserId ||
+        await _userBlocks.isBlockedPair(a: actorUserId, b: recipientId);
+    final actor = await _users.getById(actorUserId);
+    final copy = _copyBuilder.build(
+      intent: BeaconNotificationIntent(
+        kind: kind,
+        priority: NotificationPriority.normal,
+        beaconId: beaconId,
+        actorUserId: actorUserId,
+        bodyExcerpt: notificationExcerpt(excerpt),
+      ),
+      actorDisplayName: actor.displayName,
+    );
+    return AttentionDispatchIntent(
+      eventType: eventType,
+      sourceEventKey: sourceEventKey,
+      actorUserId: actorUserId,
+      priority: NotificationPriority.normal,
+      kind: kind,
+      title: copy.title,
+      body: copy.body,
+      actionUrl: copy.actionUrl,
+      collapseKey: collapseKey,
+      recipients: [
+        if (!blocked)
+          AttentionRecipientSnapshot(
+            recipientId: recipientId,
+            reasons: {reason},
+            role: AttentionRecipientRoleFacts(
+              canReadBeaconContent: await _accessGuard.canReadContent(
+                beaconId: beaconId,
+                viewerId: recipientId,
+              ),
+              beaconId: beaconId,
+              targetEntityId: targetEntityId,
+              actorUserId: actorUserId,
+              excerpt: copy.excerpt.isEmpty ? null : copy.excerpt,
+            ),
+            channelEligible: channelEligible,
+          ),
+      ],
+      beaconId: beaconId,
+      targetEntityId: targetEntityId,
+    );
+  }
+
   /// Personal `@handle` mention — same Updates event as [roomMessagePosted],
   /// but [NotificationKind.roomMention] (coordination) for push/email.
   Future<AttentionDispatchIntent> roomMentioned({

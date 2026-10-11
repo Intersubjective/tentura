@@ -1,4 +1,5 @@
-/// System-driven settlement for help-offer obligations (not user dismiss/resolve).
+/// System-driven settlement of attention (not user dismiss/resolve): help-offer
+/// obligations, and the optional author-invite update once it is answered.
 abstract class AttentionSystemSettlementPort {
   /// After the author (or steward) admits or declines a help offer: settle that
   /// author's `helpOfferSubmitted` obligation and mark the matching receipt seen.
@@ -23,4 +24,14 @@ abstract class AttentionSystemSettlementPort {
   /// beacon ends as `superseded`. The author closed the Request, so no offer on
   /// it can still be answered.
   Future<int> supersedeAuthorHelpOfferObligationsOnBeaconClose(String beaconId);
+
+  /// Post→Request budding (plan C2): an author invitation ended — accepted,
+  /// declined, withdrawn, superseded, expired or removed by a block — so the
+  /// invitee's `authorInviteReceived` receipts on [beaconId] stop asking for
+  /// attention: `cleared_at` and `seen_at` are set. Not a visible event.
+  /// Returns the number of receipts cleared; repeating it is a no-op.
+  Future<int> clearAuthorInviteReceived({
+    required String beaconId,
+    required String inviteeId,
+  });
 }

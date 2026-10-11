@@ -32,4 +32,9 @@ enum NotificationKind {
   batonAsked,
   batonTaken,
   batonAllAnswered,
+
+  /// Post→Request budding (plan C2): an author invitation and its answers.
+  authorInviteReceived,
+  authorInviteAccepted,
+  authorInviteDeclined,
 }

@@ -93,8 +93,7 @@ class AttentionPolicy {
           : AttentionSuppressionClass.noisy,
     AttentionEventType.coordinationChanged => AttentionSuppressionClass.noisy,
     AttentionEventType.deadlineChanged ||
-    AttentionEventType.obligationEnded =>
-      AttentionSuppressionClass.standard,
+    AttentionEventType.obligationEnded => AttentionSuppressionClass.standard,
     AttentionEventType.deadlineReminder => AttentionSuppressionClass.mandatory,
     AttentionEventType.closureDraftReminder ||
     AttentionEventType.requestStale ||
@@ -114,7 +113,10 @@ class AttentionPolicy {
     AttentionEventType.commitmentCancelled ||
     AttentionEventType.batonAsked ||
     AttentionEventType.batonTaken ||
-    AttentionEventType.batonAllAnswered =>
+    AttentionEventType.batonAllAnswered ||
+    AttentionEventType.authorInviteReceived ||
+    AttentionEventType.authorInviteAccepted ||
+    AttentionEventType.authorInviteDeclined =>
       AttentionSuppressionClass.standard,
     AttentionEventType.commitmentRedirected =>
       AttentionSuppressionClass.mandatory,
@@ -157,7 +159,11 @@ class AttentionPolicy {
     AttentionEventType.commitmentCancelled ||
     AttentionEventType.batonAsked ||
     AttentionEventType.batonTaken ||
-    AttentionEventType.batonAllAnswered => NotificationCategory.coordination,
+    AttentionEventType.batonAllAnswered ||
+    AttentionEventType.authorInviteReceived ||
+    AttentionEventType.authorInviteAccepted ||
+    AttentionEventType.authorInviteDeclined =>
+      NotificationCategory.coordination,
     AttentionEventType.deadlineChanged => NotificationCategory.coordination,
     AttentionEventType.deadlineReminder ||
     AttentionEventType.closureOpened ||
@@ -200,7 +206,10 @@ class AttentionPolicy {
     AttentionEventType.commitmentRedirected ||
     AttentionEventType.batonAsked ||
     AttentionEventType.batonTaken ||
-    AttentionEventType.batonAllAnswered =>
+    AttentionEventType.batonAllAnswered ||
+    AttentionEventType.authorInviteReceived ||
+    AttentionEventType.authorInviteAccepted ||
+    AttentionEventType.authorInviteDeclined =>
       AttentionAccessPolicy.beaconContent,
     AttentionEventType.deadlineChanged ||
     AttentionEventType.deadlineReminder ||
@@ -227,14 +236,17 @@ class AttentionPolicy {
     }
     return switch (eventType) {
       AttentionEventType.relayReceived ||
-      AttentionEventType.requestStatusChanged => AttentionDestination(
+      AttentionEventType.requestStatusChanged ||
+      AttentionEventType.authorInviteReceived => AttentionDestination(
         kind: AttentionDestinationKind.beacon,
         targetEntityId: role.beaconId,
       ),
       AttentionEventType.helpOfferSubmitted ||
       AttentionEventType.offerDeclined ||
       AttentionEventType.offerRemoved ||
-      AttentionEventType.commitmentReleased => AttentionDestination(
+      AttentionEventType.commitmentReleased ||
+      AttentionEventType.authorInviteAccepted ||
+      AttentionEventType.authorInviteDeclined => AttentionDestination(
         kind: AttentionDestinationKind.beaconPeopleOffer,
         targetEntityId: role.targetEntityId,
       ),
@@ -339,6 +351,9 @@ class AttentionPolicy {
     AttentionEventType.batonAsked => false,
     AttentionEventType.batonTaken => false,
     AttentionEventType.batonAllAnswered => false,
+    AttentionEventType.authorInviteReceived => false,
+    AttentionEventType.authorInviteAccepted => false,
+    AttentionEventType.authorInviteDeclined => false,
   };
 
   /// U11 / D16 — the placement of a receipt, decided by the producer.
@@ -584,6 +599,9 @@ class AttentionPolicy {
     AttentionEventType.batonAsked => 'baton_asked',
     AttentionEventType.batonTaken => 'baton_taken',
     AttentionEventType.batonAllAnswered => 'baton_all_answered',
+    AttentionEventType.authorInviteReceived => 'author_invite_received',
+    AttentionEventType.authorInviteAccepted => 'author_invite_accepted',
+    AttentionEventType.authorInviteDeclined => 'author_invite_declined',
   };
 
   Map<String, Object?> _presentationPayload(

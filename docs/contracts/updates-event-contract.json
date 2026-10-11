@@ -4,7 +4,10 @@
     "obligationEnded",
     "batonAsked",
     "batonTaken",
-    "batonAllAnswered"
+    "batonAllAnswered",
+    "authorInviteReceived",
+    "authorInviteAccepted",
+    "authorInviteDeclined"
   ],
   "eventTypes": [
     {
@@ -166,6 +169,30 @@
       "destinationFamily": "beacon_room_message",
       "muteability": "standard",
       "coveringTest": "packages/server/test/domain/use_case/room_baton_case_pg_test.dart"
+    },
+    {
+      "eventType": "authorInviteReceived",
+      "producer": "none (no live producer yet; wired in C3/C4, see docs/plans/post-request-budding-implementation-plan.md)",
+      "recipientCategory": "author_invitee",
+      "destinationFamily": "beacon",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/attention/author_invite_attention_policy_test.dart"
+    },
+    {
+      "eventType": "authorInviteAccepted",
+      "producer": "none (no live producer yet; wired in C3/C4, see docs/plans/post-request-budding-implementation-plan.md)",
+      "recipientCategory": "author_inviter",
+      "destinationFamily": "beacon_people_offer",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/attention/author_invite_attention_policy_test.dart"
+    },
+    {
+      "eventType": "authorInviteDeclined",
+      "producer": "none (no live producer yet; wired in C3/C4, see docs/plans/post-request-budding-implementation-plan.md)",
+      "recipientCategory": "author_inviter",
+      "destinationFamily": "beacon_people_offer",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/attention/author_invite_attention_policy_test.dart"
     }
   ],
   "producers": [
@@ -1529,6 +1556,78 @@
           "personal": false,
           "stateLike": false,
           "ownDutyReminder": false
+        }
+      ]
+    },
+    {
+      "eventType": "authorInviteReceived",
+      "status": "supported",
+      "variants": [
+        {
+          "recipientPredicate": "reason:authorInvitee",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "beacon_content",
+          "recoverableVia": "request_timeline",
+          "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "beacon",
+          "coalescible": false,
+          "producerTests": [
+            "packages/server/test/domain/attention/author_invite_attention_policy_test.dart"
+          ],
+          "transitionTests": []
+        }
+      ]
+    },
+    {
+      "eventType": "authorInviteAccepted",
+      "status": "supported",
+      "variants": [
+        {
+          "recipientPredicate": "reason:authorInviter",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "beacon_content",
+          "recoverableVia": "people",
+          "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "beacon",
+          "coalescible": true,
+          "producerTests": [
+            "packages/server/test/domain/attention/author_invite_attention_policy_test.dart"
+          ],
+          "transitionTests": []
+        }
+      ]
+    },
+    {
+      "eventType": "authorInviteDeclined",
+      "status": "supported",
+      "variants": [
+        {
+          "recipientPredicate": "reason:authorInviter",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "beacon_content",
+          "recoverableVia": "people",
+          "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "beacon",
+          "coalescible": true,
+          "producerTests": [
+            "packages/server/test/domain/attention/author_invite_attention_policy_test.dart"
+          ],
+          "transitionTests": []
         }
       ]
     }
