@@ -29,7 +29,7 @@ dependencies:
   minio: ^3.5.8
   crypto: ^3.0.7
   migrant: ^0.3.0
-  postgres: ^3.5.12
+  postgres: ^3.5.20
   shelf_plus: ^1.11.0
   pg_job_queue: ^0.0.2
   blurhash_dart: ^1.2.1

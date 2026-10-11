@@ -182,6 +182,7 @@ class TenturaDb extends _$TenturaDb {
 
   TenturaDb._session(_PinnedPoolSession? session, Pool<dynamic> pool, Env env)
     : _pinnedSession = session,
+      _pool = pool,
       super(
         session == null
             ? _TransactionPinnedPgDatabase(
@@ -197,9 +198,15 @@ class TenturaDb extends _$TenturaDb {
 
   TenturaDb.forTest({required QueryExecutor database})
     : _pinnedSession = null,
+      _pool = null,
       super(database);
 
   final _PinnedPoolSession? _pinnedSession;
+
+  /// Owned here: neither `PgDatabase.opened` nor the spike executor closes the
+  /// session it was given, so without this the pool's connections outlive the
+  /// database.
+  final Pool<dynamic>? _pool;
 
   @override
   Future<T> transaction<T>(
@@ -354,8 +361,17 @@ class TenturaDb extends _$TenturaDb {
     );
   }
 
+  @override
+  Future<void> close() async {
+    try {
+      await super.close();
+    } finally {
+      await _pool?.close();
+    }
+  }
+
   @disposeMethod
-  Future<void> dispose() => super.close();
+  Future<void> dispose() => close();
 }
 
 final class _MutatingTransactionContext {

@@ -3,6 +3,7 @@ library;
 
 import 'dart:async';
 
+import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/data/database/tentura_db.dart';
@@ -64,4 +65,33 @@ Future<void> main() async {
     },
     timeout: const Timeout(Duration(minutes: 2)),
   );
+
+  test('close releases every pool connection', () async {
+    final db = TenturaDb(target.databaseEnv);
+    await db.customSelect('SELECT 1').get();
+    await db.transaction(() => db.customSelect('SELECT 1').get());
+    final observer = await Connection.open(
+      target.databaseEnv.pgEndpoint,
+      settings: target.databaseEnv.pgEndpointSettings,
+    );
+    addTearDown(observer.close);
+    Future<int> backends() async {
+      final rows = await observer.execute(
+        Sql.named(
+          'SELECT count(*)::int FROM pg_stat_activity '
+          'WHERE datname = @db AND pid <> pg_backend_pid()',
+        ),
+        parameters: {'db': target.databaseName},
+      );
+      return rows.single.single! as int;
+    }
+
+    final before = await backends();
+    await db.close();
+    expect(
+      await backends(),
+      lessThan(before),
+      reason: 'the closed database must not keep its pool connections',
+    );
+  });
 }

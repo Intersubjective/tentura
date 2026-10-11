@@ -76,6 +76,7 @@ Future<void> main() async {
       String kind, {
       String? aggregateId,
       int minCount = 1,
+      String? actorUserId,
     }) async {
       final deadline = DateTime.now().add(const Duration(seconds: 3));
       while (DateTime.now().isBefore(deadline)) {
@@ -84,7 +85,12 @@ Future<void> main() async {
           if (aggregateId != null && message['id'] != aggregateId) return false;
           return true;
         }).toList();
-        if (matches.length >= minCount) return matches;
+        // Earlier writes (the seed) may notify the same aggregate first; when
+        // an actor is expected, wait for its own notification too.
+        final hasActor =
+            actorUserId == null ||
+            matches.any((message) => message['actor_user_id'] == actorUserId);
+        if (matches.length >= minCount && hasActor) return matches;
         await settle();
       }
       fail('Timed out waiting for $kind notifications');
@@ -120,6 +126,7 @@ Future<void> main() async {
       final changes = await waitForKind(
         'beacon_hierarchy',
         aggregateId: BeaconHierarchyTopology.beaconA,
+        actorUserId: actor,
       );
       expect(changes, isNotEmpty);
       for (final payload in changes) {
