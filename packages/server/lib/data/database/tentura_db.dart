@@ -440,17 +440,39 @@ final class _PinnedPoolSession implements Session {
     bool ignoreRows = false,
     QueryMode? queryMode,
     Duration? timeout,
-  }) async {
-    final session = await _session();
-    if (session is! Pool) {
-      return session.execute(
-        query,
-        parameters: parameters,
-        ignoreRows: ignoreRows,
-        queryMode: queryMode,
-        timeout: timeout,
+  }) {
+    // The pin check and the pool request must happen in one synchronous step.
+    // An await between them lets a transaction pin the only connection, and
+    // this statement, holding Drift's executor lock that the transaction
+    // waits for, then waits on the pool until its connect timeout
+    // (TENTURA-SERVER-V/W).
+    if (_pins > 0) {
+      return _session().then(
+        (session) => session.execute(
+          query,
+          parameters: parameters,
+          ignoreRows: ignoreRows,
+          queryMode: queryMode,
+          timeout: timeout,
+        ),
       );
     }
+    return _executeOnPool(
+      query,
+      parameters: parameters,
+      ignoreRows: ignoreRows,
+      queryMode: queryMode,
+      timeout: timeout,
+    );
+  }
+
+  Future<Result> _executeOnPool(
+    Object query, {
+    required Object? parameters,
+    required bool ignoreRows,
+    required QueryMode? queryMode,
+    required Duration? timeout,
+  }) async {
     // Pool.execute disposes its connection whenever the statement throws. A
     // statement cancelled by statement_timeout (57014) leaves the connection
     // healthy, so report server errors out of the callback and rethrow them
