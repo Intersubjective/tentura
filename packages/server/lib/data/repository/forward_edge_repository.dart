@@ -516,6 +516,7 @@ FROM (
   SELECT f.id FROM public.beacon_forward_edge f
   WHERE f.contact_resolved_at IS NULL
     AND f.contact_deadline_at <= now()
+    AND NOT f.contact_sweep_exempt
     AND NOT EXISTS (
       SELECT 1 FROM public.inbox_item i
       WHERE i.user_id = f.recipient_id AND i.beacon_id = f.beacon_id

@@ -116,7 +116,8 @@ abstract class ForwardEdgeRepositoryPort {
 
   /// Claims (`FOR UPDATE SKIP LOCKED`) up to [limit] tracked contacts whose
   /// deadline has passed and resolves them as ignored (`contact_outcome` 3).
-  /// Watching recipients stay neutral and are not claimed. Runs inside the
+  /// Watching recipients stay neutral and are not claimed, and neither are
+  /// `contact_sweep_exempt` edges (warm bud invites). Runs inside the
   /// caller's transaction.
   Future<List<IgnoredContact>> claimIgnoredContacts({int limit = 200});
 }
