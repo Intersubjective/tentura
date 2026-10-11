@@ -249,6 +249,10 @@ final class ClosureFinalizeCase extends UseCaseBase
           m.userId: source.offerAt[m.userId]!,
     };
     if (seedOfferAt.isEmpty) return const [];
+    // Budding C7 (Arch §7): Post invitees credit their recorded Post chain,
+    // and the invite delivery edges earn nothing. The kill switch restores
+    // the Request-only routing.
+    final budCredit = env.trustBudRouteCreditEnabled;
     return ForwardRoutingSettlement().settle(
       RoutingInput(
         beaconId: beaconId,
@@ -258,6 +262,8 @@ final class ClosureFinalizeCase extends UseCaseBase
         edges: source.edges,
         attributionByBatch: source.attributionByBatch,
         budget: _params.rho * _params.B,
+        extraSegments: budCredit ? source.budSegments : const {},
+        deliveryEdgeIds: budCredit ? source.budDeliveryEdgeIds : const {},
       ),
     );
   }

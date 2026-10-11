@@ -17,7 +17,7 @@ class AuthorInviteRepository implements AuthorInvitePort {
 
   static const _columns =
       'id, beacon_id, inviter_id, invitee_id, source_post_id, '
-      'forward_edge_id, warm, note, status';
+      'forward_edge_id, arrival_post_edge_id, warm, note, status';
 
   @override
   Future<AuthorInvite?> fetchById(String inviteId) => _one(
@@ -195,6 +195,7 @@ class AuthorInviteRepository implements AuthorInvitePort {
     inviteeId: r.read<String>('invitee_id'),
     sourcePostId: r.readNullable<String>('source_post_id'),
     forwardEdgeId: r.readNullable<String>('forward_edge_id'),
+    arrivalPostEdgeId: r.readNullable<String>('arrival_post_edge_id'),
     warm: r.read<bool>('warm'),
     note: r.readNullable<String>('note'),
     status: AuthorInviteStatus.fromCode(r.read<int>('status')),

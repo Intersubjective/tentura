@@ -1,6 +1,7 @@
 import 'package:tentura_server/domain/closure/closure_band.dart';
 import 'package:tentura_server/domain/closure/closure_outcome.dart';
 import 'package:tentura_server/domain/closure/membership_reducer.dart';
+import 'package:tentura_server/domain/trust/forward/forward_causal_graph_builder.dart';
 import 'package:tentura_server/domain/trust/forward/forward_provenance.dart';
 
 /// A11 closure persistence entities (Arch §5.4) — plain immutable row
@@ -207,6 +208,8 @@ final class ClosureRoutingSource {
     required this.edges,
     required this.attributionByBatch,
     required this.offerAt,
+    this.budSegments = const {},
+    this.budDeliveryEdgeIds = const {},
   });
 
   final List<ForwardProvenanceEdge> edges;
@@ -214,4 +217,12 @@ final class ClosureRoutingSource {
 
   /// Help-offer `created_at` by user.
   final Map<String, DateTime> offerAt;
+
+  /// Budding C7 (Arch §7): invitee → the Post chain walked up from their
+  /// accepted invite's `arrival_post_edge_id`. Only accepted invites with a
+  /// `source_post_id`; repair invites have none.
+  final Map<String, List<ForwardRoutingSegment>> budSegments;
+
+  /// The delivery edges of those accepted Post invites.
+  final Set<String> budDeliveryEdgeIds;
 }

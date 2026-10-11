@@ -4,10 +4,17 @@ import 'forward_provenance.dart';
 typedef ForwardPair = (String sender, String recipient);
 
 /// Backward terminal-mass propagation through an eligible DAG.
+///
+/// Mass splits across every inbound edge only at the committer; upstream of
+/// it, mass stays inside the segment of the edge it arrived on
+/// ([EligibleForwardDag.segmentOf]). Edges in `silentEdgeIds` carry mass
+/// upstream but record none for their own pair (budding C7: an invite's
+/// delivery edge is structural and earns nothing).
 final class ForwardMassPropagator {
   Map<ForwardPair, double> propagate({
     required EligibleForwardDag dag,
     required Map<String, List<ForwardAttributionInput>> attributionsByBatchId,
+    Set<String> silentEdgeIds = const {},
   }) {
     final edges = dag.edges;
     final inbound = <String, List<ForwardProvenanceEdge>>{};
@@ -21,8 +28,12 @@ final class ForwardMassPropagator {
       required String recipient,
       required double mass,
       String? downstreamBatchId,
+      int? segment,
     }) {
-      final incoming = inbound[recipient];
+      final all = inbound[recipient];
+      final incoming = segment == null
+          ? all
+          : all?.where((e) => dag.segmentOf(e.id) == segment).toList();
       if (incoming == null || incoming.isEmpty) return;
 
       final weights = recipient == dag.committerId
@@ -37,12 +48,15 @@ final class ForwardMassPropagator {
         final w = weights[e.id] ?? 0;
         if (w <= 0) continue;
         final edgeMass = mass * w;
-        final key = (e.senderId, e.recipientId);
-        raw[key] = (raw[key] ?? 0) + edgeMass;
+        if (!silentEdgeIds.contains(e.id)) {
+          final key = (e.senderId, e.recipientId);
+          raw[key] = (raw[key] ?? 0) + edgeMass;
+        }
         distribute(
           recipient: e.senderId,
           mass: edgeMass,
           downstreamBatchId: e.batchId,
+          segment: dag.segmentOf(e.id),
         );
       }
     }
@@ -87,8 +101,7 @@ final class ForwardMassPropagator {
           final sum = weights.values.fold<double>(0, (a, b) => a + b);
           if (sum > 0) {
             return {
-              for (final e in incoming)
-                e.id: (weights[e.id] ?? 0) / sum,
+              for (final e in incoming) e.id: (weights[e.id] ?? 0) / sum,
             };
           }
         }

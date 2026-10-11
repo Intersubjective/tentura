@@ -88,8 +88,7 @@ final class HelpOfferCase extends UseCaseBase {
     if (helpTypes != null) {
       if (helpTypes.length > kMaxHelpOfferHelpTypes) {
         throw HelpOfferCoordinationException(
-          coordinationCode:
-              HelpOfferCoordinationExceptionCode.invalidHelpType,
+          coordinationCode: HelpOfferCoordinationExceptionCode.invalidHelpType,
         );
       }
       for (final type in helpTypes) {
@@ -146,8 +145,9 @@ final class HelpOfferCase extends UseCaseBase {
             );
 
             if (hasActive) {
-              final existingOffers =
-                  await _helpOfferRepository.fetchByBeaconId(beaconId);
+              final existingOffers = await _helpOfferRepository.fetchByBeaconId(
+                beaconId,
+              );
               final existingOfferKind = existingOffers
                   .firstWhere((o) => o.userId == userId)
                   .offerKind;
@@ -249,6 +249,7 @@ final class HelpOfferCase extends UseCaseBase {
       confirmingAuthorId: invite.inviterId,
       actorId: invite.inviteeId,
       transaction: transaction,
+      invite: invite,
       attention: () => _attentionIntents!.authorInviteAccepted(
         beaconId: beacon.id,
         inviterUserId: invite.inviterId,

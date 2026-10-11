@@ -12,6 +12,7 @@ import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
 import 'package:tentura_server/domain/capability/capability_evidence_models.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 import 'package:tentura_server/domain/port/closure_repository_port.dart';
+import 'package:tentura_server/domain/trust/forward/forward_causal_graph_builder.dart';
 import 'package:tentura_server/domain/trust/forward/forward_provenance.dart';
 import 'package:tentura_server/domain/trust/ledger_evidence.dart';
 import 'package:tentura_server/domain/trust/trust_evidence_kind.dart';
@@ -140,16 +141,21 @@ WHERE beacon_id = $1 AND status = 0
     required List<String> helperIds,
     required String title,
   }) => _database.transaction(() async {
-    final beaconId = (await _database
-        .customSelect(
-          r'''
+    final beaconId =
+        (await _database
+                .customSelect(
+                  r'''
 INSERT INTO public.beacon (user_id, title, description, status, published_at)
 VALUES ($1, $2, '', 0, now())
 RETURNING id
 ''',
-          variables: [Variable<String>(authorId), Variable<String>(title)],
-        )
-        .getSingle()).read<String>('id');
+                  variables: [
+                    Variable<String>(authorId),
+                    Variable<String>(title),
+                  ],
+                )
+                .getSingle())
+            .read<String>('id');
     for (final helperId in helperIds) {
       await _database.customInsert(
         r'''
@@ -828,6 +834,33 @@ LIMIT 1
       .getSingleOrNull();
 
   @override
+  Future<ForwardEdgeEntity?> selectEdgeById(String edgeId) => _database
+      .customSelect(
+        r'''
+SELECT
+  id,
+  beacon_id,
+  sender_id,
+  recipient_id,
+  note,
+  context,
+  parent_edge_id,
+  batch_id,
+  recipient_rejected,
+  recipient_rejection_message,
+  created_at::text AS created_at,
+  cancelled_at::text AS cancelled_at,
+  recipient_read_at::text AS recipient_read_at
+FROM public.beacon_forward_edge
+WHERE id = $1
+''',
+        variables: [Variable<String>(edgeId)],
+        readsFrom: {_database.beaconForwardEdges},
+      )
+      .map(_mapEdge)
+      .getSingleOrNull();
+
+  @override
   Future<void> recordApprovalEdge({
     required String beaconId,
     required String helperId,
@@ -962,6 +995,7 @@ WHERE beacon_id = $1
           variables: [Variable<String>(beaconId)],
         )
         .get();
+    final bud = await _budRouting(beaconId);
     return ClosureRoutingSource(
       edges: edges,
       attributionByBatch: byBatch,
@@ -971,7 +1005,160 @@ WHERE beacon_id = $1
             row.read<String>('created_at'),
           ).toUtc(),
       },
+      budSegments: bud.segments,
+      budDeliveryEdgeIds: bud.deliveryEdgeIds,
     );
+  }
+
+  /// Budding C7 (Arch §7): for each accepted invite with a source Post, the
+  /// Post chain walked up `parent_edge_id` from its `arrival_post_edge_id`
+  /// (one invite per invitee, the latest accepted), rooted at the Post author
+  /// and cut at the child's `published_at`; plus the invites' delivery edges.
+  Future<
+    ({
+      Map<String, List<ForwardRoutingSegment>> segments,
+      Set<String> deliveryEdgeIds,
+    })
+  >
+  _budRouting(String beaconId) async {
+    final invites = await _database
+        .customSelect(
+          r'''
+SELECT forward_edge_id
+FROM public.beacon_author_invite
+WHERE beacon_id = $1 AND status = 1 AND source_post_id IS NOT NULL
+  AND forward_edge_id IS NOT NULL
+''',
+          variables: [Variable<String>(beaconId)],
+        )
+        .get();
+    final deliveryEdgeIds = {
+      for (final row in invites) row.read<String>('forward_edge_id'),
+    };
+    final rows = await _database
+        .customSelect(
+          r'''
+WITH RECURSIVE inv AS (
+  SELECT DISTINCT ON (i.invitee_id)
+    i.invitee_id, i.source_post_id, i.arrival_post_edge_id,
+    post.user_id AS root_sender_id, child.published_at AS cutoff_at
+  FROM public.beacon_author_invite i
+  JOIN public.beacon child ON child.id = i.beacon_id
+  JOIN public.beacon post ON post.id = i.source_post_id
+  WHERE i.beacon_id = $1 AND i.status = 1
+    AND i.arrival_post_edge_id IS NOT NULL
+    AND child.published_at IS NOT NULL
+  ORDER BY i.invitee_id, i.resolved_at DESC NULLS LAST, i.id DESC
+), chain AS (
+  SELECT inv.invitee_id, e.id, e.beacon_id, e.sender_id, e.recipient_id,
+    e.parent_edge_id, e.batch_id, e.created_at, e.cancelled_at
+  FROM inv
+  JOIN public.beacon_forward_edge e
+    ON e.id = inv.arrival_post_edge_id AND e.beacon_id = inv.source_post_id
+  UNION
+  SELECT chain.invitee_id, e.id, e.beacon_id, e.sender_id, e.recipient_id,
+    e.parent_edge_id, e.batch_id, e.created_at, e.cancelled_at
+  FROM chain
+  JOIN public.beacon_forward_edge e
+    ON e.id = chain.parent_edge_id AND e.beacon_id = chain.beacon_id
+)
+SELECT inv.invitee_id, inv.root_sender_id,
+  inv.cutoff_at::text AS cutoff_at,
+  chain.id, chain.sender_id, chain.recipient_id, chain.parent_edge_id,
+  chain.batch_id, chain.created_at::text AS created_at,
+  chain.cancelled_at::text AS cancelled_at
+FROM chain
+JOIN inv USING (invitee_id)
+ORDER BY inv.invitee_id, chain.created_at, chain.id
+''',
+          variables: [Variable<String>(beaconId)],
+        )
+        .get();
+    if (rows.isEmpty) {
+      return (
+        segments: const <String, List<ForwardRoutingSegment>>{},
+        deliveryEdgeIds: deliveryEdgeIds,
+      );
+    }
+    final edgesByInvitee = <String, List<ForwardProvenanceEdge>>{};
+    final rootByInvitee = <String, String>{};
+    final cutoffByInvitee = <String, DateTime>{};
+    final batchIds = <String>{};
+    for (final row in rows) {
+      final invitee = row.read<String>('invitee_id');
+      rootByInvitee[invitee] = row.read<String>('root_sender_id');
+      cutoffByInvitee[invitee] = DateTime.parse(
+        row.read<String>('cutoff_at'),
+      ).toUtc();
+      final batchId = row.readNullable<String>('batch_id');
+      if (batchId != null) batchIds.add(batchId);
+      edgesByInvitee
+          .putIfAbsent(invitee, () => [])
+          .add(
+            ForwardProvenanceEdge(
+              id: row.read<String>('id'),
+              senderId: row.read<String>('sender_id'),
+              recipientId: row.read<String>('recipient_id'),
+              parentEdgeId: row.readNullable<String>('parent_edge_id'),
+              batchId: batchId,
+              createdAt: DateTime.parse(row.read<String>('created_at')).toUtc(),
+              cancelledAt: _parseTs(row.readNullable<String>('cancelled_at')),
+            ),
+          );
+    }
+    final byBatch = await _attributionsForBatches(batchIds);
+    return (
+      segments: {
+        for (final MapEntry(key: invitee, value: edges)
+            in edgesByInvitee.entries)
+          invitee: [
+            ForwardRoutingSegment(
+              edges: edges,
+              attributionByBatch: {
+                for (final e in edges)
+                  if (e.batchId != null && byBatch[e.batchId] != null)
+                    e.batchId!: byBatch[e.batchId]!,
+              },
+              rootSenderId: rootByInvitee[invitee]!,
+              cutoffAt: cutoffByInvitee[invitee]!,
+            ),
+          ],
+      },
+      deliveryEdgeIds: deliveryEdgeIds,
+    );
+  }
+
+  Future<Map<String, List<ForwardAttributionInput>>> _attributionsForBatches(
+    Set<String> batchIds,
+  ) async {
+    if (batchIds.isEmpty) return const {};
+    final rows = await _database
+        .customSelect(
+          r'''
+SELECT child_forward_batch_id, parent_forward_edge_id, attribution_weight
+FROM public.forward_decision_attribution
+WHERE child_forward_batch_id = ANY($1::text[])
+ORDER BY child_forward_batch_id, parent_forward_edge_id
+''',
+          variables: [
+            Variable<List<String>>(batchIds.toList(), PgTypes.textArray),
+          ],
+        )
+        .get();
+    final byBatch = <String, List<ForwardAttributionInput>>{};
+    for (final row in rows) {
+      final batchId = row.read<String>('child_forward_batch_id');
+      byBatch
+          .putIfAbsent(batchId, () => [])
+          .add(
+            ForwardAttributionInput(
+              batchId: batchId,
+              parentForwardEdgeId: row.read<String>('parent_forward_edge_id'),
+              weight: row.read<double>('attribution_weight'),
+            ),
+          );
+    }
+    return byBatch;
   }
 
   @override

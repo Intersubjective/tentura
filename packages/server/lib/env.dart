@@ -181,6 +181,7 @@ class Env {
     int? trustSweepBatchSize,
     Duration? trustSweepTimeBudget,
     bool? trustNoisyWallEnabled,
+    bool? trustBudRouteCreditEnabled,
 
     // User presence (WS offline delay; env CHAT_OFFLINE_DELAY)
     Duration? chatStatusOfflineAfterDelay,
@@ -398,10 +399,10 @@ class Env {
        attentionV1ShadowEnabled =
            attentionV1ShadowEnabled ??
            resolveAttentionV1ShadowEnabled(_env['ATTENTION_V1_SHADOW_ENABLED']),
-      minClientVersion =
-          minClientVersion ??
-          _nonEmptyEnv(_env['MIN_CLIENT_VERSION']) ??
-          kDefaultMinClientVersion,
+       minClientVersion =
+           minClientVersion ??
+           _nonEmptyEnv(_env['MIN_CLIENT_VERSION']) ??
+           kDefaultMinClientVersion,
 
        // Postgres
        pgHost = pgHost ?? _env['POSTGRES_HOST'] ?? 'postgres',
@@ -468,12 +469,14 @@ class Env {
            forwardMinOpportunity ??
            Duration(
              hours:
-                 int.tryParse(_env['FORWARD_MIN_OPPORTUNITY_HOURS'] ?? '') ?? 24,
+                 int.tryParse(_env['FORWARD_MIN_OPPORTUNITY_HOURS'] ?? '') ??
+                 24,
            ),
        trustSweepInterval =
            trustSweepInterval ??
            Duration(
-             hours: int.tryParse(_env['TRUST_SWEEP_INTERVAL_HOURS'] ?? '') ?? 24,
+             hours:
+                 int.tryParse(_env['TRUST_SWEEP_INTERVAL_HOURS'] ?? '') ?? 24,
            ),
        trustSweepRetry =
            trustSweepRetry ??
@@ -483,16 +486,22 @@ class Env {
            ),
        trustSweepBatchSize =
            trustSweepBatchSize ??
-           int.tryParse(_env['TRUST_SWEEP_BATCH_SIZE'] ?? '') ?? 200,
+           int.tryParse(_env['TRUST_SWEEP_BATCH_SIZE'] ?? '') ??
+           200,
        trustSweepTimeBudget =
            trustSweepTimeBudget ??
            Duration(
              minutes:
-                 int.tryParse(_env['TRUST_SWEEP_TIME_BUDGET_MINUTES'] ?? '') ?? 5,
+                 int.tryParse(_env['TRUST_SWEEP_TIME_BUDGET_MINUTES'] ?? '') ??
+                 5,
            ),
        trustNoisyWallEnabled =
            trustNoisyWallEnabled ??
            _env['TRUST_NOISY_WALL_ENABLED']?.trim().toLowerCase() == 'true',
+       trustBudRouteCreditEnabled =
+           trustBudRouteCreditEnabled ??
+           _env['TRUST_BUD_ROUTE_CREDIT_ENABLED']?.trim().toLowerCase() !=
+               'false',
 
        chatStatusOfflineAfterDelay =
            chatStatusOfflineAfterDelay ??
@@ -887,6 +896,12 @@ class Env {
   /// evidence is still recorded, the projection just ignores it. Written to
   /// `trust_config.noisy_wall_enabled` on boot (m0216). Ban walls are separate.
   final bool trustNoisyWallEnabled;
+
+  /// Budding C7 kill switch (Arch §7): a helper admitted through an accepted
+  /// Post invite credits their recorded Post arrival chain (approval and
+  /// closure routing). On by default; `false` restores the pre-budding
+  /// credit, which never crosses beacons.
+  final bool trustBudRouteCreditEnabled;
 
   final Duration chatStatusOfflineAfterDelay;
 

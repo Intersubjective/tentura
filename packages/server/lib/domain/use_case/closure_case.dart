@@ -14,6 +14,7 @@ import 'package:tentura_server/domain/closure/membership_reducer.dart';
 import 'package:tentura_server/domain/commitment/commitment_event.dart';
 import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
 import 'package:tentura_server/domain/commitment/commitment_state.dart';
+import 'package:tentura_server/domain/entity/author_invite.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/policy/beacon_kind_policy.dart';
 import 'package:tentura_server/domain/port/attention_system_settlement_port.dart';
@@ -857,20 +858,33 @@ final class ClosureCase extends UseCaseBase {
   /// Stream 2 (Arch §5.7): approving an offer credits the forwarder through
   /// whom the helper arrived. Call inside the approval transaction, after the
   /// acknowledgement is stored.
+  ///
+  /// Budding C7 (Arch §7): when the helper is admitted through [invite] from
+  /// a Post, the arrival is the invite's recorded Post arrival edge (NULL → no
+  /// credit), not the delivery edge on the Request. Repair invites (no source
+  /// Post) and the kill switch off keep the Request-side arrival.
   Future<void> recordApprovalEdge({
     required String beaconId,
     required String helperId,
     required String authorId,
+    AuthorInvite? invite,
   }) async {
     await _repo.lockRequest(beaconId);
     final offers = await _helpOffers.fetchAllByBeaconId(beaconId);
     final offer = offers.where((o) => o.userId == helperId).firstOrNull;
     if (offer == null) return;
-    final edge = await _repo.selectArrivalEdge(
-      beaconId: beaconId,
-      helperId: helperId,
-      offerCreatedAt: offer.createdAt,
-    );
+    final postArrival =
+        env.trustBudRouteCreditEnabled && invite?.sourcePostId != null;
+    final edge = postArrival
+        ? switch (invite!.arrivalPostEdgeId) {
+            final String id => await _repo.selectEdgeById(id),
+            null => null,
+          }
+        : await _repo.selectArrivalEdge(
+            beaconId: beaconId,
+            helperId: helperId,
+            offerCreatedAt: offer.createdAt,
+          );
     if (edge == null ||
         edge.senderId == authorId ||
         edge.senderId == helperId) {

@@ -32,6 +32,7 @@ final class AuthorInvite {
     required this.forwardEdgeId,
     required this.warm,
     required this.status,
+    this.arrivalPostEdgeId,
     this.note,
     this.createdAt,
   });
@@ -51,6 +52,10 @@ final class AuthorInvite {
 
   /// The delivery edge inviter → invitee on the child.
   final String? forwardEdgeId;
+
+  /// The invitee's arrival edge in the source Post at bud time (D4); NULL for
+  /// the Post author, a lost arrival, or a repair invite. Immutable.
+  final String? arrivalPostEdgeId;
 
   final bool warm;
 

@@ -91,8 +91,7 @@ class ClosureRepositoryMock implements ClosureRepositoryPort {
   Future<List<ClosureMemberRow>> members({
     required String beaconId,
     required int epoch,
-  }) async =>
-      const [];
+  }) async => const [];
 
   @override
   Future<List<ClosureOutcomeRow>> outcomes(String beaconId) async => const [];
@@ -117,8 +116,7 @@ class ClosureRepositoryMock implements ClosureRepositoryPort {
   Future<List<ClosureSupportRow>> supports({
     required String beaconId,
     required ClosureSupportVersion version,
-  }) async =>
-      const [];
+  }) async => const [];
 
   @override
   Future<void> toggleSupport({
@@ -200,16 +198,17 @@ class ClosureRepositoryMock implements ClosureRepositoryPort {
   Future<ClosureResultRow?> resultFor({
     required String beaconId,
     required String userId,
-  }) async =>
-      null;
+  }) async => null;
 
   @override
   Future<ForwardEdgeEntity?> selectArrivalEdge({
     required String beaconId,
     required String helperId,
     required DateTime offerCreatedAt,
-  }) async =>
-      null;
+  }) async => null;
+
+  @override
+  Future<ForwardEdgeEntity?> selectEdgeById(String edgeId) async => null;
 
   @override
   Future<void> recordApprovalEdge({

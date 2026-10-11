@@ -1,5 +1,6 @@
 import 'package:test/test.dart';
 
+import 'package:tentura_server/domain/trust/forward/forward_causal_graph_builder.dart';
 import 'package:tentura_server/domain/trust/forward/forward_provenance.dart';
 import 'package:tentura_server/domain/trust/forward/forward_routing_settlement.dart';
 import 'package:tentura_server/domain/trust/ledger_evidence.dart';
@@ -35,15 +36,20 @@ void main() {
     List<ForwardProvenanceEdge>? edges,
     Map<String, List<ForwardAttributionInput>> attributions = const {},
     double budget = 0.3,
+    String authorId = 'A',
+    Map<String, List<ForwardRoutingSegment>> extraSegments = const {},
+    Set<String> deliveryEdgeIds = const {},
   }) => ForwardRoutingSettlement().settle(
     RoutingInput(
       beaconId: 'Bx',
       epoch: 2,
-      authorId: 'A',
+      authorId: authorId,
       seedOfferAt: seeds,
       edges: edges ?? chain(),
       attributionByBatch: attributions,
       budget: budget,
+      extraSegments: extraSegments,
+      deliveryEdgeIds: deliveryEdgeIds,
     ),
   );
 
@@ -132,8 +138,10 @@ void main() {
         ],
       },
     );
-    expect(attributed.any((e) => e.subjectId == 'A' && e.objectId == 'S'),
-        isTrue);
+    expect(
+      attributed.any((e) => e.subjectId == 'A' && e.objectId == 'S'),
+      isTrue,
+    );
     expect(attributed.any((e) => e.subjectId == 'T'), isFalse);
   });
 
@@ -167,5 +175,182 @@ void main() {
       expect(e.subjectId, isNot(e.objectId));
       expect(e.count, greaterThan(0));
     }
+  });
+
+  group('Post segments (budding C7)', () {
+    // The Post: A→B (p1), B→C (p2), all before the child's published_at.
+    final publishedAt = DateTime.utc(2026, 1, 5);
+    List<ForwardProvenanceEdge> postChain() => [
+      edge(id: 'p1', sender: 'A', recipient: 'B', day: 1),
+      edge(id: 'p2', sender: 'B', recipient: 'C', day: 2, parent: 'p1'),
+    ];
+    ForwardRoutingSegment segment(
+      List<ForwardProvenanceEdge> edges, {
+      String root = 'A',
+    }) => ForwardRoutingSegment(
+      edges: edges,
+      attributionByBatch: const {},
+      rootSenderId: root,
+      cutoffAt: publishedAt,
+    );
+    // The child: the delivery edge child author → C (d1).
+    ForwardProvenanceEdge delivery({String sender = 'A'}) =>
+        edge(id: 'd1', sender: sender, recipient: 'C', day: 6);
+
+    Set<(String, String)> pairs(List<LedgerEvidence> out) => {
+      for (final e in out) (e.subjectId, e.objectId),
+    };
+
+    test('an invitee credits only the Post chain; the delivery earns '
+        'nothing', () {
+      final out = route(
+        seeds: {'C': offerAt},
+        edges: [delivery()],
+        extraSegments: {
+          'C': [segment(postChain())],
+        },
+        deliveryEdgeIds: {'d1'},
+      );
+      expect(pairs(out), {('A', 'B'), ('B', 'C')});
+    });
+
+    test('without the delivery set the delivery edge routes as today', () {
+      final out = route(
+        seeds: {'C': offerAt},
+        edges: [delivery()],
+        extraSegments: {
+          'C': [segment(postChain())],
+        },
+      );
+      expect(pairs(out), {('A', 'B'), ('B', 'C'), ('A', 'C')});
+    });
+
+    test('a Post path rooted elsewhere earns nothing', () {
+      final out = route(
+        seeds: {'C': offerAt},
+        edges: [delivery()],
+        extraSegments: {
+          'C': [
+            segment([edge(id: 'p3', sender: 'D', recipient: 'C', day: 3)]),
+          ],
+        },
+        deliveryEdgeIds: {'d1'},
+      );
+      expect(out, isEmpty);
+    });
+
+    test('a cancelled Post edge drops the segment', () {
+      final out = route(
+        seeds: {'C': offerAt},
+        edges: [delivery()],
+        extraSegments: {
+          'C': [
+            segment([
+              postChain().first,
+              edge(
+                id: 'p2',
+                sender: 'B',
+                recipient: 'C',
+                day: 2,
+                parent: 'p1',
+                cancelledAt: DateTime.utc(2026, 1, 3),
+              ),
+            ]),
+          ],
+        },
+        deliveryEdgeIds: {'d1'},
+      );
+      expect(out, isEmpty);
+    });
+
+    test('onward forwards from the invitee route through the delivery '
+        'root', () {
+      final edges = [
+        delivery(),
+        edge(id: '7', sender: 'C', recipient: 'E', day: 7, parent: 'd1'),
+      ];
+      final onwardOnly = route(
+        seeds: {'E': offerAt},
+        edges: edges,
+        extraSegments: {
+          'C': [segment(postChain())],
+        },
+        deliveryEdgeIds: {'d1'},
+      );
+      expect(pairs(onwardOnly), {('C', 'E')});
+
+      final both = route(
+        seeds: {'C': offerAt, 'E': offerAt},
+        edges: edges,
+        extraSegments: {
+          'C': [segment(postChain())],
+        },
+        deliveryEdgeIds: {'d1'},
+      );
+      expect(pairs(both), {('A', 'B'), ('B', 'C'), ('C', 'E')});
+    });
+
+    test('a budder in the Post chain earns nothing for the delivery', () {
+      final out = route(
+        authorId: 'B',
+        seeds: {'C': offerAt},
+        edges: [delivery(sender: 'B')],
+        extraSegments: {
+          'C': [segment(postChain())],
+        },
+        deliveryEdgeIds: {'d1'},
+      );
+      expect(pairs(out), {('A', 'B'), ('B', 'C')});
+      final viaPost = out.singleWhere((e) => e.subjectId == 'B');
+      expect(viaPost.sourceKey, 'closure:Bx:2:routed:B:C');
+    });
+
+    test('a segment does not pull child edges into the Post chain', () {
+      // The child author A also forwarded to B on the child; B never
+      // forwarded the child to C, so A→B on the child is not on C's path.
+      final out = route(
+        seeds: {'C': offerAt},
+        edges: [
+          edge(id: '8', sender: 'A', recipient: 'B', day: 6),
+          delivery(),
+        ],
+        extraSegments: {
+          'C': [
+            segment([
+              edge(id: 'p1', sender: 'P', recipient: 'B', day: 1),
+              edge(id: 'p2', sender: 'B', recipient: 'C', day: 2, parent: 'p1'),
+            ], root: 'P'),
+          ],
+        },
+        deliveryEdgeIds: {'d1'},
+      );
+      expect(pairs(out), {('P', 'B'), ('B', 'C')});
+    });
+
+    test('the Post segment shares the per-sender rho*B budget', () {
+      // B forwarded the child to D (seed D) and, in the Post, to C (seed C).
+      final childEdges = [
+        edge(id: '1', sender: 'A', recipient: 'B', day: 6),
+        edge(id: '2', sender: 'B', recipient: 'D', day: 7, parent: '1'),
+        delivery(),
+      ];
+      final without = route(
+        seeds: {'C': offerAt, 'D': offerAt},
+        edges: childEdges,
+        deliveryEdgeIds: {'d1'},
+      );
+      final withSegment = route(
+        seeds: {'C': offerAt, 'D': offerAt},
+        edges: childEdges,
+        extraSegments: {
+          'C': [segment(postChain())],
+        },
+        deliveryEdgeIds: {'d1'},
+      );
+      expect(pairs(withSegment), containsAll([('B', 'C'), ('B', 'D')]));
+      expect(totalBySender(without)['B'], closeTo(0.3, 1e-9));
+      expect(totalBySender(withSegment)['B'], closeTo(0.3, 1e-9));
+      expect(totalBySender(withSegment)['A'], closeTo(0.3, 1e-9));
+    });
   });
 }

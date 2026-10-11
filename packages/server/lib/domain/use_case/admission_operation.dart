@@ -4,6 +4,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
 import 'package:tentura_server/domain/commitment/commitment_state.dart';
+import 'package:tentura_server/domain/entity/author_invite.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/port/attention_system_settlement_port.dart';
 import 'package:tentura_server/domain/port/commitment_repository_port.dart';
@@ -63,6 +64,10 @@ final class AdmissionOperation {
   ///
   /// [attention] builds the intent the caller emits (`offerAccepted` for an
   /// accepted offer); it is recorded on [transaction].
+  ///
+  /// [invite] is the author invite being accepted, when the admission is an
+  /// invite accept; its recorded Post arrival drives the approval credit
+  /// (budding C7). An ordinary offer accept passes none.
   Future<({BeaconStatus status, DateTime? statusChangedAt})>
   admitWithConfirmations({
     required BeaconEntity beacon,
@@ -71,6 +76,7 @@ final class AdmissionOperation {
     required String actorId,
     required AttentionTransaction transaction,
     required Future<AttentionDispatchIntent> Function() attention,
+    AuthorInvite? invite,
   }) async {
     final beaconId = beacon.id;
 
@@ -121,6 +127,7 @@ final class AdmissionOperation {
       beaconId: beaconId,
       helperId: helperId,
       authorId: beacon.author.id,
+      invite: invite,
     );
 
     // (h) The caller's attention intent, then (g) the author's obligation.

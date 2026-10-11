@@ -1,6 +1,7 @@
 @Tags(['pg'])
 library;
 
+import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:postgres/postgres.dart';
@@ -714,6 +715,104 @@ WHERE id = '${row.forwardEdgeId}'
       );
     });
 
+    group('approval credit across the Post (C7)', () {
+      // The Post chain: Post author → _cold → _warm.
+      Future<void> chainToWarm({String via = _cold}) async {
+        await _postEdge(writer, 'Fai4p1', _postAuthor, via, minutesAgo: 120);
+        await _postEdge(
+          writer,
+          'Fai4p2',
+          via,
+          _warm,
+          minutesAgo: 60,
+          parent: 'Fai4p1',
+        );
+      }
+
+      test('accept credits the sender of the recorded Post arrival', () async {
+        await chainToWarm();
+        final id = await invited(_warm);
+        expect((await _invite(writer, id)).arrival, 'Fai4p2');
+
+        await s.invites.accept(actorUserId: _warm, inviteId: id);
+
+        expect(await _approvals(writer), [(_warm, _cold, 'Fai4p2')]);
+      });
+
+      test('offerHelp by a pending invitee credits the Post arrival', () async {
+        await chainToWarm();
+        await invited(_warm);
+
+        await s.offerHelp(_warm);
+
+        expect(await _approvals(writer), [(_warm, _cold, 'Fai4p2')]);
+      });
+
+      test('the budder as the Post arrival sender earns nothing', () async {
+        await chainToWarm(via: _author);
+        final id = await invited(_warm);
+
+        await s.invites.accept(actorUserId: _warm, inviteId: id);
+
+        expect(await _approvals(writer), isEmpty);
+      });
+
+      test('the Post author (no arrival) earns no approval credit', () async {
+        final id = await invited(_postAuthor);
+        expect((await _invite(writer, id)).arrival, isNull);
+
+        await s.invites.accept(actorUserId: _postAuthor, inviteId: id);
+
+        expect(await _approvals(writer), isEmpty);
+      });
+
+      test('a superseded invite does not use the Post arrival', () async {
+        await _postEdge(writer, 'Fai4p1', _postAuthor, _warm, minutesAgo: 120);
+        await _postEdge(
+          writer,
+          'Fai4p2',
+          _warm,
+          _cold,
+          minutesAgo: 60,
+          parent: 'Fai4p1',
+        );
+        await s.forward(_author, _cold);
+        await s.offerHelp(_cold);
+        final id = await invited(_cold);
+        expect((await _invite(writer, id)).arrival, 'Fai4p2');
+
+        await s.coordination.acceptHelpOffer(
+          beaconId: _child,
+          offerUserId: _cold,
+          actorUserId: _author,
+        );
+
+        expect(
+          (await _invite(writer, id)).status,
+          AuthorInviteStatus.superseded.code,
+        );
+        expect(await _approvals(writer), isEmpty);
+      });
+
+      test('kill switch off: no cross-beacon approval credit', () async {
+        final off = _Stack.build(
+          database,
+          target.databaseEnv,
+          budRouteCredit: false,
+        );
+        await chainToWarm();
+        final id = (await off.invites.create(
+          actorUserId: _author,
+          beaconId: _child,
+          inviteeId: _warm,
+        )).inviteId!;
+
+        await off.invites.accept(actorUserId: _warm, inviteId: id);
+
+        expect(await _approvals(writer), isEmpty);
+      });
+    });
+
     group('read projections (C6)', () {
       test('the invitee sees their own pending invite and note', () async {
         final id = await invited(_warm, note: 'You have a van');
@@ -819,13 +918,15 @@ typedef _InviteRow = ({
   bool warm,
   String? note,
   int status,
+  String? arrival,
 });
 
 Future<_InviteRow> _invite(Connection writer, String id) async {
   final r = (await writer.execute(
     Sql.named(
       'SELECT inviter_id, invitee_id, source_post_id, forward_edge_id, warm, '
-      'note, status FROM public.beacon_author_invite WHERE id = @id',
+      'note, status, arrival_post_edge_id '
+      'FROM public.beacon_author_invite WHERE id = @id',
     ),
     parameters: {'id': id},
   )).single;
@@ -837,6 +938,7 @@ Future<_InviteRow> _invite(Connection writer, String id) async {
     warm: r[4]! as bool,
     note: r[5] as String?,
     status: r[6]! as int,
+    arrival: r[7] as String?,
   );
 }
 
@@ -904,6 +1006,44 @@ Future<List<String>> _trustEvidenceFor(Connection writer, String user) async {
   );
   return [for (final r in rows) r.single! as String];
 }
+
+/// Live stream-2 approval rows: (helper, credited sender, arrival edge).
+Future<List<(String, String, String?)>> _approvals(Connection writer) async {
+  final rows = await writer.execute('''
+SELECT subject_user_id, object_user_id, metadata->>'arrival_edge_id'
+FROM public.trust_evidence
+WHERE source_key LIKE 'approval:%' AND retracted_at IS NULL
+ORDER BY source_key
+''');
+  return [
+    for (final r in rows) (r[0]! as String, r[1]! as String, r[2] as String?),
+  ];
+}
+
+/// A forward edge [sender] → [recipient] on the Post, [minutesAgo] old.
+Future<void> _postEdge(
+  Connection writer,
+  String id,
+  String sender,
+  String recipient, {
+  required int minutesAgo,
+  String? parent,
+}) => writer.execute(
+  Sql.named('''
+INSERT INTO public.beacon_forward_edge
+  (id, beacon_id, sender_id, recipient_id, parent_edge_id, created_at)
+VALUES (@id, @post, @sender, @recipient, @parent,
+        now() - make_interval(mins => @age))
+'''),
+  parameters: {
+    'id': id,
+    'post': _post,
+    'sender': sender,
+    'recipient': recipient,
+    'parent': parent,
+    'age': minutesAgo,
+  },
+);
 
 Future<int?> _inboxStatus(Connection writer, String user) async {
   final rows = await writer.execute(
@@ -1091,8 +1231,12 @@ final class _Stack {
   Future<void> offerHelp(String user, {String message = ''}) =>
       helpOffers.offerHelp(beaconId: _child, userId: user, message: message);
 
-  factory _Stack.build(TenturaDb db, Env env) {
+  /// [budRouteCredit] is the closure's `TRUST_BUD_ROUTE_CREDIT_ENABLED`.
+  factory _Stack.build(TenturaDb db, Env env, {bool budRouteCredit = true}) {
     final logger = Logger('AuthorInviteCasePgTest');
+    final closureEnv = budRouteCredit
+        ? env
+        : Env(environment: Environment.test, trustBudRouteCreditEnabled: false);
     final uow = MutatingUnitOfWork(db);
     final attention = TransactionalAttentionCase(
       uow,
@@ -1152,7 +1296,7 @@ final class _Stack {
       attentionSystemSettlement: settlement,
       receipts: const NoopClosureReceipts(),
       finalizer: _NoFinalizer(),
-      env: env,
+      env: closureEnv,
       logger: logger,
     );
     final commitmentQuery = CommitmentQueryCase(

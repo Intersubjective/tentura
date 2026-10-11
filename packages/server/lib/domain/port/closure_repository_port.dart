@@ -177,6 +177,10 @@ abstract class ClosureRepositoryPort {
     required DateTime offerCreatedAt,
   });
 
+  /// The forward edge [edgeId] on any beacon (budding C7: an invite's recorded
+  /// Post arrival edge), or null when it is gone.
+  Future<ForwardEdgeEntity?> selectEdgeById(String edgeId);
+
   /// Stream 2 (Arch §5.7): records `approval:<beacon>:<helper>` as a
   /// `useful_forward` helper → [senderId], restoring the original row after a
   /// withdrawal and keeping at most one live row per pair per 30 days.

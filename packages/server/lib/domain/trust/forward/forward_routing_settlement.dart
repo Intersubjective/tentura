@@ -17,6 +17,8 @@ final class RoutingInput {
     required this.edges,
     required this.attributionByBatch,
     required this.budget,
+    this.extraSegments = const {},
+    this.deliveryEdgeIds = const {},
   });
 
   final String beaconId;
@@ -32,6 +34,17 @@ final class RoutingInput {
 
   /// Per-sender budget per episode (rho * B).
   final double budget;
+
+  /// Budding C7 (Arch §7): M_route member → the Post chain they arrived
+  /// through, rooted at the Post author and cut at the child's
+  /// `published_at`. Settled with the member's own child-side chain, inside
+  /// the same per-sender [budget]: a sender's pairs from every segment are
+  /// normalised together, never budgeted twice.
+  final Map<String, List<ForwardRoutingSegment>> extraSegments;
+
+  /// Invite delivery edges (Request author → invitee). They stay in [edges]
+  /// as roots of the invitees' onward forwards but earn nothing themselves.
+  final Set<String> deliveryEdgeIds;
 }
 
 /// Pure routing settlement (arch §5.8): every seed carries mass 1.0
@@ -45,6 +58,7 @@ final class ForwardRoutingSettlement {
 
     final perSeedShares = <Map<ForwardPair, double>>[];
     for (final seed in input.seedOfferAt.entries) {
+      final segments = input.extraSegments[seed.key] ?? const [];
       EligibleForwardDag? dag;
       try {
         dag = builder.build(
@@ -52,6 +66,7 @@ final class ForwardRoutingSettlement {
           committerId: seed.key,
           commitmentAt: seed.value,
           allEdges: input.edges,
+          extraSegments: segments,
         );
       } on ForwardGraphIntegrityException {
         continue;
@@ -59,11 +74,18 @@ final class ForwardRoutingSettlement {
       if (dag == null) continue;
       final raw = propagator.propagate(
         dag: dag,
-        attributionsByBatchId: input.attributionByBatch,
+        attributionsByBatchId: segments.isEmpty
+            ? input.attributionByBatch
+            : {
+                ...input.attributionByBatch,
+                for (final s in segments) ...s.attributionByBatch,
+              },
+        silentEdgeIds: input.deliveryEdgeIds,
       );
       perSeedShares.add(normalizer.normalize(raw));
     }
 
+    // One per-sender budget over every seed and every segment (C7).
     final deltas = consolidator.normalizePerSender(
       consolidator.accumulate(perSeedShares),
       budget: input.budget,

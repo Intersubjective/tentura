@@ -233,6 +233,7 @@ class AuthorInviteCase {
           confirmingAuthorId: invite.inviterId,
           actorId: actorUserId,
           transaction: transaction,
+          invite: invite,
           attention: () => _intents.authorInviteAccepted(
             beaconId: beacon.id,
             inviterUserId: invite.inviterId,
