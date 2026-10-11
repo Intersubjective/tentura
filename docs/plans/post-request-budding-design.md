@@ -3,6 +3,7 @@
 **Статус:** rev 1 (2026-10-11), решения владельца приняты (§2). §7 (шум и абьюз): N1–N6 решены.
 Не план имплементации.
 **Тикет на приватные отметки о пользе (D6):** #282.
+**Архитектура:** [`post-request-budding-architecture.md`](post-request-budding-architecture.md) · **план реализации:** [`post-request-budding-implementation-plan.md`](post-request-budding-implementation-plan.md).
 **Заменяет:** решение #250 (новый Запрос + перенос истории + закрытие поста + «все отмечены»)
 и текущую in-place конверсию `kind 1 → 0` (§4.6 / §5.8 в
 [`post-and-constellation-composer-plan.md`](post-and-constellation-composer-plan.md)).
