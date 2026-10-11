@@ -31,6 +31,9 @@ enum ConstellationEdgeKind {
   webForwarded,
   webInside,
   draftRecipient,
+
+  /// A Request budded from a Post: Post → child (post→Request budding D5).
+  grewFrom,
 }
 
 const kConstellationLayoutMaxHops = 3;
@@ -525,7 +528,8 @@ class ConstellationSceneController {
           ConstellationEdgeKind.ringStub => 1.5,
           ConstellationEdgeKind.webForwarded ||
           ConstellationEdgeKind.webInside ||
-          ConstellationEdgeKind.draftRecipient => 1.5,
+          ConstellationEdgeKind.draftRecipient ||
+          ConstellationEdgeKind.grewFrom => 1.5,
         },
         semanticId:
             '${tenturaGraphNodeId(src)}->${tenturaGraphNodeId(dst)}#${kind.name}',
@@ -658,6 +662,21 @@ class ConstellationSceneController {
     }
     postFadeById = postFade;
     postOverflowCountByPostId = postOverflow;
+
+    // A budded Request hangs off the Post it grew from; addEdge drops it
+    // unless both nodes are on the field.
+    for (final request in drawnRequests) {
+      final parentId = request.parentBeaconId;
+      if (parentId == null || parentId.isEmpty) {
+        continue;
+      }
+      addEdge(
+        srcId: parentId,
+        dstId: request.id,
+        kind: ConstellationEdgeKind.grewFrom,
+        fade: postFade[parentId],
+      );
+    }
 
     if (composing) {
       for (final personId in composingSelectedIds) {

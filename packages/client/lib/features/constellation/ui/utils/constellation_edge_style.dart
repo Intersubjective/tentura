@@ -113,4 +113,11 @@ ConstellationEdgeStyle constellationEdgeStyle(
     gap: 0,
     endDots: true,
   ),
+  ConstellationEdgeKind.grewFrom => (
+    color: scheme.secondary,
+    width: 1.5,
+    dash: 6,
+    gap: 4,
+    endDots: false,
+  ),
 };

@@ -256,7 +256,7 @@ void main() {
         )
         .map((s) => s.style)
         .toList();
-    expect(styles, hasLength(4));
+    expect(styles, hasLength(5), reason: 'four kinds plus grewFrom (D5)');
     expect(styles.where((s) => s.endDots), hasLength(1));
   });
 

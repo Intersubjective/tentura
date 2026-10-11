@@ -143,6 +143,11 @@ class GraphLegendContent extends StatelessWidget {
           tt,
           scheme,
         );
+        final grewFromStyle = constellationEdgeStyle(
+          ConstellationEdgeKind.grewFrom,
+          tt,
+          scheme,
+        );
         return [
           _ConstellationEdgeRow(
             label: l10n.graphLegendConstellationDirectConnection,
@@ -159,6 +164,10 @@ class GraphLegendContent extends StatelessWidget {
           _ConstellationEdgeRow(
             label: l10n.graphLegendConstellationWiderNetworkReach,
             style: ringStubStyle,
+          ),
+          _ConstellationEdgeRow(
+            label: l10n.beaconGrewFromPost,
+            style: grewFromStyle,
           ),
         ];
       }(),
