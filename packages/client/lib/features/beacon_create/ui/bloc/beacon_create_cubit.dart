@@ -135,6 +135,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   bool _draftSaveBusy = false;
   bool _makeLiveBusy = false;
   bool _sendRequestBusy = false;
+  bool _publishPostBusy = false;
 
   Timer? _autosaveTimer;
 
@@ -1241,7 +1242,32 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   /// Safe to call again after a failure with the same content: a lost
   /// `postPublish` is re-sent with identical arguments, a failed upload retries
   /// only that upload.
+  ///
+  /// A call while one is running is dropped (returns false): two quick taps
+  /// would otherwise both upload the remaining attachments.
   Future<bool> publishPost({
+    required String body,
+    required List<CommittedMention> mentions,
+    required ForwardCubit forwardCubit,
+    required BeaconForwardPolicyValue forwardPolicy,
+    required List<RoomPendingUpload> attachments,
+  }) async {
+    if (_publishPostBusy) return false;
+    _publishPostBusy = true;
+    try {
+      return await _publishPost(
+        body: body,
+        mentions: mentions,
+        forwardCubit: forwardCubit,
+        forwardPolicy: forwardPolicy,
+        attachments: attachments,
+      );
+    } finally {
+      _publishPostBusy = false;
+    }
+  }
+
+  Future<bool> _publishPost({
     required String body,
     required List<CommittedMention> mentions,
     required ForwardCubit forwardCubit,
