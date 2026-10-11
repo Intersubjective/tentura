@@ -4,7 +4,6 @@ library;
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
-
 import '../../support/disposable_pg_target.dart';
 
 /// U09a step 1 + the amended §0.1 — the two schema facts the sweep stands on.
@@ -101,33 +100,36 @@ UPDATE public.inbox_item SET tombstone_dismissed_at = now()
       expect(await _dismissedAt(writer), isNotNull);
     });
 
-    test('a dismissal can be undone — U09c restores, it does not re-decide', () async {
-      await _insertInboxItem(writer, status: 1);
-      await writer.execute(
-        "UPDATE public.inbox_item SET tombstone_dismissed_at = now() "
-        "WHERE user_id = '$_viewerId'",
-      );
-      expect(await _dismissedAt(writer), isNotNull);
+    test(
+      'a dismissal can be undone — U09c restores, it does not re-decide',
+      () async {
+        await _insertInboxItem(writer, status: 1);
+        await writer.execute(
+          "UPDATE public.inbox_item SET tombstone_dismissed_at = now() "
+          "WHERE user_id = '$_viewerId'",
+        );
+        expect(await _dismissedAt(writer), isNotNull);
 
-      await writer.execute(
-        "UPDATE public.inbox_item SET tombstone_dismissed_at = NULL "
-        "WHERE user_id = '$_viewerId'",
-      );
+        await writer.execute(
+          "UPDATE public.inbox_item SET tombstone_dismissed_at = NULL "
+          "WHERE user_id = '$_viewerId'",
+        );
 
-      expect(await _dismissedAt(writer), isNull);
-    });
+        expect(await _dismissedAt(writer), isNull);
+      },
+    );
   }, skip: skipReason);
 
   group('the guard still refuses what it should', () {
     test('a tombstone row cannot change its status', () async {
       await _insertInboxItem(writer, status: 3);
 
-      // Even with the beacon trigger's flag borrowed, a tombstone row is
-      // frozen: the guard refuses before it ever reaches the upgrade rule.
+      // Even with the beacon trigger's flag borrowed, a tombstone row only
+      // takes the trigger's own moves (3 -> 0 reopen, 3 -> 4 delete; m0246).
       await expectLater(
         _withTombstoneTransitionAllowed(
           writer,
-          "UPDATE public.inbox_item SET status = 4 WHERE user_id = '$_viewerId'",
+          "UPDATE public.inbox_item SET status = 1 WHERE user_id = '$_viewerId'",
         ),
         throwsA(
           isA<ServerException>().having(
@@ -168,7 +170,9 @@ UPDATE public.inbox_item SET tombstone_dismissed_at = now()
           isA<ServerException>().having(
             (error) => error.message,
             'message',
-            contains('cannot transition to tombstone status without beacon trigger'),
+            contains(
+              'cannot transition to tombstone status without beacon trigger',
+            ),
           ),
         ),
       );

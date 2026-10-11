@@ -573,6 +573,53 @@ WHERE id = '${row.forwardEdgeId}'
         },
       );
 
+      test(
+        '0 → 5 → 7 keeps the invite pending; accept in review is refused, '
+        'accept after reopen succeeds',
+        () async {
+          await admitHelper();
+          final id = await invited(_warm);
+          expect(
+            await _inboxStatus(writer, _warm),
+            0,
+            reason: 'the invitee never touched the pinned inbox row',
+          );
+
+          await s.closure.close(authorId: _author, beaconId: _child);
+          expect(
+            await _status(writer, _child),
+            BeaconStatus.reviewOpen.smallintValue,
+          );
+          expect(await _inboxStatus(writer, _warm), 3);
+          await expectLater(
+            s.invites.accept(actorUserId: _warm, inviteId: id),
+            throwsA(isA<AuthorInviteRequestNotOpenException>()),
+          );
+
+          await s.closure.reopen(authorId: _author, beaconId: _child);
+          expect(
+            await _status(writer, _child),
+            BeaconStatus.needsMoreHelp.smallintValue,
+          );
+          expect(
+            await _inboxStatus(writer, _warm),
+            0,
+            reason: 'reopen reverts the review tombstone',
+          );
+          expect(
+            (await _invite(writer, id)).status,
+            AuthorInviteStatus.pending.code,
+          );
+
+          final accepted = await s.invites.accept(
+            actorUserId: _warm,
+            inviteId: id,
+          );
+          expect(accepted.status, AuthorInviteStatus.accepted);
+          expect(await rowSet(_warm), isNotEmpty);
+        },
+      );
+
       test('closure close with no members expires invites', () async {
         final id = await invited(_cold);
         await s.closure.close(authorId: _author, beaconId: _child);
