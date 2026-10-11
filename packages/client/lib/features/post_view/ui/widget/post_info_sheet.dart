@@ -235,13 +235,6 @@ class PostInfoSheet extends StatelessWidget {
               profileViewCubitFactory: profileViewCubitFactory,
             ),
             const Divider(height: 1),
-            if (isAuthor && !isClosed)
-              _ActionTile(
-                icon: Icons.change_circle_outlined,
-                label: l10n.postMenuConvertToRequest,
-                color: scheme.onSurface,
-                onTap: () => pick(PostAction.convertToRequest),
-              ),
             if (!isAuthor)
               _ActionTile(
                 icon: Icons.flag_outlined,

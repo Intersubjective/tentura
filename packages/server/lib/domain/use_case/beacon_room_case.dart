@@ -57,7 +57,9 @@ const _firstResponseByReaction = 2;
 /// Room coordination: admission, steward, messages (server-side rules).
 // TODO(contract): tighten permissions with visibility / forward graph —
 // current checks are author-or-steward or admitted-member only.
-@Singleton(order: 2)
+// Order 3: the optional nullable `beaconCase` is invisible to injectable's
+// registration sort, so the order (not the sort) puts `BeaconCase` first.
+@Singleton(order: 3)
 class BeaconRoomCase extends UseCaseBase {
   BeaconRoomCase(
     this._room,

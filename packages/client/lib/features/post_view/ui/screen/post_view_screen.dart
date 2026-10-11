@@ -6,8 +6,6 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/domain/entity/beacon_kind.dart';
-import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/features/beacon_threads/domain/room_host.dart';
@@ -156,24 +154,6 @@ class _PostViewScreenState extends State<PostViewScreen> {
         if (await _confirmAllowForwarding(context) && context.mounted) {
           await cubit.allowForwarding();
         }
-      case PostAction.convertToRequest:
-        final selection = await _confirmConvert(
-          context,
-          participants: room?.state.participants ?? const [],
-          authorId: cubit.state.beacon.author.id,
-          wasClosed:
-              cubit.state.beacon.forwardPolicy ==
-              BeaconForwardPolicyValue.closed,
-        );
-        if (selection != null && context.mounted) {
-          await context.router.push(
-            BeaconCreateRoute(
-              convertFromPostId: id,
-              convertIsDiscoverable: selection.isDiscoverable,
-              convertHelperIds: selection.helperIds,
-            ),
-          );
-        }
       case PostAction.budRequest:
         final sourceId = await _pickBudSource(context);
         if (sourceId != null && context.mounted) {
@@ -295,72 +275,6 @@ class _PostViewScreenState extends State<PostViewScreen> {
           ),
         ) ??
         false;
-  }
-
-  /// Choose discoverability and which members become Request helpers.
-  Future<({bool isDiscoverable, List<String> helperIds})?> _confirmConvert(
-    BuildContext context, {
-    required List<BeaconParticipant> participants,
-    required String authorId,
-    required bool wasClosed,
-  }) {
-    final l10n = L10n.of(context)!;
-    final members = participants.where((p) => p.userId != authorId).toList();
-    final helperIds = <String>{};
-    var discoverable = true;
-    return showDialog<({bool isDiscoverable, List<String> helperIds})>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setState) => AlertDialog(
-          title: Text(l10n.postConvertTitle),
-          scrollable: true,
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(l10n.postConvertMembersTitle),
-              Text(l10n.postConvertMembersExplanation),
-              for (final member in members)
-                CheckboxListTile(
-                  contentPadding: EdgeInsets.zero,
-                  controlAffinity: ListTileControlAffinity.leading,
-                  value: helperIds.contains(member.userId),
-                  onChanged: (checked) => setState(() {
-                    if (checked ?? false) {
-                      helperIds.add(member.userId);
-                    } else {
-                      helperIds.remove(member.userId);
-                    }
-                  }),
-                  title: Text(member.displayLabel(l10n.unknownPerson)),
-                ),
-              if (wasClosed) Text(l10n.postConvertForwardingOpens),
-              Text(l10n.postConvertIrreversible),
-              CheckboxListTile(
-                contentPadding: EdgeInsets.zero,
-                controlAffinity: ListTileControlAffinity.leading,
-                value: discoverable,
-                onChanged: (v) => setState(() => discoverable = v ?? true),
-                title: Text(l10n.postConvertDiscoverable),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(l10n.buttonCancel),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(ctx, (
-                isDiscoverable: discoverable,
-                helperIds: helperIds.toList(),
-              )),
-              child: Text(l10n.postConvertNext),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   Future<bool> _confirmDelete(BuildContext context) async {

@@ -362,30 +362,29 @@ Future<void> main() async {
     });
 
     test('rejects a Request draft', () async {
+      // `kind` is immutable (m0247): replace the Post draft with a Request
+      // draft under the same id.
       await writer.execute(
-        Sql.named('UPDATE public.beacon SET kind = @k WHERE id = @id'),
-        parameters: {'k': _kindRequest, 'id': _beacon},
+        Sql.named('DELETE FROM public.beacon WHERE id = @id'),
+        parameters: {'id': _beacon},
+      );
+      await writer.execute(
+        Sql.named('''
+          INSERT INTO public.beacon
+            (id, user_id, title, description, status, kind)
+          VALUES (@id, @author, 'Request', 'd', @draft, @kind)
+        '''),
+        parameters: {
+          'id': _beacon,
+          'author': _author,
+          'draft': _statusDraft,
+          'kind': _kindRequest,
+        },
       );
 
       await expectLater(publish(), throwsA(isA<ExceptionBase>()));
 
       expect(await _state(writer), _untouchedState);
-    });
-
-    test('rejects a Post converted to a Request after publishing', () async {
-      await publish();
-      await writer.execute(
-        Sql.named(
-          'UPDATE public.beacon SET kind = @k, forward_policy = 1 '
-          'WHERE id = @id',
-        ),
-        parameters: {'k': _kindRequest, 'id': _beacon},
-      );
-      final afterConvert = await _state(writer);
-
-      await expectLater(publish(), throwsA(isA<ExceptionBase>()));
-
-      expect(await _state(writer), afterConvert);
     });
   });
 }

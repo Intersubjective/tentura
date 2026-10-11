@@ -14,7 +14,6 @@ import 'package:tentura_server/consts.dart'
         kTitleMaxLength,
         kTitleMinLength;
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
-import 'package:tentura_server/consts/beacon_participant_status_bits.dart';
 import 'package:tentura_server/consts/beacon_hierarchy_consts.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
@@ -26,7 +25,6 @@ import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 
 import '../database/tentura_db.dart';
 import '../mapper/beacon_mapper.dart';
-import 'beacon_room_repository.dart';
 import 'post_lock_repository.dart';
 
 export 'package:tentura_server/domain/entity/beacon_entity.dart';
@@ -605,106 +603,6 @@ ${beaconId == null ? '' : r'WHERE posts.id = $2'}''',
   }
 
   @override
-  Future<void> convertPostToRequest({
-    required String beaconId,
-    required String title,
-    required String description,
-    required Set<String>? needs,
-    required String? primaryNeedSlug,
-    required DateTime? startAt,
-    required DateTime? endAt,
-    required bool isDiscoverable,
-  }) async {
-    final updated = await _database.customUpdate(
-      r'''
-UPDATE public.beacon
-SET title = $2, description = $3, needs = $4, primary_need_slug = $5,
-    start_at = $6, end_at = $7, kind = 0, forward_policy = 1,
-    is_discoverable = $8, updated_at = now()
-WHERE id = $1 AND kind = 1 AND status = 0
-''',
-      variables: [
-        Variable<String>(beaconId),
-        Variable<String>(title),
-        Variable<String>(description),
-        Variable<String>(needs == null || needs.isEmpty ? '' : needs.join(',')),
-        Variable<String>(primaryNeedSlug),
-        Variable<PgDateTime>(
-          startAt == null ? null : PgDateTime(startAt.toUtc()),
-          PgTypes.timestampWithTimezone,
-        ),
-        Variable<PgDateTime>(
-          endAt == null ? null : PgDateTime(endAt.toUtc()),
-          PgTypes.timestampWithTimezone,
-        ),
-        Variable<bool>(isDiscoverable),
-      ],
-    );
-    if (updated != 1) {
-      throw const BeaconCreateException(description: 'Not an open Post');
-    }
-  }
-
-  @override
-  Future<List<String>> postMemberUserIds(String beaconId) async {
-    final rows = await _database
-        .customSelect(
-          r'''
-SELECT p.user_id
-FROM public.beacon_participant p
-JOIN public.beacon b ON b.id = p.beacon_id
-WHERE p.beacon_id = $1 AND p.role = 6 AND p.user_id <> b.user_id
-  AND NOT EXISTS (
-    SELECT 1 FROM public.beacon_steward s
-    WHERE s.beacon_id = p.beacon_id AND s.user_id = p.user_id
-  )
-ORDER BY p.user_id
-''',
-          variables: [Variable<String>(beaconId)],
-        )
-        .get();
-    return rows.map((row) => row.read<String>('user_id')).toList();
-  }
-
-  @override
-  Future<void> convertPostMembers({
-    required String beaconId,
-    required String authorId,
-    required Set<String> helperIds,
-  }) async {
-    final room = BeaconRoomRepository(_database);
-    for (final helperId in helperIds) {
-      await room.inviteOfferUserToBeaconRoom(
-        beaconId: beaconId,
-        offerUserId: helperId,
-        authorUserId: authorId,
-        participantStatus: BeaconParticipantStatusBits.admitted,
-      );
-    }
-    for (final memberId in await postMemberUserIds(beaconId)) {
-      if (helperIds.contains(memberId)) continue;
-      await _database.managers.beaconParticipants
-          .filter((p) => p.beaconId.id(beaconId) & p.userId.id(memberId))
-          .delete();
-    }
-  }
-
-  @override
-  Future<void> postConvertedToRequestMessage(String beaconId) =>
-      _database.customInsert(
-        r'''
-INSERT INTO public.beacon_room_message
-  (beacon_id, body, system_message_kind, system_payload)
-VALUES ($1, '', $2, $3::jsonb)
-''',
-        variables: [
-          Variable<String>(beaconId),
-          Variable<int>(BeaconRoomSystemMessageKind.convertedToRequest),
-          Variable<String>('{"event":"convertedToRequest"}'),
-        ],
-      );
-
-  @override
   Future<void> postClosedMessage({
     required String postId,
     required String childBeaconId,
@@ -786,13 +684,6 @@ VALUES ($1, '', $2, jsonb_build_object('childBeaconId', $3::text, 'title', $4::t
     );
     await _database.customStatement(
       r'SELECT public.post_reconcile_admission($1, $2)',
-      [beaconId, userId],
-    );
-    // `post_reconcile_admission` ignores a Request converted from a Post.
-    await _database.customStatement(
-      r'UPDATE public.beacon_participant SET room_access = 3, updated_at = now() '
-      r'WHERE beacon_id = $1 AND user_id = $2 '
-      r'AND EXISTS (SELECT 1 FROM public.beacon WHERE id = $1 AND kind = 0)',
       [beaconId, userId],
     );
   }

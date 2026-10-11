@@ -140,34 +140,6 @@ abstract class BeaconRepositoryPort {
     required BeaconForwardPolicyValue policy,
   });
 
-  /// Turns an open Post into an open-forwarding Request in one `UPDATE` (the
-  /// Post shape CHECK forbids writing content before `kind` flips); throws
-  /// `BeaconCreateException` unless exactly one open Post row was updated.
-  Future<void> convertPostToRequest({
-    required String beaconId,
-    required String title,
-    required String description,
-    required Set<String>? needs,
-    required String? primaryNeedSlug,
-    required DateTime? startAt,
-    required DateTime? endAt,
-    required bool isDiscoverable,
-  });
-
-  /// Post addressees other than the author or stewards; caller holds Post lock.
-  Future<List<String>> postMemberUserIds(String beaconId);
-
-  /// Admits selected members and removes the rest after the kind change, in
-  /// the caller's conversion transaction.
-  Future<void> convertPostMembers({
-    required String beaconId,
-    required String authorId,
-    required Set<String> helperIds,
-  });
-
-  /// Inserts the kind-4 system message announcing a Post's conversion.
-  Future<void> postConvertedToRequestMessage(String beaconId);
-
   /// Inserts the kind-5 system message announcing that [postId] was closed
   /// and continues in the budded Request [childBeaconId] (payload
   /// `{childBeaconId, title}`; [title] is a snapshot).
@@ -198,7 +170,7 @@ abstract class BeaconRepositoryPort {
   });
 
   /// An addressee comes back: inbox row back to watching and room access
-  /// reconciled from the live forward edges (set directly for a Request).
+  /// reconciled from the live forward edges.
   Future<void> returnToPostAsAddressee({
     required String beaconId,
     required String userId,

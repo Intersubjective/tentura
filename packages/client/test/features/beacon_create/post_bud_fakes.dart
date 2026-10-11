@@ -14,7 +14,6 @@ import 'package:tentura/domain/entity/post_bud_invite_outcome.dart';
 import 'package:tentura/domain/entity/post_bud_result.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/port/post_bud_port.dart';
-import 'package:tentura/domain/port/post_conversion_port.dart';
 import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/domain/use_case/message_prefill_case.dart';
 import 'package:tentura/domain/use_case/post_bud_case.dart';
@@ -138,25 +137,6 @@ class FakeBudProfiles extends Mock implements ProfileRepositoryPort {
   ];
 }
 
-class _NoConversion implements PostConversionPort {
-  @override
-  Future<PostRootContent> fetchRootContent(String beaconId) async =>
-      const PostRootContent(body: '');
-
-  @override
-  Future<void> convertToRequest({
-    required String beaconId,
-    required String title,
-    required String description,
-    required Set<String> needs,
-    required String? primaryNeedSlug,
-    required DateTime? startAt,
-    required DateTime? endAt,
-    required bool isDiscoverable,
-    List<String> helperIds = const [],
-  }) async {}
-}
-
 Beacon budPost({
   BeaconForwardPolicyValue forwardPolicy = BeaconForwardPolicyValue.open,
 }) => Beacon.empty.copyWith(
@@ -200,8 +180,7 @@ final class BudHarness {
     logger: Logger('post-bud-test'),
   );
 
-  MessagePrefillCase get prefillCase =>
-      MessagePrefillCase(_NoConversion(), hierarchy);
+  MessagePrefillCase get prefillCase => MessagePrefillCase(hierarchy);
 
   BeaconCreateCubit cubit({
     required UiEffectPort effects,

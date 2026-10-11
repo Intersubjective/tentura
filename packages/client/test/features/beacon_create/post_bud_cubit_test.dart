@@ -44,7 +44,6 @@ void main() {
       final p = MessagePrefillCase.fromText('  Need a ladder\n\nSaturday.\n');
       expect(p.title, 'Need a ladder');
       expect(p.description, 'Saturday.');
-      expect(p.coverSuggestion, isNull);
     });
 
     test('a one-line message leaves the description empty', () {

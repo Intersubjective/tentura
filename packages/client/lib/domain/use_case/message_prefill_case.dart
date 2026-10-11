@@ -1,28 +1,19 @@
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/consts.dart';
-import 'package:tentura/domain/entity/image_entity.dart';
-import 'package:tentura/domain/port/post_conversion_port.dart';
 import 'package:tentura/features/beacon/domain/port/beacon_hierarchy_repository_port.dart';
 
 /// Request form content derived from a room message.
-typedef MessagePrefill = ({
-  String title,
-  String description,
-  ImageEntity? coverSuggestion,
-});
+typedef MessagePrefill = ({String title, String description});
 
 /// Owns how a message fills the Request form: the first line becomes the
 /// title (cut to the title limit), the rest the description.
 ///
-/// Used by the Post conversion flow (the Post's root message, with its first
-/// image as a cover suggestion) and by budding a Request from a Post message
-/// (no cover: the bud pipeline takes none).
+/// Used by budding a Request from a Post message (text only: the bud pipeline
+/// takes no cover).
 @singleton
 class MessagePrefillCase {
-  MessagePrefillCase(this._conversion, this._hierarchy);
-
-  final PostConversionPort _conversion;
+  MessagePrefillCase(this._hierarchy);
 
   final BeaconHierarchyRepositoryPort _hierarchy;
 
@@ -37,18 +28,6 @@ class MessagePrefillCase {
           ? firstLine.substring(0, kBeaconTitleMaxLength)
           : firstLine,
       description: rest,
-      coverSuggestion: null,
-    );
-  }
-
-  /// The Post's root message, with its first image as a cover suggestion.
-  Future<MessagePrefill> postRoot(String postId) async {
-    final root = await _conversion.fetchRootContent(postId);
-    final split = fromText(root.body);
-    return (
-      title: split.title,
-      description: split.description,
-      coverSuggestion: root.firstImage,
     );
   }
 

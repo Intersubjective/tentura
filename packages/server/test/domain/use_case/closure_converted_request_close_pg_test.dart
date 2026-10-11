@@ -8,11 +8,13 @@ import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_root/domain/entity/beacon_status.dart';
+import 'package:tentura_server/consts/beacon_participant_status_bits.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/beacon_repository.dart';
+import 'package:tentura_server/data/repository/beacon_room_repository.dart';
 import 'package:tentura_server/data/repository/closure_repository.dart';
 import 'package:tentura_server/data/repository/commitment_repository.dart';
 import 'package:tentura_server/data/repository/help_offer_repository.dart';
@@ -39,7 +41,8 @@ const _beaconId = 'Bclconvbeac01';
 const _helpers = ['Uclconvhelp01', 'Uclconvhelp02', 'Uclconvhelp03'];
 const _roles = ['Driver', 'Cook', 'Host'];
 
-/// Closing a converted Request whose helpers were carried over as admitted
+/// Closing a historical converted Request (seeded in its post-conversion
+/// state; the conversion itself was removed in E1) whose helpers were carried over as admitted
 /// room participants, offered, and were given roles but never went through
 /// the acknowledge step.
 Future<void> main() async {
@@ -85,25 +88,17 @@ Future<void> main() async {
     setUp(() async {
       await _reset(writer);
       await _seed(writer);
-      expect(
-        (await beacons.getBeaconById(beaconId: _beaconId)).kind,
-        BeaconKind.post,
-      );
-      await beacons.convertPostToRequest(
-        beaconId: _beaconId,
-        title: 'converted request',
-        description: '',
-        needs: null,
-        primaryNeedSlug: null,
-        startAt: null,
-        endAt: null,
-        isDiscoverable: false,
-      );
-      await beacons.convertPostMembers(
-        beaconId: _beaconId,
-        authorId: _authorId,
-        helperIds: _helpers.toSet(),
-      );
+      // The in-place conversion is gone (E1); seed its historical end state:
+      // a kind-0 Request whose former Post members were admitted as helpers.
+      final room = BeaconRoomRepository(database);
+      for (final helperId in _helpers) {
+        await room.inviteOfferUserToBeaconRoom(
+          beaconId: _beaconId,
+          offerUserId: helperId,
+          authorUserId: _authorId,
+          participantStatus: BeaconParticipantStatusBits.admitted,
+        );
+      }
       expect(
         (await beacons.getBeaconById(beaconId: _beaconId)).kind,
         BeaconKind.request,
@@ -406,7 +401,8 @@ ON CONFLICT (id) DO NOTHING
 INSERT INTO public.beacon
   (id, user_id, title, description, kind, forward_policy, is_discoverable,
    published_at)
-VALUES ('$_beaconId', '$_authorId', '', '', 1, 0, false, now())
+VALUES ('$_beaconId', '$_authorId', 'converted request', '', 0, 1, false,
+        now())
 ''');
   for (var i = 0; i < _helpers.length; i++) {
     await writer.execute('''

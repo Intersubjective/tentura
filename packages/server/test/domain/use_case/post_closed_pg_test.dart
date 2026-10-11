@@ -493,7 +493,6 @@ final class _Harness {
         env: env,
         logger: logger,
       ),
-      postLock: postLock,
       attentionIntents: intents,
       attention: attention,
       env: env,

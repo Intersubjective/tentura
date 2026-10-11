@@ -306,9 +306,20 @@ INSERT INTO public.beacon_room_message_attachment
       );
       expect(await posts.myPosts(_author), isEmpty);
     }
-    await writer.execute(
-      "UPDATE public.beacon SET kind = 0, status = 0 WHERE id = '$_post'",
-    );
+    // `kind` is immutable (m0247): a historical converted Request is a
+    // kind-0 row that kept its root message and addressee rows.
+    await writer.execute('''
+      INSERT INTO public.beacon
+        (id, user_id, title, description, status, published_at,
+         post_root_message_id)
+      VALUES ('Bpostsconv001', '$_author', 'Converted', 'd', 0, now(),
+              'Mpostsroot001')
+    ''');
+    await writer.execute('''
+      INSERT INTO public.beacon_participant
+        (id, beacon_id, user_id, role, status, room_access)
+      VALUES ('Ppostsconv001', 'Bpostsconv001', '$_member', 6, 0, 0)
+    ''');
     expect(await posts.myPosts(_author), isEmpty);
     expect(await posts.myPosts(_member), isEmpty);
   });

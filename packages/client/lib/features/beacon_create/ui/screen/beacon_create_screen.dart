@@ -55,10 +55,6 @@ class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
     @QueryParam(kQueryBeaconForwardTo) this.forwardToUserId = '',
     @QueryParam(kQueryBeaconParentId) this.parentBeaconId = '',
     @QueryParam(kQueryBeaconSourceMessageId) this.sourceMessageId = '',
-    @QueryParam(kQueryBeaconConvertFromPostId) this.convertFromPostId = '',
-    @QueryParam(kQueryBeaconConvertIsDiscoverable)
-    this.convertIsDiscoverable = true,
-    this.convertHelperIds = const [],
     this.initialRecipientIds = const {},
     this.initialNotes = const {},
     this.onRecipientsChanged,
@@ -94,16 +90,6 @@ class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
   /// General message to promote into a child request.
   final String sourceMessageId;
 
-  /// Post being converted to a Request: the form is prefilled from its root
-  /// message and submitting converts it instead of creating a new beacon.
-  final String convertFromPostId;
-
-  /// Discoverability the author chose in the convert confirmation.
-  final bool convertIsDiscoverable;
-
-  /// Post members chosen to become admitted Request helpers.
-  final List<String> convertHelperIds;
-
   @override
   State<BeaconCreateScreen> createState() => _BeaconCreateScreenState();
 
@@ -117,11 +103,6 @@ class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
         create: (_) => BeaconCreateCubit(
           draftBeaconIdToLoad: draftId.isEmpty ? null : draftId,
           editBeaconIdToLoad: editId.isEmpty ? null : editId,
-          convertFromPostId: convertFromPostId.isEmpty
-              ? null
-              : convertFromPostId,
-          convertIsDiscoverable: convertIsDiscoverable,
-          convertHelperIds: convertHelperIds,
           childCreationContext: _childCreationContext(
             parentBeaconId: parentBeaconId,
             sourceMessageId: sourceMessageId,
@@ -275,11 +256,6 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
     if (childId == null || childId.isEmpty) return;
     widget.onPublished?.call();
     await popCreateAndOpenLiveBeacon(context.router, beaconId: childId);
-  }
-
-  Future<void> _submitConversion() async {
-    _formKey.currentState?.save();
-    await _beaconCreateCubit.submitConversion();
   }
 
   Future<void> _sendRequest() async {
@@ -473,7 +449,7 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
               tooltip: l10n.buttonClose,
               onPressed: () => unawaited(_leaveForm()),
             ),
-            if (!isRecipients && widget.convertFromPostId.isEmpty)
+            if (!isRecipients)
               BlocBuilder<BeaconCreateCubit, BeaconCreateState>(
                 bloc: _beaconCreateCubit,
                 buildWhen: (p, c) =>
@@ -646,31 +622,6 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
 
                   if (state.isPostBud) {
                     return _budBottomBar(state, l10n, tt);
-                  }
-
-                  if (widget.convertFromPostId.isNotEmpty) {
-                    return Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        const TenturaHairlineDivider(subtle: true),
-                        SizedBox(height: tt.rowGap),
-                        SizedBox(
-                          height: tt.buttonHeight,
-                          width: double.infinity,
-                          child: FilledButton(
-                            key: const Key('BeaconCreate.ConvertButton'),
-                            onPressed: state.isLoading
-                                ? null
-                                : () => unawaited(_submitConversion()),
-                            child: _BusyLabel(
-                              isSaving: state.isLoading,
-                              label: l10n.buttonPublish,
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
                   }
 
                   if (_step == _recipientsStep) {

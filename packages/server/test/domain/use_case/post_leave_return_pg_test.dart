@@ -261,19 +261,6 @@ WHERE beacon_id = '$_post' AND author_id = '$_member'
 
         expect(message['id'], isNotNull);
       });
-
-      test(
-        'admits a member of a converted Request directly, since Request '
-        'admission is not reconciled from edges',
-        () async {
-          await harness.posts.leave(userId: _member, beaconId: _converted);
-
-          await harness.posts.returnTo(userId: _member, beaconId: _converted);
-
-          expect(await inboxStatus(_converted, _member), _inboxWatching);
-          expect(await access(_converted, _member), RoomAccessBits.admitted);
-        },
-      );
     });
 
     group('refusals', () {

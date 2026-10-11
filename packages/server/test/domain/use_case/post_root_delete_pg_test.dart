@@ -23,7 +23,6 @@ import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
 import 'package:tentura_server/data/repository/post_lock_repository.dart';
 import 'package:tentura_server/data/repository/user_block_repository.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
-import 'package:tentura_server/domain/entity/beacon_conversion_content.dart';
 import 'package:tentura_server/domain/entity/task_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/policy/discussion_product_policy.dart';
@@ -58,7 +57,8 @@ const _request = 'Bfirstrespreq001';
 const _postRoot = 'Rfirstresppost01';
 const _requestRoot = 'Rfirstrespreq001';
 
-/// Root deletion shares the Post lifecycle; converted roots are ordinary messages.
+/// Root deletion shares the Post lifecycle; a historical converted Request's
+/// former root is an ordinary message.
 Future<void> main() async {
   final target = DisposablePgTarget.fromNamedEnvironment(
     envVarName: 'TENTURA_POST_ROOT_DELETE_TEST_DB',
@@ -73,7 +73,6 @@ Future<void> main() async {
     late DisposablePgWriterSession session;
     late TenturaDb database;
     late BeaconRoomCase room;
-    late BeaconCase beacons;
     late Connection writer;
 
     setUpAll(() async {
@@ -81,7 +80,6 @@ Future<void> main() async {
       writer = session.writer;
       database = openDisposablePgDatabase(target);
       room = _buildRoom(database, target.databaseEnv).room;
-      beacons = _buildBeaconCase(database, target.databaseEnv);
     });
     setUp(() async => _seed(writer));
     tearDownAll(() async {
@@ -151,35 +149,37 @@ Future<void> main() async {
     });
 
     test(
-      'after conversion deleting the former root only removes the message',
+      'the former root of a historical converted Request is an ordinary '
+      'message',
       () async {
-        await beacons.convertToRequest(
-          authorId: _author,
-          beaconId: _post,
-          content: const BeaconConversionContent(
-            title: 'Request',
-            description: 'Help with this',
-          ),
-          isDiscoverable: false,
+        // Conversion is gone (E1); a converted Request kept its root pointer.
+        await writer.execute(
+          "UPDATE public.beacon SET post_root_message_id = '$_requestRoot' "
+          "WHERE id = '$_request'",
         );
-        expect((await postRow())[1], 0);
         expect(
           await room.deleteMessage(
-            beaconId: _post,
-            messageId: _postRoot,
+            beaconId: _request,
+            messageId: _requestRoot,
             userId: _author,
           ),
           isTrue,
         );
-        expect(await messageExists(_postRoot), isFalse);
-        expect(await postRow(), [0, 0, null]);
+        expect(await messageExists(_requestRoot), isFalse);
+        expect(
+          (await writer.execute(
+            'SELECT status, kind, post_root_message_id FROM public.beacon '
+            "WHERE id = '$_request'",
+          )).single,
+          [0, 0, null],
+        );
       },
     );
   });
 }
 
 BeaconCase _buildBeaconCase(TenturaDb db, Env env) {
-  final logger = Logger('PostConvertPgTest');
+  final logger = Logger('PostRootDeletePgTest');
   final uow = MutatingUnitOfWork(db);
   final attention = TransactionalAttentionCase(
     uow,
@@ -219,7 +219,6 @@ BeaconCase _buildBeaconCase(TenturaDb db, Env env) {
       env: env,
       logger: logger,
     ),
-    postLock: PostLockRepository(db),
     attentionIntents: intents,
     attention: attention,
     env: env,

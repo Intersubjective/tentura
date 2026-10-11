@@ -13,12 +13,7 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/invitation_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
-import 'package:tentura/domain/port/post_conversion_port.dart';
-import 'package:tentura/domain/use_case/beacon_create_case.dart';
-import 'package:tentura/domain/use_case/message_prefill_case.dart';
-import 'package:tentura/domain/use_case/post_conversion_case.dart';
 import 'package:tentura/env.dart';
-import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
 import 'package:tentura/features/beacon_create/ui/dialog/beacon_send_confirmation_dialog.dart';
 import 'package:tentura/features/beacon_create/ui/screen/beacon_create_screen.dart';
@@ -38,7 +33,6 @@ import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
-import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
 import '../auth/auth_test_helpers.dart';
 import '../block/support/controllable_block_case.dart';
 import '../contacts/contacts_case_test.dart';
@@ -199,37 +193,6 @@ class _HeldDraftSavePort extends FakeBeaconWritePort {
   }
 }
 
-/// Post-to-Request conversion that parks until released, then fails so that no
-/// navigation to the converted Request follows.
-class _HeldConversionPort implements PostConversionPort {
-  /// Created on first use, inside the test's fake-async zone: a Completer made
-  /// in `setUp` completes in the real zone, so its waiters would not resume
-  /// while the test pumps.
-  late final Completer<void> hold = Completer<void>();
-  int convertCalls = 0;
-
-  @override
-  Future<PostRootContent> fetchRootContent(String beaconId) async =>
-      const PostRootContent(body: 'Need a ladder\nI can pick it up.');
-
-  @override
-  Future<void> convertToRequest({
-    required String beaconId,
-    required String title,
-    required String description,
-    required Set<String> needs,
-    required String? primaryNeedSlug,
-    required DateTime? startAt,
-    required DateTime? endAt,
-    required bool isDiscoverable,
-    List<String> helperIds = const [],
-  }) async {
-    convertCalls++;
-    await hold.future;
-    throw Exception('conversion stopped by the test');
-  }
-}
-
 BeaconCreateCubit _cubit(FakeBeaconWritePort write) => BeaconCreateCubit(
   beaconCreateCase: fakeBeaconCreateCase(write: write),
   effects: FakeUiEffectPort(),
@@ -319,27 +282,30 @@ void main() {
   });
 
   group('Saving a draft from the editor cubit', () {
-    test('a second save while the first is in flight writes nothing more', () async {
-      final write = _HeldDraftSavePort(
-        beacon: Beacon.empty.copyWith(id: 'B1', status: BeaconStatus.draft),
-      );
-      final cubit = _cubit(write);
-      addTearDown(cubit.close);
-      _fillRequired(cubit);
-      await cubit.ensureDraft(context: 'c', showMessage: false);
+    test(
+      'a second save while the first is in flight writes nothing more',
+      () async {
+        final write = _HeldDraftSavePort(
+          beacon: Beacon.empty.copyWith(id: 'B1', status: BeaconStatus.draft),
+        );
+        final cubit = _cubit(write);
+        addTearDown(cubit.close);
+        _fillRequired(cubit);
+        await cubit.ensureDraft(context: 'c', showMessage: false);
 
-      final first = cubit.saveDraft(context: 'c');
-      final second = cubit.saveDraft(context: 'c');
-      await pumpEventQueue();
+        final first = cubit.saveDraft(context: 'c');
+        final second = cubit.saveDraft(context: 'c');
+        await pumpEventQueue();
 
-      expect(write.updateDraftCalls, 1);
-      expect(cubit.state.isLoading, isTrue);
+        expect(write.updateDraftCalls, 1);
+        expect(cubit.state.isLoading, isTrue);
 
-      write.updateHold.complete();
-      await Future.wait<void>([first, second]);
+        write.updateHold.complete();
+        await Future.wait<void>([first, second]);
 
-      expect(write.updatedDraftFields, hasLength(1));
-    });
+        expect(write.updatedDraftFields, hasLength(1));
+      },
+    );
   });
 
   group('Make live button on the recipients step', () {
@@ -599,111 +565,6 @@ void main() {
         await settle(tester);
 
         expect(tester.widget<TextButton>(actionButton()).onPressed, isNotNull);
-      },
-    );
-  });
-
-  group('Publish button when converting a Post to a Request', () {
-    late _HeldConversionPort conversion;
-
-    setUp(() {
-      conversion = _HeldConversionPort();
-      GetIt.I
-        ..registerSingleton<Env>(const Env(googleMapsApiKey: 'test-key'))
-        ..registerSingleton<UiEffectPort>(FakeUiEffectPort())
-        ..registerSingleton<AuthCase>(
-          buildTestAuthCase(EmptyAuthLocal(), EmptyAuthRemote()),
-        )
-        ..registerSingleton<ContextRepository>(_ContextRepositoryFake())
-        ..registerSingleton<BeaconCreateCase>(fakeBeaconCreateCase())
-        ..registerSingleton<PostConversionCase>(PostConversionCase(conversion))
-    ..registerSingleton<MessagePrefillCase>(
-      MessagePrefillCase(conversion, FakeBeaconHierarchyRepositoryPort()),
-    );
-    });
-
-    tearDown(() => GetIt.I.reset());
-
-    Finder publishButton() =>
-        find.byKey(const Key('BeaconCreate.ConvertButton'));
-
-    Future<void> pumpConversionForm(WidgetTester tester) async {
-      final router = _NavRouter();
-      await tester.pumpWidget(
-        MaterialApp(
-          locale: const Locale('en'),
-          localizationsDelegates: L10n.localizationsDelegates,
-          supportedLocales: L10n.supportedLocales,
-          theme: TenturaTheme.light(),
-          home: RouterScope(
-            controller: router,
-            stateHash: 0,
-            inheritableObserversBuilder: () => const [],
-            child: StackRouterScope(
-              controller: router,
-              stateHash: 0,
-              child: Builder(
-                builder: (context) => const BeaconCreateScreen(
-                  convertFromPostId: 'post-1',
-                ).wrappedRoute(context),
-              ),
-            ),
-          ),
-        ),
-      );
-      for (var i = 0; i < 20; i++) {
-        await tester.pump(const Duration(milliseconds: 50));
-      }
-      expect(tester.widget<FilledButton>(publishButton()).onPressed, isNotNull);
-    }
-
-    testWidgets(
-      'two presses before the button has rebuilt convert the Post once',
-      (tester) async {
-        await pumpConversionForm(tester);
-
-        final onPressed = tester
-            .widget<FilledButton>(publishButton())
-            .onPressed!;
-        onPressed();
-        onPressed();
-        await tester.pump();
-
-        expect(conversion.convertCalls, 1);
-
-        conversion.hold.complete();
-        await tester.pump(const Duration(milliseconds: 50));
-      },
-    );
-
-    testWidgets(
-      'shows a spinner in the button right after the tap and drops it once '
-      'the conversion has ended',
-      (tester) async {
-        await pumpConversionForm(tester);
-        final spinnerInButton = find.descendant(
-          of: publishButton(),
-          matching: find.byType(CircularProgressIndicator),
-        );
-        expect(spinnerInButton, findsNothing);
-
-        await tester.tap(publishButton());
-        await tester.pump();
-
-        expect(
-          spinnerInButton,
-          findsOneWidget,
-          reason: 'A slow publish must read as busy, not as an ignored tap',
-        );
-        expect(tester.widget<FilledButton>(publishButton()).onPressed, isNull);
-
-        conversion.hold.complete();
-        for (var i = 0; i < 6; i++) {
-          await tester.pump(const Duration(milliseconds: 50));
-        }
-
-        expect(spinnerInButton, findsNothing);
-        expect(conversion.convertCalls, 1);
       },
     );
   });

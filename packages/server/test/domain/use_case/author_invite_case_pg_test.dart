@@ -1462,7 +1462,6 @@ final class _Stack {
         hierarchy,
         FakeBeaconChildCreatePort(),
         lifecycleEffects,
-        postLock: postLock,
         attentionIntents: intents,
         attention: attention,
         env: env,

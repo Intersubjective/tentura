@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
-import 'package:logging/logging.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -11,9 +10,6 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
-import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
-import 'package:tentura/data/service/remote_api_service.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/domain/port/beacon_write_port.dart';
 import 'package:tentura/domain/use_case/beacon_create_case.dart';
@@ -25,18 +21,13 @@ import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
 import 'package:tentura/features/beacon_view/domain/use_case/beacon_view_case.dart';
 import 'package:tentura/features/beacon_view/ui/screen/beacon_view_screen.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
-import 'package:tentura/features/beacon_view/ui/widget/beacon_surface_tabs.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
-import 'package:tentura/features/inbox/domain/entity/post_summary.dart';
-import 'package:tentura/features/inbox/domain/port/posts_repository_port.dart';
 import 'package:tentura/features/inbox/domain/use_case/posts_case.dart';
 import 'package:tentura/features/inbox/ui/bloc/posts_cubit.dart';
-import 'package:tentura/features/inbox/ui/screen/conversations_screen.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_capabilities.dart';
 
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
 import 'package:tentura/features/beacon_threads/domain/room_host.dart';
-import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_room_surface.dart';
@@ -46,8 +37,6 @@ import 'package:tentura/features/post_view/ui/screen/post_view_screen.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
-import 'package:tentura/ui/test_ids.dart';
-import '../../support/test_realtime_sync.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../beacon_threads/room_cubit_fakes.dart';
@@ -88,56 +77,6 @@ class _BeaconOnlyRepository implements BeaconRepository {
   @override
   dynamic noSuchMethod(Invocation invocation) =>
       throw StateError('Request-only call: ${invocation.memberName}');
-}
-
-class _ConversionBeaconRepository extends BeaconRepository {
-  _ConversionBeaconRepository(
-    super.remote,
-    TestRealtimeSyncPort super.sync,
-  );
-
-  Beacon snapshot = _beacon(_postId, BeaconKind.post);
-  int fetchCount = 0;
-
-  @override
-  Future<Beacon> fetchBeaconById(String id) async {
-    expect(id, _postId);
-    fetchCount++;
-    return snapshot;
-  }
-
-  @override
-  Future<List<Profile>> fetchAdmittedHelpers(String id) async => [_viewer];
-}
-
-class _ConversionPosts implements PostsRepositoryPort {
-  bool converted = false;
-  final summary = PostSummary(
-    id: _postId,
-    authorId: _author.id,
-    authorName: _author.displayName,
-    rootExcerpt: 'Post awaiting conversion',
-    lastActivityAt: DateTime.now().toUtc(),
-  );
-
-  @override
-  Future<List<PostSummary>> myPosts() async => converted ? [] : [summary];
-
-  @override
-  Future<PostSummary?> postSummary(String id) async =>
-      converted ? null : summary;
-}
-
-class _ConversionRooms extends FakeBeaconThreadsRepository {
-  _ConversionRooms() : super(userId: _viewer.id);
-
-  @override
-  Future<List<RequestThread>> fetchThreads(String beaconId) async => [
-    const RequestThread(
-      threadId: RequestThread.generalId,
-      kind: RequestThreadKind.general,
-    ),
-  ];
 }
 
 class _FakeBeaconKindRepository implements BeaconKindRepository {
@@ -310,113 +249,6 @@ class _NoopWritePort implements BeaconWritePort {
 }
 
 void main() {
-  for (final inActivityPane in [false, true]) {
-    testWidgets(
-      'conversion hint replaces mounted ${inActivityPane ? 'Activity pane' : 'Post route'} '
-      'with Request UI and room capabilities',
-      (tester) async {
-        final sync = buildTestRealtimeSync();
-        addTearDown(sync.port.dispose);
-        final remote = RemoteApiService(
-          const Env.fromEnvironment(),
-          const WebSocketClientRealtimeSocketFactory(),
-        );
-        addTearDown(remote.close);
-        final beacons = _ConversionBeaconRepository(remote, sync.port);
-        addTearDown(beacons.dispose);
-        final kinds = _FakeBeaconKindRepository({_postId: BeaconKind.post});
-        final posts = _ConversionPosts();
-        final rooms = _ConversionRooms();
-        addTearDown(rooms.dispose);
-        final router = await _pumpRoute(
-          tester,
-          id: _postId,
-          kinds: kinds,
-          beacons: beacons,
-          withRequestCollaborators: true,
-          roomRepo: rooms,
-          activityCase: inActivityPane
-              ? PostsCase(
-                  posts,
-                  sync.case_,
-                  env: const Env.fromEnvironment(),
-                  logger: Logger('PostConversionPaneTest'),
-                )
-              : null,
-        );
-        await tester.pumpAndSettle();
-        if (inActivityPane) {
-          await tester.tap(find.text(posts.summary.rootExcerpt));
-          await tester.pumpAndSettle();
-        }
-        expect(find.byType(PostViewScreen), findsOneWidget);
-        expect(find.byType(BeaconViewScreen), findsNothing);
-        final postContext = tester.element(find.byType(PostViewScreen));
-        final oldHost = postContext.read<ThreadHostCubit>();
-        expect(oldHost.capabilities, const RoomCapabilities.post());
-        final pageKey = router.current.key;
-        final fetchesBefore = beacons.fetchCount;
-
-        beacons.snapshot = _beacon(_postId, BeaconKind.request).copyWith(
-          title: 'Converted Request',
-          admittedHelperUsers: [_viewer],
-        );
-        posts.converted = true;
-        sync.port.emitChange(
-          const RealtimeEntityChange(
-            kind: RealtimeEntityKind.beacon,
-            aggregateId: _postId,
-            operation: RealtimeOperation.update,
-            source: RealtimeChangeSource.serverInvalidation,
-          ),
-        );
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 400));
-        await tester.pumpAndSettle();
-
-        expect(beacons.fetchCount, greaterThan(fetchesBefore));
-        expect(router.current.key, pageKey);
-        expect(find.byType(PostViewScreen), findsNothing);
-        expect(find.byType(BeaconViewScreen), findsOneWidget);
-        expect(find.byType(BeaconSurfaceTabs), findsOneWidget);
-        expect(find.text('Converted Request'), findsWidgets);
-        final requestContext = tester.element(find.byType(BeaconViewScreen));
-        final requestCubit = requestContext.read<BeaconViewCubit>();
-        expect(requestCubit.state.beacon.kind, BeaconKind.request);
-        expect(requestCubit.capabilities, const RoomCapabilities.request());
-        expect(
-          requestContext.read<ThreadHostCubit>().capabilities,
-          const RoomCapabilities.request(),
-        );
-        // The old host was disposed with the Post branch: it released its room
-        // (its own close future outlives the fake clock, so isClosed is not
-        // observable here).
-        await tester.pump(const Duration(seconds: 1));
-        expect(oldHost.roomCubit, isNull);
-        // The expanded pane shows the room beside the Request; compact has a tab.
-        if (!inActivityPane) {
-          await tester.tap(find.byKey(const ValueKey(TestIds.beaconTabRoom)));
-          await tester.pumpAndSettle();
-        }
-        expect(find.byType(BeaconRoomSurface), findsWidgets);
-        for (final requestRoom in tester.widgetList<BeaconRoomSurface>(
-          find.byType(BeaconRoomSurface),
-        )) {
-          expect(requestRoom.host, same(requestCubit));
-        }
-        expect(
-          requestContext.read<ThreadHostCubit>().roomCubit!.capabilities,
-          const RoomCapabilities.request(),
-        );
-        if (inActivityPane) {
-          expect(find.byType(ConversationsScreen), findsOneWidget);
-          expect(requestContext.read<PostsCubit>().state.isEmpty, isTrue);
-        }
-        expect(tester.takeException(), isNull);
-      },
-    );
-  }
-
   group('kind-aware beacon route', () {
     testWidgets('shows the loading view until the beacon kind resolves', (
       tester,

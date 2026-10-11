@@ -777,13 +777,14 @@ void main() {
       expect(h.navigations, greaterThan(before));
     });
 
-    testWidgets('author sees «Превратить в запрос» and «Удалить пост»', (
+    testWidgets('author sees «Удалить пост» and no in-place conversion', (
       tester,
     ) async {
       await _pumpPost(tester, beacon: _post(), viewer: _author);
       await _openInfo(tester);
 
-      expect(find.text('Превратить в запрос'), findsOneWidget);
+      // The in-place Post→Request conversion is gone (budding E1).
+      expect(find.text('Превратить в запрос'), findsNothing);
       expect(find.text('Удалить пост'), findsOneWidget);
       expect(find.text('Жалоба'), findsNothing);
     });

@@ -1,4 +1,3 @@
-import 'package:tentura_server/domain/entity/beacon_conversion_content.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/use_case/beacon_case.dart';
 
@@ -38,14 +37,12 @@ final class MutationBeacon extends GqlNodeBase {
   final _kind = InputFieldInt(fieldName: 'kind');
 
   final _forwardPolicy = InputFieldInt(fieldName: 'forwardPolicy');
-  final _helperIds = InputFieldStringList(fieldName: 'helperIds');
 
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
     create,
     fork,
     update,
     updateDraft,
-    convertToRequest,
     publish,
     deleteById,
     beaconCancel,
@@ -239,39 +236,6 @@ final class MutationBeacon extends GqlNodeBase {
         )
         .then((v) => v.asJson),
   );
-
-  GraphQLObjectField<dynamic, dynamic> get convertToRequest =>
-      GraphQLObjectField(
-        'beaconConvertToRequest',
-        gqlTypeBeacon.nonNullable(),
-        arguments: [
-          InputFieldId.field,
-          InputFieldBeaconTitle.fieldNonNullable,
-          InputFieldDescription.field,
-          _startAt.fieldNullable,
-          _endAt.fieldNullable,
-          _needs.fieldNullable,
-          _primaryNeedSlug.fieldNullable,
-          _isDiscoverable.fieldNullable,
-          _helperIds.fieldNullable,
-        ],
-        resolve: (_, args) => _beaconCase
-            .convertToRequest(
-              authorId: getCredentials(args).sub,
-              beaconId: InputFieldId.fromArgsNonNullable(args),
-              content: BeaconConversionContent(
-                title: InputFieldBeaconTitle.fromArgsNonNullable(args),
-                description: InputFieldDescription.fromArgs(args),
-                needs: _needs.fromArgs(args),
-                primaryNeedSlug: _primaryNeedSlug.fromArgs(args),
-                startAt: _startAt.fromArgs(args),
-                endAt: _endAt.fromArgs(args),
-              ),
-              isDiscoverable: _isDiscoverable.fromArgs(args) ?? true,
-              helperIds: _helperIds.fromArgs(args) ?? const [],
-            )
-            .then((v) => v.asJson),
-      );
 
   GraphQLObjectField<dynamic, dynamic> get publish => GraphQLObjectField(
     'beaconPublish',
