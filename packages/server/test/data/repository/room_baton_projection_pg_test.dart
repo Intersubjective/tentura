@@ -1,10 +1,13 @@
 @Tags(['pg'])
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
+
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
@@ -290,11 +293,23 @@ Future<void> main() async {
         },
       );
 
-      test('a room member who was not asked sees nothing', () async {
-        await createBaton();
+      test(
+        'a room member who was not asked sees only that a baton exists',
+        () async {
+          await createBaton();
 
-        expect(await rawFor(_observer), isNull);
-      });
+          final raw = await rawFor(_observer);
+          expect(raw, isNotNull);
+          final payload = (jsonDecode(raw!) as Map).cast<String, Object?>();
+
+          expect(payload, {
+            'id': _batonId,
+            'status': 'collecting',
+            'viewerRole': 'observer',
+          });
+          expectNoLeakOf(raw, [_a, _b, _c, _author]);
+        },
+      );
     });
 
     group('after the author selects a taker', () {
@@ -440,9 +455,33 @@ Future<void> main() async {
         await cancelBaton();
       });
 
-      test('author and observer see nothing', () async {
-        expect(await rawFor(_author), isNull);
-        expect(await rawFor(_observer), isNull);
+      test('author still sees the author view with status cancelled',
+          () async {
+        final payload = await payloadFor(_author);
+
+        expect(payload, isNotNull);
+        expect(payload!['id'], _batonId);
+        expect(payload['viewerRole'], 'author');
+        expect(payload['status'], 'cancelled');
+        expect(payload.containsKey('taker'), isFalse);
+        expect(
+          (payload['candidates']! as List).length,
+          3,
+          reason: 'the author keeps the full candidate list',
+        );
+      });
+
+      test('observer sees only id and cancelled status', () async {
+        final raw = await rawFor(_observer);
+        expect(raw, isNotNull);
+        final payload = (jsonDecode(raw!) as Map).cast<String, Object?>();
+
+        expect(payload, {
+          'id': _batonId,
+          'status': 'cancelled',
+          'viewerRole': 'observer',
+        });
+        expectNoLeakOf(raw, [_a, _b, _c, _author]);
       });
 
       test('every candidate sees only a closed outcome', () async {
@@ -498,6 +537,106 @@ Future<void> main() async {
         expect(batonMessage['pollDataJson'], isNull);
         expect(batonMessage['batonDataJson'], isNotNull);
       });
+    });
+  });
+
+  group('cancel touches the baton message', () {
+    late DisposablePgWriterSession session;
+    late Connection writer;
+    late Connection listener;
+    late TenturaDb database;
+    late RoomBatonRepository batons;
+    late StreamSubscription<String> subscription;
+    final notifications = <Map<String, dynamic>>[];
+
+    setUpAll(() async {
+      session = await setUpDisposablePgWriter(target: target);
+      writer = session.writer;
+      database = openDisposablePgDatabase(target);
+      batons = RoomBatonRepository(database);
+      listener = await Connection.open(
+        target.databaseEnv.pgEndpoint,
+        settings: target.databaseEnv.pgEndpointSettings,
+      );
+      await listener.execute('LISTEN entity_changes');
+      subscription = listener.channels['entity_changes'].listen(
+        (payload) =>
+            notifications.add(jsonDecode(payload) as Map<String, dynamic>),
+      );
+    });
+
+    setUp(() async {
+      await _resetFixture(writer);
+      await batons.create(
+        id: _batonId,
+        messageId: _message,
+        beaconId: _request,
+        authorId: _author,
+        candidates: [(userId: _a, tier: 1)],
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+      notifications.clear();
+    });
+
+    tearDownAll(() async {
+      await subscription.cancel();
+      await listener.close();
+      await tearDownDisposablePgWriter(session: session, drift: database);
+    });
+
+    Iterable<Map<String, dynamic>> messageTouches() => notifications.where(
+      (n) => n['entity'] == 'room_message' && n['message_id'] == _message,
+    );
+
+    Future<List<Map<String, dynamic>>> touchesAfterSettling() async {
+      final deadline = DateTime.now().add(const Duration(seconds: 3));
+      while (messageTouches().isEmpty && DateTime.now().isBefore(deadline)) {
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      }
+      // Grace period so a stray second touch would also be seen.
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+      return messageTouches().toList();
+    }
+
+    test('fans a room_message update out to the whole room', () async {
+      await batons.cancel(
+        batonId: _batonId,
+        resolvedAt: DateTime.utc(2026, 10, 2, 12),
+      );
+
+      final touches = await touchesAfterSettling();
+      expect(touches, hasLength(1));
+      expect(touches.single['id'], _request);
+      expect(
+        (touches.single['user_ids'] as List).cast<String>(),
+        containsAll(<String>[_observer, _author]),
+        reason: 'members outside the baton get the refetch signal too',
+      );
+      final body = await writer.execute(
+        "SELECT body FROM public.beacon_room_message WHERE id = '$_message'",
+      );
+      expect(body.single[0], 'Can someone take this?');
+    });
+
+    test('still cancels in a read-only room, without touching the message',
+        () async {
+      await writer.execute('''
+UPDATE public.beacon SET status = ${BeaconStatus.closed.smallintValue}
+WHERE id = '$_request'
+''');
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+      notifications.clear();
+
+      await batons.cancel(
+        batonId: _batonId,
+        resolvedAt: DateTime.utc(2026, 10, 2, 12),
+      );
+
+      final status = await writer.execute(
+        "SELECT status FROM public.beacon_room_baton WHERE id = '$_batonId'",
+      );
+      expect(status.single[0], 2);
+      expect(await touchesAfterSettling(), isEmpty);
     });
   });
 }

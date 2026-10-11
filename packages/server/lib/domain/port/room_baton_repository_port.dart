@@ -46,4 +46,15 @@ abstract interface class RoomBatonRepositoryPort {
   });
 
   Future<void> cancel({required String batonId, required DateTime resolvedAt});
+
+  /// The author's edit of who is asked, while collecting: inserts [add] as
+  /// waiting, deletes [remove] and sets new tiers from [retier]. Answers of
+  /// the people kept stay. Clears `all_answered_notified_at` when someone new
+  /// is waiting, so the author is told again once everyone has answered.
+  Future<void> updateCandidates({
+    required String batonId,
+    required List<({String userId, int tier})> add,
+    required List<String> remove,
+    required List<({String userId, int tier})> retier,
+  });
 }

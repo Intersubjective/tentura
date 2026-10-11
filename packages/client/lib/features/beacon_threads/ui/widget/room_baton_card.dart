@@ -1,17 +1,65 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/entity/beacon_participant.dart';
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_baton_data.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_baton_choose_sheet.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/coordination_log_row_chrome.dart';
 
-/// The «Who'll take it?» card under a message. An asked person gets a private
-/// answer card, anyone else only a «{name} took it.» chip — neither shows other
-/// people's names, tiers or counts. The message author sees every asked
-/// person's answer and chooses who takes it.
+/// Avatar of [userId], resolved from the room's [participants] (falls back to
+/// initials of [title] for someone no longer listed).
+Widget batonPersonAvatar({
+  required String userId,
+  required String title,
+  required List<BeaconParticipant> participants,
+}) {
+  for (final p in participants) {
+    if (p.userId == userId) {
+      return coordinationLogParticipantAvatar(p);
+    }
+  }
+  return TenturaAvatar(
+    profile: Profile(id: userId, displayName: title),
+    sizeBucket: TenturaAvatarSize.tiny,
+  );
+}
+
+/// Asks the author to confirm cancelling a baton; `true` when confirmed.
+Future<bool> confirmRoomBatonCancel(BuildContext context) async {
+  final l10n = L10n.of(context)!;
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text(l10n.batonCancelConfirmTitle),
+      content: Text(l10n.batonCancelConfirmBody),
+      actions: [
+        // Not the system «Cancel»: next to «Cancel the ask» it is ambiguous.
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: Text(l10n.batonCancelConfirmKeep),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(ctx, true),
+          child: Text(l10n.batonCancelConfirmAction),
+        ),
+      ],
+    ),
+  );
+  return ok ?? false;
+}
+
+/// The «Who'll take it?» card inside a baton message bubble, shaped like the
+/// poll card: the ask on top, then a body per viewer. An asked person gets a
+/// private answer card; anyone else sees only the status and, once chosen,
+/// who took it — never other people's names, tiers or counts. The baton
+/// author sees every asked person's answer and chooses who takes it.
 class RoomBatonCard extends StatelessWidget {
   const RoomBatonCard({
     required this.baton,
+    this.title = '',
+    this.participants = const [],
     this.onRespond,
     this.onSelect,
     this.onCancel,
@@ -19,6 +67,13 @@ class RoomBatonCard extends StatelessWidget {
   });
 
   final RoomBatonData baton;
+
+  /// The ask (the message body); empty when the baton only replies to a
+  /// message, whose quote then says what it is about.
+  final String title;
+
+  /// Room participants, for avatars.
+  final List<BeaconParticipant> participants;
 
   /// Called with `true` for «Can help» and `false` for «Can't help».
   final void Function(bool canHelp)? onRespond;
@@ -31,61 +86,137 @@ class RoomBatonCard extends StatelessWidget {
   final void Function()? onCancel;
 
   @override
-  Widget build(BuildContext context) => switch (baton) {
-    final RoomBatonCandidateData candidate => _CandidateBody(
-      baton: candidate,
-      onRespond: onRespond,
-    ),
-    final RoomBatonObserverData observer => _TookItChip(
-      name: observer.taker.title,
-    ),
-    final RoomBatonAuthorData author => _AuthorBody(
-      baton: author,
-      onSelect: onSelect,
-      onCancel: onCancel,
-    ),
-  };
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tt = context.tt;
+    final ask = title.trim();
+    final body = switch (baton) {
+      final RoomBatonCandidateData candidate => _CandidateBody(
+        baton: candidate,
+        onRespond: onRespond,
+      ),
+      final RoomBatonObserverData observer => _StatusLine(
+        status: observer.status,
+        taker: observer.taker,
+        participants: participants,
+      ),
+      final RoomBatonAuthorData author => _AuthorBody(
+        baton: author,
+        participants: participants,
+        onSelect: onSelect,
+        onCancel: onCancel,
+      ),
+    };
+    return Card.outlined(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: tt.cardPadding,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: EdgeInsets.only(
+                    right: tt.rowGap,
+                    top: tt.tightGap,
+                  ),
+                  child: Icon(
+                    Icons.pan_tool_alt_outlined,
+                    size: 18,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    ask.isEmpty ? L10n.of(context)!.batonCreateTitle : ask,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: tt.rowGap),
+            body,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// One line for a final (or, for observers, still open) baton: «Looking for
+/// someone», «{name} took it.» with their avatar, or «Cancelled.».
+class _StatusLine extends StatelessWidget {
+  const _StatusLine({
+    required this.status,
+    required this.participants,
+    this.taker,
+  });
+
+  final RoomBatonStatus status;
+  final RoomBatonTaker? taker;
+  final List<BeaconParticipant> participants;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final tt = context.tt;
+    final taker = this.taker;
+    if (status == RoomBatonStatus.taken && taker != null) {
+      return Row(
+        children: [
+          batonPersonAvatar(
+            userId: taker.id,
+            title: taker.title,
+            participants: participants,
+          ),
+          SizedBox(width: tt.avatarTextGap),
+          Expanded(
+            child: Text(
+              l10n.batonTookIt(taker.title),
+              style: TenturaText.body(tt.text),
+            ),
+          ),
+        ],
+      );
+    }
+    return Text(
+      status == RoomBatonStatus.cancelled
+          ? l10n.batonCancelledLine
+          : l10n.batonObserverCollecting,
+      style: TenturaText.bodySmall(tt.textMuted),
+    );
+  }
 }
 
 class _AuthorBody extends StatelessWidget {
-  const _AuthorBody({required this.baton, this.onSelect, this.onCancel});
+  const _AuthorBody({
+    required this.baton,
+    required this.participants,
+    this.onSelect,
+    this.onCancel,
+  });
 
   final RoomBatonAuthorData baton;
+  final List<BeaconParticipant> participants;
   final void Function(String? userId)? onSelect;
   final void Function()? onCancel;
 
   Future<void> _confirmCancel(BuildContext context) async {
-    final l10n = L10n.of(context)!;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.batonCancelConfirmTitle),
-        content: Text(l10n.batonCancelConfirmBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(MaterialLocalizations.of(ctx).cancelButtonLabel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(l10n.batonCancelConfirmAction),
-          ),
-        ],
-      ),
-    );
-    if (ok == true) onCancel?.call();
+    if (await confirmRoomBatonCancel(context)) onCancel?.call();
   }
 
   @override
   Widget build(BuildContext context) {
-    final taker = baton.taker;
-    if (baton.status == RoomBatonStatus.taken) {
-      return taker == null
-          ? const SizedBox.shrink()
-          : _TookItChip(name: taker.title);
-    }
     if (baton.status != RoomBatonStatus.collecting) {
-      return const SizedBox.shrink();
+      return _StatusLine(
+        status: baton.status,
+        taker: baton.taker,
+        participants: participants,
+      );
     }
 
     final l10n = L10n.of(context)!;
@@ -101,13 +232,19 @@ class _AuthorBody extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(l10n.batonAuthorTitle, style: TenturaText.body(tt.text)),
+        Text(l10n.batonAuthorTitle, style: mutedBody),
         SizedBox(height: tt.tightGap),
         for (final candidate in baton.candidates)
           Padding(
             padding: EdgeInsets.only(bottom: tt.tightGap),
             child: Row(
               children: [
+                batonPersonAvatar(
+                  userId: candidate.userId,
+                  title: candidate.title,
+                  participants: participants,
+                ),
+                SizedBox(width: tt.avatarTextGap),
                 Expanded(
                   child: Text(
                     candidate.title,
@@ -151,6 +288,7 @@ class _AuthorBody extends StatelessWidget {
                   ? () => showRoomBatonChooseSheet(
                       context,
                       candidates: baton.candidates,
+                      participants: participants,
                       onSelect: select,
                     )
                   : null,
@@ -166,24 +304,6 @@ class _AuthorBody extends StatelessWidget {
           ],
         ),
       ],
-    );
-  }
-}
-
-class _TookItChip extends StatelessWidget {
-  const _TookItChip({required this.name});
-
-  final String name;
-
-  @override
-  Widget build(BuildContext context) {
-    final tt = context.tt;
-    return Chip(
-      avatar: Icon(Icons.check_circle_outline, size: 16, color: tt.textMuted),
-      label: Text(
-        L10n.of(context)!.batonTookIt(name),
-        style: TenturaText.bodySmall(tt.textMuted),
-      ),
     );
   }
 }

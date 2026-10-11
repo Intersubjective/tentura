@@ -412,10 +412,14 @@ class RoomMessageTile extends StatelessWidget {
     BeaconRoomSemanticMarker.needInfo => l10n.beaconRoomSemanticNeedInfo,
     BeaconRoomSemanticMarker.done => l10n.beaconRoomSemanticDone,
     BeaconRoomSemanticMarker.poll => l10n.beaconRoomSemanticPoll,
+    BeaconRoomSemanticMarker.baton => l10n.beaconRoomSemanticBaton,
     BeaconRoomSemanticMarker.participantJoined =>
       l10n.beaconRoomSemanticParticipantJoined,
     _ => marker == null ? '' : l10n.beaconRoomSemanticSystem,
   };
+
+  static bool _isBatonMessage(RoomMessage m) =>
+      m.semanticMarker == BeaconRoomSemanticMarker.baton;
 
   static String _bodyForDisplay(RoomMessage message) {
     final raw = message.body.trim();
@@ -477,8 +481,9 @@ class RoomMessageTile extends StatelessWidget {
     return _linkedCoordinationItemOnTap(context, item);
   }
 
-  /// Card under the bubble: the viewer's answer card, the author's list of
-  /// answers, or the observer's «took it» chip.
+  /// Card inside the bubble (like the poll card): the viewer's answer card,
+  /// the author's list of answers, or the status everyone else sees. The
+  /// message body is the ask and is shown as the card's title.
   Widget? _batonCard() {
     final baton = message.baton;
     if (baton == null) return null;
@@ -487,6 +492,8 @@ class RoomMessageTile extends StatelessWidget {
     final cancel = onBatonCancel;
     return RoomBatonCard(
       baton: baton,
+      title: _isBatonMessage(message) ? message.body : '',
+      participants: participants,
       onSelect: select == null ? null : (userId) => select(baton.id, userId),
       onCancel: cancel == null ? null : () => cancel(baton.id),
       onRespond: respond == null
@@ -507,7 +514,10 @@ class RoomMessageTile extends StatelessWidget {
             : TenturaTokens.light);
     final isMine = message.authorId == myProfile.id;
     final semantic = _semanticShortLabel(l10n, message.semanticMarker);
-    final display = _bodyForDisplay(message);
+    // A baton message's body is the ask, shown as the baton card's title.
+    final display = _isBatonMessage(message) && message.baton != null
+        ? ''
+        : _bodyForDisplay(message);
     final linkedCoord = message.linkedCoordinationItem;
     final linkedEv = message.linkedEventKind;
     final linkedEventKind = linkedEv != null && linkedCoord != null
@@ -519,9 +529,7 @@ class RoomMessageTile extends StatelessWidget {
     // message (if any) starts fresh rather than merging through the footer.
     final batonCard = _batonCard();
     final isGroupEnd =
-        promotedChildBeaconId != null ||
-        batonCard != null ||
-        _groupBreak(message, nextMessage);
+        promotedChildBeaconId != null || _groupBreak(message, nextMessage);
 
     final topPad = isGroupStart ? tt.bubbleRowTop : 0.0;
     final bottomPad = tt.tightGap;
@@ -1206,6 +1214,11 @@ class RoomMessageTile extends StatelessWidget {
                     ),
             ),
           ),
+        if (batonCard != null)
+          Padding(
+            padding: EdgeInsets.only(top: tt.rowGap / 2),
+            child: batonCard,
+          ),
         reactionsAndTime(),
       ],
     );
@@ -1247,7 +1260,11 @@ class RoomMessageTile extends StatelessWidget {
     void Function()? quickReactCb;
     ValueChanged<String>? pickReactionCb;
     final toggleReaction = onToggleReaction;
-    if (toggleReaction != null) {
+    // A baton bubble is an interactive card (like a poll): its buttons take
+    // their own taps, a tap elsewhere opens the baton-specific menu, and emoji
+    // reactions are not offered on it.
+    final isBatonBubble = _isBatonMessage(message) && message.baton != null;
+    if (toggleReaction != null && !isBatonBubble) {
       quickReactCb = () => unawaited(
         toggleReaction(
           message.id,
@@ -1684,7 +1701,6 @@ class RoomMessageTile extends StatelessWidget {
     final underBubble = [
       if (childBeaconId != null)
         BeaconChildPromotionFooter(childBeaconId: childBeaconId),
-      ?batonCard,
     ];
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -2567,6 +2583,7 @@ class _MessageBubbleInteraction extends StatefulWidget {
   final Widget child;
   final bool isMine;
   final VoidCallback? onActions;
+
   final VoidCallback? onReply;
   final VoidCallback? onOpenItem;
   final VoidCallback? onQuickReact;

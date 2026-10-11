@@ -52,7 +52,6 @@ class BeaconOverflowMenu extends StatelessWidget {
     this.onEdit,
     this.onCreateFrom,
     this.onCreatePromise,
-    this.onCreatePoll,
     this.onUpdatePlan,
     this.onOfferHelp,
     this.onWithdraw,
@@ -83,7 +82,6 @@ class BeaconOverflowMenu extends StatelessWidget {
   final VoidCallback? onEdit;
   final Future<void> Function()? onCreateFrom;
   final VoidCallback? onCreatePromise;
-  final VoidCallback? onCreatePoll;
   final VoidCallback? onUpdatePlan;
   final Future<void> Function()? onOfferHelp;
   final Future<void> Function()? onWithdraw;
@@ -196,13 +194,6 @@ class BeaconOverflowMenu extends StatelessWidget {
         l10n.coordinationCreatePromiseAction,
       );
     }
-    if (onCreatePoll != null) {
-      add(
-        'create_poll',
-        Icons.poll_outlined,
-        l10n.beaconRoomCreatePoll,
-      );
-    }
     if (onUpdatePlan != null) {
       add(
         'update_plan',
@@ -307,7 +298,6 @@ class BeaconOverflowMenu extends StatelessWidget {
             _deferPopupAction(context, onCreateFrom),
           ),
           'create_promise' => _deferSync(context, onCreatePromise),
-          'create_poll' => _deferSync(context, onCreatePoll),
           'update_plan' => _deferSync(context, onUpdatePlan),
           'offerHelp' => unawaited(_deferPopupAction(context, onOfferHelp)),
           'withdraw' => unawaited(_deferPopupAction(context, onWithdraw)),

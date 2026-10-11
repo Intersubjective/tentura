@@ -2,13 +2,16 @@
 library;
 
 import 'dart:async';
+import 'dart:convert';
 
+import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_root/domain/entity/beacon_status.dart';
+import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/attention_dispatch_repository.dart';
@@ -51,6 +54,9 @@ const _systemMessage = 'Rbatoncase_sy1';
 const _noticeMessage = 'Rbatoncase_nt1';
 const _threadMessage = 'Rbatoncase_th1';
 
+const _ask = 'Who can bring the ladder?';
+const _requestBody = 'Can someone take this?';
+
 Future<void> main() async {
   final target = DisposablePgTarget.fromNamedEnvironment(
     envVarName: 'TENTURA_ROOM_BATON_CASE_TEST_DB',
@@ -83,18 +89,22 @@ Future<void> main() async {
 
     Future<RoomBaton> createOnRequest({
       List<({String userId, int tier})>? candidates,
+      String text = _ask,
+      String? replyToMessageId,
     }) => batonCase.create(
       actorId: _author,
-      messageId: _requestMessage,
-      candidates: candidates ?? [(userId: _candA, tier: 1), (userId: _candB, tier: 2)],
+      beaconId: _request,
+      text: text,
+      replyToMessageId: replyToMessageId,
+      candidates:
+          candidates ?? [(userId: _candA, tier: 1), (userId: _candB, tier: 2)],
     );
 
-    test('create on own message stores the baton and its candidates', () async {
+    test('create stores the baton and its candidates', () async {
       final baton = await createOnRequest();
 
       expect(baton.status, BatonStatus.collecting);
       expect(baton.authorId, _author);
-      expect(baton.messageId, _requestMessage);
       expect(baton.beaconId, _request);
       expect(await _count(writer, 'beacon_room_baton'), 1);
       expect(await _count(writer, 'beacon_room_baton_candidate'), 2);
@@ -110,6 +120,83 @@ ORDER BY user_id
         ],
       );
     });
+
+    test(
+      'create posts a new baton message and hangs the baton off it',
+      () async {
+        final messagesBefore = await _count(writer, 'beacon_room_message');
+
+        final baton = await createOnRequest(text: '  $_ask  ');
+
+        expect(
+          await _count(writer, 'beacon_room_message'),
+          messagesBefore + 1,
+        );
+        expect(baton.messageId, isNot(_requestMessage));
+        final message = await _message(writer, baton.messageId);
+        expect(message.beaconId, _request);
+        expect(message.author, _author);
+        expect(message.body, _ask, reason: 'body is the trimmed ask');
+        expect(message.replyTo, isNull);
+        expect(message.marker, BeaconRoomSemanticMarker.baton);
+        final stored = await writer.execute('''
+SELECT message_id FROM public.beacon_room_baton WHERE id = '${baton.id}'
+''');
+        expect(stored.single[0], baton.messageId);
+      },
+    );
+
+    test(
+      'create with empty text replying to a message posts a reply',
+      () async {
+        final baton = await createOnRequest(
+          text: '   ',
+          replyToMessageId: _requestMessage,
+        );
+
+        final message = await _message(writer, baton.messageId);
+        expect(message.body, '');
+        expect(message.replyTo, _requestMessage);
+        expect(message.marker, BeaconRoomSemanticMarker.baton);
+        expect(
+          await _receiptBlob(writer, 'batonAsked', _candA),
+          contains(_requestBody),
+          reason: 'with no ask, the replied-to message is the excerpt',
+        );
+      },
+    );
+
+    test('create with text and a reply keeps both and uses the text', () async {
+      final baton = await createOnRequest(replyToMessageId: _requestMessage);
+
+      final message = await _message(writer, baton.messageId);
+      expect(message.body, _ask);
+      expect(message.replyTo, _requestMessage);
+      expect(await _receiptBlob(writer, 'batonAsked', _candA), contains(_ask));
+    });
+
+    test("create replying to someone else's message is allowed", () async {
+      final baton = await createOnRequest(
+        text: '',
+        replyToMessageId: _foreignMessage,
+      );
+
+      final message = await _message(writer, baton.messageId);
+      expect(message.author, _author, reason: 'the actor authors the baton');
+      expect(message.replyTo, _foreignMessage);
+      expect(await _receiptRecipients(writer, 'batonAsked'), [_candA, _candB]);
+    });
+
+    for (final replyTo in [_pollMessage, _systemMessage, _noticeMessage]) {
+      test(
+        'create replying to the non-plain message $replyTo is allowed',
+        () async {
+          final baton = await createOnRequest(replyToMessageId: replyTo);
+
+          expect((await _message(writer, baton.messageId)).replyTo, replyTo);
+        },
+      );
+    }
 
     test('create sends exactly one batonAsked receipt per candidate', () async {
       await createOnRequest();
@@ -133,21 +220,20 @@ ORDER BY user_id
       }
     });
 
-    test('create on a message in a Post room works', () async {
+    test('create in a Post room works', () async {
       final baton = await batonCase.create(
         actorId: _author,
-        messageId: _postMessage,
+        beaconId: _post,
+        text: _ask,
         candidates: [(userId: _candA, tier: 1)],
       );
 
       expect(baton.beaconId, _post);
+      expect((await _message(writer, baton.messageId)).beaconId, _post);
       expect(await _receiptRecipients(writer, 'batonAsked'), [_candA]);
     });
 
-    for (final (beaconId, messageId) in [
-      (_request, _requestMessage),
-      (_post, _postMessage),
-    ]) {
+    for (final beaconId in [_request, _post]) {
       test('author without participant row can create on $beaconId', () async {
         await writer.execute('''
 DELETE FROM public.beacon_participant
@@ -156,7 +242,8 @@ WHERE beacon_id = '$beaconId' AND user_id = '$_author'
 
         final baton = await batonCase.create(
           actorId: _author,
-          messageId: messageId,
+          beaconId: beaconId,
+          text: _ask,
           candidates: [(userId: _candA, tier: 1)],
         );
 
@@ -167,63 +254,66 @@ WHERE beacon_id = '$beaconId' AND user_id = '$_author'
       });
     }
 
-    test('create on someone else\'s message is rejected without rows', () async {
+    test(
+      'create with empty text and no reply is rejected without rows',
+      () async {
+        await expectLater(
+          createOnRequest(text: '  '),
+          throwsA(isA<BatonMessageNotEligibleException>()),
+        );
+        await _expectNothingWritten(writer);
+      },
+    );
+
+    test('create replying to a message of another room is rejected', () async {
       await expectLater(
-        batonCase.create(
-          actorId: _author,
-          messageId: _foreignMessage,
-          candidates: [(userId: _candA, tier: 1)],
-        ),
+        createOnRequest(replyToMessageId: _postMessage),
         throwsA(isA<BatonMessageNotEligibleException>()),
       );
       await _expectNothingWritten(writer);
     });
 
-    test('create on a poll message is rejected without rows', () async {
+    test('create replying to an unknown message is rejected', () async {
       await expectLater(
-        batonCase.create(
-          actorId: _author,
-          messageId: _pollMessage,
-          candidates: [(userId: _candA, tier: 1)],
-        ),
+        createOnRequest(replyToMessageId: 'Rbatoncase_none'),
         throwsA(isA<BatonMessageNotEligibleException>()),
       );
       await _expectNothingWritten(writer);
     });
 
-    test('create on a system message is rejected without rows', () async {
+    test(
+      'create replying to a message outside the General room is rejected',
+      () async {
+        await expectLater(
+          createOnRequest(replyToMessageId: _threadMessage),
+          throwsA(isA<BatonMessageNotEligibleException>()),
+        );
+        await _expectNothingWritten(writer);
+      },
+    );
+
+    test('create with an over-long ask is rejected without rows', () async {
       await expectLater(
-        batonCase.create(
-          actorId: _author,
-          messageId: _systemMessage,
-          candidates: [(userId: _candA, tier: 1)],
-        ),
-        throwsA(isA<BatonMessageNotEligibleException>()),
+        createOnRequest(text: 'x' * (kMaxRoomMessageBodyLength + 1)),
+        throwsA(isA<BeaconCreateException>()),
       );
       await _expectNothingWritten(writer);
     });
 
-    test('create on a system-notice message is rejected without rows', () async {
-      await expectLater(
-        batonCase.create(
-          actorId: _author,
-          messageId: _noticeMessage,
-          candidates: [(userId: _candA, tier: 1)],
-        ),
-        throwsA(isA<BatonMessageNotEligibleException>()),
+    test('create is rate-limited like ordinary room messages', () async {
+      final limited = _buildCase(
+        database,
+        _withRoomMessageLimit(target.databaseEnv, 2),
       );
-      await _expectNothingWritten(writer);
-    });
-
-    test('create on a message outside the General room is rejected without rows',
-        () async {
+      // The fixture already holds more than two recent messages by the author.
       await expectLater(
-        batonCase.create(
+        limited.create(
           actorId: _author,
-          messageId: _threadMessage,
+          beaconId: _request,
+          text: _ask,
           candidates: [(userId: _candA, tier: 1)],
         ),
-        throwsA(isA<BatonMessageNotEligibleException>()),
+        throwsA(isA<RateLimitedException>()),
       );
       await _expectNothingWritten(writer);
     });
@@ -246,34 +336,40 @@ WHERE beacon_id = '$beaconId' AND user_id = '$_author'
       await _expectNothingWritten(writer);
     });
 
-    test('a second baton on the same message is rejected', () async {
-      await createOnRequest();
-      final receiptsBefore = await _receiptRecipients(writer, 'batonAsked');
+    test(
+      'two batons replying to one message each get their own message',
+      () async {
+        final first = await createOnRequest(replyToMessageId: _requestMessage);
+        final second = await createOnRequest(
+          candidates: [(userId: _member, tier: 1)],
+          replyToMessageId: _requestMessage,
+        );
 
-      await expectLater(
-        createOnRequest(candidates: [(userId: _member, tier: 1)]),
-        throwsA(isA<BatonAlreadyActiveException>()),
-      );
+        expect(second.messageId, isNot(first.messageId));
+        expect(await _count(writer, 'beacon_room_baton'), 2);
+        expect(
+          await _receiptRecipients(writer, 'batonAsked'),
+          [_candA, _candB, _member],
+        );
+      },
+    );
 
-      expect(await _count(writer, 'beacon_room_baton'), 1);
-      expect(await _count(writer, 'beacon_room_baton_candidate'), 2);
-      expect(await _receiptRecipients(writer, 'batonAsked'), receiptsBefore);
-    });
-
-    test('create in a closed room is rejected like posting a message',
-        () async {
-      await writer.execute('''
+    test(
+      'create in a closed room is rejected like posting a message',
+      () async {
+        await writer.execute('''
 UPDATE public.beacon SET status = ${BeaconStatus.closed.smallintValue}
 WHERE id = '$_request'
 ''');
 
-      await expectLater(
-        createOnRequest(),
-        throwsA(isA<BeaconCreateException>()),
-        reason: 'same rejection as posting a message in a read-only room',
-      );
-      await _expectNothingWritten(writer);
-    });
+        await expectLater(
+          createOnRequest(),
+          throwsA(isA<BeaconCreateException>()),
+          reason: 'same rejection as posting a message in a read-only room',
+        );
+        await _expectNothingWritten(writer);
+      },
+    );
 
     test('respond by a non-candidate is rejected', () async {
       final baton = await createOnRequest();
@@ -288,7 +384,11 @@ WHERE id = '$_request'
     test('a candidate can switch from can-help to cannot-help', () async {
       final baton = await createOnRequest();
 
-      await batonCase.respond(actorId: _candA, batonId: baton.id, canHelp: true);
+      await batonCase.respond(
+        actorId: _candA,
+        batonId: baton.id,
+        canHelp: true,
+      );
       expect((await _responses(writer))[_candA], 1);
 
       await batonCase.respond(
@@ -304,22 +404,32 @@ WHERE user_id = '$_candA'
       expect(respondedAt.single[0], isNotNull);
     });
 
-    test('switching an answer that completes the set notifies the author once',
-        () async {
-      final baton = await createOnRequest();
-      await batonCase.respond(actorId: _candA, batonId: baton.id, canHelp: true);
-      await batonCase.respond(actorId: _candB, batonId: baton.id, canHelp: true);
-      expect(await _receiptRecipients(writer, 'batonAllAnswered'), [_author]);
+    test(
+      'switching an answer that completes the set notifies the author once',
+      () async {
+        final baton = await createOnRequest();
+        await batonCase.respond(
+          actorId: _candA,
+          batonId: baton.id,
+          canHelp: true,
+        );
+        await batonCase.respond(
+          actorId: _candB,
+          batonId: baton.id,
+          canHelp: true,
+        );
+        expect(await _receiptRecipients(writer, 'batonAllAnswered'), [_author]);
 
-      await batonCase.respond(
-        actorId: _candB,
-        batonId: baton.id,
-        canHelp: false,
-      );
+        await batonCase.respond(
+          actorId: _candB,
+          batonId: baton.id,
+          canHelp: false,
+        );
 
-      expect((await _responses(writer))[_candB], 2);
-      expect(await _receiptRecipients(writer, 'batonAllAnswered'), [_author]);
-    });
+        expect((await _responses(writer))[_candB], 2);
+        expect(await _receiptRecipients(writer, 'batonAllAnswered'), [_author]);
+      },
+    );
 
     for (final (label, setStatus) in [
       (
@@ -328,21 +438,27 @@ WHERE user_id = '$_candA'
       ),
       ('cancelled', 'status = 2, resolved_at = now()'),
     ]) {
-      test('respond on a $label baton is rejected and changes nothing',
-          () async {
-        final baton = await createOnRequest();
-        await writer.execute(
-          'UPDATE public.beacon_room_baton SET $setStatus',
-        );
+      test(
+        'respond on a $label baton is rejected and changes nothing',
+        () async {
+          final baton = await createOnRequest();
+          await writer.execute(
+            'UPDATE public.beacon_room_baton SET $setStatus',
+          );
 
-        await expectLater(
-          batonCase.respond(actorId: _candB, batonId: baton.id, canHelp: true),
-          throwsA(isA<BatonNotCollectingException>()),
-        );
+          await expectLater(
+            batonCase.respond(
+              actorId: _candB,
+              batonId: baton.id,
+              canHelp: true,
+            ),
+            throwsA(isA<BatonNotCollectingException>()),
+          );
 
-        expect(await _responses(writer), {_candA: 0, _candB: 0});
-        expect(await _receiptRecipients(writer, 'batonAllAnswered'), isEmpty);
-      });
+          expect(await _responses(writer), {_candA: 0, _candB: 0});
+          expect(await _receiptRecipients(writer, 'batonAllAnswered'), isEmpty);
+        },
+      );
     }
 
     test('a candidate who lost room admission cannot respond', () async {
@@ -364,7 +480,11 @@ WHERE beacon_id = '$_request' AND user_id = '$_candB'
     test('the last answer notifies the author exactly once', () async {
       final baton = await createOnRequest();
 
-      await batonCase.respond(actorId: _candA, batonId: baton.id, canHelp: true);
+      await batonCase.respond(
+        actorId: _candA,
+        batonId: baton.id,
+        canHelp: true,
+      );
       expect(await _receiptRecipients(writer, 'batonAllAnswered'), isEmpty);
 
       await batonCase.respond(
@@ -380,7 +500,11 @@ WHERE beacon_id = '$_request' AND user_id = '$_candB'
         batonId: baton.id,
         canHelp: false,
       );
-      await batonCase.respond(actorId: _candB, batonId: baton.id, canHelp: true);
+      await batonCase.respond(
+        actorId: _candB,
+        batonId: baton.id,
+        canHelp: true,
+      );
       expect(await _receiptRecipients(writer, 'batonAllAnswered'), [_author]);
       final stamp = await writer.execute(
         'SELECT all_answered_notified_at FROM public.beacon_room_baton',
@@ -409,6 +533,454 @@ WHERE beacon_id = '$_request' AND user_id = '$_candB'
           reason: 'round $round: two batonAsked plus one batonAllAnswered',
         );
       }
+    });
+
+    group('update', () {
+      const newAsk = 'Who can bring the big ladder?';
+
+      Future<void> update(
+        RoomBaton baton, {
+        String actorId = _author,
+        String text = newAsk,
+        List<({String userId, int tier})>? candidates,
+      }) => batonCase.update(
+        actorId: actorId,
+        batonId: baton.id,
+        text: text,
+        candidates:
+            candidates ??
+            [(userId: _candA, tier: 1), (userId: _candB, tier: 2)],
+      );
+
+      /// Everything [update] may change, to assert an unchanged snapshot.
+      Future<String> snapshot(RoomBaton baton) async {
+        final rows = await writer.execute('''
+SELECT
+  (SELECT json_agg(c ORDER BY c.user_id)
+     FROM public.beacon_room_baton_candidate c)::text,
+  (SELECT row_to_json(b) FROM public.beacon_room_baton b)::text,
+  (SELECT row_to_json(m) FROM public.beacon_room_message m
+    WHERE m.id = '${baton.messageId}')::text,
+  (SELECT count(*) FROM public.attention_occurrence)
+''');
+        return rows.single.join('|');
+      }
+
+      test('kept candidates keep their answers; tiers can change', () async {
+        final baton = await createOnRequest();
+        await batonCase.respond(
+          actorId: _candA,
+          batonId: baton.id,
+          canHelp: true,
+        );
+        await batonCase.respond(
+          actorId: _candB,
+          batonId: baton.id,
+          canHelp: false,
+        );
+        final before = await _candidateRows(writer);
+
+        await update(
+          baton,
+          candidates: [(userId: _candA, tier: 3), (userId: _candB, tier: 2)],
+        );
+
+        final after = await _candidateRows(writer);
+        expect(after.keys.toSet(), {_candA, _candB});
+        expect(after[_candA]!.tier, 3, reason: 'retiered');
+        expect(after[_candA]!.response, 1, reason: 'can-help kept');
+        expect(after[_candA]!.respondedAt, before[_candA]!.respondedAt);
+        expect(after[_candB]!.tier, 2);
+        expect(after[_candB]!.response, 2, reason: 'cannot-help kept');
+        expect(after[_candB]!.respondedAt, before[_candB]!.respondedAt);
+        expect(
+          await _receiptRecipients(writer, 'batonAsked'),
+          [_candA, _candB],
+          reason: 'nobody new was asked, so no new receipts',
+        );
+      });
+
+      test('adds, removes and retiers in one edit', () async {
+        final baton = await createOnRequest();
+        await batonCase.respond(
+          actorId: _candA,
+          batonId: baton.id,
+          canHelp: true,
+        );
+
+        await update(
+          baton,
+          candidates: [(userId: _candA, tier: 2), (userId: _member, tier: 1)],
+        );
+
+        final rows = await _candidateRows(writer);
+        expect(rows.keys.toSet(), {_candA, _member});
+        expect(rows[_candA]!.tier, 2);
+        expect(rows[_candA]!.response, 1);
+        expect(rows[_member]!.tier, 1);
+        expect(rows[_member]!.response, 0, reason: 'added people are waiting');
+        expect(rows[_member]!.respondedAt, isNull);
+      });
+
+      test('only added people get a batonAsked receipt', () async {
+        final baton = await createOnRequest();
+        expect(await _count(writer, 'attention_occurrence'), 2);
+
+        await update(
+          baton,
+          candidates: [(userId: _candA, tier: 1), (userId: _member, tier: 2)],
+        );
+
+        expect(
+          await _receiptRecipients(writer, 'batonAsked'),
+          [_candA, _candB, _member],
+          reason:
+              'one new receipt for the added member; none for kept or '
+              'removed people',
+        );
+        expect(await _count(writer, 'attention_occurrence'), 3);
+        final keys = await writer.execute('''
+SELECT source_event_key FROM public.attention_occurrence
+WHERE event_type = 'batonAsked' ORDER BY source_event_key
+''');
+        // Per-edit key, so a person removed and added back is asked again.
+        expect(
+          keys.map((r) => r[0]! as String),
+          contains(startsWith('baton_asked:${baton.id}:$_member:')),
+        );
+        final blob = await _receiptBlob(writer, 'batonAsked', _member);
+        expect(blob, contains(newAsk), reason: 'the excerpt is the new ask');
+        expect(blob, isNot(contains(_candA)));
+      });
+
+      test('an added person on an empty-text reply baton gets the replied-to '
+          'body as excerpt', () async {
+        final baton = await createOnRequest(
+          text: '',
+          replyToMessageId: _requestMessage,
+        );
+
+        await update(
+          baton,
+          text: '',
+          candidates: [(userId: _candA, tier: 1), (userId: _member, tier: 1)],
+        );
+
+        expect(
+          await _receiptBlob(writer, 'batonAsked', _member),
+          contains(_requestBody),
+        );
+      });
+
+      test('adding someone resets all_answered_notified_at', () async {
+        final baton = await createOnRequest();
+        await batonCase.respond(
+          actorId: _candA,
+          batonId: baton.id,
+          canHelp: true,
+        );
+        await batonCase.respond(
+          actorId: _candB,
+          batonId: baton.id,
+          canHelp: true,
+        );
+        expect(await _allAnsweredStamp(writer), isNotNull);
+
+        await update(
+          baton,
+          candidates: [
+            (userId: _candA, tier: 1),
+            (userId: _candB, tier: 1),
+            (userId: _member, tier: 1),
+          ],
+        );
+        expect(await _allAnsweredStamp(writer), isNull);
+
+        await batonCase.respond(
+          actorId: _member,
+          batonId: baton.id,
+          canHelp: false,
+        );
+        expect(await _allAnsweredStamp(writer), isNotNull);
+        final allAnswered = await writer.execute('''
+SELECT count(*) FROM public.attention_occurrence
+WHERE event_type = 'batonAllAnswered'
+''');
+        expect(
+          allAnswered.single[0],
+          2,
+          reason: 'the author is told again once the newcomer answers',
+        );
+      });
+
+      test(
+        'removing or retiering only keeps all_answered_notified_at',
+        () async {
+          final baton = await createOnRequest(
+            candidates: [
+              (userId: _candA, tier: 1),
+              (userId: _candB, tier: 1),
+              (userId: _member, tier: 1),
+            ],
+          );
+          for (final user in [_candA, _candB, _member]) {
+            await batonCase.respond(
+              actorId: user,
+              batonId: baton.id,
+              canHelp: true,
+            );
+          }
+          final stamp = await _allAnsweredStamp(writer);
+          expect(stamp, isNotNull);
+
+          await update(
+            baton,
+            candidates: [(userId: _candA, tier: 2), (userId: _candB, tier: 1)],
+          );
+
+          expect(await _allAnsweredStamp(writer), stamp);
+        },
+      );
+
+      test(
+        'rewrites the message body, sets edited_at and clears mentions',
+        () async {
+          final baton = await createOnRequest();
+          await writer.execute('''
+UPDATE public.beacon_room_message
+   SET mentions = ARRAY['$_candA'],
+       mention_spans = '[{"userId":"$_candA","start":0,"end":3}]'::jsonb
+ WHERE id = '${baton.messageId}'
+''');
+          expect(await _editedAt(writer, baton.messageId), isNull);
+
+          await update(baton, text: '  $newAsk  ');
+
+          final message = await _message(writer, baton.messageId);
+          expect(message.body, newAsk, reason: 'trimmed');
+          expect(message.marker, BeaconRoomSemanticMarker.baton);
+          expect(await _editedAt(writer, baton.messageId), isNotNull);
+          final mentions = await writer.execute('''
+SELECT mentions, mention_spans FROM public.beacon_room_message
+WHERE id = '${baton.messageId}'
+''');
+          expect(mentions.single[0], isEmpty);
+          expect(mentions.single[1], anyOf(isNull, isEmpty));
+        },
+      );
+
+      test(
+        'empty text is allowed on a reply baton and keeps the reply',
+        () async {
+          final baton = await createOnRequest(
+            replyToMessageId: _requestMessage,
+          );
+
+          await update(baton, text: '   ');
+
+          final message = await _message(writer, baton.messageId);
+          expect(message.body, '');
+          expect(message.replyTo, _requestMessage);
+        },
+      );
+
+      test(
+        'empty text on a standalone baton is rejected, nothing changes',
+        () async {
+          final baton = await createOnRequest();
+          final before = await snapshot(baton);
+
+          await expectLater(
+            update(
+              baton,
+              text: '  ',
+              candidates: [(userId: _member, tier: 1)],
+            ),
+            throwsA(isA<BatonMessageNotEligibleException>()),
+          );
+
+          expect(await snapshot(baton), before);
+        },
+      );
+
+      test('an over-long ask is rejected, nothing changes', () async {
+        final baton = await createOnRequest();
+        final before = await snapshot(baton);
+
+        await expectLater(
+          update(baton, text: 'x' * (kMaxRoomMessageBodyLength + 1)),
+          throwsA(isA<BeaconCreateException>()),
+        );
+
+        expect(await snapshot(baton), before);
+      });
+
+      test('a non-author is rejected, nothing changes', () async {
+        final baton = await createOnRequest();
+        final before = await snapshot(baton);
+
+        for (final actor in [_candA, _member]) {
+          await expectLater(
+            update(baton, actorId: actor),
+            throwsA(isA<BatonNotAuthorException>()),
+            reason: actor,
+          );
+        }
+
+        expect(await snapshot(baton), before);
+      });
+
+      test('an unknown baton is rejected', () async {
+        await expectLater(
+          batonCase.update(
+            actorId: _author,
+            batonId: 'Lbatoncase_none',
+            text: newAsk,
+            candidates: [(userId: _candA, tier: 1)],
+          ),
+          throwsA(isA<BatonNotFoundException>()),
+        );
+      });
+
+      for (final (label, setStatus) in [
+        (
+          'taken',
+          'status = 1, selection_mode = 1, resolved_at = now(), '
+              "taker_id = '$_candA'",
+        ),
+        ('cancelled', 'status = 2, resolved_at = now()'),
+      ]) {
+        test('a $label baton cannot be edited, nothing changes', () async {
+          final baton = await createOnRequest();
+          await writer.execute(
+            'UPDATE public.beacon_room_baton SET $setStatus',
+          );
+          final before = await snapshot(baton);
+
+          await expectLater(
+            update(
+              baton,
+              candidates: [
+                (userId: _candA, tier: 1),
+                (userId: _member, tier: 1),
+              ],
+            ),
+            throwsA(isA<BatonNotCollectingException>()),
+          );
+
+          expect(await snapshot(baton), before);
+        });
+      }
+
+      test('a read-only room rejects the edit, nothing changes', () async {
+        final baton = await createOnRequest();
+        await writer.execute('''
+UPDATE public.beacon SET status = ${BeaconStatus.closed.smallintValue}
+WHERE id = '$_request'
+''');
+        final before = await snapshot(baton);
+
+        await expectLater(
+          update(baton),
+          throwsA(isA<BeaconCreateException>()),
+        );
+
+        expect(await snapshot(baton), before);
+      });
+
+      for (final (label, candidates)
+          in <(String, List<({String userId, int tier})>)>[
+            ('an empty list', []),
+            (
+              'more than twelve people',
+              [
+                for (var i = 0; i < 13; i++)
+                  (userId: 'Ubatoncase_x$i', tier: 1),
+              ],
+            ),
+            (
+              'the author',
+              [(userId: _candA, tier: 1), (userId: _author, tier: 1)],
+            ),
+            (
+              'a non-admitted person',
+              [(userId: _member, tier: 1), (userId: _outsider, tier: 1)],
+            ),
+            (
+              'a duplicate',
+              [(userId: _member, tier: 1), (userId: _member, tier: 2)],
+            ),
+            (
+              'a bad tier',
+              [(userId: _member, tier: 1), (userId: _candA, tier: 4)],
+            ),
+          ]) {
+        test(
+          'a candidate list with $label is rejected with no partial writes',
+          () async {
+            final baton = await createOnRequest();
+            final before = await snapshot(baton);
+
+            await expectLater(
+              update(baton, candidates: candidates),
+              throwsA(isA<BatonInvalidCandidatesException>()),
+            );
+
+            expect(await snapshot(baton), before);
+          },
+        );
+      }
+
+      test('a removed candidate now sees the observer view', () async {
+        final baton = await createOnRequest();
+        await batonCase.respond(
+          actorId: _candB,
+          batonId: baton.id,
+          canHelp: true,
+        );
+        final room = BeaconRoomRepository(database);
+        Future<Map<String, Object?>> viewOf(String viewer) async {
+          final rows = await room.listMessagesEnriched(
+            beaconId: _request,
+            viewerUserId: viewer,
+          );
+          final raw = rows.singleWhere((r) => r['id'] == baton.messageId);
+          return (jsonDecode(raw['batonDataJson']! as String) as Map)
+              .cast<String, Object?>();
+        }
+
+        expect((await viewOf(_candB))['viewerRole'], 'candidate');
+
+        await update(baton, candidates: [(userId: _candA, tier: 1)]);
+
+        expect(await viewOf(_candB), {
+          'id': baton.id,
+          'status': 'collecting',
+          'viewerRole': 'observer',
+        });
+        final author = await viewOf(_author);
+        expect(
+          (author['candidates']! as List)
+              .map((c) => (c as Map)['userId'])
+              .toList(),
+          [_candA],
+        );
+      });
+
+      test('a removed and re-added person is asked again', () async {
+        final baton = await createOnRequest();
+        await update(baton, candidates: [(userId: _candA, tier: 1)]);
+
+        await update(
+          baton,
+          text: 'A different ask this time',
+          candidates: [(userId: _candA, tier: 1), (userId: _candB, tier: 1)],
+        );
+
+        final rows = await _candidateRows(writer);
+        expect(rows.keys.toSet(), {_candA, _candB});
+        expect(rows[_candB]!.response, 0);
+      });
     });
   });
 }
@@ -454,10 +1026,86 @@ Future<int> _count(Connection writer, String table) async {
 }
 
 Future<void> _expectNothingWritten(Connection writer) async {
+  final batonMessages = await writer.execute(
+    'SELECT count(*) FROM public.beacon_room_message '
+    'WHERE semantic_marker = ${BeaconRoomSemanticMarker.baton}',
+  );
+  expect(batonMessages.single[0], 0, reason: 'no baton message posted');
   expect(await _count(writer, 'beacon_room_baton'), 0);
   expect(await _count(writer, 'beacon_room_baton_candidate'), 0);
   expect(await _receiptRecipients(writer, 'batonAsked'), isEmpty);
   expect(await _receiptRecipients(writer, 'batonAllAnswered'), isEmpty);
+}
+
+typedef _Message = ({
+  String beaconId,
+  String author,
+  String body,
+  String? replyTo,
+  int? marker,
+});
+
+Future<_Message> _message(Connection writer, String id) async {
+  final r = (await writer.execute(
+    Sql.named('''
+SELECT beacon_id, author_id, body, reply_to_message_id, semantic_marker
+FROM public.beacon_room_message WHERE id = @id
+'''),
+    parameters: {'id': id},
+  )).single;
+  return (
+    beaconId: r[0]! as String,
+    author: r[1]! as String,
+    body: r[2]! as String,
+    replyTo: r[3] as String?,
+    marker: r[4] as int?,
+  );
+}
+
+Env _withRoomMessageLimit(Env base, int max) => Env(
+  environment: Environment.test,
+  pgHost: base.pgHost,
+  pgPort: base.pgPort,
+  pgDatabase: base.pgDatabase,
+  pgUsername: base.pgUsername,
+  pgPassword: base.pgPassword,
+  printEnv: false,
+  isDebugModeOn: false,
+  roomMessageMaxPerUser: max,
+);
+
+typedef _CandidateRow = ({int tier, int response, DateTime? respondedAt});
+
+Future<Map<String, _CandidateRow>> _candidateRows(Connection writer) async {
+  final rows = await writer.execute(
+    'SELECT user_id, tier, response, responded_at '
+    'FROM public.beacon_room_baton_candidate',
+  );
+  return {
+    for (final r in rows)
+      r[0]! as String: (
+        tier: r[1]! as int,
+        response: r[2]! as int,
+        respondedAt: r[3] as DateTime?,
+      ),
+  };
+}
+
+Future<DateTime?> _allAnsweredStamp(Connection writer) async {
+  final rows = await writer.execute(
+    'SELECT all_answered_notified_at FROM public.beacon_room_baton',
+  );
+  return rows.single[0] as DateTime?;
+}
+
+Future<DateTime?> _editedAt(Connection writer, String messageId) async {
+  final rows = await writer.execute(
+    Sql.named(
+      'SELECT edited_at FROM public.beacon_room_message WHERE id = @id',
+    ),
+    parameters: {'id': messageId},
+  );
+  return rows.single[0] as DateTime?;
 }
 
 Future<Map<String, int>> _responses(Connection writer) async {
@@ -554,7 +1202,7 @@ VALUES ('Zbatoncase_pl1', '$_author', 'Which day?')
   await writer.execute('''
 INSERT INTO public.beacon_room_message (id, beacon_id, author_id, body)
 VALUES
-  ('$_requestMessage', '$_request', '$_author', 'Can someone take this?'),
+  ('$_requestMessage', '$_request', '$_author', '$_requestBody'),
   ('$_postMessage', '$_post', '$_author', 'Can someone take this?'),
   ('$_foreignMessage', '$_request', '$_member', 'Someone else wrote this')
 ''');

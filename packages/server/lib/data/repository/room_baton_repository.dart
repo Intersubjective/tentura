@@ -117,6 +117,53 @@ VALUES ($1, $2, $3)
   }
 
   @override
+  Future<void> updateCandidates({
+    required String batonId,
+    required List<({String userId, int tier})> add,
+    required List<String> remove,
+    required List<({String userId, int tier})> retier,
+  }) async {
+    for (final userId in remove) {
+      await _database.customStatement(
+        r'''
+DELETE FROM public.beacon_room_baton_candidate
+ WHERE baton_id = $1 AND user_id = $2
+''',
+        [batonId, userId],
+      );
+    }
+    for (final candidate in retier) {
+      await _database.customStatement(
+        r'''
+UPDATE public.beacon_room_baton_candidate
+   SET tier = $3
+ WHERE baton_id = $1 AND user_id = $2
+''',
+        [batonId, candidate.userId, candidate.tier],
+      );
+    }
+    for (final candidate in add) {
+      await _database.customStatement(
+        r'''
+INSERT INTO public.beacon_room_baton_candidate (baton_id, user_id, tier)
+VALUES ($1, $2, $3)
+''',
+        [batonId, candidate.userId, candidate.tier],
+      );
+    }
+    if (add.isNotEmpty) {
+      await _database.customStatement(
+        r'''
+UPDATE public.beacon_room_baton
+   SET all_answered_notified_at = NULL
+ WHERE id = $1
+''',
+        [batonId],
+      );
+    }
+  }
+
+  @override
   Future<void> updateCandidateResponse({
     required String batonId,
     required String userId,
@@ -198,9 +245,22 @@ UPDATE public.beacon_room_baton
     required DateTime resolvedAt,
   }) => _database.customUpdate(
     r'''
-UPDATE public.beacon_room_baton
-   SET status = 2, resolved_at = $2
- WHERE id = $1
+WITH cancelled AS (
+  UPDATE public.beacon_room_baton
+     SET status = 2, resolved_at = $2
+   WHERE id = $1
+  RETURNING message_id
+)
+-- No-op touch of the baton message: its row trigger fans `room_message` out to
+-- the whole room, so members outside the baton (who get no `room_baton`
+-- event) refetch and see the bubble switch to «cancelled». Skipped while the
+-- room is read-only: the lifecycle write guard rejects message updates then.
+UPDATE public.beacon_room_message m
+   SET body = m.body
+  FROM cancelled, public.beacon b
+ WHERE m.id = cancelled.message_id
+   AND b.id = m.beacon_id
+   AND b.status NOT IN (1, 2, 6)
 ''',
     variables: [
       Variable<String>(batonId),

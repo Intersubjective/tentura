@@ -1627,7 +1627,9 @@ ThreadMessagePreviewRecord _mapThreadMessagePreview({
     );
   }
 
-  if (semanticMarker != null) {
+  // A baton message previews as its text, like an ordinary message.
+  if (semanticMarker != null &&
+      semanticMarker != BeaconRoomSemanticMarker.baton) {
     final kind = _previewKindForSemanticMarker(semanticMarker);
     return ThreadMessagePreviewRecord(
       kind: kind,

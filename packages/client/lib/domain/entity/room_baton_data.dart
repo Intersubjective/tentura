@@ -177,7 +177,7 @@ sealed class RoomBatonData {
     RoomBatonStatus status,
   ) {
     final taker = RoomBatonTaker._tryParse(map['taker']);
-    if (taker == null) return null;
+    if (status == RoomBatonStatus.taken && taker == null) return null;
     return RoomBatonObserverData(id: id, status: status, taker: taker);
   }
 }
@@ -219,13 +219,15 @@ class RoomBatonCandidateData extends RoomBatonData {
   final RoomBatonTaker? taker;
 }
 
-/// Everyone else's view: only the taker, once selected.
+/// Everyone else's view: that the baton exists and its status, plus the taker
+/// once selected. Never who was asked or how they answered.
 class RoomBatonObserverData extends RoomBatonData {
   const RoomBatonObserverData({
     required super.id,
     required super.status,
-    required this.taker,
+    this.taker,
   });
 
-  final RoomBatonTaker taker;
+  /// Set exactly when [status] is [RoomBatonStatus.taken].
+  final RoomBatonTaker? taker;
 }

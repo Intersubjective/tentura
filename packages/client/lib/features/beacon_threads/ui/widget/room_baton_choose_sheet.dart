@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/room_baton_data.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+
+import 'room_baton_card.dart';
 
 /// Opens the sheet where the baton author picks who takes it: «Pick for me»
 /// (calls [onSelect] with `null`) and the people who can help, grouped by
@@ -11,6 +14,7 @@ Future<void> showRoomBatonChooseSheet(
   BuildContext context, {
   required List<RoomBatonCandidate> candidates,
   required void Function(String? userId) onSelect,
+  List<BeaconParticipant> participants = const [],
 }) => showModalBottomSheet<void>(
   context: context,
   showDragHandle: true,
@@ -18,6 +22,7 @@ Future<void> showRoomBatonChooseSheet(
   isScrollControlled: true,
   builder: (ctx) => _ChooseSheet(
     candidates: candidates,
+    participants: participants,
     onSelect: (userId) {
       Navigator.pop(ctx);
       onSelect(userId);
@@ -26,9 +31,14 @@ Future<void> showRoomBatonChooseSheet(
 );
 
 class _ChooseSheet extends StatelessWidget {
-  const _ChooseSheet({required this.candidates, required this.onSelect});
+  const _ChooseSheet({
+    required this.candidates,
+    required this.onSelect,
+    required this.participants,
+  });
 
   final List<RoomBatonCandidate> candidates;
+  final List<BeaconParticipant> participants;
   final void Function(String? userId) onSelect;
 
   @override
@@ -69,6 +79,11 @@ class _ChooseSheet extends StatelessWidget {
               ),
             for (final c in byTier[tier]!)
               ListTile(
+                leading: batonPersonAvatar(
+                  userId: c.userId,
+                  title: c.title,
+                  participants: participants,
+                ),
                 title: Text(c.title),
                 onTap: () => onSelect(c.userId),
               ),

@@ -1,21 +1,19 @@
 import 'dart:async';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
-import 'package:tentura_root/utils/infer_image_mime_from_bytes.dart';
 
 import 'package:tentura/data/repository/clipboard_image_repository.dart';
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
-import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/fact_attachment_preview_strip.dart';
 import 'package:tentura/features/beacon_view/domain/pinned_facts.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
+import 'package:tentura/ui/widget/pending_attachments.dart';
 
 Future<void> showBeaconFactComposerSheet(
   BuildContext pageContext, {
@@ -48,11 +46,19 @@ class _BeaconFactComposerBody extends StatefulWidget {
   State<_BeaconFactComposerBody> createState() => _BeaconFactComposerBodyState();
 }
 
-class _BeaconFactComposerBodyState extends State<_BeaconFactComposerBody> {
+class _BeaconFactComposerBodyState extends State<_BeaconFactComposerBody>
+    with PendingAttachmentsMixin {
   final _text = TextEditingController();
-  final _pending = <RoomPendingUpload>[];
   var _visibility = BeaconFactCardVisibilityBits.public;
   var _submitting = false;
+
+  @override
+  ImageRepository get attachmentImageRepository =>
+      widget.imageRepository ?? GetIt.I<ImageRepository>();
+
+  @override
+  ClipboardImageRepository get attachmentClipboardRepository =>
+      widget.clipboardImageRepository ?? GetIt.I<ClipboardImageRepository>();
 
   @override
   void dispose() {
@@ -60,149 +66,15 @@ class _BeaconFactComposerBodyState extends State<_BeaconFactComposerBody> {
     super.dispose();
   }
 
-  int get _remainingSlots => kMaxRoomMessageAttachments - _pending.length;
-
   bool get _canSubmit =>
       !_submitting &&
-      (_text.text.trim().isNotEmpty || _pending.isNotEmpty);
-
-  void _snack(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  bool _withinSize(List<int> bytes) {
-    if (bytes.length <= kMaxRoomMessageAttachmentBytes) return true;
-    const mb = kMaxRoomMessageAttachmentBytes ~/ (1024 * 1024);
-    _snack(L10n.of(context)!.beaconRoomAttachmentTooLarge(mb));
-    return false;
-  }
-
-  void _tryAdd(RoomPendingUpload upload) {
-    if (_remainingSlots <= 0) {
-      _snack(
-        L10n.of(context)!.beaconRoomAttachmentsTooMany(
-          kMaxRoomMessageAttachments,
-        ),
-      );
-      return;
-    }
-    if (!_withinSize(upload.bytes)) return;
-    setState(() => _pending.add(upload));
-  }
-
-  String _mimeFromExtension(String ext) {
-    switch (ext.toLowerCase()) {
-      case 'pdf':
-        return 'application/pdf';
-      case 'png':
-        return 'image/png';
-      case 'jpg':
-      case 'jpeg':
-        return 'image/jpeg';
-      case 'webp':
-        return 'image/webp';
-      case 'txt':
-        return 'text/plain';
-      default:
-        return 'application/octet-stream';
-    }
-  }
-
-  String? _extensionFromFileName(String name) {
-    final dot = name.lastIndexOf('.');
-    if (dot <= 0 || dot == name.length - 1) return null;
-    return name.substring(dot + 1).trim();
-  }
-
-  Future<void> _pickImages() async {
-    if (_remainingSlots <= 0) {
-      _snack(
-        L10n.of(context)!.beaconRoomAttachmentsTooMany(
-          kMaxRoomMessageAttachments,
-        ),
-      );
-      return;
-    }
-    final repo = widget.imageRepository ?? GetIt.I<ImageRepository>();
-    final picks = await repo.pickMultipleImages();
-    if (!mounted || picks.isEmpty) return;
-    for (final p in picks) {
-      if (_remainingSlots <= 0) break;
-      _tryAdd(
-        RoomPendingUpload(
-          bytes: p.bytes,
-          fileName: p.fileName,
-          mimeType: 'image/jpeg',
-        ),
-      );
-    }
-  }
-
-  Future<void> _pasteImage() async {
-    if (_remainingSlots <= 0) {
-      _snack(
-        L10n.of(context)!.beaconRoomAttachmentsTooMany(
-          kMaxRoomMessageAttachments,
-        ),
-      );
-      return;
-    }
-    final l10n = L10n.of(context)!;
-    final repo =
-        widget.clipboardImageRepository ?? GetIt.I<ClipboardImageRepository>();
-    try {
-      final result = await repo.readImage();
-      if (!mounted) return;
-      switch (result.outcome) {
-        case ClipboardImageReadOutcome.found:
-          _tryAdd(result.upload!);
-        case ClipboardImageReadOutcome.notFound:
-          _snack(l10n.beaconRoomAttachPasteImageNotFound);
-        case ClipboardImageReadOutcome.unsupported:
-          _snack(l10n.beaconRoomAttachPasteImageUnsupported);
-      }
-    } on Object catch (_) {
-      if (!mounted) return;
-      _snack(l10n.beaconRoomAttachPasteImageReadFailed);
-    }
-  }
-
-  Future<void> _pickFiles() async {
-    if (_remainingSlots <= 0) {
-      _snack(
-        L10n.of(context)!.beaconRoomAttachmentsTooMany(
-          kMaxRoomMessageAttachments,
-        ),
-      );
-      return;
-    }
-    final files = await FilePicker.pickFiles();
-    if (!mounted || files.isEmpty) return;
-    for (final pf in files) {
-      if (_remainingSlots <= 0) break;
-      final bytes = await pf.readAsBytes();
-      final ext = _extensionFromFileName(pf.name);
-      var mime = ext != null && ext.isNotEmpty
-          ? _mimeFromExtension(ext)
-          : 'application/octet-stream';
-      final sniffed = inferImageMimeFromLeadingBytes(bytes);
-      if (sniffed != null) mime = sniffed;
-      _tryAdd(
-        RoomPendingUpload(
-          bytes: bytes,
-          fileName: pf.name,
-          mimeType: mime,
-        ),
-      );
-    }
-  }
+      (_text.text.trim().isNotEmpty || pendingUploads.isNotEmpty);
 
   Future<void> _submit() async {
     if (!_canSubmit) return;
     final l10n = L10n.of(context)!;
     final rawText = _text.text;
-    final uploads = List<RoomPendingUpload>.from(_pending);
+    final uploads = List<RoomPendingUpload>.from(pendingUploads);
     final factText = pinFactTextForPin(
       body: rawText,
       attachmentCount: uploads.length,
@@ -266,18 +138,18 @@ class _BeaconFactComposerBodyState extends State<_BeaconFactComposerBody> {
                 hintText: l10n.beaconRoomFactCardEditHint,
               ),
             ),
-            if (_pending.isNotEmpty) ...[
+            if (pendingUploads.isNotEmpty) ...[
               SizedBox(height: tt.rowGap),
               FactAttachmentPreviewStrip(
                 existing: const [],
                 pending: [
-                  for (final u in _pending)
+                  for (final u in pendingUploads)
                     (bytes: u.bytes, fileName: u.fileName, mimeType: u.mimeType),
                 ],
                 onRemoveExisting: (_) {},
                 onRemovePending: (i) {
                   if (_submitting) return;
-                  setState(() => _pending.removeAt(i));
+                  removePendingUpload(i);
                 },
                 enabled: !_submitting,
               ),
@@ -295,20 +167,20 @@ class _BeaconFactComposerBodyState extends State<_BeaconFactComposerBody> {
                       Icons.content_paste_rounded,
                       size: tt.iconSize,
                     ),
-                    onPressed: !_submitting && _remainingSlots > 0
-                        ? () => unawaited(_pasteImage())
+                    onPressed: !_submitting && remainingAttachmentSlots > 0
+                        ? () => unawaited(pasteImageAttachment())
                         : null,
                   ),
                   PopupMenuButton<String>(
                     tooltip: l10n.beaconRoomAttachMenuTooltip,
-                    enabled: !_submitting && _remainingSlots > 0,
+                    enabled: !_submitting && remainingAttachmentSlots > 0,
                     icon: Icon(Icons.attach_file_rounded, size: tt.iconSize),
                     onSelected: (v) async {
                       if (_submitting) return;
                       if (v == 'img') {
-                        await _pickImages();
+                        await pickImageAttachments();
                       } else if (v == 'file') {
-                        await _pickFiles();
+                        await pickFileAttachments();
                       }
                     },
                     itemBuilder: (ctx) => [

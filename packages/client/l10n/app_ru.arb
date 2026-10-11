@@ -6293,11 +6293,9 @@
       }
     }
   },
-  "postCreateRecipients": "Кому: {names}",
-  "postCreateRecipientsCount": "Кому: {count, plural, one{{count} человек} few{{count} человека} many{{count} человек} other{{count} человека}}",
-  "postCreateRecipientsEmpty": "Кому: выберите получателей",
   "postCreateAllowForwarding": "Можно пересылать",
-  "postCreateEmptyHint": "Напишите, с чего начать разговор. Это и будет пост.",
+  "postCreateTextHint": "О чём ваш пост?",
+  "postCreateSendToCount": "Отправить ({count})",
   "postCreateDiscardTitle": "Удалить черновик?",
   "postCreateDiscardBody": "Пост ещё не отправлен. Текст и фото не сохранятся.",
   "postCreateNeedHelp": "Нужна помощь? Создать запрос ›",
@@ -6445,9 +6443,10 @@
   "batonPickForMe": "Выбрать за меня",
   "batonPickForMeHint": "Один человек из самого высокого приоритета, случайно.",
   "batonCancel": "Отменить",
-  "batonCancelConfirmTitle": "Отменить «Кто возьмётся?»",
+  "batonCancelConfirmTitle": "Отменить «Кто возьмётся?»?",
   "batonCancelConfirmBody": "Людям, которых вы спросили, сообщим, что это больше не нужно.",
-  "batonCancelConfirmAction": "Отменить",
+  "batonCancelConfirmAction": "Отменить вопрос",
+  "batonCancelConfirmKeep": "Оставить",
   "batonReceiptAsked": "{author} спрашивает, сможете ли вы помочь",
   "@batonReceiptAsked": {
     "description": "Private Activity receipt asking the viewer whether they can help.",
@@ -6490,6 +6489,15 @@
   "@batonCreateSubmit": {
     "description": "Button that sends the «Who'll take it?» question to the picked people."
   },
+  "batonActionEdit": "Изменить",
+  "batonEditSubmit": "Сохранить",
+  "batonCreateTextLabel": "Что нужно сделать?",
+  "batonCreateTextReplyHint": "Необязательно: ответ покажет, о чём речь",
+  "batonObserverCollecting": "Ищем, кто возьмётся.",
+  "batonCancelledLine": "Отменено.",
+  "beaconRoomSemanticBaton": "Кто возьмётся?",
+  "beaconRoomAttachCreatePoll": "Опрос",
+  "beaconRoomAttachCreateBaton": "Кто возьмётся?",
   "composerEmojiButtonTooltip": "Эмодзи",
   "emojiPickerSearchHint": "Поиск эмодзи",
   "emojiPickerNoRecents": "Здесь появятся эмодзи, которые вы используете",

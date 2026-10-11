@@ -48,6 +48,8 @@ class ForwardRecipientPicker extends StatefulWidget {
     this.sendEnabled = false,
     this.externalActionLoading = false,
     this.isLive = false,
+    this.sendLabel,
+    this.promptUncoveredNotes = true,
     super.key,
   });
 
@@ -74,6 +76,13 @@ class ForwardRecipientPicker extends StatefulWidget {
 
   /// Create-session flag: the draft was made live in this screen.
   final bool isLive;
+
+  /// Send button label for the selected count; defaults to «Forward to …».
+  final String Function(int count)? sendLabel;
+
+  /// Whether send first offers a note for recipients who have none. Off for a
+  /// new Post: its text already is the message.
+  final bool promptUncoveredNotes;
 
   @override
   State<ForwardRecipientPicker> createState() => _ForwardRecipientPickerState();
@@ -159,7 +168,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
       perRecipientNotes: cubit.state.perRecipientNotes,
       skippedPersonalNoteIds: cubit.state.skippedPersonalNoteIds,
     );
-    if (uncovered.isNotEmpty) {
+    if (widget.promptUncoveredNotes && uncovered.isNotEmpty) {
       final sent = await _showUncoveredRecipientsSheet(
         context: context,
         cubit: cubit,
@@ -684,6 +693,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                           ),
                         ),
                         ForwardBottomComposer(
+                          sendLabel: widget.sendLabel,
                           selectedIds: state.selectedIds,
                           noteExpanded: _noteExpanded,
                           onToggleNoteExpanded: _toggleNote,

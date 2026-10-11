@@ -1,17 +1,14 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
-import 'package:tentura_root/utils/infer_image_mime_from_bytes.dart';
 
 import 'package:tentura/data/repository/clipboard_image_repository.dart';
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -34,6 +31,7 @@ import 'package:tentura/features/beacon_threads/ui/widget/room_attachment_widget
 import 'package:tentura/features/beacon_threads/ui/widget/room_pinned_fact_visibility_mark.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_unread_divider.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/pending_attachments.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
@@ -71,6 +69,8 @@ class BasicChatBody extends StatefulWidget {
     this.replyTarget,
     this.onCancelReply,
     this.onPickFact,
+    this.onCreatePoll,
+    this.onCreateBaton,
     this.pendingQuotedFact,
     this.onCancelQuotedFact,
     this.onToggleReaction,
@@ -138,6 +138,12 @@ class BasicChatBody extends StatefulWidget {
   /// Invoked when the composer's attach-menu "Fact" item is tapped; hidden
   /// from the menu when null.
   final VoidCallback? onPickFact;
+
+  /// Attach-menu "Poll" item; hidden when null.
+  final VoidCallback? onCreatePoll;
+
+  /// Attach-menu "Who'll take it?" item; hidden when null.
+  final VoidCallback? onCreateBaton;
 
   /// Fact quoted into the composer, pending send.
   final BeaconFactCard? pendingQuotedFact;
@@ -786,6 +792,8 @@ class BasicChatBodyState extends State<BasicChatBody> {
                         replyTarget: widget.replyTarget,
                         onCancelReply: widget.onCancelReply,
                         onPickFact: widget.onPickFact,
+                        onCreatePoll: widget.onCreatePoll,
+                        onCreateBaton: widget.onCreateBaton,
                         pendingQuotedFact: widget.pendingQuotedFact,
                         onCancelQuotedFact: widget.onCancelQuotedFact,
                       )
@@ -816,6 +824,8 @@ class BeaconRoomComposer extends StatefulWidget {
     this.replyTarget,
     this.onCancelReply,
     this.onPickFact,
+    this.onCreatePoll,
+    this.onCreateBaton,
     this.pendingQuotedFact,
     this.onCancelQuotedFact,
     super.key,
@@ -861,6 +871,12 @@ class BeaconRoomComposer extends StatefulWidget {
   /// menu when null.
   final VoidCallback? onPickFact;
 
+  /// Attach-menu "Poll" item; hidden when null.
+  final VoidCallback? onCreatePoll;
+
+  /// Attach-menu "Who'll take it?" item; hidden when null.
+  final VoidCallback? onCreateBaton;
+
   /// Fact quoted into the composer, pending send.
   final BeaconFactCard? pendingQuotedFact;
 
@@ -870,7 +886,8 @@ class BeaconRoomComposer extends StatefulWidget {
   State<BeaconRoomComposer> createState() => _BeaconRoomComposerState();
 }
 
-class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
+class _BeaconRoomComposerState extends State<BeaconRoomComposer>
+    with PendingAttachmentsMixin {
   static final _composerBorder = OutlineInputBorder(
     borderRadius: BorderRadius.circular(TenturaRadii.searchBar),
     borderSide: BorderSide.none,
@@ -898,7 +915,15 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
   var _reportedContent = false;
   var _submitting = false;
 
-  final List<RoomPendingUpload> _pending = [];
+  @override
+  ImageRepository get attachmentImageRepository => widget.imageRepository;
+
+  @override
+  ClipboardImageRepository get attachmentClipboardRepository =>
+      widget.clipboardImageRepository;
+
+  @override
+  void onPendingUploadsChanged() => _reportContent();
 
   @override
   void initState() {
@@ -924,13 +949,13 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
       }
       return _recordComposerEscapeResult(KeyEventResult.ignored);
     }
-    if (key == LogicalKeyboardKey.keyV && _isPasteShortcutPressed()) {
+    if (key == LogicalKeyboardKey.keyV && isPasteShortcutPressed()) {
       final readOnly = widget.readOnlyHint != null;
       if (widget.enableAttachments &&
           !readOnly &&
           !widget.isSending &&
           !_submitting) {
-        unawaited(_pasteImage(fromKeyboard: true));
+        unawaited(pasteImageAttachment(fromKeyboard: true));
       }
       // Let the text field's own paste run too, so text clipboards still work.
       return KeyEventResult.ignored;
@@ -960,22 +985,6 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
       _acceptSelectedSuggestion();
     });
     return KeyEventResult.handled;
-  }
-
-  /// Cmd+V on Apple platforms, Ctrl+V elsewhere (no Shift/Alt).
-  bool _isPasteShortcutPressed() {
-    final keyboard = HardwareKeyboard.instance;
-    final isApple =
-        defaultTargetPlatform == TargetPlatform.macOS ||
-        defaultTargetPlatform == TargetPlatform.iOS;
-    final primary = isApple
-        ? keyboard.isMetaPressed
-        : keyboard.isControlPressed;
-    final other = isApple ? keyboard.isControlPressed : keyboard.isMetaPressed;
-    return primary &&
-        !other &&
-        !keyboard.isShiftPressed &&
-        !keyboard.isAltPressed;
   }
 
   /// Rows in whichever suggestion list (`@` or `:`) is open; 0 when none.
@@ -1040,7 +1049,8 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
   }
 
   void _reportContent() {
-    final hasContent = _text.text.trim().isNotEmpty || _pending.isNotEmpty;
+    final hasContent =
+        _text.text.trim().isNotEmpty || pendingUploads.isNotEmpty;
     if (hasContent == _reportedContent) return;
     _reportedContent = hasContent;
     widget.onContentChanged?.call(hasContent);
@@ -1229,182 +1239,12 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
     });
   }
 
-  int get _remainingSlots => kMaxRoomMessageAttachments - _pending.length;
-
-  void _removePending(int index) {
-    setState(() => _pending.removeAt(index));
-    _reportContent();
-  }
-
-  void _snack(String message) {
-    if (!mounted) {
-      return;
-    }
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  bool _withinSize(Uint8List bytes) {
-    if (bytes.length <= kMaxRoomMessageAttachmentBytes) {
-      return true;
-    }
-    const mb = kMaxRoomMessageAttachmentBytes ~/ (1024 * 1024);
-    _snack(L10n.of(context)!.beaconRoomAttachmentTooLarge(mb));
-    return false;
-  }
-
-  void _tryAdd(RoomPendingUpload upload) {
-    if (_remainingSlots <= 0) {
-      _snack(
-        L10n.of(context)!.beaconRoomAttachmentsTooMany(
-          kMaxRoomMessageAttachments,
-        ),
-      );
-      return;
-    }
-    if (!_withinSize(upload.bytes)) {
-      return;
-    }
-    setState(() => _pending.add(upload));
-    _reportContent();
-  }
-
-  String _mimeFromExtension(String ext) {
-    switch (ext.toLowerCase()) {
-      case 'pdf':
-        return 'application/pdf';
-      case 'png':
-        return 'image/png';
-      case 'jpg':
-      case 'jpeg':
-        return 'image/jpeg';
-      case 'webp':
-        return 'image/webp';
-      case 'txt':
-        return 'text/plain';
-      default:
-        return 'application/octet-stream';
-    }
-  }
-
-  /// file_picker 12 dropped `PlatformFile.extension`; derive from `name`.
-  String? _extensionFromFileName(String name) {
-    final dot = name.lastIndexOf('.');
-    if (dot <= 0 || dot == name.length - 1) {
-      return null;
-    }
-    return name.substring(dot + 1).trim();
-  }
-
-  Future<void> _pickImages() async {
-    if (_remainingSlots <= 0) {
-      _snack(
-        L10n.of(context)!.beaconRoomAttachmentsTooMany(
-          kMaxRoomMessageAttachments,
-        ),
-      );
-      return;
-    }
-    final picks = await widget.imageRepository.pickMultipleImages();
-    if (!mounted || picks.isEmpty) {
-      return;
-    }
-    for (final p in picks) {
-      if (_remainingSlots <= 0) {
-        break;
-      }
-      _tryAdd(
-        RoomPendingUpload(
-          bytes: p.bytes,
-          fileName: p.fileName,
-          mimeType: 'image/jpeg',
-        ),
-      );
-    }
-  }
-
-  /// Reads an image from the clipboard into the pending attachments.
-  ///
-  /// [fromKeyboard] is Ctrl/Cmd+V in the composer: the text field pastes text
-  /// in parallel, so stay silent unless the clipboard actually held an image.
-  Future<void> _pasteImage({bool fromKeyboard = false}) async {
-    if (!fromKeyboard && _remainingSlots <= 0) {
-      _snack(
-        L10n.of(context)!.beaconRoomAttachmentsTooMany(
-          kMaxRoomMessageAttachments,
-        ),
-      );
-      return;
-    }
-    final l10n = L10n.of(context)!;
-    try {
-      final result = await widget.clipboardImageRepository.readImage();
-      if (!mounted) {
-        return;
-      }
-      switch (result.outcome) {
-        case ClipboardImageReadOutcome.found:
-          _tryAdd(result.upload!);
-        case ClipboardImageReadOutcome.notFound:
-          if (!fromKeyboard) {
-            _snack(l10n.beaconRoomAttachPasteImageNotFound);
-          }
-        case ClipboardImageReadOutcome.unsupported:
-          if (!fromKeyboard) {
-            _snack(l10n.beaconRoomAttachPasteImageUnsupported);
-          }
-      }
-    } on Object catch (_) {
-      if (!mounted || fromKeyboard) {
-        return;
-      }
-      _snack(l10n.beaconRoomAttachPasteImageReadFailed);
-    }
-  }
-
-  Future<void> _pickFiles() async {
-    if (_remainingSlots <= 0) {
-      _snack(
-        L10n.of(context)!.beaconRoomAttachmentsTooMany(
-          kMaxRoomMessageAttachments,
-        ),
-      );
-      return;
-    }
-    final files = await FilePicker.pickFiles();
-    if (!mounted || files.isEmpty) {
-      return;
-    }
-    for (final pf in files) {
-      if (_remainingSlots <= 0) {
-        break;
-      }
-      final bytes = await pf.readAsBytes();
-      final ext = _extensionFromFileName(pf.name);
-      var mime = ext != null && ext.isNotEmpty
-          ? _mimeFromExtension(ext)
-          : 'application/octet-stream';
-      final sniffed = inferImageMimeFromLeadingBytes(bytes);
-      if (sniffed != null) {
-        mime = sniffed;
-      }
-      _tryAdd(
-        RoomPendingUpload(
-          bytes: bytes,
-          fileName: pf.name,
-          mimeType: mime,
-        ),
-      );
-    }
-  }
-
   Future<void> _submit() async {
     if (widget.readOnlyHint != null || _submitting || !widget.sendEnabled) {
       return;
     }
     final body = _text.text;
-    final uploads = List<RoomPendingUpload>.from(_pending);
+    final uploads = List<RoomPendingUpload>.from(pendingUploads);
     if (body.trim().isEmpty &&
         uploads.isEmpty &&
         widget.pendingQuotedFact == null) {
@@ -1427,8 +1267,7 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
       }
       _removeOverlay();
       _text.clear();
-      setState(_pending.clear);
-      _reportContent();
+      clearPendingUploads();
       // The field is disabled while sending, which drops its focus; restore
       // it once re-enabled so type → send → type works without a click.
       requestComposerFocus();
@@ -1513,14 +1352,14 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
 
   Widget _pasteImageButton(L10n l10n, ThemeData theme, bool busy) {
     final readOnly = widget.readOnlyHint != null;
-    final enabled = !busy && !readOnly && _remainingSlots > 0;
+    final enabled = !busy && !readOnly && remainingAttachmentSlots > 0;
     return Semantics(
       identifier: TestIds.roomMessagePaste,
       button: true,
       child: IconButton(
         key: const ValueKey('paste'),
         tooltip: l10n.beaconRoomAttachPasteImage,
-        onPressed: enabled ? () => unawaited(_pasteImage()) : null,
+        onPressed: enabled ? () => unawaited(pasteImageAttachment()) : null,
         icon: Icon(
           Icons.content_paste_rounded,
           color: theme.colorScheme.onSurfaceVariant,
@@ -1532,7 +1371,9 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
   Widget _attachMenuButton(L10n l10n, ThemeData theme, bool busy) {
     final readOnly = widget.readOnlyHint != null;
     final onPickFact = widget.onPickFact;
-    final hasSlots = _remainingSlots > 0;
+    final onCreatePoll = widget.onCreatePoll;
+    final onCreateBaton = widget.onCreateBaton;
+    final hasSlots = remainingAttachmentSlots > 0;
     return PopupMenuButton<String>(
       key: const ValueKey('attach'),
       tooltip: l10n.beaconRoomAttachMenuTooltip,
@@ -1542,11 +1383,15 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
           return;
         }
         if (v == 'img') {
-          await _pickImages();
+          await pickImageAttachments();
         } else if (v == 'file') {
-          await _pickFiles();
+          await pickFileAttachments();
         } else if (v == 'fact') {
           onPickFact?.call();
+        } else if (v == 'poll') {
+          onCreatePoll?.call();
+        } else if (v == 'baton') {
+          onCreateBaton?.call();
         }
       },
       itemBuilder: (ctx) => [
@@ -1565,6 +1410,16 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
             value: 'fact',
             child: Text(l10n.beaconRoomAttachPickFact),
           ),
+        if (onCreatePoll != null)
+          PopupMenuItem(
+            value: 'poll',
+            child: Text(l10n.beaconRoomAttachCreatePoll),
+          ),
+        if (onCreateBaton != null)
+          PopupMenuItem(
+            value: 'baton',
+            child: Text(l10n.beaconRoomAttachCreateBaton),
+          ),
       ],
       icon: Icon(
         Icons.attach_file_rounded,
@@ -1580,69 +1435,6 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
       children: [
         _pasteImageButton(l10n, theme, busy),
         _attachMenuButton(l10n, theme, busy),
-      ],
-    );
-  }
-
-  Widget _pendingAttachmentPreview(
-    BuildContext context,
-    ThemeData theme,
-    bool busy,
-    int index,
-  ) {
-    final loc = MaterialLocalizations.of(context);
-    final u = _pending[index];
-    final isImage = u.mimeType.toLowerCase().startsWith('image/');
-    if (!isImage) {
-      return InputChip(
-        label: Text(
-          u.fileName.trim().isEmpty
-              ? L10n.of(context)!.beaconRoomAttachmentUntitled
-              : u.fileName,
-          style: theme.textTheme.labelMedium,
-          overflow: TextOverflow.ellipsis,
-        ),
-        onDeleted: busy ? null : () => _removePending(index),
-      );
-    }
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: SizedBox(
-            width: 72,
-            height: 72,
-            child: Image.memory(
-              u.bytes,
-              fit: BoxFit.cover,
-              gaplessPlayback: true,
-              errorBuilder: (_, _, _) => Icon(
-                Icons.broken_image_outlined,
-                color: theme.colorScheme.outline,
-              ),
-            ),
-          ),
-        ),
-        if (!busy)
-          Positioned(
-            top: 0,
-            right: 0,
-            child: IconButton(
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints.tightFor(width: 36, height: 36),
-              style: IconButton.styleFrom(
-                backgroundColor: theme.colorScheme.surface.withValues(
-                  alpha: 0.92,
-                ),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              tooltip: loc.deleteButtonTooltip,
-              iconSize: 20,
-              onPressed: () => _removePending(index),
-              icon: Icon(Icons.close, color: theme.colorScheme.onSurface),
-            ),
-          ),
       ],
     );
   }
@@ -1672,21 +1464,19 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
             fact: widget.pendingQuotedFact!,
             onCancelQuotedFact: widget.onCancelQuotedFact,
           ),
-        if (widget.enableAttachments && !readOnly && _pending.isNotEmpty)
+        if (widget.enableAttachments && !readOnly && pendingUploads.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(bottom: kSpacingSmall),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  for (var i = 0; i < _pending.length; i++)
+                  for (var i = 0; i < pendingUploads.length; i++)
                     Padding(
                       padding: const EdgeInsets.only(right: kSpacingSmall),
-                      child: _pendingAttachmentPreview(
-                        context,
-                        theme,
-                        busy,
-                        i,
+                      child: PendingAttachmentPreview(
+                        upload: pendingUploads[i],
+                        onRemove: busy ? null : () => removePendingUpload(i),
                       ),
                     ),
                 ],

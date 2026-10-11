@@ -15,6 +15,7 @@ class ForwardBottomComposer extends StatelessWidget {
     required this.onSharedNoteChanged,
     required this.onForward,
     this.showSuggestedNoteHelper = false,
+    this.sendLabel,
     super.key,
   });
 
@@ -26,6 +27,10 @@ class ForwardBottomComposer extends StatelessWidget {
   final ValueChanged<String> onSharedNoteChanged;
   final VoidCallback? onForward;
   final bool showSuggestedNoteHelper;
+
+  /// Label of the enabled send button for `count` recipients; defaults to
+  /// «Forward to {count}».
+  final String Function(int count)? sendLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -130,7 +135,9 @@ class ForwardBottomComposer extends StatelessWidget {
                       SizedBox(width: tt.rowGap),
                       Text(
                         enabled
-                            ? l10n.forwardToCount(selectedIds.length)
+                            ? (sendLabel ?? l10n.forwardToCount)(
+                                selectedIds.length,
+                              )
                             : l10n.selectRecipients,
                         style: TenturaText.command(
                           enabled ? scheme.onPrimary : tt.textMuted,

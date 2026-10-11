@@ -9,7 +9,6 @@ import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
-import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card_repository.dart';
@@ -22,6 +21,7 @@ import 'package:tentura/features/beacon_threads/ui/widget/room_attachment_widget
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/copy_text_to_clipboard.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/widget/pending_attachments.dart';
 
 /// Actions for a single fact card (modal).
 Future<void> showFactActionsSheet(
@@ -588,17 +588,29 @@ class _EditFactSheet extends StatefulWidget {
   State<_EditFactSheet> createState() => _EditFactSheetState();
 }
 
-class _EditFactSheetState extends State<_EditFactSheet> {
+class _EditFactSheetState extends State<_EditFactSheet>
+    with PendingAttachmentsMixin {
   late final TextEditingController _controller;
   late List<RoomMessageAttachment> _kept;
-  late List<RoomPendingUpload> _pending;
+
+  @override
+  ImageRepository get attachmentImageRepository => GetIt.I<ImageRepository>();
+
+  @override
+  ClipboardImageRepository get attachmentClipboardRepository =>
+      GetIt.I<ClipboardImageRepository>();
+
+  /// Attachments the fact keeps count against the limit too.
+  @override
+  int get remainingAttachmentSlots =>
+      super.remainingAttachmentSlots - _kept.length;
 
   @override
   void initState() {
     super.initState();
     _controller = TextEditingController(text: widget.initialText);
     _kept = List<RoomMessageAttachment>.from(widget.initialKeptAttachments);
-    _pending = List<RoomPendingUpload>.from(widget.initialPending);
+    pendingUploads.addAll(widget.initialPending);
   }
 
   @override
@@ -608,7 +620,7 @@ class _EditFactSheetState extends State<_EditFactSheet> {
   }
 
   bool get _attachmentsChanged {
-    if (_pending.isNotEmpty) return true;
+    if (pendingUploads.isNotEmpty) return true;
     if (_kept.length != widget.baselineAttachments.length) return true;
     for (var i = 0; i < _kept.length; i++) {
       if (_kept[i].id != widget.baselineAttachments[i].id) return true;
@@ -622,11 +634,8 @@ class _EditFactSheetState extends State<_EditFactSheet> {
 
   bool get _canSave {
     final text = _controller.text.trim();
-    return text.isNotEmpty || _kept.isNotEmpty || _pending.isNotEmpty;
+    return text.isNotEmpty || _kept.isNotEmpty || pendingUploads.isNotEmpty;
   }
-
-  int get _remainingSlots =>
-      kMaxRoomMessageAttachments - _kept.length - _pending.length;
 
   void _save() {
     if (!_canSave) return;
@@ -634,47 +643,10 @@ class _EditFactSheetState extends State<_EditFactSheet> {
       _FactEditResult(
         text: _controller.text.trim(),
         keptAttachments: List.unmodifiable(_kept),
-        pending: List.unmodifiable(_pending),
+        pending: List.unmodifiable(pendingUploads),
         attachmentsChanged: _attachmentsChanged,
       ),
     );
-  }
-
-  void _tryAdd(RoomPendingUpload upload) {
-    if (_remainingSlots <= 0) return;
-    if (upload.bytes.length > kMaxRoomMessageAttachmentBytes) return;
-    setState(() => _pending.add(upload));
-  }
-
-  Future<void> _pickImages() async {
-    if (_remainingSlots <= 0) return;
-    final repo = GetIt.I<ImageRepository>();
-    final picks = await repo.pickMultipleImages();
-    if (!mounted || picks.isEmpty) return;
-    for (final p in picks) {
-      if (_remainingSlots <= 0) break;
-      _tryAdd(
-        RoomPendingUpload(
-          bytes: p.bytes,
-          fileName: p.fileName,
-          mimeType: 'image/jpeg',
-        ),
-      );
-    }
-  }
-
-  Future<void> _pasteImage() async {
-    if (_remainingSlots <= 0) return;
-    final repo = GetIt.I<ClipboardImageRepository>();
-    try {
-      final result = await repo.readImage();
-      if (!mounted) return;
-      if (result.outcome == ClipboardImageReadOutcome.found) {
-        _tryAdd(result.upload!);
-      }
-    } on Object {
-      // Ignore paste failures in the edit sheet.
-    }
   }
 
   @override
@@ -724,12 +696,12 @@ class _EditFactSheetState extends State<_EditFactSheet> {
               ),
               onChanged: (_) => setState(() {}),
             ),
-            if (_kept.isNotEmpty || _pending.isNotEmpty) ...[
+            if (_kept.isNotEmpty || pendingUploads.isNotEmpty) ...[
               SizedBox(height: tt.rowGap),
               FactAttachmentPreviewStrip(
                 existing: _kept,
                 pending: [
-                  for (final u in _pending)
+                  for (final u in pendingUploads)
                     (
                       bytes: u.bytes,
                       fileName: u.fileName,
@@ -737,7 +709,7 @@ class _EditFactSheetState extends State<_EditFactSheet> {
                     ),
                 ],
                 onRemoveExisting: (i) => setState(() => _kept.removeAt(i)),
-                onRemovePending: (i) => setState(() => _pending.removeAt(i)),
+                onRemovePending: removePendingUpload,
               ),
             ],
             Align(
@@ -751,15 +723,15 @@ class _EditFactSheetState extends State<_EditFactSheet> {
                       Icons.content_paste_rounded,
                       size: tt.iconSize,
                     ),
-                    onPressed: _remainingSlots > 0
-                        ? () => unawaited(_pasteImage())
+                    onPressed: remainingAttachmentSlots > 0
+                        ? () => unawaited(pasteImageAttachment())
                         : null,
                   ),
                   IconButton(
                     tooltip: widget.l10n.beaconRoomAttachPickImages,
                     icon: Icon(Icons.add_a_photo_rounded, size: tt.iconSize),
-                    onPressed: _remainingSlots > 0
-                        ? () => unawaited(_pickImages())
+                    onPressed: remainingAttachmentSlots > 0
+                        ? () => unawaited(pickImageAttachments())
                         : null,
                   ),
                 ],

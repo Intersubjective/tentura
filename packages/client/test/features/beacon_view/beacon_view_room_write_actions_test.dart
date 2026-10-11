@@ -34,21 +34,13 @@ void main() {
     updatedAt: DateTime.utc(2026),
   );
 
-  test('create poll / update plan null when discussion or plan locked', () {
+  test('update plan null when discussion or plan locked', () {
     final locked = _FakeRoomCubit(
       RoomState(
         myUserId: 'me',
         beaconStatus: BeaconStatus.closed,
         participants: [admitted('me')],
       ),
-    );
-    expect(
-      beaconViewRoomCreatePollAction(
-        context: _FakeBuildContext(),
-        roomCubit: locked,
-        inRoomSurface: true,
-      ),
-      isNull,
     );
     expect(
       beaconViewRoomUpdatePlanAction(
@@ -60,21 +52,13 @@ void main() {
     );
   });
 
-  test('create poll non-null when writable; update plan gated by canUpdatePlan', () {
+  test('update plan gated by canUpdatePlan', () {
     final writable = _FakeRoomCubit(
       RoomState(
         myUserId: 'me',
         beaconStatus: BeaconStatus.open,
         participants: [admitted('me')],
       ),
-    );
-    expect(
-      beaconViewRoomCreatePollAction(
-        context: _FakeBuildContext(),
-        roomCubit: writable,
-        inRoomSurface: true,
-      ),
-      isNotNull,
     );
     // updatePlan needs L10n.of(context); gate itself is RoomState.canUpdatePlan.
     expect(writable.state.canUpdatePlan, isTrue);

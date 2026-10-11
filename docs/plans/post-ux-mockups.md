@@ -150,38 +150,43 @@ Empty «Разговоры»: one line + action — «Здесь будут ра
 
 ---
 
-## M3 — creating a Post = writing the first message
+## M3 — creating a Post = a short two-step form (rev 2, 2026-10-11)
 
-A Post has no form. Creating one looks like an empty chat: the same composer as in any room,
-plus «Кому».
+> Rev 1 opened an empty room (the room composer plus a «Кому» row): the first message was the
+> Post. People expected a social-network compose form instead, so rev 2 makes it a simplified
+> Request form — write the Post first, then choose who gets it.
+
+Step 1 — the Post:
 
 ```
 ┌────────────────────────────────────────────┐
-│ ✕  Новый пост                              │
-│ Кому: Мария, Олег  ✎            [●   ] ↗   │   ↗● = «Можно пересылать» (on by default)
+│ ✕  Новый пост                            ⋮ │   ⋮ = «Нужна помощь? Создать запрос ›»
 ├────────────────────────────────────────────┤
-│                                            │
-│                                            │
-│          Напишите, с чего начать           │   empty-room hint
-│          разговор. Это и будет пост.       │
-│                                            │
-│                                            │
+│ ┌────────────────────────────────────────┐ │
+│ │ О чём ваш пост?                        │ │   multi-line text; Ctrl/Cmd+V pastes images
+│ │                                        │ │
+│ └────────────────────────────────────────┘ │
+│ ▣ ▣ ⎘ file.pdf                             │   pending attachments, × to remove
+│ 🖼 Фото   📎 Файлы   📋 Вставить изображение │
+│ Можно пересылать                   [●   ]  │   on by default
 ├────────────────────────────────────────────┤
-│ ▣ ▣                                        │   attachments (same as chat)
-│ [+]  Кто в субботу на велопрогулку?…   [➤] │   ➤ = publish + send
+│ [          Далее: получатели           ]   │   disabled until text or an attachment
 └────────────────────────────────────────────┘
 ```
 
-- «Кому» opens the existing recipient picker (Post profile: no capability band, no reason chips,
-  no lineage). The count and names are always visible in the row; ➤ is disabled without
-  recipients.
-- ➤ sends everything in one step (plan §4.5 `postPublish`): the Post is published, sent to
-  the recipients, and the typed message becomes the root message. Photos then upload into the
-  root message like any chat attachment. The screen turns into the live room in place (no
-  navigation jump). If the network drops, ➤ can simply be pressed again; nothing is sent twice.
-- «Нужна помощь? Создать запрос ›» is a link in the ✕-row overflow, not a banner.
+Step 2 — «Получатели»: `←` back to the Post (kept as written), `✕` closes. The embedded recipient
+picker (Post profile, preselected from a profile link or the map composer) with its bottom bar
+«Отправить (N)», disabled until someone is chosen. A Post is not asked for a per-recipient note:
+its text already is the message.
+
+- «Отправить» sends everything in one step (plan §4.5 `postPublish`): the Post is published, sent
+  to the recipients, and the text becomes the root message. Photos then upload into the root
+  message. On success the screen is replaced by the Post. If the network drops, «Отправить» can
+  simply be pressed again; nothing is sent twice, and ← still shows the Post as written.
+- @mentions are not offered in the form (the people are chosen after the text); they work in the
+  room as usual.
 - Entry points: ✎ in the Activity top bar, the My Work «+» menu (Пост / Запрос), the map composer.
-- Closing the screen with text typed asks «Удалить черновик?»; Post drafts are not kept.
+- Closing the screen with text or an attachment asks «Удалить черновик?»; Post drafts are not kept.
 
 ---
 
@@ -600,7 +605,7 @@ wide enough to cover the **3 nearest people you can send to** (decided 2026-10-0
 
 ### K4 — sheet expanded (Post)
 
-The sheet is the same «empty room» as M3: the room composer plus «Кому» — the map is the «Кому».
+The map is the «Кому»; the full form hands off to M3 with this selection preselected.
 
 ```
 ├────────────────────────────────────────────┤

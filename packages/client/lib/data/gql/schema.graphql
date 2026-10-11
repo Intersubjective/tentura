@@ -4061,9 +4061,10 @@ type mutation_root {
   removeFromRoom(id: String!, offerUserId: String!, reason: String!): v2_BeaconStatusResult!
   revokeAcknowledgement(beaconId: String!, slug: String!, subjectId: String!): Boolean!
   roomBatonCancel(batonId: String!): Boolean!
-  roomBatonCreate(candidates: [v2_RoomBatonCandidateInput!]!, messageId: String!): String
+  roomBatonCreate(beaconId: String!, candidates: [v2_RoomBatonCandidateInput!]!, replyToMessageId: String, text: String!): String!
   roomBatonRespond(batonId: String!, canHelp: Boolean!): String
   roomBatonSelect(batonId: String!, userId: String): String
+  roomBatonUpdate(batonId: String!, candidates: [v2_RoomBatonCandidateInput!]!, text: String!): String
   seedRoutingAttestation(slugs: [String!], subjectId: String!): Boolean!
   setBeaconStatus(id: String!, status: Int!): v2_BeaconStatusResult!
   setCoordinationResponse(id: String!, inviteToRoom: Boolean! = false, offerUserId: String!, removeFromRoom: Boolean! = false, responseType: Int!): v2_BeaconStatusResult!

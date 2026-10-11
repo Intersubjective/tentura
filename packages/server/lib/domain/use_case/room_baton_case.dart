@@ -77,23 +77,48 @@ class RoomBatonCase extends UseCaseBase {
     return participant?.roomAccess == RoomAccessBits.admitted;
   }
 
+  /// Same spam control as ordinary room messages (`BeaconRoomCase`).
+  Future<void> _enforceMessageRateLimit(String userId) async {
+    final recent = await _room.countRecentMessagesByAuthor(
+      authorId: userId,
+      window: env.roomMessageRateWindow,
+    );
+    if (recent >= env.roomMessageMaxPerUser) {
+      throw const RateLimitedException(
+        description: 'Too many messages sent, please slow down',
+      );
+    }
+  }
+
+  /// Posts a new «Who'll take it?» message ([text], optionally replying to
+  /// [replyToMessageId]) at the end of the room and asks [candidates] on it.
+  /// [text] may be empty only when the baton replies to a message, which then
+  /// supplies the context.
   Future<RoomBaton> create({
     required String actorId,
-    required String messageId,
+    required String beaconId,
+    required String text,
     required List<({String userId, int tier})> candidates,
+    String? replyToMessageId,
   }) => _attention.runAction(
     actorUserId: actorId,
     action: (transaction) async {
-      final message = await _room.getRoomMessageById(messageId);
-      if (message == null ||
-          message.threadItemId != null ||
-          message.authorId != actorId ||
-          message.semanticMarker != null ||
-          message.systemMessageKind != null ||
-          message.linkedPollingId != null) {
+      final body = text.trim();
+      if (body.length > kMaxRoomMessageBodyLength) {
+        throw const BeaconCreateException(description: 'Message is too long');
+      }
+      final replyTo = replyToMessageId == null
+          ? null
+          : await _room.getRoomMessageById(replyToMessageId);
+      if (replyToMessageId != null &&
+          (replyTo == null ||
+              replyTo.beaconId != beaconId ||
+              replyTo.threadItemId != null)) {
         throw const BatonMessageNotEligibleException();
       }
-      final beaconId = message.beaconId;
+      if (body.isEmpty && replyTo == null) {
+        throw const BatonMessageNotEligibleException();
+      }
       await _postLock.lockForPostMutation(beaconId);
 
       await _rejectIfRoomNotWritable(beaconId);
@@ -102,6 +127,7 @@ class RoomBatonCase extends UseCaseBase {
           description: 'Room access required',
         );
       }
+      await _enforceMessageRateLimit(actorId);
 
       final admittedIds = await _admittedIds(beaconId);
       BatonSelectionPolicy.validateCandidates(
@@ -110,11 +136,15 @@ class RoomBatonCase extends UseCaseBase {
         admittedIds: admittedIds,
       );
 
-      if (await _repo.getLiveBatonForMessage(messageId) != null) {
-        throw const BatonAlreadyActiveException();
-      }
-
-      final excerpt = message.body.trim();
+      final message = await _room.insertRoomMessage(
+        beaconId: beaconId,
+        authorId: actorId,
+        body: body,
+        replyToMessageId: replyTo?.id,
+        semanticMarker: BeaconRoomSemanticMarker.baton,
+      );
+      final messageId = message.id;
+      final excerpt = body.isNotEmpty ? body : replyTo!.body.trim();
       final id = RoomBaton.newId;
       final baton = await _repo.create(
         id: id,
@@ -189,7 +219,11 @@ class RoomBatonCase extends UseCaseBase {
           actorUserId: actorId,
           recipientId: baton.authorId,
           excerpt: message?.body.trim() ?? '',
-          sourceEventKey: 'baton_all_answered:$batonId',
+          // An edit that adds someone opens a new answering round (the stamp
+          // is cleared), so the key is per round, not per baton.
+          sourceEventKey:
+              'baton_all_answered:$batonId:'
+              '${respondedAt.microsecondsSinceEpoch}',
         ),
       );
     },
@@ -254,6 +288,106 @@ class RoomBatonCase extends UseCaseBase {
           sourceEventKey: 'baton_taken:$batonId',
         ),
       );
+    },
+  );
+
+  /// The author edits a collecting baton: the ask ([text]; may be empty
+  /// only on a baton that replies to a message) and who is asked
+  /// ([candidates], same rules as [create]). People kept keep their answers;
+  /// people added are asked (receipt), people removed simply stop seeing the
+  /// card. Rewriting the message also fans the change out to the room.
+  Future<void> update({
+    required String actorId,
+    required String batonId,
+    required String text,
+    required List<({String userId, int tier})> candidates,
+  }) => _attention.runAction(
+    actorUserId: actorId,
+    action: (transaction) async {
+      final found = await _repo.getById(batonId);
+      if (found == null) {
+        throw const BatonNotFoundException();
+      }
+      await _postLock.lockForPostMutation(found.beaconId);
+      final baton = (await _repo.getById(batonId))!;
+      if (baton.authorId != actorId) {
+        throw const BatonNotAuthorException();
+      }
+      if (baton.status != BatonStatus.collecting) {
+        throw const BatonNotCollectingException();
+      }
+      await _rejectIfRoomNotWritable(baton.beaconId);
+      if (!await _isAdmitted(beaconId: baton.beaconId, userId: actorId)) {
+        throw const UnauthorizedException(
+          description: 'Room access required',
+        );
+      }
+
+      final message = await _room.getRoomMessageById(baton.messageId);
+      if (message == null) {
+        throw const BatonNotFoundException();
+      }
+      final body = text.trim();
+      if (body.length > kMaxRoomMessageBodyLength) {
+        throw const BeaconCreateException(description: 'Message is too long');
+      }
+      final replyToId = message.replyToMessageId;
+      if (body.isEmpty && replyToId == null) {
+        throw const BatonMessageNotEligibleException();
+      }
+
+      BatonSelectionPolicy.validateCandidates(
+        authorId: actorId,
+        candidates: candidates,
+        admittedIds: await _admittedIds(baton.beaconId),
+      );
+      final current = {
+        for (final c in await _repo.getCandidates(batonId)) c.userId: c.tier,
+      };
+      final wanted = {for (final c in candidates) c.userId: c.tier};
+      final add = [
+        for (final c in candidates)
+          if (!current.containsKey(c.userId)) c,
+      ];
+      await _repo.updateCandidates(
+        batonId: batonId,
+        add: add,
+        remove: [
+          for (final userId in current.keys)
+            if (!wanted.containsKey(userId)) userId,
+        ],
+        retier: [
+          for (final c in candidates)
+            if (current[c.userId] case final int tier when tier != c.tier) c,
+        ],
+      );
+      await _room.updateMessage(
+        messageId: message.id,
+        newBody: body,
+        mentions: const [],
+        mentionSpans: const [],
+      );
+
+      if (add.isEmpty) return;
+      // Per edit: someone removed earlier and added back is asked again.
+      final editedAt = DateTime.timestamp().microsecondsSinceEpoch;
+      final replyTo = body.isEmpty && replyToId != null
+          ? await _room.getRoomMessageById(replyToId)
+          : null;
+      final excerpt = body.isNotEmpty ? body : replyTo?.body.trim() ?? '';
+      for (final candidate in add) {
+        await transaction.record(
+          await _attentionIntents.batonAsked(
+            beaconId: baton.beaconId,
+            messageId: message.id,
+            actorUserId: actorId,
+            recipientId: candidate.userId,
+            excerpt: excerpt,
+            sourceEventKey:
+                'baton_asked:$batonId:${candidate.userId}:$editedAt',
+          ),
+        );
+      }
     },
   );
 

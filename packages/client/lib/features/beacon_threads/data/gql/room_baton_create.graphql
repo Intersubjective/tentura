@@ -1,6 +1,13 @@
 mutation RoomBatonCreate(
-  $messageId: String!
+  $beaconId: String!
+  $text: String!
+  $replyToMessageId: String
   $candidates: [v2_RoomBatonCandidateInput!]!
 ) {
-  roomBatonCreate(messageId: $messageId, candidates: $candidates)
+  roomBatonCreate(
+    beaconId: $beaconId
+    text: $text
+    replyToMessageId: $replyToMessageId
+    candidates: $candidates
+  )
 }

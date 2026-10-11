@@ -1,8 +1,27 @@
 # «Who'll take it?» (internal: baton) — design + implementation steps
 
-Status: rev 1, 2026-10-03. Epic in beads: see §7. Branch: builds on `feature/post-constellation`
+Status: rev 2, 2026-10-11 (see §0); rev 1, 2026-10-03. Epic in beads: see §7. Branch: builds on `feature/post-constellation`
 (needs `RoomHost` / `RoomCapabilities` and Post rooms; all brd4 server units are already closed, so
 migration numbers do not collide).
+
+## 0. Rev 2 (2026-10-11): the baton is its own message
+
+Owner decisions after the first release; they override the rev 1 text below where they disagree.
+
+| # | Decision |
+|---|---|
+| R1 | A baton is **posted as a new room message** (semantic marker 13 `baton`) at the end of the room, like a poll. The message body is the ask («What needs doing?»). The baton row hangs off that new message. |
+| R2 | Two entry points: the composer's **attach menu** (next to images/files/fact; the ask is required) and the **message actions** of any message (the new baton message is a **reply** to it; the ask may stay empty, the reply quote supplies the context). Replaces D1: any room member, on **anyone's** plain/poll/baton message, never on system lines. |
+| R3 | Everyone in the room sees the baton bubble. Non-candidates get `{id, status, viewerRole: observer}` (+ `taker` once taken): «Looking for someone to take it.», «{name} took it.», «Cancelled.». Who was asked, tiers and answers stay author-only (replaces D10's "observers see nothing while collecting"). The author keeps the author view after a cancel. |
+| R4 | The baton card renders **inside** the bubble with the poll card's shape (outlined card, icon + ask as title), with mini-avatars next to people in the create sheet, the author's answer list, the choose sheet and the taker line. |
+| R5 | «Poll» moved from the Request overflow menu to the same attach menu. |
+| R6 | No compatibility with rev 1 batons attached to existing messages (no users). |
+| R7 | The baton bubble takes no emoji reactions. A plain tap (outside the card's own buttons), long-press or secondary tap opens a baton-specific menu: the author gets **Edit** and **Cancel** while collecting, plus **Reply** and **Delete message**; everyone else gets **Reply**. No plain-text edit, facts, «Turn into…» or new baton on it. |
+| R8 | **Edit** (author, collecting only) reopens the create sheet filled in: the ask and who is asked, with tiers. People kept keep their answers, people added are asked (receipt), people removed stop seeing the card. `roomBatonUpdate(batonId, text, candidates) → batonDataJson`. Receipt keys are per edit / per answering round, so re-adding someone or a new all-answered round notifies again. |
+
+API: `roomBatonCreate(beaconId, text, replyToMessageId?, candidates) → String!` (the new message id). A cancel
+touches the baton message (no-op `UPDATE`, skipped while the room is read-only) so the whole room gets a
+`room_message` fan-out and sees «Cancelled.»; members outside the baton still never get `room_baton` events.
 
 ## 1. What it is
 

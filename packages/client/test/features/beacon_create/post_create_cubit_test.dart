@@ -331,6 +331,21 @@ void main() {
       },
     );
 
+    test(
+      'a second call while one is running is dropped, so a double tap '
+      'publishes and uploads once',
+      () async {
+        final attachments = [_file('a.png'), _file('b.png')];
+
+        final first = publish(attachments: attachments);
+        final second = publish(attachments: attachments);
+
+        expect(await second, isFalse);
+        expect(await first, isTrue);
+        expect(port.events, ['publish', 'attach:b.png']);
+      },
+    );
+
     test('a failed upload surfaces the error to the user', () async {
       port.failUploadOnce.add('b.png');
 

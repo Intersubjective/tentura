@@ -13,11 +13,13 @@
 
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/enums.dart';
 
+import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/design_system/tentura_responsive_scope.dart';
 import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
@@ -322,7 +324,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Can help'));
-      await tester.pump();
+      await tester.pump(kDoubleTapTimeout);
 
       expect(answers, [true]);
     });
@@ -340,7 +342,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Can\'t help'));
-      await tester.pump();
+      await tester.pump(kDoubleTapTimeout);
 
       expect(answers, [false]);
     });
@@ -392,7 +394,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Can\'t help'));
-      await tester.pump();
+      await tester.pump(kDoubleTapTimeout);
 
       expect(answers, [false]);
     });
@@ -489,7 +491,7 @@ void main() {
   });
 
   group('RoomBatonCard for everyone else', () {
-    testWidgets('shows only a "{name} took it." chip', (tester) async {
+    testWidgets('shows only a "{name} took it." line', (tester) async {
       await tester.pumpWidget(
         _cardHarness(
           const RoomBatonObserverData(
@@ -502,15 +504,33 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Boris Taker took it.'), findsOneWidget);
+      // The taker's avatar sits next to the line.
       expect(
         find.descendant(
           of: find.byType(RoomBatonCard),
-          matching: find.byType(Text),
+          matching: find.byType(TenturaAvatar),
         ),
         findsOneWidget,
       );
       expect(find.text('Can help'), findsNothing);
       expect(find.text('Can\'t help'), findsNothing);
+    });
+
+    testWidgets('sees only that someone is being looked for while answers '
+        'come in, and «Cancelled.» after a cancel', (tester) async {
+      for (final (status, line) in [
+        (RoomBatonStatus.collecting, 'Looking for someone to take it.'),
+        (RoomBatonStatus.cancelled, 'Cancelled.'),
+      ]) {
+        await tester.pumpWidget(
+          _cardHarness(RoomBatonObserverData(id: 'baton-1', status: status)),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text(line), findsOneWidget, reason: '$status');
+        expect(find.byType(TenturaAvatar), findsNothing, reason: '$status');
+        expect(find.text('Can help'), findsNothing);
+      }
     });
   });
 
@@ -546,12 +566,12 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Can help'));
-      await tester.pump();
+      await tester.pump(kDoubleTapTimeout);
 
       expect(answers, [(batonId: 'baton-1', canHelp: true)]);
     });
 
-    testWidgets('renders only the taker chip for an observer', (tester) async {
+    testWidgets('renders only the taker line for an observer', (tester) async {
       await tester.pumpWidget(
         _tileHarness(
           _messageWithBaton(
@@ -569,9 +589,9 @@ void main() {
       expect(card, findsOneWidget);
       expect(find.text('Boris Taker took it.'), findsOneWidget);
       expect(
-        find.descendant(of: card, matching: find.byType(Text)),
+        find.descendant(of: card, matching: find.byType(TenturaAvatar)),
         findsOneWidget,
-        reason: 'the chip is the only text the card shows an observer',
+        reason: 'only the taker is shown to an observer',
       );
       for (final copy in [
         'Can you help? We\'re waiting for your response.',
@@ -856,7 +876,7 @@ void main() {
       repo.gate = Completer<void>();
 
       await tester.tap(find.text('Can help'));
-      await tester.pump();
+      await tester.pump(kDoubleTapTimeout);
 
       expect(repo.calls, [(batonId: 'baton-1', canHelp: true)]);
       expect(
@@ -882,6 +902,7 @@ void main() {
       repo.error = Exception('offline');
 
       await tester.tap(find.text('Can\'t help'));
+      await tester.pump(kDoubleTapTimeout);
       await tester.pumpAndSettle();
 
       expect(repo.calls, [(batonId: 'baton-1', canHelp: false)]);
