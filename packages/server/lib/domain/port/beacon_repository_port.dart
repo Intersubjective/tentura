@@ -168,6 +168,15 @@ abstract class BeaconRepositoryPort {
   /// Inserts the kind-4 system message announcing a Post's conversion.
   Future<void> postConvertedToRequestMessage(String beaconId);
 
+  /// Inserts the kind-5 system message announcing that [postId] was closed
+  /// and continues in the budded Request [childBeaconId] (payload
+  /// `{childBeaconId, title}`; [title] is a snapshot).
+  Future<void> postClosedMessage({
+    required String postId,
+    required String childBeaconId,
+    required String title,
+  });
+
   /// Sets `beacon.post_root_message_id` once; a no-op when already set.
   Future<void> setPostRootMessage({
     required String beaconId,

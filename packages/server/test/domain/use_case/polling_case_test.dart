@@ -2,8 +2,10 @@ import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/domain/entity/beacon_room_record.dart';
+import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/policy/discussion_product_policy.dart';
 import 'package:tentura_server/domain/use_case/polling_case.dart';
 import 'package:tentura_server/env.dart';
@@ -300,5 +302,40 @@ void main() {
         ),
       ).called(1);
     });
+  });
+
+  // Post→Request budding, plan C5: a Post closed by budding (status 6) is
+  // read-only, so a vote on a poll in its room is refused like on a closed
+  // Request (the guard reads the status only, whatever the beacon kind).
+  test('a vote on a poll in a closed room is refused', () async {
+    when(roomRepo.getRoomMessageByLinkedPollingId(pollingId)).thenAnswer(
+      (_) async => BeaconRoomMessageRecord(
+        id: 'Rpollmsg00001',
+        beaconId: 'Bclosedpost01',
+        authorId: authorId,
+        linkedPollingId: pollingId,
+        createdAt: DateTime.utc(2026),
+      ),
+    );
+    hierarchyRepo.statusOverride = BeaconStatus.closed;
+
+    await expectLater(
+      case_.create(
+        authorId: authorId,
+        pollingId: pollingId,
+        variantIds: [variantId],
+      ),
+      throwsA(isA<BeaconCreateException>()),
+    );
+    verifyNever(
+      actRepo.upsert(
+        authorId: anyNamed('authorId'),
+        pollingId: anyNamed('pollingId'),
+        variantIds: anyNamed('variantIds'),
+        pollType: anyNamed('pollType'),
+        allowRevote: anyNamed('allowRevote'),
+        score: anyNamed('score'),
+      ),
+    );
   });
 }

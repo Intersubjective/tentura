@@ -46,6 +46,7 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
           mutedUntil: null,
           unreadCount: 0,
           isAuthor: true,
+          status: beacon.status,
         ),
   ];
 
@@ -326,6 +327,13 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
 
   @override
   Future<void> postConvertedToRequestMessage(String beaconId) async {}
+
+  @override
+  Future<void> postClosedMessage({
+    required String postId,
+    required String childBeaconId,
+    required String title,
+  }) async {}
 
   @override
   Future<void> setForwardPolicy({

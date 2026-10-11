@@ -1273,7 +1273,9 @@ class BeaconRoomCase extends UseCaseBase {
           description: 'Only the message author can delete messages',
         );
       }
-      await _guardMessageMutation(beaconId: beaconId, msg: msg);
+      // The Post-root branch runs before the lifecycle guard (plan C5): the
+      // author may still delete a Post closed by budding (6 -> 2), which the
+      // read-only guard below would refuse. Posts only; the child survives.
       if (beacon != null &&
           beacon.kind == BeaconKind.post &&
           beacon.postRootMessageId == messageId) {
@@ -1282,6 +1284,7 @@ class BeaconRoomCase extends UseCaseBase {
         }
         return _beaconCase!.deleteById(beaconId: beaconId, userId: userId);
       }
+      await _guardMessageMutation(beaconId: beaconId, msg: msg);
       await _room.deleteRoomMessage(messageId: messageId);
       return true;
     },

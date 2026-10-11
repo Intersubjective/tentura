@@ -1,4 +1,6 @@
-/// Viewer-specific conversation preview for an open Post.
+import 'package:tentura_root/domain/entity/beacon_status.dart';
+
+/// Viewer-specific conversation preview for an open or closed Post.
 final class PostSummary {
   const PostSummary({
     required this.id,
@@ -14,6 +16,7 @@ final class PostSummary {
     required this.mutedUntil,
     required this.unreadCount,
     required this.isAuthor,
+    this.status = BeaconStatus.open,
     this.mutedForever = false,
   });
 
@@ -36,4 +39,8 @@ final class PostSummary {
   final bool mutedForever;
   final int unreadCount;
   final bool isAuthor;
+
+  /// [BeaconStatus.open], or [BeaconStatus.closed] for a Post closed by
+  /// budding (it stays in the list, read-only).
+  final BeaconStatus status;
 }

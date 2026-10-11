@@ -71,6 +71,9 @@ abstract final class BeaconRoomSystemMessageKind {
   static const childCreated = 2;
   static const closureStory = 3;
   static const convertedToRequest = 4;
+
+  /// A Post closed by budding; payload `{childBeaconId, title}`.
+  static const postClosed = 5;
 }
 
 /// Quick-picker emojis for room message reactions (`RoomMessageReactionToggle`).

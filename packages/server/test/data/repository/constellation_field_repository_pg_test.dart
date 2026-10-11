@@ -932,6 +932,18 @@ INSERT INTO public.beacon_pinned (user_id, beacon_id) VALUES ('$egoId', '$id')
       expect(snapshot.posts, isEmpty);
     }, skip: skipReason);
 
+    // Post→Request budding, plan C5: a Post closed by budding (status 6)
+    // leaves the field for its author and its addressees alike.
+    test('closed Post is not listed', () async {
+      await seedAddresseePost();
+      await db.customStatement(
+        "UPDATE public.beacon SET status = 6 WHERE id = '$postId'",
+      );
+
+      expect((await readField(viewerId: egoId)).posts, isEmpty);
+      expect((await readField(viewerId: author)).posts, isEmpty);
+    }, skip: skipReason);
+
     test('Requests never appear among posts', () async {
       await insertBeacon(id: 'Bcfreq0001', authorId: egoId);
 

@@ -51,5 +51,6 @@ final class QueryPost extends GqlNodeBase {
     'mutedForever': post.mutedForever,
     'unreadCount': post.unreadCount,
     'isAuthor': post.isAuthor,
+    'status': post.status.smallintValue,
   };
 }

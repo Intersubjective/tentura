@@ -1824,7 +1824,7 @@ final gqlTypeClosureToggleResult = GraphQLObjectType(
   null,
 )..fields.add(field('released', graphQLString));
 
-/// Open Post conversation preview for the authenticated viewer.
+/// Open or closed Post conversation preview for the authenticated viewer.
 final gqlTypePostSummary = GraphQLObjectType('PostSummary', null)
   ..fields.addAll([
     field('id', graphQLString.nonNullable()),
@@ -1841,4 +1841,6 @@ final gqlTypePostSummary = GraphQLObjectType('PostSummary', null)
     field('mutedForever', graphQLBoolean.nonNullable()),
     field('unreadCount', graphQLInt.nonNullable()),
     field('isAuthor', graphQLBoolean.nonNullable()),
+    // `beacon.status` smallint: 0 open, 6 closed by budding.
+    field('status', graphQLInt.nonNullable()),
   ]);

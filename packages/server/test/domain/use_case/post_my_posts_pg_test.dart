@@ -5,6 +5,7 @@ import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/consts.dart'
     show kAvatarPlaceholderUrl, kImageExt, kImageServer, kImagesPath;
 import 'package:tentura_server/data/database/migration/_migrations.dart';
@@ -278,6 +279,25 @@ INSERT INTO public.beacon_room_message_attachment
       await posts.postSummary(viewerId: _member, beaconId: 'Bpostsmissing'),
       isNull,
     );
+  });
+  test('an open Post reports its status', () async {
+    expect((await posts.myPosts(_author)).single.status, BeaconStatus.open);
+  });
+  test('a closed Post stays listed for its members with status closed '
+      '(budding, plan C5)', () async {
+    await writer.execute(
+      "UPDATE public.beacon SET status = 6 WHERE id = '$_post'",
+    );
+    final author = (await posts.myPosts(_author)).single;
+    final member = (await posts.myPosts(_member)).single;
+    expect(author.status, BeaconStatus.closed);
+    expect(member.status, BeaconStatus.closed);
+    expect(member.lastMessageExcerpt, 'Latest text');
+    expect(
+      (await posts.postSummary(viewerId: _member, beaconId: _post))?.status,
+      BeaconStatus.closed,
+    );
+    expect(await posts.myPosts(_stranger), isEmpty);
   });
   test('draft, deleted and converted Request rows are excluded', () async {
     for (final status in [3, 2]) {

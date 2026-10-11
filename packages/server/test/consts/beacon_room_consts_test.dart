@@ -42,6 +42,10 @@ void main() {
       expect(BeaconRoomSystemMessageKind.closureStory, 3);
       expect(BeaconRoomSystemMessageKind.convertedToRequest, 4);
     });
+
+    test('a Post closed by budding has its own kind', () {
+      expect(BeaconRoomSystemMessageKind.postClosed, 5);
+    });
   });
 
   group('RoomAccessBits', () {

@@ -140,6 +140,7 @@ ${beaconId == null ? '' : r'WHERE posts.id = $2'}''',
         mutedForever: row.read<bool>('muted_forever'),
         unreadCount: row.read<int>('unread_count'),
         isAuthor: row.read<bool>('is_author'),
+        status: BeaconStatus.fromSmallint(row.read<int>('status')),
       );
     }).toList();
   }
@@ -702,6 +703,25 @@ VALUES ($1, '', $2, $3::jsonb)
           Variable<String>('{"event":"convertedToRequest"}'),
         ],
       );
+
+  @override
+  Future<void> postClosedMessage({
+    required String postId,
+    required String childBeaconId,
+    required String title,
+  }) => _database.customInsert(
+    r'''
+INSERT INTO public.beacon_room_message
+  (beacon_id, body, system_message_kind, system_payload)
+VALUES ($1, '', $2, jsonb_build_object('childBeaconId', $3::text, 'title', $4::text))
+''',
+    variables: [
+      Variable<String>(postId),
+      Variable<int>(BeaconRoomSystemMessageKind.postClosed),
+      Variable<String>(childBeaconId),
+      Variable<String>(title),
+    ],
+  );
 
   @override
   Future<void> setPostRootMessage({

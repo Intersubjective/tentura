@@ -11,6 +11,10 @@ void main() {
       expect(BeaconRoomSystemMessageKind.convertedToRequest, 4);
     });
 
+    test('post-closed system message kind (budding)', () {
+      expect(BeaconRoomSystemMessageKind.postClosed, 5);
+    });
+
     test('baton taken semantic marker', () {
       expect(BeaconRoomSemanticMarker.batonTaken, 12);
     });
