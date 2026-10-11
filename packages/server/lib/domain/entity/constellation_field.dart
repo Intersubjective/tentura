@@ -16,7 +16,8 @@ class ConstellationFieldSnapshot {
     this.posts = const [],
     this.memberWebs = const [],
     ConstellationAnchorProjection? anchorProjection,
-  }) : anchorProjection = anchorProjection ?? ConstellationAnchorProjection.empty;
+  }) : anchorProjection =
+           anchorProjection ?? ConstellationAnchorProjection.empty;
 
   final DateTime loadedAt;
   final String context;
@@ -123,7 +124,8 @@ class ConstellationPeerRecord {
           other.pinState == pinState;
 
   @override
-  int get hashCode => Object.hash(id, displayName, handle, image, pinState, visible);
+  int get hashCode =>
+      Object.hash(id, displayName, handle, image, pinState, visible);
 }
 
 @immutable
@@ -173,6 +175,7 @@ class ConstellationRequestRecord {
     this.coverThumb,
     this.viewerParticipates,
     this.pinState,
+    this.parentBeaconId,
   });
 
   /// Placeholder for a pinned Request that was deleted: identity only.
@@ -195,7 +198,8 @@ class ConstellationRequestRecord {
       coverSource = 0,
       coverThumb = null,
       viewerParticipates = null,
-      pinState = kConstellationPinStateTombstone;
+      pinState = kConstellationPinStateTombstone,
+      parentBeaconId = null;
 
   final String id;
   final String authorId;
@@ -212,16 +216,22 @@ class ConstellationRequestRecord {
   final bool viewerIsRoomParticipant;
   final bool viewerHasForwardEdge;
   final int helpOfferCount;
+
   /// Wire: 0 = Request, 1 = Post (matches `beacon.kind`).
   final int kind;
+
   /// Wire: 0 = photo, 1 = symbol (matches `beacon.cover_source`).
   final int coverSource;
   final ImagePublicRecord? coverThumb;
+
   /// When set (pinned batch load), full C2 participation predicate; otherwise null.
   final bool? viewerParticipates;
 
   /// Null for a live Request, [kConstellationPinStateTombstone] when deleted.
   final String? pinState;
+
+  /// The Post this Request budded from, only when the viewer can read it.
+  final String? parentBeaconId;
 
   @override
   bool operator ==(Object other) =>
@@ -246,7 +256,8 @@ class ConstellationRequestRecord {
           other.coverSource == coverSource &&
           other.coverThumb == coverThumb &&
           other.viewerParticipates == viewerParticipates &&
-          other.pinState == pinState;
+          other.pinState == pinState &&
+          other.parentBeaconId == parentBeaconId;
 
   @override
   int get hashCode => Object.hashAll([
@@ -270,6 +281,7 @@ class ConstellationRequestRecord {
     coverThumb,
     viewerParticipates,
     pinState,
+    parentBeaconId,
   ]);
 }
 

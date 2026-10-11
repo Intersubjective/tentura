@@ -125,6 +125,7 @@ Map<String, dynamic> _liveRequestToGqlMap(ConstellationRequestRecord request) =>
       'coverThumb': request.coverThumb == null
           ? null
           : imagePublicToGqlMap(request.coverThumb!),
+      'parentBeaconId': request.parentBeaconId,
     };
 
 Map<String, dynamic> _postToGqlMap(ConstellationPostRecord post) => {

@@ -10,6 +10,7 @@ import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/inbox_repository_port.dart';
 import 'package:tentura_server/domain/port/post_bud_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
+import 'package:tentura_server/domain/use_case/bud_anchor_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/post_close_operation.dart';
 import 'package:tentura_server/utils/id.dart';
 
@@ -30,6 +31,7 @@ class PostBudCase {
     this._inbox,
     this._intents,
     this._postClose,
+    this._anchorSweep,
   );
 
   final BeaconChildCreatePort _children;
@@ -38,6 +40,7 @@ class PostBudCase {
   final InboxRepositoryPort _inbox;
   final AttentionIntentCase _intents;
   final PostCloseOperation _postClose;
+  final BudAnchorSweepCase _anchorSweep;
 
   /// Buds a Request from [sourceMessageId] in [postId] (Arch §4.2).
   ///
@@ -95,10 +98,10 @@ class PostBudCase {
         closePost: closePost,
       ),
     );
-    // TODO(C8): after commit, nudge the anchor inheritance sweep (Arch §8.1,
-    // same pattern as `TrustPublisherCase.nudge()`); the sweep itself and its
-    // nudge hook land in plan unit C8. No anchor work inside the bud
-    // transaction.
+    // After commit: the anchor sweep gives every Post-anchored viewer,
+    // the budder included, a child anchor (Arch §8.1). No anchor work runs
+    // inside the bud transaction.
+    _anchorSweep.nudge();
     return PostBudResult.fromJson(
       result.budResult ??
           PostBudResultJson.build(

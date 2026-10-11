@@ -13,7 +13,11 @@ import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 import '../database/tentura_db.dart';
 import 'constellation_field_snapshot_reader.dart';
 
-const constellationRequestSelectColumns = r'''
+/// Columns of one [ConstellationRequestRecord] row; `$1` is the viewer.
+/// `parent_beacon_id` is set only when the parent is a Post the viewer can
+/// read (budding C8, Arch §8.2).
+final constellationRequestSelectColumns =
+    '''
   b.id,
   b.user_id AS author_id,
   b.title,
@@ -26,19 +30,19 @@ const constellationRequestSelectColumns = r'''
   b.end_at,
   b.address_label,
   (b.lat IS NOT NULL AND b.long IS NOT NULL) AS has_coordinates,
-  (b.user_id = $1) AS is_mine,
+  (b.user_id = \$1) AS is_mine,
   EXISTS (
     SELECT 1 FROM public.beacon_help_offer ho
-    WHERE ho.beacon_id = b.id AND ho.user_id = $1 AND ho.status = 0
+    WHERE ho.beacon_id = b.id AND ho.user_id = \$1 AND ho.status = 0
   ) AS viewer_has_active_help_offer,
   EXISTS (
     SELECT 1 FROM public.beacon_participant bp
-    WHERE bp.beacon_id = b.id AND bp.user_id = $1
+    WHERE bp.beacon_id = b.id AND bp.user_id = \$1
       AND (bp.role = 1 OR bp.room_access = 3)
   ) AS viewer_is_room_participant,
   EXISTS (
     SELECT 1 FROM public.beacon_forward_edge bfe
-    WHERE bfe.beacon_id = b.id AND bfe.recipient_id = $1
+    WHERE bfe.beacon_id = b.id AND bfe.recipient_id = \$1
       AND bfe.cancelled_at IS NULL
   ) AS viewer_has_forward_edge,
   (
@@ -50,7 +54,13 @@ const constellationRequestSelectColumns = r'''
   cover.height AS cover_thumb_height,
   cover.width AS cover_thumb_width,
   cover.author_id AS cover_thumb_author_id,
-  cover.created_at AS cover_thumb_created_at
+  cover.created_at AS cover_thumb_created_at,
+  (
+    SELECT parent.id FROM public.beacon parent
+    WHERE parent.id = b.parent_beacon_id
+      AND parent.kind = 1
+      AND ${constellationBeaconContentReadableSql(viewerParam: r'$1', beaconAlias: 'parent')}
+  ) AS parent_beacon_id
 ''';
 
 @LazySingleton(
@@ -337,5 +347,6 @@ ConstellationRequestRecord readConstellationRequestRow(
     coverSource: row.read<int>('cover_source'),
     coverThumb: coverThumb,
     viewerParticipates: viewerParticipates,
+    parentBeaconId: row.readNullable<String>('parent_beacon_id'),
   );
 }

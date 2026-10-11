@@ -909,6 +909,7 @@ final gqlTypeConstellationRequest =
         field('coverSource', graphQLInt),
         field('coverThumb', gqlTypeImagePublic),
         field('pinState', graphQLString),
+        field('parentBeaconId', graphQLString),
       ]);
 
 final gqlEnumConstellationMemberWebState = enumTypeFromStrings(

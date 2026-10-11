@@ -19,7 +19,9 @@ import 'package:tentura_server/data/repository/beacon_hierarchy_repository.dart'
 import 'package:tentura_server/data/repository/beacon_repository.dart';
 import 'package:tentura_server/data/repository/beacon_room_notification_context_repository.dart';
 import 'package:tentura_server/data/repository/beacon_room_repository.dart';
+import 'package:tentura_server/data/repository/bud_anchor_sweep_repository.dart';
 import 'package:tentura_server/data/repository/commitment_repository.dart';
+import 'package:tentura_server/data/repository/constellation_anchor_repository.dart';
 import 'package:tentura_server/data/repository/forward_edge_repository.dart';
 import 'package:tentura_server/data/repository/help_offer_repository.dart';
 import 'package:tentura_server/data/repository/inbox_repository.dart';
@@ -34,8 +36,10 @@ import 'package:tentura_server/domain/entity/post_bud_invite_candidate.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
 import 'package:tentura_server/domain/port/person_visibility_repository_port.dart';
+import 'package:tentura_server/domain/use_case/anchor_inherit_operation.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/beacon_child_create_case.dart';
+import 'package:tentura_server/domain/use_case/bud_anchor_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/post_bud_case.dart';
 import 'package:tentura_server/domain/use_case/post_close_operation.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
@@ -102,6 +106,7 @@ Future<void> main() async {
     late Connection writer;
     late TenturaDb database;
     late PostBudCase buds;
+    late BudAnchorSweepCase anchorSweep;
 
     setUpAll(() async {
       session = await setUpDisposablePgWriter(target: target);
@@ -136,6 +141,16 @@ Future<void> main() async {
         _Visibility({_cold, _budder}),
       );
       final beacons = BeaconRepository(database);
+      final anchorSweepPort = BudAnchorSweepRepository(database);
+      anchorSweep = BudAnchorSweepCase(
+        anchorSweepPort,
+        AnchorInheritOperation(
+          ConstellationAnchorRepository(database),
+          anchorSweepPort,
+        ),
+        env: env,
+        logger: logger,
+      );
       buds = PostBudCase(
         BeaconChildCreateCase(
           beacons,
@@ -155,6 +170,7 @@ Future<void> main() async {
         InboxRepository(database),
         intents,
         PostCloseOperation(beacons),
+        anchorSweep,
       );
     });
 
@@ -199,6 +215,8 @@ Future<void> main() async {
       );
 
       expect(result.outcome, 'created');
+      // After commit, the anchor inheritance sweep is nudged (C8).
+      expect(anchorSweep.consumeNudge(), isTrue);
       final child = result.childBeaconId!;
       expect(
         [for (final i in result.invitees) i.userId],

@@ -18,6 +18,7 @@ import 'package:tentura_server/domain/use_case/attention_channel_delivery_case.d
 import 'package:tentura_server/domain/use_case/beacon_hierarchy_delivery_case.dart';
 import 'package:tentura_server/domain/use_case/block_cascade_case.dart';
 import 'package:tentura_server/domain/use_case/block_release_sweep_case.dart';
+import 'package:tentura_server/domain/use_case/bud_anchor_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/capability_cell_expiry_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/capability_telemetry_case.dart';
 import 'package:tentura_server/domain/use_case/user_availability_case.dart';
@@ -61,6 +62,7 @@ final class TaskWorkerCase extends UseCaseBase {
     ClosureDraftReminderSweepCase closureDraftReminderSweep,
     StaleRequestReminderSweepCase staleRequestReminderSweep,
     ContactResolutionSweepCase contactResolutionSweep,
+    BudAnchorSweepCase budAnchorSweep,
   ) => Future.value(
     TaskWorkerCase(
       imageRepository,
@@ -88,6 +90,7 @@ final class TaskWorkerCase extends UseCaseBase {
       closureDraftReminderSweep: closureDraftReminderSweep,
       staleRequestReminderSweep: staleRequestReminderSweep,
       contactResolutionSweep: contactResolutionSweep,
+      budAnchorSweep: budAnchorSweep,
       env: env,
       logger: logger,
     ),
@@ -116,6 +119,7 @@ final class TaskWorkerCase extends UseCaseBase {
     ClosureDraftReminderSweepCase? closureDraftReminderSweep,
     StaleRequestReminderSweepCase? staleRequestReminderSweep,
     ContactResolutionSweepCase? contactResolutionSweep,
+    this._budAnchorSweep,
     required super.env,
     required super.logger,
   }) : _imageObjectGc = imageObjectGc,
@@ -163,6 +167,7 @@ final class TaskWorkerCase extends UseCaseBase {
   final ClosureDraftReminderSweepCase? _closureDraftReminderSweep;
   final StaleRequestReminderSweepCase? _staleRequestReminderSweep;
   final ContactResolutionSweepCase? _contactResolutionSweep;
+  final BudAnchorSweepCase? _budAnchorSweep;
 
   /// Per-process identity for `image_object_gc` lease ownership (§3.4).
   final _gcLeaseOwner = generateId('W');
@@ -174,7 +179,9 @@ final class TaskWorkerCase extends UseCaseBase {
   var _lastRetentionSweep = DateTime.fromMillisecondsSinceEpoch(0);
 
   var _lastAttentionDeliverySweep = DateTime.fromMillisecondsSinceEpoch(0);
-  var _lastBeaconHierarchyDeliverySweep = DateTime.fromMillisecondsSinceEpoch(0);
+  var _lastBeaconHierarchyDeliverySweep = DateTime.fromMillisecondsSinceEpoch(
+    0,
+  );
   var _lastTrustMaintenanceSweep = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastBlockCascadeSweep = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastBlockReleaseSweep = DateTime.fromMillisecondsSinceEpoch(0);
@@ -191,6 +198,7 @@ final class TaskWorkerCase extends UseCaseBase {
   var _lastClosureDraftReminderSweep = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastStaleRequestReminderSweep = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastContactResolutionSweep = DateTime.fromMillisecondsSinceEpoch(0);
+  var _lastBudAnchorSweep = DateTime.fromMillisecondsSinceEpoch(0);
 
   late final _tasks = <Future<void> Function()>[
     // Trust publisher: cadence 10 s; nudge() forces the next tick.
@@ -234,6 +242,18 @@ final class TaskWorkerCase extends UseCaseBase {
       }
       _lastContactResolutionSweep = now;
       await _contactResolutionSweep?.run();
+    },
+    // Bud anchor inheritance (Arch §8.1): cadence 10 s; a bud nudges it.
+    () async {
+      final sweep = _budAnchorSweep;
+      if (sweep == null) return;
+      final now = DateTime.timestamp();
+      if (!sweep.consumeNudge() &&
+          now.difference(_lastBudAnchorSweep) < const Duration(seconds: 10)) {
+        return;
+      }
+      _lastBudAnchorSweep = now;
+      await sweep.run();
     },
     // Weekly nudge to the author of a stale open request.
     () async {
