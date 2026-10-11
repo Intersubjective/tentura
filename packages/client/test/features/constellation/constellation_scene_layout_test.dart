@@ -54,6 +54,54 @@ void main() {
       expect(positions[tenturaGraphNodeId(peerNode)], isNotNull);
     });
 
+    test('the composer draft needs no layout position', () async {
+      const draft = FieldDraftNode();
+      final positions = await layoutPositionsOnce(
+        algorithm,
+        nodes: {egoNode, peerNode, draft},
+        edges: const {},
+        canvasSize: const Size(4200, 4200),
+      );
+      expect(positions[tenturaGraphNodeId(egoNode)], isNotNull);
+      expect(positions[tenturaGraphNodeId(peerNode)], isNotNull);
+      expect(positions.containsKey(tenturaGraphNodeId(draft)), isFalse);
+    });
+
+    test('a kept person on no trust path still gets a layout seat', () async {
+      // A composer candidate (or a member kept after its Request closed) is
+      // kept and drawn but neither a path holder nor a holder's ancestor.
+      final loosePaths = resolveConstellationPaths(
+        egoId: egoId,
+        visiblePeerIds: const {'peer-a', 'loose'},
+        holderIds: {egoId, 'peer-a'},
+        edges: const [],
+      );
+      expect(loosePaths.keep.union(loosePaths.ring), isNot(contains('loose')));
+      final looseAlgorithm = ConstellationSceneLayoutAlgorithm(
+        egoId: egoId,
+        paths: loosePaths,
+        keptPeerIds: const {'peer-a', 'loose'},
+        maxHops: 3,
+        visibleRequestsByAuthor: const {},
+        egoOwnRequestIds: const {},
+      );
+      const looseNode = FieldPersonNode(
+        person: Profile(id: 'loose', displayName: 'Loose'),
+        ring: 3,
+        isKept: false,
+      );
+      final positions = await layoutPositionsOnce(
+        looseAlgorithm,
+        nodes: {egoNode, peerNode, looseNode},
+        edges: const {},
+        canvasSize: const Size(4200, 4200),
+      );
+      final loose = positions[tenturaGraphNodeId(looseNode)];
+      expect(loose, isNotNull);
+      expect(loose, isNot(positions[tenturaGraphNodeId(egoNode)]));
+      expect(loose, isNot(positions[tenturaGraphNodeId(peerNode)]));
+    });
+
     test('payload refresh keeps positions when topology unchanged', () async {
       final first = await layoutPositionsOnce(
         algorithm,

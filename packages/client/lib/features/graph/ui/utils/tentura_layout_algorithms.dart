@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:tentura/features/constellation/ui/util/constellation_perf.dart';
 
+import '../../domain/entity/node_details.dart';
 import '../../domain/layout/layered_dag_positions.dart';
 import '../../domain/layout/radial_hop_positions.dart';
 import 'graph_scene_ids.dart';
@@ -320,30 +321,63 @@ final class ConstellationSceneLayoutAlgorithm implements SceneLayoutAlgorithm {
     if (slicer == null || request.nodeIds.isEmpty) {
       return _layoutSync(request);
     }
+    final ({
+      Map<String, GraphNodeId> graphIdByDomain,
+      ConstellationPlacedLayoutInput input,
+    })
+    prepared;
+    final LayoutJob job;
+    try {
+      prepared = _prepare(request);
+      job = ConstellationLayoutEngine(
+        newIndex: BruteForceIndex.new,
+      ).start(null, prepared.input);
+    } catch (error, stackTrace) {
+      return Stream.error(error, stackTrace);
+    }
     final controller = StreamController<GraphLayoutFrame>();
-    final prepared = _prepare(request);
-    final job = ConstellationLayoutEngine(
-      newIndex: BruteForceIndex.new,
-    ).start(null, prepared.input);
+    // Like the sync path, a throw while laying out ends the stream with an
+    // error (a failed layout outcome); it must never escape into the
+    // scheduler task and leave the stream open forever.
+    void fail(Object error, StackTrace stackTrace) {
+      if (controller.isClosed) return;
+      controller.addError(error, stackTrace);
+      unawaited(controller.close());
+    }
+
+    bool step(int units) {
+      if (controller.isClosed) return true;
+      try {
+        return job.step(units);
+      } catch (error, stackTrace) {
+        fail(error, stackTrace);
+        return true;
+      }
+    }
+
     void onComplete() {
       if (controller.isClosed) return;
-      controller
-        ..add(
-          _frame(
-            request,
-            _constellationPositionsFromDomainMap(
-              graphIdByDomain: prepared.graphIdByDomain,
-              domainPositions: job.result.positions,
-              request: request,
-            ),
+      final GraphLayoutFrame frame;
+      try {
+        frame = _frame(
+          request,
+          _constellationPositionsFromDomainMap(
+            graphIdByDomain: prepared.graphIdByDomain,
+            domainPositions: job.result.positions,
+            request: request,
           ),
-        )
-        ..close();
+        );
+      } catch (error, stackTrace) {
+        fail(error, stackTrace);
+        return;
+      }
+      controller.add(frame);
+      unawaited(controller.close());
     }
 
     controller
       ..onListen = () {
-        slicer.start(step: job.step, onComplete: onComplete);
+        slicer.start(step: step, onComplete: onComplete);
       }
       ..onCancel = () {
         slicer.cancelJob(onComplete);
@@ -393,7 +427,7 @@ final class ConstellationSceneLayoutAlgorithm implements SceneLayoutAlgorithm {
       graphIdByDomain: graphIdByDomain,
       input: (
         egoId: egoId,
-        paths: paths,
+        paths: _pathsSeatingOffPathPeers(graphIdByDomain.keys.toSet()),
         automaticKeptPeerIds: keptPeerIds,
         pinnedPersonIds: pinnedPersonIds,
         pinnedRequestIds: pinnedRequestIds,
@@ -409,6 +443,36 @@ final class ConstellationSceneLayoutAlgorithm implements SceneLayoutAlgorithm {
         viewportClass: viewportClass,
         footprints: footprints,
       ),
+    );
+  }
+
+  /// The domain layout seats a kept person only on the trust tree
+  /// (`paths.keep`) or the residual ring. A drawn kept
+  /// person that is neither a path holder nor a holder's ancestor — a
+  /// composer candidate, or a Request member kept after its Request was
+  /// deselected — would get no seat at all, so it joins the residual ring.
+  /// Hard-pinned people are seated by their anchor and are left out.
+  ConstellationPathResolution _pathsSeatingOffPathPeers(Set<String> drawnIds) {
+    final offPath = <String>{
+      for (final id in keptPeerIds)
+        if (id != egoId &&
+            drawnIds.contains(id) &&
+            !paths.keep.contains(id) &&
+            !paths.ring.contains(id) &&
+            !(pinnedPersonIds.contains(id) && anchorByNodeId.containsKey(id)))
+          id,
+    };
+    if (offPath.isEmpty) {
+      return paths;
+    }
+    return (
+      depth: paths.depth,
+      derived: paths.derived,
+      parent: paths.parent,
+      parentTier: paths.parentTier,
+      attributed: paths.attributed,
+      keep: paths.keep,
+      ring: {...paths.ring, ...offPath},
     );
   }
 
@@ -464,6 +528,11 @@ final class ConstellationSceneLayoutAlgorithm implements SceneLayoutAlgorithm {
       final prior = previous[graphId];
       if (prior != null) {
         result[graphId] = prior;
+        continue;
+      }
+      // The composer's draft is placed by its presentation, never by layout.
+      if (domainId == FieldDraftNode.draftId &&
+          graphId == const FieldDraftNode().graphNodeId) {
         continue;
       }
       assert(

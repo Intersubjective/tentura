@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:ui' show Offset;
+import 'dart:ui' show Offset, Size;
 
 import 'package:flutter_test/flutter_test.dart';
 
@@ -12,6 +12,7 @@ import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart'
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
 import '../../support/constellation_store_fixture.dart';
+import '../graph/scene_layout_test_support.dart';
 
 final _loadedAt = DateTime.utc(2026, 10, 3, 12);
 
@@ -172,6 +173,26 @@ void main() {
             reason: 'existing node ${entry.key} (pinned or not) must not move',
           );
         }
+      },
+    );
+
+    test(
+      'a scene layout while composing seats every widened candidate',
+      () async {
+        await enter();
+        expect(cubit.state.paths!.keep, isNot(contains(hiddenPeer)));
+        expect(cubit.state.paths!.ring, isNot(contains(hiddenPeer)));
+
+        // A layout that runs while composing (a queued handoff, a recovery)
+        // sees the candidate in the topology with no previous position.
+        final positions = await layoutPositionsOnce(
+          cubit.constellationSceneLayoutAlgorithm,
+          nodes: cubit.graphController.nodes.toSet(),
+          edges: const {},
+          canvasSize: const Size(4200, 4200),
+        );
+
+        expect(positions['fp:$hiddenPeer'], isNotNull);
       },
     );
 

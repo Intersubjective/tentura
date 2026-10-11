@@ -79,6 +79,85 @@ void main() {
       addTearDown(scene.dispose);
     });
 
+    testWidgets('a kept person on no trust path is placed', (tester) async {
+      const loose = FieldPersonNode(
+        person: Profile(id: 'c', displayName: 'C'),
+        ring: 3,
+        isKept: false,
+      );
+      scene
+        ..layoutKeptPeerIds = const {'b', 'c'}
+        ..layoutPaths = resolveConstellationPaths(
+          egoId: 'a',
+          visiblePeerIds: const {'b', 'c'},
+          holderIds: const {'a', 'b'},
+          edges: const [],
+        );
+      final looseAlgorithm = scene.layoutAlgorithm(
+        graphRevision: 2,
+        viewerId: 'a',
+        statePaths: null,
+        stateKeptPeerIds: const {'b', 'c'},
+        forgetPriorHintNodeIds: const {},
+      );
+      final frames = <GraphLayoutFrame>[];
+      Object? error;
+      var done = false;
+      looseAlgorithm
+          .layout(
+            sceneLayoutRequest(nodes: {_ego, _peer, loose}, edges: const {}),
+          )
+          .listen(
+            frames.add,
+            onError: (Object e) => error = e,
+            onDone: () => done = true,
+          );
+
+      for (var i = 0; i < 20 && !done; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+
+      expect(error, isNull);
+      expect(done, isTrue);
+      expect(frames.single.positions.keys, contains(loose.graphNodeId));
+      addTearDown(scene.dispose);
+    });
+
+    testWidgets(
+      'a throw on completion ends the stream with an error, not a hang',
+      (tester) async {
+        // A person node the domain layout was never given has no seat; in
+        // debug the missing-position assert throws inside onComplete.
+        const stray = FieldPersonNode(
+          person: Profile(id: 'stray', displayName: 'Stray'),
+          ring: 3,
+          isKept: false,
+        );
+        final frames = <GraphLayoutFrame>[];
+        Object? error;
+        var done = false;
+        algorithm
+            .layout(
+              sceneLayoutRequest(nodes: {_ego, _peer, stray}, edges: const {}),
+            )
+            .listen(
+              frames.add,
+              onError: (Object e) => error = e,
+              onDone: () => done = true,
+            );
+
+        for (var i = 0; i < 20 && !done; i++) {
+          await tester.pump(const Duration(milliseconds: 16));
+        }
+
+        expect(tester.takeException(), isNull);
+        expect(done, isTrue, reason: 'the stream must close');
+        expect(frames, isEmpty);
+        expect(error, isA<AssertionError>());
+        addTearDown(scene.dispose);
+      },
+    );
+
     testWidgets('a newer layout request cancels the older job', (tester) async {
       var firstFrames = 0;
       var secondFrames = 0;
