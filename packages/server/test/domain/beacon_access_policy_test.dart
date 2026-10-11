@@ -129,4 +129,82 @@ void main() {
     // Each of 10 bits is false in half of the 1024 unblocked vectors.
     expect(flips, 8 * 10 * 512);
   });
+
+  group('budding read wall (B3, mirrors post_bud_read_wall_pg_test)', () {
+    BeaconAccessFacts facts({
+      bool isBlocked = false,
+      bool isAdmitted = false,
+      bool hasForward = false,
+      bool isOfferer = false,
+      bool parentMember = false,
+      bool descendantMember = false,
+      bool isPost = false,
+      bool parentIsPost = false,
+      bool isBudObserver = false,
+    }) => BeaconAccessFacts(
+      status: BeaconStatus.open,
+      isBlocked: isBlocked,
+      isAuthor: false,
+      isSteward: false,
+      isAdmitted: isAdmitted,
+      hasActiveForwardEdgeAsRecipient: hasForward,
+      isActiveHelpOfferer: isOfferer,
+      isDiscoverable: false,
+      isPublished: true,
+      isTrustVisibleWithAuthor: false,
+      isMemberOfImmediateParent: parentMember,
+      isMemberOfDescendant: descendantMember,
+      isPost: isPost,
+      parentIsPost: parentIsPost,
+      isBudObserver: isBudObserver,
+    );
+
+    final contextChild = BeaconAccessReason.contextChild.bit;
+    final contextAncestor = BeaconAccessReason.contextAncestor.bit;
+
+    test('a snapshot observer reads the Post child', () {
+      final f = facts(
+        parentIsPost: true,
+        parentMember: true,
+        isBudObserver: true,
+      );
+      expect(BeaconAccessPolicy.reasons(f), contextChild);
+      expect(BeaconAccessPolicy.level(f), BeaconAccessLevel.observer);
+    });
+
+    test('a live Post member without a snapshot row cannot', () {
+      final f = facts(parentIsPost: true, parentMember: true);
+      expect(BeaconAccessPolicy.reasons(f), 0);
+      expect(BeaconAccessPolicy.level(f).canReadContent, isFalse);
+    });
+
+    test('a blocked observer cannot', () {
+      final f = facts(
+        isBlocked: true,
+        parentIsPost: true,
+        isBudObserver: true,
+      );
+      expect(BeaconAccessPolicy.level(f), BeaconAccessLevel.stranger);
+    });
+
+    test('child helpers and forward recipients never read the Post', () {
+      // Their child membership is the descendant fact on the Post.
+      final f = facts(isPost: true, descendantMember: true);
+      expect(BeaconAccessPolicy.reasons(f), 0);
+      expect(BeaconAccessPolicy.level(f).canReadContent, isFalse);
+    });
+
+    test('Request parents keep live shared context (#146)', () {
+      expect(
+        BeaconAccessPolicy.reasons(facts(parentMember: true)),
+        contextChild,
+      );
+      expect(
+        BeaconAccessPolicy.reasons(facts(descendantMember: true)),
+        contextAncestor,
+      );
+      // A stray snapshot row grants nothing under a Request parent.
+      expect(BeaconAccessPolicy.reasons(facts(isBudObserver: true)), 0);
+    });
+  });
 }
